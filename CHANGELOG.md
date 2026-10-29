@@ -7,6 +7,19 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Procedural levels are denser and less stringy: boots lie on the corridor instead of a side
+  alcove, hubs are bigger and widen into the gaps around them (`hub.bayCells`), wings and
+  chain pieces are placed against a bounding-box cost, and the most compact of several
+  layouts is kept (`layoutSamples`). Pieces with few dead ends are preferred
+  (`maxPieceDeadEnds`) and reward rooms are at least two cells deep.
+- Procedural packs vary: no two levels within `noRepeatWindow` share a lead motif or a hub
+  outline, both derived from the pack seed, so a level can still be rebuilt on its own.
+  Level 1 is a single tier-1 puzzle before the exit, and puzzles that can be failed for good
+  come first in a level.
+- The level scorer also weighs dead ends on the playfield and the walking between pieces
+  against the moves spent inside them (`scoring` in `game.json`).
+- `report:levels` adds playfield metrics (fill, open share, dead share, junction share,
+  symmetry, monster presence) and walk per decision.
 - Walls join into continuous masses, seen slightly from the south: a lit rim along the
   edges facing the floor, a darker interior and a front face, in both renderers (brick
   bond in 16-Bit Retro). Walls, doors and blue walls throw a soft shadow on the floor

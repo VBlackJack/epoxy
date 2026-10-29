@@ -32,6 +32,10 @@ export interface LevelProof {
   ticks: number;
   /** Distinct cells the player stood on during the run. */
   visitedCells: number;
+  /** Actions spent walking between pieces: corridors, hub floor, detours for items. */
+  walkMoves: number;
+  /** Actions spent solving the pieces themselves. */
+  pieceMoves: number;
 }
 
 /** Solutions per oriented piece and starting inventory; pieces repeat across levels. */
@@ -59,6 +63,7 @@ export class LevelProver {
     const engine = new GameEngine();
     engine.loadLevel(level);
     const moves: SolverAction[] = [];
+    let pieceMoves = 0;
     const visited = new Set<number>();
     const width = level.terrain[0].length;
     const track = (): void => {
@@ -70,7 +75,9 @@ export class LevelProver {
       solved: false,
       moves,
       ticks: engine.getTick(),
-      visitedCells: visited.size
+      visitedCells: visited.size,
+      walkMoves: moves.length - pieceMoves,
+      pieceMoves
     });
 
     for (const segment of route) {
@@ -85,11 +92,13 @@ export class LevelProver {
         continue;
       }
       if (segment.kind === 'piece' && segment.towards === 'entry') {
-        const back = PieceSolver.solveInLevel(engine, segment.piece, segment.origin, undefined, 'entry');
-        if (!back.moves) return failed();
-        for (const action of back.moves) {
+        const back = this.calmWayBack(engine, segment.piece, segment.origin);
+        const backMoves = back ?? PieceSolver.solveInLevel(engine, segment.piece, segment.origin, undefined, 'entry').moves;
+        if (!backMoves) return failed();
+        for (const action of backMoves) {
           if (!PieceSolver.play(engine, action)) return failed();
           moves.push(action);
+          pieceMoves++;
           track();
         }
         continue;
@@ -109,6 +118,7 @@ export class LevelProver {
         // Some winning moves are refused yet change the board (a hidden wall shows up).
         if (!PieceSolver.play(engine, action)) return failed();
         moves.push(action);
+        pieceMoves++;
         track();
       }
       if (segment.isFinale) break;
@@ -118,7 +128,39 @@ export class LevelProver {
     }
 
     const solved = engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
-    return { solved, moves, ticks: engine.getTick(), visitedCells: visited.size };
+    return {
+      solved,
+      moves,
+      ticks: engine.getTick(),
+      visitedCells: visited.size,
+      walkMoves: moves.length - pieceMoves,
+      pieceMoves
+    };
+  }
+
+  /**
+   * The way out of a solved piece, when plain walking does it: the shortest
+   * calm path to the entry port, trial-played on a saved state so the engine
+   * is left as found. Null when monsters move in the piece or the walk
+   * disturbs anything; the caller then searches the whole state space.
+   */
+  private static calmWayBack(engine: GameEngine, piece: CompiledPiece, origin: GridPoint): Direction[] | null {
+    if (PieceSolver.hasMonsters(piece)) return null;
+    const target = { x: origin.x + piece.entry.x, y: origin.y + piece.entry.y };
+    const path = this.safePath(engine, target);
+    if (!path) return null;
+    const saved = engine.captureState();
+    let arrived = true;
+    for (const dir of path) {
+      if (!engine.attemptPlayerMove(dir) || !PieceSolver.settle(engine)) {
+        arrived = false;
+        break;
+      }
+    }
+    const player = engine.getPlayer();
+    arrived = arrived && player.x === target.x && player.y === target.y;
+    engine.restoreState(saved);
+    return arrived ? path : null;
   }
 
   /**

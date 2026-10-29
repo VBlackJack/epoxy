@@ -129,6 +129,14 @@ export interface HubConfig {
   hubChips: number;
   /** Depth of a hazard lock, in cells. */
   hazardDepth: number;
+  /** Placements that fit tried per wing; the cheapest in density is kept. */
+  wingPlacementSamples: number;
+  /** Layouts built per attempt for the same wings; the one filling its bounding box best is kept. */
+  layoutSamples: number;
+  /** Floor cells the hub may gain in the gaps around it, within the level's bounds. */
+  bayCells: number;
+  /** Fill the level aims for: a wing's bounding box growth is weighed at this rate against the cells it adds. */
+  fillTarget: number;
   /** Failed attempts after which a level drops one puzzle to fit around the hub. */
   attemptsPerDroppedPiece: number;
   doorGates: HubGateConfig[];
@@ -152,6 +160,13 @@ export interface ProceduralScoringConfig {
   weightCorridor: number;
   weightRevisit: number;
   weightVariety: number;
+  /** Dead-end share of the playfield at which the dead-end term reaches 0. */
+  deadShareCeiling: number;
+  /** Band of moves walked between pieces per move spent inside them that scores full marks. */
+  walkPerDecisionLow: number;
+  walkPerDecisionHigh: number;
+  weightDeadEnd: number;
+  weightWalk: number;
 }
 
 export interface ProceduralConfig {
@@ -171,6 +186,14 @@ export interface ProceduralConfig {
   /** Extra side length given to each new attempt after a layout failure. */
   regionGrowthPerRetry: number;
   placementSamplesPerPiece: number;
+  /** Layouts built per attempt for the same chain; the one filling its bounding box best is kept. */
+  layoutSamples: number;
+  /**
+   * Weight of the bounding-box growth in the score of a chain placement, in
+   * units of corridor length per piece footprint of growth: higher packs
+   * the level tighter, lower keeps corridors near their target length.
+   */
+  placementCompactness: number;
   minCorridorLength: number;
   maxCorridorLength: number;
   /** A rest room follows every this many puzzle pieces; 0 disables them. */
@@ -179,8 +202,12 @@ export interface ProceduralConfig {
   hardPiecesFromLevel: number;
   /** First level allowed to use pieces marked oneShot in motifs.json. */
   oneShotFromLevel: number;
-  /** Depth of the side alcove holding boots a piece needs. */
-  bootAlcoveLength: number;
+  /** Pieces with more dead ends than this are drawn only when the motif has nothing tidier. */
+  maxPieceDeadEnds: number;
+  /** Motifs whose puzzles can be failed for good; they come first in a level. */
+  irreversibleMotifs: string[];
+  /** Consecutive levels of a pack that must differ in lead motif and in hub shape. */
+  noRepeatWindow: number;
   /** Levels up to this number have no time limit. */
   untimedUpToLevel: number;
   /** Thinking time granted per puzzle piece, on top of the stretched run time. */

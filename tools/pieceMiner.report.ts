@@ -113,6 +113,7 @@ function toPiece(theme: Theme, room: Room): CompiledPiece {
     requires: [],
     rotatable: true,
     oneShot: false,
+    deadEnds: 0,
     orientation: IDENTITY_ORIENTATION
   };
 }
