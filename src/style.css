@@ -1468,6 +1468,13 @@ body.fullscreen-mode .bezel-header {
     height: min(96dvw, 52dvh);
   }
 
+  /* Board, pad and HUD are taller than a portrait screen: centring them would cut the
+     top of the board off. Keep the board at the top and let the HUD scroll below it. */
+  body.fullscreen-mode .view-section {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
   #hud-btn-undo,
   #hud-btn-objective,
   #hud-btn-restart {
@@ -1671,4 +1678,27 @@ body.fullscreen-mode .bezel-header {
   .led-danger {
     animation: none;
   }
+}
+.procedural-seed-field {
+  font-family: monospace;
+  font-size: 1rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.procedural-seed-label {
+  font-family: monospace;
+  color: var(--text-main);
+}
+
+.hint-text {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.clipboard-scratch {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+  opacity: 0;
 }
