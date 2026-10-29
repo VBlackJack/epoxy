@@ -30,6 +30,9 @@ import { loadTestConfigs } from '../test/loadTestConfigs';
 const SAMPLE_SEEDS = [1, 2, 3];
 const SAMPLE_LEVELS = Array.from({ length: 10 }, (_, i) => i + 1);
 const SAMPLE_TIMEOUT_MS = 120000;
+/** Variety expected over the sample: levels must not all look alike. */
+const MIN_DISTINCT_HUB_SHAPES = 4;
+const MIN_DISTINCT_THEMES = 3;
 
 describe('ProceduralGenerator', () => {
   let sample: GeneratedLevel[] = [];
@@ -67,6 +70,13 @@ describe('ProceduralGenerator', () => {
         ).toBe(false);
       }
     }
+  });
+
+  it('varies hub outlines and themes across levels', () => {
+    const shapes = new Set(sample.map((g) => g.hubShape).filter(Boolean));
+    const themes = new Set(sample.map((g) => g.level.theme).filter(Boolean));
+    expect(shapes.size).toBeGreaterThanOrEqual(MIN_DISTINCT_HUB_SHAPES);
+    expect(themes.size).toBeGreaterThanOrEqual(MIN_DISTINCT_THEMES);
   });
 
   it('builds hub levels from the configured level on', () => {

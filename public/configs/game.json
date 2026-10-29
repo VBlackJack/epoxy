@@ -118,13 +118,21 @@
     "minTimeLimitSeconds": 60,
     "hub": {
       "fromLevel": 3,
-      "width": 5,
-      "height": 5,
+      "shapes": [
+        { "id": "square", "rows": [".....", ".....", ".....", ".....", "....."] },
+        { "id": "cross", "rows": ["##...##", "##...##", ".......", ".......", ".......", "##...##", "##...##"] },
+        { "id": "ring", "rows": [".......", ".......", "..###..", "..###..", "..###..", ".......", "......."] },
+        { "id": "hall", "rows": [".........", ".........", "........."] },
+        { "id": "gallery", "rows": ["...", "...", "...", "...", "...", "...", "...", "...", "..."] },
+        { "id": "pillars", "rows": [".......", ".#.#.#.", ".......", ".#.#.#.", "......."] },
+        { "id": "corner", "rows": ["...####", "...####", "...####", ".......", ".......", "......."] }
+      ],
       "maxShift": 7,
       "openWings": 2,
       "maxConnectorLength": 2,
-      "rewardRoomWidth": 3,
-      "rewardRoomDepth": 2,
+      "rewardRoomWidths": [2, 3, 4],
+      "rewardRoomDepths": [1, 2, 3],
+      "rewardRoomPillarMinSize": 3,
       "rewardChips": 1,
       "hubChips": 1,
       "hazardDepth": 2,
@@ -139,6 +147,21 @@
         { "terrain": "water", "item": "boots_water" },
         { "terrain": "force_n", "item": "boots_force", "orientTowardHub": true }
       ]
+    },
+    "motifThemes": {
+      "ice": "arctic_lab",
+      "water": "arctic_lab",
+      "blocks_water": "arctic_lab",
+      "fire": "magma_core",
+      "bomb": "magma_core",
+      "monsters": "magma_core",
+      "sokoban": "lynx_lcd",
+      "trap": "lynx_lcd",
+      "toggle_walls": "lynx_lcd",
+      "keys_doors": "cyber_neon",
+      "force": "cyber_neon",
+      "teleport": "cyber_neon",
+      "thief": "cyber_neon"
     },
     "scoring": {
       "candidates": 3,

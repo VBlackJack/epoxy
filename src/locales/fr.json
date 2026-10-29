@@ -34,6 +34,7 @@
       "retry": { "action": "Réessayer" }
     },
     "themes": {
+      "auto": { "label": "Auto (selon le niveau)" },
       "cyber_neon": { "label": "Cyber Néon" },
       "arctic_lab": { "label": "Labo Arctique" },
       "magma_core": { "label": "Usine Magma" },

@@ -28,6 +28,8 @@ const WALL_TILE_ID = 'wall';
 const EXIT_TILE_ID = 'exit';
 const CHIP_ITEM_ID = 'chip';
 const MAP_MARGIN = 1;
+/** Floor character of hub outlines in game.json. */
+const HUB_FLOOR_CHAR = '.';
 /** Segment id of the hub floor; wings use two ids each, before and after their puzzle. */
 const HUB_SEGMENT = 0;
 const NO_SEGMENT = -1;
@@ -41,6 +43,8 @@ export interface LevelGuard {
 
 export interface AssembledHubLevel extends AssembledLevel {
   guards: LevelGuard[];
+  /** Id of the hub outline used, from game.json. */
+  hubShape: string;
 }
 
 interface WingPlacement {
@@ -87,6 +91,8 @@ export class HubAssembler {
   private readonly cloneLinks: CloneLink[] = [];
   private readonly boxes: Box[] = [];
   private hub: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
+  /** Floor cells of the hub, by key. */
+  private hubFloor = new Set<number>();
   private chipCount = 0;
 
   private constructor(
@@ -108,19 +114,32 @@ export class HubAssembler {
   }
 
   private build(plan: HubPlan): AssembledHubLevel | null {
-    // Off centre, the hub leaves one side deep enough for long wings.
+    // A different outline per attempt, shifted off centre so one side leaves
+    // room for long wings.
+    const shape = this.cfg.shapes[this.rng.nextInt(0, this.cfg.shapes.length - 1)];
+    const shapeHeight = shape.rows.length;
+    const shapeWidth = Math.max(...shape.rows.map((r) => r.length));
     const shiftX = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
     const shiftY = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
-    const x0 = Math.floor((this.width - this.cfg.width) / 2) + shiftX;
-    const y0 = Math.floor((this.height - this.cfg.height) / 2) + shiftY;
-    this.hub = { x0, y0, x1: x0 + this.cfg.width - 1, y1: y0 + this.cfg.height - 1 };
-    for (let y = this.hub.y0 - 1; y <= this.hub.y1 + 1; y++) {
-      for (let x = this.hub.x0 - 1; x <= this.hub.x1 + 1; x++) this.take({ x, y });
+    const x0 = Math.max(MAP_MARGIN + 1, Math.min(this.width - shapeWidth - MAP_MARGIN - 1, Math.floor((this.width - shapeWidth) / 2) + shiftX));
+    const y0 = Math.max(MAP_MARGIN + 1, Math.min(this.height - shapeHeight - MAP_MARGIN - 1, Math.floor((this.height - shapeHeight) / 2) + shiftY));
+    this.hub = { x0, y0, x1: x0 + shapeWidth - 1, y1: y0 + shapeHeight - 1 };
+    this.hubFloor = new Set();
+    shape.rows.forEach((row, dy) =>
+      [...row].forEach((ch, dx) => {
+        if (ch === HUB_FLOOR_CHAR) this.hubFloor.add(this.key({ x: x0 + dx, y: y0 + dy }));
+      })
+    );
+    // The hub and every cell around it are taken; only its floor is open.
+    for (const k of this.hubFloor) {
+      const p = this.point(k);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.take({ x: p.x + dx, y: p.y + dy });
     }
-    for (let y = this.hub.y0; y <= this.hub.y1; y++) {
-      for (let x = this.hub.x0; x <= this.hub.x1; x++) this.open({ x, y }, HUB_SEGMENT);
-    }
-    const start = { x: Math.floor((this.hub.x0 + this.hub.x1) / 2), y: Math.floor((this.hub.y0 + this.hub.y1) / 2) };
+    for (const k of this.hubFloor) this.open(this.point(k), HUB_SEGMENT);
+    const centre = { x: (this.hub.x0 + this.hub.x1) / 2, y: (this.hub.y0 + this.hub.y1) / 2 };
+    const start = [...this.hubFloor]
+      .map((k) => this.point(k))
+      .sort((a, b) => Math.hypot(a.x - centre.x, a.y - centre.y) - Math.hypot(b.x - centre.x, b.y - centre.y))[0];
 
     // Place the largest wings first; the visit order stays the plan's.
     const order = plan.wings
@@ -164,21 +183,38 @@ export class HubAssembler {
       route,
       chipCount: this.chipCount,
       pieceBoxes: [...this.boxes],
-      guards
+      guards,
+      hubShape: shape.id
     };
+  }
+
+  /**
+   * Cells of the hub's wall ring where a wing may leave: next to exactly one
+   * hub floor cell, the wing heading straight away from it, with no hub floor
+   * beside the gate (a concave corner would open two ways).
+   */
+  private gateCandidates(): Array<{ gate: GridPoint; outward: Direction }> {
+    const candidates: Array<{ gate: GridPoint; outward: Direction }> = [];
+    for (const k of this.hubFloor) {
+      const floor = this.point(k);
+      for (const outward of ORDERED_DIRECTIONS) {
+        const gate = this.step(floor, outward);
+        const gk = this.key(gate);
+        if (this.hubFloor.has(gk) || !this.inMap(gate)) continue;
+        const touching = ORDERED_DIRECTIONS.filter((d) => this.hubFloor.has(this.key(this.step(gate, d))));
+        if (touching.length !== 1) continue;
+        // No hub floor diagonal to the gate either: the opening must be a clean notch.
+        const sideways: Direction[] = outward === 'N' || outward === 'S' ? ['E', 'W'] : ['N', 'S'];
+        if (sideways.some((d) => this.hubFloor.has(this.key(this.step(this.step(gate, d), outward))))) continue;
+        candidates.push({ gate, outward });
+      }
+    }
+    return candidates;
   }
 
   /** Tries every gate cell of the hub ring, in random order, for the wing. */
   private placeWing(wing: HubWing, index: number, finale: CompiledPiece): WingPlacement | null {
-    const candidates: Array<{ gate: GridPoint; outward: Direction }> = [];
-    for (let x = this.hub.x0 + 1; x < this.hub.x1; x++) {
-      candidates.push({ gate: { x, y: this.hub.y0 - 1 }, outward: 'N' });
-      candidates.push({ gate: { x, y: this.hub.y1 + 1 }, outward: 'S' });
-    }
-    for (let y = this.hub.y0 + 1; y < this.hub.y1; y++) {
-      candidates.push({ gate: { x: this.hub.x0 - 1, y }, outward: 'W' });
-      candidates.push({ gate: { x: this.hub.x1 + 1, y }, outward: 'E' });
-    }
+    const candidates = this.gateCandidates();
     this.rng.shuffle(candidates);
     const orientations = wing.piece.rotatable ? [...ALL_ORIENTATIONS] : [IDENTITY_ORIENTATION];
     this.rng.shuffle(orientations);
@@ -358,24 +394,41 @@ export class HubAssembler {
    * along the piece, one row past it.
    */
   private roomCells(first: GridPoint, exitDir: Direction, growDir: Direction): GridPoint[] {
+    const widths = this.cfg.rewardRoomWidths;
+    const depths = this.cfg.rewardRoomDepths;
+    const width = widths[this.rng.nextInt(0, widths.length - 1)];
+    const depth = depths[this.rng.nextInt(0, depths.length - 1)];
     const cells: GridPoint[] = [first];
     const add = (cell: GridPoint) => {
       if (!cells.some((c) => c.x === cell.x && c.y === cell.y)) cells.push(cell);
     };
+    const grid: GridPoint[][] = [];
     if (growDir === exitDir) {
       const lateral: Direction = exitDir === 'N' || exitDir === 'S' ? 'E' : 'S';
-      const half = Math.floor((this.cfg.rewardRoomWidth - 1) / 2);
-      for (let depth = 0; depth < this.cfg.rewardRoomDepth; depth++) {
-        const row = this.stepN(first, exitDir, depth);
-        for (let side = -half; side <= half; side++) {
-          add(side >= 0 ? this.stepN(row, lateral, side) : this.stepN(row, OPPOSITE_DIRECTION[lateral], -side));
-        }
+      const left = Math.floor((width - 1) / 2);
+      for (let d = 0; d < depth; d++) {
+        const row = this.stepN(first, exitDir, d);
+        grid.push(
+          Array.from({ length: width }, (_, i) => {
+            const side = i - left;
+            return side >= 0 ? this.stepN(row, lateral, side) : this.stepN(row, OPPOSITE_DIRECTION[lateral], -side);
+          })
+        );
       }
-      return cells;
+    } else {
+      for (let d = 0; d < depth; d++) {
+        grid.push(Array.from({ length: width + 1 }, (_, along) => this.stepN(this.stepN(first, growDir, along), exitDir, d)));
+      }
     }
-    for (let along = 0; along <= this.cfg.rewardRoomWidth; along++) {
-      for (let depth = 0; depth < this.cfg.rewardRoomDepth; depth++) {
-        add(this.stepN(this.stepN(first, growDir, along), exitDir, depth));
+    // A large enough room keeps a pillar in its middle, which changes its silhouette.
+    const pillar =
+      width >= this.cfg.rewardRoomPillarMinSize && depth >= this.cfg.rewardRoomPillarMinSize
+        ? grid[Math.floor(depth / 2)][Math.floor(grid[0].length / 2)]
+        : null;
+    for (const row of grid) {
+      for (const cell of row) {
+        if (pillar && cell.x === pillar.x && cell.y === pillar.y) continue;
+        add(cell);
       }
     }
     return cells;
@@ -445,15 +498,9 @@ export class HubAssembler {
 
   /** Hub cells that are free for an item, away from the start and the gates. */
   private hubCells(start: GridPoint): GridPoint[] {
-    const cells: GridPoint[] = [];
-    for (let y = this.hub.y0; y <= this.hub.y1; y++) {
-      for (let x = this.hub.x0; x <= this.hub.x1; x++) {
-        if (x === start.x && y === start.y) continue;
-        if (this.items[y][x]) continue;
-        cells.push({ x, y });
-      }
-    }
-    return cells;
+    return [...this.hubFloor]
+      .map((k) => this.point(k))
+      .filter((p) => !(p.x === start.x && p.y === start.y) && !this.items[p.y][p.x]);
   }
 
   private scatter(itemIds: string[], cells: GridPoint[]): GridPoint[] | null {

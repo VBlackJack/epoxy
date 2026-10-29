@@ -419,6 +419,7 @@ class ConfigRegistryService {
 
     return {
       id: bp.id,
+      ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
       number: bp.number,
       titleKey: bp.titleKey,
       customTitle: bp.customTitle,

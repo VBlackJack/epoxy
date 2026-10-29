@@ -48,6 +48,7 @@ import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewpo
 import {
   CANVAS_RESIZE_TOLERANCE_PX,
   DEFAULT_GRAPHICS_STYLE,
+  AUTO_THEME_ID,
   DEFAULT_THEME_ID,
   GAMEPAD_AXIS_THRESHOLD,
   GAMEPAD_AXIS_X,
@@ -120,6 +121,8 @@ class EpoxyApplication {
   /** Engine level the editor content was last synced with. */
   private editorSourceLevel: CompiledLevel | null = null;
   private generatingPack = false;
+  /** The theme follows each level instead of the player's pick. */
+  private autoTheme = true;
   /** Block positions last checked for a dead end. */
   private lastBlockLayout = '';
 
@@ -219,8 +222,10 @@ class EpoxyApplication {
       savedSettings.graphicsStyle || gameCfg.graphics?.defaultStyle || DEFAULT_GRAPHICS_STYLE;
     this.renderer.setStyle(defaultStyle);
 
+    // Each level shows its own theme unless the player picked one.
+    this.autoTheme = !savedSettings.themeId || savedSettings.themeId === AUTO_THEME_ID;
     const initialTheme =
-      savedSettings.themeId && gameCfg.themes?.[savedSettings.themeId]
+      !this.autoTheme && savedSettings.themeId && gameCfg.themes?.[savedSettings.themeId]
         ? savedSettings.themeId
         : gameCfg.graphics?.defaultTheme || DEFAULT_THEME_ID;
     this.renderer.setThemeId(initialTheme);
@@ -267,6 +272,7 @@ class EpoxyApplication {
         this.stopAutoMoveAndReplay();
         this.lastWarnedSecond = NO_WARNED_SECOND;
         this.engine.loadLevel(testLevel);
+        this.showLevelTheme(testLevel);
         // The editor already holds this content: do not reload it on return.
         this.editorSourceLevel = testLevel;
         this.updateHUD();
@@ -784,11 +790,16 @@ class EpoxyApplication {
     const themes = ConfigRegistry.getGame().themes;
     if (!select || !themes) return;
     select.innerHTML = '';
+    const auto = document.createElement('option');
+    auto.value = AUTO_THEME_ID;
+    auto.textContent = t('app.themes.auto.label');
+    auto.selected = this.autoTheme;
+    select.appendChild(auto);
     for (const theme of Object.values(themes)) {
       const opt = document.createElement('option');
       opt.value = theme.id;
       opt.textContent = t(theme.i18nKey);
-      if (theme.id === this.renderer.getThemeId()) {
+      if (!this.autoTheme && theme.id === this.renderer.getThemeId()) {
         opt.selected = true;
       }
       select.appendChild(opt);
@@ -799,16 +810,36 @@ class EpoxyApplication {
   }
 
   private applyTheme(themeId: string): void {
-    this.renderer.setThemeId(themeId);
+    this.autoTheme = themeId === AUTO_THEME_ID;
     const select = byId<HTMLSelectElement>('theme-select');
     if (select) {
       select.value = themeId;
     }
+    if (this.autoTheme) {
+      this.showLevelTheme(this.engine.getLevel());
+    } else {
+      this.showTheme(themeId);
+    }
+    this.saveUserSettings();
+  }
+
+  private showTheme(themeId: string): void {
+    this.renderer.setThemeId(themeId);
     const track = THEME_MUSIC_TRACKS[themeId];
     if (track) {
       AudioManager.setTrackById(track);
     }
-    this.saveUserSettings();
+  }
+
+  /** In automatic mode, shows the level's own theme, or the default one. */
+  private showLevelTheme(level: CompiledLevel): void {
+    if (!this.autoTheme) return;
+    const gameCfg = ConfigRegistry.getGame();
+    const themeId =
+      level.theme && gameCfg.themes?.[level.theme]
+        ? level.theme
+        : gameCfg.graphics?.defaultTheme || DEFAULT_THEME_ID;
+    if (themeId !== this.renderer.getThemeId()) this.showTheme(themeId);
   }
 
   private setupLocaleSelector(supported: string[], defaultLocale: string): void {
@@ -938,6 +969,7 @@ class EpoxyApplication {
     this.lastWarnedSecond = NO_WARNED_SECOND;
     this.currentLevelIndex = ((index % levels.length) + levels.length) % levels.length;
     this.engine.loadLevel(levels[this.currentLevelIndex]);
+    this.showLevelTheme(levels[this.currentLevelIndex]);
     this.saveProgress();
     this.updateHUD();
   }
@@ -2113,7 +2145,7 @@ class EpoxyApplication {
       const settings: UserSettings = {
         locale: i18n.getLocale(),
         fov: this.renderer.getViewportTiles(),
-        themeId: this.renderer.getThemeId(),
+        themeId: this.autoTheme ? AUTO_THEME_ID : this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
         shellEnabled: Boolean(byId('lynx-console')?.classList.contains('enabled')),
         sfxEnabled: AudioManager.isSfxEnabled(),

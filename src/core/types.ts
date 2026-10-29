@@ -98,19 +98,28 @@ export interface HubGateConfig {
   orientTowardHub?: boolean;
 }
 
+/** A hub outline: '.' is floor, anything else stays wall (pillars, cut corners). */
+export interface HubShapeConfig {
+  id: string;
+  rows: string[];
+}
+
 /** Hub layout: an open room the player starts in, with locked wings around it. */
 export interface HubConfig {
   /** First level built as a hub; earlier levels stay a simple chain. */
   fromLevel: number;
-  width: number;
-  height: number;
+  /** One outline is drawn per attempt, so hubs differ from level to level. */
+  shapes: HubShapeConfig[];
   /** Largest offset of the hub from the map centre, drawn per attempt. */
   maxShift: number;
   /** Wings open from the start, so the player chooses where to begin. */
   openWings: number;
   maxConnectorLength: number;
-  rewardRoomWidth: number;
-  rewardRoomDepth: number;
+  /** Reward room sizes, one drawn per room. */
+  rewardRoomWidths: number[];
+  rewardRoomDepths: number[];
+  /** Rooms at least this wide and deep get a pillar in the middle. */
+  rewardRoomPillarMinSize: number;
   rewardChips: number;
   hubChips: number;
   /** Depth of a hazard lock, in cells. */
@@ -177,6 +186,8 @@ export interface ProceduralConfig {
   minTimeLimitSeconds: number;
   scoring: ProceduralScoringConfig;
   hub: HubConfig;
+  /** Visual theme given to a level, after its main motif. */
+  motifThemes: Record<string, string>;
 }
 
 export interface KeybindingsConfig {
@@ -389,6 +400,7 @@ export interface EntityPlacement {
 
 export interface LevelBlueprint {
   id: string;
+  theme?: string;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -416,6 +428,8 @@ export interface LevelsConfig {
 
 export interface CompiledLevel {
   id: string;
+  /** Theme shown when the player lets the level choose; see game.json themes. */
+  theme?: string;
   number: number;
   titleKey?: string;
   customTitle?: string;

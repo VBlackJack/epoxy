@@ -64,6 +64,8 @@ function measureProcedural(): SetReport {
   const levels: CompiledLevel[] = [];
   const durations: number[] = [];
   const attempts: number[] = [];
+  const hubShapes: Record<string, number> = {};
+  const themes: Record<string, number> = {};
   let failures = 0;
   let unproven = 0;
   let bypassable = 0;
@@ -74,6 +76,9 @@ function measureProcedural(): SetReport {
         const generated = ProceduralGenerator.generateDetailed(n, seed);
         durations.push(performance.now() - started);
         attempts.push(generated.attempts);
+        if (generated.hubShape) hubShapes[generated.hubShape] = (hubShapes[generated.hubShape] ?? 0) + 1;
+        const theme = generated.level.theme ?? 'default';
+        themes[theme] = (themes[theme] ?? 0) + 1;
         levels.push(generated.level);
         if (!replays(generated.level, generated.solution)) unproven++;
         if (generated.guards.some((g) => cellReachableWithout(generated.level, g.box, g.guarded))) {
@@ -92,6 +97,8 @@ function measureProcedural(): SetReport {
       unprovenLevels: unproven,
       bypassableLevels: bypassable,
       attempts: summarizeField(attempts),
+      hubShapes,
+      themes,
       generationMs: summarizeField(durations)
     }
   };

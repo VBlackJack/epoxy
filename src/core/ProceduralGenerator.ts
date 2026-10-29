@@ -64,11 +64,14 @@ export interface GeneratedLevel {
   /** Walling a guard's box must cut its guarded cell off: no puzzle can be walked around. */
   guards: LevelGuard[];
   layout: 'chain' | 'hub';
+  /** Hub outline id, for hub levels. */
+  hubShape?: string;
 }
 
 /** What both layouts hand over to the proof and the scoring. */
 interface BuiltLayout {
   assembled: AssembledLevel;
+  hubShape?: string;
   guards: LevelGuard[];
   motifs: string[];
   pieceMotifs: string[];
@@ -176,6 +179,7 @@ export class ProceduralGenerator {
       const level: CompiledLevel = {
         id: `proc_${version}_${packSeed}_${levelNumber}`,
         number: levelNumber,
+        theme: cfg.motifThemes[motif],
         titleKey: `${MOTIF_KEY_PREFIX}${motif}${TITLE_KEY_SUFFIX}`,
         hintKey: `${MOTIF_KEY_PREFIX}${motif}${HINT_KEY_SUFFIX}`,
         password: this.generatePassword(packSeed + levelNumber),
@@ -216,7 +220,8 @@ export class ProceduralGenerator {
         pieceBoxes: assembled.pieceBoxes,
         pieceMotifs: built.pieceMotifs,
         guards: built.guards,
-        layout
+        layout,
+        hubShape: built.hubShape
       };
     }
     throw new ProceduralGenerationError(levelNumber, `no level after ${cfg.maxGenerationAttempts} attempts`);
@@ -261,7 +266,7 @@ export class ProceduralGenerator {
     const assembled = HubAssembler.assemble(plan, cfg.hub, rng);
     if (!assembled) return null;
     const pieceMotifs = [...plan.wings.map((w) => w.piece.motif), plan.finale.motif];
-    return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs };
+    return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs, hubShape: assembled.hubShape };
   }
 
   private static config(): ProceduralConfig {

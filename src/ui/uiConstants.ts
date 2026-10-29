@@ -55,6 +55,8 @@ export const TIMING_DEFAULTS = {
 /** Fallbacks for optional game.json "graphics" values. */
 export const DEFAULT_GRAPHICS_STYLE = 'modern';
 export const DEFAULT_THEME_ID = 'cyber_neon';
+/** Theme setting meaning: each level shows its own theme. */
+export const AUTO_THEME_ID = 'auto';
 
 /** Gamepad handling (standard mapping). */
 export const GAMEPAD_INDEX = 0;

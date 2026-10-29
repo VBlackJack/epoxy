@@ -79,6 +79,7 @@ function toBlueprint(level: CompiledLevel, legend: LevelsConfig['legend']): Leve
   );
   return {
     id: level.id,
+    theme: level.theme,
     number: level.number,
     titleKey: level.titleKey,
     hintKey: level.hintKey,
