@@ -15,6 +15,8 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { BUILTIN_PACK_IDS } from '../config/constants';
+import { InvalidLevelError } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
 import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
@@ -25,8 +27,32 @@ import {
   Direction,
   EntityPlacement,
   LevelBlueprint,
-  TrapLink
+  TrapLink,
+  ValidationIssue
 } from '../core/types';
+import { downloadBytes, downloadJson } from '../ui/download';
+import {
+  CUSTOM_LEVEL_ID_PREFIX,
+  EDITOR_CLONE_LINK_COLOR,
+  EDITOR_DEFAULT_CHIPS_REQUIRED,
+  EDITOR_DEFAULT_CLONE_TEMPLATE,
+  EDITOR_DEFAULT_PASSWORD,
+  EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
+  EDITOR_LINK_LINE_WIDTH,
+  EDITOR_PASSWORD_LENGTH,
+  EDITOR_TILE_CENTER_OFFSET,
+  EDITOR_TRAP_LINK_COLOR,
+  TIMING_DEFAULTS
+} from '../ui/uiConstants';
+
+const EXPORT_FALLBACK_FILE_NAME = 'epoxy_level';
+const METADATA_INPUT_IDS = [
+  'editor-meta-title',
+  'editor-meta-hint',
+  'editor-meta-password',
+  'editor-meta-time',
+  'editor-meta-chips'
+] as const;
 
 type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'eraser' | 'wire_trap' | 'wire_cloner';
 
@@ -50,20 +76,23 @@ export class LevelEditor {
   private renderer: PixelRenderer;
   private onTestPlay: (level: CompiledLevel) => void;
   private onLevelSaved: (levelIndex: number) => void;
+  private onNotify: (message: string) => void;
 
   private terrain: string[][] = [];
   private items: (string | null)[][] = [];
   private entities: EntityPlacement[] = [];
   private trapLinks: TrapLink[] = [];
   private cloneLinks: CloneLink[] = [];
-  private playerStart: { x: number; y: number; dir: Direction } = { x: 15, y: 15, dir: 'S' };
+  private playerStart: { x: number; y: number; dir: Direction } = { x: 0, y: 0, dir: 'S' };
 
-  private currentLevelId: string = 'custom_1';
-  private customTitle: string = 'Custom Puzzle';
+  private currentLevelId: string = '';
+  /** Custom id given to a non-custom level on its first save, stable afterwards. */
+  private draftCustomId: string | null = null;
+  private customTitle: string = '';
   private customHint: string = '';
-  private password: string = 'EDIT';
-  private timeLimitSeconds: number = 180;
-  private chipsRequired: number = 4;
+  private password: string = EDITOR_DEFAULT_PASSWORD;
+  private timeLimitSeconds: number = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
+  private chipsRequired: number = EDITOR_DEFAULT_CHIPS_REQUIRED;
 
   private activeCategory: string = 'terrain';
   private activeBrush: ActiveBrush = { kind: 'terrain', id: 'wall' };
@@ -80,7 +109,8 @@ export class LevelEditor {
     canvas: HTMLCanvasElement,
     renderer: PixelRenderer,
     onTestPlay: (level: CompiledLevel) => void,
-    onLevelSaved: (levelIndex: number) => void
+    onLevelSaved: (levelIndex: number) => void,
+    onNotify: (message: string) => void
   ) {
     this.canvas = canvas;
     const context = canvas.getContext('2d');
@@ -91,9 +121,19 @@ export class LevelEditor {
     this.renderer = renderer;
     this.onTestPlay = onTestPlay;
     this.onLevelSaved = onLevelSaved;
+    this.onNotify = onNotify;
 
     this.initBlankMap();
     this.bindCanvasEvents();
+    // Bound once: buildUI() runs again on graphics style changes and must
+    // not stack toolbar listeners.
+    this.bindToolbarEvents();
+    this.bindMetadataEvents();
+  }
+
+  /** True when the map or its metadata changed since the last load or save. */
+  public hasUnsavedChanges(): boolean {
+    return this.isDirty;
   }
 
   public initBlankMap(): void {
@@ -113,7 +153,13 @@ export class LevelEditor {
     this.trapLinks = [];
     this.cloneLinks = [];
     this.playerStart = { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' };
-    this.currentLevelId = `custom_${Date.now()}`;
+    this.currentLevelId = `${CUSTOM_LEVEL_ID_PREFIX}${Date.now()}`;
+    this.draftCustomId = null;
+    this.customTitle = t('editor.metadata.default_title.label');
+    this.customHint = '';
+    this.password = EDITOR_DEFAULT_PASSWORD;
+    this.timeLimitSeconds = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
+    this.chipsRequired = EDITOR_DEFAULT_CHIPS_REQUIRED;
     this.isDirty = false;
     this.undoStack = [];
     this.redoStack = [];
@@ -125,7 +171,8 @@ export class LevelEditor {
 
   public loadCompiledLevel(level: CompiledLevel): void {
     this.currentLevelId = level.id;
-    this.customTitle = level.customTitle || (level.titleKey ? t(level.titleKey) : level.id);
+    this.draftCustomId = null;
+    this.customTitle = this.resolveLevelTitle(level);
     this.customHint = level.customHint || (level.hintKey ? t(level.hintKey) : '');
     this.password = level.password;
     this.timeLimitSeconds = level.timeLimitSeconds;
@@ -149,9 +196,25 @@ export class LevelEditor {
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.populatePresetDropdown();
-    this.bindToolbarEvents();
     this.syncMetadataInputs();
     this.render();
+  }
+
+  private resolveLevelTitle(level: CompiledLevel): string {
+    return level.customTitle || (level.titleKey ? t(level.titleKey, { number: level.number }) : level.id);
+  }
+
+  /** Localized validator issue; a key id parameter is shown by its tile name. */
+  private formatIssue(issue: ValidationIssue): string {
+    const params = { ...(issue.params || {}) };
+    if (typeof params.key === 'string' && ConfigRegistry.getTiles().tiles[params.key]) {
+      params.key = t(ConfigRegistry.getTile(params.key).i18nKey);
+    }
+    return t(issue.i18nKey, params);
+  }
+
+  private formatIssues(issues: ValidationIssue[]): string {
+    return issues.map((iss) => this.formatIssue(iss)).join(t('validator.status.issue_separator.label'));
   }
 
   public refreshTranslations(): void {
@@ -328,8 +391,10 @@ export class LevelEditor {
     for (const lvl of levels) {
       const opt = document.createElement('option');
       opt.value = lvl.id;
-      const title = lvl.customTitle || (lvl.titleKey ? t(lvl.titleKey) : lvl.id);
-      opt.textContent = `#${lvl.number} - ${title}`;
+      opt.textContent = t('editor.toolbar.preset_option.label', {
+        number: lvl.number,
+        title: this.resolveLevelTitle(lvl)
+      });
       if (lvl.id === this.currentLevelId) {
         opt.selected = true;
       }
@@ -357,11 +422,19 @@ export class LevelEditor {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
       const report = LevelValidator.validate(compiled);
+      let issuesText = '';
       if (!report.valid && report.issues.length > 0) {
-        const firstIssue = report.issues[0];
-        this.setStatusText(t(firstIssue.i18nKey, firstIssue.params));
+        issuesText = this.formatIssues(report.issues);
+        this.setStatusText(issuesText);
+        if (!window.confirm(t('editor.toolbar.confirm_test_invalid.label', { issues: issuesText }))) {
+          return;
+        }
       }
       this.onTestPlay(compiled);
+      if (issuesText) {
+        // The editor view is hidden during test play: surface the issues there.
+        this.onNotify(issuesText);
+      }
     });
 
     document.getElementById('editor-validate-btn')?.addEventListener('click', () => {
@@ -376,16 +449,16 @@ export class LevelEditor {
           })
         );
       } else {
-        const messages = report.issues
-          .map((iss) => t(iss.i18nKey, iss.params))
-          .join(' | ');
-        this.setStatusText(messages);
+        this.setStatusText(this.formatIssues(report.issues));
       }
     });
 
     document.getElementById('editor-save-btn')?.addEventListener('click', () => {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
+      // From now on this editor session updates the saved custom level.
+      this.currentLevelId = compiled.id;
+      this.draftCustomId = null;
       const idx = ConfigRegistry.addOrUpdateCustomLevel(compiled);
       this.isDirty = false;
       this.populatePresetDropdown();
@@ -396,26 +469,16 @@ export class LevelEditor {
     document.getElementById('editor-export-btn')?.addEventListener('click', () => {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
-      const blob = new Blob([JSON.stringify(compiled, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${compiled.id || 'epoxy_level'}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadJson(compiled, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.json`);
     });
 
     document.getElementById('editor-export-ccl-btn')?.addEventListener('click', () => {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
-      const bytes = DatCodec.encodeLevels([compiled]);
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${compiled.id || 'epoxy_level'}.ccl`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBytes(
+        DatCodec.encodeLevels([compiled]),
+        `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`
+      );
     });
 
     const importInput = document.getElementById('editor-import-input') as HTMLInputElement | null;
@@ -426,6 +489,10 @@ export class LevelEditor {
     importInput?.addEventListener('change', () => {
       const file = importInput.files?.[0];
       if (!file) return;
+      if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
+        importInput.value = '';
+        return;
+      }
       const lower = file.name.toLowerCase();
 
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
@@ -457,8 +524,13 @@ export class LevelEditor {
             });
             this.loadCompiledLevel(compiled);
             this.setStatusText(t('editor.palette.status.imported'));
-          } catch {
-            this.setStatusText(t('editor.palette.status.import_error'));
+          } catch (err) {
+            const message =
+              err instanceof InvalidLevelError
+                ? t('editor.palette.status.invalid_level.label', { id: err.levelId })
+                : t('editor.palette.status.import_error');
+            this.setStatusText(message);
+            this.onNotify(message);
           }
         };
         reader.readAsText(file);
@@ -485,6 +557,9 @@ export class LevelEditor {
           if (cell === 'chip') count++;
         }
       }
+      if (count !== this.chipsRequired) {
+        this.isDirty = true;
+      }
       this.chipsRequired = count;
       const chipsInput = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
       if (chipsInput) chipsInput.value = String(count);
@@ -494,6 +569,14 @@ export class LevelEditor {
     dirSelect?.addEventListener('change', () => {
       this.activeDir = (dirSelect.value as Direction) || 'S';
     });
+  }
+
+  private bindMetadataEvents(): void {
+    for (const id of METADATA_INPUT_IDS) {
+      document.getElementById(id)?.addEventListener('input', () => {
+        this.isDirty = true;
+      });
+    }
   }
 
   private syncMetadataInputs(): void {
@@ -519,8 +602,10 @@ export class LevelEditor {
 
     if (titleEl && titleEl.value.trim()) this.customTitle = titleEl.value.trim();
     if (hintEl) this.customHint = hintEl.value.trim();
-    if (passEl && passEl.value.trim()) this.password = passEl.value.trim().toUpperCase().slice(0, 4);
-    if (timeEl) this.timeLimitSeconds = Math.max(0, Number(timeEl.value) || 180);
+    if (passEl && passEl.value.trim()) {
+      this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
+    }
+    if (timeEl) this.timeLimitSeconds = Math.max(0, Number(timeEl.value) || EDITOR_DEFAULT_TIME_LIMIT_SECONDS);
     if (chipsEl) this.chipsRequired = Math.max(0, Number(chipsEl.value) || 0);
   }
 
@@ -546,7 +631,7 @@ export class LevelEditor {
   }
 
   private pushUndoState(): void {
-    const maxUndo = ConfigRegistry.getGame().timing.maxUndoSnapshots || 100;
+    const maxUndo = ConfigRegistry.getGame().timing.maxUndoSnapshots || TIMING_DEFAULTS.maxUndoSnapshots;
     if (this.undoStack.length >= maxUndo) {
       this.undoStack.shift();
     }
@@ -561,6 +646,7 @@ export class LevelEditor {
     if (!prev) return;
     this.redoStack.push(this.createSnapshot());
     this.restoreSnapshot(prev);
+    this.isDirty = true;
     this.updateUndoRedoButtons();
   }
 
@@ -569,6 +655,7 @@ export class LevelEditor {
     if (!next) return;
     this.undoStack.push(this.createSnapshot());
     this.restoreSnapshot(next);
+    this.isDirty = true;
     this.updateUndoRedoButtons();
   }
 
@@ -720,7 +807,7 @@ export class LevelEditor {
           buttonY: this.pendingWireSource.y,
           clonerX: x,
           clonerY: y,
-          templateType: existingEnt?.type || 'dirt_block',
+          templateType: existingEnt?.type || EDITOR_DEFAULT_CLONE_TEMPLATE,
           templateDir: existingEnt?.dir || this.activeDir
         });
         this.pendingWireSource = null;
@@ -808,28 +895,47 @@ export class LevelEditor {
       true
     );
 
-    this.ctx.lineWidth = 2;
+    this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
     for (const link of this.trapLinks) {
-      this.ctx.strokeStyle = '#ffb300';
-      this.ctx.beginPath();
-      this.ctx.moveTo((link.buttonX + 0.5) * s, (link.buttonY + 0.5) * s);
-      this.ctx.lineTo((link.trapX + 0.5) * s, (link.trapY + 0.5) * s);
-      this.ctx.stroke();
+      this.drawLinkLine(EDITOR_TRAP_LINK_COLOR, link.buttonX, link.buttonY, link.trapX, link.trapY, s);
     }
-
     for (const link of this.cloneLinks) {
-      this.ctx.strokeStyle = '#ff1744';
-      this.ctx.beginPath();
-      this.ctx.moveTo((link.buttonX + 0.5) * s, (link.buttonY + 0.5) * s);
-      this.ctx.lineTo((link.clonerX + 0.5) * s, (link.clonerY + 0.5) * s);
-      this.ctx.stroke();
+      this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
   }
 
+  private drawLinkLine(color: string, fromX: number, fromY: number, toX: number, toY: number, s: number): void {
+    const c = EDITOR_TILE_CENTER_OFFSET;
+    this.ctx.strokeStyle = color;
+    this.ctx.beginPath();
+    this.ctx.moveTo((fromX + c) * s, (fromY + c) * s);
+    this.ctx.lineTo((toX + c) * s, (toY + c) * s);
+    this.ctx.stroke();
+  }
+
+  /**
+   * Id under which this map is saved. A custom level keeps its id; any other
+   * level gets one custom id, generated on first use and reused afterwards,
+   * so saving twice updates one copy instead of creating two.
+   */
+  private resolveCustomLevelId(): string {
+    if (this.currentLevelId.startsWith(CUSTOM_LEVEL_ID_PREFIX)) {
+      return this.currentLevelId;
+    }
+    if (!this.draftCustomId) {
+      this.draftCustomId = `${CUSTOM_LEVEL_ID_PREFIX}${Date.now()}`;
+    }
+    return this.draftCustomId;
+  }
+
   public exportCompiledLevel(): CompiledLevel {
+    const id = this.resolveCustomLevelId();
+    const existing = ConfigRegistry.getAllPacks()
+      .find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM)
+      ?.levels.find((l) => l.id === id);
     return {
-      id: this.currentLevelId.startsWith('custom_') ? this.currentLevelId : `custom_${Date.now()}`,
-      number: ConfigRegistry.getLevels().length + 1,
+      id,
+      number: existing ? existing.number : ConfigRegistry.getLevels().length + 1,
       customTitle: this.customTitle,
       customHint: this.customHint,
       password: this.password,

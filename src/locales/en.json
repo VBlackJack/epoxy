@@ -12,6 +12,7 @@
       "theme_label": { "label": "Biome:" },
       "procedural_btn": { "action": "Generate Endless Puzzle" },
       "fov": { "label": "View:" },
+      "fov_option": { "label": "{size}x{size}" },
       "audio_toggle": { "action": "Chiptune Audio" },
       "music_toggle": { "action": "Music" },
       "language": { "label": "Language" },
@@ -21,6 +22,16 @@
       "mobile_menu": { "action": "⚙️ Menu & Packs" },
       "drawer_title": { "label": "⚙️ Options & Packs" },
       "drawer_close": { "action": "✕ Close" }
+    },
+    "languages": {
+      "fr": { "label": "Français" },
+      "en": { "label": "English" }
+    },
+    "errors": {
+      "title": { "label": "Unable to start" },
+      "init_failed": { "label": "The game could not start. Check your connection and try again." },
+      "config_load": { "label": "The configuration file {source} is missing or invalid." },
+      "retry": { "action": "Retry" }
     },
     "themes": {
       "cyber_neon": { "label": "Cyber Neon" },
@@ -35,6 +46,7 @@
     },
     "packs": {
       "selector_label": { "label": "Pack:" },
+      "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Epoxy + Ultimate Campaign" },
       "ccup_tw_intro": { "label": "Ultimate: Tile World Intro" },
       "ccup_cclp1": { "label": "Ultimate: CCLP 1 (Community)" },
@@ -44,20 +56,28 @@
       "ccup_cclp5": { "label": "Ultimate: CCLP 5 (Community)" },
       "custom": { "label": "Custom Levels" },
       "procedural": { "label": "Procedural Puzzles (Solvable)" },
-      "procedural_toast": { "label": "Generated & validated {count} new procedural levels!" },
+      "procedural_toast": { "label": "Generated & validated {count, plural, one {# new procedural level} other {# new procedural levels}}!" },
       "import_btn": { "action": "Import .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
       "delete_btn": { "action": "Delete Pack" },
       "drop_overlay": { "label": "Drop your .DAT, .CCL (CCLP) or .JSON file here" },
-      "imported_toast": { "label": "Pack \"{name}\" ({count} levels) imported successfully!" },
-      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON)." }
+      "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported successfully!" },
+      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON)." },
+      "invalid_level_error": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
+      "delete_confirm": { "label": "Delete pack \"{name}\" and all its levels? This cannot be undone." }
     },
     "lynx": {
       "bezel": { "brand": "ATARI LYNX II - 16-BIT COLOR HANDHELD SYSTEM" },
       "power": { "label": "POWER" },
       "dpad": { "label": "D-PAD" },
+      "dpad_up": { "label": "Up" },
+      "dpad_down": { "label": "Down" },
+      "dpad_left": { "label": "Left" },
+      "dpad_right": { "label": "Right" },
       "button_a": { "action": "A (Action)" },
       "button_b": { "action": "B (Rewind)" },
+      "button_a_short": { "label": "A" },
+      "button_b_short": { "label": "B" },
       "option_1": { "action": "OPT 1 (Restart)" },
       "option_2": { "action": "OPT 2 (Audio)" },
       "pause": { "action": "PAUSE" }
@@ -75,10 +95,14 @@
     "radar": {
       "title": { "label": "32x32 TACTICAL RADAR" }
     },
+    "viewport": {
+      "canvas": { "label": "Game board" }
+    },
     "inventory": {
       "keys": { "label": "ACCESS KEYS" },
       "boots": { "label": "SPECIAL GEAR" },
-      "empty": { "label": "No items" }
+      "count": { "label": "x{count}" },
+      "infinite": { "label": "∞" }
     },
     "controls": {
       "undo": { "action": "Rewind Step (U / Ctrl+Z)" },
@@ -109,8 +133,12 @@
       "medal_gold": { "label": "🥇 GOLD Medal" },
       "medal_silver": { "label": "🥈 SILVER Medal" },
       "medal_bronze": { "label": "🥉 BRONZE Medal" },
+      "medal_gold_icon": { "label": "🥇" },
+      "medal_silver_icon": { "label": "🥈" },
+      "medal_bronze_icon": { "label": "🥉" },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
       "inspect_format": { "label": "🔍 ({x}, {y}): {details}" },
+      "inspect_separator": { "label": " + " },
       "next_action": { "action": "Next Level (Enter)" },
       "replay_action": { "action": "Watch Solution Replay" },
       "replaying_banner": { "label": "REPLAYING SOLUTION ({step}/{total}) - Click or press any key to take control" },
@@ -124,7 +152,8 @@
       "death_time": { "label": "Out of time!" },
       "thief_stole": { "label": "The Thief confiscated all your boots!" },
       "socket_locked": { "label": "Collect all chips before unlocking the socket!" },
-      "all_levels_won": { "label": "CONGRATULATIONS! You mastered every level of Epoxy!" }
+      "all_levels_won": { "label": "CONGRATULATIONS! You mastered every level of Epoxy!" },
+      "pack_wrapped": { "label": "End of pack reached: back to level 1." }
     },
     "password_modal": {
       "title": { "label": "Level Password Access" },
@@ -149,6 +178,7 @@
       "col_action": { "label": "Action" },
       "play_btn": { "action": "Play" },
       "replay_btn": { "action": "Replay" },
+      "best_time_cell": { "label": "{medal} {seconds}s" },
       "close_btn": { "action": "Close" }
     },
     "help_modal": {
@@ -174,15 +204,18 @@
   },
   "validator": {
     "status": {
-      "valid": { "label": "Level is 100% valid and solvable ({chips}/{required} reachable chips, exit reachable)!" }
+      "valid": { "label": "Level is 100% valid and solvable ({chips}/{required} reachable chips, exit reachable)!" },
+      "issue_separator": { "label": " | " }
     },
     "issues": {
       "no_exit": { "label": "Error: No Exit Portal (E) placed on the map." },
-      "missing_chips": { "label": "Error: Only {placed} chips placed for {required} required." },
-      "no_matching_key": { "label": "Error: {doors} door(s) require {key} but no matching key exists." },
-      "fewer_keys_than_doors": { "label": "Warning: {doors} doors for only {keys} key(s) ({key})." },
-      "unreachable_chips": { "label": "Error: Only {reachable}/{required} chips are reachable from start." },
-      "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." }
+      "missing_chips": { "label": "Error: Only {placed, plural, one {# chip} other {# chips}} placed for {required} required." },
+      "no_matching_key": { "label": "Error: {doors, plural, one {# door requires} other {# doors require}} {key} but no matching key exists." },
+      "fewer_keys_than_doors": { "label": "Warning: {doors, plural, one {# door} other {# doors}} for only {keys, plural, one {# key} other {# keys}} ({key})." },
+      "unreachable_chips": { "label": "Error: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable from start." },
+      "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." },
+      "socket_bypass": { "label": "Error: The Exit can be reached without passing the Socket." },
+      "invalid_start": { "label": "Error: The player start is outside the map." }
     }
   },
   "editor": {
@@ -197,9 +230,17 @@
       "export_ccl": { "action": "Export .CCL" },
       "import_json": { "action": "Import (.DAT/.CCL/.JSON)" },
       "load_preset": { "label": "Load Preset Level:" },
-      "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" }
+      "preset_option": { "label": "#{number} - {title}" },
+      "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" },
+      "confirm_reload": { "label": "The editor has unsaved changes. Replace them with the current level?" },
+      "confirm_test_invalid": { "label": "This level has problems: {issues}\n\nTest it anyway?" }
     },
     "metadata": {
+      "default_title": { "label": "Custom Puzzle" },
+      "dir_north": { "label": "N (▲)" },
+      "dir_east": { "label": "E (▶)" },
+      "dir_south": { "label": "S (▼)" },
+      "dir_west": { "label": "W (◀)" },
       "title": { "label": "Level Title" },
       "hint": { "label": "Hint Text (?)" },
       "password": { "label": "Password (4 chars)" },
@@ -231,6 +272,7 @@
         "saved": { "label": "Level saved to local browser library!" },
         "imported": { "label": "Level imported successfully!" },
         "import_error": { "label": "Invalid level format." },
+        "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
         "wire_select_source": { "label": "Click the trigger button on the map..." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
         "wire_linked": { "label": "Mechanism link established!" }

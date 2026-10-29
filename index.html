@@ -19,7 +19,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#12151c" />
-    <title>EPOXY</title>
+    <title data-i18n="app.header.title.label"></title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -35,7 +35,7 @@
           <span class="brand-subtitle" data-i18n="app.header.subtitle.label"></span>
           <div class="mobile-header-actions">
             <button id="btn-mobile-fullscreen" class="nav-btn mobile-fs-toggle" type="button" data-i18n="hud.mobile.fullscreen.action"></button>
-            <button id="btn-mobile-menu" class="nav-btn mobile-menu-toggle" type="button" data-i18n="app.header.mobile_menu.action"></button>
+            <button id="btn-mobile-menu" class="nav-btn mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="top-controls-drawer" data-i18n="app.header.mobile_menu.action"></button>
           </div>
         </div>
 
@@ -53,15 +53,15 @@
             <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
           </div>
           <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action"></button>
-          <button id="btn-options-menu" class="nav-btn" type="button" aria-expanded="false" data-i18n="app.header.options_btn.action"></button>
+          <button id="btn-options-menu" class="nav-btn" type="button" aria-expanded="false" aria-controls="options-drawer" data-i18n="app.header.options_btn.action"></button>
         </nav>
       </header>
 
       <!-- SLIDE-OVER OPTIONS DRAWER -->
       <div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
-      <aside id="options-drawer" class="options-drawer hidden" aria-label="Options">
+      <aside id="options-drawer" class="options-drawer hidden" role="dialog" aria-modal="true" aria-labelledby="options-drawer-title">
         <div class="drawer-header">
-          <h3 data-i18n="app.header.drawer_title.label"></h3>
+          <h3 id="options-drawer-title" data-i18n="app.header.drawer_title.label"></h3>
           <button id="btn-close-drawer" class="hud-btn small" type="button" data-i18n="app.header.drawer_close.action"></button>
         </div>
 
@@ -112,11 +112,11 @@
             </div>
 
             <div class="dpad-container">
-              <button class="dpad-btn dpad-up" data-dir="N" type="button" aria-label="Up">▲</button>
-              <button class="dpad-btn dpad-left" data-dir="W" type="button" aria-label="Left">◀</button>
+              <button class="dpad-btn dpad-up" data-dir="N" type="button" data-i18n-aria-label="app.lynx.dpad_up.label"><span aria-hidden="true">▲</span></button>
+              <button class="dpad-btn dpad-left" data-dir="W" type="button" data-i18n-aria-label="app.lynx.dpad_left.label"><span aria-hidden="true">◀</span></button>
               <div class="dpad-center"></div>
-              <button class="dpad-btn dpad-right" data-dir="E" type="button" aria-label="Right">▶</button>
-              <button class="dpad-btn dpad-down" data-dir="S" type="button" aria-label="Down">▼</button>
+              <button class="dpad-btn dpad-right" data-dir="E" type="button" data-i18n-aria-label="app.lynx.dpad_right.label"><span aria-hidden="true">▶</span></button>
+              <button class="dpad-btn dpad-down" data-dir="S" type="button" data-i18n-aria-label="app.lynx.dpad_down.label"><span aria-hidden="true">▼</span></button>
             </div>
             <div class="wing-caption" data-i18n="app.lynx.dpad.label"></div>
           </div>
@@ -127,22 +127,22 @@
 
             <div class="lcd-screen">
               <div class="viewport-wrapper">
-                <canvas id="game-canvas" width="676" height="676"></canvas>
+                <canvas id="game-canvas" width="676" height="676" role="img" data-i18n-aria-label="hud.viewport.canvas.label"></canvas>
 
                 <!-- Hint Overlay -->
-                <div id="hint-banner" class="hint-banner hidden">
+                <div id="hint-banner" class="hint-banner hidden" role="status" aria-live="polite">
                   <strong data-i18n="hud.messages.hint_prefix.label"></strong>
                   <span id="hint-text"></span>
                 </div>
 
                 <!-- Status Toast Banner -->
-                <div id="status-toast" class="status-toast hidden"></div>
+                <div id="status-toast" class="status-toast hidden" role="status" aria-live="polite"></div>
 
                 <!-- Tile & Entity Inspection Badge -->
                 <div id="inspect-pill" class="inspect-pill hidden"></div>
 
                 <!-- Modal Overlay Inside Viewport (Pause / Death / Win) -->
-                <div id="viewport-overlay" class="viewport-overlay hidden">
+                <div id="viewport-overlay" class="viewport-overlay hidden" role="alertdialog" aria-labelledby="overlay-title" aria-describedby="overlay-subtitle">
                   <div class="overlay-card">
                     <h2 id="overlay-title"></h2>
                     <p id="overlay-subtitle"></p>
@@ -162,11 +162,11 @@
               <div id="mobile-touch-bar" class="mobile-touch-bar">
                 <div class="mobile-dpad-zone">
                   <div class="dpad-container mobile-dpad">
-                    <button class="dpad-btn dpad-up" data-dir="N" type="button" aria-label="Up">▲</button>
-                    <button class="dpad-btn dpad-left" data-dir="W" type="button" aria-label="Left">◀</button>
+                    <button class="dpad-btn dpad-up" data-dir="N" type="button" data-i18n-aria-label="app.lynx.dpad_up.label"><span aria-hidden="true">▲</span></button>
+                    <button class="dpad-btn dpad-left" data-dir="W" type="button" data-i18n-aria-label="app.lynx.dpad_left.label"><span aria-hidden="true">◀</span></button>
                     <div class="dpad-center"></div>
-                    <button class="dpad-btn dpad-right" data-dir="E" type="button" aria-label="Right">▶</button>
-                    <button class="dpad-btn dpad-down" data-dir="S" type="button" aria-label="Down">▼</button>
+                    <button class="dpad-btn dpad-right" data-dir="E" type="button" data-i18n-aria-label="app.lynx.dpad_right.label"><span aria-hidden="true">▶</span></button>
+                    <button class="dpad-btn dpad-down" data-dir="S" type="button" data-i18n-aria-label="app.lynx.dpad_down.label"><span aria-hidden="true">▼</span></button>
                   </div>
                 </div>
 
@@ -187,34 +187,34 @@
                 <div class="hud-level-header">
                   <div class="hud-level-badge">
                     <span data-i18n="hud.stats.level.label"></span>
-                    <strong id="hud-level-num">1</strong>
+                    <strong id="hud-level-num"></strong>
                   </div>
-                  <div class="hud-password-badge">
+                  <button id="hud-password-badge" class="hud-password-badge" type="button" data-i18n-title="hud.controls.password_btn.action">
                     <span data-i18n="hud.stats.password.label"></span>
-                    <strong id="hud-level-pass">BDHP</strong>
-                  </div>
+                    <strong id="hud-level-pass"></strong>
+                  </button>
                 </div>
                 <div id="hud-level-title" class="hud-level-title"></div>
 
                 <div class="led-counters">
                   <div class="led-box">
                     <span class="led-label" data-i18n="hud.stats.chips.label"></span>
-                    <div id="hud-chips-left" class="led-digits led-green">000</div>
+                    <div id="hud-chips-left" class="led-digits led-green"></div>
                   </div>
                   <div class="led-box">
                     <span class="led-label" data-i18n="hud.stats.time.label"></span>
-                    <div id="hud-time-left" class="led-digits led-amber">000</div>
+                    <div id="hud-time-left" class="led-digits led-amber"></div>
                   </div>
                 </div>
 
                 <div class="hud-mini-stats">
                   <div>
                     <span data-i18n="hud.stats.score.label"></span>:
-                    <strong id="hud-score">0</strong>
+                    <strong id="hud-score"></strong>
                   </div>
                   <div>
                     <span data-i18n="hud.stats.steps.label"></span>:
-                    <strong id="hud-steps">0</strong>
+                    <strong id="hud-steps"></strong>
                   </div>
                 </div>
 
@@ -259,8 +259,8 @@
             </div>
 
             <div class="lynx-ab-cluster">
-              <button id="lynx-btn-b" class="lynx-round-btn btn-b" type="button">B</button>
-              <button id="lynx-btn-a" class="lynx-round-btn btn-a" type="button">A</button>
+              <button id="lynx-btn-b" class="lynx-round-btn btn-b" type="button" data-i18n="app.lynx.button_b_short.label" data-i18n-aria-label="app.lynx.button_b.action"></button>
+              <button id="lynx-btn-a" class="lynx-round-btn btn-a" type="button" data-i18n="app.lynx.button_a_short.label" data-i18n-aria-label="app.lynx.button_a.action"></button>
             </div>
             <div class="wing-caption">
               <span data-i18n="app.lynx.button_b.action"></span> - <span data-i18n="app.lynx.button_a.action"></span>
@@ -318,10 +318,10 @@
               <div class="meta-field full-width">
                 <label for="editor-meta-dir" data-i18n="editor.metadata.entity_dir.label"></label>
                 <select id="editor-meta-dir" class="editor-input">
-                  <option value="N">N (▲)</option>
-                  <option value="E">E (▶)</option>
-                  <option value="S" selected>S (▼)</option>
-                  <option value="W">W (◀)</option>
+                  <option value="N" data-i18n="editor.metadata.dir_north.label"></option>
+                  <option value="E" data-i18n="editor.metadata.dir_east.label"></option>
+                  <option value="S" selected data-i18n="editor.metadata.dir_south.label"></option>
+                  <option value="W" data-i18n="editor.metadata.dir_west.label"></option>
                 </select>
               </div>
             </div>
@@ -341,17 +341,19 @@
       </section>
 
       <!-- PASSWORD MODAL -->
-      <div id="password-modal" class="modal-backdrop hidden">
+      <div id="password-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
         <div class="modal-dialog">
-          <h3 data-i18n="hud.password_modal.title.label"></h3>
+          <h3 id="password-modal-title" data-i18n="hud.password_modal.title.label"></h3>
           <input
             id="password-input"
             type="text"
             maxlength="4"
             class="editor-input password-field"
             data-i18n-placeholder="hud.password_modal.placeholder.label"
+            aria-labelledby="password-modal-title"
+            aria-describedby="password-error"
           />
-          <p id="password-error" class="error-text hidden" data-i18n="hud.password_modal.invalid.label"></p>
+          <p id="password-error" class="error-text hidden" role="alert" data-i18n="hud.password_modal.invalid.label"></p>
           <div class="modal-actions">
             <button id="password-submit-btn" class="action-btn primary" type="button" data-i18n="hud.password_modal.submit.action"></button>
             <button id="password-cancel-btn" class="action-btn" type="button" data-i18n="hud.password_modal.cancel.action"></button>
@@ -360,11 +362,11 @@
       </div>
 
       <!-- LEVEL SELECT & HIGH SCORES MODAL -->
-      <div id="scores-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div id="scores-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="scores-modal-title">
         <div class="modal-dialog wide-dialog">
           <div class="scores-modal-header">
             <div>
-              <h3 data-i18n="hud.scores_modal.title.label"></h3>
+              <h3 id="scores-modal-title" data-i18n="hud.scores_modal.title.label"></h3>
               <span id="scores-progress-summary" class="scores-progress-badge"></span>
             </div>
             <div class="scores-pack-actions">
@@ -378,11 +380,12 @@
               type="search"
               class="editor-input scores-search-input"
               data-i18n-placeholder="hud.scores_modal.search_placeholder.label"
+              data-i18n-aria-label="hud.scores_modal.search_placeholder.label"
             />
             <div class="scores-filter-pills">
-              <button id="scores-filter-all" class="hud-btn small active" type="button" data-filter="all" data-i18n="hud.scores_modal.filter_all.action"></button>
-              <button id="scores-filter-unsolved" class="hud-btn small" type="button" data-filter="unsolved" data-i18n="hud.scores_modal.filter_unsolved.action"></button>
-              <button id="scores-filter-completed" class="hud-btn small" type="button" data-filter="completed" data-i18n="hud.scores_modal.filter_completed.action"></button>
+              <button id="scores-filter-all" class="hud-btn small active" type="button" aria-pressed="true" data-filter="all" data-i18n="hud.scores_modal.filter_all.action"></button>
+              <button id="scores-filter-unsolved" class="hud-btn small" type="button" aria-pressed="false" data-filter="unsolved" data-i18n="hud.scores_modal.filter_unsolved.action"></button>
+              <button id="scores-filter-completed" class="hud-btn small" type="button" aria-pressed="false" data-filter="completed" data-i18n="hud.scores_modal.filter_completed.action"></button>
             </div>
           </div>
           <div class="scores-table-wrapper">
@@ -408,9 +411,9 @@
       </div>
 
       <!-- HELP & SHORTCUTS MODAL -->
-      <div id="help-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div id="help-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
         <div class="modal-dialog wide-dialog">
-          <h3 data-i18n="hud.help_modal.title.label"></h3>
+          <h3 id="help-modal-title" data-i18n="hud.help_modal.title.label"></h3>
           <div class="help-grid">
             <div class="help-section">
               <h4 data-i18n="hud.help_modal.sec_shortcuts.label"></h4>

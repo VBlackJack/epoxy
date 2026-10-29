@@ -12,6 +12,7 @@
       "theme_label": { "label": "Biome :" },
       "procedural_btn": { "action": "Générer Puzzle Infini" },
       "fov": { "label": "Vue :" },
+      "fov_option": { "label": "{size}x{size}" },
       "audio_toggle": { "action": "Audio Chiptune" },
       "music_toggle": { "action": "Musique" },
       "language": { "label": "Langue" },
@@ -21,6 +22,16 @@
       "mobile_menu": { "action": "⚙️ Menu & Packs" },
       "drawer_title": { "label": "⚙️ Options & Packs" },
       "drawer_close": { "action": "✕ Fermer" }
+    },
+    "languages": {
+      "fr": { "label": "Français" },
+      "en": { "label": "English" }
+    },
+    "errors": {
+      "title": { "label": "Démarrage impossible" },
+      "init_failed": { "label": "Le jeu n'a pas pu démarrer. Vérifiez votre connexion puis réessayez." },
+      "config_load": { "label": "Le fichier de configuration {source} est introuvable ou invalide." },
+      "retry": { "action": "Réessayer" }
     },
     "themes": {
       "cyber_neon": { "label": "Cyber Néon" },
@@ -35,6 +46,7 @@
     },
     "packs": {
       "selector_label": { "label": "Pack :" },
+      "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Campagne Epoxy + Ultimate" },
       "ccup_tw_intro": { "label": "Ultimate : Tile World Intro" },
       "ccup_cclp1": { "label": "Ultimate : CCLP 1 (Communauté)" },
@@ -44,20 +56,28 @@
       "ccup_cclp5": { "label": "Ultimate : CCLP 5 (Communauté)" },
       "custom": { "label": "Niveaux Personnalisés" },
       "procedural": { "label": "Puzzles Procéduraux (Solvables)" },
-      "procedural_toast": { "label": "Nouveau pack procédural de {count} niveaux généré et validé !" },
+      "procedural_toast": { "label": "Nouveau pack procédural de {count, plural, one {# niveau} other {# niveaux}} généré et validé !" },
       "import_btn": { "action": "Importer .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },
       "delete_btn": { "action": "Supprimer ce Pack" },
       "drop_overlay": { "label": "Déposez votre fichier .DAT, .CCL (CCLP) ou .JSON ici" },
-      "imported_toast": { "label": "Pack \"{name}\" ({count} niveaux) importé avec succès !" },
-      "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON invalide)." }
+      "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé avec succès !" },
+      "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON invalide)." },
+      "invalid_level_error": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
+      "delete_confirm": { "label": "Supprimer le pack \"{name}\" et tous ses niveaux ? Cette action est définitive." }
     },
     "lynx": {
       "bezel": { "brand": "ATARI LYNX II - SYSTÈME PORTABLE COULEUR 16-BIT" },
       "power": { "label": "ALIM" },
       "dpad": { "label": "DIRECTION" },
+      "dpad_up": { "label": "Haut" },
+      "dpad_down": { "label": "Bas" },
+      "dpad_left": { "label": "Gauche" },
+      "dpad_right": { "label": "Droite" },
       "button_a": { "action": "A (Action)" },
       "button_b": { "action": "B (Rembobiner)" },
+      "button_a_short": { "label": "A" },
+      "button_b_short": { "label": "B" },
       "option_1": { "action": "OPT 1 (Recommencer)" },
       "option_2": { "action": "OPT 2 (Audio)" },
       "pause": { "action": "PAUSE" }
@@ -75,10 +95,14 @@
     "radar": {
       "title": { "label": "RADAR TACTIQUE 32x32" }
     },
+    "viewport": {
+      "canvas": { "label": "Plateau de jeu" }
+    },
     "inventory": {
       "keys": { "label": "CLÉS D'ACCÈS" },
       "boots": { "label": "ÉQUIPEMENT SPÉCIAL" },
-      "empty": { "label": "Aucun objet" }
+      "count": { "label": "x{count}" },
+      "infinite": { "label": "∞" }
     },
     "controls": {
       "undo": { "action": "Rembobiner (U / Ctrl+Z)" },
@@ -92,7 +116,7 @@
     "mobile": {
       "undo": { "action": "⏪ Pas" },
       "objective": { "action": "💡 Aide" },
-      "restart": { "action": "🔄 Retry" },
+      "restart": { "action": "🔄 Réessayer" },
       "zoom": { "action": "🔍 Vue" },
       "fullscreen": { "action": "⛶ Plein Écran" },
       "exit_fullscreen": { "action": "⛶ Quitter Plein Écran" },
@@ -109,8 +133,12 @@
       "medal_gold": { "label": "🥇 Médaille d'OR" },
       "medal_silver": { "label": "🥈 Médaille d'ARGENT" },
       "medal_bronze": { "label": "🥉 Médaille de BRONZE" },
+      "medal_gold_icon": { "label": "🥇" },
+      "medal_silver_icon": { "label": "🥈" },
+      "medal_bronze_icon": { "label": "🥉" },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
       "inspect_format": { "label": "🔍 ({x}, {y}) : {details}" },
+      "inspect_separator": { "label": " + " },
       "next_action": { "action": "Niveau Suivant (Entrée)" },
       "replay_action": { "action": "Revoir la Solution (Replay)" },
       "replaying_banner": { "label": "REPLAY EN COURS ({step}/{total}) - Cliquez ou appuyez sur une touche pour reprendre le contrôle" },
@@ -124,7 +152,8 @@
       "death_time": { "label": "Temps écoulé !" },
       "thief_stole": { "label": "Le Voleur a confisqué toutes vos bottes !" },
       "socket_locked": { "label": "Collectez toutes les puces avant d'ouvrir le verrou !" },
-      "all_levels_won": { "label": "FÉLICITATIONS ! Vous avez maîtrisé tous les niveaux d'Epoxy !" }
+      "all_levels_won": { "label": "FÉLICITATIONS ! Vous avez maîtrisé tous les niveaux d'Epoxy !" },
+      "pack_wrapped": { "label": "Fin du pack atteinte : retour au niveau 1." }
     },
     "password_modal": {
       "title": { "label": "Accès par Code de Niveau" },
@@ -149,6 +178,7 @@
       "col_action": { "label": "Action" },
       "play_btn": { "action": "Jouer" },
       "replay_btn": { "action": "Replay" },
+      "best_time_cell": { "label": "{medal} {seconds}s" },
       "close_btn": { "action": "Fermer" }
     },
     "help_modal": {
@@ -174,15 +204,18 @@
   },
   "validator": {
     "status": {
-      "valid": { "label": "Niveau 100% valide et solvable ({chips}/{required} puces accessibles, sortie atteignable) !" }
+      "valid": { "label": "Niveau 100% valide et solvable ({chips}/{required} puces accessibles, sortie atteignable) !" },
+      "issue_separator": { "label": " | " }
     },
     "issues": {
       "no_exit": { "label": "Erreur : Aucun portail de sortie (E) placé sur la carte." },
-      "missing_chips": { "label": "Erreur : Seulement {placed} puces placées pour {required} requises." },
-      "no_matching_key": { "label": "Erreur : {doors} porte(s) nécessitent {key} mais aucune clé correspondante n'est présente." },
-      "fewer_keys_than_doors": { "label": "Attention : {doors} portes pour seulement {keys} clé(s) ({key})." },
-      "unreachable_chips": { "label": "Erreur : Seulement {reachable}/{required} puces sont accessibles depuis le départ." },
-      "unreachable_exit": { "label": "Erreur : Le portail de sortie est bloqué ou inaccessible." }
+      "missing_chips": { "label": "Erreur : Seulement {placed, plural, one {# puce placée} other {# puces placées}} pour {required, plural, one {# requise} other {# requises}}." },
+      "no_matching_key": { "label": "Erreur : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente." },
+      "fewer_keys_than_doors": { "label": "Attention : {doors, plural, one {# porte} other {# portes}} pour seulement {keys, plural, one {# clé} other {# clés}} ({key})." },
+      "unreachable_chips": { "label": "Erreur : Seulement {reachable}/{required, plural, one {# puce est accessible} other {# puces sont accessibles}} depuis le départ." },
+      "unreachable_exit": { "label": "Erreur : Le portail de sortie est bloqué ou inaccessible." },
+      "socket_bypass": { "label": "Erreur : La sortie est accessible sans passer par la serrure à puces." },
+      "invalid_start": { "label": "Erreur : Le point de départ du joueur est hors de la carte." }
     }
   },
   "editor": {
@@ -197,9 +230,17 @@
       "export_ccl": { "action": "Exporter .CCL" },
       "import_json": { "action": "Importer (.DAT/.CCL/.JSON)" },
       "load_preset": { "label": "Charger un Niveau :" },
-      "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" }
+      "preset_option": { "label": "#{number} - {title}" },
+      "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" },
+      "confirm_reload": { "label": "L'éditeur contient des modifications non sauvegardées. Les remplacer par le niveau en cours ?" },
+      "confirm_test_invalid": { "label": "Ce niveau présente des problèmes : {issues}\n\nLe tester quand même ?" }
     },
     "metadata": {
+      "default_title": { "label": "Puzzle Personnalisé" },
+      "dir_north": { "label": "N (▲)" },
+      "dir_east": { "label": "E (▶)" },
+      "dir_south": { "label": "S (▼)" },
+      "dir_west": { "label": "O (◀)" },
       "title": { "label": "Titre du Niveau" },
       "hint": { "label": "Texte d'indice (?)" },
       "password": { "label": "Code (4 lettres)" },
@@ -231,6 +272,7 @@
         "saved": { "label": "Niveau sauvegardé dans la bibliothèque locale !" },
         "imported": { "label": "Niveau importé avec succès !" },
         "import_error": { "label": "Format de niveau invalide." },
+        "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
         "wire_linked": { "label": "Connexion mécanique établie !" }
@@ -335,7 +377,7 @@
       "hint": "Certains murs bleus sont des illusions ! Les monstres ne peuvent pas entrer sur le gravier."
     },
     "level_8": {
-      "title": "Cœur d'Epoxy : L'Épreuve des Bottes",
+      "title": "Coeur d'Epoxy : L'Épreuve des Bottes",
       "hint": "Combinez les quatre bottes élémentaires avant de franchir les voleurs vers le verrou final !"
     },
     "level_9": {
@@ -355,7 +397,7 @@
       "hint": "Chaque chambre verrouillée contient la clé de la suivante. Évitez la Balle Rose et le Marcheur !"
     },
     "level_13": {
-      "title": "Cœur de Magma",
+      "title": "Coeur de Magma",
       "hint": "Équipez les Bottes Ignifugées et les Palmes au nord avant de traverser la fournaise et le canal !"
     },
     "level_14": {

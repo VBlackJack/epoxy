@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from './config/ConfigRegistry';
 import { BUILTIN_PACK_IDS } from './config/constants';
+import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { PixelRenderer } from './render/PixelRenderer';
@@ -28,10 +29,68 @@ import {
   CompiledLevel,
   Direction,
   GridPoint,
+  KeybindingsConfig,
   LevelBlueprint,
   LevelHighScore,
+  LevelPack,
+  TimedMove,
   UserSettings
 } from './core/types';
+import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
+import { downloadBytes } from './ui/download';
+import { showFatalErrorScreen } from './ui/fatalErrorScreen';
+import { InventorySlotView } from './ui/inventorySlots';
+import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
+import { preferredScrollBehavior } from './ui/motion';
+import { collectDueMoves, sanitizeTimedMoves } from './ui/replaySchedule';
+import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
+import {
+  CANVAS_RESIZE_TOLERANCE_PX,
+  DEFAULT_GRAPHICS_STYLE,
+  DEFAULT_THEME_ID,
+  GAMEPAD_AXIS_THRESHOLD,
+  GAMEPAD_AXIS_X,
+  GAMEPAD_AXIS_Y,
+  GAMEPAD_BUTTONS,
+  GAMEPAD_INDEX,
+  HUD_COUNTER_DIGITS,
+  INFINITE_KEY_IDS,
+  MAX_DEVICE_PIXEL_RATIO,
+  MINIMAP_TILE_PX,
+  MIN_VIEWPORT_SYNC_PX,
+  SWIPE_ANCHOR_FOLLOW_RATIO,
+  THEME_MUSIC_TRACKS,
+  TIMING_DEFAULTS,
+  TOAST_DURATION_MS,
+  TOUCH_DEFAULTS
+} from './ui/uiConstants';
+
+/** High score as stored: legacy records only carry untimed replayMoves. */
+type StoredHighScore = LevelHighScore & { replayTimedMoves?: TimedMove[] };
+
+type OverlayState = 'none' | 'complete' | 'dead' | 'paused';
+type ScoresFilter = 'all' | 'unsolved' | 'completed';
+
+/** Displacement that marks a two-finger gesture so it never ends as a tap. */
+const PINCH_SUPPRESSES_TAP = Number.POSITIVE_INFINITY;
+const NO_WARNED_SECOND = -1;
+
+const MODAL_IDS = {
+  SCORES: 'scores-modal',
+  HELP: 'help-modal',
+  PASSWORD: 'password-modal'
+} as const;
+
+function byId<T extends HTMLElement = HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+/** Writes text only when it changed: avoids DOM churn and repeated live region announcements. */
+function setText(el: HTMLElement | null, text: string): void {
+  if (el && el.textContent !== text) {
+    el.textContent = text;
+  }
+}
 
 class EpoxyApplication {
   private engine: GameEngine = new GameEngine();
@@ -44,24 +103,35 @@ class EpoxyApplication {
   private currentLevelIndex: number = 0;
   private activeMode: 'play' | 'editor' = 'play';
   private heldDirection: Direction | null = null;
-  private highScores: Record<string, LevelHighScore> = {};
+  private highScores: Record<string, StoredHighScore> = {};
   private prevGamepadButtons: boolean[] = [];
   private customStatusMessage: string | null = null;
   private customStatusTimeout: number | null = null;
   private autoMoveQueue: Direction[] = [];
   private autoMovePoints: GridPoint[] = [];
-  private replayMoves: Direction[] = [];
+  private replayMoves: TimedMove[] = [];
   private replayIndex: number = 0;
   private isReplaying: boolean = false;
-  private lastWarnedSecond: number = -1;
-  private scoresFilterMode: 'all' | 'unsolved' | 'completed' = 'all';
+  private lastWarnedSecond: number = NO_WARNED_SECOND;
+  private scoresFilterMode: ScoresFilter = 'all';
   private scoresSearchQuery: string = '';
+  private overlayState: OverlayState = 'none';
+  /** Engine level the editor content was last synced with. */
+  private editorSourceLevel: CompiledLevel | null = null;
 
   private keyIconCache: Record<string, string> = {};
   private bootIconCache: Record<string, string> = {};
+  private keySlots: InventorySlotView[] = [];
+  private bootSlots: InventorySlotView[] = [];
+  private inventoryLabels: Record<string, string> = {};
+  private inventoryLabelsLocale: string = '';
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
   private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force'];
+
+  // ---------------------------------------------------------------------------
+  // Start-up
+  // ---------------------------------------------------------------------------
 
   public async init(): Promise<void> {
     await ConfigRegistry.loadAll();
@@ -74,104 +144,18 @@ class EpoxyApplication {
         : gameCfg.locales.default;
     this.setupLocaleSelector(gameCfg.locales.supported, initialLocale);
 
-    const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
-    const editorCanvas = document.getElementById('editor-canvas') as HTMLCanvasElement | null;
-    const radarCanvas = document.getElementById('radar-canvas') as HTMLCanvasElement | null;
-    if (!canvas || !editorCanvas) {
-      throw new Error('Required canvas elements missing');
-    }
-
-    this.gameCanvas = canvas;
-    const canvasSize =
-      gameCfg.grid.viewportCanvasSize ||
-      gameCfg.grid.viewportWidth * gameCfg.grid.tilePixelSize;
-    this.gameCanvas.width = canvasSize;
-    this.gameCanvas.height = canvasSize;
-
-    const presets = gameCfg.grid.viewportPresets || [9, 13, 17, 32];
-    const initialFov =
-      savedSettings.fov && presets.includes(savedSettings.fov)
-        ? savedSettings.fov
-        : gameCfg.grid.viewportWidth;
-    this.renderer.setViewportTiles(initialFov);
-
-    const defaultStyle =
-      savedSettings.graphicsStyle || gameCfg.graphics?.defaultStyle || 'modern';
-    this.renderer.setStyle(defaultStyle);
-
-    const initialTheme =
-      savedSettings.themeId && gameCfg.themes?.[savedSettings.themeId]
-        ? savedSettings.themeId
-        : gameCfg.graphics?.defaultTheme || 'cyber_neon';
-    this.renderer.setThemeId(initialTheme);
-    this.gameCanvas.classList.toggle('retro-pixels', defaultStyle === 'retro');
-
-    const gfxBtn = document.getElementById('btn-graphics-toggle');
-    if (gfxBtn) {
-      const isModern = defaultStyle === 'modern';
-      const i18nKey = isModern
-        ? 'app.header.graphics_modern.action'
-        : 'app.header.graphics_retro.action';
-      gfxBtn.setAttribute('data-i18n', i18nKey);
-      gfxBtn.classList.toggle('active', isModern);
-    }
-
-    if (savedSettings.shellEnabled) {
-      document.getElementById('lynx-console')?.classList.add('enabled');
-      document.getElementById('btn-shell-toggle')?.classList.add('active');
-    }
-
-    if (typeof savedSettings.sfxEnabled === 'boolean') {
-      AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
-      document
-        .getElementById('btn-sfx-toggle')
-        ?.classList.toggle('active', savedSettings.sfxEnabled);
-    }
-    if (typeof savedSettings.musicEnabled === 'boolean') {
-      AudioManager.setMusicEnabled(savedSettings.musicEnabled);
-      document
-        .getElementById('btn-music-toggle')
-        ?.classList.toggle('active', savedSettings.musicEnabled);
-    }
-
-    this.setupFovSelector(presets, initialFov);
+    const editorCanvas = this.setupGameCanvas();
+    this.applyDisplaySettings(savedSettings);
+    this.applyAudioSettings(savedSettings);
     this.setupThemeSelector();
     this.bindViewportResizeObserver();
 
-    const ctx = this.gameCanvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('2D context unavailable');
-    }
-    this.gameCtx = ctx;
-    this.radarCtx = radarCanvas?.getContext('2d') || null;
-
     this.rebuildHudIcons();
+    this.buildInventorySlots();
 
     this.loadHighScores();
-    this.engine.setOnWinCallback((levelId, timeRemaining, steps, score, moves) => {
-      if (!this.isReplaying) {
-        this.recordHighScore(levelId, timeRemaining, steps, score, moves);
-      }
-      this.stopAutoMoveAndReplay();
-    });
-    this.engine.setOnVisualEventCallback((kind, x, y, colorKey) => {
-      this.renderer.triggerVisualEvent(kind, x, y, colorKey);
-    });
-
-    this.editor = new LevelEditor(
-      editorCanvas,
-      this.renderer,
-      (testLevel: CompiledLevel) => {
-        this.switchMode('play');
-        this.engine.loadLevel(testLevel);
-        this.updateHUD();
-      },
-      (savedIdx: number) => {
-        this.refreshPackSelector();
-        this.currentLevelIndex = savedIdx;
-      }
-    );
-    this.editor.buildUI();
+    this.bindEngineCallbacks();
+    this.createEditor(editorCanvas);
 
     this.refreshPackSelector();
     this.restoreSavedProgress();
@@ -190,43 +174,160 @@ class EpoxyApplication {
       this.editor.refreshTranslations();
     });
 
-    window.setInterval(() => {
-      if (this.activeMode !== 'play') return;
-      this.pollGamepad();
-      if (this.isReplaying) {
-        if (this.replayIndex < this.replayMoves.length) {
-          const nextDir = this.replayMoves[this.replayIndex];
-          const moved = this.engine.attemptPlayerMove(nextDir);
-          if (moved) {
-            this.replayIndex++;
-          }
-        } else {
-          this.isReplaying = false;
-        }
-      } else if (this.heldDirection) {
-        this.clearAutoMove();
-        this.engine.attemptPlayerMove(this.heldDirection);
-      } else if (this.autoMoveQueue.length > 0) {
-        const nextDir = this.autoMoveQueue[0];
-        const moved = this.engine.attemptPlayerMove(nextDir);
-        if (moved) {
-          this.autoMoveQueue.shift();
-          this.autoMovePoints.shift();
-          this.renderer.setPlannedPath(this.autoMovePoints);
-        } else if (!this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
-          this.clearAutoMove();
-        }
-      }
-      this.engine.tick();
-      this.renderer.incrementFrame();
-      this.updateHUD();
-    }, gameCfg.timing.tickIntervalMs);
+    this.startGameLoop();
+    this.startRenderLoop();
+  }
 
+  /** Sizes the play canvas and grabs its contexts; returns the editor canvas. */
+  private setupGameCanvas(): HTMLCanvasElement {
+    const gameCfg = ConfigRegistry.getGame();
+    const canvas = byId<HTMLCanvasElement>('game-canvas');
+    const editorCanvas = byId<HTMLCanvasElement>('editor-canvas');
+    if (!canvas || !editorCanvas) {
+      throw new Error('Required canvas elements missing');
+    }
+
+    this.gameCanvas = canvas;
+    const canvasSize =
+      gameCfg.grid.viewportCanvasSize || gameCfg.grid.viewportWidth * gameCfg.grid.tilePixelSize;
+    this.gameCanvas.width = canvasSize;
+    this.gameCanvas.height = canvasSize;
+
+    const ctx = this.gameCanvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('2D context unavailable');
+    }
+    this.gameCtx = ctx;
+    this.radarCtx = byId<HTMLCanvasElement>('radar-canvas')?.getContext('2d') || null;
+    return editorCanvas;
+  }
+
+  private applyDisplaySettings(savedSettings: UserSettings): void {
+    const gameCfg = ConfigRegistry.getGame();
+    const presets = getViewportPresets(gameCfg);
+    const initialFov =
+      savedSettings.fov && presets.includes(savedSettings.fov)
+        ? savedSettings.fov
+        : gameCfg.grid.viewportWidth;
+    this.renderer.setViewportTiles(initialFov);
+
+    const defaultStyle =
+      savedSettings.graphicsStyle || gameCfg.graphics?.defaultStyle || DEFAULT_GRAPHICS_STYLE;
+    this.renderer.setStyle(defaultStyle);
+
+    const initialTheme =
+      savedSettings.themeId && gameCfg.themes?.[savedSettings.themeId]
+        ? savedSettings.themeId
+        : gameCfg.graphics?.defaultTheme || DEFAULT_THEME_ID;
+    this.renderer.setThemeId(initialTheme);
+    this.gameCanvas.classList.toggle('retro-pixels', defaultStyle === 'retro');
+    this.syncGraphicsButton(defaultStyle === 'modern');
+
+    if (savedSettings.shellEnabled) {
+      byId('lynx-console')?.classList.add('enabled');
+      byId('btn-shell-toggle')?.classList.add('active');
+    }
+
+    this.setupFovSelector(presets, initialFov);
+  }
+
+  private applyAudioSettings(savedSettings: UserSettings): void {
+    if (typeof savedSettings.sfxEnabled === 'boolean') {
+      AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
+      byId('btn-sfx-toggle')?.classList.toggle('active', savedSettings.sfxEnabled);
+    }
+    if (typeof savedSettings.musicEnabled === 'boolean') {
+      AudioManager.setMusicEnabled(savedSettings.musicEnabled);
+      byId('btn-music-toggle')?.classList.toggle('active', savedSettings.musicEnabled);
+    }
+  }
+
+  private bindEngineCallbacks(): void {
+    this.engine.setOnWinCallback((levelId, timeRemaining, steps, score, moves) => {
+      if (!this.isReplaying) {
+        this.recordHighScore(levelId, timeRemaining, steps, score, moves, this.engine.getTimedMoveHistory());
+      }
+      this.stopAutoMoveAndReplay();
+    });
+    this.engine.setOnVisualEventCallback((kind, x, y, colorKey) => {
+      this.renderer.triggerVisualEvent(kind, x, y, colorKey);
+    });
+  }
+
+  private createEditor(editorCanvas: HTMLCanvasElement): void {
+    this.editor = new LevelEditor(
+      editorCanvas,
+      this.renderer,
+      (testLevel: CompiledLevel) => {
+        this.switchMode('play');
+        this.stopAutoMoveAndReplay();
+        this.lastWarnedSecond = NO_WARNED_SECOND;
+        this.engine.loadLevel(testLevel);
+        // The editor already holds this content: do not reload it on return.
+        this.editorSourceLevel = testLevel;
+        this.updateHUD();
+      },
+      (savedIdx: number) => {
+        // Saving makes the custom pack active: play the saved level from it.
+        this.refreshPackSelector();
+        this.startLevelByIndex(savedIdx);
+        this.editorSourceLevel = this.engine.getLevel();
+      },
+      (message: string) => {
+        this.showTransientStatus(message);
+      }
+    );
+    this.editor.buildUI();
+  }
+
+  private startGameLoop(): void {
+    window.setInterval(() => {
+      this.runGameTick();
+    }, ConfigRegistry.getGame().timing.tickIntervalMs);
+  }
+
+  private runGameTick(): void {
+    if (this.activeMode !== 'play') return;
+    this.pollGamepad();
+    if (this.isReplaying) {
+      this.advanceReplay();
+    } else if (this.heldDirection) {
+      this.clearAutoMove();
+      this.engine.attemptPlayerMove(this.heldDirection);
+    } else if (this.autoMoveQueue.length > 0) {
+      const nextDir = this.autoMoveQueue[0];
+      const moved = this.engine.attemptPlayerMove(nextDir);
+      if (moved) {
+        this.autoMoveQueue.shift();
+        this.autoMovePoints.shift();
+        this.renderer.setPlannedPath(this.autoMovePoints);
+      } else if (!this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
+        this.clearAutoMove();
+      }
+    }
+    this.engine.tick();
+    this.renderer.incrementFrame();
+    this.updateHUD();
+  }
+
+  /** Applies every recorded move due at the current engine tick; failed moves are skipped. */
+  private advanceReplay(): void {
+    const { due, nextIndex } = collectDueMoves(this.replayMoves, this.replayIndex, this.engine.getTick());
+    for (const move of due) {
+      this.engine.attemptPlayerMove(move.dir);
+    }
+    this.replayIndex = nextIndex;
+    if (this.replayIndex >= this.replayMoves.length) {
+      this.isReplaying = false;
+    }
+  }
+
+  private startRenderLoop(): void {
     const renderLoop = (): void => {
       if (this.activeMode === 'play') {
         this.renderer.renderViewport(this.gameCtx, this.engine);
         if (this.radarCtx) {
-          this.renderer.renderMinimap(this.radarCtx, this.engine, 3);
+          this.renderer.renderMinimap(this.radarCtx, this.engine, MINIMAP_TILE_PX);
         }
       }
       requestAnimationFrame(renderLoop);
@@ -240,13 +341,13 @@ class EpoxyApplication {
 
     const syncCanvasSize = (): void => {
       const rect = wrapper.getBoundingClientRect();
-      if (rect.width < 64 || rect.height < 64) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (rect.width < MIN_VIEWPORT_SYNC_PX || rect.height < MIN_VIEWPORT_SYNC_PX) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO);
       const targetW = Math.round(rect.width * dpr);
       const targetH = Math.round(rect.height * dpr);
       if (
-        Math.abs(this.gameCanvas.width - targetW) > 2 ||
-        Math.abs(this.gameCanvas.height - targetH) > 2
+        Math.abs(this.gameCanvas.width - targetW) > CANVAS_RESIZE_TOLERANCE_PX ||
+        Math.abs(this.gameCanvas.height - targetH) > CANVAS_RESIZE_TOLERANCE_PX
       ) {
         this.gameCanvas.width = targetW;
         this.gameCanvas.height = targetH;
@@ -264,26 +365,27 @@ class EpoxyApplication {
     requestAnimationFrame(syncCanvasSize);
   }
 
+  // ---------------------------------------------------------------------------
+  // Packs, import and export
+  // ---------------------------------------------------------------------------
+
+  private getPackDisplayName(pack: LevelPack): string {
+    return pack.i18nKey ? t(pack.i18nKey) : pack.name;
+  }
+
   private refreshPackSelector(): void {
-    const select = document.getElementById('pack-select') as HTMLSelectElement | null;
+    const select = byId<HTMLSelectElement>('pack-select');
     if (!select) return;
     select.innerHTML = '';
 
-    const packs = ConfigRegistry.getAllPacks();
     const activeId = ConfigRegistry.getActivePackId();
-
-    for (const pack of packs) {
+    for (const pack of ConfigRegistry.getAllPacks()) {
       const opt = document.createElement('option');
       opt.value = pack.id;
-      let displayName = pack.i18nKey ? t(pack.i18nKey) : pack.name;
-      if (pack.id === BUILTIN_PACK_IDS.CAMPAIGN) {
-        displayName = t('app.packs.campaign.label');
-      } else if (pack.id === BUILTIN_PACK_IDS.CUSTOM) {
-        displayName = t('app.packs.custom.label');
-      } else if (pack.id === BUILTIN_PACK_IDS.PROCEDURAL) {
-        displayName = t('app.packs.procedural.label');
-      }
-      opt.textContent = `${displayName} (${pack.levels.length})`;
+      opt.textContent = t('app.packs.selector_option.label', {
+        name: this.getPackDisplayName(pack),
+        count: pack.levels.length
+      });
       if (pack.id === activeId) {
         opt.selected = true;
       }
@@ -293,61 +395,93 @@ class EpoxyApplication {
 
   private async handleImportedFile(file: File): Promise<void> {
     const lower = file.name.toLowerCase();
-    const cleanName = file.name.replace(/\.[^.]+$/, '');
+    const packName = file.name.replace(/\.[^.]+$/, '').toUpperCase();
 
     try {
+      let levels: CompiledLevel[];
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
-        const buffer = await file.arrayBuffer();
-        const decodedLevels = DatCodec.decodeBuffer(buffer, cleanName);
-        if (decodedLevels.length === 0) {
+        levels = DatCodec.decodeBuffer(await file.arrayBuffer(), packName);
+        if (levels.length === 0) {
           throw new Error('Empty pack');
         }
-        await ConfigRegistry.registerImportedPack(cleanName.toUpperCase(), decodedLevels);
-        this.refreshPackSelector();
-        this.editor.populatePresetDropdown();
-        this.switchMode('play');
-        this.startLevelByIndex(0);
-        this.showTransientStatus(
-          t('app.packs.imported_toast.label', {
-            name: cleanName.toUpperCase(),
-            count: decodedLevels.length
-          })
-        );
       } else if (lower.endsWith('.json')) {
-        const text = await file.text();
-        const parsed = JSON.parse(text);
-        const rawList: Array<LevelBlueprint & Partial<CompiledLevel>> = Array.isArray(parsed)
-          ? parsed
-          : Array.isArray(parsed.levels)
-            ? parsed.levels
-            : [parsed];
-        const compiledList = rawList.map((item) =>
-          ConfigRegistry.compileBlueprint({
-            ...item,
-            itemGrid:
-              item.items && Array.isArray(item.items[0])
-                ? (item.items as unknown as (string | null)[][])
-                : item.itemGrid
-          })
-        );
-        await ConfigRegistry.registerImportedPack(cleanName.toUpperCase(), compiledList);
-        this.refreshPackSelector();
-        this.editor.populatePresetDropdown();
-        this.switchMode('play');
-        this.startLevelByIndex(0);
-        this.showTransientStatus(
-          t('app.packs.imported_toast.label', {
-            name: cleanName.toUpperCase(),
-            count: compiledList.length
-          })
-        );
+        levels = this.compileJsonLevels(JSON.parse(await file.text()));
       } else {
         this.showTransientStatus(t('app.packs.import_error.label'));
+        return;
       }
-    } catch {
-      this.showTransientStatus(t('app.packs.import_error.label'));
+      await ConfigRegistry.registerImportedPack(packName, levels);
+      this.refreshPackSelector();
+      this.editor.populatePresetDropdown();
+      this.switchMode('play');
+      this.startLevelByIndex(0);
+      this.showTransientStatus(
+        t('app.packs.imported_toast.label', { name: packName, count: levels.length })
+      );
+    } catch (err) {
+      this.showTransientStatus(
+        err instanceof InvalidLevelError
+          ? t('app.packs.invalid_level_error.label', { id: err.levelId })
+          : t('app.packs.import_error.label')
+      );
     }
   }
+
+  /** Compiles every level of a JSON import; throws before anything is registered. */
+  private compileJsonLevels(parsed: unknown): CompiledLevel[] {
+    const container = parsed as { levels?: unknown };
+    const rawList = (
+      Array.isArray(parsed) ? parsed : Array.isArray(container?.levels) ? container.levels : [parsed]
+    ) as Array<LevelBlueprint & Partial<CompiledLevel>>;
+    return rawList.map((item) =>
+      ConfigRegistry.compileBlueprint({
+        ...item,
+        itemGrid:
+          item.items && Array.isArray(item.items[0])
+            ? (item.items as unknown as (string | null)[][])
+            : item.itemGrid
+      })
+    );
+  }
+
+  private generateProceduralPack(): void {
+    const levels = ProceduralGenerator.generatePack();
+    ConfigRegistry.setProceduralLevels(levels);
+    this.refreshPackSelector();
+    this.editor.populatePresetDropdown();
+    this.switchMode('play');
+    this.startLevelByIndex(0);
+    this.showTransientStatus(t('app.packs.procedural_toast.label', { count: levels.length }));
+  }
+
+  private exportActivePack(): void {
+    downloadBytes(
+      DatCodec.encodeLevels(ConfigRegistry.getLevels()),
+      `${ConfigRegistry.getActivePackId()}.ccl`
+    );
+  }
+
+  private isRemovablePack(packId: string): boolean {
+    return packId !== BUILTIN_PACK_IDS.CAMPAIGN && packId !== BUILTIN_PACK_IDS.CUSTOM;
+  }
+
+  private async deleteActivePack(): Promise<void> {
+    const activeId = ConfigRegistry.getActivePackId();
+    if (!this.isRemovablePack(activeId)) return;
+    const pack = ConfigRegistry.getAllPacks().find((p) => p.id === activeId);
+    const name = pack ? this.getPackDisplayName(pack) : activeId;
+    if (!window.confirm(t('app.packs.delete_confirm.label', { name }))) return;
+
+    await ConfigRegistry.deleteImportedPack(activeId);
+    this.refreshPackSelector();
+    this.editor.populatePresetDropdown();
+    this.startLevelByIndex(0);
+    this.populateScoresTable();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Status, haptics, input helpers
+  // ---------------------------------------------------------------------------
 
   private showTransientStatus(message: string): void {
     this.customStatusMessage = message;
@@ -357,12 +491,12 @@ class EpoxyApplication {
     this.customStatusTimeout = window.setTimeout(() => {
       this.customStatusMessage = null;
       this.updateHUD();
-    }, 4500);
+    }, TOAST_DURATION_MS);
     this.updateHUD();
   }
 
   private triggerHaptic(): void {
-    const pulseMs = ConfigRegistry.getGame().touch?.hapticPulseMs ?? 10;
+    const pulseMs = ConfigRegistry.getGame().touch?.hapticPulseMs ?? TOUCH_DEFAULTS.hapticPulseMs;
     if (pulseMs > 0 && typeof navigator.vibrate === 'function') {
       try {
         navigator.vibrate(pulseMs);
@@ -372,12 +506,41 @@ class EpoxyApplication {
     }
   }
 
+  /** Starts a held move from any input source (keys, d-pad, swipe). */
+  private beginHeldMove(dir: Direction): void {
+    this.clearAutoMove();
+    this.heldDirection = dir;
+    this.engine.attemptPlayerMove(dir);
+  }
+
+  /** Click or tap on the board: stop a replay, or plan a path to the tile. */
+  private handleBoardPointer(clientX: number, clientY: number, inspect: boolean): void {
+    if (this.isReplaying) {
+      this.stopAutoMoveAndReplay();
+      this.updateHUD();
+      return;
+    }
+    if (!this.engine.getPlayer().alive || this.engine.isLevelCompleted() || this.engine.isPaused()) {
+      return;
+    }
+    const gridPt = this.renderer.screenToGrid(this.gameCanvas, clientX, clientY);
+    if (!gridPt) return;
+    if (inspect) {
+      this.renderer.setHoveredGridPoint(gridPt);
+      this.updateInspectBadge(gridPt);
+    }
+    const result = Pathfinder.findPath(this.engine, gridPt.x, gridPt.y);    this.autoMoveQueue = result.moves;
+    this.autoMovePoints = result.points;
+    this.renderer.setPlannedPath(this.autoMovePoints);
+  }
+
   private bindTouchGestures(): void {
-    const touchCfg = ConfigRegistry.getGame().touch;
-    const swipeDeadzone = touchCfg?.swipeDeadzonePx ?? 20;
-    const tapMaxDist = touchCfg?.tapMaxDistancePx ?? 14;
-    const tapMaxDuration = touchCfg?.tapMaxDurationMs ?? 280;
-    const pinchStepPx = touchCfg?.pinchZoomStepPx ?? 42;
+    const touchCfg = { ...TOUCH_DEFAULTS, ...ConfigRegistry.getGame().touch };
+    const swipeDeadzone = touchCfg.swipeDeadzonePx;
+    const tapMaxDist = touchCfg.tapMaxDistancePx;
+    const tapMaxDuration = touchCfg.tapMaxDurationMs;
+    const pinchStepPx = touchCfg.pinchZoomStepPx;
+    const anchorTrail = swipeDeadzone * SWIPE_ANCHOR_FOLLOW_RATIO;
 
     let anchorX = 0;
     let anchorY = 0;
@@ -398,7 +561,7 @@ class EpoxyApplication {
           e.preventDefault();
           this.heldDirection = null;
           pinchAnchorDist = getFingerDist(e.touches[0], e.touches[1]);
-          maxDisplacement = 999;
+          maxDisplacement = PINCH_SUPPRESSES_TAP;
           return;
         }
         if (e.touches.length === 1) {
@@ -424,19 +587,7 @@ class EpoxyApplication {
           this.heldDirection = null;
           const dist = getFingerDist(e.touches[0], e.touches[1]);
           if (pinchAnchorDist > 0 && Math.abs(dist - pinchAnchorDist) >= pinchStepPx) {
-            const presets = ConfigRegistry.getGame().grid.viewportPresets || [9, 13, 17, 32];
-            const curr = this.renderer.getViewportTiles();
-            const idx = presets.indexOf(curr);
-            const nextIdx =
-              dist > pinchAnchorDist
-                ? Math.max(0, (idx >= 0 ? idx : 1) - 1)
-                : Math.min(presets.length - 1, (idx >= 0 ? idx : 1) + 1);
-            const nextTiles = presets[nextIdx];
-            if (nextTiles !== curr) {
-              this.renderer.setViewportTiles(nextTiles);
-              const select = document.getElementById('fov-select') as HTMLSelectElement | null;
-              if (select) select.value = String(nextTiles);
-              this.saveUserSettings();
+            if (this.stepZoom(dist > pinchAnchorDist ? -1 : 1)) {
               this.triggerHaptic();
             }
             pinchAnchorDist = dist;
@@ -453,20 +604,17 @@ class EpoxyApplication {
 
           const dx = t0.clientX - anchorX;
           const dy = t0.clientY - anchorY;
-          const dist = Math.hypot(dx, dy);
-
-          if (dist >= swipeDeadzone) {
+          if (Math.hypot(dx, dy) >= swipeDeadzone) {
             const dir: Direction =
               Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'E' : 'W') : dy > 0 ? 'S' : 'N';
             this.clearAutoMove();
             if (this.heldDirection !== dir) {
-              this.heldDirection = dir;
               this.triggerHaptic();
-              this.engine.attemptPlayerMove(dir);
+              this.beginHeldMove(dir);
             }
             // Follow finger so turning 90 or 180 degrees mid-drag responds immediately
-            anchorX = t0.clientX - Math.sign(dx) * (swipeDeadzone * 0.55);
-            anchorY = t0.clientY - Math.sign(dy) * (swipeDeadzone * 0.55);
+            anchorX = t0.clientX - Math.sign(dx) * anchorTrail;
+            anchorY = t0.clientY - Math.sign(dy) * anchorTrail;
           }
         }
       },
@@ -483,30 +631,7 @@ class EpoxyApplication {
         const changed = e.changedTouches[0];
         if (changed && maxDisplacement <= tapMaxDist && duration <= tapMaxDuration) {
           e.preventDefault();
-          if (this.isReplaying) {
-            this.stopAutoMoveAndReplay();
-            this.updateHUD();
-            return;
-          }
-          if (
-            !this.engine.getPlayer().alive ||
-            this.engine.isLevelCompleted() ||
-            this.engine.isPaused()
-          ) {
-            return;
-          }
-          const gridPt = this.renderer.screenToGrid(
-            this.gameCanvas,
-            changed.clientX,
-            changed.clientY
-          );
-          if (!gridPt) return;
-          this.renderer.setHoveredGridPoint(gridPt);
-          this.updateInspectBadge(gridPt);
-          const result = Pathfinder.findPath(this.engine, gridPt.x, gridPt.y);
-          this.autoMoveQueue = result.moves;
-          this.autoMovePoints = result.points;
-          this.renderer.setPlannedPath(this.autoMovePoints);
+          this.handleBoardPointer(changed.clientX, changed.clientY, true);
         }
       }
     };
@@ -516,7 +641,7 @@ class EpoxyApplication {
   }
 
   private bindDragAndDrop(): void {
-    const dropOverlay = document.getElementById('drop-overlay');
+    const dropOverlay = byId('drop-overlay');
 
     window.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -541,45 +666,46 @@ class EpoxyApplication {
 
   private pollGamepad(): void {
     if (typeof navigator.getGamepads !== 'function') return;
-    const pads = navigator.getGamepads();
-    const pad = pads[0];
+    const pad = navigator.getGamepads()[GAMEPAD_INDEX];
     if (!pad) return;
 
-    const threshold = 0.5;
-    const axX = pad.axes[0] || 0;
-    const axY = pad.axes[1] || 0;
+    const axX = pad.axes[GAMEPAD_AXIS_X] || 0;
+    const axY = pad.axes[GAMEPAD_AXIS_Y] || 0;
+    const pressed = (idx: number): boolean => Boolean(pad.buttons[idx]?.pressed);
+    const justPressed = (idx: number): boolean => pressed(idx) && !this.prevGamepadButtons[idx];
 
-    if (pad.buttons[12]?.pressed || axY < -threshold) {
+    if (pressed(GAMEPAD_BUTTONS.DPAD_UP) || axY < -GAMEPAD_AXIS_THRESHOLD) {
       this.engine.attemptPlayerMove('N');
-    } else if (pad.buttons[13]?.pressed || axY > threshold) {
+    } else if (pressed(GAMEPAD_BUTTONS.DPAD_DOWN) || axY > GAMEPAD_AXIS_THRESHOLD) {
       this.engine.attemptPlayerMove('S');
-    } else if (pad.buttons[14]?.pressed || axX < -threshold) {
+    } else if (pressed(GAMEPAD_BUTTONS.DPAD_LEFT) || axX < -GAMEPAD_AXIS_THRESHOLD) {
       this.engine.attemptPlayerMove('W');
-    } else if (pad.buttons[15]?.pressed || axX > threshold) {
+    } else if (pressed(GAMEPAD_BUTTONS.DPAD_RIGHT) || axX > GAMEPAD_AXIS_THRESHOLD) {
       this.engine.attemptPlayerMove('E');
     }
 
-    const bPressed = Boolean(pad.buttons[1]?.pressed);
-    if (bPressed && !this.prevGamepadButtons[1]) {
-      this.engine.undo();
+    if (justPressed(GAMEPAD_BUTTONS.B)) {
+      this.undoMove();
     }
-
-    const startPressed = Boolean(pad.buttons[9]?.pressed);
-    if (startPressed && !this.prevGamepadButtons[9]) {
+    if (justPressed(GAMEPAD_BUTTONS.START)) {
       this.engine.togglePause();
     }
 
     this.prevGamepadButtons = pad.buttons.map((b) => b.pressed);
   }
 
+  // ---------------------------------------------------------------------------
+  // Viewport, theme, locale selectors
+  // ---------------------------------------------------------------------------
+
   private setupFovSelector(presets: number[], defaultTiles: number): void {
-    const select = document.getElementById('fov-select') as HTMLSelectElement | null;
+    const select = byId<HTMLSelectElement>('fov-select');
     if (!select) return;
     select.innerHTML = '';
     for (const p of presets) {
       const opt = document.createElement('option');
       opt.value = String(p);
-      opt.textContent = `${p}x${p}`;
+      opt.textContent = t('app.header.fov_option.label', { size: p });
       if (p === defaultTiles) {
         opt.selected = true;
       }
@@ -594,21 +720,30 @@ class EpoxyApplication {
     });
   }
 
-  private cycleFovPreset(): void {
-    const presets = ConfigRegistry.getGame().grid.viewportPresets || [9, 13, 17, 32];
-    const current = this.renderer.getViewportTiles();
-    const idx = presets.indexOf(current);
-    const next = presets[(idx + 1) % presets.length];
-    this.renderer.setViewportTiles(next);
-    const select = document.getElementById('fov-select') as HTMLSelectElement | null;
-    if (select) {
-      select.value = String(next);
-    }
+  private applyViewportTiles(tiles: number): void {
+    this.renderer.setViewportTiles(tiles);
+    const select = byId<HTMLSelectElement>('fov-select');
+    if (select) select.value = String(tiles);
     this.saveUserSettings();
   }
 
+  /** Zooms one preset in (-1) or out (1); returns whether the view changed. */
+  private stepZoom(step: 1 | -1): boolean {
+    const game = ConfigRegistry.getGame();
+    const curr = this.renderer.getViewportTiles();
+    const next = stepZoomPreset(getViewportPresets(game), curr, step, game.grid.viewportWidth);
+    if (next === curr) return false;
+    this.applyViewportTiles(next);
+    return true;
+  }
+
+  private cycleFovPreset(): void {
+    const presets = getViewportPresets(ConfigRegistry.getGame());
+    this.applyViewportTiles(cycleZoomPreset(presets, this.renderer.getViewportTiles()));
+  }
+
   private setupThemeSelector(): void {
-    const select = document.getElementById('theme-select') as HTMLSelectElement | null;
+    const select = byId<HTMLSelectElement>('theme-select');
     const themes = ConfigRegistry.getGame().themes;
     if (!select || !themes) return;
     select.innerHTML = '';
@@ -628,21 +763,40 @@ class EpoxyApplication {
 
   private applyTheme(themeId: string): void {
     this.renderer.setThemeId(themeId);
-    const select = document.getElementById('theme-select') as HTMLSelectElement | null;
+    const select = byId<HTMLSelectElement>('theme-select');
     if (select) {
       select.value = themeId;
     }
-    const trackMap: Record<string, string> = {
-      cyber_neon: 'cyber_pulse',
-      arctic_lab: 'arctic_synth',
-      magma_core: 'magma_drive',
-      lynx_lcd: 'cyber_pulse'
-    };
-    if (trackMap[themeId]) {
-      AudioManager.setTrackById(trackMap[themeId]);
+    const track = THEME_MUSIC_TRACKS[themeId];
+    if (track) {
+      AudioManager.setTrackById(track);
     }
     this.saveUserSettings();
   }
+
+  private setupLocaleSelector(supported: string[], defaultLocale: string): void {
+    const select = byId<HTMLSelectElement>('locale-select');
+    if (!select) return;
+    select.innerHTML = '';
+    for (const loc of supported) {
+      const opt = document.createElement('option');
+      opt.value = loc;
+      opt.textContent = t(`app.languages.${loc}.label`);
+      opt.lang = loc;
+      select.appendChild(opt);
+    }
+    select.value = defaultLocale;
+    i18n.setLocale(defaultLocale);
+
+    select.addEventListener('change', () => {
+      i18n.setLocale(select.value);
+      this.saveUserSettings();
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Level flow, replay, auto move
+  // ---------------------------------------------------------------------------
 
   private clearAutoMove(): void {
     this.autoMoveQueue = [];
@@ -651,10 +805,43 @@ class EpoxyApplication {
     this.renderer.setObjectivePoint(null);
   }
 
+  private stopAutoMoveAndReplay(): void {
+    this.clearAutoMove();
+    this.isReplaying = false;
+    this.replayMoves = [];
+    this.replayIndex = 0;
+  }
+
+  /** Single entry point for every restart control. */
+  private restartLevel(): void {
+    this.stopAutoMoveAndReplay();
+    this.heldDirection = null;
+    this.lastWarnedSecond = NO_WARNED_SECOND;
+    this.engine.loadLevel(this.engine.getLevel());
+    this.updateHUD();
+  }
+
+  /** Single entry point for every undo control. */
+  private undoMove(): void {
+    this.stopAutoMoveAndReplay();
+    this.engine.undo();
+    this.updateHUD();
+  }
+
+  private startReplay(moves: TimedMove[]): void {
+    if (!moves || moves.length === 0) return;
+    this.stopAutoMoveAndReplay();
+    this.engine.loadLevel(this.engine.getLevel());
+    this.replayMoves = [...moves];
+    this.replayIndex = 0;
+    this.isReplaying = true;
+    this.updateHUD();
+  }
+
   private triggerObjectiveAndLinks(): void {
     const active = this.renderer.toggleMechanismLinks();
-    document.getElementById('hud-btn-objective')?.classList.toggle('active', active);
-    document.getElementById('mobile-btn-objective')?.classList.toggle('active', active);
+    byId('hud-btn-objective')?.classList.toggle('active', active);
+    byId('mobile-btn-objective')?.classList.toggle('active', active);
 
     if (active) {
       const target = Pathfinder.findNextObjective(this.engine);
@@ -669,135 +856,142 @@ class EpoxyApplication {
     }
   }
 
-  private getMedalLabel(timeRemaining: number, timeLimit: number): string {
-    if (timeLimit <= 0) return t('hud.messages.medal_gold.label');
+  private getMedalTierFor(timeRemaining: number, timeLimit: number): MedalTier {
     const timing = ConfigRegistry.getGame().timing;
-    const ratio = timeRemaining / timeLimit;
-    if (ratio >= (timing.goldTimeRatio ?? 0.5)) {
-      return t('hud.messages.medal_gold.label');
-    }
-    if (ratio >= (timing.silverTimeRatio ?? 0.25)) {
-      return t('hud.messages.medal_silver.label');
-    }
-    return t('hud.messages.medal_bronze.label');
-  }
-
-  private stopAutoMoveAndReplay(): void {
-    this.clearAutoMove();
-    this.isReplaying = false;
-    this.replayMoves = [];
-    this.replayIndex = 0;
-  }
-
-  private startReplay(moves: Direction[]): void {
-    if (!moves || moves.length === 0) return;
-    this.stopAutoMoveAndReplay();
-    this.engine.loadLevel(this.engine.getLevel());
-    this.replayMoves = [...moves];
-    this.replayIndex = 0;
-    this.isReplaying = true;
-    this.updateHUD();
-  }
-
-  private generateProceduralPack(): void {
-    const levels = ProceduralGenerator.generatePack();
-    ConfigRegistry.setProceduralLevels(levels);
-    this.refreshPackSelector();
-    this.editor.populatePresetDropdown();
-    this.switchMode('play');
-    this.startLevelByIndex(0);
-    this.showTransientStatus(
-      t('app.packs.procedural_toast.label', { count: levels.length })
+    return getMedalTier(
+      timeRemaining,
+      timeLimit,
+      timing.goldTimeRatio ?? TIMING_DEFAULTS.goldTimeRatio,
+      timing.silverTimeRatio ?? TIMING_DEFAULTS.silverTimeRatio
     );
-  }
-
-  private setupLocaleSelector(supported: string[], defaultLocale: string): void {
-    const select = document.getElementById('locale-select') as HTMLSelectElement | null;
-    if (!select) return;
-    select.innerHTML = '';
-    for (const loc of supported) {
-      const opt = document.createElement('option');
-      opt.value = loc;
-      opt.textContent = loc.toUpperCase();
-      select.appendChild(opt);
-    }
-    const initial = supported.includes(i18n.getLocale()) ? i18n.getLocale() : defaultLocale;
-    select.value = initial;
-    i18n.setLocale(initial);
-
-    select.addEventListener('change', () => {
-      i18n.setLocale(select.value);
-      this.saveUserSettings();
-    });
   }
 
   private startLevelByIndex(index: number): void {
     const levels = ConfigRegistry.getLevels();
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
-    this.lastWarnedSecond = -1;
+    this.lastWarnedSecond = NO_WARNED_SECOND;
     this.currentLevelIndex = ((index % levels.length) + levels.length) % levels.length;
-    const level = levels[this.currentLevelIndex];
-    this.engine.loadLevel(level);
+    this.engine.loadLevel(levels[this.currentLevelIndex]);
     this.saveProgress();
     this.updateHUD();
   }
 
-  private switchMode(mode: 'play' | 'editor'): void {
-    this.activeMode = mode;
-    const playView = document.getElementById('play-view');
-    const editorView = document.getElementById('editor-view');
-    const playBtn = document.getElementById('btn-mode-play');
-    const editorBtn = document.getElementById('btn-mode-editor');
+  private isPackFullyCompleted(levels: CompiledLevel[]): boolean {
+    return levels.length > 0 && levels.every((lvl) => Boolean(this.highScores[lvl.id]));
+  }
 
-    if (mode === 'play') {
-      playView?.classList.remove('hidden');
-      editorView?.classList.add('hidden');
-      playBtn?.classList.add('active');
-      editorBtn?.classList.remove('active');
-    } else {
-      playView?.classList.add('hidden');
-      editorView?.classList.remove('hidden');
-      playBtn?.classList.remove('active');
-      editorBtn?.classList.add('active');
-      this.editor.populatePresetDropdown();
-      this.editor.loadCompiledLevel(this.engine.getLevel());
+  private isOnLastLevel(): boolean {
+    return this.currentLevelIndex >= ConfigRegistry.getLevels().length - 1;
+  }
+
+  /** Next level; past the last one the pack restarts at level 1 with a message. */
+  private advanceToNextLevel(): void {
+    const levels = ConfigRegistry.getLevels();
+    const wraps = this.isOnLastLevel();
+    this.startLevelByIndex(this.currentLevelIndex + 1);
+    if (wraps && levels.length > 0) {
+      this.showTransientStatus(
+        t(
+          this.isPackFullyCompleted(levels)
+            ? 'hud.messages.all_levels_won.label'
+            : 'hud.messages.pack_wrapped.label'
+        )
+      );
     }
   }
 
+  private switchMode(mode: 'play' | 'editor'): void {
+    this.activeMode = mode;
+    const isPlay = mode === 'play';
+    byId('play-view')?.classList.toggle('hidden', !isPlay);
+    byId('editor-view')?.classList.toggle('hidden', isPlay);
+    byId('btn-mode-play')?.classList.toggle('active', isPlay);
+    byId('btn-mode-editor')?.classList.toggle('active', !isPlay);
+
+    if (!isPlay) {
+      this.syncEditorWithEngineLevel();
+      this.editor.populatePresetDropdown();
+    }
+  }
+
+  /**
+   * Loads the engine level into the editor only when it changed since the
+   * editor last saw it, and asks before replacing unsaved editor work.
+   */
+  private syncEditorWithEngineLevel(): void {
+    const level = this.engine.getLevel();
+    if (level === this.editorSourceLevel) return;
+    this.editorSourceLevel = level;
+    if (this.editor.hasUnsavedChanges() && !window.confirm(t('editor.toolbar.confirm_reload.label'))) {
+      return;
+    }
+    this.editor.loadCompiledLevel(level);
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI event binding
+  // ---------------------------------------------------------------------------
+
   private bindUIEvents(): void {
-    const packSelect = document.getElementById('pack-select') as HTMLSelectElement | null;
+    this.bindPackControls();
+    this.bindBoardPointer();
+    this.bindModeSwitch();
+    this.bindDrawer();
+    this.bindScoresModal();
+    this.bindHelpModal();
+    this.bindPasswordModal();
+    this.bindDisplayToggles();
+    this.bindAudioToggles();
+    this.bindDpad();
+    this.bindMobileControls();
+    this.bindLynxControls();
+    this.bindHudControls();
+    this.bindOverlayControls();
+  }
+
+  private openPackFilePicker(): void {
+    byId<HTMLInputElement>('pack-file-input')?.click();
+  }
+
+  private bindPackControls(): void {
+    const packSelect = byId<HTMLSelectElement>('pack-select');
     packSelect?.addEventListener('change', () => {
       ConfigRegistry.setActivePackId(packSelect.value);
       this.editor.populatePresetDropdown();
       this.startLevelByIndex(0);
     });
 
-    const packFileInput = document.getElementById('pack-file-input') as HTMLInputElement | null;
-    document.getElementById('btn-import-pack')?.addEventListener('click', () => {
-      packFileInput?.click();
+    byId('btn-import-pack')?.addEventListener('click', () => {
+      this.openPackFilePicker();
     });
 
-    document.getElementById('btn-procedural-pack')?.addEventListener('click', () => {
+    byId('btn-procedural-pack')?.addEventListener('click', () => {
       this.generateProceduralPack();
     });
 
+    const packFileInput = byId<HTMLInputElement>('pack-file-input');
+    packFileInput?.addEventListener('change', () => {
+      const file = packFileInput.files?.[0];
+      if (file) {
+        void this.handleImportedFile(file);
+      }
+      packFileInput.value = '';
+    });
+
+    byId('btn-export-pack-ccl')?.addEventListener('click', () => {
+      this.exportActivePack();
+    });
+
+    byId('btn-delete-pack')?.addEventListener('click', () => {
+      void this.deleteActivePack();
+    });
+  }
+
+  private bindBoardPointer(): void {
     this.gameCanvas.addEventListener('click', (e) => {
       if (this.activeMode !== 'play') return;
-      if (this.isReplaying) {
-        this.stopAutoMoveAndReplay();
-        this.updateHUD();
-        return;
-      }
-      if (!this.engine.getPlayer().alive || this.engine.isLevelCompleted() || this.engine.isPaused()) {
-        return;
-      }
-      const gridPt = this.renderer.screenToGrid(this.gameCanvas, e.clientX, e.clientY);
-      if (!gridPt) return;
-      const result = Pathfinder.findPath(this.engine, gridPt.x, gridPt.y);
-      this.autoMoveQueue = result.moves;
-      this.autoMovePoints = result.points;
-      this.renderer.setPlannedPath(this.autoMovePoints);
+      this.handleBoardPointer(e.clientX, e.clientY, false);
     });
 
     this.gameCanvas.addEventListener('mousemove', (e) => {
@@ -817,58 +1011,141 @@ class EpoxyApplication {
       (e) => {
         if (this.activeMode !== 'play') return;
         e.preventDefault();
-        const presets = ConfigRegistry.getGame().grid.viewportPresets || [9, 13, 17, 32];
-        const curr = this.renderer.getViewportTiles();
-        const idx = presets.indexOf(curr);
-        const nextIdx =
-          e.deltaY > 0
-            ? Math.min(presets.length - 1, (idx >= 0 ? idx : 1) + 1)
-            : Math.max(0, (idx >= 0 ? idx : 1) - 1);
-        const nextTiles = presets[nextIdx];
-        this.renderer.setViewportTiles(nextTiles);
-        const select = document.getElementById('fov-select') as HTMLSelectElement | null;
-        if (select) select.value = String(nextTiles);
-        this.saveUserSettings();
+        this.stepZoom(e.deltaY > 0 ? 1 : -1);
       },
       { passive: false }
     );
+  }
 
-    packFileInput?.addEventListener('change', () => {
-      const file = packFileInput.files?.[0];
-      if (file) {
-        void this.handleImportedFile(file);
-      }
-      packFileInput.value = '';
-    });
-
-    document.getElementById('btn-mode-play')?.addEventListener('click', () => {
+  private bindModeSwitch(): void {
+    byId('btn-mode-play')?.addEventListener('click', () => {
       this.switchMode('play');
     });
-
-    document.getElementById('btn-mode-editor')?.addEventListener('click', () => {
+    byId('btn-mode-editor')?.addEventListener('click', () => {
       this.switchMode('editor');
     });
+  }
 
-    const scoresModal = document.getElementById('scores-modal');
-    const scoresSearchInput = document.getElementById(
-      'scores-search-input'
-    ) as HTMLInputElement | null;
-    document.getElementById('btn-levels-modal')?.addEventListener('click', () => {
-      scoresModal?.classList.remove('hidden');
-      this.populateScoresTable(true);
-      scoresSearchInput?.focus();
+  // -- Options drawer --------------------------------------------------------
+
+  private syncDrawerChrome(open: boolean): void {
+    byId('drawer-backdrop')?.classList.toggle('hidden', !open);
+    const optionsBtn = byId('btn-options-menu');
+    optionsBtn?.classList.toggle('active', open);
+    optionsBtn?.setAttribute('aria-expanded', String(open));
+  }
+
+  /** The only way the drawer opens or closes, so its chrome never desyncs. */
+  private setDrawerOpen(open: boolean, opener?: HTMLElement | null): void {
+    const drawer = byId('options-drawer');
+    if (!drawer) return;
+    if (!open) {
+      closeDialog(drawer);
+      this.syncDrawerChrome(false);
+      return;
+    }
+    if (isDialogOpen(drawer)) return;
+    this.syncDrawerChrome(true);
+    openDialog(drawer, opener ?? (document.activeElement as HTMLElement | null), {
+      onClose: () => this.syncDrawerChrome(false)
+    });
+  }
+
+  private bindDrawer(): void {
+    const optionsBtn = byId('btn-options-menu');
+    optionsBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.setDrawerOpen(!isDialogOpen(byId('options-drawer')), optionsBtn);
     });
 
-    document.getElementById('scores-close-btn')?.addEventListener('click', () => {
-      scoresModal?.classList.add('hidden');
+    const hudOptionsBtn = byId('hud-btn-options-drawer');
+    hudOptionsBtn?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.setDrawerOpen(true, hudOptionsBtn);
     });
 
-    scoresModal?.addEventListener('click', (e) => {
-      if (e.target === scoresModal) {
-        scoresModal.classList.add('hidden');
+    byId('btn-close-drawer')?.addEventListener('click', () => {
+      this.setDrawerOpen(false);
+    });
+
+    byId('drawer-backdrop')?.addEventListener('click', () => {
+      this.setDrawerOpen(false);
+    });
+
+    byId('btn-drawer-levels')?.addEventListener('click', () => {
+      this.setDrawerOpen(false);
+      this.openScoresModal();
+    });
+
+    byId('btn-drawer-procedural')?.addEventListener('click', () => {
+      this.setDrawerOpen(false);
+      this.generateProceduralPack();
+    });
+
+    byId('btn-drawer-import')?.addEventListener('click', () => {
+      this.setDrawerOpen(false);
+      this.openPackFilePicker();
+    });
+
+    byId('btn-drawer-password')?.addEventListener('click', () => {
+      this.setDrawerOpen(false);
+      this.openPasswordModal();
+    });
+
+    byId('btn-help-modal')?.addEventListener('click', () => {
+      this.setDrawerOpen(false);
+      this.openHelpModal();
+    });
+  }
+
+  // -- Modals ------------------------------------------------------------------
+
+  private openModal(id: string, initialFocus?: HTMLElement | null): void {
+    const modal = byId(id);
+    if (!modal) return;
+    openDialog(modal, document.activeElement as HTMLElement | null, { initialFocus });
+  }
+
+  private closeModal(id: string): void {
+    closeDialog(byId(id));
+  }
+
+  /** A click on the dimmed backdrop (outside the card) closes the modal. */
+  private bindBackdropClose(id: string): void {
+    const modal = byId(id);
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeDialog(modal);
       }
     });
+  }
 
+  private openScoresModal(): void {
+    this.populateScoresTable(true);
+    this.openModal(MODAL_IDS.SCORES, byId('scores-search-input'));
+  }
+
+  private openHelpModal(): void {
+    this.openModal(MODAL_IDS.HELP);
+  }
+
+  private openPasswordModal(): void {
+    const passInput = byId<HTMLInputElement>('password-input');
+    byId('password-error')?.classList.add('hidden');
+    if (passInput) passInput.value = '';
+    this.openModal(MODAL_IDS.PASSWORD, passInput);
+  }
+
+  private bindScoresModal(): void {
+    byId('btn-levels-modal')?.addEventListener('click', () => {
+      this.openScoresModal();
+    });
+    byId('scores-close-btn')?.addEventListener('click', () => {
+      this.closeModal(MODAL_IDS.SCORES);
+    });
+    this.bindBackdropClose(MODAL_IDS.SCORES);
+
+    const scoresSearchInput = byId<HTMLInputElement>('scores-search-input');
     scoresSearchInput?.addEventListener('input', () => {
       this.scoresSearchQuery = scoresSearchInput.value.trim().toLowerCase();
       this.populateScoresTable(false);
@@ -877,109 +1154,69 @@ class EpoxyApplication {
     const filterBtns = document.querySelectorAll<HTMLButtonElement>('.scores-filter-pills button');
     filterBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
-        const filter = btn.getAttribute('data-filter') as 'all' | 'unsolved' | 'completed' | null;
+        const filter = btn.getAttribute('data-filter') as ScoresFilter | null;
         if (!filter) return;
         this.scoresFilterMode = filter;
-        filterBtns.forEach((b) => b.classList.toggle('active', b === btn));
+        filterBtns.forEach((b) => {
+          b.classList.toggle('active', b === btn);
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
         this.populateScoresTable(false);
       });
     });
+  }
 
-    const optionsBtn = document.getElementById('btn-options-menu');
-    const optionsDrawer = document.getElementById('options-drawer');
-    const drawerBackdrop = document.getElementById('drawer-backdrop');
+  private bindHelpModal(): void {
+    byId('help-close-btn')?.addEventListener('click', () => {
+      this.closeModal(MODAL_IDS.HELP);
+    });
+    this.bindBackdropClose(MODAL_IDS.HELP);
+  }
 
-    const setDrawerOpen = (open: boolean): void => {
-      optionsDrawer?.classList.toggle('hidden', !open);
-      drawerBackdrop?.classList.toggle('hidden', !open);
-      optionsBtn?.classList.toggle('active', open);
-      optionsBtn?.setAttribute('aria-expanded', String(open));
+  private bindPasswordModal(): void {
+    const passInput = byId<HTMLInputElement>('password-input');
+
+    byId('hud-btn-password')?.addEventListener('click', () => {
+      this.openPasswordModal();
+    });
+    byId('hud-password-badge')?.addEventListener('click', () => {
+      this.openPasswordModal();
+    });
+    byId('password-cancel-btn')?.addEventListener('click', () => {
+      this.closeModal(MODAL_IDS.PASSWORD);
+    });
+    this.bindBackdropClose(MODAL_IDS.PASSWORD);
+
+    const submitPassword = (): void => {
+      const code = (passInput?.value || '').trim().toUpperCase();
+      const idx = ConfigRegistry.getLevels().findIndex((l) => l.password.toUpperCase() === code);
+      if (idx >= 0) {
+        this.closeModal(MODAL_IDS.PASSWORD);
+        this.startLevelByIndex(idx);
+      } else {
+        byId('password-error')?.classList.remove('hidden');
+      }
     };
 
-    optionsBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isHidden = Boolean(optionsDrawer?.classList.contains('hidden'));
-      setDrawerOpen(isHidden);
-    });
-
-    document.getElementById('hud-btn-options-drawer')?.addEventListener('click', () => {
-      this.triggerHaptic();
-      setDrawerOpen(true);
-    });
-
-    document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
-      setDrawerOpen(false);
-    });
-
-    drawerBackdrop?.addEventListener('click', () => {
-      setDrawerOpen(false);
-    });
-
-    document.getElementById('btn-drawer-levels')?.addEventListener('click', () => {
-      setDrawerOpen(false);
-      scoresModal?.classList.remove('hidden');
-      this.populateScoresTable(true);
-      scoresSearchInput?.focus();
-    });
-
-    document.getElementById('btn-drawer-procedural')?.addEventListener('click', () => {
-      setDrawerOpen(false);
-      this.generateProceduralPack();
-    });
-
-    document.getElementById('btn-drawer-import')?.addEventListener('click', () => {
-      setDrawerOpen(false);
-      packFileInput?.click();
-    });
-
-    const helpModal = document.getElementById('help-modal');
-    document.getElementById('btn-help-modal')?.addEventListener('click', () => {
-      setDrawerOpen(false);
-      helpModal?.classList.remove('hidden');
-    });
-
-    document.getElementById('help-close-btn')?.addEventListener('click', () => {
-      helpModal?.classList.add('hidden');
-    });
-
-    helpModal?.addEventListener('click', (e) => {
-      if (e.target === helpModal) {
-        helpModal.classList.add('hidden');
+    byId('password-submit-btn')?.addEventListener('click', submitPassword);
+    passInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitPassword();
       }
     });
+  }
 
-    document.getElementById('btn-export-pack-ccl')?.addEventListener('click', () => {
-      const levels = ConfigRegistry.getLevels();
-      const bytes = DatCodec.encodeLevels(levels);
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${ConfigRegistry.getActivePackId()}.ccl`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+  // -- Toggles -----------------------------------------------------------------
 
-    document.getElementById('btn-delete-pack')?.addEventListener('click', async () => {
-      const activeId = ConfigRegistry.getActivePackId();
-      if (activeId !== BUILTIN_PACK_IDS.CAMPAIGN && activeId !== BUILTIN_PACK_IDS.CUSTOM) {
-        await ConfigRegistry.deleteImportedPack(activeId);
-        this.refreshPackSelector();
-        this.editor.populatePresetDropdown();
-        this.startLevelByIndex(0);
-        this.populateScoresTable();
-      }
-    });
-
-    const gfxBtn = document.getElementById('btn-graphics-toggle');
-    gfxBtn?.addEventListener('click', () => {
+  private bindDisplayToggles(): void {
+    byId('btn-graphics-toggle')?.addEventListener('click', () => {
       this.toggleGraphicsStyle();
     });
 
-    const shellBtn = document.getElementById('btn-shell-toggle');
-    const lynxConsole = document.getElementById('lynx-console');
+    const shellBtn = byId('btn-shell-toggle');
     shellBtn?.addEventListener('click', () => {
-      lynxConsole?.classList.toggle('enabled');
+      byId('lynx-console')?.classList.toggle('enabled');
       shellBtn.classList.toggle('active');
       this.saveUserSettings();
     });
@@ -988,42 +1225,47 @@ class EpoxyApplication {
       this.triggerHaptic();
       this.toggleFullscreen();
     };
-    document.getElementById('btn-fullscreen-toggle')?.addEventListener('click', toggleFullscreenHandler);
-    document.getElementById('btn-mobile-fullscreen')?.addEventListener('click', toggleFullscreenHandler);
-    document.getElementById('mobile-btn-fullscreen')?.addEventListener('click', toggleFullscreenHandler);
-    document.getElementById('btn-exit-fullscreen')?.addEventListener('click', toggleFullscreenHandler);
+    for (const id of ['btn-fullscreen-toggle', 'btn-mobile-fullscreen', 'mobile-btn-fullscreen', 'btn-exit-fullscreen']) {
+      byId(id)?.addEventListener('click', toggleFullscreenHandler);
+    }
 
     document.addEventListener('fullscreenchange', () => {
       const isNativeFs = Boolean(document.fullscreenElement);
       document.body.classList.toggle('fullscreen-mode', isNativeFs);
       this.syncFullscreenButtons(isNativeFs);
     });
+  }
 
-    const sfxBtn = document.getElementById('btn-sfx-toggle');
-    sfxBtn?.addEventListener('click', () => {
-      const enabled = AudioManager.toggleSfx();
-      sfxBtn.classList.toggle('active', enabled);
-      this.saveUserSettings();
+  private toggleSfx(): void {
+    const enabled = AudioManager.toggleSfx();
+    byId('btn-sfx-toggle')?.classList.toggle('active', enabled);
+    this.saveUserSettings();
+  }
+
+  private bindAudioToggles(): void {
+    byId('btn-sfx-toggle')?.addEventListener('click', () => {
+      this.toggleSfx();
     });
 
-    const musicBtn = document.getElementById('btn-music-toggle');
+    const musicBtn = byId('btn-music-toggle');
     musicBtn?.addEventListener('click', () => {
       const enabled = AudioManager.toggleMusic();
       musicBtn.classList.toggle('active', enabled);
       this.saveUserSettings();
     });
+  }
 
-    const dpadBtns = document.querySelectorAll<HTMLButtonElement>('.dpad-btn');
-    dpadBtns.forEach((btn) => {
+  // -- Mobile and handheld controls -------------------------------------------
+
+  private bindDpad(): void {
+    document.querySelectorAll<HTMLButtonElement>('.dpad-btn').forEach((btn) => {
       const dir = btn.getAttribute('data-dir') as Direction | null;
       if (!dir) return;
 
       const startMove = (e: Event): void => {
         e.preventDefault();
-        this.clearAutoMove();
-        this.heldDirection = dir;
         this.triggerHaptic();
-        this.engine.attemptPlayerMove(dir);
+        this.beginHeldMove(dir);
       };
       const stopMove = (): void => {
         if (this.heldDirection === dir) {
@@ -1039,8 +1281,7 @@ class EpoxyApplication {
       btn.addEventListener('touchcancel', stopMove);
     });
 
-    const dpadContainers = document.querySelectorAll<HTMLElement>('.dpad-container');
-    dpadContainers.forEach((container) => {
+    document.querySelectorAll<HTMLElement>('.dpad-container').forEach((container) => {
       container.addEventListener(
         'touchmove',
         (e) => {
@@ -1051,208 +1292,145 @@ class EpoxyApplication {
           const btn = targetEl?.closest('.dpad-btn') as HTMLElement | null;
           const dir = btn?.getAttribute('data-dir') as Direction | null;
           if (dir && dir !== this.heldDirection) {
-            this.clearAutoMove();
-            this.heldDirection = dir;
             this.triggerHaptic();
-            this.engine.attemptPlayerMove(dir);
+            this.beginHeldMove(dir);
           }
         },
         { passive: false }
       );
-      container.addEventListener('touchend', () => {
+      const release = (): void => {
         this.heldDirection = null;
-      });
-      container.addEventListener('touchcancel', () => {
-        this.heldDirection = null;
-      });
+      };
+      container.addEventListener('touchend', release);
+      container.addEventListener('touchcancel', release);
     });
+  }
 
-    const mobileMenuBtn = document.getElementById('btn-mobile-menu');
-    const topControlsDrawer = document.getElementById('top-controls-drawer');
+  private bindMobileControls(): void {
+    const mobileMenuBtn = byId('btn-mobile-menu');
+    const topControlsDrawer = byId('top-controls-drawer');
     mobileMenuBtn?.addEventListener('click', () => {
       topControlsDrawer?.classList.toggle('open');
-      mobileMenuBtn.classList.toggle('active', topControlsDrawer?.classList.contains('open'));
+      const isOpen = Boolean(topControlsDrawer?.classList.contains('open'));
+      mobileMenuBtn.classList.toggle('active', isOpen);
+      mobileMenuBtn.setAttribute('aria-expanded', String(isOpen));
     });
 
-    document.getElementById('mobile-btn-undo')?.addEventListener('click', () => {
+    byId('mobile-btn-undo')?.addEventListener('click', () => {
       this.triggerHaptic();
-      this.clearAutoMove();
-      this.engine.undo();
-      this.updateHUD();
+      this.undoMove();
     });
 
-    document.getElementById('mobile-btn-objective')?.addEventListener('click', () => {
+    byId('mobile-btn-objective')?.addEventListener('click', () => {
       this.triggerHaptic();
       this.triggerObjectiveAndLinks();
     });
 
-    document.getElementById('mobile-btn-restart')?.addEventListener('click', () => {
+    byId('mobile-btn-restart')?.addEventListener('click', () => {
       this.triggerHaptic();
-      this.clearAutoMove();
-      this.engine.loadLevel(this.engine.getLevel());
-      this.updateHUD();
+      this.restartLevel();
     });
 
-    document.getElementById('mobile-btn-zoom')?.addEventListener('click', () => {
+    byId('mobile-btn-zoom')?.addEventListener('click', () => {
       this.triggerHaptic();
       this.cycleFovPreset();
     });
+  }
 
-    document.getElementById('lynx-btn-b')?.addEventListener('click', () => {
-      this.engine.undo();
-      this.updateHUD();
+  private bindLynxControls(): void {
+    byId('lynx-btn-b')?.addEventListener('click', () => {
+      this.undoMove();
     });
 
-    document.getElementById('lynx-btn-a')?.addEventListener('click', () => {
+    byId('lynx-btn-a')?.addEventListener('click', () => {
       if (this.engine.isLevelCompleted()) {
-        this.startLevelByIndex(this.currentLevelIndex + 1);
+        this.advanceToNextLevel();
       } else if (!this.engine.getPlayer().alive) {
-        this.engine.loadLevel(this.engine.getLevel());
+        this.restartLevel();
       } else {
         this.engine.attemptPlayerMove(this.engine.getPlayer().dir);
+        this.updateHUD();
       }
-      this.updateHUD();
     });
 
-    document.getElementById('lynx-opt1')?.addEventListener('click', () => {
-      this.engine.loadLevel(this.engine.getLevel());
-      this.updateHUD();
+    byId('lynx-opt1')?.addEventListener('click', () => {
+      this.restartLevel();
     });
 
-    document.getElementById('lynx-opt2')?.addEventListener('click', () => {
-      const enabled = AudioManager.toggleSfx();
-      sfxBtn?.classList.toggle('active', enabled);
-      this.saveUserSettings();
+    byId('lynx-opt2')?.addEventListener('click', () => {
+      this.toggleSfx();
     });
 
-    document.getElementById('lynx-pause')?.addEventListener('click', () => {
+    byId('lynx-pause')?.addEventListener('click', () => {
       this.engine.togglePause();
       this.updateHUD();
     });
+  }
 
-    document.getElementById('overlay-btn-resume')?.addEventListener('click', () => {
+  private bindHudControls(): void {
+    byId('hud-btn-undo')?.addEventListener('click', () => {
+      this.undoMove();
+    });
+    byId('hud-btn-objective')?.addEventListener('click', () => {
+      this.triggerObjectiveAndLinks();
+    });
+    byId('hud-btn-restart')?.addEventListener('click', () => {
+      this.restartLevel();
+    });
+    byId('hud-btn-pause')?.addEventListener('click', () => {
+      this.engine.togglePause();
+      this.updateHUD();
+    });
+    byId('hud-btn-prev')?.addEventListener('click', () => {
+      this.startLevelByIndex(this.currentLevelIndex - 1);
+    });
+    byId('hud-btn-next')?.addEventListener('click', () => {
+      this.advanceToNextLevel();
+    });
+  }
+
+  private bindOverlayControls(): void {
+    byId('overlay-btn-resume')?.addEventListener('click', () => {
       this.engine.setPaused(false);
       this.updateHUD();
     });
 
-    document.getElementById('hud-btn-undo')?.addEventListener('click', () => {
-      this.clearAutoMove();
-      this.engine.undo();
-      this.updateHUD();
+    byId('overlay-btn-next')?.addEventListener('click', () => {
+      this.advanceToNextLevel();
     });
 
-    document.getElementById('hud-btn-objective')?.addEventListener('click', () => {
-      this.triggerObjectiveAndLinks();
-    });
-
-    document.getElementById('hud-btn-restart')?.addEventListener('click', () => {
-      this.engine.loadLevel(this.engine.getLevel());
-      this.updateHUD();
-    });
-
-    document.getElementById('hud-btn-pause')?.addEventListener('click', () => {
-      this.engine.togglePause();
-      this.updateHUD();
-    });
-
-    document.getElementById('hud-btn-prev')?.addEventListener('click', () => {
-      this.startLevelByIndex(this.currentLevelIndex - 1);
-    });
-
-    document.getElementById('hud-btn-next')?.addEventListener('click', () => {
-      this.startLevelByIndex(this.currentLevelIndex + 1);
-    });
-
-    document.getElementById('overlay-btn-next')?.addEventListener('click', () => {
-      this.startLevelByIndex(this.currentLevelIndex + 1);
-    });
-
-    document.getElementById('overlay-btn-replay')?.addEventListener('click', () => {
-      const lvlId = this.engine.getLevel().id;
+    byId('overlay-btn-replay')?.addEventListener('click', () => {
+      const current = this.engine.getTimedMoveHistory();
       const moves =
-        this.engine.getMoveHistory().length > 0
-          ? this.engine.getMoveHistory()
-          : this.highScores[lvlId]?.replayMoves || [];
+        current.length > 0
+          ? current
+          : this.highScores[this.engine.getLevel().id]?.replayTimedMoves || [];
       this.startReplay(moves);
     });
 
-    document.getElementById('overlay-btn-undo')?.addEventListener('click', () => {
-      this.stopAutoMoveAndReplay();
-      this.engine.undo();
-      this.updateHUD();
+    byId('overlay-btn-undo')?.addEventListener('click', () => {
+      this.undoMove();
     });
 
-    document.getElementById('overlay-btn-retry')?.addEventListener('click', () => {
-      this.stopAutoMoveAndReplay();
-      this.engine.loadLevel(this.engine.getLevel());
-      this.updateHUD();
-    });
-
-    const passModal = document.getElementById('password-modal');
-    const passInput = document.getElementById('password-input') as HTMLInputElement | null;
-    const passError = document.getElementById('password-error');
-
-    const openPasswordModal = (): void => {
-      passError?.classList.add('hidden');
-      if (passInput) passInput.value = '';
-      passModal?.classList.remove('hidden');
-      passInput?.focus();
-    };
-
-    document.getElementById('hud-btn-password')?.addEventListener('click', openPasswordModal);
-    document.getElementById('btn-drawer-password')?.addEventListener('click', () => {
-      document.getElementById('options-drawer')?.classList.add('hidden');
-      document.getElementById('drawer-backdrop')?.classList.add('hidden');
-      document.getElementById('btn-options-menu')?.classList.remove('active');
-      openPasswordModal();
-    });
-    document.querySelector('.hud-password-badge')?.addEventListener('click', openPasswordModal);
-
-    document.getElementById('password-cancel-btn')?.addEventListener('click', () => {
-      passModal?.classList.add('hidden');
-    });
-
-    passModal?.addEventListener('click', (e) => {
-      if (e.target === passModal) {
-        passModal.classList.add('hidden');
-      }
-    });
-
-    const submitPassword = (): void => {
-      const code = (passInput?.value || '').trim().toUpperCase();
-      const idx = ConfigRegistry.getLevels().findIndex((l) => l.password.toUpperCase() === code);
-      if (idx >= 0) {
-        passModal?.classList.add('hidden');
-        this.startLevelByIndex(idx);
-      } else {
-        passError?.classList.remove('hidden');
-      }
-    };
-
-    document.getElementById('password-submit-btn')?.addEventListener('click', submitPassword);
-    passInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        submitPassword();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        passModal?.classList.add('hidden');
-      }
+    byId('overlay-btn-retry')?.addEventListener('click', () => {
+      this.restartLevel();
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Scores table
+  // ---------------------------------------------------------------------------
+
   private populateScoresTable(scrollToActive: boolean = false): void {
-    const tbody = document.getElementById('scores-table-body');
-    const scoresModal = document.getElementById('scores-modal');
-    const deletePackBtn = document.getElementById('btn-delete-pack');
-    const progressEl = document.getElementById('scores-progress-summary');
+    const tbody = byId('scores-table-body');
+    const progressEl = byId('scores-progress-summary');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    const activeId = ConfigRegistry.getActivePackId();
-    const isRemovablePack =
-      activeId !== BUILTIN_PACK_IDS.CAMPAIGN && activeId !== BUILTIN_PACK_IDS.CUSTOM;
-    deletePackBtn?.classList.toggle('hidden', !isRemovablePack);
+    byId('btn-delete-pack')?.classList.toggle(
+      'hidden',
+      !this.isRemovablePack(ConfigRegistry.getActivePackId())
+    );
 
     const levels = ConfigRegistry.getLevels();
     const completedCount = levels.filter((lvl) => Boolean(this.highScores[lvl.id])).length;
@@ -1270,9 +1448,7 @@ class EpoxyApplication {
       if (this.scoresFilterMode === 'unsolved' && rec) return;
       if (this.scoresFilterMode === 'completed' && !rec) return;
 
-      const title =
-        lvl.customTitle || (lvl.titleKey ? t(lvl.titleKey, { number: lvl.number }) : lvl.id);
-
+      const title = this.resolveLevelTitle(lvl);
       if (this.scoresSearchQuery) {
         const hay = `${lvl.number} ${title} ${lvl.password}`.toLowerCase();
         if (!hay.includes(this.scoresSearchQuery)) return;
@@ -1281,130 +1457,101 @@ class EpoxyApplication {
       const tr = document.createElement('tr');
       if (idx === this.currentLevelIndex) {
         tr.classList.add('current-level-row');
+        tr.setAttribute('aria-current', 'true');
         activeRowEl = tr;
       }
 
-      const tdNum = document.createElement('td');
-      tdNum.textContent = String(lvl.number);
+      const cell = (text: string, className?: string): HTMLTableCellElement => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (className) td.className = className;
+        return td;
+      };
+      const noRecord = '-';
 
-      const tdTitle = document.createElement('td');
-      tdTitle.textContent = title;
-
-      const tdCode = document.createElement('td');
-      tdCode.className = 'code-cell';
-      tdCode.textContent = lvl.password;
-
-      const tdTime = document.createElement('td');
-      if (rec) {
-        const medal = this.getMedalLabel(rec.bestTimeRemaining, lvl.timeLimitSeconds).split(' ')[0];
-        tdTime.textContent = `${medal} ${rec.bestTimeRemaining}s`;
-      } else {
-        tdTime.textContent = '-';
-      }
-
-      const tdSteps = document.createElement('td');
-      tdSteps.textContent = rec ? String(rec.minSteps) : '-';
-
-      const tdScore = document.createElement('td');
-      tdScore.textContent = rec ? String(rec.bestScore) : '-';
+      const timeText = rec
+        ? t('hud.scores_modal.best_time_cell.label', {
+            medal: t(medalIconKey(this.getMedalTierFor(rec.bestTimeRemaining, lvl.timeLimitSeconds))),
+            seconds: rec.bestTimeRemaining
+          })
+        : noRecord;
 
       const tdAction = document.createElement('td');
-      const playBtn = document.createElement('button');
-      playBtn.type = 'button';
-      playBtn.className = 'hud-btn small primary';
-      playBtn.textContent = t('hud.scores_modal.play_btn.action');
-      playBtn.addEventListener('click', () => {
-        scoresModal?.classList.add('hidden');
-        this.switchMode('play');
-        this.startLevelByIndex(idx);
-      });
-      tdAction.appendChild(playBtn);
-
-      if (rec?.replayMoves && rec.replayMoves.length > 0) {
-        const replayBtn = document.createElement('button');
-        replayBtn.type = 'button';
-        replayBtn.className = 'hud-btn small';
-        replayBtn.style.marginLeft = '4px';
-        replayBtn.textContent = t('hud.scores_modal.replay_btn.action');
-        replayBtn.addEventListener('click', () => {
-          scoresModal?.classList.add('hidden');
+      tdAction.appendChild(
+        this.createScoresButton('hud-btn small primary', 'hud.scores_modal.play_btn.action', () => {
+          this.closeModal(MODAL_IDS.SCORES);
           this.switchMode('play');
           this.startLevelByIndex(idx);
-          this.startReplay(rec.replayMoves!);
-        });
-        tdAction.appendChild(replayBtn);
+        })
+      );
+
+      const replay = rec?.replayTimedMoves;
+      if (replay && replay.length > 0) {
+        tdAction.appendChild(
+          this.createScoresButton('hud-btn small scores-replay-btn', 'hud.scores_modal.replay_btn.action', () => {
+            this.closeModal(MODAL_IDS.SCORES);
+            this.switchMode('play');
+            this.startLevelByIndex(idx);
+            this.startReplay(replay);
+          })
+        );
       }
 
-      tr.append(tdNum, tdTitle, tdCode, tdTime, tdSteps, tdScore, tdAction);
+      tr.append(
+        cell(String(lvl.number)),
+        cell(title),
+        cell(lvl.password, 'code-cell'),
+        cell(timeText),
+        cell(rec ? String(rec.minSteps) : noRecord),
+        cell(rec ? String(rec.bestScore) : noRecord),
+        tdAction
+      );
       tbody.appendChild(tr);
     });
 
     if (scrollToActive && activeRowEl) {
       requestAnimationFrame(() => {
-        (activeRowEl as HTMLTableRowElement).scrollIntoView({ block: 'center', behavior: 'smooth' });
+        (activeRowEl as HTMLTableRowElement).scrollIntoView({
+          block: 'center',
+          behavior: preferredScrollBehavior()
+        });
       });
     }
   }
 
-  private isAnyModalOpen(): boolean {
-    const scoresOpen = !document.getElementById('scores-modal')?.classList.contains('hidden');
-    const passOpen = !document.getElementById('password-modal')?.classList.contains('hidden');
-    const helpOpen = !document.getElementById('help-modal')?.classList.contains('hidden');
-    const drawerOpen = !document.getElementById('options-drawer')?.classList.contains('hidden');
-    return Boolean(scoresOpen || passOpen || helpOpen || drawerOpen);
+  private createScoresButton(className: string, labelKey: string, onClick: () => void): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = className;
+    btn.textContent = t(labelKey);
+    btn.addEventListener('click', onClick);
+    return btn;
   }
+
+  // ---------------------------------------------------------------------------
+  // Keyboard
+  // ---------------------------------------------------------------------------
 
   private bindKeyboardEvents(): void {
     const kb = ConfigRegistry.getGame().keybindings;
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const scoresModal = document.getElementById('scores-modal');
-        const passModal = document.getElementById('password-modal');
-        const helpModal = document.getElementById('help-modal');
-        const optionsDrawer = document.getElementById('options-drawer');
-        const drawerBackdrop = document.getElementById('drawer-backdrop');
-        if (scoresModal && !scoresModal.classList.contains('hidden')) {
-          scoresModal.classList.add('hidden');
-          return;
-        }
-        if (passModal && !passModal.classList.contains('hidden')) {
-          passModal.classList.add('hidden');
-          return;
-        }
-        if (helpModal && !helpModal.classList.contains('hidden')) {
-          helpModal.classList.add('hidden');
-          return;
-        }
-        if (optionsDrawer && !optionsDrawer.classList.contains('hidden')) {
-          optionsDrawer.classList.add('hidden');
-          drawerBackdrop?.classList.add('hidden');
-          document.getElementById('btn-options-menu')?.classList.remove('active');
-          return;
-        }
-      }
-
-      const activeTag = document.activeElement?.tagName;
+      // Escape and Tab inside dialogs are handled by the dialog helper.
+      const active = document.activeElement;
+      const activeTag = active?.tagName;
       if (activeTag === 'INPUT' || activeTag === 'SELECT' || activeTag === 'TEXTAREA') {
         return;
       }
-
-      if (this.isAnyModalOpen()) {
+      // Let a focused button handle its own activation keys (no double action).
+      if (active instanceof HTMLButtonElement && (e.key === 'Enter' || e.key === ' ')) {
+        return;
+      }
+      if (isDialogOpen()) {
         return;
       }
 
       if (this.activeMode === 'editor') {
-        if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW')) {
-          e.preventDefault();
-          if (e.shiftKey) {
-            this.editor.redo();
-          } else {
-            this.editor.undo();
-          }
-        } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
-          e.preventDefault();
-          this.editor.redo();
-        }
+        this.handleEditorShortcut(e);
         return;
       }
 
@@ -1416,79 +1563,7 @@ class EpoxyApplication {
         return;
       }
 
-      if (
-        kb.undo.includes(e.code) ||
-        ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW'))
-      ) {
-        e.preventDefault();
-        this.clearAutoMove();
-        this.engine.undo();
-      } else if (kb.moveUp.includes(e.code)) {
-        e.preventDefault();
-        this.clearAutoMove();
-        this.heldDirection = 'N';
-        this.engine.attemptPlayerMove('N');
-      } else if (kb.moveDown.includes(e.code)) {
-        e.preventDefault();
-        this.clearAutoMove();
-        this.heldDirection = 'S';
-        this.engine.attemptPlayerMove('S');
-      } else if (kb.moveLeft.includes(e.code)) {
-        e.preventDefault();
-        this.clearAutoMove();
-        this.heldDirection = 'W';
-        this.engine.attemptPlayerMove('W');
-      } else if (kb.moveRight.includes(e.code)) {
-        e.preventDefault();
-        this.clearAutoMove();
-        this.heldDirection = 'E';
-        this.engine.attemptPlayerMove('E');
-      } else if (kb.restart.includes(e.code)) {
-        e.preventDefault();
-        this.stopAutoMoveAndReplay();
-        this.engine.loadLevel(this.engine.getLevel());
-      } else if (kb.pause.includes(e.code)) {
-        e.preventDefault();
-        this.engine.togglePause();
-      } else if (kb.nextLevel.includes(e.code)) {
-        e.preventDefault();
-        this.startLevelByIndex(this.currentLevelIndex + 1);
-      } else if (kb.prevLevel.includes(e.code)) {
-        e.preventDefault();
-        this.startLevelByIndex(this.currentLevelIndex - 1);
-      } else if (kb.toggleShell.includes(e.code)) {
-        e.preventDefault();
-        document.getElementById('btn-shell-toggle')?.click();
-      } else if (kb.toggleFullscreen?.includes(e.code)) {
-        e.preventDefault();
-        this.toggleFullscreen();
-      } else if (kb.toggleMute.includes(e.code)) {
-        e.preventDefault();
-        document.getElementById('btn-sfx-toggle')?.click();
-      } else if (kb.cycleFov?.includes(e.code)) {
-        e.preventDefault();
-        this.cycleFovPreset();
-      } else if (kb.toggleGraphics?.includes(e.code)) {
-        e.preventDefault();
-        this.toggleGraphicsStyle();
-      } else if (kb.cycleTheme?.includes(e.code)) {
-        e.preventDefault();
-        const nextTheme = this.renderer.cycleTheme();
-        this.applyTheme(nextTheme);
-      } else if (kb.generateProcedural?.includes(e.code)) {
-        e.preventDefault();
-        this.generateProceduralPack();
-      } else if (kb.showObjective?.includes(e.code)) {
-        e.preventDefault();
-        this.triggerObjectiveAndLinks();
-      } else if (kb.toggleHelp?.includes(e.code) || e.key === '?') {
-        e.preventDefault();
-        document.getElementById('help-modal')?.classList.remove('hidden');
-      } else if (e.code === 'Enter' && this.engine.isLevelCompleted()) {
-        e.preventDefault();
-        this.startLevelByIndex(this.currentLevelIndex + 1);
-      }
-
+      this.handlePlayShortcut(e, kb);
       this.updateHUD();
     });
 
@@ -1503,6 +1578,71 @@ class EpoxyApplication {
       }
     });
   }
+
+  private handleEditorShortcut(e: KeyboardEvent): void {
+    if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW')) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        this.editor.redo();
+      } else {
+        this.editor.undo();
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+      e.preventDefault();
+      this.editor.redo();
+    }
+  }
+
+  private handlePlayShortcut(e: KeyboardEvent, kb: KeybindingsConfig): void {
+    const run = (action: () => void): void => {
+      e.preventDefault();
+      action();
+    };
+
+    if (kb.undo.includes(e.code) || ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW'))) {
+      run(() => this.undoMove());
+    } else if (kb.moveUp.includes(e.code)) {
+      run(() => this.beginHeldMove('N'));
+    } else if (kb.moveDown.includes(e.code)) {
+      run(() => this.beginHeldMove('S'));
+    } else if (kb.moveLeft.includes(e.code)) {
+      run(() => this.beginHeldMove('W'));
+    } else if (kb.moveRight.includes(e.code)) {
+      run(() => this.beginHeldMove('E'));
+    } else if (kb.restart.includes(e.code)) {
+      run(() => this.restartLevel());
+    } else if (kb.pause.includes(e.code)) {
+      run(() => this.engine.togglePause());
+    } else if (kb.nextLevel.includes(e.code)) {
+      run(() => this.advanceToNextLevel());
+    } else if (kb.prevLevel.includes(e.code)) {
+      run(() => this.startLevelByIndex(this.currentLevelIndex - 1));
+    } else if (kb.toggleShell.includes(e.code)) {
+      run(() => byId('btn-shell-toggle')?.click());
+    } else if (kb.toggleFullscreen?.includes(e.code)) {
+      run(() => this.toggleFullscreen());
+    } else if (kb.toggleMute.includes(e.code)) {
+      run(() => this.toggleSfx());
+    } else if (kb.cycleFov?.includes(e.code)) {
+      run(() => this.cycleFovPreset());
+    } else if (kb.toggleGraphics?.includes(e.code)) {
+      run(() => this.toggleGraphicsStyle());
+    } else if (kb.cycleTheme?.includes(e.code)) {
+      run(() => this.applyTheme(this.renderer.cycleTheme()));
+    } else if (kb.generateProcedural?.includes(e.code)) {
+      run(() => this.generateProceduralPack());
+    } else if (kb.showObjective?.includes(e.code)) {
+      run(() => this.triggerObjectiveAndLinks());
+    } else if (kb.toggleHelp?.includes(e.code) || e.key === '?') {
+      run(() => this.openHelpModal());
+    } else if (e.code === 'Enter' && this.engine.isLevelCompleted()) {
+      run(() => this.advanceToNextLevel());
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fullscreen and graphics
+  // ---------------------------------------------------------------------------
 
   private toggleFullscreen(): void {
     const isCurrentlyFs =
@@ -1529,15 +1669,13 @@ class EpoxyApplication {
   }
 
   private syncFullscreenButtons(active: boolean): void {
-    document.getElementById('btn-fullscreen-toggle')?.classList.toggle('active', active);
-    document.getElementById('btn-mobile-fullscreen')?.classList.toggle('active', active);
-    document.getElementById('btn-exit-fullscreen')?.classList.toggle('hidden', !active);
+    byId('btn-fullscreen-toggle')?.classList.toggle('active', active);
+    byId('btn-mobile-fullscreen')?.classList.toggle('active', active);
+    byId('btn-exit-fullscreen')?.classList.toggle('hidden', !active);
 
-    const mobileFsBtn = document.getElementById('mobile-btn-fullscreen');
+    const mobileFsBtn = byId('mobile-btn-fullscreen');
     if (mobileFsBtn) {
-      const i18nKey = active
-        ? 'hud.mobile.exit_fullscreen.action'
-        : 'hud.mobile.fullscreen.action';
+      const i18nKey = active ? 'hud.mobile.exit_fullscreen.action' : 'hud.mobile.fullscreen.action';
       mobileFsBtn.setAttribute('data-i18n', i18nKey);
       mobileFsBtn.textContent = t(i18nKey);
       mobileFsBtn.classList.toggle('active', active);
@@ -1553,19 +1691,19 @@ class EpoxyApplication {
     }
   }
 
+  private syncGraphicsButton(isModern: boolean): void {
+    const gfxBtn = byId('btn-graphics-toggle');
+    if (!gfxBtn) return;
+    const i18nKey = isModern ? 'app.header.graphics_modern.action' : 'app.header.graphics_retro.action';
+    gfxBtn.setAttribute('data-i18n', i18nKey);
+    gfxBtn.textContent = t(i18nKey);
+    gfxBtn.classList.toggle('active', isModern);
+  }
+
   private toggleGraphicsStyle(): void {
-    const nextStyle = this.renderer.toggleStyle();
-    const isModern = nextStyle === 'modern';
+    const isModern = this.renderer.toggleStyle() === 'modern';
     this.gameCanvas.classList.toggle('retro-pixels', !isModern);
-    const gfxBtn = document.getElementById('btn-graphics-toggle');
-    if (gfxBtn) {
-      const i18nKey = isModern
-        ? 'app.header.graphics_modern.action'
-        : 'app.header.graphics_retro.action';
-      gfxBtn.setAttribute('data-i18n', i18nKey);
-      gfxBtn.textContent = t(i18nKey);
-      gfxBtn.classList.toggle('active', isModern);
-    }
+    this.syncGraphicsButton(isModern);
     this.rebuildHudIcons();
     this.saveUserSettings();
     this.updateHUD();
@@ -1575,34 +1713,38 @@ class EpoxyApplication {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // HUD
+  // ---------------------------------------------------------------------------
+
+  private resolveLevelTitle(lvl: CompiledLevel): string {
+    return lvl.customTitle || (lvl.titleKey ? t(lvl.titleKey, { number: lvl.number }) : lvl.id);
+  }
+
   private updateInspectBadge(pt: GridPoint | null): void {
-    const inspectEl = document.getElementById('inspect-pill');
+    const inspectEl = byId('inspect-pill');
     if (!inspectEl) return;
     if (!pt || this.activeMode !== 'play') {
       inspectEl.classList.add('hidden');
       return;
     }
 
-    const terrain = this.engine.getTerrain();
-    const items = this.engine.getItems();
-    const entities = this.engine.getEntities();
-    const tileId = terrain[pt.y]?.[pt.x];
+    const tileId = this.engine.getTerrain()[pt.y]?.[pt.x];
     if (!tileId) {
       inspectEl.classList.add('hidden');
       return;
     }
 
     const parts: string[] = [];
-    const ent = entities.find((e) => e.x === pt.x && e.y === pt.y);
+    const ent = this.engine.getEntities().find((e) => e.x === pt.x && e.y === pt.y);
     if (ent) {
       const entDef = ConfigRegistry.getEntityDef(ent.type);
       if (entDef) parts.push(t(entDef.i18nKey));
     }
 
-    const itemId = items[pt.y]?.[pt.x];
+    const itemId = this.engine.getItems()[pt.y]?.[pt.x];
     if (itemId) {
-      const itemDef = ConfigRegistry.getTile(itemId);
-      parts.push(t(itemDef.i18nKey));
+      parts.push(t(ConfigRegistry.getTile(itemId).i18nKey));
     }
 
     // Mask secret illusions (blue_wall_fake or invisible/appearing walls) as standard appearance
@@ -1610,196 +1752,237 @@ class EpoxyApplication {
     if (tileId === 'blue_wall_fake') displayTileId = 'blue_wall_real';
     else if (tileId === 'invisible_wall' || tileId === 'appearing_wall') displayTileId = 'floor';
 
-    const tileDef = ConfigRegistry.getTile(displayTileId);
     if (parts.length === 0 || displayTileId !== 'floor') {
-      parts.push(t(tileDef.i18nKey));
+      parts.push(t(ConfigRegistry.getTile(displayTileId).i18nKey));
     }
 
-    inspectEl.textContent = t('hud.messages.inspect_format.label', {
-      x: pt.x,
-      y: pt.y,
-      details: parts.join(' + ')
-    });
+    setText(
+      inspectEl,
+      t('hud.messages.inspect_format.label', {
+        x: pt.x,
+        y: pt.y,
+        details: parts.join(t('hud.messages.inspect_separator.label'))
+      })
+    );
     inspectEl.classList.remove('hidden');
+  }
+
+  private buildInventorySlots(): void {
+    const keysGrid = byId('hud-keys-grid');
+    const bootsGrid = byId('hud-boots-grid');
+    if (keysGrid) {
+      keysGrid.innerHTML = '';
+      this.keySlots = this.keyIds.map(() => new InventorySlotView(keysGrid));
+    }
+    if (bootsGrid) {
+      bootsGrid.innerHTML = '';
+      this.bootSlots = this.bootIds.map(() => new InventorySlotView(bootsGrid));
+    }
+  }
+
+  /** Translated item names, recomputed only when the locale changes. */
+  private getInventoryLabel(itemId: string): string {
+    const locale = i18n.getLocale();
+    if (locale !== this.inventoryLabelsLocale) {
+      this.inventoryLabels = {};
+      for (const id of [...this.keyIds, ...this.bootIds]) {
+        this.inventoryLabels[id] = t(ConfigRegistry.getTile(id).i18nKey);
+      }
+      this.inventoryLabelsLocale = locale;
+    }
+    return this.inventoryLabels[itemId] ?? itemId;
+  }
+
+  private updateInventory(): void {
+    const player = this.engine.getPlayer();
+    this.keyIds.forEach((kId, i) => {
+      const count = player.keys[kId] || 0;
+      let badge = '';
+      if (count > 0) {
+        badge = INFINITE_KEY_IDS.has(kId)
+          ? t('hud.inventory.infinite.label')
+          : t('hud.inventory.count.label', { count });
+      }
+      this.keySlots[i]?.update({
+        owned: count > 0,
+        badge,
+        label: this.getInventoryLabel(kId),
+        iconUrl: this.keyIconCache[kId]
+      });
+    });
+    this.bootIds.forEach((bId, i) => {
+      this.bootSlots[i]?.update({
+        owned: player.boots.has(bId),
+        badge: '',
+        label: this.getInventoryLabel(bId),
+        iconUrl: this.bootIconCache[bId]
+      });
+    });
   }
 
   private updateHUD(): void {
     const lvl = this.engine.getLevel();
     const player = this.engine.getPlayer();
 
-    const numEl = document.getElementById('hud-level-num');
-    const passEl = document.getElementById('hud-level-pass');
-    const titleEl = document.getElementById('hud-level-title');
-    const chipsEl = document.getElementById('hud-chips-left');
-    const timeEl = document.getElementById('hud-time-left');
-    const scoreEl = document.getElementById('hud-score');
-    const stepsEl = document.getElementById('hud-steps');
+    setText(byId('hud-level-num'), String(lvl.number));
+    setText(byId('hud-level-pass'), lvl.password);
+    setText(byId('hud-level-title'), this.resolveLevelTitle(lvl));
+    setText(
+      byId('hud-chips-left'),
+      String(this.engine.getChipsRemaining()).padStart(HUD_COUNTER_DIGITS, '0')
+    );
+    this.updateTimer();
+    setText(byId('hud-score'), String(this.engine.getTotalScore()));
+    setText(byId('hud-steps'), String(this.engine.getStepsCount()));
 
-    if (numEl) numEl.textContent = String(lvl.number);
-    if (passEl) passEl.textContent = lvl.password;
-    if (titleEl) {
-      titleEl.textContent =
-        lvl.customTitle || (lvl.titleKey ? t(lvl.titleKey, { number: lvl.number }) : lvl.id);
-    }
-    if (chipsEl) {
-      chipsEl.textContent = String(this.engine.getChipsRemaining()).padStart(3, '0');
-    }
-    if (timeEl) {
-      const remSec = this.engine.getTimeRemainingSeconds();
-      timeEl.textContent = String(remSec).padStart(3, '0');
-      const warnThreshold = ConfigRegistry.getGame().timing.lowTimeWarningSeconds ?? 10;
-      const isLowTime =
-        lvl.timeLimitSeconds > 0 &&
-        remSec > 0 &&
-        remSec <= warnThreshold &&
-        player.alive &&
-        !this.engine.isLevelCompleted();
-      timeEl.classList.toggle('led-danger', isLowTime);
-      timeEl.classList.toggle('led-amber', !isLowTime);
-
-      if (isLowTime && !this.engine.isPaused() && remSec !== this.lastWarnedSecond) {
-        this.lastWarnedSecond = remSec;
-        AudioManager.playSfx('timer_warn');
-      }
-    }
-    if (scoreEl) scoreEl.textContent = String(this.engine.getTotalScore());
-    if (stepsEl) stepsEl.textContent = String(this.engine.getStepsCount());
-
-    const keysGrid = document.getElementById('hud-keys-grid');
-    if (keysGrid) {
-      keysGrid.innerHTML = '';
-      for (const kId of this.keyIds) {
-        const count = player.keys[kId] || 0;
-        const slot = document.createElement('div');
-        slot.className = `inv-slot ${count > 0 ? 'owned' : ''}`;
-        slot.title = t(ConfigRegistry.getTile(kId).i18nKey);
-
-        const img = document.createElement('img');
-        img.src = this.keyIconCache[kId];
-        img.alt = kId;
-        slot.appendChild(img);
-
-        if (count > 0) {
-          const badge = document.createElement('span');
-          badge.className = 'inv-count';
-          badge.textContent = kId === 'key_green' ? '∞' : `x${count}`;
-          slot.appendChild(badge);
-        }
-        keysGrid.appendChild(slot);
-      }
-    }
-
-    const bootsGrid = document.getElementById('hud-boots-grid');
-    if (bootsGrid) {
-      bootsGrid.innerHTML = '';
-      for (const bId of this.bootIds) {
-        const hasBoot = player.boots.has(bId);
-        const slot = document.createElement('div');
-        slot.className = `inv-slot ${hasBoot ? 'owned' : ''}`;
-        slot.title = t(ConfigRegistry.getTile(bId).i18nKey);
-
-        const img = document.createElement('img');
-        img.src = this.bootIconCache[bId];
-        img.alt = bId;
-        slot.appendChild(img);
-        bootsGrid.appendChild(slot);
-      }
-    }
-
-    const hintBanner = document.getElementById('hint-banner');
-    const hintText = document.getElementById('hint-text');
-    if (hintBanner && hintText) {
-      if (this.engine.isPlayerOnHint()) {
-        const resolvedHint = lvl.customHint || (lvl.hintKey ? t(lvl.hintKey) : '');
-        hintText.textContent = resolvedHint;
-        hintBanner.classList.remove('hidden');
-      } else {
-        hintBanner.classList.add('hidden');
-      }
-    }
-
-    const statusToast = document.getElementById('status-toast');
-    const bannerKey = this.engine.getStatusBannerKey();
-    if (statusToast) {
-      if (this.isReplaying) {
-        statusToast.textContent = t('hud.messages.replaying_banner.label', {
-          step: this.replayIndex,
-          total: this.replayMoves.length
-        });
-        statusToast.classList.remove('hidden');
-      } else if (this.customStatusMessage) {
-        statusToast.textContent = this.customStatusMessage;
-        statusToast.classList.remove('hidden');
-      } else if (bannerKey) {
-        statusToast.textContent = t(bannerKey);
-        statusToast.classList.remove('hidden');
-      } else {
-        statusToast.classList.add('hidden');
-      }
-    }
-
-    const overlay = document.getElementById('viewport-overlay');
-    const ovTitle = document.getElementById('overlay-title');
-    const ovSub = document.getElementById('overlay-subtitle');
-    const ovExtra = document.getElementById('overlay-extra');
-    const ovResumeBtn = document.getElementById('overlay-btn-resume');
-    const ovNextBtn = document.getElementById('overlay-btn-next');
-    const ovReplayBtn = document.getElementById('overlay-btn-replay');
-    const ovUndoBtn = document.getElementById('overlay-btn-undo');
-    const ovRetryBtn = document.getElementById('overlay-btn-retry');
-
-    if (!overlay || !ovTitle || !ovSub || !ovExtra || !ovNextBtn || !ovUndoBtn) return;
+    this.updateInventory();
+    this.updateHintBanner();
+    this.updateStatusToast();
 
     if (this.renderer.isShowingMechanismLinks() && player.alive && !this.engine.isLevelCompleted()) {
       this.renderer.setObjectivePoint(Pathfinder.findNextObjective(this.engine));
     }
+    this.updateOverlay();
+  }
 
-    if (this.engine.isLevelCompleted()) {
-      overlay.classList.remove('hidden');
-      ovTitle.textContent = t('hud.messages.level_complete.label');
-      ovSub.textContent = t('hud.messages.time_bonus.label', {
-        bonus: this.engine.getLastTimeBonus()
-      });
-      ovExtra.textContent = t('hud.messages.level_score.label', {
-        score: this.engine.getLastLevelScore(),
-        medal: this.getMedalLabel(this.engine.getTimeRemainingSeconds(), lvl.timeLimitSeconds)
-      });
-      ovResumeBtn?.classList.add('hidden');
-      ovNextBtn.classList.remove('hidden');
-      ovReplayBtn?.classList.remove('hidden');
-      ovUndoBtn.classList.add('hidden');
-      ovRetryBtn?.classList.remove('hidden');
-    } else if (!player.alive) {
-      overlay.classList.remove('hidden');
-      ovTitle.textContent = 'EPOXY';
-      ovSub.textContent = player.deathReasonKey ? t(player.deathReasonKey) : '';
-      ovExtra.textContent = '';
-      ovResumeBtn?.classList.add('hidden');
-      ovNextBtn.classList.add('hidden');
-      ovReplayBtn?.classList.add('hidden');
-      ovUndoBtn.classList.toggle('hidden', !this.engine.canUndo());
-      ovRetryBtn?.classList.remove('hidden');
-    } else if (this.engine.isPaused()) {
-      overlay.classList.remove('hidden');
-      ovTitle.textContent = t('hud.messages.paused.label');
-      ovSub.textContent = t('hud.messages.press_resume.label');
-      ovExtra.textContent = '';
-      ovResumeBtn?.classList.remove('hidden');
-      ovNextBtn.classList.add('hidden');
-      ovReplayBtn?.classList.add('hidden');
-      ovUndoBtn.classList.add('hidden');
-      ovRetryBtn?.classList.remove('hidden');
-    } else {
-      overlay.classList.add('hidden');
+  private updateTimer(): void {
+    const timeEl = byId('hud-time-left');
+    if (!timeEl) return;
+    const lvl = this.engine.getLevel();
+    const remSec = this.engine.getTimeRemainingSeconds();
+    setText(timeEl, String(remSec).padStart(HUD_COUNTER_DIGITS, '0'));
+    const warnThreshold =
+      ConfigRegistry.getGame().timing.lowTimeWarningSeconds ?? TIMING_DEFAULTS.lowTimeWarningSeconds;
+    const isLowTime =
+      lvl.timeLimitSeconds > 0 &&
+      remSec > 0 &&
+      remSec <= warnThreshold &&
+      this.engine.getPlayer().alive &&
+      !this.engine.isLevelCompleted();
+    timeEl.classList.toggle('led-danger', isLowTime);
+    timeEl.classList.toggle('led-amber', !isLowTime);
+
+    if (isLowTime && !this.engine.isPaused() && remSec !== this.lastWarnedSecond) {
+      this.lastWarnedSecond = remSec;
+      AudioManager.playSfx('timer_warn');
     }
   }
+
+  private updateHintBanner(): void {
+    const hintBanner = byId('hint-banner');
+    const hintText = byId('hint-text');
+    if (!hintBanner || !hintText) return;
+    if (this.engine.isPlayerOnHint()) {
+      const lvl = this.engine.getLevel();
+      setText(hintText, lvl.customHint || (lvl.hintKey ? t(lvl.hintKey) : ''));
+      hintBanner.classList.remove('hidden');
+    } else {
+      hintBanner.classList.add('hidden');
+    }
+  }
+
+  private updateStatusToast(): void {
+    const statusToast = byId('status-toast');
+    if (!statusToast) return;
+    const bannerKey = this.engine.getStatusBannerKey();
+    let message: string | null = null;
+    if (this.isReplaying) {
+      message = t('hud.messages.replaying_banner.label', {
+        step: this.replayIndex,
+        total: this.replayMoves.length
+      });
+    } else if (this.customStatusMessage) {
+      message = this.customStatusMessage;
+    } else if (bannerKey) {
+      message = t(bannerKey);
+    }
+    if (message !== null) {
+      setText(statusToast, message);
+    }
+    statusToast.classList.toggle('hidden', message === null);
+  }
+
+  private computeOverlayState(): OverlayState {
+    if (this.engine.isLevelCompleted()) return 'complete';
+    if (!this.engine.getPlayer().alive) return 'dead';
+    if (this.engine.isPaused()) return 'paused';
+    return 'none';
+  }
+
+  private updateOverlay(): void {
+    const overlay = byId('viewport-overlay');
+    const ovTitle = byId('overlay-title');
+    const ovSub = byId('overlay-subtitle');
+    const ovExtra = byId('overlay-extra');
+    const ovResumeBtn = byId('overlay-btn-resume');
+    const ovNextBtn = byId('overlay-btn-next');
+    const ovReplayBtn = byId('overlay-btn-replay');
+    const ovUndoBtn = byId('overlay-btn-undo');
+    const ovRetryBtn = byId('overlay-btn-retry');
+    if (!overlay || !ovTitle || !ovSub || !ovExtra || !ovNextBtn || !ovUndoBtn) return;
+
+    const state = this.computeOverlayState();
+    const lvl = this.engine.getLevel();
+
+    if (state === 'complete') {
+      const levels = ConfigRegistry.getLevels();
+      const finalWin = this.isOnLastLevel() && this.isPackFullyCompleted(levels);
+      setText(
+        ovTitle,
+        t(finalWin ? 'hud.messages.all_levels_won.label' : 'hud.messages.level_complete.label')
+      );
+      setText(ovSub, t('hud.messages.time_bonus.label', { bonus: this.engine.getLastTimeBonus() }));
+      setText(
+        ovExtra,
+        t('hud.messages.level_score.label', {
+          score: this.engine.getLastLevelScore(),
+          medal: t(medalLabelKey(this.getMedalTierFor(this.engine.getTimeRemainingSeconds(), lvl.timeLimitSeconds)))
+        })
+      );
+    } else if (state === 'dead') {
+      const player = this.engine.getPlayer();
+      setText(ovTitle, t('app.header.title.label'));
+      setText(ovSub, player.deathReasonKey ? t(player.deathReasonKey) : '');
+      setText(ovExtra, '');
+    } else if (state === 'paused') {
+      setText(ovTitle, t('hud.messages.paused.label'));
+      setText(ovSub, t('hud.messages.press_resume.label'));
+      setText(ovExtra, '');
+    }
+
+    overlay.classList.toggle('hidden', state === 'none');
+    ovResumeBtn?.classList.toggle('hidden', state !== 'paused');
+    ovNextBtn.classList.toggle('hidden', state !== 'complete');
+    ovReplayBtn?.classList.toggle('hidden', state !== 'complete');
+    ovUndoBtn.classList.toggle('hidden', !(state === 'dead' && this.engine.canUndo()));
+    ovRetryBtn?.classList.toggle('hidden', state === 'none');
+
+    if (state !== this.overlayState) {
+      this.overlayState = state;
+      if (state !== 'none' && this.activeMode === 'play' && !isDialogOpen()) {
+        this.focusFirstOverlayAction(overlay);
+      }
+    }
+  }
+
+  private focusFirstOverlayAction(overlay: HTMLElement): void {
+    const first = Array.from(overlay.querySelectorAll<HTMLButtonElement>('.overlay-actions button')).find(
+      (btn) => !btn.classList.contains('hidden')
+    );
+    first?.focus();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistence
+  // ---------------------------------------------------------------------------
 
   private recordHighScore(
     levelId: string,
     timeRemaining: number,
     steps: number,
     score: number,
-    moves: Direction[]
+    moves: Direction[],
+    timedMoves: TimedMove[]
   ): void {
     const existing = this.highScores[levelId];
     const isBetterOrFirst = !existing || steps <= existing.minSteps || score >= existing.bestScore;
@@ -1807,7 +1990,8 @@ class EpoxyApplication {
       bestTimeRemaining: existing ? Math.max(existing.bestTimeRemaining, timeRemaining) : timeRemaining,
       minSteps: existing ? Math.min(existing.minSteps, steps) : steps,
       bestScore: existing ? Math.max(existing.bestScore, score) : score,
-      replayMoves: isBetterOrFirst ? moves : existing.replayMoves || moves
+      replayMoves: isBetterOrFirst ? moves : existing.replayMoves || moves,
+      replayTimedMoves: isBetterOrFirst ? timedMoves : existing.replayTimedMoves || timedMoves
     };
     try {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.highScoresKey);
@@ -1822,8 +2006,13 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.highScoresKey);
       const raw = localStorage.getItem(key);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, LevelHighScore>;
+      const parsed = JSON.parse(raw) as Record<string, StoredHighScore>;
       if (parsed && typeof parsed === 'object') {
+        for (const rec of Object.values(parsed)) {
+          // Legacy records (untimed replayMoves only) keep their scores but
+          // lose the replay button: untimed moves cannot replay faithfully.
+          rec.replayTimedMoves = sanitizeTimedMoves(rec.replayTimedMoves);
+        }
         this.highScores = parsed;
       }
     } catch {
@@ -1855,7 +2044,7 @@ class EpoxyApplication {
         fov: this.renderer.getViewportTiles(),
         themeId: this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
-        shellEnabled: Boolean(document.getElementById('lynx-console')?.classList.contains('enabled')),
+        shellEnabled: Boolean(byId('lynx-console')?.classList.contains('enabled')),
         sfxEnabled: AudioManager.isSfxEnabled(),
         musicEnabled: AudioManager.isMusicEnabled()
       };
@@ -1894,7 +2083,8 @@ class EpoxyApplication {
 
 window.addEventListener('DOMContentLoaded', () => {
   const app = new EpoxyApplication();
-  app.init().catch((err) => {
+  app.init().catch((err: unknown) => {
     console.error('Initialization failed:', err);
+    showFatalErrorScreen(err);
   });
 });
