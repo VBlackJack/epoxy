@@ -1,6 +1,6 @@
 {
   "name": "epoxy",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Atari Lynx II inspired grid puzzle game",
   "author": "Julien Bombled",
   "license": "Apache-2.0",
