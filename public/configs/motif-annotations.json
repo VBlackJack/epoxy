@@ -99,8 +99,24 @@
     "solution": "SESSWSSS",
     "reversible": true
   },
+  "monsters_ball_recess": {
+    "solution": "SNSESNEES..NEESES",
+    "reversible": true
+  },
+  "monsters_bug_hall": {
+    "solution": "SEEESSEEESSS",
+    "reversible": true
+  },
   "monsters_bug_pillar": {
     "solution": "SESSWSSNEEEENNESSSS",
+    "reversible": true
+  },
+  "monsters_glider_ring": {
+    "solution": "SSSSWENNEEEESSEWSSWWSS",
+    "reversible": true
+  },
+  "monsters_tank_nook": {
+    "solution": "EEESSEWSSSSNNEEEE",
     "reversible": true
   },
   "monsters_teeth_lure": {

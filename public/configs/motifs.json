@@ -447,6 +447,67 @@
       ]
     },
     {
+      "id": "monsters_ball_recess",
+      "motif": "monsters",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#...K...#",
+        "##C#C#C.#",
+        "#######$#"
+      ]
+    },
+    {
+      "id": "monsters_glider_ring",
+      "motif": "monsters",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "##@######",
+        "##.######",
+        "##..Q..##",
+        "##.###.##",
+        "#C.###.C#",
+        "##.###.##",
+        "##..Q..##",
+        "####.####",
+        "####$####"
+      ]
+    },
+    {
+      "id": "monsters_tank_nook",
+      "motif": "monsters",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "########",
+        "@...####",
+        "###.####",
+        "###.l###",
+        "###.####",
+        "#A.....$",
+        "###.####",
+        "###C####",
+        "########"
+      ]
+    },
+    {
+      "id": "monsters_bug_hall",
+      "motif": "monsters",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#.......#",
+        "#.......#",
+        "#...C...#",
+        "#.......#",
+        "#U......#",
+        "#######$#"
+      ]
+    },
+    {
       "id": "rest_plaza",
       "motif": "rest",
       "tier": 1,
