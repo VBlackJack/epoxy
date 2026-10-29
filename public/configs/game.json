@@ -86,7 +86,24 @@
     "vignetteAlpha": 0.45,
     "vignetteInnerRatio": 0.55,
     "lcdGridAlpha": 0.18,
-    "irisOpenFrames": 24
+    "irisOpenFrames": 24,
+    "frameBudgetMs": 12,
+    "frameBudgetWindow": 90,
+    "qualityPresets": {
+      "high": {},
+      "medium": {
+        "lightingTintAlpha": 0,
+        "lightingResolutionDivisor": 6,
+        "maxParticles": 120,
+        "particleBurstCount": 12
+      },
+      "low": {
+        "lightingEnabled": false,
+        "vignetteAlpha": 0,
+        "maxParticles": 60,
+        "particleBurstCount": 8
+      }
+    }
   },
   "themes": {
     "cyber_neon": {

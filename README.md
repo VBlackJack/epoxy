@@ -19,7 +19,7 @@
   - Interactive mechanisms (`button_green`, `button_red` clone machines, `button_brown` bear traps, `button_blue` tank reversers, `teleport` pads, `thief`).
   - 9 creature movement patterns (`bug`, `fireball`, `pink_ball`, `tank`, `glider`, `teeth`, `walker`, `blob`, `paramecium`).
 - **Visual & Tactile Enhancements**:
-  - HD Neon and 16-Bit Retro pixel renderers with 4 biome themes (`Cyber Neon`, `Arctic Lab`, `Magma Core`, `Lynx LCD`): walls join into continuous masses that cast soft shadows, light sources glow in HD Neon, an optional LCD grid covers 16-Bit Retro, and the player and every monster are animated.
+  - HD Neon and 16-Bit Retro pixel renderers with 4 biome themes (`Cyber Neon`, `Arctic Lab`, `Magma Core`, `Lynx LCD`): walls join into continuous masses that cast soft shadows, light sources glow in HD Neon, an optional LCD grid covers 16-Bit Retro, and the player and every monster are animated. A graphics quality setting (Auto by default) keeps the game smooth on slower devices.
   - Dynamic objective locator and mechanism wire overlay (`H`).
   - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, Pinch-to-Zoom, and thumb D-Pad with haptic feedback).
   - Full-featured 32x32 Level Editor with live solver validation.

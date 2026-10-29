@@ -27,7 +27,16 @@ import {
   FX_COLOR_KEYS,
   MONSTER_COLOR_KEYS
 } from './paletteKeys';
-import { RenderSettings, resolveRenderSettings, resolveTheme } from './renderSettings';
+import { FrameBudgetGuard } from './frameBudget';
+import {
+  AUTO_QUALITY_ID,
+  GraphicsQuality,
+  QUALITY_LEVELS,
+  RenderSettings,
+  resolveFrameBudget,
+  resolveQualitySettings,
+  resolveTheme
+} from './renderSettings';
 import { frameScaleFromDelta, scaleDecay, scaleLerpFactor } from './renderTiming';
 import {
   collectTerrainFeatures,
@@ -269,6 +278,10 @@ export class PixelRenderer {
   private irisProgress: number = 1;
   private irisLevelId: string = '';
   private irisLastSteps: number = 0;
+  private quality: GraphicsQuality | typeof AUTO_QUALITY_ID = AUTO_QUALITY_ID;
+  private effectiveQuality: GraphicsQuality = QUALITY_LEVELS[0];
+  private readonly frameGuard = new FrameBudgetGuard();
+  private onQualityLowered: ((quality: GraphicsQuality) => void) | null = null;
 
   public incrementFrame(): void {
     this.animFrame = (this.animFrame + 1) % 60;
@@ -308,9 +321,40 @@ export class PixelRenderer {
     this.lcdEnabled = enabled;
   }
 
-  /** With reduced motion, the opening iris is skipped. */
+  /** With reduced motion, the opening iris, the hops, the bobbing and the screen shake are skipped. */
   public setReducedMotion(reduced: boolean): void {
     this.reducedMotion = reduced;
+  }
+
+  /** The quality chosen by the player; 'auto' starts high and steps down when frames run slow. */
+  public getQuality(): GraphicsQuality | typeof AUTO_QUALITY_ID {
+    return this.quality;
+  }
+
+  public setQuality(quality: GraphicsQuality | typeof AUTO_QUALITY_ID): void {
+    this.quality = quality;
+    this.effectiveQuality = quality === AUTO_QUALITY_ID ? QUALITY_LEVELS[0] : quality;
+    this.frameGuard.reset();
+  }
+
+  /** Quality in use right now, which differs from the chosen one only in automatic mode. */
+  public getEffectiveQuality(): GraphicsQuality {
+    return this.effectiveQuality;
+  }
+
+  /** Called when automatic quality steps down, with the new level. */
+  public setOnQualityLowered(callback: ((quality: GraphicsQuality) => void) | null): void {
+    this.onQualityLowered = callback;
+  }
+
+  /** In automatic mode, steps quality down one level when frames keep exceeding the budget. */
+  private watchFrameBudget(frameMs: number): void {
+    if (this.quality !== AUTO_QUALITY_ID) return;
+    if (!this.frameGuard.record(frameMs, resolveFrameBudget(ConfigRegistry.getGame().graphics))) return;
+    const index = QUALITY_LEVELS.indexOf(this.effectiveQuality);
+    if (index >= QUALITY_LEVELS.length - 1) return;
+    this.effectiveQuality = QUALITY_LEVELS[index + 1];
+    this.onQualityLowered?.(this.effectiveQuality);
   }
 
   public cycleTheme(): string {
@@ -380,13 +424,13 @@ export class PixelRenderer {
   ): void {
     const gameCfg = ConfigRegistry.getGame();
     const pal = gameCfg.palette;
-    const settings = resolveRenderSettings(gameCfg.graphics);
+    const settings = this.getSettings();
 
     const fxKey = FX_COLOR_KEYS[kind];
     const primaryColor = fxKey ? pal[fxKey] : (colorKey && pal[colorKey]) || pal.yellow;
 
     if (kind === 'explosion') {
-      this.shakeIntensity = settings.screenShakeExplosion;
+      this.shakeIntensity = this.reducedMotion ? 0 : settings.screenShakeExplosion;
     }
 
     if (kind === 'teleport' || kind === 'unlock' || kind === 'win' || kind === 'explosion') {
@@ -436,8 +480,14 @@ export class PixelRenderer {
   }
 
   public renderViewport(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
+    const startMs = performance.now();
+    this.renderScene(ctx, engine);
+    this.watchFrameBudget(performance.now() - startMs);
+  }
+
+  private renderScene(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
     const gameCfg = ConfigRegistry.getGame();
-    const settings = resolveRenderSettings(gameCfg.graphics);
+    const settings = this.getSettings();
     const frameScale = this.advanceClock(settings);
     const gridCfg = gameCfg.grid;
     const { mapWidth, mapHeight } = gridCfg;
@@ -661,7 +711,7 @@ export class PixelRenderer {
     if (isModern) {
       if (remaining > MOVING_EPSILON_TILES) {
         walkFrame = 1 + (steps % WALK_FRAMES);
-        hop = Math.sin(Math.min(1, remaining) * Math.PI) * settings.playerHopTile;
+        if (!this.reducedMotion) hop = Math.sin(Math.min(1, remaining) * Math.PI) * settings.playerHopTile;
       }
     } else if (steps > 0) {
       walkFrame = 1 + (steps % WALK_FRAMES);
@@ -2430,7 +2480,7 @@ export class PixelRenderer {
     size: number
   ): void {
     const isModern = this.style === 'modern';
-    const bob = isModern ? Math.sin(this.timeTick * ITEM_BOB_SPEED) * ITEM_BOB_AMPLITUDE_TILE : 0;
+    const bob = isModern && !this.reducedMotion ? Math.sin(this.timeTick * ITEM_BOB_SPEED) * ITEM_BOB_AMPLITUDE_TILE : 0;
     const bobOffset = bob * size;
     if (isModern) {
       // Bobbing up (negative offset) lifts the item off its shadow, which shrinks.
@@ -3106,7 +3156,7 @@ export class PixelRenderer {
   }
 
   private getSettings(): RenderSettings {
-    return resolveRenderSettings(ConfigRegistry.getGame().graphics);
+    return resolveQualitySettings(ConfigRegistry.getGame().graphics, this.effectiveQuality);
   }
 
   /** Transparent margin kept around sprites so baked glows are not clipped. */

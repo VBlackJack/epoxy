@@ -33,6 +33,19 @@ versions follow Semantic Versioning.
 
 - "LCD Screen" option: a pixel grid over the 16-Bit Retro view, saved with the other
   settings.
+- Graphics quality option (Auto, High, Medium, Low). Medium drops the coloured glows and
+  draws the darkness coarser; Low turns lighting and the vignette off. Auto starts high
+  and steps down one level, with a message, whenever 90 frames in a row average more
+  than 12 ms to render. Presets and budget are set in `qualityPresets`, `frameBudgetMs`
+  and `frameBudgetWindow` (`game.json`).
+- `game.json` is checked at load: a light colour missing from the palette, a joined or
+  shadow-casting tile missing from `tiles.json`, or an unknown quality preset or setting
+  stops loading with a clear error.
+
+### Accessibility
+
+- With reduced motion requested by the system, the player no longer hops, items no
+  longer bob, explosions no longer shake the screen and the opening iris is skipped.
 
 ## [2.0.0] - 2026-10-29
 

@@ -20,6 +20,7 @@ import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { PixelRenderer } from './render/PixelRenderer';
+import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
@@ -161,6 +162,7 @@ class EpoxyApplication {
     this.applyDisplaySettings(savedSettings);
     this.applyAudioSettings(savedSettings);
     this.setupThemeSelector();
+    this.setupQualitySelector();
     this.bindViewportResizeObserver();
 
     this.rebuildHudIcons();
@@ -183,6 +185,7 @@ class EpoxyApplication {
     i18n.onChange(() => {
       this.refreshPackSelector();
       this.setupThemeSelector();
+      this.setupQualitySelector();
       this.updateHUD();
       this.editor.refreshTranslations();
     });
@@ -246,6 +249,12 @@ class EpoxyApplication {
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
     byId('btn-lcd-toggle')?.classList.toggle('active', this.renderer.isLcdEnabled());
     this.renderer.setReducedMotion(prefersReducedMotion());
+    this.renderer.setQuality(parseQuality(savedSettings.graphicsQuality));
+    this.renderer.setOnQualityLowered((quality) => {
+      this.showTransientStatus(
+        t('hud.messages.quality_lowered.label', { quality: t(`app.graphics_quality.${quality}.label`) })
+      );
+    });
     this.syncThemeAccent();
 
     this.setupFovSelector(presets, initialFov);
@@ -817,6 +826,23 @@ class EpoxyApplication {
     }
     select.onchange = () => {
       this.applyTheme(select.value);
+    };
+  }
+
+  private setupQualitySelector(): void {
+    const select = byId<HTMLSelectElement>('quality-select');
+    if (!select) return;
+    select.innerHTML = '';
+    for (const quality of [AUTO_QUALITY_ID, ...QUALITY_LEVELS]) {
+      const opt = document.createElement('option');
+      opt.value = quality;
+      opt.textContent = t(`app.graphics_quality.${quality}.label`);
+      opt.selected = quality === this.renderer.getQuality();
+      select.appendChild(opt);
+    }
+    select.onchange = () => {
+      this.renderer.setQuality(parseQuality(select.value));
+      this.saveUserSettings();
     };
   }
 
@@ -2204,6 +2230,7 @@ class EpoxyApplication {
         graphicsStyle: this.renderer.getStyle(),
         shellEnabled: Boolean(byId('lynx-console')?.classList.contains('enabled')),
         lcdEnabled: this.renderer.isLcdEnabled(),
+        graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),
         musicEnabled: AudioManager.isMusicEnabled()
       };

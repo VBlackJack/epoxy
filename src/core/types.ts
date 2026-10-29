@@ -52,6 +52,8 @@ export interface UserSettings {
   shellEnabled?: boolean;
   /** LCD pixel grid over the 16-Bit Retro view. */
   lcdEnabled?: boolean;
+  /** 'auto', or a fixed quality level: 'high', 'medium' or 'low'. */
+  graphicsQuality?: string;
   sfxEnabled?: boolean;
   musicEnabled?: boolean;
 }

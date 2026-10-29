@@ -198,6 +198,116 @@ export function resolveRenderSettings(graphics: GraphicsConfig | undefined): Ren
   return resolved;
 }
 
+/** Graphics quality levels, from the richest to the lightest. */
+export const QUALITY_LEVELS = ['high', 'medium', 'low'] as const;
+export type GraphicsQuality = (typeof QUALITY_LEVELS)[number];
+
+/** Quality choice that starts high and steps down by itself when frames run slow. */
+export const AUTO_QUALITY_ID = 'auto';
+
+/** Reads a stored or selected quality choice; anything unknown means automatic. */
+export function parseQuality(value: unknown): GraphicsQuality | typeof AUTO_QUALITY_ID {
+  return (QUALITY_LEVELS as readonly unknown[]).includes(value) ? (value as GraphicsQuality) : AUTO_QUALITY_ID;
+}
+
+/** Settings a quality preset may change: plain numbers and switches only. */
+export type QualityOverrides = Partial<Record<keyof RenderSettings, number | boolean>>;
+
+/** Fallback presets, used when game.json has no qualityPresets block. 'high' keeps the settings as they are. */
+export const DEFAULT_QUALITY_PRESETS: Readonly<Record<GraphicsQuality, QualityOverrides>> = {
+  high: {},
+  medium: { lightingTintAlpha: 0, lightingResolutionDivisor: 6, maxParticles: 120, particleBurstCount: 12 },
+  low: { lightingEnabled: false, vignetteAlpha: 0, maxParticles: 60, particleBurstCount: 8 }
+};
+
+/** When the graphics quality is automatic, it steps down once rendering exceeds this budget. */
+export interface FrameBudgetSettings {
+  /** Average time to render one frame, in milliseconds, above which quality steps down. */
+  frameBudgetMs: number;
+  /** Number of frames averaged before deciding. */
+  frameBudgetWindow: number;
+}
+
+export const DEFAULT_FRAME_BUDGET: Readonly<FrameBudgetSettings> = { frameBudgetMs: 12, frameBudgetWindow: 90 };
+
+type GraphicsWithQuality = GraphicsConfig & {
+  qualityPresets?: Partial<Record<string, Record<string, unknown>>>;
+  frameBudgetMs?: unknown;
+  frameBudgetWindow?: unknown;
+};
+
+const qualityCache = new WeakMap<RenderSettings, Map<GraphicsQuality, RenderSettings>>();
+
+/**
+ * Applies a quality preset over the resolved settings. Only keys that already hold a
+ * number or a boolean, with a value of the same type, are taken; the result is memoized.
+ */
+export function resolveQualitySettings(graphics: GraphicsConfig | undefined, quality: GraphicsQuality): RenderSettings {
+  const base = resolveRenderSettings(graphics);
+  if (quality === 'high') return base;
+  let perQuality = qualityCache.get(base);
+  if (!perQuality) {
+    perQuality = new Map();
+    qualityCache.set(base, perQuality);
+  }
+  const cached = perQuality.get(quality);
+  if (cached) return cached;
+  const preset = (graphics as GraphicsWithQuality | undefined)?.qualityPresets?.[quality] ?? DEFAULT_QUALITY_PRESETS[quality];
+  const resolved: RenderSettings = { ...base };
+  for (const [key, value] of Object.entries(preset)) {
+    if (!(key in base)) continue;
+    const current = (base as unknown as Record<string, unknown>)[key];
+    if ((typeof current === 'number' || typeof current === 'boolean') && typeof value === typeof current) {
+      (resolved as unknown as Record<string, unknown>)[key] = value;
+    }
+  }
+  perQuality.set(quality, resolved);
+  return resolved;
+}
+
+export function resolveFrameBudget(graphics: GraphicsConfig | undefined): FrameBudgetSettings {
+  const source = graphics as GraphicsWithQuality | undefined;
+  return {
+    frameBudgetMs:
+      typeof source?.frameBudgetMs === 'number' ? source.frameBudgetMs : DEFAULT_FRAME_BUDGET.frameBudgetMs,
+    frameBudgetWindow:
+      typeof source?.frameBudgetWindow === 'number' ? source.frameBudgetWindow : DEFAULT_FRAME_BUDGET.frameBudgetWindow
+  };
+}
+
+/**
+ * Lists what in the graphics block points at something that does not exist: light
+ * colours missing from the palette, joined or shadow-casting tiles missing from
+ * tiles.json, quality presets with unknown names or settings. Empty when all is well.
+ */
+export function findGraphicsConfigErrors(
+  graphics: GraphicsConfig | undefined,
+  palette: Readonly<Record<string, string>>,
+  tileIds: ReadonlySet<string>
+): string[] {
+  const errors: string[] = [];
+  const settings = resolveRenderSettings(graphics);
+  for (const [id, source] of Object.entries(settings.lightSources)) {
+    if (!(source.colorKey in palette)) errors.push(`lightSources.${id}: unknown palette key ${source.colorKey}`);
+  }
+  for (const key of ['wallJoinTiles', 'shadowCasterTiles'] as const) {
+    for (const tileId of settings[key]) {
+      if (!tileIds.has(tileId)) errors.push(`${key}: unknown tile ${tileId}`);
+    }
+  }
+  const presets = (graphics as GraphicsWithQuality | undefined)?.qualityPresets ?? {};
+  for (const [name, preset] of Object.entries(presets)) {
+    if (!(QUALITY_LEVELS as readonly string[]).includes(name)) {
+      errors.push(`qualityPresets.${name}: unknown quality`);
+      continue;
+    }
+    for (const key of Object.keys(preset ?? {})) {
+      if (!(key in DEFAULT_RENDER_SETTINGS)) errors.push(`qualityPresets.${name}.${key}: unknown setting`);
+    }
+  }
+  return errors;
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
