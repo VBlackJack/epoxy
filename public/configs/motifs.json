@@ -12,7 +12,23 @@
     "p": { "terrain": "button_red" },
     "l": { "terrain": "button_blue" }
   },
+  "motifRules": {
+    "teleport": { "maxPerLevel": 1 },
+    "toggle_walls": { "maxPerLevel": 1 },
+    "finale": { "role": "finale" }
+  },
   "pieces": [
+    {
+      "id": "finale_socket",
+      "motif": "finale",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#",
+        "#S#",
+        "#$#"
+      ]
+    },
     {
       "id": "keys_doors_single",
       "motif": "keys_doors",

@@ -51,8 +51,19 @@ export interface PieceDefinition {
   cloneLinks?: CloneLink[];
 }
 
+/**
+ * Level-wide rules of a motif. Teleporters and toggle walls act on the whole
+ * map, so two such pieces in one level would interfere: maxPerLevel caps
+ * them. The finale motif closes every level (socket, then exit).
+ */
+export interface MotifRule {
+  maxPerLevel?: number;
+  role?: 'finale';
+}
+
 export interface MotifsConfig {
   legend: Record<string, PieceLegendEntry>;
+  motifRules?: Record<string, MotifRule>;
   pieces: PieceDefinition[];
 }
 
@@ -72,6 +83,8 @@ export interface CompiledPiece {
   exit: GridPoint;
   requires: string[];
   rotatable: boolean;
+  /** Orientation applied to the definition's rows. */
+  orientation: PieceOrientation;
 }
 
 /** A rotation by quarter turns clockwise, optionally after a left-right mirror. */

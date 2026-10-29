@@ -56,7 +56,8 @@
       "ccup_cclp5": { "label": "Community: CCLP 5" },
       "custom": { "label": "Custom Levels" },
       "procedural": { "label": "Procedural Puzzles (Solvable)" },
-      "procedural_toast": { "label": "Generated & validated {count, plural, one {# new procedural level} other {# new procedural levels}}!" },
+      "procedural_toast": { "label": "Generated {count, plural, one {# new procedural level} other {# new procedural levels}}, each one proven solvable!" },
+      "procedural_error": { "label": "The level generator could not build this pack. Please try again." },
       "import_btn": { "action": "Import .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
       "delete_btn": { "action": "Delete Pack" },
@@ -409,11 +410,16 @@
       "hint": "The ultimate test: combine elemental boots, keys, and the central ice vault to collect all 10 chips!"
     },
     "procedural": {
-      "asymmetric_complex": { "title": "Asymmetric Bastion #{number}" },
-      "spiral_citadel": { "title": "Spiral Citadel #{number}" },
-      "grand_canal": { "title": "Grand Canal Banks #{number}" },
-      "teleport_archipelago": { "title": "Quantum Archipelago #{number}" },
-      "mechanical_foundry": { "title": "Mechanical Foundry #{number}" },
+      "keys_doors": { "title": "Locksmith Run #{number}" },
+      "fire": { "title": "Ember Crossing #{number}" },
+      "water": { "title": "Flooded Halls #{number}" },
+      "blocks_water": { "title": "Bridge Builders #{number}" },
+      "ice": { "title": "Glacier Drift #{number}" },
+      "force": { "title": "Conveyor Works #{number}" },
+      "thief": { "title": "Thieves' Den #{number}" },
+      "toggle_walls": { "title": "Switchyard #{number}" },
+      "trap": { "title": "Bear Trap Alley #{number}" },
+      "teleport": { "title": "Quantum Hop #{number}" },
       "default": {
         "hint": "Use the Objective button (or H) to locate the next mechanism and inspect trap, cloner, and toggle wires."
       }

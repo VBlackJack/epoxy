@@ -92,14 +92,29 @@ export interface ThemePalette {
 
 export interface ProceduralConfig {
   defaultLevelCount: number;
-  minRooms: number;
-  maxRooms: number;
-  minRoomSize: number;
-  maxRoomSize: number;
-  baseChips: number;
-  chipsPerLevelFactor: number;
-  baseTimeLimitSeconds: number;
   maxGenerationAttempts: number;
+  /** Pieces in level 1; one more every levelsPerExtraPiece levels, up to maxPieceCount. */
+  basePieceCount: number;
+  levelsPerExtraPiece: number;
+  maxPieceCount: number;
+  /** Distinct motifs per level, indexed by level number - 1; the last value repeats. */
+  motifCountByLevel: number[];
+  /** Highest piece tier allowed, indexed like motifCountByLevel. */
+  maxTierByLevel: number[];
+  /** Side of the square area the level is built in, growing with the level number. */
+  baseRegionSize: number;
+  regionGrowthPerLevel: number;
+  /** Extra side length given to each new attempt after a layout failure. */
+  regionGrowthPerRetry: number;
+  placementSamplesPerPiece: number;
+  minCorridorLength: number;
+  maxCorridorLength: number;
+  /** Depth of the side alcove holding boots a piece needs. */
+  bootAlcoveLength: number;
+  /** Time limit over the proven solution time. */
+  timeSlackFactor: number;
+  timeRoundingSeconds: number;
+  minTimeLimitSeconds: number;
 }
 
 export interface KeybindingsConfig {

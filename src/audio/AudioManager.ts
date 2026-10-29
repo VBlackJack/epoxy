@@ -64,6 +64,8 @@ class AudioService {
   private nextNoteTime: number = 0;
   private userGestureSeen: boolean = false;
   private pausedWhileHidden: boolean = false;
+  /** Nesting depth of runSilently calls; effects play only at zero. */
+  private silenceDepth: number = 0;
 
   private readonly onUserGesture = (): void => {
     if (this.userGestureSeen) return;
@@ -188,8 +190,21 @@ class AudioService {
     }
   }
 
+  /**
+   * Runs a task with sound effects muted. The level generator replays whole
+   * levels in a GameEngine to prove them; the player must not hear it.
+   */
+  public runSilently<T>(task: () => T): T {
+    this.silenceDepth++;
+    try {
+      return task();
+    } finally {
+      this.silenceDepth--;
+    }
+  }
+
   public playSfx(effectId: string): void {
-    if (!this.sfxEnabled) return;
+    if (!this.sfxEnabled || this.silenceDepth > 0) return;
     const audioCfg = this.getConfig();
     const effect = audioCfg.effects[effectId];
     if (!effect) return;

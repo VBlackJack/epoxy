@@ -24,7 +24,7 @@ import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
 import { Pathfinder } from './core/Pathfinder';
-import { ProceduralGenerator } from './core/ProceduralGenerator';
+import { ProceduralGenerationError, ProceduralGenerator } from './core/ProceduralGenerator';
 import {
   CompiledLevel,
   Direction,
@@ -445,7 +445,14 @@ class EpoxyApplication {
   }
 
   private generateProceduralPack(): void {
-    const levels = ProceduralGenerator.generatePack();
+    let levels: CompiledLevel[];
+    try {
+      levels = ProceduralGenerator.generatePack();
+    } catch (err) {
+      if (!(err instanceof ProceduralGenerationError)) throw err;
+      this.showTransientStatus(t('app.packs.procedural_error.label'));
+      return;
+    }
     ConfigRegistry.setProceduralLevels(levels);
     this.refreshPackSelector();
     this.editor.populatePresetDropdown();

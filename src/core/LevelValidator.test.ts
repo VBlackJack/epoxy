@@ -16,7 +16,6 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LevelValidator } from './LevelValidator';
-import { ProceduralGenerator } from './ProceduralGenerator';
 import { CloneLink, CompiledLevel, EntityPlacement } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
@@ -142,34 +141,5 @@ describe('LevelValidator', () => {
     reachable[1] = '#P.W.E###';
     reachable[2] = '#.#######';
     expect(LevelValidator.validate(grid(reachable, { cloneLinks, entities })).valid).toBe(true);
-  });
-});
-
-describe('ProceduralGenerator', () => {
-  beforeEach(() => {
-    loadTestConfigs();
-  });
-
-  it('is deterministic for a seed and puts the seed in the id', () => {
-    const a = ProceduralGenerator.generateLevel(3, 1234);
-    const b = ProceduralGenerator.generateLevel(3, 1234);
-    expect(a).toEqual(b);
-    expect(a.id.startsWith('proc_')).toBe(true);
-  });
-
-  it('only returns levels that validate', () => {
-    const pack = ProceduralGenerator.generatePack(5, 42);
-    expect(pack).toHaveLength(5);
-    for (const level of pack) {
-      expect(LevelValidator.validate(level).valid).toBe(true);
-    }
-  });
-
-  it('falls back to a valid built-in level when generation keeps failing', () => {
-    const bundle = loadTestConfigs();
-    // A grid too small for the sector layout makes every attempt fail
-    bundle.game.grid.mapWidth = 20;
-    const level = ProceduralGenerator.generateLevel(1, 7);
-    expect(level.id.startsWith('proc_fallback_')).toBe(true);
   });
 });

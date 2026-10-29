@@ -27,9 +27,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it, vi } from 'vitest';
 
-vi.mock('../src/audio/AudioManager', () => ({
-  AudioManager: new Proxy({}, { get: () => () => undefined })
-}));
+vi.mock('../src/audio/AudioManager', () => import('../src/test/silentAudio'));
 
 import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import { compilePiece } from '../src/generator/PieceCompiler';

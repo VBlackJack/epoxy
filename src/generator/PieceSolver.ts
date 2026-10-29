@@ -161,7 +161,7 @@ export class PieceSolver {
   }
 
   /** Ticks until the player can move again; false if the player died or never settles. */
-  private static settle(engine: GameEngine): boolean {
+  public static settle(engine: GameEngine): boolean {
     for (let tick = 0; tick < MAX_SETTLE_TICKS; tick++) {
       const player = engine.getPlayer();
       if (!player.alive) return false;

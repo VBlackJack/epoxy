@@ -16,9 +16,7 @@
 
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../audio/AudioManager', () => ({
-  AudioManager: new Proxy({}, { get: () => () => undefined })
-}));
+vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { ALL_ORIENTATIONS, compilePiece, orientPiece, resetPieceCaches } from './PieceCompiler';

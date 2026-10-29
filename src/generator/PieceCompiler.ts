@@ -186,8 +186,15 @@ export function compilePiece(
 
   if (!entry || !exit) throw new PieceError(def.id, 'needs one entry and one exit port');
   for (const port of [entry, exit] as GridPoint[]) {
-    const onBorder = port.x === 0 || port.y === 0 || port.x === width - 1 || port.y === height - 1;
-    if (!onBorder) throw new PieceError(def.id, 'ports must sit on the piece border');
+    const onVerticalEdge = port.x === 0 || port.x === width - 1;
+    const onHorizontalEdge = port.y === 0 || port.y === height - 1;
+    if (!onVerticalEdge && !onHorizontalEdge) {
+      throw new PieceError(def.id, 'ports must sit on the piece border');
+    }
+    // A corner port would open on two sides and could not be joined by one corridor.
+    if (onVerticalEdge && onHorizontalEdge) {
+      throw new PieceError(def.id, 'ports must not sit on a piece corner');
+    }
   }
 
   return {
@@ -204,11 +211,16 @@ export function compilePiece(
     entry,
     exit,
     requires: [...(def.requires ?? [])],
-    rotatable: def.rotatable ?? false
+    rotatable: def.rotatable ?? false,
+    orientation: IDENTITY_ORIENTATION
   };
 }
 
-/** Returns the piece turned and mirrored; throws if a tile has no oriented counterpart. */
+/**
+ * Returns the piece turned and mirrored by `o`; throws if a tile has no
+ * oriented counterpart. `orientation` records `o`, which describes the result
+ * only when the input came straight from compilePiece.
+ */
 export function orientPiece(piece: CompiledPiece, o: PieceOrientation): CompiledPiece {
   if (o.quarterTurns === 0 && !o.mirrored) return piece;
   const { width, height } = piece;
@@ -256,6 +268,7 @@ export function orientPiece(piece: CompiledPiece, o: PieceOrientation): Compiled
       };
     }),
     entry: at(piece.entry),
-    exit: at(piece.exit)
+    exit: at(piece.exit),
+    orientation: o
   };
 }

@@ -26,23 +26,25 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { it } from 'vitest';
+import { it, vi } from 'vitest';
+
+vi.mock('../src/audio/AudioManager', () => import('../src/test/silentAudio'));
+
 import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import { LevelMetrics, LevelMetricsReport } from '../src/core/LevelMetrics';
 import { MetricsSummary, summarizeField, summarizeReports } from '../src/core/MetricsSummary';
 import { ProceduralGenerator } from '../src/core/ProceduralGenerator';
 import { CompiledLevel } from '../src/core/types';
 import { DatCodec } from '../src/formats/DatCodec';
+import { exitReachableWithout, replays } from '../src/test/levelChecks';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_FILE = resolve(ROOT, 'reports', 'level-metrics.json');
 
 /** Seeds of the procedural sample: each seed yields one pack of levels 1 to N. */
-const PROCEDURAL_SEEDS = Array.from({ length: 10 }, (_, i) => i + 1);
+const PROCEDURAL_SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
 const PROCEDURAL_LEVELS_PER_SEED = 10;
-/** Id prefix the generator gives to a campaign level used as a fallback. */
-const FALLBACK_ID_PREFIX = 'proc_fallback_';
 
 interface SetReport {
   summary: MetricsSummary;
@@ -53,23 +55,43 @@ function measureAll(levels: CompiledLevel[]): LevelMetricsReport[] {
   return levels.map((level) => LevelMetrics.measure(level));
 }
 
+/**
+ * Generates the sample and checks every level independently of the
+ * generator: its solution must win in a fresh engine, and walling off any
+ * piece must cut the exit off.
+ */
 function measureProcedural(): SetReport {
   const levels: CompiledLevel[] = [];
   const durations: number[] = [];
+  const attempts: number[] = [];
+  let failures = 0;
+  let unproven = 0;
+  let bypassable = 0;
   for (const seed of PROCEDURAL_SEEDS) {
     for (let n = 1; n <= PROCEDURAL_LEVELS_PER_SEED; n++) {
       const started = performance.now();
-      levels.push(ProceduralGenerator.generateLevel(n, seed));
-      durations.push(performance.now() - started);
+      try {
+        const generated = ProceduralGenerator.generateDetailed(n, seed);
+        durations.push(performance.now() - started);
+        attempts.push(generated.attempts);
+        levels.push(generated.level);
+        if (!replays(generated.level, generated.solution)) unproven++;
+        if (generated.pieceBoxes.slice(0, -1).some((box) => exitReachableWithout(generated.level, box))) {
+          bypassable++;
+        }
+      } catch {
+        failures++;
+      }
     }
   }
-  const fallbacks = levels.filter((l) => l.id.startsWith(FALLBACK_ID_PREFIX)).length;
-  const generated = levels.filter((l) => !l.id.startsWith(FALLBACK_ID_PREFIX));
   return {
-    summary: summarizeReports(measureAll(generated)),
+    summary: summarizeReports(measureAll(levels)),
     extra: {
-      requested: levels.length,
-      fallbackRate: fallbacks / levels.length,
+      requested: PROCEDURAL_SEEDS.length * PROCEDURAL_LEVELS_PER_SEED,
+      generationFailures: failures,
+      unprovenLevels: unproven,
+      bypassableLevels: bypassable,
+      attempts: summarizeField(attempts),
       generationMs: summarizeField(durations)
     }
   };

@@ -56,7 +56,8 @@
       "ccup_cclp5": { "label": "Communauté : CCLP 5" },
       "custom": { "label": "Niveaux Personnalisés" },
       "procedural": { "label": "Puzzles Procéduraux (Solvables)" },
-      "procedural_toast": { "label": "Nouveau pack procédural de {count, plural, one {# niveau} other {# niveaux}} généré et validé !" },
+      "procedural_toast": { "label": "Nouveau pack procédural de {count, plural, one {# niveau} other {# niveaux}}, chacun prouvé solvable !" },
+      "procedural_error": { "label": "Le générateur n'a pas pu construire ce pack. Réessayez." },
       "import_btn": { "action": "Importer .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },
       "delete_btn": { "action": "Supprimer ce Pack" },
@@ -409,11 +410,16 @@
       "hint": "Le défi ultime : combinez bottes élémentaires, clés et patinoire centrale pour rassembler les 10 puces !"
     },
     "procedural": {
-      "asymmetric_complex": { "title": "Bastion Asymétrique #{number}" },
-      "spiral_citadel": { "title": "Citadelle en Spirale #{number}" },
-      "grand_canal": { "title": "Rives du Grand Canal #{number}" },
-      "teleport_archipelago": { "title": "Archipel Quantique #{number}" },
-      "mechanical_foundry": { "title": "Fonderie Mécanique #{number}" },
+      "keys_doors": { "title": "Course du Serrurier #{number}" },
+      "fire": { "title": "Traversée des Braises #{number}" },
+      "water": { "title": "Salles Inondées #{number}" },
+      "blocks_water": { "title": "Bâtisseurs de Ponts #{number}" },
+      "ice": { "title": "Dérive Glaciaire #{number}" },
+      "force": { "title": "Atelier des Convoyeurs #{number}" },
+      "thief": { "title": "Repaire des Voleurs #{number}" },
+      "toggle_walls": { "title": "Gare de Triage #{number}" },
+      "trap": { "title": "Allée des Pièges #{number}" },
+      "teleport": { "title": "Saut Quantique #{number}" },
       "default": {
         "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les câbles des pièges, cloneurs et portes."
       }
