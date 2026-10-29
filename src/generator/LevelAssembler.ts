@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../core/coreConstants';
+import { FLOOR_TILE_ID } from '../core/coreConstants';
 import { SeededRandom } from '../core/Random';
 import {
   CloneLink,
@@ -84,8 +84,7 @@ interface Placement {
  * Lays a planned chain of pieces out on the map and joins them with
  * corridors. The layout keeps the chain a chain: a corridor never touches
  * another corridor, the start, or a port other than the two it joins, so no
- * piece can be skipped. Boots a piece needs are left in a short alcove off
- * the corridor leading to it.
+ * piece can be skipped. Boots a piece needs lie on the corridor leading to it.
  */
 export class LevelAssembler {
   private readonly width: number;
@@ -99,6 +98,8 @@ export class LevelAssembler {
   private readonly cloneLinks: CloneLink[] = [];
   private readonly route: RouteSegment[] = [];
   private region: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
+  /** Bounds of everything placed so far: what compact placement keeps small. */
+  private bounds: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
   private chipCount = 0;
   /** Where the next corridor starts: the start cell, then each exit's outer cell. */
   private head: GridPoint = { x: 0, y: 0 };
@@ -140,6 +141,7 @@ export class LevelAssembler {
       y: this.rng.nextInt(this.region.y0, this.region.y1)
     };
     this.carve(start);
+    this.bounds = { x0: start.x, y0: start.y, x1: start.x, y1: start.y };
     this.head = start;
 
     for (let i = 0; i < plan.steps.length; i++) {
@@ -211,7 +213,10 @@ export class LevelAssembler {
       const path = this.corridor(this.head, entryOut, entryPort, box, reserved);
       // Boots placed straight on the corridor need cells of their own.
       if (!path || path.length < itemsToHand) continue;
-      const score = Math.abs(path.length - target);
+      // Corridor length near its target, and as little growth of the level's bounds as possible.
+      const spread = this.spreadOf(box, path);
+      const growth = (this.area(this.union(this.bounds, spread)) - this.area(this.bounds)) / (piece.width * piece.height);
+      const score = Math.abs(path.length - target) + this.cfg.placementCompactness * growth;
       if (!best || score < best.score) best = { origin, path, score };
       if (score === 0) break;
     }
@@ -263,9 +268,7 @@ export class LevelAssembler {
   }
 
   /**
-   * Writes the piece and its corridor into the map and the route. The piece
-   * and its exit cell are claimed before any alcove is dug, so an alcove can
-   * never reach past the piece.
+   * Writes the piece and its corridor into the map and the route.
    */
   private commit(
     piece: CompiledPiece,
@@ -275,6 +278,7 @@ export class LevelAssembler {
   ): void {
     const { origin, path } = placement;
     const corridorStart = this.head;
+    this.bounds = this.union(this.bounds, this.spreadOf(this.boxOf(piece, origin), path));
     for (const cell of path) this.carve(cell);
     this.stamp(piece, origin);
 
@@ -299,66 +303,16 @@ export class LevelAssembler {
   }
 
   /**
-   * Places the items a piece needs: in an alcove dug off the corridor when
-   * one fits, else on the corridor itself. Adds the detour to the route.
+   * Places the items a piece needs on the corridor leading to it, where the
+   * player cannot miss them. No side alcove is dug: an alcove is a dead end
+   * that adds a detour and nothing to think about.
    */
   private handOver(path: GridPoint[], moves: Direction[], giveBefore: string[]): void {
-    if (giveBefore.length === 0) {
-      this.route.push({ kind: 'walk', moves });
-      return;
-    }
-    const depth = Math.max(this.cfg.bootAlcoveLength, giveBefore.length);
-    for (let index = 0; index < path.length; index++) {
-      const base = path[index];
-      for (const dir of ORDERED_DIRECTIONS) {
-        const cells: GridPoint[] = [];
-        let cursor = base;
-        for (let d = 0; d < depth; d++) {
-          cursor = this.step(cursor, dir);
-          cells.push(cursor);
-        }
-        if (!cells.every((c) => this.canDigAlcove(c, base, cells))) continue;
-        for (const cell of cells) this.carve(cell);
-        giveBefore.forEach((itemId, i) => {
-          const cell = cells[cells.length - 1 - i];
-          this.items[cell.y][cell.x] = itemId;
-        });
-        const back = OPPOSITE_DIRECTION[dir];
-        this.route.push({
-          kind: 'walk',
-          moves: [
-            ...moves.slice(0, index + 1),
-            ...new Array<Direction>(depth).fill(dir),
-            ...new Array<Direction>(depth).fill(back),
-            ...moves.slice(index + 1)
-          ]
-        });
-        return;
-      }
-    }
-    // No room for an alcove: the corridor carries the items.
     giveBefore.forEach((itemId, i) => {
       const cell = path[i];
       this.items[cell.y][cell.x] = itemId;
     });
     this.route.push({ kind: 'walk', moves });
-  }
-
-  /** An alcove cell may touch its own corridor and alcove, nothing else that is used. */
-  private canDigAlcove(cell: GridPoint, base: GridPoint, alcove: GridPoint[]): boolean {
-    if (!this.inRegion(cell) || this.inAnyBox(cell) || this.occupied.has(this.key(cell))) return false;
-    const own = new Set([this.key(base), ...alcove.map((c) => this.key(c))]);
-    return ORDERED_DIRECTIONS.every((dir) => {
-      const n = this.step(cell, dir);
-      const k = this.key(n);
-      if (own.has(k)) return true;
-      return !this.occupied.has(k) || this.isCorridorNeighbourOf(n, base);
-    });
-  }
-
-  /** True for cells of the corridor being dug right before `base`, already carved. */
-  private isCorridorNeighbourOf(n: GridPoint, base: GridPoint): boolean {
-    return Math.abs(n.x - base.x) + Math.abs(n.y - base.y) === 1;
   }
 
   private stamp(piece: CompiledPiece, origin: GridPoint): void {
@@ -434,6 +388,27 @@ export class LevelAssembler {
 
   private boxOf(piece: CompiledPiece, origin: GridPoint): Box {
     return { x0: origin.x, y0: origin.y, x1: origin.x + piece.width - 1, y1: origin.y + piece.height - 1 };
+  }
+
+  /** Smallest box holding a piece box and the corridor cells leading to it. */
+  private spreadOf(box: Box, path: GridPoint[]): Box {
+    return path.reduce<Box>(
+      (acc, cell) => this.union(acc, { x0: cell.x, y0: cell.y, x1: cell.x, y1: cell.y }),
+      box
+    );
+  }
+
+  private union(a: Box, b: Box): Box {
+    return {
+      x0: Math.min(a.x0, b.x0),
+      y0: Math.min(a.y0, b.y0),
+      x1: Math.max(a.x1, b.x1),
+      y1: Math.max(a.y1, b.y1)
+    };
+  }
+
+  private area(b: Box): number {
+    return (b.x1 - b.x0 + 1) * (b.y1 - b.y0 + 1);
   }
 
   private overlaps(a: Box, b: Box, gap: number): boolean {

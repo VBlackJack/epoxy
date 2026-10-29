@@ -16,8 +16,9 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { decodeActions } from './PieceSolver';
-import { ORDERED_DIRECTIONS } from '../config/constants';
+import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { DEFAULT_FACING } from '../core/coreConstants';
+import { isPlayerWalkable } from '../core/Walkability';
 import { Direction, GridPoint, TileDefinition } from '../core/types';
 import {
   CompiledPiece,
@@ -233,10 +234,28 @@ export function compilePiece(
     requires: [...(def.requires ?? [])],
     rotatable: def.rotatable ?? false,
     oneShot: def.oneShot ?? false,
+    deadEnds: countDeadEnds(terrain, ports),
     solution: annotation ? decodeActions(annotation.solution) : undefined,
     reversible: annotation?.reversible,
     orientation: IDENTITY_ORIENTATION
   };
+}
+
+/** Dead ends of a piece: walkable cells with one walkable neighbour, a port counting an outside one. */
+function countDeadEnds(terrain: string[][], ports: GridPoint[]): number {
+  const walkable = terrain.map((row) => row.map((id) => isPlayerWalkable(ConfigRegistry.getTile(id))));
+  let deadEnds = 0;
+  walkable.forEach((row, y) =>
+    row.forEach((open, x) => {
+      if (!open) return;
+      let neighbours = ports.some((p) => p.x === x && p.y === y) ? 1 : 0;
+      for (const dir of ORDERED_DIRECTIONS) {
+        if (walkable[y + DIRECTION_VECTORS[dir].dy]?.[x + DIRECTION_VECTORS[dir].dx]) neighbours++;
+      }
+      if (neighbours === 1) deadEnds++;
+    })
+  );
+  return deadEnds;
 }
 
 /**

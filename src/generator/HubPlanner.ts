@@ -64,7 +64,8 @@ export class HubPlanner {
     rng: SeededRandom,
     cfg: HubConfig,
     script?: LevelScript,
-    piecesDropped = 0
+    piecesDropped = 0,
+    lead?: string
   ): HubPlan {
     const selection = ProgressionPlanner.selectPuzzles(
       levelNumber,
@@ -72,8 +73,9 @@ export class HubPlanner {
       rules,
       rng,
       script,
-      (p) => PieceSolver.isReversible(p) && !this.stealsBoots(p),
-      piecesDropped
+      HubPlanner.fitsWing,
+      piecesDropped,
+      lead
     );
     const pieces = selection.puzzles;
     // A lock whose item would make one of the level's puzzles trivial is not used:
@@ -119,6 +121,10 @@ export class HubPlanner {
 
     return { wings, hubItems, motifs: selection.motifs, finale: selection.finale };
   }
+
+  /** Whether a puzzle can sit in a dead-end wing: walkable back, and no boot thief. */
+  public static fitsWing = (piece: CompiledPiece): boolean =>
+    PieceSolver.isReversible(piece) && !HubPlanner.stealsBoots(piece);
 
   private static stealsBoots(piece: CompiledPiece): boolean {
     return piece.terrain.some((row) => row.some((id) => ConfigRegistry.getTile(id).stealsBoots));

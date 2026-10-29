@@ -22,10 +22,13 @@ import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
 import { HubPlanner } from '../generator/HubPlanner';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
+import { hubShapeFor, isHubLevel, leadMotifFor } from '../generator/PackVariety';
 import { encodeActions, SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
 import { budgetFor, LevelScript, ProgressionPlanner } from '../generator/ProgressionPlanner';
+import { measurePlayfield } from './PlayfieldMetrics';
 import { SeededRandom } from './Random';
+import { isPlayerWalkable } from './Walkability';
 import { CompiledLevel, ProceduralConfig } from './types';
 
 const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -167,17 +170,26 @@ export class ProceduralGenerator {
     const regionSize = cfg.baseRegionSize + cfg.regionGrowthPerLevel * (levelNumber - 1);
     const version = this.contentVersion(motifs, cfg);
 
-    const layout = script?.layout ?? (levelNumber >= cfg.hub.fromLevel ? 'hub' : 'chain');
+    const layout = script?.layout ?? (isHubLevel(levelNumber, cfg) ? 'hub' : 'chain');
+    // Scripted levels teach what their brief says; only generated packs vary.
+    const lead = script ? undefined : leadMotifFor(levelNumber, packSeed, library, motifs.motifRules ?? {}, cfg);
+    const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg);
+    const strictAttempts = Math.ceil(cfg.maxGenerationAttempts / 2);
 
     for (let attempt = 0; attempt < cfg.maxGenerationAttempts; attempt++) {
+      // The pack's lead motif and hub outline are asked for first; a layout that
+      // will not fit them is built without, rather than failing the level.
+      const strict = attempt < strictAttempts;
+      const attemptLead = strict ? lead : undefined;
+      const shapeIds = shape ? (strict && shape.preferred ? [shape.preferred] : shape.allowed) : undefined;
       const built =
         layout === 'hub'
-          ? this.buildHub(levelNumber, library, motifs, rng, cfg, script, Math.floor(attempt / cfg.hub.attemptsPerDroppedPiece))
-          : this.buildChain(levelNumber, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script);
+          ? this.buildHub(levelNumber, library, motifs, rng, cfg, script, Math.floor(attempt / cfg.hub.attemptsPerDroppedPiece), attemptLead, shapeIds)
+          : this.buildChain(levelNumber, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead);
       if (!built) continue;
       const { assembled } = built;
 
-      const motif = this.dominantMotif(built.motifs, built.pieceMotifs);
+      const motif = script ? this.dominantMotif(built.motifs, built.pieceMotifs) : built.motifs[0];
       const level: CompiledLevel = {
         id: `proc_${version}_${packSeed}_${levelNumber}`,
         number: levelNumber,
@@ -241,10 +253,11 @@ export class ProceduralGenerator {
     rng: SeededRandom,
     cfg: ProceduralConfig,
     regionSize: number,
-    script?: LevelScript
+    script?: LevelScript,
+    lead?: string
   ): BuiltLayout | null {
-    const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script);
-    const assembled = LevelAssembler.assemble(plan, regionSize, cfg, rng);
+    const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script, lead);
+    const assembled = this.mostCompact(cfg.layoutSamples, () => LevelAssembler.assemble(plan, regionSize, cfg, rng));
     if (!assembled) return null;
     let exit: { x: number; y: number } = assembled.playerStart;
     assembled.terrain.forEach((row, y) =>
@@ -266,13 +279,35 @@ export class ProceduralGenerator {
     rng: SeededRandom,
     cfg: ProceduralConfig,
     script?: LevelScript,
-    piecesDropped = 0
+    piecesDropped = 0,
+    lead?: string,
+    shapeIds?: string[]
   ): BuiltLayout | null {
-    const plan = HubPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped);
-    const assembled = HubAssembler.assemble(plan, cfg.hub, rng);
+    const plan = HubPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead);
+    const assembled = this.mostCompact(cfg.layoutSamples, () => HubAssembler.assemble(plan, cfg.hub, rng, shapeIds));
     if (!assembled) return null;
     const pieceMotifs = [...plan.wings.map((w) => w.piece.motif), plan.finale.motif];
     return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs, hubShape: assembled.hubShape };
+  }
+
+  /**
+   * Lays the same plan out several times and keeps the layout whose walkable
+   * area fills its bounding box the most: a tight level, not a sprawling one.
+   */
+  private static mostCompact<T extends AssembledLevel>(samples: number, assemble: () => T | null): T | null {
+    let best: T | null = null;
+    let bestFill = -1;
+    for (let i = 0; i < samples; i++) {
+      const assembled = assemble();
+      if (!assembled) continue;
+      const walkable = assembled.terrain.map((row) => row.map((id) => isPlayerWalkable(ConfigRegistry.getTile(id))));
+      const fill = measurePlayfield(walkable, assembled.playerStart).fill;
+      if (fill > bestFill) {
+        best = assembled;
+        bestFill = fill;
+      }
+    }
+    return best;
   }
 
   private static config(): ProceduralConfig {

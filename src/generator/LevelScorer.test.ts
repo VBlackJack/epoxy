@@ -62,4 +62,33 @@ describe('scoreLevel', () => {
     const score = scoreLevel(inputs(['#@..E#'], { solutionLength: 60, visitedCells: 50 }), 1, cfg);
     expect(score.revisitRatio).toBeCloseTo(1.2);
   });
+
+  it('penalises dead ends on the playfield and rewards open rooms', () => {
+    const cfg = ConfigRegistry.getGame().procedural!.scoring;
+    const room = scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), 1, cfg);
+    const tube = scoreLevel(inputs(['#######', '#@...E#', '#######']), 1, cfg);
+    expect(room.deadShare).toBe(0);
+    expect(tube.deadShare).toBeCloseTo(2 / 5);
+    // Same inputs apart from the map: the dead-end term alone favours the room.
+    const solid = { ...cfg, weightLength: 0, weightJunction: 0, weightCorridor: 0, weightRevisit: 0, weightVariety: 0, weightWalk: 0 };
+    expect(scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), 1, solid).total).toBeGreaterThan(
+      scoreLevel(inputs(['#######', '#@...E#', '#######']), 1, solid).total
+    );
+  });
+
+  it('only counts dead ends reachable from the start', () => {
+    const cfg = ConfigRegistry.getGame().procedural!.scoring;
+    const score = scoreLevel(inputs(['#######', '#@..#.#', '#######']), 1, cfg);
+    expect(score.deadShare).toBeCloseTo(2 / 3);
+  });
+
+  it('scores the walk against the thinking inside pieces in a band', () => {
+    const cfg = ConfigRegistry.getGame().procedural!.scoring;
+    const only = { ...cfg, weightLength: 0, weightJunction: 0, weightCorridor: 0, weightRevisit: 0, weightVariety: 0, weightDeadEnd: 0 };
+    const mid = (cfg.walkPerDecisionLow + cfg.walkPerDecisionHigh) / 2;
+    const inBand = scoreLevel(inputs(['#@..E#'], { walkMoves: mid * 20, pieceMoves: 20 }), 1, only);
+    const walkOnly = scoreLevel(inputs(['#@..E#'], { walkMoves: 400, pieceMoves: 10 }), 1, only);
+    expect(inBand.walkPerDecision).toBeCloseTo(mid);
+    expect(inBand.total).toBeGreaterThan(walkOnly.total);
+  });
 });

@@ -111,6 +111,11 @@ export interface CompiledPiece {
   requires: string[];
   rotatable: boolean;
   oneShot: boolean;
+  /**
+   * Walkable cells with a single walkable neighbour once the ports count as
+   * open to the outside: the dead ends the piece brings to a level.
+   */
+  deadEnds: number;
   /** Precomputed winning actions, already turned with the piece. */
   solution?: Array<Direction | 'WAIT'>;
   /** Precomputed: every winning state can walk back out through the entry. */

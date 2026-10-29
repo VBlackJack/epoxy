@@ -49,6 +49,17 @@ describe('compilePiece', () => {
     expect(piece.entities).toEqual([{ x: 1, y: 1, type: 'dirt_block', dir: 'S' }]);
   });
 
+  it('counts the dead ends a piece brings, ports counting as open to the outside', () => {
+    const legend = ConfigRegistry.getPieceLegend();
+    // A straight tube: both ends are ports, so neither is a dead end.
+    expect(compilePiece(definition(['#@#', '#.#', '#$#']), legend).deadEnds).toBe(0);
+    // A one-cell nook off the tube is one dead end.
+    const nook = definition(['#@###', '#.###', '#..##', '#.###', '#$###']);
+    expect(compilePiece(nook, legend).deadEnds).toBe(1);
+    // A room has none.
+    expect(compilePiece(definition(['#@##', '#..#', '#..#', '##$#']), legend).deadEnds).toBe(0);
+  });
+
   it('rejects an unknown character, a missing port and an inner port', () => {
     const legend = ConfigRegistry.getPieceLegend();
     expect(() => compilePiece(definition(['#@#', '#~#', '#$#']), legend)).toThrow(PieceError);
