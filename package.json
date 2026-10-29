@@ -9,11 +9,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.tools.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "report:levels": "vitest run --config vitest.report.config.ts"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "typescript": "^5.6.3",
     "vite": "^7.3.7",
     "vitest": "^5.0.5"
