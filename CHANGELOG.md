@@ -42,6 +42,11 @@ versions follow Semantic Versioning.
   shadow-casting tile missing from `tiles.json`, or an unknown quality preset or setting
   stops loading with a clear error.
 
+### Fixed
+
+- Portrait fullscreen on phones no longer cuts off the top of the board: the board stays
+  at the top of the screen and the side panel scrolls below the controls.
+
 ### Accessibility
 
 - With reduced motion requested by the system, the player no longer hops, items no
