@@ -17,7 +17,17 @@
 import { describe, expect, it } from 'vitest';
 import { GraphicsConfig, ThemePalette } from '../core/types';
 import { createTestBundle } from '../test/loadTestConfigs';
-import { DEFAULT_RENDER_SETTINGS, resolveRenderSettings, resolveTheme } from './renderSettings';
+import {
+  AUTO_QUALITY_ID,
+  DEFAULT_FRAME_BUDGET,
+  parseQuality,
+  DEFAULT_RENDER_SETTINGS,
+  findGraphicsConfigErrors,
+  resolveFrameBudget,
+  resolveQualitySettings,
+  resolveRenderSettings,
+  resolveTheme
+} from './renderSettings';
 
 const BASE_GRAPHICS: GraphicsConfig = {
   defaultStyle: 'modern',
@@ -61,11 +71,110 @@ describe('resolveRenderSettings', () => {
     expect(resolveRenderSettings(graphics).maxFrameDeltaMs).toBe(DEFAULT_RENDER_SETTINGS.maxFrameDeltaMs);
   });
 
+  it('accepts only arrays of strings for tile lists', () => {
+    const good = { ...BASE_GRAPHICS, wallJoinTiles: ['wall', 'steel'] } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(good).wallJoinTiles).toEqual(['wall', 'steel']);
+    const bad = { ...BASE_GRAPHICS, wallJoinTiles: { wall: true } } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(bad).wallJoinTiles).toEqual(DEFAULT_RENDER_SETTINGS.wallJoinTiles);
+  });
+
+  it('accepts only well-formed light source tables', () => {
+    const good = {
+      ...BASE_GRAPHICS,
+      lightSources: { exit: { radiusTile: 2, colorKey: 'green' } }
+    } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(good).lightSources).toEqual({ exit: { radiusTile: 2, colorKey: 'green' } });
+    const bad = { ...BASE_GRAPHICS, lightSources: { exit: { radiusTile: '2' } } } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(bad).lightSources).toEqual(DEFAULT_RENDER_SETTINGS.lightSources);
+  });
+
+  it('tints every shipped light source with a palette colour', () => {
+    const game = createTestBundle().game;
+    const sources = resolveRenderSettings(game.graphics).lightSources;
+    const missing = Object.entries(sources).filter(([, source]) => !(source.colorKey in game.palette));
+    expect(missing).toEqual([]);
+  });
+
   it('finds every renderer setting in the shipped game.json', () => {
     const shipped = createTestBundle().game.graphics as unknown as Record<string, unknown>;
     for (const key of Object.keys(DEFAULT_RENDER_SETTINGS)) {
       expect(shipped, key).toHaveProperty(key);
     }
+  });
+});
+
+describe('resolveQualitySettings', () => {
+  it('keeps the settings as they are in high quality', () => {
+    const graphics = { ...BASE_GRAPHICS } as GraphicsConfig;
+    expect(resolveQualitySettings(graphics, 'high')).toBe(resolveRenderSettings(graphics));
+  });
+
+  it('applies the preset of game.json, falling back to the built-in one', () => {
+    const custom = {
+      ...BASE_GRAPHICS,
+      qualityPresets: { low: { vignetteAlpha: 0.1 } }
+    } as unknown as GraphicsConfig;
+    expect(resolveQualitySettings(custom, 'low').vignetteAlpha).toBe(0.1);
+    expect(resolveQualitySettings(custom, 'low').lightingEnabled).toBe(true);
+    const plain = { ...BASE_GRAPHICS } as GraphicsConfig;
+    expect(resolveQualitySettings(plain, 'low').lightingEnabled).toBe(false);
+  });
+
+  it('ignores preset values of the wrong type and keys that are not plain settings', () => {
+    const graphics = {
+      ...BASE_GRAPHICS,
+      qualityPresets: { medium: { maxParticles: 'few', lightSources: {}, wallJoinTiles: [] } }
+    } as unknown as GraphicsConfig;
+    const settings = resolveQualitySettings(graphics, 'medium');
+    expect(settings.maxParticles).toBe(resolveRenderSettings(graphics).maxParticles);
+    expect(settings.lightSources).toBe(resolveRenderSettings(graphics).lightSources);
+    expect(settings.wallJoinTiles).toBe(resolveRenderSettings(graphics).wallJoinTiles);
+  });
+
+  it('memoizes per quality', () => {
+    const graphics = { ...BASE_GRAPHICS } as GraphicsConfig;
+    expect(resolveQualitySettings(graphics, 'low')).toBe(resolveQualitySettings(graphics, 'low'));
+  });
+});
+
+describe('parseQuality', () => {
+  it('keeps known levels and falls back to automatic for anything else', () => {
+    expect(parseQuality('medium')).toBe('medium');
+    expect(parseQuality(AUTO_QUALITY_ID)).toBe(AUTO_QUALITY_ID);
+    expect(parseQuality('ultra')).toBe(AUTO_QUALITY_ID);
+    expect(parseQuality(undefined)).toBe(AUTO_QUALITY_ID);
+  });
+});
+
+describe('resolveFrameBudget', () => {
+  it('reads the budget from game.json, with defaults', () => {
+    expect(resolveFrameBudget(undefined)).toEqual(DEFAULT_FRAME_BUDGET);
+    const graphics = { ...BASE_GRAPHICS, frameBudgetMs: 20 } as unknown as GraphicsConfig;
+    expect(resolveFrameBudget(graphics)).toEqual({ ...DEFAULT_FRAME_BUDGET, frameBudgetMs: 20 });
+  });
+});
+
+describe('findGraphicsConfigErrors', () => {
+  it('accepts the shipped configuration', () => {
+    const bundle = createTestBundle();
+    const tileIds = new Set(Object.keys(bundle.tiles.tiles));
+    expect(findGraphicsConfigErrors(bundle.game.graphics, bundle.game.palette, tileIds)).toEqual([]);
+  });
+
+  it('reports dangling references', () => {
+    const graphics = {
+      ...BASE_GRAPHICS,
+      lightSources: { exit: { radiusTile: 1, colorKey: 'nope' } },
+      wallJoinTiles: ['wall', 'granite'],
+      qualityPresets: { ultra: {}, low: { sparkle: 1 } }
+    } as unknown as GraphicsConfig;
+    const errors = findGraphicsConfigErrors(graphics, { green: '#0f0' }, new Set(['wall']));
+    expect(errors).toEqual([
+      'lightSources.exit: unknown palette key nope',
+      'wallJoinTiles: unknown tile granite',
+      'qualityPresets.ultra: unknown quality',
+      'qualityPresets.low.sparkle: unknown setting'
+    ]);
   });
 });
 

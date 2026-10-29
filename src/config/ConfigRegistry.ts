@@ -30,6 +30,7 @@ import {
   isInBounds,
   InvalidLevelError
 } from './ConfigValidation';
+import { findGraphicsConfigErrors } from '../render/renderSettings';
 import {
   AudioConfig,
   CompiledLevel,
@@ -132,6 +133,14 @@ class ConfigRegistryService {
    * Used by loadAll and by tests, which read the config files from disk.
    */
   public applyConfigs(bundle: ConfigBundle): void {
+    const graphicsErrors = findGraphicsConfigErrors(
+      bundle.game.graphics,
+      bundle.game.palette,
+      new Set(Object.keys(bundle.tiles.tiles))
+    );
+    if (graphicsErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, graphicsErrors.join('; '));
+    }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
     this.monstersConfig = bundle.monsters;

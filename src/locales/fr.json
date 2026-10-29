@@ -6,9 +6,11 @@
       "mode_play": { "action": "Jouer" },
       "mode_editor": { "action": "Éditeur de Niveaux" },
       "levels_btn": { "action": "Niveaux & Scores" },
+      "lcd_toggle": { "action": "Écran LCD", "hint": "Grille de pixels sur le rendu Rétro 16-Bit" },
       "shell_toggle": { "action": "Châssis Lynx II" },
       "graphics_modern": { "action": "Rendu : HD Néon" },
       "graphics_retro": { "action": "Rendu : Rétro 16-Bit" },
+      "quality": { "label": "Graphismes :" },
       "theme_label": { "label": "Biome :" },
       "procedural_btn": { "action": "Générer Puzzle Infini" },
       "fov": { "label": "Vue :" },
@@ -32,6 +34,12 @@
       "init_failed": { "label": "Le jeu n'a pas pu démarrer. Vérifiez votre connexion puis réessayez." },
       "config_load": { "label": "Le fichier de configuration {source} est introuvable ou invalide." },
       "retry": { "action": "Réessayer" }
+    },
+    "graphics_quality": {
+      "auto": { "label": "Auto (selon l'appareil)" },
+      "high": { "label": "Haute" },
+      "medium": { "label": "Moyenne" },
+      "low": { "label": "Basse" }
     },
     "themes": {
       "auto": { "label": "Auto (selon le niveau)" },
@@ -143,6 +151,7 @@
       "medal_silver_icon": { "label": "🥈" },
       "medal_bronze_icon": { "label": "🥉" },
       "block_hint": { "label": "Indice : le prochain coup est joué pour vous. Appuyez de nouveau sur Aide pour le suivant." },
+      "quality_lowered": { "label": "Qualité graphique abaissée à {quality} pour garder le jeu fluide." },
       "blocks_stuck": { "label": "Impasse : ces blocs ne peuvent plus couvrir tous les boutons. Annulez (U) ou recommencez (R)." },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
       "solution_playing": { "label": "Lecture de la solution prouvée. Touchez le plateau pour reprendre la main." },

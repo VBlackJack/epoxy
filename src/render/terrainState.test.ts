@@ -69,5 +69,15 @@ describe('collectTerrainFeatures', () => {
       { x: 1, y: 1, tileId: 'water' },
       { x: 0, y: 2, tileId: 'teleport' }
     ]);
+    expect(features.litCells).toEqual([]);
+  });
+
+  it('lists lit cells only for the lit tile ids given', () => {
+    const features = collectTerrainFeatures(grid(), new Set(), new Set(['teleport']));
+    expect(features.litCells).toEqual([
+      { x: 2, y: 0, tileId: 'teleport' },
+      { x: 0, y: 2, tileId: 'teleport' }
+    ]);
+    expect(features.animatedCells).toEqual([]);
   });
 });

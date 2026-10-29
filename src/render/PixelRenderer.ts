@@ -27,7 +27,16 @@ import {
   FX_COLOR_KEYS,
   MONSTER_COLOR_KEYS
 } from './paletteKeys';
-import { RenderSettings, resolveRenderSettings, resolveTheme } from './renderSettings';
+import { FrameBudgetGuard } from './frameBudget';
+import {
+  AUTO_QUALITY_ID,
+  GraphicsQuality,
+  QUALITY_LEVELS,
+  RenderSettings,
+  resolveFrameBudget,
+  resolveQualitySettings,
+  resolveTheme
+} from './renderSettings';
 import { frameScaleFromDelta, scaleDecay, scaleLerpFactor } from './renderTiming';
 import {
   collectTerrainFeatures,
@@ -35,6 +44,8 @@ import {
   TerrainFeatures,
   TerrainSnapshot
 } from './terrainState';
+import { Light, LightingLayer } from './LightingLayer';
+import { cellHash, hasAll, ISOLATED_TILE, NEIGHBOUR, TileNeighbours, tileNeighbours } from './tileNeighbours';
 
 interface Particle {
   x: number;
@@ -63,6 +74,9 @@ interface ShockwaveRing {
  */
 type TilePass = 'all' | 'static' | 'animated';
 
+/** Parts of the shadow a floor cell receives from casters north, west or only north-west of it. */
+type ShadowPart = 'north' | 'west' | 'corner';
+
 const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'water',
   'fire',
@@ -72,7 +86,12 @@ const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_w',
   'force_random',
   'exit',
-  'teleport'
+  'teleport',
+  'ice',
+  'ice_nw',
+  'ice_ne',
+  'ice_sw',
+  'ice_se'
 ]);
 const RETRO_ANIMATED_TILES: ReadonlySet<string> = new Set(['water', 'fire', 'exit', 'teleport']);
 const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([...MODERN_ANIMATED_TILES, ...RETRO_ANIMATED_TILES]);
@@ -92,6 +111,72 @@ const ITEM_BOB_SPEED = 0.1;
 const ITEM_BOB_AMPLITUDE_TILE = 0.04;
 const FLOOR_RIVET_SIZE_TILE = 0.04;
 const FLOOR_RIVET_INSET_TILE = 0.06;
+/** Floor details picked by cell hash: a panel seam, a vent grille or a scuff. */
+const FLOOR_DETAIL_KINDS = 3;
+/** Bits of the cell hash skipped before picking the detail kind, so it does not follow the density test. */
+const FLOOR_DETAIL_KIND_SHIFT = 8;
+const FLOOR_VENT_SLATS = 3;
+const FLOOR_VENT_WIDTH_TILE = 0.36;
+const FLOOR_VENT_PITCH_TILE = 0.1;
+const FLOOR_DETAIL_LINE_TILE = 0.025;
+/** The shadow thrown sideways by a west caster is shallower than the one thrown by a north caster. */
+const SIDE_SHADOW_RATIO = 0.6;
+/** Retro shadows are dithered with square dots of one sixteenth of a tile. */
+const RETRO_DITHER_DIVISOR = 16;
+const WALL_RIM_ALPHA = 0.55;
+/** Wall cells whose hash is a multiple of this show an engraved panel in their interior. */
+const WALL_PANEL_EVERY = 3;
+/** Retro wall front faces show a mortar joint every this fraction of a tile. */
+const RETRO_BRICK_SPAN_TILE = 0.5;
+
+/** Rotation applied to sprites drawn facing north, so they face their direction of travel. */
+const DIRECTION_ANGLE: Readonly<Record<Direction, number>> = {
+  N: 0,
+  E: Math.PI / 2,
+  S: Math.PI,
+  W: -Math.PI / 2
+};
+/** Monsters alternate between two walk frames every this many reference frames. */
+const MONSTER_FRAME_TICKS = 10;
+const WALK_FRAMES = 2;
+/** Below this distance (in tiles) from its cell, a sprite counts as standing still. */
+const MOVING_EPSILON_TILES = 0.02;
+
+/** Lights are gathered from terrain this many tiles beyond the view, so their glow can reach in. */
+const LIGHT_MARGIN_TILES = 2;
+const FLICKERING_LIGHTS: ReadonlySet<string> = new Set(['fire', 'fireball']);
+const LIGHT_FLICKER_SPEED = 0.35;
+const LIGHT_PHASE_X = 1.7;
+const LIGHT_PHASE_Y = 2.3;
+/** Width of the dark gap between LCD pixels, as a fraction of one retro dot. */
+const LCD_GAP_RATIO = 0.25;
+/** The iris starts as a small window on the player, this many tiles wide. */
+const IRIS_MIN_RADIUS_TILE = 0.6;
+
+const BLOCK_TYPES:ReadonlySet<string> = new Set(['dirt_block', 'ice_block']);
+const GLOWING_MONSTERS: ReadonlySet<string> = new Set(['fireball', 'pink_ball', 'glider']);
+/** Monsters drawn facing their direction of travel; the others stay upright and look towards it. */
+const HEAD_FIRST_MONSTERS: ReadonlySet<string> = new Set(['bug', 'paramecium', 'glider', 'tank', 'fireball']);
+const BLOCK_INSET_TILE = 0.05;
+const BLOCK_RADIUS_TILE = 0.1;
+/** Monster part sizes, in tile units (sprites are painted in a unit square). */
+const LIMB_WIDTH = 0.05;
+const PARAMECIUM_CILIA = 12;
+const BLOB_LOBES = 8;
+const TEETH_COUNT = 4;
+const TANK_LINK_PITCH = 0.12;
+/** Eyes shift towards where they look by this fraction of their radius; pupils further. */
+const EYE_LOOK_SHIFT = 0.6;
+const EYE_PUPIL_SHIFT = 0.4;
+const EYE_PUPIL_RATIO = 0.5;
+/** Player stride, in tile units: a lifted leg seen from the front, a swing seen from the side. */
+const PLAYER_STRIDE_LIFT = 0.05;
+const PLAYER_STRIDE_SWING = 0.06;
+const PLAYER_ARM_SWING = 0.03;
+/** The player's shadow shrinks by this much per tile of hop height. */
+const PLAYER_SHADOW_SHRINK = 2.5;
+/** Ground shadow under floating items, as fractions of a tile; it shrinks as the item bobs up. */
+const ITEM_SHADOW = { y: 0.86, rx: 0.22, ry: 0.06, shrinkPerTile: 4 } as const;
 /** Force floor arrows scroll over this span (tile fraction) at this speed (tile fraction per frame). */
 const FORCE_SCROLL_SPAN_TILE = 0.15;
 const FORCE_SCROLL_SPEED_TILE = 0.015;
@@ -99,6 +184,17 @@ const EXIT_PULSE_BASE = 0.34;
 const EXIT_PULSE_AMPLITUDE = 0.05;
 const TELEPORT_CORE_BASE = 0.14;
 const TELEPORT_CORE_AMPLITUDE = 0.03;
+/** Low bits of the cell hash turned into an animation phase. */
+const PHASE_MASK = 0xff;
+const WATER_SPARKLE_SPEED = 0.6;
+const WATER_SPARKLE_RADIUS_TILE = 0.035;
+const FIRE_EMBERS = 3;
+const FIRE_EMBER_SPEED = 0.9;
+const FIRE_EMBER_SIZE_TILE = 0.04;
+/** Ice glints sweep during the first part of a slow cycle, then the ice rests. */
+const ICE_GLINT_SPEED = 0.18;
+const ICE_GLINT_WINDOW = 0.18;
+const ICE_GLINT_WIDTH_TILE = 0.06;
 
 /** Mechanism wires and objective beacon styling. */
 const LINK_DASH_PATTERN: number[] = [6, 4];
@@ -163,6 +259,30 @@ export class PixelRenderer {
   /** Pre-rendered glowing shapes, keyed by kind, style and size. */
   private readonly sprites: Map<string, HTMLCanvasElement> = new Map();
 
+  /** Wall-joining and shadow-casting tile sets, rebuilt when the settings object changes. */
+  private tileSetsSource: RenderSettings | null = null;
+  private wallJoinTiles: ReadonlySet<string> = new Set();
+  private shadowCasterTiles: ReadonlySet<string> = new Set();
+  private litTiles: ReadonlySet<string> = new Set();
+  /** Retro shadow dithering, one pattern per dot size and colour. */
+  private readonly ditherPatterns: Map<string, CanvasPattern> = new Map();
+
+  private readonly lighting = new LightingLayer();
+  /** Lights gathered while drawing a frame, reused across frames. */
+  private readonly lights: Light[] = [];
+  /** Scratch neighbourhood for animated tiles, which only need the cell hash. */
+  private readonly animNeighbours: TileNeighbours = { ...ISOLATED_TILE };
+  private lcdEnabled: boolean = false;
+  private reducedMotion: boolean = false;
+  /** Opening iris: 0 when a level starts, 1 once fully open. */
+  private irisProgress: number = 1;
+  private irisLevelId: string = '';
+  private irisLastSteps: number = 0;
+  private quality: GraphicsQuality | typeof AUTO_QUALITY_ID = AUTO_QUALITY_ID;
+  private effectiveQuality: GraphicsQuality = QUALITY_LEVELS[0];
+  private readonly frameGuard = new FrameBudgetGuard();
+  private onQualityLowered: ((quality: GraphicsQuality) => void) | null = null;
+
   public incrementFrame(): void {
     this.animFrame = (this.animFrame + 1) % 60;
   }
@@ -186,6 +306,55 @@ export class PixelRenderer {
 
   public setThemeId(id: string): void {
     this.themeId = id;
+  }
+
+  /** Accent colour of the active theme, for the HUD to follow the biome. */
+  public getThemeAccent(): string | undefined {
+    return this.getActiveTheme()?.accentGlow;
+  }
+
+  public isLcdEnabled(): boolean {
+    return this.lcdEnabled;
+  }
+
+  public setLcdEnabled(enabled: boolean): void {
+    this.lcdEnabled = enabled;
+  }
+
+  /** With reduced motion, the opening iris, the hops, the bobbing and the screen shake are skipped. */
+  public setReducedMotion(reduced: boolean): void {
+    this.reducedMotion = reduced;
+  }
+
+  /** The quality chosen by the player; 'auto' starts high and steps down when frames run slow. */
+  public getQuality(): GraphicsQuality | typeof AUTO_QUALITY_ID {
+    return this.quality;
+  }
+
+  public setQuality(quality: GraphicsQuality | typeof AUTO_QUALITY_ID): void {
+    this.quality = quality;
+    this.effectiveQuality = quality === AUTO_QUALITY_ID ? QUALITY_LEVELS[0] : quality;
+    this.frameGuard.reset();
+  }
+
+  /** Quality in use right now, which differs from the chosen one only in automatic mode. */
+  public getEffectiveQuality(): GraphicsQuality {
+    return this.effectiveQuality;
+  }
+
+  /** Called when automatic quality steps down, with the new level. */
+  public setOnQualityLowered(callback: ((quality: GraphicsQuality) => void) | null): void {
+    this.onQualityLowered = callback;
+  }
+
+  /** In automatic mode, steps quality down one level when frames keep exceeding the budget. */
+  private watchFrameBudget(frameMs: number): void {
+    if (this.quality !== AUTO_QUALITY_ID) return;
+    if (!this.frameGuard.record(frameMs, resolveFrameBudget(ConfigRegistry.getGame().graphics))) return;
+    const index = QUALITY_LEVELS.indexOf(this.effectiveQuality);
+    if (index >= QUALITY_LEVELS.length - 1) return;
+    this.effectiveQuality = QUALITY_LEVELS[index + 1];
+    this.onQualityLowered?.(this.effectiveQuality);
   }
 
   public cycleTheme(): string {
@@ -255,13 +424,13 @@ export class PixelRenderer {
   ): void {
     const gameCfg = ConfigRegistry.getGame();
     const pal = gameCfg.palette;
-    const settings = resolveRenderSettings(gameCfg.graphics);
+    const settings = this.getSettings();
 
     const fxKey = FX_COLOR_KEYS[kind];
     const primaryColor = fxKey ? pal[fxKey] : (colorKey && pal[colorKey]) || pal.yellow;
 
     if (kind === 'explosion') {
-      this.shakeIntensity = settings.screenShakeExplosion;
+      this.shakeIntensity = this.reducedMotion ? 0 : settings.screenShakeExplosion;
     }
 
     if (kind === 'teleport' || kind === 'unlock' || kind === 'win' || kind === 'explosion') {
@@ -311,8 +480,14 @@ export class PixelRenderer {
   }
 
   public renderViewport(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
+    const startMs = performance.now();
+    this.renderScene(ctx, engine);
+    this.watchFrameBudget(performance.now() - startMs);
+  }
+
+  private renderScene(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
     const gameCfg = ConfigRegistry.getGame();
-    const settings = resolveRenderSettings(gameCfg.graphics);
+    const settings = this.getSettings();
     const frameScale = this.advanceClock(settings);
     const gridCfg = gameCfg.grid;
     const { mapWidth, mapHeight } = gridCfg;
@@ -414,12 +589,31 @@ export class PixelRenderer {
     }
 
     const animatedTiles = isModern ? MODERN_ANIMATED_TILES : RETRO_ANIMATED_TILES;
+    const animNeighbours = this.animNeighbours;
     for (const cell of this.terrainFeatures.animatedCells) {
       if (cell.x < startTileX || cell.x > endTileX || cell.y < startTileY || cell.y > endTileY) continue;
       if (!animatedTiles.has(cell.tileId)) continue;
       const px = originX + Math.floor((cell.x - region.x0) * tilePixelSize);
       const py = originY + Math.floor((cell.y - region.y0) * tilePixelSize);
-      this.drawTile(ctx, cell.tileId, px, py, drawSize, false, false, 'animated');
+      animNeighbours.hash = cellHash(cell.x, cell.y);
+      this.drawTile(ctx, cell.tileId, px, py, drawSize, false, false, 'animated', animNeighbours);
+    }
+
+    // Lights are gathered while the scene is drawn and applied once it is complete.
+    const lit = isModern && settings.lightingEnabled;
+    this.lights.length = 0;
+    if (lit) {
+      for (const cell of this.terrainFeatures.litCells) {
+        if (
+          cell.x < startTileX - LIGHT_MARGIN_TILES ||
+          cell.x > endTileX + LIGHT_MARGIN_TILES ||
+          cell.y < startTileY - LIGHT_MARGIN_TILES ||
+          cell.y > endTileY + LIGHT_MARGIN_TILES
+        ) {
+          continue;
+        }
+        this.addLight(cell.tileId, cell.x - camX, cell.y - camY, tilePixelSize, settings);
+      }
     }
 
     for (let my = startTileY; my <= endTileY; my++) {
@@ -431,6 +625,7 @@ export class PixelRenderer {
           const px = originX + Math.floor((mx - region.x0) * tilePixelSize);
           const py = originY + Math.floor((my - region.y0) * tilePixelSize);
           this.drawItem(ctx, itemId, px, py, drawSize);
+          if (lit) this.addLight(itemId, mx - camX, my - camY, tilePixelSize, settings);
         }
       }
     }
@@ -464,6 +659,7 @@ export class PixelRenderer {
         const px = (vPos.x - camX) * tilePixelSize;
         const py = (vPos.y - camY) * tilePixelSize;
         this.drawEntity(ctx, ent.type, ent.dir, px, py, tilePixelSize);
+        if (lit) this.addLight(ent.type, vPos.x - camX, vPos.y - camY, tilePixelSize, settings);
       }
     }
 
@@ -506,6 +702,20 @@ export class PixelRenderer {
 
     const playerPx = (this.visualPlayerPos.x - camX) * tilePixelSize;
     const playerPy = (this.visualPlayerPos.y - camY) * tilePixelSize;
+    // Modern: stride and hop while gliding between cells. Retro snaps to cells, so the
+    // stride alternates with each step taken instead.
+    const steps = engine.getStepsCount();
+    const remaining = Math.hypot(player.x - this.visualPlayerPos.x, player.y - this.visualPlayerPos.y);
+    let walkFrame = 0;
+    let hop = 0;
+    if (isModern) {
+      if (remaining > MOVING_EPSILON_TILES) {
+        walkFrame = 1 + (steps % WALK_FRAMES);
+        if (!this.reducedMotion) hop = Math.sin(Math.min(1, remaining) * Math.PI) * settings.playerHopTile;
+      }
+    } else if (steps > 0) {
+      walkFrame = 1 + (steps % WALK_FRAMES);
+    }
     this.drawPlayer(
       ctx,
       playerPx,
@@ -513,8 +723,29 @@ export class PixelRenderer {
       tilePixelSize,
       player.dir,
       player.inWater,
-      player.alive
+      player.alive,
+      walkFrame,
+      hop
     );
+
+    if (lit) {
+      this.addLight('player', this.visualPlayerPos.x - camX, this.visualPlayerPos.y - camY - hop, tilePixelSize, settings);
+      const pal = gameCfg.palette;
+      this.lighting.render(
+        ctx,
+        this.lights,
+        { ambient: pal.lightAmbient, mask: pal.lightMask, vignette: pal.vignetteShade },
+        {
+          ambientAlpha: settings.lightingAmbientAlpha,
+          tintAlpha: settings.lightingTintAlpha,
+          resolutionDivisor: settings.lightingResolutionDivisor,
+          vignetteAlpha: settings.vignetteAlpha,
+          vignetteInnerRatio: settings.vignetteInnerRatio
+        }
+      );
+    } else if (!isModern && this.lcdEnabled) {
+      this.drawLcdGrid(ctx, originX, originY, tilePixelSize, settings);
+    }
 
     this.drawMechanismLinksAndObjective(ctx, engine, camX, camY, tilePixelSize);
 
@@ -522,6 +753,106 @@ export class PixelRenderer {
       this.updateAndDrawEffects(ctx, camX, camY, tilePixelSize, frameScale, settings);
     }
 
+    ctx.restore();
+
+    const half = tilePixelSize / 2;
+    this.drawIris(ctx, engine, playerPx + half, playerPy + half, tilePixelSize, frameScale, settings);
+  }
+
+  /**
+   * Adds the light of `id` (a tile, item, monster or 'player') centred on the cell whose
+   * top-left corner is (gx, gy) in tiles from the camera, when that id gives off light.
+   */
+  private addLight(id: string, gx: number, gy: number, tilePixelSize: number, settings: RenderSettings): void {
+    const source = settings.lightSources[id];
+    if (!source) return;
+    const color = ConfigRegistry.getGame().palette[source.colorKey];
+    if (!color) return;
+    let radius = source.radiusTile * tilePixelSize;
+    if (FLICKERING_LIGHTS.has(id)) {
+      // Each light flickers on its own phase, taken from where it is.
+      const phase = this.timeTick * LIGHT_FLICKER_SPEED + gx * LIGHT_PHASE_X + gy * LIGHT_PHASE_Y;
+      radius *= 1 + Math.sin(phase) * settings.lightingFlicker;
+    }
+    this.lights.push({ x: (gx + 0.5) * tilePixelSize, y: (gy + 0.5) * tilePixelSize, radius, color });
+  }
+
+  /**
+   * Retro LCD look: dark gaps between screen pixels, one screen pixel being a retro dot.
+   * The grid is anchored on the terrain so it scrolls with the map, not with the screen.
+   */
+  private drawLcdGrid(
+    ctx: CanvasRenderingContext2D,
+    originX: number,
+    originY: number,
+    tilePixelSize: number,
+    settings: RenderSettings
+  ): void {
+    const pattern = this.getLcdPattern(ctx, this.retroDot(tilePixelSize));
+    if (!pattern) return;
+    ctx.save();
+    ctx.globalAlpha = settings.lcdGridAlpha;
+    ctx.translate(originX, originY);
+    ctx.fillStyle = pattern;
+    ctx.fillRect(-originX, -originY, ctx.canvas.width, ctx.canvas.height);
+    ctx.restore();
+  }
+
+  private getLcdPattern(ctx: CanvasRenderingContext2D, dot: number): CanvasPattern | null {
+    const key = 'lcd|' + dot;
+    const cached = this.ditherPatterns.get(key);
+    if (cached) return cached;
+    if (typeof document === 'undefined') return null;
+    const cell = document.createElement('canvas');
+    cell.width = dot;
+    cell.height = dot;
+    const cctx = cell.getContext('2d');
+    if (!cctx) return null;
+    const gap = Math.max(1, Math.round(dot * LCD_GAP_RATIO));
+    cctx.fillStyle = ConfigRegistry.getGame().palette.lcdGrid;
+    cctx.fillRect(0, dot - gap, dot, gap);
+    cctx.fillRect(dot - gap, 0, gap, dot - gap);
+    const pattern = ctx.createPattern(cell, 'repeat');
+    if (pattern) this.ditherPatterns.set(key, pattern);
+    return pattern;
+  }
+
+  /**
+   * Iris opening on the player when a level starts or restarts. Drawn outside the
+   * screen shake, skipped with reduced motion.
+   */
+  private drawIris(
+    ctx: CanvasRenderingContext2D,
+    engine: GameEngine,
+    cx: number,
+    cy: number,
+    tilePixelSize: number,
+    frameScale: number,
+    settings: RenderSettings
+  ): void {
+    const levelId = engine.getLevel().id;
+    const steps = engine.getStepsCount();
+    const restarted = steps === 0 && this.irisLastSteps > 0;
+    if (levelId !== this.irisLevelId || restarted) {
+      this.irisProgress = this.reducedMotion || settings.irisOpenFrames <= 0 ? 1 : 0;
+    }
+    this.irisLevelId = levelId;
+    this.irisLastSteps = steps;
+    if (this.irisProgress >= 1) return;
+
+    this.irisProgress = Math.min(1, this.irisProgress + frameScale / settings.irisOpenFrames);
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    // Far enough to uncover the corner furthest from the player.
+    const maxRadius = Math.hypot(Math.max(cx, width - cx), Math.max(cy, height - cy));
+    const eased = this.irisProgress * this.irisProgress;
+    const radius = Math.max(tilePixelSize * IRIS_MIN_RADIUS_TILE, maxRadius * eased);
+    ctx.save();
+    ctx.fillStyle = ConfigRegistry.getGame().palette.irisShade;
+    ctx.beginPath();
+    ctx.rect(0, 0, width, height);
+    ctx.arc(cx, cy, radius, 0, FULL_TURN, true);
+    ctx.fill('evenodd');
     ctx.restore();
   }
 
@@ -540,9 +871,10 @@ export class PixelRenderer {
     endTileY: number,
     settings: RenderSettings
   ): void {
+    this.syncTileSets(settings);
     const terrainChanged = this.terrainSnapshot.update(terrain);
     if (terrainChanged) {
-      this.terrainFeatures = collectTerrainFeatures(terrain, ANY_ANIMATED_TILES);
+      this.terrainFeatures = collectTerrainFeatures(terrain, ANY_ANIMATED_TILES, this.litTiles);
     }
 
     let trapKey = '';
@@ -598,9 +930,18 @@ export class PixelRenderer {
         const py = Math.floor((my - region.y0) * tilePixelSize);
         const tileId = terrain[my]?.[mx] || 'floor';
         const isClosedTrap = tileId === 'trap' ? engine.isCellClosedTrap(mx, my) : false;
-        this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static');
+        const neighbours = tileNeighbours(terrain, mx, my, this.wallJoinTiles, this.shadowCasterTiles);
+        this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static', neighbours);
       }
     }
+  }
+
+  private syncTileSets(settings: RenderSettings): void {
+    if (this.tileSetsSource === settings) return;
+    this.tileSetsSource = settings;
+    this.wallJoinTiles = new Set(settings.wallJoinTiles);
+    this.shadowCasterTiles = new Set(settings.shadowCasterTiles);
+    this.litTiles = new Set(Object.keys(settings.lightSources));
   }
 
   /** Strokes a straight wire between the centres of two grid cells. */
@@ -836,13 +1177,14 @@ export class PixelRenderer {
     size: number,
     isEditor: boolean = false,
     isClosedTrap: boolean = true,
-    pass: TilePass = 'all'
+    pass: TilePass = 'all',
+    neighbours: Readonly<TileNeighbours> = ISOLATED_TILE
   ): void {
     if (this.style === 'modern' && !isEditor) {
       const theme = this.getActiveTheme();
       // Modern tiles are themed; without any theme configured the retro look is used.
       if (theme) {
-        this.drawModernTile(ctx, tileId, x, y, size, isClosedTrap, theme, pass);
+        this.drawModernTile(ctx, tileId, x, y, size, isClosedTrap, theme, pass, neighbours);
         return;
       }
     }
@@ -866,10 +1208,13 @@ export class PixelRenderer {
 
     switch (tileId) {
       case 'floor':
+        this.drawRetroFloorDetail(ctx, x, y, size, neighbours.hash);
         break;
 
       case 'invisible_wall':
       case 'appearing_wall':
+        // Same details as plain floor, so a hidden wall gives nothing away.
+        this.drawRetroFloorDetail(ctx, x, y, size, neighbours.hash);
         if (isEditor) {
           ctx.strokeStyle = tileId === 'appearing_wall' ? pal.yellow : pal.wallBase;
           ctx.setLineDash([3, 3]);
@@ -900,24 +1245,9 @@ export class PixelRenderer {
         break;
       }
 
-      case 'wall': {
-        ctx.fillStyle = pal.wallShadow;
-        ctx.fillRect(x, y, size, size);
-        ctx.fillStyle = pal.wallBase;
-        ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
-        ctx.fillStyle = pal.wallTop;
-        ctx.fillRect(x + 3, y + 3, size - 8, size - 8);
-        ctx.fillStyle = pal.wallShadow;
-        ctx.fillRect(x + 2, y + Math.floor(size * 0.5), size - 4, 2);
-        ctx.fillRect(x + Math.floor(size * 0.5), y + 2, 2, Math.floor(size * 0.5));
-        ctx.fillRect(
-          x + Math.floor(size * 0.25),
-          y + Math.floor(size * 0.5),
-          2,
-          Math.floor(size * 0.45)
-        );
+      case 'wall':
+        this.drawRetroWall(ctx, x, y, size, neighbours.wallMask);
         break;
-      }
 
       case 'recessed_wall': {
         ctx.fillStyle = pal.recessedWall;
@@ -1155,8 +1485,219 @@ export class PixelRenderer {
       }
     }
 
+    if (!this.shadowCasterTiles.has(tileId)) {
+      this.drawRetroFloorShadow(ctx, x, y, size, neighbours.shadowMask);
+    }
+
     if (pass === 'all' && RETRO_ANIMATED_TILES.has(tileId)) {
       this.drawRetroAnimatedOverlay(ctx, tileId, x, y, size);
+    }
+  }
+
+  /**
+   * Corner radii of a wall cell, in canvas order (top-left, top-right, bottom-right,
+   * bottom-left): only corners where both sides face open floor are rounded.
+   */
+  private wallCornerRadii(wallMask: number, radius: number): [number, number, number, number] {
+    const openN = !(wallMask & NEIGHBOUR.N);
+    const openE = !(wallMask & NEIGHBOUR.E);
+    const openS = !(wallMask & NEIGHBOUR.S);
+    const openW = !(wallMask & NEIGHBOUR.W);
+    return [
+      openN && openW ? radius : 0,
+      openN && openE ? radius : 0,
+      openS && openE ? radius : 0,
+      openS && openW ? radius : 0
+    ];
+  }
+
+  /**
+   * Draws one cell of a wall mass seen from above and slightly south: a lit band runs
+   * along every edge that faces open floor, the interior of the mass stays darker, and
+   * a front face shows under the cells that have open floor south of them.
+   */
+  private drawModernWall(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    neighbours: Readonly<TileNeighbours>,
+    theme: ThemePalette
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const settings = this.getSettings();
+    const mask = neighbours.wallMask;
+    const openS = !(mask & NEIGHBOUR.S);
+    const front = openS ? Math.round(size * settings.wallFrontDepthTile) : 0;
+    const topHeight = size - front;
+    const band = Math.max(1, Math.round(size * settings.wallPanelInsetTile));
+    const rim = Math.max(1, Math.round(size * settings.wallRimWidthTile));
+    const radii = this.wallCornerRadii(mask, size * settings.wallCornerRadiusTile);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, size, size, radii);
+    ctx.clip();
+
+    // Front face, then the lit top band over the whole top face.
+    if (front > 0) {
+      ctx.fillStyle = theme.wallBottom;
+      ctx.fillRect(x, y + topHeight, size, front);
+      ctx.fillStyle = pal.modernWallFrontShade;
+      ctx.fillRect(x, y + topHeight + rim, size, front - rim);
+    }
+    ctx.fillStyle = theme.wallTop;
+    ctx.fillRect(x, y, size, topHeight);
+
+    // Dark interior: inset from open edges only, so it flows into joined neighbours.
+    const inN = mask & NEIGHBOUR.N ? 0 : band;
+    const inE = mask & NEIGHBOUR.E ? 0 : band;
+    const inS = openS ? band : 0;
+    const inW = mask & NEIGHBOUR.W ? 0 : band;
+    ctx.fillStyle = theme.wallBottom;
+    ctx.fillRect(x + inW, y + inN, size - inW - inE, topHeight - inN - inS);
+
+    // Concave corners: both sides joined but the diagonal open, the lit band turns the corner.
+    ctx.fillStyle = theme.wallTop;
+    if (hasAll(mask, NEIGHBOUR.N | NEIGHBOUR.W) && !(mask & NEIGHBOUR.NW)) ctx.fillRect(x, y, band, band);
+    if (hasAll(mask, NEIGHBOUR.N | NEIGHBOUR.E) && !(mask & NEIGHBOUR.NE)) ctx.fillRect(x + size - band, y, band, band);
+    if (!openS) {
+      if (hasAll(mask, NEIGHBOUR.W) && !(mask & NEIGHBOUR.SW)) ctx.fillRect(x, y + size - band, band, band);
+      if (hasAll(mask, NEIGHBOUR.E) && !(mask & NEIGHBOUR.SE)) ctx.fillRect(x + size - band, y + size - band, band, band);
+    }
+
+    // Sheen on the lit band, and an engraved panel on some interior cells.
+    if (inN > 0) {
+      ctx.fillStyle = pal.modernWallTopShine;
+      ctx.fillRect(x, y, size, Math.min(topHeight, band));
+    }
+    if (mask === 0xff && neighbours.hash % WALL_PANEL_EVERY === 0) {
+      ctx.strokeStyle = pal.modernFloorDetailDark;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + band + 0.5, y + band + 0.5, size - band * 2 - 1, size - band * 2 - 1);
+      ctx.strokeStyle = pal.modernFloorDetail;
+      ctx.strokeRect(x + band + 1.5, y + band + 1.5, size - band * 2 - 1, size - band * 2 - 1);
+    }
+
+    // Lit rim along the open edges of the top face.
+    ctx.fillStyle = theme.wallBevel;
+    ctx.globalAlpha = WALL_RIM_ALPHA;
+    if (!(mask & NEIGHBOUR.N)) ctx.fillRect(x, y, size, rim);
+    if (!(mask & NEIGHBOUR.W)) ctx.fillRect(x, y, rim, topHeight);
+    if (!(mask & NEIGHBOUR.E)) ctx.fillRect(x + size - rim, y, rim, topHeight);
+    if (openS) ctx.fillRect(x, y + topHeight - rim, size, rim);
+    ctx.restore();
+  }
+
+  /** Retro counterpart of drawModernWall, with flat colours and a brick front face. */
+  private drawRetroWall(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const settings = this.getSettings();
+    const openS = !(mask & NEIGHBOUR.S);
+    const front = openS ? Math.round(size * settings.wallFrontDepthTile) : 0;
+    const topHeight = size - front;
+    const band = Math.max(1, Math.round(size * settings.wallRimWidthTile));
+    const dot = this.retroDot(size);
+
+    ctx.fillStyle = pal.wallTop;
+    ctx.fillRect(x, y, size, topHeight);
+    const inN = mask & NEIGHBOUR.N ? 0 : band;
+    const inE = mask & NEIGHBOUR.E ? 0 : band;
+    const inW = mask & NEIGHBOUR.W ? 0 : band;
+    ctx.fillStyle = pal.wallBase;
+    ctx.fillRect(x + inW, y + inN, size - inW - inE, topHeight - inN);
+
+    // Two brick courses per cell, joints offset by half a brick, so the bond runs across cells.
+    const course = Math.max(dot, Math.round(size * RETRO_BRICK_SPAN_TILE));
+    const half = Math.floor(course / 2);
+    ctx.fillStyle = pal.wallShadow;
+    for (let row = 0; row * course < topHeight; row++) {
+      const top = row * course;
+      if (top > 0) ctx.fillRect(x + inW, y + top, size - inW - inE, dot);
+      const joint = row % 2 === 0 ? half : 0;
+      const bottom = Math.min(topHeight, top + course);
+      for (let jx = joint; jx < size; jx += course) {
+        if (jx >= inW && jx < size - inE) ctx.fillRect(x + jx, y + Math.max(top, inN), dot, bottom - Math.max(top, inN));
+      }
+    }
+
+    if (front > 0) {
+      ctx.fillStyle = pal.wallShadow;
+      ctx.fillRect(x, y + topHeight, size, front);
+      ctx.fillStyle = pal.wallBase;
+      const joint = Math.max(1, Math.round(size * RETRO_BRICK_SPAN_TILE));
+      for (let bx = Math.floor(joint / 2); bx < size; bx += joint) {
+        ctx.fillRect(x + bx, y + topHeight + dot, dot, front - dot * 2);
+      }
+    }
+
+    ctx.fillStyle = pal.floorHighlight;
+    if (!(mask & NEIGHBOUR.N)) ctx.fillRect(x, y, size, dot);
+    if (!(mask & NEIGHBOUR.W)) ctx.fillRect(x, y, dot, topHeight);
+  }
+
+  /** Size of one retro "pixel" at this tile size. */
+  private retroDot(size: number): number {
+    return Math.max(1, Math.round(size / RETRO_DITHER_DIVISOR));
+  }
+
+  /** Dithered shadow thrown by casters north and west of a cell. */
+  private drawRetroFloorShadow(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number): void {
+    if (!(mask & (NEIGHBOUR.N | NEIGHBOUR.W | NEIGHBOUR.NW))) return;
+    const pal = ConfigRegistry.getGame().palette;
+    const dot = this.retroDot(size);
+    const depth = Math.round(size * this.getSettings().floorShadowDepthTile);
+    const side = Math.round(depth * SIDE_SHADOW_RATIO);
+    const pattern = this.getDitherPattern(ctx, dot, pal.floorBorder);
+    if (!pattern) return;
+    ctx.fillStyle = pattern;
+    const northRows = mask & NEIGHBOUR.N ? depth : 0;
+    if (northRows > 0) ctx.fillRect(x, y, size, northRows);
+    if (mask & NEIGHBOUR.W) {
+      ctx.fillRect(x, y + northRows, side, size - northRows);
+    } else if (mask & NEIGHBOUR.NW && northRows === 0) {
+      ctx.fillRect(x, y, side, depth);
+    }
+  }
+
+  /** Checkerboard of `dot`-sized squares, anchored on the canvas origin, cached per size and colour. */
+  private getDitherPattern(ctx: CanvasRenderingContext2D, dot: number, color: string): CanvasPattern | null {
+    const key = `${dot}|${color}`;
+    const cached = this.ditherPatterns.get(key);
+    if (cached) return cached;
+    if (typeof document === 'undefined') return null;
+    const tile = document.createElement('canvas');
+    tile.width = dot * 2;
+    tile.height = dot * 2;
+    const tctx = tile.getContext('2d');
+    if (!tctx) return null;
+    tctx.fillStyle = color;
+    tctx.fillRect(0, 0, dot, dot);
+    tctx.fillRect(dot, dot, dot, dot);
+    const pattern = ctx.createPattern(tile, 'repeat');
+    if (pattern) this.ditherPatterns.set(key, pattern);
+    return pattern;
+  }
+
+  /** Sparse dark specks on some retro floor cells. */
+  private drawRetroFloorDetail(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, hash: number): void {
+    if (hash % this.getSettings().floorDetailEvery !== 0) return;
+    const pal = ConfigRegistry.getGame().palette;
+    const dot = this.retroDot(size);
+    ctx.fillStyle = pal.floorBorder;
+    const kind = (hash >>> FLOOR_DETAIL_KIND_SHIFT) % FLOOR_DETAIL_KINDS;
+    const cx = x + Math.floor(size / 2);
+    const cy = y + Math.floor(size / 2);
+    if (kind === 0) {
+      ctx.fillRect(x + dot * 2, cy, size - dot * 4, dot);
+    } else if (kind === 1) {
+      for (let i = 0; i < FLOOR_VENT_SLATS; i++) {
+        ctx.fillRect(cx - dot * 3, cy - dot * 3 + i * dot * 2, dot * 6, dot);
+      }
+    } else {
+      ctx.fillRect(cx - dot * 2, cy + dot, dot, dot);
+      ctx.fillRect(cx + dot, cy - dot, dot, dot);
+      ctx.fillRect(cx + dot * 3, cy + dot * 2, dot, dot);
     }
   }
 
@@ -1230,10 +1771,11 @@ export class PixelRenderer {
     size: number,
     isClosedTrap: boolean,
     theme: ThemePalette,
-    pass: TilePass
+    pass: TilePass,
+    neighbours: Readonly<TileNeighbours>
   ): void {
     if (pass === 'animated') {
-      if (MODERN_ANIMATED_TILES.has(tileId)) this.drawModernAnimatedOverlay(ctx, tileId, x, y, size);
+      if (MODERN_ANIMATED_TILES.has(tileId)) this.drawModernAnimatedOverlay(ctx, tileId, x, y, size, neighbours.hash);
       return;
     }
 
@@ -1262,27 +1804,13 @@ export class PixelRenderer {
       case 'floor':
       case 'invisible_wall':
       case 'appearing_wall':
+        // Hidden walls get the same details as plain floor, so they give nothing away.
+        this.drawModernFloorDetail(ctx, x, y, size, neighbours.hash);
         break;
 
-      case 'wall': {
-        const wGrad = ctx.createLinearGradient(x, y, x, y + size);
-        wGrad.addColorStop(0, theme.wallTop);
-        wGrad.addColorStop(1, theme.wallBottom);
-        ctx.fillStyle = pal.modernWallBase;
-        ctx.fillRect(x, y, size, size);
-        ctx.fillStyle = wGrad;
-        this.roundRect(ctx, x + 2, y + 2, size - 4, size - 5, 5);
-        ctx.fill();
-
-        // Inner bevel panel
-        ctx.strokeStyle = theme.wallBevel;
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 1.5;
-        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 12, 3);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+      case 'wall':
+        this.drawModernWall(ctx, x, y, size, neighbours, theme);
         break;
-      }
 
       case 'recessed_wall': {
         ctx.fillStyle = pal.modernRecessedFill;
@@ -1562,9 +2090,87 @@ export class PixelRenderer {
       }
     }
 
-    if (pass === 'all' && MODERN_ANIMATED_TILES.has(tileId)) {
-      this.drawModernAnimatedOverlay(ctx, tileId, x, y, size);
+    if (!this.shadowCasterTiles.has(tileId)) {
+      this.drawModernFloorShadow(ctx, x, y, size, neighbours.shadowMask);
     }
+
+    if (pass === 'all' && MODERN_ANIMATED_TILES.has(tileId)) {
+      this.drawModernAnimatedOverlay(ctx, tileId, x, y, size, neighbours.hash);
+    }
+  }
+
+  /** Soft shadow thrown by casters north and west of a cell, fading away from them. */
+  private drawModernFloorShadow(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number): void {
+    if (!(mask & (NEIGHBOUR.N | NEIGHBOUR.W | NEIGHBOUR.NW))) return;
+    const parts: ShadowPart[] = [];
+    if (mask & NEIGHBOUR.N) parts.push('north');
+    if (mask & NEIGHBOUR.W) parts.push('west');
+    else if (mask & NEIGHBOUR.NW && !(mask & NEIGHBOUR.N)) parts.push('corner');
+    for (const part of parts) {
+      const sprite = this.getSprite(`shadow|${part}|${size}`, size, size, 0, (sctx) =>
+        this.paintFloorShadow(sctx, part, size)
+      );
+      if (sprite) ctx.drawImage(sprite, x, y);
+      else this.paintFloorShadow(ctx, part, size, x, y);
+    }
+  }
+
+  /** One part of a floor shadow, as a gradient fading away from the caster. */
+  private paintFloorShadow(ctx: CanvasRenderingContext2D, part: ShadowPart, size: number, x = 0, y = 0): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const depth = size * this.getSettings().floorShadowDepthTile;
+    const side = depth * SIDE_SHADOW_RATIO;
+    let grad: CanvasGradient;
+    if (part === 'north') {
+      grad = ctx.createLinearGradient(0, y, 0, y + depth);
+    } else if (part === 'west') {
+      grad = ctx.createLinearGradient(x, 0, x + side, 0);
+    } else {
+      grad = ctx.createRadialGradient(x, y, 0, x, y, depth);
+    }
+    grad.addColorStop(0, pal.modernFloorShadow);
+    grad.addColorStop(1, pal.modernShadowClear);
+    ctx.fillStyle = grad;
+    if (part === 'north') ctx.fillRect(x, y, size, depth);
+    else if (part === 'west') ctx.fillRect(x, y, side, size);
+    else ctx.fillRect(x, y, depth, depth);
+  }
+
+  /** Seams, vents and scuffs on some floor cells, so open areas are not a flat grid. */
+  private drawModernFloorDetail(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, hash: number): void {
+    if (hash % this.getSettings().floorDetailEvery !== 0) return;
+    const pal = ConfigRegistry.getGame().palette;
+    const kind = (hash >>> FLOOR_DETAIL_KIND_SHIFT) % FLOOR_DETAIL_KINDS;
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    ctx.save();
+    ctx.lineWidth = Math.max(1, size * FLOOR_DETAIL_LINE_TILE);
+    if (kind === 0) {
+      // Panel seam across the cell, a dark groove with a lit lip.
+      ctx.fillStyle = pal.modernFloorDetailDark;
+      ctx.fillRect(x, cy, size, ctx.lineWidth);
+      ctx.fillStyle = pal.modernFloorDetail;
+      ctx.fillRect(x, cy + ctx.lineWidth, size, ctx.lineWidth);
+    } else if (kind === 1) {
+      // Vent grille.
+      const slatW = size * FLOOR_VENT_WIDTH_TILE;
+      const pitch = size * FLOOR_VENT_PITCH_TILE;
+      ctx.fillStyle = pal.modernFloorDetailDark;
+      for (let i = 0; i < FLOOR_VENT_SLATS; i++) {
+        this.roundRect(ctx, cx - slatW / 2, cy + (i - 1) * pitch - ctx.lineWidth, slatW, ctx.lineWidth * 2, ctx.lineWidth);
+        ctx.fill();
+      }
+    } else {
+      // Scuff marks.
+      ctx.strokeStyle = pal.modernFloorDetail;
+      ctx.beginPath();
+      ctx.moveTo(cx - size * 0.2, cy + size * 0.12);
+      ctx.lineTo(cx + size * 0.05, cy - size * 0.06);
+      ctx.moveTo(cx - size * 0.08, cy + size * 0.2);
+      ctx.lineTo(cx + size * 0.18, cy + size * 0.02);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   /**
@@ -1576,12 +2182,15 @@ export class PixelRenderer {
     tileId: string,
     x: number,
     y: number,
-    size: number
+    size: number,
+    hash: number = 0
   ): void {
     const pal = ConfigRegistry.getGame().palette;
     const t = this.timeTick * MODERN_ANIM_SPEED;
     const cx = x + size / 2;
     const cy = y + size / 2;
+    // Per-cell phase, so neighbouring cells of the same tile do not move in lockstep.
+    const phase = ((hash & PHASE_MASK) / PHASE_MASK) * FULL_TURN;
 
     switch (tileId) {
       case 'water': {
@@ -1596,19 +2205,75 @@ export class PixelRenderer {
           ctx.quadraticCurveTo(x + size * 0.5, wy - 4, x + size * 0.82 + shift, wy);
           ctx.stroke();
         }
+        // A sparkle that drifts across the cell and fades in and out.
+        const drift = (t * WATER_SPARKLE_SPEED + phase) % FULL_TURN;
+        const glint = Math.sin(drift);
+        if (glint > 0) {
+          ctx.save();
+          ctx.globalAlpha = glint;
+          ctx.fillStyle = pal.waterSparkle;
+          const sx = x + size * (0.2 + (0.6 * drift) / FULL_TURN);
+          const sy = y + size * (0.5 + Math.sin(phase) * 0.12);
+          ctx.beginPath();
+          ctx.arc(sx, sy, Math.max(1, size * WATER_SPARKLE_RADIUS_TILE), 0, FULL_TURN);
+          ctx.fill();
+          ctx.restore();
+        }
         break;
       }
 
       case 'fire': {
-        // Animated flame tongues
-        const sway = Math.sin(t * 2.2) * (size * 0.08);
+        // Two flame tongues swaying out of step, and embers rising from the cell.
         ctx.fillStyle = pal.modernFireTongue;
+        for (let i = 0; i < 2; i++) {
+          const sway = Math.sin(t * 2.2 + phase + i * Math.PI) * (size * 0.08);
+          const left = x + size * (0.14 + i * 0.32);
+          const width = size * 0.42;
+          const height = size * (0.62 + 0.1 * Math.sin(t * 3 + phase + i));
+          ctx.beginPath();
+          ctx.moveTo(left, y + size * 0.86);
+          ctx.quadraticCurveTo(left + width * 0.3 + sway, y + size * 0.86 - height, left + width / 2 + sway, y + size * 0.86 - height);
+          ctx.quadraticCurveTo(left + width * 0.7 + sway, y + size * 0.86 - height * 0.6, left + width, y + size * 0.86);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.save();
+        ctx.fillStyle = pal.fireEmber;
+        for (let i = 0; i < FIRE_EMBERS; i++) {
+          const rise = (t * FIRE_EMBER_SPEED + phase + (i * FULL_TURN) / FIRE_EMBERS) % FULL_TURN;
+          const progress = rise / FULL_TURN;
+          ctx.globalAlpha = 1 - progress;
+          const ex = x + size * (0.3 + 0.4 * ((i + 0.5) / FIRE_EMBERS)) + Math.sin(rise * 2) * size * 0.05;
+          const ey = y + size * (0.8 - 0.75 * progress);
+          const ember = Math.max(1, size * FIRE_EMBER_SIZE_TILE);
+          ctx.fillRect(ex, ey, ember, ember);
+        }
+        ctx.restore();
+        break;
+      }
+
+      case 'ice':
+      case 'ice_nw':
+      case 'ice_ne':
+      case 'ice_sw':
+      case 'ice_se': {
+        // Now and then, a glint sweeps diagonally across the ice.
+        const cycle = ((t * ICE_GLINT_SPEED + phase) % FULL_TURN) / FULL_TURN;
+        if (cycle > ICE_GLINT_WINDOW) break;
+        const sweep = cycle / ICE_GLINT_WINDOW;
+        const offset = size * (sweep * 2 - 0.5);
+        ctx.save();
         ctx.beginPath();
-        ctx.moveTo(x + size * 0.2, y + size * 0.85);
-        ctx.quadraticCurveTo(x + size * 0.35 + sway, y + size * 0.15, x + size * 0.5, y + size * 0.6);
-        ctx.quadraticCurveTo(x + size * 0.68 - sway, y + size * 0.12, x + size * 0.8, y + size * 0.85);
-        ctx.closePath();
-        ctx.fill();
+        ctx.rect(x, y, size, size);
+        ctx.clip();
+        ctx.strokeStyle = pal.iceGlint;
+        ctx.globalAlpha = Math.sin(sweep * Math.PI);
+        ctx.lineWidth = Math.max(1, size * ICE_GLINT_WIDTH_TILE);
+        ctx.beginPath();
+        ctx.moveTo(x + offset - size * 0.5, y + size);
+        ctx.lineTo(x + offset, y);
+        ctx.stroke();
+        ctx.restore();
         break;
       }
 
@@ -1815,7 +2480,16 @@ export class PixelRenderer {
     size: number
   ): void {
     const isModern = this.style === 'modern';
-    const bobOffset = isModern ? Math.sin(this.timeTick * ITEM_BOB_SPEED) * (size * ITEM_BOB_AMPLITUDE_TILE) : 0;
+    const bob = isModern && !this.reducedMotion ? Math.sin(this.timeTick * ITEM_BOB_SPEED) * ITEM_BOB_AMPLITUDE_TILE : 0;
+    const bobOffset = bob * size;
+    if (isModern) {
+      // Bobbing up (negative offset) lifts the item off its shadow, which shrinks.
+      const spread = 1 + bob * ITEM_SHADOW.shrinkPerTile;
+      ctx.fillStyle = ConfigRegistry.getGame().palette.modernItemShadow;
+      ctx.beginPath();
+      ctx.ellipse(x + size / 2, y + size * ITEM_SHADOW.y, size * ITEM_SHADOW.rx * spread, size * ITEM_SHADOW.ry * spread, 0, 0, FULL_TURN);
+      ctx.fill();
+    }
     const pad = this.glowPad();
     const sprite = this.getSprite(`item|${this.style}|${itemId}|${size}`, size, size, pad, (sctx, o) =>
       this.paintItem(sctx, itemId, o, o, size, isModern)
@@ -1946,46 +2620,77 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    const isBlock = BLOCK_TYPES.has(type);
+    const frame = isBlock ? 0 : Math.floor(this.timeTick / MONSTER_FRAME_TICKS) % WALK_FRAMES;
     const pad = this.glowPad();
-    const sprite = this.getSprite(`entity|${this.style}|${type}|${dir}|${size}`, size, size, pad, (sctx, o) =>
-      this.paintEntity(sctx, type, dir, o, o, size)
+    const sprite = this.getSprite(`entity|${this.style}|${type}|${dir}|${frame}|${size}`, size, size, pad, (sctx, o) =>
+      this.paintEntity(sctx, type, dir, o, o, size, frame)
     );
     if (sprite) {
       ctx.drawImage(sprite, x - pad, y - pad);
     } else {
-      this.paintEntity(ctx, type, dir, x, y, size);
+      this.paintEntity(ctx, type, dir, x, y, size, frame);
     }
   }
 
+  /** A pushable block, with a top face and a darker front face like the walls. */
+  private paintBlock(ctx: CanvasRenderingContext2D, type: string, x: number, y: number, size: number): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const isModern = this.style === 'modern';
+    const isIce = type === 'ice_block';
+    const inset = Math.max(1, Math.round(size * BLOCK_INSET_TILE));
+    const front = Math.round(size * this.getSettings().wallFrontDepthTile);
+    const radius = isModern ? size * BLOCK_RADIUS_TILE : 0;
+    const width = size - inset * 2;
+    const topHeight = size - inset * 2 - front;
+    const border = isIce ? pal.iceBlockBorder : pal.blockBorder;
+    const face = isIce ? pal.iceBlockBase : pal.blockBase;
+
+    ctx.save();
+    if (isModern) {
+      ctx.fillStyle = pal.modernBlockShadow;
+      ctx.beginPath();
+      ctx.roundRect(x + inset * 2, y + inset * 2, width, size - inset * 2, radius);
+      ctx.fill();
+    }
+    // Front face.
+    ctx.fillStyle = border;
+    ctx.beginPath();
+    ctx.roundRect(x + inset, y + inset, width, size - inset * 2, radius);
+    ctx.fill();
+    ctx.fillStyle = pal.modernWallFrontShade;
+    ctx.fillRect(x + inset, y + inset + topHeight, width, front);
+    // Top face with its rim.
+    ctx.fillStyle = face;
+    ctx.beginPath();
+    ctx.roundRect(x + inset * 2, y + inset * 2, width - inset * 2, topHeight - inset * 2, radius);
+    ctx.fill();
+    ctx.fillStyle = pal.monsterHighlight;
+    ctx.fillRect(x + inset * 2, y + inset * 2, width - inset * 2, inset);
+    ctx.restore();
+  }
+
+  /**
+   * Monsters are drawn in a unit square centred on the tile: x and y run from -0.5 to
+   * 0.5 and "forward" is -y. Monsters that travel head first are rotated to face their
+   * direction; the others stay upright and look towards it.
+   */
   private paintEntity(
     ctx: CanvasRenderingContext2D,
     type: string,
     dir: Direction,
     x: number,
     y: number,
-    size: number
+    size: number,
+    frame: number = 0
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
-    const isModern = this.style === 'modern';
-
-    if (type === 'dirt_block' || type === 'ice_block') {
-      const isIce = type === 'ice_block';
-      ctx.save();
-      if (isModern) {
-        ctx.fillStyle = pal.modernBlockShadow;
-        this.roundRect(ctx, x + 4, y + 5, size - 6, size - 6, 6);
-        ctx.fill();
-      }
-      ctx.fillStyle = isIce ? pal.iceBlockBorder : pal.blockBorder;
-      this.roundRect(ctx, x + 2, y + 2, size - 4, size - 4, isModern ? 6 : 0);
-      ctx.fill();
-      ctx.fillStyle = isIce ? pal.iceBlockBase : pal.blockBase;
-      this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, isModern ? 4 : 0);
-      ctx.fill();
-      ctx.restore();
+    if (BLOCK_TYPES.has(type)) {
+      this.paintBlock(ctx, type, x, y, size);
       return;
     }
 
+    const pal = ConfigRegistry.getGame().palette;
+    const isModern = this.style === 'modern';
     const bodyColor = pal[MONSTER_COLOR_KEYS[type] ?? DEFAULT_MONSTER_COLOR_KEY] || pal[DEFAULT_MONSTER_COLOR_KEY];
     const cx = x + size / 2;
     const cy = y + size / 2;
@@ -1994,48 +2699,290 @@ export class PixelRenderer {
     if (isModern) {
       ctx.fillStyle = pal.modernEntityShadow;
       ctx.beginPath();
-      ctx.ellipse(cx, y + size * 0.82, size * 0.28, size * 0.1, 0, 0, FULL_TURN);
+      ctx.ellipse(cx, y + size * 0.84, size * 0.3, size * 0.1, 0, 0, FULL_TURN);
       ctx.fill();
-
-      if (type === 'fireball' || type === 'pink_ball' || type === 'glider') {
+      if (GLOWING_MONSTERS.has(type)) {
         ctx.shadowColor = bodyColor;
         ctx.shadowBlur = this.getSettings().glowBlurPx.strong;
       }
     }
 
-    if (type === 'tank') {
-      ctx.fillStyle = pal.tankHull;
-      this.roundRect(ctx, x + size * 0.15, y + size * 0.15, size * 0.7, size * 0.7, isModern ? 5 : 0);
-      ctx.fill();
-      ctx.fillStyle = bodyColor;
-      this.roundRect(ctx, x + size * 0.24, y + size * 0.24, size * 0.52, size * 0.52, isModern ? 4 : 0);
-      ctx.fill();
-    } else {
-      ctx.fillStyle = bodyColor;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.33, 0, FULL_TURN);
-      ctx.fill();
+    ctx.translate(cx, cy);
+    ctx.scale(size, size);
+    if (HEAD_FIRST_MONSTERS.has(type)) ctx.rotate(DIRECTION_ANGLE[dir]);
+    const radius = isModern ? 1 : 0;
+    ctx.lineCap = isModern ? 'round' : 'butt';
+    ctx.lineWidth = LIMB_WIDTH;
+    // Dark limbs read on the light retro floor; on the dark modern floor they take the body colour.
+    const limbColor = isModern ? bodyColor : pal.monsterLimb;
+    ctx.strokeStyle = limbColor;
+    const swing = frame === 0 ? 1 : -1;
+
+    switch (type) {
+      case 'bug': {
+        // Alternating tripods of legs, body, head and antennae.
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const ly = -0.08 + i * 0.14;
+          const s = (i % 2 === 0 ? swing : -swing) * 0.06;
+          ctx.moveTo(-0.12, ly);
+          ctx.lineTo(-0.33, ly + s);
+          ctx.moveTo(0.12, ly);
+          ctx.lineTo(0.33, ly - s);
+        }
+        ctx.moveTo(-0.05, -0.3);
+        ctx.lineTo(-0.14, -0.44 + swing * 0.02);
+        ctx.moveTo(0.05, -0.3);
+        ctx.lineTo(0.14, -0.44 - swing * 0.02);
+        ctx.stroke();
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.ellipse(0, 0.08, 0.2, 0.27, 0, 0, FULL_TURN);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, -0.22, 0.12, 0, FULL_TURN);
+        ctx.fill();
+        ctx.fillStyle = pal.monsterLimb;
+        ctx.fillRect(-0.01, -0.12, 0.02, 0.44);
+        ctx.fillStyle = pal.monsterHighlight;
+        ctx.beginPath();
+        ctx.ellipse(-0.09, 0.02, 0.05, 0.1, 0, 0, FULL_TURN);
+        ctx.fill();
+        this.paintEyePair(ctx, 0, -0.25, 0.055, 0.035, null);
+        break;
+      }
+
+      case 'paramecium': {
+        // Cilia beating in two phases around an elongated cell.
+        ctx.beginPath();
+        for (let i = 0; i < PARAMECIUM_CILIA; i++) {
+          const a = (FULL_TURN * i) / PARAMECIUM_CILIA;
+          const bend = (i % 2 === frame ? 1 : -1) * 0.2;
+          const ex = Math.cos(a) * 0.17;
+          const ey = Math.sin(a) * 0.36;
+          ctx.moveTo(ex, ey);
+          ctx.lineTo(ex * 1.45 + Math.cos(a + bend) * 0.02, ey * 1.18 + Math.sin(a + bend) * 0.02);
+        }
+        ctx.stroke();
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 0.18, 0.37, 0, 0, FULL_TURN);
+        ctx.fill();
+        ctx.fillStyle = pal.monsterHighlight;
+        ctx.beginPath();
+        ctx.ellipse(0, 0.06, 0.07, 0.11, 0, 0, FULL_TURN);
+        ctx.fill();
+        this.paintEyePair(ctx, 0, -0.2, 0.06, 0.035, null);
+        break;
+      }
+
+      case 'glider': {
+        // Delta wing, the tips flexing between frames.
+        const tip = frame === 0 ? 0.3 : 0.25;
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(0, -0.4);
+        ctx.lineTo(0.38, tip);
+        ctx.lineTo(0, 0.15);
+        ctx.lineTo(-0.38, tip);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = pal.monsterHighlight;
+        ctx.beginPath();
+        ctx.moveTo(0, -0.4);
+        ctx.lineTo(0, 0.15);
+        ctx.lineTo(-0.38, tip);
+        ctx.closePath();
+        ctx.fill();
+        this.paintEyePair(ctx, 0, -0.08, 0.06, 0.04, null);
+        break;
+      }
+
+      case 'tank': {
+        // Treads whose links scroll between frames, hull, turret and barrel.
+        ctx.fillStyle = pal.tankHull;
+        ctx.beginPath();
+        ctx.roundRect(-0.38, -0.34, 0.17, 0.68, 0.04 * radius);
+        ctx.roundRect(0.21, -0.34, 0.17, 0.68, 0.04 * radius);
+        ctx.fill();
+        ctx.fillStyle = pal.monsterHighlight;
+        for (let ty = -0.3 + (frame * TANK_LINK_PITCH) / 2; ty < 0.32; ty += TANK_LINK_PITCH) {
+          ctx.fillRect(-0.37, ty, 0.15, 0.025);
+          ctx.fillRect(0.22, ty, 0.15, 0.025);
+        }
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.roundRect(-0.22, -0.28, 0.44, 0.58, 0.08 * radius);
+        ctx.fill();
+        ctx.fillStyle = pal.tankHull;
+        ctx.fillRect(-0.045, -0.46, 0.09, 0.4);
+        ctx.beginPath();
+        ctx.arc(0, 0.04, 0.15, 0, FULL_TURN);
+        ctx.fill();
+        ctx.fillStyle = pal.monsterHighlight;
+        ctx.beginPath();
+        ctx.arc(-0.04, 0, 0.05, 0, FULL_TURN);
+        ctx.fill();
+        break;
+      }
+
+      case 'fireball': {
+        // Flame tail streaming behind, flickering between frames.
+        const tail = frame === 0 ? 0.48 : 0.4;
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(-0.24, -0.02);
+        ctx.quadraticCurveTo(-0.12, tail * 0.6, swing * 0.04, tail);
+        ctx.quadraticCurveTo(0.12, tail * 0.6, 0.24, -0.02);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, -0.06, 0.25, 0, FULL_TURN);
+        ctx.fill();
+        ctx.fillStyle = pal.monsterFlameCore;
+        ctx.beginPath();
+        ctx.arc(0, -0.09, 0.13, 0, FULL_TURN);
+        ctx.fill();
+        break;
+      }
+
+      case 'pink_ball': {
+        // Bouncing ball, squashed on one frame.
+        const ry = frame === 0 ? 0.31 : 0.27;
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.ellipse(0, 0.31 - ry, 0.3 + (0.31 - ry), ry, 0, 0, FULL_TURN);
+        ctx.fill();
+        ctx.fillStyle = pal.monsterHighlight;
+        ctx.beginPath();
+        ctx.arc(-0.1, -0.1, 0.08, 0, FULL_TURN);
+        ctx.fill();
+        this.paintEyePair(ctx, 0, -0.02, 0.09, 0.055, dir);
+        break;
+      }
+
+      case 'teeth': {
+        // Chomping mouth below a pair of eyes.
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.arc(0, 0, 0.33, 0, FULL_TURN);
+        ctx.fill();
+        const open = frame === 0 ? 0.11 : 0.05;
+        ctx.fillStyle = pal.monsterMouth;
+        ctx.beginPath();
+        ctx.ellipse(0, 0.13, 0.21, open, 0, 0, FULL_TURN);
+        ctx.fill();
+        ctx.fillStyle = pal.eyeWhite;
+        ctx.beginPath();
+        for (let i = 0; i < TEETH_COUNT; i++) {
+          const tx = -0.16 + (i * 0.32) / (TEETH_COUNT - 1);
+          ctx.moveTo(tx - 0.035, 0.13 - open);
+          ctx.lineTo(tx + 0.035, 0.13 - open);
+          ctx.lineTo(tx, 0.13 - open + 0.07);
+        }
+        ctx.fill();
+        this.paintEyePair(ctx, 0, -0.12, 0.11, 0.06, dir);
+        break;
+      }
+
+      case 'walker': {
+        // Two legs stepping in turn under a round body.
+        const lift = 0.06;
+        ctx.fillStyle = limbColor;
+        ctx.fillRect(-0.17, 0.12, 0.1, 0.3 - (frame === 0 ? lift : 0));
+        ctx.fillRect(0.07, 0.12, 0.1, 0.3 - (frame === 1 ? lift : 0));
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.arc(0, -0.04, 0.27, 0, FULL_TURN);
+        ctx.fill();
+        ctx.fillStyle = pal.monsterHighlight;
+        ctx.beginPath();
+        ctx.arc(-0.1, -0.14, 0.07, 0, FULL_TURN);
+        ctx.fill();
+        this.paintEyePair(ctx, 0, -0.06, 0.1, 0.06, dir);
+        break;
+      }
+
+      case 'blob': {
+        // Wobbling outline: alternate lobes swell between frames.
+        const points: [number, number][] = [];
+        for (let i = 0; i < BLOB_LOBES; i++) {
+          const a = (FULL_TURN * i) / BLOB_LOBES;
+          const r = 0.3 + (i % 2 === frame ? 0.04 : -0.02);
+          points.push([Math.cos(a) * r, Math.sin(a) * r * 0.92 + 0.03]);
+        }
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        for (let i = 0; i <= BLOB_LOBES; i++) {
+          const [px, py] = points[i % BLOB_LOBES];
+          const [nx, ny] = points[(i + 1) % BLOB_LOBES];
+          const mx = (px + nx) / 2;
+          const my = (py + ny) / 2;
+          if (i === 0) ctx.moveTo(mx, my);
+          else ctx.quadraticCurveTo(px, py, mx, my);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = pal.monsterHighlight;
+        ctx.beginPath();
+        ctx.ellipse(-0.1, -0.1, 0.08, 0.05, -0.5, 0, FULL_TURN);
+        ctx.fill();
+        this.paintEyePair(ctx, 0, 0, 0.1, 0.06, dir);
+        break;
+      }
+
+      default: {
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.arc(0, 0, 0.33, 0, FULL_TURN);
+        ctx.fill();
+        this.paintEyePair(ctx, 0, 0, 0.1, 0.06, dir);
+      }
     }
-
-    ctx.fillStyle = pal.eyeWhite;
-    let ex = cx;
-    let ey = cy;
-    const offset = size * 0.15;
-    if (dir === 'N') ey -= offset;
-    if (dir === 'S') ey += offset;
-    if (dir === 'E') ex += offset;
-    if (dir === 'W') ex -= offset;
-
-    ctx.beginPath();
-    ctx.arc(ex, ey, size * 0.1, 0, FULL_TURN);
-    ctx.fill();
-    ctx.fillStyle = pal.eyePupil;
-    ctx.beginPath();
-    ctx.arc(ex, ey, size * 0.05, 0, FULL_TURN);
-    ctx.fill();
     ctx.restore();
   }
 
+  /**
+   * Two eyes centred on (cx, cy) in unit space, `spread` apart from the centre. With a
+   * direction, eyes and pupils shift towards it; without one they stare forward (-y).
+   */
+  private paintEyePair(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    spread: number,
+    r: number,
+    lookDir: Direction | null
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    let lx = 0;
+    let ly = -1;
+    if (lookDir) {
+      lx = lookDir === 'E' ? 1 : lookDir === 'W' ? -1 : 0;
+      ly = lookDir === 'S' ? 1 : lookDir === 'N' ? -1 : 0;
+    }
+    const shift = lookDir ? r * EYE_LOOK_SHIFT : 0;
+    ctx.save();
+    ctx.shadowBlur = 0;
+    for (const side of [-1, 1]) {
+      const ex = cx + side * spread + lx * shift;
+      const ey = cy + ly * shift;
+      ctx.fillStyle = pal.eyeWhite;
+      ctx.beginPath();
+      ctx.arc(ex, ey, r, 0, FULL_TURN);
+      ctx.fill();
+      ctx.fillStyle = pal.eyePupil;
+      ctx.beginPath();
+      ctx.arc(ex + lx * r * EYE_PUPIL_SHIFT, ey + ly * r * EYE_PUPIL_SHIFT, r * EYE_PUPIL_RATIO, 0, FULL_TURN);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Draws the player. `frame` is 0 standing, 1 or 2 for the two strides; `hop` lifts
+   * the sprite (in tiles) while its shadow stays on the ground.
+   */
   public drawPlayer(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -2043,23 +2990,35 @@ export class PixelRenderer {
     size: number,
     dir: Direction,
     inWater: boolean,
-    alive: boolean
+    alive: boolean,
+    frame: number = 0,
+    hop: number = 0
   ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    if (this.style === 'modern' && alive && !inWater) {
+      const spread = 1 - hop * PLAYER_SHADOW_SHRINK;
+      ctx.fillStyle = pal.modernPlayerShadow;
+      ctx.beginPath();
+      ctx.ellipse(x + size / 2, y + size * 0.9, size * 0.26 * spread, size * 0.08 * spread, 0, 0, FULL_TURN);
+      ctx.fill();
+    }
+    const lift = hop * size;
     const pad = this.glowPad();
     const sprite = this.getSprite(
-      `player|${this.style}|${dir}|${inWater}|${alive}|${size}`,
+      `player|${this.style}|${dir}|${inWater}|${alive}|${frame}|${size}`,
       size,
       size,
       pad,
-      (sctx, o) => this.paintPlayer(sctx, o, o, size, dir, inWater, alive)
+      (sctx, o) => this.paintPlayer(sctx, o, o, size, dir, inWater, alive, frame)
     );
     if (sprite) {
-      ctx.drawImage(sprite, x - pad, y - pad);
+      ctx.drawImage(sprite, x - pad, y - lift - pad);
     } else {
-      this.paintPlayer(ctx, x, y, size, dir, inWater, alive);
+      this.paintPlayer(ctx, x, y - lift, size, dir, inWater, alive, frame);
     }
   }
 
+  /** The player in unit space centred on the tile, seen from the front, back or side. */
   private paintPlayer(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -2067,7 +3026,8 @@ export class PixelRenderer {
     size: number,
     dir: Direction,
     inWater: boolean,
-    alive: boolean
+    alive: boolean,
+    frame: number = 0
   ): void {
     const pal = ConfigRegistry.getGame().palette;
     const isModern = this.style === 'modern';
@@ -2080,53 +3040,123 @@ export class PixelRenderer {
       return;
     }
 
+    const side = dir === 'E' || dir === 'W';
+    const stride = frame === 0 ? 0 : frame === 1 ? 1 : -1;
+    const radius = isModern ? 1 : 0;
+    const visor = isModern ? pal.modernPlayerVisor : pal.playerVisor;
+    const glow = this.getSettings().glowBlurPx.soft;
+
     ctx.save();
-    if (isModern) {
-      // Drop shadow under player
-      ctx.fillStyle = pal.modernPlayerShadow;
-      ctx.beginPath();
-      ctx.ellipse(x + size / 2, y + size * 0.86, size * 0.28, size * 0.1, 0, 0, FULL_TURN);
-      ctx.fill();
-    }
+    ctx.translate(x + size / 2, y + size / 2);
+    ctx.scale(size, size);
+    if (dir === 'W') ctx.scale(-1, 1);
 
     if (!inWater) {
+      // Legs and boots: one leg lifts (front and back views) or swings forward (side view).
+      const legTop = 0.2;
+      const legLen = 0.22;
+      const legs: [number, number][] = side
+        ? [
+            [-0.1 + stride * PLAYER_STRIDE_SWING, legLen],
+            [-0.01 - stride * PLAYER_STRIDE_SWING, legLen]
+          ]
+        : [
+            [-0.15, legLen - (stride > 0 ? PLAYER_STRIDE_LIFT : 0)],
+            [0.04, legLen - (stride < 0 ? PLAYER_STRIDE_LIFT : 0)]
+          ];
+      for (const [lx, len] of legs) {
+        ctx.fillStyle = pal.playerSuitShade;
+        ctx.fillRect(lx, legTop, 0.11, len);
+        ctx.fillStyle = pal.playerBoot;
+        ctx.beginPath();
+        ctx.roundRect(lx - 0.01, legTop + len - 0.06, side ? 0.16 : 0.13, 0.07, 0.025 * radius);
+        ctx.fill();
+      }
+
+      // Arms swing against the legs.
+      ctx.fillStyle = pal.playerSuitShade;
+      if (side) {
+        ctx.beginPath();
+        ctx.roundRect(-0.06 - stride * PLAYER_STRIDE_SWING, -0.02, 0.1, 0.24, 0.04 * radius);
+        ctx.fill();
+      } else {
+        for (const s of [-1, 1]) {
+          ctx.beginPath();
+          ctx.roundRect(s > 0 ? 0.2 : -0.29, -0.02 + s * stride * PLAYER_ARM_SWING, 0.09, 0.22, 0.04 * radius);
+          ctx.fill();
+        }
+      }
+
+      // Torso, then a backpack seen from behind or the side, or a belt and chest light from the front.
       ctx.fillStyle = pal.playerSuit;
-      this.roundRect(ctx, x + size * 0.27, y + size * 0.44, size * 0.46, size * 0.38, isModern ? 6 : 0);
+      ctx.beginPath();
+      if (side) ctx.roundRect(-0.15, -0.06, 0.3, 0.3, 0.08 * radius);
+      else ctx.roundRect(-0.21, -0.06, 0.42, 0.3, 0.08 * radius);
       ctx.fill();
-
       ctx.fillStyle = pal.playerHair;
-      ctx.fillRect(x + size * 0.28, y + size * 0.78, size * 0.18, size * 0.12);
-      ctx.fillRect(x + size * 0.54, y + size * 0.78, size * 0.18, size * 0.12);
+      if (dir === 'N') {
+        ctx.beginPath();
+        ctx.roundRect(-0.14, -0.03, 0.28, 0.22, 0.05 * radius);
+        ctx.fill();
+      } else if (side) {
+        ctx.beginPath();
+        ctx.roundRect(-0.21, -0.02, 0.08, 0.2, 0.03 * radius);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = pal.playerSuitShade;
+        ctx.fillRect(-0.21, 0.15, 0.42, 0.04);
+        this.fillGlowRect(ctx, -0.04, 0.01, 0.08, 0.06, 0, visor, isModern ? glow : 0);
+      }
     }
 
-    ctx.fillStyle = pal.playerSkin;
+    // Head with hair seen from behind, or a cap and the visor on the side the player faces.
+    const headY = -0.22;
+    const headR = 0.19;
+    ctx.fillStyle = dir === 'N' ? pal.playerHair : pal.playerSkin;
     ctx.beginPath();
-    ctx.arc(x + size / 2, y + size * 0.34, size * 0.21, 0, FULL_TURN);
+    ctx.arc(0, headY, headR, 0, FULL_TURN);
     ctx.fill();
-
-    ctx.fillStyle = pal.playerHair;
-    this.roundRect(ctx, x + size * 0.28, y + size * 0.13, size * 0.44, size * 0.12, isModern ? 4 : 0);
-    ctx.fill();
-
-    ctx.fillStyle = pal.playerVisor;
-    if (isModern) {
-      ctx.shadowColor = pal.modernPlayerVisor;
-      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
-      ctx.fillStyle = pal.modernPlayerVisor;
+    if (dir !== 'N') {
+      ctx.fillStyle = pal.playerHair;
+      ctx.beginPath();
+      ctx.arc(0, headY, headR, Math.PI, FULL_TURN);
+      ctx.closePath();
+      ctx.fill();
+      if (side) {
+        ctx.fillRect(-headR, headY - 0.02, headR * 0.8, headR * 0.7);
+        this.fillGlowRect(ctx, 0, headY - 0.03, 0.19, 0.09, 0.03 * radius, visor, isModern ? glow : 0);
+      } else {
+        this.fillGlowRect(ctx, -0.14, headY - 0.03, 0.28, 0.09, 0.03 * radius, visor, isModern ? glow : 0);
+      }
     }
-    let vx = x + size * 0.36;
-    let vy = y + size * 0.3;
-    if (dir === 'E') vx = x + size * 0.46;
-    if (dir === 'W') vx = x + size * 0.26;
-    if (dir === 'N') vy = y + size * 0.22;
-    if (dir === 'S') vy = y + size * 0.34;
-    this.roundRect(ctx, vx, vy, size * 0.28, size * 0.1, isModern ? 3 : 0);
+    ctx.restore();
+  }
+
+  /** Fills a rounded rectangle with an optional glow, leaving the context state as it was. */
+  private fillGlowRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number,
+    color: string,
+    blur: number
+  ): void {
+    ctx.save();
+    if (blur > 0) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = blur;
+    }
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
     ctx.fill();
     ctx.restore();
   }
 
   private getSettings(): RenderSettings {
-    return resolveRenderSettings(ConfigRegistry.getGame().graphics);
+    return resolveQualitySettings(ConfigRegistry.getGame().graphics, this.effectiveQuality);
   }
 
   /** Transparent margin kept around sprites so baked glows are not clipped. */

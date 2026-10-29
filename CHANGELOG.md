@@ -3,6 +3,50 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Walls join into continuous masses, seen slightly from the south: a lit rim along the
+  edges facing the floor, a darker interior and a front face, in both renderers (brick
+  bond in 16-Bit Retro). Walls, doors and blue walls throw a soft shadow on the floor
+  south and east of them (dithered in Retro), and some floor cells show a seam, a vent
+  or a scuff. Shapes, depths and the tiles that join or cast shadows are set in the
+  `graphics` block of `game.json`.
+- New player sprite, seen from the front, back or side, with a two-frame stride and a
+  small hop on each step.
+- Each monster has its own silhouette and a two-frame animation; bugs, paramecia,
+  gliders, tanks and fireballs turn to face where they go, the others look there.
+  Pushable blocks get a front face like the walls; items float over a ground shadow.
+- HD Neon lighting: the scene is slightly darkened away from light sources (the player,
+  exits, fire, teleporters, hints, chips, keys, fireballs and gliders), each light adds
+  a tinted glow, and a vignette darkens the corners. Light sources, reach and colours
+  are set in `lightSources` (`game.json`).
+- Water sparkles, flames sway in pairs and give off embers, and glints sweep over ice;
+  neighbouring cells animate out of step.
+- An iris opens on the player when a level starts or restarts (skipped with reduced
+  motion).
+- The side panel follows the biome colour; the chip counter and inventory slots pop
+  when a chip or an item is picked up.
+
+### Added
+
+- "LCD Screen" option: a pixel grid over the 16-Bit Retro view, saved with the other
+  settings.
+- Graphics quality option (Auto, High, Medium, Low). Medium drops the coloured glows and
+  draws the darkness coarser; Low turns lighting and the vignette off. Auto starts high
+  and steps down one level, with a message, whenever 90 frames in a row average more
+  than 12 ms to render. Presets and budget are set in `qualityPresets`, `frameBudgetMs`
+  and `frameBudgetWindow` (`game.json`).
+- `game.json` is checked at load: a light colour missing from the palette, a joined or
+  shadow-casting tile missing from `tiles.json`, or an unknown quality preset or setting
+  stops loading with a clear error.
+
+### Accessibility
+
+- With reduced motion requested by the system, the player no longer hops, items no
+  longer bob, explosions no longer shake the screen and the opening iris is skipped.
+
 ## [2.0.0] - 2026-10-29
 
 ### Breaking

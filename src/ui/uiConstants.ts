@@ -83,6 +83,12 @@ export const MINIMAP_TILE_PX = 3;
 /** Number of digits shown on the LED counters of the HUD. */
 export const HUD_COUNTER_DIGITS = 3;
 
+/** CSS variable holding the accent colour of the biome on screen. */
+export const BIOME_ACCENT_CSS_VAR = '--biome-accent';
+
+/** Class that replays a short pop animation on a HUD element; removed when it ends. */
+export const HUD_BUMP_CLASS = 'hud-bump';
+
 /** Music track played for each visual theme. */
 export const THEME_MUSIC_TRACKS: Readonly<Record<string, string>> = {
   cyber_neon: 'cyber_pulse',

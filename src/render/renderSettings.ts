@@ -17,6 +17,12 @@
 import { GraphicsConfig, ThemePalette } from '../core/types';
 
 /** Shadow blur radii, in pixels, baked into glowing sprites and the terrain cache. */
+/** One kind of light source: its reach and the palette key of its tint. */
+export interface LightSourceSettings {
+  radiusTile: number;
+  colorKey: string;
+}
+
 export interface GlowBlurSettings {
   soft: number;
   medium: number;
@@ -62,6 +68,44 @@ export interface RenderSettings {
   hintFontModern: string;
   hintFontRetro: string;
   iconPixelSize: number;
+  /** Tiles that join with each other into one continuous wall mass. */
+  wallJoinTiles: string[];
+  /** Tiles that cast a shadow onto the cells south and east of them. */
+  shadowCasterTiles: string[];
+  /** Height of the front face shown under a wall that has open floor south of it. */
+  wallFrontDepthTile: number;
+  /** Width of the lit rim along the edges of a wall mass. */
+  wallRimWidthTile: number;
+  /** Corner rounding of a wall mass, applied only to its outer corners. */
+  wallCornerRadiusTile: number;
+  /** Inset of the panel engraved in cells deep inside a wall mass. */
+  wallPanelInsetTile: number;
+  /** Depth of the shadow a caster throws onto the floor next to it. */
+  floorShadowDepthTile: number;
+  /** One floor cell in this many shows a detail (seam, vent, scuff). */
+  floorDetailEvery: number;
+  /** Height of the small hop the player makes on each step. */
+  playerHopTile: number;
+  /** Modern style only: darkens the scene except around light sources. */
+  lightingEnabled: boolean;
+  /** Opacity of the darkness away from any light. */
+  lightingAmbientAlpha: number;
+  /** Opacity of the coloured glow added around each light. */
+  lightingTintAlpha: number;
+  /** The darkness is drawn at 1/N of the canvas resolution, then scaled up smoothly. */
+  lightingResolutionDivisor: number;
+  /** Relative radius change of flickering lights (fire, fireballs). */
+  lightingFlicker: number;
+  /** Light sources by id: 'player', a tile id, an item id or a monster type. */
+  lightSources: Record<string, LightSourceSettings>;
+  /** Opacity of the darkened corners of the view, 0 to disable. */
+  vignetteAlpha: number;
+  /** Fraction of the view radius left clear by the vignette. */
+  vignetteInnerRatio: number;
+  /** Opacity of the LCD pixel grid drawn over the 16-Bit Retro view when enabled. */
+  lcdGridAlpha: number;
+  /** Duration of the iris that opens on the player when a level starts, in reference frames. */
+  irisOpenFrames: number;
 }
 
 /** The graphics block as stored in game.json, including keys GraphicsConfig does not declare. */
@@ -103,7 +147,28 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   glowBlurPx: { soft: 6, medium: 8, strong: 10 },
   hintFontModern: 'system-ui, sans-serif',
   hintFontRetro: 'monospace',
-  iconPixelSize: 32
+  iconPixelSize: 32,
+  wallJoinTiles: ['wall'],
+  shadowCasterTiles: ['wall'],
+  wallFrontDepthTile: 0.22,
+  wallRimWidthTile: 0.05,
+  wallCornerRadiusTile: 0.14,
+  wallPanelInsetTile: 0.18,
+  floorShadowDepthTile: 0.34,
+  floorDetailEvery: 5,
+  playerHopTile: 0.07,
+  lightingEnabled: true,
+  lightingAmbientAlpha: 0.4,
+  lightingTintAlpha: 0.22,
+  lightingResolutionDivisor: 4,
+  lightingFlicker: 0.06,
+  lightSources: {
+    player: { radiusTile: 3.4, colorKey: 'modernPlayerVisor' }
+  },
+  vignetteAlpha: 0.45,
+  vignetteInnerRatio: 0.55,
+  lcdGridAlpha: 0.18,
+  irisOpenFrames: 24
 };
 
 const resolvedCache = new WeakMap<object, RenderSettings>();
@@ -118,13 +183,143 @@ export function resolveRenderSettings(graphics: GraphicsConfig | undefined): Ren
   for (const key of Object.keys(DEFAULT_RENDER_SETTINGS) as (keyof RenderSettings)[]) {
     if (key === 'glowBlurPx') continue;
     const value = source[key];
-    if (typeof value === typeof DEFAULT_RENDER_SETTINGS[key]) {
+    const fallback = DEFAULT_RENDER_SETTINGS[key];
+    const accepted = Array.isArray(fallback)
+      ? isStringArray(value)
+      : typeof fallback === 'object'
+        ? isLightSourceTable(value)
+        : typeof value === typeof fallback;
+    if (accepted) {
       (resolved as unknown as Record<string, unknown>)[key] = value;
     }
   }
   resolved.glowBlurPx = { ...DEFAULT_RENDER_SETTINGS.glowBlurPx, ...source.glowBlurPx };
   resolvedCache.set(graphics, resolved);
   return resolved;
+}
+
+/** Graphics quality levels, from the richest to the lightest. */
+export const QUALITY_LEVELS = ['high', 'medium', 'low'] as const;
+export type GraphicsQuality = (typeof QUALITY_LEVELS)[number];
+
+/** Quality choice that starts high and steps down by itself when frames run slow. */
+export const AUTO_QUALITY_ID = 'auto';
+
+/** Reads a stored or selected quality choice; anything unknown means automatic. */
+export function parseQuality(value: unknown): GraphicsQuality | typeof AUTO_QUALITY_ID {
+  return (QUALITY_LEVELS as readonly unknown[]).includes(value) ? (value as GraphicsQuality) : AUTO_QUALITY_ID;
+}
+
+/** Settings a quality preset may change: plain numbers and switches only. */
+export type QualityOverrides = Partial<Record<keyof RenderSettings, number | boolean>>;
+
+/** Fallback presets, used when game.json has no qualityPresets block. 'high' keeps the settings as they are. */
+export const DEFAULT_QUALITY_PRESETS: Readonly<Record<GraphicsQuality, QualityOverrides>> = {
+  high: {},
+  medium: { lightingTintAlpha: 0, lightingResolutionDivisor: 6, maxParticles: 120, particleBurstCount: 12 },
+  low: { lightingEnabled: false, vignetteAlpha: 0, maxParticles: 60, particleBurstCount: 8 }
+};
+
+/** When the graphics quality is automatic, it steps down once rendering exceeds this budget. */
+export interface FrameBudgetSettings {
+  /** Average time to render one frame, in milliseconds, above which quality steps down. */
+  frameBudgetMs: number;
+  /** Number of frames averaged before deciding. */
+  frameBudgetWindow: number;
+}
+
+export const DEFAULT_FRAME_BUDGET: Readonly<FrameBudgetSettings> = { frameBudgetMs: 12, frameBudgetWindow: 90 };
+
+type GraphicsWithQuality = GraphicsConfig & {
+  qualityPresets?: Partial<Record<string, Record<string, unknown>>>;
+  frameBudgetMs?: unknown;
+  frameBudgetWindow?: unknown;
+};
+
+const qualityCache = new WeakMap<RenderSettings, Map<GraphicsQuality, RenderSettings>>();
+
+/**
+ * Applies a quality preset over the resolved settings. Only keys that already hold a
+ * number or a boolean, with a value of the same type, are taken; the result is memoized.
+ */
+export function resolveQualitySettings(graphics: GraphicsConfig | undefined, quality: GraphicsQuality): RenderSettings {
+  const base = resolveRenderSettings(graphics);
+  if (quality === 'high') return base;
+  let perQuality = qualityCache.get(base);
+  if (!perQuality) {
+    perQuality = new Map();
+    qualityCache.set(base, perQuality);
+  }
+  const cached = perQuality.get(quality);
+  if (cached) return cached;
+  const preset = (graphics as GraphicsWithQuality | undefined)?.qualityPresets?.[quality] ?? DEFAULT_QUALITY_PRESETS[quality];
+  const resolved: RenderSettings = { ...base };
+  for (const [key, value] of Object.entries(preset)) {
+    if (!(key in base)) continue;
+    const current = (base as unknown as Record<string, unknown>)[key];
+    if ((typeof current === 'number' || typeof current === 'boolean') && typeof value === typeof current) {
+      (resolved as unknown as Record<string, unknown>)[key] = value;
+    }
+  }
+  perQuality.set(quality, resolved);
+  return resolved;
+}
+
+export function resolveFrameBudget(graphics: GraphicsConfig | undefined): FrameBudgetSettings {
+  const source = graphics as GraphicsWithQuality | undefined;
+  return {
+    frameBudgetMs:
+      typeof source?.frameBudgetMs === 'number' ? source.frameBudgetMs : DEFAULT_FRAME_BUDGET.frameBudgetMs,
+    frameBudgetWindow:
+      typeof source?.frameBudgetWindow === 'number' ? source.frameBudgetWindow : DEFAULT_FRAME_BUDGET.frameBudgetWindow
+  };
+}
+
+/**
+ * Lists what in the graphics block points at something that does not exist: light
+ * colours missing from the palette, joined or shadow-casting tiles missing from
+ * tiles.json, quality presets with unknown names or settings. Empty when all is well.
+ */
+export function findGraphicsConfigErrors(
+  graphics: GraphicsConfig | undefined,
+  palette: Readonly<Record<string, string>>,
+  tileIds: ReadonlySet<string>
+): string[] {
+  const errors: string[] = [];
+  const settings = resolveRenderSettings(graphics);
+  for (const [id, source] of Object.entries(settings.lightSources)) {
+    if (!(source.colorKey in palette)) errors.push(`lightSources.${id}: unknown palette key ${source.colorKey}`);
+  }
+  for (const key of ['wallJoinTiles', 'shadowCasterTiles'] as const) {
+    for (const tileId of settings[key]) {
+      if (!tileIds.has(tileId)) errors.push(`${key}: unknown tile ${tileId}`);
+    }
+  }
+  const presets = (graphics as GraphicsWithQuality | undefined)?.qualityPresets ?? {};
+  for (const [name, preset] of Object.entries(presets)) {
+    if (!(QUALITY_LEVELS as readonly string[]).includes(name)) {
+      errors.push(`qualityPresets.${name}: unknown quality`);
+      continue;
+    }
+    for (const key of Object.keys(preset ?? {})) {
+      if (!(key in DEFAULT_RENDER_SETTINGS)) errors.push(`qualityPresets.${name}.${key}: unknown setting`);
+    }
+  }
+  return errors;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isLightSourceTable(value: unknown): value is Record<string, LightSourceSettings> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.values(value).every(
+    (source: unknown) =>
+      !!source &&
+      typeof (source as LightSourceSettings).radiusTile === 'number' &&
+      typeof (source as LightSourceSettings).colorKey === 'string'
+  );
 }
 
 /**

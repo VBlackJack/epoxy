@@ -19,7 +19,7 @@
   - Mécanismes interactifs (`button_green`, machines à cloner `button_red`, pièges `button_brown`, inverseurs de tanks `button_blue`, téléporteurs `teleport`, `thief`).
   - 9 comportements de créatures (`bug`, `fireball`, `pink_ball`, `tank`, `glider`, `teeth`, `walker`, `blob`, `paramecium`).
 - **Rendu et commandes** :
-  - Moteurs de rendu HD Neon et Retro 16 bits avec 4 thèmes (`Cyber Neon`, `Arctic Lab`, `Magma Core`, `Lynx LCD`).
+  - Moteurs de rendu HD Neon et Retro 16 bits avec 4 thèmes (`Cyber Neon`, `Arctic Lab`, `Magma Core`, `Lynx LCD`) : les murs se raccordent en masses continues qui projettent des ombres douces, les sources de lumière éclairent la scène en HD Neon, une grille LCD optionnelle couvre le Retro 16 bits, et le joueur comme chaque monstre sont animés. Un réglage de qualité graphique (Auto par défaut) garde le jeu fluide sur les appareils plus lents.
   - Localisateur d'objectif et affichage des câblages de mécanismes (`H`).
   - Support tactile complet sur smartphone (joystick virtuel par glissement, déplacement par toucher, zoom à deux doigts, croix directionnelle avec retour haptique).
   - Éditeur de niveaux 32x32 complet avec validation en direct par le solveur.

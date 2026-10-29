@@ -6,9 +6,11 @@
       "mode_play": { "action": "Play Game" },
       "mode_editor": { "action": "Level Editor" },
       "levels_btn": { "action": "Levels & Records" },
+      "lcd_toggle": { "action": "LCD Screen", "hint": "Pixel grid over the 16-Bit Retro view" },
       "shell_toggle": { "action": "Lynx II Shell" },
       "graphics_modern": { "action": "Render: HD Neon" },
       "graphics_retro": { "action": "Render: 16-Bit Retro" },
+      "quality": { "label": "Graphics:" },
       "theme_label": { "label": "Biome:" },
       "procedural_btn": { "action": "Generate Endless Puzzle" },
       "fov": { "label": "View:" },
@@ -32,6 +34,12 @@
       "init_failed": { "label": "The game could not start. Check your connection and try again." },
       "config_load": { "label": "The configuration file {source} is missing or invalid." },
       "retry": { "action": "Retry" }
+    },
+    "graphics_quality": {
+      "auto": { "label": "Auto (adapts to the device)" },
+      "high": { "label": "High" },
+      "medium": { "label": "Medium" },
+      "low": { "label": "Low" }
     },
     "themes": {
       "auto": { "label": "Auto (per level)" },
@@ -143,6 +151,7 @@
       "medal_silver_icon": { "label": "🥈" },
       "medal_bronze_icon": { "label": "🥉" },
       "block_hint": { "label": "Hint: the next push is played for you. Press Help again for the following one." },
+      "quality_lowered": { "label": "Graphics quality lowered to {quality} to keep the game smooth." },
       "blocks_stuck": { "label": "Dead end: these blocks can no longer cover every button. Undo (U) or restart (R)." },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
       "solution_playing": { "label": "Playing the proven solution. Tap the board to take back control." },
