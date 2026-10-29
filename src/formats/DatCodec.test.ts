@@ -233,3 +233,45 @@ describe('DatCodec malformed input', () => {
     expect(decoded.terrain[7][7]).toBe('exit');
   });
 });
+
+/** CCLP 1, inlined by Vite as a base64 data URL so the test needs no file system access. */
+const CCLP1_DATA_URL = Object.values(
+  import.meta.glob('../../public/packs/CCLP1.DAT', { query: '?inline', import: 'default', eager: true })
+)[0] as string;
+/** Share of a corner's open sides that face walkable cells in a real, playable pack. */
+const MIN_OPEN_SIDE_WALKABLE_RATE = 0.9;
+
+describe('DatCodec ice corners', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('decodes ice corners with their open sides facing playable cells', () => {
+    const base64 = CCLP1_DATA_URL.slice(CCLP1_DATA_URL.indexOf(',') + 1);
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const levels = DatCodec.decodeBuffer(bytes.buffer, 'cclp1');
+    let openSides = 0;
+    let walkableOpenSides = 0;
+    for (const level of levels) {
+      level.terrain.forEach((row, y) =>
+        row.forEach((id, x) => {
+          const tile = ConfigRegistry.getTile(id);
+          if (tile.slideType !== 'ice' || !tile.blockedEntryDirections) return;
+          // A corner is entered through its open sides: moving N into it means coming from the south.
+          const openToward = (['N', 'E', 'S', 'W'] as const).filter(
+            (d) => !tile.blockedEntryDirections!.includes(({ N: 'S', S: 'N', E: 'W', W: 'E' } as const)[d])
+          );
+          for (const d of openToward) {
+            const nx = x + (d === 'E' ? 1 : d === 'W' ? -1 : 0);
+            const ny = y + (d === 'S' ? 1 : d === 'N' ? -1 : 0);
+            if (ny < 0 || ny >= level.terrain.length || nx < 0 || nx >= row.length) continue;
+            openSides++;
+            if (ConfigRegistry.getTile(level.terrain[ny][nx]).passableByPlayer) walkableOpenSides++;
+          }
+        })
+      );
+    }
+    expect(openSides).toBeGreaterThan(0);
+    expect(walkableOpenSides / openSides).toBeGreaterThan(MIN_OPEN_SIDE_WALKABLE_RATE);
+  });
+});

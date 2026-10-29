@@ -45,6 +45,7 @@ import {
   UltimatePackDescriptor
 } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
+import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 
 /** Top-level keys each config file must define. */
@@ -54,7 +55,9 @@ const REQUIRED_CONFIG_KEYS = {
   MONSTERS: ['entities'],
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
   LEVELS: ['legend', 'levels'],
-  DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement']
+  DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement'],
+  MOTIFS: ['legend', 'pieces', 'monsterPortTerrain'],
+  MOTIF_ANNOTATIONS: []
 } as const;
 
 /** Direction given to a level start that does not define a valid one. */
@@ -67,6 +70,8 @@ export interface ConfigBundle {
   audio: AudioConfig;
   levels: LevelsConfig;
   datFormat: DatFormatConfig;
+  motifs: MotifsConfig;
+  motifAnnotations: MotifAnnotations;
 }
 
 interface FetchedPack {
@@ -81,6 +86,8 @@ class ConfigRegistryService {
   private audioConfig!: AudioConfig;
   private levelsConfig!: LevelsConfig;
   private datFormatConfig!: DatFormatConfig;
+  private motifsConfig!: MotifsConfig;
+  private motifAnnotations: MotifAnnotations = {};
 
   private builtInLevels: CompiledLevel[] = [];
   private ultimatePacks: LevelPack[] = [];
@@ -98,16 +105,18 @@ class ConfigRegistryService {
     );
     const storedPacksPromise = LevelPackStorage.loadAllPacks();
 
-    const [game, tiles, monsters, audio, levels, datFormat] = await Promise.all([
+    const [game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
       this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS, REQUIRED_CONFIG_KEYS.MONSTERS),
       this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
-      this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT)
+      this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT),
+      this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS),
+      this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
     ]);
 
-    this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat });
+    this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations });
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     this.customLevels = this.loadCustomLevelsFromStorage();
     this.importedPacks = await storedPacksPromise;
@@ -129,6 +138,8 @@ class ConfigRegistryService {
     this.audioConfig = bundle.audio;
     this.levelsConfig = bundle.levels;
     this.datFormatConfig = bundle.datFormat;
+    this.motifsConfig = bundle.motifs;
+    this.motifAnnotations = bundle.motifAnnotations;
 
     this.builtInLevels = bundle.levels.levels.map((bp) => this.compileBlueprint(bp));
     this.ultimatePacks = [];
@@ -237,6 +248,19 @@ class ConfigRegistryService {
 
   public getDatFormat(): DatFormatConfig {
     return this.datFormatConfig;
+  }
+
+  public getMotifs(): MotifsConfig {
+    return this.motifsConfig;
+  }
+
+  public getMotifAnnotations(): MotifAnnotations {
+    return this.motifAnnotations;
+  }
+
+  /** The levels.json legend extended, and overridden, by the motifs.json one. */
+  public getPieceLegend(): Record<string, PieceLegendEntry> {
+    return { ...this.levelsConfig.legend, ...this.motifsConfig.legend };
   }
 
   public getAllPacks(): LevelPack[] {
@@ -351,11 +375,14 @@ class ConfigRegistryService {
       Array.from({ length: mapWidth }, () => null)
     );
 
-    if (bp.terrain && bp.itemGrid) {
+    // An exported level carries its items as a grid; a hand-written one as placements.
+    const itemGrid = bp.itemGrid ?? (isItemGrid(bp.items) ? bp.items : undefined);
+    const placements = isItemGrid(bp.items) ? undefined : bp.items;
+    if (bp.terrain && itemGrid) {
       for (let y = 0; y < mapHeight; y++) {
         for (let x = 0; x < mapWidth; x++) {
           terrain[y][x] = bp.terrain[y]?.[x] || 'floor';
-          items[y][x] = bp.itemGrid[y]?.[x] || null;
+          items[y][x] = itemGrid[y]?.[x] || null;
         }
       }
     } else if (bp.rows) {
@@ -382,8 +409,8 @@ class ConfigRegistryService {
       }
     }
 
-    if (bp.items) {
-      for (const it of bp.items) {
+    if (placements) {
+      for (const it of placements) {
         if (it.y >= 0 && it.y < mapHeight && it.x >= 0 && it.x < mapWidth) {
           items[it.y][it.x] = it.id;
         }
@@ -392,6 +419,8 @@ class ConfigRegistryService {
 
     return {
       id: bp.id,
+      ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
+      ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
       number: bp.number,
       titleKey: bp.titleKey,
       customTitle: bp.customTitle,
@@ -466,6 +495,12 @@ class ConfigRegistryService {
 
 function toNonNegative(value: unknown): number {
   return isFiniteNumber(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+function isItemGrid(
+  items: LevelBlueprint['items']
+): items is (string | null)[][] {
+  return Array.isArray(items) && Array.isArray(items[0]);
 }
 
 function asArray<T>(value: T[] | undefined): T[] {

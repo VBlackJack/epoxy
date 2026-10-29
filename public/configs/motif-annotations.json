@@ -1,0 +1,206 @@
+{
+  "block_bridge": {
+    "solution": "SSSSEEWWWWEES",
+    "reversible": true
+  },
+  "block_corner_push": {
+    "solution": "SESENESSSSWWWEEEEESE",
+    "reversible": true
+  },
+  "block_double_bridge": {
+    "solution": "SEESSSSNEEENWWNWSSSSSEEESE",
+    "reversible": true
+  },
+  "bomb_clearance": {
+    "solution": "SEEEEESS",
+    "reversible": true
+  },
+  "finale_socket": {
+    "solution": "SS",
+    "reversible": true
+  },
+  "fire_boots_inside": {
+    "solution": "SEEEESSWWWWS",
+    "reversible": true
+  },
+  "fire_field": {
+    "solution": "SSSS",
+    "reversible": true
+  },
+  "fire_then_door": {
+    "solution": "SEEEESSWWWWSSEEEES",
+    "reversible": true
+  },
+  "force_conveyor": {
+    "solution": "SESS",
+    "reversible": false
+  },
+  "force_headwind": {
+    "solution": "SEEEESS",
+    "reversible": true
+  },
+  "force_ride": {
+    "solution": "SES",
+    "reversible": false
+  },
+  "ice_corner_slide": {
+    "solution": "SEWWWWS",
+    "reversible": true
+  },
+  "ice_rink_skates": {
+    "solution": "SEEEESSSWWSS",
+    "reversible": true
+  },
+  "keys_doors_chain": {
+    "solution": "SEEEESSWWWWEEEEEENNSSS",
+    "reversible": true
+  },
+  "keys_doors_green_hub": {
+    "solution": "SWWWEESSNNEESSNNEESSS",
+    "reversible": true
+  },
+  "keys_doors_single": {
+    "solution": "SEEEESSWWWWS",
+    "reversible": true
+  },
+  "keys_doors_yellow_side": {
+    "solution": "SEEEESSEENNSSWWNNWWSSWWEES",
+    "reversible": true
+  },
+  "mined_block_canal": {
+    "solution": "SSSSWWWNSWNNNEESWNWSSSWESSEES",
+    "reversible": true
+  },
+  "mined_block_maze": {
+    "solution": "SESWNWSSNEESSWWSNWNWNEENEESWNWSSNEESSWWWNWSSSS",
+    "reversible": true
+  },
+  "mined_block_moat": {
+    "solution": "SESSWWWWEEENNWWSNEESSWWSWWNEEEWNNEESSSSSES",
+    "reversible": true
+  },
+  "mined_bomb_yard": {
+    "solution": "SWSEEEESESNNWWWWWSSESS",
+    "reversible": true
+  },
+  "mined_fire_crates": {
+    "solution": "SSSSSNNWWWSNEEEEESSSWWWWS",
+    "reversible": true
+  },
+  "mined_force_crates": {
+    "solution": "SWSSSEESSSNNWNNSWWWEEESSWSWSS",
+    "reversible": false
+  },
+  "mined_force_currents": {
+    "solution": "SESSSWSWWWWNEWNEEEEESSSWSSWWS",
+    "reversible": true
+  },
+  "monsters_ball_lanes": {
+    "solution": "SESSWSSS",
+    "reversible": true
+  },
+  "monsters_bug_pillar": {
+    "solution": "SESSWSSNEEEENNESSSS",
+    "reversible": true
+  },
+  "monsters_teeth_lure": {
+    "solution": "SSSNNNSEEESSEWWESSEEES",
+    "reversible": false
+  },
+  "rest_gallery": {
+    "solution": "SEEEEEESSWWWEEES",
+    "reversible": true
+  },
+  "rest_garden": {
+    "solution": "SSSS",
+    "reversible": true
+  },
+  "rest_pillars": {
+    "solution": "SEESSSSWWEEEES",
+    "reversible": true
+  },
+  "rest_plaza": {
+    "solution": "SEESSSSNNWWNNWWSSSSEES",
+    "reversible": true
+  },
+  "sokoban_forged_1": {
+    "solution": "SWSSSWSSENNNNWNEEESSSSWWSWNNNNENWWEEEESSSSSESSS",
+    "reversible": true
+  },
+  "sokoban_forged_10": {
+    "solution": "SEESESWSWWWNWNNEEWSSWSEEENEESWWWSSSS",
+    "reversible": true
+  },
+  "sokoban_forged_2": {
+    "solution": "SEESSSWNENNWWWSSEESENENNWWSEWSESSSWWNNENESNNNWWWSSEESENSWWSSEEESSSS",
+    "reversible": true
+  },
+  "sokoban_forged_3": {
+    "solution": "SESSWWSENESNEESSSWWWNNSEESENNNNWWNWWSSEEENESWWSSSWWSSSS",
+    "reversible": true
+  },
+  "sokoban_forged_4": {
+    "solution": "SWSSWSWWNESEENNNWWSSWSEEESSWNENNWWSENESSWSEWWSSSS",
+    "reversible": true
+  },
+  "sokoban_forged_5": {
+    "solution": "SWSWSSSEENWSWNNNENWWWEEESSSESWWWWESSS",
+    "reversible": true
+  },
+  "sokoban_forged_6": {
+    "solution": "SEEEESWWNWSSESWWWEEEENWNNEESWNWSSESWWWSSS",
+    "reversible": true
+  },
+  "sokoban_forged_7": {
+    "solution": "SWSSEEWWNNEESSNEESSSNNWWWSWSSEENNWNENNWWSSSEESSWSSSS",
+    "reversible": true
+  },
+  "sokoban_forged_8": {
+    "solution": "SWSWWNWWSENESESSWWNENNWWSENESSEEEWWWWSEEWWWSSS",
+    "reversible": true
+  },
+  "sokoban_forged_9": {
+    "solution": "SWWWSSEEEEESSWNENWWWWESSSENNENWWSSSWWWNNENNSSWSSESSS",
+    "reversible": true
+  },
+  "sokoban_intro_pair": {
+    "solution": "SEEESWNWSSWWSWNNESESEESSS",
+    "reversible": true
+  },
+  "sokoban_intro_single": {
+    "solution": "SESSEESENNSSWWWWSS",
+    "reversible": true
+  },
+  "teleport_hop": {
+    "solution": "SESS",
+    "reversible": true
+  },
+  "thief_after_fire": {
+    "solution": "SEWSSEEWWNNEEEESSS",
+    "reversible": true
+  },
+  "toggle_gate": {
+    "solution": "SEEEESSWWWWS",
+    "reversible": true
+  },
+  "toggle_switchback": {
+    "solution": "SEEESSWEWWWEEEEESS",
+    "reversible": true
+  },
+  "trap_held_open": {
+    "solution": "SESEESWSSWWEEEESE",
+    "reversible": true
+  },
+  "water_boots_inside": {
+    "solution": "SEEEESSWWWWS",
+    "reversible": true
+  },
+  "water_key_island": {
+    "solution": "SEEEEWWSSSSWWSS",
+    "reversible": true
+  },
+  "water_moat": {
+    "solution": "SSSS",
+    "reversible": true
+  }
+}

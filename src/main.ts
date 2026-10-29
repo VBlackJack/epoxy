@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from './config/ConfigRegistry';
-import { BUILTIN_PACK_IDS } from './config/constants';
+import { BUILTIN_PACK_IDS, DIRECTION_VECTORS } from './config/constants';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
@@ -23,8 +23,10 @@ import { PixelRenderer } from './render/PixelRenderer';
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
+import { BlockPuzzleSolver } from './core/BlockPuzzleSolver';
+import { timedSolution } from './generator/SolutionReplay';
 import { Pathfinder } from './core/Pathfinder';
-import { ProceduralGenerator } from './core/ProceduralGenerator';
+import { ProceduralGenerationError, ProceduralGenerator } from './core/ProceduralGenerator';
 import {
   CompiledLevel,
   Direction,
@@ -47,6 +49,7 @@ import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewpo
 import {
   CANVAS_RESIZE_TOLERANCE_PX,
   DEFAULT_GRAPHICS_STYLE,
+  AUTO_THEME_ID,
   DEFAULT_THEME_ID,
   GAMEPAD_AXIS_THRESHOLD,
   GAMEPAD_AXIS_X,
@@ -118,6 +121,11 @@ class EpoxyApplication {
   private overlayState: OverlayState = 'none';
   /** Engine level the editor content was last synced with. */
   private editorSourceLevel: CompiledLevel | null = null;
+  private generatingPack = false;
+  /** The theme follows each level instead of the player's pick. */
+  private autoTheme = true;
+  /** Block positions last checked for a dead end. */
+  private lastBlockLayout = '';
 
   private keyIconCache: Record<string, string> = {};
   private bootIconCache: Record<string, string> = {};
@@ -215,8 +223,10 @@ class EpoxyApplication {
       savedSettings.graphicsStyle || gameCfg.graphics?.defaultStyle || DEFAULT_GRAPHICS_STYLE;
     this.renderer.setStyle(defaultStyle);
 
+    // Each level shows its own theme unless the player picked one.
+    this.autoTheme = !savedSettings.themeId || savedSettings.themeId === AUTO_THEME_ID;
     const initialTheme =
-      savedSettings.themeId && gameCfg.themes?.[savedSettings.themeId]
+      !this.autoTheme && savedSettings.themeId && gameCfg.themes?.[savedSettings.themeId]
         ? savedSettings.themeId
         : gameCfg.graphics?.defaultTheme || DEFAULT_THEME_ID;
     this.renderer.setThemeId(initialTheme);
@@ -263,6 +273,7 @@ class EpoxyApplication {
         this.stopAutoMoveAndReplay();
         this.lastWarnedSecond = NO_WARNED_SECOND;
         this.engine.loadLevel(testLevel);
+        this.showLevelTheme(testLevel);
         // The editor already holds this content: do not reload it on return.
         this.editorSourceLevel = testLevel;
         this.updateHUD();
@@ -308,6 +319,30 @@ class EpoxyApplication {
     this.engine.tick();
     this.renderer.incrementFrame();
     this.updateHUD();
+    this.watchBlockPuzzles();
+  }
+
+  /**
+   * After blocks move, checks off the main loop whether the block puzzles
+   * have become a dead end, and says so once per layout. The check only
+   * speaks when the dead end is proven.
+   */
+  private watchBlockPuzzles(): void {
+    if (this.isReplaying) return;
+    // Only blocks matter; monsters move every few ticks.
+    const layout = this.engine
+      .getEntities()
+      .filter((e) => e.kind === 'block')
+      .map((e) => `${e.x},${e.y}`)
+      .join(';');
+    if (layout === this.lastBlockLayout) return;
+    this.lastBlockLayout = layout;
+    window.setTimeout(() => {
+      if (layout !== this.lastBlockLayout || !this.engine.getPlayer().alive) return;
+      if (BlockPuzzleSolver.isStuck(this.engine)) {
+        this.showTransientStatus(t('hud.messages.blocks_stuck.label'));
+      }
+    }, 0);
   }
 
   /** Applies every recorded move due at the current engine tick; failed moves are skipped. */
@@ -432,20 +467,29 @@ class EpoxyApplication {
     const container = parsed as { levels?: unknown };
     const rawList = (
       Array.isArray(parsed) ? parsed : Array.isArray(container?.levels) ? container.levels : [parsed]
-    ) as Array<LevelBlueprint & Partial<CompiledLevel>>;
-    return rawList.map((item) =>
-      ConfigRegistry.compileBlueprint({
-        ...item,
-        itemGrid:
-          item.items && Array.isArray(item.items[0])
-            ? (item.items as unknown as (string | null)[][])
-            : item.itemGrid
-      })
-    );
+    ) as LevelBlueprint[];
+    return rawList.map((item) => ConfigRegistry.compileBlueprint(item));
   }
 
-  private generateProceduralPack(): void {
-    const levels = ProceduralGenerator.generatePack();
+  /** Builds a pack level by level, showing progress; ignores requests while one is running. */
+  private async generateProceduralPack(): Promise<void> {
+    if (this.generatingPack) return;
+    this.generatingPack = true;
+    let levels: CompiledLevel[];
+    try {
+      levels = await ProceduralGenerator.generatePackAsync(
+        undefined,
+        ProceduralGenerator.createSeed(),
+        (done, total) =>
+          this.showTransientStatus(t('app.packs.procedural_progress.label', { done, total }))
+      );
+    } catch (err) {
+      if (!(err instanceof ProceduralGenerationError)) throw err;
+      this.showTransientStatus(t('app.packs.procedural_error.label'));
+      return;
+    } finally {
+      this.generatingPack = false;
+    }
     ConfigRegistry.setProceduralLevels(levels);
     this.refreshPackSelector();
     this.editor.populatePresetDropdown();
@@ -747,11 +791,16 @@ class EpoxyApplication {
     const themes = ConfigRegistry.getGame().themes;
     if (!select || !themes) return;
     select.innerHTML = '';
+    const auto = document.createElement('option');
+    auto.value = AUTO_THEME_ID;
+    auto.textContent = t('app.themes.auto.label');
+    auto.selected = this.autoTheme;
+    select.appendChild(auto);
     for (const theme of Object.values(themes)) {
       const opt = document.createElement('option');
       opt.value = theme.id;
       opt.textContent = t(theme.i18nKey);
-      if (theme.id === this.renderer.getThemeId()) {
+      if (!this.autoTheme && theme.id === this.renderer.getThemeId()) {
         opt.selected = true;
       }
       select.appendChild(opt);
@@ -762,16 +811,36 @@ class EpoxyApplication {
   }
 
   private applyTheme(themeId: string): void {
-    this.renderer.setThemeId(themeId);
+    this.autoTheme = themeId === AUTO_THEME_ID;
     const select = byId<HTMLSelectElement>('theme-select');
     if (select) {
       select.value = themeId;
     }
+    if (this.autoTheme) {
+      this.showLevelTheme(this.engine.getLevel());
+    } else {
+      this.showTheme(themeId);
+    }
+    this.saveUserSettings();
+  }
+
+  private showTheme(themeId: string): void {
+    this.renderer.setThemeId(themeId);
     const track = THEME_MUSIC_TRACKS[themeId];
     if (track) {
       AudioManager.setTrackById(track);
     }
-    this.saveUserSettings();
+  }
+
+  /** In automatic mode, shows the level's own theme, or the default one. */
+  private showLevelTheme(level: CompiledLevel): void {
+    if (!this.autoTheme) return;
+    const gameCfg = ConfigRegistry.getGame();
+    const themeId =
+      level.theme && gameCfg.themes?.[level.theme]
+        ? level.theme
+        : gameCfg.graphics?.defaultTheme || DEFAULT_THEME_ID;
+    if (themeId !== this.renderer.getThemeId()) this.showTheme(themeId);
   }
 
   private setupLocaleSelector(supported: string[], defaultLocale: string): void {
@@ -839,6 +908,7 @@ class EpoxyApplication {
   }
 
   private triggerObjectiveAndLinks(): void {
+    if (this.playBlockHint()) return;
     const active = this.renderer.toggleMechanismLinks();
     byId('hud-btn-objective')?.classList.toggle('active', active);
     byId('mobile-btn-objective')?.classList.toggle('active', active);
@@ -854,6 +924,49 @@ class EpoxyApplication {
     } else {
       this.renderer.setObjectivePoint(null);
     }
+  }
+
+  /**
+   * Restarts the level and plays its proven solution, after a confirmation
+   * since progress in the level is lost. Levels without a stored solution
+   * (imported packs) say so.
+   */
+  private showSolution(): void {
+    const moves = timedSolution(this.engine.getLevel());
+    if (!moves) {
+      this.showTransientStatus(t('hud.messages.no_solution.label'));
+      return;
+    }
+    if (!window.confirm(t('hud.messages.solution_confirm.label'))) return;
+    this.startReplay(moves);
+    this.showTransientStatus(t('hud.messages.solution_playing.label'));
+  }
+
+  /**
+   * In a block puzzle, plays the next push of a solution from where the
+   * player stands, walking there first. Returns false when no block puzzle
+   * is open, so the usual objective help runs instead.
+   */
+  private playBlockHint(): boolean {
+    if (this.isReplaying || !this.engine.getPlayer().alive) return false;
+    if (BlockPuzzleSolver.isStuck(this.engine)) {
+      this.showTransientStatus(t('hud.messages.blocks_stuck.label'));
+      return true;
+    }
+    const moves = BlockPuzzleSolver.hint(this.engine);
+    if (!moves) return false;
+    const player = this.engine.getPlayer();
+    let x = player.x;
+    let y = player.y;
+    this.autoMoveQueue = moves;
+    this.autoMovePoints = moves.map((dir) => {
+      x += DIRECTION_VECTORS[dir].dx;
+      y += DIRECTION_VECTORS[dir].dy;
+      return { x, y };
+    });
+    this.renderer.setPlannedPath(this.autoMovePoints);
+    this.showTransientStatus(t('hud.messages.block_hint.label'));
+    return true;
   }
 
   private getMedalTierFor(timeRemaining: number, timeLimit: number): MedalTier {
@@ -873,6 +986,7 @@ class EpoxyApplication {
     this.lastWarnedSecond = NO_WARNED_SECOND;
     this.currentLevelIndex = ((index % levels.length) + levels.length) % levels.length;
     this.engine.loadLevel(levels[this.currentLevelIndex]);
+    this.showLevelTheme(levels[this.currentLevelIndex]);
     this.saveProgress();
     this.updateHUD();
   }
@@ -967,7 +1081,7 @@ class EpoxyApplication {
     });
 
     byId('btn-procedural-pack')?.addEventListener('click', () => {
-      this.generateProceduralPack();
+      void this.generateProceduralPack();
     });
 
     const packFileInput = byId<HTMLInputElement>('pack-file-input');
@@ -1079,7 +1193,7 @@ class EpoxyApplication {
 
     byId('btn-drawer-procedural')?.addEventListener('click', () => {
       this.setDrawerOpen(false);
-      this.generateProceduralPack();
+      void this.generateProceduralPack();
     });
 
     byId('btn-drawer-import')?.addEventListener('click', () => {
@@ -1374,6 +1488,13 @@ class EpoxyApplication {
     byId('hud-btn-objective')?.addEventListener('click', () => {
       this.triggerObjectiveAndLinks();
     });
+    byId('hud-btn-solution')?.addEventListener('click', () => {
+      this.showSolution();
+    });
+    byId('mobile-btn-solution')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.showSolution();
+    });
     byId('hud-btn-restart')?.addEventListener('click', () => {
       this.restartLevel();
     });
@@ -1630,9 +1751,11 @@ class EpoxyApplication {
     } else if (kb.cycleTheme?.includes(e.code)) {
       run(() => this.applyTheme(this.renderer.cycleTheme()));
     } else if (kb.generateProcedural?.includes(e.code)) {
-      run(() => this.generateProceduralPack());
+      run(() => void this.generateProceduralPack());
     } else if (kb.showObjective?.includes(e.code)) {
       run(() => this.triggerObjectiveAndLinks());
+    } else if (kb.showSolution?.includes(e.code)) {
+      run(() => this.showSolution());
     } else if (kb.toggleHelp?.includes(e.code) || e.key === '?') {
       run(() => this.openHelpModal());
     } else if (e.code === 'Enter' && this.engine.isLevelCompleted()) {
@@ -1850,7 +1973,13 @@ class EpoxyApplication {
     if (!timeEl) return;
     const lvl = this.engine.getLevel();
     const remSec = this.engine.getTimeRemainingSeconds();
-    setText(timeEl, String(remSec).padStart(HUD_COUNTER_DIGITS, '0'));
+    // A level without a time limit shows a sign, not a counter stuck at zero.
+    setText(
+      timeEl,
+      lvl.timeLimitSeconds > 0
+        ? String(remSec).padStart(HUD_COUNTER_DIGITS, '0')
+        : t('hud.stats.time_unlimited.label')
+    );
     const warnThreshold =
       ConfigRegistry.getGame().timing.lowTimeWarningSeconds ?? TIMING_DEFAULTS.lowTimeWarningSeconds;
     const isLowTime =
@@ -2042,7 +2171,7 @@ class EpoxyApplication {
       const settings: UserSettings = {
         locale: i18n.getLocale(),
         fov: this.renderer.getViewportTiles(),
-        themeId: this.renderer.getThemeId(),
+        themeId: this.autoTheme ? AUTO_THEME_ID : this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
         shellEnabled: Boolean(byId('lynx-console')?.classList.contains('enabled')),
         sfxEnabled: AudioManager.isSfxEnabled(),

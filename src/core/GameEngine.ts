@@ -313,7 +313,15 @@ export class GameEngine {
     if (this.undoStack.length >= maxSnapshots) {
       this.undoStack.shift();
     }
-    this.undoStack.push({
+    this.undoStack.push(this.captureState());
+  }
+
+  /**
+   * Copies the whole mutable game state. Undo uses it, and so does the piece
+   * solver, which explores moves by restoring states instead of replaying.
+   */
+  public captureState(): UndoSnapshot {
+    return {
       terrain: this.terrain.map((r) => [...r]),
       items: this.items.map((r) => [...r]),
       entities: this.entities.map((e) => ({ ...e })),
@@ -337,14 +345,20 @@ export class GameEngine {
       nextEntityUid: this.nextEntityUid,
       moveHistoryLength: this.moveHistory.length,
       timedMoveHistoryLength: this.timedMoveHistory.length
-    });
+    };
   }
 
   public undo(): boolean {
     if (this.levelCompleted) return false;
     const snap = this.undoStack.pop();
     if (!snap) return false;
+    this.restoreState(snap);
+    AudioManager.playSfx('step');
+    return true;
+  }
 
+  /** Puts back a state from captureState; the player is alive and the level not won. */
+  public restoreState(snap: UndoSnapshot): void {
     this.terrain = snap.terrain.map((r) => [...r]);
     this.items = snap.items.map((r) => [...r]);
     this.entities = snap.entities.map((e) => ({ ...e }));
@@ -372,8 +386,6 @@ export class GameEngine {
     this.timedMoveHistory.length = snap.timedMoveHistoryLength;
     this.levelCompleted = false;
     this.statusBannerKey = null;
-    AudioManager.playSfx('step');
-    return true;
   }
 
   public tick(): void {

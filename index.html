@@ -176,7 +176,8 @@
                     <button id="mobile-btn-objective" class="mobile-pad-btn accent" type="button" data-i18n="hud.mobile.objective.action"></button>
                     <button id="mobile-btn-restart" class="mobile-pad-btn" type="button" data-i18n="hud.mobile.restart.action"></button>
                     <button id="mobile-btn-zoom" class="mobile-pad-btn" type="button" data-i18n="hud.mobile.zoom.action"></button>
-                    <button id="mobile-btn-fullscreen" class="mobile-pad-btn span-full" type="button" data-i18n="hud.mobile.fullscreen.action"></button>
+                    <button id="mobile-btn-solution" class="mobile-pad-btn" type="button" data-i18n="hud.mobile.solution.action"></button>
+                    <button id="mobile-btn-fullscreen" class="mobile-pad-btn" type="button" data-i18n="hud.mobile.fullscreen.action"></button>
                   </div>
                   <div class="mobile-gesture-caption" data-i18n="hud.mobile.gesture_hint.label"></div>
                 </div>
@@ -236,6 +237,7 @@
                   <div class="hud-action-grid">
                     <button id="hud-btn-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action"></button>
                     <button id="hud-btn-objective" class="hud-btn" type="button" data-i18n="hud.controls.objective.action"></button>
+                    <button id="hud-btn-solution" class="hud-btn" type="button" data-i18n="hud.controls.solution.action"></button>
                     <button id="hud-btn-restart" class="hud-btn" type="button" data-i18n="hud.controls.restart.action"></button>
                     <button id="hud-btn-options-drawer" class="hud-btn" type="button" data-i18n="app.header.options_btn.action"></button>
                   </div>
@@ -289,6 +291,14 @@
             <div class="editor-preset-bar">
               <label for="editor-preset-select" data-i18n="editor.toolbar.load_preset.label"></label>
               <select id="editor-preset-select" class="editor-input"></select>
+            </div>
+
+            <div class="editor-preset-bar editor-generator-bar">
+              <label for="editor-gen-level" data-i18n="editor.generator.level.label"></label>
+              <input id="editor-gen-level" type="number" class="editor-input editor-input-narrow" />
+              <label for="editor-gen-seed" data-i18n="editor.generator.seed.label"></label>
+              <input id="editor-gen-seed" type="text" inputmode="numeric" class="editor-input" data-i18n-placeholder="editor.generator.seed.placeholder" />
+              <button id="editor-generate-btn" class="hud-btn small primary" type="button" data-i18n="editor.generator.generate.action"></button>
             </div>
 
             <div class="editor-meta-grid">
@@ -423,6 +433,7 @@
                 <li data-i18n="hud.help_modal.kb_undo.label"></li>
                 <li data-i18n="hud.help_modal.kb_restart.label"></li>
                 <li data-i18n="hud.help_modal.kb_objective.label"></li>
+                <li data-i18n="hud.help_modal.kb_solution.label"></li>
                 <li data-i18n="hud.help_modal.kb_fov.label"></li>
                 <li data-i18n="hud.help_modal.kb_graphics.label"></li>
                 <li data-i18n="hud.help_modal.kb_theme.label"></li>

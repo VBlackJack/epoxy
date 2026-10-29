@@ -19,6 +19,10 @@
  * keep their fallback here so every default has a name.
  */
 
+/** Difficulty range offered by the editor's level generator. */
+export const EDITOR_GENERATOR_MIN_LEVEL = 1;
+export const EDITOR_GENERATOR_MAX_LEVEL = 50;
+
 /** How long a transient status toast stays visible. */
 export const TOAST_DURATION_MS = 4500;
 
@@ -51,6 +55,8 @@ export const TIMING_DEFAULTS = {
 /** Fallbacks for optional game.json "graphics" values. */
 export const DEFAULT_GRAPHICS_STYLE = 'modern';
 export const DEFAULT_THEME_ID = 'cyber_neon';
+/** Theme setting meaning: each level shows its own theme. */
+export const AUTO_THEME_ID = 'auto';
 
 /** Gamepad handling (standard mapping). */
 export const GAMEPAD_INDEX = 0;
