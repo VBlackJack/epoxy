@@ -38,6 +38,8 @@ npm run dev
 2. Retouch the level, then **Test** it.
 3. **Export JSON** and paste the exported object into the `levels` array of `public/configs/levels.json`. Exported levels load as they are; set `number` to the position you want.
 
+The Epoxy campaign itself is described level by level in `tools/campaign-script.json` (motifs to teach, puzzle count, hardest tier); `npm run build:campaign` generates each level, proves it and rewrites `public/configs/levels.json` as readable legend rows.
+
 New puzzle pieces go in `public/configs/motifs.json`. `npm test` checks that each one is solvable in every orientation, that no block can escape through its ports, and that nothing in it is decorative; `npm run report:pieces` writes each piece's solution to `local/piece-probe.txt`.
 
 ## Tests
@@ -46,7 +48,7 @@ New puzzle pieces go in `public/configs/motifs.json`. `npm test` checks that eac
 npm test
 ```
 
-`npm run report:levels` measures 200 generated levels against the bundled community packs and writes `reports/level-metrics.json`.
+`npm run report:levels` measures 200 generated levels against the bundled community packs and writes `reports/level-metrics.json`. `npm run report:study` describes how the community packs combine mechanics, and `npm run mine:pieces` searches for harder puzzle pieces (about half an hour); both write to `local/`.
 
 ## Production Build
 

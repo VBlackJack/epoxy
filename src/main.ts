@@ -1860,7 +1860,13 @@ class EpoxyApplication {
     if (!timeEl) return;
     const lvl = this.engine.getLevel();
     const remSec = this.engine.getTimeRemainingSeconds();
-    setText(timeEl, String(remSec).padStart(HUD_COUNTER_DIGITS, '0'));
+    // A level without a time limit shows a sign, not a counter stuck at zero.
+    setText(
+      timeEl,
+      lvl.timeLimitSeconds > 0
+        ? String(remSec).padStart(HUD_COUNTER_DIGITS, '0')
+        : t('hud.stats.time_unlimited.label')
+    );
     const warnThreshold =
       ConfigRegistry.getGame().timing.lowTimeWarningSeconds ?? TIMING_DEFAULTS.lowTimeWarningSeconds;
     const isLowTime =

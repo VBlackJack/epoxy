@@ -91,6 +91,7 @@
       "password": { "label": "CODE" },
       "chips": { "label": "PUCES RESTANTES" },
       "time": { "label": "TEMPS" },
+      "time_unlimited": { "label": "---" },
       "score": { "label": "SCORE" },
       "steps": { "label": "PAS" }
     },
@@ -360,64 +361,84 @@
   },
   "levels": {
     "level_1": {
-      "title": "Leçon 1 : Premier Pas Silicium",
-      "hint": "La clé verte est réutilisable à l'infini ! Ramassez les 8 puces pour déverrouiller le passage vers la sortie."
+      "title": "Premières Serrures",
+      "hint": "Chaque porte de couleur demande une clé de sa couleur. Trouvez la clé, puis la porte."
     },
     "level_2": {
-      "title": "Pont sur Eau Trouble",
-      "hint": "Poussez les blocs de terre dans l'eau pour bâtir un pont solide, puis récupérez les Palmes au sud !"
+      "title": "Sols Mouvants",
+      "hint": "Les tapis roulants vous emportent. Montez dessus et laissez-vous porter."
     },
     "level_3": {
-      "title": "Patinoire & Virages Relevés",
-      "hint": "Utilisez les coins de glace pour ricocher jusqu'aux Crampons au sud-est, puis récoltez les puces en toute liberté."
+      "title": "Glace Fine",
+      "hint": "Sur la glace, vous glissez jusqu'à un obstacle. Les angles dévient la glissade."
     },
     "level_4": {
-      "title": "Turbines & Le Voleur",
-      "hint": "Les Bottes Ventouses et Ignifugées vous protègent, mais le Voleur au sud confisquera tout votre équipement !"
+      "title": "Convoyeurs à Clés",
+      "hint": "Clés et tapis roulants ensemble : prévoyez où le tapis vous dépose."
     },
     "level_5": {
-      "title": "Brigade des Tanks",
-      "hint": "Appuyez sur le bouton bleu pour diriger le Tank sur le bouton brun et maintenir le piège ouvert !"
+      "title": "Dans le Feu",
+      "hint": "Le feu brûle sans bottes ignifugées. Trouvez-les d'abord."
     },
     "level_6": {
-      "title": "Usine de Clonage & Bascules",
-      "hint": "Le bouton vert inverse les murs bascules. Le bouton rouge clone des blocs de terre pour combler le canal !"
+      "title": "Eaux Profondes",
+      "hint": "L'eau vous noie sans palmes. Prenez-les avant de nager."
     },
     "level_7": {
-      "title": "Téléporteurs & Mirages",
-      "hint": "Certains murs bleus sont des illusions ! Les monstres ne peuvent pas entrer sur le gravier."
+      "title": "Dangers Mobiles",
+      "hint": "Les monstres suivent des trajets fixes. Observez-les, puis passez dans l'ouverture."
     },
     "level_8": {
-      "title": "Coeur d'Epoxy : L'Épreuve des Bottes",
-      "hint": "Combinez les quatre bottes élémentaires avant de franchir les voleurs vers le verrou final !"
+      "title": "Éléments",
+      "hint": "Feu, eau et glace dans la même course. Les bottes changent tout."
     },
     "level_9": {
-      "title": "Parois Fines & Murs Fantômes",
-      "hint": "Les parois fines bloquent un seul bord de la case. Tâtez les murs invisibles pour trouver les brèches !"
+      "title": "Bâtisseur de Ponts",
+      "hint": "Poussez un bloc dans l'eau pour en faire de la terre praticable."
     },
     "level_10": {
-      "title": "Grand Maître Lynx",
-      "hint": "Utilisez la clé verte, les téléporteurs et les blocs de terre pour réunir les 8 puces maîtresses !"
+      "title": "Démolition",
+      "hint": "Les bombes détruisent tout ce qui les touche. Laissez un bloc encaisser l'explosion."
     },
     "level_11": {
-      "title": "Anneaux Cryogéniques",
-      "hint": "Récupérez la clé verte au nord et les Crampons au centre sud pour parcourir la double spirale de glace !"
+      "title": "Portes Gardées",
+      "hint": "Des monstres patrouillent près des portes. Calez votre course vers les clés."
     },
     "level_12": {
-      "title": "Chambres Haute Tension",
-      "hint": "Chaque chambre verrouillée contient la clé de la suivante. Évitez la Balle Rose et le Marcheur !"
+      "title": "Gare de Triage",
+      "hint": "Les boutons verts inversent tous les murs bascule, et les portes veulent toujours leurs clés. Comptez vos pressions."
     },
     "level_13": {
-      "title": "Coeur de Magma",
-      "hint": "Équipez les Bottes Ignifugées et les Palmes au nord avant de traverser la fournaise et le canal !"
+      "title": "Maintenu Ouvert",
+      "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut le maintenir."
     },
     "level_14": {
-      "title": "Matrice Synchrone",
-      "hint": "Les boutons verts à gauche et à droite alternent les couloirs bascules pour libérer les 8 puces."
+      "title": "Atelier des Convoyeurs",
+      "hint": "Les blocs suivent aussi les tapis. Poussez-les là où le tapis aide."
     },
     "level_15": {
-      "title": "Citadelle d'Epoxy",
-      "hint": "Le défi ultime : combinez bottes élémentaires, clés et patinoire centrale pour rassembler les 10 puces !"
+      "title": "Glace Quantique",
+      "hint": "Les téléporteurs vous font ressortir par l'autre plot, dans la même direction. Sur la glace, ça compte."
+    },
+    "level_16": {
+      "title": "Repaire des Voleurs",
+      "hint": "Le voleur prend toutes vos bottes. Servez-vous-en avant de le croiser."
+    },
+    "level_17": {
+      "title": "Patrouille Glissante",
+      "hint": "Monstres, glace et tapis. Lisez les trajectoires avant de vous lancer."
+    },
+    "level_18": {
+      "title": "Serrures et Crues",
+      "hint": "Des clés derrière l'eau, de l'eau derrière des blocs. Raisonnez depuis la sortie."
+    },
+    "level_19": {
+      "title": "Chaos Maîtrisé",
+      "hint": "Monstres, bombes et murs bascule. Gardez la tête froide."
+    },
+    "level_20": {
+      "title": "Coeur d'Epoxy",
+      "hint": "Tout ce que vous avez appris, en une longue course. Prenez votre temps."
     },
     "procedural": {
       "keys_doors": { "title": "Course du Serrurier #{number}", "hint": "Chaque porte de couleur consomme une clé de sa couleur. Les clés vertes ouvrent toutes les portes vertes." },
@@ -430,6 +451,7 @@
       "toggle_walls": { "title": "Gare de Triage #{number}", "hint": "Chaque bouton vert inverse tous les murs bascule. Comptez vos pressions." },
       "trap": { "title": "Allée des Pièges #{number}", "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut maintenir le bouton." },
       "teleport": { "title": "Saut Quantique #{number}", "hint": "Entrez dans un téléporteur pour ressortir par l'autre, dans la même direction." },
+      "monsters": { "title": "Ménagerie #{number}", "hint": "Les monstres suivent des trajectoires fixes. Observez-les, attendez l'ouverture, puis foncez." },
       "bomb": { "title": "Chantier de Démolition #{number}", "hint": "Les bombes détruisent tout ce qui les touche. Poussez-y un bloc pour dégager le passage." },
       "default": {
         "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les câbles des pièges, cloneurs et portes."

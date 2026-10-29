@@ -38,6 +38,8 @@ npm run dev
 2. Retouchez le niveau, puis **testez**-le.
 3. **Exportez en JSON** et collez l'objet exporté dans le tableau `levels` de `public/configs/levels.json`. Un niveau exporté se charge tel quel ; ajustez `number` selon la position voulue.
 
+La campagne Epoxy elle-même est décrite niveau par niveau dans `tools/campaign-script.json` (motifs à enseigner, nombre d'énigmes, palier maximal) ; `npm run build:campaign` génère chaque niveau, le prouve et réécrit `public/configs/levels.json` en lignes de légende lisibles.
+
 Les nouvelles pièces d'énigme se placent dans `public/configs/motifs.json`. `npm test` vérifie que chacune est solvable dans toutes les orientations, qu'aucun bloc ne peut sortir par ses ports et que rien n'y est décoratif ; `npm run report:pieces` écrit la solution de chaque pièce dans `local/piece-probe.txt`.
 
 ## Tests
@@ -46,7 +48,7 @@ Les nouvelles pièces d'énigme se placent dans `public/configs/motifs.json`. `n
 npm test
 ```
 
-`npm run report:levels` mesure 200 niveaux générés en les comparant aux packs communautaires fournis, et écrit `reports/level-metrics.json`.
+`npm run report:levels` mesure 200 niveaux générés en les comparant aux packs communautaires fournis, et écrit `reports/level-metrics.json`. `npm run report:study` décrit comment les packs communautaires combinent les mécaniques, et `npm run mine:pieces` cherche des pièces d'énigme plus difficiles (environ une demi-heure) ; les deux écrivent dans `local/`.
 
 ## Build de production
 
