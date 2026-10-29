@@ -93,13 +93,6 @@
   },
   "ultimatePacks": [
     {
-      "id": "ccup_chips",
-      "name": "CHIPS (Original 149)",
-      "i18nKey": "app.packs.ccup_chips.label",
-      "url": "./packs/CHIPS.DAT",
-      "prefix": "chips"
-    },
-    {
       "id": "ccup_tw_intro",
       "name": "Tile World Intro",
       "i18nKey": "app.packs.ccup_tw_intro.label",
@@ -143,10 +136,6 @@
     }
   ],
   "campaignUltimateSelection": [
-    {
-      "packId": "ccup_chips",
-      "levelNumbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 19, 23]
-    },
     {
       "packId": "ccup_tw_intro",
       "levelNumbers": [1, 2, 3, 4, 5]

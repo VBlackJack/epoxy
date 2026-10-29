@@ -36,7 +36,6 @@
     "packs": {
       "selector_label": { "label": "Pack :" },
       "campaign": { "label": "Campagne Epoxy + Ultimate" },
-      "ccup_chips": { "label": "Ultimate : CHIPS Original (149 niv.)" },
       "ccup_tw_intro": { "label": "Ultimate : Tile World Intro" },
       "ccup_cclp1": { "label": "Ultimate : CCLP 1 (Communauté)" },
       "ccup_cclp2": { "label": "Ultimate : CCLP 2 (Communauté)" },
