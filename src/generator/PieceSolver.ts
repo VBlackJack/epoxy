@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { FLOOR_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
-import { CompiledLevel, Direction, UndoSnapshot } from '../core/types';
+import { CompiledLevel, Direction, GridPoint, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
 
 /** Where the piece is drawn inside the otherwise walled map. */
@@ -31,16 +31,22 @@ export const DEFAULT_MAX_SOLVER_STATES = 50000;
 /** Ticks a single move may take to settle (cooldowns, slides) before it counts as a loop. */
 const MAX_SETTLE_TICKS = 400;
 
+/** Standing still for one step: with monsters around, timing is part of a solution. */
+export const WAIT_ACTION = 'WAIT';
+export type SolverAction = Direction | typeof WAIT_ACTION;
+
 export interface PieceSolveOptions {
   /** Items the player starts with; defaults to the piece's `requires`. */
   carried?: string[];
   maxStates?: number;
+  /** Steps the player waits at the entry first: monsters arrive at another phase. */
+  startWaits?: number;
 }
 
 export interface PieceSolveResult {
   solvable: boolean;
-  /** Shortest move sequence found, entry to exit port. */
-  moves: Direction[] | null;
+  /** Shortest action sequence found, entry to exit port. */
+  moves: SolverAction[] | null;
   statesExplored: number;
   /** True when the search stopped at maxStates without an answer. */
   truncated: boolean;
@@ -59,7 +65,7 @@ export interface PieceAnalysis {
 interface SearchNode {
   state: UndoSnapshot;
   parent: number;
-  move: Direction | null;
+  move: SolverAction | null;
 }
 
 /**
@@ -69,47 +75,130 @@ interface SearchNode {
  * inventory, chips left, and every terrain, item and entity in the piece. The
  * rules are therefore the game's own, not a model of them.
  *
- * Pieces holding monsters are out of scope: their timing makes the state
- * space depend on ticks, which this search ignores.
+ * With monsters, the player may also wait a step, and a monster's facing and
+ * move timer are part of the state, so solutions account for timing.
+ * Monsters that move at random (walker, blob) are kept out of pieces: their
+ * random stream would make every state unique.
  */
 export class PieceSolver {
   public static solve(piece: CompiledPiece, options: PieceSolveOptions = {}): PieceSolveResult {
-    const maxStates = options.maxStates ?? DEFAULT_MAX_SOLVER_STATES;
     const engine = new GameEngine();
     engine.loadLevel(this.toLevel(piece));
-
     this.grantCarried(engine, options.carried ?? piece.requires);
+    for (let i = 0; i < (options.startWaits ?? 0); i++) {
+      if (!this.play(engine, WAIT_ACTION)) {
+        return { solvable: false, moves: null, statesExplored: 0, truncated: false };
+      }
+    }
+    const origin = { x: PIECE_OFFSET, y: PIECE_OFFSET };
+    return this.search(engine, piece, origin, options.maxStates ?? DEFAULT_MAX_SOLVER_STATES, () => {
+      // The exit tile ends the level whatever is left; a piece also wants every chip.
+      if (!engine.isLevelCompleted()) return false;
+      return engine.getChipsRemaining() === 0 ? true : null;
+    });
+  }
 
+  /**
+   * Solves a piece in place, inside a running level: the search starts from
+   * the engine's current state (monsters wherever time has taken them) and
+   * ends with the player on the piece's exit port and no chip left in it.
+   * The engine is put back in its starting state before returning.
+   */
+  public static solveInLevel(
+    engine: GameEngine,
+    piece: CompiledPiece,
+    origin: GridPoint,
+    maxStates: number = DEFAULT_MAX_SOLVER_STATES
+  ): PieceSolveResult {
+    const start = engine.captureState();
+    const exit = { x: origin.x + piece.exit.x, y: origin.y + piece.exit.y };
+    const result = this.search(engine, piece, origin, maxStates, () => {
+      const player = engine.getPlayer();
+      if (engine.isLevelCompleted()) return null;
+      if (player.x !== exit.x || player.y !== exit.y) return false;
+      return !this.chipLeftInPiece(engine, piece, origin);
+    });
+    engine.restoreState(start);
+    return result;
+  }
+
+  /** Plays one solver action and lets it settle; false if the player died or never settles. */
+  public static play(engine: GameEngine, action: SolverAction): boolean {
+    if (action === WAIT_ACTION) {
+      const ticks = ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
+      for (let i = 0; i < ticks; i++) engine.tick();
+      return this.settle(engine);
+    }
+    engine.attemptPlayerMove(action);
+    return this.settle(engine);
+  }
+
+  /** Whether a piece holds monsters, whose timing makes waiting a real move. */
+  public static hasMonsters(piece: CompiledPiece): boolean {
+    return piece.entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster');
+  }
+
+  /**
+   * Breadth-first search from the engine's current state. `goal` says whether
+   * the state just reached wins (true), is a dead end to drop (null), or is
+   * an ordinary state (false). Waiting is offered only when monsters move.
+   */
+  private static search(
+    engine: GameEngine,
+    piece: CompiledPiece,
+    origin: GridPoint,
+    maxStates: number,
+    goal: () => boolean | null
+  ): PieceSolveResult {
+    const actions: SolverAction[] = this.hasMonsters(piece)
+      ? [...ORDERED_DIRECTIONS, WAIT_ACTION]
+      : [...ORDERED_DIRECTIONS];
     const nodes: SearchNode[] = [{ state: engine.captureState(), parent: -1, move: null }];
-    const seen = new Set<string>([this.stateKey(engine, piece)]);
+    const seen = new Set<string>([this.stateKey(engine, piece, origin)]);
 
     for (let head = 0; head < nodes.length; head++) {
-      for (const dir of ORDERED_DIRECTIONS) {
-        engine.restoreState(nodes[head].state);
-        if (!engine.attemptPlayerMove(dir) && !this.changedByFailedMove(engine, nodes[head].state)) {
+      for (const action of actions) {
+        const from = nodes[head].state;
+        engine.restoreState(from);
+        if (action !== WAIT_ACTION && !engine.attemptPlayerMove(action) && !this.changedByFailedMove(engine, from)) {
           continue;
         }
-        if (!this.settle(engine)) continue;
-        if (engine.isLevelCompleted()) {
-          // The exit tile ends the level whatever is left; a piece also wants every chip.
-          if (engine.getChipsRemaining() > 0) continue;
+        if (action === WAIT_ACTION) {
+          if (!this.play(engine, WAIT_ACTION)) continue;
+        } else if (!this.settle(engine)) {
+          continue;
+        }
+        const reached = goal();
+        if (reached === null) continue;
+        if (reached) {
           return {
             solvable: true,
-            moves: [...this.pathTo(nodes, head), dir],
+            moves: [...this.pathTo(nodes, head), action],
             statesExplored: nodes.length,
             truncated: false
           };
         }
-        const key = this.stateKey(engine, piece);
+        const key = this.stateKey(engine, piece, origin);
         if (seen.has(key)) continue;
         seen.add(key);
-        nodes.push({ state: engine.captureState(), parent: head, move: dir });
+        nodes.push({ state: engine.captureState(), parent: head, move: action });
         if (nodes.length >= maxStates) {
           return { solvable: false, moves: null, statesExplored: nodes.length, truncated: true };
         }
       }
     }
     return { solvable: false, moves: null, statesExplored: nodes.length, truncated: false };
+  }
+
+  private static chipLeftInPiece(engine: GameEngine, piece: CompiledPiece, origin: GridPoint): boolean {
+    const items = engine.getItems();
+    for (let y = 0; y < piece.height; y++) {
+      for (let x = 0; x < piece.width; x++) {
+        const item = items[origin.y + y][origin.x + x];
+        if (item && ConfigRegistry.getTile(item).collectible === 'chip') return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -148,8 +237,12 @@ export class PieceSolver {
       return isStub(p.x, p.y) ? `@${p.x},${p.y}` : '';
     };
 
+    const origin = { x: PIECE_OFFSET, y: PIECE_OFFSET };
+    const actions: SolverAction[] = this.hasMonsters(piece)
+      ? [...ORDERED_DIRECTIONS, WAIT_ACTION]
+      : [...ORDERED_DIRECTIONS];
     const states: (UndoSnapshot | null)[] = [engine.captureState()];
-    const index = new Map<string, number>([[this.stateKey(engine, piece) + extraKey(), 0]]);
+    const index = new Map<string, number>([[this.stateKey(engine, piece, origin) + extraKey(), 0]]);
     const predecessors: number[][] = [[]];
     const goals: number[] = [];
     const exits: number[] = [];
@@ -157,12 +250,16 @@ export class PieceSolver {
     let truncated = false;
 
     for (let head = 0; head < states.length; head++) {
-      for (const dir of ORDERED_DIRECTIONS) {
+      for (const action of actions) {
         const from = states[head] as UndoSnapshot;
         engine.restoreState(from);
-        if (!engine.attemptPlayerMove(dir) && !this.changedByFailedMove(engine, from)) continue;
-        if (!this.settle(engine)) continue;
-        const key = this.stateKey(engine, piece) + extraKey();
+        if (action === WAIT_ACTION) {
+          if (!this.play(engine, WAIT_ACTION)) continue;
+        } else {
+          if (!engine.attemptPlayerMove(action) && !this.changedByFailedMove(engine, from)) continue;
+          if (!this.settle(engine)) continue;
+        }
+        const key = this.stateKey(engine, piece, origin) + extraKey();
         let target = index.get(key);
         if (target === undefined) {
           if (states.length >= maxStates) {
@@ -295,7 +392,7 @@ export class PieceSolver {
     return false;
   }
 
-  private static stateKey(engine: GameEngine, piece: CompiledPiece): string {
+  private static stateKey(engine: GameEngine, piece: CompiledPiece, origin: GridPoint): string {
     const player = engine.getPlayer();
     const terrain = engine.getTerrain();
     const items = engine.getItems();
@@ -309,22 +406,36 @@ export class PieceSolver {
       String(engine.getChipsRemaining()),
       engine
         .getEntities()
-        .map((e) => `${e.type}@${e.x},${e.y}`)
+        .filter((e) => this.inPiece(e, piece, origin))
+        // A monster's next move depends on where it faces and when it moves next.
+        .map((e) =>
+          e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}`
+        )
         .sort()
         .join(';')
     ];
     for (let y = 0; y < piece.height; y++) {
-      const row = terrain[y + PIECE_OFFSET];
-      const itemRow = items[y + PIECE_OFFSET];
+      const row = terrain[y + origin.y];
+      const itemRow = items[y + origin.y];
       for (let x = 0; x < piece.width; x++) {
-        parts.push(row[x + PIECE_OFFSET], itemRow[x + PIECE_OFFSET] ?? '');
+        parts.push(row[x + origin.x], itemRow[x + origin.x] ?? '');
       }
     }
     return parts.join('|');
   }
 
-  private static pathTo(nodes: SearchNode[], index: number): Direction[] {
-    const moves: Direction[] = [];
+  private static inPiece(p: GridPoint, piece: CompiledPiece, origin: GridPoint): boolean {
+    // The cell outside each port is kept: a block pushed out must still tell states apart.
+    return (
+      p.x >= origin.x - 1 &&
+      p.y >= origin.y - 1 &&
+      p.x <= origin.x + piece.width &&
+      p.y <= origin.y + piece.height
+    );
+  }
+
+  private static pathTo(nodes: SearchNode[], index: number): SolverAction[] {
+    const moves: SolverAction[] = [];
     for (let i = index; i > 0; i = nodes[i].parent) {
       const move = nodes[i].move;
       if (move) moves.push(move);

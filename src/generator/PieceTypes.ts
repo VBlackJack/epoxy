@@ -70,6 +70,11 @@ export interface MotifRule {
 
 export interface MotifsConfig {
   legend: Record<string, PieceLegendEntry>;
+  /**
+   * Terrain given to the ports of a piece holding monsters: one the player
+   * crosses and monsters cannot, so monsters stay in their piece.
+   */
+  monsterPortTerrain: string;
   motifRules?: Record<string, MotifRule>;
   pieces: PieceDefinition[];
 }

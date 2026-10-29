@@ -17,17 +17,16 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { GameEngine } from '../core/GameEngine';
-import { CompiledLevel, Direction, GridPoint } from '../core/types';
+import { CompiledLevel, GridPoint } from '../core/types';
 import { Box } from '../generator/LevelAssembler';
-import { PieceSolver } from '../generator/PieceSolver';
+import { PieceSolver, SolverAction } from '../generator/PieceSolver';
 
 /** Plays the winning moves in a fresh engine, independently of the generator's own proof. */
-export function replays(level: CompiledLevel, moves: Direction[]): boolean {
+export function replays(level: CompiledLevel, moves: SolverAction[]): boolean {
   const engine = new GameEngine();
   engine.loadLevel(level);
-  for (const dir of moves) {
-    engine.attemptPlayerMove(dir);
-    if (!PieceSolver.settle(engine)) return false;
+  for (const action of moves) {
+    if (!PieceSolver.play(engine, action)) return false;
   }
   return engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
 }

@@ -33,6 +33,17 @@ export interface LevelPlan {
   motifs: string[];
 }
 
+/**
+ * A hand-written level brief, used to script a campaign: the motifs to teach,
+ * in order, how many puzzles and the hardest tier allowed. It replaces the
+ * budget the level number would give.
+ */
+export interface LevelScript {
+  motifs: string[];
+  pieceCount: number;
+  maxTier: number;
+}
+
 /** Budget of a level, derived from its number and the procedural config. */
 export interface LevelBudget {
   pieceCount: number;
@@ -66,10 +77,13 @@ export class ProgressionPlanner {
     levelNumber: number,
     library: CompiledPiece[],
     rules: Record<string, MotifRule>,
-    rng: SeededRandom
+    rng: SeededRandom,
+    script?: LevelScript
   ): LevelPlan {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
-    const budget = budgetFor(levelNumber, cfg);
+    const budget = script
+      ? { pieceCount: script.pieceCount, motifCount: script.motifs.length, maxTier: script.maxTier }
+      : budgetFor(levelNumber, cfg);
     const finale = library.find((p) => rules[p.motif]?.role === 'finale');
     if (!finale) throw new Error('motifs.json defines no finale piece');
 
@@ -82,7 +96,9 @@ export class ProgressionPlanner {
     );
     const motifPool = [...new Set(playable.map((p) => p.motif))];
     rng.shuffle(motifPool);
-    const motifs = motifPool.slice(0, Math.min(budget.motifCount, motifPool.length));
+    const motifs = script
+      ? script.motifs.filter((m) => motifPool.includes(m))
+      : motifPool.slice(0, Math.min(budget.motifCount, motifPool.length));
 
     const chosen = this.withRestRooms(
       this.choosePieces(budget.pieceCount, motifs, playable, rules, rng),

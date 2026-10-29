@@ -16,11 +16,14 @@
 
 import { defineConfig } from 'vitest/config';
 
-/** Runs the measurement tools, which are too slow for the regular test suite. */
+/** Mining pieces takes the longest of the authoring tools, about half an hour. */
+const AUTHORING_TOOL_TIMEOUT_MS = 3600000;
+
+/** Runs the measurement and authoring tools, which are too slow for the regular test suite. */
 export default defineConfig({
   test: {
     include: ['tools/**/*.report.ts'],
     environment: 'node',
-    testTimeout: 600000
+    testTimeout: AUTHORING_TOOL_TIMEOUT_MS
   }
 });

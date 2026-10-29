@@ -198,6 +198,11 @@ export function compilePiece(
       throw new PieceError(def.id, 'ports must not sit on a piece corner');
     }
   }
+  const hasMonsters = entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster');
+  if (hasMonsters) {
+    const portTerrain = ConfigRegistry.getMotifs().monsterPortTerrain;
+    for (const port of ports) terrain[port.y][port.x] = portTerrain;
+  }
   // Corridors may run along a piece: any open border cell but the ports would be a side door.
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

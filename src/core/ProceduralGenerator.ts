@@ -19,10 +19,11 @@ import { compilePiece } from '../generator/PieceCompiler';
 import { CompiledPiece, MotifsConfig } from '../generator/PieceTypes';
 import { Box, LevelAssembler } from '../generator/LevelAssembler';
 import { LevelProver } from '../generator/LevelProver';
+import { SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
-import { budgetFor, ProgressionPlanner } from '../generator/ProgressionPlanner';
+import { budgetFor, LevelScript, ProgressionPlanner } from '../generator/ProgressionPlanner';
 import { SeededRandom } from './Random';
-import { CompiledLevel, Direction, ProceduralConfig } from './types';
+import { CompiledLevel, ProceduralConfig } from './types';
 
 const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PASSWORD_HASH_MULTIPLIER = 7919;
@@ -45,8 +46,8 @@ export class ProceduralGenerationError extends Error {
 /** A generated level with what it took to make it. */
 export interface GeneratedLevel {
   level: CompiledLevel;
-  /** Winning move list, proven by replay in the game engine. */
-  solution: Direction[];
+  /** Winning action list (moves and waits), proven by replay in the game engine. */
+  solution: SolverAction[];
   /** Motifs the level is built from, in the order they appear. */
   motifs: string[];
   /** Attempts used by the kept candidate, 1 when its first layout fitted and proved. */
@@ -114,13 +115,13 @@ export class ProceduralGenerator {
    * one. Each candidate has its own random stream (seed, level, candidate
    * index), so a candidate stays the same when the candidate count changes.
    */
-  public static generateDetailed(levelNumber: number, seed: number): GeneratedLevel {
+  public static generateDetailed(levelNumber: number, seed: number, script?: LevelScript): GeneratedLevel {
     const cfg = this.config();
     let best: GeneratedLevel | null = null;
     for (let k = 0; k < cfg.scoring.candidates; k++) {
       let candidate: GeneratedLevel;
       try {
-        candidate = this.generateCandidate(levelNumber, seed, k);
+        candidate = this.generateCandidate(levelNumber, seed, k, script);
       } catch (err) {
         if (err instanceof ProceduralGenerationError) continue;
         throw err;
@@ -131,7 +132,12 @@ export class ProceduralGenerator {
     return best;
   }
 
-  private static generateCandidate(levelNumber: number, seed: number, candidate: number): GeneratedLevel {
+  private static generateCandidate(
+    levelNumber: number,
+    seed: number,
+    candidate: number,
+    script?: LevelScript
+  ): GeneratedLevel {
     const cfg = this.config();
     const packSeed = seed >>> 0;
     const rng = new SeededRandom(
@@ -143,7 +149,7 @@ export class ProceduralGenerator {
     const version = this.contentVersion(motifs, cfg);
 
     for (let attempt = 0; attempt < cfg.maxGenerationAttempts; attempt++) {
-      const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng);
+      const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script);
       const assembled = LevelAssembler.assemble(
         plan,
         regionSize + attempt * cfg.regionGrowthPerRetry,
@@ -180,7 +186,7 @@ export class ProceduralGenerator {
           solutionLength: proof.moves.length,
           visitedCells: proof.visitedCells,
           motifCount: plan.motifs.length,
-          motifBudget: budgetFor(levelNumber, cfg).motifCount
+          motifBudget: script ? script.motifs.length : budgetFor(levelNumber, cfg).motifCount
         },
         levelNumber,
         cfg.scoring

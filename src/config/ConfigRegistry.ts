@@ -56,7 +56,7 @@ const REQUIRED_CONFIG_KEYS = {
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
   LEVELS: ['legend', 'levels'],
   DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement'],
-  MOTIFS: ['legend', 'pieces']
+  MOTIFS: ['legend', 'pieces', 'monsterPortTerrain']
 } as const;
 
 /** Direction given to a level start that does not define a valid one. */

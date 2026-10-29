@@ -25,7 +25,11 @@ import { CompiledPiece, PieceDefinition } from './PieceTypes';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
 /** The whole library is solved in 8 orientations; block puzzles take a moment. */
-const LIBRARY_TIMEOUT_MS = 120000;
+const LIBRARY_TIMEOUT_MS = 300000;
+/** Monsters moving at random would make every state unique; pieces must not hold them. */
+const RANDOM_MOVEMENT_PATTERNS = ['forward_else_random', 'pure_random'];
+/** Arrival offsets, in steps, a monster piece must stay solvable from. */
+const ARRIVAL_PHASES_CHECKED = 12;
 
 function piece(rows: string[], extra: Partial<PieceDefinition> = {}): CompiledPiece {
   return compilePiece(
@@ -87,14 +91,27 @@ describe('motif library', () => {
     pieces = definitions.map((def) => compilePiece(def, ConfigRegistry.getPieceLegend()));
   });
 
-  it('has unique piece ids and no monsters', () => {
+  it('has unique piece ids and no monster that moves at random', () => {
     expect(new Set(definitions.map((d) => d.id)).size).toBe(definitions.length);
     for (const p of pieces) {
       for (const e of p.entities) {
-        expect(ConfigRegistry.getEntityDef(e.type)?.kind, `${p.id} ${e.type}`).toBe('block');
+        const pattern = ConfigRegistry.getEntityDef(e.type)?.movementPattern ?? '';
+        expect(RANDOM_MOVEMENT_PATTERNS, `${p.id} ${e.type}`).not.toContain(pattern);
       }
     }
   });
+
+  it(
+    'every monster piece is solvable whenever the player arrives',
+    () => {
+      for (const p of pieces.filter((candidate) => PieceSolver.hasMonsters(candidate))) {
+        for (let waits = 0; waits < ARRIVAL_PHASES_CHECKED; waits++) {
+          expect(PieceSolver.solve(p, { startWaits: waits }).solvable, `${p.id} after ${waits} waits`).toBe(true);
+        }
+      }
+    },
+    LIBRARY_TIMEOUT_MS
+  );
 
   it(
     'every piece is solvable in every allowed orientation',

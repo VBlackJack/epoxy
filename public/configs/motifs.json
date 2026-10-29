@@ -10,8 +10,16 @@
     "n": { "terrain": "button_green" },
     "m": { "terrain": "button_brown" },
     "p": { "terrain": "button_red" },
-    "l": { "terrain": "button_blue" }
+    "l": { "terrain": "button_blue" },
+    "U": { "terrain": "floor", "entity": "bug", "entityDir": "N" },
+    "V": { "terrain": "floor", "entity": "fireball", "entityDir": "E" },
+    "Q": { "terrain": "floor", "entity": "glider", "entityDir": "E" },
+    "K": { "terrain": "floor", "entity": "pink_ball", "entityDir": "E" },
+    "A": { "terrain": "floor", "entity": "tank", "entityDir": "E" },
+    "Z": { "terrain": "floor", "entity": "teeth", "entityDir": "S" },
+    "h": { "terrain": "floor", "entity": "paramecium", "entityDir": "N" }
   },
+  "monsterPortTerrain": "gravel",
   "motifRules": {
     "teleport": { "maxPerLevel": 1 },
     "toggle_walls": { "maxPerLevel": 1 },
@@ -19,6 +27,163 @@
     "rest": { "role": "rest" }
   },
   "pieces": [
+    {
+      "id": "mined_block_maze",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#####@##",
+        "#..#...#",
+        "#W&&.&.#",
+        "#....#.#",
+        "#..W...#",
+        "#.W#C.W#",
+        "#W.#&.##",
+        "##$#####"
+      ]
+    },
+    {
+      "id": "mined_block_moat",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#####@##",
+        "##.....#",
+        "#W#&W..#",
+        "#W.&..C#",
+        "#...WWW#",
+        "#W#W#.##",
+        "#W##...#",
+        "######$#"
+      ]
+    },
+    {
+      "id": "mined_block_canal",
+      "motif": "blocks_water",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "######@#",
+        "#....#.#",
+        "#.W..W.#",
+        "#W&&WW.#",
+        "#C.....#",
+        "##W###.#",
+        "#....W.#",
+        "####$###"
+      ]
+    },
+    {
+      "id": "mined_bomb_yard",
+      "motif": "bomb",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "##@#####",
+        "#..#.#.#",
+        "#.&.C..#",
+        "#&#....#",
+        "#..*..C#",
+        "#..#&#*#",
+        "##$#####"
+      ]
+    },
+    {
+      "id": "mined_force_crates",
+      "motif": "force",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "######@#",
+        "#..^.<.#",
+        "#C.^.C##",
+        "#.>#.&.#",
+        "###.v^.#",
+        "#...##>#",
+        "#..>..C#",
+        "##$#####"
+      ]
+    },
+    {
+      "id": "mined_force_currents",
+      "motif": "force",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#####@##",
+        "#^.....#",
+        "#.#....#",
+        "#^C#.#>#",
+        "#C^>#.v#",
+        "#...^.##",
+        "#vv...v#",
+        "###$####"
+      ]
+    },
+    {
+      "id": "mined_fire_crates",
+      "motif": "fire",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "####@###",
+        "#....F.#",
+        "##...F.#",
+        "#.....F#",
+        "#CW..W.#",
+        "#W.Wz#F#",
+        "#F..&F.#",
+        "##$#####"
+      ]
+    },
+    {
+      "id": "monsters_ball_lanes",
+      "motif": "monsters",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#K....#",
+        "#..C..#",
+        "#....K#",
+        "#.....#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "monsters_bug_pillar",
+      "motif": "monsters",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@######",
+        "#......#",
+        "#.C##C.#",
+        "#.U##..#",
+        "#......#",
+        "#C....C#",
+        "######$#"
+      ]
+    },
+    {
+      "id": "monsters_teeth_lure",
+      "motif": "monsters",
+      "tier": 3,
+      "oneShot": true,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#.......#",
+        "#.##.##.#",
+        "#.#C.C#.#",
+        "#.##.##.#",
+        "#...Z...#",
+        "#######$#"
+      ]
+    },
     {
       "id": "rest_plaza",
       "motif": "rest",
