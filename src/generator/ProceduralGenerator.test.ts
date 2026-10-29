@@ -47,6 +47,12 @@ describe('ProceduralGenerator', () => {
     expect(again.level.id).toMatch(new RegExp(`^proc_[0-9a-f]+_${SAMPLE_SEEDS[0]}_4$`));
   });
 
+  it('an exported level compiles back unchanged, so it can be pasted into levels.json', () => {
+    const exported = JSON.parse(JSON.stringify(sample[5].level));
+    const recompiled = ConfigRegistry.compileBlueprint(exported);
+    expect(recompiled).toEqual(sample[5].level);
+  });
+
   it('every level is won by replaying its solution in a fresh engine', () => {
     for (const g of sample) expect(replays(g.level, g.solution), g.level.id).toBe(true);
   });

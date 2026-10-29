@@ -221,6 +221,15 @@
     }
   },
   "editor": {
+    "generator": {
+      "level": { "label": "Difficulty:" },
+      "seed": { "label": "Seed:", "placeholder": "random" },
+      "generate": { "action": "Generate" },
+      "status": {
+        "generated": { "label": "Generated difficulty {number} from seed {seed}: proven solvable in {moves} moves. Retouch it, then save or export." },
+        "failed": { "label": "The generator could not build this level. Try another seed." }
+      }
+    },
     "toolbar": {
       "new_map": { "action": "New Blank Map" },
       "undo": { "action": "↶ Undo (Ctrl+Z)" },

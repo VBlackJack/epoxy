@@ -12,7 +12,7 @@
   - **Epoxy Campaign**: The hand-made Epoxy levels.
   - **Bundled Community Packs**: `Tile World Intro` and `CCLP 1` through `CCLP 5` (see [Credits](#credits)).
   - **`.DAT` / `.CCL` / `.JSON` Support**: Import and export level packs in the widely used CC1 `.DAT` binary format via drag-and-drop. Packs you own can be imported this way.
-  - **Solvable Procedural Generator**: Generates multi-wing 32x32 dungeons verified by an automated BFS/Sokoban solver (`LevelValidator`).
+  - **Proven Procedural Generator**: Builds levels from hand-drawn puzzle pieces (`public/configs/motifs.json`), each proven fair and solvable by a solver that runs the real game engine. Every generated level is then replayed start to finish before it is offered, so it is always solvable and no puzzle can be skipped. Difficulty, focus and pacing grow with the level number.
 - **Complete Tile & Monster Engine**:
   - Elemental hazards (`water`, `fire`, `ice` with corner deflectors, `force` conveyors, `bomb`).
   - Interactive mechanisms (`button_green`, `button_red` clone machines, `button_brown` bear traps, `button_blue` tank reversers, `teleport` pads, `thief`).
@@ -32,11 +32,21 @@ npm install
 npm run dev
 ```
 
+## Building a Campaign with the Generator
+
+1. Open the **Level Editor**, set a **Difficulty**, leave **Seed** empty and press **Generate**. The seed used is written back, so the same level can be generated again.
+2. Retouch the level, then **Test** it.
+3. **Export JSON** and paste the exported object into the `levels` array of `public/configs/levels.json`. Exported levels load as they are; set `number` to the position you want.
+
+New puzzle pieces go in `public/configs/motifs.json`. `npm test` checks that each one is solvable in every orientation, that no block can escape through its ports, and that nothing in it is decorative; `npm run report:pieces` writes each piece's solution to `local/piece-probe.txt`.
+
 ## Tests
 
 ```bash
 npm test
 ```
+
+`npm run report:levels` measures 200 generated levels against the bundled community packs and writes `reports/level-metrics.json`.
 
 ## Production Build
 

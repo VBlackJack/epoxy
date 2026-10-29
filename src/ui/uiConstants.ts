@@ -19,6 +19,10 @@
  * keep their fallback here so every default has a name.
  */
 
+/** Difficulty range offered by the editor's level generator. */
+export const EDITOR_GENERATOR_MIN_LEVEL = 1;
+export const EDITOR_GENERATOR_MAX_LEVEL = 50;
+
 /** How long a transient status toast stays visible. */
 export const TOAST_DURATION_MS = 4500;
 

@@ -366,11 +366,14 @@ class ConfigRegistryService {
       Array.from({ length: mapWidth }, () => null)
     );
 
-    if (bp.terrain && bp.itemGrid) {
+    // An exported level carries its items as a grid; a hand-written one as placements.
+    const itemGrid = bp.itemGrid ?? (isItemGrid(bp.items) ? bp.items : undefined);
+    const placements = isItemGrid(bp.items) ? undefined : bp.items;
+    if (bp.terrain && itemGrid) {
       for (let y = 0; y < mapHeight; y++) {
         for (let x = 0; x < mapWidth; x++) {
           terrain[y][x] = bp.terrain[y]?.[x] || 'floor';
-          items[y][x] = bp.itemGrid[y]?.[x] || null;
+          items[y][x] = itemGrid[y]?.[x] || null;
         }
       }
     } else if (bp.rows) {
@@ -397,8 +400,8 @@ class ConfigRegistryService {
       }
     }
 
-    if (bp.items) {
-      for (const it of bp.items) {
+    if (placements) {
+      for (const it of placements) {
         if (it.y >= 0 && it.y < mapHeight && it.x >= 0 && it.x < mapWidth) {
           items[it.y][it.x] = it.id;
         }
@@ -481,6 +484,12 @@ class ConfigRegistryService {
 
 function toNonNegative(value: unknown): number {
   return isFiniteNumber(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+function isItemGrid(
+  items: LevelBlueprint['items']
+): items is (string | null)[][] {
+  return Array.isArray(items) && Array.isArray(items[0]);
 }
 
 function asArray<T>(value: T[] | undefined): T[] {

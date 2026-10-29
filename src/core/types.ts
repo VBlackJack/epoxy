@@ -367,7 +367,8 @@ export interface LevelBlueprint {
   rows?: string[];
   terrain?: string[][];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
-  items?: Array<{ x: number; y: number; id: string }>;
+  /** Item placements, or a full item grid as the editor exports it. */
+  items?: Array<{ x: number; y: number; id: string }> | (string | null)[][];
   itemGrid?: (string | null)[][];
   entities: EntityPlacement[];
   trapLinks: TrapLink[];

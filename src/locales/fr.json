@@ -221,6 +221,15 @@
     }
   },
   "editor": {
+    "generator": {
+      "level": { "label": "Difficulté :" },
+      "seed": { "label": "Graine :", "placeholder": "aléatoire" },
+      "generate": { "action": "Générer" },
+      "status": {
+        "generated": { "label": "Difficulté {number} générée avec la graine {seed} : prouvée solvable en {moves} coups. Retouchez-la, puis sauvegardez ou exportez." },
+        "failed": { "label": "Le générateur n'a pas pu construire ce niveau. Essayez une autre graine." }
+      }
+    },
     "toolbar": {
       "new_map": { "action": "Nouvelle Carte" },
       "undo": { "action": "↶ Annuler (Ctrl+Z)" },

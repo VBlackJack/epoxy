@@ -433,16 +433,8 @@ class EpoxyApplication {
     const container = parsed as { levels?: unknown };
     const rawList = (
       Array.isArray(parsed) ? parsed : Array.isArray(container?.levels) ? container.levels : [parsed]
-    ) as Array<LevelBlueprint & Partial<CompiledLevel>>;
-    return rawList.map((item) =>
-      ConfigRegistry.compileBlueprint({
-        ...item,
-        itemGrid:
-          item.items && Array.isArray(item.items[0])
-            ? (item.items as unknown as (string | null)[][])
-            : item.itemGrid
-      })
-    );
+    ) as LevelBlueprint[];
+    return rawList.map((item) => ConfigRegistry.compileBlueprint(item));
   }
 
   /** Builds a pack level by level, showing progress; ignores requests while one is running. */

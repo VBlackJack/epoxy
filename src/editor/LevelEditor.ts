@@ -21,6 +21,7 @@ import { t } from '../i18n/I18nManager';
 import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
 import { LevelValidator } from '../core/LevelValidator';
+import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
   CloneLink,
   CompiledLevel,
@@ -36,6 +37,8 @@ import {
   EDITOR_CLONE_LINK_COLOR,
   EDITOR_DEFAULT_CHIPS_REQUIRED,
   EDITOR_DEFAULT_CLONE_TEMPLATE,
+  EDITOR_GENERATOR_MAX_LEVEL,
+  EDITOR_GENERATOR_MIN_LEVEL,
   EDITOR_DEFAULT_PASSWORD,
   EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
   EDITOR_LINK_LINE_WIDTH,
@@ -403,6 +406,16 @@ export class LevelEditor {
   }
 
   private bindToolbarEvents(): void {
+    const levelInput = document.getElementById('editor-gen-level') as HTMLInputElement | null;
+    if (levelInput) {
+      levelInput.min = String(EDITOR_GENERATOR_MIN_LEVEL);
+      levelInput.max = String(EDITOR_GENERATOR_MAX_LEVEL);
+      levelInput.value = String(EDITOR_GENERATOR_MIN_LEVEL);
+    }
+    document.getElementById('editor-generate-btn')?.addEventListener('click', () => {
+      this.generateIntoEditor();
+    });
+
     document.getElementById('editor-new-btn')?.addEventListener('click', () => {
       if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
         return;
@@ -514,14 +527,8 @@ export class LevelEditor {
         const reader = new FileReader();
         reader.onload = () => {
           try {
-            const parsed = JSON.parse(String(reader.result)) as LevelBlueprint & Partial<CompiledLevel>;
-            const compiled = ConfigRegistry.compileBlueprint({
-              ...parsed,
-              itemGrid:
-                parsed.items && Array.isArray(parsed.items[0])
-                  ? (parsed.items as unknown as (string | null)[][])
-                  : parsed.itemGrid
-            });
+            const parsed = JSON.parse(String(reader.result)) as LevelBlueprint;
+            const compiled = ConfigRegistry.compileBlueprint(parsed);
             this.loadCompiledLevel(compiled);
             this.setStatusText(t('editor.palette.status.imported'));
           } catch (err) {
@@ -953,6 +960,40 @@ export class LevelEditor {
   private setCoordsText(msg: string): void {
     const el = document.getElementById('editor-coords-badge');
     if (el) el.textContent = msg;
+  }
+
+  /**
+   * Fills the editor with a procedural level of the chosen difficulty. A blank
+   * seed draws a fresh one, which is written back so the level can be found
+   * again. The result is a starting point to retouch and save.
+   */
+  private generateIntoEditor(): void {
+    if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) return;
+    const levelInput = document.getElementById('editor-gen-level') as HTMLInputElement | null;
+    const seedInput = document.getElementById('editor-gen-seed') as HTMLInputElement | null;
+    const typedLevel = Number.parseInt(levelInput?.value ?? '', 10);
+    const levelNumber = Math.min(
+      EDITOR_GENERATOR_MAX_LEVEL,
+      Math.max(EDITOR_GENERATOR_MIN_LEVEL, Number.isFinite(typedLevel) ? typedLevel : EDITOR_GENERATOR_MIN_LEVEL)
+    );
+    const typedSeed = Number.parseInt(seedInput?.value ?? '', 10);
+    const seed = Number.isFinite(typedSeed) ? typedSeed >>> 0 : ProceduralGenerator.createSeed();
+    if (levelInput) levelInput.value = String(levelNumber);
+    if (seedInput) seedInput.value = String(seed);
+    try {
+      const generated = ProceduralGenerator.generateDetailed(levelNumber, seed);
+      this.loadCompiledLevel(generated.level);
+      this.setStatusText(
+        t('editor.generator.status.generated.label', {
+          number: levelNumber,
+          seed,
+          moves: generated.solution.length
+        })
+      );
+    } catch (err) {
+      if (!(err instanceof ProceduralGenerationError)) throw err;
+      this.setStatusText(t('editor.generator.status.failed.label'));
+    }
   }
 
   private setStatusText(msg: string): void {
