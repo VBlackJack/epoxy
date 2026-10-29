@@ -40,7 +40,9 @@ npm run dev
 
 The Epoxy campaign itself is described level by level in `tools/campaign-script.json` (motifs to teach, puzzle count, hardest tier); `npm run build:campaign` generates each level, proves it and rewrites `public/configs/levels.json` as readable legend rows.
 
-New puzzle pieces go in `public/configs/motifs.json`. `npm test` checks that each one is solvable in every orientation, that no block can escape through its ports, and that nothing in it is decorative; `npm run report:pieces` writes each piece's solution to `local/piece-probe.txt`.
+New puzzle pieces go in `public/configs/motifs.json`; run `npm run annotate:pieces` afterwards to precompute each piece's solution and reversibility into `public/configs/motif-annotations.json`, which the generator uses instead of searching in the browser.
+
+Sokoban rooms: `npm run forge:sokoban` builds original ones backwards from their solution (blocks onto brown buttons that hold the exit traps open). `npm run import:sokoban` adapts a collection in the standard `.xsb` format (set `EPOXY_SOKOBAN_FILE` and `EPOXY_SOKOBAN_CREDIT`); only use collections whose licence allows reuse, and keep the credit. Both write candidates to `local/` for curation. `npm test` checks that each one is solvable in every orientation, that no block can escape through its ports, and that nothing in it is decorative; `npm run report:pieces` writes each piece's solution to `local/piece-probe.txt`.
 
 ## Tests
 

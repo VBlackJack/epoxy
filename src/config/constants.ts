@@ -27,7 +27,8 @@ export const CONFIG_ENDPOINTS = {
   AUDIO: `${ENV_CONFIG.CONFIG_BASE_URL}/audio.json`,
   LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/levels.json`,
   DAT_FORMAT: `${ENV_CONFIG.CONFIG_BASE_URL}/dat_format.json`,
-  MOTIFS: `${ENV_CONFIG.CONFIG_BASE_URL}/motifs.json`
+  MOTIFS: `${ENV_CONFIG.CONFIG_BASE_URL}/motifs.json`,
+  MOTIF_ANNOTATIONS: `${ENV_CONFIG.CONFIG_BASE_URL}/motif-annotations.json`
 } as const;
 
 export const DIRECTION_VECTORS = {

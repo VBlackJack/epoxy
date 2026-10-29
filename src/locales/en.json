@@ -410,7 +410,7 @@
     },
     "level_13": {
       "title": "Held Open",
-      "hint": "A bear trap holds you until its brown button is pressed. A block can hold it down."
+      "hint": "Brown buttons hold traps open. Push a block onto every button before you head for the exit, and keep blocks out of corners."
     },
     "level_14": {
       "title": "Conveyor Works",
@@ -451,6 +451,7 @@
       "toggle_walls": { "title": "Switchyard #{number}", "hint": "Every green button flips every toggle wall. Count your presses." },
       "trap": { "title": "Bear Trap Alley #{number}", "hint": "A bear trap holds you until its brown button is pressed. A block can keep the button down." },
       "teleport": { "title": "Quantum Hop #{number}", "hint": "Step on a teleporter to come out of the other one, moving the same way." },
+      "sokoban": { "title": "Warehouse #{number}", "hint": "Every brown button holds a trap open. Push a block onto each button, and never into a corner." },
       "monsters": { "title": "Creature Feature #{number}", "hint": "Monsters follow fixed patterns. Watch them, wait for the gap, then move." },
       "bomb": { "title": "Demolition Run #{number}", "hint": "Bombs blow up anything that touches them. Push a block into one to clear the way." },
       "default": {

@@ -273,7 +273,8 @@ export class ProceduralGenerator {
   private static compiledLibrary(motifs: MotifsConfig): CompiledPiece[] {
     if (this.libraryFor !== motifs) {
       const legend = ConfigRegistry.getPieceLegend();
-      this.library = motifs.pieces.map((def) => compilePiece(def, legend));
+      const annotations = ConfigRegistry.getMotifAnnotations();
+      this.library = motifs.pieces.map((def) => compilePiece(def, legend, annotations[def.id]));
       this.libraryFor = motifs;
     }
     return this.library;

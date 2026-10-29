@@ -45,7 +45,7 @@ import {
   UltimatePackDescriptor
 } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
-import { MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
+import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 
 /** Top-level keys each config file must define. */
@@ -56,7 +56,8 @@ const REQUIRED_CONFIG_KEYS = {
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
   LEVELS: ['legend', 'levels'],
   DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement'],
-  MOTIFS: ['legend', 'pieces', 'monsterPortTerrain']
+  MOTIFS: ['legend', 'pieces', 'monsterPortTerrain'],
+  MOTIF_ANNOTATIONS: []
 } as const;
 
 /** Direction given to a level start that does not define a valid one. */
@@ -70,6 +71,7 @@ export interface ConfigBundle {
   levels: LevelsConfig;
   datFormat: DatFormatConfig;
   motifs: MotifsConfig;
+  motifAnnotations: MotifAnnotations;
 }
 
 interface FetchedPack {
@@ -85,6 +87,7 @@ class ConfigRegistryService {
   private levelsConfig!: LevelsConfig;
   private datFormatConfig!: DatFormatConfig;
   private motifsConfig!: MotifsConfig;
+  private motifAnnotations: MotifAnnotations = {};
 
   private builtInLevels: CompiledLevel[] = [];
   private ultimatePacks: LevelPack[] = [];
@@ -102,17 +105,18 @@ class ConfigRegistryService {
     );
     const storedPacksPromise = LevelPackStorage.loadAllPacks();
 
-    const [game, tiles, monsters, audio, levels, datFormat, motifs] = await Promise.all([
+    const [game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
       this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS, REQUIRED_CONFIG_KEYS.MONSTERS),
       this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
       this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT),
-      this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS)
+      this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS),
+      this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
     ]);
 
-    this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat, motifs });
+    this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations });
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     this.customLevels = this.loadCustomLevelsFromStorage();
     this.importedPacks = await storedPacksPromise;
@@ -135,6 +139,7 @@ class ConfigRegistryService {
     this.levelsConfig = bundle.levels;
     this.datFormatConfig = bundle.datFormat;
     this.motifsConfig = bundle.motifs;
+    this.motifAnnotations = bundle.motifAnnotations;
 
     this.builtInLevels = bundle.levels.levels.map((bp) => this.compileBlueprint(bp));
     this.ultimatePacks = [];
@@ -247,6 +252,10 @@ class ConfigRegistryService {
 
   public getMotifs(): MotifsConfig {
     return this.motifsConfig;
+  }
+
+  public getMotifAnnotations(): MotifAnnotations {
+    return this.motifAnnotations;
   }
 
   /** The levels.json legend extended, and overridden, by the motifs.json one. */

@@ -108,8 +108,11 @@ export class HubAssembler {
   }
 
   private build(plan: HubPlan): AssembledHubLevel | null {
-    const x0 = Math.floor((this.width - this.cfg.width) / 2);
-    const y0 = Math.floor((this.height - this.cfg.height) / 2);
+    // Off centre, the hub leaves one side deep enough for long wings.
+    const shiftX = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
+    const shiftY = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
+    const x0 = Math.floor((this.width - this.cfg.width) / 2) + shiftX;
+    const y0 = Math.floor((this.height - this.cfg.height) / 2) + shiftY;
     this.hub = { x0, y0, x1: x0 + this.cfg.width - 1, y1: y0 + this.cfg.height - 1 };
     for (let y = this.hub.y0 - 1; y <= this.hub.y1 + 1; y++) {
       for (let x = this.hub.x0 - 1; x <= this.hub.x1 + 1; x++) this.take({ x, y });
@@ -225,68 +228,75 @@ export class HubAssembler {
     const exitPort = { x: origin.x + piece.exit.x, y: origin.y + piece.exit.y };
     const exitDir = this.outwardOf(piece, piece.exit);
 
-    const claims = new Map<number, number>();
-    const claim = (p: GridPoint, seg: number) => claims.set(this.key(p), seg);
-    approach.forEach((p) => claim(p, approachSegment));
-    claim(entryPort, approachSegment);
-    claim(exitPort, beyondSegment);
+    // A reward room grows straight out of the exit, or sideways along the
+    // piece when a long piece leaves no depth; the finale finds its own way.
+    const sideways: Direction[] = exitDir === 'N' || exitDir === 'S' ? ['E', 'W'] : ['N', 'S'];
+    const growDirs: Direction[] = wing.isFinal ? [exitDir] : [exitDir, ...sideways];
+    variants: for (const growDir of growDirs) {
+      const claims = new Map<number, number>();
+      const claim = (p: GridPoint, seg: number) => claims.set(this.key(p), seg);
+      approach.forEach((p) => claim(p, approachSegment));
+      claim(entryPort, approachSegment);
+      claim(exitPort, beyondSegment);
 
-    let room: GridPoint[] = [];
-    let finalePlacement: WingPlacement['finale'];
-    const first = this.step(exitPort, exitDir);
-    if (wing.isFinal) {
-      claim(first, beyondSegment);
-      const placedFinale = this.fitFinale(finale, first, exitDir, box, claims, beyondSegment);
-      if (!placedFinale) return null;
-      finalePlacement = placedFinale;
-    } else {
-      room = this.roomCells(first, exitDir);
-      room.forEach((p) => claim(p, beyondSegment));
-    }
-
-    // Every claimed cell must be free (the gate sits on the hub ring), stay out
-    // of the pieces but for their ports, and touch only open cells of its own
-    // segment, except the gate facing the hub.
-    const finaleBox = finalePlacement ? this.boxOf(finalePlacement.piece, finalePlacement.origin) : null;
-    const ports = new Set([this.key(entryPort), this.key(exitPort)]);
-    if (finalePlacement) {
-      ports.add(this.key({
-        x: finalePlacement.origin.x + finalePlacement.piece.entry.x,
-        y: finalePlacement.origin.y + finalePlacement.piece.entry.y
-      }));
-    }
-    for (const [k, seg] of claims) {
-      const p = this.point(k);
-      const isPort = ports.has(k);
-      if (!this.inMap(p)) return null;
-      if (!isPort && (this.inBox(p, box) || (finaleBox && this.inBox(p, finaleBox)))) return null;
-      const isGate = k === this.key(gate);
-      if (this.taken[k] && !isGate) return null;
-      if (isGate && this.segment[k] !== NO_SEGMENT) return null;
-      for (const dir of ORDERED_DIRECTIONS) {
-        const n = this.step(p, dir);
-        const nk = this.key(n);
-        const neighbourSeg = claims.get(nk) ?? (this.inMap(n) ? this.segment[nk] : NO_SEGMENT);
-        if (neighbourSeg === NO_SEGMENT || neighbourSeg === seg) continue;
-        if (isGate && neighbourSeg === HUB_SEGMENT && dir === OPPOSITE_DIRECTION[outward]) continue;
-        return null;
+      let room: GridPoint[] = [];
+      let finalePlacement: WingPlacement['finale'];
+      const first = this.step(exitPort, exitDir);
+      if (wing.isFinal) {
+        claim(first, beyondSegment);
+        const placedFinale = this.fitFinale(finale, first, exitDir, box, claims, beyondSegment);
+        if (!placedFinale) continue variants;
+        finalePlacement = placedFinale;
+      } else {
+        room = this.roomCells(first, exitDir, growDir);
+        room.forEach((p) => claim(p, beyondSegment));
       }
-    }
-    if (finalePlacement && !this.boxFree(this.boxOf(finalePlacement.piece, finalePlacement.origin))) return null;
 
-    // Commit.
-    this.stamp(piece, origin);
-    if (finalePlacement) this.stamp(finalePlacement.piece, finalePlacement.origin);
-    for (const [k, seg] of claims) this.open(this.point(k), seg, false);
-    this.paintGate(wing, approach.slice(0, gateLength), outward);
-    if (finalePlacement) {
-      const exitCell = {
-        x: finalePlacement.origin.x + finalePlacement.piece.exit.x,
-        y: finalePlacement.origin.y + finalePlacement.piece.exit.y
-      };
-      this.terrain[exitCell.y][exitCell.x] = EXIT_TILE_ID;
+      // Every claimed cell must be free (the gate sits on the hub ring), stay out
+      // of the pieces but for their ports, and touch only open cells of its own
+      // segment, except the gate facing the hub.
+      const finaleBox = finalePlacement ? this.boxOf(finalePlacement.piece, finalePlacement.origin) : null;
+      const ports = new Set([this.key(entryPort), this.key(exitPort)]);
+      if (finalePlacement) {
+        ports.add(this.key({
+          x: finalePlacement.origin.x + finalePlacement.piece.entry.x,
+          y: finalePlacement.origin.y + finalePlacement.piece.entry.y
+        }));
+      }
+      for (const [k, seg] of claims) {
+        const p = this.point(k);
+        const isPort = ports.has(k);
+        if (!this.inMap(p)) continue variants;
+        if (!isPort && (this.inBox(p, box) || (finaleBox && this.inBox(p, finaleBox)))) continue variants;
+        const isGate = k === this.key(gate);
+        if (this.taken[k] && !isGate) continue variants;
+        if (isGate && this.segment[k] !== NO_SEGMENT) continue variants;
+        for (const dir of ORDERED_DIRECTIONS) {
+          const n = this.step(p, dir);
+          const nk = this.key(n);
+          const neighbourSeg = claims.get(nk) ?? (this.inMap(n) ? this.segment[nk] : NO_SEGMENT);
+          if (neighbourSeg === NO_SEGMENT || neighbourSeg === seg) continue;
+          if (isGate && neighbourSeg === HUB_SEGMENT && dir === OPPOSITE_DIRECTION[outward]) continue;
+          continue variants;
+        }
+      }
+      if (finalePlacement && !this.boxFree(this.boxOf(finalePlacement.piece, finalePlacement.origin))) continue variants;
+
+      // Commit.
+      this.stamp(piece, origin);
+      if (finalePlacement) this.stamp(finalePlacement.piece, finalePlacement.origin);
+      for (const [k, seg] of claims) this.open(this.point(k), seg, false);
+      this.paintGate(wing, approach.slice(0, gateLength), outward);
+      if (finalePlacement) {
+        const exitCell = {
+          x: finalePlacement.origin.x + finalePlacement.piece.exit.x,
+          y: finalePlacement.origin.y + finalePlacement.piece.exit.y
+        };
+        this.terrain[exitCell.y][exitCell.x] = EXIT_TILE_ID;
+      }
+      return { piece, origin, outward, approach, gateLength, exitDir, room, finale: finalePlacement };
     }
-    return { piece, origin, outward, approach, gateLength, exitDir, room, finale: finalePlacement };
+    return null;
   }
 
   /**
@@ -342,18 +352,30 @@ export class HubAssembler {
     return null;
   }
 
-  private roomCells(first: GridPoint, exitDir: Direction): GridPoint[] {
-    const lateral: Direction = exitDir === 'N' || exitDir === 'S' ? 'E' : 'S';
-    const half = Math.floor((this.cfg.rewardRoomWidth - 1) / 2);
+  /**
+   * Cells of a reward room starting at `first`, the cell past the exit port.
+   * Grown straight, the room is centred on the exit; grown sideways, it runs
+   * along the piece, one row past it.
+   */
+  private roomCells(first: GridPoint, exitDir: Direction, growDir: Direction): GridPoint[] {
     const cells: GridPoint[] = [first];
-    for (let depth = 0; depth < this.cfg.rewardRoomDepth; depth++) {
-      const row = this.stepN(first, exitDir, depth);
-      for (let side = -half; side <= half; side++) {
-        const cell =
-          side >= 0
-            ? this.stepN(row, lateral, side)
-            : this.stepN(row, OPPOSITE_DIRECTION[lateral], -side);
-        if (!cells.some((c) => c.x === cell.x && c.y === cell.y)) cells.push(cell);
+    const add = (cell: GridPoint) => {
+      if (!cells.some((c) => c.x === cell.x && c.y === cell.y)) cells.push(cell);
+    };
+    if (growDir === exitDir) {
+      const lateral: Direction = exitDir === 'N' || exitDir === 'S' ? 'E' : 'S';
+      const half = Math.floor((this.cfg.rewardRoomWidth - 1) / 2);
+      for (let depth = 0; depth < this.cfg.rewardRoomDepth; depth++) {
+        const row = this.stepN(first, exitDir, depth);
+        for (let side = -half; side <= half; side++) {
+          add(side >= 0 ? this.stepN(row, lateral, side) : this.stepN(row, OPPOSITE_DIRECTION[lateral], -side));
+        }
+      }
+      return cells;
+    }
+    for (let along = 0; along <= this.cfg.rewardRoomWidth; along++) {
+      for (let depth = 0; depth < this.cfg.rewardRoomDepth; depth++) {
+        add(this.stepN(this.stepN(first, growDir, along), exitDir, depth));
       }
     }
     return cells;

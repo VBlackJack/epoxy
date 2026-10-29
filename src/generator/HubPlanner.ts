@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { SeededRandom } from '../core/Random';
 import { HubConfig, HubGateConfig } from '../core/types';
+import { helpfulItems } from './PieceCompiler';
 import { PieceSolver } from './PieceSolver';
 import { CompiledPiece, MotifRule } from './PieceTypes';
 import { LevelScript, ProgressionPlanner } from './ProgressionPlanner';
@@ -77,7 +78,7 @@ export class HubPlanner {
     const pieces = selection.puzzles;
     // A lock whose item would make one of the level's puzzles trivial is not used:
     // boots carried into a matching hazard puzzle, a key matching a puzzle's doors.
-    const spoiled = new Set(pieces.flatMap((p) => [...this.helpfulItems(p)].filter((id) => !p.requires.includes(id))));
+    const spoiled = new Set(pieces.flatMap((p) => [...helpfulItems(p)].filter((id) => !p.requires.includes(id))));
     const unusedGates = [...cfg.doorGates, ...cfg.hazardGates].filter((g) => !spoiled.has(g.item));
     rng.shuffle(unusedGates);
     const wings: HubWing[] = [];
@@ -117,19 +118,6 @@ export class HubPlanner {
     });
 
     return { wings, hubItems, motifs: selection.motifs, finale: selection.finale };
-  }
-
-  /** Boots that tame a hazard of the piece and keys that open its doors. */
-  private static helpfulItems(piece: CompiledPiece): Set<string> {
-    const items = new Set<string>();
-    for (const row of piece.terrain) {
-      for (const id of row) {
-        const tile = ConfigRegistry.getTile(id);
-        if (tile.protectedByItem && (tile.hazard || tile.slideType)) items.add(tile.protectedByItem);
-        if (tile.requiredKey) items.add(tile.requiredKey);
-      }
-    }
-    return items;
   }
 
   private static stealsBoots(piece: CompiledPiece): boolean {

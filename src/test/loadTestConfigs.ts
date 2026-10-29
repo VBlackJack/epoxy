@@ -21,6 +21,7 @@ import game from '../../public/configs/game.json';
 import levels from '../../public/configs/levels.json';
 import monsters from '../../public/configs/monsters.json';
 import motifs from '../../public/configs/motifs.json';
+import motifAnnotations from '../../public/configs/motif-annotations.json';
 import tiles from '../../public/configs/tiles.json';
 
 /** Returns a deep copy of the shipped configs, safe to mutate in a test. */
@@ -32,7 +33,8 @@ export function createTestBundle(): ConfigBundle {
     audio,
     levels,
     datFormat,
-    motifs
+    motifs,
+    motifAnnotations
   }) as unknown as ConfigBundle;
 }
 

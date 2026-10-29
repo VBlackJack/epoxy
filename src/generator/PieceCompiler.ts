@@ -20,6 +20,7 @@ import { DEFAULT_FACING } from '../core/coreConstants';
 import { Direction, GridPoint, TileDefinition } from '../core/types';
 import {
   CompiledPiece,
+  PieceAnnotation,
   PieceDefinition,
   PieceLegendEntry,
   PieceOrientation
@@ -146,9 +147,17 @@ export function resetPieceCaches(): void {
 }
 
 /** Parses a piece definition with the merged levels.json and motifs.json legend. */
+/** Action letters of an annotated solution. */
+const WAIT_LETTER = '.';
+
+function parseSolution(text: string): Array<Direction | 'WAIT'> {
+  return [...text].map((ch) => (ch === WAIT_LETTER ? 'WAIT' : (ch as Direction)));
+}
+
 export function compilePiece(
   def: PieceDefinition,
-  legend: Record<string, PieceLegendEntry>
+  legend: Record<string, PieceLegendEntry>,
+  annotation?: PieceAnnotation
 ): CompiledPiece {
   const height = def.rows.length;
   const width = height > 0 ? def.rows[0].length : 0;
@@ -230,6 +239,8 @@ export function compilePiece(
     requires: [...(def.requires ?? [])],
     rotatable: def.rotatable ?? false,
     oneShot: def.oneShot ?? false,
+    solution: annotation ? parseSolution(annotation.solution) : undefined,
+    reversible: annotation?.reversible,
     orientation: IDENTITY_ORIENTATION
   };
 }
@@ -287,6 +298,21 @@ export function orientPiece(piece: CompiledPiece, o: PieceOrientation): Compiled
     }),
     entry: at(piece.entry),
     exit: at(piece.exit),
+    // Rules are the same in every orientation, so the solution turns with the piece.
+    solution: piece.solution?.map((a) => (a === 'WAIT' ? a : orientDirection(a, o))),
     orientation: o
   };
+}
+
+/** Boots that tame a hazard of the piece and keys that open its doors. */
+export function helpfulItems(piece: CompiledPiece): Set<string> {
+  const items = new Set<string>();
+  for (const row of piece.terrain) {
+    for (const id of row) {
+      const tile = ConfigRegistry.getTile(id);
+      if (tile.protectedByItem && (tile.hazard || tile.slideType)) items.add(tile.protectedByItem);
+      if (tile.requiredKey) items.add(tile.requiredKey);
+    }
+  }
+  return items;
 }

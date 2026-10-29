@@ -40,7 +40,9 @@ npm run dev
 
 La campagne Epoxy elle-même est décrite niveau par niveau dans `tools/campaign-script.json` (motifs à enseigner, nombre d'énigmes, palier maximal) ; `npm run build:campaign` génère chaque niveau, le prouve et réécrit `public/configs/levels.json` en lignes de légende lisibles.
 
-Les nouvelles pièces d'énigme se placent dans `public/configs/motifs.json`. `npm test` vérifie que chacune est solvable dans toutes les orientations, qu'aucun bloc ne peut sortir par ses ports et que rien n'y est décoratif ; `npm run report:pieces` écrit la solution de chaque pièce dans `local/piece-probe.txt`.
+Les nouvelles pièces d'énigme se placent dans `public/configs/motifs.json` ; lancez ensuite `npm run annotate:pieces` pour précalculer la solution et la réversibilité de chaque pièce dans `public/configs/motif-annotations.json`, que le générateur lit au lieu de chercher dans le navigateur.
+
+Salles Sokoban : `npm run forge:sokoban` en fabrique d'originales en partant de leur solution (des blocs sur des boutons marron qui maintiennent ouverts les pièges de sortie). `npm run import:sokoban` adapte une collection au format standard `.xsb` (renseignez `EPOXY_SOKOBAN_FILE` et `EPOXY_SOKOBAN_CREDIT`) ; n'utilisez que des collections dont la licence autorise la réutilisation, et conservez le crédit. Les deux écrivent des candidates dans `local/` pour le tri. `npm test` vérifie que chacune est solvable dans toutes les orientations, qu'aucun bloc ne peut sortir par ses ports et que rien n'y est décoratif ; `npm run report:pieces` écrit la solution de chaque pièce dans `local/piece-probe.txt`.
 
 ## Tests
 

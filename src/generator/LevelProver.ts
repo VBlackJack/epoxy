@@ -21,6 +21,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, Direction, GridPoint } from '../core/types';
 import { RouteSegment } from './LevelAssembler';
 import { PieceSolver, SolverAction } from './PieceSolver';
+import { helpfulItems } from './PieceCompiler';
 import { CompiledPiece } from './PieceTypes';
 
 export interface LevelProof {
@@ -190,6 +191,8 @@ export class LevelProver {
         .sort()
         .flatMap(([id, count]) => new Array<string>(count).fill(id))
     ];
+    // A precomputed solution holds while nothing carried acts on the piece.
+    if (piece.solution && carried.every((id) => !helpfulItems(piece).has(id))) return piece.solution;
     const { quarterTurns, mirrored } = piece.orientation;
     const cacheKey = `${piece.id}|${quarterTurns}|${mirrored}|${carried.join()}`;
     if (!solutionCache.has(cacheKey)) {

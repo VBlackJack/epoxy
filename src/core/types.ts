@@ -104,6 +104,8 @@ export interface HubConfig {
   fromLevel: number;
   width: number;
   height: number;
+  /** Largest offset of the hub from the map centre, drawn per attempt. */
+  maxShift: number;
   /** Wings open from the start, so the player chooses where to begin. */
   openWings: number;
   maxConnectorLength: number;
@@ -159,6 +161,8 @@ export interface ProceduralConfig {
   maxCorridorLength: number;
   /** A rest room follows every this many puzzle pieces; 0 disables them. */
   restRoomEvery: number;
+  /** From this level on, puzzles are drawn from the hardest tier allowed. */
+  hardPiecesFromLevel: number;
   /** First level allowed to use pieces marked oneShot in motifs.json. */
   oneShotFromLevel: number;
   /** Depth of the side alcove holding boots a piece needs. */

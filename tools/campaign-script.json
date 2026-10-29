@@ -13,13 +13,13 @@
     { "motifs": ["blocks_water", "bomb"], "pieceCount": 3, "maxTier": 2 },
     { "motifs": ["monsters", "keys_doors"], "pieceCount": 3, "maxTier": 2 },
     { "motifs": ["toggle_walls", "keys_doors"], "pieceCount": 3, "maxTier": 2 },
-    { "motifs": ["trap", "blocks_water"], "pieceCount": 3, "maxTier": 2 },
-    { "motifs": ["force", "blocks_water"], "pieceCount": 4, "maxTier": 2 },
+    { "motifs": ["sokoban", "trap"], "pieceCount": 3, "maxTier": 3 },
+    { "motifs": ["force", "blocks_water", "sokoban"], "pieceCount": 4, "maxTier": 3 },
     { "motifs": ["teleport", "ice"], "pieceCount": 3, "maxTier": 2 },
     { "motifs": ["thief", "fire"], "pieceCount": 3, "maxTier": 3 },
     { "motifs": ["monsters", "ice", "force"], "pieceCount": 4, "maxTier": 3 },
-    { "motifs": ["keys_doors", "blocks_water", "water"], "pieceCount": 4, "maxTier": 3 },
-    { "motifs": ["monsters", "bomb", "toggle_walls"], "pieceCount": 5, "maxTier": 3 },
-    { "motifs": ["keys_doors", "fire", "blocks_water", "monsters"], "pieceCount": 6, "maxTier": 3 }
+    { "motifs": ["keys_doors", "sokoban", "water"], "pieceCount": 4, "maxTier": 4 },
+    { "motifs": ["monsters", "bomb", "sokoban", "toggle_walls"], "pieceCount": 5, "maxTier": 4 },
+    { "motifs": ["keys_doors", "fire", "sokoban", "monsters"], "pieceCount": 6, "maxTier": 4 }
   ]
 }

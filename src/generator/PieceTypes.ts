@@ -54,6 +54,8 @@ export interface PieceDefinition {
   entities?: EntityPlacement[];
   trapLinks?: TrapLink[];
   cloneLinks?: CloneLink[];
+  /** Where an adapted piece comes from (collection, author), kept for attribution. */
+  credit?: string;
 }
 
 /**
@@ -67,6 +69,19 @@ export interface MotifRule {
   /** finale: closes every level. rest: an open chip room placed between puzzles. */
   role?: 'finale' | 'rest';
 }
+
+/**
+ * Facts about a piece computed offline by npm run annotate:pieces and checked
+ * by the tests: a winning action list (N, E, S, W, and '.' to wait) and
+ * whether every winning state can walk back out. The generator reads them
+ * instead of searching again in the browser.
+ */
+export interface PieceAnnotation {
+  solution: string;
+  reversible: boolean;
+}
+
+export type MotifAnnotations = Record<string, PieceAnnotation>;
 
 export interface MotifsConfig {
   legend: Record<string, PieceLegendEntry>;
@@ -96,6 +111,10 @@ export interface CompiledPiece {
   requires: string[];
   rotatable: boolean;
   oneShot: boolean;
+  /** Precomputed winning actions, already turned with the piece. */
+  solution?: Array<Direction | 'WAIT'>;
+  /** Precomputed: every winning state can walk back out through the entry. */
+  reversible?: boolean;
   /** Orientation applied to the definition's rows. */
   orientation: PieceOrientation;
 }

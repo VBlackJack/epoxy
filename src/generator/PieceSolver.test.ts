@@ -20,7 +20,8 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { ALL_ORIENTATIONS, compilePiece, orientPiece, resetPieceCaches } from './PieceCompiler';
-import { PieceSolver } from './PieceSolver';
+import { GameEngine } from '../core/GameEngine';
+import { PieceSolver, SolverAction } from './PieceSolver';
 import { CompiledPiece, PieceDefinition } from './PieceTypes';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
@@ -36,6 +37,17 @@ function piece(rows: string[], extra: Partial<PieceDefinition> = {}): CompiledPi
     { id: 'test_piece', motif: 'test', tier: 1, rows, ...extra },
     ConfigRegistry.getPieceLegend()
   );
+}
+
+/** Plays an action list on the piece alone; true when it ends on the exit with every chip. */
+function winsWith(piece: CompiledPiece, actions: SolverAction[]): boolean {
+  const engine = new GameEngine();
+  engine.loadLevel(PieceSolver.toLevel(piece));
+  PieceSolver.grantCarried(engine, piece.requires);
+  for (const action of actions) {
+    if (!PieceSolver.play(engine, action)) return false;
+  }
+  return engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
 }
 
 /** Same piece with the item at (x, y) replaced by bare floor. */
@@ -88,7 +100,12 @@ describe('motif library', () => {
     loadTestConfigs();
     resetPieceCaches();
     definitions = ConfigRegistry.getMotifs().pieces;
-    pieces = definitions.map((def) => compilePiece(def, ConfigRegistry.getPieceLegend()));
+    const annotations = ConfigRegistry.getMotifAnnotations();
+    pieces = definitions.map((def) => compilePiece(def, ConfigRegistry.getPieceLegend(), annotations[def.id]));
+  });
+
+  it('every piece carries an up-to-date annotation (npm run annotate:pieces)', () => {
+    for (const p of pieces) expect(p.solution, `${p.id} is not annotated`).toBeDefined();
   });
 
   it('has unique piece ids and no monster that moves at random', () => {
@@ -114,13 +131,13 @@ describe('motif library', () => {
   );
 
   it(
-    'every piece is solvable in every allowed orientation',
+    'every annotated solution wins the piece in every allowed orientation',
     () => {
       for (const p of pieces) {
         const orientations = p.rotatable ? ALL_ORIENTATIONS : [ALL_ORIENTATIONS[0]];
         for (const o of orientations) {
-          const result = PieceSolver.solve(orientPiece(p, o));
-          expect(result.solvable, `${p.id} ${JSON.stringify(o)}`).toBe(true);
+          const oriented = orientPiece(p, o);
+          expect(winsWith(oriented, oriented.solution ?? []), `${p.id} ${JSON.stringify(o)}`).toBe(true);
         }
       }
     },
@@ -136,6 +153,7 @@ describe('motif library', () => {
         expect(analysis.winnable, p.id).toBe(true);
         expect(analysis.blockEscapes, `${p.id} lets a block out through a port`).toBe(0);
         if (!p.oneShot) expect(analysis.deadExits, `${p.id} can be left unfinished`).toBe(0);
+        expect(p.reversible, `${p.id} reversibility annotation`).toBe(analysis.unreturnableGoals === 0);
       }
     },
     LIBRARY_TIMEOUT_MS

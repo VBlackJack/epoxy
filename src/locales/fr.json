@@ -410,7 +410,7 @@
     },
     "level_13": {
       "title": "Maintenu Ouvert",
-      "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut le maintenir."
+      "hint": "Les boutons marron maintiennent les pièges ouverts. Poussez un bloc sur chaque bouton avant de filer vers la sortie, et gardez les blocs loin des coins."
     },
     "level_14": {
       "title": "Atelier des Convoyeurs",
@@ -451,6 +451,7 @@
       "toggle_walls": { "title": "Gare de Triage #{number}", "hint": "Chaque bouton vert inverse tous les murs bascule. Comptez vos pressions." },
       "trap": { "title": "Allée des Pièges #{number}", "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut maintenir le bouton." },
       "teleport": { "title": "Saut Quantique #{number}", "hint": "Entrez dans un téléporteur pour ressortir par l'autre, dans la même direction." },
+      "sokoban": { "title": "Entrepôt #{number}", "hint": "Chaque bouton marron maintient un piège ouvert. Poussez un bloc sur chaque bouton, et jamais dans un coin." },
       "monsters": { "title": "Ménagerie #{number}", "hint": "Les monstres suivent des trajectoires fixes. Observez-les, attendez l'ouverture, puis foncez." },
       "bomb": { "title": "Chantier de Démolition #{number}", "hint": "Les bombes détruisent tout ce qui les touche. Poussez-y un bloc pour dégager le passage." },
       "default": {

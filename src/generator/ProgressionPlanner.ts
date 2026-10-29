@@ -142,7 +142,8 @@ export class ProgressionPlanner {
       ? script.motifs.filter((m) => motifPool.includes(m))
       : motifPool.slice(0, Math.min(budget.motifCount, motifPool.length));
 
-    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng);
+    const preferHard = levelNumber >= cfg.hardPiecesFromLevel;
+    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng, preferHard);
     return { puzzles, motifs, finale, restRooms };
   }
 
@@ -151,7 +152,8 @@ export class ProgressionPlanner {
     motifs: string[],
     playable: CompiledPiece[],
     rules: Record<string, MotifRule>,
-    rng: SeededRandom
+    rng: SeededRandom,
+    preferHard = false
   ): CompiledPiece[] {
     const used = new Map<string, number>();
     const usedIds = new Set<string>();
@@ -164,12 +166,16 @@ export class ProgressionPlanner {
       const candidates = playable.filter((p) => p.motif === motif);
       if (candidates.length === 0) return null;
       const lowestTier = Math.min(...candidates.map((p) => p.tier));
-      // The first piece of a motif is one of its easiest; later ones prefer unseen pieces.
-      const pool = introduce
-        ? candidates.filter((p) => p.tier === lowestTier)
-        : candidates.filter((p) => !usedIds.has(p.id)).length > 0
-          ? candidates.filter((p) => !usedIds.has(p.id))
-          : candidates;
+      const unseen = candidates.filter((p) => !usedIds.has(p.id));
+      const fresh = unseen.length > 0 ? unseen : candidates;
+      const highestTier = Math.max(...fresh.map((p) => p.tier));
+      // Early on, a motif is introduced by one of its easiest pieces; later
+      // levels draw its hardest unseen pieces instead.
+      const pool = preferHard
+        ? fresh.filter((p) => p.tier === highestTier)
+        : introduce
+          ? candidates.filter((p) => p.tier === lowestTier)
+          : fresh;
       const piece = pool[rng.nextInt(0, pool.length - 1)];
       used.set(motif, (used.get(motif) ?? 0) + 1);
       usedIds.add(piece.id);

@@ -9,6 +9,7 @@
     "&": { "terrain": "floor", "entity": "dirt_block" },
     "n": { "terrain": "button_green" },
     "m": { "terrain": "button_brown" },
+    "o": { "terrain": "button_brown", "entity": "dirt_block" },
     "p": { "terrain": "button_red" },
     "l": { "terrain": "button_blue" },
     "U": { "terrain": "floor", "entity": "bug", "entityDir": "N" },
@@ -27,6 +28,229 @@
     "rest": { "role": "rest" }
   },
   "pieces": [
+    {
+      "id": "sokoban_forged_1",
+      "motif": "sokoban",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "#####@###",
+        "#m.....m#",
+        "#.#..#..#",
+        "#.#.....#",
+        "##...#.##",
+        "#.#.&&.##",
+        "#....#..#",
+        "#######X#",
+        "#######X#",
+        "#######$#"
+      ],
+      "trapLinks": [
+        { "buttonX": 7, "buttonY": 1, "trapX": 7, "trapY": 7 },
+        { "buttonX": 1, "buttonY": 1, "trapX": 7, "trapY": 8 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_2",
+      "motif": "sokoban",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#.mm#",
+        "#.&&..#",
+        "##...##",
+        "#.&#m##",
+        "##....#",
+        "#####X#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        { "buttonX": 5, "buttonY": 2, "trapX": 5, "trapY": 7 },
+        { "buttonX": 4, "buttonY": 5, "trapX": 5, "trapY": 8 },
+        { "buttonX": 4, "buttonY": 2, "trapX": 5, "trapY": 9 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_3",
+      "motif": "sokoban",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#...#m#",
+        "#&#...#",
+        "#.....#",
+        "#m&.#m#",
+        "##&...#",
+        "#.....#",
+        "#X#####",
+        "#X#####",
+        "#X#####",
+        "#$#####"
+      ],
+      "trapLinks": [
+        { "buttonX": 5, "buttonY": 1, "trapX": 1, "trapY": 7 },
+        { "buttonX": 5, "buttonY": 4, "trapX": 1, "trapY": 8 },
+        { "buttonX": 1, "buttonY": 4, "trapX": 1, "trapY": 9 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_4",
+      "motif": "sokoban",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "#####@#",
+        "#.....#",
+        "##&#.##",
+        "#m&..##",
+        "#..&.m#",
+        "###..##",
+        "#....m#",
+        "##X####",
+        "##X####",
+        "##X####",
+        "##$####"
+      ],
+      "trapLinks": [
+        { "buttonX": 5, "buttonY": 4, "trapX": 2, "trapY": 7 },
+        { "buttonX": 5, "buttonY": 6, "trapX": 2, "trapY": 8 },
+        { "buttonX": 1, "buttonY": 3, "trapX": 2, "trapY": 9 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_5",
+      "motif": "sokoban",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "######@#",
+        "#m.....#",
+        "##...&##",
+        "#.....##",
+        "##.#.&.#",
+        "#m.....#",
+        "###X####",
+        "###X####",
+        "###$####"
+      ],
+      "trapLinks": [
+        { "buttonX": 1, "buttonY": 5, "trapX": 3, "trapY": 6 },
+        { "buttonX": 1, "buttonY": 1, "trapX": 3, "trapY": 7 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_6",
+      "motif": "sokoban",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "###@#####",
+        "##......#",
+        "#..#..&.#",
+        "#..#..&##",
+        "#mm.....#",
+        "###X#####",
+        "###X#####",
+        "###$#####"
+      ],
+      "trapLinks": [
+        { "buttonX": 1, "buttonY": 4, "trapX": 3, "trapY": 5 },
+        { "buttonX": 2, "buttonY": 4, "trapX": 3, "trapY": 6 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_7",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#...#.#",
+        "#.#&..#",
+        "#..&m&#",
+        "#...#.#",
+        "#m#.#.#",
+        "#....m#",
+        "##X####",
+        "##X####",
+        "##X####",
+        "##$####"
+      ],
+      "trapLinks": [
+        { "buttonX": 4, "buttonY": 3, "trapX": 2, "trapY": 7 },
+        { "buttonX": 1, "buttonY": 5, "trapX": 2, "trapY": 8 },
+        { "buttonX": 5, "buttonY": 6, "trapX": 2, "trapY": 9 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_8",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "######@##",
+        "#...#...#",
+        "#..&..#.#",
+        "##&....m#",
+        "#....m#.#",
+        "#X#######",
+        "#X#######",
+        "#$#######"
+      ],
+      "trapLinks": [
+        { "buttonX": 7, "buttonY": 3, "trapX": 1, "trapY": 5 },
+        { "buttonX": 5, "buttonY": 4, "trapX": 1, "trapY": 6 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_9",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#####@###",
+        "#.m....##",
+        "#..####.#",
+        "#..m....#",
+        "#..#..&.#",
+        "#.#...&.#",
+        "#.......#",
+        "##X######",
+        "##X######",
+        "##$######"
+      ],
+      "trapLinks": [
+        { "buttonX": 2, "buttonY": 1, "trapX": 2, "trapY": 7 },
+        { "buttonX": 3, "buttonY": 3, "trapX": 2, "trapY": 8 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_10",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@#####",
+        "#.&.m.#.#",
+        "#.&#m...#",
+        "#..#.&.##",
+        "#.m....##",
+        "###X#####",
+        "###X#####",
+        "###X#####",
+        "###$#####"
+      ],
+      "trapLinks": [
+        { "buttonX": 4, "buttonY": 2, "trapX": 3, "trapY": 5 },
+        { "buttonX": 4, "buttonY": 1, "trapX": 3, "trapY": 6 },
+        { "buttonX": 2, "buttonY": 4, "trapX": 3, "trapY": 7 }
+      ]
+    },
     {
       "id": "mined_block_maze",
       "motif": "blocks_water",

@@ -138,6 +138,7 @@ export class PieceSolver {
    * piece definition and orientation.
    */
   public static isReversible(piece: CompiledPiece): boolean {
+    if (piece.reversible !== undefined) return piece.reversible;
     const { quarterTurns, mirrored } = piece.orientation;
     const cacheKey = `${piece.id}|${quarterTurns}|${mirrored}|${piece.requires.join()}`;
     const cached = reversibleCache.get(cacheKey);
@@ -354,7 +355,8 @@ export class PieceSolver {
     return 'E';
   }
 
-  private static grantCarried(engine: GameEngine, carried: string[]): void {
+  /** Gives the player boots and keys, as if carried in from elsewhere in the level. */
+  public static grantCarried(engine: GameEngine, carried: string[]): void {
     const start = engine.captureState();
     for (const itemId of carried) {
       const tile = ConfigRegistry.getTile(itemId);
