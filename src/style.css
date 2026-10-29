@@ -1468,6 +1468,13 @@ body.fullscreen-mode .bezel-header {
     height: min(96dvw, 52dvh);
   }
 
+  /* Board, pad and HUD are taller than a portrait screen: centring them would cut the
+     top of the board off. Keep the board at the top and let the HUD scroll below it. */
+  body.fullscreen-mode .view-section {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
   #hud-btn-undo,
   #hud-btn-objective,
   #hud-btn-restart {
