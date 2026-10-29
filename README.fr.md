@@ -9,7 +9,7 @@
 ## Fonctionnalités
 
 - **Des centaines de niveaux inclus** :
-  - **Campagne Epoxy** : la campagne intégrée, enrichie d'une sélection de niveaux communautaires.
+  - **Campagne Epoxy** : les niveaux Epoxy conçus à la main.
   - **Packs communautaires fournis** : `Tile World Intro` et `CCLP 1` à `CCLP 5` (voir [Crédits](#crédits)).
   - **Formats `.DAT` / `.CCL` / `.JSON`** : import et export par glisser-déposer de packs au format binaire CC1 `.DAT`, très répandu. Les packs que vous possédez s'importent de cette façon.
   - **Générateur procédural solvable** : produit des donjons 32x32 à plusieurs ailes, vérifiés par un solveur BFS/Sokoban automatique (`LevelValidator`).

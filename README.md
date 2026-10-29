@@ -9,7 +9,7 @@
 ## Features
 
 - **Hundreds of Levels Included**:
-  - **Epoxy Campaign**: The built-in campaign, extended with a selection of community levels.
+  - **Epoxy Campaign**: The hand-made Epoxy levels.
   - **Bundled Community Packs**: `Tile World Intro` and `CCLP 1` through `CCLP 5` (see [Credits](#credits)).
   - **`.DAT` / `.CCL` / `.JSON` Support**: Import and export level packs in the widely used CC1 `.DAT` binary format via drag-and-drop. Packs you own can be imported this way.
   - **Solvable Procedural Generator**: Generates multi-wing 32x32 dungeons verified by an automated BFS/Sokoban solver (`LevelValidator`).
