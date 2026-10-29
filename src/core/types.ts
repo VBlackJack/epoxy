@@ -64,6 +64,7 @@ export interface StorageConfig {
   settingsKey: string;
   highScoresKey: string;
   activePackKey: string;
+  lastProceduralSeedKey: string;
   levelPacksDbName: string;
   levelPacksStoreName: string;
 }

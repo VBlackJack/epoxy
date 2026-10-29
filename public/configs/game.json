@@ -306,6 +306,7 @@
     "settingsKey": "user_settings",
     "highScoresKey": "high_scores",
     "activePackKey": "active_pack",
+    "lastProceduralSeedKey": "last_procedural_seed",
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
   },

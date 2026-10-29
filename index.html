@@ -47,6 +47,10 @@
             <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
             <input id="pack-file-input" type="file" accept=".dat,.ccl,.json" class="hidden" />
           </div>
+          <div id="procedural-seed-box" class="pack-box procedural-seed-box hidden">
+            <span id="procedural-seed-label" class="procedural-seed-label"></span>
+            <button id="btn-copy-seed" class="nav-btn" type="button" data-i18n="app.packs.procedural_seed_copy.action"></button>
+          </div>
           <div class="mode-switch-group">
             <button id="btn-mode-play" class="nav-btn active" type="button" data-i18n="app.header.mode_play.action"></button>
             <button id="btn-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
@@ -372,6 +376,32 @@
           <div class="modal-actions">
             <button id="password-submit-btn" class="action-btn primary" type="button" data-i18n="hud.password_modal.submit.action"></button>
             <button id="password-cancel-btn" class="action-btn" type="button" data-i18n="hud.password_modal.cancel.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROCEDURAL PACK MODAL -->
+      <div id="procedural-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="procedural-modal-title">
+        <div class="modal-dialog">
+          <h3 id="procedural-modal-title" data-i18n="app.packs.procedural_dialog.title.label"></h3>
+          <label for="procedural-seed-input" data-i18n="app.packs.procedural_dialog.seed.label"></label>
+          <input
+            id="procedural-seed-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            spellcheck="false"
+            class="editor-input procedural-seed-field"
+            data-i18n-placeholder="app.packs.procedural_dialog.seed_placeholder.label"
+            aria-describedby="procedural-seed-hint procedural-seed-error"
+          />
+          <p id="procedural-seed-hint" class="hint-text" data-i18n="app.packs.procedural_dialog.seed_hint.label"></p>
+          <p id="procedural-seed-error" class="error-text hidden" role="alert"></p>
+          <label for="procedural-start-select" data-i18n="app.packs.procedural_dialog.start_level.label"></label>
+          <select id="procedural-start-select" class="locale-select"></select>
+          <div class="modal-actions">
+            <button id="procedural-submit-btn" class="action-btn primary" type="button" data-i18n="app.packs.procedural_dialog.submit.action"></button>
+            <button id="procedural-cancel-btn" class="action-btn" type="button" data-i18n="app.packs.procedural_dialog.cancel.action"></button>
           </div>
         </div>
       </div>
