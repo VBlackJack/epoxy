@@ -37,10 +37,21 @@ const PIECE_GAP = 1;
 const MAP_MARGIN = 1;
 const NO_PARENT = -1;
 
-/** A stretch of the proven route: plain moves, or a piece to solve on the spot. */
+/**
+ * A stretch of the proven route: plain moves, a cell to walk to by the
+ * shortest safe path, or a piece to solve on the spot, forwards to its exit
+ * or backwards to its entry when the player leaves a dead-end wing.
+ */
 export type RouteSegment =
   | { kind: 'walk'; moves: Direction[] }
-  | { kind: 'piece'; piece: CompiledPiece; origin: GridPoint; isFinale: boolean };
+  | { kind: 'goto'; target: GridPoint }
+  | {
+      kind: 'piece';
+      piece: CompiledPiece;
+      origin: GridPoint;
+      isFinale: boolean;
+      towards?: 'exit' | 'entry';
+    };
 
 export interface AssembledLevel {
   terrain: string[][];

@@ -24,7 +24,7 @@ import { resolveMessage } from '../i18n/messageFormat';
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 import { budgetFor } from './ProgressionPlanner';
-import { exitReachableWithout, replays } from '../test/levelChecks';
+import { cellReachableWithout, replays } from '../test/levelChecks';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
 const SAMPLE_SEEDS = [1, 2, 3];
@@ -57,12 +57,22 @@ describe('ProceduralGenerator', () => {
     for (const g of sample) expect(replays(g.level, g.solution), g.level.id).toBe(true);
   });
 
-  it('no piece can be walked around', () => {
+  it('no puzzle can be walked around', () => {
     for (const g of sample) {
-      // The finale holds the exit itself, so it is not checked.
-      for (const box of g.pieceBoxes.slice(0, -1)) {
-        expect(exitReachableWithout(g.level, box), `${g.level.id} ${JSON.stringify(box)}`).toBe(false);
+      expect(g.guards.length, g.level.id).toBeGreaterThan(0);
+      for (const guard of g.guards) {
+        expect(
+          cellReachableWithout(g.level, guard.box, guard.guarded),
+          `${g.level.id} ${g.layout} ${JSON.stringify(guard)}`
+        ).toBe(false);
       }
+    }
+  });
+
+  it('builds hub levels from the configured level on', () => {
+    const cfg = ConfigRegistry.getGame().procedural!;
+    for (const g of sample) {
+      expect(g.layout, g.level.id).toBe(g.level.number >= cfg.hub.fromLevel ? 'hub' : 'chain');
     }
   });
 

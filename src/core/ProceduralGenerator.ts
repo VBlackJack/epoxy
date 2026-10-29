@@ -17,7 +17,9 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { compilePiece } from '../generator/PieceCompiler';
 import { CompiledPiece, MotifsConfig } from '../generator/PieceTypes';
-import { Box, LevelAssembler } from '../generator/LevelAssembler';
+import { AssembledLevel, Box, LevelAssembler } from '../generator/LevelAssembler';
+import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
+import { HubPlanner } from '../generator/HubPlanner';
 import { LevelProver } from '../generator/LevelProver';
 import { SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
@@ -57,6 +59,17 @@ export interface GeneratedLevel {
   /** Bounds of every piece, finale last; lets tests check no piece can be skipped. */
   pieceBoxes: Box[];
   /** Motif of each piece, in the same order as pieceBoxes. */
+  pieceMotifs: string[];
+  /** Walling a guard's box must cut its guarded cell off: no puzzle can be walked around. */
+  guards: LevelGuard[];
+  layout: 'chain' | 'hub';
+}
+
+/** What both layouts hand over to the proof and the scoring. */
+interface BuiltLayout {
+  assembled: AssembledLevel;
+  guards: LevelGuard[];
+  motifs: string[];
   pieceMotifs: string[];
 }
 
@@ -148,17 +161,17 @@ export class ProceduralGenerator {
     const regionSize = cfg.baseRegionSize + cfg.regionGrowthPerLevel * (levelNumber - 1);
     const version = this.contentVersion(motifs, cfg);
 
-    for (let attempt = 0; attempt < cfg.maxGenerationAttempts; attempt++) {
-      const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script);
-      const assembled = LevelAssembler.assemble(
-        plan,
-        regionSize + attempt * cfg.regionGrowthPerRetry,
-        cfg,
-        rng
-      );
-      if (!assembled) continue;
+    const layout = script?.layout ?? (levelNumber >= cfg.hub.fromLevel ? 'hub' : 'chain');
 
-      const motif = this.dominantMotif(plan.motifs, plan.steps.map((s) => s.piece.motif));
+    for (let attempt = 0; attempt < cfg.maxGenerationAttempts; attempt++) {
+      const built =
+        layout === 'hub'
+          ? this.buildHub(levelNumber, library, motifs, rng, cfg, script, Math.floor(attempt / cfg.hub.attemptsPerDroppedPiece))
+          : this.buildChain(levelNumber, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script);
+      if (!built) continue;
+      const { assembled } = built;
+
+      const motif = this.dominantMotif(built.motifs, built.pieceMotifs);
       const level: CompiledLevel = {
         id: `proc_${version}_${packSeed}_${levelNumber}`,
         number: levelNumber,
@@ -177,7 +190,7 @@ export class ProceduralGenerator {
       const proof = LevelProver.prove(level, assembled.route);
       if (!proof.solved) continue;
 
-      const puzzleCount = plan.steps.filter((s) => plan.motifs.includes(s.piece.motif)).length;
+      const puzzleCount = built.pieceMotifs.filter((m) => built.motifs.includes(m)).length;
       level.timeLimitSeconds = this.timeLimit(levelNumber, proof.ticks, puzzleCount, cfg);
       const score = scoreLevel(
         {
@@ -185,7 +198,7 @@ export class ProceduralGenerator {
           pieceBoxes: assembled.pieceBoxes,
           solutionLength: proof.moves.length,
           visitedCells: proof.visitedCells,
-          motifCount: plan.motifs.length,
+          motifCount: built.motifs.length,
           motifBudget: script ? script.motifs.length : budgetFor(levelNumber, cfg).motifCount
         },
         levelNumber,
@@ -194,14 +207,58 @@ export class ProceduralGenerator {
       return {
         level,
         solution: proof.moves,
-        motifs: plan.motifs,
+        motifs: built.motifs,
         attempts: attempt + 1,
         score,
         pieceBoxes: assembled.pieceBoxes,
-        pieceMotifs: plan.steps.map((s) => s.piece.motif)
+        pieceMotifs: built.pieceMotifs,
+        guards: built.guards,
+        layout
       };
     }
     throw new ProceduralGenerationError(levelNumber, `no level after ${cfg.maxGenerationAttempts} attempts`);
+  }
+
+  /** A chain of puzzles joined by corridors; every puzzle guards the exit. */
+  private static buildChain(
+    levelNumber: number,
+    library: CompiledPiece[],
+    motifs: MotifsConfig,
+    rng: SeededRandom,
+    cfg: ProceduralConfig,
+    regionSize: number,
+    script?: LevelScript
+  ): BuiltLayout | null {
+    const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script);
+    const assembled = LevelAssembler.assemble(plan, regionSize, cfg, rng);
+    if (!assembled) return null;
+    let exit: { x: number; y: number } = assembled.playerStart;
+    assembled.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        if (ConfigRegistry.getTile(id).isLevelExit) exit = { x, y };
+      })
+    );
+    const pieceMotifs = plan.steps.map((s) => s.piece.motif);
+    // The finale holds the exit itself, so it guards nothing.
+    const guards = assembled.pieceBoxes.slice(0, -1).map((box) => ({ box, guarded: exit }));
+    return { assembled, guards, motifs: plan.motifs, pieceMotifs };
+  }
+
+  /** A hub with locked wings; each wing puzzle guards its reward room, the last one the exit. */
+  private static buildHub(
+    levelNumber: number,
+    library: CompiledPiece[],
+    motifs: MotifsConfig,
+    rng: SeededRandom,
+    cfg: ProceduralConfig,
+    script?: LevelScript,
+    piecesDropped = 0
+  ): BuiltLayout | null {
+    const plan = HubPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped);
+    const assembled = HubAssembler.assemble(plan, cfg.hub, rng);
+    if (!assembled) return null;
+    const pieceMotifs = [...plan.wings.map((w) => w.piece.motif), plan.finale.motif];
+    return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs };
   }
 
   private static config(): ProceduralConfig {

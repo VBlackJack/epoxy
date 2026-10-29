@@ -16,7 +16,9 @@
 
 import { AudioManager } from '../audio/AudioManager';
 import { GameEngine } from '../core/GameEngine';
-import { CompiledLevel, GridPoint } from '../core/types';
+import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { ConfigRegistry } from '../config/ConfigRegistry';
+import { CompiledLevel, Direction, GridPoint } from '../core/types';
 import { RouteSegment } from './LevelAssembler';
 import { PieceSolver, SolverAction } from './PieceSolver';
 import { CompiledPiece } from './PieceTypes';
@@ -71,6 +73,26 @@ export class LevelProver {
     });
 
     for (const segment of route) {
+      if (segment.kind === 'goto') {
+        const path = this.safePath(engine, segment.target);
+        if (!path) return failed();
+        for (const dir of path) {
+          if (!engine.attemptPlayerMove(dir) || !PieceSolver.settle(engine)) return failed();
+          moves.push(dir);
+          track();
+        }
+        continue;
+      }
+      if (segment.kind === 'piece' && segment.towards === 'entry') {
+        const back = PieceSolver.solveInLevel(engine, segment.piece, segment.origin, undefined, 'entry');
+        if (!back.moves) return failed();
+        for (const action of back.moves) {
+          if (!PieceSolver.play(engine, action)) return failed();
+          moves.push(action);
+          track();
+        }
+        continue;
+      }
       if (segment.kind === 'walk') {
         for (const dir of segment.moves) {
           if (!engine.attemptPlayerMove(dir) || !PieceSolver.settle(engine)) return failed();
@@ -96,6 +118,60 @@ export class LevelProver {
 
     const solved = engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
     return { solved, moves, ticks: engine.getTick(), visitedCells: visited.size };
+  }
+
+  /**
+   * Shortest path to a cell over ground the player can cross calmly: floor
+   * and the like, doors the player holds a key for, hazards the player has
+   * boots for. Sliding floors, teleporters, traps, bombs and occupied cells
+   * are avoided, so the walk cannot surprise. Null when no such path exists.
+   */
+  private static safePath(engine: GameEngine, target: GridPoint): Direction[] | null {
+    const terrain = engine.getTerrain();
+    const items = engine.getItems();
+    const player = engine.getPlayer();
+    const height = terrain.length;
+    const width = terrain[0].length;
+    const occupied = new Set(engine.getEntities().map((e) => e.y * width + e.x));
+    const crossable = (x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= width || y >= height || occupied.has(y * width + x)) return false;
+      const tile = ConfigRegistry.getTile(terrain[y][x]);
+      const item = items[y][x];
+      if (item && ConfigRegistry.getTile(item).hazard) return false;
+      if (tile.isTeleporter || tile.isTrap || tile.stealsBoots) return false;
+      const protectedBy = tile.protectedByItem;
+      if (tile.slideType || tile.hazard) return Boolean(protectedBy && player.boots.has(protectedBy));
+      if (tile.requiredKey) return (player.keys[tile.requiredKey] ?? 0) > 0;
+      if (tile.requiresAllChips) return engine.getChipsRemaining() === 0;
+      return tile.passableByPlayer === true;
+    };
+    const start = player.y * width + player.x;
+    const goal = target.y * width + target.x;
+    const parent = new Map<number, { from: number; dir: Direction }>();
+    const queue = [start];
+    const seen = new Set([start]);
+    for (let i = 0; i < queue.length; i++) {
+      const cell = queue[i];
+      if (cell === goal) {
+        const path: Direction[] = [];
+        for (let k = goal; k !== start; k = (parent.get(k) as { from: number }).from) {
+          path.push((parent.get(k) as { dir: Direction }).dir);
+        }
+        return path.reverse();
+      }
+      const x = cell % width;
+      const y = Math.floor(cell / width);
+      for (const dir of ORDERED_DIRECTIONS) {
+        const nx = x + DIRECTION_VECTORS[dir].dx;
+        const ny = y + DIRECTION_VECTORS[dir].dy;
+        const next = ny * width + nx;
+        if (seen.has(next) || !crossable(nx, ny)) continue;
+        seen.add(next);
+        parent.set(next, { from: cell, dir });
+        queue.push(next);
+      }
+    }
+    return null;
   }
 
   private static solutionFor(

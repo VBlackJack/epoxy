@@ -31,6 +31,9 @@ export const DEFAULT_MAX_SOLVER_STATES = 50000;
 /** Ticks a single move may take to settle (cooldowns, slides) before it counts as a loop. */
 const MAX_SETTLE_TICKS = 400;
 
+/** Reversibility per oriented piece; it depends on the piece alone. */
+const reversibleCache = new Map<string, boolean>();
+
 /** Standing still for one step: with monsters around, timing is part of a solution. */
 export const WAIT_ACTION = 'WAIT';
 export type SolverAction = Direction | typeof WAIT_ACTION;
@@ -56,6 +59,8 @@ export interface PieceAnalysis {
   reachableStates: number;
   deadStates: number;
   deadExits: number;
+  /** Winning states from which the player cannot walk back out through the entry. */
+  unreturnableGoals: number;
   blockEscapes: number;
   /** Whether the goal can be reached from the start state. */
   winnable: boolean;
@@ -108,18 +113,39 @@ export class PieceSolver {
     engine: GameEngine,
     piece: CompiledPiece,
     origin: GridPoint,
-    maxStates: number = DEFAULT_MAX_SOLVER_STATES
+    maxStates: number = DEFAULT_MAX_SOLVER_STATES,
+    towards: 'exit' | 'entry' = 'exit'
   ): PieceSolveResult {
     const start = engine.captureState();
-    const exit = { x: origin.x + piece.exit.x, y: origin.y + piece.exit.y };
+    const port = towards === 'exit' ? piece.exit : piece.entry;
+    const target = { x: origin.x + port.x, y: origin.y + port.y };
     const result = this.search(engine, piece, origin, maxStates, () => {
       const player = engine.getPlayer();
       if (engine.isLevelCompleted()) return null;
-      if (player.x !== exit.x || player.y !== exit.y) return false;
-      return !this.chipLeftInPiece(engine, piece, origin);
+      if (player.x !== target.x || player.y !== target.y) return false;
+      // Going back out, the chips were collected on the way in.
+      return towards === 'entry' || !this.chipLeftInPiece(engine, piece, origin);
     });
     engine.restoreState(start);
     return result;
+  }
+
+  /**
+   * Whether a solved piece can always be walked back: from every state where
+   * the player has left through the exit with every chip, however the puzzle
+   * was solved, a way leads back out through the entry. Only such pieces fit
+   * a dead-end wing, which the player must leave the way they came. Cached per
+   * piece definition and orientation.
+   */
+  public static isReversible(piece: CompiledPiece): boolean {
+    const { quarterTurns, mirrored } = piece.orientation;
+    const cacheKey = `${piece.id}|${quarterTurns}|${mirrored}|${piece.requires.join()}`;
+    const cached = reversibleCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+    const analysis = this.analyze(piece);
+    const reversible = analysis.winnable && !analysis.truncated && analysis.unreturnableGoals === 0;
+    reversibleCache.set(cacheKey, reversible);
+    return reversible;
   }
 
   /** Plays one solver action and lets it settle; false if the player died or never settles. */
@@ -245,6 +271,7 @@ export class PieceSolver {
     const index = new Map<string, number>([[this.stateKey(engine, piece, origin) + extraKey(), 0]]);
     const predecessors: number[][] = [[]];
     const goals: number[] = [];
+    const returns: number[] = [];
     const exits: number[] = [];
     let blockEscapes = 0;
     let truncated = false;
@@ -276,6 +303,7 @@ export class PieceSolver {
             exits.push(target);
             if (engine.getChipsRemaining() === 0) goals.push(target);
           }
+          if (player.x === entryStub.x && player.y === entryStub.y) returns.push(target);
         }
         predecessors[target].push(head);
       }
@@ -296,10 +324,23 @@ export class PieceSolver {
     }
     let deadStates = 0;
     for (let i = 0; i < states.length; i++) if (!canWin[i]) deadStates++;
+    // States from which the player can still walk back out through the entry.
+    const canReturn = new Uint8Array(states.length);
+    const back = [...returns];
+    for (const r of returns) canReturn[r] = 1;
+    for (let i = 0; i < back.length; i++) {
+      for (const p of predecessors[back[i]]) {
+        if (!canReturn[p]) {
+          canReturn[p] = 1;
+          back.push(p);
+        }
+      }
+    }
     return {
       reachableStates: states.length,
       deadStates,
       deadExits: exits.filter((e) => !canWin[e]).length,
+      unreturnableGoals: goals.filter((g) => !canReturn[g]).length,
       blockEscapes,
       winnable: goals.length > 0 && canWin[0] === 1,
       truncated

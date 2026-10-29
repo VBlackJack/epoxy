@@ -17,7 +17,8 @@
 /**
  * Studies the bundled community packs and the Epoxy campaign: which mechanic
  * families levels combine, how the mix grows through a pack, which mechanic
- * each pack introduces first, and how many blocks and monsters levels use.
+ * each pack introduces first, how many blocks and monsters levels use, and
+ * how often classic puzzle idioms appear.
  * Writes local/community-study.md, an authoring aid kept out of the repo.
  *
  * Run with: npm run report:study
@@ -30,7 +31,7 @@ import { it } from 'vitest';
 import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import { LevelMetrics } from '../src/core/LevelMetrics';
 import { LevelValidator } from '../src/core/LevelValidator';
-import { CompiledLevel } from '../src/core/types';
+import { CompiledLevel, TileDefinition } from '../src/core/types';
 import { DatCodec } from '../src/formats/DatCodec';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
 
@@ -96,6 +97,97 @@ function describePack(name: string, levels: CompiledLevel[]): string[] {
   return out;
 }
 
+
+/** Thresholds of the pattern detectors below. */
+const MIN_BLOCKS_FOR_SOKOBAN = 3;
+const MIN_TELEPORTERS_FOR_NETWORK = 3;
+const MIN_BLUE_WALLS_FOR_MAZE = 6;
+const MIN_FORCE_FOR_MAZE = 6;
+const MIN_TOGGLE_BUTTONS_FOR_SEQUENCE = 2;
+const MIN_CHIPS_FOR_HUNT = 20;
+
+/**
+ * Classic puzzle idioms of the genre, each detected by a cheap structural
+ * test on a whole level. They estimate how often designers use each idiom;
+ * a level can show several.
+ */
+const PATTERNS: Record<string, (level: CompiledLevel) => boolean> = {
+  sokoban_bridge: (l) => entityCounts(l).blocks >= MIN_BLOCKS_FOR_SOKOBAN && countTiles(l, (t) => t.hazard === 'water') > 0,
+  block_holds_trap: (l) => l.trapLinks.length > 0 && entityCounts(l).blocks > 0,
+  cloner_feed: (l) => l.cloneLinks.length > 0,
+  key_scarcity: (l) => keyScarcity(l),
+  key_hunt: (l) => countTiles(l, (t) => Boolean(t.requiredKey)) >= 4,
+  ice_corners: (l) => countTiles(l, (t) => Boolean(t.deflectionMap) && t.slideType === 'ice') > 0,
+  force_maze: (l) => forceDirections(l) >= 2 && countTiles(l, (t) => t.slideType === 'force') >= MIN_FORCE_FOR_MAZE,
+  teleport_network: (l) => countTiles(l, (t) => Boolean(t.isTeleporter)) >= MIN_TELEPORTERS_FOR_NETWORK,
+  blue_wall_maze: (l) => countIds(l, ['blue_wall_fake', 'blue_wall_real']) >= MIN_BLUE_WALLS_FOR_MAZE,
+  invisible_walls: (l) => countIds(l, ['invisible_wall', 'appearing_wall']) > 0,
+  toggle_sequence: (l) => countTiles(l, (t) => t.buttonAction === 'toggle_walls') >= MIN_TOGGLE_BUTTONS_FOR_SEQUENCE,
+  tank_switch: (l) => l.entities.some((e) => e.type === 'tank') && countTiles(l, (t) => t.buttonAction === 'reverse_tanks') > 0,
+  thief_order: (l) => countTiles(l, (t) => Boolean(t.stealsBoots)) > 0,
+  bomb_clearing: (l) => countItems(l, (t) => t.hazard === 'bomb') > 0 && entityCounts(l).blocks > 0,
+  dirt_and_blocks: (l) => countIds(l, ['dirt']) > 0 && entityCounts(l).blocks > 0,
+  boots_combo: (l) => countItems(l, (t) => t.collectible === 'boot') >= 2,
+  monster_dodge: (l) => l.entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster'),
+  chip_hunt: (l) => l.chipsRequired >= MIN_CHIPS_FOR_HUNT
+};
+
+function countTiles(level: CompiledLevel, test: (t: TileDefinition) => boolean): number {
+  let n = 0;
+  for (const row of level.terrain) for (const id of row) if (test(ConfigRegistry.getTile(id))) n++;
+  return n;
+}
+
+function countItems(level: CompiledLevel, test: (t: TileDefinition) => boolean): number {
+  let n = 0;
+  for (const row of level.items) for (const id of row) if (id && test(ConfigRegistry.getTile(id))) n++;
+  return n;
+}
+
+function countIds(level: CompiledLevel, ids: string[]): number {
+  let n = 0;
+  for (const row of level.terrain) for (const id of row) if (ids.includes(id)) n++;
+  return n;
+}
+
+function forceDirections(level: CompiledLevel): number {
+  const dirs = new Set<string>();
+  for (const row of level.terrain) for (const id of row) {
+    const dir = ConfigRegistry.getTile(id).forceDirection;
+    if (dir) dirs.add(dir);
+  }
+  return dirs.size;
+}
+
+/** Fewer keys of a consumed colour than doors of it: the player must choose. */
+function keyScarcity(level: CompiledLevel): boolean {
+  const doors = new Map<string, number>();
+  for (const row of level.terrain) for (const id of row) {
+    const t = ConfigRegistry.getTile(id);
+    if (t.requiredKey && t.consumesKey) doors.set(t.requiredKey, (doors.get(t.requiredKey) ?? 0) + 1);
+  }
+  const keys = new Map<string, number>();
+  for (const row of level.items) for (const id of row) if (id && doors.has(id)) keys.set(id, (keys.get(id) ?? 0) + 1);
+  return [...doors.entries()].some(([key, n]) => (keys.get(key) ?? 0) > 0 && (keys.get(key) ?? 0) < n);
+}
+
+function describePatterns(packs: Array<{ name: string; levels: CompiledLevel[] }>): string[] {
+  const out = ['## Puzzle patterns', '', `| Pattern | ${packs.map((p) => p.name).join(' | ')} | First half / second half |`, `|---|${packs.map(() => '---|').join('')}---|`];
+  const all = packs.flatMap((p) => p.levels);
+  for (const [name, detect] of Object.entries(PATTERNS)) {
+    const perPack = packs.map((p) => `${Math.round((100 * p.levels.filter(detect).length) / p.levels.length)}%`);
+    const half = (levels: CompiledLevel[], second: boolean) => {
+      const part = levels.filter((_, i) => (i >= levels.length / 2) === second);
+      return part.filter(detect).length / Math.max(1, part.length);
+    };
+    const early = packs.reduce((sum, p) => sum + half(p.levels, false), 0) / packs.length;
+    const late = packs.reduce((sum, p) => sum + half(p.levels, true), 0) / packs.length;
+    out.push(`| ${name} | ${perPack.join(' | ')} | ${Math.round(100 * early)}% / ${Math.round(100 * late)}% |`);
+  }
+  out.push('', `Levels studied: ${all.length}`, '');
+  return out;
+}
+
 function describeCampaign(levels: CompiledLevel[]): string[] {
   const out = ['## Epoxy campaign', '', '| # | Title | Families | Chips | Blocks | Monsters | Validator |', '|---|---|---|---|---|---|---|'];
   for (const level of levels) {
@@ -114,11 +206,15 @@ function describeCampaign(levels: CompiledLevel[]): string[] {
 it('writes the community study', () => {
   loadTestConfigs();
   const lines: string[] = ['# Community packs and campaign study', ''];
+  const packs: Array<{ name: string; levels: CompiledLevel[] }> = [];
   for (const pack of ConfigRegistry.getGame().ultimatePacks ?? []) {
     const buffer = readFileSync(resolve(ROOT, 'public', pack.url));
     const bytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-    lines.push(...describePack(pack.name, DatCodec.decodeBuffer(bytes, pack.prefix)));
+    const levels = DatCodec.decodeBuffer(bytes, pack.prefix);
+    packs.push({ name: pack.name, levels });
+    lines.push(...describePack(pack.name, levels));
   }
+  lines.push(...describePatterns(packs));
   lines.push(...describeCampaign(ConfigRegistry.getLevels()));
   mkdirSync(dirname(OUTPUT_FILE), { recursive: true });
   writeFileSync(OUTPUT_FILE, `${lines.join('\n')}\n`);

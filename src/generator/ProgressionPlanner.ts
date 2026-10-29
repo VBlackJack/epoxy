@@ -42,7 +42,20 @@ export interface LevelScript {
   motifs: string[];
   pieceCount: number;
   maxTier: number;
+  /** Chain of puzzles, or hub with locked wings; defaults to the level number's layout. */
+  layout?: 'chain' | 'hub';
 }
+
+export interface PuzzleSelection {
+  /** Unoriented puzzles, easiest first. */
+  puzzles: CompiledPiece[];
+  motifs: string[];
+  finale: CompiledPiece;
+  restRooms: CompiledPiece[];
+}
+
+/** Fewest puzzles a level keeps when pieces are dropped to make it fit. */
+const MIN_PUZZLES = 2;
 
 /** Budget of a level, derived from its number and the procedural config. */
 export interface LevelBudget {
@@ -81,9 +94,37 @@ export class ProgressionPlanner {
     script?: LevelScript
   ): LevelPlan {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
-    const budget = script
+    const selection = this.selectPuzzles(levelNumber, library, rules, rng, script);
+    const chosen = this.withRestRooms(
+      selection.puzzles.map((p) => this.randomOrientation(p, rng)),
+      selection.restRooms,
+      cfg.restRoomEvery,
+      rng
+    );
+    const steps = this.handOverItems(chosen);
+    steps.push({ piece: this.randomOrientation(selection.finale, rng), giveBefore: [] });
+    return { steps, motifs: selection.motifs };
+  }
+
+  /**
+   * Picks the level's puzzles, unoriented and easiest first, from a focused
+   * set of motifs; also returns the finale and the rest rooms. `accept`
+   * narrows the pieces a layout can use (a hub wing must be walkable back).
+   */
+  public static selectPuzzles(
+    levelNumber: number,
+    library: CompiledPiece[],
+    rules: Record<string, MotifRule>,
+    rng: SeededRandom,
+    script?: LevelScript,
+    accept: (piece: CompiledPiece) => boolean = () => true,
+    piecesDropped = 0
+  ): PuzzleSelection {
+    const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
+    const base = script
       ? { pieceCount: script.pieceCount, motifCount: script.motifs.length, maxTier: script.maxTier }
       : budgetFor(levelNumber, cfg);
+    const budget = { ...base, pieceCount: Math.max(MIN_PUZZLES, base.pieceCount - piecesDropped) };
     const finale = library.find((p) => rules[p.motif]?.role === 'finale');
     if (!finale) throw new Error('motifs.json defines no finale piece');
 
@@ -92,7 +133,8 @@ export class ProgressionPlanner {
       (p) =>
         rules[p.motif]?.role === undefined &&
         p.tier <= budget.maxTier &&
-        (!p.oneShot || levelNumber >= cfg.oneShotFromLevel)
+        (!p.oneShot || levelNumber >= cfg.oneShotFromLevel) &&
+        accept(p)
     );
     const motifPool = [...new Set(playable.map((p) => p.motif))];
     rng.shuffle(motifPool);
@@ -100,15 +142,8 @@ export class ProgressionPlanner {
       ? script.motifs.filter((m) => motifPool.includes(m))
       : motifPool.slice(0, Math.min(budget.motifCount, motifPool.length));
 
-    const chosen = this.withRestRooms(
-      this.choosePieces(budget.pieceCount, motifs, playable, rules, rng),
-      restRooms,
-      cfg.restRoomEvery,
-      rng
-    );
-    const steps = this.handOverItems(chosen);
-    steps.push({ piece: this.randomOrientation(finale, rng), giveBefore: [] });
-    return { steps, motifs };
+    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng);
+    return { puzzles, motifs, finale, restRooms };
   }
 
   private static choosePieces(
@@ -153,7 +188,7 @@ export class ProgressionPlanner {
     }
     // Easier pieces first: a motif is met in its simple form before its twist.
     chosen.sort((a, b) => a.tier - b.tier);
-    return chosen.map((p) => this.randomOrientation(p, rng));
+    return chosen;
   }
 
   /** Puts an open chip room after every `every` puzzles, never last. */
@@ -203,7 +238,7 @@ export class ProgressionPlanner {
     });
   }
 
-  private static randomOrientation(piece: CompiledPiece, rng: SeededRandom): CompiledPiece {
+  public static randomOrientation(piece: CompiledPiece, rng: SeededRandom): CompiledPiece {
     if (!piece.rotatable) return orientPiece(piece, IDENTITY_ORIENTATION);
     return orientPiece(piece, ALL_ORIENTATIONS[rng.nextInt(0, ALL_ORIENTATIONS.length - 1)]);
   }

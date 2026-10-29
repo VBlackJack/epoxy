@@ -31,8 +31,11 @@ export function replays(level: CompiledLevel, moves: SolverAction[]): boolean {
   return engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
 }
 
-/** Whether the exit stays reachable, doors and sockets counted as open, with `walled` filled in. */
-export function exitReachableWithout(level: CompiledLevel, walled: Box): boolean {
+/**
+ * Whether `target` stays reachable from the start, doors, sockets and
+ * hazards counted as open, once every cell of `walled` is filled in.
+ */
+export function cellReachableWithout(level: CompiledLevel, walled: Box, target: GridPoint): boolean {
   const height = level.terrain.length;
   const width = level.terrain[0].length;
   const open = (p: GridPoint): boolean => {
@@ -51,7 +54,7 @@ export function exitReachableWithout(level: CompiledLevel, walled: Box): boolean
   const queue: GridPoint[] = [level.playerStart];
   for (let i = 0; i < queue.length; i++) {
     const cell = queue[i];
-    if (ConfigRegistry.getTile(level.terrain[cell.y][cell.x]).isLevelExit) return true;
+    if (cell.x === target.x && cell.y === target.y) return true;
     const next = ORDERED_DIRECTIONS.map((d) => ({
       x: cell.x + DIRECTION_VECTORS[d].dx,
       y: cell.y + DIRECTION_VECTORS[d].dy

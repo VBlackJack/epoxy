@@ -90,6 +90,35 @@ export interface ThemePalette {
   accentGlow: string;
 }
 
+/** A lock on a hub wing and the item that opens it. */
+export interface HubGateConfig {
+  terrain: string;
+  item: string;
+  /** Turn the terrain to push back toward the hub (a force floor). */
+  orientTowardHub?: boolean;
+}
+
+/** Hub layout: an open room the player starts in, with locked wings around it. */
+export interface HubConfig {
+  /** First level built as a hub; earlier levels stay a simple chain. */
+  fromLevel: number;
+  width: number;
+  height: number;
+  /** Wings open from the start, so the player chooses where to begin. */
+  openWings: number;
+  maxConnectorLength: number;
+  rewardRoomWidth: number;
+  rewardRoomDepth: number;
+  rewardChips: number;
+  hubChips: number;
+  /** Depth of a hazard lock, in cells. */
+  hazardDepth: number;
+  /** Failed attempts after which a level drops one puzzle to fit around the hub. */
+  attemptsPerDroppedPiece: number;
+  doorGates: HubGateConfig[];
+  hazardGates: HubGateConfig[];
+}
+
 /** Weights and targets of the best-of-N level selection (see LevelScorer). */
 export interface ProceduralScoringConfig {
   /** Candidates built per level; the best scoring one is kept. */
@@ -143,6 +172,7 @@ export interface ProceduralConfig {
   timeRoundingSeconds: number;
   minTimeLimitSeconds: number;
   scoring: ProceduralScoringConfig;
+  hub: HubConfig;
 }
 
 export interface KeybindingsConfig {

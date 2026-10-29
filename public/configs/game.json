@@ -115,6 +115,29 @@
     "timeSlackFactor": 2,
     "timeRoundingSeconds": 10,
     "minTimeLimitSeconds": 60,
+    "hub": {
+      "fromLevel": 3,
+      "width": 7,
+      "height": 7,
+      "openWings": 2,
+      "maxConnectorLength": 2,
+      "rewardRoomWidth": 3,
+      "rewardRoomDepth": 2,
+      "rewardChips": 1,
+      "hubChips": 1,
+      "hazardDepth": 2,
+      "attemptsPerDroppedPiece": 8,
+      "doorGates": [
+        { "terrain": "door_red", "item": "key_red" },
+        { "terrain": "door_blue", "item": "key_blue" },
+        { "terrain": "door_yellow", "item": "key_yellow" }
+      ],
+      "hazardGates": [
+        { "terrain": "fire", "item": "boots_fire" },
+        { "terrain": "water", "item": "boots_water" },
+        { "terrain": "force_n", "item": "boots_force", "orientTowardHub": true }
+      ]
+    },
     "scoring": {
       "candidates": 3,
       "targetMovesBase": 60,
