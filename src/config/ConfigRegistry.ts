@@ -14,7 +14,22 @@
  * limitations under the License.
  */
 
-import { BUILTIN_PACK_IDS, CONFIG_ENDPOINTS, ENV_CONFIG } from './constants';
+import {
+  BUILTIN_PACK_IDS,
+  CONFIG_ENDPOINTS,
+  DEFAULT_LEVEL_PASSWORD,
+  ENV_CONFIG,
+  UNORDERED_PACK_RANK
+} from './constants';
+import {
+  assertConfigShape,
+  ConfigLoadError,
+  isCompiledLevelShape,
+  isDirection,
+  isFiniteNumber,
+  isInBounds,
+  InvalidLevelError
+} from './ConfigValidation';
 import {
   AudioConfig,
   CompiledLevel,
@@ -26,10 +41,38 @@ import {
   LevelsConfig,
   MonstersConfig,
   TileDefinition,
-  TilesConfig
+  TilesConfig,
+  UltimatePackDescriptor
 } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
+
+/** Top-level keys each config file must define. */
+const REQUIRED_CONFIG_KEYS = {
+  GAME: ['grid', 'timing', 'storage', 'locales', 'keybindings', 'palette'],
+  TILES: ['tiles'],
+  MONSTERS: ['entities'],
+  AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
+  LEVELS: ['legend', 'levels'],
+  DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement']
+} as const;
+
+/** Direction given to a level start that does not define a valid one. */
+const DEFAULT_START_DIRECTION = 'S';
+
+export interface ConfigBundle {
+  game: GameConfig;
+  tiles: TilesConfig;
+  monsters: MonstersConfig;
+  audio: AudioConfig;
+  levels: LevelsConfig;
+  datFormat: DatFormatConfig;
+}
+
+interface FetchedPack {
+  descriptor: UltimatePackDescriptor;
+  buffer: ArrayBuffer;
+}
 
 class ConfigRegistryService {
   private gameConfig!: GameConfig;
@@ -47,65 +90,97 @@ class ConfigRegistryService {
   private activePackId: string = BUILTIN_PACK_IDS.CAMPAIGN;
 
   public async loadAll(): Promise<void> {
+    const gamePromise = this.fetchJson<GameConfig>(CONFIG_ENDPOINTS.GAME, REQUIRED_CONFIG_KEYS.GAME);
+    // Pack downloads only need game.json, so they overlap with the other config fetches.
+    const packsPromise = gamePromise.then(
+      (game) => this.fetchUltimatePacks(game.ultimatePacks || []),
+      () => [] as FetchedPack[]
+    );
+    const storedPacksPromise = LevelPackStorage.loadAllPacks();
+
     const [game, tiles, monsters, audio, levels, datFormat] = await Promise.all([
-      this.fetchJson<GameConfig>(CONFIG_ENDPOINTS.GAME),
-      this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES),
-      this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS),
-      this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO),
-      this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS),
-      this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT)
+      gamePromise,
+      this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
+      this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS, REQUIRED_CONFIG_KEYS.MONSTERS),
+      this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
+      this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
+      this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT)
     ]);
 
-    this.gameConfig = game;
-    this.tilesConfig = tiles;
-    this.monstersConfig = monsters;
-    this.audioConfig = audio;
-    this.levelsConfig = levels;
-    this.datFormatConfig = datFormat;
-
-    this.builtInLevels = levels.levels.map((bp) => this.compileBlueprint(bp));
-    await this.loadUltimatePacks();
+    this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat });
+    this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     this.appendCampaignUltimateSelection();
     this.customLevels = this.loadCustomLevelsFromStorage();
-    this.importedPacks = await LevelPackStorage.loadAllPacks();
+    this.importedPacks = await storedPacksPromise;
 
-    const savedPackId = localStorage.getItem(
-      this.getStorageKey(this.gameConfig.storage.activePackKey)
-    );
+    const savedPackId = this.readStorage(this.gameConfig.storage.activePackKey);
     if (savedPackId && this.getAllPacks().some((p) => p.id === savedPackId && p.levels.length > 0)) {
       this.activePackId = savedPackId;
     }
   }
 
-  private async loadUltimatePacks(): Promise<void> {
-    const descriptors = this.gameConfig.ultimatePacks || [];
-    const loaded: LevelPack[] = [];
+  /**
+   * Installs an already parsed config bundle and compiles the built-in levels.
+   * Used by loadAll and by tests, which read the config files from disk.
+   */
+  public applyConfigs(bundle: ConfigBundle): void {
+    this.gameConfig = bundle.game;
+    this.tilesConfig = bundle.tiles;
+    this.monstersConfig = bundle.monsters;
+    this.audioConfig = bundle.audio;
+    this.levelsConfig = bundle.levels;
+    this.datFormatConfig = bundle.datFormat;
 
-    await Promise.all(
-      descriptors.map(async (desc) => {
+    this.builtInLevels = bundle.levels.levels.map((bp) => this.compileBlueprint(bp));
+    this.ultimatePacks = [];
+    this.customLevels = [];
+    this.proceduralLevels = [];
+    this.importedPacks = [];
+    this.activePackId = BUILTIN_PACK_IDS.CAMPAIGN;
+  }
+
+  private async fetchUltimatePacks(descriptors: UltimatePackDescriptor[]): Promise<FetchedPack[]> {
+    const results = await Promise.all(
+      descriptors.map(async (descriptor): Promise<FetchedPack | null> => {
         try {
-          const response = await fetch(desc.url);
-          if (!response.ok) return;
-          const buffer = await response.arrayBuffer();
-          const decoded = DatCodec.decodeBuffer(buffer, desc.prefix);
-          if (decoded.length > 0) {
-            loaded.push({
-              id: desc.id,
-              name: desc.name,
-              i18nKey: desc.i18nKey,
-              builtIn: true,
-              levels: decoded
-            });
-          }
+          const response = await fetch(descriptor.url);
+          if (!response.ok) return null;
+          return { descriptor, buffer: await response.arrayBuffer() };
         } catch {
-          // Pack unavailable
+          return null;
         }
       })
     );
+    return results.filter((r): r is FetchedPack => r !== null);
+  }
+
+  private decodeUltimatePacks(fetched: FetchedPack[]): LevelPack[] {
+    const descriptors = this.gameConfig.ultimatePacks || [];
+    const loaded: LevelPack[] = [];
+
+    for (const { descriptor, buffer } of fetched) {
+      try {
+        const decoded = DatCodec.decodeBuffer(buffer, descriptor.prefix);
+        if (decoded.length > 0) {
+          loaded.push({
+            id: descriptor.id,
+            name: descriptor.name,
+            i18nKey: descriptor.i18nKey,
+            builtIn: true,
+            levels: decoded
+          });
+        }
+      } catch {
+        // A corrupt bundled pack is skipped, the others stay playable
+      }
+    }
 
     const orderMap = new Map(descriptors.map((d, idx) => [d.id, idx]));
-    loaded.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
-    this.ultimatePacks = loaded;
+    loaded.sort(
+      (a, b) =>
+        (orderMap.get(a.id) ?? UNORDERED_PACK_RANK) - (orderMap.get(b.id) ?? UNORDERED_PACK_RANK)
+    );
+    return loaded;
   }
 
   private appendCampaignUltimateSelection(): void {
@@ -135,12 +210,33 @@ class ConfigRegistryService {
     }
   }
 
-  private async fetchJson<T>(url: string): Promise<T> {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${url}`);
+  private async fetchJson<T>(url: string, requiredKeys: readonly string[]): Promise<T> {
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch (err) {
+      throw new ConfigLoadError(url, err instanceof Error ? err.message : String(err));
     }
-    return response.json() as Promise<T>;
+    if (!response.ok) {
+      throw new ConfigLoadError(url, `HTTP ${response.status}`);
+    }
+    let parsed: unknown;
+    try {
+      parsed = await response.json();
+    } catch {
+      throw new ConfigLoadError(url, 'malformed JSON');
+    }
+    assertConfigShape(url, parsed, requiredKeys);
+    return parsed as T;
+  }
+
+  private readStorage(suffix: string): string | null {
+    try {
+      return localStorage.getItem(this.getStorageKey(suffix));
+    } catch {
+      // Storage blocked (privacy mode, sandboxed frame)
+      return null;
+    }
   }
 
   public getGame(): GameConfig {
@@ -187,6 +283,7 @@ class ConfigRegistryService {
       packs.push({
         id: BUILTIN_PACK_IDS.PROCEDURAL,
         name: 'Procedural',
+        i18nKey: 'app.packs.procedural.label',
         builtIn: true,
         levels: this.proceduralLevels
       });
@@ -195,6 +292,7 @@ class ConfigRegistryService {
       packs.push({
         id: BUILTIN_PACK_IDS.CUSTOM,
         name: 'Custom',
+        i18nKey: 'app.packs.custom.label',
         builtIn: true,
         levels: this.customLevels
       });
@@ -257,8 +355,23 @@ class ConfigRegistryService {
     return `${ENV_CONFIG.STORAGE_PREFIX}${suffix}`;
   }
 
+  /**
+   * Compiles a blueprint into a playable level. Blueprints may come from an
+   * imported file, so coordinates are bounds-checked: an invalid player start
+   * rejects the level, out-of-grid entities and links are dropped.
+   */
   public compileBlueprint(bp: LevelBlueprint): CompiledLevel {
     const { mapWidth, mapHeight } = this.gameConfig.grid;
+    const levelId = typeof bp.id === 'string' ? bp.id : String(bp.number);
+    const inGrid = (x: unknown, y: unknown) => isInBounds(x, y, mapWidth, mapHeight);
+
+    const start = bp.playerStart;
+    if (!start || !inGrid(start.x, start.y)) {
+      throw new InvalidLevelError(levelId, 'player start missing or outside the grid');
+    }
+    if (!isFiniteNumber(bp.number)) {
+      throw new InvalidLevelError(levelId, 'level number is not a number');
+    }
     const terrain: string[][] = Array.from({ length: mapHeight }, () =>
       Array.from({ length: mapWidth }, () => 'floor')
     );
@@ -312,15 +425,28 @@ class ConfigRegistryService {
       customTitle: bp.customTitle,
       hintKey: bp.hintKey,
       customHint: bp.customHint,
-      password: (bp.password || 'EPOX').toUpperCase(),
-      timeLimitSeconds: bp.timeLimitSeconds,
-      chipsRequired: bp.chipsRequired,
-      playerStart: { ...bp.playerStart },
+      password: (typeof bp.password === 'string' && bp.password
+        ? bp.password
+        : DEFAULT_LEVEL_PASSWORD
+      ).toUpperCase(),
+      timeLimitSeconds: toNonNegative(bp.timeLimitSeconds),
+      chipsRequired: toNonNegative(bp.chipsRequired),
+      playerStart: {
+        x: start.x,
+        y: start.y,
+        dir: isDirection(start.dir) ? start.dir : DEFAULT_START_DIRECTION
+      },
       terrain,
       items,
-      entities: (bp.entities || []).map((e) => ({ ...e })),
-      trapLinks: (bp.trapLinks || []).map((l) => ({ ...l })),
-      cloneLinks: (bp.cloneLinks || []).map((l) => ({ ...l }))
+      entities: asArray(bp.entities)
+        .filter((e) => inGrid(e.x, e.y) && typeof e.type === 'string')
+        .map((e) => ({ ...e, dir: isDirection(e.dir) ? e.dir : DEFAULT_START_DIRECTION })),
+      trapLinks: asArray(bp.trapLinks)
+        .filter((l) => inGrid(l.buttonX, l.buttonY) && inGrid(l.trapX, l.trapY))
+        .map((l) => ({ ...l })),
+      cloneLinks: asArray(bp.cloneLinks)
+        .filter((l) => inGrid(l.buttonX, l.buttonY) && inGrid(l.clonerX, l.clonerY))
+        .map((l) => ({ ...l }))
     };
   }
 
@@ -343,8 +469,12 @@ class ConfigRegistryService {
         this.getStorageKey(this.gameConfig.storage.customLevelsKey)
       );
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as CompiledLevel[];
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const { mapWidth, mapHeight } = this.gameConfig.grid;
+      return parsed.filter((lvl): lvl is CompiledLevel =>
+        isCompiledLevelShape(lvl, mapWidth, mapHeight)
+      );
     } catch {
       return [];
     }
@@ -360,6 +490,14 @@ class ConfigRegistryService {
       // Storage full or unavailable
     }
   }
+}
+
+function toNonNegative(value: unknown): number {
+  return isFiniteNumber(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+function asArray<T>(value: T[] | undefined): T[] {
+  return Array.isArray(value) ? value : [];
 }
 
 export const ConfigRegistry = new ConfigRegistryService();

@@ -38,6 +38,12 @@ export const DIRECTION_VECTORS = {
 
 export const ORDERED_DIRECTIONS = ['N', 'E', 'S', 'W'] as const;
 
+/** Password assigned to a level that does not define one. */
+export const DEFAULT_LEVEL_PASSWORD = 'EPOX';
+
+/** Sort rank for a pack missing from the configured order. */
+export const UNORDERED_PACK_RANK = Number.MAX_SAFE_INTEGER;
+
 export const BUILTIN_PACK_IDS = {
   CAMPAIGN: 'epoxy_campaign',
   CUSTOM: 'epoxy_custom',
