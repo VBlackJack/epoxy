@@ -43,10 +43,11 @@ import { downloadBytes } from './ui/download';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
-import { preferredScrollBehavior } from './ui/motion';
+import { preferredScrollBehavior, prefersReducedMotion, replayAnimation } from './ui/motion';
 import { collectDueMoves, sanitizeTimedMoves } from './ui/replaySchedule';
 import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
 import {
+  BIOME_ACCENT_CSS_VAR,
   CANVAS_RESIZE_TOLERANCE_PX,
   DEFAULT_GRAPHICS_STYLE,
   AUTO_THEME_ID,
@@ -56,6 +57,7 @@ import {
   GAMEPAD_AXIS_Y,
   GAMEPAD_BUTTONS,
   GAMEPAD_INDEX,
+  HUD_BUMP_CLASS,
   HUD_COUNTER_DIGITS,
   INFINITE_KEY_IDS,
   MAX_DEVICE_PIXEL_RATIO,
@@ -116,6 +118,9 @@ class EpoxyApplication {
   private replayIndex: number = 0;
   private isReplaying: boolean = false;
   private lastWarnedSecond: number = NO_WARNED_SECOND;
+  /** Chip counter last shown, to pop the HUD counter when a chip is picked up. */
+  private hudChipsLeft: number = 0;
+  private hudChipsLevelId: string = '';
   private scoresFilterMode: ScoresFilter = 'all';
   private scoresSearchQuery: string = '';
   private overlayState: OverlayState = 'none';
@@ -237,6 +242,11 @@ class EpoxyApplication {
       byId('lynx-console')?.classList.add('enabled');
       byId('btn-shell-toggle')?.classList.add('active');
     }
+
+    this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
+    byId('btn-lcd-toggle')?.classList.toggle('active', this.renderer.isLcdEnabled());
+    this.renderer.setReducedMotion(prefersReducedMotion());
+    this.syncThemeAccent();
 
     this.setupFovSelector(presets, initialFov);
   }
@@ -826,10 +836,17 @@ class EpoxyApplication {
 
   private showTheme(themeId: string): void {
     this.renderer.setThemeId(themeId);
+    this.syncThemeAccent();
     const track = THEME_MUSIC_TRACKS[themeId];
     if (track) {
       AudioManager.setTrackById(track);
     }
+  }
+
+  /** Lets the HUD follow the biome: its accent colour becomes a CSS variable. */
+  private syncThemeAccent(): void {
+    const accent = this.renderer.getThemeAccent();
+    if (accent) document.documentElement.style.setProperty(BIOME_ACCENT_CSS_VAR, accent);
   }
 
   /** In automatic mode, shows the level's own theme, or the default one. */
@@ -1326,6 +1343,13 @@ class EpoxyApplication {
   private bindDisplayToggles(): void {
     byId('btn-graphics-toggle')?.addEventListener('click', () => {
       this.toggleGraphicsStyle();
+    });
+
+    const lcdBtn = byId('btn-lcd-toggle');
+    lcdBtn?.addEventListener('click', () => {
+      this.renderer.setLcdEnabled(!this.renderer.isLcdEnabled());
+      lcdBtn.classList.toggle('active', this.renderer.isLcdEnabled());
+      this.saveUserSettings();
     });
 
     const shellBtn = byId('btn-shell-toggle');
@@ -1950,10 +1974,15 @@ class EpoxyApplication {
     setText(byId('hud-level-num'), String(lvl.number));
     setText(byId('hud-level-pass'), lvl.password);
     setText(byId('hud-level-title'), this.resolveLevelTitle(lvl));
-    setText(
-      byId('hud-chips-left'),
-      String(this.engine.getChipsRemaining()).padStart(HUD_COUNTER_DIGITS, '0')
-    );
+    const chipsLeft = this.engine.getChipsRemaining();
+    const chipsEl = byId('hud-chips-left');
+    setText(chipsEl, String(chipsLeft).padStart(HUD_COUNTER_DIGITS, '0'));
+    // Same level and fewer chips: one was just picked up.
+    if (chipsEl && lvl.id === this.hudChipsLevelId && chipsLeft < this.hudChipsLeft) {
+      replayAnimation(chipsEl, HUD_BUMP_CLASS);
+    }
+    this.hudChipsLevelId = lvl.id;
+    this.hudChipsLeft = chipsLeft;
     this.updateTimer();
     setText(byId('hud-score'), String(this.engine.getTotalScore()));
     setText(byId('hud-steps'), String(this.engine.getStepsCount()));
@@ -2174,6 +2203,7 @@ class EpoxyApplication {
         themeId: this.autoTheme ? AUTO_THEME_ID : this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
         shellEnabled: Boolean(byId('lynx-console')?.classList.contains('enabled')),
+        lcdEnabled: this.renderer.isLcdEnabled(),
         sfxEnabled: AudioManager.isSfxEnabled(),
         musicEnabled: AudioManager.isMusicEnabled()
       };

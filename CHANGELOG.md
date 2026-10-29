@@ -18,6 +18,21 @@ versions follow Semantic Versioning.
 - Each monster has its own silhouette and a two-frame animation; bugs, paramecia,
   gliders, tanks and fireballs turn to face where they go, the others look there.
   Pushable blocks get a front face like the walls; items float over a ground shadow.
+- HD Neon lighting: the scene is slightly darkened away from light sources (the player,
+  exits, fire, teleporters, hints, chips, keys, fireballs and gliders), each light adds
+  a tinted glow, and a vignette darkens the corners. Light sources, reach and colours
+  are set in `lightSources` (`game.json`).
+- Water sparkles, flames sway in pairs and give off embers, and glints sweep over ice;
+  neighbouring cells animate out of step.
+- An iris opens on the player when a level starts or restarts (skipped with reduced
+  motion).
+- The side panel follows the biome colour; the chip counter and inventory slots pop
+  when a chip or an item is picked up.
+
+### Added
+
+- "LCD Screen" option: a pixel grid over the 16-Bit Retro view, saved with the other
+  settings.
 
 ## [2.0.0] - 2026-10-29
 

@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import { replayAnimation } from './motion';
+import { HUD_BUMP_CLASS } from './uiConstants';
+
 export interface InventorySlotState {
   owned: boolean;
   /** Badge text; empty hides the badge. */
@@ -55,6 +58,8 @@ export class InventorySlotView {
 
   public update(next: InventorySlotState): void {
     if (!slotStateChanged(this.state, next)) return;
+    // A slot filling up while playing pops; the first state shown (level load) does not.
+    if (this.state && next.owned && !this.state.owned) replayAnimation(this.slot, HUD_BUMP_CLASS);
     this.slot.classList.toggle('owned', next.owned);
     this.slot.title = next.label;
     this.img.alt = next.label;

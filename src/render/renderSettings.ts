@@ -17,6 +17,12 @@
 import { GraphicsConfig, ThemePalette } from '../core/types';
 
 /** Shadow blur radii, in pixels, baked into glowing sprites and the terrain cache. */
+/** One kind of light source: its reach and the palette key of its tint. */
+export interface LightSourceSettings {
+  radiusTile: number;
+  colorKey: string;
+}
+
 export interface GlowBlurSettings {
   soft: number;
   medium: number;
@@ -80,6 +86,26 @@ export interface RenderSettings {
   floorDetailEvery: number;
   /** Height of the small hop the player makes on each step. */
   playerHopTile: number;
+  /** Modern style only: darkens the scene except around light sources. */
+  lightingEnabled: boolean;
+  /** Opacity of the darkness away from any light. */
+  lightingAmbientAlpha: number;
+  /** Opacity of the coloured glow added around each light. */
+  lightingTintAlpha: number;
+  /** The darkness is drawn at 1/N of the canvas resolution, then scaled up smoothly. */
+  lightingResolutionDivisor: number;
+  /** Relative radius change of flickering lights (fire, fireballs). */
+  lightingFlicker: number;
+  /** Light sources by id: 'player', a tile id, an item id or a monster type. */
+  lightSources: Record<string, LightSourceSettings>;
+  /** Opacity of the darkened corners of the view, 0 to disable. */
+  vignetteAlpha: number;
+  /** Fraction of the view radius left clear by the vignette. */
+  vignetteInnerRatio: number;
+  /** Opacity of the LCD pixel grid drawn over the 16-Bit Retro view when enabled. */
+  lcdGridAlpha: number;
+  /** Duration of the iris that opens on the player when a level starts, in reference frames. */
+  irisOpenFrames: number;
 }
 
 /** The graphics block as stored in game.json, including keys GraphicsConfig does not declare. */
@@ -130,7 +156,19 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   wallPanelInsetTile: 0.18,
   floorShadowDepthTile: 0.34,
   floorDetailEvery: 5,
-  playerHopTile: 0.07
+  playerHopTile: 0.07,
+  lightingEnabled: true,
+  lightingAmbientAlpha: 0.4,
+  lightingTintAlpha: 0.22,
+  lightingResolutionDivisor: 4,
+  lightingFlicker: 0.06,
+  lightSources: {
+    player: { radiusTile: 3.4, colorKey: 'modernPlayerVisor' }
+  },
+  vignetteAlpha: 0.45,
+  vignetteInnerRatio: 0.55,
+  lcdGridAlpha: 0.18,
+  irisOpenFrames: 24
 };
 
 const resolvedCache = new WeakMap<object, RenderSettings>();
@@ -146,7 +184,12 @@ export function resolveRenderSettings(graphics: GraphicsConfig | undefined): Ren
     if (key === 'glowBlurPx') continue;
     const value = source[key];
     const fallback = DEFAULT_RENDER_SETTINGS[key];
-    if (Array.isArray(fallback) ? isStringArray(value) : typeof value === typeof fallback) {
+    const accepted = Array.isArray(fallback)
+      ? isStringArray(value)
+      : typeof fallback === 'object'
+        ? isLightSourceTable(value)
+        : typeof value === typeof fallback;
+    if (accepted) {
       (resolved as unknown as Record<string, unknown>)[key] = value;
     }
   }
@@ -157,6 +200,16 @@ export function resolveRenderSettings(graphics: GraphicsConfig | undefined): Ren
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isLightSourceTable(value: unknown): value is Record<string, LightSourceSettings> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.values(value).every(
+    (source: unknown) =>
+      !!source &&
+      typeof (source as LightSourceSettings).radiusTile === 'number' &&
+      typeof (source as LightSourceSettings).colorKey === 'string'
+  );
 }
 
 /**

@@ -50,6 +50,8 @@ export interface UserSettings {
   themeId?: string;
   graphicsStyle?: GraphicsStyle;
   shellEnabled?: boolean;
+  /** LCD pixel grid over the 16-Bit Retro view. */
+  lcdEnabled?: boolean;
   sfxEnabled?: boolean;
   musicEnabled?: boolean;
 }

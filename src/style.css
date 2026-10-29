@@ -27,6 +27,9 @@
   --led-green: #00e676;
   --led-amber: #ffab00;
   --danger: #ff1744;
+  /* Accent of the biome on screen, set from game.json themes when the theme changes */
+  --biome-accent: #00e5ff;
+  --biome-accent-soft: color-mix(in srgb, var(--biome-accent) 35%, transparent);
   /* Minimum touch target (WCAG 2.5.5) used by the d-pad cells */
   --dpad-cell: 44px;
 }
@@ -612,6 +615,9 @@ button:disabled {
   padding: 0.7rem;
   border-radius: 8px;
   border: 1px solid #2b313f;
+  border-top: 2px solid var(--biome-accent);
+  box-shadow: 0 -6px 18px -12px var(--biome-accent);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
 .hud-level-header {
@@ -635,7 +641,7 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-bottom: 1px solid #2b313f;
+  border-bottom: 1px solid var(--biome-accent-soft);
   padding-bottom: 0.3rem;
 }
 
@@ -749,7 +755,7 @@ button:disabled {
 }
 
 #radar-canvas {
-  border: 1px solid #37474f;
+  border: 1px solid var(--biome-accent-soft);
   background: #0b0d12;
   image-rendering: pixelated;
 }
@@ -786,6 +792,29 @@ button:disabled {
 .inv-slot.owned {
   border-color: var(--lynx-yellow);
   background: #242b3a;
+  box-shadow: 0 0 8px -2px var(--lynx-yellow), inset 0 0 6px -3px var(--lynx-yellow);
+}
+
+/* Short pop replayed when a chip is picked up or an inventory slot fills */
+.hud-bump {
+  animation: hud-bump 0.32s ease-out;
+}
+
+@keyframes hud-bump {
+  from {
+    transform: scale(1.28);
+    filter: brightness(1.6);
+  }
+  to {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-bump {
+    animation: none;
+  }
 }
 
 .inv-slot img {

@@ -35,7 +35,8 @@ import {
   TerrainFeatures,
   TerrainSnapshot
 } from './terrainState';
-import { hasAll, ISOLATED_TILE, NEIGHBOUR, TileNeighbours, tileNeighbours } from './tileNeighbours';
+import { Light, LightingLayer } from './LightingLayer';
+import { cellHash, hasAll, ISOLATED_TILE, NEIGHBOUR, TileNeighbours, tileNeighbours } from './tileNeighbours';
 
 interface Particle {
   x: number;
@@ -76,7 +77,12 @@ const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_w',
   'force_random',
   'exit',
-  'teleport'
+  'teleport',
+  'ice',
+  'ice_nw',
+  'ice_ne',
+  'ice_sw',
+  'ice_se'
 ]);
 const RETRO_ANIMATED_TILES: ReadonlySet<string> = new Set(['water', 'fire', 'exit', 'teleport']);
 const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([...MODERN_ANIMATED_TILES, ...RETRO_ANIMATED_TILES]);
@@ -127,7 +133,18 @@ const WALK_FRAMES = 2;
 /** Below this distance (in tiles) from its cell, a sprite counts as standing still. */
 const MOVING_EPSILON_TILES = 0.02;
 
-const BLOCK_TYPES: ReadonlySet<string> = new Set(['dirt_block', 'ice_block']);
+/** Lights are gathered from terrain this many tiles beyond the view, so their glow can reach in. */
+const LIGHT_MARGIN_TILES = 2;
+const FLICKERING_LIGHTS: ReadonlySet<string> = new Set(['fire', 'fireball']);
+const LIGHT_FLICKER_SPEED = 0.35;
+const LIGHT_PHASE_X = 1.7;
+const LIGHT_PHASE_Y = 2.3;
+/** Width of the dark gap between LCD pixels, as a fraction of one retro dot. */
+const LCD_GAP_RATIO = 0.25;
+/** The iris starts as a small window on the player, this many tiles wide. */
+const IRIS_MIN_RADIUS_TILE = 0.6;
+
+const BLOCK_TYPES:ReadonlySet<string> = new Set(['dirt_block', 'ice_block']);
 const GLOWING_MONSTERS: ReadonlySet<string> = new Set(['fireball', 'pink_ball', 'glider']);
 /** Monsters drawn facing their direction of travel; the others stay upright and look towards it. */
 const HEAD_FIRST_MONSTERS: ReadonlySet<string> = new Set(['bug', 'paramecium', 'glider', 'tank', 'fireball']);
@@ -158,6 +175,17 @@ const EXIT_PULSE_BASE = 0.34;
 const EXIT_PULSE_AMPLITUDE = 0.05;
 const TELEPORT_CORE_BASE = 0.14;
 const TELEPORT_CORE_AMPLITUDE = 0.03;
+/** Low bits of the cell hash turned into an animation phase. */
+const PHASE_MASK = 0xff;
+const WATER_SPARKLE_SPEED = 0.6;
+const WATER_SPARKLE_RADIUS_TILE = 0.035;
+const FIRE_EMBERS = 3;
+const FIRE_EMBER_SPEED = 0.9;
+const FIRE_EMBER_SIZE_TILE = 0.04;
+/** Ice glints sweep during the first part of a slow cycle, then the ice rests. */
+const ICE_GLINT_SPEED = 0.18;
+const ICE_GLINT_WINDOW = 0.18;
+const ICE_GLINT_WIDTH_TILE = 0.06;
 
 /** Mechanism wires and objective beacon styling. */
 const LINK_DASH_PATTERN: number[] = [6, 4];
@@ -226,8 +254,21 @@ export class PixelRenderer {
   private tileSetsSource: RenderSettings | null = null;
   private wallJoinTiles: ReadonlySet<string> = new Set();
   private shadowCasterTiles: ReadonlySet<string> = new Set();
+  private litTiles: ReadonlySet<string> = new Set();
   /** Retro shadow dithering, one pattern per dot size and colour. */
   private readonly ditherPatterns: Map<string, CanvasPattern> = new Map();
+
+  private readonly lighting = new LightingLayer();
+  /** Lights gathered while drawing a frame, reused across frames. */
+  private readonly lights: Light[] = [];
+  /** Scratch neighbourhood for animated tiles, which only need the cell hash. */
+  private readonly animNeighbours: TileNeighbours = { ...ISOLATED_TILE };
+  private lcdEnabled: boolean = false;
+  private reducedMotion: boolean = false;
+  /** Opening iris: 0 when a level starts, 1 once fully open. */
+  private irisProgress: number = 1;
+  private irisLevelId: string = '';
+  private irisLastSteps: number = 0;
 
   public incrementFrame(): void {
     this.animFrame = (this.animFrame + 1) % 60;
@@ -252,6 +293,24 @@ export class PixelRenderer {
 
   public setThemeId(id: string): void {
     this.themeId = id;
+  }
+
+  /** Accent colour of the active theme, for the HUD to follow the biome. */
+  public getThemeAccent(): string | undefined {
+    return this.getActiveTheme()?.accentGlow;
+  }
+
+  public isLcdEnabled(): boolean {
+    return this.lcdEnabled;
+  }
+
+  public setLcdEnabled(enabled: boolean): void {
+    this.lcdEnabled = enabled;
+  }
+
+  /** With reduced motion, the opening iris is skipped. */
+  public setReducedMotion(reduced: boolean): void {
+    this.reducedMotion = reduced;
   }
 
   public cycleTheme(): string {
@@ -480,12 +539,31 @@ export class PixelRenderer {
     }
 
     const animatedTiles = isModern ? MODERN_ANIMATED_TILES : RETRO_ANIMATED_TILES;
+    const animNeighbours = this.animNeighbours;
     for (const cell of this.terrainFeatures.animatedCells) {
       if (cell.x < startTileX || cell.x > endTileX || cell.y < startTileY || cell.y > endTileY) continue;
       if (!animatedTiles.has(cell.tileId)) continue;
       const px = originX + Math.floor((cell.x - region.x0) * tilePixelSize);
       const py = originY + Math.floor((cell.y - region.y0) * tilePixelSize);
-      this.drawTile(ctx, cell.tileId, px, py, drawSize, false, false, 'animated');
+      animNeighbours.hash = cellHash(cell.x, cell.y);
+      this.drawTile(ctx, cell.tileId, px, py, drawSize, false, false, 'animated', animNeighbours);
+    }
+
+    // Lights are gathered while the scene is drawn and applied once it is complete.
+    const lit = isModern && settings.lightingEnabled;
+    this.lights.length = 0;
+    if (lit) {
+      for (const cell of this.terrainFeatures.litCells) {
+        if (
+          cell.x < startTileX - LIGHT_MARGIN_TILES ||
+          cell.x > endTileX + LIGHT_MARGIN_TILES ||
+          cell.y < startTileY - LIGHT_MARGIN_TILES ||
+          cell.y > endTileY + LIGHT_MARGIN_TILES
+        ) {
+          continue;
+        }
+        this.addLight(cell.tileId, cell.x - camX, cell.y - camY, tilePixelSize, settings);
+      }
     }
 
     for (let my = startTileY; my <= endTileY; my++) {
@@ -497,6 +575,7 @@ export class PixelRenderer {
           const px = originX + Math.floor((mx - region.x0) * tilePixelSize);
           const py = originY + Math.floor((my - region.y0) * tilePixelSize);
           this.drawItem(ctx, itemId, px, py, drawSize);
+          if (lit) this.addLight(itemId, mx - camX, my - camY, tilePixelSize, settings);
         }
       }
     }
@@ -530,6 +609,7 @@ export class PixelRenderer {
         const px = (vPos.x - camX) * tilePixelSize;
         const py = (vPos.y - camY) * tilePixelSize;
         this.drawEntity(ctx, ent.type, ent.dir, px, py, tilePixelSize);
+        if (lit) this.addLight(ent.type, vPos.x - camX, vPos.y - camY, tilePixelSize, settings);
       }
     }
 
@@ -598,12 +678,131 @@ export class PixelRenderer {
       hop
     );
 
+    if (lit) {
+      this.addLight('player', this.visualPlayerPos.x - camX, this.visualPlayerPos.y - camY - hop, tilePixelSize, settings);
+      const pal = gameCfg.palette;
+      this.lighting.render(
+        ctx,
+        this.lights,
+        { ambient: pal.lightAmbient, mask: pal.lightMask, vignette: pal.vignetteShade },
+        {
+          ambientAlpha: settings.lightingAmbientAlpha,
+          tintAlpha: settings.lightingTintAlpha,
+          resolutionDivisor: settings.lightingResolutionDivisor,
+          vignetteAlpha: settings.vignetteAlpha,
+          vignetteInnerRatio: settings.vignetteInnerRatio
+        }
+      );
+    } else if (!isModern && this.lcdEnabled) {
+      this.drawLcdGrid(ctx, originX, originY, tilePixelSize, settings);
+    }
+
     this.drawMechanismLinksAndObjective(ctx, engine, camX, camY, tilePixelSize);
 
     if (isModern) {
       this.updateAndDrawEffects(ctx, camX, camY, tilePixelSize, frameScale, settings);
     }
 
+    ctx.restore();
+
+    const half = tilePixelSize / 2;
+    this.drawIris(ctx, engine, playerPx + half, playerPy + half, tilePixelSize, frameScale, settings);
+  }
+
+  /**
+   * Adds the light of `id` (a tile, item, monster or 'player') centred on the cell whose
+   * top-left corner is (gx, gy) in tiles from the camera, when that id gives off light.
+   */
+  private addLight(id: string, gx: number, gy: number, tilePixelSize: number, settings: RenderSettings): void {
+    const source = settings.lightSources[id];
+    if (!source) return;
+    const color = ConfigRegistry.getGame().palette[source.colorKey];
+    if (!color) return;
+    let radius = source.radiusTile * tilePixelSize;
+    if (FLICKERING_LIGHTS.has(id)) {
+      // Each light flickers on its own phase, taken from where it is.
+      const phase = this.timeTick * LIGHT_FLICKER_SPEED + gx * LIGHT_PHASE_X + gy * LIGHT_PHASE_Y;
+      radius *= 1 + Math.sin(phase) * settings.lightingFlicker;
+    }
+    this.lights.push({ x: (gx + 0.5) * tilePixelSize, y: (gy + 0.5) * tilePixelSize, radius, color });
+  }
+
+  /**
+   * Retro LCD look: dark gaps between screen pixels, one screen pixel being a retro dot.
+   * The grid is anchored on the terrain so it scrolls with the map, not with the screen.
+   */
+  private drawLcdGrid(
+    ctx: CanvasRenderingContext2D,
+    originX: number,
+    originY: number,
+    tilePixelSize: number,
+    settings: RenderSettings
+  ): void {
+    const pattern = this.getLcdPattern(ctx, this.retroDot(tilePixelSize));
+    if (!pattern) return;
+    ctx.save();
+    ctx.globalAlpha = settings.lcdGridAlpha;
+    ctx.translate(originX, originY);
+    ctx.fillStyle = pattern;
+    ctx.fillRect(-originX, -originY, ctx.canvas.width, ctx.canvas.height);
+    ctx.restore();
+  }
+
+  private getLcdPattern(ctx: CanvasRenderingContext2D, dot: number): CanvasPattern | null {
+    const key = 'lcd|' + dot;
+    const cached = this.ditherPatterns.get(key);
+    if (cached) return cached;
+    if (typeof document === 'undefined') return null;
+    const cell = document.createElement('canvas');
+    cell.width = dot;
+    cell.height = dot;
+    const cctx = cell.getContext('2d');
+    if (!cctx) return null;
+    const gap = Math.max(1, Math.round(dot * LCD_GAP_RATIO));
+    cctx.fillStyle = ConfigRegistry.getGame().palette.lcdGrid;
+    cctx.fillRect(0, dot - gap, dot, gap);
+    cctx.fillRect(dot - gap, 0, gap, dot - gap);
+    const pattern = ctx.createPattern(cell, 'repeat');
+    if (pattern) this.ditherPatterns.set(key, pattern);
+    return pattern;
+  }
+
+  /**
+   * Iris opening on the player when a level starts or restarts. Drawn outside the
+   * screen shake, skipped with reduced motion.
+   */
+  private drawIris(
+    ctx: CanvasRenderingContext2D,
+    engine: GameEngine,
+    cx: number,
+    cy: number,
+    tilePixelSize: number,
+    frameScale: number,
+    settings: RenderSettings
+  ): void {
+    const levelId = engine.getLevel().id;
+    const steps = engine.getStepsCount();
+    const restarted = steps === 0 && this.irisLastSteps > 0;
+    if (levelId !== this.irisLevelId || restarted) {
+      this.irisProgress = this.reducedMotion || settings.irisOpenFrames <= 0 ? 1 : 0;
+    }
+    this.irisLevelId = levelId;
+    this.irisLastSteps = steps;
+    if (this.irisProgress >= 1) return;
+
+    this.irisProgress = Math.min(1, this.irisProgress + frameScale / settings.irisOpenFrames);
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    // Far enough to uncover the corner furthest from the player.
+    const maxRadius = Math.hypot(Math.max(cx, width - cx), Math.max(cy, height - cy));
+    const eased = this.irisProgress * this.irisProgress;
+    const radius = Math.max(tilePixelSize * IRIS_MIN_RADIUS_TILE, maxRadius * eased);
+    ctx.save();
+    ctx.fillStyle = ConfigRegistry.getGame().palette.irisShade;
+    ctx.beginPath();
+    ctx.rect(0, 0, width, height);
+    ctx.arc(cx, cy, radius, 0, FULL_TURN, true);
+    ctx.fill('evenodd');
     ctx.restore();
   }
 
@@ -622,9 +821,10 @@ export class PixelRenderer {
     endTileY: number,
     settings: RenderSettings
   ): void {
+    this.syncTileSets(settings);
     const terrainChanged = this.terrainSnapshot.update(terrain);
     if (terrainChanged) {
-      this.terrainFeatures = collectTerrainFeatures(terrain, ANY_ANIMATED_TILES);
+      this.terrainFeatures = collectTerrainFeatures(terrain, ANY_ANIMATED_TILES, this.litTiles);
     }
 
     let trapKey = '';
@@ -673,7 +873,6 @@ export class PixelRenderer {
       cacheCtx.clearRect(0, 0, widthPx, heightPx);
     }
 
-    this.syncTileSets(settings);
     const drawSize = Math.ceil(tilePixelSize);
     for (let my = region.y0; my <= region.y1; my++) {
       for (let mx = region.x0; mx <= region.x1; mx++) {
@@ -692,6 +891,7 @@ export class PixelRenderer {
     this.tileSetsSource = settings;
     this.wallJoinTiles = new Set(settings.wallJoinTiles);
     this.shadowCasterTiles = new Set(settings.shadowCasterTiles);
+    this.litTiles = new Set(Object.keys(settings.lightSources));
   }
 
   /** Strokes a straight wire between the centres of two grid cells. */
@@ -1525,7 +1725,7 @@ export class PixelRenderer {
     neighbours: Readonly<TileNeighbours>
   ): void {
     if (pass === 'animated') {
-      if (MODERN_ANIMATED_TILES.has(tileId)) this.drawModernAnimatedOverlay(ctx, tileId, x, y, size);
+      if (MODERN_ANIMATED_TILES.has(tileId)) this.drawModernAnimatedOverlay(ctx, tileId, x, y, size, neighbours.hash);
       return;
     }
 
@@ -1845,7 +2045,7 @@ export class PixelRenderer {
     }
 
     if (pass === 'all' && MODERN_ANIMATED_TILES.has(tileId)) {
-      this.drawModernAnimatedOverlay(ctx, tileId, x, y, size);
+      this.drawModernAnimatedOverlay(ctx, tileId, x, y, size, neighbours.hash);
     }
   }
 
@@ -1932,12 +2132,15 @@ export class PixelRenderer {
     tileId: string,
     x: number,
     y: number,
-    size: number
+    size: number,
+    hash: number = 0
   ): void {
     const pal = ConfigRegistry.getGame().palette;
     const t = this.timeTick * MODERN_ANIM_SPEED;
     const cx = x + size / 2;
     const cy = y + size / 2;
+    // Per-cell phase, so neighbouring cells of the same tile do not move in lockstep.
+    const phase = ((hash & PHASE_MASK) / PHASE_MASK) * FULL_TURN;
 
     switch (tileId) {
       case 'water': {
@@ -1952,19 +2155,75 @@ export class PixelRenderer {
           ctx.quadraticCurveTo(x + size * 0.5, wy - 4, x + size * 0.82 + shift, wy);
           ctx.stroke();
         }
+        // A sparkle that drifts across the cell and fades in and out.
+        const drift = (t * WATER_SPARKLE_SPEED + phase) % FULL_TURN;
+        const glint = Math.sin(drift);
+        if (glint > 0) {
+          ctx.save();
+          ctx.globalAlpha = glint;
+          ctx.fillStyle = pal.waterSparkle;
+          const sx = x + size * (0.2 + (0.6 * drift) / FULL_TURN);
+          const sy = y + size * (0.5 + Math.sin(phase) * 0.12);
+          ctx.beginPath();
+          ctx.arc(sx, sy, Math.max(1, size * WATER_SPARKLE_RADIUS_TILE), 0, FULL_TURN);
+          ctx.fill();
+          ctx.restore();
+        }
         break;
       }
 
       case 'fire': {
-        // Animated flame tongues
-        const sway = Math.sin(t * 2.2) * (size * 0.08);
+        // Two flame tongues swaying out of step, and embers rising from the cell.
         ctx.fillStyle = pal.modernFireTongue;
+        for (let i = 0; i < 2; i++) {
+          const sway = Math.sin(t * 2.2 + phase + i * Math.PI) * (size * 0.08);
+          const left = x + size * (0.14 + i * 0.32);
+          const width = size * 0.42;
+          const height = size * (0.62 + 0.1 * Math.sin(t * 3 + phase + i));
+          ctx.beginPath();
+          ctx.moveTo(left, y + size * 0.86);
+          ctx.quadraticCurveTo(left + width * 0.3 + sway, y + size * 0.86 - height, left + width / 2 + sway, y + size * 0.86 - height);
+          ctx.quadraticCurveTo(left + width * 0.7 + sway, y + size * 0.86 - height * 0.6, left + width, y + size * 0.86);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.save();
+        ctx.fillStyle = pal.fireEmber;
+        for (let i = 0; i < FIRE_EMBERS; i++) {
+          const rise = (t * FIRE_EMBER_SPEED + phase + (i * FULL_TURN) / FIRE_EMBERS) % FULL_TURN;
+          const progress = rise / FULL_TURN;
+          ctx.globalAlpha = 1 - progress;
+          const ex = x + size * (0.3 + 0.4 * ((i + 0.5) / FIRE_EMBERS)) + Math.sin(rise * 2) * size * 0.05;
+          const ey = y + size * (0.8 - 0.75 * progress);
+          const ember = Math.max(1, size * FIRE_EMBER_SIZE_TILE);
+          ctx.fillRect(ex, ey, ember, ember);
+        }
+        ctx.restore();
+        break;
+      }
+
+      case 'ice':
+      case 'ice_nw':
+      case 'ice_ne':
+      case 'ice_sw':
+      case 'ice_se': {
+        // Now and then, a glint sweeps diagonally across the ice.
+        const cycle = ((t * ICE_GLINT_SPEED + phase) % FULL_TURN) / FULL_TURN;
+        if (cycle > ICE_GLINT_WINDOW) break;
+        const sweep = cycle / ICE_GLINT_WINDOW;
+        const offset = size * (sweep * 2 - 0.5);
+        ctx.save();
         ctx.beginPath();
-        ctx.moveTo(x + size * 0.2, y + size * 0.85);
-        ctx.quadraticCurveTo(x + size * 0.35 + sway, y + size * 0.15, x + size * 0.5, y + size * 0.6);
-        ctx.quadraticCurveTo(x + size * 0.68 - sway, y + size * 0.12, x + size * 0.8, y + size * 0.85);
-        ctx.closePath();
-        ctx.fill();
+        ctx.rect(x, y, size, size);
+        ctx.clip();
+        ctx.strokeStyle = pal.iceGlint;
+        ctx.globalAlpha = Math.sin(sweep * Math.PI);
+        ctx.lineWidth = Math.max(1, size * ICE_GLINT_WIDTH_TILE);
+        ctx.beginPath();
+        ctx.moveTo(x + offset - size * 0.5, y + size);
+        ctx.lineTo(x + offset, y);
+        ctx.stroke();
+        ctx.restore();
         break;
       }
 

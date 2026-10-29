@@ -26,3 +26,16 @@ export function prefersReducedMotion(): boolean {
 export function preferredScrollBehavior(): ScrollBehavior {
   return prefersReducedMotion() ? 'auto' : 'smooth';
 }
+
+/**
+ * Replays a CSS animation carried by `className` on `el`, even when it is already
+ * running, and removes the class once the animation ends. Reduced motion is handled
+ * by the stylesheet, which gives the class no animation.
+ */
+export function replayAnimation(el: HTMLElement, className: string): void {
+  el.classList.remove(className);
+  // Reading layout restarts the animation when the class is added back.
+  void el.offsetWidth;
+  el.classList.add(className);
+  el.addEventListener('animationend', () => el.classList.remove(className), { once: true });
+}

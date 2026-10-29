@@ -6,6 +6,7 @@
       "mode_play": { "action": "Play Game" },
       "mode_editor": { "action": "Level Editor" },
       "levels_btn": { "action": "Levels & Records" },
+      "lcd_toggle": { "action": "LCD Screen", "hint": "Pixel grid over the 16-Bit Retro view" },
       "shell_toggle": { "action": "Lynx II Shell" },
       "graphics_modern": { "action": "Render: HD Neon" },
       "graphics_retro": { "action": "Render: 16-Bit Retro" },

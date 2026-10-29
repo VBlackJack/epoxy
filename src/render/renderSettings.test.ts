@@ -68,6 +68,23 @@ describe('resolveRenderSettings', () => {
     expect(resolveRenderSettings(bad).wallJoinTiles).toEqual(DEFAULT_RENDER_SETTINGS.wallJoinTiles);
   });
 
+  it('accepts only well-formed light source tables', () => {
+    const good = {
+      ...BASE_GRAPHICS,
+      lightSources: { exit: { radiusTile: 2, colorKey: 'green' } }
+    } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(good).lightSources).toEqual({ exit: { radiusTile: 2, colorKey: 'green' } });
+    const bad = { ...BASE_GRAPHICS, lightSources: { exit: { radiusTile: '2' } } } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(bad).lightSources).toEqual(DEFAULT_RENDER_SETTINGS.lightSources);
+  });
+
+  it('tints every shipped light source with a palette colour', () => {
+    const game = createTestBundle().game;
+    const sources = resolveRenderSettings(game.graphics).lightSources;
+    const missing = Object.entries(sources).filter(([, source]) => !(source.colorKey in game.palette));
+    expect(missing).toEqual([]);
+  });
+
   it('finds every renderer setting in the shipped game.json', () => {
     const shipped = createTestBundle().game.graphics as unknown as Record<string, unknown>;
     for (const key of Object.keys(DEFAULT_RENDER_SETTINGS)) {

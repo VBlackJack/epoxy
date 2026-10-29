@@ -29,14 +29,19 @@ export interface TerrainFeatures {
   teleporters: GridPoint[];
   traps: GridPoint[];
   animatedCells: AnimatedCell[];
+  /** Cells whose tile gives off light. */
+  litCells: AnimatedCell[];
 }
+
+const EMPTY_ID_SET: ReadonlySet<string> = new Set();
 
 export const EMPTY_TERRAIN_FEATURES: Readonly<TerrainFeatures> = {
   greenButtons: [],
   toggleWalls: [],
   teleporters: [],
   traps: [],
-  animatedCells: []
+  animatedCells: [],
+  litCells: []
 };
 
 /**
@@ -73,17 +78,19 @@ export class TerrainSnapshot {
   }
 }
 
-/** Scans the terrain once for mechanism endpoints and animated tiles. */
+/** Scans the terrain once for mechanism endpoints, animated tiles and lit tiles. */
 export function collectTerrainFeatures(
   terrain: readonly (readonly string[])[],
-  animatedTileIds: ReadonlySet<string>
+  animatedTileIds: ReadonlySet<string>,
+  litTileIds: ReadonlySet<string> = EMPTY_ID_SET
 ): TerrainFeatures {
   const features: TerrainFeatures = {
     greenButtons: [],
     toggleWalls: [],
     teleporters: [],
     traps: [],
-    animatedCells: []
+    animatedCells: [],
+    litCells: []
   };
   for (let y = 0; y < terrain.length; y++) {
     const row = terrain[y];
@@ -94,6 +101,7 @@ export function collectTerrainFeatures(
       else if (tileId === 'teleport') features.teleporters.push({ x, y });
       else if (tileId === 'trap') features.traps.push({ x, y });
       if (animatedTileIds.has(tileId)) features.animatedCells.push({ x, y, tileId });
+      if (litTileIds.has(tileId)) features.litCells.push({ x, y, tileId });
     }
   }
   return features;

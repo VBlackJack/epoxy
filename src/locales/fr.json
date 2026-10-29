@@ -6,6 +6,7 @@
       "mode_play": { "action": "Jouer" },
       "mode_editor": { "action": "Éditeur de Niveaux" },
       "levels_btn": { "action": "Niveaux & Scores" },
+      "lcd_toggle": { "action": "Écran LCD", "hint": "Grille de pixels sur le rendu Rétro 16-Bit" },
       "shell_toggle": { "action": "Châssis Lynx II" },
       "graphics_modern": { "action": "Rendu : HD Néon" },
       "graphics_retro": { "action": "Rendu : Rétro 16-Bit" },
