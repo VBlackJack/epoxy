@@ -33,6 +33,7 @@ import { loadTestConfigs } from '../test/loadTestConfigs';
 const SAMPLE_SEEDS = [1, 2, 3];
 const SAMPLE_LEVELS = Array.from({ length: 10 }, (_, i) => i + 1);
 const SAMPLE_TIMEOUT_MS = 120000;
+const ONBOARDING_SEEDS = 30;
 /** Variety expected over the sample: levels must not all look alike. */
 const MIN_DISTINCT_HUB_SHAPES = 4;
 const MIN_DISTINCT_THEMES = 3;
@@ -103,7 +104,10 @@ describe('ProceduralGenerator', () => {
     }
   });
 
-  it('never gives two consecutive levels of a pack the same lead motif or hub outline', () => {
+  // A level that falls back from its own draw avoids the values drawn for its
+  // neighbours, so a repeat can only come from a neighbour that fell back as
+  // well onto the same value, which needs every alternative to have failed.
+  it('never gives two consecutive levels of a pack the same lead motif or hub outline on the sample', () => {
     const cfg = ConfigRegistry.getGame().procedural!;
     for (const seed of SAMPLE_SEEDS) {
       const pack = sample.filter((g) => g.level.id.includes(`_${seed}_`));
@@ -116,6 +120,14 @@ describe('ProceduralGenerator', () => {
           }
         }
       }
+    }
+  });
+
+  it('never opens a pack with a motif kept for later levels', () => {
+    const cfg = ConfigRegistry.getGame().procedural!;
+    for (let seed = 1; seed <= ONBOARDING_SEEDS; seed++) {
+      const g = ProceduralGenerator.generateDetailed(1, seed);
+      for (const motif of g.motifs) expect(cfg.firstLevelExcludedMotifs, `seed ${seed}`).not.toContain(motif);
     }
   });
 

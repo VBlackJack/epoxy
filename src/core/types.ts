@@ -208,6 +208,11 @@ export interface ProceduralConfig {
   irreversibleMotifs: string[];
   /** Consecutive levels of a pack that must differ in lead motif and in hub shape. */
   noRepeatWindow: number;
+  /**
+   * Motifs never used as the puzzle of level 1 of a generated pack: timing
+   * or hidden-rule puzzles make a poor first contact with the game.
+   */
+  firstLevelExcludedMotifs: string[];
   /** Levels up to this number have no time limit. */
   untimedUpToLevel: number;
   /** Thinking time granted per puzzle piece, on top of the stretched run time. */

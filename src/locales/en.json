@@ -71,8 +71,8 @@
       "procedural_dialog": {
         "title": { "label": "New Procedural Pack" },
         "seed": { "label": "Seed" },
-        "seed_placeholder": { "label": "Leave empty for a random seed" },
-        "seed_placeholder_last": { "label": "Empty for a random seed (last: {seed})" },
+        "seed_placeholder": { "label": "Empty = random" },
+        "seed_placeholder_last": { "label": "Empty = random (last: {seed})" },
         "seed_hint": { "label": "Use the same seed to get the same pack again." },
         "seed_invalid": { "label": "A seed is a whole number from 0 to {max}." },
         "start_level": { "label": "Start at level" },

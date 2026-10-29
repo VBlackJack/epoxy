@@ -28,36 +28,63 @@ export function isHubLevel(levelNumber: number, cfg: ProceduralConfig): boolean 
   return levelNumber >= cfg.hub.fromLevel;
 }
 
+/** One level's draw in a pack sequence, with the values kept out of it. */
+interface Draw {
+  level: number;
+  value: string | undefined;
+  /** Values drawn for the previous `window` levels. */
+  recent: string[];
+}
+
 /**
- * Walks the levels 1..n of a pack, drawing each one's value from the choices
- * the level allows while keeping out the last `window` values. The draw of
- * level k depends only on the pack seed and k, so level n can be rebuilt
- * alone and still agrees with its neighbours.
+ * Walks the levels firstLevel..lastLevel of a pack, drawing each one's value
+ * from the choices the level allows while keeping out the last `window`
+ * values. The draw of level k depends only on the pack seed and k, so level n
+ * can be rebuilt alone and still agrees with its neighbours.
  */
 function drawSequence(
   stream: string,
   seed: number,
-  levelNumber: number,
+  lastLevel: number,
   firstLevel: number,
   window: number,
   choicesFor: (level: number) => string[]
-): { value: string | undefined; recent: string[] } {
+): Draw[] {
   const history: string[] = [];
-  let value: string | undefined;
-  let recent: string[] = [];
-  for (let level = firstLevel; level <= levelNumber; level++) {
+  const draws: Draw[] = [];
+  for (let level = firstLevel; level <= lastLevel; level++) {
     const all = choicesFor(level);
-    recent = history.slice(-window);
+    const recent = history.slice(-window);
     const fresh = all.filter((c) => !recent.includes(c));
     const pool = fresh.length > 0 ? fresh : all;
-    value = undefined;
+    let value: string | undefined;
     if (pool.length > 0) {
       const rng = new SeededRandom(SeededRandom.seedFromString(`${seed >>> 0}:${stream}:${level}`));
       value = pool[rng.nextInt(0, pool.length - 1)];
       history.push(value);
     }
+    draws.push({ level, value, recent });
   }
-  return { value, recent };
+  return draws;
+}
+
+/**
+ * What a level is asked for and what it keeps clear of. `avoid` holds the
+ * values drawn for the levels within the window on either side, so a level
+ * that falls back from its own draw still differs from its neighbours.
+ */
+function choiceAt(draws: Draw[], levelNumber: number, window: number): { preferred: string | undefined; avoid: string[] } {
+  const own = draws.find((d) => d.level === levelNumber);
+  const avoid = draws
+    .filter((d) => d.level !== levelNumber && Math.abs(d.level - levelNumber) <= window && d.value !== undefined)
+    .map((d) => d.value as string);
+  return { preferred: own?.value, avoid: [...new Set(avoid)] };
+}
+
+/** The lead motif a level is asked for, and the motifs its neighbours lead with. */
+export interface LeadChoice {
+  preferred: string | undefined;
+  avoid: string[];
 }
 
 /**
@@ -65,6 +92,23 @@ function drawSequence(
  * and its title names. Derived for the whole pack from the seed, so no two
  * levels within the no-repeat window share one.
  */
+export function leadChoiceFor(
+  levelNumber: number,
+  seed: number,
+  library: CompiledPiece[],
+  rules: Record<string, MotifRule>,
+  cfg: ProceduralConfig
+): LeadChoice {
+  const motifsAt = (level: number): string[] => {
+    const accept = isHubLevel(level, cfg) ? HubPlanner.fitsWing : () => true;
+    const pieces = ProgressionPlanner.playablePieces(level, library, rules, budgetFor(level, cfg).maxTier, accept);
+    return [...new Set(pieces.map((p) => p.motif))];
+  };
+  const last = levelNumber + cfg.noRepeatWindow;
+  return choiceAt(drawSequence(LEAD_STREAM, seed, last, 1, cfg.noRepeatWindow, motifsAt), levelNumber, cfg.noRepeatWindow);
+}
+
+/** Just the lead motif drawn for the level. */
 export function leadMotifFor(
   levelNumber: number,
   seed: number,
@@ -72,12 +116,7 @@ export function leadMotifFor(
   rules: Record<string, MotifRule>,
   cfg: ProceduralConfig
 ): string | undefined {
-  const motifsAt = (level: number): string[] => {
-    const accept = isHubLevel(level, cfg) ? HubPlanner.fitsWing : () => true;
-    const pieces = ProgressionPlanner.playablePieces(level, library, rules, budgetFor(level, cfg).maxTier, accept);
-    return [...new Set(pieces.map((p) => p.motif))];
-  };
-  return drawSequence(LEAD_STREAM, seed, levelNumber, 1, cfg.noRepeatWindow, motifsAt).value;
+  return leadChoiceFor(levelNumber, seed, library, rules, cfg).preferred;
 }
 
 /** Hub outlines a hub level may use: the one drawn for it first, then every outline outside the window. */
@@ -89,11 +128,17 @@ export interface HubShapeChoice {
 /**
  * The hub outline of a level in a pack, drawn like the lead motif over the
  * hub levels only. `allowed` is the fallback list for a level whose preferred
- * outline did not fit its wings.
+ * outline did not fit its wings: outlines outside the window and not drawn
+ * for the neighbouring levels, when any is left.
  */
 export function hubShapeFor(levelNumber: number, seed: number, cfg: ProceduralConfig): HubShapeChoice {
   const ids = cfg.hub.shapes.map((s) => s.id);
-  const { value, recent } = drawSequence(SHAPE_STREAM, seed, levelNumber, cfg.hub.fromLevel, cfg.noRepeatWindow, () => ids);
-  const allowed = ids.filter((id) => !recent.includes(id));
-  return { preferred: value, allowed: allowed.length > 0 ? allowed : ids };
+  const window = cfg.noRepeatWindow;
+  const draws = drawSequence(SHAPE_STREAM, seed, levelNumber + window, cfg.hub.fromLevel, window, () => ids);
+  const { preferred, avoid } = choiceAt(draws, levelNumber, window);
+  const recent = draws.find((d) => d.level === levelNumber)?.recent ?? [];
+  const outsideWindow = ids.filter((id) => !recent.includes(id));
+  const apart = outsideWindow.filter((id) => !avoid.includes(id));
+  const allowed = apart.length > 0 ? apart : outsideWindow;
+  return { preferred, allowed: allowed.length > 0 ? allowed : ids };
 }

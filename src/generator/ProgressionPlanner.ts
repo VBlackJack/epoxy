@@ -92,10 +92,11 @@ export class ProgressionPlanner {
     rules: Record<string, MotifRule>,
     rng: SeededRandom,
     script?: LevelScript,
-    lead?: string
+    lead?: string,
+    avoid: string[] = []
   ): LevelPlan {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
-    const selection = this.selectPuzzles(levelNumber, library, rules, rng, script, undefined, 0, lead);
+    const selection = this.selectPuzzles(levelNumber, library, rules, rng, script, undefined, 0, lead, avoid);
     const chosen = this.withRestRooms(
       selection.puzzles.map((p) => this.randomOrientation(p, rng)),
       selection.restRooms,
@@ -120,7 +121,8 @@ export class ProgressionPlanner {
     script?: LevelScript,
     accept: (piece: CompiledPiece) => boolean = () => true,
     piecesDropped = 0,
-    lead?: string
+    lead?: string,
+    avoid: string[] = []
   ): PuzzleSelection {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
     const base = script
@@ -135,11 +137,16 @@ export class ProgressionPlanner {
     if (!finale) throw new Error('motifs.json defines no finale piece');
 
     const restRooms = library.filter((p) => rules[p.motif]?.role === 'rest');
-    const playable = this.playablePieces(levelNumber, library, rules, budget.maxTier, accept);
+    const playable = this.playablePieces(levelNumber, library, rules, budget.maxTier, accept, !script);
     const motifPool = [...new Set(playable.map((p) => p.motif))];
     rng.shuffle(motifPool);
-    // A wanted lead motif goes first; the others fill the motif budget.
+    // A wanted lead motif goes first; the others fill the motif budget. With none
+    // wanted, motifs the neighbouring levels lead with are kept out of the lead spot.
     const wanted = lead !== undefined && motifPool.includes(lead) ? lead : undefined;
+    if (wanted === undefined && avoid.length > 0) {
+      const apart = motifPool.filter((m) => !avoid.includes(m));
+      motifPool.splice(0, motifPool.length, ...apart, ...motifPool.filter((m) => avoid.includes(m)));
+    }
     const others = wanted === undefined ? motifPool : motifPool.filter((m) => m !== wanted);
     const motifs = script
       ? script.motifs.filter((m) => motifPool.includes(m))
@@ -150,18 +157,25 @@ export class ProgressionPlanner {
     return { puzzles, motifs, finale, restRooms };
   }
 
-  /** Puzzle pieces a level may draw from: no role pieces, within the tier cap, one-shots only late. */
+  /**
+   * Puzzle pieces a level may draw from: no role pieces, within the tier cap,
+   * one-shots only late, and on level 1 of a generated pack (`onboarding`)
+   * none of the motifs kept for later.
+   */
   public static playablePieces(
     levelNumber: number,
     library: CompiledPiece[],
     rules: Record<string, MotifRule>,
     maxTier: number,
-    accept: (piece: CompiledPiece) => boolean = () => true
+    accept: (piece: CompiledPiece) => boolean = () => true,
+    onboarding = true
   ): CompiledPiece[] {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
+    const excluded = onboarding && levelNumber === 1 ? cfg.firstLevelExcludedMotifs : [];
     return library.filter(
       (p) =>
         rules[p.motif]?.role === undefined &&
+        !excluded.includes(p.motif) &&
         p.tier <= maxTier &&
         (!p.oneShot || levelNumber >= cfg.oneShotFromLevel) &&
         accept(p)

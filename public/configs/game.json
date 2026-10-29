@@ -173,6 +173,7 @@
     "maxPieceDeadEnds": 0,
     "irreversibleMotifs": ["sokoban"],
     "noRepeatWindow": 2,
+    "firstLevelExcludedMotifs": ["monsters", "teleport", "trap", "thief"],
     "untimedUpToLevel": 3,
     "thinkSecondsPerPiece": 20,
     "timeSlackFactor": 2,

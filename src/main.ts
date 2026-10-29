@@ -200,6 +200,9 @@ class EpoxyApplication {
       this.setupQualitySelector();
       this.updateHUD();
       this.editor.refreshTranslations();
+      // translateDOM resets the seed placeholder to its generic text.
+      const seedInput = byId<HTMLInputElement>('procedural-seed-input');
+      if (seedInput && this.lastProceduralSeed !== null) seedInput.placeholder = this.proceduralSeedPlaceholder();
     });
 
     this.startGameLoop();
@@ -527,6 +530,13 @@ class EpoxyApplication {
     }
   }
 
+  /** Seed field placeholder: mentions the last seed used when there is one. */
+  private proceduralSeedPlaceholder(): string {
+    return this.lastProceduralSeed === null
+      ? t('app.packs.procedural_dialog.seed_placeholder.label')
+      : t('app.packs.procedural_dialog.seed_placeholder_last.label', { seed: this.lastProceduralSeed });
+  }
+
   /** Opens the pack dialog: empty seed field (random), start level reset to 1. */
   private openProceduralModal(): void {
     if (this.generatingPack) return;
@@ -536,12 +546,7 @@ class EpoxyApplication {
     if (seedInput) {
       seedInput.value = '';
       seedInput.setAttribute('aria-invalid', 'false');
-      seedInput.placeholder =
-        this.lastProceduralSeed === null
-          ? t('app.packs.procedural_dialog.seed_placeholder.label')
-          : t('app.packs.procedural_dialog.seed_placeholder_last.label', {
-              seed: this.lastProceduralSeed
-            });
+      seedInput.placeholder = this.proceduralSeedPlaceholder();
     }
     byId('procedural-seed-error')?.classList.add('hidden');
     if (startSelect) {

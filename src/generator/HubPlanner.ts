@@ -65,7 +65,8 @@ export class HubPlanner {
     cfg: HubConfig,
     script?: LevelScript,
     piecesDropped = 0,
-    lead?: string
+    lead?: string,
+    avoid: string[] = []
   ): HubPlan {
     const selection = ProgressionPlanner.selectPuzzles(
       levelNumber,
@@ -75,7 +76,8 @@ export class HubPlanner {
       script,
       HubPlanner.fitsWing,
       piecesDropped,
-      lead
+      lead,
+      avoid
     );
     const pieces = selection.puzzles;
     // A lock whose item would make one of the level's puzzles trivial is not used:

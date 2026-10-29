@@ -166,8 +166,10 @@ export class LevelProver {
   /**
    * Shortest path to a cell over ground the player can cross calmly: floor
    * and the like, doors the player holds a key for, hazards the player has
-   * boots for. Sliding floors, teleporters, traps, bombs and occupied cells
-   * are avoided, so the walk cannot surprise. Null when no such path exists.
+   * boots for. Cells holding an item, buttons, tiles that change when stepped
+   * on, teleporters, traps and occupied cells are avoided on the way, so the
+   * walk cannot surprise; the target itself is exempt from the first three.
+   * Null when no such path exists.
    */
   private static safePath(engine: GameEngine, target: GridPoint): Direction[] | null {
     const terrain = engine.getTerrain();
@@ -180,6 +182,11 @@ export class LevelProver {
       if (x < 0 || y < 0 || x >= width || y >= height || occupied.has(y * width + x)) return false;
       const tile = ConfigRegistry.getTile(terrain[y][x]);
       const item = items[y][x];
+      // Anything lying on a cell would be picked up, and a cell with a side effect
+      // (buttons, tiles that change when stepped on) would change the level. Only
+      // the target itself may do either: the caller walks there on purpose.
+      const isTarget = x === target.x && y === target.y;
+      if (!isTarget && (item || tile.buttonAction || tile.transformsToOnStep)) return false;
       if (item && ConfigRegistry.getTile(item).hazard) return false;
       if (tile.isTeleporter || tile.isTrap || tile.stealsBoots) return false;
       const protectedBy = tile.protectedByItem;

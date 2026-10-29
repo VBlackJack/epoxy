@@ -24,12 +24,13 @@ import { ProceduralConfig } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { compilePiece } from './PieceCompiler';
 import { CompiledPiece, MotifRule } from './PieceTypes';
-import { hubShapeFor, leadMotifFor } from './PackVariety';
+import { hubShapeFor, leadChoiceFor, leadMotifFor } from './PackVariety';
 import { ProgressionPlanner } from './ProgressionPlanner';
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
 const LEVELS = Array.from({ length: 12 }, (_, i) => i + 1);
 const PLAN_SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
+const ONBOARDING_SEEDS = Array.from({ length: 30 }, (_, i) => i + 1);
 
 describe('pack variety', () => {
   let cfg: ProceduralConfig;
@@ -82,6 +83,41 @@ describe('pack variety', () => {
       const lead = leadMotifFor(5, seed, library, rules(), cfg)!;
       const plan = ProgressionPlanner.plan(5, library, rules(), new SeededRandom(seed), undefined, lead);
       expect(plan.motifs[0]).toBe(lead);
+    }
+  });
+
+  it('keeps the motifs drawn for the neighbouring levels out of a fallback', () => {
+    for (const seed of SEEDS) {
+      for (const n of [3, 5, 8]) {
+        const { preferred, avoid } = leadChoiceFor(n, seed, library, rules(), cfg);
+        const neighbours = [n - 2, n - 1, n + 1, n + 2].map((k) => leadMotifFor(k, seed, library, rules(), cfg));
+        for (const lead of neighbours) expect(avoid, `seed ${seed} level ${n}`).toContain(lead);
+        expect(avoid).not.toContain(preferred);
+        const shape = hubShapeFor(n, seed, cfg);
+        const shapeNeighbours = [n - 2, n - 1, n + 1, n + 2].map((k) => hubShapeFor(k, seed, cfg).preferred);
+        for (const id of shapeNeighbours) {
+          if (id && shape.allowed.length < cfg.hub.shapes.length) expect(shape.allowed, `seed ${seed} hub ${n}`).not.toContain(id);
+        }
+      }
+    }
+  });
+
+  it('leads a relaxed plan with a motif outside the avoided ones when another exists', () => {
+    for (const seed of PLAN_SEEDS) {
+      const avoid = leadChoiceFor(5, seed, library, rules(), cfg).avoid;
+      const plan = ProgressionPlanner.plan(5, library, rules(), new SeededRandom(seed), undefined, undefined, avoid);
+      expect(avoid, `seed ${seed}`).not.toContain(plan.motifs[0]);
+    }
+  });
+
+  it('never makes level 1 a motif kept for later, whatever the seed', () => {
+    expect(cfg.firstLevelExcludedMotifs).toContain('monsters');
+    for (const seed of ONBOARDING_SEEDS) {
+      const lead = leadMotifFor(1, seed, library, rules(), cfg);
+      expect(cfg.firstLevelExcludedMotifs, `seed ${seed} lead`).not.toContain(lead);
+      const plan = ProgressionPlanner.plan(1, library, rules(), new SeededRandom(seed));
+      for (const motif of plan.motifs) expect(cfg.firstLevelExcludedMotifs, `seed ${seed}`).not.toContain(motif);
+      for (const step of plan.steps) expect(cfg.firstLevelExcludedMotifs, `seed ${seed}`).not.toContain(step.piece.motif);
     }
   });
 

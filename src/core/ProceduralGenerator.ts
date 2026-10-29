@@ -22,7 +22,7 @@ import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
 import { HubPlanner } from '../generator/HubPlanner';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
-import { hubShapeFor, isHubLevel, leadMotifFor } from '../generator/PackVariety';
+import { hubShapeFor, isHubLevel, leadChoiceFor } from '../generator/PackVariety';
 import { encodeActions, SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
 import { budgetFor, LevelScript, ProgressionPlanner } from '../generator/ProgressionPlanner';
@@ -172,20 +172,27 @@ export class ProceduralGenerator {
 
     const layout = script?.layout ?? (isHubLevel(levelNumber, cfg) ? 'hub' : 'chain');
     // Scripted levels teach what their brief says; only generated packs vary.
-    const lead = script ? undefined : leadMotifFor(levelNumber, packSeed, library, motifs.motifRules ?? {}, cfg);
+    const leadChoice = script ? undefined : leadChoiceFor(levelNumber, packSeed, library, motifs.motifRules ?? {}, cfg);
+    const lead = leadChoice?.preferred;
     const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg);
-    const strictAttempts = Math.ceil(cfg.maxGenerationAttempts / 2);
+    // Attempts come in tiers of one dropped puzzle each. Within a tier the pack's
+    // lead motif and hub outline are asked for first, then relaxed, so the
+    // constraints give way before any puzzle does.
+    const tierSize = cfg.hub.attemptsPerDroppedPiece;
+    const strictPerTier = Math.ceil(tierSize / 2);
 
     for (let attempt = 0; attempt < cfg.maxGenerationAttempts; attempt++) {
-      // The pack's lead motif and hub outline are asked for first; a layout that
-      // will not fit them is built without, rather than failing the level.
-      const strict = attempt < strictAttempts;
+      // A layout that will not fit the lead motif and outline is built without,
+      // rather than failing the level.
+      const strict = attempt % tierSize < strictPerTier;
       const attemptLead = strict ? lead : undefined;
       const shapeIds = shape ? (strict && shape.preferred ? [shape.preferred] : shape.allowed) : undefined;
+      const dropped = Math.floor(attempt / tierSize);
+      const avoid = leadChoice?.avoid;
       const built =
         layout === 'hub'
-          ? this.buildHub(levelNumber, library, motifs, rng, cfg, script, Math.floor(attempt / cfg.hub.attemptsPerDroppedPiece), attemptLead, shapeIds)
-          : this.buildChain(levelNumber, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead);
+          ? this.buildHub(levelNumber, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid)
+          : this.buildChain(levelNumber, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead, avoid);
       if (!built) continue;
       const { assembled } = built;
 
@@ -254,9 +261,10 @@ export class ProceduralGenerator {
     cfg: ProceduralConfig,
     regionSize: number,
     script?: LevelScript,
-    lead?: string
+    lead?: string,
+    avoid?: string[]
   ): BuiltLayout | null {
-    const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script, lead);
+    const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script, lead, avoid);
     const assembled = this.mostCompact(cfg.layoutSamples, () => LevelAssembler.assemble(plan, regionSize, cfg, rng));
     if (!assembled) return null;
     let exit: { x: number; y: number } = assembled.playerStart;
@@ -281,9 +289,10 @@ export class ProceduralGenerator {
     script?: LevelScript,
     piecesDropped = 0,
     lead?: string,
-    shapeIds?: string[]
+    shapeIds?: string[],
+    avoid?: string[]
   ): BuiltLayout | null {
-    const plan = HubPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead);
+    const plan = HubPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid);
     const assembled = this.mostCompact(cfg.hub.layoutSamples, () => HubAssembler.assemble(plan, cfg.hub, rng, shapeIds));
     if (!assembled) return null;
     const pieceMotifs = [...plan.wings.map((w) => w.piece.motif), plan.finale.motif];

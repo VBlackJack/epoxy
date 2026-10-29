@@ -71,8 +71,8 @@
       "procedural_dialog": {
         "title": { "label": "Nouveau pack procédural" },
         "seed": { "label": "Graine" },
-        "seed_placeholder": { "label": "Laisser vide pour une graine aléatoire" },
-        "seed_placeholder_last": { "label": "Vide pour une graine aléatoire (dernière : {seed})" },
+        "seed_placeholder": { "label": "Vide = aléatoire" },
+        "seed_placeholder_last": { "label": "Vide = aléatoire (dernière : {seed})" },
         "seed_hint": { "label": "Une même graine redonne le même pack." },
         "seed_invalid": { "label": "Une graine est un nombre entier de 0 à {max}." },
         "start_level": { "label": "Commencer au niveau" },
