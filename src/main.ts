@@ -118,6 +118,7 @@ class EpoxyApplication {
   private overlayState: OverlayState = 'none';
   /** Engine level the editor content was last synced with. */
   private editorSourceLevel: CompiledLevel | null = null;
+  private generatingPack = false;
 
   private keyIconCache: Record<string, string> = {};
   private bootIconCache: Record<string, string> = {};
@@ -444,14 +445,24 @@ class EpoxyApplication {
     );
   }
 
-  private generateProceduralPack(): void {
+  /** Builds a pack level by level, showing progress; ignores requests while one is running. */
+  private async generateProceduralPack(): Promise<void> {
+    if (this.generatingPack) return;
+    this.generatingPack = true;
     let levels: CompiledLevel[];
     try {
-      levels = ProceduralGenerator.generatePack();
+      levels = await ProceduralGenerator.generatePackAsync(
+        undefined,
+        ProceduralGenerator.createSeed(),
+        (done, total) =>
+          this.showTransientStatus(t('app.packs.procedural_progress.label', { done, total }))
+      );
     } catch (err) {
       if (!(err instanceof ProceduralGenerationError)) throw err;
       this.showTransientStatus(t('app.packs.procedural_error.label'));
       return;
+    } finally {
+      this.generatingPack = false;
     }
     ConfigRegistry.setProceduralLevels(levels);
     this.refreshPackSelector();
@@ -974,7 +985,7 @@ class EpoxyApplication {
     });
 
     byId('btn-procedural-pack')?.addEventListener('click', () => {
-      this.generateProceduralPack();
+      void this.generateProceduralPack();
     });
 
     const packFileInput = byId<HTMLInputElement>('pack-file-input');
@@ -1086,7 +1097,7 @@ class EpoxyApplication {
 
     byId('btn-drawer-procedural')?.addEventListener('click', () => {
       this.setDrawerOpen(false);
-      this.generateProceduralPack();
+      void this.generateProceduralPack();
     });
 
     byId('btn-drawer-import')?.addEventListener('click', () => {
@@ -1637,7 +1648,7 @@ class EpoxyApplication {
     } else if (kb.cycleTheme?.includes(e.code)) {
       run(() => this.applyTheme(this.renderer.cycleTheme()));
     } else if (kb.generateProcedural?.includes(e.code)) {
-      run(() => this.generateProceduralPack());
+      run(() => void this.generateProceduralPack());
     } else if (kb.showObjective?.includes(e.code)) {
       run(() => this.triggerObjectiveAndLinks());
     } else if (kb.toggleHelp?.includes(e.code) || e.key === '?') {

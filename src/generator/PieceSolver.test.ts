@@ -111,6 +111,20 @@ describe('motif library', () => {
   );
 
   it(
+    'no piece lets a block out or can be left unfinished, unless marked oneShot',
+    () => {
+      for (const p of pieces) {
+        const analysis = PieceSolver.analyze(p);
+        expect(analysis.truncated, p.id).toBe(false);
+        expect(analysis.winnable, p.id).toBe(true);
+        expect(analysis.blockEscapes, `${p.id} lets a block out through a port`).toBe(0);
+        if (!p.oneShot) expect(analysis.deadExits, `${p.id} can be left unfinished`).toBe(0);
+      }
+    },
+    LIBRARY_TIMEOUT_MS
+  );
+
+  it(
     'every required carried item is really needed',
     () => {
       for (const p of pieces.filter((candidate) => candidate.requires.length > 0)) {

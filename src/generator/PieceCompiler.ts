@@ -185,7 +185,9 @@ export function compilePiece(
   });
 
   if (!entry || !exit) throw new PieceError(def.id, 'needs one entry and one exit port');
-  for (const port of [entry, exit] as GridPoint[]) {
+  // The forEach above hides the assignments from narrowing; restate the found ports.
+  const ports: [GridPoint, GridPoint] = [entry, exit];
+  for (const port of ports) {
     const onVerticalEdge = port.x === 0 || port.x === width - 1;
     const onHorizontalEdge = port.y === 0 || port.y === height - 1;
     if (!onVerticalEdge && !onHorizontalEdge) {
@@ -194,6 +196,16 @@ export function compilePiece(
     // A corner port would open on two sides and could not be joined by one corridor.
     if (onVerticalEdge && onHorizontalEdge) {
       throw new PieceError(def.id, 'ports must not sit on a piece corner');
+    }
+  }
+  // Corridors may run along a piece: any open border cell but the ports would be a side door.
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const onBorder = x === 0 || y === 0 || x === width - 1 || y === height - 1;
+      const isPort = ports.some((p) => p.x === x && p.y === y);
+      if (onBorder && !isPort && ConfigRegistry.getTile(terrain[y][x]).passableByPlayer !== false) {
+        throw new PieceError(def.id, `border cell ${x},${y} must be a wall`);
+      }
     }
   }
 
@@ -212,6 +224,7 @@ export function compilePiece(
     exit,
     requires: [...(def.requires ?? [])],
     rotatable: def.rotatable ?? false,
+    oneShot: def.oneShot ?? false,
     orientation: IDENTITY_ORIENTATION
   };
 }

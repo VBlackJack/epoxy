@@ -15,9 +15,66 @@
   "motifRules": {
     "teleport": { "maxPerLevel": 1 },
     "toggle_walls": { "maxPerLevel": 1 },
-    "finale": { "role": "finale" }
+    "finale": { "role": "finale" },
+    "rest": { "role": "rest" }
   },
   "pieces": [
+    {
+      "id": "rest_plaza",
+      "motif": "rest",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#C...C#",
+        "#.....#",
+        "#..C..#",
+        "#.....#",
+        "#C...C#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "rest_pillars",
+      "motif": "rest",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.....#",
+        "#.#.#.#",
+        "#..C..#",
+        "#.#.#.#",
+        "#C...C#",
+        "#####$#"
+      ]
+    },
+    {
+      "id": "rest_gallery",
+      "motif": "rest",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#.C...C.#",
+        "#.#####.#",
+        "#...C...#",
+        "#######$#"
+      ]
+    },
+    {
+      "id": "rest_garden",
+      "motif": "rest",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "##@##",
+        "#g.g#",
+        "#.C.#",
+        "#g.g#",
+        "##$##"
+      ]
+    },
     {
       "id": "finale_socket",
       "motif": "finale",
@@ -129,14 +186,16 @@
       "tier": 2,
       "rotatable": true,
       "rows": [
-        "##@####",
-        "#.....#",
-        "#.&.&.#",
-        "#.....#",
-        "#WWWWW#",
-        "#WWWWW#",
-        "#..C..#",
-        "###$###"
+        "#@######",
+        "#......#",
+        "##.....#",
+        "#..&.&.#",
+        "#......#",
+        "#WWWWWW#",
+        "#WWWWWW#",
+        "#...C..#",
+        "######.$",
+        "########"
       ]
     },
     {
@@ -197,6 +256,7 @@
       "id": "thief_after_fire",
       "motif": "thief",
       "tier": 2,
+      "oneShot": true,
       "rotatable": true,
       "rows": [
         "#@#####",
@@ -225,15 +285,16 @@
       "tier": 2,
       "rotatable": true,
       "rows": [
-        "##@####",
+        "#@#####",
         "#.....#",
-        "#.&.m.#",
+        "##.&.m#",
         "#.....#",
         "###X###",
         "#C...C#",
-        "###$###"
+        "#####.$",
+        "#######"
       ],
-      "trapLinks": [{ "buttonX": 4, "buttonY": 2, "trapX": 3, "trapY": 4 }]
+      "trapLinks": [{ "buttonX": 5, "buttonY": 2, "trapX": 3, "trapY": 4 }]
     },
     {
       "id": "teleport_hop",
@@ -245,6 +306,118 @@
         "#.O#O.#",
         "#####C#",
         "#####$#"
+      ]
+    },
+    {
+      "id": "keys_doors_yellow_side",
+      "motif": "keys_doors",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#.....#y#",
+        "###Y#.#.#",
+        "#C..#...#",
+        "###$#####"
+      ]
+    },
+    {
+      "id": "keys_doors_green_hub",
+      "motif": "keys_doors",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "####@####",
+        "#k......#",
+        "###G#G#G#",
+        "###C#C#.#",
+        "#######$#"
+      ]
+    },
+    {
+      "id": "fire_then_door",
+      "motif": "fire",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.z...#",
+        "#####F#",
+        "#r..FF#",
+        "#R#####",
+        "#..C..#",
+        "#####$#"
+      ]
+    },
+    {
+      "id": "water_key_island",
+      "motif": "water",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.q..C#",
+        "###.###",
+        "#WWWWW#",
+        "#WWrWW#",
+        "#WWWWW#",
+        "#R#####",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "block_corner_push",
+      "motif": "blocks_water",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@######",
+        "#......#",
+        "##.&...#",
+        "#....#.#",
+        "####W###",
+        "#C....C#",
+        "######.$",
+        "########"
+      ]
+    },
+    {
+      "id": "force_ride",
+      "motif": "force",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.>>>v#",
+        "#####v#",
+        "#C<<<<#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "bomb_clearance",
+      "motif": "bomb",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@######",
+        "#.&..*C#",
+        "######.#",
+        "######$#"
+      ]
+    },
+    {
+      "id": "toggle_switchback",
+      "motif": "toggle_walls",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#.n.....#",
+        "####[####",
+        "#C.n....#",
+        "######]##",
+        "######$##"
       ]
     }
   ]

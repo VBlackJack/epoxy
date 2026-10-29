@@ -15,7 +15,8 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { ORDERED_DIRECTIONS } from '../config/constants';
+import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { FLOOR_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
@@ -45,6 +46,16 @@ export interface PieceSolveResult {
   truncated: boolean;
 }
 
+export interface PieceAnalysis {
+  reachableStates: number;
+  deadStates: number;
+  deadExits: number;
+  blockEscapes: number;
+  /** Whether the goal can be reached from the start state. */
+  winnable: boolean;
+  truncated: boolean;
+}
+
 interface SearchNode {
   state: UndoSnapshot;
   parent: number;
@@ -67,13 +78,7 @@ export class PieceSolver {
     const engine = new GameEngine();
     engine.loadLevel(this.toLevel(piece));
 
-    const start = engine.captureState();
-    for (const itemId of options.carried ?? piece.requires) {
-      const tile = ConfigRegistry.getTile(itemId);
-      if (tile.collectible === 'boot') start.player.boots.push(itemId);
-      if (tile.collectible === 'key') start.player.keys[itemId] = (start.player.keys[itemId] ?? 0) + 1;
-    }
-    engine.restoreState(start);
+    this.grantCarried(engine, options.carried ?? piece.requires);
 
     const nodes: SearchNode[] = [{ state: engine.captureState(), parent: -1, move: null }];
     const seen = new Set<string>([this.stateKey(engine, piece)]);
@@ -105,6 +110,120 @@ export class PieceSolver {
       }
     }
     return { solvable: false, moves: null, statesExplored: nodes.length, truncated: false };
+  }
+
+  /**
+   * Explores every state of the piece to judge its fairness. The piece gets a
+   * floor cell outside each port, as the corridors it joins in a level, and
+   * the goal is to stand outside the exit with every chip. Reports:
+   * - blockEscapes: states with a block pushed out through a port, where it
+   *   would land in a corridor the solver cannot see;
+   * - deadExits: states outside the exit from which the goal is lost, that
+   *   is, leaving the piece unfinished for good;
+   * - deadStates: all reachable states that cannot reach the goal, a measure
+   *   of how unforgiving the piece is.
+   */
+  public static analyze(piece: CompiledPiece, options: PieceSolveOptions = {}): PieceAnalysis {
+    const maxStates = options.maxStates ?? DEFAULT_MAX_SOLVER_STATES;
+    const engine = new GameEngine();
+    const level = this.toLevel(piece);
+    const outside = (port: { x: number; y: number }) => {
+      const dir = this.outwardOf(piece, port);
+      return {
+        x: port.x + PIECE_OFFSET + DIRECTION_VECTORS[dir].dx,
+        y: port.y + PIECE_OFFSET + DIRECTION_VECTORS[dir].dy
+      };
+    };
+    const entryStub = outside(piece.entry);
+    const exitStub = outside(piece.exit);
+    level.terrain[piece.exit.y + PIECE_OFFSET][piece.exit.x + PIECE_OFFSET] = piece.terrain[piece.exit.y][piece.exit.x];
+    for (const stub of [entryStub, exitStub]) level.terrain[stub.y][stub.x] = FLOOR_TILE_ID;
+    engine.loadLevel(level);
+    this.grantCarried(engine, options.carried ?? piece.requires);
+
+    const isStub = (x: number, y: number): boolean =>
+      (x === entryStub.x && y === entryStub.y) || (x === exitStub.x && y === exitStub.y);
+    const extraKey = (): string => {
+      const p = engine.getPlayer();
+      return isStub(p.x, p.y) ? `@${p.x},${p.y}` : '';
+    };
+
+    const states: (UndoSnapshot | null)[] = [engine.captureState()];
+    const index = new Map<string, number>([[this.stateKey(engine, piece) + extraKey(), 0]]);
+    const predecessors: number[][] = [[]];
+    const goals: number[] = [];
+    const exits: number[] = [];
+    let blockEscapes = 0;
+    let truncated = false;
+
+    for (let head = 0; head < states.length; head++) {
+      for (const dir of ORDERED_DIRECTIONS) {
+        const from = states[head] as UndoSnapshot;
+        engine.restoreState(from);
+        if (!engine.attemptPlayerMove(dir) && !this.changedByFailedMove(engine, from)) continue;
+        if (!this.settle(engine)) continue;
+        const key = this.stateKey(engine, piece) + extraKey();
+        let target = index.get(key);
+        if (target === undefined) {
+          if (states.length >= maxStates) {
+            truncated = true;
+            continue;
+          }
+          target = states.length;
+          index.set(key, target);
+          states.push(engine.captureState());
+          predecessors.push([]);
+          const player = engine.getPlayer();
+          if (engine.getEntities().some((e) => e.kind === 'block' && isStub(e.x, e.y))) blockEscapes++;
+          if (player.x === exitStub.x && player.y === exitStub.y) {
+            exits.push(target);
+            if (engine.getChipsRemaining() === 0) goals.push(target);
+          }
+        }
+        predecessors[target].push(head);
+      }
+      // A snapshot is only needed to expand its state; free it once done.
+      states[head] = null;
+    }
+
+    const canWin = new Uint8Array(states.length);
+    const queue = [...goals];
+    for (const g of goals) canWin[g] = 1;
+    for (let i = 0; i < queue.length; i++) {
+      for (const p of predecessors[queue[i]]) {
+        if (!canWin[p]) {
+          canWin[p] = 1;
+          queue.push(p);
+        }
+      }
+    }
+    let deadStates = 0;
+    for (let i = 0; i < states.length; i++) if (!canWin[i]) deadStates++;
+    return {
+      reachableStates: states.length,
+      deadStates,
+      deadExits: exits.filter((e) => !canWin[e]).length,
+      blockEscapes,
+      winnable: goals.length > 0 && canWin[0] === 1,
+      truncated
+    };
+  }
+
+  private static outwardOf(piece: CompiledPiece, port: { x: number; y: number }): Direction {
+    if (port.y === 0) return 'N';
+    if (port.y === piece.height - 1) return 'S';
+    if (port.x === 0) return 'W';
+    return 'E';
+  }
+
+  private static grantCarried(engine: GameEngine, carried: string[]): void {
+    const start = engine.captureState();
+    for (const itemId of carried) {
+      const tile = ConfigRegistry.getTile(itemId);
+      if (tile.collectible === 'boot') start.player.boots.push(itemId);
+      if (tile.collectible === 'key') start.player.keys[itemId] = (start.player.keys[itemId] ?? 0) + 1;
+    }
+    engine.restoreState(start);
   }
 
   /** The piece drawn into a walled map, its exit port turned into the level exit. */

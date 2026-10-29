@@ -57,6 +57,7 @@
       "custom": { "label": "Niveaux Personnalisés" },
       "procedural": { "label": "Puzzles Procéduraux (Solvables)" },
       "procedural_toast": { "label": "Nouveau pack procédural de {count, plural, one {# niveau} other {# niveaux}}, chacun prouvé solvable !" },
+      "procedural_progress": { "label": "Construction du niveau {done} sur {total}..." },
       "procedural_error": { "label": "Le générateur n'a pas pu construire ce pack. Réessayez." },
       "import_btn": { "action": "Importer .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },
@@ -410,16 +411,17 @@
       "hint": "Le défi ultime : combinez bottes élémentaires, clés et patinoire centrale pour rassembler les 10 puces !"
     },
     "procedural": {
-      "keys_doors": { "title": "Course du Serrurier #{number}" },
-      "fire": { "title": "Traversée des Braises #{number}" },
-      "water": { "title": "Salles Inondées #{number}" },
-      "blocks_water": { "title": "Bâtisseurs de Ponts #{number}" },
-      "ice": { "title": "Dérive Glaciaire #{number}" },
-      "force": { "title": "Atelier des Convoyeurs #{number}" },
-      "thief": { "title": "Repaire des Voleurs #{number}" },
-      "toggle_walls": { "title": "Gare de Triage #{number}" },
-      "trap": { "title": "Allée des Pièges #{number}" },
-      "teleport": { "title": "Saut Quantique #{number}" },
+      "keys_doors": { "title": "Course du Serrurier #{number}", "hint": "Chaque porte de couleur consomme une clé de sa couleur. Les clés vertes ouvrent toutes les portes vertes." },
+      "fire": { "title": "Traversée des Braises #{number}", "hint": "Le feu brûle sans bottes ignifugées. Trouvez-les avant d'y mettre le pied." },
+      "water": { "title": "Salles Inondées #{number}", "hint": "L'eau vous noie sans palmes. Prenez-les d'abord." },
+      "blocks_water": { "title": "Bâtisseurs de Ponts #{number}", "hint": "Poussez un bloc dans l'eau pour en faire de la terre praticable. Prévoyez la poussée avant de bouger." },
+      "ice": { "title": "Dérive Glaciaire #{number}", "hint": "La glace vous fait glisser jusqu'à un obstacle. Les angles dévient la glissade." },
+      "force": { "title": "Atelier des Convoyeurs #{number}", "hint": "Les tapis roulants vous emportent. Les bottes de force permettent de marcher à contre-courant." },
+      "thief": { "title": "Repaire des Voleurs #{number}", "hint": "Le voleur prend toutes vos bottes. Servez-vous-en avant de le croiser." },
+      "toggle_walls": { "title": "Gare de Triage #{number}", "hint": "Chaque bouton vert inverse tous les murs bascule. Comptez vos pressions." },
+      "trap": { "title": "Allée des Pièges #{number}", "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut maintenir le bouton." },
+      "teleport": { "title": "Saut Quantique #{number}", "hint": "Entrez dans un téléporteur pour ressortir par l'autre, dans la même direction." },
+      "bomb": { "title": "Chantier de Démolition #{number}", "hint": "Les bombes détruisent tout ce qui les touche. Poussez-y un bloc pour dégager le passage." },
       "default": {
         "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les câbles des pièges, cloneurs et portes."
       }

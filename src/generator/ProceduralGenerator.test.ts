@@ -44,7 +44,7 @@ describe('ProceduralGenerator', () => {
   it('gives the same level for the same seed and level number', () => {
     const again = ProceduralGenerator.generateDetailed(4, SAMPLE_SEEDS[0]);
     expect(again.level).toEqual(sample[3].level);
-    expect(again.level.id).toBe(`proc_${SAMPLE_SEEDS[0]}_4`);
+    expect(again.level.id).toMatch(new RegExp(`^proc_[0-9a-f]+_${SAMPLE_SEEDS[0]}_4$`));
   });
 
   it('every level is won by replaying its solution in a fresh engine', () => {
@@ -65,29 +65,36 @@ describe('ProceduralGenerator', () => {
     for (const g of sample) {
       const budget = budgetFor(g.level.number, cfg);
       expect(g.motifs.length, g.level.id).toBeLessThanOrEqual(budget.motifCount);
-      expect(g.pieceBoxes.length - 1, g.level.id).toBeLessThanOrEqual(budget.pieceCount);
+      const puzzles = g.pieceMotifs.filter((m) => g.motifs.includes(m));
+      expect(puzzles.length, g.level.id).toBeLessThanOrEqual(budget.pieceCount);
     }
   });
 
-  it('sets a time limit above the proven solution time', () => {
+  it('leaves the first levels untimed and later ones above the proven solution time', () => {
     const timing = ConfigRegistry.getGame().timing;
+    const cfg = ConfigRegistry.getGame().procedural!;
     for (const g of sample) {
+      if (g.level.number <= cfg.untimedUpToLevel) {
+        expect(g.level.timeLimitSeconds, g.level.id).toBe(0);
+        continue;
+      }
       const minimumSeconds = (g.solution.length * timing.playerMoveCooldownTicks) / timing.ticksPerSecond;
       expect(g.level.timeLimitSeconds, g.level.id).toBeGreaterThan(minimumSeconds);
     }
   });
 
-  it('every playable motif has a translated level title', () => {
+  it('every playable motif has a translated level title and hint', () => {
     const rules = ConfigRegistry.getMotifs().motifRules ?? {};
     const motifs = new Set(
       ConfigRegistry.getMotifs()
         .pieces.map((p) => p.motif)
-        .filter((m) => rules[m]?.role !== 'finale')
+        .filter((m) => rules[m]?.role === undefined)
     );
     for (const motif of motifs) {
-      const key = `levels.procedural.${motif}.title`;
-      expect(resolveMessage(en, key), key).toBeDefined();
-      expect(resolveMessage(fr, key), key).toBeDefined();
+      for (const key of [`levels.procedural.${motif}.title`, `levels.procedural.${motif}.hint`]) {
+        expect(resolveMessage(en, key), key).toBeDefined();
+        expect(resolveMessage(fr, key), key).toBeDefined();
+      }
     }
   });
 });

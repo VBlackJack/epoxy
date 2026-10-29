@@ -57,6 +57,7 @@
       "custom": { "label": "Custom Levels" },
       "procedural": { "label": "Procedural Puzzles (Solvable)" },
       "procedural_toast": { "label": "Generated {count, plural, one {# new procedural level} other {# new procedural levels}}, each one proven solvable!" },
+      "procedural_progress": { "label": "Building level {done} of {total}..." },
       "procedural_error": { "label": "The level generator could not build this pack. Please try again." },
       "import_btn": { "action": "Import .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
@@ -410,16 +411,17 @@
       "hint": "The ultimate test: combine elemental boots, keys, and the central ice vault to collect all 10 chips!"
     },
     "procedural": {
-      "keys_doors": { "title": "Locksmith Run #{number}" },
-      "fire": { "title": "Ember Crossing #{number}" },
-      "water": { "title": "Flooded Halls #{number}" },
-      "blocks_water": { "title": "Bridge Builders #{number}" },
-      "ice": { "title": "Glacier Drift #{number}" },
-      "force": { "title": "Conveyor Works #{number}" },
-      "thief": { "title": "Thieves' Den #{number}" },
-      "toggle_walls": { "title": "Switchyard #{number}" },
-      "trap": { "title": "Bear Trap Alley #{number}" },
-      "teleport": { "title": "Quantum Hop #{number}" },
+      "keys_doors": { "title": "Locksmith Run #{number}", "hint": "Each colored door eats a key of its color. Green keys open every green door." },
+      "fire": { "title": "Ember Crossing #{number}", "hint": "Fire burns without fire boots. Look for them before you step in." },
+      "water": { "title": "Flooded Halls #{number}", "hint": "Water drowns you without flippers. Grab them first." },
+      "blocks_water": { "title": "Bridge Builders #{number}", "hint": "Push a block into water to turn it into dirt you can walk on. Plan the push before you move." },
+      "ice": { "title": "Glacier Drift #{number}", "hint": "Ice keeps you sliding until something stops you. Corners turn your slide." },
+      "force": { "title": "Conveyor Works #{number}", "hint": "Force floors carry you along. Force boots let you walk against them." },
+      "thief": { "title": "Thieves' Den #{number}", "hint": "The thief takes all your boots. Use them before you meet him." },
+      "toggle_walls": { "title": "Switchyard #{number}", "hint": "Every green button flips every toggle wall. Count your presses." },
+      "trap": { "title": "Bear Trap Alley #{number}", "hint": "A bear trap holds you until its brown button is pressed. A block can keep the button down." },
+      "teleport": { "title": "Quantum Hop #{number}", "hint": "Step on a teleporter to come out of the other one, moving the same way." },
+      "bomb": { "title": "Demolition Run #{number}", "hint": "Bombs blow up anything that touches them. Push a block into one to clear the way." },
       "default": {
         "hint": "Use the Objective button (or H) to locate the next mechanism and inspect trap, cloner, and toggle wires."
       }

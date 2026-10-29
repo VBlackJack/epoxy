@@ -163,13 +163,21 @@ export class LevelAssembler {
       const maxX = this.region.x1 - piece.width + 1;
       const maxY = this.region.y1 - piece.height + 1;
       if (maxX < this.region.x0 || maxY < this.region.y0) return null;
+      // Sample near the head of the chain: short corridors keep the level packed
+      // and leave room for the pieces still to come.
+      const reach = this.cfg.maxCorridorLength;
+      const loX = Math.max(this.region.x0, this.head.x - piece.width - reach);
+      const hiX = Math.min(maxX, this.head.x + reach);
+      const loY = Math.max(this.region.y0, this.head.y - piece.height - reach);
+      const hiY = Math.min(maxY, this.head.y + reach);
+      if (loX > hiX || loY > hiY) return null;
       const origin = {
-        x: this.rng.nextInt(this.region.x0, maxX),
-        y: this.rng.nextInt(this.region.y0, maxY)
+        x: this.rng.nextInt(loX, hiX),
+        y: this.rng.nextInt(loY, hiY)
       };
       const box = this.boxOf(piece, origin);
       if (this.boxes.some((b) => this.overlaps(b, box, PIECE_GAP))) continue;
-      if ([...this.occupied].some((k) => this.inBox(this.point(k), box))) continue;
+      if (this.boxHasUsedCell(box)) continue;
 
       const entryPort = this.add(origin, piece.entry);
       const entryOut = this.step(entryPort, this.outward(piece, piece.entry));
@@ -428,6 +436,15 @@ export class LevelAssembler {
 
   private inBox(p: GridPoint, b: Box): boolean {
     return p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1;
+  }
+
+  private boxHasUsedCell(box: Box): boolean {
+    for (let y = box.y0; y <= box.y1; y++) {
+      for (let x = box.x0; x <= box.x1; x++) {
+        if (this.occupied.has(this.key({ x, y }))) return true;
+      }
+    }
+    return false;
   }
 
   private inAnyBox(p: GridPoint): boolean {

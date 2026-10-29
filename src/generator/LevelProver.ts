@@ -27,6 +27,8 @@ export interface LevelProof {
   moves: Direction[];
   /** Engine ticks the winning run takes, used to set the time limit. */
   ticks: number;
+  /** Distinct cells the player stood on during the run. */
+  visitedCells: number;
 }
 
 /** Solutions per oriented piece and starting inventory; pieces repeat across levels. */
@@ -52,13 +54,26 @@ export class LevelProver {
     const engine = new GameEngine();
     engine.loadLevel(level);
     const moves: Direction[] = [];
-    const failed = (): LevelProof => ({ solved: false, moves, ticks: engine.getTick() });
+    const visited = new Set<number>();
+    const width = level.terrain[0].length;
+    const track = (): void => {
+      const p = engine.getPlayer();
+      visited.add(p.y * width + p.x);
+    };
+    track();
+    const failed = (): LevelProof => ({
+      solved: false,
+      moves,
+      ticks: engine.getTick(),
+      visitedCells: visited.size
+    });
 
     for (const segment of route) {
       if (segment.kind === 'walk') {
         for (const dir of segment.moves) {
           if (!engine.attemptPlayerMove(dir) || !PieceSolver.settle(engine)) return failed();
           moves.push(dir);
+          track();
         }
         continue;
       }
@@ -70,6 +85,7 @@ export class LevelProver {
         engine.attemptPlayerMove(dir);
         if (!PieceSolver.settle(engine)) return failed();
         moves.push(dir);
+        track();
       }
       if (segment.isFinale) break;
       const player = engine.getPlayer();
@@ -78,7 +94,7 @@ export class LevelProver {
     }
 
     const solved = engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
-    return { solved, moves, ticks: engine.getTick() };
+    return { solved, moves, ticks: engine.getTick(), visitedCells: visited.size };
   }
 
   private static solutionFor(piece: CompiledPiece, engine: GameEngine): Direction[] | null {

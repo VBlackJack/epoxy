@@ -46,6 +46,11 @@ export interface PieceDefinition {
   requires?: string[];
   /** Whether the generator may rotate and mirror the piece. */
   rotatable?: boolean;
+  /**
+   * The piece can be left unfinished for good (its twist is an irreversible
+   * choice, like walking past a thief too early). Kept out of early levels.
+   */
+  oneShot?: boolean;
   entities?: EntityPlacement[];
   trapLinks?: TrapLink[];
   cloneLinks?: CloneLink[];
@@ -54,11 +59,13 @@ export interface PieceDefinition {
 /**
  * Level-wide rules of a motif. Teleporters and toggle walls act on the whole
  * map, so two such pieces in one level would interfere: maxPerLevel caps
- * them. The finale motif closes every level (socket, then exit).
+ * them. Role pieces are not puzzles: the finale closes every level (socket,
+ * then exit) and rest rooms pace the puzzles out.
  */
 export interface MotifRule {
   maxPerLevel?: number;
-  role?: 'finale';
+  /** finale: closes every level. rest: an open chip room placed between puzzles. */
+  role?: 'finale' | 'rest';
 }
 
 export interface MotifsConfig {
@@ -83,6 +90,7 @@ export interface CompiledPiece {
   exit: GridPoint;
   requires: string[];
   rotatable: boolean;
+  oneShot: boolean;
   /** Orientation applied to the definition's rows. */
   orientation: PieceOrientation;
 }

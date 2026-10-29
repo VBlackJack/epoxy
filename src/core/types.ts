@@ -90,6 +90,25 @@ export interface ThemePalette {
   accentGlow: string;
 }
 
+/** Weights and targets of the best-of-N level selection (see LevelScorer). */
+export interface ProceduralScoringConfig {
+  /** Candidates built per level; the best scoring one is kept. */
+  candidates: number;
+  targetMovesBase: number;
+  targetMovesPerLevel: number;
+  /** Relative distance to the target length at which lengthFit reaches 0. */
+  lengthTolerance: number;
+  /** Corridor share at which the corridor term reaches 0. */
+  corridorShareCeiling: number;
+  revisitLow: number;
+  revisitHigh: number;
+  weightLength: number;
+  weightJunction: number;
+  weightCorridor: number;
+  weightRevisit: number;
+  weightVariety: number;
+}
+
 export interface ProceduralConfig {
   defaultLevelCount: number;
   maxGenerationAttempts: number;
@@ -109,12 +128,21 @@ export interface ProceduralConfig {
   placementSamplesPerPiece: number;
   minCorridorLength: number;
   maxCorridorLength: number;
+  /** A rest room follows every this many puzzle pieces; 0 disables them. */
+  restRoomEvery: number;
+  /** First level allowed to use pieces marked oneShot in motifs.json. */
+  oneShotFromLevel: number;
   /** Depth of the side alcove holding boots a piece needs. */
   bootAlcoveLength: number;
+  /** Levels up to this number have no time limit. */
+  untimedUpToLevel: number;
+  /** Thinking time granted per puzzle piece, on top of the stretched run time. */
+  thinkSecondsPerPiece: number;
   /** Time limit over the proven solution time. */
   timeSlackFactor: number;
   timeRoundingSeconds: number;
   minTimeLimitSeconds: number;
+  scoring: ProceduralScoringConfig;
 }
 
 export interface KeybindingsConfig {

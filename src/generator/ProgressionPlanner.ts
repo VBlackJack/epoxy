@@ -73,12 +73,23 @@ export class ProgressionPlanner {
     const finale = library.find((p) => rules[p.motif]?.role === 'finale');
     if (!finale) throw new Error('motifs.json defines no finale piece');
 
-    const playable = library.filter((p) => rules[p.motif]?.role !== 'finale' && p.tier <= budget.maxTier);
+    const restRooms = library.filter((p) => rules[p.motif]?.role === 'rest');
+    const playable = library.filter(
+      (p) =>
+        rules[p.motif]?.role === undefined &&
+        p.tier <= budget.maxTier &&
+        (!p.oneShot || levelNumber >= cfg.oneShotFromLevel)
+    );
     const motifPool = [...new Set(playable.map((p) => p.motif))];
     rng.shuffle(motifPool);
     const motifs = motifPool.slice(0, Math.min(budget.motifCount, motifPool.length));
 
-    const chosen = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng);
+    const chosen = this.withRestRooms(
+      this.choosePieces(budget.pieceCount, motifs, playable, rules, rng),
+      restRooms,
+      cfg.restRoomEvery,
+      rng
+    );
     const steps = this.handOverItems(chosen);
     steps.push({ piece: this.randomOrientation(finale, rng), giveBefore: [] });
     return { steps, motifs };
@@ -127,6 +138,25 @@ export class ProgressionPlanner {
     // Easier pieces first: a motif is met in its simple form before its twist.
     chosen.sort((a, b) => a.tier - b.tier);
     return chosen.map((p) => this.randomOrientation(p, rng));
+  }
+
+  /** Puts an open chip room after every `every` puzzles, never last. */
+  private static withRestRooms(
+    puzzles: CompiledPiece[],
+    restRooms: CompiledPiece[],
+    every: number,
+    rng: SeededRandom
+  ): CompiledPiece[] {
+    if (every <= 0 || restRooms.length === 0) return puzzles;
+    const paced: CompiledPiece[] = [];
+    puzzles.forEach((piece, i) => {
+      paced.push(piece);
+      const isLast = i === puzzles.length - 1;
+      if (!isLast && (i + 1) % every === 0) {
+        paced.push(this.randomOrientation(restRooms[rng.nextInt(0, restRooms.length - 1)], rng));
+      }
+    });
+    return paced;
   }
 
   /** Simulates the boots the player holds along the chain and fills the gaps. */

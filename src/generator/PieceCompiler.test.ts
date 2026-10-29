@@ -51,9 +51,15 @@ describe('compilePiece', () => {
 
   it('rejects an unknown character, a missing port and an inner port', () => {
     const legend = ConfigRegistry.getPieceLegend();
-    expect(() => compilePiece(definition(['#@#', '#§#', '#$#']), legend)).toThrow(PieceError);
+    expect(() => compilePiece(definition(['#@#', '#~#', '#$#']), legend)).toThrow(PieceError);
     expect(() => compilePiece(definition(['#@#', '#.#', '###']), legend)).toThrow(PieceError);
     expect(() => compilePiece(definition(['#@##', '#.$#', '####']), legend)).toThrow(PieceError);
+  });
+
+  it('rejects a corner port and an open border cell', () => {
+    const legend = ConfigRegistry.getPieceLegend();
+    expect(() => compilePiece(definition(['@##', '#.#', '#$#']), legend)).toThrow(PieceError);
+    expect(() => compilePiece(definition(['#@#', '..#', '#$#']), legend)).toThrow(PieceError);
   });
 });
 
