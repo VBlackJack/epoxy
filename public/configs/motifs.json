@@ -1,0 +1,235 @@
+{
+  "legend": {
+    "@": { "terrain": "floor", "port": "entry" },
+    "$": { "terrain": "floor", "port": "exit" },
+    "q": { "terrain": "floor", "item": "boots_water" },
+    "z": { "terrain": "floor", "item": "boots_fire" },
+    "j": { "terrain": "floor", "item": "boots_ice" },
+    "x": { "terrain": "floor", "item": "boots_force" },
+    "&": { "terrain": "floor", "entity": "dirt_block" },
+    "n": { "terrain": "button_green" },
+    "m": { "terrain": "button_brown" },
+    "p": { "terrain": "button_red" },
+    "l": { "terrain": "button_blue" }
+  },
+  "pieces": [
+    {
+      "id": "keys_doors_single",
+      "motif": "keys_doors",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#...r.#",
+        "#####R#",
+        "#C....#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "keys_doors_chain",
+      "motif": "keys_doors",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#...b.#C#",
+        "#####B#.#",
+        "#r....R.#",
+        "#######$#"
+      ]
+    },
+    {
+      "id": "fire_boots_inside",
+      "motif": "fire",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#...z.#",
+        "#####.#",
+        "#C.FFF#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "fire_field",
+      "motif": "fire",
+      "tier": 2,
+      "rotatable": true,
+      "requires": ["boots_fire"],
+      "rows": [
+        "##@##",
+        "#FFF#",
+        "#FCF#",
+        "#FFF#",
+        "##$##"
+      ]
+    },
+    {
+      "id": "water_boots_inside",
+      "motif": "water",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#...q.#",
+        "#####.#",
+        "#C.WWW#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "water_moat",
+      "motif": "water",
+      "tier": 2,
+      "rotatable": true,
+      "requires": ["boots_water"],
+      "rows": [
+        "##@##",
+        "#WWW#",
+        "#WCW#",
+        "#WWW#",
+        "##$##"
+      ]
+    },
+    {
+      "id": "block_bridge",
+      "motif": "blocks_water",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#..&..#",
+        "#WWWWW#",
+        "#C...C#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "block_double_bridge",
+      "motif": "blocks_water",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.&.&.#",
+        "#.....#",
+        "#WWWWW#",
+        "#WWWWW#",
+        "#..C..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_corner_slide",
+      "motif": "ice",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.III2#",
+        "#####I#",
+        "#####I#",
+        "#...C.#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "ice_rink_skates",
+      "motif": "ice",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.j...#",
+        "#####.#",
+        "#IIIII#",
+        "#IICII#",
+        "#IIIII#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "force_conveyor",
+      "motif": "force",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.>>>C#",
+        "#####.#",
+        "#####$#"
+      ]
+    },
+    {
+      "id": "force_headwind",
+      "motif": "force",
+      "tier": 2,
+      "rotatable": true,
+      "requires": ["boots_force"],
+      "rows": [
+        "#@#####",
+        "#.<<<C#",
+        "#####.#",
+        "#####$#"
+      ]
+    },
+    {
+      "id": "thief_after_fire",
+      "motif": "thief",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.z.T.#",
+        "#.###.#",
+        "#FFC#.#",
+        "#####$#"
+      ]
+    },
+    {
+      "id": "toggle_gate",
+      "motif": "toggle_walls",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.n...#",
+        "#####[#",
+        "#C....#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "trap_held_open",
+      "motif": "trap",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.&.m.#",
+        "#.....#",
+        "###X###",
+        "#C...C#",
+        "###$###"
+      ],
+      "trapLinks": [{ "buttonX": 4, "buttonY": 2, "trapX": 3, "trapY": 4 }]
+    },
+    {
+      "id": "teleport_hop",
+      "motif": "teleport",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.O#O.#",
+        "#####C#",
+        "#####$#"
+      ]
+    }
+  ]
+}
