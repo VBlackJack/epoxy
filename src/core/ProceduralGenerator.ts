@@ -20,6 +20,7 @@ import { CompiledPiece, MotifsConfig } from '../generator/PieceTypes';
 import { AssembledLevel, Box, LevelAssembler } from '../generator/LevelAssembler';
 import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
 import { HubPlanner } from '../generator/HubPlanner';
+import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
 import { SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
@@ -189,6 +190,8 @@ export class ProceduralGenerator {
       };
       const proof = LevelProver.prove(level, assembled.route);
       if (!proof.solved) continue;
+      // No puzzle may be walked around, checked on every level, not only in tests.
+      if (built.guards.some((g) => cellReachableWithout(level, g.box, g.guarded))) continue;
 
       const puzzleCount = built.pieceMotifs.filter((m) => built.motifs.includes(m)).length;
       level.timeLimitSeconds = this.timeLimit(levelNumber, proof.ticks, puzzleCount, cfg);

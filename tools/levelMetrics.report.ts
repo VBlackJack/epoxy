@@ -36,7 +36,7 @@ import { MetricsSummary, summarizeField, summarizeReports } from '../src/core/Me
 import { ProceduralGenerator } from '../src/core/ProceduralGenerator';
 import { CompiledLevel } from '../src/core/types';
 import { DatCodec } from '../src/formats/DatCodec';
-import { exitReachableWithout, replays } from '../src/test/levelChecks';
+import { cellReachableWithout, replays } from '../src/test/levelChecks';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -76,7 +76,7 @@ function measureProcedural(): SetReport {
         attempts.push(generated.attempts);
         levels.push(generated.level);
         if (!replays(generated.level, generated.solution)) unproven++;
-        if (generated.pieceBoxes.slice(0, -1).some((box) => exitReachableWithout(generated.level, box))) {
+        if (generated.guards.some((g) => cellReachableWithout(generated.level, g.box, g.guarded))) {
           bypassable++;
         }
       } catch {
