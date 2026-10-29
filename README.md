@@ -9,10 +9,11 @@
 ## Features
 
 - **Hundreds of Levels Included**:
-  - **Epoxy Campaign**: The hand-made Epoxy levels.
+  - **Epoxy Campaign**: 20 Epoxy levels, scripted in `tools/campaign-script.json` and each proven solvable: they teach one mechanic at a time, open into hubs with locked wings from level 3, and bring in Sokoban-style block rooms from level 13.
   - **Bundled Community Packs**: `Tile World Intro` and `CCLP 1` through `CCLP 5` (see [Credits](#credits)).
   - **`.DAT` / `.CCL` / `.JSON` Support**: Import and export level packs in the widely used CC1 `.DAT` binary format via drag-and-drop. Packs you own can be imported this way.
   - **Proven Procedural Generator**: Builds levels from hand-drawn puzzle pieces (`public/configs/motifs.json`), each proven fair and solvable by a solver that runs the real game engine. Every generated level is then replayed start to finish before it is offered, so it is always solvable and no puzzle can be skipped. Difficulty, focus and pacing grow with the level number. From level 3, levels are hubs with locked wings whose keys and boots lie in other wings; hub outlines (`procedural.hub.shapes` in `game.json`) and reward rooms vary, and with the biome set to Auto each level shows the theme of its main mechanic. In block puzzles, the Help button plays the next push, and the game warns as soon as a dead end is proven.
+  - **Show Solution** (`O`): every campaign and generated level stores the solution its proof replayed. The button restarts the level and plays that solution to the exit; watching it records no score.
 - **Complete Tile & Monster Engine**:
   - Elemental hazards (`water`, `fire`, `ice` with corner deflectors, `force` conveyors, `bomb`).
   - Interactive mechanisms (`button_green`, `button_red` clone machines, `button_brown` bear traps, `button_blue` tank reversers, `teleport` pads, `thief`).
