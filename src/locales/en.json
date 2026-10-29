@@ -1,0 +1,345 @@
+{
+  "app": {
+    "header": {
+      "title": { "label": "EPOXY" },
+      "subtitle": { "label": "Atari Lynx II Edition - 16-Bit Grid Logic Challenge" },
+      "mode_play": { "action": "Play Game" },
+      "mode_editor": { "action": "Level Editor" },
+      "levels_btn": { "action": "Levels & Records" },
+      "shell_toggle": { "action": "Lynx II Shell" },
+      "graphics_modern": { "action": "Render: HD Neon" },
+      "graphics_retro": { "action": "Render: 16-Bit Retro" },
+      "theme_label": { "label": "Biome:" },
+      "procedural_btn": { "action": "Generate Endless Puzzle" },
+      "fov": { "label": "View:" },
+      "audio_toggle": { "action": "Chiptune Audio" },
+      "music_toggle": { "action": "Music" },
+      "language": { "label": "Language" },
+      "fullscreen_toggle": { "action": "Fullscreen (F)" },
+      "mobile_menu": { "action": "⚙️ Menu & Packs" }
+    },
+    "themes": {
+      "cyber_neon": { "label": "Cyber Neon" },
+      "arctic_lab": { "label": "Arctic Lab" },
+      "magma_core": { "label": "Magma Core" },
+      "lynx_lcd": { "label": "Retro Lynx LCD" }
+    },
+    "music": {
+      "cyber_pulse": { "label": "Track: Cyber Pulse" },
+      "arctic_synth": { "label": "Track: Arctic Synth" },
+      "magma_drive": { "label": "Track: Magma Drive" }
+    },
+    "packs": {
+      "selector_label": { "label": "Pack:" },
+      "campaign": { "label": "Epoxy + Ultimate Campaign" },
+      "ccup_chips": { "label": "Ultimate: Original CHIPS (149 lvls)" },
+      "ccup_tw_intro": { "label": "Ultimate: Tile World Intro" },
+      "ccup_cclp1": { "label": "Ultimate: CCLP 1 (Community)" },
+      "ccup_cclp2": { "label": "Ultimate: CCLP 2 (Community)" },
+      "ccup_cclp3": { "label": "Ultimate: CCLP 3 (Lynx)" },
+      "ccup_cclp4": { "label": "Ultimate: CCLP 4 (Community)" },
+      "ccup_cclp5": { "label": "Ultimate: CCLP 5 (Community)" },
+      "custom": { "label": "Custom Levels" },
+      "procedural": { "label": "Procedural Puzzles (Solvable)" },
+      "procedural_toast": { "label": "Generated & validated {count} new procedural levels!" },
+      "import_btn": { "action": "Import .DAT / .CCL / .JSON" },
+      "export_dat_btn": { "action": "Export Pack (.CCL)" },
+      "delete_btn": { "action": "Delete Pack" },
+      "drop_overlay": { "label": "Drop your .DAT, .CCL (CCLP) or .JSON file here" },
+      "imported_toast": { "label": "Pack \"{name}\" ({count} levels) imported successfully!" },
+      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON)." }
+    },
+    "lynx": {
+      "bezel": { "brand": "ATARI LYNX II - 16-BIT COLOR HANDHELD SYSTEM" },
+      "power": { "label": "POWER" },
+      "dpad": { "label": "D-PAD" },
+      "button_a": { "action": "A (Action)" },
+      "button_b": { "action": "B (Rewind)" },
+      "option_1": { "action": "OPT 1 (Restart)" },
+      "option_2": { "action": "OPT 2 (Audio)" },
+      "pause": { "action": "PAUSE" }
+    }
+  },
+  "hud": {
+    "stats": {
+      "level": { "label": "LEVEL" },
+      "password": { "label": "CODE" },
+      "chips": { "label": "CHIPS LEFT" },
+      "time": { "label": "TIME" },
+      "score": { "label": "SCORE" },
+      "steps": { "label": "STEPS" }
+    },
+    "radar": {
+      "title": { "label": "32x32 TACTICAL RADAR" }
+    },
+    "inventory": {
+      "keys": { "label": "ACCESS KEYS" },
+      "boots": { "label": "SPECIAL GEAR" },
+      "empty": { "label": "No items" }
+    },
+    "controls": {
+      "undo": { "action": "Rewind Step (U / Ctrl+Z)" },
+      "objective": { "action": "💡 Objective & Wires (H)" },
+      "restart": { "action": "Restart (R)" },
+      "pause": { "action": "Pause (P / Space)" },
+      "prev_level": { "action": "Prev Level" },
+      "next_level": { "action": "Next Level" },
+      "password_btn": { "action": "Enter Password" }
+    },
+    "mobile": {
+      "undo": { "action": "⏪ Undo" },
+      "objective": { "action": "💡 Hint" },
+      "restart": { "action": "🔄 Retry" },
+      "zoom": { "action": "🔍 Zoom" },
+      "fullscreen": { "action": "⛶ Fullscreen" },
+      "exit_fullscreen": { "action": "⛶ Exit Fullscreen" },
+      "gesture_hint": { "label": "Swipe/Hold to move - Tap to pathfind - Pinch to zoom" }
+    },
+    "messages": {
+      "hint_prefix": { "label": "HINT: " },
+      "paused": { "label": "GAME PAUSED" },
+      "press_resume": { "label": "Press P or Space to resume" },
+      "level_complete": { "label": "LEVEL COMPLETE!" },
+      "time_bonus": { "label": "Time Bonus: +{bonus}" },
+      "level_score": { "label": "Score: +{score} - {medal}" },
+      "medal_gold": { "label": "🥇 GOLD Medal" },
+      "medal_silver": { "label": "🥈 SILVER Medal" },
+      "medal_bronze": { "label": "🥉 BRONZE Medal" },
+      "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
+      "next_action": { "action": "Next Level (Enter)" },
+      "replay_action": { "action": "Watch Solution Replay" },
+      "replaying_banner": { "label": "REPLAYING SOLUTION ({step}/{total}) - Click or press any key to take control" },
+      "retry_action": { "action": "Retry Level (R)" },
+      "undo_action": { "action": "Rewind Last Step (U)" },
+      "death_water": { "label": "Splash! You cannot swim without Flippers!" },
+      "death_fire": { "label": "Ouch! Don't step into fire without Fire Boots!" },
+      "death_bomb": { "label": "BOOM! You stepped on a bomb!" },
+      "death_monster": { "label": "Watch out for security creatures!" },
+      "death_block": { "label": "Crushed by a moving block!" },
+      "death_time": { "label": "Out of time!" },
+      "thief_stole": { "label": "The Thief confiscated all your boots!" },
+      "socket_locked": { "label": "Collect all chips before unlocking the socket!" },
+      "all_levels_won": { "label": "CONGRATULATIONS! You mastered every level of Epoxy!" }
+    },
+    "password_modal": {
+      "title": { "label": "Level Password Access" },
+      "placeholder": { "label": "4-letter code (e.g. LYNX)" },
+      "submit": { "action": "Unlock" },
+      "cancel": { "action": "Cancel" },
+      "invalid": { "label": "Unknown password code." }
+    },
+    "scores_modal": {
+      "title": { "label": "Level Select & High Scores" },
+      "col_level": { "label": "#" },
+      "col_title": { "label": "Level" },
+      "col_code": { "label": "Code" },
+      "col_best_time": { "label": "Best Time" },
+      "col_best_steps": { "label": "Min Steps" },
+      "col_best_score": { "label": "High Score" },
+      "col_action": { "label": "Action" },
+      "play_btn": { "action": "Play" },
+      "replay_btn": { "action": "Replay" },
+      "close_btn": { "action": "Close" }
+    }
+  },
+  "validator": {
+    "status": {
+      "valid": { "label": "Level is 100% valid and solvable ({chips}/{required} reachable chips, exit reachable)!" }
+    },
+    "issues": {
+      "no_exit": { "label": "Error: No Exit Portal (E) placed on the map." },
+      "missing_chips": { "label": "Error: Only {placed} chips placed for {required} required." },
+      "no_matching_key": { "label": "Error: {doors} door(s) require {key} but no matching key exists." },
+      "fewer_keys_than_doors": { "label": "Warning: {doors} doors for only {keys} key(s) ({key})." },
+      "unreachable_chips": { "label": "Error: Only {reachable}/{required} chips are reachable from start." },
+      "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." }
+    }
+  },
+  "editor": {
+    "toolbar": {
+      "new_map": { "action": "New Blank Map" },
+      "validate_level": { "action": "Validate Solvability" },
+      "test_level": { "action": "Test Play Level" },
+      "save_local": { "action": "Save to Browser" },
+      "export_json": { "action": "Export JSON" },
+      "export_ccl": { "action": "Export .CCL" },
+      "import_json": { "action": "Import (.DAT/.CCL/.JSON)" },
+      "load_preset": { "label": "Load Preset Level:" }
+    },
+    "metadata": {
+      "title": { "label": "Level Title" },
+      "hint": { "label": "Hint Text (?)" },
+      "password": { "label": "Password (4 chars)" },
+      "time_limit": { "label": "Time Limit (s)" },
+      "chips_needed": { "label": "Chips Required" },
+      "auto_count_chips": { "action": "Auto Count" },
+      "entity_dir": { "label": "Entity / Player Direction" }
+    },
+    "palette": {
+      "category": {
+        "terrain": { "label": "Terrain & Walls" },
+        "hazards": { "label": "Elements & Ice" },
+        "doors_keys": { "label": "Doors & Keys" },
+        "items": { "label": "Chips & Boots" },
+        "mechanisms": { "label": "Mechanisms & Blocks" },
+        "entities": { "label": "Monsters & Player" }
+      },
+      "tools": {
+        "player_start": { "label": "Player Start" },
+        "eraser": { "label": "Eraser (Floor)" },
+        "fill": { "label": "Paint Bucket (Flood Fill)" },
+        "wire_trap": { "label": "Wire Brown Button → Trap" },
+        "wire_cloner": { "label": "Wire Red Button → Cloner" }
+      },
+      "status": {
+        "coords": { "label": "Tile ({x}, {y})" },
+        "saved": { "label": "Level saved to local browser library!" },
+        "imported": { "label": "Level imported successfully!" },
+        "import_error": { "label": "Invalid level format." },
+        "wire_select_source": { "label": "Click the trigger button on the map..." },
+        "wire_select_target": { "label": "Now click the target mechanism to link..." },
+        "wire_linked": { "label": "Mechanism link established!" }
+      }
+    }
+  },
+  "tiles": {
+    "floor": { "name": "Floor" },
+    "wall": { "name": "Wall" },
+    "recessed_wall": { "name": "Recessed Wall" },
+    "blue_wall_real": { "name": "Blue Wall (Solid)" },
+    "blue_wall_fake": { "name": "Blue Wall (Fake)" },
+    "invisible_wall": { "name": "Invisible Wall (Permanent)" },
+    "appearing_wall": { "name": "Appearing Wall (On Touch)" },
+    "thin_wall_n": { "name": "Thin Panel North" },
+    "thin_wall_e": { "name": "Thin Panel East" },
+    "thin_wall_s": { "name": "Thin Panel South" },
+    "thin_wall_w": { "name": "Thin Panel West" },
+    "thin_wall_se": { "name": "Thin Panel South-East" },
+    "dirt": { "name": "Soft Dirt" },
+    "gravel": { "name": "Gravel (Safe Zone)" },
+    "socket": { "name": "Chip Socket" },
+    "exit": { "name": "Exit Portal" },
+    "hint": { "name": "Hint Terminal (?)" },
+    "water": { "name": "Deep Water" },
+    "fire": { "name": "Fire Pit" },
+    "ice": { "name": "Ice" },
+    "ice_nw": { "name": "Ice Corner N-W" },
+    "ice_ne": { "name": "Ice Corner N-E" },
+    "ice_sw": { "name": "Ice Corner S-O" },
+    "ice_se": { "name": "Ice Corner S-E" },
+    "force_n": { "name": "Force Floor North" },
+    "force_e": { "name": "Force Floor East" },
+    "force_s": { "name": "Force Floor South" },
+    "force_w": { "name": "Force Floor West" },
+    "force_random": { "name": "Random Force Floor" },
+    "thief": { "name": "Gear Thief" },
+    "door_red": { "name": "Red Door" },
+    "door_blue": { "name": "Blue Door" },
+    "door_yellow": { "name": "Yellow Door" },
+    "door_green": { "name": "Green Door" },
+    "key_red": { "name": "Red Key" },
+    "key_blue": { "name": "Blue Key" },
+    "key_yellow": { "name": "Yellow Key" },
+    "key_green": { "name": "Green Master Key" },
+    "chip": { "name": "IC Chip" },
+    "boots_water": { "name": "Flippers" },
+    "boots_fire": { "name": "Fire Boots" },
+    "boots_ice": { "name": "Ice Skates" },
+    "boots_force": { "name": "Suction Boots" },
+    "bomb": { "name": "Bomb" },
+    "button_green": { "name": "Green Button (Toggle Walls)" },
+    "button_blue": { "name": "Blue Button (Reverse Tanks)" },
+    "button_brown": { "name": "Brown Button (Open Trap)" },
+    "button_red": { "name": "Red Button (Clone Machine)" },
+    "toggle_wall_closed": { "name": "Toggle Wall (Closed)" },
+    "toggle_wall_open": { "name": "Toggle Wall (Open)" },
+    "teleport": { "name": "Quantum Teleporter" },
+    "trap": { "name": "Bear Trap" },
+    "clone_machine": { "name": "Clone Machine" }
+  },
+  "entities": {
+    "dirt_block": { "name": "Movable Dirt Block" },
+    "ice_block": { "name": "Sliding Ice Block" },
+    "bug": { "name": "Bug (Left-Wall Follower)" },
+    "paramecium": { "name": "Paramecium (Right-Wall Follower)" },
+    "pink_ball": { "name": "Pink Ball (Bouncer)" },
+    "walker": { "name": "Walker (Random Turn)" },
+    "teeth": { "name": "Teeth (Chases Player)" },
+    "glider": { "name": "Glider (Swims on Water)" },
+    "fireball": { "name": "Fireball (Fire Immune)" },
+    "tank": { "name": "Tank (Blue Button Reversal)" },
+    "blob": { "name": "Slow Blob" }
+  },
+  "levels": {
+    "level_1": {
+      "title": "Lesson 1: Silicon Step",
+      "hint": "The green key can be used as many times as you want! Collect all 8 chips to open the socket to the exit."
+    },
+    "level_2": {
+      "title": "Bridge Over Troubled Water",
+      "hint": "Push dirt blocks into water to build a solid bridge, then grab the Flippers in the south!"
+    },
+    "level_3": {
+      "title": "Skating Rink & Corner Banks",
+      "hint": "Use the banked ice corners to ricochet to the Ice Skates in the southeast, then collect the chips freely."
+    },
+    "level_4": {
+      "title": "Conveyor Chaos & The Thief",
+      "hint": "Suction and Fire Boots protect you, but the Thief guarding the south passage will confiscate all your boots!"
+    },
+    "level_5": {
+      "title": "Beetle & Tank Command",
+      "hint": "Step on the blue button to reverse the Tank onto the brown button and hold the trap open!"
+    },
+    "level_6": {
+      "title": "Toggle Matrix & Clone Factory",
+      "hint": "Green buttons toggle walls open and shut. The red button clones dirt blocks to bridge the water channel!"
+    },
+    "level_7": {
+      "title": "Quantum Teleporters & Illusions",
+      "hint": "Some blue walls are illusions! Security creatures cannot step onto gravel."
+    },
+    "level_8": {
+      "title": "Epoxy Core: Elemental Gauntlet",
+      "hint": "Master all four elemental boots before crossing the thieves to unlock the final core!"
+    },
+    "level_9": {
+      "title": "Laser Panels & Phantom Walls",
+      "hint": "Thin panel walls block only one edge of a tile. Probe the appearing walls to discover the gaps!"
+    },
+    "level_10": {
+      "title": "Lynx Grandmaster",
+      "hint": "Combine the green master key, teleporters, and dirt bridges to gather all 8 master chips!"
+    },
+    "level_11": {
+      "title": "Cryogenic Rings",
+      "hint": "Grab the green master key in the north and Ice Skates in the south center to conquer the double ice spiral!"
+    },
+    "level_12": {
+      "title": "High-Voltage Chambers",
+      "hint": "Each locked chamber holds the key to the next. Watch out for the Pink Ball and Walker!"
+    },
+    "level_13": {
+      "title": "Magma Core",
+      "hint": "Equip the Fire Boots and Flippers in the north before crossing the furnace and water moat!"
+    },
+    "level_14": {
+      "title": "Synchronous Matrix",
+      "hint": "Green buttons on the left and right alternate the toggle corridors to unlock all 8 chips."
+    },
+    "level_15": {
+      "title": "Citadel of Epoxy",
+      "hint": "The ultimate test: combine elemental boots, keys, and the central ice vault to collect all 10 chips!"
+    },
+    "procedural": {
+      "asymmetric_complex": { "title": "Asymmetric Bastion #{number}" },
+      "spiral_citadel": { "title": "Spiral Citadel #{number}" },
+      "grand_canal": { "title": "Grand Canal Banks #{number}" },
+      "teleport_archipelago": { "title": "Quantum Archipelago #{number}" },
+      "mechanical_foundry": { "title": "Mechanical Foundry #{number}" },
+      "default": {
+        "hint": "Use the Objective button (or H) to locate the next mechanism and inspect trap, cloner, and toggle wires."
+      }
+    }
+  }
+}

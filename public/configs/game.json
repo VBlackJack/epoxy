@@ -1,0 +1,282 @@
+{
+  "grid": {
+    "mapWidth": 32,
+    "mapHeight": 32,
+    "viewportWidth": 13,
+    "viewportHeight": 13,
+    "viewportPresets": [9, 13, 17, 32],
+    "viewportCanvasSize": 676,
+    "tilePixelSize": 52,
+    "editorTilePixelSize": 24,
+    "pixelArtGridSize": 16
+  },
+  "graphics": {
+    "defaultStyle": "modern",
+    "defaultTheme": "cyber_neon",
+    "entityLerpFactor": 0.32,
+    "cameraLerpFactor": 0.22,
+    "teleportSnapDistance": 1.8,
+    "maxParticles": 200,
+    "particleBurstCount": 18,
+    "ambientSpawnChance": 0.18,
+    "screenShakeExplosion": 9,
+    "screenShakeDeath": 6,
+    "screenShakeDecay": 0.85
+  },
+  "themes": {
+    "cyber_neon": {
+      "id": "cyber_neon",
+      "i18nKey": "app.themes.cyber_neon.label",
+      "floorTop": "#232a38",
+      "floorBottom": "#1b212d",
+      "floorGrid": "#2e3748",
+      "wallTop": "#4b5975",
+      "wallBottom": "#2b3446",
+      "wallBevel": "#64b5f6",
+      "accentGlow": "#00e5ff",
+      "ambientParticle": "#69f0ae"
+    },
+    "arctic_lab": {
+      "id": "arctic_lab",
+      "i18nKey": "app.themes.arctic_lab.label",
+      "floorTop": "#1e3240",
+      "floorBottom": "#15242e",
+      "floorGrid": "#2c485c",
+      "wallTop": "#5c859e",
+      "wallBottom": "#345163",
+      "wallBevel": "#b3e5fc",
+      "accentGlow": "#80d8ff",
+      "ambientParticle": "#e1f5fe"
+    },
+    "magma_core": {
+      "id": "magma_core",
+      "i18nKey": "app.themes.magma_core.label",
+      "floorTop": "#2d1e1b",
+      "floorBottom": "#1f1412",
+      "floorGrid": "#422b26",
+      "wallTop": "#6d4c41",
+      "wallBottom": "#3e2723",
+      "wallBevel": "#ff8a65",
+      "accentGlow": "#ff6d00",
+      "ambientParticle": "#ffd54f"
+    },
+    "lynx_lcd": {
+      "id": "lynx_lcd",
+      "i18nKey": "app.themes.lynx_lcd.label",
+      "floorTop": "#2f3829",
+      "floorBottom": "#232b1f",
+      "floorGrid": "#3e4a37",
+      "wallTop": "#596b4f",
+      "wallBottom": "#384531",
+      "wallBevel": "#aed581",
+      "accentGlow": "#c6ff00",
+      "ambientParticle": "#dce775"
+    }
+  },
+  "procedural": {
+    "defaultLevelCount": 10,
+    "minRooms": 4,
+    "maxRooms": 7,
+    "minRoomSize": 4,
+    "maxRoomSize": 7,
+    "baseChips": 6,
+    "chipsPerLevelFactor": 1,
+    "baseTimeLimitSeconds": 180,
+    "maxGenerationAttempts": 25
+  },
+  "touch": {
+    "swipeDeadzonePx": 20,
+    "tapMaxDistancePx": 14,
+    "tapMaxDurationMs": 280,
+    "pinchZoomStepPx": 42,
+    "hapticPulseMs": 10
+  },
+  "ultimatePacks": [
+    {
+      "id": "ccup_chips",
+      "name": "CHIPS (Original 149)",
+      "i18nKey": "app.packs.ccup_chips.label",
+      "url": "./packs/CHIPS.DAT",
+      "prefix": "chips"
+    },
+    {
+      "id": "ccup_tw_intro",
+      "name": "Tile World Intro",
+      "i18nKey": "app.packs.ccup_tw_intro.label",
+      "url": "./packs/TW_INTRO.DAT",
+      "prefix": "tw_intro"
+    },
+    {
+      "id": "ccup_cclp1",
+      "name": "CCLP 1",
+      "i18nKey": "app.packs.ccup_cclp1.label",
+      "url": "./packs/CCLP1.DAT",
+      "prefix": "cclp1"
+    },
+    {
+      "id": "ccup_cclp2",
+      "name": "CCLP 2",
+      "i18nKey": "app.packs.ccup_cclp2.label",
+      "url": "./packs/CCLP2.DAT",
+      "prefix": "cclp2"
+    },
+    {
+      "id": "ccup_cclp3",
+      "name": "CCLP 3",
+      "i18nKey": "app.packs.ccup_cclp3.label",
+      "url": "./packs/CCLP3.DAT",
+      "prefix": "cclp3"
+    },
+    {
+      "id": "ccup_cclp4",
+      "name": "CCLP 4",
+      "i18nKey": "app.packs.ccup_cclp4.label",
+      "url": "./packs/CCLP4.DAT",
+      "prefix": "cclp4"
+    },
+    {
+      "id": "ccup_cclp5",
+      "name": "CCLP 5",
+      "i18nKey": "app.packs.ccup_cclp5.label",
+      "url": "./packs/CCLP5.DAT",
+      "prefix": "cclp5"
+    }
+  ],
+  "campaignUltimateSelection": [
+    {
+      "packId": "ccup_chips",
+      "levelNumbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 19, 23]
+    },
+    {
+      "packId": "ccup_tw_intro",
+      "levelNumbers": [1, 2, 3, 4, 5]
+    },
+    {
+      "packId": "ccup_cclp1",
+      "levelNumbers": [1, 2, 3, 4, 5]
+    }
+  ],
+  "timing": {
+    "tickIntervalMs": 50,
+    "ticksPerSecond": 20,
+    "playerMoveCooldownTicks": 4,
+    "slideCooldownTicks": 2,
+    "animationFrameTicks": 4,
+    "maxUndoSnapshots": 300,
+    "timeBonusMultiplier": 10,
+    "levelBasePoints": 500,
+    "goldTimeRatio": 0.5,
+    "silverTimeRatio": 0.25
+  },
+  "storage": {
+    "saveSlotKey": "save_state",
+    "customLevelsKey": "custom_levels",
+    "settingsKey": "user_settings",
+    "highScoresKey": "high_scores",
+    "activePackKey": "active_pack",
+    "levelPacksDbName": "epoxy_level_packs_db",
+    "levelPacksStoreName": "packs"
+  },
+  "locales": {
+    "supported": ["fr", "en"],
+    "default": "fr"
+  },
+  "keybindings": {
+    "moveUp": ["ArrowUp", "KeyW", "KeyZ"],
+    "moveDown": ["ArrowDown", "KeyS"],
+    "moveLeft": ["ArrowLeft", "KeyA", "KeyQ"],
+    "moveRight": ["ArrowRight", "KeyD"],
+    "undo": ["ArrowBackspace", "KeyU", "Backspace"],
+    "restart": ["KeyR"],
+    "pause": ["KeyP", "Space"],
+    "nextLevel": ["BracketRight"],
+    "prevLevel": ["BracketLeft"],
+    "toggleShell": ["KeyL"],
+    "toggleMute": ["KeyM"],
+    "cycleFov": ["KeyV", "Tab"],
+    "toggleGraphics": ["KeyG"],
+    "cycleTheme": ["KeyB"],
+    "generateProcedural": ["KeyN"],
+    "showObjective": ["KeyH"],
+    "toggleFullscreen": ["KeyF"]
+  },
+  "palette": {
+    "floorBase": "#9fa6b2",
+    "floorBorder": "#7b8290",
+    "floorHighlight": "#bac1cd",
+    "wallBase": "#4a5262",
+    "wallTop": "#6c768a",
+    "wallShadow": "#2b303c",
+    "recessedWall": "#60697a",
+    "blueWall": "#2979ff",
+    "blueWallBorder": "#1565c0",
+    "socketOuter": "#37474f",
+    "socketInner": "#ffd54f",
+    "exitBase": "#00e676",
+    "exitPulse": "#69f0ae",
+    "exitCore": "#004d40",
+    "waterDeep": "#0277bd",
+    "waterWave": "#4fc3f7",
+    "fireBase": "#d84315",
+    "fireMid": "#ff8f00",
+    "fireTip": "#ffee58",
+    "iceBase": "#b3e5fc",
+    "iceShine": "#e1f5fe",
+    "iceCornerWall": "#37474f",
+    "forceBase": "#26a69a",
+    "forceArrow": "#e0f2f1",
+    "dirtBase": "#8d6e63",
+    "dirtSpeck": "#5d4037",
+    "gravelBase": "#78909c",
+    "gravelSpeck": "#455a64",
+    "blockBase": "#a1887f",
+    "blockBorder": "#4e342e",
+    "iceBlockBase": "#81d4fa",
+    "iceBlockBorder": "#0288d1",
+    "red": "#ff1744",
+    "blue": "#2979ff",
+    "yellow": "#ffd600",
+    "green": "#00e676",
+    "brown": "#795548",
+    "chipBody": "#263238",
+    "chipPins": "#ffd54f",
+    "chipCore": "#00e676",
+    "bombBody": "#212121",
+    "bombSpark": "#ff3d00",
+    "teleportRing": "#aa00ff",
+    "teleportCore": "#ea80fc",
+    "thiefCloak": "#311b92",
+    "thiefMask": "#ffd600",
+    "trapBorder": "#bf360c",
+    "trapInner": "#3e2723",
+    "clonerBorder": "#b71c1c",
+    "clonerInner": "#4a148c",
+    "hintSign": "#00b0ff",
+    "playerSuit": "#1e88e5",
+    "playerSkin": "#ffcc80",
+    "playerHair": "#5d4037",
+    "playerVisor": "#fff176",
+    "monsterBug": "#c62828",
+    "monsterParamecium": "#8bc34a",
+    "monsterPinkBall": "#f48fb1",
+    "monsterWalker": "#ff7043",
+    "monsterTeeth": "#2e7d32",
+    "monsterGlider": "#7e57c2",
+    "monsterFireball": "#ff6d00",
+    "monsterTank": "#546e7a",
+    "monsterBlob": "#00897b",
+    "modernFloorTop": "#232a38",
+    "modernFloorBottom": "#1b212d",
+    "modernFloorGrid": "#2e3748",
+    "modernWallTop": "#4b5975",
+    "modernWallSide": "#2b3446",
+    "modernWallAccent": "#64b5f6",
+    "modernWaterTop": "#0077c2",
+    "modernWaterBottom": "#004ba0",
+    "modernWaterGlow": "#00e5ff",
+    "modernIceTop": "#80d8ff",
+    "modernIceBottom": "#40c4ff",
+    "modernForceBg": "#102830",
+    "modernForceNeon": "#00ffc8"
+  }
+}

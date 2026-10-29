@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 Julien Bombled
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#12151c" />
+    <title>EPOXY</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Drag & Drop Overlay for .DAT / .CCL / .JSON files -->
+      <div id="drop-overlay" class="drop-overlay hidden">
+        <div class="drop-card" data-i18n="app.packs.drop_overlay.label"></div>
+      </div>
+
+      <header class="top-bar">
+        <div class="brand-group">
+          <h1 class="brand-title" data-i18n="app.header.title.label"></h1>
+          <span class="brand-subtitle" data-i18n="app.header.subtitle.label"></span>
+          <div class="mobile-header-actions">
+            <button id="btn-mobile-fullscreen" class="nav-btn mobile-fs-toggle" type="button" data-i18n="hud.mobile.fullscreen.action"></button>
+            <button id="btn-mobile-menu" class="nav-btn mobile-menu-toggle" type="button" data-i18n="app.header.mobile_menu.action"></button>
+          </div>
+        </div>
+
+        <nav id="top-controls-drawer" class="top-controls">
+          <div class="pack-box">
+            <label for="pack-select" data-i18n="app.packs.selector_label.label"></label>
+            <select id="pack-select" class="locale-select"></select>
+            <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
+            <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
+            <input id="pack-file-input" type="file" accept=".dat,.ccl,.json" class="hidden" />
+          </div>
+          <button id="btn-mode-play" class="nav-btn active" type="button" data-i18n="app.header.mode_play.action"></button>
+          <button id="btn-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
+          <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+          <div class="lang-box">
+            <label for="fov-select" data-i18n="app.header.fov.label"></label>
+            <select id="fov-select" class="locale-select"></select>
+          </div>
+          <div class="lang-box">
+            <label for="theme-select" data-i18n="app.header.theme_label.label"></label>
+            <select id="theme-select" class="locale-select"></select>
+          </div>
+          <button id="btn-graphics-toggle" class="nav-btn active" type="button" data-i18n="app.header.graphics_modern.action"></button>
+          <button id="btn-shell-toggle" class="nav-btn" type="button" data-i18n="app.header.shell_toggle.action"></button>
+          <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action"></button>
+          <button id="btn-sfx-toggle" class="nav-btn active" type="button" data-i18n="app.header.audio_toggle.action"></button>
+          <button id="btn-music-toggle" class="nav-btn" type="button" data-i18n="app.header.music_toggle.action"></button>
+          <div class="lang-box">
+            <label for="locale-select" data-i18n="app.header.language.label"></label>
+            <select id="locale-select" class="locale-select"></select>
+          </div>
+        </nav>
+      </header>
+
+      <!-- Floating Exit Fullscreen Pill (visible when Fullscreen Mode hides header) -->
+      <button id="btn-exit-fullscreen" class="floating-fs-exit hidden" type="button" data-i18n="hud.mobile.exit_fullscreen.action"></button>
+
+      <!-- PLAY VIEW -->
+      <main id="play-view" class="view-section">
+        <div id="lynx-console" class="lynx-shell">
+          <!-- Left Handheld Grip: D-Pad + Power LED -->
+          <div class="lynx-wing lynx-left-wing">
+            <div class="power-indicator">
+              <span class="power-led"></span>
+              <span class="power-label" data-i18n="app.lynx.power.label"></span>
+            </div>
+
+            <div class="dpad-container">
+              <button class="dpad-btn dpad-up" data-dir="N" type="button" aria-label="Up">▲</button>
+              <button class="dpad-btn dpad-left" data-dir="W" type="button" aria-label="Left">◀</button>
+              <div class="dpad-center"></div>
+              <button class="dpad-btn dpad-right" data-dir="E" type="button" aria-label="Right">▶</button>
+              <button class="dpad-btn dpad-down" data-dir="S" type="button" aria-label="Down">▼</button>
+            </div>
+            <div class="wing-caption" data-i18n="app.lynx.dpad.label"></div>
+          </div>
+
+          <!-- Center Screen Bezel (9x9 Viewport + HUD) -->
+          <div class="lynx-screen-bezel">
+            <div class="bezel-header" data-i18n="app.lynx.bezel.brand"></div>
+
+            <div class="lcd-screen">
+              <div class="viewport-wrapper">
+                <canvas id="game-canvas" width="676" height="676"></canvas>
+
+                <!-- Hint Overlay -->
+                <div id="hint-banner" class="hint-banner hidden">
+                  <strong data-i18n="hud.messages.hint_prefix.label"></strong>
+                  <span id="hint-text"></span>
+                </div>
+
+                <!-- Status Toast Banner -->
+                <div id="status-toast" class="status-toast hidden"></div>
+
+                <!-- Modal Overlay Inside Viewport (Pause / Death / Win) -->
+                <div id="viewport-overlay" class="viewport-overlay hidden">
+                  <div class="overlay-card">
+                    <h2 id="overlay-title"></h2>
+                    <p id="overlay-subtitle"></p>
+                    <p id="overlay-extra" class="overlay-extra"></p>
+                    <div class="overlay-actions">
+                      <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action"></button>
+                      <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
+                      <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.messages.undo_action.action"></button>
+                      <button id="overlay-btn-retry" class="action-btn" type="button" data-i18n="hud.messages.retry_action.action"></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Ergonomic Smartphone & Touch Controller Bar -->
+              <div id="mobile-touch-bar" class="mobile-touch-bar">
+                <div class="mobile-dpad-zone">
+                  <div class="dpad-container mobile-dpad">
+                    <button class="dpad-btn dpad-up" data-dir="N" type="button" aria-label="Up">▲</button>
+                    <button class="dpad-btn dpad-left" data-dir="W" type="button" aria-label="Left">◀</button>
+                    <div class="dpad-center"></div>
+                    <button class="dpad-btn dpad-right" data-dir="E" type="button" aria-label="Right">▶</button>
+                    <button class="dpad-btn dpad-down" data-dir="S" type="button" aria-label="Down">▼</button>
+                  </div>
+                </div>
+
+                <div class="mobile-actions-zone">
+                  <div class="mobile-action-grid">
+                    <button id="mobile-btn-undo" class="mobile-pad-btn" type="button" data-i18n="hud.mobile.undo.action"></button>
+                    <button id="mobile-btn-objective" class="mobile-pad-btn accent" type="button" data-i18n="hud.mobile.objective.action"></button>
+                    <button id="mobile-btn-restart" class="mobile-pad-btn" type="button" data-i18n="hud.mobile.restart.action"></button>
+                    <button id="mobile-btn-zoom" class="mobile-pad-btn" type="button" data-i18n="hud.mobile.zoom.action"></button>
+                    <button id="mobile-btn-fullscreen" class="mobile-pad-btn span-full" type="button" data-i18n="hud.mobile.fullscreen.action"></button>
+                  </div>
+                  <div class="mobile-gesture-caption" data-i18n="hud.mobile.gesture_hint.label"></div>
+                </div>
+              </div>
+
+              <!-- Side HUD Panel -->
+              <aside class="hud-panel">
+                <div class="hud-level-header">
+                  <div class="hud-level-badge">
+                    <span data-i18n="hud.stats.level.label"></span>
+                    <strong id="hud-level-num">1</strong>
+                  </div>
+                  <div class="hud-password-badge">
+                    <span data-i18n="hud.stats.password.label"></span>
+                    <strong id="hud-level-pass">BDHP</strong>
+                  </div>
+                </div>
+                <div id="hud-level-title" class="hud-level-title"></div>
+
+                <div class="led-counters">
+                  <div class="led-box">
+                    <span class="led-label" data-i18n="hud.stats.chips.label"></span>
+                    <div id="hud-chips-left" class="led-digits led-green">000</div>
+                  </div>
+                  <div class="led-box">
+                    <span class="led-label" data-i18n="hud.stats.time.label"></span>
+                    <div id="hud-time-left" class="led-digits led-amber">000</div>
+                  </div>
+                </div>
+
+                <div class="hud-mini-stats">
+                  <div>
+                    <span data-i18n="hud.stats.score.label"></span>:
+                    <strong id="hud-score">0</strong>
+                  </div>
+                  <div>
+                    <span data-i18n="hud.stats.steps.label"></span>:
+                    <strong id="hud-steps">0</strong>
+                  </div>
+                </div>
+
+                <div class="inventory-row-split">
+                  <div class="inventory-section">
+                    <div class="inv-title" data-i18n="hud.inventory.keys.label"></div>
+                    <div id="hud-keys-grid" class="inv-grid"></div>
+                    <div class="inv-title boots-title" data-i18n="hud.inventory.boots.label"></div>
+                    <div id="hud-boots-grid" class="inv-grid"></div>
+                  </div>
+
+                  <div class="radar-box">
+                    <div class="inv-title" data-i18n="hud.radar.title.label"></div>
+                    <canvas id="radar-canvas" width="96" height="96"></canvas>
+                  </div>
+                </div>
+
+                <div class="hud-Quick-actions">
+                  <button id="hud-btn-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action"></button>
+                  <button id="hud-btn-objective" class="hud-btn" type="button" data-i18n="hud.controls.objective.action"></button>
+                  <button id="hud-btn-restart" class="hud-btn" type="button" data-i18n="hud.controls.restart.action"></button>
+                  <div class="hud-nav-row">
+                    <button id="hud-btn-prev" class="hud-btn small" type="button" data-i18n="hud.controls.prev_level.action"></button>
+                    <button id="hud-btn-pause" class="hud-btn small" type="button" data-i18n="hud.controls.pause.action"></button>
+                    <button id="hud-btn-next" class="hud-btn small" type="button" data-i18n="hud.controls.next_level.action"></button>
+                  </div>
+                  <button id="hud-btn-password" class="hud-btn secondary" type="button" data-i18n="hud.controls.password_btn.action"></button>
+                </div>
+              </aside>
+            </div>
+          </div>
+
+          <!-- Right Handheld Grip: Option Buttons & A / B Buttons -->
+          <div class="lynx-wing lynx-right-wing">
+            <div class="lynx-opt-stack">
+              <button id="lynx-opt1" class="lynx-pill-btn" type="button" data-i18n="app.lynx.option_1.action"></button>
+              <button id="lynx-pause" class="lynx-pill-btn pause" type="button" data-i18n="app.lynx.pause.action"></button>
+              <button id="lynx-opt2" class="lynx-pill-btn" type="button" data-i18n="app.lynx.option_2.action"></button>
+            </div>
+
+            <div class="lynx-ab-cluster">
+              <button id="lynx-btn-b" class="lynx-round-btn btn-b" type="button">B</button>
+              <button id="lynx-btn-a" class="lynx-round-btn btn-a" type="button">A</button>
+            </div>
+            <div class="wing-caption">
+              <span data-i18n="app.lynx.button_b.action"></span> - <span data-i18n="app.lynx.button_a.action"></span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- LEVEL EDITOR VIEW -->
+      <section id="editor-view" class="view-section hidden">
+        <div class="editor-layout">
+          <div class="editor-left-panel">
+            <div class="editor-toolbar">
+              <button id="editor-new-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.new_map.action"></button>
+              <button id="editor-validate-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.validate_level.action"></button>
+              <button id="editor-test-btn" class="hud-btn small primary" type="button" data-i18n="editor.toolbar.test_level.action"></button>
+              <button id="editor-save-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.save_local.action"></button>
+              <button id="editor-export-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_json.action"></button>
+              <button id="editor-export-ccl-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_ccl.action"></button>
+              <button id="editor-import-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.import_json.action"></button>
+              <input id="editor-import-input" type="file" accept=".dat,.ccl,.json" class="hidden" />
+            </div>
+
+            <div class="editor-preset-bar">
+              <label for="editor-preset-select" data-i18n="editor.toolbar.load_preset.label"></label>
+              <select id="editor-preset-select" class="editor-input"></select>
+            </div>
+
+            <div class="editor-meta-grid">
+              <div class="meta-field">
+                <label for="editor-meta-title" data-i18n="editor.metadata.title.label"></label>
+                <input id="editor-meta-title" type="text" class="editor-input" />
+              </div>
+              <div class="meta-field">
+                <label for="editor-meta-password" data-i18n="editor.metadata.password.label"></label>
+                <input id="editor-meta-password" type="text" maxlength="4" class="editor-input" />
+              </div>
+              <div class="meta-field">
+                <label for="editor-meta-time" data-i18n="editor.metadata.time_limit.label"></label>
+                <input id="editor-meta-time" type="number" min="0" max="999" class="editor-input" />
+              </div>
+              <div class="meta-field">
+                <label for="editor-meta-chips" data-i18n="editor.metadata.chips_needed.label"></label>
+                <div class="inline-field">
+                  <input id="editor-meta-chips" type="number" min="0" max="999" class="editor-input" />
+                  <button id="editor-autocount-btn" class="hud-btn small" type="button" data-i18n="editor.metadata.auto_count_chips.action"></button>
+                </div>
+              </div>
+              <div class="meta-field full-width">
+                <label for="editor-meta-hint" data-i18n="editor.metadata.hint.label"></label>
+                <input id="editor-meta-hint" type="text" class="editor-input" />
+              </div>
+              <div class="meta-field full-width">
+                <label for="editor-meta-dir" data-i18n="editor.metadata.entity_dir.label"></label>
+                <select id="editor-meta-dir" class="editor-input">
+                  <option value="N">N (▲)</option>
+                  <option value="E">E (▶)</option>
+                  <option value="S" selected>S (▼)</option>
+                  <option value="W">W (◀)</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="editor-category-tabs" class="editor-category-tabs"></div>
+            <div id="editor-palette-grid" class="editor-palette-grid"></div>
+            <div id="editor-status-bar" class="editor-status-bar"></div>
+          </div>
+
+          <div class="editor-canvas-container">
+            <canvas id="editor-canvas"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- PASSWORD MODAL -->
+      <div id="password-modal" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+          <h3 data-i18n="hud.password_modal.title.label"></h3>
+          <input
+            id="password-input"
+            type="text"
+            maxlength="4"
+            class="editor-input password-field"
+            data-i18n-placeholder="hud.password_modal.placeholder.label"
+          />
+          <p id="password-error" class="error-text hidden" data-i18n="hud.password_modal.invalid.label"></p>
+          <div class="modal-actions">
+            <button id="password-submit-btn" class="action-btn primary" type="button" data-i18n="hud.password_modal.submit.action"></button>
+            <button id="password-cancel-btn" class="action-btn" type="button" data-i18n="hud.password_modal.cancel.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEVEL SELECT & HIGH SCORES MODAL -->
+      <div id="scores-modal" class="modal-backdrop hidden">
+        <div class="modal-dialog wide-dialog">
+          <div class="scores-modal-header">
+            <h3 data-i18n="hud.scores_modal.title.label"></h3>
+            <div class="scores-pack-actions">
+              <button id="btn-export-pack-ccl" class="hud-btn small" type="button" data-i18n="app.packs.export_dat_btn.action"></button>
+              <button id="btn-delete-pack" class="hud-btn small hidden" type="button" data-i18n="app.packs.delete_btn.action"></button>
+            </div>
+          </div>
+          <div class="scores-table-wrapper">
+            <table class="scores-table">
+              <thead>
+                <tr>
+                  <th data-i18n="hud.scores_modal.col_level.label"></th>
+                  <th data-i18n="hud.scores_modal.col_title.label"></th>
+                  <th data-i18n="hud.scores_modal.col_code.label"></th>
+                  <th data-i18n="hud.scores_modal.col_best_time.label"></th>
+                  <th data-i18n="hud.scores_modal.col_best_steps.label"></th>
+                  <th data-i18n="hud.scores_modal.col_best_score.label"></th>
+                  <th data-i18n="hud.scores_modal.col_action.label"></th>
+                </tr>
+              </thead>
+              <tbody id="scores-table-body"></tbody>
+            </table>
+          </div>
+          <div class="modal-actions">
+            <button id="scores-close-btn" class="action-btn" type="button" data-i18n="hud.scores_modal.close_btn.action"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

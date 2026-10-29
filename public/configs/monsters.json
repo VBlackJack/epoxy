@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "dirt_block": {
+      "id": "dirt_block",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.dirt_block.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt",
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "ice_block": {
+      "id": "ice_block",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.ice_block.name",
+      "pushable": true,
+      "slidesOnFloor": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "water",
+      "meltsInFireTo": "water",
+      "destroyedByFire": true,
+      "destroyedByBomb": true
+    },
+    "bug": {
+      "id": "bug",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.bug.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "left_wall",
+      "turnOrder": ["LEFT", "FORWARD", "RIGHT", "BACK"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": true
+    },
+    "paramecium": {
+      "id": "paramecium",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.paramecium.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "right_wall",
+      "turnOrder": ["RIGHT", "FORWARD", "LEFT", "BACK"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false
+    },
+    "pink_ball": {
+      "id": "pink_ball",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.pink_ball.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "bounce",
+      "turnOrder": ["FORWARD", "BACK"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false
+    },
+    "walker": {
+      "id": "walker",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.walker.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "forward_else_random",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false
+    },
+    "teeth": {
+      "id": "teeth",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.teeth.name",
+      "moveIntervalTicks": 8,
+      "movementPattern": "chase_player",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false
+    },
+    "glider": {
+      "id": "glider",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.glider.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "left_skew",
+      "turnOrder": ["FORWARD", "LEFT", "RIGHT", "BACK"],
+      "immuneToWater": true,
+      "immuneToFire": false,
+      "avoidsFire": false
+    },
+    "fireball": {
+      "id": "fireball",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.fireball.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "right_skew",
+      "turnOrder": ["FORWARD", "RIGHT", "LEFT", "BACK"],
+      "immuneToWater": false,
+      "immuneToFire": true,
+      "avoidsFire": false
+    },
+    "tank": {
+      "id": "tank",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.tank.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "tank_march",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false
+    },
+    "blob": {
+      "id": "blob",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.blob.name",
+      "moveIntervalTicks": 10,
+      "movementPattern": "pure_random",
+      "turnOrder": ["FORWARD", "LEFT", "RIGHT", "BACK"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false
+    }
+  }
+}

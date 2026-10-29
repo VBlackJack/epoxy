@@ -1,0 +1,192 @@
+{
+  "masterVolume": 0.25,
+  "sfxVolume": 0.6,
+  "musicVolume": 0.35,
+  "effects": {
+    "step": {
+      "waveform": "triangle",
+      "notes": [
+        { "freq": 190, "durationMs": 32, "gain": 0.25 }
+      ]
+    },
+    "blocked": {
+      "waveform": "sawtooth",
+      "notes": [
+        { "freq": 110, "durationMs": 70, "gain": 0.4 },
+        { "freq": 85, "durationMs": 70, "gain": 0.3 }
+      ]
+    },
+    "chip": {
+      "waveform": "square",
+      "notes": [
+        { "freq": 587.33, "durationMs": 55, "gain": 0.5 },
+        { "freq": 880, "durationMs": 95, "gain": 0.55 }
+      ]
+    },
+    "item": {
+      "waveform": "square",
+      "notes": [
+        { "freq": 440, "durationMs": 50, "gain": 0.45 },
+        { "freq": 659.25, "durationMs": 60, "gain": 0.45 },
+        { "freq": 880, "durationMs": 80, "gain": 0.5 }
+      ]
+    },
+    "door": {
+      "waveform": "triangle",
+      "notes": [
+        { "freq": 329.63, "durationMs": 50, "gain": 0.5 },
+        { "freq": 493.88, "durationMs": 80, "gain": 0.5 }
+      ]
+    },
+    "socket": {
+      "waveform": "square",
+      "notes": [
+        { "freq": 392, "durationMs": 60, "gain": 0.5 },
+        { "freq": 523.25, "durationMs": 60, "gain": 0.5 },
+        { "freq": 659.25, "durationMs": 60, "gain": 0.5 },
+        { "freq": 783.99, "durationMs": 110, "gain": 0.6 }
+      ]
+    },
+    "button": {
+      "waveform": "square",
+      "notes": [
+        { "freq": 740, "durationMs": 35, "gain": 0.35 }
+      ]
+    },
+    "teleport": {
+      "waveform": "sawtooth",
+      "notes": [
+        { "freq": 330, "durationMs": 35, "gain": 0.4 },
+        { "freq": 495, "durationMs": 35, "gain": 0.4 },
+        { "freq": 742, "durationMs": 45, "gain": 0.45 },
+        { "freq": 1113, "durationMs": 60, "gain": 0.4 }
+      ]
+    },
+    "thief": {
+      "waveform": "sawtooth",
+      "notes": [
+        { "freq": 520, "durationMs": 60, "gain": 0.45 },
+        { "freq": 390, "durationMs": 60, "gain": 0.45 },
+        { "freq": 260, "durationMs": 95, "gain": 0.45 }
+      ]
+    },
+    "splash": {
+      "waveform": "sawtooth",
+      "notes": [
+        { "freq": 280, "durationMs": 70, "gain": 0.5 },
+        { "freq": 190, "durationMs": 90, "gain": 0.45 },
+        { "freq": 110, "durationMs": 140, "gain": 0.4 }
+      ]
+    },
+    "burn": {
+      "waveform": "sawtooth",
+      "notes": [
+        { "freq": 420, "durationMs": 55, "gain": 0.5 },
+        { "freq": 210, "durationMs": 80, "gain": 0.5 },
+        { "freq": 140, "durationMs": 150, "gain": 0.45 }
+      ]
+    },
+    "bomb": {
+      "waveform": "sawtooth",
+      "notes": [
+        { "freq": 160, "durationMs": 80, "gain": 0.6 },
+        { "freq": 95, "durationMs": 110, "gain": 0.6 },
+        { "freq": 62, "durationMs": 180, "gain": 0.5 }
+      ]
+    },
+    "death": {
+      "waveform": "square",
+      "notes": [
+        { "freq": 392, "durationMs": 90, "gain": 0.5 },
+        { "freq": 349.23, "durationMs": 90, "gain": 0.5 },
+        { "freq": 329.63, "durationMs": 90, "gain": 0.5 },
+        { "freq": 261.63, "durationMs": 220, "gain": 0.55 }
+      ]
+    },
+    "win": {
+      "waveform": "square",
+      "notes": [
+        { "freq": 523.25, "durationMs": 85, "gain": 0.55 },
+        { "freq": 659.25, "durationMs": 85, "gain": 0.55 },
+        { "freq": 783.99, "durationMs": 85, "gain": 0.55 },
+        { "freq": 1046.5, "durationMs": 220, "gain": 0.6 }
+      ]
+    }
+  },
+  "music": {
+    "stepDurationMs": 180,
+    "leadWaveform": "square",
+    "bassWaveform": "triangle",
+    "leadNotes": [
+      329.63, 0, 392.00, 440.00, 493.88, 0, 392.00, 329.63,
+      293.66, 329.63, 392.00, 0, 329.63, 293.66, 246.94, 0,
+      329.63, 0, 392.00, 440.00, 587.33, 523.25, 493.88, 440.00,
+      392.00, 329.63, 293.66, 392.00, 329.63, 0, 0, 0
+    ],
+    "bassNotes": [
+      164.81, 164.81, 196.00, 196.00, 220.00, 220.00, 196.00, 164.81,
+      146.83, 146.83, 196.00, 196.00, 164.81, 146.83, 123.47, 123.47,
+      164.81, 164.81, 196.00, 220.00, 246.94, 246.94, 220.00, 196.00,
+      196.00, 164.81, 146.83, 196.00, 164.81, 164.81, 110.00, 123.47
+    ]
+  },
+  "tracks": [
+    {
+      "id": "cyber_pulse",
+      "i18nKey": "app.music.cyber_pulse.label",
+      "stepDurationMs": 175,
+      "leadWaveform": "square",
+      "bassWaveform": "triangle",
+      "leadNotes": [
+        329.63, 0, 392.00, 440.00, 493.88, 0, 392.00, 329.63,
+        293.66, 329.63, 392.00, 0, 329.63, 293.66, 246.94, 0,
+        329.63, 0, 392.00, 440.00, 587.33, 523.25, 493.88, 440.00,
+        392.00, 329.63, 293.66, 392.00, 329.63, 0, 0, 0
+      ],
+      "bassNotes": [
+        164.81, 164.81, 196.00, 196.00, 220.00, 220.00, 196.00, 164.81,
+        146.83, 146.83, 196.00, 196.00, 164.81, 146.83, 123.47, 123.47,
+        164.81, 164.81, 196.00, 220.00, 246.94, 246.94, 220.00, 196.00,
+        196.00, 164.81, 146.83, 196.00, 164.81, 164.81, 110.00, 123.47
+      ]
+    },
+    {
+      "id": "arctic_synth",
+      "i18nKey": "app.music.arctic_synth.label",
+      "stepDurationMs": 200,
+      "leadWaveform": "triangle",
+      "bassWaveform": "sine",
+      "leadNotes": [
+        523.25, 659.25, 783.99, 659.25, 587.33, 0, 523.25, 0,
+        440.00, 523.25, 659.25, 523.25, 493.88, 0, 392.00, 0,
+        523.25, 659.25, 880.00, 783.99, 659.25, 587.33, 523.25, 493.88,
+        440.00, 392.00, 440.00, 493.88, 523.25, 0, 0, 0
+      ],
+      "bassNotes": [
+        130.81, 130.81, 196.00, 196.00, 146.83, 146.83, 130.81, 130.81,
+        110.00, 110.00, 164.81, 164.81, 123.47, 123.47, 98.00, 98.00,
+        130.81, 130.81, 220.00, 196.00, 164.81, 146.83, 130.81, 123.47,
+        110.00, 98.00, 110.00, 123.47, 130.81, 130.81, 130.81, 0
+      ]
+    },
+    {
+      "id": "magma_drive",
+      "i18nKey": "app.music.magma_drive.label",
+      "stepDurationMs": 145,
+      "leadWaveform": "sawtooth",
+      "bassWaveform": "square",
+      "leadNotes": [
+        220.00, 220.00, 261.63, 293.66, 329.63, 293.66, 261.63, 246.94,
+        220.00, 0, 329.63, 0, 349.23, 329.63, 293.66, 261.63,
+        220.00, 261.63, 329.63, 440.00, 392.00, 349.23, 329.63, 293.66,
+        329.63, 293.66, 261.63, 246.94, 220.00, 0, 220.00, 0
+      ],
+      "bassNotes": [
+        110.00, 110.00, 110.00, 110.00, 130.81, 130.81, 123.47, 123.47,
+        110.00, 110.00, 164.81, 164.81, 174.61, 164.81, 146.83, 130.81,
+        110.00, 110.00, 164.81, 220.00, 196.00, 174.61, 164.81, 146.83,
+        164.81, 146.83, 130.81, 123.47, 110.00, 110.00, 82.41, 98.00
+      ]
+    }
+  ]
+}
