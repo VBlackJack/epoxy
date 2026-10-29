@@ -111,6 +111,7 @@
     "controls": {
       "undo": { "action": "Rewind Step (U / Ctrl+Z)" },
       "objective": { "action": "💡 Objective & Wires (H)" },
+      "solution": { "action": "🎬 Show solution (O)" },
       "restart": { "action": "Restart (R)" },
       "pause": { "action": "Pause (P / Space)" },
       "prev_level": { "action": "Prev Level" },
@@ -120,6 +121,7 @@
     "mobile": {
       "undo": { "action": "⏪ Undo" },
       "objective": { "action": "💡 Hint" },
+      "solution": { "action": "🎬 Solution" },
       "restart": { "action": "🔄 Retry" },
       "zoom": { "action": "🔍 Zoom" },
       "fullscreen": { "action": "⛶ Fullscreen" },
@@ -143,6 +145,9 @@
       "block_hint": { "label": "Hint: the next push is played for you. Press Help again for the following one." },
       "blocks_stuck": { "label": "Dead end: these blocks can no longer cover every button. Undo (U) or restart (R)." },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
+      "solution_playing": { "label": "Playing the proven solution. Tap the board to take back control." },
+      "solution_confirm": { "label": "Show the solution? The level restarts and plays itself to the exit." },
+      "no_solution": { "label": "No stored solution for this level (imported packs have none)." },
       "inspect_format": { "label": "🔍 ({x}, {y}): {details}" },
       "inspect_separator": { "label": " + " },
       "next_action": { "action": "Next Level (Enter)" },
@@ -195,6 +200,7 @@
       "kb_undo": { "label": "U / Backspace / Ctrl+Z: Rewind step (even after death)" },
       "kb_restart": { "label": "R: Restart current level" },
       "kb_objective": { "label": "H: Locate next objective & reveal mechanism wires" },
+      "kb_solution": { "label": "O: Watch the proven solution (the level restarts)" },
       "kb_fov": { "label": "V / Tab / Wheel: Cycle viewport zoom (9x9 to 32x32)" },
       "kb_graphics": { "label": "G: Toggle HD Neon / 16-Bit Retro rendering" },
       "kb_theme": { "label": "B: Cycle visual biome & music track" },

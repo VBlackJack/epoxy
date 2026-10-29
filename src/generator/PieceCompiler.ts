@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { decodeActions } from './PieceSolver';
 import { ORDERED_DIRECTIONS } from '../config/constants';
 import { DEFAULT_FACING } from '../core/coreConstants';
 import { Direction, GridPoint, TileDefinition } from '../core/types';
@@ -147,13 +148,6 @@ export function resetPieceCaches(): void {
 }
 
 /** Parses a piece definition with the merged levels.json and motifs.json legend. */
-/** Action letters of an annotated solution. */
-const WAIT_LETTER = '.';
-
-function parseSolution(text: string): Array<Direction | 'WAIT'> {
-  return [...text].map((ch) => (ch === WAIT_LETTER ? 'WAIT' : (ch as Direction)));
-}
-
 export function compilePiece(
   def: PieceDefinition,
   legend: Record<string, PieceLegendEntry>,
@@ -239,7 +233,7 @@ export function compilePiece(
     requires: [...(def.requires ?? [])],
     rotatable: def.rotatable ?? false,
     oneShot: def.oneShot ?? false,
-    solution: annotation ? parseSolution(annotation.solution) : undefined,
+    solution: annotation ? decodeActions(annotation.solution) : undefined,
     reversible: annotation?.reversible,
     orientation: IDENTITY_ORIENTATION
   };

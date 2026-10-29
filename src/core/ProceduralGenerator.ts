@@ -22,7 +22,7 @@ import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
 import { HubPlanner } from '../generator/HubPlanner';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
-import { SolverAction } from '../generator/PieceSolver';
+import { encodeActions, SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
 import { budgetFor, LevelScript, ProgressionPlanner } from '../generator/ProgressionPlanner';
 import { SeededRandom } from './Random';
@@ -199,6 +199,7 @@ export class ProceduralGenerator {
 
       const puzzleCount = built.pieceMotifs.filter((m) => built.motifs.includes(m)).length;
       level.timeLimitSeconds = this.timeLimit(levelNumber, proof.ticks, puzzleCount, cfg);
+      level.solution = encodeActions(proof.moves);
       const score = scoreLevel(
         {
           level,

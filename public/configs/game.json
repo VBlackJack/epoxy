@@ -272,6 +272,7 @@
     "cycleTheme": ["KeyB"],
     "generateProcedural": ["KeyN"],
     "showObjective": ["KeyH"],
+    "showSolution": ["KeyO"],
     "toggleFullscreen": ["KeyF"],
     "toggleHelp": ["Slash"]
   },

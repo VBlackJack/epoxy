@@ -24,6 +24,7 @@ import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
 import { BlockPuzzleSolver } from './core/BlockPuzzleSolver';
+import { timedSolution } from './generator/SolutionReplay';
 import { Pathfinder } from './core/Pathfinder';
 import { ProceduralGenerationError, ProceduralGenerator } from './core/ProceduralGenerator';
 import {
@@ -926,6 +927,22 @@ class EpoxyApplication {
   }
 
   /**
+   * Restarts the level and plays its proven solution, after a confirmation
+   * since progress in the level is lost. Levels without a stored solution
+   * (imported packs) say so.
+   */
+  private showSolution(): void {
+    const moves = timedSolution(this.engine.getLevel());
+    if (!moves) {
+      this.showTransientStatus(t('hud.messages.no_solution.label'));
+      return;
+    }
+    if (!window.confirm(t('hud.messages.solution_confirm.label'))) return;
+    this.startReplay(moves);
+    this.showTransientStatus(t('hud.messages.solution_playing.label'));
+  }
+
+  /**
    * In a block puzzle, plays the next push of a solution from where the
    * player stands, walking there first. Returns false when no block puzzle
    * is open, so the usual objective help runs instead.
@@ -1471,6 +1488,13 @@ class EpoxyApplication {
     byId('hud-btn-objective')?.addEventListener('click', () => {
       this.triggerObjectiveAndLinks();
     });
+    byId('hud-btn-solution')?.addEventListener('click', () => {
+      this.showSolution();
+    });
+    byId('mobile-btn-solution')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.showSolution();
+    });
     byId('hud-btn-restart')?.addEventListener('click', () => {
       this.restartLevel();
     });
@@ -1730,6 +1754,8 @@ class EpoxyApplication {
       run(() => void this.generateProceduralPack());
     } else if (kb.showObjective?.includes(e.code)) {
       run(() => this.triggerObjectiveAndLinks());
+    } else if (kb.showSolution?.includes(e.code)) {
+      run(() => this.showSolution());
     } else if (kb.toggleHelp?.includes(e.code) || e.key === '?') {
       run(() => this.openHelpModal());
     } else if (e.code === 'Enter' && this.engine.isLevelCompleted()) {

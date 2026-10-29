@@ -38,6 +38,17 @@ const reversibleCache = new Map<string, boolean>();
 export const WAIT_ACTION = 'WAIT';
 export type SolverAction = Direction | typeof WAIT_ACTION;
 
+/** Letter standing for a wait in a written action list; moves use N, E, S and W. */
+const WAIT_LETTER = '.';
+
+export function encodeActions(actions: readonly SolverAction[]): string {
+  return actions.map((a) => (a === WAIT_ACTION ? WAIT_LETTER : a)).join('');
+}
+
+export function decodeActions(text: string): SolverAction[] {
+  return [...text].map((ch) => (ch === WAIT_LETTER ? WAIT_ACTION : (ch as Direction)));
+}
+
 export interface PieceSolveOptions {
   /** Items the player starts with; defaults to the piece's `requires`. */
   carried?: string[];

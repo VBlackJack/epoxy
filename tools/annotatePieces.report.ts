@@ -33,7 +33,7 @@ vi.mock('../src/audio/AudioManager', () => import('../src/test/silentAudio'));
 
 import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import { compilePiece } from '../src/generator/PieceCompiler';
-import { PieceSolver, WAIT_ACTION } from '../src/generator/PieceSolver';
+import { encodeActions, PieceSolver } from '../src/generator/PieceSolver';
 import { MotifAnnotations } from '../src/generator/PieceTypes';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
 
@@ -41,7 +41,6 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_FILE = resolve(ROOT, 'public', 'configs', 'motif-annotations.json');
 /** Large enough for the heaviest Sokoban pieces of the library. */
 const MAX_STATES = 400000;
-const WAIT_LETTER = '.';
 const JSON_INDENT = 2;
 
 it('annotates every piece', () => {
@@ -59,7 +58,7 @@ it('annotates every piece', () => {
       continue;
     }
     annotations[def.id] = {
-      solution: solved.moves.map((a) => (a === WAIT_ACTION ? WAIT_LETTER : a)).join(''),
+      solution: encodeActions(solved.moves),
       reversible: analysis.winnable && analysis.unreturnableGoals === 0
     };
   }

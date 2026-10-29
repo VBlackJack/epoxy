@@ -111,6 +111,7 @@
     "controls": {
       "undo": { "action": "Rembobiner (U / Ctrl+Z)" },
       "objective": { "action": "💡 Objectif & Câbles (H)" },
+      "solution": { "action": "🎬 Voir la solution (O)" },
       "restart": { "action": "Recommencer (R)" },
       "pause": { "action": "Pause (P / Espace)" },
       "prev_level": { "action": "Niveau Préc." },
@@ -120,6 +121,7 @@
     "mobile": {
       "undo": { "action": "⏪ Pas" },
       "objective": { "action": "💡 Aide" },
+      "solution": { "action": "🎬 Solution" },
       "restart": { "action": "🔄 Réessayer" },
       "zoom": { "action": "🔍 Vue" },
       "fullscreen": { "action": "⛶ Plein Écran" },
@@ -143,6 +145,9 @@
       "block_hint": { "label": "Indice : le prochain coup est joué pour vous. Appuyez de nouveau sur Aide pour le suivant." },
       "blocks_stuck": { "label": "Impasse : ces blocs ne peuvent plus couvrir tous les boutons. Annulez (U) ou recommencez (R)." },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
+      "solution_playing": { "label": "Lecture de la solution prouvée. Touchez le plateau pour reprendre la main." },
+      "solution_confirm": { "label": "Voir la solution ? Le niveau recommence et se joue tout seul jusqu'à la sortie." },
+      "no_solution": { "label": "Pas de solution enregistrée pour ce niveau (les packs importés n'en ont pas)." },
       "inspect_format": { "label": "🔍 ({x}, {y}) : {details}" },
       "inspect_separator": { "label": " + " },
       "next_action": { "action": "Niveau Suivant (Entrée)" },
@@ -195,6 +200,7 @@
       "kb_undo": { "label": "U / Retour Arrière / Ctrl+Z : Rembobiner un pas (même après la mort)" },
       "kb_restart": { "label": "R : Recommencer le niveau" },
       "kb_objective": { "label": "H : Localiser le prochain objectif & afficher les câbles" },
+      "kb_solution": { "label": "O : Voir la solution prouvée (le niveau recommence)" },
       "kb_fov": { "label": "V / Tab / Molette : Changer le niveau de zoom (9x9 à 32x32)" },
       "kb_graphics": { "label": "G : Basculer le rendu HD Néon / Rétro 16-Bit" },
       "kb_theme": { "label": "B : Changer le biome visuel et la piste musicale" },

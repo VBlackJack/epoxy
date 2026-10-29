@@ -207,6 +207,7 @@ export interface KeybindingsConfig {
   cycleTheme?: string[];
   generateProcedural?: string[];
   showObjective?: string[];
+  showSolution?: string[];
   toggleFullscreen?: string[];
   toggleHelp?: string[];
 }
@@ -401,6 +402,7 @@ export interface EntityPlacement {
 export interface LevelBlueprint {
   id: string;
   theme?: string;
+  solution?: string;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -430,6 +432,8 @@ export interface CompiledLevel {
   id: string;
   /** Theme shown when the player lets the level choose; see game.json themes. */
   theme?: string;
+  /** A proven winning action list (N, E, S, W, '.' to wait), for the solution replay. */
+  solution?: string;
   number: number;
   titleKey?: string;
   customTitle?: string;
