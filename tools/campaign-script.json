@@ -13,7 +13,7 @@
     { "motifs": ["blocks_water", "bomb"], "pieceCount": 3, "maxTier": 2 },
     { "motifs": ["monsters", "keys_doors"], "pieceCount": 3, "maxTier": 2 },
     { "motifs": ["toggle_walls", "keys_doors"], "pieceCount": 3, "maxTier": 2 },
-    { "motifs": ["sokoban", "trap"], "pieceCount": 3, "maxTier": 3 },
+    { "motifs": ["sokoban", "trap"], "pieceCount": 3, "maxTier": 2 },
     { "motifs": ["force", "blocks_water", "sokoban"], "pieceCount": 4, "maxTier": 3 },
     { "motifs": ["teleport", "ice"], "pieceCount": 3, "maxTier": 2 },
     { "motifs": ["thief", "fire"], "pieceCount": 3, "maxTier": 3 },

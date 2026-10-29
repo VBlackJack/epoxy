@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from './config/ConfigRegistry';
-import { BUILTIN_PACK_IDS } from './config/constants';
+import { BUILTIN_PACK_IDS, DIRECTION_VECTORS } from './config/constants';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
@@ -23,6 +23,7 @@ import { PixelRenderer } from './render/PixelRenderer';
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
+import { BlockPuzzleSolver } from './core/BlockPuzzleSolver';
 import { Pathfinder } from './core/Pathfinder';
 import { ProceduralGenerationError, ProceduralGenerator } from './core/ProceduralGenerator';
 import {
@@ -119,6 +120,8 @@ class EpoxyApplication {
   /** Engine level the editor content was last synced with. */
   private editorSourceLevel: CompiledLevel | null = null;
   private generatingPack = false;
+  /** Block positions last checked for a dead end. */
+  private lastBlockLayout = '';
 
   private keyIconCache: Record<string, string> = {};
   private bootIconCache: Record<string, string> = {};
@@ -309,6 +312,30 @@ class EpoxyApplication {
     this.engine.tick();
     this.renderer.incrementFrame();
     this.updateHUD();
+    this.watchBlockPuzzles();
+  }
+
+  /**
+   * After blocks move, checks off the main loop whether the block puzzles
+   * have become a dead end, and says so once per layout. The check only
+   * speaks when the dead end is proven.
+   */
+  private watchBlockPuzzles(): void {
+    if (this.isReplaying) return;
+    // Only blocks matter; monsters move every few ticks.
+    const layout = this.engine
+      .getEntities()
+      .filter((e) => e.kind === 'block')
+      .map((e) => `${e.x},${e.y}`)
+      .join(';');
+    if (layout === this.lastBlockLayout) return;
+    this.lastBlockLayout = layout;
+    window.setTimeout(() => {
+      if (layout !== this.lastBlockLayout || !this.engine.getPlayer().alive) return;
+      if (BlockPuzzleSolver.isStuck(this.engine)) {
+        this.showTransientStatus(t('hud.messages.blocks_stuck.label'));
+      }
+    }, 0);
   }
 
   /** Applies every recorded move due at the current engine tick; failed moves are skipped. */
@@ -849,6 +876,7 @@ class EpoxyApplication {
   }
 
   private triggerObjectiveAndLinks(): void {
+    if (this.playBlockHint()) return;
     const active = this.renderer.toggleMechanismLinks();
     byId('hud-btn-objective')?.classList.toggle('active', active);
     byId('mobile-btn-objective')?.classList.toggle('active', active);
@@ -864,6 +892,33 @@ class EpoxyApplication {
     } else {
       this.renderer.setObjectivePoint(null);
     }
+  }
+
+  /**
+   * In a block puzzle, plays the next push of a solution from where the
+   * player stands, walking there first. Returns false when no block puzzle
+   * is open, so the usual objective help runs instead.
+   */
+  private playBlockHint(): boolean {
+    if (this.isReplaying || !this.engine.getPlayer().alive) return false;
+    if (BlockPuzzleSolver.isStuck(this.engine)) {
+      this.showTransientStatus(t('hud.messages.blocks_stuck.label'));
+      return true;
+    }
+    const moves = BlockPuzzleSolver.hint(this.engine);
+    if (!moves) return false;
+    const player = this.engine.getPlayer();
+    let x = player.x;
+    let y = player.y;
+    this.autoMoveQueue = moves;
+    this.autoMovePoints = moves.map((dir) => {
+      x += DIRECTION_VECTORS[dir].dx;
+      y += DIRECTION_VECTORS[dir].dy;
+      return { x, y };
+    });
+    this.renderer.setPlannedPath(this.autoMovePoints);
+    this.showTransientStatus(t('hud.messages.block_hint.label'));
+    return true;
   }
 
   private getMedalTierFor(timeRemaining: number, timeLimit: number): MedalTier {

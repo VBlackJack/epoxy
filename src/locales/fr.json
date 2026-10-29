@@ -139,6 +139,8 @@
       "medal_gold_icon": { "label": "🥇" },
       "medal_silver_icon": { "label": "🥈" },
       "medal_bronze_icon": { "label": "🥉" },
+      "block_hint": { "label": "Indice : le prochain coup est joué pour vous. Appuyez de nouveau sur Aide pour le suivant." },
+      "blocks_stuck": { "label": "Impasse : ces blocs ne peuvent plus couvrir tous les boutons. Annulez (U) ou recommencez (R)." },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
       "inspect_format": { "label": "🔍 ({x}, {y}) : {details}" },
       "inspect_separator": { "label": " + " },
@@ -410,7 +412,7 @@
     },
     "level_13": {
       "title": "Maintenu Ouvert",
-      "hint": "Les boutons marron maintiennent les pièges ouverts. Poussez un bloc sur chaque bouton avant de filer vers la sortie, et gardez les blocs loin des coins."
+      "hint": "Les boutons marron maintiennent les pièges ouverts : couvrez chaque bouton d'un bloc. L'ordre compte, gardez une place libre pour pousser. Bloqué ? Aide joue le coup suivant."
     },
     "level_14": {
       "title": "Atelier des Convoyeurs",

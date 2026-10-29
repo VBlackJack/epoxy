@@ -163,6 +163,14 @@
     "solution": "SWWWSSEEEEESSWNENWWWWESSSENNENWWSSSWWWNNENNSSWSSESSS",
     "reversible": true
   },
+  "sokoban_intro_pair": {
+    "solution": "SEEESWNWSSWWSWNNESESEESSS",
+    "reversible": true
+  },
+  "sokoban_intro_single": {
+    "solution": "SESSEESENNSSWWWWSS",
+    "reversible": true
+  },
   "teleport_hop": {
     "solution": "SESS",
     "reversible": true

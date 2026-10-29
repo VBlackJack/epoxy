@@ -29,6 +29,44 @@
   },
   "pieces": [
     {
+      "id": "sokoban_intro_single",
+      "motif": "sokoban",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#....m#",
+        "##....#",
+        "##.&..#",
+        "#.....#",
+        "#X#####",
+        "#$#####"
+      ],
+      "trapLinks": [
+        { "buttonX": 5, "buttonY": 1, "trapX": 1, "trapY": 5 }
+      ]
+    },
+    {
+      "id": "sokoban_intro_pair",
+      "motif": "sokoban",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@####",
+        "#m.....#",
+        "#..#.&.#",
+        "#.&..#.#",
+        "#.....m#",
+        "#####X##",
+        "#####X##",
+        "#####$##"
+      ],
+      "trapLinks": [
+        { "buttonX": 1, "buttonY": 1, "trapX": 5, "trapY": 5 },
+        { "buttonX": 6, "buttonY": 4, "trapX": 5, "trapY": 6 }
+      ]
+    },
+    {
       "id": "sokoban_forged_1",
       "motif": "sokoban",
       "tier": 4,

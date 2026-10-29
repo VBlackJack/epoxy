@@ -139,6 +139,8 @@
       "medal_gold_icon": { "label": "🥇" },
       "medal_silver_icon": { "label": "🥈" },
       "medal_bronze_icon": { "label": "🥉" },
+      "block_hint": { "label": "Hint: the next push is played for you. Press Help again for the following one." },
+      "blocks_stuck": { "label": "Dead end: these blocks can no longer cover every button. Undo (U) or restart (R)." },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
       "inspect_format": { "label": "🔍 ({x}, {y}): {details}" },
       "inspect_separator": { "label": " + " },
@@ -410,7 +412,7 @@
     },
     "level_13": {
       "title": "Held Open",
-      "hint": "Brown buttons hold traps open. Push a block onto every button before you head for the exit, and keep blocks out of corners."
+      "hint": "Brown buttons hold traps open: cover every button with a block. Order matters, so keep a free spot to push from. Stuck? Help plays the next push."
     },
     "level_14": {
       "title": "Conveyor Works",
