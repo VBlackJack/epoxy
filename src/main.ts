@@ -24,7 +24,14 @@ import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
 import { Pathfinder } from './core/Pathfinder';
 import { ProceduralGenerator } from './core/ProceduralGenerator';
-import { CompiledLevel, Direction, GridPoint, LevelBlueprint, LevelHighScore } from './core/types';
+import {
+  CompiledLevel,
+  Direction,
+  GridPoint,
+  LevelBlueprint,
+  LevelHighScore,
+  UserSettings
+} from './core/types';
 
 class EpoxyApplication {
   private engine: GameEngine = new GameEngine();
@@ -46,6 +53,9 @@ class EpoxyApplication {
   private replayMoves: Direction[] = [];
   private replayIndex: number = 0;
   private isReplaying: boolean = false;
+  private lastWarnedSecond: number = -1;
+  private scoresFilterMode: 'all' | 'unsolved' | 'completed' = 'all';
+  private scoresSearchQuery: string = '';
 
   private keyIconCache: Record<string, string> = {};
   private bootIconCache: Record<string, string> = {};
@@ -57,7 +67,12 @@ class EpoxyApplication {
     await ConfigRegistry.loadAll();
 
     const gameCfg = ConfigRegistry.getGame();
-    this.setupLocaleSelector(gameCfg.locales.supported, gameCfg.locales.default);
+    const savedSettings = this.loadUserSettings();
+    const initialLocale =
+      savedSettings.locale && gameCfg.locales.supported.includes(savedSettings.locale)
+        ? savedSettings.locale
+        : gameCfg.locales.default;
+    this.setupLocaleSelector(gameCfg.locales.supported, initialLocale);
 
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
     const editorCanvas = document.getElementById('editor-canvas') as HTMLCanvasElement | null;
@@ -72,16 +87,56 @@ class EpoxyApplication {
       gameCfg.grid.viewportWidth * gameCfg.grid.tilePixelSize;
     this.gameCanvas.width = canvasSize;
     this.gameCanvas.height = canvasSize;
-    this.renderer.setViewportTiles(gameCfg.grid.viewportWidth);
-    const defaultStyle = gameCfg.graphics?.defaultStyle || 'modern';
+
+    const presets = gameCfg.grid.viewportPresets || [9, 13, 17, 32];
+    const initialFov =
+      savedSettings.fov && presets.includes(savedSettings.fov)
+        ? savedSettings.fov
+        : gameCfg.grid.viewportWidth;
+    this.renderer.setViewportTiles(initialFov);
+
+    const defaultStyle =
+      savedSettings.graphicsStyle || gameCfg.graphics?.defaultStyle || 'modern';
     this.renderer.setStyle(defaultStyle);
-    this.renderer.setThemeId(gameCfg.graphics?.defaultTheme || 'cyber_neon');
+
+    const initialTheme =
+      savedSettings.themeId && gameCfg.themes?.[savedSettings.themeId]
+        ? savedSettings.themeId
+        : gameCfg.graphics?.defaultTheme || 'cyber_neon';
+    this.renderer.setThemeId(initialTheme);
     this.gameCanvas.classList.toggle('retro-pixels', defaultStyle === 'retro');
-    this.setupFovSelector(
-      gameCfg.grid.viewportPresets || [9, 13, 17, 32],
-      gameCfg.grid.viewportWidth
-    );
+
+    const gfxBtn = document.getElementById('btn-graphics-toggle');
+    if (gfxBtn) {
+      const isModern = defaultStyle === 'modern';
+      const i18nKey = isModern
+        ? 'app.header.graphics_modern.action'
+        : 'app.header.graphics_retro.action';
+      gfxBtn.setAttribute('data-i18n', i18nKey);
+      gfxBtn.classList.toggle('active', isModern);
+    }
+
+    if (savedSettings.shellEnabled) {
+      document.getElementById('lynx-console')?.classList.add('enabled');
+      document.getElementById('btn-shell-toggle')?.classList.add('active');
+    }
+
+    if (typeof savedSettings.sfxEnabled === 'boolean') {
+      AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
+      document
+        .getElementById('btn-sfx-toggle')
+        ?.classList.toggle('active', savedSettings.sfxEnabled);
+    }
+    if (typeof savedSettings.musicEnabled === 'boolean') {
+      AudioManager.setMusicEnabled(savedSettings.musicEnabled);
+      document
+        .getElementById('btn-music-toggle')
+        ?.classList.toggle('active', savedSettings.musicEnabled);
+    }
+
+    this.setupFovSelector(presets, initialFov);
     this.setupThemeSelector();
+    this.bindViewportResizeObserver();
 
     const ctx = this.gameCanvas.getContext('2d');
     if (!ctx) {
@@ -177,6 +232,36 @@ class EpoxyApplication {
       requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);
+  }
+
+  private bindViewportResizeObserver(): void {
+    const wrapper = this.gameCanvas.parentElement;
+    if (!wrapper) return;
+
+    const syncCanvasSize = (): void => {
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.width < 64 || rect.height < 64) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const targetW = Math.round(rect.width * dpr);
+      const targetH = Math.round(rect.height * dpr);
+      if (
+        Math.abs(this.gameCanvas.width - targetW) > 2 ||
+        Math.abs(this.gameCanvas.height - targetH) > 2
+      ) {
+        this.gameCanvas.width = targetW;
+        this.gameCanvas.height = targetH;
+      }
+    };
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        syncCanvasSize();
+      });
+      ro.observe(wrapper);
+    } else {
+      window.addEventListener('resize', syncCanvasSize);
+    }
+    requestAnimationFrame(syncCanvasSize);
   }
 
   private refreshPackSelector(): void {
@@ -351,6 +436,7 @@ class EpoxyApplication {
               this.renderer.setViewportTiles(nextTiles);
               const select = document.getElementById('fov-select') as HTMLSelectElement | null;
               if (select) select.value = String(nextTiles);
+              this.saveUserSettings();
               this.triggerHaptic();
             }
             pinchAnchorDist = dist;
@@ -416,6 +502,7 @@ class EpoxyApplication {
           );
           if (!gridPt) return;
           this.renderer.setHoveredGridPoint(gridPt);
+          this.updateInspectBadge(gridPt);
           const result = Pathfinder.findPath(this.engine, gridPt.x, gridPt.y);
           this.autoMoveQueue = result.moves;
           this.autoMovePoints = result.points;
@@ -502,6 +589,7 @@ class EpoxyApplication {
       const val = Number(select.value);
       if (val > 0) {
         this.renderer.setViewportTiles(val);
+        this.saveUserSettings();
       }
     });
   }
@@ -516,6 +604,7 @@ class EpoxyApplication {
     if (select) {
       select.value = String(next);
     }
+    this.saveUserSettings();
   }
 
   private setupThemeSelector(): void {
@@ -552,6 +641,7 @@ class EpoxyApplication {
     if (trackMap[themeId]) {
       AudioManager.setTrackById(trackMap[themeId]);
     }
+    this.saveUserSettings();
   }
 
   private clearAutoMove(): void {
@@ -563,8 +653,8 @@ class EpoxyApplication {
 
   private triggerObjectiveAndLinks(): void {
     const active = this.renderer.toggleMechanismLinks();
-    const objBtn = document.getElementById('hud-btn-objective');
-    objBtn?.classList.toggle('active', active);
+    document.getElementById('hud-btn-objective')?.classList.toggle('active', active);
+    document.getElementById('mobile-btn-objective')?.classList.toggle('active', active);
 
     if (active) {
       const target = Pathfinder.findNextObjective(this.engine);
@@ -637,6 +727,7 @@ class EpoxyApplication {
 
     select.addEventListener('change', () => {
       i18n.setLocale(select.value);
+      this.saveUserSettings();
     });
   }
 
@@ -644,6 +735,7 @@ class EpoxyApplication {
     const levels = ConfigRegistry.getLevels();
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
+    this.lastWarnedSecond = -1;
     this.currentLevelIndex = ((index % levels.length) + levels.length) % levels.length;
     const level = levels[this.currentLevelIndex];
     this.engine.loadLevel(level);
@@ -712,10 +804,12 @@ class EpoxyApplication {
       if (this.activeMode !== 'play') return;
       const gridPt = this.renderer.screenToGrid(this.gameCanvas, e.clientX, e.clientY);
       this.renderer.setHoveredGridPoint(gridPt);
+      this.updateInspectBadge(gridPt);
     });
 
     this.gameCanvas.addEventListener('mouseleave', () => {
       this.renderer.setHoveredGridPoint(null);
+      this.updateInspectBadge(null);
     });
 
     this.gameCanvas.addEventListener(
@@ -734,6 +828,7 @@ class EpoxyApplication {
         this.renderer.setViewportTiles(nextTiles);
         const select = document.getElementById('fov-select') as HTMLSelectElement | null;
         if (select) select.value = String(nextTiles);
+        this.saveUserSettings();
       },
       { passive: false }
     );
@@ -755,13 +850,102 @@ class EpoxyApplication {
     });
 
     const scoresModal = document.getElementById('scores-modal');
+    const scoresSearchInput = document.getElementById(
+      'scores-search-input'
+    ) as HTMLInputElement | null;
     document.getElementById('btn-levels-modal')?.addEventListener('click', () => {
-      this.populateScoresTable();
       scoresModal?.classList.remove('hidden');
+      this.populateScoresTable(true);
+      scoresSearchInput?.focus();
     });
 
     document.getElementById('scores-close-btn')?.addEventListener('click', () => {
       scoresModal?.classList.add('hidden');
+    });
+
+    scoresModal?.addEventListener('click', (e) => {
+      if (e.target === scoresModal) {
+        scoresModal.classList.add('hidden');
+      }
+    });
+
+    scoresSearchInput?.addEventListener('input', () => {
+      this.scoresSearchQuery = scoresSearchInput.value.trim().toLowerCase();
+      this.populateScoresTable(false);
+    });
+
+    const filterBtns = document.querySelectorAll<HTMLButtonElement>('.scores-filter-pills button');
+    filterBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter') as 'all' | 'unsolved' | 'completed' | null;
+        if (!filter) return;
+        this.scoresFilterMode = filter;
+        filterBtns.forEach((b) => b.classList.toggle('active', b === btn));
+        this.populateScoresTable(false);
+      });
+    });
+
+    const optionsBtn = document.getElementById('btn-options-menu');
+    const optionsDrawer = document.getElementById('options-drawer');
+    const drawerBackdrop = document.getElementById('drawer-backdrop');
+
+    const setDrawerOpen = (open: boolean): void => {
+      optionsDrawer?.classList.toggle('hidden', !open);
+      drawerBackdrop?.classList.toggle('hidden', !open);
+      optionsBtn?.classList.toggle('active', open);
+      optionsBtn?.setAttribute('aria-expanded', String(open));
+    };
+
+    optionsBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = Boolean(optionsDrawer?.classList.contains('hidden'));
+      setDrawerOpen(isHidden);
+    });
+
+    document.getElementById('hud-btn-options-drawer')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      setDrawerOpen(true);
+    });
+
+    document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
+      setDrawerOpen(false);
+    });
+
+    drawerBackdrop?.addEventListener('click', () => {
+      setDrawerOpen(false);
+    });
+
+    document.getElementById('btn-drawer-levels')?.addEventListener('click', () => {
+      setDrawerOpen(false);
+      scoresModal?.classList.remove('hidden');
+      this.populateScoresTable(true);
+      scoresSearchInput?.focus();
+    });
+
+    document.getElementById('btn-drawer-procedural')?.addEventListener('click', () => {
+      setDrawerOpen(false);
+      this.generateProceduralPack();
+    });
+
+    document.getElementById('btn-drawer-import')?.addEventListener('click', () => {
+      setDrawerOpen(false);
+      packFileInput?.click();
+    });
+
+    const helpModal = document.getElementById('help-modal');
+    document.getElementById('btn-help-modal')?.addEventListener('click', () => {
+      setDrawerOpen(false);
+      helpModal?.classList.remove('hidden');
+    });
+
+    document.getElementById('help-close-btn')?.addEventListener('click', () => {
+      helpModal?.classList.add('hidden');
+    });
+
+    helpModal?.addEventListener('click', (e) => {
+      if (e.target === helpModal) {
+        helpModal.classList.add('hidden');
+      }
     });
 
     document.getElementById('btn-export-pack-ccl')?.addEventListener('click', () => {
@@ -797,6 +981,7 @@ class EpoxyApplication {
     shellBtn?.addEventListener('click', () => {
       lynxConsole?.classList.toggle('enabled');
       shellBtn.classList.toggle('active');
+      this.saveUserSettings();
     });
 
     const toggleFullscreenHandler = (): void => {
@@ -818,12 +1003,14 @@ class EpoxyApplication {
     sfxBtn?.addEventListener('click', () => {
       const enabled = AudioManager.toggleSfx();
       sfxBtn.classList.toggle('active', enabled);
+      this.saveUserSettings();
     });
 
     const musicBtn = document.getElementById('btn-music-toggle');
     musicBtn?.addEventListener('click', () => {
       const enabled = AudioManager.toggleMusic();
       musicBtn.classList.toggle('active', enabled);
+      this.saveUserSettings();
     });
 
     const dpadBtns = document.querySelectorAll<HTMLButtonElement>('.dpad-btn');
@@ -935,10 +1122,16 @@ class EpoxyApplication {
     document.getElementById('lynx-opt2')?.addEventListener('click', () => {
       const enabled = AudioManager.toggleSfx();
       sfxBtn?.classList.toggle('active', enabled);
+      this.saveUserSettings();
     });
 
     document.getElementById('lynx-pause')?.addEventListener('click', () => {
       this.engine.togglePause();
+      this.updateHUD();
+    });
+
+    document.getElementById('overlay-btn-resume')?.addEventListener('click', () => {
+      this.engine.setPaused(false);
       this.updateHUD();
     });
 
@@ -999,18 +1192,33 @@ class EpoxyApplication {
     const passInput = document.getElementById('password-input') as HTMLInputElement | null;
     const passError = document.getElementById('password-error');
 
-    document.getElementById('hud-btn-password')?.addEventListener('click', () => {
+    const openPasswordModal = (): void => {
       passError?.classList.add('hidden');
       if (passInput) passInput.value = '';
       passModal?.classList.remove('hidden');
       passInput?.focus();
+    };
+
+    document.getElementById('hud-btn-password')?.addEventListener('click', openPasswordModal);
+    document.getElementById('btn-drawer-password')?.addEventListener('click', () => {
+      document.getElementById('options-drawer')?.classList.add('hidden');
+      document.getElementById('drawer-backdrop')?.classList.add('hidden');
+      document.getElementById('btn-options-menu')?.classList.remove('active');
+      openPasswordModal();
     });
+    document.querySelector('.hud-password-badge')?.addEventListener('click', openPasswordModal);
 
     document.getElementById('password-cancel-btn')?.addEventListener('click', () => {
       passModal?.classList.add('hidden');
     });
 
-    document.getElementById('password-submit-btn')?.addEventListener('click', () => {
+    passModal?.addEventListener('click', (e) => {
+      if (e.target === passModal) {
+        passModal.classList.add('hidden');
+      }
+    });
+
+    const submitPassword = (): void => {
       const code = (passInput?.value || '').trim().toUpperCase();
       const idx = ConfigRegistry.getLevels().findIndex((l) => l.password.toUpperCase() === code);
       if (idx >= 0) {
@@ -1019,13 +1227,25 @@ class EpoxyApplication {
       } else {
         passError?.classList.remove('hidden');
       }
+    };
+
+    document.getElementById('password-submit-btn')?.addEventListener('click', submitPassword);
+    passInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitPassword();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        passModal?.classList.add('hidden');
+      }
     });
   }
 
-  private populateScoresTable(): void {
+  private populateScoresTable(scrollToActive: boolean = false): void {
     const tbody = document.getElementById('scores-table-body');
     const scoresModal = document.getElementById('scores-modal');
     const deletePackBtn = document.getElementById('btn-delete-pack');
+    const progressEl = document.getElementById('scores-progress-summary');
     if (!tbody) return;
     tbody.innerHTML = '';
 
@@ -1035,11 +1255,34 @@ class EpoxyApplication {
     deletePackBtn?.classList.toggle('hidden', !isRemovablePack);
 
     const levels = ConfigRegistry.getLevels();
+    const completedCount = levels.filter((lvl) => Boolean(this.highScores[lvl.id])).length;
+    if (progressEl) {
+      progressEl.textContent = t('hud.scores_modal.progress.label', {
+        completed: completedCount,
+        total: levels.length
+      });
+    }
+
+    let activeRowEl: HTMLTableRowElement | null = null;
+
     levels.forEach((lvl, idx) => {
-      const tr = document.createElement('tr');
       const rec = this.highScores[lvl.id];
+      if (this.scoresFilterMode === 'unsolved' && rec) return;
+      if (this.scoresFilterMode === 'completed' && !rec) return;
+
       const title =
         lvl.customTitle || (lvl.titleKey ? t(lvl.titleKey, { number: lvl.number }) : lvl.id);
+
+      if (this.scoresSearchQuery) {
+        const hay = `${lvl.number} ${title} ${lvl.password}`.toLowerCase();
+        if (!hay.includes(this.scoresSearchQuery)) return;
+      }
+
+      const tr = document.createElement('tr');
+      if (idx === this.currentLevelIndex) {
+        tr.classList.add('current-level-row');
+        activeRowEl = tr;
+      }
 
       const tdNum = document.createElement('td');
       tdNum.textContent = String(lvl.number);
@@ -1095,16 +1338,76 @@ class EpoxyApplication {
       tr.append(tdNum, tdTitle, tdCode, tdTime, tdSteps, tdScore, tdAction);
       tbody.appendChild(tr);
     });
+
+    if (scrollToActive && activeRowEl) {
+      requestAnimationFrame(() => {
+        (activeRowEl as HTMLTableRowElement).scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    }
+  }
+
+  private isAnyModalOpen(): boolean {
+    const scoresOpen = !document.getElementById('scores-modal')?.classList.contains('hidden');
+    const passOpen = !document.getElementById('password-modal')?.classList.contains('hidden');
+    const helpOpen = !document.getElementById('help-modal')?.classList.contains('hidden');
+    const drawerOpen = !document.getElementById('options-drawer')?.classList.contains('hidden');
+    return Boolean(scoresOpen || passOpen || helpOpen || drawerOpen);
   }
 
   private bindKeyboardEvents(): void {
     const kb = ConfigRegistry.getGame().keybindings;
 
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const scoresModal = document.getElementById('scores-modal');
+        const passModal = document.getElementById('password-modal');
+        const helpModal = document.getElementById('help-modal');
+        const optionsDrawer = document.getElementById('options-drawer');
+        const drawerBackdrop = document.getElementById('drawer-backdrop');
+        if (scoresModal && !scoresModal.classList.contains('hidden')) {
+          scoresModal.classList.add('hidden');
+          return;
+        }
+        if (passModal && !passModal.classList.contains('hidden')) {
+          passModal.classList.add('hidden');
+          return;
+        }
+        if (helpModal && !helpModal.classList.contains('hidden')) {
+          helpModal.classList.add('hidden');
+          return;
+        }
+        if (optionsDrawer && !optionsDrawer.classList.contains('hidden')) {
+          optionsDrawer.classList.add('hidden');
+          drawerBackdrop?.classList.add('hidden');
+          document.getElementById('btn-options-menu')?.classList.remove('active');
+          return;
+        }
+      }
+
       const activeTag = document.activeElement?.tagName;
       if (activeTag === 'INPUT' || activeTag === 'SELECT' || activeTag === 'TEXTAREA') {
         return;
       }
+
+      if (this.isAnyModalOpen()) {
+        return;
+      }
+
+      if (this.activeMode === 'editor') {
+        if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW')) {
+          e.preventDefault();
+          if (e.shiftKey) {
+            this.editor.redo();
+          } else {
+            this.editor.undo();
+          }
+        } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+          e.preventDefault();
+          this.editor.redo();
+        }
+        return;
+      }
+
       if (this.activeMode !== 'play') return;
 
       if (this.isReplaying) {
@@ -1178,6 +1481,9 @@ class EpoxyApplication {
       } else if (kb.showObjective?.includes(e.code)) {
         e.preventDefault();
         this.triggerObjectiveAndLinks();
+      } else if (kb.toggleHelp?.includes(e.code) || e.key === '?') {
+        e.preventDefault();
+        document.getElementById('help-modal')?.classList.remove('hidden');
       } else if (e.code === 'Enter' && this.engine.isLevelCompleted()) {
         e.preventDefault();
         this.startLevelByIndex(this.currentLevelIndex + 1);
@@ -1261,11 +1567,60 @@ class EpoxyApplication {
       gfxBtn.classList.toggle('active', isModern);
     }
     this.rebuildHudIcons();
+    this.saveUserSettings();
     this.updateHUD();
     if (this.activeMode === 'editor') {
       this.editor.buildUI();
       this.editor.render();
     }
+  }
+
+  private updateInspectBadge(pt: GridPoint | null): void {
+    const inspectEl = document.getElementById('inspect-pill');
+    if (!inspectEl) return;
+    if (!pt || this.activeMode !== 'play') {
+      inspectEl.classList.add('hidden');
+      return;
+    }
+
+    const terrain = this.engine.getTerrain();
+    const items = this.engine.getItems();
+    const entities = this.engine.getEntities();
+    const tileId = terrain[pt.y]?.[pt.x];
+    if (!tileId) {
+      inspectEl.classList.add('hidden');
+      return;
+    }
+
+    const parts: string[] = [];
+    const ent = entities.find((e) => e.x === pt.x && e.y === pt.y);
+    if (ent) {
+      const entDef = ConfigRegistry.getEntityDef(ent.type);
+      if (entDef) parts.push(t(entDef.i18nKey));
+    }
+
+    const itemId = items[pt.y]?.[pt.x];
+    if (itemId) {
+      const itemDef = ConfigRegistry.getTile(itemId);
+      parts.push(t(itemDef.i18nKey));
+    }
+
+    // Mask secret illusions (blue_wall_fake or invisible/appearing walls) as standard appearance
+    let displayTileId = tileId;
+    if (tileId === 'blue_wall_fake') displayTileId = 'blue_wall_real';
+    else if (tileId === 'invisible_wall' || tileId === 'appearing_wall') displayTileId = 'floor';
+
+    const tileDef = ConfigRegistry.getTile(displayTileId);
+    if (parts.length === 0 || displayTileId !== 'floor') {
+      parts.push(t(tileDef.i18nKey));
+    }
+
+    inspectEl.textContent = t('hud.messages.inspect_format.label', {
+      x: pt.x,
+      y: pt.y,
+      details: parts.join(' + ')
+    });
+    inspectEl.classList.remove('hidden');
   }
 
   private updateHUD(): void {
@@ -1290,7 +1645,22 @@ class EpoxyApplication {
       chipsEl.textContent = String(this.engine.getChipsRemaining()).padStart(3, '0');
     }
     if (timeEl) {
-      timeEl.textContent = String(this.engine.getTimeRemainingSeconds()).padStart(3, '0');
+      const remSec = this.engine.getTimeRemainingSeconds();
+      timeEl.textContent = String(remSec).padStart(3, '0');
+      const warnThreshold = ConfigRegistry.getGame().timing.lowTimeWarningSeconds ?? 10;
+      const isLowTime =
+        lvl.timeLimitSeconds > 0 &&
+        remSec > 0 &&
+        remSec <= warnThreshold &&
+        player.alive &&
+        !this.engine.isLevelCompleted();
+      timeEl.classList.toggle('led-danger', isLowTime);
+      timeEl.classList.toggle('led-amber', !isLowTime);
+
+      if (isLowTime && !this.engine.isPaused() && remSec !== this.lastWarnedSecond) {
+        this.lastWarnedSecond = remSec;
+        AudioManager.playSfx('timer_warn');
+      }
     }
     if (scoreEl) scoreEl.textContent = String(this.engine.getTotalScore());
     if (stepsEl) stepsEl.textContent = String(this.engine.getStepsCount());
@@ -1372,9 +1742,11 @@ class EpoxyApplication {
     const ovTitle = document.getElementById('overlay-title');
     const ovSub = document.getElementById('overlay-subtitle');
     const ovExtra = document.getElementById('overlay-extra');
+    const ovResumeBtn = document.getElementById('overlay-btn-resume');
     const ovNextBtn = document.getElementById('overlay-btn-next');
     const ovReplayBtn = document.getElementById('overlay-btn-replay');
     const ovUndoBtn = document.getElementById('overlay-btn-undo');
+    const ovRetryBtn = document.getElementById('overlay-btn-retry');
 
     if (!overlay || !ovTitle || !ovSub || !ovExtra || !ovNextBtn || !ovUndoBtn) return;
 
@@ -1392,25 +1764,31 @@ class EpoxyApplication {
         score: this.engine.getLastLevelScore(),
         medal: this.getMedalLabel(this.engine.getTimeRemainingSeconds(), lvl.timeLimitSeconds)
       });
+      ovResumeBtn?.classList.add('hidden');
       ovNextBtn.classList.remove('hidden');
       ovReplayBtn?.classList.remove('hidden');
       ovUndoBtn.classList.add('hidden');
+      ovRetryBtn?.classList.remove('hidden');
     } else if (!player.alive) {
       overlay.classList.remove('hidden');
       ovTitle.textContent = 'EPOXY';
       ovSub.textContent = player.deathReasonKey ? t(player.deathReasonKey) : '';
       ovExtra.textContent = '';
+      ovResumeBtn?.classList.add('hidden');
       ovNextBtn.classList.add('hidden');
       ovReplayBtn?.classList.add('hidden');
       ovUndoBtn.classList.toggle('hidden', !this.engine.canUndo());
+      ovRetryBtn?.classList.remove('hidden');
     } else if (this.engine.isPaused()) {
       overlay.classList.remove('hidden');
       ovTitle.textContent = t('hud.messages.paused.label');
       ovSub.textContent = t('hud.messages.press_resume.label');
       ovExtra.textContent = '';
+      ovResumeBtn?.classList.remove('hidden');
       ovNextBtn.classList.add('hidden');
       ovReplayBtn?.classList.add('hidden');
       ovUndoBtn.classList.add('hidden');
+      ovRetryBtn?.classList.remove('hidden');
     } else {
       overlay.classList.add('hidden');
     }
@@ -1466,6 +1844,36 @@ class EpoxyApplication {
       );
     } catch {
       // Storage unavailable
+    }
+  }
+
+  private saveUserSettings(): void {
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.settingsKey);
+      const settings: UserSettings = {
+        locale: i18n.getLocale(),
+        fov: this.renderer.getViewportTiles(),
+        themeId: this.renderer.getThemeId(),
+        graphicsStyle: this.renderer.getStyle(),
+        shellEnabled: Boolean(document.getElementById('lynx-console')?.classList.contains('enabled')),
+        sfxEnabled: AudioManager.isSfxEnabled(),
+        musicEnabled: AudioManager.isMusicEnabled()
+      };
+      localStorage.setItem(key, JSON.stringify(settings));
+    } catch {
+      // Storage unavailable
+    }
+  }
+
+  private loadUserSettings(): UserSettings {
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.settingsKey);
+      const raw = localStorage.getItem(key);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as UserSettings;
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
     }
   }
 

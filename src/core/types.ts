@@ -41,6 +41,17 @@ export interface TimingConfig {
   levelBasePoints: number;
   goldTimeRatio?: number;
   silverTimeRatio?: number;
+  lowTimeWarningSeconds?: number;
+}
+
+export interface UserSettings {
+  locale?: string;
+  fov?: number;
+  themeId?: string;
+  graphicsStyle?: GraphicsStyle;
+  shellEnabled?: boolean;
+  sfxEnabled?: boolean;
+  musicEnabled?: boolean;
 }
 
 export interface StorageConfig {
@@ -112,6 +123,7 @@ export interface KeybindingsConfig {
   generateProcedural?: string[];
   showObjective?: string[];
   toggleFullscreen?: string[];
+  toggleHelp?: string[];
 }
 
 export interface UltimatePackDescriptor {

@@ -50,6 +50,10 @@ class AudioService {
     return this.sfxEnabled;
   }
 
+  public setSfxEnabled(enabled: boolean): void {
+    this.sfxEnabled = enabled;
+  }
+
   public toggleMusic(): boolean {
     this.musicEnabled = !this.musicEnabled;
     if (this.musicEnabled) {
@@ -58,6 +62,15 @@ class AudioService {
       this.stopMusicLoop();
     }
     return this.musicEnabled;
+  }
+
+  public setMusicEnabled(enabled: boolean): void {
+    this.musicEnabled = enabled;
+    if (this.musicEnabled) {
+      this.startMusicLoop();
+    } else {
+      this.stopMusicLoop();
+    }
   }
 
   public playSfx(effectId: string): void {

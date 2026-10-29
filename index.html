@@ -17,7 +17,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#12151c" />
     <title>EPOXY</title>
     <link rel="stylesheet" href="/src/style.css" />
@@ -47,28 +47,56 @@
             <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
             <input id="pack-file-input" type="file" accept=".dat,.ccl,.json" class="hidden" />
           </div>
-          <button id="btn-mode-play" class="nav-btn active" type="button" data-i18n="app.header.mode_play.action"></button>
-          <button id="btn-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
-          <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
-          <div class="lang-box">
-            <label for="fov-select" data-i18n="app.header.fov.label"></label>
-            <select id="fov-select" class="locale-select"></select>
+          <div class="mode-switch-group">
+            <button id="btn-mode-play" class="nav-btn active" type="button" data-i18n="app.header.mode_play.action"></button>
+            <button id="btn-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
+            <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
           </div>
-          <div class="lang-box">
-            <label for="theme-select" data-i18n="app.header.theme_label.label"></label>
-            <select id="theme-select" class="locale-select"></select>
-          </div>
-          <button id="btn-graphics-toggle" class="nav-btn active" type="button" data-i18n="app.header.graphics_modern.action"></button>
-          <button id="btn-shell-toggle" class="nav-btn" type="button" data-i18n="app.header.shell_toggle.action"></button>
           <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action"></button>
-          <button id="btn-sfx-toggle" class="nav-btn active" type="button" data-i18n="app.header.audio_toggle.action"></button>
-          <button id="btn-music-toggle" class="nav-btn" type="button" data-i18n="app.header.music_toggle.action"></button>
-          <div class="lang-box">
-            <label for="locale-select" data-i18n="app.header.language.label"></label>
-            <select id="locale-select" class="locale-select"></select>
-          </div>
+          <button id="btn-options-menu" class="nav-btn" type="button" aria-expanded="false" data-i18n="app.header.options_btn.action"></button>
         </nav>
       </header>
+
+      <!-- SLIDE-OVER OPTIONS DRAWER -->
+      <div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
+      <aside id="options-drawer" class="options-drawer hidden" aria-label="Options">
+        <div class="drawer-header">
+          <h3 data-i18n="app.header.drawer_title.label"></h3>
+          <button id="btn-close-drawer" class="hud-btn small" type="button" data-i18n="app.header.drawer_close.action"></button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="drawer-section">
+            <div class="lang-box">
+              <label for="fov-select" data-i18n="app.header.fov.label"></label>
+              <select id="fov-select" class="locale-select"></select>
+            </div>
+            <div class="lang-box">
+              <label for="theme-select" data-i18n="app.header.theme_label.label"></label>
+              <select id="theme-select" class="locale-select"></select>
+            </div>
+            <div class="lang-box">
+              <label for="locale-select" data-i18n="app.header.language.label"></label>
+              <select id="locale-select" class="locale-select"></select>
+            </div>
+          </div>
+
+          <div class="drawer-section">
+            <button id="btn-graphics-toggle" class="nav-btn active" type="button" data-i18n="app.header.graphics_modern.action"></button>
+            <button id="btn-shell-toggle" class="nav-btn" type="button" data-i18n="app.header.shell_toggle.action"></button>
+            <button id="btn-sfx-toggle" class="nav-btn active" type="button" data-i18n="app.header.audio_toggle.action"></button>
+            <button id="btn-music-toggle" class="nav-btn" type="button" data-i18n="app.header.music_toggle.action"></button>
+          </div>
+
+          <div class="drawer-section">
+            <button id="btn-drawer-levels" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+            <button id="btn-drawer-procedural" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
+            <button id="btn-drawer-import" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
+            <button id="btn-drawer-password" class="nav-btn" type="button" data-i18n="hud.controls.password_btn.action"></button>
+            <button id="btn-help-modal" class="nav-btn" type="button" data-i18n="app.header.help_btn.action"></button>
+          </div>
+        </div>
+      </aside>
 
       <!-- Floating Exit Fullscreen Pill (visible when Fullscreen Mode hides header) -->
       <button id="btn-exit-fullscreen" class="floating-fs-exit hidden" type="button" data-i18n="hud.mobile.exit_fullscreen.action"></button>
@@ -110,6 +138,9 @@
                 <!-- Status Toast Banner -->
                 <div id="status-toast" class="status-toast hidden"></div>
 
+                <!-- Tile & Entity Inspection Badge -->
+                <div id="inspect-pill" class="inspect-pill hidden"></div>
+
                 <!-- Modal Overlay Inside Viewport (Pause / Death / Win) -->
                 <div id="viewport-overlay" class="viewport-overlay hidden">
                   <div class="overlay-card">
@@ -117,6 +148,7 @@
                     <p id="overlay-subtitle"></p>
                     <p id="overlay-extra" class="overlay-extra"></p>
                     <div class="overlay-actions">
+                      <button id="overlay-btn-resume" class="action-btn primary hidden" type="button" data-i18n="hud.messages.resume_action.action"></button>
                       <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action"></button>
                       <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
                       <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.messages.undo_action.action"></button>
@@ -201,9 +233,12 @@
                 </div>
 
                 <div class="hud-Quick-actions">
-                  <button id="hud-btn-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action"></button>
-                  <button id="hud-btn-objective" class="hud-btn" type="button" data-i18n="hud.controls.objective.action"></button>
-                  <button id="hud-btn-restart" class="hud-btn" type="button" data-i18n="hud.controls.restart.action"></button>
+                  <div class="hud-action-grid">
+                    <button id="hud-btn-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action"></button>
+                    <button id="hud-btn-objective" class="hud-btn" type="button" data-i18n="hud.controls.objective.action"></button>
+                    <button id="hud-btn-restart" class="hud-btn" type="button" data-i18n="hud.controls.restart.action"></button>
+                    <button id="hud-btn-options-drawer" class="hud-btn" type="button" data-i18n="app.header.options_btn.action"></button>
+                  </div>
                   <div class="hud-nav-row">
                     <button id="hud-btn-prev" class="hud-btn small" type="button" data-i18n="hud.controls.prev_level.action"></button>
                     <button id="hud-btn-pause" class="hud-btn small" type="button" data-i18n="hud.controls.pause.action"></button>
@@ -240,6 +275,8 @@
           <div class="editor-left-panel">
             <div class="editor-toolbar">
               <button id="editor-new-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.new_map.action"></button>
+              <button id="editor-undo-btn" class="hud-btn small" type="button" disabled data-i18n="editor.toolbar.undo.action"></button>
+              <button id="editor-redo-btn" class="hud-btn small" type="button" disabled data-i18n="editor.toolbar.redo.action"></button>
               <button id="editor-validate-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.validate_level.action"></button>
               <button id="editor-test-btn" class="hud-btn small primary" type="button" data-i18n="editor.toolbar.test_level.action"></button>
               <button id="editor-save-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.save_local.action"></button>
@@ -291,7 +328,10 @@
 
             <div id="editor-category-tabs" class="editor-category-tabs"></div>
             <div id="editor-palette-grid" class="editor-palette-grid"></div>
-            <div id="editor-status-bar" class="editor-status-bar"></div>
+            <div class="editor-status-row">
+              <div id="editor-coords-badge" class="editor-coords-badge">--</div>
+              <div id="editor-status-bar" class="editor-status-bar" data-i18n="editor.palette.status.ready.label"></div>
+            </div>
           </div>
 
           <div class="editor-canvas-container">
@@ -320,13 +360,29 @@
       </div>
 
       <!-- LEVEL SELECT & HIGH SCORES MODAL -->
-      <div id="scores-modal" class="modal-backdrop hidden">
+      <div id="scores-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
         <div class="modal-dialog wide-dialog">
           <div class="scores-modal-header">
-            <h3 data-i18n="hud.scores_modal.title.label"></h3>
+            <div>
+              <h3 data-i18n="hud.scores_modal.title.label"></h3>
+              <span id="scores-progress-summary" class="scores-progress-badge"></span>
+            </div>
             <div class="scores-pack-actions">
               <button id="btn-export-pack-ccl" class="hud-btn small" type="button" data-i18n="app.packs.export_dat_btn.action"></button>
               <button id="btn-delete-pack" class="hud-btn small hidden" type="button" data-i18n="app.packs.delete_btn.action"></button>
+            </div>
+          </div>
+          <div class="scores-filter-bar">
+            <input
+              id="scores-search-input"
+              type="search"
+              class="editor-input scores-search-input"
+              data-i18n-placeholder="hud.scores_modal.search_placeholder.label"
+            />
+            <div class="scores-filter-pills">
+              <button id="scores-filter-all" class="hud-btn small active" type="button" data-filter="all" data-i18n="hud.scores_modal.filter_all.action"></button>
+              <button id="scores-filter-unsolved" class="hud-btn small" type="button" data-filter="unsolved" data-i18n="hud.scores_modal.filter_unsolved.action"></button>
+              <button id="scores-filter-completed" class="hud-btn small" type="button" data-filter="completed" data-i18n="hud.scores_modal.filter_completed.action"></button>
             </div>
           </div>
           <div class="scores-table-wrapper">
@@ -347,6 +403,42 @@
           </div>
           <div class="modal-actions">
             <button id="scores-close-btn" class="action-btn" type="button" data-i18n="hud.scores_modal.close_btn.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HELP & SHORTCUTS MODAL -->
+      <div id="help-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+        <div class="modal-dialog wide-dialog">
+          <h3 data-i18n="hud.help_modal.title.label"></h3>
+          <div class="help-grid">
+            <div class="help-section">
+              <h4 data-i18n="hud.help_modal.sec_shortcuts.label"></h4>
+              <ul class="help-list">
+                <li data-i18n="hud.help_modal.kb_move.label"></li>
+                <li data-i18n="hud.help_modal.kb_click.label"></li>
+                <li data-i18n="hud.help_modal.kb_undo.label"></li>
+                <li data-i18n="hud.help_modal.kb_restart.label"></li>
+                <li data-i18n="hud.help_modal.kb_objective.label"></li>
+                <li data-i18n="hud.help_modal.kb_fov.label"></li>
+                <li data-i18n="hud.help_modal.kb_graphics.label"></li>
+                <li data-i18n="hud.help_modal.kb_theme.label"></li>
+                <li data-i18n="hud.help_modal.kb_shell.label"></li>
+                <li data-i18n="hud.help_modal.kb_procedural.label"></li>
+                <li data-i18n="hud.help_modal.kb_levels.label"></li>
+              </ul>
+            </div>
+            <div class="help-section">
+              <h4 data-i18n="hud.help_modal.sec_rules.label"></h4>
+              <ul class="help-list">
+                <li data-i18n="hud.help_modal.rule_keys.label"></li>
+                <li data-i18n="hud.help_modal.rule_buttons.label"></li>
+                <li data-i18n="hud.help_modal.rule_boots.label"></li>
+              </ul>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button id="help-close-btn" class="action-btn primary" type="button" data-i18n="hud.help_modal.close_btn.action"></button>
           </div>
         </div>
       </div>

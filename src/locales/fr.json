@@ -16,7 +16,11 @@
       "music_toggle": { "action": "Musique" },
       "language": { "label": "Langue" },
       "fullscreen_toggle": { "action": "Plein Écran (F)" },
-      "mobile_menu": { "action": "⚙️ Menu & Packs" }
+      "options_btn": { "action": "⚙️ Options" },
+      "help_btn": { "action": "❓ Aide & Raccourcis" },
+      "mobile_menu": { "action": "⚙️ Menu & Packs" },
+      "drawer_title": { "label": "⚙️ Options & Packs" },
+      "drawer_close": { "action": "✕ Fermer" }
     },
     "themes": {
       "cyber_neon": { "label": "Cyber Néon" },
@@ -98,7 +102,8 @@
     "messages": {
       "hint_prefix": { "label": "CONSEIL : " },
       "paused": { "label": "JEU EN PAUSE" },
-      "press_resume": { "label": "Appuyez sur P ou Espace pour reprendre" },
+      "press_resume": { "label": "Appuyez sur P, Espace ou Reprendre pour continuer" },
+      "resume_action": { "action": "Reprendre la Partie (P / Espace)" },
       "level_complete": { "label": "NIVEAU TERMINÉ !" },
       "time_bonus": { "label": "Bonus Temps : +{bonus}" },
       "level_score": { "label": "Score : +{score} - {medal}" },
@@ -106,6 +111,7 @@
       "medal_silver": { "label": "🥈 Médaille d'ARGENT" },
       "medal_bronze": { "label": "🥉 Médaille de BRONZE" },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
+      "inspect_format": { "label": "🔍 ({x}, {y}) : {details}" },
       "next_action": { "action": "Niveau Suivant (Entrée)" },
       "replay_action": { "action": "Revoir la Solution (Replay)" },
       "replaying_banner": { "label": "REPLAY EN COURS ({step}/{total}) - Cliquez ou appuyez sur une touche pour reprendre le contrôle" },
@@ -130,6 +136,11 @@
     },
     "scores_modal": {
       "title": { "label": "Sélection de Niveau & Records" },
+      "progress": { "label": "{completed} / {total} complétés" },
+      "search_placeholder": { "label": "Filtrer par #, titre ou code..." },
+      "filter_all": { "action": "Tous" },
+      "filter_unsolved": { "action": "À faire" },
+      "filter_completed": { "action": "Complétés" },
       "col_level": { "label": "#" },
       "col_title": { "label": "Niveau" },
       "col_code": { "label": "Code" },
@@ -139,6 +150,26 @@
       "col_action": { "label": "Action" },
       "play_btn": { "action": "Jouer" },
       "replay_btn": { "action": "Replay" },
+      "close_btn": { "action": "Fermer" }
+    },
+    "help_modal": {
+      "title": { "label": "Raccourcis Clavier & Guide Tactique" },
+      "sec_shortcuts": { "label": "Raccourcis Clavier & Souris" },
+      "kb_move": { "label": "Flèches / ZQSD / WASD : Déplacer le joueur" },
+      "kb_click": { "label": "Clic Gauche / Tap : Déplacement auto (A*) vers la case" },
+      "kb_undo": { "label": "U / Retour Arrière / Ctrl+Z : Rembobiner un pas (même après la mort)" },
+      "kb_restart": { "label": "R : Recommencer le niveau" },
+      "kb_objective": { "label": "H : Localiser le prochain objectif & afficher les câbles" },
+      "kb_fov": { "label": "V / Tab / Molette : Changer le niveau de zoom (9x9 à 32x32)" },
+      "kb_graphics": { "label": "G : Basculer le rendu HD Néon / Rétro 16-Bit" },
+      "kb_theme": { "label": "B : Changer le biome visuel et la piste musicale" },
+      "kb_shell": { "label": "L : Afficher / masquer le châssis Atari Lynx II" },
+      "kb_procedural": { "label": "N : Générer un nouveau pack de puzzles procéduraux" },
+      "kb_levels": { "label": "[ et ] : Niveau précédent / suivant" },
+      "sec_rules": { "label": "Mécanismes & Symboles" },
+      "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
+      "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
+      "rule_boots": { "label": "Bottes : Palmes (Eau), Ignifugées (Feu), Crampons (Glace), Ventouses (Tapis roulants). Attention au Voleur !" },
       "close_btn": { "action": "Fermer" }
     }
   },
@@ -158,13 +189,16 @@
   "editor": {
     "toolbar": {
       "new_map": { "action": "Nouvelle Carte" },
+      "undo": { "action": "↶ Annuler (Ctrl+Z)" },
+      "redo": { "action": "↷ Rétablir (Ctrl+Y)" },
       "validate_level": { "action": "Valider Solvabilité" },
       "test_level": { "action": "Tester ce Niveau" },
       "save_local": { "action": "Sauvegarder" },
       "export_json": { "action": "Exporter JSON" },
       "export_ccl": { "action": "Exporter .CCL" },
       "import_json": { "action": "Importer (.DAT/.CCL/.JSON)" },
-      "load_preset": { "label": "Charger un Niveau :" }
+      "load_preset": { "label": "Charger un Niveau :" },
+      "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" }
     },
     "metadata": {
       "title": { "label": "Titre du Niveau" },
@@ -193,6 +227,8 @@
       },
       "status": {
         "coords": { "label": "Case ({x}, {y})" },
+        "ready": { "label": "Clic gauche : peindre | Clic droit : gommer | Alt+Clic : pipette" },
+        "picked": { "label": "Pipette : {name} sélectionné" },
         "saved": { "label": "Niveau sauvegardé dans la bibliothèque locale !" },
         "imported": { "label": "Niveau importé avec succès !" },
         "import_error": { "label": "Format de niveau invalide." },

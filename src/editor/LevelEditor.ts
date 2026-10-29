@@ -35,6 +35,15 @@ interface ActiveBrush {
   id: string;
 }
 
+interface EditorSnapshot {
+  terrain: string[][];
+  items: (string | null)[][];
+  entities: EntityPlacement[];
+  trapLinks: TrapLink[];
+  cloneLinks: CloneLink[];
+  playerStart: { x: number; y: number; dir: Direction };
+}
+
 export class LevelEditor {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -61,6 +70,10 @@ export class LevelEditor {
   private fillMode: boolean = false;
   private activeDir: Direction = 'S';
   private isPainting: boolean = false;
+  private isRightErasing: boolean = false;
+  private isDirty: boolean = false;
+  private undoStack: EditorSnapshot[] = [];
+  private redoStack: EditorSnapshot[] = [];
   private pendingWireSource: { x: number; y: number } | null = null;
 
   public constructor(
@@ -101,7 +114,12 @@ export class LevelEditor {
     this.cloneLinks = [];
     this.playerStart = { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' };
     this.currentLevelId = `custom_${Date.now()}`;
+    this.isDirty = false;
+    this.undoStack = [];
+    this.redoStack = [];
+    this.updateUndoRedoButtons();
     this.syncMetadataInputs();
+    this.setStatusText(t('editor.palette.status.ready.label'));
     this.render();
   }
 
@@ -118,7 +136,12 @@ export class LevelEditor {
     this.entities = level.entities.map((e) => ({ ...e }));
     this.trapLinks = level.trapLinks.map((l) => ({ ...l }));
     this.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
+    this.isDirty = false;
+    this.undoStack = [];
+    this.redoStack = [];
+    this.updateUndoRedoButtons();
     this.syncMetadataInputs();
+    this.setStatusText(t('editor.palette.status.ready.label'));
     this.render();
   }
 
@@ -316,7 +339,18 @@ export class LevelEditor {
 
   private bindToolbarEvents(): void {
     document.getElementById('editor-new-btn')?.addEventListener('click', () => {
+      if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
+        return;
+      }
       this.initBlankMap();
+    });
+
+    document.getElementById('editor-undo-btn')?.addEventListener('click', () => {
+      this.undo();
+    });
+
+    document.getElementById('editor-redo-btn')?.addEventListener('click', () => {
+      this.redo();
     });
 
     document.getElementById('editor-test-btn')?.addEventListener('click', () => {
@@ -353,6 +387,7 @@ export class LevelEditor {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
       const idx = ConfigRegistry.addOrUpdateCustomLevel(compiled);
+      this.isDirty = false;
       this.populatePresetDropdown();
       this.setStatusText(t('editor.palette.status.saved'));
       this.onLevelSaved(idx);
@@ -433,6 +468,10 @@ export class LevelEditor {
 
     const presetSelect = document.getElementById('editor-preset-select') as HTMLSelectElement | null;
     presetSelect?.addEventListener('change', () => {
+      if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
+        presetSelect.value = this.currentLevelId;
+        return;
+      }
       const found = ConfigRegistry.getLevels().find((l) => l.id === presetSelect.value);
       if (found) {
         this.loadCompiledLevel(found);
@@ -485,48 +524,164 @@ export class LevelEditor {
     if (chipsEl) this.chipsRequired = Math.max(0, Number(chipsEl.value) || 0);
   }
 
+  private createSnapshot(): EditorSnapshot {
+    return {
+      terrain: this.terrain.map((r) => [...r]),
+      items: this.items.map((r) => [...r]),
+      entities: this.entities.map((e) => ({ ...e })),
+      trapLinks: this.trapLinks.map((l) => ({ ...l })),
+      cloneLinks: this.cloneLinks.map((l) => ({ ...l })),
+      playerStart: { ...this.playerStart }
+    };
+  }
+
+  private restoreSnapshot(snap: EditorSnapshot): void {
+    this.terrain = snap.terrain.map((r) => [...r]);
+    this.items = snap.items.map((r) => [...r]);
+    this.entities = snap.entities.map((e) => ({ ...e }));
+    this.trapLinks = snap.trapLinks.map((l) => ({ ...l }));
+    this.cloneLinks = snap.cloneLinks.map((l) => ({ ...l }));
+    this.playerStart = { ...snap.playerStart };
+    this.render();
+  }
+
+  private pushUndoState(): void {
+    const maxUndo = ConfigRegistry.getGame().timing.maxUndoSnapshots || 100;
+    if (this.undoStack.length >= maxUndo) {
+      this.undoStack.shift();
+    }
+    this.undoStack.push(this.createSnapshot());
+    this.redoStack = [];
+    this.isDirty = true;
+    this.updateUndoRedoButtons();
+  }
+
+  public undo(): void {
+    const prev = this.undoStack.pop();
+    if (!prev) return;
+    this.redoStack.push(this.createSnapshot());
+    this.restoreSnapshot(prev);
+    this.updateUndoRedoButtons();
+  }
+
+  public redo(): void {
+    const next = this.redoStack.pop();
+    if (!next) return;
+    this.undoStack.push(this.createSnapshot());
+    this.restoreSnapshot(next);
+    this.updateUndoRedoButtons();
+  }
+
+  private updateUndoRedoButtons(): void {
+    const undoBtn = document.getElementById('editor-undo-btn') as HTMLButtonElement | null;
+    const redoBtn = document.getElementById('editor-redo-btn') as HTMLButtonElement | null;
+    if (undoBtn) undoBtn.disabled = this.undoStack.length === 0;
+    if (redoBtn) redoBtn.disabled = this.redoStack.length === 0;
+  }
+
+  private pickBrushAt(x: number, y: number): void {
+    const ent = this.entities.find((e) => e.x === x && e.y === y);
+    if (ent) {
+      const def = ConfigRegistry.getEntityDef(ent.type);
+      this.activeCategory = def?.category || 'entities';
+      this.activeBrush = { kind: 'entity', id: ent.type };
+      this.activeDir = ent.dir;
+      const dirSelect = document.getElementById('editor-meta-dir') as HTMLSelectElement | null;
+      if (dirSelect) dirSelect.value = ent.dir;
+      this.renderCategoryTabs();
+      this.renderPaletteItems();
+      this.setStatusText(
+        t('editor.palette.status.picked.label', {
+          name: def ? t(def.i18nKey) : ent.type
+        })
+      );
+      return;
+    }
+
+    const item = this.items[y]?.[x];
+    if (item) {
+      const tileDef = ConfigRegistry.getTile(item);
+      this.activeCategory = tileDef.category;
+      this.activeBrush = { kind: 'item', id: item };
+      this.renderCategoryTabs();
+      this.renderPaletteItems();
+      this.setStatusText(
+        t('editor.palette.status.picked.label', { name: t(tileDef.i18nKey) })
+      );
+      return;
+    }
+
+    const terr = this.terrain[y]?.[x] || 'floor';
+    const tileDef = ConfigRegistry.getTile(terr);
+    this.activeCategory = tileDef.category;
+    this.activeBrush = { kind: 'terrain', id: terr };
+    this.renderCategoryTabs();
+    this.renderPaletteItems();
+    this.setStatusText(
+      t('editor.palette.status.picked.label', { name: t(tileDef.i18nKey) })
+    );
+  }
+
   private bindCanvasEvents(): void {
-    const getCoords = (ev: MouseEvent): { x: number; y: number } | null => {
+    const getCoords = (clientX: number, clientY: number): { x: number; y: number } | null => {
       const rect = this.canvas.getBoundingClientRect();
       const scaleX = this.canvas.width / rect.width;
       const scaleY = this.canvas.height / rect.height;
       const { editorTilePixelSize, mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
-      const x = Math.floor(((ev.clientX - rect.left) * scaleX) / editorTilePixelSize);
-      const y = Math.floor(((ev.clientY - rect.top) * scaleY) / editorTilePixelSize);
+      const x = Math.floor(((clientX - rect.left) * scaleX) / editorTilePixelSize);
+      const y = Math.floor(((clientY - rect.top) * scaleY) / editorTilePixelSize);
       if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return null;
       return { x, y };
     };
 
-    this.canvas.addEventListener('mousedown', (ev) => {
-      const coords = getCoords(ev);
-      if (!coords) return;
-      this.isPainting = true;
-      this.applyBrushAt(coords.x, coords.y);
+    this.canvas.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
     });
 
-    this.canvas.addEventListener('mousemove', (ev) => {
-      const coords = getCoords(ev);
+    this.canvas.addEventListener('pointerdown', (ev) => {
+      const coords = getCoords(ev.clientX, ev.clientY);
       if (!coords) return;
-      this.setStatusText(t('editor.palette.status.coords', { x: coords.x, y: coords.y }));
+      ev.preventDefault();
+      this.canvas.setPointerCapture(ev.pointerId);
+
+      if (ev.altKey || ev.button === 1) {
+        this.pickBrushAt(coords.x, coords.y);
+        return;
+      }
+
+      this.pushUndoState();
+      this.isPainting = true;
+      this.isRightErasing = ev.button === 2;
+      this.applyBrushAt(coords.x, coords.y, this.isRightErasing);
+    });
+
+    this.canvas.addEventListener('pointermove', (ev) => {
+      const coords = getCoords(ev.clientX, ev.clientY);
+      if (!coords) return;
+      this.setCoordsText(t('editor.palette.status.coords', { x: coords.x, y: coords.y }));
       if (
         this.isPainting &&
         !this.fillMode &&
         this.activeBrush.kind !== 'wire_trap' &&
         this.activeBrush.kind !== 'wire_cloner'
       ) {
-        this.applyBrushAt(coords.x, coords.y);
+        this.applyBrushAt(coords.x, coords.y, this.isRightErasing);
       }
     });
 
-    window.addEventListener('mouseup', () => {
+    const stopPainting = (): void => {
       this.isPainting = false;
-    });
+      this.isRightErasing = false;
+    };
+
+    window.addEventListener('pointerup', stopPainting);
+    window.addEventListener('pointercancel', stopPainting);
   }
 
-  private applyBrushAt(x: number, y: number): void {
-    const brush = this.activeBrush;
+  private applyBrushAt(x: number, y: number, forceEraser: boolean = false): void {
+    const brush: ActiveBrush = forceEraser ? { kind: 'eraser', id: 'eraser' } : this.activeBrush;
 
-    if (this.fillMode && brush.kind === 'terrain') {
+    if (!forceEraser && this.fillMode && brush.kind === 'terrain') {
       this.floodFillTerrain(x, y, this.terrain[y][x], brush.id);
       this.render();
       return;
@@ -559,13 +714,14 @@ export class LevelEditor {
         this.setStatusText(t('editor.palette.status.wire_select_target'));
       } else {
         this.terrain[y][x] = 'clone_machine';
+        const existingEnt = this.entities.find((e) => e.x === x && e.y === y);
         this.cloneLinks.push({
           buttonX: this.pendingWireSource.x,
           buttonY: this.pendingWireSource.y,
           clonerX: x,
           clonerY: y,
-          templateType: 'dirt_block',
-          templateDir: this.activeDir
+          templateType: existingEnt?.type || 'dirt_block',
+          templateDir: existingEnt?.dir || this.activeDir
         });
         this.pendingWireSource = null;
         this.setStatusText(t('editor.palette.status.wire_linked'));
@@ -686,6 +842,11 @@ export class LevelEditor {
       trapLinks: this.trapLinks.map((l) => ({ ...l })),
       cloneLinks: this.cloneLinks.map((l) => ({ ...l }))
     };
+  }
+
+  private setCoordsText(msg: string): void {
+    const el = document.getElementById('editor-coords-badge');
+    if (el) el.textContent = msg;
   }
 
   private setStatusText(msg: string): void {

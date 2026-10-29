@@ -16,7 +16,11 @@
       "music_toggle": { "action": "Music" },
       "language": { "label": "Language" },
       "fullscreen_toggle": { "action": "Fullscreen (F)" },
-      "mobile_menu": { "action": "⚙️ Menu & Packs" }
+      "options_btn": { "action": "⚙️ Options" },
+      "help_btn": { "action": "❓ Help & Shortcuts" },
+      "mobile_menu": { "action": "⚙️ Menu & Packs" },
+      "drawer_title": { "label": "⚙️ Options & Packs" },
+      "drawer_close": { "action": "✕ Close" }
     },
     "themes": {
       "cyber_neon": { "label": "Cyber Neon" },
@@ -98,7 +102,8 @@
     "messages": {
       "hint_prefix": { "label": "HINT: " },
       "paused": { "label": "GAME PAUSED" },
-      "press_resume": { "label": "Press P or Space to resume" },
+      "press_resume": { "label": "Press P, Space, or Resume to continue" },
+      "resume_action": { "action": "Resume Game (P / Space)" },
       "level_complete": { "label": "LEVEL COMPLETE!" },
       "time_bonus": { "label": "Time Bonus: +{bonus}" },
       "level_score": { "label": "Score: +{score} - {medal}" },
@@ -106,6 +111,7 @@
       "medal_silver": { "label": "🥈 SILVER Medal" },
       "medal_bronze": { "label": "🥉 BRONZE Medal" },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
+      "inspect_format": { "label": "🔍 ({x}, {y}): {details}" },
       "next_action": { "action": "Next Level (Enter)" },
       "replay_action": { "action": "Watch Solution Replay" },
       "replaying_banner": { "label": "REPLAYING SOLUTION ({step}/{total}) - Click or press any key to take control" },
@@ -130,6 +136,11 @@
     },
     "scores_modal": {
       "title": { "label": "Level Select & High Scores" },
+      "progress": { "label": "{completed} / {total} completed" },
+      "search_placeholder": { "label": "Filter by #, title, or code..." },
+      "filter_all": { "action": "All" },
+      "filter_unsolved": { "action": "Unsolved" },
+      "filter_completed": { "action": "Completed" },
       "col_level": { "label": "#" },
       "col_title": { "label": "Level" },
       "col_code": { "label": "Code" },
@@ -139,6 +150,26 @@
       "col_action": { "label": "Action" },
       "play_btn": { "action": "Play" },
       "replay_btn": { "action": "Replay" },
+      "close_btn": { "action": "Close" }
+    },
+    "help_modal": {
+      "title": { "label": "Keyboard Shortcuts & Tactical Guide" },
+      "sec_shortcuts": { "label": "Keyboard & Mouse Controls" },
+      "kb_move": { "label": "Arrows / WASD / ZQSD: Move player" },
+      "kb_click": { "label": "Left Click / Tap: Auto-pathfind (A*) to tile" },
+      "kb_undo": { "label": "U / Backspace / Ctrl+Z: Rewind step (even after death)" },
+      "kb_restart": { "label": "R: Restart current level" },
+      "kb_objective": { "label": "H: Locate next objective & reveal mechanism wires" },
+      "kb_fov": { "label": "V / Tab / Wheel: Cycle viewport zoom (9x9 to 32x32)" },
+      "kb_graphics": { "label": "G: Toggle HD Neon / 16-Bit Retro rendering" },
+      "kb_theme": { "label": "B: Cycle visual biome & music track" },
+      "kb_shell": { "label": "L: Toggle Atari Lynx II handheld shell" },
+      "kb_procedural": { "label": "N: Generate a new solvable procedural pack" },
+      "kb_levels": { "label": "[ and ]: Previous / Next level" },
+      "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
+      "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
+      "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
+      "rule_boots": { "label": "Boots: Flippers (Water), Fire Boots (Fire), Ice Skates (Ice), Suction Boots (Force floors). Watch out for the Thief!" },
       "close_btn": { "action": "Close" }
     }
   },
@@ -158,13 +189,16 @@
   "editor": {
     "toolbar": {
       "new_map": { "action": "New Blank Map" },
+      "undo": { "action": "↶ Undo (Ctrl+Z)" },
+      "redo": { "action": "↷ Redo (Ctrl+Y)" },
       "validate_level": { "action": "Validate Solvability" },
       "test_level": { "action": "Test Play Level" },
       "save_local": { "action": "Save to Browser" },
       "export_json": { "action": "Export JSON" },
       "export_ccl": { "action": "Export .CCL" },
       "import_json": { "action": "Import (.DAT/.CCL/.JSON)" },
-      "load_preset": { "label": "Load Preset Level:" }
+      "load_preset": { "label": "Load Preset Level:" },
+      "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" }
     },
     "metadata": {
       "title": { "label": "Level Title" },
@@ -193,6 +227,8 @@
       },
       "status": {
         "coords": { "label": "Tile ({x}, {y})" },
+        "ready": { "label": "Left-click: paint | Right-click: erase | Alt+Click: eyedropper" },
+        "picked": { "label": "Picked: {name}" },
         "saved": { "label": "Level saved to local browser library!" },
         "imported": { "label": "Level imported successfully!" },
         "import_error": { "label": "Invalid level format." },

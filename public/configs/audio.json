@@ -111,6 +111,12 @@
         { "freq": 783.99, "durationMs": 85, "gain": 0.55 },
         { "freq": 1046.5, "durationMs": 220, "gain": 0.6 }
       ]
+    },
+    "timer_warn": {
+      "waveform": "square",
+      "notes": [
+        { "freq": 880, "durationMs": 45, "gain": 0.35 }
+      ]
     }
   },
   "music": {

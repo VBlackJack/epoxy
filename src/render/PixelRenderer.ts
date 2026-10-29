@@ -43,6 +43,8 @@ export class PixelRenderer {
   private timeTick: number = 0;
   private currentViewportTiles: number = 13;
   private visualViewportTiles: number = 13;
+  private lastViewportWidth: number = 13;
+  private lastViewportHeight: number = 13;
   private style: GraphicsStyle = 'modern';
   private themeId: string = 'cyber_neon';
   private shakeIntensity: number = 0;
@@ -122,12 +124,16 @@ export class PixelRenderer {
   public screenToGrid(canvas: HTMLCanvasElement, clientX: number, clientY: number): GridPoint | null {
     if (!this.visualCameraPos) return null;
     const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
     const normX = (clientX - rect.left) / rect.width;
     const normY = (clientY - rect.top) / rect.height;
     if (normX < 0 || normX > 1 || normY < 0 || normY > 1) return null;
-    const viewportTiles = this.visualViewportTiles || this.currentViewportTiles || ConfigRegistry.getGame().grid.viewportWidth;
-    const gx = Math.floor(this.visualCameraPos.x + normX * viewportTiles);
-    const gy = Math.floor(this.visualCameraPos.y + normY * viewportTiles);
+    const gridCfg = ConfigRegistry.getGame().grid;
+    const vw = this.lastViewportWidth || this.visualViewportTiles || gridCfg.viewportWidth;
+    const vh = this.lastViewportHeight || this.visualViewportTiles || gridCfg.viewportHeight;
+    const gx = Math.floor(this.visualCameraPos.x + normX * vw);
+    const gy = Math.floor(this.visualCameraPos.y + normY * vh);
+    if (gx < 0 || gx >= gridCfg.mapWidth || gy < 0 || gy >= gridCfg.mapHeight) return null;
     return { x: gx, y: gy };
   }
 
@@ -214,10 +220,15 @@ export class PixelRenderer {
       this.visualViewportTiles += (targetTiles - this.visualViewportTiles) * camLerp;
     }
 
-    const viewportWidth = this.visualViewportTiles;
-    const viewportHeight = this.visualViewportTiles;
     const canvasWidth = ctx.canvas.width;
-    const tilePixelSize = canvasWidth / viewportWidth;
+    const canvasHeight = ctx.canvas.height;
+    const baseTiles = this.visualViewportTiles;
+    const minSide = Math.max(1, Math.min(canvasWidth, canvasHeight));
+    const tilePixelSize = minSide / baseTiles;
+    const viewportWidth = Math.min(mapWidth, canvasWidth / tilePixelSize);
+    const viewportHeight = Math.min(mapHeight, canvasHeight / tilePixelSize);
+    this.lastViewportWidth = viewportWidth;
+    this.lastViewportHeight = viewportHeight;
     const player = engine.getPlayer();
 
     // Reset interpolation caches on level change or undo/restart
@@ -550,8 +561,8 @@ export class PixelRenderer {
   public renderMinimap(ctx: CanvasRenderingContext2D, engine: GameEngine, cellPx: number = 3): void {
     const gridCfg = ConfigRegistry.getGame().grid;
     const { mapWidth, mapHeight } = gridCfg;
-    const viewportWidth = this.currentViewportTiles || gridCfg.viewportWidth;
-    const viewportHeight = this.currentViewportTiles || gridCfg.viewportHeight;
+    const viewportWidth = this.lastViewportWidth || this.currentViewportTiles || gridCfg.viewportWidth;
+    const viewportHeight = this.lastViewportHeight || this.currentViewportTiles || gridCfg.viewportHeight;
     const pal = ConfigRegistry.getGame().palette;
     const terrain = engine.getTerrain();
     const items = engine.getItems();
@@ -914,16 +925,15 @@ export class PixelRenderer {
       case 'door_yellow':
       case 'door_green': {
         const def = ConfigRegistry.getTile(tileId);
-        const color = pal[def.colorKey || 'red'] || pal.red;
+        const cKey = def.colorKey || 'red';
+        const color = pal[cKey] || pal.red;
         ctx.fillStyle = pal.wallShadow;
         ctx.fillRect(x, y, size, size);
         ctx.fillStyle = color;
         ctx.fillRect(x + 3, y + 3, size - 6, size - 6);
+        this.drawColorGlyph(ctx, cKey, x + size / 2, y + size * 0.44, size * 0.16, pal.wallShadow);
         ctx.fillStyle = pal.wallShadow;
-        ctx.beginPath();
-        ctx.arc(x + size / 2, y + size * 0.42, size * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(x + size * 0.44, y + size * 0.45, size * 0.12, size * 0.25);
+        ctx.fillRect(x + size * 0.45, y + size * 0.56, size * 0.1, size * 0.18);
         break;
       }
 
@@ -937,6 +947,12 @@ export class PixelRenderer {
           button_brown: pal.brown,
           button_red: pal.red
         };
+        const glyphMap: Record<string, string> = {
+          button_green: 'green',
+          button_blue: 'blue',
+          button_brown: 'yellow',
+          button_red: 'red'
+        };
         ctx.fillStyle = pal.wallShadow;
         ctx.beginPath();
         ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, Math.PI * 2);
@@ -945,6 +961,14 @@ export class PixelRenderer {
         ctx.beginPath();
         ctx.arc(x + size / 2, y + size / 2, size * 0.22, 0, Math.PI * 2);
         ctx.fill();
+        this.drawColorGlyph(
+          ctx,
+          glyphMap[tileId] || 'red',
+          x + size / 2,
+          y + size / 2,
+          size * 0.09,
+          '#11151c'
+        );
         break;
       }
 
@@ -1358,7 +1382,8 @@ export class PixelRenderer {
       case 'door_yellow':
       case 'door_green': {
         const def = ConfigRegistry.getTile(tileId);
-        const color = pal[def.colorKey || 'red'] || pal.red;
+        const cKey = def.colorKey || 'red';
+        const color = pal[cKey] || pal.red;
         ctx.fillStyle = '#12161f';
         this.roundRect(ctx, x + 2, y + 2, size - 4, size - 4, 6);
         ctx.fill();
@@ -1371,11 +1396,9 @@ export class PixelRenderer {
         ctx.fill();
         ctx.restore();
 
+        this.drawColorGlyph(ctx, cKey, x + size / 2, y + size * 0.44, size * 0.15, '#12161f');
         ctx.fillStyle = '#12161f';
-        ctx.beginPath();
-        ctx.arc(x + size / 2, y + size * 0.42, size * 0.11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(x + size * 0.45, y + size * 0.45, size * 0.1, size * 0.22);
+        ctx.fillRect(x + size * 0.46, y + size * 0.56, size * 0.08, size * 0.16);
         break;
       }
 
@@ -1388,6 +1411,12 @@ export class PixelRenderer {
           button_blue: pal.blue,
           button_brown: pal.brown,
           button_red: pal.red
+        };
+        const glyphMap: Record<string, string> = {
+          button_green: 'green',
+          button_blue: 'blue',
+          button_brown: 'yellow',
+          button_red: 'red'
         };
         const c = colorMap[tileId] || pal.red;
         ctx.fillStyle = '#11151c';
@@ -1403,6 +1432,14 @@ export class PixelRenderer {
         ctx.arc(x + size / 2, y + size / 2, size * 0.21, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+        this.drawColorGlyph(
+          ctx,
+          glyphMap[tileId] || 'red',
+          x + size / 2,
+          y + size / 2,
+          size * 0.09,
+          '#11151c'
+        );
         break;
       }
 
@@ -1531,7 +1568,8 @@ export class PixelRenderer {
       case 'key_yellow':
       case 'key_green': {
         const def = ConfigRegistry.getTile(itemId);
-        const color = pal[def.colorKey || 'red'] || pal.red;
+        const cKey = def.colorKey || 'red';
+        const color = pal[cKey] || pal.red;
         ctx.save();
         if (isModern) {
           ctx.shadowColor = color;
@@ -1544,6 +1582,7 @@ export class PixelRenderer {
         ctx.fillRect(x + size * 0.45, dy + size * 0.45, size * 0.36, size * 0.1);
         ctx.fillRect(x + size * 0.64, dy + size * 0.55, size * 0.07, size * 0.14);
         ctx.fillRect(x + size * 0.74, dy + size * 0.55, size * 0.07, size * 0.14);
+        this.drawColorGlyph(ctx, cKey, x + size * 0.34, dy + size * 0.5, size * 0.075, '#11151c');
         ctx.restore();
         break;
       }
@@ -1746,6 +1785,49 @@ export class PixelRenderer {
     if (dir === 'S') vy = y + size * 0.34;
     this.roundRect(ctx, vx, vy, size * 0.28, size * 0.1, isModern ? 3 : 0);
     ctx.fill();
+    ctx.restore();
+  }
+
+  private drawColorGlyph(
+    ctx: CanvasRenderingContext2D,
+    colorKey: string,
+    cx: number,
+    cy: number,
+    r: number,
+    fillColor: string
+  ): void {
+    ctx.save();
+    ctx.fillStyle = fillColor;
+    ctx.strokeStyle = fillColor;
+    ctx.lineWidth = Math.max(1.5, r * 0.35);
+    ctx.beginPath();
+    if (colorKey === 'red') {
+      // Diamond
+      ctx.moveTo(cx, cy - r);
+      ctx.lineTo(cx + r, cy);
+      ctx.lineTo(cx, cy + r);
+      ctx.lineTo(cx - r, cy);
+      ctx.closePath();
+      ctx.fill();
+    } else if (colorKey === 'blue') {
+      // Triangle
+      ctx.moveTo(cx, cy - r);
+      ctx.lineTo(cx + r, cy + r * 0.85);
+      ctx.lineTo(cx - r, cy + r * 0.85);
+      ctx.closePath();
+      ctx.fill();
+    } else if (colorKey === 'yellow') {
+      // Plus / Cross
+      ctx.moveTo(cx - r, cy);
+      ctx.lineTo(cx + r, cy);
+      ctx.moveTo(cx, cy - r);
+      ctx.lineTo(cx, cy + r);
+      ctx.stroke();
+    } else if (colorKey === 'green') {
+      // Ring
+      ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 

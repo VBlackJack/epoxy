@@ -166,7 +166,8 @@
     "timeBonusMultiplier": 10,
     "levelBasePoints": 500,
     "goldTimeRatio": 0.5,
-    "silverTimeRatio": 0.25
+    "silverTimeRatio": 0.25,
+    "lowTimeWarningSeconds": 10
   },
   "storage": {
     "saveSlotKey": "save_state",
@@ -198,7 +199,8 @@
     "cycleTheme": ["KeyB"],
     "generateProcedural": ["KeyN"],
     "showObjective": ["KeyH"],
-    "toggleFullscreen": ["KeyF"]
+    "toggleFullscreen": ["KeyF"],
+    "toggleHelp": ["Slash"]
   },
   "palette": {
     "floorBase": "#9fa6b2",
