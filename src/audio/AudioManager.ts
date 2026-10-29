@@ -15,26 +15,146 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { AudioConfig, MusicTrackConfig } from '../core/types';
+
+/** Mixing and scheduling parameters read from the optional `musicMix` block of audio.json. */
+interface MusicMixConfig {
+  /** Fraction of a step a music note sounds for. */
+  noteLengthRatio: number;
+  /** Lead voice gain relative to the music volume. */
+  leadGain: number;
+  /** Bass voice gain relative to the music volume. */
+  bassGain: number;
+  /** Gain an envelope ramps down to (exponential ramps cannot reach zero). */
+  releaseFloorGain: number;
+  /** How often the look-ahead scheduler wakes up. */
+  schedulerIntervalMs: number;
+  /** How far ahead of the audio clock notes are scheduled. */
+  scheduleAheadMs: number;
+}
+
+/** Audio config keys this service reads beyond the shared AudioConfig shape. */
+interface AudioRuntimeConfig extends AudioConfig {
+  defaultTrackId?: string;
+  musicMix?: Partial<MusicMixConfig>;
+}
+
+/** Used only when audio.json omits `musicMix` or one of its keys. */
+const DEFAULT_MUSIC_MIX: MusicMixConfig = {
+  noteLengthRatio: 0.85,
+  leadGain: 0.45,
+  bassGain: 0.35,
+  releaseFloorGain: 0.001,
+  schedulerIntervalMs: 25,
+  scheduleAheadMs: 100
+};
+
+/** Events that count as a user gesture and therefore unlock audio playback. */
+const USER_GESTURE_EVENTS: readonly string[] = ['pointerdown', 'keydown', 'touchstart'];
+
+const MS_PER_SECOND = 1000;
 
 class AudioService {
   private ctx: AudioContext | null = null;
   private sfxEnabled: boolean = true;
   private musicEnabled: boolean = false;
-  private musicTimerId: number | null = null;
+  private schedulerTimerId: number | null = null;
   private musicStepIndex: number = 0;
   private activeTrackIndex: number = 0;
+  private nextNoteTime: number = 0;
+  private userGestureSeen: boolean = false;
+  private pausedWhileHidden: boolean = false;
 
-  private ensureContext(): AudioContext | null {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
+  private readonly onUserGesture = (): void => {
+    if (this.userGestureSeen) return;
+    this.userGestureSeen = true;
+    for (const type of USER_GESTURE_EVENTS) {
+      window.removeEventListener(type, this.onUserGesture, true);
+    }
+    this.ensureContext();
+    if (this.musicEnabled) {
+      this.startMusicLoop();
+    }
+  };
+
+  private readonly onVisibilityChange = (): void => {
+    if (document.hidden) {
+      if (this.schedulerTimerId !== null) {
+        this.stopMusicLoop();
+        this.pausedWhileHidden = true;
+      }
+    } else if (this.pausedWhileHidden) {
+      this.pausedWhileHidden = false;
+      if (this.musicEnabled) {
+        this.startMusicLoop();
       }
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
+  };
+
+  constructor() {
+    if (typeof window === 'undefined') return;
+    // Browsers only allow an AudioContext to run after a user gesture: creating it
+    // earlier leaves it suspended while notes pile up at a frozen clock.
+    for (const type of USER_GESTURE_EVENTS) {
+      window.addEventListener(type, this.onUserGesture, { capture: true, passive: true });
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
+  }
+
+  /** Returns a running context, or null when audio cannot play yet. */
+  private ensureContext(): AudioContext | null {
+    if (!this.userGestureSeen || typeof window === 'undefined') return null;
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return null;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
-    return this.ctx;
+    return this.ctx.state === 'running' ? this.ctx : null;
+  }
+
+  private getConfig(): AudioRuntimeConfig {
+    return ConfigRegistry.getAudio() as AudioRuntimeConfig;
+  }
+
+  private getMix(): MusicMixConfig {
+    return { ...DEFAULT_MUSIC_MIX, ...this.getConfig().musicMix };
+  }
+
+  private getActiveTrack(): MusicTrackConfig | null {
+    const tracks = this.getConfig().tracks;
+    if (!tracks || tracks.length === 0) return null;
+    return tracks[this.activeTrackIndex % tracks.length];
+  }
+
+  /** Schedules one enveloped tone and releases its nodes once it has played. */
+  private scheduleTone(
+    ctx: AudioContext,
+    waveform: OscillatorType,
+    freq: number,
+    peakGain: number,
+    startSec: number,
+    durationSec: number,
+    releaseFloorGain: number
+  ): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = waveform;
+    osc.frequency.setValueAtTime(freq, startSec);
+    gain.gain.setValueAtTime(peakGain, startSec);
+    gain.gain.exponentialRampToValueAtTime(releaseFloorGain, startSec + durationSec);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+    osc.start(startSec);
+    osc.stop(startSec + durationSec);
   }
 
   public isSfxEnabled(): boolean {
@@ -55,12 +175,7 @@ class AudioService {
   }
 
   public toggleMusic(): boolean {
-    this.musicEnabled = !this.musicEnabled;
-    if (this.musicEnabled) {
-      this.startMusicLoop();
-    } else {
-      this.stopMusicLoop();
-    }
+    this.setMusicEnabled(!this.musicEnabled);
     return this.musicEnabled;
   }
 
@@ -75,37 +190,25 @@ class AudioService {
 
   public playSfx(effectId: string): void {
     if (!this.sfxEnabled) return;
-    const audioCfg = ConfigRegistry.getAudio();
+    const audioCfg = this.getConfig();
     const effect = audioCfg.effects[effectId];
     if (!effect) return;
 
     const ctx = this.ensureContext();
     if (!ctx) return;
 
+    const { releaseFloorGain } = this.getMix();
     let offsetSec = ctx.currentTime;
     for (const note of effect.notes) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = effect.waveform;
-      osc.frequency.setValueAtTime(note.freq, offsetSec);
-
-      const durationSec = note.durationMs / 1000;
+      const durationSec = note.durationMs / MS_PER_SECOND;
       const peakGain = note.gain * audioCfg.masterVolume * audioCfg.sfxVolume;
-
-      gain.gain.setValueAtTime(peakGain, offsetSec);
-      gain.gain.exponentialRampToValueAtTime(0.001, offsetSec + durationSec);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(offsetSec);
-      osc.stop(offsetSec + durationSec);
+      this.scheduleTone(ctx, effect.waveform, note.freq, peakGain, offsetSec, durationSec, releaseFloorGain);
       offsetSec += durationSec;
     }
   }
 
   public setTrackById(trackId: string): void {
-    const tracks = ConfigRegistry.getAudio().tracks;
+    const tracks = this.getConfig().tracks;
     if (!tracks || tracks.length === 0) return;
     const idx = tracks.findIndex((t) => t.id === trackId);
     if (idx >= 0) {
@@ -118,8 +221,9 @@ class AudioService {
   }
 
   public cycleTrack(): string {
-    const tracks = ConfigRegistry.getAudio().tracks;
-    if (!tracks || tracks.length === 0) return 'cyber_pulse';
+    const audioCfg = this.getConfig();
+    const tracks = audioCfg.tracks;
+    if (!tracks || tracks.length === 0) return audioCfg.defaultTrackId ?? '';
     this.activeTrackIndex = (this.activeTrackIndex + 1) % tracks.length;
     this.musicStepIndex = 0;
     if (this.musicEnabled) {
@@ -130,55 +234,57 @@ class AudioService {
 
   private startMusicLoop(): void {
     this.stopMusicLoop();
-    const audioCfg = ConfigRegistry.getAudio();
-    const activeTrack = audioCfg.tracks?.[this.activeTrackIndex] || audioCfg.music;
-    this.musicTimerId = window.setInterval(() => {
-      if (!this.musicEnabled) return;
-      const ctx = this.ensureContext();
-      if (!ctx) return;
+    // The gesture handler restarts the loop once audio is unlocked; the visibility
+    // handler restarts it when the tab is shown again.
+    if (!this.userGestureSeen) return;
+    if (typeof document !== 'undefined' && document.hidden) {
+      this.pausedWhileHidden = true;
+      return;
+    }
+    this.nextNoteTime = 0;
+    this.schedulerTimerId = window.setInterval(() => this.scheduleAhead(), this.getMix().schedulerIntervalMs);
+    this.scheduleAhead();
+  }
 
-      const { leadNotes, bassNotes, leadWaveform, bassWaveform, stepDurationMs } = activeTrack;
+  /** Look-ahead scheduler: queues every step that falls inside the scheduling window. */
+  private scheduleAhead(): void {
+    if (!this.musicEnabled) return;
+    const ctx = this.ensureContext();
+    const track = this.getActiveTrack();
+    if (!ctx || !track) return;
+
+    const audioCfg = this.getConfig();
+    const mix = this.getMix();
+    const stepSec = track.stepDurationMs / MS_PER_SECOND;
+    const noteSec = stepSec * mix.noteLengthRatio;
+    const horizon = ctx.currentTime + mix.scheduleAheadMs / MS_PER_SECOND;
+    const musicGain = audioCfg.masterVolume * audioCfg.musicVolume;
+
+    // After a stall (suspended context, throttled timer) restart from now instead of
+    // replaying every missed step at once.
+    if (this.nextNoteTime < ctx.currentTime) {
+      this.nextNoteTime = ctx.currentTime;
+    }
+
+    while (this.nextNoteTime < horizon) {
+      const { leadNotes, bassNotes, leadWaveform, bassWaveform } = track;
       const leadFreq = leadNotes[this.musicStepIndex % leadNotes.length];
       const bassFreq = bassNotes[this.musicStepIndex % bassNotes.length];
-      const durSec = (stepDurationMs * 0.85) / 1000;
-      const now = ctx.currentTime;
-
       if (leadFreq > 0) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = leadWaveform;
-        osc.frequency.setValueAtTime(leadFreq, now);
-        const peak = audioCfg.masterVolume * audioCfg.musicVolume * 0.45;
-        gain.gain.setValueAtTime(peak, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + durSec);
+        this.scheduleTone(ctx, leadWaveform, leadFreq, musicGain * mix.leadGain, this.nextNoteTime, noteSec, mix.releaseFloorGain);
       }
-
       if (bassFreq > 0) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = bassWaveform;
-        osc.frequency.setValueAtTime(bassFreq, now);
-        const peak = audioCfg.masterVolume * audioCfg.musicVolume * 0.35;
-        gain.gain.setValueAtTime(peak, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + durSec);
+        this.scheduleTone(ctx, bassWaveform, bassFreq, musicGain * mix.bassGain, this.nextNoteTime, noteSec, mix.releaseFloorGain);
       }
-
       this.musicStepIndex++;
-    }, activeTrack.stepDurationMs);
+      this.nextNoteTime += stepSec;
+    }
   }
 
   public stopMusicLoop(): void {
-    if (this.musicTimerId !== null) {
-      clearInterval(this.musicTimerId);
-      this.musicTimerId = null;
+    if (this.schedulerTimerId !== null) {
+      clearInterval(this.schedulerTimerId);
+      this.schedulerTimerId = null;
     }
   }
 }

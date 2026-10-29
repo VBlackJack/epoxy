@@ -119,8 +119,17 @@
       ]
     }
   },
+  "defaultTrackId": "cyber_pulse",
+  "musicMix": {
+    "noteLengthRatio": 0.85,
+    "leadGain": 0.45,
+    "bassGain": 0.35,
+    "releaseFloorGain": 0.001,
+    "schedulerIntervalMs": 25,
+    "scheduleAheadMs": 100
+  },
   "music": {
-    "stepDurationMs": 180,
+    "stepDurationMs": 175,
     "leadWaveform": "square",
     "bassWaveform": "triangle",
     "leadNotes": [
