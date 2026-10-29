@@ -99,8 +99,24 @@
     "solution": "SESSWSSS",
     "reversible": true
   },
+  "monsters_ball_recess": {
+    "solution": "SNSESNEES..NEESES",
+    "reversible": true
+  },
+  "monsters_bug_hall": {
+    "solution": "SEEESSEEESSS",
+    "reversible": true
+  },
   "monsters_bug_pillar": {
     "solution": "SESSWSSNEEEENNESSSS",
+    "reversible": true
+  },
+  "monsters_glider_ring": {
+    "solution": "SSSSWENNEEEESSEWSSWWSS",
+    "reversible": true
+  },
+  "monsters_tank_nook": {
+    "solution": "EEESSEWSSSSNNEEEE",
     "reversible": true
   },
   "monsters_teeth_lure": {
@@ -129,6 +145,26 @@
   },
   "sokoban_forged_10": {
     "solution": "SEESESWSWWWNWNNEEWSSWSEEENEESWWWSSSS",
+    "reversible": true
+  },
+  "sokoban_forged_11": {
+    "solution": "SWWWWSENESSSESEENNWWSSWNNWNNESSNNESSSNEESSWWESSSS",
+    "reversible": true
+  },
+  "sokoban_forged_12": {
+    "solution": "SWSNEEEEWSWSSEEENNWWSWSENNNWSSESWWEEESSSSS",
+    "reversible": true
+  },
+  "sokoban_forged_13": {
+    "solution": "SEEEEESSSWWNSEENNNWWWWSSENWNEEESWEESSWWNWNEEWSSESSSS",
+    "reversible": true
+  },
+  "sokoban_forged_14": {
+    "solution": "SESEENWWWWEEESSSWNNENWWESSSWWNSWNESESSSSS",
+    "reversible": true
+  },
+  "sokoban_forged_15": {
+    "solution": "SWSNEESEENESSNWWWSSENWNNEESWNWSSESWWEEESSSSS",
     "reversible": true
   },
   "sokoban_forged_2": {

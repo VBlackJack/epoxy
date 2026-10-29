@@ -239,6 +239,10 @@ export function compilePiece(
   };
 }
 
+function holdsMonsters(piece: CompiledPiece): boolean {
+  return piece.entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster');
+}
+
 /**
  * Returns the piece turned and mirrored by `o`; throws if a tile has no
  * oriented counterpart. `orientation` records `o`, which describes the result
@@ -292,8 +296,12 @@ export function orientPiece(piece: CompiledPiece, o: PieceOrientation): Compiled
     }),
     entry: at(piece.entry),
     exit: at(piece.exit),
-    // Rules are the same in every orientation, so the solution turns with the piece.
-    solution: piece.solution?.map((a) => (a === 'WAIT' ? a : orientDirection(a, o))),
+    // Rules are the same in every rotation, so the solution turns with the piece. A mirror
+    // image flips the handedness of wall-following monsters: their timing no longer matches.
+    solution:
+      o.mirrored && holdsMonsters(piece)
+        ? undefined
+        : piece.solution?.map((a) => (a === 'WAIT' ? a : orientDirection(a, o))),
     orientation: o
   };
 }
