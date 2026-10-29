@@ -3,6 +3,22 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Walls join into continuous masses, seen slightly from the south: a lit rim along the
+  edges facing the floor, a darker interior and a front face, in both renderers (brick
+  bond in 16-Bit Retro). Walls, doors and blue walls throw a soft shadow on the floor
+  south and east of them (dithered in Retro), and some floor cells show a seam, a vent
+  or a scuff. Shapes, depths and the tiles that join or cast shadows are set in the
+  `graphics` block of `game.json`.
+- New player sprite, seen from the front, back or side, with a two-frame stride and a
+  small hop on each step.
+- Each monster has its own silhouette and a two-frame animation; bugs, paramecia,
+  gliders, tanks and fireballs turn to face where they go, the others look there.
+  Pushable blocks get a front face like the walls; items float over a ground shadow.
+
 ## [2.0.0] - 2026-10-29
 
 ### Breaking

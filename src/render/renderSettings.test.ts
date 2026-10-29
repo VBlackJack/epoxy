@@ -61,6 +61,13 @@ describe('resolveRenderSettings', () => {
     expect(resolveRenderSettings(graphics).maxFrameDeltaMs).toBe(DEFAULT_RENDER_SETTINGS.maxFrameDeltaMs);
   });
 
+  it('accepts only arrays of strings for tile lists', () => {
+    const good = { ...BASE_GRAPHICS, wallJoinTiles: ['wall', 'steel'] } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(good).wallJoinTiles).toEqual(['wall', 'steel']);
+    const bad = { ...BASE_GRAPHICS, wallJoinTiles: { wall: true } } as unknown as GraphicsConfig;
+    expect(resolveRenderSettings(bad).wallJoinTiles).toEqual(DEFAULT_RENDER_SETTINGS.wallJoinTiles);
+  });
+
   it('finds every renderer setting in the shipped game.json', () => {
     const shipped = createTestBundle().game.graphics as unknown as Record<string, unknown>;
     for (const key of Object.keys(DEFAULT_RENDER_SETTINGS)) {

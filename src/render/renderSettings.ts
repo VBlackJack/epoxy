@@ -62,6 +62,24 @@ export interface RenderSettings {
   hintFontModern: string;
   hintFontRetro: string;
   iconPixelSize: number;
+  /** Tiles that join with each other into one continuous wall mass. */
+  wallJoinTiles: string[];
+  /** Tiles that cast a shadow onto the cells south and east of them. */
+  shadowCasterTiles: string[];
+  /** Height of the front face shown under a wall that has open floor south of it. */
+  wallFrontDepthTile: number;
+  /** Width of the lit rim along the edges of a wall mass. */
+  wallRimWidthTile: number;
+  /** Corner rounding of a wall mass, applied only to its outer corners. */
+  wallCornerRadiusTile: number;
+  /** Inset of the panel engraved in cells deep inside a wall mass. */
+  wallPanelInsetTile: number;
+  /** Depth of the shadow a caster throws onto the floor next to it. */
+  floorShadowDepthTile: number;
+  /** One floor cell in this many shows a detail (seam, vent, scuff). */
+  floorDetailEvery: number;
+  /** Height of the small hop the player makes on each step. */
+  playerHopTile: number;
 }
 
 /** The graphics block as stored in game.json, including keys GraphicsConfig does not declare. */
@@ -103,7 +121,16 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   glowBlurPx: { soft: 6, medium: 8, strong: 10 },
   hintFontModern: 'system-ui, sans-serif',
   hintFontRetro: 'monospace',
-  iconPixelSize: 32
+  iconPixelSize: 32,
+  wallJoinTiles: ['wall'],
+  shadowCasterTiles: ['wall'],
+  wallFrontDepthTile: 0.22,
+  wallRimWidthTile: 0.05,
+  wallCornerRadiusTile: 0.14,
+  wallPanelInsetTile: 0.18,
+  floorShadowDepthTile: 0.34,
+  floorDetailEvery: 5,
+  playerHopTile: 0.07
 };
 
 const resolvedCache = new WeakMap<object, RenderSettings>();
@@ -118,13 +145,18 @@ export function resolveRenderSettings(graphics: GraphicsConfig | undefined): Ren
   for (const key of Object.keys(DEFAULT_RENDER_SETTINGS) as (keyof RenderSettings)[]) {
     if (key === 'glowBlurPx') continue;
     const value = source[key];
-    if (typeof value === typeof DEFAULT_RENDER_SETTINGS[key]) {
+    const fallback = DEFAULT_RENDER_SETTINGS[key];
+    if (Array.isArray(fallback) ? isStringArray(value) : typeof value === typeof fallback) {
       (resolved as unknown as Record<string, unknown>)[key] = value;
     }
   }
   resolved.glowBlurPx = { ...DEFAULT_RENDER_SETTINGS.glowBlurPx, ...source.glowBlurPx };
   resolvedCache.set(graphics, resolved);
   return resolved;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
 /**
