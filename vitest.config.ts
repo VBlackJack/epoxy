@@ -17,6 +17,8 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Level packs are read as inlined assets by the decoder tests.
+  assetsInclude: ['**/*.DAT'],
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node'
