@@ -16,13 +16,32 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { GameEngine } from '../core/GameEngine';
-import { Direction, GraphicsStyle, GridPoint } from '../core/types';
+import { Direction, GraphicsStyle, GridPoint, ThemePalette } from '../core/types';
+import {
+  BOOT_COLOR_KEYS,
+  BUTTON_COLOR_KEYS,
+  BUTTON_GLYPH_KEYS,
+  DEFAULT_BOOT_COLOR_KEY,
+  DEFAULT_COLOR_KEY,
+  DEFAULT_MONSTER_COLOR_KEY,
+  FX_COLOR_KEYS,
+  MONSTER_COLOR_KEYS
+} from './paletteKeys';
+import { RenderSettings, resolveRenderSettings, resolveTheme } from './renderSettings';
+import { frameScaleFromDelta, scaleDecay, scaleLerpFactor } from './renderTiming';
+import {
+  collectTerrainFeatures,
+  EMPTY_TERRAIN_FEATURES,
+  TerrainFeatures,
+  TerrainSnapshot
+} from './terrainState';
 
 interface Particle {
   x: number;
   y: number;
   vx: number;
   vy: number;
+  /** Radius as a fraction of a tile. */
   radius: number;
   color: string;
   alpha: number;
@@ -38,9 +57,78 @@ interface ShockwaveRing {
   alpha: number;
 }
 
+/**
+ * Which part of a tile to draw: the static part goes into the terrain cache, the
+ * animated part is drawn over it every frame, 'all' draws both (editor, icons).
+ */
+type TilePass = 'all' | 'static' | 'animated';
+
+const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
+  'water',
+  'fire',
+  'force_n',
+  'force_e',
+  'force_s',
+  'force_w',
+  'force_random',
+  'exit',
+  'teleport'
+]);
+const RETRO_ANIMATED_TILES: ReadonlySet<string> = new Set(['water', 'fire', 'exit', 'teleport']);
+const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([...MODERN_ANIMATED_TILES, ...RETRO_ANIMATED_TILES]);
+
+const FULL_TURN = Math.PI * 2;
+const HINT_GLYPH = '?';
+const HINT_FONT_WEIGHT = 'bold';
+/** Sprite padding around a glowing shape, as a multiple of the strongest blur radius. */
+const GLOW_PAD_FACTOR = 2;
+
+/** Retro tiles flip animation phase every N engine ticks, over a cycle of N phases. */
+const RETRO_PHASE_TICKS = 8;
+const RETRO_PHASE_COUNT = 4;
+/** Modern tile animation speed, in radians per reference frame. */
+const MODERN_ANIM_SPEED = 0.08;
+const ITEM_BOB_SPEED = 0.1;
+const ITEM_BOB_AMPLITUDE_TILE = 0.04;
+const FLOOR_RIVET_SIZE_TILE = 0.04;
+const FLOOR_RIVET_INSET_TILE = 0.06;
+/** Force floor arrows scroll over this span (tile fraction) at this speed (tile fraction per frame). */
+const FORCE_SCROLL_SPAN_TILE = 0.15;
+const FORCE_SCROLL_SPEED_TILE = 0.015;
+const EXIT_PULSE_BASE = 0.34;
+const EXIT_PULSE_AMPLITUDE = 0.05;
+const TELEPORT_CORE_BASE = 0.14;
+const TELEPORT_CORE_AMPLITUDE = 0.03;
+
+/** Mechanism wires and objective beacon styling. */
+const LINK_DASH_PATTERN: number[] = [6, 4];
+const NO_DASH: number[] = [];
+const LINK_STYLE = {
+  dashSpeed: 0.6,
+  widthTile: 0.07,
+  minWidthPx: 2,
+  hoverAlpha: 0.95,
+  trapAlpha: 0.72,
+  clonerAlpha: 0.75,
+  toggleAlpha: 0.65,
+  teleportAlpha: 0.72,
+  objectiveAlpha: 0.92,
+  objectivePulseBase: 0.36,
+  objectivePulseAmplitude: 0.12,
+  objectivePulseSpeed: 0.16,
+  objectiveHaloOffset: 0.14,
+  objectiveRingWidthTile: 0.058,
+  objectiveHaloWidthTile: 0.029
+} as const;
+
+/** Minimap objective blink: visible for `on` frames out of every `period`. */
+const MINIMAP_BLINK = { period: 20, on: 14 } as const;
+
 export class PixelRenderer {
   private animFrame: number = 0;
+  /** Animation clock in reference frames (fractional), advanced from real elapsed time. */
   private timeTick: number = 0;
+  private lastFrameTimeMs: number | null = null;
   private currentViewportTiles: number = 13;
   private visualViewportTiles: number = 13;
   private lastViewportWidth: number = 13;
@@ -56,10 +144,24 @@ export class PixelRenderer {
   private visualPlayerPos: { x: number; y: number } | null = null;
   private visualCameraPos: { x: number; y: number } | null = null;
   private visualEntityPos: Map<number, { x: number; y: number }> = new Map();
+  private readonly activeEntityUids: Set<number> = new Set();
   private lastLevelId: string = '';
 
   private particles: Particle[] = [];
   private shockwaves: ShockwaveRing[] = [];
+
+  // Terrain cache: static tiles of the visible area plus a margin, redrawn only when
+  // the terrain, trap states, style, theme or tile size change, or the camera leaves it.
+  private readonly terrainSnapshot = new TerrainSnapshot();
+  private terrainFeatures: TerrainFeatures = EMPTY_TERRAIN_FEATURES;
+  private terrainCache: HTMLCanvasElement | null = null;
+  private terrainCacheCtx: CanvasRenderingContext2D | null = null;
+  private terrainCacheKey: string = '';
+  private trapStateKey: string = '';
+  private readonly cacheRegion = { x0: 0, y0: 0, x1: -1, y1: -1 };
+
+  /** Pre-rendered glowing shapes, keyed by kind, style and size. */
+  private readonly sprites: Map<string, HTMLCanvasElement> = new Map();
 
   public incrementFrame(): void {
     this.animFrame = (this.animFrame + 1) % 60;
@@ -151,70 +253,78 @@ export class PixelRenderer {
     gridY: number,
     colorKey?: string
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
-    const gfx = ConfigRegistry.getGame().graphics;
-    const maxParticles = gfx?.maxParticles || 200;
-    const burstCount = gfx?.particleBurstCount || 18;
+    const gameCfg = ConfigRegistry.getGame();
+    const pal = gameCfg.palette;
+    const settings = resolveRenderSettings(gameCfg.graphics);
 
-    const colorMap: Record<string, string> = {
-      red: pal.red,
-      blue: pal.blue,
-      yellow: pal.yellow,
-      green: pal.green
-    };
-
-    let primaryColor = colorKey ? colorMap[colorKey] || pal.yellow : pal.yellow;
-    if (kind === 'chip') primaryColor = '#00e676';
-    else if (kind === 'splash') primaryColor = '#4fc3f7';
-    else if (kind === 'explosion') primaryColor = '#ff6d00';
-    else if (kind === 'teleport') primaryColor = '#ea80fc';
-    else if (kind === 'win') primaryColor = '#69f0ae';
+    const fxKey = FX_COLOR_KEYS[kind];
+    const primaryColor = fxKey ? pal[fxKey] : (colorKey && pal[colorKey]) || pal.yellow;
 
     if (kind === 'explosion') {
-      this.shakeIntensity = gfx?.screenShakeExplosion ?? 9;
+      this.shakeIntensity = settings.screenShakeExplosion;
     }
 
     if (kind === 'teleport' || kind === 'unlock' || kind === 'win' || kind === 'explosion') {
       this.shockwaves.push({
         x: gridX + 0.5,
         y: gridY + 0.5,
-        radius: 0.1,
-        maxRadius: kind === 'win' ? 1.8 : 1.1,
+        radius: settings.shockwaveStartRadius,
+        maxRadius: kind === 'win' ? settings.shockwaveWinMaxRadius : settings.shockwaveMaxRadius,
         color: primaryColor,
         alpha: 1
       });
     }
 
+    const burstCount = settings.particleBurstCount;
     for (let i = 0; i < burstCount; i++) {
-      if (this.particles.length >= maxParticles) {
+      if (this.particles.length >= settings.maxParticles) {
         this.particles.shift();
       }
-      const angle = (Math.PI * 2 * i) / burstCount + (Math.random() - 0.5) * 0.4;
-      const speed = 0.03 + Math.random() * 0.09;
+      const angle = (FULL_TURN * i) / burstCount + (Math.random() - 0.5) * settings.particleAngleJitter;
+      const speed = settings.particleSpeedMin + Math.random() * settings.particleSpeedRange;
       this.particles.push({
         x: gridX + 0.5,
         y: gridY + 0.5,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        radius: 2 + Math.random() * 3,
-        color: i % 3 === 0 ? '#ffffff' : primaryColor,
+        radius: settings.particleRadiusMinTile + Math.random() * settings.particleRadiusRangeTile,
+        color: i % settings.particleSparkleEvery === 0 ? pal.fxSparkle : primaryColor,
         alpha: 1,
-        decay: 0.025 + Math.random() * 0.02
+        decay: settings.particleDecayMin + Math.random() * settings.particleDecayRange
       });
     }
   }
 
-  public renderViewport(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
-    this.timeTick++;
+  /** Advances the animation clock from the real frame time; returns the frame scale. */
+  private advanceClock(settings: RenderSettings): number {
+    const now = performance.now();
+    const frameScale =
+      this.lastFrameTimeMs === null ? 1 : frameScaleFromDelta(now - this.lastFrameTimeMs, settings.maxFrameDeltaMs);
+    this.lastFrameTimeMs = now;
+    this.timeTick += frameScale;
+    return frameScale;
+  }
+
+  private getActiveTheme(): ThemePalette | undefined {
     const gameCfg = ConfigRegistry.getGame();
+    return resolveTheme(gameCfg.themes, this.themeId, gameCfg.graphics?.defaultTheme);
+  }
+
+  public renderViewport(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
+    const gameCfg = ConfigRegistry.getGame();
+    const settings = resolveRenderSettings(gameCfg.graphics);
+    const frameScale = this.advanceClock(settings);
     const gridCfg = gameCfg.grid;
-    const gfxCfg = gameCfg.graphics;
     const { mapWidth, mapHeight } = gridCfg;
     const targetTiles = this.currentViewportTiles || gridCfg.viewportWidth;
     const isModern = this.style === 'modern';
-    const camLerp = isModern ? (gfxCfg?.cameraLerpFactor ?? 0.22) : 1;
+    const camLerp = isModern ? scaleLerpFactor(settings.cameraLerpFactor, frameScale) : 1;
 
-    if (!this.visualViewportTiles || !isModern || Math.abs(targetTiles - this.visualViewportTiles) < 0.04) {
+    if (
+      !this.visualViewportTiles ||
+      !isModern ||
+      Math.abs(targetTiles - this.visualViewportTiles) < settings.zoomSnapEpsilonTiles
+    ) {
       this.visualViewportTiles = targetTiles;
     } else {
       this.visualViewportTiles += (targetTiles - this.visualViewportTiles) * camLerp;
@@ -237,8 +347,8 @@ export class PixelRenderer {
       this.visualPlayerPos = { x: player.x, y: player.y };
     }
 
-    const entityLerp = isModern ? (gfxCfg?.entityLerpFactor ?? 0.32) : 1;
-    const snapDist = gfxCfg?.teleportSnapDistance ?? 1.8;
+    const entityLerp = isModern ? scaleLerpFactor(settings.entityLerpFactor, frameScale) : 1;
+    const snapDist = settings.teleportSnapDistance;
 
     if (!this.visualPlayerPos) {
       this.visualPlayerPos = { x: player.x, y: player.y };
@@ -278,11 +388,11 @@ export class PixelRenderer {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     ctx.save();
-    if (this.shakeIntensity > 0.25) {
+    if (this.shakeIntensity > settings.screenShakeMinIntensity) {
       const sx = (Math.random() - 0.5) * 2 * this.shakeIntensity;
       const sy = (Math.random() - 0.5) * 2 * this.shakeIntensity;
       ctx.translate(sx, sy);
-      this.shakeIntensity *= gfxCfg?.screenShakeDecay ?? 0.85;
+      this.shakeIntensity *= scaleDecay(settings.screenShakeDecay, frameScale);
     } else {
       this.shakeIntensity = 0;
     }
@@ -292,25 +402,42 @@ export class PixelRenderer {
     const startTileY = Math.max(0, Math.floor(camY));
     const endTileY = Math.min(mapHeight - 1, Math.ceil(camY + viewportHeight));
 
+    this.syncTerrainCache(engine, terrain, tilePixelSize, startTileX, endTileX, startTileY, endTileY, settings);
+
+    // Every tile is placed relative to the cache origin so overlays line up with it.
+    const region = this.cacheRegion;
+    const originX = Math.round((region.x0 - camX) * tilePixelSize);
+    const originY = Math.round((region.y0 - camY) * tilePixelSize);
+    const drawSize = Math.ceil(tilePixelSize);
+    if (this.terrainCache) {
+      ctx.drawImage(this.terrainCache, originX, originY);
+    }
+
+    const animatedTiles = isModern ? MODERN_ANIMATED_TILES : RETRO_ANIMATED_TILES;
+    for (const cell of this.terrainFeatures.animatedCells) {
+      if (cell.x < startTileX || cell.x > endTileX || cell.y < startTileY || cell.y > endTileY) continue;
+      if (!animatedTiles.has(cell.tileId)) continue;
+      const px = originX + Math.floor((cell.x - region.x0) * tilePixelSize);
+      const py = originY + Math.floor((cell.y - region.y0) * tilePixelSize);
+      this.drawTile(ctx, cell.tileId, px, py, drawSize, false, false, 'animated');
+    }
+
     for (let my = startTileY; my <= endTileY; my++) {
+      const itemRow = items[my];
+      if (!itemRow) continue;
       for (let mx = startTileX; mx <= endTileX; mx++) {
-        const px = Math.floor((mx - camX) * tilePixelSize);
-        const py = Math.floor((my - camY) * tilePixelSize);
-        const drawSize = Math.ceil(tilePixelSize);
-
-        const tileId = terrain[my]?.[mx] || 'floor';
-        const isClosedTrap = tileId === 'trap' ? engine.isCellClosedTrap(mx, my) : false;
-        this.drawTile(ctx, tileId, px, py, drawSize, false, isClosedTrap);
-
-        const itemId = items[my]?.[mx];
+        const itemId = itemRow[mx];
         if (itemId) {
+          const px = originX + Math.floor((mx - region.x0) * tilePixelSize);
+          const py = originY + Math.floor((my - region.y0) * tilePixelSize);
           this.drawItem(ctx, itemId, px, py, drawSize);
         }
       }
     }
 
     // Update & render entities with smooth interpolation
-    const activeUids = new Set<number>();
+    const activeUids = this.activeEntityUids;
+    activeUids.clear();
     for (const ent of entities) {
       activeUids.add(ent.uid);
       let vPos = this.visualEntityPos.get(ent.uid);
@@ -349,12 +476,12 @@ export class PixelRenderer {
     // Render A* Click-to-Move planned path waypoints
     if (this.plannedPath.length > 0) {
       ctx.save();
-      const theme = gameCfg.themes?.[this.themeId];
-      const pathColor = theme?.accentGlow || '#00e5ff';
+      const theme = this.getActiveTheme();
+      const pathColor = theme ? theme.accentGlow : gameCfg.palette.pathLine;
       ctx.strokeStyle = pathColor;
       ctx.fillStyle = pathColor;
-      ctx.lineWidth = 2.5;
-      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = tilePixelSize * settings.pathLineWidthTile;
+      ctx.globalAlpha = settings.pathAlpha;
       ctx.beginPath();
       for (let i = 0; i < this.plannedPath.length; i++) {
         const pt = this.plannedPath[i];
@@ -372,7 +499,7 @@ export class PixelRenderer {
       const tx = (lastPt.x + 0.5 - camX) * tilePixelSize;
       const ty = (lastPt.y + 0.5 - camY) * tilePixelSize;
       ctx.beginPath();
-      ctx.arc(tx, ty, tilePixelSize * 0.22, 0, Math.PI * 2);
+      ctx.arc(tx, ty, tilePixelSize * 0.22, 0, FULL_TURN);
       ctx.stroke();
       ctx.restore();
     }
@@ -392,10 +519,105 @@ export class PixelRenderer {
     this.drawMechanismLinksAndObjective(ctx, engine, camX, camY, tilePixelSize);
 
     if (isModern) {
-      this.updateAndDrawEffects(ctx, camX, camY, tilePixelSize);
+      this.updateAndDrawEffects(ctx, camX, camY, tilePixelSize, frameScale, settings);
     }
 
     ctx.restore();
+  }
+
+  /**
+   * Keeps the terrain features and the static terrain cache in step with the engine.
+   * The terrain grid is compared against a private copy, so no engine change
+   * notification is needed.
+   */
+  private syncTerrainCache(
+    engine: GameEngine,
+    terrain: string[][],
+    tilePixelSize: number,
+    startTileX: number,
+    endTileX: number,
+    startTileY: number,
+    endTileY: number,
+    settings: RenderSettings
+  ): void {
+    const terrainChanged = this.terrainSnapshot.update(terrain);
+    if (terrainChanged) {
+      this.terrainFeatures = collectTerrainFeatures(terrain, ANY_ANIMATED_TILES);
+    }
+
+    let trapKey = '';
+    for (const trap of this.terrainFeatures.traps) {
+      trapKey += engine.isCellClosedTrap(trap.x, trap.y) ? '1' : '0';
+    }
+
+    const cacheKey = `${this.style}|${this.themeId}|${tilePixelSize}`;
+    const region = this.cacheRegion;
+    const covered =
+      this.terrainCache !== null &&
+      startTileX >= region.x0 &&
+      endTileX <= region.x1 &&
+      startTileY >= region.y0 &&
+      endTileY <= region.y1;
+    if (!terrainChanged && covered && trapKey === this.trapStateKey && cacheKey === this.terrainCacheKey) {
+      return;
+    }
+    this.trapStateKey = trapKey;
+    this.terrainCacheKey = cacheKey;
+
+    // Cache the visible area plus a margin, so small camera moves reuse it, within a pixel budget.
+    const maxTiles = Math.max(1, Math.floor(settings.terrainCacheMaxPx / tilePixelSize));
+    const marginX = Math.max(0, Math.min(settings.terrainCacheMarginTiles, Math.floor((maxTiles - (endTileX - startTileX + 1)) / 2)));
+    const marginY = Math.max(0, Math.min(settings.terrainCacheMarginTiles, Math.floor((maxTiles - (endTileY - startTileY + 1)) / 2)));
+    const mapHeight = terrain.length;
+    const mapWidth = mapHeight > 0 ? terrain[0].length : 0;
+    region.x0 = Math.max(0, startTileX - marginX);
+    region.y0 = Math.max(0, startTileY - marginY);
+    region.x1 = Math.min(mapWidth - 1, endTileX + marginX);
+    region.y1 = Math.min(mapHeight - 1, endTileY + marginY);
+
+    if (!this.terrainCache) {
+      this.terrainCache = document.createElement('canvas');
+      this.terrainCacheCtx = this.terrainCache.getContext('2d');
+    }
+    const cache = this.terrainCache;
+    const cacheCtx = this.terrainCacheCtx;
+    if (!cacheCtx) return;
+    const widthPx = Math.ceil((region.x1 - region.x0 + 1) * tilePixelSize) + 1;
+    const heightPx = Math.ceil((region.y1 - region.y0 + 1) * tilePixelSize) + 1;
+    if (cache.width !== widthPx || cache.height !== heightPx) {
+      cache.width = widthPx;
+      cache.height = heightPx;
+    } else {
+      cacheCtx.clearRect(0, 0, widthPx, heightPx);
+    }
+
+    const drawSize = Math.ceil(tilePixelSize);
+    for (let my = region.y0; my <= region.y1; my++) {
+      for (let mx = region.x0; mx <= region.x1; mx++) {
+        const px = Math.floor((mx - region.x0) * tilePixelSize);
+        const py = Math.floor((my - region.y0) * tilePixelSize);
+        const tileId = terrain[my]?.[mx] || 'floor';
+        const isClosedTrap = tileId === 'trap' ? engine.isCellClosedTrap(mx, my) : false;
+        this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static');
+      }
+    }
+  }
+
+  /** Strokes a straight wire between the centres of two grid cells. */
+  private strokeGridLink(
+    ctx: CanvasRenderingContext2D,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    camX: number,
+    camY: number,
+    tilePixelSize: number
+  ): void {
+    ctx.beginPath();
+    ctx.moveTo((ax + 0.5 - camX) * tilePixelSize, (ay + 0.5 - camY) * tilePixelSize);
+    ctx.lineTo((bx + 0.5 - camX) * tilePixelSize, (by + 0.5 - camY) * tilePixelSize);
+    ctx.stroke();
   }
 
   private drawMechanismLinksAndObjective(
@@ -405,108 +627,83 @@ export class PixelRenderer {
     camY: number,
     tilePixelSize: number
   ): void {
+    const pal = ConfigRegistry.getGame().palette;
     const terrain = engine.getTerrain();
     const hov = this.hoveredGridPoint;
     const hovTile = hov ? terrain[hov.y]?.[hov.x] : null;
     const showAll = this.showMechanismLinks;
 
     ctx.save();
-    ctx.setLineDash([6, 4]);
-    ctx.lineDashOffset = -(this.timeTick * 0.6);
-    ctx.lineWidth = Math.max(2, tilePixelSize * 0.07);
+    ctx.setLineDash(LINK_DASH_PATTERN);
+    ctx.lineDashOffset = -(this.timeTick * LINK_STYLE.dashSpeed);
+    ctx.lineWidth = Math.max(LINK_STYLE.minWidthPx, tilePixelSize * LINK_STYLE.widthTile);
 
     // 1. Brown Button <-> Bear Trap wires
+    ctx.strokeStyle = pal.linkTrap;
     for (const link of engine.getTrapLinks()) {
       const isHovered =
         hov &&
         ((hov.x === link.buttonX && hov.y === link.buttonY) ||
           (hov.x === link.trapX && hov.y === link.trapY));
       if (!showAll && !isHovered) continue;
-
-      ctx.strokeStyle = '#ffb300';
-      ctx.globalAlpha = isHovered ? 0.95 : 0.72;
-      ctx.beginPath();
-      ctx.moveTo((link.buttonX + 0.5 - camX) * tilePixelSize, (link.buttonY + 0.5 - camY) * tilePixelSize);
-      ctx.lineTo((link.trapX + 0.5 - camX) * tilePixelSize, (link.trapY + 0.5 - camY) * tilePixelSize);
-      ctx.stroke();
+      ctx.globalAlpha = isHovered ? LINK_STYLE.hoverAlpha : LINK_STYLE.trapAlpha;
+      this.strokeGridLink(ctx, link.buttonX, link.buttonY, link.trapX, link.trapY, camX, camY, tilePixelSize);
     }
 
     // 2. Red Button <-> Clone Machine wires
+    ctx.strokeStyle = pal.linkCloner;
     for (const link of engine.getCloneLinks()) {
       const isHovered =
         hov &&
         ((hov.x === link.buttonX && hov.y === link.buttonY) ||
           (hov.x === link.clonerX && hov.y === link.clonerY));
       if (!showAll && !isHovered) continue;
-
-      ctx.strokeStyle = '#ff1744';
-      ctx.globalAlpha = isHovered ? 0.95 : 0.75;
-      ctx.beginPath();
-      ctx.moveTo((link.buttonX + 0.5 - camX) * tilePixelSize, (link.buttonY + 0.5 - camY) * tilePixelSize);
-      ctx.lineTo((link.clonerX + 0.5 - camX) * tilePixelSize, (link.clonerY + 0.5 - camY) * tilePixelSize);
-      ctx.stroke();
+      ctx.globalAlpha = isHovered ? LINK_STYLE.hoverAlpha : LINK_STYLE.clonerAlpha;
+      this.strokeGridLink(ctx, link.buttonX, link.buttonY, link.clonerX, link.clonerY, camX, camY, tilePixelSize);
     }
 
-    // 3. Green Button <-> Toggle Walls & Teleporter pairs
-    if (showAll || hovTile === 'button_green' || hovTile === 'teleport') {
-      const greenButtons: GridPoint[] = [];
-      const toggleWalls: GridPoint[] = [];
-      const teleporters: GridPoint[] = [];
-
-      for (let y = 0; y < terrain.length; y++) {
-        for (let x = 0; x < terrain[y].length; x++) {
-          const t = terrain[y][x];
-          if (t === 'button_green') greenButtons.push({ x, y });
-          else if (t === 'toggle_wall_closed' || t === 'toggle_wall_open') toggleWalls.push({ x, y });
-          else if (t === 'teleport') teleporters.push({ x, y });
+    // 3. Green Button <-> Toggle Walls & Teleporter pairs (lists cached on terrain change)
+    const { greenButtons, toggleWalls, teleporters } = this.terrainFeatures;
+    if (showAll || hovTile === 'button_green') {
+      ctx.strokeStyle = pal.linkToggle;
+      ctx.globalAlpha = LINK_STYLE.toggleAlpha;
+      for (const gb of greenButtons) {
+        for (const tw of toggleWalls) {
+          this.strokeGridLink(ctx, gb.x, gb.y, tw.x, tw.y, camX, camY, tilePixelSize);
         }
       }
+    }
 
-      if (showAll || hovTile === 'button_green') {
-        ctx.strokeStyle = '#00e676';
-        ctx.globalAlpha = 0.65;
-        for (const gb of greenButtons) {
-          for (const tw of toggleWalls) {
-            ctx.beginPath();
-            ctx.moveTo((gb.x + 0.5 - camX) * tilePixelSize, (gb.y + 0.5 - camY) * tilePixelSize);
-            ctx.lineTo((tw.x + 0.5 - camX) * tilePixelSize, (tw.y + 0.5 - camY) * tilePixelSize);
-            ctx.stroke();
-          }
-        }
-      }
-
-      if ((showAll || hovTile === 'teleport') && teleporters.length >= 2) {
-        ctx.strokeStyle = '#ea80fc';
-        ctx.globalAlpha = 0.72;
-        for (let i = 0; i < teleporters.length; i++) {
-          const a = teleporters[i];
-          const b = teleporters[(i + 1) % teleporters.length];
-          ctx.beginPath();
-          ctx.moveTo((a.x + 0.5 - camX) * tilePixelSize, (a.y + 0.5 - camY) * tilePixelSize);
-          ctx.lineTo((b.x + 0.5 - camX) * tilePixelSize, (b.y + 0.5 - camY) * tilePixelSize);
-          ctx.stroke();
-        }
+    if ((showAll || hovTile === 'teleport') && teleporters.length >= 2) {
+      ctx.strokeStyle = pal.linkTeleport;
+      ctx.globalAlpha = LINK_STYLE.teleportAlpha;
+      for (let i = 0; i < teleporters.length; i++) {
+        const a = teleporters[i];
+        const b = teleporters[(i + 1) % teleporters.length];
+        this.strokeGridLink(ctx, a.x, a.y, b.x, b.y, camX, camY, tilePixelSize);
       }
     }
 
     // 4. Objective Beacon Reticle
     if (this.objectivePoint) {
-      ctx.setLineDash([]);
-      const pulse = 0.36 + 0.12 * Math.sin(this.timeTick * 0.16);
+      ctx.setLineDash(NO_DASH);
+      const pulse =
+        LINK_STYLE.objectivePulseBase +
+        LINK_STYLE.objectivePulseAmplitude * Math.sin(this.timeTick * LINK_STYLE.objectivePulseSpeed);
       const ox = (this.objectivePoint.x + 0.5 - camX) * tilePixelSize;
       const oy = (this.objectivePoint.y + 0.5 - camY) * tilePixelSize;
 
-      ctx.strokeStyle = '#ffd600';
-      ctx.lineWidth = 3;
-      ctx.globalAlpha = 0.92;
+      ctx.strokeStyle = pal.objectiveRing;
+      ctx.lineWidth = Math.max(1, tilePixelSize * LINK_STYLE.objectiveRingWidthTile);
+      ctx.globalAlpha = LINK_STYLE.objectiveAlpha;
       ctx.beginPath();
-      ctx.arc(ox, oy, tilePixelSize * pulse, 0, Math.PI * 2);
+      ctx.arc(ox, oy, tilePixelSize * pulse, 0, FULL_TURN);
       ctx.stroke();
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = pal.objectiveHalo;
+      ctx.lineWidth = Math.max(1, tilePixelSize * LINK_STYLE.objectiveHaloWidthTile);
       ctx.beginPath();
-      ctx.arc(ox, oy, tilePixelSize * (pulse + 0.14), 0, Math.PI * 2);
+      ctx.arc(ox, oy, tilePixelSize * (pulse + LINK_STYLE.objectiveHaloOffset), 0, FULL_TURN);
       ctx.stroke();
     }
 
@@ -517,13 +714,16 @@ export class PixelRenderer {
     ctx: CanvasRenderingContext2D,
     camX: number,
     camY: number,
-    tilePixelSize: number
+    tilePixelSize: number,
+    frameScale: number,
+    settings: RenderSettings
   ): void {
     ctx.save();
+    ctx.lineWidth = Math.max(1, tilePixelSize * settings.shockwaveLineWidthTile);
     for (let i = this.shockwaves.length - 1; i >= 0; i--) {
       const sw = this.shockwaves[i];
-      sw.radius += 0.06;
-      sw.alpha -= 0.045;
+      sw.radius += settings.shockwaveGrowthPerFrame * frameScale;
+      sw.alpha -= settings.shockwaveFadePerFrame * frameScale;
       if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) {
         this.shockwaves.splice(i, 1);
         continue;
@@ -532,17 +732,16 @@ export class PixelRenderer {
       const sy = (sw.y - camY) * tilePixelSize;
       ctx.strokeStyle = sw.color;
       ctx.globalAlpha = Math.max(0, sw.alpha);
-      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(sx, sy, sw.radius * tilePixelSize, 0, Math.PI * 2);
+      ctx.arc(sx, sy, sw.radius * tilePixelSize, 0, FULL_TURN);
       ctx.stroke();
     }
 
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.alpha -= p.decay;
+      p.x += p.vx * frameScale;
+      p.y += p.vy * frameScale;
+      p.alpha -= p.decay * frameScale;
       if (p.alpha <= 0) {
         this.particles.splice(i, 1);
         continue;
@@ -552,7 +751,7 @@ export class PixelRenderer {
       ctx.fillStyle = p.color;
       ctx.globalAlpha = Math.max(0, p.alpha);
       ctx.beginPath();
-      ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+      ctx.arc(px, py, p.radius * tilePixelSize, 0, FULL_TURN);
       ctx.fill();
     }
     ctx.restore();
@@ -574,7 +773,7 @@ export class PixelRenderer {
     for (let y = 0; y < mapHeight; y++) {
       for (let x = 0; x < mapWidth; x++) {
         const tId = terrain[y][x];
-        let color = '#1e222b';
+        let color = pal.minimapFloor;
         if (tId === 'wall' || tId === 'toggle_wall_closed') color = pal.wallBase;
         else if (tId === 'water') color = pal.waterDeep;
         else if (tId === 'fire') color = pal.fireBase;
@@ -598,11 +797,11 @@ export class PixelRenderer {
       ctx.fillRect(ent.x * cellPx, ent.y * cellPx, cellPx, cellPx);
     }
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = pal.minimapPlayer;
     ctx.fillRect(player.x * cellPx, player.y * cellPx, cellPx, cellPx);
 
-    if (this.objectivePoint && this.timeTick % 20 < 14) {
-      ctx.strokeStyle = '#ffd600';
+    if (this.objectivePoint && this.timeTick % MINIMAP_BLINK.period < MINIMAP_BLINK.on) {
+      ctx.strokeStyle = pal.minimapObjective;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(
         this.objectivePoint.x * cellPx - 1,
@@ -612,11 +811,14 @@ export class PixelRenderer {
       );
     }
 
-    const halfW = Math.floor(viewportWidth / 2);
-    const halfH = Math.floor(viewportHeight / 2);
-    const camX = Math.max(0, Math.min(mapWidth - viewportWidth, player.x - halfW));
-    const camY = Math.max(0, Math.min(mapHeight - viewportHeight, player.y - halfH));
-    ctx.strokeStyle = 'rgba(255, 214, 0, 0.75)';
+    // Show the frame the main view actually displays; compute it only before the first render.
+    const camX =
+      this.visualCameraPos?.x ??
+      Math.max(0, Math.min(mapWidth - viewportWidth, player.x - Math.floor(viewportWidth / 2)));
+    const camY =
+      this.visualCameraPos?.y ??
+      Math.max(0, Math.min(mapHeight - viewportHeight, player.y - Math.floor(viewportHeight / 2)));
+    ctx.strokeStyle = pal.minimapViewport;
     ctx.lineWidth = 1;
     ctx.strokeRect(
       camX * cellPx + 0.5,
@@ -633,15 +835,24 @@ export class PixelRenderer {
     y: number,
     size: number,
     isEditor: boolean = false,
-    isClosedTrap: boolean = true
+    isClosedTrap: boolean = true,
+    pass: TilePass = 'all'
   ): void {
     if (this.style === 'modern' && !isEditor) {
-      this.drawModernTile(ctx, tileId, x, y, size, isClosedTrap);
+      const theme = this.getActiveTheme();
+      // Modern tiles are themed; without any theme configured the retro look is used.
+      if (theme) {
+        this.drawModernTile(ctx, tileId, x, y, size, isClosedTrap, theme, pass);
+        return;
+      }
+    }
+
+    if (pass === 'animated') {
+      if (RETRO_ANIMATED_TILES.has(tileId)) this.drawRetroAnimatedOverlay(ctx, tileId, x, y, size);
       return;
     }
 
     const pal = ConfigRegistry.getGame().palette;
-    const phase = Math.floor(this.animFrame / 8) % 4;
 
     ctx.fillStyle = pal.floorBase;
     ctx.fillRect(x, y, size, size);
@@ -763,33 +974,12 @@ export class PixelRenderer {
       case 'water': {
         ctx.fillStyle = pal.waterDeep;
         ctx.fillRect(x, y, size, size);
-        ctx.fillStyle = pal.waterWave;
-        const waveOffset = (phase * 3) % 8;
-        for (let row = 0; row < 3; row++) {
-          const wy = y + Math.floor(size * (0.22 + row * 0.28));
-          ctx.fillRect(x + 4 + waveOffset, wy, Math.floor(size * 0.35), 2);
-          ctx.fillRect(x + Math.floor(size * 0.55) - waveOffset, wy + 2, Math.floor(size * 0.3), 2);
-        }
         break;
       }
 
       case 'fire': {
         ctx.fillStyle = pal.fireBase;
         ctx.fillRect(x, y, size, size);
-        ctx.fillStyle = pal.fireMid;
-        const flicker = (phase % 2) * 2;
-        ctx.beginPath();
-        ctx.moveTo(x + size * 0.15, y + size * 0.88);
-        ctx.lineTo(x + size * 0.32, y + size * 0.25 + flicker);
-        ctx.lineTo(x + size * 0.5, y + size * 0.65);
-        ctx.lineTo(x + size * 0.68, y + size * 0.18 - flicker);
-        ctx.lineTo(x + size * 0.85, y + size * 0.88);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = pal.fireTip;
-        ctx.fillRect(x + size * 0.3, y + size * 0.45 + flicker, size * 0.14, size * 0.3);
-        ctx.fillRect(x + size * 0.58, y + size * 0.38 - flicker, size * 0.14, size * 0.35);
         break;
       }
 
@@ -806,37 +996,7 @@ export class PixelRenderer {
         ctx.moveTo(x + size * 0.2, y + size * 0.8);
         ctx.lineTo(x + size * 0.8, y + size * 0.2);
         ctx.stroke();
-
-        ctx.fillStyle = pal.iceCornerWall;
-        if (tileId === 'ice_nw') {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x + size, y);
-          ctx.lineTo(x, y + size);
-          ctx.closePath();
-          ctx.fill();
-        } else if (tileId === 'ice_ne') {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x + size, y);
-          ctx.lineTo(x + size, y + size);
-          ctx.closePath();
-          ctx.fill();
-        } else if (tileId === 'ice_sw') {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x, y + size);
-          ctx.lineTo(x + size, y + size);
-          ctx.closePath();
-          ctx.fill();
-        } else if (tileId === 'ice_se') {
-          ctx.beginPath();
-          ctx.moveTo(x + size, y);
-          ctx.lineTo(x + size, y + size);
-          ctx.lineTo(x, y + size);
-          ctx.closePath();
-          ctx.fill();
-        }
+        this.fillIceCorner(ctx, tileId, x, y, size, pal.iceCornerWall);
         break;
       }
 
@@ -853,7 +1013,7 @@ export class PixelRenderer {
         const r = size * 0.28;
         if (tileId === 'force_random') {
           ctx.beginPath();
-          ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
+          ctx.arc(cx, cy, r * 0.8, 0, FULL_TURN);
           ctx.fill();
         } else {
           ctx.beginPath();
@@ -890,25 +1050,14 @@ export class PixelRenderer {
         break;
       }
 
-      case 'exit': {
-        const pulse = phase % 2 === 0 ? pal.exitBase : pal.exitPulse;
-        ctx.fillStyle = pulse;
-        ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
-        ctx.fillStyle = pal.exitCore;
-        ctx.fillRect(x + size * 0.22, y + size * 0.22, size * 0.56, size * 0.56);
-        ctx.fillStyle = pulse;
-        ctx.fillRect(x + size * 0.36, y + size * 0.36, size * 0.28, size * 0.28);
+      case 'exit':
+        // Fully animated, drawn by drawRetroAnimatedOverlay.
         break;
-      }
 
       case 'hint': {
         ctx.fillStyle = pal.hintSign;
         ctx.fillRect(x + size * 0.2, y + size * 0.15, size * 0.6, size * 0.7);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${Math.floor(size * 0.55)}px monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('?', x + size / 2, y + size / 2 + 1);
+        this.drawHintGlyph(ctx, x, y, size, 0.55, this.getSettings().hintFontRetro, pal.hintGlyph);
         break;
       }
 
@@ -925,8 +1074,8 @@ export class PixelRenderer {
       case 'door_yellow':
       case 'door_green': {
         const def = ConfigRegistry.getTile(tileId);
-        const cKey = def.colorKey || 'red';
-        const color = pal[cKey] || pal.red;
+        const cKey = def.colorKey || DEFAULT_COLOR_KEY;
+        const color = pal[cKey] || pal[DEFAULT_COLOR_KEY];
         ctx.fillStyle = pal.wallShadow;
         ctx.fillRect(x, y, size, size);
         ctx.fillStyle = color;
@@ -941,34 +1090,15 @@ export class PixelRenderer {
       case 'button_blue':
       case 'button_brown':
       case 'button_red': {
-        const colorMap: Record<string, string> = {
-          button_green: pal.green,
-          button_blue: pal.blue,
-          button_brown: pal.brown,
-          button_red: pal.red
-        };
-        const glyphMap: Record<string, string> = {
-          button_green: 'green',
-          button_blue: 'blue',
-          button_brown: 'yellow',
-          button_red: 'red'
-        };
         ctx.fillStyle = pal.wallShadow;
         ctx.beginPath();
-        ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, Math.PI * 2);
+        ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, FULL_TURN);
         ctx.fill();
-        ctx.fillStyle = colorMap[tileId] || pal.red;
+        ctx.fillStyle = this.buttonColor(tileId);
         ctx.beginPath();
-        ctx.arc(x + size / 2, y + size / 2, size * 0.22, 0, Math.PI * 2);
+        ctx.arc(x + size / 2, y + size / 2, size * 0.22, 0, FULL_TURN);
         ctx.fill();
-        this.drawColorGlyph(
-          ctx,
-          glyphMap[tileId] || 'red',
-          x + size / 2,
-          y + size / 2,
-          size * 0.09,
-          '#11151c'
-        );
+        this.drawButtonGlyph(ctx, tileId, x, y, size);
         break;
       }
 
@@ -994,12 +1124,8 @@ export class PixelRenderer {
         ctx.strokeStyle = pal.teleportRing;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(x + size / 2, y + size / 2, size * 0.34, 0, Math.PI * 2);
+        ctx.arc(x + size / 2, y + size / 2, size * 0.34, 0, FULL_TURN);
         ctx.stroke();
-        ctx.fillStyle = pal.teleportCore;
-        ctx.beginPath();
-        ctx.arc(x + size / 2, y + size / 2, size * (0.14 + (phase % 2) * 0.04), 0, Math.PI * 2);
-        ctx.fill();
         break;
       }
 
@@ -1009,7 +1135,7 @@ export class PixelRenderer {
         ctx.fillStyle = isClosedTrap ? pal.trapInner : pal.floorBase;
         ctx.fillRect(x + 8, y + 8, size - 16, size - 16);
         if (isClosedTrap) {
-          ctx.fillStyle = '#cfd8dc';
+          ctx.fillStyle = pal.trapTeeth;
           for (let i = 0; i < 3; i++) {
             const tx = x + 9 + i * Math.floor((size - 18) / 3);
             ctx.fillRect(tx, y + size * 0.45, 3, 5);
@@ -1028,6 +1154,72 @@ export class PixelRenderer {
         break;
       }
     }
+
+    if (pass === 'all' && RETRO_ANIMATED_TILES.has(tileId)) {
+      this.drawRetroAnimatedOverlay(ctx, tileId, x, y, size);
+    }
+  }
+
+  /** Retro parts that change with the engine tick phase. */
+  private drawRetroAnimatedOverlay(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const phase = Math.floor(this.animFrame / RETRO_PHASE_TICKS) % RETRO_PHASE_COUNT;
+
+    switch (tileId) {
+      case 'water': {
+        ctx.fillStyle = pal.waterWave;
+        const waveOffset = (phase * 3) % 8;
+        for (let row = 0; row < 3; row++) {
+          const wy = y + Math.floor(size * (0.22 + row * 0.28));
+          ctx.fillRect(x + 4 + waveOffset, wy, Math.floor(size * 0.35), 2);
+          ctx.fillRect(x + Math.floor(size * 0.55) - waveOffset, wy + 2, Math.floor(size * 0.3), 2);
+        }
+        break;
+      }
+
+      case 'fire': {
+        ctx.fillStyle = pal.fireMid;
+        const flicker = (phase % 2) * 2;
+        ctx.beginPath();
+        ctx.moveTo(x + size * 0.15, y + size * 0.88);
+        ctx.lineTo(x + size * 0.32, y + size * 0.25 + flicker);
+        ctx.lineTo(x + size * 0.5, y + size * 0.65);
+        ctx.lineTo(x + size * 0.68, y + size * 0.18 - flicker);
+        ctx.lineTo(x + size * 0.85, y + size * 0.88);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = pal.fireTip;
+        ctx.fillRect(x + size * 0.3, y + size * 0.45 + flicker, size * 0.14, size * 0.3);
+        ctx.fillRect(x + size * 0.58, y + size * 0.38 - flicker, size * 0.14, size * 0.35);
+        break;
+      }
+
+      case 'exit': {
+        const pulse = phase % 2 === 0 ? pal.exitBase : pal.exitPulse;
+        ctx.fillStyle = pulse;
+        ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+        ctx.fillStyle = pal.exitCore;
+        ctx.fillRect(x + size * 0.22, y + size * 0.22, size * 0.56, size * 0.56);
+        ctx.fillStyle = pulse;
+        ctx.fillRect(x + size * 0.36, y + size * 0.36, size * 0.28, size * 0.28);
+        break;
+      }
+
+      case 'teleport': {
+        ctx.fillStyle = pal.teleportCore;
+        ctx.beginPath();
+        ctx.arc(x + size / 2, y + size / 2, size * (0.14 + (phase % 2) * 0.04), 0, FULL_TURN);
+        ctx.fill();
+        break;
+      }
+    }
   }
 
   private drawModernTile(
@@ -1036,28 +1228,35 @@ export class PixelRenderer {
     x: number,
     y: number,
     size: number,
-    isClosedTrap: boolean
+    isClosedTrap: boolean,
+    theme: ThemePalette,
+    pass: TilePass
   ): void {
-    const gameCfg = ConfigRegistry.getGame();
-    const pal = gameCfg.palette;
-    const theme = gameCfg.themes?.[this.themeId];
-    const t = this.timeTick * 0.08;
+    if (pass === 'animated') {
+      if (MODERN_ANIMATED_TILES.has(tileId)) this.drawModernAnimatedOverlay(ctx, tileId, x, y, size);
+      return;
+    }
+
+    const pal = ConfigRegistry.getGame().palette;
+    const glow = this.getSettings().glowBlurPx;
 
     // Modern sleek biome-themed floor with subtle gradient
     const floorGrad = ctx.createLinearGradient(x, y, x + size, y + size);
-    floorGrad.addColorStop(0, theme?.floorTop || pal.modernFloorTop || '#232a38');
-    floorGrad.addColorStop(1, theme?.floorBottom || pal.modernFloorBottom || '#1b212d');
+    floorGrad.addColorStop(0, theme.floorTop);
+    floorGrad.addColorStop(1, theme.floorBottom);
     ctx.fillStyle = floorGrad;
     ctx.fillRect(x, y, size, size);
 
-    ctx.strokeStyle = theme?.floorGrid || pal.modernFloorGrid || '#2e3748';
+    ctx.strokeStyle = theme.floorGrid;
     ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
 
     // Subtle corner tech rivets on floor
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.fillRect(x + 3, y + 3, 2, 2);
-    ctx.fillRect(x + size - 5, y + size - 5, 2, 2);
+    const rivet = Math.max(1, size * FLOOR_RIVET_SIZE_TILE);
+    const inset = size * FLOOR_RIVET_INSET_TILE;
+    ctx.fillStyle = pal.modernFloorRivet;
+    ctx.fillRect(x + inset, y + inset, rivet, rivet);
+    ctx.fillRect(x + size - inset - rivet, y + size - inset - rivet, rivet, rivet);
 
     switch (tileId) {
       case 'floor':
@@ -1067,16 +1266,16 @@ export class PixelRenderer {
 
       case 'wall': {
         const wGrad = ctx.createLinearGradient(x, y, x, y + size);
-        wGrad.addColorStop(0, theme?.wallTop || pal.modernWallTop || '#4b5975');
-        wGrad.addColorStop(1, theme?.wallBottom || pal.modernWallSide || '#2b3446');
-        ctx.fillStyle = '#141821';
+        wGrad.addColorStop(0, theme.wallTop);
+        wGrad.addColorStop(1, theme.wallBottom);
+        ctx.fillStyle = pal.modernWallBase;
         ctx.fillRect(x, y, size, size);
         ctx.fillStyle = wGrad;
         this.roundRect(ctx, x + 2, y + 2, size - 4, size - 5, 5);
         ctx.fill();
 
         // Inner bevel panel
-        ctx.strokeStyle = theme?.wallBevel || 'rgba(100, 181, 246, 0.35)';
+        ctx.strokeStyle = theme.wallBevel;
         ctx.globalAlpha = 0.5;
         ctx.lineWidth = 1.5;
         this.roundRect(ctx, x + 5, y + 5, size - 10, size - 12, 3);
@@ -1086,10 +1285,10 @@ export class PixelRenderer {
       }
 
       case 'recessed_wall': {
-        ctx.fillStyle = 'rgba(75, 89, 117, 0.45)';
+        ctx.fillStyle = pal.modernRecessedFill;
         this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
         ctx.fill();
-        ctx.strokeStyle = '#64b5f6';
+        ctx.strokeStyle = pal.modernWallAccent;
         ctx.lineWidth = 1.2;
         ctx.stroke();
         break;
@@ -1098,12 +1297,12 @@ export class PixelRenderer {
       case 'blue_wall_real':
       case 'blue_wall_fake': {
         const bGrad = ctx.createLinearGradient(x, y, x + size, y + size);
-        bGrad.addColorStop(0, '#2979ff');
-        bGrad.addColorStop(1, '#0d47a1');
+        bGrad.addColorStop(0, pal.modernBlueWallTop);
+        bGrad.addColorStop(1, pal.modernBlueWallBottom);
         ctx.fillStyle = bGrad;
         this.roundRect(ctx, x + 2, y + 2, size - 4, size - 4, 5);
         ctx.fill();
-        ctx.strokeStyle = '#82b1ff';
+        ctx.strokeStyle = pal.modernBlueWallEdge;
         ctx.lineWidth = 1.5;
         this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 3);
         ctx.stroke();
@@ -1119,9 +1318,9 @@ export class PixelRenderer {
         const edges = def.blockedEdges || [];
         const bar = Math.max(5, Math.floor(size * 0.14));
         ctx.save();
-        ctx.fillStyle = '#00e5ff';
-        ctx.shadowColor = '#00e5ff';
-        ctx.shadowBlur = 6;
+        ctx.fillStyle = pal.modernThinWall;
+        ctx.shadowColor = pal.modernThinWall;
+        ctx.shadowBlur = glow.soft;
         if (edges.includes('N')) ctx.fillRect(x, y, size, bar);
         if (edges.includes('S')) ctx.fillRect(x, y + size - bar, size, bar);
         if (edges.includes('W')) ctx.fillRect(x, y, bar, size);
@@ -1139,8 +1338,8 @@ export class PixelRenderer {
           y + size / 2,
           size * 0.7
         );
-        dGrad.addColorStop(0, '#8d6e63');
-        dGrad.addColorStop(1, '#4e342e');
+        dGrad.addColorStop(0, pal.modernDirtCenter);
+        dGrad.addColorStop(1, pal.modernDirtEdge);
         ctx.fillStyle = dGrad;
         this.roundRect(ctx, x + 2, y + 2, size - 4, size - 4, 4);
         ctx.fill();
@@ -1148,15 +1347,15 @@ export class PixelRenderer {
       }
 
       case 'gravel': {
-        ctx.fillStyle = '#455a64';
+        ctx.fillStyle = pal.modernGravelBase;
         this.roundRect(ctx, x + 2, y + 2, size - 4, size - 4, 4);
         ctx.fill();
-        ctx.fillStyle = '#90a4ae';
+        ctx.fillStyle = pal.modernGravelStone;
         for (let i = 0; i < 5; i++) {
           const gx = x + ((i * 17 + 7) % (size - 12)) + 5;
           const gy = y + ((i * 23 + 9) % (size - 12)) + 5;
           ctx.beginPath();
-          ctx.arc(gx, gy, 2.5, 0, Math.PI * 2);
+          ctx.arc(gx, gy, 2.5, 0, FULL_TURN);
           ctx.fill();
         }
         break;
@@ -1164,13 +1363,230 @@ export class PixelRenderer {
 
       case 'water': {
         const wGrad = ctx.createLinearGradient(x, y, x + size, y + size);
-        wGrad.addColorStop(0, pal.modernWaterTop || '#0077c2');
-        wGrad.addColorStop(1, pal.modernWaterBottom || '#004ba0');
+        wGrad.addColorStop(0, pal.modernWaterTop);
+        wGrad.addColorStop(1, pal.modernWaterBottom);
         ctx.fillStyle = wGrad;
         ctx.fillRect(x, y, size, size);
+        break;
+      }
 
+      case 'fire': {
+        const fGrad = ctx.createRadialGradient(
+          x + size / 2,
+          y + size * 0.65,
+          2,
+          x + size / 2,
+          y + size / 2,
+          size * 0.65
+        );
+        fGrad.addColorStop(0, pal.modernFireCore);
+        fGrad.addColorStop(0.55, pal.modernFireMid);
+        fGrad.addColorStop(1, pal.modernFireEdge);
+        ctx.fillStyle = fGrad;
+        ctx.fillRect(x, y, size, size);
+        break;
+      }
+
+      case 'ice':
+      case 'ice_nw':
+      case 'ice_ne':
+      case 'ice_sw':
+      case 'ice_se': {
+        const iGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+        iGrad.addColorStop(0, pal.modernIceTop);
+        iGrad.addColorStop(0.5, pal.modernIceMid);
+        iGrad.addColorStop(1, pal.modernIceBottom);
+        ctx.fillStyle = iGrad;
+        ctx.fillRect(x, y, size, size);
+
+        // Glossy diagonal specular streak
+        ctx.strokeStyle = pal.modernIceStreak;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x + size * 0.18, y + size * 0.78);
+        ctx.lineTo(x + size * 0.78, y + size * 0.18);
+        ctx.stroke();
+
+        this.fillIceCorner(ctx, tileId, x, y, size, pal.modernIceCornerWall);
+        break;
+      }
+
+      case 'force_n':
+      case 'force_e':
+      case 'force_s':
+      case 'force_w':
+      case 'force_random': {
+        ctx.fillStyle = pal.modernForceBg;
+        ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+        break;
+      }
+
+      case 'socket': {
+        ctx.fillStyle = pal.modernSocketBase;
+        this.roundRect(ctx, x + 3, y + 3, size - 6, size - 6, 6);
+        ctx.fill();
+        ctx.save();
+        ctx.strokeStyle = pal.modernSocketRing;
+        ctx.shadowColor = pal.modernSocketRing;
+        ctx.shadowBlur = glow.medium;
+        ctx.lineWidth = 2.5;
+        this.roundRect(ctx, x + size * 0.24, y + size * 0.24, size * 0.52, size * 0.52, 4);
+        ctx.stroke();
+        ctx.restore();
+        break;
+      }
+
+      case 'exit':
+      case 'teleport':
+        // Fully animated, drawn by drawModernAnimatedOverlay.
+        break;
+
+      case 'hint': {
+        ctx.save();
+        ctx.fillStyle = pal.modernHintFill;
+        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 6);
+        ctx.fill();
+        ctx.strokeStyle = pal.modernHintRing;
+        ctx.shadowColor = pal.modernHintRing;
+        ctx.shadowBlur = glow.medium;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        this.drawHintGlyph(ctx, x, y, size, 0.52, this.getSettings().hintFontModern, pal.hintGlyph);
+        ctx.restore();
+        break;
+      }
+
+      case 'thief': {
+        ctx.fillStyle = pal.thiefCloak;
+        this.roundRect(ctx, x + size * 0.18, y + size * 0.16, size * 0.64, size * 0.68, 8);
+        ctx.fill();
+        ctx.fillStyle = pal.thiefMask;
+        ctx.fillRect(x + size * 0.26, y + size * 0.34, size * 0.48, size * 0.14);
+        break;
+      }
+
+      case 'door_red':
+      case 'door_blue':
+      case 'door_yellow':
+      case 'door_green': {
+        const def = ConfigRegistry.getTile(tileId);
+        const cKey = def.colorKey || DEFAULT_COLOR_KEY;
+        const color = pal[cKey] || pal[DEFAULT_COLOR_KEY];
+        ctx.fillStyle = pal.modernDoorFrame;
+        this.roundRect(ctx, x + 2, y + 2, size - 4, size - 4, 6);
+        ctx.fill();
+
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = glow.medium;
+        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
+        ctx.fill();
+        ctx.restore();
+
+        this.drawColorGlyph(ctx, cKey, x + size / 2, y + size * 0.44, size * 0.15, pal.modernDoorFrame);
+        ctx.fillStyle = pal.modernDoorFrame;
+        ctx.fillRect(x + size * 0.46, y + size * 0.56, size * 0.08, size * 0.16);
+        break;
+      }
+
+      case 'button_green':
+      case 'button_blue':
+      case 'button_brown':
+      case 'button_red': {
+        const c = this.buttonColor(tileId);
+        ctx.fillStyle = pal.modernButtonBase;
+        ctx.beginPath();
+        ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, FULL_TURN);
+        ctx.fill();
+
+        ctx.save();
+        ctx.fillStyle = c;
+        ctx.shadowColor = c;
+        ctx.shadowBlur = glow.medium;
+        ctx.beginPath();
+        ctx.arc(x + size / 2, y + size / 2, size * 0.21, 0, FULL_TURN);
+        ctx.fill();
+        ctx.restore();
+        this.drawButtonGlyph(ctx, tileId, x, y, size);
+        break;
+      }
+
+      case 'toggle_wall_closed': {
+        ctx.fillStyle = pal.modernToggleBase;
+        this.roundRect(ctx, x + 3, y + 3, size - 6, size - 6, 5);
+        ctx.fill();
+        ctx.save();
+        ctx.strokeStyle = pal.modernToggleRing;
+        ctx.shadowColor = pal.modernToggleRing;
+        ctx.shadowBlur = glow.soft;
+        ctx.lineWidth = 2.5;
+        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
+        ctx.stroke();
+        ctx.restore();
+        break;
+      }
+
+      case 'toggle_wall_open': {
+        ctx.strokeStyle = pal.modernToggleOpen;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        break;
+      }
+
+      case 'trap': {
+        ctx.strokeStyle = pal.modernTrapRing;
+        ctx.lineWidth = 2;
+        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
+        ctx.stroke();
+        if (isClosedTrap) {
+          ctx.fillStyle = pal.modernTrapClosed;
+          this.roundRect(ctx, x + 7, y + 7, size - 14, size - 14, 3);
+          ctx.fill();
+        }
+        break;
+      }
+
+      case 'clone_machine': {
+        ctx.fillStyle = pal.modernClonerBase;
+        this.roundRect(ctx, x + 3, y + 3, size - 6, size - 6, 5);
+        ctx.fill();
+        ctx.strokeStyle = pal.modernClonerRing;
+        ctx.lineWidth = 2;
+        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
+        ctx.stroke();
+        break;
+      }
+    }
+
+    if (pass === 'all' && MODERN_ANIMATED_TILES.has(tileId)) {
+      this.drawModernAnimatedOverlay(ctx, tileId, x, y, size);
+    }
+  }
+
+  /**
+   * Modern per-frame overlays. Glowing parts are pre-rendered sprites that are only
+   * moved, rotated or scaled here, so no shadow blur or gradient is built per frame.
+   */
+  private drawModernAnimatedOverlay(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const t = this.timeTick * MODERN_ANIM_SPEED;
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+
+    switch (tileId) {
+      case 'water': {
         // Animated glowing caustic waves
-        ctx.strokeStyle = 'rgba(0, 229, 255, 0.55)';
+        ctx.strokeStyle = pal.modernWaterGlow;
         ctx.lineWidth = 2;
         for (let r = 0; r < 2; r++) {
           const wy = y + size * (0.32 + r * 0.36);
@@ -1184,23 +1600,9 @@ export class PixelRenderer {
       }
 
       case 'fire': {
-        const fGrad = ctx.createRadialGradient(
-          x + size / 2,
-          y + size * 0.65,
-          2,
-          x + size / 2,
-          y + size / 2,
-          size * 0.65
-        );
-        fGrad.addColorStop(0, '#ffee58');
-        fGrad.addColorStop(0.55, '#ff6d00');
-        fGrad.addColorStop(1, '#b71c1c');
-        ctx.fillStyle = fGrad;
-        ctx.fillRect(x, y, size, size);
-
         // Animated flame tongues
         const sway = Math.sin(t * 2.2) * (size * 0.08);
-        ctx.fillStyle = 'rgba(255, 238, 88, 0.85)';
+        ctx.fillStyle = pal.modernFireTongue;
         ctx.beginPath();
         ctx.moveTo(x + size * 0.2, y + size * 0.85);
         ctx.quadraticCurveTo(x + size * 0.35 + sway, y + size * 0.15, x + size * 0.5, y + size * 0.6);
@@ -1210,308 +1612,199 @@ export class PixelRenderer {
         break;
       }
 
-      case 'ice':
-      case 'ice_nw':
-      case 'ice_ne':
-      case 'ice_sw':
-      case 'ice_se': {
-        const iGrad = ctx.createLinearGradient(x, y, x + size, y + size);
-        iGrad.addColorStop(0, pal.modernIceTop || '#80d8ff');
-        iGrad.addColorStop(0.5, '#e1f5fe');
-        iGrad.addColorStop(1, pal.modernIceBottom || '#40c4ff');
-        ctx.fillStyle = iGrad;
-        ctx.fillRect(x, y, size, size);
-
-        // Glossy diagonal specular streak
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(x + size * 0.18, y + size * 0.78);
-        ctx.lineTo(x + size * 0.78, y + size * 0.18);
-        ctx.stroke();
-
-        ctx.fillStyle = '#263238';
-        if (tileId === 'ice_nw') {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x + size, y);
-          ctx.lineTo(x, y + size);
-          ctx.closePath();
-          ctx.fill();
-        } else if (tileId === 'ice_ne') {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x + size, y);
-          ctx.lineTo(x + size, y + size);
-          ctx.closePath();
-          ctx.fill();
-        } else if (tileId === 'ice_sw') {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x, y + size);
-          ctx.lineTo(x + size, y + size);
-          ctx.closePath();
-          ctx.fill();
-        } else if (tileId === 'ice_se') {
-          ctx.beginPath();
-          ctx.moveTo(x + size, y);
-          ctx.lineTo(x + size, y + size);
-          ctx.lineTo(x, y + size);
-          ctx.closePath();
-          ctx.fill();
-        }
-        break;
-      }
-
       case 'force_n':
       case 'force_e':
       case 'force_s':
       case 'force_w':
       case 'force_random': {
-        ctx.fillStyle = pal.modernForceBg || '#102830';
-        ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
-        ctx.save();
-        ctx.strokeStyle = pal.modernForceNeon || '#00ffc8';
-        ctx.fillStyle = pal.modernForceNeon || '#00ffc8';
-        ctx.shadowColor = pal.modernForceNeon || '#00ffc8';
-        ctx.shadowBlur = 6;
-        ctx.lineWidth = 2.5;
-
-        const cx = x + size / 2;
-        const cy = y + size / 2;
-        const r = size * 0.24;
-        const shift = ((this.timeTick * 0.8) % 8) - 4;
-
-        if (tileId === 'force_random') {
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.stroke();
-        } else {
-          ctx.beginPath();
-          if (tileId === 'force_n') {
-            ctx.moveTo(cx - r, cy + r * 0.5 - shift);
-            ctx.lineTo(cx, cy - r * 0.6 - shift);
-            ctx.lineTo(cx + r, cy + r * 0.5 - shift);
-          } else if (tileId === 'force_s') {
-            ctx.moveTo(cx - r, cy - r * 0.5 + shift);
-            ctx.lineTo(cx, cy + r * 0.6 + shift);
-            ctx.lineTo(cx + r, cy - r * 0.5 + shift);
-          } else if (tileId === 'force_e') {
-            ctx.moveTo(cx - r * 0.5 + shift, cy - r);
-            ctx.lineTo(cx + r * 0.6 + shift, cy);
-            ctx.lineTo(cx - r * 0.5 + shift, cy + r);
-          } else if (tileId === 'force_w') {
-            ctx.moveTo(cx + r * 0.5 - shift, cy - r);
-            ctx.lineTo(cx - r * 0.6 - shift, cy);
-            ctx.lineTo(cx + r * 0.5 - shift, cy + r);
-          }
-          ctx.stroke();
-        }
-        ctx.restore();
-        break;
-      }
-
-      case 'socket': {
-        ctx.fillStyle = '#263238';
-        this.roundRect(ctx, x + 3, y + 3, size - 6, size - 6, 6);
-        ctx.fill();
-        ctx.save();
-        ctx.strokeStyle = '#ffd600';
-        ctx.shadowColor = '#ffd600';
-        ctx.shadowBlur = 8;
-        ctx.lineWidth = 2.5;
-        this.roundRect(ctx, x + size * 0.24, y + size * 0.24, size * 0.52, size * 0.52, 4);
-        ctx.stroke();
-        ctx.restore();
+        const pad = this.glowPad();
+        const sprite = this.getSprite(`force|${tileId}|${size}`, size, size, pad, (sctx, o) =>
+          this.paintForceArrow(sctx, tileId, o, o, size)
+        );
+        if (!sprite) break;
+        const span = size * FORCE_SCROLL_SPAN_TILE;
+        const shift = ((this.timeTick * size * FORCE_SCROLL_SPEED_TILE) % span) - span / 2;
+        let dx = 0;
+        let dy = 0;
+        if (tileId === 'force_n') dy = -shift;
+        else if (tileId === 'force_s') dy = shift;
+        else if (tileId === 'force_e') dx = shift;
+        else if (tileId === 'force_w') dx = -shift;
+        ctx.drawImage(sprite, x - pad + dx, y - pad + dy);
         break;
       }
 
       case 'exit': {
-        ctx.save();
-        const cx = x + size / 2;
-        const cy = y + size / 2;
-        const pulseR = size * (0.34 + Math.sin(t * 2) * 0.05);
-        const eGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, pulseR);
-        eGrad.addColorStop(0, '#ffffff');
-        eGrad.addColorStop(0.45, '#00e676');
-        eGrad.addColorStop(1, 'rgba(0, 230, 118, 0)');
-        ctx.fillStyle = eGrad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, size * 0.45, 0, Math.PI * 2);
-        ctx.fill();
+        // Pulsing radial disc: one pre-rendered gradient, scaled to the pulse radius.
+        const maxR = size * (EXIT_PULSE_BASE + EXIT_PULSE_AMPLITUDE);
+        const disc = this.getSprite(`exitDisc|${size}`, maxR * 2, maxR * 2, 0, (sctx) => {
+          const grad = sctx.createRadialGradient(maxR, maxR, 2, maxR, maxR, maxR);
+          grad.addColorStop(0, pal.modernExitCore);
+          grad.addColorStop(0.45, pal.modernExitMid);
+          grad.addColorStop(1, pal.modernExitEdge);
+          sctx.fillStyle = grad;
+          sctx.beginPath();
+          sctx.arc(maxR, maxR, maxR, 0, FULL_TURN);
+          sctx.fill();
+        });
+        const pulseR = size * (EXIT_PULSE_BASE + Math.sin(t * 2) * EXIT_PULSE_AMPLITUDE);
+        if (disc) {
+          ctx.drawImage(disc, cx - pulseR, cy - pulseR, pulseR * 2, pulseR * 2);
+        }
 
-        ctx.strokeStyle = '#69f0ae';
+        ctx.strokeStyle = pal.modernExitRing;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.arc(cx, cy, size * 0.3, t, t + Math.PI * 1.4);
         ctx.stroke();
-        ctx.restore();
-        break;
-      }
-
-      case 'hint': {
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 176, 255, 0.2)';
-        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 6);
-        ctx.fill();
-        ctx.strokeStyle = '#00e5ff';
-        ctx.shadowColor = '#00e5ff';
-        ctx.shadowBlur = 8;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${Math.floor(size * 0.52)}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('?', x + size / 2, y + size / 2 + 1);
-        ctx.restore();
-        break;
-      }
-
-      case 'thief': {
-        ctx.fillStyle = '#311b92';
-        this.roundRect(ctx, x + size * 0.18, y + size * 0.16, size * 0.64, size * 0.68, 8);
-        ctx.fill();
-        ctx.fillStyle = '#ffd600';
-        ctx.fillRect(x + size * 0.26, y + size * 0.34, size * 0.48, size * 0.14);
-        break;
-      }
-
-      case 'door_red':
-      case 'door_blue':
-      case 'door_yellow':
-      case 'door_green': {
-        const def = ConfigRegistry.getTile(tileId);
-        const cKey = def.colorKey || 'red';
-        const color = pal[cKey] || pal.red;
-        ctx.fillStyle = '#12161f';
-        this.roundRect(ctx, x + 2, y + 2, size - 4, size - 4, 6);
-        ctx.fill();
-
-        ctx.save();
-        ctx.fillStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 8;
-        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
-        ctx.fill();
-        ctx.restore();
-
-        this.drawColorGlyph(ctx, cKey, x + size / 2, y + size * 0.44, size * 0.15, '#12161f');
-        ctx.fillStyle = '#12161f';
-        ctx.fillRect(x + size * 0.46, y + size * 0.56, size * 0.08, size * 0.16);
-        break;
-      }
-
-      case 'button_green':
-      case 'button_blue':
-      case 'button_brown':
-      case 'button_red': {
-        const colorMap: Record<string, string> = {
-          button_green: pal.green,
-          button_blue: pal.blue,
-          button_brown: pal.brown,
-          button_red: pal.red
-        };
-        const glyphMap: Record<string, string> = {
-          button_green: 'green',
-          button_blue: 'blue',
-          button_brown: 'yellow',
-          button_red: 'red'
-        };
-        const c = colorMap[tileId] || pal.red;
-        ctx.fillStyle = '#11151c';
-        ctx.beginPath();
-        ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.save();
-        ctx.fillStyle = c;
-        ctx.shadowColor = c;
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.arc(x + size / 2, y + size / 2, size * 0.21, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-        this.drawColorGlyph(
-          ctx,
-          glyphMap[tileId] || 'red',
-          x + size / 2,
-          y + size / 2,
-          size * 0.09,
-          '#11151c'
-        );
-        break;
-      }
-
-      case 'toggle_wall_closed': {
-        ctx.fillStyle = '#1e2430';
-        this.roundRect(ctx, x + 3, y + 3, size - 6, size - 6, 5);
-        ctx.fill();
-        ctx.save();
-        ctx.strokeStyle = '#00e676';
-        ctx.shadowColor = '#00e676';
-        ctx.shadowBlur = 6;
-        ctx.lineWidth = 2.5;
-        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
-        ctx.stroke();
-        ctx.restore();
-        break;
-      }
-
-      case 'toggle_wall_open': {
-        ctx.strokeStyle = 'rgba(0, 230, 118, 0.45)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
-        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
-        ctx.stroke();
-        ctx.setLineDash([]);
         break;
       }
 
       case 'teleport': {
-        ctx.save();
-        const cx = x + size / 2;
-        const cy = y + size / 2;
-        ctx.strokeStyle = '#d500f9';
-        ctx.shadowColor = '#d500f9';
-        ctx.shadowBlur = 10;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.arc(cx, cy, size * 0.34, t, t + Math.PI * 1.5);
-        ctx.stroke();
+        const glow = this.getSettings().glowBlurPx;
+        const pad = this.glowPad();
+        const ring = this.getSprite(`teleRing|${size}`, size, size, pad, (sctx, o) => {
+          sctx.strokeStyle = pal.modernTeleportRing;
+          sctx.shadowColor = pal.modernTeleportRing;
+          sctx.shadowBlur = glow.strong;
+          sctx.lineWidth = 2.5;
+          sctx.beginPath();
+          sctx.arc(o + size / 2, o + size / 2, size * 0.34, 0, Math.PI * 1.5);
+          sctx.stroke();
+        });
+        if (ring) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(t);
+          ctx.drawImage(ring, -(size / 2 + pad), -(size / 2 + pad));
+          ctx.restore();
+        }
 
-        ctx.fillStyle = '#ea80fc';
-        ctx.beginPath();
-        ctx.arc(cx, cy, size * (0.14 + Math.sin(t * 3) * 0.03), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-        break;
-      }
-
-      case 'trap': {
-        ctx.strokeStyle = '#ff6d00';
-        ctx.lineWidth = 2;
-        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
-        ctx.stroke();
-        if (isClosedTrap) {
-          ctx.fillStyle = 'rgba(191, 54, 12, 0.55)';
-          this.roundRect(ctx, x + 7, y + 7, size - 14, size - 14, 3);
-          ctx.fill();
+        const maxCore = size * (TELEPORT_CORE_BASE + TELEPORT_CORE_AMPLITUDE);
+        const core = this.getSprite(`teleCore|${size}`, maxCore * 2, maxCore * 2, pad, (sctx, o) => {
+          sctx.fillStyle = pal.teleportCore;
+          sctx.shadowColor = pal.modernTeleportRing;
+          sctx.shadowBlur = glow.strong;
+          sctx.beginPath();
+          sctx.arc(o + maxCore, o + maxCore, maxCore, 0, FULL_TURN);
+          sctx.fill();
+        });
+        if (core) {
+          const coreR = size * (TELEPORT_CORE_BASE + Math.sin(t * 3) * TELEPORT_CORE_AMPLITUDE);
+          const scale = coreR / maxCore;
+          const extent = core.width * scale;
+          ctx.drawImage(core, cx - extent / 2, cy - extent / 2, extent, extent);
         }
         break;
       }
-
-      case 'clone_machine': {
-        ctx.fillStyle = '#311b92';
-        this.roundRect(ctx, x + 3, y + 3, size - 6, size - 6, 5);
-        ctx.fill();
-        ctx.strokeStyle = '#ff1744';
-        ctx.lineWidth = 2;
-        this.roundRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
-        ctx.stroke();
-        break;
-      }
     }
+  }
+
+  /** Neon force floor arrow (with its glow), centred in a tile at (x, y). */
+  private paintForceArrow(ctx: CanvasRenderingContext2D, tileId: string, x: number, y: number, size: number): void {
+    const pal = ConfigRegistry.getGame().palette;
+    ctx.save();
+    ctx.strokeStyle = pal.modernForceNeon;
+    ctx.fillStyle = pal.modernForceNeon;
+    ctx.shadowColor = pal.modernForceNeon;
+    ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    ctx.lineWidth = 2.5;
+
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    const r = size * 0.24;
+    ctx.beginPath();
+    if (tileId === 'force_random') {
+      ctx.arc(cx, cy, r, 0, FULL_TURN);
+    } else if (tileId === 'force_n') {
+      ctx.moveTo(cx - r, cy + r * 0.5);
+      ctx.lineTo(cx, cy - r * 0.6);
+      ctx.lineTo(cx + r, cy + r * 0.5);
+    } else if (tileId === 'force_s') {
+      ctx.moveTo(cx - r, cy - r * 0.5);
+      ctx.lineTo(cx, cy + r * 0.6);
+      ctx.lineTo(cx + r, cy - r * 0.5);
+    } else if (tileId === 'force_e') {
+      ctx.moveTo(cx - r * 0.5, cy - r);
+      ctx.lineTo(cx + r * 0.6, cy);
+      ctx.lineTo(cx - r * 0.5, cy + r);
+    } else if (tileId === 'force_w') {
+      ctx.moveTo(cx + r * 0.5, cy - r);
+      ctx.lineTo(cx - r * 0.6, cy);
+      ctx.lineTo(cx + r * 0.5, cy + r);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Dark wedge filling the walled half of a corner ice tile. */
+  private fillIceCorner(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    x: number,
+    y: number,
+    size: number,
+    color: string
+  ): void {
+    const right = x + size;
+    const bottom = y + size;
+    ctx.beginPath();
+    if (tileId === 'ice_nw') {
+      ctx.moveTo(x, y);
+      ctx.lineTo(right, y);
+      ctx.lineTo(x, bottom);
+    } else if (tileId === 'ice_ne') {
+      ctx.moveTo(x, y);
+      ctx.lineTo(right, y);
+      ctx.lineTo(right, bottom);
+    } else if (tileId === 'ice_sw') {
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, bottom);
+      ctx.lineTo(right, bottom);
+    } else if (tileId === 'ice_se') {
+      ctx.moveTo(right, y);
+      ctx.lineTo(right, bottom);
+      ctx.lineTo(x, bottom);
+    } else {
+      return;
+    }
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  private buttonColor(tileId: string): string {
+    const pal = ConfigRegistry.getGame().palette;
+    return pal[BUTTON_COLOR_KEYS[tileId] ?? DEFAULT_COLOR_KEY] || pal[DEFAULT_COLOR_KEY];
+  }
+
+  private drawButtonGlyph(ctx: CanvasRenderingContext2D, tileId: string, x: number, y: number, size: number): void {
+    this.drawColorGlyph(
+      ctx,
+      BUTTON_GLYPH_KEYS[tileId] ?? DEFAULT_COLOR_KEY,
+      x + size / 2,
+      y + size / 2,
+      size * 0.09,
+      ConfigRegistry.getGame().palette.glyphInk
+    );
+  }
+
+  private drawHintGlyph(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    fontScale: number,
+    fontFamily: string,
+    color: string
+  ): void {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = `${HINT_FONT_WEIGHT} ${Math.floor(size * fontScale)}px ${fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(HINT_GLYPH, x + size / 2, y + size / 2 + 1);
+    ctx.restore();
   }
 
   public drawItem(
@@ -1521,28 +1814,47 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
     const isModern = this.style === 'modern';
-    const bobOffset = isModern ? Math.sin(this.timeTick * 0.1) * (size * 0.04) : 0;
-    const dy = y + bobOffset;
+    const bobOffset = isModern ? Math.sin(this.timeTick * ITEM_BOB_SPEED) * (size * ITEM_BOB_AMPLITUDE_TILE) : 0;
+    const pad = this.glowPad();
+    const sprite = this.getSprite(`item|${this.style}|${itemId}|${size}`, size, size, pad, (sctx, o) =>
+      this.paintItem(sctx, itemId, o, o, size, isModern)
+    );
+    if (sprite) {
+      ctx.drawImage(sprite, x - pad, y + bobOffset - pad);
+    } else {
+      this.paintItem(ctx, itemId, x, y + bobOffset, size, isModern);
+    }
+  }
+
+  private paintItem(
+    ctx: CanvasRenderingContext2D,
+    itemId: string,
+    x: number,
+    y: number,
+    size: number,
+    isModern: boolean
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const glow = this.getSettings().glowBlurPx;
 
     switch (itemId) {
       case 'chip': {
         ctx.save();
         if (isModern) {
-          ctx.shadowColor = '#00e676';
-          ctx.shadowBlur = 8;
+          ctx.shadowColor = pal.chipCore;
+          ctx.shadowBlur = glow.medium;
         }
         ctx.fillStyle = pal.chipPins;
         for (let i = 0; i < 3; i++) {
-          const py = dy + Math.floor(size * (0.28 + i * 0.18));
+          const py = y + Math.floor(size * (0.28 + i * 0.18));
           ctx.fillRect(x + Math.floor(size * 0.16), py, Math.floor(size * 0.68), 2.5);
         }
-        ctx.fillStyle = '#1a2228';
+        ctx.fillStyle = pal.chipBody;
         this.roundRect(
           ctx,
           x + size * 0.25,
-          dy + size * 0.2,
+          y + size * 0.2,
           size * 0.5,
           size * 0.6,
           isModern ? 4 : 0
@@ -1553,7 +1865,7 @@ export class PixelRenderer {
         this.roundRect(
           ctx,
           x + size * 0.38,
-          dy + size * 0.36,
+          y + size * 0.36,
           size * 0.24,
           size * 0.28,
           isModern ? 3 : 0
@@ -1568,21 +1880,21 @@ export class PixelRenderer {
       case 'key_yellow':
       case 'key_green': {
         const def = ConfigRegistry.getTile(itemId);
-        const cKey = def.colorKey || 'red';
-        const color = pal[cKey] || pal.red;
+        const cKey = def.colorKey || DEFAULT_COLOR_KEY;
+        const color = pal[cKey] || pal[DEFAULT_COLOR_KEY];
         ctx.save();
         if (isModern) {
           ctx.shadowColor = color;
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = glow.medium;
         }
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(x + size * 0.34, dy + size * 0.5, size * 0.16, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.34, y + size * 0.5, size * 0.16, 0, FULL_TURN);
         ctx.fill();
-        ctx.fillRect(x + size * 0.45, dy + size * 0.45, size * 0.36, size * 0.1);
-        ctx.fillRect(x + size * 0.64, dy + size * 0.55, size * 0.07, size * 0.14);
-        ctx.fillRect(x + size * 0.74, dy + size * 0.55, size * 0.07, size * 0.14);
-        this.drawColorGlyph(ctx, cKey, x + size * 0.34, dy + size * 0.5, size * 0.075, '#11151c');
+        ctx.fillRect(x + size * 0.45, y + size * 0.45, size * 0.36, size * 0.1);
+        ctx.fillRect(x + size * 0.64, y + size * 0.55, size * 0.07, size * 0.14);
+        ctx.fillRect(x + size * 0.74, y + size * 0.55, size * 0.07, size * 0.14);
+        this.drawColorGlyph(ctx, cKey, x + size * 0.34, y + size * 0.5, size * 0.075, pal.glyphInk);
         ctx.restore();
         break;
       }
@@ -1591,22 +1903,16 @@ export class PixelRenderer {
       case 'boots_fire':
       case 'boots_ice':
       case 'boots_force': {
-        const bootColorMap: Record<string, string> = {
-          boots_water: pal.waterWave,
-          boots_fire: pal.fireMid,
-          boots_ice: pal.iceShine,
-          boots_force: pal.yellow
-        };
-        const c = bootColorMap[itemId] || pal.blue;
+        const c = pal[BOOT_COLOR_KEYS[itemId] ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
         ctx.save();
         if (isModern) {
           ctx.shadowColor = c;
-          ctx.shadowBlur = 6;
+          ctx.shadowBlur = glow.soft;
         }
         ctx.fillStyle = c;
-        this.roundRect(ctx, x + size * 0.25, dy + size * 0.22, size * 0.26, size * 0.5, 3);
+        this.roundRect(ctx, x + size * 0.25, y + size * 0.22, size * 0.26, size * 0.5, 3);
         ctx.fill();
-        this.roundRect(ctx, x + size * 0.25, dy + size * 0.54, size * 0.52, size * 0.24, 4);
+        this.roundRect(ctx, x + size * 0.25, y + size * 0.54, size * 0.52, size * 0.24, 4);
         ctx.fill();
         ctx.restore();
         break;
@@ -1614,17 +1920,17 @@ export class PixelRenderer {
 
       case 'bomb': {
         ctx.save();
-        ctx.fillStyle = '#212121';
+        ctx.fillStyle = pal.bombBody;
         ctx.beginPath();
-        ctx.arc(x + size * 0.5, dy + size * 0.56, size * 0.27, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.5, y + size * 0.56, size * 0.27, 0, FULL_TURN);
         ctx.fill();
-        ctx.fillStyle = '#ff3d00';
+        ctx.fillStyle = pal.bombSpark;
         if (isModern) {
-          ctx.shadowColor = '#ff3d00';
-          ctx.shadowBlur = 8;
+          ctx.shadowColor = pal.bombSpark;
+          ctx.shadowBlur = glow.medium;
         }
         ctx.beginPath();
-        ctx.arc(x + size * 0.52, dy + size * 0.24, size * 0.08, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.52, y + size * 0.24, size * 0.08, 0, FULL_TURN);
         ctx.fill();
         ctx.restore();
         break;
@@ -1640,6 +1946,25 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    const pad = this.glowPad();
+    const sprite = this.getSprite(`entity|${this.style}|${type}|${dir}|${size}`, size, size, pad, (sctx, o) =>
+      this.paintEntity(sctx, type, dir, o, o, size)
+    );
+    if (sprite) {
+      ctx.drawImage(sprite, x - pad, y - pad);
+    } else {
+      this.paintEntity(ctx, type, dir, x, y, size);
+    }
+  }
+
+  private paintEntity(
+    ctx: CanvasRenderingContext2D,
+    type: string,
+    dir: Direction,
+    x: number,
+    y: number,
+    size: number
+  ): void {
     const pal = ConfigRegistry.getGame().palette;
     const isModern = this.style === 'modern';
 
@@ -1647,7 +1972,7 @@ export class PixelRenderer {
       const isIce = type === 'ice_block';
       ctx.save();
       if (isModern) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.fillStyle = pal.modernBlockShadow;
         this.roundRect(ctx, x + 4, y + 5, size - 6, size - 6, 6);
         ctx.fill();
       }
@@ -1661,37 +1986,25 @@ export class PixelRenderer {
       return;
     }
 
-    const monsterColors: Record<string, string> = {
-      bug: pal.monsterBug,
-      paramecium: pal.monsterParamecium,
-      pink_ball: pal.monsterPinkBall,
-      walker: pal.monsterWalker,
-      teeth: pal.monsterTeeth,
-      glider: pal.monsterGlider,
-      fireball: pal.monsterFireball,
-      tank: pal.monsterTank,
-      blob: pal.monsterBlob
-    };
-
-    const bodyColor = monsterColors[type] || pal.monsterBug;
+    const bodyColor = pal[MONSTER_COLOR_KEYS[type] ?? DEFAULT_MONSTER_COLOR_KEY] || pal[DEFAULT_MONSTER_COLOR_KEY];
     const cx = x + size / 2;
     const cy = y + size / 2;
 
     ctx.save();
     if (isModern) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+      ctx.fillStyle = pal.modernEntityShadow;
       ctx.beginPath();
-      ctx.ellipse(cx, y + size * 0.82, size * 0.28, size * 0.1, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, y + size * 0.82, size * 0.28, size * 0.1, 0, 0, FULL_TURN);
       ctx.fill();
 
       if (type === 'fireball' || type === 'pink_ball' || type === 'glider') {
         ctx.shadowColor = bodyColor;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = this.getSettings().glowBlurPx.strong;
       }
     }
 
     if (type === 'tank') {
-      ctx.fillStyle = '#263238';
+      ctx.fillStyle = pal.tankHull;
       this.roundRect(ctx, x + size * 0.15, y + size * 0.15, size * 0.7, size * 0.7, isModern ? 5 : 0);
       ctx.fill();
       ctx.fillStyle = bodyColor;
@@ -1700,11 +2013,11 @@ export class PixelRenderer {
     } else {
       ctx.fillStyle = bodyColor;
       ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.33, 0, Math.PI * 2);
+      ctx.arc(cx, cy, size * 0.33, 0, FULL_TURN);
       ctx.fill();
     }
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = pal.eyeWhite;
     let ex = cx;
     let ey = cy;
     const offset = size * 0.15;
@@ -1714,16 +2027,40 @@ export class PixelRenderer {
     if (dir === 'W') ex -= offset;
 
     ctx.beginPath();
-    ctx.arc(ex, ey, size * 0.1, 0, Math.PI * 2);
+    ctx.arc(ex, ey, size * 0.1, 0, FULL_TURN);
     ctx.fill();
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = pal.eyePupil;
     ctx.beginPath();
-    ctx.arc(ex, ey, size * 0.05, 0, Math.PI * 2);
+    ctx.arc(ex, ey, size * 0.05, 0, FULL_TURN);
     ctx.fill();
     ctx.restore();
   }
 
   public drawPlayer(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    dir: Direction,
+    inWater: boolean,
+    alive: boolean
+  ): void {
+    const pad = this.glowPad();
+    const sprite = this.getSprite(
+      `player|${this.style}|${dir}|${inWater}|${alive}|${size}`,
+      size,
+      size,
+      pad,
+      (sctx, o) => this.paintPlayer(sctx, o, o, size, dir, inWater, alive)
+    );
+    if (sprite) {
+      ctx.drawImage(sprite, x - pad, y - pad);
+    } else {
+      this.paintPlayer(ctx, x, y, size, dir, inWater, alive);
+    }
+  }
+
+  private paintPlayer(
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -1738,7 +2075,7 @@ export class PixelRenderer {
     if (!alive) {
       ctx.fillStyle = pal.red;
       ctx.beginPath();
-      ctx.arc(x + size / 2, y + size / 2, size * 0.36, 0, Math.PI * 2);
+      ctx.arc(x + size / 2, y + size / 2, size * 0.36, 0, FULL_TURN);
       ctx.fill();
       return;
     }
@@ -1746,9 +2083,9 @@ export class PixelRenderer {
     ctx.save();
     if (isModern) {
       // Drop shadow under player
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+      ctx.fillStyle = pal.modernPlayerShadow;
       ctx.beginPath();
-      ctx.ellipse(x + size / 2, y + size * 0.86, size * 0.28, size * 0.1, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + size / 2, y + size * 0.86, size * 0.28, size * 0.1, 0, 0, FULL_TURN);
       ctx.fill();
     }
 
@@ -1764,7 +2101,7 @@ export class PixelRenderer {
 
     ctx.fillStyle = pal.playerSkin;
     ctx.beginPath();
-    ctx.arc(x + size / 2, y + size * 0.34, size * 0.21, 0, Math.PI * 2);
+    ctx.arc(x + size / 2, y + size * 0.34, size * 0.21, 0, FULL_TURN);
     ctx.fill();
 
     ctx.fillStyle = pal.playerHair;
@@ -1773,9 +2110,9 @@ export class PixelRenderer {
 
     ctx.fillStyle = pal.playerVisor;
     if (isModern) {
-      ctx.shadowColor = '#00e5ff';
-      ctx.shadowBlur = 6;
-      ctx.fillStyle = '#00e5ff';
+      ctx.shadowColor = pal.modernPlayerVisor;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+      ctx.fillStyle = pal.modernPlayerVisor;
     }
     let vx = x + size * 0.36;
     let vy = y + size * 0.3;
@@ -1786,6 +2123,44 @@ export class PixelRenderer {
     this.roundRect(ctx, vx, vy, size * 0.28, size * 0.1, isModern ? 3 : 0);
     ctx.fill();
     ctx.restore();
+  }
+
+  private getSettings(): RenderSettings {
+    return resolveRenderSettings(ConfigRegistry.getGame().graphics);
+  }
+
+  /** Transparent margin kept around sprites so baked glows are not clipped. */
+  private glowPad(): number {
+    return Math.ceil(this.getSettings().glowBlurPx.strong * GLOW_PAD_FACTOR);
+  }
+
+  /**
+   * Returns the sprite cached under `key`, painting it on first use. `paint` receives
+   * the sprite context and the padding offset at which the shape's origin sits.
+   * Returns null when no canvas can be created (non-DOM environment).
+   */
+  private getSprite(
+    key: string,
+    width: number,
+    height: number,
+    pad: number,
+    paint: (sctx: CanvasRenderingContext2D, origin: number) => void
+  ): HTMLCanvasElement | null {
+    const cached = this.sprites.get(key);
+    if (cached) return cached;
+    if (typeof document === 'undefined') return null;
+    if (this.sprites.size >= this.getSettings().spriteCacheMaxEntries) {
+      // Sizes change continuously while zooming; start over rather than grow without bound.
+      this.sprites.clear();
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(width) + pad * 2;
+    canvas.height = Math.ceil(height) + pad * 2;
+    const sctx = canvas.getContext('2d');
+    if (!sctx) return null;
+    paint(sctx, pad);
+    this.sprites.set(key, canvas);
+    return canvas;
   }
 
   private drawColorGlyph(
@@ -1825,7 +2200,7 @@ export class PixelRenderer {
       ctx.stroke();
     } else if (colorKey === 'green') {
       // Ring
-      ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2);
+      ctx.arc(cx, cy, r * 0.78, 0, FULL_TURN);
       ctx.stroke();
     }
     ctx.restore();
@@ -1858,20 +2233,21 @@ export class PixelRenderer {
   }
 
   public renderIconToDataUrl(kind: 'tile' | 'item' | 'entity', id: string): string {
+    const iconSize = this.getSettings().iconPixelSize;
     const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
+    canvas.width = iconSize;
+    canvas.height = iconSize;
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
     if (kind === 'tile') {
-      this.drawTile(ctx, id, 0, 0, 32, true, true);
+      this.drawTile(ctx, id, 0, 0, iconSize, true, true);
     } else if (kind === 'item') {
-      this.drawTile(ctx, 'floor', 0, 0, 32, true, true);
-      this.drawItem(ctx, id, 0, 0, 32);
+      this.drawTile(ctx, 'floor', 0, 0, iconSize, true, true);
+      this.drawItem(ctx, id, 0, 0, iconSize);
     } else if (kind === 'entity') {
-      this.drawTile(ctx, 'floor', 0, 0, 32, true, true);
-      this.drawEntity(ctx, id, 'S', 0, 0, 32);
+      this.drawTile(ctx, 'floor', 0, 0, iconSize, true, true);
+      this.drawEntity(ctx, id, 'S', 0, 0, iconSize);
     }
     return canvas.toDataURL();
   }

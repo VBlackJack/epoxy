@@ -18,15 +18,31 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { AudioManager } from '../audio/AudioManager';
 import {
+  DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+  FLOOR_TILE_ID,
+  OPPOSITE_DIRECTION,
+  SUNK_BLOCK_TILE_ID
+} from './coreConstants';
+import { SeededRandom } from './Random';
+import {
   CloneLink,
   CompiledLevel,
   Direction,
+  GridPoint,
   PlayerState,
   RelativeTurn,
   RuntimeEntity,
+  TimedMove,
   TrapLink,
   UndoSnapshot
 } from './types';
+
+/** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
+const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
+/** Extra slide delay on force floors, on top of timing.slideCooldownTicks. */
+const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
+/** Hard cap on live entities, so a cloner wired to a held button cannot flood the grid. */
+const MAX_ACTIVE_ENTITIES = 512;
 
 export class GameEngine {
   private level!: CompiledLevel;
@@ -41,6 +57,7 @@ export class GameEngine {
   private ticksElapsed: number = 0;
   private stepsCount: number = 0;
   private totalScore: number = 0;
+  private scoreAtLevelStart: number = 0;
   private lastLevelScore: number = 0;
   private lastTimeBonus: number = 0;
   private levelCompleted: boolean = false;
@@ -49,6 +66,17 @@ export class GameEngine {
   private nextEntityUid: number = 1;
   private undoStack: UndoSnapshot[] = [];
   private moveHistory: Direction[] = [];
+  private timedMoveHistory: TimedMove[] = [];
+  private rng: SeededRandom = new SeededRandom(0);
+
+  // Lookups built once per level: these cells never change tile type during play.
+  private trapLinksByTrap = new Map<string, TrapLink[]>();
+  private holdTrapButtons: GridPoint[] = [];
+  private teleporters: GridPoint[] = [];
+  private removedUids = new Set<number>();
+  /** Set when a rejected player move still altered the grid (revealed wall, opened door). */
+  private gridMutatedByMove = false;
+
   private onWinCallback:
     | ((levelId: string, timeRemaining: number, steps: number, score: number, moves: Direction[]) => void)
     | null = null;
@@ -84,13 +112,27 @@ export class GameEngine {
     }
   }
 
-  public loadLevel(level: CompiledLevel): void {
+  /**
+   * Starts (or restarts) a level. The random generator is seeded from the
+   * level id unless a seed is given, so a level always plays out the same way
+   * for the same inputs. Reloading the level that is already loaded is a
+   * restart: the total score goes back to its value when the level started.
+   */
+  public loadLevel(level: CompiledLevel, seed?: number): void {
+    const isRestart = this.level !== undefined && this.level.id === level.id;
+    if (isRestart) {
+      this.totalScore = this.scoreAtLevelStart;
+    } else {
+      this.scoreAtLevelStart = this.totalScore;
+    }
+
     this.level = level;
     this.terrain = level.terrain.map((row) => [...row]);
     this.items = level.items.map((row) => [...row]);
     this.trapLinks = level.trapLinks.map((l) => ({ ...l }));
     this.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
     this.nextEntityUid = 1;
+    this.rng = new SeededRandom(seed ?? SeededRandom.seedFromString(level.id));
 
     this.entities = level.entities.map((e) => {
       const def = ConfigRegistry.getEntityDef(e.type);
@@ -101,7 +143,7 @@ export class GameEngine {
         x: e.x,
         y: e.y,
         dir: e.dir,
-        cooldownTicks: def?.moveIntervalTicks || 4,
+        cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
         isSliding: false
       };
     });
@@ -131,10 +173,54 @@ export class GameEngine {
     this.statusBannerKey = null;
     this.undoStack = [];
     this.moveHistory = [];
+    this.timedMoveHistory = [];
+    this.removedUids.clear();
+    this.buildLevelLookups();
   }
 
+  private buildLevelLookups(): void {
+    this.trapLinksByTrap.clear();
+    for (const link of this.trapLinks) {
+      const key = this.cellKey(link.trapX, link.trapY);
+      const list = this.trapLinksByTrap.get(key);
+      if (list) {
+        list.push(link);
+      } else {
+        this.trapLinksByTrap.set(key, [link]);
+      }
+    }
+
+    this.holdTrapButtons = [];
+    this.teleporters = [];
+    for (let y = 0; y < this.terrain.length; y++) {
+      for (let x = 0; x < this.terrain[y].length; x++) {
+        const tile = ConfigRegistry.getTile(this.terrain[y][x]);
+        if (tile.buttonAction === 'hold_trap') this.holdTrapButtons.push({ x, y });
+        if (tile.isTeleporter) this.teleporters.push({ x, y });
+      }
+    }
+  }
+
+  /** Successful player moves, in order. */
   public getMoveHistory(): Direction[] {
     return [...this.moveHistory];
+  }
+
+  /** Ticks elapsed since loadLevel (rolled back by undo). */
+  public getTick(): number {
+    return this.ticksElapsed;
+  }
+
+  /**
+   * Player moves stamped with the tick at which they were applied, meant for
+   * replays: load the level, then before each tick() apply every move whose
+   * tick equals getTick(), in order. The history holds every successful move
+   * plus every rejected attempt that still changed the simulation (turned the
+   * player, revealed a wall, opened a door). Attempts rejected without any
+   * effect (cooldown, ice lock, pushing against a force floor) are left out.
+   */
+  public getTimedMoveHistory(): TimedMove[] {
+    return this.timedMoveHistory.map((m) => ({ ...m }));
   }
 
   public getLevel(): CompiledLevel {
@@ -217,8 +303,9 @@ export class GameEngine {
     return ConfigRegistry.getTile(tileId).showsHint === true;
   }
 
+  /** Undo is refused once the level is won: the score is already awarded. */
   public canUndo(): boolean {
-    return this.undoStack.length > 0;
+    return !this.levelCompleted && this.undoStack.length > 0;
   }
 
   public saveUndoSnapshot(): void {
@@ -226,7 +313,15 @@ export class GameEngine {
     if (this.undoStack.length >= maxSnapshots) {
       this.undoStack.shift();
     }
-    this.undoStack.push({
+    this.undoStack.push(this.captureState());
+  }
+
+  /**
+   * Copies the whole mutable game state. Undo uses it, and so does the piece
+   * solver, which explores moves by restoring states instead of replaying.
+   */
+  public captureState(): UndoSnapshot {
+    return {
       terrain: this.terrain.map((r) => [...r]),
       items: this.items.map((r) => [...r]),
       entities: this.entities.map((e) => ({ ...e })),
@@ -236,6 +331,8 @@ export class GameEngine {
         dir: this.player.dir,
         isSliding: this.player.isSliding,
         slideDir: this.player.slideDir,
+        moveCooldown: this.player.moveCooldown,
+        slideCooldown: this.player.slideCooldown,
         inWater: this.player.inWater,
         keys: { ...this.player.keys },
         boots: Array.from(this.player.boots)
@@ -243,14 +340,25 @@ export class GameEngine {
       chipsRemaining: this.chipsRemaining,
       ticksElapsed: this.ticksElapsed,
       stepsCount: this.stepsCount,
-      moveHistoryLength: this.moveHistory.length
-    });
+      totalScore: this.totalScore,
+      rngState: this.rng.getState(),
+      nextEntityUid: this.nextEntityUid,
+      moveHistoryLength: this.moveHistory.length,
+      timedMoveHistoryLength: this.timedMoveHistory.length
+    };
   }
 
   public undo(): boolean {
+    if (this.levelCompleted) return false;
     const snap = this.undoStack.pop();
     if (!snap) return false;
+    this.restoreState(snap);
+    AudioManager.playSfx('step');
+    return true;
+  }
 
+  /** Puts back a state from captureState; the player is alive and the level not won. */
+  public restoreState(snap: UndoSnapshot): void {
     this.terrain = snap.terrain.map((r) => [...r]);
     this.items = snap.items.map((r) => [...r]);
     this.entities = snap.entities.map((e) => ({ ...e }));
@@ -262,8 +370,8 @@ export class GameEngine {
       deathReasonKey: null,
       isSliding: snap.player.isSliding,
       slideDir: snap.player.slideDir,
-      moveCooldown: 0,
-      slideCooldown: 0,
+      moveCooldown: snap.player.moveCooldown,
+      slideCooldown: snap.player.slideCooldown,
       inWater: snap.player.inWater,
       keys: { ...snap.player.keys },
       boots: new Set(snap.player.boots)
@@ -271,11 +379,13 @@ export class GameEngine {
     this.chipsRemaining = snap.chipsRemaining;
     this.ticksElapsed = snap.ticksElapsed;
     this.stepsCount = snap.stepsCount;
+    this.totalScore = snap.totalScore;
+    this.rng.setState(snap.rngState);
+    this.nextEntityUid = snap.nextEntityUid;
     this.moveHistory.length = snap.moveHistoryLength;
+    this.timedMoveHistory.length = snap.timedMoveHistoryLength;
     this.levelCompleted = false;
     this.statusBannerKey = null;
-    AudioManager.playSfx('step');
-    return true;
   }
 
   public tick(): void {
@@ -322,30 +432,41 @@ export class GameEngine {
         currentTile.forceDirection && currentTile.forceDirection !== 'RANDOM'
           ? currentTile.forceDirection
           : this.player.slideDir;
-      if (activeForceDir && dir === this.getOppositeDirection(activeForceDir)) {
+      if (activeForceDir && dir === OPPOSITE_DIRECTION[activeForceDir]) {
         AudioManager.playSfx('blocked');
         return false;
       }
     }
 
+    const tickAtMove = this.ticksElapsed;
+    const dirBefore = this.player.dir;
+
     if (this.isCellClosedTrap(this.player.x, this.player.y)) {
       this.player.dir = dir;
       AudioManager.playSfx('blocked');
+      if (dir !== dirBefore) {
+        this.timedMoveHistory.push({ tick: tickAtMove, dir });
+      }
       return false;
     }
 
     this.saveUndoSnapshot();
+    this.gridMutatedByMove = false;
     const moved = this.executePlayerMove(dir, false);
     if (moved) {
       this.stepsCount++;
       this.moveHistory.push(dir);
+      this.timedMoveHistory.push({ tick: tickAtMove, dir });
       const destTile = ConfigRegistry.getTile(this.terrain[this.player.y][this.player.x]);
       this.player.moveCooldown =
         destTile.slideType === 'force'
-          ? 1
+          ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
           : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
     } else {
       this.undoStack.pop();
+      if (this.gridMutatedByMove || this.player.dir !== dirBefore) {
+        this.timedMoveHistory.push({ tick: tickAtMove, dir });
+      }
     }
     return moved;
   }
@@ -353,7 +474,7 @@ export class GameEngine {
   private isEdgeBlocked(fromX: number, fromY: number, toX: number, toY: number, dir: Direction): boolean {
     const currentTile = ConfigRegistry.getTile(this.terrain[fromY][fromX]);
     const targetTile = ConfigRegistry.getTile(this.terrain[toY][toX]);
-    const opposite = this.getOppositeDirection(dir);
+    const opposite = OPPOSITE_DIRECTION[dir];
 
     if (currentTile.blockedEdges?.includes(dir)) return true;
     if (targetTile.blockedEdges?.includes(opposite)) return true;
@@ -384,13 +505,15 @@ export class GameEngine {
 
     if (targetTile.revealsToOnTouch) {
       this.terrain[targetY][targetX] = targetTile.revealsToOnTouch;
+      this.gridMutatedByMove = true;
       AudioManager.playSfx('blocked');
       return false;
     }
 
     if (targetTile.requiresAllChips) {
       if (this.chipsRemaining <= 0) {
-        this.terrain[targetY][targetX] = targetTile.transformsToOnUnlock || 'floor';
+        this.terrain[targetY][targetX] = targetTile.transformsToOnUnlock || FLOOR_TILE_ID;
+        this.gridMutatedByMove = true;
         AudioManager.playSfx('socket');
         this.emitVisual('unlock', targetX, targetY, 'yellow');
       } else {
@@ -406,7 +529,8 @@ export class GameEngine {
         if (targetTile.consumesKey) {
           this.player.keys[targetTile.requiredKey] = keyCount - 1;
         }
-        this.terrain[targetY][targetX] = 'floor';
+        this.terrain[targetY][targetX] = targetTile.transformsToOnUnlock || FLOOR_TILE_ID;
+        this.gridMutatedByMove = true;
         AudioManager.playSfx('door');
         this.emitVisual('unlock', targetX, targetY, targetTile.colorKey || 'yellow');
       } else {
@@ -445,20 +569,32 @@ export class GameEngine {
       AudioManager.playSfx('step');
     }
 
-    this.resolvePlayerArrival(dir);
+    this.resolvePlayerArrival(dir, true);
     return true;
   }
 
-  private resolvePlayerArrival(entryDir: Direction): void {
+  /**
+   * Applies the effects of the cell the player just entered. A teleporter is
+   * resolved first: the player jumps, then the arrival cell (items, thief,
+   * buttons, hazards, exit) is resolved at the destination coordinates.
+   */
+  private resolvePlayerArrival(entryDir: Direction, allowTeleport: boolean): void {
     const x = this.player.x;
     const y = this.player.y;
-    let tileId = this.terrain[y][x];
-    let tile = ConfigRegistry.getTile(tileId);
+    let tile = ConfigRegistry.getTile(this.terrain[y][x]);
+
+    if (tile.isTeleporter && allowTeleport) {
+      this.emitVisual('teleport', x, y);
+      if (this.teleportPlayer(x, y, entryDir)) {
+        this.emitVisual('teleport', this.player.x, this.player.y);
+        this.resolvePlayerArrival(this.player.dir, false);
+        return;
+      }
+    }
 
     if (tile.transformsToOnStep) {
       this.terrain[y][x] = tile.transformsToOnStep;
-      tileId = this.terrain[y][x];
-      tile = ConfigRegistry.getTile(tileId);
+      tile = ConfigRegistry.getTile(this.terrain[y][x]);
     }
 
     const itemId = this.items[y][x];
@@ -496,14 +632,7 @@ export class GameEngine {
 
     if (tile.buttonAction) {
       this.triggerButton(x, y, tile.buttonAction);
-    }
-
-    if (tile.isTeleporter) {
-      this.emitVisual('teleport', x, y);
-      this.teleportPlayer(x, y, entryDir);
-      this.emitVisual('teleport', this.player.x, this.player.y);
-      tileId = this.terrain[this.player.y][this.player.x];
-      tile = ConfigRegistry.getTile(tileId);
+      if (!this.player.alive) return;
     }
 
     this.player.inWater = tile.hazard === 'water';
@@ -550,14 +679,15 @@ export class GameEngine {
       }
       let forceDir: Direction = entryDir;
       if (tile.forceDirection === 'RANDOM') {
-        forceDir = ORDERED_DIRECTIONS[Math.floor(Math.random() * ORDERED_DIRECTIONS.length)];
+        forceDir = ORDERED_DIRECTIONS[this.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
       } else if (tile.forceDirection) {
         forceDir = tile.forceDirection;
       }
       this.player.isSliding = true;
       this.player.slideDir = forceDir;
       this.player.dir = forceDir;
-      this.player.slideCooldown = ConfigRegistry.getGame().timing.slideCooldownTicks + 1;
+      this.player.slideCooldown =
+        ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
       return;
     }
 
@@ -572,7 +702,7 @@ export class GameEngine {
     const moved = this.executePlayerMove(dir, true);
     if (!moved) {
       if (currentTile.slideType === 'ice') {
-        const bounceDir = this.getOppositeDirection(dir);
+        const bounceDir = OPPOSITE_DIRECTION[dir];
         const deflectedBounce = currentTile.deflectionMap?.[bounceDir] || bounceDir;
         this.player.slideDir = deflectedBounce;
         this.player.dir = deflectedBounce;
@@ -641,7 +771,7 @@ export class GameEngine {
     }
 
     if (tile.hazard === 'water') {
-      this.terrain[destY][destX] = blockDef?.waterTransformsTo || tile.blockTransformsTo || 'dirt';
+      this.terrain[destY][destX] = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
       this.removeEntity(block.uid);
       AudioManager.playSfx('splash');
       this.emitVisual('splash', destX, destY);
@@ -683,12 +813,13 @@ export class GameEngine {
   }
 
   private updateEntities(): void {
+    this.removedUids.clear();
     const snapshotEntities = [...this.entities];
     for (const entity of snapshotEntities) {
-      if (!this.entities.some((e) => e.uid === entity.uid)) continue;
+      if (this.removedUids.has(entity.uid)) continue;
 
-      // Entities sitting directly on a clone_machine act as templates and do not move on their own
-      if (this.terrain[entity.y]?.[entity.x] === 'clone_machine') {
+      // Entities sitting directly on a clone machine act as templates and do not move on their own
+      if (ConfigRegistry.getTile(this.terrain[entity.y]?.[entity.x]).isCloneMachine) {
         continue;
       }
 
@@ -707,7 +838,7 @@ export class GameEngine {
         if (this.isCanBlockEnter(entity, nx, ny, slideDir)) {
           this.moveBlockTo(entity, nx, ny, slideDir);
         } else if (tile.slideType === 'ice') {
-          const bounceDir = this.getOppositeDirection(slideDir);
+          const bounceDir = OPPOSITE_DIRECTION[slideDir];
           const deflected = tile.deflectionMap?.[bounceDir] || bounceDir;
           const bVec = DIRECTION_VECTORS[deflected];
           if (this.isCanBlockEnter(entity, entity.x + bVec.dx, entity.y + bVec.dy, deflected)) {
@@ -727,7 +858,7 @@ export class GameEngine {
       }
 
       const def = ConfigRegistry.getEntityDef(entity.type);
-      entity.cooldownTicks = def?.moveIntervalTicks || 5;
+      entity.cooldownTicks = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
 
       if (this.isCellClosedTrap(entity.x, entity.y)) {
         continue;
@@ -787,7 +918,7 @@ export class GameEngine {
     if (currentTile.slideType === 'ice') {
       const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
       if (this.canMonsterEnter(monster, slideDir)) return slideDir;
-      const bounce = this.getOppositeDirection(slideDir);
+      const bounce = OPPOSITE_DIRECTION[slideDir];
       if (this.canMonsterEnter(monster, bounce)) return bounce;
       return null;
     }
@@ -814,7 +945,7 @@ export class GameEngine {
         return monster.dir;
       }
       const turns: RelativeTurn[] = ['LEFT', 'RIGHT', 'BACK'];
-      this.shuffleArray(turns);
+      this.rng.shuffle(turns);
       for (const turn of turns) {
         const d = this.applyRelativeTurn(monster.dir, turn);
         if (this.canMonsterEnter(monster, d)) return d;
@@ -824,7 +955,7 @@ export class GameEngine {
 
     if (def.movementPattern === 'pure_random') {
       const dirs: Direction[] = [...ORDERED_DIRECTIONS];
-      this.shuffleArray(dirs);
+      this.rng.shuffle(dirs);
       for (const d of dirs) {
         if (this.canMonsterEnter(monster, d)) return d;
       }
@@ -887,8 +1018,8 @@ export class GameEngine {
       }
     } else if (action === 'reverse_tanks') {
       for (const ent of this.entities) {
-        if (ent.type === 'tank') {
-          ent.dir = this.getOppositeDirection(ent.dir);
+        if (ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) {
+          ent.dir = OPPOSITE_DIRECTION[ent.dir];
         }
       }
     } else if (action === 'trigger_cloner') {
@@ -898,9 +1029,9 @@ export class GameEngine {
           this.spawnFromCloner(link.clonerX, link.clonerY, link.templateType, link.templateDir);
         }
       } else {
-        // Fallback: trigger any clone_machine that has an entity template sitting on it
+        // Fallback: trigger any clone machine that has an entity template sitting on it
         for (const ent of [...this.entities]) {
-          if (this.terrain[ent.y]?.[ent.x] === 'clone_machine') {
+          if (ConfigRegistry.getTile(this.terrain[ent.y]?.[ent.x]).isCloneMachine) {
             this.spawnFromCloner(ent.x, ent.y, ent.type, ent.dir);
           }
         }
@@ -908,29 +1039,52 @@ export class GameEngine {
     }
   }
 
+  /**
+   * Spawns a copy of the template in front of the cloner, using the same
+   * entry rules as a regular monster step or block push, so a clone never
+   * appears inside a wall or another blocked cell.
+   */
   private spawnFromCloner(
     clonerX: number,
     clonerY: number,
     templateType: string,
     templateDir: Direction
   ): void {
+    if (this.entities.length >= MAX_ACTIVE_ENTITIES) return;
+
     const vec = DIRECTION_VECTORS[templateDir];
     const spawnX = clonerX + vec.dx;
     const spawnY = clonerY + vec.dy;
     if (!this.isInBounds(spawnX, spawnY)) return;
-    if (this.getEntityAt(spawnX, spawnY)) return;
     if (this.player.x === spawnX && this.player.y === spawnY) return;
 
     const def = ConfigRegistry.getEntityDef(templateType);
+    const kind = def?.kind || 'block';
+    const probe: RuntimeEntity = {
+      uid: 0,
+      type: templateType,
+      kind,
+      x: clonerX,
+      y: clonerY,
+      dir: templateDir,
+      cooldownTicks: 0,
+      isSliding: false
+    };
+    const canEnter =
+      kind === 'block'
+        ? this.isCanBlockEnter(probe, spawnX, spawnY, templateDir)
+        : this.canMonsterEnter(probe, templateDir);
+    if (!canEnter) return;
+
     const spawned: RuntimeEntity = {
       uid: this.nextEntityUid++,
       type: templateType,
-      kind: def?.kind || 'block',
+      kind,
       x: spawnX,
       y: spawnY,
       dir: templateDir,
-      cooldownTicks: def?.moveIntervalTicks || 4,
-      isSliding: def?.kind === 'block'
+      cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+      isSliding: kind === 'block'
     };
     this.entities.push(spawned);
     if (spawned.kind === 'block') {
@@ -942,20 +1096,13 @@ export class GameEngine {
     const tile = ConfigRegistry.getTile(this.terrain[ty]?.[tx]);
     if (!tile.isTrap) return false;
 
-    const specificLinks = this.trapLinks.filter((l) => l.trapX === tx && l.trapY === ty);
-    if (specificLinks.length > 0) {
+    const specificLinks = this.trapLinksByTrap.get(this.cellKey(tx, ty));
+    if (specificLinks && specificLinks.length > 0) {
       return !specificLinks.some((l) => this.isButtonPressed(l.buttonX, l.buttonY));
     }
 
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
-    for (let y = 0; y < mapHeight; y++) {
-      for (let x = 0; x < mapWidth; x++) {
-        if (this.terrain[y][x] === 'button_brown' && this.isButtonPressed(x, y)) {
-          return false;
-        }
-      }
-    }
-    return true;
+    // Unlinked trap: any held trap button releases it
+    return !this.holdTrapButtons.some((b) => this.isButtonPressed(b.x, b.y));
   }
 
   private isButtonPressed(bx: number, by: number): boolean {
@@ -963,14 +1110,14 @@ export class GameEngine {
     return this.entities.some((e) => e.x === bx && e.y === by);
   }
 
-  private teleportPlayer(fromX: number, fromY: number, dir: Direction): void {
-    const teleporters = this.getAllTeleporters();
-    if (teleporters.length <= 1) return;
+  /** Moves the player out of the next free teleporter. Returns false when no exit exists. */
+  private teleportPlayer(fromX: number, fromY: number, dir: Direction): boolean {
+    const teleporters = this.teleporters;
+    if (teleporters.length <= 1) return false;
 
     const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
-    if (startIdx < 0) return;
+    if (startIdx < 0) return false;
 
-    AudioManager.playSfx('teleport');
     const candidateDirs: Direction[] = [
       dir,
       ...ORDERED_DIRECTIONS.filter((d) => d !== dir)
@@ -986,21 +1133,20 @@ export class GameEngine {
         if (this.isInBounds(exitX, exitY)) {
           const exitTile = ConfigRegistry.getTile(this.terrain[exitY][exitX]);
           if (exitTile.passableByPlayer && !this.getEntityAt(exitX, exitY)) {
-            if (exitTile.transformsToOnStep) {
-              this.terrain[exitY][exitX] = exitTile.transformsToOnStep;
-            }
+            AudioManager.playSfx('teleport');
             this.player.x = exitX;
             this.player.y = exitY;
             this.player.dir = tryDir;
-            return;
+            return true;
           }
         }
       }
     }
+    return false;
   }
 
   private teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction): void {
-    const teleporters = this.getAllTeleporters();
+    const teleporters = this.teleporters;
     if (teleporters.length <= 1) return;
 
     const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
@@ -1021,19 +1167,6 @@ export class GameEngine {
         }
       }
     }
-  }
-
-  private getAllTeleporters(): Array<{ x: number; y: number }> {
-    const list: Array<{ x: number; y: number }> = [];
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
-    for (let y = 0; y < mapHeight; y++) {
-      for (let x = 0; x < mapWidth; x++) {
-        if (ConfigRegistry.getTile(this.terrain[y][x]).isTeleporter) {
-          list.push({ x, y });
-        }
-      }
-    }
-    return list;
   }
 
   private killPlayer(reasonKey: string, sfxId: string): void {
@@ -1070,6 +1203,11 @@ export class GameEngine {
 
   private removeEntity(uid: number): void {
     this.entities = this.entities.filter((e) => e.uid !== uid);
+    this.removedUids.add(uid);
+  }
+
+  private cellKey(x: number, y: number): string {
+    return `${x},${y}`;
   }
 
   private isInBounds(x: number, y: number): boolean {
@@ -1077,37 +1215,18 @@ export class GameEngine {
     return x >= 0 && x < mapWidth && y >= 0 && y < mapHeight;
   }
 
-  private getOppositeDirection(dir: Direction): Direction {
-    switch (dir) {
-      case 'N':
-        return 'S';
-      case 'S':
-        return 'N';
-      case 'E':
-        return 'W';
-      case 'W':
-        return 'E';
-    }
-  }
-
   private applyRelativeTurn(dir: Direction, turn: RelativeTurn): Direction {
     const idx = ORDERED_DIRECTIONS.indexOf(dir);
+    const count = ORDERED_DIRECTIONS.length;
     switch (turn) {
       case 'FORWARD':
         return dir;
       case 'RIGHT':
-        return ORDERED_DIRECTIONS[(idx + 1) % 4];
+        return ORDERED_DIRECTIONS[(idx + 1) % count];
       case 'BACK':
-        return ORDERED_DIRECTIONS[(idx + 2) % 4];
+        return ORDERED_DIRECTIONS[(idx + 2) % count];
       case 'LEFT':
-        return ORDERED_DIRECTIONS[(idx + 3) % 4];
-    }
-  }
-
-  private shuffleArray<T>(arr: T[]): void {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+        return ORDERED_DIRECTIONS[(idx + 3) % count];
     }
   }
 }

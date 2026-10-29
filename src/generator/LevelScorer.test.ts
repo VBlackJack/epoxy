@@ -1,0 +1,63 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ConfigRegistry } from '../config/ConfigRegistry';
+import { scoreLevel, ScoreInputs } from './LevelScorer';
+import { buildTestLevel } from '../test/buildTestLevel';
+import { loadTestConfigs } from '../test/loadTestConfigs';
+
+function inputs(rows: string[], extra: Partial<ScoreInputs> = {}): ScoreInputs {
+  return {
+    level: buildTestLevel(rows),
+    pieceBoxes: [],
+    solutionLength: 50,
+    visitedCells: 40,
+    motifCount: 1,
+    motifBudget: 1,
+    ...extra
+  };
+}
+
+describe('scoreLevel', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('rewards a run length close to the target for the level', () => {
+    const cfg = ConfigRegistry.getGame().procedural!.scoring;
+    const onTarget = scoreLevel(inputs(['#@..E#'], { solutionLength: cfg.targetMovesBase }), 1, cfg);
+    const farOff = scoreLevel(inputs(['#@..E#'], { solutionLength: cfg.targetMovesBase * 3 }), 1, cfg);
+    expect(onTarget.lengthFit).toBe(1);
+    expect(farOff.lengthFit).toBe(0);
+    expect(onTarget.total).toBeGreaterThan(farOff.total);
+  });
+
+  it('sees open rooms as junctions and bare tubes as corridor', () => {
+    const cfg = ConfigRegistry.getGame().procedural!.scoring;
+    const room = scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), 1, cfg);
+    const tube = scoreLevel(inputs(['#######', '#@...E#', '#######']), 1, cfg);
+    expect(room.junctionShare).toBeGreaterThan(tube.junctionShare);
+    // No piece boxes: every walkable cell counts as corridor.
+    expect(tube.corridorShare).toBe(1);
+  });
+
+  it('measures backtracking from the run', () => {
+    const cfg = ConfigRegistry.getGame().procedural!.scoring;
+    const score = scoreLevel(inputs(['#@..E#'], { solutionLength: 60, visitedCells: 50 }), 1, cfg);
+    expect(score.revisitRatio).toBeCloseTo(1.2);
+  });
+});

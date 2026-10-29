@@ -26,7 +26,9 @@ export const CONFIG_ENDPOINTS = {
   MONSTERS: `${ENV_CONFIG.CONFIG_BASE_URL}/monsters.json`,
   AUDIO: `${ENV_CONFIG.CONFIG_BASE_URL}/audio.json`,
   LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/levels.json`,
-  DAT_FORMAT: `${ENV_CONFIG.CONFIG_BASE_URL}/dat_format.json`
+  DAT_FORMAT: `${ENV_CONFIG.CONFIG_BASE_URL}/dat_format.json`,
+  MOTIFS: `${ENV_CONFIG.CONFIG_BASE_URL}/motifs.json`,
+  MOTIF_ANNOTATIONS: `${ENV_CONFIG.CONFIG_BASE_URL}/motif-annotations.json`
 } as const;
 
 export const DIRECTION_VECTORS = {
@@ -37,6 +39,12 @@ export const DIRECTION_VECTORS = {
 } as const;
 
 export const ORDERED_DIRECTIONS = ['N', 'E', 'S', 'W'] as const;
+
+/** Password assigned to a level that does not define one. */
+export const DEFAULT_LEVEL_PASSWORD = 'EPOX';
+
+/** Sort rank for a pack missing from the configured order. */
+export const UNORDERED_PACK_RANK = Number.MAX_SAFE_INTEGER;
 
 export const BUILTIN_PACK_IDS = {
   CAMPAIGN: 'epoxy_campaign',

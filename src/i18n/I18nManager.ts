@@ -17,16 +17,27 @@
 import frLocale from '../locales/fr.json';
 import enLocale from '../locales/en.json';
 import { ENV_CONFIG } from '../config/constants';
-
-type TranslationNode = string | { [key: string]: TranslationNode };
+import { MessageParams, TranslationNode, translate } from './messageFormat';
 
 const LOCALES: Record<string, TranslationNode> = {
   fr: frLocale as TranslationNode,
   en: enLocale as TranslationNode
 };
 
+/**
+ * DOM attributes that translateDOM fills from a translation key, mapped to
+ * the element attribute (or property) they set. data-i18n sets the text.
+ */
+const ATTRIBUTE_BINDINGS: ReadonlyArray<{ dataAttr: string; target: string }> = [
+  { dataAttr: 'data-i18n-placeholder', target: 'placeholder' },
+  { dataAttr: 'data-i18n-title', target: 'title' },
+  { dataAttr: 'data-i18n-aria-label', target: 'aria-label' },
+  { dataAttr: 'data-i18n-alt', target: 'alt' }
+];
+
 class I18nService {
   private currentLocale: string = ENV_CONFIG.DEFAULT_LOCALE;
+  private readonly fallbackLocale: string = ENV_CONFIG.DEFAULT_LOCALE;
   private listeners: Array<() => void> = [];
 
   public getLocale(): string {
@@ -36,6 +47,9 @@ class I18nService {
   public setLocale(locale: string): void {
     if (LOCALES[locale]) {
       this.currentLocale = locale;
+      if (typeof document !== 'undefined') {
+        document.documentElement.lang = locale;
+      }
       this.translateDOM();
       for (const listener of this.listeners) {
         listener();
@@ -47,69 +61,31 @@ class I18nService {
     this.listeners.push(callback);
   }
 
-  public t(key: string, params?: Record<string, string | number>): string {
-    const segments = key.split('.');
-    let cursor: TranslationNode | undefined = LOCALES[this.currentLocale];
-
-    for (const seg of segments) {
-      if (cursor && typeof cursor === 'object' && seg in cursor) {
-        cursor = cursor[seg];
-      } else {
-        cursor = undefined;
-        break;
-      }
-    }
-
-    let resolved: string | undefined;
-    if (typeof cursor === 'string') {
-      resolved = cursor;
-    } else if (cursor && typeof cursor === 'object') {
-      const firstVal = Object.values(cursor)[0];
-      if (typeof firstVal === 'string') {
-        resolved = firstVal;
-      }
-    }
-
-    if (!resolved) {
-      return key;
-    }
-
-    if (params) {
-      for (const [paramKey, paramVal] of Object.entries(params)) {
-        resolved = resolved.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramVal));
-      }
-    }
-
-    return resolved;
+  public t(key: string, params?: MessageParams): string {
+    return translate(LOCALES, this.currentLocale, this.fallbackLocale, key, params);
   }
 
-  public translateDOM(root: Document | HTMLElement = document): void {
-    const textElements = root.querySelectorAll<HTMLElement>('[data-i18n]');
-    textElements.forEach((el) => {
+  public translateDOM(root?: Document | HTMLElement): void {
+    const scope = root ?? (typeof document !== 'undefined' ? document : undefined);
+    if (!scope) return;
+
+    scope.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
       const key = el.getAttribute('data-i18n');
       if (key) {
         el.textContent = this.t(key);
       }
     });
 
-    const placeholderElements = root.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]');
-    placeholderElements.forEach((el) => {
-      const key = el.getAttribute('data-i18n-placeholder');
-      if (key) {
-        el.placeholder = this.t(key);
-      }
-    });
-
-    const titleElements = root.querySelectorAll<HTMLElement>('[data-i18n-title]');
-    titleElements.forEach((el) => {
-      const key = el.getAttribute('data-i18n-title');
-      if (key) {
-        el.title = this.t(key);
-      }
-    });
+    for (const binding of ATTRIBUTE_BINDINGS) {
+      scope.querySelectorAll<HTMLElement>(`[${binding.dataAttr}]`).forEach((el) => {
+        const key = el.getAttribute(binding.dataAttr);
+        if (key) {
+          el.setAttribute(binding.target, this.t(key));
+        }
+      });
+    }
   }
 }
 
 export const i18n = new I18nService();
-export const t = (key: string, params?: Record<string, string | number>): string =>
-  i18n.t(key, params);
+export const t = (key: string, params?: MessageParams): string => i18n.t(key, params);

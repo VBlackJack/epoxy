@@ -15,3 +15,13 @@
  */
 
 /// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_APP_CONFIG_BASE_URL?: string;
+  readonly VITE_APP_DEFAULT_LOCALE?: string;
+  readonly VITE_APP_STORAGE_PREFIX?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

@@ -27,6 +27,8 @@
   --led-green: #00e676;
   --led-amber: #ffab00;
   --danger: #ff1744;
+  /* Minimum touch target (WCAG 2.5.5) used by the d-pad cells */
+  --dpad-cell: 44px;
 }
 
 * {
@@ -346,14 +348,14 @@ button:disabled {
 /* D-Pad */
 .dpad-container {
   position: relative;
-  width: 114px;
-  height: 114px;
+  width: calc(var(--dpad-cell) * 3);
+  height: calc(var(--dpad-cell) * 3);
 }
 
 .dpad-btn {
   position: absolute;
-  width: 38px;
-  height: 38px;
+  width: var(--dpad-cell);
+  height: var(--dpad-cell);
   background: #323846;
   color: #cfd8dc;
   border: 2px solid #454d5e;
@@ -372,26 +374,26 @@ button:disabled {
 
 .dpad-up {
   top: 0;
-  left: 38px;
+  left: var(--dpad-cell);
 }
 .dpad-down {
   bottom: 0;
-  left: 38px;
+  left: var(--dpad-cell);
 }
 .dpad-left {
-  top: 38px;
+  top: var(--dpad-cell);
   left: 0;
 }
 .dpad-right {
-  top: 38px;
+  top: var(--dpad-cell);
   right: 0;
 }
 .dpad-center {
   position: absolute;
-  top: 38px;
-  left: 38px;
-  width: 38px;
-  height: 38px;
+  top: var(--dpad-cell);
+  left: var(--dpad-cell);
+  width: var(--dpad-cell);
+  height: var(--dpad-cell);
   background: #282c37;
 }
 
@@ -653,7 +655,7 @@ button:disabled {
 
 .led-label {
   display: block;
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   margin-bottom: 0.1rem;
 }
@@ -693,8 +695,18 @@ button:disabled {
 .hud-password-badge {
   cursor: pointer;
   padding: 0.1rem 0.3rem;
+  border: none;
   border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
   transition: background 0.15s ease;
+}
+
+.hud-password-badge:focus-visible {
+  outline: 2px solid var(--lynx-yellow);
+  outline-offset: 1px;
 }
 
 .hud-password-badge:hover {
@@ -743,7 +755,7 @@ button:disabled {
 }
 
 .inv-title {
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   margin-bottom: 0.22rem;
   letter-spacing: 0.04em;
@@ -791,7 +803,7 @@ button:disabled {
   position: absolute;
   bottom: 0;
   right: 2px;
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   font-family: monospace;
   font-weight: 700;
   color: var(--lynx-yellow);
@@ -881,6 +893,14 @@ button:disabled {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.78rem;
+}
+
+.editor-generator-bar {
+  flex-wrap: wrap;
+}
+
+.editor-input-narrow {
+  width: 4.5rem;
 }
 
 .editor-meta-grid {
@@ -1274,44 +1294,13 @@ body.fullscreen-mode .bezel-header {
 }
 
 .mobile-dpad {
-  width: 126px;
-  height: 126px;
   touch-action: none;
 }
 
 .mobile-dpad .dpad-btn {
-  width: 42px;
-  height: 42px;
   font-size: 1.05rem;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-}
-
-.mobile-dpad .dpad-up {
-  top: 0;
-  left: 42px;
-}
-
-.mobile-dpad .dpad-down {
-  bottom: 0;
-  left: 42px;
-}
-
-.mobile-dpad .dpad-left {
-  top: 42px;
-  left: 0;
-}
-
-.mobile-dpad .dpad-right {
-  top: 42px;
-  right: 0;
-}
-
-.mobile-dpad .dpad-center {
-  top: 42px;
-  left: 42px;
-  width: 42px;
-  height: 42px;
 }
 
 .mobile-actions-zone {
@@ -1521,42 +1510,8 @@ body.fullscreen-mode .bezel-header {
     display: none;
   }
 
-  .mobile-dpad {
-    width: 120px;
-    height: 120px;
-  }
-
   .mobile-dpad .dpad-btn {
-    width: 40px;
-    height: 40px;
     font-size: 1rem;
-  }
-
-  .mobile-dpad .dpad-up {
-    top: 0;
-    left: 40px;
-  }
-
-  .mobile-dpad .dpad-down {
-    bottom: 0;
-    left: 40px;
-  }
-
-  .mobile-dpad .dpad-left {
-    top: 40px;
-    left: 0;
-  }
-
-  .mobile-dpad .dpad-right {
-    top: 40px;
-    right: 0;
-  }
-
-  .mobile-dpad .dpad-center {
-    top: 40px;
-    left: 40px;
-    width: 40px;
-    height: 40px;
   }
 
   /* Center Column: Adaptive Rectangular Viewport filling 100% of available middle space */
@@ -1638,5 +1593,53 @@ body.fullscreen-mode .bezel-header {
   .hud-btn {
     padding: 0.22rem 0.3rem;
     font-size: 0.64rem;
+  }
+}
+
+/* Scores table: records and level codes can be selected and copied */
+.scores-table,
+.hud-level-pass,
+.code-cell {
+  user-select: text;
+}
+
+.scores-replay-btn {
+  margin-left: 4px;
+}
+
+/* Start-up failure screen */
+.fatal-error-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.fatal-error-card {
+  background: #1b202b;
+  border: 2px solid var(--danger);
+  border-radius: 10px;
+  padding: 1.4rem;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  text-align: center;
+}
+
+/* Honor the reduced motion preference: no looping pulses, no transitions */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .led-danger {
+    animation: none;
   }
 }

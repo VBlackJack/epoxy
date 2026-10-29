@@ -12,6 +12,7 @@
       "theme_label": { "label": "Biome :" },
       "procedural_btn": { "action": "Générer Puzzle Infini" },
       "fov": { "label": "Vue :" },
+      "fov_option": { "label": "{size}x{size}" },
       "audio_toggle": { "action": "Audio Chiptune" },
       "music_toggle": { "action": "Musique" },
       "language": { "label": "Langue" },
@@ -22,7 +23,18 @@
       "drawer_title": { "label": "⚙️ Options & Packs" },
       "drawer_close": { "action": "✕ Fermer" }
     },
+    "languages": {
+      "fr": { "label": "Français" },
+      "en": { "label": "English" }
+    },
+    "errors": {
+      "title": { "label": "Démarrage impossible" },
+      "init_failed": { "label": "Le jeu n'a pas pu démarrer. Vérifiez votre connexion puis réessayez." },
+      "config_load": { "label": "Le fichier de configuration {source} est introuvable ou invalide." },
+      "retry": { "action": "Réessayer" }
+    },
     "themes": {
+      "auto": { "label": "Auto (selon le niveau)" },
       "cyber_neon": { "label": "Cyber Néon" },
       "arctic_lab": { "label": "Labo Arctique" },
       "magma_core": { "label": "Usine Magma" },
@@ -35,30 +47,40 @@
     },
     "packs": {
       "selector_label": { "label": "Pack :" },
-      "campaign": { "label": "Campagne Epoxy + Ultimate" },
-      "ccup_chips": { "label": "Ultimate : CHIPS Original (149 niv.)" },
-      "ccup_tw_intro": { "label": "Ultimate : Tile World Intro" },
-      "ccup_cclp1": { "label": "Ultimate : CCLP 1 (Communauté)" },
-      "ccup_cclp2": { "label": "Ultimate : CCLP 2 (Communauté)" },
-      "ccup_cclp3": { "label": "Ultimate : CCLP 3 (Lynx)" },
-      "ccup_cclp4": { "label": "Ultimate : CCLP 4 (Communauté)" },
-      "ccup_cclp5": { "label": "Ultimate : CCLP 5 (Communauté)" },
+      "selector_option": { "label": "{name} ({count})" },
+      "campaign": { "label": "Campagne Epoxy" },
+      "ccup_tw_intro": { "label": "Communauté : Tile World Intro" },
+      "ccup_cclp1": { "label": "Communauté : CCLP 1" },
+      "ccup_cclp2": { "label": "Communauté : CCLP 2" },
+      "ccup_cclp3": { "label": "Communauté : CCLP 3" },
+      "ccup_cclp4": { "label": "Communauté : CCLP 4" },
+      "ccup_cclp5": { "label": "Communauté : CCLP 5" },
       "custom": { "label": "Niveaux Personnalisés" },
       "procedural": { "label": "Puzzles Procéduraux (Solvables)" },
-      "procedural_toast": { "label": "Nouveau pack procédural de {count} niveaux généré et validé !" },
+      "procedural_toast": { "label": "Nouveau pack procédural de {count, plural, one {# niveau} other {# niveaux}}, chacun prouvé solvable !" },
+      "procedural_progress": { "label": "Construction du niveau {done} sur {total}..." },
+      "procedural_error": { "label": "Le générateur n'a pas pu construire ce pack. Réessayez." },
       "import_btn": { "action": "Importer .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },
       "delete_btn": { "action": "Supprimer ce Pack" },
       "drop_overlay": { "label": "Déposez votre fichier .DAT, .CCL (CCLP) ou .JSON ici" },
-      "imported_toast": { "label": "Pack \"{name}\" ({count} niveaux) importé avec succès !" },
-      "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON invalide)." }
+      "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé avec succès !" },
+      "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON invalide)." },
+      "invalid_level_error": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
+      "delete_confirm": { "label": "Supprimer le pack \"{name}\" et tous ses niveaux ? Cette action est définitive." }
     },
     "lynx": {
       "bezel": { "brand": "ATARI LYNX II - SYSTÈME PORTABLE COULEUR 16-BIT" },
       "power": { "label": "ALIM" },
       "dpad": { "label": "DIRECTION" },
+      "dpad_up": { "label": "Haut" },
+      "dpad_down": { "label": "Bas" },
+      "dpad_left": { "label": "Gauche" },
+      "dpad_right": { "label": "Droite" },
       "button_a": { "action": "A (Action)" },
       "button_b": { "action": "B (Rembobiner)" },
+      "button_a_short": { "label": "A" },
+      "button_b_short": { "label": "B" },
       "option_1": { "action": "OPT 1 (Recommencer)" },
       "option_2": { "action": "OPT 2 (Audio)" },
       "pause": { "action": "PAUSE" }
@@ -70,20 +92,26 @@
       "password": { "label": "CODE" },
       "chips": { "label": "PUCES RESTANTES" },
       "time": { "label": "TEMPS" },
+      "time_unlimited": { "label": "---" },
       "score": { "label": "SCORE" },
       "steps": { "label": "PAS" }
     },
     "radar": {
       "title": { "label": "RADAR TACTIQUE 32x32" }
     },
+    "viewport": {
+      "canvas": { "label": "Plateau de jeu" }
+    },
     "inventory": {
       "keys": { "label": "CLÉS D'ACCÈS" },
       "boots": { "label": "ÉQUIPEMENT SPÉCIAL" },
-      "empty": { "label": "Aucun objet" }
+      "count": { "label": "x{count}" },
+      "infinite": { "label": "∞" }
     },
     "controls": {
       "undo": { "action": "Rembobiner (U / Ctrl+Z)" },
       "objective": { "action": "💡 Objectif & Câbles (H)" },
+      "solution": { "action": "🎬 Voir la solution (O)" },
       "restart": { "action": "Recommencer (R)" },
       "pause": { "action": "Pause (P / Espace)" },
       "prev_level": { "action": "Niveau Préc." },
@@ -93,7 +121,8 @@
     "mobile": {
       "undo": { "action": "⏪ Pas" },
       "objective": { "action": "💡 Aide" },
-      "restart": { "action": "🔄 Retry" },
+      "solution": { "action": "🎬 Solution" },
+      "restart": { "action": "🔄 Réessayer" },
       "zoom": { "action": "🔍 Vue" },
       "fullscreen": { "action": "⛶ Plein Écran" },
       "exit_fullscreen": { "action": "⛶ Quitter Plein Écran" },
@@ -110,8 +139,17 @@
       "medal_gold": { "label": "🥇 Médaille d'OR" },
       "medal_silver": { "label": "🥈 Médaille d'ARGENT" },
       "medal_bronze": { "label": "🥉 Médaille de BRONZE" },
+      "medal_gold_icon": { "label": "🥇" },
+      "medal_silver_icon": { "label": "🥈" },
+      "medal_bronze_icon": { "label": "🥉" },
+      "block_hint": { "label": "Indice : le prochain coup est joué pour vous. Appuyez de nouveau sur Aide pour le suivant." },
+      "blocks_stuck": { "label": "Impasse : ces blocs ne peuvent plus couvrir tous les boutons. Annulez (U) ou recommencez (R)." },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
+      "solution_playing": { "label": "Lecture de la solution prouvée. Touchez le plateau pour reprendre la main." },
+      "solution_confirm": { "label": "Voir la solution ? Le niveau recommence et se joue tout seul jusqu'à la sortie." },
+      "no_solution": { "label": "Pas de solution enregistrée pour ce niveau (les packs importés n'en ont pas)." },
       "inspect_format": { "label": "🔍 ({x}, {y}) : {details}" },
+      "inspect_separator": { "label": " + " },
       "next_action": { "action": "Niveau Suivant (Entrée)" },
       "replay_action": { "action": "Revoir la Solution (Replay)" },
       "replaying_banner": { "label": "REPLAY EN COURS ({step}/{total}) - Cliquez ou appuyez sur une touche pour reprendre le contrôle" },
@@ -125,7 +163,8 @@
       "death_time": { "label": "Temps écoulé !" },
       "thief_stole": { "label": "Le Voleur a confisqué toutes vos bottes !" },
       "socket_locked": { "label": "Collectez toutes les puces avant d'ouvrir le verrou !" },
-      "all_levels_won": { "label": "FÉLICITATIONS ! Vous avez maîtrisé tous les niveaux d'Epoxy !" }
+      "all_levels_won": { "label": "FÉLICITATIONS ! Vous avez maîtrisé tous les niveaux d'Epoxy !" },
+      "pack_wrapped": { "label": "Fin du pack atteinte : retour au niveau 1." }
     },
     "password_modal": {
       "title": { "label": "Accès par Code de Niveau" },
@@ -150,6 +189,7 @@
       "col_action": { "label": "Action" },
       "play_btn": { "action": "Jouer" },
       "replay_btn": { "action": "Replay" },
+      "best_time_cell": { "label": "{medal} {seconds}s" },
       "close_btn": { "action": "Fermer" }
     },
     "help_modal": {
@@ -160,6 +200,7 @@
       "kb_undo": { "label": "U / Retour Arrière / Ctrl+Z : Rembobiner un pas (même après la mort)" },
       "kb_restart": { "label": "R : Recommencer le niveau" },
       "kb_objective": { "label": "H : Localiser le prochain objectif & afficher les câbles" },
+      "kb_solution": { "label": "O : Voir la solution prouvée (le niveau recommence)" },
       "kb_fov": { "label": "V / Tab / Molette : Changer le niveau de zoom (9x9 à 32x32)" },
       "kb_graphics": { "label": "G : Basculer le rendu HD Néon / Rétro 16-Bit" },
       "kb_theme": { "label": "B : Changer le biome visuel et la piste musicale" },
@@ -175,18 +216,30 @@
   },
   "validator": {
     "status": {
-      "valid": { "label": "Niveau 100% valide et solvable ({chips}/{required} puces accessibles, sortie atteignable) !" }
+      "valid": { "label": "Niveau 100% valide et solvable ({chips}/{required} puces accessibles, sortie atteignable) !" },
+      "issue_separator": { "label": " | " }
     },
     "issues": {
       "no_exit": { "label": "Erreur : Aucun portail de sortie (E) placé sur la carte." },
-      "missing_chips": { "label": "Erreur : Seulement {placed} puces placées pour {required} requises." },
-      "no_matching_key": { "label": "Erreur : {doors} porte(s) nécessitent {key} mais aucune clé correspondante n'est présente." },
-      "fewer_keys_than_doors": { "label": "Attention : {doors} portes pour seulement {keys} clé(s) ({key})." },
-      "unreachable_chips": { "label": "Erreur : Seulement {reachable}/{required} puces sont accessibles depuis le départ." },
-      "unreachable_exit": { "label": "Erreur : Le portail de sortie est bloqué ou inaccessible." }
+      "missing_chips": { "label": "Erreur : Seulement {placed, plural, one {# puce placée} other {# puces placées}} pour {required, plural, one {# requise} other {# requises}}." },
+      "no_matching_key": { "label": "Erreur : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente." },
+      "fewer_keys_than_doors": { "label": "Attention : {doors, plural, one {# porte} other {# portes}} pour seulement {keys, plural, one {# clé} other {# clés}} ({key})." },
+      "unreachable_chips": { "label": "Erreur : Seulement {reachable}/{required, plural, one {# puce est accessible} other {# puces sont accessibles}} depuis le départ." },
+      "unreachable_exit": { "label": "Erreur : Le portail de sortie est bloqué ou inaccessible." },
+      "socket_bypass": { "label": "Erreur : La sortie est accessible sans passer par la serrure à puces." },
+      "invalid_start": { "label": "Erreur : Le point de départ du joueur est hors de la carte." }
     }
   },
   "editor": {
+    "generator": {
+      "level": { "label": "Difficulté :" },
+      "seed": { "label": "Graine :", "placeholder": "aléatoire" },
+      "generate": { "action": "Générer" },
+      "status": {
+        "generated": { "label": "Difficulté {number} générée avec la graine {seed} : prouvée solvable en {moves} coups. Retouchez-la, puis sauvegardez ou exportez." },
+        "failed": { "label": "Le générateur n'a pas pu construire ce niveau. Essayez une autre graine." }
+      }
+    },
     "toolbar": {
       "new_map": { "action": "Nouvelle Carte" },
       "undo": { "action": "↶ Annuler (Ctrl+Z)" },
@@ -198,9 +251,17 @@
       "export_ccl": { "action": "Exporter .CCL" },
       "import_json": { "action": "Importer (.DAT/.CCL/.JSON)" },
       "load_preset": { "label": "Charger un Niveau :" },
-      "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" }
+      "preset_option": { "label": "#{number} - {title}" },
+      "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" },
+      "confirm_reload": { "label": "L'éditeur contient des modifications non sauvegardées. Les remplacer par le niveau en cours ?" },
+      "confirm_test_invalid": { "label": "Ce niveau présente des problèmes : {issues}\n\nLe tester quand même ?" }
     },
     "metadata": {
+      "default_title": { "label": "Puzzle Personnalisé" },
+      "dir_north": { "label": "N (▲)" },
+      "dir_east": { "label": "E (▶)" },
+      "dir_south": { "label": "S (▼)" },
+      "dir_west": { "label": "O (◀)" },
       "title": { "label": "Titre du Niveau" },
       "hint": { "label": "Texte d'indice (?)" },
       "password": { "label": "Code (4 lettres)" },
@@ -232,6 +293,7 @@
         "saved": { "label": "Niveau sauvegardé dans la bibliothèque locale !" },
         "imported": { "label": "Niveau importé avec succès !" },
         "import_error": { "label": "Format de niveau invalide." },
+        "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
         "wire_linked": { "label": "Connexion mécanique établie !" }
@@ -308,71 +370,99 @@
   },
   "levels": {
     "level_1": {
-      "title": "Leçon 1 : Premier Pas Silicium",
-      "hint": "La clé verte est réutilisable à l'infini ! Ramassez les 8 puces pour déverrouiller le passage vers la sortie."
+      "title": "Premières Serrures",
+      "hint": "Chaque porte de couleur demande une clé de sa couleur. Trouvez la clé, puis la porte."
     },
     "level_2": {
-      "title": "Pont sur Eau Trouble",
-      "hint": "Poussez les blocs de terre dans l'eau pour bâtir un pont solide, puis récupérez les Palmes au sud !"
+      "title": "Sols Mouvants",
+      "hint": "Les tapis roulants vous emportent. Montez dessus et laissez-vous porter."
     },
     "level_3": {
-      "title": "Patinoire & Virages Relevés",
-      "hint": "Utilisez les coins de glace pour ricocher jusqu'aux Crampons au sud-est, puis récoltez les puces en toute liberté."
+      "title": "Glace Fine",
+      "hint": "Sur la glace, vous glissez jusqu'à un obstacle. Les angles dévient la glissade."
     },
     "level_4": {
-      "title": "Turbines & Le Voleur",
-      "hint": "Les Bottes Ventouses et Ignifugées vous protègent, mais le Voleur au sud confisquera tout votre équipement !"
+      "title": "Convoyeurs à Clés",
+      "hint": "Clés et tapis roulants ensemble : prévoyez où le tapis vous dépose."
     },
     "level_5": {
-      "title": "Brigade des Tanks",
-      "hint": "Appuyez sur le bouton bleu pour diriger le Tank sur le bouton brun et maintenir le piège ouvert !"
+      "title": "Dans le Feu",
+      "hint": "Le feu brûle sans bottes ignifugées. Trouvez-les d'abord."
     },
     "level_6": {
-      "title": "Usine de Clonage & Bascules",
-      "hint": "Le bouton vert inverse les murs bascules. Le bouton rouge clone des blocs de terre pour combler le canal !"
+      "title": "Eaux Profondes",
+      "hint": "L'eau vous noie sans palmes. Prenez-les avant de nager."
     },
     "level_7": {
-      "title": "Téléporteurs & Mirages",
-      "hint": "Certains murs bleus sont des illusions ! Les monstres ne peuvent pas entrer sur le gravier."
+      "title": "Dangers Mobiles",
+      "hint": "Les monstres suivent des trajets fixes. Observez-les, puis passez dans l'ouverture."
     },
     "level_8": {
-      "title": "Cœur d'Epoxy : L'Épreuve des Bottes",
-      "hint": "Combinez les quatre bottes élémentaires avant de franchir les voleurs vers le verrou final !"
+      "title": "Éléments",
+      "hint": "Feu, eau et glace dans la même course. Les bottes changent tout."
     },
     "level_9": {
-      "title": "Parois Fines & Murs Fantômes",
-      "hint": "Les parois fines bloquent un seul bord de la case. Tâtez les murs invisibles pour trouver les brèches !"
+      "title": "Bâtisseur de Ponts",
+      "hint": "Poussez un bloc dans l'eau pour en faire de la terre praticable."
     },
     "level_10": {
-      "title": "Grand Maître Lynx",
-      "hint": "Utilisez la clé verte, les téléporteurs et les blocs de terre pour réunir les 8 puces maîtresses !"
+      "title": "Démolition",
+      "hint": "Les bombes détruisent tout ce qui les touche. Laissez un bloc encaisser l'explosion."
     },
     "level_11": {
-      "title": "Anneaux Cryogéniques",
-      "hint": "Récupérez la clé verte au nord et les Crampons au centre sud pour parcourir la double spirale de glace !"
+      "title": "Portes Gardées",
+      "hint": "Des monstres patrouillent près des portes. Calez votre course vers les clés."
     },
     "level_12": {
-      "title": "Chambres Haute Tension",
-      "hint": "Chaque chambre verrouillée contient la clé de la suivante. Évitez la Balle Rose et le Marcheur !"
+      "title": "Gare de Triage",
+      "hint": "Les boutons verts inversent tous les murs bascule, et les portes veulent toujours leurs clés. Comptez vos pressions."
     },
     "level_13": {
-      "title": "Cœur de Magma",
-      "hint": "Équipez les Bottes Ignifugées et les Palmes au nord avant de traverser la fournaise et le canal !"
+      "title": "Maintenu Ouvert",
+      "hint": "Les boutons marron maintiennent les pièges ouverts : couvrez chaque bouton d'un bloc. L'ordre compte, gardez une place libre pour pousser. Bloqué ? Aide joue le coup suivant."
     },
     "level_14": {
-      "title": "Matrice Synchrone",
-      "hint": "Les boutons verts à gauche et à droite alternent les couloirs bascules pour libérer les 8 puces."
+      "title": "Atelier des Convoyeurs",
+      "hint": "Les blocs suivent aussi les tapis. Poussez-les là où le tapis aide."
     },
     "level_15": {
-      "title": "Citadelle d'Epoxy",
-      "hint": "Le défi ultime : combinez bottes élémentaires, clés et patinoire centrale pour rassembler les 10 puces !"
+      "title": "Glace Quantique",
+      "hint": "Les téléporteurs vous font ressortir par l'autre plot, dans la même direction. Sur la glace, ça compte."
+    },
+    "level_16": {
+      "title": "Repaire des Voleurs",
+      "hint": "Le voleur prend toutes vos bottes. Servez-vous-en avant de le croiser."
+    },
+    "level_17": {
+      "title": "Patrouille Glissante",
+      "hint": "Monstres, glace et tapis. Lisez les trajectoires avant de vous lancer."
+    },
+    "level_18": {
+      "title": "Serrures et Crues",
+      "hint": "Des clés derrière l'eau, de l'eau derrière des blocs. Raisonnez depuis la sortie."
+    },
+    "level_19": {
+      "title": "Chaos Maîtrisé",
+      "hint": "Monstres, bombes et murs bascule. Gardez la tête froide."
+    },
+    "level_20": {
+      "title": "Coeur d'Epoxy",
+      "hint": "Tout ce que vous avez appris, en une longue course. Prenez votre temps."
     },
     "procedural": {
-      "asymmetric_complex": { "title": "Bastion Asymétrique #{number}" },
-      "spiral_citadel": { "title": "Citadelle en Spirale #{number}" },
-      "grand_canal": { "title": "Rives du Grand Canal #{number}" },
-      "teleport_archipelago": { "title": "Archipel Quantique #{number}" },
-      "mechanical_foundry": { "title": "Fonderie Mécanique #{number}" },
+      "keys_doors": { "title": "Course du Serrurier #{number}", "hint": "Chaque porte de couleur consomme une clé de sa couleur. Les clés vertes ouvrent toutes les portes vertes." },
+      "fire": { "title": "Traversée des Braises #{number}", "hint": "Le feu brûle sans bottes ignifugées. Trouvez-les avant d'y mettre le pied." },
+      "water": { "title": "Salles Inondées #{number}", "hint": "L'eau vous noie sans palmes. Prenez-les d'abord." },
+      "blocks_water": { "title": "Bâtisseurs de Ponts #{number}", "hint": "Poussez un bloc dans l'eau pour en faire de la terre praticable. Prévoyez la poussée avant de bouger." },
+      "ice": { "title": "Dérive Glaciaire #{number}", "hint": "La glace vous fait glisser jusqu'à un obstacle. Les angles dévient la glissade." },
+      "force": { "title": "Atelier des Convoyeurs #{number}", "hint": "Les tapis roulants vous emportent. Les bottes de force permettent de marcher à contre-courant." },
+      "thief": { "title": "Repaire des Voleurs #{number}", "hint": "Le voleur prend toutes vos bottes. Servez-vous-en avant de le croiser." },
+      "toggle_walls": { "title": "Gare de Triage #{number}", "hint": "Chaque bouton vert inverse tous les murs bascule. Comptez vos pressions." },
+      "trap": { "title": "Allée des Pièges #{number}", "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut maintenir le bouton." },
+      "teleport": { "title": "Saut Quantique #{number}", "hint": "Entrez dans un téléporteur pour ressortir par l'autre, dans la même direction." },
+      "sokoban": { "title": "Entrepôt #{number}", "hint": "Chaque bouton marron maintient un piège ouvert. Poussez un bloc sur chaque bouton, et jamais dans un coin." },
+      "monsters": { "title": "Ménagerie #{number}", "hint": "Les monstres suivent des trajectoires fixes. Observez-les, attendez l'ouverture, puis foncez." },
+      "bomb": { "title": "Chantier de Démolition #{number}", "hint": "Les bombes détruisent tout ce qui les touche. Poussez-y un bloc pour dégager le passage." },
       "default": {
         "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les câbles des pièges, cloneurs et portes."
       }

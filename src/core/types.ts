@@ -74,9 +74,7 @@ export interface GraphicsConfig {
   teleportSnapDistance: number;
   maxParticles: number;
   particleBurstCount: number;
-  ambientSpawnChance: number;
   screenShakeExplosion?: number;
-  screenShakeDeath?: number;
   screenShakeDecay?: number;
 }
 
@@ -90,19 +88,106 @@ export interface ThemePalette {
   wallBottom: string;
   wallBevel: string;
   accentGlow: string;
-  ambientParticle: string;
+}
+
+/** A lock on a hub wing and the item that opens it. */
+export interface HubGateConfig {
+  terrain: string;
+  item: string;
+  /** Turn the terrain to push back toward the hub (a force floor). */
+  orientTowardHub?: boolean;
+}
+
+/** A hub outline: '.' is floor, anything else stays wall (pillars, cut corners). */
+export interface HubShapeConfig {
+  id: string;
+  rows: string[];
+}
+
+/** Hub layout: an open room the player starts in, with locked wings around it. */
+export interface HubConfig {
+  /** First level built as a hub; earlier levels stay a simple chain. */
+  fromLevel: number;
+  /** One outline is drawn per attempt, so hubs differ from level to level. */
+  shapes: HubShapeConfig[];
+  /** Largest offset of the hub from the map centre, drawn per attempt. */
+  maxShift: number;
+  /** Wings open from the start, so the player chooses where to begin. */
+  openWings: number;
+  maxConnectorLength: number;
+  /** Reward room sizes, one drawn per room. */
+  rewardRoomWidths: number[];
+  rewardRoomDepths: number[];
+  /** Rooms at least this wide and deep get a pillar in the middle. */
+  rewardRoomPillarMinSize: number;
+  rewardChips: number;
+  hubChips: number;
+  /** Depth of a hazard lock, in cells. */
+  hazardDepth: number;
+  /** Failed attempts after which a level drops one puzzle to fit around the hub. */
+  attemptsPerDroppedPiece: number;
+  doorGates: HubGateConfig[];
+  hazardGates: HubGateConfig[];
+}
+
+/** Weights and targets of the best-of-N level selection (see LevelScorer). */
+export interface ProceduralScoringConfig {
+  /** Candidates built per level; the best scoring one is kept. */
+  candidates: number;
+  targetMovesBase: number;
+  targetMovesPerLevel: number;
+  /** Relative distance to the target length at which lengthFit reaches 0. */
+  lengthTolerance: number;
+  /** Corridor share at which the corridor term reaches 0. */
+  corridorShareCeiling: number;
+  revisitLow: number;
+  revisitHigh: number;
+  weightLength: number;
+  weightJunction: number;
+  weightCorridor: number;
+  weightRevisit: number;
+  weightVariety: number;
 }
 
 export interface ProceduralConfig {
   defaultLevelCount: number;
-  minRooms: number;
-  maxRooms: number;
-  minRoomSize: number;
-  maxRoomSize: number;
-  baseChips: number;
-  chipsPerLevelFactor: number;
-  baseTimeLimitSeconds: number;
   maxGenerationAttempts: number;
+  /** Pieces in level 1; one more every levelsPerExtraPiece levels, up to maxPieceCount. */
+  basePieceCount: number;
+  levelsPerExtraPiece: number;
+  maxPieceCount: number;
+  /** Distinct motifs per level, indexed by level number - 1; the last value repeats. */
+  motifCountByLevel: number[];
+  /** Highest piece tier allowed, indexed like motifCountByLevel. */
+  maxTierByLevel: number[];
+  /** Side of the square area the level is built in, growing with the level number. */
+  baseRegionSize: number;
+  regionGrowthPerLevel: number;
+  /** Extra side length given to each new attempt after a layout failure. */
+  regionGrowthPerRetry: number;
+  placementSamplesPerPiece: number;
+  minCorridorLength: number;
+  maxCorridorLength: number;
+  /** A rest room follows every this many puzzle pieces; 0 disables them. */
+  restRoomEvery: number;
+  /** From this level on, puzzles are drawn from the hardest tier allowed. */
+  hardPiecesFromLevel: number;
+  /** First level allowed to use pieces marked oneShot in motifs.json. */
+  oneShotFromLevel: number;
+  /** Depth of the side alcove holding boots a piece needs. */
+  bootAlcoveLength: number;
+  /** Levels up to this number have no time limit. */
+  untimedUpToLevel: number;
+  /** Thinking time granted per puzzle piece, on top of the stretched run time. */
+  thinkSecondsPerPiece: number;
+  /** Time limit over the proven solution time. */
+  timeSlackFactor: number;
+  timeRoundingSeconds: number;
+  minTimeLimitSeconds: number;
+  scoring: ProceduralScoringConfig;
+  hub: HubConfig;
+  /** Visual theme given to a level, after its main motif. */
+  motifThemes: Record<string, string>;
 }
 
 export interface KeybindingsConfig {
@@ -122,6 +207,7 @@ export interface KeybindingsConfig {
   cycleTheme?: string[];
   generateProcedural?: string[];
   showObjective?: string[];
+  showSolution?: string[];
   toggleFullscreen?: string[];
   toggleHelp?: string[];
 }
@@ -132,11 +218,6 @@ export interface UltimatePackDescriptor {
   i18nKey: string;
   url: string;
   prefix: string;
-}
-
-export interface CampaignUltimateSelection {
-  packId: string;
-  levelNumbers: number[];
 }
 
 export interface TouchConfig {
@@ -154,7 +235,6 @@ export interface GameConfig {
   procedural?: ProceduralConfig;
   touch?: TouchConfig;
   ultimatePacks?: UltimatePackDescriptor[];
-  campaignUltimateSelection?: CampaignUltimateSelection[];
   timing: TimingConfig;
   storage: StorageConfig;
   locales: {
@@ -223,6 +303,8 @@ export interface EntityDefinition {
   immuneToWater?: boolean;
   immuneToFire?: boolean;
   avoidsFire?: boolean;
+  /** Turned around when a reverse_tanks button is pressed. */
+  reversedByButton?: boolean;
 }
 
 export interface MonstersConfig {
@@ -278,6 +360,8 @@ export interface DatFormatConfig {
   rleMarkerByte: number;
   passwordXorKey: number;
   layerByteLength: number;
+  /** Upper bound on the level count read from a pack header. */
+  maxLevelCount?: number;
   fieldCodes: {
     timeLimit: number;
     chipsRequired: number;
@@ -317,6 +401,8 @@ export interface EntityPlacement {
 
 export interface LevelBlueprint {
   id: string;
+  theme?: string;
+  solution?: string;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -329,7 +415,8 @@ export interface LevelBlueprint {
   rows?: string[];
   terrain?: string[][];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
-  items?: Array<{ x: number; y: number; id: string }>;
+  /** Item placements, or a full item grid as the editor exports it. */
+  items?: Array<{ x: number; y: number; id: string }> | (string | null)[][];
   itemGrid?: (string | null)[][];
   entities: EntityPlacement[];
   trapLinks: TrapLink[];
@@ -343,6 +430,10 @@ export interface LevelsConfig {
 
 export interface CompiledLevel {
   id: string;
+  /** Theme shown when the player lets the level choose; see game.json themes. */
+  theme?: string;
+  /** A proven winning action list (N, E, S, W, '.' to wait), for the solution replay. */
+  solution?: string;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -393,6 +484,12 @@ export interface PlayerState {
   boots: Set<string>;
 }
 
+/** A player move stamped with the engine tick at which it was applied. */
+export interface TimedMove {
+  tick: number;
+  dir: Direction;
+}
+
 export interface UndoSnapshot {
   terrain: string[][];
   items: (string | null)[][];
@@ -403,6 +500,8 @@ export interface UndoSnapshot {
     dir: Direction;
     isSliding: boolean;
     slideDir: Direction | null;
+    moveCooldown: number;
+    slideCooldown: number;
     inWater: boolean;
     keys: Record<string, number>;
     boots: string[];
@@ -410,7 +509,11 @@ export interface UndoSnapshot {
   chipsRemaining: number;
   ticksElapsed: number;
   stepsCount: number;
+  totalScore: number;
+  rngState: number;
+  nextEntityUid: number;
   moveHistoryLength: number;
+  timedMoveHistoryLength: number;
 }
 
 export interface LevelHighScore {

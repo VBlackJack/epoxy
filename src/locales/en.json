@@ -12,6 +12,7 @@
       "theme_label": { "label": "Biome:" },
       "procedural_btn": { "action": "Generate Endless Puzzle" },
       "fov": { "label": "View:" },
+      "fov_option": { "label": "{size}x{size}" },
       "audio_toggle": { "action": "Chiptune Audio" },
       "music_toggle": { "action": "Music" },
       "language": { "label": "Language" },
@@ -22,7 +23,18 @@
       "drawer_title": { "label": "⚙️ Options & Packs" },
       "drawer_close": { "action": "✕ Close" }
     },
+    "languages": {
+      "fr": { "label": "Français" },
+      "en": { "label": "English" }
+    },
+    "errors": {
+      "title": { "label": "Unable to start" },
+      "init_failed": { "label": "The game could not start. Check your connection and try again." },
+      "config_load": { "label": "The configuration file {source} is missing or invalid." },
+      "retry": { "action": "Retry" }
+    },
     "themes": {
+      "auto": { "label": "Auto (per level)" },
       "cyber_neon": { "label": "Cyber Neon" },
       "arctic_lab": { "label": "Arctic Lab" },
       "magma_core": { "label": "Magma Core" },
@@ -35,30 +47,40 @@
     },
     "packs": {
       "selector_label": { "label": "Pack:" },
-      "campaign": { "label": "Epoxy + Ultimate Campaign" },
-      "ccup_chips": { "label": "Ultimate: Original CHIPS (149 lvls)" },
-      "ccup_tw_intro": { "label": "Ultimate: Tile World Intro" },
-      "ccup_cclp1": { "label": "Ultimate: CCLP 1 (Community)" },
-      "ccup_cclp2": { "label": "Ultimate: CCLP 2 (Community)" },
-      "ccup_cclp3": { "label": "Ultimate: CCLP 3 (Lynx)" },
-      "ccup_cclp4": { "label": "Ultimate: CCLP 4 (Community)" },
-      "ccup_cclp5": { "label": "Ultimate: CCLP 5 (Community)" },
+      "selector_option": { "label": "{name} ({count})" },
+      "campaign": { "label": "Epoxy Campaign" },
+      "ccup_tw_intro": { "label": "Community: Tile World Intro" },
+      "ccup_cclp1": { "label": "Community: CCLP 1" },
+      "ccup_cclp2": { "label": "Community: CCLP 2" },
+      "ccup_cclp3": { "label": "Community: CCLP 3" },
+      "ccup_cclp4": { "label": "Community: CCLP 4" },
+      "ccup_cclp5": { "label": "Community: CCLP 5" },
       "custom": { "label": "Custom Levels" },
       "procedural": { "label": "Procedural Puzzles (Solvable)" },
-      "procedural_toast": { "label": "Generated & validated {count} new procedural levels!" },
+      "procedural_toast": { "label": "Generated {count, plural, one {# new procedural level} other {# new procedural levels}}, each one proven solvable!" },
+      "procedural_progress": { "label": "Building level {done} of {total}..." },
+      "procedural_error": { "label": "The level generator could not build this pack. Please try again." },
       "import_btn": { "action": "Import .DAT / .CCL / .JSON" },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
       "delete_btn": { "action": "Delete Pack" },
       "drop_overlay": { "label": "Drop your .DAT, .CCL (CCLP) or .JSON file here" },
-      "imported_toast": { "label": "Pack \"{name}\" ({count} levels) imported successfully!" },
-      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON)." }
+      "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported successfully!" },
+      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON)." },
+      "invalid_level_error": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
+      "delete_confirm": { "label": "Delete pack \"{name}\" and all its levels? This cannot be undone." }
     },
     "lynx": {
       "bezel": { "brand": "ATARI LYNX II - 16-BIT COLOR HANDHELD SYSTEM" },
       "power": { "label": "POWER" },
       "dpad": { "label": "D-PAD" },
+      "dpad_up": { "label": "Up" },
+      "dpad_down": { "label": "Down" },
+      "dpad_left": { "label": "Left" },
+      "dpad_right": { "label": "Right" },
       "button_a": { "action": "A (Action)" },
       "button_b": { "action": "B (Rewind)" },
+      "button_a_short": { "label": "A" },
+      "button_b_short": { "label": "B" },
       "option_1": { "action": "OPT 1 (Restart)" },
       "option_2": { "action": "OPT 2 (Audio)" },
       "pause": { "action": "PAUSE" }
@@ -70,20 +92,26 @@
       "password": { "label": "CODE" },
       "chips": { "label": "CHIPS LEFT" },
       "time": { "label": "TIME" },
+      "time_unlimited": { "label": "---" },
       "score": { "label": "SCORE" },
       "steps": { "label": "STEPS" }
     },
     "radar": {
       "title": { "label": "32x32 TACTICAL RADAR" }
     },
+    "viewport": {
+      "canvas": { "label": "Game board" }
+    },
     "inventory": {
       "keys": { "label": "ACCESS KEYS" },
       "boots": { "label": "SPECIAL GEAR" },
-      "empty": { "label": "No items" }
+      "count": { "label": "x{count}" },
+      "infinite": { "label": "∞" }
     },
     "controls": {
       "undo": { "action": "Rewind Step (U / Ctrl+Z)" },
       "objective": { "action": "💡 Objective & Wires (H)" },
+      "solution": { "action": "🎬 Show solution (O)" },
       "restart": { "action": "Restart (R)" },
       "pause": { "action": "Pause (P / Space)" },
       "prev_level": { "action": "Prev Level" },
@@ -93,6 +121,7 @@
     "mobile": {
       "undo": { "action": "⏪ Undo" },
       "objective": { "action": "💡 Hint" },
+      "solution": { "action": "🎬 Solution" },
       "restart": { "action": "🔄 Retry" },
       "zoom": { "action": "🔍 Zoom" },
       "fullscreen": { "action": "⛶ Fullscreen" },
@@ -110,8 +139,17 @@
       "medal_gold": { "label": "🥇 GOLD Medal" },
       "medal_silver": { "label": "🥈 SILVER Medal" },
       "medal_bronze": { "label": "🥉 BRONZE Medal" },
+      "medal_gold_icon": { "label": "🥇" },
+      "medal_silver_icon": { "label": "🥈" },
+      "medal_bronze_icon": { "label": "🥉" },
+      "block_hint": { "label": "Hint: the next push is played for you. Press Help again for the following one." },
+      "blocks_stuck": { "label": "Dead end: these blocks can no longer cover every button. Undo (U) or restart (R)." },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
+      "solution_playing": { "label": "Playing the proven solution. Tap the board to take back control." },
+      "solution_confirm": { "label": "Show the solution? The level restarts and plays itself to the exit." },
+      "no_solution": { "label": "No stored solution for this level (imported packs have none)." },
       "inspect_format": { "label": "🔍 ({x}, {y}): {details}" },
+      "inspect_separator": { "label": " + " },
       "next_action": { "action": "Next Level (Enter)" },
       "replay_action": { "action": "Watch Solution Replay" },
       "replaying_banner": { "label": "REPLAYING SOLUTION ({step}/{total}) - Click or press any key to take control" },
@@ -125,7 +163,8 @@
       "death_time": { "label": "Out of time!" },
       "thief_stole": { "label": "The Thief confiscated all your boots!" },
       "socket_locked": { "label": "Collect all chips before unlocking the socket!" },
-      "all_levels_won": { "label": "CONGRATULATIONS! You mastered every level of Epoxy!" }
+      "all_levels_won": { "label": "CONGRATULATIONS! You mastered every level of Epoxy!" },
+      "pack_wrapped": { "label": "End of pack reached: back to level 1." }
     },
     "password_modal": {
       "title": { "label": "Level Password Access" },
@@ -150,6 +189,7 @@
       "col_action": { "label": "Action" },
       "play_btn": { "action": "Play" },
       "replay_btn": { "action": "Replay" },
+      "best_time_cell": { "label": "{medal} {seconds}s" },
       "close_btn": { "action": "Close" }
     },
     "help_modal": {
@@ -160,6 +200,7 @@
       "kb_undo": { "label": "U / Backspace / Ctrl+Z: Rewind step (even after death)" },
       "kb_restart": { "label": "R: Restart current level" },
       "kb_objective": { "label": "H: Locate next objective & reveal mechanism wires" },
+      "kb_solution": { "label": "O: Watch the proven solution (the level restarts)" },
       "kb_fov": { "label": "V / Tab / Wheel: Cycle viewport zoom (9x9 to 32x32)" },
       "kb_graphics": { "label": "G: Toggle HD Neon / 16-Bit Retro rendering" },
       "kb_theme": { "label": "B: Cycle visual biome & music track" },
@@ -175,18 +216,30 @@
   },
   "validator": {
     "status": {
-      "valid": { "label": "Level is 100% valid and solvable ({chips}/{required} reachable chips, exit reachable)!" }
+      "valid": { "label": "Level is 100% valid and solvable ({chips}/{required} reachable chips, exit reachable)!" },
+      "issue_separator": { "label": " | " }
     },
     "issues": {
       "no_exit": { "label": "Error: No Exit Portal (E) placed on the map." },
-      "missing_chips": { "label": "Error: Only {placed} chips placed for {required} required." },
-      "no_matching_key": { "label": "Error: {doors} door(s) require {key} but no matching key exists." },
-      "fewer_keys_than_doors": { "label": "Warning: {doors} doors for only {keys} key(s) ({key})." },
-      "unreachable_chips": { "label": "Error: Only {reachable}/{required} chips are reachable from start." },
-      "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." }
+      "missing_chips": { "label": "Error: Only {placed, plural, one {# chip} other {# chips}} placed for {required} required." },
+      "no_matching_key": { "label": "Error: {doors, plural, one {# door requires} other {# doors require}} {key} but no matching key exists." },
+      "fewer_keys_than_doors": { "label": "Warning: {doors, plural, one {# door} other {# doors}} for only {keys, plural, one {# key} other {# keys}} ({key})." },
+      "unreachable_chips": { "label": "Error: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable from start." },
+      "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." },
+      "socket_bypass": { "label": "Error: The Exit can be reached without passing the Socket." },
+      "invalid_start": { "label": "Error: The player start is outside the map." }
     }
   },
   "editor": {
+    "generator": {
+      "level": { "label": "Difficulty:" },
+      "seed": { "label": "Seed:", "placeholder": "random" },
+      "generate": { "action": "Generate" },
+      "status": {
+        "generated": { "label": "Generated difficulty {number} from seed {seed}: proven solvable in {moves} moves. Retouch it, then save or export." },
+        "failed": { "label": "The generator could not build this level. Try another seed." }
+      }
+    },
     "toolbar": {
       "new_map": { "action": "New Blank Map" },
       "undo": { "action": "↶ Undo (Ctrl+Z)" },
@@ -198,9 +251,17 @@
       "export_ccl": { "action": "Export .CCL" },
       "import_json": { "action": "Import (.DAT/.CCL/.JSON)" },
       "load_preset": { "label": "Load Preset Level:" },
-      "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" }
+      "preset_option": { "label": "#{number} - {title}" },
+      "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" },
+      "confirm_reload": { "label": "The editor has unsaved changes. Replace them with the current level?" },
+      "confirm_test_invalid": { "label": "This level has problems: {issues}\n\nTest it anyway?" }
     },
     "metadata": {
+      "default_title": { "label": "Custom Puzzle" },
+      "dir_north": { "label": "N (▲)" },
+      "dir_east": { "label": "E (▶)" },
+      "dir_south": { "label": "S (▼)" },
+      "dir_west": { "label": "W (◀)" },
       "title": { "label": "Level Title" },
       "hint": { "label": "Hint Text (?)" },
       "password": { "label": "Password (4 chars)" },
@@ -232,6 +293,7 @@
         "saved": { "label": "Level saved to local browser library!" },
         "imported": { "label": "Level imported successfully!" },
         "import_error": { "label": "Invalid level format." },
+        "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
         "wire_select_source": { "label": "Click the trigger button on the map..." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
         "wire_linked": { "label": "Mechanism link established!" }
@@ -308,71 +370,99 @@
   },
   "levels": {
     "level_1": {
-      "title": "Lesson 1: Silicon Step",
-      "hint": "The green key can be used as many times as you want! Collect all 8 chips to open the socket to the exit."
+      "title": "First Locks",
+      "hint": "Each colored door needs a key of its color. Find the key, then the door."
     },
     "level_2": {
-      "title": "Bridge Over Troubled Water",
-      "hint": "Push dirt blocks into water to build a solid bridge, then grab the Flippers in the south!"
+      "title": "Moving Floors",
+      "hint": "Force floors carry you along. Step on and let them take you."
     },
     "level_3": {
-      "title": "Skating Rink & Corner Banks",
-      "hint": "Use the banked ice corners to ricochet to the Ice Skates in the southeast, then collect the chips freely."
+      "title": "Thin Ice",
+      "hint": "On ice you slide until something stops you. Corners turn your slide."
     },
     "level_4": {
-      "title": "Conveyor Chaos & The Thief",
-      "hint": "Suction and Fire Boots protect you, but the Thief guarding the south passage will confiscate all your boots!"
+      "title": "Keyed Conveyors",
+      "hint": "Keys and force floors together: plan where the floor drops you."
     },
     "level_5": {
-      "title": "Beetle & Tank Command",
-      "hint": "Step on the blue button to reverse the Tank onto the brown button and hold the trap open!"
+      "title": "Into the Fire",
+      "hint": "Fire burns without fire boots. Find them first."
     },
     "level_6": {
-      "title": "Toggle Matrix & Clone Factory",
-      "hint": "Green buttons toggle walls open and shut. The red button clones dirt blocks to bridge the water channel!"
+      "title": "Deep Water",
+      "hint": "Water drowns you without flippers. Grab them before you swim."
     },
     "level_7": {
-      "title": "Quantum Teleporters & Illusions",
-      "hint": "Some blue walls are illusions! Security creatures cannot step onto gravel."
+      "title": "Moving Hazards",
+      "hint": "Monsters follow fixed paths. Watch them, then slip through the gap."
     },
     "level_8": {
-      "title": "Epoxy Core: Elemental Gauntlet",
-      "hint": "Master all four elemental boots before crossing the thieves to unlock the final core!"
+      "title": "Elements",
+      "hint": "Fire, water and ice in one run. Boots change everything."
     },
     "level_9": {
-      "title": "Laser Panels & Phantom Walls",
-      "hint": "Thin panel walls block only one edge of a tile. Probe the appearing walls to discover the gaps!"
+      "title": "Bridge Builder",
+      "hint": "Push a block into water to make dirt you can walk on."
     },
     "level_10": {
-      "title": "Lynx Grandmaster",
-      "hint": "Combine the green master key, teleporters, and dirt bridges to gather all 8 master chips!"
+      "title": "Demolition",
+      "hint": "Bombs destroy whatever touches them. Let a block take the blast."
     },
     "level_11": {
-      "title": "Cryogenic Rings",
-      "hint": "Grab the green master key in the north and Ice Skates in the south center to conquer the double ice spiral!"
+      "title": "Guarded Doors",
+      "hint": "Monsters patrol near the doors. Time your run to the keys."
     },
     "level_12": {
-      "title": "High-Voltage Chambers",
-      "hint": "Each locked chamber holds the key to the next. Watch out for the Pink Ball and Walker!"
+      "title": "Switchyard",
+      "hint": "Green buttons flip every toggle wall, and doors still want their keys. Count your presses."
     },
     "level_13": {
-      "title": "Magma Core",
-      "hint": "Equip the Fire Boots and Flippers in the north before crossing the furnace and water moat!"
+      "title": "Held Open",
+      "hint": "Brown buttons hold traps open: cover every button with a block. Order matters, so keep a free spot to push from. Stuck? Help plays the next push."
     },
     "level_14": {
-      "title": "Synchronous Matrix",
-      "hint": "Green buttons on the left and right alternate the toggle corridors to unlock all 8 chips."
+      "title": "Conveyor Works",
+      "hint": "Blocks ride force floors too. Push them where the floor helps."
     },
     "level_15": {
-      "title": "Citadel of Epoxy",
-      "hint": "The ultimate test: combine elemental boots, keys, and the central ice vault to collect all 10 chips!"
+      "title": "Quantum Ice",
+      "hint": "Teleporters send you out of the other pad, moving the same way. On ice, that matters."
+    },
+    "level_16": {
+      "title": "Thieves' Den",
+      "hint": "The thief takes all your boots. Use them before you meet him."
+    },
+    "level_17": {
+      "title": "Slippery Patrol",
+      "hint": "Monsters, ice and force floors. Read the patterns before you commit."
+    },
+    "level_18": {
+      "title": "Locks and Floods",
+      "hint": "Keys behind water, water behind blocks. Work backwards from the exit."
+    },
+    "level_19": {
+      "title": "Controlled Chaos",
+      "hint": "Monsters, bombs and toggle walls. Keep a cool head."
+    },
+    "level_20": {
+      "title": "Epoxy Core",
+      "hint": "Everything you learned, in one long run. Take your time."
     },
     "procedural": {
-      "asymmetric_complex": { "title": "Asymmetric Bastion #{number}" },
-      "spiral_citadel": { "title": "Spiral Citadel #{number}" },
-      "grand_canal": { "title": "Grand Canal Banks #{number}" },
-      "teleport_archipelago": { "title": "Quantum Archipelago #{number}" },
-      "mechanical_foundry": { "title": "Mechanical Foundry #{number}" },
+      "keys_doors": { "title": "Locksmith Run #{number}", "hint": "Each colored door eats a key of its color. Green keys open every green door." },
+      "fire": { "title": "Ember Crossing #{number}", "hint": "Fire burns without fire boots. Look for them before you step in." },
+      "water": { "title": "Flooded Halls #{number}", "hint": "Water drowns you without flippers. Grab them first." },
+      "blocks_water": { "title": "Bridge Builders #{number}", "hint": "Push a block into water to turn it into dirt you can walk on. Plan the push before you move." },
+      "ice": { "title": "Glacier Drift #{number}", "hint": "Ice keeps you sliding until something stops you. Corners turn your slide." },
+      "force": { "title": "Conveyor Works #{number}", "hint": "Force floors carry you along. Force boots let you walk against them." },
+      "thief": { "title": "Thieves' Den #{number}", "hint": "The thief takes all your boots. Use them before you meet him." },
+      "toggle_walls": { "title": "Switchyard #{number}", "hint": "Every green button flips every toggle wall. Count your presses." },
+      "trap": { "title": "Bear Trap Alley #{number}", "hint": "A bear trap holds you until its brown button is pressed. A block can keep the button down." },
+      "teleport": { "title": "Quantum Hop #{number}", "hint": "Step on a teleporter to come out of the other one, moving the same way." },
+      "sokoban": { "title": "Warehouse #{number}", "hint": "Every brown button holds a trap open. Push a block onto each button, and never into a corner." },
+      "monsters": { "title": "Creature Feature #{number}", "hint": "Monsters follow fixed patterns. Watch them, wait for the gap, then move." },
+      "bomb": { "title": "Demolition Run #{number}", "hint": "Bombs blow up anything that touches them. Push a block into one to clear the way." },
       "default": {
         "hint": "Use the Objective button (or H) to locate the next mechanism and inspect trap, cloner, and toggle wires."
       }
