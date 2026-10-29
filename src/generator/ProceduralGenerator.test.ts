@@ -37,9 +37,9 @@ const SAMPLE_TIMEOUT_MS = 120000;
 const MIN_DISTINCT_HUB_SHAPES = 4;
 const MIN_DISTINCT_THEMES = 3;
 /** Regression floors on the sample, with slack under what the generator reaches. */
-const MAX_MEDIAN_DEAD_SHARE = 0.04;
-const MIN_MEDIAN_OPEN_SHARE = 0.55;
-const MIN_MEDIAN_FILL = 0.27;
+const MAX_MEDIAN_DEAD_SHARE = 0.03;
+const MIN_MEDIAN_OPEN_SHARE = 0.65;
+const MIN_MEDIAN_FILL = 0.34;
 
 describe('ProceduralGenerator', () => {
   let sample: GeneratedLevel[] = [];

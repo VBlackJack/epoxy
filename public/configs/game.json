@@ -163,7 +163,7 @@
     "regionGrowthPerLevel": 2,
     "regionGrowthPerRetry": 2,
     "placementSamplesPerPiece": 80,
-    "layoutSamples": 16,
+    "layoutSamples": 4,
     "placementCompactness": 1.5,
     "minCorridorLength": 2,
     "maxCorridorLength": 6,
@@ -199,6 +199,8 @@
       "hubChips": 1,
       "hazardDepth": 2,
       "wingPlacementSamples": 16,
+      "layoutSamples": 16,
+      "bayCells": 90,
       "fillTarget": 0.4,
       "attemptsPerDroppedPiece": 8,
       "doorGates": [
@@ -228,7 +230,7 @@
       "thief": "cyber_neon"
     },
     "scoring": {
-      "candidates": 3,
+      "candidates": 2,
       "targetMovesBase": 60,
       "targetMovesPerLevel": 15,
       "lengthTolerance": 0.35,

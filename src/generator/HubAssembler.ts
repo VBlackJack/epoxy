@@ -169,6 +169,7 @@ export class HubAssembler {
       placements[index] = placement;
     }
 
+    this.growBays();
     const hubItemCells = this.scatter(plan.hubItems, this.hubCells(start));
     if (!hubItemCells) return null;
     const hubChipCells = this.scatter(
@@ -422,6 +423,72 @@ export class HubAssembler {
       }
     }
     return null;
+  }
+
+  /**
+   * Widens the hub into the gaps the wings leave around it, in 2x2 squares
+   * inside the level's existing bounds: more open floor, no more bounding
+   * box. A bay cell touches only hub floor and wall, so it opens no way
+   * round a puzzle.
+   */
+  private growBays(): void {
+    const anchors: GridPoint[] = [];
+    for (let y = this.bounds.y0; y < this.bounds.y1; y++) {
+      for (let x = this.bounds.x0; x < this.bounds.x1; x++) {
+        if (this.isBaySquare({ x, y })) anchors.push({ x, y });
+      }
+    }
+    let added = 0;
+    while (added < this.cfg.bayCells && anchors.length > 0) {
+      // Squares are checked again when drawn: an earlier bay may have taken the room.
+      const at = this.rng.nextInt(0, anchors.length - 1);
+      const anchor = anchors[at];
+      anchors[at] = anchors[anchors.length - 1];
+      anchors.pop();
+      if (!this.isBaySquare(anchor)) continue;
+      for (const cell of this.squareCells(anchor)) {
+        this.open(cell, HUB_SEGMENT);
+        this.hubFloor.add(this.key(cell));
+        added++;
+      }
+      // A new bay makes the squares around it reachable from the hub.
+      for (let dy = -2; dy <= 1; dy++) {
+        for (let dx = -2; dx <= 1; dx++) {
+          const near = { x: anchor.x + dx, y: anchor.y + dy };
+          if (this.isBaySquare(near)) anchors.push(near);
+        }
+      }
+    }
+  }
+
+  private squareCells(anchor: GridPoint): GridPoint[] {
+    return [
+      anchor,
+      { x: anchor.x + 1, y: anchor.y },
+      { x: anchor.x, y: anchor.y + 1 },
+      { x: anchor.x + 1, y: anchor.y + 1 }
+    ];
+  }
+
+  /** A free 2x2 square in the bounds, next to the hub and next to nothing else open. */
+  private isBaySquare(anchor: GridPoint): boolean {
+    const cells = this.squareCells(anchor);
+    const own = new Set(cells.map((c) => this.key(c)));
+    let nextToHub = false;
+    for (const cell of cells) {
+      const k = this.key(cell);
+      if (!this.inMap(cell) || this.segment[k] !== NO_SEGMENT || this.inAnyBox(cell)) return false;
+      for (const dir of ORDERED_DIRECTIONS) {
+        const n = this.step(cell, dir);
+        const nk = this.key(n);
+        if (own.has(nk) || !this.inMap(n)) continue;
+        const seg = this.segment[nk];
+        if (seg === NO_SEGMENT) continue;
+        if (seg !== HUB_SEGMENT) return false;
+        nextToHub = true;
+      }
+    }
+    return nextToHub;
   }
 
   /** Every orientation of the finale, turned once per assembly. */

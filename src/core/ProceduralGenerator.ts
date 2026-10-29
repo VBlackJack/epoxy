@@ -284,7 +284,7 @@ export class ProceduralGenerator {
     shapeIds?: string[]
   ): BuiltLayout | null {
     const plan = HubPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead);
-    const assembled = this.mostCompact(cfg.layoutSamples, () => HubAssembler.assemble(plan, cfg.hub, rng, shapeIds));
+    const assembled = this.mostCompact(cfg.hub.layoutSamples, () => HubAssembler.assemble(plan, cfg.hub, rng, shapeIds));
     if (!assembled) return null;
     const pieceMotifs = [...plan.wings.map((w) => w.piece.motif), plan.finale.motif];
     return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs, hubShape: assembled.hubShape };

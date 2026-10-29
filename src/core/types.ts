@@ -130,6 +130,10 @@ export interface HubConfig {
   hazardDepth: number;
   /** Placements that fit tried per wing; the cheapest in density is kept. */
   wingPlacementSamples: number;
+  /** Layouts built per attempt for the same wings; the one filling its bounding box best is kept. */
+  layoutSamples: number;
+  /** Floor cells the hub may gain in the gaps around it, within the level's bounds. */
+  bayCells: number;
   /** Fill the level aims for: a wing's bounding box growth is weighed at this rate against the cells it adds. */
   fillTarget: number;
   /** Failed attempts after which a level drops one puzzle to fit around the hub. */
@@ -181,7 +185,7 @@ export interface ProceduralConfig {
   /** Extra side length given to each new attempt after a layout failure. */
   regionGrowthPerRetry: number;
   placementSamplesPerPiece: number;
-  /** Layouts built per attempt for the same pieces; the one filling its bounding box best is kept. */
+  /** Layouts built per attempt for the same chain; the one filling its bounding box best is kept. */
   layoutSamples: number;
   /**
    * Weight of the bounding-box growth in the score of a chain placement, in
