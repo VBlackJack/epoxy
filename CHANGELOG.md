@@ -14,8 +14,13 @@ versions follow Semantic Versioning.
   (`maxPieceDeadEnds`) and reward rooms are at least two cells deep.
 - Procedural packs vary: no two levels within `noRepeatWindow` share a lead motif or a hub
   outline, both derived from the pack seed, so a level can still be rebuilt on its own.
-  Level 1 is a single tier-1 puzzle before the exit, and puzzles that can be failed for good
-  come first in a level.
+  Level 1 is a single tier-1 puzzle before the exit, never one of the motifs listed in
+  `firstLevelExcludedMotifs` (monsters, teleport, trap, thief), and puzzles that can be
+  failed for good come first in a level. A level gives up its preferred motif and outline
+  before it gives up a puzzle.
+- The Sokoban forge ranks rooms by effective pushes (pushes minus forced opening pushes and
+  the trivial tail where each box goes straight home), then by box lines and box changes,
+  and can cluster the goals; rooms go up to 6x5 with 3 or 4 blocks.
 - The level scorer also weighs dead ends on the playfield and the walking between pieces
   against the moves spent inside them (`scoring` in `game.json`).
 - `report:levels` adds playfield metrics (fill, open share, dead share, junction share,
@@ -44,6 +49,13 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Procedural pack dialog (button, drawer or `N`): type a seed or leave it empty for a
+  random one, and choose the level to start at. The seed of the pack being played is shown
+  next to the pack selector with a Copy button, so a good pack can be shared or replayed.
+- Five Sokoban rooms with 3 or 4 blocks and four monster rooms (a pink ball lane with
+  recesses, gliders circling a pillar ring, a tank and its blue button, a bug patrolling a
+  hall). Monster rooms stay winnable however long the player waits at the entry, which the
+  tests check.
 - "LCD Screen" option: a pixel grid over the 16-Bit Retro view, saved with the other
   settings.
 - Graphics quality option (Auto, High, Medium, Low). Medium drops the coloured glows and
