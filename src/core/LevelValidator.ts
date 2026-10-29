@@ -16,7 +16,45 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { CompiledLevel, Direction, LevelValidationReport, ValidationIssue } from './types';
+import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
+import {
+  CompiledLevel,
+  Direction,
+  GridPoint,
+  LevelValidationReport,
+  TileDefinition,
+  ValidationIssue
+} from './types';
+
+/**
+ * Upper bound on reachability passes. Each pass can unlock new cells (keys,
+ * toggled walls, filled water); the loop stops earlier once a pass changes nothing.
+ */
+const MAX_FIXPOINT_PASSES = 60;
+/** Blocks assumed available from a reachable cloner button that clones a block. */
+const CLONER_BLOCK_ALLOWANCE = 10;
+
+/**
+ * The boots held are part of the search state, as a bit mask over the boot
+ * types of the tile config: a thief resets the mask, a boot on the floor sets
+ * its bit. Boot types beyond this count are never considered owned, which can
+ * only make the verdict stricter.
+ */
+const MAX_TRACKED_BOOT_TYPES = 8;
+const NO_BOOTS = 0;
+
+interface QueuedCell extends GridPoint {
+  boots: number;
+}
+
+interface SlideResult {
+  end: GridPoint;
+  path: GridPoint[];
+  boots: number;
+  fatal: boolean;
+}
+
+type BootCheck = (boots: number, bootId: string | undefined) => boolean;
 
 export class LevelValidator {
   public static validate(level: CompiledLevel): LevelValidationReport {
@@ -26,24 +64,28 @@ export class LevelValidator {
 
     let chipsPlaced = 0;
     let exitCount = 0;
-    const doorCounts: Record<string, number> = {};
+    const consumingDoorCounts: Record<string, number> = {};
+    const keepingDoorCounts: Record<string, number> = {};
     const keyCounts: Record<string, number> = {};
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const tId = level.terrain[y][x];
+        const tDef = ConfigRegistry.getTile(level.terrain[y][x]);
         const iId = level.items[y][x];
-        const tDef = ConfigRegistry.getTile(tId);
         if (tDef.isLevelExit) {
           exitCount++;
         }
         if (tDef.requiredKey) {
-          doorCounts[tDef.requiredKey] = (doorCounts[tDef.requiredKey] || 0) + 1;
+          const counts = tDef.consumesKey ? consumingDoorCounts : keepingDoorCounts;
+          counts[tDef.requiredKey] = (counts[tDef.requiredKey] || 0) + 1;
         }
-        if (iId === 'chip') {
-          chipsPlaced++;
-        } else if (iId && iId.startsWith('key_')) {
-          keyCounts[iId] = (keyCounts[iId] || 0) + 1;
+        if (iId) {
+          const iDef = ConfigRegistry.getTile(iId);
+          if (iDef.collectible === 'chip') {
+            chipsPlaced++;
+          } else if (iDef.collectible === 'key') {
+            keyCounts[iId] = (keyCounts[iId] || 0) + 1;
+          }
         }
       }
     }
@@ -63,8 +105,8 @@ export class LevelValidator {
       });
     }
 
-    for (const keyId of ['key_red', 'key_blue', 'key_yellow']) {
-      const doors = doorCounts[keyId] || 0;
+    // A consumed key opens one door; a kept key opens every door of its colour
+    for (const [keyId, doors] of Object.entries(consumingDoorCounts)) {
       const keys = keyCounts[keyId] || 0;
       if (doors > keys) {
         issues.push({
@@ -74,20 +116,42 @@ export class LevelValidator {
         });
       }
     }
+    for (const [keyId, doors] of Object.entries(keepingDoorCounts)) {
+      if ((keyCounts[keyId] || 0) === 0) {
+        issues.push({
+          severity: 'error',
+          i18nKey: 'validator.issues.no_matching_key.label',
+          params: { key: keyId, doors }
+        });
+      }
+    }
 
-    if ((doorCounts['key_green'] || 0) > 0 && (keyCounts['key_green'] || 0) === 0) {
+    const sx = level.playerStart.x;
+    const sy = level.playerStart.y;
+    const startInGrid = Number.isInteger(sx) && Number.isInteger(sy) && sx >= 0 && sx < width && sy >= 0 && sy < height;
+    if (!startInGrid) {
       issues.push({
         severity: 'error',
-        i18nKey: 'validator.issues.no_matching_key.label',
-        params: { key: 'key_green', doors: doorCounts['key_green'] }
+        i18nKey: 'validator.issues.invalid_start.label'
       });
+      return {
+        valid: false,
+        issues,
+        stats: {
+          chipsPlaced,
+          chipsRequired: level.chipsRequired,
+          exitCount,
+          reachableChips: 0,
+          reachableExit: false
+        }
+      };
     }
 
     if (exitCount > 0 && level.chipsRequired > 0) {
       if (this.canReachExitWithoutSocket(level)) {
         issues.push({
           severity: 'error',
-          i18nKey: 'validator.issues.unreachable_exit.label'
+          i18nKey: 'validator.issues.socket_bypass.label'
         });
       }
     }
@@ -95,63 +159,92 @@ export class LevelValidator {
     const simTerrain = level.terrain.map((row) => [...row]);
     const simItems = level.items.map((row) => [...row]);
     const ownedKeys: Record<string, number> = {};
-    const ownedBoots = new Set<string>();
+    const bootBits = this.buildBootBits();
+    const maskCount = 1 << bootBits.size;
+    const hasBoot: BootCheck = (boots, bootId) => {
+      const bit = bootId ? bootBits.get(bootId) : undefined;
+      return bit !== undefined && (boots & bit) !== 0;
+    };
     let collectedChips = 0;
     let reachableExit = false;
 
-    let availableBlocks = level.cloneLinks.some((c) => c.templateType === 'dirt_block') ? 10 : 0;
-    const uncollectedBlocks = new Set<string>(
-      level.entities
-        .filter((e) => e.type === 'dirt_block' || e.type === 'ice_block')
-        .map((e) => `${e.x},${e.y}`)
+    const blockTypes = new Set(
+      Object.values(ConfigRegistry.getMonsters().entities)
+        .filter((def) => def.kind === 'block')
+        .map((def) => def.id)
     );
+    let availableBlocks = 0;
+    const uncollectedBlocks = new Set<string>(
+      level.entities.filter((e) => blockTypes.has(e.type)).map((e) => `${e.x},${e.y}`)
+    );
+    // A cloner only supplies blocks once the player can reach its button
+    const grantedCloneLinks = new Set<number>();
+
+    const teleporters: GridPoint[] = [];
+    for (let ty = 0; ty < height; ty++) {
+      for (let tx = 0; tx < width; tx++) {
+        if (ConfigRegistry.getTile(simTerrain[ty][tx]).isTeleporter) teleporters.push({ x: tx, y: ty });
+      }
+    }
 
     let changed = true;
-    let iterations = 0;
+    let passes = 0;
 
-    while (changed && iterations < 60) {
+    while (changed && passes < MAX_FIXPOINT_PASSES) {
       changed = false;
-      iterations++;
+      passes++;
 
-      const visited = Array.from({ length: height }, () => new Array<boolean>(width).fill(false));
-      const queue: Array<{ x: number; y: number }> = [];
+      const visited = new Uint8Array(maskCount * width * height);
+      const queue: QueuedCell[] = [];
+      const enqueue = (x: number, y: number, boots: number): void => {
+        const idx = (boots * height + y) * width + x;
+        if (!visited[idx]) {
+          visited[idx] = 1;
+          queue.push({ x, y, boots });
+        }
+      };
 
-      const sx = level.playerStart.x;
-      const sy = level.playerStart.y;
-      if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
-        visited[sy][sx] = true;
-        queue.push({ x: sx, y: sy });
-      }
+      /**
+       * Picks up what lies on a cell. Chips, keys and blocks are shared by
+       * every state; a boot only extends the mask of the state standing there,
+       * and stays on the grid for the states that arrive without it.
+       */
+      const collectAt = (cx: number, cy: number, boots: number): number => {
+        const bKey = `${cx},${cy}`;
+        if (uncollectedBlocks.has(bKey)) {
+          uncollectedBlocks.delete(bKey);
+          availableBlocks++;
+          changed = true;
+        }
+        const item = simItems[cy][cx];
+        if (!item) return boots;
+        const itemDef = ConfigRegistry.getTile(item);
+        if (itemDef.collectible === 'chip') {
+          collectedChips++;
+          simItems[cy][cx] = null;
+          changed = true;
+        } else if (itemDef.collectible === 'key') {
+          ownedKeys[item] = (ownedKeys[item] || 0) + 1;
+          simItems[cy][cx] = null;
+          changed = true;
+        } else if (itemDef.collectible === 'boot') {
+          return boots | (bootBits.get(item) ?? NO_BOOTS);
+        }
+        return boots;
+      };
 
-      while (queue.length > 0) {
-        const curr = queue.shift()!;
+      enqueue(sx, sy, NO_BOOTS);
+
+      for (let head = 0; head < queue.length; head++) {
+        const curr = queue[head];
         const currTile = ConfigRegistry.getTile(simTerrain[curr.y][curr.x]);
 
-        const collectAt = (cx: number, cy: number): void => {
-          const bKey = `${cx},${cy}`;
-          if (uncollectedBlocks.has(bKey)) {
-            uncollectedBlocks.delete(bKey);
-            availableBlocks++;
-            changed = true;
-          }
-          const item = simItems[cy][cx];
-          if (!item) return;
-          if (item === 'chip') {
-            collectedChips++;
-            simItems[cy][cx] = null;
-            changed = true;
-          } else if (item.startsWith('key_')) {
-            ownedKeys[item] = (ownedKeys[item] || 0) + 1;
-            simItems[cy][cx] = null;
-            changed = true;
-          } else if (item.startsWith('boots_')) {
-            ownedBoots.add(item);
-            simItems[cy][cx] = null;
-            changed = true;
-          }
-        };
-
-        collectAt(curr.x, curr.y);
+        const pickedUp = collectAt(curr.x, curr.y, curr.boots);
+        if (pickedUp !== curr.boots) {
+          // Same cell, now holding the boot: continue from that state instead
+          enqueue(curr.x, curr.y, pickedUp);
+          continue;
+        }
 
         if (currTile.isLevelExit) {
           reachableExit = true;
@@ -160,26 +253,47 @@ export class LevelValidator {
         if (currTile.buttonAction === 'toggle_walls') {
           for (let ty = 0; ty < height; ty++) {
             for (let tx = 0; tx < width; tx++) {
-              if (simTerrain[ty][tx] === 'toggle_wall_closed') {
-                simTerrain[ty][tx] = 'toggle_wall_open';
+              const toggled = ConfigRegistry.getTile(simTerrain[ty][tx]);
+              if (toggled.togglesTo && !toggled.passableByPlayer) {
+                simTerrain[ty][tx] = toggled.togglesTo;
                 changed = true;
               }
             }
           }
         }
 
-        if (currTile.isTeleporter) {
-          for (let ty = 0; ty < height; ty++) {
-            for (let tx = 0; tx < width; tx++) {
-              if (simTerrain[ty][tx] === 'teleport' && !visited[ty][tx]) {
-                visited[ty][tx] = true;
-                queue.push({ x: tx, y: ty });
-              }
+        if (currTile.buttonAction === 'trigger_cloner') {
+          level.cloneLinks.forEach((link, linkIdx) => {
+            if (
+              link.buttonX === curr.x &&
+              link.buttonY === curr.y &&
+              blockTypes.has(link.templateType) &&
+              !grantedCloneLinks.has(linkIdx)
+            ) {
+              grantedCloneLinks.add(linkIdx);
+              availableBlocks += CLONER_BLOCK_ALLOWANCE;
+              changed = true;
             }
+          });
+        }
+
+        if (currTile.isTeleporter) {
+          for (const t of teleporters) {
+            enqueue(t.x, t.y, curr.boots);
           }
         }
 
+        // Standing on an unprotected force floor, the player cannot walk against it
+        const pushedAgainst: Direction | null =
+          currTile.slideType === 'force' &&
+          !hasBoot(curr.boots, currTile.protectedByItem) &&
+          currTile.forceDirection &&
+          currTile.forceDirection !== 'RANDOM'
+            ? OPPOSITE_DIRECTION[currTile.forceDirection]
+            : null;
+
         for (const dir of ORDERED_DIRECTIONS) {
+          if (dir === pushedAgainst) continue;
           const vec = DIRECTION_VECTORS[dir];
           const nx = curr.x + vec.dx;
           const ny = curr.y + vec.dy;
@@ -191,11 +305,11 @@ export class LevelValidator {
             continue;
           }
 
-          const nextId = simTerrain[ny][nx];
-          const nextTile = ConfigRegistry.getTile(nextId);
+          let nextTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
 
-          if (nextTile.revealsToOnTouch === 'floor') {
-            simTerrain[ny][nx] = 'floor';
+          if (nextTile.revealsToOnTouch && nextTile.revealsToOnTouch !== simTerrain[ny][nx]) {
+            simTerrain[ny][nx] = nextTile.revealsToOnTouch;
+            nextTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
             changed = true;
           }
 
@@ -205,24 +319,18 @@ export class LevelValidator {
               if (nextTile.consumesKey) {
                 ownedKeys[keyId]--;
               }
-              simTerrain[ny][nx] = nextTile.transformsToOnUnlock || 'floor';
+              simTerrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
               changed = true;
-              if (!visited[ny][nx]) {
-                visited[ny][nx] = true;
-                queue.push({ x: nx, y: ny });
-              }
+              enqueue(nx, ny, curr.boots);
             }
             continue;
           }
 
           if (nextTile.requiresAllChips) {
             if (collectedChips >= level.chipsRequired) {
-              simTerrain[ny][nx] = nextTile.transformsToOnUnlock || 'floor';
+              simTerrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
               changed = true;
-              if (!visited[ny][nx]) {
-                visited[ny][nx] = true;
-                queue.push({ x: nx, y: ny });
-              }
+              enqueue(nx, ny, curr.boots);
             }
             continue;
           }
@@ -231,21 +339,25 @@ export class LevelValidator {
             continue;
           }
 
-          if (nextTile.hazard === 'water' && !ownedBoots.has('boots_water')) {
+          const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
+          const protectedHere = hasBoot(nextBoots, nextTile.protectedByItem);
+
+          if (nextTile.hazard === 'water' && !protectedHere) {
             if (availableBlocks > 0) {
               availableBlocks--;
-              simTerrain[ny][nx] = 'floor';
+              simTerrain[ny][nx] = FLOOR_TILE_ID;
               changed = true;
             } else {
               continue;
             }
           }
 
-          if (nextTile.hazard === 'fire' && !ownedBoots.has('boots_fire')) {
+          if (nextTile.hazard === 'fire' && !protectedHere) {
             continue;
           }
 
-          if (simItems[ny][nx] === 'bomb') {
+          const nextItem = simItems[ny][nx];
+          if (nextItem && ConfigRegistry.getTile(nextItem).hazard === 'bomb') {
             if (availableBlocks > 0) {
               availableBlocks--;
               simItems[ny][nx] = null;
@@ -255,24 +367,30 @@ export class LevelValidator {
             }
           }
 
-          // Simulate true ice sliding when player does not have boots_ice
-          if (nextTile.slideType === 'ice' && !ownedBoots.has('boots_ice')) {
-            const slideResult = this.simulateIceSlide(simTerrain, nx, ny, dir);
-            for (const passed of slideResult.path) {
-              collectAt(passed.x, passed.y);
+          // Ice and force floors carry the player: follow the slide to where it really ends
+          const landedTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
+          if (landedTile.slideType && !hasBoot(nextBoots, landedTile.protectedByItem)) {
+            const slide = this.simulateSlide(
+              simTerrain,
+              simItems,
+              nx,
+              ny,
+              dir,
+              nextBoots,
+              hasBoot,
+              bootBits
+            );
+            if (slide.fatal) {
+              continue;
             }
-            const endPt = slideResult.end;
-            if (!visited[endPt.y][endPt.x]) {
-              visited[endPt.y][endPt.x] = true;
-              queue.push(endPt);
+            for (const passed of slide.path) {
+              collectAt(passed.x, passed.y, slide.boots);
             }
+            enqueue(slide.end.x, slide.end.y, slide.boots);
             continue;
           }
 
-          if (!visited[ny][nx]) {
-            visited[ny][nx] = true;
-            queue.push({ x: nx, y: ny });
-          }
+          enqueue(nx, ny, nextBoots);
         }
       }
     }
@@ -306,79 +424,123 @@ export class LevelValidator {
     };
   }
 
-  private static simulateIceSlide(
+  /**
+   * Follows an ice or force floor slide from its first cell. The slide is
+   * fatal when it runs into water, fire or a bomb without protection, when it
+   * hits a random force floor (its outcome cannot be predicted), or when it
+   * loops for longer than the grid has cells.
+   */
+  private static simulateSlide(
     terrain: string[][],
+    items: (string | null)[][],
     startX: number,
     startY: number,
-    entryDir: Direction
-  ): { end: { x: number; y: number }; path: Array<{ x: number; y: number }> } {
+    entryDir: Direction,
+    startBoots: number,
+    hasBoot: BootCheck,
+    bootBits: Map<string, number>
+  ): SlideResult {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
-    const oppositeMap: Record<Direction, Direction> = { N: 'S', S: 'N', E: 'W', W: 'E' };
+    const maxSteps = width * height;
 
     let x = startX;
     let y = startY;
     let dir = entryDir;
-    const path: Array<{ x: number; y: number }> = [{ x, y }];
+    let boots = startBoots;
+    const path: GridPoint[] = [{ x, y }];
+    const fatal = (): SlideResult => ({ end: { x, y }, path, boots, fatal: true });
 
-    for (let step = 0; step < 32; step++) {
-      const tile = ConfigRegistry.getTile(terrain[y][x]);
-      if (tile.slideType !== 'ice') {
-        break;
-      }
-      dir = tile.deflectionMap?.[dir] || dir;
-      const vec = DIRECTION_VECTORS[dir];
+    const canEnter = (fromTile: TileDefinition, d: Direction): GridPoint | null => {
+      const vec = DIRECTION_VECTORS[d];
       const nx = x + vec.dx;
       const ny = y + vec.dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) return null;
+      if (this.isEdgeBlocked(fromTile.id, terrain[ny][nx], d)) return null;
+      if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) return null;
+      return { x: nx, y: ny };
+    };
 
-      if (
-        nx < 0 ||
-        nx >= width ||
-        ny < 0 ||
-        ny >= height ||
-        this.isEdgeBlocked(tile.id, terrain[ny][nx], dir) ||
-        !ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer
-      ) {
-        // Bounce back on ice
-        const bounceDir = oppositeMap[dir];
-        dir = tile.deflectionMap?.[bounceDir] || bounceDir;
-        const bVec = DIRECTION_VECTORS[dir];
-        const bx = x + bVec.dx;
-        const by = y + bVec.dy;
-        if (
-          bx < 0 ||
-          bx >= width ||
-          by < 0 ||
-          by >= height ||
-          this.isEdgeBlocked(tile.id, terrain[by][bx], dir) ||
-          !ConfigRegistry.getTile(terrain[by][bx]).passableByPlayer
-        ) {
-          break;
-        }
-        x = bx;
-        y = by;
-        path.push({ x, y });
+    for (let step = 0; step < maxSteps; step++) {
+      const tile = ConfigRegistry.getTile(terrain[y][x]);
+      if (!tile.slideType || hasBoot(boots, tile.protectedByItem)) {
+        return { end: { x, y }, path, boots, fatal: false };
+      }
+
+      if (tile.slideType === 'force') {
+        if (tile.forceDirection === 'RANDOM') return fatal();
+        dir = tile.forceDirection || dir;
       } else {
-        x = nx;
-        y = ny;
-        path.push({ x, y });
+        dir = tile.deflectionMap?.[dir] || dir;
+      }
+
+      let next = canEnter(tile, dir);
+      if (!next && tile.slideType === 'ice') {
+        // Bounce back on ice
+        const bounceDir = OPPOSITE_DIRECTION[dir];
+        dir = tile.deflectionMap?.[bounceDir] || bounceDir;
+        next = canEnter(tile, dir);
+      }
+      if (!next) {
+        // Blocked both ways: the player stops here and walks off on foot
+        return { end: { x, y }, path, boots, fatal: false };
+      }
+
+      x = next.x;
+      y = next.y;
+      path.push({ x, y });
+
+      const entered = ConfigRegistry.getTile(terrain[y][x]);
+      const item = items[y][x];
+      if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return fatal();
+      boots = this.bootsOnArrival(boots, entered, item, bootBits);
+      if (
+        (entered.hazard === 'water' || entered.hazard === 'fire') &&
+        !hasBoot(boots, entered.protectedByItem)
+      ) {
+        return fatal();
       }
     }
 
-    return { end: { x, y }, path };
+    return fatal();
+  }
+
+  /** One bit per boot type of the tile config, in a stable order. */
+  private static buildBootBits(): Map<string, number> {
+    const bits = new Map<string, number>();
+    const bootIds = Object.values(ConfigRegistry.getTiles().tiles)
+      .filter((t) => t.collectible === 'boot')
+      .map((t) => t.id)
+      .sort()
+      .slice(0, MAX_TRACKED_BOOT_TYPES);
+    bootIds.forEach((id, idx) => bits.set(id, 1 << idx));
+    return bits;
+  }
+
+  /** Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. */
+  private static bootsOnArrival(
+    boots: number,
+    tile: TileDefinition,
+    itemId: string | null,
+    bootBits: Map<string, number>
+  ): number {
+    if (tile.stealsBoots) return NO_BOOTS;
+    return itemId ? boots | (bootBits.get(itemId) ?? NO_BOOTS) : boots;
   }
 
   private static canReachExitWithoutSocket(level: CompiledLevel): boolean {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
+    const { x: sx, y: sy } = level.playerStart;
+    if (sx < 0 || sx >= width || sy < 0 || sy >= height) {
+      return false;
+    }
     const visited = Array.from({ length: height }, () => new Array<boolean>(width).fill(false));
-    const queue: Array<{ x: number; y: number }> = [
-      { x: level.playerStart.x, y: level.playerStart.y }
-    ];
-    visited[level.playerStart.y][level.playerStart.x] = true;
+    const queue: GridPoint[] = [{ x: sx, y: sy }];
+    visited[sy][sx] = true;
 
-    while (queue.length > 0) {
-      const curr = queue.shift()!;
+    for (let head = 0; head < queue.length; head++) {
+      const curr = queue[head];
       const currTile = ConfigRegistry.getTile(level.terrain[curr.y][curr.x]);
       if (currTile.isLevelExit) {
         return true;
@@ -390,7 +552,7 @@ export class LevelValidator {
         if (nx < 0 || nx >= width || ny < 0 || ny >= height || visited[ny][nx]) continue;
         const nextTile = ConfigRegistry.getTile(level.terrain[ny][nx]);
         if (nextTile.requiresAllChips) continue;
-        if (!nextTile.passableByPlayer && !nextTile.requiredKey && nextTile.revealsToOnTouch !== 'floor') {
+        if (!nextTile.passableByPlayer && !nextTile.requiredKey) {
           continue;
         }
         visited[ny][nx] = true;
@@ -403,8 +565,7 @@ export class LevelValidator {
   private static isEdgeBlocked(fromId: string, toId: string, dir: Direction): boolean {
     const fromTile = ConfigRegistry.getTile(fromId);
     const toTile = ConfigRegistry.getTile(toId);
-    const oppositeMap: Record<Direction, Direction> = { N: 'S', S: 'N', E: 'W', W: 'E' };
-    const opposite = oppositeMap[dir];
+    const opposite = OPPOSITE_DIRECTION[dir];
 
     if (fromTile.blockedEdges?.includes(dir)) return true;
     if (toTile.blockedEdges?.includes(opposite)) return true;

@@ -120,7 +120,8 @@
       "turnOrder": ["FORWARD"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "reversedByButton": true
     },
     "blob": {
       "id": "blob",

@@ -15,8 +15,41 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { BUILTIN_PACK_IDS } from '../config/constants';
 import { LevelValidator } from './LevelValidator';
+import { SeededRandom } from './Random';
 import { CloneLink, CompiledLevel, Direction, EntityPlacement, TrapLink } from './types';
+
+/** Fallbacks for a game.json without a procedural section. */
+const DEFAULT_PACK_LEVEL_COUNT = 10;
+const DEFAULT_MAX_GENERATION_ATTEMPTS = 25;
+const DEFAULT_BASE_CHIPS = 6;
+const DEFAULT_CHIPS_PER_LEVEL_FACTOR = 1;
+const DEFAULT_BASE_TIME_LIMIT_SECONDS = 180;
+/** Seconds added to the time limit for each level number. */
+const TIME_LIMIT_SECONDS_PER_LEVEL = 10;
+
+/** The map is a fixed 3 x 3 grid of sectors. */
+const SECTOR_GRID_SIZE = 3;
+/** Single-tile walls: one outer wall on each side plus one divider between sectors. */
+const SECTOR_WALL_COUNT = SECTOR_GRID_SIZE + 1;
+/** Sector spans the vault archetypes are laid out for (their geometry needs this room). */
+const MIN_SECTOR_SPAN = 8;
+const MAX_SECTOR_SPAN = 11;
+
+/** Password derivation: an affine hash of the seed over the password alphabet. */
+const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+const PASSWORD_HASH_MULTIPLIER = 7919;
+const PASSWORD_HASH_OFFSET = 104729;
+const PASSWORD_LENGTH = 4;
+
+/** Raised when no procedural level could be produced and no built-in fallback validates. */
+export class ProceduralGenerationError extends Error {
+  constructor(public readonly levelNumber: number, detail: string) {
+    super(`procedural level ${levelNumber}: ${detail}`);
+    this.name = 'ProceduralGenerationError';
+  }
+}
 
 interface SectorNode {
   gx: number;
@@ -63,36 +96,97 @@ interface ProgressionStep {
 }
 
 export class ProceduralGenerator {
-  public static generatePack(count?: number): CompiledLevel[] {
+  private static rng: SeededRandom = new SeededRandom(0);
+
+  /** Returns a fresh pack seed when the caller does not provide one. */
+  public static createSeed(): number {
+    return Date.now() >>> 0;
+  }
+
+  /**
+   * Generates a pack. The same seed always yields the same levels, and the
+   * seed is part of every level id (proc_<seed>_<n>), so a high score never
+   * attaches to a different layout.
+   */
+  public static generatePack(count?: number, seed: number = this.createSeed()): CompiledLevel[] {
     const cfg = ConfigRegistry.getGame().procedural;
-    const total = count || cfg?.defaultLevelCount || 10;
+    const total = count || cfg?.defaultLevelCount || DEFAULT_PACK_LEVEL_COUNT;
     const levels: CompiledLevel[] = [];
 
     for (let i = 1; i <= total; i++) {
-      levels.push(this.generateLevel(i));
+      levels.push(this.generateLevel(i, seed));
     }
 
     return levels;
   }
 
-  public static generateLevel(levelNumber: number): CompiledLevel {
+  /**
+   * Generates one validated level. When every attempt fails validation, the
+   * first built-in campaign level that validates is returned instead, under a
+   * procedural id. Throws ProceduralGenerationError only if none does.
+   */
+  public static generateLevel(levelNumber: number, seed: number = this.createSeed()): CompiledLevel {
     const procCfg = ConfigRegistry.getGame().procedural;
-    const maxAttempts = procCfg?.maxGenerationAttempts || 25;
+    const maxAttempts = procCfg?.maxGenerationAttempts || DEFAULT_MAX_GENERATION_ATTEMPTS;
+    const packSeed = seed >>> 0;
+    this.rng = new SeededRandom(SeededRandom.seedFromString(`${packSeed}:${levelNumber}`));
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const candidate = this.buildOrganicComplex(levelNumber);
-      const report = LevelValidator.validate(candidate);
-      if (report.valid && report.stats.chipsPlaced >= 12) {
+      let candidate: CompiledLevel;
+      try {
+        candidate = this.buildOrganicComplex(levelNumber, packSeed);
+      } catch (err) {
+        if (err instanceof ProceduralGenerationError) break;
+        throw err;
+      }
+      if (LevelValidator.validate(candidate).valid) {
         return candidate;
       }
     }
 
-    return this.buildOrganicComplex(levelNumber);
+    return this.buildFallbackLevel(levelNumber);
   }
 
-  private static buildOrganicComplex(levelNumber: number): CompiledLevel {
-    const width = 32;
-    const height = 32;
+  private static buildFallbackLevel(levelNumber: number): CompiledLevel {
+    const campaign =
+      ConfigRegistry.getAllPacks().find((p) => p.id === BUILTIN_PACK_IDS.CAMPAIGN)?.levels || [];
+    for (const lvl of campaign) {
+      if (!LevelValidator.validate(lvl).valid) continue;
+      return {
+        ...lvl,
+        id: `proc_fallback_${lvl.id}`,
+        number: levelNumber,
+        terrain: lvl.terrain.map((row) => [...row]),
+        items: lvl.items.map((row) => [...row]),
+        entities: lvl.entities.map((e) => ({ ...e })),
+        trapLinks: lvl.trapLinks.map((t) => ({ ...t })),
+        cloneLinks: lvl.cloneLinks.map((c) => ({ ...c }))
+      };
+    }
+    throw new ProceduralGenerationError(levelNumber, 'no valid layout and no valid built-in fallback');
+  }
+
+  /** Splits a map dimension into SECTOR_GRID_SIZE random sector spans that fill it exactly. */
+  private static randomSectorSpans(dimension: number, levelNumber: number): number[] {
+    let remaining = dimension - SECTOR_WALL_COUNT;
+    const spans: number[] = [];
+    for (let i = 0; i < SECTOR_GRID_SIZE; i++) {
+      const sectorsLeft = SECTOR_GRID_SIZE - i - 1;
+      const lo = Math.max(MIN_SECTOR_SPAN, remaining - sectorsLeft * MAX_SECTOR_SPAN);
+      const hi = Math.min(MAX_SECTOR_SPAN, remaining - sectorsLeft * MIN_SECTOR_SPAN);
+      if (lo > hi) {
+        throw new ProceduralGenerationError(levelNumber, `map dimension ${dimension} does not fit the sector layout`);
+      }
+      const span = this.randInt(lo, hi);
+      spans.push(span);
+      remaining -= span;
+    }
+    return spans;
+  }
+
+  private static buildOrganicComplex(levelNumber: number, packSeed: number): CompiledLevel {
+    const { mapWidth: width, mapHeight: height } = ConfigRegistry.getGame().grid;
+    const procCfg = ConfigRegistry.getGame().procedural;
 
     const topologies: MapTopology[] = [
       'ASYMMETRIC_COMPLEX',
@@ -113,17 +207,9 @@ export class ProceduralGenerator {
     const trapLinks: TrapLink[] = [];
     const cloneLinks: CloneLink[] = [];
 
-    // Asymmetric sector widths and heights (summing to 28, plus 4 single-tile dividers = 32)
-    const dimensionPresets: Array<[number, number, number]> = [
-      [8, 11, 9],
-      [10, 9, 9],
-      [9, 8, 11],
-      [11, 9, 8],
-      [8, 10, 10],
-      [10, 10, 8]
-    ];
-    const colWidths = dimensionPresets[this.randInt(0, dimensionPresets.length - 1)];
-    const rowHeights = dimensionPresets[this.randInt(0, dimensionPresets.length - 1)];
+    // Asymmetric sector widths and heights that, with the single-tile walls, fill the map exactly
+    const colWidths = this.randomSectorSpans(width, levelNumber);
+    const rowHeights = this.randomSectorSpans(height, levelNumber);
 
     const colStarts = [1, 1 + colWidths[0] + 1, 1 + colWidths[0] + 1 + colWidths[1] + 1];
     const rowStarts = [1, 1 + rowHeights[0] + 1, 1 + rowHeights[0] + 1 + rowHeights[1] + 1];
@@ -142,9 +228,9 @@ export class ProceduralGenerator {
     }
 
     const grid: SectorNode[][] = [];
-    for (let gy = 0; gy < 3; gy++) {
+    for (let gy = 0; gy < SECTOR_GRID_SIZE; gy++) {
       const row: SectorNode[] = [];
-      for (let gx = 0; gx < 3; gx++) {
+      for (let gx = 0; gx < SECTOR_GRID_SIZE; gx++) {
         const x0 = colStarts[gx];
         const y0 = rowStarts[gy];
         const w = colWidths[gx];
@@ -267,7 +353,13 @@ export class ProceduralGenerator {
         for (const d of deltas) {
           const nx = node.gx + d.dx;
           const ny = node.gy + d.dy;
-          if (nx >= 0 && nx < 3 && ny >= 0 && ny < 3 && grid[ny][nx].orderIndex === -1) {
+          if (
+            nx >= 0 &&
+            nx < SECTOR_GRID_SIZE &&
+            ny >= 0 &&
+            ny < SECTOR_GRID_SIZE &&
+            grid[ny][nx].orderIndex === -1
+          ) {
             frontier.push({ from: node, to: grid[ny][nx], dir: d.dir });
           }
         }
@@ -374,7 +466,7 @@ export class ProceduralGenerator {
     const startY = startSector.y0 + 1;
     terrain[startY][startX + 1] = 'hint';
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < progression.length; i++) {
       const sec = orderedSectors[i];
       const step = progression[i];
 
@@ -401,8 +493,8 @@ export class ProceduralGenerator {
       }
     }
 
-    // Chamber 8: Final Sanctum gated by Socket (requires 100% of all chips)
-    const finalSec = orderedSectors[8];
+    // Last chamber: Final Sanctum gated by a Socket
+    const finalSec = orderedSectors[progression.length];
     terrain[finalSec.entryDoorY][finalSec.entryDoorX] = 'socket';
     this.buildFinalSanctumWing(finalSec, terrain, items, entities);
 
@@ -423,14 +515,21 @@ export class ProceduralGenerator {
       MECHANICAL_FOUNDRY: 'levels.procedural.mechanical_foundry.title'
     };
 
+    // Required chips grow with the level number, capped by what the layout actually holds
+    const baseChips = procCfg?.baseChips ?? DEFAULT_BASE_CHIPS;
+    const chipsPerLevel = procCfg?.chipsPerLevelFactor ?? DEFAULT_CHIPS_PER_LEVEL_FACTOR;
+    const wantedChips = Math.round(baseChips + chipsPerLevel * (levelNumber - 1));
+    const chipsRequired = Math.max(1, Math.min(totalChips, wantedChips));
+    const baseTime = procCfg?.baseTimeLimitSeconds ?? DEFAULT_BASE_TIME_LIMIT_SECONDS;
+
     return {
-      id: `proc_level_${levelNumber}`,
+      id: `proc_${packSeed}_${levelNumber}`,
       number: levelNumber,
       titleKey: topologyTitleKeys[topology],
       hintKey: 'levels.procedural.default.hint',
-      password: this.generatePassword(levelNumber),
-      timeLimitSeconds: 260 + levelNumber * 10,
-      chipsRequired: Math.max(1, totalChips),
+      password: this.generatePassword(packSeed + levelNumber),
+      timeLimitSeconds: baseTime + levelNumber * TIME_LIMIT_SECONDS_PER_LEVEL,
+      chipsRequired,
       playerStart: { x: startX, y: startY, dir: 'E' },
       terrain,
       items,
@@ -799,26 +898,20 @@ export class ProceduralGenerator {
   }
 
   private static shuffleArray<T>(arr: T[]): void {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = this.randInt(0, i);
-      const tmp = arr[i];
-      arr[i] = arr[j];
-      arr[j] = tmp;
-    }
+    this.rng.shuffle(arr);
   }
 
   private static generatePassword(seed: number): string {
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    let n = (seed * 7919 + 104729) >>> 0;
+    let n = (Math.imul(seed, PASSWORD_HASH_MULTIPLIER) + PASSWORD_HASH_OFFSET) >>> 0;
     let out = '';
-    for (let i = 0; i < 4; i++) {
-      out += alphabet[n % alphabet.length];
-      n = Math.floor(n / alphabet.length);
+    for (let i = 0; i < PASSWORD_LENGTH; i++) {
+      out += PASSWORD_ALPHABET[n % PASSWORD_ALPHABET.length];
+      n = Math.floor(n / PASSWORD_ALPHABET.length);
     }
     return out;
   }
 
   private static randInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return this.rng.nextInt(min, max);
   }
 }

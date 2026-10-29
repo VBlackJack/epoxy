@@ -341,6 +341,7 @@
       "passableByBlock": false,
       "requiredKey": "key_red",
       "consumesKey": true,
+      "transformsToOnUnlock": "floor",
       "colorKey": "red"
     },
     "door_blue": {
@@ -353,6 +354,7 @@
       "passableByBlock": false,
       "requiredKey": "key_blue",
       "consumesKey": true,
+      "transformsToOnUnlock": "floor",
       "colorKey": "blue"
     },
     "door_yellow": {
@@ -365,6 +367,7 @@
       "passableByBlock": false,
       "requiredKey": "key_yellow",
       "consumesKey": true,
+      "transformsToOnUnlock": "floor",
       "colorKey": "yellow"
     },
     "door_green": {
@@ -377,6 +380,7 @@
       "passableByBlock": false,
       "requiredKey": "key_green",
       "consumesKey": false,
+      "transformsToOnUnlock": "floor",
       "colorKey": "green"
     },
     "key_red": {

@@ -74,9 +74,7 @@ export interface GraphicsConfig {
   teleportSnapDistance: number;
   maxParticles: number;
   particleBurstCount: number;
-  ambientSpawnChance: number;
   screenShakeExplosion?: number;
-  screenShakeDeath?: number;
   screenShakeDecay?: number;
 }
 
@@ -90,7 +88,6 @@ export interface ThemePalette {
   wallBottom: string;
   wallBevel: string;
   accentGlow: string;
-  ambientParticle: string;
 }
 
 export interface ProceduralConfig {
@@ -223,6 +220,8 @@ export interface EntityDefinition {
   immuneToWater?: boolean;
   immuneToFire?: boolean;
   avoidsFire?: boolean;
+  /** Turned around when a reverse_tanks button is pressed. */
+  reversedByButton?: boolean;
 }
 
 export interface MonstersConfig {
@@ -278,6 +277,8 @@ export interface DatFormatConfig {
   rleMarkerByte: number;
   passwordXorKey: number;
   layerByteLength: number;
+  /** Upper bound on the level count read from a pack header. */
+  maxLevelCount?: number;
   fieldCodes: {
     timeLimit: number;
     chipsRequired: number;
@@ -393,6 +394,12 @@ export interface PlayerState {
   boots: Set<string>;
 }
 
+/** A player move stamped with the engine tick at which it was applied. */
+export interface TimedMove {
+  tick: number;
+  dir: Direction;
+}
+
 export interface UndoSnapshot {
   terrain: string[][];
   items: (string | null)[][];
@@ -403,6 +410,8 @@ export interface UndoSnapshot {
     dir: Direction;
     isSliding: boolean;
     slideDir: Direction | null;
+    moveCooldown: number;
+    slideCooldown: number;
     inWater: boolean;
     keys: Record<string, number>;
     boots: string[];
@@ -410,7 +419,11 @@ export interface UndoSnapshot {
   chipsRemaining: number;
   ticksElapsed: number;
   stepsCount: number;
+  totalScore: number;
+  rngState: number;
+  nextEntityUid: number;
   moveHistoryLength: number;
+  timedMoveHistoryLength: number;
 }
 
 export interface LevelHighScore {
