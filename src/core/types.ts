@@ -151,6 +151,13 @@ export interface ProceduralScoringConfig {
   weightCorridor: number;
   weightRevisit: number;
   weightVariety: number;
+  /** Dead-end share of the playfield at which the dead-end term reaches 0. */
+  deadShareCeiling: number;
+  /** Band of moves walked between pieces per move spent inside them that scores full marks. */
+  walkPerDecisionLow: number;
+  walkPerDecisionHigh: number;
+  weightDeadEnd: number;
+  weightWalk: number;
 }
 
 export interface ProceduralConfig {

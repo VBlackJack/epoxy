@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { CompiledLevel, GridPoint } from '../core/types';
+import { isPlayerWalkable } from '../core/Walkability';
 import { Box } from './LevelAssembler';
 
 /**
@@ -29,8 +30,7 @@ export function cellReachableWithout(level: CompiledLevel, walled: Box, target: 
   const open = (p: GridPoint): boolean => {
     if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) return false;
     if (p.x >= walled.x0 && p.x <= walled.x1 && p.y >= walled.y0 && p.y <= walled.y1) return false;
-    const tile = ConfigRegistry.getTile(level.terrain[p.y][p.x]);
-    return Boolean(tile.passableByPlayer || tile.requiredKey || tile.requiresAllChips || tile.togglesTo);
+    return isPlayerWalkable(ConfigRegistry.getTile(level.terrain[p.y][p.x]));
   };
   const teleporters: GridPoint[] = [];
   level.terrain.forEach((row, y) =>

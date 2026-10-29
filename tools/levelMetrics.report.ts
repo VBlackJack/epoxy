@@ -64,18 +64,25 @@ function measureProcedural(): SetReport {
   const levels: CompiledLevel[] = [];
   const durations: number[] = [];
   const attempts: number[] = [];
+  const walkPerDecision: number[] = [];
+  let repeatedLeads = 0;
   const hubShapes: Record<string, number> = {};
   const themes: Record<string, number> = {};
   let failures = 0;
   let unproven = 0;
   let bypassable = 0;
   for (const seed of PROCEDURAL_SEEDS) {
+    let previousLead = '';
     for (let n = 1; n <= PROCEDURAL_LEVELS_PER_SEED; n++) {
       const started = performance.now();
       try {
         const generated = ProceduralGenerator.generateDetailed(n, seed);
         durations.push(performance.now() - started);
         attempts.push(generated.attempts);
+        walkPerDecision.push(generated.walkPerDecision);
+        const lead = generated.motifs[0] ?? '';
+        if (lead === previousLead) repeatedLeads++;
+        previousLead = lead;
         if (generated.hubShape) hubShapes[generated.hubShape] = (hubShapes[generated.hubShape] ?? 0) + 1;
         const theme = generated.level.theme ?? 'default';
         themes[theme] = (themes[theme] ?? 0) + 1;
@@ -97,6 +104,8 @@ function measureProcedural(): SetReport {
       unprovenLevels: unproven,
       bypassableLevels: bypassable,
       attempts: summarizeField(attempts),
+      walkPerDecision: summarizeField(walkPerDecision),
+      consecutiveSameLeadMotif: repeatedLeads,
       hubShapes,
       themes,
       generationMs: summarizeField(durations)

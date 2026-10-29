@@ -28,6 +28,8 @@ function inputs(rows: string[], extra: Partial<ScoreInputs> = {}): ScoreInputs {
     visitedCells: 40,
     motifCount: 1,
     motifBudget: 1,
+    walkMoves: 30,
+    pieceMoves: 20,
     ...extra
   };
 }

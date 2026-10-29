@@ -17,6 +17,8 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { LevelValidator } from './LevelValidator';
+import { measurePlayfield } from './PlayfieldMetrics';
+import { isPlayerWalkable } from './Walkability';
 import { CompiledLevel, GridPoint, TileDefinition } from './types';
 
 /**
@@ -75,6 +77,20 @@ export interface LevelMetricsReport {
   /** Mean distance of chips from their centroid, over the larger used dimension. */
   chipSpread: number;
   monsterCount: number;
+  /** 1 when the level has at least one monster, else 0; its mean is the share of levels with monsters. */
+  hasMonsters: number;
+  /** Playfield cells: walkable cells reachable from the start without crossing a solid cell. */
+  playfieldCells: number;
+  /** Playfield over its bounding box. */
+  playfieldFill: number;
+  /** Share of playfield cells inside an open 2x2 square. */
+  openShare: number;
+  /** Share of playfield cells with exactly one walkable neighbour. */
+  deadShare: number;
+  /** Share of playfield cells with three or more walkable neighbours. */
+  junctionShare: number;
+  /** Best mirror match of the playfield over its bounding box. */
+  symmetry: number;
   timeLimitSeconds: number;
   /** Seconds the tour takes at the player's move speed, or null without a tour. */
   estimatedSeconds: number | null;
@@ -105,7 +121,7 @@ export class LevelMetrics {
     const height = level.terrain.length;
     const width = height > 0 ? level.terrain[0].length : 0;
     const tiles = level.terrain.map((row) => row.map((id) => ConfigRegistry.getTile(id)));
-    const walkable = tiles.map((row) => row.map((tile) => this.isPermissivelyWalkable(tile)));
+    const walkable = tiles.map((row) => row.map((tile) => isPlayerWalkable(tile)));
     const teleporters: GridPoint[] = [];
     tiles.forEach((row, y) =>
       row.forEach((tile, x) => {
@@ -128,6 +144,8 @@ export class LevelMetrics {
       (e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster'
     ).length;
 
+    const playfield = measurePlayfield(walkable, level.playerStart);
+
     return {
       levelId: level.id,
       valid: validation.valid,
@@ -146,6 +164,13 @@ export class LevelMetrics {
       chipsRequired: level.chipsRequired,
       chipSpread: this.spread(chips, Math.max(bounds.width, bounds.height)),
       monsterCount,
+      hasMonsters: monsterCount > 0 ? 1 : 0,
+      playfieldCells: playfield.cells,
+      playfieldFill: playfield.fill,
+      openShare: playfield.openShare,
+      deadShare: playfield.deadShare,
+      junctionShare: playfield.junctionShare,
+      symmetry: playfield.symmetry,
       timeLimitSeconds: level.timeLimitSeconds,
       estimatedSeconds,
       timeSlackRatio:
@@ -153,13 +178,6 @@ export class LevelMetrics {
           ? level.timeLimitSeconds / estimatedSeconds
           : null
     };
-  }
-
-  /** Cells the player can stand on once every lock, socket and hazard is dealt with. */
-  private static isPermissivelyWalkable(tile: TileDefinition): boolean {
-    return Boolean(
-      tile.passableByPlayer || tile.requiredKey || tile.requiresAllChips || tile.togglesTo
-    );
   }
 
   private static usedBounds(
@@ -173,7 +191,7 @@ export class LevelMetrics {
     let maxY = UNREACHED;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        if (!this.isPermissivelyWalkable(tiles[y][x])) continue;
+        if (!isPlayerWalkable(tiles[y][x])) continue;
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x);

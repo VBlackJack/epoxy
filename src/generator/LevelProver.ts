@@ -32,6 +32,10 @@ export interface LevelProof {
   ticks: number;
   /** Distinct cells the player stood on during the run. */
   visitedCells: number;
+  /** Actions spent walking between pieces: corridors, hub floor, detours for items. */
+  walkMoves: number;
+  /** Actions spent solving the pieces themselves. */
+  pieceMoves: number;
 }
 
 /** Solutions per oriented piece and starting inventory; pieces repeat across levels. */
@@ -59,6 +63,7 @@ export class LevelProver {
     const engine = new GameEngine();
     engine.loadLevel(level);
     const moves: SolverAction[] = [];
+    let pieceMoves = 0;
     const visited = new Set<number>();
     const width = level.terrain[0].length;
     const track = (): void => {
@@ -70,7 +75,9 @@ export class LevelProver {
       solved: false,
       moves,
       ticks: engine.getTick(),
-      visitedCells: visited.size
+      visitedCells: visited.size,
+      walkMoves: moves.length - pieceMoves,
+      pieceMoves
     });
 
     for (const segment of route) {
@@ -90,6 +97,7 @@ export class LevelProver {
         for (const action of back.moves) {
           if (!PieceSolver.play(engine, action)) return failed();
           moves.push(action);
+          pieceMoves++;
           track();
         }
         continue;
@@ -109,6 +117,7 @@ export class LevelProver {
         // Some winning moves are refused yet change the board (a hidden wall shows up).
         if (!PieceSolver.play(engine, action)) return failed();
         moves.push(action);
+        pieceMoves++;
         track();
       }
       if (segment.isFinale) break;
@@ -118,7 +127,14 @@ export class LevelProver {
     }
 
     const solved = engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
-    return { solved, moves, ticks: engine.getTick(), visitedCells: visited.size };
+    return {
+      solved,
+      moves,
+      ticks: engine.getTick(),
+      visitedCells: visited.size,
+      walkMoves: moves.length - pieceMoves,
+      pieceMoves
+    };
   }
 
   /**

@@ -233,7 +233,12 @@
       "weightJunction": 0.8,
       "weightCorridor": 0.6,
       "weightRevisit": 0.4,
-      "weightVariety": 0.3
+      "weightVariety": 0.3,
+      "deadShareCeiling": 0.08,
+      "walkPerDecisionLow": 1.5,
+      "walkPerDecisionHigh": 4,
+      "weightDeadEnd": 0,
+      "weightWalk": 0
     }
   },
   "touch": {

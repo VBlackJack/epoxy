@@ -57,6 +57,8 @@ export interface GeneratedLevel {
   attempts: number;
   /** Best-of-N score of the kept candidate (LevelScorer). */
   score: number;
+  /** Solution actions walked between pieces over actions spent inside them. */
+  walkPerDecision: number;
   /** Bounds of every piece, finale last; lets tests check no piece can be skipped. */
   pieceBoxes: Box[];
   /** Motif of each piece, in the same order as pieceBoxes. */
@@ -200,24 +202,27 @@ export class ProceduralGenerator {
       const puzzleCount = built.pieceMotifs.filter((m) => built.motifs.includes(m)).length;
       level.timeLimitSeconds = this.timeLimit(levelNumber, proof.ticks, puzzleCount, cfg);
       level.solution = encodeActions(proof.moves);
-      const score = scoreLevel(
+      const scored = scoreLevel(
         {
           level,
           pieceBoxes: assembled.pieceBoxes,
           solutionLength: proof.moves.length,
           visitedCells: proof.visitedCells,
           motifCount: built.motifs.length,
-          motifBudget: script ? script.motifs.length : budgetFor(levelNumber, cfg).motifCount
+          motifBudget: script ? script.motifs.length : budgetFor(levelNumber, cfg).motifCount,
+          walkMoves: proof.walkMoves,
+          pieceMoves: proof.pieceMoves
         },
         levelNumber,
         cfg.scoring
-      ).total;
+      );
       return {
         level,
         solution: proof.moves,
         motifs: built.motifs,
         attempts: attempt + 1,
-        score,
+        score: scored.total,
+        walkPerDecision: scored.walkPerDecision,
         pieceBoxes: assembled.pieceBoxes,
         pieceMotifs: built.pieceMotifs,
         guards: built.guards,
