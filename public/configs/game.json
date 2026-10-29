@@ -155,16 +155,6 @@
       "prefix": "cclp5"
     }
   ],
-  "campaignUltimateSelection": [
-    {
-      "packId": "ccup_tw_intro",
-      "levelNumbers": [1, 2, 3, 4, 5]
-    },
-    {
-      "packId": "ccup_cclp1",
-      "levelNumbers": [1, 2, 3, 4, 5]
-    }
-  ],
   "timing": {
     "tickIntervalMs": 50,
     "ticksPerSecond": 20,

@@ -131,11 +131,6 @@ export interface UltimatePackDescriptor {
   prefix: string;
 }
 
-export interface CampaignUltimateSelection {
-  packId: string;
-  levelNumbers: number[];
-}
-
 export interface TouchConfig {
   swipeDeadzonePx: number;
   tapMaxDistancePx: number;
@@ -151,7 +146,6 @@ export interface GameConfig {
   procedural?: ProceduralConfig;
   touch?: TouchConfig;
   ultimatePacks?: UltimatePackDescriptor[];
-  campaignUltimateSelection?: CampaignUltimateSelection[];
   timing: TimingConfig;
   storage: StorageConfig;
   locales: {

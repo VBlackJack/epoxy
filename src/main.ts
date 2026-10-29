@@ -2072,8 +2072,15 @@ class EpoxyApplication {
       const raw = localStorage.getItem(key);
       if (!raw) return;
       const parsed = JSON.parse(raw) as { packId?: string; levelIndex?: number };
-      if (parsed.packId === ConfigRegistry.getActivePackId() && typeof parsed.levelIndex === 'number') {
-        this.currentLevelIndex = Math.max(0, parsed.levelIndex);
+      const levelCount = ConfigRegistry.getLevels().length;
+      // A pack can shrink between releases: a stale index restarts the pack.
+      if (
+        parsed.packId === ConfigRegistry.getActivePackId() &&
+        typeof parsed.levelIndex === 'number' &&
+        parsed.levelIndex >= 0 &&
+        parsed.levelIndex < levelCount
+      ) {
+        this.currentLevelIndex = parsed.levelIndex;
       }
     } catch {
       // Ignore corrupt save

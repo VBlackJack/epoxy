@@ -109,7 +109,6 @@ class ConfigRegistryService {
 
     this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat });
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
-    this.appendCampaignUltimateSelection();
     this.customLevels = this.loadCustomLevelsFromStorage();
     this.importedPacks = await storedPacksPromise;
 
@@ -181,33 +180,6 @@ class ConfigRegistryService {
         (orderMap.get(a.id) ?? UNORDERED_PACK_RANK) - (orderMap.get(b.id) ?? UNORDERED_PACK_RANK)
     );
     return loaded;
-  }
-
-  private appendCampaignUltimateSelection(): void {
-    const selections = this.gameConfig.campaignUltimateSelection || [];
-    for (const sel of selections) {
-      const pack = this.ultimatePacks.find((p) => p.id === sel.packId);
-      if (!pack) continue;
-      for (const lvlNum of sel.levelNumbers) {
-        const found = pack.levels.find((l) => l.number === lvlNum);
-        if (found) {
-          const nextNumber = this.builtInLevels.length + 1;
-          this.builtInLevels.push({
-            ...found,
-            id: `campaign_${sel.packId}_${lvlNum}`,
-            number: nextNumber,
-            customTitle: found.customTitle
-              ? `${found.customTitle} (${pack.name})`
-              : `${pack.name} #${lvlNum}`,
-            terrain: found.terrain.map((row) => [...row]),
-            items: found.items.map((row) => [...row]),
-            entities: found.entities.map((e) => ({ ...e })),
-            trapLinks: found.trapLinks.map((t) => ({ ...t })),
-            cloneLinks: found.cloneLinks.map((c) => ({ ...c }))
-          });
-        }
-      }
-    }
   }
 
   private async fetchJson<T>(url: string, requiredKeys: readonly string[]): Promise<T> {
