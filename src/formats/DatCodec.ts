@@ -272,10 +272,14 @@ export class DatCodec {
     const cloneMachineId = this.findCloneMachineTileId();
 
     // A layer longer than the grid would place cells outside the arrays: walk the overlap only
-    const cellCount = Math.min(datCfg.layerByteLength, mapWidth * mapHeight);
+    // The row stride is the layer width, the same one encode writes with.
+    const layerWidth = datCfg.layerWidth ?? mapWidth;
+    const layerHeight = datCfg.layerHeight ?? mapHeight;
+    const cellCount = Math.min(datCfg.layerByteLength, layerWidth * layerHeight);
     for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
-      const x = cellIdx % mapWidth;
-      const y = Math.floor(cellIdx / mapWidth);
+      const x = cellIdx % layerWidth;
+      const y = Math.floor(cellIdx / layerWidth);
+      if (!isInBounds(x, y, mapWidth, mapHeight)) continue;
       const topElem = datCfg.byteToElement[String(layer1[cellIdx])] || FALLBACK_ELEMENT;
       const botElem = datCfg.byteToElement[String(layer2[cellIdx])] || FALLBACK_ELEMENT;
 

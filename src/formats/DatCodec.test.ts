@@ -17,6 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DatCodec } from './DatCodec';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
+import { findDatFormatErrors } from '../config/ConfigValidation';
 import { CompiledLevel } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
@@ -259,6 +260,22 @@ describe('DatCodec malformed input', () => {
     bundle.datFormat.maxLevelCount = 1;
     const three = DatCodec.encodeLevels([blankLevel(1), blankLevel(2), blankLevel(3)]);
     expect(DatCodec.decodeBuffer(toBuffer(three), PREFIX)).toHaveLength(1);
+  });
+
+  it('round-trips with a layer wider than the grid, using the layer width as stride', () => {
+    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    bundle.datFormat.layerWidth = mapWidth + 4;
+    bundle.datFormat.layerHeight = mapHeight;
+    bundle.datFormat.layerByteLength = (mapWidth + 4) * mapHeight;
+    const encoded = DatCodec.encodeLevels([richLevel(1)]);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX);
+    expect(decoded.terrain[7][7]).toBe('exit');
+  });
+
+  it('rejects a layer smaller than its declared dimensions', () => {
+    const grid = ConfigRegistry.getGame().grid;
+    expect(findDatFormatErrors(bundle.datFormat, grid)).toEqual([]);
+    expect(findDatFormatErrors({ ...bundle.datFormat, layerByteLength: 100 }, grid)).toHaveLength(1);
   });
 
   it('ignores layer cells beyond the grid', () => {

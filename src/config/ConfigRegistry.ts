@@ -34,6 +34,7 @@ import {
   isDirection,
   isFiniteNumber,
   isInBounds,
+  findDatFormatErrors,
   findGameTunableErrors,
   InvalidLevelError
 } from './ConfigValidation';
@@ -160,6 +161,10 @@ class ConfigRegistryService {
     const tunableErrors = findGameTunableErrors(bundle.game);
     if (tunableErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, tunableErrors.join('; '));
+    }
+    const datFormatErrors = findDatFormatErrors(bundle.datFormat, bundle.game.grid);
+    if (datFormatErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.DAT_FORMAT, datFormatErrors.join('; '));
     }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;

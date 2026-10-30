@@ -15,7 +15,7 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
-import { CompiledLevel, Direction, GameConfig, GridConfig } from '../core/types';
+import { CompiledLevel, DatFormatConfig, Direction, GameConfig, GridConfig } from '../core/types';
 
 /**
  * Raised when a fetched configuration file is missing or does not match the
@@ -104,6 +104,19 @@ export function findGameTunableErrors(game: GameConfig): string[] {
     errors.push(`procedural.scoring.fallbackCandidates: expected a whole number of at least ${MIN_FALLBACK_CANDIDATES}`);
   }
   return errors;
+}
+
+/**
+ * Checks that a pack layer is large enough for its declared dimensions (the
+ * game grid when none are set). Empty when all is well.
+ */
+export function findDatFormatErrors(datFormat: DatFormatConfig, grid: { mapWidth: number; mapHeight: number }): string[] {
+  const width = datFormat.layerWidth ?? grid.mapWidth;
+  const height = datFormat.layerHeight ?? grid.mapHeight;
+  if (width * height > datFormat.layerByteLength) {
+    return [`layerWidth * layerHeight (${width} * ${height}): expected at most layerByteLength (${datFormat.layerByteLength})`];
+  }
+  return [];
 }
 
 /** Smallest and largest width or height a level may have. */
