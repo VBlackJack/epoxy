@@ -160,6 +160,8 @@ export class ProceduralGenerator {
    * Builds the configured number of candidates and keeps the best scoring
    * one. Each candidate has its own random stream (seed, level, candidate
    * index), so a candidate stays the same when the candidate count changes.
+   * When none of them could be built, the fallback candidates are tried in
+   * turn and the first one that builds is kept.
    */
   public static generateDetailed(
     levelNumber: number,
@@ -189,6 +191,16 @@ export class ProceduralGenerator {
         throw err;
       }
       if (!best || candidate.score > best.score) best = candidate;
+    }
+    // Every candidate failed: rather than failing the level, try a few more, each on its
+    // own stream like the first ones. Levels that built a candidate never get here.
+    const lastExtra = cfg.scoring.candidates + cfg.scoring.fallbackCandidates;
+    for (let k = cfg.scoring.candidates; !best && k < lastExtra; k++) {
+      try {
+        best = this.generateCandidate(levelNumber, seed, k, profile, variety, script);
+      } catch (err) {
+        if (!(err instanceof ProceduralGenerationError)) throw err;
+      }
     }
     if (!best) throw new ProceduralGenerationError(levelNumber, 'no candidate could be built');
     return best;
@@ -440,9 +452,12 @@ export class ProceduralGenerator {
   /**
    * Short hash of everything that shapes a level. It is part of level ids, so
    * a level changed by new pieces or settings never inherits old high scores.
+   * The fallback candidate count is left out: it only decides levels that no
+   * regular candidate could build, so it never changes a level that exists.
    */
   private static contentVersion(motifs: MotifsConfig, cfg: ProceduralConfig): string {
-    const hash = SeededRandom.seedFromString(JSON.stringify({ motifs, cfg }));
+    const { fallbackCandidates: _fallbackCandidates, ...scoring } = cfg.scoring;
+    const hash = SeededRandom.seedFromString(JSON.stringify({ motifs, cfg: { ...cfg, scoring } }));
     return hash.toString(CONTENT_HASH_RADIX).padStart(CONTENT_HASH_LENGTH, '0');
   }
 

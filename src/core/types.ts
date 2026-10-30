@@ -314,6 +314,11 @@ export interface HubConfig {
 export interface ProceduralScoringConfig {
   /** Candidates built per level; the best scoring one is kept. */
   candidates: number;
+  /**
+   * Extra candidates tried one by one, after the first `candidates`, when none of those
+   * could be built; the first that builds is kept. 0 turns the fallback off.
+   */
+  fallbackCandidates: number;
   targetMovesBase: number;
   targetMovesPerLevel: number;
   /** Ceiling of the target run length, so the target stops growing with the level number. */

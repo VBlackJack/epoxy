@@ -89,15 +89,19 @@ function isIntegerAtLeast(value: unknown, min: number): boolean {
 
 /** Smallest value of the endless dialog's start level bound: level 1 must stay reachable. */
 const MIN_START_LEVEL_BOUND = 1;
+const MIN_FALLBACK_CANDIDATES = 0;
 
 /**
- * Checks the endless mode tunables that code relies on as numbers. Empty when
- * all is well; each entry names the offending key.
+ * Checks the endless and procedural tunables that code relies on as whole
+ * numbers. Empty when all is well; each entry names the offending key.
  */
-export function findEndlessConfigErrors(game: GameConfig): string[] {
+export function findGameTunableErrors(game: GameConfig): string[] {
   const errors: string[] = [];
   if (!isIntegerAtLeast(game.endlessUi?.maxStartLevel, MIN_START_LEVEL_BOUND)) {
     errors.push(`endlessUi.maxStartLevel: expected a whole number of at least ${MIN_START_LEVEL_BOUND}`);
+  }
+  if (game.procedural && !isIntegerAtLeast(game.procedural.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {
+    errors.push(`procedural.scoring.fallbackCandidates: expected a whole number of at least ${MIN_FALLBACK_CANDIDATES}`);
   }
   return errors;
 }

@@ -308,6 +308,7 @@
     },
     "scoring": {
       "candidates": 2,
+      "fallbackCandidates": 2,
       "targetMovesBase": 60,
       "targetMovesPerLevel": 15,
       "targetMovesMax": 400,

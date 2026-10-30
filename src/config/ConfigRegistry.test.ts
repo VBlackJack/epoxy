@@ -316,7 +316,7 @@ describe('assertConfigShape', () => {
   });
 });
 
-describe('endless tunables validation', () => {
+describe('game tunables validation', () => {
   it('accepts the shipped endless dialog cap', () => {
     expect(() => ConfigRegistry.applyConfigs(createTestBundle())).not.toThrow();
   });
@@ -327,5 +327,16 @@ describe('endless tunables validation', () => {
       (bundle.game.endlessUi as unknown as Record<string, unknown>).maxStartLevel = bad;
       expect(() => ConfigRegistry.applyConfigs(bundle), String(bad)).toThrow(ConfigLoadError);
     }
+  });
+
+  it('refuses a missing, negative or fractional fallback candidate count', () => {
+    for (const bad of [undefined, -1, 1.5, '2']) {
+      const bundle = createTestBundle();
+      (bundle.game.procedural!.scoring as unknown as Record<string, unknown>).fallbackCandidates = bad;
+      expect(() => ConfigRegistry.applyConfigs(bundle), String(bad)).toThrow(ConfigLoadError);
+    }
+    const off = createTestBundle();
+    off.game.procedural!.scoring.fallbackCandidates = 0;
+    expect(() => ConfigRegistry.applyConfigs(off)).not.toThrow();
   });
 });
