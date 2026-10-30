@@ -216,6 +216,9 @@ export class Pathfinder {
         const itemOnNext = items[ny][nx];
         if (itemOnNext && ConfigRegistry.getTile(itemOnNext).hazard === 'bomb') continue;
 
+        // A barrier against an item the player carries stays solid along the whole path
+        if (nextTile.forbiddenItem && engine.holdsItem(nextTile.forbiddenItem)) continue;
+
         // A thief on this step takes the boots before the cell's own hazard applies
         const stolenHere = Boolean(nextTile.stealsBoots) && !curr.bootsStolen && player.boots.size > 0;
         const probe: AStarNode = {
@@ -287,11 +290,13 @@ export class Pathfinder {
     let chipCandidate: GridPoint | null = null;
 
     let hasClosedToggleWall = false;
+    let hasLitFlameJet = false;
     const teleporters: GridPoint[] = [];
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
         const tile = ConfigRegistry.getTile(terrain[ty][tx]);
         if (tile.togglesTo && !tile.passableByPlayer) hasClosedToggleWall = true;
+        if (tile.flameTogglesTo && tile.hazard) hasLitFlameJet = true;
         if (tile.isTeleporter) teleporters.push({ x: tx, y: ty });
       }
     }
@@ -312,6 +317,9 @@ export class Pathfinder {
         if (tile.buttonAction === 'toggle_walls' && hasClosedToggleWall && !buttonCandidate) {
           buttonCandidate = curr;
         }
+        if (tile.buttonAction === 'toggle_flames' && hasLitFlameJet && !buttonCandidate) {
+          buttonCandidate = curr;
+        }
         if (
           (tile.buttonAction === 'hold_trap' || tile.buttonAction === 'trigger_cloner') &&
           !buttonCandidate
@@ -325,6 +333,7 @@ export class Pathfinder {
 
       if (tile.isTeleporter) {
         for (const t of teleporters) {
+          if (ConfigRegistry.getTile(terrain[t.y][t.x]).teleportGroup !== tile.teleportGroup) continue;
           if (!visited[t.y][t.x]) {
             visited[t.y][t.x] = true;
             queue.push({ x: t.x, y: t.y });
@@ -361,6 +370,7 @@ export class Pathfinder {
         }
 
         if (!nextTile.passableByPlayer) continue;
+        if (nextTile.forbiddenItem && engine.holdsItem(nextTile.forbiddenItem)) continue;
         if (
           nextTile.hazard === 'fire' &&
           (!nextTile.protectedByItem || !player.boots.has(nextTile.protectedByItem))

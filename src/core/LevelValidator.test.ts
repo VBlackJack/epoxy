@@ -32,11 +32,18 @@ const TERRAIN_CODES: Record<string, string> = {
   I: 'ice',
   v: 'force_s',
   R: 'button_red',
-  M: 'clone_machine'
+  M: 'clone_machine',
+  O: 'button_orange',
+  J: 'flame_jet_on',
+  j: 'flame_jet_off',
+  K: 'thief_keys',
+  D: 'door_red',
+  X: 'forbid_key_red'
 };
 const ITEM_CODES: Record<string, { terrain: string; item: string }> = {
   c: { terrain: 'floor', item: 'chip' },
-  b: { terrain: 'floor', item: 'boots_water' }
+  b: { terrain: 'floor', item: 'boots_water' },
+  r: { terrain: 'floor', item: 'key_red' }
 };
 
 function grid(
@@ -97,6 +104,26 @@ describe('LevelValidator', () => {
     const report = LevelValidator.validate(level);
     expect(report.valid).toBe(false);
     expect(report.issues.map((i) => i.i18nKey)).toContain('validator.issues.invalid_start.label');
+  });
+
+  it('accepts an exit behind a lit flame jet when the orange button is reachable', () => {
+    expect(LevelValidator.validate(grid(['#######', '#P.JE.#', '#######'])).valid).toBe(false);
+    const withButton = LevelValidator.validate(grid(['#######', '#PO.JE#', '#######']));
+    expect(withButton.valid).toBe(true);
+    expect(withButton.stats.reachableExit).toBe(true);
+    // An off jet stays passable: the button is never forced.
+    expect(LevelValidator.validate(grid(['#######', '#POjE.#', '#######'])).valid).toBe(true);
+  });
+
+  it('loses the keys to a reachable key thief', () => {
+    expect(LevelValidator.validate(grid(['#######', '#Pr.DE#', '#######'])).valid).toBe(true);
+    const robbed = LevelValidator.validate(grid(['#######', '#PrKDE#', '#######']));
+    expect(robbed.valid).toBe(false);
+    expect(robbed.stats.reachableExit).toBe(false);
+  });
+
+  it('keeps a barrier against a held key passable, since the key can be put down', () => {
+    expect(LevelValidator.validate(grid(['#######', '#PrXE.#', '#######'])).valid).toBe(true);
   });
 
   it('accounts for a thief taking the boots', () => {

@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { GameEngine } from '../core/GameEngine';
-import { Direction, GraphicsStyle, GridPoint, ThemePalette } from '../core/types';
+import { Direction, GraphicsStyle, GridPoint, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BUTTON_COLOR_KEYS,
@@ -85,20 +85,52 @@ const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_s',
   'force_w',
   'force_random',
+  'flame_jet_on',
   'exit',
   'teleport',
+  'teleport_red',
+  'teleport_blue',
+  'teleport_yellow',
+  'teleport_green',
   'ice',
   'ice_nw',
   'ice_ne',
   'ice_sw',
   'ice_se'
 ]);
-const RETRO_ANIMATED_TILES: ReadonlySet<string> = new Set(['water', 'fire', 'exit', 'teleport']);
+const RETRO_ANIMATED_TILES: ReadonlySet<string> = new Set([
+  'water',
+  'fire',
+  'flame_jet_on',
+  'exit',
+  'teleport',
+  'teleport_red',
+  'teleport_blue',
+  'teleport_yellow',
+  'teleport_green'
+]);
 const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([...MODERN_ANIMATED_TILES, ...RETRO_ANIMATED_TILES]);
 
 const FULL_TURN = Math.PI * 2;
 const HINT_GLYPH = '?';
 const HINT_FONT_WEIGHT = 'bold';
+/** Forbidden-item barrier: the item's icon, scaled down, under a crossed ring. */
+const FORBID_ICON_SCALE = 0.66;
+const FORBID_RING_TILE = 0.4;
+const FORBID_LINE_WIDTH_TILE = 0.075;
+/** Flame jet nozzle set into the floor, as fractions of a tile. */
+const FLAME_JET_NOZZLE_TILE = 0.26;
+const FLAME_JET_RIM_TILE = 0.32;
+/** Bonus flag: pole position and flag box, as fractions of a tile. */
+const BONUS_POLE_X_TILE = 0.26;
+const BONUS_FLAG = { top: 0.16, height: 0.4, width: 0.56 } as const;
+const BONUS_FONT_SCALE = 0.26;
+const BONUS_MULTIPLIER_PREFIX = 'x';
+/** Stopwatch: dial and crown, as fractions of a tile. */
+const STOPWATCH = { cy: 0.56, radius: 0.28, crownWidth: 0.14, crownHeight: 0.12, signHalf: 0.12, signThickness: 0.07 } as const;
+/** Turtle shell and head, as fractions of a tile. */
+const TURTLE = { shellRx: 0.3, shellRy: 0.24, headRadius: 0.1, headX: 0.84 } as const;
+
 /** Sprite padding around a glowing shape, as a multiple of the strongest blur radius. */
 const GLOW_PAD_FACTOR = 2;
 
@@ -144,7 +176,7 @@ const MOVING_EPSILON_TILES = 0.02;
 
 /** Lights are gathered from terrain this many tiles beyond the view, so their glow can reach in. */
 const LIGHT_MARGIN_TILES = 2;
-const FLICKERING_LIGHTS: ReadonlySet<string> = new Set(['fire', 'fireball']);
+const FLICKERING_LIGHTS: ReadonlySet<string> = new Set(['fire', 'flame_jet_on', 'fireball']);
 const LIGHT_FLICKER_SPEED = 0.35;
 const LIGHT_PHASE_X = 1.7;
 const LIGHT_PHASE_Y = 2.3;
@@ -1238,13 +1270,11 @@ export class PixelRenderer {
         }
         break;
 
-      case 'thin_wall_n':
-      case 'thin_wall_e':
-      case 'thin_wall_s':
-      case 'thin_wall_w':
-      case 'thin_wall_se': {
+      default: {
+        // Any thin panel combination: one bar per blocked edge, read from tiles.json.
         const def = ConfigRegistry.getTile(tileId);
         const edges = def.blockedEdges || [];
+        if (edges.length === 0) break;
         const bar = Math.max(4, Math.floor(size * 0.14));
         ctx.fillStyle = pal.wallShadow;
         if (edges.includes('N')) ctx.fillRect(x, y, size, bar);
@@ -1322,9 +1352,24 @@ export class PixelRenderer {
         break;
       }
 
-      case 'fire': {
+      case 'fire':
+      case 'flame_jet_on': {
         ctx.fillStyle = pal.fireBase;
         ctx.fillRect(x, y, size, size);
+        if (tileId === 'flame_jet_on') this.drawFlameJetNozzle(ctx, x, y, size, false);
+        break;
+      }
+
+      case 'flame_jet_off': {
+        this.drawRetroFloorDetail(ctx, x, y, size, neighbours.hash);
+        this.drawFlameJetNozzle(ctx, x, y, size, false);
+        break;
+      }
+
+      case 'turtle': {
+        ctx.fillStyle = pal.waterDeep;
+        ctx.fillRect(x, y, size, size);
+        this.drawTurtle(ctx, x, y, size, false);
         break;
       }
 
@@ -1414,6 +1459,27 @@ export class PixelRenderer {
         break;
       }
 
+      case 'thief_keys': {
+        ctx.fillStyle = pal.thiefKeysCloak;
+        ctx.fillRect(x + size * 0.2, y + size * 0.18, size * 0.6, size * 0.68);
+        ctx.fillStyle = pal.thiefMask;
+        ctx.fillRect(x + size * 0.28, y + size * 0.32, size * 0.44, size * 0.14);
+        this.drawKeyGlyph(ctx, x, y, size, pal.yellow);
+        break;
+      }
+
+      case 'forbid_key_red':
+      case 'forbid_key_blue':
+      case 'forbid_key_yellow':
+      case 'forbid_key_green':
+      case 'forbid_boots_ice':
+      case 'forbid_boots_water':
+      case 'forbid_boots_fire':
+      case 'forbid_boots_force': {
+        this.drawForbiddenItem(ctx, tileId, x, y, size, false);
+        break;
+      }
+
       case 'door_red':
       case 'door_blue':
       case 'door_yellow':
@@ -1434,7 +1500,8 @@ export class PixelRenderer {
       case 'button_green':
       case 'button_blue':
       case 'button_brown':
-      case 'button_red': {
+      case 'button_red':
+      case 'button_orange': {
         ctx.fillStyle = pal.wallShadow;
         ctx.beginPath();
         ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, FULL_TURN);
@@ -1465,8 +1532,12 @@ export class PixelRenderer {
         break;
       }
 
-      case 'teleport': {
-        ctx.strokeStyle = pal.teleportRing;
+      case 'teleport':
+      case 'teleport_red':
+      case 'teleport_blue':
+      case 'teleport_yellow':
+      case 'teleport_green': {
+        ctx.strokeStyle = this.teleportRingColor(tileId, pal.teleportRing);
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.arc(x + size / 2, y + size / 2, size * 0.34, 0, FULL_TURN);
@@ -1739,7 +1810,8 @@ export class PixelRenderer {
         break;
       }
 
-      case 'fire': {
+      case 'fire':
+      case 'flame_jet_on': {
         ctx.fillStyle = pal.fireMid;
         const flicker = (phase % 2) * 2;
         ctx.beginPath();
@@ -1768,7 +1840,11 @@ export class PixelRenderer {
         break;
       }
 
-      case 'teleport': {
+      case 'teleport':
+      case 'teleport_red':
+      case 'teleport_blue':
+      case 'teleport_yellow':
+      case 'teleport_green': {
         ctx.fillStyle = pal.teleportCore;
         ctx.beginPath();
         ctx.arc(x + size / 2, y + size / 2, size * (0.14 + (phase % 2) * 0.04), 0, FULL_TURN);
@@ -1852,13 +1928,11 @@ export class PixelRenderer {
         break;
       }
 
-      case 'thin_wall_n':
-      case 'thin_wall_e':
-      case 'thin_wall_s':
-      case 'thin_wall_w':
-      case 'thin_wall_se': {
+      default: {
+        // Any thin panel combination: one neon bar per blocked edge, read from tiles.json.
         const def = ConfigRegistry.getTile(tileId);
         const edges = def.blockedEdges || [];
+        if (edges.length === 0) break;
         const bar = Math.max(5, Math.floor(size * 0.14));
         ctx.save();
         ctx.fillStyle = pal.modernThinWall;
@@ -1913,7 +1987,8 @@ export class PixelRenderer {
         break;
       }
 
-      case 'fire': {
+      case 'fire':
+      case 'flame_jet_on': {
         const fGrad = ctx.createRadialGradient(
           x + size / 2,
           y + size * 0.65,
@@ -1927,6 +2002,23 @@ export class PixelRenderer {
         fGrad.addColorStop(1, pal.modernFireEdge);
         ctx.fillStyle = fGrad;
         ctx.fillRect(x, y, size, size);
+        if (tileId === 'flame_jet_on') this.drawFlameJetNozzle(ctx, x, y, size, true);
+        break;
+      }
+
+      case 'flame_jet_off': {
+        this.drawModernFloorDetail(ctx, x, y, size, neighbours.hash);
+        this.drawFlameJetNozzle(ctx, x, y, size, true);
+        break;
+      }
+
+      case 'turtle': {
+        const tGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+        tGrad.addColorStop(0, pal.modernWaterTop);
+        tGrad.addColorStop(1, pal.modernWaterBottom);
+        ctx.fillStyle = tGrad;
+        ctx.fillRect(x, y, size, size);
+        this.drawTurtle(ctx, x, y, size, true);
         break;
       }
 
@@ -1981,6 +2073,10 @@ export class PixelRenderer {
 
       case 'exit':
       case 'teleport':
+      case 'teleport_red':
+      case 'teleport_blue':
+      case 'teleport_yellow':
+      case 'teleport_green':
         // Fully animated, drawn by drawModernAnimatedOverlay.
         break;
 
@@ -2005,6 +2101,33 @@ export class PixelRenderer {
         ctx.fill();
         ctx.fillStyle = pal.thiefMask;
         ctx.fillRect(x + size * 0.26, y + size * 0.34, size * 0.48, size * 0.14);
+        break;
+      }
+
+      case 'thief_keys': {
+        ctx.fillStyle = pal.thiefKeysCloak;
+        this.roundRect(ctx, x + size * 0.18, y + size * 0.16, size * 0.64, size * 0.68, 8);
+        ctx.fill();
+        ctx.fillStyle = pal.thiefMask;
+        ctx.fillRect(x + size * 0.26, y + size * 0.34, size * 0.48, size * 0.14);
+        ctx.save();
+        ctx.shadowColor = pal.yellow;
+        ctx.shadowBlur = glow.soft;
+        this.drawKeyGlyph(ctx, x, y, size, pal.yellow);
+        ctx.restore();
+        break;
+      }
+
+      case 'forbid_key_red':
+      case 'forbid_key_blue':
+      case 'forbid_key_yellow':
+      case 'forbid_key_green':
+      case 'forbid_boots_ice':
+      case 'forbid_boots_water':
+      case 'forbid_boots_fire':
+      case 'forbid_boots_force': {
+        this.drawModernFloorDetail(ctx, x, y, size, neighbours.hash);
+        this.drawForbiddenItem(ctx, tileId, x, y, size, true);
         break;
       }
 
@@ -2036,7 +2159,8 @@ export class PixelRenderer {
       case 'button_green':
       case 'button_blue':
       case 'button_brown':
-      case 'button_red': {
+      case 'button_red':
+      case 'button_orange': {
         const c = this.buttonColor(tileId);
         ctx.fillStyle = pal.modernButtonBase;
         ctx.beginPath();
@@ -2237,7 +2361,8 @@ export class PixelRenderer {
         break;
       }
 
-      case 'fire': {
+      case 'fire':
+      case 'flame_jet_on': {
         // Two flame tongues swaying out of step, and embers rising from the cell.
         ctx.fillStyle = pal.modernFireTongue;
         for (let i = 0; i < 2; i++) {
@@ -2340,12 +2465,17 @@ export class PixelRenderer {
         break;
       }
 
-      case 'teleport': {
+      case 'teleport':
+      case 'teleport_red':
+      case 'teleport_blue':
+      case 'teleport_yellow':
+      case 'teleport_green': {
         const glow = this.getSettings().glowBlurPx;
         const pad = this.glowPad();
-        const ring = this.getSprite(`teleRing|${size}`, size, size, pad, (sctx, o) => {
-          sctx.strokeStyle = pal.modernTeleportRing;
-          sctx.shadowColor = pal.modernTeleportRing;
+        const ringColor = this.teleportRingColor(tileId, pal.modernTeleportRing);
+        const ring = this.getSprite(`teleRing|${tileId}|${size}`, size, size, pad, (sctx, o) => {
+          sctx.strokeStyle = ringColor;
+          sctx.shadowColor = ringColor;
           sctx.shadowBlur = glow.strong;
           sctx.lineWidth = 2.5;
           sctx.beginPath();
@@ -2361,9 +2491,9 @@ export class PixelRenderer {
         }
 
         const maxCore = size * (TELEPORT_CORE_BASE + TELEPORT_CORE_AMPLITUDE);
-        const core = this.getSprite(`teleCore|${size}`, maxCore * 2, maxCore * 2, pad, (sctx, o) => {
+        const core = this.getSprite(`teleCore|${tileId}|${size}`, maxCore * 2, maxCore * 2, pad, (sctx, o) => {
           sctx.fillStyle = pal.teleportCore;
-          sctx.shadowColor = pal.modernTeleportRing;
+          sctx.shadowColor = ringColor;
           sctx.shadowBlur = glow.strong;
           sctx.beginPath();
           sctx.arc(o + maxCore, o + maxCore, maxCore, 0, FULL_TURN);
@@ -2456,6 +2586,184 @@ export class PixelRenderer {
   private buttonColor(tileId: string): string {
     const pal = ConfigRegistry.getGame().palette;
     return pal[BUTTON_COLOR_KEYS[tileId] ?? DEFAULT_COLOR_KEY] || pal[DEFAULT_COLOR_KEY];
+  }
+
+  /** Ring colour of a teleporter: its colour key when it has one, else the plain ring colour. */
+  private teleportRingColor(tileId: string, plainColor: string): string {
+    const pal = ConfigRegistry.getGame().palette;
+    const colorKey = ConfigRegistry.getTile(tileId).colorKey;
+    return (colorKey && pal[colorKey]) || plainColor;
+  }
+
+  /** A small key (bow and bit) in the lower part of a tile, the key thief's badge. */
+  private drawKeyGlyph(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x + size * 0.38, y + size * 0.66, size * 0.08, 0, FULL_TURN);
+    ctx.fill();
+    ctx.fillRect(x + size * 0.44, y + size * 0.64, size * 0.26, size * 0.05);
+    ctx.fillRect(x + size * 0.6, y + size * 0.69, size * 0.04, size * 0.07);
+    ctx.fillRect(x + size * 0.66, y + size * 0.69, size * 0.04, size * 0.07);
+  }
+
+  /** The forbidden item's icon under a red crossed ring, on the floor already drawn. */
+  private drawForbiddenItem(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    x: number,
+    y: number,
+    size: number,
+    isModern: boolean
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const itemId = ConfigRegistry.getTile(tileId).forbiddenItem;
+    const iconSize = size * FORBID_ICON_SCALE;
+    const inset = (size - iconSize) / 2;
+    if (itemId) this.paintItem(ctx, itemId, x + inset, y + inset, iconSize, isModern);
+    ctx.save();
+    ctx.strokeStyle = pal.forbidSign;
+    ctx.lineWidth = Math.max(2, size * FORBID_LINE_WIDTH_TILE);
+    if (isModern) {
+      ctx.shadowColor = pal.forbidSign;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    const r = size * FORBID_RING_TILE;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, FULL_TURN);
+    ctx.stroke();
+    const d = r * Math.SQRT1_2;
+    ctx.beginPath();
+    ctx.moveTo(cx - d, cy - d);
+    ctx.lineTo(cx + d, cy + d);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Nozzle of a flame jet: a dark disc with a lighter rim, set into the cell. */
+  private drawFlameJetNozzle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    ctx.strokeStyle = pal.flameJetRim;
+    ctx.lineWidth = isModern ? 2 : 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * FLAME_JET_RIM_TILE, 0, FULL_TURN);
+    ctx.stroke();
+    ctx.fillStyle = pal.flameJetNozzle;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * FLAME_JET_NOZZLE_TILE, 0, FULL_TURN);
+    ctx.fill();
+  }
+
+  /** A turtle seen from above, floating on the water drawn under it. */
+  private drawTurtle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const cx = x + size * 0.46;
+    const cy = y + size / 2;
+    ctx.save();
+    if (isModern) {
+      ctx.shadowColor = pal.modernBlockShadow;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.fillStyle = pal.turtleSkin;
+    ctx.beginPath();
+    ctx.arc(x + size * TURTLE.headX, cy, size * TURTLE.headRadius, 0, FULL_TURN);
+    ctx.fill();
+    ctx.fillStyle = pal.turtleShell;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, size * TURTLE.shellRx, size * TURTLE.shellRy, 0, 0, FULL_TURN);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = pal.turtleShellLight;
+    ctx.lineWidth = Math.max(1, size * 0.03);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, size * TURTLE.shellRx * 0.55, size * TURTLE.shellRy * 0.55, 0, 0, FULL_TURN);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - size * TURTLE.shellRx, cy);
+    ctx.lineTo(cx + size * TURTLE.shellRx, cy);
+    ctx.moveTo(cx, cy - size * TURTLE.shellRy);
+    ctx.lineTo(cx, cy + size * TURTLE.shellRy);
+    ctx.stroke();
+  }
+
+  /** A bonus pennant: pole, flag and the points (or multiplier) it is worth. */
+  private paintBonusFlag(
+    ctx: CanvasRenderingContext2D,
+    def: TileDefinition,
+    x: number,
+    y: number,
+    size: number,
+    isModern: boolean
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const flagColor = def.scoreMultiplier ? pal.bonusFlagMultiplier : pal.bonusFlag;
+    const label = def.scoreMultiplier ? `${BONUS_MULTIPLIER_PREFIX}${def.scoreMultiplier}` : String(def.scoreBonus ?? 0);
+    const poleX = x + size * BONUS_POLE_X_TILE;
+    const top = y + size * BONUS_FLAG.top;
+    ctx.save();
+    if (isModern) {
+      ctx.shadowColor = flagColor;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.fillStyle = pal.bonusPole;
+    ctx.fillRect(poleX - 1, top, 2, size * 0.7);
+    ctx.fillStyle = flagColor;
+    ctx.beginPath();
+    ctx.moveTo(poleX, top);
+    ctx.lineTo(poleX + size * BONUS_FLAG.width, top + size * BONUS_FLAG.height * 0.5);
+    ctx.lineTo(poleX, top + size * BONUS_FLAG.height);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle = pal.bonusText;
+    const font = isModern ? this.getSettings().hintFontModern : this.getSettings().hintFontRetro;
+    ctx.font = `${HINT_FONT_WEIGHT} ${Math.max(6, Math.floor(size * BONUS_FONT_SCALE))}px ${font}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, poleX + size * 0.05, top + size * BONUS_FLAG.height * 0.5, size * BONUS_FLAG.width * 0.72);
+    ctx.restore();
+  }
+
+  /** A stopwatch, with a plus or minus sign on its dial after what it does to the time. */
+  private paintStopwatch(
+    ctx: CanvasRenderingContext2D,
+    def: TileDefinition,
+    x: number,
+    y: number,
+    size: number,
+    isModern: boolean
+  ): void {
+    const pal = ConfigRegistry.getGame().palette;
+    const gain = (def.timeBonusSeconds ?? 0) >= 0;
+    const signColor = gain ? pal.stopwatchPlus : pal.stopwatchMinus;
+    const cx = x + size / 2;
+    const cy = y + size * STOPWATCH.cy;
+    const r = size * STOPWATCH.radius;
+    ctx.save();
+    if (isModern) {
+      ctx.shadowColor = signColor;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.fillStyle = pal.stopwatchCrown;
+    ctx.fillRect(cx - size * STOPWATCH.crownWidth / 2, cy - r - size * STOPWATCH.crownHeight, size * STOPWATCH.crownWidth, size * STOPWATCH.crownHeight);
+    ctx.fillStyle = pal.stopwatchBody;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, FULL_TURN);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = pal.stopwatchFace;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.78, 0, FULL_TURN);
+    ctx.fill();
+    ctx.fillStyle = signColor;
+    const half = size * STOPWATCH.signHalf;
+    const thick = size * STOPWATCH.signThickness;
+    ctx.fillRect(cx - half, cy - thick / 2, half * 2, thick);
+    if (gain) ctx.fillRect(cx - thick / 2, cy - half, thick, half * 2);
   }
 
   private drawButtonGlyph(ctx: CanvasRenderingContext2D, tileId: string, x: number, y: number, size: number): void {
@@ -2604,6 +2912,20 @@ export class PixelRenderer {
         this.roundRect(ctx, x + size * 0.25, y + size * 0.54, size * 0.52, size * 0.24, 4);
         ctx.fill();
         ctx.restore();
+        break;
+      }
+
+      case 'score_10':
+      case 'score_100':
+      case 'score_1000':
+      case 'score_2x': {
+        this.paintBonusFlag(ctx, ConfigRegistry.getTile(itemId), x, y, size, isModern);
+        break;
+      }
+
+      case 'stopwatch_bonus':
+      case 'stopwatch_penalty': {
+        this.paintStopwatch(ctx, ConfigRegistry.getTile(itemId), x, y, size, isModern);
         break;
       }
 
@@ -3246,6 +3568,13 @@ export class PixelRenderer {
     } else if (colorKey === 'green') {
       // Ring
       ctx.arc(cx, cy, r * 0.78, 0, FULL_TURN);
+      ctx.stroke();
+    } else if (colorKey === 'orange') {
+      // Saltire
+      ctx.moveTo(cx - r, cy - r);
+      ctx.lineTo(cx + r, cy + r);
+      ctx.moveTo(cx + r, cy - r);
+      ctx.lineTo(cx - r, cy + r);
       ctx.stroke();
     }
     ctx.restore();

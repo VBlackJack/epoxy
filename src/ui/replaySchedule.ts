@@ -51,7 +51,11 @@ export function sanitizeTimedMoves(value: unknown): TimedMove[] | undefined {
       return undefined;
     }
     previousTick = entry.tick;
-    result.push({ tick: entry.tick, dir: entry.dir });
+    result.push(
+      typeof entry.drop === 'string'
+        ? { tick: entry.tick, dir: entry.dir, drop: entry.drop }
+        : { tick: entry.tick, dir: entry.dir }
+    );
   }
   return result;
 }

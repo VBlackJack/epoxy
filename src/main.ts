@@ -58,6 +58,7 @@ import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
 import { preferredScrollBehavior, prefersReducedMotion, replayAnimation } from './ui/motion';
 import { collectDueMoves, sanitizeTimedMoves } from './ui/replaySchedule';
+import { lossyExportNotice } from './ui/exportNotice';
 import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
 import {
   BIOME_ACCENT_CSS_VAR,
@@ -172,6 +173,8 @@ class EpoxyApplication {
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
   private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force'];
+  /** Held item the drop key puts down; null until the player holds something. */
+  private selectedItemId: string | null = null;
 
   // ---------------------------------------------------------------------------
   // Start-up
@@ -401,7 +404,11 @@ class EpoxyApplication {
   private advanceReplay(): void {
     const { due, nextIndex } = collectDueMoves(this.replayMoves, this.replayIndex, this.engine.getTick());
     for (const move of due) {
-      this.engine.attemptPlayerMove(move.dir);
+      if (move.drop) {
+        this.engine.dropItem(move.drop);
+      } else {
+        this.engine.attemptPlayerMove(move.dir);
+      }
     }
     this.replayIndex = nextIndex;
     if (this.replayIndex >= this.replayMoves.length) {
@@ -772,10 +779,10 @@ class EpoxyApplication {
   }
 
   private exportActivePack(): void {
-    downloadBytes(
-      DatCodec.encodeLevels(ConfigRegistry.getLevels()),
-      `${ConfigRegistry.getActivePackId()}.ccl`
-    );
+    const encoded = DatCodec.encodeLevelsWithReport(ConfigRegistry.getLevels());
+    downloadBytes(encoded.bytes, `${ConfigRegistry.getActivePackId()}.ccl`);
+    const notice = lossyExportNotice(encoded);
+    if (notice) this.showTransientStatus(notice);
   }
 
   private isRemovablePack(packId: string): boolean {
@@ -2081,6 +2088,10 @@ class EpoxyApplication {
       run(() => this.beginHeldMove('W'));
     } else if (kb.moveRight.includes(e.code)) {
       run(() => this.beginHeldMove('E'));
+    } else if (kb.dropItem?.includes(e.code)) {
+      run(() => this.dropSelectedItem());
+    } else if (kb.cycleItem?.includes(e.code)) {
+      run(() => this.cycleSelectedItem());
     } else if (kb.restart.includes(e.code)) {
       run(() => this.restartLevel());
     } else if (kb.pause.includes(e.code)) {
@@ -2246,12 +2257,60 @@ class EpoxyApplication {
     const bootsGrid = byId('hud-boots-grid');
     if (keysGrid) {
       keysGrid.innerHTML = '';
-      this.keySlots = this.keyIds.map(() => new InventorySlotView(keysGrid));
+      this.keySlots = this.keyIds.map((id) => new InventorySlotView(keysGrid, () => this.dropHudItem(id)));
     }
     if (bootsGrid) {
       bootsGrid.innerHTML = '';
-      this.bootSlots = this.bootIds.map(() => new InventorySlotView(bootsGrid));
+      this.bootSlots = this.bootIds.map((id) => new InventorySlotView(bootsGrid, () => this.dropHudItem(id)));
     }
+  }
+
+  /** The selected item, moved to the first held one when it is no longer held. */
+  private resolveSelectedItem(): string | null {
+    if (this.selectedItemId && this.engine.holdsItem(this.selectedItemId)) return this.selectedItemId;
+    this.selectedItemId = null;
+    for (const id of this.keyIds) {
+      if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
+    }
+    for (const id of this.bootIds) {
+      if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
+    }
+    return null;
+  }
+
+  /** Selects the next held item, in inventory order (keys, then boots). */
+  private cycleSelectedItem(): void {
+    const current = this.resolveSelectedItem();
+    if (current === null) return;
+    const order = [...this.keyIds, ...this.bootIds];
+    const from = order.indexOf(current);
+    for (let step = 1; step <= order.length; step++) {
+      const id = order[(from + step) % order.length];
+      if (this.engine.holdsItem(id)) {
+        this.selectedItemId = id;
+        return;
+      }
+    }
+  }
+
+  /** Drops the selected item on the player's cell. */
+  private dropSelectedItem(): void {
+    this.clearAutoMove();
+    this.engine.dropItem(this.resolveSelectedItem());
+  }
+
+  /** Drops the item of a clicked inventory slot, which becomes the selected one. */
+  private dropHudItem(itemId: string): void {
+    if (this.activeMode !== 'play') return;
+    if (this.isReplaying) {
+      this.stopAutoMoveAndReplay();
+      this.updateHUD();
+      return;
+    }
+    this.clearAutoMove();
+    this.selectedItemId = itemId;
+    this.engine.dropItem(itemId);
+    this.updateHUD();
   }
 
   /** Translated item names, recomputed only when the locale changes. */
@@ -2267,8 +2326,15 @@ class EpoxyApplication {
     return this.inventoryLabels[itemId] ?? itemId;
   }
 
+  /** Slot tooltip: the item's name, with the drop hint once it is held. */
+  private slotLabel(itemId: string, owned: boolean): string {
+    const name = this.getInventoryLabel(itemId);
+    return owned ? t('hud.inventory.slot_drop.label', { name }) : name;
+  }
+
   private updateInventory(): void {
     const player = this.engine.getPlayer();
+    const selected = this.resolveSelectedItem();
     this.keyIds.forEach((kId, i) => {
       const count = player.keys[kId] || 0;
       let badge = '';
@@ -2280,16 +2346,19 @@ class EpoxyApplication {
       this.keySlots[i]?.update({
         owned: count > 0,
         badge,
-        label: this.getInventoryLabel(kId),
-        iconUrl: this.keyIconCache[kId]
+        label: this.slotLabel(kId, count > 0),
+        iconUrl: this.keyIconCache[kId],
+        selected: selected === kId
       });
     });
     this.bootIds.forEach((bId, i) => {
+      const owned = player.boots.has(bId);
       this.bootSlots[i]?.update({
-        owned: player.boots.has(bId),
+        owned,
         badge: '',
-        label: this.getInventoryLabel(bId),
-        iconUrl: this.bootIconCache[bId]
+        label: this.slotLabel(bId, owned),
+        iconUrl: this.bootIconCache[bId],
+        selected: selected === bId
       });
     });
   }

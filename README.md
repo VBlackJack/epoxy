@@ -19,6 +19,10 @@
 - **Complete Tile & Monster Engine**:
   - Elemental hazards (`water`, `fire`, `ice` with corner deflectors, `force` conveyors, `bomb`).
   - Interactive mechanisms (`button_green`, `button_red` clone machines, `button_brown` bear traps, `button_blue` tank reversers, `teleport` pads, `thief`).
+  - Inventory drop: `E` puts the selected key or boots down on the current cell, `C` or `Tab` selects the next held item, and a click on a HUD slot drops that item. Pickups happen only on entering a cell, so a dropped item stays until you come back for it.
+  - Forbidden-item barriers (`forbid_key_red`, `forbid_boots_fire`, ...): the cell refuses you while you carry the item and is floor once you have dropped it elsewhere. A key thief (`thief_keys`) takes every key, as the boot thief takes the boots.
+  - Turtles (`turtle`) sink into water once the player or a block has left them, so a turtle bridge is crossed once.
+  - All fifteen thin-wall combinations (`thin_wall_ns`, `thin_wall_nesw`, ...), colour teleporters that chain only with their own colour (`teleport_red` to `teleport_green`), flame jets toggled by `button_orange` (`flame_jet_off` / `flame_jet_on`, fire boots protect), and bonus items: score flags (`score_10`, `score_100`, `score_1000` join the level score paid at the exit; `score_2x` doubles that level score, flags included) and stopwatches (`stopwatch_bonus` adds 10 seconds, `stopwatch_penalty` takes 10). The boots that protect you on your current cell cannot be dropped there.
   - 9 creature movement patterns (`bug`, `fireball`, `pink_ball`, `tank`, `glider`, `teeth`, `walker`, `blob`, `paramecium`).
 - **Visual & Tactile Enhancements**:
   - HD Neon and 16-Bit Retro pixel renderers with 4 biome themes (`Cyber Neon`, `Arctic Lab`, `Magma Core`, `Lynx LCD`): walls join into continuous masses that cast soft shadows, light sources glow in HD Neon, an optional LCD grid covers 16-Bit Retro, and the player and every monster are animated. A graphics quality setting (Auto by default) keeps the game smooth on slower devices.
