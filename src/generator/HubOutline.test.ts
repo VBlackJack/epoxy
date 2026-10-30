@@ -47,26 +47,29 @@ describe('hub outline growth', () => {
   });
 
   it('leaves the drawn outline alone when nothing is wanted', () => {
-    expect(growOutline(SQUARE, 0, ROOM, EAST)).toBe(SQUARE);
-    expect(growOutline(SQUARE, -5, ROOM, EAST)).toBe(SQUARE);
+    expect(growOutline(SQUARE, 0, ROOM, EAST)).toEqual({ rows: SQUARE, west: 0, north: 0 });
+    expect(growOutline(SQUARE, -5, ROOM, EAST).rows).toBe(SQUARE);
   });
 
   it('adds rows and columns of floor round the outline, side after side, keeping the drawn walls', () => {
     const grown = growOutline(CROSS, 32, ROOM, EAST);
-    expect(grown).toEqual(['.........', '.##...##.', '.##...##.', '.........', '.........', '.........', '.##...##.', '.##...##.', '.........']);
-    expect(outlineFloor(grown)).toBe(outlineFloor(CROSS) + 32);
+    expect(grown.rows).toEqual(['.........', '.##...##.', '.##...##.', '.........', '.........', '.........', '.##...##.', '.##...##.', '.........']);
+    expect(outlineFloor(grown.rows)).toBe(outlineFloor(CROSS) + 32);
+    // One column west and one row north of the drawn part: where it moved in its own rows.
+    expect(grown.west).toBe(1);
+    expect(grown.north).toBe(1);
   });
 
   it('starts from the given side and stops when the next strip would overshoot more than it helps', () => {
     // East (7 cells) brings 7 of 10; south (8 cells) would land 5 past the target for 3 short: it stops.
-    expect(growOutline(SQUARE, 10, ROOM, EAST)).toEqual(SQUARE.map((r) => `${r}.`));
-    expect(growOutline(SQUARE, 10, ROOM, SOUTH)).toEqual([...SQUARE, '.......']);
+    expect(growOutline(SQUARE, 10, ROOM, EAST)).toEqual({ rows: SQUARE.map((r) => `${r}.`), west: 0, north: 0 });
+    expect(growOutline(SQUARE, 10, ROOM, SOUTH).rows).toEqual([...SQUARE, '.......']);
   });
 
   it('skips the sides the room has no space for and pads ragged outlines with walls', () => {
     // Rows only, 7 cells each: five of them reach 35, the closest to 32 a sixth would not improve on.
     const narrow = { ...ROOM, widest: 7 };
-    expect(growOutline(SQUARE, 32, narrow, EAST)).toEqual(['.......', '.......', ...SQUARE, '.......', '.......', '.......']);
-    expect(growOutline(['...', '.'], 3, ROOM, EAST)).toEqual(['....', '.##.']);
+    expect(growOutline(SQUARE, 32, narrow, EAST)).toEqual({ rows: ['.......', '.......', ...SQUARE, '.......', '.......', '.......'], west: 0, north: 2 });
+    expect(growOutline(['...', '.'], 3, ROOM, EAST).rows).toEqual(['....', '.##.']);
   });
 });

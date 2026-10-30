@@ -145,6 +145,8 @@ export interface HubOpenChipsConfig {
   max: number;
   /** One more chip for each this many planned puzzles. */
   piecesPerExtra: number;
+  /** At least one chip for each this many cells of the hub region, so the content grows with the floor. */
+  regionCellsPerChip: number;
   /** Share of the chips that lie within `nearLaneDistance` of a monster's lane. */
   nearLaneShare: number;
   nearLaneDistance: number;

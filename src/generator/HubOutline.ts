@@ -65,17 +65,26 @@ export function growthSides(shiftX: number, shiftY: number): Direction[] {
   return [...GROWTH_SIDES].sort((a, b) => offset(b) - offset(a));
 }
 
+/** A grown outline, and how far its drawn part moved: the columns added west of it and the rows north of it. */
+export interface GrownOutline {
+  rows: string[];
+  west: number;
+  north: number;
+}
+
 /**
  * The drawn outline grown by `wanted` floor cells or thereabouts: whole rows and
  * columns of floor are added round it, side after side in the order given,
  * while each brings the floor count nearer the target than leaving it. A side
  * that would take the outline past the room's width or height is skipped.
  */
-export function growOutline(drawn: string[], wanted: number, room: OutlineRoom, sides: Direction[] = GROWTH_SIDES): string[] {
-  if (wanted <= 0) return drawn;
+export function growOutline(drawn: string[], wanted: number, room: OutlineRoom, sides: Direction[] = GROWTH_SIDES): GrownOutline {
+  if (wanted <= 0) return { rows: drawn, west: 0, north: 0 };
   let width = Math.max(...drawn.map((r) => r.length));
   let rows = drawn.map((r) => r.padEnd(width, HUB_WALL_CHAR));
   let added = 0;
+  let west = 0;
+  let north = 0;
   // Every side is given a turn after the last one that fit; two full rounds without a fit end it.
   let skipped = 0;
   for (let i = 0; skipped < 2 * sides.length; i++) {
@@ -91,11 +100,13 @@ export function growOutline(drawn: string[], wanted: number, room: OutlineRoom, 
     if (vertical) {
       rows = rows.map((r) => (side === 'E' ? r + HUB_FLOOR_CHAR : HUB_FLOOR_CHAR + r));
       width++;
+      if (side === 'W') west++;
     } else {
       const row = HUB_FLOOR_CHAR.repeat(width);
       rows = side === 'S' ? [...rows, row] : [row, ...rows];
+      if (side === 'N') north++;
     }
     added += strip;
   }
-  return rows;
+  return { rows, west, north };
 }

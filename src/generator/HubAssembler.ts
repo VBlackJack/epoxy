@@ -21,7 +21,7 @@ import { Direction, GridPoint, HubConfig } from '../core/types';
 import { HubGrid } from './HubGrid';
 import { HubLoopAssembler } from './HubLoopAssembler';
 import { HubOpenAssembler } from './HubOpenAssembler';
-import { growOutline, growthSides, HUB_FLOOR_CHAR, OutlineRoom, wantedGrowth } from './HubOutline';
+import { GrownOutline, growOutline, growthSides, HUB_FLOOR_CHAR, OutlineRoom, wantedGrowth } from './HubOutline';
 import { HubPlan, HubWing } from './HubPlanner';
 import { AssembledHubLevel, CHIP_ITEM_ID, EXIT_TILE_ID, HUB_SEGMENT, LevelGuard, MAP_MARGIN, NO_SEGMENT, OpenArea, WingPlacement, WingTrial } from './HubTypes';
 import { Box, RouteSegment } from './LevelAssembler';
@@ -82,16 +82,22 @@ export class HubAssembler {
 
   private build(plan: HubPlan, shapeIds?: string[], growth = 1): AssembledHubLevel | null {
     // A different outline per attempt among those allowed, shifted off centre
-    // so one side leaves room for long wings.
+    // so one side leaves room for long wings. The drawn part keeps the place it
+    // would have alone; what the growth adds lies round it.
     const outlines = this.cfg.shapes.filter((s) => !shapeIds || shapeIds.includes(s.id));
     const shape = outlines[this.rng.nextInt(0, outlines.length - 1)];
     const shiftX = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
     const shiftY = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
-    const rows = this.grownOutline(shape.rows, plan, shiftX, shiftY, growth);
+    const drawnHeight = shape.rows.length;
+    const drawnWidth = Math.max(...shape.rows.map((r) => r.length));
+    const grown = this.grownOutline(shape.rows, plan, shiftX, shiftY, growth);
+    const rows = grown.rows;
     const shapeHeight = rows.length;
     const shapeWidth = Math.max(...rows.map((r) => r.length));
-    const x0 = Math.max(MAP_MARGIN + 1, Math.min(this.grid.width - shapeWidth - MAP_MARGIN - 1, Math.floor((this.grid.width - shapeWidth) / 2) + shiftX));
-    const y0 = Math.max(MAP_MARGIN + 1, Math.min(this.grid.height - shapeHeight - MAP_MARGIN - 1, Math.floor((this.grid.height - shapeHeight) / 2) + shiftY));
+    const drawnX0 = Math.floor((this.grid.width - drawnWidth) / 2) + shiftX - grown.west;
+    const drawnY0 = Math.floor((this.grid.height - drawnHeight) / 2) + shiftY - grown.north;
+    const x0 = Math.max(MAP_MARGIN + 1, Math.min(this.grid.width - shapeWidth - MAP_MARGIN - 1, drawnX0));
+    const y0 = Math.max(MAP_MARGIN + 1, Math.min(this.grid.height - shapeHeight - MAP_MARGIN - 1, drawnY0));
     this.hub = { x0, y0, x1: x0 + shapeWidth - 1, y1: y0 + shapeHeight - 1 };
     this.grid.hubFloor = new Set();
     rows.forEach((row, dy) =>
@@ -196,11 +202,13 @@ export class HubAssembler {
   /**
    * The drawn outline of a loop level, grown to cover its share of the area the
    * plan's puzzles leave free (see HubOutline), toward the map edge the hub is
-   * shifted to first. A dead-end hub keeps its drawn outline. Nothing is drawn
-   * from the random stream, so the layouts tried stay those of the plain outline.
+   * shifted to first. A dead-end hub keeps its drawn outline. The growth draws
+   * nothing from the random stream itself; the wings still find other
+   * placements round the larger ring, so the layouts tried do differ.
    */
-  private grownOutline(drawn: string[], plan: HubPlan, shiftX: number, shiftY: number, growth: number): string[] {
-    if (growth <= 0 || !plan.wings.some((w) => w.loop)) return drawn;
+  private grownOutline(drawn: string[], plan: HubPlan, shiftX: number, shiftY: number, growth: number): GrownOutline {
+    const asDrawn: GrownOutline = { rows: drawn, west: 0, north: 0 };
+    if (growth <= 0 || !plan.wings.some((w) => w.loop)) return asDrawn;
     const pieces = [...plan.wings.flatMap((w) => [w.piece, ...w.then]), plan.finale];
     const room: OutlineRoom = {
       interior: (this.grid.width - 2 * MAP_MARGIN) * (this.grid.height - 2 * MAP_MARGIN),
@@ -210,7 +218,7 @@ export class HubAssembler {
       tallest: this.grid.height - 2 * MAP_MARGIN - 2 * OUTLINE_SIDE_ROOM
     };
     const wanted = Math.round(wantedGrowth(drawn, room, this.cfg.outlineGrowth) * growth);
-    if (wanted <= 0) return drawn;
+    if (wanted <= 0) return asDrawn;
     return growOutline(drawn, wanted, room, growthSides(shiftX, shiftY));
   }
 

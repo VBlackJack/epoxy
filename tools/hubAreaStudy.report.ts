@@ -18,12 +18,13 @@
  * Measures where the map area of an endless level goes: hub outline, hub
  * region, wing floor, piece boxes, walls, and the free land the hub region
  * could still have grown into. For a sample of seeds at three level numbers,
- * writes local/hub-area-study.json and ASCII maps of the first seeds to
- * local/hub-area-maps.txt (the folder is not versioned).
+ * writes local/hub-area-study.<tag>.json and ASCII maps of the first seeds to
+ * local/hub-area-maps.<tag>.txt (the folder is not versioned).
  *
  * Run with: npm run report:hub
  * HUB_STUDY_VARIANT may hold a JSON object merged over `procedural.hub`, and
- * HUB_STUDY_TAG names the output files, so levers are compared on the same seeds.
+ * HUB_STUDY_TAG names the output files (default "baseline"), so levers are
+ * compared on the same seeds; HUB_STUDY_SEEDS and HUB_STUDY_LEVELS set the sample.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -40,6 +41,7 @@ import { GeneratedLevel, ProceduralGenerator } from '../src/core/ProceduralGener
 import { GridPoint } from '../src/core/types';
 import { isPlayerWalkable } from '../src/core/Walkability';
 import { profileFor } from '../src/generator/DifficultyProfile';
+import { HUB_FLOOR_CHAR } from '../src/generator/HubOutline';
 import { MAP_MARGIN } from '../src/generator/HubTypes';
 import { cellReachableWithout, replays } from '../src/test/levelChecks';
 import { createTestBundle } from '../src/test/loadTestConfigs';
@@ -57,7 +59,6 @@ const FINALE_PIECES = 1;
 const P95 = 0.95;
 const JSON_INDENT = 2;
 const WALL_TILE_ID = 'wall';
-const HUB_FLOOR_CHAR = '.';
 
 interface Sample {
   seed: number;
