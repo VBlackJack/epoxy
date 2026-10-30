@@ -50,7 +50,7 @@ const DEFAULT_MUSIC_MIX: MusicMixConfig = {
 };
 
 /** Events that count as a user gesture and therefore unlock audio playback. */
-const USER_GESTURE_EVENTS: readonly string[] = ['pointerdown', 'keydown', 'touchstart'];
+const USER_GESTURE_EVENTS: readonly string[] = ['pointerdown', 'keydown', 'touchstart', 'touchend', 'click'];
 
 const MS_PER_SECOND = 1000;
 
@@ -68,16 +68,22 @@ class AudioService {
   private silenceDepth: number = 0;
 
   private readonly onUserGesture = (): void => {
-    if (this.userGestureSeen) return;
+    const firstGesture = !this.userGestureSeen;
     this.userGestureSeen = true;
+    this.ensureContext();
+    if (firstGesture && this.musicEnabled) {
+      this.startMusicLoop();
+    }
+    this.releaseGestureListenersWhenRunning();
+  };
+
+  /** Stops listening for gestures once the context runs; until then every gesture retries the resume. */
+  private releaseGestureListenersWhenRunning(): void {
+    if (this.ctx?.state !== 'running' || typeof window === 'undefined') return;
     for (const type of USER_GESTURE_EVENTS) {
       window.removeEventListener(type, this.onUserGesture, true);
     }
-    this.ensureContext();
-    if (this.musicEnabled) {
-      this.startMusicLoop();
-    }
-  };
+  }
 
   private readonly onVisibilityChange = (): void => {
     if (document.hidden) {
@@ -113,8 +119,13 @@ class AudioService {
       if (!AudioCtx) return null;
       this.ctx = new AudioCtx();
     }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+    // Any state but running or closed needs a resume, including the 'interrupted' state of iOS.
+    const state: string = this.ctx.state;
+    if (state !== 'running' && state !== 'closed') {
+      this.ctx
+        .resume()
+        .then(() => this.releaseGestureListenersWhenRunning())
+        .catch(() => {});
     }
     return this.ctx.state === 'running' ? this.ctx : null;
   }
