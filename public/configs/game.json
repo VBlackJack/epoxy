@@ -396,6 +396,10 @@
       "prefix": "cclp5"
     }
   ],
+  "blockPuzzle": {
+    "watchSearchBudget": 4000,
+    "hintSearchBudget": 60000
+  },
   "timing": {
     "tickIntervalMs": 50,
     "ticksPerSecond": 20,

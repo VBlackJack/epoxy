@@ -29,6 +29,7 @@ import {
   levelSizeBoundsOf,
   GridSize,
   LevelSizeBounds,
+  findBlockPuzzleConfigErrors,
   isDirection,
   isFiniteNumber,
   isInBounds,
@@ -55,7 +56,7 @@ import { LevelPackStorage } from '../storage/LevelPackStorage';
 
 /** Top-level keys each config file must define. */
 const REQUIRED_CONFIG_KEYS = {
-  GAME: ['grid', 'timing', 'storage', 'locales', 'keybindings', 'palette'],
+  GAME: ['grid', 'timing', 'storage', 'locales', 'keybindings', 'palette', 'blockPuzzle'],
   TILES: ['tiles'],
   MONSTERS: ['entities'],
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
@@ -145,6 +146,10 @@ class ConfigRegistryService {
     );
     if (graphicsErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, graphicsErrors.join('; '));
+    }
+    const blockPuzzleErrors = findBlockPuzzleConfigErrors(bundle.game.blockPuzzle);
+    if (blockPuzzleErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, blockPuzzleErrors.join('; '));
     }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;

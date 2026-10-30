@@ -24,7 +24,7 @@ import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSe
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
-import { BlockPuzzleSolver } from './core/BlockPuzzleSolver';
+import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
 import { Pathfinder } from './core/Pathfinder';
 import { ProceduralGenerator } from './core/ProceduralGenerator';
@@ -1253,7 +1253,7 @@ class EpoxyApplication {
    */
   private playBlockHint(): boolean {
     if (this.isReplaying || !this.engine.getPlayer().alive) return false;
-    if (BlockPuzzleSolver.isStuck(this.engine)) {
+    if (BlockPuzzleSolver.isStuck(this.engine, requestedSearchBudget())) {
       this.showTransientStatus(t('hud.messages.blocks_stuck.label'));
       return true;
     }

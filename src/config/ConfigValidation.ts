@@ -155,3 +155,11 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
     Array.isArray(value.cloneLinks)
   );
 }
+
+/** Problems of the game.json block puzzle section: both search budgets must be positive integers. */
+export function findBlockPuzzleConfigErrors(value: unknown): string[] {
+  if (!isRecord(value)) return ['blockPuzzle: not an object'];
+  return ['watchSearchBudget', 'hintSearchBudget']
+    .filter((key) => !Number.isInteger(value[key]) || (value[key] as number) <= 0)
+    .map((key) => `blockPuzzle.${key}: not a positive integer`);
+}
