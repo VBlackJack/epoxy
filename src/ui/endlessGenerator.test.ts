@@ -29,8 +29,10 @@ class FakeWorker implements EndlessWorkerLike {
   public onmessageerror: ((event: unknown) => void) | null = null;
   public readonly received: EndlessWorkerRequest[] = [];
   public terminated = false;
+  public throwOnInit = false;
 
   public postMessage(message: EndlessWorkerRequest): void {
+    if (message.type === 'init' && this.throwOnInit) throw new Error('cannot clone the bundle');
     this.received.push(message);
   }
 
@@ -131,6 +133,99 @@ describe('EndlessGenerator with a worker', () => {
     generator.dispose();
     await expect(pending).rejects.toThrow();
     expect(worker.terminated).toBe(true);
+  });
+});
+
+describe('EndlessGenerator after a worker crash', () => {
+  it('serves on the main thread, without a replacement, when the worker never answered', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    const { generator, generateLocal, createWorker } = makeGeneratorWithWorkers([first, second]);
+    const orphan = generator.request(4, 1);
+    first.onerror?.(new Error('script failed to load'));
+    expect((await orphan).id).toBe('local4_1');
+    expect(createWorker).toHaveBeenCalledTimes(1);
+    expect(generator.usesWorker()).toBe(false);
+    expect((await generator.request(4, 2)).id).toBe('local4_2');
+    expect(generateLocal).toHaveBeenCalledTimes(2);
+  });
+
+  it('replaces a worker that answered before dying and posts its orphans again', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    const { generator, generateLocal, createWorker } = makeGeneratorWithWorkers([first, second]);
+    const done = generator.request(5, 1);
+    first.answer({ type: 'level', id: generateIds(first)[0], level: fakeLevel(1) });
+    await done;
+    const orphan = generator.request(5, 2);
+    const orphanId = generateIds(first)[1];
+    first.onerror?.(new Error('out of memory'));
+    expect(first.terminated).toBe(true);
+    expect(createWorker).toHaveBeenCalledTimes(2);
+    expect(second.received[0]).toEqual({ type: 'init', bundle: fakeBundle });
+    expect(second.received[1]).toEqual({ type: 'generate', id: orphanId, seed: 5, levelNumber: 2 });
+    expect(generator.usesWorker()).toBe(true);
+    second.answer({ type: 'level', id: orphanId, level: fakeLevel(2) });
+    expect((await orphan).number).toBe(2);
+    expect(generateLocal).not.toHaveBeenCalled();
+  });
+
+  it('rejects the orphans when the replacement dies too, never falling back to the main thread', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    const { generator, generateLocal } = makeGeneratorWithWorkers([first, second]);
+    const done = generator.request(5, 1);
+    first.answer({ type: 'level', id: generateIds(first)[0], level: fakeLevel(1) });
+    await done;
+    const orphan = generator.request(5, 2);
+    orphan.catch(() => undefined);
+    first.onerror?.(new Error('first crash'));
+    second.onerror?.(new Error('second crash'));
+    await expect(orphan).rejects.toThrow();
+    expect(second.terminated).toBe(true);
+    expect(generateLocal).not.toHaveBeenCalled();
+    expect(generator.hasPending()).toBe(false);
+  });
+
+  it('grants a new replacement once a replacement has answered', async () => {
+    const workers = [new FakeWorker(), new FakeWorker(), new FakeWorker()];
+    const { generator, generateLocal, createWorker } = makeGeneratorWithWorkers(workers);
+    const a = generator.request(8, 1);
+    workers[0].answer({ type: 'level', id: generateIds(workers[0])[0], level: fakeLevel(1) });
+    await a;
+    const b = generator.request(8, 2);
+    workers[0].onerror?.(new Error('crash'));
+    workers[1].answer({ type: 'level', id: generateIds(workers[1])[0], level: fakeLevel(2) });
+    await b;
+    const c = generator.request(8, 3);
+    workers[1].onerror?.(new Error('crash again'));
+    expect(createWorker).toHaveBeenCalledTimes(3);
+    workers[2].answer({ type: 'level', id: generateIds(workers[2])[0], level: fakeLevel(3) });
+    expect((await c).number).toBe(3);
+    expect(generateLocal).not.toHaveBeenCalled();
+  });
+
+  it('serves the orphans on the main thread when the replacement cannot be started', async () => {
+    const first = new FakeWorker();
+    const { generator, generateLocal } = makeGeneratorWithWorkers([first]);
+    const done = generator.request(6, 1);
+    first.answer({ type: 'level', id: generateIds(first)[0], level: fakeLevel(1) });
+    await done;
+    const orphan = generator.request(6, 2);
+    first.onerror?.(new Error('crash'));
+    expect((await orphan).id).toBe('local6_2');
+    expect(generateLocal).toHaveBeenCalledTimes(1);
+    expect(generator.usesWorker()).toBe(false);
+  });
+
+  it('terminates a worker whose init message could not be posted', async () => {
+    const worker = new FakeWorker();
+    worker.throwOnInit = true;
+    const { generator, generateLocal } = makeGenerator(worker);
+    expect((await generator.request(2, 3)).id).toBe('local2_3');
+    expect(worker.terminated).toBe(true);
+    expect(generator.usesWorker()).toBe(false);
+    expect(generateLocal).toHaveBeenCalledTimes(1);
   });
 });
 
