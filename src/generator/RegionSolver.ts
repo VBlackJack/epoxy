@@ -28,6 +28,55 @@ const CROP_MARGIN = 1;
 export const DEFAULT_MAX_REGION_STATES = 20000;
 
 /**
+ * The open set of a best-first search: state indices in order of their bound,
+ * the deepest first among equal bounds (nearer the target), then the earliest
+ * generated, so the order is deterministic.
+ */
+class SearchQueue {
+  private readonly heap: Array<{ index: number; bound: number; depth: number }> = [];
+
+  public push(index: number, bound: number, depth: number): void {
+    const heap = this.heap;
+    heap.push({ index, bound, depth });
+    let at = heap.length - 1;
+    while (at > 0) {
+      const parent = (at - 1) >> 1;
+      if (!this.before(heap[at], heap[parent])) break;
+      [heap[at], heap[parent]] = [heap[parent], heap[at]];
+      at = parent;
+    }
+  }
+
+  public pop(): number | null {
+    const heap = this.heap;
+    if (heap.length === 0) return null;
+    const top = heap[0];
+    const last = heap.pop() as { index: number; bound: number; depth: number };
+    if (heap.length > 0) {
+      heap[0] = last;
+      let at = 0;
+      for (;;) {
+        const left = 2 * at + 1;
+        const right = left + 1;
+        let best = at;
+        if (left < heap.length && this.before(heap[left], heap[best])) best = left;
+        if (right < heap.length && this.before(heap[right], heap[best])) best = right;
+        if (best === at) break;
+        [heap[at], heap[best]] = [heap[best], heap[at]];
+        at = best;
+      }
+    }
+    return top.index;
+  }
+
+  private before(a: { index: number; bound: number; depth: number }, b: { index: number; bound: number; depth: number }): boolean {
+    if (a.bound !== b.bound) return a.bound < b.bound;
+    if (a.depth !== b.depth) return a.depth > b.depth;
+    return a.index < b.index;
+  }
+}
+
+/**
  * What the search needs to know about the player. Mirrors the engine's
  * snapshot: keys by tile id, boots as a list of tile ids.
  */
@@ -207,7 +256,13 @@ export class RegionSolver {
     return local;
   }
 
-  /** Breadth-first search to `target` from the engine's current state; the engine is left in any state. */
+  /**
+   * Best-first search to `target` from the engine's current state; the engine
+   * is left in any state. States are expanded by their moves so far plus the
+   * grid distance left to the target, so the search heads for the target and
+   * spreads over the region only where a monster stands in the way: the
+   * states explored grow with the way, not with the region.
+   */
   private static search(
     engine: GameEngine,
     cells: GridPoint[],
@@ -225,9 +280,12 @@ export class RegionSolver {
     const states: UndoSnapshot[] = [base];
     const parents: number[] = [-1];
     const via: (SolverAction | null)[] = [null];
+    const depth: number[] = [0];
     const seen = new Set<string>([this.stateKey(engine, cells, base)]);
+    const open = new SearchQueue();
+    open.push(0, this.distanceLeft(base, target), 0);
 
-    for (let head = 0; head < states.length; head++) {
+    for (let head = open.pop(); head !== null; head = open.pop()) {
       for (const action of actions) {
         const from = states[head];
         if (action !== WAIT_ACTION && this.isPlainlyBlocked(from, action)) continue;
@@ -247,15 +305,23 @@ export class RegionSolver {
         const key = this.stateKey(engine, cells, base);
         if (seen.has(key)) continue;
         seen.add(key);
-        states.push(engine.captureState());
+        const state = engine.captureState();
+        states.push(state);
         parents.push(head);
         via.push(action);
+        depth.push(depth[head] + 1);
+        open.push(states.length - 1, depth[head] + 1 + this.distanceLeft(state, target), depth[head] + 1);
         if (states.length >= maxStates) {
           return { moves: null, statesExplored: states.length, truncated: true };
         }
       }
     }
     return { moves: null, statesExplored: states.length, truncated: false };
+  }
+
+  /** Fewest moves from the state's player to `target` on an open grid: a bound the search orders by. */
+  private static distanceLeft(state: UndoSnapshot, target: GridPoint): number {
+    return Math.abs(state.player.x - target.x) + Math.abs(state.player.y - target.y);
   }
 
   /**

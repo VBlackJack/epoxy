@@ -60,6 +60,50 @@ versions follow Semantic Versioning.
 - The `.DAT` encoder writes floor for a terrain without a byte code and drops an item without
   one, so a JSON level using the new tiles exports without failing; the export notice lists
   what was replaced or lost.
+- The hub region of an endless level scales with the area its puzzles leave free. The drawn
+  outline (`hub.shapes`) now grows before the wings are placed: whole rows and columns of floor
+  are added round it, toward the map edge the hub is shifted to first, until it covers
+  `hub.outlineGrowth.freeAreaShare` of the free area (the map interior less the puzzle boxes
+  and `cellsPerPiece` cells of corridor per puzzle), at most `maxCells` more than drawn
+  (`src/generator/HubOutline.ts`). A level with more or larger puzzles grows its hub less. The
+  grown outline is asked for on the first `growAttemptsPerTier` attempts (3) of each tier, the
+  strict ones at most, so a plan that finds no room round the larger hub gets the drawn outline
+  before any puzzle is dropped; an endless tier holds `endless.attemptsPerDroppedPiece` attempts
+  (10, against `hub.attemptsPerDroppedPiece` 8 for packs), which keeps every planned puzzle at
+  levels 20 and 50. The growth itself draws nothing from the random stream and does
+  not apply to dead-end hubs, so pack mode and the campaign are unchanged; the wings do find
+  other placements round the larger ring, so the levels differ. Measured
+  against main on 20 seeds, each run alone (hub region median, content share median and
+  minimum, planned pieces kept, generation median and p95): level 1 168 to 213 cells, share
+  0.64 (0.54) to 0.70 (0.61), 20 of 20 kept, 0.54 to 0.61 s median and 1.12 to 1.23 s p95;
+  level 10 99 to 135, 0.71 (0.62) to 0.85 (0.64), 20 of 20, 1.07 to 1.19 s and 2.47 to
+  2.97 s; level 20 157 to 151, 0.80 (0.73) to 0.81 (0.68), 20 of 20, 1.51 to 2.24 s and 3.71
+  to 5.05 s; level 50 103 to 132, 0.81 (0.73) to 0.79 (0.61), 19 to 20 of 20, 1.53 to 1.99 s
+  and 4.12 to 4.07 s. No unproven or bypassable level. Level 20 costs the most: its 10-piece
+  plans need 4.0 attempts on average against 2.6, the grown hub giving way after the third.
+  Hub monsters per level sit at 1.4 to 1.5 at levels 20 and 50 against 1.85 and 1.65 on main,
+  from the plans the layouts accept (longer lanes change nothing).
+  Rejected on the same seeds: a higher fringe cap (`loopFringeCells` 400 gives 350 to 470 cell
+  regions of bare floor that lose the candidate scoring, and the median falls), a smaller hub
+  shift (`maxShift` 3 encloses the hub on every side), a second ring of floor on every
+  outline (content share under 0.6 at level 1, generation time doubled), and a growth that
+  gives way a quarter at a time over the strict attempts (fewer pieces kept at level 20, and
+  slower).
+- The chips of the hub region follow its size: at least one per `hub.openChips.regionCellsPerChip`
+  cells (28), up to `openChips.max` (now 8), so a grown hub does not lower the share of its
+  floor near content. `EndlessGuard.test.ts` now also holds the worst level of its sample at a
+  content share of 0.5, and samples level 50 beside levels 1 and 25.
+- The region search of the prover (`RegionSolver`) expands states best first, by moves made
+  plus the grid distance left to the target, instead of breadth first. The way found is the
+  same kind of way, confirmed by replay as before, but the states explored grow with the way
+  rather than with the region: region search states, median (p95), main to
+  branch, level 10 4006 (9767) to 1320 (2590), level 20 5608 (8345) to 935 (2402), level 50
+  4050 (10699) to 866 (3035); on the same levels with the growth off, level 10 4006 to 790.
+- `npm run report:hub` (`tools/hubAreaStudy.report.ts`) measures where the map area of endless
+  levels goes: hub outline, region, wing floor, piece boxes, walls, unused pockets and the free
+  land the region could still join. It writes `local/hub-area-study.<tag>.json` and ASCII maps
+  of the first seeds to `local/hub-area-maps.<tag>.txt`; `HUB_STUDY_VARIANT` merges a JSON
+  object over `procedural.hub` so levers are compared on the same seeds.
 
 ## [2.3.0] - 2026-10-30
 

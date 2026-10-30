@@ -145,6 +145,8 @@ export interface HubOpenChipsConfig {
   max: number;
   /** One more chip for each this many planned puzzles. */
   piecesPerExtra: number;
+  /** At least one chip for each this many cells of the hub region, so the content grows with the floor. */
+  regionCellsPerChip: number;
   /** Share of the chips that lie within `nearLaneDistance` of a monster's lane. */
   nearLaneShare: number;
   nearLaneDistance: number;
@@ -179,6 +181,27 @@ export interface HubOpenDividersConfig {
   attempts: number;
 }
 
+/**
+ * How far the drawn hub outline of a loop level grows to cover the area its
+ * puzzles leave free: the map interior less the puzzle boxes and a corridor
+ * allowance per puzzle. The outline gains whole rows and columns of floor on
+ * its sides until it covers the given share of that free area.
+ */
+export interface HubOutlineGrowthConfig {
+  /** Cells of gate, corridors and return strip counted out of the free area per planned puzzle. */
+  cellsPerPiece: number;
+  /** Share of the free area the grown outline aims to cover; 0 keeps the drawn outlines. */
+  freeAreaShare: number;
+  /** Most floor cells the growth may add to a drawn outline. */
+  maxCells: number;
+  /**
+   * Attempts of each tier (the first ones, which are the strict ones) that ask for the grown
+   * outline; the rest use the drawn outline, so a plan that finds no room round the larger hub
+   * gets its chances with the plain one before a puzzle is dropped.
+   */
+  growAttemptsPerTier: number;
+}
+
 /** How many pairs of puzzles hand something over (a block, a key) in a loop level, by planned puzzles. */
 export interface HubDependencyConfig {
   fromPieces: number;
@@ -200,6 +223,8 @@ export interface HubConfig {
   shapes: HubShapeConfig[];
   /** Largest offset of the hub from the map centre, drawn per attempt. */
   maxShift: number;
+  /** Growth of the drawn outline in a loop level, by the area the planned puzzles leave free. */
+  outlineGrowth: HubOutlineGrowthConfig;
   /** Wings open from the start, so the player chooses where to begin. */
   openWings: number;
   maxConnectorLength: number;
@@ -315,6 +340,12 @@ export interface ProceduralScoringConfig {
 
 /** Difficulty curve of endless mode: full difficulty from level 1, then a capped growth. */
 export interface EndlessConfig {
+  /**
+   * Failed attempts after which an endless level drops one puzzle, in place of
+   * `hub.attemptsPerDroppedPiece`: a hub grown into the free area needs a few more
+   * tries before a puzzle gives way.
+   */
+  attemptsPerDroppedPiece: number;
   pieceCountStart: number;
   pieceCountMax: number;
   levelsPerExtraPiece: number;

@@ -47,6 +47,11 @@ const MIN_MEDIAN_WALKABLE_CELLS = 300;
  * steps of a chip, a monster lane or a hazard cell. Measured 0.76 at 20 seeds.
  */
 const MIN_MEDIAN_CONTENT_SHARE = 0.6;
+/**
+ * The worst level of the sample must keep this much of its outside floor served too: a
+ * grown hub whose chips did not follow would pass on the median and fail here.
+ */
+const MIN_CONTENT_SHARE_ANY_LEVEL = 0.5;
 const MAX_MEDIAN_REVISIT_RATIO = 1.4;
 /**
  * Was 0.55 (the 40-level sample sat at 0.65, 0.58 at level 25). With content in the hub region
@@ -67,7 +72,8 @@ const MIN_SHARE_ALL_PIECES_KEPT = 0.8;
 const MIN_SHARE_WITH_MONSTERS = 0.75;
 
 const SEEDS = [1, 2, 3, 4];
-const LEVEL_NUMBERS = [1, 25];
+/** Level 50 is the deep end: ten puzzles of the top tier, where a grown hub costs the most time. */
+const LEVEL_NUMBERS = [1, 25, 50];
 /** The last entry of pieceMotifs is the finale, not a planned puzzle. */
 const FINALE_PIECES = 1;
 const SUITE_TIMEOUT_MS = 120000;
@@ -118,9 +124,11 @@ describe('endless mode quality guard', () => {
 
   it('is wide and branching enough, and its open floor carries content', () => {
     expect(median(samples.map((s) => s.metrics.walkableCells))).toBeGreaterThanOrEqual(MIN_MEDIAN_WALKABLE_CELLS);
-    expect(median(samples.map((s) => measureOpenArea(s.generated).contentShare))).toBeGreaterThanOrEqual(
-      MIN_MEDIAN_CONTENT_SHARE
-    );
+    const contentShares = samples.map((s) => measureOpenArea(s.generated).contentShare);
+    expect(median(contentShares)).toBeGreaterThanOrEqual(MIN_MEDIAN_CONTENT_SHARE);
+    for (const [i, share] of contentShares.entries()) {
+      expect(share, samples[i].generated.level.id).toBeGreaterThanOrEqual(MIN_CONTENT_SHARE_ANY_LEVEL);
+    }
     expect(median(samples.map((s) => s.metrics.junctionShare))).toBeGreaterThanOrEqual(MIN_MEDIAN_JUNCTION_SHARE);
   });
 

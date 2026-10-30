@@ -200,6 +200,12 @@
         { "id": "corner", "rows": ["....####", "....####", "....####", "........", "........", "........", "........"] }
       ],
       "maxShift": 7,
+      "outlineGrowth": {
+        "cellsPerPiece": 12,
+        "freeAreaShare": 0.27,
+        "maxCells": 32,
+        "growAttemptsPerTier": 3
+      },
       "openWings": 2,
       "maxConnectorLength": 2,
       "rewardRoomWidths": [2, 3, 4, 5],
@@ -251,8 +257,9 @@
       },
       "openChips": {
         "min": 3,
-        "max": 6,
+        "max": 8,
         "piecesPerExtra": 3,
+        "regionCellsPerChip": 28,
         "nearLaneShare": 0.5,
         "nearLaneDistance": 3,
         "placementSamples": 40
@@ -320,6 +327,7 @@
       "weightWalk": 0.4
     },
     "endless": {
+      "attemptsPerDroppedPiece": 10,
       "pieceCountStart": 6,
       "pieceCountMax": 10,
       "levelsPerExtraPiece": 4,

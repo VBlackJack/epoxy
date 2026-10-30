@@ -60,6 +60,8 @@ export class HubOpenAssembler {
   /**
    * Fills the region around `start`. Null when the plan's hub items do not fit.
    * Monsters, chips and patches that find no room are left out, not failed.
+   * The chips are the plan's, or one per `openChips.regionCellsPerChip` cells
+   * of the region when that is more, up to `openChips.max`.
    */
   public fill(plan: HubPlan, start: GridPoint): OpenFill | null {
     const aprons = this.closeRegion();
@@ -75,11 +77,17 @@ export class HubOpenAssembler {
     this.grid.entities.push(...monsters);
     const hazards = this.placeHazards(start, lanes);
 
+    // The plan's count, or more when the region is large: a chip per so many cells keeps the floor served.
+    const chipRule = this.cfg.openChips;
+    const chipCount = Math.min(
+      chipRule.max,
+      Math.max(plan.openChips, Math.floor(this.regionCells().length / chipRule.regionCellsPerChip))
+    );
     const loot = [
       ...plan.hubItems.map((id) => ({ id, near: false })),
-      ...Array.from({ length: plan.openChips }, (_, i) => ({
+      ...Array.from({ length: chipCount }, (_, i) => ({
         id: CHIP_ITEM_ID,
-        near: i < Math.round(plan.openChips * this.cfg.openChips.nearLaneShare)
+        near: i < Math.round(chipCount * chipRule.nearLaneShare)
       }))
     ];
     const placed = this.placeLoot(loot, start, lanes);
