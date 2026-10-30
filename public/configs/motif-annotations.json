@@ -52,11 +52,11 @@
     "reversible": true
   },
   "door_in_green": {
-    "solution": "SWWSSEEEEESSWWS",
+    "solution": "SWSSEEEESWWS",
     "reversible": true
   },
   "door_in_yellow": {
-    "solution": "SEEEEESSWWWWWSSEES",
+    "solution": "SEEEESSWWWWSS",
     "reversible": true
   },
   "finale_socket": {
@@ -96,11 +96,11 @@
     "reversible": true
   },
   "key_out_green": {
-    "solution": "SEEEESSSSSWWNNNWWWSSSS",
+    "solution": "SEEESSWSSWWWNNSSS",
     "reversible": true
   },
   "key_out_yellow": {
-    "solution": "SEEEEESSWWWEESSSWWNSWWS",
+    "solution": "SEEEESSSSWWEENNWWWWSSS",
     "reversible": true
   },
   "keys_doors_chain": {

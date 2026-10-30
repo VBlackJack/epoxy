@@ -55,8 +55,10 @@ export interface HubDependency {
 
 /** Fewest planned puzzles a dependency pair can be swapped into: the pair, and a plain final puzzle. */
 const MIN_PIECES_FOR_PAIR = 3;
-/** Divides a piece's area so that it only breaks ties between otherwise equal replacement slots. */
+/** Divides an area gap so that it only breaks ties between otherwise equal replacement slots. */
 const AREA_TIEBREAK_SCALE = 10000;
+/** Cost of a replacement that would take the level over its puzzle area budget: above every other preference. */
+const OVER_BUDGET_COST = 10;
 
 export interface HubPlan {
   /** The final wing, holding the exit, is last. */
@@ -101,7 +103,8 @@ export class HubPlanner {
     script?: LevelScript,
     piecesDropped = 0,
     lead?: string,
-    avoid: string[] = []
+    avoid: string[] = [],
+    lanes = true
   ): HubPlan {
     // Scripted levels keep the dead-end wings their briefs were written for.
     const loop = !script && cfg.loopModes.includes(profile.mode);
@@ -117,9 +120,9 @@ export class HubPlanner {
       avoid
     );
     const paired = loop
-      ? HubPlanner.addDependencies(selection.puzzles, selection.motifs, library, rules, profile, cfg, rng)
+      ? HubPlanner.addDependencies(selection.puzzles, selection.motifs, library, rules, profile, cfg, rng, lanes)
       : { puzzles: selection.puzzles, motifs: selection.motifs, dependencies: [], bonds: new Set<number>() };
-    const pieces = loop ? HubPlanner.fitToArea(paired.puzzles, library, rules, profile, cfg) : paired.puzzles;
+    const pieces = loop ? HubPlanner.fitToArea(paired.puzzles, library, rules, profile, cfg, paired.dependencies) : paired.puzzles;
     // A lock whose item would make one of the level's puzzles trivial is not used:
     // boots carried into a matching hazard puzzle, a key matching a puzzle's doors,
     // and the items the puzzles hand to one another.
@@ -203,9 +206,12 @@ export class HubPlanner {
    * bonded: the consumer follows the exporter in the same wing, the block being
    * pushed along the corridor between them. A key pair puts the consumer at a
    * later index, so the winning order visits the exporter first. A level gets
-   * one block pair at most while key pairs are available. The pieces
-   * replaced are those of motifs the level has several of, smallest first, and
-   * monster arenas last; the final puzzle is never replaced. Returns the
+   * one block pair at most while key pairs are available, and none when
+   * `lanes` is off: a block lane is the hardest thing to lay out, so a level
+   * that will not fit gives it up before it gives up a puzzle. The pieces
+   * replaced keep the level within its puzzle area budget whenever a choice
+   * does, then are those of motifs the level has several of, monster arenas
+   * last, the closest in area to the pair; the final puzzle is never replaced. Returns the
    * puzzles, the focus motifs (those left without a puzzle dropped, the pairs'
    * motifs added while the motif budget has room) and the indices where a
    * bonded pair starts.
@@ -217,7 +223,8 @@ export class HubPlanner {
     rules: Record<string, MotifRule>,
     profile: DifficultyProfile,
     cfg: HubConfig,
-    rng: SeededRandom
+    rng: SeededRandom,
+    lanes = true
   ): { puzzles: CompiledPiece[]; motifs: string[]; dependencies: HubDependency[]; bonds: Set<number> } {
     const result = [...puzzles];
     const focus = [...motifs];
@@ -233,18 +240,20 @@ export class HubPlanner {
         p.tier <= profile.maxTier &&
         HubPlanner.fitsLoopWing(p, cfg)
     );
-    const couples = pool
+    const allCouples = pool
       .filter((e) => e.exports)
       .flatMap((e) =>
         pool
           .filter((c) => c.imports && c.imports.kind === e.exports?.kind && c.imports.item === e.exports?.item)
           .map((c) => ({ exporter: e, consumer: c }))
       );
+    const keyCouples = allCouples.filter((c) => c.exporter.exports?.kind === 'item');
+    const couples = lanes || keyCouples.length === 0 ? allCouples : keyCouples;
     rng.shuffle(couples);
     const used = new Set(result.map((p) => p.id));
     const taken = new Set<number>();
     // A block lane is the costliest to lay out: a level gets one, then key pairs, unless only block pairs are left.
-    const itemCouples = couples.filter((c) => c.exporter.exports?.kind === 'item');
+    const itemCouples = keyCouples;
     for (const { exporter, consumer } of couples) {
       if (dependencies.length >= wanted) break;
       if (used.has(exporter.id) || used.has(consumer.id)) continue;
@@ -252,7 +261,8 @@ export class HubPlanner {
       const blockTaken = dependencies.some((d) => d.kind === 'block');
       const itemLeft = itemCouples.some((c) => !used.has(c.exporter.id) && !used.has(c.consumer.id));
       if (exchange.kind === 'block' && blockTaken && itemLeft) continue;
-      const slots = HubPlanner.replaceSlots(result, taken, exchange.kind === 'block', rng);
+      const incoming = exporter.width * exporter.height + consumer.width * consumer.height;
+      const slots = HubPlanner.replaceSlots(result, taken, exchange.kind === 'block', incoming, cfg.puzzleAreaBudget, rng);
       if (!slots) break;
       const [at, later] = slots;
       result[at] = exporter;
@@ -275,32 +285,39 @@ export class HubPlanner {
 
   /**
    * The two indices a pair replaces: never the final puzzle nor a slot already
-   * taken; a bonded pair takes two neighbouring slots. Among the candidates,
-   * puzzles of a motif the level has several of go first, monster arenas last,
-   * smaller puzzles before larger ones (the level keeps its floor), ties broken at random.
+   * taken; a bonded pair takes two neighbouring slots. A choice that keeps the
+   * puzzles' area within `budget` beats any other (over it, no layout fits), and
+   * over it the least excess wins; then puzzles of a motif the level has several of go first, monster arenas
+   * last, then the pair closest in area to the `incoming` one, ties broken at random.
    */
   private static replaceSlots(
     puzzles: CompiledPiece[],
     taken: Set<number>,
     bonded: boolean,
+    incoming: number,
+    budget: number,
     rng: SeededRandom
   ): [number, number] | null {
     const counts = new Map<string, number>();
     for (const p of puzzles) counts.set(p.motif, (counts.get(p.motif) ?? 0) + 1);
-    const cost = (index: number): number => {
-      const piece = puzzles[index];
-      const area = (piece.width * piece.height) / AREA_TIEBREAK_SCALE;
-      return ((counts.get(piece.motif) ?? 0) > 1 ? 0 : 2) + (PieceSolver.hasMonsters(piece) ? 1 : 0) + area;
+    const area = (p: CompiledPiece): number => p.width * p.height;
+    const total = puzzles.reduce((sum, p) => sum + area(p), 0);
+    const cost = (index: number): number =>
+      ((counts.get(puzzles[index].motif) ?? 0) > 1 ? 0 : 2) + (PieceSolver.hasMonsters(puzzles[index]) ? 1 : 0);
+    const pairCost = (a: number, b: number): number => {
+      const outgoing = area(puzzles[a]) + area(puzzles[b]);
+      const excess = total - outgoing + incoming - budget;
+      // Over the budget, every cell of excess counts: the choice that overshoots least wins.
+      const over = excess > 0 ? OVER_BUDGET_COST + excess : 0;
+      return over + cost(a) + cost(b) + Math.abs(outgoing - incoming) / AREA_TIEBREAK_SCALE;
     };
     const free = puzzles.map((_, i) => i).filter((i) => i < puzzles.length - 1 && !taken.has(i));
     rng.shuffle(free);
-    if (bonded) {
-      const starts = free.filter((i) => free.includes(i + 1)).sort((a, b) => cost(a) + cost(a + 1) - cost(b) - cost(b + 1));
-      return starts.length > 0 ? [starts[0], starts[0] + 1] : null;
-    }
-    const best = free.sort((a, b) => cost(a) - cost(b)).slice(0, 2);
-    if (best.length < 2) return null;
-    return best[0] < best[1] ? [best[0], best[1]] : [best[1], best[0]];
+    const pairs: Array<[number, number]> = bonded
+      ? free.filter((i) => free.includes(i + 1)).map((i) => [i, i + 1] as [number, number])
+      : free.flatMap((a) => free.filter((b) => b > a).map((b) => [a, b] as [number, number]));
+    pairs.sort((p, q) => pairCost(p[0], p[1]) - pairCost(q[0], q[1]));
+    return pairs.length > 0 ? pairs[0] : null;
   }
 
   /** Whether a puzzle can sit in a dead-end wing: walkable back, and no boot thief. */
@@ -483,14 +500,16 @@ export class HubPlanner {
   /**
    * Swaps the largest puzzles for smaller ones of the same motif until their
    * boxes together fit the area the map can hold around a hub. A swap keeps the
-   * highest tier it can; puzzles that have no smaller sibling stay.
+   * highest tier it can; puzzles that have no smaller sibling stay. An exchange
+   * piece swapped for a sibling is renamed in `dependencies`.
    */
   private static fitToArea(
     puzzles: CompiledPiece[],
     library: CompiledPiece[],
     rules: Record<string, MotifRule>,
     profile: DifficultyProfile,
-    cfg: HubConfig
+    cfg: HubConfig,
+    dependencies: HubDependency[] = []
   ): CompiledPiece[] {
     const area = (p: CompiledPiece): number => p.width * p.height;
     const siblings = ProgressionPlanner.playablePieces(
@@ -500,15 +519,21 @@ export class HubPlanner {
       profile.maxTier,
       (piece) => HubPlanner.fitsLoopWing(piece, cfg)
     );
+    // An exchange piece may only give way to one that hands over, or needs, the very same thing.
+    const sameExchange = (a: CompiledPiece, b: CompiledPiece): boolean =>
+      JSON.stringify([a.exports, a.imports]) === JSON.stringify([b.exports, b.imports]);
+    const exchangeSiblings = library.filter(
+      (p) => (p.exports || p.imports) && p.tier <= profile.maxTier && HubPlanner.fitsLoopWing(p, cfg)
+    );
     const result = [...puzzles];
     const used = new Set(result.map((p) => p.id));
     for (;;) {
       if (result.reduce((sum, p) => sum + area(p), 0) <= cfg.puzzleAreaBudget) return result;
       let swap: { at: number; with: CompiledPiece } | null = null;
       result.forEach((piece, at) => {
-        // Exchange pieces have no siblings: the pair they belong to is kept as planned.
-        if (piece.exports || piece.imports) return;
-        for (const alt of siblings) {
+        const exchange = piece.exports !== null || piece.imports !== null;
+        const pool = exchange ? exchangeSiblings.filter((alt) => sameExchange(alt, piece)) : siblings;
+        for (const alt of pool) {
           if (alt.motif !== piece.motif || used.has(alt.id) || area(alt) >= area(piece)) continue;
           const better =
             !swap ||
@@ -519,7 +544,12 @@ export class HubPlanner {
       });
       if (!swap) return result;
       const chosen: { at: number; with: CompiledPiece } = swap;
-      used.delete(result[chosen.at].id);
+      const outgoing = result[chosen.at].id;
+      for (const dep of dependencies) {
+        if (dep.exporter === outgoing) dep.exporter = chosen.with.id;
+        if (dep.consumer === outgoing) dep.consumer = chosen.with.id;
+      }
+      used.delete(outgoing);
       used.add(chosen.with.id);
       result[chosen.at] = chosen.with;
     }

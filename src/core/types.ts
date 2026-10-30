@@ -190,8 +190,6 @@ export interface HubConfig {
    * other needs: none under `fromPieces` planned puzzles, one more per `piecesPerPair`, up to `max`.
    */
   dependencies: HubDependencyConfig;
-  /** Free cells wanted straight beyond the exit of a puzzle that pushes a block out, so the next puzzle's lane fits. */
-  laneLookahead: number;
   /** Most box area, in cells, the puzzles of a loop level may add up to; larger ones are swapped for smaller siblings. */
   puzzleAreaBudget: number;
   /** Placements of a wing tried one after the other when the wings after it find no room. */

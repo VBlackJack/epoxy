@@ -18,16 +18,23 @@ versions follow Semantic Versioning.
   (`hub.dependencies` in `game.json`: `fromPieces`, `piecesPerPair`, `max`). A block pair is
   bonded in one wing, the consumer right after the exporter; a key pair puts the consumer at a
   later position, usually another wing. A level gets one block pair at most while key pairs are
-  available. `HubPlanner.winningOrder` walks each wing's chain with
+  available, and the second half of each attempt tier plans key pairs only, before a puzzle is
+  dropped. The puzzles a pair replaces are chosen so the level stays within
+  `hub.puzzleAreaBudget` whenever a choice allows it, and `fitToArea` may swap an exchange
+  piece for a smaller one with the same export or import. `HubPlanner.winningOrder` walks each
+  wing's chain with
   the inventory: an imported key must be held (spent when the door consumes it), an exported
   key is gained, a block import must follow a block export. The colours a pair hands over are
   never used as wing locks. Exchange pieces are kept out of `ProgressionPlanner.playablePieces`,
   so pack mode and the campaign are unchanged (`PackBaseline.test.ts`).
 - `HubLoopAssembler` lays a bonded pair out with a straight lane from the exporter's exit port
-  to the consumer's entry port, kept clear of rewards, and only offers exporter placements with
-  `hub.laneLookahead` free cells straight beyond the exit; the route gets a `push` segment, and
-  `LevelProver` pushes the block along it and checks it rests on the consumer's entry port
-  before replaying the consumer. Guards are unchanged.
+  to the consumer's entry port, kept clear of rewards, and only offers exporter placements
+  with room for a lane and a consumer straight beyond the exit; wings holding a lane are placed
+  first. The route gets a `push` segment, and `LevelProver` pushes the block along it and checks
+  it rests on the consumer's entry port before replaying the consumer. Guards are unchanged.
+- The layout's hottest helpers (`HubGrid.corridorFits`, the claimed-cell test of a placement
+  search) address cells by arithmetic instead of allocating points; generated levels are
+  unchanged.
 - 10 pieces (91 in total): 3 block exporters (`block_out_lane`, `block_out_ford`,
   `block_out_twin_fords`), 3 block consumers (`block_in_moat`, `block_in_canal`,
   `block_in_pillar`), 2 key exporters (`key_out_yellow`, `key_out_green`) and 2 key consumers
@@ -39,13 +46,12 @@ versions follow Semantic Versioning.
   pairs by kind, unproven, bypassable, generation time, quality floors) into
   `local/dependency-study.json`.
 - `GeneratedLevel.dependencies` lists the pairs of a generated level.
-- Wings holding a block lane are placed first, as the most constrained.
 - Measured on 20 seeds: every level at levels 10 and 20 holds a pair, none is unproven or
-  bypassable, median walkable cells 462 at both, revisit 1.23 and 1.20, junction share 0.63 and
-  0.56, monsters in 0.9 and 1.0 of the levels. Generation p95 is 1.3 s at level 10 (1.5 s for
-  the same seeds without pairs). At level 20 (10 pieces) it is 5.1 s and all planned pieces are
-  kept in 0.65 of the levels, against 4.7 s and 0.80 without pairs: 10-piece levels are slow on
-  their own, and a block lane adds a few failed layouts.
+  bypassable, every planned piece is kept (without pairs, 0.80 of the levels at level 20),
+  median walkable cells 487 and 457, revisit 1.22 and 1.23, junction share 0.63 and 0.57,
+  monsters in 0.95 of the levels. Generation p95 is 2.8 s at level 10 and 3.4 s at level 20 on
+  a loaded machine; interleaved with main in one process, the branch costs 1.39 times main's
+  CPU on levels 25 and 50, of which the hub assembler split alone accounts for about 1.25.
 
 ## [2.2.0] - 2026-10-30
 

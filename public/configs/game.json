@@ -221,7 +221,6 @@
         "piecesPerPair": 4,
         "max": 2
       },
-      "laneLookahead": 3,
       "puzzleAreaBudget": 420,
       "wingAlternatives": 3,
       "backtrackBudget": 30,

@@ -197,8 +197,8 @@ export class ProceduralGenerator {
     const lead = leadChoice?.preferred;
     const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg, profile.mode);
     // Attempts come in tiers of one dropped puzzle each. Within a tier the pack's
-    // lead motif and hub outline are asked for first, then relaxed, so the
-    // constraints give way before any puzzle does.
+    // lead motif, hub outline and a block lane between two puzzles are asked for
+    // first, then relaxed, so the constraints give way before any puzzle does.
     const tierSize = cfg.hub.attemptsPerDroppedPiece;
     const strictPerTier = Math.ceil(tierSize / 2);
 
@@ -212,7 +212,7 @@ export class ProceduralGenerator {
       const avoid = leadChoice?.avoid;
       const built =
         layout === 'hub'
-          ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid)
+          ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid, strict)
           : this.buildChain(profile, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead, avoid);
       if (!built) continue;
       const { assembled } = built;
@@ -314,9 +314,10 @@ export class ProceduralGenerator {
     piecesDropped = 0,
     lead?: string,
     shapeIds?: string[],
-    avoid?: string[]
+    avoid?: string[],
+    lanes = true
   ): BuiltLayout | null {
-    const plan = HubPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid);
+    const plan = HubPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid, lanes);
     // Loop wings are costly to lay out and rarely fit: fewer layouts are tried for a plan, and
     // the first that fits is kept, a new plan being a better bet than one more layout of this.
     const loop = plan.wings.some((w) => w.loop);
