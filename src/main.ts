@@ -34,7 +34,6 @@ import {
   GridPoint,
   KeybindingsConfig,
   LevelBlueprint,
-  LevelHighScore,
   LevelPack,
   TimedMove,
   UserSettings
@@ -56,8 +55,19 @@ import { downloadBytes } from './ui/download';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
-import { preferredScrollBehavior, prefersReducedMotion, replayAnimation } from './ui/motion';
-import { collectDueMoves, sanitizeTimedMoves } from './ui/replaySchedule';
+import { preferredScrollBehavior, prefersReducedMotion, replayAnimation, watchReducedMotion } from './ui/motion';
+import { getEditorChordAction, hasCommandModifier, isUndoChord } from './ui/inputGuards';
+import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
+import { setToggleState } from './ui/toggleState';
+import { watchDevicePixelRatio } from './ui/displayWatchers';
+import { collectDueMoves } from './ui/replaySchedule';
+import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
+import {
+  parseGraphicsStyle,
+  resolveSavedLevelIndex,
+  sanitizeHighScores,
+  StoredHighScore
+} from './storage/persistedState';
 import { lossyExportNotice } from './ui/exportNotice';
 import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
 import {
@@ -83,9 +93,6 @@ import {
   TOAST_DURATION_MS,
   TOUCH_DEFAULTS
 } from './ui/uiConstants';
-
-/** High score as stored: legacy records only carry untimed replayMoves. */
-type StoredHighScore = LevelHighScore & { replayTimedMoves?: TimedMove[] };
 
 type OverlayState = 'none' | 'complete' | 'dead' | 'paused';
 type ScoresFilter = 'all' | 'unsolved' | 'completed';
@@ -213,6 +220,7 @@ class EpoxyApplication {
     this.bindTouchGestures();
     this.bindDragAndDrop();
     this.bindKeyboardEvents();
+    this.bindFocusHandoff();
     i18n.translateDOM();
 
     i18n.onChange(() => {
@@ -279,12 +287,14 @@ class EpoxyApplication {
 
     if (savedSettings.shellEnabled) {
       byId('lynx-console')?.classList.add('enabled');
-      byId('btn-shell-toggle')?.classList.add('active');
     }
+    setToggleState(byId('btn-shell-toggle'), Boolean(savedSettings.shellEnabled));
 
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
-    byId('btn-lcd-toggle')?.classList.toggle('active', this.renderer.isLcdEnabled());
+    setToggleState(byId('btn-lcd-toggle'), this.renderer.isLcdEnabled());
     this.renderer.setReducedMotion(prefersReducedMotion());
+    // The preference can change while the page is open.
+    watchReducedMotion((reduced) => this.renderer.setReducedMotion(reduced));
     this.renderer.setQuality(parseQuality(savedSettings.graphicsQuality));
     this.renderer.setOnQualityLowered((quality) => {
       this.showTransientStatus(
@@ -299,18 +309,18 @@ class EpoxyApplication {
   private applyAudioSettings(savedSettings: UserSettings): void {
     if (typeof savedSettings.sfxEnabled === 'boolean') {
       AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
-      byId('btn-sfx-toggle')?.classList.toggle('active', savedSettings.sfxEnabled);
     }
     if (typeof savedSettings.musicEnabled === 'boolean') {
       AudioManager.setMusicEnabled(savedSettings.musicEnabled);
-      byId('btn-music-toggle')?.classList.toggle('active', savedSettings.musicEnabled);
     }
+    setToggleState(byId('btn-sfx-toggle'), AudioManager.isSfxEnabled());
+    setToggleState(byId('btn-music-toggle'), AudioManager.isMusicEnabled());
   }
 
   private bindEngineCallbacks(): void {
-    this.engine.setOnWinCallback((levelId, timeRemaining, steps, score, moves) => {
+    this.engine.setOnWinCallback((levelId, timeRemaining, steps, score) => {
       if (!this.isReplaying) {
-        this.recordHighScore(levelId, timeRemaining, steps, score, moves, this.engine.getTimedMoveHistory());
+        this.recordHighScore(levelId, timeRemaining, steps, score, this.engine.getTimedMoveHistory());
       }
       this.stopAutoMoveAndReplay();
     });
@@ -353,6 +363,8 @@ class EpoxyApplication {
   }
 
   private runGameTick(): void {
+    // A modal or the drawer owns the keyboard: skip the tick, the game is not paused.
+    if (isDialogOpen()) return;
     if (this.activeMode !== 'play') return;
     this.pollGamepad();
     if (this.isReplaying) {
@@ -457,6 +469,8 @@ class EpoxyApplication {
       window.addEventListener('resize', syncCanvasSize);
     }
     requestAnimationFrame(syncCanvasSize);
+    // Browser zoom or another screen changes the pixel ratio without resizing the box.
+    watchDevicePixelRatio(syncCanvasSize);
   }
 
   // ---------------------------------------------------------------------------
@@ -492,6 +506,12 @@ class EpoxyApplication {
     const lower = file.name.toLowerCase();
     const packName = file.name.replace(/\.[^.]+$/, '').toUpperCase();
 
+    const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
+    if (!isImportSizeAllowed(file.size, maxBytes)) {
+      this.showTransientStatus(t('app.packs.import_too_large.label', { max: formatMegabytes(maxBytes) }));
+      return;
+    }
+
     try {
       let levels: CompiledLevel[];
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
@@ -505,13 +525,15 @@ class EpoxyApplication {
         this.showTransientStatus(t('app.packs.import_error.label'));
         return;
       }
-      await ConfigRegistry.registerImportedPack(packName, levels);
+      const { persisted } = await ConfigRegistry.registerImportedPack(packName, levels);
       this.refreshPackSelector();
       this.editor.populatePresetDropdown();
       this.switchMode('play');
       this.startLevelByIndex(0);
       this.showTransientStatus(
-        t('app.packs.imported_toast.label', { name: packName, count: levels.length })
+        persisted
+          ? t('app.packs.imported_toast.label', { name: packName, count: levels.length })
+          : t('app.packs.imported_session_only_toast.label', { name: packName })
       );
     } catch (err) {
       this.showTransientStatus(
@@ -1334,8 +1356,8 @@ class EpoxyApplication {
     const isPlay = mode === 'play';
     byId('play-view')?.classList.toggle('hidden', !isPlay);
     byId('editor-view')?.classList.toggle('hidden', isPlay);
-    byId('btn-mode-play')?.classList.toggle('active', isPlay);
-    byId('btn-mode-editor')?.classList.toggle('active', !isPlay);
+    setToggleState(byId('btn-mode-play'), isPlay);
+    setToggleState(byId('btn-mode-editor'), !isPlay);
 
     if (!isPlay) {
       this.syncEditorWithEngineLevel();
@@ -1451,6 +1473,8 @@ class EpoxyApplication {
   }
 
   private bindModeSwitch(): void {
+    setToggleState(byId('btn-mode-play'), this.activeMode === 'play');
+    setToggleState(byId('btn-mode-editor'), this.activeMode === 'editor');
     byId('btn-mode-play')?.addEventListener('click', () => {
       this.switchMode('play');
     });
@@ -1682,14 +1706,15 @@ class EpoxyApplication {
     const lcdBtn = byId('btn-lcd-toggle');
     lcdBtn?.addEventListener('click', () => {
       this.renderer.setLcdEnabled(!this.renderer.isLcdEnabled());
-      lcdBtn.classList.toggle('active', this.renderer.isLcdEnabled());
+      setToggleState(lcdBtn, this.renderer.isLcdEnabled());
       this.saveUserSettings();
     });
 
     const shellBtn = byId('btn-shell-toggle');
     shellBtn?.addEventListener('click', () => {
-      byId('lynx-console')?.classList.toggle('enabled');
-      shellBtn.classList.toggle('active');
+      const lynx = byId('lynx-console');
+      lynx?.classList.toggle('enabled');
+      setToggleState(shellBtn, Boolean(lynx?.classList.contains('enabled')));
       this.saveUserSettings();
     });
 
@@ -1710,7 +1735,7 @@ class EpoxyApplication {
 
   private toggleSfx(): void {
     const enabled = AudioManager.toggleSfx();
-    byId('btn-sfx-toggle')?.classList.toggle('active', enabled);
+    setToggleState(byId('btn-sfx-toggle'), enabled);
     this.saveUserSettings();
   }
 
@@ -1722,7 +1747,7 @@ class EpoxyApplication {
     const musicBtn = byId('btn-music-toggle');
     musicBtn?.addEventListener('click', () => {
       const enabled = AudioManager.toggleMusic();
-      musicBtn.classList.toggle('active', enabled);
+      setToggleState(musicBtn, enabled);
       this.saveUserSettings();
     });
   }
@@ -2046,6 +2071,14 @@ class EpoxyApplication {
       this.updateHUD();
     });
 
+    // A key released while the window had no focus never reaches keyup.
+    window.addEventListener('blur', () => {
+      this.heldDirection = null;
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.heldDirection = null;
+    });
+
     window.addEventListener('keyup', (e) => {
       if (
         (this.heldDirection === 'N' && kb.moveUp.includes(e.code)) ||
@@ -2058,17 +2091,23 @@ class EpoxyApplication {
     });
   }
 
+  /** Gives keyboard focus back to the game after a mouse or touch interaction only. */
+  private bindFocusHandoff(): void {
+    const playView = byId('play-view');
+    if (playView) bindButtonPointerBlur(playView);
+    for (const id of ['pack-select', 'fov-select', 'theme-select', 'locale-select']) {
+      bindSelectPointerBlur(byId<HTMLSelectElement>(id));
+    }
+  }
+
   private handleEditorShortcut(e: KeyboardEvent): void {
-    if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW')) {
-      e.preventDefault();
-      if (e.shiftKey) {
-        this.editor.redo();
-      } else {
-        this.editor.undo();
-      }
-    } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
-      e.preventDefault();
+    const action = getEditorChordAction(e);
+    if (!action) return;
+    e.preventDefault();
+    if (action === 'redo') {
       this.editor.redo();
+    } else {
+      this.editor.undo();
     }
   }
 
@@ -2078,7 +2117,14 @@ class EpoxyApplication {
       action();
     };
 
-    if (kb.undo.includes(e.code) || ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW'))) {
+    if (isUndoChord(e)) {
+      run(() => this.undoMove());
+      return;
+    }
+    // Other Ctrl, Meta or Alt chords belong to the browser and the system.
+    if (hasCommandModifier(e)) return;
+
+    if (kb.undo.includes(e.code)) {
       run(() => this.undoMove());
     } else if (kb.moveUp.includes(e.code)) {
       run(() => this.beginHeldMove('N'));
@@ -2535,16 +2581,16 @@ class EpoxyApplication {
     timeRemaining: number,
     steps: number,
     score: number,
-    moves: Direction[],
     timedMoves: TimedMove[]
   ): void {
     const existing = this.highScores[levelId];
     const isBetterOrFirst = !existing || steps <= existing.minSteps || score >= existing.bestScore;
     this.highScores[levelId] = {
+      // Legacy fields of an older record stay as they were.
+      ...existing,
       bestTimeRemaining: existing ? Math.max(existing.bestTimeRemaining, timeRemaining) : timeRemaining,
       minSteps: existing ? Math.min(existing.minSteps, steps) : steps,
       bestScore: existing ? Math.max(existing.bestScore, score) : score,
-      replayMoves: isBetterOrFirst ? moves : existing.replayMoves || moves,
       replayTimedMoves: isBetterOrFirst ? timedMoves : existing.replayTimedMoves || timedMoves
     };
     try {
@@ -2560,15 +2606,9 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.highScoresKey);
       const raw = localStorage.getItem(key);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, StoredHighScore>;
-      if (parsed && typeof parsed === 'object') {
-        for (const rec of Object.values(parsed)) {
-          // Legacy records (untimed replayMoves only) keep their scores but
-          // lose the replay button: untimed moves cannot replay faithfully.
-          rec.replayTimedMoves = sanitizeTimedMoves(rec.replayTimedMoves);
-        }
-        this.highScores = parsed;
-      }
+      // Legacy records (untimed replayMoves only) keep their scores but lose
+      // the replay button: untimed moves cannot replay faithfully.
+      this.highScores = sanitizeHighScores(JSON.parse(raw));
     } catch {
       // Ignore corrupt high scores
     }
@@ -2615,8 +2655,10 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.settingsKey);
       const raw = localStorage.getItem(key);
       if (!raw) return {};
-      const parsed = JSON.parse(raw) as UserSettings;
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+      const settings = parsed as UserSettings;
+      return { ...settings, graphicsStyle: parseGraphicsStyle(settings.graphicsStyle) };
     } catch {
       return {};
     }
@@ -2627,17 +2669,13 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
       const raw = localStorage.getItem(key);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { packId?: string; levelIndex?: number };
-      const levelCount = ConfigRegistry.getLevels().length;
       // A pack can shrink between releases: a stale index restarts the pack.
-      if (
-        parsed.packId === ConfigRegistry.getActivePackId() &&
-        typeof parsed.levelIndex === 'number' &&
-        parsed.levelIndex >= 0 &&
-        parsed.levelIndex < levelCount
-      ) {
-        this.currentLevelIndex = parsed.levelIndex;
-      }
+      const index = resolveSavedLevelIndex(
+        JSON.parse(raw),
+        ConfigRegistry.getActivePackId(),
+        ConfigRegistry.getLevels().length
+      );
+      if (index !== null) this.currentLevelIndex = index;
     } catch {
       // Ignore corrupt save
     }

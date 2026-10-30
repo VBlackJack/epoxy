@@ -22,6 +22,18 @@ export function prefersReducedMotion(): boolean {
     : false;
 }
 
+/**
+ * Calls `onChange` with the new value whenever the reduced motion preference
+ * changes while the page is open. Returns a function that stops watching.
+ */
+export function watchReducedMotion(onChange: (reduced: boolean) => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => undefined;
+  const query = window.matchMedia(REDUCED_MOTION_QUERY);
+  const listener = (e: MediaQueryListEvent): void => onChange(e.matches);
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+
 /** Scroll behavior that honors the reduced motion preference. */
 export function preferredScrollBehavior(): ScrollBehavior {
   return prefersReducedMotion() ? 'auto' : 'smooth';

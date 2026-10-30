@@ -420,6 +420,9 @@
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
   },
+  "import": {
+    "maxFileBytes": 4194304
+  },
   "endlessUi": {
     "fallbackYieldMs": 0
   },
@@ -448,7 +451,7 @@
     "toggleFullscreen": ["KeyF"],
     "toggleHelp": ["Slash"],
     "dropItem": ["KeyE", "KeyX"],
-    "cycleItem": ["KeyC", "Tab"]
+    "cycleItem": ["KeyC"]
   },
   "palette": {
     "floorBase": "#9fa6b2",
