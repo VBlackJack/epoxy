@@ -7,6 +7,28 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Content in the open area of endless hubs. The hub region now carries 1 to 3 deterministic
+  monsters (`hub.openMonsters`: pink ball, glider, fireball, bug, paramecium), 3 to 6 chips
+  scattered as route waypoints (`hub.openChips`), fire and water patches kept off the monster
+  lanes (`hub.openHazards`) and wall dividers that cut the region into lanes. Gravel aprons
+  (`hub.apronTerrain`) close the region at every gate and strip end so the monsters stay out of
+  the wings and the pieces. `GeneratedLevel.open` exposes the region, aprons, monsters, lanes,
+  chips, hazards and dividers.
+- Region search: `RegionSolver` plays the hub region in the isolated engine with a timed
+  search, and `LevelProver` walks the open chips in a fixed order as waypoints, so a level with
+  wandering monsters is still proven by replay.
+- Density rules: `minBoxCellsPerMonster` (one monster per 20 box cells) and
+  `maxMonstersPerLevel` are enforced by the planner, in the selection and in the pool of
+  smaller sister pieces used when fitting the area. Six over-dense pieces were removed from the
+  library.
+- Content guard in `EndlessGuard.test.ts`: at least 0.6 of the outside floor (walkable cells
+  outside every piece box) lies within 4 steps of a chip, a monster lane or a hazard cell.
+  `src/test/openAreaMetrics.ts` measures it and `src/test/openAreaChecks.ts` holds the
+  per-level rules of the open area.
+- `tools/levelMetrics.report.ts` reports the open area of the endless sample (outside floor,
+  content share, hub monsters, open chips, region cells, dependency pairs) and runs the
+  open-area rules on 40 levels (20 seeds at levels 10 and 20).
+
 - Inter-piece dependencies in endless hubs: a level is one puzzle rather than a sequence of
   rooms. A piece may declare `exports` or `imports` in `motifs.json` (`PieceExchange`,
   compiled into `CompiledPiece`): a block export ends with a dirt block pushed out through
@@ -61,6 +83,22 @@ versions follow Semantic Versioning.
   player start against the level's own size). The engine, the camera, the screen-to-cell
   conversion, the radar and the level editor use the loaded level's dimensions. The `.DAT`
   codec and the procedural generator keep 32x32.
+
+### Changed
+
+- The walkable-cell floor of the endless guard moves from 450 to 300. 450 had been reached
+  with empty bays, which is bare floor and not content; with monsters, chips and patches in the
+  hub the median is about 340 to 390 walkable cells, of which 0.76 of the outside floor is
+  within 4 steps of content (it was 0.24). The junction-share floor moves from 0.55 to 0.45 for
+  the same reason (dividers and aprons; median 0.48 on the guard sample). Per-level generation
+  time grows from a median of 1.2 s to 2 s at level 10 (p95 2.9 s to 5.3 s) because the prover
+  searches the region.
+- Bay tuning: four settings of `hub.loopBayCells` and `hub.loopFringeCells` ((60, 120),
+  (90, 150), (120, 180), (150, 120)) were measured on 20 seeds at levels 10 and 20; none
+  changes the walkable median, the content share or the kept pieces, so the values stay at
+  60 and 120.
+- `HubOpenArea.test.ts` shares one 8-level sample (about 15 s instead of 190 s); its 40-level
+  checks run in `npm run report:levels`.
 
 ### Fixed
 

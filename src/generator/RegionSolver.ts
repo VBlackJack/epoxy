@@ -15,13 +15,15 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { ORDERED_DIRECTIONS } from '../config/constants';
+import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { GameEngine } from '../core/GameEngine';
-import { CompiledLevel, GridPoint, RuntimeEntity, UndoSnapshot } from '../core/types';
+import { CompiledLevel, Direction, GridPoint, RuntimeEntity, UndoSnapshot } from '../core/types';
 import { PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
 
 const WALL_TILE_ID = 'wall';
 const REGION_LEVEL_PASSWORD = 'REGN';
+/** Wall cells kept around the region's bounding box in the cropped engine. */
+const CROP_MARGIN = 1;
 /** Default bound on states explored by one region search (one target). */
 export const DEFAULT_MAX_REGION_STATES = 20000;
 
@@ -107,12 +109,14 @@ export class RegionSolver {
     targets: GridPoint[],
     maxStates: number = DEFAULT_MAX_REGION_STATES
   ): RegionSolveResult {
-    const local = this.buildIsolated(start);
+    const crop = this.cropToRegion(start);
+    const local = this.buildIsolated(crop.start);
     const moves: SolverAction[] = [];
     let total = 0;
-    for (const target of targets) {
+    for (const original of targets) {
+      const target = { x: original.x + crop.dx, y: original.y + crop.dy };
       const legStart = local.captureState();
-      const leg = this.search(local, start.cells, target, maxStates);
+      const leg = this.search(local, crop.start.cells, target, maxStates);
       local.restoreState(legStart);
       total += leg.statesExplored;
       if (!leg.moves) return { moves: null, statesExplored: total, truncated: leg.truncated };
@@ -125,7 +129,49 @@ export class RegionSolver {
     return { moves, statesExplored: total, truncated: false };
   }
 
-  /** Engine of the same size as the level where everything but the region is wall. */
+  /**
+   * Shrinks the start state to the region's bounding box plus a wall margin, so
+   * a state copy touches a few hundred cells instead of the whole level.
+   * Coordinates are shifted by (dx, dy); the margin cells are walls, exactly
+   * what surrounds the region in the isolated engine.
+   */
+  private static cropToRegion(start: RegionStart): { start: RegionStart; dx: number; dy: number } {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const { x, y } of start.cells) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    if (start.cells.length === 0) return { start, dx: 0, dy: 0 };
+    const dx = CROP_MARGIN - minX;
+    const dy = CROP_MARGIN - minY;
+    const width = maxX - minX + 1 + 2 * CROP_MARGIN;
+    const height = maxY - minY + 1 + 2 * CROP_MARGIN;
+    const terrain = Array.from({ length: height }, () => new Array<string>(width).fill(WALL_TILE_ID));
+    const items = Array.from({ length: height }, () => new Array<string | null>(width).fill(null));
+    for (const { x, y } of start.cells) {
+      terrain[y + dy][x + dx] = start.terrain[y][x];
+      items[y + dy][x + dx] = start.items[y][x];
+    }
+    return {
+      dx,
+      dy,
+      start: {
+        ...start,
+        cells: start.cells.map((c) => ({ x: c.x + dx, y: c.y + dy })),
+        player: { ...start.player, x: start.player.x + dx, y: start.player.y + dy },
+        entities: start.entities.map((e) => ({ ...e, x: e.x + dx, y: e.y + dy })),
+        terrain,
+        items
+      }
+    };
+  }
+
+  /** Engine of the start state's size where everything but the region is wall. */
   private static buildIsolated(start: RegionStart): GameEngine {
     const height = start.terrain.length;
     const width = start.terrain[0].length;
@@ -184,6 +230,7 @@ export class RegionSolver {
     for (let head = 0; head < states.length; head++) {
       for (const action of actions) {
         const from = states[head];
+        if (action !== WAIT_ACTION && this.isPlainlyBlocked(from, action)) continue;
         engine.restoreState(from);
         if (action === WAIT_ACTION) {
           if (!PieceSolver.play(engine, WAIT_ACTION)) continue;
@@ -211,6 +258,17 @@ export class RegionSolver {
     return { moves: null, statesExplored: states.length, truncated: false };
   }
 
+  /**
+   * Whether a move from `from` is refused without any side effect: the target
+   * tile cannot be entered and neither reveals, unlocks nor opens anything.
+   * Such a move would be discarded by the search, so it is not even played.
+   */
+  private static isPlainlyBlocked(from: UndoSnapshot, dir: Direction): boolean {
+    const vec = DIRECTION_VECTORS[dir];
+    const tile = ConfigRegistry.getTile(from.terrain[from.player.y + vec.dy][from.player.x + vec.dx]);
+    return !tile.passableByPlayer && !tile.revealsToOnTouch && !tile.requiresAllChips && !tile.requiredKey;
+  }
+
   /** A refused move can still reveal a hidden wall. */
   private static terrainChanged(engine: GameEngine, before: UndoSnapshot): boolean {
     const after = engine.getTerrain();
@@ -225,28 +283,26 @@ export class RegionSolver {
     const player = engine.getPlayer();
     const terrain = engine.getTerrain();
     const items = engine.getItems();
-    const changed: string[] = [];
-    for (const { x, y } of cells) {
-      if (terrain[y][x] !== base.terrain[y][x]) changed.push(`t${x},${y}=${terrain[y][x]}`);
-      if (items[y][x] !== base.items[y][x]) changed.push(`i${x},${y}=${items[y][x] ?? ''}`);
+    const baseTerrain = base.terrain;
+    const baseItems = base.items;
+    let changed = '';
+    for (let i = 0; i < cells.length; i++) {
+      const x = cells[i].x;
+      const y = cells[i].y;
+      if (terrain[y][x] !== baseTerrain[y][x]) changed += `t${x},${y}=${terrain[y][x]};`;
+      if (items[y][x] !== baseItems[y][x]) changed += `i${x},${y}=${items[y][x] ?? ''};`;
     }
-    const entities = engine
-      .getEntities()
-      .map((e) =>
-        e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}`
-      )
-      .sort();
-    return [
-      `${player.x},${player.y}`,
-      Object.entries(player.keys)
-        .filter(([, count]) => count > 0)
-        .sort()
-        .join(),
-      [...player.boots].sort().join(),
-      String(engine.getChipsRemaining()),
-      entities.join(';'),
-      changed.join(';')
-    ].join('|');
+    const held: string[] = [];
+    for (const id in player.keys) {
+      if (player.keys[id] > 0) held.push(`${id},${player.keys[id]}`);
+    }
+    const keys = held.length > 1 ? held.sort().join() : held.join();
+    const entities: string[] = [];
+    for (const e of engine.getEntities()) {
+      entities.push(e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}`);
+    }
+    entities.sort();
+    return `${player.x},${player.y}|${keys}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}`;
   }
 
   /** Plays the moves in the real level: the player must end on the last target with every target collected. */

@@ -19,24 +19,26 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { ORDERED_DIRECTIONS } from '../config/constants';
 import { GeneratedLevel, ProceduralGenerator } from '../core/ProceduralGenerator';
 import { SeededRandom } from '../core/Random';
-import { GridPoint } from '../core/types';
-import { isPlayerWalkable } from '../core/Walkability';
 import { cellReachableWithout, replays } from '../test/levelChecks';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { openAreaViolations } from '../test/openAreaChecks';
 import { profileFor } from './DifficultyProfile';
 import { HubPlanner } from './HubPlanner';
 import { compilePiece, monsterCount } from './PieceCompiler';
 import { CompiledPiece } from './PieceTypes';
 
+/**
+ * One shared sample of 8 levels keeps this file under 40 seconds. The same
+ * checks run on 40 levels (20 seeds at levels 10 and 20) in
+ * tools/levelMetrics.report.ts, which reports the violation counts.
+ */
 const LEVEL_NUMBERS = [10, 20];
-const SEED_COUNT = 20;
-const SUITE_TIMEOUT_MS = 900000;
+const SEEDS = [1, 2, 3, 4];
+const SUITE_TIMEOUT_MS = 240000;
 const MIN_SHARE_WITH_HUB_MONSTERS = 0.75;
 const MIN_SHARE_ALL_PIECES_KEPT = 0.8;
-const MIN_OPEN_CHIPS = 3;
 /** The finale is the last entry of pieceMotifs and is not a planned puzzle. */
 const FINALE_PIECES = 1;
 
@@ -44,9 +46,6 @@ interface Sample {
   generated: GeneratedLevel;
   planned: number;
 }
-
-const key = (width: number, p: GridPoint): number => p.y * width + p.x;
-const widthOf = (generated: GeneratedLevel): number => generated.level.terrain[0].length;
 
 describe('hub open area of an endless level', () => {
   const samples: Sample[] = [];
@@ -56,7 +55,7 @@ describe('hub open area of an endless level', () => {
     const cfg = ConfigRegistry.getGame().procedural;
     if (!cfg) throw new Error('game.json has no procedural section');
     for (const n of LEVEL_NUMBERS) {
-      for (let seed = 1; seed <= SEED_COUNT; seed++) {
+      for (const seed of SEEDS) {
         samples.push({
           generated: ProceduralGenerator.generateEndlessLevel(n, seed),
           planned: profileFor('endless', n, cfg).pieceCount
@@ -65,10 +64,8 @@ describe('hub open area of an endless level', () => {
     }
   }, SUITE_TIMEOUT_MS);
 
-  const openOf = (s: Sample) => s.generated.open as NonNullable<GeneratedLevel['open']>;
-
   it('replays every level and leaves no puzzle to walk around', () => {
-    expect(samples).toHaveLength(LEVEL_NUMBERS.length * SEED_COUNT);
+    expect(samples).toHaveLength(LEVEL_NUMBERS.length * SEEDS.length);
     for (const { generated } of samples) {
       expect(replays(generated.level, generated.solution), generated.level.id).toBe(true);
       for (const g of generated.guards) {
@@ -82,139 +79,15 @@ describe('hub open area of an endless level', () => {
     expect(kept / samples.length).toBeGreaterThanOrEqual(MIN_SHARE_ALL_PIECES_KEPT);
   });
 
-  it('puts one to three deterministic monsters in the hub region of at least 75 percent of the levels', () => {
-    const cfg = ConfigRegistry.getGame().procedural!.hub;
-    let withMonsters = 0;
-    for (const s of samples) {
-      const open = openOf(s);
-      expect(open.monsters.length, s.generated.level.id).toBeLessThanOrEqual(cfg.openMonsters.max);
-      if (open.monsters.length >= 1) withMonsters++;
-      const width = widthOf(s.generated);
-      const region = new Set(open.region.map((c) => key(width, c)));
-      for (const m of open.monsters) {
-        expect(cfg.openMonsters.types, s.generated.level.id).toContain(m.type);
-        expect(region.has(key(width, m)), s.generated.level.id).toBe(true);
-        expect(s.generated.level.entities.some((e) => e.x === m.x && e.y === m.y && e.type === m.type)).toBe(true);
-      }
-    }
+  it('puts hub monsters in at least 75 percent of the levels', () => {
+    const withMonsters = samples.filter((s) => (s.generated.open?.monsters.length ?? 0) >= 1).length;
     expect(withMonsters / samples.length).toBeGreaterThanOrEqual(MIN_SHARE_WITH_HUB_MONSTERS);
   });
 
-  it('keeps the level under the monster cap, hub monsters counted with the pieces', () => {
-    const cap = ConfigRegistry.getGame().procedural!.maxMonstersPerLevel;
-    for (const s of samples) {
-      const monsters = s.generated.level.entities.filter((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster');
-      expect(monsters.length, s.generated.level.id).toBeLessThanOrEqual(cap);
-    }
-  });
-
-  it('scatters at least three chips over the open area and counts them as required', () => {
-    for (const s of samples) {
-      const { level } = s.generated;
-      const open = openOf(s);
-      expect(open.chips.length, level.id).toBeGreaterThanOrEqual(MIN_OPEN_CHIPS);
-      for (const c of open.chips) {
-        expect(ConfigRegistry.getTile(level.items[c.y][c.x] ?? '').collectible, level.id).toBe('chip');
-      }
-      const placed = level.items.flat().filter((id) => id && ConfigRegistry.getTile(id).collectible === 'chip').length;
-      expect(level.chipsRequired, level.id).toBe(placed);
-    }
-  });
-
-  it('closes the region: no monster can leave it, whatever its starting cell', () => {
-    for (const s of samples) {
-      const { level, pieceBoxes } = s.generated;
-      const width = widthOf(s.generated);
-      const open = openOf(s);
-      const region = new Set(open.region.map((c) => key(width, c)));
-      for (const monster of open.monsters) {
-        const def = ConfigRegistry.getEntityDef(monster.type);
-        const enter = (p: GridPoint): boolean => {
-          if (p.x < 0 || p.y < 0 || p.y >= level.terrain.length || p.x >= width) return false;
-          const tile = ConfigRegistry.getTile(level.terrain[p.y][p.x]);
-          return Boolean(tile.passableByMonster) || (tile.hazard === 'fire' && Boolean(def?.immuneToFire));
-        };
-        const seen = new Set<number>([key(width, monster)]);
-        const queue: GridPoint[] = [monster];
-        for (let i = 0; i < queue.length; i++) {
-          for (const d of ORDERED_DIRECTIONS) {
-            const n = { x: queue[i].x + (d === 'E' ? 1 : d === 'W' ? -1 : 0), y: queue[i].y + (d === 'S' ? 1 : d === 'N' ? -1 : 0) };
-            if (seen.has(key(width, n)) || !enter(n)) continue;
-            seen.add(key(width, n));
-            queue.push(n);
-          }
-        }
-        for (const k of seen) {
-          const cell = { x: k % width, y: Math.floor(k / width) };
-          expect(region.has(k), `${level.id} ${monster.type} reaches ${cell.x},${cell.y}`).toBe(true);
-          expect(pieceBoxes.some((b) => cell.x >= b.x0 && cell.x <= b.x1 && cell.y >= b.y0 && cell.y <= b.y1), level.id).toBe(false);
-        }
-      }
-    }
-  });
-
-  it('lays gravel on every region cell that touches ground outside the region', () => {
-    const apron = ConfigRegistry.getGame().procedural!.hub.apronTerrain;
-    for (const s of samples) {
-      const { level } = s.generated;
-      const width = widthOf(s.generated);
-      const open = openOf(s);
-      const region = new Set(open.region.map((c) => key(width, c)));
-      expect(open.aprons.length, level.id).toBeGreaterThan(0);
-      for (const cell of open.region) {
-        const leaks = ORDERED_DIRECTIONS.some((d) => {
-          const n = { x: cell.x + (d === 'E' ? 1 : d === 'W' ? -1 : 0), y: cell.y + (d === 'S' ? 1 : d === 'N' ? -1 : 0) };
-          return !region.has(key(width, n)) && isPlayerWalkable(ConfigRegistry.getTile(level.terrain[n.y][n.x]));
-        });
-        if (leaks) expect(level.terrain[cell.y][cell.x], `${level.id} ${cell.x},${cell.y}`).toBe(apron);
-      }
-    }
-  });
-
-  it('keeps trap and clone links out of the region', () => {
-    for (const s of samples) {
-      const { level } = s.generated;
-      const width = widthOf(s.generated);
-      const region = new Set(openOf(s).region.map((c) => key(width, c)));
-      for (const l of level.trapLinks) {
-        expect(region.has(key(width, { x: l.buttonX, y: l.buttonY })), level.id).toBe(false);
-        expect(region.has(key(width, { x: l.trapX, y: l.trapY })), level.id).toBe(false);
-      }
-      for (const l of level.cloneLinks) {
-        expect(region.has(key(width, { x: l.buttonX, y: l.buttonY })), level.id).toBe(false);
-        expect(region.has(key(width, { x: l.clonerX, y: l.clonerY })), level.id).toBe(false);
-      }
-    }
-  });
-
-  it('keeps patches off the monster lanes and the region walkable without boots', () => {
-    for (const s of samples) {
-      const { level } = s.generated;
-      const width = widthOf(s.generated);
-      const open = openOf(s);
-      const lanes = new Set(open.lanes.map((c) => key(width, c)));
-      const hazards = new Set(open.hazards.map((c) => key(width, c)));
-      for (const h of open.hazards) {
-        expect(['fire', 'water'], level.id).toContain(level.terrain[h.y][h.x]);
-        expect(lanes.has(key(width, h)), level.id).toBe(false);
-      }
-      // On foot, hazards and items left alone, every bare cell of the region stays reachable.
-      const region = new Set(open.region.map((c) => key(width, c)));
-      const bare = (p: GridPoint): boolean =>
-        region.has(key(width, p)) && !hazards.has(key(width, p)) && !level.items[p.y][p.x];
-      const start = { x: level.playerStart.x, y: level.playerStart.y };
-      const seen = new Set<number>([key(width, start)]);
-      const queue: GridPoint[] = [start];
-      for (let i = 0; i < queue.length; i++) {
-        for (const d of ORDERED_DIRECTIONS) {
-          const n = { x: queue[i].x + (d === 'E' ? 1 : d === 'W' ? -1 : 0), y: queue[i].y + (d === 'S' ? 1 : d === 'N' ? -1 : 0) };
-          if (seen.has(key(width, n)) || !bare(n)) continue;
-          seen.add(key(width, n));
-          queue.push(n);
-        }
-      }
-      const bareCells = open.region.filter((c) => bare(c)).length;
-      expect(seen.size, level.id).toBe(bareCells);
+  // Monster count and types, chips as required, closed region, gravel, links, patches, reachability.
+  it('keeps every open-area rule on every level', () => {
+    for (const { generated } of samples) {
+      expect(openAreaViolations(generated)).toEqual([]);
     }
   });
 });
