@@ -106,11 +106,20 @@ export function leadChoiceFor(
   cfg: ProceduralConfig,
   mode: GenerationMode = 'pack'
 ): LeadChoice {
+  // The motifs a level allows depend only on the few profile fields playablePieces
+  // reads, and those take few values over any run of levels: compute each once.
+  const motifsByProfile = new Map<string, string[]>();
   const motifsAt = (level: number): string[] => {
     const profile = profileFor(mode, level, cfg);
-    const accept = profile.layout === 'hub' ? HubPlanner.fitsWing : () => true;
-    const pieces = ProgressionPlanner.playablePieces(profile, library, rules, profile.maxTier, accept);
-    return [...new Set(pieces.map((p) => p.motif))];
+    const key = `${profile.layout}|${profile.maxTier}|${profile.onboarding}|${profile.allowOneShot}`;
+    let motifs = motifsByProfile.get(key);
+    if (!motifs) {
+      const accept = profile.layout === 'hub' ? HubPlanner.fitsWing : () => true;
+      const pieces = ProgressionPlanner.playablePieces(profile, library, rules, profile.maxTier, accept);
+      motifs = [...new Set(pieces.map((p) => p.motif))];
+      motifsByProfile.set(key, motifs);
+    }
+    return motifs;
   };
   const last = levelNumber + cfg.noRepeatWindow;
   return choiceAt(drawSequence(LEAD_STREAM, seed, last, 1, cfg.noRepeatWindow, motifsAt), levelNumber, cfg.noRepeatWindow);

@@ -23,7 +23,7 @@ import { HubDependency, HubPlanner } from '../generator/HubPlanner';
 import { OpenArea } from '../generator/HubTypes';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
-import { hubShapeFor, leadChoiceFor } from '../generator/PackVariety';
+import { HubShapeChoice, hubShapeFor, LeadChoice, leadChoiceFor } from '../generator/PackVariety';
 import { encodeActions, SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
 import { DifficultyProfile, GenerationMode, profileFor } from '../generator/DifficultyProfile';
@@ -51,6 +51,12 @@ export class ProceduralGenerationError extends Error {
     super(`procedural level ${levelNumber}: ${detail}`);
     this.name = 'ProceduralGenerationError';
   }
+}
+
+/** What varies a generated level from its neighbours in the pack; empty for a scripted level. */
+interface LevelVariety {
+  leadChoice?: LeadChoice;
+  shape?: HubShapeChoice;
 }
 
 /** A generated level with what it took to make it. */
@@ -163,11 +169,21 @@ export class ProceduralGenerator {
   ): GeneratedLevel {
     const cfg = this.config();
     const profile = profileFor(mode, levelNumber, cfg);
+    // The pack's lead motif and hub outline depend on the seed and level only, not on the
+    // candidate, and replaying the draws of every earlier level is the costly part.
+    const motifs = ConfigRegistry.getMotifs();
+    const packSeed = seed >>> 0;
+    const variety: LevelVariety = script
+      ? {}
+      : {
+          leadChoice: leadChoiceFor(levelNumber, packSeed, this.compiledLibrary(motifs), motifs.motifRules ?? {}, cfg, profile.mode),
+          shape: hubShapeFor(levelNumber, packSeed, cfg, profile.mode)
+        };
     let best: GeneratedLevel | null = null;
     for (let k = 0; k < cfg.scoring.candidates; k++) {
       let candidate: GeneratedLevel;
       try {
-        candidate = this.generateCandidate(levelNumber, seed, k, profile, script);
+        candidate = this.generateCandidate(levelNumber, seed, k, profile, variety, script);
       } catch (err) {
         if (err instanceof ProceduralGenerationError) continue;
         throw err;
@@ -183,6 +199,7 @@ export class ProceduralGenerator {
     seed: number,
     candidate: number,
     profile: DifficultyProfile,
+    variety: LevelVariety,
     script?: LevelScript
   ): GeneratedLevel {
     const cfg = this.config();
@@ -197,9 +214,8 @@ export class ProceduralGenerator {
 
     const layout = script?.layout ?? profile.layout;
     // Scripted levels teach what their brief says; only generated packs vary.
-    const leadChoice = script ? undefined : leadChoiceFor(levelNumber, packSeed, library, motifs.motifRules ?? {}, cfg, profile.mode);
+    const { leadChoice, shape } = variety;
     const lead = leadChoice?.preferred;
-    const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg, profile.mode);
     // Attempts come in tiers of one dropped puzzle each. Within a tier the pack's
     // lead motif, hub outline and a block lane between two puzzles are asked for
     // first, then relaxed, so the constraints give way before any puzzle does. The
