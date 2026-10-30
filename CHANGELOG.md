@@ -12,11 +12,14 @@ versions follow Semantic Versioning.
   ice whose arc reaches both open edges, and a band along the slide path carries the specular
   streak. In HD Neon the glint runs along the curve, one way then the other on alternating
   cycles, so both travel directions through the bend get shown; the retro bend is static, as
-  retro ice always was. The geometry is derived from each tile's `blockedEntryDirections`
+  retro ice always was, and keeps the one-dot gutter of plain retro ice so the seam with the
+  next ice cell is even. The geometry is derived from each tile's `blockedEntryDirections`
   (`src/render/iceBend.ts`), so the picture follows the engine's deflection rules; a test checks
-  every corner against its `deflectionMap`. New palette keys `iceBendBand` and
-  `modernIceBendBand`. Editor palette icons follow, since they are drawn by the same code; the
-  radar keeps one ice colour per cell.
+  every corner against its `deflectionMap`. New palette keys `iceBendBand`, `modernIceBendBand`
+  and `modernIceBendRim`. Editor palette icons follow, since they are drawn by the same code;
+  the radar keeps one ice colour per cell.
+- With reduced motion, the HD Neon ice glints (straight and along bends) rest, like the player
+  hop, the item bob, the iris and the screen shake already did.
 
 ## [2.4.0] - 2026-10-30
 

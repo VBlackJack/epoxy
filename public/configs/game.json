@@ -601,6 +601,7 @@
     "modernIceStreak": "rgba(255, 255, 255, 0.75)",
     "modernIceCornerWall": "#263238",
     "modernIceBendBand": "rgba(255, 255, 255, 0.22)",
+    "modernIceBendRim": "rgba(255, 255, 255, 0.75)",
     "modernForceBg": "#102830",
     "modernForceNeon": "#00ffc8",
     "modernSocketBase": "#263238",

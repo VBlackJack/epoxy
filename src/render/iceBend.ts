@@ -20,17 +20,20 @@ import { OPPOSITE_DIRECTION } from '../core/coreConstants';
 /** A quarter turn, the angular span of every ice bend. */
 export const QUARTER_TURN = Math.PI / 2;
 
-const FULL_TURN = Math.PI * 2;
+const QUARTERS_PER_TURN = 4;
 
 /** Edges in a fixed order, so the open edges of a bend always come out the same way. */
 const EDGE_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];
 
-/** Canvas angle (y down, clockwise positive) of a unit vector pointing in each direction. */
-const DIRECTION_ANGLE: Readonly<Record<Direction, number>> = {
+/**
+ * Whole quarter turns, clockwise from east in canvas space (y down), of a unit vector pointing
+ * in each direction. Integers keep the arc selection exact; the angle is derived at the end.
+ */
+const DIRECTION_QUARTER: Readonly<Record<Direction, number>> = {
   E: 0,
-  S: QUARTER_TURN,
-  W: Math.PI,
-  N: QUARTER_TURN * 3
+  S: 1,
+  W: 2,
+  N: 3
 };
 
 /**
@@ -70,9 +73,10 @@ export function iceBendGeometry(tile: TileDefinition): IceBendGeometry | null {
   const cx = open.includes('E') ? 1 : 0;
   const cy = open.includes('S') ? 1 : 0;
   // The arc meets the first open edge in the direction away from the second one, and vice versa.
-  const onFirst = DIRECTION_ANGLE[OPPOSITE_DIRECTION[second]];
-  const onSecond = DIRECTION_ANGLE[OPPOSITE_DIRECTION[first]];
-  const clockwiseGap = (onSecond - onFirst + FULL_TURN) % FULL_TURN;
-  const startAngle = clockwiseGap === QUARTER_TURN ? onFirst : onSecond;
-  return { cx, cy, startAngle, openEdges: [first, second] };
+  const onFirst = DIRECTION_QUARTER[OPPOSITE_DIRECTION[second]];
+  const onSecond = DIRECTION_QUARTER[OPPOSITE_DIRECTION[first]];
+  // The arc starts at whichever end is one quarter turn clockwise before the other.
+  const clockwiseGap = (onSecond - onFirst + QUARTERS_PER_TURN) % QUARTERS_PER_TURN;
+  const startQuarter = clockwiseGap === 1 ? onFirst : onSecond;
+  return { cx, cy, startAngle: startQuarter * QUARTER_TURN, openEdges: [first, second] };
 }

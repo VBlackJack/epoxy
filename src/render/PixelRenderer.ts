@@ -238,6 +238,8 @@ const ICE_BEND_STREAK_WIDTH_TILE = 0.06;
 const ICE_BEND_RIM_WIDTH_TILE = 0.05;
 /** Angular length (radians) of the glint that runs along a bend; it changes direction every cycle. */
 const ICE_BEND_GLINT_SPAN = 0.5;
+/** Retro ice keeps a one-dot floor gutter around the cell; bends keep the same so the seam is even. */
+const RETRO_ICE_INSET_PX = 1;
 
 /** Mechanism wires and objective beacon styling. */
 const LINK_DASH_PATTERN: number[] = [6, 4];
@@ -368,7 +370,10 @@ export class PixelRenderer {
     this.lcdEnabled = enabled;
   }
 
-  /** With reduced motion, the opening iris, the hops, the bobbing and the screen shake are skipped. */
+  /**
+   * With reduced motion, the opening iris, the hops, the bobbing, the screen shake and the ice
+   * glints are skipped.
+   */
   public setReducedMotion(reduced: boolean): void {
     this.reducedMotion = reduced;
   }
@@ -1393,7 +1398,7 @@ export class PixelRenderer {
       case 'ice_se': {
         const bend = this.iceBend(tileId);
         if (bend) {
-          this.drawIceBend(ctx, bend, x, y, size, {
+          this.drawIceBend(ctx, bend, x, y, size, RETRO_ICE_INSET_PX, {
             wall: pal.iceCornerWall,
             fill: pal.iceBase,
             band: pal.iceBendBand,
@@ -2055,12 +2060,12 @@ export class PixelRenderer {
         iGrad.addColorStop(1, pal.modernIceBottom);
         const bend = this.iceBend(tileId);
         if (bend) {
-          this.drawIceBend(ctx, bend, x, y, size, {
+          this.drawIceBend(ctx, bend, x, y, size, 0, {
             wall: pal.modernIceCornerWall,
             fill: iGrad,
             band: pal.modernIceBendBand,
             streak: pal.modernIceStreak,
-            rim: pal.modernIceStreak
+            rim: pal.modernIceBendRim || pal.modernIceStreak
           });
           break;
         }
@@ -2428,7 +2433,8 @@ export class PixelRenderer {
       case 'ice_ne':
       case 'ice_sw':
       case 'ice_se': {
-        // Now and then, a glint sweeps diagonally across the ice.
+        // Now and then, a glint sweeps diagonally across the ice; with reduced motion the ice rests.
+        if (this.reducedMotion) break;
         const turns = (t * ICE_GLINT_SPEED + phase) / FULL_TURN;
         const cycle = turns % 1;
         if (cycle > ICE_GLINT_WINDOW) break;
@@ -2600,16 +2606,22 @@ export class PixelRenderer {
   /**
    * A corner ice tile drawn as a rounded bend: the walled corner of the cell stays solid, the open
    * quadrant is a quarter disc of ice reaching both open edges, and a band along the slide path
-   * carries a specular streak. The optional rim lights the curved edge.
+   * carries a specular streak. The optional rim lights the curved edge. `insetPx` shrinks the
+   * whole bend by that many pixels on each side, matching a renderer that leaves a gutter around
+   * its ice cells.
    */
   private drawIceBend(
     ctx: CanvasRenderingContext2D,
     bend: IceBendGeometry,
-    x: number,
-    y: number,
-    size: number,
+    cellX: number,
+    cellY: number,
+    cellSize: number,
+    insetPx: number,
     paint: { wall: string; fill: string | CanvasGradient; band: string; streak: string; rim?: string }
   ): void {
+    const x = cellX + insetPx;
+    const y = cellY + insetPx;
+    const size = cellSize - insetPx * 2;
     const cx = x + bend.cx * size;
     const cy = y + bend.cy * size;
     const endAngle = bend.startAngle + QUARTER_TURN;
