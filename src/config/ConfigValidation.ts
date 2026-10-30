@@ -155,3 +155,60 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
     Array.isArray(value.cloneLinks)
   );
 }
+
+/** Optional text fields of a level; each one is kept only when it is a string. */
+const LEVEL_TEXT_FIELDS = ['titleKey', 'customTitle', 'hintKey', 'customHint'] as const;
+
+/**
+ * Returns the level without any optional text field that is not a string, so
+ * a stale or hand-edited record cannot hand a number to the text pipeline.
+ * The input is never mutated.
+ */
+export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
+  const record = level as unknown as Record<string, unknown>;
+  const bad = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
+  if (bad.length === 0) return level;
+  const copy: Record<string, unknown> = { ...record };
+  for (const key of bad) delete copy[key];
+  return copy as unknown as CompiledLevel;
+}
+
+/**
+ * Keeps the well-formed levels of a persisted list. A level with a non-string
+ * text field stays and loses only that field.
+ */
+export function sanitizeStoredLevels(values: readonly unknown[], bounds: LevelSizeBounds): CompiledLevel[] {
+  return values
+    .filter((lvl): lvl is CompiledLevel => isCompiledLevelShape(lvl, bounds))
+    .map(stripInvalidTextFields);
+}
+
+/**
+ * Gives every level a unique, non-empty id. A level without an id (or with a
+ * non-string one) gets `<prefix>_<position>`; a repeated id gets a numeric
+ * suffix. Levels keep their order and the first holder of an id keeps it.
+ * New level objects are returned only where an id changed.
+ */
+export function ensureUniqueLevelIds(levels: readonly CompiledLevel[], fallbackPrefix: string): CompiledLevel[] {
+  const reserved = new Set<string>();
+  for (const lvl of levels) {
+    if (typeof lvl.id === 'string' && lvl.id !== '') reserved.add(lvl.id);
+  }
+  const taken = new Set<string>();
+  return levels.map((lvl, index) => {
+    const original = typeof lvl.id === 'string' ? lvl.id : '';
+    if (original !== '' && !taken.has(original)) {
+      taken.add(original);
+      return lvl;
+    }
+    const base = original !== '' ? original : `${fallbackPrefix}_${index + 1}`;
+    let candidate = base;
+    let suffix = 2;
+    while (taken.has(candidate) || (candidate !== original && reserved.has(candidate))) {
+      candidate = `${base}_${suffix}`;
+      suffix += 1;
+    }
+    taken.add(candidate);
+    return { ...lvl, id: candidate };
+  });
+}

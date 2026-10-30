@@ -76,6 +76,12 @@ export interface StorageConfig {
   levelPacksStoreName: string;
 }
 
+/** Limits applied to files the player imports. */
+export interface ImportConfig {
+  /** Largest file read for import, in bytes. */
+  maxFileBytes: number;
+}
+
 export type GraphicsStyle = 'modern' | 'retro';
 
 export interface GraphicsConfig {
@@ -486,6 +492,7 @@ export interface GameConfig {
   ultimatePacks?: UltimatePackDescriptor[];
   timing: TimingConfig;
   storage: StorageConfig;
+  import: ImportConfig;
   locales: {
     supported: string[];
     default: string;

@@ -34,7 +34,6 @@ import {
   GridPoint,
   KeybindingsConfig,
   LevelBlueprint,
-  LevelHighScore,
   LevelPack,
   TimedMove,
   UserSettings
@@ -57,7 +56,14 @@ import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
 import { preferredScrollBehavior, prefersReducedMotion, replayAnimation } from './ui/motion';
-import { collectDueMoves, sanitizeTimedMoves } from './ui/replaySchedule';
+import { collectDueMoves } from './ui/replaySchedule';
+import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
+import {
+  parseGraphicsStyle,
+  resolveSavedLevelIndex,
+  sanitizeHighScores,
+  StoredHighScore
+} from './storage/persistedState';
 import { lossyExportNotice } from './ui/exportNotice';
 import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
 import {
@@ -83,9 +89,6 @@ import {
   TOAST_DURATION_MS,
   TOUCH_DEFAULTS
 } from './ui/uiConstants';
-
-/** High score as stored: legacy records only carry untimed replayMoves. */
-type StoredHighScore = LevelHighScore & { replayTimedMoves?: TimedMove[] };
 
 type OverlayState = 'none' | 'complete' | 'dead' | 'paused';
 type ScoresFilter = 'all' | 'unsolved' | 'completed';
@@ -308,9 +311,9 @@ class EpoxyApplication {
   }
 
   private bindEngineCallbacks(): void {
-    this.engine.setOnWinCallback((levelId, timeRemaining, steps, score, moves) => {
+    this.engine.setOnWinCallback((levelId, timeRemaining, steps, score) => {
       if (!this.isReplaying) {
-        this.recordHighScore(levelId, timeRemaining, steps, score, moves, this.engine.getTimedMoveHistory());
+        this.recordHighScore(levelId, timeRemaining, steps, score, this.engine.getTimedMoveHistory());
       }
       this.stopAutoMoveAndReplay();
     });
@@ -492,6 +495,12 @@ class EpoxyApplication {
     const lower = file.name.toLowerCase();
     const packName = file.name.replace(/\.[^.]+$/, '').toUpperCase();
 
+    const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
+    if (!isImportSizeAllowed(file.size, maxBytes)) {
+      this.showTransientStatus(t('app.packs.import_too_large.label', { max: formatMegabytes(maxBytes) }));
+      return;
+    }
+
     try {
       let levels: CompiledLevel[];
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
@@ -505,13 +514,15 @@ class EpoxyApplication {
         this.showTransientStatus(t('app.packs.import_error.label'));
         return;
       }
-      await ConfigRegistry.registerImportedPack(packName, levels);
+      const { persisted } = await ConfigRegistry.registerImportedPack(packName, levels);
       this.refreshPackSelector();
       this.editor.populatePresetDropdown();
       this.switchMode('play');
       this.startLevelByIndex(0);
       this.showTransientStatus(
-        t('app.packs.imported_toast.label', { name: packName, count: levels.length })
+        persisted
+          ? t('app.packs.imported_toast.label', { name: packName, count: levels.length })
+          : t('app.packs.imported_session_only_toast.label', { name: packName })
       );
     } catch (err) {
       this.showTransientStatus(
@@ -2535,16 +2546,16 @@ class EpoxyApplication {
     timeRemaining: number,
     steps: number,
     score: number,
-    moves: Direction[],
     timedMoves: TimedMove[]
   ): void {
     const existing = this.highScores[levelId];
     const isBetterOrFirst = !existing || steps <= existing.minSteps || score >= existing.bestScore;
     this.highScores[levelId] = {
+      // Legacy fields of an older record stay as they were.
+      ...existing,
       bestTimeRemaining: existing ? Math.max(existing.bestTimeRemaining, timeRemaining) : timeRemaining,
       minSteps: existing ? Math.min(existing.minSteps, steps) : steps,
       bestScore: existing ? Math.max(existing.bestScore, score) : score,
-      replayMoves: isBetterOrFirst ? moves : existing.replayMoves || moves,
       replayTimedMoves: isBetterOrFirst ? timedMoves : existing.replayTimedMoves || timedMoves
     };
     try {
@@ -2560,15 +2571,9 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.highScoresKey);
       const raw = localStorage.getItem(key);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, StoredHighScore>;
-      if (parsed && typeof parsed === 'object') {
-        for (const rec of Object.values(parsed)) {
-          // Legacy records (untimed replayMoves only) keep their scores but
-          // lose the replay button: untimed moves cannot replay faithfully.
-          rec.replayTimedMoves = sanitizeTimedMoves(rec.replayTimedMoves);
-        }
-        this.highScores = parsed;
-      }
+      // Legacy records (untimed replayMoves only) keep their scores but lose
+      // the replay button: untimed moves cannot replay faithfully.
+      this.highScores = sanitizeHighScores(JSON.parse(raw));
     } catch {
       // Ignore corrupt high scores
     }
@@ -2615,8 +2620,10 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.settingsKey);
       const raw = localStorage.getItem(key);
       if (!raw) return {};
-      const parsed = JSON.parse(raw) as UserSettings;
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+      const settings = parsed as UserSettings;
+      return { ...settings, graphicsStyle: parseGraphicsStyle(settings.graphicsStyle) };
     } catch {
       return {};
     }
@@ -2627,17 +2634,13 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
       const raw = localStorage.getItem(key);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { packId?: string; levelIndex?: number };
-      const levelCount = ConfigRegistry.getLevels().length;
       // A pack can shrink between releases: a stale index restarts the pack.
-      if (
-        parsed.packId === ConfigRegistry.getActivePackId() &&
-        typeof parsed.levelIndex === 'number' &&
-        parsed.levelIndex >= 0 &&
-        parsed.levelIndex < levelCount
-      ) {
-        this.currentLevelIndex = parsed.levelIndex;
-      }
+      const index = resolveSavedLevelIndex(
+        JSON.parse(raw),
+        ConfigRegistry.getActivePackId(),
+        ConfigRegistry.getLevels().length
+      );
+      if (index !== null) this.currentLevelIndex = index;
     } catch {
       // Ignore corrupt save
     }
