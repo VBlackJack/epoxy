@@ -108,6 +108,8 @@ function toPiece(theme: Theme, room: Room): CompiledPiece {
     entities: room.blocks.map((b) => ({ ...b, type: BLOCK_ENTITY, dir: 'S' as Direction })),
     trapLinks: [],
     cloneLinks: [],
+    exports: null,
+    imports: null,
     entry: room.entry,
     exit: room.exit,
     requires: [],

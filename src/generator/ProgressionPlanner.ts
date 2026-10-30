@@ -182,7 +182,8 @@ export class ProgressionPlanner {
   /**
    * Puzzle pieces a level may draw from: no role pieces, within the tier cap,
    * one-shots only late, and on the onboarding level of a generated pack
-   * none of the motifs kept for later.
+   * none of the motifs kept for later. Pieces that export or import something
+   * are left out: the hub planner brings them in by pairs (HubPlanner.addDependencies).
    */
   public static playablePieces(
     profile: DifficultyProfile,
@@ -201,6 +202,8 @@ export class ProgressionPlanner {
         p.tier <= maxTier &&
         (!p.oneShot || profile.allowOneShot) &&
         this.meetsMonsterDensity(p, cfg) &&
+        p.exports === null &&
+        p.imports === null &&
         accept(p)
     );
   }

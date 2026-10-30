@@ -16,7 +16,12 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ConfigRegistry } from './ConfigRegistry';
-import { assertConfigShape, ConfigLoadError, InvalidLevelError } from './ConfigValidation';
+import {
+  assertConfigShape,
+  ConfigLoadError,
+  InvalidLevelError,
+  isCompiledLevelShape
+} from './ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from './constants';
 import { LevelBlueprint } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -92,6 +97,113 @@ describe('ConfigRegistry.compileBlueprint', () => {
     ConfigRegistry.setProceduralLevels([ConfigRegistry.compileBlueprint(blueprint())]);
     const procedural = ConfigRegistry.getAllPacks().find((p) => p.levels.length === 1);
     expect(procedural?.i18nKey).toBeTruthy();
+  });
+});
+
+/** Walled room of the given size as a terrain grid, player at (1, 1). */
+function roomBlueprint(width: number, height: number): LevelBlueprint {
+  return blueprint({
+    terrain: Array.from({ length: height }, (_, y) =>
+      Array.from({ length: width }, (_, x) =>
+        x === 0 || y === 0 || x === width - 1 || y === height - 1 ? 'wall' : 'floor'
+      )
+    ),
+    items: Array.from({ length: height }, () => Array.from({ length: width }, () => null))
+  });
+}
+
+describe('ConfigRegistry.compileBlueprint with a level size of its own', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('compiles a 10x10 terrain grid at its own size', () => {
+    const level = ConfigRegistry.compileBlueprint(roomBlueprint(10, 10));
+    expect(level.terrain).toHaveLength(10);
+    expect(level.terrain.every((row) => row.length === 10)).toBe(true);
+    expect(level.items).toHaveLength(10);
+    expect(level.items.every((row) => row.length === 10)).toBe(true);
+    expect(level.terrain[0][9]).toBe('wall');
+    expect(level.terrain[5][5]).toBe('floor');
+  });
+
+  it('compiles 40x30 legend rows at their own size', () => {
+    const rows = Array.from({ length: 30 }, (_, y) =>
+      y === 0 || y === 29 ? '#'.repeat(40) : `#${'.'.repeat(38)}#`
+    );
+    const level = ConfigRegistry.compileBlueprint(
+      blueprint({ rows, playerStart: { x: 38, y: 28, dir: 'N' } })
+    );
+    expect(level.terrain).toHaveLength(30);
+    expect(level.terrain.every((row) => row.length === 40)).toBe(true);
+    expect(level.playerStart).toEqual({ x: 38, y: 28, dir: 'N' });
+    expect(level.terrain[28][38]).toBe('floor');
+  });
+
+  it('keeps the default map size for a blueprint without terrain or rows', () => {
+    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    const level = ConfigRegistry.compileBlueprint(blueprint());
+    expect(level.terrain).toHaveLength(mapHeight);
+    expect(level.terrain[0]).toHaveLength(mapWidth);
+  });
+
+  it('checks the player start, entities and links against the level size', () => {
+    expect(() =>
+      ConfigRegistry.compileBlueprint({ ...roomBlueprint(10, 10), playerStart: { x: 12, y: 1, dir: 'S' } })
+    ).toThrow(InvalidLevelError);
+    const level = ConfigRegistry.compileBlueprint({
+      ...roomBlueprint(10, 10),
+      entities: [
+        { x: 2, y: 2, type: 'bug', dir: 'N' },
+        { x: 20, y: 2, type: 'bug', dir: 'N' }
+      ],
+      trapLinks: [{ buttonX: 1, buttonY: 2, trapX: 3, trapY: 12 }]
+    });
+    expect(level.entities).toHaveLength(1);
+    expect(level.trapLinks).toHaveLength(0);
+  });
+
+  it('rejects a level larger than the configured bound', () => {
+    const { maxLevelSize } = ConfigRegistry.getGame().grid;
+    expect(() => ConfigRegistry.compileBlueprint(roomBlueprint(maxLevelSize + 1, 10))).toThrow(
+      InvalidLevelError
+    );
+    expect(() => ConfigRegistry.compileBlueprint(roomBlueprint(10, maxLevelSize + 1))).toThrow(
+      InvalidLevelError
+    );
+  });
+});
+
+describe('isCompiledLevelShape', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('accepts a stored level of any rectangular size within the bounds', () => {
+    const bounds = ConfigRegistry.getLevelSizeBounds();
+    const accepted = (bp: LevelBlueprint) => isCompiledLevelShape(ConfigRegistry.compileBlueprint(bp), bounds);
+    expect(accepted(roomBlueprint(10, 10))).toBe(true);
+    expect(accepted(roomBlueprint(40, 30))).toBe(true);
+    expect(accepted(blueprint())).toBe(true);
+  });
+
+  it('rejects a ragged terrain, a mismatched items grid and a start outside the level', () => {
+    const bounds = ConfigRegistry.getLevelSizeBounds();
+    const ragged = ConfigRegistry.compileBlueprint(roomBlueprint(10, 10));
+    ragged.terrain[3] = ragged.terrain[3].slice(0, 7);
+    expect(isCompiledLevelShape(ragged, bounds)).toBe(false);
+
+    const mismatched = ConfigRegistry.compileBlueprint(roomBlueprint(10, 10));
+    mismatched.items = mismatched.items.slice(0, 9);
+    expect(isCompiledLevelShape(mismatched, bounds)).toBe(false);
+
+    const outside = ConfigRegistry.compileBlueprint(roomBlueprint(10, 10));
+    outside.playerStart = { x: 10, y: 1, dir: 'S' };
+    expect(isCompiledLevelShape(outside, bounds)).toBe(false);
+
+    const empty = ConfigRegistry.compileBlueprint(roomBlueprint(10, 10));
+    empty.terrain = [];
+    expect(isCompiledLevelShape(empty, bounds)).toBe(false);
   });
 });
 

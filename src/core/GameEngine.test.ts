@@ -25,9 +25,11 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, Direction, TimedMove } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
-/** Walled 32 x 32 floor level with the player at (2, 2). */
-function openLevel(id: string): CompiledLevel {
-  const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+/** Walled floor level of the given size (the default map size unless given) with the player at (2, 2). */
+function openLevel(id: string, size?: { width: number; height: number }): CompiledLevel {
+  const { mapWidth, mapHeight } = size
+    ? { mapWidth: size.width, mapHeight: size.height }
+    : ConfigRegistry.getGame().grid;
   return {
     id,
     number: 1,
@@ -45,6 +47,26 @@ function openLevel(id: string): CompiledLevel {
     trapLinks: [],
     cloneLinks: []
   };
+}
+
+/** Moves the player a number of cells in one direction, waiting out the move cooldown. */
+function walk(engine: GameEngine, dir: Direction, steps: number): void {
+  const maxWaitTicks = 20;
+  for (let step = 0; step < steps; step++) {
+    let waited = 0;
+    while (!engine.attemptPlayerMove(dir)) {
+      engine.tick();
+      if (++waited > maxWaitTicks) throw new Error(`move ${dir} refused at step ${step}`);
+    }
+    engine.tick();
+  }
+}
+
+/** Ticks past the move cooldown and reports whether a move in that direction is refused. */
+function isBlocked(engine: GameEngine, dir: Direction): boolean {
+  const cooldownTicks = 20;
+  for (let i = 0; i < cooldownTicks; i++) engine.tick();
+  return !engine.attemptPlayerMove(dir);
 }
 
 function tickUntil(engine: GameEngine, tick: number): void {
@@ -102,6 +124,45 @@ function randomLevel(): CompiledLevel {
 describe('GameEngine', () => {
   beforeEach(() => {
     loadTestConfigs();
+  });
+
+  it('plays a 10x10 level within its own borders', () => {
+    const lvl = openLevel('small_room', { width: 10, height: 10 });
+    lvl.terrain[8][8] = 'exit';
+    lvl.terrain[2][5] = 'button_green';
+    lvl.terrain[5][2] = 'toggle_wall_closed';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.getMapWidth()).toBe(10);
+    expect(engine.getMapHeight()).toBe(10);
+
+    // Walk east along row 2: the button toggles the wall, then the border wall stops the player at x = 8.
+    walk(engine, 'E', 6);
+    expect(engine.getPlayer().x).toBe(8);
+    expect(isBlocked(engine, 'E')).toBe(true);
+    expect(engine.getPlayer().x).toBe(8);
+    expect(engine.getTerrain()[5][2]).toBe('toggle_wall_open');
+    expect(engine.getTerrain()).toHaveLength(10);
+
+    walk(engine, 'S', 6);
+    expect(engine.getPlayer()).toMatchObject({ x: 8, y: 8 });
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('plays a 40x30 level out to its far corner', () => {
+    const lvl = openLevel('wide_room', { width: 40, height: 30 });
+    lvl.terrain[28][38] = 'exit';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.getMapWidth()).toBe(40);
+    expect(engine.getMapHeight()).toBe(30);
+
+    walk(engine, 'E', 36);
+    expect(engine.getPlayer().x).toBe(38);
+    expect(isBlocked(engine, 'E')).toBe(true);
+    walk(engine, 'S', 26);
+    expect(engine.getPlayer()).toMatchObject({ x: 38, y: 28 });
+    expect(engine.isLevelCompleted()).toBe(true);
   });
 
   it('refuses undo after a win and rolls the score back on restart', () => {

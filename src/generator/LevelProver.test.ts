@@ -138,6 +138,8 @@ function trivialPiece(): CompiledPiece {
     requires: [],
     rotatable: false,
     oneShot: false,
+    exports: null,
+    imports: null,
     deadEnds: 0,
     solution: ['E', 'E'],
     orientation: { quarterTurns: 0, mirrored: false }

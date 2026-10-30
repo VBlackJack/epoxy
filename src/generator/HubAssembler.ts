@@ -104,10 +104,15 @@ export class HubAssembler {
       .map((k) => this.grid.point(k))
       .sort((a, b) => Math.hypot(a.x - centre.x, a.y - centre.y) - Math.hypot(b.x - centre.x, b.y - centre.y))[0];
 
-    // Place the largest wings first; the visit order stays the plan's.
+    // Place the most constrained wings first (a wing with a block lane, then the largest);
+    // the visit order stays the plan's.
     const order = plan.wings
       .map((wing, index) => ({ wing, index }))
-      .sort((a, b) => this.wingArea(b.wing) - this.wingArea(a.wing));
+      .sort(
+        (a, b) =>
+          Number(this.hasBlockLane(b.wing)) - Number(this.hasBlockLane(a.wing)) ||
+          this.wingArea(b.wing) - this.wingArea(a.wing)
+      );
     const loopLevel = plan.wings.some((w) => w.loop);
     this.loopLevel = loopLevel;
     let placements: WingPlacement[] = new Array(plan.wings.length);
@@ -645,6 +650,12 @@ export class HubAssembler {
       if (id === CHIP_ITEM_ID) this.grid.chipCount++;
       return cell;
     });
+  }
+
+  /** Whether a puzzle of the wing needs the block the one before it pushes out: its lane must be straight. */
+  private hasBlockLane(wing: HubWing): boolean {
+    const chain = [wing.piece, ...wing.then];
+    return chain.some((p, i) => i > 0 && p.imports?.kind === 'block' && chain[i - 1].exports?.kind === 'block');
   }
 
   private wingArea(wing: HubWing): number {

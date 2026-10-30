@@ -17,13 +17,14 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { decodeActions } from './PieceSolver';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { DEFAULT_FACING } from '../core/coreConstants';
+import { DEFAULT_FACING, OPPOSITE_DIRECTION } from '../core/coreConstants';
 import { isPlayerWalkable } from '../core/Walkability';
 import { Direction, GridPoint, TileDefinition } from '../core/types';
 import {
   CompiledPiece,
   PieceAnnotation,
   PieceDefinition,
+  PieceExchange,
   PieceLegendEntry,
   PieceOrientation
 } from './PieceTypes';
@@ -207,6 +208,11 @@ export function compilePiece(
     const portTerrain = ConfigRegistry.getMotifs().monsterPortTerrain;
     for (const port of ports) terrain[port.y][port.x] = portTerrain;
   }
+  if (def.exports) {
+    const holdsBlock = entities.some((e) => e.type === def.exports?.item);
+    checkExchange(def, def.exports, 'exports', terrain, holdsBlock, hasMonsters, exit);
+  }
+  if (def.imports) checkExchange(def, def.imports, 'imports', terrain, true, hasMonsters, entry);
   // Corridors may run along a piece: any open border cell but the ports would be a side door.
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -234,6 +240,8 @@ export function compilePiece(
     requires: [...(def.requires ?? [])],
     rotatable: def.rotatable ?? false,
     oneShot: def.oneShot ?? false,
+    exports: def.exports ? { ...def.exports } : null,
+    imports: def.imports ? { ...def.imports } : null,
     deadEnds: countDeadEnds(terrain, ports),
     solution: annotation ? decodeActions(annotation.solution) : undefined,
     reversible: annotation?.reversible,
@@ -244,6 +252,51 @@ export function compilePiece(
 /** Number of monsters a piece holds. */
 export function monsterCount(piece: CompiledPiece): number {
   return piece.entities.filter((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster').length;
+}
+
+/** The direction a port opens to, from its place on the border. */
+function portOutward(port: GridPoint, height: number): Direction {
+  if (port.y === 0) return 'N';
+  if (port.y === height - 1) return 'S';
+  if (port.x === 0) return 'W';
+  return 'E';
+}
+
+/**
+ * Checks what a piece declares to hand over or take in. A block leaves through
+ * the exit port, so an exporter holds a block; a block comes in through the
+ * entry port onto the cell just inside, which must take a block; `item` names
+ * the block entity. An item is a key or boots. Pieces with monsters are solved inside the level, where the
+ * exchange cannot be staged, so they declare none.
+ */
+function checkExchange(
+  def: PieceDefinition,
+  exchange: PieceExchange,
+  field: 'exports' | 'imports',
+  terrain: string[][],
+  hasBlock: boolean,
+  hasMonsters: boolean,
+  port: GridPoint
+): void {
+  if (hasMonsters) throw new PieceError(def.id, `${field}: a piece with monsters cannot exchange`);
+  if (exchange.kind === 'item') {
+    const collectible = exchange.item ? ConfigRegistry.getTile(exchange.item).collectible : undefined;
+    if (collectible !== 'key' && collectible !== 'boot') {
+      throw new PieceError(def.id, `${field}: item must be a key or boots`);
+    }
+    return;
+  }
+  if (ConfigRegistry.getEntityDef(exchange.item ?? '')?.kind !== 'block') {
+    throw new PieceError(def.id, `${field}: a block exchange names the block entity in item`);
+  }
+  if (field === 'exports' && !hasBlock) throw new PieceError(def.id, 'exports a block but holds none');
+  if (field === 'imports') {
+    const inward = OPPOSITE_DIRECTION[portOutward(port, terrain.length)];
+    const inside = { x: port.x + DIRECTION_VECTORS[inward].dx, y: port.y + DIRECTION_VECTORS[inward].dy };
+    if (!ConfigRegistry.getTile(terrain[inside.y][inside.x]).passableByBlock) {
+      throw new PieceError(def.id, 'imports a block but the cell inside the entry cannot take one');
+    }
+  }
 }
 
 function holdsMonsters(piece: CompiledPiece): boolean {

@@ -76,6 +76,11 @@ export interface ChainLink {
   /** Direction of the last step, into the entry port. */
   approachDir: Direction;
   exitDir: Direction;
+  /**
+   * The previous puzzle pushes a block out and this one needs it: the connector is a
+   * straight lane the block is pushed along, kept clear of items.
+   */
+  pushed: boolean;
 }
 
 /** What makes a wing a loop: more puzzles in a chain, and the one-way way back to the hub. */

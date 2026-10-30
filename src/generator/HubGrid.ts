@@ -27,6 +27,13 @@ import { CompiledPiece } from './PieceTypes';
 const WALL_TILE_ID = 'wall';
 const QUARTER_TURNS = [0, 1, 2, 3] as const;
 
+/** Claimed cells of a wing under construction, laid out for repeated box tests. */
+export interface ClaimedCells {
+  xs: Int32Array;
+  ys: Int32Array;
+  bounds: Box;
+}
+
 /** The mutable parts of an assembly, kept to undo a wing placement. */
 export interface AssemblySnapshot {
   terrain: string[][];
@@ -145,16 +152,54 @@ export class HubGrid {
 
   /** Whether a corridor cell of segment `seg` can be opened here: free ground that touches nothing of another segment. */
   public corridorFits(p: GridPoint, seg: number, boxes: Box[], claims: Map<number, number>, touching = -1): boolean {
+    if (!this.inMap(p)) return false;
     const k = this.key(p);
-    if (!this.inMap(p) || this.taken[k] || claims.has(k) || boxes.some((b) => this.inBox(p, b))) return false;
+    if (this.taken[k] || claims.has(k) || boxes.some((b) => this.inBox(p, b))) return false;
+    // The hottest loop of the layout: neighbours are addressed by arithmetic, not by points.
     for (const dir of ORDERED_DIRECTIONS) {
-      const n = this.step(p, dir);
-      const nk = this.key(n);
+      const nx = p.x + DIRECTION_VECTORS[dir].dx;
+      const ny = p.y + DIRECTION_VECTORS[dir].dy;
+      const nk = ny * this.width + nx;
       if (nk === touching) continue;
-      const neighbourSeg = claims.get(nk) ?? (this.inMap(n) ? this.segment[nk] : NO_SEGMENT);
+      const neighbourSeg = claims.get(nk) ?? (this.inMapAt(nx, ny) ? this.segment[nk] : NO_SEGMENT);
       if (neighbourSeg !== NO_SEGMENT && neighbourSeg !== seg) return false;
     }
     return true;
+  }
+
+  /**
+   * The claimed cells laid out for many box tests: their coordinates and
+   * their bounds, so a box clear of the bounds is dismissed at once.
+   */
+  public claimedCells(claims: Map<number, number>): ClaimedCells {
+    const xs = new Int32Array(claims.size);
+    const ys = new Int32Array(claims.size);
+    const bounds: Box = { x0: this.width, y0: this.height, x1: -1, y1: -1 };
+    let i = 0;
+    for (const k of claims.keys()) {
+      const x = k % this.width;
+      const y = Math.floor(k / this.width);
+      xs[i] = x;
+      ys[i] = y;
+      i++;
+      if (x < bounds.x0) bounds.x0 = x;
+      if (x > bounds.x1) bounds.x1 = x;
+      if (y < bounds.y0) bounds.y0 = y;
+      if (y > bounds.y1) bounds.y1 = y;
+    }
+    return { xs, ys, bounds };
+  }
+
+  /** Whether any of the claimed cells but `except` lies in the box. */
+  public claimedTouchBox(claimed: ClaimedCells, box: Box, except: GridPoint): boolean {
+    if (!this.overlaps(claimed.bounds, box)) return false;
+    for (let i = 0; i < claimed.xs.length; i++) {
+      const x = claimed.xs[i];
+      const y = claimed.ys[i];
+      if (x === except.x && y === except.y) continue;
+      if (x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1) return true;
+    }
+    return false;
   }
 
   /** The terrain of a lock on a wing leaving the hub toward `outward`: turned to push back when it is a force floor. */
@@ -295,9 +340,11 @@ export class HubGrid {
   }
 
   public inMap(p: GridPoint): boolean {
-    return (
-      p.x >= MAP_MARGIN && p.y >= MAP_MARGIN && p.x < this.width - MAP_MARGIN && p.y < this.height - MAP_MARGIN
-    );
+    return this.inMapAt(p.x, p.y);
+  }
+
+  public inMapAt(x: number, y: number): boolean {
+    return x >= MAP_MARGIN && y >= MAP_MARGIN && x < this.width - MAP_MARGIN && y < this.height - MAP_MARGIN;
   }
 
   public step(p: GridPoint, dir: Direction): GridPoint {

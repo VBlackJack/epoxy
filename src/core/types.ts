@@ -19,8 +19,14 @@ export type Direction = 'N' | 'E' | 'S' | 'W';
 export type RelativeTurn = 'FORWARD' | 'LEFT' | 'RIGHT' | 'BACK';
 
 export interface GridConfig {
+  /** Default level width, used by the procedural generator and the .DAT codec. */
   mapWidth: number;
+  /** Default level height, used by the procedural generator and the .DAT codec. */
   mapHeight: number;
+  /** Smallest width or height accepted for a .json level or a custom pack. */
+  minLevelSize: number;
+  /** Largest width or height accepted for a .json level or a custom pack. */
+  maxLevelSize: number;
   viewportWidth: number;
   viewportHeight: number;
   viewportPresets?: number[];
@@ -173,6 +179,13 @@ export interface HubOpenDividersConfig {
   attempts: number;
 }
 
+/** How many pairs of puzzles hand something over (a block, a key) in a loop level, by planned puzzles. */
+export interface HubDependencyConfig {
+  fromPieces: number;
+  piecesPerPair: number;
+  max: number;
+}
+
 /** A hub outline: '.' is floor, anything else stays wall (pillars, cut corners). */
 export interface HubShapeConfig {
   id: string;
@@ -241,6 +254,11 @@ export interface HubConfig {
    * the level is restarted, as in the original game.
    */
   scarceRecovery: boolean;
+  /**
+   * Pairs of puzzles in a loop level where one exports a block or a key that the
+   * other needs: none under `fromPieces` planned puzzles, one more per `piecesPerPair`, up to `max`.
+   */
+  dependencies: HubDependencyConfig;
   /** Most box area, in cells, the puzzles of a loop level may add up to; larger ones are swapped for smaller siblings. */
   puzzleAreaBudget: number;
   /** Placements of a wing tried one after the other when the wings after it find no room. */
