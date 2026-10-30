@@ -21,6 +21,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, Direction, GridPoint } from '../core/types';
 import { RouteSegment } from './LevelAssembler';
 import { PieceSolver, SolverAction } from './PieceSolver';
+import { DEFAULT_MAX_REGION_STATES, RegionSolver } from './RegionSolver';
 import { helpfulItems } from './PieceCompiler';
 import { CompiledPiece } from './PieceTypes';
 
@@ -36,6 +37,8 @@ export interface LevelProof {
   walkMoves: number;
   /** Actions spent solving the pieces themselves. */
   pieceMoves: number;
+  /** States explored by timed region searches in the open monster area (0 without one). */
+  regionStates: number;
 }
 
 /** Solutions per oriented piece and starting inventory; pieces repeat across levels. */
@@ -53,19 +56,27 @@ export function resetProverCache(): void {
  * monsters is solved inside the running level, from wherever its monsters
  * have moved by the time the player arrives. The level counts as proven
  * only if the run ends on the exit with every chip collected.
+ *
+ * With an open region (cells where monsters wander), a goto step whose path
+ * crosses that region while it holds a monster is not walked from a frozen
+ * snapshot: the stretch inside the region is a timed search from the engine's
+ * current state, whatever the tick the player arrives at. A failed search
+ * fails the proof.
  */
 export class LevelProver {
-  public static prove(level: CompiledLevel, route: RouteSegment[]): LevelProof {
-    return AudioManager.runSilently(() => this.play(level, route));
+  public static prove(level: CompiledLevel, route: RouteSegment[], openRegion: GridPoint[] = []): LevelProof {
+    return AudioManager.runSilently(() => this.play(level, route, openRegion));
   }
 
-  private static play(level: CompiledLevel, route: RouteSegment[]): LevelProof {
+  private static play(level: CompiledLevel, route: RouteSegment[], openRegion: GridPoint[]): LevelProof {
     const engine = new GameEngine();
     engine.loadLevel(level);
     const moves: SolverAction[] = [];
     let pieceMoves = 0;
+    let regionStates = 0;
     const visited = new Set<number>();
     const width = level.terrain[0].length;
+    const regionKeys = new Set(openRegion.map((c) => c.y * width + c.x));
     const track = (): void => {
       const p = engine.getPlayer();
       visited.add(p.y * width + p.x);
@@ -77,11 +88,18 @@ export class LevelProver {
       ticks: engine.getTick(),
       visitedCells: visited.size,
       walkMoves: moves.length - pieceMoves,
-      pieceMoves
+      pieceMoves,
+      regionStates
     });
 
     for (const segment of route) {
       if (segment.kind === 'goto') {
+        if (this.regionHasMonster(engine, regionKeys, width)) {
+          const outcome = this.gotoThroughRegion(engine, segment.target, regionKeys, openRegion, moves, track);
+          regionStates += outcome.states;
+          if (!outcome.ok) return failed();
+          continue;
+        }
         const path = this.safePath(engine, segment.target);
         if (!path) return failed();
         for (const dir of path) {
@@ -134,8 +152,88 @@ export class LevelProver {
       ticks: engine.getTick(),
       visitedCells: visited.size,
       walkMoves: moves.length - pieceMoves,
-      pieceMoves
+      pieceMoves,
+      regionStates
     };
+  }
+
+  /** True when a monster stands in the open region right now. */
+  private static regionHasMonster(engine: GameEngine, regionKeys: Set<number>, width: number): boolean {
+    if (regionKeys.size === 0) return false;
+    return engine.getEntities().some((e) => e.kind === 'monster' && regionKeys.has(e.y * width + e.x));
+  }
+
+  /**
+   * Walks to `target` when the way crosses the monster region. The route is
+   * planned on terrain alone (region monsters ignored); stretches outside the
+   * region are walked, and each stretch inside it is a timed search from the
+   * live engine state to the stretch's last cell. Every region search is
+   * bounded by DEFAULT_MAX_REGION_STATES; a null or truncated one fails.
+   */
+  private static gotoThroughRegion(
+    engine: GameEngine,
+    target: GridPoint,
+    regionKeys: Set<number>,
+    openRegion: GridPoint[],
+    moves: SolverAction[],
+    track: () => void
+  ): { ok: boolean; states: number } {
+    const width = engine.getTerrain()[0].length;
+    const inRegion = (x: number, y: number): boolean => regionKeys.has(y * width + x);
+    const path = this.safePath(engine, target, (e) => e.kind === 'monster' && inRegion(e.x, e.y));
+    if (!path) return { ok: false, states: 0 };
+    let states = 0;
+    let i = 0;
+    const cursor = { ...engine.getPlayer() };
+    const advance = (dir: Direction): void => {
+      cursor.x += DIRECTION_VECTORS[dir].dx;
+      cursor.y += DIRECTION_VECTORS[dir].dy;
+    };
+    while (i < path.length) {
+      const inside = inRegion(cursor.x, cursor.y);
+      const next = { x: cursor.x + DIRECTION_VECTORS[path[i]].dx, y: cursor.y + DIRECTION_VECTORS[path[i]].dy };
+      if (inside && inRegion(next.x, next.y)) {
+        // Last cell of the stretch that stays inside the region.
+        let end = i;
+        const probe = { x: cursor.x, y: cursor.y };
+        while (end < path.length) {
+          probe.x += DIRECTION_VECTORS[path[end]].dx;
+          probe.y += DIRECTION_VECTORS[path[end]].dy;
+          if (!inRegion(probe.x, probe.y)) break;
+          end++;
+        }
+        const goal = { x: cursor.x, y: cursor.y };
+        for (let k = i; k < end; k++) {
+          goal.x += DIRECTION_VECTORS[path[k]].dx;
+          goal.y += DIRECTION_VECTORS[path[k]].dy;
+        }
+        const result = RegionSolver.solveRegion(
+          engine,
+          RegionSolver.startFrom(engine, openRegion),
+          goal,
+          DEFAULT_MAX_REGION_STATES
+        );
+        states += result.statesExplored;
+        if (!result.moves) return { ok: false, states };
+        for (const action of result.moves) {
+          if (!PieceSolver.play(engine, action)) return { ok: false, states };
+          moves.push(action);
+          track();
+        }
+        const player = engine.getPlayer();
+        cursor.x = player.x;
+        cursor.y = player.y;
+        i = end;
+        continue;
+      }
+      const dir = path[i];
+      if (!engine.attemptPlayerMove(dir) || !PieceSolver.settle(engine)) return { ok: false, states };
+      moves.push(dir);
+      track();
+      advance(dir);
+      i++;
+    }
+    return { ok: true, states };
   }
 
   /**
@@ -171,13 +269,17 @@ export class LevelProver {
    * walk cannot surprise; the target itself is exempt from the first three.
    * Null when no such path exists.
    */
-  private static safePath(engine: GameEngine, target: GridPoint): Direction[] | null {
+  private static safePath(
+    engine: GameEngine,
+    target: GridPoint,
+    ignoreEntity: (entity: ReturnType<GameEngine['getEntities']>[number]) => boolean = () => false
+  ): Direction[] | null {
     const terrain = engine.getTerrain();
     const items = engine.getItems();
     const player = engine.getPlayer();
     const height = terrain.length;
     const width = terrain[0].length;
-    const occupied = new Set(engine.getEntities().map((e) => e.y * width + e.x));
+    const occupied = new Set(engine.getEntities().filter((e) => !ignoreEntity(e)).map((e) => e.y * width + e.x));
     const crossable = (x: number, y: number): boolean => {
       if (x < 0 || y < 0 || x >= width || y >= height || occupied.has(y * width + x)) return false;
       const tile = ConfigRegistry.getTile(terrain[y][x]);

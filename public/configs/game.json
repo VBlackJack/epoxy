@@ -171,6 +171,8 @@
     "hardPiecesFromLevel": 4,
     "oneShotFromLevel": 5,
     "maxPieceDeadEnds": 0,
+    "minBoxCellsPerMonster": 20,
+    "maxMonstersPerLevel": 8,
     "irreversibleMotifs": ["sokoban"],
     "noRepeatWindow": 2,
     "firstLevelExcludedMotifs": ["monsters", "teleport", "trap", "thief"],
@@ -204,8 +206,8 @@
       "bayCells": 90,
       "loopLayoutSamples": 4,
       "loopLayoutKeep": 1,
-      "loopBayCells": 240,
-      "loopNookCells": 40,
+      "loopBayCells": 60,
+      "loopFringeCells": 120,
       "fillTarget": 0.4,
       "attemptsPerDroppedPiece": 8,
       "loopModes": ["endless"],
@@ -223,6 +225,41 @@
       "contactWeight": 0.5,
       "returnDistanceWeight": 0.5,
       "chainPlacementSamples": 4,
+      "apronTerrain": "gravel",
+      "openMonsters": {
+        "fromPieces": 7,
+        "piecesPerMonster": 2,
+        "max": 3,
+        "types": ["pink_ball", "glider", "fireball", "bug", "paramecium"],
+        "minStartDistance": 5,
+        "minLaneCells": 6,
+        "maxLaneCells": 28,
+        "startSamples": 60,
+        "laneTraceSteps": 400
+      },
+      "openChips": {
+        "min": 3,
+        "max": 6,
+        "piecesPerExtra": 3,
+        "nearLaneShare": 0.5,
+        "nearLaneDistance": 3,
+        "placementSamples": 40
+      },
+      "openHazards": {
+        "patches": 3,
+        "patchCells": 3,
+        "terrains": ["fire", "water"],
+        "laneClearance": 2,
+        "startClearance": 3
+      },
+      "openDividers": {
+        "max": 6,
+        "minLength": 1,
+        "maxLength": 5,
+        "clearance": 1,
+        "separation": 4,
+        "attempts": 200
+      },
       "doorGates": [
         { "terrain": "door_red", "item": "key_red" },
         { "terrain": "door_blue", "item": "key_blue" },

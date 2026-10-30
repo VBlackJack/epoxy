@@ -19,6 +19,7 @@ import { compilePiece } from '../generator/PieceCompiler';
 import { CompiledPiece, MotifsConfig } from '../generator/PieceTypes';
 import { AssembledLevel, Box, LevelAssembler } from '../generator/LevelAssembler';
 import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
+import { OpenArea } from '../generator/HubTypes';
 import { HubPlanner } from '../generator/HubPlanner';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
@@ -74,12 +75,15 @@ export interface GeneratedLevel {
   layout: 'chain' | 'hub';
   /** Hub outline id, for hub levels. */
   hubShape?: string;
+  /** The hub region of a loop level: where its monsters wander, with their lanes, chips and patches. */
+  open?: OpenArea;
 }
 
 /** What both layouts hand over to the proof and the scoring. */
 interface BuiltLayout {
   assembled: AssembledLevel;
   hubShape?: string;
+  open?: OpenArea;
   guards: LevelGuard[];
   motifs: string[];
   pieceMotifs: string[];
@@ -231,7 +235,7 @@ export class ProceduralGenerator {
         trapLinks: assembled.trapLinks,
         cloneLinks: assembled.cloneLinks
       };
-      const proof = LevelProver.prove(level, assembled.route);
+      const proof = LevelProver.prove(level, assembled.route, built.open?.region);
       if (!proof.solved) continue;
       // No puzzle may be walked around, checked on every level, not only in tests.
       if (built.guards.some((g) => cellReachableWithout(level, g.box, g.guarded))) continue;
@@ -264,7 +268,8 @@ export class ProceduralGenerator {
         pieceMotifs: built.pieceMotifs,
         guards: built.guards,
         layout,
-        hubShape: built.hubShape
+        hubShape: built.hubShape,
+        open: built.open
       };
     }
     throw new ProceduralGenerationError(levelNumber, `no level after ${cfg.maxGenerationAttempts} attempts`);
@@ -321,7 +326,7 @@ export class ProceduralGenerator {
     );
     if (!assembled) return null;
     const pieceMotifs = [...plan.wings.flatMap((w) => [w.piece, ...w.then].map((p) => p.motif)), plan.finale.motif];
-    return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs, hubShape: assembled.hubShape };
+    return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs, hubShape: assembled.hubShape, open: assembled.open };
   }
 
   /**

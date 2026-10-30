@@ -1026,28 +1026,6 @@
       ]
     },
     {
-      "id": "monsters_bug_quad_4",
-      "motif": "monsters",
-      "tier": 3,
-      "rotatable": true,
-      "rows": [
-        "##@######",
-        "#C.#.#.##",
-        "##.#.#.C#",
-        "#.......#",
-        "#.......#",
-        "##......#",
-        "#.C...#.#",
-        "#####$###"
-      ],
-      "entities": [
-        { "x": 7, "y": 3, "type": "bug", "dir": "N" },
-        { "x": 6, "y": 4, "type": "bug", "dir": "N" },
-        { "x": 4, "y": 5, "type": "bug", "dir": "E" },
-        { "x": 4, "y": 4, "type": "bug", "dir": "W" }
-      ]
-    },
-    {
       "id": "monsters_fireball_run_3",
       "motif": "monsters",
       "tier": 4,
@@ -1111,26 +1089,6 @@
       ]
     },
     {
-      "id": "monsters_mixed_hall_3",
-      "motif": "monsters",
-      "tier": 4,
-      "rotatable": true,
-      "rows": [
-        "#@#####",
-        "#.....#",
-        "###.#.#",
-        "#C....#",
-        "#..#.##",
-        "#...C.#",
-        "###$###"
-      ],
-      "entities": [
-        { "x": 4, "y": 3, "type": "pink_ball", "dir": "N" },
-        { "x": 3, "y": 3, "type": "paramecium", "dir": "E" },
-        { "x": 2, "y": 4, "type": "paramecium", "dir": "W" }
-      ]
-    },
-    {
       "id": "monsters_paramecium_pair_2",
       "motif": "monsters",
       "tier": 4,
@@ -1148,50 +1106,6 @@
       "entities": [
         { "x": 1, "y": 3, "type": "paramecium", "dir": "S" },
         { "x": 6, "y": 6, "type": "paramecium", "dir": "N" }
-      ]
-    },
-    {
-      "id": "monsters_ball_quartet_4",
-      "motif": "monsters",
-      "tier": 5,
-      "rotatable": true,
-      "rows": [
-        "#@#####",
-        "#..####",
-        "#.##..#",
-        "#.....#",
-        "#...###",
-        "#..##C#",
-        "#.....#",
-        "#.#.C##",
-        "###$###"
-      ],
-      "entities": [
-        { "x": 2, "y": 5, "type": "pink_ball", "dir": "E" },
-        { "x": 2, "y": 6, "type": "pink_ball", "dir": "E" },
-        { "x": 5, "y": 6, "type": "pink_ball", "dir": "W" },
-        { "x": 1, "y": 4, "type": "pink_ball", "dir": "N" }
-      ]
-    },
-    {
-      "id": "monsters_ball_trio_3",
-      "motif": "monsters",
-      "tier": 5,
-      "rotatable": true,
-      "rows": [
-        "####@##",
-        "#.#...#",
-        "#...###",
-        "##.####",
-        "##.C.C#",
-        "#....##",
-        "#....C#",
-        "####$##"
-      ],
-      "entities": [
-        { "x": 2, "y": 5, "type": "pink_ball", "dir": "E" },
-        { "x": 3, "y": 2, "type": "pink_ball", "dir": "W" },
-        { "x": 2, "y": 2, "type": "pink_ball", "dir": "S" }
       ]
     },
     {
@@ -1217,28 +1131,6 @@
       ]
     },
     {
-      "id": "monsters_glider_gauntlet_4",
-      "motif": "monsters",
-      "tier": 5,
-      "rotatable": true,
-      "rows": [
-        "#######@#",
-        "#.#C.#..#",
-        "#.C#....#",
-        "#..##...#",
-        "#.#....##",
-        "#.#.#..##",
-        "#....####",
-        "###$#####"
-      ],
-      "entities": [
-        { "x": 1, "y": 4, "type": "glider", "dir": "W" },
-        { "x": 7, "y": 3, "type": "glider", "dir": "S" },
-        { "x": 4, "y": 1, "type": "glider", "dir": "W" },
-        { "x": 5, "y": 5, "type": "glider", "dir": "E" }
-      ]
-    },
-    {
       "id": "monsters_mixed_trial_3",
       "motif": "monsters",
       "tier": 5,
@@ -1258,26 +1150,6 @@
         { "x": 1, "y": 3, "type": "fireball", "dir": "S" },
         { "x": 5, "y": 2, "type": "pink_ball", "dir": "E" },
         { "x": 1, "y": 7, "type": "pink_ball", "dir": "S" }
-      ]
-    },
-    {
-      "id": "monsters_paramecium_trio_3",
-      "motif": "monsters",
-      "tier": 5,
-      "rotatable": true,
-      "rows": [
-        "#@#####",
-        "#.....#",
-        "###.#.#",
-        "#C....#",
-        "#..#.##",
-        "#...C.#",
-        "###$###"
-      ],
-      "entities": [
-        { "x": 4, "y": 3, "type": "paramecium", "dir": "N" },
-        { "x": 3, "y": 3, "type": "paramecium", "dir": "E" },
-        { "x": 2, "y": 4, "type": "paramecium", "dir": "W" }
       ]
     },
     {
