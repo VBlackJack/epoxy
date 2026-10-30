@@ -20,6 +20,7 @@ import { CompiledPiece, MotifsConfig } from '../generator/PieceTypes';
 import { AssembledLevel, Box, LevelAssembler } from '../generator/LevelAssembler';
 import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
 import { HubDependency, HubPlanner } from '../generator/HubPlanner';
+import { OpenArea } from '../generator/HubTypes';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
 import { hubShapeFor, leadChoiceFor } from '../generator/PackVariety';
@@ -74,6 +75,8 @@ export interface GeneratedLevel {
   layout: 'chain' | 'hub';
   /** Hub outline id, for hub levels. */
   hubShape?: string;
+  /** The hub region of a loop level: where its monsters wander, with their lanes, chips and patches. */
+  open?: OpenArea;
   /** Pairs of pieces where one hands a block or a key to the other (loop-wing hubs). */
   dependencies: HubDependency[];
 }
@@ -82,6 +85,7 @@ export interface GeneratedLevel {
 interface BuiltLayout {
   assembled: AssembledLevel;
   hubShape?: string;
+  open?: OpenArea;
   guards: LevelGuard[];
   motifs: string[];
   pieceMotifs: string[];
@@ -234,7 +238,7 @@ export class ProceduralGenerator {
         trapLinks: assembled.trapLinks,
         cloneLinks: assembled.cloneLinks
       };
-      const proof = LevelProver.prove(level, assembled.route);
+      const proof = LevelProver.prove(level, assembled.route, built.open?.region);
       if (!proof.solved) continue;
       // No puzzle may be walked around, checked on every level, not only in tests.
       if (built.guards.some((g) => cellReachableWithout(level, g.box, g.guarded))) continue;
@@ -270,7 +274,8 @@ export class ProceduralGenerator {
         guards: built.guards,
         layout,
         hubShape: built.hubShape,
-        dependencies: built.dependencies
+        dependencies: built.dependencies,
+        open: built.open
       };
     }
     throw new ProceduralGenerationError(levelNumber, `no level after ${cfg.maxGenerationAttempts} attempts`);
@@ -334,7 +339,8 @@ export class ProceduralGenerator {
       motifs: plan.motifs,
       pieceMotifs,
       hubShape: assembled.hubShape,
-      dependencies: plan.dependencies
+      dependencies: plan.dependencies,
+      open: assembled.open
     };
   }
 

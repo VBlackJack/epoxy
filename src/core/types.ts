@@ -117,6 +117,68 @@ export interface HubScarceConfig {
   max: number;
 }
 
+/** Monsters left to wander the hub region of a loop level, by difficulty. */
+export interface HubOpenMonstersConfig {
+  /** Planned puzzles from which the hub region holds a monster; below it, none. */
+  fromPieces: number;
+  /** One more monster for each this many puzzles past `fromPieces`. */
+  piecesPerMonster: number;
+  /** Most monsters in the hub region. */
+  max: number;
+  /** Deterministic movers allowed in the open: monster ids from monsters.json. */
+  types: string[];
+  /** Fewest cells, in steps on the grid, between a monster's start and the player's start. */
+  minStartDistance: number;
+  /** Fewest cells a monster's path must cover for the lane to count. */
+  minLaneCells: number;
+  /** Most cells a monster's path may cover; longer ones make the timed search costly. */
+  maxLaneCells: number;
+  /** Starts tried for each monster; the best lane is kept. */
+  startSamples: number;
+  /** Ticks simulated to trace a monster's path before it is taken for a cycle. */
+  laneTraceSteps: number;
+}
+
+/** Chips scattered over the hub region of a loop level, by difficulty. */
+export interface HubOpenChipsConfig {
+  min: number;
+  max: number;
+  /** One more chip for each this many planned puzzles. */
+  piecesPerExtra: number;
+  /** Share of the chips that lie within `nearLaneDistance` of a monster's lane. */
+  nearLaneShare: number;
+  nearLaneDistance: number;
+  /** Candidate cells ranked per chip before the connectivity check settles one. */
+  placementSamples: number;
+}
+
+/** Fire and water patches in the hub region: obstacles that shape movement, never on a lane. */
+export interface HubOpenHazardsConfig {
+  /** Patches placed; fewer when the region has no room. */
+  patches: number;
+  /** Cells of each patch, grown from a seed cell. */
+  patchCells: number;
+  /** Hazard tile ids drawn from, one per patch. */
+  terrains: string[];
+  /** Cells kept between a patch and any monster lane, so no monster can step into it. */
+  laneClearance: number;
+  /** Cells kept between a patch and the player's start. */
+  startClearance: number;
+}
+
+/** Wall bars set into the open parts of the hub region: they cut it into lanes. */
+export interface HubOpenDividersConfig {
+  max: number;
+  minLength: number;
+  maxLength: number;
+  /** Open cells kept all around a bar, so it never closes a lane against a wall. */
+  clearance: number;
+  /** Fewest cells, in either direction, from a bar to the next one: the lane between is this wide less one. */
+  separation: number;
+  /** Bars tried before the search for room gives up. */
+  attempts: number;
+}
+
 /** How many pairs of puzzles hand something over (a block, a key) in a loop level, by planned puzzles. */
 export interface HubDependencyConfig {
   fromPieces: number;
@@ -147,6 +209,7 @@ export interface HubConfig {
   /** Rooms at least this wide and deep get a pillar in the middle. */
   rewardRoomPillarMinSize: number;
   rewardChips: number;
+  /** Chips lying in a dead-end level's hub; a loop level has `openChips` instead. */
   hubChips: number;
   /** Depth of a hazard lock, in cells. */
   hazardDepth: number;
@@ -156,8 +219,8 @@ export interface HubConfig {
   layoutSamples: number;
   /** Floor cells the hub may gain in the gaps around it, within the level's bounds. */
   bayCells: number;
-  /** Nook cells a loop level may fill once its bays are grown. */
-  loopNookCells: number;
+  /** Cells a loop level's hub region may gain at its edge, a layer at a time, once its bays are grown. */
+  loopFringeCells: number;
   /** Layouts of a loop level tried for one plan before it is given up. */
   loopLayoutSamples: number;
   /** Layouts of a loop level compared before the most compact is kept; trying stops at this many that fit. */
@@ -210,6 +273,14 @@ export interface HubConfig {
   returnDistanceWeight: number;
   /** Placements tried for each further puzzle of a loop wing; the one growing the level least is kept. */
   chainPlacementSamples: number;
+  /** Tile that closes the hub region at every gate and strip end: the player crosses it, monsters do not. */
+  apronTerrain: string;
+  /** Monsters wandering the hub region of a loop level. */
+  openMonsters: HubOpenMonstersConfig;
+  /** Chips in the hub region of a loop level; they replace `hubChips` there. */
+  openChips: HubOpenChipsConfig;
+  openHazards: HubOpenHazardsConfig;
+  openDividers: HubOpenDividersConfig;
   doorGates: HubGateConfig[];
   hazardGates: HubGateConfig[];
 }
@@ -302,6 +373,10 @@ export interface ProceduralConfig {
   hardPiecesFromLevel: number;
   /** First level allowed to use pieces marked oneShot in motifs.json. */
   oneShotFromLevel: number;
+  /** A piece must give each of its monsters at least this many box cells (bounding rectangle, walls included). */
+  minBoxCellsPerMonster: number;
+  /** Monsters all the pieces of one level may hold together. */
+  maxMonstersPerLevel: number;
   /** Pieces with more dead ends than this are drawn only when the motif has nothing tidier. */
   maxPieceDeadEnds: number;
   /** Motifs whose puzzles can be failed for good; they come first in a level. */

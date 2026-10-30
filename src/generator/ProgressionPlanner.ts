@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { SeededRandom } from '../core/Random';
 import { ProceduralConfig } from '../core/types';
 import { DifficultyProfile, profileFor } from './DifficultyProfile';
-import { ALL_ORIENTATIONS, IDENTITY_ORIENTATION, orientPiece } from './PieceCompiler';
+import { ALL_ORIENTATIONS, IDENTITY_ORIENTATION, monsterCount, orientPiece } from './PieceCompiler';
 import { CompiledPiece, MotifRule } from './PieceTypes';
 
 /** One step of a level: the items to hand over first, then the piece to cross. */
@@ -201,10 +201,17 @@ export class ProgressionPlanner {
         !excluded.includes(p.motif) &&
         p.tier <= maxTier &&
         (!p.oneShot || profile.allowOneShot) &&
+        this.meetsMonsterDensity(p, cfg) &&
         p.exports === null &&
         p.imports === null &&
         accept(p)
     );
+  }
+
+  /** Whether a piece gives each of its monsters enough room: box cells per monster, walls included. */
+  public static meetsMonsterDensity(piece: CompiledPiece, cfg: ProceduralConfig): boolean {
+    const monsters = monsterCount(piece);
+    return monsters === 0 || (piece.width * piece.height) / monsters >= cfg.minBoxCellsPerMonster;
   }
 
   /** A puzzle that can be failed for good: best met early in a level, before long walks. */
@@ -224,12 +231,16 @@ export class ProgressionPlanner {
     const used = new Map<string, number>();
     const usedIds = new Set<string>();
     const chosen: CompiledPiece[] = [];
+    let monstersSoFar = 0;
     const allowed = (motif: string): boolean =>
       (used.get(motif) ?? 0) < (rules[motif]?.maxPerLevel ?? Number.POSITIVE_INFINITY);
 
     const pick = (motif: string, introduce: boolean): CompiledPiece | null => {
       if (!allowed(motif)) return null;
-      const candidates = playable.filter((p) => p.motif === motif);
+      // A level never holds more monsters than the cap: the fights stay spread out.
+      const candidates = playable.filter(
+        (p) => p.motif === motif && monstersSoFar + monsterCount(p) <= cfg.maxMonstersPerLevel
+      );
       if (candidates.length === 0) return null;
       const lowestTier = Math.min(...candidates.map((p) => p.tier));
       const unseen = candidates.filter((p) => !usedIds.has(p.id));
@@ -249,6 +260,7 @@ export class ProgressionPlanner {
       const piece = pool[rng.nextInt(0, pool.length - 1)];
       used.set(motif, (used.get(motif) ?? 0) + 1);
       usedIds.add(piece.id);
+      monstersSoFar += monsterCount(piece);
       return piece;
     };
 

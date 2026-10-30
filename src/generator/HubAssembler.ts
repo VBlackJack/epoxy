@@ -20,8 +20,9 @@ import { SeededRandom } from '../core/Random';
 import { Direction, GridPoint, HubConfig } from '../core/types';
 import { HubGrid } from './HubGrid';
 import { HubLoopAssembler } from './HubLoopAssembler';
+import { HubOpenAssembler } from './HubOpenAssembler';
 import { HubPlan, HubWing } from './HubPlanner';
-import { AssembledHubLevel, CHIP_ITEM_ID, EXIT_TILE_ID, HUB_SEGMENT, LevelGuard, MAP_MARGIN, NO_SEGMENT, WingPlacement, WingTrial } from './HubTypes';
+import { AssembledHubLevel, CHIP_ITEM_ID, EXIT_TILE_ID, HUB_SEGMENT, LevelGuard, MAP_MARGIN, NO_SEGMENT, OpenArea, WingPlacement, WingTrial } from './HubTypes';
 import { Box, RouteSegment } from './LevelAssembler';
 import { ALL_ORIENTATIONS, IDENTITY_ORIENTATION, orientPiece } from './PieceCompiler';
 import { PieceSolver } from './PieceSolver';
@@ -29,6 +30,8 @@ import { CompiledPiece } from './PieceTypes';
 
 export type { AssembledHubLevel, LevelGuard } from './HubTypes';
 
+/** Open hub neighbours a free cell needs to join the hub region's fringe. */
+const FRINGE_MIN_OPEN_NEIGHBOURS = 1;
 /** Floor character of hub outlines in game.json. */
 const HUB_FLOOR_CHAR = '.';
 
@@ -47,6 +50,7 @@ const HUB_FLOOR_CHAR = '.';
 export class HubAssembler {
   private readonly grid: HubGrid;
   private readonly loop: HubLoopAssembler;
+  private readonly openFill: HubOpenAssembler;
   private hub: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
   private finaleTurns: CompiledPiece[] | null = null;
   private loopLevel = false;
@@ -57,6 +61,7 @@ export class HubAssembler {
   ) {
     this.grid = new HubGrid(cfg);
     this.loop = new HubLoopAssembler(this.grid, cfg, rng);
+    this.openFill = new HubOpenAssembler(this.grid, cfg, rng);
   }
 
   /** Returns the assembled level, or null when the wings do not fit around the hub. */
@@ -126,15 +131,26 @@ export class HubAssembler {
     }
 
     this.growBays();
-    const hubItemCells = this.scatter(plan.hubItems, this.hubCells(start));
-    if (!hubItemCells) return null;
-    const hubChipCells = this.scatter(
-      new Array<string>(this.cfg.hubChips).fill(CHIP_ITEM_ID),
-      this.hubCells(start)
-    );
-    if (!hubChipCells) return null;
+    let hubTargets: GridPoint[];
+    let open: OpenArea | undefined;
+    if (loopLevel) {
+      // A loop level's hub is an open area of its own: closed with gravel, cut into lanes, with monsters, chips and patches.
+      const filled = this.openFill.fill(plan, start);
+      if (!filled) return null;
+      hubTargets = filled.targets;
+      open = filled.open;
+    } else {
+      const hubItemCells = this.scatter(plan.hubItems, this.hubCells(start));
+      if (!hubItemCells) return null;
+      const hubChipCells = this.scatter(
+        new Array<string>(this.cfg.hubChips).fill(CHIP_ITEM_ID),
+        this.hubCells(start)
+      );
+      if (!hubChipCells) return null;
+      hubTargets = [...hubItemCells, ...hubChipCells];
+    }
 
-    const route: RouteSegment[] = [...hubItemCells, ...hubChipCells].map((target) => ({ kind: 'goto', target }));
+    const route: RouteSegment[] = hubTargets.map((target) => ({ kind: 'goto', target }));
     const guards: LevelGuard[] = [];
     const wingRoutes: RouteSegment[][] = [];
     plan.wings.forEach((wing, index) => {
@@ -165,6 +181,7 @@ export class HubAssembler {
       chipCount: this.grid.chipCount,
       pieceBoxes: [...this.grid.boxes],
       guards,
+      open,
       hubShape: shape.id
     };
   }
@@ -407,7 +424,6 @@ export class HubAssembler {
         if (this.baySegment({ x, y }) !== null) anchors.push({ x, y });
       }
     }
-    // Loop levels widen corridors and rooms as well as the hub: any single segment may grow.
     const wanted = this.loopLevel ? this.cfg.loopBayCells : this.cfg.bayCells;
     let added = 0;
     while (added < wanted && anchors.length > 0) {
@@ -431,21 +447,21 @@ export class HubAssembler {
         }
       }
     }
-    if (this.loopLevel) this.fillNooks(area);
+    if (this.loopLevel) this.growFringe(area);
   }
 
   /**
-   * Fills the nooks left between a loop level's open floor and its walls: free
-   * cells touching two or more open cells that all belong to one segment, which
-   * square bays do not reach. A cell is checked again when drawn.
+   * Grows the hub region's edge one cell at a time, a layer per round: free cells
+   * touching open cells that all belong to the hub, in the gaps square bays do
+   * not reach. A cell is checked again when drawn.
    */
-  private fillNooks(area: Box): void {
+  private growFringe(area: Box): void {
     let added = 0;
-    while (added < this.cfg.loopNookCells) {
+    while (added < this.cfg.loopFringeCells) {
       const nooks: Array<{ cell: GridPoint; seg: number }> = [];
       for (let y = area.y0; y <= area.y1; y++) {
         for (let x = area.x0; x <= area.x1; x++) {
-          const seg = this.nookSegment({ x, y });
+          const seg = this.fringeSegment({ x, y });
           if (seg !== null) nooks.push({ cell: { x, y }, seg });
         }
       }
@@ -453,17 +469,17 @@ export class HubAssembler {
       this.rng.shuffle(nooks);
       for (const { cell } of nooks) {
         // Earlier fills of this round may have changed what a cell touches.
-        const seg = this.nookSegment(cell);
+        const seg = this.fringeSegment(cell);
         if (seg === null) continue;
         this.grid.open(cell, seg);
         if (seg === HUB_SEGMENT) this.grid.hubFloor.add(this.grid.key(cell));
-        if (++added >= this.cfg.loopNookCells) return;
+        if (++added >= this.cfg.loopFringeCells) return;
       }
     }
   }
 
-  /** The segment a free cell can join as a nook: two or more open neighbours, all of one segment. */
-  private nookSegment(cell: GridPoint): number | null {
+  /** The segment a free cell can join as fringe: at least one open neighbour, all of the hub's. */
+  private fringeSegment(cell: GridPoint): number | null {
     const k = this.grid.key(cell);
     if (!this.grid.inMap(cell) || this.grid.segment[k] !== NO_SEGMENT || this.grid.inAnyBox(cell)) return null;
     let joined: number | null = null;
@@ -477,7 +493,7 @@ export class HubAssembler {
       joined = seg;
       open++;
     }
-    return open >= 2 ? joined : null;
+    return open >= FRINGE_MIN_OPEN_NEIGHBOURS && joined === HUB_SEGMENT ? joined : null;
   }
 
   private squareCells(anchor: GridPoint): GridPoint[] {
@@ -490,8 +506,9 @@ export class HubAssembler {
   }
 
   /**
-   * The segment a free 2x2 square in the bounds can join: the hub, or in a loop
-   * level any single segment, when it touches open cells of that segment only.
+   * The segment a free 2x2 square in the bounds can join: the hub, when it touches
+   * open cells of the hub only. A wing's corridors are never widened: floor out
+   * there would lie bare, away from the hub region where the level's play is.
    * Null when the square is not free or would link two segments.
    */
   private baySegment(anchor: GridPoint): number | null {
@@ -507,7 +524,7 @@ export class HubAssembler {
         if (own.has(nk) || !this.grid.inMap(n)) continue;
         const seg = this.grid.segment[nk];
         if (seg === NO_SEGMENT) continue;
-        if (!this.loopLevel && seg !== HUB_SEGMENT) return null;
+        if (seg !== HUB_SEGMENT) return null;
         if (joined !== null && joined !== seg) return null;
         joined = seg;
       }

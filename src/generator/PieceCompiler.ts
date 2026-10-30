@@ -249,6 +249,11 @@ export function compilePiece(
   };
 }
 
+/** Number of monsters a piece holds. */
+export function monsterCount(piece: CompiledPiece): number {
+  return piece.entities.filter((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster').length;
+}
+
 /** The direction a port opens to, from its place on the border. */
 function portOutward(port: GridPoint, height: number): Direction {
   if (port.y === 0) return 'N';
@@ -295,7 +300,7 @@ function checkExchange(
 }
 
 function holdsMonsters(piece: CompiledPiece): boolean {
-  return piece.entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster');
+  return monsterCount(piece) > 0;
 }
 
 /** Dead ends of a piece: walkable cells with one walkable neighbour, a port counting an outside one. */

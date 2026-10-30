@@ -39,6 +39,8 @@ import { profileFor } from '../src/generator/DifficultyProfile';
 import { DatCodec } from '../src/formats/DatCodec';
 import { cellReachableWithout, replays } from '../src/test/levelChecks';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
+import { openAreaViolations } from '../src/test/openAreaChecks';
+import { measureOpenArea } from '../src/test/openAreaMetrics';
 
 /** The whole report takes several minutes. */
 const REPORT_TIMEOUT_MS = 1_800_000;
@@ -56,6 +58,10 @@ const PROCEDURAL_LEVELS_PER_SEED = 10;
 /** Endless sample: seeds 1 to 10 at these level numbers (level 1 is already full difficulty). */
 const ENDLESS_SEEDS = Array.from({ length: 10 }, (_, i) => i + 1);
 const ENDLESS_LEVEL_NUMBERS = [1, 10, 25, 50];
+
+/** Hub open-area rules are checked on this larger sample: 20 seeds at these level numbers (40 levels). */
+const OPEN_AREA_SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
+const OPEN_AREA_LEVEL_NUMBERS = [10, 20];
 
 interface SetReport {
   summary: MetricsSummary;
@@ -131,6 +137,12 @@ interface EndlessBucket {
   plannedPieces: number[];
   keptPieces: number[];
   monsterCounts: number[];
+  outsideFloor: number[];
+  contentShare: number[];
+  hubMonsters: number[];
+  openChips: number[];
+  regionCells: number[];
+  dependencyPairs: number[];
   motifUsage: Record<string, number>;
   failures: number;
   unproven: number;
@@ -145,6 +157,12 @@ function newBucket(): EndlessBucket {
     plannedPieces: [],
     keptPieces: [],
     monsterCounts: [],
+    outsideFloor: [],
+    contentShare: [],
+    hubMonsters: [],
+    openChips: [],
+    regionCells: [],
+    dependencyPairs: [],
     motifUsage: {},
     failures: 0,
     unproven: 0,
@@ -167,6 +185,16 @@ function reportBucket(bucket: EndlessBucket, requested: number): SetReport {
       keptPieces: summarizeField(bucket.keptPieces),
       shareAllPlannedPiecesKept: bucket.levels.length > 0 ? bucket.allPlannedKept / bucket.levels.length : null,
       shareWithMonsters: bucket.levels.length > 0 ? withMonsters.length / bucket.levels.length : null,
+      openArea: {
+        outsideFloorCells: summarizeField(bucket.outsideFloor),
+        contentShareWithin4Steps: summarizeField(bucket.contentShare),
+        hubMonstersPerLevel: summarizeField(bucket.hubMonsters),
+        shareWithHubMonsters:
+          bucket.levels.length > 0 ? bucket.hubMonsters.filter((m) => m > 0).length / bucket.levels.length : null,
+        openChips: summarizeField(bucket.openChips),
+        regionCells: summarizeField(bucket.regionCells),
+        dependencyPairs: summarizeField(bucket.dependencyPairs)
+      },
       monsterCountWhereAny: summarizeField(withMonsters.map((m) => m.monsterCount)),
       motifUsage: Object.fromEntries(
         Object.entries(bucket.motifUsage)
@@ -205,6 +233,13 @@ function measureEndless(): SetReport & { byLevel: Record<string, SetReport> } {
           target.plannedPieces.push(planned);
           target.keptPieces.push(kept);
           if (kept >= planned) target.allPlannedKept++;
+          const area = measureOpenArea(generated);
+          target.outsideFloor.push(area.outsideFloor);
+          target.contentShare.push(area.contentShare);
+          target.hubMonsters.push(generated.open?.monsters.length ?? 0);
+          target.openChips.push(generated.open?.chips.length ?? 0);
+          target.regionCells.push(generated.open?.region.length ?? 0);
+          target.dependencyPairs.push(generated.dependencies.length);
           if (!proven) target.unproven++;
           if (bypassable) target.bypassable++;
           for (const motif of new Set(generated.motifs)) {
@@ -225,6 +260,48 @@ function measureEndless(): SetReport & { byLevel: Record<string, SetReport> } {
   };
 }
 
+/**
+ * The hub open-area rules of the unit test (HubOpenArea.test.ts), on 40
+ * levels instead of 8: the level count that breaks each rule, and the
+ * violations themselves.
+ */
+function measureOpenAreaRules(): Record<string, unknown> {
+  const cfg = ConfigRegistry.getGame().procedural;
+  if (!cfg) throw new Error('game.json has no procedural section');
+  let levels = 0;
+  let unproven = 0;
+  let bypassable = 0;
+  let allPlannedKept = 0;
+  let withHubMonsters = 0;
+  let failures = 0;
+  const violations: string[] = [];
+  for (const n of OPEN_AREA_LEVEL_NUMBERS) {
+    for (const seed of OPEN_AREA_SEEDS) {
+      try {
+        const generated = ProceduralGenerator.generateEndlessLevel(n, seed);
+        levels++;
+        if (!replays(generated.level, generated.solution)) unproven++;
+        if (generated.guards.some((g) => cellReachableWithout(generated.level, g.box, g.guarded))) bypassable++;
+        if (generated.pieceMotifs.length - FINALE_PIECES >= profileFor('endless', n, cfg).pieceCount) allPlannedKept++;
+        if ((generated.open?.monsters.length ?? 0) > 0) withHubMonsters++;
+        violations.push(...openAreaViolations(generated));
+      } catch {
+        failures++;
+      }
+    }
+  }
+  return {
+    levels,
+    generationFailures: failures,
+    unprovenLevels: unproven,
+    bypassableLevels: bypassable,
+    shareAllPlannedPiecesKept: levels > 0 ? allPlannedKept / levels : null,
+    shareWithHubMonsters: levels > 0 ? withHubMonsters / levels : null,
+    openAreaViolationCount: violations.length,
+    openAreaViolations: violations.slice(0, 20)
+  };
+}
+
 function measurePacks(): Record<string, SetReport> {
   const result: Record<string, SetReport> = {};
   for (const pack of ConfigRegistry.getGame().ultimatePacks ?? []) {
@@ -241,7 +318,7 @@ it('writes the level metrics report', { timeout: REPORT_TIMEOUT_MS }, () => {
   loadTestConfigs();
   const report = {
     procedural: measureProcedural(),
-    endless: measureEndless(),
+    endless: { ...measureEndless(), openAreaRules: measureOpenAreaRules() },
     campaign: {
       summary: summarizeReports(measureAll(ConfigRegistry.getLevels()))
     },

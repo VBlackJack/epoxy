@@ -151,16 +151,8 @@
     "solution": "SESSWSSS",
     "reversible": true
   },
-  "monsters_ball_quartet_4": {
-    "solution": "SNSN..SNSNSNSN.SNSNSNSN.S.SSEEENESWWSWWSSEESENENSN....S.WSWS",
-    "reversible": true
-  },
   "monsters_ball_recess": {
     "solution": "SNSESNEES..NEESES",
-    "reversible": true
-  },
-  "monsters_ball_trio_3": {
-    "solution": "SNSNSNSNSNSNSNSNSNSNSNSNSNSNSNSNSW.SWSSEEEW.SSEWS",
     "reversible": true
   },
   "monsters_bug_hall": {
@@ -169,10 +161,6 @@
   },
   "monsters_bug_pillar": {
     "solution": "SESSWSSNEEEENNESSSS",
-    "reversible": true
-  },
-  "monsters_bug_quad_4": {
-    "solution": "SNSWESSEEEENEW.SWWWSSSWEEES",
     "reversible": true
   },
   "monsters_bug_roundup_3": {
@@ -187,10 +175,6 @@
     "solution": "SNSNSNSSSSWWNSNSNSNSWWNNWESSSWSSEEES",
     "reversible": true
   },
-  "monsters_glider_gauntlet_4": {
-    "solution": "SNSSS.WEWNWSSWWSSWWNNNENSNSNSNSNSNSNSNSNSNSNSWSSSEENNEENNWNWESESSWWSSS",
-    "reversible": true
-  },
   "monsters_glider_patrol_2": {
     "solution": "SNSNSNSNSNSSWW.NWWSNWEEEEEESSSSS",
     "reversible": true
@@ -199,20 +183,12 @@
     "solution": "SSSSWENNEEEESSEWSSWWSS",
     "reversible": true
   },
-  "monsters_mixed_hall_3": {
-    "solution": "SNSNSNSN....SNSNSNSNSEESSWWSNSESEEWS",
-    "reversible": true
-  },
   "monsters_mixed_trial_3": {
     "solution": "SNSNSNSNSNSNSNSNSNSNSN..SWWSS.WSSSESEENNENNWESSWSSS",
     "reversible": true
   },
   "monsters_paramecium_pair_2": {
     "solution": "SNSNSNSWSWENEN.SNSNSNSN.SN.SESSSWSSES",
-    "reversible": true
-  },
-  "monsters_paramecium_trio_3": {
-    "solution": "SNSNSNSNSNSN........SNSNSNSNSNSNSEEEESSW.WWWESSEEWS",
     "reversible": true
   },
   "monsters_tank_nook": {

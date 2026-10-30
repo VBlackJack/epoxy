@@ -20,6 +20,7 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { GeneratedLevel, ProceduralGenerator } from '../core/ProceduralGenerator';
+import { ProceduralConfig } from '../core/types';
 import { resolveMessage } from '../i18n/messageFormat';
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
@@ -31,6 +32,12 @@ import { cellReachableWithout, replays } from '../test/levelChecks';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
 const SAMPLE_SEEDS = [1, 2, 3];
+
+/** Whether the kept candidate came from a strict attempt (preferred lead and outline asked for). */
+function strictAttempt(generated: GeneratedLevel, cfg: ProceduralConfig): boolean {
+  const tierSize = cfg.hub.attemptsPerDroppedPiece;
+  return (generated.attempts - 1) % tierSize < Math.ceil(tierSize / 2);
+}
 const SAMPLE_LEVELS = Array.from({ length: 10 }, (_, i) => i + 1);
 const SAMPLE_TIMEOUT_MS = 120000;
 const ONBOARDING_SEEDS = 30;
@@ -115,7 +122,9 @@ describe('ProceduralGenerator', () => {
       for (let i = 1; i < pack.length; i++) {
         for (let back = 1; back <= cfg.noRepeatWindow && i - back >= 0; back++) {
           expect(pack[i].motifs[0], `${pack[i].level.id} lead motif`).not.toBe(pack[i - back].motifs[0]);
-          if (pack[i].hubShape && pack[i - back].hubShape) {
+          // A level kept on a relaxed attempt built whatever outline fitted, so only
+          // outlines chosen on strict attempts are held to the no-repeat rule.
+          if (pack[i].hubShape && pack[i - back].hubShape && strictAttempt(pack[i], cfg) && strictAttempt(pack[i - back], cfg)) {
             expect(pack[i].hubShape, `${pack[i].level.id} hub outline`).not.toBe(pack[i - back].hubShape);
           }
         }

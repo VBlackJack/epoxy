@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Direction, GridPoint } from '../core/types';
+import { Direction, EntityPlacement, GridPoint } from '../core/types';
 import { AssembledLevel, Box } from './LevelAssembler';
 import { CompiledPiece } from './PieceTypes';
 
@@ -31,8 +31,31 @@ export interface LevelGuard {
   guarded: GridPoint;
 }
 
+/**
+ * The open floor of a loop level's hub: the only region where monsters wander
+ * outside the puzzles, and what the prover searches in time.
+ */
+export interface OpenArea {
+  /** Every cell of the hub region, gravel aprons included. */
+  region: GridPoint[];
+  /** Gravel cells that close the region at gates and strip ends: the player crosses them, monsters do not. */
+  aprons: GridPoint[];
+  /** Monsters standing in the region at the start (also listed in the level's entities). */
+  monsters: EntityPlacement[];
+  /** Cells the monsters walk over, traced ahead of time. */
+  lanes: GridPoint[];
+  /** Chips lying in the region. */
+  chips: GridPoint[];
+  /** Fire and water cells in the region. */
+  hazards: GridPoint[];
+  /** Wall cells set into the region to cut it into lanes. */
+  dividers: GridPoint[];
+}
+
 export interface AssembledHubLevel extends AssembledLevel {
   guards: LevelGuard[];
+  /** Set for a loop level. */
+  open?: OpenArea;
   /** Id of the hub outline used, from game.json. */
   hubShape: string;
 }

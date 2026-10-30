@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { SeededRandom } from '../core/Random';
 import { HubConfig, HubGateConfig } from '../core/types';
 import { DifficultyProfile } from './DifficultyProfile';
-import { helpfulItems } from './PieceCompiler';
+import { helpfulItems, monsterCount } from './PieceCompiler';
 import { PieceSolver } from './PieceSolver';
 import { CompiledPiece, MotifRule, PieceExchangeKind } from './PieceTypes';
 import { LevelScript, ProgressionPlanner } from './ProgressionPlanner';
@@ -77,6 +77,10 @@ export interface HubPlan {
   hubItems: string[];
   motifs: string[];
   finale: CompiledPiece;
+  /** Monsters wandering the hub region of a loop level, one id each; empty elsewhere. */
+  openMonsters: string[];
+  /** Chips scattered over the hub region of a loop level; 0 elsewhere (the hub holds `hubChips`). */
+  openChips: number;
 }
 
 /**
@@ -149,7 +153,8 @@ export class HubPlanner {
         for (const id of later.requires) {
           if (ConfigRegistry.getTile(id).collectible === 'boot' && !hubItems.includes(id)) hubItems.push(id);
         }
-      }      const boots = piece.requires.find((id) => ConfigRegistry.getTile(id).collectible === 'boot');
+      }
+      const boots = piece.requires.find((id) => ConfigRegistry.getTile(id).collectible === 'boot');
       let gate: HubGate = { kind: 'open' };
       const locked = isFinal || index >= openCount;
       if (boots) {
@@ -182,6 +187,8 @@ export class HubPlanner {
     const scarce = loop ? HubPlanner.makeScarce(wings, hubItems, cfg, profile, rng, unusedGates) : [];
     const asDrawn = wings.map((_, index) => index);
     const order = loop ? (HubPlanner.winningOrder(wings, hubItems) ?? asDrawn) : asDrawn;
+    const openMonsters = loop ? HubPlanner.openMonsterTypes(pieces, selection.finale, profile, cfg, rng) : [];
+    const openChips = loop ? HubPlanner.openChipCount(profile.pieceCount, cfg) : 0;
     return {
       wings,
       dependencies: paired.dependencies,
@@ -189,8 +196,40 @@ export class HubPlanner {
       scarce,
       hubItems,
       motifs: paired.motifs,
-      finale: selection.finale
+      finale: selection.finale,
+      openMonsters,
+      openChips
     };
+  }
+
+  /**
+   * Monsters left to the hub region: none under `fromPieces`, then one more per
+   * `piecesPerMonster`, up to `max`. The pieces' own monsters count first against
+   * the level's cap, so the open area never takes a fight the puzzles already hold.
+   */
+  public static openMonsterTypes(
+    pieces: CompiledPiece[],
+    finale: CompiledPiece,
+    profile: DifficultyProfile,
+    cfg: HubConfig,
+    rng: SeededRandom
+  ): string[] {
+    const rule = cfg.openMonsters;
+    if (profile.pieceCount < rule.fromPieces || rule.types.length === 0) return [];
+    const wanted = Math.min(rule.max, 1 + Math.floor((profile.pieceCount - rule.fromPieces) / rule.piecesPerMonster));
+    const held = [...pieces, finale].reduce((sum, p) => sum + monsterCount(p), 0);
+    const room = Math.max(0, (ConfigRegistry.getGame().procedural?.maxMonstersPerLevel ?? 0) - held);
+    const count = Math.min(wanted, room);
+    // Different kinds first, so a level's open area is not three of the same.
+    const kinds = [...rule.types];
+    rng.shuffle(kinds);
+    return Array.from({ length: count }, (_, i) => kinds[i % kinds.length]);
+  }
+
+  /** Chips in the hub region: `min`, one more per `piecesPerExtra` planned puzzles, up to `max`. */
+  public static openChipCount(pieceCount: number, cfg: HubConfig): number {
+    const rule = cfg.openChips;
+    return Math.min(rule.max, rule.min + Math.floor(pieceCount / rule.piecesPerExtra));
   }
 
   /** Dependency pairs asked for at a difficulty: none under `fromPieces`, then one more per `piecesPerPair`, up to `max`. */
