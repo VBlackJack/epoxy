@@ -819,7 +819,9 @@ class EpoxyApplication {
 
   private exportActivePack(): void {
     const encoded = DatCodec.encodeLevelsWithReport(ConfigRegistry.getLevels());
-    downloadBytes(encoded.bytes, `${ConfigRegistry.getActivePackId()}.ccl`);
+    if (encoded.levelCount > 0) {
+      downloadBytes(encoded.bytes, `${ConfigRegistry.getActivePackId()}.ccl`);
+    }
     const notice = lossyExportNotice(encoded);
     if (notice) this.showTransientStatus(notice);
   }
