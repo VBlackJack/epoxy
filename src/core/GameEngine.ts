@@ -967,6 +967,7 @@ export class GameEngine {
 
     if (tile.buttonAction) {
       this.triggerButton(destX, destY, tile.buttonAction);
+      if (!this.player.alive) return;
     }
 
     // A jump resolves the arrival (and the sliding state) at the exit itself.
@@ -1094,8 +1095,8 @@ export class GameEngine {
       return true;
     }
 
-    if (destTile.buttonAction) {
-      this.triggerButton(nx, ny, destTile.buttonAction);
+    if (destTile.buttonAction && !this.triggerButton(nx, ny, destTile.buttonAction)) {
+      return false;
     }
 
     if (destTile.isTeleporter && allowTeleport) {
@@ -1201,7 +1202,8 @@ export class GameEngine {
     return true;
   }
 
-  private triggerButton(bx: number, by: number, action: ButtonAction): void {
+  /** Returns false when a clone spawned by the button killed the player. */
+  private triggerButton(bx: number, by: number, action: ButtonAction): boolean {
     AudioManager.playSfx('button');
 
     if (action === 'toggle_walls') {
@@ -1220,17 +1222,20 @@ export class GameEngine {
       const links = this.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
       if (links.length > 0) {
         for (const link of links) {
-          this.spawnFromCloner(link.clonerX, link.clonerY, link.templateType, link.templateDir);
+          if (!this.spawnFromCloner(link.clonerX, link.clonerY, link.templateType, link.templateDir)) {
+            return false;
+          }
         }
       } else {
         // Fallback: trigger any clone machine that has an entity template sitting on it
         for (const ent of [...this.entities]) {
           if (ConfigRegistry.getTile(this.terrain[ent.y]?.[ent.x]).isCloneMachine) {
-            this.spawnFromCloner(ent.x, ent.y, ent.type, ent.dir);
+            if (!this.spawnFromCloner(ent.x, ent.y, ent.type, ent.dir)) return false;
           }
         }
       }
     }
+    return true;
   }
 
   /** Replaces every tile for which `target` names a terrain by that terrain. */
@@ -1282,21 +1287,22 @@ export class GameEngine {
   /**
    * Spawns a copy of the template in front of the cloner, using the same
    * entry rules as a regular monster step or block push, so a clone never
-   * appears inside a wall or another blocked cell.
+   * appears inside a wall or another blocked cell. Returns false when the
+   * clone's arrival killed the player, so the caller stops processing.
    */
   private spawnFromCloner(
     clonerX: number,
     clonerY: number,
     templateType: string,
     templateDir: Direction
-  ): void {
-    if (this.entities.length >= MAX_ACTIVE_ENTITIES) return;
+  ): boolean {
+    if (this.entities.length >= MAX_ACTIVE_ENTITIES) return true;
 
     const vec = DIRECTION_VECTORS[templateDir];
     const spawnX = clonerX + vec.dx;
     const spawnY = clonerY + vec.dy;
-    if (!this.isInBounds(spawnX, spawnY)) return;
-    if (this.player.x === spawnX && this.player.y === spawnY) return;
+    if (!this.isInBounds(spawnX, spawnY)) return true;
+    if (this.player.x === spawnX && this.player.y === spawnY) return true;
 
     const def = ConfigRegistry.getEntityDef(templateType);
     const kind = def?.kind || 'block';
@@ -1314,7 +1320,7 @@ export class GameEngine {
       kind === 'block'
         ? this.isCanBlockEnter(probe, spawnX, spawnY, templateDir)
         : this.canMonsterEnter(probe, templateDir);
-    if (!canEnter) return;
+    if (!canEnter) return true;
 
     const spawned: RuntimeEntity = {
       uid: this.nextEntityUid++,
@@ -1330,8 +1336,9 @@ export class GameEngine {
     if (spawned.kind === 'block') {
       this.moveBlockTo(spawned, spawnX, spawnY, templateDir);
     } else {
-      this.resolveMonsterArrival(spawned, true);
+      return this.resolveMonsterArrival(spawned, true);
     }
+    return true;
   }
 
   public isCellClosedTrap(tx: number, ty: number): boolean {

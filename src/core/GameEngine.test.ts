@@ -953,6 +953,49 @@ describe('GameEngine cloned monsters', () => {
   });
 });
 
+describe('GameEngine clone that kills the player', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  /**
+   * A tank steps onto a button at (4, 10); its cloner at (8, 8) spawns a tank on the pad
+   * at (9, 8). With a second pad at (5, 5) the clone jumps out at (6, 5), onto the player.
+   * A second tank at (3, 12) acts after the first one in the same tick.
+   */
+  function runUntilFirstTankPressesButton(withExitPad: boolean): GameEngine {
+    const lvl = openLevel('clone_kills_player_level');
+    lvl.playerStart = { x: 6, y: 5, dir: 'S' };
+    lvl.terrain[10][4] = 'button_red';
+    lvl.terrain[8][8] = 'clone_machine';
+    lvl.terrain[8][9] = 'teleport';
+    if (withExitPad) lvl.terrain[5][5] = 'teleport';
+    lvl.entities = [
+      { x: 3, y: 10, type: 'tank', dir: 'E' },
+      { x: 3, y: 12, type: 'tank', dir: 'E' },
+      { x: 8, y: 8, type: 'tank', dir: 'E' }
+    ];
+    lvl.cloneLinks = [{ buttonX: 4, buttonY: 10, clonerX: 8, clonerY: 8, templateType: 'tank', templateDir: 'E' }];
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    const maxTicks = 30;
+    for (let i = 0; i < maxTicks && engine.getEntities().find((e) => e.y === 10)?.x !== 4; i++) {
+      engine.tick();
+    }
+    return engine;
+  }
+
+  it('stops processing monsters once the arriving clone kills the player', () => {
+    const control = runUntilFirstTankPressesButton(false);
+    expect(control.getPlayer().alive).toBe(true);
+    expect(control.getEntities().find((e) => e.y === 12)?.x).toBe(4);
+
+    const engine = runUntilFirstTankPressesButton(true);
+    expect(engine.getPlayer().alive).toBe(false);
+    expect(engine.getEntities().find((e) => e.y === 12)?.x).toBe(3);
+  });
+});
+
 describe('GameEngine blocks and bombs', () => {
   beforeEach(() => {
     loadTestConfigs();
