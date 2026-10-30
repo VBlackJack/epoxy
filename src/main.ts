@@ -55,7 +55,11 @@ import { downloadBytes } from './ui/download';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
-import { preferredScrollBehavior, prefersReducedMotion, replayAnimation } from './ui/motion';
+import { preferredScrollBehavior, prefersReducedMotion, replayAnimation, watchReducedMotion } from './ui/motion';
+import { getEditorChordAction, hasCommandModifier, isUndoChord } from './ui/inputGuards';
+import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
+import { setToggleState } from './ui/toggleState';
+import { watchDevicePixelRatio } from './ui/displayWatchers';
 import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
 import {
@@ -216,6 +220,7 @@ class EpoxyApplication {
     this.bindTouchGestures();
     this.bindDragAndDrop();
     this.bindKeyboardEvents();
+    this.bindFocusHandoff();
     i18n.translateDOM();
 
     i18n.onChange(() => {
@@ -282,12 +287,14 @@ class EpoxyApplication {
 
     if (savedSettings.shellEnabled) {
       byId('lynx-console')?.classList.add('enabled');
-      byId('btn-shell-toggle')?.classList.add('active');
     }
+    setToggleState(byId('btn-shell-toggle'), Boolean(savedSettings.shellEnabled));
 
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
-    byId('btn-lcd-toggle')?.classList.toggle('active', this.renderer.isLcdEnabled());
+    setToggleState(byId('btn-lcd-toggle'), this.renderer.isLcdEnabled());
     this.renderer.setReducedMotion(prefersReducedMotion());
+    // The preference can change while the page is open.
+    watchReducedMotion((reduced) => this.renderer.setReducedMotion(reduced));
     this.renderer.setQuality(parseQuality(savedSettings.graphicsQuality));
     this.renderer.setOnQualityLowered((quality) => {
       this.showTransientStatus(
@@ -302,12 +309,12 @@ class EpoxyApplication {
   private applyAudioSettings(savedSettings: UserSettings): void {
     if (typeof savedSettings.sfxEnabled === 'boolean') {
       AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
-      byId('btn-sfx-toggle')?.classList.toggle('active', savedSettings.sfxEnabled);
     }
     if (typeof savedSettings.musicEnabled === 'boolean') {
       AudioManager.setMusicEnabled(savedSettings.musicEnabled);
-      byId('btn-music-toggle')?.classList.toggle('active', savedSettings.musicEnabled);
     }
+    setToggleState(byId('btn-sfx-toggle'), AudioManager.isSfxEnabled());
+    setToggleState(byId('btn-music-toggle'), AudioManager.isMusicEnabled());
   }
 
   private bindEngineCallbacks(): void {
@@ -356,6 +363,8 @@ class EpoxyApplication {
   }
 
   private runGameTick(): void {
+    // A modal or the drawer owns the keyboard: skip the tick, the game is not paused.
+    if (isDialogOpen()) return;
     if (this.activeMode !== 'play') return;
     this.pollGamepad();
     if (this.isReplaying) {
@@ -460,6 +469,8 @@ class EpoxyApplication {
       window.addEventListener('resize', syncCanvasSize);
     }
     requestAnimationFrame(syncCanvasSize);
+    // Browser zoom or another screen changes the pixel ratio without resizing the box.
+    watchDevicePixelRatio(syncCanvasSize);
   }
 
   // ---------------------------------------------------------------------------
@@ -1345,8 +1356,8 @@ class EpoxyApplication {
     const isPlay = mode === 'play';
     byId('play-view')?.classList.toggle('hidden', !isPlay);
     byId('editor-view')?.classList.toggle('hidden', isPlay);
-    byId('btn-mode-play')?.classList.toggle('active', isPlay);
-    byId('btn-mode-editor')?.classList.toggle('active', !isPlay);
+    setToggleState(byId('btn-mode-play'), isPlay);
+    setToggleState(byId('btn-mode-editor'), !isPlay);
 
     if (!isPlay) {
       this.syncEditorWithEngineLevel();
@@ -1462,6 +1473,8 @@ class EpoxyApplication {
   }
 
   private bindModeSwitch(): void {
+    setToggleState(byId('btn-mode-play'), this.activeMode === 'play');
+    setToggleState(byId('btn-mode-editor'), this.activeMode === 'editor');
     byId('btn-mode-play')?.addEventListener('click', () => {
       this.switchMode('play');
     });
@@ -1693,14 +1706,15 @@ class EpoxyApplication {
     const lcdBtn = byId('btn-lcd-toggle');
     lcdBtn?.addEventListener('click', () => {
       this.renderer.setLcdEnabled(!this.renderer.isLcdEnabled());
-      lcdBtn.classList.toggle('active', this.renderer.isLcdEnabled());
+      setToggleState(lcdBtn, this.renderer.isLcdEnabled());
       this.saveUserSettings();
     });
 
     const shellBtn = byId('btn-shell-toggle');
     shellBtn?.addEventListener('click', () => {
-      byId('lynx-console')?.classList.toggle('enabled');
-      shellBtn.classList.toggle('active');
+      const lynx = byId('lynx-console');
+      lynx?.classList.toggle('enabled');
+      setToggleState(shellBtn, Boolean(lynx?.classList.contains('enabled')));
       this.saveUserSettings();
     });
 
@@ -1721,7 +1735,7 @@ class EpoxyApplication {
 
   private toggleSfx(): void {
     const enabled = AudioManager.toggleSfx();
-    byId('btn-sfx-toggle')?.classList.toggle('active', enabled);
+    setToggleState(byId('btn-sfx-toggle'), enabled);
     this.saveUserSettings();
   }
 
@@ -1733,7 +1747,7 @@ class EpoxyApplication {
     const musicBtn = byId('btn-music-toggle');
     musicBtn?.addEventListener('click', () => {
       const enabled = AudioManager.toggleMusic();
-      musicBtn.classList.toggle('active', enabled);
+      setToggleState(musicBtn, enabled);
       this.saveUserSettings();
     });
   }
@@ -2057,6 +2071,14 @@ class EpoxyApplication {
       this.updateHUD();
     });
 
+    // A key released while the window had no focus never reaches keyup.
+    window.addEventListener('blur', () => {
+      this.heldDirection = null;
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.heldDirection = null;
+    });
+
     window.addEventListener('keyup', (e) => {
       if (
         (this.heldDirection === 'N' && kb.moveUp.includes(e.code)) ||
@@ -2069,17 +2091,23 @@ class EpoxyApplication {
     });
   }
 
+  /** Gives keyboard focus back to the game after a mouse or touch interaction only. */
+  private bindFocusHandoff(): void {
+    const playView = byId('play-view');
+    if (playView) bindButtonPointerBlur(playView);
+    for (const id of ['pack-select', 'fov-select', 'theme-select', 'locale-select']) {
+      bindSelectPointerBlur(byId<HTMLSelectElement>(id));
+    }
+  }
+
   private handleEditorShortcut(e: KeyboardEvent): void {
-    if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW')) {
-      e.preventDefault();
-      if (e.shiftKey) {
-        this.editor.redo();
-      } else {
-        this.editor.undo();
-      }
-    } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
-      e.preventDefault();
+    const action = getEditorChordAction(e);
+    if (!action) return;
+    e.preventDefault();
+    if (action === 'redo') {
       this.editor.redo();
+    } else {
+      this.editor.undo();
     }
   }
 
@@ -2089,7 +2117,14 @@ class EpoxyApplication {
       action();
     };
 
-    if (kb.undo.includes(e.code) || ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyW'))) {
+    if (isUndoChord(e)) {
+      run(() => this.undoMove());
+      return;
+    }
+    // Other Ctrl, Meta or Alt chords belong to the browser and the system.
+    if (hasCommandModifier(e)) return;
+
+    if (kb.undo.includes(e.code)) {
       run(() => this.undoMove());
     } else if (kb.moveUp.includes(e.code)) {
       run(() => this.beginHeldMove('N'));
