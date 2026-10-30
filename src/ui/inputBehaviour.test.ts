@@ -41,6 +41,25 @@ describe('key chords', () => {
     expect(isUndoChord(chord({ key: 'w', ctrlKey: true }))).toBe(false);
   });
 
+  it('keeps undo on QWERTY, AZERTY and non-Latin layouts', () => {
+    expect(isUndoChord(chord({ key: 'z', code: 'KeyZ', ctrlKey: true }))).toBe(true);
+    // AZERTY: Z is produced by the key whose code is KeyW.
+    expect(isUndoChord(chord({ key: 'z', code: 'KeyW', ctrlKey: true }))).toBe(true);
+    expect(isUndoChord(chord({ key: 'w', code: 'KeyZ', ctrlKey: true }))).toBe(false);
+    // Cyrillic and Greek: the key is not an ASCII letter, the physical code decides.
+    expect(isUndoChord(chord({ key: 'я', code: 'KeyZ', ctrlKey: true }))).toBe(true);
+    expect(isUndoChord(chord({ key: 'ζ', code: 'KeyZ', metaKey: true }))).toBe(true);
+    expect(isUndoChord(chord({ key: 'я', code: 'KeyQ', ctrlKey: true }))).toBe(false);
+    expect(isUndoChord(chord({ key: 'я', code: 'KeyZ' }))).toBe(false);
+  });
+
+  it('maps editor redo on non-Latin layouts through the key code', () => {
+    expect(getEditorChordAction(chord({ key: 'у', code: 'KeyY', ctrlKey: true }))).toBe('redo');
+    expect(
+      getEditorChordAction(chord({ key: 'я', code: 'KeyZ', ctrlKey: true, shiftKey: true }))
+    ).toBe('redo');
+  });
+
   it('maps editor chords to undo and redo', () => {
     expect(getEditorChordAction(chord({ key: 'z', ctrlKey: true }))).toBe('undo');
     expect(getEditorChordAction(chord({ key: 'Z', ctrlKey: true, shiftKey: true }))).toBe('redo');

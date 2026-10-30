@@ -17,6 +17,8 @@
 /** The parts of a keyboard event the shortcut guards read. */
 export interface KeyChord {
   key: string;
+  /** Physical key code; optional so callers without it keep the key-only match. */
+  code?: string;
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
@@ -26,6 +28,20 @@ export interface KeyChord {
 /** Key value of the letters the editor and play chords use, compared lower case. */
 const UNDO_KEY = 'z';
 const REDO_KEY = 'y';
+const UNDO_CODE = 'KeyZ';
+const REDO_CODE = 'KeyY';
+
+const SINGLE_ASCII_LETTER = /^[a-z]$/i;
+
+/**
+ * True when the chord is the given letter. The produced character wins, which
+ * keeps AZERTY working (key 'z' on code KeyW). A layout whose key is not an
+ * ASCII letter (Cyrillic, Greek) falls back to the physical key code.
+ */
+function matchesLetter(chord: KeyChord, letter: string, code: string): boolean {
+  if (chord.key.toLowerCase() === letter) return true;
+  return !SINGLE_ASCII_LETTER.test(chord.key) && chord.code === code;
+}
 
 /**
  * True when Ctrl, Meta or Alt is held. Game shortcuts ignore such events so
@@ -38,10 +54,11 @@ export function hasCommandModifier(chord: KeyChord): boolean {
 /**
  * Undo chord: Ctrl or Meta with the Z key. It matches the produced character
  * rather than the physical key, so it follows the keyboard layout (Z sits on
- * a different key on AZERTY and QWERTY). Shift is allowed.
+ * a different key on AZERTY and QWERTY); non-Latin layouts use the key code.
+ * Shift is allowed.
  */
 export function isUndoChord(chord: KeyChord): boolean {
-  return (chord.ctrlKey || chord.metaKey) && chord.key.toLowerCase() === UNDO_KEY;
+  return (chord.ctrlKey || chord.metaKey) && matchesLetter(chord, UNDO_KEY, UNDO_CODE);
 }
 
 export type EditorChordAction = 'undo' | 'redo';
@@ -52,6 +69,6 @@ export type EditorChordAction = 'undo' | 'redo';
  */
 export function getEditorChordAction(chord: KeyChord): EditorChordAction | null {
   if (isUndoChord(chord)) return chord.shiftKey ? 'redo' : 'undo';
-  if ((chord.ctrlKey || chord.metaKey) && chord.key.toLowerCase() === REDO_KEY) return 'redo';
+  if ((chord.ctrlKey || chord.metaKey) && matchesLetter(chord, REDO_KEY, REDO_CODE)) return 'redo';
   return null;
 }

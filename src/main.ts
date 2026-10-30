@@ -364,7 +364,10 @@ class EpoxyApplication {
 
   private runGameTick(): void {
     // A modal or the drawer owns the keyboard: skip the tick, the game is not paused.
-    if (isDialogOpen()) return;
+    if (isDialogOpen()) {
+      this.refreshGamepadSnapshot();
+      return;
+    }
     if (this.activeMode !== 'play') return;
     this.pollGamepad();
     if (this.isReplaying) {
@@ -1027,6 +1030,13 @@ class EpoxyApplication {
         void this.handleImportedFile(file);
       }
     });
+  }
+
+  /** Records the held buttons without acting, so a hold across a dialog close is not a new press. */
+  private refreshGamepadSnapshot(): void {
+    if (typeof navigator.getGamepads !== 'function') return;
+    const pad = navigator.getGamepads()[GAMEPAD_INDEX];
+    if (pad) this.prevGamepadButtons = pad.buttons.map((b) => b.pressed);
   }
 
   private pollGamepad(): void {
@@ -2112,11 +2122,13 @@ class EpoxyApplication {
 
   /** Gives keyboard focus back to the game after a mouse or touch interaction only. */
   private bindFocusHandoff(): void {
-    const playView = byId('play-view');
-    if (playView) bindButtonPointerBlur(playView);
-    for (const id of ['pack-select', 'fov-select', 'theme-select', 'locale-select']) {
-      bindSelectPointerBlur(byId<HTMLSelectElement>(id));
+    for (const id of ['play-view', 'top-controls-drawer']) {
+      const container = byId(id);
+      if (container) bindButtonPointerBlur(container);
     }
+    // The fov, theme and locale selects live in a modal dialog: blurring them would
+    // send focus outside it. Only the pack select sits outside any dialog.
+    bindSelectPointerBlur(byId<HTMLSelectElement>('pack-select'));
   }
 
   private handleEditorShortcut(e: KeyboardEvent): void {
@@ -2142,6 +2154,12 @@ class EpoxyApplication {
     }
     // Other Ctrl, Meta or Alt chords belong to the browser and the system.
     if (hasCommandModifier(e)) return;
+
+    // '?' is a Shift chord on a key whose code is bound elsewhere on some layouts (AZERTY).
+    if (e.key === '?') {
+      run(() => this.openHelpModal());
+      return;
+    }
 
     if (kb.undo.includes(e.code)) {
       run(() => this.undoMove());
