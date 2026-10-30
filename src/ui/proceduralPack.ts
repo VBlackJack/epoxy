@@ -44,14 +44,14 @@ export type StartLevelParseResult = { valid: true; level: number } | { valid: fa
 
 /**
  * Parses the start level field of the endless dialog. Empty means level 1;
- * otherwise a whole number of at least 1, with no upper bound.
+ * otherwise a whole number from 1 to `maxLevel`.
  */
-export function parseStartLevelInput(raw: string): StartLevelParseResult {
+export function parseStartLevelInput(raw: string, maxLevel: number): StartLevelParseResult {
   const text = raw.trim();
   if (text === '') return { valid: true, level: MIN_START_LEVEL };
   if (!SEED_PATTERN.test(text)) return { valid: false };
   const value = Number.parseInt(text, DECIMAL_RADIX);
-  if (!Number.isSafeInteger(value) || value < MIN_START_LEVEL) return { valid: false };
+  if (!Number.isSafeInteger(value) || value < MIN_START_LEVEL || value > maxLevel) return { valid: false };
   return { valid: true, level: value };
 }
 
@@ -88,12 +88,13 @@ export function recordReachedLevel(
 
 /**
  * Start level to propose for the seed typed in the dialog: the reached level
- * when the seed is the last endless one, level 1 for any other seed or none.
+ * (never above `maxLevel`) when the seed is the last endless one, level 1 for
+ * any other seed or none.
  */
-export function suggestStartLevel(progress: EndlessProgress | null, seedRaw: string): number {
+export function suggestStartLevel(progress: EndlessProgress | null, seedRaw: string, maxLevel: number): number {
   if (!progress) return MIN_START_LEVEL;
   const parsed = parseSeedInput(seedRaw);
-  return parsed.valid && parsed.seed === progress.seed ? progress.reachedLevel : MIN_START_LEVEL;
+  return parsed.valid && parsed.seed === progress.seed ? Math.min(progress.reachedLevel, maxLevel) : MIN_START_LEVEL;
 }
 
 /** Reads a stored seed back; returns null when absent or not a valid seed. */

@@ -84,8 +84,8 @@
         "seed_hint": { "label": "Vide : graine aléatoire. Une même graine redonne les mêmes niveaux." },
         "seed_invalid": { "label": "Une graine est un nombre entier de 0 à {max}." },
         "start_level": { "label": "Commencer au niveau" },
-        "start_level_hint": { "label": "Tout niveau à partir de 1, il n'y a pas de dernier niveau. Votre dernière partie est reproposée." },
-        "start_level_invalid": { "label": "Un niveau est un nombre entier, 1 ou plus." },
+        "start_level_hint": { "label": "Tout niveau de 1 à {max}. Votre dernière partie est reproposée." },
+        "start_level_invalid": { "label": "Un niveau est un nombre entier de 1 à {max}." },
         "submit": { "action": "Générer" },
         "cancel": { "action": "Annuler" }
       },

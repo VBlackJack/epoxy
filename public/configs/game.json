@@ -308,6 +308,7 @@
     },
     "scoring": {
       "candidates": 2,
+      "fallbackCandidates": 2,
       "targetMovesBase": 60,
       "targetMovesPerLevel": 15,
       "targetMovesMax": 400,
@@ -428,7 +429,8 @@
     "maxFileBytes": 4194304
   },
   "endlessUi": {
-    "fallbackYieldMs": 0
+    "fallbackYieldMs": 0,
+    "maxStartLevel": 10000
   },
   "locales": {
     "supported": ["fr", "en"],

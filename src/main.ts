@@ -600,6 +600,11 @@ class EpoxyApplication {
     }
   }
 
+  /** Highest start level the endless dialog accepts (validated when the configs are installed). */
+  private endlessMaxStartLevel(): number {
+    return ConfigRegistry.getGame().endlessUi.maxStartLevel;
+  }
+
   /** Opens the endless dialog: the last run proposed again (seed and reached level), or random from level 1. */
   private openProceduralModal(): void {
     if (this.generatingPack) return;
@@ -616,7 +621,13 @@ class EpoxyApplication {
     byId('procedural-seed-error')?.classList.add('hidden');
     byId('procedural-start-error')?.classList.add('hidden');
     startInput?.setAttribute('aria-invalid', 'false');
-    if (startInput) startInput.value = String(suggestStartLevel(this.endlessProgress, seedInput?.value ?? ''));
+    const maxStartLevel = this.endlessMaxStartLevel();
+    const startHint = byId('procedural-start-hint');
+    if (startHint) startHint.textContent = t('app.packs.procedural_dialog.start_level_hint.label', { max: maxStartLevel });
+    if (startInput) {
+      startInput.max = String(maxStartLevel);
+      startInput.value = String(suggestStartLevel(this.endlessProgress, seedInput?.value ?? '', maxStartLevel));
+    }
     this.openModal(MODAL_IDS.PROCEDURAL, seedInput);
   }
 
@@ -627,11 +638,14 @@ class EpoxyApplication {
     const errorEl = byId('procedural-seed-error');
     const startErrorEl = byId('procedural-start-error');
     const parsed = parseSeedInput(seedInput?.value ?? '');
-    const startLevel = parseStartLevelInput(startInput?.value ?? '');
+    const startLevel = parseStartLevelInput(startInput?.value ?? '', this.endlessMaxStartLevel());
     errorEl?.classList.toggle('hidden', parsed.valid);
     startErrorEl?.classList.toggle('hidden', startLevel.valid);
     seedInput?.setAttribute('aria-invalid', String(!parsed.valid));
     startInput?.setAttribute('aria-invalid', String(!startLevel.valid));
+    if (!startLevel.valid && startErrorEl) {
+      startErrorEl.textContent = t('app.packs.procedural_dialog.start_level_invalid.label', { max: this.endlessMaxStartLevel() });
+    }
     if (!parsed.valid) {
       if (errorEl) errorEl.textContent = t('app.packs.procedural_dialog.seed_invalid.label', { max: SEED_MAX_VALUE });
       seedInput?.focus();
@@ -699,9 +713,12 @@ class EpoxyApplication {
     this.endlessFetching = null;
     this.endlessWaiting = false;
     this.showTransientStatus(t('app.packs.procedural_progress.label', { level: startLevel }));
+    // Prefetches of the run being left would keep the worker busy: drop them.
+    const generator = this.getEndlessGenerator();
+    if (generator.hasPending()) generator.reset();
     let first: CompiledLevel;
     try {
-      first = await this.getEndlessGenerator().request(seed, startLevel);
+      first = await generator.request(seed, startLevel);
     } catch (err) {
       console.error('Endless generation failed:', err);
       this.showTransientStatus(t('app.packs.procedural_error.label'));
@@ -1601,7 +1618,7 @@ class EpoxyApplication {
       seedInput.setAttribute('aria-invalid', 'false');
       // The last run's seed brings back its reached level; any other seed starts at level 1.
       if (startInput && !this.startLevelTouched) {
-        startInput.value = String(suggestStartLevel(this.endlessProgress, seedInput.value));
+        startInput.value = String(suggestStartLevel(this.endlessProgress, seedInput.value, this.endlessMaxStartLevel()));
       }
     });
     startInput?.addEventListener('input', () => {

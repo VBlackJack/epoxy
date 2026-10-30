@@ -34,6 +34,7 @@ import {
   isDirection,
   isFiniteNumber,
   isInBounds,
+  findGameTunableErrors,
   InvalidLevelError
 } from './ConfigValidation';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
@@ -155,6 +156,10 @@ class ConfigRegistryService {
     const blockPuzzleErrors = findBlockPuzzleConfigErrors(bundle.game.blockPuzzle);
     if (blockPuzzleErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, blockPuzzleErrors.join('; '));
+    }
+    const tunableErrors = findGameTunableErrors(bundle.game);
+    if (tunableErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, tunableErrors.join('; '));
     }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
