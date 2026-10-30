@@ -53,6 +53,11 @@
       "arctic_synth": { "label": "Piste : Synthé Arctique" },
       "magma_drive": { "label": "Piste : Magma Drive" }
     },
+    "export": {
+      "lossy_replaced": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits dans leur version simple." },
+      "lossy_lost": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits comme du sol ou omis." },
+      "list_separator": { "label": ", " }
+    },
     "packs": {
       "selector_label": { "label": "Pack :" },
       "selector_option": { "label": "{name} ({count})" },
@@ -195,6 +200,7 @@
       "forbidden_item": { "label": "Cette barrière refuse l'objet que vous portez : déposez-le d'abord." },
       "drop_cell_occupied": { "label": "Impossible de déposer ici : la case contient déjà un objet." },
       "drop_nothing": { "label": "Rien à déposer." },
+      "drop_protected": { "label": "Ces bottes vous protègent ici même : quittez d'abord la case." },
       "score_bonus_picked": { "label": "Points bonus récupérés !" },
       "score_multiplier_picked": { "label": "Multiplicateur de score du niveau augmenté !" },
       "time_bonus_picked": { "label": "Chronomètre : temps supplémentaire ajouté !" },

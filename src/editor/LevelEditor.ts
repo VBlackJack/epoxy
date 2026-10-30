@@ -32,6 +32,7 @@ import {
   ValidationIssue
 } from '../core/types';
 import { downloadBytes, downloadJson } from '../ui/download';
+import { lossyExportNotice } from '../ui/exportNotice';
 import {
   CUSTOM_LEVEL_ID_PREFIX,
   EDITOR_CLONE_LINK_COLOR,
@@ -507,10 +508,10 @@ export class LevelEditor {
     document.getElementById('editor-export-ccl-btn')?.addEventListener('click', () => {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
-      downloadBytes(
-        DatCodec.encodeLevels([compiled]),
-        `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`
-      );
+      const encoded = DatCodec.encodeLevelsWithReport([compiled]);
+      downloadBytes(encoded.bytes, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`);
+      const notice = lossyExportNotice(encoded);
+      if (notice) this.setStatusText(notice);
     });
 
     const importInput = document.getElementById('editor-import-input') as HTMLInputElement | null;

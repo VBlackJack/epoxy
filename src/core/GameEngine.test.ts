@@ -413,6 +413,89 @@ describe('GameEngine forbidden-item barriers', () => {
   });
 });
 
+describe('GameEngine review fixes', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('refuses a teleport exit onto a barrier against a held item', () => {
+    const build = (holdKey: boolean): GameEngine => {
+      const lvl = openLevel(`teleport_barrier_${holdKey}`);
+      lvl.terrain[2][3] = 'teleport';
+      lvl.terrain[10][10] = 'teleport';
+      // Every exit of the far teleporter is a barrier against the red key.
+      lvl.terrain[10][11] = 'forbid_key_red';
+      lvl.terrain[10][9] = 'forbid_key_red';
+      lvl.terrain[9][10] = 'forbid_key_red';
+      lvl.terrain[11][10] = 'forbid_key_red';
+      if (holdKey) lvl.items[2][1] = 'key_red';
+      const engine = new GameEngine();
+      engine.loadLevel(lvl);
+      if (holdKey) pickUpWest(engine);
+      walk(engine, 'E', 1);
+      return engine;
+    };
+    const free = build(false);
+    expect([free.getPlayer().x, free.getPlayer().y]).toEqual([11, 10]);
+
+    // No free exit over there: the jump falls back to the source teleporter's own exit.
+    const holder = build(true);
+    expect([holder.getPlayer().x, holder.getPlayer().y]).toEqual([4, 2]);
+    expect(holder.getPlayer().alive).toBe(true);
+    expect(holder.holdsItem('key_red')).toBe(true);
+    expect(ConfigRegistry.getTile(holder.getTerrain()[holder.getPlayer().y][holder.getPlayer().x]).forbiddenItem).toBeUndefined();
+  });
+
+  it('refuses to drop the boots that protect the current cell', () => {
+    const cases: Array<[string, string]> = [
+      ['boots_water', 'water'],
+      ['boots_fire', 'fire'],
+      ['boots_ice', 'ice'],
+      ['boots_force', 'force_e']
+    ];
+    for (const [boots, hazard] of cases) {
+      const lvl = openLevel(`drop_protected_${boots}`);
+      lvl.items[2][1] = boots;
+      lvl.terrain[2][3] = hazard;
+      lvl.terrain[2][4] = 'wall';
+      const engine = new GameEngine();
+      engine.loadLevel(lvl);
+      pickUpWest(engine);
+      walk(engine, 'E', 1);
+      expect(engine.getPlayer(), hazard).toMatchObject({ x: 3, y: 2, alive: true });
+      expect(engine.dropItem(boots), hazard).toBe(false);
+      expect(engine.getStatusBannerKey(), hazard).toBe('hud.messages.drop_protected');
+      expect(engine.getPlayer().boots.has(boots), hazard).toBe(true);
+      expect(engine.getItems()[2][3], hazard).toBeNull();
+      // Off the hazard the same boots drop as usual.
+      walk(engine, 'W', 1);
+      expect(engine.dropItem(boots), hazard).toBe(true);
+    }
+  });
+
+  it('applies the fire rule to blocks and monsters when a jet lights under them', () => {
+    const lvl = openLevel('flames_entities_level');
+    lvl.terrain[2][3] = 'button_orange';
+    lvl.terrain[6][6] = 'flame_jet_off';
+    lvl.terrain[8][8] = 'flame_jet_off';
+    lvl.terrain[10][10] = 'flame_jet_off';
+    lvl.terrain[12][12] = 'flame_jet_off';
+    lvl.entities = [
+      { x: 6, y: 6, type: 'ice_block', dir: 'N' },
+      { x: 8, y: 8, type: 'dirt_block', dir: 'N' },
+      { x: 10, y: 10, type: 'bug', dir: 'N' },
+      { x: 12, y: 12, type: 'fireball', dir: 'N' }
+    ];
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    walk(engine, 'E', 1);
+    const types = engine.getEntities().map((e) => e.type).sort();
+    expect(types).toEqual(['dirt_block', 'fireball']);
+    expect(engine.getTerrain()[6][6]).toBe('water');
+    expect(engine.getTerrain()[8][8]).toBe('flame_jet_on');
+  });
+});
+
 describe('GameEngine key thief', () => {
   beforeEach(() => {
     loadTestConfigs();
@@ -586,7 +669,8 @@ describe('GameEngine bonus items', () => {
     engine.loadLevel(lvl);
 
     walk(engine, 'E', 1);
-    expect(engine.getTotalScore()).toBe(100);
+    expect(engine.getLevelBonusPoints()).toBe(100);
+    expect(engine.getTotalScore()).toBe(0);
     expect(engine.getStatusBannerKey()).toBe('hud.messages.score_bonus_picked');
     walk(engine, 'E', 1);
     expect(engine.getExtraTimeSeconds()).toBe(10);
@@ -601,9 +685,27 @@ describe('GameEngine bonus items', () => {
     walk(engine, 'E', 1);
     expect(engine.isLevelCompleted()).toBe(true);
     const timing = ConfigRegistry.getGame().timing;
-    const expectedLevelScore = (timing.levelBasePoints * lvl.number + engine.getLastTimeBonus()) * 2;
+    const expectedLevelScore = (timing.levelBasePoints * lvl.number + engine.getLastTimeBonus() + 100) * 2;
     expect(engine.getLastLevelScore()).toBe(expectedLevelScore);
-    expect(engine.getTotalScore()).toBe(100 + expectedLevelScore);
+    expect(engine.getTotalScore()).toBe(expectedLevelScore);
+  });
+
+  it('reports flag points, multiplied, in the win callback', () => {
+    const lvl = openLevel('bonus_callback_level');
+    lvl.items[2][3] = 'score_1000';
+    lvl.items[2][4] = 'score_2x';
+    lvl.terrain[2][5] = 'exit';
+    const engine = new GameEngine();
+    let reported = -1;
+    engine.setOnWinCallback((_id, _time, _steps, score) => {
+      reported = score;
+    });
+    engine.loadLevel(lvl);
+    walk(engine, 'E', 3);
+    expect(engine.isLevelCompleted()).toBe(true);
+    const timing = ConfigRegistry.getGame().timing;
+    expect(reported).toBe((timing.levelBasePoints * lvl.number + engine.getLastTimeBonus() + 1000) * 2);
+    expect(engine.getTotalScore()).toBe(reported);
   });
 
   it('keeps an untimed level untimed and rolls a bonus back on undo', () => {
@@ -615,9 +717,9 @@ describe('GameEngine bonus items', () => {
     walk(engine, 'E', 1);
     expect(engine.getExtraTimeSeconds()).toBe(0);
     walk(engine, 'E', 1);
-    expect(engine.getTotalScore()).toBe(1000);
+    expect(engine.getLevelBonusPoints()).toBe(1000);
     expect(engine.undo()).toBe(true);
-    expect(engine.getTotalScore()).toBe(0);
+    expect(engine.getLevelBonusPoints()).toBe(0);
     expect(engine.getItems()[2][4]).toBe('score_1000');
   });
 });

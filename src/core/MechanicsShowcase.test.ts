@@ -23,6 +23,7 @@ vi.mock('../audio/AudioManager', () => ({
 import { GameEngine } from './GameEngine';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isCompiledLevelShape } from '../config/ConfigValidation';
+import { LevelValidator } from './LevelValidator';
 import { CompiledLevel, Direction, LevelBlueprint } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import showcase from '../test/fixtures/mechanicsShowcase.json';
@@ -53,6 +54,13 @@ function compileShowcase(): CompiledLevel {
 describe('mechanics showcase level', () => {
   beforeEach(() => {
     loadTestConfigs();
+  });
+
+  it('passes the editor validator', () => {
+    const report = LevelValidator.validate(compileShowcase());
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
   });
 
   it('compiles at its own size with every tile resolved', () => {
@@ -116,8 +124,8 @@ describe('mechanics showcase level', () => {
     expect(engine.getTerrain()[3][13]).toBe('flame_jet_off');
     expect(engine.getTerrain()[9][17]).toBe('flame_jet_on');
     walk(engine, 'EE');
-    const scoreBefore = engine.getTotalScore();
-    expect(scoreBefore).toBe(100);
+    expect(engine.getLevelBonusPoints()).toBe(100);
+    expect(engine.getTotalScore()).toBe(0);
     walk(engine, 'E');
     expect(engine.getExtraTimeSeconds()).toBe(0);
 
@@ -128,7 +136,7 @@ describe('mechanics showcase level', () => {
     expect(engine.isLevelCompleted()).toBe(true);
     expect(engine.getChipsRemaining()).toBe(0);
     const timing = ConfigRegistry.getGame().timing;
-    expect(engine.getLastLevelScore()).toBe((timing.levelBasePoints + engine.getLastTimeBonus()) * 2);
-    expect(engine.getTotalScore()).toBe(scoreBefore + engine.getLastLevelScore());
+    expect(engine.getLastLevelScore()).toBe((timing.levelBasePoints + engine.getLastTimeBonus() + 100) * 2);
+    expect(engine.getTotalScore()).toBe(engine.getLastLevelScore());
   });
 });

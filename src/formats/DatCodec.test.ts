@@ -185,20 +185,34 @@ describe('DatCodec tiles without a byte code', () => {
     loadTestConfigs();
   });
 
-  it('writes floor for an unmapped terrain and drops an unmapped item', () => {
+  it('writes floor for an unmapped terrain, drops an unmapped item and reports both', () => {
     const lvl = blankLevel(1);
     lvl.terrain[3][3] = 'turtle';
     lvl.terrain[4][4] = 'thin_wall_nesw';
     lvl.terrain[5][5] = 'teleport_red';
+    lvl.terrain[5][7] = 'teleport_red';
+    lvl.terrain[8][8] = 'forbid_key_red';
     lvl.items[6][6] = 'score_100';
     lvl.items[7][7] = 'chip';
-    const decoded = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX);
+    const encoded = DatCodec.encodeLevelsWithReport([lvl]);
+    expect(encoded.replaced).toEqual(['teleport_red']);
+    expect(encoded.lost.sort()).toEqual(['forbid_key_red', 'score_100', 'thin_wall_nesw', 'turtle']);
+    const decoded = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
     expect(decoded).toHaveLength(1);
     expect(decoded[0].terrain[3][3]).toBe('floor');
     expect(decoded[0].terrain[4][4]).toBe('floor');
-    expect(decoded[0].terrain[5][5]).toBe('floor');
+    expect(decoded[0].terrain[5][5]).toBe('teleport');
+    expect(decoded[0].terrain[5][7]).toBe('teleport');
+    expect(decoded[0].terrain[8][8]).toBe('floor');
     expect(decoded[0].items[6][6]).toBeNull();
     expect(decoded[0].items[7][7]).toBe('chip');
+  });
+
+  it('reports an exact export as exact', () => {
+    const encoded = DatCodec.encodeLevelsWithReport([richLevel(1)]);
+    expect(encoded.replaced).toEqual([]);
+    expect(encoded.lost).toEqual([]);
+    expect(encoded.bytes).toEqual(DatCodec.encodeLevels([richLevel(1)]));
   });
 });
 

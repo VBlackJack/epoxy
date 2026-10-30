@@ -250,16 +250,27 @@ export class LevelValidator {
           reachableExit = true;
         }
 
-        if (currTile.buttonAction === 'toggle_walls') {
-          for (let ty = 0; ty < height; ty++) {
-            for (let tx = 0; tx < width; tx++) {
-              const toggled = ConfigRegistry.getTile(simTerrain[ty][tx]);
-              if (toggled.togglesTo && !toggled.passableByPlayer) {
-                simTerrain[ty][tx] = toggled.togglesTo;
-                changed = true;
-              }
+        // A key thief the player can reach is assumed to be crossed: the keys are gone.
+        if (currTile.stealsKeys) {
+          for (const keyId of Object.keys(ownedKeys)) {
+            if (ownedKeys[keyId] > 0) {
+              ownedKeys[keyId] = 0;
+              changed = true;
             }
           }
+        }
+
+        // A reachable button lets the player set its tiles to the open state: closed
+        // toggle walls open, lit flame jets go out (off jets stay off, so both are passable).
+        if (currTile.buttonAction === 'toggle_walls') {
+          this.openToggledTiles(simTerrain, (tile) => (tile.passableByPlayer ? undefined : tile.togglesTo), () => {
+            changed = true;
+          });
+        }
+        if (currTile.buttonAction === 'toggle_flames') {
+          this.openToggledTiles(simTerrain, (tile) => (tile.hazard ? tile.flameTogglesTo : undefined), () => {
+            changed = true;
+          });
         }
 
         if (currTile.buttonAction === 'trigger_cloner') {
@@ -339,6 +350,9 @@ export class LevelValidator {
           if (!nextTile.passableByPlayer) {
             continue;
           }
+
+          // A barrier against a held item is passable here: the item can be put down
+          // before it and fetched later, so reachability stays optimistic about it.
 
           const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
           const protectedHere = hasBoot(nextBoots, nextTile.protectedByItem);
@@ -519,6 +533,23 @@ export class LevelValidator {
   }
 
   /** Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. */
+  /** Replaces every tile for which `target` names a terrain, reporting each change. */
+  private static openToggledTiles(
+    simTerrain: string[][],
+    target: (tile: TileDefinition) => string | undefined,
+    onChange: () => void
+  ): void {
+    for (let ty = 0; ty < simTerrain.length; ty++) {
+      for (let tx = 0; tx < simTerrain[ty].length; tx++) {
+        const next = target(ConfigRegistry.getTile(simTerrain[ty][tx]));
+        if (next && next !== simTerrain[ty][tx]) {
+          simTerrain[ty][tx] = next;
+          onChange();
+        }
+      }
+    }
+  }
+
   private static bootsOnArrival(
     boots: number,
     tile: TileDefinition,

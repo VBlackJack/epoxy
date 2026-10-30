@@ -64,6 +64,8 @@ export class GameEngine {
   private stepsCount: number = 0;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
   private extraTimeSeconds: number = 0;
+  /** Points from bonus flags, paid with the level score at the exit. */
+  private levelBonusPoints: number = 0;
   /** Factor applied to the level score at the exit, raised by multiplier items. */
   private levelScoreMultiplier: number = BASE_LEVEL_SCORE_MULTIPLIER;
   private totalScore: number = 0;
@@ -178,6 +180,7 @@ export class GameEngine {
     this.ticksElapsed = 0;
     this.stepsCount = 0;
     this.extraTimeSeconds = 0;
+    this.levelBonusPoints = 0;
     this.levelScoreMultiplier = BASE_LEVEL_SCORE_MULTIPLIER;
     this.lastLevelScore = 0;
     this.lastTimeBonus = 0;
@@ -298,6 +301,11 @@ export class GameEngine {
     return this.levelScoreMultiplier;
   }
 
+  /** Points from bonus flags picked up in this level, paid with the level score at the exit. */
+  public getLevelBonusPoints(): number {
+    return this.levelBonusPoints;
+  }
+
   /** Keys and boots the player holds, keys first, in the order of tiles.json. */
   public getHeldItems(): string[] {
     const held: string[] = [];
@@ -329,6 +337,12 @@ export class GameEngine {
     const y = this.player.y;
     if (this.items[y][x] !== null) {
       this.statusBannerKey = 'hud.messages.drop_cell_occupied';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+    // The boots that keep the player safe on this very cell stay on their feet.
+    if (ConfigRegistry.getTile(this.terrain[y][x]).protectedByItem === itemId) {
+      this.statusBannerKey = 'hud.messages.drop_protected';
       AudioManager.playSfx('blocked');
       return false;
     }
@@ -434,6 +448,7 @@ export class GameEngine {
       stepsCount: this.stepsCount,
       totalScore: this.totalScore,
       extraTimeSeconds: this.extraTimeSeconds,
+      levelBonusPoints: this.levelBonusPoints,
       levelScoreMultiplier: this.levelScoreMultiplier,
       rngState: this.rng.getState(),
       nextEntityUid: this.nextEntityUid,
@@ -475,6 +490,7 @@ export class GameEngine {
     this.stepsCount = snap.stepsCount;
     this.totalScore = snap.totalScore;
     this.extraTimeSeconds = snap.extraTimeSeconds;
+    this.levelBonusPoints = snap.levelBonusPoints;
     this.levelScoreMultiplier = snap.levelScoreMultiplier;
     this.rng.setState(snap.rngState);
     this.nextEntityUid = snap.nextEntityUid;
@@ -636,14 +652,9 @@ export class GameEngine {
     }
 
     const updatedTargetTile = ConfigRegistry.getTile(this.terrain[targetY][targetX]);
-    if (!updatedTargetTile.passableByPlayer) {
-      if (!fromSlide) AudioManager.playSfx('blocked');
-      return false;
-    }
-
-    // A barrier against an item the player carries: solid until the item is dropped elsewhere.
-    if (updatedTargetTile.forbiddenItem && this.holdsItem(updatedTargetTile.forbiddenItem)) {
-      this.statusBannerKey = 'hud.messages.forbidden_item';
+    if (!this.canPlayerEnter(updatedTargetTile)) {
+      // A barrier against an item the player carries: solid until the item is dropped elsewhere.
+      if (updatedTargetTile.passableByPlayer) this.statusBannerKey = 'hud.messages.forbidden_item';
       if (!fromSlide) AudioManager.playSfx('blocked');
       return false;
     }
@@ -676,6 +687,15 @@ export class GameEngine {
 
     this.resolvePlayerArrival(dir, true);
     return true;
+  }
+
+  /**
+   * Whether the player may stand on a tile: it must be passable and must not
+   * bar an item they carry. Walking and teleporting share this rule.
+   */
+  private canPlayerEnter(tile: TileDefinition): boolean {
+    if (!tile.passableByPlayer) return false;
+    return !(tile.forbiddenItem && this.holdsItem(tile.forbiddenItem));
   }
 
   /** Applies the terrain change, if any, of a cell the player or a block has just left. */
@@ -781,13 +801,14 @@ export class GameEngine {
   }
 
   /**
-   * Applies a picked up bonus item: points go to the score at once, a
-   * multiplier raises the level score paid at the exit, and a stopwatch moves
-   * the time left (an untimed level stays untimed).
+   * Applies a picked up bonus item: flag points join the level score paid at
+   * the exit (where the multiplier applies to them too), a multiplier raises
+   * that score, and a stopwatch moves the time left (an untimed level stays
+   * untimed).
    */
   private collectBonus(itemDef: TileDefinition): void {
     if (itemDef.scoreBonus) {
-      this.totalScore += itemDef.scoreBonus;
+      this.levelBonusPoints += itemDef.scoreBonus;
       this.statusBannerKey = 'hud.messages.score_bonus_picked';
     }
     if (itemDef.scoreMultiplier) {
@@ -1158,6 +1179,7 @@ export class GameEngine {
     } else if (action === 'toggle_flames') {
       this.swapTerrain((tile) => tile.flameTogglesTo);
       this.burnPlayerIfFlamesLit();
+      this.burnEntitiesOnFire();
     } else if (action === 'reverse_tanks') {
       for (const ent of this.entities) {
         if (ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) {
@@ -1190,6 +1212,30 @@ export class GameEngine {
           this.terrain[y][x] = next;
         }
       }
+    }
+  }
+
+  /**
+   * Applies the fire rule to every entity standing on fire after the jets were
+   * swapped, as if it had just stepped there: a block that fire destroys melts
+   * (leaving what its definition names), a monster that is not immune dies.
+   */
+  private burnEntitiesOnFire(): void {
+    for (const entity of [...this.entities]) {
+      const tile = ConfigRegistry.getTile(this.terrain[entity.y][entity.x]);
+      if (tile.hazard !== 'fire') continue;
+      const def = ConfigRegistry.getEntityDef(entity.type);
+      if (entity.kind === 'block') {
+        if (!def?.destroyedByFire) continue;
+        if (def.meltsInFireTo) {
+          this.terrain[entity.y][entity.x] = def.meltsInFireTo;
+        }
+      } else if (def?.immuneToFire) {
+        continue;
+      }
+      this.removeEntity(entity.uid);
+      AudioManager.playSfx('burn');
+      this.emitVisual('explosion', entity.x, entity.y);
     }
   }
 
@@ -1299,7 +1345,7 @@ export class GameEngine {
         const exitY = candidate.y + vec.dy;
         if (this.isInBounds(exitX, exitY)) {
           const exitTile = ConfigRegistry.getTile(this.terrain[exitY][exitX]);
-          if (exitTile.passableByPlayer && !this.getEntityAt(exitX, exitY)) {
+          if (this.canPlayerEnter(exitTile) && !this.getEntityAt(exitX, exitY)) {
             AudioManager.playSfx('teleport');
             this.player.x = exitX;
             this.player.y = exitY;
@@ -1351,7 +1397,8 @@ export class GameEngine {
     const timeRemaining = this.getTimeRemainingSeconds();
     this.lastTimeBonus = timeRemaining * timing.timeBonusMultiplier;
     this.lastLevelScore =
-      (timing.levelBasePoints * this.level.number + this.lastTimeBonus) * this.levelScoreMultiplier;
+      (timing.levelBasePoints * this.level.number + this.lastTimeBonus + this.levelBonusPoints) *
+      this.levelScoreMultiplier;
     this.totalScore += this.lastLevelScore;
     AudioManager.playSfx('win');
     if (this.onWinCallback) {

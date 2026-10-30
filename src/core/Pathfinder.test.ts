@@ -58,6 +58,25 @@ function engineFor(level: CompiledLevel, boots: string[] = [], keys: Record<stri
   return engine;
 }
 
+describe('Pathfinder.findNextObjective', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('does not point through a barrier against a held item', () => {
+    const level = corridor({ 5: 'forbid_key_red', 8: 'exit' });
+    expect(Pathfinder.findNextObjective(engineFor(level))).toEqual({ x: 8, y: 2 });
+    expect(Pathfinder.findNextObjective(engineFor(level, [], { key_red: 1 }))).toBeNull();
+  });
+
+  it('offers the orange button while a flame jet is lit', () => {
+    const lit = corridor({ 4: 'button_orange', 6: 'flame_jet_on', 8: 'exit' });
+    expect(Pathfinder.findNextObjective(engineFor(lit))).toEqual({ x: 4, y: 2 });
+    const out = corridor({ 4: 'button_orange', 6: 'flame_jet_off', 8: 'exit' });
+    expect(Pathfinder.findNextObjective(engineFor(out))).toEqual({ x: 8, y: 2 });
+  });
+});
+
 describe('Pathfinder.findPath', () => {
   beforeEach(() => {
     loadTestConfigs();

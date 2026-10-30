@@ -33,10 +33,23 @@ versions follow Semantic Versioning.
 - Flame jets: `button_orange` (`buttonAction: "toggle_flames"`) swaps every tile that declares
   `flameTogglesTo`, so `flame_jet_off` and `flame_jet_on` trade places; a lit jet is fire that
   fire boots protect from, and lighting one under the player burns them.
-- Bonus items (`collectible: "bonus"`): `score_10`, `score_100` and `score_1000` add points
-  (`scoreBonus`) when picked up, `score_2x` doubles the level score paid at the exit
-  (`scoreMultiplier`), `stopwatch_bonus` and `stopwatch_penalty` add or take 10 seconds
+- Bonus items (`collectible: "bonus"`): `score_10`, `score_100` and `score_1000` carry points
+  (`scoreBonus`) that join the level score paid at the exit, `score_2x` doubles that level
+  score (`scoreMultiplier`): base points, time bonus and flag points alike, so flags count in
+  the high-score table. `stopwatch_bonus` and `stopwatch_penalty` add or take 10 seconds
   (`timeBonusSeconds`) in timed levels. Undo rolls all of them back.
+- The boots that protect the player on their current cell cannot be dropped there (flippers in
+  water, fire boots on fire, skates on ice, suction boots on a force floor).
+- A teleporter never lands the player on a barrier against an item they carry; such an exit
+  counts as blocked, like an occupied one.
+- Lighting a flame jet under a block or a monster applies the fire rule: an ice block melts into
+  water, a monster that is not immune dies.
+- The level validator models `toggle_flames` buttons (a reachable button puts the jets out) and
+  key thieves (a reachable one takes the keys); the objective locator skips barriers against a
+  held item and offers the orange button while a jet is lit.
+- `.CCL` export reports what the format cannot carry: colour teleporters are written as the
+  plain teleporter, and the other new tiles become floor or are left out, each named in a
+  notice after the download.
 - A hand-made level that exercises every mechanic, `src/test/fixtures/mechanicsShowcase.json`,
   importable as a JSON pack and played through in `MechanicsShowcase.test.ts`; config tests check
   that every new tile resolves and that every tile reference names an existing tile.
@@ -45,7 +58,8 @@ versions follow Semantic Versioning.
 
 - `Tab` now selects the next inventory item; the viewport zoom cycles with `V` and the wheel.
 - The `.DAT` encoder writes floor for a terrain without a byte code and drops an item without
-  one, so a JSON level using the new tiles exports without failing (and without them).
+  one, so a JSON level using the new tiles exports without failing; the export notice lists
+  what was replaced or lost.
 
 ## [2.3.0] - 2026-10-30
 

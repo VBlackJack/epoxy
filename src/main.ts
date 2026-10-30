@@ -58,6 +58,7 @@ import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
 import { preferredScrollBehavior, prefersReducedMotion, replayAnimation } from './ui/motion';
 import { collectDueMoves, sanitizeTimedMoves } from './ui/replaySchedule';
+import { lossyExportNotice } from './ui/exportNotice';
 import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
 import {
   BIOME_ACCENT_CSS_VAR,
@@ -778,10 +779,10 @@ class EpoxyApplication {
   }
 
   private exportActivePack(): void {
-    downloadBytes(
-      DatCodec.encodeLevels(ConfigRegistry.getLevels()),
-      `${ConfigRegistry.getActivePackId()}.ccl`
-    );
+    const encoded = DatCodec.encodeLevelsWithReport(ConfigRegistry.getLevels());
+    downloadBytes(encoded.bytes, `${ConfigRegistry.getActivePackId()}.ccl`);
+    const notice = lossyExportNotice(encoded);
+    if (notice) this.showTransientStatus(notice);
   }
 
   private isRemovablePack(packId: string): boolean {
@@ -2266,18 +2267,30 @@ class EpoxyApplication {
 
   /** The selected item, moved to the first held one when it is no longer held. */
   private resolveSelectedItem(): string | null {
-    const held = this.engine.getHeldItems();
-    if (this.selectedItemId && held.includes(this.selectedItemId)) return this.selectedItemId;
-    this.selectedItemId = held[0] ?? null;
-    return this.selectedItemId;
+    if (this.selectedItemId && this.engine.holdsItem(this.selectedItemId)) return this.selectedItemId;
+    this.selectedItemId = null;
+    for (const id of this.keyIds) {
+      if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
+    }
+    for (const id of this.bootIds) {
+      if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
+    }
+    return null;
   }
 
-  /** Selects the next held item, in inventory order. */
+  /** Selects the next held item, in inventory order (keys, then boots). */
   private cycleSelectedItem(): void {
-    const held = this.engine.getHeldItems();
     const current = this.resolveSelectedItem();
-    if (held.length === 0 || current === null) return;
-    this.selectedItemId = held[(held.indexOf(current) + 1) % held.length];
+    if (current === null) return;
+    const order = [...this.keyIds, ...this.bootIds];
+    const from = order.indexOf(current);
+    for (let step = 1; step <= order.length; step++) {
+      const id = order[(from + step) % order.length];
+      if (this.engine.holdsItem(id)) {
+        this.selectedItemId = id;
+        return;
+      }
+    }
   }
 
   /** Drops the selected item on the player's cell. */

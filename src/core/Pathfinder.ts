@@ -290,11 +290,13 @@ export class Pathfinder {
     let chipCandidate: GridPoint | null = null;
 
     let hasClosedToggleWall = false;
+    let hasLitFlameJet = false;
     const teleporters: GridPoint[] = [];
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
         const tile = ConfigRegistry.getTile(terrain[ty][tx]);
         if (tile.togglesTo && !tile.passableByPlayer) hasClosedToggleWall = true;
+        if (tile.flameTogglesTo && tile.hazard) hasLitFlameJet = true;
         if (tile.isTeleporter) teleporters.push({ x: tx, y: ty });
       }
     }
@@ -313,6 +315,9 @@ export class Pathfinder {
           if (!keyOrBootCandidate) keyOrBootCandidate = curr;
         }
         if (tile.buttonAction === 'toggle_walls' && hasClosedToggleWall && !buttonCandidate) {
+          buttonCandidate = curr;
+        }
+        if (tile.buttonAction === 'toggle_flames' && hasLitFlameJet && !buttonCandidate) {
           buttonCandidate = curr;
         }
         if (
@@ -365,6 +370,7 @@ export class Pathfinder {
         }
 
         if (!nextTile.passableByPlayer) continue;
+        if (nextTile.forbiddenItem && engine.holdsItem(nextTile.forbiddenItem)) continue;
         if (
           nextTile.hazard === 'fire' &&
           (!nextTile.protectedByItem || !player.boots.has(nextTile.protectedByItem))

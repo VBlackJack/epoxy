@@ -53,6 +53,11 @@
       "arctic_synth": { "label": "Track: Arctic Synth" },
       "magma_drive": { "label": "Track: Magma Drive" }
     },
+    "export": {
+      "lossy_replaced": { "label": "Lossy .CCL export: the .DAT format has no code for {tiles}, written as their plain version." },
+      "lossy_lost": { "label": "Lossy .CCL export: the .DAT format has no code for {tiles}, written as floor or left out." },
+      "list_separator": { "label": ", " }
+    },
     "packs": {
       "selector_label": { "label": "Pack:" },
       "selector_option": { "label": "{name} ({count})" },
@@ -195,6 +200,7 @@
       "forbidden_item": { "label": "This barrier refuses the item you carry: drop it first." },
       "drop_cell_occupied": { "label": "Nothing can be dropped here: the cell already holds an item." },
       "drop_nothing": { "label": "Nothing to drop." },
+      "drop_protected": { "label": "These boots keep you safe right here: step off first." },
       "score_bonus_picked": { "label": "Bonus points collected!" },
       "score_multiplier_picked": { "label": "Level score multiplier raised!" },
       "time_bonus_picked": { "label": "Stopwatch: extra time added!" },

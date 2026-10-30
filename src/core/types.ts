@@ -752,6 +752,8 @@ export interface UndoSnapshot {
   totalScore: number;
   /** Seconds gained from stopwatch items, net of penalties. */
   extraTimeSeconds: number;
+  /** Points from bonus flags, paid with the level score at the exit. */
+  levelBonusPoints: number;
   /** Factor applied to the level score at the exit. */
   levelScoreMultiplier: number;
   rngState: number;
