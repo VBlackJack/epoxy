@@ -442,6 +442,10 @@ export interface KeybindingsConfig {
   showSolution?: string[];
   toggleFullscreen?: string[];
   toggleHelp?: string[];
+  /** Drops the selected inventory item on the player's cell. */
+  dropItem?: string[];
+  /** Selects the next held item for dropItem. */
+  cycleItem?: string[];
 }
 
 export interface UltimatePackDescriptor {
@@ -501,16 +505,34 @@ export interface TileDefinition {
   deflectionMap?: Partial<Record<Direction, Direction>>;
   forceDirection?: Direction | 'RANDOM';
   stealsBoots?: boolean;
+  /** Entering the cell empties the player's keys, as stealsBoots empties the boots. */
+  stealsKeys?: boolean;
+  /** Terrain the cell turns into once the player or a block has left it. */
+  transformsToOnLeave?: string;
+  /** Item (a key or boots id) whose holder may not enter the cell; dropped elsewhere, the cell is floor. */
+  forbiddenItem?: string;
   requiredKey?: string;
   consumesKey?: boolean;
   colorKey?: string;
-  collectible?: 'key' | 'chip' | 'boot';
-  buttonAction?: 'toggle_walls' | 'reverse_tanks' | 'hold_trap' | 'trigger_cloner';
+  collectible?: 'key' | 'chip' | 'boot' | 'bonus';
+  /** Points added to the score when the item is picked up. */
+  scoreBonus?: number;
+  /** Factor applied to the level score at the exit when the item is picked up. */
+  scoreMultiplier?: number;
+  /** Seconds added to (or, negative, taken from) the time left when the item is picked up. */
+  timeBonusSeconds?: number;
+  buttonAction?: ButtonAction;
   togglesTo?: string;
+  /** Terrain the cell swaps to when a toggle_flames button is pressed. */
+  flameTogglesTo?: string;
   isTeleporter?: boolean;
+  /** Teleporters chain only within their group; ungrouped teleporters form one network. */
+  teleportGroup?: string;
   isTrap?: boolean;
   isCloneMachine?: boolean;
 }
+
+export type ButtonAction = 'toggle_walls' | 'reverse_tanks' | 'hold_trap' | 'trigger_cloner' | 'toggle_flames';
 
 export interface TilesConfig {
   categories: Array<{ id: string; i18nKey: string }>;
@@ -717,10 +739,14 @@ export interface PlayerState {
   boots: Set<string>;
 }
 
-/** A player move stamped with the engine tick at which it was applied. */
+/**
+ * A player action stamped with the engine tick at which it was applied: a move
+ * in `dir`, or, when `drop` names an item, that item dropped on the player's cell.
+ */
 export interface TimedMove {
   tick: number;
   dir: Direction;
+  drop?: string;
 }
 
 export interface UndoSnapshot {
@@ -743,6 +769,12 @@ export interface UndoSnapshot {
   ticksElapsed: number;
   stepsCount: number;
   totalScore: number;
+  /** Seconds gained from stopwatch items, net of penalties. */
+  extraTimeSeconds: number;
+  /** Points from bonus flags, paid with the level score at the exit. */
+  levelBonusPoints: number;
+  /** Factor applied to the level score at the exit. */
+  levelScoreMultiplier: number;
   rngState: number;
   nextEntityUid: number;
   moveHistoryLength: number;

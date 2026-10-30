@@ -5,6 +5,62 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Inventory drop and selection. `E` or `X` (`keybindings.dropItem`) puts the selected key or
+  pair of boots down on the player's cell when it holds no item; `C` or `Tab`
+  (`keybindings.cycleItem`) selects the next held item, shown with an outline on its HUD slot,
+  and a click on an owned slot drops that item. A dropped item is not picked up again until the
+  player leaves the cell and comes back, since pickups only happen on arrival. Drops are
+  recorded in the timed move history (`TimedMove.drop`), so high-score replays include them.
+- Forbidden-item barriers (`TileDefinition.forbiddenItem`): `forbid_key_red`,
+  `forbid_key_blue`, `forbid_key_yellow`, `forbid_key_green`, `forbid_boots_ice`,
+  `forbid_boots_water`, `forbid_boots_fire` and `forbid_boots_force` refuse the player while
+  they carry the named item and behave as floor otherwise. Drawn as the item's icon under a
+  red crossed ring. The pathfinder treats them as walls while the item is held.
+- Key thief (`stealsKeys`, tile `thief_keys`): entering it empties the player's keys, as the
+  boot thief empties the boots.
+- Transform on leave (`transformsToOnLeave`) and the `turtle` tile: a cell the player or a
+  block has left turns into the named terrain, so a turtle sinks into water behind whoever
+  crossed it.
+- Every thin-wall combination: `thin_wall_ne`, `thin_wall_nw`, `thin_wall_sw`, `thin_wall_ns`,
+  `thin_wall_ew`, `thin_wall_nes`, `thin_wall_new`, `thin_wall_nsw`, `thin_wall_esw` and
+  `thin_wall_nesw` join the five existing panels; both renderers draw one bar per blocked edge
+  read from `blockedEdges`.
+- Colour teleporters (`teleportGroup`): `teleport_red`, `teleport_blue`, `teleport_yellow` and
+  `teleport_green` chain only with teleporters of their own colour; the plain `teleport` keeps
+  its single network. The pathfinder and the validator follow the same groups.
+- Flame jets: `button_orange` (`buttonAction: "toggle_flames"`) swaps every tile that declares
+  `flameTogglesTo`, so `flame_jet_off` and `flame_jet_on` trade places; a lit jet is fire that
+  fire boots protect from, and lighting one under the player burns them.
+- Bonus items (`collectible: "bonus"`): `score_10`, `score_100` and `score_1000` carry points
+  (`scoreBonus`) that join the level score paid at the exit, `score_2x` doubles that level
+  score (`scoreMultiplier`): base points, time bonus and flag points alike, so flags count in
+  the high-score table. `stopwatch_bonus` and `stopwatch_penalty` add or take 10 seconds
+  (`timeBonusSeconds`) in timed levels. Undo rolls all of them back.
+- The boots that protect the player on their current cell cannot be dropped there (flippers in
+  water, fire boots on fire, skates on ice, suction boots on a force floor).
+- A teleporter never lands the player on a barrier against an item they carry; such an exit
+  counts as blocked, like an occupied one.
+- Lighting a flame jet under a block or a monster applies the fire rule: an ice block melts into
+  water, a monster that is not immune dies.
+- The level validator models `toggle_flames` buttons (a reachable button puts the jets out) and
+  key thieves (a reachable one takes the keys); the objective locator skips barriers against a
+  held item and offers the orange button while a jet is lit.
+- `.CCL` export reports what the format cannot carry: colour teleporters are written as the
+  plain teleporter, and the other new tiles become floor or are left out, each named in a
+  notice after the download.
+- A hand-made level that exercises every mechanic, `src/test/fixtures/mechanicsShowcase.json`,
+  importable as a JSON pack and played through in `MechanicsShowcase.test.ts`; config tests check
+  that every new tile resolves and that every tile reference names an existing tile.
+
+### Changed
+
+- `Tab` now selects the next inventory item; the viewport zoom cycles with `V` and the wheel.
+- The `.DAT` encoder writes floor for a terrain without a byte code and drops an item without
+  one, so a JSON level using the new tiles exports without failing; the export notice lists
+  what was replaced or lost.
+
 ### Changed
 
 - The hub region of an endless level scales with the area its puzzles leave free. The drawn

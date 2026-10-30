@@ -76,6 +76,15 @@ const REPLACEMENT_CHAR_CODE = 0x3f;
 
 const FALLBACK_ELEMENT: DatElementMapping = { kind: 'terrain', id: FLOOR_TILE_ID };
 
+/** Outcome of a .DAT encoding: the bytes and the tile ids the format could not carry. */
+export interface DatEncodeResult {
+  bytes: Uint8Array;
+  /** Tiles written as their nearest coded tile. */
+  replaced: string[];
+  /** Tiles written as floor or left out. */
+  lost: string[];
+}
+
 export class DatCodec {
   /**
    * Decodes a .DAT / .CCL pack. The header must be valid, but a malformed
@@ -378,8 +387,20 @@ export class DatCodec {
   }
 
   public static encodeLevels(levels: CompiledLevel[]): Uint8Array {
+    return this.encodeLevelsWithReport(levels).bytes;
+  }
+
+  /**
+   * Encodes the levels and reports what the format could not carry: a tile
+   * without a byte code is `replaced` by its nearest coded tile (a colour
+   * teleporter becomes the plain one) or, failing that, `lost` (terrain
+   * written as floor, item left out). The lists hold tile ids, each once.
+   */
+  public static encodeLevelsWithReport(levels: CompiledLevel[]): DatEncodeResult {
     const datCfg = ConfigRegistry.getDatFormat();
     const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    const replaced = new Set<string>();
+    const lost = new Set<string>();
 
     // Build reverse lookup maps
     const terrainToByte = new Map<string, number>();
@@ -405,6 +426,35 @@ export class DatCodec {
     const floorByte = terrainToByte.get(FLOOR_TILE_ID) ?? 0;
     const cellCount = Math.min(datCfg.layerByteLength, mapWidth * mapHeight);
 
+    /** Byte of a coded terrain that plays the same part as an uncoded one, if any. */
+    const substituteTerrainByte = (tileId: string): number | undefined => {
+      const tile = ConfigRegistry.getTile(tileId);
+      if (tile.id !== tileId) return undefined;
+      for (const [codedId, code] of terrainToByte) {
+        const coded = ConfigRegistry.getTile(codedId);
+        if (tile.isTeleporter && coded.isTeleporter && !coded.teleportGroup) return code;
+      }
+      return undefined;
+    };
+    const terrainByte = (tileId: string | undefined): number => {
+      if (tileId === undefined) return floorByte;
+      const code = terrainToByte.get(tileId);
+      if (code !== undefined) return code;
+      const substitute = substituteTerrainByte(tileId);
+      if (substitute !== undefined) {
+        replaced.add(tileId);
+        return substitute;
+      }
+      lost.add(tileId);
+      return floorByte;
+    };
+    const itemByte = (itemId: string | null | undefined): number | null => {
+      if (!itemId) return null;
+      const code = itemToByte.get(itemId);
+      if (code === undefined) lost.add(itemId);
+      return code ?? null;
+    };
+
     const encodedLevelBlocks: Uint8Array[] = [];
 
     for (let idx = 0; idx < levels.length; idx++) {
@@ -420,9 +470,8 @@ export class DatCodec {
       for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
         const x = cellIdx % mapWidth;
         const y = Math.floor(cellIdx / mapWidth);
-        const tCode = terrainToByte.get(lvl.terrain[y]?.[x]) ?? floorByte;
-        const itemId = lvl.items[y]?.[x];
-        const iCode = itemId ? (itemToByte.get(itemId) ?? null) : null;
+        const tCode = terrainByte(lvl.terrain[y]?.[x]);
+        const iCode = itemByte(lvl.items[y]?.[x]);
         const ent = entByCoord.get(`${x},${y}`);
         const eCode = ent
           ? (entityDirToByte.get(`${ent.type}:${ent.dir}`) ??
@@ -501,7 +550,7 @@ export class DatCodec {
       writePos += b.length;
     }
 
-    return out;
+    return { bytes: out, replaced: [...replaced], lost: [...lost] };
   }
 
   private static compressLayer(raw: Uint8Array, rleMarker: number): Uint8Array {

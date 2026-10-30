@@ -125,6 +125,106 @@
       "passableByBlock": true,
       "blockedEdges": ["S", "E"]
     },
+    "thin_wall_ne": {
+      "id": "thin_wall_ne",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_ne.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "E"]
+    },
+    "thin_wall_nw": {
+      "id": "thin_wall_nw",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_nw.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "W"]
+    },
+    "thin_wall_sw": {
+      "id": "thin_wall_sw",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_sw.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["S", "W"]
+    },
+    "thin_wall_ns": {
+      "id": "thin_wall_ns",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_ns.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "S"]
+    },
+    "thin_wall_ew": {
+      "id": "thin_wall_ew",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_ew.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["E", "W"]
+    },
+    "thin_wall_nes": {
+      "id": "thin_wall_nes",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_nes.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "E", "S"]
+    },
+    "thin_wall_new": {
+      "id": "thin_wall_new",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_new.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "E", "W"]
+    },
+    "thin_wall_nsw": {
+      "id": "thin_wall_nsw",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_nsw.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "S", "W"]
+    },
+    "thin_wall_esw": {
+      "id": "thin_wall_esw",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_esw.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["E", "S", "W"]
+    },
+    "thin_wall_nesw": {
+      "id": "thin_wall_nesw",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.thin_wall_nesw.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "E", "S", "W"]
+    },
     "dirt": {
       "id": "dirt",
       "category": "terrain",
@@ -143,6 +243,16 @@
       "passableByPlayer": true,
       "passableByMonster": false,
       "passableByBlock": true
+    },
+    "turtle": {
+      "id": "turtle",
+      "category": "hazards",
+      "layer": "terrain",
+      "i18nKey": "tiles.turtle.name",
+      "passableByPlayer": true,
+      "passableByMonster": false,
+      "passableByBlock": true,
+      "transformsToOnLeave": "water"
     },
     "socket": {
       "id": "socket",
@@ -331,6 +441,96 @@
       "passableByBlock": false,
       "stealsBoots": true
     },
+    "thief_keys": {
+      "id": "thief_keys",
+      "category": "hazards",
+      "layer": "terrain",
+      "i18nKey": "tiles.thief_keys.name",
+      "passableByPlayer": true,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "stealsKeys": true
+    },
+    "forbid_key_red": {
+      "id": "forbid_key_red",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_key_red.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "key_red"
+    },
+    "forbid_key_blue": {
+      "id": "forbid_key_blue",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_key_blue.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "key_blue"
+    },
+    "forbid_key_yellow": {
+      "id": "forbid_key_yellow",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_key_yellow.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "key_yellow"
+    },
+    "forbid_key_green": {
+      "id": "forbid_key_green",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_key_green.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "key_green"
+    },
+    "forbid_boots_ice": {
+      "id": "forbid_boots_ice",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_boots_ice.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "boots_ice"
+    },
+    "forbid_boots_water": {
+      "id": "forbid_boots_water",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_boots_water.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "boots_water"
+    },
+    "forbid_boots_fire": {
+      "id": "forbid_boots_fire",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_boots_fire.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "boots_fire"
+    },
+    "forbid_boots_force": {
+      "id": "forbid_boots_force",
+      "category": "doors_keys",
+      "layer": "terrain",
+      "i18nKey": "tiles.forbid_boots_force.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "forbiddenItem": "boots_force"
+    },
     "door_red": {
       "id": "door_red",
       "category": "doors_keys",
@@ -457,6 +657,54 @@
       "i18nKey": "tiles.bomb.name",
       "hazard": "bomb"
     },
+    "score_10": {
+      "id": "score_10",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.score_10.name",
+      "collectible": "bonus",
+      "scoreBonus": 10
+    },
+    "score_100": {
+      "id": "score_100",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.score_100.name",
+      "collectible": "bonus",
+      "scoreBonus": 100
+    },
+    "score_1000": {
+      "id": "score_1000",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.score_1000.name",
+      "collectible": "bonus",
+      "scoreBonus": 1000
+    },
+    "score_2x": {
+      "id": "score_2x",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.score_2x.name",
+      "collectible": "bonus",
+      "scoreMultiplier": 2
+    },
+    "stopwatch_bonus": {
+      "id": "stopwatch_bonus",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.stopwatch_bonus.name",
+      "collectible": "bonus",
+      "timeBonusSeconds": 10
+    },
+    "stopwatch_penalty": {
+      "id": "stopwatch_penalty",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.stopwatch_penalty.name",
+      "collectible": "bonus",
+      "timeBonusSeconds": -10
+    },
     "button_green": {
       "id": "button_green",
       "category": "mechanisms",
@@ -497,6 +745,38 @@
       "passableByBlock": true,
       "buttonAction": "trigger_cloner"
     },
+    "button_orange": {
+      "id": "button_orange",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.button_orange.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "buttonAction": "toggle_flames"
+    },
+    "flame_jet_off": {
+      "id": "flame_jet_off",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.flame_jet_off.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "flameTogglesTo": "flame_jet_on"
+    },
+    "flame_jet_on": {
+      "id": "flame_jet_on",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.flame_jet_on.name",
+      "passableByPlayer": true,
+      "passableByMonster": false,
+      "passableByBlock": true,
+      "hazard": "fire",
+      "protectedByItem": "boots_fire",
+      "flameTogglesTo": "flame_jet_off"
+    },
     "toggle_wall_closed": {
       "id": "toggle_wall_closed",
       "category": "mechanisms",
@@ -526,6 +806,54 @@
       "passableByMonster": true,
       "passableByBlock": true,
       "isTeleporter": true
+    },
+    "teleport_red": {
+      "id": "teleport_red",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_red.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "red",
+      "colorKey": "red"
+    },
+    "teleport_blue": {
+      "id": "teleport_blue",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_blue.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "blue",
+      "colorKey": "blue"
+    },
+    "teleport_yellow": {
+      "id": "teleport_yellow",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_yellow.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "yellow",
+      "colorKey": "yellow"
+    },
+    "teleport_green": {
+      "id": "teleport_green",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_green.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "green",
+      "colorKey": "green"
     },
     "trap": {
       "id": "trap",
