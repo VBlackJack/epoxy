@@ -192,6 +192,11 @@ export class Pathfinder {
           continue;
         }
 
+        // A closed trap holds whoever enters it: fine as the final cell, never as a way through
+        if (!isTarget && engine.isCellClosedTrap(nx, ny)) {
+          continue;
+        }
+
         let keysUsed = curr.keysUsed;
         if (nextTile.requiredKey) {
           const keyId = nextTile.requiredKey;

@@ -116,6 +116,13 @@ describe('Pathfinder.findPath', () => {
     expect(Pathfinder.findPath(engineFor(level, [], { key_red: 2 }), 8, 2).moves).toHaveLength(6);
   });
 
+  it('ends on a closed trap but never routes through one', () => {
+    const engine = engineFor(corridor({ 4: 'trap' }));
+    expect(engine.isCellClosedTrap(4, 2)).toBe(true);
+    expect(Pathfinder.findPath(engine, 6, 2).moves).toEqual([]);
+    expect(Pathfinder.findPath(engine, 4, 2).moves).toEqual(['E', 'E']);
+  });
+
   it('reuses a key that is not consumed', () => {
     const level = corridor({ 4: 'door_green', 6: 'door_green' });
     expect(Pathfinder.findPath(engineFor(level, [], { key_green: 1 }), 8, 2).moves).toHaveLength(6);
