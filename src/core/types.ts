@@ -482,6 +482,14 @@ export interface TouchConfig {
   hapticPulseMs: number;
 }
 
+/** Layout counts the block puzzle solver may visit before giving up without a verdict. */
+export interface BlockPuzzleConfig {
+  /** Budget of the dead-end watch that runs by itself after every block move. */
+  watchSearchBudget: number;
+  /** Larger budget of a hint or a dead-end check the player asks for. */
+  hintSearchBudget: number;
+}
+
 export interface GameConfig {
   grid: GridConfig;
   graphics?: GraphicsConfig;
@@ -489,6 +497,7 @@ export interface GameConfig {
   procedural?: ProceduralConfig;
   endlessUi?: EndlessUiConfig;
   touch?: TouchConfig;
+  blockPuzzle: BlockPuzzleConfig;
   ultimatePacks?: UltimatePackDescriptor[];
   timing: TimingConfig;
   storage: StorageConfig;
@@ -564,12 +573,12 @@ export interface EntityDefinition {
   kind: 'block' | 'monster';
   i18nKey: string;
   pushable?: boolean;
-  slidesOnFloor?: boolean;
   slidesOnIce?: boolean;
   slidesOnForce?: boolean;
   waterTransformsTo?: string;
   meltsInFireTo?: string;
   destroyedByFire?: boolean;
+  /** Whether a bomb on the cell the block enters destroys both. */
   destroyedByBomb?: boolean;
   moveIntervalTicks?: number;
   movementPattern?: string;
