@@ -46,7 +46,7 @@ import {
   TerrainSnapshot,
   teleportGroupKey
 } from './terrainState';
-import { FrameGeometry, pointToGrid } from './viewMapping';
+import { cameraPosition, FrameGeometry, pointToGrid } from './viewMapping';
 import { Light, LightingLayer } from './LightingLayer';
 import { iceBendGeometry, IceBendGeometry, QUARTER_TURN } from './iceBend';
 import { cellHash, hasAll, ISOLATED_TILE, NEIGHBOUR, TileNeighbours, tileNeighbours } from './tileNeighbours';
@@ -575,8 +575,9 @@ export class PixelRenderer {
     const baseTiles = this.visualViewportTiles;
     const minSide = Math.max(1, Math.min(canvasWidth, canvasHeight));
     const tilePixelSize = minSide / baseTiles;
-    const viewportWidth = Math.min(mapWidth, canvasWidth / tilePixelSize);
-    const viewportHeight = Math.min(mapHeight, canvasHeight / tilePixelSize);
+    // Tiles across the canvas; a map smaller than this is centred by the camera.
+    const viewportWidth = canvasWidth / tilePixelSize;
+    const viewportHeight = canvasHeight / tilePixelSize;
     this.lastViewportWidth = viewportWidth;
     this.lastViewportHeight = viewportHeight;
     const player = engine.getPlayer();
@@ -605,13 +606,13 @@ export class PixelRenderer {
 
     const halfW = viewportWidth / 2 - 0.5;
     const halfH = viewportHeight / 2 - 0.5;
-    const targetCamX = Math.max(0, Math.min(mapWidth - viewportWidth, this.visualPlayerPos.x - halfW));
-    const targetCamY = Math.max(0, Math.min(mapHeight - viewportHeight, this.visualPlayerPos.y - halfH));
+    const targetCamX = cameraPosition(this.visualPlayerPos.x - halfW, mapWidth, viewportWidth);
+    const targetCamY = cameraPosition(this.visualPlayerPos.y - halfH, mapHeight, viewportHeight);
 
     if (!this.visualCameraPos || !isModern) {
       this.visualCameraPos = {
-        x: Math.max(0, Math.min(mapWidth - viewportWidth, player.x - Math.floor(viewportWidth / 2))),
-        y: Math.max(0, Math.min(mapHeight - viewportHeight, player.y - Math.floor(viewportHeight / 2)))
+        x: cameraPosition(player.x - Math.floor(viewportWidth / 2), mapWidth, viewportWidth),
+        y: cameraPosition(player.y - Math.floor(viewportHeight / 2), mapHeight, viewportHeight)
       };
     } else {
       this.visualCameraPos.x += (targetCamX - this.visualCameraPos.x) * camLerp;
@@ -1252,18 +1253,21 @@ export class PixelRenderer {
 
     // Show the frame the main view actually displays; compute it only before the first render.
     const camX =
-      this.visualCameraPos?.x ??
-      Math.max(0, Math.min(mapWidth - viewportWidth, player.x - Math.floor(viewportWidth / 2)));
+      this.visualCameraPos?.x ?? cameraPosition(player.x - Math.floor(viewportWidth / 2), mapWidth, viewportWidth);
     const camY =
-      this.visualCameraPos?.y ??
-      Math.max(0, Math.min(mapHeight - viewportHeight, player.y - Math.floor(viewportHeight / 2)));
+      this.visualCameraPos?.y ?? cameraPosition(player.y - Math.floor(viewportHeight / 2), mapHeight, viewportHeight);
+    // A map smaller than the view is centred, so the frame is cut to the map.
+    const frameX0 = Math.max(0, camX);
+    const frameY0 = Math.max(0, camY);
+    const frameX1 = Math.min(mapWidth, camX + viewportWidth);
+    const frameY1 = Math.min(mapHeight, camY + viewportHeight);
     ctx.strokeStyle = pal.minimapViewport;
     ctx.lineWidth = 1;
     ctx.strokeRect(
-      camX * cellPx + 0.5,
-      camY * cellPx + 0.5,
-      viewportWidth * cellPx - 1,
-      viewportHeight * cellPx - 1
+      frameX0 * cellPx + 0.5,
+      frameY0 * cellPx + 0.5,
+      (frameX1 - frameX0) * cellPx - 1,
+      (frameY1 - frameY0) * cellPx - 1
     );
   }
 

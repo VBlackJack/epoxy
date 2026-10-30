@@ -17,7 +17,7 @@
     "report:study": "vitest run --config vitest.report.config.ts tools/communityStudy.report.ts",
     "report:dependencies": "vitest run --config vitest.report.config.ts tools/dependencyStudy.report.ts",
     "mine:pieces": "vitest run --config vitest.report.config.ts tools/pieceMiner.report.ts",
-    "build:campaign": "vitest run --config vitest.report.config.ts tools/campaignBuilder.report.ts",
+    "route:campaign": "vitest run --config vitest.report.config.ts tools/campaignRoute.report.ts",
     "forge:sokoban": "vitest run --config vitest.report.config.ts tools/sokobanForge.report.ts",
     "import:sokoban": "vitest run --config vitest.report.config.ts tools/sokobanImport.report.ts",
     "annotate:pieces": "vitest run --config vitest.report.config.ts tools/annotatePieces.report.ts",

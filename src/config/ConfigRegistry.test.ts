@@ -50,9 +50,21 @@ describe('ConfigRegistry.compileBlueprint', () => {
   it('compiles every shipped campaign level', () => {
     const campaign = ConfigRegistry.getLevels();
     expect(campaign.length).toBeGreaterThan(0);
+    const { minLevelSize, maxLevelSize } = ConfigRegistry.getGame().grid;
     for (const level of campaign) {
-      expect(level.terrain.length).toBe(ConfigRegistry.getGame().grid.mapHeight);
+      expect(level.terrain.length, level.id).toBeGreaterThanOrEqual(minLevelSize);
+      expect(level.terrain.length, level.id).toBeLessThanOrEqual(maxLevelSize);
+      expect(level.terrain[0].length, level.id).toBeGreaterThanOrEqual(minLevelSize);
+      expect(level.terrain[0].length, level.id).toBeLessThanOrEqual(maxLevelSize);
+      expect(level.terrain.every((row) => row.length === level.terrain[0].length), level.id).toBe(true);
     }
+  });
+
+  it('gives every campaign level its own id, number and password, numbered 1 to N', () => {
+    const campaign = ConfigRegistry.getLevels();
+    expect(new Set(campaign.map((l) => l.id)).size).toBe(campaign.length);
+    expect(new Set(campaign.map((l) => l.password)).size).toBe(campaign.length);
+    expect(campaign.map((l) => l.number)).toEqual(campaign.map((_, index) => index + 1));
   });
 
   it('rejects a level without a player start', () => {

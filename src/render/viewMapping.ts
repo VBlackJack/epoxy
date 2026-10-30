@@ -30,10 +30,19 @@ export interface FrameGeometry {
 
 /**
  * Canvas pixel at which a grid coordinate is drawn. The renderer draws every tile with this
- * mapping, and pointToGrid inverts it, so a future centring offset changes only this function.
+ * mapping, and pointToGrid inverts it, so camera offsets, including the centring of small maps, go through this function.
  */
 export function gridToCanvas(gridCoord: number, cam: number, tilePixelSize: number): number {
   return (gridCoord - cam) * tilePixelSize;
+}
+
+/**
+ * Camera coordinate (the grid coordinate of the canvas edge) for a wanted one: kept inside the
+ * map, or, when the map is no larger than the view, negative so the map sits centred in it.
+ */
+export function cameraPosition(wanted: number, mapSize: number, viewSize: number): number {
+  if (mapSize <= viewSize) return (mapSize - viewSize) / 2;
+  return Math.max(0, Math.min(mapSize - viewSize, wanted));
 }
 
 /** Inverse of gridToCanvas, in grid coordinates (not floored). */

@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { OPPOSITE_DIRECTION } from '../core/coreConstants';
-import { CompiledLevel, Direction, GridPoint } from '../core/types';
+import { CompiledLevel, Direction, GridPoint, TileDefinition } from '../core/types';
 import { isPlayerWalkable } from '../core/Walkability';
 import { Box } from './LevelAssembler';
 
@@ -83,4 +83,85 @@ export function cellReachableWithout(level: CompiledLevel, walled: Box, target: 
     }
   }
   return false;
+}
+
+/** Teleporters outside any group form one network, as in the engine. */
+const DEFAULT_TELEPORT_GROUP = '';
+
+/** Hazards that end the game on contact, the ones boots keep the player alive across. */
+const DEADLY_HAZARDS: ReadonlySet<string> = new Set(['water', 'fire']);
+
+/** Whether the level can ever hold a pushable block: placed, or cloned from a template. */
+function levelHasBlocks(level: CompiledLevel): boolean {
+  const isBlock = (type: string): boolean => ConfigRegistry.getEntityDef(type)?.kind === 'block';
+  return level.entities.some((e) => isBlock(e.type)) || level.cloneLinks.some((l) => isBlock(l.templateType));
+}
+
+/**
+ * Whether an exit stays reachable from the start with `itemId` out of the
+ * player's reach: every tile is open except solid ones, the doors that item
+ * unlocks, and the water or fire that only those boots cross. Teleporters
+ * join the others of their group. Sockets open only once enough chips lie in
+ * the reachable area. This over-approximates what the player can do
+ * (monsters, ice and force floors are ignored, a block may fill water, a
+ * flame jet may switch off), so `false` is a proof that the item is needed,
+ * while `true` proves nothing.
+ */
+export function exitReachableWithout(level: CompiledLevel, itemId: string): boolean {
+  const beforeSockets = floodWithout(level, itemId, false);
+  if (beforeSockets.exit) return true;
+  if (beforeSockets.chips < level.chipsRequired) return false;
+  return floodWithout(level, itemId, true).exit;
+}
+
+function floodWithout(level: CompiledLevel, itemId: string, socketsOpen: boolean): { exit: boolean; chips: number } {
+  const height = level.terrain.length;
+  const width = level.terrain[0].length;
+  const blocks = levelHasBlocks(level);
+  const closedByItem = (tile: TileDefinition): boolean => {
+    if (tile.requiredKey === itemId) return true;
+    if (!tile.hazard || !DEADLY_HAZARDS.has(tile.hazard) || tile.protectedByItem !== itemId) return false;
+    return !tile.flameTogglesTo && !(blocks && tile.blockTransformsTo);
+  };
+  const open = (x: number, y: number): boolean => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return false;
+    const tile = ConfigRegistry.getTile(level.terrain[y][x]);
+    if (tile.requiresAllChips) return socketsOpen;
+    if (!isPlayerWalkable(tile) && !tile.revealsToOnTouch) return false;
+    return !closedByItem(tile);
+  };
+
+  const teleportersByGroup = new Map<string, GridPoint[]>();
+  level.terrain.forEach((row, y) =>
+    row.forEach((id, x) => {
+      const tile = ConfigRegistry.getTile(id);
+      if (!tile.isTeleporter || !open(x, y)) return;
+      const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
+      teleportersByGroup.set(group, [...(teleportersByGroup.get(group) ?? []), { x, y }]);
+    })
+  );
+
+  const seen = new Set<number>([level.playerStart.y * width + level.playerStart.x]);
+  const queue: GridPoint[] = [level.playerStart];
+  let chips = 0;
+  for (let i = 0; i < queue.length; i++) {
+    const cell = queue[i];
+    const tile = ConfigRegistry.getTile(level.terrain[cell.y][cell.x]);
+    if (tile.isLevelExit) return { exit: true, chips };
+    const item = level.items[cell.y][cell.x];
+    if (item && ConfigRegistry.getTile(item).collectible === 'chip') chips++;
+    const next = ORDERED_DIRECTIONS.map((d) => ({
+      x: cell.x + DIRECTION_VECTORS[d].dx,
+      y: cell.y + DIRECTION_VECTORS[d].dy
+    }));
+    if (tile.isTeleporter) next.push(...(teleportersByGroup.get(tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP) ?? []));
+    for (const n of next) {
+      const k = n.y * width + n.x;
+      if (!seen.has(k) && open(n.x, n.y)) {
+        seen.add(k);
+        queue.push(n);
+      }
+    }
+  }
+  return { exit: false, chips };
 }

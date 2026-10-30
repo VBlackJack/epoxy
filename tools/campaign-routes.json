@@ -1,0 +1,100 @@
+{
+  "levels": {
+    "epoxy_c_1": {
+      "segments": [
+        "NWNNWWWWNNNNSSSSEESSWWSSEESSEEEEEENNEENNNNNNNNWWSSWWSS"
+      ]
+    },
+    "epoxy_c_2": {
+      "segments": [
+        "WWWWEEENNNWWWNWWEESEEEEEEEENEESWWWWSWSSEEEEESSSWWNSSWWNEEEENNNWWWWWWWWWWWWSSSEENEESSNWWWWNNNEEEEEESS"
+      ],
+      "requires": [
+        "key_red",
+        "key_green"
+      ]
+    },
+    "epoxy_c_3": {
+      "segments": [
+        "EESSSWWWNNNNNEEESSEEEENEEEEWWSSSSSWNNNNWNEEEEEENSSSSSSSSS"
+      ]
+    },
+    "epoxy_c_4": {
+      "segments": [
+        "NNNWSSSSSSEEEESSWWWWEEEENNNNEENENNEEENEESSSWSSSSSSS"
+      ],
+      "requires": [
+        "boots_water",
+        "boots_fire"
+      ]
+    },
+    "epoxy_c_5": {
+      "segments": [
+        "NNEEESENWSSSWWSENNNNWESSSSSSSS"
+      ]
+    },
+    "epoxy_c_6": {
+      "segments": [
+        "NNNWEESENESSESSSWWWNWWWSWWWWWWWSSS"
+      ],
+      "requires": [
+        "key_red"
+      ]
+    },
+    "epoxy_c_7": {
+      "segments": [
+        "NWWWWWNNNNWESSSSEEEESNENNNNSWEEEEENEESSWSSSWWWWWSS"
+      ]
+    },
+    "epoxy_c_8": {
+      "segments": [
+        "ESSSESSNNEEEEENNNWNNEESSSEEENNNSSSSSWSSS"
+      ]
+    },
+    "epoxy_c_9": {
+      "segments": [
+        "ENWNEEEEEEEWWWWWWWSSSSSWSEEEEEEEEWWWWWWSSENWNEEEEEEEEENESWWWWWWWWNNNNNNNNSSEEEEEEEENWESWWWWWWWWSSSSSSEEEEEEEESSS"
+      ]
+    },
+    "epoxy_c_10": {
+      "segments": [
+        "EENNEEEWWWSENNEEEWWWSSSSSENNEESSWS"
+      ]
+    },
+    "epoxy_c_11": {
+      "segments": [
+        "@3,9",
+        "@5,9",
+        "@5,7",
+        "@5,6",
+        "@6,9",
+        "WNNNNNNNEE",
+        "SS",
+        "@8,5",
+        "WW",
+        "@5,4",
+        "SSSS",
+        "@4,9",
+        "EE",
+        "@7,8",
+        "S",
+        "@9,9",
+        "@12,5",
+        "@13,1",
+        "@1,1",
+        "@2,5",
+        "@7,9",
+        "SSS"
+      ]
+    },
+    "epoxy_c_12": {
+      "segments": [
+        "EENNSEEESNEENESSSSSSSWENNWSESWWWWEEEENNWWWNNWWWSENEENNNNNNNN"
+      ],
+      "requires": [
+        "key_red",
+        "key_blue"
+      ]
+    }
+  }
+}

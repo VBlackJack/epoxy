@@ -3,6 +3,37 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- The Epoxy campaign is rewritten by hand, in chapters of six levels built around one idea each.
+  Chapters 1 (Foundations) and 2 (Mechanisms) are in: chips and sockets, keys, blocks and water,
+  boots, ice, force floors, toggle walls, traps, bombs, colour teleporters, thin walls and dirt.
+- Campaign levels have new ids (`epoxy_c_<n>`), so campaign records and medals start over. Old
+  records stay stored under the old ids and are never replayed on the new maps.
+- Maps smaller than the view are drawn centred instead of in the top-left corner.
+
+### Added
+
+- `npm run route:campaign` expands each level's route in `tools/campaign-routes.json` (explicit
+  moves and `@x,y` steps found by a search in the real engine) into the solution kept in
+  `levels.json`.
+- Design tests for the campaign: every required item is needed to reach the exit, every tile,
+  item and entity first appears where `tools/campaign-rhythm.json` says, timer margins, hint
+  tiles, texts in both languages, chapters.
+- Tests that campaign ids, numbers and passwords are unique, and that level sizes stay within
+  `grid.minLevelSize` and `grid.maxLevelSize`.
+
+### Fixed
+
+- Four campaign passwords were shared by two levels each, so five levels could not be reached by
+  password.
+
+### Removed
+
+- `tools/campaign-script.json` and `npm run build:campaign`: the campaign is no longer generated.
+
 ## [2.6.0] - 2026-10-30
 
 ### Added

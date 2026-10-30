@@ -9,7 +9,7 @@
 ## Features
 
 - **Hundreds of Levels Included**:
-  - **Epoxy Campaign**: 20 Epoxy levels, scripted in `tools/campaign-script.json` and each proven solvable: they teach one mechanic at a time, open into hubs with locked wings from level 3, and bring in Sokoban-style block rooms from level 13.
+  - **Epoxy Campaign**: hand-written levels in chapters of six, each built around one idea and proven solvable by replaying its recorded solution in the game engine. They teach one mechanic per level, from chips, keys and boots to toggle walls, traps, bombs and colour teleporters, and each chapter ends with a level that combines them.
   - **Bundled Community Packs**: `Tile World Intro` and `CCLP 1` through `CCLP 5` (see [Credits](#credits)).
   - **`.DAT` / `.CCL` / `.JSON` Support**: Import and export level packs in the widely used CC1 `.DAT` binary format via drag-and-drop. Packs you own can be imported this way. Files larger than `import.maxFileBytes` (4 MiB) are refused before they are read. On export, a level smaller than the 32x32 format is closed with wall, and a level that does not fit is left out with a message instead of being written wrongly.
   - **Levels of any size**: a `.json` level or custom pack sets its own width and height, from a 10x10 room to a 40x40 or 100x100 level (`grid.minLevelSize` to `grid.maxLevelSize` in `game.json`); the camera, the radar and the editor follow the level. The `.DAT` format and the procedural generator keep the classic 32x32 (`grid.mapWidth` / `grid.mapHeight`).
@@ -52,7 +52,7 @@ A `.json` level is a blueprint: `terrain` (a grid of tile ids) or `rows` (legend
 
 Generator difficulty is derived from a profile (`src/generator/DifficultyProfile.ts`): `profileFor('pack' | 'endless', levelNumber, cfg)` gives the piece count, motif count, hardest tier, layout, timer and target length. Packs follow the learning curve of `procedural`; the endless mode follows `procedural.endless`. The scripted campaign and pack mode are unchanged by the endless work.
 
-The Epoxy campaign itself is described level by level in `tools/campaign-script.json` (motifs to teach, puzzle count, hardest tier); `npm run build:campaign` generates each level, proves it and rewrites `public/configs/levels.json` as readable legend rows.
+The Epoxy campaign is written by hand in `public/configs/levels.json`. Each level's solution is described as a route in `tools/campaign-routes.json`: explicit moves (`N`, `E`, `S`, `W`, `.` to wait) for pushes and timing, and `@x,y` steps that walk to a cell along a path found by a search in the real engine. `npm run route:campaign` expands the routes and writes each solution into `levels.json` (`EPOXY_ROUTE_LEVEL=<id>` for one level). `npm test` replays every solution, checks that the exit stays out of reach without each item listed under `requires`, and checks the pacing in `tools/campaign-rhythm.json`: chapters, the level where each tile, item or entity first appears, and timer margins.
 
 New puzzle pieces go in `public/configs/motifs.json`; run `npm run annotate:pieces` afterwards to precompute each piece's solution and reversibility into `public/configs/motif-annotations.json`, which the generator uses instead of searching in the browser.
 

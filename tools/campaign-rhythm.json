@@ -1,0 +1,100 @@
+{
+  "chapters": [
+    {
+      "titleKey": "campaign.chapter.1.title",
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "titleKey": "campaign.chapter.2.title",
+      "levels": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    }
+  ],
+  "introduces": {
+    "1": [
+      "chip",
+      "exit",
+      "hint",
+      "socket"
+    ],
+    "2": [
+      "door_blue",
+      "door_green",
+      "door_red",
+      "key_blue",
+      "key_green",
+      "key_red"
+    ],
+    "3": [
+      "dirt_block",
+      "water"
+    ],
+    "4": [
+      "boots_fire",
+      "boots_water",
+      "fire"
+    ],
+    "5": [
+      "ice",
+      "ice_ne",
+      "ice_se",
+      "ice_sw"
+    ],
+    "6": [
+      "boots_force",
+      "force_e"
+    ],
+    "7": [
+      "button_green",
+      "toggle_wall_closed",
+      "toggle_wall_open"
+    ],
+    "8": [
+      "button_brown",
+      "trap"
+    ],
+    "9": [
+      "bomb"
+    ],
+    "10": [
+      "teleport_blue",
+      "teleport_red",
+      "teleport_yellow"
+    ],
+    "11": [
+      "dirt",
+      "thin_wall_e",
+      "thin_wall_n",
+      "thin_wall_s",
+      "thin_wall_w"
+    ],
+    "12": [
+      "force_s",
+      "force_w",
+      "teleport_green"
+    ]
+  },
+  "firstTimedLevel": 13,
+  "minTimeMargin": 3,
+  "raceLevels": [
+    18
+  ],
+  "minRaceMargin": 1.5,
+  "baseline": [
+    "floor",
+    "wall"
+  ]
+}

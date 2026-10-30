@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { canvasToGrid, FrameGeometry, gridToCanvas, pointToGrid } from './viewMapping';
+import { cameraPosition, canvasToGrid, FrameGeometry, gridToCanvas, pointToGrid } from './viewMapping';
 
 describe('gridToCanvas / canvasToGrid', () => {
   it('are inverse of each other', () => {
@@ -34,11 +34,18 @@ describe('pointToGrid', () => {
     expect(pointToGrid(1, 1, frame, 30, 30)).toEqual({ x: 15, y: 12 });
   });
 
-  it('maps a point on a map smaller than the view, drawn from the top-left corner', () => {
-    // 20 tiles of 20px fit a 400px canvas but the map has 8x6 cells at camera 0.
-    const frame: FrameGeometry = { camX: 0, camY: 0, tilePixelSize: 20, canvasWidth: 400, canvasHeight: 400 };
-    expect(pointToGrid(0.01, 0.01, frame, 8, 6)).toEqual({ x: 0, y: 0 });
-    expect(pointToGrid(150 / 400, 110 / 400, frame, 8, 6)).toEqual({ x: 7, y: 5 });
+  it('maps a point on a map smaller than the view, centred by the camera', () => {
+    // 20 tiles of 20px fit a 400px canvas but the map has 8x6 cells: the camera sits at -6 and -7.
+    const frame: FrameGeometry = {
+      camX: cameraPosition(0, 8, 20),
+      camY: cameraPosition(0, 6, 20),
+      tilePixelSize: 20,
+      canvasWidth: 400,
+      canvasHeight: 400
+    };
+    expect(pointToGrid(0.01, 0.01, frame, 8, 6)).toBeNull();
+    expect(pointToGrid(125 / 400, 145 / 400, frame, 8, 6)).toEqual({ x: 0, y: 0 });
+    expect(pointToGrid(270 / 400, 250 / 400, frame, 8, 6)).toEqual({ x: 7, y: 5 });
   });
 
   it('returns null outside the map', () => {
@@ -52,5 +59,26 @@ describe('pointToGrid', () => {
     expect(pointToGrid(-0.1, 0.5, frame, 30, 30)).toBeNull();
     expect(pointToGrid(0.5, 1.1, frame, 30, 30)).toBeNull();
     expect(pointToGrid(0.5, 0.5, { ...frame, tilePixelSize: 0 }, 30, 30)).toBeNull();
+  });
+});
+
+describe('cameraPosition', () => {
+  it('follows the wanted position inside the map', () => {
+    expect(cameraPosition(5.5, 30, 10)).toBe(5.5);
+  });
+
+  it('keeps the view inside a map larger than it', () => {
+    expect(cameraPosition(-3, 30, 10)).toBe(0);
+    expect(cameraPosition(28, 30, 10)).toBe(20);
+  });
+
+  it('centres a map smaller than the view, whatever is wanted', () => {
+    expect(cameraPosition(0, 11, 13)).toBe(-1);
+    expect(cameraPosition(9, 11, 13)).toBe(-1);
+    expect(cameraPosition(4, 9, 13)).toBe(-2);
+  });
+
+  it('is plain zero for a map exactly as large as the view', () => {
+    expect(cameraPosition(3, 13, 13)).toBe(0);
   });
 });
