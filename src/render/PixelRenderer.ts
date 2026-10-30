@@ -25,7 +25,8 @@ import {
   DEFAULT_COLOR_KEY,
   DEFAULT_MONSTER_COLOR_KEY,
   FX_COLOR_KEYS,
-  MONSTER_COLOR_KEYS
+  MONSTER_COLOR_KEYS,
+  teleporterGlyphKey
 } from './paletteKeys';
 import { FrameBudgetGuard } from './frameBudget';
 import {
@@ -42,8 +43,10 @@ import {
   collectTerrainFeatures,
   EMPTY_TERRAIN_FEATURES,
   TerrainFeatures,
-  TerrainSnapshot
+  TerrainSnapshot,
+  teleportGroupKey
 } from './terrainState';
+import { FrameGeometry, pointToGrid } from './viewMapping';
 import { Light, LightingLayer } from './LightingLayer';
 import { iceBendGeometry, IceBendGeometry, QUARTER_TURN } from './iceBend';
 import { cellHash, hasAll, ISOLATED_TILE, NEIGHBOUR, TileNeighbours, tileNeighbours } from './tileNeighbours';
@@ -217,6 +220,8 @@ const EXIT_PULSE_BASE = 0.34;
 const EXIT_PULSE_AMPLITUDE = 0.05;
 const TELEPORT_CORE_BASE = 0.14;
 const TELEPORT_CORE_AMPLITUDE = 0.03;
+/** Radius of the colour-blind glyph at the centre of a colour teleporter, in tiles. */
+const TELEPORT_GLYPH_RADIUS_TILE = 0.11;
 /** Low bits of the cell hash turned into an animation phase. */
 const PHASE_MASK = 0xff;
 const WATER_SPARKLE_SPEED = 0.6;
@@ -272,6 +277,8 @@ export class PixelRenderer {
   private lastFrameTimeMs: number | null = null;
   private currentViewportTiles: number = 13;
   private visualViewportTiles: number = 13;
+  /** Camera, tile size and canvas size of the last drawn frame, for mapping clicks to cells. */
+  private lastFrame: FrameGeometry | null = null;
   private lastViewportWidth: number = 13;
   private lastViewportHeight: number = 13;
   private lastMapWidth = 0;
@@ -445,21 +452,18 @@ export class PixelRenderer {
   }
 
   public screenToGrid(canvas: HTMLCanvasElement, clientX: number, clientY: number): GridPoint | null {
-    if (!this.visualCameraPos) return null;
+    // Map the click with the geometry of the last drawn frame, not the canvas size now.
+    if (!this.lastFrame) return null;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return null;
-    const normX = (clientX - rect.left) / rect.width;
-    const normY = (clientY - rect.top) / rect.height;
-    if (normX < 0 || normX > 1 || normY < 0 || normY > 1) return null;
     const gridCfg = ConfigRegistry.getGame().grid;
-    const vw = this.lastViewportWidth || this.visualViewportTiles || gridCfg.viewportWidth;
-    const vh = this.lastViewportHeight || this.visualViewportTiles || gridCfg.viewportHeight;
-    const gx = Math.floor(this.visualCameraPos.x + normX * vw);
-    const gy = Math.floor(this.visualCameraPos.y + normY * vh);
-    const mapWidth = this.lastMapWidth || gridCfg.mapWidth;
-    const mapHeight = this.lastMapHeight || gridCfg.mapHeight;
-    if (gx < 0 || gx >= mapWidth || gy < 0 || gy >= mapHeight) return null;
-    return { x: gx, y: gy };
+    return pointToGrid(
+      (clientX - rect.left) / rect.width,
+      (clientY - rect.top) / rect.height,
+      this.lastFrame,
+      this.lastMapWidth || gridCfg.mapWidth,
+      this.lastMapHeight || gridCfg.mapHeight
+    );
   }
 
   public getViewportTiles(): number {
@@ -486,6 +490,9 @@ export class PixelRenderer {
     if (kind === 'explosion') {
       this.shakeIntensity = this.reducedMotion ? 0 : settings.screenShakeExplosion;
     }
+
+    // Shockwaves and particle bursts are pure motion: skipped under reduced motion.
+    if (this.reducedMotion) return;
 
     if (kind === 'teleport' || kind === 'unlock' || kind === 'win' || kind === 'explosion') {
       this.shockwaves.push({
@@ -613,6 +620,7 @@ export class PixelRenderer {
 
     const camX = this.visualCameraPos.x;
     const camY = this.visualCameraPos.y;
+    this.lastFrame = { camX, camY, tilePixelSize, canvasWidth, canvasHeight };
 
     const terrain = engine.getTerrain();
     const items = engine.getItems();
@@ -827,7 +835,7 @@ export class PixelRenderer {
     const color = ConfigRegistry.getGame().palette[source.colorKey];
     if (!color) return;
     let radius = source.radiusTile * tilePixelSize;
-    if (FLICKERING_LIGHTS.has(id)) {
+    if (FLICKERING_LIGHTS.has(id) && !this.reducedMotion) {
       // Each light flickers on its own phase, taken from where it is.
       const phase = this.timeTick * LIGHT_FLICKER_SPEED + gx * LIGHT_PHASE_X + gy * LIGHT_PHASE_Y;
       radius *= 1 + Math.sin(phase) * settings.lightingFlicker;
@@ -932,7 +940,12 @@ export class PixelRenderer {
     this.syncTileSets(settings);
     const terrainChanged = this.terrainSnapshot.update(terrain);
     if (terrainChanged) {
-      this.terrainFeatures = collectTerrainFeatures(terrain, ANY_ANIMATED_TILES, this.litTiles);
+      this.terrainFeatures = collectTerrainFeatures(
+        terrain,
+        ANY_ANIMATED_TILES,
+        this.litTiles,
+        ConfigRegistry.getTiles().tiles
+      );
     }
 
     let trapKey = '';
@@ -1019,6 +1032,22 @@ export class PixelRenderer {
     ctx.stroke();
   }
 
+  /** Strokes a wire from every button to every target with the current stroke style. */
+  private strokeButtonLinks(
+    ctx: CanvasRenderingContext2D,
+    buttons: readonly GridPoint[],
+    targets: readonly GridPoint[],
+    camX: number,
+    camY: number,
+    tilePixelSize: number
+  ): void {
+    for (const button of buttons) {
+      for (const target of targets) {
+        this.strokeGridLink(ctx, button.x, button.y, target.x, target.y, camX, camY, tilePixelSize);
+      }
+    }
+  }
+
   private drawMechanismLinksAndObjective(
     ctx: CanvasRenderingContext2D,
     engine: GameEngine,
@@ -1061,24 +1090,28 @@ export class PixelRenderer {
       this.strokeGridLink(ctx, link.buttonX, link.buttonY, link.clonerX, link.clonerY, camX, camY, tilePixelSize);
     }
 
-    // 3. Green Button <-> Toggle Walls & Teleporter pairs (lists cached on terrain change)
-    const { greenButtons, toggleWalls, teleporters } = this.terrainFeatures;
-    if (showAll || hovTile === 'button_green') {
-      ctx.strokeStyle = pal.linkToggle;
-      ctx.globalAlpha = LINK_STYLE.toggleAlpha;
-      for (const gb of greenButtons) {
-        for (const tw of toggleWalls) {
-          this.strokeGridLink(ctx, gb.x, gb.y, tw.x, tw.y, camX, camY, tilePixelSize);
-        }
-      }
+    // 3. Buttons <-> the tiles they toggle, and teleporter networks (lists cached on terrain change)
+    const { toggleButtons, toggleWalls, flameButtons, flameTargets, teleporterGroups } = this.terrainFeatures;
+    const hovDef = hovTile ? ConfigRegistry.getTile(hovTile) : undefined;
+    const toggleVisible = showAll || hovDef?.buttonAction === 'toggle_walls';
+    const flameVisible = showAll || hovDef?.buttonAction === 'toggle_flames';
+    ctx.strokeStyle = pal.linkToggle;
+    ctx.globalAlpha = LINK_STYLE.toggleAlpha;
+    if (toggleVisible) {
+      this.strokeButtonLinks(ctx, toggleButtons, toggleWalls, camX, camY, tilePixelSize);
+    }
+    if (flameVisible) {
+      this.strokeButtonLinks(ctx, flameButtons, flameTargets, camX, camY, tilePixelSize);
     }
 
-    if ((showAll || hovTile === 'teleport') && teleporters.length >= 2) {
-      ctx.strokeStyle = pal.linkTeleport;
-      ctx.globalAlpha = LINK_STYLE.teleportAlpha;
-      for (let i = 0; i < teleporters.length; i++) {
-        const a = teleporters[i];
-        const b = teleporters[(i + 1) % teleporters.length];
+    ctx.strokeStyle = pal.linkTeleport;
+    ctx.globalAlpha = LINK_STYLE.teleportAlpha;
+    const hovGroupKey = hovDef?.isTeleporter ? teleportGroupKey(hovDef) : null;
+    for (const [groupKey, cells] of teleporterGroups) {
+      if (cells.length < 2 || !(showAll || groupKey === hovGroupKey)) continue;
+      for (let i = 0; i < cells.length; i++) {
+        const a = cells[i];
+        const b = cells[(i + 1) % cells.length];
         this.strokeGridLink(ctx, a.x, a.y, b.x, b.y, camX, camY, tilePixelSize);
       }
     }
@@ -1206,7 +1239,7 @@ export class PixelRenderer {
     ctx.fillStyle = pal.minimapPlayer;
     ctx.fillRect(player.x * cellPx, player.y * cellPx, cellPx, cellPx);
 
-    if (this.objectivePoint && this.timeTick % MINIMAP_BLINK.period < MINIMAP_BLINK.on) {
+    if (this.objectivePoint && (this.reducedMotion || this.timeTick % MINIMAP_BLINK.period < MINIMAP_BLINK.on)) {
       ctx.strokeStyle = pal.minimapObjective;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(
@@ -1569,6 +1602,17 @@ export class PixelRenderer {
         ctx.beginPath();
         ctx.arc(x + size / 2, y + size / 2, size * 0.34, 0, FULL_TURN);
         ctx.stroke();
+        const glyphKey = teleporterGlyphKey(ConfigRegistry.getTile(tileId));
+        if (glyphKey) {
+          this.drawColorGlyph(
+            ctx,
+            glyphKey,
+            x + size / 2,
+            y + size / 2,
+            size * TELEPORT_GLYPH_RADIUS_TILE,
+            this.teleportRingColor(tileId, pal.teleportRing)
+          );
+        }
         break;
       }
 
@@ -2551,6 +2595,10 @@ export class PixelRenderer {
           const scale = coreR / maxCore;
           const extent = core.width * scale;
           ctx.drawImage(core, cx - extent / 2, cy - extent / 2, extent, extent);
+        }
+        const glyphKey = teleporterGlyphKey(ConfigRegistry.getTile(tileId));
+        if (glyphKey) {
+          this.drawColorGlyph(ctx, glyphKey, cx, cy, size * TELEPORT_GLYPH_RADIUS_TILE, pal.glyphInk);
         }
         break;
       }

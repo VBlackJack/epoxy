@@ -73,3 +73,11 @@ export const DEFAULT_MONSTER_COLOR_KEY = 'monsterBug';
 
 /** Palette key used for boots missing from BOOT_COLOR_KEYS. */
 export const DEFAULT_BOOT_COLOR_KEY = 'blue';
+
+/**
+ * Colour-blind glyph key of a tile: the colour key of a colour teleporter, null for a plain
+ * teleporter or any other tile. Doors and keys use their colour key the same way.
+ */
+export function teleporterGlyphKey(def: { isTeleporter?: boolean; colorKey?: string }): string | null {
+  return def.isTeleporter && def.colorKey ? def.colorKey : null;
+}
