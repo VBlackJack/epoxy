@@ -3,6 +3,37 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- The hub region of an endless level scales with the area its puzzles leave free. The drawn
+  outline (`hub.shapes`) now grows before the wings are placed: whole rows and columns of floor
+  are added round it, toward the map edge the hub is shifted to first, until it covers
+  `hub.outlineGrowth.freeAreaShare` of the free area (the map interior less the puzzle boxes
+  and `cellsPerPiece` cells of corridor per puzzle), at most `maxCells` more than drawn
+  (`src/generator/HubOutline.ts`). A level with more or larger puzzles grows its hub less. The
+  grown outline is asked for on the strict attempts of each tier, with the lead motif and the
+  block lanes, and relaxed with them, so a plan that finds no room round the larger hub falls
+  back to the drawn outline before any puzzle is dropped. The growth draws nothing from the
+  random stream and does not apply to dead-end hubs, so pack mode and the campaign are
+  unchanged. Measured on 20 seeds (`npm run report:hub`): hub region
+  median 168 to 205 cells at level 1, 99 to 133 at level 10 and 157 to 171 at level 20 (on 40
+  seeds 194 to 220, 98 to 136 and 126 to 146), content share 0.70, 0.80 and 0.80, every planned
+  piece kept, 0 unproven and 0 bypassable levels, p95 generation 1.2 s, 3.1 s and 3.9 s against
+  1.0 s, 3.1 s and 3.3 s.
+  Rejected on the same seeds: a higher fringe cap (`loopFringeCells` 400 gives 350 to 470 cell
+  regions of bare floor that lose the candidate scoring, and the median falls), a smaller hub
+  shift (`maxShift` 3 encloses the hub on every side), a second ring of floor on every
+  outline (content share under 0.6 at level 1, generation time doubled), and a growth that
+  gives way a quarter at a time over the strict attempts (fewer pieces kept at level 20, and
+  slower).
+- `npm run report:hub` (`tools/hubAreaStudy.report.ts`) measures where the map area of endless
+  levels goes: hub outline, region, wing floor, piece boxes, walls, unused pockets and the free
+  land the region could still join. It writes `local/hub-area-study.<tag>.json` and ASCII maps
+  of the first seeds to `local/hub-area-maps.<tag>.txt`; `HUB_STUDY_VARIANT` merges a JSON
+  object over `procedural.hub` so levers are compared on the same seeds.
+
 ## [2.3.0] - 2026-10-30
 
 ### Added

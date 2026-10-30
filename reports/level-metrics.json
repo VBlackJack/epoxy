@@ -229,10 +229,10 @@
         "cyber_neon": 57
       },
       "generationMs": {
-        "mean": 364.22088499999984,
-        "p10": 88.45809999999983,
-        "median": 286.0760999999984,
-        "p90": 702.6889999999985,
+        "mean": 614.9305224999998,
+        "p10": 129.8579000000027,
+        "median": 447.55710000000545,
+        "p90": 1147.0084000000006,
         "nullRate": 0
       }
     }
@@ -240,157 +240,149 @@
   "endless": {
     "summary": {
       "levelCount": 40,
-      "validRate": 0.675,
+      "validRate": 0.6,
       "fields": {
         "usedAreaRatio": {
-          "mean": 0.7567138671875,
+          "mean": 0.7853515625,
           "p10": 0.6591796875,
-          "median": 0.76171875,
+          "median": 0.79296875,
           "p90": 0.849609375,
           "nullRate": 0
         },
         "walkableCells": {
-          "mean": 346.875,
-          "p10": 267,
-          "median": 342,
-          "p90": 410,
+          "mean": 388.175,
+          "p10": 321,
+          "median": 393,
+          "p90": 448,
           "nullRate": 0
         },
         "deadEndRatio": {
-          "mean": 0.02920731121306357,
-          "p10": 0.01904761904761905,
-          "median": 0.027093596059113302,
-          "p90": 0.041935483870967745,
+          "mean": 0.02984102313545145,
+          "p10": 0.01978021978021978,
+          "median": 0.02956989247311828,
+          "p90": 0.03980099502487562,
           "nullRate": 0
         },
         "estimatedSolutionSteps": {
-          "mean": 288.9,
-          "p10": 212,
-          "median": 281,
-          "p90": 364,
+          "mean": 299.075,
+          "p10": 242,
+          "median": 298,
+          "p90": 356,
           "nullRate": 0
         },
         "revisitRatio": {
-          "mean": 1.2475808881918362,
-          "p10": 1.1116504854368932,
-          "median": 1.2322274881516588,
-          "p90": 1.371069182389937,
+          "mean": 1.2623471518687153,
+          "p10": 1.1391304347826088,
+          "median": 1.25,
+          "p90": 1.3852140077821011,
           "nullRate": 0
         },
         "tourCoverageRatio": {
-          "mean": 0.6713216600791545,
-          "p10": 0.5284360189573459,
-          "median": 0.6754716981132075,
-          "p90": 0.8057553956834532,
+          "mean": 0.6154996875776021,
+          "p10": 0.4958904109589041,
+          "median": 0.6199376947040498,
+          "p90": 0.6915887850467289,
           "nullRate": 0
         },
         "mechanicCount": {
-          "mean": 8.65,
-          "p10": 8,
-          "median": 9,
+          "mean": 8.475,
+          "p10": 7,
+          "median": 8,
           "p90": 10,
           "nullRate": 0
         },
         "chipsPlaced": {
-          "mean": 22.15,
+          "mean": 22.325,
           "p10": 16,
           "median": 23,
           "p90": 27,
           "nullRate": 0
         },
         "chipsRequired": {
-          "mean": 22.15,
+          "mean": 22.325,
           "p10": 16,
           "median": 23,
           "p90": 27,
           "nullRate": 0
         },
         "chipSpread": {
-          "mean": 0.3398191789790889,
-          "p10": 0.30356731666156933,
-          "median": 0.34213327710269864,
-          "p90": 0.3700849334769323,
+          "mean": 0.35835100710423284,
+          "p10": 0.31905793254928677,
+          "median": 0.3598819947442034,
+          "p90": 0.3967220690094089,
           "nullRate": 0
         },
         "monsterCount": {
-          "mean": 2.35,
+          "mean": 2.275,
           "p10": 1,
           "median": 2,
           "p90": 3,
           "nullRate": 0
         },
         "hasMonsters": {
-          "mean": 1,
+          "mean": 0.95,
           "p10": 1,
           "median": 1,
           "p90": 1,
           "nullRate": 0
         },
         "playfieldCells": {
-          "mean": 345.475,
-          "p10": 267,
-          "median": 338,
-          "p90": 410,
+          "mean": 386.35,
+          "p10": 321,
+          "median": 388,
+          "p90": 445,
           "nullRate": 0
         },
         "playfieldFill": {
-          "mean": 0.44627646740289073,
-          "p10": 0.37438423645320196,
-          "median": 0.441025641025641,
-          "p90": 0.5086206896551724,
+          "mean": 0.4810559817223262,
+          "p10": 0.44047619047619047,
+          "median": 0.4700854700854701,
+          "p90": 0.5422116527942925,
           "nullRate": 0
         },
         "openShare": {
-          "mean": 0.5053632804764874,
-          "p10": 0.34558823529411764,
-          "median": 0.49696969696969695,
-          "p90": 0.6469194312796208,
+          "mean": 0.5536827562572981,
+          "p10": 0.4115853658536585,
+          "median": 0.532871972318339,
+          "p90": 0.6781326781326781,
           "nullRate": 0
         },
         "deadShare": {
-          "mean": 0.02849151278177963,
-          "p10": 0.0189873417721519,
-          "median": 0.026217228464419477,
-          "p90": 0.04180064308681672,
+          "mean": 0.02924207744922295,
+          "p10": 0.019021739130434784,
+          "median": 0.027586206896551724,
+          "p90": 0.0395778364116095,
           "nullRate": 0
         },
         "junctionShare": {
-          "mean": 0.4624390861207881,
-          "p10": 0.3223684210526316,
-          "median": 0.44390243902439025,
-          "p90": 0.6084656084656085,
+          "mean": 0.513274957326687,
+          "p10": 0.39058171745152354,
+          "median": 0.49295774647887325,
+          "p90": 0.629399585921325,
           "nullRate": 0
         },
         "symmetry": {
-          "mean": 0.5946141130592232,
-          "p10": 0.5476190476190477,
-          "median": 0.6,
-          "p90": 0.6419098143236074,
+          "mean": 0.5895466486307253,
+          "p10": 0.5402298850574713,
+          "median": 0.5814506539833532,
+          "p90": 0.6444444444444445,
           "nullRate": 0
         },
         "timeSlackRatio": {
-          "mean": 5.197156401187898,
-          "p10": 4.448398576512456,
-          "median": 5.275229357798165,
-          "p90": 5.747126436781609,
+          "mean": 5.07032327860651,
+          "p10": 4.166666666666667,
+          "median": 5.1660516605166045,
+          "p90": 5.802047781569966,
           "nullRate": 0
         }
       },
       "mechanicUsage": [
-        {
-          "mechanic": "blocks",
-          "rate": 1
-        },
         {
           "mechanic": "force",
           "rate": 1
         },
         {
           "mechanic": "keys_doors",
-          "rate": 1
-        },
-        {
-          "mechanic": "monsters",
           "rate": 1
         },
         {
@@ -402,12 +394,20 @@
           "rate": 1
         },
         {
+          "mechanic": "blocks",
+          "rate": 0.95
+        },
+        {
+          "mechanic": "monsters",
+          "rate": 0.95
+        },
+        {
           "mechanic": "fire",
           "rate": 0.925
         },
         {
           "mechanic": "trap",
-          "rate": 0.6
+          "rate": 0.525
         },
         {
           "mechanic": "ice",
@@ -415,18 +415,18 @@
         },
         {
           "mechanic": "bomb",
-          "rate": 0.275
+          "rate": 0.25
         },
         {
-          "mechanic": "toggle_walls",
-          "rate": 0.15
+          "mechanic": "teleport",
+          "rate": 0.175
         },
         {
           "mechanic": "cloner",
           "rate": 0.15
         },
         {
-          "mechanic": "teleport",
+          "mechanic": "toggle_walls",
           "rate": 0.125
         }
       ]
@@ -444,37 +444,37 @@
         "nullRate": 0
       },
       "keptPieces": {
-        "mean": 8.5,
+        "mean": 8.45,
         "p10": 6,
         "median": 8,
         "p90": 10,
         "nullRate": 0
       },
-      "shareAllPlannedPiecesKept": 1,
-      "shareWithMonsters": 1,
+      "shareAllPlannedPiecesKept": 0.95,
+      "shareWithMonsters": 0.95,
       "openArea": {
         "outsideFloorCells": {
-          "mean": 186.425,
-          "p10": 124,
-          "median": 175,
-          "p90": 252,
+          "mean": 227.625,
+          "p10": 165,
+          "median": 225,
+          "p90": 289,
           "nullRate": 0
         },
         "contentShareWithin4Steps": {
-          "mean": 0.7654400953918485,
-          "p10": 0.628140703517588,
-          "median": 0.7769784172661871,
-          "p90": 0.8581560283687943,
+          "mean": 0.7476922775419924,
+          "p10": 0.5401929260450161,
+          "median": 0.7786259541984732,
+          "p90": 0.883248730964467,
           "nullRate": 0
         },
         "hubMonstersPerLevel": {
-          "mean": 0.95,
+          "mean": 1.025,
           "p10": 0,
           "median": 1,
           "p90": 2,
           "nullRate": 0
         },
-        "shareWithHubMonsters": 0.675,
+        "shareWithHubMonsters": 0.725,
         "openChips": {
           "mean": 5.5,
           "p10": 5,
@@ -483,10 +483,10 @@
           "nullRate": 0
         },
         "regionCells": {
-          "mean": 125.025,
-          "p10": 52,
-          "median": 106,
-          "p90": 203,
+          "mean": 168.325,
+          "p10": 91,
+          "median": 170,
+          "p90": 251,
           "nullRate": 0
         },
         "dependencyPairs": {
@@ -498,32 +498,32 @@
         }
       },
       "monsterCountWhereAny": {
-        "mean": 2.35,
+        "mean": 2.3947368421052633,
         "p10": 1,
         "median": 2,
         "p90": 3,
         "nullRate": 0
       },
       "motifUsage": {
-        "monsters": 0.85,
+        "monsters": 0.775,
         "keys_doors": 0.6,
-        "blocks_water": 0.525,
-        "fire": 0.45,
+        "blocks_water": 0.575,
+        "water": 0.475,
         "ice": 0.425,
-        "force": 0.4,
+        "force": 0.375,
+        "fire": 0.35,
         "trap": 0.35,
-        "water": 0.35,
-        "sokoban": 0.325,
-        "bomb": 0.275,
-        "toggle_walls": 0.175,
-        "teleport": 0.15,
-        "cloner": 0.15
+        "sokoban": 0.25,
+        "bomb": 0.25,
+        "teleport": 0.2,
+        "cloner": 0.175,
+        "toggle_walls": 0.15
       },
       "generationMs": {
-        "mean": 1827.828797499999,
-        "p10": 508.987999999983,
-        "median": 1437.9916999999987,
-        "p90": 4038.114600000001,
+        "mean": 3014.876707499999,
+        "p10": 725.8317000000097,
+        "median": 2549.5510999999824,
+        "p90": 5342.758200000011,
         "nullRate": 0
       }
     },
@@ -531,139 +531,139 @@
       "level1": {
         "summary": {
           "levelCount": 10,
-          "validRate": 0.9,
+          "validRate": 0.6,
           "fields": {
             "usedAreaRatio": {
-              "mean": 0.70283203125,
-              "p10": 0.62890625,
-              "median": 0.7109375,
-              "p90": 0.7646484375,
+              "mean": 0.75693359375,
+              "p10": 0.6328125,
+              "median": 0.791015625,
+              "p90": 0.791015625,
               "nullRate": 0
             },
             "walkableCells": {
-              "mean": 336.5,
-              "p10": 258,
-              "median": 353,
-              "p90": 409,
+              "mean": 395.2,
+              "p10": 289,
+              "median": 407,
+              "p90": 440,
               "nullRate": 0
             },
             "deadEndRatio": {
-              "mean": 0.031335812188122494,
-              "p10": 0.016129032258064516,
-              "median": 0.029339853300733496,
-              "p90": 0.046511627906976744,
+              "mean": 0.030702532478547668,
+              "p10": 0.019178082191780823,
+              "median": 0.031141868512110725,
+              "p90": 0.0343980343980344,
               "nullRate": 0
             },
             "estimatedSolutionSteps": {
-              "mean": 237.9,
-              "p10": 173,
-              "median": 218,
-              "p90": 281,
+              "mean": 271.4,
+              "p10": 226,
+              "median": 268,
+              "p90": 309,
               "nullRate": 0
             },
             "revisitRatio": {
-              "mean": 1.2255602215980776,
-              "p10": 1.0876288659793814,
-              "median": 1.1810344827586208,
-              "p90": 1.371069182389937,
+              "mean": 1.2629012077762645,
+              "p10": 1.1078066914498141,
+              "median": 1.2350230414746544,
+              "p90": 1.3636363636363635,
               "nullRate": 0
             },
             "tourCoverageRatio": {
-              "mean": 0.5830178799944689,
-              "p10": 0.5052910052910053,
-              "median": 0.5647921760391198,
-              "p90": 0.6430594900849859,
+              "mean": 0.5520813074286873,
+              "p10": 0.45227272727272727,
+              "median": 0.5609195402298851,
+              "p90": 0.6199376947040498,
               "nullRate": 0
             },
             "mechanicCount": {
-              "mean": 8.1,
+              "mean": 8.5,
               "p10": 7,
               "median": 8,
-              "p90": 9,
+              "p90": 10,
               "nullRate": 0
             },
             "chipsPlaced": {
-              "mean": 16.7,
-              "p10": 14,
+              "mean": 16.6,
+              "p10": 13,
               "median": 16,
-              "p90": 18,
+              "p90": 19,
               "nullRate": 0
             },
             "chipsRequired": {
-              "mean": 16.7,
-              "p10": 14,
+              "mean": 16.6,
+              "p10": 13,
               "median": 16,
-              "p90": 18,
+              "p90": 19,
               "nullRate": 0
             },
             "chipSpread": {
-              "mean": 0.32844436170651947,
-              "p10": 0.24241697301822315,
-              "median": 0.3393988907719924,
-              "p90": 0.3640394058057617,
+              "mean": 0.3635105975410621,
+              "p10": 0.33967114284823174,
+              "median": 0.3653069583482208,
+              "p90": 0.374632416642679,
               "nullRate": 0
             },
             "monsterCount": {
-              "mean": 2.4,
-              "p10": 2,
+              "mean": 1.8,
+              "p10": 0,
               "median": 2,
-              "p90": 4,
+              "p90": 2,
               "nullRate": 0
             },
             "hasMonsters": {
-              "mean": 1,
-              "p10": 1,
+              "mean": 0.8,
+              "p10": 0,
               "median": 1,
               "p90": 1,
               "nullRate": 0
             },
             "playfieldCells": {
-              "mean": 335.1,
-              "p10": 245,
-              "median": 353,
-              "p90": 409,
+              "mean": 392.5,
+              "p10": 289,
+              "median": 397,
+              "p90": 440,
               "nullRate": 0
             },
             "playfieldFill": {
-              "mean": 0.4636181225626504,
-              "p10": 0.362962962962963,
-              "median": 0.47509578544061304,
-              "p90": 0.5430769230769231,
+              "mean": 0.5050818608807115,
+              "p10": 0.44598765432098764,
+              "median": 0.5024691358024691,
+              "p90": 0.5493827160493827,
               "nullRate": 0
             },
             "openShare": {
-              "mean": 0.6052728720794981,
-              "p10": 0.4344569288389513,
-              "median": 0.626984126984127,
-              "p90": 0.6968085106382979,
+              "mean": 0.6532347755460491,
+              "p10": 0.5046728971962616,
+              "median": 0.6712962962962963,
+              "p90": 0.7318181818181818,
               "nullRate": 0
             },
             "deadShare": {
-              "mean": 0.030770828021619123,
-              "p10": 0.016129032258064516,
-              "median": 0.029339853300733496,
-              "p90": 0.04081632653061224,
+              "mean": 0.02991400586639321,
+              "p10": 0.019178082191780823,
+              "median": 0.027707808564231738,
+              "p90": 0.032407407407407406,
               "nullRate": 0
             },
             "junctionShare": {
-              "mean": 0.5552227063822083,
-              "p10": 0.40074906367041196,
-              "median": 0.5807365439093485,
-              "p90": 0.6405867970660146,
+              "mean": 0.6041092618599853,
+              "p10": 0.48598130841121495,
+              "median": 0.6171284634760705,
+              "p90": 0.6727272727272727,
               "nullRate": 0
             },
             "symmetry": {
-              "mean": 0.6051931653221009,
-              "p10": 0.563076923076923,
-              "median": 0.6009852216748769,
-              "p90": 0.6490683229813664,
+              "mean": 0.5909329057489978,
+              "p10": 0.5402298850574713,
+              "median": 0.5648148148148148,
+              "p90": 0.6444444444444445,
               "nullRate": 0
             },
             "timeSlackRatio": {
-              "mean": 5.061138457969135,
-              "p10": 4.075235109717869,
-              "median": 4.97737556561086,
-              "p90": 5.660377358490567,
+              "mean": 4.511192702239058,
+              "p10": 4.045307443365696,
+              "median": 4.444444444444445,
+              "p90": 4.771784232365145,
               "nullRate": 0
             }
           },
@@ -681,10 +681,6 @@
               "rate": 1
             },
             {
-              "mechanic": "monsters",
-              "rate": 1
-            },
-            {
               "mechanic": "socket",
               "rate": 1
             },
@@ -694,14 +690,22 @@
             },
             {
               "mechanic": "fire",
+              "rate": 0.9
+            },
+            {
+              "mechanic": "monsters",
               "rate": 0.8
             },
             {
               "mechanic": "trap",
-              "rate": 0.7
+              "rate": 0.6
             },
             {
               "mechanic": "ice",
+              "rate": 0.5
+            },
+            {
+              "mechanic": "toggle_walls",
               "rate": 0.2
             },
             {
@@ -710,10 +714,10 @@
             },
             {
               "mechanic": "teleport",
-              "rate": 0.1
+              "rate": 0.2
             },
             {
-              "mechanic": "toggle_walls",
+              "mechanic": "cloner",
               "rate": 0.1
             }
           ]
@@ -738,20 +742,20 @@
             "nullRate": 0
           },
           "shareAllPlannedPiecesKept": 1,
-          "shareWithMonsters": 1,
+          "shareWithMonsters": 0.8,
           "openArea": {
             "outsideFloorCells": {
-              "mean": 191.4,
-              "p10": 93,
-              "median": 199,
-              "p90": 251,
+              "mean": 251.2,
+              "p10": 156,
+              "median": 266,
+              "p90": 289,
               "nullRate": 0
             },
             "contentShareWithin4Steps": {
-              "mean": 0.6956299027904371,
-              "p10": 0.5934959349593496,
-              "median": 0.6431535269709544,
-              "p90": 0.8467741935483871,
+              "mean": 0.6224865254592657,
+              "p10": 0.43333333333333335,
+              "median": 0.602996254681648,
+              "p90": 0.7756410256410257,
               "nullRate": 0
             },
             "hubMonstersPerLevel": {
@@ -770,10 +774,10 @@
               "nullRate": 0
             },
             "regionCells": {
-              "mean": 146.2,
-              "p10": 48,
-              "median": 144,
-              "p90": 218,
+              "mean": 205.1,
+              "p10": 109,
+              "median": 213,
+              "p90": 256,
               "nullRate": 0
             },
             "dependencyPairs": {
@@ -785,31 +789,32 @@
             }
           },
           "monsterCountWhereAny": {
-            "mean": 2.4,
+            "mean": 2.25,
             "p10": 2,
             "median": 2,
-            "p90": 4,
+            "p90": 2,
             "nullRate": 0
           },
           "motifUsage": {
-            "monsters": 1,
-            "sokoban": 0.5,
+            "monsters": 0.8,
+            "ice": 0.5,
+            "force": 0.4,
             "blocks_water": 0.4,
             "keys_doors": 0.4,
-            "trap": 0.4,
-            "force": 0.3,
-            "ice": 0.2,
+            "sokoban": 0.3,
+            "toggle_walls": 0.2,
+            "teleport": 0.2,
             "bomb": 0.2,
-            "fire": 0.2,
-            "teleport": 0.1,
-            "toggle_walls": 0.1,
-            "water": 0.1
+            "trap": 0.2,
+            "water": 0.2,
+            "cloner": 0.1,
+            "fire": 0.1
           },
           "generationMs": {
-            "mean": 646.3925999999977,
-            "p10": 161.13180000000284,
-            "median": 560.9553000000014,
-            "p90": 963.1671999999962,
+            "mean": 890.4001300000033,
+            "p10": 247.00419999999576,
+            "median": 730.8672000000079,
+            "p90": 1618.7195000000065,
             "nullRate": 0
           }
         }
@@ -817,367 +822,76 @@
       "level10": {
         "summary": {
           "levelCount": 10,
-          "validRate": 0.5,
+          "validRate": 0.7,
           "fields": {
             "usedAreaRatio": {
-              "mean": 0.7546875,
-              "p10": 0.6591796875,
-              "median": 0.76171875,
+              "mean": 0.8015625,
+              "p10": 0.685546875,
+              "median": 0.8212890625,
               "p90": 0.849609375,
               "nullRate": 0
             },
             "walkableCells": {
-              "mean": 351.1,
-              "p10": 295,
-              "median": 327,
-              "p90": 400,
+              "mean": 390.3,
+              "p10": 321,
+              "median": 372,
+              "p90": 451,
               "nullRate": 0
             },
             "deadEndRatio": {
-              "mean": 0.03139927770267931,
-              "p10": 0.023195876288659795,
-              "median": 0.02531645569620253,
-              "p90": 0.041935483870967745,
+              "mean": 0.03148576934659147,
+              "p10": 0.01978021978021978,
+              "median": 0.02956989247311828,
+              "p90": 0.0399002493765586,
               "nullRate": 0
             },
             "estimatedSolutionSteps": {
-              "mean": 275.8,
-              "p10": 229,
-              "median": 270,
-              "p90": 298,
+              "mean": 290.9,
+              "p10": 236,
+              "median": 276,
+              "p90": 348,
               "nullRate": 0
             },
             "revisitRatio": {
-              "mean": 1.2320216954243728,
-              "p10": 1.0843881856540085,
-              "median": 1.2205882352941178,
-              "p90": 1.3472222222222223,
+              "mean": 1.2610175194181414,
+              "p10": 1.1358024691358024,
+              "median": 1.2236842105263157,
+              "p90": 1.3852140077821011,
               "nullRate": 0
             },
             "tourCoverageRatio": {
-              "mean": 0.6432724152573359,
-              "p10": 0.5284360189573459,
-              "median": 0.6573208722741433,
-              "p90": 0.695906432748538,
+              "mean": 0.5946372379201982,
+              "p10": 0.5089285714285714,
+              "median": 0.5738161559888579,
+              "p90": 0.6908602150537635,
               "nullRate": 0
             },
             "mechanicCount": {
-              "mean": 9.2,
-              "p10": 8,
+              "mean": 9.4,
+              "p10": 7,
               "median": 9,
-              "p90": 10,
+              "p90": 11,
               "nullRate": 0
             },
             "chipsPlaced": {
-              "mean": 21.1,
-              "p10": 19,
-              "median": 21,
-              "p90": 22,
+              "mean": 21.4,
+              "p10": 17,
+              "median": 22,
+              "p90": 24,
               "nullRate": 0
             },
             "chipsRequired": {
-              "mean": 21.1,
-              "p10": 19,
-              "median": 21,
-              "p90": 22,
+              "mean": 21.4,
+              "p10": 17,
+              "median": 22,
+              "p90": 24,
               "nullRate": 0
             },
             "chipSpread": {
-              "mean": 0.33959655899979546,
-              "p10": 0.30356731666156933,
-              "median": 0.33412090045579135,
-              "p90": 0.36631757092827316,
-              "nullRate": 0
-            },
-            "monsterCount": {
-              "mean": 2.5,
-              "p10": 1,
-              "median": 3,
-              "p90": 3,
-              "nullRate": 0
-            },
-            "hasMonsters": {
-              "mean": 1,
-              "p10": 1,
-              "median": 1,
-              "p90": 1,
-              "nullRate": 0
-            },
-            "playfieldCells": {
-              "mean": 349.8,
-              "p10": 295,
-              "median": 327,
-              "p90": 400,
-              "nullRate": 0
-            },
-            "playfieldFill": {
-              "mean": 0.45250955203445625,
-              "p10": 0.3974358974358974,
-              "median": 0.4403292181069959,
-              "p90": 0.5064102564102564,
-              "nullRate": 0
-            },
-            "openShare": {
-              "mean": 0.5388098330041704,
-              "p10": 0.42258064516129035,
-              "median": 0.5358255451713395,
-              "p90": 0.610126582278481,
-              "nullRate": 0
-            },
-            "deadShare": {
-              "mean": 0.0309877879854785,
-              "p10": 0.023195876288659795,
-              "median": 0.02531645569620253,
-              "p90": 0.041935483870967745,
-              "nullRate": 0
-            },
-            "junctionShare": {
-              "mean": 0.4922374852243306,
-              "p10": 0.3870967741935484,
-              "median": 0.48286604361370716,
-              "p90": 0.5544303797468354,
-              "nullRate": 0
-            },
-            "symmetry": {
-              "mean": 0.5873912438254711,
-              "p10": 0.5,
-              "median": 0.5911111111111111,
-              "p90": 0.6414814814814814,
-              "nullRate": 0
-            },
-            "timeSlackRatio": {
-              "mean": 5.2294683652678335,
-              "p10": 4.2682926829268295,
-              "median": 5.37037037037037,
-              "p90": 5.642023346303502,
-              "nullRate": 0
-            }
-          },
-          "mechanicUsage": [
-            {
-              "mechanic": "blocks",
-              "rate": 1
-            },
-            {
-              "mechanic": "fire",
-              "rate": 1
-            },
-            {
-              "mechanic": "force",
-              "rate": 1
-            },
-            {
-              "mechanic": "keys_doors",
-              "rate": 1
-            },
-            {
-              "mechanic": "monsters",
-              "rate": 1
-            },
-            {
-              "mechanic": "socket",
-              "rate": 1
-            },
-            {
-              "mechanic": "water",
-              "rate": 1
-            },
-            {
-              "mechanic": "trap",
-              "rate": 0.8
-            },
-            {
-              "mechanic": "ice",
-              "rate": 0.4
-            },
-            {
-              "mechanic": "cloner",
-              "rate": 0.3
-            },
-            {
-              "mechanic": "toggle_walls",
-              "rate": 0.3
-            },
-            {
-              "mechanic": "bomb",
-              "rate": 0.3
-            },
-            {
-              "mechanic": "teleport",
-              "rate": 0.1
-            }
-          ]
-        },
-        "extra": {
-          "requested": 10,
-          "generationFailures": 0,
-          "unprovenLevels": 0,
-          "bypassableLevels": 0,
-          "plannedPieces": {
-            "mean": 8,
-            "p10": 8,
-            "median": 8,
-            "p90": 8,
-            "nullRate": 0
-          },
-          "keptPieces": {
-            "mean": 8,
-            "p10": 8,
-            "median": 8,
-            "p90": 8,
-            "nullRate": 0
-          },
-          "shareAllPlannedPiecesKept": 1,
-          "shareWithMonsters": 1,
-          "openArea": {
-            "outsideFloorCells": {
-              "mean": 185.4,
-              "p10": 136,
-              "median": 156,
-              "p90": 233,
-              "nullRate": 0
-            },
-            "contentShareWithin4Steps": {
-              "mean": 0.7585392221705114,
-              "p10": 0.6459143968871596,
-              "median": 0.7371794871794872,
-              "p90": 0.847682119205298,
-              "nullRate": 0
-            },
-            "hubMonstersPerLevel": {
-              "mean": 0.8,
-              "p10": 0,
-              "median": 1,
-              "p90": 1,
-              "nullRate": 0
-            },
-            "shareWithHubMonsters": 0.8,
-            "openChips": {
-              "mean": 5,
-              "p10": 5,
-              "median": 5,
-              "p90": 5,
-              "nullRate": 0
-            },
-            "regionCells": {
-              "mean": 125.1,
-              "p10": 58,
-              "median": 99,
-              "p90": 173,
-              "nullRate": 0
-            },
-            "dependencyPairs": {
-              "mean": 1,
-              "p10": 1,
-              "median": 1,
-              "p90": 1,
-              "nullRate": 0
-            }
-          },
-          "monsterCountWhereAny": {
-            "mean": 2.5,
-            "p10": 1,
-            "median": 3,
-            "p90": 3,
-            "nullRate": 0
-          },
-          "motifUsage": {
-            "monsters": 0.9,
-            "fire": 0.5,
-            "water": 0.5,
-            "ice": 0.4,
-            "force": 0.4,
-            "sokoban": 0.4,
-            "trap": 0.4,
-            "blocks_water": 0.3,
-            "cloner": 0.3,
-            "toggle_walls": 0.3,
-            "bomb": 0.3,
-            "keys_doors": 0.2,
-            "teleport": 0.1
-          },
-          "generationMs": {
-            "mean": 1813.3753499999962,
-            "p10": 564.3733999999968,
-            "median": 1381.7260999999999,
-            "p90": 3235.815399999992,
-            "nullRate": 0
-          }
-        }
-      },
-      "level25": {
-        "summary": {
-          "levelCount": 10,
-          "validRate": 0.6,
-          "fields": {
-            "usedAreaRatio": {
-              "mean": 0.77529296875,
-              "p10": 0.7080078125,
-              "median": 0.79296875,
-              "p90": 0.79296875,
-              "nullRate": 0
-            },
-            "walkableCells": {
-              "mean": 346.9,
-              "p10": 281,
-              "median": 338,
-              "p90": 413,
-              "nullRate": 0
-            },
-            "deadEndRatio": {
-              "mean": 0.02925990686524052,
-              "p10": 0.01928374655647383,
-              "median": 0.028469750889679714,
-              "p90": 0.03636363636363636,
-              "nullRate": 0
-            },
-            "estimatedSolutionSteps": {
-              "mean": 323,
-              "p10": 260,
-              "median": 325,
-              "p90": 364,
-              "nullRate": 0
-            },
-            "revisitRatio": {
-              "mean": 1.2680329374603647,
-              "p10": 1.1071428571428572,
-              "median": 1.241635687732342,
-              "p90": 1.3665338645418326,
-              "nullRate": 0
-            },
-            "tourCoverageRatio": {
-              "mean": 0.7401316954252092,
-              "p10": 0.606280193236715,
-              "median": 0.7241379310344828,
-              "p90": 0.8322368421052632,
-              "nullRate": 0
-            },
-            "mechanicCount": {
-              "mean": 8.2,
-              "p10": 6,
-              "median": 8,
-              "p90": 9,
-              "nullRate": 0
-            },
-            "chipsPlaced": {
-              "mean": 25.6,
-              "p10": 24,
-              "median": 26,
-              "p90": 27,
-              "nullRate": 0
-            },
-            "chipsRequired": {
-              "mean": 25.6,
-              "p10": 24,
-              "median": 26,
-              "p90": 27,
-              "nullRate": 0
-            },
-            "chipSpread": {
-              "mean": 0.3436105327913507,
-              "p10": 0.3142566673621699,
-              "median": 0.34213327710269864,
-              "p90": 0.3700849334769323,
+              "mean": 0.3424592571927112,
+              "p10": 0.28599679844916925,
+              "median": 0.33028799613197724,
+              "p90": 0.39489416872572886,
               "nullRate": 0
             },
             "monsterCount": {
@@ -1195,52 +909,52 @@
               "nullRate": 0
             },
             "playfieldCells": {
-              "mean": 346,
-              "p10": 272,
-              "median": 338,
-              "p90": 413,
+              "mean": 387.7,
+              "p10": 321,
+              "median": 371,
+              "p90": 448,
               "nullRate": 0
             },
             "playfieldFill": {
-              "mean": 0.43512279633338735,
-              "p10": 0.37438423645320196,
-              "median": 0.42857142857142855,
-              "p90": 0.4928571428571429,
+              "mean": 0.47527640953532746,
+              "p10": 0.44047619047619047,
+              "median": 0.45849297573435505,
+              "p90": 0.5362663495838288,
               "nullRate": 0
             },
             "openShare": {
-              "mean": 0.42308546168482647,
-              "p10": 0.3254437869822485,
-              "median": 0.3936781609195402,
-              "p90": 0.533816425120773,
+              "mean": 0.5746380155115104,
+              "p10": 0.46417445482866043,
+              "median": 0.595360824742268,
+              "p90": 0.6651884700665188,
               "nullRate": 0
             },
             "deadShare": {
-              "mean": 0.028618814129213726,
-              "p10": 0.01928374655647383,
-              "median": 0.02586206896551724,
-              "p90": 0.03636363636363636,
+              "mean": 0.030714075615195957,
+              "p10": 0.01580135440180587,
+              "median": 0.029649595687331536,
+              "p90": 0.03899721448467967,
               "nullRate": 0
             },
             "junctionShare": {
-              "mean": 0.38939440661717717,
-              "p10": 0.31137724550898205,
-              "median": 0.37209302325581395,
-              "p90": 0.4806763285024155,
+              "mean": 0.5257871451851777,
+              "p10": 0.42990654205607476,
+              "median": 0.5297297297297298,
+              "p90": 0.5738161559888579,
               "nullRate": 0
             },
             "symmetry": {
-              "mean": 0.5893031433262961,
-              "p10": 0.5333333333333333,
-              "median": 0.5763546798029556,
-              "p90": 0.6330049261083743,
+              "mean": 0.5908821975795816,
+              "p10": 0.5295566502463054,
+              "median": 0.5816091954022988,
+              "p90": 0.6190476190476191,
               "nullRate": 0
             },
             "timeSlackRatio": {
-              "mean": 5.199475800602738,
-              "p10": 4.582210242587601,
-              "median": 5.076923076923077,
-              "p90": 5.734767025089606,
+              "mean": 5.045071739579731,
+              "p10": 4.166666666666667,
+              "median": 5.1660516605166045,
+              "p90": 5.668016194331984,
               "nullRate": 0
             }
           },
@@ -1274,24 +988,28 @@
               "rate": 0.9
             },
             {
+              "mechanic": "trap",
+              "rate": 0.6
+            },
+            {
               "mechanic": "ice",
-              "rate": 0.7
+              "rate": 0.5
             },
             {
               "mechanic": "bomb",
+              "rate": 0.5
+            },
+            {
+              "mechanic": "teleport",
               "rate": 0.3
             },
             {
               "mechanic": "toggle_walls",
-              "rate": 0.1
+              "rate": 0.3
             },
             {
-              "mechanic": "trap",
-              "rate": 0.1
-            },
-            {
-              "mechanic": "teleport",
-              "rate": 0.1
+              "mechanic": "cloner",
+              "rate": 0.3
             }
           ]
         },
@@ -1301,63 +1019,63 @@
           "unprovenLevels": 0,
           "bypassableLevels": 0,
           "plannedPieces": {
-            "mean": 10,
-            "p10": 10,
-            "median": 10,
-            "p90": 10,
+            "mean": 8,
+            "p10": 8,
+            "median": 8,
+            "p90": 8,
             "nullRate": 0
           },
           "keptPieces": {
-            "mean": 10,
-            "p10": 10,
-            "median": 10,
-            "p90": 10,
+            "mean": 8,
+            "p10": 8,
+            "median": 8,
+            "p90": 8,
             "nullRate": 0
           },
           "shareAllPlannedPiecesKept": 1,
           "shareWithMonsters": 1,
           "openArea": {
             "outsideFloorCells": {
-              "mean": 176.9,
-              "p10": 125,
-              "median": 175,
-              "p90": 227,
+              "mean": 226.2,
+              "p10": 165,
+              "median": 205,
+              "p90": 288,
               "nullRate": 0
             },
             "contentShareWithin4Steps": {
-              "mean": 0.7849153175732747,
-              "p10": 0.6927710843373494,
-              "median": 0.7769784172661871,
-              "p90": 0.8253968253968254,
+              "mean": 0.764646648522711,
+              "p10": 0.5953947368421053,
+              "median": 0.8041666666666667,
+              "p90": 0.8770949720670391,
               "nullRate": 0
             },
             "hubMonstersPerLevel": {
-              "mean": 1.4,
-              "p10": 0,
+              "mean": 1,
+              "p10": 1,
               "median": 1,
-              "p90": 2,
+              "p90": 1,
               "nullRate": 0
             },
-            "shareWithHubMonsters": 0.9,
+            "shareWithHubMonsters": 1,
             "openChips": {
-              "mean": 6,
-              "p10": 6,
-              "median": 6,
-              "p90": 6,
+              "mean": 5,
+              "p10": 5,
+              "median": 5,
+              "p90": 5,
               "nullRate": 0
             },
             "regionCells": {
-              "mean": 102.2,
-              "p10": 45,
-              "median": 98,
-              "p90": 160,
+              "mean": 167.5,
+              "p10": 91,
+              "median": 136,
+              "p90": 233,
               "nullRate": 0
             },
             "dependencyPairs": {
-              "mean": 2,
-              "p10": 2,
-              "median": 2,
-              "p90": 2,
+              "mean": 1,
+              "p10": 1,
+              "median": 1,
+              "p90": 1,
               "nullRate": 0
             }
           },
@@ -1369,105 +1087,106 @@
             "nullRate": 0
           },
           "motifUsage": {
-            "keys_doors": 1,
-            "monsters": 0.8,
-            "ice": 0.7,
-            "blocks_water": 0.7,
-            "fire": 0.4,
-            "water": 0.4,
+            "monsters": 0.6,
+            "blocks_water": 0.6,
+            "ice": 0.5,
+            "water": 0.5,
+            "bomb": 0.5,
             "force": 0.4,
-            "bomb": 0.3,
-            "teleport": 0.2,
-            "toggle_walls": 0.2,
+            "fire": 0.3,
+            "trap": 0.3,
+            "teleport": 0.3,
+            "toggle_walls": 0.3,
+            "cloner": 0.3,
             "sokoban": 0.2,
-            "trap": 0.1
+            "keys_doors": 0.1
           },
           "generationMs": {
-            "mean": 2609.0058300000005,
-            "p10": 695.3070000000007,
-            "median": 2113.8311000000103,
-            "p90": 4424.700200000007,
+            "mean": 2480.3770799999957,
+            "p10": 1408.6772000000055,
+            "median": 2327.783599999995,
+            "p90": 2869.5580999999947,
             "nullRate": 0
           }
         }
       },
-      "level50": {
+      "level25": {
         "summary": {
           "levelCount": 10,
-          "validRate": 0.7,
+          "validRate": 0.6,
           "fields": {
             "usedAreaRatio": {
               "mean": 0.79404296875,
-              "p10": 0.68359375,
-              "median": 0.8203125,
+              "p10": 0.6591796875,
+              "median": 0.79296875,
               "p90": 0.849609375,
               "nullRate": 0
             },
             "walkableCells": {
-              "mean": 353,
-              "p10": 273,
-              "median": 321,
-              "p90": 410,
+              "mean": 370.9,
+              "p10": 280,
+              "median": 356,
+              "p90": 423,
               "nullRate": 0
             },
             "deadEndRatio": {
-              "mean": 0.024834248096211913,
-              "p10": 0.014634146341463415,
-              "median": 0.02564102564102564,
-              "p90": 0.02926829268292683,
+              "mean": 0.02938393279087658,
+              "p10": 0.02127659574468085,
+              "median": 0.025714285714285714,
+              "p90": 0.0395778364116095,
               "nullRate": 0
             },
             "estimatedSolutionSteps": {
-              "mean": 318.9,
-              "p10": 261,
-              "median": 292,
-              "p90": 395,
+              "mean": 310.4,
+              "p10": 248,
+              "median": 303,
+              "p90": 356,
               "nullRate": 0
             },
             "revisitRatio": {
-              "mean": 1.2647086982845281,
-              "p10": 1.1139705882352942,
-              "median": 1.201716738197425,
-              "p90": 1.4794007490636705,
+              "mean": 1.245619625316833,
+              "p10": 1.1391304347826088,
+              "median": 1.2170542635658914,
+              "p90": 1.2851985559566788,
               "nullRate": 0
             },
             "tourCoverageRatio": {
-              "mean": 0.7188646496396046,
-              "p10": 0.6576354679802956,
-              "median": 0.6878048780487804,
-              "p90": 0.8057553956834532,
+              "mean": 0.6754370097019431,
+              "p10": 0.6013986013986014,
+              "median": 0.6548463356973995,
+              "p90": 0.7428571428571429,
               "nullRate": 0
             },
             "mechanicCount": {
-              "mean": 9.1,
-              "p10": 8,
-              "median": 9,
-              "p90": 10,
+              "mean": 7.8,
+              "p10": 6,
+              "median": 8,
+              "p90": 9,
               "nullRate": 0
             },
             "chipsPlaced": {
-              "mean": 25.2,
-              "p10": 23,
+              "mean": 25.1,
+              "p10": 21,
               "median": 25,
               "p90": 27,
               "nullRate": 0
             },
             "chipsRequired": {
-              "mean": 25.2,
-              "p10": 23,
+              "mean": 25.1,
+              "p10": 21,
               "median": 25,
               "p90": 27,
               "nullRate": 0
             },
             "chipSpread": {
-              "mean": 0.3476252624186901,
-              "p10": 0.30791568112562034,
-              "median": 0.3439822733279275,
-              "p90": 0.3691970829013553,
+              "mean": 0.3488595644848878,
+              "p10": 0.30258324094297584,
+              "median": 0.34542028657801066,
+              "p90": 0.3704091950974411,
               "nullRate": 0
             },
             "monsterCount": {
-              "mean": 2.3,
+              "mean": 2.1,
               "p10": 1,
               "median": 2,
               "p90": 3,
@@ -1481,60 +1200,56 @@
               "nullRate": 0
             },
             "playfieldCells": {
-              "mean": 351,
-              "p10": 267,
-              "median": 321,
-              "p90": 410,
+              "mean": 368.9,
+              "p10": 280,
+              "median": 356,
+              "p90": 416,
               "nullRate": 0
             },
             "playfieldFill": {
-              "mean": 0.4338553986810692,
-              "p10": 0.3541114058355438,
-              "median": 0.45555555555555555,
-              "p90": 0.47126436781609193,
+              "mean": 0.4528513325754705,
+              "p10": 0.39770114942528734,
+              "median": 0.454661558109834,
+              "p90": 0.4781609195402299,
               "nullRate": 0
             },
             "openShare": {
-              "mean": 0.45428495513745426,
-              "p10": 0.32989690721649484,
-              "median": 0.46105919003115264,
-              "p90": 0.5390243902439025,
+              "mean": 0.47168939900602086,
+              "p10": 0.3208092485549133,
+              "median": 0.4688995215311005,
+              "p90": 0.5434782608695652,
               "nullRate": 0
             },
             "deadShare": {
-              "mean": 0.02358862099080716,
-              "p10": 0.014634146341463415,
-              "median": 0.02247191011235955,
-              "p90": 0.02926829268292683,
+              "mean": 0.028548370389512533,
+              "p10": 0.016908212560386472,
+              "median": 0.025714285714285714,
+              "p90": 0.0395778364116095,
               "nullRate": 0
             },
             "junctionShare": {
-              "mean": 0.4129017462594359,
-              "p10": 0.29896907216494845,
-              "median": 0.4174454828660436,
-              "p90": 0.4902439024390244,
+              "mean": 0.43834447790965136,
+              "p10": 0.3179190751445087,
+              "median": 0.43779904306220097,
+              "p90": 0.4927536231884058,
               "nullRate": 0
             },
             "symmetry": {
-              "mean": 0.5965688997630251,
-              "p10": 0.5476190476190477,
-              "median": 0.6,
-              "p90": 0.6342857142857142,
+              "mean": 0.5947868580972029,
+              "p10": 0.5422222222222223,
+              "median": 0.5640394088669951,
+              "p90": 0.6398467432950191,
               "nullRate": 0
             },
             "timeSlackRatio": {
-              "mean": 5.2985429809118845,
-              "p10": 4.069767441860465,
-              "median": 5.6105610561056105,
-              "p90": 5.747126436781609,
+              "mean": 5.523121515455548,
+              "p10": 4.787234042553191,
+              "median": 5.5369127516778525,
+              "p90": 6.048387096774193,
               "nullRate": 0
             }
           },
           "mechanicUsage": [
-            {
-              "mechanic": "blocks",
-              "rate": 1
-            },
             {
               "mechanic": "fire",
               "rate": 1
@@ -1560,7 +1275,7 @@
               "rate": 1
             },
             {
-              "mechanic": "trap",
+              "mechanic": "blocks",
               "rate": 0.8
             },
             {
@@ -1568,11 +1283,7 @@
               "rate": 0.4
             },
             {
-              "mechanic": "cloner",
-              "rate": 0.3
-            },
-            {
-              "mechanic": "bomb",
+              "mechanic": "trap",
               "rate": 0.3
             },
             {
@@ -1580,7 +1291,7 @@
               "rate": 0.2
             },
             {
-              "mechanic": "toggle_walls",
+              "mechanic": "bomb",
               "rate": 0.1
             }
           ]
@@ -1608,21 +1319,302 @@
           "shareWithMonsters": 1,
           "openArea": {
             "outsideFloorCells": {
-              "mean": 192,
-              "p10": 111,
-              "median": 169,
-              "p90": 254,
+              "mean": 204.7,
+              "p10": 106,
+              "median": 188,
+              "p90": 262,
               "nullRate": 0
             },
             "contentShareWithin4Steps": {
-              "mean": 0.8226759390331713,
-              "p10": 0.7280334728033473,
-              "median": 0.8274509803921568,
-              "p90": 0.8629032258064516,
+              "mean": 0.8148570404685384,
+              "p10": 0.7272727272727273,
+              "median": 0.8359375,
+              "p90": 0.8829787234042553,
               "nullRate": 0
             },
             "hubMonstersPerLevel": {
-              "mean": 1.6,
+              "mean": 1.4,
+              "p10": 0,
+              "median": 1,
+              "p90": 2,
+              "nullRate": 0
+            },
+            "shareWithHubMonsters": 0.9,
+            "openChips": {
+              "mean": 6,
+              "p10": 6,
+              "median": 6,
+              "p90": 6,
+              "nullRate": 0
+            },
+            "regionCells": {
+              "mean": 135.9,
+              "p10": 63,
+              "median": 132,
+              "p90": 198,
+              "nullRate": 0
+            },
+            "dependencyPairs": {
+              "mean": 2,
+              "p10": 2,
+              "median": 2,
+              "p90": 2,
+              "nullRate": 0
+            }
+          },
+          "monsterCountWhereAny": {
+            "mean": 2.1,
+            "p10": 1,
+            "median": 2,
+            "p90": 3,
+            "nullRate": 0
+          },
+          "motifUsage": {
+            "keys_doors": 1,
+            "fire": 0.8,
+            "water": 0.7,
+            "monsters": 0.7,
+            "blocks_water": 0.5,
+            "force": 0.4,
+            "ice": 0.4,
+            "teleport": 0.3,
+            "trap": 0.3,
+            "sokoban": 0.2,
+            "bomb": 0.1
+          },
+          "generationMs": {
+            "mean": 4345.394799999997,
+            "p10": 2854.785999999993,
+            "median": 4136.635499999975,
+            "p90": 5342.758200000011,
+            "nullRate": 0
+          }
+        }
+      },
+      "level50": {
+        "summary": {
+          "levelCount": 10,
+          "validRate": 0.5,
+          "fields": {
+            "usedAreaRatio": {
+              "mean": 0.7888671875,
+              "p10": 0.634765625,
+              "median": 0.8212890625,
+              "p90": 0.849609375,
+              "nullRate": 0
+            },
+            "walkableCells": {
+              "mean": 396.3,
+              "p10": 330,
+              "median": 377,
+              "p90": 456,
+              "nullRate": 0
+            },
+            "deadEndRatio": {
+              "mean": 0.027791857925790097,
+              "p10": 0.016563146997929608,
+              "median": 0.024242424242424242,
+              "p90": 0.03588516746411483,
+              "nullRate": 0
+            },
+            "estimatedSolutionSteps": {
+              "mean": 323.6,
+              "p10": 264,
+              "median": 319,
+              "p90": 377,
+              "nullRate": 0
+            },
+            "revisitRatio": {
+              "mean": 1.2798502549636201,
+              "p10": 1.1428571428571428,
+              "median": 1.2610294117647058,
+              "p90": 1.3070175438596492,
+              "nullRate": 0
+            },
+            "tourCoverageRatio": {
+              "mean": 0.6398431952595797,
+              "p10": 0.5797101449275363,
+              "median": 0.6384976525821596,
+              "p90": 0.6746411483253588,
+              "nullRate": 0
+            },
+            "mechanicCount": {
+              "mean": 8.2,
+              "p10": 7,
+              "median": 8,
+              "p90": 9,
+              "nullRate": 0
+            },
+            "chipsPlaced": {
+              "mean": 26.2,
+              "p10": 21,
+              "median": 27,
+              "p90": 29,
+              "nullRate": 0
+            },
+            "chipsRequired": {
+              "mean": 26.2,
+              "p10": 21,
+              "median": 27,
+              "p90": 29,
+              "nullRate": 0
+            },
+            "chipSpread": {
+              "mean": 0.3785746091982699,
+              "p10": 0.3521862444434907,
+              "median": 0.3744721889181431,
+              "p90": 0.4049446136625213,
+              "nullRate": 0
+            },
+            "monsterCount": {
+              "mean": 3,
+              "p10": 2,
+              "median": 3,
+              "p90": 3,
+              "nullRate": 0
+            },
+            "hasMonsters": {
+              "mean": 1,
+              "p10": 1,
+              "median": 1,
+              "p90": 1,
+              "nullRate": 0
+            },
+            "playfieldCells": {
+              "mean": 396.3,
+              "p10": 330,
+              "median": 377,
+              "p90": 456,
+              "nullRate": 0
+            },
+            "playfieldFill": {
+              "mean": 0.491014323897796,
+              "p10": 0.4292508917954816,
+              "median": 0.47205707491082044,
+              "p90": 0.5422116527942925,
+              "nullRate": 0
+            },
+            "openShare": {
+              "mean": 0.5151688349656116,
+              "p10": 0.39335180055401664,
+              "median": 0.506578947368421,
+              "p90": 0.5516304347826086,
+              "nullRate": 0
+            },
+            "deadShare": {
+              "mean": 0.027791857925790097,
+              "p10": 0.016563146997929608,
+              "median": 0.024242424242424242,
+              "p90": 0.03588516746411483,
+              "nullRate": 0
+            },
+            "junctionShare": {
+              "mean": 0.4848589443519343,
+              "p10": 0.39058171745152354,
+              "median": 0.4868421052631579,
+              "p90": 0.5081521739130435,
+              "nullRate": 0
+            },
+            "symmetry": {
+              "mean": 0.5815846330971182,
+              "p10": 0.49777777777777776,
+              "median": 0.5814506539833532,
+              "p90": 0.645320197044335,
+              "nullRate": 0
+            },
+            "timeSlackRatio": {
+              "mean": 5.201907157151707,
+              "p10": 4.593175853018373,
+              "median": 5.172413793103448,
+              "p90": 5.7835820895522385,
+              "nullRate": 0
+            }
+          },
+          "mechanicUsage": [
+            {
+              "mechanic": "blocks",
+              "rate": 1
+            },
+            {
+              "mechanic": "force",
+              "rate": 1
+            },
+            {
+              "mechanic": "keys_doors",
+              "rate": 1
+            },
+            {
+              "mechanic": "monsters",
+              "rate": 1
+            },
+            {
+              "mechanic": "socket",
+              "rate": 1
+            },
+            {
+              "mechanic": "water",
+              "rate": 1
+            },
+            {
+              "mechanic": "fire",
+              "rate": 0.9
+            },
+            {
+              "mechanic": "trap",
+              "rate": 0.6
+            },
+            {
+              "mechanic": "ice",
+              "rate": 0.3
+            },
+            {
+              "mechanic": "cloner",
+              "rate": 0.2
+            },
+            {
+              "mechanic": "bomb",
+              "rate": 0.2
+            }
+          ]
+        },
+        "extra": {
+          "requested": 10,
+          "generationFailures": 0,
+          "unprovenLevels": 0,
+          "bypassableLevels": 0,
+          "plannedPieces": {
+            "mean": 10,
+            "p10": 10,
+            "median": 10,
+            "p90": 10,
+            "nullRate": 0
+          },
+          "keptPieces": {
+            "mean": 9.8,
+            "p10": 9,
+            "median": 10,
+            "p90": 10,
+            "nullRate": 0
+          },
+          "shareAllPlannedPiecesKept": 0.8,
+          "shareWithMonsters": 1,
+          "openArea": {
+            "outsideFloorCells": {
+              "mean": 228.4,
+              "p10": 170,
+              "median": 209,
+              "p90": 290,
+              "nullRate": 0
+            },
+            "contentShareWithin4Steps": {
+              "mean": 0.7887788957174543,
+              "p10": 0.6048387096774194,
+              "median": 0.8038277511961722,
+              "p90": 0.9117647058823529,
+              "nullRate": 0
+            },
+            "hubMonstersPerLevel": {
+              "mean": 1.7,
               "p10": 1,
               "median": 2,
               "p90": 2,
@@ -1637,10 +1629,10 @@
               "nullRate": 0
             },
             "regionCells": {
-              "mean": 126.6,
-              "p10": 52,
-              "median": 117,
-              "p90": 203,
+              "mean": 164.8,
+              "p10": 112,
+              "median": 148,
+              "p90": 212,
               "nullRate": 0
             },
             "dependencyPairs": {
@@ -1652,32 +1644,31 @@
             }
           },
           "monsterCountWhereAny": {
-            "mean": 2.3,
-            "p10": 1,
-            "median": 2,
+            "mean": 3,
+            "p10": 2,
+            "median": 3,
             "p90": 3,
             "nullRate": 0
           },
           "motifUsage": {
-            "keys_doors": 0.8,
-            "fire": 0.7,
-            "monsters": 0.7,
-            "blocks_water": 0.7,
-            "trap": 0.5,
-            "force": 0.5,
-            "water": 0.4,
-            "ice": 0.4,
+            "monsters": 1,
+            "keys_doors": 0.9,
+            "blocks_water": 0.8,
+            "trap": 0.6,
+            "water": 0.5,
+            "force": 0.3,
+            "sokoban": 0.3,
             "cloner": 0.3,
-            "bomb": 0.3,
-            "sokoban": 0.2,
-            "teleport": 0.2,
+            "ice": 0.3,
+            "fire": 0.2,
+            "bomb": 0.2,
             "toggle_walls": 0.1
           },
           "generationMs": {
-            "mean": 2242.5414100000007,
-            "p10": 999.738400000002,
-            "median": 1508.3662999999942,
-            "p90": 4729.616000000009,
+            "mean": 4343.334820000001,
+            "p10": 844.9035999999905,
+            "median": 3086.8485999999975,
+            "p90": 8033.247700000007,
             "nullRate": 0
           }
         }

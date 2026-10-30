@@ -234,6 +234,8 @@ describe('endless levels', () => {
   /** Shared CI runners measured 6.0 to 6.5 s for the same level: the budget gets this much headroom. */
   const CI_LOAD_FACTOR = 2;
   const DEEP_LEVELS_TEST_TIMEOUT_MS = 60000;
+  /** Five opening levels, each with a hub grown into its free area, built beside the other workers of the suite. */
+  const OPENING_LEVELS_TEST_TIMEOUT_MS = 30000;
 
   it('opens at full difficulty: a timed hub of the planned size, with a distinct id', () => {
     const cfg = ConfigRegistry.getGame().procedural!;
@@ -245,7 +247,7 @@ describe('endless levels', () => {
       expect(g.motifs.length).toBeLessThanOrEqual(cfg.endless.motifCountStart);
       expect(g.pieceMotifs.filter((m) => g.motifs.includes(m)).length).toBeLessThanOrEqual(cfg.endless.pieceCountStart);
     }
-  });
+  }, OPENING_LEVELS_TEST_TIMEOUT_MS);
 
   it('builds a deep level in a few seconds', () => {
     for (const seed of SEEDS) {

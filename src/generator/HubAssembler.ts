@@ -21,6 +21,7 @@ import { Direction, GridPoint, HubConfig } from '../core/types';
 import { HubGrid } from './HubGrid';
 import { HubLoopAssembler } from './HubLoopAssembler';
 import { HubOpenAssembler } from './HubOpenAssembler';
+import { growOutline, growthSides, HUB_FLOOR_CHAR, OutlineRoom, wantedGrowth } from './HubOutline';
 import { HubPlan, HubWing } from './HubPlanner';
 import { AssembledHubLevel, CHIP_ITEM_ID, EXIT_TILE_ID, HUB_SEGMENT, LevelGuard, MAP_MARGIN, NO_SEGMENT, OpenArea, WingPlacement, WingTrial } from './HubTypes';
 import { Box, RouteSegment } from './LevelAssembler';
@@ -32,8 +33,8 @@ export type { AssembledHubLevel, LevelGuard } from './HubTypes';
 
 /** Open hub neighbours a free cell needs to join the hub region's fringe. */
 const FRINGE_MIN_OPEN_NEIGHBOURS = 1;
-/** Floor character of hub outlines in game.json. */
-const HUB_FLOOR_CHAR = '.';
+/** Cells kept between a grown outline and the map margin on each side, for the wall ring and a gate. */
+const OUTLINE_SIDE_ROOM = 2;
 
 /**
  * Lays a hub plan out: an open hub in the middle of the map, the player
@@ -64,30 +65,36 @@ export class HubAssembler {
     this.openFill = new HubOpenAssembler(this.grid, cfg, rng);
   }
 
-  /** Returns the assembled level, or null when the wings do not fit around the hub. */
+  /**
+   * Returns the assembled level, or null when the wings do not fit around the hub.
+   * `growth` scales how far the outline of a loop level is grown into the area
+   * the plan leaves free: 1 for the whole growth, 0 for the drawn outline as it is.
+   */
   public static assemble(
     plan: HubPlan,
     cfg: HubConfig,
     rng: SeededRandom,
-    shapeIds?: string[]
+    shapeIds?: string[],
+    growth = 1
   ): AssembledHubLevel | null {
-    return new HubAssembler(cfg, rng).build(plan, shapeIds);
+    return new HubAssembler(cfg, rng).build(plan, shapeIds, growth);
   }
 
-  private build(plan: HubPlan, shapeIds?: string[]): AssembledHubLevel | null {
+  private build(plan: HubPlan, shapeIds?: string[], growth = 1): AssembledHubLevel | null {
     // A different outline per attempt among those allowed, shifted off centre
     // so one side leaves room for long wings.
     const outlines = this.cfg.shapes.filter((s) => !shapeIds || shapeIds.includes(s.id));
     const shape = outlines[this.rng.nextInt(0, outlines.length - 1)];
-    const shapeHeight = shape.rows.length;
-    const shapeWidth = Math.max(...shape.rows.map((r) => r.length));
     const shiftX = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
     const shiftY = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
+    const rows = this.grownOutline(shape.rows, plan, shiftX, shiftY, growth);
+    const shapeHeight = rows.length;
+    const shapeWidth = Math.max(...rows.map((r) => r.length));
     const x0 = Math.max(MAP_MARGIN + 1, Math.min(this.grid.width - shapeWidth - MAP_MARGIN - 1, Math.floor((this.grid.width - shapeWidth) / 2) + shiftX));
     const y0 = Math.max(MAP_MARGIN + 1, Math.min(this.grid.height - shapeHeight - MAP_MARGIN - 1, Math.floor((this.grid.height - shapeHeight) / 2) + shiftY));
     this.hub = { x0, y0, x1: x0 + shapeWidth - 1, y1: y0 + shapeHeight - 1 };
     this.grid.hubFloor = new Set();
-    shape.rows.forEach((row, dy) =>
+    rows.forEach((row, dy) =>
       [...row].forEach((ch, dx) => {
         if (ch === HUB_FLOOR_CHAR) this.grid.hubFloor.add(this.grid.key({ x: x0 + dx, y: y0 + dy }));
       })
@@ -184,6 +191,27 @@ export class HubAssembler {
       open,
       hubShape: shape.id
     };
+  }
+
+  /**
+   * The drawn outline of a loop level, grown to cover its share of the area the
+   * plan's puzzles leave free (see HubOutline), toward the map edge the hub is
+   * shifted to first. A dead-end hub keeps its drawn outline. Nothing is drawn
+   * from the random stream, so the layouts tried stay those of the plain outline.
+   */
+  private grownOutline(drawn: string[], plan: HubPlan, shiftX: number, shiftY: number, growth: number): string[] {
+    if (growth <= 0 || !plan.wings.some((w) => w.loop)) return drawn;
+    const pieces = [...plan.wings.flatMap((w) => [w.piece, ...w.then]), plan.finale];
+    const room: OutlineRoom = {
+      interior: (this.grid.width - 2 * MAP_MARGIN) * (this.grid.height - 2 * MAP_MARGIN),
+      boxArea: pieces.reduce((sum, p) => sum + p.width * p.height, 0),
+      pieceCount: pieces.length,
+      widest: this.grid.width - 2 * MAP_MARGIN - 2 * OUTLINE_SIDE_ROOM,
+      tallest: this.grid.height - 2 * MAP_MARGIN - 2 * OUTLINE_SIDE_ROOM
+    };
+    const wanted = Math.round(wantedGrowth(drawn, room, this.cfg.outlineGrowth) * growth);
+    if (wanted <= 0) return drawn;
+    return growOutline(drawn, wanted, room, growthSides(shiftX, shiftY));
   }
 
   /**

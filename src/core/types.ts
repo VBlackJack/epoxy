@@ -179,6 +179,21 @@ export interface HubOpenDividersConfig {
   attempts: number;
 }
 
+/**
+ * How far the drawn hub outline of a loop level grows to cover the area its
+ * puzzles leave free: the map interior less the puzzle boxes and a corridor
+ * allowance per puzzle. The outline gains whole rows and columns of floor on
+ * its sides until it covers the given share of that free area.
+ */
+export interface HubOutlineGrowthConfig {
+  /** Cells of gate, corridors and return strip counted out of the free area per planned puzzle. */
+  cellsPerPiece: number;
+  /** Share of the free area the grown outline aims to cover; 0 keeps the drawn outlines. */
+  freeAreaShare: number;
+  /** Most floor cells the growth may add to a drawn outline. */
+  maxCells: number;
+}
+
 /** How many pairs of puzzles hand something over (a block, a key) in a loop level, by planned puzzles. */
 export interface HubDependencyConfig {
   fromPieces: number;
@@ -200,6 +215,8 @@ export interface HubConfig {
   shapes: HubShapeConfig[];
   /** Largest offset of the hub from the map centre, drawn per attempt. */
   maxShift: number;
+  /** Growth of the drawn outline in a loop level, by the area the planned puzzles leave free. */
+  outlineGrowth: HubOutlineGrowthConfig;
   /** Wings open from the start, so the player chooses where to begin. */
   openWings: number;
   maxConnectorLength: number;
