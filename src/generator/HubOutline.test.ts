@@ -23,7 +23,7 @@ const SQUARE = ['.......', '.......', '.......', '.......', '.......', '.......'
 const CROSS = ['##...##', '##...##', '.......', '.......', '.......', '##...##', '##...##'];
 /** A 32x32 map with a margin of 1 and 2 cells kept on each side of the outline. */
 const ROOM: OutlineRoom = { interior: 900, boxArea: 417, pieceCount: 9, widest: 26, tallest: 26 };
-const RULE: HubOutlineGrowthConfig = { cellsPerPiece: 12, freeAreaShare: 0.21, maxCells: 40 };
+const RULE: HubOutlineGrowthConfig = { cellsPerPiece: 12, freeAreaShare: 0.21, maxCells: 40, growAttemptsPerTier: 4 };
 const EAST = growthSides(0, 0);
 const SOUTH = growthSides(0, 1);
 

@@ -201,10 +201,11 @@ export class ProceduralGenerator {
     const lead = leadChoice?.preferred;
     const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg, profile.mode);
     // Attempts come in tiers of one dropped puzzle each. Within a tier the pack's
-    // lead motif, hub outline, its growth into the free area and a block lane between
-    // two puzzles are asked for first, then relaxed, so the constraints give way
-    // before any puzzle does.
-    const tierSize = cfg.hub.attemptsPerDroppedPiece;
+    // lead motif, hub outline and a block lane between two puzzles are asked for
+    // first, then relaxed, so the constraints give way before any puzzle does. The
+    // hub's growth into the free area is asked for on the first attempts of the tier
+    // (hub.outlineGrowth.growAttemptsPerTier), the strict ones at most.
+    const tierSize = profile.mode === 'endless' ? cfg.endless.attemptsPerDroppedPiece : cfg.hub.attemptsPerDroppedPiece;
     const strictPerTier = Math.ceil(tierSize / 2);
 
     for (let attempt = 0; attempt < cfg.maxGenerationAttempts; attempt++) {
@@ -215,7 +216,7 @@ export class ProceduralGenerator {
       const shapeIds = shape ? (strict && shape.preferred ? [shape.preferred] : shape.allowed) : undefined;
       const dropped = Math.floor(attempt / tierSize);
       const avoid = leadChoice?.avoid;
-      const hubGrowth = strict ? 1 : 0;
+      const hubGrowth = strict && attempt % tierSize < cfg.hub.outlineGrowth.growAttemptsPerTier ? 1 : 0;
       const built =
         layout === 'hub'
           ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid, strict, hubGrowth)

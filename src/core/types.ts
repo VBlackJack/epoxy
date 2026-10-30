@@ -194,6 +194,12 @@ export interface HubOutlineGrowthConfig {
   freeAreaShare: number;
   /** Most floor cells the growth may add to a drawn outline. */
   maxCells: number;
+  /**
+   * Attempts of each tier (the first ones, which are the strict ones) that ask for the grown
+   * outline; the rest use the drawn outline, so a plan that finds no room round the larger hub
+   * gets its chances with the plain one before a puzzle is dropped.
+   */
+  growAttemptsPerTier: number;
 }
 
 /** How many pairs of puzzles hand something over (a block, a key) in a loop level, by planned puzzles. */
@@ -334,6 +340,12 @@ export interface ProceduralScoringConfig {
 
 /** Difficulty curve of endless mode: full difficulty from level 1, then a capped growth. */
 export interface EndlessConfig {
+  /**
+   * Failed attempts after which an endless level drops one puzzle, in place of
+   * `hub.attemptsPerDroppedPiece`: a hub grown into the free area needs a few more
+   * tries before a puzzle gives way.
+   */
+  attemptsPerDroppedPiece: number;
   pieceCountStart: number;
   pieceCountMax: number;
   levelsPerExtraPiece: number;
