@@ -259,7 +259,8 @@ export class HubLoopAssembler {
       index === 0,
       last,
       wing.isFinal,
-      pushedAt[index] ?? false
+      pushedAt[index] ?? false,
+      pushedAt[index + 1] ? this.cfg.laneLookahead : 0
     );
     for (const fit of fits) {
       if (budget.returns <= 0) return null;
@@ -364,7 +365,9 @@ export class HubLoopAssembler {
    * may follow `from` at once. The last puzzle is also weighed by its distance
    * to the hub, since the way back starts there. With `straight`, the corridor
    * runs straight on from `from` and enters the piece head-on: a block pushed
-   * out of the previous puzzle can be pushed along it into the next.
+   * out of the previous puzzle can be pushed along it into the next. With
+   * `laneAhead`, that many cells must be free straight beyond the exit: the
+   * next puzzle needs such a lane, so a placement facing a wall is not offered.
    */
   private findPlacements(
     from: GridPoint,
@@ -375,7 +378,8 @@ export class HubLoopAssembler {
     direct: boolean,
     last: boolean,
     terminal: boolean,
-    straight = false
+    straight = false,
+    laneAhead = 0
   ): PlacementFit[] {
     const { boxes, claims, extent } = state;
     const start = this.grid.step(from, heading);
@@ -443,6 +447,10 @@ export class HubLoopAssembler {
             const bk = this.grid.key(beyond);
             if (this.grid.inMap(beyond) && (this.grid.segment[bk] !== NO_SEGMENT || claims.has(bk) || touches(beyond, leading))) continue;
           } else if (!this.grid.corridorFits(beyond, seg + 1, [...boxes, box], claims)) continue;
+          if (laneAhead > 0) {
+            const lane = Array.from({ length: laneAhead }, (_, k) => this.grid.stepN(exitPort, exitDir, k + 2));
+            if (lane.some((c) => !this.grid.corridorFits(c, seg + 1, [...boxes, box], claims))) continue;
+          }
           const spread = this.grid.union(this.grid.union(base, box), this.grid.cellsBox(leading));
           const hugged = this.contact(box, boxes);
           const toHub = last && !terminal ? Math.min(...ringEnds.map((r) => Math.abs(r.x - beyond.x) + Math.abs(r.y - beyond.y))) : 0;

@@ -202,7 +202,8 @@ export class HubPlanner {
    * exporter hands a block or a key over, a consumer needs it. A block pair is
    * bonded: the consumer follows the exporter in the same wing, the block being
    * pushed along the corridor between them. A key pair puts the consumer at a
-   * later index, so the winning order visits the exporter first. The pieces
+   * later index, so the winning order visits the exporter first. A level gets
+   * one block pair at most while key pairs are available. The pieces
    * replaced are those of motifs the level has several of, smallest first, and
    * monster arenas last; the final puzzle is never replaced. Returns the
    * puzzles, the focus motifs (those left without a puzzle dropped, the pairs'
@@ -242,10 +243,15 @@ export class HubPlanner {
     rng.shuffle(couples);
     const used = new Set(result.map((p) => p.id));
     const taken = new Set<number>();
+    // A block lane is the costliest to lay out: a level gets one, then key pairs, unless only block pairs are left.
+    const itemCouples = couples.filter((c) => c.exporter.exports?.kind === 'item');
     for (const { exporter, consumer } of couples) {
       if (dependencies.length >= wanted) break;
       if (used.has(exporter.id) || used.has(consumer.id)) continue;
       const exchange = exporter.exports as NonNullable<CompiledPiece['exports']>;
+      const blockTaken = dependencies.some((d) => d.kind === 'block');
+      const itemLeft = itemCouples.some((c) => !used.has(c.exporter.id) && !used.has(c.consumer.id));
+      if (exchange.kind === 'block' && blockTaken && itemLeft) continue;
       const slots = HubPlanner.replaceSlots(result, taken, exchange.kind === 'block', rng);
       if (!slots) break;
       const [at, later] = slots;

@@ -17,13 +17,15 @@ versions follow Semantic Versioning.
 - `HubPlanner.addDependencies` swaps pairs into the puzzles of a loop-wing hub
   (`hub.dependencies` in `game.json`: `fromPieces`, `piecesPerPair`, `max`). A block pair is
   bonded in one wing, the consumer right after the exporter; a key pair puts the consumer at a
-  later position, usually another wing. `HubPlanner.winningOrder` walks each wing's chain with
+  later position, usually another wing. A level gets one block pair at most while key pairs are
+  available. `HubPlanner.winningOrder` walks each wing's chain with
   the inventory: an imported key must be held (spent when the door consumes it), an exported
   key is gained, a block import must follow a block export. The colours a pair hands over are
   never used as wing locks. Exchange pieces are kept out of `ProgressionPlanner.playablePieces`,
   so pack mode and the campaign are unchanged (`PackBaseline.test.ts`).
-- `HubAssembler` lays a bonded pair out with a straight lane from the exporter's exit port to
-  the consumer's entry port, kept clear of rewards, and the route gets a `push` segment;
+- `HubLoopAssembler` lays a bonded pair out with a straight lane from the exporter's exit port
+  to the consumer's entry port, kept clear of rewards, and only offers exporter placements with
+  `hub.laneLookahead` free cells straight beyond the exit; the route gets a `push` segment, and
   `LevelProver` pushes the block along it and checks it rests on the consumer's entry port
   before replaying the consumer. Guards are unchanged.
 - 10 pieces (91 in total): 3 block exporters (`block_out_lane`, `block_out_ford`,
@@ -37,6 +39,13 @@ versions follow Semantic Versioning.
   pairs by kind, unproven, bypassable, generation time, quality floors) into
   `local/dependency-study.json`.
 - `GeneratedLevel.dependencies` lists the pairs of a generated level.
+- Wings holding a block lane are placed first, as the most constrained.
+- Measured on 20 seeds: every level at levels 10 and 20 holds a pair, none is unproven or
+  bypassable, median walkable cells 462 at both, revisit 1.23 and 1.20, junction share 0.63 and
+  0.56, monsters in 0.9 and 1.0 of the levels. Generation p95 is 1.3 s at level 10 (1.5 s for
+  the same seeds without pairs). At level 20 (10 pieces) it is 5.1 s and all planned pieces are
+  kept in 0.65 of the levels, against 4.7 s and 0.80 without pairs: 10-piece levels are slow on
+  their own, and a block lane adds a few failed layouts.
 
 ## [2.2.0] - 2026-10-30
 
