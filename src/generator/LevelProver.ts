@@ -51,8 +51,10 @@ export function resetProverCache(): void {
  * actually holds when reaching it (boots change how ice and force floors
  * behave, so a solution found without them may not apply). A piece with
  * monsters is solved inside the running level, from wherever its monsters
- * have moved by the time the player arrives. The level counts as proven
- * only if the run ends on the exit with every chip collected.
+ * have moved by the time the player arrives. A block one piece pushes out is
+ * pushed along its lane and must rest on the next piece's entry port before
+ * that piece is solved; a key one piece collects is simply carried. The level
+ * counts as proven only if the run ends on the exit with every chip collected.
  */
 export class LevelProver {
   public static prove(level: CompiledLevel, route: RouteSegment[]): LevelProof {
@@ -109,6 +111,19 @@ export class LevelProver {
           moves.push(dir);
           track();
         }
+        continue;
+      }
+      if (segment.kind === 'push') {
+        for (const dir of segment.moves) {
+          if (!engine.attemptPlayerMove(dir) || !PieceSolver.settle(engine)) return failed();
+          moves.push(dir);
+          pieceMoves++;
+          track();
+        }
+        const rests = engine
+          .getEntities()
+          .some((e) => e.kind === 'block' && e.x === segment.block.x && e.y === segment.block.y);
+        if (!rests) return failed();
         continue;
       }
 
@@ -240,8 +255,11 @@ export class LevelProver {
         .sort()
         .flatMap(([id, count]) => new Array<string>(count).fill(id))
     ];
-    // A precomputed solution holds while nothing carried acts on the piece.
-    if (piece.solution && carried.every((id) => !helpfulItems(piece).has(id))) return piece.solution;
+    // A precomputed solution holds while what is carried acts on the piece exactly as
+    // what it was solved with: its required boots and imported key, nothing more.
+    const helpful = helpfulItems(piece);
+    const acting = (ids: string[]): string => ids.filter((id) => helpful.has(id)).sort().join();
+    if (piece.solution && acting(carried) === acting(PieceSolver.defaultCarried(piece))) return piece.solution;
     const { quarterTurns, mirrored } = piece.orientation;
     const cacheKey = `${piece.id}|${quarterTurns}|${mirrored}|${carried.join()}`;
     if (!solutionCache.has(cacheKey)) {

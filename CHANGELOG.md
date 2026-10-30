@@ -3,6 +3,41 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Inter-piece dependencies in endless hubs: a level is one puzzle rather than a sequence of
+  rooms. A piece may declare `exports` or `imports` in `motifs.json` (`PieceExchange`,
+  compiled into `CompiledPiece`): a block export ends with a dirt block pushed out through
+  the exit port, a block import begins with that block pushed onto the water just inside the
+  entry port; a key export is collected while solving, a key import is a door inside the piece
+  with no key of its colour. `PieceSolver` solves and analyses both kinds (`toLevel`,
+  `wins`, `withoutImports`), so `annotate:pieces` and the library tests cover them.
+- `HubPlanner.addDependencies` swaps pairs into the puzzles of a loop-wing hub
+  (`hub.dependencies` in `game.json`: `fromPieces`, `piecesPerPair`, `max`). A block pair is
+  bonded in one wing, the consumer right after the exporter; a key pair puts the consumer at a
+  later position, usually another wing. `HubPlanner.winningOrder` walks each wing's chain with
+  the inventory: an imported key must be held (spent when the door consumes it), an exported
+  key is gained, a block import must follow a block export. The colours a pair hands over are
+  never used as wing locks. Exchange pieces are kept out of `ProgressionPlanner.playablePieces`,
+  so pack mode and the campaign are unchanged (`PackBaseline.test.ts`).
+- `HubAssembler` lays a bonded pair out with a straight lane from the exporter's exit port to
+  the consumer's entry port, kept clear of rewards, and the route gets a `push` segment;
+  `LevelProver` pushes the block along it and checks it rests on the consumer's entry port
+  before replaying the consumer. Guards are unchanged.
+- 10 pieces (91 in total): 3 block exporters (`block_out_lane`, `block_out_ford`,
+  `block_out_twin_fords`), 3 block consumers (`block_in_moat`, `block_in_canal`,
+  `block_in_pillar`), 2 key exporters (`key_out_yellow`, `key_out_green`) and 2 key consumers
+  (`door_in_yellow`, `door_in_green`), each solvable in every orientation.
+- `HubDependencies.test.ts` checks the library, the pairing (at least 80 percent of planned
+  endless levels at levels 10 and 20 hold a pair, consumer after exporter in the proven order,
+  block pairs adjacent in one wing, none in pack mode) and generated levels (replay, no bypass).
+- `npm run report:dependencies` measures 20 seeds at levels 10 and 20 (share with a pair,
+  pairs by kind, unproven, bypassable, generation time, quality floors) into
+  `local/dependency-study.json`.
+- `GeneratedLevel.dependencies` lists the pairs of a generated level.
+
 ## [2.2.0] - 2026-10-30
 
 ### Changed

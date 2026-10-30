@@ -111,6 +111,13 @@ export interface HubScarceConfig {
   max: number;
 }
 
+/** How many pairs of puzzles hand something over (a block, a key) in a loop level, by planned puzzles. */
+export interface HubDependencyConfig {
+  fromPieces: number;
+  piecesPerPair: number;
+  max: number;
+}
+
 /** A hub outline: '.' is floor, anything else stays wall (pillars, cut corners). */
 export interface HubShapeConfig {
   id: string;
@@ -178,6 +185,11 @@ export interface HubConfig {
    * the level is restarted, as in the original game.
    */
   scarceRecovery: boolean;
+  /**
+   * Pairs of puzzles in a loop level where one exports a block or a key that the
+   * other needs: none under `fromPieces` planned puzzles, one more per `piecesPerPair`, up to `max`.
+   */
+  dependencies: HubDependencyConfig;
   /** Most box area, in cells, the puzzles of a loop level may add up to; larger ones are swapped for smaller siblings. */
   puzzleAreaBudget: number;
   /** Placements of a wing tried one after the other when the wings after it find no room. */

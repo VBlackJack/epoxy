@@ -216,6 +216,11 @@
       "maxLinkLength": 6,
       "scarceGates": { "fromPieces": 6, "piecesPerGate": 4, "max": 2 },
       "scarceRecovery": false,
+    "dependencies": {
+      "fromPieces": 6,
+      "piecesPerPair": 4,
+      "max": 2
+    },
       "puzzleAreaBudget": 420,
       "wingAlternatives": 3,
       "backtrackBudget": 30,

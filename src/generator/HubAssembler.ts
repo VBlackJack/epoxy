@@ -80,6 +80,11 @@ interface ChainLink {
   /** Direction of the last step, into the entry port. */
   approachDir: Direction;
   exitDir: Direction;
+  /**
+   * The previous puzzle pushes a block out and this one needs it: the connector is a
+   * straight lane the block is pushed along, kept clear of items.
+   */
+  pushed: boolean;
 }
 
 /** What makes a wing a loop: more puzzles in a chain, and the one-way way back to the hub. */
@@ -105,6 +110,8 @@ interface PlacementFit {
   entryPort: GridPoint;
   exitPort: GridPoint;
   exitDir: Direction;
+  /** The corridor is a straight lane for a block pushed from the previous puzzle. */
+  pushed: boolean;
   /** Lower is better. */
   cost: number;
 }
@@ -614,7 +621,12 @@ export class HubAssembler {
     };
     const loot = wing.rewards.length + this.cfg.rewardChips;
     const budget = { returns: this.cfg.returnAttempts };
-    const done = this.extendChain(wing, 0, start, gate, outward, firstSegment, leadOptions, chainTurns, loot, budget);
+    // A puzzle that needs the block the one before it pushes out is reached by a straight lane.
+    const chain = [wing.piece, ...wing.then];
+    const pushedAt = chain.map(
+      (piece, i) => i > 0 && piece.imports?.kind === 'block' && chain[i - 1].exports?.kind === 'block'
+    );
+    const done = this.extendChain(wing, 0, start, gate, outward, firstSegment, leadOptions, chainTurns, loot, budget, pushedAt);
     if (!done) return null;
     const { state, back } = done;
     const finaleFit = wing.isFinal ? state.fits[state.fits.length - 1] : null;
@@ -630,7 +642,8 @@ export class HubAssembler {
       origin: f.origin,
       connector: f.corridor,
       approachDir: f.approachDir,
-      exitDir: f.exitDir
+      exitDir: f.exitDir,
+      pushed: f.pushed
     }));
     const commit = (): WingPlacement => {
       for (const f of state.fits) this.stamp(f.piece, f.origin);
@@ -693,7 +706,8 @@ export class HubAssembler {
     leadOptions: CompiledPiece[],
     chainTurns: CompiledPiece[][],
     loot: number,
-    budget: { returns: number }
+    budget: { returns: number },
+    pushedAt: boolean[]
   ): { state: ChainState; back: ReturnRoute | null } | null {
     const last = index === chainTurns.length;
     const seg = firstSegment + index;
@@ -705,7 +719,8 @@ export class HubAssembler {
       state,
       index === 0,
       last,
-      wing.isFinal
+      wing.isFinal,
+      pushedAt[index] ?? false
     );
     for (const fit of fits) {
       if (budget.returns <= 0) return null;
@@ -724,7 +739,19 @@ export class HubAssembler {
         heading: fit.exitDir
       };
       if (!last) {
-        const done = this.extendChain(wing, index + 1, next, gate, outward, firstSegment, leadOptions, chainTurns, loot, budget);
+        const done = this.extendChain(
+          wing,
+          index + 1,
+          next,
+          gate,
+          outward,
+          firstSegment,
+          leadOptions,
+          chainTurns,
+          loot,
+          budget,
+          pushedAt
+        );
         if (done) return done;
         continue;
       }
@@ -796,7 +823,9 @@ export class HubAssembler {
    * by how much they grow the level's extent and how closely they hug what is
    * already there; they come back cheapest first. With `direct`, the entry port
    * may follow `from` at once. The last puzzle is also weighed by its distance
-   * to the hub, since the way back starts there.
+   * to the hub, since the way back starts there. With `straight`, the corridor
+   * runs straight on from `from` and enters the piece head-on: a block pushed
+   * out of the previous puzzle can be pushed along it into the next.
    */
   private findPlacements(
     from: GridPoint,
@@ -806,7 +835,8 @@ export class HubAssembler {
     state: ChainState,
     direct: boolean,
     last: boolean,
-    terminal: boolean
+    terminal: boolean,
+    straight = false
   ): PlacementFit[] {
     const { boxes, claims, extent } = state;
     const start = this.step(from, heading);
@@ -816,7 +846,7 @@ export class HubAssembler {
     if (this.corridorFits(start, seg, boxes, claims)) {
       parents.set(this.key(start), -1);
       order.push(start);
-      const directions = [...ORDERED_DIRECTIONS];
+      const directions = straight ? [heading] : [...ORDERED_DIRECTIONS];
       this.rng.shuffle(directions);
       const depth = new Map<number, number>([[this.key(start), 1]]);
       for (let i = 0; i < order.length; i++) {
@@ -852,7 +882,7 @@ export class HubAssembler {
     for (const end of ends) {
       const path = pathTo(end);
       const tip = end ?? from;
-      const dirs = end ? ORDERED_DIRECTIONS : [heading];
+      const dirs = end && !straight ? ORDERED_DIRECTIONS : [heading];
       for (const approachDir of dirs) {
         const entryPort = this.step(tip, approachDir);
         if (claims.has(this.key(entryPort)) || path.some((c) => c.x === entryPort.x && c.y === entryPort.y)) continue;
@@ -882,7 +912,7 @@ export class HubAssembler {
             path.length -
             hugged * this.cfg.contactWeight +
             toHub * this.cfg.returnDistanceWeight;
-          fits.push({ piece, origin, box, corridor: path, approachDir, entryPort, exitPort, exitDir, cost });
+          fits.push({ piece, origin, box, corridor: path, approachDir, entryPort, exitPort, exitDir, pushed: straight, cost });
           if (fits.length >= this.cfg.chainPlacementSamples * PLACEMENT_POOL_FACTOR) {
             return this.cheapest(fits);
           }
@@ -1286,10 +1316,13 @@ export class HubAssembler {
     return used;
   }
 
-  /** Scatters the wing's rewards and chips over the corridors of its chain; returns their cells in walking order. */
+  /**
+   * Scatters the wing's rewards and chips over the corridors of its chain, but
+   * never on a lane a block is pushed along; returns their cells in walking order.
+   */
   private fillChain(wing: HubWing, loop: LoopPlacement): GridPoint[] {
     const loot = [...wing.rewards, ...new Array<string>(this.cfg.rewardChips).fill(CHIP_ITEM_ID)];
-    const corridor = [...loop.links.flatMap((l) => l.connector), ...loop.tail];
+    const corridor = [...loop.links.filter((l) => !l.pushed).flatMap((l) => l.connector), ...loop.tail];
     const picks = corridor.map((_, i) => i);
     this.rng.shuffle(picks);
     this.rng.shuffle(loot);
@@ -1305,7 +1338,9 @@ export class HubAssembler {
   /**
    * Walks a loop wing: each puzzle, the rewards lying in the corridor after it,
    * and out through the one-way strip. One step into the strip is enough, the
-   * floor carries the player into the hub.
+   * floor carries the player into the hub. A block pushed out of a puzzle is
+   * pushed along the lane onto the next puzzle's entry port, where that
+   * puzzle's own solution takes it over.
    */
   private loopRoute(placement: WingPlacement, loop: LoopPlacement, rewardCells: GridPoint[]): RouteSegment[] {
     const { piece, origin, outward, approach } = placement;
@@ -1320,10 +1355,15 @@ export class HubAssembler {
     };
     let exitDir = placement.exitDir;
     for (const link of loop.links) {
-      route.push({ kind: 'walk', moves: [exitDir] });
-      collect(link.connector);
-      route.push({ kind: 'goto', target: link.connector[link.connector.length - 1] });
-      route.push({ kind: 'walk', moves: [link.approachDir] });
+      if (link.pushed) {
+        const entryPort = { x: link.origin.x + link.piece.entry.x, y: link.origin.y + link.piece.entry.y };
+        route.push({ kind: 'push', moves: new Array<Direction>(link.connector.length).fill(exitDir), block: entryPort });
+      } else {
+        route.push({ kind: 'walk', moves: [exitDir] });
+        collect(link.connector);
+        route.push({ kind: 'goto', target: link.connector[link.connector.length - 1] });
+        route.push({ kind: 'walk', moves: [link.approachDir] });
+      }
       route.push({ kind: 'piece', piece: link.piece, origin: link.origin, isFinale: false });
       exitDir = link.exitDir;
     }

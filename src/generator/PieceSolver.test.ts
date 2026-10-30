@@ -20,7 +20,6 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { ALL_ORIENTATIONS, compilePiece, orientPiece, resetPieceCaches } from './PieceCompiler';
-import { GameEngine } from '../core/GameEngine';
 import { PieceSolver, SolverAction } from './PieceSolver';
 import { CompiledPiece, PieceDefinition } from './PieceTypes';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -45,15 +44,9 @@ function piece(rows: string[], extra: Partial<PieceDefinition> = {}): CompiledPi
   );
 }
 
-/** Plays an action list on the piece alone; true when it ends on the exit with every chip. */
+/** Plays an action list on the piece alone; true when it ends in the piece's winning state. */
 function winsWith(piece: CompiledPiece, actions: SolverAction[]): boolean {
-  const engine = new GameEngine();
-  engine.loadLevel(PieceSolver.toLevel(piece));
-  PieceSolver.grantCarried(engine, piece.requires);
-  for (const action of actions) {
-    if (!PieceSolver.play(engine, action)) return false;
-  }
-  return engine.isLevelCompleted() && engine.getChipsRemaining() === 0;
+  return PieceSolver.wins(piece, actions);
 }
 
 /** Same piece with the item at (x, y) replaced by bare floor. */
