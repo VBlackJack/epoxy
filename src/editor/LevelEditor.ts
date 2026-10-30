@@ -33,6 +33,7 @@ import {
 } from '../core/types';
 import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
+import { parseChipsRequired, parseTimeLimit } from './metadataFields';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   CUSTOM_LEVEL_ID_PREFIX,
@@ -643,8 +644,8 @@ export class LevelEditor {
     if (passEl && passEl.value.trim()) {
       this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
     }
-    if (timeEl) this.timeLimitSeconds = Math.max(0, Number(timeEl.value) || EDITOR_DEFAULT_TIME_LIMIT_SECONDS);
-    if (chipsEl) this.chipsRequired = Math.max(0, Number(chipsEl.value) || 0);
+    if (timeEl) this.timeLimitSeconds = parseTimeLimit(timeEl.value, this.timeLimitSeconds);
+    if (chipsEl) this.chipsRequired = parseChipsRequired(chipsEl.value, this.chipsRequired);
   }
 
   private createSnapshot(): EditorSnapshot {
