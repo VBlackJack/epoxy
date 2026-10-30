@@ -15,7 +15,7 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
-import { CompiledLevel, Direction, GridConfig } from '../core/types';
+import { CompiledLevel, Direction, GameConfig, GridConfig } from '../core/types';
 
 /**
  * Raised when a fetched configuration file is missing or does not match the
@@ -80,6 +80,26 @@ export function assertConfigShape(
   if (missing.length > 0) {
     throw new ConfigLoadError(source, `missing keys ${missing.join(', ')}`);
   }
+}
+
+/** Whether `value` is a whole number of at least `min`. */
+function isIntegerAtLeast(value: unknown, min: number): boolean {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= min;
+}
+
+/** Smallest value of the endless dialog's start level bound: level 1 must stay reachable. */
+const MIN_START_LEVEL_BOUND = 1;
+
+/**
+ * Checks the endless mode tunables that code relies on as numbers. Empty when
+ * all is well; each entry names the offending key.
+ */
+export function findEndlessConfigErrors(game: GameConfig): string[] {
+  const errors: string[] = [];
+  if (!isIntegerAtLeast(game.endlessUi?.maxStartLevel, MIN_START_LEVEL_BOUND)) {
+    errors.push(`endlessUi.maxStartLevel: expected a whole number of at least ${MIN_START_LEVEL_BOUND}`);
+  }
+  return errors;
 }
 
 /** Smallest and largest width or height a level may have. */

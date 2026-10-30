@@ -32,6 +32,7 @@ import {
   isDirection,
   isFiniteNumber,
   isInBounds,
+  findEndlessConfigErrors,
   InvalidLevelError
 } from './ConfigValidation';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
@@ -145,6 +146,10 @@ class ConfigRegistryService {
     );
     if (graphicsErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, graphicsErrors.join('; '));
+    }
+    const endlessErrors = findEndlessConfigErrors(bundle.game);
+    if (endlessErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, endlessErrors.join('; '));
     }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;

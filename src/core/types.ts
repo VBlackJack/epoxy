@@ -369,6 +369,11 @@ export interface EndlessConfig {
 export interface EndlessUiConfig {
   /** Pause before a main thread generation, so the page can paint the progress message first. */
   fallbackYieldMs: number;
+  /**
+   * Highest level the dialog accepts as a start level. Reaching a level costs a
+   * replay of every earlier lead motif draw, so the field is bounded.
+   */
+  maxStartLevel: number;
 }
 
 export interface ProceduralConfig {
@@ -481,7 +486,7 @@ export interface GameConfig {
   graphics?: GraphicsConfig;
   themes?: Record<string, ThemePalette>;
   procedural?: ProceduralConfig;
-  endlessUi?: EndlessUiConfig;
+  endlessUi: EndlessUiConfig;
   touch?: TouchConfig;
   ultimatePacks?: UltimatePackDescriptor[];
   timing: TimingConfig;

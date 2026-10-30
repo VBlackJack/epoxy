@@ -81,8 +81,8 @@
         "seed_hint": { "label": "Empty means a random seed. The same seed gives the same levels again." },
         "seed_invalid": { "label": "A seed is a whole number from 0 to {max}." },
         "start_level": { "label": "Start at level" },
-        "start_level_hint": { "label": "Any level from 1, there is no last level. Your last run is proposed again." },
-        "start_level_invalid": { "label": "A level is a whole number, 1 or more." },
+        "start_level_hint": { "label": "Any level from 1 to {max}. Your last run is proposed again." },
+        "start_level_invalid": { "label": "A level is a whole number from 1 to {max}." },
         "submit": { "action": "Generate" },
         "cancel": { "action": "Cancel" }
       },

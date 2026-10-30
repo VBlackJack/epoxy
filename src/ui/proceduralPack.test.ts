@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import game from '../../public/configs/game.json';
 import { ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
   parseSeedInput,
@@ -53,21 +54,29 @@ describe('parseSeedInput', () => {
   });
 });
 
+const MAX_LEVEL = game.endlessUi.maxStartLevel;
+
 describe('parseStartLevelInput', () => {
   it('treats empty input as level 1', () => {
-    expect(parseStartLevelInput('')).toEqual({ valid: true, level: 1 });
-    expect(parseStartLevelInput('  ')).toEqual({ valid: true, level: 1 });
+    expect(parseStartLevelInput('', MAX_LEVEL)).toEqual({ valid: true, level: 1 });
+    expect(parseStartLevelInput('  ', MAX_LEVEL)).toEqual({ valid: true, level: 1 });
   });
 
-  it('accepts any whole level from 1 with no upper bound', () => {
-    expect(parseStartLevelInput('1')).toEqual({ valid: true, level: 1 });
-    expect(parseStartLevelInput(' 250 ')).toEqual({ valid: true, level: 250 });
-    expect(parseStartLevelInput('1000000')).toEqual({ valid: true, level: 1000000 });
+  it('accepts any whole level from 1 up to the cap', () => {
+    expect(parseStartLevelInput('1', MAX_LEVEL)).toEqual({ valid: true, level: 1 });
+    expect(parseStartLevelInput(' 250 ', MAX_LEVEL)).toEqual({ valid: true, level: 250 });
+    expect(parseStartLevelInput(String(MAX_LEVEL), MAX_LEVEL)).toEqual({ valid: true, level: MAX_LEVEL });
+  });
+
+  it('rejects a level above the cap', () => {
+    expect(parseStartLevelInput(String(MAX_LEVEL + 1), MAX_LEVEL)).toEqual({ valid: false });
+    expect(parseStartLevelInput('1000000', MAX_LEVEL)).toEqual({ valid: false });
+    expect(parseStartLevelInput('5', 4)).toEqual({ valid: false });
   });
 
   it('rejects zero, negatives, decimals, text and unsafe integers', () => {
     for (const raw of ['0', '-3', '2.5', 'abc', '1e3', '99999999999999999999999']) {
-      expect(parseStartLevelInput(raw)).toEqual({ valid: false });
+      expect(parseStartLevelInput(raw, MAX_LEVEL)).toEqual({ valid: false });
     }
   });
 });
@@ -93,12 +102,18 @@ describe('endless progress', () => {
 
   it('proposes the reached level only when the seed field holds the last seed', () => {
     const progress = { seed: 123, reachedLevel: 14 };
-    expect(suggestStartLevel(progress, '123')).toBe(14);
-    expect(suggestStartLevel(progress, ' 123 ')).toBe(14);
-    expect(suggestStartLevel(progress, '124')).toBe(1);
-    expect(suggestStartLevel(progress, '')).toBe(1);
-    expect(suggestStartLevel(progress, 'abc')).toBe(1);
-    expect(suggestStartLevel(null, '123')).toBe(1);
+    expect(suggestStartLevel(progress, '123', MAX_LEVEL)).toBe(14);
+    expect(suggestStartLevel(progress, ' 123 ', MAX_LEVEL)).toBe(14);
+    expect(suggestStartLevel(progress, '124', MAX_LEVEL)).toBe(1);
+    expect(suggestStartLevel(progress, '', MAX_LEVEL)).toBe(1);
+    expect(suggestStartLevel(progress, 'abc', MAX_LEVEL)).toBe(1);
+    expect(suggestStartLevel(null, '123', MAX_LEVEL)).toBe(1);
+  });
+
+  it('never proposes a level above the cap', () => {
+    expect(suggestStartLevel({ seed: 123, reachedLevel: MAX_LEVEL }, '123', MAX_LEVEL)).toBe(MAX_LEVEL);
+    expect(suggestStartLevel({ seed: 123, reachedLevel: MAX_LEVEL + 500 }, '123', MAX_LEVEL)).toBe(MAX_LEVEL);
+    expect(suggestStartLevel({ seed: 123, reachedLevel: 40 }, '123', 25)).toBe(25);
   });
 });
 describe('readStoredSeed', () => {

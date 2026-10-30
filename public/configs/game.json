@@ -421,7 +421,8 @@
     "levelPacksStoreName": "packs"
   },
   "endlessUi": {
-    "fallbackYieldMs": 0
+    "fallbackYieldMs": 0,
+    "maxStartLevel": 10000
   },
   "locales": {
     "supported": ["fr", "en"],
