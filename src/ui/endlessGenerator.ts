@@ -39,6 +39,7 @@ export interface EndlessGeneratorDeps {
 }
 
 interface PendingRequest {
+  key: string;
   seed: number;
   levelNumber: number;
   resolve: (level: CompiledLevel) => void;
@@ -103,14 +104,16 @@ export class EndlessGenerator {
   /**
    * Abandons every request in progress: the worker is terminated, so it stops
    * working on levels nobody wants, and the waiting callers are rejected. The
-   * next request starts a fresh worker.
+   * next request starts a fresh worker. Main thread generations cannot be
+   * stopped, so their shared requests stay and a repeated call reuses them.
    */
   public reset(): void {
     this.worker?.terminate();
     this.worker = null;
+    this.respawned = false;
     const abandoned = [...this.pending.values()];
     this.pending.clear();
-    this.inFlight.clear();
+    for (const request of abandoned) this.inFlight.delete(request.key);
     for (const request of abandoned) request.reject(new Error(RESET_MESSAGE));
   }
 
@@ -126,7 +129,7 @@ export class EndlessGenerator {
     if (!this.workerFailed && this.ensureWorker()) {
       return new Promise<CompiledLevel>((resolve, reject) => {
         const id = this.nextId++;
-        this.pending.set(id, { seed, levelNumber, resolve, reject });
+        this.pending.set(id, { key: requestKey(seed, levelNumber), seed, levelNumber, resolve, reject });
         this.worker?.postMessage({ type: 'generate', id, seed, levelNumber });
       });
     }
@@ -183,6 +186,8 @@ export class EndlessGenerator {
     this.worker?.terminate();
     this.worker = null;
     const orphans = [...this.pending.entries()];
+    // An idle worker died: nothing to re-post, so the retry is kept for a real failure.
+    if (orphans.length === 0) return;
     this.pending.clear();
     if (!this.everAnswered) {
       this.workerFailed = true;

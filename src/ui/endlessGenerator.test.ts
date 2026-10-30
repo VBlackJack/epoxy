@@ -218,6 +218,24 @@ describe('EndlessGenerator after a worker crash', () => {
     expect(generator.usesWorker()).toBe(false);
   });
 
+  it('does not spend the retry when an idle worker dies', async () => {
+    const workers = [new FakeWorker(), new FakeWorker(), new FakeWorker()];
+    const { generator, generateLocal, createWorker } = makeGeneratorWithWorkers(workers);
+    const a = generator.request(7, 1);
+    workers[0].answer({ type: 'level', id: generateIds(workers[0])[0], level: fakeLevel(1) });
+    await a;
+    workers[0].onerror?.(new Error('idle crash'));
+    expect(createWorker).toHaveBeenCalledTimes(1);
+    expect(generator.usesWorker()).toBe(true);
+    const b = generator.request(7, 2);
+    expect(createWorker).toHaveBeenCalledTimes(2);
+    workers[1].onerror?.(new Error('crash on the level'));
+    expect(createWorker).toHaveBeenCalledTimes(3);
+    workers[2].answer({ type: 'level', id: generateIds(workers[2])[0], level: fakeLevel(2) });
+    expect((await b).number).toBe(2);
+    expect(generateLocal).not.toHaveBeenCalled();
+  });
+
   it('terminates a worker whose init message could not be posted', async () => {
     const worker = new FakeWorker();
     worker.throwOnInit = true;
@@ -303,6 +321,35 @@ describe('EndlessGenerator reset', () => {
     second.answer({ type: 'level', id: generateIds(second)[0], level: fakeLevel(2) });
     expect((await next).number).toBe(2);
     expect(generateLocal).not.toHaveBeenCalled();
+  });
+
+  it('keeps the retry for a fresh worker after a reset', async () => {
+    const workers = [new FakeWorker(), new FakeWorker(), new FakeWorker(), new FakeWorker()];
+    const { generator, generateLocal, createWorker } = makeGeneratorWithWorkers(workers);
+    const a = generator.request(2, 1);
+    workers[0].answer({ type: 'level', id: generateIds(workers[0])[0], level: fakeLevel(1) });
+    await a;
+    const b = generator.request(2, 2);
+    workers[0].onerror?.(new Error('first crash'));
+    expect(createWorker).toHaveBeenCalledTimes(2);
+    generator.reset();
+    await b.catch(() => undefined);
+    const c = generator.request(2, 3);
+    expect(createWorker).toHaveBeenCalledTimes(3);
+    workers[2].onerror?.(new Error('crash on the first level'));
+    expect(createWorker).toHaveBeenCalledTimes(4);
+    workers[3].answer({ type: 'level', id: generateIds(workers[3])[0], level: fakeLevel(3) });
+    expect((await c).number).toBe(3);
+    expect(generateLocal).not.toHaveBeenCalled();
+  });
+
+  it('lets a request after a reset reuse a main thread generation still running', async () => {
+    const { generator, generateLocal } = makeGenerator(null);
+    const running = generator.request(5, 5);
+    generator.reset();
+    expect(generator.request(5, 5)).toBe(running);
+    expect((await running).id).toBe('local5_5');
+    expect(generateLocal).toHaveBeenCalledTimes(1);
   });
 
   it('reports nothing pending on an idle generator', () => {
