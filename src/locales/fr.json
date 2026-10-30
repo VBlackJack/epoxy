@@ -175,6 +175,7 @@
       "level_complete": { "label": "NIVEAU TERMINÉ !" },
       "time_bonus": { "label": "Bonus Temps : +{bonus}" },
       "level_score": { "label": "Score : +{score} - {medal}" },
+      "level_score_untimed": { "label": "Score : +{score}" },
       "medal_gold": { "label": "🥇 Médaille d'OR" },
       "medal_silver": { "label": "🥈 Médaille d'ARGENT" },
       "medal_bronze": { "label": "🥉 Médaille de BRONZE" },
@@ -502,6 +503,78 @@
       "title": "Atelier",
       "hint": "Chaque aile garde une clé ou une puce. Le tapis qui sort de l'aile est ne va que dans un sens, et le bouton vert à son arrivée rouvre le chemin du retour."
     },
+    "level_13": {
+      "title": "Ronde de nuit",
+      "hint": "Les insectes gardent un mur à leur gauche et ne marchent ni sur le gravier ni sur un objet. Attends dans une niche de gravier, puis avance quand la voie est libre."
+    },
+    "level_14": {
+      "title": "Ricochet",
+      "hint": "Les balles roulent tout droit et rebondissent sur tout, puces comprises. Prends une puce et son couloir s'allonge."
+    },
+    "level_15": {
+      "title": "Marche arrière",
+      "hint": "Les tanks roulent tout droit jusqu'à un obstacle. Le bouton bleu fait faire demi-tour à tous les tanks : reste hors de leur route quand tu appuies, et n'attends jamais dans la baie du bas."
+    },
+    "level_16": {
+      "title": "Mirage",
+      "hint": "Certains murs bleus fondent quand tu marches dedans, d'autres tiennent. En bas, des murs invisibles n'apparaissent que si tu les heurtes."
+    },
+    "level_17": {
+      "title": "Chaîne de montage",
+      "hint": "Chaque pression sur le bouton rouge fabrique un bloc dans la machine. Les blocs sont gratuits : si l'un se coince, fabriques-en un autre."
+    },
+    "level_18": {
+      "title": "Sprint",
+      "hint": "Les mâchoires te poursuivent mais avancent moins vite que toi. Le temps est compté : prépare ta boucle autour des piliers avant de partir."
+    },
+    "level_19": {
+      "title": "Pickpocket",
+      "hint": "Le voleur prend toutes les bottes que tu portes. Cherche un chemin qui l'évite avant d'avoir à nouveau besoin de tes bottes."
+    },
+    "level_20": {
+      "title": "Douane",
+      "hint": "Une barrière t'arrête tant que tu portes l'objet qu'elle affiche. Dépense d'abord la clé, et laisse le voleur t'alléger."
+    },
+    "level_21": {
+      "title": "Doigts de fée",
+      "hint": "Ce voleur prend toutes tes clés, vertes comprises. Ouvre ce que tu peux avant de le croiser, et trouve un autre chemin pour revenir."
+    },
+    "level_22": {
+      "title": "Pas japonais",
+      "hint": "Une tortue te porte une seule fois sur l'eau, puis plonge. Chaque pont de tortues ne sert qu'une fois : choisis bien le premier."
+    },
+    "level_23": {
+      "title": "Inversion",
+      "hint": "Le bouton orange bascule tous les jets de flammes : ceux qui brûlent s'éteignent, les autres s'allument. Regarde la rangée suivante avant d'appuyer."
+    },
+    "level_24": {
+      "title": "Contrebande",
+      "hint": "Tortues, flammes et barrière de douane. Une tortue quittée a plongé : traverse d'un seul trait. Dépense la clé rouge avant de rejoindre la sortie."
+    },
+    "level_25": {
+      "title": "Folie dépensière",
+      "hint": "Deux clés bleues, trois portes bleues. Regarde chaque aile avant d'en ouvrir une : un seul ordre mène à la clé jaune."
+    },
+    "level_26": {
+      "title": "Chambre froide",
+      "hint": "Les blocs glissent sur la glace et tournent dans les virages, comme toi. Suis le trajet de chaque bloc jusqu'à l'eau avant de pousser."
+    },
+    "level_27": {
+      "title": "Compte à rebours",
+      "hint": "Deux mâchoires te chassent et le temps est court. Les chronomètres ajoutent dix secondes : ramasse-les en route."
+    },
+    "level_28": {
+      "title": "Cachettes",
+      "hint": "Les créatures ne traversent pas les murs bleus, mais un mur bleu que tu franchis disparaît pour de bon. Une cachette ouverte, elles peuvent t'y suivre."
+    },
+    "level_29": {
+      "title": "Plein air",
+      "hint": "Des planeurs font le tour de la place. Chaque aile donne la clé de la suivante : rouge, puis bleue, puis jaune. Dans l'aile ouest, gare un bloc sur le bouton marron avant de marcher sur le piège."
+    },
+    "level_30": {
+      "title": "Noyau Epoxy",
+      "hint": "Tout ce que tu as appris, une aile après l'autre. La clé verte ouvre les deux portes vertes, mais le voleur de l'aile est la prend : ouvre-les avant d'y aller."
+    },
     "procedural": {
       "keys_doors": { "title": "Course du Serrurier #{number}", "hint": "Chaque porte de couleur consomme une clé de sa couleur. Les clés vertes ouvrent toutes les portes vertes." },
       "fire": { "title": "Traversée des Braises #{number}", "hint": "Le feu brûle sans bottes ignifugées. Trouvez-les avant d'y mettre le pied." },
@@ -525,7 +598,10 @@
   "campaign": {
     "chapter": {
       "1": { "title": "Fondations" },
-      "2": { "title": "Mécanismes" }
+      "2": { "title": "Mécanismes" },
+      "3": { "title": "Créatures" },
+      "4": { "title": "Contrebande" },
+      "5": { "title": "Noyau" }
     }
   }
 }

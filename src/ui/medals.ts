@@ -16,14 +16,14 @@
 
 export type MedalTier = 'gold' | 'silver' | 'bronze';
 
-/** Medal earned for finishing with `timeRemaining` of `timeLimit` seconds. */
+/** Medal earned for finishing with `timeRemaining` of `timeLimit` seconds; none on an untimed level. */
 export function getMedalTier(
   timeRemaining: number,
   timeLimit: number,
   goldRatio: number,
   silverRatio: number
-): MedalTier {
-  if (timeLimit <= 0) return 'gold';
+): MedalTier | null {
+  if (timeLimit <= 0) return null;
   const ratio = timeRemaining / timeLimit;
   if (ratio >= goldRatio) return 'gold';
   if (ratio >= silverRatio) return 'silver';

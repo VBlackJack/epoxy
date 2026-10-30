@@ -175,6 +175,7 @@
       "level_complete": { "label": "LEVEL COMPLETE!" },
       "time_bonus": { "label": "Time Bonus: +{bonus}" },
       "level_score": { "label": "Score: +{score} - {medal}" },
+      "level_score_untimed": { "label": "Score: +{score}" },
       "medal_gold": { "label": "🥇 GOLD Medal" },
       "medal_silver": { "label": "🥈 SILVER Medal" },
       "medal_bronze": { "label": "🥉 BRONZE Medal" },
@@ -502,6 +503,78 @@
       "title": "Workshop",
       "hint": "Every wing holds a key or a chip. The conveyor out of the east wing runs one way, and the green button where it ends opens the way back."
     },
+    "level_13": {
+      "title": "Night Shift",
+      "hint": "Bugs keep a wall on their left and never step on gravel or on an item. Wait in a gravel nook, then move when the way is clear."
+    },
+    "level_14": {
+      "title": "Ricochet",
+      "hint": "Balls roll straight and bounce back off anything, chips included. Take a chip and its lane grows longer."
+    },
+    "level_15": {
+      "title": "Reverse Gear",
+      "hint": "Tanks drive straight until something stops them. The blue button turns every tank around: stand clear of their tracks when you press it, and never wait in the bay at the bottom."
+    },
+    "level_16": {
+      "title": "Mirage",
+      "hint": "Some blue walls melt when you walk into them, others hold. Below, invisible walls appear only when you bump into them."
+    },
+    "level_17": {
+      "title": "Assembly Line",
+      "hint": "Each press of the red button makes a new block in the machine. Blocks are free: if one gets stuck, make another."
+    },
+    "level_18": {
+      "title": "Dash",
+      "hint": "Teeth chase you but move slower than you. The clock is tight: plan your loop around the pillars before you start."
+    },
+    "level_19": {
+      "title": "Pickpocket",
+      "hint": "The thief takes every pair of boots you carry. Look for a way past him before you need your boots again."
+    },
+    "level_20": {
+      "title": "Customs",
+      "hint": "A barrier stops you while you carry the item it shows. Spend the key first, and let the thief lighten your load."
+    },
+    "level_21": {
+      "title": "Light Fingers",
+      "hint": "This thief takes every key you carry, green ones too. Open what you can before you cross him, and find another way back."
+    },
+    "level_22": {
+      "title": "Stepping Stones",
+      "hint": "A turtle carries you across the water once, then dives. Each turtle bridge works one way only: choose the first one with care."
+    },
+    "level_23": {
+      "title": "Hot Swap",
+      "hint": "The orange button switches every flame jet: lit ones go out, cold ones light up. Check the next row before you press."
+    },
+    "level_24": {
+      "title": "Contraband",
+      "hint": "Turtles, flames and a customs barrier. A turtle you step back from is gone, so cross in one go. Spend the red key before you head for the exit."
+    },
+    "level_25": {
+      "title": "Spending Spree",
+      "hint": "Two blue keys, three blue doors. Look into every wing before you open one: only one order reaches the yellow key."
+    },
+    "level_26": {
+      "title": "Cold Storage",
+      "hint": "Blocks slide on ice and turn at curved corners, just like you. Follow each block path to the water before you push."
+    },
+    "level_27": {
+      "title": "Countdown",
+      "hint": "Two teeth hunt you and the clock is short. Stopwatches add ten seconds: grab them on the way."
+    },
+    "level_28": {
+      "title": "Hideouts",
+      "hint": "Creatures cannot cross blue walls, but a blue wall you walk through is gone for good. Once a hideout is open, they can follow you in."
+    },
+    "level_29": {
+      "title": "Open Air",
+      "hint": "Gliders circle the edge of the plaza. Each wing gives the key to the next one: red, then blue, then yellow. In the west wing, park a block on the brown button before you step on the trap."
+    },
+    "level_30": {
+      "title": "Epoxy Core",
+      "hint": "Everything you learned, one wing at a time. The green key opens both green doors, but the thief at the east wing takes it: open them before you go there."
+    },
     "procedural": {
       "keys_doors": { "title": "Locksmith Run #{number}", "hint": "Each colored door eats a key of its color. Green keys open every green door." },
       "fire": { "title": "Ember Crossing #{number}", "hint": "Fire burns without fire boots. Look for them before you step in." },
@@ -525,7 +598,10 @@
   "campaign": {
     "chapter": {
       "1": { "title": "Foundations" },
-      "2": { "title": "Mechanisms" }
+      "2": { "title": "Mechanisms" },
+      "3": { "title": "Creatures" },
+      "4": { "title": "Contraband" },
+      "5": { "title": "Core" }
     }
   }
 }

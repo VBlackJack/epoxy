@@ -168,6 +168,9 @@
     },
     "%": {
       "terrain": "button_orange"
+    },
+    "t": {
+      "terrain": "turtle"
     }
   },
   "levels": [
@@ -765,6 +768,984 @@
         }
       ],
       "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_13",
+      "theme": "magma_core",
+      "solution": "NWWSNWWWNNNNWENNNNEEENSEEEENSEEESSSSEWSSSSWWWSNWWNN",
+      "number": 13,
+      "titleKey": "levels.level_13.title",
+      "hintKey": "levels.level_13.hint",
+      "password": "CRAW",
+      "timeLimitSeconds": 80,
+      "chipsRequired": 6,
+      "playerStart": {
+        "x": 7,
+        "y": 11,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#####g###g#####",
+        "##...........##",
+        "##.#########.##",
+        "##.#########.##",
+        "##.#########.##",
+        "#g.#########.g#",
+        "##.#########.##",
+        "##.####E####.##",
+        "##.####S####.##",
+        "##...........##",
+        "#####g#g#g#####",
+        "#######H#######",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 5,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 5,
+          "y": 11,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 11,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "bug",
+          "x": 3,
+          "y": 2,
+          "dir": "E"
+        },
+        {
+          "type": "bug",
+          "x": 11,
+          "y": 10,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_14",
+      "theme": "magma_core",
+      "solution": "NNNNWWWWWNNNNNEEEESSEEEENNEEEESSSSSNNNWWWWWWNN",
+      "number": 14,
+      "titleKey": "levels.level_14.title",
+      "hintKey": "levels.level_14.hint",
+      "password": "BALL",
+      "timeLimitSeconds": 80,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 6,
+        "y": 10,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#C....#E#....C#",
+        "#.....#S#.....#",
+        "#ggggggggggggg#",
+        "#.............#",
+        "#ggggggggggggg#",
+        "#C...........C#",
+        "#ggggggggggggg#",
+        "#.............#",
+        "#ggggggggggggg#",
+        "#......H......#",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "pink_ball",
+          "x": 3,
+          "y": 4,
+          "dir": "E"
+        },
+        {
+          "type": "pink_ball",
+          "x": 5,
+          "y": 6,
+          "dir": "E"
+        },
+        {
+          "type": "pink_ball",
+          "x": 10,
+          "y": 6,
+          "dir": "W"
+        },
+        {
+          "type": "pink_ball",
+          "x": 11,
+          "y": 8,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_15",
+      "theme": "magma_core",
+      "solution": "WNNNNWWWWWWEEEEEESSSSWWEENNSSEWE.WNNNNEEEEEEWWWWWWNNNEEEEEEWWWWWWWWWWWWEEEEEENN",
+      "number": 15,
+      "titleKey": "levels.level_15.title",
+      "hintKey": "levels.level_15.hint",
+      "password": "TANK",
+      "timeLimitSeconds": 130,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 8,
+        "y": 10,
+        "dir": "W"
+      },
+      "rows": [
+        "###############",
+        "#######E#######",
+        "#######S#######",
+        "#C...........C#",
+        "#######.#######",
+        "#######.#######",
+        "#C...........C#",
+        "#######.#######",
+        "#######.#######",
+        "#######.#######",
+        "#####-..H######",
+        "#######.#######",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 7,
+          "y": 3,
+          "dir": "N"
+        },
+        {
+          "type": "tank",
+          "x": 12,
+          "y": 6,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_16",
+      "theme": "magma_core",
+      "solution": "NNNWNNNWWWWEEEESSSEENNEENEEEEWWWWSWWSSSSSWWWWWWSSSESEEEEES",
+      "number": 16,
+      "titleKey": "levels.level_16.title",
+      "hintKey": "levels.level_16.hint",
+      "password": "VEIL",
+      "timeLimitSeconds": 100,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 6,
+        "y": 7,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#C..f.w.w..f.C#",
+        "#wf.w.w.f.ww..#",
+        "#..wf.w.w.f.w.#",
+        "#.fwwf.C.wwwf.#",
+        "#.....ffw.....#",
+        "######f.f######",
+        "#......H......#",
+        "#.a.a.aaa.a.a.#",
+        "#..a.a...a.a.a#",
+        "#...a.a.a.a.a.#",
+        "#a.....Sa....a#",
+        "#######E#######",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_17",
+      "theme": "magma_core",
+      "solution": "NNWNEEEEEWWWWSWNEEEEEEENESSSSNNNWWWWWWWSWNEEEEEEEEEENESSNNWWEESSSSS",
+      "number": 17,
+      "titleKey": "levels.level_17.title",
+      "hintKey": "levels.level_17.hint",
+      "password": "CLON",
+      "timeLimitSeconds": 110,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 2,
+        "y": 5,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#.M.###...C...#",
+        "#.....W.......#",
+        "#.+...#.......#",
+        "#.H...###W##W##",
+        "#.....###C##S##",
+        "############E##",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 3,
+          "clonerX": 2,
+          "clonerY": 1,
+          "templateType": "dirt_block",
+          "templateDir": "S"
+        }
+      ]
+    },
+    {
+      "id": "epoxy_c_18",
+      "theme": "magma_core",
+      "solution": "SWWWWWWNNNNNNNNNEEEEEEEEEEEESSSSSSSSSWWWWNNWWNN",
+      "number": 18,
+      "titleKey": "levels.level_18.title",
+      "hintKey": "levels.level_18.hint",
+      "password": "RUSH",
+      "timeLimitSeconds": 24,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 7,
+        "y": 9,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#C.....g.....C#",
+        "#.###.....###.#",
+        "#.#.........#.#",
+        "#...#.#.#.#...#",
+        "#g....###....g#",
+        "#...#.#E#.#...#",
+        "#.....#S#.....#",
+        "#.#.........#.#",
+        "#.###.....###.#",
+        "#C.....H.....C#",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "teeth",
+          "x": 7,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_19",
+      "theme": "lynx_lcd",
+      "solution": "EEEWWNNNWNWEEEEEEEEEEESSSSSSSS",
+      "number": 19,
+      "titleKey": "levels.level_19.title",
+      "hintKey": "levels.level_19.hint",
+      "password": "PICK",
+      "timeLimitSeconds": 60,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 2,
+        "y": 5,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#C..FFFFFFF...#",
+        "#.Z.#######.Q.#",
+        "#...#######...#",
+        "#.H.#######WWW#",
+        "#....C.T....C.#",
+        "###########WWW#",
+        "############F##",
+        "############S##",
+        "############E##",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_20",
+      "theme": "lynx_lcd",
+      "solution": "SSNNNNNEEEEEEEWSSEEEEWWWWSSSSEEEEE",
+      "number": 20,
+      "titleKey": "levels.level_20.title",
+      "hintKey": "levels.level_20.hint",
+      "password": "DUTY",
+      "timeLimitSeconds": 60,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 2,
+        "y": 5,
+        "dir": "E"
+      },
+      "rows": [
+        "###############",
+        "#...W....######",
+        "#.r.W...RC#####",
+        "#...W....#WWW##",
+        "#.H.W.....WWC##",
+        "#...W....#WWW##",
+        "#...W....######",
+        "#.Q.W.....#####",
+        "#...W...T...SE#",
+        "#...W....######",
+        "###############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 10,
+          "y": 8,
+          "id": "forbid_key_red"
+        },
+        {
+          "x": 11,
+          "y": 8,
+          "id": "forbid_boots_water"
+        }
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_21",
+      "theme": "lynx_lcd",
+      "solution": "ESSEEEEEENNENEESSSSWWWSNNNNENNWWWWWEEESSSSEEEEEESSSS",
+      "number": 21,
+      "titleKey": "levels.level_21.title",
+      "hintKey": "levels.level_21.hint",
+      "password": "KEYS",
+      "timeLimitSeconds": 90,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 3,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###############",
+        "#C.G.<<<<<....#",
+        "####.######.k.#",
+        "#H...#####....#",
+        "#....#####....#",
+        "#.............#",
+        "#....#####...C#",
+        "##########G####",
+        "##########S####",
+        "##########E####",
+        "###############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 5,
+          "id": "thief_keys"
+        }
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_22",
+      "theme": "lynx_lcd",
+      "solution": "ESSSEEEEESSNNNNNNNNNNWWWWWWWWWWWWSSSSSSSSSSEEEEEESS",
+      "number": 22,
+      "titleKey": "levels.level_22.title",
+      "hintKey": "levels.level_22.hint",
+      "password": "TORT",
+      "timeLimitSeconds": 80,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 7,
+        "y": 6,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#C..ttttttt..C#",
+        "#...WWWWWWW...#",
+        "#...tttWWWW...#",
+        "#tWWWWtWWWWWWt#",
+        "#tWWWWtWWWWWWt#",
+        "#tWWWW..HWWWWt#",
+        "#tWWWWtWtWWWWt#",
+        "#tWWWWtWtWWWWt#",
+        "#...tttWttt...#",
+        "#...WWWWWWW...#",
+        "#C..ttt.WWW..C#",
+        "#######S#######",
+        "#######E#######",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_23",
+      "theme": "lynx_lcd",
+      "solution": "WWWWWWEEEEEEEEEEEESWWSSSWWWWEEEESSEESWWWWWWSSS",
+      "number": 23,
+      "titleKey": "levels.level_23.title",
+      "hintKey": "levels.level_23.hint",
+      "password": "FLAM",
+      "timeLimitSeconds": 80,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 7,
+        "y": 1,
+        "dir": "S"
+      },
+      "rows": [
+        "###############",
+        "#C.....H.....C#",
+        "#.............#",
+        "###.#######.###",
+        "#.............#",
+        "#......%......#",
+        "###.#######.###",
+        "#.............#",
+        "#......%.....C#",
+        "#######.#######",
+        "#######S#######",
+        "#######E#######",
+        "###############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 3,
+          "y": 3,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "id": "flame_jet_off"
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 7,
+          "y": 9,
+          "id": "flame_jet_off"
+        }
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_24",
+      "theme": "lynx_lcd",
+      "solution": "NENNNNEESSSSSSNEEENEESWWWWWSNWWWWWWWWEEEEEESSSSSS",
+      "number": 24,
+      "titleKey": "levels.level_24.title",
+      "hintKey": "levels.level_24.hint",
+      "password": "SMUG",
+      "timeLimitSeconds": 80,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 7,
+        "y": 6,
+        "dir": "N"
+      },
+      "rows": [
+        "#################",
+        "#WWWWWW.C.tWWWWW#",
+        "#WWWWWWWtWtWWWWW#",
+        "#WWWWWWWtWtWWWWW#",
+        "########.#.######",
+        "##...#..H..##.C.#",
+        "##C..R.........r#",
+        "##...#....%##...#",
+        "########.########",
+        "########.########",
+        "########.########",
+        "########S########",
+        "########E########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 12,
+          "y": 6,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 8,
+          "y": 9,
+          "id": "flame_jet_off"
+        },
+        {
+          "x": 8,
+          "y": 10,
+          "id": "forbid_key_red"
+        }
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_25",
+      "theme": "cyber_neon",
+      "solution": "NWSWWWNWSSNEEEEEEEEEEWWWSWSWSSS",
+      "number": 25,
+      "titleKey": "levels.level_25.title",
+      "hintKey": "levels.level_25.hint",
+      "password": "SPND",
+      "timeLimitSeconds": 60,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 7,
+        "y": 6,
+        "dir": "N"
+      },
+      "rows": [
+        "###############",
+        "#####.....#####",
+        "#####.....#####",
+        "#######B#######",
+        "#...#.....#...#",
+        "#.C.#.bH..#...#",
+        "#...B.....B.y.#",
+        "#.b.#...C.#...#",
+        "#...#.....#...#",
+        "#######Y#######",
+        "#######S#######",
+        "#######E#######",
+        "###############"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 7,
+          "y": 1,
+          "id": "score_1000"
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "id": "score_100"
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "id": "score_100"
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_26",
+      "theme": "cyber_neon",
+      "solution": "EEENSWWNNWNEEESSS",
+      "number": 26,
+      "titleKey": "levels.level_26.title",
+      "hintKey": "levels.level_26.hint",
+      "password": "SLID",
+      "timeLimitSeconds": 60,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 6,
+        "dir": "E"
+      },
+      "rows": [
+        "#################",
+        "#..IIIIIIIIIII#C#",
+        "#..IIIIIIII1IIW.#",
+        "#..IIIIII2IIII#.#",
+        "#..IIIIIIIIIII#.#",
+        "#H.IIIIIIIIIII###",
+        "#..IIIIIIII4II#.#",
+        "#..IIIIIIIIIII#.#",
+        "#..IIIIII3IIIIW.#",
+        "#..IIIIIIIIIII#C#",
+        "###############S#",
+        "###############E#",
+        "#################"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 3,
+          "dir": "N"
+        },
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 6,
+          "dir": "N"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_27",
+      "theme": "cyber_neon",
+      "solution": "WSSWWWWWWNNNNNNNNNNEEEEEEEEEEEEEESSSSSSSSSSNNWWWWWWNNWNN",
+      "number": 27,
+      "titleKey": "levels.level_27.title",
+      "hintKey": "levels.level_27.hint",
+      "password": "TICK",
+      "timeLimitSeconds": 25,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 8,
+        "y": 9,
+        "dir": "N"
+      },
+      "rows": [
+        "#################",
+        "#C.............C#",
+        "#.#.#.#.#.#.#.#.#",
+        "#...............#",
+        "#.#.#.#.#.#.#.#.#",
+        "#......#E#......#",
+        "#.#.#.#.S.#.#.#.#",
+        "#...............#",
+        "#.#.#.#.#.#.#.#.#",
+        "#.......H.......#",
+        "#.#.#.#.#.#.#.#.#",
+        "#C.............C#",
+        "#################"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 5,
+          "y": 1,
+          "id": "stopwatch_bonus"
+        },
+        {
+          "x": 15,
+          "y": 5,
+          "id": "stopwatch_bonus"
+        }
+      ],
+      "entities": [
+        {
+          "type": "teeth",
+          "x": 1,
+          "y": 5,
+          "dir": "E"
+        },
+        {
+          "type": "teeth",
+          "x": 15,
+          "y": 7,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_28",
+      "theme": "cyber_neon",
+      "solution": "NWWWWWWSSNNEEEEEEEEENNNNEEWWNNNNWWWNNSSWW...WW.WWNNSSWWWSSSSWWEENNNNEEE..W.EEEESSSSSS",
+      "number": 28,
+      "titleKey": "levels.level_28.title",
+      "hintKey": "levels.level_28.hint",
+      "password": "HIDE",
+      "timeLimitSeconds": 140,
+      "chipsRequired": 5,
+      "playerStart": {
+        "x": 12,
+        "y": 12,
+        "dir": "N"
+      },
+      "rows": [
+        "###################",
+        "######C#####C######",
+        "######f#####f######",
+        "###.............###",
+        "###.#####.#####.###",
+        "###.###.....###.###",
+        "###.###.....###.###",
+        "#Cf.###.....###.fC#",
+        "###.#####S#####.###",
+        "###.#####E#####.###",
+        "###.###########.###",
+        "###.............###",
+        "######f#####g######",
+        "######C#####H######",
+        "###################"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "paramecium",
+          "x": 3,
+          "y": 3,
+          "dir": "E"
+        },
+        {
+          "type": "paramecium",
+          "x": 15,
+          "y": 11,
+          "dir": "W"
+        },
+        {
+          "type": "bug",
+          "x": 15,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_29",
+      "theme": "cyber_neon",
+      "solution": "NWWNWWNNNNEEEEEEEESSSSNNNNNWWWWNNWWWNEWSEEESSEEEESSESEEEEESSSSSWWWNWWWWWWWWWWWWWWNWWNESSSSSNNENEEESSESSSS",
+      "number": 29,
+      "titleKey": "levels.level_29.title",
+      "hintKey": "levels.level_29.hint",
+      "password": "OPEN",
+      "timeLimitSeconds": 180,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 11,
+        "y": 12,
+        "dir": "N"
+      },
+      "rows": [
+        "#######################",
+        "########....WWW########",
+        "########....WWr########",
+        "########....WWW########",
+        "###########.#######..b#",
+        "#.&..#...........##^#.#",
+        "#....#.C.......C.##^#.#",
+        "#....#..#.....#..##^#.#",
+        "#....B...........R.^#.#",
+        "#....#..#.....#..#....#",
+        "#..X.#.C.......C.######",
+        "###y##...........######",
+        "########Y##g###########",
+        "########S##H###########",
+        "########E##############",
+        "#######################",
+        "#######################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 9,
+          "y": 2,
+          "id": "teleport_red"
+        },
+        {
+          "x": 13,
+          "y": 2,
+          "id": "teleport_red"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 6,
+          "dir": "N"
+        },
+        {
+          "type": "glider",
+          "x": 10,
+          "y": 6,
+          "dir": "E"
+        },
+        {
+          "type": "glider",
+          "x": 12,
+          "y": 10,
+          "dir": "W"
+        },
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 5,
+          "dir": "N"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 5,
+          "trapX": 3,
+          "trapY": 10
+        }
+      ],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_c_30",
+      "theme": "cyber_neon",
+      "solution": "NNNNNNNNNWWSSSSSSWSWSSWWNNWWWWSSSSSWEEEEENWWWWNNEEEEEEEEEEEEEESSSWWWWSNNNNEEEEEENEEEESNNSSWWWWWWSSSWWWWSSSSS",
+      "number": 30,
+      "titleKey": "levels.level_30.title",
+      "hintKey": "levels.level_30.hint",
+      "password": "CORE",
+      "timeLimitSeconds": 150,
+      "chipsRequired": 5,
+      "playerStart": {
+        "x": 12,
+        "y": 10,
+        "dir": "N"
+      },
+      "rows": [
+        "#########################",
+        "#########Wt.k.WW#########",
+        "#########WtWtWWW#########",
+        "#########WtWtWWW#########",
+        "#########WtWtWWW#########",
+        "#########WtWtWWW#########",
+        "##########.#.############",
+        "#......#.........########",
+        "#....+.#C........#....C##",
+        "#M.....#.........#%....##",
+        "#......Gggggggggg.....Z##",
+        "#WWWWWW#....H....#.....##",
+        "#......#........C#.....##",
+        "#C....C#.........########",
+        "############G############",
+        "############F############",
+        "############F############",
+        "############S############",
+        "############E############",
+        "#########################",
+        "#########################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 20,
+          "y": 8,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 20,
+          "y": 9,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 20,
+          "y": 10,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 20,
+          "y": 11,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 20,
+          "y": 12,
+          "id": "flame_jet_on"
+        },
+        {
+          "x": 17,
+          "y": 10,
+          "id": "thief_keys"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "pink_ball",
+          "x": 10,
+          "y": 8,
+          "dir": "E"
+        },
+        {
+          "type": "pink_ball",
+          "x": 14,
+          "y": 12,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [
+        {
+          "buttonX": 5,
+          "buttonY": 8,
+          "clonerX": 1,
+          "clonerY": 9,
+          "templateType": "dirt_block",
+          "templateDir": "E"
+        }
+      ]
     }
   ]
 }

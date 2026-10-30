@@ -21,6 +21,39 @@
         11,
         12
       ]
+    },
+    {
+      "titleKey": "campaign.chapter.3.title",
+      "levels": [
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "titleKey": "campaign.chapter.4.title",
+      "levels": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ]
+    },
+    {
+      "titleKey": "campaign.chapter.5.title",
+      "levels": [
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ]
     }
   ],
   "introduces": {
@@ -85,12 +118,73 @@
       "force_s",
       "force_w",
       "teleport_green"
+    ],
+    "13": [
+      "bug",
+      "gravel"
+    ],
+    "14": [
+      "pink_ball"
+    ],
+    "15": [
+      "button_blue",
+      "tank"
+    ],
+    "16": [
+      "appearing_wall",
+      "blue_wall_fake",
+      "blue_wall_real"
+    ],
+    "17": [
+      "button_red",
+      "clone_machine"
+    ],
+    "18": [
+      "teeth"
+    ],
+    "19": [
+      "thief"
+    ],
+    "20": [
+      "forbid_boots_water",
+      "forbid_key_red"
+    ],
+    "21": [
+      "thief_keys"
+    ],
+    "22": [
+      "turtle"
+    ],
+    "23": [
+      "button_orange",
+      "flame_jet_off",
+      "flame_jet_on"
+    ],
+    "25": [
+      "door_yellow",
+      "key_yellow",
+      "score_100",
+      "score_1000"
+    ],
+    "26": [
+      "ice_nw"
+    ],
+    "27": [
+      "stopwatch_bonus"
+    ],
+    "28": [
+      "paramecium"
+    ],
+    "29": [
+      "force_n",
+      "glider"
     ]
   },
   "firstTimedLevel": 13,
   "minTimeMargin": 3,
   "raceLevels": [
-    18
+    18,
+    27
   ],
   "minRaceMargin": 1.5,
   "baseline": [

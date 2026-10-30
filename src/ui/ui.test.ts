@@ -94,7 +94,8 @@ describe('medals', () => {
     expect(getMedalTier(60, 100, 0.5, 0.25)).toBe('gold');
     expect(getMedalTier(30, 100, 0.5, 0.25)).toBe('silver');
     expect(getMedalTier(10, 100, 0.5, 0.25)).toBe('bronze');
-    expect(getMedalTier(0, 0, 0.5, 0.25)).toBe('gold');
+    expect(getMedalTier(0, 0, 0.5, 0.25)).toBeNull();
+    expect(getMedalTier(500, 0, 0.5, 0.25)).toBeNull();
   });
 
   it('maps tiers to dedicated label and icon keys', () => {

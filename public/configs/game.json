@@ -401,6 +401,13 @@
     "watchSearchBudget": 4000,
     "hintSearchBudget": 60000
   },
+  "campaignGuard": {
+    "windowSize": 5,
+    "maxJaccard": 0.25,
+    "largeWindowSize": 9,
+    "largeWindowMinContent": 12,
+    "largeWindowMaxShare": 0.6
+  },
   "timing": {
     "tickIntervalMs": 50,
     "ticksPerSecond": 20,

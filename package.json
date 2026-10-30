@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "report:levels": "vitest run --config vitest.report.config.ts tools/levelMetrics.report.ts",
     "report:pieces": "vitest run --config vitest.report.config.ts tools/pieceProbe.report.ts",
+    "report:originality": "vitest run --config vitest.report.config.ts tools/originalityStudy.report.ts",
     "report:study": "vitest run --config vitest.report.config.ts tools/communityStudy.report.ts",
     "report:dependencies": "vitest run --config vitest.report.config.ts tools/dependencyStudy.report.ts",
     "mine:pieces": "vitest run --config vitest.report.config.ts tools/pieceMiner.report.ts",
