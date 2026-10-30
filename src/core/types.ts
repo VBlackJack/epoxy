@@ -65,6 +65,7 @@ export interface StorageConfig {
   highScoresKey: string;
   activePackKey: string;
   lastProceduralSeedKey: string;
+  lastEndlessKey: string;
   levelPacksDbName: string;
   levelPacksStoreName: string;
 }
@@ -103,6 +104,13 @@ export interface HubGateConfig {
   orientTowardHub?: boolean;
 }
 
+/** A scarce colour for `fromPieces` puzzles, one more every `piecesPerGate`, up to `max`. */
+export interface HubScarceConfig {
+  fromPieces: number;
+  piecesPerGate: number;
+  max: number;
+}
+
 /** A hub outline: '.' is floor, anything else stays wall (pillars, cut corners). */
 export interface HubShapeConfig {
   id: string;
@@ -135,10 +143,55 @@ export interface HubConfig {
   layoutSamples: number;
   /** Floor cells the hub may gain in the gaps around it, within the level's bounds. */
   bayCells: number;
+  /** Nook cells a loop level may fill once its bays are grown. */
+  loopNookCells: number;
+  /** Layouts of a loop level tried for one plan before it is given up. */
+  loopLayoutSamples: number;
+  /** Layouts of a loop level compared before the most compact is kept; trying stops at this many that fit. */
+  loopLayoutKeep: number;
+  /** Floor cells a loop level may gain in the gaps around its hub, corridors and rooms. */
+  loopBayCells: number;
   /** Fill the level aims for: a wing's bounding box growth is weighed at this rate against the cells it adds. */
   fillTarget: number;
   /** Failed attempts after which a level drops one puzzle to fit around the hub. */
   attemptsPerDroppedPiece: number;
+  /**
+   * Generation modes whose hubs use loop wings: a chain of puzzles that leaves the hub
+   * through its gate and comes back through a one-way strip, instead of a dead end.
+   */
+  loopModes: string[];
+  /** Most puzzles chained in one loop wing. */
+  maxPiecesPerWing: number;
+  /** The one-way strip a loop wing returns through; its item must never be in a loop level. */
+  returnGate: HubGateConfig;
+  /** Depth of the return strip, in cells. */
+  returnDepth: number;
+  /** Longest corridor, in cells, searched between the last puzzle of a loop wing and its return strip. */
+  maxReturnLength: number;
+  /** Longest corridor, in cells, between two puzzles of a loop wing. */
+  maxLinkLength: number;
+  /** How many door colours are scarce in a loop level, by the number of planned puzzles. */
+  scarceGates: HubScarceConfig;
+  /**
+   * Whether a scarce level can always be finished: a spare key lies behind the later door,
+   * so the wrong order only costs a detour. Off, the wrong order strands the player and
+   * the level is restarted, as in the original game.
+   */
+  scarceRecovery: boolean;
+  /** Most box area, in cells, the puzzles of a loop level may add up to; larger ones are swapped for smaller siblings. */
+  puzzleAreaBudget: number;
+  /** Placements of a wing tried one after the other when the wings after it find no room. */
+  wingAlternatives: number;
+  /** Wing placement searches spent on one layout before it is given up. */
+  backtrackBudget: number;
+  /** Way-back searches a loop wing may spend on one gate before it gives up on it. */
+  returnAttempts: number;
+  /** Weight, against a cell of bounding box growth, of each cell a puzzle leans against what is already there. */
+  contactWeight: number;
+  /** Weight of the distance, in cells, between the last puzzle of a loop wing and the hub's wall ring. */
+  returnDistanceWeight: number;
+  /** Placements tried for each further puzzle of a loop wing; the one growing the level least is kept. */
+  chainPlacementSamples: number;
   doorGates: HubGateConfig[];
   hazardGates: HubGateConfig[];
 }
@@ -149,6 +202,8 @@ export interface ProceduralScoringConfig {
   candidates: number;
   targetMovesBase: number;
   targetMovesPerLevel: number;
+  /** Ceiling of the target run length, so the target stops growing with the level number. */
+  targetMovesMax: number;
   /** Relative distance to the target length at which lengthFit reaches 0. */
   lengthTolerance: number;
   /** Corridor share at which the corridor term reaches 0. */
@@ -167,6 +222,33 @@ export interface ProceduralScoringConfig {
   walkPerDecisionHigh: number;
   weightDeadEnd: number;
   weightWalk: number;
+}
+
+/** Difficulty curve of endless mode: full difficulty from level 1, then a capped growth. */
+export interface EndlessConfig {
+  pieceCountStart: number;
+  pieceCountMax: number;
+  levelsPerExtraPiece: number;
+  motifCountStart: number;
+  motifCountMax: number;
+  levelsPerExtraMotif: number;
+  maxTierStart: number;
+  maxTierMax: number;
+  levelsPerExtraTier: number;
+  targetMovesStart: number;
+  targetMovesPerLevel: number;
+  targetMovesMax: number;
+  /**
+   * Share of levels that must carry a motif, by motif id: the motif is added to
+   * the level's focus with this probability, drawn from the level's stream.
+   */
+  motifShares: Record<string, number>;
+}
+
+/** Page side tunables of the endless mode (generation tunables live in ProceduralConfig). */
+export interface EndlessUiConfig {
+  /** Pause before a main thread generation, so the page can paint the progress message first. */
+  fallbackYieldMs: number;
 }
 
 export interface ProceduralConfig {
@@ -222,6 +304,7 @@ export interface ProceduralConfig {
   timeRoundingSeconds: number;
   minTimeLimitSeconds: number;
   scoring: ProceduralScoringConfig;
+  endless: EndlessConfig;
   hub: HubConfig;
   /** Visual theme given to a level, after its main motif. */
   motifThemes: Record<string, string>;
@@ -270,6 +353,7 @@ export interface GameConfig {
   graphics?: GraphicsConfig;
   themes?: Record<string, ThemePalette>;
   procedural?: ProceduralConfig;
+  endlessUi?: EndlessUiConfig;
   touch?: TouchConfig;
   ultimatePacks?: UltimatePackDescriptor[];
   timing: TimingConfig;

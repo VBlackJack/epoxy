@@ -202,8 +202,27 @@
       "wingPlacementSamples": 16,
       "layoutSamples": 16,
       "bayCells": 90,
+      "loopLayoutSamples": 4,
+      "loopLayoutKeep": 1,
+      "loopBayCells": 240,
+      "loopNookCells": 40,
       "fillTarget": 0.4,
       "attemptsPerDroppedPiece": 8,
+      "loopModes": ["endless"],
+      "maxPiecesPerWing": 5,
+      "returnGate": { "terrain": "force_n", "item": "boots_force", "orientTowardHub": true },
+      "returnDepth": 2,
+      "maxReturnLength": 20,
+      "maxLinkLength": 6,
+      "scarceGates": { "fromPieces": 6, "piecesPerGate": 4, "max": 2 },
+      "scarceRecovery": false,
+      "puzzleAreaBudget": 420,
+      "wingAlternatives": 3,
+      "backtrackBudget": 30,
+      "returnAttempts": 6,
+      "contactWeight": 0.5,
+      "returnDistanceWeight": 0.5,
+      "chainPlacementSamples": 4,
       "doorGates": [
         { "terrain": "door_red", "item": "key_red" },
         { "terrain": "door_blue", "item": "key_blue" },
@@ -219,6 +238,7 @@
       "ice": "arctic_lab",
       "water": "arctic_lab",
       "blocks_water": "arctic_lab",
+    "cloner": "arctic_lab",
       "fire": "magma_core",
       "bomb": "magma_core",
       "monsters": "magma_core",
@@ -234,6 +254,7 @@
       "candidates": 2,
       "targetMovesBase": 60,
       "targetMovesPerLevel": 15,
+      "targetMovesMax": 400,
       "lengthTolerance": 0.35,
       "corridorShareCeiling": 0.45,
       "revisitLow": 1.1,
@@ -248,6 +269,23 @@
       "walkPerDecisionHigh": 1.6,
       "weightDeadEnd": 1.2,
       "weightWalk": 0.4
+    },
+    "endless": {
+      "pieceCountStart": 6,
+      "pieceCountMax": 10,
+      "levelsPerExtraPiece": 4,
+      "motifCountStart": 4,
+      "motifCountMax": 6,
+      "levelsPerExtraMotif": 8,
+      "maxTierStart": 4,
+      "maxTierMax": 5,
+      "levelsPerExtraTier": 10,
+      "targetMovesStart": 250,
+      "targetMovesPerLevel": 5,
+      "targetMovesMax": 400,
+      "motifShares": {
+        "monsters": 0.8
+      }
     }
   },
   "touch": {
@@ -321,8 +359,12 @@
     "highScoresKey": "high_scores",
     "activePackKey": "active_pack",
     "lastProceduralSeedKey": "last_procedural_seed",
+    "lastEndlessKey": "last_endless",
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
+  },
+  "endlessUi": {
+    "fallbackYieldMs": 0
   },
   "locales": {
     "supported": ["fr", "en"],

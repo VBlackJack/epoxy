@@ -18,14 +18,20 @@ import { SeededRandom } from '../core/Random';
 import { ProceduralConfig } from '../core/types';
 import { HubPlanner } from './HubPlanner';
 import { CompiledPiece, MotifRule } from './PieceTypes';
-import { budgetFor, ProgressionPlanner } from './ProgressionPlanner';
+import { GenerationMode, profileFor } from './DifficultyProfile';
+import { ProgressionPlanner } from './ProgressionPlanner';
 
 const LEAD_STREAM = 'lead';
 const SHAPE_STREAM = 'shape';
 
-/** Whether level `levelNumber` of a pack is laid out as a hub. */
-export function isHubLevel(levelNumber: number, cfg: ProceduralConfig): boolean {
-  return levelNumber >= cfg.hub.fromLevel;
+/** Whether level `levelNumber` is laid out as a hub. */
+export function isHubLevel(levelNumber: number, cfg: ProceduralConfig, mode: GenerationMode = 'pack'): boolean {
+  return profileFor(mode, levelNumber, cfg).layout === 'hub';
+}
+
+/** First level that can be a hub, which is where the hub outline draw starts. */
+function firstHubLevel(cfg: ProceduralConfig, mode: GenerationMode): number {
+  return mode === 'endless' ? 1 : cfg.hub.fromLevel;
 }
 
 /** One level's draw in a pack sequence, with the values kept out of it. */
@@ -97,11 +103,13 @@ export function leadChoiceFor(
   seed: number,
   library: CompiledPiece[],
   rules: Record<string, MotifRule>,
-  cfg: ProceduralConfig
+  cfg: ProceduralConfig,
+  mode: GenerationMode = 'pack'
 ): LeadChoice {
   const motifsAt = (level: number): string[] => {
-    const accept = isHubLevel(level, cfg) ? HubPlanner.fitsWing : () => true;
-    const pieces = ProgressionPlanner.playablePieces(level, library, rules, budgetFor(level, cfg).maxTier, accept);
+    const profile = profileFor(mode, level, cfg);
+    const accept = profile.layout === 'hub' ? HubPlanner.fitsWing : () => true;
+    const pieces = ProgressionPlanner.playablePieces(profile, library, rules, profile.maxTier, accept);
     return [...new Set(pieces.map((p) => p.motif))];
   };
   const last = levelNumber + cfg.noRepeatWindow;
@@ -114,9 +122,10 @@ export function leadMotifFor(
   seed: number,
   library: CompiledPiece[],
   rules: Record<string, MotifRule>,
-  cfg: ProceduralConfig
+  cfg: ProceduralConfig,
+  mode: GenerationMode = 'pack'
 ): string | undefined {
-  return leadChoiceFor(levelNumber, seed, library, rules, cfg).preferred;
+  return leadChoiceFor(levelNumber, seed, library, rules, cfg, mode).preferred;
 }
 
 /** Hub outlines a hub level may use: the one drawn for it first, then every outline outside the window. */
@@ -131,10 +140,15 @@ export interface HubShapeChoice {
  * outline did not fit its wings: outlines outside the window and not drawn
  * for the neighbouring levels, when any is left.
  */
-export function hubShapeFor(levelNumber: number, seed: number, cfg: ProceduralConfig): HubShapeChoice {
+export function hubShapeFor(
+  levelNumber: number,
+  seed: number,
+  cfg: ProceduralConfig,
+  mode: GenerationMode = 'pack'
+): HubShapeChoice {
   const ids = cfg.hub.shapes.map((s) => s.id);
   const window = cfg.noRepeatWindow;
-  const draws = drawSequence(SHAPE_STREAM, seed, levelNumber + window, cfg.hub.fromLevel, window, () => ids);
+  const draws = drawSequence(SHAPE_STREAM, seed, levelNumber + window, firstHubLevel(cfg, mode), window, () => ids);
   const { preferred, avoid } = choiceAt(draws, levelNumber, window);
   const recent = draws.find((d) => d.level === levelNumber)?.recent ?? [];
   const outsideWindow = ids.filter((id) => !recent.includes(id));

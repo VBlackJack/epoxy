@@ -41,7 +41,8 @@ describe('I18nManager', () => {
 
   it('pluralizes bundled messages per locale', () => {
     i18n.setLocale('en');
-    expect(t('app.packs.procedural_toast.label', { count: 1, seed: 7 })).toContain('1 new procedural level with seed 7,');
+    expect(t('app.packs.imported_toast.label', { name: 'X', count: 1 })).toContain('(1 level)');
+    expect(t('app.packs.imported_toast.label', { name: 'X', count: 3 })).toContain('(3 levels)');
     i18n.setLocale('fr');
     expect(t('app.packs.imported_toast.label', { name: 'X', count: 1 })).toContain('(1 niveau)');
     expect(t('app.packs.imported_toast.label', { name: 'X', count: 3 })).toContain('(3 niveaux)');

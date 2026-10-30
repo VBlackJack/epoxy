@@ -128,17 +128,90 @@ export class PieceSolver {
     towards: 'exit' | 'entry' = 'exit'
   ): PieceSolveResult {
     const start = engine.captureState();
+    try {
+      // Monsters never leave their walled piece, so the piece is searched alone
+      // (cheap: only its own monsters tick) and the answer is replayed here.
+      if (this.hasMonsters(piece)) {
+        const isolated = this.solveIsolated(start, piece, origin, maxStates, towards);
+        if (!isolated.truncated && !isolated.moves) return isolated;
+        if (isolated.moves && this.confirmInLevel(engine, piece, origin, towards, isolated.moves)) return isolated;
+        engine.restoreState(start);
+      }
+      return this.search(engine, piece, origin, maxStates, this.goalIn(engine, piece, origin, towards));
+    } finally {
+      engine.restoreState(start);
+    }
+  }
+
+  /** Win test shared by the in-level searches: standing on the target port, chips collected. */
+  private static goalIn(
+    engine: GameEngine,
+    piece: CompiledPiece,
+    origin: GridPoint,
+    towards: 'exit' | 'entry'
+  ): () => boolean | null {
     const port = towards === 'exit' ? piece.exit : piece.entry;
     const target = { x: origin.x + port.x, y: origin.y + port.y };
-    const result = this.search(engine, piece, origin, maxStates, () => {
+    return () => {
       const player = engine.getPlayer();
       if (engine.isLevelCompleted()) return null;
       if (player.x !== target.x || player.y !== target.y) return false;
       // Going back out, the chips were collected on the way in.
       return towards === 'entry' || !this.chipLeftInPiece(engine, piece, origin);
-    });
-    engine.restoreState(start);
-    return result;
+    };
+  }
+
+  /**
+   * Searches the piece in an engine holding only the piece, started from the
+   * piece's region of a running level: terrain, items, the piece's monsters
+   * and blocks at their current phase, and what the player carries.
+   */
+  private static solveIsolated(
+    start: UndoSnapshot,
+    piece: CompiledPiece,
+    origin: GridPoint,
+    maxStates: number,
+    towards: 'exit' | 'entry'
+  ): PieceSolveResult {
+    const local = new GameEngine();
+    local.loadLevel(this.toLevel(piece));
+    const state = local.captureState();
+    const shiftX = PIECE_OFFSET - origin.x;
+    const shiftY = PIECE_OFFSET - origin.y;
+    for (let y = 0; y < piece.height; y++) {
+      for (let x = 0; x < piece.width; x++) {
+        state.terrain[y + PIECE_OFFSET][x + PIECE_OFFSET] = start.terrain[y + origin.y][x + origin.x];
+        state.items[y + PIECE_OFFSET][x + PIECE_OFFSET] = start.items[y + origin.y][x + origin.x];
+      }
+    }
+    state.entities = start.entities
+      .filter(
+        (e) =>
+          e.x >= origin.x && e.y >= origin.y && e.x < origin.x + piece.width && e.y < origin.y + piece.height
+      )
+      .map((e) => ({ ...e, x: e.x + shiftX, y: e.y + shiftY }));
+    state.player = { ...start.player, keys: { ...start.player.keys }, boots: [...start.player.boots] };
+    state.player.x += shiftX;
+    state.player.y += shiftY;
+    state.chipsRemaining = start.chipsRemaining;
+    state.nextEntityUid = Math.max(state.nextEntityUid, start.nextEntityUid);
+    local.restoreState(state);
+    const localOrigin = { x: PIECE_OFFSET, y: PIECE_OFFSET };
+    return this.search(local, piece, localOrigin, maxStates, this.goalIn(local, piece, localOrigin, towards));
+  }
+
+  /** Plays moves found in isolation inside the level; true when they reach the goal there too. */
+  private static confirmInLevel(
+    engine: GameEngine,
+    piece: CompiledPiece,
+    origin: GridPoint,
+    towards: 'exit' | 'entry',
+    moves: SolverAction[]
+  ): boolean {
+    for (const action of moves) {
+      if (!this.play(engine, action)) return false;
+    }
+    return this.goalIn(engine, piece, origin, towards)() === true;
   }
 
   /**

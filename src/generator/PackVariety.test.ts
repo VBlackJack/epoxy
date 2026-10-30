@@ -22,6 +22,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { SeededRandom } from '../core/Random';
 import { ProceduralConfig } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { profileFor } from './DifficultyProfile';
 import { compilePiece } from './PieceCompiler';
 import { CompiledPiece, MotifRule } from './PieceTypes';
 import { hubShapeFor, leadChoiceFor, leadMotifFor } from './PackVariety';
@@ -81,7 +82,7 @@ describe('pack variety', () => {
   it('puts a wanted lead motif first in the plan', () => {
     for (const seed of PLAN_SEEDS) {
       const lead = leadMotifFor(5, seed, library, rules(), cfg)!;
-      const plan = ProgressionPlanner.plan(5, library, rules(), new SeededRandom(seed), undefined, lead);
+      const plan = ProgressionPlanner.plan(profileFor('pack', 5, cfg), library, rules(), new SeededRandom(seed), undefined, lead);
       expect(plan.motifs[0]).toBe(lead);
     }
   });
@@ -105,7 +106,7 @@ describe('pack variety', () => {
   it('leads a relaxed plan with a motif outside the avoided ones when another exists', () => {
     for (const seed of PLAN_SEEDS) {
       const avoid = leadChoiceFor(5, seed, library, rules(), cfg).avoid;
-      const plan = ProgressionPlanner.plan(5, library, rules(), new SeededRandom(seed), undefined, undefined, avoid);
+      const plan = ProgressionPlanner.plan(profileFor('pack', 5, cfg), library, rules(), new SeededRandom(seed), undefined, undefined, avoid);
       expect(avoid, `seed ${seed}`).not.toContain(plan.motifs[0]);
     }
   });
@@ -115,7 +116,7 @@ describe('pack variety', () => {
     for (const seed of ONBOARDING_SEEDS) {
       const lead = leadMotifFor(1, seed, library, rules(), cfg);
       expect(cfg.firstLevelExcludedMotifs, `seed ${seed} lead`).not.toContain(lead);
-      const plan = ProgressionPlanner.plan(1, library, rules(), new SeededRandom(seed));
+      const plan = ProgressionPlanner.plan(profileFor('pack', 1, cfg), library, rules(), new SeededRandom(seed));
       for (const motif of plan.motifs) expect(cfg.firstLevelExcludedMotifs, `seed ${seed}`).not.toContain(motif);
       for (const step of plan.steps) expect(cfg.firstLevelExcludedMotifs, `seed ${seed}`).not.toContain(step.piece.motif);
     }
@@ -123,7 +124,7 @@ describe('pack variety', () => {
 
   it('makes level 1 one tier-1 puzzle and the finale', () => {
     for (const seed of PLAN_SEEDS) {
-      const plan = ProgressionPlanner.plan(1, library, rules(), new SeededRandom(seed));
+      const plan = ProgressionPlanner.plan(profileFor('pack', 1, cfg), library, rules(), new SeededRandom(seed));
       expect(plan.steps, `seed ${seed}`).toHaveLength(2);
       expect(plan.steps[0].piece.tier).toBe(1);
       expect(rules()[plan.steps[1].piece.motif]?.role).toBe('finale');
@@ -133,7 +134,7 @@ describe('pack variety', () => {
   it('meets puzzles that can be failed for good before the others', () => {
     let seen = 0;
     for (const seed of PLAN_SEEDS) {
-      const plan = ProgressionPlanner.plan(2, library, rules(), new SeededRandom(seed));
+      const plan = ProgressionPlanner.plan(profileFor('pack', 2, cfg), library, rules(), new SeededRandom(seed));
       const puzzles = plan.steps.slice(0, -1).map((s) => ProgressionPlanner.isIrreversible(s.piece, cfg));
       if (puzzles.some(Boolean)) seen++;
       const firstSafe = puzzles.indexOf(false);

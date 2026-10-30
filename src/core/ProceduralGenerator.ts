@@ -22,10 +22,11 @@ import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
 import { HubPlanner } from '../generator/HubPlanner';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
-import { hubShapeFor, isHubLevel, leadChoiceFor } from '../generator/PackVariety';
+import { hubShapeFor, leadChoiceFor } from '../generator/PackVariety';
 import { encodeActions, SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
-import { budgetFor, LevelScript, ProgressionPlanner } from '../generator/ProgressionPlanner';
+import { DifficultyProfile, GenerationMode, profileFor } from '../generator/DifficultyProfile';
+import { LevelScript, ProgressionPlanner } from '../generator/ProgressionPlanner';
 import { measurePlayfield } from './PlayfieldMetrics';
 import { SeededRandom } from './Random';
 import { isPlayerWalkable } from './Walkability';
@@ -35,6 +36,8 @@ const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PASSWORD_HASH_MULTIPLIER = 7919;
 const PASSWORD_HASH_OFFSET = 104729;
 const PASSWORD_LENGTH = 4;
+const PACK_ID_PREFIX = 'proc_';
+const ENDLESS_ID_PREFIX = 'endless_';
 const MOTIF_KEY_PREFIX = 'levels.procedural.';
 const TITLE_KEY_SUFFIX = '.title';
 const HINT_KEY_SUFFIX = '.hint';
@@ -133,17 +136,31 @@ export class ProceduralGenerator {
   }
 
   /**
+   * Level `levelNumber` of an endless run: full difficulty from level 1, then
+   * the capped curve of the endless config. Ids are endless_<hash>_<seed>_<n>.
+   */
+  public static generateEndlessLevel(levelNumber: number, seed: number = this.createSeed()): GeneratedLevel {
+    return this.generateDetailed(levelNumber, seed, undefined, 'endless');
+  }
+
+  /**
    * Builds the configured number of candidates and keeps the best scoring
    * one. Each candidate has its own random stream (seed, level, candidate
    * index), so a candidate stays the same when the candidate count changes.
    */
-  public static generateDetailed(levelNumber: number, seed: number, script?: LevelScript): GeneratedLevel {
+  public static generateDetailed(
+    levelNumber: number,
+    seed: number,
+    script?: LevelScript,
+    mode: GenerationMode = 'pack'
+  ): GeneratedLevel {
     const cfg = this.config();
+    const profile = profileFor(mode, levelNumber, cfg);
     let best: GeneratedLevel | null = null;
     for (let k = 0; k < cfg.scoring.candidates; k++) {
       let candidate: GeneratedLevel;
       try {
-        candidate = this.generateCandidate(levelNumber, seed, k, script);
+        candidate = this.generateCandidate(levelNumber, seed, k, profile, script);
       } catch (err) {
         if (err instanceof ProceduralGenerationError) continue;
         throw err;
@@ -158,6 +175,7 @@ export class ProceduralGenerator {
     levelNumber: number,
     seed: number,
     candidate: number,
+    profile: DifficultyProfile,
     script?: LevelScript
   ): GeneratedLevel {
     const cfg = this.config();
@@ -167,14 +185,14 @@ export class ProceduralGenerator {
     );
     const motifs = ConfigRegistry.getMotifs();
     const library = this.compiledLibrary(motifs);
-    const regionSize = cfg.baseRegionSize + cfg.regionGrowthPerLevel * (levelNumber - 1);
+    const regionSize = profile.regionSize;
     const version = this.contentVersion(motifs, cfg);
 
-    const layout = script?.layout ?? (isHubLevel(levelNumber, cfg) ? 'hub' : 'chain');
+    const layout = script?.layout ?? profile.layout;
     // Scripted levels teach what their brief says; only generated packs vary.
-    const leadChoice = script ? undefined : leadChoiceFor(levelNumber, packSeed, library, motifs.motifRules ?? {}, cfg);
+    const leadChoice = script ? undefined : leadChoiceFor(levelNumber, packSeed, library, motifs.motifRules ?? {}, cfg, profile.mode);
     const lead = leadChoice?.preferred;
-    const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg);
+    const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg, profile.mode);
     // Attempts come in tiers of one dropped puzzle each. Within a tier the pack's
     // lead motif and hub outline are asked for first, then relaxed, so the
     // constraints give way before any puzzle does.
@@ -191,14 +209,14 @@ export class ProceduralGenerator {
       const avoid = leadChoice?.avoid;
       const built =
         layout === 'hub'
-          ? this.buildHub(levelNumber, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid)
-          : this.buildChain(levelNumber, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead, avoid);
+          ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid)
+          : this.buildChain(profile, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead, avoid);
       if (!built) continue;
       const { assembled } = built;
 
       const motif = script ? this.dominantMotif(built.motifs, built.pieceMotifs) : built.motifs[0];
       const level: CompiledLevel = {
-        id: `proc_${version}_${packSeed}_${levelNumber}`,
+        id: `${profile.mode === 'endless' ? ENDLESS_ID_PREFIX : PACK_ID_PREFIX}${version}_${packSeed}_${levelNumber}`,
         number: levelNumber,
         theme: cfg.motifThemes[motif],
         titleKey: `${MOTIF_KEY_PREFIX}${motif}${TITLE_KEY_SUFFIX}`,
@@ -219,7 +237,7 @@ export class ProceduralGenerator {
       if (built.guards.some((g) => cellReachableWithout(level, g.box, g.guarded))) continue;
 
       const puzzleCount = built.pieceMotifs.filter((m) => built.motifs.includes(m)).length;
-      level.timeLimitSeconds = this.timeLimit(levelNumber, proof.ticks, puzzleCount, cfg);
+      level.timeLimitSeconds = this.timeLimit(profile, proof.ticks, puzzleCount, cfg);
       level.solution = encodeActions(proof.moves);
       const scored = scoreLevel(
         {
@@ -228,11 +246,11 @@ export class ProceduralGenerator {
           solutionLength: proof.moves.length,
           visitedCells: proof.visitedCells,
           motifCount: built.motifs.length,
-          motifBudget: script ? script.motifs.length : budgetFor(levelNumber, cfg).motifCount,
+          motifBudget: script ? script.motifs.length : profile.motifCount,
           walkMoves: proof.walkMoves,
           pieceMoves: proof.pieceMoves
         },
-        levelNumber,
+        profile.targetMoves,
         cfg.scoring
       );
       return {
@@ -254,7 +272,7 @@ export class ProceduralGenerator {
 
   /** A chain of puzzles joined by corridors; every puzzle guards the exit. */
   private static buildChain(
-    levelNumber: number,
+    profile: DifficultyProfile,
     library: CompiledPiece[],
     motifs: MotifsConfig,
     rng: SeededRandom,
@@ -264,7 +282,7 @@ export class ProceduralGenerator {
     lead?: string,
     avoid?: string[]
   ): BuiltLayout | null {
-    const plan = ProgressionPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, script, lead, avoid);
+    const plan = ProgressionPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, script, lead, avoid);
     const assembled = this.mostCompact(cfg.layoutSamples, () => LevelAssembler.assemble(plan, regionSize, cfg, rng));
     if (!assembled) return null;
     let exit: { x: number; y: number } = assembled.playerStart;
@@ -281,7 +299,7 @@ export class ProceduralGenerator {
 
   /** A hub with locked wings; each wing puzzle guards its reward room, the last one the exit. */
   private static buildHub(
-    levelNumber: number,
+    profile: DifficultyProfile,
     library: CompiledPiece[],
     motifs: MotifsConfig,
     rng: SeededRandom,
@@ -292,23 +310,37 @@ export class ProceduralGenerator {
     shapeIds?: string[],
     avoid?: string[]
   ): BuiltLayout | null {
-    const plan = HubPlanner.plan(levelNumber, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid);
-    const assembled = this.mostCompact(cfg.hub.layoutSamples, () => HubAssembler.assemble(plan, cfg.hub, rng, shapeIds));
+    const plan = HubPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid);
+    // Loop wings are costly to lay out and rarely fit: fewer layouts are tried for a plan, and
+    // the first that fits is kept, a new plan being a better bet than one more layout of this.
+    const loop = plan.wings.some((w) => w.loop);
+    const assembled = this.mostCompact(
+      loop ? cfg.hub.loopLayoutSamples : cfg.hub.layoutSamples,
+      () => HubAssembler.assemble(plan, cfg.hub, rng, shapeIds),
+      loop ? cfg.hub.loopLayoutKeep : cfg.hub.layoutSamples
+    );
     if (!assembled) return null;
-    const pieceMotifs = [...plan.wings.map((w) => w.piece.motif), plan.finale.motif];
+    const pieceMotifs = [...plan.wings.flatMap((w) => [w.piece, ...w.then].map((p) => p.motif)), plan.finale.motif];
     return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs, hubShape: assembled.hubShape };
   }
 
   /**
    * Lays the same plan out several times and keeps the layout whose walkable
    * area fills its bounding box the most: a tight level, not a sprawling one.
+   * At most `samples` layouts are tried, and the search stops once `keep` fit.
    */
-  private static mostCompact<T extends AssembledLevel>(samples: number, assemble: () => T | null): T | null {
+  private static mostCompact<T extends AssembledLevel>(
+    samples: number,
+    assemble: () => T | null,
+    keep: number = samples
+  ): T | null {
     let best: T | null = null;
     let bestFill = -1;
-    for (let i = 0; i < samples; i++) {
+    let kept = 0;
+    for (let i = 0; i < samples && kept < keep; i++) {
       const assembled = assemble();
       if (!assembled) continue;
+      kept++;
       const walkable = assembled.terrain.map((row) => row.map((id) => isPlayerWalkable(ConfigRegistry.getTile(id))));
       const fill = measurePlayfield(walkable, assembled.playerStart).fill;
       if (fill > bestFill) {
@@ -348,17 +380,17 @@ export class ProceduralGenerator {
   }
 
   /**
-   * No limit on the first levels. Then the proven run time, which counts no
+   * No limit on the untimed levels. Then the proven run time, which counts no
    * reading or thinking, is stretched by the slack factor, thinking time is
    * added per puzzle, and the result is rounded up.
    */
   private static timeLimit(
-    levelNumber: number,
+    profile: DifficultyProfile,
     ticks: number,
     puzzleCount: number,
     cfg: ProceduralConfig
   ): number {
-    if (levelNumber <= cfg.untimedUpToLevel) return 0;
+    if (!profile.timed) return 0;
     const runSeconds = ticks / ConfigRegistry.getGame().timing.ticksPerSecond;
     const seconds = runSeconds * cfg.timeSlackFactor + cfg.thinkSecondsPerPiece * puzzleCount;
     const rounded = Math.ceil(seconds / cfg.timeRoundingSeconds) * cfg.timeRoundingSeconds;
