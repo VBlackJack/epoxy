@@ -60,9 +60,6 @@ versions follow Semantic Versioning.
 - The `.DAT` encoder writes floor for a terrain without a byte code and drops an item without
   one, so a JSON level using the new tiles exports without failing; the export notice lists
   what was replaced or lost.
-
-### Changed
-
 - The hub region of an endless level scales with the area its puzzles leave free. The drawn
   outline (`hub.shapes`) now grows before the wings are placed: whole rows and columns of floor
   are added round it, toward the map edge the hub is shifted to first, until it covers
