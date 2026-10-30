@@ -22,8 +22,8 @@
   },
   "monsterPortTerrain": "gravel",
   "motifRules": {
-    "teleport": { "maxPerLevel": 1 },
-    "toggle_walls": { "maxPerLevel": 1 },
+    "teleport": { "maxPerLevel": 2 },
+    "toggle_walls": { "maxPerLevel": 2 },
     "finale": { "role": "finale" },
     "rest": { "role": "rest" }
   },
@@ -1023,6 +1023,439 @@
         "#C.n....#",
         "######]##",
         "######$##"
+      ]
+    },
+    {
+      "id": "monsters_bug_quad_4",
+      "motif": "monsters",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "##@######",
+        "#C.#.#.##",
+        "##.#.#.C#",
+        "#.......#",
+        "#.......#",
+        "##......#",
+        "#.C...#.#",
+        "#####$###"
+      ],
+      "entities": [
+        { "x": 7, "y": 3, "type": "bug", "dir": "N" },
+        { "x": 6, "y": 4, "type": "bug", "dir": "N" },
+        { "x": 4, "y": 5, "type": "bug", "dir": "E" },
+        { "x": 4, "y": 4, "type": "bug", "dir": "W" }
+      ]
+    },
+    {
+      "id": "monsters_fireball_run_3",
+      "motif": "monsters",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#.#...C.#",
+        "#....#..#",
+        "#......##",
+        "#.##....#",
+        "##.##.#.#",
+        "#.C....##",
+        "#..#...C#",
+        "#####$###"
+      ],
+      "entities": [
+        { "x": 5, "y": 3, "type": "fireball", "dir": "S" },
+        { "x": 2, "y": 7, "type": "fireball", "dir": "W" },
+        { "x": 6, "y": 6, "type": "fireball", "dir": "W" }
+      ]
+    },
+    {
+      "id": "monsters_fireball_yard_3",
+      "motif": "monsters",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "######@#",
+        "###..#.#",
+        "#C..#..#",
+        "##.#.#.#",
+        "##.....#",
+        "#C.#...#",
+        "#.#.####",
+        "#....###",
+        "####$###"
+      ],
+      "entities": [
+        { "x": 5, "y": 5, "type": "fireball", "dir": "E" },
+        { "x": 2, "y": 4, "type": "fireball", "dir": "N" },
+        { "x": 6, "y": 5, "type": "fireball", "dir": "W" }
+      ]
+    },
+    {
+      "id": "monsters_glider_patrol_2",
+      "motif": "monsters",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "######@##",
+        "#C......#",
+        "#.C#....#",
+        "#..#....#",
+        "##..#...#",
+        "#..#....#",
+        "#######$#"
+      ],
+      "entities": [
+        { "x": 4, "y": 1, "type": "glider", "dir": "N" },
+        { "x": 5, "y": 5, "type": "glider", "dir": "N" }
+      ]
+    },
+    {
+      "id": "monsters_mixed_hall_3",
+      "motif": "monsters",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.....#",
+        "###.#.#",
+        "#C....#",
+        "#..#.##",
+        "#...C.#",
+        "###$###"
+      ],
+      "entities": [
+        { "x": 4, "y": 3, "type": "pink_ball", "dir": "N" },
+        { "x": 3, "y": 3, "type": "paramecium", "dir": "E" },
+        { "x": 2, "y": 4, "type": "paramecium", "dir": "W" }
+      ]
+    },
+    {
+      "id": "monsters_paramecium_pair_2",
+      "motif": "monsters",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "######@##",
+        "#####...#",
+        "####CC#.#",
+        "#.#.###.#",
+        "#.#..#..#",
+        "#.#.#..##",
+        "#.......#",
+        "#######$#"
+      ],
+      "entities": [
+        { "x": 1, "y": 3, "type": "paramecium", "dir": "S" },
+        { "x": 6, "y": 6, "type": "paramecium", "dir": "N" }
+      ]
+    },
+    {
+      "id": "monsters_ball_quartet_4",
+      "motif": "monsters",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#..####",
+        "#.##..#",
+        "#.....#",
+        "#...###",
+        "#..##C#",
+        "#.....#",
+        "#.#.C##",
+        "###$###"
+      ],
+      "entities": [
+        { "x": 2, "y": 5, "type": "pink_ball", "dir": "E" },
+        { "x": 2, "y": 6, "type": "pink_ball", "dir": "E" },
+        { "x": 5, "y": 6, "type": "pink_ball", "dir": "W" },
+        { "x": 1, "y": 4, "type": "pink_ball", "dir": "N" }
+      ]
+    },
+    {
+      "id": "monsters_ball_trio_3",
+      "motif": "monsters",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "####@##",
+        "#.#...#",
+        "#...###",
+        "##.####",
+        "##.C.C#",
+        "#....##",
+        "#....C#",
+        "####$##"
+      ],
+      "entities": [
+        { "x": 2, "y": 5, "type": "pink_ball", "dir": "E" },
+        { "x": 3, "y": 2, "type": "pink_ball", "dir": "W" },
+        { "x": 2, "y": 2, "type": "pink_ball", "dir": "S" }
+      ]
+    },
+    {
+      "id": "monsters_bug_roundup_3",
+      "motif": "monsters",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "######@#",
+        "###..#.#",
+        "#C..#..#",
+        "##.#.#.#",
+        "##.....#",
+        "#C.#...#",
+        "#.#.####",
+        "#....###",
+        "####$###"
+      ],
+      "entities": [
+        { "x": 5, "y": 5, "type": "bug", "dir": "E" },
+        { "x": 2, "y": 4, "type": "bug", "dir": "N" },
+        { "x": 6, "y": 5, "type": "bug", "dir": "W" }
+      ]
+    },
+    {
+      "id": "monsters_glider_gauntlet_4",
+      "motif": "monsters",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "#######@#",
+        "#.#C.#..#",
+        "#.C#....#",
+        "#..##...#",
+        "#.#....##",
+        "#.#.#..##",
+        "#....####",
+        "###$#####"
+      ],
+      "entities": [
+        { "x": 1, "y": 4, "type": "glider", "dir": "W" },
+        { "x": 7, "y": 3, "type": "glider", "dir": "S" },
+        { "x": 4, "y": 1, "type": "glider", "dir": "W" },
+        { "x": 5, "y": 5, "type": "glider", "dir": "E" }
+      ]
+    },
+    {
+      "id": "monsters_mixed_trial_3",
+      "motif": "monsters",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "####@##",
+        "#.....#",
+        "#..##.#",
+        "#..#C.#",
+        "#.#.#C#",
+        "#.#...#",
+        "#..#.##",
+        "#...C.#",
+        "####$##"
+      ],
+      "entities": [
+        { "x": 1, "y": 3, "type": "fireball", "dir": "S" },
+        { "x": 5, "y": 2, "type": "pink_ball", "dir": "E" },
+        { "x": 1, "y": 7, "type": "pink_ball", "dir": "S" }
+      ]
+    },
+    {
+      "id": "monsters_paramecium_trio_3",
+      "motif": "monsters",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.....#",
+        "###.#.#",
+        "#C....#",
+        "#..#.##",
+        "#...C.#",
+        "###$###"
+      ],
+      "entities": [
+        { "x": 4, "y": 3, "type": "paramecium", "dir": "N" },
+        { "x": 3, "y": 3, "type": "paramecium", "dir": "E" },
+        { "x": 2, "y": 4, "type": "paramecium", "dir": "W" }
+      ]
+    },
+    {
+      "id": "cloner_bridge_1",
+      "motif": "cloner",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#p....#",
+        "#.M#..#",
+        "#.....#",
+        "#####W#",
+        "#####W#",
+        "#C..C.#",
+        "##.####",
+        "##$####"
+      ],
+      "entities": [
+        { "x": 2, "y": 2, "type": "dirt_block", "dir": "S" }
+      ],
+      "cloneLinks": [
+        { "buttonX": 1, "buttonY": 1, "clonerX": 2, "clonerY": 2, "templateType": "dirt_block", "templateDir": "S" }
+      ]
+    },
+    {
+      "id": "cloner_trap_gate_1",
+      "motif": "cloner",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#p....#",
+        "#.M#..#",
+        "#....m#",
+        "###X###",
+        "#C...C#",
+        "#####.#",
+        "#####$#"
+      ],
+      "entities": [
+        { "x": 2, "y": 2, "type": "dirt_block", "dir": "S" }
+      ],
+      "trapLinks": [
+        { "buttonX": 5, "buttonY": 3, "trapX": 3, "trapY": 4 }
+      ],
+      "cloneLinks": [
+        { "buttonX": 1, "buttonY": 1, "clonerX": 2, "clonerY": 2, "templateType": "dirt_block", "templateDir": "S" }
+      ]
+    },
+    {
+      "id": "cloner_double_gate_1",
+      "motif": "cloner",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#p....#",
+        "#.M#..#",
+        "#....m#",
+        "####X##",
+        "#.....#",
+        "#....m#",
+        "###X###",
+        "#C...C#",
+        "#####$#"
+      ],
+      "entities": [
+        { "x": 2, "y": 2, "type": "dirt_block", "dir": "S" }
+      ],
+      "trapLinks": [
+        { "buttonX": 5, "buttonY": 3, "trapX": 4, "trapY": 4 },
+        { "buttonX": 5, "buttonY": 6, "trapX": 3, "trapY": 7 }
+      ],
+      "cloneLinks": [
+        { "buttonX": 1, "buttonY": 1, "clonerX": 2, "clonerY": 2, "templateType": "dirt_block", "templateDir": "S" }
+      ]
+    },
+    {
+      "id": "teleport_network_3pads_1",
+      "motif": "teleport",
+      "tier": 4,
+      "rotatable": false,
+      "rows": [
+        "###@#####",
+        "##..O...#",
+        "#...C##.#",
+        "#C.O..#.#",
+        "###.O#..#",
+        "##...##.#",
+        "##...#C.#",
+        "##.#.##.#",
+        "##$######"
+      ]
+    },
+    {
+      "id": "teleport_network_3pads_2",
+      "motif": "teleport",
+      "tier": 4,
+      "rotatable": false,
+      "rows": [
+        "##@######",
+        "##...O#.#",
+        "######.O#",
+        "#C##....#",
+        "#.....###",
+        "######..#",
+        "#.C.....#",
+        "#.O#....#",
+        "#######$#"
+      ]
+    },
+    {
+      "id": "teleport_network_3pads_3",
+      "motif": "teleport",
+      "tier": 4,
+      "rotatable": false,
+      "rows": [
+        "####@####",
+        "#.OO.####",
+        "#..O.####",
+        "#..#..###",
+        "#.#...#.#",
+        "#C#C#..C#",
+        "#.#..####",
+        "#..#....#",
+        "######$##"
+      ]
+    },
+    {
+      "id": "toggle_sequence_1",
+      "motif": "toggle_walls",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "###@#####",
+        "#C....]n#",
+        "#...#.]C#",
+        "#.[.#...#",
+        "#.#.##..#",
+        "#[.[#[#.#",
+        "#[#..#.]#",
+        "#.[#C#..#",
+        "######$##"
+      ]
+    },
+    {
+      "id": "toggle_sequence_2",
+      "motif": "toggle_walls",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "###@#####",
+        "##....#C#",
+        "#.].#..[#",
+        "#[.#.[..#",
+        "#.[#....#",
+        "#.#..#]##",
+        "#.C...###",
+        "#C.#[..n#",
+        "#####$###"
+      ]
+    },
+    {
+      "id": "toggle_sequence_3",
+      "motif": "toggle_walls",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "##@######",
+        "##....[.#",
+        "#.[[.#.C#",
+        "#..#....#",
+        "##C##.#.#",
+        "#..#.[[.#",
+        "###..[].#",
+        "#....].n#",
+        "#$#######"
       ]
     }
   ]

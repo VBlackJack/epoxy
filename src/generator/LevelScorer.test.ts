@@ -20,6 +20,9 @@ import { scoreLevel, ScoreInputs } from './LevelScorer';
 import { buildTestLevel } from '../test/buildTestLevel';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
+/** Target run length of the tests: what level 1 aims for. */
+const TARGET_MOVES = 60;
+
 function inputs(rows: string[], extra: Partial<ScoreInputs> = {}): ScoreInputs {
   return {
     level: buildTestLevel(rows),
@@ -39,10 +42,10 @@ describe('scoreLevel', () => {
     loadTestConfigs();
   });
 
-  it('rewards a run length close to the target for the level', () => {
+  it('rewards a run length close to the target', () => {
     const cfg = ConfigRegistry.getGame().procedural!.scoring;
-    const onTarget = scoreLevel(inputs(['#@..E#'], { solutionLength: cfg.targetMovesBase }), 1, cfg);
-    const farOff = scoreLevel(inputs(['#@..E#'], { solutionLength: cfg.targetMovesBase * 3 }), 1, cfg);
+    const onTarget = scoreLevel(inputs(['#@..E#'], { solutionLength: cfg.targetMovesBase }), TARGET_MOVES, cfg);
+    const farOff = scoreLevel(inputs(['#@..E#'], { solutionLength: cfg.targetMovesBase * 3 }), TARGET_MOVES, cfg);
     expect(onTarget.lengthFit).toBe(1);
     expect(farOff.lengthFit).toBe(0);
     expect(onTarget.total).toBeGreaterThan(farOff.total);
@@ -50,8 +53,8 @@ describe('scoreLevel', () => {
 
   it('sees open rooms as junctions and bare tubes as corridor', () => {
     const cfg = ConfigRegistry.getGame().procedural!.scoring;
-    const room = scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), 1, cfg);
-    const tube = scoreLevel(inputs(['#######', '#@...E#', '#######']), 1, cfg);
+    const room = scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), TARGET_MOVES, cfg);
+    const tube = scoreLevel(inputs(['#######', '#@...E#', '#######']), TARGET_MOVES, cfg);
     expect(room.junctionShare).toBeGreaterThan(tube.junctionShare);
     // No piece boxes: every walkable cell counts as corridor.
     expect(tube.corridorShare).toBe(1);
@@ -59,26 +62,26 @@ describe('scoreLevel', () => {
 
   it('measures backtracking from the run', () => {
     const cfg = ConfigRegistry.getGame().procedural!.scoring;
-    const score = scoreLevel(inputs(['#@..E#'], { solutionLength: 60, visitedCells: 50 }), 1, cfg);
+    const score = scoreLevel(inputs(['#@..E#'], { solutionLength: 60, visitedCells: 50 }), TARGET_MOVES, cfg);
     expect(score.revisitRatio).toBeCloseTo(1.2);
   });
 
   it('penalises dead ends on the playfield and rewards open rooms', () => {
     const cfg = ConfigRegistry.getGame().procedural!.scoring;
-    const room = scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), 1, cfg);
-    const tube = scoreLevel(inputs(['#######', '#@...E#', '#######']), 1, cfg);
+    const room = scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), TARGET_MOVES, cfg);
+    const tube = scoreLevel(inputs(['#######', '#@...E#', '#######']), TARGET_MOVES, cfg);
     expect(room.deadShare).toBe(0);
     expect(tube.deadShare).toBeCloseTo(2 / 5);
     // Same inputs apart from the map: the dead-end term alone favours the room.
     const solid = { ...cfg, weightLength: 0, weightJunction: 0, weightCorridor: 0, weightRevisit: 0, weightVariety: 0, weightWalk: 0 };
-    expect(scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), 1, solid).total).toBeGreaterThan(
-      scoreLevel(inputs(['#######', '#@...E#', '#######']), 1, solid).total
+    expect(scoreLevel(inputs(['#####', '#@..#', '#...#', '#..E#', '#####']), TARGET_MOVES, solid).total).toBeGreaterThan(
+      scoreLevel(inputs(['#######', '#@...E#', '#######']), TARGET_MOVES, solid).total
     );
   });
 
   it('only counts dead ends reachable from the start', () => {
     const cfg = ConfigRegistry.getGame().procedural!.scoring;
-    const score = scoreLevel(inputs(['#######', '#@..#.#', '#######']), 1, cfg);
+    const score = scoreLevel(inputs(['#######', '#@..#.#', '#######']), TARGET_MOVES, cfg);
     expect(score.deadShare).toBeCloseTo(2 / 3);
   });
 
@@ -86,8 +89,8 @@ describe('scoreLevel', () => {
     const cfg = ConfigRegistry.getGame().procedural!.scoring;
     const only = { ...cfg, weightLength: 0, weightJunction: 0, weightCorridor: 0, weightRevisit: 0, weightVariety: 0, weightDeadEnd: 0 };
     const mid = (cfg.walkPerDecisionLow + cfg.walkPerDecisionHigh) / 2;
-    const inBand = scoreLevel(inputs(['#@..E#'], { walkMoves: mid * 20, pieceMoves: 20 }), 1, only);
-    const walkOnly = scoreLevel(inputs(['#@..E#'], { walkMoves: 400, pieceMoves: 10 }), 1, only);
+    const inBand = scoreLevel(inputs(['#@..E#'], { walkMoves: mid * 20, pieceMoves: 20 }), TARGET_MOVES, only);
+    const walkOnly = scoreLevel(inputs(['#@..E#'], { walkMoves: 400, pieceMoves: 10 }), TARGET_MOVES, only);
     expect(inBand.walkPerDecision).toBeCloseTo(mid);
     expect(inBand.total).toBeGreaterThan(walkOnly.total);
   });

@@ -63,7 +63,7 @@ function band(value: number, low: number, high: number): number {
  * Ranks candidate levels; only used to pick among levels that are already
  * proven solvable and fair, so it shapes taste, not correctness. Terms, each
  * in [0, 1], weighted from the scoring config:
- * - lengthFit: winning run length close to the target for the level number;
+ * - lengthFit: winning run length close to the target run length of the level's difficulty profile;
  * - junctionShare: open floor near places with a choice, against long tubes;
  * - corridor: little of the walkable floor is bare corridor;
  * - revisit: some backtracking, in a band, neither none nor much;
@@ -71,7 +71,7 @@ function band(value: number, low: number, high: number): number {
  * - deadEnd: few dead ends on the playfield, the cells reachable from the start;
  * - walk: walking between pieces in proportion to the thinking inside them.
  */
-export function scoreLevel(inputs: ScoreInputs, levelNumber: number, cfg: ProceduralScoringConfig): LevelScore {
+export function scoreLevel(inputs: ScoreInputs, targetMoves: number, cfg: ProceduralScoringConfig): LevelScore {
   const { level } = inputs;
   const height = level.terrain.length;
   const width = height > 0 ? level.terrain[0].length : 0;
@@ -104,7 +104,7 @@ export function scoreLevel(inputs: ScoreInputs, levelNumber: number, cfg: Proced
     }
   }
 
-  const target = cfg.targetMovesBase + cfg.targetMovesPerLevel * (levelNumber - 1);
+  const target = targetMoves;
   const lengthFit = 1 - Math.min(1, Math.abs(inputs.solutionLength / target - 1) / cfg.lengthTolerance);
   const junctionShare = walkableCount > 0 ? nearJunction / walkableCount : 0;
   const corridorShare = walkableCount > 0 ? corridorCells / walkableCount : 1;

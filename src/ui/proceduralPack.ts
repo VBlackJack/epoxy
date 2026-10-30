@@ -15,8 +15,8 @@
  */
 
 /**
- * Pure helpers for the procedural pack dialog: seed parsing, start level
- * clamping and the clipboard copy with a graceful fallback.
+ * Pure helpers for the endless mode dialog: seed and start level parsing,
+ * resume logic and the clipboard copy with a graceful fallback.
  */
 
 /** Seeds are unsigned 32-bit integers written in decimal, as createSeed produces them. */
@@ -40,11 +40,60 @@ export function parseSeedInput(raw: string): SeedParseResult {
   return { valid: true, seed: value };
 }
 
-/** Keeps a requested start level inside 1..levelCount; non numbers fall back to 1. */
-export function clampStartLevel(requested: number, levelCount: number): number {
-  if (!Number.isFinite(requested)) return MIN_START_LEVEL;
-  const max = Math.max(MIN_START_LEVEL, Math.floor(levelCount));
-  return Math.min(max, Math.max(MIN_START_LEVEL, Math.floor(requested)));
+export type StartLevelParseResult = { valid: true; level: number } | { valid: false };
+
+/**
+ * Parses the start level field of the endless dialog. Empty means level 1;
+ * otherwise a whole number of at least 1, with no upper bound.
+ */
+export function parseStartLevelInput(raw: string): StartLevelParseResult {
+  const text = raw.trim();
+  if (text === '') return { valid: true, level: MIN_START_LEVEL };
+  if (!SEED_PATTERN.test(text)) return { valid: false };
+  const value = Number.parseInt(text, DECIMAL_RADIX);
+  if (!Number.isSafeInteger(value) || value < MIN_START_LEVEL) return { valid: false };
+  return { valid: true, level: value };
+}
+
+/** The last endless run: its seed and the highest level number the player reached. */
+export interface EndlessProgress {
+  seed: number;
+  reachedLevel: number;
+}
+
+/** Reads the stored endless progress back; null when absent or malformed. */
+export function readStoredEndlessProgress(raw: string | null): EndlessProgress | null {
+  if (raw === null) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<EndlessProgress> | null;
+    const seed = parsed?.seed;
+    const reached = parsed?.reachedLevel;
+    if (typeof seed !== 'number' || !Number.isInteger(seed) || seed < 0 || seed > SEED_MAX_VALUE) return null;
+    if (typeof reached !== 'number' || !Number.isSafeInteger(reached) || reached < MIN_START_LEVEL) return null;
+    return { seed, reachedLevel: reached };
+  } catch {
+    return null;
+  }
+}
+
+/** Progress after the player reaches `levelNumber`: a new seed restarts, the same seed keeps its best. */
+export function recordReachedLevel(
+  previous: EndlessProgress | null,
+  seed: number,
+  levelNumber: number
+): EndlessProgress {
+  const best = previous && previous.seed === seed ? previous.reachedLevel : 0;
+  return { seed, reachedLevel: Math.max(best, levelNumber, MIN_START_LEVEL) };
+}
+
+/**
+ * Start level to propose for the seed typed in the dialog: the reached level
+ * when the seed is the last endless one, level 1 for any other seed or none.
+ */
+export function suggestStartLevel(progress: EndlessProgress | null, seedRaw: string): number {
+  if (!progress) return MIN_START_LEVEL;
+  const parsed = parseSeedInput(seedRaw);
+  return parsed.valid && parsed.seed === progress.seed ? progress.reachedLevel : MIN_START_LEVEL;
 }
 
 /** Reads a stored seed back; returns null when absent or not a valid seed. */

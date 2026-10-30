@@ -3,6 +3,49 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [2.2.0] - 2026-10-30
+
+### Changed
+
+- Generate Endless Puzzle reaches community-pack difficulty from level 1. The difficulty of a
+  level now comes from `profileFor('pack' | 'endless', levelNumber, cfg)` in
+  `DifficultyProfile.ts`. Endless level 1 is a timed hub of hard pieces up to tier
+  `procedural.endless.maxTierMax`; the curve is in `procedural.endless` (pieces 6 to 10,
+  motifs 4 to 6, tier 4 to 5, scorer target capped by `targetMovesMax`). Pack mode and the
+  scripted campaign generate the same levels as before (`PackBaseline.test.ts`).
+- Hub levels in endless mode use loop wings: a wing is a chain of up to
+  `hub.maxPiecesPerWing` puzzles that returns to the hub through a one-way force-floor strip
+  (`hub.returnGate`, `hub.loopModes`), which admits irreversible pieces and removes the walk
+  back. Levels with loop wings contain no `boots_force`.
+- Keys are scarce in endless hubs (`hub.scarceGates`): a door colour guards two wings while
+  only one key of that colour is reachable at first, so the order in which wings are opened
+  matters. Opening the wrong door first means restarting the level, as in the classic game;
+  `hub.scarceRecovery` places a spare key instead. The winning order is found by a search over
+  wing order and inventory, then replayed in the engine like every generated level.
+- The monsters motif is asked for in a share of endless levels (`procedural.endless.motifShares`,
+  0.8), drawn from the level's own random stream.
+- `PieceSolver.solveInLevel` solves monster pieces in an isolated engine (a hub with six
+  monster pieces: 3.9 s to 1.0 s mean).
+- The endless dialog takes a seed and a free start level and builds only that level. The next
+  level is prefetched in a Web Worker (`src/workers/generator.worker.ts`,
+  `src/ui/endlessGenerator.ts`). The seed and the furthest level reached are remembered
+  (`storage.lastEndlessKey`) and a run can be resumed. The endless pack never ends.
+- Measured on 20 seeds before and after the hub work: median walkable cells 282 to 512
+  (10 seeds) and 298 to 473 (20 seeds), revisit ratio 1.71 to 1.23, junction share 0.59 to
+  0.64, generation p95 11 s to 1.2 s (10 seeds) and 7 s to 2.4 s (20 seeds).
+
+### Added
+
+- 21 puzzle pieces (81 in total): 12 monster arenas with 2 to 4 monsters (6 of tier 5), 3
+  teleport networks, 3 toggle-wall sequences and a `cloner` motif with 3 pieces. `teleport`
+  and `toggle_walls` may appear twice in a level.
+- `report:levels` measures an `endless` sample (seeds 1 to 10 at levels 1, 10, 25 and 50, with
+  a sub-summary per level number): planned and kept pieces, generation time, share of levels
+  with monsters, motif usage, replay and bypass checks.
+- `EndlessGuard.test.ts` asserts floors on endless levels: median walkable cells, revisit
+  ratio and junction share, proof and no bypass, generation time, planned pieces kept and
+  the share of levels with monsters.
+
 ## [2.1.0] - 2026-10-30
 
 ### Changed

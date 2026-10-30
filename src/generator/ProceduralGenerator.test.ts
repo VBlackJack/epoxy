@@ -213,3 +213,35 @@ describe('budgetFor', () => {
     expect(budgetFor(5, cfg).pieceCount).toBeGreaterThan(budgetFor(1, cfg).pieceCount);
   });
 });
+
+describe('endless levels', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  const SEEDS = [1, 2, 3, 4, 5];
+  /** About 2.7 s alone; the margin absorbs a loaded machine and the cold first call. */
+  const DEEP_LEVEL_TIME_LIMIT_MS = 6000;
+  const DEEP_LEVELS_TEST_TIMEOUT_MS = 60000;
+
+  it('opens at full difficulty: a timed hub of the planned size, with a distinct id', () => {
+    const cfg = ConfigRegistry.getGame().procedural!;
+    for (const seed of SEEDS) {
+      const g = ProceduralGenerator.generateEndlessLevel(1, seed);
+      expect(g.layout).toBe('hub');
+      expect(g.level.timeLimitSeconds).toBeGreaterThan(0);
+      expect(g.level.id.startsWith('endless_')).toBe(true);
+      expect(g.motifs.length).toBeLessThanOrEqual(cfg.endless.motifCountStart);
+      expect(g.pieceMotifs.filter((m) => g.motifs.includes(m)).length).toBeLessThanOrEqual(cfg.endless.pieceCountStart);
+    }
+  });
+
+  it('builds a deep level in a few seconds', () => {
+    for (const seed of SEEDS) {
+      const started = performance.now();
+      const g = ProceduralGenerator.generateEndlessLevel(50, seed);
+      expect(performance.now() - started).toBeLessThan(DEEP_LEVEL_TIME_LIMIT_MS);
+      expect(g.level.solution).toBeDefined();
+    }
+  }, DEEP_LEVELS_TEST_TIMEOUT_MS);
+});

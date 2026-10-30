@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ConfigRegistry } from './config/ConfigRegistry';
+import { ConfigBundle, ConfigRegistry } from './config/ConfigRegistry';
 import { BUILTIN_PACK_IDS, DIRECTION_VECTORS } from './config/constants';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
@@ -27,7 +27,7 @@ import { DatCodec } from './formats/DatCodec';
 import { BlockPuzzleSolver } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
 import { Pathfinder } from './core/Pathfinder';
-import { ProceduralGenerationError, ProceduralGenerator } from './core/ProceduralGenerator';
+import { ProceduralGenerator } from './core/ProceduralGenerator';
 import {
   CompiledLevel,
   Direction,
@@ -40,12 +40,17 @@ import {
   UserSettings
 } from './core/types';
 import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
+import { EndlessGenerator, EndlessWorkerLike } from './ui/endlessGenerator';
 import {
-  clampStartLevel,
   copyTextToClipboard,
+  EndlessProgress,
   parseSeedInput,
+  parseStartLevelInput,
+  readStoredEndlessProgress,
   readStoredSeed,
-  SEED_MAX_VALUE
+  recordReachedLevel,
+  SEED_MAX_VALUE,
+  suggestStartLevel
 } from './ui/proceduralPack';
 import { downloadBytes } from './ui/download';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
@@ -140,6 +145,19 @@ class EpoxyApplication {
   private proceduralSeed: number | null = null;
   /** Last seed used this session, mirrored to localStorage. */
   private lastProceduralSeed: number | null = null;
+  /** Levels generated so far for the endless run, in play order; the procedural pack grows with it. */
+  private endlessLevels: CompiledLevel[] = [];
+  /** Seed and highest level reached of the last endless run, mirrored to localStorage. */
+  private endlessProgress: EndlessProgress | null = null;
+  private endlessGenerator: EndlessGenerator | null = null;
+  /** Bumped by every new run so late answers of an earlier run are dropped. */
+  private endlessRun = 0;
+  /** Number of the level being prefetched, null when none is. */
+  private endlessFetching: number | null = null;
+  /** The player asked for a level that is not built yet and waits for it. */
+  private endlessWaiting = false;
+  /** The player edited the start level field by hand, so a seed change no longer overwrites it. */
+  private startLevelTouched = false;
   /** The theme follows each level instead of the player's pick. */
   private autoTheme = true;
   /** Block positions last checked for a dead end. */
@@ -506,10 +524,6 @@ class EpoxyApplication {
     return rawList.map((item) => ConfigRegistry.compileBlueprint(item));
   }
 
-  private getProceduralLevelCount(): number {
-    return ConfigRegistry.getGame().procedural?.defaultLevelCount ?? 1;
-  }
-
   private loadLastProceduralSeed(): number | null {
     try {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastProceduralSeedKey);
@@ -537,77 +551,202 @@ class EpoxyApplication {
       : t('app.packs.procedural_dialog.seed_placeholder_last.label', { seed: this.lastProceduralSeed });
   }
 
-  /** Opens the pack dialog: empty seed field (random), start level reset to 1. */
+  private loadEndlessProgress(): EndlessProgress | null {
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastEndlessKey);
+      return readStoredEndlessProgress(localStorage.getItem(key));
+    } catch {
+      // Storage blocked: no run to resume.
+      return null;
+    }
+  }
+
+  private saveEndlessProgress(progress: EndlessProgress): void {
+    this.endlessProgress = progress;
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastEndlessKey);
+      localStorage.setItem(key, JSON.stringify(progress));
+    } catch {
+      // Storage blocked: keep the in-memory value only.
+    }
+  }
+
+  /** Opens the endless dialog: the last run proposed again (seed and reached level), or random from level 1. */
   private openProceduralModal(): void {
     if (this.generatingPack) return;
     const seedInput = byId<HTMLInputElement>('procedural-seed-input');
-    const startSelect = byId<HTMLSelectElement>('procedural-start-select');
+    const startInput = byId<HTMLInputElement>('procedural-start-input');
     this.lastProceduralSeed ??= this.loadLastProceduralSeed();
+    this.endlessProgress ??= this.loadEndlessProgress();
+    this.startLevelTouched = false;
     if (seedInput) {
-      seedInput.value = '';
+      seedInput.value = this.endlessProgress ? String(this.endlessProgress.seed) : '';
       seedInput.setAttribute('aria-invalid', 'false');
       seedInput.placeholder = this.proceduralSeedPlaceholder();
     }
     byId('procedural-seed-error')?.classList.add('hidden');
-    if (startSelect) {
-      startSelect.innerHTML = '';
-      for (let n = 1; n <= this.getProceduralLevelCount(); n++) {
-        const opt = document.createElement('option');
-        opt.value = String(n);
-        opt.textContent = String(n);
-        startSelect.appendChild(opt);
-      }
-    }
+    byId('procedural-start-error')?.classList.add('hidden');
+    startInput?.setAttribute('aria-invalid', 'false');
+    if (startInput) startInput.value = String(suggestStartLevel(this.endlessProgress, seedInput?.value ?? ''));
     this.openModal(MODAL_IDS.PROCEDURAL, seedInput);
   }
 
-  /** Validates the dialog, then generates; an invalid seed keeps the dialog open. */
+  /** Validates the dialog, then generates; an invalid seed or level keeps the dialog open. */
   private submitProceduralModal(): void {
     const seedInput = byId<HTMLInputElement>('procedural-seed-input');
-    const startSelect = byId<HTMLSelectElement>('procedural-start-select');
+    const startInput = byId<HTMLInputElement>('procedural-start-input');
     const errorEl = byId('procedural-seed-error');
+    const startErrorEl = byId('procedural-start-error');
     const parsed = parseSeedInput(seedInput?.value ?? '');
+    const startLevel = parseStartLevelInput(startInput?.value ?? '');
+    errorEl?.classList.toggle('hidden', parsed.valid);
+    startErrorEl?.classList.toggle('hidden', startLevel.valid);
+    seedInput?.setAttribute('aria-invalid', String(!parsed.valid));
+    startInput?.setAttribute('aria-invalid', String(!startLevel.valid));
     if (!parsed.valid) {
-      if (errorEl) {
-        errorEl.textContent = t('app.packs.procedural_dialog.seed_invalid.label', { max: SEED_MAX_VALUE });
-        errorEl.classList.remove('hidden');
-      }
-      seedInput?.setAttribute('aria-invalid', 'true');
+      if (errorEl) errorEl.textContent = t('app.packs.procedural_dialog.seed_invalid.label', { max: SEED_MAX_VALUE });
       seedInput?.focus();
       return;
     }
-    const startLevel = clampStartLevel(
-      Number.parseInt(startSelect?.value ?? '', 10),
-      this.getProceduralLevelCount()
-    );
+    if (!startLevel.valid) {
+      startInput?.focus();
+      return;
+    }
     this.closeModal(MODAL_IDS.PROCEDURAL);
-    void this.generateProceduralPack(parsed.seed ?? ProceduralGenerator.createSeed(), startLevel);
+    void this.startEndlessRun(parsed.seed ?? ProceduralGenerator.createSeed(), startLevel.level);
   }
 
-  /** Builds a pack level by level, showing progress; ignores requests while one is running. */
-  private async generateProceduralPack(seed: number, startLevel: number): Promise<void> {
+  private getEndlessGenerator(): EndlessGenerator {
+    this.endlessGenerator ??= new EndlessGenerator({
+      createWorker:
+        typeof Worker === 'undefined'
+          ? null
+          : () =>
+              new Worker(new URL('./workers/generator.worker.ts', import.meta.url), {
+                type: 'module'
+              }) as unknown as EndlessWorkerLike,
+      getBundle: () => this.captureConfigBundle(),
+      generateLocal: (seed, levelNumber) => ProceduralGenerator.generateEndlessLevel(levelNumber, seed).level,
+      yieldToUi: () =>
+        new Promise<void>((resolve) =>
+          setTimeout(resolve, ConfigRegistry.getGame().endlessUi?.fallbackYieldMs ?? 0)
+        )
+    });
+    return this.endlessGenerator;
+  }
+
+  /**
+   * The configs the page loaded, for the generator worker. The campaign
+   * blueprints are left out (the generator never reads them); the merged piece
+   * legend stands in for the levels legend.
+   */
+  private captureConfigBundle(): ConfigBundle {
+    return {
+      game: ConfigRegistry.getGame(),
+      tiles: ConfigRegistry.getTiles(),
+      monsters: ConfigRegistry.getMonsters(),
+      audio: ConfigRegistry.getAudio(),
+      levels: { legend: ConfigRegistry.getPieceLegend(), levels: [] },
+      datFormat: ConfigRegistry.getDatFormat(),
+      motifs: ConfigRegistry.getMotifs(),
+      motifAnnotations: ConfigRegistry.getMotifAnnotations()
+    };
+  }
+
+  /** True while the endless run is the pack being played. */
+  private isEndlessActive(): boolean {
+    return (
+      this.proceduralSeed !== null &&
+      this.endlessLevels.length > 0 &&
+      ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PROCEDURAL
+    );
+  }
+
+  /** Builds only the start level, plays it, and prefetches the next ones as the player advances. */
+  private async startEndlessRun(seed: number, startLevel: number): Promise<void> {
     if (this.generatingPack) return;
     this.generatingPack = true;
-    let levels: CompiledLevel[];
+    const run = ++this.endlessRun;
+    this.endlessFetching = null;
+    this.endlessWaiting = false;
+    this.showTransientStatus(t('app.packs.procedural_progress.label', { level: startLevel }));
+    let first: CompiledLevel;
     try {
-      levels = await ProceduralGenerator.generatePackAsync(undefined, seed, (done, total) =>
-        this.showTransientStatus(t('app.packs.procedural_progress.label', { done, total }))
-      );
+      first = await this.getEndlessGenerator().request(seed, startLevel);
     } catch (err) {
-      if (!(err instanceof ProceduralGenerationError)) throw err;
+      console.error('Endless generation failed:', err);
       this.showTransientStatus(t('app.packs.procedural_error.label'));
       return;
     } finally {
       this.generatingPack = false;
     }
+    if (run !== this.endlessRun) return;
     this.proceduralSeed = seed;
     this.rememberProceduralSeed(seed);
-    ConfigRegistry.setProceduralLevels(levels);
+    this.endlessLevels = [first];
+    ConfigRegistry.setProceduralLevels(this.endlessLevels);
     this.refreshPackSelector();
     this.editor.populatePresetDropdown();
     this.switchMode('play');
-    this.startLevelByIndex(clampStartLevel(startLevel, levels.length) - 1);
-    this.showTransientStatus(t('app.packs.procedural_toast.label', { count: levels.length, seed }));
+    this.startLevelByIndex(0);
+    this.showTransientStatus(t('app.packs.procedural_toast.label', { seed, level: startLevel }));
+  }
+
+  /** Requests the level after the last built one, once the player stands on that last level. */
+  private prefetchNextEndlessLevel(): void {
+    if (!this.isEndlessActive() || this.proceduralSeed === null) return;
+    if (this.currentLevelIndex !== this.endlessLevels.length - 1) return;
+    const levelNumber = this.endlessLevels[this.endlessLevels.length - 1].number + 1;
+    if (this.endlessFetching === levelNumber) return;
+    this.endlessFetching = levelNumber;
+    const run = this.endlessRun;
+    this.getEndlessGenerator()
+      .request(this.proceduralSeed, levelNumber)
+      .then(
+        (level) => {
+          if (run !== this.endlessRun) return;
+          this.endlessFetching = null;
+          this.appendEndlessLevel(level);
+        },
+        (err: unknown) => {
+          if (run !== this.endlessRun) return;
+          console.error('Endless prefetch failed:', err);
+          this.endlessFetching = null;
+          if (this.endlessWaiting) {
+            this.endlessWaiting = false;
+            this.showTransientStatus(t('app.packs.procedural_error.label'));
+          }
+        }
+      );
+  }
+
+  /** Adds a prefetched level to the pack without changing which pack is active. */
+  private appendEndlessLevel(level: CompiledLevel): void {
+    this.endlessLevels = [...this.endlessLevels, level];
+    const activePackId = ConfigRegistry.getActivePackId();
+    ConfigRegistry.setProceduralLevels(this.endlessLevels);
+    if (activePackId !== BUILTIN_PACK_IDS.PROCEDURAL) ConfigRegistry.setActivePackId(activePackId);
+    this.refreshPackSelector();
+    if (this.endlessWaiting && this.isEndlessActive() && this.currentLevelIndex === this.endlessLevels.length - 2) {
+      this.startLevelByIndex(this.currentLevelIndex + 1);
+    }
+  }
+
+  /** The player reached the end of what is built: wait for the prefetched level, with a progress message. */
+  private waitForNextEndlessLevel(): void {
+    const nextNumber = this.endlessLevels[this.endlessLevels.length - 1].number + 1;
+    this.endlessWaiting = true;
+    this.showTransientStatus(t('app.packs.procedural_progress.label', { level: nextNumber }));
+    this.prefetchNextEndlessLevel();
+  }
+
+  /** Keeps the resume point: highest level number reached in this endless run. */
+  private noteEndlessLevelReached(level: CompiledLevel): void {
+    if (!this.isEndlessActive() || this.proceduralSeed === null) return;
+    const next = recordReachedLevel(this.endlessProgress, this.proceduralSeed, level.number);
+    if (next.seed !== this.endlessProgress?.seed || next.reachedLevel !== this.endlessProgress.reachedLevel) {
+      this.saveEndlessProgress(next);
+    }
   }
 
   /** Shows the seed and its copy button only while the procedural pack is the active one. */
@@ -1142,11 +1281,17 @@ class EpoxyApplication {
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
     this.lastWarnedSecond = NO_WARNED_SECOND;
-    this.currentLevelIndex = ((index % levels.length) + levels.length) % levels.length;
+    this.endlessWaiting = false;
+    // An endless run has no wrap-around: it stops at its first built level and at its last.
+    this.currentLevelIndex = this.isEndlessActive()
+      ? Math.min(Math.max(index, 0), levels.length - 1)
+      : ((index % levels.length) + levels.length) % levels.length;
     this.engine.loadLevel(levels[this.currentLevelIndex]);
     this.showLevelTheme(levels[this.currentLevelIndex]);
     this.saveProgress();
     this.updateHUD();
+    this.noteEndlessLevelReached(levels[this.currentLevelIndex]);
+    this.prefetchNextEndlessLevel();
   }
 
   private isPackFullyCompleted(levels: CompiledLevel[]): boolean {
@@ -1157,8 +1302,12 @@ class EpoxyApplication {
     return this.currentLevelIndex >= ConfigRegistry.getLevels().length - 1;
   }
 
-  /** Next level; past the last one the pack restarts at level 1 with a message. */
+  /** Next level; past the last one the pack restarts at level 1 with a message (an endless run waits for its next level instead). */
   private advanceToNextLevel(): void {
+    if (this.isEndlessActive() && this.isOnLastLevel()) {
+      this.waitForNextEndlessLevel();
+      return;
+    }
     const levels = ConfigRegistry.getLevels();
     const wraps = this.isOnLastLevel();
     this.startLevelByIndex(this.currentLevelIndex + 1);
@@ -1415,9 +1564,19 @@ class EpoxyApplication {
 
   private bindProceduralModal(): void {
     const seedInput = byId<HTMLInputElement>('procedural-seed-input');
+    const startInput = byId<HTMLInputElement>('procedural-start-input');
     seedInput?.addEventListener('input', () => {
       byId('procedural-seed-error')?.classList.add('hidden');
       seedInput.setAttribute('aria-invalid', 'false');
+      // The last run's seed brings back its reached level; any other seed starts at level 1.
+      if (startInput && !this.startLevelTouched) {
+        startInput.value = String(suggestStartLevel(this.endlessProgress, seedInput.value));
+      }
+    });
+    startInput?.addEventListener('input', () => {
+      this.startLevelTouched = true;
+      byId('procedural-start-error')?.classList.add('hidden');
+      startInput.setAttribute('aria-invalid', 'false');
     });
     const submitOnEnter = (e: KeyboardEvent): void => {
       if (e.key !== 'Enter') return;
@@ -1425,7 +1584,7 @@ class EpoxyApplication {
       this.submitProceduralModal();
     };
     seedInput?.addEventListener('keydown', submitOnEnter);
-    byId('procedural-start-select')?.addEventListener('keydown', submitOnEnter);
+    startInput?.addEventListener('keydown', submitOnEnter);
     byId('procedural-submit-btn')?.addEventListener('click', () => {
       this.submitProceduralModal();
     });
@@ -2252,7 +2411,7 @@ class EpoxyApplication {
 
     if (state === 'complete') {
       const levels = ConfigRegistry.getLevels();
-      const finalWin = this.isOnLastLevel() && this.isPackFullyCompleted(levels);
+      const finalWin = !this.isEndlessActive() && this.isOnLastLevel() && this.isPackFullyCompleted(levels);
       setText(
         ovTitle,
         t(finalWin ? 'hud.messages.all_levels_won.label' : 'hud.messages.level_complete.label')

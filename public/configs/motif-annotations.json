@@ -15,6 +15,18 @@
     "solution": "SEEEEESS",
     "reversible": true
   },
+  "cloner_bridge_1": {
+    "solution": "SWWSSEEENESSNNNWWWWSSEEENESSSSWWWWESS",
+    "reversible": true
+  },
+  "cloner_double_gate_1": {
+    "solution": "SWWSSEEENNWWWSSEEWWNNEEESSSSWSEWSSWWEEEES",
+    "reversible": true
+  },
+  "cloner_trap_gate_1": {
+    "solution": "SWWSSEEEWSSWWEEEESS",
+    "reversible": true
+  },
   "finale_socket": {
     "solution": "SS",
     "reversible": true
@@ -99,8 +111,16 @@
     "solution": "SESSWSSS",
     "reversible": true
   },
+  "monsters_ball_quartet_4": {
+    "solution": "SNSN..SNSNSNSN.SNSNSNSN.S.SSEEENESWWSWWSSEESENENSN....S.WSWS",
+    "reversible": true
+  },
   "monsters_ball_recess": {
     "solution": "SNSESNEES..NEESES",
+    "reversible": true
+  },
+  "monsters_ball_trio_3": {
+    "solution": "SNSNSNSNSNSNSNSNSNSNSNSNSNSNSNSNSW.SWSSEEEW.SSEWS",
     "reversible": true
   },
   "monsters_bug_hall": {
@@ -111,8 +131,48 @@
     "solution": "SESSWSSNEEEENNESSSS",
     "reversible": true
   },
+  "monsters_bug_quad_4": {
+    "solution": "SNSWESSEEEENEW.SWWWSSSWEEES",
+    "reversible": true
+  },
+  "monsters_bug_roundup_3": {
+    "solution": "SNSNSNSNSNSNSNSNSNSNSNSSSSSWEWNWWWNNWESSSWSSEEES",
+    "reversible": false
+  },
+  "monsters_fireball_run_3": {
+    "solution": "SSEENEEESSSWSSESEWWWNEWWWE.WEEENSESWS",
+    "reversible": true
+  },
+  "monsters_fireball_yard_3": {
+    "solution": "SNSNSNSSSSWWNSNSNSNSWWNNWESSSWSSEEES",
+    "reversible": true
+  },
+  "monsters_glider_gauntlet_4": {
+    "solution": "SNSSS.WEWNWSSWWSSWWNNNENSNSNSNSNSNSNSNSNSNSNSWSSSEENNEENNWNWESESSWWSSS",
+    "reversible": true
+  },
+  "monsters_glider_patrol_2": {
+    "solution": "SNSNSNSNSNSSWW.NWWSNWEEEEEESSSSS",
+    "reversible": true
+  },
   "monsters_glider_ring": {
     "solution": "SSSSWENNEEEESSEWSSWWSS",
+    "reversible": true
+  },
+  "monsters_mixed_hall_3": {
+    "solution": "SNSNSNSN....SNSNSNSNSEESSWWSNSESEEWS",
+    "reversible": true
+  },
+  "monsters_mixed_trial_3": {
+    "solution": "SNSNSNSNSNSNSNSNSNSNSN..SWWSS.WSSSESEENNENNWESSWSSS",
+    "reversible": true
+  },
+  "monsters_paramecium_pair_2": {
+    "solution": "SNSNSNSWSWENEN.SNSNSNSN.SN.SESSSWSSES",
+    "reversible": true
+  },
+  "monsters_paramecium_trio_3": {
+    "solution": "SNSNSNSNSNSN........SNSNSNSNSNSNSEEEESSW.WWWESSEEWS",
     "reversible": true
   },
   "monsters_tank_nook": {
@@ -211,12 +271,36 @@
     "solution": "SESS",
     "reversible": true
   },
+  "teleport_network_3pads_1": {
+    "solution": "SENWWSWEEEESSSSSWENNNNNWWWSSWSS",
+    "reversible": true
+  },
+  "teleport_network_3pads_2": {
+    "solution": "SEEESWWSWWWWNSEEENEENEEEEEEESS",
+    "reversible": true
+  },
+  "teleport_network_3pads_3": {
+    "solution": "SWSSSSNNNNESESSEEWWNWWSSESEES",
+    "reversible": true
+  },
   "thief_after_fire": {
     "solution": "SEWSSEEWWNNEEEESSS",
     "reversible": true
   },
   "toggle_gate": {
     "solution": "SEEEESSWWWWS",
+    "reversible": true
+  },
+  "toggle_sequence_1": {
+    "solution": "SEEEESSWWNNWWSSSSSESNWNNNNNWWEEEESSEENNSSSSSSWS",
+    "reversible": true
+  },
+  "toggle_sequence_2": {
+    "solution": "SEESESSWWSSESEEWWNWNNNENEENSSSWWWSSWWSWNEEEESS",
+    "reversible": true
+  },
+  "toggle_sequence_3": {
+    "solution": "SEESSEENESSSSSNNNNWWWNWWSSNNEESESSSWSWWWS",
     "reversible": true
   },
   "toggle_switchback": {

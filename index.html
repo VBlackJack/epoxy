@@ -397,8 +397,18 @@
           />
           <p id="procedural-seed-hint" class="hint-text" data-i18n="app.packs.procedural_dialog.seed_hint.label"></p>
           <p id="procedural-seed-error" class="error-text hidden" role="alert"></p>
-          <label for="procedural-start-select" data-i18n="app.packs.procedural_dialog.start_level.label"></label>
-          <select id="procedural-start-select" class="locale-select"></select>
+          <label for="procedural-start-input" data-i18n="app.packs.procedural_dialog.start_level.label"></label>
+          <input
+            id="procedural-start-input"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            class="editor-input procedural-seed-field"
+            aria-describedby="procedural-start-hint procedural-start-error"
+          />
+          <p id="procedural-start-hint" class="hint-text" data-i18n="app.packs.procedural_dialog.start_level_hint.label"></p>
+          <p id="procedural-start-error" class="error-text hidden" role="alert" data-i18n="app.packs.procedural_dialog.start_level_invalid.label"></p>
           <div class="modal-actions">
             <button id="procedural-submit-btn" class="action-btn primary" type="button" data-i18n="app.packs.procedural_dialog.submit.action"></button>
             <button id="procedural-cancel-btn" class="action-btn" type="button" data-i18n="app.packs.procedural_dialog.cancel.action"></button>

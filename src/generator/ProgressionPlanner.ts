@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { SeededRandom } from '../core/Random';
 import { ProceduralConfig } from '../core/types';
+import { DifficultyProfile, profileFor } from './DifficultyProfile';
 import { ALL_ORIENTATIONS, IDENTITY_ORIENTATION, orientPiece } from './PieceCompiler';
 import { CompiledPiece, MotifRule } from './PieceTypes';
 
@@ -64,17 +65,10 @@ export interface LevelBudget {
   maxTier: number;
 }
 
-function byLevel(values: number[], levelNumber: number): number {
-  return values[Math.min(values.length, Math.max(1, levelNumber)) - 1];
-}
-
+/** Budget of level `levelNumber` of a pack. */
 export function budgetFor(levelNumber: number, cfg: ProceduralConfig): LevelBudget {
-  const extra = Math.floor((Math.max(1, levelNumber) - 1) / cfg.levelsPerExtraPiece);
-  return {
-    pieceCount: Math.min(cfg.maxPieceCount, cfg.basePieceCount + extra),
-    motifCount: byLevel(cfg.motifCountByLevel, levelNumber),
-    maxTier: byLevel(cfg.maxTierByLevel, levelNumber)
-  };
+  const { pieceCount, motifCount, maxTier } = profileFor('pack', levelNumber, cfg);
+  return { pieceCount, motifCount, maxTier };
 }
 
 /**
@@ -87,7 +81,7 @@ export function budgetFor(levelNumber: number, cfg: ProceduralConfig): LevelBudg
  */
 export class ProgressionPlanner {
   public static plan(
-    levelNumber: number,
+    profile: DifficultyProfile,
     library: CompiledPiece[],
     rules: Record<string, MotifRule>,
     rng: SeededRandom,
@@ -96,7 +90,7 @@ export class ProgressionPlanner {
     avoid: string[] = []
   ): LevelPlan {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
-    const selection = this.selectPuzzles(levelNumber, library, rules, rng, script, undefined, 0, lead, avoid);
+    const selection = this.selectPuzzles(profile, library, rules, rng, script, undefined, 0, lead, avoid);
     const chosen = this.withRestRooms(
       selection.puzzles.map((p) => this.randomOrientation(p, rng)),
       selection.restRooms,
@@ -114,7 +108,7 @@ export class ProgressionPlanner {
    * narrows the pieces a layout can use (a hub wing must be walkable back).
    */
   public static selectPuzzles(
-    levelNumber: number,
+    profile: DifficultyProfile,
     library: CompiledPiece[],
     rules: Record<string, MotifRule>,
     rng: SeededRandom,
@@ -127,7 +121,7 @@ export class ProgressionPlanner {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
     const base = script
       ? { pieceCount: script.pieceCount, motifCount: script.motifs.length, maxTier: script.maxTier }
-      : budgetFor(levelNumber, cfg);
+      : { pieceCount: profile.pieceCount, motifCount: profile.motifCount, maxTier: profile.maxTier };
     // Dropping pieces never goes below MIN_PUZZLES, and never grows a smaller budget.
     const budget = {
       ...base,
@@ -137,7 +131,7 @@ export class ProgressionPlanner {
     if (!finale) throw new Error('motifs.json defines no finale piece');
 
     const restRooms = library.filter((p) => rules[p.motif]?.role === 'rest');
-    const playable = this.playablePieces(levelNumber, library, rules, budget.maxTier, accept, !script);
+    const playable = this.playablePieces(profile, library, rules, budget.maxTier, accept, !script);
     const motifPool = [...new Set(playable.map((p) => p.motif))];
     rng.shuffle(motifPool);
     // A wanted lead motif goes first; the others fill the motif budget. With none
@@ -150,20 +144,48 @@ export class ProgressionPlanner {
     const others = wanted === undefined ? motifPool : motifPool.filter((m) => m !== wanted);
     const motifs = script
       ? script.motifs.filter((m) => motifPool.includes(m))
-      : [...(wanted === undefined ? [] : [wanted]), ...others].slice(0, Math.min(budget.motifCount, motifPool.length));
+      : this.withSharedMotifs(
+          [...(wanted === undefined ? [] : [wanted]), ...others].slice(0, Math.min(budget.motifCount, motifPool.length)),
+          profile.motifShares,
+          motifPool,
+          budget.motifCount,
+          rng
+        );
 
-    const preferHard = levelNumber >= cfg.hardPiecesFromLevel;
-    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng, cfg, preferHard);
+    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng, cfg, profile.preferHard);
     return { puzzles, motifs, finale, restRooms };
   }
 
   /**
+   * Adds the motifs a mode wants in a share of its levels: each is drawn with
+   * its probability, in motif id order so the stream is deterministic, and
+   * takes the place of the last focus motif (never the lead) when the level
+   * has no room left. Modes with no shares draw nothing from the stream.
+   */
+  private static withSharedMotifs(
+    motifs: string[],
+    shares: Record<string, number>,
+    motifPool: string[],
+    motifCount: number,
+    rng: SeededRandom
+  ): string[] {
+    const focus = [...motifs];
+    for (const motif of Object.keys(shares).sort()) {
+      if (!motifPool.includes(motif) || focus.includes(motif)) continue;
+      if (rng.next() >= shares[motif]) continue;
+      if (focus.length < motifCount) focus.push(motif);
+      else focus[focus.length - 1] = motif;
+    }
+    return focus;
+  }
+
+  /**
    * Puzzle pieces a level may draw from: no role pieces, within the tier cap,
-   * one-shots only late, and on level 1 of a generated pack (`onboarding`)
+   * one-shots only late, and on the onboarding level of a generated pack
    * none of the motifs kept for later.
    */
   public static playablePieces(
-    levelNumber: number,
+    profile: DifficultyProfile,
     library: CompiledPiece[],
     rules: Record<string, MotifRule>,
     maxTier: number,
@@ -171,13 +193,13 @@ export class ProgressionPlanner {
     onboarding = true
   ): CompiledPiece[] {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
-    const excluded = onboarding && levelNumber === 1 ? cfg.firstLevelExcludedMotifs : [];
+    const excluded = onboarding && profile.onboarding ? cfg.firstLevelExcludedMotifs : [];
     return library.filter(
       (p) =>
         rules[p.motif]?.role === undefined &&
         !excluded.includes(p.motif) &&
         p.tier <= maxTier &&
-        (!p.oneShot || levelNumber >= cfg.oneShotFromLevel) &&
+        (!p.oneShot || profile.allowOneShot) &&
         accept(p)
     );
   }
