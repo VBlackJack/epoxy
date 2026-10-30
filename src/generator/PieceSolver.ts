@@ -16,9 +16,9 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { FLOOR_TILE_ID } from '../core/coreConstants';
+import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
-import { CompiledLevel, Direction, GridPoint, UndoSnapshot } from '../core/types';
+import { CompiledLevel, Direction, EntityPlacement, GridPoint, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
 
 /** Where the piece is drawn inside the otherwise walled map. */
@@ -50,11 +50,13 @@ export function decodeActions(text: string): SolverAction[] {
 }
 
 export interface PieceSolveOptions {
-  /** Items the player starts with; defaults to the piece's `requires`. */
+  /** Items the player starts with; defaults to the piece's `requires` and imported item. */
   carried?: string[];
   maxStates?: number;
   /** Steps the player waits at the entry first: monsters arrive at another phase. */
   startWaits?: number;
+  /** Solve without what the piece imports: no block on the entry port, no imported item carried. */
+  withoutImports?: boolean;
 }
 
 export interface PieceSolveResult {
@@ -99,19 +101,78 @@ interface SearchNode {
 export class PieceSolver {
   public static solve(piece: CompiledPiece, options: PieceSolveOptions = {}): PieceSolveResult {
     const engine = new GameEngine();
-    engine.loadLevel(this.toLevel(piece));
-    this.grantCarried(engine, options.carried ?? piece.requires);
+    const staged = !options.withoutImports;
+    engine.loadLevel(this.toLevel(piece, staged));
+    this.grantCarried(engine, options.carried ?? (staged ? this.defaultCarried(piece) : piece.requires));
     for (let i = 0; i < (options.startWaits ?? 0); i++) {
       if (!this.play(engine, WAIT_ACTION)) {
         return { solvable: false, moves: null, statesExplored: 0, truncated: false };
       }
     }
     const origin = { x: PIECE_OFFSET, y: PIECE_OFFSET };
-    return this.search(engine, piece, origin, options.maxStates ?? DEFAULT_MAX_SOLVER_STATES, () => {
-      // The exit tile ends the level whatever is left; a piece also wants every chip.
+    const maxStates = options.maxStates ?? DEFAULT_MAX_SOLVER_STATES;
+    return this.search(engine, piece, origin, maxStates, this.goalAlone(engine, piece, origin));
+  }
+
+  /** Items a piece is solved with when nothing else is said: what it requires, and what it imports. */
+  public static defaultCarried(piece: CompiledPiece): string[] {
+    const imported = piece.imports?.kind === 'item' && piece.imports.item ? [piece.imports.item] : [];
+    return [...piece.requires, ...imported];
+  }
+
+  /**
+   * Plays an action list on the piece alone, as `solve` sets it up; true when
+   * it ends in a winning state: on the exit with every chip, the exported item
+   * held, or the exported block pushed out.
+   */
+  public static wins(piece: CompiledPiece, actions: readonly SolverAction[], carried?: string[]): boolean {
+    const engine = new GameEngine();
+    engine.loadLevel(this.toLevel(piece));
+    this.grantCarried(engine, carried ?? this.defaultCarried(piece));
+    for (const action of actions) {
+      if (!this.play(engine, action)) return false;
+    }
+    return this.goalAlone(engine, piece, { x: PIECE_OFFSET, y: PIECE_OFFSET })() === true;
+  }
+
+  /**
+   * Win test of a piece solved alone. The exit port is the level exit, so the
+   * level ends when the player steps on it: with every chip (and the exported
+   * item, if any) it is a win, otherwise a dead end. A block exporter keeps a
+   * plain exit port and wins once the player stands on it with every chip and
+   * the block pushed out onto the cell beyond.
+   */
+  private static goalAlone(engine: GameEngine, piece: CompiledPiece, origin: GridPoint): () => boolean | null {
+    if (piece.exports?.kind === 'block') {
+      const port = { x: origin.x + piece.exit.x, y: origin.y + piece.exit.y };
+      const beyond = this.outside(piece, piece.exit, origin);
+      return () => {
+        const player = engine.getPlayer();
+        if (player.x !== port.x || player.y !== port.y || engine.getChipsRemaining() > 0) return false;
+        return this.blockAt(engine, beyond);
+      };
+    }
+    const exported = piece.exports?.kind === 'item' ? piece.exports.item : undefined;
+    return () => {
       if (!engine.isLevelCompleted()) return false;
-      return engine.getChipsRemaining() === 0 ? true : null;
-    });
+      if (engine.getChipsRemaining() > 0) return null;
+      return exported === undefined || this.holds(engine, exported) ? true : null;
+    };
+  }
+
+  private static holds(engine: GameEngine, item: string): boolean {
+    const player = engine.getPlayer();
+    return player.boots.has(item) || (player.keys[item] ?? 0) > 0;
+  }
+
+  private static blockAt(engine: GameEngine, cell: GridPoint): boolean {
+    return engine.getEntities().some((e) => e.kind === 'block' && e.x === cell.x && e.y === cell.y);
+  }
+
+  /** The cell right outside a port of a piece placed at `origin`. */
+  private static outside(piece: CompiledPiece, port: GridPoint, origin: GridPoint): GridPoint {
+    const dir = this.outwardOf(piece, port);
+    return { x: origin.x + port.x + DIRECTION_VECTORS[dir].dx, y: origin.y + port.y + DIRECTION_VECTORS[dir].dy };
   }
 
   /**
@@ -224,7 +285,7 @@ export class PieceSolver {
   public static isReversible(piece: CompiledPiece): boolean {
     if (piece.reversible !== undefined) return piece.reversible;
     const { quarterTurns, mirrored } = piece.orientation;
-    const cacheKey = `${piece.id}|${quarterTurns}|${mirrored}|${piece.requires.join()}`;
+    const cacheKey = `${piece.id}|${quarterTurns}|${mirrored}|${this.defaultCarried(piece).join()}`;
     const cached = reversibleCache.get(cacheKey);
     if (cached !== undefined) return cached;
     const analysis = this.analyze(piece);
@@ -339,7 +400,18 @@ export class PieceSolver {
     level.terrain[piece.exit.y + PIECE_OFFSET][piece.exit.x + PIECE_OFFSET] = piece.terrain[piece.exit.y][piece.exit.x];
     for (const stub of [entryStub, exitStub]) level.terrain[stub.y][stub.x] = FLOOR_TILE_ID;
     engine.loadLevel(level);
-    this.grantCarried(engine, options.carried ?? piece.requires);
+    this.grantCarried(engine, options.carried ?? this.defaultCarried(piece));
+    const exportsBlock = piece.exports?.kind === 'block';
+    const exportedItem = piece.exports?.kind === 'item' ? piece.exports.item : undefined;
+    const exitPort = { x: piece.exit.x + PIECE_OFFSET, y: piece.exit.y + PIECE_OFFSET };
+    // A block exporter wins standing on its exit port with the block pushed out; others out past it.
+    const won = (): boolean => {
+      const player = engine.getPlayer();
+      if (engine.getChipsRemaining() > 0) return false;
+      if (exportsBlock) return player.x === exitPort.x && player.y === exitPort.y && this.blockAt(engine, exitStub);
+      if (player.x !== exitStub.x || player.y !== exitStub.y) return false;
+      return exportedItem === undefined || this.holds(engine, exportedItem);
+    };
 
     const isStub = (x: number, y: number): boolean =>
       (x === entryStub.x && y === entryStub.y) || (x === exitStub.x && y === exitStub.y);
@@ -383,11 +455,13 @@ export class PieceSolver {
           states.push(engine.captureState());
           predecessors.push([]);
           const player = engine.getPlayer();
-          if (engine.getEntities().some((e) => e.kind === 'block' && isStub(e.x, e.y))) blockEscapes++;
-          if (player.x === exitStub.x && player.y === exitStub.y) {
-            exits.push(target);
-            if (engine.getChipsRemaining() === 0) goals.push(target);
-          }
+          // A block on a stub would land in a corridor the solver cannot see, unless it is the export.
+          const escaped = engine
+            .getEntities()
+            .some((e) => e.kind === 'block' && isStub(e.x, e.y) && !(exportsBlock && e.x === exitStub.x && e.y === exitStub.y));
+          if (escaped) blockEscapes++;
+          if (player.x === exitStub.x && player.y === exitStub.y) exits.push(target);
+          if (won()) goals.push(target);
           if (player.x === entryStub.x && player.y === entryStub.y) returns.push(target);
         }
         predecessors[target].push(head);
@@ -450,8 +524,14 @@ export class PieceSolver {
     engine.restoreState(start);
   }
 
-  /** The piece drawn into a walled map, its exit port turned into the level exit. */
-  public static toLevel(piece: CompiledPiece): CompiledLevel {
+  /**
+   * The piece drawn into a walled map, its exit port turned into the level
+   * exit. A block exporter keeps a plain exit port and a floor cell beyond it,
+   * where the block is pushed out. A block importer starts the player on a
+   * floor cell outside the entry port, the block waiting on the port, unless
+   * `stageImport` is false.
+   */
+  public static toLevel(piece: CompiledPiece, stageImport = true): CompiledLevel {
     const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
     const terrain = Array.from({ length: mapHeight }, () => new Array<string>(mapWidth).fill(WALL_TILE_ID));
     const items = Array.from({ length: mapHeight }, () => new Array<string | null>(mapWidth).fill(null));
@@ -464,23 +544,36 @@ export class PieceSolver {
         if (item && ConfigRegistry.getTile(item).collectible === 'chip') chips++;
       }
     }
-    terrain[piece.exit.y + PIECE_OFFSET][piece.exit.x + PIECE_OFFSET] = EXIT_TILE_ID;
-
+    const origin = { x: PIECE_OFFSET, y: PIECE_OFFSET };
     const shift = <T extends { x: number; y: number }>(p: T): T => ({
       ...p,
       x: p.x + PIECE_OFFSET,
       y: p.y + PIECE_OFFSET
     });
+    const entities: EntityPlacement[] = piece.entities.map(shift);
+    let start: GridPoint = shift(piece.entry);
+    if (piece.exports?.kind === 'block') {
+      const beyond = this.outside(piece, piece.exit, origin);
+      terrain[beyond.y][beyond.x] = FLOOR_TILE_ID;
+    } else {
+      terrain[piece.exit.y + PIECE_OFFSET][piece.exit.x + PIECE_OFFSET] = EXIT_TILE_ID;
+    }
+    if (stageImport && piece.imports?.kind === 'block' && piece.imports.item) {
+      start = this.outside(piece, piece.entry, origin);
+      terrain[start.y][start.x] = FLOOR_TILE_ID;
+      const inward = OPPOSITE_DIRECTION[this.outwardOf(piece, piece.entry)];
+      entities.push({ ...shift(piece.entry), type: piece.imports.item, dir: inward });
+    }
     return {
       id: `piece_${piece.id}`,
       number: 1,
       password: SOLVER_LEVEL_PASSWORD,
       timeLimitSeconds: 0,
       chipsRequired: chips,
-      playerStart: { ...shift(piece.entry), dir: 'S' },
+      playerStart: { ...start, dir: 'S' },
       terrain,
       items,
-      entities: piece.entities.map(shift),
+      entities,
       trapLinks: piece.trapLinks.map((l) => ({
         buttonX: l.buttonX + PIECE_OFFSET,
         buttonY: l.buttonY + PIECE_OFFSET,

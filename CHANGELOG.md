@@ -7,6 +7,51 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Inter-piece dependencies in endless hubs: a level is one puzzle rather than a sequence of
+  rooms. A piece may declare `exports` or `imports` in `motifs.json` (`PieceExchange`,
+  compiled into `CompiledPiece`): a block export ends with a dirt block pushed out through
+  the exit port, a block import begins with that block pushed onto the water just inside the
+  entry port; a key export is collected while solving, a key import is a door inside the piece
+  with no key of its colour. `PieceSolver` solves and analyses both kinds (`toLevel`,
+  `wins`, `withoutImports`), so `annotate:pieces` and the library tests cover them.
+- `HubPlanner.addDependencies` swaps pairs into the puzzles of a loop-wing hub
+  (`hub.dependencies` in `game.json`: `fromPieces`, `piecesPerPair`, `max`). A block pair is
+  bonded in one wing, the consumer right after the exporter; a key pair puts the consumer at a
+  later position, usually another wing. A level gets one block pair at most while key pairs are
+  available, and the second half of each attempt tier plans key pairs only, before a puzzle is
+  dropped. The puzzles a pair replaces are chosen so the level stays within
+  `hub.puzzleAreaBudget` whenever a choice allows it, and `fitToArea` may swap an exchange
+  piece for a smaller one with the same export or import. `HubPlanner.winningOrder` walks each
+  wing's chain with
+  the inventory: an imported key must be held (spent when the door consumes it), an exported
+  key is gained, a block import must follow a block export. The colours a pair hands over are
+  never used as wing locks. Exchange pieces are kept out of `ProgressionPlanner.playablePieces`,
+  so pack mode and the campaign are unchanged (`PackBaseline.test.ts`).
+- `HubLoopAssembler` lays a bonded pair out with a straight lane from the exporter's exit port
+  to the consumer's entry port, kept clear of rewards, and only offers exporter placements
+  with room for a lane and a consumer straight beyond the exit; wings holding a lane are placed
+  first. The route gets a `push` segment, and `LevelProver` pushes the block along it and checks
+  it rests on the consumer's entry port before replaying the consumer. Guards are unchanged.
+- The layout's hottest helpers (`HubGrid.corridorFits`, the claimed-cell test of a placement
+  search) address cells by arithmetic instead of allocating points; generated levels are
+  unchanged.
+- 10 pieces (91 in total): 3 block exporters (`block_out_lane`, `block_out_ford`,
+  `block_out_twin_fords`), 3 block consumers (`block_in_moat`, `block_in_canal`,
+  `block_in_pillar`), 2 key exporters (`key_out_yellow`, `key_out_green`) and 2 key consumers
+  (`door_in_yellow`, `door_in_green`), each solvable in every orientation.
+- `HubDependencies.test.ts` checks the library, the pairing (at least 80 percent of planned
+  endless levels at levels 10 and 20 hold a pair, consumer after exporter in the proven order,
+  block pairs adjacent in one wing, none in pack mode) and generated levels (replay, no bypass).
+- `npm run report:dependencies` measures 20 seeds at levels 10 and 20 (share with a pair,
+  pairs by kind, unproven, bypassable, generation time, quality floors) into
+  `local/dependency-study.json`.
+- `GeneratedLevel.dependencies` lists the pairs of a generated level.
+- Measured on 20 seeds: every level at levels 10 and 20 holds a pair, none is unproven or
+  bypassable, every planned piece is kept (without pairs, 0.80 of the levels at level 20),
+  median walkable cells 487 and 457, revisit 1.22 and 1.23, junction share 0.63 and 0.57,
+  monsters in 0.95 of the levels. Generation p95 is 2.8 s at level 10 and 3.4 s at level 20 on
+  a loaded machine; interleaved with main in one process, the branch costs 1.39 times main's
+  CPU on levels 25 and 50, of which the hub assembler split alone accounts for about 1.25.
 - Levels of variable dimensions. A `.json` level or a custom pack sets its own width and
   height: `compileBlueprint` takes the size from `terrain` or from the legend `rows` (their
   count and the widest row), within `grid.minLevelSize` to `grid.maxLevelSize` in `game.json`

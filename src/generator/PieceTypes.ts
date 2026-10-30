@@ -29,6 +29,22 @@ export interface PieceLegendEntry {
   port?: 'entry' | 'exit';
 }
 
+/** What one piece hands to another: a block pushed into the corridor, or an item carried along. */
+export type PieceExchangeKind = 'block' | 'item';
+
+/**
+ * Something a piece exports when solved, or imports to be solvable. A block
+ * export ends with the block pushed out through the exit port onto the cell
+ * beyond it; a block import begins with the block on the entry port, pushed
+ * onto the cell just inside (water to bridge). An item export is collected
+ * while solving; an item import is carried in, like `requires`.
+ */
+export interface PieceExchange {
+  kind: PieceExchangeKind;
+  /** The item collected or carried, for kind 'item'. */
+  item?: string;
+}
+
 /**
  * A hand-drawn piece of a level, built around one motif (key and door,
  * fire and boots, block into water...). The player comes in through the
@@ -51,6 +67,12 @@ export interface PieceDefinition {
    * choice, like walking past a thief too early). Kept out of early levels.
    */
   oneShot?: boolean;
+  /**
+   * What the piece hands to a later piece of the level, or needs from an
+   * earlier one. Such pieces are only used by the hub planner, in pairs.
+   */
+  exports?: PieceExchange;
+  imports?: PieceExchange;
   entities?: EntityPlacement[];
   trapLinks?: TrapLink[];
   cloneLinks?: CloneLink[];
@@ -111,6 +133,8 @@ export interface CompiledPiece {
   requires: string[];
   rotatable: boolean;
   oneShot: boolean;
+  exports: PieceExchange | null;
+  imports: PieceExchange | null;
   /**
    * Walkable cells with a single walkable neighbour once the ports count as
    * open to the outside: the dead ends the piece brings to a level.

@@ -1,31 +1,99 @@
 {
   "legend": {
-    "@": { "terrain": "floor", "port": "entry" },
-    "$": { "terrain": "floor", "port": "exit" },
-    "q": { "terrain": "floor", "item": "boots_water" },
-    "z": { "terrain": "floor", "item": "boots_fire" },
-    "j": { "terrain": "floor", "item": "boots_ice" },
-    "x": { "terrain": "floor", "item": "boots_force" },
-    "&": { "terrain": "floor", "entity": "dirt_block" },
-    "n": { "terrain": "button_green" },
-    "m": { "terrain": "button_brown" },
-    "o": { "terrain": "button_brown", "entity": "dirt_block" },
-    "p": { "terrain": "button_red" },
-    "l": { "terrain": "button_blue" },
-    "U": { "terrain": "floor", "entity": "bug", "entityDir": "N" },
-    "V": { "terrain": "floor", "entity": "fireball", "entityDir": "E" },
-    "Q": { "terrain": "floor", "entity": "glider", "entityDir": "E" },
-    "K": { "terrain": "floor", "entity": "pink_ball", "entityDir": "E" },
-    "A": { "terrain": "floor", "entity": "tank", "entityDir": "E" },
-    "Z": { "terrain": "floor", "entity": "teeth", "entityDir": "S" },
-    "h": { "terrain": "floor", "entity": "paramecium", "entityDir": "N" }
+    "@": {
+      "terrain": "floor",
+      "port": "entry"
+    },
+    "$": {
+      "terrain": "floor",
+      "port": "exit"
+    },
+    "q": {
+      "terrain": "floor",
+      "item": "boots_water"
+    },
+    "z": {
+      "terrain": "floor",
+      "item": "boots_fire"
+    },
+    "j": {
+      "terrain": "floor",
+      "item": "boots_ice"
+    },
+    "x": {
+      "terrain": "floor",
+      "item": "boots_force"
+    },
+    "&": {
+      "terrain": "floor",
+      "entity": "dirt_block"
+    },
+    "n": {
+      "terrain": "button_green"
+    },
+    "m": {
+      "terrain": "button_brown"
+    },
+    "o": {
+      "terrain": "button_brown",
+      "entity": "dirt_block"
+    },
+    "p": {
+      "terrain": "button_red"
+    },
+    "l": {
+      "terrain": "button_blue"
+    },
+    "U": {
+      "terrain": "floor",
+      "entity": "bug",
+      "entityDir": "N"
+    },
+    "V": {
+      "terrain": "floor",
+      "entity": "fireball",
+      "entityDir": "E"
+    },
+    "Q": {
+      "terrain": "floor",
+      "entity": "glider",
+      "entityDir": "E"
+    },
+    "K": {
+      "terrain": "floor",
+      "entity": "pink_ball",
+      "entityDir": "E"
+    },
+    "A": {
+      "terrain": "floor",
+      "entity": "tank",
+      "entityDir": "E"
+    },
+    "Z": {
+      "terrain": "floor",
+      "entity": "teeth",
+      "entityDir": "S"
+    },
+    "h": {
+      "terrain": "floor",
+      "entity": "paramecium",
+      "entityDir": "N"
+    }
   },
   "monsterPortTerrain": "gravel",
   "motifRules": {
-    "teleport": { "maxPerLevel": 2 },
-    "toggle_walls": { "maxPerLevel": 2 },
-    "finale": { "role": "finale" },
-    "rest": { "role": "rest" }
+    "teleport": {
+      "maxPerLevel": 2
+    },
+    "toggle_walls": {
+      "maxPerLevel": 2
+    },
+    "finale": {
+      "role": "finale"
+    },
+    "rest": {
+      "role": "rest"
+    }
   },
   "pieces": [
     {
@@ -43,7 +111,12 @@
         "#$#####"
       ],
       "trapLinks": [
-        { "buttonX": 5, "buttonY": 1, "trapX": 1, "trapY": 5 }
+        {
+          "buttonX": 5,
+          "buttonY": 1,
+          "trapX": 1,
+          "trapY": 5
+        }
       ]
     },
     {
@@ -62,8 +135,18 @@
         "#####$##"
       ],
       "trapLinks": [
-        { "buttonX": 1, "buttonY": 1, "trapX": 5, "trapY": 5 },
-        { "buttonX": 6, "buttonY": 4, "trapX": 5, "trapY": 6 }
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 5
+        },
+        {
+          "buttonX": 6,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 6
+        }
       ]
     },
     {
@@ -84,8 +167,18 @@
         "#######$#"
       ],
       "trapLinks": [
-        { "buttonX": 7, "buttonY": 1, "trapX": 7, "trapY": 7 },
-        { "buttonX": 1, "buttonY": 1, "trapX": 7, "trapY": 8 }
+        {
+          "buttonX": 7,
+          "buttonY": 1,
+          "trapX": 7,
+          "trapY": 7
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 7,
+          "trapY": 8
+        }
       ]
     },
     {
@@ -107,9 +200,24 @@
         "#####$#"
       ],
       "trapLinks": [
-        { "buttonX": 5, "buttonY": 2, "trapX": 5, "trapY": 7 },
-        { "buttonX": 4, "buttonY": 5, "trapX": 5, "trapY": 8 },
-        { "buttonX": 4, "buttonY": 2, "trapX": 5, "trapY": 9 }
+        {
+          "buttonX": 5,
+          "buttonY": 2,
+          "trapX": 5,
+          "trapY": 7
+        },
+        {
+          "buttonX": 4,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 8
+        },
+        {
+          "buttonX": 4,
+          "buttonY": 2,
+          "trapX": 5,
+          "trapY": 9
+        }
       ]
     },
     {
@@ -131,9 +239,24 @@
         "#$#####"
       ],
       "trapLinks": [
-        { "buttonX": 5, "buttonY": 1, "trapX": 1, "trapY": 7 },
-        { "buttonX": 5, "buttonY": 4, "trapX": 1, "trapY": 8 },
-        { "buttonX": 1, "buttonY": 4, "trapX": 1, "trapY": 9 }
+        {
+          "buttonX": 5,
+          "buttonY": 1,
+          "trapX": 1,
+          "trapY": 7
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 4,
+          "trapX": 1,
+          "trapY": 8
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 4,
+          "trapX": 1,
+          "trapY": 9
+        }
       ]
     },
     {
@@ -155,9 +278,24 @@
         "##$####"
       ],
       "trapLinks": [
-        { "buttonX": 5, "buttonY": 4, "trapX": 2, "trapY": 7 },
-        { "buttonX": 5, "buttonY": 6, "trapX": 2, "trapY": 8 },
-        { "buttonX": 1, "buttonY": 3, "trapX": 2, "trapY": 9 }
+        {
+          "buttonX": 5,
+          "buttonY": 4,
+          "trapX": 2,
+          "trapY": 7
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 6,
+          "trapX": 2,
+          "trapY": 8
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 2,
+          "trapY": 9
+        }
       ]
     },
     {
@@ -177,8 +315,18 @@
         "###$####"
       ],
       "trapLinks": [
-        { "buttonX": 1, "buttonY": 5, "trapX": 3, "trapY": 6 },
-        { "buttonX": 1, "buttonY": 1, "trapX": 3, "trapY": 7 }
+        {
+          "buttonX": 1,
+          "buttonY": 5,
+          "trapX": 3,
+          "trapY": 6
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 3,
+          "trapY": 7
+        }
       ]
     },
     {
@@ -197,8 +345,18 @@
         "###$#####"
       ],
       "trapLinks": [
-        { "buttonX": 1, "buttonY": 4, "trapX": 3, "trapY": 5 },
-        { "buttonX": 2, "buttonY": 4, "trapX": 3, "trapY": 6 }
+        {
+          "buttonX": 1,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 5
+        },
+        {
+          "buttonX": 2,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 6
+        }
       ]
     },
     {
@@ -220,9 +378,24 @@
         "##$####"
       ],
       "trapLinks": [
-        { "buttonX": 4, "buttonY": 3, "trapX": 2, "trapY": 7 },
-        { "buttonX": 1, "buttonY": 5, "trapX": 2, "trapY": 8 },
-        { "buttonX": 5, "buttonY": 6, "trapX": 2, "trapY": 9 }
+        {
+          "buttonX": 4,
+          "buttonY": 3,
+          "trapX": 2,
+          "trapY": 7
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 5,
+          "trapX": 2,
+          "trapY": 8
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 6,
+          "trapX": 2,
+          "trapY": 9
+        }
       ]
     },
     {
@@ -241,8 +414,18 @@
         "#$#######"
       ],
       "trapLinks": [
-        { "buttonX": 7, "buttonY": 3, "trapX": 1, "trapY": 5 },
-        { "buttonX": 5, "buttonY": 4, "trapX": 1, "trapY": 6 }
+        {
+          "buttonX": 7,
+          "buttonY": 3,
+          "trapX": 1,
+          "trapY": 5
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 4,
+          "trapX": 1,
+          "trapY": 6
+        }
       ]
     },
     {
@@ -263,8 +446,18 @@
         "##$######"
       ],
       "trapLinks": [
-        { "buttonX": 2, "buttonY": 1, "trapX": 2, "trapY": 7 },
-        { "buttonX": 3, "buttonY": 3, "trapX": 2, "trapY": 8 }
+        {
+          "buttonX": 2,
+          "buttonY": 1,
+          "trapX": 2,
+          "trapY": 7
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 3,
+          "trapX": 2,
+          "trapY": 8
+        }
       ]
     },
     {
@@ -284,9 +477,24 @@
         "###$#####"
       ],
       "trapLinks": [
-        { "buttonX": 4, "buttonY": 2, "trapX": 3, "trapY": 5 },
-        { "buttonX": 4, "buttonY": 1, "trapX": 3, "trapY": 6 },
-        { "buttonX": 2, "buttonY": 4, "trapX": 3, "trapY": 7 }
+        {
+          "buttonX": 4,
+          "buttonY": 2,
+          "trapX": 3,
+          "trapY": 5
+        },
+        {
+          "buttonX": 4,
+          "buttonY": 1,
+          "trapX": 3,
+          "trapY": 6
+        },
+        {
+          "buttonX": 2,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 7
+        }
       ]
     },
     {
@@ -307,9 +515,24 @@
         "#####$##"
       ],
       "trapLinks": [
-        { "buttonX": 3, "buttonY": 4, "trapX": 5, "trapY": 6 },
-        { "buttonX": 3, "buttonY": 5, "trapX": 5, "trapY": 7 },
-        { "buttonX": 2, "buttonY": 5, "trapX": 5, "trapY": 8 }
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 7
+        },
+        {
+          "buttonX": 2,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 8
+        }
       ]
     },
     {
@@ -330,10 +553,30 @@
         "#####$##"
       ],
       "trapLinks": [
-        { "buttonX": 6, "buttonY": 1, "trapX": 5, "trapY": 5 },
-        { "buttonX": 1, "buttonY": 3, "trapX": 5, "trapY": 6 },
-        { "buttonX": 1, "buttonY": 4, "trapX": 5, "trapY": 7 },
-        { "buttonX": 6, "buttonY": 4, "trapX": 5, "trapY": 8 }
+        {
+          "buttonX": 6,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 5
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 7
+        },
+        {
+          "buttonX": 6,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 8
+        }
       ]
     },
     {
@@ -353,9 +596,24 @@
         "#####$##"
       ],
       "trapLinks": [
-        { "buttonX": 6, "buttonY": 1, "trapX": 5, "trapY": 5 },
-        { "buttonX": 6, "buttonY": 2, "trapX": 5, "trapY": 6 },
-        { "buttonX": 3, "buttonY": 1, "trapX": 5, "trapY": 7 }
+        {
+          "buttonX": 6,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 5
+        },
+        {
+          "buttonX": 6,
+          "buttonY": 2,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 7
+        }
       ]
     },
     {
@@ -376,10 +634,30 @@
         "###$####"
       ],
       "trapLinks": [
-        { "buttonX": 2, "buttonY": 1, "trapX": 3, "trapY": 5 },
-        { "buttonX": 1, "buttonY": 1, "trapX": 3, "trapY": 6 },
-        { "buttonX": 2, "buttonY": 2, "trapX": 3, "trapY": 7 },
-        { "buttonX": 1, "buttonY": 2, "trapX": 3, "trapY": 8 }
+        {
+          "buttonX": 2,
+          "buttonY": 1,
+          "trapX": 3,
+          "trapY": 5
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 3,
+          "trapY": 6
+        },
+        {
+          "buttonX": 2,
+          "buttonY": 2,
+          "trapX": 3,
+          "trapY": 7
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 2,
+          "trapX": 3,
+          "trapY": 8
+        }
       ]
     },
     {
@@ -400,10 +678,30 @@
         "#####$##"
       ],
       "trapLinks": [
-        { "buttonX": 6, "buttonY": 1, "trapX": 5, "trapY": 5 },
-        { "buttonX": 1, "buttonY": 3, "trapX": 5, "trapY": 6 },
-        { "buttonX": 1, "buttonY": 4, "trapX": 5, "trapY": 7 },
-        { "buttonX": 6, "buttonY": 4, "trapX": 5, "trapY": 8 }
+        {
+          "buttonX": 6,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 5
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 7
+        },
+        {
+          "buttonX": 6,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 8
+        }
       ]
     },
     {
@@ -735,7 +1033,9 @@
       "motif": "fire",
       "tier": 2,
       "rotatable": true,
-      "requires": ["boots_fire"],
+      "requires": [
+        "boots_fire"
+      ],
       "rows": [
         "##@##",
         "#FFF#",
@@ -762,7 +1062,9 @@
       "motif": "water",
       "tier": 2,
       "rotatable": true,
-      "requires": ["boots_water"],
+      "requires": [
+        "boots_water"
+      ],
       "rows": [
         "##@##",
         "#WWW#",
@@ -849,7 +1151,9 @@
       "motif": "force",
       "tier": 2,
       "rotatable": true,
-      "requires": ["boots_force"],
+      "requires": [
+        "boots_force"
+      ],
       "rows": [
         "#@#####",
         "#.<<<C#",
@@ -899,7 +1203,14 @@
         "#####.$",
         "#######"
       ],
-      "trapLinks": [{ "buttonX": 5, "buttonY": 2, "trapX": 3, "trapY": 4 }]
+      "trapLinks": [
+        {
+          "buttonX": 5,
+          "buttonY": 2,
+          "trapX": 3,
+          "trapY": 4
+        }
+      ]
     },
     {
       "id": "teleport_hop",
@@ -1041,10 +1352,30 @@
         "#####$###"
       ],
       "entities": [
-        { "x": 7, "y": 3, "type": "bug", "dir": "N" },
-        { "x": 6, "y": 4, "type": "bug", "dir": "N" },
-        { "x": 4, "y": 5, "type": "bug", "dir": "E" },
-        { "x": 4, "y": 4, "type": "bug", "dir": "W" }
+        {
+          "x": 7,
+          "y": 3,
+          "type": "bug",
+          "dir": "N"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "type": "bug",
+          "dir": "N"
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "type": "bug",
+          "dir": "E"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "type": "bug",
+          "dir": "W"
+        }
       ]
     },
     {
@@ -1064,9 +1395,24 @@
         "#####$###"
       ],
       "entities": [
-        { "x": 5, "y": 3, "type": "fireball", "dir": "S" },
-        { "x": 2, "y": 7, "type": "fireball", "dir": "W" },
-        { "x": 6, "y": 6, "type": "fireball", "dir": "W" }
+        {
+          "x": 5,
+          "y": 3,
+          "type": "fireball",
+          "dir": "S"
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "type": "fireball",
+          "dir": "W"
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "type": "fireball",
+          "dir": "W"
+        }
       ]
     },
     {
@@ -1086,9 +1432,24 @@
         "####$###"
       ],
       "entities": [
-        { "x": 5, "y": 5, "type": "fireball", "dir": "E" },
-        { "x": 2, "y": 4, "type": "fireball", "dir": "N" },
-        { "x": 6, "y": 5, "type": "fireball", "dir": "W" }
+        {
+          "x": 5,
+          "y": 5,
+          "type": "fireball",
+          "dir": "E"
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "type": "fireball",
+          "dir": "N"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "type": "fireball",
+          "dir": "W"
+        }
       ]
     },
     {
@@ -1106,8 +1467,18 @@
         "#######$#"
       ],
       "entities": [
-        { "x": 4, "y": 1, "type": "glider", "dir": "N" },
-        { "x": 5, "y": 5, "type": "glider", "dir": "N" }
+        {
+          "x": 4,
+          "y": 1,
+          "type": "glider",
+          "dir": "N"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "type": "glider",
+          "dir": "N"
+        }
       ]
     },
     {
@@ -1125,9 +1496,24 @@
         "###$###"
       ],
       "entities": [
-        { "x": 4, "y": 3, "type": "pink_ball", "dir": "N" },
-        { "x": 3, "y": 3, "type": "paramecium", "dir": "E" },
-        { "x": 2, "y": 4, "type": "paramecium", "dir": "W" }
+        {
+          "x": 4,
+          "y": 3,
+          "type": "pink_ball",
+          "dir": "N"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "type": "paramecium",
+          "dir": "E"
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "type": "paramecium",
+          "dir": "W"
+        }
       ]
     },
     {
@@ -1146,8 +1532,18 @@
         "#######$#"
       ],
       "entities": [
-        { "x": 1, "y": 3, "type": "paramecium", "dir": "S" },
-        { "x": 6, "y": 6, "type": "paramecium", "dir": "N" }
+        {
+          "x": 1,
+          "y": 3,
+          "type": "paramecium",
+          "dir": "S"
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "type": "paramecium",
+          "dir": "N"
+        }
       ]
     },
     {
@@ -1167,10 +1563,30 @@
         "###$###"
       ],
       "entities": [
-        { "x": 2, "y": 5, "type": "pink_ball", "dir": "E" },
-        { "x": 2, "y": 6, "type": "pink_ball", "dir": "E" },
-        { "x": 5, "y": 6, "type": "pink_ball", "dir": "W" },
-        { "x": 1, "y": 4, "type": "pink_ball", "dir": "N" }
+        {
+          "x": 2,
+          "y": 5,
+          "type": "pink_ball",
+          "dir": "E"
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "type": "pink_ball",
+          "dir": "E"
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "type": "pink_ball",
+          "dir": "W"
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "type": "pink_ball",
+          "dir": "N"
+        }
       ]
     },
     {
@@ -1189,9 +1605,24 @@
         "####$##"
       ],
       "entities": [
-        { "x": 2, "y": 5, "type": "pink_ball", "dir": "E" },
-        { "x": 3, "y": 2, "type": "pink_ball", "dir": "W" },
-        { "x": 2, "y": 2, "type": "pink_ball", "dir": "S" }
+        {
+          "x": 2,
+          "y": 5,
+          "type": "pink_ball",
+          "dir": "E"
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "type": "pink_ball",
+          "dir": "W"
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "type": "pink_ball",
+          "dir": "S"
+        }
       ]
     },
     {
@@ -1211,9 +1642,24 @@
         "####$###"
       ],
       "entities": [
-        { "x": 5, "y": 5, "type": "bug", "dir": "E" },
-        { "x": 2, "y": 4, "type": "bug", "dir": "N" },
-        { "x": 6, "y": 5, "type": "bug", "dir": "W" }
+        {
+          "x": 5,
+          "y": 5,
+          "type": "bug",
+          "dir": "E"
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "type": "bug",
+          "dir": "N"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "type": "bug",
+          "dir": "W"
+        }
       ]
     },
     {
@@ -1232,10 +1678,30 @@
         "###$#####"
       ],
       "entities": [
-        { "x": 1, "y": 4, "type": "glider", "dir": "W" },
-        { "x": 7, "y": 3, "type": "glider", "dir": "S" },
-        { "x": 4, "y": 1, "type": "glider", "dir": "W" },
-        { "x": 5, "y": 5, "type": "glider", "dir": "E" }
+        {
+          "x": 1,
+          "y": 4,
+          "type": "glider",
+          "dir": "W"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "type": "glider",
+          "dir": "S"
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "type": "glider",
+          "dir": "W"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "type": "glider",
+          "dir": "E"
+        }
       ]
     },
     {
@@ -1255,9 +1721,24 @@
         "####$##"
       ],
       "entities": [
-        { "x": 1, "y": 3, "type": "fireball", "dir": "S" },
-        { "x": 5, "y": 2, "type": "pink_ball", "dir": "E" },
-        { "x": 1, "y": 7, "type": "pink_ball", "dir": "S" }
+        {
+          "x": 1,
+          "y": 3,
+          "type": "fireball",
+          "dir": "S"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "type": "pink_ball",
+          "dir": "E"
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "type": "pink_ball",
+          "dir": "S"
+        }
       ]
     },
     {
@@ -1275,9 +1756,24 @@
         "###$###"
       ],
       "entities": [
-        { "x": 4, "y": 3, "type": "paramecium", "dir": "N" },
-        { "x": 3, "y": 3, "type": "paramecium", "dir": "E" },
-        { "x": 2, "y": 4, "type": "paramecium", "dir": "W" }
+        {
+          "x": 4,
+          "y": 3,
+          "type": "paramecium",
+          "dir": "N"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "type": "paramecium",
+          "dir": "E"
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "type": "paramecium",
+          "dir": "W"
+        }
       ]
     },
     {
@@ -1297,10 +1793,22 @@
         "##$####"
       ],
       "entities": [
-        { "x": 2, "y": 2, "type": "dirt_block", "dir": "S" }
+        {
+          "x": 2,
+          "y": 2,
+          "type": "dirt_block",
+          "dir": "S"
+        }
       ],
       "cloneLinks": [
-        { "buttonX": 1, "buttonY": 1, "clonerX": 2, "clonerY": 2, "templateType": "dirt_block", "templateDir": "S" }
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "dirt_block",
+          "templateDir": "S"
+        }
       ]
     },
     {
@@ -1319,13 +1827,30 @@
         "#####$#"
       ],
       "entities": [
-        { "x": 2, "y": 2, "type": "dirt_block", "dir": "S" }
+        {
+          "x": 2,
+          "y": 2,
+          "type": "dirt_block",
+          "dir": "S"
+        }
       ],
       "trapLinks": [
-        { "buttonX": 5, "buttonY": 3, "trapX": 3, "trapY": 4 }
+        {
+          "buttonX": 5,
+          "buttonY": 3,
+          "trapX": 3,
+          "trapY": 4
+        }
       ],
       "cloneLinks": [
-        { "buttonX": 1, "buttonY": 1, "clonerX": 2, "clonerY": 2, "templateType": "dirt_block", "templateDir": "S" }
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "dirt_block",
+          "templateDir": "S"
+        }
       ]
     },
     {
@@ -1346,14 +1871,36 @@
         "#####$#"
       ],
       "entities": [
-        { "x": 2, "y": 2, "type": "dirt_block", "dir": "S" }
+        {
+          "x": 2,
+          "y": 2,
+          "type": "dirt_block",
+          "dir": "S"
+        }
       ],
       "trapLinks": [
-        { "buttonX": 5, "buttonY": 3, "trapX": 4, "trapY": 4 },
-        { "buttonX": 5, "buttonY": 6, "trapX": 3, "trapY": 7 }
+        {
+          "buttonX": 5,
+          "buttonY": 3,
+          "trapX": 4,
+          "trapY": 4
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 6,
+          "trapX": 3,
+          "trapY": 7
+        }
       ],
       "cloneLinks": [
-        { "buttonX": 1, "buttonY": 1, "clonerX": 2, "clonerY": 2, "templateType": "dirt_block", "templateDir": "S" }
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "dirt_block",
+          "templateDir": "S"
+        }
       ]
     },
     {
@@ -1456,6 +2003,198 @@
         "###..[].#",
         "#....].n#",
         "#$#######"
+      ]
+    },
+    {
+      "id": "block_out_lane",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "#@#####",
+        "#...###",
+        "###.###",
+        "###&###",
+        "#C..###",
+        "#C..###",
+        "###.###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "block_out_ford",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "####@###",
+        "####.###",
+        "####&###",
+        "###..###",
+        "#CW&.###",
+        "###..###",
+        "####.###",
+        "####.###",
+        "####$###"
+      ]
+    },
+    {
+      "id": "block_out_twin_fords",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "####@####",
+        "####.####",
+        "####&####",
+        "#CW&.####",
+        "####.&WC#",
+        "####.####",
+        "####$####"
+      ]
+    },
+    {
+      "id": "block_in_moat",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "###@###",
+        "###W###",
+        "#.....#",
+        "#.#C#.#",
+        "#C...C#",
+        "###.###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "block_in_canal",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "###@####",
+        "###W####",
+        "#......#",
+        "##&.##.#",
+        "#CW.##.#",
+        "###..#.#",
+        "#####..#",
+        "#####$##"
+      ]
+    },
+    {
+      "id": "block_in_pillar",
+      "motif": "blocks_water",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "####@###",
+        "####W###",
+        "#......#",
+        "#.##&..#",
+        "#.##W#.#",
+        "#C.....#",
+        "######$#"
+      ]
+    },
+    {
+      "id": "key_out_yellow",
+      "motif": "keys_doors",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "item",
+        "item": "key_yellow"
+      },
+      "rows": [
+        "#@#####",
+        "#....r#",
+        "#####R#",
+        "#..C..#",
+        "#.###.#",
+        "#.#y..#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "key_out_green",
+      "motif": "keys_doors",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "item",
+        "item": "key_green"
+      },
+      "rows": [
+        "##@####",
+        "#...b.#",
+        "#####B#",
+        "#C....#",
+        "#.##.##",
+        "#.k.C.#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "door_in_yellow",
+      "motif": "keys_doors",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "item",
+        "item": "key_yellow"
+      },
+      "rows": [
+        "#@#####",
+        "#..Y..#",
+        "#####.#",
+        "#C....#",
+        "#.....#",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "door_in_green",
+      "motif": "keys_doors",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "item",
+        "item": "key_green"
+      },
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#G###G#",
+        "#C...C#",
+        "#.....#",
+        "###$###"
       ]
     }
   ]

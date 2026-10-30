@@ -19,7 +19,7 @@ import { compilePiece } from '../generator/PieceCompiler';
 import { CompiledPiece, MotifsConfig } from '../generator/PieceTypes';
 import { AssembledLevel, Box, LevelAssembler } from '../generator/LevelAssembler';
 import { HubAssembler, LevelGuard } from '../generator/HubAssembler';
-import { HubPlanner } from '../generator/HubPlanner';
+import { HubDependency, HubPlanner } from '../generator/HubPlanner';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
 import { hubShapeFor, leadChoiceFor } from '../generator/PackVariety';
@@ -74,6 +74,8 @@ export interface GeneratedLevel {
   layout: 'chain' | 'hub';
   /** Hub outline id, for hub levels. */
   hubShape?: string;
+  /** Pairs of pieces where one hands a block or a key to the other (loop-wing hubs). */
+  dependencies: HubDependency[];
 }
 
 /** What both layouts hand over to the proof and the scoring. */
@@ -83,6 +85,7 @@ interface BuiltLayout {
   guards: LevelGuard[];
   motifs: string[];
   pieceMotifs: string[];
+  dependencies: HubDependency[];
 }
 
 /**
@@ -194,8 +197,8 @@ export class ProceduralGenerator {
     const lead = leadChoice?.preferred;
     const shape = script ? undefined : hubShapeFor(levelNumber, packSeed, cfg, profile.mode);
     // Attempts come in tiers of one dropped puzzle each. Within a tier the pack's
-    // lead motif and hub outline are asked for first, then relaxed, so the
-    // constraints give way before any puzzle does.
+    // lead motif, hub outline and a block lane between two puzzles are asked for
+    // first, then relaxed, so the constraints give way before any puzzle does.
     const tierSize = cfg.hub.attemptsPerDroppedPiece;
     const strictPerTier = Math.ceil(tierSize / 2);
 
@@ -209,7 +212,7 @@ export class ProceduralGenerator {
       const avoid = leadChoice?.avoid;
       const built =
         layout === 'hub'
-          ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid)
+          ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid, strict)
           : this.buildChain(profile, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead, avoid);
       if (!built) continue;
       const { assembled } = built;
@@ -236,7 +239,9 @@ export class ProceduralGenerator {
       // No puzzle may be walked around, checked on every level, not only in tests.
       if (built.guards.some((g) => cellReachableWithout(level, g.box, g.guarded))) continue;
 
-      const puzzleCount = built.pieceMotifs.filter((m) => built.motifs.includes(m)).length;
+      // Every piece but the role ones (finale, rest rooms) is a puzzle the player must think about.
+      const rules = motifs.motifRules ?? {};
+      const puzzleCount = built.pieceMotifs.filter((m) => rules[m]?.role === undefined).length;
       level.timeLimitSeconds = this.timeLimit(profile, proof.ticks, puzzleCount, cfg);
       level.solution = encodeActions(proof.moves);
       const scored = scoreLevel(
@@ -264,7 +269,8 @@ export class ProceduralGenerator {
         pieceMotifs: built.pieceMotifs,
         guards: built.guards,
         layout,
-        hubShape: built.hubShape
+        hubShape: built.hubShape,
+        dependencies: built.dependencies
       };
     }
     throw new ProceduralGenerationError(levelNumber, `no level after ${cfg.maxGenerationAttempts} attempts`);
@@ -294,7 +300,7 @@ export class ProceduralGenerator {
     const pieceMotifs = plan.steps.map((s) => s.piece.motif);
     // The finale holds the exit itself, so it guards nothing.
     const guards = assembled.pieceBoxes.slice(0, -1).map((box) => ({ box, guarded: exit }));
-    return { assembled, guards, motifs: plan.motifs, pieceMotifs };
+    return { assembled, guards, motifs: plan.motifs, pieceMotifs, dependencies: [] };
   }
 
   /** A hub with locked wings; each wing puzzle guards its reward room, the last one the exit. */
@@ -308,9 +314,10 @@ export class ProceduralGenerator {
     piecesDropped = 0,
     lead?: string,
     shapeIds?: string[],
-    avoid?: string[]
+    avoid?: string[],
+    lanes = true
   ): BuiltLayout | null {
-    const plan = HubPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid);
+    const plan = HubPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid, lanes);
     // Loop wings are costly to lay out and rarely fit: fewer layouts are tried for a plan, and
     // the first that fits is kept, a new plan being a better bet than one more layout of this.
     const loop = plan.wings.some((w) => w.loop);
@@ -321,7 +328,14 @@ export class ProceduralGenerator {
     );
     if (!assembled) return null;
     const pieceMotifs = [...plan.wings.flatMap((w) => [w.piece, ...w.then].map((p) => p.motif)), plan.finale.motif];
-    return { assembled, guards: assembled.guards, motifs: plan.motifs, pieceMotifs, hubShape: assembled.hubShape };
+    return {
+      assembled,
+      guards: assembled.guards,
+      motifs: plan.motifs,
+      pieceMotifs,
+      hubShape: assembled.hubShape,
+      dependencies: plan.dependencies
+    };
   }
 
   /**

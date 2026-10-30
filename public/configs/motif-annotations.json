@@ -11,6 +11,30 @@
     "solution": "SEESSSSNEEENWWNWSSSSSEEESE",
     "reversible": true
   },
+  "block_in_canal": {
+    "solution": "SSSWSSWENNEEEESSSSWS",
+    "reversible": true
+  },
+  "block_in_moat": {
+    "solution": "SSSSSEEWWWWEESS",
+    "reversible": true
+  },
+  "block_in_pillar": {
+    "solution": "SSSSSSWWWEEEEES",
+    "reversible": true
+  },
+  "block_out_ford": {
+    "solution": "SSSSWWWEEESSSS",
+    "reversible": true
+  },
+  "block_out_lane": {
+    "solution": "SEESSSSNWWSEESS",
+    "reversible": true
+  },
+  "block_out_twin_fords": {
+    "solution": "SSSWWWEEESEEEWWWSS",
+    "reversible": true
+  },
   "bomb_clearance": {
     "solution": "SEEEEESS",
     "reversible": true
@@ -25,6 +49,14 @@
   },
   "cloner_trap_gate_1": {
     "solution": "SWWSSEEEWSSWWEEEESS",
+    "reversible": true
+  },
+  "door_in_green": {
+    "solution": "SWSSEEEESWWS",
+    "reversible": true
+  },
+  "door_in_yellow": {
+    "solution": "SEEEESSWWWWSS",
     "reversible": true
   },
   "finale_socket": {
@@ -61,6 +93,14 @@
   },
   "ice_rink_skates": {
     "solution": "SEEEESSSWWSS",
+    "reversible": true
+  },
+  "key_out_green": {
+    "solution": "SEEESSWSSWWWNNSSS",
+    "reversible": true
+  },
+  "key_out_yellow": {
+    "solution": "SEEEESSSSWWEENNWWWWSSS",
     "reversible": true
   },
   "keys_doors_chain": {

@@ -45,6 +45,8 @@ const NO_PARENT = -1;
 export type RouteSegment =
   | { kind: 'walk'; moves: Direction[] }
   | { kind: 'goto'; target: GridPoint }
+  /** Pushes a block ahead of the player along `moves`; it must then rest on `block`. */
+  | { kind: 'push'; moves: Direction[]; block: GridPoint }
   | {
       kind: 'piece';
       piece: CompiledPiece;
