@@ -139,10 +139,27 @@ export class LevelEditor {
     return this.isDirty;
   }
 
+  /** Width of the level being edited, in cells; a level sets its own size. */
+  private mapWidth(): number {
+    return this.terrain[0]?.length ?? 0;
+  }
+
+  /** Height of the level being edited, in cells. */
+  private mapHeight(): number {
+    return this.terrain.length;
+  }
+
+  /** Sizes the canvas to the level being edited. */
+  private fitCanvasToLevel(): void {
+    const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
+    const width = this.mapWidth() * editorTilePixelSize;
+    const height = this.mapHeight() * editorTilePixelSize;
+    if (this.canvas.width !== width) this.canvas.width = width;
+    if (this.canvas.height !== height) this.canvas.height = height;
+  }
+
   public initBlankMap(): void {
-    const { mapWidth, mapHeight, editorTilePixelSize } = ConfigRegistry.getGame().grid;
-    this.canvas.width = mapWidth * editorTilePixelSize;
-    this.canvas.height = mapHeight * editorTilePixelSize;
+    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
 
     this.terrain = Array.from({ length: mapHeight }, (_, y) =>
       Array.from({ length: mapWidth }, (__, x) =>
@@ -156,6 +173,7 @@ export class LevelEditor {
     this.trapLinks = [];
     this.cloneLinks = [];
     this.playerStart = { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' };
+    this.fitCanvasToLevel();
     this.currentLevelId = `${CUSTOM_LEVEL_ID_PREFIX}${Date.now()}`;
     this.draftCustomId = null;
     this.customTitle = t('editor.metadata.default_title.label');
@@ -186,6 +204,7 @@ export class LevelEditor {
     this.entities = level.entities.map((e) => ({ ...e }));
     this.trapLinks = level.trapLinks.map((l) => ({ ...l }));
     this.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
+    this.fitCanvasToLevel();
     this.isDirty = false;
     this.undoStack = [];
     this.redoStack = [];
@@ -721,10 +740,10 @@ export class LevelEditor {
       const rect = this.canvas.getBoundingClientRect();
       const scaleX = this.canvas.width / rect.width;
       const scaleY = this.canvas.height / rect.height;
-      const { editorTilePixelSize, mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+      const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
       const x = Math.floor(((clientX - rect.left) * scaleX) / editorTilePixelSize);
       const y = Math.floor(((clientY - rect.top) * scaleY) / editorTilePixelSize);
-      if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return null;
+      if (x < 0 || x >= this.mapWidth() || y < 0 || y >= this.mapHeight()) return null;
       return { x, y };
     };
 
@@ -850,7 +869,8 @@ export class LevelEditor {
 
   private floodFillTerrain(startX: number, startY: number, targetId: string, replacementId: string): void {
     if (targetId === replacementId) return;
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    const mapWidth = this.mapWidth();
+    const mapHeight = this.mapHeight();
     const queue: Array<{ x: number; y: number }> = [{ x: startX, y: startY }];
     const visited = new Set<string>();
 
@@ -874,7 +894,9 @@ export class LevelEditor {
   }
 
   public render(): void {
-    const { mapWidth, mapHeight, editorTilePixelSize } = ConfigRegistry.getGame().grid;
+    const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
+    const mapWidth = this.mapWidth();
+    const mapHeight = this.mapHeight();
     const s = editorTilePixelSize;
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 

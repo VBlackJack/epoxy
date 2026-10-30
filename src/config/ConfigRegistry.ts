@@ -25,6 +25,10 @@ import {
   assertConfigShape,
   ConfigLoadError,
   isCompiledLevelShape,
+  isSizeWithinBounds,
+  levelSizeBoundsOf,
+  GridSize,
+  LevelSizeBounds,
   isDirection,
   isFiniteNumber,
   isInBounds,
@@ -104,7 +108,6 @@ class ConfigRegistryService {
       (game) => this.fetchUltimatePacks(game.ultimatePacks || []),
       () => [] as FetchedPack[]
     );
-    const storedPacksPromise = LevelPackStorage.loadAllPacks();
 
     const [game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
@@ -120,7 +123,9 @@ class ConfigRegistryService {
     this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations });
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     this.customLevels = this.loadCustomLevelsFromStorage();
-    this.importedPacks = await storedPacksPromise;
+    // The store name and the level size bounds come from game.json, so the
+    // stored packs are read only once the configs are installed.
+    this.importedPacks = await LevelPackStorage.loadAllPacks();
 
     const savedPackId = this.readStorage(this.gameConfig.storage.activePackKey);
     if (savedPackId && this.getAllPacks().some((p) => p.id === savedPackId && p.levels.length > 0)) {
@@ -366,8 +371,8 @@ class ConfigRegistryService {
    * rejects the level, out-of-grid entities and links are dropped.
    */
   public compileBlueprint(bp: LevelBlueprint): CompiledLevel {
-    const { mapWidth, mapHeight } = this.gameConfig.grid;
     const levelId = typeof bp.id === 'string' ? bp.id : String(bp.number);
+    const { width: mapWidth, height: mapHeight } = this.blueprintSize(bp, levelId);
     const inGrid = (x: unknown, y: unknown) => isInBounds(x, y, mapWidth, mapHeight);
 
     const start = bp.playerStart;
@@ -387,11 +392,11 @@ class ConfigRegistryService {
     // An exported level carries its items as a grid; a hand-written one as placements.
     const itemGrid = bp.itemGrid ?? (isItemGrid(bp.items) ? bp.items : undefined);
     const placements = isItemGrid(bp.items) ? undefined : bp.items;
-    if (bp.terrain && itemGrid) {
+    if (bp.terrain) {
       for (let y = 0; y < mapHeight; y++) {
         for (let x = 0; x < mapWidth; x++) {
           terrain[y][x] = bp.terrain[y]?.[x] || 'floor';
-          items[y][x] = itemGrid[y]?.[x] || null;
+          items[y][x] = itemGrid?.[y]?.[x] || null;
         }
       }
     } else if (bp.rows) {
@@ -460,6 +465,41 @@ class ConfigRegistryService {
     };
   }
 
+  /** Width and height a .json level or a custom pack may have. */
+  public getLevelSizeBounds(): LevelSizeBounds {
+    return levelSizeBoundsOf(this.gameConfig.grid);
+  }
+
+  /**
+   * The size of a blueprint comes from its terrain grid when it has one, else
+   * from its legend rows (their count and the widest row); a blueprint with
+   * neither gets the default map size. A size outside the configured bounds
+   * rejects the level.
+   */
+  private blueprintSize(bp: LevelBlueprint, levelId: string): GridSize {
+    const grid = this.gameConfig.grid;
+    const source: ReadonlyArray<{ length: number }> | null =
+      Array.isArray(bp.terrain) && bp.terrain.length > 0
+        ? bp.terrain
+        : Array.isArray(bp.rows) && bp.rows.length > 0
+          ? bp.rows
+          : null;
+    if (!source) {
+      return { width: grid.mapWidth, height: grid.mapHeight };
+    }
+    const size = {
+      width: source.reduce((widest, row) => Math.max(widest, row.length), 0),
+      height: source.length
+    };
+    if (!isSizeWithinBounds(size, levelSizeBoundsOf(grid))) {
+      throw new InvalidLevelError(
+        levelId,
+        `level size ${size.width}x${size.height} is outside ${grid.minLevelSize}..${grid.maxLevelSize}`
+      );
+    }
+    return size;
+  }
+
   public addOrUpdateCustomLevel(level: CompiledLevel): number {
     const existingIdx = this.customLevels.findIndex((l) => l.id === level.id);
     if (existingIdx >= 0) {
@@ -481,10 +521,8 @@ class ConfigRegistryService {
       if (!raw) return [];
       const parsed: unknown = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      const { mapWidth, mapHeight } = this.gameConfig.grid;
-      return parsed.filter((lvl): lvl is CompiledLevel =>
-        isCompiledLevelShape(lvl, mapWidth, mapHeight)
-      );
+      const bounds = this.getLevelSizeBounds();
+      return parsed.filter((lvl): lvl is CompiledLevel => isCompiledLevelShape(lvl, bounds));
     } catch {
       return [];
     }

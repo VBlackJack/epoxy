@@ -15,7 +15,7 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
-import { CompiledLevel, Direction } from '../core/types';
+import { CompiledLevel, Direction, GridConfig } from '../core/types';
 
 /**
  * Raised when a fetched configuration file is missing or does not match the
@@ -82,6 +82,36 @@ export function assertConfigShape(
   }
 }
 
+/** Smallest and largest width or height a level may have. */
+export interface LevelSizeBounds {
+  minSize: number;
+  maxSize: number;
+}
+
+/** Width and height of a level, in cells. */
+export interface GridSize {
+  width: number;
+  height: number;
+}
+
+/** Reads the level size bounds from the grid configuration. */
+export function levelSizeBoundsOf(
+  grid: Pick<GridConfig, 'minLevelSize' | 'maxLevelSize'>
+): LevelSizeBounds {
+  return { minSize: grid.minLevelSize, maxSize: grid.maxLevelSize };
+}
+
+export function isSizeWithinBounds(size: GridSize, bounds: LevelSizeBounds): boolean {
+  return (
+    Number.isInteger(size.width) &&
+    Number.isInteger(size.height) &&
+    size.width >= bounds.minSize &&
+    size.width <= bounds.maxSize &&
+    size.height >= bounds.minSize &&
+    size.height <= bounds.maxSize
+  );
+}
+
 function isGrid(value: unknown, width: number, height: number): boolean {
   return (
     Array.isArray(value) &&
@@ -91,15 +121,26 @@ function isGrid(value: unknown, width: number, height: number): boolean {
 }
 
 /**
- * Structural check for a level read back from localStorage or IndexedDB,
- * where the data may be stale or hand-edited.
+ * Measures a rectangular grid: every row is an array of the same length and
+ * both dimensions lie within the bounds. Returns null for anything else.
  */
-export function isCompiledLevelShape(
-  value: unknown,
-  width: number,
-  height: number
-): value is CompiledLevel {
+export function measureGrid(value: unknown, bounds: LevelSizeBounds): GridSize | null {
+  if (!Array.isArray(value) || value.length === 0 || !Array.isArray(value[0])) return null;
+  const size = { width: value[0].length, height: value.length };
+  if (!isSizeWithinBounds(size, bounds)) return null;
+  return isGrid(value, size.width, size.height) ? size : null;
+}
+
+/**
+ * Structural check for a level read back from localStorage, IndexedDB or a
+ * JSON import, where the data may be stale or hand-edited. The level sets
+ * its own size: the terrain must be a rectangular grid within the bounds,
+ * the items grid must match it and the player start must lie inside it.
+ */
+export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): value is CompiledLevel {
   if (!isRecord(value)) return false;
+  const size = measureGrid(value.terrain, bounds);
+  if (!size) return false;
   const start = value.playerStart;
   return (
     typeof value.id === 'string' &&
@@ -107,9 +148,8 @@ export function isCompiledLevelShape(
     isFiniteNumber(value.timeLimitSeconds) &&
     isFiniteNumber(value.chipsRequired) &&
     isRecord(start) &&
-    isInBounds(start.x, start.y, width, height) &&
-    isGrid(value.terrain, width, height) &&
-    isGrid(value.items, width, height) &&
+    isInBounds(start.x, start.y, size.width, size.height) &&
+    isGrid(value.items, size.width, size.height) &&
     Array.isArray(value.entities) &&
     Array.isArray(value.trapLinks) &&
     Array.isArray(value.cloneLinks)

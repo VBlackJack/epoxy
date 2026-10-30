@@ -229,6 +229,8 @@ export class PixelRenderer {
   private visualViewportTiles: number = 13;
   private lastViewportWidth: number = 13;
   private lastViewportHeight: number = 13;
+  private lastMapWidth = 0;
+  private lastMapHeight = 0;
   private style: GraphicsStyle = 'modern';
   private themeId: string = 'cyber_neon';
   private shakeIntensity: number = 0;
@@ -404,7 +406,9 @@ export class PixelRenderer {
     const vh = this.lastViewportHeight || this.visualViewportTiles || gridCfg.viewportHeight;
     const gx = Math.floor(this.visualCameraPos.x + normX * vw);
     const gy = Math.floor(this.visualCameraPos.y + normY * vh);
-    if (gx < 0 || gx >= gridCfg.mapWidth || gy < 0 || gy >= gridCfg.mapHeight) return null;
+    const mapWidth = this.lastMapWidth || gridCfg.mapWidth;
+    const mapHeight = this.lastMapHeight || gridCfg.mapHeight;
+    if (gx < 0 || gx >= mapWidth || gy < 0 || gy >= mapHeight) return null;
     return { x: gx, y: gy };
   }
 
@@ -490,7 +494,11 @@ export class PixelRenderer {
     const settings = this.getSettings();
     const frameScale = this.advanceClock(settings);
     const gridCfg = gameCfg.grid;
-    const { mapWidth, mapHeight } = gridCfg;
+    // The level sets its own size; the grid config only gives the default.
+    const mapWidth = engine.getMapWidth() || gridCfg.mapWidth;
+    const mapHeight = engine.getMapHeight() || gridCfg.mapHeight;
+    this.lastMapWidth = mapWidth;
+    this.lastMapHeight = mapHeight;
     const targetTiles = this.currentViewportTiles || gridCfg.viewportWidth;
     const isModern = this.style === 'modern';
     const camLerp = isModern ? scaleLerpFactor(settings.cameraLerpFactor, frameScale) : 1;
@@ -1098,9 +1106,14 @@ export class PixelRenderer {
     ctx.restore();
   }
 
+  /**
+   * Draws the whole level on the radar canvas, scaled so the level fills the
+   * canvas whatever its size; `cellPx` is only used when the canvas has no size.
+   */
   public renderMinimap(ctx: CanvasRenderingContext2D, engine: GameEngine, cellPx: number = 3): void {
     const gridCfg = ConfigRegistry.getGame().grid;
-    const { mapWidth, mapHeight } = gridCfg;
+    const mapWidth = engine.getMapWidth() || gridCfg.mapWidth;
+    const mapHeight = engine.getMapHeight() || gridCfg.mapHeight;
     const viewportWidth = this.lastViewportWidth || this.currentViewportTiles || gridCfg.viewportWidth;
     const viewportHeight = this.lastViewportHeight || this.currentViewportTiles || gridCfg.viewportHeight;
     const pal = ConfigRegistry.getGame().palette;
@@ -1109,7 +1122,9 @@ export class PixelRenderer {
     const entities = engine.getEntities();
     const player = engine.getPlayer();
 
-    ctx.clearRect(0, 0, mapWidth * cellPx, mapHeight * cellPx);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const fitCellPx = Math.min(ctx.canvas.width / mapWidth, ctx.canvas.height / mapHeight);
+    if (fitCellPx > 0) cellPx = fitCellPx;
 
     for (let y = 0; y < mapHeight; y++) {
       for (let x = 0; x < mapWidth; x++) {

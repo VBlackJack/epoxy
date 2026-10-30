@@ -112,12 +112,12 @@ class LevelPackStorageService {
 
   private sanitizePacks(raw: unknown): LevelPack[] {
     if (!Array.isArray(raw)) return [];
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    const bounds = ConfigRegistry.getLevelSizeBounds();
     const packs: LevelPack[] = [];
     for (const entry of raw) {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string') continue;
       if (!Array.isArray(entry.levels)) continue;
-      const levels = entry.levels.filter((lvl) => isCompiledLevelShape(lvl, mapWidth, mapHeight));
+      const levels = entry.levels.filter((lvl) => isCompiledLevelShape(lvl, bounds));
       if (levels.length === 0) continue;
       packs.push({
         id: entry.id,
