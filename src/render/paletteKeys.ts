@@ -36,7 +36,8 @@ export const BUTTON_COLOR_KEYS: Readonly<Record<string, string>> = {
   button_green: 'green',
   button_blue: 'blue',
   button_brown: 'brown',
-  button_red: 'red'
+  button_red: 'red',
+  button_orange: 'orange'
 };
 
 /** Colour-blind glyph drawn on each button (see drawColorGlyph). */
@@ -44,7 +45,8 @@ export const BUTTON_GLYPH_KEYS: Readonly<Record<string, string>> = {
   button_green: 'green',
   button_blue: 'blue',
   button_brown: 'yellow',
-  button_red: 'red'
+  button_red: 'red',
+  button_orange: 'orange'
 };
 
 export const BOOT_COLOR_KEYS: Readonly<Record<string, string>> = {

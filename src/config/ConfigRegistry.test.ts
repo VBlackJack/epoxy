@@ -207,6 +207,103 @@ describe('isCompiledLevelShape', () => {
   });
 });
 
+/** Tiles added with the drop, barrier, thief, turtle, thin wall, teleport, flame and bonus mechanics. */
+const MECHANIC_TILE_IDS = [
+  'thin_wall_ne',
+  'thin_wall_nw',
+  'thin_wall_sw',
+  'thin_wall_ns',
+  'thin_wall_ew',
+  'thin_wall_nes',
+  'thin_wall_new',
+  'thin_wall_nsw',
+  'thin_wall_esw',
+  'thin_wall_nesw',
+  'turtle',
+  'thief_keys',
+  'forbid_key_red',
+  'forbid_key_blue',
+  'forbid_key_yellow',
+  'forbid_key_green',
+  'forbid_boots_ice',
+  'forbid_boots_water',
+  'forbid_boots_fire',
+  'forbid_boots_force',
+  'score_10',
+  'score_100',
+  'score_1000',
+  'score_2x',
+  'stopwatch_bonus',
+  'stopwatch_penalty',
+  'button_orange',
+  'flame_jet_off',
+  'flame_jet_on',
+  'teleport_red',
+  'teleport_blue',
+  'teleport_yellow',
+  'teleport_green'
+];
+
+describe('tiles.json mechanics', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('resolves every mechanic tile to its own definition', () => {
+    for (const id of MECHANIC_TILE_IDS) {
+      const tile = ConfigRegistry.getTile(id);
+      expect(tile.id, id).toBe(id);
+      expect(tile.i18nKey, id).toBe(`tiles.${id}.name`);
+      expect(ConfigRegistry.getTiles().categories.some((c) => c.id === tile.category), id).toBe(true);
+    }
+  });
+
+  it('points every tile reference at an existing tile', () => {
+    const tiles = ConfigRegistry.getTiles().tiles;
+    const references: Array<keyof (typeof tiles)[string]> = [
+      'transformsToOnStep',
+      'revealsToOnTouch',
+      'transformsToOnUnlock',
+      'transformsToOnLeave',
+      'blockTransformsTo',
+      'protectedByItem',
+      'forbiddenItem',
+      'requiredKey',
+      'togglesTo',
+      'flameTogglesTo'
+    ];
+    for (const tile of Object.values(tiles)) {
+      for (const field of references) {
+        const target = tile[field];
+        if (typeof target === 'string') {
+          expect(tiles[target], `${tile.id}.${field}`).toBeDefined();
+        }
+      }
+    }
+  });
+
+  it('gives every thin panel a distinct set of blocked edges', () => {
+    const seen = new Set<string>();
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+      if (!tile.id.startsWith('thin_wall_')) continue;
+      const edges = [...(tile.blockedEdges ?? [])].sort().join('');
+      expect(edges.length, tile.id).toBeGreaterThan(0);
+      expect(seen.has(edges), tile.id).toBe(false);
+      seen.add(edges);
+    }
+    expect(seen.size).toBe(15);
+  });
+
+  it('groups the colour teleporters apart from the plain one', () => {
+    const groups = new Set<string | undefined>();
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+      if (tile.isTeleporter) groups.add(tile.teleportGroup);
+    }
+    expect(groups.has(undefined)).toBe(true);
+    expect(groups.size).toBe(5);
+  });
+});
+
 describe('assertConfigShape', () => {
   it('reports the missing keys', () => {
     expect(() => assertConfigShape('game.json', { grid: {} }, ['grid', 'timing'])).toThrow(

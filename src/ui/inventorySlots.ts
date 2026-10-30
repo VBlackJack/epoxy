@@ -23,6 +23,8 @@ export interface InventorySlotState {
   badge: string;
   label: string;
   iconUrl: string;
+  /** The item the drop key will put down. */
+  selected?: boolean;
 }
 
 /** True when the slot DOM must be touched to show `next`. */
@@ -32,27 +34,37 @@ export function slotStateChanged(prev: InventorySlotState | null, next: Inventor
     prev.owned !== next.owned ||
     prev.badge !== next.badge ||
     prev.label !== next.label ||
-    prev.iconUrl !== next.iconUrl
+    prev.iconUrl !== next.iconUrl ||
+    (prev.selected ?? false) !== (next.selected ?? false)
   );
 }
 
 /**
  * One HUD inventory slot. The elements are created once; update() writes to
  * the DOM only when the displayed state changed, so it is cheap per tick.
+ * A click on an owned slot calls `onClick` (the item is dropped).
  */
 export class InventorySlotView {
-  private readonly slot: HTMLDivElement;
+  private readonly slot: HTMLButtonElement;
   private readonly img: HTMLImageElement;
   private readonly badgeEl: HTMLSpanElement;
   private state: InventorySlotState | null = null;
 
-  public constructor(container: HTMLElement) {
-    this.slot = document.createElement('div');
+  public constructor(container: HTMLElement, onClick?: () => void) {
+    this.slot = document.createElement('button');
+    this.slot.type = 'button';
     this.slot.className = 'inv-slot';
     this.img = document.createElement('img');
     this.badgeEl = document.createElement('span');
     this.badgeEl.className = 'inv-count hidden';
     this.slot.append(this.img, this.badgeEl);
+    if (onClick) {
+      this.slot.addEventListener('click', () => {
+        // Focus goes back to the page, so the game keys (Space pauses) keep their meaning.
+        this.slot.blur();
+        if (this.state?.owned) onClick();
+      });
+    }
     container.appendChild(this.slot);
   }
 
@@ -61,7 +73,10 @@ export class InventorySlotView {
     // A slot filling up while playing pops; the first state shown (level load) does not.
     if (this.state && next.owned && !this.state.owned) replayAnimation(this.slot, HUD_BUMP_CLASS);
     this.slot.classList.toggle('owned', next.owned);
+    this.slot.classList.toggle('selected', next.selected === true);
+    this.slot.disabled = !next.owned;
     this.slot.title = next.label;
+    this.slot.setAttribute('aria-label', next.label);
     this.img.alt = next.label;
     if (this.img.src !== next.iconUrl) {
       this.img.src = next.iconUrl;

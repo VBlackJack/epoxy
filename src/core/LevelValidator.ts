@@ -279,6 +279,7 @@ export class LevelValidator {
 
         if (currTile.isTeleporter) {
           for (const t of teleporters) {
+            if (ConfigRegistry.getTile(simTerrain[t.y][t.x]).teleportGroup !== currTile.teleportGroup) continue;
             enqueue(t.x, t.y, curr.boots);
           }
         }

@@ -781,18 +781,33 @@ button:disabled {
 .inv-slot {
   position: relative;
   height: 32px;
+  padding: 0;
   background: #1b202b;
   border: 1px solid #313847;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: inherit;
+  font: inherit;
+  cursor: default;
 }
 
 .inv-slot.owned {
   border-color: var(--lynx-yellow);
   background: #242b3a;
   box-shadow: 0 0 8px -2px var(--lynx-yellow), inset 0 0 6px -3px var(--lynx-yellow);
+  cursor: pointer;
+}
+
+/* The held item the drop key puts down; a click on any owned slot drops that item instead. */
+.inv-slot.selected {
+  outline: 2px solid var(--lynx-accent);
+  outline-offset: 1px;
+}
+
+.inv-slot.owned:hover img {
+  transform: scale(1.12);
 }
 
 /* Short pop replayed when a chip is picked up or an inventory slot fills */

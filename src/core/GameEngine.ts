@@ -25,6 +25,7 @@ import {
 } from './coreConstants';
 import { SeededRandom } from './Random';
 import {
+  ButtonAction,
   CloneLink,
   CompiledLevel,
   Direction,
@@ -32,6 +33,7 @@ import {
   PlayerState,
   RelativeTurn,
   RuntimeEntity,
+  TileDefinition,
   TimedMove,
   TrapLink,
   UndoSnapshot
@@ -43,6 +45,10 @@ const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
 /** Hard cap on live entities, so a cloner wired to a held button cannot flood the grid. */
 const MAX_ACTIVE_ENTITIES = 512;
+/** Group of the teleporters that declare none: they all chain together. */
+const DEFAULT_TELEPORT_GROUP = '';
+/** Level score factor before any multiplier item is picked up. */
+const BASE_LEVEL_SCORE_MULTIPLIER = 1;
 
 export class GameEngine {
   private level!: CompiledLevel;
@@ -56,6 +62,10 @@ export class GameEngine {
   private chipsRemaining: number = 0;
   private ticksElapsed: number = 0;
   private stepsCount: number = 0;
+  /** Seconds gained from stopwatch items in this level, net of penalties. */
+  private extraTimeSeconds: number = 0;
+  /** Factor applied to the level score at the exit, raised by multiplier items. */
+  private levelScoreMultiplier: number = BASE_LEVEL_SCORE_MULTIPLIER;
   private totalScore: number = 0;
   private scoreAtLevelStart: number = 0;
   private lastLevelScore: number = 0;
@@ -72,7 +82,8 @@ export class GameEngine {
   // Lookups built once per level: these cells never change tile type during play.
   private trapLinksByTrap = new Map<string, TrapLink[]>();
   private holdTrapButtons: GridPoint[] = [];
-  private teleporters: GridPoint[] = [];
+  /** Teleporter cells by group: a jump lands on a teleporter of the same group only. */
+  private teleportersByGroup = new Map<string, GridPoint[]>();
   private removedUids = new Set<number>();
   /** Set when a rejected player move still altered the grid (revealed wall, opened door). */
   private gridMutatedByMove = false;
@@ -166,6 +177,8 @@ export class GameEngine {
     this.chipsRemaining = level.chipsRequired;
     this.ticksElapsed = 0;
     this.stepsCount = 0;
+    this.extraTimeSeconds = 0;
+    this.levelScoreMultiplier = BASE_LEVEL_SCORE_MULTIPLIER;
     this.lastLevelScore = 0;
     this.lastTimeBonus = 0;
     this.levelCompleted = false;
@@ -191,14 +204,28 @@ export class GameEngine {
     }
 
     this.holdTrapButtons = [];
-    this.teleporters = [];
+    this.teleportersByGroup.clear();
     for (let y = 0; y < this.terrain.length; y++) {
       for (let x = 0; x < this.terrain[y].length; x++) {
         const tile = ConfigRegistry.getTile(this.terrain[y][x]);
         if (tile.buttonAction === 'hold_trap') this.holdTrapButtons.push({ x, y });
-        if (tile.isTeleporter) this.teleporters.push({ x, y });
+        if (tile.isTeleporter) {
+          const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
+          const list = this.teleportersByGroup.get(group);
+          if (list) {
+            list.push({ x, y });
+          } else {
+            this.teleportersByGroup.set(group, [{ x, y }]);
+          }
+        }
       }
     }
+  }
+
+  /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
+  private teleportersLinkedTo(x: number, y: number): GridPoint[] {
+    const group = ConfigRegistry.getTile(this.terrain[y][x]).teleportGroup ?? DEFAULT_TELEPORT_GROUP;
+    return this.teleportersByGroup.get(group) ?? [];
   }
 
   /** Successful player moves, in order. */
@@ -258,7 +285,72 @@ export class GameEngine {
   public getTimeRemainingSeconds(): number {
     const { ticksPerSecond } = ConfigRegistry.getGame().timing;
     const elapsedSec = Math.floor(this.ticksElapsed / ticksPerSecond);
-    return Math.max(0, this.level.timeLimitSeconds - elapsedSec);
+    return Math.max(0, this.level.timeLimitSeconds + this.extraTimeSeconds - elapsedSec);
+  }
+
+  /** Seconds gained from stopwatch items in this level, net of penalties. */
+  public getExtraTimeSeconds(): number {
+    return this.extraTimeSeconds;
+  }
+
+  /** Factor the level score is multiplied by at the exit. */
+  public getLevelScoreMultiplier(): number {
+    return this.levelScoreMultiplier;
+  }
+
+  /** Keys and boots the player holds, keys first, in the order of tiles.json. */
+  public getHeldItems(): string[] {
+    const held: string[] = [];
+    for (const id of Object.keys(ConfigRegistry.getTiles().tiles)) {
+      const def = ConfigRegistry.getTile(id);
+      if (def.collectible === 'key' && (this.player.keys[id] || 0) > 0) held.push(id);
+      else if (def.collectible === 'boot' && this.player.boots.has(id)) held.push(id);
+    }
+    return held;
+  }
+
+  /** True when the player holds the item: a key of that colour, or those boots. */
+  public holdsItem(itemId: string): boolean {
+    return (this.player.keys[itemId] || 0) > 0 || this.player.boots.has(itemId);
+  }
+
+  /**
+   * Puts a held key or pair of boots down on the player's cell. The cell must
+   * hold no item; the drop does not pick the item up again, since pickups only
+   * happen on entering a cell. Returns false when nothing was dropped.
+   */
+  public dropItem(itemId: string | null): boolean {
+    if (this.paused || !this.player.alive || this.levelCompleted) return false;
+    if (!itemId || !this.holdsItem(itemId)) {
+      this.statusBannerKey = 'hud.messages.drop_nothing';
+      return false;
+    }
+    const x = this.player.x;
+    const y = this.player.y;
+    if (this.items[y][x] !== null) {
+      this.statusBannerKey = 'hud.messages.drop_cell_occupied';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+
+    this.saveUndoSnapshot();
+    const def = ConfigRegistry.getTile(itemId);
+    if (def.collectible === 'key') {
+      const left = (this.player.keys[itemId] || 0) - 1;
+      if (left > 0) {
+        this.player.keys[itemId] = left;
+      } else {
+        delete this.player.keys[itemId];
+      }
+    } else {
+      this.player.boots.delete(itemId);
+    }
+    this.items[y][x] = itemId;
+    this.statusBannerKey = null;
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.player.dir, drop: itemId });
+    AudioManager.playSfx('item');
+    this.emitVisual('item', x, y, def.colorKey || 'blue');
+    return true;
   }
 
   public getStepsCount(): number {
@@ -341,6 +433,8 @@ export class GameEngine {
       ticksElapsed: this.ticksElapsed,
       stepsCount: this.stepsCount,
       totalScore: this.totalScore,
+      extraTimeSeconds: this.extraTimeSeconds,
+      levelScoreMultiplier: this.levelScoreMultiplier,
       rngState: this.rng.getState(),
       nextEntityUid: this.nextEntityUid,
       moveHistoryLength: this.moveHistory.length,
@@ -380,6 +474,8 @@ export class GameEngine {
     this.ticksElapsed = snap.ticksElapsed;
     this.stepsCount = snap.stepsCount;
     this.totalScore = snap.totalScore;
+    this.extraTimeSeconds = snap.extraTimeSeconds;
+    this.levelScoreMultiplier = snap.levelScoreMultiplier;
     this.rng.setState(snap.rngState);
     this.nextEntityUid = snap.nextEntityUid;
     this.moveHistory.length = snap.moveHistoryLength;
@@ -545,6 +641,13 @@ export class GameEngine {
       return false;
     }
 
+    // A barrier against an item the player carries: solid until the item is dropped elsewhere.
+    if (updatedTargetTile.forbiddenItem && this.holdsItem(updatedTargetTile.forbiddenItem)) {
+      this.statusBannerKey = 'hud.messages.forbidden_item';
+      if (!fromSlide) AudioManager.playSfx('blocked');
+      return false;
+    }
+
     const entityAtTarget = this.getEntityAt(targetX, targetY);
     if (entityAtTarget) {
       if (entityAtTarget.kind === 'block') {
@@ -554,6 +657,7 @@ export class GameEngine {
           return false;
         }
       } else if (entityAtTarget.kind === 'monster') {
+        this.leaveCell(this.player.x, this.player.y);
         this.player.x = targetX;
         this.player.y = targetY;
         this.killPlayer('hud.messages.death_monster', 'death');
@@ -561,6 +665,7 @@ export class GameEngine {
       }
     }
 
+    this.leaveCell(this.player.x, this.player.y);
     this.player.x = targetX;
     this.player.y = targetY;
     this.statusBannerKey = null;
@@ -571,6 +676,14 @@ export class GameEngine {
 
     this.resolvePlayerArrival(dir, true);
     return true;
+  }
+
+  /** Applies the terrain change, if any, of a cell the player or a block has just left. */
+  private leaveCell(x: number, y: number): void {
+    const tile = ConfigRegistry.getTile(this.terrain[y][x]);
+    if (tile.transformsToOnLeave) {
+      this.terrain[y][x] = tile.transformsToOnLeave;
+    }
   }
 
   /**
@@ -621,12 +734,23 @@ export class GameEngine {
         this.player.boots.add(itemId);
         AudioManager.playSfx('item');
         this.emitVisual('item', x, y, 'blue');
+      } else if (itemDef.collectible === 'bonus') {
+        this.items[y][x] = null;
+        this.collectBonus(itemDef);
+        AudioManager.playSfx('item');
+        this.emitVisual('item', x, y, itemDef.colorKey || 'yellow');
       }
     }
 
     if (tile.stealsBoots && this.player.boots.size > 0) {
       this.player.boots.clear();
       this.statusBannerKey = 'hud.messages.thief_stole';
+      AudioManager.playSfx('thief');
+    }
+
+    if (tile.stealsKeys && Object.values(this.player.keys).some((count) => count > 0)) {
+      this.player.keys = {};
+      this.statusBannerKey = 'hud.messages.thief_stole_keys';
       AudioManager.playSfx('thief');
     }
 
@@ -654,6 +778,29 @@ export class GameEngine {
     }
 
     this.evaluatePlayerSliding(tile, entryDir);
+  }
+
+  /**
+   * Applies a picked up bonus item: points go to the score at once, a
+   * multiplier raises the level score paid at the exit, and a stopwatch moves
+   * the time left (an untimed level stays untimed).
+   */
+  private collectBonus(itemDef: TileDefinition): void {
+    if (itemDef.scoreBonus) {
+      this.totalScore += itemDef.scoreBonus;
+      this.statusBannerKey = 'hud.messages.score_bonus_picked';
+    }
+    if (itemDef.scoreMultiplier) {
+      this.levelScoreMultiplier *= itemDef.scoreMultiplier;
+      this.statusBannerKey = 'hud.messages.score_multiplier_picked';
+    }
+    if (itemDef.timeBonusSeconds) {
+      if (this.level.timeLimitSeconds > 0) {
+        this.extraTimeSeconds += itemDef.timeBonusSeconds;
+      }
+      this.statusBannerKey =
+        itemDef.timeBonusSeconds > 0 ? 'hud.messages.time_bonus_picked' : 'hud.messages.time_penalty_picked';
+    }
   }
 
   private evaluatePlayerSliding(tile: ReturnType<typeof ConfigRegistry.getTile>, entryDir: Direction): void {
@@ -748,6 +895,10 @@ export class GameEngine {
   }
 
   private moveBlockTo(block: RuntimeEntity, destX: number, destY: number, dir: Direction): void {
+    // A clone spawns in place and leaves no cell behind.
+    if (block.x !== destX || block.y !== destY) {
+      this.leaveCell(block.x, block.y);
+    }
     block.x = destX;
     block.y = destY;
     block.dir = dir;
@@ -999,22 +1150,14 @@ export class GameEngine {
     return true;
   }
 
-  private triggerButton(
-    bx: number,
-    by: number,
-    action: 'toggle_walls' | 'reverse_tanks' | 'hold_trap' | 'trigger_cloner'
-  ): void {
+  private triggerButton(bx: number, by: number, action: ButtonAction): void {
     AudioManager.playSfx('button');
 
     if (action === 'toggle_walls') {
-      for (let y = 0; y < this.terrain.length; y++) {
-        for (let x = 0; x < this.terrain[y].length; x++) {
-          const tile = ConfigRegistry.getTile(this.terrain[y][x]);
-          if (tile.togglesTo) {
-            this.terrain[y][x] = tile.togglesTo;
-          }
-        }
-      }
+      this.swapTerrain((tile) => tile.togglesTo);
+    } else if (action === 'toggle_flames') {
+      this.swapTerrain((tile) => tile.flameTogglesTo);
+      this.burnPlayerIfFlamesLit();
     } else if (action === 'reverse_tanks') {
       for (const ent of this.entities) {
         if (ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) {
@@ -1035,6 +1178,28 @@ export class GameEngine {
           }
         }
       }
+    }
+  }
+
+  /** Replaces every tile for which `target` names a terrain by that terrain. */
+  private swapTerrain(target: (tile: TileDefinition) => string | undefined): void {
+    for (let y = 0; y < this.terrain.length; y++) {
+      for (let x = 0; x < this.terrain[y].length; x++) {
+        const next = target(ConfigRegistry.getTile(this.terrain[y][x]));
+        if (next) {
+          this.terrain[y][x] = next;
+        }
+      }
+    }
+  }
+
+  /** A flame jet lit under the player (a monster or block pressed the button) burns them. */
+  private burnPlayerIfFlamesLit(): void {
+    if (!this.player.alive) return;
+    const tile = ConfigRegistry.getTile(this.terrain[this.player.y][this.player.x]);
+    if (tile.hazard === 'fire' && (!tile.protectedByItem || !this.player.boots.has(tile.protectedByItem))) {
+      this.emitVisual('explosion', this.player.x, this.player.y);
+      this.killPlayer('hud.messages.death_fire', 'burn');
     }
   }
 
@@ -1109,9 +1274,12 @@ export class GameEngine {
     return this.entities.some((e) => e.x === bx && e.y === by);
   }
 
-  /** Moves the player out of the next free teleporter. Returns false when no exit exists. */
+  /**
+   * Moves the player out of the next free teleporter of the same group.
+   * Returns false when no exit exists.
+   */
   private teleportPlayer(fromX: number, fromY: number, dir: Direction): boolean {
-    const teleporters = this.teleporters;
+    const teleporters = this.teleportersLinkedTo(fromX, fromY);
     if (teleporters.length <= 1) return false;
 
     const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
@@ -1145,7 +1313,7 @@ export class GameEngine {
   }
 
   private teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction): void {
-    const teleporters = this.teleporters;
+    const teleporters = this.teleportersLinkedTo(fromX, fromY);
     if (teleporters.length <= 1) return;
 
     const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
@@ -1182,7 +1350,8 @@ export class GameEngine {
     const timing = ConfigRegistry.getGame().timing;
     const timeRemaining = this.getTimeRemainingSeconds();
     this.lastTimeBonus = timeRemaining * timing.timeBonusMultiplier;
-    this.lastLevelScore = timing.levelBasePoints * this.level.number + this.lastTimeBonus;
+    this.lastLevelScore =
+      (timing.levelBasePoints * this.level.number + this.lastTimeBonus) * this.levelScoreMultiplier;
     this.totalScore += this.lastLevelScore;
     AudioManager.playSfx('win');
     if (this.onWinCallback) {

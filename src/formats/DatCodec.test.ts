@@ -180,6 +180,28 @@ describe('DatCodec round trip', () => {
   });
 });
 
+describe('DatCodec tiles without a byte code', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('writes floor for an unmapped terrain and drops an unmapped item', () => {
+    const lvl = blankLevel(1);
+    lvl.terrain[3][3] = 'turtle';
+    lvl.terrain[4][4] = 'thin_wall_nesw';
+    lvl.terrain[5][5] = 'teleport_red';
+    lvl.items[6][6] = 'score_100';
+    lvl.items[7][7] = 'chip';
+    const decoded = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX);
+    expect(decoded).toHaveLength(1);
+    expect(decoded[0].terrain[3][3]).toBe('floor');
+    expect(decoded[0].terrain[4][4]).toBe('floor');
+    expect(decoded[0].terrain[5][5]).toBe('floor');
+    expect(decoded[0].items[6][6]).toBeNull();
+    expect(decoded[0].items[7][7]).toBe('chip');
+  });
+});
+
 describe('DatCodec malformed input', () => {
   let bundle: ConfigBundle;
 
