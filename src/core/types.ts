@@ -19,8 +19,14 @@ export type Direction = 'N' | 'E' | 'S' | 'W';
 export type RelativeTurn = 'FORWARD' | 'LEFT' | 'RIGHT' | 'BACK';
 
 export interface GridConfig {
+  /** Default level width, used by the procedural generator and the .DAT codec. */
   mapWidth: number;
+  /** Default level height, used by the procedural generator and the .DAT codec. */
   mapHeight: number;
+  /** Smallest width or height accepted for a .json level or a custom pack. */
+  minLevelSize: number;
+  /** Largest width or height accepted for a .json level or a custom pack. */
+  maxLevelSize: number;
   viewportWidth: number;
   viewportHeight: number;
   viewportPresets?: number[];

@@ -143,6 +143,23 @@ describe('LevelPackStorage', () => {
     expect(await LevelPackStorage.savePack(pack('beta'))).toBe(false);
   });
 
+  it('keeps stored levels of any rectangular size within the bounds', async () => {
+    const small = pack('small');
+    small.levels[0].terrain = Array.from({ length: 10 }, () => new Array<string>(10).fill('floor'));
+    small.levels[0].items = Array.from({ length: 10 }, () => new Array<string | null>(10).fill(null));
+    const wide = pack('wide');
+    wide.levels[0].terrain = Array.from({ length: 30 }, () => new Array<string>(40).fill('floor'));
+    wide.levels[0].items = Array.from({ length: 30 }, () => new Array<string | null>(40).fill(null));
+    const ragged = pack('ragged');
+    ragged.levels[0].terrain[4] = ragged.levels[0].terrain[4].slice(0, 5);
+    fake.records.set('small', small);
+    fake.records.set('wide', wide);
+    fake.records.set('ragged', ragged);
+    const loaded = await LevelPackStorage.loadAllPacks();
+    expect(loaded.map((p) => p.id).sort()).toEqual(['small', 'wide']);
+    expect(loaded.find((p) => p.id === 'wide')?.levels[0].terrain[0]).toHaveLength(40);
+  });
+
   it('drops stored records that are not well-formed packs', async () => {
     fake.records.set('good', pack('good'));
     fake.records.set('no_levels', { id: 'no_levels', name: 'x', levels: 'nope' });

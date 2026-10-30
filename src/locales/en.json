@@ -123,7 +123,7 @@
       "steps": { "label": "STEPS" }
     },
     "radar": {
-      "title": { "label": "32x32 TACTICAL RADAR" }
+      "title": { "label": "TACTICAL RADAR" }
     },
     "viewport": {
       "canvas": { "label": "Game board" }
