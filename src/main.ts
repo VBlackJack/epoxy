@@ -691,9 +691,12 @@ class EpoxyApplication {
     this.endlessFetching = null;
     this.endlessWaiting = false;
     this.showTransientStatus(t('app.packs.procedural_progress.label', { level: startLevel }));
+    // Prefetches of the run being left would keep the worker busy: drop them.
+    const generator = this.getEndlessGenerator();
+    if (generator.hasPending()) generator.reset();
     let first: CompiledLevel;
     try {
-      first = await this.getEndlessGenerator().request(seed, startLevel);
+      first = await generator.request(seed, startLevel);
     } catch (err) {
       console.error('Endless generation failed:', err);
       this.showTransientStatus(t('app.packs.procedural_error.label'));

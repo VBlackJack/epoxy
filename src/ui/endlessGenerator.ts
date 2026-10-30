@@ -46,6 +46,7 @@ interface PendingRequest {
 }
 
 const DISPOSED_MESSAGE = 'Endless generator disposed';
+const RESET_MESSAGE = 'Endless generator reset';
 
 const requestKey = (seed: number, levelNumber: number): string => `${seed}:${levelNumber}`;
 
@@ -77,10 +78,30 @@ export class EndlessGenerator {
     const existing = this.inFlight.get(key);
     if (existing) return existing;
     const promise = this.dispatch(seed, levelNumber).finally(() => {
-      this.inFlight.delete(key);
+      // A reset may have cleared the map and a newer call may own the key by now.
+      if (this.inFlight.get(key) === promise) this.inFlight.delete(key);
     });
     this.inFlight.set(key, promise);
     return promise;
+  }
+
+  /** True while a request is waiting for its level. */
+  public hasPending(): boolean {
+    return this.pending.size > 0 || this.inFlight.size > 0;
+  }
+
+  /**
+   * Abandons every request in progress: the worker is terminated, so it stops
+   * working on levels nobody wants, and the waiting callers are rejected. The
+   * next request starts a fresh worker.
+   */
+  public reset(): void {
+    this.worker?.terminate();
+    this.worker = null;
+    const abandoned = [...this.pending.values()];
+    this.pending.clear();
+    this.inFlight.clear();
+    for (const request of abandoned) request.reject(new Error(RESET_MESSAGE));
   }
 
   public dispose(): void {
@@ -112,9 +133,14 @@ export class EndlessGenerator {
     try {
       const worker = this.deps.createWorker?.();
       if (!worker) throw new Error('No worker available');
-      worker.onmessage = (event) => this.onResponse(event.data);
-      worker.onerror = () => this.onWorkerCrash();
-      worker.onmessageerror = () => this.onWorkerCrash();
+      // A worker replaced by a reset may still deliver a last event: only the current one counts.
+      worker.onmessage = (event) => {
+        if (this.worker === worker) this.onResponse(event.data);
+      };
+      worker.onerror = () => {
+        if (this.worker === worker) this.onWorkerCrash();
+      };
+      worker.onmessageerror = worker.onerror;
       worker.postMessage({ type: 'init', bundle: this.deps.getBundle() });
       this.worker = worker;
       return true;

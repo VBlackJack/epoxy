@@ -57,6 +57,23 @@ function makeGenerator(worker: FakeWorker | null, options: { throwOnCreate?: boo
   return { generator, generateLocal, yieldToUi };
 }
 
+/** A generator whose successive workers are the given fakes, in order. */
+function makeGeneratorWithWorkers(workers: FakeWorker[]) {
+  const generateLocal = vi.fn((seed: number, levelNumber: number) => fakeLevel(levelNumber, `local${seed}`));
+  const yieldToUi = vi.fn(() => Promise.resolve());
+  let created = 0;
+  const createWorker = vi.fn(() => {
+    const worker = workers[created++];
+    if (!worker) throw new Error('no more workers');
+    return worker;
+  });
+  const generator = new EndlessGenerator({ createWorker, getBundle: () => fakeBundle, generateLocal, yieldToUi });
+  return { generator, generateLocal, createWorker };
+}
+
+const generateIds = (worker: FakeWorker): number[] =>
+  worker.received.filter((m) => m.type === 'generate').map((m) => (m as { id: number }).id);
+
 describe('EndlessGenerator with a worker', () => {
   it('posts the config bundle once, then one generate request per level', async () => {
     const worker = new FakeWorker();
@@ -139,5 +156,62 @@ describe('EndlessGenerator without a worker', () => {
     const { generator } = makeGenerator(new FakeWorker(), { throwOnCreate: true });
     expect((await generator.request(2, 3)).id).toBe('local2_3');
     expect(generator.usesWorker()).toBe(false);
+  });
+});
+
+describe('EndlessGenerator reset', () => {
+  it('terminates the worker, rejects what is pending and serves the next request with a fresh worker', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    const { generator, generateLocal, createWorker } = makeGeneratorWithWorkers([first, second]);
+    const abandoned = generator.request(3, 10);
+    expect(generator.hasPending()).toBe(true);
+    generator.reset();
+    await expect(abandoned).rejects.toThrow();
+    expect(first.terminated).toBe(true);
+    expect(generator.hasPending()).toBe(false);
+    expect(generator.usesWorker()).toBe(true);
+
+    const next = generator.request(3, 10);
+    expect(createWorker).toHaveBeenCalledTimes(2);
+    expect(second.received[0]).toEqual({ type: 'init', bundle: fakeBundle });
+    const [id] = generateIds(second);
+    second.answer({ type: 'level', id, level: fakeLevel(10) });
+    expect((await next).number).toBe(10);
+    expect(generateLocal).not.toHaveBeenCalled();
+  });
+
+  it('does not share the request abandoned by a reset with the identical one that follows', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    const { generator } = makeGeneratorWithWorkers([first, second]);
+    const abandoned = generator.request(1, 1);
+    abandoned.catch(() => undefined);
+    generator.reset();
+    const next = generator.request(1, 1);
+    expect(next).not.toBe(abandoned);
+    await abandoned.catch(() => undefined);
+    // The abandoned call settling must not drop the key of the new one.
+    expect(generator.request(1, 1)).toBe(next);
+  });
+
+  it('ignores a late crash event of the worker it replaced', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    const { generator, generateLocal } = makeGeneratorWithWorkers([first, second]);
+    generator.request(1, 1).catch(() => undefined);
+    generator.reset();
+    const next = generator.request(1, 2);
+    first.onerror?.(new Error('late'));
+    expect(second.terminated).toBe(false);
+    expect(generator.usesWorker()).toBe(true);
+    second.answer({ type: 'level', id: generateIds(second)[0], level: fakeLevel(2) });
+    expect((await next).number).toBe(2);
+    expect(generateLocal).not.toHaveBeenCalled();
+  });
+
+  it('reports nothing pending on an idle generator', () => {
+    const { generator } = makeGeneratorWithWorkers([new FakeWorker()]);
+    expect(generator.hasPending()).toBe(false);
   });
 });
