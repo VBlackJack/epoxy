@@ -19,6 +19,9 @@ import { Direction } from './types';
 /** Terrain id used when a cell has no explicit terrain, or a tile has no transform target. */
 export const FLOOR_TILE_ID = 'floor';
 
+/** Terrain used to fill the cells of a map that lie outside a smaller level. */
+export const WALL_TILE_ID = 'wall';
+
 /** Terrain left behind by a block sunk in water when neither config names one. */
 export const SUNK_BLOCK_TILE_ID = 'dirt';
 

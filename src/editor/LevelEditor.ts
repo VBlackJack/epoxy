@@ -509,7 +509,9 @@ export class LevelEditor {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
       const encoded = DatCodec.encodeLevelsWithReport([compiled]);
-      downloadBytes(encoded.bytes, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`);
+      if (encoded.levelCount > 0) {
+        downloadBytes(encoded.bytes, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`);
+      }
       const notice = lossyExportNotice(encoded);
       if (notice) this.setStatusText(notice);
     });

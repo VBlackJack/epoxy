@@ -627,6 +627,10 @@ export interface DatFormatConfig {
   rleMarkerByte: number;
   passwordXorKey: number;
   layerByteLength: number;
+  /** Cells per row of a layer. Falls back to the game grid width when unset. */
+  layerWidth?: number;
+  /** Rows of a layer. Falls back to the game grid height when unset. */
+  layerHeight?: number;
   /** Upper bound on the level count read from a pack header. */
   maxLevelCount?: number;
   fieldCodes: {
