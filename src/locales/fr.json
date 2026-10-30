@@ -123,7 +123,7 @@
       "steps": { "label": "PAS" }
     },
     "radar": {
-      "title": { "label": "RADAR TACTIQUE 32x32" }
+      "title": { "label": "RADAR TACTIQUE" }
     },
     "viewport": {
       "canvas": { "label": "Plateau de jeu" }

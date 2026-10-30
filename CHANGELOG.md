@@ -52,6 +52,21 @@ versions follow Semantic Versioning.
   monsters in 0.95 of the levels. Generation p95 is 2.8 s at level 10 and 3.4 s at level 20 on
   a loaded machine; interleaved with main in one process, the branch costs 1.39 times main's
   CPU on levels 25 and 50, of which the hub assembler split alone accounts for about 1.25.
+- Levels of variable dimensions. A `.json` level or a custom pack sets its own width and
+  height: `compileBlueprint` takes the size from `terrain` or from the legend `rows` (their
+  count and the widest row), within `grid.minLevelSize` to `grid.maxLevelSize` in `game.json`
+  (1 to 128); a blueprint with neither keeps the default `grid.mapWidth` x `grid.mapHeight`.
+  Stored custom levels and imported packs are accepted at any rectangular size within those
+  bounds (`isCompiledLevelShape` checks the terrain grid, the matching items grid and the
+  player start against the level's own size). The engine, the camera, the screen-to-cell
+  conversion, the radar and the level editor use the loaded level's dimensions. The `.DAT`
+  codec and the procedural generator keep 32x32.
+
+### Fixed
+
+- Imported packs were lost on reload: the IndexedDB store was read before `game.json` was
+  loaded, so the read failed and every stored pack was dropped. The store is now read once the
+  configs are installed.
 
 ## [2.2.0] - 2026-10-30
 

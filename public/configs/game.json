@@ -2,6 +2,8 @@
   "grid": {
     "mapWidth": 32,
     "mapHeight": 32,
+    "minLevelSize": 1,
+    "maxLevelSize": 128,
     "viewportWidth": 13,
     "viewportHeight": 13,
     "viewportPresets": [9, 13, 17, 32],

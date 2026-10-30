@@ -1005,11 +1005,10 @@ export class GameEngine {
     action: 'toggle_walls' | 'reverse_tanks' | 'hold_trap' | 'trigger_cloner'
   ): void {
     AudioManager.playSfx('button');
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
 
     if (action === 'toggle_walls') {
-      for (let y = 0; y < mapHeight; y++) {
-        for (let x = 0; x < mapWidth; x++) {
+      for (let y = 0; y < this.terrain.length; y++) {
+        for (let x = 0; x < this.terrain[y].length; x++) {
           const tile = ConfigRegistry.getTile(this.terrain[y][x]);
           if (tile.togglesTo) {
             this.terrain[y][x] = tile.togglesTo;
@@ -1210,9 +1209,18 @@ export class GameEngine {
     return `${x},${y}`;
   }
 
+  /** Width of the loaded level, in cells; levels set their own size. */
+  public getMapWidth(): number {
+    return this.terrain[0]?.length ?? 0;
+  }
+
+  /** Height of the loaded level, in cells. */
+  public getMapHeight(): number {
+    return this.terrain.length;
+  }
+
   private isInBounds(x: number, y: number): boolean {
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
-    return x >= 0 && x < mapWidth && y >= 0 && y < mapHeight;
+    return x >= 0 && x < this.getMapWidth() && y >= 0 && y < this.getMapHeight();
   }
 
   private applyRelativeTurn(dir: Direction, turn: RelativeTurn): Direction {
