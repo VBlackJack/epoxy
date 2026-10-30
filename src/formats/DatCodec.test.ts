@@ -311,3 +311,162 @@ describe('DatCodec ice corners', () => {
     expect(walkableOpenSides / openSides).toBeGreaterThan(MIN_OPEN_SIDE_WALKABLE_RATE);
   });
 });
+
+/** Decompresses the first layer of the first record of an encoded single-level pack. */
+function firstLayer1(encoded: Uint8Array): Uint8Array {
+  const datCfg = ConfigRegistry.getDatFormat();
+  const layer1LengthOffset = 6 + 2 + 8;
+  const view = new DataView(encoded.buffer, encoded.byteOffset);
+  const compressedLength = view.getUint16(layer1LengthOffset, true);
+  const compressed = encoded.subarray(layer1LengthOffset + 2, layer1LengthOffset + 2 + compressedLength);
+  const out: number[] = [];
+  for (let i = 0; i < compressed.length; ) {
+    if (compressed[i] === datCfg.rleMarkerByte) {
+      for (let c = 0; c < compressed[i + 1]; c++) out.push(compressed[i + 2]);
+      i += 3;
+    } else {
+      out.push(compressed[i++]);
+    }
+  }
+  return Uint8Array.from(out);
+}
+
+describe('DatCodec duplicate level numbers', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('gives distinct ids to levels that share a number, keeping the first id and the number', () => {
+    const encoded = DatCodec.encodeLevels([blankLevel(5), blankLevel(5), blankLevel(7), blankLevel(5)]);
+    const decoded = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX);
+    const ids = decoded.map((l) => l.id);
+    expect(new Set(ids).size).toBe(4);
+    expect(ids[0]).toBe(`${PREFIX}_level_5`);
+    expect(ids[2]).toBe(`${PREFIX}_level_7`);
+    expect(decoded.map((l) => l.number)).toEqual([5, 5, 7, 5]);
+  });
+
+  it('keeps the plain ids of a pack whose numbers are unique', () => {
+    const encoded = DatCodec.encodeLevels([blankLevel(1), blankLevel(2), blankLevel(3)]);
+    const ids = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX).map((l) => l.id);
+    expect(ids).toEqual([1, 2, 3].map((n) => `${PREFIX}_level_${n}`));
+  });
+});
+
+describe('DatCodec export fidelity', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it.each([
+    ['N', 14],
+    ['W', 15],
+    ['S', 16],
+    ['E', 17]
+  ] as const)('writes the cloner template byte for a block facing %s on a clone machine', (dir, byte) => {
+    const lvl = blankLevel(1);
+    lvl.terrain[10][6] = 'clone_machine';
+    lvl.entities = [{ x: 6, y: 10, type: 'dirt_block', dir }];
+    lvl.cloneLinks = [
+      { buttonX: 3, buttonY: 10, clonerX: 6, clonerY: 10, templateType: 'dirt_block', templateDir: dir }
+    ];
+    const encoded = DatCodec.encodeLevelsWithReport([lvl]);
+    const { mapWidth } = ConfigRegistry.getGame().grid;
+    expect(firstLayer1(encoded.bytes)[10 * mapWidth + 6]).toBe(byte);
+    expect(encoded.lost).toEqual([]);
+
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
+    expect(decoded.terrain[10][6]).toBe('clone_machine');
+    expect(decoded.entities).toContainEqual({ x: 6, y: 10, type: 'dirt_block', dir });
+    expect(decoded.cloneLinks[0].templateDir).toBe(dir);
+  });
+
+  it('writes the plain block byte for a block that is not on a clone machine', () => {
+    const lvl = blankLevel(1);
+    lvl.entities = [{ x: 6, y: 10, type: 'dirt_block', dir: 'N' }];
+    const { mapWidth } = ConfigRegistry.getGame().grid;
+    expect(firstLayer1(DatCodec.encodeLevels([lvl]))[10 * mapWidth + 6]).not.toBe(14);
+  });
+
+  it('closes a level smaller than the format with wall and reports the padding', () => {
+    const lvl = blankLevel(1);
+    lvl.terrain = [
+      ['wall', 'wall', 'wall', 'wall', 'wall'],
+      ['wall', 'floor', 'floor', 'floor', 'wall'],
+      ['wall', 'wall', 'wall', 'wall', 'wall']
+    ];
+    lvl.items = lvl.terrain.map((row) => row.map(() => null));
+    lvl.playerStart = { x: 1, y: 1, dir: 'S' };
+    const encoded = DatCodec.encodeLevelsWithReport([lvl]);
+    expect(encoded.padded).toEqual([lvl.id]);
+    expect(encoded.refused).toEqual([]);
+
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
+    expect(decoded.terrain[1][2]).toBe('floor');
+    expect(decoded.terrain[1][5]).toBe('wall');
+    expect(decoded.terrain[3][0]).toBe('wall');
+    expect(decoded.terrain[31][31]).toBe('wall');
+    expect(decoded.playerStart).toEqual({ x: 1, y: 1, dir: 'S' });
+  });
+
+  it('does not report padding for a full size level', () => {
+    expect(DatCodec.encodeLevelsWithReport([blankLevel(1)]).padded).toEqual([]);
+  });
+
+  it('refuses a level larger than the format and keeps the others', () => {
+    const big = blankLevel(1);
+    big.terrain = Array.from({ length: 33 }, () => Array.from({ length: 33 }, () => 'floor'));
+    const encoded = DatCodec.encodeLevelsWithReport([big, blankLevel(2)]);
+    expect(encoded.refused).toEqual([{ levelId: big.id, reason: 'too_large' }]);
+    expect(encoded.levelCount).toBe(1);
+    const decoded = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
+    expect(decoded.map((l) => l.number)).toEqual([2]);
+  });
+
+  it('refuses a level whose player start is out of range', () => {
+    const lvl = blankLevel(1);
+    lvl.playerStart = { x: 40, y: 2, dir: 'S' };
+    const encoded = DatCodec.encodeLevelsWithReport([lvl]);
+    expect(encoded.refused).toEqual([{ levelId: lvl.id, reason: 'player_out_of_range' }]);
+    expect(encoded.levelCount).toBe(0);
+  });
+
+  it('reports what a stacked cell cannot hold', () => {
+    const lvl = blankLevel(1);
+    // player start (2,2) over a bug and a chip: the bug is dropped, so is the fire under them
+    lvl.terrain[2][2] = 'fire';
+    lvl.items[2][2] = 'chip';
+    // bug and chip on water: the water is covered
+    lvl.terrain[4][4] = 'water';
+    lvl.items[4][4] = 'chip';
+    lvl.entities = [
+      { x: 2, y: 2, type: 'bug', dir: 'E' },
+      { x: 4, y: 4, type: 'bug', dir: 'E' }
+    ];
+    const encoded = DatCodec.encodeLevelsWithReport([lvl]);
+    expect(encoded.lost.sort()).toEqual(['bug', 'fire', 'water']);
+  });
+});
+
+/** Every bundled pack, inlined by Vite as base64 data URLs. */
+const BUNDLED_PACK_URLS = Object.values(
+  import.meta.glob('../../public/packs/*.DAT', { query: '?inline', import: 'default', eager: true })
+) as string[];
+
+describe('DatCodec bundled pack ids', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('keeps the plain id of every level of every bundled pack', () => {
+    expect(BUNDLED_PACK_URLS.length).toBeGreaterThan(0);
+    for (const url of BUNDLED_PACK_URLS) {
+      const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0));
+      const levels = DatCodec.decodeBuffer(bytes.buffer, PREFIX);
+      expect(levels.length).toBeGreaterThan(0);
+      levels.forEach((level, idx) => {
+        expect(level.id).toBe(`${PREFIX}_level_${level.number || idx + 1}`);
+      });
+    }
+  });
+});

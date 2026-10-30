@@ -56,6 +56,9 @@
     "export": {
       "lossy_replaced": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits dans leur version simple." },
       "lossy_lost": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits comme du sol ou omis." },
+      "padded": { "label": "Export .CCL avec pertes : {levels} est plus petit que la carte .DAT, les cases en plus ont été remplies de mur." },
+      "refused_too_large": { "label": "Non exporté : {levels} est plus grand que la carte .DAT." },
+      "refused_player_out_of_range": { "label": "Non exporté : le départ de {levels} est hors de sa carte." },
       "list_separator": { "label": ", " }
     },
     "packs": {

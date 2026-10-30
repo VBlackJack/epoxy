@@ -56,6 +56,9 @@
     "export": {
       "lossy_replaced": { "label": "Lossy .CCL export: the .DAT format has no code for {tiles}, written as their plain version." },
       "lossy_lost": { "label": "Lossy .CCL export: the .DAT format has no code for {tiles}, written as floor or left out." },
+      "padded": { "label": "Lossy .CCL export: {levels} is smaller than the .DAT map, the extra cells were filled with wall." },
+      "refused_too_large": { "label": "Not exported: {levels} is larger than the .DAT map." },
+      "refused_player_out_of_range": { "label": "Not exported: the start of {levels} is outside its map." },
       "list_separator": { "label": ", " }
     },
     "packs": {
