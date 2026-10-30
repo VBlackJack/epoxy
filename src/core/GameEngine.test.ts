@@ -723,3 +723,305 @@ describe('GameEngine bonus items', () => {
     expect(engine.getItems()[2][4]).toBe('score_1000');
   });
 });
+
+/** Ticks until the first entity moves, disappears or kills the player; a monster waits out its interval first. */
+function tickUntilEntityActs(engine: GameEngine): void {
+  const maxTicks = 40;
+  const before = engine.getEntities().map((e) => `${e.x},${e.y}`);
+  for (let i = 0; i < maxTicks; i++) {
+    engine.tick();
+    const now = engine.getEntities().map((e) => `${e.x},${e.y}`);
+    if (!engine.getPlayer().alive || now.join(';') !== before.join(';')) return;
+  }
+}
+
+describe('GameEngine teleported entities', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  /** A walker heading east onto the pad at (4, 5); the far pad at (10, 5) exits at (11, 5). */
+  function walkerThroughPads(prepare: (lvl: CompiledLevel) => void): GameEngine {
+    const lvl = openLevel('teleport_monster_level');
+    lvl.terrain[5][4] = 'teleport';
+    lvl.terrain[5][10] = 'teleport';
+    lvl.entities = [{ x: 3, y: 5, type: 'walker', dir: 'E' }];
+    prepare(lvl);
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    tickUntilEntityActs(engine);
+    return engine;
+  }
+
+  /** A block pushed east onto the pad at (4, 5) by a player at (2, 5). */
+  function blockThroughPads(type: string, prepare: (lvl: CompiledLevel) => void): GameEngine {
+    const lvl = openLevel('teleport_block_level');
+    lvl.playerStart = { x: 2, y: 5, dir: 'E' };
+    lvl.terrain[5][4] = 'teleport';
+    lvl.terrain[5][10] = 'teleport';
+    lvl.entities = [{ x: 3, y: 5, type, dir: 'E' }];
+    prepare(lvl);
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    return engine;
+  }
+
+  it('kills a player standing on the monster exit', () => {
+    const engine = walkerThroughPads((lvl) => {
+      lvl.playerStart = { x: 11, y: 5, dir: 'S' };
+    });
+    expect(engine.getPlayer().alive).toBe(false);
+    expect(engine.getPlayer().deathReasonKey).toBe('hud.messages.death_monster');
+  });
+
+  it('drowns a monster teleported onto water', () => {
+    const engine = walkerThroughPads((lvl) => {
+      lvl.terrain[5][11] = 'water';
+    });
+    expect(engine.getEntities()).toHaveLength(0);
+  });
+
+  it('blows up a monster teleported onto a bomb', () => {
+    const engine = walkerThroughPads((lvl) => {
+      lvl.items[5][11] = 'bomb';
+    });
+    expect(engine.getEntities()).toHaveLength(0);
+    expect(engine.getItems()[5][11]).toBeNull();
+  });
+
+  it('presses a button under a teleported monster', () => {
+    const engine = walkerThroughPads((lvl) => {
+      lvl.terrain[5][11] = 'button_green';
+      lvl.terrain[8][8] = 'toggle_wall_closed';
+    });
+    expect(engine.getTerrain()[8][8]).toBe('toggle_wall_open');
+  });
+
+  it('does not let a monster exit through a thin wall', () => {
+    const engine = walkerThroughPads((lvl) => {
+      lvl.terrain[5][11] = 'thin_wall_w';
+    });
+    // The far pad is refused; the monster leaves by the pad it entered.
+    expect(engine.getEntities()[0]).toMatchObject({ x: 5, y: 5 });
+  });
+
+  it('chooses a block exit with the block rule, not the monster one', () => {
+    // Gravel bars monsters but not blocks, so the far pad is a valid exit for a block only.
+    const engine = blockThroughPads('dirt_block', (lvl) => {
+      lvl.terrain[5][11] = 'gravel';
+    });
+    expect(engine.getEntities()[0]).toMatchObject({ x: 11, y: 5 });
+  });
+
+  it('sinks a block teleported into water, leaving what the water turns into', () => {
+    const engine = blockThroughPads('dirt_block', (lvl) => {
+      lvl.terrain[5][11] = 'water';
+    });
+    expect(engine.getEntities()).toHaveLength(0);
+    expect(engine.getTerrain()[5][11]).toBe('dirt');
+  });
+
+  it('melts an ice block teleported into fire', () => {
+    const engine = blockThroughPads('ice_block', (lvl) => {
+      lvl.terrain[5][11] = 'fire';
+    });
+    expect(engine.getEntities()).toHaveLength(0);
+    expect(engine.getTerrain()[5][11]).toBe('water');
+  });
+
+  it('detonates a block teleported onto a bomb', () => {
+    const engine = blockThroughPads('dirt_block', (lvl) => {
+      lvl.items[5][11] = 'bomb';
+    });
+    expect(engine.getEntities()).toHaveLength(0);
+    expect(engine.getItems()[5][11]).toBeNull();
+  });
+
+  it('keeps a block off a thin wall on its exit', () => {
+    const engine = blockThroughPads('dirt_block', (lvl) => {
+      lvl.terrain[5][11] = 'thin_wall_w';
+    });
+    expect(engine.getEntities()[0]).toMatchObject({ x: 5, y: 5 });
+  });
+
+  it('does not jump again when the exit is itself a teleporter', () => {
+    // Pads at (8, 5), (9, 5) and (15, 5): entering the last one exits west of (9, 5), onto the first.
+    const build = (): CompiledLevel => {
+      const lvl = openLevel('teleport_chain_level');
+      lvl.terrain[5][8] = 'teleport';
+      lvl.terrain[5][9] = 'teleport';
+      lvl.terrain[5][15] = 'teleport';
+      return lvl;
+    };
+    const monsterLevel = build();
+    monsterLevel.entities = [{ x: 16, y: 5, type: 'walker', dir: 'W' }];
+    const monster = new GameEngine();
+    monster.loadLevel(monsterLevel);
+    tickUntilEntityActs(monster);
+    expect(monster.getEntities()[0]).toMatchObject({ x: 8, y: 5 });
+
+    const blockLevel = build();
+    blockLevel.playerStart = { x: 17, y: 5, dir: 'W' };
+    blockLevel.entities = [{ x: 16, y: 5, type: 'dirt_block', dir: 'W' }];
+    const block = new GameEngine();
+    block.loadLevel(blockLevel);
+    expect(block.attemptPlayerMove('W')).toBe(true);
+    expect(block.getEntities()[0]).toMatchObject({ x: 8, y: 5 });
+  });
+
+  it('keeps the player off a thin wall on a teleporter exit', () => {
+    const lvl = openLevel('teleport_player_thin_level');
+    lvl.terrain[2][3] = 'teleport';
+    lvl.terrain[10][10] = 'teleport';
+    lvl.terrain[10][11] = 'thin_wall_w';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    // East of the far pad is walled off on its west edge; the jump falls back to the next direction.
+    expect([engine.getPlayer().x, engine.getPlayer().y]).toEqual([10, 9]);
+  });
+});
+
+describe('GameEngine monsters on force floors', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  function walkerOn(tile: string, prepare: (lvl: CompiledLevel) => void = () => undefined): GameEngine {
+    const lvl = openLevel('force_monster_level');
+    lvl.terrain[6][6] = tile;
+    lvl.entities = [{ x: 6, y: 6, type: 'walker', dir: 'E' }];
+    prepare(lvl);
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    tickUntilEntityActs(engine);
+    return engine;
+  }
+
+  it('carries a monster in the direction of the floor', () => {
+    expect(walkerOn('force_s').getEntities()[0]).toMatchObject({ x: 6, y: 7 });
+    expect(walkerOn('force_w').getEntities()[0]).toMatchObject({ x: 5, y: 6 });
+  });
+
+  it('holds a monster still when the floor pushes it into a wall', () => {
+    const engine = walkerOn('force_s', (lvl) => {
+      lvl.terrain[7][6] = 'wall';
+    });
+    expect(engine.getEntities()[0]).toMatchObject({ x: 6, y: 6 });
+  });
+
+  it('moves a monster one cell on a random force floor', () => {
+    const moved = walkerOn('force_random').getEntities()[0];
+    expect(Math.abs(moved.x - 6) + Math.abs(moved.y - 6)).toBe(1);
+  });
+});
+
+describe('GameEngine cloned monsters', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  /** The player steps onto the red button at (3, 2); the cloner at (8, 8) spawns a bug at (9, 8). */
+  function cloneInto(prepare: (lvl: CompiledLevel) => void): GameEngine {
+    const lvl = openLevel('clone_arrival_level');
+    lvl.terrain[2][3] = 'button_red';
+    lvl.terrain[8][8] = 'clone_machine';
+    lvl.entities = [{ x: 8, y: 8, type: 'bug', dir: 'E' }];
+    lvl.cloneLinks = [{ buttonX: 3, buttonY: 2, clonerX: 8, clonerY: 8, templateType: 'bug', templateDir: 'E' }];
+    prepare(lvl);
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    engine.attemptPlayerMove('E');
+    return engine;
+  }
+
+  it('drowns a clone that appears on water', () => {
+    const engine = cloneInto((lvl) => {
+      lvl.terrain[8][9] = 'water';
+    });
+    expect(engine.getEntities()).toHaveLength(1);
+  });
+
+  it('presses a button under a clone that appears on it', () => {
+    const engine = cloneInto((lvl) => {
+      lvl.terrain[8][9] = 'button_green';
+      lvl.terrain[10][10] = 'toggle_wall_closed';
+    });
+    expect(engine.getEntities()).toHaveLength(2);
+    expect(engine.getTerrain()[10][10]).toBe('toggle_wall_open');
+  });
+});
+
+describe('GameEngine clone that kills the player', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  /**
+   * A tank steps onto a button at (4, 10); its cloner at (8, 8) spawns a tank on the pad
+   * at (9, 8). With a second pad at (5, 5) the clone jumps out at (6, 5), onto the player.
+   * A second tank at (3, 12) acts after the first one in the same tick.
+   */
+  function runUntilFirstTankPressesButton(withExitPad: boolean): GameEngine {
+    const lvl = openLevel('clone_kills_player_level');
+    lvl.playerStart = { x: 6, y: 5, dir: 'S' };
+    lvl.terrain[10][4] = 'button_red';
+    lvl.terrain[8][8] = 'clone_machine';
+    lvl.terrain[8][9] = 'teleport';
+    if (withExitPad) lvl.terrain[5][5] = 'teleport';
+    lvl.entities = [
+      { x: 3, y: 10, type: 'tank', dir: 'E' },
+      { x: 3, y: 12, type: 'tank', dir: 'E' },
+      { x: 8, y: 8, type: 'tank', dir: 'E' }
+    ];
+    lvl.cloneLinks = [{ buttonX: 4, buttonY: 10, clonerX: 8, clonerY: 8, templateType: 'tank', templateDir: 'E' }];
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    const maxTicks = 30;
+    for (let i = 0; i < maxTicks && engine.getEntities().find((e) => e.y === 10)?.x !== 4; i++) {
+      engine.tick();
+    }
+    return engine;
+  }
+
+  it('stops processing monsters once the arriving clone kills the player', () => {
+    const control = runUntilFirstTankPressesButton(false);
+    expect(control.getPlayer().alive).toBe(true);
+    expect(control.getEntities().find((e) => e.y === 12)?.x).toBe(4);
+
+    const engine = runUntilFirstTankPressesButton(true);
+    expect(engine.getPlayer().alive).toBe(false);
+    expect(engine.getEntities().find((e) => e.y === 12)?.x).toBe(3);
+  });
+});
+
+describe('GameEngine blocks and bombs', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  function pushBlockOntoBomb(destroyedByBomb: boolean): GameEngine {
+    ConfigRegistry.getMonsters().entities.dirt_block.destroyedByBomb = destroyedByBomb;
+    const lvl = openLevel('block_bomb_level');
+    lvl.playerStart = { x: 2, y: 5, dir: 'E' };
+    lvl.entities = [{ x: 3, y: 5, type: 'dirt_block', dir: 'E' }];
+    lvl.items[5][4] = 'bomb';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    return engine;
+  }
+
+  it('detonates a block that is destroyed by bombs', () => {
+    const engine = pushBlockOntoBomb(true);
+    expect(engine.getEntities()).toHaveLength(0);
+    expect(engine.getItems()[5][4]).toBeNull();
+  });
+
+  it('lets a block that bombs spare sit on the bomb', () => {
+    const engine = pushBlockOntoBomb(false);
+    expect(engine.getEntities()[0]).toMatchObject({ x: 4, y: 5 });
+    expect(engine.getItems()[5][4]).toBe('bomb');
+  });
+});

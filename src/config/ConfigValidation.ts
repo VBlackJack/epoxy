@@ -15,7 +15,7 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
-import { CompiledLevel, Direction, GridConfig } from '../core/types';
+import { CompiledLevel, DatFormatConfig, Direction, GameConfig, GridConfig } from '../core/types';
 
 /**
  * Raised when a fetched configuration file is missing or does not match the
@@ -80,6 +80,43 @@ export function assertConfigShape(
   if (missing.length > 0) {
     throw new ConfigLoadError(source, `missing keys ${missing.join(', ')}`);
   }
+}
+
+/** Whether `value` is a whole number of at least `min`. */
+function isIntegerAtLeast(value: unknown, min: number): boolean {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= min;
+}
+
+/** Smallest value of the endless dialog's start level bound: level 1 must stay reachable. */
+const MIN_START_LEVEL_BOUND = 1;
+const MIN_FALLBACK_CANDIDATES = 0;
+
+/**
+ * Checks the endless and procedural tunables that code relies on as whole
+ * numbers. Empty when all is well; each entry names the offending key.
+ */
+export function findGameTunableErrors(game: GameConfig): string[] {
+  const errors: string[] = [];
+  if (!isIntegerAtLeast(game.endlessUi?.maxStartLevel, MIN_START_LEVEL_BOUND)) {
+    errors.push(`endlessUi.maxStartLevel: expected a whole number of at least ${MIN_START_LEVEL_BOUND}`);
+  }
+  if (game.procedural && !isIntegerAtLeast(game.procedural.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {
+    errors.push(`procedural.scoring.fallbackCandidates: expected a whole number of at least ${MIN_FALLBACK_CANDIDATES}`);
+  }
+  return errors;
+}
+
+/**
+ * Checks that a pack layer is large enough for its declared dimensions (the
+ * game grid when none are set). Empty when all is well.
+ */
+export function findDatFormatErrors(datFormat: DatFormatConfig, grid: { mapWidth: number; mapHeight: number }): string[] {
+  const width = datFormat.layerWidth ?? grid.mapWidth;
+  const height = datFormat.layerHeight ?? grid.mapHeight;
+  if (width * height > datFormat.layerByteLength) {
+    return [`layerWidth * layerHeight (${width} * ${height}): expected at most layerByteLength (${datFormat.layerByteLength})`];
+  }
+  return [];
 }
 
 /** Smallest and largest width or height a level may have. */
@@ -154,4 +191,69 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
     Array.isArray(value.trapLinks) &&
     Array.isArray(value.cloneLinks)
   );
+}
+
+/** Optional text fields of a level; each one is kept only when it is a string. */
+const LEVEL_TEXT_FIELDS = ['titleKey', 'customTitle', 'hintKey', 'customHint'] as const;
+
+/**
+ * Returns the level without any optional text field that is not a string, so
+ * a stale or hand-edited record cannot hand a number to the text pipeline.
+ * The input is never mutated.
+ */
+export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
+  const record = level as unknown as Record<string, unknown>;
+  const bad = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
+  if (bad.length === 0) return level;
+  const copy: Record<string, unknown> = { ...record };
+  for (const key of bad) delete copy[key];
+  return copy as unknown as CompiledLevel;
+}
+
+/**
+ * Keeps the well-formed levels of a persisted list. A level with a non-string
+ * text field stays and loses only that field.
+ */
+export function sanitizeStoredLevels(values: readonly unknown[], bounds: LevelSizeBounds): CompiledLevel[] {
+  return values
+    .filter((lvl): lvl is CompiledLevel => isCompiledLevelShape(lvl, bounds))
+    .map(stripInvalidTextFields);
+}
+
+/**
+ * Gives every level a unique, non-empty id. A level without an id (or with a
+ * non-string one) gets `<prefix>_<position>`; a repeated id gets a numeric
+ * suffix. Levels keep their order and the first holder of an id keeps it.
+ * New level objects are returned only where an id changed.
+ */
+export function ensureUniqueLevelIds(levels: readonly CompiledLevel[], fallbackPrefix: string): CompiledLevel[] {
+  const reserved = new Set<string>();
+  for (const lvl of levels) {
+    if (typeof lvl.id === 'string' && lvl.id !== '') reserved.add(lvl.id);
+  }
+  const taken = new Set<string>();
+  return levels.map((lvl, index) => {
+    const original = typeof lvl.id === 'string' ? lvl.id : '';
+    if (original !== '' && !taken.has(original)) {
+      taken.add(original);
+      return lvl;
+    }
+    const base = original !== '' ? original : `${fallbackPrefix}_${index + 1}`;
+    let candidate = base;
+    let suffix = 2;
+    while (taken.has(candidate) || (candidate !== original && reserved.has(candidate))) {
+      candidate = `${base}_${suffix}`;
+      suffix += 1;
+    }
+    taken.add(candidate);
+    return { ...lvl, id: candidate };
+  });
+}
+
+/** Problems of the game.json block puzzle section: both search budgets must be positive integers. */
+export function findBlockPuzzleConfigErrors(value: unknown): string[] {
+  if (!isRecord(value)) return ['blockPuzzle: not an object'];
+  return ['watchSearchBudget', 'hintSearchBudget']
+    .filter((key) => !Number.isInteger(value[key]) || (value[key] as number) <= 0)
+    .map((key) => `blockPuzzle.${key}: not a positive integer`);
 }

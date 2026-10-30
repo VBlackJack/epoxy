@@ -187,6 +187,8 @@ export class LevelValidator {
       }
     }
 
+    const appliedKeyThieves = new Set<string>();
+
     let changed = true;
     let passes = 0;
 
@@ -250,8 +252,10 @@ export class LevelValidator {
           reachableExit = true;
         }
 
-        // A key thief the player can reach is assumed to be crossed: the keys are gone.
-        if (currTile.stealsKeys) {
+        // A key thief the player can reach is assumed to be crossed once: the keys held then are gone.
+        // Later passes carry the keys picked up since, which the same thief must not rob again.
+        if (currTile.stealsKeys && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
+          appliedKeyThieves.add(`${curr.x},${curr.y}`);
           for (const keyId of Object.keys(ownedKeys)) {
             if (ownedKeys[keyId] > 0) {
               ownedKeys[keyId] = 0;

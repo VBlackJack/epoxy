@@ -25,7 +25,8 @@ import {
   DEFAULT_COLOR_KEY,
   DEFAULT_MONSTER_COLOR_KEY,
   FX_COLOR_KEYS,
-  MONSTER_COLOR_KEYS
+  MONSTER_COLOR_KEYS,
+  teleporterGlyphKey
 } from './paletteKeys';
 
 const palette = createTestBundle().game.palette;
@@ -54,6 +55,18 @@ describe('renderer palette usage', () => {
     ];
     const missing = mapped.filter((key) => !(key in palette));
     expect(missing).toEqual([]);
+  });
+
+  it('gives a glyph to colour teleporters only', () => {
+    const tiles = createTestBundle().tiles.tiles;
+    expect(teleporterGlyphKey(tiles.teleport)).toBeNull();
+    expect(teleporterGlyphKey(tiles.floor)).toBeNull();
+    for (const [id, def] of Object.entries(tiles)) {
+      if (!def.isTeleporter || !def.colorKey) continue;
+      expect(teleporterGlyphKey(def), id).toBe(def.colorKey);
+      expect(def.colorKey in palette).toBe(true);
+    }
+    expect(teleporterGlyphKey(tiles.teleport_red)).toBe('red');
   });
 
   it('keeps colour literals out of the renderer', () => {

@@ -308,6 +308,7 @@
     },
     "scoring": {
       "candidates": 2,
+      "fallbackCandidates": 2,
       "targetMovesBase": 60,
       "targetMovesPerLevel": 15,
       "targetMovesMax": 400,
@@ -396,6 +397,10 @@
       "prefix": "cclp5"
     }
   ],
+  "blockPuzzle": {
+    "watchSearchBudget": 4000,
+    "hintSearchBudget": 60000
+  },
   "timing": {
     "tickIntervalMs": 50,
     "ticksPerSecond": 20,
@@ -420,8 +425,12 @@
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
   },
+  "import": {
+    "maxFileBytes": 4194304
+  },
   "endlessUi": {
-    "fallbackYieldMs": 0
+    "fallbackYieldMs": 0,
+    "maxStartLevel": 10000
   },
   "locales": {
     "supported": ["fr", "en"],
@@ -448,7 +457,7 @@
     "toggleFullscreen": ["KeyF"],
     "toggleHelp": ["Slash"],
     "dropItem": ["KeyE", "KeyX"],
-    "cycleItem": ["KeyC", "Tab"]
+    "cycleItem": ["KeyC"]
   },
   "palette": {
     "floorBase": "#9fa6b2",

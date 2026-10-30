@@ -16,10 +16,18 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { OPPOSITE_DIRECTION } from './coreConstants';
 import { GameEngine } from './GameEngine';
 
-/** Layouts the exact search may visit before giving up without a verdict. */
-export const DEFAULT_STUCK_SEARCH_BUDGET = 60000;
+/** Layouts the exact search may visit, for the dead-end watch that runs by itself, before giving up without a verdict. */
+export function watchSearchBudget(): number {
+  return ConfigRegistry.getGame().blockPuzzle.watchSearchBudget;
+}
+
+/** Layouts the exact search may visit, for a hint or a check the player asked for, before giving up without a verdict. */
+export function requestedSearchBudget(): number {
+  return ConfigRegistry.getGame().blockPuzzle.hintSearchBudget;
+}
 
 type Dir = (typeof ORDERED_DIRECTIONS)[number];
 
@@ -60,6 +68,8 @@ export class BlockPuzzleSolver {
   private readonly blockOk: Uint8Array;
   /** Cells a block may enter that the model does not follow (water, ice, force floors...). */
   private readonly blockUnmodelled: Uint8Array;
+  /** Per cell and direction (in ORDERED_DIRECTIONS order): the step is stopped by a thin wall or an entry rule. */
+  private readonly edgeBlocked: Uint8Array;
   private readonly buttons: number[];
   private readonly blocks: number[];
   private readonly player: number;
@@ -74,6 +84,7 @@ export class BlockPuzzleSolver {
     this.playerOk = new Uint8Array(size);
     this.blockOk = new Uint8Array(size);
     this.blockUnmodelled = new Uint8Array(size);
+    this.edgeBlocked = new Uint8Array(size * ORDERED_DIRECTIONS.length);
     this.buttons = [];
     const monsters = new Set<number>();
     this.blocks = [];
@@ -97,6 +108,32 @@ export class BlockPuzzleSolver {
       }
     }
     this.player = player.y * this.width + player.x;
+    this.markBlockedEdges(terrain);
+  }
+
+  /** Records the steps the engine refuses on the edge between two cells, whoever takes them. */
+  private markBlockedEdges(terrain: string[][]): void {
+    ORDERED_DIRECTIONS.forEach((dir, dirIdx) => {
+      const vec = DIRECTION_VECTORS[dir];
+      const opposite = OPPOSITE_DIRECTION[dir];
+      for (let y = 0; y < this.height; y++) {
+        for (let x = 0; x < this.width; x++) {
+          const nx = x + vec.dx;
+          const ny = y + vec.dy;
+          if (nx < 0 || ny < 0 || nx >= this.width || ny >= this.height) continue;
+          const from = ConfigRegistry.getTile(terrain[y][x]);
+          const to = ConfigRegistry.getTile(terrain[ny][nx]);
+          if (
+            from.blockedEdges?.includes(dir) ||
+            to.blockedEdges?.includes(opposite) ||
+            from.blockedEntryDirections?.includes(opposite) ||
+            to.blockedEntryDirections?.includes(dir)
+          ) {
+            this.edgeBlocked[(y * this.width + x) * ORDERED_DIRECTIONS.length + dirIdx] = 1;
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -104,7 +141,7 @@ export class BlockPuzzleSolver {
    * any more. False means solvable, not a block puzzle, or not decided
    * within the budget.
    */
-  public static isStuck(engine: GameEngine, budget: number = DEFAULT_STUCK_SEARCH_BUDGET): boolean {
+  public static isStuck(engine: GameEngine, budget: number = watchSearchBudget()): boolean {
     const detector = new BlockPuzzleSolver(engine);
     if (detector.buttons.length === 0) return false;
     // Separate block puzzles (two Sokoban rooms) are judged one at a time.
@@ -153,7 +190,8 @@ export class BlockPuzzleSolver {
    */
   private playerReaches(blocks: number[]): boolean {
     const reach = new Set(this.region(this.player, new Set(this.blocks)));
-    return blocks.some((b) => ORDERED_DIRECTIONS.some((dir) => reach.has(this.step(b, dir, 1))));
+    // The player must be able to step into the block's cell from the neighbour it reaches.
+    return blocks.some((b) => ORDERED_DIRECTIONS.some((dir) => reach.has(this.step(b, dir, -1))));
   }
 
   private areaIsStuck(blocks: number[], buttons: number[], budget: number): boolean {
@@ -178,7 +216,7 @@ export class BlockPuzzleSolver {
    * first push of a shortest push sequence covering every button of a block
    * puzzle still open. Null when every puzzle is done, stuck or too large.
    */
-  public static hint(engine: GameEngine, budget: number = DEFAULT_STUCK_SEARCH_BUDGET): Dir[] | null {
+  public static hint(engine: GameEngine, budget: number = requestedSearchBudget()): Dir[] | null {
     const solver = new BlockPuzzleSolver(engine);
     const occupied = new Set(solver.blocks);
     for (const area of solver.areas()) {
@@ -238,6 +276,8 @@ export class BlockPuzzleSolver {
     for (let i = 0; i < nodes.length; i++) {
       const { blocks, reach } = nodes[i];
       if (covered(blocks)) return { kind: 'covered', nodes, goal: i };
+      // The reach is only read while a node is expanded; keeping it would hold a region per layout.
+      nodes[i].reach = [];
       const blockSet = new Set([...blocks, ...fixed]);
       const reachSet = new Set(reach);
       for (const b of blocks) {
@@ -299,11 +339,17 @@ export class BlockPuzzleSolver {
     return queue;
   }
 
-  /** Neighbour of a cell, `sign` steps along `dir`; -1 outside the map. */
+  /**
+   * Neighbour of a cell, `sign` steps along `dir`; -1 outside the map or when
+   * a thin wall or entry rule stops the step. With sign -1 it is the cell
+   * behind, so the step checked is the one from there into `cell`.
+   */
   private step(cell: number, dir: Dir, sign: 1 | -1): number {
     const x = (cell % this.width) + DIRECTION_VECTORS[dir].dx * sign;
     const y = Math.floor(cell / this.width) + DIRECTION_VECTORS[dir].dy * sign;
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return -1;
-    return y * this.width + x;
+    const next = y * this.width + x;
+    const stepFrom = sign === 1 ? cell : next;
+    return this.edgeBlocked[stepFrom * ORDERED_DIRECTIONS.length + ORDERED_DIRECTIONS.indexOf(dir)] ? -1 : next;
   }
 }

@@ -18,7 +18,6 @@
       "kind": "block",
       "i18nKey": "entities.ice_block.name",
       "pushable": true,
-      "slidesOnFloor": true,
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "water",

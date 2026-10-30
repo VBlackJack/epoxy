@@ -56,6 +56,9 @@
     "export": {
       "lossy_replaced": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits dans leur version simple." },
       "lossy_lost": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits comme du sol ou omis." },
+      "padded": { "label": "Export .CCL avec pertes : {levels} est plus petit que la carte .DAT, les cases en plus ont été remplies de mur." },
+      "refused_too_large": { "label": "Non exporté : {levels} est plus grand que la carte .DAT." },
+      "refused_player_out_of_range": { "label": "Non exporté : le départ de {levels} est hors de sa carte." },
       "list_separator": { "label": ", " }
     },
     "packs": {
@@ -81,8 +84,8 @@
         "seed_hint": { "label": "Vide : graine aléatoire. Une même graine redonne les mêmes niveaux." },
         "seed_invalid": { "label": "Une graine est un nombre entier de 0 à {max}." },
         "start_level": { "label": "Commencer au niveau" },
-        "start_level_hint": { "label": "Tout niveau à partir de 1, il n'y a pas de dernier niveau. Votre dernière partie est reproposée." },
-        "start_level_invalid": { "label": "Un niveau est un nombre entier, 1 ou plus." },
+        "start_level_hint": { "label": "Tout niveau de 1 à {max}. Votre dernière partie est reproposée." },
+        "start_level_invalid": { "label": "Un niveau est un nombre entier de 1 à {max}." },
         "submit": { "action": "Générer" },
         "cancel": { "action": "Annuler" }
       },
@@ -97,6 +100,8 @@
       "drop_overlay": { "label": "Déposez votre fichier .DAT, .CCL (CCLP) ou .JSON ici" },
       "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé avec succès !" },
       "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON invalide)." },
+      "import_too_large": { "label": "Fichier trop volumineux (limite : {max} Mo)." },
+      "imported_session_only_toast": { "label": "Pack \"{name}\" importé, mais il n'a pas pu être sauvegardé : il ne durera que pour cette session." },
       "invalid_level_error": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
       "delete_confirm": { "label": "Supprimer le pack \"{name}\" et tous ses niveaux ? Cette action est définitive." }
     },
@@ -245,7 +250,7 @@
       "kb_restart": { "label": "R : Recommencer le niveau" },
       "kb_objective": { "label": "H : Localiser le prochain objectif & afficher les câbles" },
       "kb_solution": { "label": "O : Voir la solution prouvée (le niveau recommence)" },
-      "kb_items": { "label": "E / X : Déposer l'objet sélectionné sur votre case | C / Tab : Sélectionner l'objet suivant | Clic sur une case d'inventaire : déposer cet objet" },
+      "kb_items": { "label": "E / X : Déposer l'objet sélectionné sur votre case | C : Sélectionner l'objet suivant | Clic sur une case d'inventaire : déposer cet objet" },
       "kb_fov": { "label": "V / Molette : Changer le zoom (9x9 à 32x32)" },
       "kb_graphics": { "label": "G : Basculer le rendu HD Néon / Rétro 16-Bit" },
       "kb_theme": { "label": "B : Changer le biome visuel et la piste musicale" },
@@ -338,6 +343,8 @@
         "saved": { "label": "Niveau sauvegardé dans la bibliothèque locale !" },
         "imported": { "label": "Niveau importé avec succès !" },
         "import_error": { "label": "Format de niveau invalide." },
+        "import_too_large": { "label": "Fichier trop volumineux (limite : {max} Mo)." },
+        "saved_session_only": { "label": "Niveau conservé pour cette session seulement : le navigateur n'a pas pu le sauvegarder." },
         "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },

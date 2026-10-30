@@ -22,10 +22,11 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { SeededRandom } from '../core/Random';
 import { ProceduralConfig } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { profileFor } from './DifficultyProfile';
+import { GenerationMode, profileFor } from './DifficultyProfile';
+import { HubPlanner } from './HubPlanner';
 import { compilePiece } from './PieceCompiler';
 import { CompiledPiece, MotifRule } from './PieceTypes';
-import { hubShapeFor, leadChoiceFor, leadMotifFor } from './PackVariety';
+import { hubShapeFor, LeadChoice, leadChoiceFor, leadMotifFor } from './PackVariety';
 import { ProgressionPlanner } from './ProgressionPlanner';
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -141,5 +142,68 @@ describe('pack variety', () => {
       if (firstSafe >= 0) expect(puzzles.slice(firstSafe).some(Boolean), `seed ${seed}`).toBe(false);
     }
     expect(seen).toBeGreaterThan(0);
+  });
+
+  describe('lead motif replay', () => {
+    const DEEP_LEVELS = 300;
+    const MODES: GenerationMode[] = ['pack', 'endless'];
+    const FAR_LEVEL = 10000;
+    const REPLAY_TIMEOUT_MS = 60000;
+    /** Loose ceiling: the replay measured 5 s at this level before it was memoised, a few tens of ms after. */
+    const MAX_FAR_LEVEL_MS = 1000;
+
+    /** The draw replay as it was before the motif lists were memoised, kept verbatim as the reference. */
+    function legacyDraws(seed: number, lastLevel: number, mode: GenerationMode) {
+      const window = cfg.noRepeatWindow;
+      const motifsAt = (level: number): string[] => {
+        const profile = profileFor(mode, level, cfg);
+        const accept = profile.layout === 'hub' ? HubPlanner.fitsWing : () => true;
+        const pieces = ProgressionPlanner.playablePieces(profile, library, rules(), profile.maxTier, accept);
+        return [...new Set(pieces.map((p) => p.motif))];
+      };
+      const history: string[] = [];
+      const draws: { level: number; value: string | undefined }[] = [];
+      for (let level = 1; level <= lastLevel; level++) {
+        const all = motifsAt(level);
+        const recent = history.slice(-window);
+        const fresh = all.filter((c) => !recent.includes(c));
+        const pool = fresh.length > 0 ? fresh : all;
+        let value: string | undefined;
+        if (pool.length > 0) {
+          const rng = new SeededRandom(SeededRandom.seedFromString(`${seed >>> 0}:lead:${level}`));
+          value = pool[rng.nextInt(0, pool.length - 1)];
+          history.push(value);
+        }
+        draws.push({ level, value });
+      }
+      return draws;
+    }
+
+    function legacyChoice(draws: { level: number; value: string | undefined }[], level: number): LeadChoice {
+      const window = cfg.noRepeatWindow;
+      const avoid = draws
+        .filter((d) => d.level !== level && Math.abs(d.level - level) <= window && d.value !== undefined)
+        .map((d) => d.value as string);
+      return { preferred: draws.find((d) => d.level === level)?.value, avoid: [...new Set(avoid)] };
+    }
+
+    it('gives the draws of the unmemoised replay, for every seed, level and mode', () => {
+      for (const mode of MODES) {
+        for (const seed of SEEDS) {
+          const draws = legacyDraws(seed, DEEP_LEVELS + cfg.noRepeatWindow, mode);
+          for (let level = 1; level <= DEEP_LEVELS; level++) {
+            expect(leadChoiceFor(level, seed, library, rules(), cfg, mode), `${mode} seed ${seed} level ${level}`).toEqual(
+              legacyChoice(draws, level)
+            );
+          }
+        }
+      }
+    }, REPLAY_TIMEOUT_MS);
+
+    it('replays a ten thousand level run well under a second', () => {
+      const started = performance.now();
+      leadChoiceFor(FAR_LEVEL, 7, library, rules(), cfg, 'endless');
+      expect(performance.now() - started).toBeLessThan(MAX_FAR_LEVEL_MS);
+    });
   });
 });

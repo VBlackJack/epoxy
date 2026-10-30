@@ -20,7 +20,8 @@ import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
   DEFAULT_FACING,
-  FLOOR_TILE_ID
+  FLOOR_TILE_ID,
+  WALL_TILE_ID
 } from '../core/coreConstants';
 import {
   CloneLink,
@@ -76,13 +77,28 @@ const REPLACEMENT_CHAR_CODE = 0x3f;
 
 const FALLBACK_ELEMENT: DatElementMapping = { kind: 'terrain', id: FLOOR_TILE_ID };
 
-/** Outcome of a .DAT encoding: the bytes and the tile ids the format could not carry. */
+/** Why a level could not be written to a .DAT pack. */
+export type DatRefusalReason = 'too_large' | 'player_out_of_range';
+
+/** A level left out of the pack, with the reason. */
+export interface DatRefusal {
+  levelId: string;
+  reason: DatRefusalReason;
+}
+
+/** Outcome of a .DAT encoding: the bytes and what the format could not carry. */
 export interface DatEncodeResult {
   bytes: Uint8Array;
   /** Tiles written as their nearest coded tile. */
   replaced: string[];
   /** Tiles written as floor or left out. */
   lost: string[];
+  /** Ids of the levels smaller than the format map, completed with wall. */
+  padded: string[];
+  /** Levels left out of the pack because the format cannot hold them. */
+  refused: DatRefusal[];
+  /** Number of levels written to the pack. */
+  levelCount: number;
 }
 
 export class DatCodec {
@@ -107,6 +123,7 @@ export class DatCodec {
     const maxLevelCount = datCfg.maxLevelCount ?? DEFAULT_MAX_LEVEL_COUNT;
     const levelCount = Math.min(view.getUint16(PACK_LEVEL_COUNT_OFFSET, true), maxLevelCount);
     const levels: CompiledLevel[] = [];
+    const usedIds = new Set<string>();
     let offset = PACK_HEADER_BYTES;
 
     for (let idx = 0; idx < levelCount; idx++) {
@@ -119,6 +136,11 @@ export class DatCodec {
       if (levelByteLength >= MIN_LEVEL_RECORD_BYTES) {
         const level = this.decodeLevel(buffer, offset, levelEndOffset, idx, packPrefix, datCfg);
         if (level) {
+          // A pack may repeat a level number: keep the first id, tell the others apart by record index
+          while (usedIds.has(level.id)) {
+            level.id = `${level.id}_${idx + 1}`;
+          }
+          usedIds.add(level.id);
           levels.push(level);
         }
       }
@@ -250,10 +272,14 @@ export class DatCodec {
     const cloneMachineId = this.findCloneMachineTileId();
 
     // A layer longer than the grid would place cells outside the arrays: walk the overlap only
-    const cellCount = Math.min(datCfg.layerByteLength, mapWidth * mapHeight);
+    // The row stride is the layer width, the same one encode writes with.
+    const layerWidth = datCfg.layerWidth ?? mapWidth;
+    const layerHeight = datCfg.layerHeight ?? mapHeight;
+    const cellCount = Math.min(datCfg.layerByteLength, layerWidth * layerHeight);
     for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
-      const x = cellIdx % mapWidth;
-      const y = Math.floor(cellIdx / mapWidth);
+      const x = cellIdx % layerWidth;
+      const y = Math.floor(cellIdx / layerWidth);
+      if (!isInBounds(x, y, mapWidth, mapHeight)) continue;
       const topElem = datCfg.byteToElement[String(layer1[cellIdx])] || FALLBACK_ELEMENT;
       const botElem = datCfg.byteToElement[String(layer2[cellIdx])] || FALLBACK_ELEMENT;
 
@@ -398,14 +424,19 @@ export class DatCodec {
    */
   public static encodeLevelsWithReport(levels: CompiledLevel[]): DatEncodeResult {
     const datCfg = ConfigRegistry.getDatFormat();
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    const { mapWidth: gridWidth, mapHeight: gridHeight } = ConfigRegistry.getGame().grid;
+    const layerWidth = datCfg.layerWidth ?? gridWidth;
+    const layerHeight = datCfg.layerHeight ?? gridHeight;
     const replaced = new Set<string>();
     const lost = new Set<string>();
+    const padded: string[] = [];
+    const refused: DatRefusal[] = [];
 
     // Build reverse lookup maps
     const terrainToByte = new Map<string, number>();
     const itemToByte = new Map<string, number>();
     const entityDirToByte = new Map<string, number>();
+    const clonerDirToByte = new Map<string, number>();
     const playerDirToByte = new Map<Direction, number>();
 
     for (const [codeStr, mapping] of Object.entries(datCfg.byteToElement)) {
@@ -414,17 +445,20 @@ export class DatCodec {
         terrainToByte.set(mapping.id, code);
       } else if (mapping.kind === 'item' && !itemToByte.has(mapping.id)) {
         itemToByte.set(mapping.id, code);
-      } else if (mapping.kind === 'entity' && !mapping.isClonerTemplate) {
+      } else if (mapping.kind === 'entity') {
         const key = `${mapping.id}:${mapping.dir || DEFAULT_FACING}`;
-        if (!entityDirToByte.has(key)) {
-          entityDirToByte.set(key, code);
+        const table = mapping.isClonerTemplate ? clonerDirToByte : entityDirToByte;
+        if (!table.has(key)) {
+          table.set(key, code);
         }
       } else if (mapping.kind === 'player' && mapping.dir && !playerDirToByte.has(mapping.dir)) {
         playerDirToByte.set(mapping.dir, code);
       }
     }
     const floorByte = terrainToByte.get(FLOOR_TILE_ID) ?? 0;
-    const cellCount = Math.min(datCfg.layerByteLength, mapWidth * mapHeight);
+    const wallByte = terrainToByte.get(WALL_TILE_ID) ?? floorByte;
+    const cellCount = Math.min(datCfg.layerByteLength, layerWidth * layerHeight);
+    const cloneMachineId = this.findCloneMachineTileId();
 
     /** Byte of a coded terrain that plays the same part as an uncoded one, if any. */
     const substituteTerrainByte = (tileId: string): number | undefined => {
@@ -459,6 +493,20 @@ export class DatCodec {
 
     for (let idx = 0; idx < levels.length; idx++) {
       const lvl = levels[idx];
+      const levelHeight = lvl.terrain.length;
+      const levelWidth = lvl.terrain.reduce((max, row) => Math.max(max, row.length), 0);
+      if (levelWidth > layerWidth || levelHeight > layerHeight) {
+        refused.push({ levelId: lvl.id, reason: 'too_large' });
+        continue;
+      }
+      const { x: startX, y: startY } = lvl.playerStart;
+      if (startX < 0 || startY < 0 || startX >= levelWidth || startY >= levelHeight) {
+        refused.push({ levelId: lvl.id, reason: 'player_out_of_range' });
+        continue;
+      }
+      if (levelWidth < layerWidth || levelHeight < layerHeight) {
+        padded.push(lvl.id);
+      }
       const layer1Raw = new Uint8Array(datCfg.layerByteLength);
       const layer2Raw = new Uint8Array(datCfg.layerByteLength);
 
@@ -468,13 +516,27 @@ export class DatCodec {
       }
 
       for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
-        const x = cellIdx % mapWidth;
-        const y = Math.floor(cellIdx / mapWidth);
-        const tCode = terrainByte(lvl.terrain[y]?.[x]);
+        const x = cellIdx % layerWidth;
+        const y = Math.floor(cellIdx / layerWidth);
+        if (x >= levelWidth || y >= levelHeight) {
+          // Outside the level: the map is closed with wall
+          layer1Raw[cellIdx] = wallByte;
+          layer2Raw[cellIdx] = floorByte;
+          continue;
+        }
+        const terrainId = lvl.terrain[y]?.[x];
+        const tCode = terrainByte(terrainId);
         const iCode = itemByte(lvl.items[y]?.[x]);
         const ent = entByCoord.get(`${x},${y}`);
+        // A block standing on a clone machine is the cloner template: it has its own byte per direction
+        const clonerCode =
+          ent && cloneMachineId !== null && terrainId === cloneMachineId
+            ? (clonerDirToByte.get(`${ent.type}:${ent.dir}`) ??
+              clonerDirToByte.get(`${ent.type}:${DEFAULT_FACING}`))
+            : undefined;
         const eCode = ent
-          ? (entityDirToByte.get(`${ent.type}:${ent.dir}`) ??
+          ? (clonerCode ??
+            entityDirToByte.get(`${ent.type}:${ent.dir}`) ??
             entityDirToByte.get(`${ent.type}:${DEFAULT_FACING}`) ??
             null)
           : null;
@@ -484,6 +546,11 @@ export class DatCodec {
           : null;
 
         const topCode = pCode ?? eCode;
+        // A cell has two layers: player, entity and item cannot all fit, nor can terrain under all three
+        if (ent && pCode !== null) lost.add(ent.type);
+        const terrainCovered =
+          topCode !== null && iCode !== null && clonerCode === undefined && terrainId !== FLOOR_TILE_ID;
+        if (terrainCovered && terrainId !== undefined) lost.add(terrainId);
         if (topCode !== null) {
           layer1Raw[cellIdx] = topCode;
           layer2Raw[cellIdx] = iCode ?? tCode;
@@ -550,7 +617,14 @@ export class DatCodec {
       writePos += b.length;
     }
 
-    return { bytes: out, replaced: [...replaced], lost: [...lost] };
+    return {
+      bytes: out,
+      replaced: [...replaced],
+      lost: [...lost],
+      padded,
+      refused,
+      levelCount: encodedLevelBlocks.length
+    };
   }
 
   private static compressLayer(raw: Uint8Array, rleMarker: number): Uint8Array {

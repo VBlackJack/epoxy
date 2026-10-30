@@ -76,6 +76,12 @@ export interface StorageConfig {
   levelPacksStoreName: string;
 }
 
+/** Limits applied to files the player imports. */
+export interface ImportConfig {
+  /** Largest file read for import, in bytes. */
+  maxFileBytes: number;
+}
+
 export type GraphicsStyle = 'modern' | 'retro';
 
 export interface GraphicsConfig {
@@ -314,6 +320,11 @@ export interface HubConfig {
 export interface ProceduralScoringConfig {
   /** Candidates built per level; the best scoring one is kept. */
   candidates: number;
+  /**
+   * Extra candidates tried one by one, after the first `candidates`, when none of those
+   * could be built; the first that builds is kept. 0 turns the fallback off.
+   */
+  fallbackCandidates: number;
   targetMovesBase: number;
   targetMovesPerLevel: number;
   /** Ceiling of the target run length, so the target stops growing with the level number. */
@@ -369,6 +380,11 @@ export interface EndlessConfig {
 export interface EndlessUiConfig {
   /** Pause before a main thread generation, so the page can paint the progress message first. */
   fallbackYieldMs: number;
+  /**
+   * Highest level the dialog accepts as a start level. Reaching a level costs a
+   * replay of every earlier lead motif draw, so the field is bounded.
+   */
+  maxStartLevel: number;
 }
 
 export interface ProceduralConfig {
@@ -476,16 +492,26 @@ export interface TouchConfig {
   hapticPulseMs: number;
 }
 
+/** Layout counts the block puzzle solver may visit before giving up without a verdict. */
+export interface BlockPuzzleConfig {
+  /** Budget of the dead-end watch that runs by itself after every block move. */
+  watchSearchBudget: number;
+  /** Larger budget of a hint or a dead-end check the player asks for. */
+  hintSearchBudget: number;
+}
+
 export interface GameConfig {
   grid: GridConfig;
   graphics?: GraphicsConfig;
   themes?: Record<string, ThemePalette>;
   procedural?: ProceduralConfig;
-  endlessUi?: EndlessUiConfig;
+  endlessUi: EndlessUiConfig;
   touch?: TouchConfig;
+  blockPuzzle: BlockPuzzleConfig;
   ultimatePacks?: UltimatePackDescriptor[];
   timing: TimingConfig;
   storage: StorageConfig;
+  import: ImportConfig;
   locales: {
     supported: string[];
     default: string;
@@ -557,12 +583,12 @@ export interface EntityDefinition {
   kind: 'block' | 'monster';
   i18nKey: string;
   pushable?: boolean;
-  slidesOnFloor?: boolean;
   slidesOnIce?: boolean;
   slidesOnForce?: boolean;
   waterTransformsTo?: string;
   meltsInFireTo?: string;
   destroyedByFire?: boolean;
+  /** Whether a bomb on the cell the block enters destroys both. */
   destroyedByBomb?: boolean;
   moveIntervalTicks?: number;
   movementPattern?: string;
@@ -627,6 +653,10 @@ export interface DatFormatConfig {
   rleMarkerByte: number;
   passwordXorKey: number;
   layerByteLength: number;
+  /** Cells per row of a layer. Falls back to the game grid width when unset. */
+  layerWidth?: number;
+  /** Rows of a layer. Falls back to the game grid height when unset. */
+  layerHeight?: number;
   /** Upper bound on the level count read from a pack header. */
   maxLevelCount?: number;
   fieldCodes: {

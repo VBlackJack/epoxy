@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { isCompiledLevelShape, isRecord } from '../config/ConfigValidation';
+import { isRecord, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { LevelPack } from '../core/types';
 
 /** IndexedDB schema version of the level pack store. */
@@ -117,7 +117,7 @@ class LevelPackStorageService {
     for (const entry of raw) {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string') continue;
       if (!Array.isArray(entry.levels)) continue;
-      const levels = entry.levels.filter((lvl) => isCompiledLevelShape(lvl, bounds));
+      const levels = sanitizeStoredLevels(entry.levels, bounds);
       if (levels.length === 0) continue;
       packs.push({
         id: entry.id,

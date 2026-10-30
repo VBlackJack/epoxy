@@ -15,7 +15,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { collectTerrainFeatures, TerrainSnapshot } from './terrainState';
+import { createTestBundle } from '../test/loadTestConfigs';
+import { collectTerrainFeatures, TELEPORT_UNGROUPED_KEY, TerrainSnapshot } from './terrainState';
+
+const tiles = createTestBundle().tiles.tiles;
 
 function grid(): string[][] {
   return [
@@ -53,16 +56,17 @@ describe('TerrainSnapshot', () => {
 
 describe('collectTerrainFeatures', () => {
   it('lists mechanism endpoints and animated cells', () => {
-    const features = collectTerrainFeatures(grid(), new Set(['water', 'teleport']));
-    expect(features.greenButtons).toEqual([{ x: 1, y: 0 }]);
+    const features = collectTerrainFeatures(grid(), new Set(['water', 'teleport']), new Set(), tiles);
+    expect(features.toggleButtons).toEqual([{ x: 1, y: 0 }]);
     expect(features.toggleWalls).toEqual([
       { x: 0, y: 1 },
       { x: 1, y: 2 }
     ]);
-    expect(features.teleporters).toEqual([
+    expect(features.teleporterGroups.get(TELEPORT_UNGROUPED_KEY)).toEqual([
       { x: 2, y: 0 },
       { x: 0, y: 2 }
     ]);
+    expect(features.teleporterGroups.size).toBe(1);
     expect(features.traps).toEqual([{ x: 2, y: 1 }]);
     expect(features.animatedCells).toEqual([
       { x: 2, y: 0, tileId: 'teleport' },
@@ -79,5 +83,40 @@ describe('collectTerrainFeatures', () => {
       { x: 0, y: 2, tileId: 'teleport' }
     ]);
     expect(features.animatedCells).toEqual([]);
+  });
+
+  it('links colour teleporters within their group only', () => {
+    const terrain = [
+      ['teleport_red', 'teleport_blue', 'teleport'],
+      ['teleport_blue', 'floor', 'teleport_red']
+    ];
+    const features = collectTerrainFeatures(terrain, new Set(), new Set(), tiles);
+    expect(features.teleporterGroups.get('red')).toEqual([
+      { x: 0, y: 0 },
+      { x: 2, y: 1 }
+    ]);
+    expect(features.teleporterGroups.get('blue')).toEqual([
+      { x: 1, y: 0 },
+      { x: 0, y: 1 }
+    ]);
+    expect(features.teleporterGroups.get(TELEPORT_UNGROUPED_KEY)).toEqual([{ x: 2, y: 0 }]);
+  });
+
+  it('links flame buttons to the tiles that swap on flame toggles', () => {
+    const terrain = [['button_orange', 'flame_jet_off', 'flame_jet_on', 'button_green']];
+    const features = collectTerrainFeatures(terrain, new Set(), new Set(), tiles);
+    expect(features.flameButtons).toEqual([{ x: 0, y: 0 }]);
+    expect(features.flameTargets).toEqual([
+      { x: 1, y: 0 },
+      { x: 2, y: 0 }
+    ]);
+    expect(features.toggleButtons).toEqual([{ x: 3, y: 0 }]);
+    expect(features.toggleWalls).toEqual([]);
+  });
+
+  it('collects no mechanism without tile definitions', () => {
+    const features = collectTerrainFeatures(grid(), new Set());
+    expect(features.toggleButtons).toEqual([]);
+    expect(features.teleporterGroups.size).toBe(0);
   });
 });

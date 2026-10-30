@@ -3,6 +3,81 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [2.6.0] - 2026-10-30
+
+### Added
+
+- Colour teleporters show the same colour-blind glyph as doors and keys, in both renderers.
+- Imported files larger than `import.maxFileBytes` (4 MiB) are refused with a message instead of
+  being read.
+- The endless start level is capped by `endlessUi.maxStartLevel` (10000); the dialog proposes
+  and accepts nothing above it and names the limit.
+- When every regular candidate fails to build an endless level, up to
+  `procedural.scoring.fallbackCandidates` (2) extra candidates are tried. Levels that build today
+  are unchanged, and so are their ids.
+- Block puzzle search budgets live under `blockPuzzle` in `game.json`: a small one for the
+  automatic dead-end watch, a larger one for the hint the player asks for.
+- A typography test scans every tracked text file for banned typographic characters.
+
+### Changed
+
+- The "next held item" key is `C` only. `Tab` is left to the browser, so keyboard players can
+  reach the HUD buttons and the options again.
+- Ctrl, Alt and Cmd chords (Ctrl+R, Ctrl+P, Alt+Left...) are no longer captured by the game.
+  Undo with Ctrl or Cmd+Z now follows the keyboard layout instead of the physical key.
+- The game no longer advances while a dialog or the options drawer is open.
+- With reduced motion, the light flicker, the minimap objective blink, particle bursts and
+  shockwaves are off, and a change of the system setting is followed live.
+- Starting an endless run at a high level is fast: replaying the variety draws for level 10000
+  takes about 0.1 s instead of about 5 s, with identical levels for every seed.
+- The unused `slidesOnFloor` monster setting is removed; `destroyedByBomb` is now honoured.
+- The deploy workflow runs the type check before the tests.
+
+### Fixed
+
+- A monster arriving from a teleporter kills the player on the exit, and drowns, burns, explodes
+  or presses buttons like a normal step; a teleported block sinks, melts or detonates the same
+  way and uses the block entry rule.
+- Teleporter exits respect thin walls and ice-corner entry rules, for the player, monsters and
+  blocks.
+- Monsters created by a cloner react to the cell they appear on.
+- Force floors carry monsters; a random force floor draws from the level's random generator.
+- Click-to-move no longer routes through a closed trap.
+- The level validator no longer reports a false unreachable exit when a key thief sits near the
+  start.
+- The block puzzle hint and dead-end watch respect thin walls and use less memory.
+- DAT packs that reuse a level number no longer produce duplicate level ids (which reset the
+  score on the next level). Ids of uniquely numbered levels are unchanged.
+- .CCL export keeps a block cloner's direction, closes levels smaller than 32x32 with wall and
+  says so, refuses levels that do not fit instead of exporting them wrongly, reports what a
+  stacked cell cannot store, and downloads nothing when no level could be written.
+- An imported or stored level with a non-text title or hint no longer stops the game from
+  starting; the bad field is dropped and the level kept. A fractional saved level index or an
+  unknown saved graphics style is ignored.
+- Imported levels with missing or repeated ids get unique ids.
+- When browser storage is full or blocked, saving a level or importing a pack says it only lasts
+  for this session, and the editor keeps the level marked unsaved.
+- One corrupt high score record no longer wipes every high score. New records no longer store
+  the unused untimed replay copy.
+- The player no longer keeps walking after the window loses focus.
+- A mouse click on a play-area or header button, or on the pack menu, hands the keys back to the
+  game; keyboard focus is kept.
+- Undo and the editor's redo work on non-Latin layouts such as Cyrillic and Greek, and on AZERTY
+  `?` opens the help instead of toggling the sound.
+- A gamepad button held while a dialog closes no longer counts as a fresh press.
+- The editor accepts 0 as an untimed level, and an empty or invalid time or chip field keeps its
+  value.
+- The LCD, shell, sound and music toggles and the Play/Editor buttons expose their state to
+  screen readers.
+- Clicking a cell on a map smaller than the view picks the cell under the cursor.
+- Hovering a colour teleporter highlights only its own network; hovering a flame button shows
+  the flame jets it controls.
+- Moving the window to a screen with another pixel density resizes the canvas.
+- Audio resumes after an iOS interruption and unlocks on touchend and click.
+- Starting a new endless run abandons the generation still pending from the previous run.
+- A generator worker that dies after working is restarted once; a second crash reports an error
+  instead of rerunning the request on the page.
+
 ## [2.5.0] - 2026-10-30
 
 ### Changed

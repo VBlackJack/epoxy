@@ -4,6 +4,8 @@
   "rleMarkerByte": 255,
   "passwordXorKey": 153,
   "layerByteLength": 1024,
+  "layerWidth": 32,
+  "layerHeight": 32,
   "maxLevelCount": 1000,
   "fieldCodes": {
     "timeLimit": 1,

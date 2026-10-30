@@ -915,7 +915,13 @@ export class GameEngine {
     return true;
   }
 
-  private moveBlockTo(block: RuntimeEntity, destX: number, destY: number, dir: Direction): void {
+  private moveBlockTo(
+    block: RuntimeEntity,
+    destX: number,
+    destY: number,
+    dir: Direction,
+    allowTeleport = true
+  ): void {
     // A clone spawns in place and leaves no cell behind.
     if (block.x !== destX || block.y !== destY) {
       this.leaveCell(block.x, block.y);
@@ -934,7 +940,7 @@ export class GameEngine {
       return;
     }
 
-    if (itemId && ConfigRegistry.getTile(itemId).hazard === 'bomb') {
+    if (itemId && ConfigRegistry.getTile(itemId).hazard === 'bomb' && blockDef?.destroyedByBomb) {
       this.items[destY][destX] = null;
       this.removeEntity(block.uid);
       AudioManager.playSfx('bomb');
@@ -961,10 +967,12 @@ export class GameEngine {
 
     if (tile.buttonAction) {
       this.triggerButton(destX, destY, tile.buttonAction);
+      if (!this.player.alive) return;
     }
 
-    if (tile.isTeleporter) {
-      this.teleportEntity(block, destX, destY, dir);
+    // A jump resolves the arrival (and the sliding state) at the exit itself.
+    if (tile.isTeleporter && allowTeleport && this.teleportEntity(block, destX, destY, dir)) {
+      return;
     }
 
     const updatedTile = ConfigRegistry.getTile(this.terrain[block.y][block.x]);
@@ -1046,40 +1054,55 @@ export class GameEngine {
       entity.y = ny;
       entity.dir = chosenDir;
 
-      if (this.player.x === nx && this.player.y === ny && this.player.alive) {
-        this.killPlayer('hud.messages.death_monster', 'death');
-        return;
-      }
-
-      const destTile = ConfigRegistry.getTile(this.terrain[ny][nx]);
-      const destItem = this.items[ny][nx];
-
-      if (destItem && ConfigRegistry.getTile(destItem).hazard === 'bomb') {
-        this.items[ny][nx] = null;
-        this.removeEntity(entity.uid);
-        AudioManager.playSfx('bomb');
-        continue;
-      }
-
-      if (destTile.hazard === 'water' && !def?.immuneToWater) {
-        this.removeEntity(entity.uid);
-        AudioManager.playSfx('splash');
-        continue;
-      }
-      if (destTile.hazard === 'fire' && !def?.immuneToFire) {
-        this.removeEntity(entity.uid);
-        AudioManager.playSfx('burn');
-        continue;
-      }
-
-      if (destTile.buttonAction) {
-        this.triggerButton(nx, ny, destTile.buttonAction);
-      }
-
-      if (destTile.isTeleporter) {
-        this.teleportEntity(entity, nx, ny, chosenDir);
-      }
+      if (!this.resolveMonsterArrival(entity, true)) return;
     }
+  }
+
+  /**
+   * Applies the effects of the cell a monster has just entered (by a step, a
+   * teleport or a clone spawn): the player under it dies, a bomb or water or
+   * fire removes it, a button is pressed and a teleporter jumps it on.
+   * Returns false when the player was killed, so the caller stops processing.
+   */
+  private resolveMonsterArrival(entity: RuntimeEntity, allowTeleport: boolean): boolean {
+    const nx = entity.x;
+    const ny = entity.y;
+    const def = ConfigRegistry.getEntityDef(entity.type);
+
+    if (this.player.x === nx && this.player.y === ny && this.player.alive) {
+      this.killPlayer('hud.messages.death_monster', 'death');
+      return false;
+    }
+
+    const destTile = ConfigRegistry.getTile(this.terrain[ny][nx]);
+    const destItem = this.items[ny][nx];
+
+    if (destItem && ConfigRegistry.getTile(destItem).hazard === 'bomb') {
+      this.items[ny][nx] = null;
+      this.removeEntity(entity.uid);
+      AudioManager.playSfx('bomb');
+      return true;
+    }
+
+    if (destTile.hazard === 'water' && !def?.immuneToWater) {
+      this.removeEntity(entity.uid);
+      AudioManager.playSfx('splash');
+      return true;
+    }
+    if (destTile.hazard === 'fire' && !def?.immuneToFire) {
+      this.removeEntity(entity.uid);
+      AudioManager.playSfx('burn');
+      return true;
+    }
+
+    if (destTile.buttonAction && !this.triggerButton(nx, ny, destTile.buttonAction)) {
+      return false;
+    }
+
+    if (destTile.isTeleporter && allowTeleport) {
+      return this.teleportEntity(entity, nx, ny, entity.dir) ? this.resolveMonsterArrival(entity, false) : true;
+    }
+    return true;
   }
 
   private chooseMonsterDirection(monster: RuntimeEntity): Direction | null {
@@ -1093,6 +1116,14 @@ export class GameEngine {
       const bounce = OPPOSITE_DIRECTION[slideDir];
       if (this.canMonsterEnter(monster, bounce)) return bounce;
       return null;
+    }
+
+    if (currentTile.slideType === 'force' && currentTile.forceDirection) {
+      const forceDir =
+        currentTile.forceDirection === 'RANDOM'
+          ? ORDERED_DIRECTIONS[this.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)]
+          : currentTile.forceDirection;
+      return this.canMonsterEnter(monster, forceDir) ? forceDir : null;
     }
 
     if (def.movementPattern === 'chase_player') {
@@ -1171,7 +1202,8 @@ export class GameEngine {
     return true;
   }
 
-  private triggerButton(bx: number, by: number, action: ButtonAction): void {
+  /** Returns false when a clone spawned by the button killed the player. */
+  private triggerButton(bx: number, by: number, action: ButtonAction): boolean {
     AudioManager.playSfx('button');
 
     if (action === 'toggle_walls') {
@@ -1190,17 +1222,20 @@ export class GameEngine {
       const links = this.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
       if (links.length > 0) {
         for (const link of links) {
-          this.spawnFromCloner(link.clonerX, link.clonerY, link.templateType, link.templateDir);
+          if (!this.spawnFromCloner(link.clonerX, link.clonerY, link.templateType, link.templateDir)) {
+            return false;
+          }
         }
       } else {
         // Fallback: trigger any clone machine that has an entity template sitting on it
         for (const ent of [...this.entities]) {
           if (ConfigRegistry.getTile(this.terrain[ent.y]?.[ent.x]).isCloneMachine) {
-            this.spawnFromCloner(ent.x, ent.y, ent.type, ent.dir);
+            if (!this.spawnFromCloner(ent.x, ent.y, ent.type, ent.dir)) return false;
           }
         }
       }
     }
+    return true;
   }
 
   /** Replaces every tile for which `target` names a terrain by that terrain. */
@@ -1252,21 +1287,22 @@ export class GameEngine {
   /**
    * Spawns a copy of the template in front of the cloner, using the same
    * entry rules as a regular monster step or block push, so a clone never
-   * appears inside a wall or another blocked cell.
+   * appears inside a wall or another blocked cell. Returns false when the
+   * clone's arrival killed the player, so the caller stops processing.
    */
   private spawnFromCloner(
     clonerX: number,
     clonerY: number,
     templateType: string,
     templateDir: Direction
-  ): void {
-    if (this.entities.length >= MAX_ACTIVE_ENTITIES) return;
+  ): boolean {
+    if (this.entities.length >= MAX_ACTIVE_ENTITIES) return true;
 
     const vec = DIRECTION_VECTORS[templateDir];
     const spawnX = clonerX + vec.dx;
     const spawnY = clonerY + vec.dy;
-    if (!this.isInBounds(spawnX, spawnY)) return;
-    if (this.player.x === spawnX && this.player.y === spawnY) return;
+    if (!this.isInBounds(spawnX, spawnY)) return true;
+    if (this.player.x === spawnX && this.player.y === spawnY) return true;
 
     const def = ConfigRegistry.getEntityDef(templateType);
     const kind = def?.kind || 'block';
@@ -1284,7 +1320,7 @@ export class GameEngine {
       kind === 'block'
         ? this.isCanBlockEnter(probe, spawnX, spawnY, templateDir)
         : this.canMonsterEnter(probe, templateDir);
-    if (!canEnter) return;
+    if (!canEnter) return true;
 
     const spawned: RuntimeEntity = {
       uid: this.nextEntityUid++,
@@ -1299,7 +1335,10 @@ export class GameEngine {
     this.entities.push(spawned);
     if (spawned.kind === 'block') {
       this.moveBlockTo(spawned, spawnX, spawnY, templateDir);
+    } else {
+      return this.resolveMonsterArrival(spawned, true);
     }
+    return true;
   }
 
   public isCellClosedTrap(tx: number, ty: number): boolean {
@@ -1345,7 +1384,11 @@ export class GameEngine {
         const exitY = candidate.y + vec.dy;
         if (this.isInBounds(exitX, exitY)) {
           const exitTile = ConfigRegistry.getTile(this.terrain[exitY][exitX]);
-          if (this.canPlayerEnter(exitTile) && !this.getEntityAt(exitX, exitY)) {
+          if (
+            this.canPlayerEnter(exitTile) &&
+            !this.getEntityAt(exitX, exitY) &&
+            !this.isEdgeBlocked(candidate.x, candidate.y, exitX, exitY, tryDir)
+          ) {
             AudioManager.playSfx('teleport');
             this.player.x = exitX;
             this.player.y = exitY;
@@ -1358,12 +1401,17 @@ export class GameEngine {
     return false;
   }
 
-  private teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction): void {
+  /**
+   * Moves a block or monster out of the next teleporter of the same group
+   * whose exit it could step onto from there, then resolves the arrival on
+   * the exit cell. Returns false when no exit exists and the entity stays.
+   */
+  private teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction): boolean {
     const teleporters = this.teleportersLinkedTo(fromX, fromY);
-    if (teleporters.length <= 1) return;
+    if (teleporters.length <= 1) return false;
 
     const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
-    if (startIdx < 0) return;
+    if (startIdx < 0) return false;
 
     const vec = DIRECTION_VECTORS[dir];
     for (let i = 1; i <= teleporters.length; i++) {
@@ -1371,15 +1419,24 @@ export class GameEngine {
       const candidate = teleporters[idx];
       const exitX = candidate.x + vec.dx;
       const exitY = candidate.y + vec.dy;
-      if (this.isInBounds(exitX, exitY)) {
-        const exitTile = ConfigRegistry.getTile(this.terrain[exitY][exitX]);
-        if (exitTile.passableByMonster && !this.getEntityAt(exitX, exitY)) {
-          entity.x = exitX;
-          entity.y = exitY;
-          return;
-        }
+      // Same entry rules as a regular step, evaluated as if the entity stood on the candidate pad.
+      const probe: RuntimeEntity = { ...entity, x: candidate.x, y: candidate.y, dir };
+      const canExit =
+        entity.kind === 'block'
+          ? this.isCanBlockEnter(probe, exitX, exitY, dir)
+          : this.canMonsterEnter(probe, dir);
+      if (!canExit) continue;
+
+      entity.x = exitX;
+      entity.y = exitY;
+      entity.dir = dir;
+      if (entity.kind === 'block') {
+        // Already standing on the exit cell: resolves the arrival without another jump.
+        this.moveBlockTo(entity, exitX, exitY, dir, false);
       }
+      return true;
     }
+    return false;
   }
 
   private killPlayer(reasonKey: string, sfxId: string): void {

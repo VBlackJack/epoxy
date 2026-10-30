@@ -39,6 +39,7 @@ export interface EndlessGeneratorDeps {
 }
 
 interface PendingRequest {
+  key: string;
   seed: number;
   levelNumber: number;
   resolve: (level: CompiledLevel) => void;
@@ -46,18 +47,29 @@ interface PendingRequest {
 }
 
 const DISPOSED_MESSAGE = 'Endless generator disposed';
+const RESET_MESSAGE = 'Endless generator reset';
+const CRASH_MESSAGE = 'Endless generator worker crashed twice';
 
 const requestKey = (seed: number, levelNumber: number): string => `${seed}:${levelNumber}`;
 
 /**
  * Generates endless levels off the main thread. Falls back to the main thread
  * (with a pause before the work so the page can paint) when no worker can be
- * started or the worker crashes; a generation error reported by a healthy
- * worker is not retried because it would fail the same way.
+ * started or when the worker crashed before it ever answered, which means it
+ * cannot run here at all (script failed to load, blocked by a policy). A
+ * worker that did answer and then died, on a level too heavy for it for
+ * instance, is replaced once and its requests are posted again; if the
+ * replacement dies too, those requests are rejected rather than frozen into a
+ * main thread run. A generation error reported by a healthy worker is not
+ * retried because it would fail the same way.
  */
 export class EndlessGenerator {
   private worker: EndlessWorkerLike | null = null;
   private workerFailed: boolean;
+  /** Whether any worker has answered a request: proof that workers run here. */
+  private everAnswered = false;
+  /** Whether the worker in use replaced one that crashed and has not answered since. */
+  private respawned = false;
   private nextId = 0;
   private readonly pending = new Map<number, PendingRequest>();
   private readonly inFlight = new Map<string, Promise<CompiledLevel>>();
@@ -77,10 +89,32 @@ export class EndlessGenerator {
     const existing = this.inFlight.get(key);
     if (existing) return existing;
     const promise = this.dispatch(seed, levelNumber).finally(() => {
-      this.inFlight.delete(key);
+      // A reset may have cleared the map and a newer call may own the key by now.
+      if (this.inFlight.get(key) === promise) this.inFlight.delete(key);
     });
     this.inFlight.set(key, promise);
     return promise;
+  }
+
+  /** True while a request is waiting for its level. */
+  public hasPending(): boolean {
+    return this.pending.size > 0 || this.inFlight.size > 0;
+  }
+
+  /**
+   * Abandons every request in progress: the worker is terminated, so it stops
+   * working on levels nobody wants, and the waiting callers are rejected. The
+   * next request starts a fresh worker. Main thread generations cannot be
+   * stopped, so their shared requests stay and a repeated call reuses them.
+   */
+  public reset(): void {
+    this.worker?.terminate();
+    this.worker = null;
+    this.respawned = false;
+    const abandoned = [...this.pending.values()];
+    this.pending.clear();
+    for (const request of abandoned) this.inFlight.delete(request.key);
+    for (const request of abandoned) request.reject(new Error(RESET_MESSAGE));
   }
 
   public dispose(): void {
@@ -95,7 +129,7 @@ export class EndlessGenerator {
     if (!this.workerFailed && this.ensureWorker()) {
       return new Promise<CompiledLevel>((resolve, reject) => {
         const id = this.nextId++;
-        this.pending.set(id, { seed, levelNumber, resolve, reject });
+        this.pending.set(id, { key: requestKey(seed, levelNumber), seed, levelNumber, resolve, reject });
         this.worker?.postMessage({ type: 'generate', id, seed, levelNumber });
       });
     }
@@ -109,17 +143,25 @@ export class EndlessGenerator {
 
   private ensureWorker(): boolean {
     if (this.worker) return true;
+    let worker: EndlessWorkerLike | undefined;
     try {
-      const worker = this.deps.createWorker?.();
+      worker = this.deps.createWorker?.();
       if (!worker) throw new Error('No worker available');
-      worker.onmessage = (event) => this.onResponse(event.data);
-      worker.onerror = () => this.onWorkerCrash();
-      worker.onmessageerror = () => this.onWorkerCrash();
-      worker.postMessage({ type: 'init', bundle: this.deps.getBundle() });
+      // A worker replaced by a reset may still deliver a last event: only the current one counts.
+      worker.onmessage = (event) => {
+        if (this.worker === worker) this.onResponse(event.data);
+      };
+      worker.onerror = () => {
+        if (this.worker === worker) this.onWorkerCrash();
+      };
+      worker.onmessageerror = worker.onerror;
       this.worker = worker;
+      worker.postMessage({ type: 'init', bundle: this.deps.getBundle() });
       return true;
     } catch {
       // Worker construction or the config transfer failed: stay on the main thread.
+      worker?.terminate();
+      this.worker = null;
       this.workerFailed = true;
       return false;
     }
@@ -128,19 +170,49 @@ export class EndlessGenerator {
   private onResponse(response: EndlessWorkerResponse): void {
     const request = this.pending.get(response.id);
     if (!request) return;
+    this.everAnswered = true;
+    this.respawned = false;
     this.pending.delete(response.id);
     if (response.type === 'level') request.resolve(response.level);
     else request.reject(new Error(response.message));
   }
 
-  /** The worker is unusable: serve what it still owed, and everything after, on the main thread. */
+  /**
+   * The worker died. One that never answered cannot run here: everything goes to
+   * the main thread from now on. One that did is replaced once and its orphans are
+   * posted again; when the replacement dies as well, the orphans are rejected.
+   */
   private onWorkerCrash(): void {
     this.worker?.terminate();
     this.worker = null;
-    this.workerFailed = true;
-    const orphans = [...this.pending.values()];
+    const orphans = [...this.pending.entries()];
+    // An idle worker died: nothing to re-post, so the retry is kept for a real failure.
+    if (orphans.length === 0) return;
     this.pending.clear();
-    for (const request of orphans) {
+    if (!this.everAnswered) {
+      this.workerFailed = true;
+      this.serveOnMainThread(orphans.map(([, request]) => request));
+      return;
+    }
+    if (this.respawned) {
+      this.respawned = false;
+      for (const [, request] of orphans) request.reject(new Error(CRASH_MESSAGE));
+      return;
+    }
+    this.respawned = true;
+    if (!this.ensureWorker()) {
+      this.serveOnMainThread(orphans.map(([, request]) => request));
+      return;
+    }
+    const replacement = this.worker as EndlessWorkerLike | null;
+    for (const [id, request] of orphans) {
+      this.pending.set(id, request);
+      replacement?.postMessage({ type: 'generate', id, seed: request.seed, levelNumber: request.levelNumber });
+    }
+  }
+
+  private serveOnMainThread(requests: PendingRequest[]): void {
+    for (const request of requests) {
       this.generateOnMainThread(request.seed, request.levelNumber).then(request.resolve, request.reject);
     }
   }

@@ -33,6 +33,8 @@ import {
 } from '../core/types';
 import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
+import { parseChipsRequired, parseTimeLimit } from './metadataFields';
+import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   CUSTOM_LEVEL_ID_PREFIX,
   EDITOR_CLONE_LINK_COLOR,
@@ -492,11 +494,15 @@ export class LevelEditor {
       // From now on this editor session updates the saved custom level.
       this.currentLevelId = compiled.id;
       this.draftCustomId = null;
-      const idx = ConfigRegistry.addOrUpdateCustomLevel(compiled);
-      this.isDirty = false;
+      const { index, persisted } = ConfigRegistry.addOrUpdateCustomLevel(compiled);
+      // A refused write keeps the level in memory but leaves the editor dirty,
+      // so leaving the editor still asks before discarding it.
+      this.isDirty = !persisted;
       this.populatePresetDropdown();
-      this.setStatusText(t('editor.palette.status.saved'));
-      this.onLevelSaved(idx);
+      this.setStatusText(
+        persisted ? t('editor.palette.status.saved') : t('editor.palette.status.saved_session_only.label')
+      );
+      this.onLevelSaved(index);
     });
 
     document.getElementById('editor-export-btn')?.addEventListener('click', () => {
@@ -509,7 +515,9 @@ export class LevelEditor {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
       const encoded = DatCodec.encodeLevelsWithReport([compiled]);
-      downloadBytes(encoded.bytes, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`);
+      if (encoded.levelCount > 0) {
+        downloadBytes(encoded.bytes, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`);
+      }
       const notice = lossyExportNotice(encoded);
       if (notice) this.setStatusText(notice);
     });
@@ -523,6 +531,12 @@ export class LevelEditor {
       const file = importInput.files?.[0];
       if (!file) return;
       if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
+        importInput.value = '';
+        return;
+      }
+      const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
+      if (!isImportSizeAllowed(file.size, maxBytes)) {
+        this.setStatusText(t('editor.palette.status.import_too_large.label', { max: formatMegabytes(maxBytes) }));
         importInput.value = '';
         return;
       }
@@ -632,8 +646,8 @@ export class LevelEditor {
     if (passEl && passEl.value.trim()) {
       this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
     }
-    if (timeEl) this.timeLimitSeconds = Math.max(0, Number(timeEl.value) || EDITOR_DEFAULT_TIME_LIMIT_SECONDS);
-    if (chipsEl) this.chipsRequired = Math.max(0, Number(chipsEl.value) || 0);
+    if (timeEl) this.timeLimitSeconds = parseTimeLimit(timeEl.value, this.timeLimitSeconds);
+    if (chipsEl) this.chipsRequired = parseChipsRequired(chipsEl.value, this.chipsRequired);
   }
 
   private createSnapshot(): EditorSnapshot {

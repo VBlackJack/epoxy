@@ -122,6 +122,15 @@ describe('LevelValidator', () => {
     expect(robbed.stats.reachableExit).toBe(false);
   });
 
+  it('does not rob a key picked up after the thief again on a later pass', () => {
+    // The key lies on a spur reached after the door was first tried, so the door only opens on the
+    // second pass. The thief next to the start must not strip the key then: the player never crosses it.
+    const level = grid(['#######', '#ED.PK#', '####.r#', '#######']);
+    const report = LevelValidator.validate(level);
+    expect(report.stats.reachableExit).toBe(true);
+    expect(report.valid).toBe(true);
+  });
+
   it('keeps a barrier against a held key passable, since the key can be put down', () => {
     expect(LevelValidator.validate(grid(['#######', '#PrXE.#', '#######'])).valid).toBe(true);
   });

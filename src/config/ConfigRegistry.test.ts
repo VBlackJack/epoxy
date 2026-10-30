@@ -19,12 +19,13 @@ import { ConfigRegistry } from './ConfigRegistry';
 import {
   assertConfigShape,
   ConfigLoadError,
+  findBlockPuzzleConfigErrors,
   InvalidLevelError,
   isCompiledLevelShape
 } from './ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from './constants';
 import { LevelBlueprint } from '../core/types';
-import { loadTestConfigs } from '../test/loadTestConfigs';
+import { createTestBundle, loadTestConfigs } from '../test/loadTestConfigs';
 
 function blueprint(overrides: Partial<LevelBlueprint> = {}): LevelBlueprint {
   return {
@@ -313,5 +314,42 @@ describe('assertConfigShape', () => {
 
   it('rejects a non-object payload', () => {
     expect(() => assertConfigShape('game.json', [], ['grid'])).toThrow(ConfigLoadError);
+  });
+});
+
+describe('findBlockPuzzleConfigErrors', () => {
+  it('accepts positive integer budgets', () => {
+    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 10, hintSearchBudget: 20 })).toEqual([]);
+  });
+
+  it('names each budget that is missing, fractional or not positive', () => {
+    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 0, hintSearchBudget: 1.5 })).toHaveLength(2);
+    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 10 })).toHaveLength(1);
+    expect(findBlockPuzzleConfigErrors(undefined)).toHaveLength(1);
+  });
+});
+
+describe('game tunables validation', () => {
+  it('accepts the shipped endless dialog cap', () => {
+    expect(() => ConfigRegistry.applyConfigs(createTestBundle())).not.toThrow();
+  });
+
+  it('refuses a missing, zero, fractional or negative start level cap', () => {
+    for (const bad of [undefined, 0, -5, 2.5, '10']) {
+      const bundle = createTestBundle();
+      (bundle.game.endlessUi as unknown as Record<string, unknown>).maxStartLevel = bad;
+      expect(() => ConfigRegistry.applyConfigs(bundle), String(bad)).toThrow(ConfigLoadError);
+    }
+  });
+
+  it('refuses a missing, negative or fractional fallback candidate count', () => {
+    for (const bad of [undefined, -1, 1.5, '2']) {
+      const bundle = createTestBundle();
+      (bundle.game.procedural!.scoring as unknown as Record<string, unknown>).fallbackCandidates = bad;
+      expect(() => ConfigRegistry.applyConfigs(bundle), String(bad)).toThrow(ConfigLoadError);
+    }
+    const off = createTestBundle();
+    off.game.procedural!.scoring.fallbackCandidates = 0;
+    expect(() => ConfigRegistry.applyConfigs(off)).not.toThrow();
   });
 });

@@ -24,14 +24,18 @@ import {
 import {
   assertConfigShape,
   ConfigLoadError,
-  isCompiledLevelShape,
+  ensureUniqueLevelIds,
+  sanitizeStoredLevels,
   isSizeWithinBounds,
   levelSizeBoundsOf,
   GridSize,
   LevelSizeBounds,
+  findBlockPuzzleConfigErrors,
   isDirection,
   isFiniteNumber,
   isInBounds,
+  findDatFormatErrors,
+  findGameTunableErrors,
   InvalidLevelError
 } from './ConfigValidation';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
@@ -55,7 +59,7 @@ import { LevelPackStorage } from '../storage/LevelPackStorage';
 
 /** Top-level keys each config file must define. */
 const REQUIRED_CONFIG_KEYS = {
-  GAME: ['grid', 'timing', 'storage', 'locales', 'keybindings', 'palette'],
+  GAME: ['grid', 'timing', 'storage', 'import', 'locales', 'keybindings', 'palette', 'blockPuzzle'],
   TILES: ['tiles'],
   MONSTERS: ['entities'],
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
@@ -145,6 +149,22 @@ class ConfigRegistryService {
     );
     if (graphicsErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, graphicsErrors.join('; '));
+    }
+    const maxFileBytes: unknown = bundle.game.import?.maxFileBytes;
+    if (typeof maxFileBytes !== 'number' || !Number.isInteger(maxFileBytes) || maxFileBytes <= 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, 'import.maxFileBytes must be a positive integer');
+    }
+    const blockPuzzleErrors = findBlockPuzzleConfigErrors(bundle.game.blockPuzzle);
+    if (blockPuzzleErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, blockPuzzleErrors.join('; '));
+    }
+    const tunableErrors = findGameTunableErrors(bundle.game);
+    if (tunableErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, tunableErrors.join('; '));
+    }
+    const datFormatErrors = findDatFormatErrors(bundle.datFormat, bundle.game.grid);
+    if (datFormatErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.DAT_FORMAT, datFormatErrors.join('; '));
     }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
@@ -339,18 +359,26 @@ class ConfigRegistryService {
     return this.builtInLevels;
   }
 
-  public async registerImportedPack(name: string, levels: CompiledLevel[]): Promise<LevelPack> {
+  /**
+   * Registers an imported pack for this session and persists it. Levels get
+   * unique ids first. A failed write keeps the pack in memory: `persisted`
+   * is false and the caller tells the user it lasts for this session only.
+   */
+  public async registerImportedPack(
+    name: string,
+    levels: CompiledLevel[]
+  ): Promise<{ pack: LevelPack; persisted: boolean }> {
     const cleanId = `pack_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${Date.now()}`;
     const pack: LevelPack = {
       id: cleanId,
       name,
       builtIn: false,
-      levels
+      levels: ensureUniqueLevelIds(levels, cleanId)
     };
     this.importedPacks.push(pack);
-    await LevelPackStorage.savePack(pack);
+    const persisted = await LevelPackStorage.savePack(pack);
     this.setActivePackId(pack.id);
-    return pack;
+    return { pack, persisted };
   }
 
   public async deleteImportedPack(packId: string): Promise<void> {
@@ -432,14 +460,14 @@ class ConfigRegistryService {
     }
 
     return {
-      id: bp.id,
+      id: levelId,
       ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
       ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
       number: bp.number,
-      titleKey: bp.titleKey,
-      customTitle: bp.customTitle,
-      hintKey: bp.hintKey,
-      customHint: bp.customHint,
+      ...(typeof bp.titleKey === 'string' ? { titleKey: bp.titleKey } : {}),
+      ...(typeof bp.customTitle === 'string' ? { customTitle: bp.customTitle } : {}),
+      ...(typeof bp.hintKey === 'string' ? { hintKey: bp.hintKey } : {}),
+      ...(typeof bp.customHint === 'string' ? { customHint: bp.customHint } : {}),
       password: (typeof bp.password === 'string' && bp.password
         ? bp.password
         : DEFAULT_LEVEL_PASSWORD
@@ -500,7 +528,11 @@ class ConfigRegistryService {
     return size;
   }
 
-  public addOrUpdateCustomLevel(level: CompiledLevel): number {
+  /**
+   * Stores a custom level. The in-memory list is updated whatever happens;
+   * `persisted` is false when localStorage refused the write.
+   */
+  public addOrUpdateCustomLevel(level: CompiledLevel): { index: number; persisted: boolean } {
     const existingIdx = this.customLevels.findIndex((l) => l.id === level.id);
     if (existingIdx >= 0) {
       this.customLevels[existingIdx] = level;
@@ -508,9 +540,9 @@ class ConfigRegistryService {
       level.number = this.customLevels.length + 1;
       this.customLevels.push(level);
     }
-    this.saveCustomLevelsToStorage();
+    const persisted = this.saveCustomLevelsToStorage();
     this.setActivePackId(BUILTIN_PACK_IDS.CUSTOM);
-    return existingIdx >= 0 ? existingIdx : this.customLevels.length - 1;
+    return { index: existingIdx >= 0 ? existingIdx : this.customLevels.length - 1, persisted };
   }
 
   private loadCustomLevelsFromStorage(): CompiledLevel[] {
@@ -522,20 +554,22 @@ class ConfigRegistryService {
       const parsed: unknown = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
       const bounds = this.getLevelSizeBounds();
-      return parsed.filter((lvl): lvl is CompiledLevel => isCompiledLevelShape(lvl, bounds));
+      return sanitizeStoredLevels(parsed, bounds);
     } catch {
       return [];
     }
   }
 
-  private saveCustomLevelsToStorage(): void {
+  /** Writes the custom levels; false when storage is full or unavailable. */
+  private saveCustomLevelsToStorage(): boolean {
     try {
       localStorage.setItem(
         this.getStorageKey(this.gameConfig.storage.customLevelsKey),
         JSON.stringify(this.customLevels)
       );
+      return true;
     } catch {
-      // Storage full or unavailable
+      return false;
     }
   }
 }
