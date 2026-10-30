@@ -45,6 +45,7 @@ import {
   TerrainSnapshot
 } from './terrainState';
 import { Light, LightingLayer } from './LightingLayer';
+import { iceBendGeometry, IceBendGeometry, QUARTER_TURN } from './iceBend';
 import { cellHash, hasAll, ISOLATED_TILE, NEIGHBOUR, TileNeighbours, tileNeighbours } from './tileNeighbours';
 
 interface Particle {
@@ -227,6 +228,18 @@ const FIRE_EMBER_SIZE_TILE = 0.04;
 const ICE_GLINT_SPEED = 0.18;
 const ICE_GLINT_WINDOW = 0.18;
 const ICE_GLINT_WIDTH_TILE = 0.06;
+/**
+ * Ice bends: the slide path through a corner tile is a quarter-circle band centred on the open
+ * corner of the cell. Radii and widths are fractions of a tile.
+ */
+const ICE_BEND_RADIUS_TILE = 0.5;
+const ICE_BEND_BAND_WIDTH_TILE = 0.3;
+const ICE_BEND_STREAK_WIDTH_TILE = 0.06;
+const ICE_BEND_RIM_WIDTH_TILE = 0.05;
+/** Angular length (radians) of the glint that runs along a bend; it changes direction every cycle. */
+const ICE_BEND_GLINT_SPAN = 0.5;
+/** Retro ice keeps a one-dot floor gutter around the cell; bends keep the same so the seam is even. */
+const RETRO_ICE_INSET_PX = 1;
 
 /** Mechanism wires and objective beacon styling. */
 const LINK_DASH_PATTERN: number[] = [6, 4];
@@ -300,6 +313,8 @@ export class PixelRenderer {
   private litTiles: ReadonlySet<string> = new Set();
   /** Retro shadow dithering, one pattern per dot size and colour. */
   private readonly ditherPatterns: Map<string, CanvasPattern> = new Map();
+  /** Bend geometry per corner ice tile id, null for ice that slides straight. */
+  private readonly iceBends: Map<string, IceBendGeometry | null> = new Map();
 
   private readonly lighting = new LightingLayer();
   /** Lights gathered while drawing a frame, reused across frames. */
@@ -355,7 +370,10 @@ export class PixelRenderer {
     this.lcdEnabled = enabled;
   }
 
-  /** With reduced motion, the opening iris, the hops, the bobbing and the screen shake are skipped. */
+  /**
+   * With reduced motion, the opening iris, the hops, the bobbing, the screen shake and the ice
+   * glints are skipped.
+   */
   public setReducedMotion(reduced: boolean): void {
     this.reducedMotion = reduced;
   }
@@ -1378,6 +1396,16 @@ export class PixelRenderer {
       case 'ice_ne':
       case 'ice_sw':
       case 'ice_se': {
+        const bend = this.iceBend(tileId);
+        if (bend) {
+          this.drawIceBend(ctx, bend, x, y, size, RETRO_ICE_INSET_PX, {
+            wall: pal.iceCornerWall,
+            fill: pal.iceBase,
+            band: pal.iceBendBand,
+            streak: pal.iceShine
+          });
+          break;
+        }
         ctx.fillStyle = pal.iceBase;
         ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
         ctx.strokeStyle = pal.iceShine;
@@ -1386,7 +1414,6 @@ export class PixelRenderer {
         ctx.moveTo(x + size * 0.2, y + size * 0.8);
         ctx.lineTo(x + size * 0.8, y + size * 0.2);
         ctx.stroke();
-        this.fillIceCorner(ctx, tileId, x, y, size, pal.iceCornerWall);
         break;
       }
 
@@ -2031,6 +2058,17 @@ export class PixelRenderer {
         iGrad.addColorStop(0, pal.modernIceTop);
         iGrad.addColorStop(0.5, pal.modernIceMid);
         iGrad.addColorStop(1, pal.modernIceBottom);
+        const bend = this.iceBend(tileId);
+        if (bend) {
+          this.drawIceBend(ctx, bend, x, y, size, 0, {
+            wall: pal.modernIceCornerWall,
+            fill: iGrad,
+            band: pal.modernIceBendBand,
+            streak: pal.modernIceStreak,
+            rim: pal.modernIceBendRim || pal.modernIceStreak
+          });
+          break;
+        }
         ctx.fillStyle = iGrad;
         ctx.fillRect(x, y, size, size);
 
@@ -2041,8 +2079,6 @@ export class PixelRenderer {
         ctx.moveTo(x + size * 0.18, y + size * 0.78);
         ctx.lineTo(x + size * 0.78, y + size * 0.18);
         ctx.stroke();
-
-        this.fillIceCorner(ctx, tileId, x, y, size, pal.modernIceCornerWall);
         break;
       }
 
@@ -2397,10 +2433,21 @@ export class PixelRenderer {
       case 'ice_ne':
       case 'ice_sw':
       case 'ice_se': {
-        // Now and then, a glint sweeps diagonally across the ice.
-        const cycle = ((t * ICE_GLINT_SPEED + phase) % FULL_TURN) / FULL_TURN;
+        // Now and then, a glint sweeps diagonally across the ice; with reduced motion the ice rests.
+        if (this.reducedMotion) break;
+        const turns = (t * ICE_GLINT_SPEED + phase) / FULL_TURN;
+        const cycle = turns % 1;
         if (cycle > ICE_GLINT_WINDOW) break;
         const sweep = cycle / ICE_GLINT_WINDOW;
+        const bend = this.iceBend(tileId);
+        if (bend) {
+          // On a bend the glint runs along the curve, one way then the other on alternating
+          // cycles, so both travel directions through the corner get shown.
+          const forward = Math.floor(turns) % 2 === 0;
+          const progress = forward ? sweep : 1 - sweep;
+          this.drawIceBendGlint(ctx, bend, x, y, size, progress, Math.sin(sweep * Math.PI), pal.iceGlint);
+          break;
+        }
         const offset = size * (sweep * 2 - 0.5);
         ctx.save();
         ctx.beginPath();
@@ -2547,40 +2594,107 @@ export class PixelRenderer {
     ctx.restore();
   }
 
-  /** Dark wedge filling the walled half of a corner ice tile. */
-  private fillIceCorner(
+  /** Bend geometry of a corner ice tile, read once per tile id from its definition; null for plain ice. */
+  private iceBend(tileId: string): IceBendGeometry | null {
+    const cached = this.iceBends.get(tileId);
+    if (cached !== undefined) return cached;
+    const bend = iceBendGeometry(ConfigRegistry.getTile(tileId));
+    this.iceBends.set(tileId, bend);
+    return bend;
+  }
+
+  /**
+   * A corner ice tile drawn as a rounded bend: the walled corner of the cell stays solid, the open
+   * quadrant is a quarter disc of ice reaching both open edges, and a band along the slide path
+   * carries a specular streak. The optional rim lights the curved edge. `insetPx` shrinks the
+   * whole bend by that many pixels on each side, matching a renderer that leaves a gutter around
+   * its ice cells.
+   */
+  private drawIceBend(
     ctx: CanvasRenderingContext2D,
-    tileId: string,
+    bend: IceBendGeometry,
+    cellX: number,
+    cellY: number,
+    cellSize: number,
+    insetPx: number,
+    paint: { wall: string; fill: string | CanvasGradient; band: string; streak: string; rim?: string }
+  ): void {
+    const x = cellX + insetPx;
+    const y = cellY + insetPx;
+    const size = cellSize - insetPx * 2;
+    const cx = x + bend.cx * size;
+    const cy = y + bend.cy * size;
+    const endAngle = bend.startAngle + QUARTER_TURN;
+    ctx.save();
+    ctx.lineCap = 'butt';
+
+    ctx.fillStyle = paint.wall;
+    ctx.fillRect(x, y, size, size);
+
+    // Open quadrant: the arc reaches the far corner of each open edge, so plain ice next door joins it.
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, size, bend.startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = paint.fill;
+    ctx.fill();
+
+    const radius = size * ICE_BEND_RADIUS_TILE;
+    ctx.strokeStyle = paint.band;
+    ctx.lineWidth = size * ICE_BEND_BAND_WIDTH_TILE;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, bend.startAngle, endAngle);
+    ctx.stroke();
+
+    ctx.strokeStyle = paint.streak;
+    ctx.lineWidth = Math.max(1, size * ICE_BEND_STREAK_WIDTH_TILE);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, bend.startAngle, endAngle);
+    ctx.stroke();
+
+    if (paint.rim) {
+      const rimWidth = Math.max(1, size * ICE_BEND_RIM_WIDTH_TILE);
+      ctx.strokeStyle = paint.rim;
+      ctx.lineWidth = rimWidth;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size - rimWidth / 2, bend.startAngle, endAngle);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * A glint travelling along the band of an ice bend. `progress` 0 puts it at the start of the
+   * arc and 1 at its end; the glint is clipped to the open quadrant as it enters and leaves.
+   */
+  private drawIceBendGlint(
+    ctx: CanvasRenderingContext2D,
+    bend: IceBendGeometry,
     x: number,
     y: number,
     size: number,
+    progress: number,
+    alpha: number,
     color: string
   ): void {
-    const right = x + size;
-    const bottom = y + size;
+    const cx = x + bend.cx * size;
+    const cy = y + bend.cy * size;
+    const endAngle = bend.startAngle + QUARTER_TURN;
+    const from = bend.startAngle - ICE_BEND_GLINT_SPAN + progress * (QUARTER_TURN + ICE_BEND_GLINT_SPAN);
+    ctx.save();
     ctx.beginPath();
-    if (tileId === 'ice_nw') {
-      ctx.moveTo(x, y);
-      ctx.lineTo(right, y);
-      ctx.lineTo(x, bottom);
-    } else if (tileId === 'ice_ne') {
-      ctx.moveTo(x, y);
-      ctx.lineTo(right, y);
-      ctx.lineTo(right, bottom);
-    } else if (tileId === 'ice_sw') {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x, bottom);
-      ctx.lineTo(right, bottom);
-    } else if (tileId === 'ice_se') {
-      ctx.moveTo(right, y);
-      ctx.lineTo(right, bottom);
-      ctx.lineTo(x, bottom);
-    } else {
-      return;
-    }
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, size, bend.startAngle, endAngle);
     ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
+    ctx.clip();
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = size * ICE_BEND_BAND_WIDTH_TILE;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * ICE_BEND_RADIUS_TILE, from, from + ICE_BEND_GLINT_SPAN);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private buttonColor(tileId: string): string {
