@@ -154,7 +154,7 @@
   "procedural": {
     "defaultLevelCount": 10,
     "maxGenerationAttempts": 40,
-    "basePieceCount": 2,
+    "basePieceCount": 1,
     "levelsPerExtraPiece": 1,
     "maxPieceCount": 6,
     "motifCountByLevel": [1, 1, 2, 2, 3, 3, 4],
@@ -163,12 +163,17 @@
     "regionGrowthPerLevel": 2,
     "regionGrowthPerRetry": 2,
     "placementSamplesPerPiece": 80,
+    "layoutSamples": 4,
+    "placementCompactness": 1.5,
     "minCorridorLength": 2,
-    "maxCorridorLength": 9,
+    "maxCorridorLength": 6,
     "restRoomEvery": 3,
     "hardPiecesFromLevel": 4,
     "oneShotFromLevel": 5,
-    "bootAlcoveLength": 2,
+    "maxPieceDeadEnds": 0,
+    "irreversibleMotifs": ["sokoban"],
+    "noRepeatWindow": 2,
+    "firstLevelExcludedMotifs": ["monsters", "teleport", "trap", "thief"],
     "untimedUpToLevel": 3,
     "thinkSecondsPerPiece": 20,
     "timeSlackFactor": 2,
@@ -177,23 +182,27 @@
     "hub": {
       "fromLevel": 3,
       "shapes": [
-        { "id": "square", "rows": [".....", ".....", ".....", ".....", "....."] },
+        { "id": "square", "rows": [".......", ".......", ".......", ".......", ".......", ".......", "......."] },
         { "id": "cross", "rows": ["##...##", "##...##", ".......", ".......", ".......", "##...##", "##...##"] },
         { "id": "ring", "rows": [".......", ".......", "..###..", "..###..", "..###..", ".......", "......."] },
-        { "id": "hall", "rows": [".........", ".........", "........."] },
-        { "id": "gallery", "rows": ["...", "...", "...", "...", "...", "...", "...", "...", "..."] },
-        { "id": "pillars", "rows": [".......", ".#.#.#.", ".......", ".#.#.#.", "......."] },
-        { "id": "corner", "rows": ["...####", "...####", "...####", ".......", ".......", "......."] }
+        { "id": "hall", "rows": ["...........", "...........", "...........", "...........", "..........."] },
+        { "id": "gallery", "rows": [".....", ".....", ".....", ".....", ".....", ".....", ".....", ".....", ".....", ".....", "....."] },
+        { "id": "pillars", "rows": [".........", ".#.#.#.#.", ".........", ".#.#.#.#.", ".........", ".#.#.#.#.", "........."] },
+        { "id": "corner", "rows": ["....####", "....####", "....####", "........", "........", "........", "........"] }
       ],
       "maxShift": 7,
       "openWings": 2,
       "maxConnectorLength": 2,
-      "rewardRoomWidths": [2, 3, 4],
-      "rewardRoomDepths": [1, 2, 3],
+      "rewardRoomWidths": [2, 3, 4, 5],
+      "rewardRoomDepths": [2, 3, 4],
       "rewardRoomPillarMinSize": 3,
       "rewardChips": 1,
       "hubChips": 1,
       "hazardDepth": 2,
+      "wingPlacementSamples": 16,
+      "layoutSamples": 16,
+      "bayCells": 90,
+      "fillTarget": 0.4,
       "attemptsPerDroppedPiece": 8,
       "doorGates": [
         { "terrain": "door_red", "item": "key_red" },
@@ -222,7 +231,7 @@
       "thief": "cyber_neon"
     },
     "scoring": {
-      "candidates": 3,
+      "candidates": 2,
       "targetMovesBase": 60,
       "targetMovesPerLevel": 15,
       "lengthTolerance": 0.35,
@@ -233,7 +242,12 @@
       "weightJunction": 0.8,
       "weightCorridor": 0.6,
       "weightRevisit": 0.4,
-      "weightVariety": 0.3
+      "weightVariety": 0.3,
+      "deadShareCeiling": 0.06,
+      "walkPerDecisionLow": 0.6,
+      "walkPerDecisionHigh": 1.6,
+      "weightDeadEnd": 1.2,
+      "weightWalk": 0.4
     }
   },
   "touch": {
@@ -306,6 +320,7 @@
     "settingsKey": "user_settings",
     "highScoresKey": "high_scores",
     "activePackKey": "active_pack",
+    "lastProceduralSeedKey": "last_procedural_seed",
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
   },

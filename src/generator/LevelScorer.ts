@@ -16,7 +16,9 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { measurePlayfield } from '../core/PlayfieldMetrics';
 import { CompiledLevel, GridPoint, ProceduralScoringConfig } from '../core/types';
+import { isPlayerWalkable } from '../core/Walkability';
 import { Box } from './LevelAssembler';
 
 /** Neighbour count from which a cell is a junction, a place with a choice. */
@@ -32,6 +34,9 @@ export interface ScoreInputs {
   visitedCells: number;
   motifCount: number;
   motifBudget: number;
+  /** Actions of the winning run spent outside pieces, and inside them. */
+  walkMoves: number;
+  pieceMoves: number;
 }
 
 export interface LevelScore {
@@ -40,6 +45,10 @@ export interface LevelScore {
   junctionShare: number;
   corridorShare: number;
   revisitRatio: number;
+  /** Share of the playfield that is a dead end. */
+  deadShare: number;
+  /** Moves walked between pieces per move spent solving them. */
+  walkPerDecision: number;
 }
 
 /** 1 inside [low, high], falling linearly to 0 one band width away. */
@@ -58,17 +67,16 @@ function band(value: number, low: number, high: number): number {
  * - junctionShare: open floor near places with a choice, against long tubes;
  * - corridor: little of the walkable floor is bare corridor;
  * - revisit: some backtracking, in a band, neither none nor much;
- * - variety: motifs used against the level's budget.
+ * - variety: motifs used against the level's budget;
+ * - deadEnd: few dead ends on the playfield, the cells reachable from the start;
+ * - walk: walking between pieces in proportion to the thinking inside them.
  */
 export function scoreLevel(inputs: ScoreInputs, levelNumber: number, cfg: ProceduralScoringConfig): LevelScore {
   const { level } = inputs;
   const height = level.terrain.length;
   const width = height > 0 ? level.terrain[0].length : 0;
   const walkable = level.terrain.map((row) =>
-    row.map((id) => {
-      const tile = ConfigRegistry.getTile(id);
-      return Boolean(tile.passableByPlayer || tile.requiredKey || tile.requiresAllChips || tile.togglesTo);
-    })
+    row.map((id) => isPlayerWalkable(ConfigRegistry.getTile(id)))
   );
   const isOpen = (p: GridPoint): boolean => p.x >= 0 && p.y >= 0 && p.x < width && p.y < height && walkable[p.y][p.x];
   const inBox = (p: GridPoint): boolean =>
@@ -102,12 +110,16 @@ export function scoreLevel(inputs: ScoreInputs, levelNumber: number, cfg: Proced
   const corridorShare = walkableCount > 0 ? corridorCells / walkableCount : 1;
   const revisitRatio = inputs.visitedCells > 0 ? inputs.solutionLength / inputs.visitedCells : 0;
   const variety = inputs.motifBudget > 0 ? Math.min(1, inputs.motifCount / inputs.motifBudget) : 0;
+  const deadShare = measurePlayfield(walkable, level.playerStart).deadShare;
+  const walkPerDecision = inputs.pieceMoves > 0 ? inputs.walkMoves / inputs.pieceMoves : 0;
 
   const total =
     cfg.weightLength * lengthFit +
     cfg.weightJunction * junctionShare +
     cfg.weightCorridor * (1 - Math.min(1, corridorShare / cfg.corridorShareCeiling)) +
     cfg.weightRevisit * band(revisitRatio, cfg.revisitLow, cfg.revisitHigh) +
-    cfg.weightVariety * variety;
-  return { total, lengthFit, junctionShare, corridorShare, revisitRatio };
+    cfg.weightVariety * variety +
+    cfg.weightDeadEnd * (1 - Math.min(1, deadShare / cfg.deadShareCeiling)) +
+    cfg.weightWalk * band(walkPerDecision, cfg.walkPerDecisionLow, cfg.walkPerDecisionHigh);
+  return { total, lengthFit, junctionShare, corridorShare, revisitRatio, deadShare, walkPerDecision };
 }

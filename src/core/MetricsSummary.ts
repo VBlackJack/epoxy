@@ -29,6 +29,13 @@ export const SUMMARIZED_FIELDS = [
   'chipsRequired',
   'chipSpread',
   'monsterCount',
+  'hasMonsters',
+  'playfieldCells',
+  'playfieldFill',
+  'openShare',
+  'deadShare',
+  'junctionShare',
+  'symmetry',
   'timeSlackRatio'
 ] as const satisfies readonly (keyof LevelMetricsReport)[];
 

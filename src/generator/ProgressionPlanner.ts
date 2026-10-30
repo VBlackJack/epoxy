@@ -23,7 +23,7 @@ import { CompiledPiece, MotifRule } from './PieceTypes';
 /** One step of a level: the items to hand over first, then the piece to cross. */
 export interface PlannedStep {
   piece: CompiledPiece;
-  /** Boots and keys placed in an alcove just before the piece. */
+  /** Boots and keys placed on the corridor just before the piece. */
   giveBefore: string[];
 }
 
@@ -91,10 +91,12 @@ export class ProgressionPlanner {
     library: CompiledPiece[],
     rules: Record<string, MotifRule>,
     rng: SeededRandom,
-    script?: LevelScript
+    script?: LevelScript,
+    lead?: string,
+    avoid: string[] = []
   ): LevelPlan {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
-    const selection = this.selectPuzzles(levelNumber, library, rules, rng, script);
+    const selection = this.selectPuzzles(levelNumber, library, rules, rng, script, undefined, 0, lead, avoid);
     const chosen = this.withRestRooms(
       selection.puzzles.map((p) => this.randomOrientation(p, rng)),
       selection.restRooms,
@@ -118,33 +120,71 @@ export class ProgressionPlanner {
     rng: SeededRandom,
     script?: LevelScript,
     accept: (piece: CompiledPiece) => boolean = () => true,
-    piecesDropped = 0
+    piecesDropped = 0,
+    lead?: string,
+    avoid: string[] = []
   ): PuzzleSelection {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
     const base = script
       ? { pieceCount: script.pieceCount, motifCount: script.motifs.length, maxTier: script.maxTier }
       : budgetFor(levelNumber, cfg);
-    const budget = { ...base, pieceCount: Math.max(MIN_PUZZLES, base.pieceCount - piecesDropped) };
+    // Dropping pieces never goes below MIN_PUZZLES, and never grows a smaller budget.
+    const budget = {
+      ...base,
+      pieceCount: Math.max(Math.min(MIN_PUZZLES, base.pieceCount), base.pieceCount - piecesDropped)
+    };
     const finale = library.find((p) => rules[p.motif]?.role === 'finale');
     if (!finale) throw new Error('motifs.json defines no finale piece');
 
     const restRooms = library.filter((p) => rules[p.motif]?.role === 'rest');
-    const playable = library.filter(
+    const playable = this.playablePieces(levelNumber, library, rules, budget.maxTier, accept, !script);
+    const motifPool = [...new Set(playable.map((p) => p.motif))];
+    rng.shuffle(motifPool);
+    // A wanted lead motif goes first; the others fill the motif budget. With none
+    // wanted, motifs the neighbouring levels lead with are kept out of the lead spot.
+    const wanted = lead !== undefined && motifPool.includes(lead) ? lead : undefined;
+    if (wanted === undefined && avoid.length > 0) {
+      const apart = motifPool.filter((m) => !avoid.includes(m));
+      motifPool.splice(0, motifPool.length, ...apart, ...motifPool.filter((m) => avoid.includes(m)));
+    }
+    const others = wanted === undefined ? motifPool : motifPool.filter((m) => m !== wanted);
+    const motifs = script
+      ? script.motifs.filter((m) => motifPool.includes(m))
+      : [...(wanted === undefined ? [] : [wanted]), ...others].slice(0, Math.min(budget.motifCount, motifPool.length));
+
+    const preferHard = levelNumber >= cfg.hardPiecesFromLevel;
+    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng, cfg, preferHard);
+    return { puzzles, motifs, finale, restRooms };
+  }
+
+  /**
+   * Puzzle pieces a level may draw from: no role pieces, within the tier cap,
+   * one-shots only late, and on level 1 of a generated pack (`onboarding`)
+   * none of the motifs kept for later.
+   */
+  public static playablePieces(
+    levelNumber: number,
+    library: CompiledPiece[],
+    rules: Record<string, MotifRule>,
+    maxTier: number,
+    accept: (piece: CompiledPiece) => boolean = () => true,
+    onboarding = true
+  ): CompiledPiece[] {
+    const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
+    const excluded = onboarding && levelNumber === 1 ? cfg.firstLevelExcludedMotifs : [];
+    return library.filter(
       (p) =>
         rules[p.motif]?.role === undefined &&
-        p.tier <= budget.maxTier &&
+        !excluded.includes(p.motif) &&
+        p.tier <= maxTier &&
         (!p.oneShot || levelNumber >= cfg.oneShotFromLevel) &&
         accept(p)
     );
-    const motifPool = [...new Set(playable.map((p) => p.motif))];
-    rng.shuffle(motifPool);
-    const motifs = script
-      ? script.motifs.filter((m) => motifPool.includes(m))
-      : motifPool.slice(0, Math.min(budget.motifCount, motifPool.length));
+  }
 
-    const preferHard = levelNumber >= cfg.hardPiecesFromLevel;
-    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng, preferHard);
-    return { puzzles, motifs, finale, restRooms };
+  /** A puzzle that can be failed for good: best met early in a level, before long walks. */
+  public static isIrreversible(piece: CompiledPiece, cfg: ProceduralConfig): boolean {
+    return piece.oneShot || piece.reversible === false || cfg.irreversibleMotifs.includes(piece.motif);
   }
 
   private static choosePieces(
@@ -153,6 +193,7 @@ export class ProgressionPlanner {
     playable: CompiledPiece[],
     rules: Record<string, MotifRule>,
     rng: SeededRandom,
+    cfg: ProceduralConfig,
     preferHard = false
   ): CompiledPiece[] {
     const used = new Map<string, number>();
@@ -171,11 +212,15 @@ export class ProgressionPlanner {
       const highestTier = Math.max(...fresh.map((p) => p.tier));
       // Early on, a motif is introduced by one of its easiest pieces; later
       // levels draw its hardest unseen pieces instead.
-      const pool = preferHard
+      const wide = preferHard
         ? fresh.filter((p) => p.tier === highestTier)
         : introduce
           ? candidates.filter((p) => p.tier === lowestTier)
           : fresh;
+      // Pieces with few dead ends keep the level open: those within the limit, or
+      // the tidiest ones when the motif has none that tidy.
+      const limit = Math.max(cfg.maxPieceDeadEnds, Math.min(...wide.map((p) => p.deadEnds)));
+      const pool = wide.filter((p) => p.deadEnds <= limit);
       const piece = pool[rng.nextInt(0, pool.length - 1)];
       used.set(motif, (used.get(motif) ?? 0) + 1);
       usedIds.add(piece.id);
@@ -192,8 +237,12 @@ export class ProgressionPlanner {
       const piece = pick(motifs[rng.nextInt(0, motifs.length - 1)], false);
       if (piece) chosen.push(piece);
     }
-    // Easier pieces first: a motif is met in its simple form before its twist.
-    chosen.sort((a, b) => a.tier - b.tier);
+    // Puzzles that can be failed for good come first, then easier pieces first: a
+    // motif is met in its simple form before its twist.
+    chosen.sort(
+      (a, b) =>
+        Number(this.isIrreversible(b, cfg)) - Number(this.isIrreversible(a, cfg)) || a.tier - b.tier
+    );
     return chosen;
   }
 

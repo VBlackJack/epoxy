@@ -31,6 +31,12 @@ const LIBRARY_TIMEOUT_MS = 300000;
 const RANDOM_MOVEMENT_PATTERNS = ['forward_else_random', 'pure_random'];
 /** Arrival offsets, in steps, a monster piece must stay solvable from. */
 const ARRIVAL_PHASES_CHECKED = 12;
+/** Extra waits at the entry that a monster piece must survive, one replay each. */
+const EXTRA_ENTRY_WAITS = [1, 2, 3, 4, 5, 6, 7, 8];
+/** Entry waits tried in every rotation and mirror of a monster piece. */
+const ORIENTED_ENTRY_WAITS = [0, 3, 7];
+/** Live solving budget: a monster piece is searched in the browser, so it must stay small. */
+const MONSTER_SOLVE_STATE_BUDGET = 25000;
 
 function piece(rows: string[], extra: Partial<PieceDefinition> = {}): CompiledPiece {
   return compilePiece(
@@ -131,12 +137,36 @@ describe('motif library', () => {
   );
 
   it(
+    'every monster piece still wins when the player waits at the entry first, within the live solving budget',
+    () => {
+      for (const p of pieces.filter((candidate) => PieceSolver.hasMonsters(candidate))) {
+        for (const waits of EXTRA_ENTRY_WAITS) {
+          const result = PieceSolver.solve(p, { startWaits: waits });
+          expect(result.solvable, `${p.id} after ${waits} extra waits`).toBe(true);
+          expect(result.statesExplored, `${p.id} search size`).toBeLessThanOrEqual(MONSTER_SOLVE_STATE_BUDGET);
+          const replay = [...Array<SolverAction>(waits).fill('WAIT'), ...(result.moves ?? [])];
+          expect(winsWith(p, replay), `${p.id} replay with ${waits} extra waits`).toBe(true);
+        }
+        for (const o of ALL_ORIENTATIONS) {
+          const oriented = orientPiece(p, o);
+          for (const waits of ORIENTED_ENTRY_WAITS) {
+            expect(PieceSolver.solve(oriented, { startWaits: waits }).solvable, `${p.id} ${JSON.stringify(o)} after ${waits} waits`).toBe(true);
+          }
+        }
+      }
+    },
+    LIBRARY_TIMEOUT_MS
+  );
+
+  it(
     'every annotated solution wins the piece in every allowed orientation',
     () => {
       for (const p of pieces) {
         const orientations = p.rotatable ? ALL_ORIENTATIONS : [ALL_ORIENTATIONS[0]];
         for (const o of orientations) {
           const oriented = orientPiece(p, o);
+          // A mirror image turns a left-wall follower into a right-wall one: no stored solution.
+          if (o.mirrored && PieceSolver.hasMonsters(p)) continue;
           expect(winsWith(oriented, oriented.solution ?? []), `${p.id} ${JSON.stringify(o)}`).toBe(true);
         }
       }

@@ -40,6 +40,13 @@ import {
   UserSettings
 } from './core/types';
 import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
+import {
+  clampStartLevel,
+  copyTextToClipboard,
+  parseSeedInput,
+  readStoredSeed,
+  SEED_MAX_VALUE
+} from './ui/proceduralPack';
 import { downloadBytes } from './ui/download';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
@@ -84,7 +91,8 @@ const NO_WARNED_SECOND = -1;
 const MODAL_IDS = {
   SCORES: 'scores-modal',
   HELP: 'help-modal',
-  PASSWORD: 'password-modal'
+  PASSWORD: 'password-modal',
+  PROCEDURAL: 'procedural-modal'
 } as const;
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T | null {
@@ -128,6 +136,10 @@ class EpoxyApplication {
   /** Engine level the editor content was last synced with. */
   private editorSourceLevel: CompiledLevel | null = null;
   private generatingPack = false;
+  /** Seed of the procedural pack currently loaded, null before any generation. */
+  private proceduralSeed: number | null = null;
+  /** Last seed used this session, mirrored to localStorage. */
+  private lastProceduralSeed: number | null = null;
   /** The theme follows each level instead of the player's pick. */
   private autoTheme = true;
   /** Block positions last checked for a dead end. */
@@ -188,6 +200,9 @@ class EpoxyApplication {
       this.setupQualitySelector();
       this.updateHUD();
       this.editor.refreshTranslations();
+      // translateDOM resets the seed placeholder to its generic text.
+      const seedInput = byId<HTMLInputElement>('procedural-seed-input');
+      if (seedInput && this.lastProceduralSeed !== null) seedInput.placeholder = this.proceduralSeedPlaceholder();
     });
 
     this.startGameLoop();
@@ -445,6 +460,7 @@ class EpoxyApplication {
       }
       select.appendChild(opt);
     }
+    this.updateProceduralSeedBox();
   }
 
   private async handleImportedFile(file: File): Promise<void> {
@@ -490,17 +506,92 @@ class EpoxyApplication {
     return rawList.map((item) => ConfigRegistry.compileBlueprint(item));
   }
 
+  private getProceduralLevelCount(): number {
+    return ConfigRegistry.getGame().procedural?.defaultLevelCount ?? 1;
+  }
+
+  private loadLastProceduralSeed(): number | null {
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastProceduralSeedKey);
+      return readStoredSeed(localStorage.getItem(key));
+    } catch {
+      // Storage blocked: the in-memory value still works for this session.
+      return null;
+    }
+  }
+
+  private rememberProceduralSeed(seed: number): void {
+    this.lastProceduralSeed = seed;
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastProceduralSeedKey);
+      localStorage.setItem(key, String(seed));
+    } catch {
+      // Storage blocked: keep the in-memory value only.
+    }
+  }
+
+  /** Seed field placeholder: mentions the last seed used when there is one. */
+  private proceduralSeedPlaceholder(): string {
+    return this.lastProceduralSeed === null
+      ? t('app.packs.procedural_dialog.seed_placeholder.label')
+      : t('app.packs.procedural_dialog.seed_placeholder_last.label', { seed: this.lastProceduralSeed });
+  }
+
+  /** Opens the pack dialog: empty seed field (random), start level reset to 1. */
+  private openProceduralModal(): void {
+    if (this.generatingPack) return;
+    const seedInput = byId<HTMLInputElement>('procedural-seed-input');
+    const startSelect = byId<HTMLSelectElement>('procedural-start-select');
+    this.lastProceduralSeed ??= this.loadLastProceduralSeed();
+    if (seedInput) {
+      seedInput.value = '';
+      seedInput.setAttribute('aria-invalid', 'false');
+      seedInput.placeholder = this.proceduralSeedPlaceholder();
+    }
+    byId('procedural-seed-error')?.classList.add('hidden');
+    if (startSelect) {
+      startSelect.innerHTML = '';
+      for (let n = 1; n <= this.getProceduralLevelCount(); n++) {
+        const opt = document.createElement('option');
+        opt.value = String(n);
+        opt.textContent = String(n);
+        startSelect.appendChild(opt);
+      }
+    }
+    this.openModal(MODAL_IDS.PROCEDURAL, seedInput);
+  }
+
+  /** Validates the dialog, then generates; an invalid seed keeps the dialog open. */
+  private submitProceduralModal(): void {
+    const seedInput = byId<HTMLInputElement>('procedural-seed-input');
+    const startSelect = byId<HTMLSelectElement>('procedural-start-select');
+    const errorEl = byId('procedural-seed-error');
+    const parsed = parseSeedInput(seedInput?.value ?? '');
+    if (!parsed.valid) {
+      if (errorEl) {
+        errorEl.textContent = t('app.packs.procedural_dialog.seed_invalid.label', { max: SEED_MAX_VALUE });
+        errorEl.classList.remove('hidden');
+      }
+      seedInput?.setAttribute('aria-invalid', 'true');
+      seedInput?.focus();
+      return;
+    }
+    const startLevel = clampStartLevel(
+      Number.parseInt(startSelect?.value ?? '', 10),
+      this.getProceduralLevelCount()
+    );
+    this.closeModal(MODAL_IDS.PROCEDURAL);
+    void this.generateProceduralPack(parsed.seed ?? ProceduralGenerator.createSeed(), startLevel);
+  }
+
   /** Builds a pack level by level, showing progress; ignores requests while one is running. */
-  private async generateProceduralPack(): Promise<void> {
+  private async generateProceduralPack(seed: number, startLevel: number): Promise<void> {
     if (this.generatingPack) return;
     this.generatingPack = true;
     let levels: CompiledLevel[];
     try {
-      levels = await ProceduralGenerator.generatePackAsync(
-        undefined,
-        ProceduralGenerator.createSeed(),
-        (done, total) =>
-          this.showTransientStatus(t('app.packs.procedural_progress.label', { done, total }))
+      levels = await ProceduralGenerator.generatePackAsync(undefined, seed, (done, total) =>
+        this.showTransientStatus(t('app.packs.procedural_progress.label', { done, total }))
       );
     } catch (err) {
       if (!(err instanceof ProceduralGenerationError)) throw err;
@@ -509,12 +600,36 @@ class EpoxyApplication {
     } finally {
       this.generatingPack = false;
     }
+    this.proceduralSeed = seed;
+    this.rememberProceduralSeed(seed);
     ConfigRegistry.setProceduralLevels(levels);
     this.refreshPackSelector();
     this.editor.populatePresetDropdown();
     this.switchMode('play');
-    this.startLevelByIndex(0);
-    this.showTransientStatus(t('app.packs.procedural_toast.label', { count: levels.length }));
+    this.startLevelByIndex(clampStartLevel(startLevel, levels.length) - 1);
+    this.showTransientStatus(t('app.packs.procedural_toast.label', { count: levels.length, seed }));
+  }
+
+  /** Shows the seed and its copy button only while the procedural pack is the active one. */
+  private updateProceduralSeedBox(): void {
+    const box = byId('procedural-seed-box');
+    const label = byId('procedural-seed-label');
+    const copyBtn = byId<HTMLButtonElement>('btn-copy-seed');
+    const seed = this.proceduralSeed;
+    const visible = seed !== null && ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PROCEDURAL;
+    box?.classList.toggle('hidden', !visible);
+    if (!visible) return;
+    if (label) label.textContent = t('app.packs.procedural_seed.label', { seed });
+    copyBtn?.setAttribute('aria-label', t('app.packs.procedural_seed_copy_aria.label', { seed }));
+  }
+
+  private async copyProceduralSeed(): Promise<void> {
+    if (this.proceduralSeed === null) return;
+    const seed = this.proceduralSeed;
+    const copied = await copyTextToClipboard(String(seed));
+    this.showTransientStatus(
+      t(copied ? 'app.packs.procedural_seed_copied.label' : 'app.packs.procedural_seed_copy_failed.label', { seed })
+    );
   }
 
   private exportActivePack(): void {
@@ -1115,6 +1230,7 @@ class EpoxyApplication {
     const packSelect = byId<HTMLSelectElement>('pack-select');
     packSelect?.addEventListener('change', () => {
       ConfigRegistry.setActivePackId(packSelect.value);
+      this.updateProceduralSeedBox();
       this.editor.populatePresetDropdown();
       this.startLevelByIndex(0);
     });
@@ -1124,8 +1240,12 @@ class EpoxyApplication {
     });
 
     byId('btn-procedural-pack')?.addEventListener('click', () => {
-      void this.generateProceduralPack();
+      this.openProceduralModal();
     });
+    byId('btn-copy-seed')?.addEventListener('click', () => {
+      void this.copyProceduralSeed();
+    });
+    this.bindProceduralModal();
 
     const packFileInput = byId<HTMLInputElement>('pack-file-input');
     packFileInput?.addEventListener('change', () => {
@@ -1236,7 +1356,7 @@ class EpoxyApplication {
 
     byId('btn-drawer-procedural')?.addEventListener('click', () => {
       this.setDrawerOpen(false);
-      void this.generateProceduralPack();
+      this.openProceduralModal();
     });
 
     byId('btn-drawer-import')?.addEventListener('click', () => {
@@ -1291,6 +1411,28 @@ class EpoxyApplication {
     byId('password-error')?.classList.add('hidden');
     if (passInput) passInput.value = '';
     this.openModal(MODAL_IDS.PASSWORD, passInput);
+  }
+
+  private bindProceduralModal(): void {
+    const seedInput = byId<HTMLInputElement>('procedural-seed-input');
+    seedInput?.addEventListener('input', () => {
+      byId('procedural-seed-error')?.classList.add('hidden');
+      seedInput.setAttribute('aria-invalid', 'false');
+    });
+    const submitOnEnter = (e: KeyboardEvent): void => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      this.submitProceduralModal();
+    };
+    seedInput?.addEventListener('keydown', submitOnEnter);
+    byId('procedural-start-select')?.addEventListener('keydown', submitOnEnter);
+    byId('procedural-submit-btn')?.addEventListener('click', () => {
+      this.submitProceduralModal();
+    });
+    byId('procedural-cancel-btn')?.addEventListener('click', () => {
+      this.closeModal(MODAL_IDS.PROCEDURAL);
+    });
+    this.bindBackdropClose(MODAL_IDS.PROCEDURAL);
   }
 
   private bindScoresModal(): void {
@@ -1801,7 +1943,7 @@ class EpoxyApplication {
     } else if (kb.cycleTheme?.includes(e.code)) {
       run(() => this.applyTheme(this.renderer.cycleTheme()));
     } else if (kb.generateProcedural?.includes(e.code)) {
-      run(() => void this.generateProceduralPack());
+      run(() => this.openProceduralModal());
     } else if (kb.showObjective?.includes(e.code)) {
       run(() => this.triggerObjectiveAndLinks());
     } else if (kb.showSolution?.includes(e.code)) {

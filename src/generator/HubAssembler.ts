@@ -22,7 +22,7 @@ import { CloneLink, Direction, EntityPlacement, GridPoint, HubConfig, TrapLink }
 import { HubPlan, HubWing } from './HubPlanner';
 import { AssembledLevel, Box, RouteSegment } from './LevelAssembler';
 import { ALL_ORIENTATIONS, IDENTITY_ORIENTATION, orientPiece, orientTileId } from './PieceCompiler';
-import { CompiledPiece, PieceOrientation } from './PieceTypes';
+import { CompiledPiece } from './PieceTypes';
 
 const WALL_TILE_ID = 'wall';
 const EXIT_TILE_ID = 'exit';
@@ -45,6 +45,13 @@ export interface AssembledHubLevel extends AssembledLevel {
   guards: LevelGuard[];
   /** Id of the hub outline used, from game.json. */
   hubShape: string;
+}
+
+/** A wing placement that fits but is not written yet: what it costs the level's density, and how to write it. */
+interface WingTrial {
+  /** Bounding box growth weighed by the fill target, minus the walkable cells added: lower is better. */
+  cost: number;
+  commit: () => WingPlacement;
 }
 
 interface WingPlacement {
@@ -94,6 +101,9 @@ export class HubAssembler {
   /** Floor cells of the hub, by key. */
   private hubFloor = new Set<number>();
   private chipCount = 0;
+  private finaleTurns: CompiledPiece[] | null = null;
+  /** Bounds of the hub floor and every wing placed so far: what compact placement keeps small. */
+  private bounds: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
   private constructor(
     private readonly cfg: HubConfig,
@@ -109,14 +119,20 @@ export class HubAssembler {
   }
 
   /** Returns the assembled level, or null when the wings do not fit around the hub. */
-  public static assemble(plan: HubPlan, cfg: HubConfig, rng: SeededRandom): AssembledHubLevel | null {
-    return new HubAssembler(cfg, rng).build(plan);
+  public static assemble(
+    plan: HubPlan,
+    cfg: HubConfig,
+    rng: SeededRandom,
+    shapeIds?: string[]
+  ): AssembledHubLevel | null {
+    return new HubAssembler(cfg, rng).build(plan, shapeIds);
   }
 
-  private build(plan: HubPlan): AssembledHubLevel | null {
-    // A different outline per attempt, shifted off centre so one side leaves
-    // room for long wings.
-    const shape = this.cfg.shapes[this.rng.nextInt(0, this.cfg.shapes.length - 1)];
+  private build(plan: HubPlan, shapeIds?: string[]): AssembledHubLevel | null {
+    // A different outline per attempt among those allowed, shifted off centre
+    // so one side leaves room for long wings.
+    const outlines = this.cfg.shapes.filter((s) => !shapeIds || shapeIds.includes(s.id));
+    const shape = outlines[this.rng.nextInt(0, outlines.length - 1)];
     const shapeHeight = shape.rows.length;
     const shapeWidth = Math.max(...shape.rows.map((r) => r.length));
     const shiftX = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
@@ -136,6 +152,7 @@ export class HubAssembler {
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.take({ x: p.x + dx, y: p.y + dy });
     }
     for (const k of this.hubFloor) this.open(this.point(k), HUB_SEGMENT);
+    this.bounds = this.cellsBox([...this.hubFloor].map((k) => this.point(k)));
     const centre = { x: (this.hub.x0 + this.hub.x1) / 2, y: (this.hub.y0 + this.hub.y1) / 2 };
     const start = [...this.hubFloor]
       .map((k) => this.point(k))
@@ -144,7 +161,7 @@ export class HubAssembler {
     // Place the largest wings first; the visit order stays the plan's.
     const order = plan.wings
       .map((wing, index) => ({ wing, index }))
-      .sort((a, b) => this.area(b.wing) - this.area(a.wing));
+      .sort((a, b) => this.wingArea(b.wing) - this.wingArea(a.wing));
     const placements: WingPlacement[] = new Array(plan.wings.length);
     for (const { wing, index } of order) {
       const placement = this.placeWing(wing, index, plan.finale);
@@ -152,6 +169,7 @@ export class HubAssembler {
       placements[index] = placement;
     }
 
+    this.growBays();
     const hubItemCells = this.scatter(plan.hubItems, this.hubCells(start));
     if (!hubItemCells) return null;
     const hubChipCells = this.scatter(
@@ -212,22 +230,30 @@ export class HubAssembler {
     return candidates;
   }
 
-  /** Tries every gate cell of the hub ring, in random order, for the wing. */
+  /**
+   * Tries the gate cells of the hub ring, in random order, for the wing, and
+   * keeps the cheapest placement among the first few that fit, in bounding
+   * box growth against walkable cells added: wings huddle around the hub and
+   * fill gaps instead of sprawling.
+   */
   private placeWing(wing: HubWing, index: number, finale: CompiledPiece): WingPlacement | null {
     const candidates = this.gateCandidates();
     this.rng.shuffle(candidates);
     const orientations = wing.piece.rotatable ? [...ALL_ORIENTATIONS] : [IDENTITY_ORIENTATION];
     this.rng.shuffle(orientations);
+    // Turned once per wing, not once per gate tried.
+    const turned = orientations.map((o) => orientPiece(wing.piece, o));
     const gateLength = wing.gate.kind === 'hazard' ? this.cfg.hazardDepth : 1;
     const approachSegment = 2 * index + 1;
     const beyondSegment = 2 * index + 2;
 
-    for (const { gate, outward } of candidates) {
+    let best: WingTrial | null = null;
+    let found = 0;
+    search: for (const { gate, outward } of candidates) {
       for (let connectors = 0; connectors <= this.cfg.maxConnectorLength; connectors++) {
-        for (const o of orientations) {
-          const piece = orientPiece(wing.piece, o);
+        for (const piece of turned) {
           if (this.outwardOf(piece, piece.entry) !== OPPOSITE_DIRECTION[outward]) continue;
-          const placement = this.tryWing(
+          const trial = this.tryWing(
             wing,
             piece,
             gate,
@@ -238,11 +264,13 @@ export class HubAssembler {
             beyondSegment,
             finale
           );
-          if (placement) return placement;
+          if (!trial) continue;
+          if (!best || trial.cost < best.cost) best = trial;
+          if (++found >= this.cfg.wingPlacementSamples) break search;
         }
       }
     }
-    return null;
+    return best ? best.commit() : null;
   }
 
   private tryWing(
@@ -255,7 +283,7 @@ export class HubAssembler {
     approachSegment: number,
     beyondSegment: number,
     finale: CompiledPiece
-  ): WingPlacement | null {
+  ): WingTrial | null {
     const approach = Array.from({ length: gateLength + connectors }, (_, i) => this.stepN(gate, outward, i));
     const entryPort = this.stepN(gate, outward, gateLength + connectors);
     const origin = { x: entryPort.x - piece.entry.x, y: entryPort.y - piece.entry.y };
@@ -318,19 +346,29 @@ export class HubAssembler {
       }
       if (finalePlacement && !this.boxFree(this.boxOf(finalePlacement.piece, finalePlacement.origin))) continue variants;
 
-      // Commit.
-      this.stamp(piece, origin);
-      if (finalePlacement) this.stamp(finalePlacement.piece, finalePlacement.origin);
-      for (const [k, seg] of claims) this.open(this.point(k), seg, false);
-      this.paintGate(wing, approach.slice(0, gateLength), outward);
-      if (finalePlacement) {
-        const exitCell = {
-          x: finalePlacement.origin.x + finalePlacement.piece.exit.x,
-          y: finalePlacement.origin.y + finalePlacement.piece.exit.y
-        };
-        this.terrain[exitCell.y][exitCell.x] = EXIT_TILE_ID;
-      }
-      return { piece, origin, outward, approach, gateLength, exitDir, room, finale: finalePlacement };
+      const reach = this.cellsBox([...claims.keys()].map((k) => this.point(k)));
+      let spread = this.union(reach, box);
+      if (finaleBox) spread = this.union(spread, finaleBox);
+      // A cell the wing adds is worth a cell of bounding box at the target fill: roomy
+      // wings that fill gaps beat tight ones that leave them.
+      const growth = this.area(this.union(this.bounds, spread)) - this.area(this.bounds);
+      const cost = growth * this.cfg.fillTarget - claims.size;
+      const commit = (): WingPlacement => {
+        this.stamp(piece, origin);
+        if (finalePlacement) this.stamp(finalePlacement.piece, finalePlacement.origin);
+        for (const [k, seg] of claims) this.open(this.point(k), seg, false);
+        this.paintGate(wing, approach.slice(0, gateLength), outward);
+        if (finalePlacement) {
+          const exitCell = {
+            x: finalePlacement.origin.x + finalePlacement.piece.exit.x,
+            y: finalePlacement.origin.y + finalePlacement.piece.exit.y
+          };
+          this.terrain[exitCell.y][exitCell.x] = EXIT_TILE_ID;
+        }
+        this.bounds = this.union(this.bounds, spread);
+        return { piece, origin, outward, approach, gateLength, exitDir, room, finale: finalePlacement };
+      };
+      return { cost, commit };
     }
     return null;
   }
@@ -348,7 +386,7 @@ export class HubAssembler {
     claims: Map<number, number>,
     beyondSegment: number
   ): WingPlacement['finale'] | null {
-    const options: PieceOrientation[] = finale.rotatable ? [...ALL_ORIENTATIONS] : [IDENTITY_ORIENTATION];
+    const options = this.turnedFinales(finale);
     const sideways: Direction[] = exitDir === 'N' || exitDir === 'S' ? ['E', 'W'] : ['N', 'S'];
     const paths: Direction[][] = [[]];
     for (const side of sideways) {
@@ -365,8 +403,7 @@ export class HubAssembler {
       }
       const approachDir = path.length > 0 ? path[path.length - 1] : exitDir;
       if (cells.some((c) => !this.inMap(c) || this.taken[this.key(c)] || this.inBox(c, wingBox))) continue;
-      for (const o of options) {
-        const piece = orientPiece(finale, o);
+      for (const piece of options) {
         if (this.outwardOf(piece, piece.entry) !== OPPOSITE_DIRECTION[approachDir]) continue;
         const entryPort = this.step(last, approachDir);
         const origin = { x: entryPort.x - piece.entry.x, y: entryPort.y - piece.entry.y };
@@ -386,6 +423,81 @@ export class HubAssembler {
       }
     }
     return null;
+  }
+
+  /**
+   * Widens the hub into the gaps the wings leave around it, in 2x2 squares
+   * inside the level's existing bounds: more open floor, no more bounding
+   * box. A bay cell touches only hub floor and wall, so it opens no way
+   * round a puzzle.
+   */
+  private growBays(): void {
+    const anchors: GridPoint[] = [];
+    for (let y = this.bounds.y0; y < this.bounds.y1; y++) {
+      for (let x = this.bounds.x0; x < this.bounds.x1; x++) {
+        if (this.isBaySquare({ x, y })) anchors.push({ x, y });
+      }
+    }
+    let added = 0;
+    while (added < this.cfg.bayCells && anchors.length > 0) {
+      // Squares are checked again when drawn: an earlier bay may have taken the room.
+      const at = this.rng.nextInt(0, anchors.length - 1);
+      const anchor = anchors[at];
+      anchors[at] = anchors[anchors.length - 1];
+      anchors.pop();
+      if (!this.isBaySquare(anchor)) continue;
+      for (const cell of this.squareCells(anchor)) {
+        this.open(cell, HUB_SEGMENT);
+        this.hubFloor.add(this.key(cell));
+        added++;
+      }
+      // A new bay makes the squares around it reachable from the hub.
+      for (let dy = -2; dy <= 1; dy++) {
+        for (let dx = -2; dx <= 1; dx++) {
+          const near = { x: anchor.x + dx, y: anchor.y + dy };
+          if (this.isBaySquare(near)) anchors.push(near);
+        }
+      }
+    }
+  }
+
+  private squareCells(anchor: GridPoint): GridPoint[] {
+    return [
+      anchor,
+      { x: anchor.x + 1, y: anchor.y },
+      { x: anchor.x, y: anchor.y + 1 },
+      { x: anchor.x + 1, y: anchor.y + 1 }
+    ];
+  }
+
+  /** A free 2x2 square in the bounds, next to the hub and next to nothing else open. */
+  private isBaySquare(anchor: GridPoint): boolean {
+    const cells = this.squareCells(anchor);
+    const own = new Set(cells.map((c) => this.key(c)));
+    let nextToHub = false;
+    for (const cell of cells) {
+      const k = this.key(cell);
+      if (!this.inMap(cell) || this.segment[k] !== NO_SEGMENT || this.inAnyBox(cell)) return false;
+      for (const dir of ORDERED_DIRECTIONS) {
+        const n = this.step(cell, dir);
+        const nk = this.key(n);
+        if (own.has(nk) || !this.inMap(n)) continue;
+        const seg = this.segment[nk];
+        if (seg === NO_SEGMENT) continue;
+        if (seg !== HUB_SEGMENT) return false;
+        nextToHub = true;
+      }
+    }
+    return nextToHub;
+  }
+
+  /** Every orientation of the finale, turned once per assembly. */
+  private turnedFinales(finale: CompiledPiece): CompiledPiece[] {
+    if (!this.finaleTurns) {
+      const orientations = finale.rotatable ? ALL_ORIENTATIONS : [IDENTITY_ORIENTATION];
+      this.finaleTurns = orientations.map((o) => orientPiece(finale, o));
+    }
+    return this.finaleTurns;
   }
 
   /**
@@ -568,7 +680,7 @@ export class HubAssembler {
     return true;
   }
 
-  private area(wing: HubWing): number {
+  private wingArea(wing: HubWing): number {
     return wing.piece.width * wing.piece.height + (wing.isFinal ? 1 : 0);
   }
 
@@ -581,6 +693,27 @@ export class HubAssembler {
 
   private boxOf(piece: CompiledPiece, origin: GridPoint): Box {
     return { x0: origin.x, y0: origin.y, x1: origin.x + piece.width - 1, y1: origin.y + piece.height - 1 };
+  }
+
+  private area(b: Box): number {
+    return (b.x1 - b.x0 + 1) * (b.y1 - b.y0 + 1);
+  }
+
+  private cellBox(p: GridPoint): Box {
+    return { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+  }
+
+  private cellsBox(cells: GridPoint[]): Box {
+    return cells.map((c) => this.cellBox(c)).reduce((a, b) => this.union(a, b));
+  }
+
+  private union(a: Box, b: Box): Box {
+    return {
+      x0: Math.min(a.x0, b.x0),
+      y0: Math.min(a.y0, b.y0),
+      x1: Math.max(a.x1, b.x1),
+      y1: Math.max(a.y1, b.y1)
+    };
   }
 
   private overlaps(a: Box, b: Box): boolean {

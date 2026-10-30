@@ -1679,3 +1679,26 @@ body.fullscreen-mode .bezel-header {
     animation: none;
   }
 }
+.procedural-seed-field {
+  font-family: monospace;
+  font-size: 1rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.procedural-seed-label {
+  font-family: monospace;
+  color: var(--text-main);
+}
+
+.hint-text {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.clipboard-scratch {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+  opacity: 0;
+}

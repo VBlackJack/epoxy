@@ -91,6 +91,32 @@ describe('LevelMetrics', () => {
     expect(report.monsterCount).toBe(1);
   });
 
+  it('measures the playfield on cells reachable from the start only', () => {
+    const report = LevelMetrics.measure(buildTestLevel(['#######', '#@.#...#', '#######']));
+    expect(report.walkableCells).toBe(5);
+    expect(report.playfieldCells).toBe(2);
+    expect(report.playfieldFill).toBe(1);
+    expect(report.deadShare).toBe(1);
+  });
+
+  it('reads a room as open and a tube as dead-ended', () => {
+    const room = LevelMetrics.measure(buildTestLevel(['#####', '#@..#', '#...#', '#..E#', '#####']));
+    const tube = LevelMetrics.measure(buildTestLevel(['#######', '#@...E#', '#######']));
+    expect(room.openShare).toBe(1);
+    expect(room.deadShare).toBe(0);
+    expect(tube.openShare).toBe(0);
+    expect(tube.deadShare).toBeCloseTo(2 / 5);
+  });
+
+  it('flags the presence of monsters', () => {
+    const calm = LevelMetrics.measure(buildTestLevel(['#####', '#@.E#', '#####']));
+    const busy = LevelMetrics.measure(
+      buildTestLevel(['#####', '#@.E#', '#####'], { entities: [{ x: 2, y: 1, type: 'bug', dir: 'N' }] })
+    );
+    expect(calm.hasMonsters).toBe(0);
+    expect(busy.hasMonsters).toBe(1);
+  });
+
   it('compares the time limit with the estimated walking time', () => {
     const report = LevelMetrics.measure(
       buildTestLevel(['#######', '#@...E#', '#######'], { timeLimitSeconds: 100 })

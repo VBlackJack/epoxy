@@ -290,6 +290,123 @@
       ]
     },
     {
+      "id": "sokoban_forged_11",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#####@##",
+        "#......#",
+        "#.&.&###",
+        "##..&..#",
+        "#.#m.#.#",
+        "#.mm...#",
+        "#####X##",
+        "#####X##",
+        "#####X##",
+        "#####$##"
+      ],
+      "trapLinks": [
+        { "buttonX": 3, "buttonY": 4, "trapX": 5, "trapY": 6 },
+        { "buttonX": 3, "buttonY": 5, "trapX": 5, "trapY": 7 },
+        { "buttonX": 2, "buttonY": 5, "trapX": 5, "trapY": 8 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_12",
+      "motif": "sokoban",
+      "tier": 4,
+      "rotatable": true,
+      "rows": [
+        "##@#####",
+        "#..&..m#",
+        "#&#.&&.#",
+        "#m#..#.#",
+        "#m....m#",
+        "#####X##",
+        "#####X##",
+        "#####X##",
+        "#####X##",
+        "#####$##"
+      ],
+      "trapLinks": [
+        { "buttonX": 6, "buttonY": 1, "trapX": 5, "trapY": 5 },
+        { "buttonX": 1, "buttonY": 3, "trapX": 5, "trapY": 6 },
+        { "buttonX": 1, "buttonY": 4, "trapX": 5, "trapY": 7 },
+        { "buttonX": 6, "buttonY": 4, "trapX": 5, "trapY": 8 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_13",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#@######",
+        "#..m..m#",
+        "##.&..m#",
+        "#..&&#.#",
+        "#..#...#",
+        "#####X##",
+        "#####X##",
+        "#####X##",
+        "#####$##"
+      ],
+      "trapLinks": [
+        { "buttonX": 6, "buttonY": 1, "trapX": 5, "trapY": 5 },
+        { "buttonX": 6, "buttonY": 2, "trapX": 5, "trapY": 6 },
+        { "buttonX": 3, "buttonY": 1, "trapX": 5, "trapY": 7 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_14",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@####",
+        "#mm.&..#",
+        "#mm#&..#",
+        "#&&#...#",
+        "#......#",
+        "###X####",
+        "###X####",
+        "###X####",
+        "###X####",
+        "###$####"
+      ],
+      "trapLinks": [
+        { "buttonX": 2, "buttonY": 1, "trapX": 3, "trapY": 5 },
+        { "buttonX": 1, "buttonY": 1, "trapX": 3, "trapY": 6 },
+        { "buttonX": 2, "buttonY": 2, "trapX": 3, "trapY": 7 },
+        { "buttonX": 1, "buttonY": 2, "trapX": 3, "trapY": 8 }
+      ]
+    },
+    {
+      "id": "sokoban_forged_15",
+      "motif": "sokoban",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "##@#####",
+        "#..&..m#",
+        "#&#...&#",
+        "#m#.&#.#",
+        "#m....m#",
+        "#####X##",
+        "#####X##",
+        "#####X##",
+        "#####X##",
+        "#####$##"
+      ],
+      "trapLinks": [
+        { "buttonX": 6, "buttonY": 1, "trapX": 5, "trapY": 5 },
+        { "buttonX": 1, "buttonY": 3, "trapX": 5, "trapY": 6 },
+        { "buttonX": 1, "buttonY": 4, "trapX": 5, "trapY": 7 },
+        { "buttonX": 6, "buttonY": 4, "trapX": 5, "trapY": 8 }
+      ]
+    },
+    {
       "id": "mined_block_maze",
       "motif": "blocks_water",
       "tier": 3,
@@ -443,6 +560,67 @@
         "#.#C.C#.#",
         "#.##.##.#",
         "#...Z...#",
+        "#######$#"
+      ]
+    },
+    {
+      "id": "monsters_ball_recess",
+      "motif": "monsters",
+      "tier": 1,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#...K...#",
+        "##C#C#C.#",
+        "#######$#"
+      ]
+    },
+    {
+      "id": "monsters_glider_ring",
+      "motif": "monsters",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "##@######",
+        "##.######",
+        "##..Q..##",
+        "##.###.##",
+        "#C.###.C#",
+        "##.###.##",
+        "##..Q..##",
+        "####.####",
+        "####$####"
+      ]
+    },
+    {
+      "id": "monsters_tank_nook",
+      "motif": "monsters",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "########",
+        "@...####",
+        "###.####",
+        "###.l###",
+        "###.####",
+        "#A.....$",
+        "###.####",
+        "###C####",
+        "########"
+      ]
+    },
+    {
+      "id": "monsters_bug_hall",
+      "motif": "monsters",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "#@#######",
+        "#.......#",
+        "#.......#",
+        "#...C...#",
+        "#.......#",
+        "#U......#",
         "#######$#"
       ]
     },
