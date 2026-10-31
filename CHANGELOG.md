@@ -3,7 +3,7 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
-## [Unreleased]
+## [2.7.0] - 2026-10-31
 
 ### Changed
 
