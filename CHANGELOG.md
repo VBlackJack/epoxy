@@ -3,7 +3,7 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
-## [Unreleased]
+## [2.8.0] - 2026-10-31
 
 ### Added
 
@@ -16,7 +16,6 @@ versions follow Semantic Versioning.
   outside of the room becomes wall, and broken levels are skipped with a count.
 - `blockPuzzle.watchMaxCells` in `game.json`: the automatic dead-end watch is skipped on larger
   levels so a big Sokoban level never freezes the page.
-
 - A "How to play" dialog opens once on the first launch (moves, undo, restart, help), and again
   from the help dialog. A help button sits in the top bar, and on a computer the keys are recalled
   under the board.
@@ -37,7 +36,6 @@ versions follow Semantic Versioning.
   of the browser's.
 - `.DAT` export refuses a level won by targets, with a message, instead of writing its targets as
   floor.
-
 - The `.xsb` importer (`npm run import:sokoban`) carves its entry and exit tunnels through the
   rock on any side of the room instead of a shaft from the top and a trap column at the bottom.
   The traps run along the exit tunnel, so a room no longer loses one row of height per box, and a
