@@ -1456,6 +1456,20 @@ export class GameEngine {
     AudioManager.playSfx(sfxId);
   }
 
+  /** True when a block at rest holds the target cell. */
+  private isTargetCovered({ x, y }: GridPoint): boolean {
+    const occupant = this.getEntityAt(x, y);
+    return occupant !== undefined && occupant.kind === 'block' && !occupant.isSliding;
+  }
+
+  /** How many targets of a 'targets' level hold a block at rest, out of how many there are. */
+  getTargetsProgress(): { covered: number; total: number } {
+    return {
+      covered: this.targetCells.filter((cell) => this.isTargetCovered(cell)).length,
+      total: this.targetCells.length
+    };
+  }
+
   /**
    * Ends a 'targets' level once every target holds a block that has come to
    * rest. A level without targets never ends this way, and a dead player
@@ -1463,11 +1477,7 @@ export class GameEngine {
    */
   private checkTargetsWin(): void {
     if (this.targetCells.length === 0 || this.levelCompleted || !this.player.alive) return;
-    const settled = this.targetCells.every(({ x, y }) => {
-      const occupant = this.getEntityAt(x, y);
-      return occupant !== undefined && occupant.kind === 'block' && !occupant.isSliding;
-    });
-    if (!settled) return;
+    if (!this.targetCells.every((cell) => this.isTargetCovered(cell))) return;
     this.emitVisual('win', this.player.x, this.player.y);
     this.completeLevel();
   }

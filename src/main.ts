@@ -23,7 +23,7 @@ import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
-import { DatCodec } from './formats/DatCodec';
+import { DatCodec, datRefusalReason } from './formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
@@ -39,6 +39,7 @@ import {
   TimedMove,
   UserSettings
 } from './core/types';
+import { confirmDialog } from './ui/confirmDialog';
 import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
 import { EndlessGenerator, EndlessWorkerLike } from './ui/endlessGenerator';
 import {
@@ -70,6 +71,16 @@ import {
   StoredHighScore
 } from './storage/persistedState';
 import { lossyExportNotice } from './ui/exportNotice';
+import {
+  hasStoredSolution,
+  isTimedLevel,
+  combineStatusMessages,
+  shouldAnnounceObjective,
+  showsTargetsCounter,
+  stuckMessageKey
+} from './ui/levelFeedback';
+import { shouldShowOnboarding } from './ui/onboarding';
+import { packUsesPasswords } from './ui/packPasswords';
 import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
 import {
   BIOME_ACCENT_CSS_VAR,
@@ -101,12 +112,19 @@ type ScoresFilter = 'all' | 'unsolved' | 'completed';
 /** Displacement that marks a two-finger gesture so it never ends as a tap. */
 const PINCH_SUPPRESSES_TAP = Number.POSITIVE_INFINITY;
 const NO_WARNED_SECOND = -1;
+/** Value stored once the first-launch dialog was shown. */
+const ONBOARDING_SEEN_VALUE = '1';
+/** Where the seen flag lives, most durable first. */
+const ONBOARDING_STORES: ReadonlyArray<() => Storage> = [() => localStorage, () => sessionStorage];
+/** Controls that only make sense in a pack with real level codes. */
+const PASSWORD_CONTROL_IDS = ['hud-password-badge', 'hud-btn-password', 'btn-drawer-password'] as const;
 
 const MODAL_IDS = {
   SCORES: 'scores-modal',
   HELP: 'help-modal',
   PASSWORD: 'password-modal',
-  PROCEDURAL: 'procedural-modal'
+  PROCEDURAL: 'procedural-modal',
+  ONBOARDING: 'onboarding-modal'
 } as const;
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T | null {
@@ -144,6 +162,8 @@ class EpoxyApplication {
   /** Chip counter last shown, to pop the HUD counter when a chip is picked up. */
   private hudChipsLeft: number = 0;
   private hudChipsLevelId: string = '';
+  /** The "How to play" dialog was shown this session (storage can be unavailable). */
+  private onboardingShownThisSession = false;
   private scoresFilterMode: ScoresFilter = 'all';
   private scoresSearchQuery: string = '';
   private overlayState: OverlayState = 'none';
@@ -214,6 +234,8 @@ class EpoxyApplication {
     this.createEditor(editorCanvas);
 
     this.refreshPackSelector();
+    // Read before the first level starts: starting a level writes the save slot.
+    const hadSavedProgress = this.hasSavedProgress();
     this.restoreSavedProgress();
     this.startLevelByIndex(this.currentLevelIndex);
 
@@ -237,6 +259,7 @@ class EpoxyApplication {
 
     this.startGameLoop();
     this.startRenderLoop();
+    this.maybeShowOnboarding(hadSavedProgress);
   }
 
   /** Sizes the play canvas and grabs its contexts; returns the editor canvas. */
@@ -415,7 +438,7 @@ class EpoxyApplication {
     window.setTimeout(() => {
       if (layout !== this.lastBlockLayout || !this.engine.getPlayer().alive) return;
       if (BlockPuzzleSolver.isStuck(this.engine)) {
-        this.showTransientStatus(t('hud.messages.blocks_stuck.label'));
+        this.showTransientStatus(t(stuckMessageKey(this.engine.getLevel().winRule)));
       }
     }, 0);
   }
@@ -489,6 +512,13 @@ class EpoxyApplication {
     return pack.i18nKey ? t(pack.i18nKey) : pack.name;
   }
 
+  /** Display name of the pack being played. */
+  private activePackName(): string {
+    const activeId = ConfigRegistry.getActivePackId();
+    const pack = ConfigRegistry.getAllPacks().find((p) => p.id === activeId);
+    return pack ? this.getPackDisplayName(pack) : activeId;
+  }
+
   private refreshPackSelector(): void {
     const select = byId<HTMLSelectElement>('pack-select');
     if (!select) return;
@@ -512,7 +542,7 @@ class EpoxyApplication {
 
   private async handleImportedFile(file: File): Promise<void> {
     const lower = file.name.toLowerCase();
-    const packName = file.name.replace(/\.[^.]+$/, '').toUpperCase();
+    const packName = file.name.replace(/\.[^.]+$/, '');
 
     const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
     if (!isImportSizeAllowed(file.size, maxBytes)) {
@@ -538,28 +568,43 @@ class EpoxyApplication {
           throw new Error('Empty pack');
         }
       } else {
-        this.showTransientStatus(t('app.packs.import_error.label'));
+        this.showTransientStatus(this.importErrorMessage());
         return;
       }
       const { persisted } = await ConfigRegistry.registerImportedPack(packName, levels);
       this.refreshPackSelector();
       this.editor.populatePresetDropdown();
       this.switchMode('play');
-      this.startLevelByIndex(0);
+      this.startLevelByIndex(0, false);
       const importedKey =
         skippedCount > 0 ? 'app.packs.imported_skipped_toast.label' : 'app.packs.imported_toast.label';
       this.showTransientStatus(
-        persisted
-          ? t(importedKey, { name: packName, count: levels.length, skipped: skippedCount })
-          : t('app.packs.imported_session_only_toast.label', { name: packName })
+        combineStatusMessages(
+          persisted
+            ? t(importedKey, { name: packName, count: levels.length, skipped: skippedCount })
+            : t('app.packs.imported_session_only_toast.label', { name: packName }),
+          this.objectiveMessage()
+        )
       );
     } catch (err) {
       this.showTransientStatus(
         err instanceof InvalidLevelError
           ? t('app.packs.invalid_level_error.label', { id: err.levelId })
-          : t('app.packs.import_error.label')
+          : this.importErrorMessage()
       );
     }
+  }
+
+  /** Import failure in player terms, followed by the accepted file types. */
+  private importErrorMessage(): string {
+    return combineStatusMessages(t('app.packs.import_error.label'), t('app.packs.import_formats.label'));
+  }
+
+  /** Objective of the level on screen, or null when it needs no announcement. */
+  private objectiveMessage(): string | null {
+    return shouldAnnounceObjective(this.engine.getLevel().winRule)
+      ? t('hud.messages.objective_targets.label')
+      : null;
   }
 
   /** Compiles every level of a JSON import; throws before anything is registered. */
@@ -853,7 +898,13 @@ class EpoxyApplication {
     if (!this.isRemovablePack(activeId)) return;
     const pack = ConfigRegistry.getAllPacks().find((p) => p.id === activeId);
     const name = pack ? this.getPackDisplayName(pack) : activeId;
-    if (!window.confirm(t('app.packs.delete_confirm.label', { name }))) return;
+    const confirmed = await confirmDialog({
+      title: t('app.confirm.title.label'),
+      message: t('app.packs.delete_confirm.label', { name }),
+      confirmLabel: t('app.confirm.delete.action'),
+      cancelLabel: t('app.confirm.cancel.action')
+    });
+    if (!confirmed) return;
 
     await ConfigRegistry.deleteImportedPack(activeId);
     this.refreshPackSelector();
@@ -1301,13 +1352,19 @@ class EpoxyApplication {
    * since progress in the level is lost. Levels without a stored solution
    * (imported packs) say so.
    */
-  private showSolution(): void {
+  private async showSolution(): Promise<void> {
     const moves = timedSolution(this.engine.getLevel());
     if (!moves) {
       this.showTransientStatus(t('hud.messages.no_solution.label'));
       return;
     }
-    if (!window.confirm(t('hud.messages.solution_confirm.label'))) return;
+    const confirmed = await confirmDialog({
+      title: t('app.confirm.title.label'),
+      message: t('hud.messages.solution_confirm.label'),
+      confirmLabel: t('app.confirm.solution.action'),
+      cancelLabel: t('app.confirm.cancel.action')
+    });
+    if (!confirmed) return;
     this.startReplay(moves);
     this.showTransientStatus(t('hud.messages.solution_playing.label'));
   }
@@ -1320,7 +1377,7 @@ class EpoxyApplication {
   private playBlockHint(): boolean {
     if (this.isReplaying || !this.engine.getPlayer().alive) return false;
     if (BlockPuzzleSolver.isStuck(this.engine, requestedSearchBudget())) {
-      this.showTransientStatus(t('hud.messages.blocks_stuck.label'));
+      this.showTransientStatus(t(stuckMessageKey(this.engine.getLevel().winRule)));
       return true;
     }
     const moves = BlockPuzzleSolver.hint(this.engine);
@@ -1354,7 +1411,8 @@ class EpoxyApplication {
     return tier ? t(keyOf(tier)) : '';
   }
 
-  private startLevelByIndex(index: number): void {
+  /** Starts a level; `announce` is false when a replay is about to play it. */
+  private startLevelByIndex(index: number, announce: boolean = true): void {
     const levels = ConfigRegistry.getLevels();
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
@@ -1368,6 +1426,8 @@ class EpoxyApplication {
     this.showLevelTheme(levels[this.currentLevelIndex]);
     this.saveProgress();
     this.updateHUD();
+    const objective = this.objectiveMessage();
+    if (announce && objective) this.showTransientStatus(objective);
     this.noteEndlessLevelReached(levels[this.currentLevelIndex]);
     this.prefetchNextEndlessLevel();
   }
@@ -1388,13 +1448,15 @@ class EpoxyApplication {
     }
     const levels = ConfigRegistry.getLevels();
     const wraps = this.isOnLastLevel();
-    this.startLevelByIndex(this.currentLevelIndex + 1);
-    if (wraps && levels.length > 0) {
+    const wrapped = wraps && levels.length > 0;
+    this.startLevelByIndex(this.currentLevelIndex + 1, !wrapped);
+    if (wrapped) {
       this.showTransientStatus(
-        t(
+        combineStatusMessages(
           this.isPackFullyCompleted(levels)
-            ? 'hud.messages.all_levels_won.label'
-            : 'hud.messages.pack_wrapped.label'
+            ? t('hud.messages.all_levels_won.label', { name: this.activePackName() })
+            : t('hud.messages.pack_wrapped.label'),
+          this.objectiveMessage()
         )
       );
     }
@@ -1409,8 +1471,7 @@ class EpoxyApplication {
     setToggleState(byId('btn-mode-editor'), !isPlay);
 
     if (!isPlay) {
-      this.syncEditorWithEngineLevel();
-      this.editor.populatePresetDropdown();
+      void this.syncEditorWithEngineLevel().then(() => this.editor.populatePresetDropdown());
     }
   }
 
@@ -1418,11 +1479,19 @@ class EpoxyApplication {
    * Loads the engine level into the editor only when it changed since the
    * editor last saw it, and asks before replacing unsaved editor work.
    */
-  private syncEditorWithEngineLevel(): void {
+  private async syncEditorWithEngineLevel(): Promise<void> {
     const level = this.engine.getLevel();
     if (level === this.editorSourceLevel) return;
     this.editorSourceLevel = level;
-    if (this.editor.hasUnsavedChanges() && !window.confirm(t('editor.toolbar.confirm_reload.label'))) {
+    if (
+      this.editor.hasUnsavedChanges() &&
+      !(await confirmDialog({
+        title: t('app.confirm.title.label'),
+        message: t('editor.toolbar.confirm_reload.label'),
+        confirmLabel: t('app.confirm.replace.action'),
+        cancelLabel: t('app.confirm.cancel.action')
+      }))
+    ) {
       return;
     }
     this.editor.loadCompiledLevel(level);
@@ -1439,6 +1508,7 @@ class EpoxyApplication {
     this.bindDrawer();
     this.bindScoresModal();
     this.bindHelpModal();
+    this.bindOnboardingModal();
     this.bindPasswordModal();
     this.bindDisplayToggles();
     this.bindAudioToggles();
@@ -1709,6 +1779,39 @@ class EpoxyApplication {
       this.closeModal(MODAL_IDS.HELP);
     });
     this.bindBackdropClose(MODAL_IDS.HELP);
+    byId('btn-help-top')?.addEventListener('click', () => {
+      this.openHelpModal();
+    });
+    byId('help-onboarding-btn')?.addEventListener('click', () => {
+      this.closeModal(MODAL_IDS.HELP);
+      this.openOnboardingModal();
+    });
+  }
+
+  private bindOnboardingModal(): void {
+    byId('onboarding-close-btn')?.addEventListener('click', () => {
+      this.closeModal(MODAL_IDS.ONBOARDING);
+    });
+    this.bindBackdropClose(MODAL_IDS.ONBOARDING);
+  }
+
+  private openOnboardingModal(): void {
+    this.openModal(MODAL_IDS.ONBOARDING, byId('onboarding-close-btn'));
+  }
+
+  /** Opens the "How to play" dialog once, on a genuine first launch. */
+  private maybeShowOnboarding(hadSavedProgress: boolean): void {
+    const show = shouldShowOnboarding({
+      flagSeen: this.onboardingShownThisSession || this.readOnboardingSeen(),
+      hasSave: hadSavedProgress,
+      hasScores: Object.keys(this.highScores).length > 0,
+      endless: this.isEndlessActive(),
+      mode: this.activeMode,
+      dialogOpen: isDialogOpen()
+    });
+    if (!show) return;
+    this.markOnboardingSeen();
+    this.openOnboardingModal();
   }
 
   private bindPasswordModal(): void {
@@ -1921,11 +2024,11 @@ class EpoxyApplication {
       this.triggerObjectiveAndLinks();
     });
     byId('hud-btn-solution')?.addEventListener('click', () => {
-      this.showSolution();
+      void this.showSolution();
     });
     byId('mobile-btn-solution')?.addEventListener('click', () => {
       this.triggerHaptic();
-      this.showSolution();
+      void this.showSolution();
     });
     byId('hud-btn-restart')?.addEventListener('click', () => {
       this.restartLevel();
@@ -1986,6 +2089,15 @@ class EpoxyApplication {
     );
 
     const levels = ConfigRegistry.getLevels();
+    const showCodes = packUsesPasswords(levels);
+    byId('scores-col-code')?.classList.toggle('hidden', !showCodes);
+    const exportBtn = byId<HTMLButtonElement>('btn-export-pack-ccl');
+    if (exportBtn) {
+      const exportable = levels.some((lvl) => datRefusalReason(lvl) === null);
+      exportBtn.disabled = !exportable;
+      if (exportable) exportBtn.removeAttribute('title');
+      else exportBtn.title = t('app.export.none_exportable.label');
+    }
     const completedCount = levels.filter((lvl) => Boolean(this.highScores[lvl.id])).length;
     if (progressEl) {
       progressEl.textContent = t('hud.scores_modal.progress.label', {
@@ -2003,7 +2115,7 @@ class EpoxyApplication {
 
       const title = this.resolveLevelTitle(lvl);
       if (this.scoresSearchQuery) {
-        const hay = `${lvl.number} ${title} ${lvl.password}`.toLowerCase();
+        const hay = `${lvl.number} ${title} ${showCodes ? lvl.password : ''}`.toLowerCase();
         if (!hay.includes(this.scoresSearchQuery)) return;
       }
 
@@ -2022,12 +2134,13 @@ class EpoxyApplication {
       };
       const noRecord = '-';
 
-      const timeText = rec
-        ? t('hud.scores_modal.best_time_cell.label', {
-            medal: this.medalText(this.getMedalTierFor(rec.bestTimeRemaining, lvl.timeLimitSeconds), medalIconKey),
-            seconds: rec.bestTimeRemaining
-          }).trim()
-        : noRecord;
+      const timeText =
+        rec && isTimedLevel(lvl.timeLimitSeconds)
+          ? t('hud.scores_modal.best_time_cell.label', {
+              medal: this.medalText(this.getMedalTierFor(rec.bestTimeRemaining, lvl.timeLimitSeconds), medalIconKey),
+              seconds: rec.bestTimeRemaining
+            }).trim()
+          : noRecord;
 
       const tdAction = document.createElement('td');
       tdAction.appendChild(
@@ -2044,16 +2157,18 @@ class EpoxyApplication {
           this.createScoresButton('hud-btn small scores-replay-btn', 'hud.scores_modal.replay_btn.action', () => {
             this.closeModal(MODAL_IDS.SCORES);
             this.switchMode('play');
-            this.startLevelByIndex(idx);
+            this.startLevelByIndex(idx, false);
             this.startReplay(replay);
           })
         );
       }
 
+      const codeCell = cell(lvl.password, 'code-cell');
+      codeCell.classList.toggle('hidden', !showCodes);
       tr.append(
         cell(String(lvl.number)),
         cell(title),
-        cell(lvl.password, 'code-cell'),
+        codeCell,
         cell(timeText),
         cell(rec ? String(rec.minSteps) : noRecord),
         cell(rec ? String(rec.bestScore) : noRecord),
@@ -2220,7 +2335,7 @@ class EpoxyApplication {
     } else if (kb.showObjective?.includes(e.code)) {
       run(() => this.triggerObjectiveAndLinks());
     } else if (kb.showSolution?.includes(e.code)) {
-      run(() => this.showSolution());
+      run(() => void this.showSolution());
     } else if (kb.toggleHelp?.includes(e.code) || e.key === '?') {
       run(() => this.openHelpModal());
     } else if (e.code === 'Enter' && this.engine.isLevelCompleted()) {
@@ -2472,16 +2587,28 @@ class EpoxyApplication {
 
     setText(byId('hud-level-num'), String(lvl.number));
     setText(byId('hud-level-pass'), lvl.password);
+    this.updatePasswordControls();
     setText(byId('hud-level-title'), this.resolveLevelTitle(lvl));
-    const chipsLeft = this.engine.getChipsRemaining();
+    const targetsMode = showsTargetsCounter(lvl.winRule);
+    byId('hud-chips-label')?.classList.toggle('hidden', targetsMode);
+    byId('hud-targets-label')?.classList.toggle('hidden', !targetsMode);
+    const progress = this.engine.getTargetsProgress();
+    const counter = targetsMode ? progress.covered : this.engine.getChipsRemaining();
     const chipsEl = byId('hud-chips-left');
-    setText(chipsEl, String(chipsLeft).padStart(HUD_COUNTER_DIGITS, '0'));
-    // Same level and fewer chips: one was just picked up.
-    if (chipsEl && lvl.id === this.hudChipsLevelId && chipsLeft < this.hudChipsLeft) {
+    setText(
+      chipsEl,
+      targetsMode
+        ? t('hud.stats.targets_value.label', { covered: progress.covered, total: progress.total })
+        : String(counter).padStart(HUD_COUNTER_DIGITS, '0')
+    );
+    // Same level and a better count: a chip was picked up or a target covered.
+    const improved = targetsMode ? counter > this.hudChipsLeft : counter < this.hudChipsLeft;
+    if (chipsEl && lvl.id === this.hudChipsLevelId && improved) {
       replayAnimation(chipsEl, HUD_BUMP_CLASS);
     }
     this.hudChipsLevelId = lvl.id;
-    this.hudChipsLeft = chipsLeft;
+    this.hudChipsLeft = counter;
+    this.updateSolutionControls(lvl);
     this.updateTimer();
     setText(byId('hud-score'), String(this.engine.getTotalScore()));
     setText(byId('hud-steps'), String(this.engine.getStepsCount()));
@@ -2494,6 +2621,26 @@ class EpoxyApplication {
       this.renderer.setObjectivePoint(Pathfinder.findNextObjective(this.engine));
     }
     this.updateOverlay();
+  }
+
+  /** Hides every way to see or enter a level code when the pack has no real codes. */
+  private updatePasswordControls(): void {
+    const hidden = !packUsesPasswords(ConfigRegistry.getLevels());
+    for (const id of PASSWORD_CONTROL_IDS) {
+      byId(id)?.classList.toggle('hidden', hidden);
+    }
+  }
+
+  /** Disables the solution button of a level that stores none (hidden on the touch bar). */
+  private updateSolutionControls(lvl: CompiledLevel): void {
+    const available = hasStoredSolution(lvl);
+    const desktopBtn = byId<HTMLButtonElement>('hud-btn-solution');
+    if (desktopBtn) {
+      desktopBtn.disabled = !available;
+      if (available) desktopBtn.removeAttribute('title');
+      else desktopBtn.title = t('hud.controls.solution_unavailable.label');
+    }
+    byId('mobile-btn-solution')?.classList.toggle('hidden', !available);
   }
 
   private updateTimer(): void {
@@ -2586,9 +2733,16 @@ class EpoxyApplication {
       const finalWin = !this.isEndlessActive() && this.isOnLastLevel() && this.isPackFullyCompleted(levels);
       setText(
         ovTitle,
-        t(finalWin ? 'hud.messages.all_levels_won.label' : 'hud.messages.level_complete.label')
+        finalWin
+          ? t('hud.messages.all_levels_won.label', { name: this.activePackName() })
+          : t('hud.messages.level_complete.label')
       );
-      setText(ovSub, t('hud.messages.time_bonus.label', { bonus: this.engine.getLastTimeBonus() }));
+      setText(
+        ovSub,
+        isTimedLevel(lvl.timeLimitSeconds)
+          ? t('hud.messages.time_bonus.label', { bonus: this.engine.getLastTimeBonus() })
+          : ''
+      );
       const medalTier = this.getMedalTierFor(this.engine.getTimeRemainingSeconds(), lvl.timeLimitSeconds);
       setText(
         ovExtra,
@@ -2601,7 +2755,7 @@ class EpoxyApplication {
       );
     } else if (state === 'dead') {
       const player = this.engine.getPlayer();
-      setText(ovTitle, t('app.header.title.label'));
+      setText(ovTitle, t('hud.messages.level_lost.label'));
       setText(ovSub, player.deathReasonKey ? t(player.deathReasonKey) : '');
       setText(ovExtra, '');
     } else if (state === 'paused') {
@@ -2721,6 +2875,42 @@ class EpoxyApplication {
       return { ...settings, graphicsStyle: parseGraphicsStyle(settings.graphicsStyle) };
     } catch {
       return {};
+    }
+  }
+
+  private hasSavedProgress(): boolean {
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
+      return localStorage.getItem(key) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** True when the seen flag is in persistent storage, or in session storage when that refuses writes. */
+  private readOnboardingSeen(): boolean {
+    const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.onboardingSeenKey);
+    for (const store of ONBOARDING_STORES) {
+      try {
+        if (store().getItem(key) !== null) return true;
+      } catch {
+        // Storage blocked: try the next one
+      }
+    }
+    return false;
+  }
+
+  /** Remembers the first showing; strict private modes fall back to session storage. */
+  private markOnboardingSeen(): void {
+    this.onboardingShownThisSession = true;
+    const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.onboardingSeenKey);
+    for (const store of ONBOARDING_STORES) {
+      try {
+        store().setItem(key, ONBOARDING_SEEN_VALUE);
+        return;
+      } catch {
+        // Storage blocked: try the next one
+      }
     }
   }
 

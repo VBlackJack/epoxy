@@ -17,8 +17,24 @@ versions follow Semantic Versioning.
 - `blockPuzzle.watchMaxCells` in `game.json`: the automatic dead-end watch is skipped on larger
   levels so a big Sokoban level never freezes the page.
 
+- A "How to play" dialog opens once on the first launch (moves, undo, restart, help), and again
+  from the help dialog. A help button sits in the top bar, and on a computer the keys are recalled
+  under the board.
+- Levels won by targets show a TARGETS counter instead of chips, and say their goal when they start.
+
 ### Changed
 
+- The board fits the window height, so the hint banner and the lower rows stay visible on a
+  1024x768 screen.
+- Player-facing wording: the dead-end message speaks of targets on target levels, the end of a pack
+  names the pack, a lost level is titled as such, untimed levels show no time bonus or best time,
+  the import button reads "Import a pack..." and explains the accepted files, imported packs keep
+  their file name, and community packs have plainer names.
+- Controls that cannot work are hidden or disabled with a reason: the solution button on a level
+  without a solution, level codes in packs that have none, and pack export when no level can be
+  exported.
+- Confirmations (show solution, delete a pack, reload the editor) use the game's own dialog instead
+  of the browser's.
 - `.DAT` export refuses a level won by targets, with a message, instead of writing its targets as
   floor.
 

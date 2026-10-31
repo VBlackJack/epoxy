@@ -276,3 +276,32 @@ describe('targets win rule in the .DAT export', () => {
     expect(encoded.lost).toEqual([]);
   });
 });
+
+describe('targets progress', () => {
+  it('counts the covered targets out of the total', () => {
+    const engine = engineFor(room(['######', '#P$T.#', '#.$T.#', '######'], 'targets'));
+    expect(engine.getTargetsProgress()).toEqual({ covered: 0, total: 2 });
+    move(engine, 'E');
+    expect(engine.getTargetsProgress()).toEqual({ covered: 1, total: 2 });
+    move(engine, 'W');
+    move(engine, 'S');
+    move(engine, 'E');
+    expect(engine.getTargetsProgress()).toEqual({ covered: 2, total: 2 });
+  });
+
+  it('starts from the blocks already resting on a target', () => {
+    const engine = engineFor(room(['#####', '#P*T#', '#####'], 'targets'));
+    expect(engine.getTargetsProgress()).toEqual({ covered: 1, total: 2 });
+  });
+
+  it('does not count the player standing on a target', () => {
+    const engine = engineFor(room(['#####', '#PT.#', '#####'], 'targets'));
+    move(engine, 'E');
+    expect(engine.getTargetsProgress()).toEqual({ covered: 0, total: 1 });
+  });
+
+  it('reports no target on an exit level', () => {
+    const engine = engineFor(room(['#####', '#P$.#', '#####']));
+    expect(engine.getTargetsProgress()).toEqual({ covered: 0, total: 0 });
+  });
+});

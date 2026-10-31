@@ -101,6 +101,26 @@ export interface DatEncodeResult {
   levelCount: number;
 }
 
+/**
+ * Why the .DAT format cannot hold a level, or null when it can be written.
+ * The encoder leaves a refused level out; the UI uses the same answer to
+ * tell whether a pack has anything to export.
+ */
+export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null {
+  // The format has no block target and no win by covering targets: writing the level would change its goal.
+  if (level.winRule === 'targets') return 'targets_win_rule';
+  const datCfg = ConfigRegistry.getDatFormat();
+  const { mapWidth: gridWidth, mapHeight: gridHeight } = ConfigRegistry.getGame().grid;
+  const layerWidth = datCfg.layerWidth ?? gridWidth;
+  const layerHeight = datCfg.layerHeight ?? gridHeight;
+  const levelHeight = level.terrain.length;
+  const levelWidth = level.terrain.reduce((max, row) => Math.max(max, row.length), 0);
+  if (levelWidth > layerWidth || levelHeight > layerHeight) return 'too_large';
+  const { x: startX, y: startY } = level.playerStart;
+  if (startX < 0 || startY < 0 || startX >= levelWidth || startY >= levelHeight) return 'player_out_of_range';
+  return null;
+}
+
 export class DatCodec {
   /**
    * Decodes a .DAT / .CCL pack. The header must be valid, but a malformed
@@ -493,22 +513,13 @@ export class DatCodec {
 
     for (let idx = 0; idx < levels.length; idx++) {
       const lvl = levels[idx];
-      // The format has no block target and no win by covering targets: writing the level would change its goal.
-      if (lvl.winRule === 'targets') {
-        refused.push({ levelId: lvl.id, reason: 'targets_win_rule' });
+      const refusal = datRefusalReason(lvl);
+      if (refusal) {
+        refused.push({ levelId: lvl.id, reason: refusal });
         continue;
       }
       const levelHeight = lvl.terrain.length;
       const levelWidth = lvl.terrain.reduce((max, row) => Math.max(max, row.length), 0);
-      if (levelWidth > layerWidth || levelHeight > layerHeight) {
-        refused.push({ levelId: lvl.id, reason: 'too_large' });
-        continue;
-      }
-      const { x: startX, y: startY } = lvl.playerStart;
-      if (startX < 0 || startY < 0 || startX >= levelWidth || startY >= levelHeight) {
-        refused.push({ levelId: lvl.id, reason: 'player_out_of_range' });
-        continue;
-      }
       if (levelWidth < layerWidth || levelHeight < layerHeight) {
         padded.push(lvl.id);
       }

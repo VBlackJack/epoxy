@@ -20,7 +20,8 @@
       "language": { "label": "Language" },
       "fullscreen_toggle": { "action": "Fullscreen (F)" },
       "options_btn": { "action": "⚙️ Options" },
-      "help_btn": { "action": "❓ Help & Shortcuts" },
+      "help_btn": { "action": "❓ Help & Shortcuts", "hint": "Help and shortcuts" },
+      "help_icon": { "action": "?" },
       "mobile_menu": { "action": "⚙️ Menu & Packs" },
       "drawer_title": { "label": "⚙️ Options & Packs" },
       "drawer_close": { "action": "✕ Close" }
@@ -54,6 +55,7 @@
       "magma_drive": { "label": "Track: Magma Drive" }
     },
     "export": {
+      "none_exportable": { "label": "None of the levels in this pack can be exported to the .CCL format." },
       "lossy_replaced": { "label": "Lossy .CCL export: the .DAT format has no code for {tiles}, written as their plain version." },
       "lossy_lost": { "label": "Lossy .CCL export: the .DAT format has no code for {tiles}, written as floor or left out." },
       "padded": { "label": "Lossy .CCL export: {levels} is smaller than the .DAT map, the extra cells were filled with wall." },
@@ -62,16 +64,23 @@
       "refused_targets_win_rule": { "label": "Not exported: {levels} is won by covering block targets, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
+    "confirm": {
+      "title": { "label": "Please confirm" },
+      "cancel": { "action": "Cancel" },
+      "solution": { "action": "Show solution" },
+      "delete": { "action": "Delete" },
+      "replace": { "action": "Replace" }
+    },
     "packs": {
       "selector_label": { "label": "Pack:" },
       "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Epoxy Campaign" },
-      "ccup_tw_intro": { "label": "Community: Tile World Intro" },
-      "ccup_cclp1": { "label": "Community: CCLP 1" },
-      "ccup_cclp2": { "label": "Community: CCLP 2" },
-      "ccup_cclp3": { "label": "Community: CCLP 3" },
-      "ccup_cclp4": { "label": "Community: CCLP 4" },
-      "ccup_cclp5": { "label": "Community: CCLP 5" },
+      "ccup_tw_intro": { "label": "Community introduction (Tile World)" },
+      "ccup_cclp1": { "label": "Community levels 1 (CCLP)" },
+      "ccup_cclp2": { "label": "Community levels 2 (CCLP)" },
+      "ccup_cclp3": { "label": "Community levels 3 (CCLP)" },
+      "ccup_cclp4": { "label": "Community levels 4 (CCLP)" },
+      "ccup_cclp5": { "label": "Community levels 5 (CCLP)" },
       "custom": { "label": "Custom Levels" },
       "procedural": { "label": "Procedural Puzzles (Solvable)" },
       "procedural_toast": { "label": "Endless mode, seed {seed}: starting at level {level}. New levels are built as you play, each one proven solvable!" },
@@ -95,13 +104,14 @@
       "procedural_seed_copy_aria": { "label": "Copy seed {seed} to the clipboard" },
       "procedural_seed_copied": { "label": "Seed {seed} copied." },
       "procedural_seed_copy_failed": { "label": "Could not copy the seed. Select it and copy it by hand." },
-      "import_btn": { "action": "Import .DAT / .CCL / .JSON / .XSB" },
+      "import_btn": { "action": "Import a pack..." },
+      "import_formats": { "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json)." },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
       "delete_btn": { "action": "Delete Pack" },
-      "drop_overlay": { "label": "Drop your .DAT, .CCL (CCLP), .JSON or .XSB file here" },
+      "drop_overlay": { "label": "Drop a pack here to import it" },
       "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported successfully!" },
       "imported_skipped_toast": { "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported; {skipped, plural, one {# level was} other {# levels were}} skipped because they cannot be played." },
-      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON / .XSB)." },
+      "import_error": { "label": "Could not read this file." },
       "import_too_large": { "label": "File too large (limit: {max} MB)." },
       "imported_session_only_toast": { "label": "Pack \"{name}\" imported, but it could not be saved: it will only last for this session." },
       "invalid_level_error": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
@@ -129,6 +139,8 @@
       "level": { "label": "LEVEL" },
       "password": { "label": "CODE" },
       "chips": { "label": "CHIPS LEFT" },
+      "targets": { "label": "TARGETS" },
+      "targets_value": { "label": "{covered}/{total}" },
       "time": { "label": "TIME" },
       "time_unlimited": { "label": "---" },
       "score": { "label": "SCORE" },
@@ -153,11 +165,15 @@
       "undo": { "action": "Rewind Step (U / Ctrl+Z)" },
       "objective": { "action": "💡 Objective & Wires (H)" },
       "solution": { "action": "🎬 Show solution (O)" },
+      "solution_unavailable": { "label": "No stored solution for this level" },
       "restart": { "action": "Restart (R)" },
       "pause": { "action": "Pause (P / Space)" },
       "prev_level": { "action": "Prev Level" },
       "next_level": { "action": "Next Level" },
       "password_btn": { "action": "Enter Password" }
+    },
+    "desktop": {
+      "key_hint": { "label": "Arrows/WASD: move | U: undo | R: restart | H: objective" }
     },
     "mobile": {
       "undo": { "action": "⏪ Undo" },
@@ -175,6 +191,7 @@
       "press_resume": { "label": "Press P, Space, or Resume to continue" },
       "resume_action": { "action": "Resume Game (P / Space)" },
       "level_complete": { "label": "LEVEL COMPLETE!" },
+      "level_lost": { "label": "LEVEL LOST" },
       "time_bonus": { "label": "Time Bonus: +{bonus}" },
       "level_score": { "label": "Score: +{score} - {medal}" },
       "level_score_untimed": { "label": "Score: +{score}" },
@@ -187,6 +204,8 @@
       "block_hint": { "label": "Hint: the next push is played for you. Press Help again for the following one." },
       "quality_lowered": { "label": "Graphics quality lowered to {quality} to keep the game smooth." },
       "blocks_stuck": { "label": "Dead end: these blocks can no longer cover every button. Undo (U) or restart (R)." },
+      "blocks_stuck_targets": { "label": "Dead end: these blocks can no longer cover every target. Undo (U) or restart (R)." },
+      "objective_targets": { "label": "Goal: push the blocks onto every target." },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
       "solution_playing": { "label": "Playing the proven solution. Tap the board to take back control." },
       "solution_confirm": { "label": "Show the solution? The level restarts and plays itself to the exit." },
@@ -215,7 +234,7 @@
       "time_penalty_picked": { "label": "Stopwatch: time lost!" },
       "thief_stole": { "label": "The Thief confiscated all your boots!" },
       "socket_locked": { "label": "Collect all chips before unlocking the socket!" },
-      "all_levels_won": { "label": "CONGRATULATIONS! You mastered every level of Epoxy!" },
+      "all_levels_won": { "label": "CONGRATULATIONS! You completed {name}!" },
       "pack_wrapped": { "label": "End of pack reached: back to level 1." }
     },
     "password_modal": {
@@ -244,6 +263,16 @@
       "best_time_cell": { "label": "{medal} {seconds}s" },
       "close_btn": { "action": "Close" }
     },
+    "onboarding_modal": {
+      "title": { "label": "How to play" },
+      "move_keys": { "label": "Computer: move with the arrow keys, WASD or ZQSD." },
+      "move_touch": { "label": "Phone: swipe on the board or use the on-screen pad." },
+      "undo": { "label": "U: undo your last step." },
+      "restart": { "label": "R: restart the level." },
+      "objective": { "label": "H: show what to do next (the help button on a phone)." },
+      "goal": { "label": "The goal of each level is shown in the side panel and in the hint tiles on the board." },
+      "close_btn": { "action": "Got it" }
+    },
     "help_modal": {
       "title": { "label": "Keyboard Shortcuts & Tactical Guide" },
       "sec_shortcuts": { "label": "Keyboard & Mouse Controls" },
@@ -264,6 +293,8 @@
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
       "rule_boots": { "label": "Boots: Flippers (Water), Fire Boots (Fire), Ice Skates (Ice), Suction Boots (Force floors). Watch out for the Thief!" },
+      "rule_targets": { "label": "Block targets: on a level that shows a TARGETS counter, push blocks until every target tile holds one. There is no exit to reach." },
+      "onboarding_btn": { "action": "How to play" },
       "close_btn": { "action": "Close" }
     }
   },

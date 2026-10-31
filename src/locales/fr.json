@@ -20,7 +20,8 @@
       "language": { "label": "Langue" },
       "fullscreen_toggle": { "action": "Plein Écran (F)" },
       "options_btn": { "action": "⚙️ Options" },
-      "help_btn": { "action": "❓ Aide & Raccourcis" },
+      "help_btn": { "action": "❓ Aide & Raccourcis", "hint": "Aide et raccourcis" },
+      "help_icon": { "action": "?" },
       "mobile_menu": { "action": "⚙️ Menu & Packs" },
       "drawer_title": { "label": "⚙️ Options & Packs" },
       "drawer_close": { "action": "✕ Fermer" }
@@ -54,6 +55,7 @@
       "magma_drive": { "label": "Piste : Magma Drive" }
     },
     "export": {
+      "none_exportable": { "label": "Aucun niveau de ce pack ne peut être exporté au format .CCL." },
       "lossy_replaced": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits dans leur version simple." },
       "lossy_lost": { "label": "Export .CCL avec pertes : le format .DAT n'a pas de code pour {tiles}, écrits comme du sol ou omis." },
       "padded": { "label": "Export .CCL avec pertes : {levels} est plus petit que la carte .DAT, les cases en plus ont été remplies de mur." },
@@ -62,16 +64,23 @@
       "refused_targets_win_rule": { "label": "Non exporté : {levels} se gagne en couvrant des cibles de bloc, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
     },
+    "confirm": {
+      "title": { "label": "Veuillez confirmer" },
+      "cancel": { "action": "Annuler" },
+      "solution": { "action": "Voir la solution" },
+      "delete": { "action": "Supprimer" },
+      "replace": { "action": "Remplacer" }
+    },
     "packs": {
       "selector_label": { "label": "Pack :" },
       "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Campagne Epoxy" },
-      "ccup_tw_intro": { "label": "Communauté : Tile World Intro" },
-      "ccup_cclp1": { "label": "Communauté : CCLP 1" },
-      "ccup_cclp2": { "label": "Communauté : CCLP 2" },
-      "ccup_cclp3": { "label": "Communauté : CCLP 3" },
-      "ccup_cclp4": { "label": "Communauté : CCLP 4" },
-      "ccup_cclp5": { "label": "Communauté : CCLP 5" },
+      "ccup_tw_intro": { "label": "Introduction communautaire (Tile World)" },
+      "ccup_cclp1": { "label": "Niveaux communautaires 1 (CCLP)" },
+      "ccup_cclp2": { "label": "Niveaux communautaires 2 (CCLP)" },
+      "ccup_cclp3": { "label": "Niveaux communautaires 3 (CCLP)" },
+      "ccup_cclp4": { "label": "Niveaux communautaires 4 (CCLP)" },
+      "ccup_cclp5": { "label": "Niveaux communautaires 5 (CCLP)" },
       "custom": { "label": "Niveaux Personnalisés" },
       "procedural": { "label": "Puzzles Procéduraux (Solvables)" },
       "procedural_toast": { "label": "Mode infini, graine {seed} : départ au niveau {level}. Les niveaux suivants se construisent pendant que vous jouez, chacun prouvé solvable !" },
@@ -95,13 +104,14 @@
       "procedural_seed_copy_aria": { "label": "Copier la graine {seed} dans le presse-papiers" },
       "procedural_seed_copied": { "label": "Graine {seed} copiée." },
       "procedural_seed_copy_failed": { "label": "Copie impossible. Sélectionnez la graine et copiez-la à la main." },
-      "import_btn": { "action": "Importer .DAT / .CCL / .JSON / .XSB" },
+      "import_btn": { "action": "Importer un pack..." },
+      "import_formats": { "label": "Packs Chip's Challenge (.dat, .ccl), collections Sokoban (.xsb, .sok), niveaux Epoxy (.json)." },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },
       "delete_btn": { "action": "Supprimer ce Pack" },
-      "drop_overlay": { "label": "Déposez votre fichier .DAT, .CCL (CCLP), .JSON ou .XSB ici" },
+      "drop_overlay": { "label": "Déposez un pack ici pour l'importer" },
       "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé avec succès !" },
       "imported_skipped_toast": { "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé ; {skipped, plural, one {# niveau a été ignoré} other {# niveaux ont été ignorés}} car injouable(s)." },
-      "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON / .XSB invalide)." },
+      "import_error": { "label": "Impossible de lire ce fichier." },
       "import_too_large": { "label": "Fichier trop volumineux (limite : {max} Mo)." },
       "imported_session_only_toast": { "label": "Pack \"{name}\" importé, mais il n'a pas pu être sauvegardé : il ne durera que pour cette session." },
       "invalid_level_error": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
@@ -129,6 +139,8 @@
       "level": { "label": "NIVEAU" },
       "password": { "label": "CODE" },
       "chips": { "label": "PUCES RESTANTES" },
+      "targets": { "label": "CIBLES" },
+      "targets_value": { "label": "{covered}/{total}" },
       "time": { "label": "TEMPS" },
       "time_unlimited": { "label": "---" },
       "score": { "label": "SCORE" },
@@ -153,11 +165,15 @@
       "undo": { "action": "Rembobiner (U / Ctrl+Z)" },
       "objective": { "action": "💡 Objectif & Câbles (H)" },
       "solution": { "action": "🎬 Voir la solution (O)" },
+      "solution_unavailable": { "label": "Aucune solution enregistrée pour ce niveau" },
       "restart": { "action": "Recommencer (R)" },
       "pause": { "action": "Pause (P / Espace)" },
       "prev_level": { "action": "Niveau Préc." },
       "next_level": { "action": "Niveau Suiv." },
       "password_btn": { "action": "Entrer un Code" }
+    },
+    "desktop": {
+      "key_hint": { "label": "Flèches/ZQSD : bouger | U : annuler | R : recommencer | H : objectif" }
     },
     "mobile": {
       "undo": { "action": "⏪ Pas" },
@@ -175,6 +191,7 @@
       "press_resume": { "label": "Appuyez sur P, Espace ou Reprendre pour continuer" },
       "resume_action": { "action": "Reprendre la Partie (P / Espace)" },
       "level_complete": { "label": "NIVEAU TERMINÉ !" },
+      "level_lost": { "label": "NIVEAU PERDU" },
       "time_bonus": { "label": "Bonus Temps : +{bonus}" },
       "level_score": { "label": "Score : +{score} - {medal}" },
       "level_score_untimed": { "label": "Score : +{score}" },
@@ -187,6 +204,8 @@
       "block_hint": { "label": "Indice : le prochain coup est joué pour vous. Appuyez de nouveau sur Aide pour le suivant." },
       "quality_lowered": { "label": "Qualité graphique abaissée à {quality} pour garder le jeu fluide." },
       "blocks_stuck": { "label": "Impasse : ces blocs ne peuvent plus couvrir tous les boutons. Annulez (U) ou recommencez (R)." },
+      "blocks_stuck_targets": { "label": "Impasse : ces blocs ne peuvent plus couvrir toutes les cibles. Annulez (U) ou recommencez (R)." },
+      "objective_targets": { "label": "Objectif : poussez les blocs sur toutes les cibles." },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
       "solution_playing": { "label": "Lecture de la solution prouvée. Touchez le plateau pour reprendre la main." },
       "solution_confirm": { "label": "Voir la solution ? Le niveau recommence et se joue tout seul jusqu'à la sortie." },
@@ -215,7 +234,7 @@
       "time_penalty_picked": { "label": "Chronomètre : temps perdu !" },
       "thief_stole": { "label": "Le Voleur a confisqué toutes vos bottes !" },
       "socket_locked": { "label": "Collectez toutes les puces avant d'ouvrir le verrou !" },
-      "all_levels_won": { "label": "FÉLICITATIONS ! Vous avez maîtrisé tous les niveaux d'Epoxy !" },
+      "all_levels_won": { "label": "FÉLICITATIONS ! Vous avez terminé {name} !" },
       "pack_wrapped": { "label": "Fin du pack atteinte : retour au niveau 1." }
     },
     "password_modal": {
@@ -244,6 +263,16 @@
       "best_time_cell": { "label": "{medal} {seconds}s" },
       "close_btn": { "action": "Fermer" }
     },
+    "onboarding_modal": {
+      "title": { "label": "Comment jouer" },
+      "move_keys": { "label": "Ordinateur : déplacez-vous avec les flèches, WASD ou ZQSD." },
+      "move_touch": { "label": "Téléphone : glissez le doigt sur le plateau ou utilisez la croix à l'écran." },
+      "undo": { "label": "U : annuler votre dernier pas." },
+      "restart": { "label": "R : recommencer le niveau." },
+      "objective": { "label": "H : voir quoi faire ensuite (le bouton d'aide sur téléphone)." },
+      "goal": { "label": "Le but de chaque niveau s'affiche dans le panneau latéral et dans les tuiles d'indice du plateau." },
+      "close_btn": { "action": "Compris" }
+    },
     "help_modal": {
       "title": { "label": "Raccourcis Clavier & Guide Tactique" },
       "sec_shortcuts": { "label": "Raccourcis Clavier & Souris" },
@@ -263,6 +292,8 @@
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
       "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
+      "rule_targets": { "label": "Cibles de bloc : sur un niveau qui affiche un compteur CIBLES, poussez des blocs jusqu'à ce que chaque case cible en porte un. Il n'y a pas de sortie à atteindre." },
+      "onboarding_btn": { "action": "Comment jouer" },
       "rule_boots": { "label": "Bottes : Palmes (Eau), Ignifugées (Feu), Crampons (Glace), Ventouses (Tapis roulants). Attention au Voleur !" },
       "close_btn": { "action": "Fermer" }
     }

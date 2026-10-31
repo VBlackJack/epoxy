@@ -26,7 +26,10 @@
     <div id="app">
       <!-- Drag & Drop Overlay for .DAT / .CCL / .JSON / .XSB files -->
       <div id="drop-overlay" class="drop-overlay hidden">
-        <div class="drop-card" data-i18n="app.packs.drop_overlay.label"></div>
+        <div class="drop-card">
+          <div data-i18n="app.packs.drop_overlay.label"></div>
+          <div class="drop-card-formats" data-i18n="app.packs.import_formats.label"></div>
+        </div>
       </div>
 
       <header class="top-bar">
@@ -44,7 +47,7 @@
             <label for="pack-select" data-i18n="app.packs.selector_label.label"></label>
             <select id="pack-select" class="locale-select"></select>
             <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
-            <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
+            <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action" data-i18n-title="app.packs.import_formats.label"></button>
             <input id="pack-file-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok" class="hidden" />
           </div>
           <div id="procedural-seed-box" class="pack-box procedural-seed-box hidden">
@@ -57,6 +60,7 @@
             <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
           </div>
           <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action"></button>
+          <button id="btn-help-top" class="nav-btn help-icon-btn" type="button" data-i18n="app.header.help_icon.action" data-i18n-title="app.header.help_btn.hint" data-i18n-aria-label="app.header.help_btn.hint"></button>
           <button id="btn-options-menu" class="nav-btn" type="button" aria-expanded="false" aria-controls="options-drawer" data-i18n="app.header.options_btn.action"></button>
         </nav>
       </header>
@@ -101,6 +105,7 @@
             <button id="btn-drawer-levels" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
             <button id="btn-drawer-procedural" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
             <button id="btn-drawer-import" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
+            <p class="import-formats-hint" data-i18n="app.packs.import_formats.label"></p>
             <button id="btn-drawer-password" class="nav-btn" type="button" data-i18n="hud.controls.password_btn.action"></button>
             <button id="btn-help-modal" class="nav-btn" type="button" data-i18n="app.header.help_btn.action"></button>
           </div>
@@ -208,7 +213,8 @@
 
                 <div class="led-counters">
                   <div class="led-box">
-                    <span class="led-label" data-i18n="hud.stats.chips.label"></span>
+                    <span id="hud-chips-label" class="led-label" data-i18n="hud.stats.chips.label"></span>
+                    <span id="hud-targets-label" class="led-label hidden" data-i18n="hud.stats.targets.label"></span>
                     <div id="hud-chips-left" class="led-digits led-green"></div>
                   </div>
                   <div class="led-box">
@@ -257,6 +263,7 @@
                   </div>
                   <button id="hud-btn-password" class="hud-btn secondary" type="button" data-i18n="hud.controls.password_btn.action"></button>
                 </div>
+                <div class="desktop-key-caption" data-i18n="hud.desktop.key_hint.label"></div>
               </aside>
             </div>
           </div>
@@ -456,7 +463,7 @@
                 <tr>
                   <th data-i18n="hud.scores_modal.col_level.label"></th>
                   <th data-i18n="hud.scores_modal.col_title.label"></th>
-                  <th data-i18n="hud.scores_modal.col_code.label"></th>
+                  <th id="scores-col-code" data-i18n="hud.scores_modal.col_code.label"></th>
                   <th data-i18n="hud.scores_modal.col_best_time.label"></th>
                   <th data-i18n="hud.scores_modal.col_best_steps.label"></th>
                   <th data-i18n="hud.scores_modal.col_best_score.label"></th>
@@ -501,11 +508,43 @@
                 <li data-i18n="hud.help_modal.rule_keys.label"></li>
                 <li data-i18n="hud.help_modal.rule_buttons.label"></li>
                 <li data-i18n="hud.help_modal.rule_boots.label"></li>
+                <li data-i18n="hud.help_modal.rule_targets.label"></li>
               </ul>
             </div>
           </div>
           <div class="modal-actions">
+            <button id="help-onboarding-btn" class="action-btn" type="button" data-i18n="hud.help_modal.onboarding_btn.action"></button>
             <button id="help-close-btn" class="action-btn primary" type="button" data-i18n="hud.help_modal.close_btn.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIRST-LAUNCH "HOW TO PLAY" MODAL -->
+      <div id="onboarding-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-modal-title">
+        <div class="modal-dialog">
+          <h3 id="onboarding-modal-title" data-i18n="hud.onboarding_modal.title.label"></h3>
+          <ul class="help-list onboarding-list">
+            <li data-i18n="hud.onboarding_modal.move_keys.label"></li>
+            <li data-i18n="hud.onboarding_modal.move_touch.label"></li>
+            <li data-i18n="hud.onboarding_modal.undo.label"></li>
+            <li data-i18n="hud.onboarding_modal.restart.label"></li>
+            <li data-i18n="hud.onboarding_modal.objective.label"></li>
+            <li data-i18n="hud.onboarding_modal.goal.label"></li>
+          </ul>
+          <div class="modal-actions">
+            <button id="onboarding-close-btn" class="action-btn primary" type="button" data-i18n="hud.onboarding_modal.close_btn.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONFIRM MODAL (replaces the browser's own confirm box) -->
+      <div id="confirm-modal" class="modal-backdrop hidden" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message">
+        <div class="modal-dialog">
+          <h3 id="confirm-modal-title"></h3>
+          <p id="confirm-modal-message" class="confirm-message"></p>
+          <div class="modal-actions">
+            <button id="confirm-cancel-btn" class="action-btn" type="button"></button>
+            <button id="confirm-ok-btn" class="action-btn primary" type="button"></button>
           </div>
         </div>
       </div>

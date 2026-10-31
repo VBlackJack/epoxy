@@ -100,6 +100,9 @@ export function findGameTunableErrors(game: GameConfig): string[] {
   if (!isIntegerAtLeast(game.endlessUi?.maxStartLevel, MIN_START_LEVEL_BOUND)) {
     errors.push(`endlessUi.maxStartLevel: expected a whole number of at least ${MIN_START_LEVEL_BOUND}`);
   }
+  if (typeof game.storage?.onboardingSeenKey !== 'string' || game.storage.onboardingSeenKey.length === 0) {
+    errors.push('storage.onboardingSeenKey: expected a non-empty string');
+  }
   if (game.procedural && !isIntegerAtLeast(game.procedural.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {
     errors.push(`procedural.scoring.fallbackCandidates: expected a whole number of at least ${MIN_FALLBACK_CANDIDATES}`);
   }

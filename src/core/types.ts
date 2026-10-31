@@ -72,6 +72,8 @@ export interface StorageConfig {
   activePackKey: string;
   lastProceduralSeedKey: string;
   lastEndlessKey: string;
+  /** Flag set once the first-launch "How to play" dialog was shown. */
+  onboardingSeenKey: string;
   levelPacksDbName: string;
   levelPacksStoreName: string;
 }

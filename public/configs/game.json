@@ -430,6 +430,7 @@
     "activePackKey": "active_pack",
     "lastProceduralSeedKey": "last_procedural_seed",
     "lastEndlessKey": "last_endless",
+    "onboardingSeenKey": "onboarding_seen",
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
   },
