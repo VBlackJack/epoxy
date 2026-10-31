@@ -54,6 +54,11 @@ export function lossyExportNotice(
       t('app.export.refused_player_out_of_range.label', { levels: levelNames(refusedFor('player_out_of_range')) })
     );
   }
+  if (refusedFor('targets_win_rule').length > 0) {
+    parts.push(
+      t('app.export.refused_targets_win_rule.label', { levels: levelNames(refusedFor('targets_win_rule')) })
+    );
+  }
   if (padded.length > 0) {
     parts.push(t('app.export.padded.label', { levels: levelNames(padded) }));
   }

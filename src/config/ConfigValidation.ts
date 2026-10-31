@@ -15,7 +15,7 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
-import { CompiledLevel, DatFormatConfig, Direction, GameConfig, GridConfig } from '../core/types';
+import { CompiledLevel, DatFormatConfig, Direction, GameConfig, GridConfig, WinRule } from '../core/types';
 
 /**
  * Raised when a fetched configuration file is missing or does not match the
@@ -196,14 +196,24 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
 /** Optional text fields of a level; each one is kept only when it is a string. */
 const LEVEL_TEXT_FIELDS = ['titleKey', 'customTitle', 'hintKey', 'customHint'] as const;
 
+/** Win rules a level may declare; anything else in a stored level is dropped. */
+export const WIN_RULES: readonly WinRule[] = ['exit', 'targets'];
+
+/** True for a value that names a known win rule. */
+export function isWinRule(value: unknown): value is WinRule {
+  return typeof value === 'string' && (WIN_RULES as readonly string[]).includes(value);
+}
+
 /**
- * Returns the level without any optional text field that is not a string, so
- * a stale or hand-edited record cannot hand a number to the text pipeline.
+ * Returns the level without any optional text field that is not a string, and
+ * without a win rule that is not a known one, so a stale or hand-edited record
+ * cannot hand a number to the text pipeline or an unknown rule to the engine.
  * The input is never mutated.
  */
 export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const record = level as unknown as Record<string, unknown>;
-  const bad = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
+  const bad: string[] = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
+  if ('winRule' in record && !isWinRule(record.winRule)) bad.push('winRule');
   if (bad.length === 0) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
@@ -250,10 +260,10 @@ export function ensureUniqueLevelIds(levels: readonly CompiledLevel[], fallbackP
   });
 }
 
-/** Problems of the game.json block puzzle section: both search budgets must be positive integers. */
+/** Problems of the game.json block puzzle section: the search budgets and the watch size limit must be positive integers. */
 export function findBlockPuzzleConfigErrors(value: unknown): string[] {
   if (!isRecord(value)) return ['blockPuzzle: not an object'];
-  return ['watchSearchBudget', 'hintSearchBudget']
+  return ['watchSearchBudget', 'hintSearchBudget', 'watchMaxCells']
     .filter((key) => !Number.isInteger(value[key]) || (value[key] as number) <= 0)
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Direction } from './types';
+import { Direction, WinRule } from './types';
 
 /** Terrain id used when a cell has no explicit terrain, or a tile has no transform target. */
 export const FLOOR_TILE_ID = 'floor';
@@ -24,6 +24,12 @@ export const WALL_TILE_ID = 'wall';
 
 /** Terrain left behind by a block sunk in water when neither config names one. */
 export const SUNK_BLOCK_TILE_ID = 'dirt';
+
+/** Terrain a block must cover to win a level whose win rule is 'targets'. */
+export const BLOCK_TARGET_TILE_ID = 'block_target';
+
+/** Win rule of a level that declares none. */
+export const DEFAULT_WIN_RULE: WinRule = 'exit';
 
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';

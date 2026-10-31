@@ -33,6 +33,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { XsbLevel } from '../formats/XsbCodec';
 import { compilePiece } from './PieceCompiler';
 import { PieceSolver } from './PieceSolver';
 import { CompiledPiece, PieceDefinition } from './PieceTypes';
@@ -55,9 +56,6 @@ const XSB_GOAL = '.';
 const XSB_BOX_ON_GOAL = '*';
 const XSB_PLAYER = '@';
 const XSB_PLAYER_ON_GOAL = '+';
-const XSB_LEVEL_CHARS = /^[#$.*@+ \-_]+$/;
-const XSB_TITLE_PREFIX = 'title:';
-const XSB_COMMENT_PREFIX = ';';
 
 /** Epoxy piece legend characters (see public/configs/motifs.json). */
 const WALL = '#';
@@ -73,10 +71,8 @@ const PIECE_MOTIF = 'sokoban';
 const PIECE_TIER = 3;
 const PIECE_ID_PREFIX = 'sokoban_import_';
 
-export interface XsbLevel {
-  title: string;
-  lines: string[];
-}
+export { parseXsbCollection } from '../formats/XsbCodec';
+export type { XsbLevel } from '../formats/XsbCodec';
 
 /** Why a level was not kept, in the order the checks run. */
 export type XsbRejection =
@@ -100,30 +96,6 @@ export interface XsbImportResult {
   piece: PieceDefinition | null;
   /** Set when piece is null: the reason of the best ranked layout. */
   rejection?: XsbRejection;
-}
-
-/** Splits a collection into levels, titled by a "Title:" line or a ';' comment. */
-export function parseXsbCollection(text: string): XsbLevel[] {
-  const levels: XsbLevel[] = [];
-  let lines: string[] = [];
-  let title = '';
-  const flush = () => {
-    if (lines.length > 0) levels.push({ title: title || `#${levels.length + 1}`, lines });
-    lines = [];
-    title = '';
-  };
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.replace(/\s+$/, '');
-    if (line.length > 0 && XSB_LEVEL_CHARS.test(line) && line.includes(XSB_WALL)) {
-      lines.push(line);
-    } else {
-      flush();
-      if (line.toLowerCase().startsWith(XSB_TITLE_PREFIX)) title = line.slice(XSB_TITLE_PREFIX.length).trim();
-      else if (line.startsWith(XSB_COMMENT_PREFIX)) title = line.slice(XSB_COMMENT_PREFIX.length).trim();
-    }
-  }
-  flush();
-  return levels;
 }
 
 /**

@@ -498,6 +498,8 @@ export interface BlockPuzzleConfig {
   watchSearchBudget: number;
   /** Larger budget of a hint or a dead-end check the player asks for. */
   hintSearchBudget: number;
+  /** Level area (cells) above which the automatic dead-end watch is skipped. */
+  watchMaxCells: number;
 }
 
 /** Thresholds of the guard that keeps campaign maps unlike the bundled community packs. */
@@ -711,10 +713,15 @@ export interface EntityPlacement {
   dir: Direction;
 }
 
+/** How a level is won: reach the exit, or cover every block target with a block. */
+export type WinRule = 'exit' | 'targets';
+
 export interface LevelBlueprint {
   id: string;
   theme?: string;
   solution?: string;
+  /** Win rule of the level; absent means 'exit'. */
+  winRule?: WinRule;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -746,6 +753,8 @@ export interface CompiledLevel {
   theme?: string;
   /** A proven winning action list (N, E, S, W, '.' to wait), for the solution replay. */
   solution?: string;
+  /** Win rule of the level; absent means 'exit'. */
+  winRule?: WinRule;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -865,5 +874,7 @@ export interface LevelValidationReport {
     exitCount: number;
     reachableChips: number;
     reachableExit: boolean;
+    /** Block target cells on the map. */
+    targetCount: number;
   };
 }

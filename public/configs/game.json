@@ -399,7 +399,8 @@
   ],
   "blockPuzzle": {
     "watchSearchBudget": 4000,
-    "hintSearchBudget": 60000
+    "hintSearchBudget": 60000,
+    "watchMaxCells": 2500
   },
   "campaignGuard": {
     "windowSize": 5,
@@ -498,6 +499,8 @@
     "gravelSpeck": "#455a64",
     "blockBase": "#a1887f",
     "blockBorder": "#4e342e",
+    "blockTarget": "#ffab00",
+    "blockOnTarget": "#00e676",
     "iceBlockBase": "#81d4fa",
     "iceBlockBorder": "#0288d1",
     "red": "#ff1744",

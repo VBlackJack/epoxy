@@ -5,7 +5,22 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Native Sokoban levels: a level with `winRule: "targets"` is won as soon as every `block_target`
+  tile holds a block at rest, with no exit. The validator checks targets and blocks instead of the
+  exit, the block puzzle Help and dead-end watch aim at the targets, and the Help objective points
+  at a free target. The editor has the tile and a win condition field.
+- `.xsb` and `.sok` Sokoban collections import by drag and drop or from the import button, as
+  native levels kept in the browser like imported `.DAT` packs. Run-length rows are expanded, the
+  outside of the room becomes wall, and broken levels are skipped with a count.
+- `blockPuzzle.watchMaxCells` in `game.json`: the automatic dead-end watch is skipped on larger
+  levels so a big Sokoban level never freezes the page.
+
 ### Changed
+
+- `.DAT` export refuses a level won by targets, with a message, instead of writing its targets as
+  floor.
 
 - The `.xsb` importer (`npm run import:sokoban`) carves its entry and exit tunnels through the
   rock on any side of the room instead of a shaft from the top and a trap column at the bottom.

@@ -24,6 +24,7 @@ import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSe
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { DatCodec } from './formats/DatCodec';
+import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
 import { Pathfinder } from './core/Pathfinder';
@@ -399,6 +400,10 @@ class EpoxyApplication {
    */
   private watchBlockPuzzles(): void {
     if (this.isReplaying) return;
+    // The exact search runs on the main thread: a large level is left to the hint button.
+    const terrain = this.engine.getTerrain();
+    const cells = terrain.length * (terrain[0]?.length ?? 0);
+    if (cells > ConfigRegistry.getGame().blockPuzzle.watchMaxCells) return;
     // Only blocks matter; monsters move every few ticks.
     const layout = this.engine
       .getEntities()
@@ -517,6 +522,7 @@ class EpoxyApplication {
 
     try {
       let levels: CompiledLevel[];
+      let skippedCount = 0;
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
         levels = DatCodec.decodeBuffer(await file.arrayBuffer(), packName);
         if (levels.length === 0) {
@@ -524,6 +530,13 @@ class EpoxyApplication {
         }
       } else if (lower.endsWith('.json')) {
         levels = this.compileJsonLevels(JSON.parse(await file.text()));
+      } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+        const decoded = decodeXsbCollection(await file.text(), packName);
+        levels = decoded.levels;
+        skippedCount = decoded.skipped.length;
+        if (levels.length === 0) {
+          throw new Error('Empty pack');
+        }
       } else {
         this.showTransientStatus(t('app.packs.import_error.label'));
         return;
@@ -533,9 +546,11 @@ class EpoxyApplication {
       this.editor.populatePresetDropdown();
       this.switchMode('play');
       this.startLevelByIndex(0);
+      const importedKey =
+        skippedCount > 0 ? 'app.packs.imported_skipped_toast.label' : 'app.packs.imported_toast.label';
       this.showTransientStatus(
         persisted
-          ? t('app.packs.imported_toast.label', { name: packName, count: levels.length })
+          ? t(importedKey, { name: packName, count: levels.length, skipped: skippedCount })
           : t('app.packs.imported_session_only_toast.label', { name: packName })
       );
     } catch (err) {

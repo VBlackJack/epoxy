@@ -20,6 +20,7 @@ import { InvalidLevelError } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
 import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
+import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
 import { LevelValidator } from '../core/LevelValidator';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
@@ -29,11 +30,13 @@ import {
   EntityPlacement,
   LevelBlueprint,
   TrapLink,
-  ValidationIssue
+  ValidationIssue,
+  WinRule
 } from '../core/types';
 import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
-import { parseChipsRequired, parseTimeLimit } from './metadataFields';
+import { DEFAULT_WIN_RULE } from '../core/coreConstants';
+import { parseChipsRequired, parseTimeLimit, parseWinRule } from './metadataFields';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   CUSTOM_LEVEL_ID_PREFIX,
@@ -57,7 +60,8 @@ const METADATA_INPUT_IDS = [
   'editor-meta-hint',
   'editor-meta-password',
   'editor-meta-time',
-  'editor-meta-chips'
+  'editor-meta-chips',
+  'editor-meta-winrule'
 ] as const;
 
 type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'eraser' | 'wire_trap' | 'wire_cloner';
@@ -99,6 +103,7 @@ export class LevelEditor {
   private password: string = EDITOR_DEFAULT_PASSWORD;
   private timeLimitSeconds: number = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
   private chipsRequired: number = EDITOR_DEFAULT_CHIPS_REQUIRED;
+  private winRule: WinRule = DEFAULT_WIN_RULE;
 
   private activeCategory: string = 'terrain';
   private activeBrush: ActiveBrush = { kind: 'terrain', id: 'wall' };
@@ -184,6 +189,7 @@ export class LevelEditor {
     this.password = EDITOR_DEFAULT_PASSWORD;
     this.timeLimitSeconds = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
     this.chipsRequired = EDITOR_DEFAULT_CHIPS_REQUIRED;
+    this.winRule = DEFAULT_WIN_RULE;
     this.isDirty = false;
     this.undoStack = [];
     this.redoStack = [];
@@ -201,6 +207,7 @@ export class LevelEditor {
     this.password = level.password;
     this.timeLimitSeconds = level.timeLimitSeconds;
     this.chipsRequired = level.chipsRequired;
+    this.winRule = level.winRule ?? DEFAULT_WIN_RULE;
     this.playerStart = { ...level.playerStart };
     this.terrain = level.terrain.map((r) => [...r]);
     this.items = level.items.map((r) => [...r]);
@@ -477,11 +484,18 @@ export class LevelEditor {
       const compiled = this.exportCompiledLevel();
       const report = LevelValidator.validate(compiled);
       if (report.valid) {
+        const validText =
+          compiled.winRule === 'targets'
+            ? t('validator.status.valid_targets.label', { targets: report.stats.targetCount })
+            : t('validator.status.valid.label', {
+                chips: report.stats.reachableChips,
+                required: report.stats.chipsRequired
+              });
+        // A valid level may still carry warnings; they follow the verdict.
         this.setStatusText(
-          t('validator.status.valid.label', {
-            chips: report.stats.reachableChips,
-            required: report.stats.chipsRequired
-          })
+          report.issues.length > 0
+            ? `${validText}${t('validator.status.issue_separator.label')}${this.formatIssues(report.issues)}`
+            : validText
         );
       } else {
         this.setStatusText(this.formatIssues(report.issues));
@@ -557,6 +571,26 @@ export class LevelEditor {
           }
         };
         reader.readAsArrayBuffer(file);
+      } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const decoded = decodeXsbCollection(String(reader.result), file.name.replace(/\.[^.]+$/, ''));
+            if (decoded.levels.length === 0) {
+              this.setStatusText(t('editor.palette.status.import_error'));
+              return;
+            }
+            this.loadCompiledLevel(decoded.levels[0]);
+            this.setStatusText(
+              decoded.skipped.length > 0
+                ? t('editor.palette.status.imported_skipped.label', { skipped: decoded.skipped.length })
+                : t('editor.palette.status.imported')
+            );
+          } catch {
+            this.setStatusText(t('editor.palette.status.import_error'));
+          }
+        };
+        reader.readAsText(file);
       } else {
         const reader = new FileReader();
         reader.onload = () => {
@@ -626,12 +660,14 @@ export class LevelEditor {
     const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
     const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
     const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
+    const winRuleEl = document.getElementById('editor-meta-winrule') as HTMLSelectElement | null;
 
     if (titleEl) titleEl.value = this.customTitle;
     if (hintEl) hintEl.value = this.customHint;
     if (passEl) passEl.value = this.password;
     if (timeEl) timeEl.value = String(this.timeLimitSeconds);
     if (chipsEl) chipsEl.value = String(this.chipsRequired);
+    if (winRuleEl) winRuleEl.value = this.winRule;
   }
 
   private readMetadataInputs(): void {
@@ -640,6 +676,7 @@ export class LevelEditor {
     const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
     const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
     const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
+    const winRuleEl = document.getElementById('editor-meta-winrule') as HTMLSelectElement | null;
 
     if (titleEl && titleEl.value.trim()) this.customTitle = titleEl.value.trim();
     if (hintEl) this.customHint = hintEl.value.trim();
@@ -648,6 +685,7 @@ export class LevelEditor {
     }
     if (timeEl) this.timeLimitSeconds = parseTimeLimit(timeEl.value, this.timeLimitSeconds);
     if (chipsEl) this.chipsRequired = parseChipsRequired(chipsEl.value, this.chipsRequired);
+    if (winRuleEl) this.winRule = parseWinRule(winRuleEl.value, this.winRule);
   }
 
   private createSnapshot(): EditorSnapshot {
@@ -979,6 +1017,7 @@ export class LevelEditor {
       ?.levels.find((l) => l.id === id);
     return {
       id,
+      ...(this.winRule === DEFAULT_WIN_RULE ? {} : { winRule: this.winRule }),
       number: existing ? existing.number : ConfigRegistry.getLevels().length + 1,
       customTitle: this.customTitle,
       customHint: this.customHint,

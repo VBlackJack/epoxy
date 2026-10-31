@@ -59,6 +59,7 @@
       "padded": { "label": "Export .CCL avec pertes : {levels} est plus petit que la carte .DAT, les cases en plus ont été remplies de mur." },
       "refused_too_large": { "label": "Non exporté : {levels} est plus grand que la carte .DAT." },
       "refused_player_out_of_range": { "label": "Non exporté : le départ de {levels} est hors de sa carte." },
+      "refused_targets_win_rule": { "label": "Non exporté : {levels} se gagne en couvrant des cibles de bloc, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
     },
     "packs": {
@@ -94,12 +95,13 @@
       "procedural_seed_copy_aria": { "label": "Copier la graine {seed} dans le presse-papiers" },
       "procedural_seed_copied": { "label": "Graine {seed} copiée." },
       "procedural_seed_copy_failed": { "label": "Copie impossible. Sélectionnez la graine et copiez-la à la main." },
-      "import_btn": { "action": "Importer .DAT / .CCL / .JSON" },
+      "import_btn": { "action": "Importer .DAT / .CCL / .JSON / .XSB" },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },
       "delete_btn": { "action": "Supprimer ce Pack" },
-      "drop_overlay": { "label": "Déposez votre fichier .DAT, .CCL (CCLP) ou .JSON ici" },
+      "drop_overlay": { "label": "Déposez votre fichier .DAT, .CCL (CCLP), .JSON ou .XSB ici" },
       "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé avec succès !" },
-      "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON invalide)." },
+      "imported_skipped_toast": { "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé ; {skipped, plural, one {# niveau a été ignoré} other {# niveaux ont été ignorés}} car injouable(s)." },
+      "import_error": { "label": "Impossible de décoder ce fichier (.DAT / .CCL / .JSON / .XSB invalide)." },
       "import_too_large": { "label": "Fichier trop volumineux (limite : {max} Mo)." },
       "imported_session_only_toast": { "label": "Pack \"{name}\" importé, mais il n'a pas pu être sauvegardé : il ne durera que pour cette session." },
       "invalid_level_error": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
@@ -268,6 +270,7 @@
   "validator": {
     "status": {
       "valid": { "label": "Niveau 100% valide et solvable ({chips}/{required} puces accessibles, sortie atteignable) !" },
+      "valid_targets": { "label": "Niveau valide : {targets, plural, one {# cible} other {# cibles}} à couvrir avec des blocs." },
       "issue_separator": { "label": " | " }
     },
     "issues": {
@@ -278,7 +281,10 @@
       "unreachable_chips": { "label": "Erreur : Seulement {reachable}/{required, plural, one {# puce est accessible} other {# puces sont accessibles}} depuis le départ." },
       "unreachable_exit": { "label": "Erreur : Le portail de sortie est bloqué ou inaccessible." },
       "socket_bypass": { "label": "Erreur : La sortie est accessible sans passer par la serrure à puces." },
-      "invalid_start": { "label": "Erreur : Le point de départ du joueur est hors de la carte." }
+      "invalid_start": { "label": "Erreur : Le point de départ du joueur est hors de la carte." },
+      "no_targets": { "label": "Erreur : Aucune cible de bloc placée sur la carte." },
+      "fewer_blocks_than_targets": { "label": "Erreur : {blocks, plural, one {# seul bloc} other {# blocs}} pour {targets, plural, one {# cible} other {# cibles}}." },
+      "targets_unsolvable": { "label": "Avertissement : plus aucune suite de poussées ne couvre toutes les cibles." }
     }
   },
   "editor": {
@@ -318,6 +324,9 @@
       "password": { "label": "Code (4 lettres)" },
       "time_limit": { "label": "Temps (s)" },
       "chips_needed": { "label": "Puces requises" },
+      "win_rule": { "label": "Règle de victoire" },
+      "win_rule_exit": { "label": "Atteindre la sortie" },
+      "win_rule_targets": { "label": "Couvrir chaque cible avec un bloc" },
       "auto_count_chips": { "action": "Compter auto." },
       "entity_dir": { "label": "Direction Entité / Joueur" }
     },
@@ -343,6 +352,7 @@
         "picked": { "label": "Pipette : {name} sélectionné" },
         "saved": { "label": "Niveau sauvegardé dans la bibliothèque locale !" },
         "imported": { "label": "Niveau importé avec succès !" },
+        "imported_skipped": { "label": "Premier niveau importé ; {skipped, plural, one {# niveau a été ignoré} other {# niveaux ont été ignorés}} car injouable(s)." },
         "import_error": { "label": "Format de niveau invalide." },
         "import_too_large": { "label": "Fichier trop volumineux (limite : {max} Mo)." },
         "saved_session_only": { "label": "Niveau conservé pour cette session seulement : le navigateur n'a pas pu le sauvegarder." },
@@ -427,6 +437,7 @@
     "button_green": { "name": "Bouton Vert (Portes Bascules)" },
     "button_blue": { "name": "Bouton Bleu (Inverser Tanks)" },
     "button_brown": { "name": "Bouton Brun (Ouvrir Piège)" },
+    "block_target": { "name": "Cible de bloc" },
     "button_red": { "name": "Bouton Rouge (Cloneur)" },
     "button_orange": { "name": "Bouton Orange (Jets de Flammes)" },
     "flame_jet_off": { "name": "Jet de Flammes (Éteint)" },

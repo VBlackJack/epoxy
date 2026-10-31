@@ -16,7 +16,9 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
+import { BlockPuzzleSolver, requestedSearchBudget } from './BlockPuzzleSolver';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
+import { GameEngine } from './GameEngine';
 import {
   CompiledLevel,
   Direction,
@@ -62,6 +64,8 @@ export class LevelValidator {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
 
+    const coversTargets = level.winRule === 'targets';
+    let targetCount = 0;
     let chipsPlaced = 0;
     let exitCount = 0;
     const consumingDoorCounts: Record<string, number> = {};
@@ -74,6 +78,9 @@ export class LevelValidator {
         const iId = level.items[y][x];
         if (tDef.isLevelExit) {
           exitCount++;
+        }
+        if (level.terrain[y][x] === BLOCK_TARGET_TILE_ID) {
+          targetCount++;
         }
         if (tDef.requiredKey) {
           const counts = tDef.consumesKey ? consumingDoorCounts : keepingDoorCounts;
@@ -90,7 +97,9 @@ export class LevelValidator {
       }
     }
 
-    if (exitCount === 0) {
+    if (coversTargets) {
+      this.checkTargets(level, targetCount, issues);
+    } else if (exitCount === 0) {
       issues.push({
         severity: 'error',
         i18nKey: 'validator.issues.no_exit.label'
@@ -142,12 +151,13 @@ export class LevelValidator {
           chipsRequired: level.chipsRequired,
           exitCount,
           reachableChips: 0,
-          reachableExit: false
+          reachableExit: false,
+          targetCount
         }
       };
     }
 
-    if (exitCount > 0 && level.chipsRequired > 0) {
+    if (!coversTargets && exitCount > 0 && level.chipsRequired > 0) {
       if (this.canReachExitWithoutSocket(level)) {
         issues.push({
           severity: 'error',
@@ -422,7 +432,7 @@ export class LevelValidator {
       });
     }
 
-    if (exitCount > 0 && !reachableExit) {
+    if (!coversTargets && exitCount > 0 && !reachableExit) {
       issues.push({
         severity: 'error',
         i18nKey: 'validator.issues.unreachable_exit.label'
@@ -438,9 +448,51 @@ export class LevelValidator {
         chipsRequired: level.chipsRequired,
         exitCount,
         reachableChips: collectedChips,
-        reachableExit
+        reachableExit,
+        targetCount
       }
     };
+  }
+
+  /**
+   * Rules of a level won by covering block targets: at least one target, at
+   * least as many blocks as targets, and, when the exact block search can
+   * prove it, a way to cover them all. An inconclusive search is silent.
+   */
+  private static checkTargets(level: CompiledLevel, targetCount: number, issues: ValidationIssue[]): void {
+    if (targetCount === 0) {
+      issues.push({ severity: 'error', i18nKey: 'validator.issues.no_targets.label' });
+      return;
+    }
+    const blockTypes = new Set(
+      Object.values(ConfigRegistry.getMonsters().entities)
+        .filter((def) => def.kind === 'block')
+        .map((def) => def.id)
+    );
+    const blocks = level.entities.filter((e) => blockTypes.has(e.type)).length;
+    const hasCloner = level.cloneLinks.some((link) => blockTypes.has(link.templateType));
+    if (blocks < targetCount && !hasCloner) {
+      issues.push({
+        severity: 'error',
+        i18nKey: 'validator.issues.fewer_blocks_than_targets.label',
+        params: { blocks, targets: targetCount }
+      });
+      return;
+    }
+    const start = level.playerStart;
+    const startInGrid =
+      Number.isInteger(start.x) &&
+      Number.isInteger(start.y) &&
+      start.y >= 0 &&
+      start.y < level.terrain.length &&
+      start.x >= 0 &&
+      start.x < (level.terrain[0]?.length ?? 0);
+    if (!startInGrid) return;
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    if (BlockPuzzleSolver.isStuck(engine, requestedSearchBudget())) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.targets_unsolvable.label' });
+    }
   }
 
   /**

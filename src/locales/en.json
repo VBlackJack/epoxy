@@ -59,6 +59,7 @@
       "padded": { "label": "Lossy .CCL export: {levels} is smaller than the .DAT map, the extra cells were filled with wall." },
       "refused_too_large": { "label": "Not exported: {levels} is larger than the .DAT map." },
       "refused_player_out_of_range": { "label": "Not exported: the start of {levels} is outside its map." },
+      "refused_targets_win_rule": { "label": "Not exported: {levels} is won by covering block targets, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "packs": {
@@ -94,12 +95,13 @@
       "procedural_seed_copy_aria": { "label": "Copy seed {seed} to the clipboard" },
       "procedural_seed_copied": { "label": "Seed {seed} copied." },
       "procedural_seed_copy_failed": { "label": "Could not copy the seed. Select it and copy it by hand." },
-      "import_btn": { "action": "Import .DAT / .CCL / .JSON" },
+      "import_btn": { "action": "Import .DAT / .CCL / .JSON / .XSB" },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
       "delete_btn": { "action": "Delete Pack" },
-      "drop_overlay": { "label": "Drop your .DAT, .CCL (CCLP) or .JSON file here" },
+      "drop_overlay": { "label": "Drop your .DAT, .CCL (CCLP), .JSON or .XSB file here" },
       "imported_toast": { "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported successfully!" },
-      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON)." },
+      "imported_skipped_toast": { "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported; {skipped, plural, one {# level was} other {# levels were}} skipped because they cannot be played." },
+      "import_error": { "label": "Could not decode file (invalid .DAT / .CCL / .JSON / .XSB)." },
       "import_too_large": { "label": "File too large (limit: {max} MB)." },
       "imported_session_only_toast": { "label": "Pack \"{name}\" imported, but it could not be saved: it will only last for this session." },
       "invalid_level_error": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
@@ -268,6 +270,7 @@
   "validator": {
     "status": {
       "valid": { "label": "Level is 100% valid and solvable ({chips}/{required} reachable chips, exit reachable)!" },
+      "valid_targets": { "label": "Level is valid: {targets, plural, one {# target} other {# targets}} to cover with blocks." },
       "issue_separator": { "label": " | " }
     },
     "issues": {
@@ -278,7 +281,10 @@
       "unreachable_chips": { "label": "Error: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable from start." },
       "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." },
       "socket_bypass": { "label": "Error: The Exit can be reached without passing the Socket." },
-      "invalid_start": { "label": "Error: The player start is outside the map." }
+      "invalid_start": { "label": "Error: The player start is outside the map." },
+      "no_targets": { "label": "Error: No block target placed on the map." },
+      "fewer_blocks_than_targets": { "label": "Error: Only {blocks, plural, one {# block} other {# blocks}} for {targets, plural, one {# target} other {# targets}}." },
+      "targets_unsolvable": { "label": "Warning: No sequence of pushes covers every target any more." }
     }
   },
   "editor": {
@@ -318,6 +324,9 @@
       "password": { "label": "Password (4 chars)" },
       "time_limit": { "label": "Time Limit (s)" },
       "chips_needed": { "label": "Chips Required" },
+      "win_rule": { "label": "Win Rule" },
+      "win_rule_exit": { "label": "Reach the exit" },
+      "win_rule_targets": { "label": "Cover every target with a block" },
       "auto_count_chips": { "action": "Auto Count" },
       "entity_dir": { "label": "Entity / Player Direction" }
     },
@@ -343,6 +352,7 @@
         "picked": { "label": "Picked: {name}" },
         "saved": { "label": "Level saved to local browser library!" },
         "imported": { "label": "Level imported successfully!" },
+        "imported_skipped": { "label": "First level imported; {skipped, plural, one {# level was} other {# levels were}} skipped because they cannot be played." },
         "import_error": { "label": "Invalid level format." },
         "import_too_large": { "label": "File too large (limit: {max} MB)." },
         "saved_session_only": { "label": "Level kept for this session only: the browser could not save it." },
@@ -427,6 +437,7 @@
     "button_green": { "name": "Green Button (Toggle Walls)" },
     "button_blue": { "name": "Blue Button (Reverse Tanks)" },
     "button_brown": { "name": "Brown Button (Open Trap)" },
+    "block_target": { "name": "Block Target" },
     "button_red": { "name": "Red Button (Clone Machine)" },
     "button_orange": { "name": "Orange Button (Flame Jets)" },
     "flame_jet_off": { "name": "Flame Jet (Off)" },

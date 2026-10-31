@@ -745,6 +745,15 @@
       "passableByBlock": true,
       "buttonAction": "trigger_cloner"
     },
+    "block_target": {
+      "id": "block_target",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.block_target.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true
+    },
     "button_orange": {
       "id": "button_orange",
       "category": "mechanisms",

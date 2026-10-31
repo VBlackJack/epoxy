@@ -78,7 +78,7 @@ const REPLACEMENT_CHAR_CODE = 0x3f;
 const FALLBACK_ELEMENT: DatElementMapping = { kind: 'terrain', id: FLOOR_TILE_ID };
 
 /** Why a level could not be written to a .DAT pack. */
-export type DatRefusalReason = 'too_large' | 'player_out_of_range';
+export type DatRefusalReason = 'too_large' | 'player_out_of_range' | 'targets_win_rule';
 
 /** A level left out of the pack, with the reason. */
 export interface DatRefusal {
@@ -493,6 +493,11 @@ export class DatCodec {
 
     for (let idx = 0; idx < levels.length; idx++) {
       const lvl = levels[idx];
+      // The format has no block target and no win by covering targets: writing the level would change its goal.
+      if (lvl.winRule === 'targets') {
+        refused.push({ levelId: lvl.id, reason: 'targets_win_rule' });
+        continue;
+      }
       const levelHeight = lvl.terrain.length;
       const levelWidth = lvl.terrain.reduce((max, row) => Math.max(max, row.length), 0);
       if (levelWidth > layerWidth || levelHeight > layerHeight) {

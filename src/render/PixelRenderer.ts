@@ -15,10 +15,13 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { BLOCK_TARGET_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { Direction, GraphicsStyle, GridPoint, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
+  BLOCK_ON_TARGET_COLOR_KEY,
+  BLOCK_TARGET_COLOR_KEY,
   BUTTON_COLOR_KEYS,
   BUTTON_GLYPH_KEYS,
   DEFAULT_BOOT_COLOR_KEY,
@@ -194,6 +197,10 @@ const GLOWING_MONSTERS: ReadonlySet<string> = new Set(['fireball', 'pink_ball', 
 /** Monsters drawn facing their direction of travel; the others stay upright and look towards it. */
 const HEAD_FIRST_MONSTERS: ReadonlySet<string> = new Set(['bug', 'paramecium', 'glider', 'tank', 'fireball']);
 const BLOCK_INSET_TILE = 0.05;
+/** Block target mark, in tile units: ring inset from the cell edge, ring width, centre dot radius. */
+const BLOCK_TARGET_MARK = { ringInset: 0.26, ringWidth: 0.08, dotRadius: 0.1 };
+/** Outline of a block standing on a target, in tile units: inset from the block edge and width. */
+const BLOCK_ON_TARGET_OUTLINE = { inset: 0.14, width: 0.07 };
 const BLOCK_RADIUS_TILE = 0.1;
 /** Monster part sizes, in tile units (sprites are painted in a unit square). */
 const LIMB_WIDTH = 0.05;
@@ -726,6 +733,9 @@ export class PixelRenderer {
         const px = (vPos.x - camX) * tilePixelSize;
         const py = (vPos.y - camY) * tilePixelSize;
         this.drawEntity(ctx, ent.type, ent.dir, px, py, tilePixelSize);
+        if (ent.kind === 'block' && terrain[ent.y]?.[ent.x] === BLOCK_TARGET_TILE_ID) {
+          this.drawBlockOnTargetOutline(ctx, px, py, tilePixelSize);
+        }
         if (lit) this.addLight(ent.type, vPos.x - camX, vPos.y - camY, tilePixelSize, settings);
       }
     }
@@ -1578,6 +1588,22 @@ export class PixelRenderer {
         break;
       }
 
+      case 'block_target': {
+        const ink = pal[BLOCK_TARGET_COLOR_KEY];
+        const ring = size * BLOCK_TARGET_MARK.ringInset;
+        ctx.strokeStyle = ink;
+        ctx.lineWidth = Math.max(1, size * BLOCK_TARGET_MARK.ringWidth);
+        ctx.strokeRect(x + ring, y + ring, size - ring * 2, size - ring * 2);
+        ctx.fillStyle = ink;
+        ctx.fillRect(
+          x + size / 2 - size * BLOCK_TARGET_MARK.dotRadius,
+          y + size / 2 - size * BLOCK_TARGET_MARK.dotRadius,
+          size * BLOCK_TARGET_MARK.dotRadius * 2,
+          size * BLOCK_TARGET_MARK.dotRadius * 2
+        );
+        break;
+      }
+
       case 'toggle_wall_closed': {
         ctx.fillStyle = pal.wallShadow;
         ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
@@ -2260,6 +2286,24 @@ export class PixelRenderer {
         ctx.fill();
         ctx.restore();
         this.drawButtonGlyph(ctx, tileId, x, y, size);
+        break;
+      }
+
+      case 'block_target': {
+        const ink = pal[BLOCK_TARGET_COLOR_KEY];
+        const ring = size * BLOCK_TARGET_MARK.ringInset;
+        ctx.save();
+        ctx.strokeStyle = ink;
+        ctx.fillStyle = ink;
+        ctx.shadowColor = ink;
+        ctx.shadowBlur = glow.soft;
+        ctx.lineWidth = Math.max(1, size * BLOCK_TARGET_MARK.ringWidth);
+        this.roundRect(ctx, x + ring, y + ring, size - ring * 2, size - ring * 2, size * BLOCK_RADIUS_TILE);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x + size / 2, y + size / 2, size * BLOCK_TARGET_MARK.dotRadius, 0, FULL_TURN);
+        ctx.fill();
+        ctx.restore();
         break;
       }
 
@@ -3134,6 +3178,24 @@ export class PixelRenderer {
     } else {
       this.paintEntity(ctx, type, dir, x, y, size, frame);
     }
+  }
+
+  /** Outline drawn over a block that stands on a block target, so the covered target stays readable. */
+  private drawBlockOnTargetOutline(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const inset = size * BLOCK_ON_TARGET_OUTLINE.inset;
+    ctx.save();
+    ctx.strokeStyle = ConfigRegistry.getGame().palette[BLOCK_ON_TARGET_COLOR_KEY];
+    ctx.lineWidth = Math.max(1, size * BLOCK_ON_TARGET_OUTLINE.width);
+    this.roundRect(
+      ctx,
+      x + inset,
+      y + inset,
+      size - inset * 2,
+      size - inset * 2,
+      this.style === 'modern' ? size * BLOCK_RADIUS_TILE : 0
+    );
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** A pushable block, with a top face and a darker front face like the walls. */

@@ -24,7 +24,7 @@
   </head>
   <body>
     <div id="app">
-      <!-- Drag & Drop Overlay for .DAT / .CCL / .JSON files -->
+      <!-- Drag & Drop Overlay for .DAT / .CCL / .JSON / .XSB files -->
       <div id="drop-overlay" class="drop-overlay hidden">
         <div class="drop-card" data-i18n="app.packs.drop_overlay.label"></div>
       </div>
@@ -45,7 +45,7 @@
             <select id="pack-select" class="locale-select"></select>
             <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
             <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
-            <input id="pack-file-input" type="file" accept=".dat,.ccl,.json" class="hidden" />
+            <input id="pack-file-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok" class="hidden" />
           </div>
           <div id="procedural-seed-box" class="pack-box procedural-seed-box hidden">
             <span id="procedural-seed-label" class="procedural-seed-label"></span>
@@ -294,7 +294,7 @@
               <button id="editor-export-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_json.action"></button>
               <button id="editor-export-ccl-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_ccl.action"></button>
               <button id="editor-import-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.import_json.action"></button>
-              <input id="editor-import-input" type="file" accept=".dat,.ccl,.json" class="hidden" />
+              <input id="editor-import-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok" class="hidden" />
             </div>
 
             <div class="editor-preset-bar">
@@ -329,6 +329,13 @@
                   <input id="editor-meta-chips" type="number" min="0" max="999" class="editor-input" />
                   <button id="editor-autocount-btn" class="hud-btn small" type="button" data-i18n="editor.metadata.auto_count_chips.action"></button>
                 </div>
+              </div>
+              <div class="meta-field full-width">
+                <label for="editor-meta-winrule" data-i18n="editor.metadata.win_rule.label"></label>
+                <select id="editor-meta-winrule" class="editor-input">
+                  <option value="exit" selected data-i18n="editor.metadata.win_rule_exit.label"></option>
+                  <option value="targets" data-i18n="editor.metadata.win_rule_targets.label"></option>
+                </select>
               </div>
               <div class="meta-field full-width">
                 <label for="editor-meta-hint" data-i18n="editor.metadata.hint.label"></label>
