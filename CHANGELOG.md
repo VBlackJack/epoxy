@@ -3,6 +3,21 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- The `.xsb` importer (`npm run import:sokoban`) carves its entry and exit tunnels through the
+  rock on any side of the room instead of a shaft from the top and a trap column at the bottom.
+  The traps run along the exit tunnel, so a room no longer loses one row of height per box, and a
+  layout that only fits the other way round is transposed.
+- The entry opens into the area the level starts the player in, and the exit into a pocket where
+  the player can stand once every box is home, found by a Sokoban search: a last push that leaves
+  the player in a corner no longer loses the level. Tunnels a box could be pushed out through are
+  tried last.
+- `local/sokoban-import.txt` now counts the rejections by reason and names the reason of each
+  rejected level.
+
 ## [2.7.0] - 2026-10-31
 
 ### Changed
