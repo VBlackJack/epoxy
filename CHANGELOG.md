@@ -3,6 +3,47 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [2.7.0] - 2026-10-31
+
+### Changed
+
+- The Epoxy campaign is rewritten by hand: 30 levels in five chapters of six (Foundations,
+  Mechanisms, Creatures, Contraband, Core), each level built around one idea, taught first and
+  turned later. It covers chips and sockets, keys, blocks and water, boots, ice, force floors,
+  toggle walls, traps, bombs, colour teleporters, thin walls and dirt, bugs, balls, tanks, chasing
+  teeth, hidden walls, cloners, boot and key thieves, item barriers, turtles, flame jets,
+  stopwatches and a key economy. Levels 1 to 12 are untimed; from level 13 the limit is about
+  eight times the proven solution, except two race levels (18 and 27).
+- Campaign levels have new ids (`epoxy_c_<n>`), so campaign records and medals start over. Old
+  records stay stored under the old ids and are never replayed on the new maps.
+- An untimed level no longer shows a medal: without a time limit every finish was gold. The record
+  itself is kept.
+- Maps smaller than the view are drawn centred instead of in the top-left corner.
+
+### Added
+
+- `npm run route:campaign` expands each level's route in `tools/campaign-routes.json` (explicit
+  moves and `@x,y` steps found by a search in the real engine) into the solution kept in
+  `levels.json`.
+- Design tests for the campaign: every required item is needed to reach the exit, every tile,
+  item and entity first appears where `tools/campaign-rhythm.json` says, timer margins, hint
+  tiles, texts in both languages, chapters.
+- An originality test: no campaign map may resemble a level of the bundled community packs,
+  compared by fingerprints of small windows under rotation and mirroring (`campaignGuard` in
+  `game.json`). `npm run report:originality` runs the same comparison against any `.DAT` file
+  named by `EPOXY_REFERENCE_DAT` and writes the closest pairs to `local/`, outside the repository.
+- Tests that campaign ids, numbers and passwords are unique, and that level sizes stay within
+  `grid.minLevelSize` and `grid.maxLevelSize`.
+
+### Fixed
+
+- Four campaign passwords were shared by two levels each, so five levels could not be reached by
+  password.
+
+### Removed
+
+- `tools/campaign-script.json` and `npm run build:campaign`: the campaign is no longer generated.
+
 ## [2.6.0] - 2026-10-30
 
 ### Added

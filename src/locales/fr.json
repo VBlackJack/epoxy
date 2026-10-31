@@ -175,6 +175,7 @@
       "level_complete": { "label": "NIVEAU TERMINÉ !" },
       "time_bonus": { "label": "Bonus Temps : +{bonus}" },
       "level_score": { "label": "Score : +{score} - {medal}" },
+      "level_score_untimed": { "label": "Score : +{score}" },
       "medal_gold": { "label": "🥇 Médaille d'OR" },
       "medal_silver": { "label": "🥈 Médaille d'ARGENT" },
       "medal_bronze": { "label": "🥉 Médaille de BRONZE" },
@@ -455,84 +456,124 @@
   },
   "levels": {
     "level_1": {
-      "title": "Premières Serrures",
-      "hint": "Chaque porte de couleur demande une clé de sa couleur. Trouvez la clé, puis la porte."
+      "title": "Mise sous tension",
+      "hint": "Ramasse toutes les puces pour ouvrir le socle, puis franchis la sortie."
     },
     "level_2": {
-      "title": "Sols Mouvants",
-      "hint": "Les tapis roulants vous emportent. Montez dessus et laissez-vous porter."
+      "title": "Code couleur",
+      "hint": "Une clé ouvre la porte de sa couleur et disparaît. La clé verte, elle, reste dans ta poche."
     },
     "level_3": {
-      "title": "Glace Fine",
-      "hint": "Sur la glace, vous glissez jusqu'à un obstacle. Les angles dévient la glissade."
+      "title": "Remblai",
+      "hint": "Pousse un bloc dans l'eau pour en faire de la terre praticable. Un bloc ne traverse pas la terre : marche dessus d'abord. Le large canal demande deux blocs sur la même rangée."
     },
     "level_4": {
-      "title": "Convoyeurs à Clés",
-      "hint": "Clés et tapis roulants ensemble : prévoyez où le tapis vous dépose."
+      "title": "Tenue exigée",
+      "hint": "Les palmes te portent sur l'eau, les bottes de feu dans les flammes. Trouve-les dans le bon ordre."
     },
     "level_5": {
-      "title": "Dans le Feu",
-      "hint": "Le feu brûle sans bottes ignifugées. Trouvez-les d'abord."
+      "title": "Verglas",
+      "hint": "Sur la glace, tu glisses jusqu'au sol ferme. Les virages arrondis dévient ta glissade."
     },
     "level_6": {
-      "title": "Eaux Profondes",
-      "hint": "L'eau vous noie sans palmes. Prenez-les avant de nager."
+      "title": "Aller simple",
+      "hint": "Les tapis ne vont que dans un sens. Les bottes de force permettent de les remonter."
     },
     "level_7": {
-      "title": "Dangers Mobiles",
-      "hint": "Les monstres suivent des trajets fixes. Observez-les, puis passez dans l'ouverture."
+      "title": "Sas",
+      "hint": "Un bouton vert inverse tous les murs à bascule. Un mur qui se ferme derrière toi se rouvre à la pression suivante."
     },
     "level_8": {
-      "title": "Éléments",
-      "hint": "Feu, eau et glace dans la même course. Les bottes changent tout."
+      "title": "Tenir la ligne",
+      "hint": "Un piège retient tout ce qui y entre tant que son bouton marron est libre. Gare d'abord un bloc sur le bouton."
     },
     "level_9": {
-      "title": "Bâtisseur de Ponts",
-      "hint": "Poussez un bloc dans l'eau pour en faire de la terre praticable."
+      "title": "Rayon d'action",
+      "hint": "Un bloc poussé sur une bombe les détruit tous les deux. Compte les bombes avant de sacrifier un bloc : il en faut un pour l'eau."
     },
     "level_10": {
-      "title": "Démolition",
-      "hint": "Les bombes détruisent tout ce qui les touche. Laissez un bloc encaisser l'explosion."
+      "title": "Relais",
+      "hint": "Un plot t'envoie vers le plot de même couleur, dans le même sens. Le côté d'entrée décide où tu arrives."
     },
     "level_11": {
-      "title": "Portes Gardées",
-      "hint": "Des monstres patrouillent près des portes. Calez votre course vers les clés."
+      "title": "Jardins ouvriers",
+      "hint": "Les clôtures fines n'arrêtent que d'un côté, toi comme les blocs. Un bloc ne traverse pas la terre : marche dessus d'abord pour dégager la voie."
     },
     "level_12": {
-      "title": "Gare de Triage",
-      "hint": "Les boutons verts inversent tous les murs bascule, et les portes veulent toujours leurs clés. Comptez vos pressions."
+      "title": "Atelier",
+      "hint": "Chaque aile garde une clé ou une puce. Le tapis qui sort de l'aile est ne va que dans un sens, et le bouton vert à son arrivée rouvre le chemin du retour."
     },
     "level_13": {
-      "title": "Maintenu Ouvert",
-      "hint": "Les boutons marron maintiennent les pièges ouverts : couvrez chaque bouton d'un bloc. L'ordre compte, gardez une place libre pour pousser. Bloqué ? Aide joue le coup suivant."
+      "title": "Ronde de nuit",
+      "hint": "Les insectes gardent un mur à leur gauche et ne marchent ni sur le gravier ni sur un objet. Attends dans une niche de gravier, puis avance quand la voie est libre."
     },
     "level_14": {
-      "title": "Atelier des Convoyeurs",
-      "hint": "Les blocs suivent aussi les tapis. Poussez-les là où le tapis aide."
+      "title": "Ricochet",
+      "hint": "Les balles roulent tout droit et rebondissent sur tout, puces comprises. Prends une puce et son couloir s'allonge."
     },
     "level_15": {
-      "title": "Glace Quantique",
-      "hint": "Les téléporteurs vous font ressortir par l'autre plot, dans la même direction. Sur la glace, ça compte."
+      "title": "Marche arrière",
+      "hint": "Les tanks roulent tout droit jusqu'à un obstacle. Le bouton bleu fait faire demi-tour à tous les tanks : reste hors de leur route quand tu appuies, et n'attends jamais dans la baie du bas."
     },
     "level_16": {
-      "title": "Repaire des Voleurs",
-      "hint": "Le voleur prend toutes vos bottes. Servez-vous-en avant de le croiser."
+      "title": "Mirage",
+      "hint": "Certains murs bleus fondent quand tu marches dedans, d'autres tiennent. En bas, des murs invisibles n'apparaissent que si tu les heurtes."
     },
     "level_17": {
-      "title": "Patrouille Glissante",
-      "hint": "Monstres, glace et tapis. Lisez les trajectoires avant de vous lancer."
+      "title": "Chaîne de montage",
+      "hint": "Chaque pression sur le bouton rouge fabrique un bloc dans la machine. Les blocs sont gratuits : si l'un se coince, fabriques-en un autre."
     },
     "level_18": {
-      "title": "Serrures et Crues",
-      "hint": "Des clés derrière l'eau, de l'eau derrière des blocs. Raisonnez depuis la sortie."
+      "title": "Sprint",
+      "hint": "Les mâchoires te poursuivent mais avancent moins vite que toi. Le temps est compté : prépare ta boucle autour des piliers avant de partir."
     },
     "level_19": {
-      "title": "Chaos Maîtrisé",
-      "hint": "Monstres, bombes et murs bascule. Gardez la tête froide."
+      "title": "Pickpocket",
+      "hint": "Le voleur prend toutes les bottes que tu portes. Cherche un chemin qui l'évite avant d'avoir à nouveau besoin de tes bottes."
     },
     "level_20": {
-      "title": "Coeur d'Epoxy",
-      "hint": "Tout ce que vous avez appris, en une longue course. Prenez votre temps."
+      "title": "Douane",
+      "hint": "Une barrière t'arrête tant que tu portes l'objet qu'elle affiche. Dépense d'abord la clé, et laisse le voleur t'alléger."
+    },
+    "level_21": {
+      "title": "Doigts de fée",
+      "hint": "Ce voleur prend toutes tes clés, vertes comprises. Ouvre ce que tu peux avant de le croiser, et trouve un autre chemin pour revenir."
+    },
+    "level_22": {
+      "title": "Pas japonais",
+      "hint": "Une tortue te porte une seule fois sur l'eau, puis plonge. Chaque pont de tortues ne sert qu'une fois : choisis bien le premier."
+    },
+    "level_23": {
+      "title": "Inversion",
+      "hint": "Le bouton orange bascule tous les jets de flammes : ceux qui brûlent s'éteignent, les autres s'allument. Regarde la rangée suivante avant d'appuyer."
+    },
+    "level_24": {
+      "title": "Contrebande",
+      "hint": "Tortues, flammes et barrière de douane. Une tortue quittée a plongé : traverse d'un seul trait. Dépense la clé rouge avant de rejoindre la sortie."
+    },
+    "level_25": {
+      "title": "Folie dépensière",
+      "hint": "Deux clés bleues, trois portes bleues. Regarde chaque aile avant d'en ouvrir une : un seul ordre mène à la clé jaune."
+    },
+    "level_26": {
+      "title": "Chambre froide",
+      "hint": "Les blocs glissent sur la glace et tournent dans les virages, comme toi. Suis le trajet de chaque bloc jusqu'à l'eau avant de pousser."
+    },
+    "level_27": {
+      "title": "Compte à rebours",
+      "hint": "Deux mâchoires te chassent et le temps est court. Les chronomètres ajoutent dix secondes : ramasse-les en route."
+    },
+    "level_28": {
+      "title": "Cachettes",
+      "hint": "Les créatures ne traversent pas les murs bleus, mais un mur bleu que tu franchis disparaît pour de bon. Une cachette ouverte, elles peuvent t'y suivre."
+    },
+    "level_29": {
+      "title": "Plein air",
+      "hint": "Des planeurs font le tour de la place. Chaque aile donne la clé de la suivante : rouge, puis bleue, puis jaune. Dans l'aile ouest, gare un bloc sur le bouton marron avant de marcher sur le piège."
+    },
+    "level_30": {
+      "title": "Noyau Epoxy",
+      "hint": "Tout ce que tu as appris, une aile après l'autre. La clé verte ouvre les deux portes vertes, mais le voleur de l'aile est la prend : ouvre-les avant d'y aller."
     },
     "procedural": {
       "keys_doors": { "title": "Course du Serrurier #{number}", "hint": "Chaque porte de couleur consomme une clé de sa couleur. Les clés vertes ouvrent toutes les portes vertes." },
@@ -552,6 +593,15 @@
       "default": {
         "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les câbles des pièges, cloneurs et portes."
       }
+    }
+  },
+  "campaign": {
+    "chapter": {
+      "1": { "title": "Fondations" },
+      "2": { "title": "Mécanismes" },
+      "3": { "title": "Créatures" },
+      "4": { "title": "Contrebande" },
+      "5": { "title": "Noyau" }
     }
   }
 }

@@ -1324,7 +1324,7 @@ class EpoxyApplication {
     return true;
   }
 
-  private getMedalTierFor(timeRemaining: number, timeLimit: number): MedalTier {
+  private getMedalTierFor(timeRemaining: number, timeLimit: number): MedalTier | null {
     const timing = ConfigRegistry.getGame().timing;
     return getMedalTier(
       timeRemaining,
@@ -1332,6 +1332,11 @@ class EpoxyApplication {
       timing.goldTimeRatio ?? TIMING_DEFAULTS.goldTimeRatio,
       timing.silverTimeRatio ?? TIMING_DEFAULTS.silverTimeRatio
     );
+  }
+
+  /** Translated medal text, empty when the level is untimed and earns no medal. */
+  private medalText(tier: MedalTier | null, keyOf: (tier: MedalTier) => string): string {
+    return tier ? t(keyOf(tier)) : '';
   }
 
   private startLevelByIndex(index: number): void {
@@ -2004,9 +2009,9 @@ class EpoxyApplication {
 
       const timeText = rec
         ? t('hud.scores_modal.best_time_cell.label', {
-            medal: t(medalIconKey(this.getMedalTierFor(rec.bestTimeRemaining, lvl.timeLimitSeconds))),
+            medal: this.medalText(this.getMedalTierFor(rec.bestTimeRemaining, lvl.timeLimitSeconds), medalIconKey),
             seconds: rec.bestTimeRemaining
-          })
+          }).trim()
         : noRecord;
 
       const tdAction = document.createElement('td');
@@ -2569,12 +2574,15 @@ class EpoxyApplication {
         t(finalWin ? 'hud.messages.all_levels_won.label' : 'hud.messages.level_complete.label')
       );
       setText(ovSub, t('hud.messages.time_bonus.label', { bonus: this.engine.getLastTimeBonus() }));
+      const medalTier = this.getMedalTierFor(this.engine.getTimeRemainingSeconds(), lvl.timeLimitSeconds);
       setText(
         ovExtra,
-        t('hud.messages.level_score.label', {
-          score: this.engine.getLastLevelScore(),
-          medal: t(medalLabelKey(this.getMedalTierFor(this.engine.getTimeRemainingSeconds(), lvl.timeLimitSeconds)))
-        })
+        medalTier
+          ? t('hud.messages.level_score.label', {
+              score: this.engine.getLastLevelScore(),
+              medal: t(medalLabelKey(medalTier))
+            })
+          : t('hud.messages.level_score_untimed.label', { score: this.engine.getLastLevelScore() })
       );
     } else if (state === 'dead') {
       const player = this.engine.getPlayer();

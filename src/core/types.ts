@@ -500,6 +500,20 @@ export interface BlockPuzzleConfig {
   hintSearchBudget: number;
 }
 
+/** Thresholds of the guard that keeps campaign maps unlike the bundled community packs. */
+export interface CampaignGuardConfig {
+  /** Side of the square windows whose canonical shapes make up a level fingerprint. */
+  windowSize: number;
+  /** Fingerprint Jaccard similarity at or above which a campaign level is flagged. */
+  maxJaccard: number;
+  /** Side of the larger windows; sharing any one of them flags the pair. */
+  largeWindowSize: number;
+  /** Cells other than wall and floor a large window needs before it counts. */
+  largeWindowMinContent: number;
+  /** Largest share of a large window one cell class may cover before the window is ignored. */
+  largeWindowMaxShare: number;
+}
+
 export interface GameConfig {
   grid: GridConfig;
   graphics?: GraphicsConfig;
@@ -508,6 +522,7 @@ export interface GameConfig {
   endlessUi: EndlessUiConfig;
   touch?: TouchConfig;
   blockPuzzle: BlockPuzzleConfig;
+  campaignGuard: CampaignGuardConfig;
   ultimatePacks?: UltimatePackDescriptor[];
   timing: TimingConfig;
   storage: StorageConfig;
