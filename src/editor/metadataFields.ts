@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+import { isWinRule } from '../config/ConfigValidation';
+import { WinRule } from '../core/types';
+
+/** Win rule field: an unknown entry keeps `current`. */
+export function parseWinRule(raw: string, current: WinRule): WinRule {
+  return isWinRule(raw) ? raw : current;
+}
+
 /**
  * Reads a whole number field. An empty or invalid entry keeps `current`; a
  * finite number is floored and never goes below zero.

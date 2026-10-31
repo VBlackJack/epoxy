@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { OPPOSITE_DIRECTION } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
 import { GameEngine } from './GameEngine';
 
 /** Layouts the exact search may visit, for the dead-end watch that runs by itself, before giving up without a verdict. */
@@ -49,7 +49,8 @@ type SearchOutcome =
  * Solves the block puzzles of a running level, to keep the player from
  * being stuck and to give hints. The puzzle in
  * question is the Sokoban one: every brown button (hold_trap) must end up
- * under a block. A fast test first looks for a block that can no longer
+ * under a block, or every block target when the level is won by covering
+ * targets. A fast test first looks for a block that can no longer
  * reach any free button, the other blocks standing still. Only when it fires
  * does an exact search run: breadth-first over block layouts, the player
  * walking freely between pushes. A dead end is reported only when that
@@ -70,6 +71,7 @@ export class BlockPuzzleSolver {
   private readonly blockUnmodelled: Uint8Array;
   /** Per cell and direction (in ORDERED_DIRECTIONS order): the step is stopped by a thin wall or an entry rule. */
   private readonly edgeBlocked: Uint8Array;
+  /** Cells a block must cover: the block targets of a 'targets' level, else the hold-trap buttons. */
   private readonly buttons: number[];
   private readonly blocks: number[];
   private readonly player: number;
@@ -86,6 +88,7 @@ export class BlockPuzzleSolver {
     this.blockUnmodelled = new Uint8Array(size);
     this.edgeBlocked = new Uint8Array(size * ORDERED_DIRECTIONS.length);
     this.buttons = [];
+    const coversTargets = engine.getLevel().winRule === 'targets';
     const monsters = new Set<number>();
     this.blocks = [];
     for (const e of engine.getEntities()) {
@@ -104,7 +107,8 @@ export class BlockPuzzleSolver {
         this.playerOk[k] = plain && unlocked && tile.passableByPlayer === true && !monsters.has(k) ? 1 : 0;
         this.blockOk[k] = plain && tile.passableByBlock === true && !monsters.has(k) ? 1 : 0;
         this.blockUnmodelled[k] = !plain && tile.passableByBlock === true ? 1 : 0;
-        if (tile.buttonAction === 'hold_trap') this.buttons.push(k);
+        const isGoal = coversTargets ? terrain[y][x] === BLOCK_TARGET_TILE_ID : tile.buttonAction === 'hold_trap';
+        if (isGoal) this.buttons.push(k);
       }
     }
     this.player = player.y * this.width + player.x;

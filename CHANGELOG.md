@@ -3,6 +3,50 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [2.8.0] - 2026-10-31
+
+### Added
+
+- Native Sokoban levels: a level with `winRule: "targets"` is won as soon as every `block_target`
+  tile holds a block at rest, with no exit. The validator checks targets and blocks instead of the
+  exit, the block puzzle Help and dead-end watch aim at the targets, and the Help objective points
+  at a free target. The editor has the tile and a win condition field.
+- `.xsb` and `.sok` Sokoban collections import by drag and drop or from the import button, as
+  native levels kept in the browser like imported `.DAT` packs. Run-length rows are expanded, the
+  outside of the room becomes wall, and broken levels are skipped with a count.
+- `blockPuzzle.watchMaxCells` in `game.json`: the automatic dead-end watch is skipped on larger
+  levels so a big Sokoban level never freezes the page.
+- A "How to play" dialog opens once on the first launch (moves, undo, restart, help), and again
+  from the help dialog. A help button sits in the top bar, and on a computer the keys are recalled
+  under the board.
+- Levels won by targets show a TARGETS counter instead of chips, and say their goal when they start.
+
+### Changed
+
+- The board fits the window height, so the hint banner and the lower rows stay visible on a
+  1024x768 screen.
+- Player-facing wording: the dead-end message speaks of targets on target levels, the end of a pack
+  names the pack, a lost level is titled as such, untimed levels show no time bonus or best time,
+  the import button reads "Import a pack..." and explains the accepted files, imported packs keep
+  their file name, and community packs have plainer names.
+- Controls that cannot work are hidden or disabled with a reason: the solution button on a level
+  without a solution, level codes in packs that have none, and pack export when no level can be
+  exported.
+- Confirmations (show solution, delete a pack, reload the editor) use the game's own dialog instead
+  of the browser's.
+- `.DAT` export refuses a level won by targets, with a message, instead of writing its targets as
+  floor.
+- The `.xsb` importer (`npm run import:sokoban`) carves its entry and exit tunnels through the
+  rock on any side of the room instead of a shaft from the top and a trap column at the bottom.
+  The traps run along the exit tunnel, so a room no longer loses one row of height per box, and a
+  layout that only fits the other way round is transposed.
+- The entry opens into the area the level starts the player in, and the exit into a pocket where
+  the player can stand once every box is home, found by a Sokoban search: a last push that leaves
+  the player in a corner no longer loses the level. Tunnels a box could be pushed out through are
+  tried last.
+- `local/sokoban-import.txt` now counts the rejections by reason and names the reason of each
+  rejected level.
+
 ## [2.7.0] - 2026-10-31
 
 ### Changed

@@ -331,12 +331,12 @@ describe('assertConfigShape', () => {
 
 describe('findBlockPuzzleConfigErrors', () => {
   it('accepts positive integer budgets', () => {
-    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 10, hintSearchBudget: 20 })).toEqual([]);
+    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 10, hintSearchBudget: 20, watchMaxCells: 30 })).toEqual([]);
   });
 
   it('names each budget that is missing, fractional or not positive', () => {
-    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 0, hintSearchBudget: 1.5 })).toHaveLength(2);
-    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 10 })).toHaveLength(1);
+    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 0, hintSearchBudget: 1.5, watchMaxCells: 3 })).toHaveLength(2);
+    expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 10, hintSearchBudget: 20 })).toHaveLength(1);
     expect(findBlockPuzzleConfigErrors(undefined)).toHaveLength(1);
   });
 });

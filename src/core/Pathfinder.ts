@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { OPPOSITE_DIRECTION } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
 import { GameEngine } from './GameEngine';
 import { Direction, GridPoint, TileDefinition } from './types';
 
@@ -293,6 +293,16 @@ export class Pathfinder {
     let unlockableDoorCandidate: GridPoint | null = null;
     let buttonCandidate: GridPoint | null = null;
     let chipCandidate: GridPoint | null = null;
+    let targetCandidate: GridPoint | null = null;
+
+    // In a level won by covering targets, the objective is a target no block holds yet.
+    const coversTargets = engine.getLevel().winRule === 'targets';
+    const blockCells = new Set<string>();
+    if (coversTargets) {
+      for (const e of engine.getEntities()) {
+        if (e.kind === 'block') blockCells.add(`${e.x},${e.y}`);
+      }
+    }
 
     let hasClosedToggleWall = false;
     let hasLitFlameJet = false;
@@ -311,6 +321,16 @@ export class Pathfinder {
       const tile = ConfigRegistry.getTile(terrain[curr.y][curr.x]);
       const itemId = items[curr.y][curr.x];
       const itemDef = itemId ? ConfigRegistry.getTile(itemId) : null;
+
+      if (
+        coversTargets &&
+        !targetCandidate &&
+        (curr.x !== player.x || curr.y !== player.y) &&
+        terrain[curr.y][curr.x] === BLOCK_TARGET_TILE_ID &&
+        !blockCells.has(`${curr.x},${curr.y}`)
+      ) {
+        targetCandidate = curr;
+      }
 
       if (curr.x !== player.x || curr.y !== player.y) {
         if (tile.isLevelExit || (tile.requiresAllChips && engine.getChipsRemaining() === 0)) {
@@ -389,6 +409,7 @@ export class Pathfinder {
     }
 
     return (
+      targetCandidate ||
       exitCandidate ||
       keyOrBootCandidate ||
       unlockableDoorCandidate ||

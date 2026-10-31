@@ -15,7 +15,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DatCodec } from './DatCodec';
+import { DatCodec, datRefusalReason } from './DatCodec';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { findDatFormatErrors } from '../config/ConfigValidation';
 import { CompiledLevel } from '../core/types';
@@ -446,6 +446,18 @@ describe('DatCodec export fidelity', () => {
     const encoded = DatCodec.encodeLevelsWithReport([lvl]);
     expect(encoded.refused).toEqual([{ levelId: lvl.id, reason: 'player_out_of_range' }]);
     expect(encoded.levelCount).toBe(0);
+  });
+
+  it('names the refusal reason of a level without encoding it', () => {
+    const big = blankLevel(1);
+    big.terrain = Array.from({ length: 33 }, () => Array.from({ length: 33 }, () => 'floor'));
+    const outside = blankLevel(2);
+    outside.playerStart = { x: 40, y: 2, dir: 'S' };
+    const targets = { ...blankLevel(3), winRule: 'targets' as const };
+    expect(datRefusalReason(blankLevel(4))).toBeNull();
+    expect(datRefusalReason(big)).toBe('too_large');
+    expect(datRefusalReason(outside)).toBe('player_out_of_range');
+    expect(datRefusalReason(targets)).toBe('targets_win_rule');
   });
 
   it('reports what a stacked cell cannot hold', () => {

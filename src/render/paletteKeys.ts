@@ -31,6 +31,12 @@ export const FX_COLOR_KEYS: Readonly<Record<string, string>> = {
   win: 'fxWin'
 };
 
+/** Palette key of the block target mark. */
+export const BLOCK_TARGET_COLOR_KEY = 'blockTarget';
+
+/** Palette key of the outline a block gets while it stands on a block target. */
+export const BLOCK_ON_TARGET_COLOR_KEY = 'blockOnTarget';
+
 /** Palette key of each button's cap. */
 export const BUTTON_COLOR_KEYS: Readonly<Record<string, string>> = {
   button_green: 'green',

@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { AudioManager } from '../audio/AudioManager';
 import {
+  BLOCK_TARGET_TILE_ID,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLOOR_TILE_ID,
   OPPOSITE_DIRECTION,
@@ -84,6 +85,8 @@ export class GameEngine {
   // Lookups built once per level: these cells never change tile type during play.
   private trapLinksByTrap = new Map<string, TrapLink[]>();
   private holdTrapButtons: GridPoint[] = [];
+  /** Block target cells of a level won by covering them; empty for any other level. */
+  private targetCells: GridPoint[] = [];
   /** Teleporter cells by group: a jump lands on a teleporter of the same group only. */
   private teleportersByGroup = new Map<string, GridPoint[]>();
   private removedUids = new Set<number>();
@@ -207,11 +210,14 @@ export class GameEngine {
     }
 
     this.holdTrapButtons = [];
+    this.targetCells = [];
+    const coversTargets = this.level.winRule === 'targets';
     this.teleportersByGroup.clear();
     for (let y = 0; y < this.terrain.length; y++) {
       for (let x = 0; x < this.terrain[y].length; x++) {
         const tile = ConfigRegistry.getTile(this.terrain[y][x]);
         if (tile.buttonAction === 'hold_trap') this.holdTrapButtons.push({ x, y });
+        if (coversTargets && this.terrain[y][x] === BLOCK_TARGET_TILE_ID) this.targetCells.push({ x, y });
         if (tile.isTeleporter) {
           const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
           const list = this.teleportersByGroup.get(group);
@@ -524,6 +530,7 @@ export class GameEngine {
     }
 
     this.updateEntities();
+    this.checkTargetsWin();
   }
 
   public attemptPlayerMove(dir: Direction): boolean {
@@ -574,6 +581,7 @@ export class GameEngine {
         destTile.slideType === 'force'
           ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
           : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
+      this.checkTargetsWin();
     } else {
       this.undoStack.pop();
       if (this.gridMutatedByMove || this.player.dir !== dirBefore) {
@@ -884,6 +892,7 @@ export class GameEngine {
         this.player.slideDir = null;
       }
     }
+    this.checkTargetsWin();
   }
 
   private attemptPushBlock(block: RuntimeEntity, dir: Direction): boolean {
@@ -1445,6 +1454,32 @@ export class GameEngine {
     this.player.deathReasonKey = reasonKey;
     this.emitVisual('explosion', this.player.x, this.player.y, 'red');
     AudioManager.playSfx(sfxId);
+  }
+
+  /** True when a block at rest holds the target cell. */
+  private isTargetCovered({ x, y }: GridPoint): boolean {
+    const occupant = this.getEntityAt(x, y);
+    return occupant !== undefined && occupant.kind === 'block' && !occupant.isSliding;
+  }
+
+  /** How many targets of a 'targets' level hold a block at rest, out of how many there are. */
+  getTargetsProgress(): { covered: number; total: number } {
+    return {
+      covered: this.targetCells.filter((cell) => this.isTargetCovered(cell)).length,
+      total: this.targetCells.length
+    };
+  }
+
+  /**
+   * Ends a 'targets' level once every target holds a block that has come to
+   * rest. A level without targets never ends this way, and a dead player
+   * never wins. Called wherever a block may have settled.
+   */
+  private checkTargetsWin(): void {
+    if (this.targetCells.length === 0 || this.levelCompleted || !this.player.alive) return;
+    if (!this.targetCells.every((cell) => this.isTargetCovered(cell))) return;
+    this.emitVisual('win', this.player.x, this.player.y);
+    this.completeLevel();
   }
 
   private completeLevel(): void {

@@ -34,6 +34,7 @@ import {
   isDirection,
   isFiniteNumber,
   isInBounds,
+  isWinRule,
   findDatFormatErrors,
   findGameTunableErrors,
   InvalidLevelError
@@ -463,6 +464,7 @@ class ConfigRegistryService {
       id: levelId,
       ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
       ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
+      ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
       number: bp.number,
       ...(typeof bp.titleKey === 'string' ? { titleKey: bp.titleKey } : {}),
       ...(typeof bp.customTitle === 'string' ? { customTitle: bp.customTitle } : {}),

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { BLOCK_TARGET_TILE_ID } from '../core/coreConstants';
 import { CampaignGuardConfig, CompiledLevel, TileDefinition } from '../core/types';
 
 /** Coarse role of a cell, the only thing the originality fingerprints keep. */
@@ -79,6 +80,7 @@ export function classifyCell(terrain: TileDefinition, item: TileDefinition | nul
     terrain.isTrap ||
     terrain.isCloneMachine ||
     terrain.buttonAction ||
+    terrain.id === BLOCK_TARGET_TILE_ID ||
     terrain.showsHint
   ) {
     return CellClass.Other;
