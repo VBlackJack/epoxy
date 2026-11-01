@@ -93,7 +93,7 @@ Chaque effet se déclare dans `public/configs/audio.json`, sous `effects.<id>`. 
 - 17 des 19 effets utilisent des fichiers ; `splash` et `burn` restent synthétisés.
 - `terrainStepEffects` associe un terrain à l'identifiant de l'effet joué pour un pas dessus. La clé est le `slideType` ou le `hazard` de la tuile (`force`, `ice`, `water`, `fire`) ; toute autre tuile, ainsi qu'un terrain sans entrée ou dont l'effet n'existe pas, joue `step`. L'eau et le feu ne comptent que si le joueur porte les bottes qui protègent ; sans elles la tuile garde le pas normal et le son de plouf ou de brûlure suit de lui-même. Un sol de force compte même quand les bottes annulent sa poussée.
 - Les versions de Safari qui ne savent pas décoder l'Ogg Vorbis ne peuvent pas lire les fichiers de pas et se replient sur le pas synthétisé.
-- `teleport` (limite de 400 ms, fondu de 150 ms), `thief` (limite de 500 ms, fondu de 150 ms) et les pas (`step` et les quatre effets `step_*`, limite de 120 ms, fondu de 30 ms) utilisent une limite et un fondu.
+- `teleport` (limite de 400 ms, fondu de 150 ms), `thief` (limite de 500 ms, fondu de 150 ms) et les pas (`step` et `step_fire` limite de 120 ms et fondu de 30 ms, `step_force` et `step_ice` 150 ms et 50 ms, `step_water` 180 ms et 60 ms) utilisent une limite et un fondu.
 
 ## Construire une campagne avec le générateur
 
@@ -153,10 +153,13 @@ Fichiers de `public/audio/sfx/` et effet servi par chacun :
 Pas : Impact Sounds de Kenney (https://kenney.nl/assets/impact-sounds), CC0 1.0, licence vérifiée le 2026-11-01.
 
 - `footstep_concrete_000.ogg`, `footstep_concrete_001.ogg`, `footstep_concrete_002.ogg`: step
-- `impactMetal_light_002.ogg`, `impactMetal_light_004.ogg`: step_force
-- `impactGlass_light_000.ogg`, `impactGlass_light_001.ogg`: step_ice
-- `impactSoft_medium_000.ogg`, `impactSoft_medium_002.ogg`: step_water
+- `impactMetal_heavy_000.ogg`, `impactMetal_medium_000.ogg`: step_force
+- `footstep_snow_000.ogg`, `footstep_snow_002.ogg`: step_ice
 - `footstep_grass_001.ogg`, `footstep_grass_004.ogg`: step_fire
+
+Pas dans l'eau : "ocean splash" de Thimras sur OpenGameArt (https://opengameart.org/content/ocean-splash), CC0 1.0, licence vérifiée le 2026-11-01.
+
+- `cannon_miss.ogg`: step_water
 
 ## Licence
 

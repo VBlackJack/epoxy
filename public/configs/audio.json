@@ -20,30 +20,30 @@
       ]
     },
     "step_force": {
-      "files": ["impactMetal_light_002.ogg", "impactMetal_light_004.ogg"],
-      "gain": 0.3,
-      "maxDurationMs": 120,
-      "fadeOutMs": 30,
+      "files": ["impactMetal_heavy_000.ogg", "impactMetal_medium_000.ogg"],
+      "gain": 0.35,
+      "maxDurationMs": 150,
+      "fadeOutMs": 50,
       "waveform": "triangle",
       "notes": [
         { "freq": 190, "durationMs": 32, "gain": 0.25 }
       ]
     },
     "step_ice": {
-      "files": ["impactGlass_light_000.ogg", "impactGlass_light_001.ogg"],
-      "gain": 0.35,
-      "maxDurationMs": 120,
-      "fadeOutMs": 30,
+      "files": ["footstep_snow_000.ogg", "footstep_snow_002.ogg"],
+      "gain": 0.25,
+      "maxDurationMs": 150,
+      "fadeOutMs": 50,
       "waveform": "triangle",
       "notes": [
         { "freq": 190, "durationMs": 32, "gain": 0.25 }
       ]
     },
     "step_water": {
-      "files": ["impactSoft_medium_000.ogg", "impactSoft_medium_002.ogg"],
-      "gain": 0.2,
-      "maxDurationMs": 120,
-      "fadeOutMs": 30,
+      "files": ["cannon_miss.ogg"],
+      "gain": 0.25,
+      "maxDurationMs": 180,
+      "fadeOutMs": 60,
       "waveform": "triangle",
       "notes": [
         { "freq": 190, "durationMs": 32, "gain": 0.25 }

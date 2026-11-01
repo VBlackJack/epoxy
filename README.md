@@ -93,7 +93,7 @@ Each effect is declared in `public/configs/audio.json` under `effects.<id>`. An 
 - 17 of the 19 effects use files; `splash` and `burn` stay synthesized.
 - `terrainStepEffects` maps a terrain to the effect id played for a step onto it. The key is the tile's `slideType` or `hazard` (`force`, `ice`, `water`, `fire`); any other tile, and a terrain without an entry or whose effect does not exist, plays `step`. Water and fire only count when the player wears the protecting boots; without them the tile keeps the normal step and the splash or burn sound follows on its own. A force floor counts even when the boots cancel its push.
 - Safari versions that cannot decode Ogg Vorbis cannot play the footstep files and fall back to the synthesized step.
-- `teleport` (400 ms cap, 150 ms fade), `thief` (500 ms cap, 150 ms fade) and the footsteps (`step` and the four `step_*` effects, 120 ms cap, 30 ms fade) use a cap and a fade.
+- `teleport` (400 ms cap, 150 ms fade), `thief` (500 ms cap, 150 ms fade) and the footsteps (`step` and `step_fire` 120 ms cap and 30 ms fade, `step_force` and `step_ice` 150 ms and 50 ms, `step_water` 180 ms and 60 ms) use a cap and a fade.
 
 ## Building a Campaign with the Generator
 
@@ -153,10 +153,13 @@ Files in `public/audio/sfx/` and the effect each one serves:
 Footsteps: Impact Sounds by Kenney (https://kenney.nl/assets/impact-sounds), CC0 1.0, licence verified 2026-11-01.
 
 - `footstep_concrete_000.ogg`, `footstep_concrete_001.ogg`, `footstep_concrete_002.ogg`: step
-- `impactMetal_light_002.ogg`, `impactMetal_light_004.ogg`: step_force
-- `impactGlass_light_000.ogg`, `impactGlass_light_001.ogg`: step_ice
-- `impactSoft_medium_000.ogg`, `impactSoft_medium_002.ogg`: step_water
+- `impactMetal_heavy_000.ogg`, `impactMetal_medium_000.ogg`: step_force
+- `footstep_snow_000.ogg`, `footstep_snow_002.ogg`: step_ice
 - `footstep_grass_001.ogg`, `footstep_grass_004.ogg`: step_fire
+
+Water step: "ocean splash" by Thimras on OpenGameArt (https://opengameart.org/content/ocean-splash), CC0 1.0, licence verified 2026-11-01.
+
+- `cannon_miss.ogg`: step_water
 
 ## License
 
