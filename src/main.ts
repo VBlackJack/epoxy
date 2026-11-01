@@ -2347,10 +2347,17 @@ class EpoxyApplication {
     }
 
     const parts: string[] = [];
-    const ent = this.engine.getEntities().find((e) => e.x === pt.x && e.y === pt.y);
+    const cellEntities = this.engine.getEntities().filter((e) => e.x === pt.x && e.y === pt.y);
+    const ent = cellEntities.find((e) => e.kind === 'block') ?? cellEntities[0];
     if (ent) {
       const entDef = ConfigRegistry.getEntityDef(ent.type);
       if (entDef) parts.push(t(entDef.i18nKey));
+    }
+
+    // A block hides the item and the terrain under it, so only its name is shown.
+    if (ent?.kind === 'block') {
+      this.showInspectBadge(inspectEl, pt, parts);
+      return;
     }
 
     const itemId = this.engine.getItems()[pt.y]?.[pt.x];
@@ -2367,6 +2374,10 @@ class EpoxyApplication {
       parts.push(t(ConfigRegistry.getTile(displayTileId).i18nKey));
     }
 
+    this.showInspectBadge(inspectEl, pt, parts);
+  }
+
+  private showInspectBadge(inspectEl: HTMLElement, pt: GridPoint, parts: readonly string[]): void {
     setText(
       inspectEl,
       t('hud.messages.inspect_format.label', {
