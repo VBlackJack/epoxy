@@ -102,6 +102,9 @@ import {
   BIOME_ACCENT_CSS_VAR,
   CANVAS_RESIZE_TOLERANCE_PX,
   AUTO_THEME_ID,
+  DRAWER_ADVANCED_CLOSED_VALUE,
+  DRAWER_ADVANCED_OPEN_VALUE,
+  DRAWER_ADVANCED_STORAGE_SUFFIX,
   DEFAULT_THEME_ID,
   GAMEPAD_AXIS_THRESHOLD,
   GAMEPAD_AXIS_X,
@@ -129,6 +132,15 @@ const NO_WARNED_SECOND = -1;
 const ONBOARDING_SEEN_VALUE = '1';
 /** Where the seen flag lives, most durable first. */
 const ONBOARDING_STORES: ReadonlyArray<() => Storage> = [() => localStorage, () => sessionStorage];
+/** The Play and Editor mode buttons: the header ones and their drawer copies. */
+const PLAY_MODE_BUTTON_IDS = ['btn-mode-play', 'btn-drawer-mode-play'] as const;
+const EDITOR_MODE_BUTTON_IDS = ['btn-mode-editor', 'btn-drawer-mode-editor'] as const;
+/** Id prefixes of the procedural seed boxes: the header one and its drawer copy. */
+const SEED_BOX_ID_PREFIXES = ['procedural', 'drawer'] as const;
+const SEED_COPY_BUTTON_IDS: Record<(typeof SEED_BOX_ID_PREFIXES)[number], string> = {
+  procedural: 'btn-copy-seed',
+  drawer: 'btn-drawer-copy-seed'
+};
 /** Controls that only make sense in a pack with real level codes. */
 const PASSWORD_CONTROL_IDS = ['hud-password-badge'] as const;
 
@@ -566,25 +578,41 @@ class EpoxyApplication {
     return pack ? this.getPackDisplayName(pack) : activeId;
   }
 
-  private refreshPackSelector(): void {
-    const select = byId<HTMLSelectElement>('pack-select');
-    if (!select) return;
-    select.innerHTML = '';
+  /** Every pack select (header and drawer) carries data-pack-select and is filled here. */
+  private packSelects(): HTMLSelectElement[] {
+    return Array.from(document.querySelectorAll<HTMLSelectElement>('select[data-pack-select]'));
+  }
 
+  private refreshPackSelector(): void {
     const activeId = ConfigRegistry.getActivePackId();
-    for (const pack of ConfigRegistry.getAllPacks()) {
-      const opt = document.createElement('option');
-      opt.value = pack.id;
-      opt.textContent = t('app.packs.selector_option.label', {
-        name: this.getPackDisplayName(pack),
-        count: pack.levels.length
-      });
-      if (pack.id === activeId) {
-        opt.selected = true;
+    for (const select of this.packSelects()) {
+      select.innerHTML = '';
+      for (const pack of ConfigRegistry.getAllPacks()) {
+        const opt = document.createElement('option');
+        opt.value = pack.id;
+        opt.textContent = t('app.packs.selector_option.label', {
+          name: this.getPackDisplayName(pack),
+          count: pack.levels.length
+        });
+        if (pack.id === activeId) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
       }
-      select.appendChild(opt);
     }
     this.updateProceduralSeedBox();
+  }
+
+  /** Switches to a pack from any pack select, keeps the others in step and closes the drawer. */
+  private choosePack(packId: string): void {
+    ConfigRegistry.setActivePackId(packId);
+    for (const select of this.packSelects()) {
+      select.value = packId;
+    }
+    this.updateProceduralSeedBox();
+    this.editor.populatePresetDropdown();
+    this.startLevelByIndex(0);
+    this.setDrawerOpen(false);
   }
 
   private async handleImportedFile(file: File): Promise<void> {
@@ -907,15 +935,20 @@ class EpoxyApplication {
 
   /** Shows the seed and its copy button only while the procedural pack is the active one. */
   private updateProceduralSeedBox(): void {
-    const box = byId('procedural-seed-box');
-    const label = byId('procedural-seed-label');
-    const copyBtn = byId<HTMLButtonElement>('btn-copy-seed');
     const seed = this.proceduralSeed;
     const visible = seed !== null && ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PROCEDURAL;
-    box?.classList.toggle('hidden', !visible);
-    if (!visible) return;
-    if (label) label.textContent = t('app.packs.procedural_seed.label', { seed });
-    copyBtn?.setAttribute('aria-label', t('app.packs.procedural_seed_copy_aria.label', { seed }));
+    // The header box and its drawer copy (reachable on phones and in fullscreen) show the same seed.
+    for (const prefix of SEED_BOX_ID_PREFIXES) {
+      const box = byId(`${prefix}-seed-box`);
+      box?.classList.toggle('hidden', !visible);
+      if (!visible) continue;
+      const label = byId(`${prefix}-seed-label`);
+      if (label) label.textContent = t('app.packs.procedural_seed.label', { seed });
+      byId(SEED_COPY_BUTTON_IDS[prefix])?.setAttribute(
+        'aria-label',
+        t('app.packs.procedural_seed_copy_aria.label', { seed })
+      );
+    }
   }
 
   private async copyProceduralSeed(): Promise<void> {
@@ -1553,8 +1586,8 @@ class EpoxyApplication {
     const isPlay = mode === 'play';
     byId('play-view')?.classList.toggle('hidden', !isPlay);
     byId('editor-view')?.classList.toggle('hidden', isPlay);
-    setToggleState(byId('btn-mode-play'), isPlay);
-    setToggleState(byId('btn-mode-editor'), !isPlay);
+    for (const id of PLAY_MODE_BUTTON_IDS) setToggleState(byId(id), isPlay);
+    for (const id of EDITOR_MODE_BUTTON_IDS) setToggleState(byId(id), !isPlay);
 
     if (!isPlay) {
       void this.syncEditorWithEngineLevel().then(() => this.editor.populatePresetDropdown());
@@ -1609,13 +1642,9 @@ class EpoxyApplication {
   }
 
   private bindPackControls(): void {
-    const packSelect = byId<HTMLSelectElement>('pack-select');
-    packSelect?.addEventListener('change', () => {
-      ConfigRegistry.setActivePackId(packSelect.value);
-      this.updateProceduralSeedBox();
-      this.editor.populatePresetDropdown();
-      this.startLevelByIndex(0);
-    });
+    for (const select of this.packSelects()) {
+      select.addEventListener('change', () => this.choosePack(select.value));
+    }
 
     byId('btn-import-pack')?.addEventListener('click', () => {
       this.openPackFilePicker();
@@ -1624,9 +1653,11 @@ class EpoxyApplication {
     byId('btn-procedural-pack')?.addEventListener('click', () => {
       this.openProceduralModal();
     });
-    byId('btn-copy-seed')?.addEventListener('click', () => {
-      void this.copyProceduralSeed();
-    });
+    for (const id of Object.values(SEED_COPY_BUTTON_IDS)) {
+      byId(id)?.addEventListener('click', () => {
+        void this.copyProceduralSeed();
+      });
+    }
     this.bindProceduralModal();
 
     const packFileInput = byId<HTMLInputElement>('pack-file-input');
@@ -1667,14 +1698,19 @@ class EpoxyApplication {
   }
 
   private bindModeSwitch(): void {
-    setToggleState(byId('btn-mode-play'), this.activeMode === 'play');
-    setToggleState(byId('btn-mode-editor'), this.activeMode === 'editor');
-    byId('btn-mode-play')?.addEventListener('click', () => {
-      this.switchMode('play');
-    });
-    byId('btn-mode-editor')?.addEventListener('click', () => {
-      this.switchMode('editor');
-    });
+    for (const id of PLAY_MODE_BUTTON_IDS) setToggleState(byId(id), this.activeMode === 'play');
+    for (const id of EDITOR_MODE_BUTTON_IDS) setToggleState(byId(id), this.activeMode === 'editor');
+    const bindMode = (ids: readonly string[], mode: 'play' | 'editor'): void => {
+      for (const id of ids) {
+        byId(id)?.addEventListener('click', () => {
+          this.switchMode(mode);
+          // The drawer copies live inside the open drawer: leave it to show the chosen mode.
+          this.setDrawerOpen(false);
+        });
+      }
+    };
+    bindMode(PLAY_MODE_BUTTON_IDS, 'play');
+    bindMode(EDITOR_MODE_BUTTON_IDS, 'editor');
   }
 
   // -- Options drawer --------------------------------------------------------
@@ -1684,6 +1720,9 @@ class EpoxyApplication {
     const optionsBtn = byId('btn-options-menu');
     optionsBtn?.classList.toggle('active', open);
     optionsBtn?.setAttribute('aria-expanded', String(open));
+    const mobileMenuBtn = byId('btn-mobile-menu');
+    mobileMenuBtn?.classList.toggle('active', open);
+    mobileMenuBtn?.setAttribute('aria-expanded', String(open));
   }
 
   /** The only way the drawer opens or closes, so its chrome never desyncs. */
@@ -1702,7 +1741,27 @@ class EpoxyApplication {
     });
   }
 
+  /** Restores and remembers whether the drawer's Advanced section is open; storage failures are ignored. */
+  private bindAdvancedSection(): void {
+    const details = byId<HTMLDetailsElement>('drawer-advanced');
+    if (!details) return;
+    const key = ConfigRegistry.getStorageKey(DRAWER_ADVANCED_STORAGE_SUFFIX);
+    try {
+      details.open = localStorage.getItem(key) === DRAWER_ADVANCED_OPEN_VALUE;
+    } catch {
+      // Storage blocked: stay folded.
+    }
+    details.addEventListener('toggle', () => {
+      try {
+        localStorage.setItem(key, details.open ? DRAWER_ADVANCED_OPEN_VALUE : DRAWER_ADVANCED_CLOSED_VALUE);
+      } catch {
+        // Storage blocked: the choice only lasts for this page.
+      }
+    });
+  }
+
   private bindDrawer(): void {
+    this.bindAdvancedSection();
     const optionsBtn = byId('btn-options-menu');
     optionsBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2078,12 +2137,8 @@ class EpoxyApplication {
 
   private bindMobileControls(): void {
     const mobileMenuBtn = byId('btn-mobile-menu');
-    const topControlsDrawer = byId('top-controls-drawer');
     mobileMenuBtn?.addEventListener('click', () => {
-      topControlsDrawer?.classList.toggle('open');
-      const isOpen = Boolean(topControlsDrawer?.classList.contains('open'));
-      mobileMenuBtn.classList.toggle('active', isOpen);
-      mobileMenuBtn.setAttribute('aria-expanded', String(isOpen));
+      this.setDrawerOpen(true, mobileMenuBtn);
     });
 
     byId('mobile-btn-undo')?.addEventListener('click', () => {
@@ -2177,6 +2232,9 @@ class EpoxyApplication {
     const levels = ConfigRegistry.getLevels();
     const showCodes = packUsesPasswords(levels);
     byId('scores-col-code')?.classList.toggle('hidden', !showCodes);
+    // A pack with no timed level has no best time to show.
+    const showTimes = levels.some((lvl) => isTimedLevel(lvl.timeLimitSeconds));
+    byId('scores-col-time')?.classList.toggle('hidden', !showTimes);
     const exportBtn = byId<HTMLButtonElement>('btn-export-pack-ccl');
     if (exportBtn) {
       const exportable = levels.some((lvl) => datRefusalReason(lvl) === null);
@@ -2251,13 +2309,14 @@ class EpoxyApplication {
 
       const codeCell = cell(lvl.password, 'code-cell');
       codeCell.classList.toggle('hidden', !showCodes);
+      const timeCell = cell(timeText);
+      timeCell.classList.toggle('hidden', !showTimes);
       tr.append(
         cell(String(lvl.number)),
         cell(title),
         codeCell,
-        cell(timeText),
+        timeCell,
         cell(rec ? String(rec.minSteps) : noRecord),
-        cell(rec ? String(rec.bestScore) : noRecord),
         tdAction
       );
       tbody.appendChild(tr);
@@ -2347,8 +2406,9 @@ class EpoxyApplication {
       const container = byId(id);
       if (container) bindButtonPointerBlur(container);
     }
-    // The fov, theme and locale selects live in a modal dialog: blurring them would
-    // send focus outside it. Only the pack select sits outside any dialog.
+    // The fov, theme and locale selects, and the drawer copy of the pack select, live in a
+    // modal dialog: blurring them would send focus outside it. Only the header pack select
+    // sits outside any dialog.
     bindSelectPointerBlur(byId<HTMLSelectElement>('pack-select'));
   }
 

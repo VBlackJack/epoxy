@@ -26,6 +26,12 @@ export const EDITOR_GENERATOR_MAX_LEVEL = 50;
 /** How long a transient status toast stays visible. */
 export const TOAST_DURATION_MS = 4500;
 
+/** Storage key suffix (under the game prefix) remembering whether the drawer's Advanced section is open. */
+export const DRAWER_ADVANCED_STORAGE_SUFFIX = 'drawer_advanced_open';
+/** Values stored under that key. */
+export const DRAWER_ADVANCED_OPEN_VALUE = '1';
+export const DRAWER_ADVANCED_CLOSED_VALUE = '0';
+
 /** Delay before an object URL handed to a download link is revoked. */
 export const OBJECT_URL_REVOKE_DELAY_MS = 1000;
 
