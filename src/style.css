@@ -16,11 +16,8 @@
 
 :root {
   --bg-dark: #0e1015;
-  --lynx-body: #252830;
-  --lynx-grip: #1b1d24;
-  --lynx-border: #3a3f4d;
-  --lynx-accent: #ff6d00;
-  --lynx-yellow: #ffd600;
+  --accent-orange: #ff6d00;
+  --accent-yellow: #ffd600;
   --panel-bg: #181b22;
   --text-main: #eceff4;
   --text-muted: #9aa5b4;
@@ -32,7 +29,7 @@
   --biome-accent-soft: color-mix(in srgb, var(--biome-accent) 35%, transparent);
   /* Minimum touch target (WCAG 2.5.5) used by the d-pad cells */
   --dpad-cell: 44px;
-  /* Height of everything above the board on desktop (top bar, header, bezel padding, HUD strip) */
+  /* Height of everything above the board on desktop (top bar, header, screen padding, HUD strip) */
   --board-chrome-height: 217px;
   --board-min-size: 320px;
   --board-min-height: 500px;
@@ -83,7 +80,7 @@ body {
   font-family: monospace;
   font-size: 1.55rem;
   letter-spacing: 0.14em;
-  color: var(--lynx-accent);
+  color: var(--accent-orange);
   text-shadow: 0 0 8px rgba(255, 109, 0, 0.45);
 }
 
@@ -125,7 +122,7 @@ body {
   width: min(320px, 88vw);
   z-index: 150;
   background: #151922;
-  border-left: 2px solid var(--lynx-accent);
+  border-left: 2px solid var(--accent-orange);
   box-shadow: -12px 0 36px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
@@ -144,7 +141,7 @@ body {
 
 .drawer-header h3 {
   font-size: 0.95rem;
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
 }
 
 .drawer-body {
@@ -161,6 +158,23 @@ body {
   border: 1px solid #2c3344;
   border-radius: 8px;
   padding: 0.65rem;
+}
+
+.drawer-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The header carries these shortcuts, so the drawer only repeats them in fullscreen */
+.drawer-section-navigation {
+  display: none;
+}
+
+body.fullscreen-mode .drawer-section-navigation {
+  display: flex;
 }
 
 .drawer-section .lang-box {
@@ -181,7 +195,7 @@ body {
 button:focus-visible,
 select:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--lynx-yellow);
+  outline: 2px solid var(--accent-yellow);
   outline-offset: 2px;
 }
 
@@ -203,13 +217,22 @@ button:disabled {
 }
 
 .nav-btn:hover {
-  border-color: var(--lynx-accent);
+  border-color: var(--accent-orange);
 }
 
 .nav-btn.active {
-  background: var(--lynx-accent);
+  background: var(--accent-orange);
   color: #111;
-  border-color: var(--lynx-accent);
+  border-color: var(--accent-orange);
+}
+
+/* Disabled: dimmed, no hover or active highlight (for example the LCD grid in modern style) */
+.nav-btn:disabled,
+.nav-btn.active:disabled {
+  background: #232834;
+  color: var(--text-muted);
+  border-color: #3a4254;
+  border-style: dashed;
 }
 
 .lang-box,
@@ -237,9 +260,9 @@ button:disabled {
 }
 
 .drop-card {
-  border: 3px dashed var(--lynx-accent);
+  border: 3px dashed var(--accent-orange);
   background: #181c26;
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
   font-size: 1.3rem;
   font-weight: 700;
   padding: 2.5rem 3.5rem;
@@ -275,84 +298,12 @@ button:disabled {
   padding: 1rem;
 }
 
-/* Atari Lynx II Handheld Shell */
-.lynx-shell {
+/* Play shell: board and HUD side by side */
+.play-shell {
   display: flex;
   align-items: center;
-  background: linear-gradient(180deg, #2d313b 0%, #1c1f26 100%);
-  border: 4px solid var(--lynx-border);
-  border-radius: 48px;
-  padding: 1.4rem 1.8rem;
-  box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.75),
-    inset 0 2px 6px rgba(255, 255, 255, 0.08);
-  gap: 1.4rem;
+  width: 100%;
   max-width: 100%;
-}
-
-.lynx-shell:not(.enabled) {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  width: 100%;
-}
-
-.lynx-shell:not(.enabled) .lynx-wing,
-.lynx-shell:not(.enabled) .bezel-header {
-  display: none;
-}
-
-.lynx-shell:not(.enabled) .lynx-screen-bezel {
-  background: transparent;
-  border: none;
-  padding: 0;
-  border-radius: 0;
-  width: 100%;
-}
-
-.lynx-shell:not(.enabled) .lcd-screen {
-  width: 100%;
-}
-
-.lynx-shell:not(.enabled) .viewport-wrapper {
-  flex: 1;
-  width: auto;
-  min-width: 320px;
-  height: clamp(var(--board-min-height), calc(100dvh - var(--board-chrome-height)), var(--board-max-height));
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.lynx-wing {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 150px;
-  gap: 1.2rem;
-  background: var(--lynx-grip);
-  padding: 1.4rem 0.8rem;
-  border-radius: 32px;
-  border: 2px solid #2b303c;
-  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.6);
-}
-
-.power-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-family: monospace;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.power-led {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #ff1744;
-  box-shadow: 0 0 8px #ff1744;
 }
 
 /* D-Pad */
@@ -378,7 +329,7 @@ button:disabled {
 }
 
 .dpad-btn:active {
-  background: var(--lynx-accent);
+  background: var(--accent-orange);
   color: #111;
 }
 
@@ -407,79 +358,14 @@ button:disabled {
   background: #282c37;
 }
 
-.wing-caption {
-  font-size: 0.7rem;
-  font-family: monospace;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-/* Lynx Right Wing Controls */
-.lynx-opt-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+/* Screen bezel: transparent frame around the board and HUD */
+.screen-bezel {
   width: 100%;
-}
-
-.lynx-pill-btn {
-  background: #323846;
-  color: #e0e6ed;
-  border: 1px solid #4f586b;
-  border-radius: 12px;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.68rem;
-  font-family: monospace;
-  cursor: pointer;
-}
-
-.lynx-pill-btn.pause {
-  border-color: var(--lynx-yellow);
-  color: var(--lynx-yellow);
-}
-
-.lynx-ab-cluster {
-  display: flex;
-  gap: 0.9rem;
-  margin-top: 0.4rem;
-}
-
-.lynx-round-btn {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 3px solid #495163;
-  background: #c62828;
-  color: #fff;
-  font-weight: 800;
-  font-size: 1rem;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-}
-
-.lynx-round-btn:active {
-  transform: translateY(2px);
-}
-
-/* Screen Bezel */
-.lynx-screen-bezel {
-  background: #12141a;
-  border: 3px solid #383e4c;
-  border-radius: 18px;
-  padding: 0.85rem 1.1rem 1.1rem;
-}
-
-.bezel-header {
-  text-align: center;
-  font-family: monospace;
-  font-size: 0.78rem;
-  letter-spacing: 0.15em;
-  color: var(--lynx-accent);
-  margin-bottom: 0.65rem;
 }
 
 .lcd-screen {
   display: flex;
+  width: 100%;
   gap: 1rem;
   background: #0b0d12;
   padding: 0.75rem;
@@ -500,6 +386,17 @@ button:disabled {
   border: 2px solid #37474f;
   background: #000;
   flex-shrink: 0;
+}
+
+/* Desktop board: fills the row, height bounded by the window minus the chrome above it.
+   Media queries below restate it with the same selector to override it. */
+.play-shell .viewport-wrapper {
+  flex: 1;
+  width: auto;
+  min-width: 320px;
+  height: clamp(var(--board-min-height), calc(100dvh - var(--board-chrome-height)), var(--board-max-height));
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 #game-canvas {
@@ -573,7 +470,7 @@ button:disabled {
 
 .overlay-card {
   background: #1a1e29;
-  border: 2px solid var(--lynx-accent);
+  border: 2px solid var(--accent-orange);
   border-radius: 10px;
   padding: 1.3rem;
   text-align: center;
@@ -585,7 +482,7 @@ button:disabled {
 }
 
 .overlay-card h2 {
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
   font-size: 1.25rem;
 }
 
@@ -613,9 +510,9 @@ button:disabled {
 }
 
 .action-btn.primary {
-  background: var(--lynx-accent);
+  background: var(--accent-orange);
   color: #111;
-  border-color: var(--lynx-accent);
+  border-color: var(--accent-orange);
 }
 
 /* Side HUD Panel */
@@ -641,7 +538,7 @@ button:disabled {
 }
 
 .hud-level-header strong {
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
   font-family: monospace;
   font-size: 0.92rem;
   margin-left: 0.25rem;
@@ -724,7 +621,7 @@ button:disabled {
 }
 
 .hud-password-badge:focus-visible {
-  outline: 2px solid var(--lynx-yellow);
+  outline: 2px solid var(--accent-yellow);
   outline-offset: 1px;
 }
 
@@ -807,15 +704,15 @@ button:disabled {
 }
 
 .inv-slot.owned {
-  border-color: var(--lynx-yellow);
+  border-color: var(--accent-yellow);
   background: #242b3a;
-  box-shadow: 0 0 8px -2px var(--lynx-yellow), inset 0 0 6px -3px var(--lynx-yellow);
+  box-shadow: 0 0 8px -2px var(--accent-yellow), inset 0 0 6px -3px var(--accent-yellow);
   cursor: pointer;
 }
 
 /* The held item the drop key puts down; a click on any owned slot drops that item instead. */
 .inv-slot.selected {
-  outline: 2px solid var(--lynx-accent);
+  outline: 2px solid var(--accent-orange);
   outline-offset: 1px;
 }
 
@@ -863,7 +760,7 @@ button:disabled {
   font-size: 0.72rem;
   font-family: monospace;
   font-weight: 700;
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
 }
 
 .hud-Quick-actions {
@@ -883,6 +780,11 @@ button:disabled {
   display: none;
 }
 
+/* Fullscreen hides the header options button, so the HUD one takes over on any viewport */
+body.fullscreen-mode #hud-btn-options-drawer {
+  display: inline-flex;
+}
+
 .hud-btn {
   background: #262c3a;
   color: var(--text-main);
@@ -895,18 +797,13 @@ button:disabled {
 }
 
 .hud-btn:hover {
-  border-color: var(--lynx-accent);
+  border-color: var(--accent-orange);
 }
 
 .hud-btn.primary {
-  background: var(--lynx-accent);
+  background: var(--accent-orange);
   color: #111;
-  border-color: var(--lynx-accent);
-}
-
-.hud-btn.secondary {
-  background: #1d222e;
-  color: var(--lynx-yellow);
+  border-color: var(--accent-orange);
 }
 
 .hud-nav-row {
@@ -1014,9 +911,9 @@ button:disabled {
 }
 
 .editor-tab-btn.active {
-  background: var(--lynx-accent);
+  background: var(--accent-orange);
   color: #111;
-  border-color: var(--lynx-accent);
+  border-color: var(--accent-orange);
   font-weight: 700;
 }
 
@@ -1047,7 +944,7 @@ button:disabled {
 }
 
 .palette-item-btn.active {
-  border-color: var(--lynx-yellow);
+  border-color: var(--accent-yellow);
   background: #2a3142;
 }
 
@@ -1082,7 +979,7 @@ button:disabled {
   flex: 1;
   font-family: monospace;
   font-size: 0.75rem;
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
   background: #0e1015;
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
@@ -1121,7 +1018,7 @@ button:disabled {
 
 .modal-dialog {
   background: #1b202b;
-  border: 2px solid var(--lynx-accent);
+  border: 2px solid var(--accent-orange);
   border-radius: 10px;
   padding: 1.4rem;
   width: 320px;
@@ -1162,9 +1059,9 @@ button:disabled {
 }
 
 .scores-filter-pills .hud-btn.active {
-  background: var(--lynx-accent);
+  background: var(--accent-orange);
   color: #111;
-  border-color: var(--lynx-accent);
+  border-color: var(--accent-orange);
 }
 
 .scores-table tr.current-level-row {
@@ -1172,9 +1069,9 @@ button:disabled {
 }
 
 .scores-table tr.current-level-row td:first-child {
-  border-left: 3px solid var(--lynx-accent);
+  border-left: 3px solid var(--accent-orange);
   font-weight: 800;
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
 }
 
 .scores-table-wrapper {
@@ -1204,7 +1101,7 @@ button:disabled {
 }
 
 .help-section h4 {
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
   font-size: 0.85rem;
   margin-bottom: 0.5rem;
 }
@@ -1241,7 +1138,7 @@ button:disabled {
 
 .scores-table td.code-cell {
   font-family: monospace;
-  color: var(--lynx-yellow);
+  color: var(--accent-yellow);
   font-weight: 700;
 }
 
@@ -1283,8 +1180,8 @@ button:disabled {
   right: 0.4rem;
   z-index: 90;
   background: rgba(18, 21, 28, 0.88);
-  color: var(--lynx-yellow);
-  border: 1px solid var(--lynx-accent);
+  color: var(--accent-yellow);
+  border: 1px solid var(--accent-orange);
   border-radius: 6px;
   padding: 0.28rem 0.55rem;
   font-size: 0.7rem;
@@ -1324,10 +1221,6 @@ body.fullscreen-mode .view-section {
   height: 100dvh;
   align-items: center;
   justify-content: center;
-}
-
-body.fullscreen-mode .bezel-header {
-  display: none;
 }
 
 .mobile-touch-bar {
@@ -1387,13 +1280,13 @@ body.fullscreen-mode .bezel-header {
 }
 
 .mobile-pad-btn:active {
-  background: var(--lynx-accent);
+  background: var(--accent-orange);
   color: #111;
 }
 
 .mobile-pad-btn.accent {
-  border-color: var(--lynx-yellow);
-  color: var(--lynx-yellow);
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow);
 }
 
 .mobile-gesture-caption,
@@ -1484,19 +1377,8 @@ body.fullscreen-mode .bezel-header {
     align-items: flex-start;
   }
 
-  .lynx-shell {
+  .play-shell {
     flex-direction: column;
-    border-radius: 14px;
-    padding: 0.3rem;
-    width: 100%;
-  }
-
-  .lynx-shell.enabled .lynx-wing {
-    display: none;
-  }
-
-  .bezel-header {
-    display: none;
   }
 
   .editor-layout {
@@ -1519,14 +1401,12 @@ body.fullscreen-mode .bezel-header {
     width: 100%;
   }
 
-  .viewport-wrapper,
-  .lynx-shell:not(.enabled) .viewport-wrapper {
+  .play-shell .viewport-wrapper {
     width: 100%;
     height: min(94dvw, 46dvh);
   }
 
-  body.fullscreen-mode .viewport-wrapper,
-  body.fullscreen-mode .lynx-shell:not(.enabled) .viewport-wrapper {
+  body.fullscreen-mode .play-shell .viewport-wrapper {
     width: 100%;
     height: min(96dvw, 52dvh);
   }
@@ -1560,22 +1440,16 @@ body.fullscreen-mode .bezel-header {
     gap: 0.25rem;
   }
 
-  .hud-nav-row,
-  #hud-btn-password {
+  .hud-nav-row {
     grid-column: span 2;
   }
 }
 
-/* LANDSCAPE SMARTPHONE LAYOUT (3-Column Handheld Console: Left D-Pad ONLY | Adaptive Center Viewport | Right HUD + Actions) */
+/* LANDSCAPE SMARTPHONE LAYOUT (3-column play layout: Left D-Pad ONLY | Adaptive Center Viewport | Right HUD + Actions) */
 @media (max-width: 980px) and (orientation: landscape), (max-height: 600px) and (orientation: landscape) {
   .view-section {
     padding: 0.15rem 0.25rem;
     align-items: stretch;
-  }
-
-  .lynx-screen-bezel {
-    width: 100%;
-    padding: 0.15rem;
   }
 
   .lcd-screen {
@@ -1614,10 +1488,8 @@ body.fullscreen-mode .bezel-header {
   }
 
   /* Center Column: Adaptive Rectangular Viewport filling 100% of available middle space */
-  .viewport-wrapper,
-  .lynx-shell:not(.enabled) .viewport-wrapper,
-  body.fullscreen-mode .viewport-wrapper,
-  body.fullscreen-mode .lynx-shell:not(.enabled) .viewport-wrapper {
+  .play-shell .viewport-wrapper,
+  body.fullscreen-mode .play-shell .viewport-wrapper {
     grid-column: 2;
     grid-row: 1;
     width: 100%;
@@ -1683,10 +1555,6 @@ body.fullscreen-mode .bezel-header {
     padding: 0.34rem 0.25rem;
     font-size: 0.66rem;
     text-align: center;
-  }
-
-  #hud-btn-password {
-    display: none;
   }
 
   .hud-btn {

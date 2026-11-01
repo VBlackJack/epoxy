@@ -81,7 +81,7 @@ import {
 } from './ui/levelFeedback';
 import { shouldShowOnboarding } from './ui/onboarding';
 import { packUsesPasswords } from './ui/packPasswords';
-import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
+import { getViewportPresets } from './ui/viewportZoom';
 import {
   BIOME_ACCENT_CSS_VAR,
   CANVAS_RESIZE_TOLERANCE_PX,
@@ -110,14 +110,14 @@ type OverlayState = 'none' | 'complete' | 'dead' | 'paused';
 type ScoresFilter = 'all' | 'unsolved' | 'completed';
 
 /** Displacement that marks a two-finger gesture so it never ends as a tap. */
-const PINCH_SUPPRESSES_TAP = Number.POSITIVE_INFINITY;
+const MULTI_TOUCH_SUPPRESSES_TAP = Number.POSITIVE_INFINITY;
 const NO_WARNED_SECOND = -1;
 /** Value stored once the first-launch dialog was shown. */
 const ONBOARDING_SEEN_VALUE = '1';
 /** Where the seen flag lives, most durable first. */
 const ONBOARDING_STORES: ReadonlyArray<() => Storage> = [() => localStorage, () => sessionStorage];
 /** Controls that only make sense in a pack with real level codes. */
-const PASSWORD_CONTROL_IDS = ['hud-password-badge', 'hud-btn-password', 'btn-drawer-password'] as const;
+const PASSWORD_CONTROL_IDS = ['hud-password-badge'] as const;
 
 const MODAL_IDS = {
   SCORES: 'scores-modal',
@@ -308,11 +308,6 @@ class EpoxyApplication {
     this.renderer.setThemeId(initialTheme);
     this.gameCanvas.classList.toggle('retro-pixels', defaultStyle === 'retro');
     this.syncGraphicsButton(defaultStyle === 'modern');
-
-    if (savedSettings.shellEnabled) {
-      byId('lynx-console')?.classList.add('enabled');
-    }
-    setToggleState(byId('btn-shell-toggle'), Boolean(savedSettings.shellEnabled));
 
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
     setToggleState(byId('btn-lcd-toggle'), this.renderer.isLcdEnabled());
@@ -973,7 +968,6 @@ class EpoxyApplication {
     const swipeDeadzone = touchCfg.swipeDeadzonePx;
     const tapMaxDist = touchCfg.tapMaxDistancePx;
     const tapMaxDuration = touchCfg.tapMaxDurationMs;
-    const pinchStepPx = touchCfg.pinchZoomStepPx;
     const anchorTrail = swipeDeadzone * SWIPE_ANCHOR_FOLLOW_RATIO;
 
     let anchorX = 0;
@@ -982,10 +976,6 @@ class EpoxyApplication {
     let startY = 0;
     let startTime = 0;
     let maxDisplacement = 0;
-    let pinchAnchorDist = 0;
-
-    const getFingerDist = (t1: Touch, t2: Touch): number =>
-      Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
 
     this.gameCanvas.addEventListener(
       'touchstart',
@@ -994,8 +984,7 @@ class EpoxyApplication {
         if (e.touches.length === 2) {
           e.preventDefault();
           this.heldDirection = null;
-          pinchAnchorDist = getFingerDist(e.touches[0], e.touches[1]);
-          maxDisplacement = PINCH_SUPPRESSES_TAP;
+          maxDisplacement = MULTI_TOUCH_SUPPRESSES_TAP;
           return;
         }
         if (e.touches.length === 1) {
@@ -1019,13 +1008,6 @@ class EpoxyApplication {
 
         if (e.touches.length === 2) {
           this.heldDirection = null;
-          const dist = getFingerDist(e.touches[0], e.touches[1]);
-          if (pinchAnchorDist > 0 && Math.abs(dist - pinchAnchorDist) >= pinchStepPx) {
-            if (this.stepZoom(dist > pinchAnchorDist ? -1 : 1)) {
-              this.triggerHaptic();
-            }
-            pinchAnchorDist = dist;
-          }
           return;
         }
 
@@ -1059,7 +1041,6 @@ class EpoxyApplication {
       if (this.activeMode !== 'play') return;
       if (e.touches.length === 0) {
         this.heldDirection = null;
-        pinchAnchorDist = 0;
 
         const duration = Date.now() - startTime;
         const changed = e.changedTouches[0];
@@ -1161,28 +1142,6 @@ class EpoxyApplication {
     });
   }
 
-  private applyViewportTiles(tiles: number): void {
-    this.renderer.setViewportTiles(tiles);
-    const select = byId<HTMLSelectElement>('fov-select');
-    if (select) select.value = String(tiles);
-    this.saveUserSettings();
-  }
-
-  /** Zooms one preset in (-1) or out (1); returns whether the view changed. */
-  private stepZoom(step: 1 | -1): boolean {
-    const game = ConfigRegistry.getGame();
-    const curr = this.renderer.getViewportTiles();
-    const next = stepZoomPreset(getViewportPresets(game), curr, step, game.grid.viewportWidth);
-    if (next === curr) return false;
-    this.applyViewportTiles(next);
-    return true;
-  }
-
-  private cycleFovPreset(): void {
-    const presets = getViewportPresets(ConfigRegistry.getGame());
-    this.applyViewportTiles(cycleZoomPreset(presets, this.renderer.getViewportTiles()));
-  }
-
   private setupThemeSelector(): void {
     const select = byId<HTMLSelectElement>('theme-select');
     const themes = ConfigRegistry.getGame().themes;
@@ -1235,15 +1194,27 @@ class EpoxyApplication {
     } else {
       this.showTheme(themeId);
     }
+    if (this.renderer.getStyle() !== 'modern') this.updateHUD();
     this.saveUserSettings();
   }
 
   private showTheme(themeId: string): void {
     this.renderer.setThemeId(themeId);
     this.syncThemeAccent();
+    this.refreshRetroIcons();
     const track = THEME_MUSIC_TRACKS[themeId];
     if (track) {
       AudioManager.setTrackById(track);
+    }
+  }
+
+  /** 16-Bit Retro icons are drawn with the palette of the theme, so they are redrawn when it changes. */
+  private refreshRetroIcons(): void {
+    if (this.renderer.getStyle() === 'modern') return;
+    this.rebuildHudIcons();
+    if (this.activeMode === 'editor') {
+      this.editor.buildUI();
+      this.editor.render();
     }
   }
 
@@ -1514,7 +1485,6 @@ class EpoxyApplication {
     this.bindAudioToggles();
     this.bindDpad();
     this.bindMobileControls();
-    this.bindLynxControls();
     this.bindHudControls();
     this.bindOverlayControls();
   }
@@ -1579,16 +1549,6 @@ class EpoxyApplication {
       this.renderer.setHoveredGridPoint(null);
       this.updateInspectBadge(null);
     });
-
-    this.gameCanvas.addEventListener(
-      'wheel',
-      (e) => {
-        if (this.activeMode !== 'play') return;
-        e.preventDefault();
-        this.stepZoom(e.deltaY > 0 ? 1 : -1);
-      },
-      { passive: false }
-    );
   }
 
   private bindModeSwitch(): void {
@@ -1661,11 +1621,6 @@ class EpoxyApplication {
     byId('btn-drawer-import')?.addEventListener('click', () => {
       this.setDrawerOpen(false);
       this.openPackFilePicker();
-    });
-
-    byId('btn-drawer-password')?.addEventListener('click', () => {
-      this.setDrawerOpen(false);
-      this.openPasswordModal();
     });
 
     byId('btn-help-modal')?.addEventListener('click', () => {
@@ -1817,9 +1772,6 @@ class EpoxyApplication {
   private bindPasswordModal(): void {
     const passInput = byId<HTMLInputElement>('password-input');
 
-    byId('hud-btn-password')?.addEventListener('click', () => {
-      this.openPasswordModal();
-    });
     byId('hud-password-badge')?.addEventListener('click', () => {
       this.openPasswordModal();
     });
@@ -1862,14 +1814,6 @@ class EpoxyApplication {
       this.saveUserSettings();
     });
 
-    const shellBtn = byId('btn-shell-toggle');
-    shellBtn?.addEventListener('click', () => {
-      const lynx = byId('lynx-console');
-      lynx?.classList.toggle('enabled');
-      setToggleState(shellBtn, Boolean(lynx?.classList.contains('enabled')));
-      this.saveUserSettings();
-    });
-
     const toggleFullscreenHandler = (): void => {
       this.triggerHaptic();
       this.toggleFullscreen();
@@ -1904,7 +1848,7 @@ class EpoxyApplication {
     });
   }
 
-  // -- Mobile and handheld controls -------------------------------------------
+  // -- Mobile touch controls -------------------------------------------
 
   private bindDpad(): void {
     document.querySelectorAll<HTMLButtonElement>('.dpad-btn').forEach((btn) => {
@@ -1978,41 +1922,6 @@ class EpoxyApplication {
     byId('mobile-btn-restart')?.addEventListener('click', () => {
       this.triggerHaptic();
       this.restartLevel();
-    });
-
-    byId('mobile-btn-zoom')?.addEventListener('click', () => {
-      this.triggerHaptic();
-      this.cycleFovPreset();
-    });
-  }
-
-  private bindLynxControls(): void {
-    byId('lynx-btn-b')?.addEventListener('click', () => {
-      this.undoMove();
-    });
-
-    byId('lynx-btn-a')?.addEventListener('click', () => {
-      if (this.engine.isLevelCompleted()) {
-        this.advanceToNextLevel();
-      } else if (!this.engine.getPlayer().alive) {
-        this.restartLevel();
-      } else {
-        this.engine.attemptPlayerMove(this.engine.getPlayer().dir);
-        this.updateHUD();
-      }
-    });
-
-    byId('lynx-opt1')?.addEventListener('click', () => {
-      this.restartLevel();
-    });
-
-    byId('lynx-opt2')?.addEventListener('click', () => {
-      this.toggleSfx();
-    });
-
-    byId('lynx-pause')?.addEventListener('click', () => {
-      this.engine.togglePause();
-      this.updateHUD();
     });
   }
 
@@ -2318,14 +2227,10 @@ class EpoxyApplication {
       run(() => this.advanceToNextLevel());
     } else if (kb.prevLevel.includes(e.code)) {
       run(() => this.startLevelByIndex(this.currentLevelIndex - 1));
-    } else if (kb.toggleShell.includes(e.code)) {
-      run(() => byId('btn-shell-toggle')?.click());
     } else if (kb.toggleFullscreen?.includes(e.code)) {
       run(() => this.toggleFullscreen());
     } else if (kb.toggleMute.includes(e.code)) {
       run(() => this.toggleSfx());
-    } else if (kb.cycleFov?.includes(e.code)) {
-      run(() => this.cycleFovPreset());
     } else if (kb.toggleGraphics?.includes(e.code)) {
       run(() => this.toggleGraphicsStyle());
     } else if (kb.cycleTheme?.includes(e.code)) {
@@ -2401,6 +2306,9 @@ class EpoxyApplication {
     gfxBtn.setAttribute('data-i18n', i18nKey);
     gfxBtn.textContent = t(i18nKey);
     gfxBtn.classList.toggle('active', isModern);
+    // The LCD grid only renders in retro style; the saved preference is left untouched.
+    const lcdBtn = byId<HTMLButtonElement>('btn-lcd-toggle');
+    if (lcdBtn) lcdBtn.disabled = isModern;
   }
 
   private toggleGraphicsStyle(): void {
@@ -2852,7 +2760,6 @@ class EpoxyApplication {
         fov: this.renderer.getViewportTiles(),
         themeId: this.autoTheme ? AUTO_THEME_ID : this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
-        shellEnabled: Boolean(byId('lynx-console')?.classList.contains('enabled')),
         lcdEnabled: this.renderer.isLcdEnabled(),
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),

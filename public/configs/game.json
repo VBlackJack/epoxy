@@ -44,6 +44,7 @@
     "terrainCacheMarginTiles": 2,
     "terrainCacheMaxPx": 4096,
     "spriteCacheMaxEntries": 256,
+    "retroSpriteCacheMaxEntries": 1024,
     "glowBlurPx": { "soft": 6, "medium": 8, "strong": 10 },
     "hintFontModern": "system-ui, sans-serif",
     "hintFontRetro": "monospace",
@@ -350,7 +351,6 @@
     "swipeDeadzonePx": 20,
     "tapMaxDistancePx": 14,
     "tapMaxDurationMs": 280,
-    "pinchZoomStepPx": 42,
     "hapticPulseMs": 10
   },
   "ultimatePacks": [
@@ -455,9 +455,7 @@
     "pause": ["KeyP", "Space"],
     "nextLevel": ["BracketRight"],
     "prevLevel": ["BracketLeft"],
-    "toggleShell": ["KeyL"],
     "toggleMute": ["KeyM"],
-    "cycleFov": ["KeyV"],
     "toggleGraphics": ["KeyG"],
     "cycleTheme": ["KeyB"],
     "generateProcedural": ["KeyN"],
@@ -646,5 +644,77 @@
     "modernEntityShadow": "rgba(0, 0, 0, 0.38)",
     "modernPlayerShadow": "rgba(0, 0, 0, 0.42)",
     "modernPlayerVisor": "#00e5ff"
+  },
+  "retroPalettes": {
+    "default": {
+      "outline": ["#000024"],
+      "shadow": ["#000049"],
+      "floor": ["#6D92B6", "#496D92", "#24496D"],
+      "wall": ["#B6DBFF", "#6D92DB", "#496DB6", "#24246D"],
+      "wallRim": ["#FFFFFF", "#B6DBFF"],
+      "bluewall": ["#92B6FF", "#496DDB", "#2424B6"],
+      "water": ["#92DBFF", "#00B6FF", "#0049DB", "#002492"],
+      "fire": ["#FFFF49", "#FFB600", "#FF4900", "#B60000"],
+      "ice": ["#FFFFFF", "#B6FFFF", "#6DDBFF", "#49B6DB"],
+      "force": ["#92FFDB", "#00DBB6", "#00926D"],
+      "dirt": ["#DBB66D", "#B69249", "#926D24"],
+      "gravel": ["#B6B6B6", "#929292", "#6D6D6D"],
+      "metal": ["#DBDBFF", "#9292B6", "#6D6D92", "#49496D"],
+      "trap": ["#DB9224", "#924900", "#492400"],
+      "exit": ["#FFFFFF", "#FFFF92", "#49FF49", "#00B600"],
+      "teleport": ["#FFB6FF", "#B649FF", "#6D00B6"],
+      "hint": ["#B6FFFF", "#49DBFF", "#0092B6"],
+      "thief": ["#6D6D6D", "#494949", "#242424"],
+      "white": ["#FFFFFF", "#DBDBDB", "#929292"],
+      "skin": ["#FFDBB6", "#DB926D", "#B64924"],
+      "hair": ["#DB9224", "#924900", "#492400"],
+      "suit": ["#92B6FF", "#4992FF", "#2449B6"],
+      "visor": ["#FFFFFF", "#49FFFF", "#00B6DB"],
+      "boot": ["#B66D49", "#924924", "#492400"],
+      "block": ["#DBB692", "#B6926D", "#926D49", "#492400"],
+      "iceblock": ["#FFFFFF", "#B6FFFF", "#6DDBFF", "#4992DB"],
+      "chip": ["#FFFFB6", "#FFDB24", "#DB9200", "#924900"],
+      "bomb": ["#B6B6DB", "#49496D", "#000024"],
+      "flag": ["#FFB6DB", "#FF49B6", "#B60049"],
+      "stopwatch": ["#DBFFFF", "#92DBDB", "#499292"],
+      "turtle": ["#92FFB6", "#24B66D", "#004924"],
+      "target": ["#FFFF49", "#FF9200"],
+      "red": ["#FF9292", "#FF2424", "#B60000"],
+      "blue": ["#92B6FF", "#2449FF", "#0000B6"],
+      "yellow": ["#FFFF6D", "#FFDB00", "#B69200"],
+      "green": ["#B6FF6D", "#24DB24", "#009200"],
+      "orange": ["#FFB649", "#FF6D00", "#B64900"],
+      "brown": ["#DB9249", "#926D24", "#492400"],
+      "bug": ["#FFB6B6", "#DB2424", "#920000"],
+      "paramecium": ["#DBFF49", "#92DB00", "#499200"],
+      "pinkball": ["#FFB6FF", "#FF49DB", "#B60092"],
+      "walker": ["#FF9249", "#FF4924", "#B62400"],
+      "teeth": ["#49DB49", "#009200", "#004900"],
+      "glider": ["#B6B6FF", "#6D49FF", "#2400B6"],
+      "fireball": ["#FFFFB6", "#FFB600", "#FF4900", "#B60000"],
+      "tank": ["#92B692", "#496D49", "#244924"],
+      "blob": ["#49DBB6", "#009292", "#004949"],
+      "eye": ["#FFFFFF", "#FF2424", "#000024"]
+    },
+    "cyber_neon": {
+      "floor": ["#4992B6", "#246D92", "#24496D"],
+      "wall": ["#B6DBFF", "#6D92DB", "#496DB6", "#24246D"],
+      "wallRim": ["#FFFFFF", "#6DFFFF"]
+    },
+    "arctic_lab": {
+      "floor": ["#FFFFFF", "#DBFFFF", "#B6DBFF"],
+      "wall": ["#6D92B6", "#496D92", "#24496D", "#242449"],
+      "wallRim": ["#FFFFFF", "#B6FFFF"]
+    },
+    "magma_core": {
+      "floor": ["#926D6D", "#6D4949", "#492424"],
+      "wall": ["#6D2424", "#490000", "#240000", "#240024"],
+      "wallRim": ["#FFB649", "#FF6D00"]
+    },
+    "lynx_lcd": {
+      "floor": ["#92B624", "#6D9200", "#496D00"],
+      "wall": ["#6D9249", "#496D24", "#244900", "#002400"],
+      "wallRim": ["#FFFF92", "#DBFF49"]
+    }
   }
 }

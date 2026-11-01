@@ -26,12 +26,12 @@
   - All fifteen thin-wall combinations (`thin_wall_ns`, `thin_wall_nesw`, ...), colour teleporters that chain only with their own colour (`teleport_red` to `teleport_green`), flame jets toggled by `button_orange` (`flame_jet_off` / `flame_jet_on`, fire boots protect), and bonus items: score flags (`score_10`, `score_100`, `score_1000` join the level score paid at the exit; `score_2x` doubles that level score, flags included) and stopwatches (`stopwatch_bonus` adds 10 seconds, `stopwatch_penalty` takes 10). The boots that protect you on your current cell cannot be dropped there.
   - 9 creature movement patterns (`bug`, `fireball`, `pink_ball`, `tank`, `glider`, `teeth`, `walker`, `blob`, `paramecium`).
 - **Visual & Tactile Enhancements**:
-  - HD Neon and 16-Bit Retro pixel renderers with 4 biome themes (`Cyber Neon`, `Arctic Lab`, `Magma Core`, `Lynx LCD`): walls join into continuous masses that cast soft shadows, light sources glow in HD Neon, an optional LCD grid covers 16-Bit Retro, and the player and every monster are animated. A graphics quality setting (Auto by default) keeps the game smooth on slower devices.
+  - HD Neon and 16-Bit Retro pixel renderers with 4 biome themes (`Cyber Neon`, `Arctic Lab`, `Magma Core`, `Lynx LCD`): walls join into continuous masses that cast soft shadows, light sources glow in HD Neon, 16-Bit Retro draws every tile and character as a 16x16 sprite in a 9-bit console palette (with an optional LCD grid), and the player and every monster are animated. A graphics quality setting (Auto by default) keeps the game smooth on slower devices.
   - Dynamic objective locator and mechanism wire overlay (`H`); hovering a colour teleporter shows its own network, and hovering an orange button shows the flame jets it toggles.
   - Colour-blind glyphs on coloured doors, keys, buttons and colour teleporters.
   - Reduced motion: with the system setting on, the hop, bob, glints, flicker, blinking, particles and screen shake rest, and a change of the setting is followed live.
   - Keyboard: `Tab` moves focus between the controls, Ctrl/Cmd chords are left to the browser except undo (Ctrl/Cmd+Z), which follows the keyboard layout (AZERTY, QWERTY, Cyrillic...), and `?` opens the help.
-  - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, Pinch-to-Zoom, and thumb D-Pad with haptic feedback).
+  - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options).
   - Full-featured Level Editor with live solver validation.
 
 ## Development

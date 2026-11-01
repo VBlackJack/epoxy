@@ -55,7 +55,6 @@ export interface UserSettings {
   fov?: number;
   themeId?: string;
   graphicsStyle?: GraphicsStyle;
-  shellEnabled?: boolean;
   /** LCD pixel grid over the 16-Bit Retro view. */
   lcdEnabled?: boolean;
   /** 'auto', or a fixed quality level: 'high', 'medium' or 'low'. */
@@ -462,9 +461,7 @@ export interface KeybindingsConfig {
   pause: string[];
   nextLevel: string[];
   prevLevel: string[];
-  toggleShell: string[];
   toggleMute: string[];
-  cycleFov?: string[];
   toggleGraphics?: string[];
   cycleTheme?: string[];
   generateProcedural?: string[];
@@ -490,7 +487,6 @@ export interface TouchConfig {
   swipeDeadzonePx: number;
   tapMaxDistancePx: number;
   tapMaxDurationMs: number;
-  pinchZoomStepPx: number;
   hapticPulseMs: number;
 }
 
@@ -537,6 +533,8 @@ export interface GameConfig {
   };
   keybindings: KeybindingsConfig;
   palette: Record<string, string>;
+  /** Colour ramps of the 16-Bit Retro style: theme id (or "default") to ramp name to hex tones, light to dark. */
+  retroPalettes?: Record<string, Record<string, string[]>>;
 }
 
 export interface TileDefinition {
