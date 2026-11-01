@@ -130,6 +130,9 @@
     }
   },
   "hud": {
+    "level": {
+      "author": { "label": "par {author}" }
+    },
     "stats": {
       "level": { "label": "NIVEAU" },
       "password": { "label": "CODE" },
@@ -347,6 +350,7 @@
       "dir_west": { "label": "O (◀)" },
       "title": { "label": "Titre du Niveau" },
       "hint": { "label": "Texte d'indice (?)" },
+      "author": { "label": "Auteur" },
       "password": { "label": "Code (4 lettres)" },
       "time_limit": { "label": "Temps (s)" },
       "chips_needed": { "label": "Puces requises" },

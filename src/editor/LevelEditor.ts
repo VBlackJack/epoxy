@@ -59,6 +59,7 @@ const EXPORT_FALLBACK_FILE_NAME = 'epoxy_level';
 const METADATA_INPUT_IDS = [
   'editor-meta-title',
   'editor-meta-hint',
+  'editor-meta-author',
   'editor-meta-password',
   'editor-meta-time',
   'editor-meta-chips',
@@ -105,6 +106,7 @@ export class LevelEditor {
   private draftCustomId: string | null = null;
   private customTitle: string = '';
   private customHint: string = '';
+  private author: string = '';
   private password: string = EDITOR_DEFAULT_PASSWORD;
   private timeLimitSeconds: number = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
   private chipsRequired: number = EDITOR_DEFAULT_CHIPS_REQUIRED;
@@ -193,6 +195,7 @@ export class LevelEditor {
     this.draftCustomId = null;
     this.customTitle = t('editor.metadata.default_title.label');
     this.customHint = '';
+    this.author = '';
     this.password = EDITOR_DEFAULT_PASSWORD;
     this.timeLimitSeconds = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
     this.chipsRequired = EDITOR_DEFAULT_CHIPS_REQUIRED;
@@ -212,6 +215,7 @@ export class LevelEditor {
     this.draftCustomId = null;
     this.customTitle = this.resolveLevelTitle(level);
     this.customHint = level.customHint || (level.hintKey ? t(level.hintKey) : '');
+    this.author = level.author ?? '';
     this.password = level.password;
     this.timeLimitSeconds = level.timeLimitSeconds;
     this.chipsRequired = level.chipsRequired;
@@ -670,6 +674,7 @@ export class LevelEditor {
   private syncMetadataInputs(): void {
     const titleEl = document.getElementById('editor-meta-title') as HTMLInputElement | null;
     const hintEl = document.getElementById('editor-meta-hint') as HTMLInputElement | null;
+    const authorEl = document.getElementById('editor-meta-author') as HTMLInputElement | null;
     const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
     const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
     const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
@@ -677,6 +682,7 @@ export class LevelEditor {
 
     if (titleEl) titleEl.value = this.customTitle;
     if (hintEl) hintEl.value = this.customHint;
+    if (authorEl) authorEl.value = this.author;
     if (passEl) passEl.value = this.password;
     if (timeEl) timeEl.value = String(this.timeLimitSeconds);
     if (chipsEl) chipsEl.value = String(this.chipsRequired);
@@ -701,6 +707,7 @@ export class LevelEditor {
   private readMetadataInputs(): void {
     const titleEl = document.getElementById('editor-meta-title') as HTMLInputElement | null;
     const hintEl = document.getElementById('editor-meta-hint') as HTMLInputElement | null;
+    const authorEl = document.getElementById('editor-meta-author') as HTMLInputElement | null;
     const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
     const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
     const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
@@ -708,6 +715,7 @@ export class LevelEditor {
 
     if (titleEl && titleEl.value.trim()) this.customTitle = titleEl.value.trim();
     if (hintEl) this.customHint = hintEl.value.trim();
+    if (authorEl) this.author = authorEl.value.trim();
     if (passEl && passEl.value.trim()) {
       this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
     }
@@ -1056,6 +1064,7 @@ export class LevelEditor {
       number: existing ? existing.number : ConfigRegistry.getLevels().length + 1,
       customTitle: this.customTitle,
       customHint: this.customHint,
+      ...(this.author ? { author: this.author } : {}),
       password: this.password,
       timeLimitSeconds: this.timeLimitSeconds,
       chipsRequired: this.chipsRequired,

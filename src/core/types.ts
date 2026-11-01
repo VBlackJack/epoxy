@@ -770,6 +770,7 @@ export interface DatFormatConfig {
     encryptedPassword: number;
     hint: number;
     plainPassword: number;
+    author?: number;
     monsterList: number;
   };
   byteToElement: Record<string, DatElementMapping>;
@@ -822,6 +823,8 @@ export interface LevelBlueprint {
   customTitle?: string;
   hintKey?: string;
   customHint?: string;
+  /** Level author, from DAT field 9. */
+  author?: string;
   password: string;
   timeLimitSeconds: number;
   chipsRequired: number;
@@ -857,6 +860,8 @@ export interface CompiledLevel {
   customTitle?: string;
   hintKey?: string;
   customHint?: string;
+  /** Level author, from DAT field 9. */
+  author?: string;
   password: string;
   timeLimitSeconds: number;
   chipsRequired: number;
