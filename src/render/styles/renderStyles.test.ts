@@ -24,13 +24,17 @@ import {
   nextRenderStyle,
   parseRenderStyleId
 } from './renderStyles';
+import { RETRO16_SPEC } from '../retroSprites';
+import { RETRO32_SPEC } from '../retro32/spriteStyle32';
 
 const SIXTEEN_BIT_TILE = 16;
 const THIRTY_TWO_BIT_TILE = 32;
 
 describe('render style registry', () => {
   it('lists the styles in G key order', () => {
-    expect(RENDER_STYLES.map((s) => s.id)).toEqual(['modern', 'retro', 'retro32']);
+    expect(RENDER_STYLES.map((s) => s.id)).toEqual([
+      'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90'
+    ]);
   });
 
   it('gives every style a distinct id and a label key following the header naming', () => {
@@ -85,19 +89,71 @@ describe('render style registry', () => {
     for (const style of RENDER_STYLES) expect(style.sprite !== null).toBe(style.lowResScene);
   });
 
-  it('cycles modern, retro, retro32 and wraps around', () => {
-    expect(nextRenderStyle('modern').id).toBe('retro');
-    expect(nextRenderStyle('retro').id).toBe('retro32');
-    expect(nextRenderStyle('retro32').id).toBe('modern');
+  it('cycles through every style in order and wraps around', () => {
+    const ids = RENDER_STYLES.map((s) => s.id);
+    ids.forEach((id, i) => expect(nextRenderStyle(id).id).toBe(ids[(i + 1) % ids.length]));
     let id = DEFAULT_RENDER_STYLE_ID;
     for (let i = 0; i < RENDER_STYLES.length; i++) id = nextRenderStyle(id).id;
     expect(id).toBe(DEFAULT_RENDER_STYLE_ID);
+  });
+
+  it('names the pipeline, recolouring and shadows of every style', () => {
+    const summary = RENDER_STYLES.map((s) => [s.id, s.base, s.transformKey, s.floorShadows]);
+    expect(summary).toEqual([
+      ['modern', null, null, true],
+      ['retro', 'retro16', null, true],
+      ['retro32', 'retro32', null, true],
+      ['pocket', 'retro16', 'pocket', true],
+      ['pastel', 'retro16', 'pastel', true],
+      ['blueprint', 'retro16', 'blueprint', true],
+      ['sepia', 'retro32', 'sepia', true],
+      ['classic90', 'retro32', 'classic90', false]
+    ]);
+  });
+
+  it('gives each recolouring style its own sprite spec ids so composed tiles never mix', () => {
+    for (const style of RENDER_STYLES.filter((s) => s.transformKey)) {
+      expect(style.sprite?.id).toBe(style.id);
+      expect(style.smallSprite?.tileSize).toBe(SIXTEEN_BIT_TILE);
+      expect(style.smallSprite).not.toBe(RETRO16_SPEC);
+    }
+    const specs = new Set(RENDER_STYLES.flatMap((s) => [s.sprite, s.smallSprite]).filter((spec) => spec !== null));
+    const specIds = [...specs].map((spec) => spec?.id);
+    expect(new Set(specIds).size).toBe(specIds.length);
+    expect(getRenderStyle('retro32').sprite).toBe(RETRO32_SPEC);
+    expect(getRenderStyle('retro32').smallSprite).toBe(RETRO16_SPEC);
+    expect(getRenderStyle('retro').smallSprite).toBe(RETRO16_SPEC);
+    expect(getRenderStyle('modern').smallSprite).toBeNull();
+  });
+
+  it('describes the five recolouring styles', () => {
+    const pocket = getRenderStyle('pocket');
+    expect(pocket.sprite?.tileSize).toBe(SIXTEEN_BIT_TILE);
+    expect(pocket.palettesKey).toBe('retroPalettes');
+    expect([pocket.lcdAllowed, pocket.lighting, pocket.effects]).toEqual([true, false, false]);
+    for (const id of ['pastel', 'blueprint'] as const) {
+      const style = getRenderStyle(id);
+      expect(style.sprite?.tileSize).toBe(SIXTEEN_BIT_TILE);
+      expect(style.palettesKey).toBe('retroPalettes');
+      expect([style.lcdAllowed, style.lighting, style.effects]).toEqual([false, false, false]);
+    }
+    for (const id of ['sepia', 'classic90'] as const) {
+      const style = getRenderStyle(id);
+      expect(style.sprite?.tileSize).toBe(THIRTY_TWO_BIT_TILE);
+      expect(style.palettesKey).toBe('retro32Palettes');
+      expect([style.lcdAllowed, style.lighting, style.effects]).toEqual([false, false, false]);
+    }
+    for (const style of RENDER_STYLES.filter((s) => s.transformKey)) {
+      expect(style.canvasClass).toBe(RETRO_PIXELS_CLASS);
+      expect([style.smoothMotion, style.itemBob, style.pixelSnap, style.lowResScene]).toEqual([false, false, true, true]);
+    }
   });
 
   it('parses only known ids', () => {
     expect(parseRenderStyleId('modern')).toBe('modern');
     expect(parseRenderStyleId('retro')).toBe('retro');
     expect(parseRenderStyleId('retro32')).toBe('retro32');
+    for (const id of ['pocket', 'pastel', 'blueprint', 'sepia', 'classic90']) expect(parseRenderStyleId(id)).toBe(id);
     expect(parseRenderStyleId('retro16')).toBeUndefined();
     expect(parseRenderStyleId(32)).toBeUndefined();
     expect(parseRenderStyleId(null)).toBeUndefined();

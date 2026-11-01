@@ -26,8 +26,11 @@ import {
 describe('graphics style control helpers', () => {
   it('lists every style in cycle order with its label key', () => {
     const options = buildGraphicsStyleOptions();
-    expect(options.map((o) => o.value)).toEqual(['modern', 'retro', 'retro32']);
+    expect(options.map((o) => o.value)).toEqual([
+      'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90'
+    ]);
     expect(options[2].labelKey).toBe('app.header.graphics_retro32.action');
+    expect(options[7].labelKey).toBe('app.header.graphics_classic90.action');
   });
 
   it('restores a saved retro32 style and falls back on unknown values', () => {
@@ -36,14 +39,24 @@ describe('graphics style control helpers', () => {
     expect(resolveInitialGraphicsStyle(undefined, 'bogus')).toBe('modern');
   });
 
-  it('allows the LCD grid in 16-Bit Retro only', () => {
+  it('restores a saved derived style and falls back on unknown values', () => {
+    expect(resolveInitialGraphicsStyle('classic90', 'modern')).toBe('classic90');
+    expect(resolveInitialGraphicsStyle('sepia', undefined)).toBe('sepia');
+    expect(resolveInitialGraphicsStyle('classic91', 'pocket')).toBe('pocket');
+    expect(resolveInitialGraphicsStyle('classic91', 'bogus')).toBe('modern');
+  });
+
+  it('allows the LCD grid in 16-Bit Retro and Pocket only', () => {
     expect(isLcdAvailable('modern')).toBe(false);
     expect(isLcdAvailable('retro')).toBe(true);
     expect(isLcdAvailable('retro32')).toBe(false);
+    expect(isLcdAvailable('pocket')).toBe(true);
+    for (const id of ['pastel', 'blueprint', 'sepia', 'classic90'] as const) expect(isLcdAvailable(id)).toBe(false);
   });
 
   it('removes the pixel class only for styles that do not use it', () => {
     expect(canvasClassesToRemove('modern')).toEqual([RETRO_PIXELS_CLASS]);
     expect(canvasClassesToRemove('retro32')).toEqual([]);
+    expect(canvasClassesToRemove('classic90')).toEqual([]);
   });
 });

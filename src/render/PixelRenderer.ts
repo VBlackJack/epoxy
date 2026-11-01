@@ -84,7 +84,6 @@ import {
   hasRetroSprite,
   resolveRetroRamps,
   RetroRamps,
-  RETRO16_SPEC,
   RETRO_SHEET,
   RETRO_SPRITE_SIZE,
   SpriteSource,
@@ -93,6 +92,12 @@ import {
 import { RETRO_SPRITE } from './retroSpriteNames';
 import { getRenderStyle, nextRenderStyle, RenderStyleDescriptor } from './styles/renderStyles';
 import { createRetro32SpriteCache, createRetro32ThemeSprites, Retro32SpriteCache } from './retro32';
+import {
+  applyRampTransform,
+  createStyleTransforms,
+  findStylePaletteErrors,
+  StyleTransforms
+} from './styles/styleTransforms';
 
 interface Particle {
   x: number;
@@ -129,6 +134,16 @@ interface ActiveSpriteStyle {
 }
 
 type RetroPaletteTable = Record<string, Record<string, string[]>> | undefined;
+
+/** Recolouring of the active style: null `value` keeps the base colours, `ok` false means the config is unusable. */
+interface StyleRecolour {
+  readonly value: StyleTransforms | null;
+  readonly ok: boolean;
+}
+
+const NO_RECOLOUR: StyleRecolour = { value: null, ok: true };
+/** Prefix of the console report when a derived style's palette fails validation. */
+const STYLE_PALETTE_INVALID_REPORT = 'Render style palette rejected, using the flat retro drawer:';
 
 /** Parts of the shadow a floor cell receives from casters north, west or only north-west of it. */
 type ShadowPart = 'north' | 'west' | 'corner';
@@ -426,6 +441,7 @@ export class PixelRenderer {
     styleId: GraphicsStyle;
     ramps16: RetroRamps;
     palettes32: RetroPaletteTable;
+    recolour: StyleTransforms | null;
     cacheEntries: number;
     value: ActiveSpriteStyle | null;
     /** The 16-Bit sprites a 32-Bit style degrades to when tiles are drawn smaller than its sprites. */
@@ -446,6 +462,10 @@ export class PixelRenderer {
   private retro32PaletteErrors: string[] = [];
   /** Palettes the 32-Bit cache was filled from; a new object empties it. */
   private retro32CachePalettes: { p16: RetroPaletteTable; p32: RetroPaletteTable } | null = null;
+  /** Transforms of the active derived style, rebuilt when the style or the renderStylePalettes object changes. */
+  private styleRecolourMemo: { styleId: string; table: unknown; recolour: StyleRecolour } | null = null;
+  /** Colours already passed through the active style's colour transform; reset with styleRecolourMemo. */
+  private readonly styleColourMemo: Map<string, string> = new Map();
   /** Shine overlays of 32-Bit items and blocks, keyed like retroCanvases plus the sweep step. */
   private readonly retroShineCanvases: Map<string, HTMLCanvasElement> = new Map();
   /** Style id the cached shadow extent was computed for. */
@@ -1067,7 +1087,7 @@ export class PixelRenderer {
     const gameCfg = ConfigRegistry.getGame();
     ctx.save();
     const theme = this.getActiveTheme();
-    const pathColor = theme ? theme.accentGlow : gameCfg.palette.pathLine;
+    const pathColor = this.styleColour(theme ? theme.accentGlow : gameCfg.palette.pathLine);
     ctx.strokeStyle = pathColor;
     ctx.fillStyle = pathColor;
     ctx.lineWidth = tilePixelSize * settings.pathLineWidthTile;
@@ -1102,7 +1122,7 @@ export class PixelRenderer {
     const width = ctx.canvas.width;
     const height = ctx.canvas.height;
     const gap = Math.max(1, Math.round(spriteScale * LCD_GAP_RATIO));
-    const colour = ConfigRegistry.getGame().palette.lcdGrid;
+    const colour = this.styleColour(ConfigRegistry.getGame().palette.lcdGrid);
     ctx.save();
     ctx.globalAlpha = settings.lcdGridAlpha;
     const key = `${width}|${height}|${spriteScale}|${gap}|${colour}`;
@@ -1206,7 +1226,7 @@ export class PixelRenderer {
     const eased = this.irisProgress * this.irisProgress;
     const radius = Math.max(tilePixelSize * IRIS_MIN_RADIUS_TILE, maxRadius * eased);
     ctx.save();
-    ctx.fillStyle = ConfigRegistry.getGame().palette.irisShade;
+    ctx.fillStyle = this.styleColour(ConfigRegistry.getGame().palette.irisShade);
     ctx.beginPath();
     ctx.rect(0, 0, width, height);
     ctx.arc(cx, cy, radius, 0, FULL_TURN, true);
@@ -1400,7 +1420,7 @@ export class PixelRenderer {
     ctx.lineWidth = Math.max(LINK_STYLE.minWidthPx, tilePixelSize * LINK_STYLE.widthTile);
 
     // 1. Brown Button <-> Bear Trap wires
-    ctx.strokeStyle = pal.linkTrap;
+    ctx.strokeStyle = this.styleColour(pal.linkTrap);
     for (const link of engine.getTrapLinks()) {
       const isHovered =
         hov &&
@@ -1412,7 +1432,7 @@ export class PixelRenderer {
     }
 
     // 2. Red Button <-> Clone Machine wires
-    ctx.strokeStyle = pal.linkCloner;
+    ctx.strokeStyle = this.styleColour(pal.linkCloner);
     for (const link of engine.getCloneLinks()) {
       const isHovered =
         hov &&
@@ -1428,7 +1448,7 @@ export class PixelRenderer {
     const hovDef = hovTile ? ConfigRegistry.getTile(hovTile) : undefined;
     const toggleVisible = showAll || hovDef?.buttonAction === 'toggle_walls';
     const flameVisible = showAll || hovDef?.buttonAction === 'toggle_flames';
-    ctx.strokeStyle = pal.linkToggle;
+    ctx.strokeStyle = this.styleColour(pal.linkToggle);
     ctx.globalAlpha = LINK_STYLE.toggleAlpha;
     if (toggleVisible) {
       this.strokeButtonLinks(ctx, toggleButtons, toggleWalls, camX, camY, tilePixelSize);
@@ -1437,7 +1457,7 @@ export class PixelRenderer {
       this.strokeButtonLinks(ctx, flameButtons, flameTargets, camX, camY, tilePixelSize);
     }
 
-    ctx.strokeStyle = pal.linkTeleport;
+    ctx.strokeStyle = this.styleColour(pal.linkTeleport);
     ctx.globalAlpha = LINK_STYLE.teleportAlpha;
     const hovGroupKey = hovDef?.isTeleporter ? teleportGroupKey(hovDef) : null;
     for (const [groupKey, cells] of teleporterGroups) {
@@ -1458,14 +1478,14 @@ export class PixelRenderer {
       const ox = (this.objectivePoint.x + 0.5 - camX) * tilePixelSize;
       const oy = (this.objectivePoint.y + 0.5 - camY) * tilePixelSize;
 
-      ctx.strokeStyle = pal.objectiveRing;
+      ctx.strokeStyle = this.styleColour(pal.objectiveRing);
       ctx.lineWidth = Math.max(1, tilePixelSize * LINK_STYLE.objectiveRingWidthTile);
       ctx.globalAlpha = LINK_STYLE.objectiveAlpha;
       ctx.beginPath();
       ctx.arc(ox, oy, tilePixelSize * pulse, 0, FULL_TURN);
       ctx.stroke();
 
-      ctx.strokeStyle = pal.objectiveHalo;
+      ctx.strokeStyle = this.styleColour(pal.objectiveHalo);
       ctx.lineWidth = Math.max(1, tilePixelSize * LINK_STYLE.objectiveHaloWidthTile);
       ctx.beginPath();
       ctx.arc(ox, oy, tilePixelSize * (pulse + LINK_STYLE.objectiveHaloOffset), 0, FULL_TURN);
@@ -1785,9 +1805,9 @@ export class PixelRenderer {
         break;
 
       case 'hint': {
-        ctx.fillStyle = pal.hintSign;
+        ctx.fillStyle = this.styleColour(pal.hintSign);
         ctx.fillRect(x + size * 0.2, y + size * 0.15, size * 0.6, size * 0.7);
-        this.drawHintGlyph(ctx, x, y, size, 0.55, this.getSettings().hintFontRetro, pal.hintGlyph);
+        this.drawHintGlyph(ctx, x, y, size, 0.55, this.getSettings().hintFontRetro, this.styleColour(pal.hintGlyph));
         break;
       }
 
@@ -2010,6 +2030,8 @@ export class PixelRenderer {
     if (!desc.sprite) return null;
     const ramps16 = this.getRetroRamps();
     if (!hasRetroSprite(RETRO_READY_SPRITE) || !(RETRO_READY_RAMP in ramps16)) return null;
+    const recolour = this.getStyleRecolour(desc);
+    if (!recolour.ok) return null;
     const palettes32 = desc.palettesKey === 'retro32Palettes' ? ConfigRegistry.getGame().retro32Palettes : undefined;
     const cacheEntries = desc.palettesKey === 'retro32Palettes' ? this.getRetro32CacheSize() : 0;
     let memo = this.spriteStyleMemo;
@@ -2018,21 +2040,70 @@ export class PixelRenderer {
       memo.styleId !== desc.id ||
       memo.ramps16 !== ramps16 ||
       memo.palettes32 !== palettes32 ||
+      memo.recolour !== recolour.value ||
       memo.cacheEntries !== cacheEntries
     ) {
       const value =
-        desc.palettesKey === 'retro32Palettes'
-          ? this.buildRetro32Style(desc.sprite, ramps16, palettes32, cacheEntries)
-          : this.buildRetro16Style(ramps16);
-      memo = { styleId: desc.id, ramps16, palettes32, cacheEntries, value, small: null };
+        desc.base === 'retro32'
+          ? this.buildRetro32Style(desc, ramps16, palettes32, cacheEntries, recolour.value)
+          : this.buildRetro16Style(desc.sprite, ramps16, recolour.value);
+      memo = { styleId: desc.id, ramps16, palettes32, recolour: recolour.value, cacheEntries, value, small: null };
       this.spriteStyleMemo = memo;
     }
-    // Tiles drawn smaller than the sprites would shrink them with nearest neighbour: use the 16-Bit sprites.
+    // Tiles drawn smaller than the sprites would shrink them with nearest neighbour: use the 16-px sprites.
     if (memo.value && memo.value.spec.tileSize > this.frameTilePx) {
-      memo.small ??= this.buildRetro16Style(ramps16);
+      memo.small ??= this.buildRetro16Style(desc.smallSprite ?? desc.sprite, ramps16, recolour.value);
       return memo.small;
     }
     return memo.value;
+  }
+
+  /**
+   * The recolouring of a derived style, built from its renderStylePalettes entry and kept until
+   * the style or the table changes. An invalid entry is reported once and makes the style draw
+   * with the flat fallback, like invalid retro palettes.
+   */
+  private getStyleRecolour(desc: RenderStyleDescriptor): StyleRecolour {
+    const key = desc.transformKey;
+    if (!key) return NO_RECOLOUR;
+    const table = ConfigRegistry.getGame().renderStylePalettes;
+    const seen = this.styleRecolourMemo;
+    if (seen && seen.styleId === desc.id && seen.table === table) return seen.recolour;
+    if (seen && seen.table !== table) {
+      // The table was replaced: nothing rasterized or composed from the old colours is valid.
+      this.retro32Cache?.clear();
+      this.retroCanvases.clear();
+      this.retroShineCanvases.clear();
+      this.terrainCacheKey = '';
+    }
+    let recolour: StyleRecolour;
+    const errors = findStylePaletteErrors(table, [key]);
+    if (errors.length > 0) {
+      console.error(STYLE_PALETTE_INVALID_REPORT, errors.join('; '));
+      recolour = { value: null, ok: false };
+    } else {
+      try {
+        recolour = { value: createStyleTransforms((table ?? {})[key]), ok: true };
+      } catch (error) {
+        console.error(STYLE_PALETTE_INVALID_REPORT, error instanceof Error ? error.message : String(error));
+        recolour = { value: null, ok: false };
+      }
+    }
+    this.styleRecolourMemo = { styleId: desc.id, table, recolour };
+    this.styleColourMemo.clear();
+    return recolour;
+  }
+
+  /** A colour drawn outside the sprites (path, links, iris, LCD grid), passed through the active style's palette. */
+  private styleColour(colour: string): string {
+    const transforms = this.getStyleRecolour(this.descriptor()).value;
+    if (!transforms) return colour;
+    let mapped = this.styleColourMemo.get(colour);
+    if (mapped === undefined) {
+      mapped = transforms.colour(colour);
+      this.styleColourMemo.set(colour, mapped);
+    }
+    return mapped;
   }
 
   /** Configured size of the 32-Bit sprite cache, floored and bounded below. */
@@ -2058,16 +2129,20 @@ export class PixelRenderer {
     return this.descriptor().effects && this.styleHasSprites();
   }
 
-  private buildRetro16Style(ramps16: RetroRamps): ActiveSpriteStyle {
-    return { spec: RETRO16_SPEC, ramps: ramps16, source: createRetro16SpriteSource(ramps16) };
+  private buildRetro16Style(spec: SpriteStyleSpec, ramps16: RetroRamps, recolour: StyleTransforms | null): ActiveSpriteStyle {
+    const ramps = recolour ? applyRampTransform(ramps16, recolour.ramps) : ramps16;
+    return { spec, ramps, source: createRetro16SpriteSource(ramps) };
   }
 
   private buildRetro32Style(
-    spec: SpriteStyleSpec,
+    desc: RenderStyleDescriptor,
     ramps16: RetroRamps,
     palettes32: RetroPaletteTable,
-    size: number
+    size: number,
+    recolour: StyleTransforms | null
   ): ActiveSpriteStyle {
+    const spec = desc.sprite as SpriteStyleSpec;
+    const fallback = (): ActiveSpriteStyle => this.buildRetro16Style(desc.smallSprite ?? spec, ramps16, recolour);
     const palettes16 = this.retroRampsSource;
     const seen = this.retro32CachePalettes;
     if (!seen || seen.p16 !== palettes16 || seen.p32 !== palettes32) {
@@ -2084,18 +2159,25 @@ export class PixelRenderer {
       }
     }
     this.retro32CachePalettes = { p16: palettes16, p32: palettes32 };
-    if (this.retro32PaletteErrors.length > 0) return this.buildRetro16Style(ramps16);
+    if (this.retro32PaletteErrors.length > 0) return fallback();
     if (!this.retro32Cache || this.retro32CacheSize !== size) {
       this.retro32Cache = createRetro32SpriteCache(size);
       this.retro32CacheSize = size;
     }
     try {
-      const sprites = createRetro32ThemeSprites(this.themeId, ramps16, palettes32, this.retro32Cache, RETRO_SHEET);
+      const sprites = createRetro32ThemeSprites(
+        this.themeId,
+        ramps16,
+        palettes32,
+        this.retro32Cache,
+        RETRO_SHEET,
+        recolour ? { styleId: desc.id, transform: recolour.ramps } : undefined
+      );
       if (!(RETRO_READY_RAMP in sprites.ramps32)) throw new Error(`missing ramp ${RETRO_READY_RAMP}`);
       return { spec, ramps: sprites.ramps32, source: sprites.source };
     } catch (error) {
       console.error(RETRO32_INVALID_REPORT, error instanceof Error ? error.message : String(error));
-      return this.buildRetro16Style(ramps16);
+      return fallback();
     }
   }
 
@@ -2286,7 +2368,8 @@ export class PixelRenderer {
       phase: this.retroPhase(),
       reducedMotion: this.reducedMotion
     });
-    const shadow = this.shadowCasterTiles.has(tileId) ? 0 : retroShadowSignature(neighbours.shadowMask);
+    const shadow =
+      !this.descriptor().floorShadows || this.shadowCasterTiles.has(tileId) ? 0 : retroShadowSignature(neighbours.shadowMask);
     this.drawRetroLayers(ctx, layers, x, y, size, shadow);
   }
 

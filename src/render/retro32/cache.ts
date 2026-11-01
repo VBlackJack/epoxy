@@ -15,7 +15,7 @@
  */
 
 /**
- * Memo cache of rasterized 32-Bit Retro sprites, keyed by (theme id, sprite name, swap ramp),
+ * Memo cache of rasterized 32-Bit Retro sprites, keyed by (theme id, sprite name, swap ramp, style id),
  * with least-recently-used eviction. Pure module: the caller supplies the producer.
  */
 
@@ -23,14 +23,20 @@
 const KEY_SEPARATOR = '\u0000';
 /** Swap part of the key when a sprite has no swap ramp. */
 const NO_SWAP_KEY = '';
+/** Style part of the key for the plain 32-Bit style, and for callers that name no style. */
+const DEFAULT_STYLE_KEY = '';
 
 export interface Retro32SpriteCache {
-  /** Returns the cached pixels, or calls produce once, stores and returns its result. */
+  /**
+   * Returns the cached pixels, or calls produce once, stores and returns its result. `styleId`
+   * keeps the sprites of styles that recolour the same sheet apart.
+   */
   get(
     themeId: string,
     spriteName: string,
     swapRamp: string | undefined,
-    produce: () => Uint8ClampedArray
+    produce: () => Uint8ClampedArray,
+    styleId?: string
   ): Uint8ClampedArray;
   /** Number of entries held. */
   readonly size: number;
@@ -41,8 +47,8 @@ export function createRetro32SpriteCache(maxEntries: number): Retro32SpriteCache
   if (!Number.isInteger(maxEntries) || maxEntries < 1) throw new Error(`Invalid cache size: ${maxEntries}`);
   const entries = new Map<string, Uint8ClampedArray>();
   return {
-    get(themeId, spriteName, swapRamp, produce) {
-      const key = [themeId, spriteName, swapRamp ?? NO_SWAP_KEY].join(KEY_SEPARATOR);
+    get(themeId, spriteName, swapRamp, produce, styleId) {
+      const key = [themeId, spriteName, swapRamp ?? NO_SWAP_KEY, styleId ?? DEFAULT_STYLE_KEY].join(KEY_SEPARATOR);
       const hit = entries.get(key);
       if (hit) {
         entries.delete(key);

@@ -90,7 +90,41 @@ export interface ImportConfig {
 }
 
 /** Render styles: 'retro' is the 16-Bit Retro id (kept so saved settings stay valid). */
-export type GraphicsStyle = 'modern' | 'retro' | 'retro32';
+export type GraphicsStyle =
+  | 'modern'
+  | 'retro'
+  | 'retro32'
+  | 'pocket'
+  | 'pastel'
+  | 'blueprint'
+  | 'sepia'
+  | 'classic90';
+
+/** How a derived render style recolours the ramps of its base sprite pipeline. */
+export type RenderStyleKind = 'paletteMap' | 'pastel' | 'vgaFamilies';
+
+/**
+ * Fixed palette of a derived render style (game.json renderStylePalettes). `kind` selects which
+ * of the other fields apply:
+ * - paletteMap: `stops` (hex, dark to light) are the colours luminance is mapped onto, snapped to
+ *   the nearest stop when `quantize` is true, interpolated otherwise; `accents` pin the
+ *   colour-coded ramps (name to positions in 0..1 along the stops, light tone first).
+ * - pastel: `saturation` scales the saturation, `lightness` mixes the lightness towards white.
+ * - vgaFamilies: `palette` is the 16-colour table, `families` name groups of palette indexes
+ *   (light tone first) a ramp is mapped into by luminance, `pinnedFamilies` fix the family of
+ *   the colour-coded ramps.
+ */
+export interface RenderStylePaletteConfig {
+  kind: RenderStyleKind;
+  stops?: string[];
+  quantize?: boolean;
+  accents?: Record<string, number[]>;
+  saturation?: number;
+  lightness?: number;
+  palette?: string[];
+  families?: Record<string, number[]>;
+  pinnedFamilies?: Record<string, string>;
+}
 
 /**
  * Images that replace the drawn tiles and blocks on Sokoban levels. Files are relative to
@@ -571,6 +605,8 @@ export interface GameConfig {
   retroPalettes?: Record<string, Record<string, string[]>>;
   /** Optional colour ramps of the 32-Bit Retro style (15-bit, up to 8 tones): replace the ramps derived from retroPalettes. */
   retro32Palettes?: Record<string, Record<string, string[]>>;
+  /** Fixed palettes of the derived render styles (Pocket, Pastel, Blueprint, Sepia, Classic 90s), by style id. */
+  renderStylePalettes?: Record<string, RenderStylePaletteConfig>;
 }
 
 export interface TileDefinition {

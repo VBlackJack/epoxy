@@ -39,6 +39,16 @@ describe('createRetro32SpriteCache', () => {
     expect(cache.get('a', 'x', 'red', () => pixels(9))[0]).toBe(4);
   });
 
+  it('separates the styles that recolour the same sprite', () => {
+    const cache = createRetro32SpriteCache(8);
+    cache.get('a', 'x', undefined, () => pixels(1));
+    cache.get('a', 'x', undefined, () => pixels(2), 'sepia');
+    cache.get('a', 'x', undefined, () => pixels(3), 'classic90');
+    expect(cache.size).toBe(3);
+    expect(cache.get('a', 'x', undefined, () => pixels(9), 'sepia')[0]).toBe(2);
+    expect(cache.get('a', 'x', undefined, () => pixels(9))[0]).toBe(1);
+  });
+
   it('evicts the least recently used entry', () => {
     const cache = createRetro32SpriteCache(2);
     cache.get('t', 'a', undefined, () => pixels(1));
