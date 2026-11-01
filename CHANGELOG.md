@@ -11,6 +11,9 @@ versions follow Semantic Versioning.
   (levels, endless run, import, help) only appears in fullscreen, where the top bar is hidden. The
   LCD grid button is disabled in HD Neon style, where the grid is not drawn.
 - The options button of the HUD is also shown in fullscreen, on every screen size.
+- The viewport zoom can only be changed in the options (Options > Display > View). The mouse wheel, the `V` key,
+  the two-finger pinch and the mobile zoom button were removed, because zooming during play removed
+  difficulty.
 - The header subtitle no longer names the Atari Lynx II, and the level code placeholder example is
   now ABCD. The HUD code badge now has an accessible name ("Enter a level code").
 

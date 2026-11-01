@@ -172,10 +172,9 @@
       "objective": { "action": "💡 Aide" },
       "solution": { "action": "🎬 Solution" },
       "restart": { "action": "🔄 Réessayer" },
-      "zoom": { "action": "🔍 Vue" },
       "fullscreen": { "action": "⛶ Plein Écran" },
       "exit_fullscreen": { "action": "⛶ Quitter Plein Écran" },
-      "gesture_hint": { "label": "Glissez pour bouger - Tap pour aller - Pincez pour zoomer" }
+      "gesture_hint": { "label": "Glissez pour bouger - Tap pour aller" }
     },
     "messages": {
       "hint_prefix": { "label": "CONSEIL : " },
@@ -275,7 +274,7 @@
       "kb_objective": { "label": "H : Localiser le prochain objectif & afficher les câbles" },
       "kb_solution": { "label": "O : Voir la solution prouvée (le niveau recommence)" },
       "kb_items": { "label": "E / X : Déposer l'objet sélectionné sur votre case | C : Sélectionner l'objet suivant | Clic sur une case d'inventaire : déposer cet objet" },
-      "kb_fov": { "label": "V / Molette : Changer le zoom (9x9 à 32x32)" },
+      "kb_fov_options": { "label": "Zoom : Options > Affichage > Vue" },
       "kb_graphics": { "label": "G : Basculer le rendu HD Néon / Rétro 16-Bit" },
       "kb_theme": { "label": "B : Changer le biome visuel et la piste musicale" },
       "kb_procedural": { "label": "N : Lancer une série infinie de niveaux solvables" },

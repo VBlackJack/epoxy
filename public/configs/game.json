@@ -350,7 +350,6 @@
     "swipeDeadzonePx": 20,
     "tapMaxDistancePx": 14,
     "tapMaxDurationMs": 280,
-    "pinchZoomStepPx": 42,
     "hapticPulseMs": 10
   },
   "ultimatePacks": [
@@ -456,7 +455,6 @@
     "nextLevel": ["BracketRight"],
     "prevLevel": ["BracketLeft"],
     "toggleMute": ["KeyM"],
-    "cycleFov": ["KeyV"],
     "toggleGraphics": ["KeyG"],
     "cycleTheme": ["KeyB"],
     "generateProcedural": ["KeyN"],

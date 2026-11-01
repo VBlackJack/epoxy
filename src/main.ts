@@ -81,7 +81,7 @@ import {
 } from './ui/levelFeedback';
 import { shouldShowOnboarding } from './ui/onboarding';
 import { packUsesPasswords } from './ui/packPasswords';
-import { cycleZoomPreset, getViewportPresets, stepZoomPreset } from './ui/viewportZoom';
+import { getViewportPresets } from './ui/viewportZoom';
 import {
   BIOME_ACCENT_CSS_VAR,
   CANVAS_RESIZE_TOLERANCE_PX,
@@ -110,7 +110,7 @@ type OverlayState = 'none' | 'complete' | 'dead' | 'paused';
 type ScoresFilter = 'all' | 'unsolved' | 'completed';
 
 /** Displacement that marks a two-finger gesture so it never ends as a tap. */
-const PINCH_SUPPRESSES_TAP = Number.POSITIVE_INFINITY;
+const MULTI_TOUCH_SUPPRESSES_TAP = Number.POSITIVE_INFINITY;
 const NO_WARNED_SECOND = -1;
 /** Value stored once the first-launch dialog was shown. */
 const ONBOARDING_SEEN_VALUE = '1';
@@ -968,7 +968,6 @@ class EpoxyApplication {
     const swipeDeadzone = touchCfg.swipeDeadzonePx;
     const tapMaxDist = touchCfg.tapMaxDistancePx;
     const tapMaxDuration = touchCfg.tapMaxDurationMs;
-    const pinchStepPx = touchCfg.pinchZoomStepPx;
     const anchorTrail = swipeDeadzone * SWIPE_ANCHOR_FOLLOW_RATIO;
 
     let anchorX = 0;
@@ -977,10 +976,6 @@ class EpoxyApplication {
     let startY = 0;
     let startTime = 0;
     let maxDisplacement = 0;
-    let pinchAnchorDist = 0;
-
-    const getFingerDist = (t1: Touch, t2: Touch): number =>
-      Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
 
     this.gameCanvas.addEventListener(
       'touchstart',
@@ -989,8 +984,7 @@ class EpoxyApplication {
         if (e.touches.length === 2) {
           e.preventDefault();
           this.heldDirection = null;
-          pinchAnchorDist = getFingerDist(e.touches[0], e.touches[1]);
-          maxDisplacement = PINCH_SUPPRESSES_TAP;
+          maxDisplacement = MULTI_TOUCH_SUPPRESSES_TAP;
           return;
         }
         if (e.touches.length === 1) {
@@ -1014,13 +1008,6 @@ class EpoxyApplication {
 
         if (e.touches.length === 2) {
           this.heldDirection = null;
-          const dist = getFingerDist(e.touches[0], e.touches[1]);
-          if (pinchAnchorDist > 0 && Math.abs(dist - pinchAnchorDist) >= pinchStepPx) {
-            if (this.stepZoom(dist > pinchAnchorDist ? -1 : 1)) {
-              this.triggerHaptic();
-            }
-            pinchAnchorDist = dist;
-          }
           return;
         }
 
@@ -1054,7 +1041,6 @@ class EpoxyApplication {
       if (this.activeMode !== 'play') return;
       if (e.touches.length === 0) {
         this.heldDirection = null;
-        pinchAnchorDist = 0;
 
         const duration = Date.now() - startTime;
         const changed = e.changedTouches[0];
@@ -1154,28 +1140,6 @@ class EpoxyApplication {
         this.saveUserSettings();
       }
     });
-  }
-
-  private applyViewportTiles(tiles: number): void {
-    this.renderer.setViewportTiles(tiles);
-    const select = byId<HTMLSelectElement>('fov-select');
-    if (select) select.value = String(tiles);
-    this.saveUserSettings();
-  }
-
-  /** Zooms one preset in (-1) or out (1); returns whether the view changed. */
-  private stepZoom(step: 1 | -1): boolean {
-    const game = ConfigRegistry.getGame();
-    const curr = this.renderer.getViewportTiles();
-    const next = stepZoomPreset(getViewportPresets(game), curr, step, game.grid.viewportWidth);
-    if (next === curr) return false;
-    this.applyViewportTiles(next);
-    return true;
-  }
-
-  private cycleFovPreset(): void {
-    const presets = getViewportPresets(ConfigRegistry.getGame());
-    this.applyViewportTiles(cycleZoomPreset(presets, this.renderer.getViewportTiles()));
   }
 
   private setupThemeSelector(): void {
@@ -1573,16 +1537,6 @@ class EpoxyApplication {
       this.renderer.setHoveredGridPoint(null);
       this.updateInspectBadge(null);
     });
-
-    this.gameCanvas.addEventListener(
-      'wheel',
-      (e) => {
-        if (this.activeMode !== 'play') return;
-        e.preventDefault();
-        this.stepZoom(e.deltaY > 0 ? 1 : -1);
-      },
-      { passive: false }
-    );
   }
 
   private bindModeSwitch(): void {
@@ -1957,11 +1911,6 @@ class EpoxyApplication {
       this.triggerHaptic();
       this.restartLevel();
     });
-
-    byId('mobile-btn-zoom')?.addEventListener('click', () => {
-      this.triggerHaptic();
-      this.cycleFovPreset();
-    });
   }
 
   private bindHudControls(): void {
@@ -2270,8 +2219,6 @@ class EpoxyApplication {
       run(() => this.toggleFullscreen());
     } else if (kb.toggleMute.includes(e.code)) {
       run(() => this.toggleSfx());
-    } else if (kb.cycleFov?.includes(e.code)) {
-      run(() => this.cycleFovPreset());
     } else if (kb.toggleGraphics?.includes(e.code)) {
       run(() => this.toggleGraphicsStyle());
     } else if (kb.cycleTheme?.includes(e.code)) {

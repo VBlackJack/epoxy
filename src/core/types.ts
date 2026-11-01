@@ -462,7 +462,6 @@ export interface KeybindingsConfig {
   nextLevel: string[];
   prevLevel: string[];
   toggleMute: string[];
-  cycleFov?: string[];
   toggleGraphics?: string[];
   cycleTheme?: string[];
   generateProcedural?: string[];
@@ -488,7 +487,6 @@ export interface TouchConfig {
   swipeDeadzonePx: number;
   tapMaxDistancePx: number;
   tapMaxDurationMs: number;
-  pinchZoomStepPx: number;
   hapticPulseMs: number;
 }
 

@@ -172,10 +172,9 @@
       "objective": { "action": "💡 Hint" },
       "solution": { "action": "🎬 Solution" },
       "restart": { "action": "🔄 Retry" },
-      "zoom": { "action": "🔍 Zoom" },
       "fullscreen": { "action": "⛶ Fullscreen" },
       "exit_fullscreen": { "action": "⛶ Exit Fullscreen" },
-      "gesture_hint": { "label": "Swipe/Hold to move - Tap to pathfind - Pinch to zoom" }
+      "gesture_hint": { "label": "Swipe/Hold to move - Tap to pathfind" }
     },
     "messages": {
       "hint_prefix": { "label": "HINT: " },
@@ -275,7 +274,7 @@
       "kb_objective": { "label": "H: Locate next objective & reveal mechanism wires" },
       "kb_solution": { "label": "O: Watch the proven solution (the level restarts)" },
       "kb_items": { "label": "E / X: Drop the selected item on your cell | C: Select the next held item | Click an inventory slot: drop that item" },
-      "kb_fov": { "label": "V / Wheel: Cycle viewport zoom (9x9 to 32x32)" },
+      "kb_fov_options": { "label": "Zoom: Options > Display > View" },
       "kb_graphics": { "label": "G: Toggle HD Neon / 16-Bit Retro rendering" },
       "kb_theme": { "label": "B: Cycle visual biome & music track" },
       "kb_procedural": { "label": "N: Start an endless run of solvable levels" },
