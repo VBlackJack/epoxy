@@ -61,6 +61,10 @@ export interface UserSettings {
   graphicsQuality?: string;
   sfxEnabled?: boolean;
   musicEnabled?: boolean;
+  /** 'default', 'random' or 'custom'; read back through sanitizeMusicSettings. */
+  musicMode?: string;
+  /** Ids of the tracks ticked for the 'custom' music mode. */
+  musicCustomTracks?: string[];
 }
 
 export interface StorageConfig {
@@ -108,6 +112,8 @@ export interface ThemePalette {
   wallBottom: string;
   wallBevel: string;
   accentGlow: string;
+  /** Music track played with this biome in the 'default' music mode; see audio.json tracks. */
+  musicTrackId?: string;
 }
 
 /** A lock on a hub wing and the item that opens it. */
@@ -633,16 +639,62 @@ export interface AudioNote {
 export interface AudioEffectConfig {
   waveform: OscillatorType;
   notes: AudioNote[];
+  /**
+   * Sampled variants played round-robin instead of the notes, relative to `sfxBaseUrl`.
+   * The notes stay as the fallback while a file is not decoded or cannot be loaded.
+   */
+  files?: string[];
+  /** Hard cap on a sampled effect, in milliseconds; the source stops there. */
+  maxDurationMs?: number;
+  /** Linear fade to silence ending at `maxDurationMs`; needs `maxDurationMs`. */
+  fadeOutMs?: number;
+  /** Sampled effect loudness relative to the master and effects volumes (1 when omitted). */
+  gain?: number;
+  /** Minimum time between two starts of this effect, in milliseconds; calls inside it are skipped (no limit when omitted). */
+  minIntervalMs?: number;
 }
 
-export interface MusicTrackConfig {
+/** A track played by the built-in synthesizer. */
+export interface SynthTrackConfig {
   id: string;
   i18nKey: string;
+  source?: 'synth';
   stepDurationMs: number;
   leadWaveform: OscillatorType;
   bassWaveform: OscillatorType;
   leadNotes: number[];
   bassNotes: number[];
+}
+
+/** A track streamed from audio files; the first file the browser can decode is played. */
+export interface FileTrackConfig {
+  id: string;
+  i18nKey: string;
+  source: 'file';
+  /** File names relative to `musicBaseUrl`; the extension selects the MIME type in `fileMimeTypes`. */
+  files: string[];
+  /** Track loudness relative to the music volume (1 when omitted). */
+  gain?: number;
+}
+
+export type MusicTrackConfig = SynthTrackConfig | FileTrackConfig;
+
+/** Mixing and scheduling parameters read from the optional `musicMix` block of audio.json. */
+export interface MusicMixConfig {
+  /** Fraction of a step a music note sounds for. */
+  noteLengthRatio: number;
+  /** Lead voice gain relative to the music volume. */
+  leadGain: number;
+  /** Bass voice gain relative to the music volume. */
+  bassGain: number;
+  /** Gain an envelope ramps down to (exponential ramps cannot reach zero). */
+  releaseFloorGain: number;
+  /** How often the look-ahead scheduler wakes up. */
+  schedulerIntervalMs: number;
+  /** How far ahead of the audio clock notes are scheduled. */
+  scheduleAheadMs: number;
+  /** Fade-in of a file track, so queued synth notes do not overlap its start. */
+  fileFadeInMs: number;
 }
 
 export interface AudioConfig {
@@ -658,6 +710,17 @@ export interface AudioConfig {
     bassNotes: number[];
   };
   tracks?: MusicTrackConfig[];
+  /** Synth track played when no other track is available. */
+  defaultTrackId?: string;
+  musicMix?: Partial<MusicMixConfig>;
+  /** Folder the file tracks are loaded from. */
+  musicBaseUrl?: string;
+  /** Folder the sampled effect files are loaded from. */
+  sfxBaseUrl?: string;
+  /** MIME type by file extension, used to ask the browser whether it can play a file. */
+  fileMimeTypes?: Record<string, string>;
+  /** Music mode used until the player picks one: 'default', 'random' or 'custom'. */
+  defaultMusicMode?: string;
 }
 
 export interface DatElementMapping {

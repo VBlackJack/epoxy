@@ -9,6 +9,32 @@ versions follow Semantic Versioning.
 
 - Level author: the optional author field (9) of a `.DAT` pack is read, shown next to the level
   title in the HUD, kept on export, and editable in the editor (Author field).
+- Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new
+  track for each new level, never the same twice in a row) and Custom (the same among the tracks
+  you tick, at least one stays ticked). Restarting a level, retrying after a death or wrapping a
+  one-level pack keeps the track. In Random and Custom the biome and the `B` key no longer change
+  the music. The mode and the ticked tracks are saved.
+- Audio-file music tracks: `audio.json` can declare a track with `source: "file"`, a list of
+  `files` (the first one the browser can play is used) and a `gain`, loaded from `musicBaseUrl`.
+  The file is streamed, never decoded in memory, created only when the track plays, faded in, and
+  paused while the tab is hidden. A track that cannot play is skipped for the session and the
+  synthesized default track takes over. `audio.json` is validated at load (unique ids, a
+  synthesized `defaultTrackId`, files for file tracks, biome and mode references).
+
+- Sound effects from audio files: an effect in `audio.json` can list `files` (in `sfxBaseUrl`,
+  `./audio/sfx` by default) played in turn, with an optional `gain`, `maxDurationMs` and a linear
+  `fadeOutMs` ending at the cap. Files are fetched and decoded once the audio context exists; the
+  synthesized `waveform` and `notes` stay as the fallback until a file is decoded or when it
+  fails. 13 of the 15 effects now use the 14 bundled CC0 files (Juhani Junkala, via SubspaceAudio
+  on OpenGameArt); `splash` and `burn` stay synthesized. Credits added to both READMEs.
+  An effect can set `minIntervalMs` to skip repeats that come too soon after its last start;
+  `blocked` uses 250 so holding a key against a wall no longer machine-guns.
+
+### Changed
+
+- The biome-to-track mapping moved from the source code to `game.json` (`musicTrackId` on each
+  theme).
+- The help text of the `B` key says that it cycles the biome, and its music only in Default mode.
 
 ## [2.9.0] - 2026-11-01
 

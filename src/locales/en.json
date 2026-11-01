@@ -55,6 +55,12 @@
       "lynx_lcd": { "label": "Retro Lynx LCD" }
     },
     "music": {
+      "mode": { "label": "Music mode" },
+      "mode_default": { "label": "Biome (default)" },
+      "mode_random": { "label": "Random" },
+      "mode_custom": { "label": "Custom" },
+      "custom_tracks": { "label": "Tracks to play" },
+      "custom_min_one": { "label": "Keep at least one track ticked." },
       "cyber_pulse": { "label": "Track: Cyber Pulse" },
       "arctic_synth": { "label": "Track: Arctic Synth" },
       "magma_drive": { "label": "Track: Magma Drive" }
@@ -278,7 +284,7 @@
       "kb_items": { "label": "E / X: Drop the selected item on your cell | C: Select the next held item | Click an inventory slot: drop that item" },
       "kb_fov_options": { "label": "Zoom: Options > Display > View" },
       "kb_graphics": { "label": "G: Cycle render styles (HD Neon / 16-Bit Retro / 32-Bit Retro)" },
-      "kb_theme": { "label": "B: Cycle visual biome & music track" },
+      "kb_theme": { "label": "B: Cycle visual biome (and its music in Default mode)" },
       "kb_procedural": { "label": "N: Start an endless run of solvable levels" },
       "kb_levels": { "label": "[ and ]: Previous / Next level" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },

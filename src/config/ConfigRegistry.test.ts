@@ -15,16 +15,17 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ConfigRegistry } from './ConfigRegistry';
+import { ConfigBundle, ConfigRegistry } from './ConfigRegistry';
 import {
   assertConfigShape,
   ConfigLoadError,
+  findAudioConfigErrors,
   findBlockPuzzleConfigErrors,
   InvalidLevelError,
   isCompiledLevelShape
 } from './ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from './constants';
-import { LevelBlueprint } from '../core/types';
+import { LevelBlueprint, MusicTrackConfig } from '../core/types';
 import { createTestBundle, loadTestConfigs } from '../test/loadTestConfigs';
 
 function blueprint(overrides: Partial<LevelBlueprint> = {}): LevelBlueprint {
@@ -370,5 +371,113 @@ describe('game tunables validation', () => {
     const off = createTestBundle();
     off.game.procedural!.scoring.fallbackCandidates = 0;
     expect(() => ConfigRegistry.applyConfigs(off)).not.toThrow();
+  });
+});
+
+describe('audio configuration validation', () => {
+  const fileTrack = { id: 'orchestral', i18nKey: 'app.music.orchestral.label', source: 'file', files: ['orchestral.ogg'] };
+
+  function bundleWith(mutate: (bundle: ConfigBundle) => void): ConfigBundle {
+    const bundle = createTestBundle();
+    mutate(bundle);
+    return bundle;
+  }
+
+  it('accepts the shipped audio.json and a declared file track mapped to a biome', () => {
+    expect(() => ConfigRegistry.applyConfigs(createTestBundle())).not.toThrow();
+    const withFile = bundleWith((b) => {
+      b.audio.tracks!.push(fileTrack as unknown as MusicTrackConfig);
+      b.game.themes!.cyber_neon.musicTrackId = 'orchestral';
+    });
+    expect(() => ConfigRegistry.applyConfigs(withFile)).not.toThrow();
+  });
+
+  it('refuses a missing default track and a default track that is a file track', () => {
+    const missing = bundleWith((b) => {
+      b.audio.defaultTrackId = 'nope';
+    });
+    expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
+    const fileDefault = bundleWith((b) => {
+      b.audio.tracks!.push(fileTrack as unknown as MusicTrackConfig);
+      b.audio.defaultTrackId = 'orchestral';
+    });
+    expect(() => ConfigRegistry.applyConfigs(fileDefault)).toThrow(ConfigLoadError);
+  });
+
+  it('refuses a theme that points to an unknown track', () => {
+    const bad = bundleWith((b) => {
+      b.game.themes!.arctic_lab.musicTrackId = 'nope';
+    });
+    expect(() => ConfigRegistry.applyConfigs(bad)).toThrow(ConfigLoadError);
+  });
+
+  it('refuses a file track without files, with empty names, or a duplicate track id', () => {
+    for (const files of [undefined, [], ['']]) {
+      const bad = bundleWith((b) => {
+        b.audio.tracks!.push({ ...fileTrack, files } as unknown as MusicTrackConfig);
+      });
+      expect(() => ConfigRegistry.applyConfigs(bad), JSON.stringify(files)).toThrow(ConfigLoadError);
+    }
+    const duplicate = bundleWith((b) => {
+      b.audio.tracks!.push({ ...fileTrack, id: b.audio.tracks![0].id } as unknown as MusicTrackConfig);
+    });
+    expect(() => ConfigRegistry.applyConfigs(duplicate)).toThrow(ConfigLoadError);
+  });
+
+  it('refuses a file track gain or a file fade-in that is negative or not a number', () => {
+    for (const gain of [-0.1, '1', null, Number.NaN]) {
+      const bad = bundleWith((b) => {
+        b.audio.tracks!.push({ ...fileTrack, gain } as unknown as MusicTrackConfig);
+      });
+      expect(() => ConfigRegistry.applyConfigs(bad), String(gain)).toThrow(ConfigLoadError);
+    }
+    const zero = bundleWith((b) => {
+      b.audio.tracks!.push({ ...fileTrack, gain: 0 } as unknown as MusicTrackConfig);
+    });
+    expect(() => ConfigRegistry.applyConfigs(zero)).not.toThrow();
+    for (const fade of [-1, '400', Number.NaN]) {
+      const bad = bundleWith((b) => {
+        (b.audio.musicMix as Record<string, unknown>).fileFadeInMs = fade;
+      });
+      expect(() => ConfigRegistry.applyConfigs(bad), String(fade)).toThrow(ConfigLoadError);
+    }
+    const noFade = bundleWith((b) => {
+      b.audio.musicMix!.fileFadeInMs = 0;
+    });
+    expect(() => ConfigRegistry.applyConfigs(noFade)).not.toThrow();
+  });
+
+  it('refuses an unknown default music mode', () => {
+    const bad = bundleWith((b) => {
+      b.audio.defaultMusicMode = 'shuffle';
+    });
+    expect(() => ConfigRegistry.applyConfigs(bad)).toThrow(ConfigLoadError);
+    expect(findAudioConfigErrors({ ...createTestBundle().audio, defaultMusicMode: 'random' }, undefined)).toEqual([]);
+  });
+
+  it('rejects malformed sampled-effect fields and accepts the shipped ones', () => {
+    const base = createTestBundle().audio;
+    const errorsFor = (patch: Record<string, unknown>): string[] =>
+      findAudioConfigErrors(
+        { ...base, effects: { ...base.effects, probe: { waveform: 'square', notes: [], ...patch } } },
+        undefined
+      );
+    expect(errorsFor({ files: [] })).toHaveLength(1);
+    expect(errorsFor({ files: [''] })).toHaveLength(1);
+    expect(errorsFor({ files: 'a.wav' })).toHaveLength(1);
+    expect(errorsFor({ maxDurationMs: 0 })).toHaveLength(1);
+    expect(errorsFor({ maxDurationMs: Number.NaN })).toHaveLength(1);
+    expect(errorsFor({ fadeOutMs: -1, maxDurationMs: 100 })).toHaveLength(1);
+    expect(errorsFor({ fadeOutMs: 50 })).toHaveLength(1);
+    expect(errorsFor({ fadeOutMs: 200, maxDurationMs: 100 })).toHaveLength(1);
+    expect(errorsFor({ gain: -0.1 })).toHaveLength(1);
+    expect(errorsFor({ gain: Number.POSITIVE_INFINITY })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: -1 })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: Number.NaN })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: '250' })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: 0 })).toEqual([]);
+    expect(errorsFor({ minIntervalMs: 250 })).toEqual([]);
+    expect(errorsFor({ files: ['a.wav'], maxDurationMs: 100, fadeOutMs: 100, gain: 0.4 })).toEqual([]);
+    expect(findAudioConfigErrors(base, undefined)).toEqual([]);
   });
 });

@@ -15,7 +15,17 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
-import { CompiledLevel, DatFormatConfig, Direction, GameConfig, GridConfig, WinRule } from '../core/types';
+import { isFileTrack, isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
+import {
+  AudioConfig,
+  CompiledLevel,
+  DatFormatConfig,
+  Direction,
+  GameConfig,
+  GridConfig,
+  ThemePalette,
+  WinRule
+} from '../core/types';
 
 /**
  * Raised when a fetched configuration file is missing or does not match the
@@ -269,4 +279,86 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
   return ['watchSearchBudget', 'hintSearchBudget', 'watchMaxCells']
     .filter((key) => !Number.isInteger(value[key]) || (value[key] as number) <= 0)
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
+}
+
+/** Problems of the optional sampled-file fields of the sound effects. */
+function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): string[] {
+  const errors: string[] = [];
+  for (const [id, effect] of Object.entries(effects ?? {})) {
+    const { files, maxDurationMs, fadeOutMs, gain, minIntervalMs } = effect;
+    if (files !== undefined) {
+      const valid = Array.isArray(files) && files.length > 0 && files.every((f) => typeof f === 'string' && f.length > 0);
+      if (!valid) errors.push(`effects.${id}.files: expected a non-empty list of file names`);
+    }
+    const capValid = maxDurationMs !== undefined && isFiniteNumber(maxDurationMs) && maxDurationMs > 0;
+    if (maxDurationMs !== undefined && !capValid) {
+      errors.push(`effects.${id}.maxDurationMs: expected a finite number above 0`);
+    }
+    if (fadeOutMs !== undefined) {
+      if (!(isFiniteNumber(fadeOutMs) && fadeOutMs >= 0)) {
+        errors.push(`effects.${id}.fadeOutMs: expected a finite number of at least 0`);
+      } else if (maxDurationMs === undefined) {
+        errors.push(`effects.${id}.fadeOutMs: needs maxDurationMs`);
+      } else if (capValid && fadeOutMs > maxDurationMs) {
+        errors.push(`effects.${id}.fadeOutMs: expected at most maxDurationMs`);
+      }
+    }
+    if (gain !== undefined && !(isFiniteNumber(gain) && gain >= 0)) {
+      errors.push(`effects.${id}.gain: expected a finite number of at least 0`);
+    }
+    if (minIntervalMs !== undefined && !(isFiniteNumber(minIntervalMs) && minIntervalMs >= 0)) {
+      errors.push(`effects.${id}.minIntervalMs: expected a finite number of at least 0`);
+    }
+  }
+  return errors;
+}
+
+/**
+ * Problems of audio.json that would only show once a track is picked: track
+ * ids must be unique, the default track must be a synth track (it is the
+ * fallback when a file cannot play), file tracks need files, every biome
+ * must point to a real track, and the default music mode must exist.
+ */
+export function findAudioConfigErrors(audio: AudioConfig, themes: Record<string, ThemePalette> | undefined): string[] {
+  const errors: string[] = [];
+  if (audio.defaultMusicMode !== undefined && !isMusicMode(audio.defaultMusicMode)) {
+    errors.push(`defaultMusicMode: expected one of ${MUSIC_MODES.join(', ')}`);
+  }
+  const fadeIn: unknown = audio.musicMix?.fileFadeInMs;
+  if (fadeIn !== undefined && !(isFiniteNumber(fadeIn) && fadeIn >= 0)) {
+    errors.push('musicMix.fileFadeInMs: expected a finite number of at least 0');
+  }
+  errors.push(...findSfxEffectErrors(audio.effects));
+  const tracks = audio.tracks ?? [];
+  const seen = new Set<string>();
+  for (const track of tracks) {
+    if (typeof track.id !== 'string' || track.id.length === 0) {
+      errors.push('tracks: every track needs a non-empty id');
+      continue;
+    }
+    if (seen.has(track.id)) errors.push(`tracks.${track.id}: duplicate id`);
+    seen.add(track.id);
+    if (isFileTrack(track)) {
+      const validFiles =
+        Array.isArray(track.files) && track.files.length > 0 && track.files.every((f) => typeof f === 'string' && f.length > 0);
+      if (!validFiles) errors.push(`tracks.${track.id}.files: expected a non-empty list of file names`);
+      if (track.gain !== undefined && !(isFiniteNumber(track.gain) && track.gain >= 0)) {
+        errors.push(`tracks.${track.id}.gain: expected a finite number of at least 0`);
+      }
+    }
+  }
+  if (tracks.length > 0) {
+    const fallback = tracks.find((track) => track.id === audio.defaultTrackId);
+    if (!fallback) {
+      errors.push('defaultTrackId: expected the id of an existing track');
+    } else if (isFileTrack(fallback)) {
+      errors.push('defaultTrackId: expected a synth track, not a file track');
+    }
+  }
+  for (const theme of Object.values(themes ?? {})) {
+    if (theme.musicTrackId !== undefined && !seen.has(theme.musicTrackId)) {
+      errors.push(`themes.${theme.id}.musicTrackId: no track with this id`);
+    }
+  }
+  return errors;
 }

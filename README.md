@@ -33,6 +33,7 @@
   - Keyboard: `Tab` moves focus between the controls, Ctrl/Cmd chords are left to the browser except undo (Ctrl/Cmd+Z), which follows the keyboard layout (AZERTY, QWERTY, Cyrillic...), and `?` opens the help.
   - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options). The board always shows the chosen view as a square of N x N tiles, so a wide or landscape screen reveals no more of the level than a square one.
   - Full-featured Level Editor with live solver validation.
+- **Music**: a synthesized soundtrack with three modes, chosen in Options > Audio. **Default** follows the biome on screen (each biome names its track with `musicTrackId` in `game.json`). **Random** picks a new track for each new level and never repeats the previous one while two or more tracks exist. **Custom** does the same among the tracks you tick (at least one stays ticked). A restart, a retry after dying or a one-level wrap does not change the track, and in Random and Custom the biome (and the `B` key) no longer changes the music. The mode and the ticked tracks are saved.
 
 ## Development
 
@@ -42,6 +43,54 @@ Requires Node.js 24 (see `.nvmrc`).
 npm install
 npm run dev
 ```
+
+### Adding music tracks
+
+Tracks are declared in `public/configs/audio.json` under `tracks`. A track is synthesized by default (notes and waveforms) or streamed from audio files:
+
+```json
+{
+  "id": "my_track",
+  "i18nKey": "app.music.my_track.label",
+  "source": "file",
+  "files": ["my_track.ogg", "my_track.mp3"],
+  "gain": 0.8
+}
+```
+
+- Put the files in `public/audio/music/` (the folder is `musicBaseUrl`). The browser plays the first file in `files` it can decode; the extension must have a MIME type in `fileMimeTypes` (`ogg` and `mp3` by default). `gain` scales the track against the music volume (1 when omitted).
+- Add the track name to `src/locales/en.json` and `src/locales/fr.json` under `app.music.my_track.label`.
+- Map it to a biome with `"musicTrackId": "my_track"` on the theme in `game.json`. Every track also takes part in the Random and Custom modes.
+- `defaultTrackId` must stay a synthesized track: it plays when a file cannot be loaded. A file track that fails is skipped for the rest of the session.
+- The configuration is checked when the game loads: duplicate ids, a file track without files, an unknown `musicTrackId` or an unknown `defaultMusicMode` stop the game with a clear message.
+
+### Adding sound effects
+
+Each effect is declared in `public/configs/audio.json` under `effects.<id>`. An effect is synthesized from `waveform` and `notes`, and can also play audio files:
+
+```json
+"teleport": {
+  "files": ["sfx_movement_portal5.wav"],
+  "maxDurationMs": 400,
+  "fadeOutMs": 150,
+  "gain": 0.4,
+  "waveform": "sawtooth",
+  "notes": [
+    { "freq": 330, "durationMs": 35, "gain": 0.4 },
+    { "freq": 495, "durationMs": 35, "gain": 0.4 },
+    { "freq": 742, "durationMs": 45, "gain": 0.45 },
+    { "freq": 1113, "durationMs": 60, "gain": 0.4 }
+  ]
+}
+```
+
+- Put the files in `public/audio/sfx/` (the folder is `sfxBaseUrl`, `./audio/sfx` when omitted) and list their names in `files`. With several files they play in turn, so the step alternates two footsteps. A file that fails to load or decode is skipped.
+- `gain` (1 when omitted) is the loudness against the master volume times the sfx volume; the shipped files use 0.4, except the frequent `step` (0.15) and `blocked` (0.25).
+- `minIntervalMs` (no limit when omitted) skips a call made less than that long after the previous start of the same effect, on the audio clock; `blocked` ships at 250 so holding a key against a wall does not machine-gun.
+- `maxDurationMs` stops the playback there. `fadeOutMs` adds a linear fade that ends at that cap; it requires `maxDurationMs` and cannot be larger than it.
+- `waveform` and `notes` stay required: they are the fallback, played when no file is decoded yet (the first sounds right after the audio unlocks) or when a file is missing or fails.
+- 13 of the 15 effects use files; `splash` and `burn` stay synthesized.
+- Only `teleport` (400 ms cap, 150 ms fade) and `thief` (500 ms cap, 150 ms fade) use a cap and a fade.
 
 ## Building a Campaign with the Generator
 
@@ -78,6 +127,27 @@ npm run build
 ## Credits
 
 The bundled `CCLP 1` to `CCLP 5` packs are community-made level sets, and `Tile World Intro` ships with the Tile World project. All levels in these packs remain the work of their respective authors. Epoxy is not affiliated with the owners of any commercial game.
+
+### Audio
+
+Sound effects: The Essential Retro Video Game Sound Effects Collection by Juhani Junkala, published by SubspaceAudio on OpenGameArt (https://opengameart.org/content/512-sound-effects-8-bit-style), CC0 1.0, licence verified 2026-11-01.
+
+Files in `public/audio/sfx/` and the effect each one serves:
+
+- `sfx_movement_footsteps1a.wav`: step
+- `sfx_movement_footsteps1b.wav`: step
+- `sfx_sounds_impact3.wav`: blocked
+- `sfx_coin_single3.wav`: chip
+- `sfx_coin_double1.wav`: item
+- `sfx_movement_dooropen1.wav`: door
+- `sfx_sounds_powerup15.wav`: socket
+- `sfx_sounds_button10.wav`: button
+- `sfx_movement_portal5.wav`: teleport
+- `sfx_sounds_negative2.wav`: thief
+- `sfx_exp_short_hard4.wav`: bomb
+- `sfx_deathscream_android5.wav`: death
+- `sfx_sounds_fanfare1.wav`: win
+- `sfx_lowhealth_alarmloop6.wav`: timer_warn
 
 ## License
 

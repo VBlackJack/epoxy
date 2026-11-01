@@ -33,6 +33,7 @@
   - Clavier : `Tab` déplace le focus entre les commandes, les raccourcis Ctrl/Cmd sont laissés au navigateur sauf l'annulation (Ctrl/Cmd+Z), qui suit la disposition du clavier (AZERTY, QWERTY, cyrillique...), et `?` ouvre l'aide.
   - Support tactile complet sur smartphone (joystick virtuel par glissement, déplacement par toucher, croix directionnelle avec retour haptique ; le zoom se règle dans les options). Le plateau montre toujours la vue choisie en carré de N x N cases : un écran large ou en paysage ne dévoile pas plus du niveau qu'un écran carré.
   - Éditeur de niveaux complet avec validation en direct par le solveur.
+- **Musique** : une bande-son synthétisée avec trois modes, choisis dans Options > Audio. **Défaut** suit le biome affiché (chaque biome nomme sa piste avec `musicTrackId` dans `game.json`). **Aléatoire** tire une nouvelle piste à chaque nouveau niveau, sans jamais répéter la précédente tant qu'il existe au moins deux pistes. **Personnalisé** fait de même parmi les pistes que vous cochez (une au moins reste cochée). Un redémarrage, une nouvelle tentative après une mort ou un retour au premier niveau d'un pack d'un seul niveau ne change pas la piste, et en mode Aléatoire ou Personnalisé le biome (et la touche `B`) ne change plus la musique. Le mode et les pistes cochées sont enregistrés.
 
 ## Développement
 
@@ -42,6 +43,54 @@ Nécessite Node.js 24 (voir `.nvmrc`).
 npm install
 npm run dev
 ```
+
+### Ajouter des pistes musicales
+
+Les pistes se déclarent dans `public/configs/audio.json`, sous `tracks`. Une piste est synthétisée par défaut (notes et formes d'onde) ou lue depuis des fichiers audio :
+
+```json
+{
+  "id": "my_track",
+  "i18nKey": "app.music.my_track.label",
+  "source": "file",
+  "files": ["my_track.ogg", "my_track.mp3"],
+  "gain": 0.8
+}
+```
+
+- Placez les fichiers dans `public/audio/music/` (ce dossier est `musicBaseUrl`). Le navigateur joue le premier fichier de `files` qu'il sait décoder ; l'extension doit avoir un type MIME dans `fileMimeTypes` (`ogg` et `mp3` par défaut). `gain` règle la piste par rapport au volume de la musique (1 si omis).
+- Ajoutez le nom de la piste dans `src/locales/en.json` et `src/locales/fr.json`, sous `app.music.my_track.label`.
+- Associez-la à un biome avec `"musicTrackId": "my_track"` sur le thème dans `game.json`. Chaque piste participe aussi aux modes Aléatoire et Personnalisé.
+- `defaultTrackId` doit rester une piste synthétisée : c'est elle qui joue quand un fichier ne se charge pas. Une piste de fichier en échec est ignorée jusqu'à la fin de la session.
+- Le chargement vérifie la configuration : un identifiant en double, une piste de fichier sans fichiers, un `musicTrackId` inconnu ou un `defaultMusicMode` inconnu arrêtent le jeu avec un message clair.
+
+### Ajouter des effets sonores
+
+Chaque effet se déclare dans `public/configs/audio.json`, sous `effects.<id>`. Un effet est synthétisé à partir de `waveform` et `notes`, et peut aussi jouer des fichiers audio :
+
+```json
+"teleport": {
+  "files": ["sfx_movement_portal5.wav"],
+  "maxDurationMs": 400,
+  "fadeOutMs": 150,
+  "gain": 0.4,
+  "waveform": "sawtooth",
+  "notes": [
+    { "freq": 330, "durationMs": 35, "gain": 0.4 },
+    { "freq": 495, "durationMs": 35, "gain": 0.4 },
+    { "freq": 742, "durationMs": 45, "gain": 0.45 },
+    { "freq": 1113, "durationMs": 60, "gain": 0.4 }
+  ]
+}
+```
+
+- Placez les fichiers dans `public/audio/sfx/` (ce dossier est `sfxBaseUrl`, `./audio/sfx` si omis) et listez leurs noms dans `files`. Avec plusieurs fichiers, ils jouent à tour de rôle : le pas alterne ainsi deux bruits de pas. Un fichier qui ne se charge pas ou ne se décode pas est ignoré.
+- `gain` (1 si omis) règle le volume par rapport au volume général multiplié par le volume des effets ; les fichiers fournis utilisent 0,4, sauf les sons fréquents `step` (0,15) et `blocked` (0,25).
+- `minIntervalMs` (aucune limite si omis) ignore un appel survenant moins longtemps que cela après le dernier départ du même effet, sur l'horloge audio ; `blocked` est livré à 250 pour que maintenir une touche contre un mur ne mitraille pas le son.
+- `maxDurationMs` arrête la lecture à cet instant. `fadeOutMs` ajoute un fondu linéaire qui se termine à cette limite ; il exige `maxDurationMs` et ne peut pas le dépasser.
+- `waveform` et `notes` restent obligatoires : ils servent de repli, joués tant qu'aucun fichier n'est décodé (les tout premiers sons après le déverrouillage de l'audio) ou quand un fichier manque ou échoue.
+- 13 des 15 effets utilisent des fichiers ; `splash` et `burn` restent synthétisés.
+- Seuls `teleport` (limite de 400 ms, fondu de 150 ms) et `thief` (limite de 500 ms, fondu de 150 ms) utilisent une limite et un fondu.
 
 ## Construire une campagne avec le générateur
 
@@ -78,6 +127,27 @@ npm run build
 ## Crédits
 
 Les packs `CCLP 1` à `CCLP 5` fournis sont des jeux de niveaux créés par la communauté, et `Tile World Intro` est distribué avec le projet Tile World. Tous les niveaux de ces packs restent l'oeuvre de leurs auteurs respectifs. Epoxy n'est affilié à aucun détenteur de jeu commercial.
+
+### Audio
+
+Effets sonores : The Essential Retro Video Game Sound Effects Collection de Juhani Junkala, publiée par SubspaceAudio sur OpenGameArt (https://opengameart.org/content/512-sound-effects-8-bit-style), CC0 1.0, licence vérifiée le 2026-11-01.
+
+Fichiers de `public/audio/sfx/` et effet servi par chacun :
+
+- `sfx_movement_footsteps1a.wav`: step
+- `sfx_movement_footsteps1b.wav`: step
+- `sfx_sounds_impact3.wav`: blocked
+- `sfx_coin_single3.wav`: chip
+- `sfx_coin_double1.wav`: item
+- `sfx_movement_dooropen1.wav`: door
+- `sfx_sounds_powerup15.wav`: socket
+- `sfx_sounds_button10.wav`: button
+- `sfx_movement_portal5.wav`: teleport
+- `sfx_sounds_negative2.wav`: thief
+- `sfx_exp_short_hard4.wav`: bomb
+- `sfx_deathscream_android5.wav`: death
+- `sfx_sounds_fanfare1.wav`: win
+- `sfx_lowhealth_alarmloop6.wav`: timer_warn
 
 ## Licence
 

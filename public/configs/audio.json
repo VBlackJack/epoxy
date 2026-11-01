@@ -4,12 +4,17 @@
   "musicVolume": 0.35,
   "effects": {
     "step": {
+      "files": ["sfx_movement_footsteps1a.wav", "sfx_movement_footsteps1b.wav"],
+      "gain": 0.15,
       "waveform": "triangle",
       "notes": [
         { "freq": 190, "durationMs": 32, "gain": 0.25 }
       ]
     },
     "blocked": {
+      "files": ["sfx_sounds_impact3.wav"],
+      "gain": 0.25,
+      "minIntervalMs": 250,
       "waveform": "sawtooth",
       "notes": [
         { "freq": 110, "durationMs": 70, "gain": 0.4 },
@@ -17,6 +22,8 @@
       ]
     },
     "chip": {
+      "files": ["sfx_coin_single3.wav"],
+      "gain": 0.4,
       "waveform": "square",
       "notes": [
         { "freq": 587.33, "durationMs": 55, "gain": 0.5 },
@@ -24,6 +31,8 @@
       ]
     },
     "item": {
+      "files": ["sfx_coin_double1.wav"],
+      "gain": 0.4,
       "waveform": "square",
       "notes": [
         { "freq": 440, "durationMs": 50, "gain": 0.45 },
@@ -32,6 +41,8 @@
       ]
     },
     "door": {
+      "files": ["sfx_movement_dooropen1.wav"],
+      "gain": 0.4,
       "waveform": "triangle",
       "notes": [
         { "freq": 329.63, "durationMs": 50, "gain": 0.5 },
@@ -39,6 +50,8 @@
       ]
     },
     "socket": {
+      "files": ["sfx_sounds_powerup15.wav"],
+      "gain": 0.4,
       "waveform": "square",
       "notes": [
         { "freq": 392, "durationMs": 60, "gain": 0.5 },
@@ -48,12 +61,18 @@
       ]
     },
     "button": {
+      "files": ["sfx_sounds_button10.wav"],
+      "gain": 0.4,
       "waveform": "square",
       "notes": [
         { "freq": 740, "durationMs": 35, "gain": 0.35 }
       ]
     },
     "teleport": {
+      "files": ["sfx_movement_portal5.wav"],
+      "maxDurationMs": 400,
+      "fadeOutMs": 150,
+      "gain": 0.4,
       "waveform": "sawtooth",
       "notes": [
         { "freq": 330, "durationMs": 35, "gain": 0.4 },
@@ -63,6 +82,10 @@
       ]
     },
     "thief": {
+      "files": ["sfx_sounds_negative2.wav"],
+      "maxDurationMs": 500,
+      "fadeOutMs": 150,
+      "gain": 0.4,
       "waveform": "sawtooth",
       "notes": [
         { "freq": 520, "durationMs": 60, "gain": 0.45 },
@@ -87,6 +110,8 @@
       ]
     },
     "bomb": {
+      "files": ["sfx_exp_short_hard4.wav"],
+      "gain": 0.4,
       "waveform": "sawtooth",
       "notes": [
         { "freq": 160, "durationMs": 80, "gain": 0.6 },
@@ -95,6 +120,8 @@
       ]
     },
     "death": {
+      "files": ["sfx_deathscream_android5.wav"],
+      "gain": 0.4,
       "waveform": "square",
       "notes": [
         { "freq": 392, "durationMs": 90, "gain": 0.5 },
@@ -104,6 +131,8 @@
       ]
     },
     "win": {
+      "files": ["sfx_sounds_fanfare1.wav"],
+      "gain": 0.4,
       "waveform": "square",
       "notes": [
         { "freq": 523.25, "durationMs": 85, "gain": 0.55 },
@@ -113,6 +142,8 @@
       ]
     },
     "timer_warn": {
+      "files": ["sfx_lowhealth_alarmloop6.wav"],
+      "gain": 0.4,
       "waveform": "square",
       "notes": [
         { "freq": 880, "durationMs": 45, "gain": 0.35 }
@@ -120,13 +151,21 @@
     }
   },
   "defaultTrackId": "cyber_pulse",
+  "defaultMusicMode": "default",
+  "musicBaseUrl": "./audio/music",
+  "sfxBaseUrl": "./audio/sfx",
+  "fileMimeTypes": {
+    "ogg": "audio/ogg",
+    "mp3": "audio/mpeg"
+  },
   "musicMix": {
     "noteLengthRatio": 0.85,
     "leadGain": 0.45,
     "bassGain": 0.35,
     "releaseFloorGain": 0.001,
     "schedulerIntervalMs": 25,
-    "scheduleAheadMs": 100
+    "scheduleAheadMs": 100,
+    "fileFadeInMs": 400
   },
   "music": {
     "stepDurationMs": 175,
