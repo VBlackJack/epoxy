@@ -43,6 +43,7 @@ import {
   resolveQualitySettings,
   resolveTheme
 } from './renderSettings';
+import type { SokobanSkinLoader } from './sokobanSkin';
 import { frameScaleFromDelta, scaleDecay, scaleLerpFactor } from './renderTiming';
 import {
   collectTerrainFeatures,
@@ -455,6 +456,13 @@ export class PixelRenderer {
   /** Bend geometry per corner ice tile id, null for ice that slides straight. */
   private readonly iceBends: Map<string, IceBendGeometry | null> = new Map();
 
+  /** Sokoban skin images, once the app has installed them; null in tests that do not. */
+  private skinLoader: SokobanSkinLoader | null = null;
+  /** The player's choice; the skin also needs a Sokoban level and loaded images. */
+  private skinEnabled = true;
+  /** Skin in use for the scene being drawn; read only by the scene path, never by public draw calls. */
+  private skinActive = false;
+
   private readonly lighting = new LightingLayer();
   /** Lights gathered while drawing a frame, reused across frames. */
   private readonly lights: Light[] = [];
@@ -488,6 +496,19 @@ export class PixelRenderer {
     this.restartFrameBudget();
     this.style = nextRenderStyle(this.style).id;
     return this.style;
+  }
+
+  /** Installs the loader of the Sokoban skin images. */
+  public setSkinLoader(loader: SokobanSkinLoader | null): void {
+    this.skinLoader = loader;
+  }
+
+  public isSokobanSkinEnabled(): boolean {
+    return this.skinEnabled;
+  }
+
+  public setSokobanSkinEnabled(enabled: boolean): void {
+    this.skinEnabled = enabled;
   }
 
   public getThemeId(): string {
@@ -707,9 +728,12 @@ export class PixelRenderer {
     const startMs = performance.now();
     this.inFrame = true;
     this.frameSprite = undefined;
+    this.skinActive =
+      this.skinEnabled && engine.getLevel().winRule === 'targets' && (this.skinLoader?.ready ?? false);
     try {
       this.renderScene(ctx, engine);
     } finally {
+      this.skinActive = false;
       this.inFrame = false;
       this.frameSprite = undefined;
       this.frameTilePx = Number.POSITIVE_INFINITY;
@@ -810,7 +834,7 @@ export class PixelRenderer {
     // once, so every sprite pixel stays a square block whatever the zoom.
     const spriteScale = tilePixelSize / spriteSize;
     const lowCtx =
-      desc.lowResScene && sprite
+      desc.lowResScene && sprite && !this.skinActive
         ? this.prepareRetroScene(Math.ceil(canvasWidth / spriteScale), Math.ceil(canvasHeight / spriteScale))
         : null;
     const lowRes = lowCtx !== null;
@@ -854,6 +878,7 @@ export class PixelRenderer {
       if (cell.x < startTileX || cell.x > endTileX || cell.y < startTileY || cell.y > endTileY) continue;
       if (!animatedTiles.has(cell.tileId)) continue;
       if (this.isBlockCovered(cell.x, cell.y)) continue;
+      if (this.skinActive && this.skinLoader?.getTerrain(cell.tileId)) continue;
       const px = originX + Math.floor((cell.x - region.x0) * unit);
       const py = originY + Math.floor((cell.y - region.y0) * unit);
       animNeighbours.hash = cellHash(cell.x, cell.y);
@@ -923,9 +948,15 @@ export class PixelRenderer {
         // Retro sprites sit on whole sprite pixels, like the terrain they stand on.
         const px = lowRes ? originX + Math.round((vPos.x - region.x0) * unit) : (vPos.x - camX) * tilePixelSize;
         const py = lowRes ? originY + Math.round((vPos.y - region.y0) * unit) : (vPos.y - camY) * tilePixelSize;
-        this.drawEntity(sceneCtx, ent.type, ent.dir, px, py, unit);
-        if (ent.kind === 'block' && terrain[ent.y]?.[ent.x] === BLOCK_TARGET_TILE_ID) {
-          this.drawBlockOnTargetOutline(sceneCtx, px, py, unit);
+        const onTarget = ent.kind === 'block' && terrain[ent.y]?.[ent.x] === BLOCK_TARGET_TILE_ID;
+        const skinned = this.skinActive
+          ? ((onTarget ? this.skinLoader?.getBlockOnTarget() : null) ?? this.skinLoader?.getEntity(ent.type) ?? null)
+          : null;
+        if (skinned) {
+          this.drawSkinLayers(sceneCtx, skinned, px, py, unit);
+        } else {
+          this.drawEntity(sceneCtx, ent.type, ent.dir, px, py, unit);
+          if (onTarget) this.drawBlockOnTargetOutline(sceneCtx, px, py, unit);
         }
         if (lit) this.addLight(ent.type, vPos.x - camX, vPos.y - camY, tilePixelSize, settings);
       }
@@ -1215,7 +1246,8 @@ export class PixelRenderer {
     }
 
     const blockKey = blockCellsKey(this.blockCells);
-    const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}`;
+    const skinKey = this.skinActive ? `skin${this.skinLoader?.version ?? 0}` : '';
+    const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}|${skinKey}`;
     const region = this.cacheRegion;
     const covered =
       this.terrainCache !== null &&
@@ -1271,11 +1303,33 @@ export class PixelRenderer {
         const py = Math.floor((my - region.y0) * tilePixelSize);
         // A block hides the terrain under it; neighbours still read the real terrain for shadows.
         const tileId = this.isBlockCovered(mx, my) ? 'floor' : terrain[my]?.[mx] || 'floor';
+        if (this.skinActive) {
+          const skinLayers = this.skinLoader?.getTerrain(tileId);
+          if (skinLayers) {
+            this.drawSkinLayers(cacheCtx, skinLayers, px, py, drawSize);
+            continue;
+          }
+        }
         const isClosedTrap = tileId === 'trap' ? engine.isCellClosedTrap(mx, my) : false;
         const neighbours = tileNeighbours(terrain, mx, my, this.wallJoinTiles, this.shadowCasterTiles);
         this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static', neighbours);
       }
     }
+  }
+
+  /** Draws skin images scaled to the cell, smoothed so they shrink cleanly at any zoom. */
+  private drawSkinLayers(
+    ctx: CanvasRenderingContext2D,
+    layers: readonly CanvasImageSource[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    for (const layer of layers) ctx.drawImage(layer, x, y, size, size);
+    ctx.restore();
   }
 
   private syncTileSets(settings: RenderSettings): void {

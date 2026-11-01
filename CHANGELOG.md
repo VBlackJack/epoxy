@@ -7,6 +7,12 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Sokoban skin: levels using the `targets` win rule (`.xsb` / `.sok` imports and editor levels) are
+  drawn with sprites from Kenney's Sokoban pack (CC0) whatever graphics style is selected: cobble
+  floor, brick walls, target marks, a light crate and a darker one on a target. The player keeps the
+  style's sprite. A display toggle next to the LCD toggle turns it off (on by default, saved). The
+  mapping lives in `graphics.sokobanSkin` of `game.json`; in the 16-Bit and 32-Bit styles, Sokoban
+  levels are drawn at full resolution so the sprites stay sharp.
 - Terrain footsteps: the step sound depends on the terrain the player steps onto (normal floor,
   force floor, ice, and water or fire when wearing the protecting boots). `audio.json` maps a tile
   `slideType` or `hazard` to an effect through `terrainStepEffects`; the step files are now Ogg
