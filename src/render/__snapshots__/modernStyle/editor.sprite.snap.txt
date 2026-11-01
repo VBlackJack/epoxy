@@ -96,8 +96,8 @@ editor tile forbid_boots_water closed=true 95960caddd13906b
 editor tile forbid_boots_water closed=false d5bbcda906f17a34
 editor tile forbid_boots_fire closed=true ab3f404eb513b1b2
 editor tile forbid_boots_fire closed=false 4b254e8eb607352d
-editor tile forbid_boots_force closed=true d95b62f884e26729
-editor tile forbid_boots_force closed=false e8f91c43f3bbac9e
+editor tile forbid_boots_force closed=true b1c0f1e441efc8df
+editor tile forbid_boots_force closed=false 230aa506e2089c09
 editor tile door_red closed=true 994e37beeac845bc
 editor tile door_red closed=false e37885746cc685ce
 editor tile door_blue closed=true e68b2c550f3ec43a
@@ -180,7 +180,7 @@ editor item over floor chip c62be3eed209a462
 editor item over floor boots_water 0b6b3a54b44ddfa5
 editor item over floor boots_fire 22f39f7ad8a1c197
 editor item over floor boots_ice 12f8c82d1fb7c3bf
-editor item over floor boots_force f402ec25b5a32190
+editor item over floor boots_force 9f33fb60a15fd297
 editor item over floor bomb 41f2dde6b1c2017e
 editor item over floor score_10 c6b81b02959d2a23
 editor item over floor score_100 f46c3f8949b3f562
