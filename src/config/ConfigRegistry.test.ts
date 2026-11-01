@@ -465,6 +465,11 @@ describe('audio configuration validation', () => {
     expect(errorsFor({ fadeOutMs: 200, maxDurationMs: 100 })).toHaveLength(1);
     expect(errorsFor({ gain: -0.1 })).toHaveLength(1);
     expect(errorsFor({ gain: Number.POSITIVE_INFINITY })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: -1 })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: Number.NaN })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: '250' })).toHaveLength(1);
+    expect(errorsFor({ minIntervalMs: 0 })).toEqual([]);
+    expect(errorsFor({ minIntervalMs: 250 })).toEqual([]);
     expect(errorsFor({ files: ['a.wav'], maxDurationMs: 100, fadeOutMs: 100, gain: 0.4 })).toEqual([]);
     expect(findAudioConfigErrors(base, undefined)).toEqual([]);
   });

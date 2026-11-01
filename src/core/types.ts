@@ -650,6 +650,8 @@ export interface AudioEffectConfig {
   fadeOutMs?: number;
   /** Sampled effect loudness relative to the master and effects volumes (1 when omitted). */
   gain?: number;
+  /** Minimum time between two starts of this effect, in milliseconds; calls inside it are skipped (no limit when omitted). */
+  minIntervalMs?: number;
 }
 
 /** A track played by the built-in synthesizer. */

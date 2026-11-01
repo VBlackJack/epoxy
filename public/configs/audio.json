@@ -5,7 +5,7 @@
   "effects": {
     "step": {
       "files": ["sfx_movement_footsteps1a.wav", "sfx_movement_footsteps1b.wav"],
-      "gain": 0.4,
+      "gain": 0.15,
       "waveform": "triangle",
       "notes": [
         { "freq": 190, "durationMs": 32, "gain": 0.25 }
@@ -13,7 +13,8 @@
     },
     "blocked": {
       "files": ["sfx_sounds_impact3.wav"],
-      "gain": 0.4,
+      "gain": 0.25,
+      "minIntervalMs": 250,
       "waveform": "sawtooth",
       "notes": [
         { "freq": 110, "durationMs": 70, "gain": 0.4 },

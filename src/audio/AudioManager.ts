@@ -78,6 +78,8 @@ export class AudioService {
   private pausedWhileHidden: boolean = false;
   /** Nesting depth of runSilently calls; effects play only at zero. */
   private silenceDepth: number = 0;
+  /** Audio clock time, in seconds, each effect last started; read by `minIntervalMs`. */
+  private readonly lastSfxStartSec = new Map<string, number>();
 
   private readonly onUserGesture = (): void => {
     const firstGesture = !this.userGestureSeen;
@@ -306,6 +308,13 @@ export class AudioService {
 
     const ctx = this.ensureContext();
     if (!ctx) return;
+
+    const { minIntervalMs } = effect;
+    if (minIntervalMs !== undefined) {
+      const lastStart = this.lastSfxStartSec.get(effectId);
+      if (lastStart !== undefined && ctx.currentTime - lastStart < minIntervalMs / MS_PER_SECOND) return;
+    }
+    this.lastSfxStartSec.set(effectId, ctx.currentTime);
 
     const sfxVolume = audioCfg.masterVolume * audioCfg.sfxVolume;
     if (this.sfxBank?.play(ctx, effectId, effect, sfxVolume)) return;

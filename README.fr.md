@@ -85,7 +85,8 @@ Chaque effet se déclare dans `public/configs/audio.json`, sous `effects.<id>`. 
 ```
 
 - Placez les fichiers dans `public/audio/sfx/` (ce dossier est `sfxBaseUrl`, `./audio/sfx` si omis) et listez leurs noms dans `files`. Avec plusieurs fichiers, ils jouent à tour de rôle : le pas alterne ainsi deux bruits de pas. Un fichier qui ne se charge pas ou ne se décode pas est ignoré.
-- `gain` (1 si omis) règle le volume par rapport au volume général multiplié par le volume des effets ; les fichiers fournis utilisent 0,4.
+- `gain` (1 si omis) règle le volume par rapport au volume général multiplié par le volume des effets ; les fichiers fournis utilisent 0,4, sauf les sons fréquents `step` (0,15) et `blocked` (0,25).
+- `minIntervalMs` (aucune limite si omis) ignore un appel survenant moins longtemps que cela après le dernier départ du même effet, sur l'horloge audio ; `blocked` est livré à 250 pour que maintenir une touche contre un mur ne mitraille pas le son.
 - `maxDurationMs` arrête la lecture à cet instant. `fadeOutMs` ajoute un fondu linéaire qui se termine à cette limite ; il exige `maxDurationMs` et ne peut pas le dépasser.
 - `waveform` et `notes` restent obligatoires : ils servent de repli, joués tant qu'aucun fichier n'est décodé (les tout premiers sons après le déverrouillage de l'audio) ou quand un fichier manque ou échoue.
 - 13 des 15 effets utilisent des fichiers ; `splash` et `burn` restent synthétisés.

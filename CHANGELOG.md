@@ -25,6 +25,8 @@ versions follow Semantic Versioning.
   synthesized `waveform` and `notes` stay as the fallback until a file is decoded or when it
   fails. 13 of the 15 effects now use the 14 bundled CC0 files (Juhani Junkala, via SubspaceAudio
   on OpenGameArt); `splash` and `burn` stay synthesized. Credits added to both READMEs.
+  An effect can set `minIntervalMs` to skip repeats that come too soon after its last start;
+  `blocked` uses 250 so holding a key against a wall no longer machine-guns.
 
 ### Changed
 

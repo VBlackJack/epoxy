@@ -85,7 +85,8 @@ Each effect is declared in `public/configs/audio.json` under `effects.<id>`. An 
 ```
 
 - Put the files in `public/audio/sfx/` (the folder is `sfxBaseUrl`, `./audio/sfx` when omitted) and list their names in `files`. With several files they play in turn, so the step alternates two footsteps. A file that fails to load or decode is skipped.
-- `gain` (1 when omitted) is the loudness against the master volume times the sfx volume; the shipped files use 0.4.
+- `gain` (1 when omitted) is the loudness against the master volume times the sfx volume; the shipped files use 0.4, except the frequent `step` (0.15) and `blocked` (0.25).
+- `minIntervalMs` (no limit when omitted) skips a call made less than that long after the previous start of the same effect, on the audio clock; `blocked` ships at 250 so holding a key against a wall does not machine-gun.
 - `maxDurationMs` stops the playback there. `fadeOutMs` adds a linear fade that ends at that cap; it requires `maxDurationMs` and cannot be larger than it.
 - `waveform` and `notes` stay required: they are the fallback, played when no file is decoded yet (the first sounds right after the audio unlocks) or when a file is missing or fails.
 - 13 of the 15 effects use files; `splash` and `burn` stay synthesized.

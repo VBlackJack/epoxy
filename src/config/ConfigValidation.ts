@@ -285,7 +285,7 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
 function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): string[] {
   const errors: string[] = [];
   for (const [id, effect] of Object.entries(effects ?? {})) {
-    const { files, maxDurationMs, fadeOutMs, gain } = effect;
+    const { files, maxDurationMs, fadeOutMs, gain, minIntervalMs } = effect;
     if (files !== undefined) {
       const valid = Array.isArray(files) && files.length > 0 && files.every((f) => typeof f === 'string' && f.length > 0);
       if (!valid) errors.push(`effects.${id}.files: expected a non-empty list of file names`);
@@ -305,6 +305,9 @@ function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): strin
     }
     if (gain !== undefined && !(isFiniteNumber(gain) && gain >= 0)) {
       errors.push(`effects.${id}.gain: expected a finite number of at least 0`);
+    }
+    if (minIntervalMs !== undefined && !(isFiniteNumber(minIntervalMs) && minIntervalMs >= 0)) {
+      errors.push(`effects.${id}.minIntervalMs: expected a finite number of at least 0`);
     }
   }
   return errors;
