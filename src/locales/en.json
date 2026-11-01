@@ -64,7 +64,14 @@
       "custom_min_one": { "label": "Keep at least one track ticked." },
       "cyber_pulse": { "label": "Track: Cyber Pulse" },
       "arctic_synth": { "label": "Track: Arctic Synth" },
-      "magma_drive": { "label": "Track: Magma Drive" }
+      "magma_drive": { "label": "Track: Magma Drive" },
+      "odyssey_8bit": { "label": "Track: 8-bit Odyssey" },
+      "subterranean_pulse_1": { "label": "Track: Subterranean Pulse I" },
+      "subterranean_pulse_2": { "label": "Track: Subterranean Pulse II" },
+      "subterranean_pulse_3": { "label": "Track: Subterranean Pulse III" },
+      "subterranean_pulse_4": { "label": "Track: Subterranean Pulse IV" },
+      "endless_1": { "label": "Track: Endless I" },
+      "endless_2": { "label": "Track: Endless II" }
     },
     "export": {
       "none_exportable": { "label": "None of the levels in this pack can be exported to the .CCL format." },

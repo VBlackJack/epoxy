@@ -69,6 +69,8 @@ export class AudioService {
   private customTrackIds: string[] = [];
   /** Track of the biome on screen, played in the 'default' mode. */
   private themeTrackId: string | null = null;
+  /** Tracks of the endless run while it is on screen, null otherwise; see TrackPickContext. */
+  private endlessTrackIds: readonly string[] | null = null;
   /** Level the last pick was made for; a pick happens only when another level loads. */
   private lastLevelId: string | null = null;
   /** Tracks that failed to play, left out of every pick for the rest of the session. */
@@ -394,20 +396,36 @@ export class AudioService {
   /** Records the track of the biome on screen; it plays only in the 'default' mode. */
   public setThemeTrack(trackId: string | null | undefined): void {
     this.themeTrackId = trackId ?? null;
-    if (this.musicMode === 'default') this.chooseTrack();
+    if (this.musicMode === 'default' && this.endlessTrackIds === null) this.chooseTrack();
+  }
+
+  /**
+   * Tells which tracks the endless run plays (null when it is not the pack on screen). While set,
+   * the 'default' mode picks among them for each new level instead of following the biome. Call it
+   * before onLevelLoaded; leaving the run goes back to the biome track at once.
+   */
+  public setEndlessTracks(ids: readonly string[] | null): void {
+    const wasEndless = this.endlessTrackIds !== null;
+    this.endlessTrackIds = ids;
+    if (ids !== null) {
+      if (!wasEndless) this.lastLevelId = null;
+    } else if (wasEndless && this.musicMode === 'default') {
+      this.chooseTrack();
+    }
   }
 
   /** Called when a level loads: a level other than the last one means a new pick in 'random' and 'custom'. */
   public onLevelLoaded(levelId: string): void {
     if (levelId === this.lastLevelId) return;
     this.lastLevelId = levelId;
-    if (this.musicMode !== 'default') this.chooseTrack();
+    if (this.musicMode !== 'default' || this.endlessTrackIds !== null) this.chooseTrack();
   }
 
   /** Picks the track for the current mode and plays it; the default synth track when none is eligible. */
   private chooseTrack(): void {
     const picked = pickTrack(this.musicMode, {
       themeTrackId: this.themeTrackId,
+      endlessTrackIds: this.endlessTrackIds,
       allIds: this.getAllTrackIds(),
       customIds: this.customTrackIds,
       previousId: this.activeTrackId,

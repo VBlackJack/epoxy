@@ -1470,6 +1470,7 @@ class EpoxyApplication {
       ? Math.min(Math.max(index, 0), levels.length - 1)
       : ((index % levels.length) + levels.length) % levels.length;
     this.loadPlayLevel(levels[this.currentLevelIndex]);
+    AudioManager.setEndlessTracks(this.isEndlessActive() ? ConfigRegistry.getGame().endlessUi.musicTrackIds ?? [] : null);
     AudioManager.onLevelLoaded(levels[this.currentLevelIndex].id);
     this.showLevelTheme(levels[this.currentLevelIndex]);
     this.saveProgress();

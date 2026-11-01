@@ -171,7 +171,7 @@ class ConfigRegistryService {
     if (datFormatErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.DAT_FORMAT, datFormatErrors.join('; '));
     }
-    const audioErrors = findAudioConfigErrors(bundle.audio, bundle.game.themes);
+    const audioErrors = findAudioConfigErrors(bundle.audio, bundle.game.themes, bundle.game.endlessUi?.musicTrackIds);
     if (audioErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.AUDIO, audioErrors.join('; '));
     }

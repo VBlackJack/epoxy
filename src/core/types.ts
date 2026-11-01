@@ -410,6 +410,14 @@ export interface EndlessUiConfig {
    * replay of every earlier lead motif draw, so the field is bounded.
    */
   maxStartLevel: number;
+  /**
+   * Music tracks of an endless run, by track id. In the Default music mode each new level plays
+   * one of them, never the same as the level before; Random and Custom ignore the list. Without
+   * it (or when empty) the biome track plays. Kept here, not in `procedural.endless`: every key
+   * under `procedural` is part of the level content version, so adding one there would change
+   * the levels of existing seeds.
+   */
+  musicTrackIds?: string[];
 }
 
 export interface ProceduralConfig {

@@ -455,6 +455,19 @@ describe('audio configuration validation', () => {
     expect(findAudioConfigErrors({ ...createTestBundle().audio, defaultMusicMode: 'random' }, undefined)).toEqual([]);
   });
 
+  it('checks the endless music tracks against the declared tracks', () => {
+    const audio = createTestBundle().audio;
+    const known = audio.tracks?.[0].id as string;
+    expect(findAudioConfigErrors(audio, undefined, [known])).toEqual([]);
+    expect(findAudioConfigErrors(audio, undefined, undefined)).toEqual([]);
+    expect(findAudioConfigErrors(audio, undefined, ['nope'])).toHaveLength(1);
+    expect(findAudioConfigErrors(audio, undefined, [known, 7])).toHaveLength(1);
+    const bad = bundleWith((b) => {
+      b.game.endlessUi.musicTrackIds = ['nope'];
+    });
+    expect(() => ConfigRegistry.applyConfigs(bad)).toThrow(ConfigLoadError);
+  });
+
   it('rejects malformed sampled-effect fields and accepts the shipped ones', () => {
     const base = createTestBundle().audio;
     const errorsFor = (patch: Record<string, unknown>): string[] =>

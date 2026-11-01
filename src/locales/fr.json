@@ -64,7 +64,14 @@
       "custom_min_one": { "label": "Gardez au moins une piste cochée." },
       "cyber_pulse": { "label": "Piste : Cyber Pulse" },
       "arctic_synth": { "label": "Piste : Synthé Arctique" },
-      "magma_drive": { "label": "Piste : Magma Drive" }
+      "magma_drive": { "label": "Piste : Magma Drive" },
+      "odyssey_8bit": { "label": "Piste : Odyssée 8 bits" },
+      "subterranean_pulse_1": { "label": "Piste : Pulsation souterraine I" },
+      "subterranean_pulse_2": { "label": "Piste : Pulsation souterraine II" },
+      "subterranean_pulse_3": { "label": "Piste : Pulsation souterraine III" },
+      "subterranean_pulse_4": { "label": "Piste : Pulsation souterraine IV" },
+      "endless_1": { "label": "Piste : Mode infini I" },
+      "endless_2": { "label": "Piste : Mode infini II" }
     },
     "export": {
       "none_exportable": { "label": "Aucun niveau de ce pack ne peut être exporté au format .CCL." },

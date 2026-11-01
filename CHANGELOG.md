@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Seven original music tracks (`public/audio/music/`): `8-bit Odyssey` for Cyber Neon, `Subterranean Pulse I` for Arctic Lab and `III` for Magma Core in the Default music mode, `Endless I` and `II` for endless runs (a new level never repeats the previous track, list in `endlessUi.musicTrackIds`, checked at load), and all of them in Random and Custom. Music: Julien Bombled.
 - Sokoban skin: levels using the `targets` win rule (`.xsb` / `.sok` imports and editor levels) are
   drawn with sprites from Kenney's Sokoban pack (CC0) whatever graphics style is selected: cobble
   floor, brick walls, target marks, a light crate and a darker one on a target. The player keeps the
