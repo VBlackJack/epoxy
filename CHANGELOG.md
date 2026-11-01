@@ -7,6 +7,8 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level author: the optional author field (9) of a `.DAT` pack is read, shown next to the level
+  title in the HUD, kept on export, and editable in the editor (Author field).
 - Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new
   track for each new level, never the same twice in a row) and Custom (the same among the tracks
   you tick, at least one stays ticked). Restarting a level, retrying after a death or wrapping a

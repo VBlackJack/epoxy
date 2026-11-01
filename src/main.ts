@@ -2587,7 +2587,17 @@ class EpoxyApplication {
     setText(byId('hud-level-num'), String(lvl.number));
     setText(byId('hud-level-pass'), lvl.password);
     this.updatePasswordControls();
-    setText(byId('hud-level-title'), this.resolveLevelTitle(lvl));
+    const levelTitle = this.resolveLevelTitle(lvl);
+    const levelAuthor = lvl.author?.trim() ?? '';
+    const authorLabel = levelAuthor ? t('hud.level.author.label', { author: levelAuthor }) : '';
+    setText(byId('hud-level-name'), levelTitle);
+    setText(byId('hud-level-author'), authorLabel);
+    byId('hud-level-author')?.classList.toggle('hidden', !levelAuthor);
+    const titleBox = byId('hud-level-name')?.parentElement;
+    const fullTitle = authorLabel ? `${levelTitle} ${authorLabel}` : levelTitle;
+    if (titleBox && titleBox.title !== fullTitle) {
+      titleBox.title = fullTitle;
+    }
     const targetsMode = showsTargetsCounter(lvl.winRule);
     byId('hud-chips-label')?.classList.toggle('hidden', targetsMode);
     byId('hud-targets-label')?.classList.toggle('hidden', !targetsMode);

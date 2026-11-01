@@ -207,7 +207,7 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
 }
 
 /** Optional text fields of a level; each one is kept only when it is a string. */
-const LEVEL_TEXT_FIELDS = ['titleKey', 'customTitle', 'hintKey', 'customHint'] as const;
+const LEVEL_TEXT_FIELDS = ['titleKey', 'customTitle', 'hintKey', 'customHint', 'author'] as const;
 
 /** Win rules a level may declare; anything else in a stored level is dropped. */
 export const WIN_RULES: readonly WinRule[] = ['exit', 'targets'];

@@ -80,6 +80,30 @@ function toBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
+/** Pack header: magic number plus level count. */
+const TEST_PACK_HEADER_BYTES = 6;
+/** Level record: length word, then number, time limit, chips and map detail words. */
+const TEST_RECORD_FIXED_BYTES = 2 + 4 * 2;
+
+/** Lists the field codes of the optional block of the first level in an encoded pack. */
+function optionalFieldCodes(pack: Uint8Array): number[] {
+  const view = new DataView(pack.buffer, pack.byteOffset, pack.byteLength);
+  const recordEnd = TEST_PACK_HEADER_BYTES + 2 + view.getUint16(TEST_PACK_HEADER_BYTES, true);
+  let pos = TEST_PACK_HEADER_BYTES + TEST_RECORD_FIXED_BYTES;
+  for (let layer = 0; layer < 2; layer++) {
+    pos += 2 + view.getUint16(pos, true);
+  }
+  const optionalEnd = pos + 2 + view.getUint16(pos, true);
+  expect(optionalEnd).toBeLessThanOrEqual(recordEnd);
+  pos += 2;
+  const codes: number[] = [];
+  while (pos < optionalEnd) {
+    codes.push(pack[pos]);
+    pos += 2 + pack[pos + 1];
+  }
+  return codes;
+}
+
 /** Builds a pack header followed by raw level records. */
 function rawPack(levelCount: number, ...records: Uint8Array[]): ArrayBuffer {
   const total = 6 + records.reduce((s, r) => s + r.length, 0);
@@ -154,6 +178,29 @@ describe('DatCodec round trip', () => {
     lvl.customTitle = 'Été à Noël';
     const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX);
     expect(decoded.customTitle).toBe('?t? ? No?l');
+  });
+
+  it('round-trips an ASCII level author', () => {
+    const lvl = blankLevel(1);
+    lvl.author = 'Tyler Sontag';
+    const encoded = DatCodec.encodeLevels([lvl]);
+    expect(optionalFieldCodes(encoded)).toContain(ConfigRegistry.getDatFormat().fieldCodes.author);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX);
+    expect(decoded.author).toBe('Tyler Sontag');
+  });
+
+  it('writes no author field when the level has none', () => {
+    const encoded = DatCodec.encodeLevels([blankLevel(1)]);
+    expect(optionalFieldCodes(encoded)).not.toContain(ConfigRegistry.getDatFormat().fieldCodes.author);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX);
+    expect('author' in decoded).toBe(false);
+  });
+
+  it('replaces non-ASCII characters of an author like those of a title', () => {
+    const lvl = blankLevel(1);
+    lvl.author = 'Rock Généreux';
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX);
+    expect(decoded.author).toBe('Rock G?n?reux');
   });
 
   it('truncates oversized optional fields to whole records', () => {
@@ -478,9 +525,14 @@ describe('DatCodec export fidelity', () => {
 });
 
 /** Every bundled pack, inlined by Vite as base64 data URLs. */
-const BUNDLED_PACK_URLS = Object.values(
-  import.meta.glob('../../public/packs/*.DAT', { query: '?inline', import: 'default', eager: true })
-) as string[];
+const BUNDLED_PACKS = import.meta.glob('../../public/packs/*.DAT', {
+  query: '?inline',
+  import: 'default',
+  eager: true
+}) as Record<string, string>;
+const BUNDLED_PACK_URLS = Object.values(BUNDLED_PACKS);
+/** Bundled packs whose levels all carry a field 9 author; the others carry none. */
+const AUTHORED_PACK_NAMES = ['CCLP1', 'CCLP4', 'CCLP5'];
 
 describe('DatCodec bundled pack ids', () => {
   beforeEach(() => {
@@ -496,6 +548,22 @@ describe('DatCodec bundled pack ids', () => {
       levels.forEach((level, idx) => {
         expect(level.id).toBe(`${PREFIX}_level_${level.number || idx + 1}`);
       });
+    }
+  });
+
+  it('reads the level author of the packs that carry one', () => {
+    expect(Object.keys(BUNDLED_PACKS).length).toBeGreaterThan(0);
+    for (const [path, url] of Object.entries(BUNDLED_PACKS)) {
+      const name = path.slice(path.lastIndexOf('/') + 1).replace(/\.DAT$/i, '');
+      const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0));
+      const levels = DatCodec.decodeBuffer(bytes.buffer, PREFIX);
+      const authored = AUTHORED_PACK_NAMES.includes(name.toUpperCase());
+      for (const level of levels) {
+        expect(Boolean(level.author), `${name} level ${level.number}`).toBe(authored);
+      }
+      if (name.toUpperCase() === 'CCLP1') {
+        expect(levels[0].author).toBe('Tyler Sontag');
+      }
     }
   });
 });

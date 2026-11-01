@@ -475,6 +475,7 @@ class ConfigRegistryService {
       ...(typeof bp.customTitle === 'string' ? { customTitle: bp.customTitle } : {}),
       ...(typeof bp.hintKey === 'string' ? { hintKey: bp.hintKey } : {}),
       ...(typeof bp.customHint === 'string' ? { customHint: bp.customHint } : {}),
+      ...(typeof bp.author === 'string' && bp.author.trim() ? { author: bp.author.trim() } : {}),
       password: (typeof bp.password === 'string' && bp.password
         ? bp.password
         : DEFAULT_LEVEL_PASSWORD
