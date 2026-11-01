@@ -473,6 +473,48 @@ describe('GameEngine review fixes', () => {
     }
   });
 
+  it('keeps a booted player at walking pace on force floors in every direction', () => {
+    /** Holds a direction down and counts the ticks between two accepted moves. */
+    const ticksBetweenMoves = (engine: GameEngine, dir: Direction): number => {
+      const maxTicks = 20;
+      let ticks = 0;
+      while (!engine.attemptPlayerMove(dir)) {
+        engine.tick();
+        if (++ticks > maxTicks) throw new Error(`move ${dir} refused`);
+      }
+      ticks = 0;
+      do {
+        engine.tick();
+        if (++ticks > maxTicks) throw new Error(`move ${dir} refused`);
+      } while (!engine.attemptPlayerMove(dir));
+      return ticks;
+    };
+    const floorEngine = new GameEngine();
+    floorEngine.loadLevel(openLevel('walk_pace_floor'));
+    walk(floorEngine, 'S', 4);
+    const walkingTicks = ticksBetweenMoves(floorEngine, 'E');
+
+    const areaStart = 4;
+    const areaEnd = 20;
+    const centre = 10;
+    for (const forceTile of ['force_n', 'force_e', 'force_s', 'force_w']) {
+      const lvl = openLevel(`walk_pace_${forceTile}`);
+      lvl.items[2][1] = 'boots_force';
+      for (let y = areaStart; y <= areaEnd; y++) {
+        for (let x = 2; x <= areaEnd; x++) lvl.terrain[y][x] = forceTile;
+      }
+      const engine = new GameEngine();
+      engine.loadLevel(lvl);
+      pickUpWest(engine);
+      walk(engine, 'S', centre - 2);
+      walk(engine, 'E', centre - 2);
+      expect(engine.getPlayer(), forceTile).toMatchObject({ x: centre, y: centre, alive: true });
+      for (const dir of ['N', 'S', 'E', 'W'] as Direction[]) {
+        expect(ticksBetweenMoves(engine, dir), `${forceTile} ${dir}`).toBe(walkingTicks);
+      }
+    }
+  });
+
   it('applies the fire rule to blocks and monsters when a jet lights under them', () => {
     const lvl = openLevel('flames_entities_level');
     lvl.terrain[2][3] = 'button_orange';

@@ -374,9 +374,9 @@ tile forbid_boots_water closed=true shadowMask=128 hash=1 aa188e4d9ea01f9d
 tile forbid_boots_fire closed=true isolated 23b265145a248a1d
 tile forbid_boots_fire closed=true shadowMask=65 hash=1 836321b4c45d2a2e
 tile forbid_boots_fire closed=true shadowMask=128 hash=1 69ea919387605b5c
-tile forbid_boots_force closed=true isolated 73b0142da84bfc6b
-tile forbid_boots_force closed=true shadowMask=65 hash=1 443d7f0ab9cba534
-tile forbid_boots_force closed=true shadowMask=128 hash=1 065c89fd17515783
+tile forbid_boots_force closed=true isolated cef377cfe8abe7d4
+tile forbid_boots_force closed=true shadowMask=65 hash=1 a1bd8178d072d085
+tile forbid_boots_force closed=true shadowMask=128 hash=1 1709a18eaedc9df9
 tile door_red closed=true isolated 1b729f33a9293369
 tile door_red closed=true shadowMask=65 hash=1 e44f328bcd2df577
 tile door_red closed=true shadowMask=128 hash=1 aae99c533b9f3787

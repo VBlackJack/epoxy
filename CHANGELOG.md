@@ -56,6 +56,11 @@ versions follow Semantic Versioning.
   drawn as plain floor, so fire or water no longer shows as a rim around the block, and tiles,
   items and lights under it no longer glow through. Hovering the block names only the block, and
   mechanism wires to a cell under a block are hidden until the block moves.
+- The suction boots (force floor boots) are drawn in green on the board, in the HUD inventory and
+  in the editor palette, in every render style. They were yellow, too close to the orange fire boots.
+- With suction boots, walking on a force floor, against it included, is no faster than walking on
+  plain floor: the short move cooldown that lets a force floor carry the player now applies only
+  when the floor actually pushes.
 
 ## [2.8.0] - 2026-10-31
 
