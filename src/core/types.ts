@@ -59,6 +59,8 @@ export interface UserSettings {
   lcdEnabled?: boolean;
   /** Kenney skin on Sokoban levels; on unless explicitly false. */
   sokobanSkinEnabled?: boolean;
+  /** Look of the player character: 'default' or 'julien'; read back through parsePlayerSkin. */
+  playerSkin?: string;
   /** 'auto', or a fixed quality level: 'high', 'medium' or 'low'. */
   graphicsQuality?: string;
   sfxEnabled?: boolean;

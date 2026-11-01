@@ -76,6 +76,7 @@ import {
 } from './ui/graphicsStyleControl';
 import { getRenderStyle, parseRenderStyleId } from './render/styles/renderStyles';
 import { resolveSokobanSkin } from './render/renderSettings';
+import { PLAYER_SKIN_IDS, parsePlayerSkin, playerSkinLabelKey } from './render/playerSkin';
 import { watchDevicePixelRatio } from './ui/displayWatchers';
 import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
@@ -257,6 +258,7 @@ class EpoxyApplication {
     this.setupMusicControls();
     this.setupThemeSelector();
     this.setupQualitySelector();
+    this.setupPlayerSkinSelector();
     this.setupGraphicsStyleSelector();
     this.bindViewportResizeObserver();
 
@@ -284,6 +286,7 @@ class EpoxyApplication {
       this.refreshPackSelector();
       this.setupThemeSelector();
       this.setupQualitySelector();
+      this.setupPlayerSkinSelector();
       this.setupGraphicsStyleSelector();
       this.setupMusicControls();
       this.syncSoundControls();
@@ -343,6 +346,7 @@ class EpoxyApplication {
     this.renderer.setThemeId(initialTheme);
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
     this.renderer.setSokobanSkinEnabled(savedSettings.sokobanSkinEnabled !== false);
+    this.renderer.setPlayerSkin(parsePlayerSkin(savedSettings.playerSkin));
     // No level is loaded yet: the toggle stays hidden until the first level starts.
     this.syncSokobanSkinControl(undefined);
     const skinLoader = new SokobanSkinLoader(resolveSokobanSkin(gameCfg.graphics));
@@ -1287,6 +1291,25 @@ class EpoxyApplication {
     select.onchange = () => {
       this.renderer.setQuality(parseQuality(select.value));
       this.saveUserSettings();
+    };
+  }
+
+  /** Fills the character selector; called again when the language changes. */
+  private setupPlayerSkinSelector(): void {
+    const select = byId<HTMLSelectElement>('player-skin-select');
+    if (!select) return;
+    select.innerHTML = '';
+    for (const skin of PLAYER_SKIN_IDS) {
+      const opt = document.createElement('option');
+      opt.value = skin;
+      opt.textContent = t(playerSkinLabelKey(skin));
+      opt.selected = skin === this.renderer.getPlayerSkin();
+      select.appendChild(opt);
+    }
+    select.onchange = () => {
+      this.renderer.setPlayerSkin(parsePlayerSkin(select.value));
+      this.saveUserSettings();
+      if (this.activeMode === 'editor') this.editor.render();
     };
   }
 
@@ -3040,6 +3063,7 @@ class EpoxyApplication {
         graphicsStyle: this.renderer.getStyle(),
         lcdEnabled: this.renderer.getLcdPreference(),
         sokobanSkinEnabled: this.renderer.isSokobanSkinEnabled(),
+        playerSkin: this.renderer.getPlayerSkin(),
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),
         musicEnabled: AudioManager.isMusicEnabled(),
@@ -3063,7 +3087,11 @@ class EpoxyApplication {
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
       const settings = parsed as UserSettings;
-      return { ...settings, graphicsStyle: parseGraphicsStyle(settings.graphicsStyle) };
+      return {
+        ...settings,
+        graphicsStyle: parseGraphicsStyle(settings.graphicsStyle),
+        playerSkin: parsePlayerSkin(settings.playerSkin)
+      };
     } catch {
       return {};
     }

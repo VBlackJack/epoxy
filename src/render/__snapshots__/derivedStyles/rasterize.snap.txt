@@ -1,20 +1,20 @@
-pocket default ramps=98b6975c2114ff2d
+pocket default ramps=de20e417121f36fb
 pocket default sprites=fa9592e538f70906 swapped=cd2942123db02333
-pocket magma_core ramps=6d861cbe945d48cb
+pocket magma_core ramps=55ea84dbbcb3baf0
 pocket magma_core sprites=8cb3b6f84f0dd914 swapped=26ae861257dfb898
-pastel default ramps=59940f9715c26d56
+pastel default ramps=196a88aacfeeae57
 pastel default sprites=f3cf90c9d1f9e94a swapped=0d03e22656734497
-pastel magma_core ramps=8fac9248174a3650
+pastel magma_core ramps=d1ae28691633c9e0
 pastel magma_core sprites=999ec3d741c8d39d swapped=50fa3a9012ffe7fe
-blueprint default ramps=0815eb05f850303c
+blueprint default ramps=4538049ae2b1b6f3
 blueprint default sprites=2b157e375de90879 swapped=8900a4deabfa5df1
-blueprint magma_core ramps=566aad33152c09af
+blueprint magma_core ramps=540503f7a9e7434d
 blueprint magma_core sprites=571db4c7bc1e7866 swapped=e886a9057539ae59
-sepia default ramps=e5c1320d8c1d591b
+sepia default ramps=42321f824d0a9c79
 sepia default sprites=12aa9312f9c951c5 swapped=413af8c0062f9a93
-sepia magma_core ramps=5dd1c4469c28c390
+sepia magma_core ramps=f7db049fbfce7a12
 sepia magma_core sprites=6a30a54223282950 swapped=ca500ba5f4a6e564
-classic90 default ramps=cba0abf1252f4e95
+classic90 default ramps=092a1595431a8b34
 classic90 default sprites=918de02548712e6e swapped=d986d6933901fe32
-classic90 magma_core ramps=892dff15f7ba4a28
+classic90 magma_core ramps=52cdb61c6e525e82
 classic90 magma_core sprites=691cc4cdb086d61b swapped=d267afd8a9ef1f58

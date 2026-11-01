@@ -24,6 +24,7 @@ import terrainSheet from './retro/sprites/terrain.json';
 import itemsSheet from './retro/sprites/items.json';
 import actorsSheet from './retro/sprites/actors.json';
 import monstersSheet from './retro/sprites/monsters.json';
+import skinJulienSheet from './retro/sprites/skinJulien.json';
 import { RETRO_BOOT_RAMPS, RETRO_PLAIN_TELEPORT_RAMP, RETRO_SWAP_RAMPS } from './paletteKeys';
 
 /** Side of a tile sprite in pixels. */
@@ -68,7 +69,8 @@ export const RETRO_RAMP_NAMES: readonly string[] = [
   'dirt', 'gravel', 'metal', 'trap', 'exit', 'teleport', 'hint', 'thief', 'white', 'skin', 'hair',
   'suit', 'visor', 'boot', 'block', 'iceblock', 'chip', 'bomb', 'flag', 'stopwatch', 'turtle',
   'target', 'red', 'blue', 'yellow', 'green', 'orange', 'brown', 'bug', 'paramecium', 'pinkball',
-  'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'eye'
+  'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'eye',
+  'darkHair', 'faceSkin', 'beard', 'glasses', 'shirt', 'sunMotif'
 ];
 
 const BYTES_PER_PIXEL = 4;
@@ -132,7 +134,8 @@ export const RETRO_SHEET: RetroSheet = mergeRetroSheets([
   terrainSheet as RetroRawSheet,
   itemsSheet as RetroRawSheet,
   actorsSheet as RetroRawSheet,
-  monstersSheet as RetroRawSheet
+  monstersSheet as RetroRawSheet,
+  skinJulienSheet as RetroRawSheet
 ]);
 
 function range(count: number): number[] {
