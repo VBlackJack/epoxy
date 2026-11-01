@@ -3,6 +3,16 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+
+- The suction boots (force floor boots) are drawn in green on the board, in the HUD inventory and
+  in the editor palette. They were yellow, too close to the orange fire boots.
+- With suction boots, walking on a force floor, against it included, is no faster than walking on
+  plain floor: the short move cooldown that lets a force floor carry the player now applies only
+  when the floor actually pushes.
+
 ## [2.8.0] - 2026-10-31
 
 ### Added

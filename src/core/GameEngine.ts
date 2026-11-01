@@ -543,10 +543,7 @@ export class GameEngine {
       return false;
     }
 
-    if (
-      currentTile.slideType === 'force' &&
-      (!currentTile.protectedByItem || !this.player.boots.has(currentTile.protectedByItem))
-    ) {
+    if (this.isCarriedByForceFloor(currentTile)) {
       const activeForceDir: Direction | null =
         currentTile.forceDirection && currentTile.forceDirection !== 'RANDOM'
           ? currentTile.forceDirection
@@ -577,10 +574,10 @@ export class GameEngine {
       this.moveHistory.push(dir);
       this.timedMoveHistory.push({ tick: tickAtMove, dir });
       const destTile = ConfigRegistry.getTile(this.terrain[this.player.y][this.player.x]);
-      this.player.moveCooldown =
-        destTile.slideType === 'force'
-          ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
-          : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
+      // Boots cancel the push, so a booted player keeps the walking cadence.
+      this.player.moveCooldown = this.isCarriedByForceFloor(destTile)
+        ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
+        : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
       this.checkTargetsWin();
     } else {
       this.undoStack.pop();
@@ -589,6 +586,11 @@ export class GameEngine {
       }
     }
     return moved;
+  }
+
+  /** Whether the tile is a force floor that pushes the player, i.e. one the held boots do not cancel. */
+  private isCarriedByForceFloor(tile: TileDefinition): boolean {
+    return tile.slideType === 'force' && (!tile.protectedByItem || !this.player.boots.has(tile.protectedByItem));
   }
 
   private isEdgeBlocked(fromX: number, fromY: number, toX: number, toY: number, dir: Direction): boolean {

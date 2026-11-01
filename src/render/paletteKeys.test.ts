@@ -31,6 +31,26 @@ import {
 
 const palette = createTestBundle().game.palette;
 
+/** Hue band, in degrees, read as green rather than the yellow-orange of the fire boots. */
+const GREEN_HUE_MIN_DEG = 90;
+const GREEN_HUE_MAX_DEG = 165;
+const HEX_RGB_DIGITS = 6;
+const CHANNEL_MAX = 255;
+const DEGREES_PER_SEXTANT = 60;
+const FULL_TURN_DEG = 360;
+
+/** Hue in degrees of a #rrggbb colour. */
+function hueOf(hex: string): number {
+  const digits = hex.replace('#', '');
+  expect(digits).toHaveLength(HEX_RGB_DIGITS);
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(digits.slice(i, i + 2), 16) / CHANNEL_MAX);
+  const max = Math.max(r, g, b);
+  const span = max - Math.min(r, g, b);
+  if (span === 0) return 0;
+  const sextant = max === r ? (g - b) / span : max === g ? (b - r) / span + 2 : (r - g) / span + 4;
+  return (sextant * DEGREES_PER_SEXTANT + FULL_TURN_DEG) % FULL_TURN_DEG;
+}
+
 describe('renderer palette usage', () => {
   it('reads only palette keys that game.json defines', () => {
     const used = new Set<string>();
@@ -55,6 +75,14 @@ describe('renderer palette usage', () => {
     ];
     const missing = mapped.filter((key) => !(key in palette));
     expect(missing).toEqual([]);
+  });
+
+  it('draws each pair of boots in its own colour, the force floor boots in green', () => {
+    const colours = Object.values(BOOT_COLOR_KEYS).map((key) => palette[key]);
+    expect(new Set(colours).size).toBe(colours.length);
+    const forceHue = hueOf(palette[BOOT_COLOR_KEYS.boots_force]);
+    expect(forceHue).toBeGreaterThanOrEqual(GREEN_HUE_MIN_DEG);
+    expect(forceHue).toBeLessThanOrEqual(GREEN_HUE_MAX_DEG);
   });
 
   it('gives a glyph to colour teleporters only', () => {

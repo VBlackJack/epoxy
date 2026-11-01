@@ -59,7 +59,7 @@ export const BOOT_COLOR_KEYS: Readonly<Record<string, string>> = {
   boots_water: 'waterWave',
   boots_fire: 'fireMid',
   boots_ice: 'iceShine',
-  boots_force: 'yellow'
+  boots_force: 'green'
 };
 
 export const MONSTER_COLOR_KEYS: Readonly<Record<string, string>> = {
