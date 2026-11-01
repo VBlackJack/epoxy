@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { RENDER_STYLES } from '../render/styles/renderStyles';
 import { parseGraphicsStyle, resolveSavedLevelIndex, sanitizeHighScores } from './persistedState';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 
@@ -76,9 +77,18 @@ describe('parseGraphicsStyle', () => {
   it('accepts the known styles only', () => {
     expect(parseGraphicsStyle('modern')).toBe('modern');
     expect(parseGraphicsStyle('retro')).toBe('retro');
+    expect(parseGraphicsStyle('retro32')).toBe('retro32');
+    expect(parseGraphicsStyle('Retro32')).toBeUndefined();
     expect(parseGraphicsStyle('neon')).toBeUndefined();
     expect(parseGraphicsStyle(3)).toBeUndefined();
     expect(parseGraphicsStyle(undefined)).toBeUndefined();
+  });
+
+  it('round-trips every registered style through JSON settings', () => {
+    for (const style of RENDER_STYLES) {
+      const stored = JSON.parse(JSON.stringify({ graphicsStyle: style.id })) as { graphicsStyle: unknown };
+      expect(parseGraphicsStyle(stored.graphicsStyle)).toBe(style.id);
+    }
   });
 });
 

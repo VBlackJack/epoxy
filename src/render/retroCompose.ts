@@ -32,18 +32,29 @@ import {
 } from './paletteKeys';
 import { NEIGHBOUR } from './tileNeighbours';
 import { RETRO_HIDDEN_WALL_MARKERS, RETRO_PLAIN_OVERLAY_TILES, RETRO_SPRITE, RETRO_SPRITE_PREFIX } from './retroSpriteNames';
+import { quantizeColour } from './retro32/colour';
 import {
   blitPixels,
+  createRetro16SpriteSource,
   RETRO_CHAR_WIDTH,
+  RETRO_FLAG_TEXT,
   RETRO_GLYPH_PREFIX,
   RETRO_GLYPH_SIZE,
-  RETRO_SHEET,
+  RETRO_SIDE_SHADOW_RATIO,
   RETRO_SPRITE_SIZE,
+  RETRO16_SPEC,
   RetroRamps,
-  rasterizeSprite
+  SpriteSource,
+  SpriteStyleSpec
 } from './retroSprites';
 
-/** One sprite stacked into a composed tile, at (x, y) in sprite pixels, with an optional swap ramp. */
+export { RETRO_SIDE_SHADOW_RATIO };
+
+/**
+ * One sprite stacked into a composed tile, at (x, y) with an optional swap ramp. Offsets are in
+ * pixels of the 16-px authoring grid whatever the style: the composition multiplies them by the
+ * style's layer scale, so one layer selection serves every sprite style.
+ */
 export interface RetroLayer {
   readonly name: string;
   readonly swap?: string;
@@ -123,11 +134,11 @@ const KEY_ITEM_PREFIX = 'key_';
 const BOOTS_ITEM_PREFIX = 'boots_';
 const SCORE_ITEM_PREFIX = 'score_';
 
-/** Centre of a 5x5 glyph in a 16x16 sprite, in sprite pixels. */
+/** Centre of a 5x5 glyph in a 16x16 sprite, in authoring-grid pixels. */
 const GLYPH_ORIGIN = Math.floor((RETRO_SPRITE_SIZE - RETRO_GLYPH_SIZE) / 2);
 
-/** Score flag text: a 3x5 string centred on `centerX`, its top row at `top` (sprite pixels). */
-const FLAG_TEXT = { centerX: 9, top: 4, spacing: 1 } as const;
+/** Score flag text: a 3x5 string centred on `centerX`, its top row at `top` (authoring-grid pixels). */
+const FLAG_TEXT = RETRO_FLAG_TEXT;
 const MULTIPLIER_PREFIX = 'x';
 const THOUSAND = 1000;
 const THOUSAND_SUFFIX = 'K';
@@ -144,9 +155,6 @@ const RGB_CHANNELS = 3;
 /** Ramp and tone of the dithered floor shadow. */
 const SHADOW_RAMP = 'shadow';
 const SHADOW_TONE = 0;
-/** The shadow thrown sideways by a west caster is shallower than the one thrown by a north caster. */
-export const RETRO_SIDE_SHADOW_RATIO = 0.6;
-
 /** Bits of the shadow signature: which casters the floor cell receives shadow from. */
 const SHADOW_NORTH = 1;
 const SHADOW_WEST = 2;
@@ -349,7 +357,7 @@ function hexToRgb(hex: string): [number, number, number] {
 /**
  * Dithers the floor shadow onto a composed tile: a checkerboard of the shadow ramp colour over
  * the rows below a north caster and the columns right of a west caster, `depth` and `side`
- * being sprite pixels. Tiles sit on multiples of the sprite size, so the checkerboard stays
+ * being pixels of the style. Tiles sit on multiples of the sprite size, so the checkerboard stays
  * continuous from tile to tile.
  */
 export function applyRetroShadow(
@@ -358,12 +366,14 @@ export function applyRetroShadow(
   signature: number,
   ramps: RetroRamps,
   depth: number,
-  side: number
+  side: number,
+  spec: SpriteStyleSpec = RETRO16_SPEC
 ): void {
   if (signature === 0) return;
   const hex = ramps[SHADOW_RAMP]?.[SHADOW_TONE];
   if (!hex) return;
-  const [r, g, b] = hexToRgb(hex);
+  const rgb = hexToRgb(hex);
+  const [r, g, b] = spec.quantiseShadow ? quantizeColour(rgb) : rgb;
   const northRows = signature & SHADOW_NORTH ? Math.min(depth, size) : 0;
   const paint = (x0: number, y0: number, x1: number, y1: number): void => {
     for (let y = y0; y < Math.min(y1, size); y++) {
@@ -382,23 +392,29 @@ export function applyRetroShadow(
   else if (signature & SHADOW_CORNER) paint(0, 0, side, depth);
 }
 
-/** Shadow depth and side width in sprite pixels for a depth given as a fraction of a tile. */
-export function retroShadowExtent(depthTile: number): { depth: number; side: number } {
-  const depth = Math.round(RETRO_SPRITE_SIZE * depthTile);
-  return { depth, side: Math.round(depth * RETRO_SIDE_SHADOW_RATIO) };
+/** Shadow depth and side width in pixels of the style for a depth given as a fraction of a tile. */
+export function retroShadowExtent(depthTile: number, spec: SpriteStyleSpec = RETRO16_SPEC): { depth: number; side: number } {
+  return spec.shadowExtent(depthTile);
 }
 
 /**
- * Stacks the layers into one 16x16 RGBA buffer, later layers over earlier ones. A layer whose
- * sprite the sheet lacks is skipped, so a missing drawing leaves a hole instead of an error.
+ * Stacks the layers into one RGBA buffer of the style's tile size, later layers over earlier
+ * ones. A layer whose sprite the source lacks is skipped, so a missing drawing leaves a hole
+ * instead of an error. `source` defaults to the 16-Bit sheet rasterized with `ramps`.
  */
-export function composeRetroLayers(layers: readonly RetroLayer[], ramps: RetroRamps): Uint8ClampedArray {
-  const out = new Uint8ClampedArray(RETRO_SPRITE_SIZE * RETRO_SPRITE_SIZE * BYTES_PER_PIXEL);
+export function composeRetroLayers(
+  layers: readonly RetroLayer[],
+  ramps: RetroRamps,
+  spec: SpriteStyleSpec = RETRO16_SPEC,
+  source: SpriteSource = createRetro16SpriteSource(ramps)
+): Uint8ClampedArray {
+  const size = spec.tileSize;
+  const out = new Uint8ClampedArray(size * size * BYTES_PER_PIXEL);
   for (const layer of layers) {
-    const sprite = RETRO_SHEET.sprites[layer.name];
-    if (!sprite) continue;
-    const pixels = rasterizeSprite(sprite, ramps, layer.swap);
-    blitPixels(out, RETRO_SPRITE_SIZE, pixels, sprite.width, layer.x ?? 0, layer.y ?? 0);
+    const dims = source.dims(layer.name);
+    if (!dims) continue;
+    const pixels = source.pixels(layer.name, layer.swap);
+    blitPixels(out, size, pixels, dims.width, (layer.x ?? 0) * spec.layerScale, (layer.y ?? 0) * spec.layerScale);
   }
   return out;
 }

@@ -45,6 +45,8 @@
     "terrainCacheMaxPx": 4096,
     "spriteCacheMaxEntries": 256,
     "retroSpriteCacheMaxEntries": 1024,
+    "retro32SpriteCacheMaxEntries": 1024,
+    "retro32ShineAlpha": 0.22,
     "glowBlurPx": { "soft": 6, "medium": 8, "strong": 10 },
     "hintFontModern": "system-ui, sans-serif",
     "hintFontRetro": "monospace",
@@ -109,7 +111,8 @@
         "lightingEnabled": false,
         "vignetteAlpha": 0,
         "maxParticles": 60,
-        "particleBurstCount": 8
+        "particleBurstCount": 8,
+        "retro32ShineAlpha": 0
       }
     }
   },

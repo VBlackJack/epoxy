@@ -5,8 +5,21 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- 32-Bit Retro render style: 32x32 sprites derived from the 16-Bit sheet with pre-rendered relief
+  shading, smooth 8-tone gradients and light ordered dithering. The sprites use 15-bit colour;
+  the lighting and the shine are drawn on top of them. Light sources (the existing ones) add
+  light to the scene, and items and blocks get a slow shine, which is off on Low quality and with
+  reduced motion.
+
 ### Changed
 
+- The render style is now chosen from a select in Options > Display, and the `G` key cycles HD Neon,
+  16-Bit Retro and 32-Bit Retro. The choice is saved. The LCD grid toggle only applies to 16-Bit
+  Retro.
+- Internal: render styles are declared in a render style registry, and a pixel snapshot test
+  guards the 16-Bit Retro output.
 - The options drawer is grouped into Display, Audio, Language and Navigation sections. Navigation
   (levels, endless run, import, help) only appears in fullscreen, where the top bar is hidden. The
   LCD grid button is disabled in HD Neon style, where the grid is not drawn.
@@ -37,6 +50,8 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- 16-Bit Retro no longer accumulates invisible particles and shockwaves that all played at once
+  after switching back to HD Neon.
 - A pushable block now hides what lies under it, in both render styles: the terrain under it is
   drawn as plain floor, so fire or water no longer shows as a rim around the block, and tiles,
   items and lights under it no longer glow through. Hovering the block names only the block, and
