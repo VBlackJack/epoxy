@@ -18,6 +18,7 @@
       "graphics_classic90": { "action": "Classic 90s" },
       "graphics_style": { "label": "Graphics style:" },
       "quality": { "label": "Graphics quality:" },
+      "player_skin": { "label": "Character:" },
       "theme_label": { "label": "Biome:" },
       "procedural_btn": { "action": "Endless mode" },
       "fov": { "label": "Zoom:" },
@@ -45,6 +46,10 @@
       "init_failed": { "label": "The game could not start. Check your connection and try again." },
       "config_load": { "label": "The configuration file {source} is missing or invalid." },
       "retry": { "action": "Retry" }
+    },
+    "player_skin": {
+      "default": { "label": "Standard" },
+      "julien": { "label": "Julien" }
     },
     "graphics_quality": {
       "auto": { "label": "Auto (adapts to the device)" },
@@ -294,7 +299,7 @@
       "kb_solution": { "label": "O: Watch the proven solution (the level restarts)" },
       "kb_items": { "label": "E / X: Drop the selected item on your cell | C: Select the next held item | Click an inventory slot: drop that item" },
       "kb_fov_options": { "label": "Zoom: Options > Essential > Zoom" },
-      "kb_graphics": { "label": "G: Cycle render styles (HD Neon / 16-Bit Retro / 32-Bit Retro)" },
+      "kb_graphics": { "label": "G: Cycle the graphics style (full list in Options)" },
       "kb_theme": { "label": "B: Cycle visual biome (and its music in Default mode)" },
       "kb_procedural": { "label": "N: Start an endless run of solvable levels" },
       "kb_levels": { "label": "[ and ]: Previous / Next level" },

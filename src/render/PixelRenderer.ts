@@ -44,6 +44,7 @@ import {
   resolveTheme
 } from './renderSettings';
 import type { SokobanSkinLoader } from './sokobanSkin';
+import { DEFAULT_PLAYER_SKIN, type PlayerSkinId } from './playerSkin';
 import { frameScaleFromDelta, scaleDecay, scaleLerpFactor } from './renderTiming';
 import {
   collectTerrainFeatures,
@@ -311,6 +312,23 @@ const EYE_PUPIL_RATIO = 0.5;
 const PLAYER_STRIDE_LIFT = 0.05;
 const PLAYER_STRIDE_SWING = 0.06;
 const PLAYER_ARM_SWING = 0.03;
+/**
+ * Vector drawing of the Julien skin, in tile units relative to the head centre: how far below
+ * the top of the head the hair ends, how far below its centre the beard starts, the glasses and
+ * the quiff and chest sun.
+ */
+const JULIEN_HAIRLINE_DROP = 0.06;
+const JULIEN_BEARD_TOP = 0.03;
+const JULIEN_GLASSES_Y = -0.035;
+const JULIEN_LENS = { width: 0.1, height: 0.07, gap: 0.03, line: 0.022 } as const;
+const JULIEN_QUIFF = { x: -0.03, width: 0.14, height: 0.07, lift: 0.045 } as const;
+const JULIEN_CHEST_SUN = { y: 0.06, radius: 0.045 } as const;
+const JULIEN_MOUSTACHE = { y: 0.015, width: 0.18, height: 0.04 } as const;
+const JULIEN_CHIN = { y: 0.78, rx: 0.09, ry: 0.05, sideShift: 0.045 } as const;
+const JULIEN_SIDE_LENS_X = 0.06;
+const JULIEN_TEMPLE_START_X = -0.02;
+const JULIEN_EARBUD_RADIUS = 0.022;
+const JULIEN_BEARD_SIDE = { x: 0.15, y: 0.11, rx: 0.045, ry: 0.07 } as const;
 /** The player's shadow shrinks by this much per tile of hop height. */
 const PLAYER_SHADOW_SHRINK = 2.5;
 /** Ground shadow under floating items, as fractions of a tile; it shrinks as the item bobs up. */
@@ -482,6 +500,8 @@ export class PixelRenderer {
   private skinEnabled = true;
   /** Skin in use for the scene being drawn; read only by the scene path, never by public draw calls. */
   private skinActive = false;
+  /** Look of the player character; the default is the stock player. */
+  private playerSkin: PlayerSkinId = DEFAULT_PLAYER_SKIN;
 
   private readonly lighting = new LightingLayer();
   /** Lights gathered while drawing a frame, reused across frames. */
@@ -521,6 +541,14 @@ export class PixelRenderer {
   /** Installs the loader of the Sokoban skin images. */
   public setSkinLoader(loader: SokobanSkinLoader | null): void {
     this.skinLoader = loader;
+  }
+
+  public getPlayerSkin(): PlayerSkinId {
+    return this.playerSkin;
+  }
+
+  public setPlayerSkin(skin: PlayerSkinId): void {
+    this.playerSkin = skin;
   }
 
   public isSokobanSkinEnabled(): boolean {
@@ -4266,7 +4294,7 @@ export class PixelRenderer {
     hop: number = 0
   ): void {
     if (!this.isHdVector() && this.retroSpritesReady()) {
-      this.drawRetroLayers(ctx, [{ name: retroPlayerSprite(dir, inWater, alive, frame) }], x, y, size);
+      this.drawRetroLayers(ctx, [{ name: retroPlayerSprite(dir, inWater, alive, frame, this.playerSkin) }], x, y, size);
       return;
     }
     const pal = ConfigRegistry.getGame().palette;
@@ -4280,7 +4308,7 @@ export class PixelRenderer {
     const lift = hop * size;
     const pad = this.glowPad();
     const sprite = this.getSprite(
-      `player|${this.style}|${dir}|${inWater}|${alive}|${frame}|${size}`,
+      `player|${this.style}|${this.playerSkin}|${dir}|${inWater}|${alive}|${frame}|${size}`,
       size,
       size,
       pad,
@@ -4320,6 +4348,9 @@ export class PixelRenderer {
     const radius = isModern ? 1 : 0;
     const visor = isModern ? pal.modernPlayerVisor : pal.playerVisor;
     const glow = this.getSettings().glowBlurPx.soft;
+    const julien = this.playerSkin === 'julien';
+    const suitColor = julien ? pal.modernJulienShirt : pal.playerSuit;
+    const suitShade = julien ? pal.modernJulienShirtShade : pal.playerSuitShade;
 
     ctx.save();
     ctx.translate(x + size / 2, y + size / 2);
@@ -4340,7 +4371,7 @@ export class PixelRenderer {
             [0.04, legLen - (stride < 0 ? PLAYER_STRIDE_LIFT : 0)]
           ];
       for (const [lx, len] of legs) {
-        ctx.fillStyle = pal.playerSuitShade;
+        ctx.fillStyle = suitShade;
         ctx.fillRect(lx, legTop, 0.11, len);
         ctx.fillStyle = pal.playerBoot;
         ctx.beginPath();
@@ -4349,7 +4380,7 @@ export class PixelRenderer {
       }
 
       // Arms swing against the legs.
-      ctx.fillStyle = pal.playerSuitShade;
+      ctx.fillStyle = suitShade;
       if (side) {
         ctx.beginPath();
         ctx.roundRect(-0.06 - stride * PLAYER_STRIDE_SWING, -0.02, 0.1, 0.24, 0.04 * radius);
@@ -4363,13 +4394,21 @@ export class PixelRenderer {
       }
 
       // Torso, then a backpack seen from behind or the side, or a belt and chest light from the front.
-      ctx.fillStyle = pal.playerSuit;
+      ctx.fillStyle = suitColor;
       ctx.beginPath();
       if (side) ctx.roundRect(-0.15, -0.06, 0.3, 0.3, 0.08 * radius);
       else ctx.roundRect(-0.21, -0.06, 0.42, 0.3, 0.08 * radius);
       ctx.fill();
       ctx.fillStyle = pal.playerHair;
-      if (dir === 'N') {
+      if (julien) {
+        // No backpack or belt: a small sun on the chest seen from the front.
+        if (dir === 'S') {
+          ctx.fillStyle = pal.modernJulienSun;
+          ctx.beginPath();
+          ctx.arc(0, JULIEN_CHEST_SUN.y, JULIEN_CHEST_SUN.radius, 0, FULL_TURN);
+          ctx.fill();
+        }
+      } else if (dir === 'N') {
         ctx.beginPath();
         ctx.roundRect(-0.14, -0.03, 0.28, 0.22, 0.05 * radius);
         ctx.fill();
@@ -4378,7 +4417,7 @@ export class PixelRenderer {
         ctx.roundRect(-0.21, -0.02, 0.08, 0.2, 0.03 * radius);
         ctx.fill();
       } else {
-        ctx.fillStyle = pal.playerSuitShade;
+        ctx.fillStyle = suitShade;
         ctx.fillRect(-0.21, 0.15, 0.42, 0.04);
         this.fillGlowRect(ctx, -0.04, 0.01, 0.08, 0.06, 0, visor, isModern ? glow : 0);
       }
@@ -4387,6 +4426,11 @@ export class PixelRenderer {
     // Head with hair seen from behind, or a cap and the visor on the side the player faces.
     const headY = -0.22;
     const headR = 0.19;
+    if (julien) {
+      this.paintJulienHead(ctx, pal, dir, headY, headR);
+      ctx.restore();
+      return;
+    }
     ctx.fillStyle = dir === 'N' ? pal.playerHair : pal.playerSkin;
     ctx.beginPath();
     ctx.arc(0, headY, headR, 0, FULL_TURN);
@@ -4405,6 +4449,93 @@ export class PixelRenderer {
       }
     }
     ctx.restore();
+  }
+
+  /**
+   * Head of the Julien skin in the already translated and scaled unit space (a west facing player
+   * arrives mirrored): short dark hair with a small quiff, thin black glasses and a salt-and-pepper
+   * beard from the front and the side, only hair and a hint of beard from behind.
+   */
+  private paintJulienHead(
+    ctx: CanvasRenderingContext2D,
+    pal: Record<string, string>,
+    dir: Direction,
+    headY: number,
+    headR: number
+  ): void {
+    const side = dir === 'E' || dir === 'W';
+    const hairAngle = Math.asin(JULIEN_HAIRLINE_DROP / headR);
+    const beardAngle = Math.asin(JULIEN_BEARD_TOP / headR);
+    const fillCircle = (color: string): void => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, headY, headR, 0, FULL_TURN);
+      ctx.fill();
+    };
+    if (dir === 'N') {
+      fillCircle(pal.modernJulienHair);
+      ctx.fillStyle = pal.modernJulienBeard;
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(s * JULIEN_BEARD_SIDE.x, headY + JULIEN_BEARD_SIDE.y, JULIEN_BEARD_SIDE.rx, JULIEN_BEARD_SIDE.ry, 0, 0, FULL_TURN);
+        ctx.fill();
+      }
+    } else {
+      fillCircle(pal.playerSkin);
+      ctx.fillStyle = pal.modernJulienHair;
+      ctx.beginPath();
+      ctx.arc(0, headY, headR, Math.PI + hairAngle, FULL_TURN - hairAngle);
+      ctx.closePath();
+      ctx.fill();
+      // Beard over the lower face, lighter on the chin, with a darker moustache.
+      ctx.fillStyle = pal.modernJulienBeard;
+      ctx.beginPath();
+      ctx.arc(0, headY, headR, beardAngle, Math.PI - beardAngle);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = pal.modernJulienBeardLight;
+      ctx.beginPath();
+      ctx.ellipse(side ? JULIEN_CHIN.sideShift : 0, headY + headR * JULIEN_CHIN.y, JULIEN_CHIN.rx, JULIEN_CHIN.ry, 0, 0, FULL_TURN);
+      ctx.fill();
+      ctx.fillStyle = pal.modernJulienMoustache;
+      ctx.fillRect(side ? 0 : -JULIEN_MOUSTACHE.width / 2, headY + JULIEN_MOUSTACHE.y, side ? headR : JULIEN_MOUSTACHE.width, JULIEN_MOUSTACHE.height);
+      // Thin rectangular glasses: two lenses and a bridge from the front, one lens and a temple from the side.
+      ctx.strokeStyle = pal.modernJulienGlasses;
+      ctx.lineWidth = JULIEN_LENS.line;
+      const lensY = headY + JULIEN_GLASSES_Y;
+      if (side) {
+        ctx.strokeRect(JULIEN_SIDE_LENS_X, lensY, JULIEN_LENS.width, JULIEN_LENS.height);
+        ctx.strokeStyle = pal.modernJulienGlassesAccent;
+        ctx.beginPath();
+        ctx.moveTo(JULIEN_SIDE_LENS_X, lensY + JULIEN_LENS.height / 2);
+        ctx.lineTo(JULIEN_TEMPLE_START_X, lensY + JULIEN_LENS.height / 2);
+        ctx.stroke();
+        ctx.fillStyle = pal.modernJulienGlasses;
+        ctx.beginPath();
+        ctx.arc(JULIEN_TEMPLE_START_X, headY + JULIEN_BEARD_TOP / 2, JULIEN_EARBUD_RADIUS, 0, FULL_TURN);
+        ctx.fill();
+      } else {
+        const leftX = -JULIEN_LENS.gap / 2 - JULIEN_LENS.width;
+        const rightX = JULIEN_LENS.gap / 2;
+        ctx.strokeRect(leftX, lensY, JULIEN_LENS.width, JULIEN_LENS.height);
+        ctx.strokeRect(rightX, lensY, JULIEN_LENS.width, JULIEN_LENS.height);
+        ctx.beginPath();
+        ctx.moveTo(-JULIEN_LENS.gap / 2, lensY + JULIEN_LENS.height / 2);
+        ctx.lineTo(JULIEN_LENS.gap / 2, lensY + JULIEN_LENS.height / 2);
+        ctx.stroke();
+      }
+    }
+    // Small raised quiff on top of the head.
+    ctx.fillStyle = pal.modernJulienHair;
+    ctx.beginPath();
+    ctx.roundRect(
+      JULIEN_QUIFF.x,
+      headY - headR - JULIEN_QUIFF.lift,
+      JULIEN_QUIFF.width,
+      JULIEN_QUIFF.height,
+      JULIEN_QUIFF.height / 2
+    );
+    ctx.fill();
   }
 
   /** Fills a rounded rectangle with an optional glow, leaving the context state as it was. */

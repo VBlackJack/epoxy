@@ -213,3 +213,31 @@ describe('colour-coded ramps stay distinguishable in every style', () => {
     }
   });
 });
+
+describe('the Julien skin stays readable in every style', () => {
+  /** Ramps of the skin that must not blend into each other: face, beard and shirt. */
+  const SKIN_RAMPS: readonly string[] = ['faceSkin', 'beard', 'shirt'];
+
+  function expectDistinct(ramps: RetroRamps, label: string): void {
+    for (let i = 0; i < SKIN_RAMPS.length; i++) {
+      for (let j = i + 1; j < SKIN_RAMPS.length; j++) {
+        const a = SKIN_RAMPS[i];
+        const b = SKIN_RAMPS[j];
+        const distance = colourDistance(parseHexColour(middleTone(ramps[a])), parseHexColour(middleTone(ramps[b])));
+        expect(distance, `${label}: ${a} vs ${b}`).toBeGreaterThanOrEqual(MIN_CODED_RAMP_DISTANCE);
+      }
+    }
+  }
+
+  for (const style of derivedStyles) {
+    it(`${style.id}: face, beard and shirt differ by at least ${MIN_CODED_RAMP_DISTANCE}`, () => {
+      for (const themeId of themeIds) expectDistinct(styleRamps(style.id, themeId), `${style.id} ${themeId}`);
+    });
+  }
+
+  it('also holds for the plain 16-Bit and 32-Bit styles', () => {
+    const ramps16 = resolveRetroRamps(palettes, 'default');
+    expectDistinct(ramps16, 'retro16');
+    expectDistinct(deriveRetro32Ramps(ramps16), 'retro32');
+  });
+});

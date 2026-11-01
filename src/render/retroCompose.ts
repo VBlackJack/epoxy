@@ -31,6 +31,7 @@ import {
   teleporterGlyphKey
 } from './paletteKeys';
 import { NEIGHBOUR } from './tileNeighbours';
+import { DEFAULT_PLAYER_SKIN, PLAYER_SKIN_SPRITE_PREFIX, type PlayerSkinId } from './playerSkin';
 import { RETRO_HIDDEN_WALL_MARKERS, RETRO_PLAIN_OVERLAY_TILES, RETRO_SPRITE, RETRO_SPRITE_PREFIX } from './retroSpriteNames';
 import { quantizeColour } from './retro32/colour';
 import {
@@ -330,11 +331,21 @@ export function retroMonsterSprite(type: string, dir: Direction, frame: number):
   return `${type}_${dir}_${frame}`;
 }
 
-/** Sprite name of the player: swimming and dead have their own, otherwise facing and stride frame. */
-export function retroPlayerSprite(dir: Direction, inWater: boolean, alive: boolean, frame: number): string {
-  if (!alive) return RETRO_SPRITE.playerDead;
-  if (inWater) return `${RETRO_SPRITE_PREFIX.playerSwim}${dir}`;
-  return `${RETRO_SPRITE_PREFIX.player}${dir}_${frame}`;
+/**
+ * Sprite name of the player: swimming and dead have their own, otherwise facing and stride frame.
+ * A skin other than the default draws the same poses from its own prefixed sprites.
+ */
+export function retroPlayerSprite(
+  dir: Direction,
+  inWater: boolean,
+  alive: boolean,
+  frame: number,
+  skin: PlayerSkinId = DEFAULT_PLAYER_SKIN
+): string {
+  const prefix = PLAYER_SKIN_SPRITE_PREFIX[skin];
+  if (!alive) return `${prefix}${RETRO_SPRITE.playerDead}`;
+  if (inWater) return `${prefix}${RETRO_SPRITE_PREFIX.playerSwim}${dir}`;
+  return `${prefix}${RETRO_SPRITE_PREFIX.player}${dir}_${frame}`;
 }
 
 /** Which of the north, west and corner shadow parts a floor cell receives, as a small integer. */
