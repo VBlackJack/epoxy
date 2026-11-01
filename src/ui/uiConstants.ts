@@ -75,9 +75,6 @@ export const MIN_VIEWPORT_SYNC_PX = 64;
 export const MAX_DEVICE_PIXEL_RATIO = 2;
 export const CANVAS_RESIZE_TOLERANCE_PX = 2;
 
-/** Pixel size of one tile on the radar minimap. */
-export const MINIMAP_TILE_PX = 3;
-
 /** Number of digits shown on the LED counters of the HUD. */
 export const HUD_COUNTER_DIGITS = 3;
 

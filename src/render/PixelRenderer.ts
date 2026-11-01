@@ -353,9 +353,6 @@ const LINK_STYLE = {
   objectiveHaloWidthTile: 0.029
 } as const;
 
-/** Minimap objective blink: visible for `on` frames out of every `period`. */
-const MINIMAP_BLINK = { period: 20, on: 14 } as const;
-
 export class PixelRenderer {
   private animFrame: number = 0;
   /** Animation clock in reference frames (fractional), advanced from real elapsed time. */
@@ -365,8 +362,6 @@ export class PixelRenderer {
   private visualViewportTiles: number = 13;
   /** Camera, tile size and canvas size of the last drawn frame, for mapping clicks to cells. */
   private lastFrame: FrameGeometry | null = null;
-  private lastViewportWidth: number = 13;
-  private lastViewportHeight: number = 13;
   private lastMapWidth = 0;
   private lastMapHeight = 0;
   private style: GraphicsStyle = 'modern';
@@ -756,8 +751,6 @@ export class PixelRenderer {
     // Tiles across the canvas; a map smaller than this is centred by the camera.
     const viewportWidth = canvasWidth / tilePixelSize;
     const viewportHeight = canvasHeight / tilePixelSize;
-    this.lastViewportWidth = viewportWidth;
-    this.lastViewportHeight = viewportHeight;
     const player = engine.getPlayer();
 
     // Reset interpolation caches on level change or undo/restart
@@ -1473,87 +1466,6 @@ export class PixelRenderer {
       ctx.fill();
     }
     ctx.restore();
-  }
-
-  /**
-   * Draws the whole level on the radar canvas, scaled so the level fills the
-   * canvas whatever its size; `cellPx` is only used when the canvas has no size.
-   */
-  public renderMinimap(ctx: CanvasRenderingContext2D, engine: GameEngine, cellPx: number = 3): void {
-    const gridCfg = ConfigRegistry.getGame().grid;
-    const mapWidth = engine.getMapWidth() || gridCfg.mapWidth;
-    const mapHeight = engine.getMapHeight() || gridCfg.mapHeight;
-    const viewportWidth = this.lastViewportWidth || this.currentViewportTiles || gridCfg.viewportWidth;
-    const viewportHeight = this.lastViewportHeight || this.currentViewportTiles || gridCfg.viewportHeight;
-    const pal = ConfigRegistry.getGame().palette;
-    const terrain = engine.getTerrain();
-    const items = engine.getItems();
-    const entities = engine.getEntities();
-    const player = engine.getPlayer();
-
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    const fitCellPx = Math.min(ctx.canvas.width / mapWidth, ctx.canvas.height / mapHeight);
-    if (fitCellPx > 0) cellPx = fitCellPx;
-
-    for (let y = 0; y < mapHeight; y++) {
-      for (let x = 0; x < mapWidth; x++) {
-        const tId = terrain[y][x];
-        let color = pal.minimapFloor;
-        if (tId === 'wall' || tId === 'toggle_wall_closed') color = pal.wallBase;
-        else if (tId === 'water') color = pal.waterDeep;
-        else if (tId === 'fire') color = pal.fireBase;
-        else if (tId.startsWith('ice')) color = pal.iceBase;
-        else if (tId.startsWith('force')) color = pal.forceBase;
-        else if (tId === 'socket') color = pal.yellow;
-        else if (tId === 'exit') color = pal.exitBase;
-        else if (tId.startsWith('door_')) color = pal.blue;
-
-        const item = items[y][x];
-        if (item === 'chip') color = pal.chipCore;
-        else if (item?.startsWith('key_')) color = pal.yellow;
-
-        ctx.fillStyle = color;
-        ctx.fillRect(x * cellPx, y * cellPx, cellPx, cellPx);
-      }
-    }
-
-    for (const ent of entities) {
-      ctx.fillStyle = ent.kind === 'block' ? pal.blockBase : pal.red;
-      ctx.fillRect(ent.x * cellPx, ent.y * cellPx, cellPx, cellPx);
-    }
-
-    ctx.fillStyle = pal.minimapPlayer;
-    ctx.fillRect(player.x * cellPx, player.y * cellPx, cellPx, cellPx);
-
-    if (this.objectivePoint && (this.reducedMotion || this.timeTick % MINIMAP_BLINK.period < MINIMAP_BLINK.on)) {
-      ctx.strokeStyle = pal.minimapObjective;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(
-        this.objectivePoint.x * cellPx - 1,
-        this.objectivePoint.y * cellPx - 1,
-        cellPx + 2,
-        cellPx + 2
-      );
-    }
-
-    // Show the frame the main view actually displays; compute it only before the first render.
-    const camX =
-      this.visualCameraPos?.x ?? cameraPosition(player.x - Math.floor(viewportWidth / 2), mapWidth, viewportWidth);
-    const camY =
-      this.visualCameraPos?.y ?? cameraPosition(player.y - Math.floor(viewportHeight / 2), mapHeight, viewportHeight);
-    // A map smaller than the view is centred, so the frame is cut to the map.
-    const frameX0 = Math.max(0, camX);
-    const frameY0 = Math.max(0, camY);
-    const frameX1 = Math.min(mapWidth, camX + viewportWidth);
-    const frameY1 = Math.min(mapHeight, camY + viewportHeight);
-    ctx.strokeStyle = pal.minimapViewport;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(
-      frameX0 * cellPx + 0.5,
-      frameY0 * cellPx + 0.5,
-      (frameX1 - frameX0) * cellPx - 1,
-      (frameY1 - frameY0) * cellPx - 1
-    );
   }
 
   public drawTile(
