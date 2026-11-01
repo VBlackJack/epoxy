@@ -21,10 +21,12 @@ vi.mock('../../../audio/AudioManager', () => ({
 }));
 
 import { loadTestConfigs } from '../../../test/loadTestConfigs';
-import { lynxLevel, LynxLevelOptions, monster } from '../lynxTestMaps';
+import { ENTITY } from '../lynxConstants';
+import { GlyphOverride, lynxLevel, LynxLevelOptions, monster } from '../lynxTestMaps';
 import { LynxRig } from '../lynxTestRig';
 import { RuleContext, RuleModule } from '../ruleApi';
 import { ADMISSION } from '../tileRules';
+import { forceFloorRules } from './forceFloors';
 import { specialWallRules } from './specialWalls';
 
 beforeAll(() => {
@@ -56,7 +58,7 @@ const greenButtonStub: RuleModule = {
   }
 };
 
-function rigOf(rows: string[], glyphs: Record<string, string>, extra: LynxLevelOptions = {}): LynxRig {
+function rigOf(rows: string[], glyphs: Record<string, GlyphOverride>, extra: LynxLevelOptions = {}): LynxRig {
   return new LynxRig(lynxLevel(rows, { glyphs, ...extra }), { modules: [specialWallRules, greenButtonStub] });
 }
 
@@ -128,6 +130,59 @@ describe('special walls', () => {
     fake.afterTick(0);
     expect(fake.player.x).toBe(1);
   });
+
+  describe('D11 a block standing on a hidden wall is still pushed', () => {
+    const MAP = ['###', '#.#', '#B#', '#@#', '###'];
+    const BLOCK_START = { x: 1, y: 2 };
+    const BLOCK_END_Y = 1;
+    const ARRIVAL_TICK = 3;
+    const FOLLOWING_TICKS = 4;
+    const FORCED_FIRST_TICK = 1;
+
+    /** A forced move starts one tick after the level does (spec 13.4), a chosen one at tick 0. */
+    function expectPushedThenWall(rig: LynxRig, firstTick: number): void {
+      rig.afterTick(firstTick);
+      expect(rig.entityAt(BLOCK_START.x, BLOCK_END_Y)).toMatchObject({ x: 1, y: BLOCK_END_Y });
+      expect(rig.entityAt(BLOCK_START.x, BLOCK_START.y)).toBeUndefined();
+      expect(rig.player).toMatchObject({ x: 1, y: 3 });
+      expect(rig.soundCount('blocked')).toBe(1);
+      expect(terrainAt(rig, BLOCK_START.x, BLOCK_START.y)).toBe('wall');
+      rig.afterTick(firstTick + ARRIVAL_TICK);
+      expect(rig.entityAt(1, BLOCK_END_Y)).toMatchObject({ x: 1, y: BLOCK_END_Y });
+      for (let k = firstTick + ARRIVAL_TICK + 1; k < firstTick + ARRIVAL_TICK + 1 + FOLLOWING_TICKS; k++) {
+        rig.afterTick(k);
+        expect(rig.player).toMatchObject({ x: 1, y: 3 });
+      }
+      expect(terrainAt(rig, BLOCK_START.x, BLOCK_START.y)).toBe('wall');
+    }
+
+    it.each(['appearing_wall', 'blue_wall_real'])('pushes at decision time over %s, then Chip bumps', (id) => {
+      const rig = rigOf(MAP, { B: { terrain: id, entity: { type: ENTITY.block } } });
+      rig.hold('N');
+      expectPushedThenWall(rig, 0);
+    });
+
+    it.each(['appearing_wall', 'blue_wall_real'])('pushes at Chip\'s turn over %s when he is carried', (id) => {
+      const rig = new LynxRig(
+        lynxLevel(MAP, { glyphs: { B: { terrain: id, entity: { type: ENTITY.block } }, '@': 'force_n' } }),
+        { modules: [specialWallRules, forceFloorRules] }
+      );
+      expectPushedThenWall(rig, FORCED_FIRST_TICK);
+    });
+  });
+
+  it.each(['appearing_wall', 'blue_wall_real'])(
+    'D11 a block that cannot move on %s refuses Chip and the tile stays',
+    (id) => {
+      const rig = rigOf(['###', '#B#', '#@#', '###'], { B: { terrain: id, entity: { type: ENTITY.block } } });
+      rig.hold('N');
+      rig.tick(3);
+      expect(rig.player).toMatchObject({ x: 1, y: 2 });
+      expect(rig.entityAt(1, 1)).toMatchObject({ x: 1, y: 1 });
+      expect(rig.soundCount('blocked')).toBe(1);
+      expect(terrainAt(rig, 1, 1)).toBe(id);
+    }
+  );
 
   it('E11 and G1 a green button flips the toggle walls, for Chip and for a monster', () => {
     const glyphs = { k: GREEN_BUTTON, o: TOGGLE_OPEN, c: TOGGLE_CLOSED };
