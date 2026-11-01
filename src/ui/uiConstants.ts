@@ -34,7 +34,6 @@ export const TOUCH_DEFAULTS = {
   swipeDeadzonePx: 20,
   tapMaxDistancePx: 14,
   tapMaxDurationMs: 280,
-  pinchZoomStepPx: 42,
   hapticPulseMs: 10
 } as const;
 
