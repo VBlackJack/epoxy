@@ -7,7 +7,7 @@
       "mode_editor": { "action": "Éditeur de Niveaux" },
       "levels_btn": { "action": "Niveaux & Scores" },
       "lcd_toggle": { "action": "Écran LCD", "hint": "Grille de pixels sur le rendu Rétro 16-Bit" },
-      "sokoban_skin_toggle": { "action": "Habillage Sokoban", "hint": "Dessine les niveaux Sokoban avec les tuiles Kenney dans tous les styles graphiques" },
+      "sokoban_skin_toggle": { "action": "Habillage Sokoban", "hint": "Dessine les niveaux Sokoban avec des tuiles dédiées, dans tous les styles graphiques" },
       "graphics_modern": { "action": "HD Néon" },
       "graphics_retro": { "action": "Rétro 16-Bit" },
       "graphics_retro32": { "action": "Rétro 32-Bit" },

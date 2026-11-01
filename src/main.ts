@@ -42,7 +42,8 @@ import {
   LevelBlueprint,
   LevelPack,
   TimedMove,
-  UserSettings
+  UserSettings,
+  WinRule
 } from './core/types';
 import { confirmDialog } from './ui/confirmDialog';
 import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
@@ -87,6 +88,7 @@ import {
 import { lossyExportNotice } from './ui/exportNotice';
 import {
   hasStoredSolution,
+  isSokobanSkinApplicable,
   isTimedLevel,
   combineStatusMessages,
   shouldAnnounceObjective,
@@ -328,7 +330,8 @@ class EpoxyApplication {
     this.renderer.setThemeId(initialTheme);
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
     this.renderer.setSokobanSkinEnabled(savedSettings.sokobanSkinEnabled !== false);
-    setToggleState(byId('btn-sokoban-skin-toggle'), this.renderer.isSokobanSkinEnabled());
+    // No level is loaded yet: the toggle stays hidden until the first level starts.
+    this.syncSokobanSkinControl(undefined);
     const skinLoader = new SokobanSkinLoader(resolveSokobanSkin(gameCfg.graphics));
     this.renderer.setSkinLoader(skinLoader);
     void skinLoader.load();
@@ -1328,6 +1331,19 @@ class EpoxyApplication {
   /** Loads a level into the engine its ruleset asks for. */
   private loadPlayLevel(level: CompiledLevel): void {
     this.engineSelector.forLevel(level).loadLevel(level);
+    this.syncSokobanSkinControl(level.winRule);
+  }
+
+  /**
+   * The skin only changes Sokoban levels: the toggle is hidden elsewhere (display none, so it
+   * leaves the tab order). The stored preference is kept and shown again when it applies.
+   */
+  private syncSokobanSkinControl(winRule: WinRule | undefined): void {
+    const skinBtn = byId<HTMLButtonElement>('btn-sokoban-skin-toggle');
+    if (!skinBtn) return;
+    const applicable = isSokobanSkinApplicable(winRule);
+    skinBtn.classList.toggle('hidden', !applicable);
+    setToggleState(skinBtn, this.renderer.isSokobanSkinEnabled());
   }
 
   /**
@@ -1896,6 +1912,7 @@ class EpoxyApplication {
 
     const skinBtn = byId('btn-sokoban-skin-toggle');
     skinBtn?.addEventListener('click', () => {
+      if (!isSokobanSkinApplicable(this.engine.getLevel().winRule)) return;
       this.renderer.setSokobanSkinEnabled(!this.renderer.isSokobanSkinEnabled());
       setToggleState(skinBtn, this.renderer.isSokobanSkinEnabled());
       this.saveUserSettings();
