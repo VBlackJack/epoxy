@@ -49,6 +49,9 @@ const USER_GESTURE_EVENTS: readonly string[] = ['pointerdown', 'keydown', 'touch
 
 const MS_PER_SECOND = 1000;
 
+/** Effect played for a step when the terrain is unmapped or its effect does not exist. */
+const DEFAULT_STEP_EFFECT_ID = 'step';
+
 /** A music track as the settings UI lists it. */
 export interface MusicTrackOption {
   id: string;
@@ -298,6 +301,15 @@ export class AudioService {
     } finally {
       this.silenceDepth--;
     }
+  }
+
+  /** Plays the footstep of a terrain (a tile `slideType` or `hazard`), or the plain step when it has none. */
+  public playStep(terrain: string | null): void {
+    const audioCfg = this.getConfig();
+    const map = audioCfg.terrainStepEffects;
+    const mapped = terrain !== null && map !== undefined && Object.hasOwn(map, terrain) ? map[terrain] : undefined;
+    const effectId = mapped !== undefined && Object.hasOwn(audioCfg.effects, mapped) ? mapped : DEFAULT_STEP_EFFECT_ID;
+    this.playSfx(effectId);
   }
 
   public playSfx(effectId: string): void {

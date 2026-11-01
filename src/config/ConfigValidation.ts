@@ -339,6 +339,11 @@ export function findAudioConfigErrors(audio: AudioConfig, themes: Record<string,
     errors.push('musicMix.fileFadeInMs: expected a finite number of at least 0');
   }
   errors.push(...findSfxEffectErrors(audio.effects));
+  for (const [terrain, effectId] of Object.entries(audio.terrainStepEffects ?? {})) {
+    if (typeof effectId !== 'string' || !Object.hasOwn(audio.effects, effectId)) {
+      errors.push(`terrainStepEffects.${terrain}: expected the id of an existing effect`);
+    }
+  }
   const tracks = audio.tracks ?? [];
   const seen = new Set<string>();
   for (const track of tracks) {

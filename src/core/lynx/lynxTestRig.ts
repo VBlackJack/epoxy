@@ -42,6 +42,8 @@ export class LynxRig {
   public readonly engine: LynxEngine;
   public readonly visuals: RecordedVisual[] = [];
   public readonly sounds: string[] = [];
+  /** The terrain key of every footstep played (null for a plain step). */
+  public readonly steps: Array<string | null> = [];
   public wins: Array<{ levelId: string; time: number; steps: number; score: number; moves: Direction[] }> = [];
   private held: Direction | null = null;
 
@@ -49,7 +51,10 @@ export class LynxRig {
     public readonly level: CompiledLevel,
     options: RigOptions = {}
   ) {
-    this.engine = new LynxEngine((id) => this.sounds.push(id), options.modules);
+    this.engine = new LynxEngine(
+      { effect: (id) => this.sounds.push(id), step: (terrain) => this.steps.push(terrain) },
+      options.modules
+    );
     this.engine.setOnVisualEventCallback((kind, x, y, colorKey) => this.visuals.push({ kind, x, y, colorKey }));
     this.engine.setOnWinCallback((levelId, time, steps, score, moves) =>
       this.wins.push({ levelId, time, steps, score, moves })

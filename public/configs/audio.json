@@ -2,10 +2,58 @@
   "masterVolume": 0.25,
   "sfxVolume": 0.6,
   "musicVolume": 0.35,
+  "terrainStepEffects": {
+    "force": "step_force",
+    "ice": "step_ice",
+    "water": "step_water",
+    "fire": "step_fire"
+  },
   "effects": {
     "step": {
-      "files": ["sfx_movement_footsteps1a.wav", "sfx_movement_footsteps1b.wav"],
-      "gain": 0.15,
+      "files": ["footstep_concrete_000.ogg", "footstep_concrete_001.ogg", "footstep_concrete_002.ogg"],
+      "gain": 0.45,
+      "maxDurationMs": 120,
+      "fadeOutMs": 30,
+      "waveform": "triangle",
+      "notes": [
+        { "freq": 190, "durationMs": 32, "gain": 0.25 }
+      ]
+    },
+    "step_force": {
+      "files": ["impactMetal_heavy_000.ogg", "impactMetal_medium_000.ogg"],
+      "gain": 0.35,
+      "maxDurationMs": 150,
+      "fadeOutMs": 50,
+      "waveform": "triangle",
+      "notes": [
+        { "freq": 190, "durationMs": 32, "gain": 0.25 }
+      ]
+    },
+    "step_ice": {
+      "files": ["footstep_snow_000.ogg", "footstep_snow_002.ogg"],
+      "gain": 0.25,
+      "maxDurationMs": 150,
+      "fadeOutMs": 50,
+      "waveform": "triangle",
+      "notes": [
+        { "freq": 190, "durationMs": 32, "gain": 0.25 }
+      ]
+    },
+    "step_water": {
+      "files": ["cannon_miss.ogg"],
+      "gain": 0.25,
+      "maxDurationMs": 180,
+      "fadeOutMs": 60,
+      "waveform": "triangle",
+      "notes": [
+        { "freq": 190, "durationMs": 32, "gain": 0.25 }
+      ]
+    },
+    "step_fire": {
+      "files": ["footstep_grass_001.ogg", "footstep_grass_004.ogg"],
+      "gain": 0.45,
+      "maxDurationMs": 120,
+      "fadeOutMs": 30,
       "waveform": "triangle",
       "notes": [
         { "freq": 190, "durationMs": 32, "gain": 0.25 }

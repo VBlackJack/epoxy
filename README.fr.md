@@ -85,13 +85,15 @@ Chaque effet se déclare dans `public/configs/audio.json`, sous `effects.<id>`. 
 }
 ```
 
-- Placez les fichiers dans `public/audio/sfx/` (ce dossier est `sfxBaseUrl`, `./audio/sfx` si omis) et listez leurs noms dans `files`. Avec plusieurs fichiers, ils jouent à tour de rôle : le pas alterne ainsi deux bruits de pas. Un fichier qui ne se charge pas ou ne se décode pas est ignoré.
-- `gain` (1 si omis) règle le volume par rapport au volume général multiplié par le volume des effets ; les fichiers fournis utilisent 0,4, sauf les sons fréquents `step` (0,15) et `blocked` (0,25).
+- Placez les fichiers dans `public/audio/sfx/` (ce dossier est `sfxBaseUrl`, `./audio/sfx` si omis) et listez leurs noms dans `files`. Avec plusieurs fichiers, ils jouent à tour de rôle : le pas alterne ainsi entre ses bruits de pas. Un fichier qui ne se charge pas ou ne se décode pas est ignoré.
+- `gain` (1 si omis) règle le volume par rapport au volume général multiplié par le volume des effets ; les fichiers fournis utilisent 0,4, sauf `blocked` (0,25) et les pas (de 0,2 à 0,45, calibrés pour que les enregistrements Kenney, plus faibles, sonnent environ moitié moins fort que les autres effets).
 - `minIntervalMs` (aucune limite si omis) ignore un appel survenant moins longtemps que cela après le dernier départ du même effet, sur l'horloge audio ; `blocked` est livré à 250 pour que maintenir une touche contre un mur ne mitraille pas le son.
 - `maxDurationMs` arrête la lecture à cet instant. `fadeOutMs` ajoute un fondu linéaire qui se termine à cette limite ; il exige `maxDurationMs` et ne peut pas le dépasser.
 - `waveform` et `notes` restent obligatoires : ils servent de repli, joués tant qu'aucun fichier n'est décodé (les tout premiers sons après le déverrouillage de l'audio) ou quand un fichier manque ou échoue.
-- 13 des 15 effets utilisent des fichiers ; `splash` et `burn` restent synthétisés.
-- Seuls `teleport` (limite de 400 ms, fondu de 150 ms) et `thief` (limite de 500 ms, fondu de 150 ms) utilisent une limite et un fondu.
+- 17 des 19 effets utilisent des fichiers ; `splash` et `burn` restent synthétisés.
+- `terrainStepEffects` associe un terrain à l'identifiant de l'effet joué pour un pas dessus. La clé est le `slideType` ou le `hazard` de la tuile (`force`, `ice`, `water`, `fire`) ; toute autre tuile, ainsi qu'un terrain sans entrée ou dont l'effet n'existe pas, joue `step`. L'eau et le feu ne comptent que si le joueur porte les bottes qui protègent ; sans elles la tuile garde le pas normal et le son de plouf ou de brûlure suit de lui-même. Un sol de force compte même quand les bottes annulent sa poussée.
+- Les versions de Safari qui ne savent pas décoder l'Ogg Vorbis ne peuvent pas lire les fichiers de pas et se replient sur le pas synthétisé.
+- `teleport` (limite de 400 ms, fondu de 150 ms), `thief` (limite de 500 ms, fondu de 150 ms) et les pas (`step` et `step_fire` limite de 120 ms et fondu de 30 ms, `step_force` et `step_ice` 150 ms et 50 ms, `step_water` 180 ms et 60 ms) utilisent une limite et un fondu.
 
 ## Construire une campagne avec le générateur
 
@@ -135,8 +137,6 @@ Effets sonores : The Essential Retro Video Game Sound Effects Collection de Juha
 
 Fichiers de `public/audio/sfx/` et effet servi par chacun :
 
-- `sfx_movement_footsteps1a.wav`: step
-- `sfx_movement_footsteps1b.wav`: step
 - `sfx_sounds_impact3.wav`: blocked
 - `sfx_coin_single3.wav`: chip
 - `sfx_coin_double1.wav`: item
@@ -149,6 +149,17 @@ Fichiers de `public/audio/sfx/` et effet servi par chacun :
 - `sfx_deathscream_android5.wav`: death
 - `sfx_sounds_fanfare1.wav`: win
 - `sfx_lowhealth_alarmloop6.wav`: timer_warn
+
+Pas : Impact Sounds de Kenney (https://kenney.nl/assets/impact-sounds), CC0 1.0, licence vérifiée le 2026-11-01.
+
+- `footstep_concrete_000.ogg`, `footstep_concrete_001.ogg`, `footstep_concrete_002.ogg`: step
+- `impactMetal_heavy_000.ogg`, `impactMetal_medium_000.ogg`: step_force
+- `footstep_snow_000.ogg`, `footstep_snow_002.ogg`: step_ice
+- `footstep_grass_001.ogg`, `footstep_grass_004.ogg`: step_fire
+
+Pas dans l'eau : "ocean splash" de Thimras sur OpenGameArt (https://opengameart.org/content/ocean-splash), CC0 1.0, licence vérifiée le 2026-11-01.
+
+- `cannon_miss.ogg`: step_water
 
 ## Licence
 

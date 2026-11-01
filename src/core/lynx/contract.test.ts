@@ -74,7 +74,7 @@ describe('K. winning, losing and the contract', () => {
     expect(rig.engine.getTick()).toBe(0);
     expect(rig.engine.getStepsCount()).toBe(0);
     expect(rig.engine.getTerrain()[1][2]).toBe('water');
-    expect(rig.sounds).toContain('step');
+    expect(rig.steps).toEqual([null, null]); // the chosen step into the water, then the undo step
   });
 
   it('keeps at most maxUndoSnapshots snapshots', () => {

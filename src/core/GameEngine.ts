@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { AudioManager } from '../audio/AudioManager';
+import { stepTerrainOf } from '../audio/stepTerrain';
 import {
   BLOCK_TARGET_TILE_ID,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -477,7 +478,7 @@ export class GameEngine {
     const snap = this.undoStack.pop();
     if (!snap) return false;
     this.restoreState(snap);
-    AudioManager.playSfx('step');
+    AudioManager.playStep(null);
     return true;
   }
 
@@ -701,7 +702,7 @@ export class GameEngine {
     this.statusBannerKey = null;
 
     if (!fromSlide) {
-      AudioManager.playSfx('step');
+      AudioManager.playStep(stepTerrainOf(ConfigRegistry.getTile(this.terrain[targetY][targetX]), this.player.boots));
     }
 
     this.resolvePlayerArrival(dir, true);
