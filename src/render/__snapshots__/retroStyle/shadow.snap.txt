@@ -1,0 +1,5 @@
+shadow theme=default 7ab921dfd324f32a
+shadow theme=cyber_neon 3f547ff68313bab0
+shadow theme=arctic_lab 680362ffd54641c4
+shadow theme=magma_core 1ef81376121c81a5
+shadow theme=lynx_lcd b87bd173c032b681
