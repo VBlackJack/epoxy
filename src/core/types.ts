@@ -749,6 +749,8 @@ export interface DatElementMapping {
   id: string;
   dir?: Direction;
   isClonerTemplate?: boolean;
+  /** Read by the decoder only: the encoder never picks this code, another code is the standard one. */
+  decodeOnly?: boolean;
 }
 
 /** A run of byte codes, both ends included, that share one meaning. */

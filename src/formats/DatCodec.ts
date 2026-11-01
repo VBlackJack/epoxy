@@ -494,6 +494,7 @@ export class DatCodec {
     const playerDirToByte = new Map<Direction, number>();
 
     for (const [codeStr, mapping] of Object.entries(datCfg.byteToElement)) {
+      if (mapping.decodeOnly) continue;
       const code = Number(codeStr);
       if (mapping.kind === 'terrain' && !terrainToByte.has(mapping.id)) {
         terrainToByte.set(mapping.id, code);

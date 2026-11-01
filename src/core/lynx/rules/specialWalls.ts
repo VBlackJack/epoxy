@@ -35,6 +35,7 @@ const TOGGLE_WALL_CLOSED = 'toggle_wall_closed';
 function revealedWall(): TileRule {
   return {
     admits: ADMISSION.chipOnly,
+    yieldsToPush: true,
     mayEnter: (probe) => {
       if (probe.mode === 'attempt') probe.ctx.setTerrain(probe.to.x, probe.to.y, WALL_TILE);
       return false;

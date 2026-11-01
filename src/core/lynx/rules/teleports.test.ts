@@ -21,6 +21,7 @@ vi.mock('../../../audio/AudioManager', () => ({
 }));
 
 import { loadTestConfigs } from '../../../test/loadTestConfigs';
+import { ENTITY } from '../lynxConstants';
 import { lynxLevel, monster } from '../lynxTestMaps';
 import { LynxRig } from '../lynxTestRig';
 
@@ -50,6 +51,20 @@ describe('H. teleports', () => {
     rig.afterTick(4);
     expect(rig.player.x).toBe(4);
   });
+
+  it.each(['appearing_wall', 'blue_wall_real'])(
+    'H2b skips a landing whose exit is a %s holding a pushable block',
+    (id) => {
+      const rig = new LynxRig(
+        lynxLevel(['########', '#.T....#', '#.BT.T@#', '########'], {
+          glyphs: { ...GLYPHS, B: { terrain: id, entity: { type: ENTITY.block } } }
+        })
+      );
+      rig.press('W');
+      rig.afterTick(3);
+      expect(rig.player).toMatchObject({ x: 2, y: 1 });
+    }
+  );
 
   it('H3 leaves Chip stuck for good when no landing exists', () => {
     const rig = new LynxRig(lynxLevel(['#####', '#@###', '#T#T#', '#####'], { glyphs: GLYPHS }));

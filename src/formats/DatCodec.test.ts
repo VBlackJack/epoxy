@@ -19,10 +19,13 @@ import { DatCodec, datRefusalReason } from './DatCodec';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { findDatFormatErrors } from '../config/ConfigValidation';
 import { DEFAULT_RULESET } from '../core/coreConstants';
-import { CompiledLevel } from '../core/types';
+import { CompiledLevel, Direction } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
 const PREFIX = 'test';
+/** Pack header (magic and level count) and the level record length word that precede the first layer length. */
+const PACK_HEADER_BYTES = 6;
+const RECORD_HEADER_BYTES = 10;
 
 function blankLevel(number: number): CompiledLevel {
   const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
@@ -524,6 +527,68 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.lost.sort()).toEqual(['bug', 'fire', 'water']);
   });
 });
+
+describe('DatCodec Chip codes on export', () => {
+  const SWIMMING_CHIP_FIRST_CODE = 0x3c;
+  const SWIMMING_CHIP_LAST_CODE = 0x3f;
+  const START_X = 2;
+  const START_Y = 2;
+  const FACING_CODES: Array<[Direction, number]> = [
+    ['N', 0x6c],
+    ['W', 0x6d],
+    ['S', 0x6e],
+    ['E', 0x6f]
+  ];
+
+  /** The first layer of the single level of an encoded pack, read back through the codec's own RLE rules. */
+  function topLayerOf(bytes: Uint8Array): Uint8Array {
+    const { layerByteLength, rleMarkerByte } = ConfigRegistry.getDatFormat();
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const lengthOffset = PACK_HEADER_BYTES + RECORD_HEADER_BYTES;
+    const compressedLength = view.getUint16(lengthOffset, true);
+    const compressed = bytes.subarray(lengthOffset + 2, lengthOffset + 2 + compressedLength);
+    const out: number[] = [];
+    for (let i = 0; i < compressed.length && out.length < layerByteLength; i++) {
+      if (compressed[i] === rleMarkerByte) {
+        for (let n = 0; n < compressed[i + 1]; n++) out.push(compressed[i + 2]);
+        i += 2;
+      } else {
+        out.push(compressed[i]);
+      }
+    }
+    return Uint8Array.from(out);
+  }
+
+  it.each(FACING_CODES)('writes Chip facing %s as code %i', (dir, code) => {
+    const lvl = blankLevel(1);
+    lvl.playerStart = { x: START_X, y: START_Y, dir };
+    const { layerWidth } = ConfigRegistry.getDatFormat();
+    expect(layerWidth).toBeDefined();
+    const top = topLayerOf(DatCodec.encodeLevels([lvl]));
+    expect(top[START_Y * (layerWidth as number) + START_X]).toBe(code);
+    expect(top.some((b) => b >= SWIMMING_CHIP_FIRST_CODE && b <= SWIMMING_CHIP_LAST_CODE)).toBe(false);
+  });
+
+  it.each(FACING_CODES)('keeps the player of an exported level under Lynx reading (%s)', (dir) => {
+    const lvl = blankLevel(1);
+    lvl.playerStart = { x: 5, y: 4, dir };
+    const bytes = DatCodec.encodeLevels([lvl]);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(bytes), PREFIX, 'lynx');
+    expect(decoded.playerStart).toEqual({ x: 5, y: 4, dir });
+    expect(decoded.terrain[4][5]).toBe('floor');
+  });
+
+  it('never writes a decode-only code', () => {
+    const lvl = richLevel(1);
+    const top = topLayerOf(DatCodec.encodeLevels([lvl]));
+    const decodeOnly = Object.entries(ConfigRegistry.getDatFormat().byteToElement)
+      .filter(([, mapping]) => mapping.decodeOnly)
+      .map(([code]) => Number(code));
+    expect(decodeOnly.length).toBeGreaterThan(0);
+    expect(top.some((b) => decodeOnly.includes(b))).toBe(false);
+  });
+});
+
 
 /** Every bundled pack, inlined by Vite as base64 data URLs. */
 const BUNDLED_PACKS = import.meta.glob('../../public/packs/*.DAT', {

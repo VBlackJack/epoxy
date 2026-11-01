@@ -63,6 +63,12 @@ export interface TileRule {
   mayLeave?: (probe: StepProbe) => boolean;
   /** Extra restriction on entering a cell with this tile. Return false to refuse. */
   mayEnter?: (probe: StepProbe) => boolean;
+  /**
+   * Chip's refusal by `mayEnter` does not stop a push of a block standing here: the push is
+   * judged as if the tile admitted Chip, and `mayEnter` is asked again, as a real attempt,
+   * once the block has left (hidden walls).
+   */
+  yieldsToPush?: boolean;
   /** True when a step into this tile is covered at fast speed (ice, force floors). */
   isFast?: (ctx: RuleContext, mover: Creature) => boolean;
   /** Monsters at rest here keep their facing and draw no random number; blocks here cannot be pushed. */

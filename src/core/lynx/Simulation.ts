@@ -349,7 +349,7 @@ export class Simulation implements RuleContext {
     if (chipTarget === null) return;
     const block = this.blockAt(chipTarget);
     if (block === null) return;
-    const verdict = this.analyze(chip, chip, dir, 'chosen', 'test');
+    const verdict = this.analyze(chip, chip, dir, 'chosen', 'test', true);
     if (verdict.allowed) {
       block.dir = dir;
       block.plan = { dir, intent: 'pushed' };
@@ -451,6 +451,10 @@ export class Simulation implements RuleContext {
       this.refuse(chip);
       return 'refused';
     }
+    if (block && this.refusedAfterPush(chip, plan, from, to)) {
+      this.refuse(chip);
+      return 'refused';
+    }
     const standing = this.occupantAt(to.x, to.y);
     if (standing && standing.kind === 'monster') {
       this.collide(standing, 'monster', from, standing);
@@ -471,6 +475,14 @@ export class Simulation implements RuleContext {
     // Only a step Chip chooses sounds; forced moves (ice, force floors, teleport exits) stay silent, as in the classic engine.
     if (plan.intent === 'chosen') this.events.step(this.world.terrain[to.y][to.x], this.world.chipState.boots);
     return 'started';
+  }
+
+  /** Whether the tile the pushed block left still refuses Chip, asked as a real attempt (spec 8). */
+  private refusedAfterPush(chip: Creature, plan: StepPlan, from: Cell, to: Cell): boolean {
+    const entering = this.tileRuleAt(to.x, to.y);
+    if (!entering?.yieldsToPush || !entering.mayEnter) return false;
+    const probe: StepProbe = { ctx: this, mover: chip, from, to, dir: plan.dir, intent: plan.intent, mode: 'attempt' };
+    return !entering.mayEnter(probe);
   }
 
   /** The monster that started a step out of the cell earlier in this tick, if it is still alive. */
@@ -543,7 +555,8 @@ export class Simulation implements RuleContext {
     from: Cell,
     dir: Direction,
     intent: StepIntent,
-    mode: StepProbe['mode']
+    mode: StepProbe['mode'],
+    preparesPush = false
   ): StepAnalysis {
     const to = neighbour(from, dir);
     if (!this.inMap(to)) return REFUSED;
@@ -552,7 +565,11 @@ export class Simulation implements RuleContext {
     if (leaving?.mayLeave && !leaving.mayLeave(probe)) return REFUSED;
     const entering = this.tileRuleAt(to.x, to.y);
     if (!entering || !this.admits(entering, creature)) return REFUSED;
-    if (entering.mayEnter && !entering.mayEnter(probe)) return REFUSED;
+    // Only Chip's real step and the decision that prepares his push yield to a block; landing tests do not.
+    const mayYield = mode === 'attempt' || preparesPush;
+    const yieldsToBlock =
+      mayYield && creature.kind === 'chip' && entering.yieldsToPush === true && this.blockAt(to) !== null;
+    if (entering.mayEnter && !yieldsToBlock && !entering.mayEnter(probe)) return REFUSED;
     if (creature.kind === 'chip') return this.analyzeChipEntry(to, dir);
     if (creature.remaining > 0 || this.occupiedByAnother(creature, to)) return REFUSED;
     return ALLOWED;
