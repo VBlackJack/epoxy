@@ -120,20 +120,13 @@
     }
   },
   "defaultTrackId": "cyber_pulse",
-  "defaultMusicMode": "default",
-  "musicBaseUrl": "./audio/music",
-  "fileMimeTypes": {
-    "ogg": "audio/ogg",
-    "mp3": "audio/mpeg"
-  },
   "musicMix": {
     "noteLengthRatio": 0.85,
     "leadGain": 0.45,
     "bassGain": 0.35,
     "releaseFloorGain": 0.001,
     "schedulerIntervalMs": 25,
-    "scheduleAheadMs": 100,
-    "fileFadeInMs": 400
+    "scheduleAheadMs": 100
   },
   "music": {
     "stepDurationMs": 175,

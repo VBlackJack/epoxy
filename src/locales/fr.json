@@ -55,12 +55,6 @@
       "lynx_lcd": { "label": "Lynx LCD Rétro" }
     },
     "music": {
-      "mode": { "label": "Mode musique" },
-      "mode_default": { "label": "Biome (défaut)" },
-      "mode_random": { "label": "Aléatoire" },
-      "mode_custom": { "label": "Personnalisé" },
-      "custom_tracks": { "label": "Pistes à jouer" },
-      "custom_min_one": { "label": "Gardez au moins une piste cochée." },
       "cyber_pulse": { "label": "Piste : Cyber Pulse" },
       "arctic_synth": { "label": "Piste : Synthé Arctique" },
       "magma_drive": { "label": "Piste : Magma Drive" }
@@ -281,7 +275,7 @@
       "kb_items": { "label": "E / X : Déposer l'objet sélectionné sur votre case | C : Sélectionner l'objet suivant | Clic sur une case d'inventaire : déposer cet objet" },
       "kb_fov_options": { "label": "Zoom : Options > Affichage > Vue" },
       "kb_graphics": { "label": "G : Changer de style de rendu (HD Néon / Rétro 16-Bit / Rétro 32-Bit)" },
-      "kb_theme": { "label": "B : Changer le biome visuel (et sa musique en mode Défaut)" },
+      "kb_theme": { "label": "B : Changer le biome visuel et la piste musicale" },
       "kb_procedural": { "label": "N : Lancer une série infinie de niveaux solvables" },
       "kb_levels": { "label": "[ et ] : Niveau précédent / suivant" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
@@ -353,6 +347,10 @@
       "win_rule": { "label": "Règle de victoire" },
       "win_rule_exit": { "label": "Atteindre la sortie" },
       "win_rule_targets": { "label": "Couvrir chaque cible avec un bloc" },
+      "ruleset": { "label": "Règles" },
+      "ruleset_epoxy": { "label": "Epoxy" },
+      "ruleset_lynx": { "label": "Lynx (packs communautaires)" },
+      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc ne se jouent qu'avec les règles Epoxy" },
       "auto_count_chips": { "action": "Compter auto." },
       "entity_dir": { "label": "Direction Entité / Joueur" }
     },

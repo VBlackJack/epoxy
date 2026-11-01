@@ -31,6 +31,7 @@ import { it } from 'vitest';
 import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import { LevelMetrics } from '../src/core/LevelMetrics';
 import { LevelValidator } from '../src/core/LevelValidator';
+import { DEFAULT_RULESET } from '../src/core/coreConstants';
 import { CompiledLevel, TileDefinition } from '../src/core/types';
 import { DatCodec } from '../src/formats/DatCodec';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
@@ -210,7 +211,7 @@ it('writes the community study', () => {
   for (const pack of ConfigRegistry.getGame().ultimatePacks ?? []) {
     const buffer = readFileSync(resolve(ROOT, 'public', pack.url));
     const bytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-    const levels = DatCodec.decodeBuffer(bytes, pack.prefix);
+    const levels = DatCodec.decodeBuffer(bytes, pack.prefix, pack.ruleset ?? DEFAULT_RULESET);
     packs.push({ name: pack.name, levels });
     lines.push(...describePack(pack.name, levels));
   }

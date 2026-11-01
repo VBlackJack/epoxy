@@ -214,36 +214,6 @@ body.fullscreen-mode .drawer-section-navigation {
   max-width: 165px;
 }
 
-.drawer-section .music-tracks {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  margin: 0;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid #3a4254;
-  border-radius: 4px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-}
-
-.drawer-section .music-tracks[hidden] {
-  display: none;
-}
-
-.music-track-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.music-track-option {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--text-main);
-  cursor: pointer;
-}
-
 .drawer-section .nav-btn {
   width: 100%;
   text-align: left;

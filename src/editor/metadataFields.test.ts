@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseChipsRequired, parseTimeLimit } from './metadataFields';
+import { parseChipsRequired, parseRuleset, parseTimeLimit } from './metadataFields';
 
 const CURRENT = 180;
 
@@ -49,5 +49,17 @@ describe('parseChipsRequired', () => {
     expect(parseChipsRequired('2.7', 4)).toBe(2);
     expect(parseChipsRequired('-1', 4)).toBe(0);
     expect(parseChipsRequired('x', 4)).toBe(4);
+  });
+});
+
+describe('parseRuleset', () => {
+  it('accepts every known ruleset', () => {
+    expect(parseRuleset('epoxy', 'lynx')).toBe('epoxy');
+    expect(parseRuleset('lynx', 'epoxy')).toBe('lynx');
+  });
+
+  it('keeps the current ruleset for an unknown entry', () => {
+    expect(parseRuleset('ms', 'lynx')).toBe('lynx');
+    expect(parseRuleset('', 'epoxy')).toBe('epoxy');
   });
 });

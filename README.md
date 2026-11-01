@@ -11,6 +11,7 @@
 - **Hundreds of Levels Included**:
   - **Epoxy Campaign**: 30 hand-written levels in five chapters of six, each built around one idea and proven solvable by replaying its recorded solution in the game engine. They teach one mechanic per level, from chips, keys and boots to traps, cloners, creatures, thieves, item barriers, turtles and flame jets, and each chapter ends with a level that combines them. An originality test keeps every map unlike the bundled community levels.
   - **Bundled Community Packs**: `Tile World Intro` and `CCLP 1` through `CCLP 5` (see [Credits](#credits)).
+  - **Community packs under the original handheld rules**: the bundled community packs (except CCLP 2) and imported `.DAT` files play under the original handheld (Lynx) rules on a dedicated engine. Help, tap-to-path, the objective marker, solution replay, item drop and the dead-end watch are unavailable there. The editor's `Rules` field switches a level between Epoxy and Lynx rules.
   - **`.DAT` / `.CCL` / `.JSON` Support**: Import and export level packs in the widely used CC1 `.DAT` binary format via drag-and-drop. Packs you own can be imported this way. Files larger than `import.maxFileBytes` (4 MiB) are refused before they are read. On export, a level smaller than the 32x32 format is closed with wall, and a level that does not fit is left out with a message instead of being written wrongly.
   - **Sokoban collections (`.xsb` / `.sok`)**: drop a collection on the game and every level plays as Sokoban: it is won as soon as each target holds a block, with no exit to reach. Run-length rows (`4#`) are expanded, the outside of the room becomes wall, and a level the file breaks (no player, no target, fewer boxes than targets, a room open to the edge) is skipped with a count. Packs you own stay in your browser, like imported `.DAT` packs. In the editor, any level can use this rule (`Win Rule` field, `block_target` tile); such a level cannot be exported to `.DAT`. Help plays the next push and the dead-end watch covers these levels, up to `blockPuzzle.watchMaxCells` cells.
   - **Levels of any size**: a `.json` level or custom pack sets its own width and height, from a 10x10 room to a 40x40 or 100x100 level (`grid.minLevelSize` to `grid.maxLevelSize` in `game.json`); the camera and the editor follow the level. The `.DAT` format and the procedural generator keep the classic 32x32 (`grid.mapWidth` / `grid.mapHeight`).
@@ -33,7 +34,6 @@
   - Keyboard: `Tab` moves focus between the controls, Ctrl/Cmd chords are left to the browser except undo (Ctrl/Cmd+Z), which follows the keyboard layout (AZERTY, QWERTY, Cyrillic...), and `?` opens the help.
   - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options). The board always shows the chosen view as a square of N x N tiles, so a wide or landscape screen reveals no more of the level than a square one.
   - Full-featured Level Editor with live solver validation.
-- **Music**: a synthesized soundtrack with three modes, chosen in Options > Audio. **Default** follows the biome on screen (each biome names its track with `musicTrackId` in `game.json`). **Random** picks a new track for each new level and never repeats the previous one while two or more tracks exist. **Custom** does the same among the tracks you tick (at least one stays ticked). A restart, a retry after dying or a one-level wrap does not change the track, and in Random and Custom the biome (and the `B` key) no longer changes the music. The mode and the ticked tracks are saved.
 
 ## Development
 
@@ -43,26 +43,6 @@ Requires Node.js 24 (see `.nvmrc`).
 npm install
 npm run dev
 ```
-
-### Adding music tracks
-
-Tracks are declared in `public/configs/audio.json` under `tracks`. A track is synthesized by default (notes and waveforms) or streamed from audio files:
-
-```json
-{
-  "id": "my_track",
-  "i18nKey": "app.music.my_track.label",
-  "source": "file",
-  "files": ["my_track.ogg", "my_track.mp3"],
-  "gain": 0.8
-}
-```
-
-- Put the files in `public/audio/music/` (the folder is `musicBaseUrl`). The browser plays the first file in `files` it can decode; the extension must have a MIME type in `fileMimeTypes` (`ogg` and `mp3` by default). `gain` scales the track against the music volume (1 when omitted).
-- Add the track name to `src/locales/en.json` and `src/locales/fr.json` under `app.music.my_track.label`.
-- Map it to a biome with `"musicTrackId": "my_track"` on the theme in `game.json`. Every track also takes part in the Random and Custom modes.
-- `defaultTrackId` must stay a synthesized track: it plays when a file cannot be loaded. A file track that fails is skipped for the rest of the session.
-- The configuration is checked when the game loads: duplicate ids, a file track without files, an unknown `musicTrackId` or an unknown `defaultMusicMode` stop the game with a clear message.
 
 ## Building a Campaign with the Generator
 

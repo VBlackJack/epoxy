@@ -28,6 +28,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 import { ConfigRegistry } from '../src/config/ConfigRegistry';
+import { DEFAULT_RULESET } from '../src/core/coreConstants';
 import { CompiledLevel } from '../src/core/types';
 import { DatCodec } from '../src/formats/DatCodec';
 import { findSimilarPairs, fingerprintGrid, isSimilar, toCellGrid } from '../src/generator/OriginalityGuard';
@@ -49,7 +50,7 @@ it('writes the originality comparison', () => {
 
   const buffer = readFileSync(resolve(referencePath as string));
   const bytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-  const reference = DatCodec.decodeBuffer(bytes, REFERENCE_PREFIX).map((level) => fingerprint(level, `reference #${level.number}`));
+  const reference = DatCodec.decodeBuffer(bytes, REFERENCE_PREFIX, DEFAULT_RULESET).map((level) => fingerprint(level, `reference #${level.number}`));
   const campaign = ConfigRegistry.getLevels().map((level) => fingerprint(level, `campaign #${level.number} ${level.id}`));
 
   const pairs = findSimilarPairs(campaign, reference, config, { flaggedOnly: false }).slice(0, TOP_PAIRS);

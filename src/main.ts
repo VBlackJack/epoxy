@@ -15,15 +15,17 @@
  */
 
 import { ConfigBundle, ConfigRegistry } from './config/ConfigRegistry';
-import { BUILTIN_PACK_IDS, DIRECTION_VECTORS } from './config/constants';
+import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, IMPORTED_PACK_RULESET } from './config/constants';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
+import { EngineSelector } from './core/EngineSelector';
+import { PlayEngine } from './core/PlayEngine';
+import { featuresFor } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
-import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSelection';
 import { DatCodec, datRefusalReason } from './formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
@@ -107,6 +109,7 @@ import {
   MAX_DEVICE_PIXEL_RATIO,
   MIN_VIEWPORT_SYNC_PX,
   SWIPE_ANCHOR_FOLLOW_RATIO,
+  THEME_MUSIC_TRACKS,
   TIMING_DEFAULTS,
   TOAST_DURATION_MS,
   TOUCH_DEFAULTS
@@ -145,9 +148,15 @@ function setText(el: HTMLElement | null, text: string): void {
 }
 
 class EpoxyApplication {
-  private engine: GameEngine = new GameEngine();
+  /** Holds the engine of each ruleset; a level is played by the one its ruleset asks for. */
+  private readonly engineSelector = new EngineSelector();
   private renderer: PixelRenderer = new PixelRenderer();
   private editor!: LevelEditor;
+
+  /** The engine of the level on screen. */
+  private get engine(): PlayEngine {
+    return this.engineSelector.current;
+  }
 
   private gameCanvas!: HTMLCanvasElement;
   private gameCtx!: CanvasRenderingContext2D;
@@ -156,6 +165,8 @@ class EpoxyApplication {
   private heldDirection: Direction | null = null;
   private highScores: Record<string, StoredHighScore> = {};
   private prevGamepadButtons: boolean[] = [];
+  /** The direction the gamepad holds now; a change to a new direction is a press. */
+  private gamepadDirection: Direction | null = null;
   private customStatusMessage: string | null = null;
   private customStatusTimeout: number | null = null;
   private autoMoveQueue: Direction[] = [];
@@ -227,7 +238,6 @@ class EpoxyApplication {
     const editorCanvas = this.setupGameCanvas();
     this.applyDisplaySettings(savedSettings);
     this.applyAudioSettings(savedSettings);
-    this.setupMusicControls();
     this.setupThemeSelector();
     this.setupQualitySelector();
     this.setupGraphicsStyleSelector();
@@ -258,7 +268,6 @@ class EpoxyApplication {
       this.setupThemeSelector();
       this.setupQualitySelector();
       this.setupGraphicsStyleSelector();
-      this.setupMusicControls();
       this.updateHUD();
       this.editor.refreshTranslations();
       // translateDOM resets the seed placeholder to its generic text.
@@ -333,9 +342,6 @@ class EpoxyApplication {
     if (typeof savedSettings.sfxEnabled === 'boolean') {
       AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
     }
-    // Invalid stored values are replaced in memory only; saveUserSettings writes from this state.
-    AudioManager.configureMusic(savedSettings.musicMode, savedSettings.musicCustomTracks);
-    AudioManager.setThemeTrack(this.currentThemeTrackId());
     if (typeof savedSettings.musicEnabled === 'boolean') {
       AudioManager.setMusicEnabled(savedSettings.musicEnabled);
     }
@@ -344,13 +350,13 @@ class EpoxyApplication {
   }
 
   private bindEngineCallbacks(): void {
-    this.engine.setOnWinCallback((levelId, timeRemaining, steps, score) => {
+    this.engineSelector.setOnWinCallback((levelId, timeRemaining, steps, score) => {
       if (!this.isReplaying) {
         this.recordHighScore(levelId, timeRemaining, steps, score, this.engine.getTimedMoveHistory());
       }
       this.stopAutoMoveAndReplay();
     });
-    this.engine.setOnVisualEventCallback((kind, x, y, colorKey) => {
+    this.engineSelector.setOnVisualEventCallback((kind, x, y, colorKey) => {
       this.renderer.triggerVisualEvent(kind, x, y, colorKey);
     });
   }
@@ -363,8 +369,7 @@ class EpoxyApplication {
         this.switchMode('play');
         this.stopAutoMoveAndReplay();
         this.lastWarnedSecond = NO_WARNED_SECOND;
-        this.engine.loadLevel(testLevel);
-        AudioManager.onLevelLoaded(testLevel.id);
+        this.loadPlayLevel(testLevel);
         this.showLevelTheme(testLevel);
         // The editor already holds this content: do not reload it on return.
         this.editorSourceLevel = testLevel;
@@ -397,11 +402,14 @@ class EpoxyApplication {
     }
     if (this.activeMode !== 'play') return;
     this.pollGamepad();
+    // An engine that tells presses from holds hears the held direction (or its release) once per tick.
+    this.engine.holdPlayerDirection?.(this.isReplaying ? null : (this.heldDirection ?? this.gamepadDirection));
     if (this.isReplaying) {
       this.advanceReplay();
     } else if (this.heldDirection) {
       this.clearAutoMove();
-      this.engine.attemptPlayerMove(this.heldDirection);
+      // An engine without holds is told again every tick, as it always was.
+      if (!this.engine.holdPlayerDirection) this.engine.attemptPlayerMove(this.heldDirection);
     } else if (this.autoMoveQueue.length > 0) {
       const nextDir = this.autoMoveQueue[0];
       const moved = this.engine.attemptPlayerMove(nextDir);
@@ -426,12 +434,14 @@ class EpoxyApplication {
    */
   private watchBlockPuzzles(): void {
     if (this.isReplaying) return;
+    const engine = this.epoxyEngine();
+    if (!engine || !featuresFor(engine.getLevel()).deadEndWatch) return;
     // The exact search runs on the main thread: a large level is left to the hint button.
-    const terrain = this.engine.getTerrain();
+    const terrain = engine.getTerrain();
     const cells = terrain.length * (terrain[0]?.length ?? 0);
     if (cells > ConfigRegistry.getGame().blockPuzzle.watchMaxCells) return;
     // Only blocks matter; monsters move every few ticks.
-    const layout = this.engine
+    const layout = engine
       .getEntities()
       .filter((e) => e.kind === 'block')
       .map((e) => `${e.x},${e.y}`)
@@ -439,9 +449,9 @@ class EpoxyApplication {
     if (layout === this.lastBlockLayout) return;
     this.lastBlockLayout = layout;
     window.setTimeout(() => {
-      if (layout !== this.lastBlockLayout || !this.engine.getPlayer().alive) return;
-      if (BlockPuzzleSolver.isStuck(this.engine)) {
-        this.showTransientStatus(t(stuckMessageKey(this.engine.getLevel().winRule)));
+      if (layout !== this.lastBlockLayout || !engine.getPlayer().alive) return;
+      if (BlockPuzzleSolver.isStuck(engine)) {
+        this.showTransientStatus(t(stuckMessageKey(engine.getLevel().winRule)));
       }
     }, 0);
   }
@@ -554,7 +564,7 @@ class EpoxyApplication {
       let levels: CompiledLevel[];
       let skippedCount = 0;
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
-        levels = DatCodec.decodeBuffer(await file.arrayBuffer(), packName);
+        levels = DatCodec.decodeBuffer(await file.arrayBuffer(), packName, IMPORTED_PACK_RULESET);
         if (levels.length === 0) {
           throw new Error('Empty pack');
         }
@@ -963,7 +973,10 @@ class EpoxyApplication {
       this.renderer.setHoveredGridPoint(gridPt);
       this.updateInspectBadge(gridPt);
     }
-    const result = Pathfinder.findPath(this.engine, gridPt.x, gridPt.y);    this.autoMoveQueue = result.moves;
+    const engine = this.epoxyEngine();
+    if (!engine || !featuresFor(engine.getLevel()).tapToPath) return;
+    const result = Pathfinder.findPath(engine, gridPt.x, gridPt.y);
+    this.autoMoveQueue = result.moves;
     this.autoMovePoints = result.points;
     this.renderer.setPlannedPath(this.autoMovePoints);
   }
@@ -1084,6 +1097,20 @@ class EpoxyApplication {
     });
   }
 
+  /**
+   * An engine that tells presses from holds gets a press when the pad turns
+   * to a new direction and the hold through runGameTick; any other engine is
+   * sent the direction every tick, as it always was.
+   */
+  private steerWithGamepad(direction: Direction | null): void {
+    if (this.engine.holdPlayerDirection) {
+      if (direction !== null && direction !== this.gamepadDirection) this.engine.attemptPlayerMove(direction);
+      this.gamepadDirection = direction;
+    } else if (direction !== null) {
+      this.engine.attemptPlayerMove(direction);
+    }
+  }
+
   /** Records the held buttons without acting, so a hold across a dialog close is not a new press. */
   private refreshGamepadSnapshot(): void {
     if (typeof navigator.getGamepads !== 'function') return;
@@ -1094,22 +1121,27 @@ class EpoxyApplication {
   private pollGamepad(): void {
     if (typeof navigator.getGamepads !== 'function') return;
     const pad = navigator.getGamepads()[GAMEPAD_INDEX];
-    if (!pad) return;
+    if (!pad) {
+      this.gamepadDirection = null;
+      return;
+    }
 
     const axX = pad.axes[GAMEPAD_AXIS_X] || 0;
     const axY = pad.axes[GAMEPAD_AXIS_Y] || 0;
     const pressed = (idx: number): boolean => Boolean(pad.buttons[idx]?.pressed);
     const justPressed = (idx: number): boolean => pressed(idx) && !this.prevGamepadButtons[idx];
 
+    let padDirection: Direction | null = null;
     if (pressed(GAMEPAD_BUTTONS.DPAD_UP) || axY < -GAMEPAD_AXIS_THRESHOLD) {
-      this.engine.attemptPlayerMove('N');
+      padDirection = 'N';
     } else if (pressed(GAMEPAD_BUTTONS.DPAD_DOWN) || axY > GAMEPAD_AXIS_THRESHOLD) {
-      this.engine.attemptPlayerMove('S');
+      padDirection = 'S';
     } else if (pressed(GAMEPAD_BUTTONS.DPAD_LEFT) || axX < -GAMEPAD_AXIS_THRESHOLD) {
-      this.engine.attemptPlayerMove('W');
+      padDirection = 'W';
     } else if (pressed(GAMEPAD_BUTTONS.DPAD_RIGHT) || axX > GAMEPAD_AXIS_THRESHOLD) {
-      this.engine.attemptPlayerMove('E');
+      padDirection = 'E';
     }
+    this.steerWithGamepad(padDirection);
 
     if (justPressed(GAMEPAD_BUTTONS.B)) {
       this.undoMove();
@@ -1207,12 +1239,10 @@ class EpoxyApplication {
     this.renderer.setThemeId(themeId);
     this.syncThemeAccent();
     this.refreshRetroIcons();
-    AudioManager.setThemeTrack(this.currentThemeTrackId());
-  }
-
-  /** Music track of the biome on screen; it plays in the Default music mode only. */
-  private currentThemeTrackId(): string | undefined {
-    return ConfigRegistry.getGame().themes?.[this.renderer.getThemeId()]?.musicTrackId;
+    const track = THEME_MUSIC_TRACKS[themeId];
+    if (track) {
+      AudioManager.setTrackById(track);
+    }
   }
 
   /** Sprite-style icons (16-Bit and 32-Bit Retro) are drawn with the palette of the theme, so they are redrawn when it changes. */
@@ -1280,12 +1310,33 @@ class EpoxyApplication {
     this.replayIndex = 0;
   }
 
+  /** Loads a level into the engine its ruleset asks for. */
+  private loadPlayLevel(level: CompiledLevel): void {
+    this.engineSelector.forLevel(level).loadLevel(level);
+  }
+
+  /**
+   * The Epoxy engine while it plays the level on screen. The play aids that
+   * search the level (paths, objectives, block puzzles) are built on it and
+   * stay off under other rulesets.
+   */
+  private epoxyEngine(): GameEngine | null {
+    return this.engine instanceof GameEngine ? this.engine : null;
+  }
+
+  /** Next goal to show, when the level's ruleset has the objective marker. */
+  private nextObjective(): GridPoint | null {
+    const engine = this.epoxyEngine();
+    if (!engine || !featuresFor(engine.getLevel()).objectiveMarker) return null;
+    return Pathfinder.findNextObjective(engine);
+  }
+
   /** Single entry point for every restart control. */
   private restartLevel(): void {
     this.stopAutoMoveAndReplay();
     this.heldDirection = null;
     this.lastWarnedSecond = NO_WARNED_SECOND;
-    this.engine.loadLevel(this.engine.getLevel());
+    this.loadPlayLevel(this.engine.getLevel());
     this.updateHUD();
   }
 
@@ -1299,7 +1350,7 @@ class EpoxyApplication {
   private startReplay(moves: TimedMove[]): void {
     if (!moves || moves.length === 0) return;
     this.stopAutoMoveAndReplay();
-    this.engine.loadLevel(this.engine.getLevel());
+    this.loadPlayLevel(this.engine.getLevel());
     this.replayMoves = [...moves];
     this.replayIndex = 0;
     this.isReplaying = true;
@@ -1313,7 +1364,7 @@ class EpoxyApplication {
     byId('mobile-btn-objective')?.classList.toggle('active', active);
 
     if (active) {
-      const target = Pathfinder.findNextObjective(this.engine);
+      const target = this.nextObjective();
       this.renderer.setObjectivePoint(target);
       if (target) {
         this.showTransientStatus(
@@ -1331,7 +1382,8 @@ class EpoxyApplication {
    * (imported packs) say so.
    */
   private async showSolution(): Promise<void> {
-    const moves = timedSolution(this.engine.getLevel());
+    const level = this.engine.getLevel();
+    const moves = featuresFor(level).solutionReplay ? timedSolution(level) : null;
     if (!moves) {
       this.showTransientStatus(t('hud.messages.no_solution.label'));
       return;
@@ -1353,14 +1405,16 @@ class EpoxyApplication {
    * is open, so the usual objective help runs instead.
    */
   private playBlockHint(): boolean {
-    if (this.isReplaying || !this.engine.getPlayer().alive) return false;
-    if (BlockPuzzleSolver.isStuck(this.engine, requestedSearchBudget())) {
-      this.showTransientStatus(t(stuckMessageKey(this.engine.getLevel().winRule)));
+    const engine = this.epoxyEngine();
+    if (!engine || !featuresFor(engine.getLevel()).blockHint) return false;
+    if (this.isReplaying || !engine.getPlayer().alive) return false;
+    if (BlockPuzzleSolver.isStuck(engine, requestedSearchBudget())) {
+      this.showTransientStatus(t(stuckMessageKey(engine.getLevel().winRule)));
       return true;
     }
-    const moves = BlockPuzzleSolver.hint(this.engine);
+    const moves = BlockPuzzleSolver.hint(engine);
     if (!moves) return false;
-    const player = this.engine.getPlayer();
+    const player = engine.getPlayer();
     let x = player.x;
     let y = player.y;
     this.autoMoveQueue = moves;
@@ -1400,8 +1454,7 @@ class EpoxyApplication {
     this.currentLevelIndex = this.isEndlessActive()
       ? Math.min(Math.max(index, 0), levels.length - 1)
       : ((index % levels.length) + levels.length) % levels.length;
-    this.engine.loadLevel(levels[this.currentLevelIndex]);
-    AudioManager.onLevelLoaded(levels[this.currentLevelIndex].id);
+    this.loadPlayLevel(levels[this.currentLevelIndex]);
     this.showLevelTheme(levels[this.currentLevelIndex]);
     this.saveProgress();
     this.updateHUD();
@@ -1843,59 +1896,6 @@ class EpoxyApplication {
     const enabled = AudioManager.toggleSfx();
     setToggleState(byId('btn-sfx-toggle'), enabled);
     this.saveUserSettings();
-  }
-
-  /** Builds the music mode select and the custom track list; rebuilt when the language changes. */
-  private setupMusicControls(): void {
-    const select = byId<HTMLSelectElement>('music-mode-select');
-    const fieldset = byId<HTMLFieldSetElement>('music-custom-tracks');
-    if (!select || !fieldset) return;
-
-    select.innerHTML = '';
-    for (const mode of MUSIC_MODES) {
-      const opt = document.createElement('option');
-      opt.value = mode;
-      opt.textContent = t(`app.music.mode_${mode}.label`);
-      opt.selected = mode === AudioManager.getMusicMode();
-      select.appendChild(opt);
-    }
-    select.onchange = () => {
-      if (!isMusicMode(select.value)) return;
-      AudioManager.setMusicMode(select.value);
-      fieldset.hidden = select.value !== 'custom';
-      this.saveUserSettings();
-    };
-
-    fieldset.hidden = AudioManager.getMusicMode() !== 'custom';
-    const list = fieldset.querySelector<HTMLElement>('.music-track-list');
-    if (!list) return;
-    list.innerHTML = '';
-    const ticked = new Set(AudioManager.getCustomTrackIds());
-    const boxes: HTMLInputElement[] = [];
-    for (const track of AudioManager.getTrackOptions()) {
-      const label = document.createElement('label');
-      label.className = 'music-track-option';
-      const box = document.createElement('input');
-      box.type = 'checkbox';
-      box.value = track.id;
-      box.checked = ticked.has(track.id);
-      box.addEventListener('change', () => {
-        const chosen = boxes.filter((b) => b.checked).map((b) => b.value);
-        if (chosen.length === 0) {
-          // At least one track must stay ticked.
-          box.checked = true;
-          this.showTransientStatus(t('app.music.custom_min_one.label'));
-          return;
-        }
-        AudioManager.setCustomTracks(chosen);
-        this.saveUserSettings();
-      });
-      boxes.push(box);
-      const text = document.createElement('span');
-      text.textContent = t(track.i18nKey);
-      label.append(box, text);
-      list.appendChild(label);
-    }
   }
 
   private bindAudioToggles(): void {
@@ -2512,6 +2512,7 @@ class EpoxyApplication {
 
   /** Drops the selected item on the player's cell. */
   private dropSelectedItem(): void {
+    if (!featuresFor(this.engine.getLevel()).itemDrop) return;
     this.clearAutoMove();
     this.engine.dropItem(this.resolveSelectedItem());
   }
@@ -2524,6 +2525,7 @@ class EpoxyApplication {
       this.updateHUD();
       return;
     }
+    if (!featuresFor(this.engine.getLevel()).itemDrop) return;
     this.clearAutoMove();
     this.selectedItemId = itemId;
     this.engine.dropItem(itemId);
@@ -2617,7 +2619,7 @@ class EpoxyApplication {
     this.updateStatusToast();
 
     if (this.renderer.isShowingMechanismLinks() && player.alive && !this.engine.isLevelCompleted()) {
-      this.renderer.setObjectivePoint(Pathfinder.findNextObjective(this.engine));
+      this.renderer.setObjectivePoint(this.nextObjective());
     }
     this.updateOverlay();
   }
@@ -2854,12 +2856,7 @@ class EpoxyApplication {
         lcdEnabled: this.renderer.getLcdPreference(),
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),
-        musicEnabled: AudioManager.isMusicEnabled(),
-        musicMode: AudioManager.getMusicMode(),
-        musicCustomTracks: customIdsForStorage(
-          AudioManager.getCustomTrackIds(),
-          AudioManager.getTrackOptions().map((track) => track.id)
-        )
+        musicEnabled: AudioManager.isMusicEnabled()
       };
       localStorage.setItem(key, JSON.stringify(settings));
     } catch {

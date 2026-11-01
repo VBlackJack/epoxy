@@ -126,8 +126,7 @@
       "wallTop": "#4b5975",
       "wallBottom": "#2b3446",
       "wallBevel": "#64b5f6",
-      "accentGlow": "#00e5ff",
-      "musicTrackId": "cyber_pulse"
+      "accentGlow": "#00e5ff"
     },
     "arctic_lab": {
       "id": "arctic_lab",
@@ -138,8 +137,7 @@
       "wallTop": "#5c859e",
       "wallBottom": "#345163",
       "wallBevel": "#b3e5fc",
-      "accentGlow": "#80d8ff",
-      "musicTrackId": "arctic_synth"
+      "accentGlow": "#80d8ff"
     },
     "magma_core": {
       "id": "magma_core",
@@ -150,8 +148,7 @@
       "wallTop": "#6d4c41",
       "wallBottom": "#3e2723",
       "wallBevel": "#ff8a65",
-      "accentGlow": "#ff6d00",
-      "musicTrackId": "magma_drive"
+      "accentGlow": "#ff6d00"
     },
     "lynx_lcd": {
       "id": "lynx_lcd",
@@ -162,8 +159,7 @@
       "wallTop": "#596b4f",
       "wallBottom": "#384531",
       "wallBevel": "#aed581",
-      "accentGlow": "#c6ff00",
-      "musicTrackId": "cyber_pulse"
+      "accentGlow": "#c6ff00"
     }
   },
   "procedural": {
@@ -366,14 +362,16 @@
       "name": "Tile World Intro",
       "i18nKey": "app.packs.ccup_tw_intro.label",
       "url": "./packs/TW_INTRO.DAT",
-      "prefix": "tw_intro"
+      "prefix": "tw_intro",
+      "ruleset": "lynx"
     },
     {
       "id": "ccup_cclp1",
       "name": "CCLP 1",
       "i18nKey": "app.packs.ccup_cclp1.label",
       "url": "./packs/CCLP1.DAT",
-      "prefix": "cclp1"
+      "prefix": "cclp1",
+      "ruleset": "lynx"
     },
     {
       "id": "ccup_cclp2",
@@ -387,21 +385,24 @@
       "name": "CCLP 3",
       "i18nKey": "app.packs.ccup_cclp3.label",
       "url": "./packs/CCLP3.DAT",
-      "prefix": "cclp3"
+      "prefix": "cclp3",
+      "ruleset": "lynx"
     },
     {
       "id": "ccup_cclp4",
       "name": "CCLP 4",
       "i18nKey": "app.packs.ccup_cclp4.label",
       "url": "./packs/CCLP4.DAT",
-      "prefix": "cclp4"
+      "prefix": "cclp4",
+      "ruleset": "lynx"
     },
     {
       "id": "ccup_cclp5",
       "name": "CCLP 5",
       "i18nKey": "app.packs.ccup_cclp5.label",
       "url": "./packs/CCLP5.DAT",
-      "prefix": "cclp5"
+      "prefix": "cclp5",
+      "ruleset": "lynx"
     }
   ],
   "blockPuzzle": {

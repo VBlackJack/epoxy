@@ -11,6 +11,7 @@
 - **Des centaines de niveaux inclus** :
   - **Campagne Epoxy** : 30 niveaux écrits à la main, en cinq chapitres de six, chacun construit autour d'une idée et prouvé solvable en rejouant sa solution enregistrée dans le moteur du jeu. Ils enseignent une mécanique par niveau, des puces, clés et bottes jusqu'aux pièges, cloneurs, créatures, voleurs, barrières d'objets, tortues et jets de flammes, et chaque chapitre se termine par un niveau qui les combine. Un test d'originalité garde chaque carte différente des niveaux communautaires fournis.
   - **Packs communautaires fournis** : `Tile World Intro` et `CCLP 1` à `CCLP 5` (voir [Crédits](#crédits)).
+  - **Packs communautaires aux règles de la console d'origine** : les packs communautaires fournis (sauf CCLP 2) et les fichiers `.DAT` importés se jouent avec les règles de la console portable d'origine (Lynx), sur un moteur dédié. L'aide, le déplacement par toucher, le repère d'objectif, la relecture de solution, le dépôt d'objets et la surveillance d'impasse n'y sont pas disponibles. Le champ `Règles` de l'éditeur fait passer un niveau des règles Epoxy aux règles Lynx, et inversement.
   - **Formats `.DAT` / `.CCL` / `.JSON`** : import et export par glisser-déposer de packs au format binaire CC1 `.DAT`, très répandu. Les packs que vous possédez s'importent de cette façon. Un fichier de plus de `import.maxFileBytes` (4 Mio) est refusé avant d'être lu. À l'export, un niveau plus petit que le format 32x32 est fermé par des murs, et un niveau qui n'y tient pas est écarté avec un message au lieu d'être écrit faux.
   - **Collections Sokoban (`.xsb` / `.sok`)** : déposez une collection sur le jeu et chaque niveau se joue comme du Sokoban : il est gagné dès que chaque cible porte un bloc, sans sortie à atteindre. Les rangées compressées (`4#`) sont développées, l'extérieur de la salle devient mur, et un niveau que le fichier abîme (pas de joueur, pas de cible, moins de caisses que de cibles, salle ouverte sur le bord) est écarté avec un décompte. Les packs que vous possédez restent dans votre navigateur, comme les packs `.DAT` importés. Dans l'éditeur, tout niveau peut suivre cette règle (champ `Règle de victoire`, tuile `block_target`) ; un tel niveau ne s'exporte pas en `.DAT`. Le bouton Aide joue la poussée suivante et la surveillance d'impasse couvre ces niveaux, jusqu'à `blockPuzzle.watchMaxCells` cases.
   - **Niveaux de toute taille** : un niveau `.json` ou un pack personnalisé fixe sa propre largeur et sa propre hauteur, de la pièce de 10x10 au niveau de 40x40 ou 100x100 (`grid.minLevelSize` à `grid.maxLevelSize` dans `game.json`) ; la caméra et l'éditeur suivent le niveau. Le format `.DAT` et le générateur procédural gardent le 32x32 classique (`grid.mapWidth` / `grid.mapHeight`).
@@ -33,7 +34,6 @@
   - Clavier : `Tab` déplace le focus entre les commandes, les raccourcis Ctrl/Cmd sont laissés au navigateur sauf l'annulation (Ctrl/Cmd+Z), qui suit la disposition du clavier (AZERTY, QWERTY, cyrillique...), et `?` ouvre l'aide.
   - Support tactile complet sur smartphone (joystick virtuel par glissement, déplacement par toucher, croix directionnelle avec retour haptique ; le zoom se règle dans les options). Le plateau montre toujours la vue choisie en carré de N x N cases : un écran large ou en paysage ne dévoile pas plus du niveau qu'un écran carré.
   - Éditeur de niveaux complet avec validation en direct par le solveur.
-- **Musique** : une bande-son synthétisée avec trois modes, choisis dans Options > Audio. **Défaut** suit le biome affiché (chaque biome nomme sa piste avec `musicTrackId` dans `game.json`). **Aléatoire** tire une nouvelle piste à chaque nouveau niveau, sans jamais répéter la précédente tant qu'il existe au moins deux pistes. **Personnalisé** fait de même parmi les pistes que vous cochez (une au moins reste cochée). Un redémarrage, une nouvelle tentative après une mort ou un retour au premier niveau d'un pack d'un seul niveau ne change pas la piste, et en mode Aléatoire ou Personnalisé le biome (et la touche `B`) ne change plus la musique. Le mode et les pistes cochées sont enregistrés.
 
 ## Développement
 
@@ -43,26 +43,6 @@ Nécessite Node.js 24 (voir `.nvmrc`).
 npm install
 npm run dev
 ```
-
-### Ajouter des pistes musicales
-
-Les pistes se déclarent dans `public/configs/audio.json`, sous `tracks`. Une piste est synthétisée par défaut (notes et formes d'onde) ou lue depuis des fichiers audio :
-
-```json
-{
-  "id": "my_track",
-  "i18nKey": "app.music.my_track.label",
-  "source": "file",
-  "files": ["my_track.ogg", "my_track.mp3"],
-  "gain": 0.8
-}
-```
-
-- Placez les fichiers dans `public/audio/music/` (ce dossier est `musicBaseUrl`). Le navigateur joue le premier fichier de `files` qu'il sait décoder ; l'extension doit avoir un type MIME dans `fileMimeTypes` (`ogg` et `mp3` par défaut). `gain` règle la piste par rapport au volume de la musique (1 si omis).
-- Ajoutez le nom de la piste dans `src/locales/en.json` et `src/locales/fr.json`, sous `app.music.my_track.label`.
-- Associez-la à un biome avec `"musicTrackId": "my_track"` sur le thème dans `game.json`. Chaque piste participe aussi aux modes Aléatoire et Personnalisé.
-- `defaultTrackId` doit rester une piste synthétisée : c'est elle qui joue quand un fichier ne se charge pas. Une piste de fichier en échec est ignorée jusqu'à la fin de la session.
-- Le chargement vérifie la configuration : un identifiant en double, une piste de fichier sans fichiers, un `musicTrackId` inconnu ou un `defaultMusicMode` inconnu arrêtent le jeu avec un message clair.
 
 ## Construire une campagne avec le générateur
 

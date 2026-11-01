@@ -34,12 +34,13 @@ import {
   isDirection,
   isFiniteNumber,
   isInBounds,
+  isRuleset,
   isWinRule,
-  findAudioConfigErrors,
   findDatFormatErrors,
   findGameTunableErrors,
   InvalidLevelError
 } from './ConfigValidation';
+import { DEFAULT_RULESET } from '../core/coreConstants';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
 import {
   AudioConfig,
@@ -168,10 +169,6 @@ class ConfigRegistryService {
     if (datFormatErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.DAT_FORMAT, datFormatErrors.join('; '));
     }
-    const audioErrors = findAudioConfigErrors(bundle.audio, bundle.game.themes);
-    if (audioErrors.length > 0) {
-      throw new ConfigLoadError(CONFIG_ENDPOINTS.AUDIO, audioErrors.join('; '));
-    }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
     this.monstersConfig = bundle.monsters;
@@ -210,7 +207,7 @@ class ConfigRegistryService {
 
     for (const { descriptor, buffer } of fetched) {
       try {
-        const decoded = DatCodec.decodeBuffer(buffer, descriptor.prefix);
+        const decoded = DatCodec.decodeBuffer(buffer, descriptor.prefix, descriptor.ruleset ?? DEFAULT_RULESET);
         if (decoded.length > 0) {
           loaded.push({
             id: descriptor.id,
@@ -470,6 +467,7 @@ class ConfigRegistryService {
       ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
       ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
       ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
+      ...(isRuleset(bp.ruleset) && bp.ruleset !== DEFAULT_RULESET ? { ruleset: bp.ruleset } : {}),
       number: bp.number,
       ...(typeof bp.titleKey === 'string' ? { titleKey: bp.titleKey } : {}),
       ...(typeof bp.customTitle === 'string' ? { customTitle: bp.customTitle } : {}),

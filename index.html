@@ -99,14 +99,6 @@
             <h4 class="drawer-section-title" data-i18n="app.header.drawer_audio.label"></h4>
             <button id="btn-sfx-toggle" class="nav-btn active" type="button" data-i18n="app.header.audio_toggle.action"></button>
             <button id="btn-music-toggle" class="nav-btn" type="button" data-i18n="app.header.music_toggle.action"></button>
-            <div class="lang-box">
-              <label for="music-mode-select" data-i18n="app.music.mode.label"></label>
-              <select id="music-mode-select" class="locale-select"></select>
-            </div>
-            <fieldset id="music-custom-tracks" class="music-tracks" hidden>
-              <legend data-i18n="app.music.custom_tracks.label"></legend>
-              <div class="music-track-list"></div>
-            </fieldset>
           </div>
 
           <div class="drawer-section">
@@ -318,6 +310,13 @@
                 <select id="editor-meta-winrule" class="editor-input">
                   <option value="exit" selected data-i18n="editor.metadata.win_rule_exit.label"></option>
                   <option value="targets" data-i18n="editor.metadata.win_rule_targets.label"></option>
+                </select>
+              </div>
+              <div class="meta-field full-width">
+                <label for="editor-meta-ruleset" data-i18n="editor.metadata.ruleset.label"></label>
+                <select id="editor-meta-ruleset" class="editor-input">
+                  <option value="epoxy" selected data-i18n="editor.metadata.ruleset_epoxy.label"></option>
+                  <option value="lynx" data-i18n="editor.metadata.ruleset_lynx.label"></option>
                 </select>
               </div>
               <div class="meta-field full-width">

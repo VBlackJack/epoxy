@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { BLOCK_TARGET_TILE_ID } from '../core/coreConstants';
-import { GameEngine } from '../core/GameEngine';
+import { PlayEngine } from '../core/PlayEngine';
 import { Direction, GraphicsStyle, GridPoint, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
@@ -703,7 +703,7 @@ export class PixelRenderer {
     return resolveTheme(gameCfg.themes, this.themeId, gameCfg.graphics?.defaultTheme);
   }
 
-  public renderViewport(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
+  public renderViewport(ctx: CanvasRenderingContext2D, engine: PlayEngine): void {
     const startMs = performance.now();
     this.inFrame = true;
     this.frameSprite = undefined;
@@ -717,7 +717,7 @@ export class PixelRenderer {
     this.watchFrameBudget(performance.now() - startMs);
   }
 
-  private renderScene(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
+  private renderScene(ctx: CanvasRenderingContext2D, engine: PlayEngine): void {
     const gameCfg = ConfigRegistry.getGame();
     const settings = this.getSettings();
     const frameScale = this.advanceClock(settings);
@@ -1150,7 +1150,7 @@ export class PixelRenderer {
    */
   private drawIris(
     ctx: CanvasRenderingContext2D,
-    engine: GameEngine,
+    engine: PlayEngine,
     cx: number,
     cy: number,
     tilePixelSize: number,
@@ -1189,7 +1189,7 @@ export class PixelRenderer {
    * notification is needed.
    */
   private syncTerrainCache(
-    engine: GameEngine,
+    engine: PlayEngine,
     terrain: string[][],
     tilePixelSize: number,
     startTileX: number,
@@ -1327,7 +1327,7 @@ export class PixelRenderer {
 
   private drawMechanismLinksAndObjective(
     ctx: CanvasRenderingContext2D,
-    engine: GameEngine,
+    engine: PlayEngine,
     camX: number,
     camY: number,
     tilePixelSize: number
