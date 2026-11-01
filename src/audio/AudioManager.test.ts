@@ -72,7 +72,16 @@ class FakeEnvironment {
 
 class FakeAudioNode {
   public disconnectCalls = 0;
-  public readonly gain = { setValueAtTime: (): void => {}, linearRampToValueAtTime: (): void => {} };
+  public readonly gain = {
+    setValueAtTime: (): void => {},
+    linearRampToValueAtTime: (): void => {},
+    exponentialRampToValueAtTime: (): void => {}
+  };
+  public readonly frequency = { setValueAtTime: (): void => {} };
+  public type = '';
+  public onended: (() => void) | null = null;
+  public start(): void {}
+  public stop(): void {}
   public connect(): void {}
   public disconnect(): void {
     this.disconnectCalls++;
@@ -89,6 +98,11 @@ class FakeAudioContext {
     const node = new FakeAudioNode();
     this.nodes.push(node);
     return node;
+  }
+  public oscillatorsCreated = 0;
+  public createOscillator(): FakeAudioNode {
+    this.oscillatorsCreated++;
+    return new FakeAudioNode();
   }
   public createGain(): FakeAudioNode {
     const node = new FakeAudioNode();
@@ -441,5 +455,88 @@ describe('AudioManager music modes', () => {
     manager.setCustomTracks([other]);
     expect(manager.getActiveTrackId()).toBe(other);
     expect(manager.getCustomTrackIds()).toEqual([other]);
+  });
+});
+
+describe('AudioManager effect throttling', () => {
+  let env: FakeEnvironment;
+  const NOTE_COUNT = 2;
+  const THROTTLE_MS = 250;
+  const MS_PER_SECOND = 1000;
+
+  beforeEach(() => {
+    env = new FakeEnvironment();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A manager over two synthesized effects; `limited` carries the interval, `free` has none. */
+  async function createSfxFixture(minIntervalMs: number | undefined): Promise<{
+    manager: import('./AudioManager').AudioService;
+    ctx: FakeAudioContext;
+  }> {
+    vi.resetModules();
+    const { ConfigRegistry } = await import('../config/ConfigRegistry');
+    const { createTestBundle } = await import('../test/loadTestConfigs');
+    const { AudioService } = await import('./AudioManager');
+    const bundle = createTestBundle();
+    const notes = Array.from({ length: NOTE_COUNT }, () => ({ freq: 110, durationMs: 50, gain: 0.3 }));
+    bundle.audio.effects = {
+      limited: { waveform: 'square', notes, ...(minIntervalMs === undefined ? {} : { minIntervalMs }) },
+      free: { waveform: 'square', notes, ...(minIntervalMs === undefined ? {} : { minIntervalMs }) }
+    } as unknown as typeof bundle.audio.effects;
+    if (minIntervalMs !== undefined) delete (bundle.audio.effects.free as { minIntervalMs?: number }).minIntervalMs;
+    ConfigRegistry.applyConfigs(bundle);
+    vi.stubGlobal('window', env.window);
+    vi.stubGlobal('document', env.document);
+    const manager = new AudioService();
+    env.fire('pointerdown');
+    await flushPromises();
+    return { manager, ctx: env.contexts[0] };
+  }
+
+  it('plays a throttled effect once for rapid repeats inside the interval', async () => {
+    const { manager, ctx } = await createSfxFixture(THROTTLE_MS);
+    manager.playSfx('limited');
+    ctx.currentTime += (THROTTLE_MS - 1) / MS_PER_SECOND;
+    manager.playSfx('limited');
+    manager.playSfx('limited');
+    expect(ctx.oscillatorsCreated).toBe(NOTE_COUNT);
+  });
+
+  it('plays again once the interval has passed, counted from the last start', async () => {
+    const { manager, ctx } = await createSfxFixture(THROTTLE_MS);
+    manager.playSfx('limited');
+    ctx.currentTime += THROTTLE_MS / MS_PER_SECOND;
+    manager.playSfx('limited');
+    expect(ctx.oscillatorsCreated).toBe(NOTE_COUNT * 2);
+    ctx.currentTime += (THROTTLE_MS - 1) / MS_PER_SECOND;
+    manager.playSfx('limited');
+    expect(ctx.oscillatorsCreated).toBe(NOTE_COUNT * 2);
+  });
+
+  it('does not throttle another effect id', async () => {
+    const { manager, ctx } = await createSfxFixture(THROTTLE_MS);
+    manager.playSfx('limited');
+    manager.playSfx('free');
+    manager.playSfx('free');
+    expect(ctx.oscillatorsCreated).toBe(NOTE_COUNT * 3);
+  });
+
+  it('does not throttle an effect without minIntervalMs', async () => {
+    const { manager, ctx } = await createSfxFixture(undefined);
+    manager.playSfx('limited');
+    manager.playSfx('limited');
+    manager.playSfx('limited');
+    expect(ctx.oscillatorsCreated).toBe(NOTE_COUNT * 3);
+  });
+
+  it('does not record a start for a call made inside runSilently', async () => {
+    const { manager, ctx } = await createSfxFixture(THROTTLE_MS);
+    manager.runSilently(() => manager.playSfx('limited'));
+    manager.playSfx('limited');
+    expect(ctx.oscillatorsCreated).toBe(NOTE_COUNT);
   });
 });

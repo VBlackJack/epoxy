@@ -65,7 +65,7 @@ export function pickPlayableFile(
   return null;
 }
 
-function joinUrl(baseUrl: string, file: string): string {
+export function joinUrl(baseUrl: string, file: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/${file.replace(/^\/+/, '')}`;
 }
 

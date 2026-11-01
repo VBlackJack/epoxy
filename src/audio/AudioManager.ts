@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { AudioConfig, FileTrackConfig, MusicMixConfig, MusicTrackConfig } from '../core/types';
 import { FileMusicPlayer } from './FileMusicPlayer';
+import { SfxBank } from './SfxBank';
 import {
   FALLBACK_MUSIC_MODE,
   isFileTrack,
@@ -39,6 +40,8 @@ const DEFAULT_MUSIC_MIX: MusicMixConfig = {
 
 /** Folder and MIME map used when audio.json declares a file track but omits them. */
 const DEFAULT_MUSIC_BASE_URL = './audio/music';
+/** Folder the sampled effect files are loaded from when audio.json omits `sfxBaseUrl`. */
+const DEFAULT_SFX_BASE_URL = './audio/sfx';
 const DEFAULT_FILE_MIME_TYPES: Readonly<Record<string, string>> = { ogg: 'audio/ogg', mp3: 'audio/mpeg' };
 
 /** Events that count as a user gesture and therefore unlock audio playback. */
@@ -68,12 +71,15 @@ export class AudioService {
   /** Tracks that failed to play, left out of every pick for the rest of the session. */
   private readonly failedTrackIds = new Set<string>();
   private readonly filePlayer: FileMusicPlayer;
+  private sfxBank: SfxBank | null = null;
   private fileRetryArmed: boolean = false;
   private nextNoteTime: number = 0;
   private userGestureSeen: boolean = false;
   private pausedWhileHidden: boolean = false;
   /** Nesting depth of runSilently calls; effects play only at zero. */
   private silenceDepth: number = 0;
+  /** Audio clock time, in seconds, each effect last started; read by `minIntervalMs`. */
+  private readonly lastSfxStartSec = new Map<string, number>();
 
   private readonly onUserGesture = (): void => {
     const firstGesture = !this.userGestureSeen;
@@ -167,6 +173,7 @@ export class AudioService {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return null;
       this.ctx = new AudioCtx();
+      this.loadSfxBank(this.ctx);
     }
     // Any state but running or closed needs a resume, including the 'interrupted' state of iOS.
     const state: string = this.ctx.state;
@@ -180,6 +187,22 @@ export class AudioService {
         .catch(() => {});
     }
     return this.ctx.state === 'running' ? this.ctx : null;
+  }
+
+  /**
+   * Decodes the sampled effects in the background. Effects played before the
+   * decoding ends (right after the first gesture) use their synthesised notes.
+   */
+  private loadSfxBank(ctx: AudioContext): void {
+    let audioCfg: AudioConfig;
+    try {
+      audioCfg = this.getConfig();
+    } catch {
+      return;
+    }
+    if (!audioCfg?.effects) return;
+    this.sfxBank = new SfxBank();
+    this.sfxBank.load(ctx, audioCfg.effects, audioCfg.sfxBaseUrl ?? DEFAULT_SFX_BASE_URL);
   }
 
   private getConfig(): AudioConfig {
@@ -286,11 +309,21 @@ export class AudioService {
     const ctx = this.ensureContext();
     if (!ctx) return;
 
+    const { minIntervalMs } = effect;
+    if (minIntervalMs !== undefined) {
+      const lastStart = this.lastSfxStartSec.get(effectId);
+      if (lastStart !== undefined && ctx.currentTime - lastStart < minIntervalMs / MS_PER_SECOND) return;
+    }
+    this.lastSfxStartSec.set(effectId, ctx.currentTime);
+
+    const sfxVolume = audioCfg.masterVolume * audioCfg.sfxVolume;
+    if (this.sfxBank?.play(ctx, effectId, effect, sfxVolume)) return;
+
     const { releaseFloorGain } = this.getMix();
     let offsetSec = ctx.currentTime;
     for (const note of effect.notes) {
       const durationSec = note.durationMs / MS_PER_SECOND;
-      const peakGain = note.gain * audioCfg.masterVolume * audioCfg.sfxVolume;
+      const peakGain = note.gain * sfxVolume;
       this.scheduleTone(ctx, effect.waveform, note.freq, peakGain, offsetSec, durationSec, releaseFloorGain);
       offsetSec += durationSec;
     }

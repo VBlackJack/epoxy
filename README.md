@@ -64,6 +64,34 @@ Tracks are declared in `public/configs/audio.json` under `tracks`. A track is sy
 - `defaultTrackId` must stay a synthesized track: it plays when a file cannot be loaded. A file track that fails is skipped for the rest of the session.
 - The configuration is checked when the game loads: duplicate ids, a file track without files, an unknown `musicTrackId` or an unknown `defaultMusicMode` stop the game with a clear message.
 
+### Adding sound effects
+
+Each effect is declared in `public/configs/audio.json` under `effects.<id>`. An effect is synthesized from `waveform` and `notes`, and can also play audio files:
+
+```json
+"teleport": {
+  "files": ["sfx_movement_portal5.wav"],
+  "maxDurationMs": 400,
+  "fadeOutMs": 150,
+  "gain": 0.4,
+  "waveform": "sawtooth",
+  "notes": [
+    { "freq": 330, "durationMs": 35, "gain": 0.4 },
+    { "freq": 495, "durationMs": 35, "gain": 0.4 },
+    { "freq": 742, "durationMs": 45, "gain": 0.45 },
+    { "freq": 1113, "durationMs": 60, "gain": 0.4 }
+  ]
+}
+```
+
+- Put the files in `public/audio/sfx/` (the folder is `sfxBaseUrl`, `./audio/sfx` when omitted) and list their names in `files`. With several files they play in turn, so the step alternates two footsteps. A file that fails to load or decode is skipped.
+- `gain` (1 when omitted) is the loudness against the master volume times the sfx volume; the shipped files use 0.4, except the frequent `step` (0.15) and `blocked` (0.25).
+- `minIntervalMs` (no limit when omitted) skips a call made less than that long after the previous start of the same effect, on the audio clock; `blocked` ships at 250 so holding a key against a wall does not machine-gun.
+- `maxDurationMs` stops the playback there. `fadeOutMs` adds a linear fade that ends at that cap; it requires `maxDurationMs` and cannot be larger than it.
+- `waveform` and `notes` stay required: they are the fallback, played when no file is decoded yet (the first sounds right after the audio unlocks) or when a file is missing or fails.
+- 13 of the 15 effects use files; `splash` and `burn` stay synthesized.
+- Only `teleport` (400 ms cap, 150 ms fade) and `thief` (500 ms cap, 150 ms fade) use a cap and a fade.
+
 ## Building a Campaign with the Generator
 
 1. Open the **Level Editor**, set a **Difficulty**, leave **Seed** empty and press **Generate**. The seed used is written back, so the same level can be generated again.
@@ -99,6 +127,27 @@ npm run build
 ## Credits
 
 The bundled `CCLP 1` to `CCLP 5` packs are community-made level sets, and `Tile World Intro` ships with the Tile World project. All levels in these packs remain the work of their respective authors. Epoxy is not affiliated with the owners of any commercial game.
+
+### Audio
+
+Sound effects: The Essential Retro Video Game Sound Effects Collection by Juhani Junkala, published by SubspaceAudio on OpenGameArt (https://opengameart.org/content/512-sound-effects-8-bit-style), CC0 1.0, licence verified 2026-11-01.
+
+Files in `public/audio/sfx/` and the effect each one serves:
+
+- `sfx_movement_footsteps1a.wav`: step
+- `sfx_movement_footsteps1b.wav`: step
+- `sfx_sounds_impact3.wav`: blocked
+- `sfx_coin_single3.wav`: chip
+- `sfx_coin_double1.wav`: item
+- `sfx_movement_dooropen1.wav`: door
+- `sfx_sounds_powerup15.wav`: socket
+- `sfx_sounds_button10.wav`: button
+- `sfx_movement_portal5.wav`: teleport
+- `sfx_sounds_negative2.wav`: thief
+- `sfx_exp_short_hard4.wav`: bomb
+- `sfx_deathscream_android5.wav`: death
+- `sfx_sounds_fanfare1.wav`: win
+- `sfx_lowhealth_alarmloop6.wav`: timer_warn
 
 ## License
 

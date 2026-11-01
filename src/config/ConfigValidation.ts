@@ -281,6 +281,38 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
 }
 
+/** Problems of the optional sampled-file fields of the sound effects. */
+function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): string[] {
+  const errors: string[] = [];
+  for (const [id, effect] of Object.entries(effects ?? {})) {
+    const { files, maxDurationMs, fadeOutMs, gain, minIntervalMs } = effect;
+    if (files !== undefined) {
+      const valid = Array.isArray(files) && files.length > 0 && files.every((f) => typeof f === 'string' && f.length > 0);
+      if (!valid) errors.push(`effects.${id}.files: expected a non-empty list of file names`);
+    }
+    const capValid = maxDurationMs !== undefined && isFiniteNumber(maxDurationMs) && maxDurationMs > 0;
+    if (maxDurationMs !== undefined && !capValid) {
+      errors.push(`effects.${id}.maxDurationMs: expected a finite number above 0`);
+    }
+    if (fadeOutMs !== undefined) {
+      if (!(isFiniteNumber(fadeOutMs) && fadeOutMs >= 0)) {
+        errors.push(`effects.${id}.fadeOutMs: expected a finite number of at least 0`);
+      } else if (maxDurationMs === undefined) {
+        errors.push(`effects.${id}.fadeOutMs: needs maxDurationMs`);
+      } else if (capValid && fadeOutMs > maxDurationMs) {
+        errors.push(`effects.${id}.fadeOutMs: expected at most maxDurationMs`);
+      }
+    }
+    if (gain !== undefined && !(isFiniteNumber(gain) && gain >= 0)) {
+      errors.push(`effects.${id}.gain: expected a finite number of at least 0`);
+    }
+    if (minIntervalMs !== undefined && !(isFiniteNumber(minIntervalMs) && minIntervalMs >= 0)) {
+      errors.push(`effects.${id}.minIntervalMs: expected a finite number of at least 0`);
+    }
+  }
+  return errors;
+}
+
 /**
  * Problems of audio.json that would only show once a track is picked: track
  * ids must be unique, the default track must be a synth track (it is the
@@ -296,6 +328,7 @@ export function findAudioConfigErrors(audio: AudioConfig, themes: Record<string,
   if (fadeIn !== undefined && !(isFiniteNumber(fadeIn) && fadeIn >= 0)) {
     errors.push('musicMix.fileFadeInMs: expected a finite number of at least 0');
   }
+  errors.push(...findSfxEffectErrors(audio.effects));
   const tracks = audio.tracks ?? [];
   const seen = new Set<string>();
   for (const track of tracks) {
