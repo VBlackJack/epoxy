@@ -241,6 +241,55 @@
         110.00, 110.00, 164.81, 220.00, 196.00, 174.61, 164.81, 146.83,
         164.81, 146.83, 130.81, 123.47, 110.00, 110.00, 82.41, 98.00
       ]
+    },
+    {
+      "id": "odyssey_8bit",
+      "i18nKey": "app.music.odyssey_8bit.label",
+      "source": "file",
+      "files": ["odyssey-8bit.mp3"],
+      "gain": 1.0
+    },
+    {
+      "id": "subterranean_pulse_1",
+      "i18nKey": "app.music.subterranean_pulse_1.label",
+      "source": "file",
+      "files": ["subterranean-pulse-1.mp3"],
+      "gain": 1.0
+    },
+    {
+      "id": "subterranean_pulse_2",
+      "i18nKey": "app.music.subterranean_pulse_2.label",
+      "source": "file",
+      "files": ["subterranean-pulse-2.mp3"],
+      "gain": 1.0
+    },
+    {
+      "id": "subterranean_pulse_3",
+      "i18nKey": "app.music.subterranean_pulse_3.label",
+      "source": "file",
+      "files": ["subterranean-pulse-3.mp3"],
+      "gain": 1.0
+    },
+    {
+      "id": "subterranean_pulse_4",
+      "i18nKey": "app.music.subterranean_pulse_4.label",
+      "source": "file",
+      "files": ["subterranean-pulse-4.mp3"],
+      "gain": 1.0
+    },
+    {
+      "id": "endless_1",
+      "i18nKey": "app.music.endless_1.label",
+      "source": "file",
+      "files": ["endless-1.mp3"],
+      "gain": 1.0
+    },
+    {
+      "id": "endless_2",
+      "i18nKey": "app.music.endless_2.label",
+      "source": "file",
+      "files": ["endless-2.mp3"],
+      "gain": 1.0
     }
   ]
 }

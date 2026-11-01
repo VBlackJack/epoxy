@@ -259,6 +259,7 @@ async function createMusicFixture(env: FakeEnvironment): Promise<MusicFixture> {
   bundle.game.themes!.arctic_lab.musicTrackId = 'synth_b';
   bundle.game.themes!.magma_core.musicTrackId = 'synth_a';
   bundle.game.themes!.lynx_lcd.musicTrackId = 'synth_a';
+  bundle.game.endlessUi.musicTrackIds = ['synth_a', 'synth_b'];
   ConfigRegistry.applyConfigs(bundle);
   vi.stubGlobal('window', env.window);
   vi.stubGlobal('document', env.document);
@@ -433,6 +434,38 @@ describe('AudioManager music modes', () => {
 
     manager.onLevelLoaded('level_2');
     expect(manager.getActiveTrackId()).not.toBe(first);
+  });
+
+  it('plays the endless tracks in default mode, one per level, and goes back to the biome when the run ends', async () => {
+    const { manager } = await createMusicFixture(env);
+    manager.configureMusic('default', undefined);
+    manager.setThemeTrack('file_c');
+    expect(manager.getActiveTrackId()).toBe('file_c');
+
+    manager.setEndlessTracks(['synth_a', 'synth_b']);
+    manager.onLevelLoaded('endless_1');
+    const first = manager.getActiveTrackId();
+    expect(['synth_a', 'synth_b']).toContain(first);
+
+    manager.onLevelLoaded('endless_1');
+    manager.setThemeTrack('file_c');
+    expect(manager.getActiveTrackId()).toBe(first);
+
+    manager.onLevelLoaded('endless_2');
+    const second = manager.getActiveTrackId();
+    expect(['synth_a', 'synth_b']).toContain(second);
+    expect(second).not.toBe(first);
+
+    manager.setEndlessTracks(null);
+    expect(manager.getActiveTrackId()).toBe('file_c');
+  });
+
+  it('leaves the random and custom modes alone during an endless run', async () => {
+    const { manager } = await createMusicFixture(env);
+    manager.configureMusic('custom', ['file_c']);
+    manager.setEndlessTracks(['synth_a', 'synth_b']);
+    manager.onLevelLoaded('endless_1');
+    expect(manager.getActiveTrackId()).toBe('file_c');
   });
 
   it('applies a mode switch at once', async () => {

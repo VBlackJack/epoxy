@@ -329,7 +329,11 @@ function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): strin
  * fallback when a file cannot play), file tracks need files, every biome
  * must point to a real track, and the default music mode must exist.
  */
-export function findAudioConfigErrors(audio: AudioConfig, themes: Record<string, ThemePalette> | undefined): string[] {
+export function findAudioConfigErrors(
+  audio: AudioConfig,
+  themes: Record<string, ThemePalette> | undefined,
+  endlessTrackIds?: readonly unknown[]
+): string[] {
   const errors: string[] = [];
   if (audio.defaultMusicMode !== undefined && !isMusicMode(audio.defaultMusicMode)) {
     errors.push(`defaultMusicMode: expected one of ${MUSIC_MODES.join(', ')}`);
@@ -368,6 +372,11 @@ export function findAudioConfigErrors(audio: AudioConfig, themes: Record<string,
   for (const theme of Object.values(themes ?? {})) {
     if (theme.musicTrackId !== undefined && !seen.has(theme.musicTrackId)) {
       errors.push(`themes.${theme.id}.musicTrackId: no track with this id`);
+    }
+  }
+  for (const id of endlessTrackIds ?? []) {
+    if (typeof id !== 'string' || !seen.has(id)) {
+      errors.push(`endlessUi.musicTrackIds: no track with the id ${JSON.stringify(id)}`);
     }
   }
   return errors;

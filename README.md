@@ -34,7 +34,9 @@
   - Keyboard: `Tab` moves focus between the controls, Ctrl/Cmd chords are left to the browser except undo (Ctrl/Cmd+Z), which follows the keyboard layout (AZERTY, QWERTY, Cyrillic...), and `?` opens the help.
   - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options). The board always shows the chosen view as a square of N x N tiles, so a wide or landscape screen reveals no more of the level than a square one.
   - Full-featured Level Editor with live solver validation.
-- **Music**: a synthesized soundtrack with three modes, chosen in Options > Audio. **Default** follows the biome on screen (each biome names its track with `musicTrackId` in `game.json`). **Random** picks a new track for each new level and never repeats the previous one while two or more tracks exist. **Custom** does the same among the tracks you tick (at least one stays ticked). A restart, a retry after dying or a one-level wrap does not change the track, and in Random and Custom the biome (and the `B` key) no longer changes the music. The mode and the ticked tracks are saved.
+- **Music**: original music tracks (see [Credits](#credits)) and a synthesized soundtrack, with three modes, chosen in Options > Audio. **Default** follows the biome on screen (each biome names its track with `musicTrackId` in `game.json`). **Random** picks a new track for each new level and never repeats the previous one while two or more tracks exist. **Custom** does the same among the tracks you tick (at least one stays ticked). A restart, a retry after dying or a one-level wrap does not change the track, and in Random and Custom the biome (and the `B` key) no longer changes the music. The mode and the ticked tracks are saved.
+  - The game ships seven original tracks: `8-bit Odyssey` for Cyber Neon, `Subterranean Pulse I` for Arctic Lab and `Subterranean Pulse III` for Magma Core (`Subterranean Pulse II` and `IV` are in Random and Custom). Retro Lynx LCD keeps its synthesized track.
+  - In Default mode, the levels of an endless run play `Endless I` or `Endless II` instead of the biome track: a new level never repeats the track of the level before. The list is `endlessUi.musicTrackIds` in `game.json`. Random and Custom are unchanged.
 
 ## Development
 
@@ -130,6 +132,8 @@ npm run build
 The bundled `CCLP 1` to `CCLP 5` packs are community-made level sets, and `Tile World Intro` ships with the Tile World project. All levels in these packs remain the work of their respective authors. Epoxy is not affiliated with the owners of any commercial game.
 
 ### Audio
+
+Music: Julien Bombled (original tracks in `public/audio/music/`).
 
 Sound effects: The Essential Retro Video Game Sound Effects Collection by Juhani Junkala, published by SubspaceAudio on OpenGameArt (https://opengameart.org/content/512-sound-effects-8-bit-style), CC0 1.0, licence verified 2026-11-01.
 

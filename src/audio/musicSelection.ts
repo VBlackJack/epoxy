@@ -42,6 +42,11 @@ export interface TrackPickContext {
   previousId: string | null;
   /** Tracks that failed to play this session. */
   excludedIds: ReadonlySet<string>;
+  /**
+   * Tracks of the endless run, set only while its levels are the ones on screen: the
+   * 'default' mode plays one of them, never the same twice in a row, instead of the biome track.
+   */
+  endlessTrackIds?: readonly string[] | null;
   /** Source of randomness in [0, 1). */
   random: () => number;
 }
@@ -65,6 +70,8 @@ export function pickTrack(mode: MusicMode, ctx: TrackPickContext): string | null
     ids.filter((id, i) => known.has(id) && !ctx.excludedIds.has(id) && ids.indexOf(id) === i);
   switch (mode) {
     case 'default': {
+      const endless = eligible(ctx.endlessTrackIds ?? []);
+      if (endless.length > 0) return pickAmong(endless, ctx);
       const id = ctx.themeTrackId;
       return id !== null && eligible([id]).length === 1 ? id : null;
     }

@@ -53,6 +53,33 @@ describe('pickTrack', () => {
     expect(pickTrack('default', context({ excludedIds: new Set(['b']) }))).toBeNull();
   });
 
+  it('plays an endless track in default mode, never the previous one, instead of the biome track', () => {
+    const random = seeded(5);
+    let previous: string | null = 'x';
+    const seen = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      const id: string | null = pickTrack(
+        'default',
+        context({ allIds: ['a', 'b', 'c', 'x', 'y'], endlessTrackIds: ['x', 'y'], previousId: previous, random })
+      );
+      expect(['x', 'y']).toContain(id);
+      expect(id).not.toBe(previous);
+      seen.add(id as string);
+      previous = id;
+    }
+    expect(seen.size).toBe(2);
+  });
+
+  it('falls back to the biome track when no endless track is eligible, and ignores them outside default mode', () => {
+    const base = { allIds: ['a', 'b', 'x'], themeTrackId: 'b' };
+    expect(pickTrack('default', context({ ...base, endlessTrackIds: [] }))).toBe('b');
+    expect(pickTrack('default', context({ ...base, endlessTrackIds: null }))).toBe('b');
+    expect(pickTrack('default', context({ ...base, endlessTrackIds: ['nope'] }))).toBe('b');
+    expect(pickTrack('default', context({ ...base, endlessTrackIds: ['x'], excludedIds: new Set(['x']) }))).toBe('b');
+    expect(pickTrack('default', context({ ...base, endlessTrackIds: ['x'], previousId: 'x' }))).toBe('x');
+    expect(pickTrack('custom', context({ ...base, customIds: ['a'], endlessTrackIds: ['x'] }))).toBe('a');
+  });
+
   it('never repeats the previous track in random mode over many picks', () => {
     const random = seeded(42);
     let previous: string | null = 'a';

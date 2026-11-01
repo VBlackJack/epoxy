@@ -127,7 +127,7 @@
       "wallBottom": "#2b3446",
       "wallBevel": "#64b5f6",
       "accentGlow": "#00e5ff",
-      "musicTrackId": "cyber_pulse"
+      "musicTrackId": "odyssey_8bit"
     },
     "arctic_lab": {
       "id": "arctic_lab",
@@ -139,7 +139,7 @@
       "wallBottom": "#345163",
       "wallBevel": "#b3e5fc",
       "accentGlow": "#80d8ff",
-      "musicTrackId": "arctic_synth"
+      "musicTrackId": "subterranean_pulse_1"
     },
     "magma_core": {
       "id": "magma_core",
@@ -151,7 +151,7 @@
       "wallBottom": "#3e2723",
       "wallBevel": "#ff8a65",
       "accentGlow": "#ff6d00",
-      "musicTrackId": "magma_drive"
+      "musicTrackId": "subterranean_pulse_3"
     },
     "lynx_lcd": {
       "id": "lynx_lcd",
@@ -451,7 +451,8 @@
   },
   "endlessUi": {
     "fallbackYieldMs": 0,
-    "maxStartLevel": 10000
+    "maxStartLevel": 10000,
+    "musicTrackIds": ["endless_1", "endless_2"]
   },
   "locales": {
     "supported": ["fr", "en"],

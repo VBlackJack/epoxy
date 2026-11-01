@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Seven original music tracks (`public/audio/music/`): `8-bit Odyssey` for Cyber Neon, `Subterranean Pulse I` for Arctic Lab and `III` for Magma Core in the Default music mode, `Endless I` and `II` for endless runs (a new level never repeats the previous track, list in `endlessUi.musicTrackIds`, checked at load), and all of them in Random and Custom. Music: Julien Bombled.
 - Level author: the optional author field (9) of a `.DAT` pack is read, shown next to the level
   title in the HUD, kept on export, and editable in the editor (Author field).
 - Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new

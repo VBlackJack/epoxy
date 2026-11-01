@@ -34,7 +34,9 @@
   - Clavier : `Tab` déplace le focus entre les commandes, les raccourcis Ctrl/Cmd sont laissés au navigateur sauf l'annulation (Ctrl/Cmd+Z), qui suit la disposition du clavier (AZERTY, QWERTY, cyrillique...), et `?` ouvre l'aide.
   - Support tactile complet sur smartphone (joystick virtuel par glissement, déplacement par toucher, croix directionnelle avec retour haptique ; le zoom se règle dans les options). Le plateau montre toujours la vue choisie en carré de N x N cases : un écran large ou en paysage ne dévoile pas plus du niveau qu'un écran carré.
   - Éditeur de niveaux complet avec validation en direct par le solveur.
-- **Musique** : une bande-son synthétisée avec trois modes, choisis dans Options > Audio. **Défaut** suit le biome affiché (chaque biome nomme sa piste avec `musicTrackId` dans `game.json`). **Aléatoire** tire une nouvelle piste à chaque nouveau niveau, sans jamais répéter la précédente tant qu'il existe au moins deux pistes. **Personnalisé** fait de même parmi les pistes que vous cochez (une au moins reste cochée). Un redémarrage, une nouvelle tentative après une mort ou un retour au premier niveau d'un pack d'un seul niveau ne change pas la piste, et en mode Aléatoire ou Personnalisé le biome (et la touche `B`) ne change plus la musique. Le mode et les pistes cochées sont enregistrés.
+- **Musique** : des pistes originales (voir [Crédits](#crédits)) et une bande-son synthétisée, avec trois modes, choisis dans Options > Audio. **Défaut** suit le biome affiché (chaque biome nomme sa piste avec `musicTrackId` dans `game.json`). **Aléatoire** tire une nouvelle piste à chaque nouveau niveau, sans jamais répéter la précédente tant qu'il existe au moins deux pistes. **Personnalisé** fait de même parmi les pistes que vous cochez (une au moins reste cochée). Un redémarrage, une nouvelle tentative après une mort ou un retour au premier niveau d'un pack d'un seul niveau ne change pas la piste, et en mode Aléatoire ou Personnalisé le biome (et la touche `B`) ne change plus la musique. Le mode et les pistes cochées sont enregistrés.
+  - Le jeu livre sept pistes originales : `Odyssée 8 bits` pour Cyber Neon, `Pulsation souterraine I` pour Arctic Lab et `Pulsation souterraine III` pour Magma Core (`Pulsation souterraine II` et `IV` jouent en mode Aléatoire et Personnalisé). Retro Lynx LCD garde sa piste synthétisée.
+  - En mode Défaut, les niveaux d'une partie infinie jouent `Mode infini I` ou `Mode infini II` à la place de la piste du biome : un nouveau niveau ne rejoue jamais la piste du niveau précédent. La liste est `endlessUi.musicTrackIds` dans `game.json`. Aléatoire et Personnalisé ne changent pas.
 
 ## Développement
 
@@ -130,6 +132,8 @@ npm run build
 Les packs `CCLP 1` à `CCLP 5` fournis sont des jeux de niveaux créés par la communauté, et `Tile World Intro` est distribué avec le projet Tile World. Tous les niveaux de ces packs restent l'oeuvre de leurs auteurs respectifs. Epoxy n'est affilié à aucun détenteur de jeu commercial.
 
 ### Audio
+
+Musique : Julien Bombled (pistes originales dans `public/audio/music/`).
 
 Effets sonores : The Essential Retro Video Game Sound Effects Collection de Juhani Junkala, publiée par SubspaceAudio sur OpenGameArt (https://opengameart.org/content/512-sound-effects-8-bit-style), CC0 1.0, licence vérifiée le 2026-11-01.
 
