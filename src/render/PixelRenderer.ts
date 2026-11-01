@@ -31,10 +31,12 @@ import {
   MONSTER_COLOR_KEYS,
   teleporterGlyphKey
 } from './paletteKeys';
+import { blockCellsKey, collectBlockCells } from './blockCover';
 import { FrameBudgetGuard } from './frameBudget';
 import {
   AUTO_QUALITY_ID,
   GraphicsQuality,
+  DEFAULT_RENDER_SETTINGS,
   QUALITY_LEVELS,
   RenderSettings,
   resolveFrameBudget,
@@ -75,14 +77,21 @@ import {
   RETRO_SPRITE_ANIMATED_TILES
 } from './retroCompose';
 import {
+  createRetro16SpriteSource,
+  findRetro32PaletteErrors,
   findRetroSheetErrors,
   hasRetroSprite,
   resolveRetroRamps,
   RetroRamps,
+  RETRO16_SPEC,
   RETRO_SHEET,
-  RETRO_SPRITE_SIZE
+  RETRO_SPRITE_SIZE,
+  SpriteSource,
+  SpriteStyleSpec
 } from './retroSprites';
 import { RETRO_SPRITE } from './retroSpriteNames';
+import { getRenderStyle, nextRenderStyle, RenderStyleDescriptor } from './styles/renderStyles';
+import { createRetro32SpriteCache, createRetro32ThemeSprites, Retro32SpriteCache } from './retro32';
 
 interface Particle {
   x: number;
@@ -110,6 +119,15 @@ interface ShockwaveRing {
  * animated part is drawn over it every frame, 'all' draws both (editor, icons).
  */
 type TilePass = 'all' | 'static' | 'animated';
+
+/** Sprites, ramps and parameters the retro sprite path draws with right now. */
+interface ActiveSpriteStyle {
+  readonly spec: SpriteStyleSpec;
+  readonly ramps: RetroRamps;
+  readonly source: SpriteSource;
+}
+
+type RetroPaletteTable = Record<string, Record<string, string[]>> | undefined;
 
 /** Parts of the shadow a floor cell receives from casters north, west or only north-west of it. */
 type ShadowPart = 'north' | 'west' | 'corner';
@@ -184,6 +202,27 @@ const RETRO_READY_SPRITE = RETRO_SPRITE.floor;
 const RETRO_READY_RAMP = 'floor';
 /** Prefix of the console report when the retro palettes or sprites fail validation. */
 const RETRO_INVALID_REPORT = 'Retro sprites rejected, using the flat retro drawer:';
+/** Prefix of the console report when the 32-Bit ramps cannot be derived and 16-Bit sprites are used. */
+const RETRO32_INVALID_REPORT = '32-Bit Retro ramps unavailable, using the 16-Bit sprites:';
+/** Smallest sprite cache the 32-Bit style may be given. */
+const RETRO32_MIN_CACHE_ENTRIES = 1;
+/** Separator of the parts of a retro canvas key; never part of a layer name. */
+const RETRO_KEY_SEPARATOR = '|';
+/** The 32-Bit shine sweeps across a sprite during this many animation frames of the 60 frame cycle. */
+const SHINE_SWEEP_FRAMES = 24;
+/** Distinct positions of the shine band over one sweep (one cached overlay each). */
+const SHINE_STEPS = 12;
+/** Half width of the fully lit shine band, as a fraction of the sprite size. */
+const SHINE_CORE_HALF_WIDTH_RATIO = 0.09;
+/** The soft edge of the band is this many times wider than its core. */
+const SHINE_EDGE_FACTOR = 2;
+/** Overlay alpha (0..255) of the band core and of its soft edge. */
+const SHINE_CORE_ALPHA = 255;
+const SHINE_EDGE_ALPHA = 110;
+/** Bytes per RGBA pixel and offsets used when painting the shine overlay. */
+const RGBA_BYTES = 4;
+const RGBA_ALPHA_OFFSET = 3;
+const OVERLAY_WHITE = 255;
 /** Modern tile animation speed, in radians per reference frame. */
 const MODERN_ANIM_SPEED = 0.08;
 const ITEM_BOB_SPEED = 0.1;
@@ -342,6 +381,9 @@ export class PixelRenderer {
   private visualCameraPos: { x: number; y: number } | null = null;
   private visualEntityPos: Map<number, { x: number; y: number }> = new Map();
   private readonly activeEntityUids: Set<number> = new Set();
+  // Cells covered by pushable blocks this frame (key y * width + x); a block hides what is under it.
+  private readonly blockCells: Set<number> = new Set();
+  private blockCellsWidth: number = 0;
   private lastLevelId: string = '';
 
   private particles: Particle[] = [];
@@ -355,6 +397,7 @@ export class PixelRenderer {
   private terrainCacheCtx: CanvasRenderingContext2D | null = null;
   private terrainCacheKey: string = '';
   private trapStateKey: string = '';
+  private blockCellsStateKey: string = '';
   private readonly cacheRegion = { x0: 0, y0: 0, x1: -1, y1: -1 };
 
   /** Pre-rendered glowing shapes, keyed by kind, style and size. */
@@ -382,6 +425,35 @@ export class PixelRenderer {
   private lcdGridKey = '';
   private retroRampsTheme: string = '';
   private retroRampsCache: RetroRamps = {};
+  /** Sprite style in use, rebuilt when the style, the 16-Bit ramps or the 32-Bit palettes change. */
+  private spriteStyleMemo: {
+    styleId: GraphicsStyle;
+    ramps16: RetroRamps;
+    palettes32: RetroPaletteTable;
+    cacheEntries: number;
+    value: ActiveSpriteStyle | null;
+    /** The 16-Bit sprites a 32-Bit style degrades to when tiles are drawn smaller than its sprites. */
+    small: ActiveSpriteStyle | null;
+  } | null = null;
+  /** Tile size in pixels of the frame being drawn; infinite outside a frame (icons, editor). */
+  private frameTilePx = Number.POSITIVE_INFINITY;
+  /** Sprite style resolved once for the frame being drawn; undefined until first asked in a frame. */
+  private frameSprite: ActiveSpriteStyle | null | undefined;
+  /** True while a frame is drawn, so the per-frame sprite style may be kept. */
+  private inFrame = false;
+  /** The next frame is not timed: it rebuilds caches after a style or theme change. */
+  private skipBudgetFrame = false;
+  /** Rasterized 32-Bit sprites, one instance for every theme (the keys carry the theme). */
+  private retro32Cache: Retro32SpriteCache | null = null;
+  private retro32CacheSize = 0;
+  /** Problems found in the 32-Bit palette overrides, checked once per palettes object. */
+  private retro32PaletteErrors: string[] = [];
+  /** Palettes the 32-Bit cache was filled from; a new object empties it. */
+  private retro32CachePalettes: { p16: RetroPaletteTable; p32: RetroPaletteTable } | null = null;
+  /** Shine overlays of 32-Bit items and blocks, keyed like retroCanvases plus the sweep step. */
+  private readonly retroShineCanvases: Map<string, HTMLCanvasElement> = new Map();
+  /** Style id the cached shadow extent was computed for. */
+  private retroExtentStyle = '';
   /** Low resolution canvas the retro scene is drawn on, one pixel per sprite pixel. */
   private retroScene: HTMLCanvasElement | null = null;
   private retroSceneCtx: CanvasRenderingContext2D | null = null;
@@ -413,11 +485,13 @@ export class PixelRenderer {
   }
 
   public setStyle(style: GraphicsStyle): void {
+    if (style !== this.style) this.restartFrameBudget();
     this.style = style;
   }
 
   public toggleStyle(): GraphicsStyle {
-    this.style = this.style === 'modern' ? 'retro' : 'modern';
+    this.restartFrameBudget();
+    this.style = nextRenderStyle(this.style).id;
     return this.style;
   }
 
@@ -426,6 +500,7 @@ export class PixelRenderer {
   }
 
   public setThemeId(id: string): void {
+    if (id !== this.themeId) this.restartFrameBudget();
     this.themeId = id;
   }
 
@@ -434,8 +509,23 @@ export class PixelRenderer {
     return this.getActiveTheme()?.accentGlow;
   }
 
+  /** True when the LCD grid is shown: it was asked for and the active style allows it. */
   public isLcdEnabled(): boolean {
+    return this.lcdEnabled && this.descriptor().lcdAllowed;
+  }
+
+  /** The LCD choice the player made, kept whatever the active style does with it. */
+  public getLcdPreference(): boolean {
     return this.lcdEnabled;
+  }
+
+  private descriptor(): RenderStyleDescriptor {
+    return getRenderStyle(this.style);
+  }
+
+  /** True for the vector HD Neon drawing, false for the sprite styles and the flat retro fallback look. */
+  private isHdVector(): boolean {
+    return this.descriptor().sprite === null;
   }
 
   public setLcdEnabled(enabled: boolean): void {
@@ -471,8 +561,20 @@ export class PixelRenderer {
     this.onQualityLowered = callback;
   }
 
+  /** Drops the timings gathered so far and ignores the next frame, which rebuilds caches. */
+  private restartFrameBudget(): void {
+    this.frameGuard.reset();
+    this.skipBudgetFrame = true;
+  }
+
   /** In automatic mode, steps quality down one level when frames keep exceeding the budget. */
   private watchFrameBudget(frameMs: number): void {
+    if (this.skipBudgetFrame) {
+      // A frame that rebuilt caches is a one-off cost, not a sign the device is slow.
+      this.skipBudgetFrame = false;
+      this.frameGuard.reset();
+      return;
+    }
     if (this.quality !== AUTO_QUALITY_ID) return;
     if (!this.frameGuard.record(frameMs, resolveFrameBudget(ConfigRegistry.getGame().graphics))) return;
     const index = QUALITY_LEVELS.indexOf(this.effectiveQuality);
@@ -487,6 +589,7 @@ export class PixelRenderer {
     const keys = Object.keys(themes);
     if (keys.length === 0) return this.themeId;
     const idx = keys.indexOf(this.themeId);
+    this.restartFrameBudget();
     this.themeId = keys[(idx + 1) % keys.length];
     return this.themeId;
   }
@@ -556,8 +659,8 @@ export class PixelRenderer {
       this.shakeIntensity = this.reducedMotion ? 0 : settings.screenShakeExplosion;
     }
 
-    // Shockwaves and particle bursts are pure motion: skipped under reduced motion.
-    if (this.reducedMotion) return;
+    // Shockwaves and particle bursts are pure motion: skipped under reduced motion and in styles without effects.
+    if (this.reducedMotion || !this.effectsActive()) return;
 
     if (kind === 'teleport' || kind === 'unlock' || kind === 'win' || kind === 'explosion') {
       this.shockwaves.push({
@@ -607,7 +710,15 @@ export class PixelRenderer {
 
   public renderViewport(ctx: CanvasRenderingContext2D, engine: GameEngine): void {
     const startMs = performance.now();
-    this.renderScene(ctx, engine);
+    this.inFrame = true;
+    this.frameSprite = undefined;
+    try {
+      this.renderScene(ctx, engine);
+    } finally {
+      this.inFrame = false;
+      this.frameSprite = undefined;
+      this.frameTilePx = Number.POSITIVE_INFINITY;
+    }
     this.watchFrameBudget(performance.now() - startMs);
   }
 
@@ -622,12 +733,13 @@ export class PixelRenderer {
     this.lastMapWidth = mapWidth;
     this.lastMapHeight = mapHeight;
     const targetTiles = this.currentViewportTiles || gridCfg.viewportWidth;
-    const isModern = this.style === 'modern';
-    const camLerp = isModern ? scaleLerpFactor(settings.cameraLerpFactor, frameScale) : 1;
+    const desc = this.descriptor();
+    const smooth = desc.smoothMotion;
+    const camLerp = smooth ? scaleLerpFactor(settings.cameraLerpFactor, frameScale) : 1;
 
     if (
       !this.visualViewportTiles ||
-      !isModern ||
+      !smooth ||
       Math.abs(targetTiles - this.visualViewportTiles) < settings.zoomSnapEpsilonTiles
     ) {
       this.visualViewportTiles = targetTiles;
@@ -640,6 +752,7 @@ export class PixelRenderer {
     const baseTiles = this.visualViewportTiles;
     const minSide = Math.max(1, Math.min(canvasWidth, canvasHeight));
     const tilePixelSize = minSide / baseTiles;
+    this.frameTilePx = tilePixelSize;
     // Tiles across the canvas; a map smaller than this is centred by the camera.
     const viewportWidth = canvasWidth / tilePixelSize;
     const viewportHeight = canvasHeight / tilePixelSize;
@@ -653,7 +766,7 @@ export class PixelRenderer {
       this.visualPlayerPos = { x: player.x, y: player.y };
     }
 
-    const entityLerp = isModern ? scaleLerpFactor(settings.entityLerpFactor, frameScale) : 1;
+    const entityLerp = smooth ? scaleLerpFactor(settings.entityLerpFactor, frameScale) : 1;
     const snapDist = settings.teleportSnapDistance;
 
     if (!this.visualPlayerPos) {
@@ -674,7 +787,7 @@ export class PixelRenderer {
     const targetCamX = cameraPosition(this.visualPlayerPos.x - halfW, mapWidth, viewportWidth);
     const targetCamY = cameraPosition(this.visualPlayerPos.y - halfH, mapHeight, viewportHeight);
 
-    if (!this.visualCameraPos || !isModern) {
+    if (!this.visualCameraPos || !smooth) {
       this.visualCameraPos = {
         x: cameraPosition(player.x - Math.floor(viewportWidth / 2), mapWidth, viewportWidth),
         y: cameraPosition(player.y - Math.floor(viewportHeight / 2), mapHeight, viewportHeight)
@@ -684,8 +797,10 @@ export class PixelRenderer {
       this.visualCameraPos.y += (targetCamY - this.visualCameraPos.y) * camLerp;
     }
 
-    // Retro snaps the camera to a sprite pixel, so overlays and clicks line up with the low-res scene.
-    const snapCamera = (v: number): number => (isModern ? v : Math.round(v * RETRO_SPRITE_SIZE) / RETRO_SPRITE_SIZE);
+    // Sprite styles snap the camera to a sprite pixel, so overlays and clicks line up with the low-res scene.
+    const sprite = this.getSpriteStyle();
+    const spriteSize = sprite?.spec.tileSize ?? RETRO_SPRITE_SIZE;
+    const snapCamera = (v: number): number => (desc.pixelSnap ? Math.round(v * spriteSize) / spriteSize : v);
     const camX = snapCamera(this.visualCameraPos.x);
     const camY = snapCamera(this.visualCameraPos.y);
     this.lastFrame = { camX, camY, tilePixelSize, canvasWidth, canvasHeight };
@@ -693,20 +808,22 @@ export class PixelRenderer {
     const terrain = engine.getTerrain();
     const items = engine.getItems();
     const entities = engine.getEntities();
+    this.blockCellsWidth = mapWidth;
+    collectBlockCells(entities, mapWidth, this.blockCells);
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    // 16-Bit Retro draws the scene on a canvas with one pixel per sprite pixel, then scales it up
+    // The sprite styles draw the scene on a canvas with one pixel per sprite pixel, then scale it up
     // once, so every sprite pixel stays a square block whatever the zoom.
-    const spriteScale = tilePixelSize / RETRO_SPRITE_SIZE;
+    const spriteScale = tilePixelSize / spriteSize;
     const lowCtx =
-      !isModern && this.retroSpritesReady()
+      desc.lowResScene && sprite
         ? this.prepareRetroScene(Math.ceil(canvasWidth / spriteScale), Math.ceil(canvasHeight / spriteScale))
         : null;
     const lowRes = lowCtx !== null;
     const sceneCtx = lowCtx ?? ctx;
     // Tile size in the space the scene is drawn in.
-    const unit = lowRes ? RETRO_SPRITE_SIZE : tilePixelSize;
+    const unit = lowRes ? spriteSize : tilePixelSize;
 
     ctx.save();
     if (this.shakeIntensity > settings.screenShakeMinIntensity) {
@@ -734,7 +851,7 @@ export class PixelRenderer {
       sceneCtx.drawImage(this.terrainCache, originX, originY);
     }
 
-    const animatedTiles = isModern
+    const animatedTiles = desc.sprite === null
       ? MODERN_ANIMATED_TILES
       : lowRes
         ? RETRO_SPRITE_ANIMATED_TILES
@@ -743,6 +860,7 @@ export class PixelRenderer {
     for (const cell of this.terrainFeatures.animatedCells) {
       if (cell.x < startTileX || cell.x > endTileX || cell.y < startTileY || cell.y > endTileY) continue;
       if (!animatedTiles.has(cell.tileId)) continue;
+      if (this.isBlockCovered(cell.x, cell.y)) continue;
       const px = originX + Math.floor((cell.x - region.x0) * unit);
       const py = originY + Math.floor((cell.y - region.y0) * unit);
       animNeighbours.hash = cellHash(cell.x, cell.y);
@@ -752,7 +870,7 @@ export class PixelRenderer {
     }
 
     // Lights are gathered while the scene is drawn and applied once it is complete.
-    const lit = isModern && settings.lightingEnabled;
+    const lit = this.lightingActive() && settings.lightingEnabled;
     this.lights.length = 0;
     if (lit) {
       for (const cell of this.terrainFeatures.litCells) {
@@ -764,6 +882,7 @@ export class PixelRenderer {
         ) {
           continue;
         }
+        if (this.isBlockCovered(cell.x, cell.y)) continue;
         this.addLight(cell.tileId, cell.x - camX, cell.y - camY, tilePixelSize, settings);
       }
     }
@@ -773,7 +892,7 @@ export class PixelRenderer {
       if (!itemRow) continue;
       for (let mx = startTileX; mx <= endTileX; mx++) {
         const itemId = itemRow[mx];
-        if (itemId) {
+        if (itemId && !this.isBlockCovered(mx, my)) {
           const px = originX + Math.floor((mx - region.x0) * unit);
           const py = originY + Math.floor((my - region.y0) * unit);
           this.drawItem(sceneCtx, itemId, px, py, drawSize);
@@ -830,13 +949,13 @@ export class PixelRenderer {
 
     const playerPx = (this.visualPlayerPos.x - camX) * tilePixelSize;
     const playerPy = (this.visualPlayerPos.y - camY) * tilePixelSize;
-    // Modern: stride and hop while gliding between cells. Retro snaps to cells, so the
+    // Smooth styles: stride and hop while gliding between cells. The others snap to cells, so the
     // stride alternates with each step taken instead.
     const steps = engine.getStepsCount();
     const remaining = Math.hypot(player.x - this.visualPlayerPos.x, player.y - this.visualPlayerPos.y);
     let walkFrame = 0;
     let hop = 0;
-    if (isModern) {
+    if (smooth) {
       if (remaining > MOVING_EPSILON_TILES) {
         walkFrame = 1 + (steps % WALK_FRAMES);
         if (!this.reducedMotion) hop = Math.sin(Math.min(1, remaining) * Math.PI) * settings.playerHopTile;
@@ -878,13 +997,13 @@ export class PixelRenderer {
           vignetteInnerRatio: settings.vignetteInnerRatio
         }
       );
-    } else if (!isModern && this.lcdEnabled) {
+    } else if (this.isLcdEnabled()) {
       this.drawLcdGrid(ctx, spriteScale, settings);
     }
 
     this.drawMechanismLinksAndObjective(ctx, engine, camX, camY, tilePixelSize);
 
-    if (isModern) {
+    if (this.effectsActive()) {
       this.updateAndDrawEffects(ctx, camX, camY, tilePixelSize, frameScale, settings);
     }
 
@@ -1102,7 +1221,8 @@ export class PixelRenderer {
       trapKey += engine.isCellClosedTrap(trap.x, trap.y) ? '1' : '0';
     }
 
-    const cacheKey = `${this.style}|${this.themeId}|${tilePixelSize}`;
+    const blockKey = blockCellsKey(this.blockCells);
+    const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}`;
     const region = this.cacheRegion;
     const covered =
       this.terrainCache !== null &&
@@ -1110,10 +1230,18 @@ export class PixelRenderer {
       endTileX <= region.x1 &&
       startTileY >= region.y0 &&
       endTileY <= region.y1;
-    if (!terrainChanged && covered && trapKey === this.trapStateKey && cacheKey === this.terrainCacheKey) {
+    if (
+      !terrainChanged &&
+      covered &&
+      trapKey === this.trapStateKey &&
+      blockKey === this.blockCellsStateKey &&
+      cacheKey === this.terrainCacheKey
+    ) {
       return;
     }
     this.trapStateKey = trapKey;
+    this.blockCellsStateKey = blockKey;
+    if (cacheKey !== this.terrainCacheKey) this.restartFrameBudget();
     this.terrainCacheKey = cacheKey;
 
     // Cache the visible area plus a margin, so small camera moves reuse it, within a pixel budget.
@@ -1148,7 +1276,8 @@ export class PixelRenderer {
       for (let mx = region.x0; mx <= region.x1; mx++) {
         const px = Math.floor((mx - region.x0) * tilePixelSize);
         const py = Math.floor((my - region.y0) * tilePixelSize);
-        const tileId = terrain[my]?.[mx] || 'floor';
+        // A block hides the terrain under it; neighbours still read the real terrain for shadows.
+        const tileId = this.isBlockCovered(mx, my) ? 'floor' : terrain[my]?.[mx] || 'floor';
         const isClosedTrap = tileId === 'trap' ? engine.isCellClosedTrap(mx, my) : false;
         const neighbours = tileNeighbours(terrain, mx, my, this.wallJoinTiles, this.shadowCasterTiles);
         this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static', neighbours);
@@ -1164,6 +1293,11 @@ export class PixelRenderer {
     this.litTiles = new Set(Object.keys(settings.lightSources));
   }
 
+  /** True when a pushable block currently sits on the cell. */
+  private isBlockCovered(x: number, y: number): boolean {
+    return this.blockCells.has(y * this.blockCellsWidth + x);
+  }
+
   /** Strokes a straight wire between the centres of two grid cells. */
   private strokeGridLink(
     ctx: CanvasRenderingContext2D,
@@ -1175,6 +1309,7 @@ export class PixelRenderer {
     camY: number,
     tilePixelSize: number
   ): void {
+    if (this.isBlockCovered(ax, ay) || this.isBlockCovered(bx, by)) return;
     ctx.beginPath();
     ctx.moveTo((ax + 0.5 - camX) * tilePixelSize, (ay + 0.5 - camY) * tilePixelSize);
     ctx.lineTo((bx + 0.5 - camX) * tilePixelSize, (by + 0.5 - camY) * tilePixelSize);
@@ -1206,7 +1341,9 @@ export class PixelRenderer {
   ): void {
     const pal = ConfigRegistry.getGame().palette;
     const terrain = engine.getTerrain();
-    const hov = this.hoveredGridPoint;
+    // A cell under a block reveals nothing on hover.
+    const hovered = this.hoveredGridPoint;
+    const hov = hovered && !this.isBlockCovered(hovered.x, hovered.y) ? hovered : null;
     const hovTile = hov ? terrain[hov.y]?.[hov.x] : null;
     const showAll = this.showMechanismLinks;
 
@@ -1430,7 +1567,7 @@ export class PixelRenderer {
     pass: TilePass = 'all',
     neighbours: Readonly<TileNeighbours> = ISOLATED_TILE
   ): void {
-    if (this.style === 'modern') {
+    if (this.isHdVector()) {
       const theme = this.getActiveTheme();
       // Modern tiles are themed; the editor, the icons and a game without any theme use the flat legacy look.
       if (!isEditor && theme) {
@@ -1845,7 +1982,7 @@ export class PixelRenderer {
   }
 
   // ---------------------------------------------------------------------------
-  // 16-Bit Retro sprites
+  // Retro sprites (16-Bit and 32-Bit)
   // ---------------------------------------------------------------------------
 
   /** Ramps of the active theme, resolved once per theme; empty when game.json has no retro palettes. */
@@ -1858,6 +1995,7 @@ export class PixelRenderer {
       this.retroPalettesValid = this.validateRetroPalettes(palettes);
       // Everything composed or cached from the previous palettes is out of date.
       this.retroCanvases.clear();
+      this.retroShineCanvases.clear();
       this.terrainCacheKey = '';
       stale = true;
     }
@@ -1879,19 +2017,125 @@ export class PixelRenderer {
     return errors.length === 0;
   }
 
-  /** Shadow depth and side width in sprite pixels for the configured depth. */
-  private getRetroExtent(): { depth: number; side: number } {
+  /** Shadow depth and side width in pixels of the sprite style for the configured depth. */
+  private getRetroExtent(spec: SpriteStyleSpec): { depth: number; side: number } {
     const depthTile = this.getSettings().floorShadowDepthTile;
-    if (depthTile !== this.retroExtentTile) {
+    if (depthTile !== this.retroExtentTile || spec.id !== this.retroExtentStyle) {
       this.retroExtentTile = depthTile;
-      this.retroExtent = retroShadowExtent(depthTile);
+      this.retroExtentStyle = spec.id;
+      this.retroExtent = retroShadowExtent(depthTile, spec);
     }
     return this.retroExtent;
   }
 
-  /** True when the retro style can draw from sprites: the sheet and the palettes are both present. */
+  /**
+   * The sprites the active style draws with, or null when it has none (HD Neon) or cannot get any
+   * (no valid retro palettes). 32-Bit Retro that cannot derive its ramps draws the 16-Bit sprites.
+   */
+  private getSpriteStyle(): ActiveSpriteStyle | null {
+    if (this.inFrame && this.frameSprite !== undefined) return this.frameSprite;
+    const value = this.resolveSpriteStyle();
+    if (this.inFrame) this.frameSprite = value;
+    return value;
+  }
+
+  private resolveSpriteStyle(): ActiveSpriteStyle | null {
+    const desc = this.descriptor();
+    if (!desc.sprite) return null;
+    const ramps16 = this.getRetroRamps();
+    if (!hasRetroSprite(RETRO_READY_SPRITE) || !(RETRO_READY_RAMP in ramps16)) return null;
+    const palettes32 = desc.palettesKey === 'retro32Palettes' ? ConfigRegistry.getGame().retro32Palettes : undefined;
+    const cacheEntries = desc.palettesKey === 'retro32Palettes' ? this.getRetro32CacheSize() : 0;
+    let memo = this.spriteStyleMemo;
+    if (
+      !memo ||
+      memo.styleId !== desc.id ||
+      memo.ramps16 !== ramps16 ||
+      memo.palettes32 !== palettes32 ||
+      memo.cacheEntries !== cacheEntries
+    ) {
+      const value =
+        desc.palettesKey === 'retro32Palettes'
+          ? this.buildRetro32Style(desc.sprite, ramps16, palettes32, cacheEntries)
+          : this.buildRetro16Style(ramps16);
+      memo = { styleId: desc.id, ramps16, palettes32, cacheEntries, value, small: null };
+      this.spriteStyleMemo = memo;
+    }
+    // Tiles drawn smaller than the sprites would shrink them with nearest neighbour: use the 16-Bit sprites.
+    if (memo.value && memo.value.spec.tileSize > this.frameTilePx) {
+      memo.small ??= this.buildRetro16Style(ramps16);
+      return memo.small;
+    }
+    return memo.value;
+  }
+
+  /** Configured size of the 32-Bit sprite cache, floored and bounded below. */
+  private getRetro32CacheSize(): number {
+    const configured = this.getSettings().retro32SpriteCacheMaxEntries;
+    return Number.isFinite(configured)
+      ? Math.max(RETRO32_MIN_CACHE_ENTRIES, Math.floor(configured))
+      : DEFAULT_RENDER_SETTINGS.retro32SpriteCacheMaxEntries;
+  }
+
+  /** True when the style draws without sprites (HD Neon) or has the sprites it needs. */
+  private styleHasSprites(): boolean {
+    return this.descriptor().sprite === null || this.getSpriteStyle() !== null;
+  }
+
+  /** Lights and vignette apply only to a style that can draw its scene, not to the flat fallback. */
+  private lightingActive(): boolean {
+    return this.descriptor().lighting && this.styleHasSprites();
+  }
+
+  /** Particles and shine apply only to a style that can draw its scene, not to the flat fallback. */
+  private effectsActive(): boolean {
+    return this.descriptor().effects && this.styleHasSprites();
+  }
+
+  private buildRetro16Style(ramps16: RetroRamps): ActiveSpriteStyle {
+    return { spec: RETRO16_SPEC, ramps: ramps16, source: createRetro16SpriteSource(ramps16) };
+  }
+
+  private buildRetro32Style(
+    spec: SpriteStyleSpec,
+    ramps16: RetroRamps,
+    palettes32: RetroPaletteTable,
+    size: number
+  ): ActiveSpriteStyle {
+    const palettes16 = this.retroRampsSource;
+    const seen = this.retro32CachePalettes;
+    if (!seen || seen.p16 !== palettes16 || seen.p32 !== palettes32) {
+      if (seen) {
+        // Palettes were replaced: nothing rasterized or composed from the old ones is valid.
+        this.retro32Cache?.clear();
+        this.retroCanvases.clear();
+        this.retroShineCanvases.clear();
+        this.terrainCacheKey = '';
+      }
+      this.retro32PaletteErrors = findRetro32PaletteErrors(palettes32, Object.keys(palettes16 ?? {}));
+      if (this.retro32PaletteErrors.length > 0) {
+        console.error(RETRO32_INVALID_REPORT, this.retro32PaletteErrors.join('; '));
+      }
+    }
+    this.retro32CachePalettes = { p16: palettes16, p32: palettes32 };
+    if (this.retro32PaletteErrors.length > 0) return this.buildRetro16Style(ramps16);
+    if (!this.retro32Cache || this.retro32CacheSize !== size) {
+      this.retro32Cache = createRetro32SpriteCache(size);
+      this.retro32CacheSize = size;
+    }
+    try {
+      const sprites = createRetro32ThemeSprites(this.themeId, ramps16, palettes32, this.retro32Cache, RETRO_SHEET);
+      if (!(RETRO_READY_RAMP in sprites.ramps32)) throw new Error(`missing ramp ${RETRO_READY_RAMP}`);
+      return { spec, ramps: sprites.ramps32, source: sprites.source };
+    } catch (error) {
+      console.error(RETRO32_INVALID_REPORT, error instanceof Error ? error.message : String(error));
+      return this.buildRetro16Style(ramps16);
+    }
+  }
+
+  /** True when the active style can draw from sprites: the sheet and the palettes are both present. */
   private retroSpritesReady(): boolean {
-    return hasRetroSprite(RETRO_READY_SPRITE) && RETRO_READY_RAMP in this.getRetroRamps();
+    return this.getSpriteStyle() !== null;
   }
 
   /** Animation phase shared by every animated retro tile. */
@@ -1899,14 +2143,27 @@ export class PixelRenderer {
     return Math.floor(this.animFrame / RETRO_PHASE_TICKS) % RETRO_PHASE_COUNT;
   }
 
+  /** Marks `map` entry `key` as the most recently used and drops the oldest entries over `maxEntries`. */
+  private touchLru(map: Map<string, HTMLCanvasElement>, key: string, canvas: HTMLCanvasElement): void {
+    map.delete(key);
+    map.set(key, canvas);
+    if (map.size > this.getSettings().retroSpriteCacheMaxEntries) {
+      const oldest = map.keys().next();
+      if (!oldest.done) map.delete(oldest.value);
+    }
+  }
+
   /**
-   * The 16x16 canvas of a layer stack with the floor shadow of `shadowSignature` dithered on it,
-   * composed on first use. Null without a DOM.
+   * The canvas of a layer stack with the floor shadow of `shadowSignature` dithered on it, at the
+   * tile size of the active sprite style, composed on first use. Null without a DOM.
    */
   private getRetroCanvas(layers: readonly RetroLayer[], shadowSignature: number): HTMLCanvasElement | null {
     if (typeof document === 'undefined') return null;
-    const extent = this.getRetroExtent();
-    const key = `${this.themeId}|${retroLayersKey(layers)}|${shadowSignature}|${extent.depth}`;
+    const sprite = this.getSpriteStyle();
+    if (!sprite) return null;
+    const { spec } = sprite;
+    const extent = this.getRetroExtent(spec);
+    const key = [spec.id, this.themeId, retroLayersKey(layers), shadowSignature, extent.depth].join(RETRO_KEY_SEPARATOR);
     const cached = this.retroCanvases.get(key);
     if (cached) {
       // Move to the end of the map: the first key is always the least recently used.
@@ -1914,23 +2171,97 @@ export class PixelRenderer {
       this.retroCanvases.set(key, cached);
       return cached;
     }
-    const ramps = this.getRetroRamps();
-    const pixels = composeRetroLayers(layers, ramps);
-    applyRetroShadow(pixels, RETRO_SPRITE_SIZE, shadowSignature, ramps, extent.depth, extent.side);
+    const pixels = composeRetroLayers(layers, sprite.ramps, spec, sprite.source);
+    applyRetroShadow(pixels, spec.tileSize, shadowSignature, sprite.ramps, extent.depth, extent.side, spec);
+    const canvas = this.canvasFromPixels(pixels, spec.tileSize);
+    if (!canvas) return null;
+    this.touchLru(this.retroCanvases, key, canvas);
+    return canvas;
+  }
+
+  /** A square canvas holding the RGBA pixels; null when the canvas has no 2D context. */
+  private canvasFromPixels(pixels: Uint8ClampedArray, size: number): HTMLCanvasElement | null {
     const canvas = document.createElement('canvas');
-    canvas.width = RETRO_SPRITE_SIZE;
-    canvas.height = RETRO_SPRITE_SIZE;
+    canvas.width = size;
+    canvas.height = size;
     const cctx = canvas.getContext('2d');
     if (!cctx) return null;
-    const image = cctx.createImageData(RETRO_SPRITE_SIZE, RETRO_SPRITE_SIZE);
+    const image = cctx.createImageData(size, size);
     image.data.set(pixels);
     cctx.putImageData(image, 0, 0);
-    this.retroCanvases.set(key, canvas);
-    if (this.retroCanvases.size > this.getSettings().retroSpriteCacheMaxEntries) {
-      const oldest = this.retroCanvases.keys().next();
-      if (!oldest.done) this.retroCanvases.delete(oldest.value);
-    }
     return canvas;
+  }
+
+  /**
+   * Step of the shine sweep for the current animation frame, or -1 when no shine is drawn: the
+   * style has no effects, the shine is off (quality, setting), motion is reduced, or the sweep rests.
+   */
+  private shineStep(): number {
+    if (!this.effectsActive() || this.reducedMotion || this.getSettings().retro32ShineAlpha <= 0) return -1;
+    if (this.animFrame >= SHINE_SWEEP_FRAMES) return -1;
+    return Math.floor((this.animFrame * SHINE_STEPS) / SHINE_SWEEP_FRAMES);
+  }
+
+  /**
+   * Overlay of one shine step over a layer stack: white where the diagonal band crosses an opaque
+   * pixel, so the shine never leaves the sprite's outline. Composed on first use, then cached.
+   */
+  private getShineCanvas(layers: readonly RetroLayer[], step: number): HTMLCanvasElement | null {
+    if (typeof document === 'undefined') return null;
+    const sprite = this.getSpriteStyle();
+    if (!sprite) return null;
+    const { spec } = sprite;
+    const key = [spec.id, this.themeId, retroLayersKey(layers), 'shine', step].join(RETRO_KEY_SEPARATOR);
+    const cached = this.retroShineCanvases.get(key);
+    if (cached) {
+      this.touchLru(this.retroShineCanvases, key, cached);
+      return cached;
+    }
+    const size = spec.tileSize;
+    const base = composeRetroLayers(layers, sprite.ramps, spec, sprite.source);
+    const core = Math.max(1, Math.round(size * SHINE_CORE_HALF_WIDTH_RATIO));
+    const edge = core * SHINE_EDGE_FACTOR;
+    // The band centre runs along the diagonal x + y from before the first to past the last pixel.
+    const travel = 2 * size + 2 * edge;
+    const centre = -edge + (travel * step) / SHINE_STEPS;
+    const overlay = new Uint8ClampedArray(base.length);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const o = (y * size + x) * RGBA_BYTES;
+        if (base[o + RGBA_ALPHA_OFFSET] === 0) continue;
+        const distance = Math.abs(x + y - centre);
+        const alpha = distance <= core ? SHINE_CORE_ALPHA : distance <= edge ? SHINE_EDGE_ALPHA : 0;
+        if (alpha === 0) continue;
+        overlay[o] = OVERLAY_WHITE;
+        overlay[o + 1] = OVERLAY_WHITE;
+        overlay[o + 2] = OVERLAY_WHITE;
+        overlay[o + RGBA_ALPHA_OFFSET] = alpha;
+      }
+    }
+    const canvas = this.canvasFromPixels(overlay, size);
+    if (!canvas) return null;
+    this.touchLru(this.retroShineCanvases, key, canvas);
+    return canvas;
+  }
+
+  /** Adds the shine sweep over a sprite already drawn on the retro scene (never on icons or the editor). */
+  private drawRetroShine(
+    ctx: CanvasRenderingContext2D,
+    layers: readonly RetroLayer[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    if (ctx !== this.retroSceneCtx) return;
+    const step = this.shineStep();
+    if (step < 0) return;
+    const overlay = this.getShineCanvas(layers, step);
+    if (!overlay) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = this.getSettings().retro32ShineAlpha;
+    ctx.drawImage(overlay, x, y, size, size);
+    ctx.restore();
   }
 
   /**
@@ -1954,11 +2285,14 @@ export class PixelRenderer {
     x: number,
     y: number,
     size: number,
-    shadowSignature: number = 0
+    shadowSignature: number = 0,
+    shine: boolean = false
   ): void {
     if (layers.length === 0) return;
     const canvas = this.getRetroCanvas(layers, shadowSignature);
-    if (canvas) this.blitRetro(ctx, canvas, x, y, size);
+    if (!canvas) return;
+    this.blitRetro(ctx, canvas, x, y, size);
+    if (shine) this.drawRetroShine(ctx, layers, x, y, size);
   }
 
   /** A tile from sprites: floor, wall, door... stacked from layers, with its floor shadow dithered on. */
@@ -3321,13 +3655,13 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
-    if (this.style !== 'modern' && this.retroSpritesReady()) {
-      // Retro items are plain sprites: no bob, no shadow.
-      this.drawRetroLayers(ctx, retroItemLayers(itemId, ConfigRegistry.getTile(itemId)), x, y, size);
+    if (!this.isHdVector() && this.retroSpritesReady()) {
+      // Sprite items: no shadow, and a bob only in styles that ask for one (none do today).
+      this.drawRetroLayers(ctx, retroItemLayers(itemId, ConfigRegistry.getTile(itemId)), x, y, size, 0, true);
       return;
     }
-    const isModern = this.style === 'modern';
-    const bob = isModern && !this.reducedMotion ? Math.sin(this.timeTick * ITEM_BOB_SPEED) * ITEM_BOB_AMPLITUDE_TILE : 0;
+    const isModern = this.isHdVector();
+    const bob = isModern && this.descriptor().itemBob && !this.reducedMotion ? Math.sin(this.timeTick * ITEM_BOB_SPEED) * ITEM_BOB_AMPLITUDE_TILE : 0;
     const bobOffset = bob * size;
     if (isModern) {
       // Bobbing up (negative offset) lifts the item off its shadow, which shrinks.
@@ -3483,9 +3817,9 @@ export class PixelRenderer {
   ): void {
     const isBlock = BLOCK_TYPES.has(type);
     const frame = isBlock ? 0 : Math.floor(this.timeTick / MONSTER_FRAME_TICKS) % WALK_FRAMES;
-    if (this.style !== 'modern' && this.retroSpritesReady()) {
+    if (!this.isHdVector() && this.retroSpritesReady()) {
       const name = isBlock ? type : retroMonsterSprite(type, dir, frame);
-      this.drawRetroLayers(ctx, [{ name }], x, y, size);
+      this.drawRetroLayers(ctx, [{ name }], x, y, size, 0, isBlock);
       return;
     }
     const pad = this.glowPad();
@@ -3501,7 +3835,7 @@ export class PixelRenderer {
 
   /** Outline drawn over a block that stands on a block target, so the covered target stays readable. */
   private drawBlockOnTargetOutline(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    if (this.style !== 'modern' && this.retroSpritesReady()) {
+    if (!this.isHdVector() && this.retroSpritesReady()) {
       this.drawRetroLayers(ctx, [{ name: RETRO_SPRITE.blockOnTarget }], x, y, size);
       return;
     }
@@ -3515,7 +3849,7 @@ export class PixelRenderer {
       y + inset,
       size - inset * 2,
       size - inset * 2,
-      this.style === 'modern' ? size * BLOCK_RADIUS_TILE : 0
+      this.isHdVector() ? size * BLOCK_RADIUS_TILE : 0
     );
     ctx.stroke();
     ctx.restore();
@@ -3524,7 +3858,7 @@ export class PixelRenderer {
   /** A pushable block, with a top face and a darker front face like the walls. */
   private paintBlock(ctx: CanvasRenderingContext2D, type: string, x: number, y: number, size: number): void {
     const pal = ConfigRegistry.getGame().palette;
-    const isModern = this.style === 'modern';
+    const isModern = this.isHdVector();
     const isIce = type === 'ice_block';
     const inset = Math.max(1, Math.round(size * BLOCK_INSET_TILE));
     const front = Math.round(size * this.getSettings().wallFrontDepthTile);
@@ -3578,7 +3912,7 @@ export class PixelRenderer {
     }
 
     const pal = ConfigRegistry.getGame().palette;
-    const isModern = this.style === 'modern';
+    const isModern = this.isHdVector();
     const bodyColor = pal[MONSTER_COLOR_KEYS[type] ?? DEFAULT_MONSTER_COLOR_KEY] || pal[DEFAULT_MONSTER_COLOR_KEY];
     const cx = x + size / 2;
     const cy = y + size / 2;
@@ -3882,12 +4216,12 @@ export class PixelRenderer {
     frame: number = 0,
     hop: number = 0
   ): void {
-    if (this.style !== 'modern' && this.retroSpritesReady()) {
+    if (!this.isHdVector() && this.retroSpritesReady()) {
       this.drawRetroLayers(ctx, [{ name: retroPlayerSprite(dir, inWater, alive, frame) }], x, y, size);
       return;
     }
     const pal = ConfigRegistry.getGame().palette;
-    if (this.style === 'modern' && alive && !inWater) {
+    if (this.isHdVector() && alive && !inWater) {
       const spread = 1 - hop * PLAYER_SHADOW_SHRINK;
       ctx.fillStyle = pal.modernPlayerShadow;
       ctx.beginPath();
@@ -3922,7 +4256,7 @@ export class PixelRenderer {
     frame: number = 0
   ): void {
     const pal = ConfigRegistry.getGame().palette;
-    const isModern = this.style === 'modern';
+    const isModern = this.isHdVector();
 
     if (!alive) {
       ctx.fillStyle = pal.red;

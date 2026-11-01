@@ -16,13 +16,11 @@
 
 import { isFiniteNumber, isRecord } from '../config/ConfigValidation';
 import { GraphicsStyle, LevelHighScore, TimedMove } from '../core/types';
+import { parseRenderStyleId } from '../render/styles/renderStyles';
 import { sanitizeTimedMoves } from '../ui/replaySchedule';
 
 /** High score as stored: legacy records may carry untimed replayMoves. */
 export type StoredHighScore = LevelHighScore & { replayTimedMoves?: TimedMove[] };
-
-/** Graphics styles a saved settings record may name. */
-const GRAPHICS_STYLES: readonly GraphicsStyle[] = ['modern', 'retro'];
 
 /**
  * Validates the high score table read from storage. A record that is not an
@@ -67,5 +65,5 @@ export function resolveSavedLevelIndex(
 
 /** Returns the stored graphics style when it is a known one, else undefined. */
 export function parseGraphicsStyle(value: unknown): GraphicsStyle | undefined {
-  return GRAPHICS_STYLES.find((style) => style === value);
+  return parseRenderStyleId(value);
 }

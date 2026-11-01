@@ -341,3 +341,372 @@ describe('16-Bit Retro scene', () => {
     expect(internals.terrainCacheKey).toBe('');
   });
 });
+
+describe('32-Bit Retro scene', () => {
+  const created: FakeCanvas[] = [];
+  let now = 0;
+  const SPRITE_32 = 32;
+  const SCENE_32 = SCENE_SIZE * SPRITE_32;
+  /** A canvas on which a tile is exactly one 32-Bit sprite, so sprites are never shrunk. */
+  const CANVAS_32 = SCENE_32;
+  /** Keys of the composed canvases that start with this style id. */
+  const keysOf = (renderer: PixelRenderer, styleId: string): string[] =>
+    [...(renderer as unknown as { retroCanvases: Map<string, FakeCanvas> }).retroCanvases.keys()].filter((k) =>
+      k.startsWith(`${styleId}|`)
+    );
+
+  beforeEach(() => {
+    loadTestConfigs();
+    created.length = 0;
+    now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => (now += FRAME_MS));
+    vi.stubGlobal('document', {
+      createElement: (): FakeCanvas => {
+        const canvas = createCanvas(DEFAULT_CANVAS, DEFAULT_CANVAS);
+        created.push(canvas);
+        return canvas;
+      }
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function render32(setup?: (renderer: PixelRenderer) => void, frames = 1): { main: FakeCanvas; renderer: PixelRenderer } {
+    const engine = new GameEngine();
+    engine.loadLevel(sceneLevel());
+    const renderer = new PixelRenderer();
+    renderer.setStyle('retro32');
+    renderer.setThemeId('cyber_neon');
+    renderer.setViewportTiles(SCENE_SIZE);
+    setup?.(renderer);
+    const main = createCanvas(CANVAS_32, CANVAS_32);
+    for (let frame = 0; frame < frames; frame++) renderer.renderViewport(main.getContext('2d'), engine);
+    return { main, renderer };
+  }
+
+  /** Calls that set the blend mode of a canvas to additive. */
+  const additiveCalls = (canvas: FakeCanvas): Call[] =>
+    canvas.calls.filter((c) => c.name === 'set globalCompositeOperation' && c.args[0] === 'lighter');
+
+  it('cycles modern, 16-Bit, 32-Bit and back', () => {
+    const renderer = new PixelRenderer();
+    expect(renderer.getStyle()).toBe('modern');
+    expect(renderer.toggleStyle()).toBe('retro');
+    expect(renderer.toggleStyle()).toBe('retro32');
+    expect(renderer.toggleStyle()).toBe('modern');
+  });
+
+  it('draws the scene at 32 pixels per tile from 32x32 sprites', () => {
+    const { main } = render32();
+    const scene = created.find((c) => c.width === SCENE_32 && c.height === SCENE_32);
+    expect(scene).toBeDefined();
+    const sprites = created.filter((c) => c.width === SPRITE_32 && c.height === SPRITE_32 && c !== scene);
+    expect(sprites.some((c) => c.calls.some((call) => call.name === 'putImageData'))).toBe(true);
+    expect(created.filter((c) => c.width === RETRO_SPRITE_SIZE && c.height === RETRO_SPRITE_SIZE)).toHaveLength(0);
+    const upscale = main.calls.find((c) => c.name === 'drawImage')!;
+    expect((upscale.args[0] as FakeCanvas).width).toBe(SCENE_32);
+    for (const blit of scene!.calls.filter((c) => c.name === 'drawImage')) {
+      expect(Number.isInteger(blit.args[1])).toBe(true);
+      expect(Number.isInteger(blit.args[2])).toBe(true);
+    }
+  });
+
+  it('snaps the camera to a 32nd of a tile', () => {
+    const { renderer } = render32();
+    const frame = (renderer as unknown as { lastFrame: { camX: number; camY: number } }).lastFrame;
+    expect(Number.isInteger(frame.camX * SPRITE_32)).toBe(true);
+    expect(Number.isInteger(frame.camY * SPRITE_32)).toBe(true);
+  });
+
+  it('forces the LCD grid off but remembers the preference', () => {
+    const grid = vi.spyOn(PixelRenderer.prototype as unknown as { drawLcdGrid(): void }, 'drawLcdGrid');
+    const { renderer } = render32((r) => r.setLcdEnabled(true), 2);
+    expect(renderer.isLcdEnabled()).toBe(false);
+    expect(renderer.getLcdPreference()).toBe(true);
+    expect(grid).not.toHaveBeenCalled();
+    renderer.setStyle('retro');
+    expect(renderer.isLcdEnabled()).toBe(true);
+    renderer.setStyle('modern');
+    expect(renderer.isLcdEnabled()).toBe(false);
+    expect(renderer.getLcdPreference()).toBe(true);
+  });
+
+  it('lights the scene additively over the scaled-up pixels', () => {
+    const { main } = render32();
+    expect(additiveCalls(main).length).toBeGreaterThan(0);
+  });
+
+  it('keeps 16-Bit without lights, particles or shine', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(sceneLevel());
+    const renderer = new PixelRenderer();
+    renderer.setStyle('retro');
+    renderer.setThemeId('cyber_neon');
+    renderer.setViewportTiles(SCENE_SIZE);
+    const main = createCanvas(CANVAS_32, CANVAS_32);
+    renderer.triggerVisualEvent('chip', 5, 5);
+    renderer.renderViewport(main.getContext('2d'), engine);
+    expect(additiveCalls(main)).toHaveLength(0);
+    const internals = renderer as unknown as { particles: unknown[]; shockwaves: unknown[] };
+    expect(internals.particles).toHaveLength(0);
+    expect(internals.shockwaves).toHaveLength(0);
+    const scene = created.find((c) => c.width === SCENE_SIZE * RETRO_SPRITE_SIZE)!;
+    expect(additiveCalls(scene)).toHaveLength(0);
+  });
+
+  it('spawns particles in 32-Bit, which has effects', () => {
+    const { renderer } = render32();
+    renderer.triggerVisualEvent('chip', 5, 5);
+    expect((renderer as unknown as { particles: unknown[] }).particles.length).toBeGreaterThan(0);
+  });
+
+  it('sweeps a shine over items and blocks from the animation frame', () => {
+    render32();
+    const scene = created.find((c) => c.width === SCENE_32)!;
+    expect(additiveCalls(scene).length).toBeGreaterThan(0);
+  });
+
+  it('rests the shine outside the sweep frames', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(sceneLevel());
+    const renderer = new PixelRenderer();
+    renderer.setStyle('retro32');
+    renderer.setThemeId('cyber_neon');
+    renderer.setViewportTiles(SCENE_SIZE);
+    const resting = 59;
+    for (let i = 0; i < resting; i++) renderer.incrementFrame();
+    renderer.renderViewport(createCanvas(CANVAS_32, CANVAS_32).getContext('2d'), engine);
+    const scene = created.find((c) => c.width === SCENE_32)!;
+    expect(additiveCalls(scene)).toHaveLength(0);
+  });
+
+  it('draws no shine under reduced motion', () => {
+    render32((r) => r.setReducedMotion(true));
+    const scene = created.find((c) => c.width === SCENE_32)!;
+    expect(additiveCalls(scene)).toHaveLength(0);
+  });
+
+  it('draws no shine on low quality', () => {
+    render32((r) => r.setQuality('low'));
+    const scene = created.find((c) => c.width === SCENE_32)!;
+    expect(additiveCalls(scene)).toHaveLength(0);
+  });
+
+  it('puts the style id in every cache key so switching styles never mixes canvases', () => {
+    const renderer = new PixelRenderer();
+    renderer.setThemeId('cyber_neon');
+    const main = createCanvas(CANVAS_32, CANVAS_32).getContext('2d');
+    const cache = (renderer as unknown as { retroCanvases: Map<string, FakeCanvas> }).retroCanvases;
+    renderer.setStyle('retro');
+    renderer.drawItem(main, 'chip', 0, 0, RETRO_SPRITE_SIZE);
+    renderer.setStyle('retro32');
+    renderer.drawItem(main, 'chip', 0, 0, SPRITE_32);
+    expect(cache.size).toBe(2);
+    expect(keysOf(renderer, 'retro')).toHaveLength(1);
+    expect(keysOf(renderer, 'retro32')).toHaveLength(1);
+    const sizes = [...cache.entries()].map(([key, canvas]) => [key.split('|')[0], canvas.width]);
+    expect(sizes).toContainEqual(['retro', RETRO_SPRITE_SIZE]);
+    expect(sizes).toContainEqual(['retro32', SPRITE_32]);
+    const before = created.length;
+    renderer.setStyle('retro');
+    renderer.drawItem(main, 'chip', 0, 0, RETRO_SPRITE_SIZE);
+    expect(cache.size).toBe(2);
+    expect(created.length).toBe(before);
+  });
+
+  it('puts the style id in the terrain cache key', () => {
+    const { renderer } = render32();
+    const internals = renderer as unknown as { terrainCacheKey: string };
+    expect(internals.terrainCacheKey.startsWith('retro32|retro32|')).toBe(true);
+  });
+
+  it('falls back to the 16-Bit sprites when the 32-Bit ramps cannot be derived', () => {
+    const report = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    ConfigRegistry.getGame().retro32Palettes = { default: { floor: ['not-a-colour'] } };
+    const { main, renderer } = render32(undefined, 2);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(String(report.mock.calls[0][0])).toContain('32-Bit');
+    // 16 px sprites on a 16 px per tile scene: still the sprite path, not the flat drawer.
+    expect(created.filter((c) => c.width === SPRITE_32 && c.height === SPRITE_32)).toHaveLength(0);
+    expect(created.some((c) => c.width === RETRO_SPRITE_SIZE && c.calls.some((call) => call.name === 'putImageData'))).toBe(true);
+    expect(created.some((c) => c.width === SCENE_SIZE * RETRO_SPRITE_SIZE)).toBe(true);
+    expect(keysOf(renderer, 'retro').length).toBeGreaterThan(0);
+    expect(keysOf(renderer, 'retro32')).toHaveLength(0);
+    expect(main.calls.filter((c) => c.name === 'drawImage').length).toBeGreaterThan(0);
+  });
+
+  it('applies a block cover in 32-Bit: the tile under a block is not drawn', () => {
+    const fireDrawn = (blockAt: number): boolean => {
+      const spy = vi.spyOn(PixelRenderer.prototype as unknown as { getRetroCanvas(l: { name: string }[]): unknown }, 'getRetroCanvas');
+      const engine = new GameEngine();
+      engine.loadLevel(sceneLevel({ tiles: [[8, 8, 'fire']], entities: [{ x: blockAt, y: 8, type: 'dirt_block', dir: 'S' }] }));
+      const renderer = new PixelRenderer();
+      renderer.setStyle('retro32');
+      renderer.setThemeId('cyber_neon');
+      renderer.setViewportTiles(SCENE_SIZE);
+      renderer.renderViewport(createCanvas(CANVAS_32, CANVAS_32).getContext('2d'), engine);
+      const names = spy.mock.calls.flatMap((call) => call[0].map((layer) => layer.name));
+      spy.mockRestore();
+      return names.some((n) => n.startsWith('fire_'));
+    };
+    expect(fireDrawn(8)).toBe(false);
+    expect(fireDrawn(7)).toBe(true);
+  });
+
+  it('renders icons in every style', () => {
+    vi.stubGlobal('document', {
+      createElement: (): FakeCanvas & { toDataURL(): string } => ({
+        ...createCanvas(DEFAULT_CANVAS, DEFAULT_CANVAS),
+        toDataURL: () => 'data:fake'
+      })
+    });
+    for (const style of ['modern', 'retro', 'retro32'] as const) {
+      const renderer = new PixelRenderer();
+      renderer.setStyle(style);
+      renderer.setThemeId('cyber_neon');
+      expect(renderer.renderIconToDataUrl('tile', 'wall')).toBe('data:fake');
+      expect(renderer.renderIconToDataUrl('item', 'chip')).toBe('data:fake');
+      expect(renderer.renderIconToDataUrl('entity', 'bug')).toBe('data:fake');
+    }
+  });
+  interface RendererInternals {
+    terrainCacheKey: string;
+    spriteStyleMemo: { ramps16: unknown; cacheEntries: number } | null;
+    retroCanvases: Map<string, FakeCanvas>;
+    retro32CacheSize: number;
+    frameGuard: { record(frameMs: number, budget: { frameBudgetMs: number; frameBudgetWindow: number }): boolean };
+    effectiveQuality: string;
+  }
+
+  /** The pixels uploaded to a composed canvas. */
+  const uploadedPixels = (canvas: FakeCanvas): Uint8ClampedArray | undefined =>
+    (canvas.calls.find((c) => c.name === 'putImageData')?.args[0] as { data: Uint8ClampedArray } | undefined)?.data;
+
+  it('rebuilds the sprites, the cache keys and the pixels when the theme changes', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(sceneLevel());
+    const renderer = new PixelRenderer();
+    renderer.setStyle('retro32');
+    renderer.setThemeId('cyber_neon');
+    renderer.setViewportTiles(SCENE_SIZE);
+    const main = createCanvas(CANVAS_32, CANVAS_32).getContext('2d');
+    renderer.renderViewport(main, engine);
+    const internals = renderer as unknown as RendererInternals;
+    const memoBefore = internals.spriteStyleMemo;
+    const keyBefore = internals.terrainCacheKey;
+    const before = new Map(internals.retroCanvases);
+    expect(memoBefore).not.toBeNull();
+
+    renderer.setThemeId('arctic_lab');
+    renderer.renderViewport(main, engine);
+
+    expect(internals.spriteStyleMemo).not.toBe(memoBefore);
+    expect(internals.spriteStyleMemo?.ramps16).not.toBe(memoBefore?.ramps16);
+    expect(internals.terrainCacheKey).not.toBe(keyBefore);
+    expect(internals.terrainCacheKey).toContain('arctic_lab');
+    const keys = [...internals.retroCanvases.keys()];
+    expect(keys.some((k) => k.split('|')[1] === 'arctic_lab')).toBe(true);
+    // The same layer stack composed for the other theme has other pixels.
+    const differs = keys.some((key) => {
+      const [styleId, theme, ...rest] = key.split('|');
+      if (theme !== 'arctic_lab') return false;
+      const old = before.get([styleId, 'cyber_neon', ...rest].join('|'));
+      const fresh = uploadedPixels(internals.retroCanvases.get(key)!);
+      const previous = old ? uploadedPixels(old) : undefined;
+      return !!fresh && !!previous && fresh.some((v, n) => v !== previous[n]);
+    });
+    expect(differs).toBe(true);
+  });
+
+  it('draws a boots_force item with the green swap ramp', () => {
+    const spy = vi.spyOn(
+      PixelRenderer.prototype as unknown as { getRetroCanvas(l: { name: string; swap?: string }[]): unknown },
+      'getRetroCanvas'
+    );
+    const renderer = new PixelRenderer();
+    renderer.setStyle('retro32');
+    renderer.setThemeId('cyber_neon');
+    renderer.drawItem(createCanvas(CANVAS_32, CANVAS_32).getContext('2d'), 'boots_force', 0, 0, SPRITE_32);
+    const layers = spy.mock.calls.flatMap((call) => call[0]);
+    expect(layers.some((layer) => layer.swap === 'green')).toBe(true);
+  });
+
+  it('keeps the sprite cache size in the memo key', () => {
+    const { renderer } = render32();
+    const internals = renderer as unknown as RendererInternals;
+    const before = internals.spriteStyleMemo;
+    ConfigRegistry.getGame().graphics = {
+      ...ConfigRegistry.getGame().graphics,
+      retro32SpriteCacheMaxEntries: 7
+    } as never;
+    const engine = new GameEngine();
+    engine.loadLevel(sceneLevel());
+    renderer.renderViewport(createCanvas(CANVAS_32, CANVAS_32).getContext('2d'), engine);
+    expect(internals.spriteStyleMemo).not.toBe(before);
+    expect(internals.spriteStyleMemo?.cacheEntries).toBe(7);
+    expect(internals.retro32CacheSize).toBe(7);
+  });
+
+  it('degrades to the 16-Bit sprites when a tile is smaller than a 32-Bit sprite', () => {
+    const small = 24;
+    const canvasSize = SCENE_SIZE * small;
+    const { renderer } = render32((r) => r.setViewportTiles(SCENE_SIZE), 1);
+    expect(created.some((c) => c.width === SCENE_32 && c.height === SCENE_32)).toBe(true);
+    // Again at 24 px per tile on a fresh renderer.
+    created.length = 0;
+    const engine = new GameEngine();
+    engine.loadLevel(sceneLevel());
+    const shrunk = new PixelRenderer();
+    shrunk.setStyle('retro32');
+    shrunk.setThemeId('cyber_neon');
+    shrunk.setViewportTiles(SCENE_SIZE);
+    shrunk.renderViewport(createCanvas(canvasSize, canvasSize).getContext('2d'), engine);
+    expect(created.some((c) => c.width === SCENE_SIZE * RETRO_SPRITE_SIZE)).toBe(true);
+    expect(created.filter((c) => c.width === SPRITE_32 && c.height === SPRITE_32)).toHaveLength(0);
+    expect(keysOf(shrunk, 'retro').length).toBeGreaterThan(0);
+    expect(keysOf(shrunk, 'retro32')).toHaveLength(0);
+    expect((shrunk as unknown as RendererInternals).terrainCacheKey.startsWith('retro32|retro|')).toBe(true);
+    expect(renderer.getStyle()).toBe('retro32');
+  });
+
+  it('turns lights and effects off when the style has no sprite source', () => {
+    ConfigRegistry.getGame().retroPalettes = undefined;
+    const { main, renderer } = render32();
+    expect(additiveCalls(main)).toHaveLength(0);
+    renderer.triggerVisualEvent('chip', 5, 5);
+    expect((renderer as unknown as { particles: unknown[] }).particles).toHaveLength(0);
+  });
+
+  describe('automatic quality', () => {
+    const TINY_BUDGET = { frameBudgetMs: 1, frameBudgetWindow: 3 };
+
+    it('does not step down because of the frame that rebuilt after a style or theme change', () => {
+      const engine = new GameEngine();
+      engine.loadLevel(sceneLevel());
+      const renderer = new PixelRenderer();
+      renderer.setStyle('retro32');
+      renderer.setThemeId('cyber_neon');
+      renderer.setViewportTiles(SCENE_SIZE);
+      ConfigRegistry.getGame().graphics = { ...ConfigRegistry.getGame().graphics, ...TINY_BUDGET } as never;
+      const lowered = vi.fn();
+      renderer.setOnQualityLowered(lowered);
+      const main = createCanvas(CANVAS_32, CANVAS_32).getContext('2d');
+      // Every frame costs FRAME_MS (16 ms), over the 1 ms budget. Two frames fill part of the window.
+      renderer.renderViewport(main, engine);
+      renderer.renderViewport(main, engine);
+      renderer.setThemeId('arctic_lab');
+      // The window restarts: the rebuilding frame is not timed, so two slow frames do not close it.
+      renderer.renderViewport(main, engine);
+      renderer.renderViewport(main, engine);
+      expect(lowered).not.toHaveBeenCalled();
+      expect(renderer.getEffectiveQuality()).toBe('high');
+      // Frames that really are slow still step quality down.
+      renderer.renderViewport(main, engine);
+      renderer.renderViewport(main, engine);
+      expect(lowered).toHaveBeenCalledTimes(1);
+    });
+  });
+});
