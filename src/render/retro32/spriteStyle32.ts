@@ -30,6 +30,7 @@ import {
   type SpriteSource,
   type SpriteStyleSpec
 } from '../retroSprites';
+import { applyRampTransform, type RampTransform } from '../styles/styleTransforms';
 import type { Retro32SpriteCache } from './cache';
 import { deriveRetro32Ramps } from './ramps';
 import { rasterizeSprite32 } from './rasterize';
@@ -41,6 +42,12 @@ export const RETRO32_LAYER_SCALE = 2;
 
 export const RETRO32_SPEC: SpriteStyleSpec = createSpriteStyleSpec(RETRO32_STYLE_ID, RETRO32_LAYER_SCALE, true);
 
+/** A style that recolours the 32-Bit ramps: its id keys the sprite cache, `transform` is applied last. */
+export interface Retro32Recolour {
+  readonly styleId: string;
+  readonly transform: RampTransform;
+}
+
 /** Ramps and sprite source of one theme in the 32-Bit style. */
 export interface Retro32ThemeSprites {
   readonly ramps32: RetroRamps;
@@ -51,16 +58,19 @@ export interface Retro32ThemeSprites {
  * Builds the 32-Bit ramps and sprite source of a theme. `ramps16` are the theme's resolved
  * 16-Bit ramps; `retro32Palettes` (game.json, same shape as retroPalettes) replace whole ramps.
  * Rasterized sprites are memoised in `cache` under `themeId`; clear the cache when the palettes
- * change.
+ * change. A `recolour` is applied after the derivation, which interpolates and would undo a
+ * transform that quantises. Its colours are the style's fixed palette and are not rounded to 15 bits.
  */
 export function createRetro32ThemeSprites(
   themeId: string,
   ramps16: RetroRamps,
   retro32Palettes: Record<string, Record<string, string[]>> | undefined,
   cache: Retro32SpriteCache,
-  sheet: RetroSheet = RETRO_SHEET
+  sheet: RetroSheet = RETRO_SHEET,
+  recolour?: Retro32Recolour
 ): Retro32ThemeSprites {
-  const ramps32 = deriveRetro32Ramps(ramps16, resolveRetroRamps(retro32Palettes, themeId));
+  const derived = deriveRetro32Ramps(ramps16, resolveRetroRamps(retro32Palettes, themeId));
+  const ramps32 = recolour ? applyRampTransform(derived, recolour.transform) : derived;
   const source: SpriteSource = {
     dims(name) {
       const sprite = sheet.sprites[name];
@@ -69,7 +79,13 @@ export function createRetro32ThemeSprites(
         : undefined;
     },
     pixels(name, swapRamp) {
-      return cache.get(themeId, name, swapRamp, () => rasterizeSprite32(sheet.sprites[name], ramps32, ramps16, swapRamp));
+      return cache.get(
+        themeId,
+        name,
+        swapRamp,
+        () => rasterizeSprite32(sheet.sprites[name], ramps32, ramps16, swapRamp),
+        recolour?.styleId
+      );
     }
   };
   return { ramps32, source };

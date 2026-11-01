@@ -735,5 +735,70 @@
       "wall": ["#6D9249", "#496D24", "#244900", "#002400"],
       "wallRim": ["#FFFF92", "#DBFF49"]
     }
+  },
+  "renderStylePalettes": {
+    "pocket": {
+      "kind": "paletteMap",
+      "quantize": true,
+      "stops": ["#0f380f", "#306230", "#8bac0f", "#cadc9f"],
+      "accents": {
+        "red": [0.667, 0.333, 0],
+        "blue": [0.667, 0, 0],
+        "green": [1, 0.667, 0.333],
+        "yellow": [1, 1, 0.667]
+      }
+    },
+    "pastel": {
+      "kind": "pastel",
+      "saturation": 0.55,
+      "lightness": 0.4
+    },
+    "blueprint": {
+      "kind": "paletteMap",
+      "quantize": false,
+      "stops": ["#06205a", "#123f94", "#2f6bd0", "#7fa8ec", "#e6efff"],
+      "accents": {
+        "red": [0.5, 0.4, 0.3],
+        "blue": [0.25, 0.15, 0.05],
+        "green": [0.75, 0.65, 0.55],
+        "yellow": [1, 0.9, 0.8]
+      }
+    },
+    "sepia": {
+      "kind": "paletteMap",
+      "quantize": false,
+      "stops": ["#1c1008", "#47301c", "#7a5836", "#b0895c", "#dcc593", "#f6ecd0"],
+      "accents": {
+        "red": [0.5, 0.38, 0.26],
+        "blue": [0.24, 0.12, 0.02],
+        "green": [0.74, 0.62, 0.5],
+        "yellow": [1, 0.88, 0.76]
+      }
+    },
+    "classic90": {
+      "kind": "vgaFamilies",
+      "palette": [
+        "#000000", "#0000aa", "#00aa00", "#00aaaa", "#aa0000", "#aa00aa", "#aa5500", "#aaaaaa",
+        "#555555", "#5555ff", "#55ff55", "#55ffff", "#ff5555", "#ff55ff", "#ffff55", "#ffffff"
+      ],
+      "families": {
+        "gray": [15, 7, 8],
+        "darkgray": [7, 8, 0],
+        "blue": [9, 1, 0],
+        "green": [10, 2, 0],
+        "cyan": [11, 3, 0],
+        "red": [12, 4, 0],
+        "magenta": [13, 5, 0],
+        "yellow": [14, 6],
+        "orange": [14, 6, 4],
+        "brown": [6, 0]
+      },
+      "pinnedFamilies": {
+        "red": "red",
+        "blue": "blue",
+        "yellow": "yellow",
+        "green": "green"
+      }
+    }
   }
 }

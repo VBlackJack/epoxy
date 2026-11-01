@@ -25,5 +25,6 @@ export {
   RETRO32_SPEC,
   RETRO32_STYLE_ID,
   createRetro32ThemeSprites,
+  type Retro32Recolour,
   type Retro32ThemeSprites
 } from './spriteStyle32';
