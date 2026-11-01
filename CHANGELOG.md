@@ -35,6 +35,13 @@ versions follow Semantic Versioning.
 - The duplicate "Enter Password" buttons of the HUD and the options drawer: the code badge of the
   HUD opens the same dialog.
 
+### Fixed
+
+- A pushable block now hides what lies under it, in both render styles: the terrain under it is
+  drawn as plain floor, so fire or water no longer shows as a rim around the block, and tiles,
+  items and lights under it no longer glow through. Hovering the block names only the block, and
+  mechanism wires to a cell under a block are hidden until the block moves.
+
 ## [2.8.0] - 2026-10-31
 
 ### Added
