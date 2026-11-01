@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import type { Ruleset } from '../core/types';
+
 export const ENV_CONFIG = {
   CONFIG_BASE_URL: import.meta.env.VITE_APP_CONFIG_BASE_URL || './configs',
   DEFAULT_LOCALE: import.meta.env.VITE_APP_DEFAULT_LOCALE || 'fr',
@@ -39,6 +41,9 @@ export const DIRECTION_VECTORS = {
 } as const;
 
 export const ORDERED_DIRECTIONS = ['N', 'E', 'S', 'W'] as const;
+
+/** Ruleset given to the levels of a .DAT / .CCL file the player imports: community content. */
+export const IMPORTED_PACK_RULESET: Ruleset = 'lynx';
 
 /** Password assigned to a level that does not define one. */
 export const DEFAULT_LEVEL_PASSWORD = 'EPOX';

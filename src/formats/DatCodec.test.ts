@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DatCodec, datRefusalReason } from './DatCodec';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { findDatFormatErrors } from '../config/ConfigValidation';
+import { DEFAULT_RULESET } from '../core/coreConstants';
 import { CompiledLevel } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
@@ -80,6 +81,30 @@ function toBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
+/** Pack header: magic number plus level count. */
+const TEST_PACK_HEADER_BYTES = 6;
+/** Level record: length word, then number, time limit, chips and map detail words. */
+const TEST_RECORD_FIXED_BYTES = 2 + 4 * 2;
+
+/** Lists the field codes of the optional block of the first level in an encoded pack. */
+function optionalFieldCodes(pack: Uint8Array): number[] {
+  const view = new DataView(pack.buffer, pack.byteOffset, pack.byteLength);
+  const recordEnd = TEST_PACK_HEADER_BYTES + 2 + view.getUint16(TEST_PACK_HEADER_BYTES, true);
+  let pos = TEST_PACK_HEADER_BYTES + TEST_RECORD_FIXED_BYTES;
+  for (let layer = 0; layer < 2; layer++) {
+    pos += 2 + view.getUint16(pos, true);
+  }
+  const optionalEnd = pos + 2 + view.getUint16(pos, true);
+  expect(optionalEnd).toBeLessThanOrEqual(recordEnd);
+  pos += 2;
+  const codes: number[] = [];
+  while (pos < optionalEnd) {
+    codes.push(pack[pos]);
+    pos += 2 + pack[pos + 1];
+  }
+  return codes;
+}
+
 /** Builds a pack header followed by raw level records. */
 function rawPack(levelCount: number, ...records: Uint8Array[]): ArrayBuffer {
   const total = 6 + records.reduce((s, r) => s + r.length, 0);
@@ -109,7 +134,7 @@ describe('DatCodec round trip', () => {
 
   it('preserves every field of the encoded levels', () => {
     const source = [richLevel(1), blankLevel(2)];
-    const decoded = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels(source)), PREFIX);
+    const decoded = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels(source)), PREFIX, DEFAULT_RULESET);
 
     expect(decoded).toHaveLength(2);
     for (let i = 0; i < source.length; i++) {
@@ -152,8 +177,31 @@ describe('DatCodec round trip', () => {
   it('replaces non-ASCII characters instead of mangling them', () => {
     const lvl = blankLevel(1);
     lvl.customTitle = 'Été à Noël';
-    const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX, DEFAULT_RULESET);
     expect(decoded.customTitle).toBe('?t? ? No?l');
+  });
+
+  it('round-trips an ASCII level author', () => {
+    const lvl = blankLevel(1);
+    lvl.author = 'Tyler Sontag';
+    const encoded = DatCodec.encodeLevels([lvl]);
+    expect(optionalFieldCodes(encoded)).toContain(ConfigRegistry.getDatFormat().fieldCodes.author);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX, DEFAULT_RULESET);
+    expect(decoded.author).toBe('Tyler Sontag');
+  });
+
+  it('writes no author field when the level has none', () => {
+    const encoded = DatCodec.encodeLevels([blankLevel(1)]);
+    expect(optionalFieldCodes(encoded)).not.toContain(ConfigRegistry.getDatFormat().fieldCodes.author);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX, DEFAULT_RULESET);
+    expect('author' in decoded).toBe(false);
+  });
+
+  it('replaces non-ASCII characters of an author like those of a title', () => {
+    const lvl = blankLevel(1);
+    lvl.author = 'Rock Généreux';
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX, DEFAULT_RULESET);
+    expect(decoded.author).toBe('Rock G?n?reux');
   });
 
   it('truncates oversized optional fields to whole records', () => {
@@ -173,7 +221,7 @@ describe('DatCodec round trip', () => {
     for (let i = 0; i < 200; i++) {
       lvl.entities.push({ x: 1 + (i % 30), y: 5 + Math.floor(i / 30), type: 'bug', dir: 'N' });
     }
-    const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([lvl])), PREFIX, DEFAULT_RULESET);
     expect(decoded.trapLinks).toHaveLength(Math.floor(255 / 10));
     expect(decoded.cloneLinks).toHaveLength(Math.floor(255 / 8));
     expect(decoded.customHint).toBe('still readable');
@@ -198,7 +246,7 @@ describe('DatCodec tiles without a byte code', () => {
     const encoded = DatCodec.encodeLevelsWithReport([lvl]);
     expect(encoded.replaced).toEqual(['teleport_red']);
     expect(encoded.lost.sort()).toEqual(['forbid_key_red', 'score_100', 'thin_wall_nesw', 'turtle']);
-    const decoded = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
+    const decoded = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX, DEFAULT_RULESET);
     expect(decoded).toHaveLength(1);
     expect(decoded[0].terrain[3][3]).toBe('floor');
     expect(decoded[0].terrain[4][4]).toBe('floor');
@@ -225,20 +273,20 @@ describe('DatCodec malformed input', () => {
   });
 
   it('rejects a buffer shorter than the pack header', () => {
-    expect(() => DatCodec.decodeBuffer(new ArrayBuffer(3))).toThrow();
+    expect(() => DatCodec.decodeBuffer(new ArrayBuffer(3), PREFIX, DEFAULT_RULESET)).toThrow();
   });
 
   it('keeps the complete levels of a truncated pack', () => {
     const encoded = DatCodec.encodeLevels([richLevel(1), richLevel(2)]);
     const firstLen = firstRecord(encoded).length;
     const cut = encoded.slice(0, 6 + firstLen + 20);
-    expect(DatCodec.decodeBuffer(toBuffer(cut), PREFIX)).toHaveLength(1);
-    expect(DatCodec.decodeBuffer(toBuffer(encoded.slice(0, 12)), PREFIX)).toHaveLength(0);
+    expect(DatCodec.decodeBuffer(toBuffer(cut), PREFIX, DEFAULT_RULESET)).toHaveLength(1);
+    expect(DatCodec.decodeBuffer(toBuffer(encoded.slice(0, 12)), PREFIX, DEFAULT_RULESET)).toHaveLength(0);
   });
 
   it('skips a zero-length record and decodes the next one', () => {
     const valid = firstRecord(DatCodec.encodeLevels([richLevel(3)]));
-    const decoded = DatCodec.decodeBuffer(rawPack(2, new Uint8Array([0, 0]), valid), PREFIX);
+    const decoded = DatCodec.decodeBuffer(rawPack(2, new Uint8Array([0, 0]), valid), PREFIX, DEFAULT_RULESET);
     expect(decoded).toHaveLength(1);
     expect(decoded[0].number).toBe(3);
   });
@@ -249,17 +297,17 @@ describe('DatCodec malformed input', () => {
     view.setUint16(0, 14, true);
     view.setUint16(2 + 8, 5000, true);
     const valid = firstRecord(DatCodec.encodeLevels([blankLevel(4)]));
-    const decoded = DatCodec.decodeBuffer(rawPack(2, broken, valid), PREFIX);
+    const decoded = DatCodec.decodeBuffer(rawPack(2, broken, valid), PREFIX, DEFAULT_RULESET);
     expect(decoded.map((l) => l.number)).toEqual([4]);
   });
 
   it('does not trust a huge level count', () => {
     const valid = firstRecord(DatCodec.encodeLevels([blankLevel(1)]));
-    expect(DatCodec.decodeBuffer(rawPack(0xffff, valid), PREFIX)).toHaveLength(1);
+    expect(DatCodec.decodeBuffer(rawPack(0xffff, valid), PREFIX, DEFAULT_RULESET)).toHaveLength(1);
 
     bundle.datFormat.maxLevelCount = 1;
     const three = DatCodec.encodeLevels([blankLevel(1), blankLevel(2), blankLevel(3)]);
-    expect(DatCodec.decodeBuffer(toBuffer(three), PREFIX)).toHaveLength(1);
+    expect(DatCodec.decodeBuffer(toBuffer(three), PREFIX, DEFAULT_RULESET)).toHaveLength(1);
   });
 
   it('round-trips with a layer wider than the grid, using the layer width as stride', () => {
@@ -268,7 +316,7 @@ describe('DatCodec malformed input', () => {
     bundle.datFormat.layerHeight = mapHeight;
     bundle.datFormat.layerByteLength = (mapWidth + 4) * mapHeight;
     const encoded = DatCodec.encodeLevels([richLevel(1)]);
-    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX, DEFAULT_RULESET);
     expect(decoded.terrain[7][7]).toBe('exit');
   });
 
@@ -281,7 +329,7 @@ describe('DatCodec malformed input', () => {
   it('ignores layer cells beyond the grid', () => {
     bundle.datFormat.layerByteLength = 4096;
     const encoded = DatCodec.encodeLevels([richLevel(1)]);
-    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX, DEFAULT_RULESET);
     expect(decoded.terrain).toHaveLength(ConfigRegistry.getGame().grid.mapHeight);
     expect(decoded.terrain[7][7]).toBe('exit');
   });
@@ -302,7 +350,7 @@ describe('DatCodec ice corners', () => {
   it('decodes ice corners with their open sides facing playable cells', () => {
     const base64 = CCLP1_DATA_URL.slice(CCLP1_DATA_URL.indexOf(',') + 1);
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const levels = DatCodec.decodeBuffer(bytes.buffer, 'cclp1');
+    const levels = DatCodec.decodeBuffer(bytes.buffer, 'cclp1', DEFAULT_RULESET);
     let openSides = 0;
     let walkableOpenSides = 0;
     for (const level of levels) {
@@ -355,7 +403,7 @@ describe('DatCodec duplicate level numbers', () => {
 
   it('gives distinct ids to levels that share a number, keeping the first id and the number', () => {
     const encoded = DatCodec.encodeLevels([blankLevel(5), blankLevel(5), blankLevel(7), blankLevel(5)]);
-    const decoded = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX);
+    const decoded = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX, DEFAULT_RULESET);
     const ids = decoded.map((l) => l.id);
     expect(new Set(ids).size).toBe(4);
     expect(ids[0]).toBe(`${PREFIX}_level_5`);
@@ -365,7 +413,7 @@ describe('DatCodec duplicate level numbers', () => {
 
   it('keeps the plain ids of a pack whose numbers are unique', () => {
     const encoded = DatCodec.encodeLevels([blankLevel(1), blankLevel(2), blankLevel(3)]);
-    const ids = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX).map((l) => l.id);
+    const ids = DatCodec.decodeBuffer(toBuffer(encoded), PREFIX, DEFAULT_RULESET).map((l) => l.id);
     expect(ids).toEqual([1, 2, 3].map((n) => `${PREFIX}_level_${n}`));
   });
 });
@@ -392,7 +440,7 @@ describe('DatCodec export fidelity', () => {
     expect(firstLayer1(encoded.bytes)[10 * mapWidth + 6]).toBe(byte);
     expect(encoded.lost).toEqual([]);
 
-    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX, DEFAULT_RULESET);
     expect(decoded.terrain[10][6]).toBe('clone_machine');
     expect(decoded.entities).toContainEqual({ x: 6, y: 10, type: 'dirt_block', dir });
     expect(decoded.cloneLinks[0].templateDir).toBe(dir);
@@ -418,7 +466,7 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.padded).toEqual([lvl.id]);
     expect(encoded.refused).toEqual([]);
 
-    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX, DEFAULT_RULESET);
     expect(decoded.terrain[1][2]).toBe('floor');
     expect(decoded.terrain[1][5]).toBe('wall');
     expect(decoded.terrain[3][0]).toBe('wall');
@@ -436,7 +484,7 @@ describe('DatCodec export fidelity', () => {
     const encoded = DatCodec.encodeLevelsWithReport([big, blankLevel(2)]);
     expect(encoded.refused).toEqual([{ levelId: big.id, reason: 'too_large' }]);
     expect(encoded.levelCount).toBe(1);
-    const decoded = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX);
+    const decoded = DatCodec.decodeBuffer(toBuffer(encoded.bytes), PREFIX, DEFAULT_RULESET);
     expect(decoded.map((l) => l.number)).toEqual([2]);
   });
 
@@ -478,9 +526,14 @@ describe('DatCodec export fidelity', () => {
 });
 
 /** Every bundled pack, inlined by Vite as base64 data URLs. */
-const BUNDLED_PACK_URLS = Object.values(
-  import.meta.glob('../../public/packs/*.DAT', { query: '?inline', import: 'default', eager: true })
-) as string[];
+const BUNDLED_PACKS = import.meta.glob('../../public/packs/*.DAT', {
+  query: '?inline',
+  import: 'default',
+  eager: true
+}) as Record<string, string>;
+const BUNDLED_PACK_URLS = Object.values(BUNDLED_PACKS);
+/** Bundled packs whose levels all carry a field 9 author; the others carry none. */
+const AUTHORED_PACK_NAMES = ['CCLP1', 'CCLP4', 'CCLP5'];
 
 describe('DatCodec bundled pack ids', () => {
   beforeEach(() => {
@@ -491,11 +544,286 @@ describe('DatCodec bundled pack ids', () => {
     expect(BUNDLED_PACK_URLS.length).toBeGreaterThan(0);
     for (const url of BUNDLED_PACK_URLS) {
       const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0));
-      const levels = DatCodec.decodeBuffer(bytes.buffer, PREFIX);
+      const levels = DatCodec.decodeBuffer(bytes.buffer, PREFIX, DEFAULT_RULESET);
       expect(levels.length).toBeGreaterThan(0);
       levels.forEach((level, idx) => {
         expect(level.id).toBe(`${PREFIX}_level_${level.number || idx + 1}`);
       });
     }
+  });
+
+  it('reads the level author of the packs that carry one', () => {
+    expect(Object.keys(BUNDLED_PACKS).length).toBeGreaterThan(0);
+    for (const [path, url] of Object.entries(BUNDLED_PACKS)) {
+      const name = path.slice(path.lastIndexOf('/') + 1).replace(/\.DAT$/i, '');
+      const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0));
+      const levels = DatCodec.decodeBuffer(bytes.buffer, PREFIX, DEFAULT_RULESET);
+      const authored = AUTHORED_PACK_NAMES.includes(name.toUpperCase());
+      for (const level of levels) {
+        expect(Boolean(level.author), `${name} level ${level.number}`).toBe(authored);
+      }
+      if (name.toUpperCase() === 'CCLP1') {
+        expect(levels[0].author).toBe('Tyler Sontag');
+      }
+    }
+  });
+});
+
+describe('DatCodec ruleset tagging', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('tags every decoded level with a non-default ruleset', () => {
+    const bytes = toBuffer(DatCodec.encodeLevels([richLevel(1), blankLevel(2)]));
+    const decoded = DatCodec.decodeBuffer(bytes, PREFIX, 'lynx');
+    expect(decoded).toHaveLength(2);
+    expect(decoded.every((level) => level.ruleset === 'lynx')).toBe(true);
+  });
+
+  it('leaves the ruleset implicit for the default one', () => {
+    const bytes = toBuffer(DatCodec.encodeLevels([richLevel(1), blankLevel(2)]));
+    const decoded = DatCodec.decodeBuffer(bytes, PREFIX, DEFAULT_RULESET);
+    expect(decoded.some((level) => 'ruleset' in level)).toBe(false);
+  });
+});
+
+/** Byte codes used by the hand-built Lynx levels. */
+const CODE = {
+  floor: 0,
+  wall: 1,
+  chip: 2,
+  keyRed: 101,
+  water: 3,
+  plainBlock: 10,
+  blockNorth: 14,
+  blockEast: 17,
+  unusedFloorCode: 32,
+  cloneMachine: 49,
+  unusedWallCodes: [51, 52, 53, 58, 59],
+  unusedInvisibleCodes: [54, 55, 56],
+  sealedExit: 57,
+  swimmingChipCodes: [60, 61, 62, 63],
+  bugNorth: 64,
+  bugEast: 67,
+  chipSouth: 110,
+  firstHighCode: 112,
+  lastHighCode: 254
+};
+const FIELD_MONSTER_LIST = 10;
+const MIN_PLAYER_CODE = 108;
+const MAX_PLAYER_CODE = 111;
+const PACK_HEADER = 6;
+const LEVEL_HEADER = 8;
+const HAND_BUILT_TIME_LIMIT = 100;
+
+type Cells = Record<string, number>;
+
+/** One layer of a hand-built level: cells are keyed "x,y", everything else is floor. */
+function layerBytes(cells: Cells): Uint8Array {
+  const { layerWidth, layerByteLength } = ConfigRegistry.getDatFormat();
+  const out = new Uint8Array(layerByteLength);
+  for (const [key, code] of Object.entries(cells)) {
+    const [x, y] = key.split(',').map(Number);
+    out[y * (layerWidth ?? 0) + x] = code;
+  }
+  return out;
+}
+
+/** A single-level pack with raw layers (no RLE) and an optional monster list. */
+function handBuiltPack(top: Cells, bottom: Cells, monsterOrder: Array<[number, number]> = []): ArrayBuffer {
+  const l1 = layerBytes(top);
+  const l2 = layerBytes(bottom);
+  const optional = monsterOrder.length
+    ? Uint8Array.from([FIELD_MONSTER_LIST, monsterOrder.length * 2, ...monsterOrder.flat()])
+    : new Uint8Array(0);
+  const size = LEVEL_HEADER + 2 + l1.length + 2 + l2.length + 2 + optional.length;
+  const record = new Uint8Array(2 + size);
+  const view = new DataView(record.buffer);
+  view.setUint16(0, size, true);
+  view.setUint16(2, 1, true);
+  view.setUint16(4, HAND_BUILT_TIME_LIMIT, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, 1, true);
+  let pos = 2 + LEVEL_HEADER;
+  for (const part of [l1, l2]) {
+    view.setUint16(pos, part.length, true);
+    record.set(part, pos + 2);
+    pos += 2 + part.length;
+  }
+  view.setUint16(pos, optional.length, true);
+  record.set(optional, pos + 2);
+  return rawPack(1, record);
+}
+
+function decodeOne(top: Cells, bottom: Cells, ruleset: 'epoxy' | 'lynx', order: Array<[number, number]> = []) {
+  return DatCodec.decodeBuffer(handBuiltPack(top, bottom, order), PREFIX, ruleset)[0];
+}
+
+describe('DatCodec Lynx decoding', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('turns a directional block into a cloner only on a clone machine', () => {
+    const top = { '2,2': CODE.blockNorth, '4,4': CODE.blockEast };
+    const bottom = { '4,4': CODE.cloneMachine };
+    const lynx = decodeOne(top, bottom, 'lynx');
+    expect(lynx.terrain[2][2]).toBe('floor');
+    expect(lynx.terrain[4][4]).toBe('clone_machine');
+    expect(lynx.entities).toEqual([
+      { x: 2, y: 2, type: 'dirt_block', dir: 'N' },
+      { x: 4, y: 4, type: 'dirt_block', dir: 'E' }
+    ]);
+    const epoxy = decodeOne(top, bottom, 'epoxy');
+    expect(epoxy.terrain[2][2]).toBe('clone_machine');
+  });
+
+  it('faces the plain block north under Lynx and south under Epoxy', () => {
+    const top = { '3,3': CODE.plainBlock };
+    expect(decodeOne(top, {}, 'lynx').entities[0].dir).toBe('N');
+    expect(decodeOne(top, {}, 'epoxy').entities[0].dir).toBe('S');
+  });
+
+  it('reads the plain block on a clone machine as a cloner facing north', () => {
+    const level = decodeOne({ '5,5': CODE.plainBlock }, { '5,5': CODE.cloneMachine }, 'lynx');
+    expect(level.terrain[5][5]).toBe('clone_machine');
+    expect(level.entities).toEqual([{ x: 5, y: 5, type: 'dirt_block', dir: 'N' }]);
+  });
+
+  it('keeps the lower layer only as the floor under a creature', () => {
+    const top = {
+      '1,1': CODE.chipSouth,
+      '2,2': CODE.wall,
+      '3,3': CODE.floor,
+      '6,6': CODE.plainBlock,
+      '9,9': CODE.bugNorth
+    };
+    const bottom = {
+      '2,2': CODE.chip,
+      '3,3': CODE.bugEast,
+      '6,6': CODE.water,
+      '8,8': CODE.chipSouth,
+      '9,9': CODE.chip
+    };
+    const lynx = decodeOne(top, bottom, 'lynx');
+    // The only item left is the chip under the bug at 9,9: everything else in the lower layer is ignored.
+    expect(lynx.items[9][9]).toBe('chip');
+    expect(lynx.items.flat().filter((cell) => cell !== null)).toHaveLength(1);
+    expect(lynx.entities.map((e) => `${e.x},${e.y},${e.type}`)).toEqual(['6,6,dirt_block', '9,9,bug']);
+    expect(lynx.terrain[6][6]).toBe('water');
+    expect(lynx.terrain[2][2]).toBe('wall');
+    expect(lynx.playerStart).toMatchObject({ x: 1, y: 1 });
+    const epoxy = decodeOne(top, bottom, 'epoxy');
+    expect(epoxy.items[2][2]).toBe('chip');
+    expect(epoxy.entities.some((e) => e.x === 3 && e.y === 3)).toBe(true);
+    expect(epoxy.playerStart).toMatchObject({ x: 8, y: 8 });
+  });
+
+  it('keeps an item as the floor under a creature under Lynx', () => {
+    const top = { '4,4': CODE.plainBlock, '7,7': CODE.bugNorth };
+    const bottom = { '4,4': CODE.chip, '7,7': CODE.keyRed };
+    const lynx = decodeOne(top, bottom, 'lynx');
+    expect(lynx.items[4][4]).toBe('chip');
+    expect(lynx.items[7][7]).toBe('key_red');
+    expect(lynx.entities.map((e) => `${e.x},${e.y},${e.type}`)).toEqual(['4,4,dirt_block', '7,7,bug']);
+    const epoxy = decodeOne(top, bottom, 'epoxy');
+    expect(epoxy.items[4][4]).toBe('chip');
+    expect(epoxy.items[7][7]).toBe('key_red');
+  });
+
+  it('ignores the monster list under Lynx and follows it under Epoxy', () => {
+    const top = { '1,1': CODE.bugNorth, '5,5': CODE.bugEast };
+    const order: Array<[number, number]> = [
+      [5, 5],
+      [1, 1]
+    ];
+    const lynx = decodeOne(top, {}, 'lynx', order);
+    expect(lynx.entities.map((e) => `${e.x},${e.y}`)).toEqual(['1,1', '5,5']);
+    const epoxy = decodeOne(top, {}, 'epoxy', order);
+    expect(epoxy.entities.map((e) => `${e.x},${e.y}`)).toEqual(['5,5', '1,1']);
+  });
+
+  it('gives the unused codes their Lynx meaning', () => {
+    const cells: Cells = {};
+    const expected = new Map<number, string>();
+    let x = 1;
+    const add = (code: number, tile: string): void => {
+      cells[`${x},1`] = code;
+      expected.set(x, tile);
+      x++;
+    };
+    add(CODE.unusedFloorCode, 'wall');
+    CODE.unusedWallCodes.forEach((c) => add(c, 'wall'));
+    CODE.unusedInvisibleCodes.forEach((c) => add(c, 'invisible_wall'));
+    add(CODE.sealedExit, 'wall');
+    CODE.swimmingChipCodes.forEach((c) => add(c, 'water'));
+    add(CODE.firstHighCode, 'wall');
+    add(CODE.lastHighCode, 'wall');
+    const lynx = decodeOne(cells, {}, 'lynx');
+    for (const [col, tile] of expected) expect(lynx.terrain[1][col]).toBe(tile);
+    // Under Epoxy the unused floor code stays floor and a swimming Chip code is still a player start
+    const epoxy = decodeOne({ '1,1': CODE.unusedFloorCode, '2,1': CODE.swimmingChipCodes[0] }, {}, 'epoxy');
+    expect(epoxy.terrain[1][1]).toBe('floor');
+    expect(epoxy.playerStart).toMatchObject({ x: 2, y: 1 });
+  });
+
+  it('keeps the clone machine of an exported block on a cloner', () => {
+    const lvl = blankLevel(1);
+    lvl.terrain[6][6] = 'clone_machine';
+    lvl.entities = [{ x: 6, y: 6, type: 'dirt_block', dir: 'W' }];
+    lvl.items[6][6] = 'chip';
+    const bytes = toBuffer(DatCodec.encodeLevels([lvl]));
+    const lynx = DatCodec.decodeBuffer(bytes, PREFIX, 'lynx')[0];
+    expect(lynx.terrain[6][6]).toBe('clone_machine');
+    expect(lynx.entities).toContainEqual({ x: 6, y: 6, type: 'dirt_block', dir: 'W' });
+  });
+});
+
+/** The uncompressed top layer of every level of a pack. */
+function topLayers(buffer: ArrayBuffer): Uint8Array[] {
+  const cfg = ConfigRegistry.getDatFormat();
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const layers: Uint8Array[] = [];
+  let offset = PACK_HEADER;
+  for (let i = 0; i < view.getUint16(4, true); i++) {
+    const length = view.getUint16(offset, true);
+    const start = offset + 2 + LEVEL_HEADER;
+    const compressed = bytes.subarray(start + 2, start + 2 + view.getUint16(start, true));
+    const out = new Uint8Array(cfg.layerByteLength);
+    let n = 0;
+    for (let p = 0; p < compressed.length && n < out.length; ) {
+      if (compressed[p] === cfg.rleMarkerByte) {
+        for (let c = 0; c < compressed[p + 1]; c++) out[n++] = compressed[p + 2];
+        p += 3;
+      } else {
+        out[n++] = compressed[p++];
+      }
+    }
+    layers.push(out);
+    offset += 2 + length;
+  }
+  return layers;
+}
+
+describe('DatCodec Lynx on the bundled packs', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('decodes every bundled pack with exactly one player start per level', () => {
+    const failures: string[] = [];
+    for (const url of BUNDLED_PACK_URLS) {
+      const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0));
+      const levels = DatCodec.decodeBuffer(bytes.buffer, PREFIX, 'lynx');
+      const tops = topLayers(bytes.buffer);
+      expect(levels.length).toBeGreaterThan(0);
+      levels.forEach((level, idx) => {
+        const starts = tops[idx].filter((c) => c >= MIN_PLAYER_CODE && c <= MAX_PLAYER_CODE).length;
+        if (starts !== 1) failures.push(`${level.id}: ${starts} player starts`);
+      });
+    }
+    expect(failures).toEqual([]);
   });
 });

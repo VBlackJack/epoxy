@@ -488,6 +488,8 @@ export interface UltimatePackDescriptor {
   i18nKey: string;
   url: string;
   prefix: string;
+  /** Ruleset of the pack's levels; absent means 'epoxy'. */
+  ruleset?: Ruleset;
 }
 
 export interface TouchConfig {
@@ -732,6 +734,23 @@ export interface DatElementMapping {
   isClonerTemplate?: boolean;
 }
 
+/** A run of byte codes, both ends included, that share one meaning. */
+export interface DatByteRange {
+  first: number;
+  last: number;
+  element: DatElementMapping;
+}
+
+/** How a .DAT file is read under the Lynx ruleset: what differs from byteToElement. */
+export interface DatLynxConfig {
+  /** Meaning of a code that neither byteToElement nor the overrides know. */
+  fallbackElement: DatElementMapping;
+  /** Codes whose Lynx meaning differs from byteToElement. */
+  byteOverrides: Record<string, DatElementMapping>;
+  /** Code ranges whose Lynx meaning differs from byteToElement; single overrides win. */
+  byteRangeOverrides: DatByteRange[];
+}
+
 export interface DatFormatConfig {
   magicHeaders: number[];
   defaultMagicHeader: number;
@@ -753,9 +772,12 @@ export interface DatFormatConfig {
     encryptedPassword: number;
     hint: number;
     plainPassword: number;
+    author?: number;
     monsterList: number;
   };
   byteToElement: Record<string, DatElementMapping>;
+  /** Lynx reading of the codes; when unset, Lynx reads the same table as the Epoxy ruleset. */
+  lynx?: DatLynxConfig;
 }
 
 export interface TrapLink {
@@ -784,17 +806,27 @@ export interface EntityPlacement {
 /** How a level is won: reach the exit, or cover every block target with a block. */
 export type WinRule = 'exit' | 'targets';
 
+/**
+ * Rules a level is played under. 'epoxy' is Epoxy's own rules and the default;
+ * 'lynx' is the Tile World Lynx rules, used by community packs.
+ */
+export type Ruleset = 'epoxy' | 'lynx';
+
 export interface LevelBlueprint {
   id: string;
   theme?: string;
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
   winRule?: WinRule;
+  /** Ruleset the level was made for; absent means 'epoxy'. */
+  ruleset?: Ruleset;
   number: number;
   titleKey?: string;
   customTitle?: string;
   hintKey?: string;
   customHint?: string;
+  /** Level author, from DAT field 9. */
+  author?: string;
   password: string;
   timeLimitSeconds: number;
   chipsRequired: number;
@@ -823,11 +855,15 @@ export interface CompiledLevel {
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
   winRule?: WinRule;
+  /** Ruleset the level was made for; absent means 'epoxy'. */
+  ruleset?: Ruleset;
   number: number;
   titleKey?: string;
   customTitle?: string;
   hintKey?: string;
   customHint?: string;
+  /** Level author, from DAT field 9. */
+  author?: string;
   password: string;
   timeLimitSeconds: number;
   chipsRequired: number;

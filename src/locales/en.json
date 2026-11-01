@@ -130,6 +130,9 @@
     }
   },
   "hud": {
+    "level": {
+      "author": { "label": "by {author}" }
+    },
     "stats": {
       "level": { "label": "LEVEL" },
       "password": { "label": "CODE" },
@@ -347,12 +350,17 @@
       "dir_west": { "label": "W (◀)" },
       "title": { "label": "Level Title" },
       "hint": { "label": "Hint Text (?)" },
+      "author": { "label": "Author" },
       "password": { "label": "Password (4 chars)" },
       "time_limit": { "label": "Time Limit (s)" },
       "chips_needed": { "label": "Chips Required" },
       "win_rule": { "label": "Win Rule" },
       "win_rule_exit": { "label": "Reach the exit" },
       "win_rule_targets": { "label": "Cover every target with a block" },
+      "ruleset": { "label": "Rules" },
+      "ruleset_epoxy": { "label": "Epoxy" },
+      "ruleset_lynx": { "label": "Lynx (community packs)" },
+      "ruleset_lynx_unavailable": { "label": "Block-target levels play under Epoxy rules only" },
       "auto_count_chips": { "action": "Auto Count" },
       "entity_dir": { "label": "Entity / Player Direction" }
     },

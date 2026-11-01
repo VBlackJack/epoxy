@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { BUILTIN_PACK_IDS } from '../config/constants';
+import { BUILTIN_PACK_IDS, IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
 import { PixelRenderer } from '../render/PixelRenderer';
@@ -29,14 +29,15 @@ import {
   Direction,
   EntityPlacement,
   LevelBlueprint,
+  Ruleset,
   TrapLink,
   ValidationIssue,
   WinRule
 } from '../core/types';
 import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
-import { DEFAULT_WIN_RULE } from '../core/coreConstants';
-import { parseChipsRequired, parseTimeLimit, parseWinRule } from './metadataFields';
+import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
+import { parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule } from './metadataFields';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   CUSTOM_LEVEL_ID_PREFIX,
@@ -58,11 +59,16 @@ const EXPORT_FALLBACK_FILE_NAME = 'epoxy_level';
 const METADATA_INPUT_IDS = [
   'editor-meta-title',
   'editor-meta-hint',
+  'editor-meta-author',
   'editor-meta-password',
   'editor-meta-time',
   'editor-meta-chips',
-  'editor-meta-winrule'
+  'editor-meta-winrule',
+  'editor-meta-ruleset'
 ] as const;
+const WIN_RULE_INPUT_ID = 'editor-meta-winrule';
+const BLOCK_TARGET_WIN_RULE: WinRule = 'targets';
+const LYNX_RULESET: Ruleset = 'lynx';
 
 type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'eraser' | 'wire_trap' | 'wire_cloner';
 
@@ -100,10 +106,13 @@ export class LevelEditor {
   private draftCustomId: string | null = null;
   private customTitle: string = '';
   private customHint: string = '';
+  private author: string = '';
   private password: string = EDITOR_DEFAULT_PASSWORD;
   private timeLimitSeconds: number = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
   private chipsRequired: number = EDITOR_DEFAULT_CHIPS_REQUIRED;
   private winRule: WinRule = DEFAULT_WIN_RULE;
+  /** Ruleset of the loaded level, written back on export; absent means the default. */
+  private ruleset: Ruleset | undefined;
 
   private activeCategory: string = 'terrain';
   private activeBrush: ActiveBrush = { kind: 'terrain', id: 'wall' };
@@ -186,10 +195,12 @@ export class LevelEditor {
     this.draftCustomId = null;
     this.customTitle = t('editor.metadata.default_title.label');
     this.customHint = '';
+    this.author = '';
     this.password = EDITOR_DEFAULT_PASSWORD;
     this.timeLimitSeconds = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
     this.chipsRequired = EDITOR_DEFAULT_CHIPS_REQUIRED;
     this.winRule = DEFAULT_WIN_RULE;
+    this.ruleset = undefined;
     this.isDirty = false;
     this.undoStack = [];
     this.redoStack = [];
@@ -204,10 +215,12 @@ export class LevelEditor {
     this.draftCustomId = null;
     this.customTitle = this.resolveLevelTitle(level);
     this.customHint = level.customHint || (level.hintKey ? t(level.hintKey) : '');
+    this.author = level.author ?? '';
     this.password = level.password;
     this.timeLimitSeconds = level.timeLimitSeconds;
     this.chipsRequired = level.chipsRequired;
     this.winRule = level.winRule ?? DEFAULT_WIN_RULE;
+    this.ruleset = level.ruleset;
     this.playerStart = { ...level.playerStart };
     this.terrain = level.terrain.map((r) => [...r]);
     this.items = level.items.map((r) => [...r]);
@@ -561,7 +574,7 @@ export class LevelEditor {
         reader.onload = () => {
           try {
             const buffer = reader.result as ArrayBuffer;
-            const decoded = DatCodec.decodeBuffer(buffer, file.name.replace(/\.[^.]+$/, ''));
+            const decoded = DatCodec.decodeBuffer(buffer, file.name.replace(/\.[^.]+$/, ''), IMPORTED_PACK_RULESET);
             if (decoded.length > 0) {
               this.loadCompiledLevel(decoded[0]);
               this.setStatusText(t('editor.palette.status.imported'));
@@ -648,8 +661,12 @@ export class LevelEditor {
 
   private bindMetadataEvents(): void {
     for (const id of METADATA_INPUT_IDS) {
-      document.getElementById(id)?.addEventListener('input', () => {
+      document.getElementById(id)?.addEventListener('input', (event) => {
         this.isDirty = true;
+        if (id === WIN_RULE_INPUT_ID) {
+          this.winRule = parseWinRule((event.target as HTMLSelectElement).value, this.winRule);
+          this.syncRulesetInput();
+        }
       });
     }
   }
@@ -657,6 +674,7 @@ export class LevelEditor {
   private syncMetadataInputs(): void {
     const titleEl = document.getElementById('editor-meta-title') as HTMLInputElement | null;
     const hintEl = document.getElementById('editor-meta-hint') as HTMLInputElement | null;
+    const authorEl = document.getElementById('editor-meta-author') as HTMLInputElement | null;
     const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
     const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
     const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
@@ -664,15 +682,32 @@ export class LevelEditor {
 
     if (titleEl) titleEl.value = this.customTitle;
     if (hintEl) hintEl.value = this.customHint;
+    if (authorEl) authorEl.value = this.author;
     if (passEl) passEl.value = this.password;
     if (timeEl) timeEl.value = String(this.timeLimitSeconds);
     if (chipsEl) chipsEl.value = String(this.chipsRequired);
     if (winRuleEl) winRuleEl.value = this.winRule;
+    this.syncRulesetInput();
+  }
+
+  /** A level won with block targets is Epoxy only: force it and lock the Lynx option. */
+  private syncRulesetInput(): void {
+    const rulesetEl = document.getElementById('editor-meta-ruleset') as HTMLSelectElement | null;
+    if (!rulesetEl) return;
+    const lynxLocked = this.winRule === BLOCK_TARGET_WIN_RULE;
+    if (lynxLocked) this.ruleset = undefined;
+    rulesetEl.value = this.ruleset ?? DEFAULT_RULESET;
+    for (const option of Array.from(rulesetEl.options)) {
+      if (option.value !== LYNX_RULESET) continue;
+      option.disabled = lynxLocked;
+      option.title = lynxLocked ? t('editor.metadata.ruleset_lynx_unavailable.label') : '';
+    }
   }
 
   private readMetadataInputs(): void {
     const titleEl = document.getElementById('editor-meta-title') as HTMLInputElement | null;
     const hintEl = document.getElementById('editor-meta-hint') as HTMLInputElement | null;
+    const authorEl = document.getElementById('editor-meta-author') as HTMLInputElement | null;
     const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
     const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
     const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
@@ -680,12 +715,19 @@ export class LevelEditor {
 
     if (titleEl && titleEl.value.trim()) this.customTitle = titleEl.value.trim();
     if (hintEl) this.customHint = hintEl.value.trim();
+    if (authorEl) this.author = authorEl.value.trim();
     if (passEl && passEl.value.trim()) {
       this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
     }
     if (timeEl) this.timeLimitSeconds = parseTimeLimit(timeEl.value, this.timeLimitSeconds);
     if (chipsEl) this.chipsRequired = parseChipsRequired(chipsEl.value, this.chipsRequired);
     if (winRuleEl) this.winRule = parseWinRule(winRuleEl.value, this.winRule);
+    const rulesetEl = document.getElementById('editor-meta-ruleset') as HTMLSelectElement | null;
+    if (rulesetEl) {
+      const parsed = parseRuleset(rulesetEl.value, this.ruleset ?? DEFAULT_RULESET);
+      this.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
+    }
+    if (this.winRule === BLOCK_TARGET_WIN_RULE) this.ruleset = undefined;
   }
 
   private createSnapshot(): EditorSnapshot {
@@ -1018,9 +1060,11 @@ export class LevelEditor {
     return {
       id,
       ...(this.winRule === DEFAULT_WIN_RULE ? {} : { winRule: this.winRule }),
+      ...(this.ruleset ? { ruleset: this.ruleset } : {}),
       number: existing ? existing.number : ConfigRegistry.getLevels().length + 1,
       customTitle: this.customTitle,
       customHint: this.customHint,
+      ...(this.author ? { author: this.author } : {}),
       password: this.password,
       timeLimitSeconds: this.timeLimitSeconds,
       chipsRequired: this.chipsRequired,

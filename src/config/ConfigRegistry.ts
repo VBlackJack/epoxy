@@ -34,12 +34,14 @@ import {
   isDirection,
   isFiniteNumber,
   isInBounds,
+  isRuleset,
   isWinRule,
   findAudioConfigErrors,
   findDatFormatErrors,
   findGameTunableErrors,
   InvalidLevelError
 } from './ConfigValidation';
+import { DEFAULT_RULESET } from '../core/coreConstants';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
 import {
   AudioConfig,
@@ -210,7 +212,7 @@ class ConfigRegistryService {
 
     for (const { descriptor, buffer } of fetched) {
       try {
-        const decoded = DatCodec.decodeBuffer(buffer, descriptor.prefix);
+        const decoded = DatCodec.decodeBuffer(buffer, descriptor.prefix, descriptor.ruleset ?? DEFAULT_RULESET);
         if (decoded.length > 0) {
           loaded.push({
             id: descriptor.id,
@@ -470,11 +472,13 @@ class ConfigRegistryService {
       ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
       ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
       ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
+      ...(isRuleset(bp.ruleset) && bp.ruleset !== DEFAULT_RULESET ? { ruleset: bp.ruleset } : {}),
       number: bp.number,
       ...(typeof bp.titleKey === 'string' ? { titleKey: bp.titleKey } : {}),
       ...(typeof bp.customTitle === 'string' ? { customTitle: bp.customTitle } : {}),
       ...(typeof bp.hintKey === 'string' ? { hintKey: bp.hintKey } : {}),
       ...(typeof bp.customHint === 'string' ? { customHint: bp.customHint } : {}),
+      ...(typeof bp.author === 'string' && bp.author.trim() ? { author: bp.author.trim() } : {}),
       password: (typeof bp.password === 'string' && bp.password
         ? bp.password
         : DEFAULT_LEVEL_PASSWORD

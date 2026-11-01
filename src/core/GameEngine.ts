@@ -377,6 +377,15 @@ export class GameEngine {
     return this.stepsCount;
   }
 
+  /**
+   * Starts this engine from a score earned elsewhere: the page plays levels of
+   * different rulesets with different engines, and the total score runs on.
+   */
+  public carryTotalScore(total: number): void {
+    this.totalScore = total;
+    this.scoreAtLevelStart = total;
+  }
+
   public getTotalScore(): number {
     return this.totalScore;
   }

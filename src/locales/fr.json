@@ -130,6 +130,9 @@
     }
   },
   "hud": {
+    "level": {
+      "author": { "label": "par {author}" }
+    },
     "stats": {
       "level": { "label": "NIVEAU" },
       "password": { "label": "CODE" },
@@ -347,12 +350,17 @@
       "dir_west": { "label": "O (◀)" },
       "title": { "label": "Titre du Niveau" },
       "hint": { "label": "Texte d'indice (?)" },
+      "author": { "label": "Auteur" },
       "password": { "label": "Code (4 lettres)" },
       "time_limit": { "label": "Temps (s)" },
       "chips_needed": { "label": "Puces requises" },
       "win_rule": { "label": "Règle de victoire" },
       "win_rule_exit": { "label": "Atteindre la sortie" },
       "win_rule_targets": { "label": "Couvrir chaque cible avec un bloc" },
+      "ruleset": { "label": "Règles" },
+      "ruleset_epoxy": { "label": "Epoxy" },
+      "ruleset_lynx": { "label": "Lynx (packs communautaires)" },
+      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc ne se jouent qu'avec les règles Epoxy" },
       "auto_count_chips": { "action": "Compter auto." },
       "entity_dir": { "label": "Direction Entité / Joueur" }
     },
