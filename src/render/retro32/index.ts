@@ -20,3 +20,10 @@ export { RETRO32_SPRITE_SIZE, rasterizeSprite32 } from './rasterize';
 export { RETRO32_RAMP_TONES, deriveRetro32Ramps } from './ramps';
 export { isFifteenBitColour } from './colour';
 export { createRetro32SpriteCache, type Retro32SpriteCache } from './cache';
+export {
+  RETRO32_LAYER_SCALE,
+  RETRO32_SPEC,
+  RETRO32_STYLE_ID,
+  createRetro32ThemeSprites,
+  type Retro32ThemeSprites
+} from './spriteStyle32';

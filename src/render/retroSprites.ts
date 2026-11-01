@@ -444,3 +444,102 @@ export function findRetroSheetErrors(sheet: RetroSheet, palettes: unknown): stri
   }
   return [...new Set(errors)];
 }
+
+/** The shadow thrown sideways by a west caster is shallower than the one thrown by a north caster. */
+export const RETRO_SIDE_SHADOW_RATIO = 0.6;
+
+/**
+ * Score flag text on the 16-px authoring grid: a 3x5 string centred on `centerX`, its top row at
+ * `top`, characters `spacing` pixels apart.
+ */
+export interface FlagTextLayout {
+  readonly centerX: number;
+  readonly top: number;
+  readonly spacing: number;
+}
+
+/** Flag text layout on the authoring grid (the one the 16-Bit sheet is drawn on). */
+export const RETRO_FLAG_TEXT: FlagTextLayout = { centerX: 9, top: 4, spacing: 1 };
+
+/** Size of one sprite in pixels. */
+export interface SpriteDims {
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Where a style gets its sprite pixels from. The composition only asks for the size of a sprite
+ * and for its RGBA pixels, so it knows nothing about ramps or about how the pixels are produced.
+ */
+export interface SpriteSource {
+  /** Size of the named sprite, or undefined when the source lacks it. */
+  dims(name: string): SpriteDims | undefined;
+  /** RGBA pixels of the named sprite; only called for a name `dims` knows. */
+  pixels(name: string, swapRamp?: string): Uint8ClampedArray;
+}
+
+/** Size-dependent parameters of a sprite style, derived from its scale over the authoring grid. */
+export interface SpriteStyleSpec {
+  readonly id: string;
+  /** Side of a composed tile in pixels. */
+  readonly tileSize: number;
+  /** Factor from authoring-grid pixels (layer offsets) to this style's pixels. */
+  readonly layerScale: number;
+  /** Side of a glyph sprite in this style's pixels. */
+  readonly glyphSize: number;
+  /** Width and height of a digit or sign sprite in this style's pixels. */
+  readonly charWidth: number;
+  readonly charHeight: number;
+  /** Top-left corner of a centred glyph in this style's pixels. */
+  readonly glyphOrigin: number;
+  /** Flag text layout in this style's pixels. */
+  readonly flagText: FlagTextLayout;
+  /** True when the floor shadow colour is quantised to 15 bits. */
+  readonly quantiseShadow: boolean;
+  /** Shadow depth and side width in this style's pixels for a depth given as a fraction of a tile. */
+  shadowExtent(depthTile: number): { depth: number; side: number };
+}
+
+/** Builds the spec of a style that draws the 16-px authoring grid at `layerScale` times its size. */
+export function createSpriteStyleSpec(id: string, layerScale: number, quantiseShadow: boolean): SpriteStyleSpec {
+  const tileSize = RETRO_SPRITE_SIZE * layerScale;
+  return {
+    id,
+    tileSize,
+    layerScale,
+    glyphSize: RETRO_GLYPH_SIZE * layerScale,
+    charWidth: RETRO_CHAR_WIDTH * layerScale,
+    charHeight: RETRO_CHAR_HEIGHT * layerScale,
+    glyphOrigin: Math.floor((RETRO_SPRITE_SIZE - RETRO_GLYPH_SIZE) / 2) * layerScale,
+    flagText: {
+      centerX: RETRO_FLAG_TEXT.centerX * layerScale,
+      top: RETRO_FLAG_TEXT.top * layerScale,
+      spacing: RETRO_FLAG_TEXT.spacing * layerScale
+    },
+    quantiseShadow,
+    shadowExtent(depthTile) {
+      const depth = Math.round(tileSize * depthTile);
+      return { depth, side: Math.round(depth * RETRO_SIDE_SHADOW_RATIO) };
+    }
+  };
+}
+
+/** Id of the 16-Bit Retro style (kept as 'retro' so saved settings stay valid). */
+export const RETRO16_STYLE_ID = 'retro';
+/** Scale of the 16-Bit style over the authoring grid. */
+const RETRO16_LAYER_SCALE = 1;
+
+export const RETRO16_SPEC: SpriteStyleSpec = createSpriteStyleSpec(RETRO16_STYLE_ID, RETRO16_LAYER_SCALE, false);
+
+/** Sprite source of the 16-Bit style: the sheet rasterized with the theme's 9-bit ramps. */
+export function createRetro16SpriteSource(ramps: RetroRamps, sheet: RetroSheet = RETRO_SHEET): SpriteSource {
+  return {
+    dims(name) {
+      const sprite = sheet.sprites[name];
+      return sprite ? { width: sprite.width, height: sprite.height } : undefined;
+    },
+    pixels(name, swapRamp) {
+      return rasterizeSprite(sheet.sprites[name], ramps, swapRamp);
+    }
+  };
+}

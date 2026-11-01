@@ -83,7 +83,8 @@ export interface ImportConfig {
   maxFileBytes: number;
 }
 
-export type GraphicsStyle = 'modern' | 'retro';
+/** Render styles: 'retro' is the 16-Bit Retro id (kept so saved settings stay valid). */
+export type GraphicsStyle = 'modern' | 'retro' | 'retro32';
 
 export interface GraphicsConfig {
   defaultStyle: GraphicsStyle;
@@ -535,6 +536,8 @@ export interface GameConfig {
   palette: Record<string, string>;
   /** Colour ramps of the 16-Bit Retro style: theme id (or "default") to ramp name to hex tones, light to dark. */
   retroPalettes?: Record<string, Record<string, string[]>>;
+  /** Optional colour ramps of the 32-Bit Retro style (15-bit, up to 8 tones): replace the ramps derived from retroPalettes. */
+  retro32Palettes?: Record<string, Record<string, string[]>>;
 }
 
 export interface TileDefinition {
