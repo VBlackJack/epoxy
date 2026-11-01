@@ -64,6 +64,33 @@ Les pistes se déclarent dans `public/configs/audio.json`, sous `tracks`. Une pi
 - `defaultTrackId` doit rester une piste synthétisée : c'est elle qui joue quand un fichier ne se charge pas. Une piste de fichier en échec est ignorée jusqu'à la fin de la session.
 - Le chargement vérifie la configuration : un identifiant en double, une piste de fichier sans fichiers, un `musicTrackId` inconnu ou un `defaultMusicMode` inconnu arrêtent le jeu avec un message clair.
 
+### Ajouter des effets sonores
+
+Chaque effet se déclare dans `public/configs/audio.json`, sous `effects.<id>`. Un effet est synthétisé à partir de `waveform` et `notes`, et peut aussi jouer des fichiers audio :
+
+```json
+"teleport": {
+  "files": ["sfx_movement_portal5.wav"],
+  "maxDurationMs": 400,
+  "fadeOutMs": 150,
+  "gain": 0.4,
+  "waveform": "sawtooth",
+  "notes": [
+    { "freq": 330, "durationMs": 35, "gain": 0.4 },
+    { "freq": 495, "durationMs": 35, "gain": 0.4 },
+    { "freq": 742, "durationMs": 45, "gain": 0.45 },
+    { "freq": 1113, "durationMs": 60, "gain": 0.4 }
+  ]
+}
+```
+
+- Placez les fichiers dans `public/audio/sfx/` (ce dossier est `sfxBaseUrl`, `./audio/sfx` si omis) et listez leurs noms dans `files`. Avec plusieurs fichiers, ils jouent à tour de rôle : le pas alterne ainsi deux bruits de pas. Un fichier qui ne se charge pas ou ne se décode pas est ignoré.
+- `gain` (1 si omis) règle le volume par rapport au volume général multiplié par le volume des effets ; les fichiers fournis utilisent 0,4.
+- `maxDurationMs` arrête la lecture à cet instant. `fadeOutMs` ajoute un fondu linéaire qui se termine à cette limite ; il exige `maxDurationMs` et ne peut pas le dépasser.
+- `waveform` et `notes` restent obligatoires : ils servent de repli, joués tant qu'aucun fichier n'est décodé (les tout premiers sons après le déverrouillage de l'audio) ou quand un fichier manque ou échoue.
+- 13 des 15 effets utilisent des fichiers ; `splash` et `burn` restent synthétisés.
+- Seuls `teleport` (limite de 400 ms, fondu de 150 ms) et `thief` (limite de 500 ms, fondu de 150 ms) utilisent une limite et un fondu.
+
 ## Construire une campagne avec le générateur
 
 1. Ouvrez l'**Éditeur de niveaux**, choisissez une **Difficulté**, laissez la **Graine** vide et cliquez sur **Générer**. La graine utilisée s'affiche, ce qui permet de régénérer le même niveau.
@@ -99,6 +126,27 @@ npm run build
 ## Crédits
 
 Les packs `CCLP 1` à `CCLP 5` fournis sont des jeux de niveaux créés par la communauté, et `Tile World Intro` est distribué avec le projet Tile World. Tous les niveaux de ces packs restent l'oeuvre de leurs auteurs respectifs. Epoxy n'est affilié à aucun détenteur de jeu commercial.
+
+### Audio
+
+Effets sonores : The Essential Retro Video Game Sound Effects Collection de Juhani Junkala, publiée par SubspaceAudio sur OpenGameArt (https://opengameart.org/content/512-sound-effects-8-bit-style), CC0 1.0, licence vérifiée le 2026-11-01.
+
+Fichiers de `public/audio/sfx/` et effet servi par chacun :
+
+- `sfx_movement_footsteps1a.wav`: step
+- `sfx_movement_footsteps1b.wav`: step
+- `sfx_sounds_impact3.wav`: blocked
+- `sfx_coin_single3.wav`: chip
+- `sfx_coin_double1.wav`: item
+- `sfx_movement_dooropen1.wav`: door
+- `sfx_sounds_powerup15.wav`: socket
+- `sfx_sounds_button10.wav`: button
+- `sfx_movement_portal5.wav`: teleport
+- `sfx_sounds_negative2.wav`: thief
+- `sfx_exp_short_hard4.wav`: bomb
+- `sfx_deathscream_android5.wav`: death
+- `sfx_sounds_fanfare1.wav`: win
+- `sfx_lowhealth_alarmloop6.wav`: timer_warn
 
 ## Licence
 

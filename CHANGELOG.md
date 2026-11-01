@@ -19,6 +19,13 @@ versions follow Semantic Versioning.
   synthesized default track takes over. `audio.json` is validated at load (unique ids, a
   synthesized `defaultTrackId`, files for file tracks, biome and mode references).
 
+- Sound effects from audio files: an effect in `audio.json` can list `files` (in `sfxBaseUrl`,
+  `./audio/sfx` by default) played in turn, with an optional `gain`, `maxDurationMs` and a linear
+  `fadeOutMs` ending at the cap. Files are fetched and decoded once the audio context exists; the
+  synthesized `waveform` and `notes` stay as the fallback until a file is decoded or when it
+  fails. 13 of the 15 effects now use the 14 bundled CC0 files (Juhani Junkala, via SubspaceAudio
+  on OpenGameArt); `splash` and `burn` stay synthesized. Credits added to both READMEs.
+
 ### Changed
 
 - The biome-to-track mapping moved from the source code to `game.json` (`musicTrackId` on each

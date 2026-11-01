@@ -639,6 +639,17 @@ export interface AudioNote {
 export interface AudioEffectConfig {
   waveform: OscillatorType;
   notes: AudioNote[];
+  /**
+   * Sampled variants played round-robin instead of the notes, relative to `sfxBaseUrl`.
+   * The notes stay as the fallback while a file is not decoded or cannot be loaded.
+   */
+  files?: string[];
+  /** Hard cap on a sampled effect, in milliseconds; the source stops there. */
+  maxDurationMs?: number;
+  /** Linear fade to silence ending at `maxDurationMs`; needs `maxDurationMs`. */
+  fadeOutMs?: number;
+  /** Sampled effect loudness relative to the master and effects volumes (1 when omitted). */
+  gain?: number;
 }
 
 /** A track played by the built-in synthesizer. */
@@ -702,6 +713,8 @@ export interface AudioConfig {
   musicMix?: Partial<MusicMixConfig>;
   /** Folder the file tracks are loaded from. */
   musicBaseUrl?: string;
+  /** Folder the sampled effect files are loaded from. */
+  sfxBaseUrl?: string;
   /** MIME type by file extension, used to ask the browser whether it can play a file. */
   fileMimeTypes?: Record<string, string>;
   /** Music mode used until the player picks one: 'default', 'random' or 'custom'. */
