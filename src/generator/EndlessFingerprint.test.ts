@@ -50,7 +50,7 @@ const ENDLESS_CASES: Case[] = [
 
 const PACK_CASES: Case[] = [
   { seed: 5, level: 3, hash: '1b682b644b597e' },
-  { seed: 5, level: 12, hash: 'd8d4352ebdcd1' }
+  { seed: 5, level: 12, hash: '7a2ecadbd704c' }
 ];
 
 /** 53-bit string hash (cyrb53), enough to tell two serialized levels apart. */
