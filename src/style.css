@@ -1483,6 +1483,7 @@ body.fullscreen-mode .view-section {
 
   #hud-btn-undo,
   #hud-btn-objective,
+  #hud-btn-solution,
   #hud-btn-restart {
     display: none;
   }

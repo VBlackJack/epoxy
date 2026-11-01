@@ -274,6 +274,7 @@ class EpoxyApplication {
       this.setupQualitySelector();
       this.setupGraphicsStyleSelector();
       this.setupMusicControls();
+      this.syncSoundControls();
       this.updateHUD();
       this.editor.refreshTranslations();
       // translateDOM resets the seed placeholder to its generic text.
@@ -360,8 +361,28 @@ class EpoxyApplication {
     if (typeof savedSettings.musicEnabled === 'boolean') {
       AudioManager.setMusicEnabled(savedSettings.musicEnabled);
     }
-    setToggleState(byId('btn-sfx-toggle'), AudioManager.isSfxEnabled());
-    setToggleState(byId('btn-music-toggle'), AudioManager.isMusicEnabled());
+    this.syncSoundControls();
+  }
+
+  /**
+   * Brings the sound toggles in line with the audio state: the .active class and aria-pressed
+   * through setToggleState, the on/off wording in the label, and the music mode row, which
+   * only matters while the music plays.
+   */
+  private syncSoundControls(): void {
+    const sfxBtn = byId('btn-sfx-toggle');
+    const sfxOn = AudioManager.isSfxEnabled();
+    setToggleState(sfxBtn, sfxOn);
+    if (sfxBtn) {
+      sfxBtn.textContent = sfxOn ? t('app.header.audio_toggle.action_on') : t('app.header.audio_toggle.action_off');
+    }
+    const musicBtn = byId('btn-music-toggle');
+    const musicOn = AudioManager.isMusicEnabled();
+    setToggleState(musicBtn, musicOn);
+    if (musicBtn) {
+      musicBtn.textContent = musicOn ? t('app.header.music_toggle.action_on') : t('app.header.music_toggle.action_off');
+    }
+    byId('music-mode-row')?.classList.toggle('hidden', !musicOn);
   }
 
   private bindEngineCallbacks(): void {
@@ -1934,8 +1955,8 @@ class EpoxyApplication {
   }
 
   private toggleSfx(): void {
-    const enabled = AudioManager.toggleSfx();
-    setToggleState(byId('btn-sfx-toggle'), enabled);
+    AudioManager.toggleSfx();
+    this.syncSoundControls();
     this.saveUserSettings();
   }
 
@@ -1997,10 +2018,9 @@ class EpoxyApplication {
       this.toggleSfx();
     });
 
-    const musicBtn = byId('btn-music-toggle');
-    musicBtn?.addEventListener('click', () => {
-      const enabled = AudioManager.toggleMusic();
-      setToggleState(musicBtn, enabled);
+    byId('btn-music-toggle')?.addEventListener('click', () => {
+      AudioManager.toggleMusic();
+      this.syncSoundControls();
       this.saveUserSettings();
     });
   }
@@ -2484,6 +2504,8 @@ class EpoxyApplication {
       lcdBtn.disabled = !descriptor.lcdAllowed;
       setToggleState(lcdBtn, descriptor.lcdAllowed && this.renderer.getLcdPreference());
     }
+    // The reason is shown as text because the title tooltip never appears on touch.
+    byId('lcd-toggle-reason')?.classList.toggle('hidden', descriptor.lcdAllowed);
   }
 
   private applyGraphicsStyle(style: GraphicsStyle): void {
@@ -2742,8 +2764,7 @@ class EpoxyApplication {
     const desktopBtn = byId<HTMLButtonElement>('hud-btn-solution');
     if (desktopBtn) {
       desktopBtn.disabled = !available;
-      if (available) desktopBtn.removeAttribute('title');
-      else desktopBtn.title = t('hud.controls.solution_unavailable.label');
+      desktopBtn.title = available ? t('hud.controls.solution.hint') : t('hud.controls.solution_unavailable.label');
     }
     byId('mobile-btn-solution')?.classList.toggle('hidden', !available);
   }

@@ -59,7 +59,7 @@
             <button id="btn-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
             <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
           </div>
-          <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action"></button>
+          <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action" data-i18n-title="app.header.fullscreen_toggle.hint"></button>
           <button id="btn-help-top" class="nav-btn help-icon-btn" type="button" data-i18n="app.header.help_icon.action" data-i18n-title="app.header.help_btn.hint" data-i18n-aria-label="app.header.help_btn.hint"></button>
           <button id="btn-options-menu" class="nav-btn" type="button" aria-expanded="false" aria-controls="options-drawer" data-i18n="app.header.options_btn.action"></button>
         </nav>
@@ -93,14 +93,15 @@
               <select id="select-graphics-style" class="locale-select"></select>
             </div>
             <button id="btn-lcd-toggle" class="nav-btn" type="button" data-i18n="app.header.lcd_toggle.action" data-i18n-title="app.header.lcd_toggle.hint"></button>
+            <p id="lcd-toggle-reason" class="hint-text hidden" data-i18n="app.header.lcd_toggle.unavailable"></p>
             <button id="btn-sokoban-skin-toggle" class="nav-btn" type="button" data-i18n="app.header.sokoban_skin_toggle.action" data-i18n-title="app.header.sokoban_skin_toggle.hint"></button>
           </div>
 
           <div class="drawer-section">
             <h4 class="drawer-section-title" data-i18n="app.header.drawer_audio.label"></h4>
-            <button id="btn-sfx-toggle" class="nav-btn active" type="button" data-i18n="app.header.audio_toggle.action"></button>
-            <button id="btn-music-toggle" class="nav-btn" type="button" data-i18n="app.header.music_toggle.action"></button>
-            <div class="lang-box">
+            <button id="btn-sfx-toggle" class="nav-btn active" type="button"></button>
+            <button id="btn-music-toggle" class="nav-btn" type="button"></button>
+            <div id="music-mode-row" class="lang-box">
               <label for="music-mode-select" data-i18n="app.music.mode.label"></label>
               <select id="music-mode-select" class="locale-select"></select>
             </div>
@@ -160,11 +161,11 @@
                     <p id="overlay-subtitle"></p>
                     <p id="overlay-extra" class="overlay-extra"></p>
                     <div class="overlay-actions">
-                      <button id="overlay-btn-resume" class="action-btn primary hidden" type="button" data-i18n="hud.messages.resume_action.action"></button>
-                      <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action"></button>
+                      <button id="overlay-btn-resume" class="action-btn primary hidden" type="button" data-i18n="hud.messages.resume_action.action" data-i18n-title="hud.messages.resume_action.hint"></button>
+                      <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action" data-i18n-title="hud.messages.next_action.hint"></button>
                       <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
-                      <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.messages.undo_action.action"></button>
-                      <button id="overlay-btn-retry" class="action-btn" type="button" data-i18n="hud.messages.retry_action.action"></button>
+                      <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
+                      <button id="overlay-btn-retry" class="action-btn" type="button" data-i18n="hud.controls.restart.action" data-i18n-title="hud.controls.restart.hint"></button>
                     </div>
                   </div>
                 </div>
@@ -245,15 +246,15 @@
 
                 <div class="hud-Quick-actions">
                   <div class="hud-action-grid">
-                    <button id="hud-btn-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action"></button>
-                    <button id="hud-btn-objective" class="hud-btn" type="button" data-i18n="hud.controls.objective.action"></button>
-                    <button id="hud-btn-solution" class="hud-btn" type="button" data-i18n="hud.controls.solution.action"></button>
-                    <button id="hud-btn-restart" class="hud-btn" type="button" data-i18n="hud.controls.restart.action"></button>
+                    <button id="hud-btn-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
+                    <button id="hud-btn-objective" class="hud-btn" type="button" data-i18n="hud.controls.objective.action" data-i18n-title="hud.controls.objective.hint"></button>
+                    <button id="hud-btn-solution" class="hud-btn" type="button" data-i18n="hud.controls.solution.action" data-i18n-title="hud.controls.solution.hint"></button>
+                    <button id="hud-btn-restart" class="hud-btn" type="button" data-i18n="hud.controls.restart.action" data-i18n-title="hud.controls.restart.hint"></button>
                     <button id="hud-btn-options-drawer" class="hud-btn" type="button" data-i18n="app.header.options_btn.action"></button>
                   </div>
                   <div class="hud-nav-row">
                     <button id="hud-btn-prev" class="hud-btn small" type="button" data-i18n="hud.controls.prev_level.action"></button>
-                    <button id="hud-btn-pause" class="hud-btn small" type="button" data-i18n="hud.controls.pause.action"></button>
+                    <button id="hud-btn-pause" class="hud-btn small" type="button" data-i18n="hud.controls.pause.action" data-i18n-title="hud.controls.pause.hint"></button>
                     <button id="hud-btn-next" class="hud-btn small" type="button" data-i18n="hud.controls.next_level.action"></button>
                   </div>
                 </div>
