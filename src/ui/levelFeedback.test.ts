@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   hasStoredSolution,
+  isSokobanSkinApplicable,
   isTimedLevel,
   combineStatusMessages,
   shouldAnnounceObjective,
@@ -29,6 +30,14 @@ describe('stuckMessageKey', () => {
     expect(stuckMessageKey('targets')).toBe('hud.messages.blocks_stuck_targets.label');
     expect(stuckMessageKey('exit')).toBe('hud.messages.blocks_stuck.label');
     expect(stuckMessageKey(undefined)).toBe('hud.messages.blocks_stuck.label');
+  });
+});
+
+describe('isSokobanSkinApplicable', () => {
+  it('is true only for the targets rule', () => {
+    expect(isSokobanSkinApplicable('targets')).toBe(true);
+    expect(isSokobanSkinApplicable('exit')).toBe(false);
+    expect(isSokobanSkinApplicable(undefined)).toBe(false);
   });
 });
 

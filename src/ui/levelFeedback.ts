@@ -30,6 +30,11 @@ export function showsTargetsCounter(winRule: WinRule | undefined): boolean {
   return winRule === 'targets';
 }
 
+/** True when the Sokoban skin can change what is drawn, i.e. the level is won by covering targets. */
+export function isSokobanSkinApplicable(winRule: WinRule | undefined): boolean {
+  return winRule === 'targets';
+}
+
 /** True when the level has a clock, so a time bonus and a best time mean something. */
 export function isTimedLevel(timeLimitSeconds: number): boolean {
   return timeLimitSeconds > 0;

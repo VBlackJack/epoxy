@@ -3,6 +3,13 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- The Sokoban Skin option is now shown only while a Sokoban level is played (or tested from the
+  editor) and hidden on other levels; its saved setting is kept. Its hint now says what it does.
+
 ## [2.10.0] - 2026-11-01
 
 ### Added
