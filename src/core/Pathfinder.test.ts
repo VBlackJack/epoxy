@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => ({
-  AudioManager: { playSfx: vi.fn() }
+  AudioManager: { playSfx: vi.fn(), playStep: vi.fn() }
 }));
 
 import { GameEngine } from './GameEngine';

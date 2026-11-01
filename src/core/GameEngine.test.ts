@@ -17,13 +17,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => ({
-  AudioManager: { playSfx: vi.fn() }
+  AudioManager: { playSfx: vi.fn(), playStep: vi.fn() }
 }));
 
 import { GameEngine } from './GameEngine';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, Direction, TimedMove } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { AudioManager } from '../audio/AudioManager';
 
 /** Walled floor level of the given size (the default map size unless given) with the player at (2, 2). */
 function openLevel(id: string, size?: { width: number; height: number }): CompiledLevel {
@@ -1065,5 +1066,42 @@ describe('GameEngine blocks and bombs', () => {
     const engine = pushBlockOntoBomb(false);
     expect(engine.getEntities()[0]).toMatchObject({ x: 4, y: 5 });
     expect(engine.getItems()[5][4]).toBe('bomb');
+  });
+});
+
+describe('GameEngine footstep terrain', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+    vi.mocked(AudioManager.playStep).mockClear();
+  });
+
+  /** Steps east onto `tile` (optionally holding `boots`) and returns the terrain requested for that step. */
+  function stepOnto(tile: string, boots?: string): string | null {
+    const lvl = openLevel(`step_${tile}_${boots ?? 'bare'}`);
+    lvl.terrain[2][3] = tile;
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    if (boots) engine.getPlayer().boots.add(boots);
+    vi.mocked(AudioManager.playStep).mockClear();
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(AudioManager.playStep).toHaveBeenCalledTimes(1);
+    return vi.mocked(AudioManager.playStep).mock.calls[0][0];
+  }
+
+  it('requests the plain step on normal floor', () => {
+    expect(stepOnto('floor')).toBeNull();
+  });
+
+  it('requests ice and force terrain, boots or not', () => {
+    expect(stepOnto('ice')).toBe('ice');
+    expect(stepOnto('force_e')).toBe('force');
+    expect(stepOnto('force_e', 'boots_force')).toBe('force');
+  });
+
+  it('requests a hazard terrain only when the boots protect from it', () => {
+    expect(stepOnto('water', 'boots_water')).toBe('water');
+    expect(stepOnto('fire', 'boots_fire')).toBe('fire');
+    expect(stepOnto('water')).toBeNull();
+    expect(stepOnto('fire')).toBeNull();
   });
 });

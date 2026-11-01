@@ -50,6 +50,8 @@ import { newCreature } from './worldBuilder';
 export interface SimulationEvents {
   visual(kind: VisualEventKind, x: number, y: number, colorKey?: string): void;
   sound(id: string): void;
+  /** Chip began a voluntary step onto the terrain tile; the boots he holds decide hazard steps. */
+  step(tileId: string, boots: ReadonlySet<string>): void;
 }
 
 /** What happened to Chip's input during the last tick (the engine decides about undo snapshots). */
@@ -466,6 +468,8 @@ export class Simulation implements RuleContext {
     this.world.steps += 1;
     this.world.chipState.blockedLatch = false;
     this.commitStep(chip, plan, from, to);
+    // Only a step Chip chooses sounds; forced moves (ice, force floors, teleport exits) stay silent, as in the classic engine.
+    if (plan.intent === 'chosen') this.events.step(this.world.terrain[to.y][to.x], this.world.chipState.boots);
     return 'started';
   }
 

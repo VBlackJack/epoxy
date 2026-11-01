@@ -493,4 +493,15 @@ describe('audio configuration validation', () => {
     expect(errorsFor({ files: ['a.wav'], maxDurationMs: 100, fadeOutMs: 100, gain: 0.4 })).toEqual([]);
     expect(findAudioConfigErrors(base, undefined)).toEqual([]);
   });
+
+  it('requires every terrain step effect to be an existing effect', () => {
+    const base = createTestBundle().audio;
+    const withMap = (terrainStepEffects: Record<string, unknown>) =>
+      findAudioConfigErrors({ ...base, terrainStepEffects } as typeof base, undefined);
+    expect(withMap({ ice: 'step' })).toEqual([]);
+    expect(withMap({ ice: 'nope' })).toHaveLength(1);
+    expect(withMap({ ice: 'toString' })).toHaveLength(1);
+    expect(withMap({ ice: 3 })).toHaveLength(1);
+    expect(findAudioConfigErrors({ ...base, terrainStepEffects: undefined }, undefined)).toEqual([]);
+  });
 });

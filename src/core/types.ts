@@ -57,6 +57,8 @@ export interface UserSettings {
   graphicsStyle?: GraphicsStyle;
   /** LCD pixel grid over the 16-Bit Retro view. */
   lcdEnabled?: boolean;
+  /** Kenney skin on Sokoban levels; on unless explicitly false. */
+  sokobanSkinEnabled?: boolean;
   /** 'auto', or a fixed quality level: 'high', 'medium' or 'low'. */
   graphicsQuality?: string;
   sfxEnabled?: boolean;
@@ -90,8 +92,23 @@ export interface ImportConfig {
 /** Render styles: 'retro' is the 16-Bit Retro id (kept so saved settings stay valid). */
 export type GraphicsStyle = 'modern' | 'retro' | 'retro32';
 
+/**
+ * Images that replace the drawn tiles and blocks on Sokoban levels. Files are relative to
+ * `baseUrl`; a terrain role lists layers drawn bottom to top.
+ */
+export interface SokobanSkinConfig {
+  baseUrl: string;
+  /** Tile id to the image layers that draw it. */
+  terrain: Record<string, string[]>;
+  /** Entity type to the image that draws it. */
+  entities: Record<string, string>;
+  /** Image for a pushable block standing on a block target. */
+  blockOnTarget: string;
+}
+
 export interface GraphicsConfig {
   defaultStyle: GraphicsStyle;
+  sokobanSkin?: SokobanSkinConfig;
   defaultTheme?: string;
   entityLerpFactor: number;
   cameraLerpFactor: number;
@@ -712,6 +729,8 @@ export interface AudioConfig {
   sfxVolume: number;
   musicVolume: number;
   effects: Record<string, AudioEffectConfig>;
+  /** Effect id played for a step onto a terrain, keyed by tile `slideType` or `hazard`. */
+  terrainStepEffects?: Record<string, string>;
   music: {
     stepDurationMs: number;
     leadWaveform: OscillatorType;

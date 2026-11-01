@@ -8,6 +8,17 @@ versions follow Semantic Versioning.
 ### Added
 
 - Seven original music tracks (`public/audio/music/`): `8-bit Odyssey` for Cyber Neon, `Subterranean Pulse I` for Arctic Lab and `III` for Magma Core in the Default music mode, `Endless I` and `II` for endless runs (a new level never repeats the previous track, list in `endlessUi.musicTrackIds`, checked at load), and all of them in Random and Custom. Music: Julien Bombled.
+- Sokoban skin: levels using the `targets` win rule (`.xsb` / `.sok` imports and editor levels) are
+  drawn with sprites from Kenney's Sokoban pack (CC0) whatever graphics style is selected: cobble
+  floor, brick walls, target marks, a light crate and a darker one on a target. The player keeps the
+  style's sprite. A display toggle next to the LCD toggle turns it off (on by default, saved). The
+  mapping lives in `graphics.sokobanSkin` of `game.json`; in the 16-Bit and 32-Bit styles, Sokoban
+  levels are drawn at full resolution so the sprites stay sharp.
+- Terrain footsteps: the step sound depends on the terrain the player steps onto (normal floor,
+  force floor, ice, and water or fire when wearing the protecting boots). `audio.json` maps a tile
+  `slideType` or `hazard` to an effect through `terrainStepEffects`; the step files are now Ogg
+  Vorbis (Kenney Impact Sounds, CC0). It covers both engines; under the Lynx rules, only a step
+  the player chooses makes a sound; a slide or a force floor carry stays silent.
 - Level author: the optional author field (9) of a `.DAT` pack is read, shown next to the level
   title in the HUD, kept on export, and editable in the editor (Author field).
 - Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new

@@ -149,7 +149,8 @@ class ConfigRegistryService {
     const graphicsErrors = findGraphicsConfigErrors(
       bundle.game.graphics,
       bundle.game.palette,
-      new Set(Object.keys(bundle.tiles.tiles))
+      new Set(Object.keys(bundle.tiles.tiles)),
+      new Set(Object.keys(bundle.monsters.entities))
     );
     if (graphicsErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, graphicsErrors.join('; '));

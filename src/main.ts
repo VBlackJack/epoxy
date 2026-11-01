@@ -66,6 +66,7 @@ import { preferredScrollBehavior, prefersReducedMotion, replayAnimation, watchRe
 import { getEditorChordAction, hasCommandModifier, isUndoChord } from './ui/inputGuards';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
+import { SokobanSkinLoader } from './render/sokobanSkin';
 import {
   buildGraphicsStyleOptions,
   canvasClassesToRemove,
@@ -73,6 +74,7 @@ import {
   resolveInitialGraphicsStyle
 } from './ui/graphicsStyleControl';
 import { getRenderStyle, parseRenderStyleId } from './render/styles/renderStyles';
+import { resolveSokobanSkin } from './render/renderSettings';
 import { watchDevicePixelRatio } from './ui/displayWatchers';
 import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
@@ -325,6 +327,11 @@ class EpoxyApplication {
         : gameCfg.graphics?.defaultTheme || DEFAULT_THEME_ID;
     this.renderer.setThemeId(initialTheme);
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
+    this.renderer.setSokobanSkinEnabled(savedSettings.sokobanSkinEnabled !== false);
+    setToggleState(byId('btn-sokoban-skin-toggle'), this.renderer.isSokobanSkinEnabled());
+    const skinLoader = new SokobanSkinLoader(resolveSokobanSkin(gameCfg.graphics));
+    this.renderer.setSkinLoader(skinLoader);
+    void skinLoader.load();
     this.syncGraphicsControls(defaultStyle);
     this.renderer.setReducedMotion(prefersReducedMotion());
     // The preference can change while the page is open.
@@ -1887,6 +1894,13 @@ class EpoxyApplication {
       this.saveUserSettings();
     });
 
+    const skinBtn = byId('btn-sokoban-skin-toggle');
+    skinBtn?.addEventListener('click', () => {
+      this.renderer.setSokobanSkinEnabled(!this.renderer.isSokobanSkinEnabled());
+      setToggleState(skinBtn, this.renderer.isSokobanSkinEnabled());
+      this.saveUserSettings();
+    });
+
     const toggleFullscreenHandler = (): void => {
       this.triggerHaptic();
       this.toggleFullscreen();
@@ -2927,6 +2941,7 @@ class EpoxyApplication {
         themeId: this.autoTheme ? AUTO_THEME_ID : this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
         lcdEnabled: this.renderer.getLcdPreference(),
+        sokobanSkinEnabled: this.renderer.isSokobanSkinEnabled(),
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),
         musicEnabled: AudioManager.isMusicEnabled(),

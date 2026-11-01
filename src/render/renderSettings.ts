@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GraphicsConfig, ThemePalette } from '../core/types';
+import { GraphicsConfig, SokobanSkinConfig, ThemePalette } from '../core/types';
 
 /** Shadow blur radii, in pixels, baked into glowing sprites and the terrain cache. */
 /** One kind of light source: its reach and the palette key of its tint. */
@@ -180,6 +180,39 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   irisOpenFrames: 24
 };
 
+/** Fallback skin, used when game.json omits graphics.sokobanSkin (a malformed block is rejected at load by findGraphicsConfigErrors). */
+export const DEFAULT_SOKOBAN_SKIN: Readonly<SokobanSkinConfig> = {
+  baseUrl: './sprites/sokoban',
+  terrain: {
+    floor: ['ground_06.png'],
+    wall: ['block_05.png'],
+    block_target: ['ground_06.png', 'environment_06.png']
+  },
+  entities: { dirt_block: 'crate_02.png' },
+  blockOnTarget: 'crate_12.png'
+};
+
+/** Reads graphics.sokobanSkin, falling back to the defaults when it is absent (a malformed block is rejected at load by findGraphicsConfigErrors). */
+export function resolveSokobanSkin(graphics: GraphicsConfig | undefined): Readonly<SokobanSkinConfig> {
+  const skin = graphics?.sokobanSkin;
+  return isSokobanSkin(skin) ? skin : DEFAULT_SOKOBAN_SKIN;
+}
+
+function isSokobanSkin(value: unknown): value is SokobanSkinConfig {
+  if (!value || typeof value !== 'object') return false;
+  const skin = value as SokobanSkinConfig;
+  return (
+    typeof skin.baseUrl === 'string' &&
+    typeof skin.blockOnTarget === 'string' &&
+    !!skin.terrain &&
+    typeof skin.terrain === 'object' &&
+    Object.values(skin.terrain).every((layers) => isStringArray(layers) && layers.length > 0) &&
+    !!skin.entities &&
+    typeof skin.entities === 'object' &&
+    Object.values(skin.entities).every((file) => typeof file === 'string')
+  );
+}
+
 /** Bounds of an opacity setting. */
 const MIN_UNIT_ALPHA = 0;
 const MAX_UNIT_ALPHA = 1;
@@ -291,15 +324,30 @@ export function resolveFrameBudget(graphics: GraphicsConfig | undefined): FrameB
 /**
  * Lists what in the graphics block points at something that does not exist: light
  * colours missing from the palette, joined or shadow-casting tiles missing from
- * tiles.json, quality presets with unknown names or settings. Empty when all is well.
+ * tiles.json, skin roles naming unknown tiles or entities, quality presets with unknown names or settings. Skin entity roles are checked only when `entityIds` is given. Empty when all is well.
  */
 export function findGraphicsConfigErrors(
   graphics: GraphicsConfig | undefined,
   palette: Readonly<Record<string, string>>,
-  tileIds: ReadonlySet<string>
+  tileIds: ReadonlySet<string>,
+  entityIds?: ReadonlySet<string>
 ): string[] {
   const errors: string[] = [];
   const settings = resolveRenderSettings(graphics);
+  if (graphics?.sokobanSkin !== undefined) {
+    if (!isSokobanSkin(graphics.sokobanSkin)) {
+      errors.push('sokobanSkin: malformed block');
+    } else {
+      for (const tileId of Object.keys(graphics.sokobanSkin.terrain)) {
+        if (!tileIds.has(tileId)) errors.push(`sokobanSkin.terrain: unknown tile ${tileId}`);
+      }
+      if (entityIds) {
+        for (const entityId of Object.keys(graphics.sokobanSkin.entities)) {
+          if (!entityIds.has(entityId)) errors.push(`sokobanSkin.entities: unknown entity ${entityId}`);
+        }
+      }
+    }
+  }
   for (const [id, source] of Object.entries(settings.lightSources)) {
     if (!(source.colorKey in palette)) errors.push(`lightSources.${id}: unknown palette key ${source.colorKey}`);
   }

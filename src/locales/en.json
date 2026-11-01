@@ -7,6 +7,7 @@
       "mode_editor": { "action": "Level Editor" },
       "levels_btn": { "action": "Levels & Records" },
       "lcd_toggle": { "action": "LCD Screen", "hint": "Pixel grid over the 16-Bit Retro view" },
+      "sokoban_skin_toggle": { "action": "Sokoban Skin", "hint": "Draw Sokoban levels with the Kenney tiles in every graphics style" },
       "graphics_modern": { "action": "HD Neon" },
       "graphics_retro": { "action": "16-Bit Retro" },
       "graphics_retro32": { "action": "32-Bit Retro" },
