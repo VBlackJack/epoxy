@@ -20,6 +20,7 @@ import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
   DEFAULT_FACING,
+  DEFAULT_RULESET,
   FLOOR_TILE_ID,
   WALL_TILE_ID
 } from '../core/coreConstants';
@@ -30,6 +31,7 @@ import {
   DatFormatConfig,
   Direction,
   EntityPlacement,
+  Ruleset,
   TrapLink
 } from '../core/types';
 
@@ -74,6 +76,9 @@ const PASSWORD_LENGTH = 4;
 const MAX_ASCII_CODE = 0x7e;
 const MIN_PRINTABLE_CODE = 0x20;
 const REPLACEMENT_CHAR_CODE = 0x3f;
+
+/** The ruleset whose reading of a .DAT follows Tile World's Lynx rules. */
+const LYNX_RULESET: Ruleset = 'lynx';
 
 const FALLBACK_ELEMENT: DatElementMapping = { kind: 'terrain', id: FLOOR_TILE_ID };
 
@@ -125,9 +130,10 @@ export class DatCodec {
   /**
    * Decodes a .DAT / .CCL pack. The header must be valid, but a malformed
    * level record is skipped instead of failing the whole pack: every read is
-   * checked against the end of its own record.
+   * checked against the end of its own record. Every decoded level carries the
+   * given ruleset, except the default one, which is left implicit.
    */
-  public static decodeBuffer(buffer: ArrayBuffer, packPrefix: string = 'cclp'): CompiledLevel[] {
+  public static decodeBuffer(buffer: ArrayBuffer, packPrefix: string = 'cclp', ruleset: Ruleset): CompiledLevel[] {
     const datCfg = ConfigRegistry.getDatFormat();
     const view = new DataView(buffer);
 
@@ -154,12 +160,13 @@ export class DatCodec {
       if (levelEndOffset > buffer.byteLength) break;
 
       if (levelByteLength >= MIN_LEVEL_RECORD_BYTES) {
-        const level = this.decodeLevel(buffer, offset, levelEndOffset, idx, packPrefix, datCfg);
+        const level = this.decodeLevel(buffer, offset, levelEndOffset, idx, packPrefix, datCfg, ruleset);
         if (level) {
           // A pack may repeat a level number: keep the first id, tell the others apart by record index
           while (usedIds.has(level.id)) {
             level.id = `${level.id}_${idx + 1}`;
           }
+          if (ruleset !== DEFAULT_RULESET) level.ruleset = ruleset;
           usedIds.add(level.id);
           levels.push(level);
         }
@@ -178,8 +185,10 @@ export class DatCodec {
     end: number,
     idx: number,
     packPrefix: string,
-    datCfg: DatFormatConfig
+    datCfg: DatFormatConfig,
+    ruleset: Ruleset
   ): CompiledLevel | null {
+    const lynx = ruleset === LYNX_RULESET;
     const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
     const view = new DataView(buffer);
     const bytes = new Uint8Array(buffer);
@@ -267,7 +276,8 @@ export class DatCodec {
             clonerY: fieldView.getUint16(p + 3 * UINT16_BYTES, true)
           });
         }
-      } else if (fieldType === datCfg.fieldCodes.monsterList) {
+      } else if (fieldType === datCfg.fieldCodes.monsterList && !lynx) {
+        // Lynx plays monsters in reading order and ignores this list
         for (let p = 0; p + MONSTER_RECORD_BYTES <= fieldLen; p += MONSTER_RECORD_BYTES) {
           monsterOrderCoords.push({
             x: fieldBytes[p],
@@ -306,11 +316,15 @@ export class DatCodec {
       const x = cellIdx % layerWidth;
       const y = Math.floor(cellIdx / layerWidth);
       if (!isInBounds(x, y, mapWidth, mapHeight)) continue;
-      const topElem = datCfg.byteToElement[String(layer1[cellIdx])] || FALLBACK_ELEMENT;
-      const botElem = datCfg.byteToElement[String(layer2[cellIdx])] || FALLBACK_ELEMENT;
+      const topElem = this.elementOfCode(layer1[cellIdx], datCfg, lynx);
+      const botElem = this.elementOfCode(layer2[cellIdx], datCfg, lynx);
 
-      // Apply bottom layer first, then the top layer over it
-      for (const elem of [botElem, topElem]) {
+      // Apply bottom layer first, then the top layer over it. Under Lynx the lower layer is only
+      // the floor under a creature, terrain or item: with anything else on top, or a creature below, it is ignored.
+      const topIsCreature = topElem.kind === 'entity' || topElem.kind === 'player';
+      const botIsFloor = botElem.kind === 'terrain' || botElem.kind === 'item';
+      const layers = !lynx ? [botElem, topElem] : topIsCreature && botIsFloor ? [botElem, topElem] : [topElem];
+      for (const elem of layers) {
         this.applyElementToCell(
           x,
           y,
@@ -379,6 +393,19 @@ export class DatCodec {
       trapLinks,
       cloneLinks
     };
+  }
+
+  /** The element a byte code stands for under the given reading: Lynx overrides first, then the shared table. */
+  private static elementOfCode(code: number, datCfg: DatFormatConfig, lynx: boolean): DatElementMapping {
+    const key = String(code);
+    const lynxCfg = lynx ? datCfg.lynx : undefined;
+    if (lynxCfg) {
+      const single = lynxCfg.byteOverrides[key];
+      if (single) return single;
+      const range = lynxCfg.byteRangeOverrides.find((r) => code >= r.first && code <= r.last);
+      if (range) return range.element;
+    }
+    return datCfg.byteToElement[key] || lynxCfg?.fallbackElement || FALLBACK_ELEMENT;
   }
 
   private static findCloneMachineTileId(): string | null {
@@ -576,7 +603,9 @@ export class DatCodec {
         if (terrainCovered && terrainId !== undefined) lost.add(terrainId);
         if (topCode !== null) {
           layer1Raw[cellIdx] = topCode;
-          layer2Raw[cellIdx] = iCode ?? tCode;
+          // The clone machine under a cloner block is always written: a Lynx reader needs it to tell a cloner from a block
+          if (clonerCode !== undefined && iCode !== null) lost.add(lvl.items[y][x] as string);
+          layer2Raw[cellIdx] = clonerCode !== undefined ? tCode : (iCode ?? tCode);
         } else if (iCode !== null) {
           layer1Raw[cellIdx] = iCode;
           layer2Raw[cellIdx] = tCode;

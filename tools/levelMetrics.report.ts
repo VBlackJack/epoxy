@@ -34,6 +34,7 @@ import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import { LevelMetrics, LevelMetricsReport } from '../src/core/LevelMetrics';
 import { MetricsSummary, summarizeField, summarizeReports } from '../src/core/MetricsSummary';
 import { ProceduralGenerator } from '../src/core/ProceduralGenerator';
+import { DEFAULT_RULESET } from '../src/core/coreConstants';
 import { CompiledLevel } from '../src/core/types';
 import { profileFor } from '../src/generator/DifficultyProfile';
 import { DatCodec } from '../src/formats/DatCodec';
@@ -308,7 +309,7 @@ function measurePacks(): Record<string, SetReport> {
     const buffer = readFileSync(resolve(ROOT, 'public', pack.url));
     const bytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
     result[pack.id] = {
-      summary: summarizeReports(measureAll(DatCodec.decodeBuffer(bytes, pack.prefix)))
+      summary: summarizeReports(measureAll(DatCodec.decodeBuffer(bytes, pack.prefix, pack.ruleset ?? DEFAULT_RULESET)))
     };
   }
   return result;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Direction, WinRule } from './types';
+import { Direction, Ruleset, WinRule } from './types';
 
 /** Terrain id used when a cell has no explicit terrain, or a tile has no transform target. */
 export const FLOOR_TILE_ID = 'floor';
@@ -30,6 +30,9 @@ export const BLOCK_TARGET_TILE_ID = 'block_target';
 
 /** Win rule of a level that declares none. */
 export const DEFAULT_WIN_RULE: WinRule = 'exit';
+
+/** Ruleset of a level that declares none. */
+export const DEFAULT_RULESET: Ruleset = 'epoxy';
 
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';

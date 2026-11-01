@@ -58,6 +58,12 @@ describe('level text fields', () => {
     expect(compiled.customHint).toBe('Keep me');
   });
 
+  it('keeps a non-default ruleset and drops the default or an unknown one', () => {
+    expect(ConfigRegistry.compileBlueprint(blueprint({ ruleset: 'lynx' })).ruleset).toBe('lynx');
+    expect('ruleset' in ConfigRegistry.compileBlueprint(blueprint({ ruleset: 'epoxy' }))).toBe(false);
+    expect('ruleset' in ConfigRegistry.compileBlueprint(blueprint({ ruleset: 'ms' as unknown as 'lynx' }))).toBe(false);
+  });
+
   it('keeps the text fields that are strings', () => {
     const compiled = ConfigRegistry.compileBlueprint(
       blueprint({ titleKey: 'a.b.c', customTitle: 'T', hintKey: 'h.k', customHint: 'H' })
@@ -82,6 +88,19 @@ describe('level text fields', () => {
     expect('titleKey' in kept).toBe(false);
     expect('hintKey' in kept).toBe(false);
     expect(kept.customTitle).toBe('Fine');
+  });
+
+  it('drops an unknown or non-string ruleset from a persisted level and keeps a known one', () => {
+    const bounds = ConfigRegistry.getLevelSizeBounds();
+    const stored = [
+      { ...level('ms'), ruleset: 'ms' },
+      { ...level('num'), ruleset: 7 },
+      { ...level('lynx'), ruleset: 'lynx' }
+    ];
+    const [ms, num, lynx] = sanitizeStoredLevels(stored, bounds);
+    expect('ruleset' in ms).toBe(false);
+    expect('ruleset' in num).toBe(false);
+    expect(lynx.ruleset).toBe('lynx');
   });
 
   it('does not mutate the level it strips', () => {

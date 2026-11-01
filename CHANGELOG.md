@@ -35,6 +35,22 @@ versions follow Semantic Versioning.
 - The biome-to-track mapping moved from the source code to `game.json` (`musicTrackId` on each
   theme).
 - The help text of the `B` key says that it cycles the biome, and its music only in Default mode.
+- Levels now record their ruleset. The bundled Tile World Intro and CCLP 1, 3, 4 and 5 packs and
+  imported .DAT files play under the Lynx rules, on a separate engine (20 ticks to the second, the
+  original move order, blocks, doors, keys, boots, water, fire, bombs, buttons, traps, clone
+  machines, teleports, ice, force floors, special walls, the thief and every monster). CCLP 2, a set
+  designed for the Microsoft rules, stays on the Epoxy rules. One buffered input direction is kept
+  for touch play, which the original game does not do.
+- Imported community .DAT files are decoded with the Lynx rules: directional blocks are cloners only on a
+  clone machine, the plain block faces north, the lower layer only gives the floor (terrain or item) under a
+  creature, the monster list is ignored and unused codes become wall, invisible wall or water. .DAT export now
+  always writes the clone machine under a cloner block.
+- Help, tap-to-path, the objective marker, solution replay, item drop and the dead-end watch are off on
+  Lynx levels.
+- The editor has a Rules field next to the Win Rule: it switches a level between the Epoxy and Lynx
+  rules, so an Epoxy level exported to .DAT and imported again can be set back to Epoxy. A level won
+  by covering block targets is Epoxy only.
+- High scores and replays recorded earlier on the packs now marked Lynx may not replay.
 
 ## [2.9.0] - 2026-11-01
 

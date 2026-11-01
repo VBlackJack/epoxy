@@ -126,5 +126,32 @@
     "109": { "kind": "player", "id": "player", "dir": "W" },
     "110": { "kind": "player", "id": "player", "dir": "S" },
     "111": { "kind": "player", "id": "player", "dir": "E" }
+  },
+  "lynx": {
+    "fallbackElement": { "kind": "terrain", "id": "wall" },
+    "byteOverrides": {
+      "10": { "kind": "entity", "id": "dirt_block", "dir": "N" },
+      "14": { "kind": "entity", "id": "dirt_block", "dir": "N" },
+      "15": { "kind": "entity", "id": "dirt_block", "dir": "W" },
+      "16": { "kind": "entity", "id": "dirt_block", "dir": "S" },
+      "17": { "kind": "entity", "id": "dirt_block", "dir": "E" },
+      "32": { "kind": "terrain", "id": "wall" },
+      "51": { "kind": "terrain", "id": "wall" },
+      "52": { "kind": "terrain", "id": "wall" },
+      "53": { "kind": "terrain", "id": "wall" },
+      "54": { "kind": "terrain", "id": "invisible_wall" },
+      "55": { "kind": "terrain", "id": "invisible_wall" },
+      "56": { "kind": "terrain", "id": "invisible_wall" },
+      "57": { "kind": "terrain", "id": "wall" },
+      "58": { "kind": "terrain", "id": "wall" },
+      "59": { "kind": "terrain", "id": "wall" },
+      "60": { "kind": "terrain", "id": "water" },
+      "61": { "kind": "terrain", "id": "water" },
+      "62": { "kind": "terrain", "id": "water" },
+      "63": { "kind": "terrain", "id": "water" }
+    },
+    "byteRangeOverrides": [
+      { "first": 112, "last": 255, "element": { "kind": "terrain", "id": "wall" } }
+    ]
   }
 }
