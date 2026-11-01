@@ -33,6 +33,7 @@
   - Keyboard: `Tab` moves focus between the controls, Ctrl/Cmd chords are left to the browser except undo (Ctrl/Cmd+Z), which follows the keyboard layout (AZERTY, QWERTY, Cyrillic...), and `?` opens the help.
   - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options). The board always shows the chosen view as a square of N x N tiles, so a wide or landscape screen reveals no more of the level than a square one.
   - Full-featured Level Editor with live solver validation.
+- **Music**: a synthesized soundtrack with three modes, chosen in Options > Audio. **Default** follows the biome on screen (each biome names its track with `musicTrackId` in `game.json`). **Random** picks a new track for each new level and never repeats the previous one while two or more tracks exist. **Custom** does the same among the tracks you tick (at least one stays ticked). A restart, a retry after dying or a one-level wrap does not change the track, and in Random and Custom the biome (and the `B` key) no longer changes the music. The mode and the ticked tracks are saved.
 
 ## Development
 
@@ -42,6 +43,26 @@ Requires Node.js 24 (see `.nvmrc`).
 npm install
 npm run dev
 ```
+
+### Adding music tracks
+
+Tracks are declared in `public/configs/audio.json` under `tracks`. A track is synthesized by default (notes and waveforms) or streamed from audio files:
+
+```json
+{
+  "id": "my_track",
+  "i18nKey": "app.music.my_track.label",
+  "source": "file",
+  "files": ["my_track.ogg", "my_track.mp3"],
+  "gain": 0.8
+}
+```
+
+- Put the files in `public/audio/music/` (the folder is `musicBaseUrl`). The browser plays the first file in `files` it can decode; the extension must have a MIME type in `fileMimeTypes` (`ogg` and `mp3` by default). `gain` scales the track against the music volume (1 when omitted).
+- Add the track name to `src/locales/en.json` and `src/locales/fr.json` under `app.music.my_track.label`.
+- Map it to a biome with `"musicTrackId": "my_track"` on the theme in `game.json`. Every track also takes part in the Random and Custom modes.
+- `defaultTrackId` must stay a synthesized track: it plays when a file cannot be loaded. A file track that fails is skipped for the rest of the session.
+- The configuration is checked when the game loads: duplicate ids, a file track without files, an unknown `musicTrackId` or an unknown `defaultMusicMode` stop the game with a clear message.
 
 ## Building a Campaign with the Generator
 

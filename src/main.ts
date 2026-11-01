@@ -23,6 +23,7 @@ import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
+import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSelection';
 import { DatCodec, datRefusalReason } from './formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
@@ -106,7 +107,6 @@ import {
   MAX_DEVICE_PIXEL_RATIO,
   MIN_VIEWPORT_SYNC_PX,
   SWIPE_ANCHOR_FOLLOW_RATIO,
-  THEME_MUSIC_TRACKS,
   TIMING_DEFAULTS,
   TOAST_DURATION_MS,
   TOUCH_DEFAULTS
@@ -227,6 +227,7 @@ class EpoxyApplication {
     const editorCanvas = this.setupGameCanvas();
     this.applyDisplaySettings(savedSettings);
     this.applyAudioSettings(savedSettings);
+    this.setupMusicControls();
     this.setupThemeSelector();
     this.setupQualitySelector();
     this.setupGraphicsStyleSelector();
@@ -257,6 +258,7 @@ class EpoxyApplication {
       this.setupThemeSelector();
       this.setupQualitySelector();
       this.setupGraphicsStyleSelector();
+      this.setupMusicControls();
       this.updateHUD();
       this.editor.refreshTranslations();
       // translateDOM resets the seed placeholder to its generic text.
@@ -331,6 +333,9 @@ class EpoxyApplication {
     if (typeof savedSettings.sfxEnabled === 'boolean') {
       AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
     }
+    // Invalid stored values are replaced in memory only; saveUserSettings writes from this state.
+    AudioManager.configureMusic(savedSettings.musicMode, savedSettings.musicCustomTracks);
+    AudioManager.setThemeTrack(this.currentThemeTrackId());
     if (typeof savedSettings.musicEnabled === 'boolean') {
       AudioManager.setMusicEnabled(savedSettings.musicEnabled);
     }
@@ -359,6 +364,7 @@ class EpoxyApplication {
         this.stopAutoMoveAndReplay();
         this.lastWarnedSecond = NO_WARNED_SECOND;
         this.engine.loadLevel(testLevel);
+        AudioManager.onLevelLoaded(testLevel.id);
         this.showLevelTheme(testLevel);
         // The editor already holds this content: do not reload it on return.
         this.editorSourceLevel = testLevel;
@@ -1201,10 +1207,12 @@ class EpoxyApplication {
     this.renderer.setThemeId(themeId);
     this.syncThemeAccent();
     this.refreshRetroIcons();
-    const track = THEME_MUSIC_TRACKS[themeId];
-    if (track) {
-      AudioManager.setTrackById(track);
-    }
+    AudioManager.setThemeTrack(this.currentThemeTrackId());
+  }
+
+  /** Music track of the biome on screen; it plays in the Default music mode only. */
+  private currentThemeTrackId(): string | undefined {
+    return ConfigRegistry.getGame().themes?.[this.renderer.getThemeId()]?.musicTrackId;
   }
 
   /** Sprite-style icons (16-Bit and 32-Bit Retro) are drawn with the palette of the theme, so they are redrawn when it changes. */
@@ -1393,6 +1401,7 @@ class EpoxyApplication {
       ? Math.min(Math.max(index, 0), levels.length - 1)
       : ((index % levels.length) + levels.length) % levels.length;
     this.engine.loadLevel(levels[this.currentLevelIndex]);
+    AudioManager.onLevelLoaded(levels[this.currentLevelIndex].id);
     this.showLevelTheme(levels[this.currentLevelIndex]);
     this.saveProgress();
     this.updateHUD();
@@ -1834,6 +1843,59 @@ class EpoxyApplication {
     const enabled = AudioManager.toggleSfx();
     setToggleState(byId('btn-sfx-toggle'), enabled);
     this.saveUserSettings();
+  }
+
+  /** Builds the music mode select and the custom track list; rebuilt when the language changes. */
+  private setupMusicControls(): void {
+    const select = byId<HTMLSelectElement>('music-mode-select');
+    const fieldset = byId<HTMLFieldSetElement>('music-custom-tracks');
+    if (!select || !fieldset) return;
+
+    select.innerHTML = '';
+    for (const mode of MUSIC_MODES) {
+      const opt = document.createElement('option');
+      opt.value = mode;
+      opt.textContent = t(`app.music.mode_${mode}.label`);
+      opt.selected = mode === AudioManager.getMusicMode();
+      select.appendChild(opt);
+    }
+    select.onchange = () => {
+      if (!isMusicMode(select.value)) return;
+      AudioManager.setMusicMode(select.value);
+      fieldset.hidden = select.value !== 'custom';
+      this.saveUserSettings();
+    };
+
+    fieldset.hidden = AudioManager.getMusicMode() !== 'custom';
+    const list = fieldset.querySelector<HTMLElement>('.music-track-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const ticked = new Set(AudioManager.getCustomTrackIds());
+    const boxes: HTMLInputElement[] = [];
+    for (const track of AudioManager.getTrackOptions()) {
+      const label = document.createElement('label');
+      label.className = 'music-track-option';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = track.id;
+      box.checked = ticked.has(track.id);
+      box.addEventListener('change', () => {
+        const chosen = boxes.filter((b) => b.checked).map((b) => b.value);
+        if (chosen.length === 0) {
+          // At least one track must stay ticked.
+          box.checked = true;
+          this.showTransientStatus(t('app.music.custom_min_one.label'));
+          return;
+        }
+        AudioManager.setCustomTracks(chosen);
+        this.saveUserSettings();
+      });
+      boxes.push(box);
+      const text = document.createElement('span');
+      text.textContent = t(track.i18nKey);
+      label.append(box, text);
+      list.appendChild(label);
+    }
   }
 
   private bindAudioToggles(): void {
@@ -2792,7 +2854,12 @@ class EpoxyApplication {
         lcdEnabled: this.renderer.getLcdPreference(),
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),
-        musicEnabled: AudioManager.isMusicEnabled()
+        musicEnabled: AudioManager.isMusicEnabled(),
+        musicMode: AudioManager.getMusicMode(),
+        musicCustomTracks: customIdsForStorage(
+          AudioManager.getCustomTrackIds(),
+          AudioManager.getTrackOptions().map((track) => track.id)
+        )
       };
       localStorage.setItem(key, JSON.stringify(settings));
     } catch {

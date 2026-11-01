@@ -84,14 +84,6 @@ export const BIOME_ACCENT_CSS_VAR = '--biome-accent';
 /** Class that replays a short pop animation on a HUD element; removed when it ends. */
 export const HUD_BUMP_CLASS = 'hud-bump';
 
-/** Music track played for each visual theme. */
-export const THEME_MUSIC_TRACKS: Readonly<Record<string, string>> = {
-  cyber_neon: 'cyber_pulse',
-  arctic_lab: 'arctic_synth',
-  magma_core: 'magma_drive',
-  lynx_lcd: 'cyber_pulse'
-};
-
 /** Key items whose count is unlimited once collected. */
 export const INFINITE_KEY_IDS: ReadonlySet<string> = new Set(['key_green']);
 
