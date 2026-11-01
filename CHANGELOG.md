@@ -3,67 +3,71 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
-## [Unreleased]
+## [2.10.0] - 2026-11-01
 
 ### Added
 
-- Seven original music tracks (`public/audio/music/`): `8-bit Odyssey` for Cyber Neon, `Subterranean Pulse I` for Arctic Lab and `III` for Magma Core in the Default music mode, `Endless I` and `II` for endless runs (a new level never repeats the previous track, list in `endlessUi.musicTrackIds`, checked at load), and all of them in Random and Custom. Music: Julien Bombled.
+- Lynx rules engine: the bundled Tile World Intro and CCLP 1, 3, 4 and 5 packs and imported .DAT
+  files now play under the original handheld Lynx rules, on a dedicated engine (20 ticks to the
+  second, the original move order, blocks, doors, keys, boots, water, fire, bombs, buttons, traps,
+  clone machines, teleports, ice, force floors, special walls, the thief and every monster; a block
+  standing on a hidden or blue wall is pushed off it, then the wall appears and Chip stays). Levels
+  now record their ruleset. CCLP 2, a set designed for the Microsoft rules, stays on the Epoxy
+  rules. One buffered input direction is kept for touch play, which the original game does not do.
+  Help, tap-to-path, the objective marker, solution replay, item drop and the dead-end watch are off
+  on Lynx levels.
+- Lynx DAT decoding: imported community .DAT files are decoded with the Lynx rules: directional
+  blocks are cloners only on a clone machine, the plain block faces north, the lower layer only
+  gives the floor (terrain or item) under a creature, the monster list is ignored and unused codes
+  become wall, invisible wall or water.
+- Rules field in the editor, next to the Win Rule: it switches a level between the Epoxy and Lynx
+  rules, so an Epoxy level exported to .DAT and imported again can be set back to Epoxy. A level
+  won by covering block targets is Epoxy only.
+- Seven original music tracks (`public/audio/music/`): `8-bit Odyssey` for Cyber Neon,
+  `Subterranean Pulse I` for Arctic Lab and `III` for Magma Core in the Default music mode,
+  `Endless I` and `II` for endless runs (a new level never repeats the previous track, list in
+  `endlessUi.musicTrackIds`, checked at load), and all of them in Random and Custom. Music: Julien
+  Bombled.
+- Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new
+  track for each new level, never the same twice in a row) and Custom (the same among the tracks
+  you tick, at least one stays ticked). Restarting a level, retrying after a death or wrapping a
+  one-level pack keeps the track. In Random and Custom the biome and the `B` key no longer change
+  the music. The mode and the ticked tracks are saved.
+- Terrain footsteps: the step sound depends on the terrain the player steps onto (normal floor,
+  force floor, ice, and water or fire when wearing the protecting boots). `audio.json` maps a tile
+  `slideType` or `hazard` to an effect through `terrainStepEffects`; the step files are now Ogg
+  Vorbis (Kenney Impact Sounds, CC0). It covers both engines; under the Lynx rules, only a step the
+  player chooses makes a sound; a slide or a force floor carry stays silent.
+- Sound effects from audio files: an effect in `audio.json` can list `files` (in `sfxBaseUrl`,
+  `./audio/sfx` by default) played in turn, with an optional `gain`, `maxDurationMs` and a linear
+  `fadeOutMs` ending at the cap. Files are fetched and decoded once the audio context exists; the
+  synthesized `waveform` and `notes` stay as the fallback until a file is decoded or when it fails.
+  17 of the 19 effects now use bundled CC0 files (Juhani Junkala, via SubspaceAudio on
+  OpenGameArt, and Kenney Impact Sounds for the footsteps); `splash` and `burn` stay synthesized. Credits added to both READMEs. An effect can
+  set `minIntervalMs` to skip repeats that come too soon after its last start; `blocked` uses 250 so
+  holding a key against a wall no longer machine-guns.
 - Sokoban skin: levels using the `targets` win rule (`.xsb` / `.sok` imports and editor levels) are
   drawn with sprites from Kenney's Sokoban pack (CC0) whatever graphics style is selected: cobble
   floor, brick walls, target marks, a light crate and a darker one on a target. The player keeps the
   style's sprite. A display toggle next to the LCD toggle turns it off (on by default, saved). The
   mapping lives in `graphics.sokobanSkin` of `game.json`; in the 16-Bit and 32-Bit styles, Sokoban
   levels are drawn at full resolution so the sprites stay sharp.
-- Terrain footsteps: the step sound depends on the terrain the player steps onto (normal floor,
-  force floor, ice, and water or fire when wearing the protecting boots). `audio.json` maps a tile
-  `slideType` or `hazard` to an effect through `terrainStepEffects`; the step files are now Ogg
-  Vorbis (Kenney Impact Sounds, CC0). It covers both engines; under the Lynx rules, only a step
-  the player chooses makes a sound; a slide or a force floor carry stays silent.
 - Level author: the optional author field (9) of a `.DAT` pack is read, shown next to the level
   title in the HUD, kept on export, and editable in the editor (Author field).
-- Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new
-  track for each new level, never the same twice in a row) and Custom (the same among the tracks
-  you tick, at least one stays ticked). Restarting a level, retrying after a death or wrapping a
-  one-level pack keeps the track. In Random and Custom the biome and the `B` key no longer change
-  the music. The mode and the ticked tracks are saved.
 - Audio-file music tracks: `audio.json` can declare a track with `source: "file"`, a list of
-  `files` (the first one the browser can play is used) and a `gain`, loaded from `musicBaseUrl`.
-  The file is streamed, never decoded in memory, created only when the track plays, faded in, and
-  paused while the tab is hidden. A track that cannot play is skipped for the session and the
-  synthesized default track takes over. `audio.json` is validated at load (unique ids, a
-  synthesized `defaultTrackId`, files for file tracks, biome and mode references).
-
-- Sound effects from audio files: an effect in `audio.json` can list `files` (in `sfxBaseUrl`,
-  `./audio/sfx` by default) played in turn, with an optional `gain`, `maxDurationMs` and a linear
-  `fadeOutMs` ending at the cap. Files are fetched and decoded once the audio context exists; the
-  synthesized `waveform` and `notes` stay as the fallback until a file is decoded or when it
-  fails. 13 of the 15 effects now use the 14 bundled CC0 files (Juhani Junkala, via SubspaceAudio
-  on OpenGameArt); `splash` and `burn` stay synthesized. Credits added to both READMEs.
-  An effect can set `minIntervalMs` to skip repeats that come too soon after its last start;
-  `blocked` uses 250 so holding a key against a wall no longer machine-guns.
+  `files` (the first one the browser can play is used) and a `gain`, loaded from `musicBaseUrl`. The
+  file is streamed, never decoded in memory, created only when the track plays, faded in, and paused
+  while the tab is hidden. A track that cannot play is skipped for the session and the synthesized
+  default track takes over. `audio.json` is validated at load (unique ids, a synthesized
+  `defaultTrackId`, files for file tracks, biome and mode references).
 
 ### Changed
 
 - The biome-to-track mapping moved from the source code to `game.json` (`musicTrackId` on each
   theme).
 - The help text of the `B` key says that it cycles the biome, and its music only in Default mode.
-- Levels now record their ruleset. The bundled Tile World Intro and CCLP 1, 3, 4 and 5 packs and
-  imported .DAT files play under the Lynx rules, on a separate engine (20 ticks to the second, the
-  original move order, blocks, doors, keys, boots, water, fire, bombs, buttons, traps, clone
-  machines, teleports, ice, force floors, special walls, the thief and every monster; a block standing
-  on a hidden or blue wall is pushed off it, then the wall appears and Chip stays). CCLP 2, a set
-  designed for the Microsoft rules, stays on the Epoxy rules. One buffered input direction is kept
-  for touch play, which the original game does not do.
-- Imported community .DAT files are decoded with the Lynx rules: directional blocks are cloners only on a
-  clone machine, the plain block faces north, the lower layer only gives the floor (terrain or item) under a
-  creature, the monster list is ignored and unused codes become wall, invisible wall or water. .DAT export now
-  always writes the clone machine under a cloner block, and writes Chip with the standard codes, so other
-  programs and the Lynx import read exported files correctly.
-- Help, tap-to-path, the objective marker, solution replay, item drop and the dead-end watch are off on
-  Lynx levels.
-- The editor has a Rules field next to the Win Rule: it switches a level between the Epoxy and Lynx
-  rules, so an Epoxy level exported to .DAT and imported again can be set back to Epoxy. A level won
-  by covering block targets is Epoxy only.
+- .DAT export now always writes the clone machine under a cloner block, and writes Chip with the
+  standard codes, so other programs and the Lynx import read exported files correctly.
 - High scores and replays recorded earlier on the packs now marked Lynx may not replay.
 
 ## [2.9.0] - 2026-11-01
