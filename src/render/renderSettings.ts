@@ -66,6 +66,10 @@ export interface RenderSettings {
   spriteCacheMaxEntries: number;
   /** Most composed 16x16 sprites the 16-Bit Retro style keeps before dropping the least recently used. */
   retroSpriteCacheMaxEntries: number;
+  /** Most rasterized 32x32 sprites the 32-Bit Retro style keeps before dropping the least recently used. */
+  retro32SpriteCacheMaxEntries: number;
+  /** Opacity of the shine that sweeps over items and blocks in 32-Bit Retro, 0 to disable. */
+  retro32ShineAlpha: number;
   glowBlurPx: GlowBlurSettings;
   hintFontModern: string;
   hintFontRetro: string;
@@ -88,7 +92,7 @@ export interface RenderSettings {
   floorDetailEvery: number;
   /** Height of the small hop the player makes on each step. */
   playerHopTile: number;
-  /** Modern style only: darkens the scene except around light sources. */
+  /** Styles with lighting only (HD Neon, 32-Bit Retro): darkens the scene except around light sources. */
   lightingEnabled: boolean;
   /** Opacity of the darkness away from any light. */
   lightingAmbientAlpha: number;
@@ -147,6 +151,8 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   terrainCacheMaxPx: 4096,
   spriteCacheMaxEntries: 256,
   retroSpriteCacheMaxEntries: 1024,
+  retro32SpriteCacheMaxEntries: 1024,
+  retro32ShineAlpha: 0.22,
   glowBlurPx: { soft: 6, medium: 8, strong: 10 },
   hintFontModern: 'system-ui, sans-serif',
   hintFontRetro: 'monospace',
@@ -173,6 +179,10 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   lcdGridAlpha: 0.18,
   irisOpenFrames: 24
 };
+
+/** Bounds of an opacity setting. */
+const MIN_UNIT_ALPHA = 0;
+const MAX_UNIT_ALPHA = 1;
 
 const resolvedCache = new WeakMap<object, RenderSettings>();
 
@@ -220,7 +230,7 @@ export type QualityOverrides = Partial<Record<keyof RenderSettings, number | boo
 export const DEFAULT_QUALITY_PRESETS: Readonly<Record<GraphicsQuality, QualityOverrides>> = {
   high: {},
   medium: { lightingTintAlpha: 0, lightingResolutionDivisor: 6, maxParticles: 120, particleBurstCount: 12 },
-  low: { lightingEnabled: false, vignetteAlpha: 0, maxParticles: 60, particleBurstCount: 8 }
+  low: { lightingEnabled: false, vignetteAlpha: 0, maxParticles: 60, particleBurstCount: 8, retro32ShineAlpha: 0 }
 };
 
 /** When the graphics quality is automatic, it steps down once rendering exceeds this budget. */
@@ -297,6 +307,9 @@ export function findGraphicsConfigErrors(
     for (const tileId of settings[key]) {
       if (!tileIds.has(tileId)) errors.push(`${key}: unknown tile ${tileId}`);
     }
+  }
+  if (!(settings.retro32ShineAlpha >= MIN_UNIT_ALPHA && settings.retro32ShineAlpha <= MAX_UNIT_ALPHA)) {
+    errors.push(`retro32ShineAlpha: ${settings.retro32ShineAlpha} is outside [${MIN_UNIT_ALPHA}, ${MAX_UNIT_ALPHA}]`);
   }
   const presets = (graphics as GraphicsWithQuality | undefined)?.qualityPresets ?? {};
   for (const [name, preset] of Object.entries(presets)) {

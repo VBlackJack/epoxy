@@ -32,6 +32,7 @@ import { ProceduralGenerator } from './core/ProceduralGenerator';
 import {
   CompiledLevel,
   Direction,
+  GraphicsStyle,
   GridPoint,
   KeybindingsConfig,
   LevelBlueprint,
@@ -61,6 +62,13 @@ import { preferredScrollBehavior, prefersReducedMotion, replayAnimation, watchRe
 import { getEditorChordAction, hasCommandModifier, isUndoChord } from './ui/inputGuards';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
+import {
+  buildGraphicsStyleOptions,
+  canvasClassesToRemove,
+  isLcdAvailable,
+  resolveInitialGraphicsStyle
+} from './ui/graphicsStyleControl';
+import { getRenderStyle, parseRenderStyleId } from './render/styles/renderStyles';
 import { watchDevicePixelRatio } from './ui/displayWatchers';
 import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
@@ -85,7 +93,6 @@ import { getViewportPresets } from './ui/viewportZoom';
 import {
   BIOME_ACCENT_CSS_VAR,
   CANVAS_RESIZE_TOLERANCE_PX,
-  DEFAULT_GRAPHICS_STYLE,
   AUTO_THEME_ID,
   DEFAULT_THEME_ID,
   GAMEPAD_AXIS_THRESHOLD,
@@ -224,6 +231,7 @@ class EpoxyApplication {
     this.applyAudioSettings(savedSettings);
     this.setupThemeSelector();
     this.setupQualitySelector();
+    this.setupGraphicsStyleSelector();
     this.bindViewportResizeObserver();
 
     this.rebuildHudIcons();
@@ -250,6 +258,7 @@ class EpoxyApplication {
       this.refreshPackSelector();
       this.setupThemeSelector();
       this.setupQualitySelector();
+      this.setupGraphicsStyleSelector();
       this.updateHUD();
       this.editor.refreshTranslations();
       // translateDOM resets the seed placeholder to its generic text.
@@ -295,8 +304,7 @@ class EpoxyApplication {
         : gameCfg.grid.viewportWidth;
     this.renderer.setViewportTiles(initialFov);
 
-    const defaultStyle =
-      savedSettings.graphicsStyle || gameCfg.graphics?.defaultStyle || DEFAULT_GRAPHICS_STYLE;
+    const defaultStyle = resolveInitialGraphicsStyle(savedSettings.graphicsStyle, gameCfg.graphics?.defaultStyle);
     this.renderer.setStyle(defaultStyle);
 
     // Each level shows its own theme unless the player picked one.
@@ -306,11 +314,8 @@ class EpoxyApplication {
         ? savedSettings.themeId
         : gameCfg.graphics?.defaultTheme || DEFAULT_THEME_ID;
     this.renderer.setThemeId(initialTheme);
-    this.gameCanvas.classList.toggle('retro-pixels', defaultStyle === 'retro');
-    this.syncGraphicsButton(defaultStyle === 'modern');
-
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
-    setToggleState(byId('btn-lcd-toggle'), this.renderer.isLcdEnabled());
+    this.syncGraphicsControls(defaultStyle);
     this.renderer.setReducedMotion(prefersReducedMotion());
     // The preference can change while the page is open.
     watchReducedMotion((reduced) => this.renderer.setReducedMotion(reduced));
@@ -1194,7 +1199,7 @@ class EpoxyApplication {
     } else {
       this.showTheme(themeId);
     }
-    if (this.renderer.getStyle() !== 'modern') this.updateHUD();
+    if (getRenderStyle(this.renderer.getStyle()).sprite) this.updateHUD();
     this.saveUserSettings();
   }
 
@@ -1208,9 +1213,9 @@ class EpoxyApplication {
     }
   }
 
-  /** 16-Bit Retro icons are drawn with the palette of the theme, so they are redrawn when it changes. */
+  /** Sprite-style icons (16-Bit and 32-Bit Retro) are drawn with the palette of the theme, so they are redrawn when it changes. */
   private refreshRetroIcons(): void {
-    if (this.renderer.getStyle() === 'modern') return;
+    if (!getRenderStyle(this.renderer.getStyle()).sprite) return;
     this.rebuildHudIcons();
     if (this.activeMode === 'editor') {
       this.editor.buildUI();
@@ -1803,12 +1808,14 @@ class EpoxyApplication {
   // -- Toggles -----------------------------------------------------------------
 
   private bindDisplayToggles(): void {
-    byId('btn-graphics-toggle')?.addEventListener('click', () => {
-      this.toggleGraphicsStyle();
+    byId<HTMLSelectElement>('select-graphics-style')?.addEventListener('change', (e) => {
+      const style = parseRenderStyleId((e.target as HTMLSelectElement).value);
+      if (style) this.applyGraphicsStyle(style);
     });
 
     const lcdBtn = byId('btn-lcd-toggle');
     lcdBtn?.addEventListener('click', () => {
+      if (!isLcdAvailable(this.renderer.getStyle())) return;
       this.renderer.setLcdEnabled(!this.renderer.isLcdEnabled());
       setToggleState(lcdBtn, this.renderer.isLcdEnabled());
       this.saveUserSettings();
@@ -2232,7 +2239,7 @@ class EpoxyApplication {
     } else if (kb.toggleMute.includes(e.code)) {
       run(() => this.toggleSfx());
     } else if (kb.toggleGraphics?.includes(e.code)) {
-      run(() => this.toggleGraphicsStyle());
+      run(() => this.applyGraphicsStyle(this.renderer.toggleStyle()));
     } else if (kb.cycleTheme?.includes(e.code)) {
       run(() => this.applyTheme(this.renderer.cycleTheme()));
     } else if (kb.generateProcedural?.includes(e.code)) {
@@ -2299,22 +2306,39 @@ class EpoxyApplication {
     }
   }
 
-  private syncGraphicsButton(isModern: boolean): void {
-    const gfxBtn = byId('btn-graphics-toggle');
-    if (!gfxBtn) return;
-    const i18nKey = isModern ? 'app.header.graphics_modern.action' : 'app.header.graphics_retro.action';
-    gfxBtn.setAttribute('data-i18n', i18nKey);
-    gfxBtn.textContent = t(i18nKey);
-    gfxBtn.classList.toggle('active', isModern);
-    // The LCD grid only renders in retro style; the saved preference is left untouched.
-    const lcdBtn = byId<HTMLButtonElement>('btn-lcd-toggle');
-    if (lcdBtn) lcdBtn.disabled = isModern;
+  /** Fills the render style selector from the registry; called again when the language changes. */
+  private setupGraphicsStyleSelector(): void {
+    const select = byId<HTMLSelectElement>('select-graphics-style');
+    if (!select) return;
+    select.innerHTML = '';
+    for (const option of buildGraphicsStyleOptions()) {
+      const opt = document.createElement('option');
+      opt.value = option.value;
+      opt.textContent = t(option.labelKey);
+      select.appendChild(opt);
+    }
+    select.value = this.renderer.getStyle();
   }
 
-  private toggleGraphicsStyle(): void {
-    const isModern = this.renderer.toggleStyle() === 'modern';
-    this.gameCanvas.classList.toggle('retro-pixels', !isModern);
-    this.syncGraphicsButton(isModern);
+  /** Brings the selector, the canvas class and the LCD toggle in line with `style`. */
+  private syncGraphicsControls(style: GraphicsStyle): void {
+    const descriptor = getRenderStyle(style);
+    for (const cls of canvasClassesToRemove(style)) this.gameCanvas.classList.remove(cls);
+    if (descriptor.canvasClass) this.gameCanvas.classList.add(descriptor.canvasClass);
+    const select = byId<HTMLSelectElement>('select-graphics-style');
+    if (select) select.value = style;
+    // The LCD grid only renders where the style allows it: shown off and disabled elsewhere,
+    // the stored preference is restored when the style allows it again.
+    const lcdBtn = byId<HTMLButtonElement>('btn-lcd-toggle');
+    if (lcdBtn) {
+      lcdBtn.disabled = !descriptor.lcdAllowed;
+      setToggleState(lcdBtn, descriptor.lcdAllowed && this.renderer.getLcdPreference());
+    }
+  }
+
+  private applyGraphicsStyle(style: GraphicsStyle): void {
+    if (this.renderer.getStyle() !== style) this.renderer.setStyle(style);
+    this.syncGraphicsControls(style);
     this.rebuildHudIcons();
     this.saveUserSettings();
     this.updateHUD();
@@ -2771,7 +2795,7 @@ class EpoxyApplication {
         fov: this.renderer.getViewportTiles(),
         themeId: this.autoTheme ? AUTO_THEME_ID : this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
-        lcdEnabled: this.renderer.isLcdEnabled(),
+        lcdEnabled: this.renderer.getLcdPreference(),
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),
         musicEnabled: AudioManager.isMusicEnabled()

@@ -63,7 +63,6 @@ const FORWARD_NEIGHBOURS: readonly Neighbour[] = [
 const BACKWARD_NEIGHBOURS: readonly Neighbour[] = [
   [1, 1, DIAGONAL_COST], [0, 1, ORTHOGONAL_COST], [-1, 1, DIAGONAL_COST], [1, 0, ORTHOGONAL_COST]
 ];
-const EDGE_NEIGHBOURS: readonly (readonly [number, number])[] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 const HALF_VECTOR = normalize([
   LIGHT_DIRECTION[0] + VIEW_DIRECTION[0],
@@ -100,7 +99,8 @@ function relax(
     const x = i % width;
     const y = (i - x) / width;
     const own = materialRamp(ids[i]);
-    for (const [dx, dy, cost] of neighbours) {
+    for (let k = 0; k < neighbours.length; k++) {
+      const [dx, dy, cost] = neighbours[k];
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
@@ -122,12 +122,11 @@ function edgeDistances(ids: Int16Array, width: number, height: number): Float32A
       const i = y * width + x;
       if (ids[i] === MATERIAL_NONE) continue;
       const own = materialRamp(ids[i]);
-      const isEdge = EDGE_NEIGHBOURS.some(([dx, dy]) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) return false;
-        return materialRamp(ids[ny * width + nx]) !== own;
-      });
+      const isEdge =
+        (y > 0 && materialRamp(ids[i - width]) !== own) ||
+        (x < width - 1 && materialRamp(ids[i + 1]) !== own) ||
+        (y < height - 1 && materialRamp(ids[i + width]) !== own) ||
+        (x > 0 && materialRamp(ids[i - 1]) !== own);
       if (isEdge) dist[i] = 0;
     }
   }
@@ -154,28 +153,45 @@ function rawHeights(ids: Int16Array, width: number, height: number, traits: read
   return heights;
 }
 
-/** Height of a neighbour of the same ramp, otherwise the pixel's own height. */
-function sameRampSampler(ids: Int16Array, heights: Float32Array, width: number, height: number) {
-  return (x: number, y: number, dx: number, dy: number): number => {
-    const i = y * width + x;
-    const nx = x + dx;
-    const ny = y + dy;
-    if (nx < 0 || ny < 0 || nx >= width || ny >= height) return heights[i];
-    const j = ny * width + nx;
-    if (ids[j] === MATERIAL_NONE || materialRamp(ids[j]) !== materialRamp(ids[i])) return heights[i];
-    return heights[j];
-  };
+/** Ramp index of every pixel (-1 for transparent ones), so neighbour tests are plain comparisons. */
+function rampMap(ids: Int16Array): Int16Array {
+  const ramps = new Int16Array(ids.length);
+  for (let i = 0; i < ids.length; i++) ramps[i] = materialRamp(ids[i]);
+  return ramps;
 }
 
-function blur(ids: Int16Array, heights: Float32Array, width: number, height: number): Float32Array {
-  const sample = sameRampSampler(ids, heights, width, height);
+/**
+ * Height of a neighbour of the same ramp, otherwise the pixel's own height. Transparent pixels
+ * carry a height of 0, so treating them as one ramp of their own changes nothing.
+ */
+function sampleSameRamp(
+  ramps: Int16Array,
+  heights: Float32Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  dx: number,
+  dy: number
+): number {
+  const i = y * width + x;
+  const nx = x + dx;
+  const ny = y + dy;
+  if (nx < 0 || ny < 0 || nx >= width || ny >= height) return heights[i];
+  const j = ny * width + nx;
+  return ramps[j] === ramps[i] ? heights[j] : heights[i];
+}
+
+function blur(ramps: Int16Array, heights: Float32Array, width: number, height: number): Float32Array {
   const out = new Float32Array(heights.length);
   const taps = (2 * BLUR_RADIUS + 1) ** 2;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       let sum = 0;
       for (let dy = -BLUR_RADIUS; dy <= BLUR_RADIUS; dy++) {
-        for (let dx = -BLUR_RADIUS; dx <= BLUR_RADIUS; dx++) sum += sample(x, y, dx, dy);
+        for (let dx = -BLUR_RADIUS; dx <= BLUR_RADIUS; dx++) {
+          sum += sampleSameRamp(ramps, heights, width, height, x, y, dx, dy);
+        }
       }
       out[y * width + x] = sum / taps;
     }
@@ -185,13 +201,15 @@ function blur(ids: Int16Array, heights: Float32Array, width: number, height: num
 
 /** Ramp position shift (negative = lighter) caused by lighting, relative to a flat surface. */
 function lightingShift(gradX: number, gradY: number): number {
-  const length = Math.hypot(gradX * NORMAL_SCALE, gradY * NORMAL_SCALE, 1);
+  const scaledX = gradX * NORMAL_SCALE;
+  const scaledY = gradY * NORMAL_SCALE;
+  const length = Math.sqrt(scaledX * scaledX + scaledY * scaledY + 1);
   const nx = (-gradX * NORMAL_SCALE) / length;
   const ny = (-gradY * NORMAL_SCALE) / length;
   const nz = 1 / length;
   const diffuse = Math.max(0, nx * LIGHT_DIRECTION[0] + ny * LIGHT_DIRECTION[1] + nz * LIGHT_DIRECTION[2]);
   const half = Math.max(0, nx * HALF_VECTOR[0] + ny * HALF_VECTOR[1] + nz * HALF_VECTOR[2]);
-  const specular = Math.pow(half, SPECULAR_SHININESS);
+  const specular = half === 0 ? 0 : Math.pow(half, SPECULAR_SHININESS);
   return -((diffuse - LIGHT_DIRECTION[2]) * DIFFUSE_GAIN + (specular - FLAT_SPECULAR) * SPECULAR_GAIN);
 }
 
@@ -205,8 +223,8 @@ export function shadePositions(
   height: number,
   traits: readonly RampTraits[]
 ): Float32Array {
-  const heights = blur(ids, rawHeights(ids, width, height, traits), width, height);
-  const sample = sameRampSampler(ids, heights, width, height);
+  const ramps = rampMap(ids);
+  const heights = blur(ramps, rawHeights(ids, width, height, traits), width, height);
   const out = new Float32Array(ids.length);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -218,8 +236,12 @@ export function shadePositions(
         out[i] = base;
         continue;
       }
-      const gradX = (sample(x, y, 1, 0) - sample(x, y, -1, 0)) / GRADIENT_SPAN;
-      const gradY = (sample(x, y, 0, 1) - sample(x, y, 0, -1)) / GRADIENT_SPAN;
+      const gradX =
+        (sampleSameRamp(ramps, heights, width, height, x, y, 1, 0) -
+          sampleSameRamp(ramps, heights, width, height, x, y, -1, 0)) / GRADIENT_SPAN;
+      const gradY =
+        (sampleSameRamp(ramps, heights, width, height, x, y, 0, 1) -
+          sampleSameRamp(ramps, heights, width, height, x, y, 0, -1)) / GRADIENT_SPAN;
       out[i] = Math.min(1, Math.max(0, base + lightingShift(gradX, gradY)));
     }
   }

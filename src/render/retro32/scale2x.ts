@@ -26,15 +26,16 @@ const SCALE = 2;
 export function scale2x(src: Int16Array, width: number, height: number): Int16Array {
   const outWidth = width * SCALE;
   const out = new Int16Array(outWidth * height * SCALE);
-  const at = (x: number, y: number, fallback: number): number =>
-    x < 0 || y < 0 || x >= width || y >= height ? fallback : src[y * width + x];
+  const lastX = width - 1;
+  const lastY = height - 1;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const e = src[y * width + x];
-      const b = at(x, y - 1, e);
-      const d = at(x - 1, y, e);
-      const f = at(x + 1, y, e);
-      const h = at(x, y + 1, e);
+      const i = y * width + x;
+      const e = src[i];
+      const b = y > 0 ? src[i - width] : e;
+      const d = x > 0 ? src[i - 1] : e;
+      const f = x < lastX ? src[i + 1] : e;
+      const h = y < lastY ? src[i + width] : e;
       const split = b !== h && d !== f;
       const o = y * SCALE * outWidth + x * SCALE;
       out[o] = split && d === b ? d : e;

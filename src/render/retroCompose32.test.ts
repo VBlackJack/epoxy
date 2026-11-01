@@ -39,7 +39,16 @@ import {
 import { createRetro32SpriteCache, isFifteenBitColour } from './retro32';
 import { RETRO32_SPEC, createRetro32ThemeSprites } from './retro32/spriteStyle32';
 import { NEIGHBOUR } from './tileNeighbours';
-import { RETRO16_SPEC, RETRO_SHEET, RETRO_SPRITE_SIZE, resolveRetroRamps } from './retroSprites';
+import {
+  RETRO16_SPEC,
+  RETRO_CHAR_WIDTH,
+  RETRO_FLAG_TEXT,
+  RETRO_GLYPH_SIZE,
+  RETRO_SHEET,
+  RETRO_SPRITE_SIZE,
+  findRetro32PaletteErrors,
+  resolveRetroRamps
+} from './retroSprites';
 
 const BYTES_PER_PIXEL = 4;
 const ALPHA_OFFSET = 3;
@@ -112,23 +121,21 @@ function allOpaquePixelsAreFifteenBit(pixels: Uint8ClampedArray): boolean {
   return true;
 }
 
+/** Top-left corner of a centred glyph, in the pixels of a style drawn at `layerScale` over the authoring grid. */
+function glyphOriginOf(layerScale: number): number {
+  return Math.floor((RETRO_SPRITE_SIZE - RETRO_GLYPH_SIZE) / 2) * layerScale;
+}
+
 describe('sprite style specs', () => {
   it('derives the 16-Bit layout from the authoring grid', () => {
     expect(RETRO16_SPEC.tileSize).toBe(RETRO_SPRITE_SIZE);
     expect(RETRO16_SPEC.layerScale).toBe(1);
-    expect(RETRO16_SPEC.glyphOrigin).toBe(5);
-    expect(RETRO16_SPEC.flagText).toEqual({ centerX: 9, top: 4, spacing: 1 });
     expect(RETRO16_SPEC.quantiseShadow).toBe(false);
   });
 
   it('doubles every size and offset for the 32-Bit style', () => {
     expect(RETRO32_SPEC.tileSize).toBe(TILE_SIZE_32);
     expect(RETRO32_SPEC.layerScale).toBe(2);
-    expect(RETRO32_SPEC.glyphSize).toBe(10);
-    expect(RETRO32_SPEC.charWidth).toBe(6);
-    expect(RETRO32_SPEC.charHeight).toBe(10);
-    expect(RETRO32_SPEC.glyphOrigin).toBe(10);
-    expect(RETRO32_SPEC.flagText).toEqual({ centerX: 18, top: 8, spacing: 2 });
     expect(RETRO32_SPEC.quantiseShadow).toBe(true);
   });
 
@@ -219,8 +226,8 @@ describe('glyph and label layout', () => {
     it(`places the glyph at the spec origin (${spec.id})`, () => {
       const glyph = retroItemLayers(KEY_ITEM, resolveTile(KEY_ITEM)).find((l) => l.name.startsWith(GLYPH_PREFIX));
       expect(glyph).toBeDefined();
-      expect((glyph?.x ?? 0) * spec.layerScale).toBe(spec.glyphOrigin);
-      expect((glyph?.y ?? 0) * spec.layerScale).toBe(spec.glyphOrigin);
+      expect((glyph?.x ?? 0) * spec.layerScale).toBe(glyphOriginOf(spec.layerScale));
+      expect((glyph?.y ?? 0) * spec.layerScale).toBe(glyphOriginOf(spec.layerScale));
     });
 
     it(`centres the flag text on the spec centre (${spec.id})`, () => {
@@ -229,9 +236,11 @@ describe('glyph and label layout', () => {
         const first = layers[0];
         const last = layers[layers.length - 1];
         const left = (first.x ?? 0) * spec.layerScale;
-        const right = (last.x ?? 0) * spec.layerScale + spec.charWidth;
-        expect(Math.abs((left + right) / 2 - spec.flagText.centerX)).toBeLessThanOrEqual(spec.layerScale);
-        expect((first.y ?? 0) * spec.layerScale).toBe(spec.flagText.top);
+        const right = (last.x ?? 0) * spec.layerScale + RETRO_CHAR_WIDTH * spec.layerScale;
+        expect(Math.abs((left + right) / 2 - RETRO_FLAG_TEXT.centerX * spec.layerScale)).toBeLessThanOrEqual(
+          spec.layerScale
+        );
+        expect((first.y ?? 0) * spec.layerScale).toBe(RETRO_FLAG_TEXT.top * spec.layerScale);
       }
     });
   }
@@ -240,8 +249,8 @@ describe('glyph and label layout', () => {
     const { ramps32, source } = themeSprites(DEFAULT_THEME);
     const layers = retroItemLayers(KEY_ITEM, resolveTile(KEY_ITEM)).filter((l) => l.name.startsWith(GLYPH_PREFIX));
     const buffer = composeRetroLayers(layers, ramps32, RETRO32_SPEC, source);
-    const low = RETRO32_SPEC.glyphOrigin;
-    const high = low + RETRO32_SPEC.glyphSize;
+    const low = glyphOriginOf(RETRO32_SPEC.layerScale);
+    const high = low + RETRO_GLYPH_SIZE * RETRO32_SPEC.layerScale;
     let opaque = 0;
     for (let y = 0; y < TILE_SIZE_32; y++) {
       for (let x = 0; x < TILE_SIZE_32; x++) {
@@ -254,5 +263,28 @@ describe('glyph and label layout', () => {
       }
     }
     expect(opaque).toBeGreaterThan(0);
+  });
+});
+
+describe('findRetro32PaletteErrors', () => {
+  const THEMES = ['default', 'cyber_neon'];
+
+  it('accepts no overrides and well formed overrides', () => {
+    expect(findRetro32PaletteErrors(undefined, THEMES)).toEqual([]);
+    expect(findRetro32PaletteErrors({ cyber_neon: { floor: ['#102030', '#a0b0c0'] } }, THEMES)).toEqual([]);
+  });
+
+  it('reports unknown themes and unknown ramps', () => {
+    const errors = findRetro32PaletteErrors({ lava: { floor: ['#102030'] }, default: { nope: ['#102030'] } }, THEMES);
+    expect(errors).toEqual(['retro32Palettes.lava: unknown theme', 'retro32Palettes.default.nope: unknown ramp']);
+  });
+
+  it('reports empty ramps and colours that are not #rrggbb', () => {
+    const errors = findRetro32PaletteErrors({ default: { floor: [], wall: ['red'], water: [3] } }, THEMES);
+    expect(errors).toEqual([
+      'retro32Palettes.default.floor must be a non-empty array',
+      'retro32Palettes.default.wall colour red is not #rrggbb',
+      'retro32Palettes.default.water colour 3 is not #rrggbb'
+    ]);
   });
 });

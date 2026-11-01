@@ -371,6 +371,37 @@ function countColours(pixels: Uint8ClampedArray): number {
   return seen.size;
 }
 
+/**
+ * Problems in the 32-Bit palette overrides: unknown theme ids, unknown ramp names, and ramps that
+ * are not non-empty arrays of #rrggbb colours. `themeIds` are the themes retroPalettes declares.
+ */
+export function findRetro32PaletteErrors(palettes: unknown, themeIds: readonly string[]): string[] {
+  if (palettes === undefined) return [];
+  if (!isRecord(palettes)) return ['retro32Palettes is not an object'];
+  const errors: string[] = [];
+  for (const [themeId, ramps] of Object.entries(palettes)) {
+    if (!themeIds.includes(themeId)) errors.push(`retro32Palettes.${themeId}: unknown theme`);
+    if (!isRecord(ramps)) {
+      errors.push(`retro32Palettes.${themeId} is not an object`);
+      continue;
+    }
+    for (const [ramp, tones] of Object.entries(ramps)) {
+      const where = `retro32Palettes.${themeId}.${ramp}`;
+      if (!RETRO_RAMP_NAMES.includes(ramp)) errors.push(`${where}: unknown ramp`);
+      if (!Array.isArray(tones) || tones.length === 0) {
+        errors.push(`${where} must be a non-empty array`);
+        continue;
+      }
+      for (const tone of tones) {
+        if (typeof tone !== 'string' || !HEX_COLOUR_PATTERN.test(tone)) {
+          errors.push(`${where} colour ${String(tone)} is not #rrggbb`);
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 /** Everything wrong with a sheet and the palettes it is drawn with; [] when valid. */
 export function findRetroSheetErrors(sheet: RetroSheet, palettes: unknown): string[] {
   const themeIds: string[] = [];
@@ -485,15 +516,6 @@ export interface SpriteStyleSpec {
   readonly tileSize: number;
   /** Factor from authoring-grid pixels (layer offsets) to this style's pixels. */
   readonly layerScale: number;
-  /** Side of a glyph sprite in this style's pixels. */
-  readonly glyphSize: number;
-  /** Width and height of a digit or sign sprite in this style's pixels. */
-  readonly charWidth: number;
-  readonly charHeight: number;
-  /** Top-left corner of a centred glyph in this style's pixels. */
-  readonly glyphOrigin: number;
-  /** Flag text layout in this style's pixels. */
-  readonly flagText: FlagTextLayout;
   /** True when the floor shadow colour is quantised to 15 bits. */
   readonly quantiseShadow: boolean;
   /** Shadow depth and side width in this style's pixels for a depth given as a fraction of a tile. */
@@ -507,15 +529,6 @@ export function createSpriteStyleSpec(id: string, layerScale: number, quantiseSh
     id,
     tileSize,
     layerScale,
-    glyphSize: RETRO_GLYPH_SIZE * layerScale,
-    charWidth: RETRO_CHAR_WIDTH * layerScale,
-    charHeight: RETRO_CHAR_HEIGHT * layerScale,
-    glyphOrigin: Math.floor((RETRO_SPRITE_SIZE - RETRO_GLYPH_SIZE) / 2) * layerScale,
-    flagText: {
-      centerX: RETRO_FLAG_TEXT.centerX * layerScale,
-      top: RETRO_FLAG_TEXT.top * layerScale,
-      spacing: RETRO_FLAG_TEXT.spacing * layerScale
-    },
     quantiseShadow,
     shadowExtent(depthTile) {
       const depth = Math.round(tileSize * depthTile);

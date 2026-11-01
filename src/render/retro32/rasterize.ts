@@ -104,13 +104,14 @@ export function rasterizeSprite32(
   const traits = rampTraits(map.rampNames, ramps16, lit);
   const positions = shadePositions(ids, outWidth, outHeight, traits);
   const colours = new RampColours(ramps32);
+  const coloursByRamp = map.rampNames.map((name) => colours.get(name));
   const out = new Uint8ClampedArray(outWidth * outHeight * BYTES_PER_PIXEL);
   for (let y = 0; y < outHeight; y++) {
     for (let x = 0; x < outWidth; x++) {
       const i = y * outWidth + x;
       if (ids[i] === MATERIAL_NONE) continue;
       const ramp = materialRamp(ids[i]);
-      const ramp32 = colours.get(map.rampNames[ramp]);
+      const ramp32 = coloursByRamp[ramp];
       if (ramp32.length === 0) continue;
       const colour = ramp32[rampIndex(positions[i], ramp32.length, traits[ramp].shaded, x, y)];
       const o = i * BYTES_PER_PIXEL;

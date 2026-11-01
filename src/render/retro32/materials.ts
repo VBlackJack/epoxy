@@ -37,8 +37,6 @@ export const MATERIAL_TONE_BITS = 4;
 const MATERIAL_TONE_MASK = (1 << MATERIAL_TONE_BITS) - 1;
 /** Outline pixels are the tone 0 of the first ramp of every table. */
 const OUTLINE_RAMP_INDEX = 0;
-/** 4-adjacent neighbours used by the automatic outline. */
-const OUTLINE_NEIGHBOURS: readonly (readonly [number, number])[] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 export function materialRamp(id: number): number {
   return id >> MATERIAL_TONE_BITS;
@@ -110,13 +108,17 @@ class MaterialTable {
 }
 
 function addOutline(ids: Int16Array, width: number, height: number): void {
-  const opaqueAt = (x: number, y: number): boolean =>
-    x >= 0 && y >= 0 && x < width && y < height && ids[y * width + x] !== MATERIAL_NONE;
   const border: number[] = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (opaqueAt(x, y)) continue;
-      if (OUTLINE_NEIGHBOURS.some(([dx, dy]) => opaqueAt(x + dx, y + dy))) border.push(y * width + x);
+      const i = y * width + x;
+      if (ids[i] !== MATERIAL_NONE) continue;
+      const touchesOpaque =
+        (y > 0 && ids[i - width] !== MATERIAL_NONE) ||
+        (x < width - 1 && ids[i + 1] !== MATERIAL_NONE) ||
+        (y < height - 1 && ids[i + width] !== MATERIAL_NONE) ||
+        (x > 0 && ids[i - 1] !== MATERIAL_NONE);
+      if (touchesOpaque) border.push(i);
     }
   }
   const outline = makeMaterial(OUTLINE_RAMP_INDEX, RETRO_OUTLINE_TONE);

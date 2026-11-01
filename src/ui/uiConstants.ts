@@ -51,8 +51,7 @@ export const TIMING_DEFAULTS = {
   maxUndoSnapshots: 100
 } as const;
 
-/** Fallbacks for optional game.json "graphics" values. */
-export const DEFAULT_GRAPHICS_STYLE = 'modern';
+/** Fallback for the optional game.json "graphics" theme value. */
 export const DEFAULT_THEME_ID = 'cyber_neon';
 /** Theme setting meaning: each level shows its own theme. */
 export const AUTO_THEME_ID = 'auto';

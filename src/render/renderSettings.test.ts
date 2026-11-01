@@ -131,6 +131,25 @@ describe('resolveQualitySettings', () => {
     expect(settings.wallJoinTiles).toBe(resolveRenderSettings(graphics).wallJoinTiles);
   });
 
+  it('switches the 32-Bit shine off on low quality only', () => {
+    const plain = { ...BASE_GRAPHICS } as GraphicsConfig;
+    expect(DEFAULT_RENDER_SETTINGS.retro32ShineAlpha).toBeGreaterThan(0);
+    expect(resolveQualitySettings(plain, 'high').retro32ShineAlpha).toBe(DEFAULT_RENDER_SETTINGS.retro32ShineAlpha);
+    expect(resolveQualitySettings(plain, 'medium').retro32ShineAlpha).toBe(DEFAULT_RENDER_SETTINGS.retro32ShineAlpha);
+    expect(resolveQualitySettings(plain, 'low').retro32ShineAlpha).toBe(0);
+  });
+
+  it('reads the 32-Bit settings from the graphics block and ignores values of the wrong type', () => {
+    const graphics = {
+      ...BASE_GRAPHICS,
+      retro32SpriteCacheMaxEntries: 64,
+      retro32ShineAlpha: 'bright'
+    } as unknown as GraphicsConfig;
+    const settings = resolveRenderSettings(graphics);
+    expect(settings.retro32SpriteCacheMaxEntries).toBe(64);
+    expect(settings.retro32ShineAlpha).toBe(DEFAULT_RENDER_SETTINGS.retro32ShineAlpha);
+  });
+
   it('memoizes per quality', () => {
     const graphics = { ...BASE_GRAPHICS } as GraphicsConfig;
     expect(resolveQualitySettings(graphics, 'low')).toBe(resolveQualitySettings(graphics, 'low'));
@@ -175,6 +194,20 @@ describe('findGraphicsConfigErrors', () => {
       'qualityPresets.ultra: unknown quality',
       'qualityPresets.low.sparkle: unknown setting'
     ]);
+  });
+});
+
+describe('findGraphicsConfigErrors retro32ShineAlpha', () => {
+  it.each([-0.1, 1.5])('flags a shine opacity of %s', (alpha) => {
+    const graphics = { ...BASE_GRAPHICS, retro32ShineAlpha: alpha } as unknown as GraphicsConfig;
+    expect(findGraphicsConfigErrors(graphics, { modernPlayerVisor: '#fff' }, new Set(['wall']))).toEqual([
+      `retro32ShineAlpha: ${alpha} is outside [0, 1]`
+    ]);
+  });
+
+  it.each([0, 0.5, 1])('accepts a shine opacity of %s', (alpha) => {
+    const graphics = { ...BASE_GRAPHICS, retro32ShineAlpha: alpha } as unknown as GraphicsConfig;
+    expect(findGraphicsConfigErrors(graphics, { modernPlayerVisor: '#fff' }, new Set(['wall']))).toEqual([]);
   });
 });
 
