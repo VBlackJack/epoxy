@@ -16,6 +16,16 @@ versions follow Semantic Versioning.
   difficulty.
 - The header subtitle no longer names the Atari Lynx II, and the level code placeholder example is
   now ABCD. The HUD code badge now has an accessible name ("Enter a level code").
+- 16-Bit Retro is redrawn in the style of 16-bit home consoles: every tile, item, monster and the
+  player is a 16x16 pixel sprite with hard dark outlines, two to four tones lit from the top-left
+  and dithered shadows. The scene is drawn at 16 pixels per tile and enlarged in one step without
+  smoothing, so the whole board shares one pixel grid; the optional LCD grid now follows that
+  grid. Colours use the 9-bit console palette (8 levels per channel, at most 15 colours per
+  sprite), and each of the four themes now tints the retro floors and walls. Sprites live in
+  `src/render/retro/sprites/`, palettes in `retroPalettes` of `game.json`; both are checked by
+  tests. With reduced motion, retro animations show a still frame.
+- HUD and editor icons follow the theme in 16-Bit Retro. HD Neon is unchanged, which a draw-call
+  snapshot test now guards.
 
 ### Removed
 
