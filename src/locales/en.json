@@ -2,12 +2,11 @@
   "app": {
     "header": {
       "title": { "label": "EPOXY" },
-      "subtitle": { "label": "Atari Lynx II Edition - 16-Bit Grid Logic Challenge" },
+      "subtitle": { "label": "16-Bit Grid Logic Challenge" },
       "mode_play": { "action": "Play Game" },
       "mode_editor": { "action": "Level Editor" },
       "levels_btn": { "action": "Levels & Records" },
       "lcd_toggle": { "action": "LCD Screen", "hint": "Pixel grid over the 16-Bit Retro view" },
-      "shell_toggle": { "action": "Lynx II Shell" },
       "graphics_modern": { "action": "Render: HD Neon" },
       "graphics_retro": { "action": "Render: 16-Bit Retro" },
       "quality": { "label": "Graphics:" },
@@ -24,7 +23,11 @@
       "help_icon": { "action": "?" },
       "mobile_menu": { "action": "⚙️ Menu & Packs" },
       "drawer_title": { "label": "⚙️ Options & Packs" },
-      "drawer_close": { "action": "✕ Close" }
+      "drawer_close": { "action": "✕ Close" },
+      "drawer_display": { "label": "Display" },
+      "drawer_audio": { "label": "Audio" },
+      "drawer_language": { "label": "Language" },
+      "drawer_navigation": { "label": "Navigation" }
     },
     "languages": {
       "fr": { "label": "Français" },
@@ -116,22 +119,6 @@
       "imported_session_only_toast": { "label": "Pack \"{name}\" imported, but it could not be saved: it will only last for this session." },
       "invalid_level_error": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
       "delete_confirm": { "label": "Delete pack \"{name}\" and all its levels? This cannot be undone." }
-    },
-    "lynx": {
-      "bezel": { "brand": "ATARI LYNX II - 16-BIT COLOR HANDHELD SYSTEM" },
-      "power": { "label": "POWER" },
-      "dpad": { "label": "D-PAD" },
-      "dpad_up": { "label": "Up" },
-      "dpad_down": { "label": "Down" },
-      "dpad_left": { "label": "Left" },
-      "dpad_right": { "label": "Right" },
-      "button_a": { "action": "A (Action)" },
-      "button_b": { "action": "B (Rewind)" },
-      "button_a_short": { "label": "A" },
-      "button_b_short": { "label": "B" },
-      "option_1": { "action": "OPT 1 (Restart)" },
-      "option_2": { "action": "OPT 2 (Audio)" },
-      "pause": { "action": "PAUSE" }
     }
   },
   "hud": {
@@ -170,12 +157,17 @@
       "pause": { "action": "Pause (P / Space)" },
       "prev_level": { "action": "Prev Level" },
       "next_level": { "action": "Next Level" },
-      "password_btn": { "action": "Enter Password" }
+      "password_btn": { "action": "Enter Password" },
+      "password_badge": { "label": "Enter a level code" }
     },
     "desktop": {
       "key_hint": { "label": "Arrows/WASD: move | U: undo | R: restart | H: objective" }
     },
     "mobile": {
+      "dpad_up": { "label": "Up" },
+      "dpad_down": { "label": "Down" },
+      "dpad_left": { "label": "Left" },
+      "dpad_right": { "label": "Right" },
       "undo": { "action": "⏪ Undo" },
       "objective": { "action": "💡 Hint" },
       "solution": { "action": "🎬 Solution" },
@@ -239,7 +231,7 @@
     },
     "password_modal": {
       "title": { "label": "Level Password Access" },
-      "placeholder": { "label": "4-letter code (e.g. LYNX)" },
+      "placeholder": { "label": "4-letter code (e.g. ABCD)" },
       "submit": { "action": "Unlock" },
       "cancel": { "action": "Cancel" },
       "invalid": { "label": "Unknown password code." }
@@ -286,7 +278,6 @@
       "kb_fov": { "label": "V / Wheel: Cycle viewport zoom (9x9 to 32x32)" },
       "kb_graphics": { "label": "G: Toggle HD Neon / 16-Bit Retro rendering" },
       "kb_theme": { "label": "B: Cycle visual biome & music track" },
-      "kb_shell": { "label": "L: Toggle Atari Lynx II handheld shell" },
       "kb_procedural": { "label": "N: Start an endless run of solvable levels" },
       "kb_levels": { "label": "[ and ]: Previous / Next level" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },

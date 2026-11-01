@@ -117,7 +117,7 @@ const ONBOARDING_SEEN_VALUE = '1';
 /** Where the seen flag lives, most durable first. */
 const ONBOARDING_STORES: ReadonlyArray<() => Storage> = [() => localStorage, () => sessionStorage];
 /** Controls that only make sense in a pack with real level codes. */
-const PASSWORD_CONTROL_IDS = ['hud-password-badge', 'hud-btn-password', 'btn-drawer-password'] as const;
+const PASSWORD_CONTROL_IDS = ['hud-password-badge'] as const;
 
 const MODAL_IDS = {
   SCORES: 'scores-modal',
@@ -308,11 +308,6 @@ class EpoxyApplication {
     this.renderer.setThemeId(initialTheme);
     this.gameCanvas.classList.toggle('retro-pixels', defaultStyle === 'retro');
     this.syncGraphicsButton(defaultStyle === 'modern');
-
-    if (savedSettings.shellEnabled) {
-      byId('lynx-console')?.classList.add('enabled');
-    }
-    setToggleState(byId('btn-shell-toggle'), Boolean(savedSettings.shellEnabled));
 
     this.renderer.setLcdEnabled(Boolean(savedSettings.lcdEnabled));
     setToggleState(byId('btn-lcd-toggle'), this.renderer.isLcdEnabled());
@@ -1514,7 +1509,6 @@ class EpoxyApplication {
     this.bindAudioToggles();
     this.bindDpad();
     this.bindMobileControls();
-    this.bindLynxControls();
     this.bindHudControls();
     this.bindOverlayControls();
   }
@@ -1661,11 +1655,6 @@ class EpoxyApplication {
     byId('btn-drawer-import')?.addEventListener('click', () => {
       this.setDrawerOpen(false);
       this.openPackFilePicker();
-    });
-
-    byId('btn-drawer-password')?.addEventListener('click', () => {
-      this.setDrawerOpen(false);
-      this.openPasswordModal();
     });
 
     byId('btn-help-modal')?.addEventListener('click', () => {
@@ -1817,9 +1806,6 @@ class EpoxyApplication {
   private bindPasswordModal(): void {
     const passInput = byId<HTMLInputElement>('password-input');
 
-    byId('hud-btn-password')?.addEventListener('click', () => {
-      this.openPasswordModal();
-    });
     byId('hud-password-badge')?.addEventListener('click', () => {
       this.openPasswordModal();
     });
@@ -1862,14 +1848,6 @@ class EpoxyApplication {
       this.saveUserSettings();
     });
 
-    const shellBtn = byId('btn-shell-toggle');
-    shellBtn?.addEventListener('click', () => {
-      const lynx = byId('lynx-console');
-      lynx?.classList.toggle('enabled');
-      setToggleState(shellBtn, Boolean(lynx?.classList.contains('enabled')));
-      this.saveUserSettings();
-    });
-
     const toggleFullscreenHandler = (): void => {
       this.triggerHaptic();
       this.toggleFullscreen();
@@ -1904,7 +1882,7 @@ class EpoxyApplication {
     });
   }
 
-  // -- Mobile and handheld controls -------------------------------------------
+  // -- Mobile touch controls -------------------------------------------
 
   private bindDpad(): void {
     document.querySelectorAll<HTMLButtonElement>('.dpad-btn').forEach((btn) => {
@@ -1983,36 +1961,6 @@ class EpoxyApplication {
     byId('mobile-btn-zoom')?.addEventListener('click', () => {
       this.triggerHaptic();
       this.cycleFovPreset();
-    });
-  }
-
-  private bindLynxControls(): void {
-    byId('lynx-btn-b')?.addEventListener('click', () => {
-      this.undoMove();
-    });
-
-    byId('lynx-btn-a')?.addEventListener('click', () => {
-      if (this.engine.isLevelCompleted()) {
-        this.advanceToNextLevel();
-      } else if (!this.engine.getPlayer().alive) {
-        this.restartLevel();
-      } else {
-        this.engine.attemptPlayerMove(this.engine.getPlayer().dir);
-        this.updateHUD();
-      }
-    });
-
-    byId('lynx-opt1')?.addEventListener('click', () => {
-      this.restartLevel();
-    });
-
-    byId('lynx-opt2')?.addEventListener('click', () => {
-      this.toggleSfx();
-    });
-
-    byId('lynx-pause')?.addEventListener('click', () => {
-      this.engine.togglePause();
-      this.updateHUD();
     });
   }
 
@@ -2318,8 +2266,6 @@ class EpoxyApplication {
       run(() => this.advanceToNextLevel());
     } else if (kb.prevLevel.includes(e.code)) {
       run(() => this.startLevelByIndex(this.currentLevelIndex - 1));
-    } else if (kb.toggleShell.includes(e.code)) {
-      run(() => byId('btn-shell-toggle')?.click());
     } else if (kb.toggleFullscreen?.includes(e.code)) {
       run(() => this.toggleFullscreen());
     } else if (kb.toggleMute.includes(e.code)) {
@@ -2401,6 +2347,9 @@ class EpoxyApplication {
     gfxBtn.setAttribute('data-i18n', i18nKey);
     gfxBtn.textContent = t(i18nKey);
     gfxBtn.classList.toggle('active', isModern);
+    // The LCD grid only renders in retro style; the saved preference is left untouched.
+    const lcdBtn = byId<HTMLButtonElement>('btn-lcd-toggle');
+    if (lcdBtn) lcdBtn.disabled = isModern;
   }
 
   private toggleGraphicsStyle(): void {
@@ -2852,7 +2801,6 @@ class EpoxyApplication {
         fov: this.renderer.getViewportTiles(),
         themeId: this.autoTheme ? AUTO_THEME_ID : this.renderer.getThemeId(),
         graphicsStyle: this.renderer.getStyle(),
-        shellEnabled: Boolean(byId('lynx-console')?.classList.contains('enabled')),
         lcdEnabled: this.renderer.isLcdEnabled(),
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),

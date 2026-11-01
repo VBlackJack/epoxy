@@ -55,7 +55,6 @@ export interface UserSettings {
   fov?: number;
   themeId?: string;
   graphicsStyle?: GraphicsStyle;
-  shellEnabled?: boolean;
   /** LCD pixel grid over the 16-Bit Retro view. */
   lcdEnabled?: boolean;
   /** 'auto', or a fixed quality level: 'high', 'medium' or 'low'. */
@@ -462,7 +461,6 @@ export interface KeybindingsConfig {
   pause: string[];
   nextLevel: string[];
   prevLevel: string[];
-  toggleShell: string[];
   toggleMute: string[];
   cycleFov?: string[];
   toggleGraphics?: string[];

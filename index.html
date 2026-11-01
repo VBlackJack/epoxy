@@ -75,6 +75,7 @@
 
         <div class="drawer-body">
           <div class="drawer-section">
+            <h4 class="drawer-section-title" data-i18n="app.header.drawer_display.label"></h4>
             <div class="lang-box">
               <label for="fov-select" data-i18n="app.header.fov.label"></label>
               <select id="fov-select" class="locale-select"></select>
@@ -87,26 +88,30 @@
               <label for="quality-select" data-i18n="app.header.quality.label"></label>
               <select id="quality-select" class="locale-select"></select>
             </div>
+            <button id="btn-graphics-toggle" class="nav-btn active" type="button" data-i18n="app.header.graphics_modern.action"></button>
+            <button id="btn-lcd-toggle" class="nav-btn" type="button" data-i18n="app.header.lcd_toggle.action" data-i18n-title="app.header.lcd_toggle.hint"></button>
+          </div>
+
+          <div class="drawer-section">
+            <h4 class="drawer-section-title" data-i18n="app.header.drawer_audio.label"></h4>
+            <button id="btn-sfx-toggle" class="nav-btn active" type="button" data-i18n="app.header.audio_toggle.action"></button>
+            <button id="btn-music-toggle" class="nav-btn" type="button" data-i18n="app.header.music_toggle.action"></button>
+          </div>
+
+          <div class="drawer-section">
+            <h4 class="drawer-section-title" data-i18n="app.header.drawer_language.label"></h4>
             <div class="lang-box">
               <label for="locale-select" data-i18n="app.header.language.label"></label>
               <select id="locale-select" class="locale-select"></select>
             </div>
           </div>
 
-          <div class="drawer-section">
-            <button id="btn-graphics-toggle" class="nav-btn active" type="button" data-i18n="app.header.graphics_modern.action"></button>
-            <button id="btn-lcd-toggle" class="nav-btn" type="button" data-i18n="app.header.lcd_toggle.action" data-i18n-title="app.header.lcd_toggle.hint"></button>
-            <button id="btn-shell-toggle" class="nav-btn" type="button" data-i18n="app.header.shell_toggle.action"></button>
-            <button id="btn-sfx-toggle" class="nav-btn active" type="button" data-i18n="app.header.audio_toggle.action"></button>
-            <button id="btn-music-toggle" class="nav-btn" type="button" data-i18n="app.header.music_toggle.action"></button>
-          </div>
-
-          <div class="drawer-section">
+          <div class="drawer-section drawer-section-navigation">
+            <h4 class="drawer-section-title" data-i18n="app.header.drawer_navigation.label"></h4>
             <button id="btn-drawer-levels" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
             <button id="btn-drawer-procedural" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
             <button id="btn-drawer-import" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
             <p class="import-formats-hint" data-i18n="app.packs.import_formats.label"></p>
-            <button id="btn-drawer-password" class="nav-btn" type="button" data-i18n="hud.controls.password_btn.action"></button>
             <button id="btn-help-modal" class="nav-btn" type="button" data-i18n="app.header.help_btn.action"></button>
           </div>
         </div>
@@ -117,28 +122,9 @@
 
       <!-- PLAY VIEW -->
       <main id="play-view" class="view-section">
-        <div id="lynx-console" class="lynx-shell">
-          <!-- Left Handheld Grip: D-Pad + Power LED -->
-          <div class="lynx-wing lynx-left-wing">
-            <div class="power-indicator">
-              <span class="power-led"></span>
-              <span class="power-label" data-i18n="app.lynx.power.label"></span>
-            </div>
-
-            <div class="dpad-container">
-              <button class="dpad-btn dpad-up" data-dir="N" type="button" data-i18n-aria-label="app.lynx.dpad_up.label"><span aria-hidden="true">▲</span></button>
-              <button class="dpad-btn dpad-left" data-dir="W" type="button" data-i18n-aria-label="app.lynx.dpad_left.label"><span aria-hidden="true">◀</span></button>
-              <div class="dpad-center"></div>
-              <button class="dpad-btn dpad-right" data-dir="E" type="button" data-i18n-aria-label="app.lynx.dpad_right.label"><span aria-hidden="true">▶</span></button>
-              <button class="dpad-btn dpad-down" data-dir="S" type="button" data-i18n-aria-label="app.lynx.dpad_down.label"><span aria-hidden="true">▼</span></button>
-            </div>
-            <div class="wing-caption" data-i18n="app.lynx.dpad.label"></div>
-          </div>
-
+        <div id="play-console" class="play-shell">
           <!-- Center Screen Bezel (9x9 Viewport + HUD) -->
-          <div class="lynx-screen-bezel">
-            <div class="bezel-header" data-i18n="app.lynx.bezel.brand"></div>
-
+          <div class="screen-bezel">
             <div class="lcd-screen">
               <div class="viewport-wrapper">
                 <canvas id="game-canvas" width="676" height="676" role="img" data-i18n-aria-label="hud.viewport.canvas.label"></canvas>
@@ -176,11 +162,11 @@
               <div id="mobile-touch-bar" class="mobile-touch-bar">
                 <div class="mobile-dpad-zone">
                   <div class="dpad-container mobile-dpad">
-                    <button class="dpad-btn dpad-up" data-dir="N" type="button" data-i18n-aria-label="app.lynx.dpad_up.label"><span aria-hidden="true">▲</span></button>
-                    <button class="dpad-btn dpad-left" data-dir="W" type="button" data-i18n-aria-label="app.lynx.dpad_left.label"><span aria-hidden="true">◀</span></button>
+                    <button class="dpad-btn dpad-up" data-dir="N" type="button" data-i18n-aria-label="hud.mobile.dpad_up.label"><span aria-hidden="true">▲</span></button>
+                    <button class="dpad-btn dpad-left" data-dir="W" type="button" data-i18n-aria-label="hud.mobile.dpad_left.label"><span aria-hidden="true">◀</span></button>
                     <div class="dpad-center"></div>
-                    <button class="dpad-btn dpad-right" data-dir="E" type="button" data-i18n-aria-label="app.lynx.dpad_right.label"><span aria-hidden="true">▶</span></button>
-                    <button class="dpad-btn dpad-down" data-dir="S" type="button" data-i18n-aria-label="app.lynx.dpad_down.label"><span aria-hidden="true">▼</span></button>
+                    <button class="dpad-btn dpad-right" data-dir="E" type="button" data-i18n-aria-label="hud.mobile.dpad_right.label"><span aria-hidden="true">▶</span></button>
+                    <button class="dpad-btn dpad-down" data-dir="S" type="button" data-i18n-aria-label="hud.mobile.dpad_down.label"><span aria-hidden="true">▼</span></button>
                   </div>
                 </div>
 
@@ -204,7 +190,7 @@
                     <span data-i18n="hud.stats.level.label"></span>
                     <strong id="hud-level-num"></strong>
                   </div>
-                  <button id="hud-password-badge" class="hud-password-badge" type="button" data-i18n-title="hud.controls.password_btn.action">
+                  <button id="hud-password-badge" class="hud-password-badge" type="button" aria-haspopup="dialog" data-i18n-aria-label="hud.controls.password_badge.label" data-i18n-title="hud.controls.password_btn.action">
                     <span data-i18n="hud.stats.password.label"></span>
                     <strong id="hud-level-pass"></strong>
                   </button>
@@ -261,27 +247,9 @@
                     <button id="hud-btn-pause" class="hud-btn small" type="button" data-i18n="hud.controls.pause.action"></button>
                     <button id="hud-btn-next" class="hud-btn small" type="button" data-i18n="hud.controls.next_level.action"></button>
                   </div>
-                  <button id="hud-btn-password" class="hud-btn secondary" type="button" data-i18n="hud.controls.password_btn.action"></button>
                 </div>
                 <div class="desktop-key-caption" data-i18n="hud.desktop.key_hint.label"></div>
               </aside>
-            </div>
-          </div>
-
-          <!-- Right Handheld Grip: Option Buttons & A / B Buttons -->
-          <div class="lynx-wing lynx-right-wing">
-            <div class="lynx-opt-stack">
-              <button id="lynx-opt1" class="lynx-pill-btn" type="button" data-i18n="app.lynx.option_1.action"></button>
-              <button id="lynx-pause" class="lynx-pill-btn pause" type="button" data-i18n="app.lynx.pause.action"></button>
-              <button id="lynx-opt2" class="lynx-pill-btn" type="button" data-i18n="app.lynx.option_2.action"></button>
-            </div>
-
-            <div class="lynx-ab-cluster">
-              <button id="lynx-btn-b" class="lynx-round-btn btn-b" type="button" data-i18n="app.lynx.button_b_short.label" data-i18n-aria-label="app.lynx.button_b.action"></button>
-              <button id="lynx-btn-a" class="lynx-round-btn btn-a" type="button" data-i18n="app.lynx.button_a_short.label" data-i18n-aria-label="app.lynx.button_a.action"></button>
-            </div>
-            <div class="wing-caption">
-              <span data-i18n="app.lynx.button_b.action"></span> - <span data-i18n="app.lynx.button_a.action"></span>
             </div>
           </div>
         </div>
@@ -497,7 +465,6 @@
                 <li data-i18n="hud.help_modal.kb_fov.label"></li>
                 <li data-i18n="hud.help_modal.kb_graphics.label"></li>
                 <li data-i18n="hud.help_modal.kb_theme.label"></li>
-                <li data-i18n="hud.help_modal.kb_shell.label"></li>
                 <li data-i18n="hud.help_modal.kb_procedural.label"></li>
                 <li data-i18n="hud.help_modal.kb_levels.label"></li>
               </ul>

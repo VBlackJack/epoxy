@@ -3,6 +3,25 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- The options drawer is grouped into Display, Audio, Language and Navigation sections. Navigation
+  (levels, endless run, import, help) only appears in fullscreen, where the top bar is hidden. The
+  LCD grid button is disabled in HD Neon style, where the grid is not drawn.
+- The options button of the HUD is also shown in fullscreen, on every screen size.
+- The header subtitle no longer names the Atari Lynx II, and the level code placeholder example is
+  now ABCD. The HUD code badge now has an accessible name ("Enter a level code").
+
+### Removed
+
+- The decorative handheld shell (side grips, power LED, A/B and option buttons, bezel title), its
+  toggle, its `L` shortcut and its saved setting. The board and HUD layout is the one that was
+  shown with the shell off. Older saved settings still load.
+- The duplicate "Enter Password" buttons of the HUD and the options drawer: the code badge of the
+  HUD opens the same dialog.
+
 ## [2.8.0] - 2026-10-31
 
 ### Added

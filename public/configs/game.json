@@ -455,7 +455,6 @@
     "pause": ["KeyP", "Space"],
     "nextLevel": ["BracketRight"],
     "prevLevel": ["BracketLeft"],
-    "toggleShell": ["KeyL"],
     "toggleMute": ["KeyM"],
     "cycleFov": ["KeyV"],
     "toggleGraphics": ["KeyG"],
