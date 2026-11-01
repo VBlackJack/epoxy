@@ -104,7 +104,6 @@ import {
   HUD_COUNTER_DIGITS,
   INFINITE_KEY_IDS,
   MAX_DEVICE_PIXEL_RATIO,
-  MINIMAP_TILE_PX,
   MIN_VIEWPORT_SYNC_PX,
   SWIPE_ANCHOR_FOLLOW_RATIO,
   THEME_MUSIC_TRACKS,
@@ -152,7 +151,6 @@ class EpoxyApplication {
 
   private gameCanvas!: HTMLCanvasElement;
   private gameCtx!: CanvasRenderingContext2D;
-  private radarCtx: CanvasRenderingContext2D | null = null;
   private currentLevelIndex: number = 0;
   private activeMode: 'play' | 'editor' = 'play';
   private heldDirection: Direction | null = null;
@@ -291,7 +289,6 @@ class EpoxyApplication {
       throw new Error('2D context unavailable');
     }
     this.gameCtx = ctx;
-    this.radarCtx = byId<HTMLCanvasElement>('radar-canvas')?.getContext('2d') || null;
     return editorCanvas;
   }
 
@@ -463,9 +460,6 @@ class EpoxyApplication {
     const renderLoop = (): void => {
       if (this.activeMode === 'play') {
         this.renderer.renderViewport(this.gameCtx, this.engine);
-        if (this.radarCtx) {
-          this.renderer.renderMinimap(this.radarCtx, this.engine, MINIMAP_TILE_PX);
-        }
       }
       requestAnimationFrame(renderLoop);
     };

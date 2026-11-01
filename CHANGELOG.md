@@ -3,7 +3,7 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
-## [Unreleased]
+## [2.9.0] - 2026-11-01
 
 ### Added
 
@@ -15,6 +15,10 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- The board always shows the chosen View as a square N x N, whatever the screen shape, so wide
+  screens no longer reveal more of the level.
+- The HUD fits landscape phones without scrolling: keys and boots sit side by side, the action
+  buttons use three columns and the HUD column is wider.
 - The render style is now chosen from a select in Options > Display, and the `G` key cycles HD Neon,
   16-Bit Retro and 32-Bit Retro. The choice is saved. The LCD grid toggle only applies to 16-Bit
   Retro.
@@ -45,6 +49,7 @@ versions follow Semantic Versioning.
 - The decorative handheld shell (side grips, power LED, A/B and option buttons, bezel title), its
   toggle, its `L` shortcut and its saved setting. The board and HUD layout is the one that was
   shown with the shell off. Older saved settings still load.
+- The tactical radar (minimap) of the HUD.
 - The duplicate "Enter Password" buttons of the HUD and the options drawer: the code badge of the
   HUD opens the same dialog.
 

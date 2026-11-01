@@ -135,9 +135,6 @@
       "score": { "label": "SCORE" },
       "steps": { "label": "PAS" }
     },
-    "radar": {
-      "title": { "label": "RADAR TACTIQUE" }
-    },
     "viewport": {
       "canvas": { "label": "Plateau de jeu" }
     },
