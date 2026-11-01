@@ -333,7 +333,7 @@ async function verifyCases(log: string, snapshotPath: string): Promise<void> {
   if (existsSync(file) && !isUpdatingSnapshots()) {
     const expected = new Map(
       readFileSync(file, 'utf-8')
-        .split('\n')
+        .split(/\r?\n/)
         .filter((line) => line !== '')
         .map((line) => [line.slice(0, line.lastIndexOf(' ')), line.slice(line.lastIndexOf(' ') + 1)] as const)
     );
