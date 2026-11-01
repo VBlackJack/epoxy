@@ -87,3 +87,24 @@ export const DEFAULT_BOOT_COLOR_KEY = 'blue';
 export function teleporterGlyphKey(def: { isTeleporter?: boolean; colorKey?: string }): string | null {
   return def.isTeleporter && def.colorKey ? def.colorKey : null;
 }
+
+/** Retro style: ramp that colours the swap tones of a template sprite, per colour key. */
+export const RETRO_SWAP_RAMPS: Readonly<Record<string, string>> = {
+  red: 'red',
+  blue: 'blue',
+  yellow: 'yellow',
+  green: 'green',
+  orange: 'orange',
+  brown: 'brown'
+};
+
+/** Retro style: ramp of the boots template, per boots tile id (force boots are green). */
+export const RETRO_BOOT_RAMPS: Readonly<Record<string, string>> = {
+  boots_water: 'water',
+  boots_fire: 'fire',
+  boots_ice: 'ice',
+  boots_force: 'green'
+};
+
+/** Retro style: ramp of the ring of the plain (colourless) teleporter. */
+export const RETRO_PLAIN_TELEPORT_RAMP = 'teleport';

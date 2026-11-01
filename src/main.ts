@@ -1235,15 +1235,27 @@ class EpoxyApplication {
     } else {
       this.showTheme(themeId);
     }
+    if (this.renderer.getStyle() !== 'modern') this.updateHUD();
     this.saveUserSettings();
   }
 
   private showTheme(themeId: string): void {
     this.renderer.setThemeId(themeId);
     this.syncThemeAccent();
+    this.refreshRetroIcons();
     const track = THEME_MUSIC_TRACKS[themeId];
     if (track) {
       AudioManager.setTrackById(track);
+    }
+  }
+
+  /** 16-Bit Retro icons are drawn with the palette of the theme, so they are redrawn when it changes. */
+  private refreshRetroIcons(): void {
+    if (this.renderer.getStyle() === 'modern') return;
+    this.rebuildHudIcons();
+    if (this.activeMode === 'editor') {
+      this.editor.buildUI();
+      this.editor.render();
     }
   }
 
