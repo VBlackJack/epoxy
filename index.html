@@ -38,30 +38,36 @@
           <span class="brand-subtitle" data-i18n="app.header.subtitle.label"></span>
           <div class="mobile-header-actions">
             <button id="btn-mobile-fullscreen" class="nav-btn mobile-fs-toggle" type="button" data-i18n="hud.mobile.fullscreen.action"></button>
-            <button id="btn-mobile-menu" class="nav-btn mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="top-controls-drawer" data-i18n="app.header.mobile_menu.action"></button>
+            <button id="btn-mobile-menu" class="nav-btn mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="options-drawer" data-i18n="app.header.mobile_menu.action"></button>
           </div>
         </div>
 
         <nav id="top-controls-drawer" class="top-controls">
-          <div class="pack-box">
-            <label for="pack-select" data-i18n="app.packs.selector_label.label"></label>
-            <select id="pack-select" class="locale-select"></select>
-            <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
-            <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action" data-i18n-title="app.packs.import_formats.label"></button>
-            <input id="pack-file-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok" class="hidden" />
+          <div class="top-controls-row">
+            <div class="pack-box">
+              <label for="pack-select" data-i18n="app.packs.selector_label.label"></label>
+              <select id="pack-select" class="locale-select" data-pack-select></select>
+              <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+              <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
+              <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action" data-i18n-title="app.packs.import_formats.label"></button>
+              <input id="pack-file-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok" class="hidden" />
+            </div>
+            <div id="procedural-seed-box" class="pack-box procedural-seed-box hidden">
+              <span id="procedural-seed-label" class="procedural-seed-label"></span>
+              <button id="btn-copy-seed" class="nav-btn" type="button" data-i18n="app.packs.procedural_seed_copy.action"></button>
+            </div>
           </div>
-          <div id="procedural-seed-box" class="pack-box procedural-seed-box hidden">
-            <span id="procedural-seed-label" class="procedural-seed-label"></span>
-            <button id="btn-copy-seed" class="nav-btn" type="button" data-i18n="app.packs.procedural_seed_copy.action"></button>
+          <div class="top-controls-row">
+            <div class="mode-switch-group">
+              <button id="btn-mode-play" class="nav-btn active" type="button" data-i18n="app.header.mode_play.action"></button>
+              <button id="btn-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
+            </div>
+            <div class="top-controls-end">
+              <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action" data-i18n-title="app.header.fullscreen_toggle.hint"></button>
+              <button id="btn-help-top" class="nav-btn help-icon-btn" type="button" data-i18n="app.header.help_icon.action" data-i18n-title="app.header.help_btn.hint" data-i18n-aria-label="app.header.help_btn.hint"></button>
+              <button id="btn-options-menu" class="nav-btn" type="button" aria-expanded="false" aria-controls="options-drawer" data-i18n="app.header.options_btn.action"></button>
+            </div>
           </div>
-          <div class="mode-switch-group">
-            <button id="btn-mode-play" class="nav-btn active" type="button" data-i18n="app.header.mode_play.action"></button>
-            <button id="btn-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
-            <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
-          </div>
-          <button id="btn-fullscreen-toggle" class="nav-btn" type="button" data-i18n="app.header.fullscreen_toggle.action" data-i18n-title="app.header.fullscreen_toggle.hint"></button>
-          <button id="btn-help-top" class="nav-btn help-icon-btn" type="button" data-i18n="app.header.help_icon.action" data-i18n-title="app.header.help_btn.hint" data-i18n-aria-label="app.header.help_btn.hint"></button>
-          <button id="btn-options-menu" class="nav-btn" type="button" aria-expanded="false" aria-controls="options-drawer" data-i18n="app.header.options_btn.action"></button>
         </nav>
       </header>
 
@@ -74,33 +80,60 @@
         </div>
 
         <div class="drawer-body">
+          <div class="drawer-section drawer-section-navigation">
+            <h4 class="drawer-section-title" data-i18n="app.header.drawer_navigation.label"></h4>
+            <div class="lang-box drawer-pack-block">
+              <label for="drawer-pack-select" data-i18n="app.packs.selector_label.label"></label>
+              <select id="drawer-pack-select" class="locale-select" data-pack-select></select>
+            </div>
+            <div class="drawer-mobile-only">
+              <div class="mode-switch-group drawer-mode-switch">
+                <button id="btn-drawer-mode-play" class="nav-btn active" type="button" data-i18n="app.header.mode_play.action"></button>
+                <button id="btn-drawer-mode-editor" class="nav-btn" type="button" data-i18n="app.header.mode_editor.action"></button>
+              </div>
+            </div>
+            <div id="drawer-seed-box" class="pack-box procedural-seed-box hidden">
+              <span id="drawer-seed-label" class="procedural-seed-label"></span>
+              <button id="btn-drawer-copy-seed" class="nav-btn" type="button" data-i18n="app.packs.procedural_seed_copy.action"></button>
+            </div>
+            <button id="btn-drawer-levels" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+            <button id="btn-drawer-procedural" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
+            <button id="btn-drawer-import" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
+            <p class="import-formats-hint" data-i18n="app.packs.import_formats.label"></p>
+            <button id="btn-help-modal" class="nav-btn" type="button" data-i18n="app.header.help_btn.action"></button>
+          </div>
+
           <div class="drawer-section">
-            <h4 class="drawer-section-title" data-i18n="app.header.drawer_display.label"></h4>
+            <h4 class="drawer-section-title" data-i18n="app.header.drawer_essential.label"></h4>
+            <div class="lang-box">
+              <label for="select-graphics-style" data-i18n="app.header.graphics_style.label"></label>
+              <select id="select-graphics-style" class="locale-select"></select>
+            </div>
             <div class="lang-box">
               <label for="fov-select" data-i18n="app.header.fov.label"></label>
               <select id="fov-select" class="locale-select"></select>
             </div>
+            <button id="btn-sfx-toggle" class="nav-btn active" type="button"></button>
+            <button id="btn-music-toggle" class="nav-btn" type="button"></button>
             <div class="lang-box">
-              <label for="theme-select" data-i18n="app.header.theme_label.label"></label>
-              <select id="theme-select" class="locale-select"></select>
+              <label for="locale-select" data-i18n="app.header.language.label"></label>
+              <select id="locale-select" class="locale-select"></select>
             </div>
+          </div>
+
+          <details id="drawer-advanced" class="drawer-section drawer-advanced">
+            <summary class="drawer-section-title" data-i18n="app.header.drawer_advanced.label"></summary>
             <div class="lang-box">
               <label for="quality-select" data-i18n="app.header.quality.label"></label>
               <select id="quality-select" class="locale-select"></select>
             </div>
             <div class="lang-box">
-              <label for="select-graphics-style" data-i18n="app.header.graphics_style.label"></label>
-              <select id="select-graphics-style" class="locale-select"></select>
+              <label for="theme-select" data-i18n="app.header.theme_label.label"></label>
+              <select id="theme-select" class="locale-select"></select>
             </div>
             <button id="btn-lcd-toggle" class="nav-btn" type="button" data-i18n="app.header.lcd_toggle.action" data-i18n-title="app.header.lcd_toggle.hint"></button>
             <p id="lcd-toggle-reason" class="hint-text hidden" data-i18n="app.header.lcd_toggle.unavailable"></p>
             <button id="btn-sokoban-skin-toggle" class="nav-btn" type="button" data-i18n="app.header.sokoban_skin_toggle.action" data-i18n-title="app.header.sokoban_skin_toggle.hint"></button>
-          </div>
-
-          <div class="drawer-section">
-            <h4 class="drawer-section-title" data-i18n="app.header.drawer_audio.label"></h4>
-            <button id="btn-sfx-toggle" class="nav-btn active" type="button"></button>
-            <button id="btn-music-toggle" class="nav-btn" type="button"></button>
             <div id="music-mode-row" class="lang-box">
               <label for="music-mode-select" data-i18n="app.music.mode.label"></label>
               <select id="music-mode-select" class="locale-select"></select>
@@ -109,24 +142,7 @@
               <legend data-i18n="app.music.custom_tracks.label"></legend>
               <div class="music-track-list"></div>
             </fieldset>
-          </div>
-
-          <div class="drawer-section">
-            <h4 class="drawer-section-title" data-i18n="app.header.drawer_language.label"></h4>
-            <div class="lang-box">
-              <label for="locale-select" data-i18n="app.header.language.label"></label>
-              <select id="locale-select" class="locale-select"></select>
-            </div>
-          </div>
-
-          <div class="drawer-section drawer-section-navigation">
-            <h4 class="drawer-section-title" data-i18n="app.header.drawer_navigation.label"></h4>
-            <button id="btn-drawer-levels" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
-            <button id="btn-drawer-procedural" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
-            <button id="btn-drawer-import" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
-            <p class="import-formats-hint" data-i18n="app.packs.import_formats.label"></p>
-            <button id="btn-help-modal" class="nav-btn" type="button" data-i18n="app.header.help_btn.action"></button>
-          </div>
+          </details>
         </div>
       </aside>
 
@@ -205,6 +221,7 @@
                   <button id="hud-password-badge" class="hud-password-badge" type="button" aria-haspopup="dialog" data-i18n-aria-label="hud.controls.password_badge.label" data-i18n-title="hud.controls.password_btn.action">
                     <span data-i18n="hud.stats.password.label"></span>
                     <strong id="hud-level-pass"></strong>
+                    <span class="hud-password-edit" aria-hidden="true">&#9998;</span>
                   </button>
                 </div>
                 <div class="hud-level-title"><span id="hud-level-name" class="hud-level-name"></span><span id="hud-level-author" class="hud-level-author hidden"></span></div>
@@ -427,10 +444,6 @@
               <h3 id="scores-modal-title" data-i18n="hud.scores_modal.title.label"></h3>
               <span id="scores-progress-summary" class="scores-progress-badge"></span>
             </div>
-            <div class="scores-pack-actions">
-              <button id="btn-export-pack-ccl" class="hud-btn small" type="button" data-i18n="app.packs.export_dat_btn.action"></button>
-              <button id="btn-delete-pack" class="hud-btn small hidden" type="button" data-i18n="app.packs.delete_btn.action"></button>
-            </div>
           </div>
           <div class="scores-filter-bar">
             <input
@@ -453,16 +466,19 @@
                   <th data-i18n="hud.scores_modal.col_level.label"></th>
                   <th data-i18n="hud.scores_modal.col_title.label"></th>
                   <th id="scores-col-code" data-i18n="hud.scores_modal.col_code.label"></th>
-                  <th data-i18n="hud.scores_modal.col_best_time.label"></th>
+                  <th id="scores-col-time" data-i18n="hud.scores_modal.col_best_time.label"></th>
                   <th data-i18n="hud.scores_modal.col_best_steps.label"></th>
-                  <th data-i18n="hud.scores_modal.col_best_score.label"></th>
                   <th data-i18n="hud.scores_modal.col_action.label"></th>
                 </tr>
               </thead>
               <tbody id="scores-table-body"></tbody>
             </table>
           </div>
-          <div class="modal-actions">
+          <div class="modal-actions scores-footer">
+            <div class="scores-pack-actions">
+              <button id="btn-export-pack-ccl" class="hud-btn small" type="button" data-i18n="app.packs.export_dat_btn.action"></button>
+              <button id="btn-delete-pack" class="hud-btn small hidden" type="button" data-i18n="app.packs.delete_btn.action"></button>
+            </div>
             <button id="scores-close-btn" class="action-btn" type="button" data-i18n="hud.scores_modal.close_btn.action"></button>
           </div>
         </div>
@@ -472,34 +488,47 @@
       <div id="help-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
         <div class="modal-dialog wide-dialog">
           <h3 id="help-modal-title" data-i18n="hud.help_modal.title.label"></h3>
-          <div class="help-grid">
-            <div class="help-section">
-              <h4 data-i18n="hud.help_modal.sec_shortcuts.label"></h4>
-              <ul class="help-list">
-                <li data-i18n="hud.help_modal.kb_move.label"></li>
-                <li data-i18n="hud.help_modal.kb_click.label"></li>
-                <li data-i18n="hud.help_modal.kb_undo.label"></li>
-                <li data-i18n="hud.help_modal.kb_items.label"></li>
-                <li data-i18n="hud.help_modal.kb_restart.label"></li>
-                <li data-i18n="hud.help_modal.kb_objective.label"></li>
-                <li data-i18n="hud.help_modal.kb_solution.label"></li>
-                <li data-i18n="hud.help_modal.kb_fov_options.label"></li>
-                <li data-i18n="hud.help_modal.kb_graphics.label"></li>
-                <li data-i18n="hud.help_modal.kb_theme.label"></li>
-                <li data-i18n="hud.help_modal.kb_procedural.label"></li>
-                <li data-i18n="hud.help_modal.kb_levels.label"></li>
-              </ul>
-            </div>
-            <div class="help-section">
-              <h4 data-i18n="hud.help_modal.sec_rules.label"></h4>
-              <ul class="help-list">
-                <li data-i18n="hud.help_modal.rule_keys.label"></li>
-                <li data-i18n="hud.help_modal.rule_buttons.label"></li>
-                <li data-i18n="hud.help_modal.rule_boots.label"></li>
-                <li data-i18n="hud.help_modal.rule_targets.label"></li>
-              </ul>
-            </div>
+          <div class="help-section">
+            <h4 data-i18n="hud.help_modal.sec_essentials.label"></h4>
+            <ul class="help-list">
+              <li data-i18n="hud.help_modal.kb_move.label"></li>
+              <li data-i18n="hud.help_modal.kb_undo.label"></li>
+              <li data-i18n="hud.help_modal.kb_restart.label"></li>
+              <li data-i18n="hud.help_modal.kb_objective.label"></li>
+              <li data-i18n="hud.help_modal.kb_solution.label"></li>
+            </ul>
           </div>
+          <details class="help-more">
+            <summary data-i18n="hud.help_modal.more.label"></summary>
+            <div class="help-grid">
+              <div class="help-section">
+                <h4 data-i18n="hud.help_modal.sec_shortcuts.label"></h4>
+                <ul class="help-list">
+                  <li data-i18n="hud.help_modal.kb_move.label"></li>
+                  <li data-i18n="hud.help_modal.kb_click.label"></li>
+                  <li data-i18n="hud.help_modal.kb_undo.label"></li>
+                  <li data-i18n="hud.help_modal.kb_items.label"></li>
+                  <li data-i18n="hud.help_modal.kb_restart.label"></li>
+                  <li data-i18n="hud.help_modal.kb_objective.label"></li>
+                  <li data-i18n="hud.help_modal.kb_solution.label"></li>
+                  <li data-i18n="hud.help_modal.kb_fov_options.label"></li>
+                  <li data-i18n="hud.help_modal.kb_graphics.label"></li>
+                  <li data-i18n="hud.help_modal.kb_theme.label"></li>
+                  <li data-i18n="hud.help_modal.kb_procedural.label"></li>
+                  <li data-i18n="hud.help_modal.kb_levels.label"></li>
+                </ul>
+              </div>
+              <div class="help-section">
+                <h4 data-i18n="hud.help_modal.sec_rules.label"></h4>
+                <ul class="help-list">
+                  <li data-i18n="hud.help_modal.rule_keys.label"></li>
+                  <li data-i18n="hud.help_modal.rule_buttons.label"></li>
+                  <li data-i18n="hud.help_modal.rule_boots.label"></li>
+                  <li data-i18n="hud.help_modal.rule_targets.label"></li>
+                </ul>
+              </div>
+            </div>
+          </details>
           <div class="modal-actions">
             <button id="help-onboarding-btn" class="action-btn" type="button" data-i18n="hud.help_modal.onboarding_btn.action"></button>
             <button id="help-close-btn" class="action-btn primary" type="button" data-i18n="hud.help_modal.close_btn.action"></button>
