@@ -92,8 +92,7 @@ export const SFX = {
   burn: 'burn',
   bomb: 'bomb',
   death: 'death',
-  win: 'win',
-  step: 'step'
+  win: 'win'
 } as const;
 
 /** Colour keys of visual events. */

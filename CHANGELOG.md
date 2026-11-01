@@ -10,7 +10,8 @@ versions follow Semantic Versioning.
 - Terrain footsteps: the step sound depends on the terrain the player steps onto (normal floor,
   force floor, ice, and water or fire when wearing the protecting boots). `audio.json` maps a tile
   `slideType` or `hazard` to an effect through `terrainStepEffects`; the step files are now Ogg
-  Vorbis (Kenney Impact Sounds, CC0).
+  Vorbis (Kenney Impact Sounds, CC0). It covers both engines; under the Lynx rules, only a step
+  the player chooses makes a sound; a slide or a force floor carry stays silent.
 - Level author: the optional author field (9) of a `.DAT` pack is read, shown next to the level
   title in the HUD, kept on export, and editable in the editor (Author field).
 - Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new

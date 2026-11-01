@@ -15,6 +15,7 @@
  */
 
 import { AudioManager } from '../../audio/AudioManager';
+import { stepTerrainOf } from '../../audio/stepTerrain';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { PlayEngine, VisualEventCallback, WinCallback } from '../PlayEngine';
 import { SeededRandom } from '../Random';
@@ -28,10 +29,18 @@ import { Simulation } from './Simulation';
 import { entitiesOf, playerOf } from './views';
 import { buildWorld, ReplayOptions } from './worldBuilder';
 
-/** Plays a sound effect by its audio.json id. */
-export type SoundPlayer = (effectId: string) => void;
+/** Where the engine sends its sounds, so tests can listen in. */
+export interface SoundPlayer {
+  /** Plays a sound effect by its audio.json id. */
+  effect(effectId: string): void;
+  /** Plays the footstep of a terrain key, or the plain step when it is null. */
+  step(terrain: string | null): void;
+}
 
-const playWithAudioManager: SoundPlayer = (effectId) => AudioManager.playSfx(effectId);
+const playWithAudioManager: SoundPlayer = {
+  effect: (effectId) => AudioManager.playSfx(effectId),
+  step: (terrain) => AudioManager.playStep(terrain)
+};
 
 /** What undo restores: the world plus how much of both move histories had been recorded. */
 interface UndoSnapshot {
@@ -122,7 +131,11 @@ export class LynxEngine implements PlayEngine {
       level,
       built.world,
       book,
-      { visual: (kind, x, y, color) => this.onVisual?.(kind, x, y, color), sound: this.sound },
+      {
+        visual: (kind, x, y, color) => this.onVisual?.(kind, x, y, color),
+        sound: (id) => this.sound.effect(id),
+        step: (tileId, boots) => this.sound.step(stepTerrainOf(ConfigRegistry.getTile(tileId), boots))
+      },
       ticksPerSecond
     );
     this.undoStack = [];
@@ -185,7 +198,7 @@ export class LynxEngine implements PlayEngine {
     sim.restore(snapshot.world);
     sim.moves.length = snapshot.moveCount;
     sim.timedMoves.length = snapshot.timedMoveCount;
-    this.sound(SFX.step);
+    this.sound.step(null);
     return true;
   }
 
@@ -297,7 +310,7 @@ export class LynxEngine implements PlayEngine {
     this.lastTimeBonus = remaining * timing.timeBonusMultiplier;
     this.lastLevelScore = timing.levelBasePoints * level.number + this.lastTimeBonus;
     this.totalScore += this.lastLevelScore;
-    this.sound(SFX.win);
+    this.sound.effect(SFX.win);
     this.onVisual?.('win', chip.x, chip.y);
     this.onWin?.(level.id, remaining, this.getStepsCount(), this.lastLevelScore, [...sim.moves]);
   }
