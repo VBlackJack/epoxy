@@ -21,13 +21,15 @@
  */
 
 const HIDDEN_CLASS = 'hidden';
-const FOCUSABLE_SELECTOR = [
+export const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
   'input:not([disabled]):not([type="hidden"])',
   'select:not([disabled])',
   'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])'
+  '[tabindex]:not([tabindex="-1"])',
+  // The toggle of a native <details>: not focusable through the other selectors.
+  'details > summary:first-of-type'
 ].join(',');
 const NOT_FOCUSABLE_TABINDEX = '-1';
 
@@ -59,8 +61,23 @@ export function computeTrapFocusIndex(currentIndex: number, count: number, backw
   return backwards ? (currentIndex - 1 + count) % count : (currentIndex + 1) % count;
 }
 
+/**
+ * True when a closed <details> hides the element. Browsers still report boxes
+ * for controls inside a closed <details>, yet focus() on them does nothing.
+ * The closed details' own summary stays reachable: it opens the section.
+ */
+function isInClosedDetails(el: HTMLElement): boolean {
+  let details = el.closest('details');
+  while (details) {
+    const isOwnSummary = el.tagName === 'SUMMARY' && el.parentElement === details;
+    if (!details.open && !isOwnSummary) return true;
+    details = details.parentElement?.closest('details') ?? null;
+  }
+  return false;
+}
+
 function isVisible(el: HTMLElement): boolean {
-  return el.getClientRects().length > 0 && !el.closest(`.${HIDDEN_CLASS}`);
+  return el.getClientRects().length > 0 && !el.closest(`.${HIDDEN_CLASS}`) && !isInClosedDetails(el);
 }
 
 export function getFocusableElements(container: HTMLElement): HTMLElement[] {

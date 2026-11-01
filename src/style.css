@@ -118,9 +118,23 @@ body {
 
 .top-controls {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.top-controls-row {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.top-controls-end {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .mode-switch-group {
@@ -195,9 +209,48 @@ body {
   color: var(--text-muted);
 }
 
-/* The header carries these shortcuts, so the drawer only repeats them in fullscreen */
+/* Native details: the summary is the section title, the content follows with the same rhythm as a section */
+.drawer-advanced {
+  display: block;
+}
+
+.drawer-advanced > summary {
+  cursor: pointer;
+}
+
+.drawer-advanced > summary:focus-visible {
+  outline: 2px solid var(--accent-yellow);
+  outline-offset: 2px;
+}
+
+.drawer-advanced > :not(summary) {
+  margin-top: 0.45rem;
+}
+
+/* The header carries these shortcuts, so the drawer only repeats them in fullscreen
+   and where the header collapses (see the narrow-screen media query) */
 .drawer-section-navigation {
   display: none;
+}
+
+/* Pack select and mode switch: only where the header controls are not reachable */
+.drawer-mobile-only {
+  display: none;
+}
+
+/* Pack select: also needed in desktop fullscreen, where the header is hidden. Hidden inside the
+   navigation section only when the section itself is hidden. */
+.drawer-pack-block {
+  width: 100%;
+}
+
+.drawer-mode-switch {
+  display: flex;
+}
+
+.drawer-mode-switch .nav-btn {
+  flex: 1;
+  text-align: center;
 }
 
 body.fullscreen-mode .drawer-section-navigation {
@@ -336,6 +389,7 @@ button:disabled {
 .scores-pack-actions {
   display: flex;
   gap: 0.4rem;
+  margin-right: auto;
 }
 
 .locale-select {
@@ -710,6 +764,17 @@ button:disabled {
 
 .hud-password-badge:hover {
   background: #252b39;
+}
+
+.hud-password-edit {
+  margin-left: 0.3rem;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.hud-password-badge:hover .hud-password-edit,
+.hud-password-badge:focus-visible .hud-password-edit {
+  color: var(--accent-yellow);
 }
 
 .hud-mini-stats {
@@ -1155,6 +1220,23 @@ body.fullscreen-mode #hud-btn-options-drawer {
   }
 }
 
+.help-more {
+  margin-top: 0.75rem;
+}
+
+.help-more > summary {
+  cursor: pointer;
+  color: var(--accent-yellow);
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+}
+
+.help-more > summary:focus-visible {
+  outline: 2px solid var(--accent-yellow);
+  outline-offset: 2px;
+}
+
 .help-section {
   background: #12151c;
   border: 1px solid #282f3e;
@@ -1423,15 +1505,19 @@ body.fullscreen-mode .view-section {
     display: inline-flex;
   }
 
+  /* The menu button opens the options drawer, which carries the navigation section here */
   .top-controls {
     display: none;
-    width: 100%;
-    padding-top: 0.4rem;
-    border-top: 1px solid #282e3d;
   }
 
-  .top-controls.open {
+  .drawer-section-navigation {
     display: flex;
+  }
+
+  .drawer-mobile-only {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
   }
 
   .view-section {
