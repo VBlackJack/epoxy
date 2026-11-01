@@ -3,6 +3,28 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new
+  track for each new level, never the same twice in a row) and Custom (the same among the tracks
+  you tick, at least one stays ticked). Restarting a level, retrying after a death or wrapping a
+  one-level pack keeps the track. In Random and Custom the biome and the `B` key no longer change
+  the music. The mode and the ticked tracks are saved.
+- Audio-file music tracks: `audio.json` can declare a track with `source: "file"`, a list of
+  `files` (the first one the browser can play is used) and a `gain`, loaded from `musicBaseUrl`.
+  The file is streamed, never decoded in memory, created only when the track plays, faded in, and
+  paused while the tab is hidden. A track that cannot play is skipped for the session and the
+  synthesized default track takes over. `audio.json` is validated at load (unique ids, a
+  synthesized `defaultTrackId`, files for file tracks, biome and mode references).
+
+### Changed
+
+- The biome-to-track mapping moved from the source code to `game.json` (`musicTrackId` on each
+  theme).
+- The help text of the `B` key says that it cycles the biome, and its music only in Default mode.
+
 ## [2.9.0] - 2026-11-01
 
 ### Added
