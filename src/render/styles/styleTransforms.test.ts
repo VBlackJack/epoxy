@@ -43,6 +43,8 @@ const POCKET_TONES = 4;
 const VGA_FAMILY_MAX_TONES = 3;
 /** Fraction of the probe tone's range, as an index into a ramp: the middle tone carries the colour code. */
 const MIDDLE = 0.5;
+/** Ramps drawn on the floor that must stand out from it in every theme. */
+const CONTRAST_RAMPS: readonly string[] = ['target', 'block'];
 
 function middleTone(tones: readonly string[]): string {
   return tones[Math.floor((tones.length - 1) * MIDDLE)];
@@ -183,6 +185,18 @@ describe('colour-coded ramps stay distinguishable in every style', () => {
       }
     });
   }
+
+  it('keeps block targets and blocks readable against the floor of every theme', () => {
+    for (const style of derivedStyles) {
+      for (const themeId of themeIds) {
+        const out = styleRamps(style.id, themeId);
+        for (const ramp of CONTRAST_RAMPS) {
+          const distance = colourDistance(parseHexColour(out[ramp][0]), parseHexColour(out.floor[0]));
+          expect(distance, `${style.id} ${themeId}: ${ramp} vs floor`).toBeGreaterThanOrEqual(MIN_CODED_RAMP_DISTANCE);
+        }
+      }
+    }
+  });
 
   it('also holds for the plain styles the derived ones are built from', () => {
     const ramps16 = resolveRetroRamps(palettes, 'default');

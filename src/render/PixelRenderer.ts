@@ -464,6 +464,8 @@ export class PixelRenderer {
   private retro32CachePalettes: { p16: RetroPaletteTable; p32: RetroPaletteTable } | null = null;
   /** Transforms of the active derived style, rebuilt when the style or the renderStylePalettes object changes. */
   private styleRecolourMemo: { styleId: string; table: unknown; recolour: StyleRecolour } | null = null;
+  /** Colours already passed through the active style's colour transform; reset with styleRecolourMemo. */
+  private readonly styleColourMemo: Map<string, string> = new Map();
   /** Shine overlays of 32-Bit items and blocks, keyed like retroCanvases plus the sweep step. */
   private readonly retroShineCanvases: Map<string, HTMLCanvasElement> = new Map();
   /** Style id the cached shadow extent was computed for. */
@@ -2067,7 +2069,7 @@ export class PixelRenderer {
     const table = ConfigRegistry.getGame().renderStylePalettes;
     const seen = this.styleRecolourMemo;
     if (seen && seen.styleId === desc.id && seen.table === table) return seen.recolour;
-    if (seen && seen.styleId === desc.id) {
+    if (seen && seen.table !== table) {
       // The table was replaced: nothing rasterized or composed from the old colours is valid.
       this.retro32Cache?.clear();
       this.retroCanvases.clear();
@@ -2088,13 +2090,20 @@ export class PixelRenderer {
       }
     }
     this.styleRecolourMemo = { styleId: desc.id, table, recolour };
+    this.styleColourMemo.clear();
     return recolour;
   }
 
   /** A colour drawn outside the sprites (path, links, iris, LCD grid), passed through the active style's palette. */
   private styleColour(colour: string): string {
     const transforms = this.getStyleRecolour(this.descriptor()).value;
-    return transforms ? transforms.colour(colour) : colour;
+    if (!transforms) return colour;
+    let mapped = this.styleColourMemo.get(colour);
+    if (mapped === undefined) {
+      mapped = transforms.colour(colour);
+      this.styleColourMemo.set(colour, mapped);
+    }
+    return mapped;
   }
 
   /** Configured size of the 32-Bit sprite cache, floored and bounded below. */

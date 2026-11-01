@@ -1,20 +1,20 @@
-pocket default ramps=5e9299911e2cbb44
-pocket default sprites=684f5224fe625b1c swapped=3804c1f6c7434081
-pocket magma_core ramps=f76165a90c4bee11
-pocket magma_core sprites=e411fc1ca3cbf214 swapped=028635bdd15caca8
+pocket default ramps=98b6975c2114ff2d
+pocket default sprites=fa9592e538f70906 swapped=cd2942123db02333
+pocket magma_core ramps=6d861cbe945d48cb
+pocket magma_core sprites=8cb3b6f84f0dd914 swapped=26ae861257dfb898
 pastel default ramps=59940f9715c26d56
 pastel default sprites=f3cf90c9d1f9e94a swapped=0d03e22656734497
 pastel magma_core ramps=8fac9248174a3650
 pastel magma_core sprites=999ec3d741c8d39d swapped=50fa3a9012ffe7fe
-blueprint default ramps=ea17ddc1178d4b87
-blueprint default sprites=1fcbc2fc1e7ebbf7 swapped=348a1b300dd6cb65
-blueprint magma_core ramps=9904baa809c7fd80
-blueprint magma_core sprites=364f27027e80a323 swapped=5ba10bcdf114a9e5
-sepia default ramps=a5465bafae8189eb
-sepia default sprites=7376b27e221d6463 swapped=391bf3d7618ba9d7
-sepia magma_core ramps=3a2188af95ea23ff
-sepia magma_core sprites=ca5b9cb874567ce3 swapped=b84a6fe90103ead7
-classic90 default ramps=2dcb4956795defae
-classic90 default sprites=1f7bf7b5632af95c swapped=b3f457cd472b7630
-classic90 magma_core ramps=871876800d2453e6
-classic90 magma_core sprites=c3849cfa218109e9 swapped=3bda581bddd7f0b3
+blueprint default ramps=0815eb05f850303c
+blueprint default sprites=2b157e375de90879 swapped=8900a4deabfa5df1
+blueprint magma_core ramps=566aad33152c09af
+blueprint magma_core sprites=571db4c7bc1e7866 swapped=e886a9057539ae59
+sepia default ramps=e5c1320d8c1d591b
+sepia default sprites=12aa9312f9c951c5 swapped=413af8c0062f9a93
+sepia magma_core ramps=5dd1c4469c28c390
+sepia magma_core sprites=6a30a54223282950 swapped=ca500ba5f4a6e564
+classic90 default ramps=cba0abf1252f4e95
+classic90 default sprites=918de02548712e6e swapped=d986d6933901fe32
+classic90 magma_core ramps=892dff15f7ba4a28
+classic90 magma_core sprites=691cc4cdb086d61b swapped=d267afd8a9ef1f58
