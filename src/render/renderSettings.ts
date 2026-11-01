@@ -64,6 +64,8 @@ export interface RenderSettings {
   terrainCacheMarginTiles: number;
   terrainCacheMaxPx: number;
   spriteCacheMaxEntries: number;
+  /** Most composed 16x16 sprites the 16-Bit Retro style keeps before dropping the least recently used. */
+  retroSpriteCacheMaxEntries: number;
   glowBlurPx: GlowBlurSettings;
   hintFontModern: string;
   hintFontRetro: string;
@@ -144,6 +146,7 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   terrainCacheMarginTiles: 2,
   terrainCacheMaxPx: 4096,
   spriteCacheMaxEntries: 256,
+  retroSpriteCacheMaxEntries: 1024,
   glowBlurPx: { soft: 6, medium: 8, strong: 10 },
   hintFontModern: 'system-ui, sans-serif',
   hintFontRetro: 'monospace',
