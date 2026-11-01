@@ -317,11 +317,12 @@ const PLAYER_ARM_SWING = 0.03;
  * the top of the head the hair ends, how far below its centre the beard starts, the glasses and
  * the quiff and chest sun.
  */
-const JULIEN_HAIRLINE_DROP = 0.06;
+const JULIEN_HAIRLINE_DROP = 0.12;
 const JULIEN_BEARD_TOP = 0.03;
 const JULIEN_GLASSES_Y = -0.035;
-const JULIEN_LENS = { width: 0.1, height: 0.07, gap: 0.03, line: 0.022 } as const;
-const JULIEN_QUIFF = { x: -0.03, width: 0.14, height: 0.07, lift: 0.045 } as const;
+const JULIEN_LENS = { width: 0.1, height: 0.07, gap: 0.03, line: 0.016 } as const;
+const JULIEN_GLINT = { size: 0.022, inset: 0.012 } as const;
+const JULIEN_QUIFF = { x: -0.01, width: 0.1, height: 0.05, lift: 0.03 } as const;
 const JULIEN_CHEST_SUN = { y: 0.06, radius: 0.045 } as const;
 const JULIEN_MOUSTACHE = { y: 0.015, width: 0.18, height: 0.04 } as const;
 const JULIEN_CHIN = { y: 0.78, rx: 0.09, ry: 0.05, sideShift: 0.045 } as const;
@@ -4519,6 +4520,10 @@ export class PixelRenderer {
         const rightX = JULIEN_LENS.gap / 2;
         ctx.strokeRect(leftX, lensY, JULIEN_LENS.width, JULIEN_LENS.height);
         ctx.strokeRect(rightX, lensY, JULIEN_LENS.width, JULIEN_LENS.height);
+        ctx.fillStyle = pal.modernJulienGlassesAccent;
+        for (const lensX of [leftX, rightX]) {
+          ctx.fillRect(lensX + JULIEN_GLINT.inset, lensY + JULIEN_GLINT.inset, JULIEN_GLINT.size, JULIEN_GLINT.size);
+        }
         ctx.beginPath();
         ctx.moveTo(-JULIEN_LENS.gap / 2, lensY + JULIEN_LENS.height / 2);
         ctx.lineTo(JULIEN_LENS.gap / 2, lensY + JULIEN_LENS.height / 2);
