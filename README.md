@@ -31,7 +31,7 @@
   - Colour-blind glyphs on coloured doors, keys, buttons and colour teleporters.
   - Reduced motion: with the system setting on, the hop, bob, glints, flicker, blinking, particles and screen shake rest, and a change of the setting is followed live.
   - Keyboard: `Tab` moves focus between the controls, Ctrl/Cmd chords are left to the browser except undo (Ctrl/Cmd+Z), which follows the keyboard layout (AZERTY, QWERTY, Cyrillic...), and `?` opens the help.
-  - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options).
+  - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options). The board always shows the chosen view as a square of N x N tiles, so a wide or landscape screen reveals no more of the level than a square one.
   - Full-featured Level Editor with live solver validation.
 
 ## Development

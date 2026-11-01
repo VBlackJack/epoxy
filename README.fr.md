@@ -31,7 +31,7 @@
   - Glyphes pour daltoniens sur les portes, clés, boutons et téléporteurs de couleur.
   - Mouvement réduit : quand le réglage système est actif, le saut, le flottement, les reflets, le scintillement, les clignotements, les particules et la secousse d'écran s'arrêtent, et un changement du réglage est suivi en direct.
   - Clavier : `Tab` déplace le focus entre les commandes, les raccourcis Ctrl/Cmd sont laissés au navigateur sauf l'annulation (Ctrl/Cmd+Z), qui suit la disposition du clavier (AZERTY, QWERTY, cyrillique...), et `?` ouvre l'aide.
-  - Support tactile complet sur smartphone (joystick virtuel par glissement, déplacement par toucher, croix directionnelle avec retour haptique ; le zoom se règle dans les options).
+  - Support tactile complet sur smartphone (joystick virtuel par glissement, déplacement par toucher, croix directionnelle avec retour haptique ; le zoom se règle dans les options). Le plateau montre toujours la vue choisie en carré de N x N cases : un écran large ou en paysage ne dévoile pas plus du niveau qu'un écran carré.
   - Éditeur de niveaux complet avec validation en direct par le solveur.
 
 ## Développement
