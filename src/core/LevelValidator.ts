@@ -488,6 +488,8 @@ export class LevelValidator {
       start.x >= 0 &&
       start.x < (level.terrain[0]?.length ?? 0);
     if (!startInGrid) return;
+    // The block search plays the Epoxy rules; a Lynx level is not played by them.
+    if (level.ruleset === 'lynx') return;
     const engine = new GameEngine();
     engine.loadLevel(level);
     if (BlockPuzzleSolver.isStuck(engine, requestedSearchBudget())) {

@@ -23,6 +23,7 @@ import {
   Direction,
   GameConfig,
   GridConfig,
+  Ruleset,
   ThemePalette,
   WinRule
 } from '../core/types';
@@ -217,9 +218,17 @@ export function isWinRule(value: unknown): value is WinRule {
   return typeof value === 'string' && (WIN_RULES as readonly string[]).includes(value);
 }
 
+/** Rulesets a level may declare; anything else in a stored level is dropped. */
+export const RULESETS: readonly Ruleset[] = ['epoxy', 'lynx'];
+
+/** True for a value that names a known ruleset. */
+export function isRuleset(value: unknown): value is Ruleset {
+  return typeof value === 'string' && (RULESETS as readonly string[]).includes(value);
+}
+
 /**
  * Returns the level without any optional text field that is not a string, and
- * without a win rule that is not a known one, so a stale or hand-edited record
+ * without a win rule or ruleset that is not a known one, so a stale or hand-edited record
  * cannot hand a number to the text pipeline or an unknown rule to the engine.
  * The input is never mutated.
  */
@@ -227,6 +236,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const record = level as unknown as Record<string, unknown>;
   const bad: string[] = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
   if ('winRule' in record && !isWinRule(record.winRule)) bad.push('winRule');
+  if ('ruleset' in record && !isRuleset(record.ruleset)) bad.push('ruleset');
   if (bad.length === 0) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];

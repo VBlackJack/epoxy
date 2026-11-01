@@ -17,6 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { DEFAULT_RULESET } from '../core/coreConstants';
 import { CompiledLevel } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
 import { findSimilarPairs, fingerprintGrid, LevelFingerprint, toCellGrid } from '../generator/OriginalityGuard';
@@ -40,7 +41,7 @@ describe('campaign originality', () => {
     packs = (ConfigRegistry.getGame().ultimatePacks ?? []).map((pack) => {
       const buffer = readFileSync(resolve(PUBLIC_DIR, pack.url));
       const bytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-      const levels = DatCodec.decodeBuffer(bytes, pack.prefix);
+      const levels = DatCodec.decodeBuffer(bytes, pack.prefix, pack.ruleset ?? DEFAULT_RULESET);
       return { name: pack.name, levels: levels.map((level) => fingerprint(level, `${pack.name} #${level.number}`)) };
     });
   }, FINGERPRINT_TIMEOUT_MS);

@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-import { isWinRule } from '../config/ConfigValidation';
-import { WinRule } from '../core/types';
+import { isRuleset, isWinRule } from '../config/ConfigValidation';
+import { Ruleset, WinRule } from '../core/types';
 
 /** Win rule field: an unknown entry keeps `current`. */
 export function parseWinRule(raw: string, current: WinRule): WinRule {
   return isWinRule(raw) ? raw : current;
+}
+
+/** Ruleset field: an unknown entry keeps `current`. */
+export function parseRuleset(raw: string, current: Ruleset): Ruleset {
+  return isRuleset(raw) ? raw : current;
 }
 
 /**
