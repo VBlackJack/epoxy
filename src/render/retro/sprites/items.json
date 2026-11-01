@@ -1,0 +1,271 @@
+{
+ "legend": {"o":"outline.0","s":"shadow.0","W":"white.0","V":"white.1","U":"white.2","A":"chip.0","B":"chip.1","C":"chip.2","D":"chip.3","M":"metal.0","N":"metal.1","P":"metal.2","Q":"metal.3","k":"$.0","K":"$.1","j":"$.2","e":"bomb.0","f":"bomb.1","g":"bomb.2","F":"flag.0","G":"flag.1","H":"flag.2","t":"stopwatch.0","u":"stopwatch.1","v":"stopwatch.2","l":"green.0","m":"green.1","n":"green.2","r":"red.0","R":"red.1","d":"red.2","X":"boot.1","L":"boot.2","S":"fire.0","T":"fire.1","Z":"brown.1"},
+ "sprites": {
+  "chip": { "outline": true, "rows": [
+   "................",
+   "....B.B..B.B....",
+   "....C.C..C.C....",
+   "...NNNNNNNNNQ...",
+   ".BCNMPPPPPPPQCB.",
+   "...NPQQQQQQPQ...",
+   ".BCNPQBBBCQPQCB.",
+   "...NPQBAABQPQ...",
+   "...NPQBAABQPQ...",
+   ".BCNPQCBBCQPQCB.",
+   "...NPQQQQQQPQ...",
+   ".BCNPPPPPPPPQCB.",
+   "...QQQQQQQQQQ...",
+   "....C.C..C.C....",
+   "....B.B..B.B....",
+   "................"
+  ]},
+  "key": { "outline": true, "rows": [
+   "................",
+   ".....kkkkkk.....",
+   "....kkKKKKKj....",
+   "....kKK..KKj....",
+   "....kKK..KKj....",
+   "....kKKKKKjj....",
+   ".....KKKKjj.....",
+   "......kKKj......",
+   ".......kK.......",
+   ".......kK.......",
+   ".......kKKK.....",
+   ".......kK.......",
+   ".......kKKKK....",
+   ".......kKj......",
+   ".......jj.......",
+   "................"
+  ]},
+  "boots": { "outline": true, "rows": [
+   "................",
+   "...kkkkkk.......",
+   "...kKKKKj.......",
+   "...jjjjjj.......",
+   "...kKKKKj.......",
+   "...kKKKKj.......",
+   "...kKKKKj.......",
+   "...kKKKKj.......",
+   "...kKKKKKKKj....",
+   "...kKKKKKKWKKj..",
+   "...kKKKKKKKKKKj.",
+   "...kKKKKKKKKKKj.",
+   "...XXXXXXXXXXXX.",
+   "...LLLLLLLLLLLL.",
+   "................",
+   "................"
+  ]},
+  "bomb": { "outline": true, "rows": [
+   "................",
+   ".........T......",
+   "........TST.....",
+   ".......ZZT......",
+   ".....MNP........",
+   ".....NNQ........",
+   "....fffff.......",
+   "...fefffff......",
+   "..ffeefffff.....",
+   "..ffeeffffg.....",
+   "..fffffffgg.....",
+   "..ffffffggg.....",
+   "..fffffgggg.....",
+   "...fffgggg......",
+   "....fgggg.......",
+   "................"
+  ]},
+  "flag": { "outline": true, "rows": [
+   "................",
+   "..B.............",
+   "..NFFFFFFFFFFFFF",
+   "..NFGGGGGGGGGGGH",
+   "..NFGGGGGGGGGGGH",
+   "..NFGGGGGGGGGGGH",
+   "..NFGGGGGGGGGGGH",
+   "..NFGGGGGGGGGGGH",
+   "..NFGGGGGGGGGGGH",
+   "..NFGGGGGGGGGGGH",
+   "..NFGGGGGGGGGGGH",
+   "..NHHHHHHHHHHHHH",
+   "..N.............",
+   ".NNNN...........",
+   ".PPPP...........",
+   "................"
+  ]},
+  "stopwatch_bonus": { "outline": true, "rows": [
+   "................",
+   "......MNNN......",
+   "......NNNQ.NQ...",
+   ".....MMMMMM.....",
+   "....MMttttMN....",
+   "...MMttttttNN...",
+   "..MMtttlntttNQ..",
+   "..MttttmnttttQ..",
+   "..MttlllmlntuQ..",
+   "..MttnnmnnnuuQ..",
+   "..MttttmntuuuQ..",
+   "..MMtttmnuuuQQ..",
+   "...NNtttuuuQQ...",
+   "....NNtuuuQQ....",
+   ".....QQQQQQ.....",
+   "................"
+  ]},
+  "stopwatch_penalty": { "outline": true, "rows": [
+   "................",
+   "......MNNN......",
+   "......NNNQ.NQ...",
+   ".....MMMMMM.....",
+   "....MMttttMN....",
+   "...MMttttttNN...",
+   "..MMttttttttNQ..",
+   "..MttttttttttQ..",
+   "..MtrrrrrrrruQ..",
+   "..MtdddddddduQ..",
+   "..MtttttttuuuQ..",
+   "..MMtttttuuuQQ..",
+   "...NNtttuuuQQ...",
+   "....NNtuuuQQ....",
+   ".....QQQQQQ.....",
+   "................"
+  ]},
+  "glyph_red": { "rows": [
+   "..o..",
+   ".ooo.",
+   "ooooo",
+   ".ooo.",
+   "..o.."
+  ]},
+  "glyph_blue": { "rows": [
+   "..o..",
+   ".ooo.",
+   ".ooo.",
+   "ooooo",
+   "ooooo"
+  ]},
+  "glyph_yellow": { "rows": [
+   "..o..",
+   "..o..",
+   "ooooo",
+   "..o..",
+   "..o.."
+  ]},
+  "glyph_green": { "rows": [
+   ".ooo.",
+   "o...o",
+   "o...o",
+   "o...o",
+   ".ooo."
+  ]},
+  "glyph_orange": { "rows": [
+   "o...o",
+   ".o.o.",
+   "..o..",
+   ".o.o.",
+   "o...o"
+  ]},
+  "digit_0": { "rows": [
+   "ooo",
+   "o.o",
+   "o.o",
+   "o.o",
+   "ooo"
+  ]},
+  "digit_1": { "rows": [
+   ".o.",
+   "oo.",
+   ".o.",
+   ".o.",
+   "ooo"
+  ]},
+  "digit_2": { "rows": [
+   "ooo",
+   "..o",
+   "ooo",
+   "o..",
+   "ooo"
+  ]},
+  "digit_3": { "rows": [
+   "ooo",
+   "..o",
+   "ooo",
+   "..o",
+   "ooo"
+  ]},
+  "digit_4": { "rows": [
+   "o.o",
+   "o.o",
+   "ooo",
+   "..o",
+   "..o"
+  ]},
+  "digit_5": { "rows": [
+   "ooo",
+   "o..",
+   "ooo",
+   "..o",
+   "ooo"
+  ]},
+  "digit_6": { "rows": [
+   "ooo",
+   "o..",
+   "ooo",
+   "o.o",
+   "ooo"
+  ]},
+  "digit_7": { "rows": [
+   "ooo",
+   "..o",
+   "..o",
+   ".o.",
+   ".o."
+  ]},
+  "digit_8": { "rows": [
+   "ooo",
+   "o.o",
+   "ooo",
+   "o.o",
+   "ooo"
+  ]},
+  "digit_9": { "rows": [
+   "ooo",
+   "o.o",
+   "ooo",
+   "..o",
+   "ooo"
+  ]},
+  "char_x": { "rows": [
+   "o.o",
+   "o.o",
+   ".o.",
+   "o.o",
+   "o.o"
+  ]},
+  "char_k": { "rows": [
+   "o.o",
+   "o.o",
+   "oo.",
+   "o.o",
+   "o.o"
+  ]},
+  "char_q": { "rows": [
+   "ooo",
+   "..o",
+   ".oo",
+   "...",
+   ".o."
+  ]},
+  "char_plus": { "rows": [
+   "...",
+   ".o.",
+   "ooo",
+   ".o.",
+   "..."
+  ]},
+  "char_minus": { "rows": [
+   "...",
+   "...",
+   "ooo",
+   "...",
+   "..."
+  ]}
+ }
+}

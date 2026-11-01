@@ -537,6 +537,8 @@ export interface GameConfig {
   };
   keybindings: KeybindingsConfig;
   palette: Record<string, string>;
+  /** Colour ramps of the 16-Bit Retro style: theme id (or "default") to ramp name to hex tones, light to dark. */
+  retroPalettes?: Record<string, Record<string, string[]>>;
 }
 
 export interface TileDefinition {
