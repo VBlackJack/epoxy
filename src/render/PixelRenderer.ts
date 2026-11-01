@@ -31,6 +31,7 @@ import {
   MONSTER_COLOR_KEYS,
   teleporterGlyphKey
 } from './paletteKeys';
+import { blockCellsKey, collectBlockCells } from './blockCover';
 import { FrameBudgetGuard } from './frameBudget';
 import {
   AUTO_QUALITY_ID,
@@ -302,6 +303,9 @@ export class PixelRenderer {
   private visualCameraPos: { x: number; y: number } | null = null;
   private visualEntityPos: Map<number, { x: number; y: number }> = new Map();
   private readonly activeEntityUids: Set<number> = new Set();
+  // Cells covered by pushable blocks this frame (key y * width + x); a block hides what is under it.
+  private readonly blockCells: Set<number> = new Set();
+  private blockCellsWidth: number = 0;
   private lastLevelId: string = '';
 
   private particles: Particle[] = [];
@@ -315,6 +319,7 @@ export class PixelRenderer {
   private terrainCacheCtx: CanvasRenderingContext2D | null = null;
   private terrainCacheKey: string = '';
   private trapStateKey: string = '';
+  private blockCellsStateKey: string = '';
   private readonly cacheRegion = { x0: 0, y0: 0, x1: -1, y1: -1 };
 
   /** Pre-rendered glowing shapes, keyed by kind, style and size. */
@@ -633,6 +638,8 @@ export class PixelRenderer {
     const terrain = engine.getTerrain();
     const items = engine.getItems();
     const entities = engine.getEntities();
+    this.blockCellsWidth = mapWidth;
+    collectBlockCells(entities, mapWidth, this.blockCells);
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -667,6 +674,7 @@ export class PixelRenderer {
     for (const cell of this.terrainFeatures.animatedCells) {
       if (cell.x < startTileX || cell.x > endTileX || cell.y < startTileY || cell.y > endTileY) continue;
       if (!animatedTiles.has(cell.tileId)) continue;
+      if (this.isBlockCovered(cell.x, cell.y)) continue;
       const px = originX + Math.floor((cell.x - region.x0) * tilePixelSize);
       const py = originY + Math.floor((cell.y - region.y0) * tilePixelSize);
       animNeighbours.hash = cellHash(cell.x, cell.y);
@@ -686,6 +694,7 @@ export class PixelRenderer {
         ) {
           continue;
         }
+        if (this.isBlockCovered(cell.x, cell.y)) continue;
         this.addLight(cell.tileId, cell.x - camX, cell.y - camY, tilePixelSize, settings);
       }
     }
@@ -695,7 +704,7 @@ export class PixelRenderer {
       if (!itemRow) continue;
       for (let mx = startTileX; mx <= endTileX; mx++) {
         const itemId = itemRow[mx];
-        if (itemId) {
+        if (itemId && !this.isBlockCovered(mx, my)) {
           const px = originX + Math.floor((mx - region.x0) * tilePixelSize);
           const py = originY + Math.floor((my - region.y0) * tilePixelSize);
           this.drawItem(ctx, itemId, px, py, drawSize);
@@ -964,6 +973,7 @@ export class PixelRenderer {
       trapKey += engine.isCellClosedTrap(trap.x, trap.y) ? '1' : '0';
     }
 
+    const blockKey = blockCellsKey(this.blockCells);
     const cacheKey = `${this.style}|${this.themeId}|${tilePixelSize}`;
     const region = this.cacheRegion;
     const covered =
@@ -972,10 +982,17 @@ export class PixelRenderer {
       endTileX <= region.x1 &&
       startTileY >= region.y0 &&
       endTileY <= region.y1;
-    if (!terrainChanged && covered && trapKey === this.trapStateKey && cacheKey === this.terrainCacheKey) {
+    if (
+      !terrainChanged &&
+      covered &&
+      trapKey === this.trapStateKey &&
+      blockKey === this.blockCellsStateKey &&
+      cacheKey === this.terrainCacheKey
+    ) {
       return;
     }
     this.trapStateKey = trapKey;
+    this.blockCellsStateKey = blockKey;
     this.terrainCacheKey = cacheKey;
 
     // Cache the visible area plus a margin, so small camera moves reuse it, within a pixel budget.
@@ -1010,7 +1027,8 @@ export class PixelRenderer {
       for (let mx = region.x0; mx <= region.x1; mx++) {
         const px = Math.floor((mx - region.x0) * tilePixelSize);
         const py = Math.floor((my - region.y0) * tilePixelSize);
-        const tileId = terrain[my]?.[mx] || 'floor';
+        // A block hides the terrain under it; neighbours still read the real terrain for shadows.
+        const tileId = this.isBlockCovered(mx, my) ? 'floor' : terrain[my]?.[mx] || 'floor';
         const isClosedTrap = tileId === 'trap' ? engine.isCellClosedTrap(mx, my) : false;
         const neighbours = tileNeighbours(terrain, mx, my, this.wallJoinTiles, this.shadowCasterTiles);
         this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static', neighbours);
@@ -1026,6 +1044,11 @@ export class PixelRenderer {
     this.litTiles = new Set(Object.keys(settings.lightSources));
   }
 
+  /** True when a pushable block currently sits on the cell. */
+  private isBlockCovered(x: number, y: number): boolean {
+    return this.blockCells.has(y * this.blockCellsWidth + x);
+  }
+
   /** Strokes a straight wire between the centres of two grid cells. */
   private strokeGridLink(
     ctx: CanvasRenderingContext2D,
@@ -1037,6 +1060,7 @@ export class PixelRenderer {
     camY: number,
     tilePixelSize: number
   ): void {
+    if (this.isBlockCovered(ax, ay) || this.isBlockCovered(bx, by)) return;
     ctx.beginPath();
     ctx.moveTo((ax + 0.5 - camX) * tilePixelSize, (ay + 0.5 - camY) * tilePixelSize);
     ctx.lineTo((bx + 0.5 - camX) * tilePixelSize, (by + 0.5 - camY) * tilePixelSize);
@@ -1068,7 +1092,9 @@ export class PixelRenderer {
   ): void {
     const pal = ConfigRegistry.getGame().palette;
     const terrain = engine.getTerrain();
-    const hov = this.hoveredGridPoint;
+    // A cell under a block reveals nothing on hover.
+    const hovered = this.hoveredGridPoint;
+    const hov = hovered && !this.isBlockCovered(hovered.x, hovered.y) ? hovered : null;
     const hovTile = hov ? terrain[hov.y]?.[hov.x] : null;
     const showAll = this.showMechanismLinks;
 
