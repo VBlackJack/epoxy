@@ -65,6 +65,14 @@ describe('level text fields', () => {
     expect(compiled).toMatchObject({ titleKey: 'a.b.c', customTitle: 'T', hintKey: 'h.k', customHint: 'H' });
   });
 
+  it('drops a numeric author and keeps a string one', () => {
+    const numeric = ConfigRegistry.compileBlueprint(
+      blueprint({ author: 7 as unknown as string })
+    );
+    expect('author' in numeric).toBe(false);
+    expect(ConfigRegistry.compileBlueprint(blueprint({ author: 'Ann' })).author).toBe('Ann');
+  });
+
   it('strips a bad field from a persisted level instead of dropping the level', () => {
     const bounds = ConfigRegistry.getLevelSizeBounds();
     const stored = { ...level('a'), titleKey: 5, hintKey: { x: 1 }, customTitle: 'Fine' };

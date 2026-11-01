@@ -3,6 +3,13 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Level author: the optional author field (9) of a `.DAT` pack is read, shown next to the level
+  title in the HUD, kept on export, and editable in the editor (Author field).
+
 ## [2.9.0] - 2026-11-01
 
 ### Added

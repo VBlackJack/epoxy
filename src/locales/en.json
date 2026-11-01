@@ -124,6 +124,9 @@
     }
   },
   "hud": {
+    "level": {
+      "author": { "label": "by {author}" }
+    },
     "stats": {
       "level": { "label": "LEVEL" },
       "password": { "label": "CODE" },
@@ -341,6 +344,7 @@
       "dir_west": { "label": "W (◀)" },
       "title": { "label": "Level Title" },
       "hint": { "label": "Hint Text (?)" },
+      "author": { "label": "Author" },
       "password": { "label": "Password (4 chars)" },
       "time_limit": { "label": "Time Limit (s)" },
       "chips_needed": { "label": "Chips Required" },

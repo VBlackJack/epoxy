@@ -16,6 +16,7 @@
     "encryptedPassword": 6,
     "hint": 7,
     "plainPassword": 8,
+    "author": 9,
     "monsterList": 10
   },
   "byteToElement": {

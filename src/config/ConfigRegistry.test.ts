@@ -106,6 +106,13 @@ describe('ConfigRegistry.compileBlueprint', () => {
     expect(level.password).toBe(DEFAULT_LEVEL_PASSWORD);
   });
 
+  it('copies a non-empty author trimmed and drops an empty or blank one', () => {
+    expect(ConfigRegistry.compileBlueprint(blueprint({ author: '  Ann  ' })).author).toBe('Ann');
+    for (const author of ['', '   ']) {
+      expect('author' in ConfigRegistry.compileBlueprint(blueprint({ author }))).toBe(false);
+    }
+  });
+
   it('gives procedural and custom packs a translation key', () => {
     ConfigRegistry.setProceduralLevels([ConfigRegistry.compileBlueprint(blueprint())]);
     const procedural = ConfigRegistry.getAllPacks().find((p) => p.levels.length === 1);

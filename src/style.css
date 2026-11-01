@@ -580,14 +580,32 @@ button:disabled {
 }
 
 .hud-level-title {
+  display: flex;
+  align-items: baseline;
   font-size: 0.86rem;
   font-weight: 700;
   color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   border-bottom: 1px solid var(--biome-accent-soft);
   padding-bottom: 0.3rem;
+}
+
+.hud-level-name,
+.hud-level-author {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-level-name {
+  flex: 0 1 auto;
+}
+
+.hud-level-author {
+  flex: 1 1 0;
+  padding-left: 0.4rem;
+  font-weight: 400;
+  color: var(--text-muted);
 }
 
 .led-counters {

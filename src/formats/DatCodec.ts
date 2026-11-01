@@ -216,6 +216,7 @@ export class DatCodec {
 
     let customTitle = `Level ${levelNumber}`;
     let customHint = '';
+    let author = '';
     let password = DEFAULT_LEVEL_PASSWORD;
     const rawTrapLinks: TrapLink[] = [];
     const rawCloneLinks: Array<{
@@ -239,6 +240,11 @@ export class DatCodec {
         customTitle = this.decodeAsciiString(fieldBytes);
       } else if (fieldType === datCfg.fieldCodes.hint) {
         customHint = this.decodeAsciiString(fieldBytes);
+      } else if (
+        datCfg.fieldCodes.author !== undefined &&
+        fieldType === datCfg.fieldCodes.author
+      ) {
+        author = this.decodeAsciiString(fieldBytes).trim();
       } else if (fieldType === datCfg.fieldCodes.encryptedPassword) {
         password = this.decodeEncryptedPassword(fieldBytes, datCfg.passwordXorKey);
       } else if (fieldType === datCfg.fieldCodes.plainPassword) {
@@ -362,6 +368,7 @@ export class DatCodec {
       number: levelNumber || idx + 1,
       customTitle,
       customHint,
+      ...(author ? { author } : {}),
       password: password || DEFAULT_LEVEL_PASSWORD,
       timeLimitSeconds,
       chipsRequired,
@@ -703,6 +710,12 @@ export class DatCodec {
     if (lvl.customHint) {
       const hintBytes = this.encodeAsciiNullTerminated(lvl.customHint);
       chunks.push(this.buildField(datCfg.fieldCodes.hint, hintBytes, textRecord));
+    }
+
+    // Author (Field 9)
+    if (datCfg.fieldCodes.author !== undefined && lvl.author) {
+      const authorBytes = this.encodeAsciiNullTerminated(lvl.author);
+      chunks.push(this.buildField(datCfg.fieldCodes.author, authorBytes, textRecord));
     }
 
     // Trap Links (Field 4)
