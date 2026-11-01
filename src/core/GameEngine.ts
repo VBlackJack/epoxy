@@ -468,7 +468,7 @@ export class GameEngine {
     const snap = this.undoStack.pop();
     if (!snap) return false;
     this.restoreState(snap);
-    AudioManager.playSfx('step');
+    AudioManager.playStep(null);
     return true;
   }
 
@@ -588,6 +588,20 @@ export class GameEngine {
     return moved;
   }
 
+  /**
+   * Terrain key of the footstep onto a tile: its slide type (a force floor
+   * counts even when the player's boots cancel the push, it is still the floor
+   * material), else its hazard when the boots protect from it, else null.
+   * Without the boots a hazard keeps the plain step: the splash or burn sound
+   * follows on its own.
+   */
+  private getStepTerrain(tileId: string): string | null {
+    const tile = ConfigRegistry.getTile(tileId);
+    if (tile.slideType) return tile.slideType;
+    if (tile.hazard && tile.protectedByItem && this.player.boots.has(tile.protectedByItem)) return tile.hazard;
+    return null;
+  }
+
   /** Whether the tile is a force floor that pushes the player, i.e. one the held boots do not cancel. */
   private isCarriedByForceFloor(tile: TileDefinition): boolean {
     return tile.slideType === 'force' && (!tile.protectedByItem || !this.player.boots.has(tile.protectedByItem));
@@ -692,7 +706,7 @@ export class GameEngine {
     this.statusBannerKey = null;
 
     if (!fromSlide) {
-      AudioManager.playSfx('step');
+      AudioManager.playStep(this.getStepTerrain(this.terrain[targetY][targetX]));
     }
 
     this.resolvePlayerArrival(dir, true);

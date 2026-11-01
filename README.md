@@ -84,13 +84,15 @@ Each effect is declared in `public/configs/audio.json` under `effects.<id>`. An 
 }
 ```
 
-- Put the files in `public/audio/sfx/` (the folder is `sfxBaseUrl`, `./audio/sfx` when omitted) and list their names in `files`. With several files they play in turn, so the step alternates two footsteps. A file that fails to load or decode is skipped.
+- Put the files in `public/audio/sfx/` (the folder is `sfxBaseUrl`, `./audio/sfx` when omitted) and list their names in `files`. With several files they play in turn, so the step alternates between its footsteps. A file that fails to load or decode is skipped.
 - `gain` (1 when omitted) is the loudness against the master volume times the sfx volume; the shipped files use 0.4, except the frequent `step` (0.15) and `blocked` (0.25).
 - `minIntervalMs` (no limit when omitted) skips a call made less than that long after the previous start of the same effect, on the audio clock; `blocked` ships at 250 so holding a key against a wall does not machine-gun.
 - `maxDurationMs` stops the playback there. `fadeOutMs` adds a linear fade that ends at that cap; it requires `maxDurationMs` and cannot be larger than it.
 - `waveform` and `notes` stay required: they are the fallback, played when no file is decoded yet (the first sounds right after the audio unlocks) or when a file is missing or fails.
-- 13 of the 15 effects use files; `splash` and `burn` stay synthesized.
-- Only `teleport` (400 ms cap, 150 ms fade) and `thief` (500 ms cap, 150 ms fade) use a cap and a fade.
+- 17 of the 19 effects use files; `splash` and `burn` stay synthesized.
+- `terrainStepEffects` maps a terrain to the effect id played for a step onto it. The key is the tile's `slideType` or `hazard` (`force`, `ice`, `water`, `fire`); any other tile, and a terrain without an entry or whose effect does not exist, plays `step`. Water and fire only count when the player wears the protecting boots; without them the tile keeps the normal step and the splash or burn sound follows on its own. A force floor counts even when the boots cancel its push.
+- Safari versions that cannot decode Ogg Vorbis cannot play the footstep files and fall back to the synthesized step.
+- `teleport` (400 ms cap, 150 ms fade), `thief` (500 ms cap, 150 ms fade) and the footsteps (`step` and the four `step_*` effects, 120 ms cap, 30 ms fade) use a cap and a fade.
 
 ## Building a Campaign with the Generator
 
@@ -134,8 +136,6 @@ Sound effects: The Essential Retro Video Game Sound Effects Collection by Juhani
 
 Files in `public/audio/sfx/` and the effect each one serves:
 
-- `sfx_movement_footsteps1a.wav`: step
-- `sfx_movement_footsteps1b.wav`: step
 - `sfx_sounds_impact3.wav`: blocked
 - `sfx_coin_single3.wav`: chip
 - `sfx_coin_double1.wav`: item
@@ -148,6 +148,14 @@ Files in `public/audio/sfx/` and the effect each one serves:
 - `sfx_deathscream_android5.wav`: death
 - `sfx_sounds_fanfare1.wav`: win
 - `sfx_lowhealth_alarmloop6.wav`: timer_warn
+
+Footsteps: Impact Sounds by Kenney (https://kenney.nl/assets/impact-sounds), CC0 1.0, licence verified 2026-11-01.
+
+- `footstep_concrete_000.ogg`, `footstep_concrete_001.ogg`, `footstep_concrete_002.ogg`: step
+- `impactMetal_light_002.ogg`, `impactMetal_light_004.ogg`: step_force
+- `impactGlass_light_000.ogg`, `impactGlass_light_001.ogg`: step_ice
+- `impactSoft_medium_000.ogg`, `impactSoft_medium_002.ogg`: step_water
+- `footstep_grass_001.ogg`, `footstep_grass_004.ogg`: step_fire
 
 ## License
 

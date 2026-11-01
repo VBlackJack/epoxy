@@ -7,6 +7,10 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Terrain footsteps: the step sound depends on the terrain the player steps onto (normal floor,
+  force floor, ice, and water or fire when wearing the protecting boots). `audio.json` maps a tile
+  `slideType` or `hazard` to an effect through `terrainStepEffects`; the step files are now Ogg
+  Vorbis (Kenney Impact Sounds, CC0).
 - Music modes in Options > Audio: Default (the track follows the biome, as before), Random (a new
   track for each new level, never the same twice in a row) and Custom (the same among the tracks
   you tick, at least one stays ticked). Restarting a level, retrying after a death or wrapping a

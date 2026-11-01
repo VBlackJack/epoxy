@@ -702,6 +702,8 @@ export interface AudioConfig {
   sfxVolume: number;
   musicVolume: number;
   effects: Record<string, AudioEffectConfig>;
+  /** Effect id played for a step onto a terrain, keyed by tile `slideType` or `hazard`. */
+  terrainStepEffects?: Record<string, string>;
   music: {
     stepDurationMs: number;
     leadWaveform: OscillatorType;

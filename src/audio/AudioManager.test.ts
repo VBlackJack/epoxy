@@ -487,6 +487,7 @@ describe('AudioManager effect throttling', () => {
       limited: { waveform: 'square', notes, ...(minIntervalMs === undefined ? {} : { minIntervalMs }) },
       free: { waveform: 'square', notes, ...(minIntervalMs === undefined ? {} : { minIntervalMs }) }
     } as unknown as typeof bundle.audio.effects;
+    bundle.audio.terrainStepEffects = {};
     if (minIntervalMs !== undefined) delete (bundle.audio.effects.free as { minIntervalMs?: number }).minIntervalMs;
     ConfigRegistry.applyConfigs(bundle);
     vi.stubGlobal('window', env.window);
@@ -538,5 +539,62 @@ describe('AudioManager effect throttling', () => {
     manager.runSilently(() => manager.playSfx('limited'));
     manager.playSfx('limited');
     expect(ctx.oscillatorsCreated).toBe(NOTE_COUNT);
+  });
+});
+
+describe('AudioManager terrain steps', () => {
+  let env: FakeEnvironment;
+
+  beforeEach(() => {
+    env = new FakeEnvironment();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A manager over synthesized `step` and `step_ice` effects, with ice mapped and `mud` mapped to a missing effect. */
+  async function createStepFixture(): Promise<{ manager: import('./AudioManager').AudioService; ctx: FakeAudioContext }> {
+    vi.resetModules();
+    const { ConfigRegistry } = await import('../config/ConfigRegistry');
+    const { createTestBundle } = await import('../test/loadTestConfigs');
+    const { AudioService } = await import('./AudioManager');
+    const bundle = createTestBundle();
+    const single = (freq: number) => ({ waveform: 'square', notes: [{ freq, durationMs: 50, gain: 0.3 }] });
+    bundle.audio.effects = { step: single(190), step_ice: single(900) } as unknown as typeof bundle.audio.effects;
+    bundle.audio.terrainStepEffects = { ice: 'step_ice' };
+    ConfigRegistry.applyConfigs(bundle);
+    // The validator refuses a missing effect, so the dangling entry goes in after loading.
+    bundle.audio.terrainStepEffects.mud = 'step_mud';
+    vi.stubGlobal('window', env.window);
+    vi.stubGlobal('document', env.document);
+    const manager = new AudioService();
+    env.fire('pointerdown');
+    await flushPromises();
+    return { manager, ctx: env.contexts[0] };
+  }
+
+  it('plays the effect mapped to the terrain', async () => {
+    const { manager, ctx } = await createStepFixture();
+    const spy = vi.spyOn(manager, 'playSfx');
+    manager.playStep('ice');
+    expect(spy).toHaveBeenCalledWith('step_ice');
+    expect(ctx.oscillatorsCreated).toBe(1);
+  });
+
+  it('falls back to the plain step for no terrain, an unmapped one or a missing effect', async () => {
+    const { manager } = await createStepFixture();
+    const spy = vi.spyOn(manager, 'playSfx');
+    manager.playStep(null);
+    manager.playStep('water');
+    manager.playStep('mud');
+    expect(spy.mock.calls).toEqual([['step'], ['step'], ['step']]);
+  });
+
+  it('falls back to the plain step for a terrain named after an Object.prototype member', async () => {
+    const { manager } = await createStepFixture();
+    const spy = vi.spyOn(manager, 'playSfx');
+    manager.playStep('toString');
+    expect(spy.mock.calls).toEqual([['step']]);
   });
 });
