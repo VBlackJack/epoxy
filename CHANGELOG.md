@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.16.4] - 2026-11-02
+
 ### Added
 
 - A "Delete imported packs" button removes every imported pack and its levels in one go, after a
