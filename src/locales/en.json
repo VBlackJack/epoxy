@@ -148,7 +148,10 @@
       "import_too_large": { "label": "File too large (limit: {max} MB)." },
       "imported_session_only_toast": { "label": "Pack \"{name}\" imported, but it could not be saved: it will only last for this session." },
       "invalid_level_error": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
-      "delete_confirm": { "label": "Delete pack \"{name}\" and all its levels? This cannot be undone." }
+      "delete_confirm": { "label": "Delete pack \"{name}\" and all its levels? This cannot be undone." },
+      "delete_all_btn": { "action": "Delete imported packs...", "title": "Delete every imported pack and its levels." },
+      "delete_all_confirm": { "label": "Delete {count, plural, one {the imported pack} other {all # imported packs}} and {count, plural, one {its levels} other {their levels}}? This cannot be undone." },
+      "delete_all_done": { "label": "{count, plural, one {# imported pack} other {# imported packs}} deleted." }
     }
   },
   "hud": {
