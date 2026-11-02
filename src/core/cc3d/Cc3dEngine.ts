@@ -100,7 +100,7 @@ function unsupportedKinds(world: World): string[] {
 }
 
 /**
- * The play engine of the 'cc3d' ruleset (spec: local/cc3d-spec). It reads only
+ * The play engine of the 'cc3d' ruleset (written from a prose rules spec). It reads only
  * CompiledLevel.cc3d. This class is the contract with the page (scores, undo,
  * pause, histories, views); the play itself is the Cc3dSimulation.
  */

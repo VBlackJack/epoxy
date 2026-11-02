@@ -37,7 +37,7 @@ import type { Cc3dColor, Cc3dTerrain, Cc3dTerrainKind } from './model';
  * traps, clone machines, the blue golem control. Pressure devices (plates, trap
  * controls) are recomputed at the end of every tick from who stands on them;
  * entry devices (toggle controls, clone switches, golem controls) act once per
- * arrival. Marks follow local/cc3d-spec.
+ * arrival. Marks follow the rules spec.
  */
 
 function pointOf(world: World, index: number): Cell {

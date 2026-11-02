@@ -33,7 +33,7 @@ import { cellOf } from './cc3dWorld';
 /**
  * Small terrain rule functions of the CC3D engine. Each one answers a single
  * question so a rule that turns out wrong in play can change in one place.
- * Marks follow local/cc3d-spec: [P] verified in play, [U] hypothesis.
+ * Marks follow the rules spec: [P] verified in play, [U] hypothesis.
  */
 
 const HAZARD_TOOL: Record<Hazard, Cc3dItemKind> = {
