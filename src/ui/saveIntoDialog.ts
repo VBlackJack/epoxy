@@ -76,9 +76,7 @@ function bindListenersOnce(modal: HTMLElement, form: HTMLFormElement): void {
   const newName = byId<HTMLInputElement>(NEW_NAME_ID);
   if (newName) newName.maxLength = PACK_NAME_MAX_LENGTH;
 
-  newName?.addEventListener('focus', () => {
-    if (newRadio) newRadio.checked = true;
-  });
+  // Only typing selects "New pack": tabbing through the field must not change the destination.
   newName?.addEventListener('input', () => {
     if (newRadio) newRadio.checked = true;
     newName.removeAttribute('aria-invalid');

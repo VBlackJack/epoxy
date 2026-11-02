@@ -16,18 +16,21 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
-import { CompiledLevel } from '../core/types';
+import { CompiledLevel, Ruleset } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { makeLevel } from '../test/packFixtures';
 import { EDITOR_DEFAULT_PASSWORD } from '../ui/uiConstants';
 import {
   decideSave,
   isSaveChord,
+  isUserOwnedPack,
   levelMapChanged,
+  mayRebindAfterSave,
   needsImportedConfirmation,
   nextEditableIndex,
   pickSaveDestination,
   prepareLevelForSave,
+  reconcileSource,
   resolveSavedPassword
 } from './saveTarget';
 
@@ -105,6 +108,71 @@ describe('needsImportedConfirmation', () => {
     expect(needsImportedConfirmation(imported, new Set(['pack_import']))).toBe(false);
     expect(needsImportedConfirmation(mine, none)).toBe(false);
     expect(needsImportedConfirmation(undefined, none)).toBe(false);
+  });
+});
+
+describe('isUserOwnedPack', () => {
+  it('counts created packs and the custom pack, not imported ones', () => {
+    expect(isUserOwnedPack(mine)).toBe(true);
+    expect(isUserOwnedPack({ id: 'epoxy_custom' })).toBe(true);
+    expect(isUserOwnedPack(imported)).toBe(false);
+  });
+
+  it('never asks to confirm saving into the custom pack', () => {
+    expect(needsImportedConfirmation({ id: 'epoxy_custom' }, none)).toBe(false);
+  });
+
+  it('preselects the custom pack like one the player created', () => {
+    expect(pickSaveDestination([imported, { id: 'epoxy_custom' }], null)).toBe('epoxy_custom');
+  });
+});
+
+describe('reconcileSource', () => {
+  const packs = [
+    { id: 'a', levels: [{ id: 'a1' }, { id: 'a2' }] },
+    { id: 'b', levels: [{ id: 'b1' }] }
+  ];
+
+  it('keeps a source that is still valid', () => {
+    const source = { packId: 'a', levelId: 'a1' };
+    expect(reconcileSource(source, packs)).toEqual({ source, lost: false });
+  });
+
+  it('keeps a source with no pack, and a new level aimed at an existing pack', () => {
+    expect(reconcileSource({ packId: null, levelId: null }, packs).lost).toBe(false);
+    const aimed = { packId: 'b', levelId: null };
+    expect(reconcileSource(aimed, packs)).toEqual({ source: aimed, lost: false });
+  });
+
+  it('follows a level moved to another pack', () => {
+    const moved = [
+      { id: 'a', levels: [{ id: 'a2' }] },
+      { id: 'b', levels: [{ id: 'b1' }, { id: 'a1' }] }
+    ];
+    expect(reconcileSource({ packId: 'a', levelId: 'a1' }, moved)).toEqual({
+      source: { packId: 'b', levelId: 'a1' },
+      lost: false
+    });
+  });
+
+  it('loses a deleted level', () => {
+    const without = [{ id: 'a', levels: [{ id: 'a2' }] }];
+    expect(reconcileSource({ packId: 'a', levelId: 'a1' }, without)).toEqual({
+      source: { packId: null, levelId: null },
+      lost: true
+    });
+  });
+
+  it('loses the source when its pack is deleted, even for a new level aimed at it', () => {
+    expect(reconcileSource({ packId: 'gone', levelId: 'a1' }, packs).lost).toBe(true);
+    expect(reconcileSource({ packId: 'gone', levelId: null }, packs).lost).toBe(true);
+  });
+});
+
+describe('mayRebindAfterSave', () => {
+  it('allows a rebind only when no other level was loaded meanwhile', () => {
+    expect(mayRebindAfterSave(3, 3)).toBe(true);
+    expect(mayRebindAfterSave(3, 4)).toBe(false);
   });
 });
 
@@ -238,7 +306,7 @@ describe('resolveSavedPassword', () => {
 });
 
 describe('nextEditableIndex', () => {
-  const levels = [{}, { ruleset: 'cc3d' }, { ruleset: 'cc3d' }, { ruleset: 'lynx' }, {}];
+  const levels: Array<{ ruleset?: Ruleset }> = [{}, { ruleset: 'cc3d' }, { ruleset: 'cc3d' }, { ruleset: 'lynx' }, {}];
 
   it('skips levels the editor cannot open', () => {
     expect(nextEditableIndex(levels, 0, 1)).toBe(3);

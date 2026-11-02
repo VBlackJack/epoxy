@@ -16,6 +16,7 @@
 
 import { CompiledLevel, LevelPack } from '../core/types';
 import { isEditableRuleset } from '../editor/metadataFields';
+import { isUserOwnedPack } from '../editor/saveTarget';
 
 /**
  * View model of the "My packs" manager: what each row shows and which of its
@@ -60,11 +61,11 @@ export function buildLibraryRows(packs: readonly LevelPack[], displayName: (pack
     label: displayName(pack),
     levelCount: pack.levels.length,
     badges: engineBadgesOf(pack.levels),
-    imported: pack.userCreated !== true
+    imported: !isUserOwnedPack(pack)
   });
   return [
-    ...packs.filter((pack) => pack.userCreated === true).map(toRow),
-    ...packs.filter((pack) => pack.userCreated !== true).map(toRow)
+    ...packs.filter(isUserOwnedPack).map(toRow),
+    ...packs.filter((pack) => !isUserOwnedPack(pack)).map(toRow)
   ];
 }
 

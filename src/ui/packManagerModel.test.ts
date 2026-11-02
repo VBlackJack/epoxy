@@ -75,6 +75,13 @@ describe('library rows', () => {
     expect(rows.map((r) => r.imported)).toEqual([false, false, true]);
   });
 
+  it('treats the custom pack as the player\'s own even without the flag', () => {
+    const custom: LevelPack = { id: 'epoxy_custom', name: 'Custom', builtIn: false, levels: [makeLevel('c1')] };
+    const rows = buildLibraryRows([imported, custom], name);
+    expect(rows.map((r) => r.id)).toEqual(['epoxy_custom', 'imp']);
+    expect(rows[0].imported).toBe(false);
+  });
+
   it('carries the display name, count and badges', () => {
     const [row] = buildLibraryRows([mineA], (p) => `Name of ${p.id}`);
     expect(row).toMatchObject({ id: 'a', label: 'Name of a', levelCount: 2, badges: ['epoxy'] });
