@@ -15,7 +15,7 @@
  */
 
 import type { Direction } from '../types';
-import { SFX } from './cc3dConstants';
+import { SFX, UNCONTROLLED_TRAP_OPEN } from './cc3dConstants';
 import { fireNearestShooter } from './cc3dLasers';
 import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { planStep } from './cc3dMovement';
@@ -115,14 +115,20 @@ function updateHoldDoors(world: World): void {
 // ------------------------------------------------------------------- traps
 
 /**
- * A trap holds what enters until its control is pressed. Traps and trap
- * controls are paired by reading order (02) [U]; a trap without a control is open [U].
+ * A trap holds what enters until a control that works it is pressed. A control works the next trap after it
+ * in reading order [P], wrapping from the last cell to the first [U]; several controls can work one trap,
+ * which is open while any of them is pressed [U]. A trap no control works follows UNCONTROLLED_TRAP_OPEN [U].
  */
 function updateTraps(world: World): void {
-  const { traps, trapControls } = world.devices;
+  const { traps, trapControls, trapTargets, workedTraps } = world.devices;
+  if (traps.length === 0) return;
+  const pressedTargets = new Set<number>();
+  trapControls.forEach((control, i) => {
+    if (isPressed(world, control, undefined)) pressedTargets.add(trapTargets[i]);
+  });
   traps.forEach((index, i) => {
     const layer = layerAt(world, index, 'trap');
-    const open = i >= trapControls.length || isPressed(world, trapControls[i], undefined);
+    const open = workedTraps[i] ? pressedTargets.has(index) : UNCONTROLLED_TRAP_OPEN;
     if (layer.open !== open) {
       touch(world, pointOf(world, index));
       layer.open = open;
