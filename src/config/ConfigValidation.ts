@@ -321,8 +321,9 @@ export function isRuleset(value: unknown): value is Ruleset {
 
 /**
  * Returns the level without any optional text field that is not a string, and
- * without a win rule or ruleset that is not a known one, so a stale or hand-edited record
- * cannot hand a number to the text pipeline or an unknown rule to the engine.
+ * without a win rule or ruleset that is not a known one, and with an empty password in place
+ * of one that is not a string, so a stale or hand-edited record cannot hand a number to the
+ * text pipeline or an unknown rule to the engine.
  * The input is never mutated.
  */
 export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
@@ -330,9 +331,12 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const bad: string[] = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
   if ('winRule' in record && !isWinRule(record.winRule)) bad.push('winRule');
   if ('ruleset' in record && !isRuleset(record.ruleset)) bad.push('ruleset');
-  if (bad.length === 0) return level;
+  const badPassword = typeof record.password !== 'string';
+  if (bad.length === 0 && !badPassword) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
+  // The game upper-cases passwords, so a level always carries a string one.
+  if (badPassword) copy.password = '';
   return copy as unknown as CompiledLevel;
 }
 
