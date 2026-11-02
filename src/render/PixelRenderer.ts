@@ -311,11 +311,17 @@ const BLOCK_TARGET_MARK = { ringInset: 0.26, ringWidth: 0.08, dotRadius: 0.1 };
 /** Outline of a block standing on a target, in tile units: inset from the block edge and width. */
 const BLOCK_ON_TARGET_OUTLINE = { inset: 0.14, width: 0.07 };
 const BLOCK_RADIUS_TILE = 0.1;
-/** Laser devices, in tile units: housing inset, nozzle length and width, lens radius, gate bar width, glyph radius, post size. */
+/**
+ * Laser devices, in tile units: housing inset, nozzle length and width, emitter barrel width, emitter
+ * turret radius and its glowing core radius, lens radius, gate bar width, glyph radius, post size.
+ */
 const LASER_DEVICE = {
   inset: 0.06,
   nozzleLength: 0.3,
-  nozzleWidth: 0.2,
+  nozzleWidth: 0.26,
+  barrelWidth: 0.2,
+  turretRadius: 0.2,
+  turretCoreRadius: 0.08,
   lensRadius: 0.26,
   barWidth: 0.1,
   glyphRadius: 0.09,
@@ -4255,6 +4261,12 @@ export class PixelRenderer {
       const length = size * LASER_DEVICE.nozzleLength;
       const width = size * LASER_DEVICE.nozzleWidth;
       const top = -size / 2 + inset;
+      const barrelWidth = size * LASER_DEVICE.barrelWidth;
+      ctx.fillStyle = pal.wallTop;
+      ctx.fillRect(-barrelWidth / 2, top, barrelWidth, size / 2 - top);
+      ctx.strokeStyle = pal.wallBase;
+      ctx.lineWidth = Math.max(1, size * LASER_DEVICE.inset);
+      ctx.strokeRect(-barrelWidth / 2, top, barrelWidth, size / 2 - top);
       ctx.fillStyle = pal.laserBeam;
       if (isModern) {
         ctx.shadowColor = pal.laserBeam;
@@ -4266,6 +4278,16 @@ export class PixelRenderer {
       const coreWidth = width * LASER_NOZZLE_CORE_RATIO;
       ctx.fillRect(-coreWidth / 2, top, coreWidth, length * LASER_NOZZLE_CORE_RATIO);
       ctx.restore();
+      ctx.fillStyle = pal.wallBase;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * LASER_DEVICE.turretRadius, 0, FULL_TURN);
+      ctx.fill();
+      ctx.strokeStyle = pal.wallTop;
+      ctx.stroke();
+      ctx.fillStyle = pal.laserBeam;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * LASER_DEVICE.turretCoreRadius, 0, FULL_TURN);
+      ctx.fill();
       return;
     }
 

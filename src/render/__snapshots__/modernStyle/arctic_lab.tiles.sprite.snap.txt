@@ -449,18 +449,18 @@ tile trap closed=false shadowMask=128 hash=1 3a628704fdb13694
 tile clone_machine closed=true isolated e959185047be3a4c
 tile clone_machine closed=true shadowMask=65 hash=1 adf48557751143f6
 tile clone_machine closed=true shadowMask=128 hash=1 ae4cd43993a9b6b5
-tile laser_emitter_n closed=true isolated 811e0d91808b51f9
-tile laser_emitter_n closed=true shadowMask=65 hash=1 913bd98a44137e29
-tile laser_emitter_n closed=true shadowMask=128 hash=1 f9c83ea2757425e6
-tile laser_emitter_e closed=true isolated fb08b6a0dea7d5f9
-tile laser_emitter_e closed=true shadowMask=65 hash=1 3196c7295ecdeea5
-tile laser_emitter_e closed=true shadowMask=128 hash=1 7e88b0a1cddabbee
-tile laser_emitter_s closed=true isolated 333a8f2590bf0078
-tile laser_emitter_s closed=true shadowMask=65 hash=1 556bb0afd3e355b7
-tile laser_emitter_s closed=true shadowMask=128 hash=1 d58ccff21b57dce1
-tile laser_emitter_w closed=true isolated b86beb4a9c17ef86
-tile laser_emitter_w closed=true shadowMask=65 hash=1 9bc8694cd60815f6
-tile laser_emitter_w closed=true shadowMask=128 hash=1 842e20f77e429312
+tile laser_emitter_n closed=true isolated 1b0aac7c088d3d0e
+tile laser_emitter_n closed=true shadowMask=65 hash=1 9fbcf2983343aaa1
+tile laser_emitter_n closed=true shadowMask=128 hash=1 7949b8ea5677c019
+tile laser_emitter_e closed=true isolated 4e329bce5dea775f
+tile laser_emitter_e closed=true shadowMask=65 hash=1 37cd993f2dbc344e
+tile laser_emitter_e closed=true shadowMask=128 hash=1 8760a19c905b3717
+tile laser_emitter_s closed=true isolated fedad5d9b4e43968
+tile laser_emitter_s closed=true shadowMask=65 hash=1 8a4fead282cdd743
+tile laser_emitter_s closed=true shadowMask=128 hash=1 06d0b5062952b0e8
+tile laser_emitter_w closed=true isolated 2ca62f3b28ca2cc4
+tile laser_emitter_w closed=true shadowMask=65 hash=1 2aac5050481701ee
+tile laser_emitter_w closed=true shadowMask=128 hash=1 6ae2295fcff976c1
 tile laser_receiver_red closed=true isolated 5c2c032670e27b79
 tile laser_receiver_red closed=true shadowMask=65 hash=1 e8a755d226afc4e4
 tile laser_receiver_red closed=true shadowMask=128 hash=1 83987bbb6c04cb4f
