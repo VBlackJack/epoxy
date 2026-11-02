@@ -30,6 +30,8 @@ import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSele
 import { VOLUME_PERCENT_MAX, VOLUME_PERCENT_MIN, VOLUME_PERCENT_STEP } from './audio/volumeSettings';
 import { DatCodec, datRefusalReason } from './formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
+import { isCc3dId } from './render/cc3dPainters';
+import { classifyImportSelection, importCc3dSelection, packNameFromFile } from './ui/cc3dImport';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
 import { Pathfinder } from './core/Pathfinder';
@@ -648,9 +650,73 @@ class EpoxyApplication {
     this.setDrawerOpen(false);
   }
 
+  /**
+   * Entry point of every import: files of the cc3d format import together as
+   * one pack, any other format imports its first file, a mix is refused.
+   */
+  private async handleImportedFiles(files: readonly File[]): Promise<void> {
+    if (files.length === 0) return;
+    switch (classifyImportSelection(files.map((f) => f.name))) {
+      case 'cc3d':
+        await this.handleCc3dFiles(files);
+        return;
+      case 'single':
+        await this.handleImportedFile(files[0]);
+        return;
+      case 'several':
+        this.showTransientStatus(t('app.packs.import_one_file_only.label'));
+        return;
+      case 'mixed':
+        this.showTransientStatus(this.importErrorMessage());
+        return;
+    }
+  }
+
+  private async handleCc3dFiles(files: readonly File[]): Promise<void> {
+    const packName = files.length === 1 ? packNameFromFile(files[0].name) : t('app.packs.cc3d_default_name.label');
+    try {
+      const { levels, skipped, firstError } = await importCc3dSelection(
+        files,
+        ConfigRegistry.getGame().import.maxFileBytes,
+        packName
+      );
+      if (levels.length === 0) {
+        this.showTransientStatus(firstError ? t(firstError.key, { ...firstError.params }) : this.importErrorMessage());
+        return;
+      }
+      await this.finishPackImport(packName, levels, skipped, 'app.packs.imported_files_skipped_toast.label');
+    } catch (err) {
+      console.error('CC3D import failed:', err);
+      this.showTransientStatus(this.importErrorMessage());
+    }
+  }
+
+  /** Registers an imported pack, opens its first level and announces the result. */
+  private async finishPackImport(
+    packName: string,
+    levels: CompiledLevel[],
+    skippedCount: number,
+    skippedKey: string
+  ): Promise<void> {
+    const { persisted } = await ConfigRegistry.registerImportedPack(packName, levels);
+    this.refreshPackSelector();
+    this.editor.populatePresetDropdown();
+    this.switchMode('play');
+    this.startLevelByIndex(0, false);
+    const importedKey = skippedCount > 0 ? skippedKey : 'app.packs.imported_toast.label';
+    this.showTransientStatus(
+      combineStatusMessages(
+        persisted
+          ? t(importedKey, { name: packName, count: levels.length, skipped: skippedCount })
+          : t('app.packs.imported_session_only_toast.label', { name: packName }),
+        this.objectiveMessage()
+      )
+    );
+  }
+
   private async handleImportedFile(file: File): Promise<void> {
     const lower = file.name.toLowerCase();
-    const packName = file.name.replace(/\.[^.]+$/, '');
+    const packName = packNameFromFile(file.name);
 
     const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
     if (!isImportSizeAllowed(file.size, maxBytes)) {
@@ -679,21 +745,7 @@ class EpoxyApplication {
         this.showTransientStatus(this.importErrorMessage());
         return;
       }
-      const { persisted } = await ConfigRegistry.registerImportedPack(packName, levels);
-      this.refreshPackSelector();
-      this.editor.populatePresetDropdown();
-      this.switchMode('play');
-      this.startLevelByIndex(0, false);
-      const importedKey =
-        skippedCount > 0 ? 'app.packs.imported_skipped_toast.label' : 'app.packs.imported_toast.label';
-      this.showTransientStatus(
-        combineStatusMessages(
-          persisted
-            ? t(importedKey, { name: packName, count: levels.length, skipped: skippedCount })
-            : t('app.packs.imported_session_only_toast.label', { name: packName }),
-          this.objectiveMessage()
-        )
-      );
+      await this.finishPackImport(packName, levels, skippedCount, 'app.packs.imported_skipped_toast.label');
     } catch (err) {
       this.showTransientStatus(
         err instanceof InvalidLevelError
@@ -857,6 +909,7 @@ class EpoxyApplication {
     return {
       game: ConfigRegistry.getGame(),
       tiles: ConfigRegistry.getTiles(),
+      cc3dTiles: ConfigRegistry.getCc3dTiles(),
       monsters: ConfigRegistry.getMonsters(),
       audio: ConfigRegistry.getAudio(),
       levels: { legend: ConfigRegistry.getPieceLegend(), levels: [] },
@@ -1200,9 +1253,9 @@ class EpoxyApplication {
     window.addEventListener('drop', (e) => {
       e.preventDefault();
       dropOverlay?.classList.add('hidden');
-      const file = e.dataTransfer?.files?.[0];
-      if (file) {
-        void this.handleImportedFile(file);
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length > 0) {
+        void this.handleImportedFiles(files);
       }
     });
   }
@@ -1734,9 +1787,9 @@ class EpoxyApplication {
 
     const packFileInput = byId<HTMLInputElement>('pack-file-input');
     packFileInput?.addEventListener('change', () => {
-      const file = packFileInput.files?.[0];
-      if (file) {
-        void this.handleImportedFile(file);
+      const files = Array.from(packFileInput.files ?? []);
+      if (files.length > 0) {
+        void this.handleImportedFiles(files);
       }
       packFileInput.value = '';
     });
@@ -2696,6 +2749,7 @@ class EpoxyApplication {
     if (ent) {
       const entDef = ConfigRegistry.getEntityDef(ent.type);
       if (entDef) parts.push(t(entDef.i18nKey));
+      else if (isCc3dId(ent.type)) parts.push(t(ConfigRegistry.getTile(ent.type).i18nKey));
     }
 
     // A block hides the item and the terrain under it, so only its name is shown.

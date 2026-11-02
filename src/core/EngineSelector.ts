@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Cc3dEngine } from './cc3d/Cc3dEngine';
 import { GameEngine } from './GameEngine';
 import { LynxEngine } from './lynx/LynxEngine';
 import { PlayEngine, VisualEventCallback, WinCallback } from './PlayEngine';
@@ -28,6 +29,7 @@ import { CompiledLevel } from './types';
 export class EngineSelector {
   private readonly epoxy = new GameEngine();
   private lynx: LynxEngine | null = null;
+  private cc3d: Cc3dEngine | null = null;
   private active: PlayEngine = this.epoxy;
   private winCallback: WinCallback | null = null;
   private visualCallback: VisualEventCallback | null = null;
@@ -41,22 +43,49 @@ export class EngineSelector {
     this.winCallback = cb;
     this.epoxy.setOnWinCallback(cb);
     this.lynx?.setOnWinCallback(cb);
+    this.cc3d?.setOnWinCallback(cb);
   }
 
   public setOnVisualEventCallback(cb: VisualEventCallback): void {
     this.visualCallback = cb;
     this.epoxy.setOnVisualEventCallback(cb);
     this.lynx?.setOnVisualEventCallback(cb);
+    this.cc3d?.setOnVisualEventCallback(cb);
   }
 
   /** The engine that plays the level; it becomes the current one. */
   public forLevel(level: Pick<CompiledLevel, 'ruleset'>): PlayEngine {
-    const next: PlayEngine = level.ruleset === 'lynx' ? this.lynxEngine() : this.epoxy;
+    const next = this.engineFor(level.ruleset);
     if (next !== this.active) {
       next.carryTotalScore(this.active.getTotalScore());
       this.active = next;
     }
     return next;
+  }
+
+  private engineFor(ruleset: CompiledLevel['ruleset']): PlayEngine {
+    switch (ruleset) {
+      case 'lynx':
+        return this.lynxEngine();
+      case 'cc3d':
+        return this.cc3dEngine();
+      case 'epoxy':
+      case undefined:
+        return this.epoxy;
+      default: {
+        const unreachable: never = ruleset;
+        throw new Error(`Unknown ruleset: ${String(unreachable)}`);
+      }
+    }
+  }
+
+  private cc3dEngine(): Cc3dEngine {
+    if (this.cc3d === null) {
+      this.cc3d = new Cc3dEngine();
+      if (this.winCallback) this.cc3d.setOnWinCallback(this.winCallback);
+      if (this.visualCallback) this.cc3d.setOnVisualEventCallback(this.visualCallback);
+    }
+    return this.cc3d;
   }
 
   private lynxEngine(): LynxEngine {

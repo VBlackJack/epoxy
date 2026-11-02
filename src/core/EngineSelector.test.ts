@@ -20,6 +20,8 @@ vi.mock('../audio/AudioManager', () => ({
   AudioManager: { playSfx: vi.fn(), playStep: vi.fn() }
 }));
 
+import { Cc3dEngine } from './cc3d/Cc3dEngine';
+import { decodeCc3dLevel } from '../formats/Cc3dXmlCodec';
 import { EngineSelector } from './EngineSelector';
 import { GameEngine } from './GameEngine';
 import { LynxEngine } from './lynx/LynxEngine';
@@ -31,6 +33,17 @@ import { loadTestConfigs } from '../test/loadTestConfigs';
 beforeAll(() => {
   loadTestConfigs();
 });
+
+const CC3D_CELL = 64;
+const CC3D_PLAYER_TYPE = 22;
+
+function cc3dLevel(mapId: string): CompiledLevel {
+  const xml =
+    '<?xml version="1.0" encoding="utf-8"?><map name="T" author="A" width="5" height="5" background="0"><tiles>' +
+    `<tile image_index="${CC3D_PLAYER_TYPE}" x="${CC3D_CELL}" y="${CC3D_CELL}" direction="0" type="${CC3D_PLAYER_TYPE}"><attributes flags="0" editor_category="0" name="Stored" /></tile>` +
+    '</tiles></map>';
+  return decodeCc3dLevel(xml, { packName: 'pack', mapId, number: 1 });
+}
 
 function epoxyLevel(): CompiledLevel {
   const level = lynxLevel(['#####', '#@.X#', '#####'], { id: 'epoxy_test' });
@@ -55,6 +68,46 @@ describe('EngineSelector', () => {
     const first = selector.forLevel(lynxLevel(['###', '#@#', '###']));
     expect(first).toBeInstanceOf(LynxEngine);
     expect(selector.forLevel(lynxLevel(['###', '#@#', '###'], { id: 'other' }))).toBe(first);
+  });
+
+  it('gives the cc3d engine to a cc3d level and builds it only once', () => {
+    const selector = new EngineSelector();
+    const first = selector.forLevel(cc3dLevel('1'));
+    expect(first).toBeInstanceOf(Cc3dEngine);
+    expect(selector.current).toBe(first);
+    expect(selector.forLevel(cc3dLevel('2'))).toBe(first);
+  });
+
+  it('forwards the callbacks to the cc3d engine, given before or after it is built', () => {
+    const early = new EngineSelector();
+    early.setOnWinCallback(vi.fn());
+    early.setOnVisualEventCallback(vi.fn());
+    const engine = early.forLevel(cc3dLevel('1')) as unknown as { onWin: unknown; onVisual: unknown };
+    expect(engine.onWin).not.toBeNull();
+    expect(engine.onVisual).not.toBeNull();
+
+    const late = new EngineSelector();
+    const lateEngine = late.forLevel(cc3dLevel('1')) as unknown as { onWin: unknown; onVisual: unknown };
+    expect(lateEngine.onWin).toBeNull();
+    late.setOnWinCallback(vi.fn());
+    late.setOnVisualEventCallback(vi.fn());
+    expect(lateEngine.onWin).not.toBeNull();
+    expect(lateEngine.onVisual).not.toBeNull();
+  });
+
+  it('carries the total score across a switch to the cc3d engine and back', () => {
+    const selector = new EngineSelector();
+    const epoxy = selector.forLevel(epoxyLevel());
+    epoxy.loadLevel(epoxyLevel());
+    epoxy.carryTotalScore(321);
+    const cc3d = selector.forLevel(cc3dLevel('1'));
+    expect(cc3d.getTotalScore()).toBe(321);
+    expect(selector.forLevel(epoxyLevel())).toBe(epoxy);
+  });
+
+  it('refuses a ruleset it does not know', () => {
+    const selector = new EngineSelector();
+    expect(() => selector.forLevel({ ruleset: 'unknown' as never })).toThrow(/Unknown ruleset/);
   });
 
   it('binds the callbacks to both engines, whenever they were given', () => {

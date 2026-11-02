@@ -562,8 +562,19 @@ export class LevelValidator {
       start.x >= 0 &&
       start.x < (level.terrain[0]?.length ?? 0);
     if (!startInGrid) return;
-    // The block search plays the Epoxy rules; a Lynx level is not played by them.
-    if (level.ruleset === 'lynx') return;
+    // The block search plays the Epoxy rules; a Lynx or CC3D level is not played by them.
+    switch (level.ruleset) {
+      case 'lynx':
+      case 'cc3d':
+        return;
+      case 'epoxy':
+      case undefined:
+        break;
+      default: {
+        const unreachable: never = level.ruleset;
+        throw new Error(`Unknown ruleset: ${String(unreachable)}`);
+      }
+    }
     const engine = new GameEngine();
     engine.loadLevel(level);
     if (BlockPuzzleSolver.isStuck(engine, requestedSearchBudget())) {
