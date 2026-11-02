@@ -157,6 +157,67 @@ describe('migration of the legacy custom levels', () => {
     expect(store.has(legacyKey())).toBe(false);
   });
 
+  it('backs up the dropped legacy entries before the first write in the legacy store', async () => {
+    const raw = JSON.stringify([makeLevel('good'), { id: 'broken' }]);
+    store.set(legacyKey(), raw);
+    fake.abortReads = true;
+    await ConfigRegistry.loadStoredPacks();
+    expect(store.get(backupKey())).toBe(raw);
+    expect(store.get(legacyKey())).toBe(raw);
+
+    await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('next'));
+    expect(store.get(backupKey())).toBe(raw);
+    expect((JSON.parse(store.get(legacyKey()) ?? '[]') as { id: string }[]).map((l) => l.id)).toEqual([
+      'good',
+      'next'
+    ]);
+  });
+
+  it('does not overwrite the legacy list when its backup could not be written', async () => {
+    const raw = JSON.stringify([makeLevel('good'), { id: 'broken' }]);
+    store.set(legacyKey(), raw);
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (key === backupKey()) throw new Error('quota exceeded');
+        store.set(key, value);
+      },
+      removeItem: (key: string) => void store.delete(key)
+    });
+    fake.abortReads = true;
+    await ConfigRegistry.loadStoredPacks();
+
+    const result = await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('next'));
+    expect(result.persisted).toBe(false);
+    expect(store.get(legacyKey())).toBe(raw);
+    expect(idsOf(BUILTIN_PACK_IDS.CUSTOM)).toEqual(['good', 'next']);
+  });
+
+  it('backs up the legacy list when the stored pack wins over a different version of a level', async () => {
+    fake.records.set(BUILTIN_PACK_IDS.CUSTOM, {
+      ...makeUserPack(BUILTIN_PACK_IDS.CUSTOM, []),
+      levels: [{ ...makeLevel('a'), customTitle: 'From IDB' }]
+    });
+    const raw = JSON.stringify([{ ...makeLevel('a'), customTitle: 'From LS' }]);
+    store.set(legacyKey(), raw);
+    await ConfigRegistry.loadStoredPacks();
+
+    expect(packOf(BUILTIN_PACK_IDS.CUSTOM)?.levels[0].customTitle).toBe('From IDB');
+    expect(store.get(backupKey())).toBe(raw);
+    expect(store.has(legacyKey())).toBe(false);
+  });
+
+  it('writes no backup when the legacy levels equal the stored ones', async () => {
+    fake.records.set(BUILTIN_PACK_IDS.CUSTOM, {
+      ...makeUserPack(BUILTIN_PACK_IDS.CUSTOM, []),
+      levels: [{ ...makeLevel('a'), number: 1 }]
+    });
+    store.set(legacyKey(), JSON.stringify([{ ...makeLevel('a'), number: 4 }]));
+    await ConfigRegistry.loadStoredPacks();
+    expect(store.has(backupKey())).toBe(false);
+    expect(store.has(legacyKey())).toBe(false);
+  });
+
   it('backs up a legacy value that is not even a list', async () => {
     store.set(legacyKey(), '{not json');
     await ConfigRegistry.loadStoredPacks();
@@ -332,6 +393,36 @@ describe('operations on the library', () => {
     expect(idsOf(destId)).toEqual(['a', 'a_2']);
   });
 
+  it('does not lose a save into the source pack made while a move is being written', async () => {
+    await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('a'));
+    await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('b'));
+    const { pack } = await ConfigRegistry.createUserPack('Dest');
+    const destId = pack?.id ?? '';
+
+    const moving = ConfigRegistry.moveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, 'a', destId);
+    // Started while the first write of the move is still pending.
+    const saving = ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('c'));
+    await Promise.all([moving, saving]);
+
+    expect(idsOf(BUILTIN_PACK_IDS.CUSTOM)).toEqual(['b', 'c']);
+    expect(stored(BUILTIN_PACK_IDS.CUSTOM)?.levels.map((l) => l.id)).toEqual(['b', 'c']);
+    expect(stored(destId)?.levels.map((l) => l.id)).toEqual(['a']);
+  });
+
+  it('does not lose a save into the destination pack made while a copy is being written', async () => {
+    await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('a'));
+    const { pack } = await ConfigRegistry.createUserPack('Dest');
+    const destId = pack?.id ?? '';
+
+    const copying = ConfigRegistry.copyLevelToPack(BUILTIN_PACK_IDS.CUSTOM, 'a', destId);
+    const saving = ConfigRegistry.saveLevelToPack(destId, makeLevel('z'));
+    await Promise.all([copying, saving]);
+
+    expect(idsOf(destId)).toHaveLength(2);
+    expect(stored(destId)?.levels).toHaveLength(2);
+    expect(stored(destId)?.levels.map((l) => l.id)).toContain('z');
+  });
+
   it('keeps level ids unique across the whole library', async () => {
     await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('a'));
     const { pack } = await ConfigRegistry.createUserPack('Dest');
@@ -396,6 +487,14 @@ describe('operations on the library', () => {
     expect(result.pack.levels[0].ruleset).toBe('lynx');
     expect(result.pack.levels.map((l) => l.id)).not.toContain('a');
     expect(stored(result.pack.id)?.levels).toHaveLength(2);
+  });
+
+  it('exports under the display name the caller passes, the pack name by default', async () => {
+    await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, makeLevel('a'));
+    const named = JSON.parse(ConfigRegistry.exportPackJson(BUILTIN_PACK_IDS.CUSTOM, 'Translated') ?? '{}');
+    expect(named.name).toBe('Translated');
+    const plain = JSON.parse(ConfigRegistry.exportPackJson(BUILTIN_PACK_IDS.CUSTOM) ?? '{}');
+    expect(plain.name).toBe(packOf(BUILTIN_PACK_IDS.CUSTOM)?.name);
   });
 
   it('refuses an unknown file, an unknown pack and an empty pack on export', async () => {
