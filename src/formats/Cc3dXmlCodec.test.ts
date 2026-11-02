@@ -83,7 +83,7 @@ function cellOf(xml: string, x: number, y: number, width = 4) {
 }
 
 function utf16(text: string, littleEndian: boolean, bom: boolean): Uint8Array {
-  const units = (bom ? '﻿' : '') + text;
+  const units = (bom ? '\uFEFF' : '') + text;
   const out = new Uint8Array(units.length * 2);
   for (let i = 0; i < units.length; i++) {
     const code = units.charCodeAt(i);

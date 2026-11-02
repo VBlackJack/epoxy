@@ -127,7 +127,7 @@ const ATTR_FLAGS = 'flags';
 const UTF16_LE = 'utf-16le';
 const UTF16_BE = 'utf-16be';
 const UTF8 = 'utf-8';
-const BOM_CHAR = '﻿';
+const BOM_CHAR = '\uFEFF';
 const BOM_FIRST_BYTE_LE = 0xff;
 const BOM_FIRST_BYTE_BE = 0xfe;
 
