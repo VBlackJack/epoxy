@@ -187,4 +187,55 @@ describe('LevelValidator', () => {
     reachable[2] = '#.#######';
     expect(LevelValidator.validate(grid(reachable, { cloneLinks, entities })).valid).toBe(true);
   });
+
+  describe('link and start warnings', () => {
+    const warns = (level: CompiledLevel, key: string): boolean =>
+      LevelValidator.validate(level).issues.some((i) => i.i18nKey === key && i.severity === 'warning');
+
+    it('warns about a trap link whose button or trap is gone, without invalidating the level', () => {
+      const level = grid(['#######', '#P.E..#', '#######']);
+      level.trapLinks = [{ buttonX: 2, buttonY: 1, trapX: 4, trapY: 1 }];
+      expect(warns(level, 'validator.issues.trap_link_button.label')).toBe(true);
+      expect(warns(level, 'validator.issues.trap_link_target.label')).toBe(true);
+      expect(LevelValidator.validate(level).valid).toBe(true);
+    });
+
+    it('accepts a trap link between a brown button and a trap', () => {
+      const level = grid(['#######', '#P.E..#', '#######']);
+      level.terrain[1][2] = 'button_brown';
+      level.terrain[1][4] = 'trap';
+      level.trapLinks = [{ buttonX: 2, buttonY: 1, trapX: 4, trapY: 1 }];
+      const found = keys(level);
+      expect(found).not.toContain('validator.issues.trap_link_button.label');
+      expect(found).not.toContain('validator.issues.trap_link_target.label');
+    });
+
+    it('warns about a clone link whose button or cloner is gone', () => {
+      const level = grid(['#######', '#P.E..#', '#######']);
+      level.cloneLinks = [
+        { buttonX: 2, buttonY: 1, clonerX: 4, clonerY: 1, templateType: 'dirt_block', templateDir: 'S' }
+      ];
+      expect(warns(level, 'validator.issues.clone_link_button.label')).toBe(true);
+      expect(warns(level, 'validator.issues.clone_link_target.label')).toBe(true);
+    });
+
+    it('accepts a clone link between a red button and a clone machine', () => {
+      const level = grid(['#######', '#PRE.M#', '#######']);
+      level.cloneLinks = [
+        { buttonX: 2, buttonY: 1, clonerX: 5, clonerY: 1, templateType: 'dirt_block', templateDir: 'S' }
+      ];
+      const found = keys(level);
+      expect(found).not.toContain('validator.issues.clone_link_button.label');
+      expect(found).not.toContain('validator.issues.clone_link_target.label');
+    });
+
+    it('warns when the player starts on a wall or on an entity', () => {
+      const onWall = grid(['#####', '#P.E#', '#####']);
+      onWall.terrain[1][1] = 'wall';
+      expect(warns(onWall, 'validator.issues.start_on_wall.label')).toBe(true);
+      const onEntity = grid(['#####', '#P.E#', '#####'], { entities: [{ x: 1, y: 1, type: 'dirt_block', dir: 'S' }] });
+      expect(warns(onEntity, 'validator.issues.start_on_entity.label')).toBe(true);
+      expect(keys(grid(['#####', '#P.E#', '#####']))).not.toContain('validator.issues.start_on_wall.label');
+    });
+  });
 });

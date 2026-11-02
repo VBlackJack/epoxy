@@ -105,3 +105,11 @@ export const EDITOR_TRAP_LINK_COLOR = '#ffb300';
 export const EDITOR_CLONE_LINK_COLOR = '#ff1744';
 /** Offset that puts a link line end at the center of its tile. */
 export const EDITOR_TILE_CENTER_OFFSET = 0.5;
+/** Terrain a wire tool places at each end of a link. */
+export const EDITOR_TRAP_BUTTON_TILE = 'button_brown';
+export const EDITOR_TRAP_TILE = 'trap';
+export const EDITOR_CLONE_BUTTON_TILE = 'button_red';
+export const EDITOR_CLONER_TILE = 'clone_machine';
+/** Lowest and highest zoom the editor canvas allows, as a multiple of the fit scale. */
+export const EDITOR_MIN_ZOOM_STEP = 1;
+export const EDITOR_MAX_ZOOM_STEP = 4;

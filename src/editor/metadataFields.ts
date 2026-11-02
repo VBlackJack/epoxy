@@ -23,7 +23,7 @@ export function parseWinRule(raw: string, current: WinRule): WinRule {
 }
 
 /** Win rules only the Epoxy engine plays: a level using one cannot be a Lynx level. */
-const EPOXY_ONLY_WIN_RULES: readonly WinRule[] = ['targets', 'receivers'];
+export const EPOXY_ONLY_WIN_RULES: readonly WinRule[] = ['targets', 'receivers'];
 
 /**
  * Whether a level can only be played under Epoxy rules: it is won with block
