@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-11-02
+
 ### Added
 
 - Import of Chuck's Challenge 3D levels. The import button accepts `.xml` level files; several
