@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BlockPuzzleSolver, requestedSearchBudget } from './BlockPuzzleSolver';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
 import { GameEngine } from './GameEngine';
 import {
   CompiledLevel,
@@ -185,6 +185,9 @@ export class LevelValidator {
         }
       };
     }
+
+    this.checkStartCell(level, issues);
+    this.checkLinkEndpoints(level, issues);
 
     if (needsExit && exitCount > 0 && level.chipsRequired > 0) {
       if (this.canReachExitWithoutSocket(level)) {
@@ -484,6 +487,57 @@ export class LevelValidator {
         targetCount
       }
     };
+  }
+
+  /** Warns when the player starts inside a wall or on a cell that holds an entity. */
+  private static checkStartCell(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const { x, y } = level.playerStart;
+    if (level.terrain[y][x] === WALL_TILE_ID) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.start_on_wall.label' });
+    }
+    if ((level.entities ?? []).some((e) => e.x === x && e.y === y)) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.start_on_entity.label' });
+    }
+  }
+
+  /** Warns about links whose button or target cell is no longer the tile the link needs. */
+  private static checkLinkEndpoints(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const tileAt = (x: number, y: number): TileDefinition | undefined => {
+      const id = level.terrain[y]?.[x];
+      return id === undefined ? undefined : ConfigRegistry.getTile(id);
+    };
+    for (const link of level.trapLinks ?? []) {
+      if (tileAt(link.buttonX, link.buttonY)?.buttonAction !== 'hold_trap') {
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.trap_link_button.label',
+          params: { x: link.buttonX, y: link.buttonY }
+        });
+      }
+      if (!tileAt(link.trapX, link.trapY)?.isTrap) {
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.trap_link_target.label',
+          params: { x: link.trapX, y: link.trapY }
+        });
+      }
+    }
+    for (const link of level.cloneLinks ?? []) {
+      if (tileAt(link.buttonX, link.buttonY)?.buttonAction !== 'trigger_cloner') {
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.clone_link_button.label',
+          params: { x: link.buttonX, y: link.buttonY }
+        });
+      }
+      if (!tileAt(link.clonerX, link.clonerY)?.isCloneMachine) {
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.clone_link_target.label',
+          params: { x: link.clonerX, y: link.clonerY }
+        });
+      }
+    }
   }
 
   /**

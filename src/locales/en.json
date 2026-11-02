@@ -347,7 +347,13 @@
       "no_emitter": { "label": "Error: No laser emitter placed on the map." },
       "no_receiver": { "label": "Error: No laser receiver placed on the map." },
       "laser_gate_on_beam": { "label": "Warning: A laser gate ({group}) lies on a beam that lights a receiver: closed, it cuts that beam." },
-      "exit_on_receivers_level": { "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers." }
+      "exit_on_receivers_level": { "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers." },
+      "start_on_wall": { "label": "Warning: The player start is in a wall." },
+      "start_on_entity": { "label": "Warning: The player start shares its cell with a block or monster." },
+      "trap_link_button": { "label": "Warning: A trap link starts from ({x}, {y}), which is not a brown button." },
+      "trap_link_target": { "label": "Warning: A trap link ends at ({x}, {y}), which is not a trap." },
+      "clone_link_button": { "label": "Warning: A clone link starts from ({x}, {y}), which is not a red button." },
+      "clone_link_target": { "label": "Warning: A clone link ends at ({x}, {y}), which is not a clone machine." }
     }
   },
   "editor": {
