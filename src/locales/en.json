@@ -531,7 +531,8 @@
         "out": { "aria": "Zoom out" },
         "in": { "aria": "Zoom in" },
         "fit": { "action": "Fit", "aria": "Fit the level to the window" },
-        "level": { "label": "{percent}%", "aria": "Zoom {percent} percent" }
+        "level": { "label": "{percent}%" },
+        "group": "Zoom"
       },
       "status": {
         "label": "Editor messages",

@@ -531,7 +531,8 @@
         "out": { "aria": "Réduire le zoom" },
         "in": { "aria": "Agrandir le zoom" },
         "fit": { "action": "Ajuster", "aria": "Ajuster le niveau à la fenêtre" },
-        "level": { "label": "{percent} %", "aria": "Zoom {percent} pour cent" }
+        "level": { "label": "{percent} %" },
+        "group": "Zoom"
       },
       "status": {
         "label": "Messages de l'éditeur",

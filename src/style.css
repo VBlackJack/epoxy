@@ -1145,10 +1145,6 @@ body.editor-mode #app {
   gap: 0.4rem;
 }
 
-.editor-input-narrow {
-  width: 4.5rem;
-}
-
 .meta-field {
   display: flex;
   flex-direction: column;
@@ -1315,7 +1311,11 @@ body.editor-mode #app {
   background: #0e1015;
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
-  min-height: 28px;
+  height: 28px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .editor-zoom {

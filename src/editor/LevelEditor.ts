@@ -42,9 +42,9 @@ import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
-import { CanvasFit, clampZoomStep, fitCanvas, zoomIn, zoomOut } from './canvasFit';
+import { CanvasFit, fitCanvas, zoomIn, zoomOut } from './canvasFit';
 import { CheckSummary, summarizeValidation } from './checkSummary';
-import { cloneDocument, cloneMap, EditorDocument, EditorMetadata } from './editorDocument';
+import { cloneDocument, cloneMap, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
 import { EditorHistory } from './editorHistory';
 import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
@@ -104,10 +104,11 @@ import {
   EDITOR_GENERATOR_MIN_LEVEL,
   EDITOR_HOVER_OUTLINE_COLOR,
   EDITOR_LINK_LINE_WIDTH,
-  EDITOR_MIN_ZOOM_STEP,
+  EDITOR_MAX_TILE_SIZE,
+  EDITOR_ZOOM_TILE_STEP,
+  POINTER_ERASER_BUTTON,
   EDITOR_OVERLAY_LINE_WIDTH,
   EDITOR_PASSWORD_LENGTH,
-  EDITOR_PERCENT_BASE,
   EDITOR_TILE_CENTER_OFFSET,
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_LINK_COLOR,
@@ -246,7 +247,12 @@ export class LevelEditor {
   private pendingWire: PendingWire | null = null;
   private hoverCell: { x: number; y: number } | null = null;
   private cursorCell: { x: number; y: number } | null = null;
-  private zoomStep: number = EDITOR_MIN_ZOOM_STEP;
+  /** Zoom steps away from the fit size; 0 fits the level to the stage. */
+  private zoomOffset: number = 0;
+  /** Tile size, in pixels, the canvas buffer is drawn at. */
+  private tilePx: number = 0;
+  /** The level as it was loaded or last saved; null when the content was never stored. */
+  private cleanDoc: EditorDocument | null = null;
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
   private playerIconUrl: string = '';
   private dirty: boolean = false;
@@ -324,53 +330,53 @@ export class LevelEditor {
     return mapHeightOf(this.doc);
   }
 
-  /** Sizes the canvas drawing buffer to the level being edited, then fits it to the window. */
-  private fitCanvasToLevel(): void {
-    const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
-    const width = this.mapWidth() * editorTilePixelSize;
-    const height = this.mapHeight() * editorTilePixelSize;
-    if (this.canvas.width !== width) this.canvas.width = width;
-    if (this.canvas.height !== height) this.canvas.height = height;
-    this.applyFit();
-  }
-
-  /** Displays the canvas at the largest whole scale that fits its stage, times the zoom step. */
+  /**
+   * Sizes the canvas to the level and the stage: the tile is the largest whole
+   * number of CSS pixels that fits (moved by the zoom), the buffer is drawn at
+   * that tile times the device pixel ratio, and the canvas is redrawn.
+   */
   private applyFit(): CanvasFit | null {
     const stage = byId('editor-stage');
-    // A hidden editor has no size to fit; it fits when it is shown.
-    if (!stage || stage.offsetWidth === 0 || stage.offsetHeight === 0) return null;
     const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
+    // A hidden editor has no size to fit: it keeps the base tile until it is shown.
     const fit = fitCanvas({
       levelWidth: this.mapWidth(),
       levelHeight: this.mapHeight(),
       baseTileSize: editorTilePixelSize,
-      containerWidth: stage.offsetWidth,
-      containerHeight: stage.offsetHeight,
+      maxTileSize: EDITOR_MAX_TILE_SIZE,
+      zoomTileStep: EDITOR_ZOOM_TILE_STEP,
+      containerWidth: stage?.offsetWidth ?? 0,
+      containerHeight: stage?.offsetHeight ?? 0,
       devicePixelRatio: window.devicePixelRatio,
-      zoomStep: this.zoomStep
+      zoomOffset: this.zoomOffset
     });
-    this.zoomStep = fit.zoomStep;
+    this.zoomOffset = fit.zoomOffset;
+    const resized = this.canvas.width !== fit.backingWidth || this.canvas.height !== fit.backingHeight;
+    if (resized) {
+      this.canvas.width = fit.backingWidth;
+      this.canvas.height = fit.backingHeight;
+    }
+    this.tilePx = fit.bufferTileSize;
     this.canvas.style.width = `${fit.cssWidth}px`;
     this.canvas.style.height = `${fit.cssHeight}px`;
-    this.updateZoomControls(Math.round((fit.cssTileSize / editorTilePixelSize) * EDITOR_PERCENT_BASE));
+    this.updateZoomControls(fit);
+    if (resized || this.tilePx !== this.lastDrawnTilePx) this.render();
     return fit;
   }
 
-  private updateZoomControls(percent: number | null = null): void {
+  private lastDrawnTilePx = 0;
+
+  private updateZoomControls(fit: CanvasFit): void {
     const out = byId<HTMLButtonElement>('editor-zoom-out-btn');
     const inn = byId<HTMLButtonElement>('editor-zoom-in-btn');
-    if (out) out.disabled = clampZoomStep(this.zoomStep - 1) === this.zoomStep;
-    if (inn) inn.disabled = clampZoomStep(this.zoomStep + 1) === this.zoomStep;
-    if (percent === null) return;
+    if (out) out.disabled = !fit.canZoomOut;
+    if (inn) inn.disabled = !fit.canZoomIn;
     const label = byId('editor-zoom-level');
-    if (label) {
-      label.textContent = t('editor.layout.zoom.level.label', { percent });
-      label.setAttribute('aria-label', t('editor.layout.zoom.level.aria', { percent }));
-    }
+    if (label) label.textContent = t('editor.layout.zoom.level.label', { percent: fit.percent });
   }
 
-  private setZoomStep(step: number): void {
-    this.zoomStep = clampZoomStep(step);
+  private setZoomOffset(offset: number): void {
+    this.zoomOffset = offset;
     this.applyFit();
   }
 
@@ -442,9 +448,10 @@ export class LevelEditor {
     this.pendingWire = null;
     this.hoverCell = null;
     this.cursorCell = null;
-    this.zoomStep = EDITOR_MIN_ZOOM_STEP;
+    this.zoomOffset = 0;
+    this.cleanDoc = dirty ? null : cloneDocument(this.doc);
     this.isDirty = dirty;
-    this.fitCanvasToLevel();
+    this.applyFit();
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
     this.renderPaletteItems();
@@ -541,11 +548,12 @@ export class LevelEditor {
     container.innerHTML = '';
 
     const categories = ConfigRegistry.getTiles().categories;
+    const active = categories.find((cat) => cat.id === this.activeCategory);
+    byId('editor-palette-grid')?.setAttribute('aria-label', active ? t(active.i18nKey) : '');
     for (const cat of categories) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.setAttribute('role', 'tab');
-      btn.setAttribute('aria-selected', String(this.activeCategory === cat.id));
+      btn.setAttribute('aria-pressed', String(this.activeCategory === cat.id));
       btn.className = `editor-tab-btn ${this.activeCategory === cat.id ? 'active' : ''}`;
       btn.textContent = t(cat.i18nKey);
       btn.addEventListener('click', () => {
@@ -702,9 +710,9 @@ export class LevelEditor {
       });
     }
     byId('editor-dir-rotate-btn')?.addEventListener('click', () => this.rotateDirection());
-    byId('editor-zoom-out-btn')?.addEventListener('click', () => this.setZoomStep(zoomOut(this.zoomStep)));
-    byId('editor-zoom-in-btn')?.addEventListener('click', () => this.setZoomStep(zoomIn(this.zoomStep)));
-    byId('editor-zoom-fit-btn')?.addEventListener('click', () => this.setZoomStep(EDITOR_MIN_ZOOM_STEP));
+    byId('editor-zoom-out-btn')?.addEventListener('click', () => this.setZoomOffset(zoomOut(this.zoomOffset)));
+    byId('editor-zoom-in-btn')?.addEventListener('click', () => this.setZoomOffset(zoomIn(this.zoomOffset)));
+    byId('editor-zoom-fit-btn')?.addEventListener('click', () => this.setZoomOffset(0));
   }
 
   private updateDirButtons(): void {
@@ -751,13 +759,13 @@ export class LevelEditor {
         this.rotateDirection();
         break;
       case 'zoom_in':
-        this.setZoomStep(zoomIn(this.zoomStep));
+        this.setZoomOffset(zoomIn(this.zoomOffset));
         break;
       case 'zoom_out':
-        this.setZoomStep(zoomOut(this.zoomStep));
+        this.setZoomOffset(zoomOut(this.zoomOffset));
         break;
       case 'zoom_fit':
-        this.setZoomStep(EDITOR_MIN_ZOOM_STEP);
+        this.setZoomOffset(0);
         break;
       case 'cancel':
         this.cancelPendingWire(true);
@@ -801,7 +809,10 @@ export class LevelEditor {
   public reconcileSourceWithLibrary(): void {
     const result = reconcileSource(this.source, ConfigRegistry.getAllPacks());
     this.source = result.source;
-    if (result.lost) this.isDirty = true;
+    if (result.lost) {
+      this.cleanDoc = null;
+      this.isDirty = true;
+    }
     this.refreshContext();
   }
 
@@ -1023,6 +1034,13 @@ export class LevelEditor {
     });
 
     byId('editor-size-apply-btn')?.addEventListener('click', () => this.applySize());
+    for (const id of ['editor-size-width', 'editor-size-height']) {
+      byId(id)?.addEventListener('keydown', (ev) => {
+        if ((ev as KeyboardEvent).key !== 'Enter') return;
+        ev.preventDefault();
+        this.applySize();
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1232,7 +1250,7 @@ export class LevelEditor {
       this.cursorCell = null;
       this.hoverCell = null;
       this.isDirty = true;
-      this.fitCanvasToLevel();
+      this.applyFit();
       this.updateUndoRedoButtons();
       this.syncRulesetInput();
       this.scheduleCheck();
@@ -1306,10 +1324,10 @@ export class LevelEditor {
   private restoreDocument(doc: EditorDocument): void {
     this.doc = doc;
     this.coalescer.reset();
-    this.isDirty = true;
+    this.isDirty = !(this.cleanDoc !== null && sameDocument(doc, this.cleanDoc));
     this.pendingWire = null;
     this.cursorCell = null;
-    this.fitCanvasToLevel();
+    this.applyFit();
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
     this.updateContextTitle();
@@ -1414,7 +1432,7 @@ export class LevelEditor {
         return;
       }
 
-      this.beginStroke(ev.button === 2);
+      this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON);
       this.applyAt(cell.x, cell.y);
     });
 
@@ -1445,6 +1463,8 @@ export class LevelEditor {
         this.render();
         return;
       }
+      // A pointer stroke is running: its own history step must not be split by a key press.
+      if (this.stroke) return;
       const cell = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
       this.cursorCell = cell;
       if (this.tool === 'picker') {
@@ -1512,11 +1532,13 @@ export class LevelEditor {
   }
 
   public render(): void {
-    const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
     const doc = this.doc;
     const mapWidth = this.mapWidth();
     const mapHeight = this.mapHeight();
-    const s = editorTilePixelSize;
+    const s = this.tilePx;
+    this.lastDrawnTilePx = s;
+    // Resizing the canvas resets the context: keep the pixel art sharp at any tile size.
+    this.ctx.imageSmoothingEnabled = false;
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     for (let y = 0; y < mapHeight; y++) {
@@ -1718,7 +1740,10 @@ export class LevelEditor {
       // A refused write keeps the level in memory but leaves the editor dirty,
       // so leaving the editor still asks before discarding it. An edit made
       // while the save was in flight is not in the saved level: it stays dirty.
-      if (this.editRevision === revision) this.isDirty = !persisted;
+      if (this.editRevision === revision) {
+        this.cleanDoc = persisted ? cloneDocument(this.doc) : null;
+        this.isDirty = !persisted;
+      }
     }
     const packName = stored ? this.packLabel(stored) : packId;
     this.setStatusText(
@@ -1918,6 +1943,9 @@ export class LevelEditor {
 
   private setStatusText(msg: string): void {
     const el = document.getElementById('editor-status-bar');
-    if (el) el.textContent = msg;
+    if (!el) return;
+    el.textContent = msg;
+    // One line with an ellipsis: a long message must not resize the stage and refit the canvas.
+    el.title = msg;
   }
 }

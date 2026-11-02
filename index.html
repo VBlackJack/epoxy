@@ -342,7 +342,7 @@
                   <h3 class="editor-panel-title" data-i18n="editor.layout.palette.title"></h3>
                   <button id="editor-switch-epoxy-btn" class="hud-btn small hidden" type="button" data-i18n="editor.layout.palette.switch_epoxy"></button>
                 </div>
-                <div id="editor-category-tabs" class="editor-category-tabs" role="tablist" data-i18n-aria-label="editor.layout.palette.tabs"></div>
+                <div id="editor-category-tabs" class="editor-category-tabs" role="group" data-i18n-aria-label="editor.layout.palette.tabs"></div>
                 <div id="editor-palette-grid" class="editor-palette-grid" role="group"></div>
                 <div id="editor-dir-group" class="editor-dir-group" role="group" data-i18n-aria-label="editor.layout.palette.direction.label">
                   <span class="editor-dir-label" data-i18n="editor.layout.palette.direction.label"></span>
@@ -462,11 +462,11 @@
               <div class="editor-statusbar">
                 <div id="editor-coords-badge" class="editor-coords-badge">--</div>
                 <div id="editor-status-bar" class="editor-status-bar" role="status" aria-live="polite" data-i18n="editor.palette.status.ready.label"></div>
-                <div class="editor-zoom" role="group">
+                <div class="editor-zoom" role="group" data-i18n-aria-label="editor.layout.zoom.group">
                   <button id="editor-zoom-out-btn" class="hud-btn small" type="button" data-i18n-aria-label="editor.layout.zoom.out.aria">-</button>
                   <button id="editor-zoom-fit-btn" class="hud-btn small" type="button" data-i18n="editor.layout.zoom.fit.action" data-i18n-aria-label="editor.layout.zoom.fit.aria"></button>
                   <button id="editor-zoom-in-btn" class="hud-btn small" type="button" data-i18n-aria-label="editor.layout.zoom.in.aria">+</button>
-                  <span id="editor-zoom-level" class="editor-zoom-level"></span>
+                  <span id="editor-zoom-level" class="editor-zoom-level" aria-live="polite"></span>
                 </div>
               </div>
             </div>

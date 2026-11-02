@@ -110,9 +110,13 @@ export const EDITOR_TRAP_BUTTON_TILE = 'button_brown';
 export const EDITOR_TRAP_TILE = 'trap';
 export const EDITOR_CLONE_BUTTON_TILE = 'button_red';
 export const EDITOR_CLONER_TILE = 'clone_machine';
-/** Lowest and highest zoom the editor canvas allows, as a multiple of the fit scale. */
-export const EDITOR_MIN_ZOOM_STEP = 1;
-export const EDITOR_MAX_ZOOM_STEP = 4;
+/** Largest tile the editor canvas shows, in CSS pixels; the smallest is the configured editor tile size. */
+export const EDITOR_MAX_TILE_SIZE = 64;
+/** CSS pixels one zoom step adds to or removes from the tile, and how many steps each way from the fit. */
+export const EDITOR_ZOOM_TILE_STEP = 8;
+export const EDITOR_ZOOM_STEPS_EACH_WAY = 6;
+/** Mouse button number of a pen eraser. */
+export const POINTER_ERASER_BUTTON = 5;
 /** Editor layout: the view width, in CSS pixels, under which it drops to two columns, then to one. */
 export const EDITOR_TWO_COLUMN_BELOW_WIDTH = 1100;
 export const EDITOR_ONE_COLUMN_BELOW_WIDTH = 680;
