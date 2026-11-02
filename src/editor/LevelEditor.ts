@@ -122,7 +122,18 @@ export class LevelEditor {
   private activeDir: Direction = 'S';
   private isPainting: boolean = false;
   private isRightErasing: boolean = false;
-  private isDirty: boolean = false;
+  private dirty: boolean = false;
+  /** Bumped on every write to isDirty, so an async save can tell whether the editor changed meanwhile. */
+  private editRevision: number = 0;
+  private get isDirty(): boolean {
+    return this.dirty;
+  }
+
+  private set isDirty(value: boolean) {
+    this.dirty = value;
+    this.editRevision++;
+  }
+
   private undoStack: EditorSnapshot[] = [];
   private redoStack: EditorSnapshot[] = [];
   private pendingWireSource: { x: number; y: number } | null = null;
@@ -532,11 +543,13 @@ export class LevelEditor {
       // From now on this editor session updates the saved custom level.
       this.currentLevelId = compiled.id;
       this.draftCustomId = null;
+      const revision = this.editRevision;
       const { index, persisted } = await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, compiled);
       ConfigRegistry.setActivePackId(BUILTIN_PACK_IDS.CUSTOM);
       // A refused write keeps the level in memory but leaves the editor dirty,
-      // so leaving the editor still asks before discarding it.
-      this.isDirty = !persisted;
+      // so leaving the editor still asks before discarding it. An edit made
+      // while the save was in flight is not in the saved level: it stays dirty.
+      if (this.editRevision === revision) this.isDirty = !persisted;
       this.populatePresetDropdown();
       this.setStatusText(
         persisted ? t('editor.palette.status.saved') : t('editor.palette.status.saved_session_only.label')
