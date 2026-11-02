@@ -3,6 +3,44 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Slime and the gray button. Slime kills the player and monsters that step on it; a block pushed
+  onto it is lost and turns it into floor. The gray button swaps chips and bombs in the 5x5 square
+  around it (`GRAY_BUTTON_RADIUS`); the number of chips the exit asks for does not change. Both are
+  drawn in every graphics style, and the editor's check treats slime like water: a block must fill
+  it first.
+- The generator holds 159 proven pieces instead of 85: a new `dirt` motif, CCLP-inspired
+  pieces for traps, ice, bombs, force floors, cloners, monsters and thieves, 18 Sokoban and block
+  counterweight pieces, and 17 tier 5 pieces built on ice blocks, flame jets, coloured teleporters,
+  recessed walls, turtles, clone machines, slime and the gray button (the key thief piece stays out
+  of endless hubs). Ice blocks can
+  now be handed from one piece to the next, like dirt blocks.
+- Neighbouring endless levels rotate through each motif's pieces instead of drawing the same rooms
+  again: the strict attempts of a level keep clear of the pieces its neighbours use.
+
+### Changed
+
+- Endless mode starts at tier 5 with 7 pieces per level (was tier 4 and 6): it is meant for players
+  who finished the campaigns. Pieces with a solution shorter than 6 moves are avoided.
+- Endless hubs spread their wings over the four sides, keep their bays close to the hub, and fill
+  the open area with more chips, hazards and dividers. Wing rewards are never dropped for bonus
+  chips.
+- Endless levels and the passwords of every generated pack change for a given seed. Passwords no
+  longer repeat systematically between seeds (seed 1 level 2 used to share the password of seed 2
+  level 1).
+- Previous level (button and key) does nothing on the first level of an endless run instead of
+  restarting it, and its button is disabled there and in a pack of one level.
+
+### Fixed
+
+- A key thief inside an endless hub could take a key that another puzzle needed. Key thieves are now
+  kept out of endless hubs, and a plan that no order of wings can win is dropped before it is laid
+  out.
+- Leaving an endless run while its first level was being built no longer shows a generation error.
+
 ## [2.13.0] - 2026-11-02
 
 ### Changed

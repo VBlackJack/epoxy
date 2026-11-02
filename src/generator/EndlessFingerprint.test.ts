@@ -36,21 +36,21 @@ interface Case {
 }
 
 const ENDLESS_CASES: Case[] = [
-  { seed: 1, level: 1, hash: '1e0d4ba7009417' },
-  { seed: 1, level: 2, hash: '1a9458bf245178' },
-  { seed: 1, level: 7, hash: '693a614840648' },
-  { seed: 1, level: 25, hash: '5fa4e7dffc611' },
-  { seed: 42, level: 1, hash: '18d856358befa6' },
-  { seed: 42, level: 2, hash: '1eb78cb6c54204' },
-  { seed: 42, level: 7, hash: '121b380955a091' },
-  { seed: 987654321, level: 1, hash: '19df0c0d3d3f3c' },
-  { seed: 987654321, level: 2, hash: 'a7a9611f4950a' },
-  { seed: 987654321, level: 7, hash: 'bf3845e5221e4' }
+  { seed: 1, level: 1, hash: '1419d182c884b4' },
+  { seed: 1, level: 2, hash: '802c26e450f9d' },
+  { seed: 1, level: 7, hash: 'db425d814e210' },
+  { seed: 1, level: 25, hash: '13c37c435c6c44' },
+  { seed: 42, level: 1, hash: '1b187714d424eb' },
+  { seed: 42, level: 2, hash: '1eb3ad719ec2e6' },
+  { seed: 42, level: 7, hash: '1b6c03528dd3e1' },
+  { seed: 987654321, level: 1, hash: '5295e5bccd0b4' },
+  { seed: 987654321, level: 2, hash: 'e5971c850aa9a' },
+  { seed: 987654321, level: 7, hash: '19a105dfb1c138' }
 ];
 
 const PACK_CASES: Case[] = [
-  { seed: 5, level: 3, hash: '1b682b644b597e' },
-  { seed: 5, level: 12, hash: '7a2ecadbd704c' }
+  { seed: 5, level: 3, hash: 'fd03f69df7c50' },
+  { seed: 5, level: 12, hash: 'e26d9353d5e0b' }
 ];
 
 /** 53-bit string hash (cyrb53), enough to tell two serialized levels apart. */
