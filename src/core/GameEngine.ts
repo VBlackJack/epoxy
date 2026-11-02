@@ -20,6 +20,9 @@ import { AudioManager } from '../audio/AudioManager';
 import { stepTerrainOf } from '../audio/stepTerrain';
 import {
   BLOCK_TARGET_TILE_ID,
+  BOMB_ITEM_ID,
+  CHIP_ITEM_ID,
+  GRAY_BUTTON_RADIUS,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLOOR_TILE_ID,
   OPPOSITE_DIRECTION,
@@ -811,6 +814,12 @@ export class GameEngine {
       return;
     }
 
+    if (tile.hazard === 'slime' && (!tile.protectedByItem || !this.player.boots.has(tile.protectedByItem))) {
+      this.emitVisual('splash', x, y, 'green');
+      this.killPlayer('hud.messages.death_slime', 'splash');
+      return;
+    }
+
     if (tile.isLevelExit) {
       this.emitVisual('win', x, y);
       this.completeLevel();
@@ -977,6 +986,14 @@ export class GameEngine {
       return;
     }
 
+    if (tile.hazard === 'slime') {
+      this.terrain[destY][destX] = tile.blockTransformsTo || FLOOR_TILE_ID;
+      this.removeEntity(block.uid);
+      AudioManager.playSfx('splash');
+      this.emitVisual('splash', destX, destY, 'green');
+      return;
+    }
+
     if (tile.hazard === 'fire' && blockDef?.destroyedByFire) {
       if (blockDef.meltsInFireTo) {
         this.terrain[destY][destX] = blockDef.meltsInFireTo;
@@ -1116,6 +1133,12 @@ export class GameEngine {
       return true;
     }
 
+    if (destTile.hazard === 'slime') {
+      this.removeEntity(entity.uid);
+      AudioManager.playSfx('splash');
+      return true;
+    }
+
     if (destTile.buttonAction && !this.triggerButton(nx, ny, destTile.buttonAction)) {
       return false;
     }
@@ -1233,6 +1256,8 @@ export class GameEngine {
       this.swapTerrain((tile) => tile.flameTogglesTo);
       this.burnPlayerIfFlamesLit();
       this.burnEntitiesOnFire();
+    } else if (action === 'swap_chips_bombs') {
+      this.swapChipsAndBombs(bx, by);
     } else if (action === 'reverse_tanks') {
       for (const ent of this.entities) {
         if (ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) {
@@ -1257,6 +1282,28 @@ export class GameEngine {
       }
     }
     return true;
+  }
+
+  /**
+   * Swaps chips and bombs in the square region centered on `(bx, by)`. The chip count
+   * the exit asks for stays as it is: a chip turned into a bomb never stands in for one
+   * collected, so the button cannot open the exit early.
+   */
+  private swapChipsAndBombs(bx: number, by: number): void {
+    const minY = Math.max(0, by - GRAY_BUTTON_RADIUS);
+    const maxY = Math.min(this.items.length - 1, by + GRAY_BUTTON_RADIUS);
+    for (let y = minY; y <= maxY; y++) {
+      const minX = Math.max(0, bx - GRAY_BUTTON_RADIUS);
+      const maxX = Math.min(this.items[y].length - 1, bx + GRAY_BUTTON_RADIUS);
+      for (let x = minX; x <= maxX; x++) {
+        const item = this.items[y][x];
+        if (item === CHIP_ITEM_ID) {
+          this.items[y][x] = BOMB_ITEM_ID;
+        } else if (item === BOMB_ITEM_ID) {
+          this.items[y][x] = CHIP_ITEM_ID;
+        }
+      }
+    }
   }
 
   /** Replaces every tile for which `target` names a terrain by that terrain. */

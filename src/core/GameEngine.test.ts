@@ -1105,3 +1105,60 @@ describe('GameEngine footstep terrain', () => {
     expect(stepOnto('fire')).toBeNull();
   });
 });
+
+describe('GameEngine slime and gray button', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('kills the player on slime and neutralizes slime into floor when a block is pushed onto it', () => {
+    const lvl = openLevel('slime_level');
+    lvl.playerStart = { x: 2, y: 5, dir: 'E' };
+    lvl.terrain[5][3] = 'slime';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.getPlayer().alive).toBe(false);
+
+    const lvlBlock = openLevel('slime_block_level');
+    lvlBlock.playerStart = { x: 2, y: 5, dir: 'E' };
+    lvlBlock.entities = [{ x: 3, y: 5, type: 'dirt_block', dir: 'E' }];
+    lvlBlock.terrain[5][4] = 'slime';
+    engine.loadLevel(lvlBlock);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.getTerrain()[5][4]).toBe('floor');
+    expect(engine.getEntities()).toHaveLength(0);
+  });
+
+  it('swaps chips and bombs within a 5x5 radius of a gray button', () => {
+    const lvl = openLevel('button_gray_level');
+    lvl.playerStart = { x: 4, y: 5, dir: 'E' };
+    lvl.terrain[5][5] = 'button_gray';
+    lvl.items[3][3] = 'bomb';
+    lvl.items[7][7] = 'chip';
+    lvl.items[2][5] = 'bomb'; // Distance 3 > GRAY_BUTTON_RADIUS (2), stays bomb.
+    lvl.chipsRequired = 2;
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.getChipsRemaining()).toBe(2);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.getItems()[3][3]).toBe('chip');
+    expect(engine.getItems()[7][7]).toBe('bomb');
+    expect(engine.getItems()[2][5]).toBe('bomb');
+    expect(engine.getChipsRemaining()).toBe(2);
+  });
+
+  it('keeps the chips the exit asks for when the gray button turns a chip into a bomb', () => {
+    const lvl = openLevel('button_gray_surplus_level');
+    lvl.playerStart = { x: 4, y: 5, dir: 'E' };
+    lvl.terrain[5][5] = 'button_gray';
+    lvl.items[4][6] = 'chip';
+    lvl.items[1][1] = 'chip';
+    lvl.chipsRequired = 1;
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.getItems()[4][6]).toBe('bomb');
+    expect(engine.getChipsRemaining()).toBe(1);
+  });
+});

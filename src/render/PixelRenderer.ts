@@ -1970,6 +1970,17 @@ export class PixelRenderer {
         break;
       }
 
+      case 'slime': {
+        ctx.fillStyle = pal.slimeBase;
+        ctx.fillRect(x, y, size, size);
+        ctx.fillStyle = pal.slimeBlob;
+        ctx.beginPath();
+        ctx.arc(x + size * 0.35, y + size * 0.38, size * 0.14, 0, FULL_TURN);
+        ctx.arc(x + size * 0.68, y + size * 0.62, size * 0.12, 0, FULL_TURN);
+        ctx.fill();
+        break;
+      }
+
       case 'flame_jet_off': {
         this.drawRetroFloorDetail(ctx, x, y, size, neighbours.hash);
         this.drawFlameJetNozzle(ctx, x, y, size, false);
@@ -2120,6 +2131,7 @@ export class PixelRenderer {
       case 'button_blue':
       case 'button_brown':
       case 'button_red':
+      case 'button_gray':
       case 'button_orange': {
         ctx.fillStyle = pal.wallShadow;
         ctx.beginPath();
@@ -3004,6 +3016,20 @@ export class PixelRenderer {
         break;
       }
 
+      case 'slime': {
+        const sGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+        sGrad.addColorStop(0, pal.modernSlimeTop);
+        sGrad.addColorStop(1, pal.modernSlimeBottom);
+        ctx.fillStyle = sGrad;
+        ctx.fillRect(x, y, size, size);
+        ctx.fillStyle = pal.modernSlimeGlow;
+        ctx.beginPath();
+        ctx.arc(x + size * 0.36, y + size * 0.38, size * 0.15, 0, FULL_TURN);
+        ctx.arc(x + size * 0.66, y + size * 0.64, size * 0.12, 0, FULL_TURN);
+        ctx.fill();
+        break;
+      }
+
       case 'flame_jet_off': {
         this.drawModernFloorDetail(ctx, x, y, size, neighbours.hash);
         this.drawFlameJetNozzle(ctx, x, y, size, true);
@@ -3167,6 +3193,7 @@ export class PixelRenderer {
       case 'button_blue':
       case 'button_brown':
       case 'button_red':
+      case 'button_gray':
       case 'button_orange': {
         const c = this.buttonColor(tileId);
         ctx.fillStyle = pal.modernButtonBase;

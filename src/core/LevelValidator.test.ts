@@ -28,6 +28,7 @@ const TERRAIN_CODES: Record<string, string> = {
   S: 'socket',
   T: 'thief',
   W: 'water',
+  L: 'slime',
   F: 'fire',
   I: 'ice',
   v: 'force_s',
@@ -113,6 +114,14 @@ describe('LevelValidator', () => {
     expect(withButton.stats.reachableExit).toBe(true);
     // An off jet stays passable: the button is never forced.
     expect(LevelValidator.validate(grid(['#######', '#POjE.#', '#######'])).valid).toBe(true);
+  });
+
+  it('blocks the way at slime until a block can be pushed into it', () => {
+    expect(LevelValidator.validate(grid(['#######', '#P.LE.#', '#######'])).valid).toBe(false);
+    const withBlock = grid(['########', '#P..LE.#', '########'], {
+      entities: [{ x: 3, y: 1, type: 'dirt_block', dir: 'E' }]
+    });
+    expect(LevelValidator.validate(withBlock).valid).toBe(true);
   });
 
   it('loses the keys to a reachable key thief', () => {
