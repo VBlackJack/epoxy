@@ -406,6 +406,7 @@
       "entity_dir": { "label": "Entity / Player Direction" }
     },
     "palette": {
+      "unavailable": { "epoxy_only": { "label": "Needs Epoxy rules: not available in a Lynx level." } },
       "category": {
         "terrain": { "label": "Terrain & Walls" },
         "hazards": { "label": "Elements & Ice" },

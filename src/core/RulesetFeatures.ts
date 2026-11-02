@@ -75,16 +75,24 @@ const LASER_LEVEL_FEATURES: RulesetFeatures = { ...EPOXY_FEATURES, blockHint: fa
 /** The aids a laser level won by lighting receivers also loses: its goal is not a place to walk to. */
 const RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, objectiveMarker: false };
 
+/** True when the tile id is a laser emitter, receiver or gate, as the tile config defines them. */
+export function isLaserTileId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.laserEmitter !== undefined || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined;
+}
+
+/** True when the entity type is a laser mirror, as the monster config defines it. */
+export function isMirrorEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.mirrorAxis !== undefined;
+}
+
 /** True when the level places a laser tile (terrain or item layer) or a mirror, as the configs define them. */
 export function hasLaserContent(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'>): boolean {
-  const isLaserTile = (id: string | null): boolean => {
-    if (!id) return false;
-    const tile = ConfigRegistry.getTile(id);
-    return tile.laserEmitter !== undefined || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined;
-  };
-  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean => grid?.some((row) => row.some(isLaserTile)) ?? false;
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isLaserTileId)) ?? false;
   if (hasTile(level.terrain) || hasTile(level.items)) return true;
-  return (level.entities ?? []).some((e) => ConfigRegistry.getEntityDef(e.type)?.mirrorAxis !== undefined);
+  return (level.entities ?? []).some((e) => isMirrorEntityType(e.type));
 }
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */

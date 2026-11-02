@@ -406,6 +406,7 @@
       "entity_dir": { "label": "Direction Entité / Joueur" }
     },
     "palette": {
+      "unavailable": { "epoxy_only": { "label": "Demande les règles Epoxy : indisponible dans un niveau Lynx." } },
       "category": {
         "terrain": { "label": "Terrains & Murs" },
         "hazards": { "label": "Éléments & Glace" },
