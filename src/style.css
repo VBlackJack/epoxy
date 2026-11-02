@@ -1826,3 +1826,279 @@ body.fullscreen-mode .view-section {
   left: -9999px;
   opacity: 0;
 }
+
+/* PACK MANAGER, SAVE INTO, EDITOR CONTEXT LINE */
+.editor-right-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.editor-context-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.editor-context-pack {
+  width: auto;
+  max-width: 16rem;
+}
+
+.editor-context-position {
+  font-family: monospace;
+  color: var(--text-muted);
+}
+
+.editor-context-title {
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 18rem;
+}
+
+.editor-context-dirty {
+  color: var(--led-amber);
+}
+
+.packs-dialog {
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.packs-layout {
+  display: flex;
+  gap: 1rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.packs-library {
+  width: 16rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.packs-library h4,
+.packs-detail h4 {
+  margin: 0;
+}
+
+.packs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+  min-height: 4rem;
+}
+
+.packs-row {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: left;
+  background: #202532;
+  color: var(--text-main);
+  border: 1px solid #333b4d;
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+
+.packs-row.selected {
+  border-color: var(--accent-orange);
+}
+
+.packs-row-name {
+  font-weight: bold;
+  flex: 1 1 100%;
+}
+
+.packs-row-meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.packs-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.packs-badge {
+  font-size: 0.68rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid #4a5570;
+  color: var(--text-muted);
+}
+
+.packs-badge-imported {
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow);
+}
+
+.packs-new-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.packs-library-actions,
+.packs-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.packs-detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  overflow-y: auto;
+}
+
+.packs-selected {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.packs-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.packs-detail-header .editor-input {
+  flex: 1;
+  min-width: 8rem;
+  width: auto;
+}
+
+.packs-empty {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.packs-levels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.packs-level {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  background: #202532;
+  border: 1px solid #333b4d;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+
+.packs-level-number {
+  font-family: monospace;
+  color: var(--text-muted);
+}
+
+.packs-level-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.packs-level-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.packs-level-reason,
+.packs-transfer {
+  grid-column: 1 / -1;
+}
+
+.packs-transfer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.packs-transfer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+}
+
+.pack-delete-actions {
+  flex-wrap: wrap;
+}
+
+.save-into-dialog {
+  width: 380px;
+}
+
+.save-into-fieldset {
+  border: 1px solid #333b4d;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.6rem;
+}
+
+.save-into-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.save-into-option,
+.save-into-new {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.save-into-new .editor-input {
+  flex: 1;
+  width: auto;
+}
+
+@media (max-width: 720px) {
+  .packs-layout {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .packs-library {
+    width: 100%;
+  }
+}

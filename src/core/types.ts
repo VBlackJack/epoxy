@@ -89,6 +89,8 @@ export interface StorageConfig {
   lastEndlessKey: string;
   /** Flag set once the first-launch "How to play" dialog was shown. */
   onboardingSeenKey: string;
+  /** Pack the editor last saved a level into, preselected in its "Save into" dialog. */
+  lastSaveDestinationKey: string;
   levelPacksDbName: string;
   levelPacksStoreName: string;
 }

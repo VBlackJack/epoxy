@@ -113,3 +113,5 @@ export const EDITOR_CLONER_TILE = 'clone_machine';
 /** Lowest and highest zoom the editor canvas allows, as a multiple of the fit scale. */
 export const EDITOR_MIN_ZOOM_STEP = 1;
 export const EDITOR_MAX_ZOOM_STEP = 4;
+/** Pack-manager level row: the buttons whose focus is restored after the list is redrawn. */
+export const PACK_MANAGER_FOCUS_ATTRIBUTE = 'data-focus-key';

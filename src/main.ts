@@ -25,7 +25,9 @@ import { PlayEngine } from './core/PlayEngine';
 import { featuresFor } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
-import { LevelEditor } from './editor/LevelEditor';
+import { LevelEditor, SavedLevelInfo } from './editor/LevelEditor';
+import { isEditableRuleset } from './editor/metadataFields';
+import { isSaveChord } from './editor/saveTarget';
 import { AudioManager } from './audio/AudioManager';
 import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSelection';
 import { VOLUME_PERCENT_MAX, VOLUME_PERCENT_MIN, VOLUME_PERCENT_STEP } from './audio/volumeSettings';
@@ -64,6 +66,8 @@ import {
   suggestStartLevel
 } from './ui/proceduralPack';
 import { downloadBytes } from './ui/download';
+import { PackFlows } from './ui/packFlows';
+import { PackManager } from './ui/packManager';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
@@ -176,6 +180,12 @@ class EpoxyApplication {
   private readonly engineSelector = new EngineSelector();
   private renderer: PixelRenderer = new PixelRenderer();
   private editor!: LevelEditor;
+  private packManager!: PackManager;
+  private packFlows!: PackFlows;
+  /** Level of an editor test play still on screen; null otherwise. */
+  private testPlayLevel: CompiledLevel | null = null;
+  /** Pack the level on screen was started from. */
+  private playedPackId: string = BUILTIN_PACK_IDS.CAMPAIGN;
 
   /** The engine of the level on screen. */
   private get engine(): PlayEngine {
@@ -275,6 +285,9 @@ class EpoxyApplication {
     this.loadHighScores();
     this.bindEngineCallbacks();
     this.createEditor(editorCanvas);
+    this.packFlows = this.createPackFlows();
+    this.packManager = this.createPackManager();
+    this.bindUnsavedWorkGuard();
 
     this.refreshPackSelector();
     // Read before the first level starts: starting a level writes the save slot.
@@ -434,7 +447,8 @@ class EpoxyApplication {
 
   private bindEngineCallbacks(): void {
     this.engineSelector.setOnWinCallback((levelId, timeRemaining, steps, score) => {
-      if (!this.isReplaying) {
+      // A test play of an editor draft is not a record for the stored level that shares its id.
+      if (!this.isReplaying && !this.isTestPlaying()) {
         this.recordHighScore(levelId, timeRemaining, steps, score, this.engine.getTimedMoveHistory());
       }
       this.stopAutoMoveAndReplay();
@@ -445,10 +459,8 @@ class EpoxyApplication {
   }
 
   private createEditor(editorCanvas: HTMLCanvasElement): void {
-    this.editor = new LevelEditor(
-      editorCanvas,
-      this.renderer,
-      (testLevel: CompiledLevel) => {
+    this.editor = new LevelEditor(editorCanvas, this.renderer, {
+      onTestPlay: (testLevel: CompiledLevel) => {
         this.cancelEndlessPrefetch();
         this.switchMode('play');
         this.stopAutoMoveAndReplay();
@@ -458,19 +470,42 @@ class EpoxyApplication {
         this.showLevelTheme(testLevel);
         // The editor already holds this content: do not reload it on return.
         this.editorSourceLevel = testLevel;
+        this.testPlayLevel = testLevel;
         this.updateHUD();
       },
-      (savedIdx: number) => {
-        // Saving makes the custom pack active: play the saved level from it.
-        this.refreshPackSelector();
-        this.startLevelByIndex(savedIdx);
-        this.editorSourceLevel = this.engine.getLevel();
-      },
-      (message: string) => {
+      onLevelSaved: (info: SavedLevelInfo) => this.handleEditorSave(info),
+      onNotify: (message: string) => {
         this.showTransientStatus(message);
-      }
-    );
+      },
+      openManager: (packId: string | null) => {
+        this.packManager.open(packId !== null && ConfigRegistry.isEditablePack(packId) ? packId : this.managerStartPackId());
+      },
+      importAsPack: (name: string, levels: CompiledLevel[], skipped: number) =>
+        this.packFlows.importLevelsAsPack(name, levels, skipped)
+    });
     this.editor.buildUI();
+  }
+
+  /**
+   * Saving only stores the level: it never changes the active pack, restarts
+   * the play engine or touches the save slot. A level whose map changed loses
+   * the best record and replay that belonged to the old map.
+   */
+  private handleEditorSave(info: SavedLevelInfo): void {
+    if (info.recordsInvalidated) this.clearHighScore(info.levelId);
+    this.refreshPackSelector();
+    this.populateScoresTable();
+    this.packManager.refresh();
+  }
+
+  /** Warns before the page is left with unsaved editor work. */
+  private bindUnsavedWorkGuard(): void {
+    window.addEventListener('beforeunload', (e) => {
+      if (!this.editor.hasUnsavedChanges()) return;
+      e.preventDefault();
+      // Some browsers only show their prompt when a return value is set.
+      e.returnValue = '';
+    });
   }
 
   private startGameLoop(): void {
@@ -603,6 +638,76 @@ class EpoxyApplication {
   // Packs, import and export
   // ---------------------------------------------------------------------------
 
+  private createPackManager(): PackManager {
+    return new PackManager({
+      playPack: (packId, levelIndex) => this.playPackFromManager(packId, levelIndex),
+      editLevel: (packId, levelId) => this.packFlows.openInEditor(() => this.editor.openLevel(packId, levelId)),
+      newLevelInPack: (packId) => this.packFlows.openInEditor(() => this.editor.newLevelInPack(packId)),
+      importFile: () => this.openPackFilePicker(),
+      deleteImportedPacks: () => this.deleteAllImportedPacks(),
+      exportCcl: (pack) => this.exportPackAsCcl(pack.levels, pack.id),
+      notify: (message) => this.showTransientStatus(message),
+      libraryChanged: (change) => this.packFlows.handleLibraryChange(change.deletedPackIds),
+      packDisplayName: (pack) => this.getPackDisplayName(pack),
+      levelTitle: (level) => this.resolveLevelTitle(level)
+    });
+  }
+
+  /** Pack the manager opens on: the active pack when the player can edit it, else the first one it lists. */
+  private managerStartPackId(): string | null {
+    const activeId = ConfigRegistry.getActivePackId();
+    return ConfigRegistry.isEditablePack(activeId) ? activeId : null;
+  }
+
+  /** Wires the flows that tie the library, the editor and the play side together. */
+  private createPackFlows(): PackFlows {
+    return new PackFlows({
+      editor: () => this.editor,
+      engineLevel: () => this.engine.getLevel(),
+      playedPackId: () => this.playedPackId,
+      markEditorSynced: (level) => {
+        this.editorSourceLevel = level;
+      },
+      switchMode: (mode) => this.switchMode(mode),
+      refreshLibraryViews: () => {
+        this.refreshPackSelector();
+        this.populateScoresTable();
+      },
+      restartFromFirstLevel: () => this.startLevelByIndex(0, false),
+      setCurrentLevelIndex: (index) => {
+        this.currentLevelIndex = index;
+      },
+      announceImportedPack: (pack, persisted, skipped, skippedKey) =>
+        this.announceImportedPack(pack, persisted, skipped, skippedKey),
+      showStatus: (message) => this.showTransientStatus(message),
+      importErrorMessage: () => this.importErrorMessage()
+    });
+  }
+
+  /**
+   * Opens the manager. Its opener is the control that stays visible when the Levels
+   * dialog or the drawer closes, so focus returns somewhere the player can see.
+   */
+  private openPackManager(): void {
+    const active = document.activeElement as HTMLElement | null;
+    const closing = active?.closest('#scores-modal, #options-drawer') ?? null;
+    const visible = (el: HTMLElement | null): HTMLElement | null =>
+      el && el.getClientRects().length > 0 ? el : null;
+    const opener = closing
+      ? (visible(byId('btn-levels-modal')) ?? visible(byId('btn-options-menu')) ?? visible(byId('btn-mobile-menu')))
+      : active;
+    this.setDrawerOpen(false);
+    this.closeModal(MODAL_IDS.SCORES);
+    this.packManager.open(this.managerStartPackId(), opener);
+  }
+
+  private playPackFromManager(packId: string, levelIndex: number): void {
+    ConfigRegistry.setActivePackId(packId);
+    this.refreshPackSelector();
+    this.switchMode('play');
+    this.startLevelByIndex(levelIndex);
+  }
+
   private getPackDisplayName(pack: LevelPack): string {
     return pack.i18nKey ? t(pack.i18nKey) : pack.name;
   }
@@ -639,6 +744,15 @@ class EpoxyApplication {
     }
     this.updateProceduralSeedBox();
     this.updateDeleteImportedPacksButton();
+    this.updateManagerButton();
+  }
+
+  /** The Levels dialog button reads "Manage this pack" while the pack being played is one the player can edit. */
+  private updateManagerButton(): void {
+    const labelKey = ConfigRegistry.isEditablePack(ConfigRegistry.getActivePackId())
+      ? 'app.packs.manager.open_current_btn.action'
+      : 'app.packs.manager.open_btn.action';
+    setText(byId('btn-open-pack-manager'), t(labelKey));
   }
 
   /** Switches to a pack from any pack select, keeps the others in step and closes the drawer. */
@@ -648,7 +762,8 @@ class EpoxyApplication {
       select.value = packId;
     }
     this.updateProceduralSeedBox();
-    this.editor.populatePresetDropdown();
+    this.updateManagerButton();
+    this.editor.refreshContext();
     this.startLevelByIndex(0);
     this.setDrawerOpen(false);
   }
@@ -701,20 +816,26 @@ class EpoxyApplication {
     skippedCount: number,
     skippedKey: string
   ): Promise<void> {
-    const { persisted } = await ConfigRegistry.registerImportedPack(packName, levels);
+    const { pack, persisted } = await ConfigRegistry.registerImportedPack(packName, levels);
+    this.announceImportedPack(pack, persisted, skippedCount, skippedKey);
+  }
+
+  /** Opens the first level of a pack that was just registered and announces the result. */
+  private announceImportedPack(pack: LevelPack, persisted: boolean, skippedCount: number, skippedKey: string): void {
     this.refreshPackSelector();
-    this.editor.populatePresetDropdown();
+    this.editor.refreshContext();
     this.switchMode('play');
     this.startLevelByIndex(0, false);
     const importedKey = skippedCount > 0 ? skippedKey : 'app.packs.imported_toast.label';
     this.showTransientStatus(
       combineStatusMessages(
         persisted
-          ? t(importedKey, { name: packName, count: levels.length, skipped: skippedCount })
-          : t('app.packs.imported_session_only_toast.label', { name: packName }),
+          ? t(importedKey, { name: pack.name, count: pack.levels.length, skipped: skippedCount })
+          : t('app.packs.imported_session_only_toast.label', { name: pack.name }),
         this.objectiveMessage()
       )
     );
+    this.packManager.refresh(pack.id);
   }
 
   private async handleImportedFile(file: File): Promise<void> {
@@ -736,7 +857,9 @@ class EpoxyApplication {
           throw new Error('Empty pack');
         }
       } else if (lower.endsWith('.json')) {
-        levels = this.compileJsonLevels(JSON.parse(await file.text()));
+        const text = await file.text();
+        if (await this.packFlows.tryImportPackFile(text)) return;
+        levels = this.compileJsonLevels(JSON.parse(text));
       } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
         const decoded = decodeXsbCollection(await file.text(), packName);
         levels = decoded.levels;
@@ -966,7 +1089,7 @@ class EpoxyApplication {
     this.endlessLevels = [first];
     ConfigRegistry.setProceduralLevels(this.endlessLevels);
     this.refreshPackSelector();
-    this.editor.populatePresetDropdown();
+    this.editor.refreshContext();
     this.switchMode('play');
     this.startLevelByIndex(0);
     this.showTransientStatus(t('app.packs.procedural_toast.label', { seed, level: startLevel }));
@@ -1057,9 +1180,13 @@ class EpoxyApplication {
   }
 
   private exportActivePack(): void {
-    const encoded = DatCodec.encodeLevelsWithReport(ConfigRegistry.getLevels());
+    this.exportPackAsCcl(ConfigRegistry.getLevels(), ConfigRegistry.getActivePackId());
+  }
+
+  private exportPackAsCcl(levels: CompiledLevel[], fileBase: string): void {
+    const encoded = DatCodec.encodeLevelsWithReport(levels);
     if (encoded.levelCount > 0) {
-      downloadBytes(encoded.bytes, `${ConfigRegistry.getActivePackId()}.ccl`);
+      downloadBytes(encoded.bytes, `${fileBase}.ccl`);
     }
     const notice = lossyExportNotice(encoded);
     if (notice) this.showTransientStatus(notice);
@@ -1095,7 +1222,7 @@ class EpoxyApplication {
       await ConfigRegistry.deleteImportedPack(id);
     }
     this.refreshPackSelector();
-    this.editor.populatePresetDropdown();
+    this.editor.refreshContext();
     if (activeRemoved) this.startLevelByIndex(0);
     this.populateScoresTable();
     this.showTransientStatus(t('app.packs.delete_all_done.label', { count: ids.length }));
@@ -1116,7 +1243,7 @@ class EpoxyApplication {
 
     await ConfigRegistry.deleteImportedPack(activeId);
     this.refreshPackSelector();
-    this.editor.populatePresetDropdown();
+    this.editor.refreshContext();
     this.startLevelByIndex(0);
     this.populateScoresTable();
   }
@@ -1681,6 +1808,8 @@ class EpoxyApplication {
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
     this.lastWarnedSecond = NO_WARNED_SECOND;
+    this.testPlayLevel = null;
+    this.playedPackId = ConfigRegistry.getActivePackId();
     if (this.isEndlessActive()) {
       this.endlessWaiting = false;
     } else {
@@ -1750,7 +1879,7 @@ class EpoxyApplication {
     for (const id of EDITOR_MODE_BUTTON_IDS) setToggleState(byId(id), !isPlay);
 
     if (!isPlay) {
-      void this.syncEditorWithEngineLevel().then(() => this.editor.populatePresetDropdown());
+      void this.syncEditorWithEngineLevel().then(() => this.editor.refreshContext());
     }
   }
 
@@ -1762,6 +1891,11 @@ class EpoxyApplication {
     const level = this.engine.getLevel();
     if (level === this.editorSourceLevel) return;
     this.editorSourceLevel = level;
+    if (!isEditableRuleset(level.ruleset)) {
+      // Refused before any question about unsaved work: the editor keeps its content and says why.
+      this.editor.loadCompiledLevel(level);
+      return;
+    }
     if (
       this.editor.hasUnsavedChanges() &&
       !(await confirmDialog({
@@ -1773,7 +1907,9 @@ class EpoxyApplication {
     ) {
       return;
     }
-    this.editor.loadCompiledLevel(level);
+    this.editor.loadCompiledLevel(level, {
+      source: { packId: ConfigRegistry.getActivePackId(), levelId: level.id }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -1840,6 +1976,12 @@ class EpoxyApplication {
     byId('btn-delete-imported-packs')?.addEventListener('click', () => {
       void this.deleteAllImportedPacks();
     });
+
+    for (const id of ['btn-open-pack-manager', 'btn-header-packs', 'btn-drawer-packs']) {
+      byId(id)?.addEventListener('click', () => {
+        this.openPackManager();
+      });
+    }
   }
 
   private bindBoardPointer(): void {
@@ -2354,6 +2496,10 @@ class EpoxyApplication {
     byId('hud-btn-restart')?.addEventListener('click', () => {
       this.restartLevel();
     });
+    byId('hud-btn-back-to-editor')?.addEventListener('click', () => {
+      // The editor already holds the tested level: switching back leaves its work intact.
+      this.switchMode('editor');
+    });
     byId('hud-btn-pause')?.addEventListener('click', () => {
       this.engine.togglePause();
       this.updateHUD();
@@ -2408,6 +2554,7 @@ class EpoxyApplication {
       'hidden',
       !this.isRemovablePackId(ConfigRegistry.getActivePackId())
     );
+    this.updateManagerButton();
 
     const levels = ConfigRegistry.getLevels();
     const showCodes = packUsesPasswords(levels);
@@ -2529,6 +2676,12 @@ class EpoxyApplication {
     const kb = ConfigRegistry.getGame().keybindings;
 
     window.addEventListener('keydown', (e) => {
+      // Save works wherever focus is, text fields included, and the browser's own save dialog never opens.
+      if (this.activeMode === 'editor' && isSaveChord(e)) {
+        e.preventDefault();
+        if (!isDialogOpen()) void this.editor.save();
+        return;
+      }
       // Escape and Tab inside dialogs are handled by the dialog helper.
       const active = document.activeElement;
       const activeTag = active?.tagName;
@@ -2943,6 +3096,7 @@ class EpoxyApplication {
     const lvl = this.engine.getLevel();
     const player = this.engine.getPlayer();
 
+    byId('hud-btn-back-to-editor')?.classList.toggle('hidden', !this.isTestPlaying());
     setText(byId('hud-level-num'), String(lvl.number));
     setText(byId('hud-level-pass'), lvl.password);
     this.updatePasswordControls();
@@ -3171,6 +3325,27 @@ class EpoxyApplication {
   // Persistence
   // ---------------------------------------------------------------------------
 
+  /** True while the level on screen is the one the editor sent to test play. */
+  private isTestPlaying(): boolean {
+    return this.testPlayLevel !== null && this.engine.getLevel() === this.testPlayLevel;
+  }
+
+  private persistHighScores(): void {
+    try {
+      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.highScoresKey);
+      localStorage.setItem(key, JSON.stringify(this.highScores));
+    } catch {
+      // Storage unavailable
+    }
+  }
+
+  /** Forgets the best record and replay of a level. */
+  private clearHighScore(levelId: string): void {
+    if (!(levelId in this.highScores)) return;
+    delete this.highScores[levelId];
+    this.persistHighScores();
+  }
+
   private recordHighScore(
     levelId: string,
     timeRemaining: number,
@@ -3188,12 +3363,7 @@ class EpoxyApplication {
       bestScore: existing ? Math.max(existing.bestScore, score) : score,
       replayTimedMoves: isBetterOrFirst ? timedMoves : existing.replayTimedMoves || timedMoves
     };
-    try {
-      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.highScoresKey);
-      localStorage.setItem(key, JSON.stringify(this.highScores));
-    } catch {
-      // Storage unavailable
-    }
+    this.persistHighScores();
   }
 
   private loadHighScores(): void {

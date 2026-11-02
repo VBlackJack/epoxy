@@ -123,6 +123,9 @@ export function findGameTunableErrors(game: GameConfig): string[] {
   if (typeof game.storage?.onboardingSeenKey !== 'string' || game.storage.onboardingSeenKey.length === 0) {
     errors.push('storage.onboardingSeenKey: expected a non-empty string');
   }
+  if (typeof game.storage?.lastSaveDestinationKey !== 'string' || game.storage.lastSaveDestinationKey.length === 0) {
+    errors.push('storage.lastSaveDestinationKey: expected a non-empty string');
+  }
   if (game.procedural) {
     const proc = game.procedural;
     if (!isIntegerAtLeast(proc.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {

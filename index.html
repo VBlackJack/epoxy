@@ -48,6 +48,7 @@
               <label for="pack-select" data-i18n="app.packs.selector_label.label"></label>
               <select id="pack-select" class="locale-select" data-pack-select></select>
               <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+              <button id="btn-header-packs" class="nav-btn" type="button" data-i18n="app.packs.manager.open_btn.action"></button>
               <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
               <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action" data-i18n-title="app.packs.import_formats.label"></button>
               <button id="btn-delete-imported-packs" class="nav-btn hidden" type="button" data-i18n="app.packs.delete_all_btn.action" data-i18n-title="app.packs.delete_all_btn.title"></button>
@@ -98,6 +99,7 @@
               <button id="btn-drawer-copy-seed" class="nav-btn" type="button" data-i18n="app.packs.procedural_seed_copy.action"></button>
             </div>
             <button id="btn-drawer-levels" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+            <button id="btn-drawer-packs" class="nav-btn" type="button" data-i18n="app.packs.manager.open_btn.action"></button>
             <button id="btn-drawer-procedural" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
             <button id="btn-drawer-import" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
             <p class="import-formats-hint" data-i18n="app.packs.import_formats.label"></p>
@@ -278,6 +280,7 @@
                 </div>
 
                 <div class="hud-Quick-actions">
+                  <button id="hud-btn-back-to-editor" class="hud-btn primary hidden" type="button" data-i18n="editor.pack.back_to_editor.action"></button>
                   <div class="hud-action-grid">
                     <button id="hud-btn-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
                     <button id="hud-btn-objective" class="hud-btn" type="button" data-i18n="hud.controls.objective.action" data-i18n-title="hud.controls.objective.hint"></button>
@@ -309,15 +312,11 @@
               <button id="editor-validate-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.validate_level.action"></button>
               <button id="editor-test-btn" class="hud-btn small primary" type="button" data-i18n="editor.toolbar.test_level.action"></button>
               <button id="editor-save-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.save_local.action"></button>
+              <button id="editor-save-copy-btn" class="hud-btn small" type="button" data-i18n="editor.pack.save_copy.action"></button>
               <button id="editor-export-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_json.action"></button>
               <button id="editor-export-ccl-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_ccl.action"></button>
               <button id="editor-import-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.import_json.action"></button>
               <input id="editor-import-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok,.xml" class="hidden" />
-            </div>
-
-            <div class="editor-preset-bar">
-              <label for="editor-preset-select" data-i18n="editor.toolbar.load_preset.label"></label>
-              <select id="editor-preset-select" class="editor-input"></select>
             </div>
 
             <div class="editor-preset-bar editor-generator-bar">
@@ -390,8 +389,20 @@
             </div>
           </div>
 
-          <div class="editor-canvas-container">
-            <canvas id="editor-canvas"></canvas>
+          <div class="editor-right-column">
+            <div class="editor-context-line" role="group" data-i18n-aria-label="editor.pack.context.group.label">
+              <label for="editor-context-pack" class="editor-context-label" data-i18n="editor.pack.context.pack.label"></label>
+              <select id="editor-context-pack" class="editor-input editor-context-pack"></select>
+              <button id="editor-context-prev" class="hud-btn small" type="button" data-i18n="editor.pack.context.prev.action" data-i18n-aria-label="editor.pack.context.prev.aria"></button>
+              <span id="editor-context-position" class="editor-context-position" aria-live="polite"></span>
+              <button id="editor-context-next" class="hud-btn small" type="button" data-i18n="editor.pack.context.next.action" data-i18n-aria-label="editor.pack.context.next.aria"></button>
+              <span id="editor-context-title" class="editor-context-title"></span>
+              <span id="editor-context-dirty" class="editor-context-dirty hidden" data-i18n="editor.pack.context.unsaved.label"></span>
+              <button id="editor-context-open" class="hud-btn small" type="button" data-i18n="editor.pack.context.open.action"></button>
+            </div>
+            <div class="editor-canvas-container">
+              <canvas id="editor-canvas"></canvas>
+            </div>
           </div>
         </div>
       </section>
@@ -495,6 +506,7 @@
             <div class="scores-pack-actions">
               <button id="btn-export-pack-ccl" class="hud-btn small" type="button" data-i18n="app.packs.export_dat_btn.action"></button>
               <button id="btn-delete-pack" class="hud-btn small hidden" type="button" data-i18n="app.packs.delete_btn.action"></button>
+              <button id="btn-open-pack-manager" class="hud-btn small" type="button" data-i18n="app.packs.manager.open_btn.action"></button>
             </div>
             <button id="scores-close-btn" class="action-btn" type="button" data-i18n="hud.scores_modal.close_btn.action"></button>
           </div>
@@ -569,6 +581,84 @@
             <button id="onboarding-close-btn" class="action-btn primary" type="button" data-i18n="hud.onboarding_modal.close_btn.action"></button>
           </div>
         </div>
+      </div>
+
+      <!-- MY PACKS MANAGER -->
+      <div id="packs-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="packs-modal-title">
+        <div class="modal-dialog wide-dialog packs-dialog">
+          <h3 id="packs-modal-title" data-i18n="app.packs.manager.title.label"></h3>
+          <div class="packs-layout">
+            <section class="packs-library" aria-labelledby="packs-library-title">
+              <h4 id="packs-library-title" data-i18n="app.packs.manager.library.title.label"></h4>
+              <ul id="packs-library-list" class="packs-list"></ul>
+              <form id="packs-new-form" class="packs-new-form hidden">
+                <label for="packs-new-input" data-i18n="app.packs.manager.new_pack.name.label"></label>
+                <input id="packs-new-input" type="text" class="editor-input" autocomplete="off" />
+                <button id="packs-new-create-btn" class="hud-btn small primary" type="submit" data-i18n="app.packs.manager.new_pack.create.action"></button>
+              </form>
+              <div class="packs-library-actions">
+                <button id="packs-new-btn" class="hud-btn small primary" type="button" aria-expanded="false" aria-controls="packs-new-form" data-i18n="app.packs.manager.new_pack.action"></button>
+                <button id="packs-import-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.import.action" data-i18n-title="app.packs.import_formats.label"></button>
+                <button id="packs-delete-imported-btn" class="hud-btn small hidden" type="button" data-i18n="app.packs.delete_all_btn.action" data-i18n-title="app.packs.delete_all_btn.title"></button>
+              </div>
+            </section>
+            <section id="packs-detail" class="packs-detail" aria-labelledby="packs-detail-title">
+              <div id="packs-empty-library" class="packs-empty hidden">
+                <p data-i18n="app.packs.manager.empty_library.message.label"></p>
+                <button id="packs-first-pack-btn" class="hud-btn primary" type="button" data-i18n="app.packs.manager.empty_library.create.action"></button>
+              </div>
+              <div id="packs-selected" class="packs-selected hidden">
+                <div class="packs-detail-header">
+                  <label id="packs-detail-title" for="packs-name-input" data-i18n="app.packs.manager.detail.name.label"></label>
+                  <input id="packs-name-input" type="text" class="editor-input" autocomplete="off" />
+                  <span id="packs-detail-badges" class="packs-badges"></span>
+                </div>
+                <div class="packs-detail-actions">
+                  <button id="packs-play-btn" class="hud-btn small primary" type="button" data-i18n="app.packs.manager.detail.play.action"></button>
+                  <button id="packs-export-json-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.export_json.action"></button>
+                  <button id="packs-export-ccl-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.export_ccl.action"></button>
+                  <button id="packs-delete-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.delete.action"></button>
+                </div>
+                <p id="packs-empty-pack" class="packs-empty hidden" data-i18n="app.packs.manager.empty_pack.message.label"></p>
+                <ol id="packs-levels-list" class="packs-levels" data-i18n-aria-label="app.packs.manager.levels.title.label"></ol>
+                <button id="packs-new-level-btn" class="hud-btn small primary" type="button" data-i18n="app.packs.manager.new_level.action"></button>
+              </div>
+            </section>
+          </div>
+          <div class="modal-actions">
+            <button id="packs-close-btn" class="action-btn" type="button" data-i18n="hud.scores_modal.close_btn.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHOICE: a question with several answers, Cancel always first and focused -->
+      <div id="choice-modal" class="modal-backdrop hidden" role="alertdialog" aria-modal="true" aria-labelledby="choice-modal-title" aria-describedby="choice-modal-message">
+        <div class="modal-dialog">
+          <h3 id="choice-modal-title"></h3>
+          <p id="choice-modal-message" class="confirm-message"></p>
+          <p id="choice-modal-note" class="hint-text" role="status"></p>
+          <div id="choice-modal-actions" class="modal-actions pack-delete-actions"></div>
+        </div>
+      </div>
+
+      <!-- SAVE INTO... -->
+      <div id="save-into-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="save-into-title">
+        <form id="save-into-form" class="modal-dialog save-into-dialog">
+          <h3 id="save-into-title" data-i18n="editor.pack.save_into.title.label"></h3>
+          <fieldset class="save-into-fieldset">
+            <legend data-i18n="editor.pack.save_into.legend.label"></legend>
+            <div id="save-into-list" class="save-into-list"></div>
+            <div class="save-into-new">
+              <input id="save-into-new-radio" type="radio" name="save-into-choice" value="" />
+              <label for="save-into-new-radio" data-i18n="editor.pack.save_into.new_pack.label"></label>
+              <input id="save-into-new-name" type="text" class="editor-input" autocomplete="off" data-i18n-aria-label="editor.pack.save_into.new_name.label" />
+            </div>
+          </fieldset>
+          <div class="modal-actions">
+            <button id="save-into-cancel-btn" class="action-btn" type="button" data-i18n="app.confirm.cancel.action"></button>
+            <button id="save-into-submit-btn" class="action-btn primary" type="submit" data-i18n="editor.pack.save_into.submit.action"></button>
+          </div>
+        </form>
       </div>
 
       <!-- CONFIRM MODAL (replaces the browser's own confirm box) -->
