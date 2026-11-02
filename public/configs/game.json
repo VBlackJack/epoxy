@@ -458,6 +458,7 @@
   "storage": {
     "saveSlotKey": "save_state",
     "customLevelsKey": "custom_levels",
+    "customLevelsBackupKey": "custom_levels_backup",
     "settingsKey": "user_settings",
     "highScoresKey": "high_scores",
     "activePackKey": "active_pack",
