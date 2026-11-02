@@ -107,7 +107,9 @@ export type Cc3dMobKind =
   | 'bot_static'
   | 'bot_cw'
   | 'bot_ccw'
-  | 'bot_multi';
+  | 'bot_multi'
+  /** Runtime only: a laser shot. Level files never hold one. */
+  | 'shot';
 
 export interface Cc3dMob {
   kind: Cc3dMobKind;

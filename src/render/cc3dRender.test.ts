@@ -108,7 +108,7 @@ function room(): CompiledLevel {
   };
 }
 
-const MOB_PATTERN = /^cc3d_(block_|reflector_|legs_|baby_|golem_yellow|laser_shooter|bot_)/;
+const MOB_PATTERN = /^cc3d_(block_|reflector_|legs_|baby_|golem_yellow|laser_shooter|bot_|shot$)/;
 const TERRAIN_IDS = CC3D_DISPLAY_IDS.filter((id) => id !== ITEM_ID && !MOB_PATTERN.test(id));
 const MOB_IDS = CC3D_DISPLAY_IDS.filter((id) => MOB_PATTERN.test(id));
 

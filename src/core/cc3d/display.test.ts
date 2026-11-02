@@ -53,7 +53,7 @@ const MOB_KINDS: Record<Cc3dMobKind, true> = {
   block_dirt: true, block_ice: true, block_color: true, reflector: true, walker: true, legs_green: true,
   legs_red: true, blinky: true, baby_blinky: true, limpa: true, limpy: true, bouncer: true, omni: true,
   screamer: true, baby_screamer: true, snappy: true, nibble: true, golem_blue: true, golem_yellow: true,
-  laser_shooter: true, bot_static: true, bot_cw: true, bot_ccw: true, bot_multi: true
+  laser_shooter: true, bot_static: true, bot_cw: true, bot_ccw: true, bot_multi: true, shot: true
 };
 const COLORS: Cc3dColor[] = ['red', 'green', 'blue', 'yellow'];
 const DIRS: Direction[] = ['N', 'E', 'S', 'W'];

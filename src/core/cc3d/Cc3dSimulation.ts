@@ -19,9 +19,10 @@ import { SeededRandom } from '../Random';
 import type { Direction, TimedMove } from '../types';
 import { onArrival, openOnEntry } from './cc3dArrival';
 import { updateDevices } from './cc3dDevices';
+import { killMob, resolveShotStep, rotateBots, bumpShooter, updateBeams } from './cc3dLasers';
 import { chooseMonsterDirection } from './cc3dMonsters';
 import { MONSTER_TRAITS, isSupportedMonster } from './cc3dMonsterTraits';
-import { DEATH_KEY, DeathCause, SFX, STEP_TICKS, VISUAL_COLOR } from './cc3dConstants';
+import { BOT_ROTATION_SECONDS, DEATH_KEY, DeathCause, FALLBACK_TICKS_PER_SECOND, SFX, STEP_TICKS, VISUAL_COLOR } from './cc3dConstants';
 import { StepPlan, planStep } from './cc3dMovement';
 import { ForcedMove, forcedMoveOf, inputAllowed, onLeave } from './cc3dTerrainRules';
 import {
@@ -33,6 +34,7 @@ import {
   World,
   isBlockKind,
   moveActor,
+  removeMob,
   neighbour,
   opposite,
   reindexMobs,
@@ -90,14 +92,20 @@ export class Cc3dSimulation implements RuleContext {
   public report: TickReport = { tookInput: false, startedStep: false };
   /** The blocked sound plays once per bump, not once per tick. */
   private blockedLatch = false;
+  /** The player's step was refused during this tick: the bump latch stays until a tick without one. */
+  private attempted = false;
+  /** The controller press by bumping a shooter fires once per target and direction, not once per tick. */
+  private bumpKey: string | null = null;
 
   constructor(
     world: World,
     private readonly events: SimulationEvents,
-    private readonly timeLimitTicks: number
+    private readonly timeLimitTicks: number,
+    private readonly botRotationTicks: number = BOT_ROTATION_SECONDS * FALLBACK_TICKS_PER_SECOND
   ) {
     this.world = world;
     updateDevices(world);
+    updateBeams(this, false);
   }
 
   // ---------------------------------------------------------- RuleContext
@@ -112,6 +120,21 @@ export class Cc3dSimulation implements RuleContext {
 
   public releaseMob(mob: MobState, dir: Direction): void {
     this.startStep(mob, dir, 'pushed', !isBlockKind(mob.kind));
+  }
+
+  /** A shot's step: the entry rule of the cell in front (cc3dLasers), then it flies one cell at the fast step, or vanishes. */
+  public stepShot(shot: MobState): void {
+    const result = resolveShotStep(this, shot);
+    if (result.vanish) {
+      removeMob(this.world, shot);
+      return;
+    }
+    moveActor(this.world, shot, result.to.x, result.to.y);
+    shot.drift = result.turn;
+    shot.duration = STEP_TICKS.fast;
+    shot.remaining = shot.duration;
+    shot.startedTick = this.world.tick;
+    this.advance(shot);
   }
 
   public stepMob(mob: MobState, dir: Direction): boolean {
@@ -196,6 +219,7 @@ export class Cc3dSimulation implements RuleContext {
     reindexMobs(w);
     w.journal = before?.journal ?? null;
     this.pending = null;
+    updateBeams(this, false);
   }
 
   // ------------------------------------------------------------------ tick
@@ -204,6 +228,8 @@ export class Cc3dSimulation implements RuleContext {
     this.report = { tookInput: false, startedStep: false };
     const { world } = this;
     if (this.timeLimitTicks > 0 && world.tick >= this.timeLimitTicks) this.killPlayer('time');
+    rotateBots(world, this.botRotationTicks);
+    world.firedThisTick = [];
     if (world.player.alive) this.turnOf(world.player);
     const order = [...world.mobs];
     const removalsAtStart = world.removals;
@@ -214,6 +240,12 @@ export class Cc3dSimulation implements RuleContext {
       this.turnOf(mob);
     }
     updateDevices(world);
+    updateBeams(this, true);
+    if (!this.attempted) {
+      this.blockedLatch = false;
+      this.bumpKey = null;
+    }
+    this.attempted = false;
     world.tick += 1;
   }
 
@@ -239,8 +271,12 @@ export class Cc3dSimulation implements RuleContext {
    * stand still and kill on contact until P2.
    */
   private decideMob(mob: MobState): void {
+    if (mob.kind === 'shot') {
+      this.stepShot(mob);
+      return;
+    }
     const block = isBlockKind(mob.kind);
-    if (mob.floating || (!block && !isSupportedMonster(mob.kind))) return;
+    if (mob.floating || (!block && !isSupportedMonster(mob.kind))) return; // shooters stand still
     const forced = forcedMoveOf(this.world, mob);
     if (forced) {
       this.forceStep(mob, forced);
@@ -317,11 +353,19 @@ export class Cc3dSimulation implements RuleContext {
       this.killPlayer('monster');
       return true;
     }
+    if (plan.shot) {
+      // Stepping into a flying shot: the mover dies, the shot is spent.
+      removeMob(this.world, plan.shot);
+      if (actor.kind === 'player') this.killPlayer('laser');
+      else killMob(this, actor);
+      return true;
+    }
     // Steps started by monsters, and blocks they push, are slowed by the speed orb; the player's pushes are not.
     const byMonster = actor.kind !== 'player' && !isBlockKind(actor.kind);
     for (const block of plan.pushes) this.startStep(block, dir, 'pushed', byMonster);
     this.startStep(actor, dir, intent, byMonster);
     this.blockedLatch = false;
+    this.bumpKey = null;
     return true;
   }
 
@@ -329,7 +373,16 @@ export class Cc3dSimulation implements RuleContext {
     if (plan.bump && (actor.kind === 'player' || isBlockKind(actor.kind))) {
       replaceTop(this.world, plan.bump, { kind: 'wall' });
     }
-    if (actor.kind !== 'player' || this.blockedLatch) return;
+    if (actor.kind !== 'player') return;
+    this.attempted = true;
+    if (plan.bumped) {
+      const key = `${plan.bumped.uid}:${actor.dir}`;
+      if (key !== this.bumpKey) {
+        this.bumpKey = key;
+        bumpShooter(this, plan.bumped);
+      }
+    }
+    if (this.blockedLatch) return;
     this.blockedLatch = true;
     this.events.sound(SFX.blocked);
   }

@@ -57,7 +57,7 @@ function walkerChoice(ctx: RuleContext, mob: MobState): Direction | null {
 
 function canMove(ctx: RuleContext, mob: MobState, dir: Direction): boolean {
   const plan = planStep(ctx.world, mob, mob, dir);
-  return plan.ok && plan.pushes.length === 0;
+  return plan.ok && plan.pushes.length === 0 && plan.shot === null;
 }
 
 function distanceToPlayer(ctx: RuleContext, at: { x: number; y: number }): number {

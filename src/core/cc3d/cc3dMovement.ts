@@ -26,7 +26,8 @@ import {
   isBlockKind,
   isPlayerAt,
   mobAt,
-  neighbour
+  neighbour,
+  shotAt
 } from './cc3dWorld';
 
 /**
@@ -45,13 +46,17 @@ export interface StepPlan {
   hits: MobState | null;
   /** A monster's step ends on the player: he dies on contact. */
   hitsPlayer: boolean;
+  /** A laser shot flying in the destination: whoever steps there dies and the shot vanishes. */
+  shot: MobState | null;
+  /** The player ran into a shooter: it blocks, and counts as pressing a controller under it. */
+  bumped: MobState | null;
 }
 
-function refused(bump: Cell | null = null): StepPlan {
-  return { ok: false, pushes: [], bump, hits: null, hitsPlayer: false };
+function refused(bump: Cell | null = null, bumped: MobState | null = null): StepPlan {
+  return { ok: false, pushes: [], bump, hits: null, hitsPlayer: false, shot: null, bumped };
 }
 
-const ALLOWED: StepPlan = { ok: true, pushes: [], bump: null, hits: null, hitsPlayer: false };
+const ALLOWED: StepPlan = { ok: true, pushes: [], bump: null, hits: null, hitsPlayer: false, shot: null, bumped: null };
 
 /**
  * Plans a step of `actor` from the cell `from` (usually its own cell) in a direction.
@@ -71,6 +76,10 @@ export function planStep(world: World, actor: Actor, from: Cell, dir: Direction,
 }
 
 function planOccupancy(world: World, actor: Actor, to: Cell, dir: Direction): StepPlan {
+  // A shot flying in a cell, a reflector's included (it is inside the cell for its two ticks): a player or
+  // monster stepping in dies and the shot is spent; a block is refused [U, 08 section 8.6].
+  const shot = world.shots.length > 0 ? shotAt(world, to) : undefined;
+  if (shot) return actor.kind !== 'player' && isBlockKind(actor.kind) ? refused() : { ...ALLOWED, shot };
   if (actor.kind !== 'player' && isPlayerAt(world, to)) {
     // A monster that steps onto the player kills him; any other mover is refused.
     return isBlockKind(actor.kind) ? refused() : { ...ALLOWED, hitsPlayer: true };
@@ -80,7 +89,8 @@ function planOccupancy(world: World, actor: Actor, to: Cell, dir: Direction): St
   if (actor.kind === 'player') {
     if (occupant.floating) return ALLOWED;
     if (isBlockKind(occupant.kind)) return planPush(world, occupant, to, dir);
-    return { ok: true, pushes: [], bump: null, hits: occupant, hitsPlayer: false };
+    if (occupant.kind === 'laser_shooter') return refused(null, occupant);
+    return { ...ALLOWED, hits: occupant };
   }
   // A yellow golem pushes a block the way the player does (07 section 7.4 and 7.9, 12).
   if (actor.kind === 'golem_yellow' && isBlockKind(occupant.kind) && !occupant.floating) {
@@ -97,5 +107,5 @@ function planPush(world: World, block: MobState, at: Cell, dir: Direction): Step
   if (block.remaining > 0 || block.floating) return refused();
   const ahead = planStep(world, block, at, dir);
   if (!ahead.ok || ahead.hits) return refused(ahead.bump);
-  return { ok: true, pushes: [...ahead.pushes, block], bump: null, hits: null, hitsPlayer: false };
+  return { ...ALLOWED, pushes: [...ahead.pushes, block] };
 }

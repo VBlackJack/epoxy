@@ -29,6 +29,15 @@ export const STEP_TICKS = {
 /** While the player holds the speed orb, monster-started steps and rests take this many times longer. */
 export const SPEED_ORB_SLOWDOWN = 2;
 
+/** Cells a security bot's beam covers [U guess; the free run in front of regular bots peaks at 3 in the data]. */
+export const BOT_BEAM_LENGTH = 3;
+
+/** Seconds between two quarter turns of a rotating bot [U guess, to measure in play]. */
+export const BOT_ROTATION_SECONDS = 3;
+
+/** Used when the rotation period is not given in ticks (the game runs at 20 ticks per second). */
+export const FALLBACK_TICKS_PER_SECOND = 20;
+
 /** The player carries at most this many tools; the oldest one is dropped for a new one. */
 export const MAX_TOOLS = 4;
 
@@ -67,7 +76,8 @@ export const DEATH_KEY = {
   slime: 'hud.messages.death_slime',
   bomb: 'hud.messages.death_bomb',
   monster: 'hud.messages.death_monster',
-  time: 'hud.messages.death_time'
+  time: 'hud.messages.death_time',
+  laser: 'hud.messages.death_laser'
 } as const;
 
 export type DeathCause = keyof typeof DEATH_KEY;

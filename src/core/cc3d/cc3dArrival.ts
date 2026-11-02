@@ -15,6 +15,7 @@
  */
 
 import { triggerEntryDevice } from './cc3dDevices';
+import { onShotArrival } from './cc3dLasers';
 import { MAX_TOOLS, SFX, STEP_TICKS, VISUAL_COLOR } from './cc3dConstants';
 import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { playerSurvivesSlime, cornerExit, isCarriedByForce, isImmune, slidesOnIce } from './cc3dTerrainRules';
@@ -73,6 +74,10 @@ export function openOnEntry(ctx: RuleContext, player: PlayerData, at: Cell): boo
 
 /** Called when the actor's step ends on its cell. */
 export function onArrival(ctx: RuleContext, actor: Actor): void {
+  if (actor.kind === 'shot') {
+    onShotArrival(actor);
+    return;
+  }
   const chosen = actor.chose;
   actor.drift = null;
   actor.carried = false;
