@@ -106,6 +106,8 @@ function isUnitShare(value: unknown): boolean {
 /** Smallest value of the endless dialog's start level bound: level 1 must stay reachable. */
 const MIN_START_LEVEL_BOUND = 1;
 const MIN_FALLBACK_CANDIDATES = 0;
+/** Zero turns the endless piece cooldown off. */
+const MIN_COOLDOWN_ATTEMPTS = 0;
 const MIN_POSITIVE_STEP = 1;
 
 /**
@@ -124,6 +126,9 @@ export function findGameTunableErrors(game: GameConfig): string[] {
     const proc = game.procedural;
     if (!isIntegerAtLeast(proc.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {
       errors.push(`procedural.scoring.fallbackCandidates: expected a whole number of at least ${MIN_FALLBACK_CANDIDATES}`);
+    }
+    if (!isIntegerAtLeast(proc.endless?.cooldownAttemptsPerTier, MIN_COOLDOWN_ATTEMPTS)) {
+      errors.push(`procedural.endless.cooldownAttemptsPerTier: expected a whole number of at least ${MIN_COOLDOWN_ATTEMPTS}`);
     }
     const positiveSteps: Array<[string, unknown]> = [
       ['procedural.levelsPerExtraPiece', proc.levelsPerExtraPiece],

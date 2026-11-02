@@ -19,7 +19,8 @@ versions follow Semantic Versioning.
   of endless hubs). Ice blocks can
   now be handed from one piece to the next, like dirt blocks.
 - Neighbouring endless levels rotate through each motif's pieces instead of drawing the same rooms
-  again: the strict attempts of a level keep clear of the pieces its neighbours use.
+  again: the first `procedural.endless.cooldownAttemptsPerTier` attempts (1) of each tier keep clear
+  of the pieces its neighbours use, and later attempts draw from the whole pool.
 
 ### Changed
 

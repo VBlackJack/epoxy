@@ -434,6 +434,12 @@ export interface EndlessConfig {
    * tries before a puzzle gives way.
    */
   attemptsPerDroppedPiece: number;
+  /**
+   * First attempts of each tier that keep clear of the pieces neighbouring levels use
+   * (the piece cooldown). Later attempts draw from the whole pool, so a cooldown that
+   * leaves only pieces hard to lay out never costs a whole tier.
+   */
+  cooldownAttemptsPerTier: number;
   pieceCountStart: number;
   pieceCountMax: number;
   levelsPerExtraPiece: number;

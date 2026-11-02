@@ -357,6 +357,7 @@
     },
     "endless": {
       "attemptsPerDroppedPiece": 10,
+      "cooldownAttemptsPerTier": 1,
       "pieceCountStart": 7,
       "pieceCountMax": 10,
       "levelsPerExtraPiece": 4,

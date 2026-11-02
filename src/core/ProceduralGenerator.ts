@@ -248,7 +248,8 @@ export class ProceduralGenerator {
       const shapeIds = shape ? (strict && shape.preferred ? [shape.preferred] : shape.allowed) : undefined;
       const dropped = Math.floor(attempt / tierSize);
       const avoid = leadChoice?.avoid;
-      const cooldownPieces = strict ? avoidPieces : undefined;
+      const cooldownPieces =
+        profile.mode === 'endless' && attempt % tierSize < cfg.endless.cooldownAttemptsPerTier ? avoidPieces : undefined;
       const hubGrowth = strict && attempt % tierSize < cfg.hub.outlineGrowth.growAttemptsPerTier ? 1 : 0;
       const built =
         layout === 'hub'

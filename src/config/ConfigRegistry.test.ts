@@ -373,6 +373,14 @@ describe('game tunables validation', () => {
     expect(() => ConfigRegistry.applyConfigs(off)).not.toThrow();
   });
 
+  it('refuses a negative or fractional endless cooldown attempt count', () => {
+    for (const bad of [-1, 1.5, Number.NaN]) {
+      const bundle = createTestBundle();
+      bundle.game.procedural!.endless.cooldownAttemptsPerTier = bad;
+      expect(() => ConfigRegistry.applyConfigs(bundle), `cooldownAttemptsPerTier=${bad}`).toThrow(ConfigLoadError);
+    }
+  });
+
   it('refuses non-positive procedural step divisors and out-of-range shares', () => {
     for (const bad of [0, -1, 1.5, Number.NaN]) {
       const stepBundle = createTestBundle();
