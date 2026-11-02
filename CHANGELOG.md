@@ -5,6 +5,24 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Lasers on the Epoxy rules. Emitters cast a straight beam that kills the player and monsters.
+  Pushable mirrors (`/` and `\`) turn it 90 degrees; they refuse water, survive fire and are
+  destroyed by bombs. Receivers hold the laser gates of their colour (red, blue) open while lit;
+  a gate follows its receivers one step later and never closes on someone standing in it.
+- A `receivers` win rule: the level ends once every receiver is lit with its mirrors at rest. The
+  HUD counts lit receivers.
+- Editor checks for laser levels: an emitter and a receiver are required on a receivers level, and
+  a warning flags a gate standing on a beam and an exit on a receivers level.
+
+### Changed
+
+- The block hint and the dead-end watch are off on laser levels, the objective marker is off on
+  receivers levels, and tap-to-path never walks into a beam.
+- Lynx levels refuse laser content, the editor keeps laser levels on the Epoxy rules, and DAT
+  export refuses them.
+
 ## [2.14.0] - 2026-11-02
 
 ### Added
