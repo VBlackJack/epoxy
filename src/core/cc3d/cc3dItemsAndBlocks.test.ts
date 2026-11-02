@@ -283,13 +283,13 @@ describe('blocks', () => {
   });
 });
 
-describe('monsters that are not played yet (P2, P3)', () => {
-  const glyphs = { M: { mob: { kind: 'snappy' as const } } };
+describe('monsters that are not played yet (P3)', () => {
+  const glyphs = { M: { mob: { kind: 'laser_shooter' as const } } };
 
   it('stand still, kill the player on contact and refuse blocks', () => {
     const rig = new Cc3dRig(cc3dLevel(['#@M.#'], { glyphs }));
     rig.tick(20);
-    expect(rig.entityAt(2, 0)?.type).toBe('teeth');
+    expect(rig.entityAt(2, 0)?.type).toBe('cc3d_laser_shooter');
     rig.walk('E');
     expect(rig.player.alive).toBe(false);
     expect(rig.player.deathReasonKey).toBe('hud.messages.death_monster');
@@ -301,6 +301,6 @@ describe('monsters that are not played yet (P2, P3)', () => {
   it('lists what is still unsupported', () => {
     const lines = { p: terrain('plate', { color: 'red' }), y: terrain('golem_control_yellow'), l: terrain('laser_controller') };
     const rig = new Cc3dRig(cc3dLevel(['#@pHsMyl.#'], { glyphs: { ...glyphs, ...lines } }));
-    expect(rig.engine.getUnsupportedTiles()).toEqual(['golem_control_yellow', 'laser_controller', 'orb_speed', 'snappy']);
+    expect(rig.engine.getUnsupportedTiles()).toEqual(['laser_controller', 'laser_shooter']);
   });
 });

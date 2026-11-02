@@ -82,6 +82,10 @@ function planOccupancy(world: World, actor: Actor, to: Cell, dir: Direction): St
     if (isBlockKind(occupant.kind)) return planPush(world, occupant, to, dir);
     return { ok: true, pushes: [], bump: null, hits: occupant, hitsPlayer: false };
   }
+  // A yellow golem pushes a block the way the player does (07 section 7.4 and 7.9, 12).
+  if (actor.kind === 'golem_yellow' && isBlockKind(occupant.kind) && !occupant.floating) {
+    return planPush(world, occupant, to, dir);
+  }
   // An ice block pushes the ice block ahead of it, a chain [U].
   if (actor.kind === 'block_ice' && occupant.kind === 'block_ice' && !occupant.floating) {
     return planPush(world, occupant, to, dir);

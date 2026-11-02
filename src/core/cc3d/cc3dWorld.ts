@@ -17,7 +17,7 @@
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import type { VisualEventKind } from '../PlayEngine';
 import type { Direction } from '../types';
-import { DeathCause, PLAYER_START_FACING } from './cc3dConstants';
+import { DeathCause, PLAYER_START_FACING, SPEED_ORB_SLOWDOWN } from './cc3dConstants';
 import type { Cc3dCell, Cc3dColor, Cc3dItemKind, Cc3dLevel, Cc3dMobKind, Cc3dTerrain } from './model';
 import { cellIndex, topTerrain } from './model';
 
@@ -43,6 +43,8 @@ export interface Mover {
   duration: number;
   /** The step in progress was forced (ice, force floor, teleport exit), not chosen. */
   carried: boolean;
+  /** The step in progress was chosen by the mover itself (not forced, pushed or released from a clone machine). */
+  chose: boolean;
   /** World tick at which the step in progress started (a pushed block starts in the player's turn). */
   startedTick: number;
   /** Direction the floor keeps pushing the mover in (ice slide, corner turn, random force floor). */
@@ -58,6 +60,10 @@ export interface MobState extends Mover {
   mirror?: string;
   /** A colour block that floats on water as a bridge: it no longer moves. */
   floating: boolean;
+  /** The mob decides no new chosen step before this world tick (Snappy, Nibble rests; Omni blocked draws). */
+  restUntilTick: number;
+  /** Omni only: it has stood on slime and now leaves slime behind. Clones do not inherit it. */
+  slimed?: boolean;
 }
 
 export interface PlayerData extends Mover {
@@ -117,6 +123,8 @@ export interface RuleContext {
   playSfx(id: string): void;
   /** Starts a step of a mob out of a clone machine (normal speed). */
   releaseMob(mob: MobState, dir: Direction): void;
+  /** A mob tries one chosen step (a yellow golem moved by its control); returns whether it started. */
+  stepMob(mob: MobState, dir: Direction): boolean;
   killPlayer(cause: DeathCause): void;
   randomDirection(): Direction;
 }
@@ -125,6 +133,11 @@ export const BLOCK_KINDS: readonly Cc3dMobKind[] = ['block_dirt', 'block_ice', '
 
 export function isBlockKind(kind: Cc3dMobKind): boolean {
   return BLOCK_KINDS.includes(kind);
+}
+
+/** 2 while the player holds the speed orb, else 1: how much longer monster-started steps and rests take [U, 07 section 7.7]. */
+export function speedOrbFactor(world: World): number {
+  return world.player.tools.includes('orb_speed') ? SPEED_ORB_SLOWDOWN : 1;
 }
 
 export function neighbour(cell: Cell, dir: Direction): Cell {
@@ -206,7 +219,8 @@ export function spawnCopy(world: World, template: MobState, dir: Direction): Mob
     kind: template.kind,
     color: template.color,
     mirror: template.mirror,
-    floating: false
+    floating: false,
+    restUntilTick: 0
   };
   world.mobs.push(copy);
   world.occupancy.set(cellIndex(world, copy.x, copy.y), copy);
@@ -267,7 +281,7 @@ export function isPlayerAt(world: World, at: Cell): boolean {
 }
 
 function newMover(x: number, y: number, dir: Direction): Mover {
-  return { x, y, dir, remaining: 0, duration: 0, startedTick: -1, carried: false, drift: null, exitDir: null };
+  return { x, y, dir, remaining: 0, duration: 0, startedTick: -1, carried: false, chose: false, drift: null, exitDir: null };
 }
 
 /** Builds the starting world of a level. The level itself is never modified. */
@@ -280,7 +294,10 @@ export function buildWorld(level: Cc3dLevel, seed: number): World {
     kind: m.kind,
     color: m.color,
     mirror: m.mirror,
-    floating: false
+    floating: false,
+    restUntilTick: 0,
+    // An Omni that starts on slime has stood on it already [U, 07 section 7.9 item 3].
+    ...(m.kind === 'omni' && topTerrain(level.cells[cellIndex(level, m.x, m.y)]).kind === 'slime' ? { slimed: true } : {})
   }));
   const world: World = {
     width: level.width,

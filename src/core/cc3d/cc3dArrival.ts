@@ -15,7 +15,8 @@
  */
 
 import { triggerEntryDevice } from './cc3dDevices';
-import { MAX_TOOLS, SFX, VISUAL_COLOR } from './cc3dConstants';
+import { MAX_TOOLS, SFX, STEP_TICKS, VISUAL_COLOR } from './cc3dConstants';
+import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { playerSurvivesSlime, cornerExit, isCarriedByForce, isImmune, slidesOnIce } from './cc3dTerrainRules';
 import { teleportOnArrival } from './cc3dTeleports';
 import {
@@ -30,6 +31,7 @@ import {
   isBlockKind,
   removeMob,
   removeTop,
+  speedOrbFactor,
   replaceTop,
   touch
 } from './cc3dWorld';
@@ -71,11 +73,21 @@ export function openOnEntry(ctx: RuleContext, player: PlayerData, at: Cell): boo
 
 /** Called when the actor's step ends on its cell. */
 export function onArrival(ctx: RuleContext, actor: Actor): void {
+  const chosen = actor.chose;
   actor.drift = null;
   actor.carried = false;
+  actor.chose = false;
   triggerEntryDevice(ctx, actor);
-  if (actor.kind === 'player') arrivePlayer(ctx, actor);
-  else arriveMob(ctx, actor);
+  if (actor.kind === 'player') {
+    // A golem behind him may have stepped onto him: the dead take nothing.
+    if (actor.alive) arrivePlayer(ctx, actor);
+    return;
+  }
+  // Snappy and Nibble rest for a step's worth after a step they chose (not one forced or released from a clone machine); ice, force floors and teleports still act [U, 07 section 7.9 item 5].
+  if (chosen && MONSTER_TRAITS[actor.kind]?.restsBetweenSteps) {
+    actor.restUntilTick = ctx.world.tick + 1 + STEP_TICKS.normal * speedOrbFactor(ctx.world);
+  }
+  arriveMob(ctx, actor);
 }
 
 function arrivePlayer(ctx: RuleContext, player: PlayerData): void {
@@ -154,6 +166,8 @@ function arriveMob(ctx: RuleContext, mob: MobState): void {
         removeMob(world, mob);
         replaceTop(world, at, { kind: 'floor' });
         ctx.emitVisual('splash', at.x, at.y);
+      } else if (isImmune(mob, 'slime')) {
+        mob.slimed = true;
       } else {
         monsterDies(ctx, mob, 'splash');
       }

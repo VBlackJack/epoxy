@@ -36,7 +36,7 @@ import { cellOf } from './cc3dWorld';
  * Marks follow the rules spec: [P] verified in play, [U] hypothesis.
  */
 
-const HAZARD_TOOL: Record<Hazard, Cc3dItemKind> = {
+const HAZARD_TOOL: Partial<Record<Hazard, Cc3dItemKind>> = {
   ice: 'orb_ice',
   force: 'orb_force',
   water: 'orb_water',
@@ -45,7 +45,10 @@ const HAZARD_TOOL: Record<Hazard, Cc3dItemKind> = {
 
 /** Whether the actor is unaffected by a hazard: the player by his tools, a monster by its traits. */
 export function isImmune(actor: Actor, hazard: Hazard): boolean {
-  if (actor.kind === 'player') return actor.tools.includes(HAZARD_TOOL[hazard]);
+  if (actor.kind === 'player') {
+    const tool = HAZARD_TOOL[hazard];
+    return tool !== undefined && actor.tools.includes(tool);
+  }
   return MONSTER_TRAITS[actor.kind]?.immunities.includes(hazard) ?? false;
 }
 
@@ -71,6 +74,8 @@ export function playerSurvivesSlime(): boolean {
  * with the matching immunity.
  */
 export function monsterMayEnterTerrain(monster: MobState, terrain: Cc3dTerrain): boolean {
+  if (MONSTER_TRAITS[monster.kind]?.entersTerrain.includes(terrain.kind)) return true;
+  if (terrain.kind === 'slime') return isImmune(monster, 'slime');
   if (TERRAIN_REFUSED_BY_MONSTERS.includes(terrain.kind)) return false;
   if (terrain.kind === 'water') return isImmune(monster, 'water');
   if (terrain.kind === 'fire') return isImmune(monster, 'fire');

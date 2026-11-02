@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+import type { Direction } from '../types';
 import { SFX } from './cc3dConstants';
 import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { planStep } from './cc3dMovement';
 import {
   Actor,
   Cell,
+  MobState,
   RuleContext,
   World,
   actingTerrain,
@@ -199,6 +201,20 @@ function reverseGolems(world: World): void {
   for (const mob of world.mobs) if (mob.kind === 'golem_blue') mob.dir = opposite(mob.dir);
 }
 
+/**
+ * Each entry of the player onto a yellow control makes every yellow golem try
+ * one step in the direction he was moving, front-first along that direction
+ * (then list order) so a line of golems moves together; a golem already moving
+ * ignores it [U, 07 sections 7.4, 7.9 items 1 and 9].
+ */
+function moveYellowGolems(ctx: RuleContext, dir: Direction): void {
+  const along = (g: MobState): number => (dir === 'E' ? -g.x : dir === 'W' ? g.x : dir === 'S' ? -g.y : g.y);
+  const golems = ctx.world.mobs.filter((m) => m.kind === 'golem_yellow').sort((a, b) => along(a) - along(b));
+  for (const golem of golems) {
+    if (golem.remaining === 0 && !golem.floating) ctx.stepMob(golem, dir);
+  }
+}
+
 // -------------------------------------------------------------------- entry
 
 /** Entry devices: called when an actor's step ends on a cell. */
@@ -218,6 +234,10 @@ export function triggerEntryDevice(ctx: RuleContext, actor: Actor): void {
       ctx.playSfx(SFX.button);
       break;
     }
+    case 'golem_control_yellow':
+      // Only the player works it; a golem entering a control does not chain [U, 07 section 7.9 item 9].
+      if (actor.kind === 'player') moveYellowGolems(ctx, actor.dir);
+      break;
     case 'golem_control_blue':
       reverseGolems(world);
       ctx.playSfx(SFX.button);

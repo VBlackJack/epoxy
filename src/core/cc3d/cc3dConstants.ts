@@ -26,6 +26,9 @@ export const STEP_TICKS = {
   slow: 8
 } as const;
 
+/** While the player holds the speed orb, monster-started steps and rests take this many times longer. */
+export const SPEED_ORB_SLOWDOWN = 2;
+
 /** The player carries at most this many tools; the oldest one is dropped for a new one. */
 export const MAX_TOOLS = 4;
 
