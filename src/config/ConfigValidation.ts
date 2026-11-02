@@ -25,6 +25,7 @@ import {
   GridConfig,
   Ruleset,
   ThemePalette,
+  TileDefinition,
   WinRule
 } from '../core/types';
 
@@ -254,7 +255,7 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
 const LEVEL_TEXT_FIELDS = ['titleKey', 'customTitle', 'hintKey', 'customHint', 'author'] as const;
 
 /** Win rules a level may declare; anything else in a stored level is dropped. */
-export const WIN_RULES: readonly WinRule[] = ['exit', 'targets'];
+export const WIN_RULES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
 
 /** True for a value that names a known win rule. */
 export function isWinRule(value: unknown): value is WinRule {
@@ -332,6 +333,56 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
   return ['watchSearchBudget', 'hintSearchBudget', 'watchMaxCells']
     .filter((key) => !Number.isInteger(value[key]) || (value[key] as number) <= 0)
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
+}
+
+/**
+ * Problems of the laser fields of tiles.json: an emitter needs a direction, a
+ * receiver and a gate need a group, a gate needs the other form of its pair
+ * (same group, opposite state), and the group of a gate has to be a group some
+ * receiver drives. Empty when all is well; each entry names the offending tile.
+ */
+export function findLaserConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  const receiverGroups = new Set<string>();
+  for (const tile of Object.values(tiles)) {
+    if (typeof tile.laserReceiverGroup === 'string' && tile.laserReceiverGroup.length > 0) {
+      receiverGroups.add(tile.laserReceiverGroup);
+    }
+  }
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.laserTransparent !== undefined && typeof tile.laserTransparent !== 'boolean') {
+      errors.push(`${id}.laserTransparent: expected a boolean`);
+    }
+    if (tile.laserEmitter !== undefined && !isDirection(tile.laserEmitter)) {
+      errors.push(`${id}.laserEmitter: expected a direction`);
+    }
+    if (tile.laserReceiverGroup !== undefined && !(typeof tile.laserReceiverGroup === 'string' && tile.laserReceiverGroup.length > 0)) {
+      errors.push(`${id}.laserReceiverGroup: expected a non-empty group id`);
+    }
+    const isGate = tile.laserGateGroup !== undefined || tile.laserGateOpen !== undefined || tile.laserGateTogglesTo !== undefined;
+    if (!isGate) continue;
+    if (typeof tile.laserGateGroup !== 'string' || tile.laserGateGroup.length === 0) {
+      errors.push(`${id}.laserGateGroup: expected a non-empty group id`);
+      continue;
+    }
+    if (typeof tile.laserGateOpen !== 'boolean') {
+      errors.push(`${id}.laserGateOpen: expected a boolean`);
+      continue;
+    }
+    const pair = typeof tile.laserGateTogglesTo === 'string' ? tiles[tile.laserGateTogglesTo] : undefined;
+    if (!pair) {
+      errors.push(`${id}.laserGateTogglesTo: expected the id of an existing tile`);
+    } else if (pair.laserGateGroup !== tile.laserGateGroup || pair.laserGateOpen !== !tile.laserGateOpen) {
+      errors.push(`${id}.laserGateTogglesTo: expected the ${tile.laserGateOpen ? 'closed' : 'open'} form of group ${tile.laserGateGroup}`);
+    } else if (pair.laserGateTogglesTo !== id) {
+      errors.push(`${id}.laserGateTogglesTo: ${pair.id} does not point back`);
+    }
+    if (!receiverGroups.has(tile.laserGateGroup)) {
+      errors.push(`${id}.laserGateGroup: no receiver drives the group ${tile.laserGateGroup}`);
+    }
+  }
+  return errors;
 }
 
 /** Problems of the optional sampled-file fields of the sound effects. */

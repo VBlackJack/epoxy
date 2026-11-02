@@ -25,11 +25,14 @@ import {
   GRAY_BUTTON_RADIUS,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLOOR_TILE_ID,
+  LASER_VISITS_PER_CELL,
+  MIRROR_REFLECTIONS,
   OPPOSITE_DIRECTION,
   SUNK_BLOCK_TILE_ID
 } from './coreConstants';
 import { SeededRandom } from './Random';
 import {
+  BeamCell,
   ButtonAction,
   CloneLink,
   CompiledLevel,
@@ -54,6 +57,10 @@ const MAX_ACTIVE_ENTITIES = 512;
 const DEFAULT_TELEPORT_GROUP = '';
 /** Level score factor before any multiplier item is picked up. */
 const BASE_LEVEL_SCORE_MULTIPLIER = 1;
+/** Sound played when a beam kills a monster or the player. */
+const LASER_DEATH_SFX = 'burn';
+/** Sound played when laser gates open or close. */
+const LASER_GATE_SFX = 'door';
 
 export class GameEngine {
   private level!: CompiledLevel;
@@ -93,6 +100,18 @@ export class GameEngine {
   private targetCells: GridPoint[] = [];
   /** Teleporter cells by group: a jump lands on a teleporter of the same group only. */
   private teleportersByGroup = new Map<string, GridPoint[]>();
+  /** Laser emitters of the level in reading order, with the direction each one fires in. */
+  private laserEmitters: Array<GridPoint & { dir: Direction }> = [];
+  /** Laser receiver cells in reading order. */
+  private laserReceivers: GridPoint[] = [];
+  /** Laser gate cells in reading order; a gate cell stays a gate, only its open or closed form changes. */
+  private laserGates: GridPoint[] = [];
+  // Derived from the grid and the entities, never snapshotted: rebuilt after load, restore and any change.
+  private beamCells: BeamCell[] = [];
+  private litReceiverCells: GridPoint[] = [];
+  /** True while a mirror on a beam path is sliding. */
+  private beamHasSlidingMirror = false;
+  private beamDirty = true;
   private removedUids = new Set<number>();
   /** Set when a rejected player move still altered the grid (revealed wall, opened door). */
   private gridMutatedByMove = false;
@@ -199,6 +218,7 @@ export class GameEngine {
     this.timedMoveHistory = [];
     this.removedUids.clear();
     this.buildLevelLookups();
+    this.beamDirty = true;
   }
 
   private buildLevelLookups(): void {
@@ -215,12 +235,18 @@ export class GameEngine {
 
     this.holdTrapButtons = [];
     this.targetCells = [];
+    this.laserEmitters = [];
+    this.laserReceivers = [];
+    this.laserGates = [];
     const coversTargets = this.level.winRule === 'targets';
     this.teleportersByGroup.clear();
     for (let y = 0; y < this.terrain.length; y++) {
       for (let x = 0; x < this.terrain[y].length; x++) {
         const tile = ConfigRegistry.getTile(this.terrain[y][x]);
         if (tile.buttonAction === 'hold_trap') this.holdTrapButtons.push({ x, y });
+        if (tile.laserEmitter) this.laserEmitters.push({ x, y, dir: tile.laserEmitter });
+        if (tile.laserReceiverGroup !== undefined) this.laserReceivers.push({ x, y });
+        if (tile.laserGateGroup !== undefined) this.laserGates.push({ x, y });
         if (coversTargets && this.terrain[y][x] === BLOCK_TARGET_TILE_ID) this.targetCells.push({ x, y });
         if (tile.isTeleporter) {
           const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
@@ -517,6 +543,7 @@ export class GameEngine {
     this.timedMoveHistory.length = snap.timedMoveHistoryLength;
     this.levelCompleted = false;
     this.statusBannerKey = null;
+    this.beamDirty = true;
   }
 
   public tick(): void {
@@ -524,6 +551,8 @@ export class GameEngine {
       return;
     }
 
+    // Entities and terrain may change during the tick, so the cached beams cannot be trusted past it.
+    this.beamDirty = true;
     this.ticksElapsed++;
     if (this.getTimeRemainingSeconds() <= 0 && this.level.timeLimitSeconds > 0) {
       this.killPlayer('hud.messages.death_time', 'death');
@@ -543,6 +572,7 @@ export class GameEngine {
     }
 
     this.updateEntities();
+    this.resolveLasers();
     this.checkTargetsWin();
   }
 
@@ -582,6 +612,7 @@ export class GameEngine {
     this.saveUndoSnapshot();
     this.gridMutatedByMove = false;
     const moved = this.executePlayerMove(dir, false);
+    this.beamDirty = true;
     if (moved) {
       this.stepsCount++;
       this.moveHistory.push(dir);
@@ -591,6 +622,7 @@ export class GameEngine {
       this.player.moveCooldown = this.isCarriedByForceFloor(destTile)
         ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
         : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
+      this.resolveLasers();
       this.checkTargetsWin();
     } else {
       this.undoStack.pop();
@@ -938,6 +970,9 @@ export class GameEngine {
 
     const destTile = ConfigRegistry.getTile(this.terrain[destY][destX]);
     if (!destTile.passableByBlock) return false;
+    if (destTile.hazard && ConfigRegistry.getEntityDef(block.type)?.refusesHazards?.includes(destTile.hazard)) {
+      return false;
+    }
 
     const existingEntity = this.getEntityAt(destX, destY);
     if (existingEntity) return false;
@@ -1505,6 +1540,163 @@ export class GameEngine {
       return true;
     }
     return false;
+  }
+
+  /**
+   * The cells a laser beam crosses right now, each with the axes the beam
+   * follows in it. Empty on a level without emitters. The list is derived from
+   * the grid and the entities (never snapshotted) and is shared: do not mutate it.
+   */
+  public getBeamCells(): readonly BeamCell[] {
+    this.refreshBeams();
+    return this.beamCells;
+  }
+
+  /** The laser receivers a beam reaches right now. */
+  public getLitReceivers(): readonly GridPoint[] {
+    this.refreshBeams();
+    return this.litReceiverCells;
+  }
+
+  private refreshBeams(): void {
+    if (this.beamDirty) this.traceBeams();
+  }
+
+  /**
+   * Traces every beam on the current terrain and entities and stores the cells
+   * crossed, the receivers reached and whether a mirror on a path is sliding.
+   * A beam leaves its emitter in the emitter's direction and goes on until the
+   * map edge, a thin wall on the edge it crosses, an opaque cell (the receiver
+   * it lights included) or a block that is not a mirror. A mirror, at rest or
+   * sliding, turns it. Players and monsters do not stop it, teleporters do not
+   * move it and bombs are not set off. The emitter cell and the cell that stops
+   * a beam are not beam cells.
+   */
+  private traceBeams(): void {
+    this.beamDirty = false;
+    this.beamHasSlidingMirror = false;
+    const crossed = new Map<number, BeamCell>();
+    const lit = new Map<number, GridPoint>();
+    if (this.laserEmitters.length > 0) {
+      const width = this.getMapWidth();
+      const blocksByCell = new Map<number, RuntimeEntity>();
+      for (const entity of this.entities) {
+        const index = entity.y * width + entity.x;
+        if (entity.kind === 'block' && !blocksByCell.has(index)) blocksByCell.set(index, entity);
+      }
+      const visited = new Set<number>();
+      const maxVisits = width * this.getMapHeight() * LASER_VISITS_PER_CELL;
+      for (const emitter of this.laserEmitters) {
+        let { x, y, dir } = emitter;
+        while (visited.size < maxVisits) {
+          const vec = DIRECTION_VECTORS[dir];
+          const nx = x + vec.dx;
+          const ny = y + vec.dy;
+          if (!this.isInBounds(nx, ny) || this.isEdgeBlocked(x, y, nx, ny, dir)) break;
+          const index = ny * width + nx;
+          const tile = ConfigRegistry.getTile(this.terrain[ny][nx]);
+          if (tile.laserReceiverGroup !== undefined) {
+            if (!lit.has(index)) lit.set(index, { x: nx, y: ny });
+            break;
+          }
+          if (tile.laserTransparent !== true) break;
+          const block = blocksByCell.get(index);
+          const axis = block ? ConfigRegistry.getEntityDef(block.type)?.mirrorAxis : undefined;
+          if (block && !axis) break;
+          const visit = index * ORDERED_DIRECTIONS.length + ORDERED_DIRECTIONS.indexOf(dir);
+          if (visited.has(visit)) break;
+          visited.add(visit);
+
+          const cell = crossed.get(index) ?? { x: nx, y: ny, horizontal: false, vertical: false };
+          crossed.set(index, cell);
+          this.markBeamAxis(cell, dir);
+          if (block && axis) {
+            if (block.isSliding) this.beamHasSlidingMirror = true;
+            dir = MIRROR_REFLECTIONS[axis][dir];
+            this.markBeamAxis(cell, dir);
+          }
+          x = nx;
+          y = ny;
+        }
+      }
+    }
+    this.beamCells = [...crossed.values()];
+    this.litReceiverCells = [...lit.values()];
+  }
+
+  private markBeamAxis(cell: BeamCell, dir: Direction): void {
+    if (dir === 'E' || dir === 'W') {
+      cell.horizontal = true;
+    } else {
+      cell.vertical = true;
+    }
+  }
+
+  /**
+   * Settles the lasers after the player moved or a tick passed: traces the
+   * beams, kills the monsters and then the player on a beam cell, sets the
+   * gates and ends a 'receivers' level once every receiver is lit. Gates are
+   * set from this trace and not traced again, so a gate takes effect on the
+   * next pass: beams and gates never chase each other within one pass.
+   */
+  private resolveLasers(): void {
+    if (this.laserEmitters.length + this.laserReceivers.length + this.laserGates.length === 0) return;
+    if (!this.player.alive || this.levelCompleted) {
+      // Nothing is settled, but a mirror may have moved this pass: leave the cache to be retraced.
+      this.beamDirty = true;
+      return;
+    }
+
+    this.traceBeams();
+    const width = this.getMapWidth();
+    const beamIndexes = new Set(this.beamCells.map((cell) => cell.y * width + cell.x));
+    for (const entity of [...this.entities]) {
+      if (entity.kind !== 'monster' || !beamIndexes.has(entity.y * width + entity.x)) continue;
+      this.removeEntity(entity.uid);
+      AudioManager.playSfx(LASER_DEATH_SFX);
+      this.emitVisual('explosion', entity.x, entity.y);
+    }
+    if (beamIndexes.has(this.player.y * width + this.player.x)) {
+      this.killPlayer('hud.messages.death_laser', LASER_DEATH_SFX);
+      return;
+    }
+
+    this.setLaserGates();
+    this.checkReceiversWin();
+  }
+
+  /**
+   * Sets each gate open while any receiver of its group is lit and closed
+   * otherwise. A gate never closes on a cell the player or an entity occupies.
+   */
+  private setLaserGates(): void {
+    const litGroups = new Set<string>();
+    for (const { x, y } of this.litReceiverCells) {
+      const group = ConfigRegistry.getTile(this.terrain[y][x]).laserReceiverGroup;
+      if (group !== undefined) litGroups.add(group);
+    }
+    let changed = false;
+    for (const { x, y } of this.laserGates) {
+      const tile = ConfigRegistry.getTile(this.terrain[y][x]);
+      const wantsOpen = tile.laserGateGroup !== undefined && litGroups.has(tile.laserGateGroup);
+      if (!tile.laserGateTogglesTo || tile.laserGateOpen === wantsOpen) continue;
+      const occupied = (this.player.x === x && this.player.y === y) || this.getEntityAt(x, y) !== undefined;
+      if (!wantsOpen && occupied) continue;
+      this.terrain[y][x] = tile.laserGateTogglesTo;
+      changed = true;
+    }
+    if (changed) {
+      AudioManager.playSfx(LASER_GATE_SFX);
+      this.beamDirty = true;
+    }
+  }
+
+  /** Ends a 'receivers' level once every receiver is lit and no mirror on a beam path is still sliding. */
+  private checkReceiversWin(): void {
+    if (this.level.winRule !== 'receivers' || this.laserReceivers.length === 0) return;
+    if (this.litReceiverCells.length < this.laserReceivers.length || this.beamHasSlidingMirror) return;
+    this.emitVisual('win', this.player.x, this.player.y);
+    this.completeLevel();
   }
 
   private killPlayer(reasonKey: string, sfxId: string): void {

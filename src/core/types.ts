@@ -683,6 +683,18 @@ export interface TileDefinition {
   teleportGroup?: string;
   isTrap?: boolean;
   isCloneMachine?: boolean;
+  /** Whether a laser beam passes through the cell; every tile declares it. */
+  laserTransparent?: boolean;
+  /** Direction a laser emitter fires in. */
+  laserEmitter?: Direction;
+  /** Group a laser receiver belongs to: it drives the laser gates of that group while a beam reaches it. */
+  laserReceiverGroup?: string;
+  /** Group of a laser gate: it is open while any receiver of the group is lit. */
+  laserGateGroup?: string;
+  /** Whether a laser gate is the open (true) or the closed (false) form of its pair. */
+  laserGateOpen?: boolean;
+  /** The other form of a laser gate (closed to open and back), swapped by the receivers of its group only. */
+  laserGateTogglesTo?: string;
 }
 
 export type ButtonAction =
@@ -719,7 +731,14 @@ export interface EntityDefinition {
   avoidsFire?: boolean;
   /** Turned around when a reverse_tanks button is pressed. */
   reversedByButton?: boolean;
+  /** Orientation of a laser mirror: 'slash' (/) or 'backslash' (\). A mirror is a block. */
+  mirrorAxis?: MirrorAxis;
+  /** Terrain hazards a block refuses to enter, by push, slide, teleport or clone. */
+  refusesHazards?: Array<NonNullable<TileDefinition['hazard']>>;
 }
+
+/** Orientation of a laser mirror. */
+export type MirrorAxis = 'slash' | 'backslash';
 
 export interface MonstersConfig {
   entities: Record<string, EntityDefinition>;
@@ -867,8 +886,22 @@ export interface EntityPlacement {
   dir: Direction;
 }
 
-/** How a level is won: reach the exit, or cover every block target with a block. */
-export type WinRule = 'exit' | 'targets';
+/**
+ * How a level is won: reach the exit, cover every block target with a block,
+ * or light every laser receiver.
+ */
+export type WinRule = 'exit' | 'targets' | 'receivers';
+
+/**
+ * One cell crossed by a laser beam. `horizontal` and `vertical` tell which
+ * axes the beam travels along in the cell: both are set where a mirror turns it.
+ */
+export interface BeamCell {
+  x: number;
+  y: number;
+  horizontal: boolean;
+  vertical: boolean;
+}
 
 /**
  * Rules a level is played under. 'epoxy' is Epoxy's own rules and the default;

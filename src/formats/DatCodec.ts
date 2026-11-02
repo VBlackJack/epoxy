@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isInBounds } from '../config/ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
+import { hasLaserContent } from '../core/RulesetFeatures';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
   DEFAULT_FACING,
@@ -83,7 +84,12 @@ const LYNX_RULESET: Ruleset = 'lynx';
 const FALLBACK_ELEMENT: DatElementMapping = { kind: 'terrain', id: FLOOR_TILE_ID };
 
 /** Why a level could not be written to a .DAT pack. */
-export type DatRefusalReason = 'too_large' | 'player_out_of_range' | 'targets_win_rule';
+export type DatRefusalReason =
+  | 'too_large'
+  | 'player_out_of_range'
+  | 'targets_win_rule'
+  | 'receivers_win_rule'
+  | 'laser_content';
 
 /** A level left out of the pack, with the reason. */
 export interface DatRefusal {
@@ -114,6 +120,9 @@ export interface DatEncodeResult {
 export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null {
   // The format has no block target and no win by covering targets: writing the level would change its goal.
   if (level.winRule === 'targets') return 'targets_win_rule';
+  // Nor does it have laser receivers, emitters, gates or mirrors: they would be written as floor or plain blocks.
+  if (level.winRule === 'receivers') return 'receivers_win_rule';
+  if (hasLaserContent(level)) return 'laser_content';
   const datCfg = ConfigRegistry.getDatFormat();
   const { mapWidth: gridWidth, mapHeight: gridHeight } = ConfigRegistry.getGame().grid;
   const layerWidth = datCfg.layerWidth ?? gridWidth;

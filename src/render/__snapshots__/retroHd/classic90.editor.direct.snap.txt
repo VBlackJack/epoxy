@@ -144,6 +144,26 @@ editor tile trap closed=true 07e9e2a866a786bc
 editor tile trap closed=false 5926d18fe8ea2c25
 editor tile clone_machine closed=true 7283fb127e2c0224
 editor tile clone_machine closed=false 39f93834545df95d
+editor tile laser_emitter_n closed=true 4bb666b59d2c223c
+editor tile laser_emitter_n closed=false 358e74dda9f9c8de
+editor tile laser_emitter_e closed=true eef95c52741c25e2
+editor tile laser_emitter_e closed=false 73e1f78fa79c705b
+editor tile laser_emitter_s closed=true 24d58a3f3100cad8
+editor tile laser_emitter_s closed=false ba2a61e9b143d15b
+editor tile laser_emitter_w closed=true ee634aac83082380
+editor tile laser_emitter_w closed=false a7fa1aca52bf4650
+editor tile laser_receiver_red closed=true 3beb9388f9b03e52
+editor tile laser_receiver_red closed=false 82ba8dbd95336022
+editor tile laser_receiver_blue closed=true 89a45acaa84eb329
+editor tile laser_receiver_blue closed=false 72431000235e6e4f
+editor tile laser_gate_red_closed closed=true ba20b9bdb5da27c3
+editor tile laser_gate_red_closed closed=false b48163e584c8d611
+editor tile laser_gate_red_open closed=true ac39d4d6144445a1
+editor tile laser_gate_red_open closed=false 4c79b0fb94908f51
+editor tile laser_gate_blue_closed closed=true ff2896a2343efc7f
+editor tile laser_gate_blue_closed closed=false c77a536cbe3b8a5d
+editor tile laser_gate_blue_open closed=true 0c202b850be7ee8c
+editor tile laser_gate_blue_open closed=false 60ee1edf6c88d66b
 editor tile key_red closed=true 4cb5e738243c12eb
 editor tile key_red closed=false 346ba933117db923
 editor tile key_blue closed=true 72eb368a33ef368b
@@ -194,6 +214,8 @@ editor item over floor stopwatch_bonus fa79ab80f63a8e5e
 editor item over floor stopwatch_penalty 7d2a9884991af844
 editor entity over floor dirt_block 4358628869cfc8dc
 editor entity over floor ice_block cdf28e9959ae0c5e
+editor entity over floor mirror_slash 07d5d5367ff198f3
+editor entity over floor mirror_backslash 44b8da388b266980
 editor entity over floor bug 4fa8f12d55fb8a4c
 editor entity over floor paramecium 4c290e21186d5559
 editor entity over floor pink_ball 1a21252740519bdd

@@ -25,6 +25,32 @@
       "destroyedByFire": true,
       "destroyedByBomb": true
     },
+    "mirror_slash": {
+      "id": "mirror_slash",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.mirror_slash.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "mirrorAxis": "slash",
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "mirror_backslash": {
+      "id": "mirror_backslash",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.mirror_backslash.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "mirrorAxis": "backslash",
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
     "bug": {
       "id": "bug",
       "category": "entities",

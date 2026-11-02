@@ -90,6 +90,8 @@
       "refused_too_large": { "label": "Non exporté : {levels} est plus grand que la carte .DAT." },
       "refused_player_out_of_range": { "label": "Non exporté : le départ de {levels} est hors de sa carte." },
       "refused_targets_win_rule": { "label": "Non exporté : {levels} se gagne en couvrant des cibles de bloc, que le format .DAT ne peut pas porter." },
+      "refused_receivers_win_rule": { "label": "Non exporté : {levels} se gagne en allumant des récepteurs laser, que le format .DAT ne peut pas porter." },
+      "refused_laser_content": { "label": "Non exporté : {levels} utilise des lasers ou des miroirs, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -156,6 +158,8 @@
       "chips": { "label": "PUCES RESTANTES" },
       "targets": { "label": "CIBLES" },
       "targets_value": { "label": "{covered}/{total}" },
+      "receivers": { "label": "RÉCEPTEURS" },
+      "receivers_value": { "label": "{lit}/{total}" },
       "time": { "label": "TEMPS" },
       "time_unlimited": { "label": "---" },
       "score": { "label": "SCORE" },
@@ -222,6 +226,7 @@
       "blocks_stuck": { "label": "Impasse : ces blocs ne peuvent plus couvrir tous les boutons. Annulez (U) ou recommencez (R)." },
       "blocks_stuck_targets": { "label": "Impasse : ces blocs ne peuvent plus couvrir toutes les cibles. Annulez (U) ou recommencez (R)." },
       "objective_targets": { "label": "Objectif : poussez les blocs sur toutes les cibles." },
+      "objective_receivers": { "label": "Objectif : allumez tous les récepteurs avec les rayons laser." },
       "objective_found": { "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées" },
       "solution_playing": { "label": "Lecture de la solution prouvée. Touchez le plateau pour reprendre la main." },
       "solution_confirm": { "label": "Voir la solution ? Le niveau recommence et se joue tout seul jusqu'à la sortie." },
@@ -238,6 +243,7 @@
       "death_monster": { "label": "Attention aux créatures de sécurité !" },
       "death_block": { "label": "Écrasé par un bloc en mouvement !" },
       "death_time": { "label": "Temps écoulé !" },
+      "death_laser": { "label": "Foudroyé par un rayon laser !" },
       "thief_stole_keys": { "label": "Le Voleur de Clés a confisqué toutes vos clés !" },
       "forbidden_item": { "label": "Cette barrière refuse l'objet que vous portez : déposez-le d'abord." },
       "drop_cell_occupied": { "label": "Impossible de déposer ici : la case contient déjà un objet." },
@@ -317,6 +323,7 @@
     "status": {
       "valid": { "label": "Niveau 100% valide et solvable ({chips}/{required} puces accessibles, sortie atteignable) !" },
       "valid_targets": { "label": "Niveau valide : {targets, plural, one {# cible} other {# cibles}} à couvrir avec des blocs." },
+      "valid_receivers": { "label": "Le niveau est valide : {receivers, plural, one {# récepteur} other {# récepteurs}} à allumer avec les rayons." },
       "issue_separator": { "label": " | " }
     },
     "issues": {
@@ -330,7 +337,11 @@
       "invalid_start": { "label": "Erreur : Le point de départ du joueur est hors de la carte." },
       "no_targets": { "label": "Erreur : Aucune cible de bloc placée sur la carte." },
       "fewer_blocks_than_targets": { "label": "Erreur : {blocks, plural, one {# seul bloc} other {# blocs}} pour {targets, plural, one {# cible} other {# cibles}}." },
-      "targets_unsolvable": { "label": "Avertissement : plus aucune suite de poussées ne couvre toutes les cibles." }
+      "targets_unsolvable": { "label": "Avertissement : plus aucune suite de poussées ne couvre toutes les cibles." },
+      "no_emitter": { "label": "Erreur : Aucun émetteur laser placé sur la carte." },
+      "no_receiver": { "label": "Erreur : Aucun récepteur laser placé sur la carte." },
+      "laser_gate_on_beam": { "label": "Avertissement : une barrière laser ({group}) se trouve sur un rayon qui allume un récepteur : fermée, elle coupe ce rayon." },
+      "exit_on_receivers_level": { "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs." }
     }
   },
   "editor": {
@@ -374,10 +385,11 @@
       "win_rule": { "label": "Règle de victoire" },
       "win_rule_exit": { "label": "Atteindre la sortie" },
       "win_rule_targets": { "label": "Couvrir chaque cible avec un bloc" },
+      "win_rule_receivers": { "label": "Allumer tous les récepteurs laser" },
       "ruleset": { "label": "Règles" },
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (packs communautaires)" },
-      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc ne se jouent qu'avec les règles Epoxy" },
+      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc ou à lasers ne se jouent qu'avec les règles Epoxy" },
       "auto_count_chips": { "action": "Compter auto." },
       "entity_dir": { "label": "Direction Entité / Joueur" }
     },
@@ -410,7 +422,8 @@
         "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
-        "wire_linked": { "label": "Connexion mécanique établie !" }
+        "wire_linked": { "label": "Connexion mécanique établie !" },
+        "lynx_lasers_switched": { "label": "Les tuiles laser et les miroirs n'existent qu'avec les règles Epoxy : le niveau se joue désormais avec Epoxy." }
       }
     }
   },
@@ -503,7 +516,17 @@
     "teleport_yellow": { "name": "Téléporteur Jaune" },
     "teleport_green": { "name": "Téléporteur Vert" },
     "trap": { "name": "Piège Mécanique" },
-    "clone_machine": { "name": "Machine de Clonage" }
+    "clone_machine": { "name": "Machine de Clonage" },
+    "laser_emitter_n": { "name": "Émetteur Laser (Nord)" },
+    "laser_emitter_e": { "name": "Émetteur Laser (Est)" },
+    "laser_emitter_s": { "name": "Émetteur Laser (Sud)" },
+    "laser_emitter_w": { "name": "Émetteur Laser (Ouest)" },
+    "laser_receiver_red": { "name": "Récepteur Laser Rouge" },
+    "laser_receiver_blue": { "name": "Récepteur Laser Bleu" },
+    "laser_gate_red_closed": { "name": "Barrière Laser Rouge (Fermée)" },
+    "laser_gate_red_open": { "name": "Barrière Laser Rouge (Ouverte)" },
+    "laser_gate_blue_closed": { "name": "Barrière Laser Bleue (Fermée)" },
+    "laser_gate_blue_open": { "name": "Barrière Laser Bleue (Ouverte)" }
   },
   "entities": {
     "dirt_block": { "name": "Bloc de Terre Mobile" },
@@ -516,7 +539,9 @@
     "glider": { "name": "Planeur (Nage sur l'Eau)" },
     "fireball": { "name": "Boule de Feu (Ignifugée)" },
     "tank": { "name": "Tank Blindé (Bouton Bleu)" },
-    "blob": { "name": "Blob Gélatineux" }
+    "blob": { "name": "Blob Gélatineux" },
+    "mirror_slash": { "name": "Miroir (Barre oblique)" },
+    "mirror_backslash": { "name": "Miroir (Barre oblique inverse)" }
   },
   "levels": {
     "level_1": {

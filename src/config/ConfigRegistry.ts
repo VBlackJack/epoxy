@@ -25,6 +25,7 @@ import {
   assertConfigShape,
   ConfigLoadError,
   ensureUniqueLevelIds,
+  findLaserConfigErrors,
   sanitizeStoredLevels,
   isSizeWithinBounds,
   levelSizeBoundsOf,
@@ -166,6 +167,10 @@ class ConfigRegistryService {
     const tunableErrors = findGameTunableErrors(bundle.game);
     if (tunableErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, tunableErrors.join('; '));
+    }
+    const laserErrors = findLaserConfigErrors(bundle.tiles.tiles);
+    if (laserErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, laserErrors.join('; '));
     }
     const datFormatErrors = findDatFormatErrors(bundle.datFormat, bundle.game.grid);
     if (datFormatErrors.length > 0) {

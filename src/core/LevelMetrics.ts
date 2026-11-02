@@ -41,7 +41,8 @@ export const MECHANICS = {
   HIDDEN_WALLS: 'hidden_walls',
   BOMB: 'bomb',
   BLOCKS: 'blocks',
-  MONSTERS: 'monsters'
+  MONSTERS: 'monsters',
+  LASERS: 'lasers'
 } as const;
 
 export type Mechanic = (typeof MECHANICS)[keyof typeof MECHANICS];
@@ -406,6 +407,9 @@ export class LevelMetrics {
       if (tile.isTrap) found.add(MECHANICS.TRAP);
       if (tile.isCloneMachine) found.add(MECHANICS.CLONER);
       if (tile.togglesTo) found.add(MECHANICS.TOGGLE_WALLS);
+      if (tile.laserEmitter || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined) {
+        found.add(MECHANICS.LASERS);
+      }
       if (DIRT_TILE_IDS.has(tile.id)) found.add(MECHANICS.DIRT);
       if (tile.revealsToOnTouch || HIDDEN_WALL_TILE_IDS.has(tile.id)) {
         found.add(MECHANICS.HIDDEN_WALLS);
@@ -416,6 +420,7 @@ export class LevelMetrics {
     for (const entity of level.entities) {
       const kind = ConfigRegistry.getEntityDef(entity.type)?.kind;
       if (kind === 'block') found.add(MECHANICS.BLOCKS);
+      if (ConfigRegistry.getEntityDef(entity.type)?.mirrorAxis) found.add(MECHANICS.LASERS);
       if (kind === 'monster') found.add(MECHANICS.MONSTERS);
     }
     return [...found].sort();

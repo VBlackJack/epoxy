@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel } from './types';
 
 /**
@@ -57,7 +58,41 @@ const LYNX_FEATURES: RulesetFeatures = {
   highScoreReplay: true
 };
 
-/** The aids available on a level, by the ruleset it is played under. */
-export function featuresFor(level: Pick<CompiledLevel, 'ruleset'> | undefined): RulesetFeatures {
-  return level?.ruleset === 'lynx' ? LYNX_FEATURES : EPOXY_FEATURES;
+/** The aids that stay off on a level with lasers: both search for pushes that cover buttons or targets. */
+const LASER_LEVEL_FEATURES: RulesetFeatures = { ...EPOXY_FEATURES, blockHint: false, deadEndWatch: false };
+
+/** The aids a laser level won by lighting receivers also loses: its goal is not a place to walk to. */
+const RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, objectiveMarker: false };
+
+/** True when the level places a laser tile (terrain or item layer) or a mirror, as the configs define them. */
+export function hasLaserContent(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'>): boolean {
+  const isLaserTile = (id: string | null): boolean => {
+    if (!id) return false;
+    const tile = ConfigRegistry.getTile(id);
+    return tile.laserEmitter !== undefined || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined;
+  };
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean => grid?.some((row) => row.some(isLaserTile)) ?? false;
+  if (hasTile(level.terrain) || hasTile(level.items)) return true;
+  return (level.entities ?? []).some((e) => ConfigRegistry.getEntityDef(e.type)?.mirrorAxis !== undefined);
+}
+
+/** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
+type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
+  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule'>>;
+
+/** Laser content never changes on a compiled level, so the answer is kept per level object. */
+const laserContentCache = new WeakMap<object, boolean>();
+
+/** The aids available on a level, by the ruleset it is played under and the mechanics it uses. */
+export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
+  if (!level) return EPOXY_FEATURES;
+  if (level.ruleset === 'lynx') return LYNX_FEATURES;
+  if (level.winRule === 'receivers') return RECEIVER_LEVEL_FEATURES;
+  if (!level.terrain) return EPOXY_FEATURES;
+  let laser = laserContentCache.get(level);
+  if (laser === undefined) {
+    laser = hasLaserContent({ terrain: level.terrain, items: level.items ?? [], entities: level.entities ?? [] });
+    laserContentCache.set(level, laser);
+  }
+  return laser ? LASER_LEVEL_FEATURES : EPOXY_FEATURES;
 }

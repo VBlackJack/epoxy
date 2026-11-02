@@ -449,3 +449,33 @@ tile trap closed=false shadowMask=128 hash=1 8504e39a7f1a9482
 tile clone_machine closed=true isolated dd0700d20d73d1fb
 tile clone_machine closed=true shadowMask=65 hash=1 438a7e5461cdd483
 tile clone_machine closed=true shadowMask=128 hash=1 e0bd38ae6775cc3b
+tile laser_emitter_n closed=true isolated 81ffabc42e2922bb
+tile laser_emitter_n closed=true shadowMask=65 hash=1 c61eb6dda814f622
+tile laser_emitter_n closed=true shadowMask=128 hash=1 cc0b51f5332b73af
+tile laser_emitter_e closed=true isolated 85b1ca7dfe1948e9
+tile laser_emitter_e closed=true shadowMask=65 hash=1 4a91e9f86e112350
+tile laser_emitter_e closed=true shadowMask=128 hash=1 ca9da43e41ca1d59
+tile laser_emitter_s closed=true isolated 458909fd48dcaedf
+tile laser_emitter_s closed=true shadowMask=65 hash=1 1861147d8259bc7e
+tile laser_emitter_s closed=true shadowMask=128 hash=1 0d16fd724bbb9f96
+tile laser_emitter_w closed=true isolated e951096322321f10
+tile laser_emitter_w closed=true shadowMask=65 hash=1 160dfe67d2a67a70
+tile laser_emitter_w closed=true shadowMask=128 hash=1 dc671a9139d26690
+tile laser_receiver_red closed=true isolated 9608018fa8029740
+tile laser_receiver_red closed=true shadowMask=65 hash=1 8ab32604a58dd82f
+tile laser_receiver_red closed=true shadowMask=128 hash=1 d7b5c11c61faad46
+tile laser_receiver_blue closed=true isolated 25455214561999f4
+tile laser_receiver_blue closed=true shadowMask=65 hash=1 e57f01c91cf2691f
+tile laser_receiver_blue closed=true shadowMask=128 hash=1 93ea5d836a3af33b
+tile laser_gate_red_closed closed=true isolated cfaa1a4f590d5845
+tile laser_gate_red_closed closed=true shadowMask=65 hash=1 6ee4154b2817d36e
+tile laser_gate_red_closed closed=true shadowMask=128 hash=1 3aadee6c7aa4778e
+tile laser_gate_red_open closed=true isolated fd4113e14cecf225
+tile laser_gate_red_open closed=true shadowMask=65 hash=1 8bcd913120ef737b
+tile laser_gate_red_open closed=true shadowMask=128 hash=1 353a61e86d7519c3
+tile laser_gate_blue_closed closed=true isolated d5c6a22c976855c6
+tile laser_gate_blue_closed closed=true shadowMask=65 hash=1 04b7fde03651a9cc
+tile laser_gate_blue_closed closed=true shadowMask=128 hash=1 d53d03a2dad67822
+tile laser_gate_blue_open closed=true isolated 1af005c0e2e73a56
+tile laser_gate_blue_open closed=true shadowMask=65 hash=1 daec2a2320c41936
+tile laser_gate_blue_open closed=true shadowMask=128 hash=1 5927c856d00d8e4b

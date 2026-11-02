@@ -65,7 +65,15 @@ export class LevelValidator {
     const width = level.terrain[0]?.length || 0;
 
     const coversTargets = level.winRule === 'targets';
+    const lightsReceivers = level.winRule === 'receivers';
+    // Only the 'exit' rule asks for an exit and a way to reach it.
+    const needsExit = !coversTargets && !lightsReceivers;
     let targetCount = 0;
+    let emitterCount = 0;
+    let receiverCount = 0;
+    let gateCount = 0;
+    // Groups with a receiver: their closed gates count as passable in the reachability walk, as a key barrier does.
+    const receiverGroups = new Set<string>();
     let chipsPlaced = 0;
     let exitCount = 0;
     const consumingDoorCounts: Record<string, number> = {};
@@ -82,6 +90,12 @@ export class LevelValidator {
         if (level.terrain[y][x] === BLOCK_TARGET_TILE_ID) {
           targetCount++;
         }
+        if (tDef.laserEmitter) emitterCount++;
+        if (tDef.laserReceiverGroup !== undefined) {
+          receiverCount++;
+          receiverGroups.add(tDef.laserReceiverGroup);
+        }
+        if (tDef.laserGateGroup !== undefined) gateCount++;
         if (tDef.requiredKey) {
           const counts = tDef.consumesKey ? consumingDoorCounts : keepingDoorCounts;
           counts[tDef.requiredKey] = (counts[tDef.requiredKey] || 0) + 1;
@@ -99,6 +113,11 @@ export class LevelValidator {
 
     if (coversTargets) {
       this.checkTargets(level, targetCount, issues);
+    } else if (lightsReceivers) {
+      if (emitterCount === 0) issues.push({ severity: 'error', i18nKey: 'validator.issues.no_emitter.label' });
+      if (receiverCount === 0) issues.push({ severity: 'error', i18nKey: 'validator.issues.no_receiver.label' });
+      // An exit tile still ends the level on touch, which would bypass the receivers.
+      if (exitCount > 0) issues.push({ severity: 'warning', i18nKey: 'validator.issues.exit_on_receivers_level.label' });
     } else if (exitCount === 0) {
       issues.push({
         severity: 'error',
@@ -112,6 +131,16 @@ export class LevelValidator {
         i18nKey: 'validator.issues.missing_chips.label',
         params: { placed: chipsPlaced, required: level.chipsRequired }
       });
+    }
+
+    if (gateCount > 0 && emitterCount > 0) {
+      for (const group of this.findSelfFeedingGateGroups(level)) {
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.laser_gate_on_beam.label',
+          params: { group }
+        });
+      }
     }
 
     // A consumed key opens one door; a kept key opens every door of its colour
@@ -157,7 +186,7 @@ export class LevelValidator {
       };
     }
 
-    if (!coversTargets && exitCount > 0 && level.chipsRequired > 0) {
+    if (needsExit && exitCount > 0 && level.chipsRequired > 0) {
       if (this.canReachExitWithoutSocket(level)) {
         issues.push({
           severity: 'error',
@@ -361,7 +390,9 @@ export class LevelValidator {
             continue;
           }
 
-          if (!nextTile.passableByPlayer) {
+          const gateCanOpen =
+            emitterCount > 0 && nextTile.laserGateGroup !== undefined && receiverGroups.has(nextTile.laserGateGroup);
+          if (!nextTile.passableByPlayer && !gateCanOpen) {
             continue;
           }
 
@@ -433,7 +464,7 @@ export class LevelValidator {
       });
     }
 
-    if (!coversTargets && exitCount > 0 && !reachableExit) {
+    if (needsExit && exitCount > 0 && !reachableExit) {
       issues.push({
         severity: 'error',
         i18nKey: 'validator.issues.unreachable_exit.label'
@@ -453,6 +484,48 @@ export class LevelValidator {
         targetCount
       }
     };
+  }
+
+  /**
+   * Groups with a laser gate standing on a beam while that beam lights a
+   * receiver that drives gates (of its own group or another): closed, the gate
+   * cuts a beam that opens gates, so it can hold itself shut or swap state with
+   * another gate forever. The beams are traced from the level as laid out,
+   * every gate taken as open.
+   */
+  private static findSelfFeedingGateGroups(level: CompiledLevel): string[] {
+    const openedLevel: CompiledLevel = {
+      ...level,
+      terrain: level.terrain.map((row) =>
+        row.map((id) => {
+          const tile = ConfigRegistry.getTile(id);
+          return tile.laserGateGroup !== undefined && !tile.laserGateOpen && tile.laserGateTogglesTo
+            ? tile.laserGateTogglesTo
+            : id;
+        })
+      )
+    };
+    const engine = new GameEngine();
+    engine.loadLevel(openedLevel);
+    const terrain = engine.getTerrain();
+    const gateGroups = new Set<string>();
+    for (const row of terrain) {
+      for (const id of row) {
+        const group = ConfigRegistry.getTile(id).laserGateGroup;
+        if (group !== undefined) gateGroups.add(group);
+      }
+    }
+    const litDrivesGates = engine.getLitReceivers().some(({ x, y }) => {
+      const group = ConfigRegistry.getTile(terrain[y][x]).laserReceiverGroup;
+      return group !== undefined && gateGroups.has(group);
+    });
+    if (!litDrivesGates) return [];
+    const flagged = new Set<string>();
+    for (const { x, y } of engine.getBeamCells()) {
+      const group = ConfigRegistry.getTile(terrain[y][x]).laserGateGroup;
+      if (group !== undefined) flagged.add(group);
+    }
+    return [...flagged].sort();
   }
 
   /**

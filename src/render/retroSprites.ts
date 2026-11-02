@@ -169,6 +169,8 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   'dirt', 'slime', 'gravel', 'socket', 'hint', 'thief', 'thief_keys', 'block_target', 'clone_machine',
   'forbid_sign', 'door', 'button', 'toggle_wall_closed', 'toggle_wall_open', 'trap_open', 'trap_closed',
   'flame_jet_nozzle', 'turtle', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se',
+  'laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w',
+  'laser_receiver', 'laser_gate_closed', 'laser_gate_open',
   ...framed('water', WATER_FRAMES), ...framed('fire', FIRE_FRAMES),
   ...framed('exit', EXIT_FRAMES), ...framed('teleport', TELEPORT_FRAMES),
   ...DIRECTIONS.flatMap((d) => framed(`force_${d.toLowerCase()}`, FORCE_FRAMES)),
@@ -180,7 +182,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...DIRECTIONS.flatMap((d) => framed(`player_${d}`, PLAYER_FRAMES)),
   ...DIRECTIONS.map((d) => `player_swim_${d}`), 'player_dead',
   ...MONSTER_TYPES.flatMap((t) => DIRECTIONS.flatMap((d) => framed(`${t}_${d}`, MONSTER_FRAMES))),
-  'dirt_block', 'ice_block', 'block_on_target'
+  'dirt_block', 'ice_block', 'mirror_slash', 'mirror_backslash', 'block_on_target'
 ];
 
 /** Names of RETRO_SPRITE_NAMES the sheet does not define. */

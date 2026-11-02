@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { BLOCK_TARGET_TILE_ID } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
-import { Direction, GraphicsStyle, GridPoint, ThemePalette, TileDefinition } from '../core/types';
+import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BLOCK_ON_TARGET_COLOR_KEY,
@@ -56,6 +56,7 @@ import {
 import { cameraPosition, FrameGeometry, pointToGrid } from './viewMapping';
 import { Light, LightingLayer } from './LightingLayer';
 import { iceBendGeometry, IceBendGeometry, QUARTER_TURN } from './iceBend';
+import { armRects, BEAM_CORE_TILE, BEAM_HALO_TILE, beamArms, BeamBoard } from './laserBeams';
 import {
   cellHash,
   hasAll,
@@ -310,6 +311,34 @@ const BLOCK_TARGET_MARK = { ringInset: 0.26, ringWidth: 0.08, dotRadius: 0.1 };
 /** Outline of a block standing on a target, in tile units: inset from the block edge and width. */
 const BLOCK_ON_TARGET_OUTLINE = { inset: 0.14, width: 0.07 };
 const BLOCK_RADIUS_TILE = 0.1;
+/** Laser devices, in tile units: housing inset, nozzle length and width, lens radius, gate bar width, glyph radius, post size. */
+const LASER_DEVICE = {
+  inset: 0.06,
+  nozzleLength: 0.3,
+  nozzleWidth: 0.2,
+  lensRadius: 0.26,
+  barWidth: 0.1,
+  glyphRadius: 0.09,
+  postSize: 0.2,
+  openAlpha: 0.45
+};
+/** Emitter nozzle bright core, as a fraction of the nozzle width and length. */
+const LASER_NOZZLE_CORE_RATIO = 0.5;
+/** Closed gate field overlap under the posts, as a fraction of a post. */
+const LASER_GATE_FIELD_OVERLAP_RATIO = 0.5;
+/** Gate bars across a closed laser gate. */
+const LASER_GATE_BAR_COUNT = 3;
+/** Lit receiver lens, in tile units: glowing halo radius and bright core radius. */
+const LASER_LIT_LENS = { halo: 0.3, core: 0.15 };
+/** Angle a north-facing emitter nozzle is turned by, per direction the emitter fires in. */
+const LASER_EMITTER_ANGLE: Readonly<Record<Direction, number>> = {
+  N: 0,
+  E: QUARTER_TURN,
+  S: QUARTER_TURN * 2,
+  W: -QUARTER_TURN
+};
+/** Mirror, in tile units: frame inset, glass inset from the frame, width of the reflecting line. */
+const MIRROR_BODY = { inset: 0.07, glassInset: 0.1, lineWidth: 0.1, shadowOffsetFactor: 1.5 };
 /** Monster part sizes, in tile units (sprites are painted in a unit square). */
 const LIMB_WIDTH = 0.05;
 const PARAMECIUM_CILIA = 12;
@@ -1029,6 +1058,8 @@ export class PixelRenderer {
       animNeighbours.shadowMask = lowRes ? neighbourMask(terrain, cell.x, cell.y, this.shadowCasterTiles, false) : 0;
       this.drawTile(sceneCtx, cell.tileId, px, py, drawSize, false, false, 'animated', animNeighbours);
     }
+
+    this.drawLaserBeams(sceneCtx, engine, entities, terrain, originX, originY, region, unit, !lowRes);
 
     // Lights are gathered while the scene is drawn and applied once it is complete.
     const lit = this.lightingActive() && settings.lightingEnabled;
@@ -2218,6 +2249,19 @@ export class PixelRenderer {
         break;
       }
 
+      case 'laser_emitter_n':
+      case 'laser_emitter_e':
+      case 'laser_emitter_s':
+      case 'laser_emitter_w':
+      case 'laser_receiver_red':
+      case 'laser_receiver_blue':
+      case 'laser_gate_red_closed':
+      case 'laser_gate_red_open':
+      case 'laser_gate_blue_closed':
+      case 'laser_gate_blue_open':
+        this.paintLaserTile(ctx, tileId, x, y, size, false);
+        break;
+
       case 'clone_machine': {
         ctx.fillStyle = pal.clonerBorder;
         ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
@@ -3269,6 +3313,19 @@ export class PixelRenderer {
         break;
       }
 
+      case 'laser_emitter_n':
+      case 'laser_emitter_e':
+      case 'laser_emitter_s':
+      case 'laser_emitter_w':
+      case 'laser_receiver_red':
+      case 'laser_receiver_blue':
+      case 'laser_gate_red_closed':
+      case 'laser_gate_red_open':
+      case 'laser_gate_blue_closed':
+      case 'laser_gate_blue_open':
+        this.paintLaserTile(ctx, tileId, x, y, size, true);
+        break;
+
       case 'clone_machine': {
         ctx.fillStyle = pal.modernClonerBase;
         this.roundRect(ctx, x + 3, y + 3, size - 6, size - 6, 5);
@@ -4116,7 +4173,7 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
-    const isBlock = BLOCK_TYPES.has(type);
+    const isBlock = BLOCK_TYPES.has(type) || ConfigRegistry.getEntityDef(type)?.mirrorAxis !== undefined;
     const frame = isBlock ? 0 : Math.floor(this.timeTick / MONSTER_FRAME_TICKS) % WALK_FRAMES;
     if (!this.isHdVector() && this.retroSpritesReady()) {
       const name = isBlock ? type : retroMonsterSprite(type, dir, frame);
@@ -4154,6 +4211,239 @@ export class PixelRenderer {
     );
     ctx.stroke();
     ctx.restore();
+  }
+
+  /**
+   * A laser device from vector shapes (HD Neon, the Retro HD styles, the editor and the icons): an
+   * emitter with its nozzle turned to the way it fires, a receiver with a lens in its group colour,
+   * or a gate of the group colour, barred when closed and reduced to its posts when open.
+   */
+  private paintLaserTile(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    x: number,
+    y: number,
+    size: number,
+    isModern: boolean
+  ): void {
+    const pal = this.pal();
+    const def = ConfigRegistry.getTile(tileId);
+    const glow = this.getSettings().glowBlurPx;
+    const inset = size * LASER_DEVICE.inset;
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    const radius = isModern ? size * BLOCK_RADIUS_TILE : 0;
+    const group = def.laserReceiverGroup ?? def.laserGateGroup;
+    const groupKey = group && pal[group] ? group : DEFAULT_COLOR_KEY;
+    const groupColor = pal[groupKey];
+
+    const housing = (): void => {
+      ctx.fillStyle = pal.wallShadow;
+      ctx.beginPath();
+      ctx.roundRect(x + inset, y + inset, size - inset * 2, size - inset * 2, radius);
+      ctx.fill();
+      ctx.strokeStyle = pal.wallTop;
+      ctx.lineWidth = Math.max(1, size * LASER_DEVICE.inset);
+      ctx.stroke();
+    };
+
+    if (def.laserEmitter) {
+      housing();
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(LASER_EMITTER_ANGLE[def.laserEmitter]);
+      const length = size * LASER_DEVICE.nozzleLength;
+      const width = size * LASER_DEVICE.nozzleWidth;
+      const top = -size / 2 + inset;
+      ctx.fillStyle = pal.laserBeam;
+      if (isModern) {
+        ctx.shadowColor = pal.laserBeam;
+        ctx.shadowBlur = glow.medium;
+      }
+      ctx.fillRect(-width / 2, top, width, length);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = pal.laserBeamCore;
+      const coreWidth = width * LASER_NOZZLE_CORE_RATIO;
+      ctx.fillRect(-coreWidth / 2, top, coreWidth, length * LASER_NOZZLE_CORE_RATIO);
+      ctx.restore();
+      return;
+    }
+
+    if (def.laserReceiverGroup !== undefined) {
+      housing();
+      ctx.fillStyle = groupColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * LASER_DEVICE.lensRadius, 0, FULL_TURN);
+      ctx.fill();
+      this.drawColorGlyph(ctx, groupKey, cx, cy, size * LASER_DEVICE.glyphRadius, pal.wallShadow);
+      return;
+    }
+
+    // Gate: a barred field between two posts when closed, only the posts and faint guides when open.
+    const post = size * LASER_DEVICE.postSize;
+    ctx.fillStyle = pal.wallTop;
+    for (const [px, py] of [
+      [x, y],
+      [x + size - post, y],
+      [x, y + size - post],
+      [x + size - post, y + size - post]
+    ]) {
+      ctx.fillRect(px, py, post, post);
+    }
+    const barWidth = size * LASER_DEVICE.barWidth;
+    const barSpan = size - post * 2;
+    ctx.save();
+    if (def.laserGateOpen) {
+      ctx.globalAlpha = LASER_DEVICE.openAlpha;
+    } else {
+      ctx.fillStyle = pal.wallShadow;
+      const overlap = post * LASER_GATE_FIELD_OVERLAP_RATIO;
+      ctx.fillRect(x + overlap, y + overlap, size - post, size - post);
+      if (isModern) {
+        ctx.shadowColor = groupColor;
+        ctx.shadowBlur = glow.soft;
+      }
+    }
+    ctx.fillStyle = groupColor;
+    for (let i = 0; i < LASER_GATE_BAR_COUNT; i++) {
+      const bx = x + post + (barSpan * (i + 1)) / (LASER_GATE_BAR_COUNT + 1) - barWidth / 2;
+      ctx.fillRect(bx, y + post, barWidth, barSpan);
+    }
+    ctx.restore();
+    if (!def.laserGateOpen) {
+      this.drawColorGlyph(ctx, groupKey, cx, cy, size * LASER_DEVICE.glyphRadius, pal.laserBeamCore);
+    }
+  }
+
+  /** A mirror block: a frame around a pane with the reflecting diagonal drawn across it. */
+  private paintMirror(ctx: CanvasRenderingContext2D, axis: MirrorAxis, x: number, y: number, size: number): void {
+    const pal = this.pal();
+    const isModern = this.isHdVector();
+    const inset = size * MIRROR_BODY.inset;
+    const pane = inset + size * MIRROR_BODY.glassInset;
+    const radius = isModern ? size * BLOCK_RADIUS_TILE : 0;
+    ctx.save();
+    if (isModern) {
+      ctx.fillStyle = pal.modernBlockShadow;
+      ctx.beginPath();
+      const shadowOffset = inset * MIRROR_BODY.shadowOffsetFactor;
+      ctx.roundRect(x + shadowOffset, y + shadowOffset, size - inset * 2, size - inset * 2, radius);
+      ctx.fill();
+    }
+    ctx.fillStyle = pal.mirrorFrame;
+    ctx.beginPath();
+    ctx.roundRect(x + inset, y + inset, size - inset * 2, size - inset * 2, radius);
+    ctx.fill();
+    ctx.fillStyle = pal.mirrorGlass;
+    ctx.fillRect(x + pane, y + pane, size - pane * 2, size - pane * 2);
+    ctx.strokeStyle = pal.mirrorSheen;
+    ctx.lineWidth = Math.max(1, size * MIRROR_BODY.lineWidth);
+    ctx.beginPath();
+    if (axis === 'slash') {
+      ctx.moveTo(x + pane, y + size - pane);
+      ctx.lineTo(x + size - pane, y + pane);
+    } else {
+      ctx.moveTo(x + pane, y + pane);
+      ctx.lineTo(x + size - pane, y + size - pane);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * The laser beams and the glow of the receivers they reach, over the terrain and under the
+   * entities. A beam is drawn as rectangles (a halo and a bright core) so that in the pixel styles it
+   * stays on whole sprite pixels; `round` marks the styles that draw a receiver glow as a disc.
+   */
+  private drawLaserBeams(
+    ctx: CanvasRenderingContext2D,
+    engine: PlayEngine,
+    entities: readonly { type: string; kind: string; x: number; y: number }[],
+    terrain: readonly (readonly string[])[],
+    originX: number,
+    originY: number,
+    region: { x0: number; y0: number },
+    unit: number,
+    round: boolean
+  ): void {
+    const laser = engine as PlayEngine & { getLitReceivers?(): readonly GridPoint[] };
+    const cells = laser.getBeamCells?.() ?? [];
+    const lit = laser.getLitReceivers?.() ?? [];
+    if (cells.length === 0 && lit.length === 0) return;
+    const pal = this.pal();
+    const glow = this.descriptor().glow ? this.getSettings().glowBlurPx : null;
+    const cellAt = (cx: number, cy: number): { px: number; py: number } => ({
+      px: originX + Math.floor((cx - region.x0) * unit),
+      py: originY + Math.floor((cy - region.y0) * unit)
+    });
+
+    if (cells.length > 0) {
+      const byCell = new Map<number, BeamCell>();
+      const width = terrain[0]?.length ?? 0;
+      for (const cell of cells) byCell.set(cell.y * width + cell.x, cell);
+      const mirrors = new Map<number, MirrorAxis>();
+      for (const ent of entities) {
+        const axis = ent.kind === 'block' ? ConfigRegistry.getEntityDef(ent.type)?.mirrorAxis : undefined;
+        if (axis) mirrors.set(ent.y * width + ent.x, axis);
+      }
+      const board: BeamBoard = {
+        beamAt: (bx, by) => byCell.get(by * width + bx),
+        mirrorAt: (bx, by) => mirrors.get(by * width + bx),
+        emitterAt: (bx, by) => ConfigRegistry.getTile(terrain[by]?.[bx] ?? '').laserEmitter
+      };
+      const paintLayer = (thickness: number, color: string, blur: number): void => {
+        ctx.save();
+        ctx.fillStyle = color;
+        if (blur > 0) {
+          ctx.shadowColor = color;
+          ctx.shadowBlur = blur;
+        }
+        for (const cell of cells) {
+          const { px, py } = cellAt(cell.x, cell.y);
+          for (const r of armRects(beamArms(cell, board), thickness)) {
+            ctx.fillRect(
+              px + Math.round(r.x * unit),
+              py + Math.round(r.y * unit),
+              Math.max(1, Math.round(r.w * unit)),
+              Math.max(1, Math.round(r.h * unit))
+            );
+          }
+        }
+        ctx.restore();
+      };
+      paintLayer(BEAM_HALO_TILE, pal.laserBeam, glow ? glow.medium : 0);
+      paintLayer(BEAM_CORE_TILE, pal.laserBeamCore, 0);
+    }
+
+    for (const receiver of lit) {
+      const { px, py } = cellAt(receiver.x, receiver.y);
+      const centreX = px + unit / 2;
+      const centreY = py + unit / 2;
+      ctx.save();
+      ctx.fillStyle = pal.laserBeam;
+      if (glow) {
+        ctx.shadowColor = pal.laserBeam;
+        ctx.shadowBlur = glow.medium;
+      }
+      const halo = unit * LASER_LIT_LENS.halo;
+      const core = unit * LASER_LIT_LENS.core;
+      if (round) {
+        ctx.beginPath();
+        ctx.arc(centreX, centreY, halo, 0, FULL_TURN);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = pal.laserBeamCore;
+        ctx.beginPath();
+        ctx.arc(centreX, centreY, core, 0, FULL_TURN);
+        ctx.fill();
+      } else {
+        ctx.fillRect(Math.round(centreX - halo), Math.round(centreY - halo), Math.round(halo * 2), Math.round(halo * 2));
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = pal.laserBeamCore;
+        ctx.fillRect(Math.round(centreX - core), Math.round(centreY - core), Math.round(core * 2), Math.round(core * 2));
+      }
+      ctx.restore();
+    }
   }
 
   /** A pushable block, with a top face and a darker front face like the walls. */
@@ -4209,6 +4499,11 @@ export class PixelRenderer {
   ): void {
     if (BLOCK_TYPES.has(type)) {
       this.paintBlock(ctx, type, x, y, size);
+      return;
+    }
+    const mirrorAxis = ConfigRegistry.getEntityDef(type)?.mirrorAxis;
+    if (mirrorAxis) {
+      this.paintMirror(ctx, mirrorAxis, x, y, size);
       return;
     }
 

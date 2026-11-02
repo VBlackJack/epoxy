@@ -144,6 +144,26 @@ editor tile trap closed=true 7c6ebf52f2829d8f
 editor tile trap closed=false ca662e1bc505bbc1
 editor tile clone_machine closed=true e477a1fe9bef6ae6
 editor tile clone_machine closed=false 04e61fc9dd4e276f
+editor tile laser_emitter_n closed=true fe64357bd0e50f6c
+editor tile laser_emitter_n closed=false 77ef410bebde06e6
+editor tile laser_emitter_e closed=true 362f1fd6a9d6fed6
+editor tile laser_emitter_e closed=false 3ecca86c8a1b9e0d
+editor tile laser_emitter_s closed=true 80a7194423a2c8b6
+editor tile laser_emitter_s closed=false 94f84e9e1a38af51
+editor tile laser_emitter_w closed=true b52a9e43f738eacb
+editor tile laser_emitter_w closed=false 08a74c6c381f4073
+editor tile laser_receiver_red closed=true 7fdd047e522d1666
+editor tile laser_receiver_red closed=false 5506c6d2badd67d4
+editor tile laser_receiver_blue closed=true ef31f8ba6e1a986d
+editor tile laser_receiver_blue closed=false ee3871df3b5a5394
+editor tile laser_gate_red_closed closed=true 0fae380856146e57
+editor tile laser_gate_red_closed closed=false 5c787b450e32ae4f
+editor tile laser_gate_red_open closed=true f03d7226d0714de1
+editor tile laser_gate_red_open closed=false 208da28aa2620fa9
+editor tile laser_gate_blue_closed closed=true 5d88fc21b520c8ea
+editor tile laser_gate_blue_closed closed=false 8d0938fa38a7eadb
+editor tile laser_gate_blue_open closed=true 691ce59c5426fd27
+editor tile laser_gate_blue_open closed=false 67da9b99687bdca6
 editor tile key_red closed=true a6d2eaeae3e80705
 editor tile key_red closed=false 7e7216f8b69b3428
 editor tile key_blue closed=true 5c6ebfa6dffac7e2
@@ -194,12 +214,14 @@ editor item over floor stopwatch_bonus 2c99430ce390f132
 editor item over floor stopwatch_penalty f2c89bfa916c4830
 editor entity over floor dirt_block be0d2c514545b70c
 editor entity over floor ice_block 2b6a67fe4b14b5e3
-editor entity over floor bug ced7dde94ab78e0b
-editor entity over floor paramecium 858396b3cb28d79c
-editor entity over floor pink_ball 41fda82c4416fd83
-editor entity over floor walker f87ade94a7e2a53c
-editor entity over floor teeth e8b89f8efe9dd355
-editor entity over floor glider 36cf89b4a0b932df
-editor entity over floor fireball 6d6d18c969ecabe6
-editor entity over floor tank 7349e47fc4875516
-editor entity over floor blob d5ce32fb072dbfdc
+editor entity over floor mirror_slash 24c70eff5bc39054
+editor entity over floor mirror_backslash 23fc20a920e016ec
+editor entity over floor bug 03e7d19e1aba1c8f
+editor entity over floor paramecium 6ca67aa6b87d2d2c
+editor entity over floor pink_ball 11d04cc514c9f2a8
+editor entity over floor walker 1482c41aa5770fbe
+editor entity over floor teeth a81b57e5b16057b1
+editor entity over floor glider e1dc06edc737c264
+editor entity over floor fireball 36ff3bb9df51d804
+editor entity over floor tank b9e6d78301af6b51
+editor entity over floor blob 9e2d9e1dbbd1250b
