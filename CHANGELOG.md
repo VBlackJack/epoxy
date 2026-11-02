@@ -5,6 +5,11 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Chuck's Challenge 3D levels: a teleport now sends the mob to the previous teleport of its colour
+  in reading order, and a yellow golem steered into water is lost instead of refusing the move.
+
 ## [2.16.0] - 2026-11-02
 
 ### Added
