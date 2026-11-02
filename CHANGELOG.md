@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.16.2] - 2026-11-02
+
 ### Fixed
 
 - Chuck's Challenge 3D levels: a trap control now works the next trap after it in reading order,
