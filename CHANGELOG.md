@@ -5,10 +5,41 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Five graphics styles, cycled with `G` like the others: Pocket 4-tone (a four-green handheld
+  look), Pastel (soft, lightened colours), Blueprint (blue and white), Sepia (old photo) and
+  Classic 90s (flat tiles in a 16-colour early-90s PC palette). They recolour the 16-Bit or 32-Bit
+  sprites with a fixed palette (`renderStylePalettes` in `game.json`); keys, doors, Sokoban targets
+  and blocks keep distinct colours in every style. All the art is Epoxy's own.
+- Character option in Options > Advanced: Standard or Julien (short dark hair, salt-and-pepper
+  beard, thin glasses, navy t-shirt), drawn in every graphics style. Saved per player.
+
 ### Changed
 
+- Options drawer split into Essential (graphics style, zoom, sound effects, music, language) and a
+  folded Advanced section (graphics quality, biome, LCD screen, Sokoban skin, music mode,
+  character) whose open state is remembered.
+- Phones: the menu button opens the options drawer directly, with the navigation first (pack,
+  play or editor, levels, endless mode, import, help, seed). The same navigation shows in desktop
+  fullscreen.
+- Desktop header in two rows; "Levels & Scores" is now "Levels".
+- Level picker: the score column is gone, the time column hides when no level is timed, and pack
+  export and delete move to the footer.
+- Help dialog: the essentials first, the full shortcut list and rules folded below.
+- Each action has one name everywhere (HUD, touch pad, overlay card, onboarding, help), in both
+  languages. Keyboard shortcuts left the button labels and live in tooltips and in the help.
+- Sound toggles say on or off in text; the music mode row hides while music is off. The disabled
+  LCD toggle shows its reason under the button.
+- The password badge looks like the button it is.
 - The Sokoban Skin option is now shown only while a Sokoban level is played (or tested from the
   editor) and hidden on other levels; its saved setting is kept. Its hint now says what it does.
+
+### Fixed
+
+- Keyboard focus in dialogs reaches a folded section's title and skips the content of a closed
+  one, so Tab no longer gets stuck.
+- In mobile portrait the HUD Solution button is hidden, since the touch pad already has one.
 
 ## [2.10.0] - 2026-11-01
 
