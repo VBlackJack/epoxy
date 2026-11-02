@@ -20,14 +20,21 @@
  * so they follow the active style and theme without sprites of their own. Pure module: no DOM.
  */
 
+import { REFLECTING_FACES } from '../core/cc3d/cc3dLasers';
 import type { Direction } from '../core/types';
 
 /** Prefix of every display id that only the cc3d ruleset uses. */
 export const CC3D_TILE_PREFIX = 'cc3d_';
 
 const FULL_TURN = Math.PI * 2;
-const QUARTER_TURN = Math.PI / 2;
-const DIRECTION_ANGLE: Readonly<Record<Direction, number>> = { N: 0, E: QUARTER_TURN, S: Math.PI, W: -QUARTER_TURN };
+/** Unit vector of each direction on the canvas (y grows downwards). */
+const DIR_VECTOR: Readonly<Record<Direction, readonly [number, number]>> = {
+  N: [0, -1],
+  E: [1, 0],
+  S: [0, 1],
+  W: [-1, 0]
+};
+const ALL_DIRECTIONS: readonly Direction[] = ['N', 'E', 'S', 'W'];
 const COLORS = ['red', 'green', 'blue', 'yellow'] as const;
 type CellColor = (typeof COLORS)[number];
 
@@ -49,35 +56,43 @@ const LASER_CONTROLLER = 'laser_controller';
 const BOT_STATIC = 'static';
 const BOT_MULTI = 'multi';
 const BOT_CLOCKWISE = 'cw';
-const MULTI_MARK_OFFSETS: ReadonlyArray<readonly [number, number]> = [
-  [-1, -1],
-  [1, -1],
-  [-1, 1],
-  [1, 1]
-];
+const OPEN_DASH: readonly number[] = [3, 3];
+const HOLD_DASH: readonly number[] = [1.5, 1.5];
+const NO_DASH: readonly number[] = [];
+const WEST: Direction = 'W';
+const NORTH: Direction = 'N';
 
 /** Tile-relative geometry (fractions of the tile side) and a few small counts. */
 const GEO = {
-  shotHalo: 0.22,
-  shotCore: 0.11,
+  shotHalo: 0.17,
+  shotCore: 0.09,
+  shotRing: 0.25,
+  shotRingAlpha: 0.35,
   plateInset: 0.2,
   plateRing: 0.14,
   doorInset: 0.08,
-  doorPanelInset: 0.2,
+  slabFrame: 0.07,
+  slabBevel: 0.05,
+  doorPanelInset: 0.24,
   doorSlats: 3,
   frameWidth: 0.07,
-  openDash: 3,
+  openTintAlpha: 0.12,
+  ghostAlpha: 0.3,
   glyphRadius: 0.14,
   controlRadius: 0.3,
   controlInner: 0.22,
-  arrowHalf: 0.14,
-  arrowOuter: 1.4,
-  arrowInner: 0.2,
+  controlGlyph: 0.065,
+  controlArrowTip: 0.2,
+  controlArrowBase: 0.11,
+  controlArrowHalf: 0.07,
   blockInset: 0.1,
-  blockFaceInset: 0.16,
-  blockInner: 0.3,
-  blockInnerAlpha: 0.35,
+  blockFaceInset: 0.17,
+  blockFront: 0.13,
+  blockGlyph: 0.13,
   corner: 0.14,
+  mirrorInset: 0.08,
+  mirrorPane: 0.19,
+  mirrorSheenWidth: 0.06,
   socketOuter: 0.08,
   socketInner: 0.3,
   socketCore: 0.4,
@@ -88,16 +103,21 @@ const GEO = {
   eyeRadius: 0.11,
   eyeCoreDivisor: 2,
   barrelWidth: 0.2,
-  barrelLength: 0.42,
+  nozzleWidth: 0.12,
+  barrelReach: 0.46,
+  nozzleStart: 0.33,
+  turretRadius: 0.12,
   botRadius: 0.3,
   botFace: 0.78,
-  botMarkRadius: 0.07,
-  botMarkOffset: 0.12,
-  botMultiMark: 0.8,
-  botArc: 0.2,
-  botArcStart: 0.2,
-  botArcEnd: 1.5,
-  botArrow: 1.4,
+  botNoseLength: 0.15,
+  botNoseHalf: 0.09,
+  botNoseEmbed: 0.85,
+  botEye: 0.06,
+  botSpinRadius: 0.13,
+  botSpinHead: 0.07,
+  botSpinStart: 0.25,
+  botSpinSweep: 1.5,
+  botSpinHeadSpread: 0.8,
   fishBodyRx: 0.3,
   fishBodyRy: 0.18,
   fishTail: 0.18,
@@ -158,11 +178,15 @@ function roundedSquare(ctx: CanvasRenderingContext2D, x: number, y: number, side
   ctx.closePath();
 }
 
+/** A pressure plate: a flat square pad sunk into the floor, in its colour, with the colour glyph. */
 function paintPlate(ctx: CanvasRenderingContext2D, color: CellColor, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
   const inset = size * GEO.plateInset;
   ctx.fillStyle = tools.pal.wallShadow;
   roundedSquare(ctx, x + inset, y + inset, size - inset * 2, size * GEO.corner);
   ctx.fill();
+  ctx.strokeStyle = tools.pal.wallTop;
+  ctx.lineWidth = 1;
+  ctx.stroke();
   const ring = size * GEO.plateRing;
   ctx.fillStyle = tools.pal[color];
   roundedSquare(ctx, x + inset + ring / 2, y + inset + ring / 2, size - inset * 2 - ring, (size * GEO.corner) / 2);
@@ -170,51 +194,77 @@ function paintPlate(ctx: CanvasRenderingContext2D, color: CellColor, x: number, 
   tools.glyph(color, x + size / 2, y + size / 2, size * GEO.glyphRadius, tools.pal.wallShadow);
 }
 
-/** An open door is only the dashed outline of its frame. */
-function paintOpenFrame(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, size: number): void {
+/** A shut door: a raised slab (light top edge, dark front edge) framed in its colour, like the green toggle wall. */
+function paintClosedSlab(ctx: CanvasRenderingContext2D, color: CellColor, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
   const inset = size * GEO.doorInset;
-  ctx.save();
-  ctx.strokeStyle = color;
+  const side = size - inset * 2;
+  const bevel = size * GEO.slabBevel;
+  ctx.fillStyle = tools.pal.wallShadow;
+  ctx.fillRect(x + inset, y + inset, side, side);
+  ctx.fillStyle = tools.pal.monsterHighlight;
+  ctx.fillRect(x + inset, y + inset, side, bevel);
+  ctx.fillStyle = tools.pal.modernWallFrontShade;
+  ctx.fillRect(x + inset, y + inset + side - bevel * 2, side, bevel * 2);
+  const frame = inset + size * GEO.slabFrame;
+  ctx.strokeStyle = tools.pal[color];
   ctx.lineWidth = Math.max(1, size * GEO.frameWidth);
-  ctx.setLineDash([GEO.openDash, GEO.openDash]);
-  ctx.strokeRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
-  ctx.setLineDash([]);
-  ctx.restore();
+  ctx.strokeRect(x + frame, y + frame, size - frame * 2, size - frame * 2);
 }
 
-/** A shut hold door has slats in its colour. */
-function paintHoldDoor(ctx: CanvasRenderingContext2D, color: CellColor, open: boolean, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
-  if (open) {
-    paintOpenFrame(ctx, tools.pal[color], x, y, size);
-    return;
-  }
-  const inset = size * GEO.doorInset;
-  ctx.fillStyle = tools.pal.wallShadow;
-  ctx.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
+/** Horizontal slats of a hold door, in the current fill colour. */
+function fillSlats(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
   const pad = size * GEO.doorPanelInset;
   const slatHeight = (size - pad * 2) / (GEO.doorSlats * 2 - 1);
-  ctx.fillStyle = tools.pal[color];
   for (let i = 0; i < GEO.doorSlats; i++) {
     ctx.fillRect(x + pad, y + pad + i * slatHeight * 2, size - pad * 2, slatHeight);
   }
 }
 
-/** A shut toggle door is a solid slab with a border in its colour. */
-function paintToggleDoor(ctx: CanvasRenderingContext2D, color: CellColor, open: boolean, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+/**
+ * An open door is flat: a dashed outline of its frame over a faint tint of its colour, with the
+ * ghost of what closes it (slats for a hold door, the glyph for a toggle door).
+ */
+function paintOpenDoor(ctx: CanvasRenderingContext2D, color: CellColor, hold: boolean, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+  const inset = size * GEO.doorInset;
+  const side = size - inset * 2;
+  ctx.save();
+  ctx.fillStyle = tools.pal[color];
+  ctx.strokeStyle = tools.pal[color];
+  ctx.globalAlpha = GEO.openTintAlpha;
+  ctx.fillRect(x + inset, y + inset, side, side);
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = Math.max(1, size * GEO.frameWidth);
+  ctx.setLineDash(hold ? HOLD_DASH : OPEN_DASH);
+  ctx.strokeRect(x + inset, y + inset, side, side);
+  ctx.setLineDash(NO_DASH);
+  ctx.globalAlpha = GEO.ghostAlpha;
+  if (hold) fillSlats(ctx, x, y, size);
+  else tools.glyph(color, x + size / 2, y + size / 2, size * GEO.glyphRadius, tools.pal[color]);
+  ctx.restore();
+}
+
+/** A hold door: shut while nothing weighs on its plate; the slats tell it from a toggle door. */
+function paintHoldDoor(ctx: CanvasRenderingContext2D, color: CellColor, open: boolean, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
   if (open) {
-    paintOpenFrame(ctx, tools.pal[color], x, y, size);
+    paintOpenDoor(ctx, color, true, x, y, size, tools);
     return;
   }
-  const inset = size * GEO.doorInset;
+  paintClosedSlab(ctx, color, x, y, size, tools);
   ctx.fillStyle = tools.pal[color];
-  ctx.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
-  const panel = size * GEO.doorPanelInset;
-  ctx.fillStyle = tools.pal.wallShadow;
-  ctx.fillRect(x + panel, y + panel, size - panel * 2, size - panel * 2);
+  fillSlats(ctx, x, y, size);
+}
+
+/** A toggle door: a closed slab carries the colour glyph, like a toggle wall. */
+function paintToggleDoor(ctx: CanvasRenderingContext2D, color: CellColor, open: boolean, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+  if (open) {
+    paintOpenDoor(ctx, color, false, x, y, size, tools);
+    return;
+  }
+  paintClosedSlab(ctx, color, x, y, size, tools);
   tools.glyph(color, x + size / 2, y + size / 2, size * GEO.glyphRadius, tools.pal[color]);
 }
 
-/** A round control in a colour, marked with two opposed arrow heads: it flips the doors. */
+/** A round button like Epoxy's, in a colour, with a small glyph between two opposed arrow heads: it flips the doors. */
 function paintControl(ctx: CanvasRenderingContext2D, color: CellColor, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
   const cx = x + size / 2;
   const cy = y + size / 2;
@@ -226,58 +276,83 @@ function paintControl(ctx: CanvasRenderingContext2D, color: CellColor, x: number
   ctx.beginPath();
   ctx.arc(cx, cy, size * GEO.controlInner, 0, FULL_TURN);
   ctx.fill();
-  const half = size * GEO.arrowHalf;
+  const tip = size * GEO.controlArrowTip;
+  const base = size * GEO.controlArrowBase;
+  const half = size * GEO.controlArrowHalf;
   ctx.fillStyle = tools.pal.wallShadow;
   ctx.beginPath();
-  ctx.moveTo(cx - half * GEO.arrowOuter, cy);
-  ctx.lineTo(cx - half * GEO.arrowInner, cy - half);
-  ctx.lineTo(cx - half * GEO.arrowInner, cy + half);
-  ctx.moveTo(cx + half * GEO.arrowOuter, cy);
-  ctx.lineTo(cx + half * GEO.arrowInner, cy - half);
-  ctx.lineTo(cx + half * GEO.arrowInner, cy + half);
-  ctx.fill();
-}
-
-function paintColorBlock(ctx: CanvasRenderingContext2D, color: CellColor, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
-  const inset = size * GEO.blockInset;
-  ctx.fillStyle = tools.pal.wallShadow;
-  roundedSquare(ctx, x + inset, y + inset, size - inset * 2, size * GEO.corner);
-  ctx.fill();
-  const face = size * GEO.blockFaceInset;
-  ctx.fillStyle = tools.pal[color];
-  roundedSquare(ctx, x + face, y + face, size - face * 2, size * GEO.corner);
-  ctx.fill();
-  const inner = size * GEO.blockInner;
-  ctx.save();
-  ctx.globalAlpha = GEO.blockInnerAlpha;
-  ctx.fillStyle = tools.pal.wallShadow;
-  ctx.fillRect(x + inner, y + inner, size - inner * 2, size - inner * 2);
-  ctx.restore();
-}
-
-/** A corner reflector: the triangle that fills the two named sides of the cell, with a shiny edge. */
-function paintReflector(ctx: CanvasRenderingContext2D, mirror: string, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
-  const near = size * GEO.doorInset;
-  const left = x + near;
-  const right = x + size - near;
-  const top = y + near;
-  const bottom = y + size - near;
-  const cornerX = mirror.includes('r') ? right : left;
-  const cornerY = mirror.includes('d') ? bottom : top;
-  const otherX = cornerX === left ? right : left;
-  const otherY = cornerY === top ? bottom : top;
-  ctx.fillStyle = tools.pal.wallShadow;
-  ctx.beginPath();
-  ctx.moveTo(cornerX, cornerY);
-  ctx.lineTo(otherX, cornerY);
-  ctx.lineTo(cornerX, otherY);
+  ctx.moveTo(cx - tip, cy);
+  ctx.lineTo(cx - base, cy - half);
+  ctx.lineTo(cx - base, cy + half);
+  ctx.closePath();
+  ctx.moveTo(cx + tip, cy);
+  ctx.lineTo(cx + base, cy - half);
+  ctx.lineTo(cx + base, cy + half);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = tools.pal.laserBeamCore;
-  ctx.lineWidth = Math.max(1, size * GEO.frameWidth);
+  tools.glyph(color, cx, cy, size * GEO.controlGlyph, tools.pal.wallShadow);
+}
+
+/** A pushable colour block: a bevelled block like the dirt block (top face, darker front), tinted, with the colour glyph. */
+function paintColorBlock(ctx: CanvasRenderingContext2D, color: CellColor, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+  const inset = size * GEO.blockInset;
+  const side = size - inset * 2;
+  const front = size * GEO.blockFront;
+  ctx.fillStyle = tools.pal.wallShadow;
+  roundedSquare(ctx, x + inset, y + inset, side, size * GEO.corner);
+  ctx.fill();
+  ctx.fillStyle = tools.pal.modernWallFrontShade;
+  ctx.fillRect(x + inset, y + size - inset - front, side, front);
+  const face = size * GEO.blockFaceInset;
+  const faceWidth = size - face * 2;
+  const faceHeight = size - inset - front - face;
+  ctx.fillStyle = tools.pal[color];
+  ctx.fillRect(x + face, y + face, faceWidth, faceHeight);
+  ctx.fillStyle = tools.pal.monsterHighlight;
+  ctx.fillRect(x + face, y + face, faceWidth, size * GEO.slabBevel);
+  tools.glyph(color, x + size / 2, y + face + faceHeight / 2, size * GEO.blockGlyph, tools.pal.wallShadow);
+}
+
+/**
+ * A corner reflector, a pushable block cut along a diagonal: the half that faces the two reflecting
+ * sides is bright mirror glass with a sheen along those two sides, the back half is dark.
+ */
+function paintReflector(ctx: CanvasRenderingContext2D, mirror: string, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+  const key = mirror.toUpperCase();
+  if (!Object.hasOwn(REFLECTING_FACES, key)) return;
+  const faces = REFLECTING_FACES[key];
+  const inset = size * GEO.mirrorInset;
+  const pane = size * GEO.mirrorPane;
+  ctx.fillStyle = tools.pal.mirrorFrame;
+  roundedSquare(ctx, x + inset, y + inset, size - inset * 2, size * GEO.corner);
+  ctx.fill();
+  const left = x + pane;
+  const right = x + size - pane;
+  const top = y + pane;
+  const bottom = y + size - pane;
+  ctx.fillStyle = tools.pal.wallShadow;
+  ctx.fillRect(left, top, right - left, bottom - top);
+  const west = faces.includes(WEST);
+  const north = faces.includes(NORTH);
+  const cornerX = west ? left : right;
+  const cornerY = north ? top : bottom;
+  const farX = west ? right : left;
+  const farY = north ? bottom : top;
+  ctx.fillStyle = tools.pal.mirrorGlass;
   ctx.beginPath();
-  ctx.moveTo(otherX, cornerY);
-  ctx.lineTo(cornerX, otherY);
+  ctx.moveTo(cornerX, cornerY);
+  ctx.lineTo(farX, cornerY);
+  ctx.lineTo(cornerX, farY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = tools.pal.mirrorSheen;
+  ctx.lineWidth = Math.max(1, size * GEO.mirrorSheenWidth);
+  ctx.beginPath();
+  ctx.moveTo(farX, cornerY);
+  ctx.lineTo(cornerX, cornerY);
+  ctx.lineTo(cornerX, farY);
+  ctx.moveTo(farX, cornerY);
+  ctx.lineTo(cornerX, farY);
   ctx.stroke();
 }
 
@@ -377,28 +452,100 @@ export function paintCc3dBadge(ctx: CanvasRenderingContext2D, colorKey: string, 
   ctx.fill();
 }
 
+/** A thick line from `from` to `to` along `dir`, both given as fractions of the tile side from the centre. */
+function strokeAlong(ctx: CanvasRenderingContext2D, dir: Direction, cx: number, cy: number, from: number, to: number, size: number): void {
+  const [dx, dy] = DIR_VECTOR[dir];
+  ctx.beginPath();
+  ctx.moveTo(cx + dx * size * from, cy + dy * size * from);
+  ctx.lineTo(cx + dx * size * to, cy + dy * size * to);
+  ctx.stroke();
+}
+
+/**
+ * The laser shooter: a square housing like Epoxy's laser emitter, with a long barrel and a red
+ * nozzle towards its facing. A bot is round and short-nosed, so the two never read alike.
+ */
 function paintLaserShooter(ctx: CanvasRenderingContext2D, dir: Direction, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
-  ctx.save();
-  ctx.translate(x + size / 2, y + size / 2);
-  ctx.rotate(DIRECTION_ANGLE[dir]);
+  const cx = x + size / 2;
+  const cy = y + size / 2;
   const half = size * (0.5 - GEO.panelInset);
   ctx.fillStyle = tools.pal.wallShadow;
-  roundedSquare(ctx, -half, -half, half * 2, size * GEO.corner);
+  roundedSquare(ctx, cx - half, cy - half, half * 2, size * GEO.corner);
   ctx.fill();
-  // The barrel points the way the shooter fires (north before the rotation).
-  ctx.fillStyle = tools.pal.laserBeam;
-  ctx.fillRect(-(size * GEO.barrelWidth) / 2, -size * GEO.barrelLength, size * GEO.barrelWidth, size * GEO.barrelLength);
-  ctx.fillStyle = tools.pal.laserBeamCore;
+  ctx.strokeStyle = tools.pal.wallTop;
+  ctx.lineWidth = Math.max(1, size * GEO.frameWidth);
+  ctx.stroke();
+  ctx.save();
+  ctx.lineCap = 'butt';
+  ctx.lineWidth = size * GEO.barrelWidth;
+  ctx.strokeStyle = tools.pal.wallTop;
+  strokeAlong(ctx, dir, cx, cy, 0, GEO.barrelReach, size);
+  ctx.lineWidth = size * GEO.nozzleWidth;
+  ctx.strokeStyle = tools.pal.laserBeam;
+  strokeAlong(ctx, dir, cx, cy, GEO.nozzleStart, GEO.barrelReach, size);
+  ctx.fillStyle = tools.pal.wallBase;
   ctx.beginPath();
-  ctx.arc(0, 0, (size * GEO.eyeRadius) / GEO.eyeCoreDivisor, 0, FULL_TURN);
+  ctx.arc(cx, cy, size * GEO.turretRadius, 0, FULL_TURN);
+  ctx.fill();
+  ctx.fillStyle = tools.pal.laserBeam;
+  ctx.beginPath();
+  ctx.arc(cx, cy, (size * GEO.eyeRadius) / GEO.eyeCoreDivisor, 0, FULL_TURN);
   ctx.fill();
   ctx.restore();
 }
 
-/** Bots: a round body with a mark that tells the four kinds apart. */
-function paintBot(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+/** An emitter nose on the body edge of a bot, pointing towards `dir`, in the current fill colour. */
+function fillBotNose(ctx: CanvasRenderingContext2D, dir: Direction, cx: number, cy: number, size: number): void {
+  const [dx, dy] = DIR_VECTOR[dir];
+  const radius = size * GEO.botRadius;
+  const baseX = cx + dx * radius * GEO.botNoseEmbed;
+  const baseY = cy + dy * radius * GEO.botNoseEmbed;
+  const tipX = cx + dx * (radius + size * GEO.botNoseLength);
+  const tipY = cy + dy * (radius + size * GEO.botNoseLength);
+  const half = size * GEO.botNoseHalf;
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(baseX - dy * half, baseY + dx * half);
+  ctx.lineTo(baseX + dy * half, baseY - dx * half);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A three-quarter arc ending in an arrow head, turning clockwise or counterclockwise. */
+function strokeSpin(ctx: CanvasRenderingContext2D, clockwise: boolean, cx: number, cy: number, size: number): void {
+  const sign = clockwise ? 1 : -1;
+  const radius = size * GEO.botSpinRadius;
+  const start = Math.PI * GEO.botSpinStart;
+  const end = start + sign * Math.PI * GEO.botSpinSweep;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, start, end, !clockwise);
+  ctx.stroke();
+  const cos = Math.cos(end);
+  const sin = Math.sin(end);
+  const head = size * GEO.botSpinHead;
+  const px = cx + cos * radius;
+  const py = cy + sin * radius;
+  ctx.beginPath();
+  ctx.moveTo(px - sign * sin * head, py + sign * cos * head);
+  ctx.lineTo(px + cos * head * GEO.botSpinHeadSpread, py + sin * head * GEO.botSpinHeadSpread);
+  ctx.lineTo(px - cos * head * GEO.botSpinHeadSpread, py - sin * head * GEO.botSpinHeadSpread);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/**
+ * Bots: a round grey body with a red emitter nose on the facing side (four noses for the
+ * multidirectional one) and, for the rotating kinds, a small rotation glyph that tells cw from ccw.
+ */
+function paintBot(ctx: CanvasRenderingContext2D, kind: string, dir: Direction, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
   const cx = x + size / 2;
   const cy = y + size / 2;
+  ctx.fillStyle = tools.pal.laserBeam;
+  if (kind === BOT_MULTI) {
+    for (const side of ALL_DIRECTIONS) fillBotNose(ctx, side, cx, cy, size);
+  } else {
+    fillBotNose(ctx, dir, cx, cy, size);
+  }
   ctx.fillStyle = tools.pal.wallShadow;
   ctx.beginPath();
   ctx.arc(cx, cy, size * GEO.botRadius, 0, FULL_TURN);
@@ -407,42 +554,29 @@ function paintBot(ctx: CanvasRenderingContext2D, kind: string, x: number, y: num
   ctx.beginPath();
   ctx.arc(cx, cy, size * GEO.botRadius * GEO.botFace, 0, FULL_TURN);
   ctx.fill();
-  const mark = size * GEO.botMarkRadius;
   ctx.fillStyle = tools.pal.wallShadow;
   ctx.strokeStyle = tools.pal.wallShadow;
   ctx.lineWidth = Math.max(1, size * GEO.frameWidth);
-  if (kind === BOT_STATIC) {
+  if (kind === BOT_STATIC || kind === BOT_MULTI) {
     ctx.beginPath();
-    ctx.arc(cx, cy, mark, 0, FULL_TURN);
+    ctx.arc(cx, cy, size * GEO.botEye, 0, FULL_TURN);
     ctx.fill();
-  } else if (kind === BOT_MULTI) {
-    for (const [dx, dy] of MULTI_MARK_OFFSETS) {
-      ctx.beginPath();
-      ctx.arc(cx + dx * size * GEO.botMarkOffset, cy + dy * size * GEO.botMarkOffset, mark * GEO.botMultiMark, 0, FULL_TURN);
-      ctx.fill();
-    }
   } else {
-    // An arc ending in an arrow head, turning the way the bot turns.
-    const clockwise = kind === BOT_CLOCKWISE;
-    const radius = size * GEO.botArc;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, Math.PI * GEO.botArcStart, Math.PI * GEO.botArcEnd, !clockwise);
-    ctx.stroke();
-    const direction = clockwise ? 1 : -1;
-    const tipX = cx - direction * radius;
-    ctx.beginPath();
-    ctx.moveTo(tipX, cy - mark * GEO.botArrow);
-    ctx.lineTo(tipX + direction * mark * GEO.botArrow, cy);
-    ctx.lineTo(tipX - direction * mark * GEO.botArrow, cy);
-    ctx.closePath();
-    ctx.fill();
+    strokeSpin(ctx, kind === BOT_CLOCKWISE, cx, cy, size);
   }
 }
 
-/** A laser shot: a small bright bolt, a halo with a core, drawn as discs so it reads in any facing. */
+/** A laser shot: a small bright bolt, a faint ring around a halo with a white-hot core. */
 function paintShot(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
   const cx = x + size / 2;
   const cy = y + size / 2;
+  ctx.save();
+  ctx.globalAlpha = GEO.shotRingAlpha;
+  ctx.fillStyle = tools.pal.laserBeam;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * GEO.shotRing, 0, FULL_TURN);
+  ctx.fill();
+  ctx.restore();
   ctx.fillStyle = tools.pal.laserBeam;
   ctx.beginPath();
   ctx.arc(cx, cy, size * GEO.shotHalo, 0, FULL_TURN);
@@ -461,5 +595,5 @@ export function paintCc3dMob(ctx: CanvasRenderingContext2D, id: string, dir: Dir
   else if (name.startsWith(REFLECTOR_FAMILY)) paintReflector(ctx, name.slice(REFLECTOR_FAMILY.length), x, y, size, tools);
   else if (name === LASER_SHOOTER) paintLaserShooter(ctx, dir, x, y, size, tools);
   else if (name === SHOT) paintShot(ctx, x, y, size, tools);
-  else if (name.startsWith(BOT_FAMILY)) paintBot(ctx, name.slice(BOT_FAMILY.length), x, y, size, tools);
+  else if (name.startsWith(BOT_FAMILY)) paintBot(ctx, name.slice(BOT_FAMILY.length), dir, x, y, size, tools);
 }

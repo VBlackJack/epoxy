@@ -48,7 +48,7 @@ import type { Cc3dCell, Cc3dMobKind } from './model';
  * The two faces of each reflector that reflect, by stored name [D, reading Z,
  * 08 section 8.5 item 1]. The stored letters read as if up and down were swapped.
  */
-const REFLECTING_FACES: Readonly<Record<string, readonly [Direction, Direction]>> = {
+export const REFLECTING_FACES: Readonly<Record<string, readonly [Direction, Direction]>> = {
   LU: ['W', 'S'],
   DL: ['N', 'W'],
   UR: ['S', 'E'],
