@@ -15,9 +15,12 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { BUILTIN_PACK_IDS, IMPORTED_PACK_RULESET } from '../config/constants';
+import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
+import { parsePackJson } from '../packs/packJson';
+import { confirmDialog } from '../ui/confirmDialog';
+import { askSaveInto } from '../ui/saveIntoDialog';
 import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
 import { CC3D_XML_EXTENSION } from '../formats/Cc3dXmlCodec';
@@ -31,6 +34,7 @@ import {
   Direction,
   EntityPlacement,
   LevelBlueprint,
+  LevelPack,
   Ruleset,
   TrapLink,
   ValidationIssue,
@@ -41,15 +45,25 @@ import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
+import { majorityRuleset } from './paletteAvailability';
+import {
+  decideSave,
+  LoadedTexts,
+  needsImportedConfirmation,
+  NO_SOURCE,
+  nextEditableIndex,
+  pickSaveDestination,
+  prepareLevelForSave,
+  resolveSavedPassword,
+  SaveSource
+} from './saveTarget';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
-  CUSTOM_LEVEL_ID_PREFIX,
   EDITOR_CLONE_LINK_COLOR,
   EDITOR_DEFAULT_CHIPS_REQUIRED,
   EDITOR_DEFAULT_CLONE_TEMPLATE,
   EDITOR_GENERATOR_MAX_LEVEL,
   EDITOR_GENERATOR_MIN_LEVEL,
-  EDITOR_DEFAULT_PASSWORD,
   EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
   EDITOR_LINK_LINE_WIDTH,
   EDITOR_PASSWORD_LENGTH,
@@ -70,7 +84,17 @@ const METADATA_INPUT_IDS = [
   'editor-meta-ruleset'
 ] as const;
 const WIN_RULE_INPUT_ID = 'editor-meta-winrule';
+const TITLE_INPUT_ID = 'editor-meta-title';
 const LYNX_RULESET: Ruleset = 'lynx';
+/** Value of the context pack select while the editor content belongs to no pack. */
+const NO_PACK_OPTION_VALUE = '';
+
+/** Where a save puts the level: an existing pack or a pack to create, and whether it is stored as a new level. */
+interface SaveDestination {
+  packId: string | null;
+  newPackName: string | null;
+  asCopy: boolean;
+}
 
 type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'eraser' | 'wire_trap' | 'wire_cloner';
 
@@ -88,13 +112,40 @@ interface EditorSnapshot {
   playerStart: { x: number; y: number; dir: Direction };
 }
 
+/** What the application learns when a level was saved. */
+export interface SavedLevelInfo {
+  packId: string;
+  packName: string;
+  levelId: string;
+  /** Position of the level in its pack, 0-based. */
+  index: number;
+  persisted: boolean;
+  /** The level kept its id but its map changed, so its best record and replay no longer apply. */
+  recordsInvalidated: boolean;
+}
+
+/** What the editor asks of the application around it. */
+export interface EditorHooks {
+  onTestPlay: (level: CompiledLevel) => void;
+  onLevelSaved: (info: SavedLevelInfo) => void;
+  onNotify: (message: string) => void;
+  /** Opens the pack manager, on the given pack when set. */
+  openManager: (packId: string | null) => void;
+  /** Registers a file's levels as an imported pack (the existing import flow). */
+  importAsPack: (name: string, levels: CompiledLevel[], skipped: number) => Promise<void>;
+}
+
+/** Where a loaded level comes from, and whether it counts as unsaved work. */
+export interface LoadOptions {
+  source?: SaveSource;
+  dirty?: boolean;
+}
+
 export class LevelEditor {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private renderer: PixelRenderer;
-  private onTestPlay: (level: CompiledLevel) => void;
-  private onLevelSaved: (levelIndex: number) => void;
-  private onNotify: (message: string) => void;
+  private hooks: EditorHooks;
 
   private terrain: string[][] = [];
   private items: (string | null)[][] = [];
@@ -103,13 +154,21 @@ export class LevelEditor {
   private cloneLinks: CloneLink[] = [];
   private playerStart: { x: number; y: number; dir: Direction } = { x: 0, y: 0, dir: 'S' };
 
+  /** Id the content carries until it is saved; a saved level keeps the id it is stored under. */
   private currentLevelId: string = '';
-  /** Custom id given to a non-custom level on its first save, stable afterwards. */
-  private draftCustomId: string | null = null;
+  /** Pack and level the content was opened from; both null for a blank map or a file. */
+  private source: SaveSource = NO_SOURCE;
+  /** The level as it was opened or last saved: what a save keeps from it (theme, keys, solution). */
+  private originalLevel: CompiledLevel | null = null;
+  /** Title and hint texts shown when `originalLevel` was opened, to tell whether the player changed them. */
+  private loadedTexts: LoadedTexts | null = null;
+  /** Imported packs the player agreed to modify during this session. */
+  private confirmedImportedPackIds = new Set<string>();
+  private saving = false;
   private customTitle: string = '';
   private customHint: string = '';
   private author: string = '';
-  private password: string = EDITOR_DEFAULT_PASSWORD;
+  private password: string = '';
   private timeLimitSeconds: number = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
   private chipsRequired: number = EDITOR_DEFAULT_CHIPS_REQUIRED;
   private winRule: WinRule = DEFAULT_WIN_RULE;
@@ -132,6 +191,7 @@ export class LevelEditor {
   private set isDirty(value: boolean) {
     this.dirty = value;
     this.editRevision++;
+    this.updateDirtyBadge();
   }
 
   private undoStack: EditorSnapshot[] = [];
@@ -141,9 +201,7 @@ export class LevelEditor {
   public constructor(
     canvas: HTMLCanvasElement,
     renderer: PixelRenderer,
-    onTestPlay: (level: CompiledLevel) => void,
-    onLevelSaved: (levelIndex: number) => void,
-    onNotify: (message: string) => void
+    hooks: EditorHooks
   ) {
     this.canvas = canvas;
     const context = canvas.getContext('2d');
@@ -152,9 +210,7 @@ export class LevelEditor {
     }
     this.ctx = context;
     this.renderer = renderer;
-    this.onTestPlay = onTestPlay;
-    this.onLevelSaved = onLevelSaved;
-    this.onNotify = onNotify;
+    this.hooks = hooks;
 
     this.initBlankMap();
     this.bindCanvasEvents();
@@ -188,7 +244,7 @@ export class LevelEditor {
     if (this.canvas.height !== height) this.canvas.height = height;
   }
 
-  public initBlankMap(): void {
+  public initBlankMap(options: { packId?: string | null; ruleset?: Ruleset } = {}): void {
     const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
 
     this.terrain = Array.from({ length: mapHeight }, (_, y) =>
@@ -205,34 +261,45 @@ export class LevelEditor {
     this.playerStart = { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' };
     this.fitCanvasToLevel();
     this.currentLevelId = ConfigRegistry.newLevelId();
-    this.draftCustomId = null;
+    this.source = { packId: options.packId ?? null, levelId: null };
+    this.originalLevel = null;
+    this.loadedTexts = null;
     this.customTitle = t('editor.metadata.default_title.label');
     this.customHint = '';
     this.author = '';
-    this.password = EDITOR_DEFAULT_PASSWORD;
+    this.password = '';
     this.timeLimitSeconds = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
     this.chipsRequired = EDITOR_DEFAULT_CHIPS_REQUIRED;
     this.winRule = DEFAULT_WIN_RULE;
-    this.ruleset = undefined;
+    this.ruleset = options.ruleset === LYNX_RULESET ? LYNX_RULESET : undefined;
     this.isDirty = false;
     this.undoStack = [];
     this.redoStack = [];
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
     this.setStatusText(t('editor.palette.status.ready.label'));
+    this.refreshContext();
     this.render();
   }
 
-  public loadCompiledLevel(level: CompiledLevel): void {
+  /**
+   * Opens a level in the editor. A level of a ruleset the editor cannot hold is
+   * refused (false) and the editor keeps what it has. `source` says which pack
+   * and level a later save updates; a level that comes from a file or a
+   * generator has none, and counts as unsaved work.
+   */
+  public loadCompiledLevel(level: CompiledLevel, options: LoadOptions = {}): boolean {
     if (!isEditableRuleset(level.ruleset)) {
       // The editor keeps what it holds; it only says why the level did not open.
       this.setStatusText(t('editor.palette.status.not_editable.label'));
-      return;
+      return false;
     }
     this.currentLevelId = level.id;
-    this.draftCustomId = null;
+    this.source = options.source ?? NO_SOURCE;
+    this.originalLevel = structuredClone(level);
     this.customTitle = this.resolveLevelTitle(level);
     this.customHint = level.customHint || (level.hintKey ? t(level.hintKey) : '');
+    this.loadedTexts = { title: this.customTitle, hint: this.customHint };
     this.author = level.author ?? '';
     this.password = level.password;
     this.timeLimitSeconds = level.timeLimitSeconds;
@@ -246,19 +313,57 @@ export class LevelEditor {
     this.trapLinks = level.trapLinks.map((l) => ({ ...l }));
     this.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
     this.fitCanvasToLevel();
-    this.isDirty = false;
+    this.isDirty = options.dirty ?? false;
     this.undoStack = [];
     this.redoStack = [];
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
     this.setStatusText(t('editor.palette.status.ready.label'));
+    this.refreshContext();
     this.render();
+    return true;
+  }
+
+  /** Asks before unsaved work is thrown away; true when there is none or the player agrees. */
+  public async confirmDiscardIfDirty(): Promise<boolean> {
+    if (!this.isDirty) return true;
+    return confirmDialog({
+      title: t('app.confirm.title.label'),
+      message: t('editor.toolbar.confirm_discard.label'),
+      confirmLabel: t('editor.pack.discard.action'),
+      cancelLabel: t('app.confirm.cancel.action')
+    });
+  }
+
+  /**
+   * Opens a stored level, targeting its pack. A level the editor cannot hold is
+   * refused before any question about unsaved work. False when nothing opened.
+   */
+  public async openLevel(packId: string, levelId: string): Promise<boolean> {
+    const level = ConfigRegistry.getAllPacks()
+      .find((pack) => pack.id === packId)
+      ?.levels.find((lvl) => lvl.id === levelId);
+    if (!level) return false;
+    if (!isEditableRuleset(level.ruleset)) {
+      this.setStatusText(t('editor.palette.status.not_editable.label'));
+      return false;
+    }
+    if (!(await this.confirmDiscardIfDirty())) return false;
+    return this.loadCompiledLevel(level, { source: { packId, levelId } });
+  }
+
+  /** A blank map aimed at a pack, in the rules most of its levels use. False when the player keeps their work. */
+  public async newLevelInPack(packId: string | null): Promise<boolean> {
+    if (!(await this.confirmDiscardIfDirty())) return false;
+    const pack = packId ? ConfigRegistry.getEditablePacks().find((p) => p.id === packId) : undefined;
+    this.initBlankMap({ packId: pack?.id ?? null, ruleset: pack ? majorityRuleset(pack.levels) : undefined });
+    return true;
   }
 
   public buildUI(): void {
     this.renderCategoryTabs();
     this.renderPaletteItems();
-    this.populatePresetDropdown();
+    this.refreshContext();
     this.syncMetadataInputs();
     this.render();
   }
@@ -283,7 +388,7 @@ export class LevelEditor {
   public refreshTranslations(): void {
     this.renderCategoryTabs();
     this.renderPaletteItems();
-    this.populatePresetDropdown();
+    this.refreshContext();
   }
 
   private renderCategoryTabs(): void {
@@ -445,24 +550,107 @@ export class LevelEditor {
     return btn;
   }
 
-  public populatePresetDropdown(): void {
-    const select = document.getElementById('editor-preset-select') as HTMLSelectElement | null;
+  /** Display name of a pack. */
+  private packLabel(pack: LevelPack): string {
+    return pack.i18nKey ? t(pack.i18nKey) : pack.name;
+  }
+
+  private sourcePack(): LevelPack | undefined {
+    const packId = this.source.packId;
+    return packId ? ConfigRegistry.getAllPacks().find((pack) => pack.id === packId) : undefined;
+  }
+
+  /** Redraws the context line above the canvas: pack, position in the pack, title. */
+  public refreshContext(): void {
+    this.fillContextPackSelect();
+    const pack = this.sourcePack();
+    const index = pack && this.source.levelId ? pack.levels.findIndex((l) => l.id === this.source.levelId) : -1;
+    const position = document.getElementById('editor-context-position');
+    if (position) {
+      position.textContent =
+        index >= 0 && pack
+          ? t('editor.pack.context.position.label', { number: index + 1, total: pack.levels.length })
+          : t('editor.pack.context.new_level.label');
+    }
+    this.updateContextTitle();
+    this.updateDirtyBadge();
+    const prev = document.getElementById('editor-context-prev') as HTMLButtonElement | null;
+    const next = document.getElementById('editor-context-next') as HTMLButtonElement | null;
+    if (prev) prev.disabled = !pack || index < 0 || nextEditableIndex(pack.levels, index, -1) < 0;
+    if (next) next.disabled = !pack || index < 0 || nextEditableIndex(pack.levels, index, 1) < 0;
+  }
+
+  private fillContextPackSelect(): void {
+    const select = document.getElementById('editor-context-pack') as HTMLSelectElement | null;
     if (!select) return;
     select.innerHTML = '';
-
-    const levels = ConfigRegistry.getLevels();
-    for (const lvl of levels) {
-      const opt = document.createElement('option');
-      opt.value = lvl.id;
-      opt.textContent = t('editor.toolbar.preset_option.label', {
-        number: lvl.number,
-        title: this.resolveLevelTitle(lvl)
-      });
-      if (lvl.id === this.currentLevelId) {
-        opt.selected = true;
-      }
-      select.appendChild(opt);
+    const add = (value: string, text: string): void => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      select.appendChild(option);
+    };
+    if (this.source.packId === null) add(NO_PACK_OPTION_VALUE, t('editor.pack.context.no_pack.label'));
+    const editable = ConfigRegistry.getEditablePacks();
+    for (const pack of editable) add(pack.id, this.packLabel(pack));
+    const editableIds = new Set(editable.map((pack) => pack.id));
+    for (const pack of ConfigRegistry.getAllPacks()) {
+      if (editableIds.has(pack.id) || pack.levels.length === 0) continue;
+      add(pack.id, t('editor.pack.context.read_only_option.label', { name: this.packLabel(pack) }));
     }
+    select.value = this.source.packId ?? NO_PACK_OPTION_VALUE;
+  }
+
+  private updateContextTitle(): void {
+    const titleInput = document.getElementById(TITLE_INPUT_ID) as HTMLInputElement | null;
+    const title = (titleInput?.value ?? this.customTitle).trim() || t('editor.metadata.default_title.label');
+    const el = document.getElementById('editor-context-title');
+    if (el) el.textContent = title;
+  }
+
+  private updateDirtyBadge(): void {
+    document.getElementById('editor-context-dirty')?.classList.toggle('hidden', !this.dirty);
+  }
+
+  /** The pack select chose a pack: its first level the editor can open, or a blank map when it is empty. */
+  private async openPackFromContext(packId: string): Promise<void> {
+    const pack = ConfigRegistry.getAllPacks().find((p) => p.id === packId);
+    if (!pack) return;
+    if (pack.levels.length === 0) {
+      await this.newLevelInPack(pack.id);
+      return;
+    }
+    const first = pack.levels[0].ruleset === 'cc3d' ? nextEditableIndex(pack.levels, 0, 1) : 0;
+    if (first < 0) {
+      this.setStatusText(t('editor.palette.status.not_editable.label'));
+      return;
+    }
+    await this.openLevel(pack.id, pack.levels[first].id);
+  }
+
+  private async stepLevel(step: 1 | -1): Promise<void> {
+    const pack = this.sourcePack();
+    if (!pack || !this.source.levelId) return;
+    const from = pack.levels.findIndex((l) => l.id === this.source.levelId);
+    const target = nextEditableIndex(pack.levels, from, step);
+    if (from >= 0 && target >= 0) await this.openLevel(pack.id, pack.levels[target].id);
+  }
+
+  private bindContextEvents(): void {
+    const select = document.getElementById('editor-context-pack') as HTMLSelectElement | null;
+    select?.addEventListener('change', () => {
+      const packId = select.value;
+      void (async () => {
+        if (packId !== NO_PACK_OPTION_VALUE && packId !== this.source.packId) await this.openPackFromContext(packId);
+        // Declined, refused or empty: the select shows what the editor holds again.
+        this.fillContextPackSelect();
+      })();
+    });
+    document.getElementById('editor-context-prev')?.addEventListener('click', () => void this.stepLevel(-1));
+    document.getElementById('editor-context-next')?.addEventListener('click', () => void this.stepLevel(1));
+    document.getElementById('editor-context-open')?.addEventListener('click', () => {
+      this.hooks.openManager(this.source.packId);
+    });
   }
 
   private bindToolbarEvents(): void {
@@ -473,14 +661,11 @@ export class LevelEditor {
       levelInput.value = String(EDITOR_GENERATOR_MIN_LEVEL);
     }
     document.getElementById('editor-generate-btn')?.addEventListener('click', () => {
-      this.generateIntoEditor();
+      void this.generateIntoEditor();
     });
 
     document.getElementById('editor-new-btn')?.addEventListener('click', () => {
-      if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
-        return;
-      }
-      this.initBlankMap();
+      void this.newLevelInPack(this.source.packId);
     });
 
     document.getElementById('editor-undo-btn')?.addEventListener('click', () => {
@@ -492,22 +677,7 @@ export class LevelEditor {
     });
 
     document.getElementById('editor-test-btn')?.addEventListener('click', () => {
-      this.readMetadataInputs();
-      const compiled = this.exportCompiledLevel();
-      const report = LevelValidator.validate(compiled);
-      let issuesText = '';
-      if (!report.valid && report.issues.length > 0) {
-        issuesText = this.formatIssues(report.issues);
-        this.setStatusText(issuesText);
-        if (!window.confirm(t('editor.toolbar.confirm_test_invalid.label', { issues: issuesText }))) {
-          return;
-        }
-      }
-      this.onTestPlay(compiled);
-      if (issuesText) {
-        // The editor view is hidden during test play: surface the issues there.
-        this.onNotify(issuesText);
-      }
+      void this.testPlay();
     });
 
     document.getElementById('editor-validate-btn')?.addEventListener('click', () => {
@@ -537,24 +707,12 @@ export class LevelEditor {
       }
     });
 
-    document.getElementById('editor-save-btn')?.addEventListener('click', async () => {
-      this.readMetadataInputs();
-      const compiled = this.exportCompiledLevel();
-      // From now on this editor session updates the saved custom level.
-      this.currentLevelId = compiled.id;
-      this.draftCustomId = null;
-      const revision = this.editRevision;
-      const { index, persisted } = await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, compiled);
-      ConfigRegistry.setActivePackId(BUILTIN_PACK_IDS.CUSTOM);
-      // A refused write keeps the level in memory but leaves the editor dirty,
-      // so leaving the editor still asks before discarding it. An edit made
-      // while the save was in flight is not in the saved level: it stays dirty.
-      if (this.editRevision === revision) this.isDirty = !persisted;
-      this.populatePresetDropdown();
-      this.setStatusText(
-        persisted ? t('editor.palette.status.saved') : t('editor.palette.status.saved_session_only.label')
-      );
-      this.onLevelSaved(index);
+    document.getElementById('editor-save-btn')?.addEventListener('click', () => {
+      void this.save();
+    });
+
+    document.getElementById('editor-save-copy-btn')?.addEventListener('click', () => {
+      void this.saveCopy();
     });
 
     document.getElementById('editor-export-btn')?.addEventListener('click', () => {
@@ -581,89 +739,11 @@ export class LevelEditor {
 
     importInput?.addEventListener('change', () => {
       const file = importInput.files?.[0];
-      if (!file) return;
-      if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
-        importInput.value = '';
-        return;
-      }
-      const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
-      if (!isImportSizeAllowed(file.size, maxBytes)) {
-        this.setStatusText(t('editor.palette.status.import_too_large.label', { max: formatMegabytes(maxBytes) }));
-        importInput.value = '';
-        return;
-      }
-      const lower = file.name.toLowerCase();
-
-      if (lower.endsWith(CC3D_XML_EXTENSION)) {
-        this.setStatusText(t('editor.palette.status.not_editable.label'));
-      } else if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const buffer = reader.result as ArrayBuffer;
-            const decoded = DatCodec.decodeBuffer(buffer, file.name.replace(/\.[^.]+$/, ''), IMPORTED_PACK_RULESET);
-            if (decoded.length > 0) {
-              this.loadCompiledLevel(decoded[0]);
-              this.setStatusText(t('editor.palette.status.imported'));
-            }
-          } catch {
-            this.setStatusText(t('editor.palette.status.import_error'));
-          }
-        };
-        reader.readAsArrayBuffer(file);
-      } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const decoded = decodeXsbCollection(String(reader.result), file.name.replace(/\.[^.]+$/, ''));
-            if (decoded.levels.length === 0) {
-              this.setStatusText(t('editor.palette.status.import_error'));
-              return;
-            }
-            this.loadCompiledLevel(decoded.levels[0]);
-            this.setStatusText(
-              decoded.skipped.length > 0
-                ? t('editor.palette.status.imported_skipped.label', { skipped: decoded.skipped.length })
-                : t('editor.palette.status.imported')
-            );
-          } catch {
-            this.setStatusText(t('editor.palette.status.import_error'));
-          }
-        };
-        reader.readAsText(file);
-      } else {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const parsed = JSON.parse(String(reader.result)) as LevelBlueprint;
-            const compiled = ConfigRegistry.compileBlueprint(parsed);
-            this.loadCompiledLevel(compiled);
-            this.setStatusText(t('editor.palette.status.imported'));
-          } catch (err) {
-            const message =
-              err instanceof InvalidLevelError
-                ? t('editor.palette.status.invalid_level.label', { id: err.levelId })
-                : t('editor.palette.status.import_error');
-            this.setStatusText(message);
-            this.onNotify(message);
-          }
-        };
-        reader.readAsText(file);
-      }
       importInput.value = '';
+      if (file) void this.importFileIntoEditor(file);
     });
 
-    const presetSelect = document.getElementById('editor-preset-select') as HTMLSelectElement | null;
-    presetSelect?.addEventListener('change', () => {
-      if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) {
-        presetSelect.value = this.currentLevelId;
-        return;
-      }
-      const found = ConfigRegistry.getLevels().find((l) => l.id === presetSelect.value);
-      if (found) {
-        this.loadCompiledLevel(found);
-      }
-    });
+    this.bindContextEvents();
 
     document.getElementById('editor-autocount-btn')?.addEventListener('click', () => {
       let count = 0;
@@ -690,6 +770,7 @@ export class LevelEditor {
     for (const id of METADATA_INPUT_IDS) {
       document.getElementById(id)?.addEventListener('input', (event) => {
         this.isDirty = true;
+        if (id === TITLE_INPUT_ID) this.updateContextTitle();
         if (id === WIN_RULE_INPUT_ID) {
           this.winRule = parseWinRule((event.target as HTMLSelectElement).value, this.winRule);
           this.syncRulesetInput();
@@ -748,12 +829,11 @@ export class LevelEditor {
     const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
     const winRuleEl = document.getElementById('editor-meta-winrule') as HTMLSelectElement | null;
 
-    if (titleEl && titleEl.value.trim()) this.customTitle = titleEl.value.trim();
+    // A cleared field stays cleared: an empty title falls back to the default one when the level is stored.
+    if (titleEl) this.customTitle = titleEl.value.trim();
     if (hintEl) this.customHint = hintEl.value.trim();
     if (authorEl) this.author = authorEl.value.trim();
-    if (passEl && passEl.value.trim()) {
-      this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
-    }
+    if (passEl) this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
     if (timeEl) this.timeLimitSeconds = parseTimeLimit(timeEl.value, this.timeLimitSeconds);
     if (chipsEl) this.chipsRequired = parseChipsRequired(chipsEl.value, this.chipsRequired);
     if (winRuleEl) this.winRule = parseWinRule(winRuleEl.value, this.winRule);
@@ -1084,33 +1164,22 @@ export class LevelEditor {
   }
 
   /**
-   * Id under which this map is saved. A custom level keeps its id; any other
-   * level gets one custom id, generated on first use and reused afterwards,
-   * so saving twice updates one copy instead of creating two.
+   * The level as the editor holds it. A level opened from a pack keeps its id;
+   * any other content carries the id it was given when it was opened.
    */
-  private resolveCustomLevelId(): string {
-    if (this.currentLevelId.startsWith(CUSTOM_LEVEL_ID_PREFIX)) {
-      return this.currentLevelId;
-    }
-    if (!this.draftCustomId) {
-      this.draftCustomId = ConfigRegistry.newLevelId();
-    }
-    return this.draftCustomId;
-  }
-
   public exportCompiledLevel(): CompiledLevel {
-    const id = this.resolveCustomLevelId();
-    const customLevels = ConfigRegistry.getAllPacks().find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM)?.levels ?? [];
-    const existing = customLevels.find((l) => l.id === id);
+    const id = this.source.levelId ?? this.currentLevelId;
+    const targetLevels = this.sourcePack()?.levels ?? [];
+    const existing = targetLevels.find((l) => l.id === id);
     return {
       id,
       ...(this.winRule === DEFAULT_WIN_RULE ? {} : { winRule: this.winRule }),
       ...(this.ruleset ? { ruleset: this.ruleset } : {}),
-      number: existing ? existing.number : customLevels.length + 1,
-      customTitle: this.customTitle,
+      number: existing ? existing.number : targetLevels.length + 1,
+      customTitle: this.customTitle || t('editor.metadata.default_title.label'),
       customHint: this.customHint,
       ...(this.author ? { author: this.author } : {}),
-      password: this.password,
+      password: resolveSavedPassword(this.password, targetLevels),
       timeLimitSeconds: this.timeLimitSeconds,
       chipsRequired: this.chipsRequired,
       playerStart: { ...this.playerStart },
@@ -1120,6 +1189,263 @@ export class LevelEditor {
       trapLinks: this.trapLinks.map((l) => ({ ...l })),
       cloneLinks: this.cloneLinks.map((l) => ({ ...l }))
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test play, save, import
+  // ---------------------------------------------------------------------------
+
+  private async testPlay(): Promise<void> {
+    this.readMetadataInputs();
+    const compiled = this.exportCompiledLevel();
+    const report = LevelValidator.validate(compiled);
+    let issuesText = '';
+    if (!report.valid && report.issues.length > 0) {
+      issuesText = this.formatIssues(report.issues);
+      this.setStatusText(issuesText);
+      const proceed = await confirmDialog({
+        title: t('app.confirm.title.label'),
+        message: t('editor.toolbar.confirm_test_invalid.label', { issues: issuesText }),
+        confirmLabel: t('editor.pack.test_anyway.action'),
+        cancelLabel: t('app.confirm.cancel.action')
+      });
+      if (!proceed) return;
+    }
+    this.hooks.onTestPlay(compiled);
+    if (issuesText) {
+      // The editor view is hidden during test play: surface the issues there.
+      this.hooks.onNotify(issuesText);
+    }
+  }
+
+  /** Save: updates the level in its pack when that pack is editable, else asks where it goes. */
+  public save(): Promise<void> {
+    return this.runSave(false);
+  }
+
+  /** "Save a copy": always asks where, and stores the level under a new id. */
+  public saveCopy(): Promise<void> {
+    return this.runSave(true);
+  }
+
+  private async runSave(forceCopy: boolean): Promise<void> {
+    if (this.saving) return;
+    this.saving = true;
+    try {
+      await this.performSave(forceCopy);
+    } finally {
+      this.saving = false;
+    }
+  }
+
+  private async performSave(forceCopy: boolean): Promise<void> {
+    this.readMetadataInputs();
+    const decision = decideSave({
+      source: this.source,
+      editablePacks: ConfigRegistry.getEditablePacks(),
+      confirmedImportedPackIds: this.confirmedImportedPackIds,
+      forceCopy
+    });
+
+    let destination: SaveDestination | null;
+    if (decision.kind === 'in_place') {
+      destination = { packId: decision.packId, newPackName: null, asCopy: false };
+    } else if (decision.kind === 'confirm_imported') {
+      const modify = await this.confirmModifyImported(decision.packId, 'editor.pack.confirm_imported.copy.action');
+      if (modify) this.confirmedImportedPackIds.add(decision.packId);
+      destination = modify ? { packId: decision.packId, newPackName: null, asCopy: false } : await this.chooseDestination();
+    } else {
+      destination = await this.chooseDestination();
+    }
+    if (!destination) return;
+
+    const revision = this.editRevision;
+    let persisted = true;
+    let packId = destination.packId;
+    if (destination.newPackName !== null) {
+      const created = await ConfigRegistry.createUserPack(destination.newPackName);
+      if (!created.ok || !created.pack) {
+        this.setStatusText(t('editor.pack.save_failed.label'));
+        return;
+      }
+      persisted = created.persisted;
+      packId = created.pack.id;
+    }
+    const targetPack = ConfigRegistry.getAllPacks().find((p) => p.id === packId);
+    if (!packId || !targetPack) {
+      this.setStatusText(t('editor.pack.save_failed.label'));
+      return;
+    }
+
+    const keepsId = !destination.asCopy && this.source.levelId !== null;
+    const draft = {
+      ...this.exportCompiledLevel(),
+      id: keepsId ? (this.source.levelId as string) : ConfigRegistry.newLevelId(),
+      password: resolveSavedPassword(this.password, targetPack.levels)
+    };
+    const { level, mapChanged } = prepareLevelForSave(draft, this.originalLevel, this.loadedTexts);
+    const result = await ConfigRegistry.saveLevelToPack(packId, level);
+    if (!result.ok) {
+      this.setStatusText(t('editor.pack.save_failed.label'));
+      return;
+    }
+    persisted = persisted && result.persisted;
+
+    const stored = ConfigRegistry.getAllPacks().find((p) => p.id === packId);
+    const saved = stored?.levels[result.index] ?? level;
+    this.source = { packId, levelId: saved.id };
+    this.currentLevelId = saved.id;
+    this.originalLevel = structuredClone(saved);
+    this.loadedTexts = { title: this.resolveLevelTitle(saved), hint: saved.customHint || (saved.hintKey ? t(saved.hintKey) : '') };
+    this.rememberDestination(packId);
+    // A refused write keeps the level in memory but leaves the editor dirty,
+    // so leaving the editor still asks before discarding it. An edit made
+    // while the save was in flight is not in the saved level: it stays dirty.
+    if (this.editRevision === revision) this.isDirty = !persisted;
+    const packName = stored ? this.packLabel(stored) : packId;
+    this.setStatusText(
+      t(persisted ? 'editor.pack.saved.label' : 'editor.pack.saved_session_only.label', {
+        pack: packName,
+        number: result.index + 1
+      })
+    );
+    this.refreshContext();
+    this.hooks.onLevelSaved({
+      packId,
+      packName,
+      levelId: saved.id,
+      index: result.index,
+      persisted,
+      recordsInvalidated: keepsId && mapChanged
+    });
+  }
+
+  /** "Modify <pack>" or the alternative named by `alternativeKey`; true to modify. */
+  private confirmModifyImported(packId: string, alternativeKey: string): Promise<boolean> {
+    const pack = ConfigRegistry.getEditablePacks().find((p) => p.id === packId);
+    const name = pack ? this.packLabel(pack) : packId;
+    return confirmDialog({
+      title: t('app.confirm.title.label'),
+      message: t('editor.pack.confirm_imported.message.label', { name }),
+      confirmLabel: t('editor.pack.confirm_imported.modify.action', { name }),
+      cancelLabel: t(alternativeKey)
+    });
+  }
+
+  /** The "Save into" dialog, then the imported-pack question when the pack asks for it; null on cancel. */
+  private async chooseDestination(): Promise<SaveDestination | null> {
+    for (;;) {
+      const editable = ConfigRegistry.getEditablePacks();
+      const choice = await askSaveInto({
+        packs: editable.map((pack) => ({ id: pack.id, label: this.packLabel(pack), levelCount: pack.levels.length })),
+        preselectId: pickSaveDestination(editable, this.readRememberedDestination()),
+        defaultNewName: t('editor.pack.save_into.default_name.label')
+      });
+      if (!choice) return null;
+      if (choice.kind === 'new') return { packId: null, newPackName: choice.name, asCopy: true };
+      const pack = editable.find((p) => p.id === choice.packId);
+      if (needsImportedConfirmation(pack, this.confirmedImportedPackIds)) {
+        if (!(await this.confirmModifyImported(choice.packId, 'editor.pack.confirm_imported.again.action'))) continue;
+        this.confirmedImportedPackIds.add(choice.packId);
+      }
+      return { packId: choice.packId, newPackName: null, asCopy: true };
+    }
+  }
+
+  private destinationStorageKey(): string {
+    return ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastSaveDestinationKey);
+  }
+
+  private readRememberedDestination(): string | null {
+    try {
+      return localStorage.getItem(this.destinationStorageKey());
+    } catch {
+      // Storage blocked: no destination is preselected.
+      return null;
+    }
+  }
+
+  private rememberDestination(packId: string): void {
+    try {
+      localStorage.setItem(this.destinationStorageKey(), packId);
+    } catch {
+      // Storage blocked: the choice is not remembered.
+    }
+  }
+
+  /**
+   * Opens a file in the editor. A file of several levels can be imported as a
+   * pack instead; a cc3d level is refused before anything is asked about
+   * unsaved work. The level that opens is unsaved work and belongs to no pack.
+   */
+  private async importFileIntoEditor(file: File): Promise<void> {
+    const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
+    if (!isImportSizeAllowed(file.size, maxBytes)) {
+      this.setStatusText(t('editor.palette.status.import_too_large.label', { max: formatMegabytes(maxBytes) }));
+      return;
+    }
+    const lower = file.name.toLowerCase();
+    if (lower.endsWith(CC3D_XML_EXTENSION)) {
+      this.setStatusText(t('editor.palette.status.not_editable.label'));
+      return;
+    }
+    const baseName = file.name.replace(/\.[^.]+$/, '');
+    let levels: CompiledLevel[];
+    let packName = baseName;
+    let skipped = 0;
+    try {
+      if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
+        levels = DatCodec.decodeBuffer(await file.arrayBuffer(), baseName, IMPORTED_PACK_RULESET);
+      } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+        const decoded = decodeXsbCollection(await file.text(), baseName);
+        levels = decoded.levels;
+        skipped = decoded.skipped.length;
+      } else {
+        const text = await file.text();
+        const pack = parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set());
+        if (pack.ok) {
+          levels = pack.levels;
+          packName = pack.name;
+        } else {
+          levels = [ConfigRegistry.compileBlueprint(JSON.parse(text) as LevelBlueprint)];
+        }
+      }
+    } catch (err) {
+      const message =
+        err instanceof InvalidLevelError
+          ? t('editor.palette.status.invalid_level.label', { id: err.levelId })
+          : t('editor.palette.status.import_error');
+      this.setStatusText(message);
+      if (err instanceof InvalidLevelError) this.hooks.onNotify(message);
+      return;
+    }
+    if (levels.length === 0) {
+      this.setStatusText(t('editor.palette.status.import_error'));
+      return;
+    }
+    if (levels.length > 1) {
+      const asPack = await confirmDialog({
+        title: t('app.confirm.title.label'),
+        message: t('editor.pack.import_multi.message.label', { count: levels.length }),
+        confirmLabel: t('editor.pack.import_multi.pack.action'),
+        cancelLabel: t('editor.pack.import_multi.first.action')
+      });
+      if (asPack) {
+        await this.hooks.importAsPack(packName, levels, skipped);
+        return;
+      }
+    }
+    if (!isEditableRuleset(levels[0].ruleset)) {
+      this.setStatusText(t('editor.palette.status.not_editable.label'));
+      return;
+    }
+    if (!(await this.confirmDiscardIfDirty())) return;
+    this.loadCompiledLevel(levels[0], { source: NO_SOURCE, dirty: true });
+    this.setStatusText(
+      skipped > 0
+        ? t('editor.palette.status.imported_skipped.label', { skipped })
+        : t('editor.palette.status.imported')
+    );
   }
 
   private setCoordsText(msg: string): void {
@@ -1132,8 +1458,8 @@ export class LevelEditor {
    * seed draws a fresh one, which is written back so the level can be found
    * again. The result is a starting point to retouch and save.
    */
-  private generateIntoEditor(): void {
-    if (this.isDirty && !window.confirm(t('editor.toolbar.confirm_discard.label'))) return;
+  private async generateIntoEditor(): Promise<void> {
+    if (!(await this.confirmDiscardIfDirty())) return;
     const levelInput = document.getElementById('editor-gen-level') as HTMLInputElement | null;
     const seedInput = document.getElementById('editor-gen-seed') as HTMLInputElement | null;
     const typedLevel = Number.parseInt(levelInput?.value ?? '', 10);
@@ -1147,7 +1473,7 @@ export class LevelEditor {
     if (seedInput) seedInput.value = String(seed);
     try {
       const generated = ProceduralGenerator.generateDetailed(levelNumber, seed);
-      this.loadCompiledLevel(generated.level);
+      this.loadCompiledLevel(generated.level, { source: NO_SOURCE, dirty: true });
       this.setStatusText(
         t('editor.generator.status.generated.label', {
           number: levelNumber,

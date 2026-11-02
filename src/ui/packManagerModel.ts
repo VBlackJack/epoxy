@@ -157,3 +157,23 @@ export function selectionAfterRemoval(rows: readonly LibraryRow[], removedId: st
 export function movedLevelIndex(index: number, direction: 'up' | 'down'): number {
   return direction === 'up' ? index - 1 : index + 1;
 }
+
+const FILE_NAME_SEPARATOR = '_';
+const PACK_FILE_EXTENSION = '.json';
+const NON_FILE_NAME_CHARACTERS = /[^a-z0-9]+/g;
+const COMBINING_MARKS = new RegExp('[\u0300-\u036f]', 'g');
+
+/**
+ * File name of an exported pack: its name reduced to lower case letters and
+ * digits joined by underscores, `fallback` when nothing is left.
+ */
+export function packFileName(name: string, fallback: string): string {
+  const slug = (value: string): string =>
+    value
+      .normalize('NFD')
+      .replace(COMBINING_MARKS, '')
+      .toLowerCase()
+      .replace(NON_FILE_NAME_CHARACTERS, FILE_NAME_SEPARATOR)
+      .replace(/^_+|_+$/g, '');
+  return `${slug(name) || slug(fallback) || 'pack'}${PACK_FILE_EXTENSION}`;
+}

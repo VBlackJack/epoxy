@@ -102,6 +102,86 @@
       "replace": { "action": "Remplacer" }
     },
     "packs": {
+      "manager": {
+        "title": { "label": "Mes packs" },
+        "open_btn": { "action": "Mes packs" },
+        "open_current_btn": { "action": "Gérer ce pack" },
+        "select_option": { "label": "Mes packs..." },
+        "library": {
+          "title": { "label": "Bibliothèque" },
+          "count": { "label": "{count, plural, one {# niveau} other {# niveaux}}" },
+          "imported_tag": { "label": "importé" }
+        },
+        "new_pack": {
+          "action": "+ Nouveau pack",
+          "name": { "label": "Nom du pack" },
+          "create": { "action": "Créer" }
+        },
+        "import": { "action": "Importer un fichier" },
+        "empty_library": {
+          "message": { "label": "Vous n'avez pas encore de pack. Un pack est une collection de niveaux que vous construisez et jouez." },
+          "create": { "action": "Créer mon premier pack" }
+        },
+        "empty_pack": { "message": { "label": "Ce pack ne contient encore aucun niveau." } },
+        "new_level": { "action": "Nouveau niveau dans ce pack" },
+        "detail": {
+          "name": { "label": "Nom" },
+          "play": { "action": "Jouer" },
+          "play_empty": { "label": "Ce pack n'a aucun niveau à jouer." },
+          "export_json": { "action": "Exporter en JSON" },
+          "export_ccl": { "action": "Exporter en .CCL" },
+          "delete": { "action": "Supprimer le pack" }
+        },
+        "badge": {
+          "epoxy": { "label": "Epoxy" },
+          "lynx": { "label": "Lynx" },
+          "cc3d": { "label": "CC3D" },
+          "sokoban": { "label": "Sokoban" }
+        },
+        "levels": { "title": { "label": "Niveaux du pack" } },
+        "level": {
+          "move_up": { "action": "Monter", "aria": "Monter le niveau {number}" },
+          "move_down": { "action": "Descendre", "aria": "Descendre le niveau {number}" },
+          "edit": { "action": "Modifier" },
+          "edit_blocked": { "label": "Les niveaux CC3D se jouent mais ne se modifient pas." },
+          "play": { "action": "Jouer" },
+          "duplicate": { "action": "Dupliquer" },
+          "transfer": { "action": "Copier ou déplacer..." },
+          "delete": { "action": "Supprimer" },
+          "aria": {
+            "edit": { "label": "Modifier le niveau {number} : {title}" },
+            "play": { "label": "Jouer le niveau {number} : {title}" },
+            "duplicate": { "label": "Dupliquer le niveau {number} : {title}" },
+            "transfer": { "label": "Copier ou déplacer le niveau {number} : {title}" },
+            "delete": { "label": "Supprimer le niveau {number} : {title}" }
+          }
+        },
+        "transfer": {
+          "destination": { "label": "Pack de destination" },
+          "mode": { "label": "Action" },
+          "copy": { "label": "Copier" },
+          "move": { "label": "Déplacer" },
+          "apply": { "action": "Appliquer" },
+          "none": { "label": "Créez un autre pack pour y copier ou y déplacer des niveaux." }
+        },
+        "delete_dialog": {
+          "message": { "label": "Supprimer le pack \"{name}\" et {count, plural, one {son niveau} other {ses # niveaux}} ? Cette action est définitive." },
+          "export": { "action": "Exporter d'abord" },
+          "exported": { "label": "Pack exporté. Vous pouvez le supprimer maintenant." }
+        },
+        "delete_level": { "confirm": { "label": "Supprimer le niveau {number} \"{title}\" du pack \"{name}\" ?" } },
+        "toast": {
+          "created": { "label": "Pack \"{name}\" créé." },
+          "deleted": { "label": "Pack \"{name}\" supprimé." },
+          "level_deleted": { "label": "Niveau supprimé." },
+          "duplicated": { "label": "Niveau dupliqué." },
+          "copied": { "label": "Niveau copié dans \"{name}\"." },
+          "moved": { "label": "Niveau déplacé dans \"{name}\"." },
+          "exported": { "label": "Pack \"{name}\" exporté." },
+          "session_only": { "label": "Ce changement n'a pas pu être enregistré : il ne durera que pour cette session." },
+          "failed": { "label": "Ce changement n'a pas pu être appliqué." }
+        }
+      },
       "selector_label": { "label": "Pack :" },
       "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Campagne Epoxy" },
@@ -357,6 +437,46 @@
     }
   },
   "editor": {
+    "pack": {
+      "save_copy": { "action": "Enregistrer une copie..." },
+      "back_to_editor": { "action": "Retour à l'éditeur" },
+      "discard": { "action": "Abandonner les changements" },
+      "test_anyway": { "action": "Tester quand même" },
+      "context": {
+        "group": { "label": "Niveau en cours d'édition" },
+        "pack": { "label": "Pack" },
+        "no_pack": { "label": "Nouveau niveau (hors pack)" },
+        "read_only_option": { "label": "{name} (lecture seule)" },
+        "position": { "label": "Niveau {number}/{total}" },
+        "prev": { "action": "Préc.", "aria": "Niveau précédent du pack" },
+        "next": { "action": "Suiv.", "aria": "Niveau suivant du pack" },
+        "new_level": { "label": "Nouveau niveau" },
+        "unsaved": { "label": "Changements non enregistrés" },
+        "open": { "action": "Ouvrir..." }
+      },
+      "save_into": {
+        "title": { "label": "Enregistrer dans..." },
+        "legend": { "label": "Choisissez le pack qui reçoit ce niveau" },
+        "new_pack": { "label": "Nouveau pack" },
+        "new_name": { "label": "Nom du nouveau pack" },
+        "default_name": { "label": "Mes niveaux" },
+        "submit": { "action": "Enregistrer" }
+      },
+      "saved": { "label": "Enregistré dans \"{pack}\" (niveau {number})." },
+      "saved_session_only": { "label": "Enregistré dans \"{pack}\" (niveau {number}), mais seulement pour cette session : le navigateur n'a pas pu le stocker." },
+      "save_failed": { "label": "Le niveau n'a pas pu être enregistré." },
+      "confirm_imported": {
+        "message": { "label": "\"{name}\" est un pack importé. Le modifier, ou enregistrer votre niveau en copie dans un autre pack ?" },
+        "modify": { "action": "Modifier \"{name}\"" },
+        "copy": { "action": "Enregistrer une copie" },
+        "again": { "action": "Choisir un autre pack" }
+      },
+      "import_multi": {
+        "message": { "label": "Ce fichier contient {count} niveaux. L'importer comme un pack, ou n'ouvrir que son premier niveau dans l'éditeur ?" },
+        "pack": { "action": "Importer comme pack" },
+        "first": { "action": "Ouvrir le niveau 1" }
+      }
+    },
     "generator": {
       "level": { "label": "Difficulté :" },
       "seed": { "label": "Graine :", "placeholder": "aléatoire" },
@@ -376,8 +496,6 @@
       "export_json": { "action": "Exporter JSON" },
       "export_ccl": { "action": "Exporter .CCL" },
       "import_json": { "action": "Importer (.DAT/.CCL/.JSON)" },
-      "load_preset": { "label": "Charger un Niveau :" },
-      "preset_option": { "label": "#{number} - {title}" },
       "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" },
       "confirm_reload": { "label": "L'éditeur contient des modifications non sauvegardées. Les remplacer par le niveau en cours ?" },
       "confirm_test_invalid": { "label": "Ce niveau présente des problèmes : {issues}\n\nLe tester quand même ?" }

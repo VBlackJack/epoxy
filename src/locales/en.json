@@ -102,6 +102,86 @@
       "replace": { "action": "Replace" }
     },
     "packs": {
+      "manager": {
+        "title": { "label": "My packs" },
+        "open_btn": { "action": "My packs" },
+        "open_current_btn": { "action": "Manage this pack" },
+        "select_option": { "label": "My packs..." },
+        "library": {
+          "title": { "label": "Library" },
+          "count": { "label": "{count, plural, one {# level} other {# levels}}" },
+          "imported_tag": { "label": "imported" }
+        },
+        "new_pack": {
+          "action": "+ New pack",
+          "name": { "label": "Pack name" },
+          "create": { "action": "Create" }
+        },
+        "import": { "action": "Import a file" },
+        "empty_library": {
+          "message": { "label": "You have no pack yet. A pack is a collection of levels that you build and play." },
+          "create": { "action": "Create my first pack" }
+        },
+        "empty_pack": { "message": { "label": "This pack has no level yet." } },
+        "new_level": { "action": "New level in this pack" },
+        "detail": {
+          "name": { "label": "Name" },
+          "play": { "action": "Play" },
+          "play_empty": { "label": "This pack has no level to play." },
+          "export_json": { "action": "Export JSON" },
+          "export_ccl": { "action": "Export .CCL" },
+          "delete": { "action": "Delete pack" }
+        },
+        "badge": {
+          "epoxy": { "label": "Epoxy" },
+          "lynx": { "label": "Lynx" },
+          "cc3d": { "label": "CC3D" },
+          "sokoban": { "label": "Sokoban" }
+        },
+        "levels": { "title": { "label": "Levels of the pack" } },
+        "level": {
+          "move_up": { "action": "Up", "aria": "Move level {number} up" },
+          "move_down": { "action": "Down", "aria": "Move level {number} down" },
+          "edit": { "action": "Edit" },
+          "edit_blocked": { "label": "CC3D levels can be played but not edited." },
+          "play": { "action": "Play" },
+          "duplicate": { "action": "Duplicate" },
+          "transfer": { "action": "Copy or move..." },
+          "delete": { "action": "Delete" },
+          "aria": {
+            "edit": { "label": "Edit level {number}: {title}" },
+            "play": { "label": "Play level {number}: {title}" },
+            "duplicate": { "label": "Duplicate level {number}: {title}" },
+            "transfer": { "label": "Copy or move level {number}: {title}" },
+            "delete": { "label": "Delete level {number}: {title}" }
+          }
+        },
+        "transfer": {
+          "destination": { "label": "Destination pack" },
+          "mode": { "label": "Action" },
+          "copy": { "label": "Copy" },
+          "move": { "label": "Move" },
+          "apply": { "action": "Apply" },
+          "none": { "label": "Create another pack to copy or move levels into it." }
+        },
+        "delete_dialog": {
+          "message": { "label": "Delete the pack \"{name}\" and its {count, plural, one {# level} other {# levels}}? This cannot be undone." },
+          "export": { "action": "Export first" },
+          "exported": { "label": "Pack exported. You can delete it now." }
+        },
+        "delete_level": { "confirm": { "label": "Delete level {number} \"{title}\" from the pack \"{name}\"?" } },
+        "toast": {
+          "created": { "label": "Pack \"{name}\" created." },
+          "deleted": { "label": "Pack \"{name}\" deleted." },
+          "level_deleted": { "label": "Level deleted." },
+          "duplicated": { "label": "Level duplicated." },
+          "copied": { "label": "Level copied to \"{name}\"." },
+          "moved": { "label": "Level moved to \"{name}\"." },
+          "exported": { "label": "Pack \"{name}\" exported." },
+          "session_only": { "label": "That change could not be stored: it will only last for this session." },
+          "failed": { "label": "That change could not be applied." }
+        }
+      },
       "selector_label": { "label": "Pack:" },
       "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Epoxy Campaign" },
@@ -357,6 +437,46 @@
     }
   },
   "editor": {
+    "pack": {
+      "save_copy": { "action": "Save a copy..." },
+      "back_to_editor": { "action": "Back to editor" },
+      "discard": { "action": "Discard changes" },
+      "test_anyway": { "action": "Test anyway" },
+      "context": {
+        "group": { "label": "Level being edited" },
+        "pack": { "label": "Pack" },
+        "no_pack": { "label": "New level (not in a pack)" },
+        "read_only_option": { "label": "{name} (read-only)" },
+        "position": { "label": "Level {number}/{total}" },
+        "prev": { "action": "Prev", "aria": "Previous level of the pack" },
+        "next": { "action": "Next", "aria": "Next level of the pack" },
+        "new_level": { "label": "New level" },
+        "unsaved": { "label": "Unsaved changes" },
+        "open": { "action": "Open..." }
+      },
+      "save_into": {
+        "title": { "label": "Save into..." },
+        "legend": { "label": "Choose the pack that receives this level" },
+        "new_pack": { "label": "New pack" },
+        "new_name": { "label": "Name of the new pack" },
+        "default_name": { "label": "My levels" },
+        "submit": { "action": "Save" }
+      },
+      "saved": { "label": "Saved in \"{pack}\" (level {number})." },
+      "saved_session_only": { "label": "Saved in \"{pack}\" (level {number}), but only for this session: the browser could not store it." },
+      "save_failed": { "label": "The level could not be saved." },
+      "confirm_imported": {
+        "message": { "label": "\"{name}\" is an imported pack. Modify it, or save your level as a copy in another pack?" },
+        "modify": { "action": "Modify \"{name}\"" },
+        "copy": { "action": "Save a copy instead" },
+        "again": { "action": "Choose another pack" }
+      },
+      "import_multi": {
+        "message": { "label": "This file holds {count} levels. Import it as a pack, or open only its first level in the editor?" },
+        "pack": { "action": "Import as a pack" },
+        "first": { "action": "Open level 1" }
+      }
+    },
     "generator": {
       "level": { "label": "Difficulty:" },
       "seed": { "label": "Seed:", "placeholder": "random" },
@@ -376,8 +496,6 @@
       "export_json": { "action": "Export JSON" },
       "export_ccl": { "action": "Export .CCL" },
       "import_json": { "action": "Import (.DAT/.CCL/.JSON)" },
-      "load_preset": { "label": "Load Preset Level:" },
-      "preset_option": { "label": "#{number} - {title}" },
       "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" },
       "confirm_reload": { "label": "The editor has unsaved changes. Replace them with the current level?" },
       "confirm_test_invalid": { "label": "This level has problems: {issues}\n\nTest it anyway?" }

@@ -27,6 +27,7 @@ import {
   engineBadgesOf,
   managerState,
   movedLevelIndex,
+  packFileName,
   resolveSelection,
   selectionAfterRemoval,
   transferTargets
@@ -168,5 +169,20 @@ describe('pack actions', () => {
     const levels = [makeLevel('a')];
     expect(buildPackActions(levels, () => false)).toEqual({ canPlay: true, canExportJson: true, canExportCcl: false });
     expect(buildPackActions(levels, () => true).canExportCcl).toBe(true);
+  });
+});
+
+describe('packFileName', () => {
+  it('reduces a name to lower case letters, digits and underscores', () => {
+    expect(packFileName('My Levels #2!', 'id')).toBe('my_levels_2.json');
+  });
+
+  it('drops accents', () => {
+    expect(packFileName('Énigmes déjà vues', 'id')).toBe('enigmes_deja_vues.json');
+  });
+
+  it('falls back to the id, then to a fixed name, when nothing usable is left', () => {
+    expect(packFileName('???', 'user_pack_1')).toBe('user_pack_1.json');
+    expect(packFileName('???', '!!!')).toBe('pack.json');
   });
 });
