@@ -82,7 +82,8 @@ export const MONSTER_TRAITS: Partial<Record<Cc3dMobKind, MonsterTraits>> = {
   legs_red: PLAIN_TRAITS,
   omni: { ...PLAIN_TRAITS, immunities: ['slime'] },
   // Yellow golems are never carried by ice or force floors and may enter sand and gravel (07 section 7.9, 2 and 7).
-  golem_yellow: { ...PLAIN_TRAITS, immunities: ['ice', 'force'], entersTerrain: ['sand', 'gravel'] }
+  // They also walk into water, fire and slime and are lost there, having no immunity [P water, U fire and slime; 07 section 7.11].
+  golem_yellow: { ...PLAIN_TRAITS, immunities: ['ice', 'force'], entersTerrain: ['sand', 'gravel', 'water', 'fire', 'slime'] }
 };
 
 export function isSupportedMonster(kind: Cc3dMobKind): boolean {
