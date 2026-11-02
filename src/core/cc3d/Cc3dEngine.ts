@@ -175,6 +175,11 @@ export class Cc3dEngine implements PlayEngine {
 
   // ------------------------------------------------------------------- play
 
+  /** Test hook: begins play as if the player had taken his first step. */
+  public beginPlayForTests(): void {
+    this.sim?.beginPlay();
+  }
+
   public tick(): void {
     const sim = this.sim;
     if (!sim || this.paused || !sim.world.player.alive || sim.world.complete) return;

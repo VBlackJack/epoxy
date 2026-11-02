@@ -23,6 +23,7 @@ vi.mock('../../audio/AudioManager', () => ({
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { cc3dLevel, panelled, terrain } from './cc3dTestMaps';
 import { Cc3dRig } from './cc3dTestRig';
+import type { Direction } from '../types';
 
 beforeAll(() => {
   loadTestConfigs();
@@ -177,10 +178,13 @@ describe('ice', () => {
     expect(rig.player.isSliding).toBe(false);
   });
 
-  it('keeps sliding at fast speed until it reaches non-ice', () => {
+  it('[S] entering ice is already a fast step, and the slide goes on at fast speed until it reaches non-ice', () => {
     const rig = new Cc3dRig(cc3dLevel(['#@II..#']));
     rig.press('E');
-    rig.afterTick(4);
+    rig.afterTick(0);
+    expect(rig.player.x).toBe(2);
+    expect(rig.player.moveCooldown).toBe(1);
+    rig.afterTick(2);
     expect(rig.player.x).toBe(3);
     expect(rig.player.moveCooldown).toBe(1);
     expect(rig.player.isSliding).toBe(true);
@@ -223,15 +227,17 @@ describe('ice', () => {
 });
 
 describe('force floors', () => {
-  it('carries at fast speed, repeatedly', () => {
+  it('carries at fast speed, repeatedly; entering a force floor is already a fast step [S]', () => {
     const rig = new Cc3dRig(cc3dLevel(['#@>>>.#']));
     rig.press('E');
-    rig.afterTick(4);
+    rig.afterTick(0);
+    expect(rig.player.moveCooldown).toBe(1);
+    rig.afterTick(2);
     expect(rig.player.x).toBe(3);
     expect(rig.player.moveCooldown).toBe(1);
-    rig.afterTick(6);
+    rig.afterTick(4);
     expect(rig.player.x).toBe(4);
-    rig.afterTick(8);
+    rig.afterTick(6);
     expect(rig.player.x).toBe(5);
     rig.tick(SETTLE_TICKS);
     expect(rig.player.x).toBe(5);
@@ -240,10 +246,11 @@ describe('force floors', () => {
   it('[P] the player can step off a force floor sideways', () => {
     const rows = ['#####', '#.^.#', '#.^.#', '#.@.#', '#####'];
     const rig = new Cc3dRig(cc3dLevel(rows));
-    rig.walk('N');
+    rig.press('N');
+    rig.tick(1);
     expect(rig.player.y).toBe(2);
     rig.hold('W');
-    rig.afterTick(4 + 4);
+    rig.tick(4);
     expect(rig.player.x).toBe(1);
     expect(rig.player.y).toBe(2);
   });
@@ -273,22 +280,31 @@ describe('force floors', () => {
     expect(rig.player.x).toBe(3);
   });
 
-  it('a random force floor pushes the player off in a seeded direction', () => {
+  it('[S] a random force floor sends successive entries east, south, west, north', () => {
     const rows = ['#####', '#...#', '#@?.#', '#...#', '#####'];
-    const endings = new Set<string>();
-    for (let seed = 1; seed <= 12; seed++) {
-      const rig = new Cc3dRig(cc3dLevel(rows), seed);
-      rig.walk('E');
+    const rig = new Cc3dRig(cc3dLevel(rows));
+    const expected: Array<[Direction, number, number]> = [
+      ['E', 3, 2],
+      ['W', 2, 3],
+      ['N', 1, 2],
+      ['E', 2, 1]
+    ];
+    for (const [dir, x, y] of expected) {
+      rig.walk(dir);
       rig.tick(SETTLE_TICKS);
-      const { x, y } = rig.player;
-      expect(Math.abs(x - 2) + Math.abs(y - 2)).toBe(1);
-      const again = new Cc3dRig(cc3dLevel(rows), seed);
-      again.walk('E');
-      again.tick(SETTLE_TICKS);
-      expect([again.player.x, again.player.y]).toEqual([x, y]);
-      endings.add(`${x},${y}`);
+      expect([rig.player.x, rig.player.y]).toEqual([x, y]);
     }
-    expect(endings.size).toBeGreaterThan(1);
+  });
+
+  it('the random force counter is part of undo', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#####', '#...#', '#@?.#', '#...#', '#####']));
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect(rig.player.x).toBe(3);
+    rig.engine.undo();
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect(rig.player.x).toBe(3);
   });
 });
 

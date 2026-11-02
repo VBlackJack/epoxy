@@ -30,6 +30,8 @@ import {
   cellOf,
   hasFloatingBlock,
   isBlockKind,
+  meltIceBlock,
+  nextRandomForceDirection,
   removeMob,
   removeTop,
   speedOrbFactor,
@@ -107,7 +109,8 @@ function arrivePlayer(ctx: RuleContext, player: PlayerData): void {
       if (!isImmune(player, 'fire')) ctx.killPlayer('fire');
       break;
     case 'slime':
-      if (!playerSurvivesSlime()) ctx.killPlayer('slime');
+      if (playerSurvivesSlime(player)) replaceTop(world, at, { kind: 'floor' });
+      else ctx.killPlayer('slime');
       break;
     case 'bomb':
       removeTop(world, at);
@@ -143,7 +146,11 @@ function applyDrift(ctx: RuleContext, actor: Actor): void {
   const terrain = actingTerrain(cellOf(ctx.world, actor));
   if (terrain.kind === 'ice' && slidesOnIce(actor)) actor.drift = actor.dir;
   else if (terrain.kind === 'ice_corner' && slidesOnIce(actor)) actor.drift = cornerExit(terrain, actor.dir);
-  else if (terrain.kind === 'force_random' && isCarriedByForce(actor)) actor.drift = ctx.randomDirection();
+  else if (terrain.kind === 'force_random') {
+    // Every entry by any mob advances the shared counter, carried or not [S, 10 item 14].
+    const dir = nextRandomForceDirection(ctx.world);
+    if (isCarriedByForce(actor)) actor.drift = dir;
+  }
 }
 
 /** A block or a monster ends a step: blocks fill water, melt, clean slime [P]/[U]; a monster the floor carried into a hazard it is not immune to dies [U]. */
@@ -159,8 +166,7 @@ function arriveMob(ctx: RuleContext, mob: MobState): void {
       break;
     case 'fire':
       if (block && mob.kind === 'block_ice') {
-        removeMob(world, mob);
-        replaceTop(world, at, { kind: 'water' });
+        meltIceBlock(world, mob);
         ctx.emitVisual('splash', at.x, at.y);
       } else if (!block && !isImmune(mob, 'fire')) {
         monsterDies(ctx, mob, 'explosion');
@@ -178,10 +184,17 @@ function arriveMob(ctx: RuleContext, mob: MobState): void {
       }
       break;
     case 'bomb':
-      if (!block) {
-        removeTop(world, at);
-        monsterDies(ctx, mob, 'explosion');
-      }
+      // Any mob may enter a bomb; the bomb and the mob are both gone [S, 10 item 20].
+      removeTop(world, at);
+      monsterDies(ctx, mob, 'explosion');
+      break;
+    case 'dirt':
+      // Blocks clear dirt by entering it; the ice block slides over it without clearing it [S, 10 items 18, 23].
+      if (block && mob.kind !== 'block_ice') replaceTop(world, at, { kind: 'floor' });
+      break;
+    case 'socket':
+      // The first mob to enter an open blue gate turns it into floor [S, 10 item 22].
+      removeTop(world, at);
       break;
     case 'teleport_red':
     case 'teleport_blue':

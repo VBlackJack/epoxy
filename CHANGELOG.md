@@ -5,6 +5,14 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Chuck's Challenge 3D levels follow more of the original rules: nothing moves before the player's
+  first step; Snappy chases and Nibble flees; security bots run on their own; clone machines and
+  their switches work; shots no longer relay through shooters and a shot on a reflector's back
+  destroys both; monsters stay off items, security gates and the exit; blocks slide on ice and
+  ride force floors, and an ice block pushes a whole row.
+
 ## [2.16.2] - 2026-11-02
 
 ### Fixed

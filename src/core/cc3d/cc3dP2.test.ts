@@ -23,12 +23,12 @@ vi.mock('../../audio/AudioManager', () => ({
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import type { Direction } from '../types';
 import { MONSTER_TRAITS, isSupportedMonster } from './cc3dMonsterTraits';
-import { Cc3dSimulation } from './Cc3dSimulation';
-import { onArrival } from './cc3dArrival';
-import { buildWorld } from './cc3dWorld';
 import { cc3dLevel, cc3dModel, stacked } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 import { Cc3dRig } from './cc3dTestRig';
+import { Cc3dSimulation } from './Cc3dSimulation';
+import { onArrival } from './cc3dArrival';
+import { buildWorld } from './cc3dWorld';
 import type { Cc3dMobKind } from './model';
 
 beforeAll(() => {
@@ -86,61 +86,72 @@ describe('legs [U base patterns]', () => {
   });
 });
 
-describe('Snappy flees [U]', () => {
+describe('Snappy chases [P colours, S ids; 10.1 item 1]', () => {
   const room = ['#######', '#.....#', '#@.M..#', '#.....#', '#######'];
 
-  it('steps forward when that increases the distance', () => {
+  it('steps towards the player along the larger axis (ties: horizontal first)', () => {
     const rig = new Cc3dRig(cc3dLevel(room, { glyphs: { M: mob('snappy', 'E') } }));
     rig.tick(1);
-    expect(rig.entities[0]).toMatchObject({ x: 4, y: 2 });
+    expect(rig.entities[0]).toMatchObject({ x: 2, y: 2 });
+    const vertical = ['#######', '#..M..#', '#.....#', '#.....#', '#..@..#', '#######'];
+    const column = new Cc3dRig(cc3dLevel(vertical, { glyphs: { M: mob('snappy', 'E') } }));
+    column.tick(1);
+    expect(column.entities[0]).toMatchObject({ x: 3, y: 2 });
+    const diagonal = ['#######', '#..M..#', '#.....#', '#@....#', '#######'];
+    const tie = new Cc3dRig(cc3dLevel(diagonal, { glyphs: { M: mob('snappy', 'E') } }));
+    tie.tick(1);
+    expect(tie.entities[0]).toMatchObject({ x: 2, y: 1 });
   });
 
-  it('breaks ties forward, right, left, back: facing the player it turns right', () => {
-    const rig = new Cc3dRig(cc3dLevel(room, { glyphs: { M: mob('snappy', 'W') } }));
-    rig.tick(1);
-    expect(rig.entities[0]).toMatchObject({ x: 3, y: 1 });
-  });
-
-  it('takes the right when forward is shut', () => {
-    const shut = ['#######', '#.....#', '#@.M#.#', '#.....#', '#######'];
-    const rig = new Cc3dRig(cc3dLevel(shut, { glyphs: { M: mob('snappy', 'E') } }));
+  it('tries the other axis when blocked and not aligned with the player', () => {
+    const rows = ['#######', '#.....#', '#.#M..#', '#@....#', '#######'];
+    const rig = new Cc3dRig(cc3dLevel(rows, { glyphs: { M: mob('snappy', 'E') } }));
     rig.tick(1);
     expect(rig.entities[0]).toMatchObject({ x: 3, y: 3 });
   });
 
+  it('waits when blocked while aligned with the player', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#M#.@#'], { glyphs: { M: mob('snappy', 'E') } }));
+    rig.tick(SETTLE_TICKS);
+    expect(rig.entities[0].x).toBe(1);
+    expect(rig.player.alive).toBe(true);
+  });
+
   it('rests a step between steps: one at normal speed, then one step of waiting', () => {
-    const rig = new Cc3dRig(cc3dLevel(room, { glyphs: { M: mob('snappy', 'E') } }));
+    const rig = new Cc3dRig(cc3dLevel(['#@..M..#'], { glyphs: { M: mob('snappy', 'E') } }));
     rig.afterTick(0);
     expect(rig.entities[0].cooldownTicks).toBe(3);
     rig.afterTick(7);
-    expect(rig.entities[0].x).toBe(4);
-    rig.afterTick(8);
-    expect(rig.entities[0].x).toBe(5);
-  });
-
-  it('waits when no direction increases the distance', () => {
-    const rig = new Cc3dRig(cc3dLevel(['#####', '#.@M#', '#####'], { glyphs: { M: mob('snappy', 'E') } }));
-    rig.tick(SETTLE_TICKS);
     expect(rig.entities[0].x).toBe(3);
-    expect(rig.player.alive).toBe(true);
-  });
-});
-
-describe('Nibble chases [U]', () => {
-  it('walks towards the player and kills him on contact', () => {
-    const rig = new Cc3dRig(cc3dLevel(['#M...@#'], { glyphs: { M: mob('nibble', 'E') } }));
-    rig.afterTick(0);
+    rig.afterTick(8);
     expect(rig.entities[0].x).toBe(2);
+  });
+
+  it('kills the player on contact', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#M...@#'], { glyphs: { M: mob('snappy', 'E') } }));
     rig.tick(SETTLE_TICKS);
     expect(rig.player.alive).toBe(false);
     expect(rig.player.deathReasonKey).toBe('hud.messages.death_monster');
   });
+});
 
-  it('picks the direction that gets closer, ties forward first', () => {
-    const rig = new Cc3dRig(cc3dLevel(['#######', '#.....#', '#..M..#', '#....@#', '#######'], { glyphs: { M: mob('nibble', 'N') } }));
+describe('Nibble flees [P colours, S ids; 10.1 item 1]', () => {
+  it('steps away from the player along the larger axis', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#######', '#@.M..#', '#.....#', '#######'], { glyphs: { M: mob('nibble', 'W') } }));
     rig.tick(1);
-    // Forward (north) moves away; right (east) and left (west) tie at the same distance to change: east is closer.
-    expect(rig.entities[0]).toMatchObject({ x: 4, y: 2 });
+    expect(rig.entities[0]).toMatchObject({ x: 4, y: 1 });
+  });
+
+  it('tries the other axis when blocked and not aligned, and waits when aligned', () => {
+    const rows = ['#######', '#.....#', '#@.M#.#', '#######'];
+    const rig = new Cc3dRig(cc3dLevel(rows, { glyphs: { M: mob('nibble', 'W') } }));
+    // Away from (1,2) along x is east, which is shut; aligned on the row: it waits.
+    rig.tick(SETTLE_TICKS);
+    expect(rig.entities[0]).toMatchObject({ x: 3, y: 2 });
+    const free = ['#######', '#.....#', '#..M#.#', '#@....#', '#######'];
+    const other = new Cc3dRig(cc3dLevel(free, { glyphs: { M: mob('nibble', 'W') } }));
+    other.tick(1);
+    expect(other.entities[0]).toMatchObject({ x: 3, y: 1 });
   });
 });
 
@@ -160,18 +171,16 @@ describe('Omni [U]', () => {
     expect(moved).toBeGreaterThan(0);
   });
 
-  it('a blocked draw costs one slow step before the next draw', () => {
-    let seen = 0;
+  it('a blocked draw is simply drawn again next tick [S, 10.1 item 3]', () => {
+    let retried = 0;
     for (let seed = 1; seed <= 40; seed++) {
       const rig = new Cc3dRig(cc3dLevel(['#MO.#', '#####', '#@###'], { glyphs: { M: mob('omni'), O: { stack: [{ kind: 'floor' }] } } }), seed);
       rig.tick(1);
-      if (rig.entities[0].x === 1) {
-        seen += 1;
-        rig.afterTick(7);
-        expect(rig.entities[0].x).toBe(1);
-      }
+      if (rig.entities[0].x !== 1) continue;
+      rig.tick(7);
+      if (rig.entities[0].x !== 1) retried += 1;
     }
-    expect(seen).toBeGreaterThan(0);
+    expect(retried).toBeGreaterThan(0);
   });
 
   it('survives slime and then leaves slime on bare floor only', () => {
@@ -236,19 +245,23 @@ describe('yellow golems and their control [U]', () => {
     expect(two.entities.map((e) => e.x).sort()).toEqual([3, 4, 5]);
   });
 
-  it('[P water, U fire/slime] walks into water, fire and slime and is lost there; enters sand and gravel', () => {
+  it('[P water, U fire/slime] walks into water, fire and slime and is lost there; enters sand, dirt and gravel stop it [S]', () => {
     for (const glyph of ['W', 'F', 'L']) {
       const rig = new Cc3dRig(cc3dLevel([`#@cG${glyph}.#`], { glyphs }));
       rig.walk('E');
       rig.tick(8);
       expect(rig.entities, glyph).toHaveLength(0);
     }
-    for (const glyph of ['A', 'G']) {
-      const level = cc3dLevel([`#@c!${glyph}.#`], { glyphs: { ...glyphs, '!': mob('golem_yellow') } });
-      const rig = new Cc3dRig(level);
+    const extra = { ...glyphs, '!': mob('golem_yellow'), v: stacked({ kind: 'gravel' }) };
+    for (const [glyph, x] of [
+      ['A', 4],
+      ['v', 3],
+      ['D', 3]
+    ] as const) {
+      const rig = new Cc3dRig(cc3dLevel([`#@c!${glyph}.#`], { glyphs: extra }));
       rig.walk('E');
       rig.tick(8);
-      expect(rig.entities[0].x, glyph).toBe(4);
+      expect(rig.entities[0].x, glyph).toBe(x);
     }
   });
 
@@ -281,9 +294,9 @@ describe('speed orb [U]', () => {
     const rig = new Cc3dRig(cc3dLevel(corridor('#...M..##'), { glyphs: { M: mob('snappy') } }));
     rig.press('E');
     rig.afterTick(11);
-    expect(rig.entities[0].x).toBe(5);
+    expect(rig.entities[0].x).toBe(3);
     rig.afterTick(12);
-    expect(rig.entities[0].x).toBe(6);
+    expect(rig.entities[0].x).toBe(2);
   });
 
   it('does not slow a block the player pushes', () => {
@@ -313,11 +326,13 @@ describe('review fixes', () => {
   const sw = stacked({ kind: 'floor' }, { kind: 'clone_switch' });
 
   it('a Snappy released from a clone machine does not rest afterwards', () => {
-    const rig = new Cc3dRig(cc3dLevel(['#@bm....#'], { glyphs: { b: sw, m: machine('snappy') } }));
-    rig.walk('E');
-    rig.afterTick(7);
-    // Released at tick 3, arrived at tick 6, no rest: the next step starts at tick 7.
-    expect(rig.entities.some((e) => e.x === 5)).toBe(true);
+    const down: GlyphMeaning = { stack: [{ kind: 'floor' }, { kind: 'clone_machine', dir: 'S' }], mob: { kind: 'snappy', dir: 'S' } };
+    const rows = ['#######', '#..m..#', '#.....#', '#.....#', '#.....#', '#.....#', '#@.b..#', '#######'];
+    const rig = new Cc3dRig(cc3dLevel(rows, { glyphs: { b: sw, m: down } }));
+    rig.walk('E', 'E');
+    rig.afterTick(11);
+    // Released at tick 7, arrived at tick 10, no rest: the next step started at tick 11.
+    expect(rig.entities.some((e) => e.x === 3 && e.y === 3)).toBe(true);
   });
 
   it('the speed orb slows a monster released from a clone machine, not a block', () => {
@@ -330,15 +345,16 @@ describe('review fixes', () => {
   });
 
   it('a player killed while arriving takes nothing from his cell', () => {
-    const control: GlyphMeaning = { stack: [{ kind: 'floor' }, { kind: 'golem_control_yellow' }], item: { kind: 'key', color: 'red' } };
-    const model = cc3dModel(['#@Gc.#'], { G: mob('golem_yellow'), c: control });
+    // Items stop golems and shots alike, but a shot fired by the controller he is arriving on still hits the player there.
+    const control: GlyphMeaning = { stack: [{ kind: 'floor' }, { kind: 'laser_controller' }], item: { kind: 'key', color: 'red' } };
+    const model = cc3dModel(['#@cS#'], { c: control, S: { mob: { kind: 'laser_shooter', dir: 'W' } } });
     const world = buildWorld(model, 1);
     const sim = new Cc3dSimulation(world, { visual: () => undefined, sound: () => undefined, step: () => undefined }, 0);
-    world.player.x = 3;
-    world.player.dir = 'E';
+    sim.beginPlay();
+    world.player.x = 2;
     onArrival(sim, world.player);
     expect(world.player.alive).toBe(false);
-    expect(world.cells[3].item).not.toBeNull();
+    expect(world.cells[2].item).not.toBeNull();
     expect(world.player.keys.red).toBe(0);
   });
 

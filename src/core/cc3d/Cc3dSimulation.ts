@@ -18,13 +18,13 @@ import type { VisualEventKind } from '../PlayEngine';
 import { SeededRandom } from '../Random';
 import type { Direction, TimedMove } from '../types';
 import { onArrival, openOnEntry } from './cc3dArrival';
-import { updateDevices } from './cc3dDevices';
-import { killMob, resolveShotStep, rotateBots, bumpShooter, updateBeams } from './cc3dLasers';
+import { onStartEntering, updateDevices } from './cc3dDevices';
+import { killMob, resolveShotStep, rotateBots, startBots, updateBeams } from './cc3dLasers';
 import { chooseMonsterDirection } from './cc3dMonsters';
 import { MONSTER_TRAITS, isSupportedMonster } from './cc3dMonsterTraits';
 import { BOT_ROTATION_SECONDS, DEATH_KEY, DeathCause, FALLBACK_TICKS_PER_SECOND, SFX, STEP_TICKS, VISUAL_COLOR } from './cc3dConstants';
 import { StepPlan, planStep } from './cc3dMovement';
-import { ForcedMove, forcedMoveOf, inputAllowed, onLeave } from './cc3dTerrainRules';
+import { ForcedMove, entersFast, forcedMoveOf, inputAllowed, onLeave } from './cc3dTerrainRules';
 import {
   Actor,
   Cell,
@@ -59,7 +59,8 @@ export interface Cc3dSnapshot {
   complete: boolean;
   nextUid: number;
   rngState: number;
-  closing: number[];
+  playStart: number;
+  randomForceCounter: number;
   player: PlayerData;
   mobs: MobState[];
   /** Pre-change copies of the cells first changed since this snapshot (copy-on-write). */
@@ -94,8 +95,6 @@ export class Cc3dSimulation implements RuleContext {
   private blockedLatch = false;
   /** The player's step was refused during this tick: the bump latch stays until a tick without one. */
   private attempted = false;
-  /** The controller press by bumping a shooter fires once per target and direction, not once per tick. */
-  private bumpKey: string | null = null;
 
   constructor(
     world: World,
@@ -177,7 +176,8 @@ export class Cc3dSimulation implements RuleContext {
       complete: w.complete,
       nextUid: w.nextUid,
       rngState: w.rngState,
-      closing: [...w.closing],
+      playStart: w.playStart,
+      randomForceCounter: w.randomForceCounter,
       player: structuredClone(w.player),
       mobs: structuredClone(w.mobs),
       journal: new Map<number, Cc3dCell>(),
@@ -213,7 +213,8 @@ export class Cc3dSimulation implements RuleContext {
     w.complete = snapshot.complete;
     w.nextUid = snapshot.nextUid;
     w.rngState = snapshot.rngState;
-    w.closing = snapshot.closing;
+    w.playStart = snapshot.playStart;
+    w.randomForceCounter = snapshot.randomForceCounter;
     w.player = snapshot.player;
     w.mobs = snapshot.mobs;
     reindexMobs(w);
@@ -227,11 +228,13 @@ export class Cc3dSimulation implements RuleContext {
   public tickOnce(): void {
     this.report = { tookInput: false, startedStep: false };
     const { world } = this;
+    // [U] The clock counts from tick 0, not from the first step: cc3d levels have no time limit.
     if (this.timeLimitTicks > 0 && world.tick >= this.timeLimitTicks) this.killPlayer('time');
     rotateBots(world, this.botRotationTicks);
     world.firedThisTick = [];
     if (world.player.alive) this.turnOf(world.player);
-    const order = [...world.mobs];
+    // Nothing else acts until the player has started a first step [P, 10.1 item 0].
+    const order = world.playStart >= 0 ? [...world.mobs] : [];
     const removalsAtStart = world.removals;
     for (const mob of order) {
       if (!world.player.alive || world.complete) break;
@@ -241,10 +244,7 @@ export class Cc3dSimulation implements RuleContext {
     }
     updateDevices(world);
     updateBeams(this, true);
-    if (!this.attempted) {
-      this.blockedLatch = false;
-      this.bumpKey = null;
-    }
+    if (!this.attempted) this.blockedLatch = false;
     this.attempted = false;
     world.tick += 1;
   }
@@ -291,13 +291,19 @@ export class Cc3dSimulation implements RuleContext {
   }
 
   /**
-   * A Snappy or Nibble that finds no direction waits one full normal step before
-   * retrying; an Omni whose draw is blocked pays one slow step [U, 07 section 7.9 items 5 and 8].
+   * A Snappy or Nibble that finds no direction waits one full normal step before retrying [10.1 item 1].
    */
   private waitAfterNoMove(mob: MobState): void {
     const traits = MONSTER_TRAITS[mob.kind];
-    const base = mob.kind === 'omni' ? STEP_TICKS.slow : traits?.restsBetweenSteps ? STEP_TICKS.normal : 0;
-    if (base > 0) mob.restUntilTick = this.world.tick + base * speedOrbFactor(this.world);
+    // An Omni whose draw is blocked simply draws again next tick [S, 10.1 item 3].
+    if (traits?.restsBetweenSteps) mob.restUntilTick = this.world.tick + STEP_TICKS.normal * speedOrbFactor(this.world);
+  }
+
+  /** The player's first chosen step starts play: the monsters, golems and bots wake up; the rotating bots turn once [P, 10.1 items 0, 13]. */
+  public beginPlay(): void {
+    if (this.world.playStart >= 0) return;
+    this.world.playStart = this.world.tick;
+    startBots(this.world);
   }
 
   private decidePlayer(player: PlayerData): void {
@@ -310,6 +316,7 @@ export class Cc3dSimulation implements RuleContext {
       if (this.tryStep(player, wanted, 'chosen')) {
         this.world.steps += 1;
         this.report.startedStep = true;
+        if (this.world.playStart < 0) this.beginPlay();
         this.moves.push(wanted);
         this.timedMoves.push({ tick: this.world.tick, dir: wanted });
         this.events.step(player.x, player.y);
@@ -317,7 +324,12 @@ export class Cc3dSimulation implements RuleContext {
       }
       if (forced === null) return;
     }
-    if (forced) this.forceStep(player, forced);
+    if (forced) {
+      this.forceStep(player, forced);
+      // Any step of the player starts play, chosen or forced, so a player who starts on ice or a force floor
+      // does not slide through a frozen world [U, review of 10.1 item 0].
+      if (player.remaining > 0) this.beginPlay();
+    }
   }
 
   /** A forced step; on ice a refused step bounces the slide back the way it came [P]. */
@@ -325,6 +337,11 @@ export class Cc3dSimulation implements RuleContext {
     if (this.tryStep(actor, forced.dir, 'forced')) return;
     actor.exitDir = null;
     if (forced.source !== 'ice') return;
+    // A sliding block that is blocked stops: no bounce [U, 10 item 24].
+    if (actor.kind !== 'player' && isBlockKind(actor.kind)) {
+      actor.drift = null;
+      return;
+    }
     const back = opposite(forced.dir);
     if (this.tryStep(actor, back, 'forced')) actor.drift = back;
     else actor.drift = null;
@@ -336,14 +353,15 @@ export class Cc3dSimulation implements RuleContext {
   private tryStep(actor: Actor, dir: Direction, intent: StepIntent): boolean {
     actor.dir = dir;
     const from: Cell = { x: actor.x, y: actor.y };
-    let plan = planStep(this.world, actor, from, dir);
+    const sliding = intent === 'forced' && actor.kind !== 'player' && isBlockKind(actor.kind);
+    let plan = planStep(this.world, actor, from, dir, false, sliding);
     if (!plan.ok) {
       this.refuse(actor, plan);
       return false;
     }
     if (actor.kind === 'player' && openOnEntry(this, actor, neighbour(from, dir))) {
       // The door, dirt, false wall or socket is gone (and the key spent): the layer below may still refuse.
-      plan = planStep(this.world, actor, from, dir);
+      plan = planStep(this.world, actor, from, dir, false, sliding);
       if (!plan.ok) {
         this.refuse(actor, plan);
         return false;
@@ -360,28 +378,20 @@ export class Cc3dSimulation implements RuleContext {
       else killMob(this, actor);
       return true;
     }
+    if (plan.crushes) killMob(this, plan.crushes);
     // Steps started by monsters, and blocks they push, are slowed by the speed orb; the player's pushes are not.
     const byMonster = actor.kind !== 'player' && !isBlockKind(actor.kind);
     for (const block of plan.pushes) this.startStep(block, dir, 'pushed', byMonster);
     this.startStep(actor, dir, intent, byMonster);
     this.blockedLatch = false;
-    this.bumpKey = null;
     return true;
   }
 
   private refuse(actor: Actor, plan: StepPlan): void {
-    if (plan.bump && (actor.kind === 'player' || isBlockKind(actor.kind))) {
-      replaceTop(this.world, plan.bump, { kind: 'wall' });
-    }
+    // Any mob trying to enter an appearing wall reveals it [S, 10 item 16].
+    if (plan.bump) replaceTop(this.world, plan.bump, { kind: 'wall' });
     if (actor.kind !== 'player') return;
     this.attempted = true;
-    if (plan.bumped) {
-      const key = `${plan.bumped.uid}:${actor.dir}`;
-      if (key !== this.bumpKey) {
-        this.bumpKey = key;
-        bumpShooter(this, plan.bumped);
-      }
-    }
     if (this.blockedLatch) return;
     this.blockedLatch = true;
     this.events.sound(SFX.blocked);
@@ -389,22 +399,24 @@ export class Cc3dSimulation implements RuleContext {
 
   /** Leaves the cell and claims the next one; the step then runs its duration. */
   private startStep(actor: Actor, dir: Direction, intent: StepIntent, byMonster: boolean): void {
-    onLeave(this.world, actor);
+    onLeave(this.world, actor, actor);
     if (actor.kind === 'omni' && actor.slimed) this.leaveSlime(actor);
     actor.dir = dir;
     const to = neighbour(actor, dir);
+    onStartEntering(this, actor, to);
+    const fast = intent === 'forced' || entersFast(this.world, actor, to);
     moveActor(this.world, actor, to.x, to.y);
     actor.exitDir = null;
     actor.carried = intent === 'forced';
     actor.chose = intent === 'chosen';
-    actor.duration = this.baseTicks(actor, intent) * (byMonster ? speedOrbFactor(this.world) : 1);
+    actor.duration = this.baseTicks(actor, fast) * (byMonster ? speedOrbFactor(this.world) : 1);
     actor.remaining = actor.duration;
     actor.startedTick = this.world.tick;
     this.advance(actor);
   }
 
-  private baseTicks(actor: Actor, intent: StepIntent): number {
-    if (intent === 'forced') return STEP_TICKS.fast;
+  private baseTicks(actor: Actor, fast: boolean): number {
+    if (fast) return STEP_TICKS.fast;
     return actor.kind === 'omni' ? STEP_TICKS.slow : STEP_TICKS.normal;
   }
 

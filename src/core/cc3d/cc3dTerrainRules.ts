@@ -19,6 +19,7 @@ import type { Direction } from '../types';
 import {
   Actor,
   MobState,
+  PlayerData,
   World,
   actingTerrain,
   isBlockKind,
@@ -52,9 +53,13 @@ export function isImmune(actor: Actor, hazard: Hazard): boolean {
   return MONSTER_TRAITS[actor.kind]?.immunities.includes(hazard) ?? false;
 }
 
-/** Who slides on ice: the player without the ice orb, and the monsters not immune to it [U: blocks stop on ice]. */
+/**
+ * Who slides on ice: the player without the ice orb, every block and reflector and bot [S, 10 item 24], and the
+ * monsters not immune to it.
+ */
 export function slidesOnIce(actor: Actor): boolean {
   if (actor.kind === 'player') return !isImmune(actor, 'ice');
+  if (isBlockKind(actor.kind)) return true;
   return MONSTER_TRAITS[actor.kind] !== undefined && !isImmune(actor, 'ice');
 }
 
@@ -63,9 +68,9 @@ export function isCarriedByForce(actor: Actor): boolean {
   return !isImmune(actor, 'force');
 }
 
-/** Slime is lethal to the player whatever he holds [U: no orb is named for slime]. */
-export function playerSurvivesSlime(): boolean {
-  return false;
+/** A player holding both the fire and the water orb survives slime and cleans it into floor [S, 10 items 17]; otherwise it kills. */
+export function playerSurvivesSlime(player: PlayerData): boolean {
+  return player.tools.includes('orb_fire') && player.tools.includes('orb_water');
 }
 
 /**
@@ -100,7 +105,7 @@ function classOf(actor: Actor): MoverClass {
 const BLOCKS_THAT_ENTER_WATER: readonly string[] = ['block_dirt', 'block_ice', 'block_color'];
 /** Only an ice block enters fire, and melts into water [U]. */
 const BLOCKS_THAT_ENTER_FIRE: readonly string[] = ['block_ice'];
-/** A reflector is a plain block: it never enters a hazard [U]. */
+/** A reflector and a bot never clean slime [U]. */
 const BLOCKS_THAT_CLEAN_SLIME: readonly string[] = ['block_dirt', 'block_ice', 'block_color'];
 
 /** True when the key colour is in the player's hands (the green key is never used up). */
@@ -108,13 +113,20 @@ function holdsKey(actor: Actor, terrain: Cc3dTerrain): boolean {
   return actor.kind === 'player' && terrain.color !== undefined && actor.keys[terrain.color] > 0;
 }
 
-/** Floor-like kinds whose answer depends on who asks. */
+/**
+ * Floor-like kinds whose answer depends on who asks. Dirt and gravel: the player and blocks, not reflectors nor
+ * monsters; sand: also reflectors; a bomb: any mob [S, 10 items 18, 20]. Dirt is cleared by the player and by
+ * blocks other than the ice block (see the arrival rules).
+ */
 function hazardAdmits(actor: Actor, who: MoverClass, terrain: Cc3dTerrain): boolean {
   if (who === 'monster') return monsterMayEnterTerrain(actor as MobState, terrain);
   if (who === 'player') return true;
   switch (terrain.kind) {
+    case 'dirt':
     case 'gravel':
+      return actor.kind !== 'reflector';
     case 'sand':
+    case 'bomb':
       return true;
     case 'water':
       return BLOCKS_THAT_ENTER_WATER.includes(actor.kind);
@@ -134,9 +146,12 @@ function hazardAdmits(actor: Actor, who: MoverClass, terrain: Cc3dTerrain): bool
 export function terrainAdmits(world: World, actor: Actor, cell: Cc3dCell): boolean {
   const terrain = actingTerrain(cell);
   const who = classOf(actor);
+  // A cell holding a F.I.S.H., a key or an orb is refused by monsters and by ordinary blocks; the ice block slides over it [S, 10 items 7, 23].
+  if (cell.item !== null && who !== 'player' && actor.kind !== 'block_ice') return false;
   switch (terrain.kind) {
     case 'wall':
     case 'appearing_wall':
+    case 'clone_machine':
       return false;
     case 'door':
       return holdsKey(actor, terrain);
@@ -144,14 +159,20 @@ export function terrainAdmits(world: World, actor: Actor, cell: Cc3dCell): boole
     case 'hold_door':
       return terrain.open === true;
     case 'socket':
+      // The blue gate: anyone, once open; the first mob to enter turns it into floor [S, 10 item 22].
+      return world.fishRemaining <= 0;
     case 'socket_red':
       return who === 'player' && world.fishRemaining <= 0;
     case 'false_wall':
+    case 'push_up_wall':
+    case 'exit':
       return who === 'player';
+    case 'gate_tools':
+    case 'gate_keys':
+      return who === 'player' || actor.kind === 'block_ice';
     case 'dirt':
     case 'gravel':
     case 'sand':
-    case 'exit':
     case 'bomb':
     case 'water':
     case 'fire':
@@ -160,6 +181,14 @@ export function terrainAdmits(world: World, actor: Actor, cell: Cc3dCell): boole
     default:
       return who !== 'monster' || monsterMayEnterTerrain(actor as MobState, terrain);
   }
+}
+
+/** Fast steps: entering ice or a force floor is already a fast step unless the mover is immune to it [S, 10 item 15]. */
+export function entersFast(world: World, actor: Actor, at: Cell): boolean {
+  const kind = actingTerrain(cellOf(world, at)).kind;
+  if (kind === 'ice' || kind === 'ice_corner') return !isImmune(actor, 'ice');
+  if (kind === 'force' || kind === 'force_random') return !isImmune(actor, 'force');
+  return false;
 }
 
 /** The closed sides of an ice corner, or none for any other terrain. */
@@ -223,9 +252,10 @@ export function inputAllowed(forced: ForcedMove | null, wanted: Direction): bool
   return wanted !== forced.dir && wanted !== opposite(forced.dir);
 }
 
-/** What happens to a cell when a mover leaves it: turtles sink, push up walls rise [U]. */
-export function onLeave(world: World, at: Cell): void {
+/** What happens to a cell when a mover leaves it: turtles sink (the blinkies cross them [S]), push up walls rise [U]. */
+export function onLeave(world: World, at: Cell, actor?: Actor): void {
   const terrain = actingTerrain(cellOf(world, at));
-  if (terrain.kind === 'turtle') replaceTop(world, at, { kind: 'water' });
+  const crosses = actor !== undefined && actor.kind !== 'player' && (MONSTER_TRAITS[actor.kind]?.crossesTurtles ?? false);
+  if (terrain.kind === 'turtle' && !crosses) replaceTop(world, at, { kind: 'water' });
   else if (terrain.kind === 'push_up_wall') replaceTop(world, at, { kind: 'wall' });
 }

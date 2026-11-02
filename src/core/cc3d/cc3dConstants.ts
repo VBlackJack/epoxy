@@ -41,6 +41,9 @@ export const FALLBACK_TICKS_PER_SECOND = 20;
 /** A trap that no trap control works stays closed [P: in the observed layout the trap no control pointed at stayed closed, 05 session 4]. */
 export const UNCONTROLLED_TRAP_OPEN = false;
 
+/** The direction a random force floor gives to the 1st, 2nd, 3rd and 4th entry, then again [S, 10 item 14]. */
+export const RANDOM_FORCE_ORDER: readonly Direction[] = ['E', 'S', 'W', 'N'];
+
 /** The player carries at most this many tools; the oldest one is dropped for a new one. */
 export const MAX_TOOLS = 4;
 

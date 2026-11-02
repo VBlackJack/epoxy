@@ -68,7 +68,7 @@ function isFree(ctx: RuleContext, actor: Actor, at: Cell): boolean {
 function firstOpenExit(ctx: RuleContext, actor: Actor, at: Cell, kind: TeleportKind): Direction | null {
   for (const dir of exitOrder(kind, actor.dir)) {
     const plan = planStep(ctx.world, actor, at, dir);
-    if (plan.ok && plan.pushes.length === 0 && plan.hits === null && !plan.hitsPlayer && plan.shot === null) return dir;
+    if (plan.ok && plan.pushes.length === 0 && plan.hits === null && !plan.hitsPlayer && plan.shot === null && plan.crushes === null) return dir;
   }
   return null;
 }
