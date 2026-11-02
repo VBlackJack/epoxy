@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-11-02
+
 ### Added
 
 - Slime and the gray button. Slime kills the player and monsters that step on it; a block pushed
