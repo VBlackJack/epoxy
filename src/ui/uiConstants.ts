@@ -110,5 +110,6 @@ export const EDITOR_TRAP_BUTTON_TILE = 'button_brown';
 export const EDITOR_TRAP_TILE = 'trap';
 export const EDITOR_CLONE_BUTTON_TILE = 'button_red';
 export const EDITOR_CLONER_TILE = 'clone_machine';
-/** Highest zoom the editor canvas allows, as a multiple of the fit scale. */
+/** Lowest and highest zoom the editor canvas allows, as a multiple of the fit scale. */
+export const EDITOR_MIN_ZOOM_STEP = 1;
 export const EDITOR_MAX_ZOOM_STEPS = 4;
