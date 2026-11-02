@@ -38,9 +38,14 @@ export class Cc3dRig {
   public wins: Array<{ levelId: string; time: number; steps: number; score: number; moves: Direction[] }> = [];
   private held: Direction | null = null;
 
+  /**
+   * `started` (the default) begins play at once, as if the player had taken his first step; pass false to
+   * test what acts before the first input [P, 10.1 item 0].
+   */
   constructor(
     public readonly level: CompiledLevel,
-    seed?: number
+    seed?: number,
+    started = true
   ) {
     this.engine = new Cc3dEngine({ effect: (id) => this.sounds.push(id), step: () => undefined });
     this.engine.setOnVisualEventCallback((kind, x, y, colorKey) => this.visuals.push({ kind, x, y, colorKey }));
@@ -48,6 +53,7 @@ export class Cc3dRig {
       this.wins.push({ levelId, time, steps, score, moves })
     );
     this.engine.loadLevel(level, seed);
+    if (started) this.engine.beginPlayForTests();
   }
 
   /** One attemptPlayerMove call now, just before the next tick. */

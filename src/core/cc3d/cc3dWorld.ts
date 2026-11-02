@@ -17,9 +17,9 @@
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import type { VisualEventKind } from '../PlayEngine';
 import type { BeamCell, Direction } from '../types';
-import { DeathCause, PLAYER_START_FACING, SPEED_ORB_SLOWDOWN } from './cc3dConstants';
+import { DeathCause, PLAYER_START_FACING, RANDOM_FORCE_ORDER, SPEED_ORB_SLOWDOWN } from './cc3dConstants';
 import type { Cc3dCell, Cc3dColor, Cc3dItemKind, Cc3dLevel, Cc3dMobKind, Cc3dTerrain } from './model';
-import { cellIndex, topTerrain } from './model';
+import { CC3D_FLOOR_LIKE_KINDS, cellIndex, topTerrain } from './model';
 
 /**
  * The play state of one CC3D level. Plain JSON data (no Set, Map or class), so
@@ -62,8 +62,6 @@ export interface MobState extends Mover {
   floating: boolean;
   /** The mob decides no new chosen step before this world tick (Snappy, Nibble rests; Omni blocked draws). */
   restUntilTick: number;
-  /** A shot only: the uids of the shooters it came through (its origin and every relay), so a relay loop ends. */
-  relayed?: number[];
   /** Omni only: it has stood on slime and now leaves slime behind. Clones do not inherit it. */
   slimed?: boolean;
 }
@@ -108,8 +106,10 @@ export interface World {
   nextUid: number;
   /** State of the seeded generator (random force floors). */
   rngState: number;
-  /** Toggle doors that stay open until the cell they close on is free (cell indices). */
-  closing: number[];
+  /** World tick of the player's first chosen step; -1 until then. Nothing else acts before it [P, 10.1 item 0]. */
+  playStart: number;
+  /** Entries onto random force floors so far, by any mob: the next one goes RANDOM_FORCE_ORDER[counter % 4] [S, 10 item 14]. */
+  randomForceCounter: number;
   /** Cell indices whose display changed since the engine last looked; transient. */
   changed: number[];
   /** Device cells, built once. */
@@ -154,6 +154,11 @@ export const BLOCK_KINDS: readonly Cc3dMobKind[] = [
   'bot_ccw',
   'bot_multi'
 ];
+
+/** A walking thing that kills on contact: not a block, a bot, a shooter or a shot. */
+export function isMonsterKind(kind: Cc3dMobKind): boolean {
+  return !isBlockKind(kind) && kind !== 'laser_shooter' && kind !== 'shot';
+}
 
 /** Mobs that follow their own small rules: a shooter never moves and cannot be pushed, a shot flies. */
 export function isInertMob(kind: Cc3dMobKind): boolean {
@@ -240,15 +245,31 @@ export function hasFloatingBlock(world: World, at: Cell): boolean {
   return world.occupancy.get(cellIndex(world, at.x, at.y))?.floating === true;
 }
 
+/** The direction of the next entry onto a random force floor; every entry by any mob counts. */
+export function nextRandomForceDirection(world: World): Direction {
+  const dir = RANDOM_FORCE_ORDER[world.randomForceCounter % RANDOM_FORCE_ORDER.length];
+  world.randomForceCounter += 1;
+  return dir;
+}
+
+/**
+ * An ice block melts: it goes, and the floor under it becomes water [S, 10 item 23]. Only floor-like terrain
+ * turns to water; a door or another blocker on top stays.
+ */
+export function meltIceBlock(world: World, block: MobState): void {
+  removeMob(world, block);
+  const at: Cell = { x: block.x, y: block.y };
+  if (CC3D_FLOOR_LIKE_KINDS.includes(actingTerrain(cellOf(world, at)).kind)) replaceTop(world, at, { kind: 'water' });
+}
+
 /** A laser shot in the shooter's cell, facing `dir`; it is not in the occupancy index. */
-export function spawnShot(world: World, shooter: Cell, dir: Direction, relayed: number[]): MobState {
+export function spawnShot(world: World, shooter: Cell, dir: Direction): MobState {
   const shot: MobState = {
     ...newMover(shooter.x, shooter.y, dir),
     uid: world.nextUid++,
     kind: 'shot',
     floating: false,
-    restUntilTick: 0,
-    relayed
+    restUntilTick: 0
   };
   world.mobs.push(shot);
   world.shots.push(shot);
@@ -274,11 +295,6 @@ export function spawnCopy(world: World, template: MobState, dir: Direction): Mob
   world.mobs.push(copy);
   world.occupancy.set(cellIndex(world, copy.x, copy.y), copy);
   return copy;
-}
-
-/** True when the player or any mob has the cell as its logical cell. */
-export function isOccupied(world: World, at: Cell): boolean {
-  return (world.player.alive && world.player.x === at.x && world.player.y === at.y) || mobAt(world, at) !== undefined;
 }
 
 export function removeMob(world: World, mob: MobState): void {
@@ -374,7 +390,8 @@ export function buildWorld(level: Cc3dLevel, seed: number): World {
     complete: false,
     nextUid: mobs.length + 1,
     rngState: seed >>> 0,
-    closing: [],
+    playStart: -1,
+    randomForceCounter: 0,
     changed: [],
     devices: buildDeviceIndex(cells),
     occupancy: new Map(),
@@ -384,6 +401,11 @@ export function buildWorld(level: Cc3dLevel, seed: number): World {
     beam: [],
     removals: 0
   };
+  // The template standing on a clone machine faces the machine's direction [S, 10 item 10].
+  for (const mob of mobs) {
+    const machine = cells[mob.y * level.width + mob.x].terrain.find((t) => t.kind === 'clone_machine');
+    if (machine?.dir) mob.dir = machine.dir;
+  }
   reindexMobs(world);
   return world;
 }

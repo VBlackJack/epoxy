@@ -24,12 +24,14 @@ import {
   World,
   actingTerrain,
   cellAt,
-  isBlockKind,
+  isMonsterKind,
   isPlayerAt,
+  meltIceBlock,
   mobAt,
   neighbour,
   opposite,
   removeMob,
+  removeTop,
   spawnShot,
   turnClockwise
 } from './cc3dWorld';
@@ -78,8 +80,13 @@ function panelsAllow(from: Cc3dCell, to: Cc3dCell, dir: Direction): boolean {
 
 // ------------------------------------------------------------------ shot
 
-/** Terrain that stops a shot: walls and every closed blocker [8.1]. Everything else is passed over with no effect [8.5 item 6]. */
+/**
+ * Terrain that stops a shot [S, 10 item 12]: walls and every closed blocker, the clone machines, and the cells
+ * holding a F.I.S.H., a key or an orb. Everything else is passed over with no effect: plates, switches, water,
+ * fire, slime, ice (no turn), force floors, dirt (kept), gravel, sand, the security gates, teleports (no transport).
+ */
 function stopsShot(cell: Cc3dCell): boolean {
+  if (cell.item !== null) return true;
   const terrain = actingTerrain(cell);
   switch (terrain.kind) {
     case 'wall':
@@ -88,6 +95,7 @@ function stopsShot(cell: Cc3dCell): boolean {
     case 'door':
     case 'socket':
     case 'socket_red':
+    case 'clone_machine':
       return true;
     case 'toggle_door':
     case 'hold_door':
@@ -97,9 +105,7 @@ function stopsShot(cell: Cc3dCell): boolean {
   }
 }
 
-function isMonster(kind: Cc3dMobKind): boolean {
-  return !isBlockKind(kind) && kind !== 'laser_shooter' && kind !== 'shot';
-}
+const BOTS: readonly Cc3dMobKind[] = ['bot_static', 'bot_cw', 'bot_ccw', 'bot_multi'];
 
 /** A monster or the player hit by a shot or a beam dies in the same way. */
 export function killMob(ctx: RuleContext, mob: MobState): void {
@@ -111,10 +117,10 @@ export function killMob(ctx: RuleContext, mob: MobState): void {
 export type ShotStep = { vanish: true } | { vanish: false; to: Cell; turn: Direction | null };
 
 /**
- * Applies the entry rule of the cell in front of a shot (08 section 8.5): panels
- * and blockers stop it; the player and monsters die; an ice block is removed; a
- * shooter fires in its own facing (relay); a reflector turns it or stops it;
- * any other block stops it. The effects happen here; the caller moves the shot.
+ * Applies the entry rule of the cell in front of a shot (10.1 item 12, replacing 8.5 and 8.6): panels and
+ * blockers stop it; the player, monsters, golems and bots die; an ice block melts into water; a bomb is set
+ * off (both gone); a shooter stops it (no relay); a reflector turns it, and its back is destroyed with the
+ * shot; any other block stops it. The effects happen here; the caller moves the shot.
  */
 export function resolveShotStep(ctx: RuleContext, shot: MobState): ShotStep {
   const { world } = ctx;
@@ -122,62 +128,60 @@ export function resolveShotStep(ctx: RuleContext, shot: MobState): ShotStep {
   const to = neighbour(shot, shot.dir);
   const fromCell = cellAt(world, shot.x, shot.y);
   const toCell = cellAt(world, to.x, to.y);
-  if (!fromCell || !toCell || !panelsAllow(fromCell, toCell, shot.dir) || stopsShot(toCell)) return stop;
+  if (!fromCell || !toCell || !panelsAllow(fromCell, toCell, shot.dir)) return stop;
+  // The player in the cell is hit whatever the cell holds (a closing door, an item he has not picked up yet).
   if (isPlayerAt(world, to)) {
     ctx.killPlayer('laser');
+    return stop;
+  }
+  if (stopsShot(toCell)) return stop;
+  if (actingTerrain(toCell).kind === 'bomb') {
+    removeTop(world, to);
+    ctx.emitVisual('explosion', to.x, to.y);
     return stop;
   }
   const occupant = mobAt(world, to);
   if (!occupant) return { vanish: false, to, turn: null };
   if (occupant.kind === 'reflector') {
     const turn = reflectedDirection(occupant.mirror, shot.dir);
-    return turn === null ? stop : { vanish: false, to, turn };
+    if (turn !== null) return { vanish: false, to, turn };
+    // Hitting the back of a reflector destroys both [S, 10.1 item 12].
+    killMob(ctx, occupant);
+    return stop;
   }
-  if (occupant.kind === 'laser_shooter') {
-    // Relay [U, 08 section 8.5 item 3], but never through a shooter this shot already passed (8.6): loops end.
-    if (!shot.relayed?.includes(occupant.uid)) fireShooter(ctx, occupant, shot.relayed ?? []);
-  } else if (occupant.kind === 'block_ice') {
-    removeMob(world, occupant);
+  if (occupant.kind === 'block_ice') {
+    meltIceBlock(world, occupant);
     ctx.emitVisual('splash', to.x, to.y);
-  } else if (isMonster(occupant.kind)) {
+  } else if (BOTS.includes(occupant.kind) || isMonsterKind(occupant.kind)) {
     killMob(ctx, occupant);
   }
-  // Any other block, a security bot included, stops the shot and is unharmed [U, 08 section 8.6].
+  // A shooter and any other block stop the shot and are unharmed.
   return stop;
 }
 
-/**
- * The shooter fires one shot in its facing, at most once per tick; the first cell in front follows the
- * same entry rule [8.5 item 5]. `through` lists the shooters the shot came through (relays).
- */
-export function fireShooter(ctx: RuleContext, shooter: MobState, through: number[] = []): void {
+/** The shooter fires one shot in its facing, at most once per tick; the first cell in front follows the same entry rule. */
+export function fireShooter(ctx: RuleContext, shooter: MobState): void {
   const { world } = ctx;
   if (world.firedThisTick.includes(shooter.uid)) return;
   world.firedThisTick.push(shooter.uid);
-  ctx.stepShot(spawnShot(world, shooter, shooter.dir, [...through, shooter.uid]));
+  ctx.stepShot(spawnShot(world, shooter, shooter.dir));
 }
 
-/** The shooter nearest to a cell (Manhattan distance, ties in reading order) fires [U, 8.5 item 3]. */
+/** The shooter nearest to a cell by straight-line distance (ties in reading order) fires one shot [S, 10 item 11]. */
 export function fireNearestShooter(ctx: RuleContext, from: Cell): void {
   let best: MobState | null = null;
-  let bestKey = Number.POSITIVE_INFINITY;
+  let bestDistance = Number.POSITIVE_INFINITY;
   for (const mob of ctx.world.mobs) {
     if (mob.kind !== 'laser_shooter') continue;
-    const distance = Math.abs(mob.x - from.x) + Math.abs(mob.y - from.y);
-    // Reading order breaks ties: a row-major index fits below the grid size.
-    const key = distance * ctx.world.cells.length + mob.y * ctx.world.width + mob.x;
-    if (key < bestKey) {
+    const distance = (mob.x - from.x) ** 2 + (mob.y - from.y) ** 2;
+    // Strictly smaller: the first in reading order keeps a tie only if the list is in reading order, so compare it too.
+    const earlier = best !== null && distance === bestDistance && mob.y * ctx.world.width + mob.x < best.y * ctx.world.width + best.x;
+    if (distance < bestDistance || earlier) {
       best = mob;
-      bestKey = key;
+      bestDistance = distance;
     }
   }
   if (best) fireShooter(ctx, best);
-}
-
-/** The shooter standing on a cell, if any: bumping it counts as pressing a controller under it [U, 8.5 item 2]. */
-export function bumpShooter(ctx: RuleContext, shooter: MobState): void {
-  const cell = cellAt(ctx.world, shooter.x, shooter.y);
-  if (cell?.terrain.some((t) => t.kind === 'laser_controller')) fireNearestShooter(ctx, shooter);
 }
 
 /** A shot that finished its step takes the direction a reflector gave it. */
@@ -196,20 +200,34 @@ function isBot(kind: Cc3dMobKind): boolean {
   return BOT_KINDS.includes(kind);
 }
 
-/** The rotating bots turn a quarter turn every period: clockwise for 73, counter-clockwise for 190 [U timing]. */
-export function rotateBots(world: World, periodTicks: number): void {
-  if (world.tick === 0 || world.tick % periodTicks !== 0) return;
+/** The rotating bots (73 clockwise, 190 counter-clockwise) turn a quarter turn. */
+function turnRotatingBots(world: World): void {
   for (const mob of world.mobs) {
     if (mob.kind === 'bot_cw') mob.dir = turnClockwise(mob.dir, 1);
     else if (mob.kind === 'bot_ccw') mob.dir = turnClockwise(mob.dir, -1);
   }
 }
 
+/** At the start of play (the player's first step) the rotating bots turn once [S, 10.1 item 13]. */
+export function startBots(world: World): void {
+  turnRotatingBots(world);
+}
+
+/** Then they turn every period (three seconds) from the start of play [U timing]; the speed orb does not change it. */
+export function rotateBots(world: World, periodTicks: number): void {
+  if (world.playStart < 0) return;
+  const elapsed = world.tick - world.playStart;
+  if (elapsed > 0 && elapsed % periodTicks === 0) turnRotatingBots(world);
+}
+
 function beamDirections(bot: MobState): readonly Direction[] {
   return bot.kind === 'bot_multi' ? ALL_DIRECTIONS : [bot.dir];
 }
 
-/** A dirt block stands in for "a block": the beam stops at a cell it could not enter [U, 8.5 item 8]. */
+/**
+ * A dirt block stands in for "a block": the beam stops, uncovered, at a cell a block could not enter [U, 8.5 item 8]:
+ * items, security gates, the exit, fire, clone machines, walls and closed doors.
+ */
 const BLOCK_PROBE = { kind: 'block_dirt' } as MobState;
 
 /**
@@ -228,7 +246,7 @@ function castBeam(world: World, bot: MobState, dir: Direction, covered: Map<numb
     const occupant = mobAt(world, to);
     const player = isPlayerAt(world, to);
     // The player is tested first: one standing on a floating colour block is covered too [08 section 8.6].
-    if (occupant && !player && !isMonster(occupant.kind)) return;
+    if (occupant && !player && !isMonsterKind(occupant.kind)) return;
     const key = to.y * world.width + to.x;
     const horizontal = dir === 'E' || dir === 'W';
     const known = covered.get(key);
@@ -257,6 +275,11 @@ function castBeam(world: World, bot: MobState, dir: Direction, covered: Map<numb
  */
 export function updateBeams(ctx: RuleContext, apply: boolean): void {
   const { world } = ctx;
+  // Bots are always on, but only once play has started [P, 10.1 items 0 and 13].
+  if (world.playStart < 0) {
+    world.beam = [];
+    return;
+  }
   const covered = new Map<number, BeamCell>();
   const victims: Array<MobState | 'player'> = [];
   for (const mob of world.mobs) {

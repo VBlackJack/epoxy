@@ -17,11 +17,11 @@
 import type { Direction } from '../types';
 import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { planStep } from './cc3dMovement';
-import { MobState, RuleContext, mobAt, neighbour, removeMob, turnClockwise } from './cc3dWorld';
+import { MobState, RuleContext, meltIceBlock, mobAt, neighbour, opposite, turnClockwise } from './cc3dWorld';
 import type { Cc3dMobKind } from './model';
 
 /**
- * Movement preferences of the monsters of P1 (02 section 2.6, all [U]): the
+ * Movement preferences of the monsters (02 section 2.6, all [U]): the
  * quarter turns clockwise from the current facing, tried in order; the first
  * direction the monster can enter is taken. Monsters walk at normal speed.
  */
@@ -45,9 +45,6 @@ const PREFERENCES: Partial<Record<Cc3dMobKind, readonly number[]>> = {
   legs_red: [FORWARD, LEFT, RIGHT, BACK]
 };
 
-/** Tie order of the flee and chase rules: forward, right, left, back (07 section 7.2). */
-const TIE_ORDER = [FORWARD, RIGHT, LEFT, BACK];
-
 /** The walker goes straight on; when blocked it draws a random direction [U]. */
 function walkerChoice(ctx: RuleContext, mob: MobState): Direction | null {
   if (canMove(ctx, mob, mob.dir)) return mob.dir;
@@ -57,34 +54,33 @@ function walkerChoice(ctx: RuleContext, mob: MobState): Direction | null {
 
 function canMove(ctx: RuleContext, mob: MobState, dir: Direction): boolean {
   const plan = planStep(ctx.world, mob, mob, dir);
-  return plan.ok && plan.pushes.length === 0 && plan.shot === null;
-}
-
-function distanceToPlayer(ctx: RuleContext, at: { x: number; y: number }): number {
-  const { player } = ctx.world;
-  return Math.abs(at.x - player.x) + Math.abs(at.y - player.y);
+  // An appearing wall looks like floor: a monster that tries to enter it reveals it (the step is then refused) [S, 10 item 16].
+  return (plan.ok && plan.pushes.length === 0 && plan.shot === null) || plan.bump !== null;
 }
 
 /**
- * Snappy flees [U]: among the free directions, one that increases the Manhattan
- * distance to the player's current (claimed) cell, ties in the order forward,
- * right, left, back; otherwise it waits. Nibble chases: the free direction with
- * the smallest distance, same tie order (07 sections 7.2, 7.3, 7.9 item 6).
+ * Snappy chases and Nibble flees [P colours, S ids; 10.1 item 1]. With (dx, dy) from the monster to the player's
+ * claimed cell, the primary axis is x when |dx| >= |dy| (ties: horizontal first), else y. It steps towards (Snappy)
+ * or away from (Nibble) the player along it; when blocked it tries the other axis only if it is not aligned with
+ * the player on a row or a column; otherwise it waits.
  */
-function distanceChoice(ctx: RuleContext, mob: MobState, flee: boolean): Direction | null {
-  const current = distanceToPlayer(ctx, mob);
-  let best: Direction | null = null;
-  let bestDistance = flee ? current : Number.POSITIVE_INFINITY;
-  for (const turns of TIE_ORDER) {
-    const dir = turnClockwise(mob.dir, turns);
-    if (!canMove(ctx, mob, dir)) continue;
-    const distance = distanceToPlayer(ctx, neighbour(mob, dir));
-    if (flee ? distance > bestDistance : distance < bestDistance) {
-      best = dir;
-      bestDistance = distance;
-    }
+function axisChoice(ctx: RuleContext, mob: MobState, flee: boolean): Direction | null {
+  const { player } = ctx.world;
+  const dx = player.x - mob.x;
+  const dy = player.y - mob.y;
+  if (dx === 0 && dy === 0) return null;
+  const horizontalFirst = Math.abs(dx) >= Math.abs(dy);
+  const along = (horizontal: boolean): Direction => {
+    const towards: Direction = horizontal ? (dx > 0 ? 'E' : 'W') : dy > 0 ? 'S' : 'N';
+    return flee ? opposite(towards) : towards;
+  };
+  const first = along(horizontalFirst);
+  if (canMove(ctx, mob, first)) return first;
+  if (dx !== 0 && dy !== 0) {
+    const second = along(!horizontalFirst);
+    if (canMove(ctx, mob, second)) return second;
   }
-  return best;
+  return null;
 }
 
 /** Omni draws a random direction each time it may move; a blocked draw is a wait (the caller charges the slow step) [U]. */
@@ -93,13 +89,13 @@ function omniChoice(ctx: RuleContext, mob: MobState): Direction | null {
   return canMove(ctx, mob, drawn) ? drawn : null;
 }
 
-/** A screamer touching an ice block melts it [U: the block is simply removed]. */
+/** A screamer (adult or baby) trying to enter a cell holding an ice block removes it, the floor becomes water, and the screamer does not move [S, 10.1 item 5]. */
 function meltIceAt(ctx: RuleContext, mob: MobState, dir: Direction): boolean {
   if (!MONSTER_TRAITS[mob.kind]?.meltsIce) return false;
   const at = neighbour(mob, dir);
   const block = mobAt(ctx.world, at, mob);
   if (!block || block.kind !== 'block_ice' || block.remaining > 0) return false;
-  removeMob(ctx.world, block);
+  meltIceBlock(ctx.world, block);
   ctx.emitVisual('splash', at.x, at.y);
   return true;
 }
@@ -110,8 +106,8 @@ function meltIceAt(ctx: RuleContext, mob: MobState, dir: Direction): boolean {
  */
 export function chooseMonsterDirection(ctx: RuleContext, mob: MobState): Direction | null {
   if (mob.kind === 'walker') return walkerChoice(ctx, mob);
-  if (mob.kind === 'snappy') return distanceChoice(ctx, mob, true);
-  if (mob.kind === 'nibble') return distanceChoice(ctx, mob, false);
+  if (mob.kind === 'snappy') return axisChoice(ctx, mob, false);
+  if (mob.kind === 'nibble') return axisChoice(ctx, mob, true);
   if (mob.kind === 'omni') return omniChoice(ctx, mob);
   const order = PREFERENCES[mob.kind];
   if (!order) return null;

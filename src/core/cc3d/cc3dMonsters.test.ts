@@ -94,7 +94,7 @@ describe('preference lists [U]', () => {
 });
 
 describe('terrain per monster [U genre default]', () => {
-  it.each(['G', 'A', 'D', 'L', 'O', 'X'])('no monster of P1 enters terrain %s', (glyph) => {
+  it.each(['G', 'A', 'D', 'L', 'X', 'N', 'n', 'i', 'e', 'r', 'a', 's'])('no monster enters terrain or items %s [S]', (glyph) => {
     for (const kind of ['bouncer', 'blinky', 'screamer'] as const) {
       const rig = arena([`#M${glyph}.#`], kind);
       rig.tick(SETTLE_TICKS);

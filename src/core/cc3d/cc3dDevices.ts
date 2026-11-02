@@ -27,7 +27,6 @@ import {
   World,
   actingTerrain,
   isBlockKind,
-  isOccupied,
   mobAt,
   opposite,
   spawnCopy,
@@ -55,22 +54,24 @@ function layerAt(world: World, index: number, kind: Cc3dTerrainKind): Cc3dTerrai
 
 // ---------------------------------------------------------------- pressing
 
-/** Reflectors and security bots are pushed around but press and trigger nothing [U]. */
-const INERT_BLOCKS: readonly string[] = ['reflector', 'bot_static', 'bot_cw', 'bot_ccw', 'bot_multi'];
+/**
+ * Who works a pressure device (plate, trap control) or an entry device (toggle control, clone switch, laser
+ * controller, blue golem control): every mob except the shot, the adult blinky and the adult screamer [S, 10.1
+ * item 8]: the player, all blocks, reflectors, golems, security bots, the other monsters.
+ */
+export function worksDevices(actor: Actor): boolean {
+  if (actor.kind === 'player') return true;
+  if (actor.kind === 'shot') return false;
+  if (isBlockKind(actor.kind)) return true;
+  return MONSTER_TRAITS[actor.kind]?.triggersSwitches ?? false;
+}
 
-/** Who presses a plate of a colour: the player, dirt and ice blocks [P dirt, U ice], a colour block only its own colour [P other colours, U own]. */
+/** Who presses a plate of a colour: a colour block only its own colour [P other colours, U own]; the ice block and reflectors press any [S]. */
 function pressesPlate(actor: Actor, color: Cc3dColor | undefined): boolean {
   if (actor.kind === 'player') return true;
   if (actor.kind === 'block_color') return color === undefined || actor.color === color;
-  if (isBlockKind(actor.kind)) return !INERT_BLOCKS.includes(actor.kind);
+  if (isBlockKind(actor.kind)) return true;
   return MONSTER_TRAITS[actor.kind]?.pressesPlates ?? false;
-}
-
-/** Who works an entry device (toggle control, clone switch, golem control). */
-function triggersSwitch(actor: Actor): boolean {
-  if (actor.kind === 'player') return true;
-  if (isBlockKind(actor.kind)) return !INERT_BLOCKS.includes(actor.kind);
-  return MONSTER_TRAITS[actor.kind]?.triggersSwitches ?? false;
 }
 
 /** True when something at rest on the cell presses a device of that colour. */
@@ -86,8 +87,8 @@ function isPressed(world: World, index: number, color: Cc3dColor | undefined): b
 
 /**
  * [P] A hold door of a colour is open only while every plate of its colour is
- * pressed. A colour without plates keeps its doors closed [U]. A door with
- * something in its cell does not close until the cell is free [U].
+ * pressed. A colour without plates keeps its doors closed [U]. A door that closes on a mob shuts at
+ * once: the mob may leave, nobody may enter [S, 10 item 9].
  */
 function updateHoldDoors(world: World): void {
   const { plates, holdDoors } = world.devices;
@@ -104,10 +105,9 @@ function updateHoldDoors(world: World): void {
     const layer = layerAt(world, index, 'hold_door');
     const color = layer.color;
     const wanted = color !== undefined && total[color] > 0 && pressed[color] === total[color];
-    const open = wanted || (layer.open === true && isOccupied(world, pointOf(world, index)));
-    if (layer.open !== open) {
+    if (layer.open !== wanted) {
       touch(world, pointOf(world, index));
-      layer.open = open;
+      layer.open = wanted;
     }
   }
 }
@@ -138,41 +138,19 @@ function updateTraps(world: World): void {
 
 // ----------------------------------------------------------------- toggles
 
-/** Toggle doors that were told to close while something stood in them close once the cell is free [U]. */
-function closePendingDoors(world: World): void {
-  if (world.closing.length === 0) return;
-  world.closing = world.closing.filter((index) => {
-    const at = pointOf(world, index);
-    if (isOccupied(world, at)) return true;
-    touch(world, at);
-    layerAt(world, index, 'toggle_door').open = false;
-    return false;
-  });
-}
-
-/** [P] Each entry onto a control flips every toggle door of its colour; leaving changes nothing. */
+/** [P] Each entry onto a control flips every toggle door of its colour; leaving changes nothing. A door closing on a mob shuts at once [S]. */
 function flipToggles(world: World, color: Cc3dColor | undefined): void {
   for (const index of world.devices.toggleDoors) {
     const layer = layerAt(world, index, 'toggle_door');
     if (layer.color !== color) continue;
-    const at = pointOf(world, index);
-    touch(world, at);
-    const pending = world.closing.indexOf(index);
-    const effectivelyOpen = layer.open === true && pending < 0;
-    if (!effectivelyOpen) {
-      layer.open = true;
-      if (pending >= 0) world.closing.splice(pending, 1);
-    } else if (isOccupied(world, at)) {
-      world.closing.push(index);
-    } else {
-      layer.open = false;
-    }
+    touch(world, pointOf(world, index));
+    layer.open = layer.open !== true;
   }
 }
 
 // ------------------------------------------------------------------ cloning
 
-/** The machine nearest to the switch; the tie goes to the first in reading order [U]. */
+/** The machine nearest to the switch by straight-line distance; the tie goes to the first in reading order [S, 10 item 10]. */
 function nearestMachine(world: World, from: Cell): number | null {
   let best: number | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
@@ -188,9 +166,9 @@ function nearestMachine(world: World, from: Cell): number | null {
 }
 
 /**
- * The template mob stands on the machine, held there. A switch makes it leave in
- * the machine's direction and leaves a copy on the machine. When the way out is
- * blocked nothing happens [U].
+ * The template mob stands on the machine facing its direction, held there, and does not act (a security bot
+ * template still beams). A switch makes it leave in the machine's direction at normal speed and a new template
+ * appears on the machine. When the way out is blocked nothing happens [S, 10 item 10].
  */
 function activateMachine(ctx: RuleContext, machineIndex: number): void {
   const { world } = ctx;
@@ -206,7 +184,10 @@ function activateMachine(ctx: RuleContext, machineIndex: number): void {
 
 // -------------------------------------------------------------------- golems
 
-/** The blue golem control makes every blue golem turn around [U]. */
+/**
+ * Every blue golem turns round and moves again when a switch-pressing mob STARTS its step onto a blue control;
+ * a golem doing so reverses too [S; U for the golem itself, 10.1 item 2].
+ */
 function reverseGolems(world: World): void {
   for (const mob of world.mobs) if (mob.kind === 'golem_blue') mob.dir = opposite(mob.dir);
 }
@@ -227,9 +208,18 @@ function moveYellowGolems(ctx: RuleContext, dir: Direction): void {
 
 // -------------------------------------------------------------------- entry
 
+/** The blue golem control acts when a step onto it starts, not when it ends [S, 10.1 item 2]. */
+export function onStartEntering(ctx: RuleContext, actor: Actor, to: Cell): void {
+  if (!worksDevices(actor)) return;
+  const terrain = actingTerrain(ctx.world.cells[to.y * ctx.world.width + to.x]);
+  if (terrain.kind !== 'golem_control_blue') return;
+  reverseGolems(ctx.world);
+  ctx.playSfx(SFX.button);
+}
+
 /** Entry devices: called when an actor's step ends on a cell. */
 export function triggerEntryDevice(ctx: RuleContext, actor: Actor): void {
-  if (!triggersSwitch(actor)) return;
+  if (!worksDevices(actor)) return;
   const { world } = ctx;
   const at: Cell = { x: actor.x, y: actor.y };
   const terrain = actingTerrain(world.cells[at.y * world.width + at.x]);
@@ -249,13 +239,8 @@ export function triggerEntryDevice(ctx: RuleContext, actor: Actor): void {
       if (actor.kind === 'player') moveYellowGolems(ctx, actor.dir);
       break;
     case 'laser_controller':
-      // Only the player works it, by entering it (bumping a shooter standing on one counts too, see the
-      // simulation) [U, 08 section 8.5 item 3]: the nearest shooter fires.
-      if (actor.kind === 'player') fireNearestShooter(ctx, at);
-      break;
-    case 'golem_control_blue':
-      reverseGolems(world);
-      ctx.playSfx(SFX.button);
+      // Any switch-pressing mob works it: the nearest shooter fires one shot, no relay [S, 10.1 item 11].
+      fireNearestShooter(ctx, at);
       break;
     default:
       break;
@@ -266,5 +251,4 @@ export function triggerEntryDevice(ctx: RuleContext, actor: Actor): void {
 export function updateDevices(world: World): void {
   updateHoldDoors(world);
   updateTraps(world);
-  closePendingDoors(world);
 }

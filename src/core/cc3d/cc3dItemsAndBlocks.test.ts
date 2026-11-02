@@ -273,12 +273,15 @@ describe('blocks', () => {
     expect(force.entityAt(4, 0)).toBeDefined();
   });
 
-  it('a block cannot be pushed onto the exit or a bomb [U]', () => {
+  it('a block cannot be pushed onto the exit [S]; a bomb takes it and goes', () => {
     const exit = new Cc3dRig(cc3dLevel(['#@KX#']));
     exit.walk('E');
     expect(exit.player.x).toBe(1);
-    const bomb = new Cc3dRig(cc3dLevel(['#@KO#']));
+    // A bomb takes any mob: the block and the bomb are both gone [S, 10 item 20].
+    const bomb = new Cc3dRig(cc3dLevel(['#@KO.#']));
     bomb.walk('E');
-    expect(bomb.player.x).toBe(1);
+    expect(bomb.player.x).toBe(2);
+    expect(bomb.entities).toHaveLength(0);
+    expect(bomb.terrainAt(3, 0)).toBe('floor');
   });
 });

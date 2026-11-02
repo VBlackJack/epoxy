@@ -35,8 +35,10 @@ export interface MonsterTraits {
   meltsIce: boolean;
   /** Decides only every other step: a step's worth of rest after each chosen step (Snappy, Nibble) [U, 07 section 7.1]. */
   restsBetweenSteps: boolean;
-  /** Terrain it may enter although monsters refuse it by default (yellow golems: sand and gravel). */
+  /** Terrain it may enter although monsters refuse it by default (yellow golems: sand, water, fire, slime). */
   entersTerrain: readonly Cc3dTerrainKind[];
+  /** Leaving a turtle does not sink it (both blinkies) [S, 10 item 5]. */
+  crossesTurtles: boolean;
 }
 
 const PLAIN_TRAITS: MonsterTraits = {
@@ -45,13 +47,16 @@ const PLAIN_TRAITS: MonsterTraits = {
   triggersSwitches: true,
   meltsIce: false,
   restsBetweenSteps: false,
-  entersTerrain: []
+  entersTerrain: [],
+  crossesTurtles: false
 };
 
 const BLINKY_TRAITS: MonsterTraits = {
   ...PLAIN_TRAITS,
   immunities: ['water', 'ice', 'force'],
-  pressesPlates: false
+  pressesPlates: false,
+  triggersSwitches: false,
+  crossesTurtles: true
 };
 
 const SCREAMER_TRAITS: MonsterTraits = {
@@ -71,7 +76,7 @@ export const MONSTER_TRAITS: Partial<Record<Cc3dMobKind, MonsterTraits>> = {
   bouncer: PLAIN_TRAITS,
   golem_blue: PLAIN_TRAITS,
   blinky: BLINKY_TRAITS,
-  baby_blinky: { ...PLAIN_TRAITS, immunities: ['water'] },
+  baby_blinky: { ...PLAIN_TRAITS, immunities: ['water'], crossesTurtles: true },
   screamer: SCREAMER_TRAITS,
   baby_screamer: { ...PLAIN_TRAITS, immunities: ['fire'], meltsIce: true },
   // P2 (07-p2-decisions): one row per kind.
@@ -81,21 +86,26 @@ export const MONSTER_TRAITS: Partial<Record<Cc3dMobKind, MonsterTraits>> = {
   legs_green: PLAIN_TRAITS,
   legs_red: PLAIN_TRAITS,
   omni: { ...PLAIN_TRAITS, immunities: ['slime'] },
-  // Yellow golems are never carried by ice or force floors and may enter sand and gravel (07 section 7.9, 2 and 7).
+  // Yellow golems are never carried by ice or force floors and may enter sand; dirt and gravel stop them [S, 10 item 6].
   // They also walk into water, fire and slime and are lost there, having no immunity [P water, U fire and slime; 07 section 7.11].
-  golem_yellow: { ...PLAIN_TRAITS, immunities: ['ice', 'force'], entersTerrain: ['sand', 'gravel', 'water', 'fire', 'slime'] }
+  golem_yellow: { ...PLAIN_TRAITS, immunities: ['ice', 'force'], entersTerrain: ['sand', 'water', 'fire', 'slime'] }
 };
 
 export function isSupportedMonster(kind: Cc3dMobKind): boolean {
   return MONSTER_TRAITS[kind] !== undefined;
 }
 
-/** Terrain no monster of P1 enters, on its own will [U genre default]. */
+/**
+ * Terrain every monster refuses [S, 10 item 7]: dirt, gravel, sand (yellow golem excepted), slime (Omni excepted),
+ * both security gates and the exit. Fire and water need the matching immunity; cells holding an item are refused
+ * in the admission rule. A bomb is no longer refused: any mob may enter it, and both are gone [10 item 20].
+ */
 export const TERRAIN_REFUSED_BY_MONSTERS: readonly Cc3dTerrainKind[] = [
   'gravel',
   'sand',
   'dirt',
   'slime',
-  'bomb',
-  'exit'
+  'exit',
+  'gate_tools',
+  'gate_keys'
 ];

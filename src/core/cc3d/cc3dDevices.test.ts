@@ -98,12 +98,16 @@ describe('hold plates and hold doors', () => {
     expect(rig.terrainAt(1, 1)).toBe(doorId('green', true));
   });
 
-  it('[U] a door with the player in it stays open until he leaves', () => {
-    const glyphs = { p: plate('green'), H: holdDoor('green'), '@': stacked({ kind: 'floor' }, { kind: 'hold_door', color: 'green', open: true }) };
-    const rig = new Cc3dRig(cc3dLevel(['#@#', '###'], { glyphs }));
-    // No plate of the colour: the door would close, but the player stands in it.
-    rig.tick(10);
-    expect(rig.terrainAt(1, 0)).toBe(doorId('green', true));
+  it('[S] a door closing on the player shuts at once: he may leave, nobody may enter', () => {
+    const glyphs = { '@': stacked({ kind: 'floor' }, { kind: 'hold_door', color: 'green', open: true }) };
+    const rig = new Cc3dRig(cc3dLevel(['#@.#', '####'], { glyphs }));
+    // No plate of the colour: the door is shut as soon as the world updates, with the player in it.
+    rig.tick(1);
+    expect(rig.terrainAt(1, 0)).toBe(doorId('green', false));
+    rig.walk('E');
+    expect(rig.player.x).toBe(2);
+    rig.walk('W');
+    expect(rig.player.x).toBe(2);
   });
 });
 
@@ -137,18 +141,20 @@ describe('toggle controls and toggle doors', () => {
     expect(rig.terrainAt(2, 1)).toBe('cc3d_toggle_door_blue_closed');
   });
 
-  it('[U] a door closing on the player stays open until the cell is free', () => {
+  it('[S] a toggle door closing on the player shuts at once: he may leave, nobody may enter', () => {
     const glyphs = {
       '@': stacked({ kind: 'floor' }, { kind: 'toggle_door', color: 'green', open: true }),
       B: { stack: [{ kind: 'force' as const, dir: 'E' as const }], mob: { kind: 'block_dirt' as const } },
       c: control
     };
-    const rig = new Cc3dRig(cc3dLevel(['#@B>c#'], { glyphs }));
+    const rig = new Cc3dRig(cc3dLevel(['#@.B>c#'], { glyphs }));
     rig.afterTick(3);
-    expect(rig.entityAt(4, 0)).toBeDefined();
-    expect(rig.terrainAt(1, 0)).toBe('toggle_wall_open');
-    rig.walk('E');
+    expect(rig.entityAt(5, 0)).toBeDefined();
     expect(rig.terrainAt(1, 0)).toBe('toggle_wall_closed');
+    rig.walk('E');
+    expect(rig.player.x).toBe(2);
+    rig.walk('W');
+    expect(rig.player.x).toBe(2);
   });
 });
 
