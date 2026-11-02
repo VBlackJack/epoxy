@@ -38,7 +38,7 @@ import {
   selectionAfterRemoval,
   transferTargets
 } from './packManagerModel';
-import { PACK_MANAGER_FOCUS_ATTRIBUTE } from './uiConstants';
+import { PACK_MANAGER_FOCUS_ATTRIBUTE, PACK_MOVE_DOWN_GLYPH, PACK_MOVE_UP_GLYPH } from './uiConstants';
 
 const MODAL_ID = 'packs-modal';
 const DELETE_CHOICE_ID = 'delete';
@@ -384,10 +384,16 @@ export class PackManager {
       void this.moveLevel(pack.id, index, index - 1, row.levelId, 'up')
     );
     up.setAttribute('aria-label', t('app.packs.manager.level.move_up.aria', params));
+    up.title = t('app.packs.manager.level.move_up.action');
+    up.textContent = PACK_MOVE_UP_GLYPH;
+    up.classList.add('packs-arrow-btn');
     const down = button('down', 'app.packs.manager.level.move_down.action', null, !row.canMoveDown || busy, () =>
       void this.moveLevel(pack.id, index, index + 1, row.levelId, 'down')
     );
     down.setAttribute('aria-label', t('app.packs.manager.level.move_down.aria', params));
+    down.title = t('app.packs.manager.level.move_down.action');
+    down.textContent = PACK_MOVE_DOWN_GLYPH;
+    down.classList.add('packs-arrow-btn');
     const edit = button('edit', 'app.packs.manager.level.edit.action', 'app.packs.manager.level.aria.edit.label', !row.canEdit, () =>
       void this.host.editLevel(pack.id, row.levelId).then((opened) => opened && this.close())
     );
@@ -416,7 +422,18 @@ export class PackManager {
       busy,
       () => void this.deleteLevel(pack, row)
     );
-    actions.append(up, down, edit, play, duplicate, transfer, remove);
+    edit.classList.add('primary');
+    const group = (className: string, ...buttons: HTMLButtonElement[]): HTMLElement => {
+      const el = document.createElement('div');
+      el.className = `packs-level-group ${className}`;
+      el.append(...buttons);
+      return el;
+    };
+    actions.append(
+      group('packs-level-primary', edit, play),
+      group('packs-level-order', up, down),
+      group('packs-level-more', duplicate, transfer, remove)
+    );
 
     item.append(number, title, this.badgesElement(row.badges), actions);
     if (!row.canEdit && row.editBlockedReasonKey) {

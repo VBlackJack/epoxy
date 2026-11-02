@@ -127,3 +127,6 @@ export const EDITOR_OVERLAY_LINE_WIDTH = 2;
 export const EDITOR_PERCENT_BASE = 100;
 /** Pack-manager level row: the buttons whose focus is restored after the list is redrawn. */
 export const PACK_MANAGER_FOCUS_ATTRIBUTE = 'data-focus-key';
+/** Arrows of the compact move buttons of a pack level row. */
+export const PACK_MOVE_UP_GLYPH = '↑';
+export const PACK_MOVE_DOWN_GLYPH = '↓';
