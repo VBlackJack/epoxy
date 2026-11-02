@@ -35,6 +35,12 @@ export type { AssembledHubLevel, LevelGuard } from './HubTypes';
 const FRINGE_MIN_OPEN_NEIGHBOURS = 1;
 /** Cells kept between a grown outline and the map margin on each side, for the wall ring and a gate. */
 const OUTLINE_SIDE_ROOM = 2;
+/** Farthest a loop level's hub outline shifts from the map centre, leaving room for wings on all four sides. */
+const LOOP_MAX_SHIFT = 3;
+/** Farthest from the hub outline a loop level's bays and fringe may carve, so they never flood a map corner. */
+const LOOP_BAY_REACH = 5;
+/** Cost added per existing wing connection on the same hub side, spreading loop wings round all four sides. */
+const SIDE_CROWD_COST = 6;
 
 /**
  * Lays a hub plan out: an open hub in the middle of the map, the player
@@ -84,10 +90,13 @@ export class HubAssembler {
     // A different outline per attempt among those allowed, shifted off centre
     // so one side leaves room for long wings. The drawn part keeps the place it
     // would have alone; what the growth adds lies round it.
+    const loopLevel = plan.wings.some((w) => w.loop);
+    this.loopLevel = loopLevel;
     const outlines = this.cfg.shapes.filter((s) => !shapeIds || shapeIds.includes(s.id));
     const shape = outlines[this.rng.nextInt(0, outlines.length - 1)];
-    const shiftX = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
-    const shiftY = this.rng.nextInt(-this.cfg.maxShift, this.cfg.maxShift);
+    const maxShift = loopLevel ? Math.min(this.cfg.maxShift, LOOP_MAX_SHIFT) : this.cfg.maxShift;
+    const shiftX = this.rng.nextInt(-maxShift, maxShift);
+    const shiftY = this.rng.nextInt(-maxShift, maxShift);
     const drawnHeight = shape.rows.length;
     const drawnWidth = Math.max(...shape.rows.map((r) => r.length));
     const grown = this.grownOutline(shape.rows, plan, shiftX, shiftY, growth);
@@ -126,8 +135,6 @@ export class HubAssembler {
           Number(this.hasBlockLane(b.wing)) - Number(this.hasBlockLane(a.wing)) ||
           this.wingArea(b.wing) - this.wingArea(a.wing)
       );
-    const loopLevel = plan.wings.some((w) => w.loop);
-    this.loopLevel = loopLevel;
     let placements: WingPlacement[] = new Array(plan.wings.length);
     if (loopLevel) {
       const placed = this.loop.placeWithBacktracking(order, plan.wings.length, (wing, index) =>
@@ -237,6 +244,10 @@ export class HubAssembler {
   private wingTrials(wing: HubWing, index: number, finale: CompiledPiece, loopLevel: boolean): WingTrial[] {
     const candidates = this.grid.gateCandidates();
     this.rng.shuffle(candidates);
+    const sideUse = loopLevel ? this.sideConnections() : null;
+    if (sideUse) {
+      candidates.sort((a, b) => sideUse[a.outward] - sideUse[b.outward]);
+    }
     const orientations = wing.piece.rotatable ? [...ALL_ORIENTATIONS] : [IDENTITY_ORIENTATION];
     this.rng.shuffle(orientations);
     // Turned once per wing, not once per gate tried.
@@ -260,6 +271,7 @@ export class HubAssembler {
         if (asLoop) {
           const trial = this.loop.tryLoopWing(wing, turned, gate, outward, gateLength, firstSegment, chainTurns);
           if (!trial) continue;
+          if (sideUse) trial.cost += sideUse[outward] * SIDE_CROWD_COST;
           trials.push(trial);
           if (trials.length >= this.cfg.wingPlacementSamples) break search;
           continue;
@@ -279,6 +291,7 @@ export class HubAssembler {
               finale
             );
             if (!trial) continue;
+            if (sideUse) trial.cost += sideUse[outward] * SIDE_CROWD_COST;
             trials.push(trial);
             if (trials.length >= this.cfg.wingPlacementSamples) break search;
           }
@@ -294,6 +307,21 @@ export class HubAssembler {
       trials = search(false);
     }
     return trials;
+  }
+
+  /** Open wing connections already touching each side of the hub floor. */
+  private sideConnections(): Record<Direction, number> {
+    const counts: Record<Direction, number> = { N: 0, E: 0, S: 0, W: 0 };
+    for (const k of this.grid.hubFloor) {
+      const p = this.grid.point(k);
+      for (const dir of ORDERED_DIRECTIONS) {
+        const n = this.grid.step(p, dir);
+        if (!this.grid.inMap(n)) continue;
+        const seg = this.grid.segment[this.grid.key(n)];
+        if (seg !== NO_SEGMENT && seg !== HUB_SEGMENT) counts[dir]++;
+      }
+    }
+    return counts;
   }
 
   private tryWing(
@@ -336,6 +364,7 @@ export class HubAssembler {
         finalePlacement = placedFinale;
       } else {
         room = this.roomCells(first, exitDir, growDir);
+        if (room.length < wing.rewards.length) continue variants;
         room.forEach((p) => claim(p, beyondSegment));
       }
 
@@ -453,7 +482,12 @@ export class HubAssembler {
     const anchors: GridPoint[] = [];
     // A loop level may widen out to the edge of the map; a hub stays within its bounds.
     const area = this.loopLevel
-      ? { x0: MAP_MARGIN, y0: MAP_MARGIN, x1: this.grid.width - 1 - MAP_MARGIN, y1: this.grid.height - 1 - MAP_MARGIN }
+      ? {
+          x0: Math.max(this.grid.bounds.x0, this.hub.x0 - LOOP_BAY_REACH),
+          y0: Math.max(this.grid.bounds.y0, this.hub.y0 - LOOP_BAY_REACH),
+          x1: Math.min(this.grid.bounds.x1, this.hub.x1 + LOOP_BAY_REACH),
+          y1: Math.min(this.grid.bounds.y1, this.hub.y1 + LOOP_BAY_REACH)
+        }
       : this.grid.bounds;
     for (let y = area.y0; y < area.y1; y++) {
       for (let x = area.x0; x < area.x1; x++) {

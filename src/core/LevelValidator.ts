@@ -402,7 +402,8 @@ export class LevelValidator {
           const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
           const protectedHere = hasBoot(nextBoots, nextTile.protectedByItem);
 
-          if (nextTile.hazard === 'water' && !protectedHere) {
+          // A block pushed in turns water or slime into ground the player can cross.
+          if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
             if (availableBlocks > 0) {
               availableBlocks--;
               simTerrain[ny][nx] = FLOOR_TILE_ID;
@@ -641,7 +642,7 @@ export class LevelValidator {
       if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return fatal();
       boots = this.bootsOnArrival(boots, entered, item, bootBits);
       if (
-        (entered.hazard === 'water' || entered.hazard === 'fire') &&
+        (entered.hazard === 'water' || entered.hazard === 'fire' || entered.hazard === 'slime') &&
         !hasBoot(boots, entered.protectedByItem)
       ) {
         return fatal();

@@ -148,6 +148,11 @@ tile theme=cyber_neon id=fire 56d52740e306b130
 tile theme=arctic_lab id=fire 8ec5116f592611c6
 tile theme=magma_core id=fire dbb55f479e3998e2
 tile theme=lynx_lcd id=fire dc52dcf2d5ef87f3
+tile theme=default id=slime 5981bde07499d3ff
+tile theme=cyber_neon id=slime 20499dae54fa9e8f
+tile theme=arctic_lab id=slime d7e904a94afe3fce
+tile theme=magma_core id=slime 676eaff7ab04f5d4
+tile theme=lynx_lcd id=slime dfc11163cc6eb8f9
 tile theme=default id=ice f04ab4dcfa43343f
 tile theme=cyber_neon id=ice dcc9617b0000d5e4
 tile theme=arctic_lab id=ice 83946c5f17ba38bd
@@ -378,6 +383,11 @@ tile theme=cyber_neon id=button_orange ab6d38d0d46bf839
 tile theme=arctic_lab id=button_orange 6933940d547322aa
 tile theme=magma_core id=button_orange c75d908bbd56242b
 tile theme=lynx_lcd id=button_orange 8a82b8809f41bc5e
+tile theme=default id=button_gray 2f849a1e078d12ef
+tile theme=cyber_neon id=button_gray 785ba51fba3fd67f
+tile theme=arctic_lab id=button_gray 819b7cd9540d8212
+tile theme=magma_core id=button_gray 6c1b251ecf3865a7
+tile theme=lynx_lcd id=button_gray de090306b8cc4b53
 tile theme=default id=flame_jet_off 451a491713b05c31
 tile theme=cyber_neon id=flame_jet_off 56266d82a682fed4
 tile theme=arctic_lab id=flame_jet_off c6fbe5dd73a108a0

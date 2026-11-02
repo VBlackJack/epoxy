@@ -63,6 +63,8 @@ describe('ProceduralGenerator', () => {
     const again = ProceduralGenerator.generateDetailed(4, SAMPLE_SEEDS[0]);
     expect(again.level).toEqual(sample[3].level);
     expect(again.level.id).toMatch(new RegExp(`^proc_[0-9a-f]+_${SAMPLE_SEEDS[0]}_4$`));
+    // Adjacent (seed, level) pairs with the same sum must not collide on password.
+    expect(sample[1].level.password).not.toBe(sample[10].level.password);
   });
 
   it('an exported level compiles back unchanged, so it can be pasted into levels.json', () => {

@@ -15,14 +15,12 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { DIRECTION_VECTORS, JUNCTION_MIN_NEIGHBOURS, ORDERED_DIRECTIONS } from '../config/constants';
 import { measurePlayfield } from '../core/PlayfieldMetrics';
 import { CompiledLevel, GridPoint, ProceduralScoringConfig } from '../core/types';
 import { isPlayerWalkable } from '../core/Walkability';
 import { Box } from './LevelAssembler';
 
-/** Neighbour count from which a cell is a junction, a place with a choice. */
-const JUNCTION_MIN_NEIGHBOURS = 3;
 /** Cells within this many steps of a junction count as near one. */
 const JUNCTION_RADIUS = 2;
 

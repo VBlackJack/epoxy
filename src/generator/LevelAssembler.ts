@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { FLOOR_TILE_ID } from '../core/coreConstants';
+import { EXIT_TILE_ID, FLOOR_TILE_ID, WALL_TILE_ID } from '../core/coreConstants';
 import { SeededRandom } from '../core/Random';
 import {
   CloneLink,
@@ -29,8 +29,6 @@ import {
 import { LevelPlan } from './ProgressionPlanner';
 import { CompiledPiece } from './PieceTypes';
 
-const WALL_TILE_ID = 'wall';
-const EXIT_TILE_ID = 'exit';
 /** Cells kept free between two pieces, so a corridor can always pass between them. */
 const PIECE_GAP = 1;
 /** Map border that stays wall. */

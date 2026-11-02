@@ -59,6 +59,14 @@ const MIN_PIECES_FOR_PAIR = 3;
 const AREA_TIEBREAK_SCALE = 10000;
 /** Cost of a replacement that would take the level over its puzzle area budget: above every other preference. */
 const OVER_BUDGET_COST = 10;
+/** Cost of replacing the last piece of the level's lead motif. */
+const LEAD_MOTIF_COST = 4;
+/** Cost of replacing the last piece of a secondary motif. */
+const SINGLETON_MOTIF_COST = 2;
+/** Fewest loop wings a multi-puzzle hub splits its non-final puzzles into when unbonded. */
+const MIN_LOOP_WINGS = 2;
+/** Most loop wings a hub prefers so its wings fit around the hub perimeter without dropping puzzles. */
+const MAX_LOOP_WINGS = 4;
 
 export interface HubPlan {
   /** The final wing, holding the exit, is last. */
@@ -71,6 +79,8 @@ export interface HubPlan {
    * simply the order of `wings`.
    */
   order: number[];
+  /** False when the abstract search found no winning order: `order` is then the drawn one, and the proof would fail. */
+  winnable: boolean;
   /** Key items that fewer keys than doors exist for until the right wing is opened. */
   scarce: string[];
   /** Items lying in the hub itself: boots an open wing needs. */
@@ -108,7 +118,8 @@ export class HubPlanner {
     piecesDropped = 0,
     lead?: string,
     avoid: string[] = [],
-    lanes = true
+    lanes = true,
+    avoidPieces: string[] = []
   ): HubPlan {
     // Scripted levels keep the dead-end wings their briefs were written for.
     const loop = !script && cfg.loopModes.includes(profile.mode);
@@ -121,10 +132,11 @@ export class HubPlanner {
       loop ? (piece) => HubPlanner.fitsLoopWing(piece, cfg) : HubPlanner.fitsWing,
       piecesDropped,
       lead,
-      avoid
+      avoid,
+      avoidPieces
     );
     const paired = loop
-      ? HubPlanner.addDependencies(selection.puzzles, selection.motifs, library, rules, profile, cfg, rng, lanes)
+      ? HubPlanner.addDependencies(selection.puzzles, selection.motifs, library, rules, profile, cfg, rng, lanes, avoidPieces)
       : { puzzles: selection.puzzles, motifs: selection.motifs, dependencies: [], bonds: new Set<number>() };
     const pieces = loop ? HubPlanner.fitToArea(paired.puzzles, library, rules, profile, cfg, paired.dependencies) : paired.puzzles;
     // A lock whose item would make one of the level's puzzles trivial is not used:
@@ -186,13 +198,15 @@ export class HubPlanner {
 
     const scarce = loop ? HubPlanner.makeScarce(wings, hubItems, cfg, profile, rng, unusedGates) : [];
     const asDrawn = wings.map((_, index) => index);
-    const order = loop ? (HubPlanner.winningOrder(wings, hubItems) ?? asDrawn) : asDrawn;
+    const winning = loop ? HubPlanner.winningOrder(wings, hubItems) : asDrawn;
+    const order = winning ?? asDrawn;
     const openMonsters = loop ? HubPlanner.openMonsterTypes(pieces, selection.finale, profile, cfg, rng) : [];
     const openChips = loop ? HubPlanner.openChipCount(profile.pieceCount, cfg) : 0;
     return {
       wings,
       dependencies: paired.dependencies,
       order,
+      winnable: winning !== null,
       scarce,
       hubItems,
       motifs: paired.motifs,
@@ -263,7 +277,8 @@ export class HubPlanner {
     profile: DifficultyProfile,
     cfg: HubConfig,
     rng: SeededRandom,
-    lanes = true
+    lanes = true,
+    avoidPieces: string[] = []
   ): { puzzles: CompiledPiece[]; motifs: string[]; dependencies: HubDependency[]; bonds: Set<number> } {
     const result = [...puzzles];
     const focus = [...motifs];
@@ -289,6 +304,18 @@ export class HubPlanner {
     const keyCouples = allCouples.filter((c) => c.exporter.exports?.kind === 'item');
     const couples = lanes || keyCouples.length === 0 ? allCouples : keyCouples;
     rng.shuffle(couples);
+    const avoidSet = new Set(avoidPieces);
+    const leadMotif = focus[0];
+    const focusSet = new Set(focus);
+    const cooldownCost = (c: { exporter: CompiledPiece; consumer: CompiledPiece }): number =>
+      (avoidSet.has(c.exporter.id) ? 1 : 0) + (avoidSet.has(c.consumer.id) ? 1 : 0);
+    const themeRank = (c: { exporter: CompiledPiece; consumer: CompiledPiece }): number => {
+      if (leadMotif !== undefined && (c.exporter.motif === leadMotif || c.consumer.motif === leadMotif)) return 0;
+      if (focusSet.has(c.exporter.motif) || focusSet.has(c.consumer.motif)) return 1;
+      return 2;
+    };
+    couples.sort((a, b) => cooldownCost(a) - cooldownCost(b) || themeRank(a) - themeRank(b));
+
     const used = new Set(result.map((p) => p.id));
     const taken = new Set<number>();
     // A block lane is the costliest to lay out: a level gets one, then key pairs, unless only block pairs are left.
@@ -301,7 +328,7 @@ export class HubPlanner {
       const itemLeft = itemCouples.some((c) => !used.has(c.exporter.id) && !used.has(c.consumer.id));
       if (exchange.kind === 'block' && blockTaken && itemLeft) continue;
       const incoming = exporter.width * exporter.height + consumer.width * consumer.height;
-      const slots = HubPlanner.replaceSlots(result, taken, exchange.kind === 'block', incoming, cfg.puzzleAreaBudget, rng);
+      const slots = HubPlanner.replaceSlots(result, taken, exchange.kind === 'block', incoming, cfg.puzzleAreaBudget, rng, leadMotif);
       if (!slots) break;
       const [at, later] = slots;
       result[at] = exporter;
@@ -335,20 +362,50 @@ export class HubPlanner {
     bonded: boolean,
     incoming: number,
     budget: number,
-    rng: SeededRandom
+    rng: SeededRandom,
+    leadMotif?: string
   ): [number, number] | null {
     const counts = new Map<string, number>();
     for (const p of puzzles) counts.set(p.motif, (counts.get(p.motif) ?? 0) + 1);
     const area = (p: CompiledPiece): number => p.width * p.height;
     const total = puzzles.reduce((sum, p) => sum + area(p), 0);
-    const cost = (index: number): number =>
-      ((counts.get(puzzles[index].motif) ?? 0) > 1 ? 0 : 2) + (PieceSolver.hasMonsters(puzzles[index]) ? 1 : 0);
+    const cost = (index: number): number => {
+      const motif = puzzles[index].motif;
+      const motifCost =
+        (counts.get(motif) ?? 0) > 1
+          ? 0
+          : motif === leadMotif
+            ? LEAD_MOTIF_COST
+            : SINGLETON_MOTIF_COST;
+      return motifCost + (PieceSolver.hasMonsters(puzzles[index]) ? 1 : 0);
+    };
     const pairCost = (a: number, b: number): number => {
       const outgoing = area(puzzles[a]) + area(puzzles[b]);
       const excess = total - outgoing + incoming - budget;
       // Over the budget, every cell of excess counts: the choice that overshoots least wins.
       const over = excess > 0 ? OVER_BUDGET_COST + excess : 0;
-      return over + cost(a) + cost(b) + Math.abs(outgoing - incoming) / AREA_TIEBREAK_SCALE;
+      const leadRemoved =
+        (puzzles[a].motif === leadMotif ? 1 : 0) + (puzzles[b].motif === leadMotif ? 1 : 0);
+      const wipesBothLead =
+        leadMotif !== undefined &&
+        leadRemoved >= 2 &&
+        leadRemoved >= (counts.get(leadMotif) ?? 0)
+          ? LEAD_MOTIF_COST
+          : 0;
+      const sameMotifWipe =
+        puzzles[a].motif === puzzles[b].motif &&
+        puzzles[a].motif !== leadMotif &&
+        (counts.get(puzzles[a].motif) ?? 0) <= 2
+          ? SINGLETON_MOTIF_COST
+          : 0;
+      return (
+        over +
+        cost(a) +
+        cost(b) +
+        wipesBothLead +
+        sameMotifWipe +
+        Math.abs(outgoing - incoming) / AREA_TIEBREAK_SCALE
+      );
     };
     const free = puzzles.map((_, i) => i).filter((i) => i < puzzles.length - 1 && !taken.has(i));
     rng.shuffle(free);
@@ -372,6 +429,7 @@ export class HubPlanner {
     const item = cfg.returnGate.item;
     return (
       !HubPlanner.stealsBoots(piece) &&
+      !HubPlanner.stealsKeys(piece) &&
       !piece.requires.includes(item) &&
       !piece.items.some((row) => row.includes(item))
     );
@@ -499,7 +557,7 @@ export class HubPlanner {
   /**
    * Walks the puzzles of a wing in order with the inventory, which it updates:
    * false when a puzzle needs boots or an imported key the player lacks, or a
-   * block that the puzzle before it does not push out.
+   * block that the puzzle before it does not push out. A key thief empties the keys.
    */
   private static chainWins(chain: CompiledPiece[], keys: Map<string, number>, boots: Set<string>): boolean {
     const isBoot = (id: string): boolean => ConfigRegistry.getTile(id).collectible === 'boot';
@@ -516,6 +574,8 @@ export class HubPlanner {
           if (HubPlanner.consumesKey(piece, imported.item)) keys.set(imported.item, (keys.get(imported.item) ?? 0) - 1);
         }
       }
+      // A key thief takes every key held on the way through; the piece's own export is proven held at its exit.
+      if (HubPlanner.stealsKeys(piece)) keys.clear();
       const exported = piece.exports;
       if (exported?.kind === 'item' && exported.item) {
         if (isBoot(exported.item)) boots.add(exported.item);
@@ -599,6 +659,8 @@ export class HubPlanner {
    * the loop wings, and the last puzzle alone in the final wing, which holds the exit.
    * A bonded pair (`bonds` holds the index of its first puzzle) is never split: the
    * chain grows to take the second puzzle in, or gives both up to the next chain.
+   * A target wing count between 2 and 4 paces the hub between fewer, deeper chains
+   * and a wider spoke layout without crowding the hub perimeter.
    */
   private static chainGroups(
     pieces: CompiledPiece[],
@@ -609,10 +671,27 @@ export class HubPlanner {
     const groups: CompiledPiece[][] = [];
     const chained = pieces.slice(0, -1);
     const longest = Math.max(MIN_PIECES_FOR_PAIR - 1, cfg.maxPiecesPerWing);
+    const singleBonded = chained.length === 2 && bonds.has(0);
+    const minWings = singleBonded
+      ? 1
+      : Math.max(MIN_LOOP_WINGS, Math.ceil(chained.length / cfg.maxPiecesPerWing));
+    const maxWings = Math.max(minWings, Math.min(MAX_LOOP_WINGS, chained.length));
+    const targetWings = chained.length <= 1 ? chained.length : rng.nextInt(minWings, maxWings);
     for (let at = 0; at < chained.length; ) {
-      let size = rng.nextInt(1, Math.min(cfg.maxPiecesPerWing, chained.length - at));
+      const remaining = chained.length - at;
+      const wingsLeft = Math.max(1, targetWings - groups.length);
+      const minSize = Math.min(
+        cfg.maxPiecesPerWing,
+        Math.max(1, remaining - (wingsLeft - 1) * cfg.maxPiecesPerWing)
+      );
+      const maxSize = Math.max(
+        minSize,
+        Math.min(cfg.maxPiecesPerWing, remaining - (wingsLeft - 1))
+      );
+      let size = rng.nextInt(minSize, maxSize);
       while (bonds.has(at + size - 1) && at + size < chained.length) {
-        size = size < longest ? size + 1 : size - 1;
+        const canGrow = size < longest && (at > 0 || size + 1 < chained.length);
+        size = canGrow ? size + 1 : size - 1;
       }
       groups.push(chained.slice(at, at + size));
       at += size;
@@ -623,5 +702,9 @@ export class HubPlanner {
 
   private static stealsBoots(piece: CompiledPiece): boolean {
     return piece.terrain.some((row) => row.some((id) => ConfigRegistry.getTile(id).stealsBoots));
+  }
+
+  private static stealsKeys(piece: CompiledPiece): boolean {
+    return piece.terrain.some((row) => row.some((id) => ConfigRegistry.getTile(id).stealsKeys));
   }
 }

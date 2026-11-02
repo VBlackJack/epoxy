@@ -78,6 +78,43 @@
       "terrain": "floor",
       "entity": "paramecium",
       "entityDir": "N"
+    },
+    "~": {
+      "terrain": "flame_jet_on"
+    },
+    "=": {
+      "terrain": "flame_jet_off"
+    },
+    "i": {
+      "terrain": "floor",
+      "entity": "ice_block"
+    },
+    "c": {
+      "terrain": "teleport_red"
+    },
+    "e": {
+      "terrain": "teleport_blue"
+    },
+    "s": {
+      "terrain": "slime"
+    },
+    "/": {
+      "terrain": "button_gray"
+    },
+    "'": {
+      "terrain": "thief_keys"
+    },
+    ":": {
+      "terrain": "forbid_key_red"
+    },
+    "(": {
+      "terrain": "forbid_key_green"
+    },
+    ")": {
+      "terrain": "forbid_boots_fire"
+    },
+    "_": {
+      "terrain": "forbid_boots_water"
     }
   },
   "monsterPortTerrain": "gravel",
@@ -1962,6 +1999,1725 @@
         "#C...C#",
         "#.....#",
         "###$###"
+      ]
+    },
+    {
+      "id": "trap_relay_step",
+      "motif": "trap",
+      "tier": 2,
+      "rotatable": true,
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 3,
+          "trapY": 5
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#..#..#",
+        "#m.&.C#",
+        "#..C..#",
+        "###X###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "trap_twin_alcoves",
+      "motif": "trap",
+      "tier": 2,
+      "rotatable": true,
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 2,
+          "trapX": 3,
+          "trapY": 5
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 2,
+          "trapX": 3,
+          "trapY": 6
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#m.#.m#",
+        "#.&.&.#",
+        "#..C..#",
+        "###X###",
+        "###X###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "trap_switchback_hold",
+      "motif": "trap",
+      "tier": 3,
+      "rotatable": true,
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 5
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 6
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#&.#",
+        "#..C..#",
+        "#m...m#",
+        "###X###",
+        "###X###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "trap_water_latch",
+      "motif": "trap",
+      "tier": 3,
+      "rotatable": true,
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 3,
+          "trapY": 6
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#&.#",
+        "#m....#",
+        "#..C..#",
+        "###W###",
+        "###X###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_double_bank",
+      "motif": "ice",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.I..2#",
+        "#.I.#I#",
+        "#.4I.I#",
+        "#..I.3#",
+        "#C.I..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_block_stop",
+      "motif": "ice",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#..#",
+        "#.....#",
+        "#C...C#",
+        "###I###",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_corner_weave",
+      "motif": "ice",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.I..2#",
+        "#1I.4I#",
+        "#I..3.#",
+        "#4.C.2#",
+        "#C.I.I#",
+        "#..I..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_sled_bridge",
+      "motif": "ice",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#&.#",
+        "#.....#",
+        "#C...C#",
+        "###I###",
+        "###W###",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_twin_breach",
+      "motif": "bomb",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#&.#",
+        "#.....#",
+        "#..C..#",
+        "###*###",
+        "###*###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_side_pocket",
+      "motif": "bomb",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#&.#",
+        "#..*..#",
+        "#C...C#",
+        "###*###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_bridge_choice",
+      "motif": "bomb",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#&.#",
+        "#.....#",
+        "#..C..#",
+        "###*###",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_ice_torpedo",
+      "motif": "bomb",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#..#",
+        "#.....#",
+        "#C...C#",
+        "###I###",
+        "###*###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "water_turtle_stepping",
+      "motif": "water",
+      "tier": 2,
+      "oneShot": true,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#..C..#",
+        "#tWWWt#",
+        "#tWWWt#",
+        "#C...C#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "water_turtle_raft",
+      "motif": "water",
+      "tier": 3,
+      "oneShot": true,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#..C..#",
+        "#tWWWt#",
+        "#.....#",
+        "#..&..#",
+        "#C...C#",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "cloner_double_bridge",
+      "motif": "cloner",
+      "tier": 2,
+      "rotatable": true,
+      "entities": [
+        {
+          "x": 2,
+          "y": 2,
+          "type": "dirt_block",
+          "dir": "S"
+        }
+      ],
+      "cloneLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "dirt_block",
+          "templateDir": "S"
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#p....#",
+        "#.M#..#",
+        "#..C..#",
+        "#####W#",
+        "#####W#",
+        "#C...C#",
+        "#.#####",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "cloner_bomb_and_moat",
+      "motif": "cloner",
+      "tier": 3,
+      "rotatable": true,
+      "entities": [
+        {
+          "x": 2,
+          "y": 2,
+          "type": "dirt_block",
+          "dir": "S"
+        }
+      ],
+      "cloneLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "dirt_block",
+          "templateDir": "S"
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#p....#",
+        "#.M#..#",
+        "#..C..#",
+        "#####*#",
+        "#####W#",
+        "#C...C#",
+        "#.#####",
+        "#$#####"
+      ]
+    },
+    {
+      "id": "fire_jet_toggle",
+      "motif": "fire",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#..%..#",
+        "#C~~~C#",
+        "#..=..#",
+        "#..C..#",
+        "###=###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "fire_jet_alternator",
+      "motif": "fire",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#..%..#",
+        "#C~~~C#",
+        "#..=..#",
+        "#%...%#",
+        "###=###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "force_belt_slalom",
+      "motif": "force",
+      "tier": 2,
+      "oneShot": true,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.>>>.#",
+        "#.^#v.#",
+        "#C^#vC#",
+        "#.<<<.#",
+        "#..v..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "force_block_shunt",
+      "motif": "force",
+      "tier": 3,
+      "oneShot": true,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#..#",
+        "#.....#",
+        "#C...C#",
+        "###v###",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "monsters_tank_gate",
+      "motif": "monsters",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#..l..#",
+        "#.###.#",
+        "#A...C#",
+        "#.###.#",
+        "#..C..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "monsters_tank_shuttle",
+      "motif": "monsters",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "####@###",
+        "#...l..#",
+        "#.####.#",
+        "#A....C#",
+        "#.####.#",
+        "#..C..l#",
+        "####$###"
+      ]
+    },
+    {
+      "id": "thief_fire_spend",
+      "motif": "thief",
+      "tier": 2,
+      "oneShot": true,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#z...C#",
+        "#FFFFF#",
+        "#C...C#",
+        "###T###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "thief_skate_detour",
+      "motif": "thief",
+      "tier": 3,
+      "oneShot": true,
+      "rotatable": true,
+      "rows": [
+        "#@#####",
+        "#.j...#",
+        "#####.#",
+        "#IIIII#",
+        "#IICII#",
+        "#IIIII#",
+        "###T###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "dirt_plow_channel",
+      "motif": "dirt",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#d.#.d#",
+        "#d.&.d#",
+        "#..C..#",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "dirt_fake_wall_sieve",
+      "motif": "dirt",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#..f..#",
+        "#.wfw.#",
+        "#C.f.C#",
+        "#.wfw.#",
+        "#..C..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "dirt_twin_furrows",
+      "motif": "dirt",
+      "tier": 2,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#&.#",
+        "#d...d#",
+        "#..C..#",
+        "###W###",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "dirt_blue_excavation",
+      "motif": "dirt",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#f.#.f#",
+        "#d.&.d#",
+        "#..C..#",
+        "###W###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "dirt_bomb_clearing",
+      "motif": "dirt",
+      "tier": 3,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#d.#.d#",
+        "#d.&.d#",
+        "#..C..#",
+        "###*###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_export_block",
+      "motif": "bomb",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "####@###",
+        "####.###",
+        "####&###",
+        "#C*..###",
+        "#..&.###",
+        "###..###",
+        "####.###",
+        "####$###"
+      ]
+    },
+    {
+      "id": "ice_export_block",
+      "motif": "ice",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "#####@###",
+        "#####.###",
+        "#####&###",
+        "####..###",
+        "#CWI&.###",
+        "####..###",
+        "#####I###",
+        "#####.###",
+        "#####$###"
+      ]
+    },
+    {
+      "id": "trap_export_block",
+      "motif": "trap",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "trapLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 4,
+          "trapX": 4,
+          "trapY": 6
+        }
+      ],
+      "rows": [
+        "####@###",
+        "####.###",
+        "####&###",
+        "###..###",
+        "##m&.###",
+        "###..###",
+        "####X###",
+        "####C###",
+        "####$###"
+      ]
+    },
+    {
+      "id": "bomb_import_block",
+      "motif": "bomb",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "###@###",
+        "###.###",
+        "#C...C#",
+        "#.....#",
+        "###*###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_import_block",
+      "motif": "ice",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "###@###",
+        "###I###",
+        "###*###",
+        "#C...C#",
+        "#.....#",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "trap_import_block",
+      "motif": "trap",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 2,
+          "trapX": 4,
+          "trapY": 3
+        }
+      ],
+      "rows": [
+        "###@###",
+        "###..##",
+        "###m.##",
+        "####X##",
+        "#C...C#",
+        "#.....#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_export_key",
+      "motif": "ice",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "item",
+        "item": "key_yellow"
+      },
+      "rows": [
+        "##@####",
+        "#.I..r#",
+        "#.4I.R#",
+        "#####.#",
+        "#C.y..#",
+        "#.....#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "trap_export_key",
+      "motif": "trap",
+      "tier": 3,
+      "rotatable": true,
+      "exports": {
+        "kind": "item",
+        "item": "key_green"
+      },
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 3,
+          "trapY": 5
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#..#..#",
+        "#m.&.k#",
+        "#..C..#",
+        "###X###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_import_key",
+      "motif": "bomb",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "item",
+        "item": "key_yellow"
+      },
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.&#..#",
+        "#.....#",
+        "#C...C#",
+        "###*###",
+        "###Y###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "trap_import_key",
+      "motif": "trap",
+      "tier": 3,
+      "rotatable": true,
+      "imports": {
+        "kind": "item",
+        "item": "key_green"
+      },
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 3,
+          "trapY": 5
+        }
+      ],
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#..#..#",
+        "#m.&.C#",
+        "#..C..#",
+        "###X###",
+        "###G###",
+        "###C###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "sokoban_pico_dislodge_1",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#.o.&.#",
+        "#.#.#.#",
+        "#m.C..#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "sokoban_nabo_double_o",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#m....#",
+        "#.#.#.#",
+        "#.o.&.#",
+        "#..#..#",
+        "#...C.#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 2,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "sokoban_cantrip_weave",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#....m#",
+        "#.#.#.#",
+        "#.&.o.#",
+        "#..#..#",
+        "#.C...#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 5,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 4,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "sokoban_loma_throat",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#..#..#",
+        "#m.&..#",
+        "#.#&#.#",
+        "#.C.m.#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 4,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "sokoban_microban_checker",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#m...m#",
+        "#..#..#",
+        "#.&.&.#",
+        "#.#.#.#",
+        "#.C...#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "sokoban_murase_three_lock",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#m....#",
+        "#..#..#",
+        "#.&.&.#",
+        "#.#.#.#",
+        "#m.C..#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "blocks_water_counterweight_1",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#..&..#",
+        "#..m#X#",
+        "#C..Xr#",
+        "###W###",
+        "###R###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 4
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 4,
+          "trapY": 5
+        }
+      ]
+    },
+    {
+      "id": "blocks_water_counterweight_2",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#..o..#",
+        "#...#X#",
+        "#C..Xb#",
+        "###W###",
+        "###B###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 4
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 3,
+          "trapX": 4,
+          "trapY": 5
+        }
+      ]
+    },
+    {
+      "id": "blocks_water_turtle_trap",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#..&..#",
+        "#..m#t#",
+        "#C..tr#",
+        "###X###",
+        "###R###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 6
+        }
+      ]
+    },
+    {
+      "id": "bomb_counterweight_disarm",
+      "motif": "bomb",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#..o..#",
+        "#...#X#",
+        "#C..Xy#",
+        "###*###",
+        "###Y###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 4
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 3,
+          "trapX": 4,
+          "trapY": 5
+        }
+      ]
+    },
+    {
+      "id": "dirt_one_way_sokoban",
+      "motif": "dirt",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#m...m#",
+        "#..#..#",
+        "#.&d&.#",
+        "#.#.#.#",
+        "#.C.d.#",
+        "#####X#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 6
+        },
+        {
+          "buttonX": 5,
+          "buttonY": 1,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "toggle_sokoban_parity_1",
+      "motif": "toggle_walls",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#..n..#",
+        "#..#..#",
+        "#m.&..#",
+        "#.#.#.#",
+        "#.C...#",
+        "#####[#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "toggle_sokoban_parity_2",
+      "motif": "toggle_walls",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#..n..#",
+        "#.#...#",
+        "#..o..#",
+        "#...#X#",
+        "#C..Xr#",
+        "###[###",
+        "###W###",
+        "###R###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 4
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 3,
+          "trapX": 4,
+          "trapY": 5
+        }
+      ]
+    },
+    {
+      "id": "ice_slingshot_button",
+      "motif": "ice",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#..#..#",
+        "#..&..#",
+        "#.3Im.#",
+        "#.#.#.#",
+        "#.C...#",
+        "#####X#",
+        "#####$#"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 4,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "sokoban_export_dislodge",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "####@###",
+        "####.###",
+        "####&###",
+        "#rX..###",
+        "#mRo.###",
+        "####C###",
+        "####X###",
+        "####$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 2,
+          "trapY": 3
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 4,
+          "trapX": 4,
+          "trapY": 6
+        }
+      ]
+    },
+    {
+      "id": "sokoban_import_dislodge",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "###@###",
+        "###..##",
+        "###m.##",
+        "####X##",
+        "#m.o..#",
+        "#...#X#",
+        "#C..Xr#",
+        "###R###",
+        "###X###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 2,
+          "trapX": 4,
+          "trapY": 3
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 5,
+          "trapY": 5
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 4,
+          "trapY": 6
+        },
+        {
+          "buttonX": 1,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 8
+        }
+      ]
+    },
+    {
+      "id": "blocks_water_export_counterweight",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "####@###",
+        "####.###",
+        "####&###",
+        "##bX.###",
+        "#XWo.###",
+        "#CB#.###",
+        "####$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 3
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 1,
+          "trapY": 4
+        }
+      ]
+    },
+    {
+      "id": "blocks_water_alchemy_bridge",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#.i.&.#",
+        "#C..#.#",
+        "###F###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "fire_orange_remote_alchemy",
+      "motif": "fire",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#u...%#",
+        "##~#~##",
+        "#.....#",
+        "#.&.i.#",
+        "#..=.C#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "ice_export_ice_block",
+      "motif": "ice",
+      "tier": 5,
+      "rotatable": true,
+      "exports": {
+        "kind": "block",
+        "item": "ice_block"
+      },
+      "rows": [
+        "####@###",
+        "####.###",
+        "####i###",
+        "##rX.###",
+        "#Xso.###",
+        "#CR#.###",
+        "####$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 3
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 4,
+          "trapX": 1,
+          "trapY": 4
+        }
+      ]
+    },
+    {
+      "id": "fire_import_ice_block",
+      "motif": "fire",
+      "tier": 5,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "ice_block"
+      },
+      "rows": [
+        "###@###",
+        "###..##",
+        "###m.##",
+        "####X##",
+        "#.....#",
+        "#..o#X#",
+        "#C..Xr#",
+        "###s###",
+        "###R###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 2,
+          "trapX": 4,
+          "trapY": 3
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 5
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 5,
+          "trapX": 4,
+          "trapY": 6
+        }
+      ]
+    },
+    {
+      "id": "fire_cremation_chamber",
+      "motif": "fire",
+      "tier": 5,
+      "rotatable": false,
+      "rows": [
+        "###@###",
+        "#%...u#",
+        "###~###",
+        "#=U..C#",
+        "#==..r#",
+        "###R###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "fire_thermal_airlock",
+      "motif": "fire",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#%....#",
+        "##~#~##",
+        "#.....#",
+        "#.i.&.#",
+        "#C.=..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "teleport_dual_network_sokoban",
+      "motif": "teleport",
+      "tier": 5,
+      "rotatable": false,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.#&..#",
+        "#..c.e#",
+        "#######",
+        "#c..eC#",
+        "#m..#r#",
+        "###X###",
+        "###R###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 6,
+          "trapX": 3,
+          "trapY": 7
+        }
+      ]
+    },
+    {
+      "id": "teleport_colored_ice_launch",
+      "motif": "teleport",
+      "tier": 5,
+      "rotatable": false,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.#i..#",
+        "#..c.e#",
+        "#######",
+        "#..c.e#",
+        "#C.s.b#",
+        "###B###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "thief_keys_forbid_purge",
+      "motif": "thief",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#k...u#",
+        "###G###",
+        "#C...'#",
+        "###(###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "keys_doors_forbid_disposal",
+      "motif": "thief",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#z...u#",
+        "###F###",
+        "#C...T#",
+        "###)###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "dirt_recessed_valve_matrix",
+      "motif": "dirt",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#..u..#",
+        "#.#...#",
+        "#.&.m.#",
+        "#u#.#u#",
+        "#C.d.r#",
+        "###X###",
+        "###R###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 4,
+          "buttonY": 3,
+          "trapX": 3,
+          "trapY": 6
+        }
+      ]
+    },
+    {
+      "id": "water_turtle_stepping_bridge",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.#.#.#",
+        "#..&..#",
+        "#tWCWt#",
+        "#t.W..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "cloner_block_bridge_factory",
+      "motif": "cloner",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "####@##",
+        "#p....#",
+        "#.M.#.#",
+        "#.....#",
+        "###s###",
+        "###W###",
+        "#C....#",
+        "#####$#"
+      ],
+      "entities": [
+        {
+          "x": 2,
+          "y": 2,
+          "type": "dirt_block",
+          "dir": "S"
+        }
+      ],
+      "cloneLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "dirt_block",
+          "templateDir": "S"
+        }
+      ]
+    },
+    {
+      "id": "cloner_ice_alchemy_factory",
+      "motif": "cloner",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "####@##",
+        "#p....#",
+        "#.M.#.#",
+        "#...&.#",
+        "###F###",
+        "###s###",
+        "#C....#",
+        "#####$#"
+      ],
+      "entities": [
+        {
+          "x": 2,
+          "y": 2,
+          "type": "ice_block",
+          "dir": "S"
+        }
+      ],
+      "cloneLinks": [
+        {
+          "buttonX": 1,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "ice_block",
+          "templateDir": "S"
+        }
+      ]
+    },
+    {
+      "id": "blocks_water_slime_neutralizer",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#.i.&.#",
+        "#C.s#.#",
+        "###W###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_gray_button_swap",
+      "motif": "bomb",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#....r#",
+        "#.#u#.#",
+        "#./#C##",
+        "#..*..#",
+        "###*###",
+        "###R###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "bomb_gray_button_double_toggle",
+      "motif": "bomb",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#../..#",
+        "#.###.#",
+        "#..*..#",
+        "#.&.C.#",
+        "#C#*..#",
+        "###$###"
+      ]
+    },
+    {
+      "id": "blocks_water_import_counterweight",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "imports": {
+        "kind": "block",
+        "item": "dirt_block"
+      },
+      "rows": [
+        "###@###",
+        "###..##",
+        "###m.##",
+        "####X##",
+        "#.....#",
+        "#..o#X#",
+        "#C..Xr#",
+        "###W###",
+        "###R###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 2,
+          "trapX": 4,
+          "trapY": 3
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 5,
+          "trapX": 5,
+          "trapY": 5
+        },
+        {
+          "buttonX": 3,
+          "buttonY": 5,
+          "trapX": 4,
+          "trapY": 6
+        }
       ]
     }
   ]

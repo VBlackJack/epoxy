@@ -238,6 +238,7 @@
       "replaying_banner": { "label": "REPLAY EN COURS ({step}/{total}) - Cliquez ou appuyez sur une touche pour reprendre le contrôle" },
       "death_water": { "label": "Gloups ! Vous ne pouvez pas nager sans les Palmes !" },
       "death_fire": { "label": "Aïe ! Ne marchez pas dans le feu sans les Bottes Ignifugées !" },
+      "death_slime": { "label": "Dissous dans le slime toxique ! Poussez un bloc pour le neutraliser !" },
       "death_bomb": { "label": "BOUM ! Vous avez marché sur une bombe !" },
       "death_monster": { "label": "Attention aux créatures de sécurité !" },
       "death_block": { "label": "Écrasé par un bloc en mouvement !" },
@@ -457,6 +458,7 @@
     "hint": { "name": "Borne d'Indice (?)" },
     "water": { "name": "Eau Profonde" },
     "fire": { "name": "Brasier" },
+    "slime": { "name": "Slime Toxique" },
     "ice": { "name": "Glace" },
     "ice_nw": { "name": "Coin Glace N-O" },
     "ice_ne": { "name": "Coin Glace N-E" },
@@ -503,6 +505,7 @@
     "block_target": { "name": "Cible de bloc" },
     "button_red": { "name": "Bouton Rouge (Cloneur)" },
     "button_orange": { "name": "Bouton Orange (Jets de Flammes)" },
+    "button_gray": { "name": "Bouton Gris (Échange Puces/Bombes)" },
     "flame_jet_off": { "name": "Jet de Flammes (Éteint)" },
     "flame_jet_on": { "name": "Jet de Flammes (Allumé)" },
     "toggle_wall_closed": { "name": "Mur Bascule (Fermé)" },
@@ -676,6 +679,7 @@
       "monsters": { "title": "Ménagerie #{number}", "hint": "Les monstres suivent des trajectoires fixes. Observez-les, attendez l'ouverture, puis foncez." },
       "bomb": { "title": "Chantier de Démolition #{number}", "hint": "Les bombes détruisent tout ce qui les touche. Poussez-y un bloc pour dégager le passage." },
       "cloner": { "title": "Atelier de Clonage #{number}", "hint": "Un bouton rouge fait déposer par la machine à cloner une copie de son bloc. Clonez autant de blocs que nécessaire." },
+      "dirt": { "title": "Fouilles #{number}", "hint": "Les blocs ne traversent ni la terre ni les faux murs bleus tant que vous ne les avez pas dégagés à pied. Ouvrez le bon passage avant de pousser." },
       "default": {
         "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les câbles des pièges, cloneurs et portes."
       }

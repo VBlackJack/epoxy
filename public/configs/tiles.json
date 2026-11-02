@@ -338,6 +338,18 @@
       "hazard": "fire",
       "protectedByItem": "boots_fire"
     },
+    "slime": {
+      "id": "slime",
+      "category": "hazards",
+      "layer": "terrain",
+      "i18nKey": "tiles.slime.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "hazard": "slime",
+      "blockTransformsTo": "floor",
+      "laserTransparent": true
+    },
     "ice": {
       "id": "ice",
       "category": "hazards",
@@ -839,6 +851,17 @@
       "passableByMonster": true,
       "passableByBlock": true,
       "buttonAction": "toggle_flames"
+    },
+    "button_gray": {
+      "id": "button_gray",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.button_gray.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "buttonAction": "swap_chips_bombs",
+      "laserTransparent": true
     },
     "flame_jet_off": {
       "id": "flame_jet_off",

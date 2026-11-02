@@ -22,6 +22,21 @@ export const FLOOR_TILE_ID = 'floor';
 /** Terrain used to fill the cells of a map that lie outside a smaller level. */
 export const WALL_TILE_ID = 'wall';
 
+/** Terrain id of a level exit. */
+export const EXIT_TILE_ID = 'exit';
+
+/** Item id of a standard collectible chip. */
+export const CHIP_ITEM_ID = 'chip';
+
+/** Item id of a bomb hazard. */
+export const BOMB_ITEM_ID = 'bomb';
+
+/** Half-width (Chebyshev radius) of the square region where a gray button swaps chips and bombs. */
+export const GRAY_BUTTON_RADIUS = 2;
+
+/** Hazards that end the game on contact unless their immunity boot is held. */
+export const DEADLY_HAZARDS: ReadonlySet<string> = new Set(['water', 'fire', 'slime']);
+
 /** Terrain left behind by a block sunk in water when neither config names one. */
 export const SUNK_BLOCK_TILE_ID = 'dirt';
 

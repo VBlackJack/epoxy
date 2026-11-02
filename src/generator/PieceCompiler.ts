@@ -383,13 +383,14 @@ export function orientPiece(piece: CompiledPiece, o: PieceOrientation): Compiled
   };
 }
 
-/** Boots that tame a hazard of the piece and keys that open its doors. */
+/** Boots that tame or block a tile of the piece and keys that open its doors. */
 export function helpfulItems(piece: CompiledPiece): Set<string> {
   const items = new Set<string>();
   for (const row of piece.terrain) {
     for (const id of row) {
       const tile = ConfigRegistry.getTile(id);
       if (tile.protectedByItem && (tile.hazard || tile.slideType)) items.add(tile.protectedByItem);
+      if (tile.forbiddenItem) items.add(tile.forbiddenItem);
       if (tile.requiredKey) items.add(tile.requiredKey);
     }
   }

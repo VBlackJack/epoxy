@@ -19,10 +19,13 @@ import { ProceduralConfig } from '../core/types';
 import { HubPlanner } from './HubPlanner';
 import { CompiledPiece, MotifRule } from './PieceTypes';
 import { GenerationMode, profileFor } from './DifficultyProfile';
-import { ProgressionPlanner } from './ProgressionPlanner';
+import { ENDLESS_TIER_SPREAD_FROM, MIN_ENDLESS_PUZZLE_MOVES, ProgressionPlanner } from './ProgressionPlanner';
 
 const LEAD_STREAM = 'lead';
 const SHAPE_STREAM = 'shape';
+const PIECE_COOLDOWN_STREAM = 'piece_cooldown';
+const MULTI_PIECE_COHORT_MIN_POOL = 4;
+const MULTI_PIECE_COHORT_SIZE = 2;
 
 /** Whether level `levelNumber` is laid out as a hub. */
 export function isHubLevel(levelNumber: number, cfg: ProceduralConfig, mode: GenerationMode = 'pack'): boolean {
@@ -111,10 +114,16 @@ export function leadChoiceFor(
   const motifsByProfile = new Map<string, string[]>();
   const motifsAt = (level: number): string[] => {
     const profile = profileFor(mode, level, cfg);
-    const key = `${profile.layout}|${profile.maxTier}|${profile.onboarding}|${profile.allowOneShot}`;
+    const isLoop = cfg.hub.loopModes.includes(profile.mode);
+    const key = `${profile.layout}|${isLoop}|${profile.maxTier}|${profile.onboarding}|${profile.allowOneShot}`;
     let motifs = motifsByProfile.get(key);
     if (!motifs) {
-      const accept = profile.layout === 'hub' ? HubPlanner.fitsWing : () => true;
+      const accept =
+        profile.layout !== 'hub'
+          ? () => true
+          : isLoop
+            ? (p: CompiledPiece) => HubPlanner.fitsLoopWing(p, cfg.hub)
+            : HubPlanner.fitsWing;
       const pieces = ProgressionPlanner.playablePieces(profile, library, rules, profile.maxTier, accept);
       motifs = [...new Set(pieces.map((p) => p.motif))];
       motifsByProfile.set(key, motifs);
@@ -135,6 +144,82 @@ export function leadMotifFor(
   mode: GenerationMode = 'pack'
 ): string | undefined {
   return leadChoiceFor(levelNumber, seed, library, rules, cfg, mode).preferred;
+}
+
+/**
+ * Piece ids that endless level `levelNumber` keeps clear of so adjacent levels
+ * rotate through each motif's pool and exchange pieces rather than drawing the
+ * same rooms back to back. Empty in pack mode, where tiers and motifs ramp up.
+ */
+export function avoidPiecesFor(
+  levelNumber: number,
+  seed: number,
+  library: CompiledPiece[],
+  rules: Record<string, MotifRule>,
+  cfg: ProceduralConfig,
+  mode: GenerationMode = 'pack'
+): string[] {
+  if (mode !== 'endless' || levelNumber < 1 || cfg.noRepeatWindow <= 0) return [];
+  const profile = profileFor(mode, levelNumber, cfg);
+  const accept = (p: CompiledPiece): boolean => HubPlanner.fitsLoopWing(p, cfg.hub);
+  const playable = ProgressionPlanner.playablePieces(profile, library, rules, profile.maxTier, accept);
+  const motifs = [...new Set(playable.map((p) => p.motif))].sort();
+  const avoid = new Set<string>();
+
+  const rotateCohort = (groupKey: string, ids: string[], cohortSize: number): void => {
+    if (ids.length <= 1) return;
+    const ordered = [...ids].sort();
+    const rng = new SeededRandom(SeededRandom.seedFromString(`${seed >>> 0}:${PIECE_COOLDOWN_STREAM}:${groupKey}`));
+    rng.shuffle(ordered);
+    const cohortAt = (level: number): string[] => {
+      const start = ((level - 1) * cohortSize) % ordered.length;
+      return Array.from({ length: cohortSize }, (_, i) => ordered[(start + i) % ordered.length]);
+    };
+    const own = new Set(cohortAt(levelNumber));
+    for (let step = 1; step <= cfg.noRepeatWindow; step++) {
+      for (const neighbour of [levelNumber - step, levelNumber + step]) {
+        if (neighbour < 1) continue;
+        for (const id of cohortAt(neighbour)) {
+          if (!own.has(id)) avoid.add(id);
+        }
+      }
+    }
+  };
+
+  for (const motif of motifs) {
+    const candidates = playable.filter((p) => p.motif === motif);
+    const substantive = candidates.filter((p) => (p.solution?.length ?? 0) >= MIN_ENDLESS_PUZZLE_MOVES);
+    const effective = substantive.length > 0 ? substantive : candidates;
+    const highestTier = Math.max(...effective.map((p) => p.tier));
+    const minHardTier = highestTier >= ENDLESS_TIER_SPREAD_FROM ? highestTier - 1 : highestTier;
+    const wide = profile.preferHard ? effective.filter((p) => p.tier >= minHardTier) : effective;
+    const limit = Math.max(cfg.maxPieceDeadEnds, Math.min(...wide.map((p) => p.deadEnds)));
+    const tidy = wide.filter((p) => p.deadEnds <= limit).map((p) => p.id);
+    const cohortSize = tidy.length >= MULTI_PIECE_COHORT_MIN_POOL ? MULTI_PIECE_COHORT_SIZE : 1;
+    rotateCohort(`motif:${motif}`, tidy, cohortSize);
+  }
+
+  const exchangePool = library.filter(
+    (p) =>
+      (p.exports !== null || p.imports !== null) &&
+      rules[p.motif]?.role === undefined &&
+      p.tier <= profile.maxTier &&
+      accept(p)
+  );
+  const exchangeGroups = new Map<string, string[]>();
+  for (const piece of exchangePool) {
+    const tag = piece.exports
+      ? `exports:${piece.exports.kind}:${piece.exports.item ?? ''}`
+      : `imports:${piece.imports?.kind ?? ''}:${piece.imports?.item ?? ''}`;
+    const list = exchangeGroups.get(tag) ?? [];
+    list.push(piece.id);
+    exchangeGroups.set(tag, list);
+  }
+  for (const [tag, ids] of [...exchangeGroups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    rotateCohort(`exchange:${tag}`, ids, 1);
+  }
+
+  return [...avoid];
 }
 
 /** Hub outlines a hub level may use: the one drawn for it first, then every outline outside the window. */

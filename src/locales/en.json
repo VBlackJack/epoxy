@@ -238,6 +238,7 @@
       "replaying_banner": { "label": "REPLAYING SOLUTION ({step}/{total}) - Click or press any key to take control" },
       "death_water": { "label": "Splash! You cannot swim without Flippers!" },
       "death_fire": { "label": "Ouch! Don't step into fire without Fire Boots!" },
+      "death_slime": { "label": "Dissolved in toxic slime! Push a block to neutralize it!" },
       "death_bomb": { "label": "BOOM! You stepped on a bomb!" },
       "death_monster": { "label": "Watch out for security creatures!" },
       "death_block": { "label": "Crushed by a moving block!" },
@@ -457,6 +458,7 @@
     "hint": { "name": "Hint Terminal (?)" },
     "water": { "name": "Deep Water" },
     "fire": { "name": "Fire Pit" },
+    "slime": { "name": "Toxic Slime" },
     "ice": { "name": "Ice" },
     "ice_nw": { "name": "Ice Corner N-W" },
     "ice_ne": { "name": "Ice Corner N-E" },
@@ -503,6 +505,7 @@
     "block_target": { "name": "Block Target" },
     "button_red": { "name": "Red Button (Clone Machine)" },
     "button_orange": { "name": "Orange Button (Flame Jets)" },
+    "button_gray": { "name": "Gray Button (Swap Chips/Bombs)" },
     "flame_jet_off": { "name": "Flame Jet (Off)" },
     "flame_jet_on": { "name": "Flame Jet (On)" },
     "toggle_wall_closed": { "name": "Toggle Wall (Closed)" },
@@ -676,6 +679,7 @@
       "monsters": { "title": "Creature Feature #{number}", "hint": "Monsters follow fixed patterns. Watch them, wait for the gap, then move." },
       "bomb": { "title": "Demolition Run #{number}", "hint": "Bombs blow up anything that touches them. Push a block into one to clear the way." },
       "cloner": { "title": "Clone Works #{number}", "hint": "A red button makes the clone machine drop a copy of its block. Clone as many blocks as the job needs." },
+      "dirt": { "title": "Excavation #{number}", "hint": "Blocks cannot cross dirt or fake blue walls until you clear them on foot. Clear the right path before you push." },
       "default": {
         "hint": "Use the Objective button (or H) to locate the next mechanism and inspect trap, cloner, and toggle wires."
       }

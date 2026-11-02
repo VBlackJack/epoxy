@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../core/coreConstants';
+import { FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from '../core/coreConstants';
 import { CloneLink, Direction, EntityPlacement, GridPoint, HubConfig, HubGateConfig, TrapLink } from '../core/types';
 import { HubWing } from './HubPlanner';
 import { MAP_MARGIN, NO_SEGMENT } from './HubTypes';
@@ -24,7 +24,6 @@ import { Box } from './LevelAssembler';
 import { orientTileId } from './PieceCompiler';
 import { CompiledPiece } from './PieceTypes';
 
-const WALL_TILE_ID = 'wall';
 const QUARTER_TURNS = [0, 1, 2, 3] as const;
 
 /** Claimed cells of a wing under construction, laid out for repeated box tests. */
