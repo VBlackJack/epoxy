@@ -80,6 +80,8 @@ export interface UserSettings {
 export interface StorageConfig {
   saveSlotKey: string;
   customLevelsKey: string;
+  /** Where the raw legacy custom levels are kept when part of them could not be migrated. */
+  customLevelsBackupKey: string;
   settingsKey: string;
   highScoresKey: string;
   activePackKey: string;
@@ -985,6 +987,8 @@ export interface LevelPack {
   name: string;
   i18nKey?: string;
   builtIn?: boolean;
+  /** True for a pack the player created; an empty one is kept. Absent on imported packs. */
+  userCreated?: boolean;
   levels: CompiledLevel[];
 }
 

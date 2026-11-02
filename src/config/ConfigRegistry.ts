@@ -17,6 +17,7 @@
 import {
   BUILTIN_PACK_IDS,
   CONFIG_ENDPOINTS,
+  CUSTOM_PACK_I18N_KEY,
   DEFAULT_LEVEL_PASSWORD,
   ENV_CONFIG,
   UNORDERED_PACK_RANK
@@ -61,6 +62,8 @@ import {
 } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
 import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
+import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
+import * as userPacks from '../packs/userPacks';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 
 /** Top-level keys each config file must define. */
@@ -97,6 +100,49 @@ interface FetchedPack {
   buffer: ArrayBuffer;
 }
 
+/** Outcome of a change to a pack: whether it applied, and whether it reached storage. */
+export interface PackOperationResult {
+  /** False when nothing changed (unknown pack or level, blank name). */
+  ok: boolean;
+  /** False when the write was refused; the change then lasts for this session only. */
+  persisted: boolean;
+}
+
+/** Result of saving a level into a pack. */
+export interface SaveLevelResult extends PackOperationResult {
+  /** Position of the level in its pack, -1 when nothing was saved. */
+  index: number;
+}
+
+/** Result of an operation that creates or returns a pack. */
+export interface PackResult extends PackOperationResult {
+  pack?: LevelPack;
+}
+
+/** Result of an operation that produces a level. */
+export interface LevelResult extends PackOperationResult {
+  level?: CompiledLevel;
+}
+
+export type ImportPackJsonResult =
+  | { ok: true; pack: LevelPack; persisted: boolean }
+  | { ok: false; error: PackJsonError };
+
+const FAILED: PackOperationResult = { ok: false, persisted: false };
+
+/** The levels of a legacy localStorage custom list, and whether some entries could not be kept. */
+function parseLegacyCustomLevels(raw: string, bounds: LevelSizeBounds): { levels: CompiledLevel[]; dropped: boolean } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { levels: [], dropped: true };
+  }
+  if (!Array.isArray(parsed)) return { levels: [], dropped: true };
+  const kept = sanitizeStoredLevels(parsed, bounds);
+  return { levels: ensureUniqueLevelIds(kept, BUILTIN_PACK_IDS.CUSTOM), dropped: kept.length !== parsed.length };
+}
+
 class ConfigRegistryService {
   private gameConfig!: GameConfig;
   private tilesConfig!: TilesConfig;
@@ -110,9 +156,13 @@ class ConfigRegistryService {
 
   private builtInLevels: CompiledLevel[] = [];
   private ultimatePacks: LevelPack[] = [];
-  private customLevels: CompiledLevel[] = [];
   private proceduralLevels: CompiledLevel[] = [];
-  private importedPacks: LevelPack[] = [];
+  /** The library read from IndexedDB: imported packs and the packs the player created. */
+  private storedPacks: LevelPack[] = [];
+  /** True while IndexedDB cannot be read: the custom pack then lives in localStorage. */
+  private legacyCustomStore = false;
+  /** True when the legacy list could not be backed up: it must not be overwritten. */
+  private legacyWriteBlocked = false;
   private activePackId: string = BUILTIN_PACK_IDS.CAMPAIGN;
 
   public async loadAll(): Promise<void> {
@@ -137,10 +187,9 @@ class ConfigRegistryService {
 
     this.applyConfigs({ game, tiles, cc3dTiles, monsters, audio, levels, datFormat, motifs, motifAnnotations });
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
-    this.customLevels = this.loadCustomLevelsFromStorage();
     // The store name and the level size bounds come from game.json, so the
     // stored packs are read only once the configs are installed.
-    this.importedPacks = await LevelPackStorage.loadAllPacks();
+    await this.loadStoredPacks();
 
     const savedPackId = this.readStorage(this.gameConfig.storage.activePackKey);
     if (savedPackId && this.getAllPacks().some((p) => p.id === savedPackId && p.levels.length > 0)) {
@@ -202,9 +251,10 @@ class ConfigRegistryService {
 
     this.builtInLevels = bundle.levels.levels.map((bp) => this.compileBlueprint(bp));
     this.ultimatePacks = [];
-    this.customLevels = [];
     this.proceduralLevels = [];
-    this.importedPacks = [];
+    this.storedPacks = [];
+    this.legacyCustomStore = false;
+    this.legacyWriteBlocked = false;
     this.activePackId = BUILTIN_PACK_IDS.CAMPAIGN;
   }
 
@@ -337,7 +387,7 @@ class ConfigRegistryService {
         levels: this.builtInLevels
       },
       ...this.ultimatePacks,
-      ...this.importedPacks
+      ...this.storedPacks
     ];
     if (this.proceduralLevels.length > 0) {
       packs.push({
@@ -346,15 +396,6 @@ class ConfigRegistryService {
         i18nKey: 'app.packs.procedural.label',
         builtIn: true,
         levels: this.proceduralLevels
-      });
-    }
-    if (this.customLevels.length > 0) {
-      packs.push({
-        id: BUILTIN_PACK_IDS.CUSTOM,
-        name: 'Custom',
-        i18nKey: 'app.packs.custom.label',
-        builtIn: true,
-        levels: this.customLevels
       });
     }
     return packs;
@@ -389,6 +430,170 @@ class ConfigRegistryService {
     return this.builtInLevels;
   }
 
+  // ---------------------------------------------------------------------------
+  // Library of stored packs: imported packs and the packs the player creates
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Reads the stored library, then moves the levels the editor used to keep in
+   * localStorage into the custom pack. Called once the configs are installed.
+   */
+  public async loadStoredPacks(): Promise<void> {
+    const stored = await LevelPackStorage.loadAllPacks();
+    // null means unreadable, not empty: the custom pack then stays in localStorage.
+    this.legacyCustomStore = stored === null;
+    this.legacyWriteBlocked = false;
+    this.storedPacks = stored ?? [];
+    await this.migrateLegacyCustomLevels();
+  }
+
+  /**
+   * The legacy list is removed only after the custom pack holding it is
+   * written; entries that fail validation are copied, raw, to a backup key
+   * first. A failed write leaves localStorage untouched and the levels
+   * playable from memory. Running it again changes nothing.
+   */
+  private async migrateLegacyCustomLevels(): Promise<void> {
+    const key = this.getStorageKey(this.gameConfig.storage.customLevelsKey);
+    let raw: string | null;
+    try {
+      raw = localStorage.getItem(key);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    const legacy = parseLegacyCustomLevels(raw, this.getLevelSizeBounds());
+
+    if (this.legacyCustomStore) {
+      // The first write to the legacy key replaces the entries that were dropped,
+      // so the raw text is kept aside before anything can overwrite it.
+      if (legacy.dropped && !this.backUpRawLegacy(raw)) this.legacyWriteBlocked = true;
+      if (legacy.levels.length > 0) {
+        const custom = userPacks.createLabelledPack(BUILTIN_PACK_IDS.CUSTOM, CUSTOM_PACK_I18N_KEY);
+        this.storedPacks.push({ ...custom, levels: userPacks.renumberLevels(legacy.levels) });
+      }
+      return;
+    }
+
+    const existing = this.storedPacks.find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM);
+    const known = new Set(existing?.levels.map((l) => l.id));
+    const fresh = legacy.levels.filter((l) => !known.has(l.id));
+    // The stored pack wins for an id both hold; the legacy version is kept aside when it differs.
+    const overridden = legacy.levels.some((l) => {
+      const held = existing?.levels.find((e) => e.id === l.id);
+      return held !== undefined && !sameLevelContent(held, l);
+    });
+    if (fresh.length > 0) {
+      const base = existing ?? userPacks.createLabelledPack(BUILTIN_PACK_IDS.CUSTOM, CUSTOM_PACK_I18N_KEY);
+      const merged: LevelPack = { ...base, levels: userPacks.renumberLevels([...base.levels, ...fresh]) };
+      this.upsertStoredPack(merged);
+      if (!(await LevelPackStorage.savePack(merged))) return;
+    }
+    if ((legacy.dropped || overridden) && !this.backUpRawLegacy(raw)) return;
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // The legacy list stays; the next start finds nothing new to add and tries again.
+    }
+  }
+
+  /** Copies the raw legacy text to the backup key. False when storage refused it. */
+  private backUpRawLegacy(raw: string): boolean {
+    try {
+      localStorage.setItem(this.getStorageKey(this.gameConfig.storage.customLevelsBackupKey), raw);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private findStoredPack(packId: string): LevelPack | undefined {
+    return this.storedPacks.find((p) => p.id === packId);
+  }
+
+  private upsertStoredPack(pack: LevelPack): void {
+    const index = this.storedPacks.findIndex((p) => p.id === pack.id);
+    if (index >= 0) this.storedPacks[index] = pack;
+    else this.storedPacks.push(pack);
+  }
+
+  /** Writes one pack; the custom pack goes to localStorage while IndexedDB is unreadable. */
+  private async persistPack(pack: LevelPack): Promise<boolean> {
+    if (this.legacyCustomStore && pack.id === BUILTIN_PACK_IDS.CUSTOM) {
+      return this.writeLegacyCustom(pack.levels);
+    }
+    return LevelPackStorage.savePack(pack);
+  }
+
+  private async persistDeletion(packId: string): Promise<boolean> {
+    if (this.legacyCustomStore && packId === BUILTIN_PACK_IDS.CUSTOM) {
+      return this.writeLegacyCustom([]);
+    }
+    return LevelPackStorage.deletePack(packId);
+  }
+
+  private writeLegacyCustom(levels: readonly CompiledLevel[]): boolean {
+    if (this.legacyWriteBlocked) return false;
+    try {
+      const key = this.getStorageKey(this.gameConfig.storage.customLevelsKey);
+      if (levels.length === 0) localStorage.removeItem(key);
+      else localStorage.setItem(key, JSON.stringify(levels));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Keeps the pack in memory whatever happens, then writes it. Returns whether the write committed. */
+  private async commitPack(pack: LevelPack): Promise<boolean> {
+    this.applyPack(pack);
+    return this.persistPack(pack);
+  }
+
+  /** Puts the pack in memory, and leaves the campaign if that emptied the active pack. */
+  private applyPack(pack: LevelPack): void {
+    this.upsertStoredPack(pack);
+    if (pack.levels.length === 0 && this.activePackId === pack.id) this.resetActivePack();
+  }
+
+  /** Writes what memory holds for a pack now, not an older snapshot; true when it was deleted since. */
+  private async persistLatest(packId: string): Promise<boolean> {
+    const latest = this.findStoredPack(packId);
+    return latest ? this.persistPack(latest) : true;
+  }
+
+  /** Falls back to the campaign, for when the active pack disappears or empties. */
+  private resetActivePack(): void {
+    this.activePackId = BUILTIN_PACK_IDS.CAMPAIGN;
+    try {
+      localStorage.setItem(this.getStorageKey(this.gameConfig.storage.activePackKey), this.activePackId);
+    } catch {
+      // Ignore storage error
+    }
+  }
+
+  private takenPackIds(): Set<string> {
+    return new Set(this.getAllPacks().map((p) => p.id));
+  }
+
+  private takenLevelIds(): Set<string> {
+    return new Set(this.getAllPacks().flatMap((p) => p.levels.map((l) => l.id)));
+  }
+
+  /** A level id no pack of the library holds. */
+  public newLevelId(): string {
+    return userPacks.generateLevelId(this.takenLevelIds());
+  }
+
+  /** The packs the player can edit: every pack but the built-in ones, empty ones included. */
+  public getEditablePacks(): LevelPack[] {
+    return this.storedPacks.filter((p) => p.builtIn !== true);
+  }
+
+  public isEditablePack(packId: string): boolean {
+    return this.getEditablePacks().some((p) => p.id === packId);
+  }
+
   /**
    * Registers an imported pack for this session and persists it. Levels get
    * unique ids first. A failed write keeps the pack in memory: `persisted`
@@ -405,18 +610,127 @@ class ConfigRegistryService {
       builtIn: false,
       levels: ensureUniqueLevelIds(levels, cleanId)
     };
-    this.importedPacks.push(pack);
-    const persisted = await LevelPackStorage.savePack(pack);
+    this.storedPacks.push(pack);
+    const persisted = await this.persistPack(pack);
     this.setActivePackId(pack.id);
     return { pack, persisted };
   }
 
-  public async deleteImportedPack(packId: string): Promise<void> {
-    this.importedPacks = this.importedPacks.filter((p) => p.id !== packId);
-    await LevelPackStorage.deletePack(packId);
-    if (this.activePackId === packId) {
-      this.setActivePackId(BUILTIN_PACK_IDS.CAMPAIGN);
+  /** Creates an empty pack the player owns. */
+  public async createUserPack(name: string): Promise<PackResult> {
+    const pack = userPacks.createUserPack(name, this.takenPackIds());
+    if (!pack) return FAILED;
+    return { ok: true, pack, persisted: await this.commitPack(pack) };
+  }
+
+  public async renamePack(packId: string, name: string): Promise<PackResult> {
+    const pack = this.findStoredPack(packId);
+    const renamed = pack ? userPacks.renamePack(pack, name) : null;
+    if (!renamed) return FAILED;
+    return { ok: true, pack: renamed, persisted: await this.commitPack(renamed) };
+  }
+
+  /** Deletes any pack that is not built in. The active pack falls back to the campaign. */
+  public async deletePack(packId: string): Promise<PackOperationResult> {
+    if (!this.findStoredPack(packId)) return FAILED;
+    this.storedPacks = this.storedPacks.filter((p) => p.id !== packId);
+    if (this.activePackId === packId) this.resetActivePack();
+    return { ok: true, persisted: await this.persistDeletion(packId) };
+  }
+
+  public async deleteImportedPack(packId: string): Promise<PackOperationResult> {
+    return this.deletePack(packId);
+  }
+
+  /**
+   * Saves a level into a pack: replaces the level holding the same id, else
+   * appends it. The custom pack is created on first use. `number` is set from
+   * the position in that pack.
+   */
+  public async saveLevelToPack(packId: string, level: CompiledLevel): Promise<SaveLevelResult> {
+    let pack = this.findStoredPack(packId);
+    if (!pack && packId === BUILTIN_PACK_IDS.CUSTOM) {
+      pack = userPacks.createLabelledPack(BUILTIN_PACK_IDS.CUSTOM, CUSTOM_PACK_I18N_KEY);
     }
+    if (!pack) return { ...FAILED, index: -1 };
+    const next = userPacks.upsertLevel(pack, level);
+    return {
+      ok: true,
+      index: next.levels.findIndex((l) => l.id === level.id),
+      persisted: await this.commitPack(next)
+    };
+  }
+
+  public async removeLevelFromPack(packId: string, levelId: string): Promise<PackOperationResult> {
+    const pack = this.findStoredPack(packId);
+    if (!pack || !pack.levels.some((l) => l.id === levelId)) return FAILED;
+    return { ok: true, persisted: await this.commitPack(userPacks.removeLevel(pack, levelId)) };
+  }
+
+  /** Moves the level at index `from` so it ends up at index `to`. */
+  public async moveLevelInPack(packId: string, from: number, to: number): Promise<PackOperationResult> {
+    const pack = this.findStoredPack(packId);
+    if (!pack) return FAILED;
+    const next = userPacks.moveLevel(pack, from, to);
+    if (next === pack) return FAILED;
+    return { ok: true, persisted: await this.commitPack(next) };
+  }
+
+  /** Inserts a copy of the level right after it, under a new id. */
+  public async duplicateLevelInPack(packId: string, levelId: string): Promise<LevelResult> {
+    const pack = this.findStoredPack(packId);
+    const next = pack ? userPacks.duplicateLevel(pack, levelId, this.newLevelId()) : null;
+    if (!next || !pack) return FAILED;
+    const index = pack.levels.findIndex((l) => l.id === levelId) + 1;
+    return { ok: true, level: next.levels[index], persisted: await this.commitPack(next) };
+  }
+
+  /** Appends a copy of a level to another pack, under a new id. */
+  public async copyLevelToPack(fromPackId: string, levelId: string, toPackId: string): Promise<LevelResult> {
+    const source = this.getAllPacks().find((p) => p.id === fromPackId);
+    const destination = this.findStoredPack(toPackId);
+    if (!source || !destination || fromPackId === toPackId) return FAILED;
+    const next = userPacks.copyLevelToPack(source, levelId, destination, this.newLevelId());
+    if (!next) return FAILED;
+    return { ok: true, level: next.levels[next.levels.length - 1], persisted: await this.commitPack(next) };
+  }
+
+  /** Moves a level to another pack. It keeps its id unless the destination already holds it. */
+  public async moveLevelToPack(fromPackId: string, levelId: string, toPackId: string): Promise<LevelResult> {
+    const source = this.findStoredPack(fromPackId);
+    const destination = this.findStoredPack(toPackId);
+    if (!source || !destination || fromPackId === toPackId) return FAILED;
+    const moved = userPacks.moveLevelToPack(source, levelId, destination);
+    if (!moved) return FAILED;
+    // Both packs change in memory before any write is awaited, and each write reads the pack as it is
+    // then, so a save made during the first write is neither lost nor overwritten by a stale snapshot.
+    // The destination is written first so a failure in between duplicates the level instead of losing it.
+    this.applyPack(moved.destination);
+    this.applyPack(moved.source);
+    const destinationOk = await this.persistLatest(toPackId);
+    const sourceOk = await this.persistLatest(fromPackId);
+    return {
+      ok: true,
+      level: moved.destination.levels[moved.destination.levels.length - 1],
+      persisted: destinationOk && sourceOk
+    };
+  }
+
+  /**
+   * The pack as a shareable file, or null for an unknown or empty pack. The caller passes the
+   * display name (the translated label of a pack that has an i18n key); it defaults to the pack name.
+   */
+  public exportPackJson(packId: string, displayName?: string): string | null {
+    const pack = this.getAllPacks().find((p) => p.id === packId);
+    return pack && pack.levels.length > 0 ? serializePack(displayName?.trim() || pack.name, pack.levels) : null;
+  }
+
+  /** Adds the pack held by a file made with exportPackJson. */
+  public async importPackJson(text: string): Promise<ImportPackJsonResult> {
+    const parsed = parsePackJson(text, this.getLevelSizeBounds(), this.takenLevelIds());
+    if (!parsed.ok) return parsed;
+    const { pack, persisted } = await this.registerImportedPack(parsed.name, parsed.levels);
+    return { ok: true, pack, persisted };
   }
 
   public getStorageKey(suffix: string): string {
@@ -564,51 +878,23 @@ class ConfigRegistryService {
     }
     return size;
   }
+}
 
-  /**
-   * Stores a custom level. The in-memory list is updated whatever happens;
-   * `persisted` is false when localStorage refused the write.
-   */
-  public addOrUpdateCustomLevel(level: CompiledLevel): { index: number; persisted: boolean } {
-    const existingIdx = this.customLevels.findIndex((l) => l.id === level.id);
-    if (existingIdx >= 0) {
-      this.customLevels[existingIdx] = level;
-    } else {
-      level.number = this.customLevels.length + 1;
-      this.customLevels.push(level);
-    }
-    const persisted = this.saveCustomLevelsToStorage();
-    this.setActivePackId(BUILTIN_PACK_IDS.CUSTOM);
-    return { index: existingIdx >= 0 ? existingIdx : this.customLevels.length - 1, persisted };
-  }
+/** True when two levels hold the same data; their position in a pack (`number`) does not count. */
+function sameLevelContent(a: CompiledLevel, b: CompiledLevel): boolean {
+  return deepEqual({ ...a, number: 0 }, { ...b, number: 0 });
+}
 
-  private loadCustomLevelsFromStorage(): CompiledLevel[] {
-    try {
-      const raw = localStorage.getItem(
-        this.getStorageKey(this.gameConfig.storage.customLevelsKey)
-      );
-      if (!raw) return [];
-      const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      const bounds = this.getLevelSizeBounds();
-      return sanitizeStoredLevels(parsed, bounds);
-    } catch {
-      return [];
-    }
-  }
-
-  /** Writes the custom levels; false when storage is full or unavailable. */
-  private saveCustomLevelsToStorage(): boolean {
-    try {
-      localStorage.setItem(
-        this.getStorageKey(this.gameConfig.storage.customLevelsKey),
-        JSON.stringify(this.customLevels)
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  }
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every(
+    (key) => key in b && deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+  );
 }
 
 function toNonNegative(value: unknown): number {

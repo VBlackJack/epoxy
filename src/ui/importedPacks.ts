@@ -20,20 +20,31 @@ import { BUILTIN_PACK_IDS } from '../config/constants';
 export interface RemovableCandidate {
   readonly id: string;
   readonly builtIn?: boolean;
+  /** True for a pack the player created; absent on an imported one. */
+  readonly userCreated?: boolean;
 }
 
-/** True when a pack can be deleted: built-in packs, the campaign and custom packs never can. */
+/** True when a pack can be deleted: any pack but the built-in ones and the campaign. */
 export function isRemovablePack(pack: RemovableCandidate): boolean {
-  return (
-    pack.builtIn !== true && pack.id !== BUILTIN_PACK_IDS.CAMPAIGN && pack.id !== BUILTIN_PACK_IDS.CUSTOM
-  );
+  return pack.builtIn !== true && pack.id !== BUILTIN_PACK_IDS.CAMPAIGN;
 }
 
-/** Ids of every pack the user may delete, in the given order, without duplicates. */
+/**
+ * Ids of the imported packs "delete all imported packs" removes, in the given
+ * order, without duplicates. The packs the player created, and the custom pack
+ * whatever its flag says, are never in it.
+ */
 export function removablePackIds(packs: readonly RemovableCandidate[]): string[] {
   const ids: string[] = [];
   for (const pack of packs) {
-    if (isRemovablePack(pack) && !ids.includes(pack.id)) ids.push(pack.id);
+    if (
+      isRemovablePack(pack) &&
+      pack.id !== BUILTIN_PACK_IDS.CUSTOM &&
+      pack.userCreated !== true &&
+      !ids.includes(pack.id)
+    ) {
+      ids.push(pack.id);
+    }
   }
   return ids;
 }

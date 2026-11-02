@@ -63,3 +63,21 @@ export const BUILTIN_PACK_IDS = {
   CUSTOM: 'epoxy_custom',
   PROCEDURAL: 'epoxy_procedural'
 } as const;
+
+/** Prefix of the id of a pack the player creates, followed by a timestamp. */
+export const USER_PACK_ID_PREFIX = 'user_pack_';
+
+/** Name of the pack that holds the levels saved by the editor, until the player renames it. */
+export const CUSTOM_PACK_FALLBACK_NAME = 'Custom';
+
+/** i18n key of the label shown for the custom pack until it is renamed. */
+export const CUSTOM_PACK_I18N_KEY = 'app.packs.custom.label';
+
+/** Longest pack name kept, in characters. */
+export const PACK_NAME_MAX_LENGTH = 60;
+
+/** Value of the `format` field of an exported pack file. */
+export const PACK_JSON_FORMAT = 'epoxy-pack';
+
+/** Version of the exported pack file format; a file with a higher version is refused. */
+export const PACK_JSON_VERSION = 1;

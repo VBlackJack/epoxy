@@ -59,6 +59,18 @@ class LevelPackStorageService {
     return opening;
   }
 
+  /** Drops the shared connection so the next call opens a new one. */
+  public async closeConnection(): Promise<void> {
+    const opening = this.dbPromise;
+    this.dbPromise = null;
+    if (!opening) return;
+    try {
+      (await opening).close();
+    } catch {
+      // The connection never opened
+    }
+  }
+
   /**
    * Runs one request in its own transaction. Resolves only when the
    * transaction commits: a request can succeed and its transaction still
@@ -79,14 +91,17 @@ class LevelPackStorageService {
     });
   }
 
-  /** Returns the stored packs, dropping any record that is not a well-formed pack. */
-  public async loadAllPacks(): Promise<LevelPack[]> {
+  /**
+   * Returns the stored packs, dropping any record that is not a well-formed pack.
+   * An empty list means the library is empty; null means it could not be read.
+   */
+  public async loadAllPacks(): Promise<LevelPack[] | null> {
     try {
       const raw = await this.runRequest<unknown[]>('readonly', (store) => store.getAll());
       return this.sanitizePacks(raw);
     } catch {
-      // IndexedDB unavailable or the read failed: no imported packs
-      return [];
+      // IndexedDB unavailable or the read failed: the library is unknown, not empty
+      return null;
     }
   }
 
@@ -118,12 +133,15 @@ class LevelPackStorageService {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string') continue;
       if (!Array.isArray(entry.levels)) continue;
       const levels = sanitizeStoredLevels(entry.levels, bounds);
-      if (levels.length === 0) continue;
+      const userCreated = entry.userCreated === true;
+      // A pack the player created stays even when it holds no level yet.
+      if (levels.length === 0 && !userCreated) continue;
       packs.push({
         id: entry.id,
         name: entry.name,
         i18nKey: typeof entry.i18nKey === 'string' ? entry.i18nKey : undefined,
         builtIn: false,
+        ...(userCreated ? { userCreated } : {}),
         levels
       });
     }

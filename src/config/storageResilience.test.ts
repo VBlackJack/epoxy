@@ -16,6 +16,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigRegistry } from './ConfigRegistry';
+import { BUILTIN_PACK_IDS } from './constants';
 import {
   ensureUniqueLevelIds,
   isCompiledLevelShape,
@@ -23,6 +24,8 @@ import {
   stripInvalidTextFields
 } from './ConfigValidation';
 import { CompiledLevel, LevelBlueprint } from '../core/types';
+import { LevelPackStorage } from '../storage/LevelPackStorage';
+import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
 function blueprint(overrides: Partial<LevelBlueprint> = {}): LevelBlueprint {
@@ -103,6 +106,21 @@ describe('level text fields', () => {
     expect(lynx.ruleset).toBe('lynx');
   });
 
+  it('keeps a level whose password is not a string, with an empty one', () => {
+    const bounds = ConfigRegistry.getLevelSizeBounds();
+    const stored = [
+      { ...level('num'), password: 12 },
+      { ...level('nul'), password: null },
+      level('ok')
+    ];
+    const kept = sanitizeStoredLevels(stored, bounds);
+    expect(kept.map((l) => l.id)).toEqual(['num', 'nul', 'ok']);
+    expect(kept.map((l) => l.password)).toEqual(['', '', 'TEST']);
+    const missing = { ...level('gone') } as Partial<CompiledLevel>;
+    delete missing.password;
+    expect(sanitizeStoredLevels([missing], bounds)[0].password).toBe('');
+  });
+
   it('does not mutate the level it strips', () => {
     const stored = { ...level('a'), titleKey: 5 } as unknown as CompiledLevel;
     stripInvalidTextFields(stored);
@@ -149,30 +167,45 @@ describe('persistence failures', () => {
     loadTestConfigs();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
+    await LevelPackStorage.closeConnection();
   });
 
-  it('reports persisted false but keeps the level when localStorage throws', () => {
+  it('reports persisted false but keeps the level when the store refuses the write', async () => {
+    const fake = new FakeIndexedDb();
+    fake.abortWrites = true;
+    vi.stubGlobal('indexedDB', fake);
+    const result = await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, level('custom_fail'));
+    expect(result.persisted).toBe(false);
+    const custom = ConfigRegistry.getAllPacks().find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM);
+    expect(custom?.levels.some((l) => l.id === 'custom_fail')).toBe(true);
+  });
+
+  it('reports persisted false when localStorage throws and IndexedDB is unreadable', async () => {
+    const fake = new FakeIndexedDb();
+    fake.abortReads = true;
+    vi.stubGlobal('indexedDB', fake);
     vi.stubGlobal('localStorage', {
       getItem: () => null,
       setItem: () => {
         throw new Error('quota exceeded');
-      }
+      },
+      removeItem: () => undefined
     });
-    const result = ConfigRegistry.addOrUpdateCustomLevel(level('custom_fail'));
+    await ConfigRegistry.loadStoredPacks();
+    const result = await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, level('custom_ls_fail'));
     expect(result.persisted).toBe(false);
-    expect(ConfigRegistry.getLevels().some((l) => l.id === 'custom_fail')).toBe(true);
+    ConfigRegistry.setActivePackId(BUILTIN_PACK_IDS.CUSTOM);
+    expect(ConfigRegistry.getLevels().some((l) => l.id === 'custom_ls_fail')).toBe(true);
   });
 
-  it('reports persisted true when the write succeeds', () => {
-    const store = new Map<string, string>();
-    vi.stubGlobal('localStorage', {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => void store.set(key, value)
-    });
-    expect(ConfigRegistry.addOrUpdateCustomLevel(level('custom_ok')).persisted).toBe(true);
-    expect(store.size).toBeGreaterThan(0);
+  it('reports persisted true when the write succeeds', async () => {
+    const fake = new FakeIndexedDb();
+    vi.stubGlobal('indexedDB', fake);
+    const result = await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, level('custom_ok'));
+    expect(result.persisted).toBe(true);
+    expect(fake.records.has(BUILTIN_PACK_IDS.CUSTOM)).toBe(true);
   });
 
   it('reports persisted false for an imported pack when the store is unavailable', async () => {

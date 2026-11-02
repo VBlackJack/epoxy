@@ -63,6 +63,24 @@ export function resolveSavedLevelIndex(
   return index;
 }
 
+/**
+ * Position to resume at in the active pack. The saved level id wins, so a
+ * reorder, an insert or a removal keeps the player on the same level; a save
+ * without an id (or whose level left the pack) falls back to its index.
+ */
+export function resolveSavedLevel(
+  saved: unknown,
+  activePackId: string,
+  levels: readonly { readonly id: string }[]
+): number | null {
+  if (!isRecord(saved) || saved.packId !== activePackId) return null;
+  if (typeof saved.levelId === 'string') {
+    const byId = levels.findIndex((l) => l.id === saved.levelId);
+    if (byId >= 0) return byId;
+  }
+  return resolveSavedLevelIndex(saved, activePackId, levels.length);
+}
+
 /** Returns the stored graphics style when it is a known one, else undefined. */
 export function parseGraphicsStyle(value: unknown): GraphicsStyle | undefined {
   return parseRenderStyleId(value);
