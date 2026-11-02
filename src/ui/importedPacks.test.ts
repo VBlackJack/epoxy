@@ -19,9 +19,10 @@ import { BUILTIN_PACK_IDS } from '../config/constants';
 import { isRemovablePack, removablePackIds } from './importedPacks';
 
 describe('importedPacks', () => {
-  it('never treats the campaign or custom pack as removable', () => {
+  it('never treats the campaign as removable, but the custom pack is', () => {
     expect(isRemovablePack({ id: BUILTIN_PACK_IDS.CAMPAIGN })).toBe(false);
-    expect(isRemovablePack({ id: BUILTIN_PACK_IDS.CUSTOM })).toBe(false);
+    expect(isRemovablePack({ id: BUILTIN_PACK_IDS.CUSTOM, userCreated: true })).toBe(true);
+    expect(isRemovablePack({ id: 'user_pack_1', userCreated: true })).toBe(true);
     expect(isRemovablePack({ id: 'imported_a', builtIn: false })).toBe(true);
   });
 
@@ -40,11 +41,21 @@ describe('importedPacks', () => {
     const packs = [
       { id: BUILTIN_PACK_IDS.CAMPAIGN },
       { id: 'imported_a' },
-      { id: BUILTIN_PACK_IDS.CUSTOM },
+      { id: BUILTIN_PACK_IDS.CUSTOM, userCreated: true },
       { id: 'imported_b' },
       { id: 'imported_a' }
     ];
     expect(removablePackIds(packs)).toEqual(['imported_a', 'imported_b']);
+  });
+
+  it('keeps the packs the player created out of the bulk deletion', () => {
+    expect(
+      removablePackIds([
+        { id: 'user_pack_1', builtIn: false, userCreated: true },
+        { id: 'imported_a', builtIn: false },
+        { id: BUILTIN_PACK_IDS.CUSTOM, userCreated: true }
+      ])
+    ).toEqual(['imported_a']);
   });
 
   it('returns an empty list when nothing is removable', () => {

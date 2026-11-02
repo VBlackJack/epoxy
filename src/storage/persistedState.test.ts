@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { RENDER_STYLES } from '../render/styles/renderStyles';
-import { parseGraphicsStyle, resolveSavedLevelIndex, sanitizeHighScores } from './persistedState';
+import { parseGraphicsStyle, resolveSavedLevel, resolveSavedLevelIndex, sanitizeHighScores } from './persistedState';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 
 const GOOD = { bestTimeRemaining: 50, minSteps: 12, bestScore: 900 };
@@ -70,6 +70,33 @@ describe('resolveSavedLevelIndex', () => {
     expect(resolveSavedLevelIndex({ packId: 'q', levelIndex: 2 }, 'p', 10)).toBeNull();
     expect(resolveSavedLevelIndex(null, 'p', 10)).toBeNull();
     expect(resolveSavedLevelIndex({ packId: 'p', levelIndex: '2' }, 'p', 10)).toBeNull();
+  });
+});
+
+describe('resolveSavedLevel', () => {
+  const levels = (...ids: string[]) => ids.map((id) => ({ id }));
+
+  it('follows the saved level id after a reorder', () => {
+    const saved = { packId: 'p', levelIndex: 1, levelId: 'b' };
+    expect(resolveSavedLevel(saved, 'p', levels('a', 'b', 'c'))).toBe(1);
+    expect(resolveSavedLevel(saved, 'p', levels('c', 'a', 'b'))).toBe(2);
+    expect(resolveSavedLevel(saved, 'p', levels('b', 'c'))).toBe(0);
+  });
+
+  it('falls back to the index for a save without an id', () => {
+    expect(resolveSavedLevel({ packId: 'p', levelIndex: 2 }, 'p', levels('a', 'b', 'c'))).toBe(2);
+    expect(resolveSavedLevel({ packId: 'p', levelIndex: 5 }, 'p', levels('a', 'b', 'c'))).toBeNull();
+  });
+
+  it('falls back to the index when the saved level left the pack', () => {
+    expect(resolveSavedLevel({ packId: 'p', levelIndex: 1, levelId: 'gone' }, 'p', levels('a', 'b'))).toBe(1);
+    expect(resolveSavedLevel({ packId: 'p', levelIndex: 9, levelId: 'gone' }, 'p', levels('a', 'b'))).toBeNull();
+  });
+
+  it('ignores a save of another pack and a non-string id', () => {
+    expect(resolveSavedLevel({ packId: 'q', levelIndex: 0, levelId: 'a' }, 'p', levels('a'))).toBeNull();
+    expect(resolveSavedLevel({ packId: 'p', levelIndex: 0, levelId: 4 }, 'p', levels('a'))).toBe(0);
+    expect(resolveSavedLevel(null, 'p', levels('a'))).toBeNull();
   });
 });
 
