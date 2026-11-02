@@ -148,7 +148,10 @@
       "import_too_large": { "label": "Fichier trop volumineux (limite : {max} Mo)." },
       "imported_session_only_toast": { "label": "Pack \"{name}\" importé, mais il n'a pas pu être sauvegardé : il ne durera que pour cette session." },
       "invalid_level_error": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
-      "delete_confirm": { "label": "Supprimer le pack \"{name}\" et tous ses niveaux ? Cette action est définitive." }
+      "delete_confirm": { "label": "Supprimer le pack \"{name}\" et tous ses niveaux ? Cette action est définitive." },
+      "delete_all_btn": { "action": "Supprimer les packs importés...", "title": "Supprime tous les packs importés et leurs niveaux." },
+      "delete_all_confirm": { "label": "Supprimer {count, plural, one {le pack importé et ses niveaux} other {les # packs importés et leurs niveaux}} ? Cette action est définitive." },
+      "delete_all_done": { "label": "{count, plural, one {# pack importé supprimé} other {# packs importés supprimés}}." }
     }
   },
   "hud": {

@@ -15,6 +15,7 @@
  */
 
 import { ConfigBundle, ConfigRegistry } from './config/ConfigRegistry';
+import { isRemovablePack, removablePackIds } from './ui/importedPacks';
 import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, IMPORTED_PACK_RULESET } from './config/constants';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
@@ -636,6 +637,7 @@ class EpoxyApplication {
       }
     }
     this.updateProceduralSeedBox();
+    this.updateDeleteImportedPacksButton();
   }
 
   /** Switches to a pack from any pack select, keeps the others in step and closes the drawer. */
@@ -1062,13 +1064,45 @@ class EpoxyApplication {
     if (notice) this.showTransientStatus(notice);
   }
 
-  private isRemovablePack(packId: string): boolean {
-    return packId !== BUILTIN_PACK_IDS.CAMPAIGN && packId !== BUILTIN_PACK_IDS.CUSTOM;
+  private isRemovablePackId(packId: string): boolean {
+    const pack = ConfigRegistry.getAllPacks().find((p) => p.id === packId);
+    return pack !== undefined && isRemovablePack(pack);
+  }
+
+  /** Shows the "delete imported packs" button only while a removable pack exists. */
+  private updateDeleteImportedPacksButton(): void {
+    byId('btn-delete-imported-packs')?.classList.toggle(
+      'hidden',
+      removablePackIds(ConfigRegistry.getAllPacks()).length === 0
+    );
+  }
+
+  private async deleteAllImportedPacks(): Promise<void> {
+    const ids = removablePackIds(ConfigRegistry.getAllPacks());
+    if (ids.length === 0) return;
+    const confirmed = await confirmDialog({
+      title: t('app.confirm.title.label'),
+      message: t('app.packs.delete_all_confirm.label', { count: ids.length }),
+      confirmLabel: t('app.confirm.delete.action'),
+      cancelLabel: t('app.confirm.cancel.action')
+    });
+    if (!confirmed) return;
+
+    // deleteImportedPack falls back to the campaign pack when it removes the active one.
+    const activeRemoved = ids.includes(ConfigRegistry.getActivePackId());
+    for (const id of ids) {
+      await ConfigRegistry.deleteImportedPack(id);
+    }
+    this.refreshPackSelector();
+    this.editor.populatePresetDropdown();
+    if (activeRemoved) this.startLevelByIndex(0);
+    this.populateScoresTable();
+    this.showTransientStatus(t('app.packs.delete_all_done.label', { count: ids.length }));
   }
 
   private async deleteActivePack(): Promise<void> {
     const activeId = ConfigRegistry.getActivePackId();
-    if (!this.isRemovablePack(activeId)) return;
+    if (!this.isRemovablePackId(activeId)) return;
     const pack = ConfigRegistry.getAllPacks().find((p) => p.id === activeId);
     const name = pack ? this.getPackDisplayName(pack) : activeId;
     const confirmed = await confirmDialog({
@@ -1801,6 +1835,10 @@ class EpoxyApplication {
     byId('btn-delete-pack')?.addEventListener('click', () => {
       void this.deleteActivePack();
     });
+
+    byId('btn-delete-imported-packs')?.addEventListener('click', () => {
+      void this.deleteAllImportedPacks();
+    });
   }
 
   private bindBoardPointer(): void {
@@ -2367,7 +2405,7 @@ class EpoxyApplication {
 
     byId('btn-delete-pack')?.classList.toggle(
       'hidden',
-      !this.isRemovablePack(ConfigRegistry.getActivePackId())
+      !this.isRemovablePackId(ConfigRegistry.getActivePackId())
     );
 
     const levels = ConfigRegistry.getLevels();

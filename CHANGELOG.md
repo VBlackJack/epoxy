@@ -5,6 +5,11 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- A "Delete imported packs" button removes every imported pack and its levels in one go, after a
+  confirmation. Built-in packs, the Epoxy campaign and your own levels are kept.
+
 ## [2.16.3] - 2026-11-02
 
 ### Changed
