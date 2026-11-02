@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.16.1] - 2026-11-02
+
 ### Fixed
 
 - Chuck's Challenge 3D levels: a teleport now sends the mob to the previous teleport of its colour
