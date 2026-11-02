@@ -1,0 +1,275 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { EditorMap } from './editorDocument';
+import {
+  eraseCell,
+  floodFillTerrain,
+  paintEntity,
+  paintItem,
+  paintPlayerStart,
+  paintTerrain,
+  placeWireButton,
+  placeWireLink,
+  resizeMap
+} from './mapEdits';
+
+const BOUNDS = { minSize: 5, maxSize: 12 };
+
+/** A bordered map of the given size: wall ring, floor inside, player at (1, 1). */
+function bordered(width: number, height: number): EditorMap {
+  const terrain: string[][] = [];
+  const items: (string | null)[][] = [];
+  for (let y = 0; y < height; y++) {
+    terrain.push([]);
+    items.push([]);
+    for (let x = 0; x < width; x++) {
+      const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1;
+      terrain[y].push(edge ? 'wall' : 'floor');
+      items[y].push(null);
+    }
+  }
+  return { terrain, items, entities: [], trapLinks: [], cloneLinks: [], playerStart: { x: 1, y: 1, dir: 'S' } };
+}
+
+function withLinks(): EditorMap {
+  const map = bordered(8, 8);
+  map.terrain[2][2] = 'button_brown';
+  map.terrain[2][4] = 'trap';
+  map.terrain[4][2] = 'button_red';
+  map.terrain[4][4] = 'clone_machine';
+  map.trapLinks = [{ buttonX: 2, buttonY: 2, trapX: 4, trapY: 2 }];
+  map.cloneLinks = [{ buttonX: 2, buttonY: 4, clonerX: 4, clonerY: 4, templateType: 'dirt_block', templateDir: 'S' }];
+  return map;
+}
+
+describe('painting', () => {
+  it('never modifies its input', () => {
+    const map = bordered(7, 7);
+    const snapshot = JSON.stringify(map);
+    paintTerrain(map, 3, 3, 'water');
+    paintItem(map, 3, 3, 'chip');
+    paintEntity(map, 3, 3, 'dirt_block', 'N');
+    paintPlayerStart(map, 3, 3, 'E');
+    eraseCell(map, 0, 0);
+    floodFillTerrain(map, 2, 2, 'ice');
+    expect(JSON.stringify(map)).toBe(snapshot);
+  });
+
+  it('paints terrain, items, entities and the player start', () => {
+    let map = bordered(7, 7);
+    map = paintTerrain(map, 3, 3, 'water').map;
+    map = paintItem(map, 2, 2, 'chip').map;
+    map = paintEntity(map, 4, 4, 'dirt_block', 'N').map;
+    map = paintEntity(map, 4, 4, 'tank', 'E').map;
+    map = paintPlayerStart(map, 5, 5, 'W').map;
+    expect(map.terrain[3][3]).toBe('water');
+    expect(map.items[2][2]).toBe('chip');
+    expect(map.entities).toEqual([{ x: 4, y: 4, type: 'tank', dir: 'E' }]);
+    expect(map.playerStart).toEqual({ x: 5, y: 5, dir: 'W' });
+  });
+
+  it('ignores a cell outside the grid', () => {
+    const map = bordered(7, 7);
+    const result = paintTerrain(map, 9, 0, 'water');
+    expect(result.changed).toBe(false);
+    expect(result.map).toBe(map);
+    expect(paintEntity(map, -1, 0, 'tank', 'N').changed).toBe(false);
+  });
+
+  it('removes the links of an overwritten button or trap', () => {
+    const map = withLinks();
+    const overButton = paintTerrain(map, 2, 2, 'floor');
+    expect(overButton.map.trapLinks).toEqual([]);
+    expect(overButton.removedLinks).toBe(1);
+    expect(overButton.map.cloneLinks).toHaveLength(1);
+    expect(paintTerrain(map, 4, 2, 'wall').map.trapLinks).toEqual([]);
+  });
+
+  it('removes the links of an overwritten clone button or cloner', () => {
+    const map = withLinks();
+    expect(paintTerrain(map, 2, 4, 'floor').map.cloneLinks).toEqual([]);
+    expect(paintTerrain(map, 4, 4, 'floor').map.cloneLinks).toEqual([]);
+    expect(paintTerrain(map, 4, 4, 'floor').map.trapLinks).toHaveLength(1);
+  });
+
+  it('keeps the links when the same tile is painted again', () => {
+    const map = withLinks();
+    const result = paintTerrain(map, 2, 2, 'button_brown');
+    expect(result.changed).toBe(false);
+    expect(result.map.trapLinks).toHaveLength(1);
+  });
+});
+
+describe('eraseCell', () => {
+  it('clears terrain, item, entity and links', () => {
+    const map = withLinks();
+    map.items[2][4] = 'chip';
+    map.entities.push({ x: 4, y: 2, type: 'tank', dir: 'N' });
+    const result = eraseCell(map, 4, 2);
+    expect(result.map.terrain[2][4]).toBe('floor');
+    expect(result.map.items[2][4]).toBeNull();
+    expect(result.map.entities).toEqual([]);
+    expect(result.map.trapLinks).toEqual([]);
+    expect(result.removedLinks).toBe(1);
+    expect(result.playerStartKept).toBe(false);
+  });
+
+  it('does not erase the player start and says so', () => {
+    const map = bordered(7, 7);
+    map.items[1][1] = 'chip';
+    const result = eraseCell(map, 1, 1);
+    expect(result.playerStartKept).toBe(true);
+    expect(result.map.playerStart).toEqual({ x: 1, y: 1, dir: 'S' });
+    expect(result.map.items[1][1]).toBeNull();
+  });
+});
+
+describe('floodFillTerrain', () => {
+  it('fills a 4-connected region only', () => {
+    const map = bordered(7, 7);
+    for (let y = 0; y < 7; y++) map.terrain[y][3] = 'wall';
+    const result = floodFillTerrain(map, 1, 1, 'ice');
+    expect(result.map.terrain[1][1]).toBe('ice');
+    expect(result.map.terrain[5][2]).toBe('ice');
+    expect(result.map.terrain[1][5]).toBe('floor');
+    expect(result.map.terrain[3][3]).toBe('wall');
+  });
+
+  it('does nothing when the cell already has the tile', () => {
+    const map = bordered(7, 7);
+    expect(floodFillTerrain(map, 2, 2, 'floor').changed).toBe(false);
+  });
+
+  it('removes links ending on a filled cell', () => {
+    const map = bordered(8, 8);
+    map.terrain[2][2] = 'button_brown';
+    map.terrain[5][5] = 'trap';
+    map.trapLinks = [{ buttonX: 2, buttonY: 2, trapX: 5, trapY: 5 }];
+    expect(floodFillTerrain(map, 3, 3, 'ice').map.trapLinks).toHaveLength(1);
+    const result = floodFillTerrain(map, 5, 5, 'ice');
+    expect(result.map.trapLinks).toEqual([]);
+    expect(result.removedLinks).toBe(1);
+  });
+});
+
+describe('wires', () => {
+  it('places the button, then links it to the target', () => {
+    let map = bordered(8, 8);
+    map = placeWireButton(map, 'trap', 2, 2).map;
+    const result = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S');
+    expect(result.refused).toBe(false);
+    expect(result.map.terrain[2][2]).toBe('button_brown');
+    expect(result.map.terrain[5][5]).toBe('trap');
+    expect(result.map.trapLinks).toEqual([{ buttonX: 2, buttonY: 2, trapX: 5, trapY: 5 }]);
+  });
+
+  it('refuses a wire whose source is its target', () => {
+    const map = bordered(8, 8);
+    const result = placeWireLink(map, 'clone', { x: 3, y: 3 }, { x: 3, y: 3 }, 'S');
+    expect(result.refused).toBe(true);
+    expect(result.changed).toBe(false);
+    expect(result.map).toBe(map);
+  });
+
+  it('copies the entity on the cloner into a clone link, else the default template', () => {
+    const map = bordered(8, 8);
+    map.entities.push({ x: 5, y: 5, type: 'tank', dir: 'W' });
+    const withEntity = placeWireLink(map, 'clone', { x: 2, y: 2 }, { x: 5, y: 5 }, 'N');
+    expect(withEntity.map.cloneLinks[0]).toMatchObject({ clonerX: 5, clonerY: 5, templateType: 'tank', templateDir: 'W' });
+    expect(withEntity.map.terrain[5][5]).toBe('clone_machine');
+    const without = placeWireLink(bordered(8, 8), 'clone', { x: 2, y: 2 }, { x: 4, y: 4 }, 'N');
+    expect(without.map.cloneLinks[0]).toMatchObject({ templateType: 'dirt_block', templateDir: 'N' });
+  });
+
+  it('replaces a link joining the same cells instead of doubling it', () => {
+    let map = bordered(8, 8);
+    map = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').map;
+    map = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').map;
+    expect(map.trapLinks).toHaveLength(1);
+  });
+});
+
+describe('resizeMap', () => {
+  it('grows with floor inside and a wall border', () => {
+    const map = bordered(7, 7);
+    const result = resizeMap(map, 10, 9, BOUNDS);
+    expect(result.width).toBe(10);
+    expect(result.height).toBe(9);
+    expect(result.map.terrain).toHaveLength(9);
+    expect(result.map.terrain[0]).toHaveLength(10);
+    expect(result.map.terrain[4][6]).toBe('floor');
+    expect(result.map.terrain[4][9]).toBe('wall');
+    expect(result.map.terrain[8][4]).toBe('wall');
+    expect(result.map.terrain[7][3]).toBe('floor');
+    expect(result.report.borderKept).toBe(true);
+  });
+
+  it('shrinks, dropping what lies outside and reporting it', () => {
+    const map = withLinks();
+    map.entities.push({ x: 6, y: 6, type: 'tank', dir: 'N' }, { x: 2, y: 3, type: 'tank', dir: 'N' });
+    map.trapLinks.push({ buttonX: 2, buttonY: 2, trapX: 6, trapY: 1 });
+    const result = resizeMap(map, 6, 6, BOUNDS);
+    expect(result.map.terrain).toHaveLength(6);
+    expect(result.map.entities).toEqual([{ x: 2, y: 3, type: 'tank', dir: 'N' }]);
+    expect(result.report.droppedEntities).toBe(1);
+    expect(result.report.droppedTrapLinks).toBe(1);
+    expect(result.report.droppedCloneLinks).toBe(0);
+    expect(result.map.terrain[5][2]).toBe('wall');
+    expect(result.map.terrain[2][5]).toBe('wall');
+  });
+
+  it('clamps the player start inside and reports the move', () => {
+    const map = bordered(10, 10);
+    map.playerStart = { x: 8, y: 8, dir: 'E' };
+    const result = resizeMap(map, 6, 6, BOUNDS);
+    expect(result.map.playerStart).toEqual({ x: 4, y: 4, dir: 'E' });
+    expect(result.report.playerStartMoved).toBe(true);
+    expect(result.map.terrain[4][4]).toBe('floor');
+  });
+
+  it('clamps the requested size to the bounds', () => {
+    const map = bordered(8, 8);
+    const small = resizeMap(map, 1, 2, BOUNDS);
+    expect([small.width, small.height]).toEqual([5, 5]);
+    const large = resizeMap(map, 99, 99, BOUNDS);
+    expect([large.width, large.height]).toEqual([12, 12]);
+  });
+
+  it('reports no change for the same size', () => {
+    const map = bordered(8, 8);
+    const result = resizeMap(map, 8, 8, BOUNDS);
+    expect(result.changed).toBe(false);
+    expect(result.map).toBe(map);
+  });
+
+  it('does not wall a map that had no border', () => {
+    const map = bordered(7, 7);
+    map.terrain[0][3] = 'floor';
+    const result = resizeMap(map, 9, 9, BOUNDS);
+    expect(result.report.borderKept).toBe(false);
+    expect(result.map.terrain[8][8]).toBe('floor');
+    expect(result.map.terrain[6][6]).toBe('wall');
+  });
+
+  it('never modifies its input', () => {
+    const map = withLinks();
+    const snapshot = JSON.stringify(map);
+    resizeMap(map, 5, 5, BOUNDS);
+    expect(JSON.stringify(map)).toBe(snapshot);
+  });
+});
