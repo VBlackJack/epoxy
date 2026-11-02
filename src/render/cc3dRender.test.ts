@@ -26,6 +26,7 @@ vi.mock('../audio/AudioManager', () => ({
 }));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { REFLECTING_FACES } from '../core/cc3d/cc3dLasers';
 import { CC3D_DISPLAY_IDS } from '../core/cc3d/display';
 import { GameEngine } from '../core/GameEngine';
 import type { CompiledLevel, Direction, GraphicsStyle } from '../core/types';
@@ -52,6 +53,7 @@ const DRAWING_CALLS = new Set(['fill', 'stroke', 'fillRect', 'strokeRect', 'draw
 const PAINTER_ORIGIN = 100;
 const ITEM_ID = 'cc3d_fish_extra';
 const SHOOTER_ID = 'cc3d_laser_shooter';
+const DIR_STEP: Readonly<Record<Direction, readonly [number, number]>> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
 
 interface Call {
   readonly name: string;
@@ -194,8 +196,7 @@ describe('cc3d display ids in every render style', () => {
     const tools: Cc3dPaintTools = { pal: ConfigRegistry.getGame().palette, glyph: () => undefined };
     const low = PAINTER_ORIGIN - TILE_PX / 2;
     const high = PAINTER_ORIGIN + TILE_PX * 1.5;
-    // The shooter draws in a frame rotated about its centre, so its rectangles are not in tile coordinates.
-    for (const id of [...TERRAIN_IDS, ...MOB_IDS, ITEM_ID].filter((candidate) => candidate !== SHOOTER_ID)) {
+    for (const id of [...TERRAIN_IDS, ...MOB_IDS, ITEM_ID]) {
       const canvas = createCanvas(CANVAS_PX, CANVAS_PX);
       const ctx = canvas.getContext('2d');
       paintCc3dTerrain(ctx, id, PAINTER_ORIGIN, PAINTER_ORIGIN, TILE_PX, tools);
@@ -207,6 +208,94 @@ describe('cc3d display ids in every render style', () => {
           expect(edge, id).toBeGreaterThanOrEqual(low);
           expect(edge, id).toBeLessThanOrEqual(high);
         }
+      }
+    }
+  });
+
+  /** Tools whose palette answers every key with the key itself, so a fill style names what it paints. */
+  const keyTools: Cc3dPaintTools = {
+    pal: new Proxy({}, { get: (_target, key) => String(key) }) as Record<string, string>,
+    glyph: () => undefined
+  };
+
+  /** The vertices of every path filled while `fillStyle` was `style`, in drawing order. */
+  function filledVertices(calls: Call[], style: string): Array<Array<[number, number]>> {
+    const paths: Array<Array<[number, number]>> = [];
+    let current: Array<[number, number]> = [];
+    let painting = '';
+    for (const call of calls) {
+      if (call.name === 'set fillStyle') painting = String(call.args[0]);
+      else if (call.name === 'beginPath') current = [];
+      else if (call.name === 'moveTo' || call.name === 'lineTo') current.push([Number(call.args[0]), Number(call.args[1])]);
+      else if (call.name === 'fill' && painting === style) paths.push(current);
+    }
+    return paths;
+  }
+
+  const centroid = (points: Array<[number, number]>): [number, number] => [
+    points.reduce((sum, p) => sum + p[0], 0) / points.length,
+    points.reduce((sum, p) => sum + p[1], 0) / points.length
+  ];
+
+  it('reflectors put the bright mirror glass on the two reflecting faces', () => {
+    const centre = PAINTER_ORIGIN + TILE_PX / 2;
+    for (const [mirror, faces] of Object.entries(REFLECTING_FACES)) {
+      const id = `cc3d_reflector_${mirror.toLowerCase()}`;
+      const sx = faces.reduce((sum, f) => sum + DIR_STEP[f][0], 0);
+      const sy = faces.reduce((sum, f) => sum + DIR_STEP[f][1], 0);
+      const calls = callsOf((ctx) => paintCc3dMob(ctx, id, 'N', PAINTER_ORIGIN, PAINTER_ORIGIN, TILE_PX, keyTools));
+      const glass = filledVertices(calls, 'mirrorGlass');
+      expect(glass.length, id).toBe(1);
+      const [mx, my] = centroid(glass[0]);
+      expect(Math.sign(mx - centre), id).toBe(sx);
+      expect(Math.sign(my - centre), id).toBe(sy);
+    }
+  });
+
+  it('security bots show a nose on the facing side, four for the multidirectional one', () => {
+    const centre = PAINTER_ORIGIN + TILE_PX / 2;
+    for (const kind of ['static', 'cw', 'ccw']) {
+      for (const dir of DIRECTIONS) {
+        const calls = callsOf((ctx) => paintCc3dMob(ctx, `cc3d_bot_${kind}`, dir, PAINTER_ORIGIN, PAINTER_ORIGIN, TILE_PX, keyTools));
+        const noses = filledVertices(calls, 'laserBeam');
+        expect(noses.length, `${kind} ${dir}`).toBe(1);
+        const [mx, my] = centroid(noses[0]);
+        expect(Math.sign(mx - centre), `${kind} ${dir}`).toBe(DIR_STEP[dir][0]);
+        expect(Math.sign(my - centre), `${kind} ${dir}`).toBe(DIR_STEP[dir][1]);
+      }
+    }
+    const multi = callsOf((ctx) => paintCc3dMob(ctx, 'cc3d_bot_multi', 'N', PAINTER_ORIGIN, PAINTER_ORIGIN, TILE_PX, keyTools));
+    expect(filledVertices(multi, 'laserBeam').length).toBe(4);
+  });
+
+  it('rotating bots differ by their turning direction, and from the static bot', () => {
+    const draw = (kind: string): string => JSON.stringify(callsOf((ctx) => paintCc3dMob(ctx, `cc3d_bot_${kind}`, 'N', 0, 0, TILE_PX, keyTools)));
+    expect(draw('cw')).not.toBe(draw('ccw'));
+    expect(draw('cw')).not.toBe(draw('static'));
+  });
+
+  it('the shooter barrel points the way it faces and differs from a bot', () => {
+    const centre = PAINTER_ORIGIN + TILE_PX / 2;
+    for (const dir of DIRECTIONS) {
+      const calls = callsOf((ctx) => paintCc3dMob(ctx, SHOOTER_ID, dir, PAINTER_ORIGIN, PAINTER_ORIGIN, TILE_PX, keyTools));
+      const nozzle = calls.findIndex((c) => c.name === 'set strokeStyle' && c.args[0] === 'laserBeam');
+      const tip = calls.slice(nozzle).filter((c) => c.name === 'lineTo')[0];
+      expect(Math.sign(Number(tip.args[0]) - centre), dir).toBe(DIR_STEP[dir][0]);
+      expect(Math.sign(Number(tip.args[1]) - centre), dir).toBe(DIR_STEP[dir][1]);
+    }
+    const shooter = JSON.stringify(callsOf((ctx) => paintCc3dMob(ctx, SHOOTER_ID, 'N', 0, 0, TILE_PX, keyTools)));
+    const bot = JSON.stringify(callsOf((ctx) => paintCc3dMob(ctx, 'cc3d_bot_static', 'N', 0, 0, TILE_PX, keyTools)));
+    expect(shooter).not.toBe(bot);
+  });
+
+  it('open doors are flat and closed doors raised, in every colour', () => {
+    for (const color of ['red', 'blue', 'yellow']) {
+      for (const family of ['hold_door', 'toggle_door']) {
+        const open = JSON.stringify(callsOf((ctx) => paintCc3dTerrain(ctx, `cc3d_${family}_${color}_open`, 0, 0, TILE_PX, keyTools)));
+        const closed = JSON.stringify(callsOf((ctx) => paintCc3dTerrain(ctx, `cc3d_${family}_${color}_closed`, 0, 0, TILE_PX, keyTools)));
+        expect(open, `${family} ${color}`).not.toBe(closed);
+        expect(open.includes('setLineDash'), `${family} ${color}`).toBe(true);
+        expect(closed.includes('modernWallFrontShade'), `${family} ${color}`).toBe(true);
       }
     }
   });
