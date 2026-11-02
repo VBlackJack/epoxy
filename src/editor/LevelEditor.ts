@@ -193,7 +193,7 @@ export class LevelEditor {
     this.cloneLinks = [];
     this.playerStart = { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' };
     this.fitCanvasToLevel();
-    this.currentLevelId = `${CUSTOM_LEVEL_ID_PREFIX}${Date.now()}`;
+    this.currentLevelId = ConfigRegistry.newLevelId();
     this.draftCustomId = null;
     this.customTitle = t('editor.metadata.default_title.label');
     this.customHint = '';
@@ -526,13 +526,14 @@ export class LevelEditor {
       }
     });
 
-    document.getElementById('editor-save-btn')?.addEventListener('click', () => {
+    document.getElementById('editor-save-btn')?.addEventListener('click', async () => {
       this.readMetadataInputs();
       const compiled = this.exportCompiledLevel();
       // From now on this editor session updates the saved custom level.
       this.currentLevelId = compiled.id;
       this.draftCustomId = null;
-      const { index, persisted } = ConfigRegistry.addOrUpdateCustomLevel(compiled);
+      const { index, persisted } = await ConfigRegistry.saveLevelToPack(BUILTIN_PACK_IDS.CUSTOM, compiled);
+      ConfigRegistry.setActivePackId(BUILTIN_PACK_IDS.CUSTOM);
       // A refused write keeps the level in memory but leaves the editor dirty,
       // so leaving the editor still asks before discarding it.
       this.isDirty = !persisted;
@@ -1079,21 +1080,20 @@ export class LevelEditor {
       return this.currentLevelId;
     }
     if (!this.draftCustomId) {
-      this.draftCustomId = `${CUSTOM_LEVEL_ID_PREFIX}${Date.now()}`;
+      this.draftCustomId = ConfigRegistry.newLevelId();
     }
     return this.draftCustomId;
   }
 
   public exportCompiledLevel(): CompiledLevel {
     const id = this.resolveCustomLevelId();
-    const existing = ConfigRegistry.getAllPacks()
-      .find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM)
-      ?.levels.find((l) => l.id === id);
+    const customLevels = ConfigRegistry.getAllPacks().find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM)?.levels ?? [];
+    const existing = customLevels.find((l) => l.id === id);
     return {
       id,
       ...(this.winRule === DEFAULT_WIN_RULE ? {} : { winRule: this.winRule }),
       ...(this.ruleset ? { ruleset: this.ruleset } : {}),
-      number: existing ? existing.number : ConfigRegistry.getLevels().length + 1,
+      number: existing ? existing.number : customLevels.length + 1,
       customTitle: this.customTitle,
       customHint: this.customHint,
       ...(this.author ? { author: this.author } : {}),

@@ -86,7 +86,7 @@ import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
 import {
   parseGraphicsStyle,
-  resolveSavedLevelIndex,
+  resolveSavedLevel,
   sanitizeHighScores,
   StoredHighScore
 } from './storage/persistedState';
@@ -623,7 +623,8 @@ class EpoxyApplication {
     const activeId = ConfigRegistry.getActivePackId();
     for (const select of this.packSelects()) {
       select.innerHTML = '';
-      for (const pack of ConfigRegistry.getAllPacks()) {
+      // A pack with no level cannot be played, so it is never offered here.
+      for (const pack of ConfigRegistry.getAllPacks().filter((p) => p.levels.length > 0)) {
         const opt = document.createElement('option');
         opt.value = pack.id;
         opt.textContent = t('app.packs.selector_option.label', {
@@ -3216,6 +3217,7 @@ class EpoxyApplication {
         JSON.stringify({
           packId: ConfigRegistry.getActivePackId(),
           levelIndex: this.currentLevelIndex,
+          levelId: ConfigRegistry.getLevels()[this.currentLevelIndex]?.id,
           totalScore: this.engine.getTotalScore()
         })
       );
@@ -3311,12 +3313,9 @@ class EpoxyApplication {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
       const raw = localStorage.getItem(key);
       if (!raw) return;
+      // The level id survives a reorder; an old save has none and falls back to its index.
       // A pack can shrink between releases: a stale index restarts the pack.
-      const index = resolveSavedLevelIndex(
-        JSON.parse(raw),
-        ConfigRegistry.getActivePackId(),
-        ConfigRegistry.getLevels().length
-      );
+      const index = resolveSavedLevel(JSON.parse(raw), ConfigRegistry.getActivePackId(), ConfigRegistry.getLevels());
       if (index !== null) this.currentLevelIndex = index;
     } catch {
       // Ignore corrupt save
