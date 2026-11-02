@@ -292,20 +292,48 @@ describe('force floors', () => {
   });
 });
 
-describe('teleports [U]', () => {
-  it('a red teleport sends the player to the next one, leaving in its own direction', () => {
+describe('teleports', () => {
+  it('[P] sends the mover to the previous teleport of the colour in reading order', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#.k.#', '#@k.#', '#.k.#']));
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect([rig.player.x, rig.player.y]).toEqual([3, 0]);
+  });
+
+  it('[P] wraps from the first teleport to the last', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#@k.#', '#.k.#', '#.k.#']));
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect([rig.player.x, rig.player.y]).toEqual([3, 2]);
+  });
+
+  it('red teleports follow the same order [U]', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#.t.#', '#@t.#', '#.t.#']));
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect([rig.player.x, rig.player.y]).toEqual([3, 0]);
+  });
+
+  it('[observed] a red teleport against an edge exits to the right first', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#####.#', '#@t..t#', '#####.#']));
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect([rig.player.x, rig.player.y]).toEqual([5, 2]);
+  });
+
+  it('[U] when the exit of the previous teleport is walled, the mover comes out of the one before it', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#.k##', '#@k.#', '#.k.#']));
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect([rig.player.x, rig.player.y]).toEqual([3, 2]);
+  });
+
+  it('a red teleport sends the player to the other one, leaving in its own direction', () => {
     const rig = new Cc3dRig(cc3dLevel(['#@t..t.#']));
     rig.walk('E');
     rig.tick(SETTLE_TICKS);
     expect(rig.player.x).toBe(6);
     expect(rig.visualsOf('teleport')).toHaveLength(2);
-  });
-
-  it('a red teleport turns when its own direction is blocked', () => {
-    const rig = new Cc3dRig(cc3dLevel(['#######', '#@t..t#', '#####.#', '#######']));
-    rig.walk('E');
-    rig.tick(SETTLE_TICKS);
-    expect([rig.player.x, rig.player.y]).toEqual([5, 2]);
   });
 
   it('a blue teleport leaves only in its own direction', () => {

@@ -236,12 +236,12 @@ describe('yellow golems and their control [U]', () => {
     expect(two.entities.map((e) => e.x).sort()).toEqual([3, 4, 5]);
   });
 
-  it('refuses water, fire and slime and enters sand and gravel', () => {
+  it('[P water, U fire/slime] walks into water, fire and slime and is lost there; enters sand and gravel', () => {
     for (const glyph of ['W', 'F', 'L']) {
       const rig = new Cc3dRig(cc3dLevel([`#@cG${glyph}.#`], { glyphs }));
       rig.walk('E');
       rig.tick(8);
-      expect(rig.entities[0].x, glyph).toBe(3);
+      expect(rig.entities, glyph).toHaveLength(0);
     }
     for (const glyph of ['A', 'G']) {
       const level = cc3dLevel([`#@c!${glyph}.#`], { glyphs: { ...glyphs, '!': mob('golem_yellow') } });
