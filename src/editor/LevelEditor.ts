@@ -30,23 +30,56 @@ import { LevelValidator } from '../core/LevelValidator';
 import { hasLaserContent } from '../core/RulesetFeatures';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
-  CloneLink,
   CompiledLevel,
   Direction,
-  EntityPlacement,
   LevelBlueprint,
   LevelPack,
   Ruleset,
-  TrapLink,
   ValidationIssue,
   WinRule
 } from '../core/types';
 import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
-import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
+import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
+import { CanvasFit, clampZoomStep, fitCanvas, zoomIn, zoomOut } from './canvasFit';
+import { CheckSummary, summarizeValidation } from './checkSummary';
+import { cloneDocument, cloneMap, EditorDocument, EditorMetadata } from './editorDocument';
+import { EditorHistory } from './editorHistory';
+import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise } from './editorKeyboard';
+import { layoutModeForWidth } from './editorLayout';
+import {
+  applyTool,
+  Brush,
+  continuesOnDrag,
+  EDITOR_TOOLS,
+  EditorTool,
+  leavesLooseButton,
+  MESSAGE_WIRE_CANCELLED,
+  MESSAGE_WIRE_CANCELLED_BUTTON_LEFT,
+  pickFromCell,
+  PendingWire,
+  ToolMessage
+} from './editorTools';
+import {
+  INSPECTOR_SECTIONS,
+  InspectorSection,
+  parseSectionState,
+  SectionState,
+  serializeSectionState
+} from './inspectorSections';
+import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
+import { MetadataEditCoalescer } from './metadataCoalescer';
 import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
-import { majorityRuleset } from './paletteAvailability';
+import {
+  Availability,
+  EditableRuleset,
+  entityAvailability,
+  majorityRuleset,
+  tileAvailability,
+  winRuleAvailability
+} from './paletteAvailability';
+import { describeResize } from './resizeReport';
 import {
   decideSave,
   LoadedTexts,
@@ -62,16 +95,24 @@ import {
 } from './saveTarget';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
+  EDITOR_CHECK_DEBOUNCE_MS,
   EDITOR_CLONE_LINK_COLOR,
+  EDITOR_CURSOR_OUTLINE_COLOR,
   EDITOR_DEFAULT_CHIPS_REQUIRED,
-  EDITOR_DEFAULT_CLONE_TEMPLATE,
+  EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
   EDITOR_GENERATOR_MAX_LEVEL,
   EDITOR_GENERATOR_MIN_LEVEL,
-  EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
+  EDITOR_HOVER_OUTLINE_COLOR,
   EDITOR_LINK_LINE_WIDTH,
+  EDITOR_MIN_ZOOM_STEP,
+  EDITOR_OVERLAY_LINE_WIDTH,
   EDITOR_PASSWORD_LENGTH,
+  EDITOR_PERCENT_BASE,
   EDITOR_TILE_CENTER_OFFSET,
+  EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_LINK_COLOR,
+  EDITOR_CLONE_BUTTON_TILE,
+  EDITOR_WIRE_SOURCE_COLOR,
   TIMING_DEFAULTS
 } from '../ui/uiConstants';
 
@@ -86,9 +127,12 @@ const METADATA_INPUT_IDS = [
   'editor-meta-winrule',
   'editor-meta-ruleset'
 ] as const;
+/** Fields that change in one gesture: each change is its own history step. */
+const GESTURE_FIELD_IDS: readonly string[] = ['editor-meta-winrule', 'editor-meta-ruleset'];
 const WIN_RULE_INPUT_ID = 'editor-meta-winrule';
+const RULESET_INPUT_ID = 'editor-meta-ruleset';
 const TITLE_INPUT_ID = 'editor-meta-title';
-const LYNX_RULESET: Ruleset = 'lynx';
+const LYNX_RULESET = 'lynx' as const;
 /** Value of the context pack select while the editor content belongs to no pack. */
 const NO_PACK_OPTION_VALUE = '';
 /** Answers of the imported-pack and multi-level-file questions. */
@@ -96,6 +140,27 @@ const IMPORTED_MODIFY_CHOICE = 'modify';
 const IMPORTED_COPY_CHOICE = 'copy';
 const IMPORT_AS_PACK_CHOICE = 'pack';
 const IMPORT_FIRST_CHOICE = 'first';
+const SEPARATOR_BETWEEN_MESSAGES = ' ';
+const NO_COORDS_TEXT = '--';
+const EDITOR_PLAYER_BRUSH_ID = 'player_start';
+const WIRE_TRAP_BRUSH_ID = 'wire_trap';
+const WIRE_CLONER_BRUSH_ID = 'wire_cloner';
+/** Win rules offered by the select, to mark the ones the engine cannot play. */
+const WIN_RULE_VALUES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
+const ENTITIES_CATEGORY = 'entities';
+const MECHANISMS_CATEGORY = 'mechanisms';
+
+const TOOL_LABEL_KEYS: Record<EditorTool, string> = {
+  brush: 'editor.layout.tool.brush.label',
+  fill: 'editor.layout.tool.fill.label',
+  eraser: 'editor.layout.tool.eraser.label',
+  picker: 'editor.layout.tool.picker.label'
+};
+const CHECK_TEXT_KEYS: Record<CheckSummary['state'], string> = {
+  valid: 'editor.layout.check.valid',
+  warnings: 'editor.layout.check.warnings',
+  errors: 'editor.layout.check.errors'
+};
 
 /** Where a save puts the level: an existing pack or a pack to create, and whether it is stored as a new level. */
 interface SaveDestination {
@@ -104,20 +169,11 @@ interface SaveDestination {
   asCopy: boolean;
 }
 
-type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'eraser' | 'wire_trap' | 'wire_cloner';
-
-interface ActiveBrush {
-  kind: BrushKind;
-  id: string;
-}
-
-interface EditorSnapshot {
-  terrain: string[][];
-  items: (string | null)[][];
-  entities: EntityPlacement[];
-  trapLinks: TrapLink[];
-  cloneLinks: CloneLink[];
-  playerStart: { x: number; y: number; dir: Direction };
+/** One pointer stroke or key press: the document it started from, and whether it changed anything. */
+interface Stroke {
+  base: EditorDocument;
+  changed: boolean;
+  forceErase: boolean;
 }
 
 /** What the application learns when a level was saved. */
@@ -149,18 +205,24 @@ export interface LoadOptions {
   dirty?: boolean;
 }
 
+function byId<T extends HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+function editableRulesetOf(ruleset: Ruleset | undefined): EditableRuleset {
+  return ruleset === LYNX_RULESET ? LYNX_RULESET : 'epoxy';
+}
+
 export class LevelEditor {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private renderer: PixelRenderer;
   private hooks: EditorHooks;
 
-  private terrain: string[][] = [];
-  private items: (string | null)[][] = [];
-  private entities: EntityPlacement[] = [];
-  private trapLinks: TrapLink[] = [];
-  private cloneLinks: CloneLink[] = [];
-  private playerStart: { x: number; y: number; dir: Direction } = { x: 0, y: 0, dir: 'S' };
+  /** The level being edited: its map and its metadata. */
+  private doc: EditorDocument = LevelEditor.emptyDocument();
+  private history: EditorHistory;
+  private readonly coalescer = new MetadataEditCoalescer();
 
   /** Id the content carries until it is saved; a saved level keeps the id it is stored under. */
   private currentLevelId: string = '';
@@ -175,22 +237,18 @@ export class LevelEditor {
   private saving = false;
   /** Bumped each time another level is loaded, so a save that outlives its level cannot rebind the editor. */
   private loadGeneration = 0;
-  private customTitle: string = '';
-  private customHint: string = '';
-  private author: string = '';
-  private password: string = '';
-  private timeLimitSeconds: number = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
-  private chipsRequired: number = EDITOR_DEFAULT_CHIPS_REQUIRED;
-  private winRule: WinRule = DEFAULT_WIN_RULE;
-  /** Ruleset of the loaded level, written back on export; absent means the default. */
-  private ruleset: Ruleset | undefined;
 
   private activeCategory: string = 'terrain';
-  private activeBrush: ActiveBrush = { kind: 'terrain', id: 'wall' };
-  private fillMode: boolean = false;
+  private tool: EditorTool = 'brush';
+  private brush: Brush = { kind: 'terrain', id: 'wall' };
   private activeDir: Direction = 'S';
-  private isPainting: boolean = false;
-  private isRightErasing: boolean = false;
+  private stroke: Stroke | null = null;
+  private pendingWire: PendingWire | null = null;
+  private hoverCell: { x: number; y: number } | null = null;
+  private cursorCell: { x: number; y: number } | null = null;
+  private zoomStep: number = EDITOR_MIN_ZOOM_STEP;
+  private checkTimer: ReturnType<typeof setTimeout> | null = null;
+  private playerIconUrl: string = '';
   private dirty: boolean = false;
   /** Bumped on every write to isDirty, so an async save can tell whether the editor changed meanwhile. */
   private editRevision: number = 0;
@@ -203,10 +261,6 @@ export class LevelEditor {
     this.editRevision++;
     this.updateDirtyBadge();
   }
-
-  private undoStack: EditorSnapshot[] = [];
-  private redoStack: EditorSnapshot[] = [];
-  private pendingWireSource: { x: number; y: number } | null = null;
 
   public constructor(
     canvas: HTMLCanvasElement,
@@ -221,6 +275,9 @@ export class LevelEditor {
     this.ctx = context;
     this.renderer = renderer;
     this.hooks = hooks;
+    this.history = new EditorHistory(
+      ConfigRegistry.getGame().timing.maxUndoSnapshots || TIMING_DEFAULTS.maxUndoSnapshots
+    );
 
     this.initBlankMap();
     this.bindCanvasEvents();
@@ -228,6 +285,28 @@ export class LevelEditor {
     // not stack toolbar listeners.
     this.bindToolbarEvents();
     this.bindMetadataEvents();
+    this.bindPaletteChrome();
+    this.bindInspectorSections();
+    this.bindLayoutEvents();
+  }
+
+  private static emptyDocument(): EditorDocument {
+    return {
+      terrain: [],
+      items: [],
+      entities: [],
+      trapLinks: [],
+      cloneLinks: [],
+      playerStart: { x: 0, y: 0, dir: 'S' },
+      title: '',
+      hint: '',
+      author: '',
+      password: '',
+      timeLimitSeconds: EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
+      chipsRequired: EDITOR_DEFAULT_CHIPS_REQUIRED,
+      winRule: DEFAULT_WIN_RULE,
+      ruleset: undefined
+    };
   }
 
   /** True when the map or its metadata changed since the last load or save. */
@@ -237,60 +316,88 @@ export class LevelEditor {
 
   /** Width of the level being edited, in cells; a level sets its own size. */
   private mapWidth(): number {
-    return this.terrain[0]?.length ?? 0;
+    return mapWidthOf(this.doc);
   }
 
   /** Height of the level being edited, in cells. */
   private mapHeight(): number {
-    return this.terrain.length;
+    return mapHeightOf(this.doc);
   }
 
-  /** Sizes the canvas to the level being edited. */
+  /** Sizes the canvas drawing buffer to the level being edited, then fits it to the window. */
   private fitCanvasToLevel(): void {
     const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
     const width = this.mapWidth() * editorTilePixelSize;
     const height = this.mapHeight() * editorTilePixelSize;
     if (this.canvas.width !== width) this.canvas.width = width;
     if (this.canvas.height !== height) this.canvas.height = height;
+    this.applyFit();
+  }
+
+  /** Displays the canvas at the largest whole scale that fits its stage, times the zoom step. */
+  private applyFit(): CanvasFit | null {
+    const stage = byId('editor-stage');
+    // A hidden editor has no size to fit; it fits when it is shown.
+    if (!stage || stage.offsetWidth === 0 || stage.offsetHeight === 0) return null;
+    const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
+    const fit = fitCanvas({
+      levelWidth: this.mapWidth(),
+      levelHeight: this.mapHeight(),
+      baseTileSize: editorTilePixelSize,
+      containerWidth: stage.offsetWidth,
+      containerHeight: stage.offsetHeight,
+      devicePixelRatio: window.devicePixelRatio,
+      zoomStep: this.zoomStep
+    });
+    this.zoomStep = fit.zoomStep;
+    this.canvas.style.width = `${fit.cssWidth}px`;
+    this.canvas.style.height = `${fit.cssHeight}px`;
+    this.updateZoomControls(Math.round((fit.cssTileSize / editorTilePixelSize) * EDITOR_PERCENT_BASE));
+    return fit;
+  }
+
+  private updateZoomControls(percent: number | null = null): void {
+    const out = byId<HTMLButtonElement>('editor-zoom-out-btn');
+    const inn = byId<HTMLButtonElement>('editor-zoom-in-btn');
+    if (out) out.disabled = clampZoomStep(this.zoomStep - 1) === this.zoomStep;
+    if (inn) inn.disabled = clampZoomStep(this.zoomStep + 1) === this.zoomStep;
+    if (percent === null) return;
+    const label = byId('editor-zoom-level');
+    if (label) {
+      label.textContent = t('editor.layout.zoom.level.label', { percent });
+      label.setAttribute('aria-label', t('editor.layout.zoom.level.aria', { percent }));
+    }
+  }
+
+  private setZoomStep(step: number): void {
+    this.zoomStep = clampZoomStep(step);
+    this.applyFit();
+  }
+
+  /** A blank level in the grid the game configures. */
+  private blankDocument(ruleset: Ruleset | undefined): EditorDocument {
+    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    return {
+      ...LevelEditor.emptyDocument(),
+      terrain: Array.from({ length: mapHeight }, (_, y) =>
+        Array.from({ length: mapWidth }, (__, x) =>
+          x === 0 || y === 0 || x === mapWidth - 1 || y === mapHeight - 1 ? 'wall' : FLOOR_TILE_ID
+        )
+      ),
+      items: Array.from({ length: mapHeight }, () => Array.from({ length: mapWidth }, () => null)),
+      playerStart: { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' },
+      title: t('editor.metadata.default_title.label'),
+      ruleset: ruleset === LYNX_RULESET ? LYNX_RULESET : undefined
+    };
   }
 
   public initBlankMap(options: { packId?: string | null; ruleset?: Ruleset } = {}): void {
-    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
-
-    this.terrain = Array.from({ length: mapHeight }, (_, y) =>
-      Array.from({ length: mapWidth }, (__, x) =>
-        x === 0 || y === 0 || x === mapWidth - 1 || y === mapHeight - 1 ? 'wall' : 'floor'
-      )
-    );
-    this.items = Array.from({ length: mapHeight }, () =>
-      Array.from({ length: mapWidth }, () => null)
-    );
-    this.entities = [];
-    this.trapLinks = [];
-    this.cloneLinks = [];
-    this.playerStart = { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' };
-    this.fitCanvasToLevel();
-    this.loadGeneration++;
+    this.doc = this.blankDocument(options.ruleset);
     this.currentLevelId = ConfigRegistry.newLevelId();
     this.source = { packId: options.packId ?? null, levelId: null };
     this.originalLevel = null;
     this.loadedTexts = null;
-    this.customTitle = t('editor.metadata.default_title.label');
-    this.customHint = '';
-    this.author = '';
-    this.password = '';
-    this.timeLimitSeconds = EDITOR_DEFAULT_TIME_LIMIT_SECONDS;
-    this.chipsRequired = EDITOR_DEFAULT_CHIPS_REQUIRED;
-    this.winRule = DEFAULT_WIN_RULE;
-    this.ruleset = options.ruleset === LYNX_RULESET ? LYNX_RULESET : undefined;
-    this.isDirty = false;
-    this.undoStack = [];
-    this.redoStack = [];
-    this.updateUndoRedoButtons();
-    this.syncMetadataInputs();
-    this.setStatusText(t('editor.palette.status.ready.label'));
-    this.refreshContext();
-    this.render();
+    this.afterDocumentReplaced(false);
   }
 
   /**
@@ -305,35 +412,47 @@ export class LevelEditor {
       this.setStatusText(t('editor.palette.status.not_editable.label'));
       return false;
     }
-    this.loadGeneration++;
     this.currentLevelId = level.id;
     this.source = options.source ?? NO_SOURCE;
     this.originalLevel = structuredClone(level);
-    this.customTitle = this.resolveLevelTitle(level);
-    this.customHint = level.customHint || (level.hintKey ? t(level.hintKey) : '');
-    this.loadedTexts = { title: this.customTitle, hint: this.customHint };
-    this.author = level.author ?? '';
-    this.password = level.password;
-    this.timeLimitSeconds = level.timeLimitSeconds;
-    this.chipsRequired = level.chipsRequired;
-    this.winRule = level.winRule ?? DEFAULT_WIN_RULE;
-    this.ruleset = level.ruleset;
-    this.playerStart = { ...level.playerStart };
-    this.terrain = level.terrain.map((r) => [...r]);
-    this.items = level.items.map((r) => [...r]);
-    this.entities = level.entities.map((e) => ({ ...e }));
-    this.trapLinks = level.trapLinks.map((l) => ({ ...l }));
-    this.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
+    const title = this.resolveLevelTitle(level);
+    const hint = level.customHint || (level.hintKey ? t(level.hintKey) : '');
+    this.loadedTexts = { title, hint };
+    this.doc = {
+      ...cloneMap(level),
+      title,
+      hint,
+      author: level.author ?? '',
+      password: level.password,
+      timeLimitSeconds: level.timeLimitSeconds,
+      chipsRequired: level.chipsRequired,
+      winRule: level.winRule ?? DEFAULT_WIN_RULE,
+      ruleset: level.ruleset
+    };
+    this.afterDocumentReplaced(options.dirty ?? false);
+    return true;
+  }
+
+  /** Resets everything that belongs to the previous level once another one is in `doc`. */
+  private afterDocumentReplaced(dirty: boolean): void {
+    this.loadGeneration++;
+    this.history.clear();
+    this.coalescer.reset();
+    this.stroke = null;
+    this.pendingWire = null;
+    this.hoverCell = null;
+    this.cursorCell = null;
+    this.zoomStep = EDITOR_MIN_ZOOM_STEP;
+    this.isDirty = dirty;
     this.fitCanvasToLevel();
-    this.isDirty = options.dirty ?? false;
-    this.undoStack = [];
-    this.redoStack = [];
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
+    this.renderPaletteItems();
     this.setStatusText(t('editor.palette.status.ready.label'));
     this.refreshContext();
+    this.updateCanvasLabel();
+    this.scheduleCheck();
     this.render();
-    return true;
   }
 
   /** Asks before unsaved work is thrown away; true when there is none or the player agrees. */
@@ -373,10 +492,15 @@ export class LevelEditor {
   }
 
   public buildUI(): void {
+    this.playerIconUrl = this.renderer.renderIconToDataUrl('player', EDITOR_PLAYER_BRUSH_ID);
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.refreshContext();
     this.syncMetadataInputs();
+    this.updateToolButtons();
+    this.updateDirButtons();
+    this.updateCanvasLabel();
+    this.applyFit();
     this.render();
   }
 
@@ -401,10 +525,18 @@ export class LevelEditor {
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.refreshContext();
+    this.syncMetadataInputs();
+    this.updateCanvasLabel();
+    this.updateCheckBadge(this.lastCheck);
+    this.applyFit();
   }
 
+  // ---------------------------------------------------------------------------
+  // Palette
+  // ---------------------------------------------------------------------------
+
   private renderCategoryTabs(): void {
-    const container = document.getElementById('editor-category-tabs');
+    const container = byId('editor-category-tabs');
     if (!container) return;
     container.innerHTML = '';
 
@@ -412,6 +544,8 @@ export class LevelEditor {
     for (const cat of categories) {
       const btn = document.createElement('button');
       btn.type = 'button';
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', String(this.activeCategory === cat.id));
       btn.className = `editor-tab-btn ${this.activeCategory === cat.id ? 'active' : ''}`;
       btn.textContent = t(cat.i18nKey);
       btn.addEventListener('click', () => {
@@ -423,144 +557,240 @@ export class LevelEditor {
     }
   }
 
+  /** Whether the brush can be used in the level's engine. */
+  private brushAvailability(brush: Brush): Availability {
+    const ruleset = editableRulesetOf(this.doc.ruleset);
+    if (brush.kind === 'terrain' || brush.kind === 'item') return tileAvailability(ruleset, brush.id);
+    if (brush.kind === 'entity') return entityAvailability(ruleset, brush.id);
+    return { available: true };
+  }
+
+  /** True when any tile or creature of the palette is unavailable in the level's engine. */
+  private hasUnavailableItems(): boolean {
+    const ruleset = editableRulesetOf(this.doc.ruleset);
+    if (ruleset !== LYNX_RULESET) return false;
+    const tiles = Object.keys(ConfigRegistry.getTiles().tiles);
+    const entities = Object.keys(ConfigRegistry.getMonsters().entities);
+    return (
+      tiles.some((id) => !tileAvailability(ruleset, id).available) ||
+      entities.some((id) => !entityAvailability(ruleset, id).available)
+    );
+  }
+
+  private isBrushSelected(brush: Brush): boolean {
+    return this.brush.kind === brush.kind && this.brush.id === brush.id;
+  }
+
   private renderPaletteItems(): void {
-    const container = document.getElementById('editor-palette-grid');
+    const container = byId('editor-palette-grid');
     if (!container) return;
     container.innerHTML = '';
+    const entry = (brush: Brush, label: string, iconUrl: string): void => {
+      container.appendChild(
+        this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
+          this.selectBrush(brush)
+        )
+      );
+    };
 
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
       (tile) => tile.category === this.activeCategory
     );
-
     for (const tile of tiles) {
-      const kind: BrushKind = tile.layer === 'item' ? 'item' : 'terrain';
-      const isSelected = this.activeBrush.kind === kind && this.activeBrush.id === tile.id;
-      const btn = this.createPaletteButton(
+      const kind = tile.layer === 'item' ? 'item' : 'terrain';
+      entry(
+        { kind, id: tile.id },
         t(tile.i18nKey),
-        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id),
-        isSelected,
-        () => {
-          this.activeBrush = { kind, id: tile.id };
-          this.pendingWireSource = null;
-          this.renderPaletteItems();
-        }
+        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id)
       );
-      container.appendChild(btn);
     }
 
     const entities = Object.values(ConfigRegistry.getMonsters().entities).filter(
       (ent) => ent.category === this.activeCategory
     );
-
     for (const ent of entities) {
-      const isSelected = this.activeBrush.kind === 'entity' && this.activeBrush.id === ent.id;
-      const btn = this.createPaletteButton(
-        t(ent.i18nKey),
-        this.renderer.renderIconToDataUrl('entity', ent.id),
-        isSelected,
-        () => {
-          this.activeBrush = { kind: 'entity', id: ent.id };
-          this.fillMode = false;
-          this.pendingWireSource = null;
-          this.renderPaletteItems();
-        }
-      );
-      container.appendChild(btn);
+      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), this.renderer.renderIconToDataUrl('entity', ent.id));
     }
 
-    if (this.activeCategory === 'entities') {
-      const isPlayerSelected = this.activeBrush.kind === 'player_start';
-      const playerBtn = this.createPaletteButton(
-        t('editor.palette.tools.player_start'),
-        '',
-        isPlayerSelected,
-        () => {
-          this.activeBrush = { kind: 'player_start', id: 'player_start' };
-          this.fillMode = false;
-          this.pendingWireSource = null;
-          this.renderPaletteItems();
-        }
-      );
-      container.appendChild(playerBtn);
+    if (this.activeCategory === ENTITIES_CATEGORY) {
+      entry({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), this.playerIconUrl);
     }
 
-    if (this.activeCategory === 'mechanisms') {
-      const wireTrapBtn = this.createPaletteButton(
+    if (this.activeCategory === MECHANISMS_CATEGORY) {
+      entry(
+        { kind: 'wire_trap', id: WIRE_TRAP_BRUSH_ID },
         t('editor.palette.tools.wire_trap'),
-        '',
-        this.activeBrush.kind === 'wire_trap',
-        () => {
-          this.activeBrush = { kind: 'wire_trap', id: 'wire_trap' };
-          this.fillMode = false;
-          this.pendingWireSource = null;
-          this.setStatusText(t('editor.palette.status.wire_select_source'));
-          this.renderPaletteItems();
-        }
+        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE)
       );
-      container.appendChild(wireTrapBtn);
-
-      const wireClonerBtn = this.createPaletteButton(
+      entry(
+        { kind: 'wire_cloner', id: WIRE_CLONER_BRUSH_ID },
         t('editor.palette.tools.wire_cloner'),
-        '',
-        this.activeBrush.kind === 'wire_cloner',
-        () => {
-          this.activeBrush = { kind: 'wire_cloner', id: 'wire_cloner' };
-          this.fillMode = false;
-          this.pendingWireSource = null;
-          this.setStatusText(t('editor.palette.status.wire_select_source'));
-          this.renderPaletteItems();
-        }
+        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE)
       );
-      container.appendChild(wireClonerBtn);
     }
 
-    const fillBtn = this.createPaletteButton(
-      t('editor.palette.tools.fill'),
-      '',
-      this.fillMode,
-      () => {
-        this.fillMode = !this.fillMode;
-        this.renderPaletteItems();
-      }
-    );
-    container.appendChild(fillBtn);
-
-    const eraserBtn = this.createPaletteButton(
-      t('editor.palette.tools.eraser'),
-      this.renderer.renderIconToDataUrl('tile', 'floor'),
-      this.activeBrush.kind === 'eraser',
-      () => {
-        this.activeBrush = { kind: 'eraser', id: 'eraser' };
-        this.fillMode = false;
-        this.pendingWireSource = null;
-        this.renderPaletteItems();
-      }
-    );
-    container.appendChild(eraserBtn);
+    this.updateSwitchEngineButton();
   }
 
   private createPaletteButton(
     label: string,
     iconUrl: string,
-    active: boolean,
+    selected: boolean,
+    availability: Availability,
     onClick: () => void
   ): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `palette-item-btn ${active ? 'active' : ''}`;
+    btn.className = `palette-item-btn ${selected ? 'active' : ''}`;
+    btn.setAttribute('aria-pressed', String(selected));
+    btn.title = label;
     if (iconUrl) {
       const img = document.createElement('img');
       img.src = iconUrl;
-      img.alt = label;
+      img.alt = '';
       img.className = 'palette-item-icon';
       btn.appendChild(img);
     }
     const span = document.createElement('span');
+    span.className = 'palette-item-label';
     span.textContent = label;
     btn.appendChild(span);
-    btn.addEventListener('click', onClick);
+    if (availability.available) {
+      btn.addEventListener('click', onClick);
+    } else {
+      const reason = t(availability.reasonKey);
+      btn.classList.add('is-unavailable');
+      btn.setAttribute('aria-disabled', 'true');
+      btn.setAttribute('aria-description', reason);
+      btn.title = `${label}: ${reason}`;
+      btn.addEventListener('click', () => this.setStatusText(reason));
+    }
     return btn;
   }
+
+  /** Choosing a palette item puts the brush back in hand, except for a terrain tile while filling. */
+  private selectBrush(brush: Brush): void {
+    this.cancelPendingWire(false);
+    this.brush = brush;
+    if (this.tool === 'eraser' || this.tool === 'picker' || (this.tool === 'fill' && brush.kind !== 'terrain')) {
+      this.tool = 'brush';
+      this.updateToolButtons();
+    }
+    this.updateCanvasLabel();
+    this.renderPaletteItems();
+    if (brush.kind === 'wire_trap' || brush.kind === 'wire_cloner') {
+      this.setStatusText(t('editor.palette.status.wire_select_source'));
+    }
+  }
+
+  private updateSwitchEngineButton(): void {
+    byId('editor-switch-epoxy-btn')?.classList.toggle('hidden', !this.hasUnavailableItems());
+  }
+
+  private bindPaletteChrome(): void {
+    byId('editor-switch-epoxy-btn')?.addEventListener('click', () => {
+      if (this.doc.ruleset === undefined) return;
+      this.recordMetadataStep();
+      this.doc = { ...this.doc, ruleset: undefined };
+      this.afterMetadataChange();
+      this.setStatusText(t('editor.layout.palette.switched'));
+    });
+    for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-dir-group [data-dir]'))) {
+      btn.addEventListener('click', () => {
+        this.activeDir = (btn.dataset.dir as Direction) || 'S';
+        this.updateDirButtons();
+      });
+    }
+    byId('editor-dir-rotate-btn')?.addEventListener('click', () => this.rotateDirection());
+    byId('editor-zoom-out-btn')?.addEventListener('click', () => this.setZoomStep(zoomOut(this.zoomStep)));
+    byId('editor-zoom-in-btn')?.addEventListener('click', () => this.setZoomStep(zoomIn(this.zoomStep)));
+    byId('editor-zoom-fit-btn')?.addEventListener('click', () => this.setZoomStep(EDITOR_MIN_ZOOM_STEP));
+  }
+
+  private updateDirButtons(): void {
+    for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-dir-group [data-dir]'))) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.dir === this.activeDir));
+    }
+  }
+
+  private rotateDirection(): void {
+    this.activeDir = rotateClockwise(this.activeDir);
+    this.updateDirButtons();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tools and keyboard actions
+  // ---------------------------------------------------------------------------
+
+  private toolLabel(tool: EditorTool): string {
+    return t(TOOL_LABEL_KEYS[tool]);
+  }
+
+  private updateToolButtons(): void {
+    for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tool]'))) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.tool === this.tool));
+    }
+  }
+
+  public setTool(tool: EditorTool): void {
+    if (tool === this.tool) return;
+    this.cancelPendingWire(false);
+    this.tool = tool;
+    this.updateToolButtons();
+    this.updateCanvasLabel();
+    this.setStatusText(t('editor.layout.status.tool_changed', { tool: this.toolLabel(tool) }));
+  }
+
+  /** Runs an editor shortcut from the keyboard; the application routes the key. */
+  public handleKeyAction(action: EditorKeyAction): void {
+    switch (action.kind) {
+      case 'tool':
+        this.setTool(action.tool);
+        break;
+      case 'rotate':
+        this.rotateDirection();
+        break;
+      case 'zoom_in':
+        this.setZoomStep(zoomIn(this.zoomStep));
+        break;
+      case 'zoom_out':
+        this.setZoomStep(zoomOut(this.zoomStep));
+        break;
+      case 'zoom_fit':
+        this.setZoomStep(EDITOR_MIN_ZOOM_STEP);
+        break;
+      case 'cancel':
+        this.cancelPendingWire(true);
+        break;
+    }
+  }
+
+  /**
+   * Drops the wire that waits for its target. A button already placed stays on
+   * the map without a link, and the status line says so. With `announce` the
+   * cancellation is announced even when nothing stays behind.
+   */
+  private cancelPendingWire(announce: boolean): void {
+    const pending = this.pendingWire;
+    if (!pending) return;
+    this.pendingWire = null;
+    const buttonTile = pending.kind === 'trap' ? EDITOR_TRAP_BUTTON_TILE : EDITOR_CLONE_BUTTON_TILE;
+    if (leavesLooseButton(this.doc, pending, buttonTile)) {
+      this.setStatusText(t(MESSAGE_WIRE_CANCELLED_BUTTON_LEFT));
+    } else if (announce) {
+      this.setStatusText(t(MESSAGE_WIRE_CANCELLED));
+    }
+    this.render();
+  }
+
+  private updateCanvasLabel(): void {
+    const level = this.doc.title.trim() || t('editor.metadata.default_title.label');
+    this.canvas.setAttribute('aria-label', t('editor.layout.canvas.aria', { level, tool: this.toolLabel(this.tool) }));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pack context line
+  // ---------------------------------------------------------------------------
 
   /**
    * Brings the source in line with the library after the pack manager changed
@@ -590,7 +820,7 @@ export class LevelEditor {
     this.fillContextPackSelect();
     const pack = this.sourcePack();
     const index = pack && this.source.levelId ? pack.levels.findIndex((l) => l.id === this.source.levelId) : -1;
-    const position = document.getElementById('editor-context-position');
+    const position = byId('editor-context-position');
     if (position) {
       position.textContent =
         index >= 0 && pack
@@ -599,14 +829,14 @@ export class LevelEditor {
     }
     this.updateContextTitle();
     this.updateDirtyBadge();
-    const prev = document.getElementById('editor-context-prev') as HTMLButtonElement | null;
-    const next = document.getElementById('editor-context-next') as HTMLButtonElement | null;
+    const prev = byId<HTMLButtonElement>('editor-context-prev');
+    const next = byId<HTMLButtonElement>('editor-context-next');
     if (prev) prev.disabled = !pack || index < 0 || nextEditableIndex(pack.levels, index, -1) < 0;
     if (next) next.disabled = !pack || index < 0 || nextEditableIndex(pack.levels, index, 1) < 0;
   }
 
   private fillContextPackSelect(): void {
-    const select = document.getElementById('editor-context-pack') as HTMLSelectElement | null;
+    const select = byId<HTMLSelectElement>('editor-context-pack');
     if (!select) return;
     select.innerHTML = '';
     const add = (value: string, text: string): void => {
@@ -627,14 +857,13 @@ export class LevelEditor {
   }
 
   private updateContextTitle(): void {
-    const titleInput = document.getElementById(TITLE_INPUT_ID) as HTMLInputElement | null;
-    const title = (titleInput?.value ?? this.customTitle).trim() || t('editor.metadata.default_title.label');
-    const el = document.getElementById('editor-context-title');
+    const title = this.doc.title.trim() || t('editor.metadata.default_title.label');
+    const el = byId('editor-context-title');
     if (el) el.textContent = title;
   }
 
   private updateDirtyBadge(): void {
-    document.getElementById('editor-context-dirty')?.classList.toggle('hidden', !this.dirty);
+    byId('editor-context-dirty')?.classList.toggle('hidden', !this.dirty);
   }
 
   /** The pack select chose a pack: its first level the editor can open, or a blank map when it is empty. */
@@ -662,7 +891,7 @@ export class LevelEditor {
   }
 
   private bindContextEvents(): void {
-    const select = document.getElementById('editor-context-pack') as HTMLSelectElement | null;
+    const select = byId<HTMLSelectElement>('editor-context-pack');
     select?.addEventListener('change', () => {
       const packId = select.value;
       void (async () => {
@@ -671,44 +900,54 @@ export class LevelEditor {
         this.fillContextPackSelect();
       })();
     });
-    document.getElementById('editor-context-prev')?.addEventListener('click', () => void this.stepLevel(-1));
-    document.getElementById('editor-context-next')?.addEventListener('click', () => void this.stepLevel(1));
-    document.getElementById('editor-context-open')?.addEventListener('click', () => {
+    byId('editor-context-prev')?.addEventListener('click', () => void this.stepLevel(-1));
+    byId('editor-context-next')?.addEventListener('click', () => void this.stepLevel(1));
+    byId('editor-context-open')?.addEventListener('click', () => {
       this.hooks.openManager(this.source.packId);
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Toolbar
+  // ---------------------------------------------------------------------------
+
   private bindToolbarEvents(): void {
-    const levelInput = document.getElementById('editor-gen-level') as HTMLInputElement | null;
+    const levelInput = byId<HTMLInputElement>('editor-gen-level');
     if (levelInput) {
       levelInput.min = String(EDITOR_GENERATOR_MIN_LEVEL);
       levelInput.max = String(EDITOR_GENERATOR_MAX_LEVEL);
       levelInput.value = String(EDITOR_GENERATOR_MIN_LEVEL);
     }
-    document.getElementById('editor-generate-btn')?.addEventListener('click', () => {
+    byId('editor-generate-btn')?.addEventListener('click', () => {
       void this.generateIntoEditor();
     });
 
-    document.getElementById('editor-new-btn')?.addEventListener('click', () => {
+    byId('editor-new-btn')?.addEventListener('click', () => {
       void this.newLevelInPack(this.source.packId);
     });
 
-    document.getElementById('editor-undo-btn')?.addEventListener('click', () => {
+    byId('editor-undo-btn')?.addEventListener('click', () => {
       this.undo();
     });
 
-    document.getElementById('editor-redo-btn')?.addEventListener('click', () => {
+    byId('editor-redo-btn')?.addEventListener('click', () => {
       this.redo();
     });
 
-    document.getElementById('editor-test-btn')?.addEventListener('click', () => {
+    byId('editor-test-btn')?.addEventListener('click', () => {
       void this.testPlay();
     });
 
-    document.getElementById('editor-validate-btn')?.addEventListener('click', () => {
-      this.readMetadataInputs();
+    for (const tool of EDITOR_TOOLS) {
+      document.querySelector<HTMLButtonElement>(`[data-tool="${tool}"]`)?.addEventListener('click', () => {
+        this.setTool(tool);
+      });
+    }
+
+    byId('editor-validate-btn')?.addEventListener('click', () => {
       const compiled = this.exportCompiledLevel();
       const report = LevelValidator.validate(compiled);
+      this.setCheck(summarizeValidation(report));
       if (report.valid) {
         const validText =
           compiled.winRule === 'receivers'
@@ -732,22 +971,20 @@ export class LevelEditor {
       }
     });
 
-    document.getElementById('editor-save-btn')?.addEventListener('click', () => {
+    byId('editor-save-btn')?.addEventListener('click', () => {
       void this.save();
     });
 
-    document.getElementById('editor-save-copy-btn')?.addEventListener('click', () => {
+    byId('editor-save-copy-btn')?.addEventListener('click', () => {
       void this.saveCopy();
     });
 
-    document.getElementById('editor-export-btn')?.addEventListener('click', () => {
-      this.readMetadataInputs();
+    byId('editor-export-btn')?.addEventListener('click', () => {
       const compiled = this.exportCompiledLevel();
       downloadJson(compiled, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.json`);
     });
 
-    document.getElementById('editor-export-ccl-btn')?.addEventListener('click', () => {
-      this.readMetadataInputs();
+    byId('editor-export-ccl-btn')?.addEventListener('click', () => {
       const compiled = this.exportCompiledLevel();
       const encoded = DatCodec.encodeLevelsWithReport([compiled]);
       if (encoded.levelCount > 0) {
@@ -757,8 +994,8 @@ export class LevelEditor {
       if (notice) this.setStatusText(notice);
     });
 
-    const importInput = document.getElementById('editor-import-input') as HTMLInputElement | null;
-    document.getElementById('editor-import-btn')?.addEventListener('click', () => {
+    const importInput = byId<HTMLInputElement>('editor-import-input');
+    byId('editor-import-btn')?.addEventListener('click', () => {
       importInput?.click();
     });
 
@@ -770,377 +1007,513 @@ export class LevelEditor {
 
     this.bindContextEvents();
 
-    document.getElementById('editor-autocount-btn')?.addEventListener('click', () => {
+    byId('editor-autocount-btn')?.addEventListener('click', () => {
       let count = 0;
-      for (const row of this.items) {
+      for (const row of this.doc.items) {
         for (const cell of row) {
           if (cell === 'chip') count++;
         }
       }
-      if (count !== this.chipsRequired) {
-        this.isDirty = true;
-      }
-      this.chipsRequired = count;
-      const chipsInput = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
+      if (count === this.doc.chipsRequired) return;
+      this.recordMetadataStep();
+      this.doc = { ...this.doc, chipsRequired: count };
+      const chipsInput = byId<HTMLInputElement>('editor-meta-chips');
       if (chipsInput) chipsInput.value = String(count);
+      this.afterMetadataChange();
     });
 
-    const dirSelect = document.getElementById('editor-meta-dir') as HTMLSelectElement | null;
-    dirSelect?.addEventListener('change', () => {
-      this.activeDir = (dirSelect.value as Direction) || 'S';
-    });
+    byId('editor-size-apply-btn')?.addEventListener('click', () => this.applySize());
   }
+
+  // ---------------------------------------------------------------------------
+  // Check badge
+  // ---------------------------------------------------------------------------
+
+  private lastCheck: CheckSummary | null = null;
+
+  /** Recomputes the badge once the player stops editing for a moment. */
+  private scheduleCheck(): void {
+    if (this.checkTimer !== null) clearTimeout(this.checkTimer);
+    this.checkTimer = setTimeout(() => {
+      this.checkTimer = null;
+      this.setCheck(summarizeValidation(LevelValidator.validate(this.exportCompiledLevel())));
+    }, EDITOR_CHECK_DEBOUNCE_MS);
+  }
+
+  private setCheck(summary: CheckSummary): void {
+    if (this.checkTimer !== null) {
+      clearTimeout(this.checkTimer);
+      this.checkTimer = null;
+    }
+    this.lastCheck = summary;
+    this.updateCheckBadge(summary);
+  }
+
+  private updateCheckBadge(summary: CheckSummary | null): void {
+    const badge = byId('editor-check-badge');
+    if (!badge) return;
+    badge.dataset.state = summary?.state ?? 'idle';
+    badge.textContent = summary
+      ? t(CHECK_TEXT_KEYS[summary.state], { count: summary.count })
+      : t('editor.layout.check.idle');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Metadata inspector
+  // ---------------------------------------------------------------------------
 
   private bindMetadataEvents(): void {
     for (const id of METADATA_INPUT_IDS) {
-      document.getElementById(id)?.addEventListener('input', (event) => {
-        this.isDirty = true;
-        if (id === TITLE_INPUT_ID) this.updateContextTitle();
-        if (id === WIN_RULE_INPUT_ID) {
-          this.winRule = parseWinRule((event.target as HTMLSelectElement).value, this.winRule);
-          this.syncRulesetInput();
-        }
-      });
+      byId(id)?.addEventListener('input', () => this.onMetadataInput(id));
+    }
+    // A new focus starts a new undo step for the field's next edit.
+    byId('editor-inspector')?.addEventListener('focusin', () => this.coalescer.reset());
+  }
+
+  /** The metadata the inputs show, over the document's own for a field that has no input. */
+  private readMetadataInputs(): EditorMetadata {
+    const doc = this.doc;
+    const value = (id: string): string | null => byId<HTMLInputElement>(id)?.value ?? null;
+    const title = value('editor-meta-title');
+    const hint = value('editor-meta-hint');
+    const author = value('editor-meta-author');
+    const password = value('editor-meta-password');
+    const time = value('editor-meta-time');
+    const chips = value('editor-meta-chips');
+    const winRule = value(WIN_RULE_INPUT_ID);
+    const ruleset = value(RULESET_INPUT_ID);
+    const next: EditorMetadata = {
+      // A cleared field stays cleared: an empty title falls back to the default one when the level is stored.
+      title: title === null ? doc.title : title.trim(),
+      hint: hint === null ? doc.hint : hint.trim(),
+      author: author === null ? doc.author : author.trim(),
+      password: password === null ? doc.password : password.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH),
+      timeLimitSeconds: time === null ? doc.timeLimitSeconds : parseTimeLimit(time, doc.timeLimitSeconds),
+      chipsRequired: chips === null ? doc.chipsRequired : parseChipsRequired(chips, doc.chipsRequired),
+      winRule: winRule === null ? doc.winRule : parseWinRule(winRule, doc.winRule),
+      ruleset: doc.ruleset
+    };
+    if (ruleset !== null) {
+      const parsed = parseRuleset(ruleset, doc.ruleset ?? DEFAULT_RULESET);
+      next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
+    }
+    if (requiresEpoxyRules(next.winRule, hasLaserContent(doc))) next.ruleset = undefined;
+    return next;
+  }
+
+  private sameMetadata(a: EditorMetadata, b: EditorMetadata): boolean {
+    return (
+      a.title === b.title &&
+      a.hint === b.hint &&
+      a.author === b.author &&
+      a.password === b.password &&
+      a.timeLimitSeconds === b.timeLimitSeconds &&
+      a.chipsRequired === b.chipsRequired &&
+      a.winRule === b.winRule &&
+      a.ruleset === b.ruleset
+    );
+  }
+
+  private onMetadataInput(id: string): void {
+    const next = this.readMetadataInputs();
+    if (this.sameMetadata(next, this.doc)) return;
+    if (this.coalescer.shouldRecord(id, !GESTURE_FIELD_IDS.includes(id))) this.history.push(this.doc);
+    this.doc = { ...this.doc, ...next };
+    this.afterMetadataChange();
+    if (id === TITLE_INPUT_ID) {
+      this.updateContextTitle();
+      this.updateCanvasLabel();
     }
   }
 
-  private syncMetadataInputs(): void {
-    const titleEl = document.getElementById('editor-meta-title') as HTMLInputElement | null;
-    const hintEl = document.getElementById('editor-meta-hint') as HTMLInputElement | null;
-    const authorEl = document.getElementById('editor-meta-author') as HTMLInputElement | null;
-    const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
-    const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
-    const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
-    const winRuleEl = document.getElementById('editor-meta-winrule') as HTMLSelectElement | null;
-
-    if (titleEl) titleEl.value = this.customTitle;
-    if (hintEl) hintEl.value = this.customHint;
-    if (authorEl) authorEl.value = this.author;
-    if (passEl) passEl.value = this.password;
-    if (timeEl) timeEl.value = String(this.timeLimitSeconds);
-    if (chipsEl) chipsEl.value = String(this.chipsRequired);
-    if (winRuleEl) winRuleEl.value = this.winRule;
-    this.syncRulesetInput();
+  /** Records the document as it is, before a metadata change made outside a text field. */
+  private recordMetadataStep(): void {
+    this.history.push(this.doc);
+    this.coalescer.reset();
   }
 
-  /** Whether the map places laser tiles or mirrors, which only the Epoxy engine plays. */
-  private hasLaserContent(): boolean {
-    return hasLaserContent({ terrain: this.terrain, items: this.items, entities: this.entities });
+  private afterMetadataChange(): void {
+    this.isDirty = true;
+    this.updateUndoRedoButtons();
+    this.syncRulesetInput();
+    this.renderPaletteItems();
+    this.scheduleCheck();
+  }
+
+  private syncMetadataInputs(): void {
+    const set = (id: string, value: string): void => {
+      const el = byId<HTMLInputElement | HTMLSelectElement>(id);
+      if (el) el.value = value;
+    };
+    const doc = this.doc;
+    set('editor-meta-title', doc.title);
+    set('editor-meta-hint', doc.hint);
+    set('editor-meta-author', doc.author);
+    set('editor-meta-password', doc.password);
+    set('editor-meta-time', String(doc.timeLimitSeconds));
+    set('editor-meta-chips', String(doc.chipsRequired));
+    set(WIN_RULE_INPUT_ID, doc.winRule);
+    this.syncRulesetInput();
+    this.syncSizeInputs();
   }
 
   /**
    * A level won with block targets or laser receivers, or holding laser
-   * content, is Epoxy only: force it and lock the Lynx option.
+   * content, is Epoxy only: force it and lock the Lynx option. Under Lynx the
+   * Epoxy-only win rules are marked unavailable with the reason.
    */
   private syncRulesetInput(): void {
-    const rulesetEl = document.getElementById('editor-meta-ruleset') as HTMLSelectElement | null;
+    const rulesetEl = byId<HTMLSelectElement>(RULESET_INPUT_ID);
     if (!rulesetEl) return;
-    const lynxLocked = requiresEpoxyRules(this.winRule, this.hasLaserContent());
-    if (lynxLocked) this.ruleset = undefined;
-    rulesetEl.value = this.ruleset ?? DEFAULT_RULESET;
+    const lynxLocked = requiresEpoxyRules(this.doc.winRule, hasLaserContent(this.doc));
+    if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
+    rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
     for (const option of Array.from(rulesetEl.options)) {
       if (option.value !== LYNX_RULESET) continue;
       option.disabled = lynxLocked;
       option.title = lynxLocked ? t('editor.metadata.ruleset_lynx_unavailable.label') : '';
     }
-  }
-
-  private readMetadataInputs(): void {
-    const titleEl = document.getElementById('editor-meta-title') as HTMLInputElement | null;
-    const hintEl = document.getElementById('editor-meta-hint') as HTMLInputElement | null;
-    const authorEl = document.getElementById('editor-meta-author') as HTMLInputElement | null;
-    const passEl = document.getElementById('editor-meta-password') as HTMLInputElement | null;
-    const timeEl = document.getElementById('editor-meta-time') as HTMLInputElement | null;
-    const chipsEl = document.getElementById('editor-meta-chips') as HTMLInputElement | null;
-    const winRuleEl = document.getElementById('editor-meta-winrule') as HTMLSelectElement | null;
-
-    // A cleared field stays cleared: an empty title falls back to the default one when the level is stored.
-    if (titleEl) this.customTitle = titleEl.value.trim();
-    if (hintEl) this.customHint = hintEl.value.trim();
-    if (authorEl) this.author = authorEl.value.trim();
-    if (passEl) this.password = passEl.value.trim().toUpperCase().slice(0, EDITOR_PASSWORD_LENGTH);
-    if (timeEl) this.timeLimitSeconds = parseTimeLimit(timeEl.value, this.timeLimitSeconds);
-    if (chipsEl) this.chipsRequired = parseChipsRequired(chipsEl.value, this.chipsRequired);
-    if (winRuleEl) this.winRule = parseWinRule(winRuleEl.value, this.winRule);
-    const rulesetEl = document.getElementById('editor-meta-ruleset') as HTMLSelectElement | null;
-    if (rulesetEl) {
-      const parsed = parseRuleset(rulesetEl.value, this.ruleset ?? DEFAULT_RULESET);
-      this.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
-    }
-    if (requiresEpoxyRules(this.winRule, this.hasLaserContent())) this.ruleset = undefined;
-  }
-
-  private createSnapshot(): EditorSnapshot {
-    return {
-      terrain: this.terrain.map((r) => [...r]),
-      items: this.items.map((r) => [...r]),
-      entities: this.entities.map((e) => ({ ...e })),
-      trapLinks: this.trapLinks.map((l) => ({ ...l })),
-      cloneLinks: this.cloneLinks.map((l) => ({ ...l })),
-      playerStart: { ...this.playerStart }
-    };
-  }
-
-  private restoreSnapshot(snap: EditorSnapshot): void {
-    this.terrain = snap.terrain.map((r) => [...r]);
-    this.items = snap.items.map((r) => [...r]);
-    this.entities = snap.entities.map((e) => ({ ...e }));
-    this.trapLinks = snap.trapLinks.map((l) => ({ ...l }));
-    this.cloneLinks = snap.cloneLinks.map((l) => ({ ...l }));
-    this.playerStart = { ...snap.playerStart };
-    this.syncRulesetInput();
-    this.render();
-  }
-
-  private pushUndoState(): void {
-    const maxUndo = ConfigRegistry.getGame().timing.maxUndoSnapshots || TIMING_DEFAULTS.maxUndoSnapshots;
-    if (this.undoStack.length >= maxUndo) {
-      this.undoStack.shift();
-    }
-    this.undoStack.push(this.createSnapshot());
-    this.redoStack = [];
-    this.isDirty = true;
-    this.updateUndoRedoButtons();
-  }
-
-  public undo(): void {
-    const prev = this.undoStack.pop();
-    if (!prev) return;
-    this.redoStack.push(this.createSnapshot());
-    this.restoreSnapshot(prev);
-    this.isDirty = true;
-    this.updateUndoRedoButtons();
-  }
-
-  public redo(): void {
-    const next = this.redoStack.pop();
-    if (!next) return;
-    this.undoStack.push(this.createSnapshot());
-    this.restoreSnapshot(next);
-    this.isDirty = true;
-    this.updateUndoRedoButtons();
-  }
-
-  private updateUndoRedoButtons(): void {
-    const undoBtn = document.getElementById('editor-undo-btn') as HTMLButtonElement | null;
-    const redoBtn = document.getElementById('editor-redo-btn') as HTMLButtonElement | null;
-    if (undoBtn) undoBtn.disabled = this.undoStack.length === 0;
-    if (redoBtn) redoBtn.disabled = this.redoStack.length === 0;
-  }
-
-  private pickBrushAt(x: number, y: number): void {
-    const ent = this.entities.find((e) => e.x === x && e.y === y);
-    if (ent) {
-      const def = ConfigRegistry.getEntityDef(ent.type);
-      this.activeCategory = def?.category || 'entities';
-      this.activeBrush = { kind: 'entity', id: ent.type };
-      this.activeDir = ent.dir;
-      const dirSelect = document.getElementById('editor-meta-dir') as HTMLSelectElement | null;
-      if (dirSelect) dirSelect.value = ent.dir;
-      this.renderCategoryTabs();
-      this.renderPaletteItems();
-      this.setStatusText(
-        t('editor.palette.status.picked.label', {
-          name: def ? t(def.i18nKey) : ent.type
-        })
+    const description = byId('editor-ruleset-description');
+    if (description) {
+      description.textContent = t(
+        editableRulesetOf(this.doc.ruleset) === LYNX_RULESET
+          ? 'editor.layout.rules.description.lynx'
+          : 'editor.layout.rules.description.epoxy'
       );
-      return;
     }
-
-    const item = this.items[y]?.[x];
-    if (item) {
-      const tileDef = ConfigRegistry.getTile(item);
-      this.activeCategory = tileDef.category;
-      this.activeBrush = { kind: 'item', id: item };
-      this.renderCategoryTabs();
-      this.renderPaletteItems();
-      this.setStatusText(
-        t('editor.palette.status.picked.label', { name: t(tileDef.i18nKey) })
-      );
-      return;
+    const winRuleEl = byId<HTMLSelectElement>(WIN_RULE_INPUT_ID);
+    if (winRuleEl) {
+      const ruleset = editableRulesetOf(this.doc.ruleset);
+      for (const option of Array.from(winRuleEl.options)) {
+        const rule = WIN_RULE_VALUES.find((value) => value === option.value);
+        const availability = rule ? winRuleAvailability(ruleset, rule) : { available: true as const };
+        option.disabled = !availability.available;
+        option.title = availability.available ? '' : t(availability.reasonKey);
+      }
     }
+  }
 
-    const terr = this.terrain[y]?.[x] || 'floor';
-    const tileDef = ConfigRegistry.getTile(terr);
-    this.activeCategory = tileDef.category;
-    this.activeBrush = { kind: 'terrain', id: terr };
-    this.renderCategoryTabs();
-    this.renderPaletteItems();
+  // ---------------------------------------------------------------------------
+  // Size
+  // ---------------------------------------------------------------------------
+
+  private syncSizeInputs(): void {
+    const bounds = ConfigRegistry.getLevelSizeBounds();
+    const width = byId<HTMLInputElement>('editor-size-width');
+    const height = byId<HTMLInputElement>('editor-size-height');
+    for (const input of [width, height]) {
+      if (!input) continue;
+      input.min = String(bounds.minSize);
+      input.max = String(bounds.maxSize);
+    }
+    if (width) width.value = String(this.mapWidth());
+    if (height) height.value = String(this.mapHeight());
+    const range = byId('editor-size-range');
+    if (range) range.textContent = t('editor.layout.size.range', { min: bounds.minSize, max: bounds.maxSize });
+  }
+
+  /** Resizes the map to the typed size as one undoable step and says what it dropped. */
+  private applySize(): void {
+    const widthInput = byId<HTMLInputElement>('editor-size-width');
+    const heightInput = byId<HTMLInputElement>('editor-size-height');
+    const typedWidth = Number.parseInt(widthInput?.value ?? '', 10);
+    const typedHeight = Number.parseInt(heightInput?.value ?? '', 10);
+    const result = resizeMap(
+      this.doc,
+      Number.isFinite(typedWidth) ? typedWidth : this.mapWidth(),
+      Number.isFinite(typedHeight) ? typedHeight : this.mapHeight(),
+      ConfigRegistry.getLevelSizeBounds()
+    );
+    if (result.changed) {
+      this.history.push(this.doc);
+      this.coalescer.reset();
+      this.cancelPendingWire(false);
+      this.doc = { ...this.doc, ...result.map };
+      this.cursorCell = null;
+      this.hoverCell = null;
+      this.isDirty = true;
+      this.fitCanvasToLevel();
+      this.updateUndoRedoButtons();
+      this.syncRulesetInput();
+      this.scheduleCheck();
+      this.render();
+    }
+    this.syncSizeInputs();
     this.setStatusText(
-      t('editor.palette.status.picked.label', { name: t(tileDef.i18nKey) })
+      describeResize(result)
+        .map((note) => t(note.key, note.params))
+        .join(SEPARATOR_BETWEEN_MESSAGES)
     );
   }
 
-  private bindCanvasEvents(): void {
-    const getCoords = (clientX: number, clientY: number): { x: number; y: number } | null => {
-      const rect = this.canvas.getBoundingClientRect();
-      const scaleX = this.canvas.width / rect.width;
-      const scaleY = this.canvas.height / rect.height;
-      const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
-      const x = Math.floor(((clientX - rect.left) * scaleX) / editorTilePixelSize);
-      const y = Math.floor(((clientY - rect.top) * scaleY) / editorTilePixelSize);
-      if (x < 0 || x >= this.mapWidth() || y < 0 || y >= this.mapHeight()) return null;
-      return { x, y };
-    };
+  // ---------------------------------------------------------------------------
+  // Inspector sections and layout
+  // ---------------------------------------------------------------------------
 
+  private sectionsStorageKey(): string {
+    return ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.editorSectionsKey);
+  }
+
+  private readSectionState(): SectionState {
+    try {
+      return parseSectionState(localStorage.getItem(this.sectionsStorageKey()));
+    } catch {
+      // Storage blocked: the sections start in their default state.
+      return parseSectionState(null);
+    }
+  }
+
+  private bindInspectorSections(): void {
+    const state = this.readSectionState();
+    for (const section of INSPECTOR_SECTIONS) {
+      const details = document.querySelector<HTMLDetailsElement>(`details[data-section="${section}"]`);
+      if (!details) continue;
+      details.open = state[section];
+      details.addEventListener('toggle', () => this.rememberSection(section, details.open));
+    }
+  }
+
+  private rememberSection(section: InspectorSection, open: boolean): void {
+    const state = this.readSectionState();
+    state[section] = open;
+    try {
+      localStorage.setItem(this.sectionsStorageKey(), serializeSectionState(state));
+    } catch {
+      // Storage blocked: the choice is not remembered.
+    }
+  }
+
+  /** Follows the editor's size: the column layout, and the canvas fit. */
+  private bindLayoutEvents(): void {
+    const view = byId('editor-view');
+    const stage = byId('editor-stage');
+    if (!view || typeof ResizeObserver === 'undefined') return;
+    const update = (): void => {
+      // A hidden view measures 0 wide: it keeps the layout it had.
+      if (view.offsetWidth > 0) view.dataset.layout = layoutModeForWidth(view.offsetWidth);
+      this.applyFit();
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(view);
+    if (stage) observer.observe(stage);
+  }
+
+  // ---------------------------------------------------------------------------
+  // History
+  // ---------------------------------------------------------------------------
+
+  /** Puts a document from the history in place of the current one. */
+  private restoreDocument(doc: EditorDocument): void {
+    this.doc = doc;
+    this.coalescer.reset();
+    this.isDirty = true;
+    this.pendingWire = null;
+    this.cursorCell = null;
+    this.fitCanvasToLevel();
+    this.updateUndoRedoButtons();
+    this.syncMetadataInputs();
+    this.updateContextTitle();
+    this.updateCanvasLabel();
+    this.renderPaletteItems();
+    this.scheduleCheck();
+    this.render();
+  }
+
+  public undo(): void {
+    if (this.stroke) return;
+    const wire = this.pendingWire;
+    const previous = this.history.undo(this.doc);
+    if (!previous) return;
+    this.restoreDocument(previous);
+    this.announceDroppedWire(wire);
+  }
+
+  public redo(): void {
+    if (this.stroke) return;
+    const wire = this.pendingWire;
+    const next = this.history.redo(this.doc);
+    if (!next) return;
+    this.restoreDocument(next);
+    this.announceDroppedWire(wire);
+  }
+
+  /** A wire dropped by undo or redo leaves a message when its button stays on the map. */
+  private announceDroppedWire(wire: PendingWire | null): void {
+    if (!wire) return;
+    const buttonTile = wire.kind === 'trap' ? EDITOR_TRAP_BUTTON_TILE : EDITOR_CLONE_BUTTON_TILE;
+    if (leavesLooseButton(this.doc, wire, buttonTile)) this.setStatusText(t(MESSAGE_WIRE_CANCELLED_BUTTON_LEFT));
+  }
+
+  private updateUndoRedoButtons(): void {
+    const undoBtn = byId<HTMLButtonElement>('editor-undo-btn');
+    const redoBtn = byId<HTMLButtonElement>('editor-redo-btn');
+    if (undoBtn) undoBtn.disabled = !this.history.canUndo();
+    if (redoBtn) redoBtn.disabled = !this.history.canRedo();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Canvas
+  // ---------------------------------------------------------------------------
+
+  private pickAt(x: number, y: number): void {
+    const picked = pickFromCell(this.doc, x, y, FLOOR_TILE_ID);
+    this.cancelPendingWire(false);
+    this.brush = picked.brush;
+    if (picked.dir) {
+      this.activeDir = picked.dir;
+      this.updateDirButtons();
+    }
+    const definition =
+      picked.brush.kind === 'entity'
+        ? ConfigRegistry.getEntityDef(picked.brush.id)
+        : ConfigRegistry.getTile(picked.brush.id);
+    this.activeCategory = definition?.category || ENTITIES_CATEGORY;
+    // The picker hands the brush back once it has taken a tile.
+    if (this.tool === 'picker') {
+      this.tool = 'brush';
+      this.updateToolButtons();
+      this.updateCanvasLabel();
+    }
+    this.renderCategoryTabs();
+    this.renderPaletteItems();
+    this.setStatusText(t('editor.palette.status.picked.label', { name: definition ? t(definition.i18nKey) : picked.brush.id }));
+  }
+
+  /** The grid cell under a screen position, or null outside the grid. */
+  private cellAt(clientX: number, clientY: number): { x: number; y: number } | null {
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    const x = Math.floor(((clientX - rect.left) / rect.width) * this.mapWidth());
+    const y = Math.floor(((clientY - rect.top) / rect.height) * this.mapHeight());
+    if (x < 0 || x >= this.mapWidth() || y < 0 || y >= this.mapHeight()) return null;
+    return { x, y };
+  }
+
+  private setHover(cell: { x: number; y: number } | null): void {
+    const same = this.hoverCell?.x === cell?.x && this.hoverCell?.y === cell?.y;
+    this.hoverCell = cell;
+    this.setCoordsText(cell ? t('editor.palette.status.coords', { x: cell.x, y: cell.y }) : NO_COORDS_TEXT);
+    if (!same) this.render();
+  }
+
+  private bindCanvasEvents(): void {
     this.canvas.addEventListener('contextmenu', (ev) => {
       ev.preventDefault();
     });
 
     this.canvas.addEventListener('pointerdown', (ev) => {
-      const coords = getCoords(ev.clientX, ev.clientY);
-      if (!coords) return;
+      const cell = this.cellAt(ev.clientX, ev.clientY);
+      if (!cell) return;
       ev.preventDefault();
+      this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(ev.pointerId);
+      this.cursorCell = cell;
 
-      if (ev.altKey || ev.button === 1) {
-        this.pickBrushAt(coords.x, coords.y);
+      if (ev.altKey || ev.button === 1 || this.tool === 'picker') {
+        this.pickAt(cell.x, cell.y);
         return;
       }
 
-      this.pushUndoState();
-      this.isPainting = true;
-      this.isRightErasing = ev.button === 2;
-      this.applyBrushAt(coords.x, coords.y, this.isRightErasing);
+      this.beginStroke(ev.button === 2);
+      this.applyAt(cell.x, cell.y);
     });
 
     this.canvas.addEventListener('pointermove', (ev) => {
-      const coords = getCoords(ev.clientX, ev.clientY);
-      if (!coords) return;
-      this.setCoordsText(t('editor.palette.status.coords', { x: coords.x, y: coords.y }));
-      if (
-        this.isPainting &&
-        !this.fillMode &&
-        this.activeBrush.kind !== 'wire_trap' &&
-        this.activeBrush.kind !== 'wire_cloner'
-      ) {
-        this.applyBrushAt(coords.x, coords.y, this.isRightErasing);
+      const cell = this.cellAt(ev.clientX, ev.clientY);
+      this.setHover(cell);
+      if (cell && this.stroke && continuesOnDrag(this.tool, this.brush, this.stroke.forceErase)) {
+        this.applyAt(cell.x, cell.y);
       }
     });
 
-    const stopPainting = (): void => {
-      this.isPainting = false;
-      this.isRightErasing = false;
-    };
+    this.canvas.addEventListener('pointerleave', () => {
+      if (!this.stroke) this.setHover(null);
+    });
 
+    const stopPainting = (): void => this.endStroke();
     window.addEventListener('pointerup', stopPainting);
     window.addEventListener('pointercancel', stopPainting);
+
+    this.canvas.addEventListener('keydown', (ev) => {
+      const action = getCanvasKeyAction(ev);
+      if (!action) return;
+      ev.preventDefault();
+      if (action.kind === 'move') {
+        const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
+        this.cursorCell = moveCursor(from, action.dx, action.dy, this.mapWidth(), this.mapHeight());
+        this.setCoordsText(t('editor.palette.status.coords', { x: this.cursorCell.x, y: this.cursorCell.y }));
+        this.render();
+        return;
+      }
+      const cell = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
+      this.cursorCell = cell;
+      if (this.tool === 'picker') {
+        this.pickAt(cell.x, cell.y);
+        return;
+      }
+      this.beginStroke(false);
+      this.applyAt(cell.x, cell.y);
+      this.endStroke();
+    });
+    this.canvas.addEventListener('focus', () => this.render());
+    this.canvas.addEventListener('blur', () => this.render());
   }
 
-  private applyBrushAt(x: number, y: number, forceEraser: boolean = false): void {
-    const wasLynx = this.ruleset === LYNX_RULESET;
-    this.paintBrushAt(x, y, forceEraser);
-    if (wasLynx && this.hasLaserContent()) {
-      // Laser content is Epoxy only: the level leaves the Lynx rules and says so.
-      this.syncRulesetInput();
-      this.setStatusText(t('editor.palette.status.lynx_lasers_switched.label'));
-    }
+  private beginStroke(forceErase: boolean): void {
+    this.stroke = { base: cloneDocument(this.doc), changed: false, forceErase };
   }
 
-  private paintBrushAt(x: number, y: number, forceEraser: boolean): void {
-    const brush: ActiveBrush = forceEraser ? { kind: 'eraser', id: 'eraser' } : this.activeBrush;
+  /** A stroke that changed the level is one history step; one that changed nothing leaves no trace. */
+  private endStroke(): void {
+    const stroke = this.stroke;
+    if (!stroke) return;
+    this.stroke = null;
+    if (!stroke.changed) return;
+    this.history.push(stroke.base);
+    this.coalescer.reset();
+    this.isDirty = true;
+    this.updateUndoRedoButtons();
+    this.syncRulesetInput();
+    this.updateSwitchEngineButton();
+    this.scheduleCheck();
+  }
 
-    if (!forceEraser && this.fillMode && brush.kind === 'terrain') {
-      this.floodFillTerrain(x, y, this.terrain[y][x], brush.id);
-      this.render();
+  /** Applies the active tool to a cell as part of the running stroke. */
+  private applyAt(x: number, y: number): void {
+    const stroke = this.stroke;
+    if (!stroke) return;
+    const availability = stroke.forceErase || this.tool === 'eraser' ? { available: true as const } : this.brushAvailability(this.brush);
+    if (!availability.available) {
+      this.setStatusText(t(availability.reasonKey));
       return;
     }
-
-    if (brush.kind === 'wire_trap') {
-      if (!this.pendingWireSource) {
-        this.terrain[y][x] = 'button_brown';
-        this.pendingWireSource = { x, y };
-        this.setStatusText(t('editor.palette.status.wire_select_target'));
-      } else {
-        this.terrain[y][x] = 'trap';
-        this.trapLinks.push({
-          buttonX: this.pendingWireSource.x,
-          buttonY: this.pendingWireSource.y,
-          trapX: x,
-          trapY: y
-        });
-        this.pendingWireSource = null;
-        this.setStatusText(t('editor.palette.status.wire_linked'));
-      }
-      this.render();
-      return;
+    const outcome = applyTool({
+      map: this.doc,
+      tool: this.tool,
+      brush: this.brush,
+      dir: this.activeDir,
+      x,
+      y,
+      pendingWire: this.pendingWire,
+      forceErase: stroke.forceErase
+    });
+    this.pendingWire = outcome.pendingWire;
+    if (outcome.changed) {
+      this.doc = { ...this.doc, ...outcome.map };
+      stroke.changed = true;
     }
-
-    if (brush.kind === 'wire_cloner') {
-      if (!this.pendingWireSource) {
-        this.terrain[y][x] = 'button_red';
-        this.pendingWireSource = { x, y };
-        this.setStatusText(t('editor.palette.status.wire_select_target'));
-      } else {
-        this.terrain[y][x] = 'clone_machine';
-        const existingEnt = this.entities.find((e) => e.x === x && e.y === y);
-        this.cloneLinks.push({
-          buttonX: this.pendingWireSource.x,
-          buttonY: this.pendingWireSource.y,
-          clonerX: x,
-          clonerY: y,
-          templateType: existingEnt?.type || EDITOR_DEFAULT_CLONE_TEMPLATE,
-          templateDir: existingEnt?.dir || this.activeDir
-        });
-        this.pendingWireSource = null;
-        this.setStatusText(t('editor.palette.status.wire_linked'));
-      }
-      this.render();
-      return;
-    }
-
-    if (brush.kind === 'eraser') {
-      this.terrain[y][x] = 'floor';
-      this.items[y][x] = null;
-      this.entities = this.entities.filter((e) => !(e.x === x && e.y === y));
-      this.trapLinks = this.trapLinks.filter(
-        (l) => !(l.buttonX === x && l.buttonY === y) && !(l.trapX === x && l.trapY === y)
-      );
-      this.cloneLinks = this.cloneLinks.filter(
-        (l) => !(l.buttonX === x && l.buttonY === y) && !(l.clonerX === x && l.clonerY === y)
-      );
-    } else if (brush.kind === 'terrain') {
-      this.terrain[y][x] = brush.id;
-    } else if (brush.kind === 'item') {
-      this.items[y][x] = brush.id;
-    } else if (brush.kind === 'entity') {
-      this.entities = this.entities.filter((e) => !(e.x === x && e.y === y));
-      this.entities.push({ x, y, type: brush.id, dir: this.activeDir });
-    } else if (brush.kind === 'player_start') {
-      this.playerStart = { x, y, dir: this.activeDir };
-    }
-
+    this.announce(outcome.messages);
     this.render();
   }
 
-  private floodFillTerrain(startX: number, startY: number, targetId: string, replacementId: string): void {
-    if (targetId === replacementId) return;
-    const mapWidth = this.mapWidth();
-    const mapHeight = this.mapHeight();
-    const queue: Array<{ x: number; y: number }> = [{ x: startX, y: startY }];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const curr = queue.shift()!;
-      const key = `${curr.x},${curr.y}`;
-      if (visited.has(key)) continue;
-      visited.add(key);
-
-      if (curr.x < 0 || curr.x >= mapWidth || curr.y < 0 || curr.y >= mapHeight) continue;
-      if (this.terrain[curr.y][curr.x] !== targetId) continue;
-
-      this.terrain[curr.y][curr.x] = replacementId;
-      queue.push(
-        { x: curr.x + 1, y: curr.y },
-        { x: curr.x - 1, y: curr.y },
-        { x: curr.x, y: curr.y + 1 },
-        { x: curr.x, y: curr.y - 1 }
-      );
-    }
+  private announce(messages: ToolMessage[]): void {
+    if (messages.length === 0) return;
+    this.setStatusText(messages.map((message) => t(message.key, message.params)).join(SEPARATOR_BETWEEN_MESSAGES));
   }
 
   public render(): void {
     const { editorTilePixelSize } = ConfigRegistry.getGame().grid;
+    const doc = this.doc;
     const mapWidth = this.mapWidth();
     const mapHeight = this.mapHeight();
     const s = editorTilePixelSize;
@@ -1148,35 +1521,48 @@ export class LevelEditor {
 
     for (let y = 0; y < mapHeight; y++) {
       for (let x = 0; x < mapWidth; x++) {
-        this.renderer.drawTile(this.ctx, this.terrain[y][x], x * s, y * s, s, true, true);
-        const item = this.items[y][x];
+        this.renderer.drawTile(this.ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
+        const item = doc.items[y][x];
         if (item) {
           this.renderer.drawItem(this.ctx, item, x * s, y * s, s);
         }
       }
     }
 
-    for (const ent of this.entities) {
+    for (const ent of doc.entities) {
       this.renderer.drawEntity(this.ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
     }
 
     this.renderer.drawPlayer(
       this.ctx,
-      this.playerStart.x * s,
-      this.playerStart.y * s,
+      doc.playerStart.x * s,
+      doc.playerStart.y * s,
       s,
-      this.playerStart.dir,
+      doc.playerStart.dir,
       false,
       true
     );
 
     this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
-    for (const link of this.trapLinks) {
+    for (const link of doc.trapLinks) {
       this.drawLinkLine(EDITOR_TRAP_LINK_COLOR, link.buttonX, link.buttonY, link.trapX, link.trapY, s);
     }
-    for (const link of this.cloneLinks) {
+    for (const link of doc.cloneLinks) {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
+
+    if (this.pendingWire) this.outlineCell(this.pendingWire.x, this.pendingWire.y, EDITOR_WIRE_SOURCE_COLOR, s);
+    if (this.hoverCell) this.outlineCell(this.hoverCell.x, this.hoverCell.y, EDITOR_HOVER_OUTLINE_COLOR, s);
+    if (this.cursorCell && document.activeElement === this.canvas) {
+      this.outlineCell(this.cursorCell.x, this.cursorCell.y, EDITOR_CURSOR_OUTLINE_COLOR, s);
+    }
+  }
+
+  private outlineCell(x: number, y: number, color: string, s: number): void {
+    const inset = EDITOR_OVERLAY_LINE_WIDTH / 2;
+    this.ctx.lineWidth = EDITOR_OVERLAY_LINE_WIDTH;
+    this.ctx.strokeStyle = color;
+    this.ctx.strokeRect(x * s + inset, y * s + inset, s - EDITOR_OVERLAY_LINE_WIDTH, s - EDITOR_OVERLAY_LINE_WIDTH);
   }
 
   private drawLinkLine(color: string, fromX: number, fromY: number, toX: number, toY: number, s: number): void {
@@ -1196,23 +1582,19 @@ export class LevelEditor {
     const id = this.source.levelId ?? this.currentLevelId;
     const targetLevels = this.sourcePack()?.levels ?? [];
     const existing = targetLevels.find((l) => l.id === id);
+    const doc = this.doc;
     return {
       id,
-      ...(this.winRule === DEFAULT_WIN_RULE ? {} : { winRule: this.winRule }),
-      ...(this.ruleset ? { ruleset: this.ruleset } : {}),
+      ...(doc.winRule === DEFAULT_WIN_RULE ? {} : { winRule: doc.winRule }),
+      ...(doc.ruleset ? { ruleset: doc.ruleset } : {}),
       number: existing ? existing.number : targetLevels.length + 1,
-      customTitle: this.customTitle || t('editor.metadata.default_title.label'),
-      customHint: this.customHint,
-      ...(this.author ? { author: this.author } : {}),
-      password: resolveSavedPassword(this.password, targetLevels),
-      timeLimitSeconds: this.timeLimitSeconds,
-      chipsRequired: this.chipsRequired,
-      playerStart: { ...this.playerStart },
-      terrain: this.terrain.map((r) => [...r]),
-      items: this.items.map((r) => [...r]),
-      entities: this.entities.map((e) => ({ ...e })),
-      trapLinks: this.trapLinks.map((l) => ({ ...l })),
-      cloneLinks: this.cloneLinks.map((l) => ({ ...l }))
+      customTitle: doc.title || t('editor.metadata.default_title.label'),
+      customHint: doc.hint,
+      ...(doc.author ? { author: doc.author } : {}),
+      password: resolveSavedPassword(doc.password, targetLevels),
+      timeLimitSeconds: doc.timeLimitSeconds,
+      chipsRequired: doc.chipsRequired,
+      ...cloneMap(doc)
     };
   }
 
@@ -1221,7 +1603,6 @@ export class LevelEditor {
   // ---------------------------------------------------------------------------
 
   private async testPlay(): Promise<void> {
-    this.readMetadataInputs();
     const compiled = this.exportCompiledLevel();
     const report = LevelValidator.validate(compiled);
     let issuesText = '';
@@ -1264,7 +1645,6 @@ export class LevelEditor {
   }
 
   private async performSave(forceCopy: boolean): Promise<void> {
-    this.readMetadataInputs();
     const generation = this.loadGeneration;
     const decision = decideSave({
       source: this.source,
@@ -1311,7 +1691,7 @@ export class LevelEditor {
     const draft = {
       ...this.exportCompiledLevel(),
       id: keepsId ? (this.source.levelId as string) : ConfigRegistry.newLevelId(),
-      password: resolveSavedPassword(this.password, targetPack.levels)
+      password: resolveSavedPassword(this.doc.password, targetPack.levels)
     };
     const { level, mapChanged } = prepareLevelForSave(draft, this.originalLevel, this.loadedTexts);
     const result = await ConfigRegistry.saveLevelToPack(packId, level);

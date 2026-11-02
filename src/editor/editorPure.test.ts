@@ -47,7 +47,7 @@ describe('getEditorKeyAction', () => {
   });
 
   it('falls back to the key code on a layout without Latin letters', () => {
-    expect(getEditorKeyAction(chord('0438', { code: 'KeyB' }))).toEqual({ kind: 'tool', tool: 'brush' });
+    expect(getEditorKeyAction(chord('и',{ code: 'KeyB' }))).toEqual({ kind: 'tool', tool: 'brush' });
   });
 
   it('leaves command chords and unrelated keys alone', () => {

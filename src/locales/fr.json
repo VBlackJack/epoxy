@@ -395,6 +395,13 @@
       "kb_theme": { "label": "B : Changer le biome visuel (et sa musique en mode Défaut)" },
       "kb_procedural": { "label": "N : Lancer une série infinie de niveaux solvables" },
       "kb_levels": { "label": "[ et ] : Niveau précédent / suivant" },
+      "sec_editor": { "label": "Éditeur de niveaux" },
+      "kb_editor_tools": { "label": "B / F / E / I : Pinceau, Remplir, Gomme, Pipette (Alt+clic ou clic du milieu prend aussi)" },
+      "kb_editor_rotate": { "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi" },
+      "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
+      "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible" },
+      "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
+      "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
       "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
@@ -485,16 +492,104 @@
         "failed": { "label": "Le générateur n'a pas pu construire ce niveau. Essayez une autre graine." }
       }
     },
+    "layout": {
+      "toolbar": { "label": "Barre d'outils de l'éditeur" },
+      "group": {
+        "file": { "label": "Fichier" },
+        "edit": { "label": "Édition" },
+        "tools": { "label": "Outils" }
+      },
+      "file": {
+        "new": { "action": "Nouveau" },
+        "save": { "action": "Enregistrer" },
+        "import": { "action": "Importer" }
+      },
+      "edit": {
+        "undo": { "action": "Annuler", "title": "Annuler (Ctrl+Z)" },
+        "redo": { "action": "Rétablir", "title": "Rétablir (Ctrl+Y)" }
+      },
+      "tool": {
+        "brush": { "label": "Pinceau", "title": "Pinceau (B) : dessiner avec l'élément choisi dans la palette" },
+        "fill": { "label": "Remplir", "title": "Remplir (F) : remplir une zone avec le terrain choisi" },
+        "eraser": { "label": "Gomme", "title": "Gomme (E) : remettre une case à l'état de sol" },
+        "picker": { "label": "Pipette", "title": "Pipette (I) : prendre la tuile sous le pointeur. Alt+clic ou clic du milieu le fait depuis n'importe quel outil." }
+      },
+      "check": {
+        "action": "Vérifier",
+        "title": "Vérifier le niveau : règles et solvabilité",
+        "idle": "Non vérifié",
+        "valid": "Valide",
+        "warnings": "{count, plural, one {# avertissement} other {# avertissements}}",
+        "errors": "{count, plural, one {# erreur} other {# erreurs}}"
+      },
+      "test": { "action": "Tester", "title": "Jouer le niveau tel quel" },
+      "canvas": {
+        "aria": "Zone de dessin du niveau, {level}. Outil : {tool}. Les flèches déplacent le curseur, Espace ou Entrée dessine.",
+        "cursor": "Curseur en ({x}, {y})"
+      },
+      "zoom": {
+        "out": { "aria": "Réduire le zoom" },
+        "in": { "aria": "Agrandir le zoom" },
+        "fit": { "action": "Ajuster", "aria": "Ajuster le niveau à la fenêtre" },
+        "level": { "label": "{percent} %", "aria": "Zoom {percent} pour cent" }
+      },
+      "status": {
+        "label": "Messages de l'éditeur",
+        "links_removed": "{count, plural, one {# lien a été supprimé} other {# liens ont été supprimés}}.",
+        "start_kept": "Le départ du joueur ne s'efface pas : déplacez-le avec l'élément Départ du joueur.",
+        "fill_needs_terrain": "Le remplissage demande une tuile de terrain : choisissez-en une dans la palette.",
+        "wire_same_cell": "Un fil relie deux cases différentes.",
+        "wire_missing_button": "Le bouton de ce fil a disparu : recommencez le fil.",
+        "wire_cancelled": "Fil annulé.",
+        "wire_cancelled_button_left": "Fil annulé. Le bouton reste sur la carte sans lien.",
+        "tool_changed": "Outil : {tool}."
+      },
+      "palette": {
+        "title": "Palette",
+        "tabs": "Catégories de la palette",
+        "switch_epoxy": "Passer ce niveau en Epoxy",
+        "switched": "Le niveau se joue désormais avec les règles Epoxy.",
+        "direction": {
+          "label": "Orientation",
+          "north": { "aria": "Orienter vers le nord" },
+          "east": { "aria": "Orienter vers l'est" },
+          "south": { "aria": "Orienter vers le sud" },
+          "west": { "aria": "Orienter vers l'ouest" },
+          "rotate": "Tourner dans le sens horaire (R)"
+        }
+      },
+      "inspector": {
+        "title": "Inspecteur",
+        "section": {
+          "level": "Niveau",
+          "rules": "Règles",
+          "size": "Taille",
+          "generate": "Générer"
+        }
+      },
+      "rules": {
+        "engine": { "label": "Moteur" },
+        "description": {
+          "epoxy": "Epoxy : les règles natives, avec lasers, cibles de blocs et toutes les tuiles de l'éditeur.",
+          "lynx": "Lynx : les règles des packs communautaires. Les lasers, les miroirs et les cibles de blocs ne sont pas disponibles."
+        }
+      },
+      "size": {
+        "width": "Largeur",
+        "height": "Hauteur",
+        "range": "De {min} à {max} cases.",
+        "apply": "Appliquer",
+        "resized": "Redimensionné en {width} x {height}.",
+        "unchanged": "Le niveau fait déjà {width} x {height}.",
+        "dropped_entities": "{count, plural, one {# créature ou bloc a été retiré} other {# créatures ou blocs ont été retirés}}.",
+        "dropped_links": "{count, plural, one {# fil a été retiré} other {# fils ont été retirés}}.",
+        "start_moved": "Le départ du joueur a été ramené à l'intérieur du niveau.",
+        "border_kept": "Le contour a été refermé avec des murs."
+      }
+    },
     "toolbar": {
-      "new_map": { "action": "Nouvelle Carte" },
-      "undo": { "action": "↶ Annuler (Ctrl+Z)" },
-      "redo": { "action": "↷ Rétablir (Ctrl+Y)" },
-      "validate_level": { "action": "Valider Solvabilité" },
-      "test_level": { "action": "Tester ce Niveau" },
-      "save_local": { "action": "Sauvegarder" },
       "export_json": { "action": "Exporter JSON" },
       "export_ccl": { "action": "Exporter .CCL" },
-      "import_json": { "action": "Importer (.DAT/.CCL/.JSON)" },
       "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" },
       "confirm_reload": { "label": "L'éditeur contient des modifications non sauvegardées. Les remplacer par le niveau en cours ?" },
       "confirm_test_invalid": { "label": "Ce niveau présente des problèmes : {issues}\n\nLe tester quand même ?" }
@@ -519,8 +614,7 @@
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (packs communautaires)" },
       "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc ou à lasers ne se jouent qu'avec les règles Epoxy" },
-      "auto_count_chips": { "action": "Compter auto." },
-      "entity_dir": { "label": "Direction Entité / Joueur" }
+      "auto_count_chips": { "action": "Compter auto." }
     },
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Demande les règles Epoxy : indisponible dans un niveau Lynx." } },
@@ -534,8 +628,6 @@
       },
       "tools": {
         "player_start": { "label": "Départ Joueur" },
-        "eraser": { "label": "Gomme (Sol)" },
-        "fill": { "label": "Pot de Peinture (Remplir)" },
         "wire_trap": { "label": "Relier Bouton Brun → Piège" },
         "wire_cloner": { "label": "Relier Bouton Rouge → Cloneur" }
       },
@@ -553,8 +645,7 @@
         "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
-        "wire_linked": { "label": "Connexion mécanique établie !" },
-        "lynx_lasers_switched": { "label": "Les tuiles laser et les miroirs n'existent qu'avec les règles Epoxy : le niveau se joue désormais avec Epoxy." }
+        "wire_linked": { "label": "Connexion mécanique établie !" }
       }
     }
   },

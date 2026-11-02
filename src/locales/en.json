@@ -395,6 +395,13 @@
       "kb_theme": { "label": "B: Cycle visual biome (and its music in Default mode)" },
       "kb_procedural": { "label": "N: Start an endless run of solvable levels" },
       "kb_levels": { "label": "[ and ]: Previous / Next level" },
+      "sec_editor": { "label": "Level editor" },
+      "kb_editor_tools": { "label": "B / F / E / I: Brush, Fill, Eraser, Picker (Alt+click or middle click also picks)" },
+      "kb_editor_rotate": { "label": "R: Rotate the facing of the selected creature or player start" },
+      "kb_editor_zoom": { "label": "+ / - / 0: Zoom in, zoom out, fit the level to the window" },
+      "kb_editor_cancel": { "label": "Escape: Cancel a wire that waits for its target" },
+      "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
+      "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
@@ -485,16 +492,104 @@
         "failed": { "label": "The generator could not build this level. Try another seed." }
       }
     },
+    "layout": {
+      "toolbar": { "label": "Editor toolbar" },
+      "group": {
+        "file": { "label": "File" },
+        "edit": { "label": "Edit" },
+        "tools": { "label": "Tools" }
+      },
+      "file": {
+        "new": { "action": "New" },
+        "save": { "action": "Save" },
+        "import": { "action": "Import" }
+      },
+      "edit": {
+        "undo": { "action": "Undo", "title": "Undo (Ctrl+Z)" },
+        "redo": { "action": "Redo", "title": "Redo (Ctrl+Y)" }
+      },
+      "tool": {
+        "brush": { "label": "Brush", "title": "Brush (B): paint with the selected palette item" },
+        "fill": { "label": "Fill", "title": "Fill (F): flood fill an area with the selected terrain" },
+        "eraser": { "label": "Eraser", "title": "Eraser (E): clear a cell back to floor" },
+        "picker": { "label": "Picker", "title": "Picker (I): take the tile under the pointer. Alt+click or middle click does it from any tool." }
+      },
+      "check": {
+        "action": "Check",
+        "title": "Check the level: rules and solvability",
+        "idle": "Not checked",
+        "valid": "Valid",
+        "warnings": "{count, plural, one {# warning} other {# warnings}}",
+        "errors": "{count, plural, one {# error} other {# errors}}"
+      },
+      "test": { "action": "Test", "title": "Play the level as it is" },
+      "canvas": {
+        "aria": "Level canvas, {level}. Tool: {tool}. Arrow keys move the cursor, Space or Enter paints.",
+        "cursor": "Cursor at ({x}, {y})"
+      },
+      "zoom": {
+        "out": { "aria": "Zoom out" },
+        "in": { "aria": "Zoom in" },
+        "fit": { "action": "Fit", "aria": "Fit the level to the window" },
+        "level": { "label": "{percent}%", "aria": "Zoom {percent} percent" }
+      },
+      "status": {
+        "label": "Editor messages",
+        "links_removed": "{count, plural, one {# link was removed} other {# links were removed}}.",
+        "start_kept": "The player start cannot be erased: move it with the Player Start item.",
+        "fill_needs_terrain": "Fill needs a terrain tile: pick one in the palette.",
+        "wire_same_cell": "A wire needs two different cells.",
+        "wire_missing_button": "The button of this wire is gone: start the wire again.",
+        "wire_cancelled": "Wire cancelled.",
+        "wire_cancelled_button_left": "Wire cancelled. The button stays on the map without a link.",
+        "tool_changed": "Tool: {tool}."
+      },
+      "palette": {
+        "title": "Palette",
+        "tabs": "Palette categories",
+        "switch_epoxy": "Switch this level to Epoxy",
+        "switched": "The level now plays under Epoxy rules.",
+        "direction": {
+          "label": "Facing",
+          "north": { "aria": "Face north" },
+          "east": { "aria": "Face east" },
+          "south": { "aria": "Face south" },
+          "west": { "aria": "Face west" },
+          "rotate": "Rotate clockwise (R)"
+        }
+      },
+      "inspector": {
+        "title": "Inspector",
+        "section": {
+          "level": "Level",
+          "rules": "Rules",
+          "size": "Size",
+          "generate": "Generate"
+        }
+      },
+      "rules": {
+        "engine": { "label": "Engine" },
+        "description": {
+          "epoxy": "Epoxy: the native rules, with lasers, block targets and every tile of the editor.",
+          "lynx": "Lynx: the rules of community packs. Lasers, mirrors and block targets are not available."
+        }
+      },
+      "size": {
+        "width": "Width",
+        "height": "Height",
+        "range": "From {min} to {max} cells.",
+        "apply": "Apply",
+        "resized": "Resized to {width} x {height}.",
+        "unchanged": "The level is already {width} x {height}.",
+        "dropped_entities": "{count, plural, one {# creature or block was} other {# creatures or blocks were}} removed.",
+        "dropped_links": "{count, plural, one {# wire was} other {# wires were}} removed.",
+        "start_moved": "The player start was moved inside the level.",
+        "border_kept": "The outer ring was closed with walls."
+      }
+    },
     "toolbar": {
-      "new_map": { "action": "New Blank Map" },
-      "undo": { "action": "↶ Undo (Ctrl+Z)" },
-      "redo": { "action": "↷ Redo (Ctrl+Y)" },
-      "validate_level": { "action": "Validate Solvability" },
-      "test_level": { "action": "Test Play Level" },
-      "save_local": { "action": "Save to Browser" },
       "export_json": { "action": "Export JSON" },
       "export_ccl": { "action": "Export .CCL" },
-      "import_json": { "action": "Import (.DAT/.CCL/.JSON)" },
       "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" },
       "confirm_reload": { "label": "The editor has unsaved changes. Replace them with the current level?" },
       "confirm_test_invalid": { "label": "This level has problems: {issues}\n\nTest it anyway?" }
@@ -519,8 +614,7 @@
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (community packs)" },
       "ruleset_lynx_unavailable": { "label": "Levels with block targets or lasers play under Epoxy rules only" },
-      "auto_count_chips": { "action": "Auto Count" },
-      "entity_dir": { "label": "Entity / Player Direction" }
+      "auto_count_chips": { "action": "Auto Count" }
     },
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Needs Epoxy rules: not available in a Lynx level." } },
@@ -534,8 +628,6 @@
       },
       "tools": {
         "player_start": { "label": "Player Start" },
-        "eraser": { "label": "Eraser (Floor)" },
-        "fill": { "label": "Paint Bucket (Flood Fill)" },
         "wire_trap": { "label": "Wire Brown Button → Trap" },
         "wire_cloner": { "label": "Wire Red Button → Cloner" }
       },
@@ -553,8 +645,7 @@
         "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
         "wire_select_source": { "label": "Click the trigger button on the map..." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
-        "wire_linked": { "label": "Mechanism link established!" },
-        "lynx_lasers_switched": { "label": "Laser tiles and mirrors only exist under Epoxy rules: the level now plays under Epoxy." }
+        "wire_linked": { "label": "Mechanism link established!" }
       }
     }
   },

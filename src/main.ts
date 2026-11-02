@@ -27,6 +27,7 @@ import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor, SavedLevelInfo } from './editor/LevelEditor';
 import { isEditableRuleset } from './editor/metadataFields';
+import { getEditorKeyAction } from './editor/editorKeyboard';
 import { isSaveChord } from './editor/saveTarget';
 import { AudioManager } from './audio/AudioManager';
 import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSelection';
@@ -147,6 +148,8 @@ const ONBOARDING_STORES: ReadonlyArray<() => Storage> = [() => localStorage, () 
 /** The Play and Editor mode buttons: the header ones and their drawer copies. */
 const PLAY_MODE_BUTTON_IDS = ['btn-mode-play', 'btn-drawer-mode-play'] as const;
 const EDITOR_MODE_BUTTON_IDS = ['btn-mode-editor', 'btn-drawer-mode-editor'] as const;
+/** Body class that makes the editor fill the viewport while it is on screen. */
+const EDITOR_BODY_CLASS = 'editor-mode';
 /** Id prefixes of the procedural seed boxes: the header one and its drawer copy. */
 const SEED_BOX_ID_PREFIXES = ['procedural', 'drawer'] as const;
 const SEED_COPY_BUTTON_IDS: Record<(typeof SEED_BOX_ID_PREFIXES)[number], string> = {
@@ -1875,6 +1878,7 @@ class EpoxyApplication {
     const isPlay = mode === 'play';
     byId('play-view')?.classList.toggle('hidden', !isPlay);
     byId('editor-view')?.classList.toggle('hidden', isPlay);
+    document.body.classList.toggle(EDITOR_BODY_CLASS, !isPlay);
     for (const id of PLAY_MODE_BUTTON_IDS) setToggleState(byId(id), isPlay);
     for (const id of EDITOR_MODE_BUTTON_IDS) setToggleState(byId(id), !isPlay);
 
@@ -2747,7 +2751,13 @@ class EpoxyApplication {
 
   private handleEditorShortcut(e: KeyboardEvent): void {
     const action = getEditorChordAction(e);
-    if (!action) return;
+    if (!action) {
+      const keyAction = getEditorKeyAction(e);
+      if (!keyAction) return;
+      e.preventDefault();
+      this.editor.handleKeyAction(keyAction);
+      return;
+    }
     e.preventDefault();
     if (action === 'redo') {
       this.editor.redo();
