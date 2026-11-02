@@ -226,6 +226,53 @@ export function measureGrid(value: unknown, bounds: LevelSizeBounds): GridSize |
   return isGrid(value, size.width, size.height) ? size : null;
 }
 
+/** Cheap structural check of the cc3d field of a level: sizes, cell shapes, mobs and player inside the grid. */
+export function isCc3dLevelShape(value: unknown, bounds: LevelSizeBounds): boolean {
+  if (!isRecord(value)) return false;
+  const { width, height, cells, mobs, player } = value;
+  if (!Number.isInteger(width) || !Number.isInteger(height)) return false;
+  if (!isSizeWithinBounds({ width: width as number, height: height as number }, bounds)) return false;
+  if (!Array.isArray(cells) || cells.length !== (width as number) * (height as number)) return false;
+  const cellsOk = cells.every(
+    (cell) =>
+      isRecord(cell) &&
+      Array.isArray(cell.terrain) &&
+      cell.terrain.length > 0 &&
+      Array.isArray(cell.panels) &&
+      (cell.item === null || isRecord(cell.item))
+  );
+  const w = width as number;
+  const h = height as number;
+  return (
+    cellsOk &&
+    Array.isArray(mobs) &&
+    mobs.every((mob) => isRecord(mob) && isInBounds(mob.x, mob.y, w, h)) &&
+    isRecord(player) &&
+    isInBounds(player.x, player.y, w, h) &&
+    (player.dir === undefined || isDirection(player.dir))
+  );
+}
+
+/**
+ * Problems of the cc3d tile definitions: an entry whose id differs from its key, one without a
+ * name key, one that shadows a tile of tiles.json (the Lynx engine reads that file alone).
+ */
+export function findCc3dTileErrors(
+  cc3dTiles: { tiles?: Record<string, TileDefinition> } | undefined,
+  baseTiles: Record<string, TileDefinition>
+): string[] {
+  const tiles = cc3dTiles?.tiles;
+  if (!isRecord(tiles)) return ['tiles: expected an object'];
+  const errors: string[] = [];
+  for (const [key, def] of Object.entries(tiles)) {
+    if (!isRecord(def) || def.id !== key) errors.push(`${key}.id: expected the key of the entry`);
+    else if (typeof def.i18nKey !== 'string' || def.i18nKey.length === 0) errors.push(`${key}.i18nKey: expected a key`);
+    if (key in baseTiles) errors.push(`${key}: already defined in tiles.json`);
+  }
+  errors.push(...findLaserConfigErrors(tiles));
+  return errors;
+}
+
 /**
  * Structural check for a level read back from localStorage, IndexedDB or a
  * JSON import, where the data may be stale or hand-edited. The level sets
@@ -247,7 +294,9 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
     isGrid(value.items, size.width, size.height) &&
     Array.isArray(value.entities) &&
     Array.isArray(value.trapLinks) &&
-    Array.isArray(value.cloneLinks)
+    Array.isArray(value.cloneLinks) &&
+    // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
+    (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds) : value.cc3d === undefined)
   );
 }
 
@@ -263,7 +312,7 @@ export function isWinRule(value: unknown): value is WinRule {
 }
 
 /** Rulesets a level may declare; anything else in a stored level is dropped. */
-export const RULESETS: readonly Ruleset[] = ['epoxy', 'lynx'];
+export const RULESETS: readonly Ruleset[] = ['epoxy', 'lynx', 'cc3d'];
 
 /** True for a value that names a known ruleset. */
 export function isRuleset(value: unknown): value is Ruleset {

@@ -38,6 +38,7 @@ import {
   isRuleset,
   isWinRule,
   findAudioConfigErrors,
+  findCc3dTileErrors,
   findDatFormatErrors,
   findGameTunableErrors,
   InvalidLevelError
@@ -66,6 +67,7 @@ import { LevelPackStorage } from '../storage/LevelPackStorage';
 const REQUIRED_CONFIG_KEYS = {
   GAME: ['grid', 'timing', 'storage', 'import', 'locales', 'keybindings', 'palette', 'blockPuzzle'],
   TILES: ['tiles'],
+  CC3D_TILES: ['tiles'],
   MONSTERS: ['entities'],
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
   LEVELS: ['legend', 'levels'],
@@ -80,6 +82,8 @@ const DEFAULT_START_DIRECTION = 'S';
 export interface ConfigBundle {
   game: GameConfig;
   tiles: TilesConfig;
+  /** Tiles of the cc3d ruleset: looked up by getTile, never listed by getTiles. */
+  cc3dTiles: Pick<TilesConfig, 'tiles'>;
   monsters: MonstersConfig;
   audio: AudioConfig;
   levels: LevelsConfig;
@@ -96,6 +100,7 @@ interface FetchedPack {
 class ConfigRegistryService {
   private gameConfig!: GameConfig;
   private tilesConfig!: TilesConfig;
+  private cc3dTilesConfig: Pick<TilesConfig, 'tiles'> = { tiles: {} };
   private monstersConfig!: MonstersConfig;
   private audioConfig!: AudioConfig;
   private levelsConfig!: LevelsConfig;
@@ -118,9 +123,10 @@ class ConfigRegistryService {
       () => [] as FetchedPack[]
     );
 
-    const [game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations] = await Promise.all([
+    const [game, tiles, cc3dTiles, monsters, audio, levels, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
+      this.fetchJson<Pick<TilesConfig, 'tiles'>>(CONFIG_ENDPOINTS.CC3D_TILES, REQUIRED_CONFIG_KEYS.CC3D_TILES),
       this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS, REQUIRED_CONFIG_KEYS.MONSTERS),
       this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
@@ -129,7 +135,7 @@ class ConfigRegistryService {
       this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
     ]);
 
-    this.applyConfigs({ game, tiles, monsters, audio, levels, datFormat, motifs, motifAnnotations });
+    this.applyConfigs({ game, tiles, cc3dTiles, monsters, audio, levels, datFormat, motifs, motifAnnotations });
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     this.customLevels = this.loadCustomLevelsFromStorage();
     // The store name and the level size bounds come from game.json, so the
@@ -172,6 +178,10 @@ class ConfigRegistryService {
     if (laserErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, laserErrors.join('; '));
     }
+    const cc3dTileErrors = findCc3dTileErrors(bundle.cc3dTiles, bundle.tiles.tiles);
+    if (cc3dTileErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.CC3D_TILES, cc3dTileErrors.join('; '));
+    }
     const datFormatErrors = findDatFormatErrors(bundle.datFormat, bundle.game.grid);
     if (datFormatErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.DAT_FORMAT, datFormatErrors.join('; '));
@@ -182,6 +192,7 @@ class ConfigRegistryService {
     }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
+    this.cc3dTilesConfig = bundle.cc3dTiles;
     this.monstersConfig = bundle.monsters;
     this.audioConfig = bundle.audio;
     this.levelsConfig = bundle.levels;
@@ -278,8 +289,13 @@ class ConfigRegistryService {
     return this.tilesConfig;
   }
 
+  /** The cc3d tile definitions, for the bundle handed to the workers. */
+  public getCc3dTiles(): Pick<TilesConfig, 'tiles'> {
+    return this.cc3dTilesConfig;
+  }
+
   public getTile(id: string): TileDefinition {
-    return this.tilesConfig.tiles[id] || this.tilesConfig.tiles.floor;
+    return this.tilesConfig.tiles[id] || this.cc3dTilesConfig.tiles[id] || this.tilesConfig.tiles.floor;
   }
 
   public getMonsters(): MonstersConfig {
@@ -417,6 +433,10 @@ class ConfigRegistryService {
     const { width: mapWidth, height: mapHeight } = this.blueprintSize(bp, levelId);
     const inGrid = (x: unknown, y: unknown) => isInBounds(x, y, mapWidth, mapHeight);
 
+    if (bp.ruleset === 'cc3d') {
+      // A blueprint cannot carry the cc3d data the engine of that ruleset reads.
+      throw new Error(`${levelId}: the cc3d ruleset cannot be declared by a JSON level`);
+    }
     const start = bp.playerStart;
     if (!start || !inGrid(start.x, start.y)) {
       throw new InvalidLevelError(levelId, 'player start missing or outside the grid');

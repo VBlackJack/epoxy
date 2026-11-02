@@ -62,6 +62,11 @@ describe('ConfigRegistry.compileBlueprint', () => {
     }
   });
 
+  it('refuses a JSON level that declares the cc3d ruleset', () => {
+    const blueprint = { ...ConfigRegistry.getLevels()[0], ruleset: 'cc3d' };
+    expect(() => ConfigRegistry.compileBlueprint(blueprint as never)).toThrow(/cc3d/);
+  });
+
   it('gives every campaign level its own id, number and password, numbered 1 to N', () => {
     const campaign = ConfigRegistry.getLevels();
     expect(new Set(campaign.map((l) => l.id)).size).toBe(campaign.length);

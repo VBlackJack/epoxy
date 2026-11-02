@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import type { Cc3dLevel } from './cc3d/model';
+
 export type Direction = 'N' | 'E' | 'S' | 'W';
 
 export type RelativeTurn = 'FORWARD' | 'LEFT' | 'RIGHT' | 'BACK';
@@ -905,9 +907,11 @@ export interface BeamCell {
 
 /**
  * Rules a level is played under. 'epoxy' is Epoxy's own rules and the default;
- * 'lynx' is the Tile World Lynx rules, used by community packs.
+ * 'lynx' is the Tile World Lynx rules, used by community packs;
+ * 'cc3d' is the compatibility engine for user-imported community levels, which
+ * carry their data in CompiledLevel.cc3d.
  */
-export type Ruleset = 'epoxy' | 'lynx';
+export type Ruleset = 'epoxy' | 'lynx' | 'cc3d';
 
 export interface LevelBlueprint {
   id: string;
@@ -917,6 +921,8 @@ export interface LevelBlueprint {
   winRule?: WinRule;
   /** Ruleset the level was made for; absent means 'epoxy'. */
   ruleset?: Ruleset;
+  /** The CC3D level data; the engine of the 'cc3d' ruleset reads only this. */
+  cc3d?: Cc3dLevel;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -954,6 +960,8 @@ export interface CompiledLevel {
   winRule?: WinRule;
   /** Ruleset the level was made for; absent means 'epoxy'. */
   ruleset?: Ruleset;
+  /** The CC3D level data; the engine of the 'cc3d' ruleset reads only this. */
+  cc3d?: Cc3dLevel;
   number: number;
   titleKey?: string;
   customTitle?: string;

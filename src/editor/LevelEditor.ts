@@ -20,6 +20,7 @@ import { InvalidLevelError } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
 import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
+import { CC3D_XML_EXTENSION } from '../formats/Cc3dXmlCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
 import { LevelValidator } from '../core/LevelValidator';
 import { hasLaserContent } from '../core/RulesetFeatures';
@@ -39,7 +40,7 @@ import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
-import { parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
+import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   CUSTOM_LEVEL_ID_PREFIX,
@@ -212,6 +213,11 @@ export class LevelEditor {
   }
 
   public loadCompiledLevel(level: CompiledLevel): void {
+    if (!isEditableRuleset(level.ruleset)) {
+      // The editor keeps what it holds; it only says why the level did not open.
+      this.setStatusText(t('editor.palette.status.not_editable.label'));
+      return;
+    }
     this.currentLevelId = level.id;
     this.draftCustomId = null;
     this.customTitle = this.resolveLevelTitle(level);
@@ -574,7 +580,9 @@ export class LevelEditor {
       }
       const lower = file.name.toLowerCase();
 
-      if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
+      if (lower.endsWith(CC3D_XML_EXTENSION)) {
+        this.setStatusText(t('editor.palette.status.not_editable.label'));
+      } else if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
         const reader = new FileReader();
         reader.onload = () => {
           try {

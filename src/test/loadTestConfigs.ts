@@ -23,12 +23,14 @@ import monsters from '../../public/configs/monsters.json';
 import motifs from '../../public/configs/motifs.json';
 import motifAnnotations from '../../public/configs/motif-annotations.json';
 import tiles from '../../public/configs/tiles.json';
+import cc3dTiles from '../../public/configs/cc3d-tiles.json';
 
 /** Returns a deep copy of the shipped configs, safe to mutate in a test. */
 export function createTestBundle(): ConfigBundle {
   return structuredClone({
     game,
     tiles,
+    cc3dTiles,
     monsters,
     audio,
     levels,

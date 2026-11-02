@@ -25,6 +25,7 @@ export const ENV_CONFIG = {
 export const CONFIG_ENDPOINTS = {
   GAME: `${ENV_CONFIG.CONFIG_BASE_URL}/game.json`,
   TILES: `${ENV_CONFIG.CONFIG_BASE_URL}/tiles.json`,
+  CC3D_TILES: `${ENV_CONFIG.CONFIG_BASE_URL}/cc3d-tiles.json`,
   MONSTERS: `${ENV_CONFIG.CONFIG_BASE_URL}/monsters.json`,
   AUDIO: `${ENV_CONFIG.CONFIG_BASE_URL}/audio.json`,
   LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/levels.json`,

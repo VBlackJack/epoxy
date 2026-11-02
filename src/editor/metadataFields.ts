@@ -33,6 +33,26 @@ export function requiresEpoxyRules(winRule: WinRule, hasLaserContent: boolean): 
   return hasLaserContent || EPOXY_ONLY_WIN_RULES.includes(winRule);
 }
 
+/**
+ * Whether the editor can open a level of this ruleset. Epoxy and Lynx levels
+ * are plain layers the editor paints; a cc3d level keeps its data in a form
+ * the editor does not know, so it is played, never edited.
+ */
+export function isEditableRuleset(ruleset: Ruleset | undefined): boolean {
+  switch (ruleset) {
+    case undefined:
+    case 'epoxy':
+    case 'lynx':
+      return true;
+    case 'cc3d':
+      return false;
+    default: {
+      const unreachable: never = ruleset;
+      throw new Error(`Unknown ruleset: ${String(unreachable)}`);
+    }
+  }
+}
+
 /** Ruleset field: an unknown entry keeps `current`. */
 export function parseRuleset(raw: string, current: Ruleset): Ruleset {
   return isRuleset(raw) ? raw : current;

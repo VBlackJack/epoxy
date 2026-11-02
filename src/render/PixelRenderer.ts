@@ -32,6 +32,15 @@ import {
   teleporterGlyphKey
 } from './paletteKeys';
 import { blockCellsKey, collectBlockCells } from './blockCover';
+import {
+  CC3D_MOB_BASES,
+  Cc3dPaintTools,
+  isCc3dId,
+  paintCc3dBadge,
+  paintCc3dItem,
+  paintCc3dMob,
+  paintCc3dTerrain
+} from './cc3dPainters';
 import { FrameBudgetGuard } from './frameBudget';
 import {
   AUTO_QUALITY_ID,
@@ -1849,6 +1858,10 @@ export class PixelRenderer {
     pass: TilePass = 'all',
     neighbours: Readonly<TileNeighbours> = ISOLATED_TILE
   ): void {
+    if (isCc3dId(tileId)) {
+      this.drawCc3dTile(ctx, tileId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      return;
+    }
     if (this.isHdVector()) {
       const theme = this.getActiveTheme();
       // Modern tiles are themed; the editor, the icons and a game without any theme use the flat legacy look.
@@ -1865,6 +1878,59 @@ export class PixelRenderer {
     } else {
       this.drawLegacyTile(ctx, tileId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
     }
+  }
+
+  /** Palette and colour-blind glyphs the cc3d painters draw with. */
+  private cc3dTools(ctx: CanvasRenderingContext2D): Cc3dPaintTools {
+    return {
+      pal: this.pal(),
+      glyph: (colorKey, cx, cy, radius, fill) => this.drawColorGlyph(ctx, colorKey, cx, cy, radius, fill)
+    };
+  }
+
+  /**
+   * A tile of the cc3d ruleset: the style's own floor, then the glyph in palette colours. Every style
+   * draws these the same way; only the floor under them changes with the style.
+   */
+  private drawCc3dTile(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    x: number,
+    y: number,
+    size: number,
+    isEditor: boolean,
+    isClosedTrap: boolean,
+    pass: TilePass,
+    neighbours: Readonly<TileNeighbours>
+  ): void {
+    if (pass === 'animated') return;
+    this.drawTile(ctx, 'floor', x, y, size, isEditor, isClosedTrap, pass, neighbours);
+    paintCc3dTerrain(ctx, tileId, x, y, size, this.cc3dTools(ctx));
+  }
+
+  /**
+   * A mob of the cc3d ruleset. Variants of an existing monster (walkers, small gliders and fireballs,
+   * the yellow tank) are that monster, scaled and marked with a colour dot, in the active style's own
+   * sprite; the others are palette shapes.
+   */
+  private drawCc3dEntity(
+    ctx: CanvasRenderingContext2D,
+    type: string,
+    dir: Direction,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const variant = CC3D_MOB_BASES[type];
+    const tools = this.cc3dTools(ctx);
+    if (!variant) {
+      paintCc3dMob(ctx, type, dir, x, y, size, tools);
+      return;
+    }
+    const scaled = size * variant.scale;
+    const offset = (size - scaled) / 2;
+    this.drawEntity(ctx, variant.base, dir, x + offset, y + offset, scaled);
+    if (variant.badge) paintCc3dBadge(ctx, variant.badge, x, y, size, tools);
   }
 
   /**
@@ -4019,6 +4085,10 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    if (isCc3dId(itemId)) {
+      paintCc3dItem(ctx, itemId, x, y, size, this.cc3dTools(ctx));
+      return;
+    }
     if (!this.isHdVector() && this.retroSpritesReady()) {
       // Sprite items: no shadow, and a bob only in styles that ask for one (none do today).
       this.drawRetroLayers(ctx, retroItemLayers(itemId, ConfigRegistry.getTile(itemId)), x, y, size, 0, true);
@@ -4179,6 +4249,10 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    if (isCc3dId(type)) {
+      this.drawCc3dEntity(ctx, type, dir, x, y, size);
+      return;
+    }
     const isBlock = BLOCK_TYPES.has(type) || ConfigRegistry.getEntityDef(type)?.mirrorAxis !== undefined;
     const frame = isBlock ? 0 : Math.floor(this.timeTick / MONSTER_FRAME_TICKS) % WALK_FRAMES;
     if (!this.isHdVector() && this.retroSpritesReady()) {

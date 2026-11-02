@@ -1,0 +1,109 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { isCompiledLevelShape, isRuleset, LevelSizeBounds, sanitizeStoredLevels } from './ConfigValidation';
+import type { Cc3dCell, Cc3dLevel } from '../core/cc3d/model';
+
+const BOUNDS: LevelSizeBounds = { minSize: 3, maxSize: 32 };
+const SIZE = 4;
+
+function cc3dLevel(overrides: Partial<Record<keyof Cc3dLevel, unknown>> = {}): Record<string, unknown> {
+  const cell = (): Cc3dCell => ({ terrain: [{ kind: 'floor' }], panels: [], item: null });
+  return {
+    width: SIZE,
+    height: SIZE,
+    cells: Array.from({ length: SIZE * SIZE }, cell),
+    mobs: [],
+    player: { x: 1, y: 2 },
+    ...overrides
+  };
+}
+
+function level(cc3d?: unknown, ruleset: string | null = 'cc3d'): Record<string, unknown> {
+  const grid = <T>(v: T): T[][] => Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => v));
+  return {
+    id: 'c1',
+    number: 1,
+    ...(ruleset === null ? {} : { ruleset }),
+    password: 'AAAA',
+    timeLimitSeconds: 0,
+    chipsRequired: 0,
+    playerStart: { x: 1, y: 2, dir: 'S' },
+    terrain: grid('floor'),
+    items: grid(null),
+    entities: [],
+    trapLinks: [],
+    cloneLinks: [],
+    ...(cc3d === undefined ? {} : { cc3d })
+  };
+}
+
+describe('cc3d ruleset in config validation', () => {
+  it('knows the cc3d ruleset', () => {
+    expect(isRuleset('cc3d')).toBe(true);
+    expect(isRuleset('other')).toBe(false);
+  });
+
+  it('accepts a cc3d level with a well-formed cc3d field, and other levels without one', () => {
+    expect(isCompiledLevelShape(level(cc3dLevel()), BOUNDS)).toBe(true);
+    for (const ruleset of [null, 'epoxy', 'lynx']) {
+      expect(isCompiledLevelShape(level(undefined, ruleset), BOUNDS), String(ruleset)).toBe(true);
+    }
+  });
+
+  it('refuses a cc3d level without its cc3d field', () => {
+    expect(isCompiledLevelShape(level(), BOUNDS)).toBe(false);
+    expect(sanitizeStoredLevels([level()], BOUNDS)).toEqual([]);
+  });
+
+  it('refuses a cc3d field on a level of another ruleset', () => {
+    for (const ruleset of [null, 'epoxy', 'lynx']) {
+      expect(isCompiledLevelShape(level(cc3dLevel(), ruleset), BOUNDS), String(ruleset)).toBe(false);
+    }
+  });
+
+  it('keeps the ruleset of a stored cc3d level', () => {
+    const [kept] = sanitizeStoredLevels([level(cc3dLevel())], BOUNDS);
+    expect(kept.ruleset).toBe('cc3d');
+    expect(kept.cc3d?.width).toBe(SIZE);
+  });
+
+  it('accepts mobs inside the grid and a player direction', () => {
+    const ok = cc3dLevel({ mobs: [{ kind: 'walker', x: 3, y: 3, dir: 'N' }], player: { x: 1, y: 2, dir: 'E' } });
+    expect(isCompiledLevelShape(level(ok), BOUNDS)).toBe(true);
+  });
+
+  it.each([
+    ['not an object', 'x'],
+    ['zero width', cc3dLevel({ width: 0 })],
+    ['fractional height', cc3dLevel({ height: 2.5 })],
+    ['oversized width', cc3dLevel({ width: 99 })],
+    ['cells of the wrong length', cc3dLevel({ cells: [] })],
+    ['a cell with an empty terrain stack', cc3dLevel({ cells: Array.from({ length: SIZE * SIZE }, () => ({ terrain: [], panels: [], item: null })) })],
+    ['a cell without panels', cc3dLevel({ cells: Array.from({ length: SIZE * SIZE }, () => ({ terrain: [{ kind: 'floor' }], item: null })) })],
+    ['a cell with an undefined item', cc3dLevel({ cells: Array.from({ length: SIZE * SIZE }, () => ({ terrain: [{ kind: 'floor' }], panels: [] })) })],
+    ['mobs not an array', cc3dLevel({ mobs: null })],
+    ['player outside the grid', cc3dLevel({ player: { x: SIZE, y: 0 } })],
+    ['player with fractional coordinates', cc3dLevel({ player: { x: 0.5, y: 0 } })],
+    ['no player', cc3dLevel({ player: undefined })],
+    ['a mob outside the grid', cc3dLevel({ mobs: [{ kind: 'walker', x: SIZE, y: 0, dir: 'N' }] })],
+    ['a mob that is not an object', cc3dLevel({ mobs: [null] })],
+    ['a player direction that is not one', cc3dLevel({ player: { x: 1, y: 2, dir: 'Q' } })]
+  ])('rejects a level whose cc3d field has %s', (_name, bad) => {
+    expect(isCompiledLevelShape(level(bad), BOUNDS)).toBe(false);
+  });
+});

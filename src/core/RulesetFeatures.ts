@@ -58,6 +58,17 @@ const LYNX_FEATURES: RulesetFeatures = {
   highScoreReplay: true
 };
 
+/** CC3D levels are played by their own engine: no Epoxy play aid applies, only the high score replay. */
+const CC3D_FEATURES: RulesetFeatures = {
+  tapToPath: false,
+  objectiveMarker: false,
+  blockHint: false,
+  deadEndWatch: false,
+  solutionReplay: false,
+  itemDrop: false,
+  highScoreReplay: true
+};
+
 /** The aids that stay off on a level with lasers: both search for pushes that cover buttons or targets. */
 const LASER_LEVEL_FEATURES: RulesetFeatures = { ...EPOXY_FEATURES, blockHint: false, deadEndWatch: false };
 
@@ -86,7 +97,19 @@ const laserContentCache = new WeakMap<object, boolean>();
 /** The aids available on a level, by the ruleset it is played under and the mechanics it uses. */
 export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
   if (!level) return EPOXY_FEATURES;
-  if (level.ruleset === 'lynx') return LYNX_FEATURES;
+  switch (level.ruleset) {
+    case 'lynx':
+      return LYNX_FEATURES;
+    case 'cc3d':
+      return CC3D_FEATURES;
+    case 'epoxy':
+    case undefined:
+      break;
+    default: {
+      const unreachable: never = level.ruleset;
+      throw new Error(`Unknown ruleset: ${String(unreachable)}`);
+    }
+  }
   if (level.winRule === 'receivers') return RECEIVER_LEVEL_FEATURES;
   if (!level.terrain) return EPOXY_FEATURES;
   let laser = laserContentCache.get(level);

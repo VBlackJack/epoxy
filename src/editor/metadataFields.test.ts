@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
+import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 
 const CURRENT = 180;
 
@@ -81,5 +81,17 @@ describe('requiresEpoxyRules', () => {
 
   it('is false for a plain exit level', () => {
     expect(requiresEpoxyRules('exit', false)).toBe(false);
+  });
+});
+
+describe('isEditableRuleset', () => {
+  it('opens Epoxy and Lynx levels, with or without a ruleset', () => {
+    for (const ruleset of [undefined, 'epoxy', 'lynx'] as const) {
+      expect(isEditableRuleset(ruleset), String(ruleset)).toBe(true);
+    }
+  });
+
+  it('keeps cc3d levels out of the editor', () => {
+    expect(isEditableRuleset('cc3d')).toBe(false);
   });
 });
