@@ -98,13 +98,21 @@ function isIntegerAtLeast(value: unknown, min: number): boolean {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= min;
 }
 
+/** Whether `value` is a finite number in [0, 1]. */
+function isUnitShare(value: unknown): boolean {
+  return isFiniteNumber(value) && value >= 0 && value <= 1;
+}
+
 /** Smallest value of the endless dialog's start level bound: level 1 must stay reachable. */
 const MIN_START_LEVEL_BOUND = 1;
 const MIN_FALLBACK_CANDIDATES = 0;
+/** Zero turns the endless piece cooldown off. */
+const MIN_COOLDOWN_ATTEMPTS = 0;
+const MIN_POSITIVE_STEP = 1;
 
 /**
  * Checks the endless and procedural tunables that code relies on as whole
- * numbers. Empty when all is well; each entry names the offending key.
+ * numbers or unit shares. Empty when all is well; each entry names the offending key.
  */
 export function findGameTunableErrors(game: GameConfig): string[] {
   const errors: string[] = [];
@@ -114,8 +122,43 @@ export function findGameTunableErrors(game: GameConfig): string[] {
   if (typeof game.storage?.onboardingSeenKey !== 'string' || game.storage.onboardingSeenKey.length === 0) {
     errors.push('storage.onboardingSeenKey: expected a non-empty string');
   }
-  if (game.procedural && !isIntegerAtLeast(game.procedural.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {
-    errors.push(`procedural.scoring.fallbackCandidates: expected a whole number of at least ${MIN_FALLBACK_CANDIDATES}`);
+  if (game.procedural) {
+    const proc = game.procedural;
+    if (!isIntegerAtLeast(proc.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {
+      errors.push(`procedural.scoring.fallbackCandidates: expected a whole number of at least ${MIN_FALLBACK_CANDIDATES}`);
+    }
+    if (!isIntegerAtLeast(proc.endless?.cooldownAttemptsPerTier, MIN_COOLDOWN_ATTEMPTS)) {
+      errors.push(`procedural.endless.cooldownAttemptsPerTier: expected a whole number of at least ${MIN_COOLDOWN_ATTEMPTS}`);
+    }
+    const positiveSteps: Array<[string, unknown]> = [
+      ['procedural.levelsPerExtraPiece', proc.levelsPerExtraPiece],
+      ['procedural.endless.levelsPerExtraPiece', proc.endless?.levelsPerExtraPiece],
+      ['procedural.endless.levelsPerExtraMotif', proc.endless?.levelsPerExtraMotif],
+      ['procedural.endless.levelsPerExtraTier', proc.endless?.levelsPerExtraTier],
+      ['procedural.endless.attemptsPerDroppedPiece', proc.endless?.attemptsPerDroppedPiece],
+      ['procedural.hub.attemptsPerDroppedPiece', proc.hub?.attemptsPerDroppedPiece]
+    ];
+    for (const [name, value] of positiveSteps) {
+      if (!isIntegerAtLeast(value, MIN_POSITIVE_STEP)) {
+        errors.push(`${name}: expected a whole number of at least ${MIN_POSITIVE_STEP}`);
+      }
+    }
+    const unitShares: Array<[string, unknown]> = [
+      ['procedural.hub.outlineGrowth.freeAreaShare', proc.hub?.outlineGrowth?.freeAreaShare],
+      ['procedural.hub.openChips.nearLaneShare', proc.hub?.openChips?.nearLaneShare]
+    ];
+    if (isRecord(proc.endless?.motifShares)) {
+      for (const [motif, share] of Object.entries(proc.endless.motifShares)) {
+        unitShares.push([`procedural.endless.motifShares.${motif}`, share]);
+      }
+    } else {
+      errors.push('procedural.endless.motifShares: expected an object');
+    }
+    for (const [name, value] of unitShares) {
+      if (!isUnitShare(value)) {
+        errors.push(`${name}: expected a number in [0, 1]`);
+      }
+    }
   }
   return errors;
 }

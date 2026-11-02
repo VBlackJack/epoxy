@@ -68,6 +68,7 @@ export const RETRO_HIDDEN_WALL_MARKERS: Readonly<Record<string, string>> = {
 export const RETRO_PLAIN_OVERLAY_TILES: readonly string[] = [
   'recessed_wall',
   'dirt',
+  'slime',
   'gravel',
   'socket',
   'hint',

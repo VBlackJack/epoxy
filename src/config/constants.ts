@@ -51,6 +51,12 @@ export const DEFAULT_LEVEL_PASSWORD = 'EPOX';
 /** Sort rank for a pack missing from the configured order. */
 export const UNORDERED_PACK_RANK = Number.MAX_SAFE_INTEGER;
 
+/** Neighbour count from which a walkable cell is a junction (a place with a choice). */
+export const JUNCTION_MIN_NEIGHBOURS = 3;
+
+/** Maximum entries kept in solver memoisation caches across levels. */
+export const MAX_SOLVER_CACHE_ENTRIES = 4096;
+
 export const BUILTIN_PACK_IDS = {
   CAMPAIGN: 'epoxy_campaign',
   CUSTOM: 'epoxy_custom',

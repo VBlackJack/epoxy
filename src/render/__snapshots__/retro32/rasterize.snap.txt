@@ -17,6 +17,7 @@ default blue_wall_fake_marker plain=37582ea1d37bd0a6 swap=37582ea1d37bd0a6
 default hidden_wall_marker plain=e7f7bc0440c47db9 swap=e7f7bc0440c47db9
 default appearing_wall_marker plain=aacde1378f85d3df swap=aacde1378f85d3df
 default dirt plain=58741eebbc965039 swap=58741eebbc965039
+default slime plain=43bb5bbea5388a0f swap=43bb5bbea5388a0f
 default gravel plain=280344ed32f94b98 swap=280344ed32f94b98
 default socket plain=41c2d13798b96b5f swap=41c2d13798b96b5f
 default hint plain=2916bd0aad4f7c20 swap=2916bd0aad4f7c20
@@ -207,6 +208,7 @@ cyber_neon blue_wall_fake_marker plain=37582ea1d37bd0a6 swap=37582ea1d37bd0a6
 cyber_neon hidden_wall_marker plain=e7f7bc0440c47db9 swap=e7f7bc0440c47db9
 cyber_neon appearing_wall_marker plain=aacde1378f85d3df swap=aacde1378f85d3df
 cyber_neon dirt plain=58741eebbc965039 swap=58741eebbc965039
+cyber_neon slime plain=43bb5bbea5388a0f swap=43bb5bbea5388a0f
 cyber_neon gravel plain=280344ed32f94b98 swap=280344ed32f94b98
 cyber_neon socket plain=1ab13bcdc1d8ec3b swap=1ab13bcdc1d8ec3b
 cyber_neon hint plain=3d3371919a83ba26 swap=3d3371919a83ba26
@@ -397,6 +399,7 @@ arctic_lab blue_wall_fake_marker plain=37582ea1d37bd0a6 swap=37582ea1d37bd0a6
 arctic_lab hidden_wall_marker plain=e7f7bc0440c47db9 swap=e7f7bc0440c47db9
 arctic_lab appearing_wall_marker plain=aacde1378f85d3df swap=aacde1378f85d3df
 arctic_lab dirt plain=58741eebbc965039 swap=58741eebbc965039
+arctic_lab slime plain=43bb5bbea5388a0f swap=43bb5bbea5388a0f
 arctic_lab gravel plain=280344ed32f94b98 swap=280344ed32f94b98
 arctic_lab socket plain=327a0b1715b06349 swap=327a0b1715b06349
 arctic_lab hint plain=6b78f899acaebdb7 swap=6b78f899acaebdb7
@@ -587,6 +590,7 @@ magma_core blue_wall_fake_marker plain=37582ea1d37bd0a6 swap=37582ea1d37bd0a6
 magma_core hidden_wall_marker plain=e7f7bc0440c47db9 swap=e7f7bc0440c47db9
 magma_core appearing_wall_marker plain=aacde1378f85d3df swap=aacde1378f85d3df
 magma_core dirt plain=58741eebbc965039 swap=58741eebbc965039
+magma_core slime plain=43bb5bbea5388a0f swap=43bb5bbea5388a0f
 magma_core gravel plain=280344ed32f94b98 swap=280344ed32f94b98
 magma_core socket plain=9bd76accc198246c swap=9bd76accc198246c
 magma_core hint plain=02e880a1512ae7da swap=02e880a1512ae7da
@@ -777,6 +781,7 @@ lynx_lcd blue_wall_fake_marker plain=37582ea1d37bd0a6 swap=37582ea1d37bd0a6
 lynx_lcd hidden_wall_marker plain=e7f7bc0440c47db9 swap=e7f7bc0440c47db9
 lynx_lcd appearing_wall_marker plain=aacde1378f85d3df swap=aacde1378f85d3df
 lynx_lcd dirt plain=58741eebbc965039 swap=58741eebbc965039
+lynx_lcd slime plain=43bb5bbea5388a0f swap=43bb5bbea5388a0f
 lynx_lcd gravel plain=280344ed32f94b98 swap=280344ed32f94b98
 lynx_lcd socket plain=b360a3b66e5b9e20 swap=b360a3b66e5b9e20
 lynx_lcd hint plain=49bbdfe599a96883 swap=49bbdfe599a96883

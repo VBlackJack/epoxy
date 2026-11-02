@@ -15,16 +15,14 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../core/coreConstants';
+import { DIRECTION_VECTORS, MAX_SOLVER_CACHE_ENTRIES, ORDERED_DIRECTIONS } from '../config/constants';
+import { EXIT_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, EntityPlacement, GridPoint, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
 
 /** Where the piece is drawn inside the otherwise walled map. */
 const PIECE_OFFSET = 1;
-const WALL_TILE_ID = 'wall';
-const EXIT_TILE_ID = 'exit';
 const SOLVER_LEVEL_PASSWORD = 'SOLV';
 /** Default bound on explored states; pieces are small, so a real one stays far below. */
 export const DEFAULT_MAX_SOLVER_STATES = 50000;
@@ -149,7 +147,7 @@ export class PieceSolver {
       return () => {
         const player = engine.getPlayer();
         if (player.x !== port.x || player.y !== port.y || engine.getChipsRemaining() > 0) return false;
-        return this.blockAt(engine, beyond);
+        return this.blockAt(engine, beyond, piece.exports?.item);
       };
     }
     const exported = piece.exports?.kind === 'item' ? piece.exports.item : undefined;
@@ -165,8 +163,10 @@ export class PieceSolver {
     return player.boots.has(item) || (player.keys[item] ?? 0) > 0;
   }
 
-  private static blockAt(engine: GameEngine, cell: GridPoint): boolean {
-    return engine.getEntities().some((e) => e.kind === 'block' && e.x === cell.x && e.y === cell.y);
+  private static blockAt(engine: GameEngine, cell: GridPoint, expectedType?: string): boolean {
+    return engine
+      .getEntities()
+      .some((e) => e.kind === 'block' && e.x === cell.x && e.y === cell.y && (!expectedType || e.type === expectedType));
   }
 
   /** The cell right outside a port of a piece placed at `origin`. */
@@ -290,6 +290,10 @@ export class PieceSolver {
     if (cached !== undefined) return cached;
     const analysis = this.analyze(piece);
     const reversible = analysis.winnable && !analysis.truncated && analysis.unreturnableGoals === 0;
+    if (reversibleCache.size >= MAX_SOLVER_CACHE_ENTRIES) {
+      const oldest = reversibleCache.keys().next().value;
+      if (oldest !== undefined) reversibleCache.delete(oldest);
+    }
     reversibleCache.set(cacheKey, reversible);
     return reversible;
   }
@@ -408,7 +412,9 @@ export class PieceSolver {
     const won = (): boolean => {
       const player = engine.getPlayer();
       if (engine.getChipsRemaining() > 0) return false;
-      if (exportsBlock) return player.x === exitPort.x && player.y === exitPort.y && this.blockAt(engine, exitStub);
+      if (exportsBlock) {
+        return player.x === exitPort.x && player.y === exitPort.y && this.blockAt(engine, exitStub, piece.exports?.item);
+      }
       if (player.x !== exitStub.x || player.y !== exitStub.y) return false;
       return exportedItem === undefined || this.holds(engine, exportedItem);
     };

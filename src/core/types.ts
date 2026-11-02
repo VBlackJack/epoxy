@@ -434,6 +434,12 @@ export interface EndlessConfig {
    * tries before a puzzle gives way.
    */
   attemptsPerDroppedPiece: number;
+  /**
+   * First attempts of each tier that keep clear of the pieces neighbouring levels use
+   * (the piece cooldown). Later attempts draw from the whole pool, so a cooldown that
+   * leaves only pieces hard to lay out never costs a whole tier.
+   */
+  cooldownAttemptsPerTier: number;
   pieceCountStart: number;
   pieceCountMax: number;
   levelsPerExtraPiece: number;
@@ -643,7 +649,7 @@ export interface TileDefinition {
   transformsToOnUnlock?: string;
   isLevelExit?: boolean;
   showsHint?: boolean;
-  hazard?: 'water' | 'fire' | 'bomb';
+  hazard?: 'water' | 'fire' | 'bomb' | 'slime';
   protectedByItem?: string;
   blockTransformsTo?: string;
   slideType?: 'ice' | 'force';
@@ -679,7 +685,13 @@ export interface TileDefinition {
   isCloneMachine?: boolean;
 }
 
-export type ButtonAction = 'toggle_walls' | 'reverse_tanks' | 'hold_trap' | 'trigger_cloner' | 'toggle_flames';
+export type ButtonAction =
+  | 'toggle_walls'
+  | 'reverse_tanks'
+  | 'hold_trap'
+  | 'trigger_cloner'
+  | 'toggle_flames'
+  | 'swap_chips_bombs';
 
 export interface TilesConfig {
   categories: Array<{ id: string; i18nKey: string }>;

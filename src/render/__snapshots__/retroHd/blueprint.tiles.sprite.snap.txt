@@ -317,6 +317,9 @@ tile water closed=true shadowMask=128 hash=1 4ecb32bdc91288d2
 tile fire closed=true isolated 9e321f5ba5dc16ee
 tile fire closed=true shadowMask=65 hash=1 a39eba64e70b7e60
 tile fire closed=true shadowMask=128 hash=1 d0ec5f2940b986e5
+tile slime closed=true isolated 1eeb659fbb605b13
+tile slime closed=true shadowMask=65 hash=1 ce8acb352bf453d8
+tile slime closed=true shadowMask=128 hash=1 0c2663d21b5003bb
 tile ice closed=true isolated b5643567ef8ec7c0
 tile ice closed=true shadowMask=65 hash=1 c72bfea827f52fb3
 tile ice closed=true shadowMask=128 hash=1 d509d78243a2b27d
@@ -407,6 +410,9 @@ tile block_target closed=true shadowMask=128 hash=1 3b414605ce9dba85
 tile button_orange closed=true isolated e9125e0b9f0a0b52
 tile button_orange closed=true shadowMask=65 hash=1 d1483c0a65dc6661
 tile button_orange closed=true shadowMask=128 hash=1 5db67e61cdac6694
+tile button_gray closed=true isolated d3ca390c6acd35c2
+tile button_gray closed=true shadowMask=65 hash=1 d7db14586c80557d
+tile button_gray closed=true shadowMask=128 hash=1 238925e47c1c9f99
 tile flame_jet_off closed=true isolated d187e41adf698156
 tile flame_jet_off closed=true shadowMask=65 hash=1 6f072488c0505868
 tile flame_jet_off closed=true shadowMask=128 hash=1 fe873bc34062a06b

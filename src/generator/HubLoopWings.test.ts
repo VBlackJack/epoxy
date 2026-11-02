@@ -26,7 +26,10 @@ import { buildTestLevel } from '../test/buildTestLevel';
 import { cellReachableWithout, replays } from '../test/levelChecks';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { profileFor } from './DifficultyProfile';
-import { HubPlan, HubPlanner } from './HubPlanner';
+import { HubGrid } from './HubGrid';
+import { HubLoopAssembler } from './HubLoopAssembler';
+import { HubPlan, HubPlanner, HubWing } from './HubPlanner';
+import { LoopPlacement } from './HubTypes';
 import { compilePiece } from './PieceCompiler';
 import { CompiledPiece } from './PieceTypes';
 
@@ -109,6 +112,39 @@ describe('hub loop wings', () => {
     const cfg = ConfigRegistry.getGame().procedural!;
     const irreversible = library.filter((p) => !HubPlanner.fitsWing(p) && HubPlanner.fitsLoopWing(p, cfg.hub));
     expect(irreversible.length).toBeGreaterThan(0);
+  });
+
+  it('never drops required wing rewards when a chain corridor is shorter than rewards plus bonus chips', () => {
+    const cfg = ConfigRegistry.getGame().procedural!;
+    const grid = new HubGrid(cfg.hub);
+    const assembler = new HubLoopAssembler(grid, cfg.hub, new SeededRandom(7));
+    const wing: HubWing = {
+      piece: library[0],
+      then: [],
+      loop: true,
+      gate: { kind: 'open' },
+      rewards: ['key_red', 'boots_fire'],
+      isFinal: false
+    };
+    const loop: LoopPlacement = {
+      links: [
+        {
+          connector: [{ x: 3, y: 3 }, { x: 4, y: 3 }],
+          pushed: true,
+          piece: library[0],
+          origin: { x: 5, y: 3 },
+          approachDir: 'E',
+          exitDir: 'E'
+        }
+      ],
+      tail: [{ x: 7, y: 3 }, { x: 8, y: 3 }],
+      strip: [{ x: 9, y: 3 }],
+      toHub: 'W'
+    };
+    const placed = assembler.fillChain(wing, loop);
+    expect(placed).toHaveLength(2);
+    const items = placed.map((p) => grid.items[p.y][p.x]).sort();
+    expect(items).toEqual(['boots_fire', 'key_red']);
   });
 
   describe('key economy', () => {

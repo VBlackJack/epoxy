@@ -372,6 +372,35 @@ describe('game tunables validation', () => {
     off.game.procedural!.scoring.fallbackCandidates = 0;
     expect(() => ConfigRegistry.applyConfigs(off)).not.toThrow();
   });
+
+  it('refuses a negative or fractional endless cooldown attempt count', () => {
+    for (const bad of [-1, 1.5, Number.NaN]) {
+      const bundle = createTestBundle();
+      bundle.game.procedural!.endless.cooldownAttemptsPerTier = bad;
+      expect(() => ConfigRegistry.applyConfigs(bundle), `cooldownAttemptsPerTier=${bad}`).toThrow(ConfigLoadError);
+    }
+  });
+
+  it('refuses non-positive procedural step divisors and out-of-range shares', () => {
+    for (const bad of [0, -1, 1.5, Number.NaN]) {
+      const stepBundle = createTestBundle();
+      stepBundle.game.procedural!.endless.levelsPerExtraPiece = bad;
+      expect(() => ConfigRegistry.applyConfigs(stepBundle), `levelsPerExtraPiece=${bad}`).toThrow(ConfigLoadError);
+
+      const hubStepBundle = createTestBundle();
+      hubStepBundle.game.procedural!.hub.attemptsPerDroppedPiece = bad;
+      expect(() => ConfigRegistry.applyConfigs(hubStepBundle), `attemptsPerDroppedPiece=${bad}`).toThrow(ConfigLoadError);
+    }
+    for (const badShare of [-0.1, 1.1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const shareBundle = createTestBundle();
+      shareBundle.game.procedural!.hub.outlineGrowth.freeAreaShare = badShare;
+      expect(() => ConfigRegistry.applyConfigs(shareBundle), `freeAreaShare=${badShare}`).toThrow(ConfigLoadError);
+
+      const motifShareBundle = createTestBundle();
+      motifShareBundle.game.procedural!.endless.motifShares.monsters = badShare;
+      expect(() => ConfigRegistry.applyConfigs(motifShareBundle), `motifShares=${badShare}`).toThrow(ConfigLoadError);
+    }
+  });
 });
 
 describe('audio configuration validation', () => {

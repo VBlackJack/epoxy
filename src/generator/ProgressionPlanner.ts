@@ -57,6 +57,10 @@ export interface PuzzleSelection {
 
 /** Fewest puzzles a level keeps when pieces are dropped to make it fit. */
 const MIN_PUZZLES = 2;
+/** Minimum isolated solution length preferred in endless mode so trivial 2-4 move primers stay in pack onboarding. */
+export const MIN_ENDLESS_PUZZLE_MOVES = 6;
+/** Top tier from which endless mode also draws the tier just below it, so a motif keeps a wider hard pool. */
+export const ENDLESS_TIER_SPREAD_FROM = 3;
 
 /** Budget of a level, derived from its number and the procedural config. */
 export interface LevelBudget {
@@ -87,10 +91,11 @@ export class ProgressionPlanner {
     rng: SeededRandom,
     script?: LevelScript,
     lead?: string,
-    avoid: string[] = []
+    avoid: string[] = [],
+    avoidPieces: string[] = []
   ): LevelPlan {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
-    const selection = this.selectPuzzles(profile, library, rules, rng, script, undefined, 0, lead, avoid);
+    const selection = this.selectPuzzles(profile, library, rules, rng, script, undefined, 0, lead, avoid, avoidPieces);
     const chosen = this.withRestRooms(
       selection.puzzles.map((p) => this.randomOrientation(p, rng)),
       selection.restRooms,
@@ -116,7 +121,8 @@ export class ProgressionPlanner {
     accept: (piece: CompiledPiece) => boolean = () => true,
     piecesDropped = 0,
     lead?: string,
-    avoid: string[] = []
+    avoid: string[] = [],
+    avoidPieces: string[] = []
   ): PuzzleSelection {
     const cfg = ConfigRegistry.getGame().procedural as ProceduralConfig;
     const base = script
@@ -152,7 +158,17 @@ export class ProgressionPlanner {
           rng
         );
 
-    const puzzles = this.choosePieces(budget.pieceCount, motifs, playable, rules, rng, cfg, profile.preferHard);
+    const puzzles = this.choosePieces(
+      budget.pieceCount,
+      motifs,
+      playable,
+      rules,
+      rng,
+      cfg,
+      profile.preferHard,
+      avoidPieces,
+      profile.mode === 'endless' && !script
+    );
     return { puzzles, motifs, finale, restRooms };
   }
 
@@ -170,11 +186,12 @@ export class ProgressionPlanner {
     rng: SeededRandom
   ): string[] {
     const focus = [...motifs];
+    let replaceAt = focus.length - 1;
     for (const motif of Object.keys(shares).sort()) {
       if (!motifPool.includes(motif) || focus.includes(motif)) continue;
       if (rng.next() >= shares[motif]) continue;
       if (focus.length < motifCount) focus.push(motif);
-      else focus[focus.length - 1] = motif;
+      else if (replaceAt >= 1) focus[replaceAt--] = motif;
     }
     return focus;
   }
@@ -226,10 +243,13 @@ export class ProgressionPlanner {
     rules: Record<string, MotifRule>,
     rng: SeededRandom,
     cfg: ProceduralConfig,
-    preferHard = false
+    preferHard = false,
+    avoidPieces: string[] = [],
+    endless = false
   ): CompiledPiece[] {
     const used = new Map<string, number>();
     const usedIds = new Set<string>();
+    const avoidSet = new Set(avoidPieces);
     const chosen: CompiledPiece[] = [];
     let monstersSoFar = 0;
     const allowed = (motif: string): boolean =>
@@ -245,18 +265,23 @@ export class ProgressionPlanner {
       const lowestTier = Math.min(...candidates.map((p) => p.tier));
       const unseen = candidates.filter((p) => !usedIds.has(p.id));
       const fresh = unseen.length > 0 ? unseen : candidates;
-      const highestTier = Math.max(...fresh.map((p) => p.tier));
+      const substantive = endless ? fresh.filter((p) => (p.solution?.length ?? 0) >= MIN_ENDLESS_PUZZLE_MOVES) : [];
+      const effective = substantive.length > 0 ? substantive : fresh;
+      const highestTier = Math.max(...effective.map((p) => p.tier));
+      const minHardTier = endless && highestTier >= ENDLESS_TIER_SPREAD_FROM ? highestTier - 1 : highestTier;
       // Early on, a motif is introduced by one of its easiest pieces; later
       // levels draw its hardest unseen pieces instead.
       const wide = preferHard
-        ? fresh.filter((p) => p.tier === highestTier)
+        ? effective.filter((p) => p.tier >= minHardTier)
         : introduce
           ? candidates.filter((p) => p.tier === lowestTier)
-          : fresh;
+          : effective;
       // Pieces with few dead ends keep the level open: those within the limit, or
       // the tidiest ones when the motif has none that tidy.
       const limit = Math.max(cfg.maxPieceDeadEnds, Math.min(...wide.map((p) => p.deadEnds)));
-      const pool = wide.filter((p) => p.deadEnds <= limit);
+      const tidy = wide.filter((p) => p.deadEnds <= limit);
+      const cooled = avoidSet.size > 0 ? tidy.filter((p) => !avoidSet.has(p.id)) : tidy;
+      const pool = cooled.length > 0 ? cooled : tidy;
       const piece = pool[rng.nextInt(0, pool.length - 1)];
       used.set(motif, (used.get(motif) ?? 0) + 1);
       usedIds.add(piece.id);
@@ -268,6 +293,11 @@ export class ProgressionPlanner {
       if (chosen.length >= count) break;
       const piece = pick(motif, true);
       if (piece) chosen.push(piece);
+    }
+    // Endless levels anchor their identity on the lead motif before filling secondary slots.
+    if (endless && motifs.length > 0 && chosen.length < count) {
+      const leadPiece = pick(motifs[0], false);
+      if (leadPiece) chosen.push(leadPiece);
     }
     let guard = count * motifs.length + 1;
     while (chosen.length < count && guard-- > 0) {

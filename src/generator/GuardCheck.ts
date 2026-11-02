@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { OPPOSITE_DIRECTION } from '../core/coreConstants';
+import { DEADLY_HAZARDS, OPPOSITE_DIRECTION } from '../core/coreConstants';
 import { CompiledLevel, Direction, GridPoint, TileDefinition } from '../core/types';
 import { isPlayerWalkable } from '../core/Walkability';
 import { Box } from './LevelAssembler';
@@ -87,9 +87,6 @@ export function cellReachableWithout(level: CompiledLevel, walled: Box, target: 
 
 /** Teleporters outside any group form one network, as in the engine. */
 const DEFAULT_TELEPORT_GROUP = '';
-
-/** Hazards that end the game on contact, the ones boots keep the player alive across. */
-const DEADLY_HAZARDS: ReadonlySet<string> = new Set(['water', 'fire']);
 
 /** Whether the level can ever hold a pushable block: placed, or cloned from a template. */
 function levelHasBlocks(level: CompiledLevel): boolean {

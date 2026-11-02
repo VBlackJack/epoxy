@@ -43,7 +43,8 @@ export const BUTTON_COLOR_KEYS: Readonly<Record<string, string>> = {
   button_blue: 'blue',
   button_brown: 'brown',
   button_red: 'red',
-  button_orange: 'orange'
+  button_orange: 'orange',
+  button_gray: 'gray'
 };
 
 /** Colour-blind glyph drawn on each button (see drawColorGlyph). */
@@ -52,7 +53,8 @@ export const BUTTON_GLYPH_KEYS: Readonly<Record<string, string>> = {
   button_blue: 'blue',
   button_brown: 'yellow',
   button_red: 'red',
-  button_orange: 'orange'
+  button_orange: 'orange',
+  button_gray: 'orange'
 };
 
 export const BOOT_COLOR_KEYS: Readonly<Record<string, string>> = {
@@ -95,7 +97,8 @@ export const RETRO_SWAP_RAMPS: Readonly<Record<string, string>> = {
   yellow: 'yellow',
   green: 'green',
   orange: 'orange',
-  brown: 'brown'
+  brown: 'brown',
+  gray: 'gravel'
 };
 
 /** Retro style: ramp of the boots template, per boots tile id (force boots are green). */

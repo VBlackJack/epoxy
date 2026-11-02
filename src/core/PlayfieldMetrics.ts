@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { DIRECTION_VECTORS, JUNCTION_MIN_NEIGHBOURS, ORDERED_DIRECTIONS } from '../config/constants';
 import { GridPoint } from './types';
 
-/** Neighbour count from which a playfield cell is a junction. */
-const JUNCTION_MIN_NEIGHBOURS = 3;
 /** Cell offsets of the 2x2 squares a cell can be a corner of. */
 const SQUARE_ORIGIN_OFFSETS = [-1, 0];
 

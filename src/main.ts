@@ -443,6 +443,7 @@ class EpoxyApplication {
       editorCanvas,
       this.renderer,
       (testLevel: CompiledLevel) => {
+        this.cancelEndlessPrefetch();
         this.switchMode('play');
         this.stopAutoMoveAndReplay();
         this.lastWarnedSecond = NO_WARNED_SECOND;
@@ -872,21 +873,29 @@ class EpoxyApplication {
     );
   }
 
+  /** Cancels any pending endless level prefetch or waiting state. */
+  private cancelEndlessPrefetch(): void {
+    this.endlessRun++;
+    this.endlessFetching = null;
+    this.endlessWaiting = false;
+    if (this.endlessGenerator?.hasPending()) this.endlessGenerator.reset();
+  }
+
   /** Builds only the start level, plays it, and prefetches the next ones as the player advances. */
   private async startEndlessRun(seed: number, startLevel: number): Promise<void> {
     if (this.generatingPack) return;
     this.generatingPack = true;
-    const run = ++this.endlessRun;
-    this.endlessFetching = null;
-    this.endlessWaiting = false;
-    this.showTransientStatus(t('app.packs.procedural_progress.label', { level: startLevel }));
     // Prefetches of the run being left would keep the worker busy: drop them.
+    this.cancelEndlessPrefetch();
+    const run = this.endlessRun;
+    this.showTransientStatus(t('app.packs.procedural_progress.label', { level: startLevel }));
     const generator = this.getEndlessGenerator();
-    if (generator.hasPending()) generator.reset();
     let first: CompiledLevel;
     try {
       first = await generator.request(seed, startLevel);
     } catch (err) {
+      // A run left on purpose (editor test, level picker) rejects its pending request: not an error.
+      if (run !== this.endlessRun) return;
       console.error('Endless generation failed:', err);
       this.showTransientStatus(t('app.packs.procedural_error.label'));
       return;
@@ -1582,7 +1591,11 @@ class EpoxyApplication {
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
     this.lastWarnedSecond = NO_WARNED_SECOND;
-    this.endlessWaiting = false;
+    if (this.isEndlessActive()) {
+      this.endlessWaiting = false;
+    } else {
+      this.cancelEndlessPrefetch();
+    }
     // An endless run has no wrap-around: it stops at its first built level and at its last.
     this.currentLevelIndex = this.isEndlessActive()
       ? Math.min(Math.max(index, 0), levels.length - 1)
@@ -1605,6 +1618,15 @@ class EpoxyApplication {
 
   private isOnLastLevel(): boolean {
     return this.currentLevelIndex >= ConfigRegistry.getLevels().length - 1;
+  }
+
+  /** Previous level; an endless run has no wrap-around before its first built level. */
+  private goToPreviousLevel(): void {
+    const canGoPrev = this.isEndlessActive()
+      ? this.currentLevelIndex > 0
+      : ConfigRegistry.getLevels().length > 1;
+    if (!canGoPrev) return;
+    this.startLevelByIndex(this.currentLevelIndex - 1);
   }
 
   /** Next level; past the last one the pack restarts at level 1 with a message (an endless run waits for its next level instead). */
@@ -2243,7 +2265,7 @@ class EpoxyApplication {
       this.updateHUD();
     });
     byId('hud-btn-prev')?.addEventListener('click', () => {
-      this.startLevelByIndex(this.currentLevelIndex - 1);
+      this.goToPreviousLevel();
     });
     byId('hud-btn-next')?.addEventListener('click', () => {
       this.advanceToNextLevel();
@@ -2527,7 +2549,7 @@ class EpoxyApplication {
     } else if (kb.nextLevel.includes(e.code)) {
       run(() => this.advanceToNextLevel());
     } else if (kb.prevLevel.includes(e.code)) {
-      run(() => this.startLevelByIndex(this.currentLevelIndex - 1));
+      run(() => this.goToPreviousLevel());
     } else if (kb.toggleFullscreen?.includes(e.code)) {
       run(() => this.toggleFullscreen());
     } else if (kb.toggleMute.includes(e.code)) {
@@ -2829,6 +2851,12 @@ class EpoxyApplication {
     setText(byId('hud-level-num'), String(lvl.number));
     setText(byId('hud-level-pass'), lvl.password);
     this.updatePasswordControls();
+    const prevBtn = byId<HTMLButtonElement>('hud-btn-prev');
+    if (prevBtn) {
+      prevBtn.disabled = this.isEndlessActive()
+        ? this.currentLevelIndex <= 0
+        : ConfigRegistry.getLevels().length <= 1;
+    }
     const levelTitle = this.resolveLevelTitle(lvl);
     const levelAuthor = lvl.author?.trim() ?? '';
     const authorLabel = levelAuthor ? t('hud.level.author.label', { author: levelAuthor }) : '';
