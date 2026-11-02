@@ -63,7 +63,6 @@ export function resolveSavedLevelIndex(
   return index;
 }
 
-/** Returns the stored graphics style when it is a known one, else undefined. */
 /**
  * Position to resume at in the active pack. The saved level id wins, so a
  * reorder, an insert or a removal keeps the player on the same level; a save
@@ -82,6 +81,7 @@ export function resolveSavedLevel(
   return resolveSavedLevelIndex(saved, activePackId, levels.length);
 }
 
+/** Returns the stored graphics style when it is a known one, else undefined. */
 export function parseGraphicsStyle(value: unknown): GraphicsStyle | undefined {
   return parseRenderStyleId(value);
 }

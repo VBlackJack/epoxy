@@ -41,7 +41,7 @@ describe('importedPacks', () => {
     const packs = [
       { id: BUILTIN_PACK_IDS.CAMPAIGN },
       { id: 'imported_a' },
-      { id: BUILTIN_PACK_IDS.CUSTOM, userCreated: true },
+      { id: BUILTIN_PACK_IDS.CUSTOM },
       { id: 'imported_b' },
       { id: 'imported_a' }
     ];
@@ -53,7 +53,8 @@ describe('importedPacks', () => {
       removablePackIds([
         { id: 'user_pack_1', builtIn: false, userCreated: true },
         { id: 'imported_a', builtIn: false },
-        { id: BUILTIN_PACK_IDS.CUSTOM, userCreated: true }
+        { id: BUILTIN_PACK_IDS.CUSTOM, userCreated: true },
+        { id: BUILTIN_PACK_IDS.CUSTOM }
       ])
     ).toEqual(['imported_a']);
   });

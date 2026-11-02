@@ -31,12 +31,20 @@ export function isRemovablePack(pack: RemovableCandidate): boolean {
 
 /**
  * Ids of the imported packs "delete all imported packs" removes, in the given
- * order, without duplicates. The packs the player created are never in it.
+ * order, without duplicates. The packs the player created, and the custom pack
+ * whatever its flag says, are never in it.
  */
 export function removablePackIds(packs: readonly RemovableCandidate[]): string[] {
   const ids: string[] = [];
   for (const pack of packs) {
-    if (isRemovablePack(pack) && pack.userCreated !== true && !ids.includes(pack.id)) ids.push(pack.id);
+    if (
+      isRemovablePack(pack) &&
+      pack.id !== BUILTIN_PACK_IDS.CUSTOM &&
+      pack.userCreated !== true &&
+      !ids.includes(pack.id)
+    ) {
+      ids.push(pack.id);
+    }
   }
   return ids;
 }
