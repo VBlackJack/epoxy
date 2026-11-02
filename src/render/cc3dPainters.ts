@@ -41,6 +41,7 @@ const REFLECTOR_FAMILY = 'reflector_';
 const BOT_FAMILY = 'bot_';
 const FISH_EXTRA = 'fish_extra';
 const LASER_SHOOTER = 'laser_shooter';
+const SHOT = 'shot';
 const SOCKET_RED = 'socket_red';
 const SAND = 'sand';
 const GOLEM_CONTROL = 'golem_control_yellow';
@@ -57,6 +58,8 @@ const MULTI_MARK_OFFSETS: ReadonlyArray<readonly [number, number]> = [
 
 /** Tile-relative geometry (fractions of the tile side) and a few small counts. */
 const GEO = {
+  shotHalo: 0.22,
+  shotCore: 0.11,
   plateInset: 0.2,
   plateRing: 0.14,
   doorInset: 0.08,
@@ -436,6 +439,20 @@ function paintBot(ctx: CanvasRenderingContext2D, kind: string, x: number, y: num
   }
 }
 
+/** A laser shot: a small bright bolt, a halo with a core, drawn as discs so it reads in any facing. */
+function paintShot(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  ctx.fillStyle = tools.pal.laserBeam;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * GEO.shotHalo, 0, FULL_TURN);
+  ctx.fill();
+  ctx.fillStyle = tools.pal.laserBeamCore;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * GEO.shotCore, 0, FULL_TURN);
+  ctx.fill();
+}
+
 /** Paints a mob that is not a variant of an existing monster (see CC3D_MOB_BASES). */
 export function paintCc3dMob(ctx: CanvasRenderingContext2D, id: string, dir: Direction, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
   const name = id.slice(CC3D_TILE_PREFIX.length);
@@ -443,5 +460,6 @@ export function paintCc3dMob(ctx: CanvasRenderingContext2D, id: string, dir: Dir
   if (block) paintColorBlock(ctx, block, x, y, size, tools);
   else if (name.startsWith(REFLECTOR_FAMILY)) paintReflector(ctx, name.slice(REFLECTOR_FAMILY.length), x, y, size, tools);
   else if (name === LASER_SHOOTER) paintLaserShooter(ctx, dir, x, y, size, tools);
+  else if (name === SHOT) paintShot(ctx, x, y, size, tools);
   else if (name.startsWith(BOT_FAMILY)) paintBot(ctx, name.slice(BOT_FAMILY.length), x, y, size, tools);
 }

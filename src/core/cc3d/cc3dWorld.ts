@@ -16,7 +16,7 @@
 
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import type { VisualEventKind } from '../PlayEngine';
-import type { Direction } from '../types';
+import type { BeamCell, Direction } from '../types';
 import { DeathCause, PLAYER_START_FACING, SPEED_ORB_SLOWDOWN } from './cc3dConstants';
 import type { Cc3dCell, Cc3dColor, Cc3dItemKind, Cc3dLevel, Cc3dMobKind, Cc3dTerrain } from './model';
 import { cellIndex, topTerrain } from './model';
@@ -62,6 +62,8 @@ export interface MobState extends Mover {
   floating: boolean;
   /** The mob decides no new chosen step before this world tick (Snappy, Nibble rests; Omni blocked draws). */
   restUntilTick: number;
+  /** A shot only: the uids of the shooters it came through (its origin and every relay), so a relay loop ends. */
+  relayed?: number[];
   /** Omni only: it has stood on slime and now leaves slime behind. Clones do not inherit it. */
   slimed?: boolean;
 }
@@ -112,6 +114,12 @@ export interface World {
   occupancy: Map<number, MobState>;
   /** Copy-on-write journal of the cells first touched since the last undo snapshot; null when none is kept. Transient. */
   journal: Map<number, Cc3dCell> | null;
+  /** Shooters that already fired in this tick: one shot per shooter per tick, which also ends relay loops. */
+  firedThisTick: number[];
+  /** Laser shots in flight. Transient: rebuilt by reindexMobs. Shots are not in `occupancy`. */
+  shots: MobState[];
+  /** Cells covered by security-bot beams this tick, for drawing. Transient. */
+  beam: BeamCell[];
   /** Counts removed mobs, so a loop over the mob list can tell when one was removed. */
   removals: number;
 }
@@ -123,13 +131,30 @@ export interface RuleContext {
   playSfx(id: string): void;
   /** Starts a step of a mob out of a clone machine (normal speed). */
   releaseMob(mob: MobState, dir: Direction): void;
+  /** A shot takes its next step: the entry rule of the cell in front, then the move (or it vanishes). */
+  stepShot(shot: MobState): void;
   /** A mob tries one chosen step (a yellow golem moved by its control); returns whether it started. */
   stepMob(mob: MobState, dir: Direction): boolean;
   killPlayer(cause: DeathCause): void;
   randomDirection(): Direction;
 }
 
-export const BLOCK_KINDS: readonly Cc3dMobKind[] = ['block_dirt', 'block_ice', 'block_color', 'reflector'];
+/** Pushable things: the four blocks and the four security bots, which never move by themselves. */
+export const BLOCK_KINDS: readonly Cc3dMobKind[] = [
+  'block_dirt',
+  'block_ice',
+  'block_color',
+  'reflector',
+  'bot_static',
+  'bot_cw',
+  'bot_ccw',
+  'bot_multi'
+];
+
+/** Mobs that follow their own small rules: a shooter never moves and cannot be pushed, a shot flies. */
+export function isInertMob(kind: Cc3dMobKind): boolean {
+  return kind === 'laser_shooter' || kind === 'shot';
+}
 
 export function isBlockKind(kind: Cc3dMobKind): boolean {
   return BLOCK_KINDS.includes(kind);
@@ -211,6 +236,26 @@ export function hasFloatingBlock(world: World, at: Cell): boolean {
   return world.occupancy.get(cellIndex(world, at.x, at.y))?.floating === true;
 }
 
+/** A laser shot in the shooter's cell, facing `dir`; it is not in the occupancy index. */
+export function spawnShot(world: World, shooter: Cell, dir: Direction, relayed: number[]): MobState {
+  const shot: MobState = {
+    ...newMover(shooter.x, shooter.y, dir),
+    uid: world.nextUid++,
+    kind: 'shot',
+    floating: false,
+    restUntilTick: 0,
+    relayed
+  };
+  world.mobs.push(shot);
+  world.shots.push(shot);
+  return shot;
+}
+
+/** The shot whose logical cell is the cell, if any. */
+export function shotAt(world: World, at: Cell): MobState | undefined {
+  return world.shots.find((s) => s.x === at.x && s.y === at.y);
+}
+
 /** Adds a copy of a mob at the end of the processing order. */
 export function spawnCopy(world: World, template: MobState, dir: Direction): MobState {
   const copy: MobState = {
@@ -237,12 +282,14 @@ export function removeMob(world: World, mob: MobState): void {
   if (index >= 0) world.mobs.splice(index, 1);
   const key = cellIndex(world, mob.x, mob.y);
   if (world.occupancy.get(key) === mob) world.occupancy.delete(key);
+  const shot = world.shots.indexOf(mob);
+  if (shot >= 0) world.shots.splice(shot, 1);
   world.removals += 1;
 }
 
 /** Moves an actor to a cell; every change of a mob's logical cell goes through here. */
 export function moveActor(world: World, actor: Actor, x: number, y: number): void {
-  if (actor.kind !== 'player') {
+  if (actor.kind !== 'player' && actor.kind !== 'shot') {
     const from = cellIndex(world, actor.x, actor.y);
     if (world.occupancy.get(from) === actor) world.occupancy.delete(from);
     world.occupancy.set(cellIndex(world, x, y), actor);
@@ -254,7 +301,9 @@ export function moveActor(world: World, actor: Actor, x: number, y: number): voi
 /** Rebuilds the cell index of the mobs, after a restore. */
 export function reindexMobs(world: World): void {
   world.occupancy = new Map();
+  world.shots = world.mobs.filter((m) => m.kind === 'shot');
   for (const mob of world.mobs) {
+    if (mob.kind === 'shot') continue;
     const key = cellIndex(world, mob.x, mob.y);
     if (!world.occupancy.has(key)) world.occupancy.set(key, mob);
   }
@@ -323,6 +372,9 @@ export function buildWorld(level: Cc3dLevel, seed: number): World {
     devices: buildDeviceIndex(cells),
     occupancy: new Map(),
     journal: null,
+    firedThisTick: [],
+    shots: [],
+    beam: [],
     removals: 0
   };
   reindexMobs(world);

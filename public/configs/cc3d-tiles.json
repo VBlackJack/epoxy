@@ -420,6 +420,16 @@
       "passableByBlock": false,
       "colorKey": "yellow"
     },
+    "cc3d_shot": {
+      "id": "cc3d_shot",
+      "category": "entities",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc3d_shot.name",
+      "laserTransparent": true,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false
+    },
     "cc3d_laser_shooter": {
       "id": "cc3d_laser_shooter",
       "category": "entities",

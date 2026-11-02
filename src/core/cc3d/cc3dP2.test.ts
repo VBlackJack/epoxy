@@ -51,7 +51,7 @@ describe('traits table', () => {
     }
   });
 
-  it('leaves only the P3 kinds unsupported', () => {
+  it('leaves nothing unsupported once P3 is in', () => {
     const glyphs = {
       a: mob('snappy'),
       b: mob('nibble'),
@@ -69,14 +69,7 @@ describe('traits table', () => {
       s: { item: { kind: 'orb_speed' as const } }
     };
     const rig = new Cc3dRig(cc3dLevel(['#@abcdefghijklms#'], { glyphs }));
-    expect(rig.engine.getUnsupportedTiles()).toEqual([
-      'bot_ccw',
-      'bot_cw',
-      'bot_multi',
-      'bot_static',
-      'laser_controller',
-      'laser_shooter'
-    ]);
+    expect(rig.engine.getUnsupportedTiles()).toEqual([]);
   });
 });
 

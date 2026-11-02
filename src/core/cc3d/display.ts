@@ -99,7 +99,8 @@ const MOB_IDS: Readonly<Record<string, string>> = {
   bot_static: `${CC3D_ID_PREFIX}bot_static`,
   bot_cw: `${CC3D_ID_PREFIX}bot_cw`,
   bot_ccw: `${CC3D_ID_PREFIX}bot_ccw`,
-  bot_multi: `${CC3D_ID_PREFIX}bot_multi`
+  bot_multi: `${CC3D_ID_PREFIX}bot_multi`,
+  shot: `${CC3D_ID_PREFIX}shot`
 };
 
 /** Mirror names a reflector can store, lowercased in the id. */

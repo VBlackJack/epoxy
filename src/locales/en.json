@@ -491,6 +491,7 @@
     "cc3d_baby_screamer": { "name": "Small Fireball" },
     "cc3d_golem_yellow": { "name": "Yellow Tank" },
     "cc3d_laser_shooter": { "name": "Laser Shooter" },
+    "cc3d_shot": { "name": "Laser Shot" },
     "cc3d_bot_static": { "name": "Static Bot" },
     "cc3d_bot_cw": { "name": "Clockwise Bot" },
     "cc3d_bot_ccw": { "name": "Counter-Clockwise Bot" },

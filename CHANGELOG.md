@@ -5,6 +5,21 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Import of Chuck's Challenge 3D levels. The import button accepts `.xml` level files; several
+  files selected together become one pack. A file that cannot be imported is refused with a
+  message that names the problem (malformed XML, unknown tile type, a tile off the grid, a
+  missing or repeated player). The levels are never bundled with Epoxy.
+- A dedicated rules engine for these levels (`src/core/cc3d/`), separate from the Lynx engine:
+  blocks that float or freeze water, pressure plates and the doors they hold, four colour toggle
+  channels, traps, cloners, and monsters including fleeing, chasing and steered ones, plus Omni
+  and the speed orb. Laser shooters fire a shot that reflectors turn and that relays from shooter
+  to shooter; security bots project a short lethal beam, some of them turning. These lasers are
+  separate from Epoxy's own. The Epoxy play aids stay off on these levels.
+- A guard test that fails on any change to the Lynx engine sources, so work on the new engine
+  cannot alter Chip's Challenge play.
+
 ## [2.15.0] - 2026-11-02
 
 ### Added

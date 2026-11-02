@@ -16,6 +16,7 @@
 
 import type { Direction } from '../types';
 import { SFX } from './cc3dConstants';
+import { fireNearestShooter } from './cc3dLasers';
 import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { planStep } from './cc3dMovement';
 import {
@@ -54,18 +55,21 @@ function layerAt(world: World, index: number, kind: Cc3dTerrainKind): Cc3dTerrai
 
 // ---------------------------------------------------------------- pressing
 
+/** Reflectors and security bots are pushed around but press and trigger nothing [U]. */
+const INERT_BLOCKS: readonly string[] = ['reflector', 'bot_static', 'bot_cw', 'bot_ccw', 'bot_multi'];
+
 /** Who presses a plate of a colour: the player, dirt and ice blocks [P dirt, U ice], a colour block only its own colour [P other colours, U own]. */
 function pressesPlate(actor: Actor, color: Cc3dColor | undefined): boolean {
   if (actor.kind === 'player') return true;
   if (actor.kind === 'block_color') return color === undefined || actor.color === color;
-  if (isBlockKind(actor.kind)) return actor.kind !== 'reflector';
+  if (isBlockKind(actor.kind)) return !INERT_BLOCKS.includes(actor.kind);
   return MONSTER_TRAITS[actor.kind]?.pressesPlates ?? false;
 }
 
 /** Who works an entry device (toggle control, clone switch, golem control). */
 function triggersSwitch(actor: Actor): boolean {
   if (actor.kind === 'player') return true;
-  if (isBlockKind(actor.kind)) return actor.kind !== 'reflector';
+  if (isBlockKind(actor.kind)) return !INERT_BLOCKS.includes(actor.kind);
   return MONSTER_TRAITS[actor.kind]?.triggersSwitches ?? false;
 }
 
@@ -237,6 +241,11 @@ export function triggerEntryDevice(ctx: RuleContext, actor: Actor): void {
     case 'golem_control_yellow':
       // Only the player works it; a golem entering a control does not chain [U, 07 section 7.9 item 9].
       if (actor.kind === 'player') moveYellowGolems(ctx, actor.dir);
+      break;
+    case 'laser_controller':
+      // Only the player works it, by entering it (bumping a shooter standing on one counts too, see the
+      // simulation) [U, 08 section 8.5 item 3]: the nearest shooter fires.
+      if (actor.kind === 'player') fireNearestShooter(ctx, at);
       break;
     case 'golem_control_blue':
       reverseGolems(world);

@@ -21,7 +21,7 @@ vi.mock('../../audio/AudioManager', () => ({
 }));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { cc3dLevel, stacked, terrain } from './cc3dTestMaps';
+import { cc3dLevel, stacked } from './cc3dTestMaps';
 import { Cc3dRig } from './cc3dTestRig';
 
 beforeAll(() => {
@@ -280,27 +280,5 @@ describe('blocks', () => {
     const bomb = new Cc3dRig(cc3dLevel(['#@KO#']));
     bomb.walk('E');
     expect(bomb.player.x).toBe(1);
-  });
-});
-
-describe('monsters that are not played yet (P3)', () => {
-  const glyphs = { M: { mob: { kind: 'laser_shooter' as const } } };
-
-  it('stand still, kill the player on contact and refuse blocks', () => {
-    const rig = new Cc3dRig(cc3dLevel(['#@M.#'], { glyphs }));
-    rig.tick(20);
-    expect(rig.entityAt(2, 0)?.type).toBe('cc3d_laser_shooter');
-    rig.walk('E');
-    expect(rig.player.alive).toBe(false);
-    expect(rig.player.deathReasonKey).toBe('hud.messages.death_monster');
-    const block = new Cc3dRig(cc3dLevel(['#@KM.#'], { glyphs }));
-    block.walk('E');
-    expect(block.player.x).toBe(1);
-  });
-
-  it('lists what is still unsupported', () => {
-    const lines = { p: terrain('plate', { color: 'red' }), y: terrain('golem_control_yellow'), l: terrain('laser_controller') };
-    const rig = new Cc3dRig(cc3dLevel(['#@pHsMyl.#'], { glyphs: { ...glyphs, ...lines } }));
-    expect(rig.engine.getUnsupportedTiles()).toEqual(['laser_controller', 'laser_shooter']);
   });
 });

@@ -19,11 +19,11 @@ import { stepTerrainOf } from '../../audio/stepTerrain';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { PlayEngine, VisualEventCallback, WinCallback } from '../PlayEngine';
 import { SeededRandom } from '../Random';
-import { CloneLink, CompiledLevel, Direction, PlayerState, RuntimeEntity, TimedMove, TrapLink } from '../types';
+import { BeamCell, CloneLink, CompiledLevel, Direction, PlayerState, RuntimeEntity, TimedMove, TrapLink } from '../types';
 import { Cc3dSimulation, Cc3dSnapshot } from './Cc3dSimulation';
-import { PLAYER_START_FACING, SFX } from './cc3dConstants';
+import { BOT_ROTATION_SECONDS, PLAYER_START_FACING, SFX } from './cc3dConstants';
 import { isSupportedMonster } from './cc3dMonsterTraits';
-import { World, buildWorld, cellAt, isBlockKind } from './cc3dWorld';
+import { World, buildWorld, cellAt, isBlockKind, isInertMob } from './cc3dWorld';
 import { displayItemId, displayMobId, displayTerrainId } from './display';
 import type { Cc3dColor, Cc3dItemKind, Cc3dTerrainKind } from './model';
 
@@ -40,8 +40,8 @@ const playWithAudioManager: SoundPlayer = {
   step: (terrain) => AudioManager.playStep(terrain)
 };
 
-/** Terrain kinds whose device does nothing yet (the P3 laser controller; it stays passable floor). */
-const UNSUPPORTED_TERRAIN: readonly Cc3dTerrainKind[] = ['laser_controller'];
+/** Terrain kinds whose device does nothing yet (none since P3). */
+const UNSUPPORTED_TERRAIN: readonly Cc3dTerrainKind[] = [];
 
 /** Items collected but without effect yet. */
 const UNSUPPORTED_ITEMS: readonly Cc3dItemKind[] = [];
@@ -95,7 +95,7 @@ function unsupportedKinds(world: World): string[] {
     for (const t of cell.terrain) if (UNSUPPORTED_TERRAIN.includes(t.kind)) found.add(t.kind);
     if (cell.item && UNSUPPORTED_ITEMS.includes(cell.item.kind)) found.add(cell.item.kind);
   }
-  for (const mob of world.mobs) if (!isBlockKind(mob.kind) && !isSupportedMonster(mob.kind)) found.add(mob.kind);
+  for (const mob of world.mobs) if (!isBlockKind(mob.kind) && !isSupportedMonster(mob.kind) && !isInertMob(mob.kind)) found.add(mob.kind);
   return [...found].sort();
 }
 
@@ -156,7 +156,8 @@ export class Cc3dEngine implements PlayEngine {
         sound: (id) => this.sound.effect(id),
         step: (x, y) => this.playStep(x, y)
       },
-      level.timeLimitSeconds * ticksPerSecond
+      level.timeLimitSeconds * ticksPerSecond,
+      BOT_ROTATION_SECONDS * ticksPerSecond
     );
     this.undoStack = [];
     this.paused = false;
@@ -339,6 +340,11 @@ export class Cc3dEngine implements PlayEngine {
 
   public getChipsRemaining(): number {
     return Math.max(0, this.sim?.world.fishRemaining ?? 0);
+  }
+
+  /** The cells covered by security-bot beams right now, for the beam overlay. */
+  public getBeamCells(): readonly BeamCell[] {
+    return this.sim?.world.beam ?? [];
   }
 
   public getTargetsProgress(): { covered: number; total: number } {
