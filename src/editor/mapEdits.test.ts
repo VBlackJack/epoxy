@@ -115,6 +115,26 @@ describe('painting', () => {
   });
 });
 
+describe('no-op edits', () => {
+  it('report changed false when the map would be identical', () => {
+    const map = bordered(7, 7);
+    map.entities.push({ x: 3, y: 3, type: 'tank', dir: 'N' });
+    expect(eraseCell(map, 4, 4).changed).toBe(false);
+    expect(eraseCell(map, 4, 4).map).toBe(map);
+    expect(eraseCell(map, 3, 3).changed).toBe(true);
+    expect(paintEntity(map, 3, 3, 'tank', 'N').changed).toBe(false);
+    expect(paintEntity(map, 3, 3, 'tank', 'S').changed).toBe(true);
+    expect(paintEntity(map, 3, 3, 'dirt_block', 'N').changed).toBe(true);
+    expect(paintPlayerStart(map, 1, 1, 'S').changed).toBe(false);
+    expect(paintPlayerStart(map, 1, 1, 'N').changed).toBe(true);
+    expect(paintPlayerStart(map, 2, 1, 'S').changed).toBe(true);
+  });
+
+  it('still reports the kept player start on an empty start cell', () => {
+    expect(eraseCell(bordered(7, 7), 1, 1)).toMatchObject({ changed: false, playerStartKept: true });
+  });
+});
+
 describe('eraseCell', () => {
   it('clears terrain, item, entity and links', () => {
     const map = withLinks();
@@ -182,22 +202,35 @@ describe('wires', () => {
     const map = bordered(8, 8);
     const result = placeWireLink(map, 'clone', { x: 3, y: 3 }, { x: 3, y: 3 }, 'S');
     expect(result.refused).toBe(true);
+    expect(result.refusal).toBe('same_cell');
     expect(result.changed).toBe(false);
     expect(result.map).toBe(map);
   });
 
-  it('copies the entity on the cloner into a clone link, else the default template', () => {
+  it('refuses a wire whose source no longer holds the button', () => {
     const map = bordered(8, 8);
+    const result = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S');
+    expect(result.refused).toBe(true);
+    expect(result.refusal).toBe('missing_button');
+    expect(result.changed).toBe(false);
+    expect(result.map).toBe(map);
+    const wrongKind = placeWireButton(map, 'clone', 2, 2).map;
+    expect(placeWireLink(wrongKind, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').refusal).toBe('missing_button');
+  });
+
+  it('copies the entity on the cloner into a clone link, else the default template', () => {
+    const map = placeWireButton(bordered(8, 8), 'clone', 2, 2).map;
     map.entities.push({ x: 5, y: 5, type: 'tank', dir: 'W' });
     const withEntity = placeWireLink(map, 'clone', { x: 2, y: 2 }, { x: 5, y: 5 }, 'N');
     expect(withEntity.map.cloneLinks[0]).toMatchObject({ clonerX: 5, clonerY: 5, templateType: 'tank', templateDir: 'W' });
     expect(withEntity.map.terrain[5][5]).toBe('clone_machine');
-    const without = placeWireLink(bordered(8, 8), 'clone', { x: 2, y: 2 }, { x: 4, y: 4 }, 'N');
+    const without = placeWireLink(placeWireButton(bordered(8, 8), 'clone', 2, 2).map, 'clone', { x: 2, y: 2 }, { x: 4, y: 4 }, 'N');
     expect(without.map.cloneLinks[0]).toMatchObject({ templateType: 'dirt_block', templateDir: 'N' });
   });
 
   it('replaces a link joining the same cells instead of doubling it', () => {
     let map = bordered(8, 8);
+    map = placeWireButton(map, 'trap', 2, 2).map;
     map = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').map;
     map = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').map;
     expect(map.trapLinks).toHaveLength(1);
@@ -264,6 +297,40 @@ describe('resizeMap', () => {
     expect(result.report.borderKept).toBe(false);
     expect(result.map.terrain[8][8]).toBe('floor');
     expect(result.map.terrain[6][6]).toBe('wall');
+  });
+
+  it('keeps a full border when the start sat on what becomes the ring', () => {
+    const map = bordered(10, 10);
+    map.playerStart = { x: 5, y: 5, dir: 'S' };
+    const result = resizeMap(map, 6, 10, BOUNDS);
+    expect(result.report.borderKept).toBe(true);
+    expect(result.map.playerStart).toEqual({ x: 4, y: 5, dir: 'S' });
+    for (let y = 0; y < 10; y++) {
+      for (let x = 0; x < 6; x++) {
+        const edge = x === 0 || y === 0 || x === 5 || y === 9;
+        if (edge) expect(result.map.terrain[y][x]).toBe('wall');
+      }
+    }
+  });
+
+  it('keeps the start inside a map of width 1 or 2', () => {
+    const tiny = { minSize: 1, maxSize: 12 };
+    const map = bordered(6, 6);
+    map.playerStart = { x: 4, y: 4, dir: 'N' };
+    const one = resizeMap(map, 1, 6, tiny);
+    expect(one.map.playerStart.x).toBe(0);
+    const two = resizeMap(map, 2, 2, tiny);
+    expect(two.map.playerStart).toEqual({ x: 1, y: 1, dir: 'N' });
+    expect(two.map.terrain[1][1]).toBe('floor');
+  });
+
+  it('drops an entity on an old border that opens up, and reports it', () => {
+    const map = bordered(6, 6);
+    map.entities.push({ x: 5, y: 2, type: 'tank', dir: 'N' }, { x: 2, y: 2, type: 'tank', dir: 'N' });
+    const result = resizeMap(map, 9, 6, BOUNDS);
+    expect(result.map.terrain[2][5]).toBe('floor');
+    expect(result.map.entities).toEqual([{ x: 2, y: 2, type: 'tank', dir: 'N' }]);
+    expect(result.report.droppedEntities).toBe(1);
   });
 
   it('never modifies its input', () => {

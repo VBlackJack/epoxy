@@ -42,9 +42,14 @@ export type WireKind = 'trap' | 'clone';
 
 /** Outcome of closing a wire. */
 export interface WireResult extends MapEditResult {
-  /** True when the wire was refused because source and target are the same cell. */
+  /** True when the wire was refused; `refusal` says why. */
   refused: boolean;
+  /** Why the wire was refused, when it was. */
+  refusal?: WireRefusal;
 }
+
+/** 'same_cell': source and target are one cell. 'missing_button': the source no longer holds the wire's button. */
+export type WireRefusal = 'same_cell' | 'missing_button';
 
 /** What a resize dropped or moved, so the UI can say it. */
 export interface ResizeReport {
@@ -122,6 +127,8 @@ export function paintItem(source: EditorMap, x: number, y: number, itemId: strin
 /** Places an entity, replacing the one already on the cell. */
 export function paintEntity(source: EditorMap, x: number, y: number, type: string, dir: Direction): MapEditResult {
   if (!inGrid(source, x, y)) return unchanged(source);
+  const present = source.entities.filter((e) => e.x === x && e.y === y);
+  if (present.length === 1 && present[0].type === type && present[0].dir === dir) return unchanged(source);
   const map = cloneMap(source);
   map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
   map.entities.push({ x, y, type, dir });
@@ -131,6 +138,8 @@ export function paintEntity(source: EditorMap, x: number, y: number, type: strin
 /** Moves the player start. */
 export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: Direction): MapEditResult {
   if (!inGrid(source, x, y)) return unchanged(source);
+  const start = source.playerStart;
+  if (start.x === x && start.y === y && start.dir === dir) return unchanged(source);
   const map = cloneMap(source);
   map.playerStart = { x, y, dir };
   return { map, changed: true, removedLinks: 0, playerStartKept: false };
@@ -142,12 +151,19 @@ export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: D
  */
 export function eraseCell(source: EditorMap, x: number, y: number): MapEditResult {
   if (!inGrid(source, x, y)) return unchanged(source);
+  const playerStartKept = source.playerStart.x === x && source.playerStart.y === y;
+  const empty =
+    source.terrain[y][x] === FLOOR_TILE_ID &&
+    source.items[y][x] === null &&
+    !source.entities.some((e) => e.x === x && e.y === y) &&
+    !source.trapLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.trapX === x && l.trapY === y)) &&
+    !source.cloneLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.clonerX === x && l.clonerY === y));
+  if (empty) return { ...unchanged(source), playerStartKept };
   const map = cloneMap(source);
   map.terrain[y][x] = FLOOR_TILE_ID;
   map.items[y][x] = null;
   map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
   const removedLinks = dropLinksAt(map, x, y);
-  const playerStartKept = source.playerStart.x === x && source.playerStart.y === y;
   return { map, changed: true, removedLinks, playerStartKept };
 }
 
@@ -197,7 +213,7 @@ export function placeWireButton(source: EditorMap, kind: WireKind, x: number, y:
 /**
  * Second click of a wire tool: puts the target tile on the target cell and
  * records the link. A wire whose source is its target is refused and changes
- * nothing. A link already joining the same two cells is replaced, not doubled.
+ * nothing, and so is a wire whose source no longer holds the button. A link already joining the same two cells is replaced, not doubled.
  * A clone link copies the entity standing on the cloner, else the default
  * template facing `fallbackDir`.
  */
@@ -209,8 +225,11 @@ export function placeWireLink(
   fallbackDir: Direction
 ): WireResult {
   if (!inGrid(source, from.x, from.y) || !inGrid(source, to.x, to.y)) return { ...unchanged(source), refused: false };
-  if (from.x === to.x && from.y === to.y) return { ...unchanged(source), refused: true };
+  if (from.x === to.x && from.y === to.y) return { ...unchanged(source), refused: true, refusal: 'same_cell' };
   const tiles = wireTiles(kind);
+  if (source.terrain[from.y][from.x] !== tiles.button) {
+    return { ...unchanged(source), refused: true, refusal: 'missing_button' };
+  }
   const painted = paintTerrain(source, to.x, to.y, tiles.target);
   const map = cloneMap(painted.map);
   if (kind === 'trap') {
@@ -243,12 +262,15 @@ function hasWallBorder(map: EditorMap): boolean {
   return true;
 }
 
+/** Smallest side that still has an inside once ringed with walls. */
+const MIN_BORDERED_SIZE = 3;
+
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 /**
  * Resizes the map keeping the top-left corner. New cells are floor. When the
  * old map was closed by a wall border, the new one is too: an old border that
- * becomes interior turns to floor if nothing sits on it, and the new outer
+ * becomes interior turns to floor (an entity on it is dropped; a cell holding an item stays wall), and the new outer
  * ring is walled (items, entities and links on a cell that becomes wall are
  * dropped). Entities and links outside the new bounds are dropped; the player
  * start is clamped inside. The requested size is clamped to `bounds`.
@@ -272,6 +294,8 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
   const bordered = hasWallBorder(source);
   const terrain: string[][] = [];
   const items: (string | null)[][] = [];
+  // Old border cells turned to floor: an entity standing there is dropped.
+  const opened = new Set<string>();
   for (let y = 0; y < newHeight; y++) {
     terrain.push([]);
     items.push([]);
@@ -281,11 +305,21 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
       const item = kept ? source.items[y][x] : null;
       const wasOldBorder = kept && (x === oldWidth - 1 || y === oldHeight - 1);
       const growsPastIt = (x === oldWidth - 1 && newWidth > oldWidth) || (y === oldHeight - 1 && newHeight > oldHeight);
-      if (bordered && wasOldBorder && growsPastIt && tile === WALL_TILE_ID && item === null) tile = FLOOR_TILE_ID;
+      if (bordered && wasOldBorder && growsPastIt && tile === WALL_TILE_ID && item === null) {
+        tile = FLOOR_TILE_ID;
+        opened.add(`${x},${y}`);
+      }
       terrain[y].push(tile);
       items[y].push(item);
     }
   }
+
+  // With a wall border the start stays inside it, when the side is big enough to have an inside.
+  const lowX = bordered && newWidth >= MIN_BORDERED_SIZE ? 1 : 0;
+  const lowY = bordered && newHeight >= MIN_BORDERED_SIZE ? 1 : 0;
+  const startX = clamp(source.playerStart.x, lowX, newWidth - 1 - lowX);
+  const startY = clamp(source.playerStart.y, lowY, newHeight - 1 - lowY);
+  report.playerStartMoved = startX !== source.playerStart.x || startY !== source.playerStart.y;
 
   // Cells that turn to wall to close the new map.
   const walled = new Set<string>();
@@ -295,8 +329,7 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
       for (let x = 0; x < newWidth; x++) {
         const onBorder = x === 0 || y === 0 || x === newWidth - 1 || y === newHeight - 1;
         if (!onBorder || terrain[y][x] === WALL_TILE_ID) continue;
-        const isStart = source.playerStart.x === x && source.playerStart.y === y;
-        if (isStart) continue;
+        if (x === startX && y === startY) continue;
         terrain[y][x] = WALL_TILE_ID;
         items[y][x] = null;
         walled.add(`${x},${y}`);
@@ -305,7 +338,9 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
   }
 
   const alive = (x: number, y: number): boolean => x < newWidth && y < newHeight && !walled.has(`${x},${y}`);
-  const entities = source.entities.filter((e) => alive(e.x, e.y)).map((e) => ({ ...e }));
+  const entities = source.entities
+    .filter((e) => alive(e.x, e.y) && !opened.has(`${e.x},${e.y}`))
+    .map((e) => ({ ...e }));
   report.droppedEntities = source.entities.length - entities.length;
   const trapLinks = source.trapLinks
     .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.trapX, l.trapY))
@@ -315,12 +350,6 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.clonerX, l.clonerY))
     .map((l) => ({ ...l }));
   report.droppedCloneLinks = source.cloneLinks.length - cloneLinks.length;
-
-  // With a wall border the start stays inside it, so it never lands on the new ring.
-  const low = bordered ? 1 : 0;
-  const startX = clamp(source.playerStart.x, low, Math.max(low, newWidth - 1 - low));
-  const startY = clamp(source.playerStart.y, low, Math.max(low, newHeight - 1 - low));
-  report.playerStartMoved = startX !== source.playerStart.x || startY !== source.playerStart.y;
 
   return {
     map: { terrain, items, entities, trapLinks, cloneLinks, playerStart: { x: startX, y: startY, dir: source.playerStart.dir } },

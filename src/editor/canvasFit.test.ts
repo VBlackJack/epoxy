@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { EDITOR_MAX_ZOOM_STEPS, EDITOR_MIN_ZOOM_STEP } from '../ui/uiConstants';
+import { EDITOR_MAX_ZOOM_STEP, EDITOR_MIN_ZOOM_STEP } from '../ui/uiConstants';
 import { clampZoomStep, fitCanvas, zoomIn, zoomOut } from './canvasFit';
 
 const BASE = { levelWidth: 32, levelHeight: 32, baseTileSize: 16, devicePixelRatio: 1, zoomStep: 1 };
@@ -58,7 +58,7 @@ describe('fitCanvas', () => {
 
   it('clamps the zoom step and ignores a bad one', () => {
     const base = { ...BASE, containerWidth: 1200, containerHeight: 1100 };
-    expect(fitCanvas({ ...base, zoomStep: 99 }).zoomStep).toBe(EDITOR_MAX_ZOOM_STEPS);
+    expect(fitCanvas({ ...base, zoomStep: 99 }).zoomStep).toBe(EDITOR_MAX_ZOOM_STEP);
     expect(fitCanvas({ ...base, zoomStep: 0 }).zoomStep).toBe(EDITOR_MIN_ZOOM_STEP);
     expect(fitCanvas({ ...base, zoomStep: Number.NaN }).zoomStep).toBe(EDITOR_MIN_ZOOM_STEP);
   });
@@ -66,6 +66,16 @@ describe('fitCanvas', () => {
   it('falls back to a ratio of 1 for a bad device pixel ratio', () => {
     const fit = fitCanvas({ ...BASE, devicePixelRatio: 0, containerWidth: 1200, containerHeight: 1100 });
     expect(fit.deviceScale).toBe(2);
+  });
+
+  it('stays whole-numbered at a ratio of 1.25, even in a tiny container', () => {
+    const fit = fitCanvas({ ...BASE, devicePixelRatio: 1.25, containerWidth: 1100, containerHeight: 1100 });
+    expect(fit.fitScale).toBe(2);
+    expect(fit.cssWidth).toBe((512 * 2) / 1.25);
+    const tiny = fitCanvas({ ...BASE, devicePixelRatio: 1.25, containerWidth: 10, containerHeight: 10 });
+    expect(tiny.deviceScale).toBe(1);
+    expect(tiny.cssWidth).toBe(512 / 1.25);
+    expect(tiny.cssTileSize).toBe(16 / 1.25);
   });
 
   it('handles a zero-size container and an empty level', () => {
@@ -79,9 +89,9 @@ describe('fitCanvas', () => {
 describe('zoom steps', () => {
   it('zooms in and out within the range', () => {
     expect(zoomIn(EDITOR_MIN_ZOOM_STEP)).toBe(EDITOR_MIN_ZOOM_STEP + 1);
-    expect(zoomIn(EDITOR_MAX_ZOOM_STEPS)).toBe(EDITOR_MAX_ZOOM_STEPS);
+    expect(zoomIn(EDITOR_MAX_ZOOM_STEP)).toBe(EDITOR_MAX_ZOOM_STEP);
     expect(zoomOut(EDITOR_MIN_ZOOM_STEP)).toBe(EDITOR_MIN_ZOOM_STEP);
-    expect(zoomOut(EDITOR_MAX_ZOOM_STEPS)).toBe(EDITOR_MAX_ZOOM_STEPS - 1);
+    expect(zoomOut(EDITOR_MAX_ZOOM_STEP)).toBe(EDITOR_MAX_ZOOM_STEP - 1);
     expect(clampZoomStep(2.4)).toBe(2);
   });
 });

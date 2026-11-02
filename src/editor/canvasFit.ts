@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EDITOR_MAX_ZOOM_STEPS, EDITOR_MIN_ZOOM_STEP } from '../ui/uiConstants';
+import { EDITOR_MAX_ZOOM_STEP, EDITOR_MIN_ZOOM_STEP } from '../ui/uiConstants';
 
 /** Fewest device pixels shown for one drawn pixel; below it the art would be unreadable. */
 const MIN_DEVICE_SCALE = 1;
@@ -55,7 +55,7 @@ export interface CanvasFit {
 /** Zoom steps clamped to the allowed range; a non-finite value gives the lowest step. */
 export function clampZoomStep(step: number): number {
   if (!Number.isFinite(step)) return EDITOR_MIN_ZOOM_STEP;
-  return Math.min(EDITOR_MAX_ZOOM_STEPS, Math.max(EDITOR_MIN_ZOOM_STEP, Math.round(step)));
+  return Math.min(EDITOR_MAX_ZOOM_STEP, Math.max(EDITOR_MIN_ZOOM_STEP, Math.round(step)));
 }
 
 /** One step closer, stopping at the highest zoom. */
