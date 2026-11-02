@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.16.3] - 2026-11-02
+
 ### Changed
 
 - Chuck's Challenge 3D levels follow more of the original rules: nothing moves before the player's
