@@ -267,6 +267,19 @@ body.fullscreen-mode .drawer-section-navigation {
   max-width: 165px;
 }
 
+.drawer-section .volume-slider {
+  flex: 1;
+  min-width: 0;
+  max-width: 165px;
+  accent-color: var(--accent-orange);
+}
+
+.drawer-section .volume-output {
+  min-width: 3.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .drawer-section .music-tracks {
   display: flex;
   flex-direction: column;

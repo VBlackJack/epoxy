@@ -36,8 +36,9 @@
   - Clavier : `Tab` déplace le focus entre les commandes, les raccourcis Ctrl/Cmd sont laissés au navigateur sauf l'annulation (Ctrl/Cmd+Z), qui suit la disposition du clavier (AZERTY, QWERTY, cyrillique...), et `?` ouvre l'aide.
   - Support tactile complet sur smartphone (joystick virtuel par glissement, déplacement par toucher, croix directionnelle avec retour haptique ; le zoom se règle dans les options). Le plateau montre toujours la vue choisie en carré de N x N cases : un écran large ou en paysage ne dévoile pas plus du niveau qu'un écran carré.
   - Éditeur de niveaux complet avec validation en direct par le solveur.
-- **Musique** : des pistes originales (voir [Crédits](#crédits)) et une bande-son synthétisée, avec trois modes, choisis dans Options > Avancé (l'activation du son reste dans Options > Essentiel). **Défaut** suit le biome affiché (chaque biome nomme sa piste avec `musicTrackId` dans `game.json`). **Aléatoire** tire une nouvelle piste à chaque nouveau niveau, sans jamais répéter la précédente tant qu'il existe au moins deux pistes. **Personnalisé** fait de même parmi les pistes que vous cochez (une au moins reste cochée). Un redémarrage, une nouvelle tentative après une mort ou un retour au premier niveau d'un pack d'un seul niveau ne change pas la piste, et en mode Aléatoire ou Personnalisé le biome (et la touche `B`) ne change plus la musique. Le mode et les pistes cochées sont enregistrés.
-  - Le jeu livre sept pistes originales : `Odyssée 8 bits` pour Cyber Neon, `Pulsation souterraine I` pour Arctic Lab et `Pulsation souterraine III` pour Magma Core (`Pulsation souterraine II` et `IV` jouent en mode Aléatoire et Personnalisé). Retro Lynx LCD garde sa piste synthétisée.
+- **Musique** : sept pistes originales de Julien Bombled (voir [Crédits](#crédits)), avec trois modes, choisis dans Options > Avancé (l'activation du son reste dans Options > Essentiel). **Défaut** suit le biome affiché (chaque biome nomme sa piste avec `musicTrackId` dans `game.json`). **Aléatoire** tire une nouvelle piste à chaque nouveau niveau, sans jamais répéter la précédente tant qu'il existe au moins deux pistes. **Personnalisé** fait de même parmi les pistes que vous cochez (une au moins reste cochée). Un redémarrage, une nouvelle tentative après une mort ou un retour au premier niveau d'un pack d'un seul niveau ne change pas la piste, et en mode Aléatoire ou Personnalisé le biome (et la touche `B`) ne change plus la musique. Le mode et les pistes cochées sont enregistrés.
+  - Le jeu livre sept pistes originales : `Odyssée 8 bits` pour Cyber Neon, `Pulsation souterraine I` pour Arctic Lab et `Pulsation souterraine III` pour Magma Core (`Pulsation souterraine IV` ne joue qu'en mode Aléatoire et Personnalisé). Retro Lynx LCD joue `Pulsation souterraine II`. Ces sept pistes sont la seule musique : plus rien n'est synthétisé.
+  - Volume : deux curseurs dans Options > Essentiel, "Volume des effets" et "Volume de la musique", de 0 à 100 % par pas de 5, chacun affiché tant que son son est activé. 100 % correspond au volume réglé dans `audio.json` ; le curseur de la musique agit tout de suite sur la piste en cours. Les deux valeurs sont enregistrées.
   - En mode Défaut, les niveaux d'une partie infinie jouent `Mode infini I` ou `Mode infini II` à la place de la piste du biome : un nouveau niveau ne rejoue jamais la piste du niveau précédent. La liste est `endlessUi.musicTrackIds` dans `game.json`. Aléatoire et Personnalisé ne changent pas.
 - **Effets sonores** : la plupart des effets jouent des fichiers audio CC0 fournis (voir [Crédits](#crédits)), le son synthétisé servant de repli tant qu'un fichier n'est pas décodé ou s'il échoue. Les pas dépendent du terrain sur lequel le joueur avance (sol, sol à convoyeur, glace, et eau ou feu avec les bottes protectrices), associé par `terrainStepEffects` dans `audio.json`. Avec les règles Lynx, seul un pas choisi par le joueur fait du bruit.
 
@@ -52,7 +53,7 @@ npm run dev
 
 ### Ajouter des pistes musicales
 
-Les pistes se déclarent dans `public/configs/audio.json`, sous `tracks`. Une piste est synthétisée par défaut (notes et formes d'onde) ou lue depuis des fichiers audio :
+Les pistes se déclarent dans `public/configs/audio.json`, sous `tracks`. Une piste est lue depuis des fichiers audio (`"source": "file"`) :
 
 ```json
 {
@@ -67,8 +68,8 @@ Les pistes se déclarent dans `public/configs/audio.json`, sous `tracks`. Une pi
 - Placez les fichiers dans `public/audio/music/` (ce dossier est `musicBaseUrl`). Le navigateur joue le premier fichier de `files` qu'il sait décoder ; l'extension doit avoir un type MIME dans `fileMimeTypes` (`ogg` et `mp3` par défaut). `gain` règle la piste par rapport au volume de la musique (1 si omis).
 - Ajoutez le nom de la piste dans `src/locales/en.json` et `src/locales/fr.json`, sous `app.music.my_track.label`.
 - Associez-la à un biome avec `"musicTrackId": "my_track"` sur le thème dans `game.json`. Chaque piste participe aussi aux modes Aléatoire et Personnalisé.
-- `defaultTrackId` doit rester une piste synthétisée : c'est elle qui joue quand un fichier ne se charge pas. Une piste de fichier en échec est ignorée jusqu'à la fin de la session.
-- Le chargement vérifie la configuration : un identifiant en double, une piste de fichier sans fichiers, un `musicTrackId` inconnu ou un `defaultMusicMode` inconnu arrêtent le jeu avec un message clair.
+- Une piste de fichier qui ne se lit pas est ignorée jusqu'à la réactivation de la musique. Quand plus aucune piste ne peut jouer, la musique reste muette : il n'y a pas de morceau de repli.
+- Le chargement vérifie la configuration : un identifiant en double, une piste qui n'est pas une piste de fichier ou sans fichiers, un `musicTrackId` inconnu ou un `defaultMusicMode` inconnu arrêtent le jeu avec un message clair.
 
 ### Ajouter des effets sonores
 

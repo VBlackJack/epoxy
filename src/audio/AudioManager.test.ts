@@ -32,14 +32,8 @@ class FakeEnvironment {
     removeEventListener: (type: string, handler: Handler): void => {
       this.listeners.get(type)?.delete(handler);
     },
-    AudioContext: class {} as unknown,
-    /** Records scheduler timers so a test can tell whether the synth loop runs. */
-    setInterval: (): number => {
-      this.intervalsStarted++;
-      return this.intervalsStarted;
-    }
+    AudioContext: class {} as unknown
   };
-  public intervalsStarted = 0;
   public readonly documentListeners = new Map<string, Set<Handler>>();
   public readonly document = {
     hidden: false,
@@ -72,10 +66,25 @@ class FakeEnvironment {
 
 class FakeAudioNode {
   public disconnectCalls = 0;
+  /** Every automation call on the gain, in order, as [method, ...arguments]. */
+  public readonly gainCalls: Array<[string, ...number[]]> = [];
   public readonly gain = {
-    setValueAtTime: (): void => {},
-    linearRampToValueAtTime: (): void => {},
-    exponentialRampToValueAtTime: (): void => {}
+    value: 0,
+    setValueAtTime: (...args: number[]): void => {
+      this.gainCalls.push(['setValueAtTime', ...args]);
+    },
+    linearRampToValueAtTime: (...args: number[]): void => {
+      this.gainCalls.push(['linearRampToValueAtTime', ...args]);
+    },
+    exponentialRampToValueAtTime: (...args: number[]): void => {
+      this.gainCalls.push(['exponentialRampToValueAtTime', ...args]);
+    },
+    cancelScheduledValues: (...args: number[]): void => {
+      this.gainCalls.push(['cancelScheduledValues', ...args]);
+    },
+    setTargetAtTime: (...args: number[]): void => {
+      this.gainCalls.push(['setTargetAtTime', ...args]);
+    }
   };
   public readonly frequency = { setValueAtTime: (): void => {} };
   public type = '';
@@ -187,10 +196,12 @@ class FakeMusicElement {
   public playCalls = 0;
   public pauseCalls = 0;
   public playOutcome: string | null = null;
+  /** False makes canPlayType refuse every type, so the track has no playable source. */
+  public canPlay = true;
   private readonly handlers = new Map<string, Set<Handler>>();
 
   public canPlayType(): string {
-    return 'maybe';
+    return this.canPlay ? 'maybe' : '';
   }
   public play(): Promise<void> {
     this.playCalls++;
@@ -222,25 +233,15 @@ class FakeMusicElement {
   }
 }
 
-/** A synth track that schedules no tone, so the scheduler runs without oscillator fakes. */
-const SILENT_SYNTH = {
-  stepDurationMs: 100,
-  leadWaveform: 'square',
-  bassWaveform: 'triangle',
-  leadNotes: [0],
-  bassNotes: [0]
-};
-
 interface MusicFixture {
   manager: import('./AudioManager').AudioService;
   elements: FakeMusicElement[];
-  /** Outcome every element created from now on gets for its play() calls. */
-  script: { playOutcome: string | null };
+  /** Outcome every element created from now on gets for its play() calls, and whether it can play any file. */
+  script: { playOutcome: string | null; canPlay: boolean };
 }
 
 /**
- * Builds a manager over three tracks: two silent synth tracks and one file
- * track. Modules load before the window is stubbed so that only this manager
+ * Builds a manager over three file tracks. Modules load before the window is stubbed so that only this manager
  * listens to the fake gestures.
  */
 async function createMusicFixture(env: FakeEnvironment): Promise<MusicFixture> {
@@ -249,25 +250,25 @@ async function createMusicFixture(env: FakeEnvironment): Promise<MusicFixture> {
   const { createTestBundle } = await import('../test/loadTestConfigs');
   const { AudioService } = await import('./AudioManager');
   const bundle = createTestBundle();
-  bundle.audio.defaultTrackId = 'synth_a';
   bundle.audio.tracks = [
-    { id: 'synth_a', i18nKey: 'app.music.cyber_pulse.label', ...SILENT_SYNTH },
-    { id: 'synth_b', i18nKey: 'app.music.arctic_synth.label', ...SILENT_SYNTH },
-    { id: 'file_c', i18nKey: 'app.music.magma_drive.label', source: 'file', files: ['c.ogg'] }
-  ] as unknown as typeof bundle.audio.tracks;
+    { id: 'file_a', i18nKey: 'app.music.odyssey_8bit.label', source: 'file', files: ['a.ogg'] },
+    { id: 'file_b', i18nKey: 'app.music.subterranean_pulse_1.label', source: 'file', files: ['b.ogg'] },
+    { id: 'file_c', i18nKey: 'app.music.subterranean_pulse_2.label', source: 'file', files: ['c.ogg'] }
+  ];
   bundle.game.themes!.cyber_neon.musicTrackId = 'file_c';
-  bundle.game.themes!.arctic_lab.musicTrackId = 'synth_b';
-  bundle.game.themes!.magma_core.musicTrackId = 'synth_a';
-  bundle.game.themes!.lynx_lcd.musicTrackId = 'synth_a';
-  bundle.game.endlessUi.musicTrackIds = ['synth_a', 'synth_b'];
+  bundle.game.themes!.arctic_lab.musicTrackId = 'file_b';
+  bundle.game.themes!.magma_core.musicTrackId = 'file_a';
+  bundle.game.themes!.lynx_lcd.musicTrackId = 'file_a';
+  bundle.game.endlessUi.musicTrackIds = ['file_a', 'file_b'];
   ConfigRegistry.applyConfigs(bundle);
   vi.stubGlobal('window', env.window);
   vi.stubGlobal('document', env.document);
   const elements: FakeMusicElement[] = [];
-  const script: { playOutcome: string | null } = { playOutcome: null };
+  const script: { playOutcome: string | null; canPlay: boolean } = { playOutcome: null, canPlay: true };
   const manager = new AudioService(() => {
     const element = new FakeMusicElement();
     element.playOutcome = script.playOutcome;
+    element.canPlay = script.canPlay;
     elements.push(element);
     return element as unknown as HTMLAudioElement;
   });
@@ -309,7 +310,7 @@ describe('AudioManager file tracks', () => {
     expect(elements[0].playCalls).toBe(1);
     expect(elements[0].loop).toBe(true);
     expect(elements[0].src).toBe('./audio/music/c.ogg');
-    expect(env.intervalsStarted).toBe(0);
+    expect(env.contexts[0].oscillatorsCreated).toBe(0);
   });
 
   it('keeps a track the browser refused and retries on the next gesture only', async () => {
@@ -330,22 +331,94 @@ describe('AudioManager file tracks', () => {
     expect(env.listenerCount()).toBe(0);
   });
 
-  it('skips a failing file track for the session and falls back to the default synth track', async () => {
+  it('starts no oscillator when music starts', async () => {
+    await playingFileTrack();
+    env.fire('pointerdown');
+    await flushPromises();
+    expect(env.contexts[0].oscillatorsCreated).toBe(0);
+  });
+
+  it('switches a failing file track to another eligible file track for the session', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { manager, elements } = await createMusicFixture(env);
+    manager.configureMusic('random', undefined);
+    manager.setMusicEnabled(true);
+    env.fire('pointerdown');
+    await flushPromises();
+    expect(elements).toHaveLength(1);
+    const failing = manager.getActiveTrackId() as string;
+
+    elements[0].emit('error');
+    expect(warn).toHaveBeenCalledTimes(1);
+    const next = manager.getActiveTrackId();
+    expect(next).not.toBeNull();
+    expect(next).not.toBe(failing);
+    expect(elements).toHaveLength(2);
+
+    // The failed track is not picked again by a later level.
+    for (let i = 0; i < 20; i++) {
+      manager.onLevelLoaded(`later_${i}`);
+      expect(manager.getActiveTrackId()).not.toBe(failing);
+    }
+  });
+
+  it('turns silent when the last eligible file track fails, without creating another element', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { manager, elements } = await playingFileTrack();
     env.fire('pointerdown');
     await flushPromises();
-    expect(env.intervalsStarted).toBe(0);
+    manager.configureMusic('custom', ['file_c']);
+    manager.setCustomTracks(['file_c']);
 
-    elements[0].emit('error');
+    elements[elements.length - 1].emit('error');
+    expect(manager.getActiveTrackId()).toBeNull();
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(manager.getActiveTrackId()).toBe('synth_a');
-    expect(env.intervalsStarted).toBe(1);
+    const created = elements.length;
 
-    // The failed track is not retried when its biome shows again.
+    // Nothing retries: neither a biome change nor a new level creates an element.
     manager.setThemeTrack('file_c');
-    expect(manager.getActiveTrackId()).toBe('synth_a');
-    expect(elements).toHaveLength(1);
+    manager.onLevelLoaded('level_after_failure');
+    expect(elements).toHaveLength(created);
+    expect(manager.getActiveTrackId()).toBeNull();
+    // The toggle itself is untouched.
+    expect(manager.isMusicEnabled()).toBe(true);
+  });
+
+  it('does not recurse when a track has no playable source', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fixture = await createMusicFixture(env);
+    fixture.script.canPlay = false;
+    fixture.manager.configureMusic('random', undefined);
+    fixture.manager.setMusicEnabled(true);
+    env.fire('pointerdown');
+    await flushPromises();
+    // Each track is tried once, then music is silent.
+    expect(fixture.elements).toHaveLength(3);
+    expect(fixture.manager.getActiveTrackId()).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(3);
+
+    const created = fixture.elements.length;
+    fixture.manager.onLevelLoaded('another_level');
+    expect(fixture.elements).toHaveLength(created);
+    expect(fixture.manager.isMusicEnabled()).toBe(true);
+  });
+
+  it('gives failed tracks another chance when music is turned back on', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { manager, elements } = await playingFileTrack();
+    env.fire('pointerdown');
+    await flushPromises();
+    manager.configureMusic('default', undefined);
+    manager.setThemeTrack('file_c');
+    elements[elements.length - 1].emit('error');
+    expect(manager.getActiveTrackId()).toBeNull();
+
+    manager.setMusicEnabled(false);
+    const created = elements.length;
+    manager.setMusicEnabled(true);
+    manager.setThemeTrack('file_c');
+    expect(manager.getActiveTrackId()).toBe('file_c');
+    expect(elements.length).toBe(created + 1);
   });
 
   it('pauses the playing element while the page is hidden and resumes it when shown', async () => {
@@ -407,25 +480,25 @@ describe('AudioManager music modes', () => {
   it('follows the biome in default mode', async () => {
     const { manager } = await createMusicFixture(env);
     manager.configureMusic('default', undefined);
-    manager.setThemeTrack('synth_b');
-    expect(manager.getActiveTrackId()).toBe('synth_b');
-    manager.setThemeTrack('synth_a');
-    expect(manager.getActiveTrackId()).toBe('synth_a');
+    manager.setThemeTrack('file_b');
+    expect(manager.getActiveTrackId()).toBe('file_b');
+    manager.setThemeTrack('file_a');
+    expect(manager.getActiveTrackId()).toBe('file_a');
   });
 
   it('replaces invalid stored settings in memory only', async () => {
     const { manager } = await createMusicFixture(env);
     manager.configureMusic('bogus', ['zzz', 7]);
     expect(manager.getMusicMode()).toBe('default');
-    expect(manager.getCustomTrackIds()).toEqual(['synth_a', 'synth_b', 'file_c']);
+    expect(manager.getCustomTrackIds()).toEqual(['file_a', 'file_b', 'file_c']);
   });
 
   it('picks a new track only when a level with another id loads, and ignores biome changes', async () => {
     const { manager } = await createMusicFixture(env);
-    manager.configureMusic('custom', ['synth_a', 'synth_b']);
+    manager.configureMusic('custom', ['file_a', 'file_b']);
     manager.onLevelLoaded('level_1');
     const first = manager.getActiveTrackId();
-    expect(['synth_a', 'synth_b']).toContain(first);
+    expect(['file_a', 'file_b']).toContain(first);
 
     manager.onLevelLoaded('level_1');
     expect(manager.getActiveTrackId()).toBe(first);
@@ -442,10 +515,10 @@ describe('AudioManager music modes', () => {
     manager.setThemeTrack('file_c');
     expect(manager.getActiveTrackId()).toBe('file_c');
 
-    manager.setEndlessTracks(['synth_a', 'synth_b']);
+    manager.setEndlessTracks(['file_a', 'file_b']);
     manager.onLevelLoaded('endless_1');
     const first = manager.getActiveTrackId();
-    expect(['synth_a', 'synth_b']).toContain(first);
+    expect(['file_a', 'file_b']).toContain(first);
 
     manager.onLevelLoaded('endless_1');
     manager.setThemeTrack('file_c');
@@ -453,7 +526,7 @@ describe('AudioManager music modes', () => {
 
     manager.onLevelLoaded('endless_2');
     const second = manager.getActiveTrackId();
-    expect(['synth_a', 'synth_b']).toContain(second);
+    expect(['file_a', 'file_b']).toContain(second);
     expect(second).not.toBe(first);
 
     manager.setEndlessTracks(null);
@@ -463,7 +536,7 @@ describe('AudioManager music modes', () => {
   it('leaves the random and custom modes alone during an endless run', async () => {
     const { manager } = await createMusicFixture(env);
     manager.configureMusic('custom', ['file_c']);
-    manager.setEndlessTracks(['synth_a', 'synth_b']);
+    manager.setEndlessTracks(['file_a', 'file_b']);
     manager.onLevelLoaded('endless_1');
     expect(manager.getActiveTrackId()).toBe('file_c');
   });
@@ -471,20 +544,20 @@ describe('AudioManager music modes', () => {
   it('applies a mode switch at once', async () => {
     const { manager } = await createMusicFixture(env);
     manager.configureMusic('random', undefined);
-    manager.setThemeTrack('synth_b');
+    manager.setThemeTrack('file_b');
     manager.onLevelLoaded('level_1');
     manager.setMusicMode('default');
-    expect(manager.getActiveTrackId()).toBe('synth_b');
+    expect(manager.getActiveTrackId()).toBe('file_b');
     manager.setMusicMode('custom');
-    expect(manager.getActiveTrackId()).not.toBe('synth_b');
+    expect(manager.getActiveTrackId()).not.toBe('file_b');
   });
 
   it('picks another track at once when the playing one is unticked in custom mode', async () => {
     const { manager } = await createMusicFixture(env);
-    manager.configureMusic('custom', ['synth_a', 'synth_b']);
+    manager.configureMusic('custom', ['file_a', 'file_b']);
     manager.onLevelLoaded('level_1');
     const playing = manager.getActiveTrackId() as string;
-    const other = playing === 'synth_a' ? 'synth_b' : 'synth_a';
+    const other = playing === 'file_a' ? 'file_b' : 'file_a';
     manager.setCustomTracks([other]);
     expect(manager.getActiveTrackId()).toBe(other);
     expect(manager.getCustomTrackIds()).toEqual([other]);
@@ -629,5 +702,116 @@ describe('AudioManager terrain steps', () => {
     const spy = vi.spyOn(manager, 'playSfx');
     manager.playStep('toString');
     expect(spy.mock.calls).toEqual([['step']]);
+  });
+});
+
+describe('AudioManager volumes', () => {
+  let env: FakeEnvironment;
+  const NOTE_GAIN = 0.3;
+
+  beforeEach(() => {
+    env = new FakeEnvironment();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** Gain value the first scheduled effect tone starts at. */
+  async function firstToneGain(percent: unknown): Promise<{ gain: number; master: number; sfx: number }> {
+    vi.resetModules();
+    const { ConfigRegistry } = await import('../config/ConfigRegistry');
+    const { createTestBundle } = await import('../test/loadTestConfigs');
+    const { AudioService } = await import('./AudioManager');
+    const bundle = createTestBundle();
+    bundle.audio.effects = {
+      beep: { waveform: 'square', notes: [{ freq: 110, durationMs: 50, gain: NOTE_GAIN }] }
+    } as unknown as typeof bundle.audio.effects;
+    bundle.audio.terrainStepEffects = {};
+    ConfigRegistry.applyConfigs(bundle);
+    vi.stubGlobal('window', env.window);
+    vi.stubGlobal('document', env.document);
+    const manager = new AudioService();
+    if (percent !== undefined) manager.setSfxVolumePercent(percent);
+    env.fire('pointerdown');
+    await flushPromises();
+    manager.playSfx('beep');
+    const gainNode = env.contexts[0].nodes.find((node) => node.gainCalls.length > 0);
+    return {
+      gain: gainNode?.gainCalls[0][1] ?? Number.NaN,
+      master: bundle.audio.masterVolume,
+      sfx: bundle.audio.sfxVolume
+    };
+  }
+
+  it('keeps today loudness for effects at 100 percent, which is the default', async () => {
+    const { gain, master, sfx } = await firstToneGain(undefined);
+    expect(gain).toBeCloseTo(NOTE_GAIN * master * sfx, 10);
+  });
+
+  it('scales effects by master volume, effects volume and the percentage', async () => {
+    const { gain, master, sfx } = await firstToneGain(40);
+    expect(gain).toBeCloseTo(NOTE_GAIN * master * sfx * 0.4, 10);
+  });
+
+  it('silences effects at 0 percent without touching the toggle', async () => {
+    const { gain } = await firstToneGain(0);
+    expect(gain).toBe(0);
+  });
+
+  it('replaces an invalid effects volume with the default', async () => {
+    const { gain, master, sfx } = await firstToneGain('loud');
+    expect(gain).toBeCloseTo(NOTE_GAIN * master * sfx, 10);
+  });
+
+  it('sanitizes the volumes it is given', async () => {
+    const { manager } = await createMusicFixture(env);
+    manager.setMusicVolumePercent(103);
+    expect(manager.getMusicVolumePercent()).toBe(100);
+    manager.setMusicVolumePercent(-5);
+    expect(manager.getMusicVolumePercent()).toBe(0);
+    manager.setMusicVolumePercent(37);
+    expect(manager.getMusicVolumePercent()).toBe(35);
+    manager.setSfxVolumePercent(null);
+    expect(manager.getSfxVolumePercent()).toBe(100);
+  });
+
+  async function playingMusic(percent?: number): Promise<{ gainNode: FakeAudioNode; master: number; music: number; manager: import('./AudioManager').AudioService }> {
+    const { manager } = await createMusicFixture(env);
+    const { ConfigRegistry } = await import('../config/ConfigRegistry');
+    const audio = ConfigRegistry.getAudio();
+    manager.configureMusic('default', undefined);
+    manager.setThemeTrack('file_c');
+    if (percent !== undefined) manager.setMusicVolumePercent(percent);
+    manager.setMusicEnabled(true);
+    env.fire('pointerdown');
+    await flushPromises();
+    const gainNode = env.contexts[0].nodes.find((node) => node.gainCalls.length > 0) as FakeAudioNode;
+    return { gainNode, master: audio.masterVolume, music: audio.musicVolume, manager };
+  }
+
+  it('starts a music track at master volume times music volume times the percentage', async () => {
+    const { gainNode, master, music } = await playingMusic(60);
+    const ramp = gainNode.gainCalls.find((call) => call[0] === 'linearRampToValueAtTime');
+    expect(ramp?.[1]).toBeCloseTo(master * music * 0.6, 10);
+  });
+
+  it('applies a music volume change to the playing track, also during the fade-in', async () => {
+    const { gainNode, master, music, manager } = await playingMusic();
+    // The context clock has not moved: the 400 ms fade-in ramp is still pending.
+    manager.setMusicVolumePercent(50);
+    const names = gainNode.gainCalls.map((call) => call[0]);
+    const cancelIndex = names.lastIndexOf('cancelScheduledValues');
+    expect(cancelIndex).toBeGreaterThan(names.indexOf('linearRampToValueAtTime'));
+    const target = gainNode.gainCalls[gainNode.gainCalls.length - 1];
+    expect(target[0]).toBe('setTargetAtTime');
+    expect(target[1]).toBeCloseTo(master * music * 0.5, 10);
+  });
+
+  it('changes nothing in the audio graph when no music plays', async () => {
+    const { manager } = await createMusicFixture(env);
+    expect(() => manager.setMusicVolumePercent(20)).not.toThrow();
+    expect(env.contexts).toHaveLength(0);
   });
 });

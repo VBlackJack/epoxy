@@ -392,16 +392,36 @@ describe('audio configuration validation', () => {
     expect(() => ConfigRegistry.applyConfigs(withFile)).not.toThrow();
   });
 
-  it('refuses a missing default track and a default track that is a file track', () => {
-    const missing = bundleWith((b) => {
-      b.audio.defaultTrackId = 'nope';
+  it('refuses a track that is not a file track, or that has no files', () => {
+    const synth = bundleWith((b) => {
+      b.audio.tracks!.push({ id: 'synth_leftover', i18nKey: 'app.music.odyssey_8bit.label', stepDurationMs: 100 } as unknown as MusicTrackConfig);
     });
-    expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
-    const fileDefault = bundleWith((b) => {
-      b.audio.tracks!.push(fileTrack as unknown as MusicTrackConfig);
-      b.audio.defaultTrackId = 'orchestral';
+    expect(() => ConfigRegistry.applyConfigs(synth)).toThrow(ConfigLoadError);
+    const withoutSource = bundleWith((b) => {
+      b.audio.tracks!.push({ ...fileTrack, source: undefined } as unknown as MusicTrackConfig);
     });
-    expect(() => ConfigRegistry.applyConfigs(fileDefault)).toThrow(ConfigLoadError);
+    expect(() => ConfigRegistry.applyConfigs(withoutSource)).toThrow(ConfigLoadError);
+    const withoutFiles = bundleWith((b) => {
+      b.audio.tracks!.push({ ...fileTrack, files: [] } as unknown as MusicTrackConfig);
+    });
+    expect(() => ConfigRegistry.applyConfigs(withoutFiles)).toThrow(ConfigLoadError);
+  });
+
+  it('ships only file tracks, and every biome and endless track refers to one of them', () => {
+    const bundle = createTestBundle();
+    const tracks = bundle.audio.tracks ?? [];
+    expect(tracks.length).toBeGreaterThan(0);
+    for (const track of tracks) {
+      expect(track.source).toBe('file');
+      expect(track.files.length).toBeGreaterThan(0);
+    }
+    const ids = new Set(tracks.map((track) => track.id));
+    for (const theme of Object.values(bundle.game.themes ?? {})) {
+      if (theme.musicTrackId !== undefined) expect(ids.has(theme.musicTrackId), theme.id).toBe(true);
+    }
+    for (const id of bundle.game.endlessUi.musicTrackIds ?? []) expect(ids.has(id), id).toBe(true);
+    expect(Object.hasOwn(bundle.audio, 'defaultTrackId')).toBe(false);
+    expect(Object.hasOwn(bundle.audio, 'music')).toBe(false);
   });
 
   it('refuses a theme that points to an unknown track', () => {

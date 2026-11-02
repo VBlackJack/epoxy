@@ -36,8 +36,9 @@
   - Keyboard: `Tab` moves focus between the controls, Ctrl/Cmd chords are left to the browser except undo (Ctrl/Cmd+Z), which follows the keyboard layout (AZERTY, QWERTY, Cyrillic...), and `?` opens the help.
   - Full smartphone touch support (Swipe/Hold virtual joystick, Tap-to-Pathfind, and thumb D-Pad with haptic feedback; the zoom is set in the options). The board always shows the chosen view as a square of N x N tiles, so a wide or landscape screen reveals no more of the level than a square one.
   - Full-featured Level Editor with live solver validation.
-- **Music**: original music tracks (see [Credits](#credits)) and a synthesized soundtrack, with three modes, chosen in Options > Advanced (sound on/off stays in Options > Essential). **Default** follows the biome on screen (each biome names its track with `musicTrackId` in `game.json`). **Random** picks a new track for each new level and never repeats the previous one while two or more tracks exist. **Custom** does the same among the tracks you tick (at least one stays ticked). A restart, a retry after dying or a one-level wrap does not change the track, and in Random and Custom the biome (and the `B` key) no longer changes the music. The mode and the ticked tracks are saved.
-  - The game ships seven original tracks: `8-bit Odyssey` for Cyber Neon, `Subterranean Pulse I` for Arctic Lab and `Subterranean Pulse III` for Magma Core (`Subterranean Pulse II` and `IV` are in Random and Custom). Retro Lynx LCD keeps its synthesized track.
+- **Music**: seven original music tracks by Julien Bombled (see [Credits](#credits)), with three modes, chosen in Options > Advanced (sound on/off stays in Options > Essential). **Default** follows the biome on screen (each biome names its track with `musicTrackId` in `game.json`). **Random** picks a new track for each new level and never repeats the previous one while two or more tracks exist. **Custom** does the same among the tracks you tick (at least one stays ticked). A restart, a retry after dying or a one-level wrap does not change the track, and in Random and Custom the biome (and the `B` key) no longer changes the music. The mode and the ticked tracks are saved.
+  - The game ships seven original tracks: `8-bit Odyssey` for Cyber Neon, `Subterranean Pulse I` for Arctic Lab and `Subterranean Pulse III` for Magma Core (`Subterranean Pulse IV` is only in Random and Custom). Retro Lynx LCD plays `Subterranean Pulse II`. These seven tracks are the only music: nothing is synthesized any more.
+  - Volume: two sliders in Options > Essential, "Effects volume" and "Music volume", from 0 to 100 % in steps of 5, each shown while its sound is on. 100 % is the loudness set in `audio.json`; the music slider applies to the playing track at once. Both values are saved.
   - In Default mode, the levels of an endless run play `Endless I` or `Endless II` instead of the biome track: a new level never repeats the track of the level before. The list is `endlessUi.musicTrackIds` in `game.json`. Random and Custom are unchanged.
 - **Sound effects**: most effects play bundled CC0 audio files (see [Credits](#credits)), with the synthesized sound as fallback until a file is decoded or when it fails. Footsteps depend on the terrain the player steps onto (floor, force floor, ice, and water or fire with the protecting boots), mapped by `terrainStepEffects` in `audio.json`. Under the Lynx rules, only a step the player chooses makes a sound.
 
@@ -52,7 +53,7 @@ npm run dev
 
 ### Adding music tracks
 
-Tracks are declared in `public/configs/audio.json` under `tracks`. A track is synthesized by default (notes and waveforms) or streamed from audio files:
+Tracks are declared in `public/configs/audio.json` under `tracks`. A track is streamed from audio files (`"source": "file"`):
 
 ```json
 {
@@ -67,8 +68,8 @@ Tracks are declared in `public/configs/audio.json` under `tracks`. A track is sy
 - Put the files in `public/audio/music/` (the folder is `musicBaseUrl`). The browser plays the first file in `files` it can decode; the extension must have a MIME type in `fileMimeTypes` (`ogg` and `mp3` by default). `gain` scales the track against the music volume (1 when omitted).
 - Add the track name to `src/locales/en.json` and `src/locales/fr.json` under `app.music.my_track.label`.
 - Map it to a biome with `"musicTrackId": "my_track"` on the theme in `game.json`. Every track also takes part in the Random and Custom modes.
-- `defaultTrackId` must stay a synthesized track: it plays when a file cannot be loaded. A file track that fails is skipped for the rest of the session.
-- The configuration is checked when the game loads: duplicate ids, a file track without files, an unknown `musicTrackId` or an unknown `defaultMusicMode` stop the game with a clear message.
+- A file track that fails to play is skipped until music is turned back on. When no track can play, music stays silent: there is no fallback tune.
+- The configuration is checked when the game loads: duplicate ids, a track that is not a file track or has no files, an unknown `musicTrackId` or an unknown `defaultMusicMode` stop the game with a clear message.
 
 ### Adding sound effects
 
