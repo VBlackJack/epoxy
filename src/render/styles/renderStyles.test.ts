@@ -17,7 +17,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CLASSIC90_GRADIENT_BANDS,
   DEFAULT_RENDER_STYLE_ID,
+  RETRO_HD_GRADIENT_BANDS,
   RENDER_STYLES,
   RETRO_PIXELS_CLASS,
   getRenderStyle,
@@ -103,19 +105,19 @@ describe('render style registry', () => {
       ['modern', null, null, true],
       ['retro', 'retro16', null, true],
       ['retro32', 'retro32', null, true],
-      ['pocket', 'retro16', 'pocket', true],
-      ['pastel', 'retro16', 'pastel', true],
-      ['blueprint', 'retro16', 'blueprint', true],
-      ['sepia', 'retro32', 'sepia', true],
-      ['classic90', 'retro32', 'classic90', false]
+      ['pocket', null, 'pocket', true],
+      ['pastel', null, 'pastel', true],
+      ['blueprint', null, 'blueprint', true],
+      ['sepia', null, 'sepia', true],
+      ['classic90', null, 'classic90', false]
     ]);
   });
 
-  it('gives each recolouring style its own sprite spec ids so composed tiles never mix', () => {
+  it('gives the Retro HD styles no sprite spec, so a composed tile can never mix two styles', () => {
     for (const style of RENDER_STYLES.filter((s) => s.transformKey)) {
-      expect(style.sprite?.id).toBe(style.id);
-      expect(style.smallSprite?.tileSize).toBe(SIXTEEN_BIT_TILE);
-      expect(style.smallSprite).not.toBe(RETRO16_SPEC);
+      expect(style.sprite).toBeNull();
+      expect(style.smallSprite).toBeNull();
+      expect(style.palettesKey).toBeNull();
     }
     const specs = new Set(RENDER_STYLES.flatMap((s) => [s.sprite, s.smallSprite]).filter((spec) => spec !== null));
     const specIds = [...specs].map((spec) => spec?.id);
@@ -126,26 +128,37 @@ describe('render style registry', () => {
     expect(getRenderStyle('modern').smallSprite).toBeNull();
   });
 
-  it('describes the five recolouring styles', () => {
-    const pocket = getRenderStyle('pocket');
-    expect(pocket.sprite?.tileSize).toBe(SIXTEEN_BIT_TILE);
-    expect(pocket.palettesKey).toBe('retroPalettes');
-    expect([pocket.lcdAllowed, pocket.lighting, pocket.effects]).toEqual([true, false, false]);
-    for (const id of ['pastel', 'blueprint'] as const) {
+  it('describes the five Retro HD styles', () => {
+    for (const id of ['pocket', 'pastel', 'blueprint', 'sepia', 'classic90'] as const) {
       const style = getRenderStyle(id);
-      expect(style.sprite?.tileSize).toBe(SIXTEEN_BIT_TILE);
-      expect(style.palettesKey).toBe('retroPalettes');
-      expect([style.lcdAllowed, style.lighting, style.effects]).toEqual([false, false, false]);
+      expect(style.sprite, id).toBeNull();
+      expect(style.base, id).toBeNull();
+      expect(style.canvasClass, id).toBeNull();
+      expect(style.lcdAllowed, id).toBe(false);
+      expect(style.glow, id).toBe(false);
+      expect(
+        [style.smoothMotion, style.itemBob, style.pixelSnap, style.lowResScene, style.effects],
+        id
+      ).toEqual([true, true, false, false, true]);
     }
-    for (const id of ['sepia', 'classic90'] as const) {
+    for (const id of ['pocket', 'pastel', 'blueprint', 'sepia'] as const) {
       const style = getRenderStyle(id);
-      expect(style.sprite?.tileSize).toBe(THIRTY_TWO_BIT_TILE);
-      expect(style.palettesKey).toBe('retro32Palettes');
-      expect([style.lcdAllowed, style.lighting, style.effects]).toEqual([false, false, false]);
+      expect([style.lighting, style.floorShadows], id).toEqual([true, true]);
+      expect(style.finish?.gradientBands, id).toBe(RETRO_HD_GRADIENT_BANDS);
     }
-    for (const style of RENDER_STYLES.filter((s) => s.transformKey)) {
-      expect(style.canvasClass).toBe(RETRO_PIXELS_CLASS);
-      expect([style.smoothMotion, style.itemBob, style.pixelSnap, style.lowResScene]).toEqual([false, false, true, true]);
+    const classic = getRenderStyle('classic90');
+    expect([classic.lighting, classic.floorShadows]).toEqual([false, false]);
+    expect(classic.finish?.gradientBands).toBe(CLASSIC90_GRADIENT_BANDS);
+    expect(RETRO_HD_GRADIENT_BANDS).toBe(3);
+    expect(CLASSIC90_GRADIENT_BANDS).toBe(2);
+  });
+
+  it('gives each Retro HD style its own overlay, Pastel none, and the other styles no finish', () => {
+    const overlays = ['pocket', 'pastel', 'blueprint', 'sepia', 'classic90'].map((id) => getRenderStyle(id as 'pocket').finish?.overlay);
+    expect(overlays).toEqual(['lcdDots', null, 'gridLines', 'vignetteGrain', 'scanlines']);
+    for (const id of ['modern', 'retro', 'retro32'] as const) {
+      expect(getRenderStyle(id).finish, id).toBeNull();
+      expect(getRenderStyle(id).glow, id).toBe(true);
     }
   });
 

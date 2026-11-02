@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { RETRO_PIXELS_CLASS } from '../render/styles/renderStyles';
+import { getRenderStyle, RETRO_PIXELS_CLASS } from '../render/styles/renderStyles';
 import {
   buildGraphicsStyleOptions,
   canvasClassesToRemove,
@@ -46,17 +46,18 @@ describe('graphics style control helpers', () => {
     expect(resolveInitialGraphicsStyle('classic91', 'bogus')).toBe('modern');
   });
 
-  it('allows the LCD grid in 16-Bit Retro and Pocket only', () => {
+  it('allows the LCD grid in 16-Bit Retro only, Pocket drawing its dot grid as a fixed overlay instead', () => {
     expect(isLcdAvailable('modern')).toBe(false);
     expect(isLcdAvailable('retro')).toBe(true);
     expect(isLcdAvailable('retro32')).toBe(false);
-    expect(isLcdAvailable('pocket')).toBe(true);
-    for (const id of ['pastel', 'blueprint', 'sepia', 'classic90'] as const) expect(isLcdAvailable(id)).toBe(false);
+    for (const id of ['pocket', 'pastel', 'blueprint', 'sepia', 'classic90'] as const) expect(isLcdAvailable(id)).toBe(false);
+    expect(getRenderStyle('pocket').finish?.overlay).toBe('lcdDots');
   });
 
   it('removes the pixel class only for styles that do not use it', () => {
     expect(canvasClassesToRemove('modern')).toEqual([RETRO_PIXELS_CLASS]);
     expect(canvasClassesToRemove('retro32')).toEqual([]);
-    expect(canvasClassesToRemove('classic90')).toEqual([]);
+    expect(canvasClassesToRemove('classic90')).toEqual([RETRO_PIXELS_CLASS]);
+    for (const id of ['pocket', 'pastel', 'blueprint', 'sepia'] as const) expect(canvasClassesToRemove(id)).toEqual([RETRO_PIXELS_CLASS]);
   });
 });

@@ -3,6 +3,20 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- The five derived graphics styles (Pocket 4-tone, Pastel, Blueprint, Sepia, Classic 90s) are now
+  "Retro HD": they draw the same full-resolution scene as HD Neon instead of recolouring the 16-bit
+  and 32-bit sprites, so fire, water, ice, traps, monsters, keys and doors stay easy to tell apart.
+  Each style recolours the palette and the themes by colour family (`renderStylePalettes` holds one
+  ramp per family, `renderStyleFamilies` the colours whose family is set by hand), cuts gradients into
+  flat bands, drops the glow and lays a light texture over the board (dot grid, grid lines, paper
+  grain and vignette, scanlines; skipped at the lowest quality). Pocket no longer offers the LCD
+  toggle, its dot grid is part of the style. Style names and saved settings are unchanged; 16-Bit
+  Retro, 32-Bit Retro and HD Neon are untouched.
+
 ## [2.11.0] - 2026-11-02
 
 ### Added
