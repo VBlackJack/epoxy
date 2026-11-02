@@ -5294,7 +5294,7 @@ export class PixelRenderer {
     ctx.closePath();
   }
 
-  public renderIconToDataUrl(kind: 'tile' | 'item' | 'entity', id: string): string {
+  public renderIconToDataUrl(kind: 'tile' | 'item' | 'entity' | 'player', id: string): string {
     const iconSize = this.getSettings().iconPixelSize;
     const canvas = document.createElement('canvas');
     canvas.width = iconSize;
@@ -5310,6 +5310,9 @@ export class PixelRenderer {
     } else if (kind === 'entity') {
       this.drawTile(ctx, 'floor', 0, 0, iconSize, true, true);
       this.drawEntity(ctx, id, 'S', 0, 0, iconSize);
+    } else if (kind === 'player') {
+      this.drawTile(ctx, 'floor', 0, 0, iconSize, true, true);
+      this.drawPlayer(ctx, 0, 0, iconSize, 'S', false, true);
     }
     return canvas.toDataURL();
   }
