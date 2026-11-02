@@ -38,6 +38,9 @@ export const BOT_ROTATION_SECONDS = 3;
 /** Used when the rotation period is not given in ticks (the game runs at 20 ticks per second). */
 export const FALLBACK_TICKS_PER_SECOND = 20;
 
+/** A trap that no trap control works stays closed [P: in the observed layout the trap no control pointed at stayed closed, 05 session 4]. */
+export const UNCONTROLLED_TRAP_OPEN = false;
+
 /** The player carries at most this many tools; the oldest one is dropped for a new one. */
 export const MAX_TOOLS = 4;
 

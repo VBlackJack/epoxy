@@ -86,6 +86,10 @@ export interface DeviceIndex {
   toggleDoors: number[];
   traps: number[];
   trapControls: number[];
+  /** For each trap control (same order), the cell index of the trap it works: the next trap after it in reading order, wrapping [P next, U wrap]. */
+  trapTargets: number[];
+  /** For each trap (same order as `traps`), whether some control works it. */
+  workedTraps: boolean[];
   machines: number[];
 }
 
@@ -310,7 +314,7 @@ export function reindexMobs(world: World): void {
 }
 
 function buildDeviceIndex(cells: Cc3dCell[]): DeviceIndex {
-  const index: DeviceIndex = { plates: [], holdDoors: [], toggleDoors: [], traps: [], trapControls: [], machines: [] };
+  const index: DeviceIndex = { plates: [], holdDoors: [], toggleDoors: [], traps: [], trapControls: [], trapTargets: [], workedTraps: [], machines: [] };
   cells.forEach((cell, i) => {
     for (const t of cell.terrain) {
       if (t.kind === 'plate') index.plates.push(i);
@@ -321,6 +325,9 @@ function buildDeviceIndex(cells: Cc3dCell[]): DeviceIndex {
       else if (t.kind === 'clone_machine') index.machines.push(i);
     }
   });
+  // A trap control works the next trap after it in reading order, wrapping from the last cell to the first.
+  index.trapTargets = index.trapControls.map((control) => index.traps.find((trap) => trap > control) ?? index.traps[0] ?? -1);
+  index.workedTraps = index.traps.map((trap) => index.trapTargets.includes(trap));
   return index;
 }
 

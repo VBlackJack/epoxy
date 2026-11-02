@@ -169,12 +169,59 @@ describe('traps and trap controls [U]', () => {
     expect(rig.player.x).toBe(3);
   });
 
-  it('pairs traps and controls by reading order', () => {
+  it('a control works the next trap after it in reading order, wrapping to the first', () => {
     const rows = ['#@x#', '#.#.', '#x.#', '#Y.#'];
     const rig = new Cc3dRig(cc3dLevel(rows, { glyphs: { x: trap, Y: { ...pressed } } }));
-    // Trap 1 (row 0) pairs with the only control (row 3, pressed): open. Trap 2 has no control: open.
+    // The control (row 3) has no trap after it: it wraps to the first trap (row 0), which is open.
     rig.walk('E', 'W');
     expect(rig.player.x).toBe(1);
+  });
+
+  it('[P] in the observed layout the first control opens the second trap and not the first', () => {
+    const holder = (dir: 'E' | 'W'): GlyphMeaning => ({ stack: [{ kind: 'floor' }, { kind: 'trap' }], mob: { kind: 'bouncer', dir } });
+    const rows = [
+      '##########',
+      '#.....u..#',
+      '#........#',
+      '#........#',
+      '#...@q.q.#',
+      '#........#',
+      '#.......v#',
+      '##########'
+    ];
+    const rig = new Cc3dRig(cc3dLevel(rows, { glyphs: { u: holder('E'), v: holder('W'), q: control } }));
+    rig.walk('E');
+    rig.tick(8);
+    expect(rig.entityAt(8, 6)).toBeUndefined();
+    expect(rig.entities.some((e) => e.y === 6 && e.x < 8)).toBe(true);
+    expect(rig.entityAt(6, 1)).toBeDefined();
+    expect(rig.entityAt(7, 1)).toBeUndefined();
+    // The second control alone opens the same trap.
+    const second = new Cc3dRig(cc3dLevel(rows.map((r) => r.replace('...@q.q.', '....q@q.')), { glyphs: { u: holder('E'), v: holder('W'), q: control } }));
+    second.walk('E');
+    second.tick(8);
+    expect(second.entities.some((e) => e.y === 6 && e.x < 8)).toBe(true);
+    expect(second.entityAt(6, 1)).toBeDefined();
+  });
+
+  it('[U] a control after the last trap works the first one, and an unworked trap stays closed', () => {
+    const held: GlyphMeaning = { stack: [{ kind: 'floor' }, { kind: 'trap' }], mob: { kind: 'bouncer', dir: 'E' } };
+    const rig = new Cc3dRig(cc3dLevel(['#z.z.Y#', '#######', '#@#####'], { glyphs: { z: held, Y: pressed } }));
+    rig.tick(1);
+    expect(rig.entityAt(1, 0)).toBeUndefined();
+    expect(rig.entityAt(2, 0)).toBeDefined();
+    rig.tick(SETTLE_TICKS);
+    expect(rig.entityAt(3, 0)).toBeDefined();
+  });
+
+  it('[U] several controls work one trap, which is open while any of them is pressed', () => {
+    const held: GlyphMeaning = { stack: [{ kind: 'floor' }, { kind: 'trap' }], mob: { kind: 'bouncer', dir: 'E' } };
+    const none = new Cc3dRig(cc3dLevel(['#q.q.z.##', '#########', '#@#######'], { glyphs: { z: held, q: control } }));
+    none.tick(SETTLE_TICKS);
+    expect(none.entityAt(5, 0)).toBeDefined();
+    const one = new Cc3dRig(cc3dLevel(['#Y.q.z.##', '#########', '#@#######'], { glyphs: { z: held, q: control, Y: pressed } }));
+    one.tick(1);
+    expect(one.entityAt(5, 0)).toBeUndefined();
   });
 
   it('holds a monster that starts in a closed trap', () => {
