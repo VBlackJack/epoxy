@@ -22,7 +22,7 @@ import type { Cc3dMobKind, Cc3dTerrainKind } from './model';
  * [U]: the spec leaves open which monsters gravel, sand, dirt and fire stop).
  */
 
-export type Hazard = 'ice' | 'force' | 'water' | 'fire';
+export type Hazard = 'ice' | 'force' | 'water' | 'fire' | 'slime';
 
 export interface MonsterTraits {
   /** Hazards the monster is unaffected by. Water and fire immunity also lets it enter them. */
@@ -33,23 +33,35 @@ export interface MonsterTraits {
   triggersSwitches: boolean;
   /** Melts the ice blocks it touches. */
   meltsIce: boolean;
+  /** Decides only every other step: a step's worth of rest after each chosen step (Snappy, Nibble) [U, 07 section 7.1]. */
+  restsBetweenSteps: boolean;
+  /** Terrain it may enter although monsters refuse it by default (yellow golems: sand and gravel). */
+  entersTerrain: readonly Cc3dTerrainKind[];
 }
 
-const BLINKY_TRAITS: MonsterTraits = {
-  immunities: ['water', 'ice', 'force'],
-  pressesPlates: false,
+const PLAIN_TRAITS: MonsterTraits = {
+  immunities: [],
+  pressesPlates: true,
   triggersSwitches: true,
-  meltsIce: false
+  meltsIce: false,
+  restsBetweenSteps: false,
+  entersTerrain: []
+};
+
+const BLINKY_TRAITS: MonsterTraits = {
+  ...PLAIN_TRAITS,
+  immunities: ['water', 'ice', 'force'],
+  pressesPlates: false
 };
 
 const SCREAMER_TRAITS: MonsterTraits = {
+  ...PLAIN_TRAITS,
   immunities: ['fire', 'ice', 'force'],
   pressesPlates: false,
   triggersSwitches: false,
   meltsIce: true
 };
 
-const PLAIN_TRAITS: MonsterTraits = { immunities: [], pressesPlates: true, triggersSwitches: true, meltsIce: false };
 
 /** Monsters the engine plays since lot C2. The others (P2, P3) stand still and kill on contact. */
 export const MONSTER_TRAITS: Partial<Record<Cc3dMobKind, MonsterTraits>> = {
@@ -61,7 +73,16 @@ export const MONSTER_TRAITS: Partial<Record<Cc3dMobKind, MonsterTraits>> = {
   blinky: BLINKY_TRAITS,
   baby_blinky: { ...PLAIN_TRAITS, immunities: ['water'] },
   screamer: SCREAMER_TRAITS,
-  baby_screamer: { ...PLAIN_TRAITS, immunities: ['fire'], meltsIce: true }
+  baby_screamer: { ...PLAIN_TRAITS, immunities: ['fire'], meltsIce: true },
+  // P2 (07-p2-decisions): one row per kind.
+  snappy: { ...PLAIN_TRAITS, restsBetweenSteps: true },
+  nibble: { ...PLAIN_TRAITS, restsBetweenSteps: true },
+  // Legs: plate-driven pattern switching is an open play question; only the base patterns exist (07 section 7.5).
+  legs_green: PLAIN_TRAITS,
+  legs_red: PLAIN_TRAITS,
+  omni: { ...PLAIN_TRAITS, immunities: ['slime'] },
+  // Yellow golems are never carried by ice or force floors and may enter sand and gravel (07 section 7.9, 2 and 7).
+  golem_yellow: { ...PLAIN_TRAITS, immunities: ['ice', 'force'], entersTerrain: ['sand', 'gravel'] }
 };
 
 export function isSupportedMonster(kind: Cc3dMobKind): boolean {

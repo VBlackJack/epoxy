@@ -40,11 +40,11 @@ const playWithAudioManager: SoundPlayer = {
   step: (terrain) => AudioManager.playStep(terrain)
 };
 
-/** Terrain kinds whose device does nothing yet (P2 and P3 controls; they stay passable floor). */
-const UNSUPPORTED_TERRAIN: readonly Cc3dTerrainKind[] = ['golem_control_yellow', 'laser_controller'];
+/** Terrain kinds whose device does nothing yet (the P3 laser controller; it stays passable floor). */
+const UNSUPPORTED_TERRAIN: readonly Cc3dTerrainKind[] = ['laser_controller'];
 
 /** Items collected but without effect yet. */
-const UNSUPPORTED_ITEMS: readonly Cc3dItemKind[] = ['orb_speed'];
+const UNSUPPORTED_ITEMS: readonly Cc3dItemKind[] = [];
 
 /** What undo restores: the world state plus how much of both move histories had been recorded. */
 interface UndoSnapshot {

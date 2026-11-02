@@ -20,7 +20,7 @@ import type { Direction, TimedMove } from '../types';
 import { onArrival, openOnEntry } from './cc3dArrival';
 import { updateDevices } from './cc3dDevices';
 import { chooseMonsterDirection } from './cc3dMonsters';
-import { isSupportedMonster } from './cc3dMonsterTraits';
+import { MONSTER_TRAITS, isSupportedMonster } from './cc3dMonsterTraits';
 import { DEATH_KEY, DeathCause, SFX, STEP_TICKS, VISUAL_COLOR } from './cc3dConstants';
 import { StepPlan, planStep } from './cc3dMovement';
 import { ForcedMove, forcedMoveOf, inputAllowed, onLeave } from './cc3dTerrainRules';
@@ -36,6 +36,7 @@ import {
   neighbour,
   opposite,
   reindexMobs,
+  speedOrbFactor,
   replaceTop
 } from './cc3dWorld';
 import type { Cc3dCell } from './model';
@@ -110,7 +111,11 @@ export class Cc3dSimulation implements RuleContext {
   }
 
   public releaseMob(mob: MobState, dir: Direction): void {
-    this.startStep(mob, dir, 'pushed');
+    this.startStep(mob, dir, 'pushed', !isBlockKind(mob.kind));
+  }
+
+  public stepMob(mob: MobState, dir: Direction): boolean {
+    return this.tryStep(mob, dir, 'chosen');
   }
 
   public randomDirection(): Direction {
@@ -241,9 +246,22 @@ export class Cc3dSimulation implements RuleContext {
       this.forceStep(mob, forced);
       return;
     }
-    if (block) return;
+    // Yellow golems never move on their own; their control moves them (cc3dDevices).
+    if (block || mob.kind === 'golem_yellow') return;
+    if (this.world.tick < mob.restUntilTick) return;
     const dir = chooseMonsterDirection(this, mob);
     if (dir) this.tryStep(mob, dir, 'chosen');
+    else this.waitAfterNoMove(mob);
+  }
+
+  /**
+   * A Snappy or Nibble that finds no direction waits one full normal step before
+   * retrying; an Omni whose draw is blocked pays one slow step [U, 07 section 7.9 items 5 and 8].
+   */
+  private waitAfterNoMove(mob: MobState): void {
+    const traits = MONSTER_TRAITS[mob.kind];
+    const base = mob.kind === 'omni' ? STEP_TICKS.slow : traits?.restsBetweenSteps ? STEP_TICKS.normal : 0;
+    if (base > 0) mob.restUntilTick = this.world.tick + base * speedOrbFactor(this.world);
   }
 
   private decidePlayer(player: PlayerData): void {
@@ -299,8 +317,10 @@ export class Cc3dSimulation implements RuleContext {
       this.killPlayer('monster');
       return true;
     }
-    for (const block of plan.pushes) this.startStep(block, dir, 'pushed');
-    this.startStep(actor, dir, intent);
+    // Steps started by monsters, and blocks they push, are slowed by the speed orb; the player's pushes are not.
+    const byMonster = actor.kind !== 'player' && !isBlockKind(actor.kind);
+    for (const block of plan.pushes) this.startStep(block, dir, 'pushed', byMonster);
+    this.startStep(actor, dir, intent, byMonster);
     this.blockedLatch = false;
     return true;
   }
@@ -315,16 +335,30 @@ export class Cc3dSimulation implements RuleContext {
   }
 
   /** Leaves the cell and claims the next one; the step then runs its duration. */
-  private startStep(actor: Actor, dir: Direction, intent: StepIntent): void {
+  private startStep(actor: Actor, dir: Direction, intent: StepIntent, byMonster: boolean): void {
     onLeave(this.world, actor);
+    if (actor.kind === 'omni' && actor.slimed) this.leaveSlime(actor);
     actor.dir = dir;
     const to = neighbour(actor, dir);
     moveActor(this.world, actor, to.x, to.y);
     actor.exitDir = null;
     actor.carried = intent === 'forced';
-    actor.duration = intent === 'forced' ? STEP_TICKS.fast : STEP_TICKS.normal;
+    actor.chose = intent === 'chosen';
+    actor.duration = this.baseTicks(actor, intent) * (byMonster ? speedOrbFactor(this.world) : 1);
     actor.remaining = actor.duration;
     actor.startedTick = this.world.tick;
     this.advance(actor);
+  }
+
+  private baseTicks(actor: Actor, intent: StepIntent): number {
+    if (intent === 'forced') return STEP_TICKS.fast;
+    return actor.kind === 'omni' ? STEP_TICKS.slow : STEP_TICKS.normal;
+  }
+
+  /** Omni trail: the cell it leaves turns to slime, but only a bare [floor] cell: no other layer, item or panel [U, 07 section 7.9 item 3]. */
+  private leaveSlime(omni: MobState): void {
+    const cell = this.world.cells[omni.y * this.world.width + omni.x];
+    const bare = cell.terrain.length === 1 && cell.terrain[0].kind === 'floor' && cell.item === null && cell.panels.length === 0;
+    if (bare) replaceTop(this.world, omni, { kind: 'slime' });
   }
 }
