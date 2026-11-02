@@ -22,6 +22,7 @@ import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
 import { LevelValidator } from '../core/LevelValidator';
+import { hasLaserContent } from '../core/RulesetFeatures';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
   CloneLink,
@@ -36,8 +37,9 @@ import {
 } from '../core/types';
 import { downloadBytes, downloadJson } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
+import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
-import { parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule } from './metadataFields';
+import { parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   CUSTOM_LEVEL_ID_PREFIX,
@@ -67,7 +69,6 @@ const METADATA_INPUT_IDS = [
   'editor-meta-ruleset'
 ] as const;
 const WIN_RULE_INPUT_ID = 'editor-meta-winrule';
-const BLOCK_TARGET_WIN_RULE: WinRule = 'targets';
 const LYNX_RULESET: Ruleset = 'lynx';
 
 type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'eraser' | 'wire_trap' | 'wire_cloner';
@@ -498,12 +499,16 @@ export class LevelEditor {
       const report = LevelValidator.validate(compiled);
       if (report.valid) {
         const validText =
-          compiled.winRule === 'targets'
-            ? t('validator.status.valid_targets.label', { targets: report.stats.targetCount })
-            : t('validator.status.valid.label', {
-                chips: report.stats.reachableChips,
-                required: report.stats.chipsRequired
-              });
+          compiled.winRule === 'receivers'
+            ? t('validator.status.valid_receivers.label', {
+                receivers: receiversProgress(compiled.terrain, []).total
+              })
+            : compiled.winRule === 'targets'
+              ? t('validator.status.valid_targets.label', { targets: report.stats.targetCount })
+              : t('validator.status.valid.label', {
+                  chips: report.stats.reachableChips,
+                  required: report.stats.chipsRequired
+                });
         // A valid level may still carry warnings; they follow the verdict.
         this.setStatusText(
           report.issues.length > 0
@@ -690,11 +695,19 @@ export class LevelEditor {
     this.syncRulesetInput();
   }
 
-  /** A level won with block targets is Epoxy only: force it and lock the Lynx option. */
+  /** Whether the map places laser tiles or mirrors, which only the Epoxy engine plays. */
+  private hasLaserContent(): boolean {
+    return hasLaserContent({ terrain: this.terrain, items: this.items, entities: this.entities });
+  }
+
+  /**
+   * A level won with block targets or laser receivers, or holding laser
+   * content, is Epoxy only: force it and lock the Lynx option.
+   */
   private syncRulesetInput(): void {
     const rulesetEl = document.getElementById('editor-meta-ruleset') as HTMLSelectElement | null;
     if (!rulesetEl) return;
-    const lynxLocked = this.winRule === BLOCK_TARGET_WIN_RULE;
+    const lynxLocked = requiresEpoxyRules(this.winRule, this.hasLaserContent());
     if (lynxLocked) this.ruleset = undefined;
     rulesetEl.value = this.ruleset ?? DEFAULT_RULESET;
     for (const option of Array.from(rulesetEl.options)) {
@@ -727,7 +740,7 @@ export class LevelEditor {
       const parsed = parseRuleset(rulesetEl.value, this.ruleset ?? DEFAULT_RULESET);
       this.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
     }
-    if (this.winRule === BLOCK_TARGET_WIN_RULE) this.ruleset = undefined;
+    if (requiresEpoxyRules(this.winRule, this.hasLaserContent())) this.ruleset = undefined;
   }
 
   private createSnapshot(): EditorSnapshot {
@@ -748,6 +761,7 @@ export class LevelEditor {
     this.trapLinks = snap.trapLinks.map((l) => ({ ...l }));
     this.cloneLinks = snap.cloneLinks.map((l) => ({ ...l }));
     this.playerStart = { ...snap.playerStart };
+    this.syncRulesetInput();
     this.render();
   }
 
@@ -887,6 +901,16 @@ export class LevelEditor {
   }
 
   private applyBrushAt(x: number, y: number, forceEraser: boolean = false): void {
+    const wasLynx = this.ruleset === LYNX_RULESET;
+    this.paintBrushAt(x, y, forceEraser);
+    if (wasLynx && this.hasLaserContent()) {
+      // Laser content is Epoxy only: the level leaves the Lynx rules and says so.
+      this.syncRulesetInput();
+      this.setStatusText(t('editor.palette.status.lynx_lasers_switched.label'));
+    }
+  }
+
+  private paintBrushAt(x: number, y: number, forceEraser: boolean): void {
     const brush: ActiveBrush = forceEraser ? { kind: 'eraser', id: 'eraser' } : this.activeBrush;
 
     if (!forceEraser && this.fillMode && brush.kind === 'terrain') {

@@ -127,4 +127,25 @@ describe('Pathfinder.findPath', () => {
     const level = corridor({ 4: 'door_green', 6: 'door_green' });
     expect(Pathfinder.findPath(engineFor(level, [], { key_green: 1 }), 8, 2).moves).toHaveLength(6);
   });
+
+  it('never plans through or onto a cell a laser beam crosses', () => {
+    const level = corridor();
+    // An emitter in the wall above the corridor fires down across (5, 2).
+    level.terrain[1][5] = 'laser_emitter_s';
+    const engine = engineFor(level);
+    expect(engine.getBeamCells().map((c) => `${c.x},${c.y}`)).toEqual(['5,2']);
+    expect(Pathfinder.findPath(engine, 7, 2).moves).toEqual([]);
+    expect(Pathfinder.findPath(engine, 5, 2).moves).toEqual([]);
+    expect(Pathfinder.findPath(engine, 4, 2).moves).toEqual(['E', 'E']);
+  });
+
+  it('blocks nothing when a block cuts the beam before the corridor', () => {
+    const level = corridor();
+    level.terrain[1][5] = 'laser_emitter_s';
+    // The beam is cut at (5, 2) by a dirt block, which is not a mirror.
+    level.entities = [{ type: 'dirt_block', x: 5, y: 2, dir: 'S' }];
+    const engine = engineFor(level);
+    expect(engine.getBeamCells()).toEqual([]);
+    expect(Pathfinder.findPath(engine, 4, 2).moves).toEqual(['E', 'E']);
+  });
 });

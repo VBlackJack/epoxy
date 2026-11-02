@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import type { CompiledLevel, WinRule } from '../core/types';
+import { ConfigRegistry } from '../config/ConfigRegistry';
+import type { CompiledLevel, GridPoint, WinRule } from '../core/types';
 
 const STATUS_SEPARATOR = ' ';
 
@@ -28,6 +29,32 @@ export function stuckMessageKey(winRule: WinRule | undefined): string {
 /** True when the HUD counts covered targets instead of remaining chips. */
 export function showsTargetsCounter(winRule: WinRule | undefined): boolean {
   return winRule === 'targets';
+}
+
+/** True when the HUD counts lit laser receivers instead of remaining chips. */
+export function showsReceiversCounter(winRule: WinRule | undefined): boolean {
+  return winRule === 'receivers';
+}
+
+/** Lit receivers over all the receivers the terrain holds, for the HUD counter of a 'receivers' level. */
+export function receiversProgress(
+  terrain: readonly (readonly string[])[],
+  lit: readonly GridPoint[]
+): { lit: number; total: number } {
+  let total = 0;
+  for (const row of terrain) {
+    for (const id of row) {
+      if (ConfigRegistry.getTile(id).laserReceiverGroup !== undefined) total++;
+    }
+  }
+  return { lit: lit.length, total };
+}
+
+/** Objective message key of a level, by the way it is won; null when it needs no announcement. */
+export function objectiveMessageKey(winRule: WinRule | undefined): string | null {
+  if (winRule === 'targets') return 'hud.messages.objective_targets.label';
+  if (winRule === 'receivers') return 'hud.messages.objective_receivers.label';
+  return null;
 }
 
 /** True when the Sokoban skin can change what is drawn, i.e. the level is won by covering targets. */
@@ -47,7 +74,7 @@ export function hasStoredSolution(level: Pick<CompiledLevel, 'solution'>): boole
 
 /** True when starting this level should state its objective. */
 export function shouldAnnounceObjective(winRule: WinRule | undefined): boolean {
-  return showsTargetsCounter(winRule);
+  return objectiveMessageKey(winRule) !== null;
 }
 
 /**

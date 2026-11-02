@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Direction, Ruleset, WinRule } from './types';
+import { Direction, MirrorAxis, Ruleset, WinRule } from './types';
 
 /** Terrain id used when a cell has no explicit terrain, or a tile has no transform target. */
 export const FLOOR_TILE_ID = 'floor';
@@ -42,6 +42,22 @@ export const DEFAULT_FACING: Direction = 'S';
 
 /** Move interval of a monster whose definition does not set moveIntervalTicks. */
 export const DEFAULT_MONSTER_MOVE_INTERVAL_TICKS = 5;
+
+/**
+ * Visits a laser trace may make per cell of the map: one per direction a beam
+ * can cross the cell in, which bounds every trace even on a ring of mirrors.
+ */
+export const LASER_VISITS_PER_CELL = 4;
+
+/**
+ * Direction a laser beam leaves a mirror in, by the direction it was travelling
+ * when it hit. A '/' mirror turns an east-moving beam to the north, a backslash
+ * mirror turns it to the south; both are double-sided.
+ */
+export const MIRROR_REFLECTIONS: Readonly<Record<MirrorAxis, Readonly<Record<Direction, Direction>>>> = {
+  slash: { E: 'N', N: 'E', W: 'S', S: 'W' },
+  backslash: { E: 'S', S: 'E', W: 'N', N: 'W' }
+};
 
 export const OPPOSITE_DIRECTION: Readonly<Record<Direction, Direction>> = {
   N: 'S',

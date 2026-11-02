@@ -90,6 +90,8 @@
       "refused_too_large": { "label": "Not exported: {levels} is larger than the .DAT map." },
       "refused_player_out_of_range": { "label": "Not exported: the start of {levels} is outside its map." },
       "refused_targets_win_rule": { "label": "Not exported: {levels} is won by covering block targets, which the .DAT format cannot hold." },
+      "refused_receivers_win_rule": { "label": "Not exported: {levels} is won by lighting laser receivers, which the .DAT format cannot hold." },
+      "refused_laser_content": { "label": "Not exported: {levels} uses lasers or mirrors, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -156,6 +158,8 @@
       "chips": { "label": "CHIPS LEFT" },
       "targets": { "label": "TARGETS" },
       "targets_value": { "label": "{covered}/{total}" },
+      "receivers": { "label": "RECEIVERS" },
+      "receivers_value": { "label": "{lit}/{total}" },
       "time": { "label": "TIME" },
       "time_unlimited": { "label": "---" },
       "score": { "label": "SCORE" },
@@ -222,6 +226,7 @@
       "blocks_stuck": { "label": "Dead end: these blocks can no longer cover every button. Undo (U) or restart (R)." },
       "blocks_stuck_targets": { "label": "Dead end: these blocks can no longer cover every target. Undo (U) or restart (R)." },
       "objective_targets": { "label": "Goal: push the blocks onto every target." },
+      "objective_receivers": { "label": "Goal: light every receiver with the laser beams." },
       "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
       "solution_playing": { "label": "Playing the proven solution. Tap the board to take back control." },
       "solution_confirm": { "label": "Show the solution? The level restarts and plays itself to the exit." },
@@ -237,6 +242,7 @@
       "death_monster": { "label": "Watch out for security creatures!" },
       "death_block": { "label": "Crushed by a moving block!" },
       "death_time": { "label": "Out of time!" },
+      "death_laser": { "label": "Zapped by a laser beam!" },
       "thief_stole_keys": { "label": "The Key Thief confiscated all your keys!" },
       "forbidden_item": { "label": "This barrier refuses the item you carry: drop it first." },
       "drop_cell_occupied": { "label": "Nothing can be dropped here: the cell already holds an item." },
@@ -316,6 +322,7 @@
     "status": {
       "valid": { "label": "Level is 100% valid and solvable ({chips}/{required} reachable chips, exit reachable)!" },
       "valid_targets": { "label": "Level is valid: {targets, plural, one {# target} other {# targets}} to cover with blocks." },
+      "valid_receivers": { "label": "Level is valid: {receivers, plural, one {# receiver} other {# receivers}} to light with the beams." },
       "issue_separator": { "label": " | " }
     },
     "issues": {
@@ -329,7 +336,11 @@
       "invalid_start": { "label": "Error: The player start is outside the map." },
       "no_targets": { "label": "Error: No block target placed on the map." },
       "fewer_blocks_than_targets": { "label": "Error: Only {blocks, plural, one {# block} other {# blocks}} for {targets, plural, one {# target} other {# targets}}." },
-      "targets_unsolvable": { "label": "Warning: No sequence of pushes covers every target any more." }
+      "targets_unsolvable": { "label": "Warning: No sequence of pushes covers every target any more." },
+      "no_emitter": { "label": "Error: No laser emitter placed on the map." },
+      "no_receiver": { "label": "Error: No laser receiver placed on the map." },
+      "laser_gate_on_beam": { "label": "Warning: A laser gate ({group}) lies on a beam that lights a receiver: closed, it cuts that beam." },
+      "exit_on_receivers_level": { "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers." }
     }
   },
   "editor": {
@@ -373,10 +384,11 @@
       "win_rule": { "label": "Win Rule" },
       "win_rule_exit": { "label": "Reach the exit" },
       "win_rule_targets": { "label": "Cover every target with a block" },
+      "win_rule_receivers": { "label": "Light every laser receiver" },
       "ruleset": { "label": "Rules" },
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (community packs)" },
-      "ruleset_lynx_unavailable": { "label": "Block-target levels play under Epoxy rules only" },
+      "ruleset_lynx_unavailable": { "label": "Levels with block targets or lasers play under Epoxy rules only" },
       "auto_count_chips": { "action": "Auto Count" },
       "entity_dir": { "label": "Entity / Player Direction" }
     },
@@ -409,7 +421,8 @@
         "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
         "wire_select_source": { "label": "Click the trigger button on the map..." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
-        "wire_linked": { "label": "Mechanism link established!" }
+        "wire_linked": { "label": "Mechanism link established!" },
+        "lynx_lasers_switched": { "label": "Laser tiles and mirrors only exist under Epoxy rules: the level now plays under Epoxy." }
       }
     }
   },
@@ -500,7 +513,17 @@
     "teleport_yellow": { "name": "Yellow Teleporter" },
     "teleport_green": { "name": "Green Teleporter" },
     "trap": { "name": "Bear Trap" },
-    "clone_machine": { "name": "Clone Machine" }
+    "clone_machine": { "name": "Clone Machine" },
+    "laser_emitter_n": { "name": "Laser Emitter (North)" },
+    "laser_emitter_e": { "name": "Laser Emitter (East)" },
+    "laser_emitter_s": { "name": "Laser Emitter (South)" },
+    "laser_emitter_w": { "name": "Laser Emitter (West)" },
+    "laser_receiver_red": { "name": "Red Laser Receiver" },
+    "laser_receiver_blue": { "name": "Blue Laser Receiver" },
+    "laser_gate_red_closed": { "name": "Red Laser Gate (Closed)" },
+    "laser_gate_red_open": { "name": "Red Laser Gate (Open)" },
+    "laser_gate_blue_closed": { "name": "Blue Laser Gate (Closed)" },
+    "laser_gate_blue_open": { "name": "Blue Laser Gate (Open)" }
   },
   "entities": {
     "dirt_block": { "name": "Movable Dirt Block" },
@@ -513,7 +536,9 @@
     "glider": { "name": "Glider (Swims on Water)" },
     "fireball": { "name": "Fireball (Fire Immune)" },
     "tank": { "name": "Tank (Blue Button Reversal)" },
-    "blob": { "name": "Slow Blob" }
+    "blob": { "name": "Slow Blob" },
+    "mirror_slash": { "name": "Mirror (Slash)" },
+    "mirror_backslash": { "name": "Mirror (Backslash)" }
   },
   "levels": {
     "level_1": {

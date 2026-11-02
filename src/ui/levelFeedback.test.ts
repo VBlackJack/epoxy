@@ -14,16 +14,24 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { loadTestConfigs } from '../test/loadTestConfigs';
 import {
   hasStoredSolution,
   isSokobanSkinApplicable,
   isTimedLevel,
   combineStatusMessages,
+  objectiveMessageKey,
+  receiversProgress,
   shouldAnnounceObjective,
+  showsReceiversCounter,
   showsTargetsCounter,
   stuckMessageKey
 } from './levelFeedback';
+
+beforeAll(() => {
+  loadTestConfigs();
+});
 
 describe('stuckMessageKey', () => {
   it('names targets on a targets level and buttons otherwise', () => {
@@ -82,5 +90,30 @@ describe('combineStatusMessages', () => {
   it('skips missing and empty parts', () => {
     expect(combineStatusMessages('Imported.', null, undefined, '')).toBe('Imported.');
     expect(combineStatusMessages(null)).toBe('');
+  });
+});
+
+describe('receivers level feedback', () => {
+  it('counts receivers on a receivers level only', () => {
+    expect(showsReceiversCounter('receivers')).toBe(true);
+    expect(showsReceiversCounter('targets')).toBe(false);
+    expect(showsReceiversCounter(undefined)).toBe(false);
+    expect(showsTargetsCounter('receivers')).toBe(false);
+  });
+
+  it('announces the goal of a receivers level with its own message', () => {
+    expect(objectiveMessageKey('receivers')).toBe('hud.messages.objective_receivers.label');
+    expect(objectiveMessageKey('targets')).toBe('hud.messages.objective_targets.label');
+    expect(objectiveMessageKey('exit')).toBeNull();
+    expect(shouldAnnounceObjective('receivers')).toBe(true);
+  });
+
+  it('reports the lit receivers over all the receivers of the terrain', () => {
+    const terrain = [
+      ['wall', 'laser_receiver_red', 'floor'],
+      ['floor', 'laser_receiver_blue', 'laser_receiver_red']
+    ];
+    expect(receiversProgress(terrain, [{ x: 1, y: 0 }])).toEqual({ lit: 1, total: 3 });
+    expect(receiversProgress([['floor']], [])).toEqual({ lit: 0, total: 0 });
   });
 });

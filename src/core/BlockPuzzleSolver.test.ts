@@ -98,6 +98,21 @@ describe('BlockPuzzleSolver', () => {
     expect(BlockPuzzleSolver.isStuck(engine)).toBe(true);
   });
 
+  it('judges nothing on a receivers level, whatever its buttons and blocks', () => {
+    const engine = engineAt(
+      [
+        { x: 1, y: 5 },
+        { x: 3, y: 4 },
+        { x: 6, y: 5 }
+      ],
+      { x: 2, y: 5 }
+    );
+    expect(BlockPuzzleSolver.isStuck(engine)).toBe(true);
+    engine.getLevel().winRule = 'receivers';
+    expect(BlockPuzzleSolver.isStuck(engine)).toBe(false);
+    expect(BlockPuzzleSolver.hint(engine)).toBeNull();
+  });
+
   it('does not flag the playtested position, which the engine proves solvable', () => {
     // Blocks on the two lower buttons, the last one still loose: it looked stuck, it is not.
     const engine = engineAt(

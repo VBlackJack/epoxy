@@ -22,6 +22,17 @@ export function parseWinRule(raw: string, current: WinRule): WinRule {
   return isWinRule(raw) ? raw : current;
 }
 
+/** Win rules only the Epoxy engine plays: a level using one cannot be a Lynx level. */
+const EPOXY_ONLY_WIN_RULES: readonly WinRule[] = ['targets', 'receivers'];
+
+/**
+ * Whether a level can only be played under Epoxy rules: it is won with block
+ * targets or laser receivers, or it places laser tiles or mirrors.
+ */
+export function requiresEpoxyRules(winRule: WinRule, hasLaserContent: boolean): boolean {
+  return hasLaserContent || EPOXY_ONLY_WIN_RULES.includes(winRule);
+}
+
 /** Ruleset field: an unknown entry keeps `current`. */
 export function parseRuleset(raw: string, current: Ruleset): Ruleset {
   return isRuleset(raw) ? raw : current;

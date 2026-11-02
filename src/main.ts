@@ -93,7 +93,10 @@ import {
   isSokobanSkinApplicable,
   isTimedLevel,
   combineStatusMessages,
+  objectiveMessageKey,
+  receiversProgress,
   shouldAnnounceObjective,
+  showsReceiversCounter,
   showsTargetsCounter,
   stuckMessageKey
 } from './ui/levelFeedback';
@@ -706,9 +709,8 @@ class EpoxyApplication {
 
   /** Objective of the level on screen, or null when it needs no announcement. */
   private objectiveMessage(): string | null {
-    return shouldAnnounceObjective(this.engine.getLevel().winRule)
-      ? t('hud.messages.objective_targets.label')
-      : null;
+    const key = objectiveMessageKey(this.engine.getLevel().winRule);
+    return key && shouldAnnounceObjective(this.engine.getLevel().winRule) ? t(key) : null;
   }
 
   /** Compiles every level of a JSON import; throws before anything is registered. */
@@ -2841,19 +2843,27 @@ class EpoxyApplication {
       titleBox.title = fullTitle;
     }
     const targetsMode = showsTargetsCounter(lvl.winRule);
-    byId('hud-chips-label')?.classList.toggle('hidden', targetsMode);
+    const receiversMode = showsReceiversCounter(lvl.winRule);
+    const progressMode = targetsMode || receiversMode;
+    byId('hud-chips-label')?.classList.toggle('hidden', progressMode);
     byId('hud-targets-label')?.classList.toggle('hidden', !targetsMode);
+    byId('hud-receivers-label')?.classList.toggle('hidden', !receiversMode);
     const progress = this.engine.getTargetsProgress();
-    const counter = targetsMode ? progress.covered : this.engine.getChipsRemaining();
+    const receivers = receiversMode
+      ? receiversProgress(this.engine.getTerrain(), this.epoxyEngine()?.getLitReceivers() ?? [])
+      : null;
+    const counter = receivers ? receivers.lit : targetsMode ? progress.covered : this.engine.getChipsRemaining();
     const chipsEl = byId('hud-chips-left');
     setText(
       chipsEl,
-      targetsMode
-        ? t('hud.stats.targets_value.label', { covered: progress.covered, total: progress.total })
-        : String(counter).padStart(HUD_COUNTER_DIGITS, '0')
+      receivers
+        ? t('hud.stats.receivers_value.label', { lit: receivers.lit, total: receivers.total })
+        : targetsMode
+          ? t('hud.stats.targets_value.label', { covered: progress.covered, total: progress.total })
+          : String(counter).padStart(HUD_COUNTER_DIGITS, '0')
     );
-    // Same level and a better count: a chip was picked up or a target covered.
-    const improved = targetsMode ? counter > this.hudChipsLeft : counter < this.hudChipsLeft;
+    // Same level and a better count: a chip was picked up, a target covered or a receiver lit.
+    const improved = progressMode ? counter > this.hudChipsLeft : counter < this.hudChipsLeft;
     if (chipsEl && lvl.id === this.hudChipsLevelId && improved) {
       replayAnimation(chipsEl, HUD_BUMP_CLASS);
     }

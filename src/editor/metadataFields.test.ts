@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseChipsRequired, parseRuleset, parseTimeLimit } from './metadataFields';
+import { parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 
 const CURRENT = 180;
 
@@ -61,5 +61,25 @@ describe('parseRuleset', () => {
   it('keeps the current ruleset for an unknown entry', () => {
     expect(parseRuleset('ms', 'lynx')).toBe('lynx');
     expect(parseRuleset('', 'epoxy')).toBe('epoxy');
+  });
+});
+
+describe('parseWinRule', () => {
+  it('accepts the receivers rule and keeps the current one for an unknown entry', () => {
+    expect(parseWinRule('receivers', 'exit')).toBe('receivers');
+    expect(parseWinRule('targets', 'exit')).toBe('targets');
+    expect(parseWinRule('nonsense', 'targets')).toBe('targets');
+  });
+});
+
+describe('requiresEpoxyRules', () => {
+  it('is true for targets and receivers levels, and for any level with laser content', () => {
+    expect(requiresEpoxyRules('targets', false)).toBe(true);
+    expect(requiresEpoxyRules('receivers', false)).toBe(true);
+    expect(requiresEpoxyRules('exit', true)).toBe(true);
+  });
+
+  it('is false for a plain exit level', () => {
+    expect(requiresEpoxyRules('exit', false)).toBe(false);
   });
 });

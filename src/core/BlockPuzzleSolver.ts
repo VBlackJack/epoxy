@@ -89,6 +89,8 @@ export class BlockPuzzleSolver {
     this.edgeBlocked = new Uint8Array(size * ORDERED_DIRECTIONS.length);
     this.buttons = [];
     const coversTargets = engine.getLevel().winRule === 'targets';
+    // A 'receivers' level is won with beams, not by covering buttons: its blocks are not judged here.
+    const lightsReceivers = engine.getLevel().winRule === 'receivers';
     const monsters = new Set<number>();
     this.blocks = [];
     for (const e of engine.getEntities()) {
@@ -108,7 +110,7 @@ export class BlockPuzzleSolver {
         this.blockOk[k] = plain && tile.passableByBlock === true && !monsters.has(k) ? 1 : 0;
         this.blockUnmodelled[k] = !plain && tile.passableByBlock === true ? 1 : 0;
         const isGoal = coversTargets ? terrain[y][x] === BLOCK_TARGET_TILE_ID : tile.buttonAction === 'hold_trap';
-        if (isGoal) this.buttons.push(k);
+        if (isGoal && !lightsReceivers) this.buttons.push(k);
       }
     }
     this.player = player.y * this.width + player.x;

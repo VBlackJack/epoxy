@@ -511,6 +511,23 @@ describe('DatCodec export fidelity', () => {
     expect(datRefusalReason(targets)).toBe('targets_win_rule');
   });
 
+  it('refuses a receivers level and any level with laser tiles or mirrors', () => {
+    const receivers = { ...blankLevel(1), winRule: 'receivers' as const };
+    const emitter = blankLevel(2);
+    emitter.terrain[3][3] = 'laser_emitter_e';
+    const gate = blankLevel(3);
+    gate.terrain[3][3] = 'laser_gate_red_closed';
+    const mirror = blankLevel(4);
+    mirror.entities = [{ type: 'mirror_slash', x: 3, y: 3, dir: 'S' }];
+    expect(datRefusalReason(receivers)).toBe('receivers_win_rule');
+    expect(datRefusalReason(emitter)).toBe('laser_content');
+    expect(datRefusalReason(gate)).toBe('laser_content');
+    expect(datRefusalReason(mirror)).toBe('laser_content');
+    const encoded = DatCodec.encodeLevelsWithReport([emitter, mirror, blankLevel(5)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['laser_content', 'laser_content']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('reports what a stacked cell cannot hold', () => {
     const lvl = blankLevel(1);
     // player start (2,2) over a bug and a chip: the bug is dropped, so is the fire under them

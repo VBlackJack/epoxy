@@ -360,6 +360,42 @@
    "................",
    "................",
    "................"
+  ]},
+  "mirror_slash": { "outline": true, "legend": {"1":"metal.0","2":"metal.1","3":"metal.2","4":"metal.3"}, "rows": [
+   "................",
+   ".11111111111111.",
+   ".12222222222224.",
+   ".12JJJJJJJJIW34.",
+   ".12JJJJJJJIWI34.",
+   ".12JJJJJJIWIK34.",
+   ".12JJJJJIWIKK34.",
+   ".12JJJJIWIKKK34.",
+   ".12JJJIWIKKKK34.",
+   ".12JJIWIKKKKK34.",
+   ".12JIWIKKKKKK34.",
+   ".12IWIKKKKKKK34.",
+   ".12WIKKKKKKKK34.",
+   ".12333333333334.",
+   ".14444444444444.",
+   "................"
+  ]},
+  "mirror_backslash": { "outline": true, "legend": {"1":"metal.0","2":"metal.1","3":"metal.2","4":"metal.3"}, "rows": [
+   "................",
+   ".11111111111111.",
+   ".12222222222224.",
+   ".12WIKKKKKKKK34.",
+   ".12IWIKKKKKKK34.",
+   ".12JIWIKKKKKK34.",
+   ".12JJIWIKKKKK34.",
+   ".12JJJIWIKKKK34.",
+   ".12JJJJIWIKKK34.",
+   ".12JJJJJIWIKK34.",
+   ".12JJJJJJIWIK34.",
+   ".12JJJJJJJIWI34.",
+   ".12JJJJJJJJIW34.",
+   ".12333333333334.",
+   ".14444444444444.",
+   "................"
   ]}
  }
 }

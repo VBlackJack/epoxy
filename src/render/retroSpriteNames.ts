@@ -41,6 +41,9 @@ export const RETRO_SPRITE = {
   boots: 'boots',
   flag: 'flag',
   blockOnTarget: 'block_on_target',
+  laserReceiver: 'laser_receiver',
+  laserGateClosed: 'laser_gate_closed',
+  laserGateOpen: 'laser_gate_open',
   playerDead: 'player_dead'
 } as const;
 
@@ -81,5 +84,9 @@ export const RETRO_PLAIN_OVERLAY_TILES: readonly string[] = [
   'ice_nw',
   'ice_ne',
   'ice_sw',
-  'ice_se'
+  'ice_se',
+  'laser_emitter_n',
+  'laser_emitter_e',
+  'laser_emitter_s',
+  'laser_emitter_w'
 ];

@@ -125,6 +125,10 @@ export class Pathfinder {
       }
     }
 
+    // A cell a laser beam crosses kills whoever steps in: never planned, not even as the final cell.
+    const beamCells = new Set<string>();
+    for (const cell of engine.getBeamCells()) beamCells.add(`${cell.x},${cell.y}`);
+
     const hasBoot = (node: AStarNode, bootId: string | undefined): boolean =>
       Boolean(bootId) && !node.bootsStolen && player.boots.has(bootId!);
     const movesPlayerOnItsOwn = (tile: TileDefinition, node: AStarNode): boolean =>
@@ -191,6 +195,8 @@ export class Pathfinder {
         if (blockPositions.has(keyCoord) && !isTarget) {
           continue;
         }
+
+        if (beamCells.has(keyCoord)) continue;
 
         // A closed trap holds whoever enters it: fine as the final cell, never as a way through
         if (!isTarget && engine.isCellClosedTrap(nx, ny)) {

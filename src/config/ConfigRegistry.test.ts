@@ -21,6 +21,7 @@ import {
   ConfigLoadError,
   findAudioConfigErrors,
   findBlockPuzzleConfigErrors,
+  findLaserConfigErrors,
   InvalidLevelError,
   isCompiledLevelShape
 } from './ConfigValidation';
@@ -322,6 +323,44 @@ describe('tiles.json mechanics', () => {
     }
     expect(groups.has(undefined)).toBe(true);
     expect(groups.size).toBe(5);
+  });
+
+  it('declares laserTransparent on every tile', () => {
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+      expect(typeof tile.laserTransparent, tile.id).toBe('boolean');
+    }
+  });
+
+  it('keeps every wall-like tile opaque to a laser and every walkable floor transparent', () => {
+    for (const id of ['wall', 'recessed_wall', 'door_red', 'socket', 'exit', 'toggle_wall_closed', 'clone_machine']) {
+      expect(ConfigRegistry.getTile(id).laserTransparent, id).toBe(false);
+    }
+    for (const id of ['floor', 'water', 'ice', 'force_n', 'fire', 'teleport', 'trap', 'button_green', 'thin_wall_n', 'toggle_wall_open']) {
+      expect(ConfigRegistry.getTile(id).laserTransparent, id).toBe(true);
+    }
+  });
+
+  it('accepts the shipped laser tiles and pairs every gate with its other form', () => {
+    expect(findLaserConfigErrors(ConfigRegistry.getTiles().tiles)).toEqual([]);
+    const tiles = ConfigRegistry.getTiles().tiles;
+    for (const tile of Object.values(tiles)) {
+      if (tile.laserGateGroup === undefined) continue;
+      const pair = tiles[tile.laserGateTogglesTo ?? ''];
+      expect(pair?.laserGateGroup, tile.id).toBe(tile.laserGateGroup);
+      expect(pair?.laserGateOpen, tile.id).toBe(!tile.laserGateOpen);
+      expect(pair?.laserGateTogglesTo, tile.id).toBe(tile.id);
+    }
+  });
+
+  it('refuses malformed laser tiles', () => {
+    const tiles = structuredClone(ConfigRegistry.getTiles().tiles);
+    expect(findLaserConfigErrors({ ...tiles, laser_emitter_e: { ...tiles.laser_emitter_e, laserEmitter: 'UP' as never } })).toHaveLength(1);
+    const noPair = { ...tiles.laser_gate_red_open, laserGateTogglesTo: 'missing_tile' };
+    expect(findLaserConfigErrors({ ...tiles, laser_gate_red_open: noPair })).not.toEqual([]);
+    const sameState = { ...tiles.laser_gate_red_open, laserGateOpen: false };
+    expect(findLaserConfigErrors({ ...tiles, laser_gate_red_open: sameState })).not.toEqual([]);
+    const { laser_receiver_red: _removed, ...withoutReceiver } = tiles;
+    expect(findLaserConfigErrors(withoutReceiver).some((e) => e.includes('no receiver drives the group red'))).toBe(true);
   });
 });
 

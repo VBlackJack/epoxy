@@ -69,7 +69,15 @@ export type RetroPass = 'all' | 'static' | 'animated';
 /** The fields of a tile definition the composition reads. */
 export type RetroTileSource = Pick<
   TileDefinition,
-  'colorKey' | 'blockedEdges' | 'forbiddenItem' | 'isTeleporter' | 'scoreBonus' | 'scoreMultiplier'
+  | 'colorKey'
+  | 'blockedEdges'
+  | 'forbiddenItem'
+  | 'isTeleporter'
+  | 'scoreBonus'
+  | 'scoreMultiplier'
+  | 'laserReceiverGroup'
+  | 'laserGateGroup'
+  | 'laserGateOpen'
 >;
 
 export interface RetroTileInput {
@@ -283,6 +291,17 @@ export function retroTileLayers(input: RetroTileInput): RetroLayer[] {
   }
   if (DOOR_TILES.has(tileId)) {
     return [floorOnly, { name: RETRO_SPRITE.door, swap: swapRampOf(def.colorKey) }, ...glyphLayer(def.colorKey ?? DEFAULT_COLOR_KEY)];
+  }
+  if (def.laserReceiverGroup !== undefined) {
+    return [
+      floorOnly,
+      { name: RETRO_SPRITE.laserReceiver, swap: swapRampOf(def.laserReceiverGroup) },
+      ...glyphLayer(def.laserReceiverGroup)
+    ];
+  }
+  if (def.laserGateGroup !== undefined) {
+    const name = def.laserGateOpen ? RETRO_SPRITE.laserGateOpen : RETRO_SPRITE.laserGateClosed;
+    return [floorOnly, { name, swap: swapRampOf(def.laserGateGroup) }, ...glyphLayer(def.laserGateGroup)];
   }
   if (tileId in BUTTON_COLOR_KEYS) {
     return [

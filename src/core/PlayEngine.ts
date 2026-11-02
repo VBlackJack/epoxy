@@ -15,6 +15,7 @@
  */
 
 import {
+  BeamCell,
   CloneLink,
   CompiledLevel,
   Direction,
@@ -65,6 +66,11 @@ export interface PlayEngine {
   getEntities(): RuntimeEntity[];
   getPlayer(): PlayerState;
   getLevel(): CompiledLevel;
+  /**
+   * Optional. The cells a laser beam crosses right now (empty without lasers).
+   * Derived state, never part of a snapshot; an engine without lasers omits it.
+   */
+  getBeamCells?(): readonly BeamCell[];
   getTrapLinks(): TrapLink[];
   getCloneLinks(): CloneLink[];
   getMapWidth(): number;

@@ -59,6 +59,14 @@ export function lossyExportNotice(
       t('app.export.refused_targets_win_rule.label', { levels: levelNames(refusedFor('targets_win_rule')) })
     );
   }
+  if (refusedFor('receivers_win_rule').length > 0) {
+    parts.push(
+      t('app.export.refused_receivers_win_rule.label', { levels: levelNames(refusedFor('receivers_win_rule')) })
+    );
+  }
+  if (refusedFor('laser_content').length > 0) {
+    parts.push(t('app.export.refused_laser_content.label', { levels: levelNames(refusedFor('laser_content')) }));
+  }
   if (padded.length > 0) {
     parts.push(t('app.export.padded.label', { levels: levelNames(padded) }));
   }

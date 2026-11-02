@@ -24,7 +24,7 @@ import { EngineSelector } from './EngineSelector';
 import { GameEngine } from './GameEngine';
 import { LynxEngine } from './lynx/LynxEngine';
 import { lynxLevel } from './lynx/lynxTestMaps';
-import { featuresFor } from './RulesetFeatures';
+import { featuresFor, hasLaserContent } from './RulesetFeatures';
 import { CompiledLevel } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 
@@ -97,5 +97,38 @@ describe('featuresFor', () => {
     expect(features.highScoreReplay).toBe(true);
     const { highScoreReplay: _kept, ...others } = features;
     expect(Object.values(others).some(Boolean)).toBe(false);
+  });
+
+  it('turns the block hint and the dead end watch off on a level with lasers', () => {
+    const base = epoxyLevel();
+    const withEmitter: CompiledLevel = {
+      ...base,
+      terrain: base.terrain.map((row, y) => (y === 1 ? [...row.slice(0, 3), 'laser_emitter_e', ...row.slice(4)] : row))
+    };
+    const features = featuresFor(withEmitter);
+    expect(features.blockHint).toBe(false);
+    expect(features.deadEndWatch).toBe(false);
+    expect(features.objectiveMarker).toBe(true);
+    expect(features.tapToPath).toBe(true);
+    expect(hasLaserContent(withEmitter)).toBe(true);
+    expect(hasLaserContent(base)).toBe(false);
+  });
+
+  it('detects a mirror as laser content', () => {
+    const base = epoxyLevel();
+    const withMirror: CompiledLevel = { ...base, entities: [{ type: 'mirror_slash', x: 2, y: 1, dir: 'S' }] };
+    expect(featuresFor(withMirror).blockHint).toBe(false);
+  });
+
+  it('also turns the objective marker off on a receivers level', () => {
+    const features = featuresFor({ ...epoxyLevel(), winRule: 'receivers' });
+    expect(features.objectiveMarker).toBe(false);
+    expect(features.blockHint).toBe(false);
+    expect(features.deadEndWatch).toBe(false);
+    expect(features.tapToPath).toBe(true);
+  });
+
+  it('never gives a Lynx level more than its own aids because of a win rule', () => {
+    expect(featuresFor({ ...lynxLevel(['###', '#@#', '###']), winRule: 'receivers' }).tapToPath).toBe(false);
   });
 });
