@@ -48,8 +48,13 @@ interface ActiveFileTrack {
   element: HTMLAudioElement;
   source: MediaElementAudioSourceNode;
   gain: GainNode;
+  /** Loudness of the track relative to the music volume. */
+  trackGain: number;
   onError: () => void;
 }
+
+/** Time constant, in seconds, of the smoothing that moves the gain to a new volume without a click. */
+const VOLUME_SMOOTHING_SECONDS = 0.02;
 
 /** First file of the list whose extension maps to a MIME type the element says it can play. */
 export function pickPlayableFile(
@@ -137,6 +142,7 @@ export class FileMusicPlayer {
       element,
       source,
       gain,
+      trackGain: track.gain ?? 1,
       onError: () => this.fail(entry, 'media error')
     };
     element.addEventListener('error', entry.onError);
@@ -147,6 +153,22 @@ export class FileMusicPlayer {
   /** Starts playback of the current track again (after a pause or a blocked attempt). */
   public resume(): void {
     if (this.active) this.attemptPlay(this.active);
+  }
+
+  /**
+   * Moves the playing track to a new volume (master times music volume, track gain applied
+   * here). It cancels the fade-in ramp, so a change made during the fade takes effect at once.
+   */
+  public setVolume(ctx: AudioContext, volume: number): void {
+    const entry = this.active;
+    if (!entry) return;
+    const param = entry.gain.gain;
+    const now = ctx.currentTime;
+    // Read before cancelling: the cancel drops the unfinished fade ramp, and the target must start where the fade is.
+    const current = param.value;
+    param.cancelScheduledValues(now);
+    if (Number.isFinite(current)) param.setValueAtTime(current, now);
+    param.setTargetAtTime(volume * entry.trackGain, now, VOLUME_SMOOTHING_SECONDS);
   }
 
   public pause(): void {

@@ -15,7 +15,7 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
-import { isFileTrack, isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
+import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
   CompiledLevel,
@@ -325,9 +325,8 @@ function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): strin
 
 /**
  * Problems of audio.json that would only show once a track is picked: track
- * ids must be unique, the default track must be a synth track (it is the
- * fallback when a file cannot play), file tracks need files, every biome
- * must point to a real track, and the default music mode must exist.
+ * ids must be unique, every track must be a file track with files, every
+ * biome must point to a real track, and the default music mode must exist.
  */
 export function findAudioConfigErrors(
   audio: AudioConfig,
@@ -357,21 +356,16 @@ export function findAudioConfigErrors(
     }
     if (seen.has(track.id)) errors.push(`tracks.${track.id}: duplicate id`);
     seen.add(track.id);
-    if (isFileTrack(track)) {
-      const validFiles =
-        Array.isArray(track.files) && track.files.length > 0 && track.files.every((f) => typeof f === 'string' && f.length > 0);
-      if (!validFiles) errors.push(`tracks.${track.id}.files: expected a non-empty list of file names`);
-      if (track.gain !== undefined && !(isFiniteNumber(track.gain) && track.gain >= 0)) {
-        errors.push(`tracks.${track.id}.gain: expected a finite number of at least 0`);
-      }
+    // The JSON is untrusted: a leftover synth track must be refused, whatever the type says.
+    const source: unknown = track.source;
+    if (source !== 'file') {
+      errors.push(`tracks.${track.id}.source: expected "file", synthesized music tracks are not supported`);
     }
-  }
-  if (tracks.length > 0) {
-    const fallback = tracks.find((track) => track.id === audio.defaultTrackId);
-    if (!fallback) {
-      errors.push('defaultTrackId: expected the id of an existing track');
-    } else if (isFileTrack(fallback)) {
-      errors.push('defaultTrackId: expected a synth track, not a file track');
+    const validFiles =
+      Array.isArray(track.files) && track.files.length > 0 && track.files.every((f) => typeof f === 'string' && f.length > 0);
+    if (!validFiles) errors.push(`tracks.${track.id}.files: expected a non-empty list of file names`);
+    if (track.gain !== undefined && !(isFiniteNumber(track.gain) && track.gain >= 0)) {
+      errors.push(`tracks.${track.id}.gain: expected a finite number of at least 0`);
     }
   }
   for (const theme of Object.values(themes ?? {})) {

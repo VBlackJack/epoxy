@@ -20,21 +20,16 @@ import { FileMusicPlayer } from './FileMusicPlayer';
 import { SfxBank } from './SfxBank';
 import {
   FALLBACK_MUSIC_MODE,
-  isFileTrack,
   isMusicMode,
   MusicMode,
   pickTrack,
   sanitizeMusicSettings
 } from './musicSelection';
+import { effectiveVolume, sanitizeVolumePercent, VOLUME_PERCENT_DEFAULT } from './volumeSettings';
 
 /** Used only when audio.json omits `musicMix` or one of its keys. */
 const DEFAULT_MUSIC_MIX: MusicMixConfig = {
-  noteLengthRatio: 0.85,
-  leadGain: 0.45,
-  bassGain: 0.35,
   releaseFloorGain: 0.001,
-  schedulerIntervalMs: 25,
-  scheduleAheadMs: 100,
   fileFadeInMs: 400
 };
 
@@ -62,8 +57,8 @@ export class AudioService {
   private ctx: AudioContext | null = null;
   private sfxEnabled: boolean = true;
   private musicEnabled: boolean = false;
-  private schedulerTimerId: number | null = null;
-  private musicStepIndex: number = 0;
+  private sfxVolumePercent: number = VOLUME_PERCENT_DEFAULT;
+  private musicVolumePercent: number = VOLUME_PERCENT_DEFAULT;
   private activeTrackId: string | null = null;
   private musicMode: MusicMode = FALLBACK_MUSIC_MODE;
   private customTrackIds: string[] = [];
@@ -78,7 +73,6 @@ export class AudioService {
   private readonly filePlayer: FileMusicPlayer;
   private sfxBank: SfxBank | null = null;
   private fileRetryArmed: boolean = false;
-  private nextNoteTime: number = 0;
   private userGestureSeen: boolean = false;
   private pausedWhileHidden: boolean = false;
   /** Nesting depth of runSilently calls; effects play only at zero. */
@@ -131,10 +125,7 @@ export class AudioService {
 
   private readonly onVisibilityChange = (): void => {
     if (document.hidden) {
-      if (this.schedulerTimerId !== null) {
-        this.stopMusicLoop();
-        this.pausedWhileHidden = true;
-      } else if (this.filePlayer.isActive()) {
+      if (this.filePlayer.isActive()) {
         this.filePlayer.pause();
         this.pausedWhileHidden = true;
       }
@@ -226,16 +217,14 @@ export class AudioService {
     return this.getTracks().map((track) => track.id);
   }
 
-  /** The chosen track, else the default synth track, else the first one. */
+  /** The chosen track, or null when none can play: music is then silent. A failed track is never returned. */
   private getActiveTrack(): MusicTrackConfig | null {
-    const tracks = this.getTracks();
-    if (tracks.length === 0) return null;
-    const byId = (id: string | null | undefined): MusicTrackConfig | undefined =>
-      id ? tracks.find((track) => track.id === id) : undefined;
-    return byId(this.activeTrackId) ?? byId(this.getConfig().defaultTrackId) ?? tracks[0];
+    const id = this.activeTrackId;
+    if (id === null || this.failedTrackIds.has(id)) return null;
+    return this.getTracks().find((track) => track.id === id) ?? null;
   }
 
-  /** Schedules one enveloped tone and releases its nodes once it has played. */
+  /** Schedules one enveloped sound effect tone and releases its nodes once it has played. */
   private scheduleTone(
     ctx: AudioContext,
     waveform: OscillatorType,
@@ -286,7 +275,10 @@ export class AudioService {
   public setMusicEnabled(enabled: boolean): void {
     this.musicEnabled = enabled;
     if (this.musicEnabled) {
-      this.startMusicLoop();
+      // Turning music on again is a fresh start: tracks that failed earlier get another chance.
+      this.failedTrackIds.clear();
+      if (this.activeTrackId === null) this.chooseTrack();
+      if (!this.filePlayer.isActive()) this.startMusicLoop();
     } else {
       this.stopMusicLoop();
     }
@@ -314,6 +306,31 @@ export class AudioService {
     this.playSfx(effectId);
   }
 
+  public getSfxVolumePercent(): number {
+    return this.sfxVolumePercent;
+  }
+
+  public getMusicVolumePercent(): number {
+    return this.musicVolumePercent;
+  }
+
+  /** Sets the effects volume (see sanitizeVolumePercent); it applies to the next effect. */
+  public setSfxVolumePercent(percent: unknown): void {
+    this.sfxVolumePercent = sanitizeVolumePercent(percent);
+  }
+
+  /** Sets the music volume (see sanitizeVolumePercent) and applies it at once to the playing track. */
+  public setMusicVolumePercent(percent: unknown): void {
+    this.musicVolumePercent = sanitizeVolumePercent(percent);
+    const ctx = this.ctx;
+    if (ctx && (ctx.state as string) !== 'closed') this.filePlayer.setVolume(ctx, this.getMusicVolume());
+  }
+
+  private getMusicVolume(): number {
+    const audioCfg = this.getConfig();
+    return effectiveVolume(audioCfg.masterVolume, audioCfg.musicVolume, this.musicVolumePercent);
+  }
+
   public playSfx(effectId: string): void {
     if (!this.sfxEnabled || this.silenceDepth > 0) return;
     const audioCfg = this.getConfig();
@@ -330,7 +347,7 @@ export class AudioService {
     }
     this.lastSfxStartSec.set(effectId, ctx.currentTime);
 
-    const sfxVolume = audioCfg.masterVolume * audioCfg.sfxVolume;
+    const sfxVolume = effectiveVolume(audioCfg.masterVolume, audioCfg.sfxVolume, this.sfxVolumePercent);
     if (this.sfxBank?.play(ctx, effectId, effect, sfxVolume)) return;
 
     const { releaseFloorGain } = this.getMix();
@@ -421,7 +438,7 @@ export class AudioService {
     if (this.musicMode !== 'default' || this.endlessTrackIds !== null) this.chooseTrack();
   }
 
-  /** Picks the track for the current mode and plays it; the default synth track when none is eligible. */
+  /** Picks the track for the current mode and plays it; music stays silent when none is eligible. */
   private chooseTrack(): void {
     const picked = pickTrack(this.musicMode, {
       themeTrackId: this.themeTrackId,
@@ -432,26 +449,28 @@ export class AudioService {
       excludedIds: this.failedTrackIds,
       random: Math.random
     });
-    this.selectTrack(picked ?? this.getConfig().defaultTrackId ?? null);
+    this.selectTrack(picked ?? null);
   }
 
   private selectTrack(trackId: string | null): void {
     if (trackId === this.activeTrackId) return;
     this.activeTrackId = trackId;
-    this.musicStepIndex = 0;
     if (this.musicEnabled) {
       this.startMusicLoop();
     }
   }
 
   private onFileTrackFailed(trackId: string, reason: string): void {
-    console.warn(`Music track "${trackId}" cannot be played (${reason}); it is skipped for this session.`);
     this.failedTrackIds.add(trackId);
     this.disarmFileRetry();
     if (this.activeTrackId === trackId) {
       this.activeTrackId = null;
+      // Each failure adds to failedTrackIds, so a chain of picks ends after at most one try per track.
       this.chooseTrack();
     }
+    const outcome =
+      this.activeTrackId === null ? 'no other track can play, music stays silent' : 'it is skipped until music is turned back on';
+    console.warn(`Music track "${trackId}" cannot be played (${reason}); ${outcome}.`);
   }
 
   private startMusicLoop(): void {
@@ -464,14 +483,7 @@ export class AudioService {
       return;
     }
     const track = this.getActiveTrack();
-    if (!track) return;
-    if (isFileTrack(track)) {
-      this.startFileTrack(track);
-      return;
-    }
-    this.nextNoteTime = 0;
-    this.schedulerTimerId = window.setInterval(() => this.scheduleAhead(), this.getMix().schedulerIntervalMs);
-    this.scheduleAhead();
+    if (track) this.startFileTrack(track);
   }
 
   private startFileTrack(track: FileTrackConfig): void {
@@ -485,7 +497,7 @@ export class AudioService {
     this.filePlayer.start(ctx, track, {
       baseUrl: audioCfg.musicBaseUrl ?? DEFAULT_MUSIC_BASE_URL,
       mimeTypes: audioCfg.fileMimeTypes ?? DEFAULT_FILE_MIME_TYPES,
-      volume: audioCfg.masterVolume * audioCfg.musicVolume,
+      volume: this.getMusicVolume(),
       fadeInMs: this.getMix().fileFadeInMs
     });
   }
@@ -494,50 +506,10 @@ export class AudioService {
   private startFileTrackIfWaiting(): void {
     if (!this.musicEnabled || this.pausedWhileHidden || this.filePlayer.isActive()) return;
     const track = this.getActiveTrack();
-    if (track && isFileTrack(track)) this.startFileTrack(track);
-  }
-
-  /** Look-ahead scheduler: queues every step that falls inside the scheduling window. */
-  private scheduleAhead(): void {
-    if (!this.musicEnabled) return;
-    const ctx = this.ensureContext();
-    const track = this.getActiveTrack();
-    // The scheduler only ever plays synth tracks; file tracks go through the file player.
-    if (!ctx || !track || isFileTrack(track)) return;
-
-    const audioCfg = this.getConfig();
-    const mix = this.getMix();
-    const stepSec = track.stepDurationMs / MS_PER_SECOND;
-    const noteSec = stepSec * mix.noteLengthRatio;
-    const horizon = ctx.currentTime + mix.scheduleAheadMs / MS_PER_SECOND;
-    const musicGain = audioCfg.masterVolume * audioCfg.musicVolume;
-
-    // After a stall (suspended context, throttled timer) restart from now instead of
-    // replaying every missed step at once.
-    if (this.nextNoteTime < ctx.currentTime) {
-      this.nextNoteTime = ctx.currentTime;
-    }
-
-    while (this.nextNoteTime < horizon) {
-      const { leadNotes, bassNotes, leadWaveform, bassWaveform } = track;
-      const leadFreq = leadNotes[this.musicStepIndex % leadNotes.length];
-      const bassFreq = bassNotes[this.musicStepIndex % bassNotes.length];
-      if (leadFreq > 0) {
-        this.scheduleTone(ctx, leadWaveform, leadFreq, musicGain * mix.leadGain, this.nextNoteTime, noteSec, mix.releaseFloorGain);
-      }
-      if (bassFreq > 0) {
-        this.scheduleTone(ctx, bassWaveform, bassFreq, musicGain * mix.bassGain, this.nextNoteTime, noteSec, mix.releaseFloorGain);
-      }
-      this.musicStepIndex++;
-      this.nextNoteTime += stepSec;
-    }
+    if (track) this.startFileTrack(track);
   }
 
   public stopMusicLoop(): void {
-    if (this.schedulerTimerId !== null) {
-      clearInterval(this.schedulerTimerId);
-      this.schedulerTimerId = null;
-    }
     this.filePlayer.dispose();
     this.disarmFileRetry();
   }

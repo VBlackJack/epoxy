@@ -69,6 +69,10 @@ export interface UserSettings {
   musicMode?: string;
   /** Ids of the tracks ticked for the 'custom' music mode. */
   musicCustomTracks?: string[];
+  /** Sound effects volume, 0 to 100 in steps of 5; read back through sanitizeVolumePercent. */
+  sfxVolumePercent?: number;
+  /** Music volume, 0 to 100 in steps of 5; read back through sanitizeVolumePercent. */
+  musicVolumePercent?: number;
 }
 
 export interface StorageConfig {
@@ -733,18 +737,6 @@ export interface AudioEffectConfig {
   minIntervalMs?: number;
 }
 
-/** A track played by the built-in synthesizer. */
-export interface SynthTrackConfig {
-  id: string;
-  i18nKey: string;
-  source?: 'synth';
-  stepDurationMs: number;
-  leadWaveform: OscillatorType;
-  bassWaveform: OscillatorType;
-  leadNotes: number[];
-  bassNotes: number[];
-}
-
 /** A track streamed from audio files; the first file the browser can decode is played. */
 export interface FileTrackConfig {
   id: string;
@@ -756,23 +748,13 @@ export interface FileTrackConfig {
   gain?: number;
 }
 
-export type MusicTrackConfig = SynthTrackConfig | FileTrackConfig;
+export type MusicTrackConfig = FileTrackConfig;
 
-/** Mixing and scheduling parameters read from the optional `musicMix` block of audio.json. */
+/** Mixing parameters read from the optional `musicMix` block of audio.json. */
 export interface MusicMixConfig {
-  /** Fraction of a step a music note sounds for. */
-  noteLengthRatio: number;
-  /** Lead voice gain relative to the music volume. */
-  leadGain: number;
-  /** Bass voice gain relative to the music volume. */
-  bassGain: number;
   /** Gain an envelope ramps down to (exponential ramps cannot reach zero). */
   releaseFloorGain: number;
-  /** How often the look-ahead scheduler wakes up. */
-  schedulerIntervalMs: number;
-  /** How far ahead of the audio clock notes are scheduled. */
-  scheduleAheadMs: number;
-  /** Fade-in of a file track, so queued synth notes do not overlap its start. */
+  /** Fade-in of a file track, so it does not start with a click. */
   fileFadeInMs: number;
 }
 
@@ -783,16 +765,7 @@ export interface AudioConfig {
   effects: Record<string, AudioEffectConfig>;
   /** Effect id played for a step onto a terrain, keyed by tile `slideType` or `hazard`. */
   terrainStepEffects?: Record<string, string>;
-  music: {
-    stepDurationMs: number;
-    leadWaveform: OscillatorType;
-    bassWaveform: OscillatorType;
-    leadNotes: number[];
-    bassNotes: number[];
-  };
   tracks?: MusicTrackConfig[];
-  /** Synth track played when no other track is available. */
-  defaultTrackId?: string;
   musicMix?: Partial<MusicMixConfig>;
   /** Folder the file tracks are loaded from. */
   musicBaseUrl?: string;

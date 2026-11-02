@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import { FileTrackConfig, MusicTrackConfig } from '../core/types';
-
 /** How the music track is chosen: follows the biome, any track at random, or among the ticked ones. */
 export const MUSIC_MODES = ['default', 'random', 'custom'] as const;
 export type MusicMode = (typeof MUSIC_MODES)[number];
@@ -25,10 +23,6 @@ export const FALLBACK_MUSIC_MODE: MusicMode = 'default';
 
 export function isMusicMode(value: unknown): value is MusicMode {
   return typeof value === 'string' && (MUSIC_MODES as readonly string[]).includes(value);
-}
-
-export function isFileTrack(track: MusicTrackConfig): track is FileTrackConfig {
-  return track.source === 'file';
 }
 
 export interface TrackPickContext {
@@ -61,8 +55,7 @@ function pickAmong(candidates: readonly string[], ctx: TrackPickContext): string
 }
 
 /**
- * Chooses the track to play, or null when none is eligible (the caller then
- * falls back to the default synth track).
+ * Chooses the track to play, or null when none is eligible (the caller then plays nothing).
  */
 export function pickTrack(mode: MusicMode, ctx: TrackPickContext): string | null {
   const known = new Set(ctx.allIds);

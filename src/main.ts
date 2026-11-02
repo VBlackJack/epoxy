@@ -27,6 +27,7 @@ import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSe
 import { LevelEditor } from './editor/LevelEditor';
 import { AudioManager } from './audio/AudioManager';
 import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSelection';
+import { VOLUME_PERCENT_MAX, VOLUME_PERCENT_MIN, VOLUME_PERCENT_STEP } from './audio/volumeSettings';
 import { DatCodec, datRefusalReason } from './formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
@@ -372,6 +373,8 @@ class EpoxyApplication {
       AudioManager.setSfxEnabled(savedSettings.sfxEnabled);
     }
     // Invalid stored values are replaced in memory only; saveUserSettings writes from this state.
+    AudioManager.setSfxVolumePercent(savedSettings.sfxVolumePercent);
+    AudioManager.setMusicVolumePercent(savedSettings.musicVolumePercent);
     AudioManager.configureMusic(savedSettings.musicMode, savedSettings.musicCustomTracks);
     AudioManager.setThemeTrack(this.currentThemeTrackId());
     if (typeof savedSettings.musicEnabled === 'boolean') {
@@ -399,6 +402,28 @@ class EpoxyApplication {
       musicBtn.textContent = musicOn ? t('app.header.music_toggle.action_on') : t('app.header.music_toggle.action_off');
     }
     byId('music-mode-row')?.classList.toggle('hidden', !musicOn);
+    this.syncVolumeRow('sfx', sfxOn, AudioManager.getSfxVolumePercent());
+    this.syncVolumeRow('music', musicOn, AudioManager.getMusicVolumePercent());
+  }
+
+  /** Shows a volume slider only while its toggle is on, and brings its value, text and aria-valuetext up to date. */
+  private syncVolumeRow(kind: 'sfx' | 'music', visible: boolean, percent: number): void {
+    byId(`${kind}-volume-row`)?.classList.toggle('hidden', !visible);
+    const slider = byId<HTMLInputElement>(`${kind}-volume-slider`);
+    if (slider) {
+      slider.min = String(VOLUME_PERCENT_MIN);
+      slider.max = String(VOLUME_PERCENT_MAX);
+      slider.step = String(VOLUME_PERCENT_STEP);
+      slider.value = String(percent);
+    }
+    this.showVolumeText(kind, percent);
+  }
+
+  private showVolumeText(kind: 'sfx' | 'music', percent: number): void {
+    const text = t('app.header.volume_value.label', { percent });
+    const output = byId(`${kind}-volume-output`);
+    if (output) output.textContent = text;
+    byId<HTMLInputElement>(`${kind}-volume-slider`)?.setAttribute('aria-valuetext', text);
   }
 
   private bindEngineCallbacks(): void {
@@ -2095,7 +2120,23 @@ class EpoxyApplication {
     }
   }
 
+  /** Applies a slider while it moves ('input') and saves the setting once it is released ('change'). */
+  private bindVolumeSliders(): void {
+    const bind = (kind: 'sfx' | 'music', apply: (percent: number) => void, read: () => number): void => {
+      const slider = byId<HTMLInputElement>(`${kind}-volume-slider`);
+      if (!slider) return;
+      slider.addEventListener('input', () => {
+        apply(Number(slider.value));
+        this.showVolumeText(kind, read());
+      });
+      slider.addEventListener('change', () => this.saveUserSettings());
+    };
+    bind('sfx', (p) => AudioManager.setSfxVolumePercent(p), () => AudioManager.getSfxVolumePercent());
+    bind('music', (p) => AudioManager.setMusicVolumePercent(p), () => AudioManager.getMusicVolumePercent());
+  }
+
   private bindAudioToggles(): void {
+    this.bindVolumeSliders();
     byId('btn-sfx-toggle')?.addEventListener('click', () => {
       this.toggleSfx();
     });
@@ -3067,6 +3108,8 @@ class EpoxyApplication {
         graphicsQuality: this.renderer.getQuality(),
         sfxEnabled: AudioManager.isSfxEnabled(),
         musicEnabled: AudioManager.isMusicEnabled(),
+        sfxVolumePercent: AudioManager.getSfxVolumePercent(),
+        musicVolumePercent: AudioManager.getMusicVolumePercent(),
         musicMode: AudioManager.getMusicMode(),
         musicCustomTracks: customIdsForStorage(
           AudioManager.getCustomTrackIds(),

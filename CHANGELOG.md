@@ -3,6 +3,25 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Only the seven original tracks by Julien Bombled remain. The three synthesized tracks (Cyber Pulse,
+  Arctic Synth, Magma Drive) and the synthesized music engine are removed, so the Custom list and the
+  Random mode offer the same tracks. Retro Lynx LCD now plays Subterranean Pulse II. When no track
+  can play (decoding failure, every track excluded), the music stays silent instead of falling back
+  to a synthesized tune; a track that failed gets another chance when music is turned back on.
+  `defaultTrackId`, the `music` block and the synth keys of `musicMix` are gone from `audio.json`;
+  every track must now be a file track with files. Sound effects keep their synthesized fallback.
+
+### Added
+
+- Two volume sliders in Options > Essential, "Effects volume" and "Music volume", from 0 to 100 % in
+  steps of 5. Each shows while its sound is on. 100 % is the loudness of `audio.json`, so the default
+  changes nothing. The music slider applies at once, also during the fade-in. Both values are saved
+  with the other settings.
+
 ## [2.12.0] - 2026-11-02
 
 ### Changed
