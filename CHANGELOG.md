@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-11-02
+
 ### Added
 
 - Lasers on the Epoxy rules. Emitters cast a straight beam that kills the player and monsters.
