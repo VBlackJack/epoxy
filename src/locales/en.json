@@ -106,7 +106,6 @@
         "title": { "label": "My packs" },
         "open_btn": { "action": "My packs" },
         "open_current_btn": { "action": "Manage this pack" },
-        "select_option": { "label": "My packs..." },
         "library": {
           "title": { "label": "Library" },
           "count": { "label": "{count, plural, one {# level} other {# levels}}" },

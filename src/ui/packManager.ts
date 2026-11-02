@@ -20,6 +20,7 @@ import { CompiledLevel, LevelPack } from '../core/types';
 import { datRefusalReason } from '../formats/DatCodec';
 import { t } from '../i18n/I18nManager';
 import { normalizePackName } from '../packs/userPacks';
+import { choiceDialog } from './choiceDialog';
 import { confirmDialog } from './confirmDialog';
 import { closeDialog, openDialog } from './dialog';
 import { downloadBlob, MIME_JSON } from './download';
@@ -40,7 +41,8 @@ import {
 import { PACK_MANAGER_FOCUS_ATTRIBUTE } from './uiConstants';
 
 const MODAL_ID = 'packs-modal';
-const DELETE_MODAL_ID = 'pack-delete-modal';
+const DELETE_CHOICE_ID = 'delete';
+const EXPORT_CHOICE_ID = 'export';
 const HIDDEN_CLASS = 'hidden';
 const TRANSFER_COPY = 'copy';
 const TRANSFER_MOVE = 'move';
@@ -82,6 +84,10 @@ export class PackManager {
   /** Level whose "Copy or move" panel is open. */
   private transferLevelId: string | null = null;
   private renaming = false;
+  /** Packs with a change in flight: their row actions stay disabled until it resolves. */
+  private readonly busyPackIds = new Set<string>();
+  /** Button to focus when the redraw that ends an operation is done. */
+  private pendingFocus: string | null = null;
 
   public constructor(private readonly host: PackManagerHost) {
     this.bindEscapeGuard();
@@ -94,7 +100,7 @@ export class PackManager {
   }
 
   /** Opens the manager, on the given pack when it is in the library. */
-  public open(packId: string | null = null): void {
+  public open(packId: string | null = null, opener: HTMLElement | null = null): void {
     const modal = byId(MODAL_ID);
     if (!modal) return;
     this.transferLevelId = null;
@@ -102,7 +108,7 @@ export class PackManager {
     this.selectedId = resolveSelection(this.libraryRows(), packId);
     this.render();
     if (this.isOpen()) return;
-    openDialog(modal, document.activeElement as HTMLElement | null, {
+    openDialog(modal, opener ?? (document.activeElement as HTMLElement | null), {
       initialFocus: this.initialFocus()
     });
   }
@@ -372,12 +378,13 @@ export class PackManager {
       return btn;
     };
     const index = row.number - 1;
+    const busy = this.busyPackIds.has(pack.id);
 
-    const up = button('up', 'app.packs.manager.level.move_up.action', null, !row.canMoveUp, () =>
+    const up = button('up', 'app.packs.manager.level.move_up.action', null, !row.canMoveUp || busy, () =>
       void this.moveLevel(pack.id, index, index - 1, row.levelId, 'up')
     );
     up.setAttribute('aria-label', t('app.packs.manager.level.move_up.aria', params));
-    const down = button('down', 'app.packs.manager.level.move_down.action', null, !row.canMoveDown, () =>
+    const down = button('down', 'app.packs.manager.level.move_down.action', null, !row.canMoveDown || busy, () =>
       void this.moveLevel(pack.id, index, index + 1, row.levelId, 'down')
     );
     down.setAttribute('aria-label', t('app.packs.manager.level.move_down.aria', params));
@@ -391,14 +398,14 @@ export class PackManager {
       'duplicate',
       'app.packs.manager.level.duplicate.action',
       'app.packs.manager.level.aria.duplicate.label',
-      false,
+      busy,
       () => void this.duplicateLevel(pack.id, row.levelId)
     );
     const transfer = button(
       'transfer',
       'app.packs.manager.level.transfer.action',
       'app.packs.manager.level.aria.transfer.label',
-      false,
+      busy,
       () => this.toggleTransfer(row.levelId)
     );
     transfer.setAttribute('aria-expanded', String(this.transferLevelId === row.levelId));
@@ -406,7 +413,7 @@ export class PackManager {
       'delete',
       'app.packs.manager.level.delete.action',
       'app.packs.manager.level.aria.delete.label',
-      false,
+      busy,
       () => void this.deleteLevel(pack, row)
     );
     actions.append(up, down, edit, play, duplicate, transfer, remove);
@@ -460,6 +467,7 @@ export class PackManager {
     const apply = document.createElement('button');
     apply.type = 'button';
     apply.className = 'hud-btn small primary';
+    apply.disabled = this.busyPackIds.has(pack.id);
     apply.textContent = t('app.packs.manager.transfer.apply.action');
     apply.addEventListener('click', () =>
       void this.transferLevel(pack.id, row.levelId, destination.value, mode.value as TransferMode)
@@ -548,10 +556,17 @@ export class PackManager {
       return;
     }
     this.renaming = true;
+    const renamedId = pack.id;
     try {
-      const result = await ConfigRegistry.renamePack(pack.id, name);
-      if (!result.ok) input.value = this.host.packDisplayName(pack);
-      else if (!result.persisted) this.host.notify(t('app.packs.manager.toast.session_only.label'));
+      const result = await ConfigRegistry.renamePack(renamedId, name);
+      if (!result.ok) {
+        // Restore the name of the pack that was renamed, not of whichever pack is selected now.
+        const renamed = ConfigRegistry.getEditablePacks().find((p) => p.id === renamedId);
+        if (renamed && this.selectedId === renamedId) input.value = this.host.packDisplayName(renamed);
+        this.host.notify(t('app.packs.manager.toast.failed.label'));
+      } else if (!result.persisted) {
+        this.host.notify(t('app.packs.manager.toast.session_only.label'));
+      }
     } finally {
       this.renaming = false;
     }
@@ -574,16 +589,37 @@ export class PackManager {
 
   private async deleteSelectedPack(): Promise<void> {
     const pack = this.selectedPack();
-    if (!pack) return;
+    if (!pack || this.busyPackIds.has(pack.id)) return;
     const name = this.host.packDisplayName(pack);
-    const confirmed = await this.askDeletePack(
-      t('app.packs.manager.delete_dialog.message.label', { name, count: pack.levels.length }),
-      pack.levels.length > 0 ? () => this.exportJson(pack) : null
-    );
-    if (!confirmed) return;
-    const rows = this.libraryRows();
-    const nextId = selectionAfterRemoval(rows, pack.id);
+    const answer = await choiceDialog({
+      title: t('app.confirm.title.label'),
+      message: t('app.packs.manager.delete_dialog.message.label', { name, count: pack.levels.length }),
+      cancelLabel: t('app.confirm.cancel.action'),
+      options: [
+        ...(pack.levels.length > 0
+          ? [
+              {
+                id: EXPORT_CHOICE_ID,
+                label: t('app.packs.manager.delete_dialog.export.action'),
+                keepOpen: true,
+                onSelect: (): string => {
+                  this.exportJson(pack);
+                  return t('app.packs.manager.delete_dialog.exported.label');
+                }
+              }
+            ]
+          : []),
+        { id: DELETE_CHOICE_ID, label: t('app.confirm.delete.action'), primary: true }
+      ]
+    });
+    if (answer !== DELETE_CHOICE_ID) return;
+    const nextId = selectionAfterRemoval(this.libraryRows(), pack.id);
     const result = await ConfigRegistry.deletePack(pack.id);
+    if (!result.ok) {
+      // Nothing was deleted: no follow-up for a pack that is still there.
+      this.host.notify(t('app.packs.manager.toast.failed.label'));
+      return;
+    }
     this.selectedId = nextId;
     this.transferLevelId = null;
     this.render();
@@ -594,6 +630,26 @@ export class PackManager {
 
   // -- Actions: levels -------------------------------------------------------------
 
+  /**
+   * Runs a change to a pack's levels with its row actions disabled, so a second
+   * click cannot start a second change on stale data. The redraw that ends it
+   * puts focus on `pendingFocus`.
+   */
+  private async runOp(packId: string, op: () => Promise<void>): Promise<void> {
+    if (this.busyPackIds.has(packId)) return;
+    this.busyPackIds.add(packId);
+    this.pendingFocus = null;
+    this.render();
+    try {
+      await op();
+    } finally {
+      this.busyPackIds.delete(packId);
+      const focus = this.pendingFocus;
+      this.pendingFocus = null;
+      this.render(focus);
+    }
+  }
+
   private async moveLevel(
     packId: string,
     from: number,
@@ -601,21 +657,25 @@ export class PackManager {
     levelId: string,
     direction: 'up' | 'down'
   ): Promise<void> {
-    const result = await ConfigRegistry.moveLevelInPack(packId, from, to);
-    if (!result.ok) {
-      this.host.notify(t('app.packs.manager.toast.failed.label'));
-      return;
-    }
-    if (!result.persisted) this.host.notify(t('app.packs.manager.toast.session_only.label'));
-    this.render(`${levelId}:${direction}`);
-    this.host.libraryChanged({ deletedPackIds: [] });
+    await this.runOp(packId, async () => {
+      const result = await ConfigRegistry.moveLevelInPack(packId, from, to);
+      if (!result.ok) {
+        this.host.notify(t('app.packs.manager.toast.failed.label'));
+        return;
+      }
+      if (!result.persisted) this.host.notify(t('app.packs.manager.toast.session_only.label'));
+      this.pendingFocus = `${levelId}:${direction}`;
+      this.host.libraryChanged({ deletedPackIds: [] });
+    });
   }
 
   private async duplicateLevel(packId: string, levelId: string): Promise<void> {
-    const result = await ConfigRegistry.duplicateLevelInPack(packId, levelId);
-    if (!this.report(result, t('app.packs.manager.toast.duplicated.label'))) return;
-    this.render(`${result.level?.id ?? levelId}:duplicate`);
-    this.host.libraryChanged({ deletedPackIds: [] });
+    await this.runOp(packId, async () => {
+      const result = await ConfigRegistry.duplicateLevelInPack(packId, levelId);
+      if (!this.report(result, t('app.packs.manager.toast.duplicated.label'))) return;
+      this.pendingFocus = `${result.level?.id ?? levelId}:duplicate`;
+      this.host.libraryChanged({ deletedPackIds: [] });
+    });
   }
 
   private toggleTransfer(levelId: string): void {
@@ -632,18 +692,21 @@ export class PackManager {
     const destination = ConfigRegistry.getEditablePacks().find((pack) => pack.id === toPackId);
     if (!destination) return;
     const name = this.host.packDisplayName(destination);
-    const result =
-      mode === TRANSFER_MOVE
-        ? await ConfigRegistry.moveLevelToPack(fromPackId, levelId, toPackId)
-        : await ConfigRegistry.copyLevelToPack(fromPackId, levelId, toPackId);
-    const key = mode === TRANSFER_MOVE ? 'app.packs.manager.toast.moved.label' : 'app.packs.manager.toast.copied.label';
-    if (!this.report(result, t(key, { name }))) return;
-    this.transferLevelId = null;
-    this.render(`${levelId}:transfer`);
-    this.host.libraryChanged({ deletedPackIds: [] });
+    await this.runOp(fromPackId, async () => {
+      const result =
+        mode === TRANSFER_MOVE
+          ? await ConfigRegistry.moveLevelToPack(fromPackId, levelId, toPackId)
+          : await ConfigRegistry.copyLevelToPack(fromPackId, levelId, toPackId);
+      const key = mode === TRANSFER_MOVE ? 'app.packs.manager.toast.moved.label' : 'app.packs.manager.toast.copied.label';
+      if (!this.report(result, t(key, { name }))) return;
+      this.transferLevelId = null;
+      this.pendingFocus = `${levelId}:transfer`;
+      this.host.libraryChanged({ deletedPackIds: [] });
+    });
   }
 
   private async deleteLevel(pack: LevelPack, row: LevelRow): Promise<void> {
+    if (this.busyPackIds.has(pack.id)) return;
     const confirmed = await confirmDialog({
       title: t('app.confirm.title.label'),
       message: t('app.packs.manager.delete_level.confirm.label', {
@@ -656,57 +719,12 @@ export class PackManager {
     });
     if (!confirmed) return;
     const neighbour = pack.levels[row.number] ?? pack.levels[row.number - 2];
-    const result = await ConfigRegistry.removeLevelFromPack(pack.id, row.levelId);
-    if (!this.report(result, t('app.packs.manager.toast.level_deleted.label'))) return;
-    this.transferLevelId = null;
-    this.render(neighbour ? `${neighbour.id}:delete` : 'packs-new-level-btn');
-    this.host.libraryChanged({ deletedPackIds: [] });
-  }
-
-  // -- Delete pack dialog ------------------------------------------------------------
-
-  /**
-   * Three-way confirmation: Delete, Cancel (focused first), and "Export first",
-   * which exports a copy and leaves the dialog open so the player can then delete.
-   */
-  private askDeletePack(message: string, exportFirst: (() => void) | null): Promise<boolean> {
-    const modal = byId(DELETE_MODAL_ID);
-    const cancel = byId<HTMLButtonElement>('pack-delete-cancel-btn');
-    const ok = byId<HTMLButtonElement>('pack-delete-ok-btn');
-    const exportBtn = byId<HTMLButtonElement>('pack-delete-export-btn');
-    if (!modal || !cancel || !ok || !exportBtn) return Promise.resolve(false);
-    const messageEl = byId('pack-delete-message');
-    const noteEl = byId('pack-delete-note');
-    if (messageEl) messageEl.textContent = message;
-    if (noteEl) noteEl.textContent = '';
-    exportBtn.classList.toggle(HIDDEN_CLASS, exportFirst === null);
-
-    return new Promise<boolean>((resolve) => {
-      let answered = false;
-      const answer = (value: boolean): void => {
-        if (answered) return;
-        answered = true;
-        cancel.removeEventListener('click', onCancel);
-        ok.removeEventListener('click', onOk);
-        exportBtn.removeEventListener('click', onExport);
-        resolve(value);
-      };
-      const onCancel = (): void => closeDialog(modal);
-      const onOk = (): void => {
-        answer(true);
-        closeDialog(modal);
-      };
-      const onExport = (): void => {
-        exportFirst?.();
-        if (noteEl) noteEl.textContent = t('app.packs.manager.delete_dialog.exported.label');
-      };
-      cancel.addEventListener('click', onCancel);
-      ok.addEventListener('click', onOk);
-      exportBtn.addEventListener('click', onExport);
-      openDialog(modal, document.activeElement as HTMLElement | null, {
-        initialFocus: cancel,
-        onClose: () => answer(false)
-      });
+    await this.runOp(pack.id, async () => {
+      const result = await ConfigRegistry.removeLevelFromPack(pack.id, row.levelId);
+      if (!this.report(result, t('app.packs.manager.toast.level_deleted.label'))) return;
+      this.transferLevelId = null;
+      this.pendingFocus = neighbour ? `${neighbour.id}:delete` : 'packs-new-level-btn';
+      this.host.libraryChanged({ deletedPackIds: [] });
     });
   }
 }

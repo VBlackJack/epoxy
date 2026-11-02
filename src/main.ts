@@ -66,6 +66,7 @@ import {
   suggestStartLevel
 } from './ui/proceduralPack';
 import { downloadBytes } from './ui/download';
+import { PackFlows } from './ui/packFlows';
 import { PackManager } from './ui/packManager';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
@@ -127,7 +128,6 @@ import {
   INFINITE_KEY_IDS,
   MAX_DEVICE_PIXEL_RATIO,
   MIN_VIEWPORT_SYNC_PX,
-  PACK_SELECT_MANAGER_VALUE,
   SWIPE_ANCHOR_FOLLOW_RATIO,
   TIMING_DEFAULTS,
   TOAST_DURATION_MS,
@@ -181,6 +181,7 @@ class EpoxyApplication {
   private renderer: PixelRenderer = new PixelRenderer();
   private editor!: LevelEditor;
   private packManager!: PackManager;
+  private packFlows!: PackFlows;
   /** Level of an editor test play still on screen; null otherwise. */
   private testPlayLevel: CompiledLevel | null = null;
   /** Pack the level on screen was started from. */
@@ -284,6 +285,7 @@ class EpoxyApplication {
     this.loadHighScores();
     this.bindEngineCallbacks();
     this.createEditor(editorCanvas);
+    this.packFlows = this.createPackFlows();
     this.packManager = this.createPackManager();
     this.bindUnsavedWorkGuard();
 
@@ -479,7 +481,7 @@ class EpoxyApplication {
         this.packManager.open(packId !== null && ConfigRegistry.isEditablePack(packId) ? packId : this.managerStartPackId());
       },
       importAsPack: (name: string, levels: CompiledLevel[], skipped: number) =>
-        this.finishPackImport(name, levels, skipped, 'app.packs.imported_skipped_toast.label')
+        this.packFlows.importLevelsAsPack(name, levels, skipped)
     });
     this.editor.buildUI();
   }
@@ -639,13 +641,13 @@ class EpoxyApplication {
   private createPackManager(): PackManager {
     return new PackManager({
       playPack: (packId, levelIndex) => this.playPackFromManager(packId, levelIndex),
-      editLevel: (packId, levelId) => this.openInEditor(() => this.editor.openLevel(packId, levelId)),
-      newLevelInPack: (packId) => this.openInEditor(() => this.editor.newLevelInPack(packId)),
+      editLevel: (packId, levelId) => this.packFlows.openInEditor(() => this.editor.openLevel(packId, levelId)),
+      newLevelInPack: (packId) => this.packFlows.openInEditor(() => this.editor.newLevelInPack(packId)),
       importFile: () => this.openPackFilePicker(),
       deleteImportedPacks: () => this.deleteAllImportedPacks(),
       exportCcl: (pack) => this.exportPackAsCcl(pack.levels, pack.id),
       notify: (message) => this.showTransientStatus(message),
-      libraryChanged: (change) => this.handleLibraryChange(change.deletedPackIds),
+      libraryChanged: (change) => this.packFlows.handleLibraryChange(change.deletedPackIds),
       packDisplayName: (pack) => this.getPackDisplayName(pack),
       levelTitle: (level) => this.resolveLevelTitle(level)
     });
@@ -657,19 +659,46 @@ class EpoxyApplication {
     return ConfigRegistry.isEditablePack(activeId) ? activeId : null;
   }
 
-  private openPackManager(): void {
-    this.setDrawerOpen(false);
-    this.closeModal(MODAL_IDS.SCORES);
-    this.packManager.open(this.managerStartPackId());
+  /** Wires the flows that tie the library, the editor and the play side together. */
+  private createPackFlows(): PackFlows {
+    return new PackFlows({
+      editor: () => this.editor,
+      engineLevel: () => this.engine.getLevel(),
+      playedPackId: () => this.playedPackId,
+      markEditorSynced: (level) => {
+        this.editorSourceLevel = level;
+      },
+      switchMode: (mode) => this.switchMode(mode),
+      refreshLibraryViews: () => {
+        this.refreshPackSelector();
+        this.populateScoresTable();
+      },
+      restartFromFirstLevel: () => this.startLevelByIndex(0, false),
+      setCurrentLevelIndex: (index) => {
+        this.currentLevelIndex = index;
+      },
+      announceImportedPack: (pack, persisted, skipped, skippedKey) =>
+        this.announceImportedPack(pack, persisted, skipped, skippedKey),
+      showStatus: (message) => this.showTransientStatus(message),
+      importErrorMessage: () => this.importErrorMessage()
+    });
   }
 
-  /** Runs an editor opening (which may ask about unsaved work) and shows the editor once it succeeded. */
-  private async openInEditor(open: () => Promise<boolean>): Promise<boolean> {
-    if (!(await open())) return false;
-    // The editor holds what was just opened: showing it must not reload the engine level over it.
-    this.editorSourceLevel = this.engine.getLevel();
-    this.switchMode('editor');
-    return true;
+  /**
+   * Opens the manager. Its opener is the control that stays visible when the Levels
+   * dialog or the drawer closes, so focus returns somewhere the player can see.
+   */
+  private openPackManager(): void {
+    const active = document.activeElement as HTMLElement | null;
+    const closing = active?.closest('#scores-modal, #options-drawer') ?? null;
+    const visible = (el: HTMLElement | null): HTMLElement | null =>
+      el && el.getClientRects().length > 0 ? el : null;
+    const opener = closing
+      ? (visible(byId('btn-levels-modal')) ?? visible(byId('btn-options-menu')) ?? visible(byId('btn-mobile-menu')))
+      : active;
+    this.setDrawerOpen(false);
+    this.closeModal(MODAL_IDS.SCORES);
+    this.packManager.open(this.managerStartPackId(), opener);
   }
 
   private playPackFromManager(packId: string, levelIndex: number): void {
@@ -677,23 +706,6 @@ class EpoxyApplication {
     this.refreshPackSelector();
     this.switchMode('play');
     this.startLevelByIndex(levelIndex);
-  }
-
-  /** The library changed in the manager: selectors, tables and the editor catch up, and the play engine stays coherent. */
-  private handleLibraryChange(deletedPackIds: readonly string[]): void {
-    this.refreshPackSelector();
-    this.editor.refreshContext();
-    this.populateScoresTable();
-    if (deletedPackIds.includes(this.playedPackId)) {
-      // The registry already fell back to the campaign pack.
-      this.startLevelByIndex(0, false);
-      return;
-    }
-    // Moves and deletions renumber the pack being played: follow the level on screen.
-    if (this.playedPackId === ConfigRegistry.getActivePackId()) {
-      const index = ConfigRegistry.getLevels().findIndex((lvl) => lvl.id === this.engine.getLevel().id);
-      if (index >= 0) this.currentLevelIndex = index;
-    }
   }
 
   private getPackDisplayName(pack: LevelPack): string {
@@ -729,11 +741,6 @@ class EpoxyApplication {
         }
         select.appendChild(opt);
       }
-      // The last entry opens the manager instead of choosing a pack.
-      const manage = document.createElement('option');
-      manage.value = PACK_SELECT_MANAGER_VALUE;
-      manage.textContent = t('app.packs.manager.select_option.label');
-      select.appendChild(manage);
     }
     this.updateProceduralSeedBox();
     this.updateDeleteImportedPacksButton();
@@ -750,14 +757,6 @@ class EpoxyApplication {
 
   /** Switches to a pack from any pack select, keeps the others in step and closes the drawer. */
   private choosePack(packId: string): void {
-    if (packId === PACK_SELECT_MANAGER_VALUE) {
-      // Not a pack: put the selects back on the pack being played and open the manager.
-      for (const select of this.packSelects()) {
-        select.value = ConfigRegistry.getActivePackId();
-      }
-      this.openPackManager();
-      return;
-    }
     ConfigRegistry.setActivePackId(packId);
     for (const select of this.packSelects()) {
       select.value = packId;
@@ -839,18 +838,6 @@ class EpoxyApplication {
     this.packManager.refresh(pack.id);
   }
 
-  /** Imports a file written by "Export JSON" of the pack manager; false when the text is not a pack file. */
-  private async tryImportPackFile(text: string): Promise<boolean> {
-    const result = await ConfigRegistry.importPackJson(text);
-    if (result.ok) {
-      this.announceImportedPack(result.pack, result.persisted, 0, 'app.packs.imported_skipped_toast.label');
-      return true;
-    }
-    if (result.error === 'format' || result.error === 'malformed') return false;
-    this.showTransientStatus(this.importErrorMessage());
-    return true;
-  }
-
   private async handleImportedFile(file: File): Promise<void> {
     const lower = file.name.toLowerCase();
     const packName = packNameFromFile(file.name);
@@ -871,7 +858,7 @@ class EpoxyApplication {
         }
       } else if (lower.endsWith('.json')) {
         const text = await file.text();
-        if (await this.tryImportPackFile(text)) return;
+        if (await this.packFlows.tryImportPackFile(text)) return;
         levels = this.compileJsonLevels(JSON.parse(text));
       } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
         const decoded = decodeXsbCollection(await file.text(), packName);
@@ -1990,9 +1977,11 @@ class EpoxyApplication {
       void this.deleteAllImportedPacks();
     });
 
-    byId('btn-open-pack-manager')?.addEventListener('click', () => {
-      this.openPackManager();
-    });
+    for (const id of ['btn-open-pack-manager', 'btn-header-packs', 'btn-drawer-packs']) {
+      byId(id)?.addEventListener('click', () => {
+        this.openPackManager();
+      });
+    }
   }
 
   private bindBoardPointer(): void {

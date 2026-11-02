@@ -48,6 +48,7 @@
               <label for="pack-select" data-i18n="app.packs.selector_label.label"></label>
               <select id="pack-select" class="locale-select" data-pack-select></select>
               <button id="btn-levels-modal" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+              <button id="btn-header-packs" class="nav-btn" type="button" data-i18n="app.packs.manager.open_btn.action"></button>
               <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
               <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action" data-i18n-title="app.packs.import_formats.label"></button>
               <button id="btn-delete-imported-packs" class="nav-btn hidden" type="button" data-i18n="app.packs.delete_all_btn.action" data-i18n-title="app.packs.delete_all_btn.title"></button>
@@ -98,6 +99,7 @@
               <button id="btn-drawer-copy-seed" class="nav-btn" type="button" data-i18n="app.packs.procedural_seed_copy.action"></button>
             </div>
             <button id="btn-drawer-levels" class="nav-btn" type="button" data-i18n="app.header.levels_btn.action"></button>
+            <button id="btn-drawer-packs" class="nav-btn" type="button" data-i18n="app.packs.manager.open_btn.action"></button>
             <button id="btn-drawer-procedural" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
             <button id="btn-drawer-import" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action"></button>
             <p class="import-formats-hint" data-i18n="app.packs.import_formats.label"></p>
@@ -629,17 +631,13 @@
         </div>
       </div>
 
-      <!-- DELETE PACK: confirm with an export-first option -->
-      <div id="pack-delete-modal" class="modal-backdrop hidden" role="alertdialog" aria-modal="true" aria-labelledby="pack-delete-title" aria-describedby="pack-delete-message">
+      <!-- CHOICE: a question with several answers, Cancel always first and focused -->
+      <div id="choice-modal" class="modal-backdrop hidden" role="alertdialog" aria-modal="true" aria-labelledby="choice-modal-title" aria-describedby="choice-modal-message">
         <div class="modal-dialog">
-          <h3 id="pack-delete-title" data-i18n="app.confirm.title.label"></h3>
-          <p id="pack-delete-message" class="confirm-message"></p>
-          <p id="pack-delete-note" class="hint-text" role="status"></p>
-          <div class="modal-actions pack-delete-actions">
-            <button id="pack-delete-cancel-btn" class="action-btn" type="button" data-i18n="app.confirm.cancel.action"></button>
-            <button id="pack-delete-export-btn" class="action-btn" type="button" data-i18n="app.packs.manager.delete_dialog.export.action"></button>
-            <button id="pack-delete-ok-btn" class="action-btn primary" type="button" data-i18n="app.confirm.delete.action"></button>
-          </div>
+          <h3 id="choice-modal-title"></h3>
+          <p id="choice-modal-message" class="confirm-message"></p>
+          <p id="choice-modal-note" class="hint-text" role="status"></p>
+          <div id="choice-modal-actions" class="modal-actions pack-delete-actions"></div>
         </div>
       </div>
 
