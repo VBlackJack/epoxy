@@ -290,7 +290,10 @@ export class HubLoopAssembler {
         continue;
       }
       budget.returns--;
-      const corridorCells = next.fits.slice(1).reduce((sum, f) => sum + f.corridor.length, 0);
+      const corridorCells = next.fits
+        .slice(1)
+        .filter((f) => !f.pushed)
+        .reduce((sum, f) => sum + f.corridor.length, 0);
       const back = this.routeReturn(
         this.grid.step(fit.exitPort, fit.exitDir),
         seg + 1,
@@ -625,8 +628,12 @@ export class HubLoopAssembler {
    * never on a lane a block is pushed along; returns their cells in walking order.
    */
   public fillChain(wing: HubWing, loop: LoopPlacement): GridPoint[] {
-    const loot = [...wing.rewards, ...new Array<string>(this.cfg.rewardChips).fill(CHIP_ITEM_ID)];
     const corridor = [...loop.links.filter((l) => !l.pushed).flatMap((l) => l.connector), ...loop.tail];
+    // Rewards stand before bonus chips so a short corridor never drops a required item.
+    const loot = [...wing.rewards, ...new Array<string>(this.cfg.rewardChips).fill(CHIP_ITEM_ID)].slice(
+      0,
+      corridor.length
+    );
     const picks = corridor.map((_, i) => i);
     this.rng.shuffle(picks);
     this.rng.shuffle(loot);

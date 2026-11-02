@@ -35,20 +35,132 @@
     "solution": "SSSWWWEEESEEEWWWSS",
     "reversible": true
   },
+  "blocks_water_alchemy_bridge": {
+    "solution": "SWSSESWNNNEESSSNNEESWNWSSSS",
+    "reversible": true
+  },
+  "blocks_water_counterweight_1": {
+    "solution": "SESSEESSNNWWSSWWEESSS",
+    "reversible": true
+  },
+  "blocks_water_counterweight_2": {
+    "solution": "SWSSSSEEEENNNWWSSSSSS",
+    "reversible": true
+  },
+  "blocks_water_export_counterweight": {
+    "solution": "SSSSWWNSSWENEESS",
+    "reversible": true
+  },
+  "blocks_water_import_counterweight": {
+    "solution": "SSESSSESSNNWWSSWWEESSS",
+    "reversible": true
+  },
+  "blocks_water_slime_neutralizer": {
+    "solution": "SWSSESWNNNEESSNEESWNWSSSS",
+    "reversible": true
+  },
+  "blocks_water_turtle_trap": {
+    "solution": "SESSEESSWWWWEESSS",
+    "reversible": true
+  },
+  "bomb_bridge_choice": {
+    "solution": "SESSNNWWSSWSENESNEESWNWSSSSS",
+    "reversible": true
+  },
   "bomb_clearance": {
     "solution": "SEEEEESS",
+    "reversible": true
+  },
+  "bomb_counterweight_disarm": {
+    "solution": "SWSSSSEEEENNNWWSSSSSS",
+    "reversible": true
+  },
+  "bomb_export_block": {
+    "solution": "SSSSNWSWWNSEEESSS",
+    "reversible": true
+  },
+  "bomb_gray_button_double_toggle": {
+    "solution": "SWWSSSSNENESESWS",
+    "reversible": true
+  },
+  "bomb_gray_button_swap": {
+    "solution": "SEEWWWWSSESESSS",
+    "reversible": true
+  },
+  "bomb_ice_torpedo": {
+    "solution": "SWSSWSENESEEWWSSS",
+    "reversible": true
+  },
+  "bomb_import_block": {
+    "solution": "SSSEEWWWWEESSSS",
+    "reversible": true
+  },
+  "bomb_import_key": {
+    "solution": "SWSSWSENESEEWWSSSS",
+    "reversible": true
+  },
+  "bomb_side_pocket": {
+    "solution": "SESESSNWNNWWSSWSENESSSS",
+    "reversible": true
+  },
+  "bomb_twin_breach": {
+    "solution": "SESSNNWWSSWSENESNEESWNWSSSSS",
+    "reversible": true
+  },
+  "cloner_block_bridge_factory": {
+    "solution": "SWWWSSEWNNEESSNNWWSSEWNNEESSSSSWWEEEES",
+    "reversible": true
+  },
+  "cloner_bomb_and_moat": {
+    "solution": "SWWSSEEENESNNWWWWSSEEENESSSSWWWWSS",
     "reversible": true
   },
   "cloner_bridge_1": {
     "solution": "SWWSSEEENESSNNNWWWWSSEEENESSSSWWWWESS",
     "reversible": true
   },
+  "cloner_double_bridge": {
+    "solution": "SWWSSEEENESSNNNWWWWSSEEENESSSSWWWWSS",
+    "reversible": true
+  },
   "cloner_double_gate_1": {
     "solution": "SWWSSEEENNWWWSSEEWWNNEEESSSSWSEWSSWWEEEES",
     "reversible": true
   },
+  "cloner_ice_alchemy_factory": {
+    "solution": "SWWWSSEWNNEESSNNEESSWENNWWSSSNNNWWSSEWNNEESSSSSWWEEEES",
+    "reversible": true
+  },
   "cloner_trap_gate_1": {
     "solution": "SWWSSEEEWSSWWEEEESS",
+    "reversible": true
+  },
+  "dirt_blue_excavation": {
+    "solution": "SESSWENNWWSSWSENESSSS",
+    "reversible": true
+  },
+  "dirt_bomb_clearing": {
+    "solution": "SESSWENNWWSSWSENESSSS",
+    "reversible": true
+  },
+  "dirt_fake_wall_sieve": {
+    "solution": "SEESSWWWWEESSS",
+    "reversible": true
+  },
+  "dirt_one_way_sokoban": {
+    "solution": "SEESSSSWWNNEWWESSWWNNNESESSEENNNSSSSSS",
+    "reversible": true
+  },
+  "dirt_plow_channel": {
+    "solution": "SESSWENNWWSSWSENESSSS",
+    "reversible": true
+  },
+  "dirt_recessed_valve_matrix": {
+    "solution": "SWSSEESSEEWWWWEESSS",
+    "reversible": true
+  },
+  "dirt_twin_furrows": {
+    "solution": "SESSNNWWSSWSENESSNNEESWNWSSSSS",
     "reversible": true
   },
   "door_in_green": {
@@ -67,13 +179,45 @@
     "solution": "SEEEESSWWWWS",
     "reversible": true
   },
+  "fire_cremation_chamber": {
+    "solution": "SWWEESSEESWWSS",
+    "reversible": true
+  },
   "fire_field": {
     "solution": "SSSS",
+    "reversible": true
+  },
+  "fire_import_ice_block": {
+    "solution": "SSESSSESSNNWWSSWWEESSS",
+    "reversible": true
+  },
+  "fire_jet_alternator": {
+    "solution": "SEESWWWWSSEESS",
+    "reversible": true
+  },
+  "fire_jet_toggle": {
+    "solution": "SEESNWWWWSSEESSS",
+    "reversible": true
+  },
+  "fire_orange_remote_alchemy": {
+    "solution": "SEEWSSSESWNNWWSWSEES",
     "reversible": true
   },
   "fire_then_door": {
     "solution": "SEEEESSWWWWSSEEEES",
     "reversible": true
+  },
+  "fire_thermal_airlock": {
+    "solution": "SWWESSSWSENNEESESWWS",
+    "reversible": true
+  },
+  "force_belt_slalom": {
+    "solution": "SSSWNSSEE",
+    "reversible": false
+  },
+  "force_block_shunt": {
+    "solution": "SWSSWSENESEEWWSSS",
+    "reversible": false
   },
   "force_conveyor": {
     "solution": "SESS",
@@ -87,12 +231,48 @@
     "solution": "SES",
     "reversible": false
   },
+  "ice_block_stop": {
+    "solution": "SWSSWSENESEEWWSSS",
+    "reversible": true
+  },
   "ice_corner_slide": {
     "solution": "SEWWWWS",
     "reversible": true
   },
+  "ice_corner_weave": {
+    "solution": "SSSWENES",
+    "reversible": true
+  },
+  "ice_double_bank": {
+    "solution": "SSSNNNES",
+    "reversible": true
+  },
+  "ice_export_block": {
+    "solution": "SSSSWWWEEESSS",
+    "reversible": true
+  },
+  "ice_export_ice_block": {
+    "solution": "SSSSWWNSSWENEESS",
+    "reversible": true
+  },
+  "ice_export_key": {
+    "solution": "SNEEESSSWWWWEESS",
+    "reversible": true
+  },
+  "ice_import_block": {
+    "solution": "SSSEEWWWWEESSS",
+    "reversible": true
+  },
   "ice_rink_skates": {
     "solution": "SEEEESSSWWSS",
+    "reversible": true
+  },
+  "ice_sled_bridge": {
+    "solution": "SESSNNWWSSWSENESSNNEESWNWSSSSS",
+    "reversible": true
+  },
+  "ice_slingshot_button": {
+    "solution": "SESSWENNWWSSESSWEEESS",
     "reversible": true
   },
   "key_out_green": {
@@ -106,6 +286,10 @@
   "keys_doors_chain": {
     "solution": "SEEEESSWWWWEEEEEENNSSS",
     "reversible": true
+  },
+  "keys_doors_forbid_disposal": {
+    "solution": "SWWEESSEEWWWWEESS",
+    "reversible": false
   },
   "keys_doors_green_hub": {
     "solution": "SWWWEESSNNEESSNNEESSS",
@@ -191,8 +375,16 @@
     "solution": "SNSNSNSWSWENEN.SNSNSNSN.SN.SESSSWSSES",
     "reversible": true
   },
+  "monsters_tank_gate": {
+    "solution": "SEESSSSWWS",
+    "reversible": true
+  },
   "monsters_tank_nook": {
     "solution": "EEESSEWSSSSNNEEEE",
+    "reversible": true
+  },
+  "monsters_tank_shuttle": {
+    "solution": "SEESSSSWWWES",
     "reversible": true
   },
   "monsters_teeth_lure": {
@@ -213,6 +405,14 @@
   },
   "rest_plaza": {
     "solution": "SEESSSSNNWWNNWWSSSSEES",
+    "reversible": true
+  },
+  "sokoban_cantrip_weave": {
+    "solution": "SSSESENNSSSWWWNWNEEWSSEEESSS",
+    "reversible": true
+  },
+  "sokoban_export_dislodge": {
+    "solution": "SSSWWWESNEESWWEESSS",
     "reversible": true
   },
   "sokoban_forged_1": {
@@ -275,12 +475,44 @@
     "solution": "SWWWSSEEEEESSWNENWWWWESSSENNENWWSSSWWWNNENNSSWSSESSS",
     "reversible": true
   },
+  "sokoban_import_dislodge": {
+    "solution": "SSESSSESSNNWWWSSWEESSS",
+    "reversible": true
+  },
   "sokoban_intro_pair": {
     "solution": "SEEESWNWSSWWSWNNESESEESSS",
     "reversible": true
   },
   "sokoban_intro_single": {
     "solution": "SESSEESENNSSWWWWSS",
+    "reversible": true
+  },
+  "sokoban_loma_throat": {
+    "solution": "SESSWSNENNWWSWSSSEENNWEEESSSSS",
+    "reversible": true
+  },
+  "sokoban_microban_checker": {
+    "solution": "SEESSSSWWNNEWWESSWWNNNESESSEENNNSSSSSS",
+    "reversible": true
+  },
+  "sokoban_murase_three_lock": {
+    "solution": "SEESSSSWWNNWESSWWNNNENEEESSWWWNWSSNEEEESSSSS",
+    "reversible": true
+  },
+  "sokoban_nabo_double_o": {
+    "solution": "SSSWSWNNSEENNEESSWWESSESSS",
+    "reversible": true
+  },
+  "sokoban_pico_dislodge_1": {
+    "solution": "SEEESSWNWSSNEESSWWWEEESSS",
+    "reversible": true
+  },
+  "teleport_colored_ice_launch": {
+    "solution": "SSEESWWWWEESS",
+    "reversible": true
+  },
+  "teleport_dual_network_sokoban": {
+    "solution": "SSEESSNWWESSSS",
     "reversible": true
   },
   "teleport_hop": {
@@ -303,6 +535,18 @@
     "solution": "SEWSSEEWWNNEEEESSS",
     "reversible": true
   },
+  "thief_fire_spend": {
+    "solution": "SEEWWWWSSEEEEWWSSS",
+    "reversible": false
+  },
+  "thief_keys_forbid_purge": {
+    "solution": "SWWEESSEEWWWWEESS",
+    "reversible": true
+  },
+  "thief_skate_detour": {
+    "solution": "SEEEESSSWWSSS",
+    "reversible": false
+  },
   "toggle_gate": {
     "solution": "SEEEESSWWWWS",
     "reversible": true
@@ -319,12 +563,52 @@
     "solution": "SEESSEENESSSSSNNNNWWWNWWSSNNEESESSSWSWWWS",
     "reversible": true
   },
+  "toggle_sokoban_parity_1": {
+    "solution": "SESSWWESSWEEESSS",
+    "reversible": true
+  },
+  "toggle_sokoban_parity_2": {
+    "solution": "SEEESSSSNNNWWSSSWWEESSSS",
+    "reversible": true
+  },
   "toggle_switchback": {
     "solution": "SEEESSWEWWWEEEEESS",
     "reversible": true
   },
+  "trap_export_block": {
+    "solution": "SSSSWESSSS",
+    "reversible": true
+  },
+  "trap_export_key": {
+    "solution": "SEESSWWWESSSS",
+    "reversible": true
+  },
   "trap_held_open": {
     "solution": "SESEESWSSWWEEEESE",
+    "reversible": true
+  },
+  "trap_import_block": {
+    "solution": "SSESSSEWWWWEESS",
+    "reversible": true
+  },
+  "trap_import_key": {
+    "solution": "SEESSWWWESSSSS",
+    "reversible": true
+  },
+  "trap_relay_step": {
+    "solution": "SEESSWWWESSSS",
+    "reversible": true
+  },
+  "trap_switchback_hold": {
+    "solution": "SESSNNWWSSESEWWESSSS",
+    "reversible": true
+  },
+  "trap_twin_alcoves": {
+    "solution": "SEESSSWWNESENWWWSWNEESSSS",
+    "reversible": true
+  },
+  "trap_water_latch": {
+    "solution": "SWSNEESSESWNWWESSSSS",
     "reversible": true
   },
   "water_boots_inside": {
@@ -337,6 +621,18 @@
   },
   "water_moat": {
     "solution": "SSSS",
+    "reversible": true
+  },
+  "water_turtle_raft": {
+    "solution": "SEESSSSNNWWSSWWEESSS",
+    "reversible": false
+  },
+  "water_turtle_stepping": {
+    "solution": "SEESSSWWWWEES",
+    "reversible": false
+  },
+  "water_turtle_stepping_bridge": {
+    "solution": "SSSSSS",
     "reversible": true
   }
 }

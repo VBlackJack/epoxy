@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { CHIP_ITEM_ID, EXIT_TILE_ID } from '../core/coreConstants';
 import { Direction, EntityPlacement, GridPoint } from '../core/types';
 import { AssembledLevel, Box } from './LevelAssembler';
 import { CompiledPiece } from './PieceTypes';
 
-export const EXIT_TILE_ID = 'exit';
-export const CHIP_ITEM_ID = 'chip';
+export { CHIP_ITEM_ID, EXIT_TILE_ID };
 export const MAP_MARGIN = 1;
 /** Segment id of the hub floor; wings use two ids each, before and after their puzzle. */
 export const HUB_SEGMENT = 0;

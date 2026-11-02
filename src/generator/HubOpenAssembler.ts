@@ -16,14 +16,13 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../config/constants';
-import { FLOOR_TILE_ID } from '../core/coreConstants';
+import { FLOOR_TILE_ID, WALL_TILE_ID } from '../core/coreConstants';
 import { SeededRandom } from '../core/Random';
 import { Direction, EntityPlacement, GridPoint, HubConfig } from '../core/types';
 import { HubGrid } from './HubGrid';
 import { HubPlan } from './HubPlanner';
 import { CHIP_ITEM_ID, HUB_SEGMENT, NO_SEGMENT, OpenArea } from './HubTypes';
 
-const WALL_TILE_ID = 'wall';
 /** Relative turns of monsters.json, as steps round ORDERED_DIRECTIONS. */
 const TURN_STEPS: Record<string, number> = { FORWARD: 0, RIGHT: 1, BACK: 2, LEFT: 3 };
 /** Neighbours a chip's cell needs on open ground, so it never sits at the tip of a dead end. */
@@ -90,7 +89,12 @@ export class HubOpenAssembler {
         near: i < Math.round(chipCount * chipRule.nearLaneShare)
       }))
     ];
-    const placed = this.placeLoot(loot, start, lanes);
+    const interior = new Set<number>([
+      ...lanes,
+      ...dividers.map((c) => this.grid.key(c)),
+      ...hazards.map((c) => this.grid.key(c))
+    ]);
+    const placed = this.placeLoot(loot, start, lanes, interior);
     if (!placed) return null;
     const chips = placed.filter((p) => p.id === CHIP_ITEM_ID).map((p) => p.cell);
     const targets = this.walkingOrder(
@@ -361,10 +365,12 @@ export class HubOpenAssembler {
   private placeLoot(
     loot: Array<{ id: string; near: boolean }>,
     start: GridPoint,
-    lanes: Set<number>
+    lanes: Set<number>,
+    interior: Set<number> = lanes
   ): Array<{ id: string; cell: GridPoint }> | null {
     const rule = this.cfg.openChips;
     const aroundLane = this.within(lanes, rule.nearLaneDistance);
+    const aroundInterior = this.within(interior, rule.nearLaneDistance);
     const placed: Array<{ id: string; cell: GridPoint }> = [];
     const anchors: GridPoint[] = [start];
     // Items first: a boot or key must find a place, a chip may be left out.
@@ -376,7 +382,12 @@ export class HubOpenAssembler {
       let pool = offLane.length > 0 ? offLane : open;
       if (item.near) {
         const near = pool.filter((c) => aroundLane.has(this.grid.key(c)));
-        if (near.length > 0) pool = near;
+        if (near.length > 0) {
+          pool = near;
+        } else {
+          const nearFeature = pool.filter((c) => aroundInterior.has(this.grid.key(c)));
+          if (nearFeature.length > 0) pool = nearFeature;
+        }
       }
       const distance = (c: GridPoint): number => Math.min(...anchors.map((a) => Math.abs(a.x - c.x) + Math.abs(a.y - c.y)));
       const ranked = pool

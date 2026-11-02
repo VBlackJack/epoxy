@@ -26,7 +26,7 @@ import { GenerationMode, profileFor } from './DifficultyProfile';
 import { HubPlanner } from './HubPlanner';
 import { compilePiece } from './PieceCompiler';
 import { CompiledPiece, MotifRule } from './PieceTypes';
-import { hubShapeFor, LeadChoice, leadChoiceFor, leadMotifFor } from './PackVariety';
+import { avoidPiecesFor, hubShapeFor, LeadChoice, leadChoiceFor, leadMotifFor } from './PackVariety';
 import { ProgressionPlanner } from './ProgressionPlanner';
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -144,6 +144,17 @@ describe('pack variety', () => {
     expect(seen).toBeGreaterThan(0);
   });
 
+  it('rotates piece cooldown cohorts across adjacent endless levels and leaves pack mode untouched', () => {
+    expect(avoidPiecesFor(3, 1, library, rules(), cfg, 'pack')).toEqual([]);
+    for (const seed of SEEDS) {
+      const avoid1 = new Set(avoidPiecesFor(1, seed, library, rules(), cfg, 'endless'));
+      const avoid2 = new Set(avoidPiecesFor(2, seed, library, rules(), cfg, 'endless'));
+      expect(avoid1.size).toBeGreaterThan(0);
+      expect(avoid2.size).toBeGreaterThan(0);
+      expect([...avoid1]).not.toEqual([...avoid2]);
+    }
+  });
+
   describe('lead motif replay', () => {
     const DEEP_LEVELS = 300;
     const MODES: GenerationMode[] = ['pack', 'endless'];
@@ -157,7 +168,13 @@ describe('pack variety', () => {
       const window = cfg.noRepeatWindow;
       const motifsAt = (level: number): string[] => {
         const profile = profileFor(mode, level, cfg);
-        const accept = profile.layout === 'hub' ? HubPlanner.fitsWing : () => true;
+        const isLoop = cfg.hub.loopModes.includes(profile.mode);
+        const accept =
+          profile.layout !== 'hub'
+            ? () => true
+            : isLoop
+              ? (p: CompiledPiece) => HubPlanner.fitsLoopWing(p, cfg.hub)
+              : HubPlanner.fitsWing;
         const pieces = ProgressionPlanner.playablePieces(profile, library, rules(), profile.maxTier, accept);
         return [...new Set(pieces.map((p) => p.motif))];
       };
@@ -204,6 +221,15 @@ describe('pack variety', () => {
       const started = performance.now();
       leadChoiceFor(FAR_LEVEL, 7, library, rules(), cfg, 'endless');
       expect(performance.now() - started).toBeLessThan(MAX_FAR_LEVEL_MS);
+    });
+
+    it('admits irreversible loop-wing motifs at tier 1 in endless mode', () => {
+      const tier1EndlessCfg: ProceduralConfig = {
+        ...cfg,
+        endless: { ...cfg.endless, maxTierStart: 1, levelsPerExtraTier: 100 }
+      };
+      const leads = new Set(PLAN_SEEDS.map((s) => leadMotifFor(1, s, library, rules(), tier1EndlessCfg, 'endless')));
+      expect(leads.has('force')).toBe(true);
     });
   });
 });

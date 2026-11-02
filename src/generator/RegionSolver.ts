@@ -16,11 +16,11 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, GridPoint, RuntimeEntity, UndoSnapshot } from '../core/types';
 import { PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
 
-const WALL_TILE_ID = 'wall';
 const REGION_LEVEL_PASSWORD = 'REGN';
 /** Wall cells kept around the region's bounding box in the cropped engine. */
 const CROP_MARGIN = 1;

@@ -23,7 +23,7 @@ import { HubDependency, HubPlanner } from '../generator/HubPlanner';
 import { OpenArea } from '../generator/HubTypes';
 import { cellReachableWithout } from '../generator/GuardCheck';
 import { LevelProver } from '../generator/LevelProver';
-import { HubShapeChoice, hubShapeFor, LeadChoice, leadChoiceFor } from '../generator/PackVariety';
+import { avoidPiecesFor, HubShapeChoice, hubShapeFor, LeadChoice, leadChoiceFor } from '../generator/PackVariety';
 import { encodeActions, SolverAction } from '../generator/PieceSolver';
 import { scoreLevel } from '../generator/LevelScorer';
 import { DifficultyProfile, GenerationMode, profileFor } from '../generator/DifficultyProfile';
@@ -57,6 +57,7 @@ export class ProceduralGenerationError extends Error {
 interface LevelVariety {
   leadChoice?: LeadChoice;
   shape?: HubShapeChoice;
+  avoidPieces?: string[];
 }
 
 /** A generated level with what it took to make it. */
@@ -174,12 +175,15 @@ export class ProceduralGenerator {
     // The pack's lead motif and hub outline depend on the seed and level only, not on the
     // candidate, and replaying the draws of every earlier level is the costly part.
     const motifs = ConfigRegistry.getMotifs();
+    const library = this.compiledLibrary(motifs);
+    const rules = motifs.motifRules ?? {};
     const packSeed = seed >>> 0;
     const variety: LevelVariety = script
       ? {}
       : {
-          leadChoice: leadChoiceFor(levelNumber, packSeed, this.compiledLibrary(motifs), motifs.motifRules ?? {}, cfg, profile.mode),
-          shape: hubShapeFor(levelNumber, packSeed, cfg, profile.mode)
+          leadChoice: leadChoiceFor(levelNumber, packSeed, library, rules, cfg, profile.mode),
+          shape: hubShapeFor(levelNumber, packSeed, cfg, profile.mode),
+          avoidPieces: avoidPiecesFor(levelNumber, packSeed, library, rules, cfg, profile.mode)
         };
     let best: GeneratedLevel | null = null;
     for (let k = 0; k < cfg.scoring.candidates; k++) {
@@ -226,7 +230,7 @@ export class ProceduralGenerator {
 
     const layout = script?.layout ?? profile.layout;
     // Scripted levels teach what their brief says; only generated packs vary.
-    const { leadChoice, shape } = variety;
+    const { leadChoice, shape, avoidPieces } = variety;
     const lead = leadChoice?.preferred;
     // Attempts come in tiers of one dropped puzzle each. Within a tier the pack's
     // lead motif, hub outline and a block lane between two puzzles are asked for
@@ -244,11 +248,12 @@ export class ProceduralGenerator {
       const shapeIds = shape ? (strict && shape.preferred ? [shape.preferred] : shape.allowed) : undefined;
       const dropped = Math.floor(attempt / tierSize);
       const avoid = leadChoice?.avoid;
+      const cooldownPieces = strict ? avoidPieces : undefined;
       const hubGrowth = strict && attempt % tierSize < cfg.hub.outlineGrowth.growAttemptsPerTier ? 1 : 0;
       const built =
         layout === 'hub'
-          ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid, strict, hubGrowth)
-          : this.buildChain(profile, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead, avoid);
+          ? this.buildHub(profile, library, motifs, rng, cfg, script, dropped, attemptLead, shapeIds, avoid, strict, hubGrowth, cooldownPieces)
+          : this.buildChain(profile, library, motifs, rng, cfg, regionSize + attempt * cfg.regionGrowthPerRetry, script, attemptLead, avoid, cooldownPieces);
       if (!built) continue;
       const { assembled } = built;
 
@@ -259,7 +264,7 @@ export class ProceduralGenerator {
         theme: cfg.motifThemes[motif],
         titleKey: `${MOTIF_KEY_PREFIX}${motif}${TITLE_KEY_SUFFIX}`,
         hintKey: `${MOTIF_KEY_PREFIX}${motif}${HINT_KEY_SUFFIX}`,
-        password: this.generatePassword(packSeed + levelNumber),
+        password: this.generatePassword(packSeed, levelNumber),
         timeLimitSeconds: 0,
         chipsRequired: assembled.chipCount,
         playerStart: { ...assembled.playerStart, dir: 'S' },
@@ -322,9 +327,10 @@ export class ProceduralGenerator {
     regionSize: number,
     script?: LevelScript,
     lead?: string,
-    avoid?: string[]
+    avoid?: string[],
+    avoidPieces?: string[]
   ): BuiltLayout | null {
-    const plan = ProgressionPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, script, lead, avoid);
+    const plan = ProgressionPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, script, lead, avoid, avoidPieces);
     const assembled = this.mostCompact(cfg.layoutSamples, () => LevelAssembler.assemble(plan, regionSize, cfg, rng));
     if (!assembled) return null;
     let exit: { x: number; y: number } = assembled.playerStart;
@@ -352,12 +358,27 @@ export class ProceduralGenerator {
     shapeIds?: string[],
     avoid?: string[],
     lanes = true,
-    hubGrowth = 1
+    hubGrowth = 1,
+    avoidPieces?: string[]
   ): BuiltLayout | null {
-    const plan = HubPlanner.plan(profile, library, motifs.motifRules ?? {}, rng, cfg.hub, script, piecesDropped, lead, avoid, lanes);
+    const plan = HubPlanner.plan(
+      profile,
+      library,
+      motifs.motifRules ?? {},
+      rng,
+      cfg.hub,
+      script,
+      piecesDropped,
+      lead,
+      avoid,
+      lanes,
+      avoidPieces
+    );
     // Loop wings are costly to lay out and rarely fit: fewer layouts are tried for a plan, and
     // the first that fits is kept, a new plan being a better bet than one more layout of this.
     const loop = plan.wings.some((w) => w.loop);
+    // No order of the wings wins on paper: laying it out is wasted, the proof would fail.
+    if (loop && !plan.winnable) return null;
     const assembled = this.mostCompact(
       loop ? cfg.hub.loopLayoutSamples : cfg.hub.layoutSamples,
       () => HubAssembler.assemble(plan, cfg.hub, rng, shapeIds, hubGrowth),
@@ -461,7 +482,8 @@ export class ProceduralGenerator {
     return hash.toString(CONTENT_HASH_RADIX).padStart(CONTENT_HASH_LENGTH, '0');
   }
 
-  private static generatePassword(seed: number): string {
+  private static generatePassword(packSeed: number, levelNumber: number): string {
+    const seed = SeededRandom.seedFromString(`${packSeed}:${levelNumber}`);
     let n = (Math.imul(seed, PASSWORD_HASH_MULTIPLIER) + PASSWORD_HASH_OFFSET) >>> 0;
     let out = '';
     for (let i = 0; i < PASSWORD_LENGTH; i++) {

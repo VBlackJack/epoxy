@@ -16,7 +16,7 @@
 
 import { AudioManager } from '../audio/AudioManager';
 import { GameEngine } from '../core/GameEngine';
-import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { DIRECTION_VECTORS, MAX_SOLVER_CACHE_ENTRIES, ORDERED_DIRECTIONS } from '../config/constants';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, Direction, GridPoint } from '../core/types';
 import { RouteSegment } from './LevelAssembler';
@@ -365,6 +365,10 @@ export class LevelProver {
     const { quarterTurns, mirrored } = piece.orientation;
     const cacheKey = `${piece.id}|${quarterTurns}|${mirrored}|${carried.join()}`;
     if (!solutionCache.has(cacheKey)) {
+      if (solutionCache.size >= MAX_SOLVER_CACHE_ENTRIES) {
+        const oldest = solutionCache.keys().next().value;
+        if (oldest !== undefined) solutionCache.delete(oldest);
+      }
       solutionCache.set(cacheKey, PieceSolver.solve(piece, { carried }).moves);
     }
     return solutionCache.get(cacheKey) ?? null;

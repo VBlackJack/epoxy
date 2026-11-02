@@ -328,6 +328,7 @@
       "sokoban": "lynx_lcd",
       "trap": "lynx_lcd",
       "toggle_walls": "lynx_lcd",
+      "dirt": "lynx_lcd",
       "keys_doors": "cyber_neon",
       "force": "cyber_neon",
       "teleport": "cyber_neon",
