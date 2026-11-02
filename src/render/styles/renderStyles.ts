@@ -15,15 +15,16 @@
  */
 
 /**
- * Registry of the render styles: HD Neon (vector), 16-Bit Retro, 32-Bit Retro and the five styles
- * derived from them by recolouring (Pocket, Pastel, Blueprint, Sepia, Classic 90s). Each
- * descriptor says which sprites and palettes a style draws with and which behaviours it turns
- * on, so the renderer and the UI ask the registry instead of comparing style ids. Pure module.
+ * Registry of the render styles: HD Neon (vector), 16-Bit Retro, 32-Bit Retro and the five Retro HD
+ * styles (Pocket, Pastel, Blueprint, Sepia, Classic 90s), which draw like HD Neon with their own
+ * colours and a retro finish. Each descriptor says which sprites and palettes a style draws with
+ * and which behaviours it turns on, so the renderer and the UI ask the registry instead of
+ * comparing style ids. Pure module.
  */
 
 import type { GraphicsStyle } from '../../core/types';
-import { RETRO16_SPEC, createSpriteStyleSpec, type SpriteStyleSpec } from '../retroSprites';
-import { RETRO32_LAYER_SCALE, RETRO32_SPEC } from '../retro32/spriteStyle32';
+import { RETRO16_SPEC, type SpriteStyleSpec } from '../retroSprites';
+import { RETRO32_SPEC } from '../retro32/spriteStyle32';
 
 export type RenderStyleId = GraphicsStyle;
 
@@ -39,10 +40,20 @@ export const RETRO_PIXELS_CLASS = 'retro-pixels';
 /** Sprite pipeline a style draws with: the 16-px sheet as is, or its 32-Bit derivation. */
 export type SpriteBase = 'retro16' | 'retro32';
 
-/** Scale of the 16-Bit pipeline over the authoring grid. */
-const RETRO16_LAYER_SCALE = 1;
-/** Suffix of the id of the 16-px spec a 32-px derived style falls back to on small tiles. */
-const SMALL_SPEC_SUFFIX = '-16';
+/** Colour bands a smooth gradient is cut into by the Retro HD styles, and by Classic 90s. */
+export const RETRO_HD_GRADIENT_BANDS = 3;
+export const CLASSIC90_GRADIENT_BANDS = 2;
+
+/** Texture laid over the finished board by a Retro HD style. */
+export type OverlayKind = 'lcdDots' | 'gridLines' | 'vignetteGrain' | 'scanlines';
+
+/** The retro finish of a Retro HD style: banded gradients and an optional overlay. */
+export interface RetroFinish {
+  /** Number of flat colour bands a gradient is cut into. */
+  readonly gradientBands: number;
+  /** Texture drawn once per frame over the board, or null for none. */
+  readonly overlay: OverlayKind | null;
+}
 
 export interface RenderStyleDescriptor {
   readonly id: RenderStyleId;
@@ -54,13 +65,14 @@ export interface RenderStyleDescriptor {
   readonly palettesKey: PalettesKey | null;
   /** Sprite pipeline the style draws with, or null for the vector HD Neon drawing. */
   readonly base: SpriteBase | null;
-  /**
-   * Spec used when tiles are drawn smaller than `sprite`: the 16-px sprites, recoloured like the
-   * style. Has its own id when the style recolours, so composed tiles of two styles never mix.
-   */
+  /** Spec used when tiles are drawn smaller than `sprite`: the 16-px sprites. */
   readonly smallSprite: SpriteStyleSpec | null;
   /** Key of the style's entry in game.json renderStylePalettes, or null when it keeps the base colours. */
   readonly transformKey: string | null;
+  /** Retro finish of a Retro HD style, or null for the styles that draw as they are. */
+  readonly finish: RetroFinish | null;
+  /** Neon glows (shadow blur) are drawn. */
+  readonly glow: boolean;
   /** The dithered shadow that walls throw on the floor is drawn. */
   readonly floorShadows: boolean;
   /** True when the LCD pixel grid may be laid over the view. */
@@ -89,6 +101,8 @@ const MODERN_STYLE: RenderStyleDescriptor = {
   base: null,
   smallSprite: null,
   transformKey: null,
+  finish: null,
+  glow: true,
   floorShadows: true,
   lcdAllowed: false,
   canvasClass: null,
@@ -108,6 +122,8 @@ const RETRO16_STYLE: RenderStyleDescriptor = {
   base: 'retro16',
   smallSprite: RETRO16_SPEC,
   transformKey: null,
+  finish: null,
+  glow: true,
   floorShadows: true,
   lcdAllowed: true,
   canvasClass: RETRO_PIXELS_CLASS,
@@ -127,6 +143,8 @@ const RETRO32_STYLE: RenderStyleDescriptor = {
   base: 'retro32',
   smallSprite: RETRO16_SPEC,
   transformKey: null,
+  finish: null,
+  glow: true,
   floorShadows: true,
   lcdAllowed: false,
   canvasClass: RETRO_PIXELS_CLASS,
@@ -138,54 +156,56 @@ const RETRO32_STYLE: RenderStyleDescriptor = {
   lowResScene: true
 };
 
-/** Everything a style derived from a retro pipeline sets; the rest follows from its base. */
-interface DerivedStyleOptions {
+/** Everything a Retro HD style sets; the rest is shared by all of them. */
+interface RetroHdStyleOptions {
   readonly id: RenderStyleId;
-  readonly base: SpriteBase;
-  readonly lcdAllowed: boolean;
+  readonly overlay: OverlayKind | null;
+  readonly gradientBands: number;
   readonly lighting: boolean;
-  readonly effects: boolean;
   readonly floorShadows: boolean;
 }
 
-/** A style that draws the sprites of `base` recoloured by its renderStylePalettes entry (keyed by its id). */
-function derivedStyle(options: DerivedStyleOptions): RenderStyleDescriptor {
-  const sixteen = options.base === 'retro16';
-  const sprite = createSpriteStyleSpec(options.id, sixteen ? RETRO16_LAYER_SCALE : RETRO32_LAYER_SCALE, !sixteen);
+/**
+ * A style that draws like HD Neon (full resolution, smooth motion, the same tiles) with the colours
+ * of its renderStylePalettes entry (keyed by its id), banded gradients, no glow and an optional overlay.
+ */
+function retroHdStyle(options: RetroHdStyleOptions): RenderStyleDescriptor {
   return {
     id: options.id,
     labelKey: `${LABEL_KEY_PREFIX}${options.id}${LABEL_KEY_SUFFIX}`,
-    sprite,
-    palettesKey: sixteen ? 'retroPalettes' : 'retro32Palettes',
-    base: options.base,
-    smallSprite: sixteen ? sprite : createSpriteStyleSpec(`${options.id}${SMALL_SPEC_SUFFIX}`, RETRO16_LAYER_SCALE, false),
+    sprite: null,
+    palettesKey: null,
+    base: null,
+    smallSprite: null,
     transformKey: options.id,
+    finish: { gradientBands: options.gradientBands, overlay: options.overlay },
+    glow: false,
     floorShadows: options.floorShadows,
-    lcdAllowed: options.lcdAllowed,
-    canvasClass: RETRO_PIXELS_CLASS,
-    smoothMotion: false,
-    pixelSnap: true,
-    itemBob: false,
+    lcdAllowed: false,
+    canvasClass: null,
+    smoothMotion: true,
+    pixelSnap: false,
+    itemBob: true,
     lighting: options.lighting,
-    effects: options.effects,
-    lowResScene: true
+    effects: true,
+    lowResScene: false
   };
 }
 
-const POCKET_STYLE = derivedStyle({
-  id: 'pocket', base: 'retro16', lcdAllowed: true, lighting: false, effects: false, floorShadows: true
+const POCKET_STYLE = retroHdStyle({
+  id: 'pocket', overlay: 'lcdDots', gradientBands: RETRO_HD_GRADIENT_BANDS, lighting: true, floorShadows: true
 });
-const PASTEL_STYLE = derivedStyle({
-  id: 'pastel', base: 'retro16', lcdAllowed: false, lighting: false, effects: false, floorShadows: true
+const PASTEL_STYLE = retroHdStyle({
+  id: 'pastel', overlay: null, gradientBands: RETRO_HD_GRADIENT_BANDS, lighting: true, floorShadows: true
 });
-const BLUEPRINT_STYLE = derivedStyle({
-  id: 'blueprint', base: 'retro16', lcdAllowed: false, lighting: false, effects: false, floorShadows: true
+const BLUEPRINT_STYLE = retroHdStyle({
+  id: 'blueprint', overlay: 'gridLines', gradientBands: RETRO_HD_GRADIENT_BANDS, lighting: true, floorShadows: true
 });
-const SEPIA_STYLE = derivedStyle({
-  id: 'sepia', base: 'retro32', lcdAllowed: false, lighting: false, effects: false, floorShadows: true
+const SEPIA_STYLE = retroHdStyle({
+  id: 'sepia', overlay: 'vignetteGrain', gradientBands: RETRO_HD_GRADIENT_BANDS, lighting: true, floorShadows: true
 });
-const CLASSIC90_STYLE = derivedStyle({
-  id: 'classic90', base: 'retro32', lcdAllowed: false, lighting: false, effects: false, floorShadows: false
+const CLASSIC90_STYLE = retroHdStyle({
+  id: 'classic90', overlay: 'scanlines', gradientBands: CLASSIC90_GRADIENT_BANDS, lighting: false, floorShadows: false
 });
 
 /** Every style, in the order the G key cycles through them. */

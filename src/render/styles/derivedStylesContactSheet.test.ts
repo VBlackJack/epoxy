@@ -15,35 +15,28 @@
  */
 
 /**
- * Dev helper, skipped unless STYLES_DUMP is set: writes one PNG contact sheet of every tile
- * sprite per recolouring style to local/styles/ (ignored by version control) so the looks can be
- * reviewed by eye.
+ * Dev helper, skipped unless STYLES_DUMP is set: writes one PNG swatch sheet per Retro HD style to
+ * local/styles/ (ignored by version control): every colour of the palette, then the colours of
+ * each theme, recoloured by the style, so the looks can be reviewed by eye.
  *   PowerShell: $env:STYLES_DUMP=1; npx vitest run src/render/styles/derivedStylesContactSheet
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { describe, it } from 'vitest';
-import type { RenderStylePaletteConfig } from '../../core/types';
+import type { RenderStyleFamilies, RenderStylePaletteConfig, ThemePalette } from '../../core/types';
 import { createTestBundle } from '../../test/loadTestConfigs';
-import { createRetro32SpriteCache } from '../retro32/cache';
-import { rasterizeSprite32 } from '../retro32/rasterize';
-import { createRetro32ThemeSprites } from '../retro32/spriteStyle32';
-import { RETRO_SWAP_RAMPS } from '../paletteKeys';
-import { RETRO_SHEET, RETRO_SPRITE_NAMES, RETRO_SPRITE_SIZE, rasterizeSprite, resolveRetroRamps } from '../retroSprites';
 import { RENDER_STYLES } from './renderStyles';
-import { applyRampTransform, createStyleTransforms } from './styleTransforms';
+import { THEME_COLOUR_KEYS, createRetroHdRecolour, parseCssColour } from './retroHdPalette';
 
 const DUMP_ENV = 'STYLES_DUMP';
 const DUMP_DIR = 'local/styles';
-const DUMP_THEME = 'default';
 const COLUMNS = 16;
-const ZOOM = 3;
+const SWATCH = 24;
 const GAP = 2;
 const BYTES_PER_PIXEL = 4;
-const ALPHA_OFFSET = 3;
 const BACKGROUND = [40, 40, 48, 255];
-const CACHE_ENTRIES = 16;
+const OPAQUE = 255;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const CRC_POLY = 0xedb88320;
 const BITS_PER_BYTE = 8;
@@ -87,48 +80,36 @@ function encodePng(rgba: Uint8Array, width: number, height: number): Buffer {
   ]);
 }
 
-function blitZoomed(sheet: Uint8Array, sheetWidth: number, px: Uint8ClampedArray, side: number, ox: number, oy: number): void {
-  const scaled = side * ZOOM;
-  for (let y = 0; y < scaled; y++) {
-    for (let x = 0; x < scaled; x++) {
-      const s = (Math.floor(y / ZOOM) * side + Math.floor(x / ZOOM)) * BYTES_PER_PIXEL;
-      if (px[s + ALPHA_OFFSET] === 0) continue;
-      const d = ((oy + y) * sheetWidth + ox + x) * BYTES_PER_PIXEL;
-      sheet.set(px.subarray(s, s + BYTES_PER_PIXEL), d);
-    }
+function fillSwatch(sheet: Uint8Array, sheetWidth: number, colour: string, index: number): void {
+  const parsed = parseCssColour(colour);
+  const rgba = parsed ? [...parsed.rgb, OPAQUE] : BACKGROUND;
+  const cell = SWATCH + GAP * 2;
+  const ox = (index % COLUMNS) * cell + GAP;
+  const oy = Math.floor(index / COLUMNS) * cell + GAP;
+  for (let y = 0; y < SWATCH; y++) {
+    for (let x = 0; x < SWATCH; x++) sheet.set(rgba, ((oy + y) * sheetWidth + ox + x) * BYTES_PER_PIXEL);
   }
 }
 
-describe.skipIf(!process.env[DUMP_ENV])('recolouring style contact sheets', () => {
+describe.skipIf(!process.env[DUMP_ENV])('Retro HD style contact sheets', () => {
   it('writes one PNG per style under local/styles', () => {
-    const bundle = createTestBundle();
-    const palettes = bundle.game.retroPalettes as Record<string, Record<string, string[]>>;
-    const stylePalettes = bundle.game.renderStylePalettes as Record<string, RenderStylePaletteConfig>;
+    const { game } = createTestBundle();
+    const stylePalettes = game.renderStylePalettes as Record<string, RenderStylePaletteConfig>;
+    const themes = Object.values(game.themes as Record<string, ThemePalette>);
     mkdirSync(DUMP_DIR, { recursive: true });
-    const names = RETRO_SPRITE_NAMES.filter((n) => RETRO_SHEET.sprites[n].width === RETRO_SPRITE_SIZE);
-    const ramps16 = resolveRetroRamps(palettes, DUMP_THEME);
-    const swap = Object.values(RETRO_SWAP_RAMPS)[0];
-    for (const style of RENDER_STYLES.filter((s) => s.transformKey !== null)) {
-      const transforms = createStyleTransforms(stylePalettes[style.id]);
-      const side = style.sprite?.tileSize ?? RETRO_SPRITE_SIZE;
-      const cell = side * ZOOM + GAP * 2;
+    for (const style of RENDER_STYLES.filter((s) => s.finish !== null)) {
+      const recolour = createRetroHdRecolour(stylePalettes[style.id], game.renderStyleFamilies as RenderStyleFamilies);
+      const colours = Object.values(recolour.palette(game.palette));
+      for (const theme of themes) {
+        const styled = recolour.theme(theme);
+        colours.push(...THEME_COLOUR_KEYS.map((key) => styled[key] as string));
+      }
+      const cell = SWATCH + GAP * 2;
       const width = COLUMNS * cell;
-      const height = Math.ceil(names.length / COLUMNS) * cell;
+      const height = Math.ceil(colours.length / COLUMNS) * cell;
       const sheet = new Uint8Array(width * height * BYTES_PER_PIXEL);
       for (let i = 0; i < sheet.length; i += BYTES_PER_PIXEL) sheet.set(BACKGROUND, i);
-      const ramps = style.base === 'retro32'
-        ? createRetro32ThemeSprites(
-            DUMP_THEME, ramps16, undefined, createRetro32SpriteCache(CACHE_ENTRIES), RETRO_SHEET,
-            { styleId: style.id, transform: transforms.ramps }
-          ).ramps32
-        : applyRampTransform(ramps16, transforms.ramps);
-      names.forEach((name, n) => {
-        const sprite = RETRO_SHEET.sprites[name];
-        const px = style.base === 'retro32'
-          ? rasterizeSprite32(sprite, ramps, ramps16, swap)
-          : rasterizeSprite(sprite, ramps, swap);
-        blitZoomed(sheet, width, px, side, (n % COLUMNS) * cell + GAP, Math.floor(n / COLUMNS) * cell + GAP);
-      });
+      colours.forEach((colour, index) => fillSwatch(sheet, width, colour, index));
       writeFileSync(`${DUMP_DIR}/sheet-${style.id}.png`, encodePng(sheet, width, height));
     }
   });

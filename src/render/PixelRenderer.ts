@@ -91,14 +91,14 @@ import {
   SpriteStyleSpec
 } from './retroSprites';
 import { RETRO_SPRITE } from './retroSpriteNames';
-import { getRenderStyle, nextRenderStyle, RenderStyleDescriptor } from './styles/renderStyles';
+import { getRenderStyle, nextRenderStyle, OverlayKind, RenderStyleDescriptor } from './styles/renderStyles';
 import { createRetro32SpriteCache, createRetro32ThemeSprites, Retro32SpriteCache } from './retro32';
+import { bandStops, GradientStop } from './styles/gradientBands';
 import {
-  applyRampTransform,
-  createStyleTransforms,
-  findStylePaletteErrors,
-  StyleTransforms
-} from './styles/styleTransforms';
+  createRetroHdRecolour,
+  findStyleFamilyErrors,
+  findStylePaletteErrors
+} from './styles/retroHdPalette';
 
 interface Particle {
   x: number;
@@ -136,15 +136,27 @@ interface ActiveSpriteStyle {
 
 type RetroPaletteTable = Record<string, Record<string, string[]>> | undefined;
 
-/** Recolouring of the active style: null `value` keeps the base colours, `ok` false means the config is unusable. */
-interface StyleRecolour {
-  readonly value: StyleTransforms | null;
-  readonly ok: boolean;
+/** Palette and theme a style draws with: the config's own, or recoloured for a Retro HD style. */
+interface StyleColours {
+  readonly palette: Record<string, string>;
+  readonly theme: ThemePalette | undefined;
 }
 
-const NO_RECOLOUR: StyleRecolour = { value: null, ok: true };
-/** Prefix of the console report when a derived style's palette fails validation. */
-const STYLE_PALETTE_INVALID_REPORT = 'Render style palette rejected, using the flat retro drawer:';
+/** Prefix of the console report when the colours of a Retro HD style fail validation. */
+const STYLE_PALETTE_INVALID_REPORT = 'Render style palette rejected, drawing with the HD Neon colours:';
+/** Multiplier and increment of the generator that scatters the grain specks (Numerical Recipes LCG). */
+const GRAIN_LCG_MULTIPLIER = 1664525;
+const GRAIN_LCG_INCREMENT = 1013904223;
+const GRAIN_LCG_MODULUS = 4294967296;
+const GRAIN_SEED = 1;
+/** Width in pixels of a grid line, and shortest distance between two scanlines. */
+const OVERLAY_LINE_PX = 1;
+const MIN_SCANLINE_PERIOD_PX = 2;
+/** Quality level at which overlays are not drawn. */
+const LOWEST_QUALITY: GraphicsQuality = QUALITY_LEVELS[QUALITY_LEVELS.length - 1];
+/** A gradient needs at least this many bands to be cut; offset of the stop that closes a gradient. */
+const MIN_GRADIENT_BANDS = 2;
+const GRADIENT_END_OFFSET = 1;
 
 /** Parts of the shadow a floor cell receives from casters north, west or only north-west of it. */
 type ShadowPart = 'north' | 'west' | 'corner';
@@ -460,7 +472,6 @@ export class PixelRenderer {
     styleId: GraphicsStyle;
     ramps16: RetroRamps;
     palettes32: RetroPaletteTable;
-    recolour: StyleTransforms | null;
     cacheEntries: number;
     value: ActiveSpriteStyle | null;
     /** The 16-Bit sprites a 32-Bit style degrades to when tiles are drawn smaller than its sprites. */
@@ -481,10 +492,21 @@ export class PixelRenderer {
   private retro32PaletteErrors: string[] = [];
   /** Palettes the 32-Bit cache was filled from; a new object empties it. */
   private retro32CachePalettes: { p16: RetroPaletteTable; p32: RetroPaletteTable } | null = null;
-  /** Transforms of the active derived style, rebuilt when the style or the renderStylePalettes object changes. */
-  private styleRecolourMemo: { styleId: string; table: unknown; recolour: StyleRecolour } | null = null;
-  /** Colours already passed through the active style's colour transform; reset with styleRecolourMemo. */
-  private readonly styleColourMemo: Map<string, string> = new Map();
+  /** Colours of the active Retro HD style, rebuilt when the style, the theme or one of the config tables changes. */
+  private styleColoursMemo: {
+    styleId: string;
+    themeId: string;
+    palette: unknown;
+    themes: unknown;
+    table: unknown;
+    families: unknown;
+    value: StyleColours;
+  } | null = null;
+  /** Config objects whose invalid Retro HD palettes were already reported. */
+  private readonly reportedStyleConfigs: WeakSet<object> = new WeakSet();
+  /** Texture a Retro HD style lays over the board, painted once per size and blitted every frame. */
+  private overlayCanvas: HTMLCanvasElement | null = null;
+  private overlayKey = '';
   /** Shine overlays of 32-Bit items and blocks, keyed like retroCanvases plus the sweep step. */
   private readonly retroShineCanvases: Map<string, HTMLCanvasElement> = new Map();
   /** Style id the cached shadow extent was computed for. */
@@ -571,7 +593,7 @@ export class PixelRenderer {
 
   /** Accent colour of the active theme, for the HUD to follow the biome. */
   public getThemeAccent(): string | undefined {
-    return this.getActiveTheme()?.accentGlow;
+    return this.getRawTheme()?.accentGlow;
   }
 
   /** True when the LCD grid is shown: it was asked for and the active style allows it. */
@@ -713,8 +735,7 @@ export class PixelRenderer {
     gridY: number,
     colorKey?: string
   ): void {
-    const gameCfg = ConfigRegistry.getGame();
-    const pal = gameCfg.palette;
+    const pal = this.pal();
     const settings = this.getSettings();
 
     const fxKey = FX_COLOR_KEYS[kind];
@@ -768,9 +789,82 @@ export class PixelRenderer {
     return frameScale;
   }
 
+  /** The theme in use, in the colours of the active style. */
   private getActiveTheme(): ThemePalette | undefined {
+    if (!this.descriptor().finish) return this.getRawTheme();
+    return this.getStyleColours().theme;
+  }
+
+  /** The theme in use as game.json declares it (the HUD follows these colours in every style). */
+  private getRawTheme(): ThemePalette | undefined {
     const gameCfg = ConfigRegistry.getGame();
     return resolveTheme(gameCfg.themes, this.themeId, gameCfg.graphics?.defaultTheme);
+  }
+
+  /** The palette in use: game.json's own, or recoloured for a Retro HD style. */
+  private pal(): Record<string, string> {
+    if (!this.descriptor().finish) return ConfigRegistry.getGame().palette;
+    return this.getStyleColours().palette;
+  }
+
+  /**
+   * Palette and theme of the active Retro HD style, rebuilt only when the style, the theme or one of
+   * the config objects it comes from changes. An unusable config is reported once and the style draws
+   * with the HD Neon colours.
+   */
+  private getStyleColours(): StyleColours {
+    const reported = this.reportedStyleConfigs;
+    const desc = this.descriptor();
+    const game = ConfigRegistry.getGame();
+    const memo = this.styleColoursMemo;
+    if (
+      memo &&
+      memo.styleId === desc.id &&
+      memo.themeId === this.themeId &&
+      memo.palette === game.palette &&
+      memo.themes === game.themes &&
+      memo.table === game.renderStylePalettes &&
+      memo.families === game.renderStyleFamilies
+    ) {
+      return memo.value;
+    }
+    const theme = this.getRawTheme();
+    let value: StyleColours = { palette: game.palette, theme };
+    const key = desc.transformKey;
+    if (key) {
+      const errors = [
+        ...findStylePaletteErrors(game.renderStylePalettes, [key]),
+        ...findStyleFamilyErrors(game.renderStyleFamilies, Object.keys(game.palette))
+      ];
+      if (errors.length > 0) {
+        // Once per config object, however often the theme or style changes.
+        if (!reported.has(game)) {
+          reported.add(game);
+          console.error(STYLE_PALETTE_INVALID_REPORT, errors.join('; '));
+        }
+      } else {
+        const recolour = createRetroHdRecolour(
+          (game.renderStylePalettes ?? {})[key],
+          game.renderStyleFamilies ?? { palette: {}, theme: {} }
+        );
+        value = { palette: recolour.palette(game.palette), theme: theme ? recolour.theme(theme) : undefined };
+      }
+    }
+    if (memo && (memo.palette !== game.palette || memo.table !== game.renderStylePalettes || memo.families !== game.renderStyleFamilies)) {
+      // The config was replaced: sprites and the terrain cache hold colours of the old tables.
+      this.sprites.clear();
+      this.terrainCacheKey = '';
+    }
+    this.styleColoursMemo = {
+      styleId: desc.id,
+      themeId: this.themeId,
+      palette: game.palette,
+      themes: game.themes,
+      table: game.renderStylePalettes,
+      families: game.renderStyleFamilies,
+      value
+    };
+    return value;
   }
 
   public renderViewport(ctx: CanvasRenderingContext2D, engine: PlayEngine): void {
@@ -1057,7 +1151,7 @@ export class PixelRenderer {
 
     if (lit) {
       this.addLight('player', this.visualPlayerPos.x - camX, this.visualPlayerPos.y - camY - hop, tilePixelSize, settings);
-      const pal = gameCfg.palette;
+      const pal = this.pal();
       this.lighting.render(
         ctx,
         this.lights,
@@ -1073,6 +1167,7 @@ export class PixelRenderer {
     } else if (this.isLcdEnabled()) {
       this.drawLcdGrid(ctx, spriteScale, settings);
     }
+    this.drawStyleOverlay(ctx, tilePixelSize, settings);
 
     this.drawMechanismLinksAndObjective(ctx, engine, camX, camY, tilePixelSize);
 
@@ -1093,7 +1188,7 @@ export class PixelRenderer {
   private addLight(id: string, gx: number, gy: number, tilePixelSize: number, settings: RenderSettings): void {
     const source = settings.lightSources[id];
     if (!source) return;
-    const color = ConfigRegistry.getGame().palette[source.colorKey];
+    const color = this.pal()[source.colorKey];
     if (!color) return;
     let radius = source.radiusTile * tilePixelSize;
     if (FLICKERING_LIGHTS.has(id) && !this.reducedMotion) {
@@ -1113,10 +1208,9 @@ export class PixelRenderer {
     settings: RenderSettings
   ): void {
     if (this.plannedPath.length === 0) return;
-    const gameCfg = ConfigRegistry.getGame();
     ctx.save();
     const theme = this.getActiveTheme();
-    const pathColor = this.styleColour(theme ? theme.accentGlow : gameCfg.palette.pathLine);
+    const pathColor = theme ? theme.accentGlow : this.pal().pathLine;
     ctx.strokeStyle = pathColor;
     ctx.fillStyle = pathColor;
     ctx.lineWidth = tilePixelSize * settings.pathLineWidthTile;
@@ -1151,7 +1245,7 @@ export class PixelRenderer {
     const width = ctx.canvas.width;
     const height = ctx.canvas.height;
     const gap = Math.max(1, Math.round(spriteScale * LCD_GAP_RATIO));
-    const colour = this.styleColour(ConfigRegistry.getGame().palette.lcdGrid);
+    const colour = this.pal().lcdGrid;
     ctx.save();
     ctx.globalAlpha = settings.lcdGridAlpha;
     const key = `${width}|${height}|${spriteScale}|${gap}|${colour}`;
@@ -1174,6 +1268,142 @@ export class PixelRenderer {
     }
     if (this.lcdGridCanvas) ctx.drawImage(this.lcdGridCanvas, 0, 0);
     ctx.restore();
+  }
+
+  /**
+   * Lays the texture of a Retro HD style over the board. It is painted once per size, zoom and
+   * colour on an offscreen canvas and blitted every frame; without a DOM it is painted directly.
+   * The lowest quality level skips it.
+   */
+  private drawStyleOverlay(ctx: CanvasRenderingContext2D, tilePixelSize: number, settings: RenderSettings): void {
+    const kind = this.descriptor().finish?.overlay;
+    if (!kind || this.effectiveQuality === LOWEST_QUALITY) return;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    const colour = this.overlayColour(kind);
+    // The vignette and the grain do not depend on the zoom, the other textures follow the size of a tile.
+    const zoomKey = kind === 'vignetteGrain' ? '' : tilePixelSize;
+    const tuning = [
+      settings.lcdGridAlpha, settings.overlayGridAlpha, settings.overlayGridDivisions, settings.overlayScanlineAlpha,
+      settings.overlayScanlinesPerTile, settings.overlayVignetteAlpha, settings.overlayVignetteSteps,
+      settings.vignetteInnerRatio, settings.overlayGrainAlpha, settings.overlayGrainDensity, settings.overlayGrainSizePx
+    ].join(',');
+    const key = `${this.style}|${kind}|${width}|${height}|${zoomKey}|${colour}|${tuning}`;
+    if (key !== this.overlayKey || !this.overlayCanvas) {
+      this.overlayKey = key;
+      this.overlayCanvas = null;
+      if (typeof document === 'undefined') {
+        ctx.save();
+        this.paintOverlay(ctx, kind, width, height, tilePixelSize, settings);
+        ctx.restore();
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const octx = canvas.getContext('2d');
+      if (octx) {
+        this.paintOverlay(octx, kind, width, height, tilePixelSize, settings);
+        this.overlayCanvas = canvas;
+      }
+    }
+    if (this.overlayCanvas) ctx.drawImage(this.overlayCanvas, 0, 0);
+  }
+
+  /** Palette colour an overlay is painted with, which also tells the cached texture when to be repainted. */
+  private overlayColour(kind: OverlayKind): string {
+    const pal = this.pal();
+    switch (kind) {
+      case 'lcdDots':
+        return pal.lcdGrid;
+      case 'gridLines':
+        return pal.overlayGridLine;
+      case 'scanlines':
+        return pal.overlayScanline;
+      case 'vignetteGrain':
+        return `${pal.vignetteShade}|${pal.overlayGrain}`;
+    }
+  }
+
+  private paintOverlay(
+    ctx: CanvasRenderingContext2D,
+    kind: OverlayKind,
+    width: number,
+    height: number,
+    tilePixelSize: number,
+    settings: RenderSettings
+  ): void {
+    const pal = this.pal();
+    switch (kind) {
+      case 'lcdDots': {
+        const spriteScale = tilePixelSize / RETRO_SPRITE_SIZE;
+        const gap = Math.max(1, Math.round(spriteScale * LCD_GAP_RATIO));
+        ctx.globalAlpha = settings.lcdGridAlpha;
+        this.paintLcdGrid(ctx, width, height, spriteScale, gap, pal.lcdGrid);
+        break;
+      }
+      case 'gridLines': {
+        const spacing = tilePixelSize / Math.max(1, settings.overlayGridDivisions);
+        ctx.globalAlpha = settings.overlayGridAlpha;
+        ctx.fillStyle = pal.overlayGridLine;
+        ctx.beginPath();
+        for (let i = 0; i * spacing < width; i++) ctx.rect(Math.round(i * spacing), 0, OVERLAY_LINE_PX, height);
+        for (let j = 0; j * spacing < height; j++) ctx.rect(0, Math.round(j * spacing), width, OVERLAY_LINE_PX);
+        ctx.fill();
+        break;
+      }
+      case 'scanlines': {
+        const period = Math.max(MIN_SCANLINE_PERIOD_PX, Math.round(tilePixelSize / Math.max(1, settings.overlayScanlinesPerTile)));
+        const thickness = Math.max(OVERLAY_LINE_PX, Math.floor(period / 2));
+        ctx.globalAlpha = settings.overlayScanlineAlpha;
+        ctx.fillStyle = pal.overlayScanline;
+        ctx.beginPath();
+        for (let y = 0; y < height; y += period) ctx.rect(0, y, width, thickness);
+        ctx.fill();
+        break;
+      }
+      case 'vignetteGrain': {
+        this.paintVignetteRings(ctx, width, height, settings);
+        this.paintGrain(ctx, width, height, settings);
+        break;
+      }
+    }
+  }
+
+  /** Darkened corners as flat concentric frames, darkest on the outside, like a banded gradient. */
+  private paintVignetteRings(ctx: CanvasRenderingContext2D, width: number, height: number, settings: RenderSettings): void {
+    const steps = Math.max(1, Math.floor(settings.overlayVignetteSteps));
+    const reach = (Math.min(width, height) / 2) * (1 - settings.vignetteInnerRatio);
+    const thickness = reach / steps;
+    ctx.fillStyle = this.pal().vignetteShade;
+    for (let i = 0; i < steps; i++) {
+      const inset = i * thickness;
+      const innerW = width - 2 * inset;
+      const innerH = height - 2 * inset;
+      ctx.globalAlpha = (settings.overlayVignetteAlpha * (steps - i)) / steps;
+      ctx.beginPath();
+      ctx.rect(inset, inset, innerW, thickness);
+      ctx.rect(inset, height - inset - thickness, innerW, thickness);
+      ctx.rect(inset, inset + thickness, thickness, innerH - 2 * thickness);
+      ctx.rect(width - inset - thickness, inset + thickness, thickness, innerH - 2 * thickness);
+      ctx.fill();
+    }
+  }
+
+  /** Light specks scattered over the view by a seeded generator, so the grain is the same every run. */
+  private paintGrain(ctx: CanvasRenderingContext2D, width: number, height: number, settings: RenderSettings): void {
+    const size = Math.max(1, settings.overlayGrainSizePx);
+    const count = Math.floor(width * height * settings.overlayGrainDensity);
+    let seed = GRAIN_SEED;
+    const next = (): number => {
+      seed = (seed * GRAIN_LCG_MULTIPLIER + GRAIN_LCG_INCREMENT) % GRAIN_LCG_MODULUS;
+      return seed / GRAIN_LCG_MODULUS;
+    };
+    ctx.globalAlpha = settings.overlayGrainAlpha;
+    ctx.fillStyle = this.pal().overlayGrain;
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) ctx.rect(Math.floor(next() * width), Math.floor(next() * height), size, size);
+    ctx.fill();
   }
 
   /** Fills the gap lines on the right and bottom edge of every sprite pixel. */
@@ -1255,7 +1485,7 @@ export class PixelRenderer {
     const eased = this.irisProgress * this.irisProgress;
     const radius = Math.max(tilePixelSize * IRIS_MIN_RADIUS_TILE, maxRadius * eased);
     ctx.save();
-    ctx.fillStyle = this.styleColour(ConfigRegistry.getGame().palette.irisShade);
+    ctx.fillStyle = this.pal().irisShade;
     ctx.beginPath();
     ctx.rect(0, 0, width, height);
     ctx.arc(cx, cy, radius, 0, FULL_TURN, true);
@@ -1435,7 +1665,7 @@ export class PixelRenderer {
     camY: number,
     tilePixelSize: number
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const terrain = engine.getTerrain();
     // A cell under a block reveals nothing on hover.
     const hovered = this.hoveredGridPoint;
@@ -1449,7 +1679,7 @@ export class PixelRenderer {
     ctx.lineWidth = Math.max(LINK_STYLE.minWidthPx, tilePixelSize * LINK_STYLE.widthTile);
 
     // 1. Brown Button <-> Bear Trap wires
-    ctx.strokeStyle = this.styleColour(pal.linkTrap);
+    ctx.strokeStyle = pal.linkTrap;
     for (const link of engine.getTrapLinks()) {
       const isHovered =
         hov &&
@@ -1461,7 +1691,7 @@ export class PixelRenderer {
     }
 
     // 2. Red Button <-> Clone Machine wires
-    ctx.strokeStyle = this.styleColour(pal.linkCloner);
+    ctx.strokeStyle = pal.linkCloner;
     for (const link of engine.getCloneLinks()) {
       const isHovered =
         hov &&
@@ -1477,7 +1707,7 @@ export class PixelRenderer {
     const hovDef = hovTile ? ConfigRegistry.getTile(hovTile) : undefined;
     const toggleVisible = showAll || hovDef?.buttonAction === 'toggle_walls';
     const flameVisible = showAll || hovDef?.buttonAction === 'toggle_flames';
-    ctx.strokeStyle = this.styleColour(pal.linkToggle);
+    ctx.strokeStyle = pal.linkToggle;
     ctx.globalAlpha = LINK_STYLE.toggleAlpha;
     if (toggleVisible) {
       this.strokeButtonLinks(ctx, toggleButtons, toggleWalls, camX, camY, tilePixelSize);
@@ -1486,7 +1716,7 @@ export class PixelRenderer {
       this.strokeButtonLinks(ctx, flameButtons, flameTargets, camX, camY, tilePixelSize);
     }
 
-    ctx.strokeStyle = this.styleColour(pal.linkTeleport);
+    ctx.strokeStyle = pal.linkTeleport;
     ctx.globalAlpha = LINK_STYLE.teleportAlpha;
     const hovGroupKey = hovDef?.isTeleporter ? teleportGroupKey(hovDef) : null;
     for (const [groupKey, cells] of teleporterGroups) {
@@ -1507,14 +1737,14 @@ export class PixelRenderer {
       const ox = (this.objectivePoint.x + 0.5 - camX) * tilePixelSize;
       const oy = (this.objectivePoint.y + 0.5 - camY) * tilePixelSize;
 
-      ctx.strokeStyle = this.styleColour(pal.objectiveRing);
+      ctx.strokeStyle = pal.objectiveRing;
       ctx.lineWidth = Math.max(1, tilePixelSize * LINK_STYLE.objectiveRingWidthTile);
       ctx.globalAlpha = LINK_STYLE.objectiveAlpha;
       ctx.beginPath();
       ctx.arc(ox, oy, tilePixelSize * pulse, 0, FULL_TURN);
       ctx.stroke();
 
-      ctx.strokeStyle = this.styleColour(pal.objectiveHalo);
+      ctx.strokeStyle = pal.objectiveHalo;
       ctx.lineWidth = Math.max(1, tilePixelSize * LINK_STYLE.objectiveHaloWidthTile);
       ctx.beginPath();
       ctx.arc(ox, oy, tilePixelSize * (pulse + LINK_STYLE.objectiveHaloOffset), 0, FULL_TURN);
@@ -1621,7 +1851,7 @@ export class PixelRenderer {
       return;
     }
 
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
 
     ctx.fillStyle = pal.floorBase;
     ctx.fillRect(x, y, size, size);
@@ -1834,9 +2064,9 @@ export class PixelRenderer {
         break;
 
       case 'hint': {
-        ctx.fillStyle = this.styleColour(pal.hintSign);
+        ctx.fillStyle = pal.hintSign;
         ctx.fillRect(x + size * 0.2, y + size * 0.15, size * 0.6, size * 0.7);
-        this.drawHintGlyph(ctx, x, y, size, 0.55, this.getSettings().hintFontRetro, this.styleColour(pal.hintGlyph));
+        this.drawHintGlyph(ctx, x, y, size, 0.55, this.getSettings().hintFontRetro, pal.hintGlyph);
         break;
       }
 
@@ -2059,8 +2289,6 @@ export class PixelRenderer {
     if (!desc.sprite) return null;
     const ramps16 = this.getRetroRamps();
     if (!hasRetroSprite(RETRO_READY_SPRITE) || !(RETRO_READY_RAMP in ramps16)) return null;
-    const recolour = this.getStyleRecolour(desc);
-    if (!recolour.ok) return null;
     const palettes32 = desc.palettesKey === 'retro32Palettes' ? ConfigRegistry.getGame().retro32Palettes : undefined;
     const cacheEntries = desc.palettesKey === 'retro32Palettes' ? this.getRetro32CacheSize() : 0;
     let memo = this.spriteStyleMemo;
@@ -2069,70 +2297,21 @@ export class PixelRenderer {
       memo.styleId !== desc.id ||
       memo.ramps16 !== ramps16 ||
       memo.palettes32 !== palettes32 ||
-      memo.recolour !== recolour.value ||
       memo.cacheEntries !== cacheEntries
     ) {
       const value =
         desc.base === 'retro32'
-          ? this.buildRetro32Style(desc, ramps16, palettes32, cacheEntries, recolour.value)
-          : this.buildRetro16Style(desc.sprite, ramps16, recolour.value);
-      memo = { styleId: desc.id, ramps16, palettes32, recolour: recolour.value, cacheEntries, value, small: null };
+          ? this.buildRetro32Style(desc, ramps16, palettes32, cacheEntries)
+          : this.buildRetro16Style(desc.sprite, ramps16);
+      memo = { styleId: desc.id, ramps16, palettes32, cacheEntries, value, small: null };
       this.spriteStyleMemo = memo;
     }
     // Tiles drawn smaller than the sprites would shrink them with nearest neighbour: use the 16-px sprites.
     if (memo.value && memo.value.spec.tileSize > this.frameTilePx) {
-      memo.small ??= this.buildRetro16Style(desc.smallSprite ?? desc.sprite, ramps16, recolour.value);
+      memo.small ??= this.buildRetro16Style(desc.smallSprite ?? desc.sprite, ramps16);
       return memo.small;
     }
     return memo.value;
-  }
-
-  /**
-   * The recolouring of a derived style, built from its renderStylePalettes entry and kept until
-   * the style or the table changes. An invalid entry is reported once and makes the style draw
-   * with the flat fallback, like invalid retro palettes.
-   */
-  private getStyleRecolour(desc: RenderStyleDescriptor): StyleRecolour {
-    const key = desc.transformKey;
-    if (!key) return NO_RECOLOUR;
-    const table = ConfigRegistry.getGame().renderStylePalettes;
-    const seen = this.styleRecolourMemo;
-    if (seen && seen.styleId === desc.id && seen.table === table) return seen.recolour;
-    if (seen && seen.table !== table) {
-      // The table was replaced: nothing rasterized or composed from the old colours is valid.
-      this.retro32Cache?.clear();
-      this.retroCanvases.clear();
-      this.retroShineCanvases.clear();
-      this.terrainCacheKey = '';
-    }
-    let recolour: StyleRecolour;
-    const errors = findStylePaletteErrors(table, [key]);
-    if (errors.length > 0) {
-      console.error(STYLE_PALETTE_INVALID_REPORT, errors.join('; '));
-      recolour = { value: null, ok: false };
-    } else {
-      try {
-        recolour = { value: createStyleTransforms((table ?? {})[key]), ok: true };
-      } catch (error) {
-        console.error(STYLE_PALETTE_INVALID_REPORT, error instanceof Error ? error.message : String(error));
-        recolour = { value: null, ok: false };
-      }
-    }
-    this.styleRecolourMemo = { styleId: desc.id, table, recolour };
-    this.styleColourMemo.clear();
-    return recolour;
-  }
-
-  /** A colour drawn outside the sprites (path, links, iris, LCD grid), passed through the active style's palette. */
-  private styleColour(colour: string): string {
-    const transforms = this.getStyleRecolour(this.descriptor()).value;
-    if (!transforms) return colour;
-    let mapped = this.styleColourMemo.get(colour);
-    if (mapped === undefined) {
-      mapped = transforms.colour(colour);
-      this.styleColourMemo.set(colour, mapped);
-    }
-    return mapped;
   }
 
   /** Configured size of the 32-Bit sprite cache, floored and bounded below. */
@@ -2158,20 +2337,18 @@ export class PixelRenderer {
     return this.descriptor().effects && this.styleHasSprites();
   }
 
-  private buildRetro16Style(spec: SpriteStyleSpec, ramps16: RetroRamps, recolour: StyleTransforms | null): ActiveSpriteStyle {
-    const ramps = recolour ? applyRampTransform(ramps16, recolour.ramps) : ramps16;
-    return { spec, ramps, source: createRetro16SpriteSource(ramps) };
+  private buildRetro16Style(spec: SpriteStyleSpec, ramps16: RetroRamps): ActiveSpriteStyle {
+    return { spec, ramps: ramps16, source: createRetro16SpriteSource(ramps16) };
   }
 
   private buildRetro32Style(
     desc: RenderStyleDescriptor,
     ramps16: RetroRamps,
     palettes32: RetroPaletteTable,
-    size: number,
-    recolour: StyleTransforms | null
+    size: number
   ): ActiveSpriteStyle {
     const spec = desc.sprite as SpriteStyleSpec;
-    const fallback = (): ActiveSpriteStyle => this.buildRetro16Style(desc.smallSprite ?? spec, ramps16, recolour);
+    const fallback = (): ActiveSpriteStyle => this.buildRetro16Style(desc.smallSprite ?? spec, ramps16);
     const palettes16 = this.retroRampsSource;
     const seen = this.retro32CachePalettes;
     if (!seen || seen.p16 !== palettes16 || seen.p32 !== palettes32) {
@@ -2199,8 +2376,7 @@ export class PixelRenderer {
         ramps16,
         palettes32,
         this.retro32Cache,
-        RETRO_SHEET,
-        recolour ? { styleId: desc.id, transform: recolour.ramps } : undefined
+        RETRO_SHEET
       );
       if (!(RETRO_READY_RAMP in sprites.ramps32)) throw new Error(`missing ramp ${RETRO_READY_RAMP}`);
       return { spec, ramps: sprites.ramps32, source: sprites.source };
@@ -2432,7 +2608,7 @@ export class PixelRenderer {
     neighbours: Readonly<TileNeighbours>,
     theme: ThemePalette
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const settings = this.getSettings();
     const mask = neighbours.wallMask;
     const openS = !(mask & NEIGHBOUR.S);
@@ -2499,7 +2675,7 @@ export class PixelRenderer {
 
   /** Retro counterpart of drawModernWall, with flat colours and a brick front face. */
   private drawRetroWall(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const settings = this.getSettings();
     const openS = !(mask & NEIGHBOUR.S);
     const front = openS ? Math.round(size * settings.wallFrontDepthTile) : 0;
@@ -2552,7 +2728,7 @@ export class PixelRenderer {
   /** Dithered shadow thrown by casters north and west of a cell. */
   private drawRetroFloorShadow(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number): void {
     if (!(mask & (NEIGHBOUR.N | NEIGHBOUR.W | NEIGHBOUR.NW))) return;
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const dot = this.retroDot(size);
     const depth = Math.round(size * this.getSettings().floorShadowDepthTile);
     const side = Math.round(depth * SIDE_SHADOW_RATIO);
@@ -2590,7 +2766,7 @@ export class PixelRenderer {
   /** Sparse dark specks on some retro floor cells. */
   private drawRetroFloorDetail(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, hash: number): void {
     if (hash % this.getSettings().floorDetailEvery !== 0) return;
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const dot = this.retroDot(size);
     ctx.fillStyle = pal.floorBorder;
     const kind = (hash >>> FLOOR_DETAIL_KIND_SHIFT) % FLOOR_DETAIL_KINDS;
@@ -2617,7 +2793,7 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const phase = Math.floor(this.animFrame / RETRO_PHASE_TICKS) % RETRO_PHASE_COUNT;
 
     switch (tileId) {
@@ -2692,11 +2868,11 @@ export class PixelRenderer {
       return;
     }
 
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const glow = this.getSettings().glowBlurPx;
 
     // Modern sleek biome-themed floor with subtle gradient
-    const floorGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+    const floorGrad = this.gradient(ctx.createLinearGradient(x, y, x + size, y + size));
     floorGrad.addColorStop(0, theme.floorTop);
     floorGrad.addColorStop(1, theme.floorBottom);
     ctx.fillStyle = floorGrad;
@@ -2737,7 +2913,7 @@ export class PixelRenderer {
 
       case 'blue_wall_real':
       case 'blue_wall_fake': {
-        const bGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+        const bGrad = this.gradient(ctx.createLinearGradient(x, y, x + size, y + size));
         bGrad.addColorStop(0, pal.modernBlueWallTop);
         bGrad.addColorStop(1, pal.modernBlueWallBottom);
         ctx.fillStyle = bGrad;
@@ -2769,14 +2945,14 @@ export class PixelRenderer {
       }
 
       case 'dirt': {
-        const dGrad = ctx.createRadialGradient(
+        const dGrad = this.gradient(ctx.createRadialGradient(
           x + size / 2,
           y + size / 2,
           size * 0.1,
           x + size / 2,
           y + size / 2,
           size * 0.7
-        );
+        ));
         dGrad.addColorStop(0, pal.modernDirtCenter);
         dGrad.addColorStop(1, pal.modernDirtEdge);
         ctx.fillStyle = dGrad;
@@ -2801,7 +2977,7 @@ export class PixelRenderer {
       }
 
       case 'water': {
-        const wGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+        const wGrad = this.gradient(ctx.createLinearGradient(x, y, x + size, y + size));
         wGrad.addColorStop(0, pal.modernWaterTop);
         wGrad.addColorStop(1, pal.modernWaterBottom);
         ctx.fillStyle = wGrad;
@@ -2811,14 +2987,14 @@ export class PixelRenderer {
 
       case 'fire':
       case 'flame_jet_on': {
-        const fGrad = ctx.createRadialGradient(
+        const fGrad = this.gradient(ctx.createRadialGradient(
           x + size / 2,
           y + size * 0.65,
           2,
           x + size / 2,
           y + size / 2,
           size * 0.65
-        );
+        ));
         fGrad.addColorStop(0, pal.modernFireCore);
         fGrad.addColorStop(0.55, pal.modernFireMid);
         fGrad.addColorStop(1, pal.modernFireEdge);
@@ -2835,7 +3011,7 @@ export class PixelRenderer {
       }
 
       case 'turtle': {
-        const tGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+        const tGrad = this.gradient(ctx.createLinearGradient(x, y, x + size, y + size));
         tGrad.addColorStop(0, pal.modernWaterTop);
         tGrad.addColorStop(1, pal.modernWaterBottom);
         ctx.fillStyle = tGrad;
@@ -2849,7 +3025,7 @@ export class PixelRenderer {
       case 'ice_ne':
       case 'ice_sw':
       case 'ice_se': {
-        const iGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+        const iGrad = this.gradient(ctx.createLinearGradient(x, y, x + size, y + size));
         iGrad.addColorStop(0, pal.modernIceTop);
         iGrad.addColorStop(0.5, pal.modernIceMid);
         iGrad.addColorStop(1, pal.modernIceBottom);
@@ -3087,15 +3263,35 @@ export class PixelRenderer {
     }
   }
 
+  /**
+   * Wraps a gradient so a Retro HD style cuts it into flat colour bands: the colour stops are held
+   * back until the closing one (offset 1) arrives, then replaced by the hard-edged bands. Any other
+   * style gets the gradient as it is.
+   */
+  private gradient(grad: CanvasGradient): CanvasGradient {
+    const bands = this.descriptor().finish?.gradientBands ?? 0;
+    if (bands < MIN_GRADIENT_BANDS) return grad;
+    const held: GradientStop[] = [];
+    const addStop = grad.addColorStop;
+    grad.addColorStop = (offset: number, colour: string): void => {
+      held.push({ offset, colour });
+      if (offset < GRADIENT_END_OFFSET) return;
+      for (const stop of bandStops(held, bands)) addStop.call(grad, stop.offset, stop.colour);
+      held.length = 0;
+    };
+    return grad;
+  }
+
   /** Soft shadow thrown by casters north and west of a cell, fading away from them. */
   private drawModernFloorShadow(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number): void {
+    if (!this.descriptor().floorShadows) return;
     if (!(mask & (NEIGHBOUR.N | NEIGHBOUR.W | NEIGHBOUR.NW))) return;
     const parts: ShadowPart[] = [];
     if (mask & NEIGHBOUR.N) parts.push('north');
     if (mask & NEIGHBOUR.W) parts.push('west');
     else if (mask & NEIGHBOUR.NW && !(mask & NEIGHBOUR.N)) parts.push('corner');
     for (const part of parts) {
-      const sprite = this.getSprite(`shadow|${part}|${size}`, size, size, 0, (sctx) =>
+      const sprite = this.getSprite(`shadow|${this.style}|${part}|${size}`, size, size, 0, (sctx) =>
         this.paintFloorShadow(sctx, part, size)
       );
       if (sprite) ctx.drawImage(sprite, x, y);
@@ -3105,16 +3301,16 @@ export class PixelRenderer {
 
   /** One part of a floor shadow, as a gradient fading away from the caster. */
   private paintFloorShadow(ctx: CanvasRenderingContext2D, part: ShadowPart, size: number, x = 0, y = 0): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const depth = size * this.getSettings().floorShadowDepthTile;
     const side = depth * SIDE_SHADOW_RATIO;
     let grad: CanvasGradient;
     if (part === 'north') {
-      grad = ctx.createLinearGradient(0, y, 0, y + depth);
+      grad = this.gradient(ctx.createLinearGradient(0, y, 0, y + depth));
     } else if (part === 'west') {
-      grad = ctx.createLinearGradient(x, 0, x + side, 0);
+      grad = this.gradient(ctx.createLinearGradient(x, 0, x + side, 0));
     } else {
-      grad = ctx.createRadialGradient(x, y, 0, x, y, depth);
+      grad = this.gradient(ctx.createRadialGradient(x, y, 0, x, y, depth));
     }
     grad.addColorStop(0, pal.modernFloorShadow);
     grad.addColorStop(1, pal.modernShadowClear);
@@ -3127,7 +3323,7 @@ export class PixelRenderer {
   /** Seams, vents and scuffs on some floor cells, so open areas are not a flat grid. */
   private drawModernFloorDetail(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, hash: number): void {
     if (hash % this.getSettings().floorDetailEvery !== 0) return;
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const kind = (hash >>> FLOOR_DETAIL_KIND_SHIFT) % FLOOR_DETAIL_KINDS;
     const cx = x + size / 2;
     const cy = y + size / 2;
@@ -3173,7 +3369,7 @@ export class PixelRenderer {
     size: number,
     hash: number = 0
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const t = this.timeTick * MODERN_ANIM_SPEED;
     const cx = x + size / 2;
     const cy = y + size / 2;
@@ -3283,7 +3479,7 @@ export class PixelRenderer {
       case 'force_w':
       case 'force_random': {
         const pad = this.glowPad();
-        const sprite = this.getSprite(`force|${tileId}|${size}`, size, size, pad, (sctx, o) =>
+        const sprite = this.getSprite(`force|${this.style}|${tileId}|${size}`, size, size, pad, (sctx, o) =>
           this.paintForceArrow(sctx, tileId, o, o, size)
         );
         if (!sprite) break;
@@ -3302,8 +3498,8 @@ export class PixelRenderer {
       case 'exit': {
         // Pulsing radial disc: one pre-rendered gradient, scaled to the pulse radius.
         const maxR = size * (EXIT_PULSE_BASE + EXIT_PULSE_AMPLITUDE);
-        const disc = this.getSprite(`exitDisc|${size}`, maxR * 2, maxR * 2, 0, (sctx) => {
-          const grad = sctx.createRadialGradient(maxR, maxR, 2, maxR, maxR, maxR);
+        const disc = this.getSprite(`exitDisc|${this.style}|${size}`, maxR * 2, maxR * 2, 0, (sctx) => {
+          const grad = this.gradient(sctx.createRadialGradient(maxR, maxR, 2, maxR, maxR, maxR));
           grad.addColorStop(0, pal.modernExitCore);
           grad.addColorStop(0.45, pal.modernExitMid);
           grad.addColorStop(1, pal.modernExitEdge);
@@ -3333,7 +3529,7 @@ export class PixelRenderer {
         const glow = this.getSettings().glowBlurPx;
         const pad = this.glowPad();
         const ringColor = this.teleportRingColor(tileId, pal.modernTeleportRing);
-        const ring = this.getSprite(`teleRing|${tileId}|${size}`, size, size, pad, (sctx, o) => {
+        const ring = this.getSprite(`teleRing|${this.style}|${tileId}|${size}`, size, size, pad, (sctx, o) => {
           sctx.strokeStyle = ringColor;
           sctx.shadowColor = ringColor;
           sctx.shadowBlur = glow.strong;
@@ -3351,7 +3547,7 @@ export class PixelRenderer {
         }
 
         const maxCore = size * (TELEPORT_CORE_BASE + TELEPORT_CORE_AMPLITUDE);
-        const core = this.getSprite(`teleCore|${tileId}|${size}`, maxCore * 2, maxCore * 2, pad, (sctx, o) => {
+        const core = this.getSprite(`teleCore|${this.style}|${tileId}|${size}`, maxCore * 2, maxCore * 2, pad, (sctx, o) => {
           sctx.fillStyle = pal.teleportCore;
           sctx.shadowColor = ringColor;
           sctx.shadowBlur = glow.strong;
@@ -3376,7 +3572,7 @@ export class PixelRenderer {
 
   /** Neon force floor arrow (with its glow), centred in a tile at (x, y). */
   private paintForceArrow(ctx: CanvasRenderingContext2D, tileId: string, x: number, y: number, size: number): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     ctx.save();
     ctx.strokeStyle = pal.modernForceNeon;
     ctx.fillStyle = pal.modernForceNeon;
@@ -3515,13 +3711,13 @@ export class PixelRenderer {
   }
 
   private buttonColor(tileId: string): string {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     return pal[BUTTON_COLOR_KEYS[tileId] ?? DEFAULT_COLOR_KEY] || pal[DEFAULT_COLOR_KEY];
   }
 
   /** Ring colour of a teleporter: its colour key when it has one, else the plain ring colour. */
   private teleportRingColor(tileId: string, plainColor: string): string {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const colorKey = ConfigRegistry.getTile(tileId).colorKey;
     return (colorKey && pal[colorKey]) || plainColor;
   }
@@ -3546,7 +3742,7 @@ export class PixelRenderer {
     size: number,
     isModern: boolean
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const itemId = ConfigRegistry.getTile(tileId).forbiddenItem;
     const iconSize = size * FORBID_ICON_SCALE;
     const inset = (size - iconSize) / 2;
@@ -3574,7 +3770,7 @@ export class PixelRenderer {
 
   /** Nozzle of a flame jet: a dark disc with a lighter rim, set into the cell. */
   private drawFlameJetNozzle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const cx = x + size / 2;
     const cy = y + size / 2;
     ctx.strokeStyle = pal.flameJetRim;
@@ -3590,7 +3786,7 @@ export class PixelRenderer {
 
   /** A turtle seen from above, floating on the water drawn under it. */
   private drawTurtle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const cx = x + size * 0.46;
     const cy = y + size / 2;
     ctx.save();
@@ -3629,7 +3825,7 @@ export class PixelRenderer {
     size: number,
     isModern: boolean
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const flagColor = def.scoreMultiplier ? pal.bonusFlagMultiplier : pal.bonusFlag;
     const label = def.scoreMultiplier ? `${BONUS_MULTIPLIER_PREFIX}${def.scoreMultiplier}` : String(def.scoreBonus ?? 0);
     const poleX = x + size * BONUS_POLE_X_TILE;
@@ -3668,7 +3864,7 @@ export class PixelRenderer {
     size: number,
     isModern: boolean
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const gain = (def.timeBonusSeconds ?? 0) >= 0;
     const signColor = gain ? pal.stopwatchPlus : pal.stopwatchMinus;
     const cx = x + size / 2;
@@ -3704,7 +3900,7 @@ export class PixelRenderer {
       x + size / 2,
       y + size / 2,
       size * 0.09,
-      ConfigRegistry.getGame().palette.glyphInk
+      this.pal().glyphInk
     );
   }
 
@@ -3744,7 +3940,7 @@ export class PixelRenderer {
     if (isModern) {
       // Bobbing up (negative offset) lifts the item off its shadow, which shrinks.
       const spread = 1 + bob * ITEM_SHADOW.shrinkPerTile;
-      ctx.fillStyle = ConfigRegistry.getGame().palette.modernItemShadow;
+      ctx.fillStyle = this.pal().modernItemShadow;
       ctx.beginPath();
       ctx.ellipse(x + size / 2, y + size * ITEM_SHADOW.y, size * ITEM_SHADOW.rx * spread, size * ITEM_SHADOW.ry * spread, 0, 0, FULL_TURN);
       ctx.fill();
@@ -3768,7 +3964,7 @@ export class PixelRenderer {
     size: number,
     isModern: boolean
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const glow = this.getSettings().glowBlurPx;
 
     switch (itemId) {
@@ -3919,7 +4115,7 @@ export class PixelRenderer {
     }
     const inset = size * BLOCK_ON_TARGET_OUTLINE.inset;
     ctx.save();
-    ctx.strokeStyle = ConfigRegistry.getGame().palette[BLOCK_ON_TARGET_COLOR_KEY];
+    ctx.strokeStyle = this.pal()[BLOCK_ON_TARGET_COLOR_KEY];
     ctx.lineWidth = Math.max(1, size * BLOCK_ON_TARGET_OUTLINE.width);
     this.roundRect(
       ctx,
@@ -3935,7 +4131,7 @@ export class PixelRenderer {
 
   /** A pushable block, with a top face and a darker front face like the walls. */
   private paintBlock(ctx: CanvasRenderingContext2D, type: string, x: number, y: number, size: number): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const isModern = this.isHdVector();
     const isIce = type === 'ice_block';
     const inset = Math.max(1, Math.round(size * BLOCK_INSET_TILE));
@@ -3989,7 +4185,7 @@ export class PixelRenderer {
       return;
     }
 
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const isModern = this.isHdVector();
     const bodyColor = pal[MONSTER_COLOR_KEYS[type] ?? DEFAULT_MONSTER_COLOR_KEY] || pal[DEFAULT_MONSTER_COLOR_KEY];
     const cx = x + size / 2;
@@ -4254,7 +4450,7 @@ export class PixelRenderer {
     r: number,
     lookDir: Direction | null
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     let lx = 0;
     let ly = -1;
     if (lookDir) {
@@ -4298,7 +4494,7 @@ export class PixelRenderer {
       this.drawRetroLayers(ctx, [{ name: retroPlayerSprite(dir, inWater, alive, frame, this.playerSkin) }], x, y, size);
       return;
     }
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     if (this.isHdVector() && alive && !inWater) {
       const spread = 1 - hop * PLAYER_SHADOW_SHRINK;
       ctx.fillStyle = pal.modernPlayerShadow;
@@ -4333,7 +4529,7 @@ export class PixelRenderer {
     alive: boolean,
     frame: number = 0
   ): void {
-    const pal = ConfigRegistry.getGame().palette;
+    const pal = this.pal();
     const isModern = this.isHdVector();
 
     if (!alive) {
@@ -4567,7 +4763,7 @@ export class PixelRenderer {
   }
 
   private getSettings(): RenderSettings {
-    return resolveQualitySettings(ConfigRegistry.getGame().graphics, this.effectiveQuality);
+    return resolveQualitySettings(ConfigRegistry.getGame().graphics, this.effectiveQuality, this.descriptor().glow);
   }
 
   /** Transparent margin kept around sprites so baked glows are not clipped. */

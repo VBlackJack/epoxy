@@ -1,0 +1,201 @@
+editor tile floor closed=true 0d9eef26322932d3
+editor tile floor closed=false bb93d16e7d2f2bf4
+editor tile wall closed=true a28bc3257d357c32
+editor tile wall closed=false 5b00493ff8103e8a
+editor tile recessed_wall closed=true 7003b967e3f8a375
+editor tile recessed_wall closed=false 8fbad945cb274211
+editor tile blue_wall_real closed=true f1d46653565eee9c
+editor tile blue_wall_real closed=false 34da2b803da09a9d
+editor tile blue_wall_fake closed=true 1d8091a5c06851a1
+editor tile blue_wall_fake closed=false 18317df4a209c2b1
+editor tile invisible_wall closed=true 972511b5b10aab6e
+editor tile invisible_wall closed=false bda1732608643785
+editor tile appearing_wall closed=true e0a75e9cf787667e
+editor tile appearing_wall closed=false 927d340fcb4bba9a
+editor tile thin_wall_n closed=true 03cae10607efd45e
+editor tile thin_wall_n closed=false 575154b8a6e50373
+editor tile thin_wall_e closed=true 0ebd82d7151d16d0
+editor tile thin_wall_e closed=false 54cbe071c5e860a0
+editor tile thin_wall_s closed=true 7d7bd1f4a45a0061
+editor tile thin_wall_s closed=false 245941f51bbdb0c2
+editor tile thin_wall_w closed=true 1bddffa40f6eeba1
+editor tile thin_wall_w closed=false 988bd7b4cfe9d66e
+editor tile thin_wall_se closed=true f839849be8e71dfa
+editor tile thin_wall_se closed=false c8d3b4a572abdb3c
+editor tile thin_wall_ne closed=true d8a881ad74d50354
+editor tile thin_wall_ne closed=false 54bc8b503804ceec
+editor tile thin_wall_nw closed=true 070d50c270fea8a8
+editor tile thin_wall_nw closed=false 387acbea7995d107
+editor tile thin_wall_sw closed=true aec9b420c2817b76
+editor tile thin_wall_sw closed=false d16f4786d6bf8448
+editor tile thin_wall_ns closed=true 98d34d6a0f3a1cb9
+editor tile thin_wall_ns closed=false 59ff0fd1d5a0be0b
+editor tile thin_wall_ew closed=true 427156a93a366f6c
+editor tile thin_wall_ew closed=false b89b5a97dc8763e7
+editor tile thin_wall_nes closed=true afe8fd33b8d595aa
+editor tile thin_wall_nes closed=false b6279d0bb12e7ba7
+editor tile thin_wall_new closed=true 38d7b1356a0e622f
+editor tile thin_wall_new closed=false 14a615f41291dd8d
+editor tile thin_wall_nsw closed=true 228dd98ffe555b35
+editor tile thin_wall_nsw closed=false 3cb26c463afe1787
+editor tile thin_wall_esw closed=true 17646e898aad5766
+editor tile thin_wall_esw closed=false ad1cf8261ac572f7
+editor tile thin_wall_nesw closed=true 3c23ab9c0bd49818
+editor tile thin_wall_nesw closed=false 5addc9f9d1d6b497
+editor tile dirt closed=true 623f6a93533dd8e5
+editor tile dirt closed=false 90c5fc5a04052cad
+editor tile gravel closed=true ec4efbe0ae664d1e
+editor tile gravel closed=false 5185b4fbd76fe410
+editor tile turtle closed=true 2bb884546a83e852
+editor tile turtle closed=false 0d683432edc15cbc
+editor tile socket closed=true 937af4da07d51cec
+editor tile socket closed=false 00ce53b352430746
+editor tile exit closed=true 5cc2bca85e3e7c9b
+editor tile exit closed=false 4e1aa8aae614f222
+editor tile hint closed=true e58c6337460dd110
+editor tile hint closed=false fd06d082023a0723
+editor tile water closed=true 8ec17509f08811d1
+editor tile water closed=false 913ce3b2a0293543
+editor tile fire closed=true e644f0e309aef212
+editor tile fire closed=false 185e3cc98a4cb109
+editor tile ice closed=true 2b6565838ece3b97
+editor tile ice closed=false f69bb76da59c48ca
+editor tile ice_nw closed=true 024f425add72ab88
+editor tile ice_nw closed=false 8ac7341b1902218e
+editor tile ice_ne closed=true a881f5d203a1c89d
+editor tile ice_ne closed=false dcf8c09ed321fff4
+editor tile ice_sw closed=true 2956256a61a482ba
+editor tile ice_sw closed=false 344b05c37827220c
+editor tile ice_se closed=true e08dbeb29d527866
+editor tile ice_se closed=false 881e2b7f34d614c3
+editor tile force_n closed=true 358003a290b10724
+editor tile force_n closed=false 06c7d2aee76fde34
+editor tile force_e closed=true 78f501ef67807f0b
+editor tile force_e closed=false 4dc0423db6bc16c5
+editor tile force_s closed=true 0ff1053ff69f8c0c
+editor tile force_s closed=false bf885367da15a5bf
+editor tile force_w closed=true 298e93744c1ee37c
+editor tile force_w closed=false d0403057d618b2a1
+editor tile force_random closed=true 2e1a804045611da6
+editor tile force_random closed=false af648e172cb7b75e
+editor tile thief closed=true d59219dcdf05fbee
+editor tile thief closed=false 0af57707afc53de6
+editor tile thief_keys closed=true 7e196f9691f474de
+editor tile thief_keys closed=false 8fb10ebf7e174fb8
+editor tile forbid_key_red closed=true 24ee5d8b5dc3b2b1
+editor tile forbid_key_red closed=false b92becc7de873a72
+editor tile forbid_key_blue closed=true f67a97eddf4cd6fa
+editor tile forbid_key_blue closed=false 607b824bdceb9d43
+editor tile forbid_key_yellow closed=true 2d873046b40e1476
+editor tile forbid_key_yellow closed=false 4d8e37ff41c30ca5
+editor tile forbid_key_green closed=true 8251cdcddc3364ed
+editor tile forbid_key_green closed=false 72d1254f392629c6
+editor tile forbid_boots_ice closed=true 04100dc72e33d2c7
+editor tile forbid_boots_ice closed=false 68fdf0edcc918155
+editor tile forbid_boots_water closed=true ddf9d911cfd97d70
+editor tile forbid_boots_water closed=false 8e01f004345af9c9
+editor tile forbid_boots_fire closed=true 2191373bc68ff17b
+editor tile forbid_boots_fire closed=false e9b2a5e2596b8014
+editor tile forbid_boots_force closed=true cfcf6334ae2d4c50
+editor tile forbid_boots_force closed=false f1897d30f694443d
+editor tile door_red closed=true 2805fa58dd0aca6b
+editor tile door_red closed=false 32c92fc43463af8b
+editor tile door_blue closed=true 89703f2e200ec791
+editor tile door_blue closed=false f19a0a6ea983987c
+editor tile door_yellow closed=true e03c22e64e096f41
+editor tile door_yellow closed=false 94c5e283cf73ec10
+editor tile door_green closed=true 9cc2cc2d392157be
+editor tile door_green closed=false 7158744f0a1fe063
+editor tile button_green closed=true 4d76e19f09996a10
+editor tile button_green closed=false f6a7c87bbc6df942
+editor tile button_blue closed=true 08e9f05ffda0a6e1
+editor tile button_blue closed=false 76fa873681fe304b
+editor tile button_brown closed=true 14711cdc035b2c51
+editor tile button_brown closed=false 187dc66da604162a
+editor tile button_red closed=true dedd74fb1c418d04
+editor tile button_red closed=false 8064928618fe0fdd
+editor tile block_target closed=true 2dd98bbb403ade1b
+editor tile block_target closed=false 77766452fe742f2a
+editor tile button_orange closed=true 631277ff8793c23f
+editor tile button_orange closed=false 38c566dc1565bb5c
+editor tile flame_jet_off closed=true 1fb6a0e6e8650150
+editor tile flame_jet_off closed=false e598f13777e7418a
+editor tile flame_jet_on closed=true 6767dea27ecfa965
+editor tile flame_jet_on closed=false b9f4d93ace0265dc
+editor tile toggle_wall_closed closed=true f3025a84508a3b3a
+editor tile toggle_wall_closed closed=false 884eee7ebc6636b2
+editor tile toggle_wall_open closed=true a4a100398d6e7792
+editor tile toggle_wall_open closed=false 5850a737ab8d020d
+editor tile teleport closed=true d579c61bada22809
+editor tile teleport closed=false 511dc4d2437b6b3d
+editor tile teleport_red closed=true 8160315b722d87a6
+editor tile teleport_red closed=false 61fea0b1c6893ced
+editor tile teleport_blue closed=true 988ac80bdd82baa0
+editor tile teleport_blue closed=false eddab30de385f9f9
+editor tile teleport_yellow closed=true e8b38e3419d52c65
+editor tile teleport_yellow closed=false d2429a1f79b8e2f7
+editor tile teleport_green closed=true c322ce69c57cac66
+editor tile teleport_green closed=false 5d5ba26cf0794c8f
+editor tile trap closed=true de6eb00faf3bd7de
+editor tile trap closed=false 0c2e67a8a4389d33
+editor tile clone_machine closed=true d7001124af9d2162
+editor tile clone_machine closed=false 1da89d4f745e57b2
+editor tile key_red closed=true b999882a932bda35
+editor tile key_red closed=false 667dc51d17972e69
+editor tile key_blue closed=true 966a14bf46249bbe
+editor tile key_blue closed=false 853ce4f9d1dcf100
+editor tile key_yellow closed=true 72332869a43c1d3b
+editor tile key_yellow closed=false 12f1e4412c4b4b3d
+editor tile key_green closed=true 3b0fc06543864aad
+editor tile key_green closed=false bb6b7e01fd9a5e2a
+editor tile chip closed=true a12188d04be17687
+editor tile chip closed=false 956ec813dcf04175
+editor tile boots_water closed=true 2161362f09cd8d70
+editor tile boots_water closed=false 6c7f27e7d813da9e
+editor tile boots_fire closed=true 25c4ae9eb0a0ad85
+editor tile boots_fire closed=false 8e368816dafc4767
+editor tile boots_ice closed=true ccd373e5a33e55b8
+editor tile boots_ice closed=false 990bf202d86dc2b4
+editor tile boots_force closed=true c1e4dcb77cdb4e18
+editor tile boots_force closed=false 87d69476f9d11bbd
+editor tile bomb closed=true b3787b17e20e015a
+editor tile bomb closed=false 7fdb433d38dd755c
+editor tile score_10 closed=true 8466cb66054c8157
+editor tile score_10 closed=false 3bd67deb02d392e8
+editor tile score_100 closed=true 6580b60cb150f330
+editor tile score_100 closed=false 4897d7f75821ba46
+editor tile score_1000 closed=true 26156291eff20475
+editor tile score_1000 closed=false 87c3d13398bbb405
+editor tile score_2x closed=true 1dff95268be2f0f5
+editor tile score_2x closed=false 3d0d960dc917dd10
+editor tile stopwatch_bonus closed=true 90a2c7236255950c
+editor tile stopwatch_bonus closed=false 1f112a256a27ffad
+editor tile stopwatch_penalty closed=true c2a2788c71c6d415
+editor tile stopwatch_penalty closed=false e00f354b1399c045
+editor item over floor key_red 793902e908c53657
+editor item over floor key_blue e2c10be8e321add3
+editor item over floor key_yellow 4d6c148e98e416a3
+editor item over floor key_green c8abf3baf3c587d7
+editor item over floor chip ceafb2cd38bd43a4
+editor item over floor boots_water eb58e748779ae021
+editor item over floor boots_fire 952de49fd7123219
+editor item over floor boots_ice 76555e6169a6f200
+editor item over floor boots_force ac21c9a47260de12
+editor item over floor bomb fc5fd345d6a0c25d
+editor item over floor score_10 3ce80e0c4444f7ba
+editor item over floor score_100 b91c80f565c7b8bd
+editor item over floor score_1000 7328789765729a39
+editor item over floor score_2x c5cbe4d50d1deda8
+editor item over floor stopwatch_bonus 4da399577af2e122
+editor item over floor stopwatch_penalty 74cfdfa76c6d71fb
+editor entity over floor dirt_block 5dc9a42579be7c59
+editor entity over floor ice_block bde2c3497c7dd080
+editor entity over floor bug a2ff7df563fdf333
+editor entity over floor paramecium 98dfeefa88d7db4a
+editor entity over floor pink_ball 9a94c3c9236dcd60
+editor entity over floor walker 26aa3f8dd5f9a121
+editor entity over floor teeth fd035b14b74cfead
+editor entity over floor glider d039026d7e8344ed
+editor entity over floor fireball 5b46b51dbd16a296
+editor entity over floor tank cd4bd808fbdc07c9
+editor entity over floor blob c25b85faf0088152

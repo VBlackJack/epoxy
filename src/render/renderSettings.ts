@@ -110,6 +110,24 @@ export interface RenderSettings {
   vignetteInnerRatio: number;
   /** Opacity of the LCD pixel grid drawn over the 16-Bit Retro view when enabled. */
   lcdGridAlpha: number;
+  /** Opacity of the grid lines Blueprint lays over the view. */
+  overlayGridAlpha: number;
+  /** Grid lines per tile in each direction. */
+  overlayGridDivisions: number;
+  /** Opacity of the scanlines Classic 90s lays over the view. */
+  overlayScanlineAlpha: number;
+  /** Scanlines per tile height. */
+  overlayScanlinesPerTile: number;
+  /** Opacity of the darkest ring of the Sepia vignette. */
+  overlayVignetteAlpha: number;
+  /** Number of flat rings the Sepia vignette is cut into. */
+  overlayVignetteSteps: number;
+  /** Opacity of the Sepia paper grain. */
+  overlayGrainAlpha: number;
+  /** Grain specks per pixel of the view. */
+  overlayGrainDensity: number;
+  /** Side of one grain speck in pixels. */
+  overlayGrainSizePx: number;
   /** Duration of the iris that opens on the player when a level starts, in reference frames. */
   irisOpenFrames: number;
 }
@@ -177,6 +195,15 @@ export const DEFAULT_RENDER_SETTINGS: Readonly<RenderSettings> = {
   vignetteAlpha: 0.45,
   vignetteInnerRatio: 0.55,
   lcdGridAlpha: 0.18,
+  overlayGridAlpha: 0.16,
+  overlayGridDivisions: 2,
+  overlayScanlineAlpha: 0.2,
+  overlayScanlinesPerTile: 16,
+  overlayVignetteAlpha: 0.3,
+  overlayVignetteSteps: 6,
+  overlayGrainAlpha: 0.08,
+  overlayGrainDensity: 0.012,
+  overlayGrainSizePx: 2,
   irisOpenFrames: 24
 };
 
@@ -284,11 +311,37 @@ type GraphicsWithQuality = GraphicsConfig & {
 
 const qualityCache = new WeakMap<RenderSettings, Map<GraphicsQuality, RenderSettings>>();
 
+const NO_GLOW: Readonly<GlowBlurSettings> = { soft: 0, medium: 0, strong: 0 };
+const flatCache = new WeakMap<RenderSettings, RenderSettings>();
+
+/** The settings with every glow radius at zero; the result is memoized per settings object. */
+function withoutGlow(settings: RenderSettings): RenderSettings {
+  let flat = flatCache.get(settings);
+  if (!flat) {
+    flat = { ...settings, glowBlurPx: { ...NO_GLOW } };
+    flatCache.set(settings, flat);
+  }
+  return flat;
+}
+
+/**
+ * The settings of a quality level for a style: `glow` false (Retro HD styles) sets every glow
+ * radius to zero over whatever the level gives.
+ */
+export function resolveQualitySettings(
+  graphics: GraphicsConfig | undefined,
+  quality: GraphicsQuality,
+  glow = true
+): RenderSettings {
+  const settings = resolvePresetSettings(graphics, quality);
+  return glow ? settings : withoutGlow(settings);
+}
+
 /**
  * Applies a quality preset over the resolved settings. Only keys that already hold a
  * number or a boolean, with a value of the same type, are taken; the result is memoized.
  */
-export function resolveQualitySettings(graphics: GraphicsConfig | undefined, quality: GraphicsQuality): RenderSettings {
+function resolvePresetSettings(graphics: GraphicsConfig | undefined, quality: GraphicsQuality): RenderSettings {
   const base = resolveRenderSettings(graphics);
   if (quality === 'high') return base;
   let perQuality = qualityCache.get(base);

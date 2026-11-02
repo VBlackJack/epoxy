@@ -102,30 +102,42 @@ export type GraphicsStyle =
   | 'sepia'
   | 'classic90';
 
-/** How a derived render style recolours the ramps of its base sprite pipeline. */
-export type RenderStyleKind = 'paletteMap' | 'pastel' | 'vgaFamilies';
+/** Colour families of the Retro HD recolour: every palette and theme colour belongs to exactly one. */
+export type ColourFamily =
+  | 'red'
+  | 'orange'
+  | 'yellow'
+  | 'green'
+  | 'cyan'
+  | 'blue'
+  | 'purple'
+  | 'skin'
+  | 'neutral';
 
 /**
- * Fixed palette of a derived render style (game.json renderStylePalettes). `kind` selects which
- * of the other fields apply:
- * - paletteMap: `stops` (hex, dark to light) are the colours luminance is mapped onto, snapped to
- *   the nearest stop when `quantize` is true, interpolated otherwise; `accents` pin the
- *   colour-coded ramps (name to positions in 0..1 along the stops, light tone first).
- * - pastel: `saturation` scales the saturation, `lightness` mixes the lightness towards white.
- * - vgaFamilies: `palette` is the 16-colour table, `families` name groups of palette indexes
- *   (light tone first) a ramp is mapped into by luminance, `pinnedFamilies` fix the family of
- *   the colour-coded ramps.
+ * Colours of one Retro HD render style (game.json renderStylePalettes, by style id): one ramp per
+ * colour family, dark to light, as #rrggbb. A colour keeps its lightness inside the ramp of its
+ * family, so fire stays fire-coloured and water water-coloured whatever the style. `quantize`
+ * snaps to the nearest stop instead of interpolating between two.
  */
 export interface RenderStylePaletteConfig {
-  kind: RenderStyleKind;
-  stops?: string[];
+  families: Record<ColourFamily, string[]>;
   quantize?: boolean;
-  accents?: Record<string, number[]>;
-  saturation?: number;
-  lightness?: number;
-  palette?: string[];
-  families?: Record<string, number[]>;
-  pinnedFamilies?: Record<string, string>;
+}
+
+/**
+ * Family of a palette or theme colour fixed by hand: the family alone keeps the lightness of the
+ * colour, `tone` (0 dark to 1 light) pins its position in the family ramp.
+ */
+export type FamilyAssignment = ColourFamily | { family: ColourFamily; tone: number };
+
+/**
+ * Colours whose family is not left to their hue (game.json renderStyleFamilies), shared by every
+ * Retro HD style: palette keys and theme keys are separate tables because both have a `wallTop`.
+ */
+export interface RenderStyleFamilies {
+  palette: Record<string, FamilyAssignment>;
+  theme: Record<string, FamilyAssignment>;
 }
 
 /**
@@ -607,8 +619,10 @@ export interface GameConfig {
   retroPalettes?: Record<string, Record<string, string[]>>;
   /** Optional colour ramps of the 32-Bit Retro style (15-bit, up to 8 tones): replace the ramps derived from retroPalettes. */
   retro32Palettes?: Record<string, Record<string, string[]>>;
-  /** Fixed palettes of the derived render styles (Pocket, Pastel, Blueprint, Sepia, Classic 90s), by style id. */
+  /** Family ramps of the Retro HD render styles (Pocket, Pastel, Blueprint, Sepia, Classic 90s), by style id. */
   renderStylePalettes?: Record<string, RenderStylePaletteConfig>;
+  /** Colours of the palette and of the themes whose Retro HD family is fixed by hand. */
+  renderStyleFamilies?: RenderStyleFamilies;
 }
 
 export interface TileDefinition {
