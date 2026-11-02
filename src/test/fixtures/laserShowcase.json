@@ -1,0 +1,101 @@
+{
+  "levels": [
+    {
+      "id": "laser_showcase_1",
+      "number": 1,
+      "winRule": "receivers",
+      "customTitle": "Two Beams",
+      "customHint": "Go around the beam, then push each mirror into its beam to light both receivers.",
+      "password": "BEAM",
+      "timeLimitSeconds": 180,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "terrain": [
+        ["wall", "wall", "wall", "wall", "wall", "laser_receiver_red", "wall", "wall", "wall", "wall", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "laser_emitter_e", "floor", "floor", "floor", "floor", "floor", "wall", "floor", "floor", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "laser_emitter_e", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "wall", "wall", "wall", "wall", "laser_receiver_blue", "wall", "wall", "wall", "wall", "wall"]
+      ],
+      "items": [
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null]
+      ],
+      "entities": [
+        {
+          "type": "mirror_slash",
+          "x": 5,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 5,
+          "y": 5,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "laser_showcase_2",
+      "number": 2,
+      "customTitle": "Gate Of Light",
+      "customHint": "Push the mirror into the beam to light the receiver and open the gate. Do not step into the beam.",
+      "password": "GATE",
+      "timeLimitSeconds": 180,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 6,
+        "dir": "E"
+      },
+      "terrain": [
+        ["wall", "wall", "wall", "wall", "wall", "laser_receiver_red", "wall", "wall", "wall", "wall", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "laser_gate_red_closed", "exit", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall", "wall", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "laser_emitter_e", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "floor", "wall"],
+        ["wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall"]
+      ],
+      "items": [
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null]
+      ],
+      "entities": [
+        {
+          "type": "mirror_slash",
+          "x": 5,
+          "y": 5,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    }
+  ]
+}

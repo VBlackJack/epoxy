@@ -72,6 +72,8 @@ export class LevelValidator {
     let emitterCount = 0;
     let receiverCount = 0;
     let gateCount = 0;
+    // Groups with a receiver: their closed gates count as passable in the reachability walk, as a key barrier does.
+    const receiverGroups = new Set<string>();
     let chipsPlaced = 0;
     let exitCount = 0;
     const consumingDoorCounts: Record<string, number> = {};
@@ -89,7 +91,10 @@ export class LevelValidator {
           targetCount++;
         }
         if (tDef.laserEmitter) emitterCount++;
-        if (tDef.laserReceiverGroup !== undefined) receiverCount++;
+        if (tDef.laserReceiverGroup !== undefined) {
+          receiverCount++;
+          receiverGroups.add(tDef.laserReceiverGroup);
+        }
         if (tDef.laserGateGroup !== undefined) gateCount++;
         if (tDef.requiredKey) {
           const counts = tDef.consumesKey ? consumingDoorCounts : keepingDoorCounts;
@@ -385,7 +390,9 @@ export class LevelValidator {
             continue;
           }
 
-          if (!nextTile.passableByPlayer) {
+          const gateCanOpen =
+            emitterCount > 0 && nextTile.laserGateGroup !== undefined && receiverGroups.has(nextTile.laserGateGroup);
+          if (!nextTile.passableByPlayer && !gateCanOpen) {
             continue;
           }
 
