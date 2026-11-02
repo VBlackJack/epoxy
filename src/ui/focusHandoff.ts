@@ -32,13 +32,19 @@ export function isPointerActivation(clickDetail: number): boolean {
  * delegated listener covers every button, present or added later. Focus that
  * a click handler moved elsewhere (a dialog opening) is left alone.
  */
-export function bindButtonPointerBlur(container: HTMLElement): void {
-  container.addEventListener('click', (e) => {
-    if (!isPointerActivation(e.detail)) return;
-    const target = e.target instanceof Element ? e.target : null;
-    const button = target?.closest('button');
-    if (button && document.activeElement === button) button.blur();
-  });
+export function bindButtonPointerBlur(container: HTMLElement, beforeHandler: boolean = false): void {
+  // Blurring first (capture phase) keeps a dialog the click opens from remembering the button as the
+  // place to give focus back to: Space or Enter would then press that button again.
+  container.addEventListener(
+    'click',
+    (e) => {
+      if (!isPointerActivation(e.detail)) return;
+      const target = e.target instanceof Element ? e.target : null;
+      const button = target?.closest('button');
+      if (button && document.activeElement === button) button.blur();
+    },
+    beforeHandler
+  );
 }
 
 /**

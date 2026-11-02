@@ -2743,6 +2743,9 @@ class EpoxyApplication {
       const container = byId(id);
       if (container) bindButtonPointerBlur(container);
     }
+    // Early, because editor buttons open dialogs (test, new, import) whose close gives focus back.
+    const editorView = byId('editor-view');
+    if (editorView) bindButtonPointerBlur(editorView, true);
     // The fov, theme and locale selects, and the drawer copy of the pack select, live in a
     // modal dialog: blurring them would send focus outside it. Only the header pack select
     // sits outside any dialog.

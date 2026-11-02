@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { BLOCK_TARGET_TILE_ID } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, ThemePalette, TileDefinition } from '../core/types';
 import {
@@ -153,6 +153,9 @@ interface StyleColours {
 }
 
 /** Prefix of the console report when the colours of a Retro HD style fail validation. */
+/** Facing of the creatures and the player in palette icons. */
+const ICON_FACING: Direction = 'S';
+
 const STYLE_PALETTE_INVALID_REPORT = 'Render style palette rejected, drawing with the HD Neon colours:';
 /** Multiplier and increment of the generator that scatters the grain specks (Numerical Recipes LCG). */
 const GRAIN_LCG_MULTIPLIER = 1664525;
@@ -5305,14 +5308,14 @@ export class PixelRenderer {
     if (kind === 'tile') {
       this.drawTile(ctx, id, 0, 0, iconSize, true, true);
     } else if (kind === 'item') {
-      this.drawTile(ctx, 'floor', 0, 0, iconSize, true, true);
+      this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
       this.drawItem(ctx, id, 0, 0, iconSize);
     } else if (kind === 'entity') {
-      this.drawTile(ctx, 'floor', 0, 0, iconSize, true, true);
-      this.drawEntity(ctx, id, 'S', 0, 0, iconSize);
+      this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
+      this.drawEntity(ctx, id, ICON_FACING, 0, 0, iconSize);
     } else if (kind === 'player') {
-      this.drawTile(ctx, 'floor', 0, 0, iconSize, true, true);
-      this.drawPlayer(ctx, 0, 0, iconSize, 'S', false, true);
+      this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
+      this.drawPlayer(ctx, 0, 0, iconSize, ICON_FACING, false, true);
     }
     return canvas.toDataURL();
   }
