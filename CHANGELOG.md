@@ -5,6 +5,30 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- "My packs" (header button, drawer, Levels dialog and the editor's "Open..."): create and rename
+  your own level packs, then play, export (complete JSON that keeps every engine, or .CCL) or
+  delete them. Deleting asks for confirmation with the level count and offers "Export first". A
+  pack exported as JSON can be imported back under its name.
+- Per level in a pack: reorder, edit, play, duplicate, copy or move to another pack, and delete.
+  Badges show the engine (Epoxy, Lynx, CC3D, Sokoban); CC3D levels can be managed but not edited.
+- The editor shows the pack and level it edits (Pack, Level n/N) with previous and next buttons.
+  "Save into..." stores a level from a built-in pack, a generated level or an opened file in a pack
+  of your choice, or in a new one created in the same step; "Save a copy..." keeps the original.
+  Ctrl+S saves, "Back to editor" returns from a test play, and the browser asks before the tab
+  closes with unsaved work.
+- The level checker warns about broken trap and clone wires, and about a player start on a wall or
+  on a monster.
+
+### Changed
+
+- Your previous "Custom" levels are moved automatically into a pack of yours ("My levels"). Nothing
+  to do; they stay in your browser.
+- Saving in the editor updates the level in its pack, and never changes the pack you are playing.
+  The first save into an imported pack asks whether to modify it or save a copy.
+- "Delete imported packs" never deletes your own packs.
+
 ## [2.16.4] - 2026-11-02
 
 ### Added
