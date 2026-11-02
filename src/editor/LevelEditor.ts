@@ -19,6 +19,7 @@ import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
 import { parsePackJson } from '../packs/packJson';
+import { choiceDialog } from '../ui/choiceDialog';
 import { confirmDialog } from '../ui/confirmDialog';
 import { askSaveInto } from '../ui/saveIntoDialog';
 import { PixelRenderer } from '../render/PixelRenderer';
@@ -49,11 +50,13 @@ import { majorityRuleset } from './paletteAvailability';
 import {
   decideSave,
   LoadedTexts,
+  mayRebindAfterSave,
   needsImportedConfirmation,
   NO_SOURCE,
   nextEditableIndex,
   pickSaveDestination,
   prepareLevelForSave,
+  reconcileSource,
   resolveSavedPassword,
   SaveSource
 } from './saveTarget';
@@ -88,6 +91,11 @@ const TITLE_INPUT_ID = 'editor-meta-title';
 const LYNX_RULESET: Ruleset = 'lynx';
 /** Value of the context pack select while the editor content belongs to no pack. */
 const NO_PACK_OPTION_VALUE = '';
+/** Answers of the imported-pack and multi-level-file questions. */
+const IMPORTED_MODIFY_CHOICE = 'modify';
+const IMPORTED_COPY_CHOICE = 'copy';
+const IMPORT_AS_PACK_CHOICE = 'pack';
+const IMPORT_FIRST_CHOICE = 'first';
 
 /** Where a save puts the level: an existing pack or a pack to create, and whether it is stored as a new level. */
 interface SaveDestination {
@@ -165,6 +173,8 @@ export class LevelEditor {
   /** Imported packs the player agreed to modify during this session. */
   private confirmedImportedPackIds = new Set<string>();
   private saving = false;
+  /** Bumped each time another level is loaded, so a save that outlives its level cannot rebind the editor. */
+  private loadGeneration = 0;
   private customTitle: string = '';
   private customHint: string = '';
   private author: string = '';
@@ -260,6 +270,7 @@ export class LevelEditor {
     this.cloneLinks = [];
     this.playerStart = { x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2), dir: 'S' };
     this.fitCanvasToLevel();
+    this.loadGeneration++;
     this.currentLevelId = ConfigRegistry.newLevelId();
     this.source = { packId: options.packId ?? null, levelId: null };
     this.originalLevel = null;
@@ -294,6 +305,7 @@ export class LevelEditor {
       this.setStatusText(t('editor.palette.status.not_editable.label'));
       return false;
     }
+    this.loadGeneration++;
     this.currentLevelId = level.id;
     this.source = options.source ?? NO_SOURCE;
     this.originalLevel = structuredClone(level);
@@ -550,6 +562,19 @@ export class LevelEditor {
     return btn;
   }
 
+  /**
+   * Brings the source in line with the library after the pack manager changed
+   * it: a moved level is followed to its new pack; a deleted level or pack
+   * leaves the content with no pack, as unsaved work, so the next save asks
+   * where it goes and stores it under a new id.
+   */
+  public reconcileSourceWithLibrary(): void {
+    const result = reconcileSource(this.source, ConfigRegistry.getAllPacks());
+    this.source = result.source;
+    if (result.lost) this.isDirty = true;
+    this.refreshContext();
+  }
+
   /** Display name of a pack. */
   private packLabel(pack: LevelPack): string {
     return pack.i18nKey ? t(pack.i18nKey) : pack.name;
@@ -620,7 +645,7 @@ export class LevelEditor {
       await this.newLevelInPack(pack.id);
       return;
     }
-    const first = pack.levels[0].ruleset === 'cc3d' ? nextEditableIndex(pack.levels, 0, 1) : 0;
+    const first = isEditableRuleset(pack.levels[0].ruleset) ? 0 : nextEditableIndex(pack.levels, 0, 1);
     if (first < 0) {
       this.setStatusText(t('editor.palette.status.not_editable.label'));
       return;
@@ -1240,6 +1265,7 @@ export class LevelEditor {
 
   private async performSave(forceCopy: boolean): Promise<void> {
     this.readMetadataInputs();
+    const generation = this.loadGeneration;
     const decision = decideSave({
       source: this.source,
       editablePacks: ConfigRegistry.getEditablePacks(),
@@ -1251,9 +1277,13 @@ export class LevelEditor {
     if (decision.kind === 'in_place') {
       destination = { packId: decision.packId, newPackName: null, asCopy: false };
     } else if (decision.kind === 'confirm_imported') {
-      const modify = await this.confirmModifyImported(decision.packId, 'editor.pack.confirm_imported.copy.action');
-      if (modify) this.confirmedImportedPackIds.add(decision.packId);
-      destination = modify ? { packId: decision.packId, newPackName: null, asCopy: false } : await this.chooseDestination();
+      const answer = await this.askModifyImported(decision.packId, true);
+      if (answer === null) return;
+      if (answer === IMPORTED_MODIFY_CHOICE) this.confirmedImportedPackIds.add(decision.packId);
+      destination =
+        answer === IMPORTED_MODIFY_CHOICE
+          ? { packId: decision.packId, newPackName: null, asCopy: false }
+          : await this.chooseDestination();
     } else {
       destination = await this.chooseDestination();
     }
@@ -1293,15 +1323,23 @@ export class LevelEditor {
 
     const stored = ConfigRegistry.getAllPacks().find((p) => p.id === packId);
     const saved = stored?.levels[result.index] ?? level;
-    this.source = { packId, levelId: saved.id };
-    this.currentLevelId = saved.id;
-    this.originalLevel = structuredClone(saved);
-    this.loadedTexts = { title: this.resolveLevelTitle(saved), hint: saved.customHint || (saved.hintKey ? t(saved.hintKey) : '') };
     this.rememberDestination(packId);
-    // A refused write keeps the level in memory but leaves the editor dirty,
-    // so leaving the editor still asks before discarding it. An edit made
-    // while the save was in flight is not in the saved level: it stays dirty.
-    if (this.editRevision === revision) this.isDirty = !persisted;
+    // Another level may have been loaded while the save was in flight: its source, texts and
+    // original must stay its own, so the saved level is not bound to the editor then.
+    const rebind = mayRebindAfterSave(generation, this.loadGeneration);
+    if (rebind) {
+      this.source = { packId, levelId: saved.id };
+      this.currentLevelId = saved.id;
+      this.originalLevel = structuredClone(saved);
+      this.loadedTexts = {
+        title: this.resolveLevelTitle(saved),
+        hint: saved.customHint || (saved.hintKey ? t(saved.hintKey) : '')
+      };
+      // A refused write keeps the level in memory but leaves the editor dirty,
+      // so leaving the editor still asks before discarding it. An edit made
+      // while the save was in flight is not in the saved level: it stays dirty.
+      if (this.editRevision === revision) this.isDirty = !persisted;
+    }
     const packName = stored ? this.packLabel(stored) : packId;
     this.setStatusText(
       t(persisted ? 'editor.pack.saved.label' : 'editor.pack.saved_session_only.label', {
@@ -1320,15 +1358,22 @@ export class LevelEditor {
     });
   }
 
-  /** "Modify <pack>" or the alternative named by `alternativeKey`; true to modify. */
-  private confirmModifyImported(packId: string, alternativeKey: string): Promise<boolean> {
+  /**
+   * Asks whether to modify an imported pack. Cancel (or Escape) answers null and
+   * does nothing. With `offerCopy` the alternative "Save a copy instead" is its
+   * own button; without it Cancel reads "Choose another pack".
+   */
+  private async askModifyImported(packId: string, offerCopy: boolean): Promise<string | null> {
     const pack = ConfigRegistry.getEditablePacks().find((p) => p.id === packId);
     const name = pack ? this.packLabel(pack) : packId;
-    return confirmDialog({
+    return choiceDialog({
       title: t('app.confirm.title.label'),
       message: t('editor.pack.confirm_imported.message.label', { name }),
-      confirmLabel: t('editor.pack.confirm_imported.modify.action', { name }),
-      cancelLabel: t(alternativeKey)
+      cancelLabel: offerCopy ? t('app.confirm.cancel.action') : t('editor.pack.confirm_imported.again.action'),
+      options: [
+        { id: IMPORTED_MODIFY_CHOICE, label: t('editor.pack.confirm_imported.modify.action', { name }), primary: true },
+        ...(offerCopy ? [{ id: IMPORTED_COPY_CHOICE, label: t('editor.pack.confirm_imported.copy.action') }] : [])
+      ]
     });
   }
 
@@ -1345,7 +1390,7 @@ export class LevelEditor {
       if (choice.kind === 'new') return { packId: null, newPackName: choice.name, asCopy: true };
       const pack = editable.find((p) => p.id === choice.packId);
       if (needsImportedConfirmation(pack, this.confirmedImportedPackIds)) {
-        if (!(await this.confirmModifyImported(choice.packId, 'editor.pack.confirm_imported.again.action'))) continue;
+        if ((await this.askModifyImported(choice.packId, false)) !== IMPORTED_MODIFY_CHOICE) continue;
         this.confirmedImportedPackIds.add(choice.packId);
       }
       return { packId: choice.packId, newPackName: null, asCopy: true };
@@ -1424,13 +1469,17 @@ export class LevelEditor {
       return;
     }
     if (levels.length > 1) {
-      const asPack = await confirmDialog({
+      const answer = await choiceDialog({
         title: t('app.confirm.title.label'),
         message: t('editor.pack.import_multi.message.label', { count: levels.length }),
-        confirmLabel: t('editor.pack.import_multi.pack.action'),
-        cancelLabel: t('editor.pack.import_multi.first.action')
+        cancelLabel: t('app.confirm.cancel.action'),
+        options: [
+          { id: IMPORT_AS_PACK_CHOICE, label: t('editor.pack.import_multi.pack.action'), primary: true },
+          { id: IMPORT_FIRST_CHOICE, label: t('editor.pack.import_multi.first.action') }
+        ]
       });
-      if (asPack) {
+      if (answer === null) return;
+      if (answer === IMPORT_AS_PACK_CHOICE) {
         await this.hooks.importAsPack(packName, levels, skipped);
         return;
       }
