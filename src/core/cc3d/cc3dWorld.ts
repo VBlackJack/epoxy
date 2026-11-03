@@ -18,6 +18,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import type { VisualEventKind } from '../PlayEngine';
 import type { BeamCell, Direction } from '../types';
 import { DeathCause, PLAYER_START_FACING, RANDOM_FORCE_ORDER, SPEED_ORB_SLOWDOWN } from './cc3dConstants';
+import { trapTargets } from './cc3dLinks';
 import type { Cc3dCell, Cc3dColor, Cc3dItemKind, Cc3dLevel, Cc3dMobKind, Cc3dTerrain } from './model';
 import { CC3D_FLOOR_LIKE_KINDS, cellIndex, topTerrain } from './model';
 
@@ -342,7 +343,7 @@ function buildDeviceIndex(cells: Cc3dCell[]): DeviceIndex {
     }
   });
   // A trap control works the next trap after it in reading order, wrapping from the last cell to the first.
-  index.trapTargets = index.trapControls.map((control) => index.traps.find((trap) => trap > control) ?? index.traps[0] ?? -1);
+  index.trapTargets = trapTargets(index.trapControls, index.traps);
   index.workedTraps = index.traps.map((trap) => index.trapTargets.includes(trap));
   return index;
 }
