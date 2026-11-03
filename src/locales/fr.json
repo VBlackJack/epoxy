@@ -402,6 +402,7 @@
       "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
+      "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
       "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
@@ -443,6 +444,32 @@
     }
   },
   "editor": {
+    "check": {
+      "blocks": {
+        "solved": "Blocs : résolu en {count, plural, one {# poussée} other {# poussées}}",
+        "unsolvable": "Blocs : aucun moyen de couvrir toutes les cibles",
+        "not_checked": "Blocs : non vérifié (trop grand ou terrain non géré)",
+        "none": "Seuls les puzzles de blocs sont vérifiés"
+      }
+    },
+    "test_from": {
+      "action": "Tester d'ici",
+      "title": "Jouer le niveau avec le joueur placé sur la case du curseur (T)",
+      "reason": {
+        "no_cell": "Tester d'ici : déplacez d'abord le curseur ou survolez une case.",
+        "not_walkable": "Tester d'ici : le joueur ne peut pas démarrer sur cette case.",
+        "not_supported": "Tester d'ici : ce moteur ne le gère pas."
+      },
+      "status": "Test depuis ({x}, {y})."
+    },
+    "template": {
+      "title": "Nouveau niveau",
+      "message": "Choisissez le point de départ du nouveau niveau.",
+      "empty": { "label": "Salle vide" },
+      "sokoban": { "label": "Salle de Sokoban" },
+      "laser": { "label": "Puzzle laser" },
+      "load_failed": "Les modèles de niveau n'ont pas pu être chargés ; départ sur une salle vide."
+    },
     "pack": {
       "save_copy": { "action": "Enregistrer une copie..." },
       "back_to_editor": { "action": "Retour à l'éditeur" },

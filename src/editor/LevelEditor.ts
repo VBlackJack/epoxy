@@ -43,6 +43,7 @@ import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { CanvasFit, fitCanvas, zoomIn, zoomOut } from './canvasFit';
+import { checkBlocks, describeBlockVerdict } from './blockCheck';
 import { CheckSummary, summarizeValidation } from './checkSummary';
 import { cloneDocument, cloneMap, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
 import { EditorHistory } from './editorHistory';
@@ -980,6 +981,7 @@ export class LevelEditor {
       } else {
         this.setStatusText(this.formatIssues(report.issues));
       }
+      this.appendBlocksLine(compiled);
     });
 
     byId('editor-save-btn')?.addEventListener('click', () => {
@@ -1056,6 +1058,20 @@ export class LevelEditor {
       this.checkTimer = null;
       this.setCheck(summarizeValidation(LevelValidator.validate(this.exportCompiledLevel())));
     }, EDITOR_CHECK_DEBOUNCE_MS);
+  }
+
+  /**
+   * Adds the block puzzle verdict to the status line after an explicit Check.
+   * It only runs on request (the search can be slow) and is hidden for the
+   * Lynx rules.
+   */
+  private appendBlocksLine(compiled: CompiledLevel): void {
+    const verdict = checkBlocks(compiled);
+    if (!verdict) return;
+    const line = describeBlockVerdict(verdict);
+    const el = document.getElementById('editor-status-bar');
+    const current = el?.textContent ?? '';
+    this.setStatusText(`${current}${t('validator.status.issue_separator.label')}${t(line.key, line.params)}`);
   }
 
   private setCheck(summary: CheckSummary): void {
