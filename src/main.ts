@@ -471,7 +471,8 @@ class EpoxyApplication {
         this.loadPlayLevel(testLevel);
         AudioManager.onLevelLoaded(testLevel.id);
         this.showLevelTheme(testLevel);
-        // The editor already holds this content: do not reload it on return.
+        // The editor already holds its own level (the played copy may start elsewhere, as for Test from here):
+        // this object only marks the editor as synced, so returning never reloads it from the copy.
         this.editorSourceLevel = testLevel;
         this.testPlayLevel = testLevel;
         this.updateHUD();

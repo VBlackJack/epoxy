@@ -44,6 +44,14 @@ import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { CanvasFit, fitCanvas, zoomIn, zoomOut } from './canvasFit';
 import { checkBlocks, describeBlockVerdict } from './blockCheck';
+import {
+  GridCell,
+  levelStartingAt,
+  pickTestCell,
+  startCellProblem,
+  TEST_FROM_HERE_REASON_KEYS,
+  TestFromHereBlock
+} from './testFromHere';
 import { CheckSummary, summarizeValidation } from './checkSummary';
 import { cloneDocument, cloneMap, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
 import { EditorHistory } from './editorHistory';
@@ -248,6 +256,8 @@ export class LevelEditor {
   private pendingWire: PendingWire | null = null;
   private hoverCell: { x: number; y: number } | null = null;
   private cursorCell: { x: number; y: number } | null = null;
+  /** The last cell the pointer was over, kept after it leaves the canvas so a toolbar button can use it. */
+  private lastHoverCell: GridCell | null = null;
   /** Zoom steps away from the fit size; 0 fits the level to the stage. */
   private zoomOffset: number = 0;
   /** Tile size, in pixels, the canvas buffer is drawn at. */
@@ -449,6 +459,7 @@ export class LevelEditor {
     this.pendingWire = null;
     this.hoverCell = null;
     this.cursorCell = null;
+    this.lastHoverCell = null;
     this.zoomOffset = 0;
     this.cleanDoc = dirty ? null : cloneDocument(this.doc);
     this.isDirty = dirty;
@@ -536,6 +547,7 @@ export class LevelEditor {
     this.syncMetadataInputs();
     this.updateCanvasLabel();
     this.updateCheckBadge(this.lastCheck);
+    this.updateTestFromState();
     this.applyFit();
   }
 
@@ -759,6 +771,9 @@ export class LevelEditor {
       case 'rotate':
         this.rotateDirection();
         break;
+      case 'test_from_here':
+        void this.testFromHere();
+        break;
       case 'zoom_in':
         this.setZoomOffset(zoomIn(this.zoomOffset));
         break;
@@ -948,6 +963,10 @@ export class LevelEditor {
 
     byId('editor-test-btn')?.addEventListener('click', () => {
       void this.testPlay();
+    });
+
+    byId('editor-test-from-btn')?.addEventListener('click', () => {
+      void this.testFromHere();
     });
 
     for (const tool of EDITOR_TOOLS) {
@@ -1426,6 +1445,7 @@ export class LevelEditor {
   private setHover(cell: { x: number; y: number } | null): void {
     const same = this.hoverCell?.x === cell?.x && this.hoverCell?.y === cell?.y;
     this.hoverCell = cell;
+    if (cell) this.lastHoverCell = cell;
     this.setCoordsText(cell ? t('editor.palette.status.coords', { x: cell.x, y: cell.y }) : NO_COORDS_TEXT);
     if (!same) this.render();
   }
@@ -1549,6 +1569,7 @@ export class LevelEditor {
 
   public render(): void {
     const doc = this.doc;
+    this.updateTestFromState();
     const mapWidth = this.mapWidth();
     const mapHeight = this.mapHeight();
     const s = this.tilePx;
@@ -1640,8 +1661,39 @@ export class LevelEditor {
   // Test play, save, import
   // ---------------------------------------------------------------------------
 
-  private async testPlay(): Promise<void> {
-    const compiled = this.exportCompiledLevel();
+  /** Why "Test from here" cannot run now, or null when it can; the cell it would start on comes with it. */
+  private testFromHereTarget(): { cell: GridCell | null; block: TestFromHereBlock | null } {
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell, document.activeElement === this.canvas);
+    return { cell, block: startCellProblem(this.doc, cell) };
+  }
+
+  /** Disables the Test from here button, with the reason as its tooltip, when the target cell cannot hold the start. */
+  private updateTestFromState(): void {
+    const button = byId<HTMLButtonElement>('editor-test-from-btn');
+    if (!button) return;
+    const { block } = this.testFromHereTarget();
+    button.disabled = block !== null;
+    button.title = t(block ? TEST_FROM_HERE_REASON_KEYS[block] : 'editor.test_from.title');
+  }
+
+  /**
+   * Plays a copy of the level whose start is the keyboard cursor cell, or the
+   * last hovered one. The editor's own level, and the start it saves, stay as
+   * they are: only the copy handed to the game moves.
+   */
+  private async testFromHere(): Promise<void> {
+    const { cell, block } = this.testFromHereTarget();
+    if (block !== null || cell === null) {
+      this.setStatusText(t(TEST_FROM_HERE_REASON_KEYS[block ?? 'no_cell']));
+      return;
+    }
+    this.setStatusText(t('editor.test_from.status', { x: cell.x, y: cell.y }));
+    await this.testPlay(cell);
+  }
+
+  private async testPlay(startCell?: GridCell): Promise<void> {
+    const exported = this.exportCompiledLevel();
+    const compiled = startCell ? levelStartingAt(exported, startCell) : exported;
     const report = LevelValidator.validate(compiled);
     let issuesText = '';
     if (!report.valid && report.issues.length > 0) {
