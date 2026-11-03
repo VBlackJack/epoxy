@@ -15,37 +15,32 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { AudioManager } from '../audio/AudioManager';
-import { stepTerrainOf } from '../audio/stepTerrain';
+import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, OPPOSITE_DIRECTION } from './coreConstants';
+import { triggerButton } from './epoxy/epoxyDevices';
+import { updateEntities } from './epoxy/epoxyMonsters';
 import {
-  DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
-  FLOOR_TILE_ID,
-  OPPOSITE_DIRECTION
-} from './coreConstants';
+  FORCE_FLOOR_MOVE_COOLDOWN_TICKS,
+  executePlayerMove,
+  isCarriedByForceFloor,
+  processPlayerSlideStep
+} from './epoxy/epoxyPlayer';
+import { teleportEntity } from './epoxy/epoxyTeleports';
+import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
   EpoxyContext,
   EpoxyVisualKind,
   EpoxyWorld,
   buildLevelLookups,
-  canPlayerEnter,
   createEpoxyWorld,
   getEntityAt,
   holdsItem,
   isCellClosedTrap,
-  isEdgeBlocked,
-  isInBounds,
   killPlayer,
-  leaveCell,
   mapHeight,
   mapWidth
 } from './epoxy/epoxyWorld';
-import { attemptPushBlock } from './epoxy/epoxyBlocks';
-import { triggerButton } from './epoxy/epoxyDevices';
-import { updateEntities } from './epoxy/epoxyMonsters';
-import { teleportEntity, teleportPlayer } from './epoxy/epoxyTeleports';
-import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { SeededRandom } from './Random';
 import {
   BeamCell,
@@ -55,16 +50,10 @@ import {
   GridPoint,
   PlayerState,
   RuntimeEntity,
-  TileDefinition,
   TimedMove,
   TrapLink,
   UndoSnapshot
 } from './types';
-
-/** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
-const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
-/** Extra slide delay on force floors, on top of timing.slideCooldownTicks. */
-const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
 
 export class GameEngine {
   /** The play state of the loaded level, shared with the engine modules. */
@@ -508,7 +497,7 @@ export class GameEngine {
       if (this.w.player.slideCooldown > 0) {
         this.w.player.slideCooldown--;
       } else {
-        this.processPlayerSlideStep();
+        processPlayerSlideStep(this.ctx);
       }
     }
 
@@ -527,7 +516,7 @@ export class GameEngine {
       return false;
     }
 
-    if (this.isCarriedByForceFloor(currentTile)) {
+    if (isCarriedByForceFloor(this.w, currentTile)) {
       const activeForceDir: Direction | null =
         currentTile.forceDirection && currentTile.forceDirection !== 'RANDOM'
           ? currentTile.forceDirection
@@ -552,7 +541,7 @@ export class GameEngine {
 
     this.saveUndoSnapshot();
     this.w.gridMutatedByMove = false;
-    const moved = this.executePlayerMove(dir, false);
+    const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
       this.stepsCount++;
@@ -560,7 +549,7 @@ export class GameEngine {
       this.timedMoveHistory.push({ tick: tickAtMove, dir });
       const destTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
       // Boots cancel the push, so a booted player keeps the walking cadence.
-      this.w.player.moveCooldown = this.isCarriedByForceFloor(destTile)
+      this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
         ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
         : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
       resolveLasers(this.ctx);
@@ -572,291 +561,6 @@ export class GameEngine {
       }
     }
     return moved;
-  }
-
-  /** Whether the tile is a force floor that pushes the player, i.e. one the held boots do not cancel. */
-  private isCarriedByForceFloor(tile: TileDefinition): boolean {
-    return tile.slideType === 'force' && (!tile.protectedByItem || !this.w.player.boots.has(tile.protectedByItem));
-  }
-
-  private executePlayerMove(dir: Direction, fromSlide: boolean): boolean {
-    this.w.player.dir = dir;
-    const vec = DIRECTION_VECTORS[dir];
-    const targetX = this.w.player.x + vec.dx;
-    const targetY = this.w.player.y + vec.dy;
-
-    if (!isInBounds(this.w, targetX, targetY)) {
-      AudioManager.playSfx('blocked');
-      return false;
-    }
-
-    if (isEdgeBlocked(this.w, this.w.player.x, this.w.player.y, targetX, targetY, dir)) {
-      if (!fromSlide) AudioManager.playSfx('blocked');
-      return false;
-    }
-
-    const targetTileId = this.w.terrain[targetY][targetX];
-    const targetTile = ConfigRegistry.getTile(targetTileId);
-
-    if (targetTile.revealsToOnTouch) {
-      this.w.terrain[targetY][targetX] = targetTile.revealsToOnTouch;
-      this.w.gridMutatedByMove = true;
-      AudioManager.playSfx('blocked');
-      return false;
-    }
-
-    if (targetTile.requiresAllChips) {
-      if (this.w.chipsRemaining <= 0) {
-        this.w.terrain[targetY][targetX] = targetTile.transformsToOnUnlock || FLOOR_TILE_ID;
-        this.w.gridMutatedByMove = true;
-        AudioManager.playSfx('socket');
-        this.emitVisual('unlock', targetX, targetY, 'yellow');
-      } else {
-        this.w.statusBannerKey = 'hud.messages.socket_locked';
-        AudioManager.playSfx('blocked');
-        return false;
-      }
-    }
-
-    if (targetTile.requiredKey) {
-      const keyCount = this.w.player.keys[targetTile.requiredKey] || 0;
-      if (keyCount > 0) {
-        if (targetTile.consumesKey) {
-          this.w.player.keys[targetTile.requiredKey] = keyCount - 1;
-        }
-        this.w.terrain[targetY][targetX] = targetTile.transformsToOnUnlock || FLOOR_TILE_ID;
-        this.w.gridMutatedByMove = true;
-        AudioManager.playSfx('door');
-        this.emitVisual('unlock', targetX, targetY, targetTile.colorKey || 'yellow');
-      } else {
-        if (!fromSlide) AudioManager.playSfx('blocked');
-        return false;
-      }
-    }
-
-    const updatedTargetTile = ConfigRegistry.getTile(this.w.terrain[targetY][targetX]);
-    if (!canPlayerEnter(this.w, updatedTargetTile)) {
-      // A barrier against an item the player carries: solid until the item is dropped elsewhere.
-      if (updatedTargetTile.passableByPlayer) this.w.statusBannerKey = 'hud.messages.forbidden_item';
-      if (!fromSlide) AudioManager.playSfx('blocked');
-      return false;
-    }
-
-    const entityAtTarget = getEntityAt(this.w, targetX, targetY);
-    if (entityAtTarget) {
-      if (entityAtTarget.kind === 'block') {
-        const pushed = attemptPushBlock(this.ctx, entityAtTarget, dir);
-        if (!pushed) {
-          if (!fromSlide) AudioManager.playSfx('blocked');
-          return false;
-        }
-      } else if (entityAtTarget.kind === 'monster') {
-        leaveCell(this.w, this.w.player.x, this.w.player.y);
-        this.w.player.x = targetX;
-        this.w.player.y = targetY;
-        killPlayer(this.ctx, 'hud.messages.death_monster', 'death');
-        return true;
-      }
-    }
-
-    leaveCell(this.w, this.w.player.x, this.w.player.y);
-    this.w.player.x = targetX;
-    this.w.player.y = targetY;
-    this.w.statusBannerKey = null;
-
-    if (!fromSlide) {
-      AudioManager.playStep(stepTerrainOf(ConfigRegistry.getTile(this.w.terrain[targetY][targetX]), this.w.player.boots));
-    }
-
-    this.resolvePlayerArrival(dir, true);
-    return true;
-  }
-
-  /**
-   * Applies the effects of the cell the player just entered. A teleporter is
-   * resolved first: the player jumps, then the arrival cell (items, thief,
-   * buttons, hazards, exit) is resolved at the destination coordinates.
-   */
-  private resolvePlayerArrival(entryDir: Direction, allowTeleport: boolean): void {
-    const x = this.w.player.x;
-    const y = this.w.player.y;
-    let tile = ConfigRegistry.getTile(this.w.terrain[y][x]);
-
-    if (tile.isTeleporter && allowTeleport) {
-      this.emitVisual('teleport', x, y);
-      if (teleportPlayer(this.w, x, y, entryDir)) {
-        this.emitVisual('teleport', this.w.player.x, this.w.player.y);
-        this.resolvePlayerArrival(this.w.player.dir, false);
-        return;
-      }
-    }
-
-    if (tile.transformsToOnStep) {
-      this.w.terrain[y][x] = tile.transformsToOnStep;
-      tile = ConfigRegistry.getTile(this.w.terrain[y][x]);
-    }
-
-    const itemId = this.w.items[y][x];
-    if (itemId) {
-      const itemDef = ConfigRegistry.getTile(itemId);
-      if (itemDef.hazard === 'bomb') {
-        this.w.items[y][x] = null;
-        this.emitVisual('explosion', x, y, 'red');
-        killPlayer(this.ctx, 'hud.messages.death_bomb', 'bomb');
-        return;
-      }
-      if (itemDef.collectible === 'chip') {
-        this.w.items[y][x] = null;
-        this.w.chipsRemaining = Math.max(0, this.w.chipsRemaining - 1);
-        AudioManager.playSfx('chip');
-        this.emitVisual('chip', x, y, 'green');
-      } else if (itemDef.collectible === 'key') {
-        this.w.items[y][x] = null;
-        this.w.player.keys[itemId] = (this.w.player.keys[itemId] || 0) + 1;
-        AudioManager.playSfx('item');
-        this.emitVisual('item', x, y, itemDef.colorKey || 'yellow');
-      } else if (itemDef.collectible === 'boot') {
-        this.w.items[y][x] = null;
-        this.w.player.boots.add(itemId);
-        AudioManager.playSfx('item');
-        this.emitVisual('item', x, y, 'blue');
-      } else if (itemDef.collectible === 'bonus') {
-        this.w.items[y][x] = null;
-        this.collectBonus(itemDef);
-        AudioManager.playSfx('item');
-        this.emitVisual('item', x, y, itemDef.colorKey || 'yellow');
-      }
-    }
-
-    if (tile.stealsBoots && this.w.player.boots.size > 0) {
-      this.w.player.boots.clear();
-      this.w.statusBannerKey = 'hud.messages.thief_stole';
-      AudioManager.playSfx('thief');
-    }
-
-    if (tile.stealsKeys && Object.values(this.w.player.keys).some((count) => count > 0)) {
-      this.w.player.keys = {};
-      this.w.statusBannerKey = 'hud.messages.thief_stole_keys';
-      AudioManager.playSfx('thief');
-    }
-
-    if (tile.buttonAction) {
-      triggerButton(this.ctx, x, y, tile.buttonAction);
-      if (!this.w.player.alive) return;
-    }
-
-    this.w.player.inWater = tile.hazard === 'water';
-    if (tile.hazard === 'water' && (!tile.protectedByItem || !this.w.player.boots.has(tile.protectedByItem))) {
-      this.emitVisual('splash', x, y);
-      killPlayer(this.ctx, 'hud.messages.death_water', 'death');
-      return;
-    }
-    if (tile.hazard === 'fire' && (!tile.protectedByItem || !this.w.player.boots.has(tile.protectedByItem))) {
-      this.emitVisual('explosion', x, y);
-      killPlayer(this.ctx, 'hud.messages.death_fire', 'burn');
-      return;
-    }
-
-    if (tile.hazard === 'slime' && (!tile.protectedByItem || !this.w.player.boots.has(tile.protectedByItem))) {
-      this.emitVisual('splash', x, y, 'green');
-      killPlayer(this.ctx, 'hud.messages.death_slime', 'death');
-      return;
-    }
-
-    if (tile.isLevelExit) {
-      this.emitVisual('win', x, y);
-      this.completeLevel();
-      return;
-    }
-
-    this.evaluatePlayerSliding(tile, entryDir);
-  }
-
-  /**
-   * Applies a picked up bonus item: flag points join the level score paid at
-   * the exit (where the multiplier applies to them too), a multiplier raises
-   * that score, and a stopwatch moves the time left (an untimed level stays
-   * untimed).
-   */
-  private collectBonus(itemDef: TileDefinition): void {
-    if (itemDef.scoreBonus) {
-      this.w.levelBonusPoints += itemDef.scoreBonus;
-      this.w.statusBannerKey = 'hud.messages.score_bonus_picked';
-    }
-    if (itemDef.scoreMultiplier) {
-      this.w.levelScoreMultiplier *= itemDef.scoreMultiplier;
-      this.w.statusBannerKey = 'hud.messages.score_multiplier_picked';
-    }
-    if (itemDef.timeBonusSeconds) {
-      if (this.w.level.timeLimitSeconds > 0) {
-        this.w.extraTimeSeconds += itemDef.timeBonusSeconds;
-      }
-      this.w.statusBannerKey =
-        itemDef.timeBonusSeconds > 0 ? 'hud.messages.time_bonus_picked' : 'hud.messages.time_penalty_picked';
-    }
-  }
-
-  private evaluatePlayerSliding(tile: ReturnType<typeof ConfigRegistry.getTile>, entryDir: Direction): void {
-    if (tile.slideType === 'ice') {
-      if (tile.protectedByItem && this.w.player.boots.has(tile.protectedByItem)) {
-        this.w.player.isSliding = false;
-        this.w.player.slideDir = null;
-        return;
-      }
-      const nextDir = tile.deflectionMap?.[entryDir] || entryDir;
-      this.w.player.isSliding = true;
-      this.w.player.slideDir = nextDir;
-      this.w.player.dir = nextDir;
-      this.w.player.slideCooldown = ConfigRegistry.getGame().timing.slideCooldownTicks;
-      return;
-    }
-
-    if (tile.slideType === 'force') {
-      if (tile.protectedByItem && this.w.player.boots.has(tile.protectedByItem)) {
-        this.w.player.isSliding = false;
-        this.w.player.slideDir = null;
-        return;
-      }
-      let forceDir: Direction = entryDir;
-      if (tile.forceDirection === 'RANDOM') {
-        forceDir = ORDERED_DIRECTIONS[this.w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
-      } else if (tile.forceDirection) {
-        forceDir = tile.forceDirection;
-      }
-      this.w.player.isSliding = true;
-      this.w.player.slideDir = forceDir;
-      this.w.player.dir = forceDir;
-      this.w.player.slideCooldown =
-        ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
-      return;
-    }
-
-    this.w.player.isSliding = false;
-    this.w.player.slideDir = null;
-  }
-
-  private processPlayerSlideStep(): void {
-    const dir = this.w.player.slideDir || this.w.player.dir;
-    const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
-
-    const moved = this.executePlayerMove(dir, true);
-    if (!moved) {
-      if (currentTile.slideType === 'ice') {
-        const bounceDir = OPPOSITE_DIRECTION[dir];
-        const deflectedBounce = currentTile.deflectionMap?.[bounceDir] || bounceDir;
-        this.w.player.slideDir = deflectedBounce;
-        this.w.player.dir = deflectedBounce;
-        const bouncedMoved = this.executePlayerMove(deflectedBounce, true);
-        if (!bouncedMoved) {
-          this.w.player.isSliding = false;
-          this.w.player.slideDir = null;
-        }
-      } else {
-        this.w.player.isSliding = false;
-        this.w.player.slideDir = null;
-      }
-    }
-    this.checkTargetsWin();
   }
 
   public isCellClosedTrap(tx: number, ty: number): boolean {
