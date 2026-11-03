@@ -173,6 +173,9 @@ async function pump(pair: ByteTransform, input: Uint8Array, maxBytes: number): P
       await writer.ready;
       if (stopped) return;
       await writer.write(input.subarray(at, at + WRITE_SLICE_BYTES));
+      // A turn of the event loop, so the reader sees the output of this slice (and stops the
+      // feeding) before the next one goes in; promise ordering alone differs between runtimes.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
     if (!stopped) await writer.close();
   })().catch(() => undefined);

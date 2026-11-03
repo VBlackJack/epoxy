@@ -204,28 +204,35 @@ describe('shareLink', () => {
       expect(await decodeShareHash(hash, 262144)).toEqual({ ok: false, error: 'damaged' });
     });
 
-    it('stops inflating as soon as the output passes the byte cap', async () => {
+    it('stops feeding the inflater once the output passes the byte cap', async () => {
+      // A stand-in inflater: every slice written to it comes out as a large chunk.
+      const CHUNK = 100_000;
+      const SLICES = 40;
+      let consumed = 0;
+      let produced = 0;
+      const fake: ShareStreams = {
+        createDecompressor: () =>
+          new TransformStream<Uint8Array, Uint8Array>({
+            transform(_chunk, controller) {
+              consumed += 1;
+              produced += CHUNK;
+              controller.enqueue(new Uint8Array(CHUNK));
+            }
+          })
+      };
+      const payload = toBase64Url(new Uint8Array(SLICES * WRITE_SLICE));
+      expect(await decodeShareHash(`#pack=1.${payload}`, SMALL_CAP, fake)).toEqual({ ok: false, error: 'damaged' });
+      expect(consumed).toBeLessThanOrEqual(2);
+      expect(produced).toBeLessThanOrEqual(SMALL_CAP + 2 * CHUNK);
+    });
+
+    it('stops the real inflater within one chunk of the byte cap', async () => {
       const bomb = await linkOfBytes(new Uint8Array(BOMB_BYTES));
       const streams = browserStreams();
-      const totalSlices = Math.ceil(fromBase64Url(bomb.slice('#pack=1.'.length))!.length / WRITE_SLICE);
       let produced = 0;
-      let slicesWritten = 0;
       const counting: ShareStreams = {
         createDecompressor: () => {
           const pair = streams.createDecompressor!();
-          const writer = pair.writable.getWriter();
-          const input = new TransformStream<Uint8Array, Uint8Array>();
-          void input.readable.pipeTo(
-            new WritableStream<Uint8Array>({
-              async write(chunk) {
-                slicesWritten += 1;
-                await writer.ready;
-                await writer.write(chunk);
-              },
-              close: () => writer.close(),
-              abort: (reason) => writer.abort(reason)
-            })
-          ).catch(() => undefined);
           const output = new TransformStream<Uint8Array, Uint8Array>(
             {
               transform(chunk, controller) {
@@ -237,13 +244,12 @@ describe('shareLink', () => {
             { highWaterMark: 0 }
           );
           void pair.readable.pipeTo(output.writable).catch(() => undefined);
-          return { readable: output.readable, writable: input.writable };
+          return { readable: output.readable, writable: pair.writable };
         }
       };
-      expect(totalSlices).toBeGreaterThan(8);
       expect(await decodeShareHash(bomb, SMALL_CAP, counting)).toEqual({ ok: false, error: 'damaged' });
       expect(produced).toBeLessThanOrEqual(SMALL_CAP + OUTPUT_CHUNK_ALLOWANCE);
-      expect(slicesWritten).toBeLessThan(totalSlices);
+      expect(produced).toBeLessThan(BOMB_BYTES);
     });
 
     it('refuses a payload above the bound before decoding it', async () => {
