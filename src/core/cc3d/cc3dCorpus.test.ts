@@ -19,8 +19,10 @@
  * outside the repository). Every level must have no validator error, a stable cell stack, display layers
  * that match its own cc3d data, and links that match what the engine resolves. When CC3D_CORPUS_DUMP names
  * a file, the SHA-256 of every decoded level is written there, to compare the codec before and after a change.
- * When CC3D_SIM_GOLDEN names a file, a fixed play-through of every level is hashed: a missing file is
- * written (run it on the reference checkout first), an existing one must match exactly. Hashes and ids only.
+ * When CC3D_SIM_GOLDEN names a file, a fixed play-through of every level is hashed and
+ * must match that file exactly; a missing file fails. The file is only written when CC3D_SIM_GOLDEN_WRITE=1
+ * is also set, and that must be done on the reference checkout, never on the branch under test. Hashes and
+ * ids only.
  */
 
 import { createHash } from 'node:crypto';
@@ -47,6 +49,7 @@ const KEY_PREFIX = 'validator.issues.cc3d_';
 const TEST_TIMEOUT_MS = 120_000;
 const SIMULATION_TIMEOUT_MS = 600_000;
 const SIM_GOLDEN_FILE = process.env.CC3D_SIM_GOLDEN;
+const SIM_GOLDEN_WRITE = process.env.CC3D_SIM_GOLDEN_WRITE === '1';
 
 function loadLevels(): { levels: CompiledLevel[]; fileCount: number } {
   const dir = CORPUS_DIR as string;
@@ -151,11 +154,13 @@ describe.skipIf(!CORPUS_DIR)('cc3d corpus', () => {
     const { levels } = loadLevels();
     const hashes: Record<string, string> = {};
     for (const level of levels) hashes[level.id] = simulationHash(level);
-    if (!existsSync(SIM_GOLDEN_FILE)) {
-      // First run, on the reference checkout: record the hashes.
+    if (SIM_GOLDEN_WRITE) {
+      // Explicit request, on the reference checkout only: record the hashes and compare nothing.
       writeFileSync(SIM_GOLDEN_FILE, JSON.stringify(hashes, null, 1));
       return;
     }
+    // A missing file is a failure: a branch must never bless its own behaviour.
+    expect(existsSync(SIM_GOLDEN_FILE), `golden file ${SIM_GOLDEN_FILE} is missing`).toBe(true);
     const golden = JSON.parse(readFileSync(SIM_GOLDEN_FILE, 'utf8')) as Record<string, string>;
     const different = Object.keys(hashes).filter((id) => golden[id] !== hashes[id]);
     expect(Object.keys(golden).length).toBe(levels.length);
