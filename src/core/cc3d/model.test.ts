@@ -21,8 +21,13 @@ import {
   CC3D_FLOOR_LIKE_KINDS,
   Cc3dCell,
   Cc3dLevel,
+  Cc3dTerrain,
+  baseConflict,
   cellAt,
   cellIndex,
+  normalizeCell,
+  placeTerrain,
+  terrainClass,
   topTerrain
 } from './model';
 
@@ -73,5 +78,73 @@ describe('cc3d model helpers', () => {
   it('survives a JSON round trip', () => {
     const level = makeLevel();
     expect(JSON.parse(JSON.stringify(level))).toEqual(level);
+  });
+});
+
+describe('terrainClass', () => {
+  it('classifies every kind and rejects unknown ones', () => {
+    expect(terrainClass('water')).toBe(1);
+    expect(terrainClass('bomb')).toBe(2);
+    expect(terrainClass('wall')).toBe(3);
+    expect(terrainClass('nonsense')).toBeUndefined();
+  });
+});
+
+describe('normalizeCell', () => {
+  it('falls back to plain floor when no layer is floor-like', () => {
+    expect(normalizeCell([{ kind: 'wall' }])).toEqual([{ kind: 'floor' }, { kind: 'wall' }]);
+    expect(normalizeCell([])).toEqual([{ kind: 'floor' }]);
+  });
+
+  it('takes the floor-like layer that is not plain floor as base, wherever it sits', () => {
+    expect(normalizeCell([{ kind: 'wall' }, { kind: 'floor' }, { kind: 'water' }])).toEqual([{ kind: 'water' }, { kind: 'wall' }]);
+  });
+
+  it('orders devices before blockers and keeps input order inside a class', () => {
+    const stack = normalizeCell([
+      { kind: 'door', color: 'red' },
+      { kind: 'trap' },
+      { kind: 'wall' },
+      { kind: 'bomb' },
+      { kind: 'ice' }
+    ]);
+    expect(stack.map((l) => l.kind)).toEqual(['ice', 'trap', 'bomb', 'door', 'wall']);
+  });
+
+  it('keeps duplicates of a kind (the importer does)', () => {
+    expect(normalizeCell([{ kind: 'trap' }, { kind: 'trap' }]).map((l) => l.kind)).toEqual(['floor', 'trap', 'trap']);
+  });
+
+  it('lets the last real base win and reports the conflict', () => {
+    const layers: Cc3dTerrain[] = [{ kind: 'floor' }, { kind: 'water' }, { kind: 'fire' }];
+    expect(baseConflict(layers)).toEqual([1, 2]);
+    expect(normalizeCell(layers)[0].kind).toBe('fire');
+    expect(baseConflict([{ kind: 'floor' }, { kind: 'water' }, { kind: 'wall' }])).toBeNull();
+  });
+
+  it('throws on an unknown kind', () => {
+    expect(() => normalizeCell([{ kind: 'nonsense' } as unknown as Cc3dTerrain])).toThrow();
+  });
+});
+
+describe('placeTerrain', () => {
+  it('replaces the base with a floor-like layer and keeps what is above', () => {
+    expect(placeTerrain([{ kind: 'floor' }, { kind: 'trap' }], { kind: 'ice' })).toEqual([{ kind: 'ice' }, { kind: 'trap' }]);
+  });
+
+  it('replaces a layer of the same kind in place', () => {
+    const stack = placeTerrain([{ kind: 'floor' }, { kind: 'door', color: 'red' }, { kind: 'wall' }], { kind: 'door', color: 'blue' });
+    expect(stack).toEqual([{ kind: 'floor' }, { kind: 'door', color: 'blue' }, { kind: 'wall' }]);
+  });
+
+  it('inserts a device below the blockers and a blocker above the devices', () => {
+    expect(placeTerrain([{ kind: 'floor' }, { kind: 'wall' }], { kind: 'bomb' }).map((l) => l.kind)).toEqual(['floor', 'bomb', 'wall']);
+    expect(placeTerrain([{ kind: 'floor' }, { kind: 'bomb' }], { kind: 'wall' }).map((l) => l.kind)).toEqual(['floor', 'bomb', 'wall']);
+  });
+
+  it('does not change the stack it is given', () => {
+    const stack: Cc3dTerrain[] = [{ kind: 'floor' }];
+    placeTerrain(stack, { kind: 'wall' });
+    expect(stack).toEqual([{ kind: 'floor' }]);
   });
 });
