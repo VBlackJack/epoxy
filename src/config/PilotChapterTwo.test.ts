@@ -138,7 +138,7 @@ describe('pilot chapter 2 the ford', () => {
   /** Walk to the wedged block and push it into the river: it sinks and leaves loose dirt. */
   const FILL_THE_FORD = 'SSEEESE';
   /** From the new dirt, fetch the second block: bring it north out of its corner, then east along the row of the ford. */
-  const FETCH_THE_BLOCK = 'WSSSWNNWNEE';
+  const FETCH_THE_BLOCK = 'WWWWSSSEENNSSWWNNNEE';
 
   it('is won by its stored solution, with the river filled once and the east pool filled once', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(FORD_LEVEL);
@@ -154,12 +154,21 @@ describe('pilot chapter 2 the ford', () => {
     expect(sunk).toBe(2);
   });
 
+  it('keeps the second block in a one-wide shaft that only lets it go north, before the dirt below it is trodden', () => {
+    const level = levelById(FORD_LEVEL);
+    expect(level.entities.some((e) => e.type === 'dirt_block' && e.x === 4 && e.y === 6)).toBe(true);
+    expect(level.terrain[6][3]).toBe('wall');
+    expect(level.terrain[6][5]).toBe('wall');
+    // Dirt stops a block, so the push south is refused until the player has trodden it.
+    expect(level.terrain[7][4]).toBe('dirt');
+  });
+
   it('sends the wedged block into the water only: the river becomes fresh dirt and the block is gone', () => {
     const level = levelById(FORD_LEVEL);
     expect(level.terrain[5][5]).toBe('wall');
     const engine = engineAfter(level, FILL_THE_FORD);
     expect(engine.getTerrain()[4][6]).toBe('dirt');
-    expect(blockCells(engine)).toEqual(['3,6']);
+    expect(blockCells(engine)).toEqual(['4,6']);
   });
 
   it('refuses the second block on fresh dirt without punishing, and lets it through once the dirt is trodden', { timeout: TEST_TIMEOUT_MS }, () => {
@@ -220,20 +229,21 @@ describe('pilot chapter 2 dead ends', () => {
 
   const NOTCH_BLOCK = 1;
   const WALL_BLOCK = 0;
+  const OVERSHOOT_BLOCK = 2;
   const SQUARE_BLOCK = 2;
 
   it('is won by its stored solution with three blocks on three targets', () => {
     const level = levelById(DEAD_ENDS_LEVEL);
     expect(level.winRule).toBe('targets');
     expect(level.blockBudget).toEqual({ waters: 0, targets: 3 });
-    expect(pushesOf(level)).toBe(22);
+    expect(pushesOf(level)).toBe(10);
   });
 
   it('is proven solvable by the block solver on the real level', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
     const level = levelById(DEAD_ENDS_LEVEL);
-    expect(BlockPuzzleSolver.verdict(engineFor(level))).toEqual({ kind: 'solved', pushes: 22 });
+    expect(BlockPuzzleSolver.verdict(engineFor(level))).toEqual({ kind: 'solved', pushes: 10 });
     const room = pureRoom(level, startBlocks(level), [level.playerStart.x, level.playerStart.y]);
-    expect(BlockPuzzleSolver.verdict(room)).toEqual({ kind: 'solved', pushes: 22 });
+    expect(BlockPuzzleSolver.verdict(room)).toEqual({ kind: 'solved', pushes: 10 });
   });
 
   it('is lost by the corner push of the block beside the notch', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
@@ -249,16 +259,22 @@ describe('pilot chapter 2 dead ends', () => {
     expect(verdictKind(pureRoom(level, pushed, player))).toBe('unsolvable');
   });
 
-  it('is lost by pushing the block under the top wall up against it, where no target lies', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+  it('is lost when the push that lines a block up overshoots to the east wall, where no target lies', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
     const level = levelById(DEAD_ENDS_LEVEL);
     const blocks = startBlocks(level);
     const player: [number, number] = [level.playerStart.x, level.playerStart.y];
-    const [x, y] = blocks[WALL_BLOCK];
-    expect(y).toBe(4);
-    expect(level.terrain[y - 2][x]).toBe('wall');
-    expect(level.terrain[y - 1].some((id) => id === 'block_target')).toBe(false);
-    const pushed = blocks.map((b, i): [number, number] => (i === WALL_BLOCK ? [x, y - 1] : b));
-    expect(verdictKind(pureRoom(level, pushed, player))).toBe('unsolvable');
+    const [x, y] = blocks[OVERSHOOT_BLOCK];
+    expect(level.terrain[y][x + 3]).toBe('wall');
+    expect(level.terrain.some((row) => row[x + 2] === 'block_target')).toBe(false);
+    const lined = blocks.map((b, i): [number, number] => (i === OVERSHOOT_BLOCK ? [x + 1, y] : b));
+    expect(verdictKind(pureRoom(level, lined, player))).toBe('solved');
+    const overshot = blocks.map((b, i): [number, number] => (i === OVERSHOOT_BLOCK ? [x + 2, y] : b));
+    expect(verdictKind(pureRoom(level, overshot, player))).toBe('unsolvable');
+    // Pushing the block of the west column up onto the top row is the same dead end.
+    const [wx, wy] = blocks[WALL_BLOCK];
+    expect(level.terrain[wy - 2][wx]).toBe('wall');
+    const lifted = blocks.map((b, i): [number, number] => (i === WALL_BLOCK ? [wx, wy - 1] : b));
+    expect(verdictKind(pureRoom(level, lifted, player))).toBe('unsolvable');
   });
 
   it('is lost by a block pushed beside a block already resting on the bottom wall, a square of two blocks and two walls', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
@@ -276,7 +292,7 @@ describe('pilot chapter 2 dead ends', () => {
       i === NOTCH_BLOCK ? resting : i === SQUARE_BLOCK ? [resting[0] + 1, bottom - 1] : b
     );
     expect(sx).toBe(resting[0] + 1);
-    expect(sy).toBeLessThan(bottom - 1);
+    expect(sy).toBe(bottom - 1);
     expect(verdictKind(pureRoom(level, before, player))).toBe('solved');
     const after = before.map((b, i): [number, number] => (i === SQUARE_BLOCK ? [resting[0] + 1, bottom] : b));
     expect(verdictKind(pureRoom(level, after, player))).toBe('unsolvable');
@@ -291,10 +307,10 @@ describe('pilot chapter 2 the trodden bridge', () => {
     loadTestConfigs();
   });
 
-  /** Walk to the first block and push it east along the top row into the first water cell of the river. */
-  const FIRST_BRIDGE = 'SSSSSEENNEE';
+  /** Walk to the first block and push it east along its row into the first water cell of the river. */
+  const FIRST_BRIDGE = 'EESSSEE';
   /** Bring the second block up into the row of the first bridge and line it up to push it east. */
-  const LINE_UP_SECOND = 'SSSSSWNNNNWN';
+  const LINE_UP_SECOND = 'SSSWNNWN';
 
   it('is won by its stored solution, with two blocks filling the two water cells of one row', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(BRIDGE_LEVEL);
@@ -324,7 +340,7 @@ describe('pilot chapter 2 the trodden bridge', () => {
 
   it('wins when both bridges are in the same row and the first one is trodden', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(BRIDGE_LEVEL);
-    const engine = engineAfter(level, `${FIRST_BRIDGE}EWSSSSSWNNNNWNEEE`);
+    const engine = engineAfter(level, `${FIRST_BRIDGE}EWSSSWNNWNEEE`);
     expect(engine.getTerrain()[4][6]).toBe('floor');
     expect(engine.getTerrain()[4][7]).toBe('dirt');
     expect(engine.getEntities().filter((e) => e.type === 'dirt_block')).toHaveLength(0);
@@ -334,7 +350,7 @@ describe('pilot chapter 2 the trodden bridge', () => {
   it('loses when the two bridges are in different rows', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(BRIDGE_LEVEL);
     // The first block bridges the top row, the second one sinks next to it in the row below.
-    const engine = engineAfter(level, `${FIRST_BRIDGE}SSSSSWNNNWNEE`);
+    const engine = engineAfter(level, `${FIRST_BRIDGE}SSSWNWNEE`);
     expect(engine.getTerrain()[4][6]).toBe('dirt');
     expect(engine.getTerrain()[5][6]).toBe('dirt');
     expect(engine.getEntities().filter((e) => e.type === 'dirt_block')).toHaveLength(0);

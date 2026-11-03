@@ -791,7 +791,7 @@
     {
       "id": "epoxy_p_17",
       "theme": "cyber_neon",
-      "solution": "SSEEESEEWWSSSWNNWNEEEEEEEEENNNSSSSS",
+      "solution": "SSEEESEEWWWWSSSEENNSSWWNNNEEEEEEEEENNNSSSSS",
       "number": 17,
       "titleKey": "pilot.levels.level_17.title",
       "hintKey": "pilot.levels.level_17.hint",
@@ -809,9 +809,9 @@
         "#H####W####.#",
         "#......####C#",
         "##....W...W.#",
-        "#....#W####S#",
-        "#....#W####E#",
-        "#....#W######",
+        "##.#.#W####S#",
+        "##.#.#W####E#",
+        "##..d#W######",
         "#############"
       ],
       "items": [],
@@ -824,7 +824,7 @@
         },
         {
           "type": "dirt_block",
-          "x": 3,
+          "x": 4,
           "y": 6,
           "dir": "S"
         }
@@ -900,7 +900,7 @@
     {
       "id": "epoxy_p_19",
       "theme": "cyber_neon",
-      "solution": "SSEESSSSSSSSNNNNEEENESSSSSNNNNNNWNWSSSSSSS",
+      "solution": "EEESSSSWSSSSEEENESNNWNWSSS",
       "number": 19,
       "titleKey": "pilot.levels.level_19.title",
       "hintKey": "pilot.levels.level_19.hint",
@@ -914,15 +914,13 @@
       },
       "rows": [
         "###########",
-        "#@#########",
-        "#H#########",
-        "#........##",
+        "#@.H.######",
+        "####.######",
+        "####.######",
+        "####.######",
+        "##.......##",
         "##.....#.##",
         "##......###",
-        "##.......##",
-        "##.......##",
-        "##.......##",
-        "##.......##",
         "##.......##",
         "##.......##",
         "##.......##",
@@ -931,17 +929,17 @@
       "terrainOverrides": [
         {
           "x": 3,
-          "y": 12,
+          "y": 10,
           "id": "block_target"
         },
         {
           "x": 5,
-          "y": 12,
+          "y": 10,
           "id": "block_target"
         },
         {
           "x": 7,
-          "y": 12,
+          "y": 10,
           "id": "block_target"
         }
       ],
@@ -950,19 +948,19 @@
         {
           "type": "dirt_block",
           "x": 3,
-          "y": 4,
-          "dir": "S"
-        },
-        {
-          "type": "dirt_block",
-          "x": 6,
-          "y": 5,
+          "y": 6,
           "dir": "S"
         },
         {
           "type": "dirt_block",
           "x": 6,
           "y": 7,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 9,
           "dir": "S"
         }
       ],
@@ -977,7 +975,7 @@
     {
       "id": "epoxy_p_20",
       "theme": "cyber_neon",
-      "solution": "SSSSSEENNENESSSWSEEWSSWNWNEEEEENNNNEEESSWSS",
+      "solution": "EESSESWSEEEWSSWNWNEEEEESNNNNEEESSWSS",
       "number": 20,
       "titleKey": "pilot.levels.level_20.title",
       "hintKey": "pilot.levels.level_20.hint",
@@ -991,14 +989,12 @@
       },
       "rows": [
         "#############",
-        "#@###########",
-        "#H###########",
-        "#.##..WW...C#",
-        "#.#...WW....#",
-        "#.#...WW..C.#",
-        "#.....WW.#S##",
+        "#@H.#########",
+        "###.##WW...C#",
+        "##....WW....#",
+        "##....WW..C.#",
+        "##....WW.#S##",
         "##....WWC#E##",
-        "##....#######",
         "##....#######",
         "#############"
       ],
@@ -1013,7 +1009,7 @@
         {
           "type": "dirt_block",
           "x": 4,
-          "y": 8,
+          "y": 6,
           "dir": "S"
         }
       ],

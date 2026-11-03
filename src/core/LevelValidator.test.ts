@@ -375,6 +375,17 @@ describe('LevelValidator', () => {
       expect(keys(grid(['#######', '#P.c..#', '#######'], { entities: [block] }))).toContain(HIDDEN);
     });
 
+    it('still warns when the pusher would stand in a doorway', () => {
+      const level = grid(['###c###', '#P...E#', '###D###', '#######'], { entities: [{ ...block, x: 3, y: 1 }] });
+      expect(keys(level)).toContain(HIDDEN);
+    });
+
+    it('stays silent when the cell behind the block is a blue wall that stays solid', () => {
+      const level = grid(['###c###', '#P...E#', '#######'], { entities: [block] });
+      level.terrain[2][3] = 'blue_wall_real';
+      expect(keys(level)).not.toContain(HIDDEN);
+    });
+
     it('stays silent without any block', () => {
       expect(keys(grid(['#######', '#P.cHE#', '#######']))).not.toContain(HIDDEN);
     });

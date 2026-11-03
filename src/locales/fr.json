@@ -1245,7 +1245,7 @@
       },
       "level_17": {
         "title": "Le gué",
-        "hint": "L'eau te noie, mais un bloc poussé dedans la comble et laisse de la terre meuble : marche sur cette terre avant d'y pousser quoi que ce soit."
+        "hint": "L'eau te noie, mais un bloc poussé dedans comble le bassin."
       },
       "level_18": {
         "title": "Les rails",
@@ -1257,7 +1257,7 @@
       },
       "level_20": {
         "title": "Le pont foulé",
-        "hint": "La terre fraîche arrête un bloc tant que tu n'as pas marché dessus : foule chaque case du pont avant de pousser le bloc suivant."
+        "hint": "Une rivière de deux cases demande deux blocs dans la même rangée, et la terre fraîche arrête un bloc tant que tu n'as pas marché dessus."
       }
     },
     "chapter": {

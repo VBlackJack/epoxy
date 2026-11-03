@@ -60,6 +60,15 @@ interface SlideResult {
   fatal: boolean;
 }
 
+/** Tiles that stay solid for the player whatever happens: no pusher can ever stand there. */
+const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
+  'wall',
+  'blue_wall_real',
+  'invisible_wall',
+  'appearing_wall',
+  'clone_machine'
+]);
+
 type BootCheck = (boots: number, bootId: string | undefined) => boolean;
 
 /** Tells whether a level's stored solution wins in the real engine; supplied by callers that can replay it. */
@@ -549,6 +558,19 @@ export class LevelValidator {
    * hazard the block type refuses (mirrors and water) is never entered; water
    * the block may enter is reached but not crossed, since the block sinks there.
    */
+  /**
+   * True for ground nobody can ever stand on: walls and fixtures. Doors, sockets, toggle walls
+   * and hazards are not solid here, since a key, chips, a switch, boots or a filled pool can
+   * make them standable, so a push from them is still possible.
+   */
+  private static isSolidForPusher(terrainId: string): boolean {
+    return (
+      PERMANENT_SOLID_TILES.has(terrainId) ||
+      terrainId.startsWith('laser_emitter') ||
+      terrainId.startsWith('laser_receiver')
+    );
+  }
+
   private static checkHiddenByBlocks(level: CompiledLevel, issues: ValidationIssue[]): void {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length ?? 0;
@@ -585,8 +607,7 @@ export class LevelValidator {
           const px = x - vec.dx;
           const py = y - vec.dy;
           if (px < 0 || py < 0 || px >= width || py >= height) continue;
-          const pusher = ConfigRegistry.getTile(level.terrain[py][px]);
-          if (pusher.passableByPlayer !== true || pusher.hazard) continue;
+          if (this.isSolidForPusher(level.terrain[py][px])) continue;
           seen[ny * width + nx] = 1;
           queue.push({ x: nx, y: ny });
         }

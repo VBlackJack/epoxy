@@ -1245,7 +1245,7 @@
       },
       "level_17": {
         "title": "The Ford",
-        "hint": "Water drowns you, but a block pushed into it fills it and leaves loose dirt: step on that dirt before you push anything across it."
+        "hint": "Water drowns you, but a block pushed into it fills the pool."
       },
       "level_18": {
         "title": "The Rails",
@@ -1257,7 +1257,7 @@
       },
       "level_20": {
         "title": "The Trodden Bridge",
-        "hint": "Fresh dirt stops a block until you have stepped on it, so tread each bridge cell before you push the next block across."
+        "hint": "A two-wide river needs two blocks in the same row, and fresh dirt stops a block until you have walked over it."
       }
     },
     "chapter": {

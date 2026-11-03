@@ -137,6 +137,10 @@ function requirementProblems({ levels, routes }: DesignInput): string[] {
   for (const level of levels) {
     if (level.winRule === 'targets') {
       problems.push(...targetsLevelProblems(level));
+      // A level with no exit has no item to require: a stray declaration must not pass silently.
+      if ((routes.levels[level.id]?.requires ?? []).length > 0) {
+        problems.push(`${level.id}: a targets level declares required items`);
+      }
       continue;
     }
     if (!exitReachableWithout(level, UNRELATED_ITEM)) problems.push(`${level.id}: exit unreachable at all`);
