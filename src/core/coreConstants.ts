@@ -43,6 +43,9 @@ export const SUNK_BLOCK_TILE_ID = 'dirt';
 /** Terrain a block must cover to win a level whose win rule is 'targets'. */
 export const BLOCK_TARGET_TILE_ID = 'block_target';
 
+/** Terrain that only shows a hint: walkable by the player and pushable across by a block, with no effect. */
+export const HINT_TILE_ID = 'hint';
+
 /** Win rule of a level that declares none. */
 export const DEFAULT_WIN_RULE: WinRule = 'exit';
 

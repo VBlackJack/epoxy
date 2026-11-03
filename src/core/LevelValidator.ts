@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BlockPuzzleSolver, requestedSearchBudget } from './BlockPuzzleSolver';
 import { cc3dValidationReport } from './cc3d/cc3dValidator';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
 import { isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import {
@@ -201,6 +201,8 @@ export class LevelValidator {
 
     this.checkStartCell(level, issues);
     this.checkLinkEndpoints(level, issues);
+    // A Lynx level is played by the Lynx engine, not by the Epoxy block rules this reach walk approximates.
+    if (level.ruleset !== 'lynx') this.checkHiddenByBlocks(level, issues);
 
     if (needsExit && exitCount > 0 && level.chipsRequired > 0) {
       if (this.canReachExitWithoutSocket(level)) {
@@ -535,6 +537,66 @@ export class LevelValidator {
         targetCount
       }
     };
+  }
+
+  /**
+   * Warns when a collectible item or a hint tile lies on a cell a pushable
+   * block can reach: a block covering it hides it from the player. Cheap
+   * approximation: the cells each block type can reach from its starts across
+   * block-passable terrain, ignoring where the player can stand to push. A
+   * hazard the block type refuses (mirrors and water) is never entered; water
+   * the block may enter is reached but not crossed, since the block sinks there.
+   */
+  private static checkHiddenByBlocks(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const height = level.terrain.length;
+    const width = level.terrain[0]?.length ?? 0;
+    const starts = new Map<string, GridPoint[]>();
+    for (const e of level.entities) {
+      if (ConfigRegistry.getEntityDef(e.type)?.kind !== 'block') continue;
+      if (e.x < 0 || e.y < 0 || e.x >= width || e.y >= height) continue;
+      starts.set(e.type, [...(starts.get(e.type) ?? []), { x: e.x, y: e.y }]);
+    }
+    const reached = new Uint8Array(width * height);
+    for (const [type, origins] of starts) {
+      const refused = ConfigRegistry.getEntityDef(type)?.refusesHazards ?? [];
+      const seen = new Uint8Array(width * height);
+      const queue: GridPoint[] = [];
+      for (const o of origins) {
+        seen[o.y * width + o.x] = 1;
+        queue.push(o);
+      }
+      for (let head = 0; head < queue.length; head++) {
+        const { x, y } = queue[head];
+        const here = ConfigRegistry.getTile(level.terrain[y][x]);
+        // A block that sank in water is gone: nothing is pushed on from there.
+        if (here.hazard === 'water') continue;
+        for (const dir of ORDERED_DIRECTIONS) {
+          const vec = DIRECTION_VECTORS[dir];
+          const nx = x + vec.dx;
+          const ny = y + vec.dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen[ny * width + nx]) continue;
+          const dest = ConfigRegistry.getTile(level.terrain[ny][nx]);
+          if (dest.passableByBlock !== true) continue;
+          if (dest.hazard && refused.includes(dest.hazard)) continue;
+          if (this.isEdgeBlocked(level.terrain[y][x], level.terrain[ny][nx], dir)) continue;
+          seen[ny * width + nx] = 1;
+          queue.push({ x: nx, y: ny });
+        }
+      }
+      for (let i = 0; i < seen.length; i++) if (seen[i]) reached[i] = 1;
+    }
+    let hidden = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (!reached[y * width + x]) continue;
+        const item = level.items[y][x];
+        const collectible = item !== null && ConfigRegistry.getTile(item).collectible !== undefined;
+        if (collectible || level.terrain[y][x] === HINT_TILE_ID) hidden++;
+      }
+    }
+    if (hidden > 0) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.hidden_by_block.label', params: { count: hidden } });
+    }
   }
 
   /** Warns when the player starts inside a wall or on a cell that holds an entity. */

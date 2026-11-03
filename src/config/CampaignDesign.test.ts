@@ -334,6 +334,21 @@ describe('campaign design checks on a fixture', () => {
     expect(problems).toContain('level 1: declares key_red, first seen at level 2');
   });
 
+  it('accepts the chapter 2 pieces once they are declared where they first appear', () => {
+    const input = fixture();
+    const level = input.levels[1];
+    level.terrain[1][1] = 'water';
+    level.terrain[1][2] = 'block_target';
+    level.terrain[1][3] = 'gravel';
+    level.entities.push({ type: 'dirt_block', x: 1, y: 1, dir: 'S' }, { type: 'pink_ball', x: 2, y: 1, dir: 'E' });
+    const pieces = ['dirt_block', 'water', 'block_target', 'gravel', 'pink_ball'];
+    expect(introductionProblems(input).sort()).toEqual(
+      pieces.map((id) => `level 2: ${id} appears first here but is not declared`).sort()
+    );
+    input.rhythm.introduces['2'].push(...pieces);
+    expect(introductionProblems(input)).toEqual([]);
+  });
+
   it('reports a thin time margin and a timed level before the first timed one', () => {
     const input = fixture();
     input.levels[1].timeLimitSeconds = 1;
