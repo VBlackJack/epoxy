@@ -1258,6 +1258,26 @@
       "level_20": {
         "title": "The Trodden Bridge",
         "hint": "A two-wide river needs two blocks in the same row, and fresh dirt stops a block until you have walked over it."
+      },
+      "level_21": {
+        "title": "The Embankment",
+        "hint": "A block sunk in the river leaves a bridge, but a bridge only helps a block that travels in the row of its target."
+      },
+      "level_22": {
+        "title": "Tidying Up",
+        "hint": "Every block lies a few pushes from its target: cover all the targets to win, in whatever order you like."
+      },
+      "level_23": {
+        "title": "The Metronome",
+        "hint": "A pink ball runs straight along its corridor and turns back at a wall, and a block stops it: it can neither cross one nor push it."
+      },
+      "level_24": {
+        "title": "The Crossing",
+        "hint": "A pink ball never steps on gravel, and a block between you and the ball keeps it away from you."
+      },
+      "level_25": {
+        "title": "The Workshop",
+        "hint": "A block that stops above an empty target is stuck for good once another block rests on it, so fill a bay from the bottom."
       }
     },
     "chapter": {
