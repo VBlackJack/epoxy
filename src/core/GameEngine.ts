@@ -24,8 +24,6 @@ import {
   GRAY_BUTTON_RADIUS,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLOOR_TILE_ID,
-  LASER_VISITS_PER_CELL,
-  MIRROR_REFLECTIONS,
   OPPOSITE_DIRECTION,
   SUNK_BLOCK_TILE_ID
 } from './coreConstants';
@@ -50,6 +48,7 @@ import {
   mapWidth,
   removeEntity
 } from './epoxy/epoxyWorld';
+import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { SeededRandom } from './Random';
 import {
   BeamCell,
@@ -73,10 +72,6 @@ const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
 /** Hard cap on live entities, so a cloner wired to a held button cannot flood the grid. */
 const MAX_ACTIVE_ENTITIES = 512;
-/** Sound played when a beam kills a monster or the player. */
-const LASER_DEATH_SFX = 'burn';
-/** Sound played when laser gates open or close. */
-const LASER_GATE_SFX = 'door';
 
 export class GameEngine {
   /** The play state of the loaded level, shared with the engine modules. */
@@ -531,7 +526,7 @@ export class GameEngine {
     }
 
     this.updateEntities();
-    this.resolveLasers();
+    resolveLasers(this.ctx);
     this.checkTargetsWin();
   }
 
@@ -581,7 +576,7 @@ export class GameEngine {
       this.w.player.moveCooldown = this.isCarriedByForceFloor(destTile)
         ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
         : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
-      this.resolveLasers();
+      resolveLasers(this.ctx);
       this.checkTargetsWin();
     } else {
       this.undoStack.pop();
@@ -1463,155 +1458,14 @@ export class GameEngine {
    * the grid and the entities (never snapshotted) and is shared: do not mutate it.
    */
   public getBeamCells(): readonly BeamCell[] {
-    this.refreshBeams();
+    refreshBeams(this.w);
     return this.w.beamCells;
   }
 
   /** The laser receivers a beam reaches right now. */
   public getLitReceivers(): readonly GridPoint[] {
-    this.refreshBeams();
+    refreshBeams(this.w);
     return this.w.litReceiverCells;
-  }
-
-  private refreshBeams(): void {
-    if (this.w.beamDirty) this.traceBeams();
-  }
-
-  /**
-   * Traces every beam on the current terrain and entities and stores the cells
-   * crossed, the receivers reached and whether a mirror on a path is sliding.
-   * A beam leaves its emitter in the emitter's direction and goes on until the
-   * map edge, a thin wall on the edge it crosses, an opaque cell (the receiver
-   * it lights included) or a block that is not a mirror. A mirror, at rest or
-   * sliding, turns it. Players and monsters do not stop it, teleporters do not
-   * move it and bombs are not set off. The emitter cell and the cell that stops
-   * a beam are not beam cells.
-   */
-  private traceBeams(): void {
-    this.w.beamDirty = false;
-    this.w.beamHasSlidingMirror = false;
-    const crossed = new Map<number, BeamCell>();
-    const lit = new Map<number, GridPoint>();
-    if (this.w.laserEmitters.length > 0) {
-      const width = this.getMapWidth();
-      const blocksByCell = new Map<number, RuntimeEntity>();
-      for (const entity of this.w.entities) {
-        const index = entity.y * width + entity.x;
-        if (entity.kind === 'block' && !blocksByCell.has(index)) blocksByCell.set(index, entity);
-      }
-      const visited = new Set<number>();
-      const maxVisits = width * this.getMapHeight() * LASER_VISITS_PER_CELL;
-      for (const emitter of this.w.laserEmitters) {
-        let { x, y, dir } = emitter;
-        while (visited.size < maxVisits) {
-          const vec = DIRECTION_VECTORS[dir];
-          const nx = x + vec.dx;
-          const ny = y + vec.dy;
-          if (!isInBounds(this.w, nx, ny) || isEdgeBlocked(this.w, x, y, nx, ny, dir)) break;
-          const index = ny * width + nx;
-          const tile = ConfigRegistry.getTile(this.w.terrain[ny][nx]);
-          if (tile.laserReceiverGroup !== undefined) {
-            if (!lit.has(index)) lit.set(index, { x: nx, y: ny });
-            break;
-          }
-          if (tile.laserTransparent !== true) break;
-          const block = blocksByCell.get(index);
-          const axis = block ? ConfigRegistry.getEntityDef(block.type)?.mirrorAxis : undefined;
-          if (block && !axis) break;
-          const visit = index * ORDERED_DIRECTIONS.length + ORDERED_DIRECTIONS.indexOf(dir);
-          if (visited.has(visit)) break;
-          visited.add(visit);
-
-          const cell = crossed.get(index) ?? { x: nx, y: ny, horizontal: false, vertical: false };
-          crossed.set(index, cell);
-          this.markBeamAxis(cell, dir);
-          if (block && axis) {
-            if (block.isSliding) this.w.beamHasSlidingMirror = true;
-            dir = MIRROR_REFLECTIONS[axis][dir];
-            this.markBeamAxis(cell, dir);
-          }
-          x = nx;
-          y = ny;
-        }
-      }
-    }
-    this.w.beamCells = [...crossed.values()];
-    this.w.litReceiverCells = [...lit.values()];
-  }
-
-  private markBeamAxis(cell: BeamCell, dir: Direction): void {
-    if (dir === 'E' || dir === 'W') {
-      cell.horizontal = true;
-    } else {
-      cell.vertical = true;
-    }
-  }
-
-  /**
-   * Settles the lasers after the player moved or a tick passed: traces the
-   * beams, kills the monsters and then the player on a beam cell, sets the
-   * gates and ends a 'receivers' level once every receiver is lit. Gates are
-   * set from this trace and not traced again, so a gate takes effect on the
-   * next pass: beams and gates never chase each other within one pass.
-   */
-  private resolveLasers(): void {
-    if (this.w.laserEmitters.length + this.w.laserReceivers.length + this.w.laserGates.length === 0) return;
-    if (!this.w.player.alive || this.w.levelCompleted) {
-      // Nothing is settled, but a mirror may have moved this pass: leave the cache to be retraced.
-      this.w.beamDirty = true;
-      return;
-    }
-
-    this.traceBeams();
-    const width = this.getMapWidth();
-    const beamIndexes = new Set(this.w.beamCells.map((cell) => cell.y * width + cell.x));
-    for (const entity of [...this.w.entities]) {
-      if (entity.kind !== 'monster' || !beamIndexes.has(entity.y * width + entity.x)) continue;
-      removeEntity(this.w, entity.uid);
-      AudioManager.playSfx(LASER_DEATH_SFX);
-      this.emitVisual('explosion', entity.x, entity.y);
-    }
-    if (beamIndexes.has(this.w.player.y * width + this.w.player.x)) {
-      killPlayer(this.ctx, 'hud.messages.death_laser', LASER_DEATH_SFX);
-      return;
-    }
-
-    this.setLaserGates();
-    this.checkReceiversWin();
-  }
-
-  /**
-   * Sets each gate open while any receiver of its group is lit and closed
-   * otherwise. A gate never closes on a cell the player or an entity occupies.
-   */
-  private setLaserGates(): void {
-    const litGroups = new Set<string>();
-    for (const { x, y } of this.w.litReceiverCells) {
-      const group = ConfigRegistry.getTile(this.w.terrain[y][x]).laserReceiverGroup;
-      if (group !== undefined) litGroups.add(group);
-    }
-    let changed = false;
-    for (const { x, y } of this.w.laserGates) {
-      const tile = ConfigRegistry.getTile(this.w.terrain[y][x]);
-      const wantsOpen = tile.laserGateGroup !== undefined && litGroups.has(tile.laserGateGroup);
-      if (!tile.laserGateTogglesTo || tile.laserGateOpen === wantsOpen) continue;
-      const occupied = (this.w.player.x === x && this.w.player.y === y) || getEntityAt(this.w, x, y) !== undefined;
-      if (!wantsOpen && occupied) continue;
-      this.w.terrain[y][x] = tile.laserGateTogglesTo;
-      changed = true;
-    }
-    if (changed) {
-      AudioManager.playSfx(LASER_GATE_SFX);
-      this.w.beamDirty = true;
-    }
-  }
-
-  /** Ends a 'receivers' level once every receiver is lit and no mirror on a beam path is still sliding. */
-  private checkReceiversWin(): void {
-    if (this.w.level.winRule !== 'receivers' || this.w.laserReceivers.length === 0) return;
-    if (this.w.litReceiverCells.length < this.w.laserReceivers.length || this.w.beamHasSlidingMirror) return;
-    this.emitVisual('win', this.w.player.x, this.w.player.y);
-    this.completeLevel();
   }
 
   /** True when a block at rest holds the target cell. */
