@@ -1,0 +1,41 @@
+{
+  "levels": [
+    {
+      "id": "epoxy_p_1",
+      "theme": "cyber_neon",
+      "solution": "NWNNWWWWNNNNSSSSEESSWWSSEESSEEEEEENNEENNNNNNNNWWSSWWSS",
+      "number": 1,
+      "titleKey": "pilot.levels.level_1.title",
+      "hintKey": "pilot.levels.level_1.hint",
+      "password": "PLT1",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 5,
+      "playerStart": {
+        "x": 6,
+        "y": 8,
+        "dir": "S"
+      },
+      "rows": [
+        "#############",
+        "#C..#...#...#",
+        "#.#.#.#.#.#C#",
+        "#.#...#...#.#",
+        "#.#####S###.#",
+        "#.....#E#...#",
+        "###.#.###.#.#",
+        "#C..#..H..#.#",
+        "#.###...###.#",
+        "#...#.....C.#",
+        "#.#.#####.#.#",
+        "#.#...C...#.#",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "reworkOf": "epoxy_c_1"
+    }
+  ]
+}

@@ -22,29 +22,28 @@
  * route is replayed in a fresh engine before it is written. A level whose
  * route breaks is reported and left unchanged; the run fails at the end.
  *
- * Run with: npm run route:campaign
+ * The pilot pack works the same way on tools/pilot-routes.json and
+ * public/configs/pilot-levels.json.
+ *
+ * Run with: npm run route:campaign (or npm run route:pilot, which is the same
+ * tool with EPOXY_ROUTE_PACK=pilot)
  * Only one level: EPOXY_ROUTE_LEVEL=epoxy_level_3 npm run route:campaign
  */
 
 /// <reference types="node" />
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { expect, it, vi } from 'vitest';
 
 vi.mock('../src/audio/AudioManager', () => import('../src/test/silentAudio'));
 
-import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import { LevelsConfig } from '../src/core/types';
 import { CampaignRouteError, expandRoute } from '../src/generator/CampaignRoute';
 import { decodeActions } from '../src/generator/PieceSolver';
 import { replays } from '../src/test/levelChecks';
+import { DESIGN_PACK_VARIABLES, designPackFromEnv } from '../src/test/designPacks';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ROUTES_FILE = resolve(ROOT, 'tools', 'campaign-routes.json');
-const LEVELS_FILE = resolve(ROOT, 'public', 'configs', 'levels.json');
 const LEVEL_FILTER_VARIABLE = 'EPOXY_ROUTE_LEVEL';
 const JSON_INDENT = 2;
 
@@ -53,14 +52,15 @@ interface CampaignRoutes {
 }
 
 // The report config allows long runs; see vitest.report.config.ts.
-it('expands the campaign routes', () => {
+it('expands the routes of the chosen pack', () => {
   loadTestConfigs();
-  const routes = JSON.parse(readFileSync(ROUTES_FILE, 'utf-8')) as CampaignRoutes;
-  const levelsConfig = JSON.parse(readFileSync(LEVELS_FILE, 'utf-8')) as LevelsConfig;
+  const pack = designPackFromEnv(DESIGN_PACK_VARIABLES.ROUTE);
+  const routes = JSON.parse(readFileSync(pack.routesFile, 'utf-8')) as CampaignRoutes;
+  const levelsConfig = JSON.parse(readFileSync(pack.levelsFile, 'utf-8')) as Pick<LevelsConfig, 'levels'>;
   const only = process.env[LEVEL_FILTER_VARIABLE];
   const failures: string[] = [];
 
-  for (const level of ConfigRegistry.getLevels()) {
+  for (const level of pack.levels()) {
     if (only && level.id !== only) continue;
     const route = routes.levels[level.id];
     if (!route) {
@@ -84,6 +84,6 @@ it('expands the campaign routes', () => {
     }
   }
 
-  writeFileSync(LEVELS_FILE, `${JSON.stringify(levelsConfig, null, JSON_INDENT)}\n`);
+  writeFileSync(pack.levelsFile, `${JSON.stringify(levelsConfig, null, JSON_INDENT)}\n`);
   expect(failures).toEqual([]);
 });

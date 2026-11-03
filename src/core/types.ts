@@ -985,6 +985,8 @@ export type Ruleset = 'epoxy' | 'lynx' | 'cc3d';
 
 export interface LevelBlueprint {
   id: string;
+  /** Pilot levels only: the campaign level this one deliberately reworks, exempt from the originality comparison with it. */
+  reworkOf?: string;
   theme?: string;
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
@@ -1022,6 +1024,9 @@ export interface CampaignChapter {
   subtitleKey: string;
   levels: string[];
 }
+
+/** public/configs/pilot-levels.json: the levels of the Epoxy pilot pack (it shares the legend of levels.json). */
+export type PilotLevelsConfig = Pick<LevelsConfig, 'levels'>;
 
 /** public/configs/campaign.json: how the Epoxy campaign levels are grouped into chapters. */
 export interface CampaignConfig {

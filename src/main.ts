@@ -381,9 +381,24 @@ class EpoxyApplication {
             ? t('app.playtest.rating.level_won.label', { number: levelNumber })
             : t('app.playtest.rating.level_left.label', { number: levelNumber })
         }),
-      onChange: () => refreshPlaytestOptions(this.playtest),
+      onChange: () => {
+        refreshPlaytestOptions(this.playtest);
+        this.syncPilotPackVisibility();
+      },
       onStorageFull: () => this.showTransientStatus(t('app.playtest.storage_full.label'))
     });
+  }
+
+  /** The pilot pack exists only while Playtest mode is on; turning it off while playing the pilot returns to the campaign. */
+  private syncPilotPackVisibility(): void {
+    const wasPilotActive = ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PILOT;
+    if (!ConfigRegistry.setPilotPackVisible(this.playtest.isEnabled())) return;
+    this.refreshPackSelector();
+    if (!wasPilotActive || ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PILOT) return;
+    this.editor.refreshContext();
+    // Back on the campaign: resume where the player left it, not at the first level.
+    this.startLevelByIndex(this.savedLevelIndex() ?? 0);
+    this.populateScoresTable();
   }
 
   /** What the playtest recorder needs to know about this moment. */
@@ -1969,10 +1984,10 @@ class EpoxyApplication {
     this.prefetchNextEndlessLevel();
   }
 
-  /** The chapter banner when the level opens a campaign chapter, otherwise null. */
+  /** The chapter banner when the level opens a chapter of the pack being played, otherwise null. */
   private chapterBannerFor(level: CompiledLevel, arrival: ChapterArrival): string | null {
-    if (ConfigRegistry.getActivePackId() !== BUILTIN_PACK_IDS.CAMPAIGN || this.isEndlessActive()) return null;
-    const opened = chapterToAnnounce(ConfigRegistry.getCampaignChapters(), level.id, arrival);
+    if (this.isEndlessActive()) return null;
+    const opened = chapterToAnnounce(ConfigRegistry.getActivePackChapters(), level.id, arrival);
     return opened ? chapterBannerText(opened.chapter, opened.position) : null;
   }
 
@@ -2798,12 +2813,11 @@ class EpoxyApplication {
       return tr;
     };
 
-    // The Epoxy campaign lists its levels under chapters; every other pack stays a flat list.
-    const chapters = ConfigRegistry.getCampaignChapters();
+    // The packs with chapters (the Epoxy campaign and the pilot) list their levels under them; every other pack stays a flat list.
+    const chapters = ConfigRegistry.getActivePackChapters();
     const chapterHost = byId('scores-chapters');
     const chapterStrip = byId('scores-chapter-strip');
     const chapterMode =
-      ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.CAMPAIGN &&
       chapters.length > 0 &&
       chapterHost !== null &&
       chapterStrip !== null;
@@ -3578,7 +3592,7 @@ class EpoxyApplication {
 
   private saveProgress(): void {
     try {
-      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
+      const key = ConfigRegistry.getSaveSlotKey(ConfigRegistry.getActivePackId());
       localStorage.setItem(
         key,
         JSON.stringify({
@@ -3641,7 +3655,7 @@ class EpoxyApplication {
 
   private hasSavedProgress(): boolean {
     try {
-      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
+      const key = ConfigRegistry.getSaveSlotKey(ConfigRegistry.getActivePackId());
       return localStorage.getItem(key) !== null;
     } catch {
       return false;
@@ -3676,16 +3690,22 @@ class EpoxyApplication {
   }
 
   private restoreSavedProgress(): void {
+    const index = this.savedLevelIndex();
+    if (index !== null) this.currentLevelIndex = index;
+  }
+
+  /** Resume point of the pack being played, from that pack's own slot; null when there is none. */
+  private savedLevelIndex(): number | null {
     try {
-      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
-      const raw = localStorage.getItem(key);
-      if (!raw) return;
+      const packId = ConfigRegistry.getActivePackId();
+      const raw = localStorage.getItem(ConfigRegistry.getSaveSlotKey(packId));
+      if (!raw) return null;
       // The level id survives a reorder; an old save has none and falls back to its index.
       // A pack can shrink between releases: a stale index restarts the pack.
-      const index = resolveSavedLevel(JSON.parse(raw), ConfigRegistry.getActivePackId(), ConfigRegistry.getLevels());
-      if (index !== null) this.currentLevelIndex = index;
+      return resolveSavedLevel(JSON.parse(raw), packId, ConfigRegistry.getLevels());
     } catch {
       // Ignore corrupt save
+      return null;
     }
   }
 }

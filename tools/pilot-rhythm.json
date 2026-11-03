@@ -1,0 +1,22 @@
+{
+  "placeholder": "firstTimedLevel, minTimeMargin, raceLevels, minRaceMargin and baseline are copied from the campaign until the pilot pacing is set",
+  "introduces": {
+    "1": [
+      "chip",
+      "exit",
+      "hint",
+      "socket"
+    ]
+  },
+  "firstTimedLevel": 13,
+  "minTimeMargin": 3,
+  "raceLevels": [
+    18,
+    27
+  ],
+  "minRaceMargin": 1.5,
+  "baseline": [
+    "floor",
+    "wall"
+  ]
+}

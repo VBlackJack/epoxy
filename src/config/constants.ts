@@ -33,6 +33,8 @@ export const CONFIG_ENDPOINTS = {
   MOTIFS: `${ENV_CONFIG.CONFIG_BASE_URL}/motifs.json`,
   MOTIF_ANNOTATIONS: `${ENV_CONFIG.CONFIG_BASE_URL}/motif-annotations.json`,
   CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/campaign.json`,
+  PILOT_LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/pilot-levels.json`,
+  PILOT_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/pilot-campaign.json`,
   TEMPLATES: `${ENV_CONFIG.CONFIG_BASE_URL}/templates.json`
 } as const;
 
@@ -62,9 +64,17 @@ export const MAX_SOLVER_CACHE_ENTRIES = 4096;
 
 export const BUILTIN_PACK_IDS = {
   CAMPAIGN: 'epoxy_campaign',
+  /** The pilot of the rebuilt campaign: listed only while Playtest mode is on. */
+  PILOT: 'epoxy_pilot',
   CUSTOM: 'epoxy_custom',
   PROCEDURAL: 'epoxy_procedural'
 } as const;
+
+/** Joins the save slot key and a pack id, for the packs that keep a resume point of their own. */
+export const SAVE_SLOT_PACK_SEPARATOR = '_';
+
+/** Prefix every pilot level id carries, so its records never collide with the campaign ones. */
+export const PILOT_LEVEL_ID_PREFIX = 'epoxy_p_';
 
 /** Prefix of the id of a pack the player creates, followed by a timestamp. */
 export const USER_PACK_ID_PREFIX = 'user_pack_';

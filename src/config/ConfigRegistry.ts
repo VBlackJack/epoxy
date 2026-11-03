@@ -20,8 +20,11 @@ import {
   CUSTOM_PACK_I18N_KEY,
   DEFAULT_LEVEL_PASSWORD,
   ENV_CONFIG,
+  PILOT_LEVEL_ID_PREFIX,
+  SAVE_SLOT_PACK_SEPARATOR,
   UNORDERED_PACK_RANK
 } from './constants';
+import { FLAG_ON as PLAYTEST_FLAG_ON } from '../playtest/PlaytestStore';
 import {
   assertConfigShape,
   ConfigLoadError,
@@ -41,6 +44,7 @@ import {
   isWinRule,
   findAudioConfigErrors,
   findCampaignConfigErrors,
+  findPilotConfigErrors,
   findCc3dTileErrors,
   findDatFormatErrors,
   findGameTunableErrors,
@@ -53,6 +57,7 @@ import {
   CampaignChapter,
   CampaignConfig,
   CompiledLevel,
+  PilotLevelsConfig,
   DatFormatConfig,
   EntityDefinition,
   GameConfig,
@@ -84,6 +89,8 @@ const REQUIRED_CONFIG_KEYS = {
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
   LEVELS: ['legend', 'levels'],
   CAMPAIGN: ['chapters'],
+  PILOT_LEVELS: ['levels'],
+  PILOT_CAMPAIGN: ['chapters'],
   DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement'],
   MOTIFS: ['legend', 'pieces', 'monsterPortTerrain'],
   MOTIF_ANNOTATIONS: []
@@ -101,6 +108,10 @@ export interface ConfigBundle {
   audio: AudioConfig;
   levels: LevelsConfig;
   campaign: CampaignConfig;
+  /** The levels of the Epoxy pilot pack; absent means no pilot. */
+  pilotLevels?: PilotLevelsConfig;
+  /** The chapters of the pilot pack; absent means none. */
+  pilotCampaign?: CampaignConfig;
   datFormat: DatFormatConfig;
   motifs: MotifsConfig;
   motifAnnotations: MotifAnnotations;
@@ -162,6 +173,11 @@ class ConfigRegistryService {
   private audioConfig!: AudioConfig;
   private levelsConfig!: LevelsConfig;
   private campaignConfig: CampaignConfig = { chapters: [] };
+  private pilotCampaignConfig: CampaignConfig = { chapters: [] };
+  private pilotBlueprints: LevelBlueprint[] = [];
+  private pilotLevels: CompiledLevel[] = [];
+  /** The pilot pack is listed and playable only while this is true (Playtest mode on). */
+  private pilotVisible = false;
   private datFormatConfig!: DatFormatConfig;
   private motifsConfig!: MotifsConfig;
   private motifAnnotations: MotifAnnotations = {};
@@ -185,7 +201,7 @@ class ConfigRegistryService {
       () => [] as FetchedPack[]
     );
 
-    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, datFormat, motifs, motifAnnotations] = await Promise.all([
+    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, pilot, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
       this.fetchJson<Pick<TilesConfig, 'tiles'>>(CONFIG_ENDPOINTS.CC3D_TILES, REQUIRED_CONFIG_KEYS.CC3D_TILES),
@@ -193,12 +209,28 @@ class ConfigRegistryService {
       this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
       this.fetchOptionalCampaign(),
+      this.fetchOptionalPilot(),
       this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT),
       this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS),
       this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
     ]);
 
-    this.applyConfigs({ game, tiles, cc3dTiles, monsters, audio, levels, campaign, datFormat, motifs, motifAnnotations });
+    this.applyConfigs({
+      game,
+      tiles,
+      cc3dTiles,
+      monsters,
+      audio,
+      levels,
+      campaign,
+      pilotLevels: pilot.levels,
+      pilotCampaign: pilot.campaign,
+      datFormat,
+      motifs,
+      motifAnnotations
+    });
+    // Playtest mode decides whether the pilot pack exists for this page, before the saved pack is looked up.
+    this.pilotVisible = this.readStorage(game.storage.playtestEnabledKey) === PLAYTEST_FLAG_ON;
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     // The store name and the level size bounds come from game.json, so the
     // stored packs are read only once the configs are installed.
@@ -207,6 +239,9 @@ class ConfigRegistryService {
     const savedPackId = this.readStorage(this.gameConfig.storage.activePackKey);
     if (savedPackId && this.getAllPacks().some((p) => p.id === savedPackId && p.levels.length > 0)) {
       this.activePackId = savedPackId;
+    } else if (savedPackId === BUILTIN_PACK_IDS.PILOT) {
+      // The pilot is gone from this page (Playtest mode is off): forget it as the saved pack.
+      this.resetActivePack();
     }
   }
 
@@ -263,6 +298,20 @@ class ConfigRegistryService {
     if (campaignErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.CAMPAIGN, campaignErrors.join('; '));
     }
+    let pilotLevels = bundle.pilotLevels ?? { levels: [] };
+    let pilotCampaign = bundle.pilotCampaign ?? { chapters: [] };
+    const pilotErrors = findPilotConfigErrors(
+      pilotLevels.levels,
+      pilotCampaign,
+      bundle.levels.levels.map((level) => level.id),
+      PILOT_LEVEL_ID_PREFIX
+    );
+    if (pilotErrors.length > 0) {
+      // The pilot is optional: a broken one is left out rather than stopping the game.
+      console.warn(`Pilot pack ignored: ${pilotErrors.join('; ')}`);
+      pilotLevels = { levels: [] };
+      pilotCampaign = { chapters: [] };
+    }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
     this.cc3dTilesConfig = bundle.cc3dTiles;
@@ -270,11 +319,14 @@ class ConfigRegistryService {
     this.audioConfig = bundle.audio;
     this.levelsConfig = bundle.levels;
     this.campaignConfig = bundle.campaign;
+    this.pilotCampaignConfig = pilotCampaign;
+    this.pilotBlueprints = pilotLevels.levels;
     this.datFormatConfig = bundle.datFormat;
     this.motifsConfig = bundle.motifs;
     this.motifAnnotations = bundle.motifAnnotations;
 
     this.builtInLevels = bundle.levels.levels.map((bp) => this.compileBlueprint(bp));
+    this.pilotLevels = this.pilotBlueprints.map((bp) => this.compileBlueprint(bp));
     this.ultimatePacks = [];
     this.proceduralLevels = [];
     this.storedPacks = [];
@@ -334,6 +386,20 @@ class ConfigRegistryService {
     } catch (err) {
       console.warn(`Campaign chapters unavailable, the levels are listed without chapters: ${String(err)}`);
       return { chapters: [] };
+    }
+  }
+
+  /** The pilot pack is optional: without its files the game loads and the pack is simply absent. */
+  private async fetchOptionalPilot(): Promise<{ levels?: PilotLevelsConfig; campaign?: CampaignConfig }> {
+    try {
+      const [levels, campaign] = await Promise.all([
+        this.fetchJson<PilotLevelsConfig>(CONFIG_ENDPOINTS.PILOT_LEVELS, REQUIRED_CONFIG_KEYS.PILOT_LEVELS),
+        this.fetchJson<CampaignConfig>(CONFIG_ENDPOINTS.PILOT_CAMPAIGN, REQUIRED_CONFIG_KEYS.PILOT_CAMPAIGN)
+      ]);
+      return { levels, campaign };
+    } catch (err) {
+      console.warn(`Pilot pack unavailable: ${String(err)}`);
+      return {};
     }
   }
 
@@ -421,6 +487,7 @@ class ConfigRegistryService {
         builtIn: true,
         levels: this.builtInLevels
       },
+      ...this.pilotPacks(),
       ...this.ultimatePacks,
       ...this.storedPacks
     ];
@@ -434,6 +501,63 @@ class ConfigRegistryService {
       });
     }
     return packs;
+  }
+
+  /** The pilot pack, only while it is visible and holds a level. */
+  private pilotPacks(): LevelPack[] {
+    if (!this.pilotVisible || this.pilotLevels.length === 0) return [];
+    return [
+      {
+        id: BUILTIN_PACK_IDS.PILOT,
+        name: 'Epoxy pilot',
+        i18nKey: 'app.packs.pilot.label',
+        builtIn: true,
+        levels: this.pilotLevels
+      }
+    ];
+  }
+
+  /**
+   * Shows or hides the pilot pack (it follows Playtest mode). Hiding it while
+   * it is the active pack falls back to the campaign. Returns whether the
+   * visibility changed.
+   */
+  public setPilotPackVisible(visible: boolean): boolean {
+    if (visible === this.pilotVisible) return false;
+    this.pilotVisible = visible;
+    if (!visible && this.activePackId === BUILTIN_PACK_IDS.PILOT) this.resetActivePack();
+    return true;
+  }
+
+  /**
+   * Storage key of the resume point for a pack. The pilot has a slot of its own so playing it never
+   * overwrites the campaign resume point; every other pack shares the historical slot.
+   */
+  public getSaveSlotKey(packId: string): string {
+    const base = this.gameConfig.storage.saveSlotKey;
+    return this.getStorageKey(packId === BUILTIN_PACK_IDS.PILOT ? `${base}${SAVE_SLOT_PACK_SEPARATOR}${packId}` : base);
+  }
+
+  /** The pilot levels whether or not the pack is visible, for the authoring tools and tests. */
+  public getPilotLevels(): CompiledLevel[] {
+    return this.pilotLevels;
+  }
+
+  /** The pilot level blueprints as loaded, with their authoring fields such as reworkOf. */
+  public getPilotBlueprints(): LevelBlueprint[] {
+    return this.pilotBlueprints;
+  }
+
+  /** The chapters of the pilot pack, in play order. */
+  public getPilotChapters(): CampaignChapter[] {
+    return this.pilotCampaignConfig.chapters;
+  }
+
+  /** The chapters of the pack being played; empty for a pack without chapters. */
+  public getActivePackChapters(): CampaignChapter[] {
+    if (this.activePackId === BUILTIN_PACK_IDS.CAMPAIGN) return this.campaignConfig.chapters;
+    if (this.activePackId === BUILTIN_PACK_IDS.PILOT) return this.pilotCampaignConfig.chapters;
+    return [];
   }
 
   public setProceduralLevels(levels: CompiledLevel[]): void {

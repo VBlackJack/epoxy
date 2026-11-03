@@ -66,6 +66,32 @@ export function findCampaignConfigErrors(campaign: CampaignConfig, levelIds: rea
 }
 
 /**
+ * Problems in the pilot pack: every level id carries the pilot prefix, is
+ * unique, and is not a campaign level id; the chapters follow the campaign
+ * chapter rules over the pilot level ids.
+ */
+export function findPilotConfigErrors(
+  levels: ReadonlyArray<{ id: string }>,
+  chapters: CampaignConfig,
+  campaignLevelIds: readonly string[],
+  idPrefix: string
+): string[] {
+  const errors: string[] = [];
+  if (!Array.isArray(levels)) return ['levels: expected a list'];
+  const campaignIds = new Set(campaignLevelIds);
+  const seen = new Set<string>();
+  levels.forEach((level, index) => {
+    const label = `levels[${index}]`;
+    if (typeof level.id !== 'string' || !level.id.startsWith(idPrefix)) errors.push(`${label}: id must start with ${idPrefix}`);
+    else if (campaignIds.has(level.id)) errors.push(`${label}: id ${level.id} is a campaign level`);
+    if (seen.has(level.id)) errors.push(`${label}: duplicate id ${level.id}`);
+    seen.add(level.id);
+  });
+  errors.push(...findCampaignConfigErrors(chapters, levels.map((level) => level.id)));
+  return errors;
+}
+
+/**
  * Raised when a fetched configuration file is missing or does not match the
  * shape the engine relies on. The message carries the file name only, the UI
  * maps it to a localized error screen.
