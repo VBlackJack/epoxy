@@ -206,20 +206,23 @@ function checkLinks(level: Cc3dLevel, issues: ValidationIssue[]): void {
   }
   for (const group of links.toggles) {
     if (group.targets.length > 0) continue;
-    for (const index of group.controls) {
-      issues.push({ severity: 'warning', i18nKey: 'validator.issues.cc3d_toggle_control_no_door.label', params: { ...pointOf(level, index), color: group.color } });
+    // One warning per colour, at its first control: a level can hold hundreds of them.
+    if (group.controls.length > 0) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.cc3d_toggle_control_no_door.label', params: { ...pointOf(level, group.controls[0]), color: group.color } });
     }
   }
   for (const group of links.holds) {
     if (group.targets.length > 0) continue;
-    for (const index of group.controls) {
-      issues.push({ severity: 'warning', i18nKey: 'validator.issues.cc3d_plate_no_door.label', params: { ...pointOf(level, index), color: group.color } });
+    // One warning per colour, at its first control: a level can hold hundreds of them.
+    if (group.controls.length > 0) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.cc3d_plate_no_door.label', params: { ...pointOf(level, group.controls[0]), color: group.color } });
     }
   }
   for (const group of [links.golems.blue, links.golems.yellow]) {
     if (group.targets.length > 0) continue;
-    for (const index of group.controls) {
-      issues.push({ severity: 'warning', i18nKey: 'validator.issues.cc3d_golem_control_no_golem.label', params: { ...pointOf(level, index), color: group.color } });
+    // One warning per colour, at its first control: a level can hold hundreds of them.
+    if (group.controls.length > 0) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.cc3d_golem_control_no_golem.label', params: { ...pointOf(level, group.controls[0]), color: group.color } });
     }
   }
 }

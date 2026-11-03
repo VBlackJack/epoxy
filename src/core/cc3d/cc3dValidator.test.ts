@@ -193,6 +193,18 @@ describe('validateCc3dLevel: warnings', () => {
     expect(only(plate)).toEqual(['plate_no_door']);
   });
 
+  it('warns once per colour, not once per control', () => {
+    const level = levelWith({
+      '1,1': [{ kind: 'floor' }, { kind: 'toggle_control', color: 'red' }],
+      '2,1': [{ kind: 'floor' }, { kind: 'toggle_control', color: 'red' }],
+      '3,1': [{ kind: 'floor' }, { kind: 'plate', color: 'blue' }],
+      '4,1': [{ kind: 'floor' }, { kind: 'plate', color: 'blue' }]
+    });
+    const issues = validateCc3dLevel(level);
+    expect(keys(issues)).toEqual(['toggle_control_no_door', 'plate_no_door']);
+    expect(issues[0].params).toEqual({ x: 1, y: 1, color: 'red' });
+  });
+
   it('warns about a golem control without a golem and a laser controller without a shooter', () => {
     expect(only(levelWith({ '2,0': [{ kind: 'floor' }, { kind: 'golem_control_blue' }] }))).toEqual(['golem_control_no_golem']);
     const yellow = levelWith({ '2,0': [{ kind: 'floor' }, { kind: 'golem_control_yellow' }] }, [{ kind: 'golem_blue', x: 3, y: 0, dir: 'E' }]);

@@ -49,7 +49,7 @@ function exitOrder(kind: TeleportKind, facing: Direction): Direction[] {
  * The other teleports of the kind, the previous one in reading order first, then the ones before it, wrapping
  * from the first to the last [P blue, 05 session 3 and 08 section 8.7; red follows blue, U].
  */
-function candidatesBefore(ctx: RuleContext, entered: Cell, kind: TeleportKind): Cell[] {
+export function candidatesBefore(ctx: RuleContext, entered: Cell, kind: TeleportKind): Cell[] {
   const { world } = ctx;
   const toCell = (index: number): Cell => ({ x: index % world.width, y: Math.floor(index / world.width) });
   const origin = entered.y * world.width + entered.x;
