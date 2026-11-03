@@ -50,12 +50,20 @@
 - **Per level**: reorder, edit, play, duplicate, copy or move to another pack, delete. Badges show each level's engine (Epoxy, Lynx, CC3D, Sokoban). CC3D levels can be managed but not edited.
 - **Export**: a complete JSON file that keeps every engine, or a `.CCL` file. A JSON file exported this way can be imported back with its name.
 - **Delete a pack**: asks for confirmation with the number of levels, and offers "Export first". "Delete imported packs" never touches your own packs.
+- **Thumbnails and order**: every level and pack shows a small map. Drag a level by its handle to reorder it (mouse or touch; `Escape` cancels), or use the arrow buttons or the arrow keys on the handle.
+- **Author and description**: each pack can carry an author and a description, edited in the pack header and kept in the JSON export.
+- **Share a pack as a link**: "Copy share link" puts the whole pack in the link itself, after the `#`, so it is never sent to a server. Whoever opens it sees a preview (name, author, levels, engines, thumbnails) and chooses Import, Import and play or Cancel; nothing is stored before that. A pack already imported from the same link is recognised. Links are limited to `share.maxLinkChars` characters (a few levels); export the JSON file for bigger packs, since long links do not fit every chat app.
+- **Imported level ids**: levels of an imported file get ids unique to their pack, so importing the same file twice, or a file named like a built-in pack, no longer mixes their records. Duplicates already stored are renamed once at load; the first copy keeps its records.
 - **Your previous Custom levels** were moved automatically into a pack of yours ("My levels"); there is nothing to do.
 - **Layout**: palette, canvas and level settings sit in three columns on wide screens, two on medium ones and one on narrow ones, where the palette becomes a horizontal strip. The canvas is scaled to fit the window; zoom with `-`, `+` or the zoom buttons, and `0` or "Fit" to fit again.
 - **Tools**: Brush (`B`), Fill (`F`), Eraser (`E`) and Picker (`I`; Alt+click or middle click also picks). `R` rotates the facing of the selected creature or player start, and `Escape` cancels a wire that waits for its target.
 - **Without a mouse**: focus the canvas, move the cursor with the arrow keys and paint with `Space` or `Enter`.
 - **Check badge**: shows Valid, the number of warnings or the number of errors for the level.
 - **Level settings** come in sections: Level, Rules (with the engine), Size (resize a level) and Generate. Under Lynx rules the Epoxy-only items of the palette are disabled, with a one-click "Switch this level to Epoxy". Undo and redo also cover the settings and the engine, and the unsaved mark clears when you undo back to the saved state.
+- **New**: start from an empty room, a Sokoban room or a laser puzzle (templates in `public/configs/templates.json`, Epoxy only; a pack made mostly of Lynx levels offers the empty room).
+- **Selection** (`S`): drag to select, `Shift`+arrows to extend, `Ctrl` (`Cmd`) + `C` / `X` / `V` to copy, cut and paste (a preview follows the pointer; click or `Enter` places it), `Delete` to clear, `Alt`+arrows or a drag inside the selection to move it. The player start is never duplicated, wires move with the selection when both ends are inside, and paste and move never touch the outer wall ring.
+- **Test from here** (`T` or the button next to Test): plays the level with the player starting on the cursor cell; the level you edit is unchanged.
+- **Blocks line of Check**: for a pure block puzzle (win rule "cover every target", only floor, walls, targets, chips and blocks, a playable area of at most `blockPuzzle.watchMaxCells` cells), Check also says "solved in N pushes", "no way to cover every target" or "not checked". The search runs in the background and stops when you edit. It never claims that a whole level can be won.
 - **Where you are**: the editor shows the pack and the level it edits (Pack, Level n/N) with previous and next buttons.
 - **Saving**: Save updates the level in its pack, also with Ctrl+S. A level from a built-in pack, a generated level or a file opened in the editor is saved with "Save into...": choose a pack, or create one in the same step. "Save a copy..." saves another level and keeps the original. The first save into an imported pack asks whether to modify it or save a copy. Saving never changes the pack you are playing.
 - **Testing**: "Back to editor" returns from a test play, and the browser asks before the tab closes with unsaved work.
@@ -143,6 +151,8 @@ npm test
 ```
 
 The suite includes `src/test/typographyGuard.test.ts`, which scans every tracked text file for banned typographic characters (dashes, curly quotes, one-character ellipsis, non-breaking spaces, ligatures).
+
+Tests run in Node by default. A test file that needs a DOM starts with `// @vitest-environment happy-dom` (shared helpers in `src/test/domFixture.ts`). Generation time budgets are measured as CPU time, so they hold when the whole suite runs in parallel.
 
 `npm run report:levels` measures 200 generated levels against the bundled community packs and writes `reports/level-metrics.json`, including playfield metrics: fill (open cells over their bounding box), open share, dead ends, junctions, symmetry and monster presence. `npm run report:study` describes how the community packs combine mechanics, and `npm run mine:pieces` searches for harder puzzle pieces (about half an hour); both write to `local/`.
 

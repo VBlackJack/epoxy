@@ -3,6 +3,29 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Share a pack as a link from "My packs": the pack travels in the link after the `#` (never sent to a
+  server). Opening a link shows a preview with Import, Import and play or Cancel, and a pack already
+  imported from the same link is recognised. Long packs are better exported as a JSON file.
+- Level thumbnails in "My packs", drag to reorder levels (mouse or touch), and an author and a
+  description for each pack, kept in the JSON export.
+- Editor: a Select tool (S) with copy, cut, paste, clear and move; "Test from here" (T) starts a test
+  play on the cursor cell; New offers an empty room, a Sokoban room or a laser puzzle.
+- Check tells whether a pure block puzzle can be solved ("solved in N pushes", "no way to cover every
+  target" or "not checked"), searching in the background.
+
+### Fixed
+
+- Importing the same file twice, or a file named like a built-in pack, gave levels the same ids, so
+  editing one copy could erase the other copy's best record. Imported levels now get ids unique to
+  their pack, and duplicates already stored are renamed once at load (the first copy keeps its
+  records).
+- Imported files and links are checked more strictly, and their level texts are cut to the limits in
+  `game.json`; levels already stored are read as before.
+
 ## [2.17.0] - 2026-11-03
 
 ### Added
