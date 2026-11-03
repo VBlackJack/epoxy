@@ -103,6 +103,12 @@ export interface ImportConfig {
   maxFileBytes: number;
 }
 
+/** Longest optional author and description kept on a pack, in characters. */
+export interface PackMetadataConfig {
+  authorMaxLength: number;
+  descriptionMaxLength: number;
+}
+
 /** Render styles: 'retro' is the 16-Bit Retro id (kept so saved settings stay valid). */
 export type GraphicsStyle =
   | 'modern'
@@ -627,6 +633,7 @@ export interface GameConfig {
   timing: TimingConfig;
   storage: StorageConfig;
   import: ImportConfig;
+  packMetadata: PackMetadataConfig;
   locales: {
     supported: string[];
     default: string;
@@ -993,6 +1000,10 @@ export interface LevelPack {
   builtIn?: boolean;
   /** True for a pack the player created; an empty one is kept. Absent on imported packs. */
   userCreated?: boolean;
+  /** Optional credit line of a user or imported pack. */
+  author?: string;
+  /** Optional free text describing a user or imported pack; may span several lines. */
+  description?: string;
   levels: CompiledLevel[];
 }
 

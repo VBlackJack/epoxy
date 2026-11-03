@@ -127,4 +127,47 @@ describe('packJson', () => {
     expect(ids.slice(1)).toEqual(['b', 'custom_7000']);
     expect(new Set(ids).size).toBe(3);
   });
+
+  describe('metadata', () => {
+    const limits = () => ConfigRegistry.getPackMetadataLimits();
+    const withLimits = (text: string) =>
+      parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set(), () => 7000, limits());
+    const file = (extra: Record<string, unknown>) =>
+      JSON.stringify({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION, name: 'P', ...extra, levels: [makeLevel('a')] });
+
+    it('round-trips the author and the description, keeping the format version', () => {
+      const text = serializePack('P', [makeLevel('a')], { author: 'Ann', description: 'Two\nlines' });
+      expect(JSON.parse(text).version).toBe(PACK_JSON_VERSION);
+      const result = withLimits(text);
+      expect(result.ok && result.author).toBe('Ann');
+      expect(result.ok && result.description).toBe('Two\nlines');
+    });
+
+    it('writes no field for an empty metadata', () => {
+      const parsed = JSON.parse(serializePack('P', [makeLevel('a')], { author: '', description: undefined }));
+      expect('author' in parsed).toBe(false);
+      expect('description' in parsed).toBe(false);
+    });
+
+    it('reads a file written before the fields existed', () => {
+      const result = withLimits(file({}));
+      expect(result.ok).toBe(true);
+      expect(result.ok && 'author' in result).toBe(false);
+      expect(result.ok && 'description' in result).toBe(false);
+    });
+
+    it('clamps to the configured lengths and drops non-string values', () => {
+      const long = withLimits(file({ author: 'a'.repeat(999), description: 'd'.repeat(9999) }));
+      expect(long.ok && long.author).toHaveLength(limits().authorMaxLength);
+      expect(long.ok && long.description).toHaveLength(limits().descriptionMaxLength);
+      const odd = withLimits(file({ author: 7, description: { x: 1 } }));
+      expect(odd.ok && 'author' in odd).toBe(false);
+      expect(odd.ok && 'description' in odd).toBe(false);
+    });
+
+    it('ignores the fields when no limits are given', () => {
+      const result = parse(file({ author: 'Ann' }));
+      expect(result.ok && 'author' in result).toBe(false);
+    });
+  });
 });

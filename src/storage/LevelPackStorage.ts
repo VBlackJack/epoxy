@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isRecord, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { LevelPack } from '../core/types';
+import { clampPackMetadata } from '../packs/packMetadata';
 
 /** IndexedDB schema version of the level pack store. */
 const LEVEL_PACK_DB_VERSION = 1;
@@ -128,6 +129,7 @@ class LevelPackStorageService {
   private sanitizePacks(raw: unknown): LevelPack[] {
     if (!Array.isArray(raw)) return [];
     const bounds = ConfigRegistry.getLevelSizeBounds();
+    const metadataLimits = ConfigRegistry.getPackMetadataLimits();
     const packs: LevelPack[] = [];
     for (const entry of raw) {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string') continue;
@@ -142,6 +144,7 @@ class LevelPackStorageService {
         i18nKey: typeof entry.i18nKey === 'string' ? entry.i18nKey : undefined,
         builtIn: false,
         ...(userCreated ? { userCreated } : {}),
+        ...clampPackMetadata(entry, metadataLimits),
         levels
       });
     }

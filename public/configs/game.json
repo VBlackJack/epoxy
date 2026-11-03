@@ -473,6 +473,10 @@
   "import": {
     "maxFileBytes": 4194304
   },
+  "packMetadata": {
+    "authorMaxLength": 60,
+    "descriptionMaxLength": 500
+  },
   "endlessUi": {
     "fallbackYieldMs": 0,
     "maxStartLevel": 10000,

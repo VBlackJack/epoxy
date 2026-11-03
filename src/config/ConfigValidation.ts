@@ -129,6 +129,11 @@ export function findGameTunableErrors(game: GameConfig): string[] {
   if (typeof game.storage?.editorSectionsKey !== 'string' || game.storage.editorSectionsKey.length === 0) {
     errors.push('storage.editorSectionsKey: expected a non-empty string');
   }
+  for (const key of ['authorMaxLength', 'descriptionMaxLength'] as const) {
+    if (!isIntegerAtLeast(game.packMetadata?.[key], MIN_POSITIVE_STEP)) {
+      errors.push(`packMetadata.${key}: expected a whole number of at least ${MIN_POSITIVE_STEP}`);
+    }
+  }
   if (game.procedural) {
     const proc = game.procedural;
     if (!isIntegerAtLeast(proc.scoring?.fallbackCandidates, MIN_FALLBACK_CANDIDATES)) {

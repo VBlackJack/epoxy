@@ -27,6 +27,7 @@ import {
   generateLevelId,
   moveLevel,
   moveLevelDown,
+  moveLevelTo,
   moveLevelToPack,
   moveLevelUp,
   removeLevel,
@@ -186,5 +187,27 @@ describe('userPacks', () => {
       const moved = moveLevelToPack(source, 'lynx_1', makeUserPack('d', []));
       expect(moved?.destination.levels[0]).toEqual(lynx);
     });
+  });
+});
+
+describe('moveLevelTo', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('moves a level to an index and renumbers', () => {
+    const pack = makeUserPack('p', ['a', 'b', 'c', 'd']);
+    const moved = moveLevelTo(pack, 'a', 2);
+    expect(moved.levels.map((l) => l.id)).toEqual(['b', 'c', 'a', 'd']);
+    expect(moved.levels.map((l) => l.number)).toEqual([1, 2, 3, 4]);
+    expect(moveLevelTo(pack, 'd', 0).levels.map((l) => l.id)).toEqual(['d', 'a', 'b', 'c']);
+  });
+
+  it('leaves the pack as is for the same place, an unknown level or an index out of range', () => {
+    const pack = makeUserPack('p', ['a', 'b']);
+    expect(moveLevelTo(pack, 'a', 0)).toBe(pack);
+    expect(moveLevelTo(pack, 'gone', 1)).toBe(pack);
+    expect(moveLevelTo(pack, 'a', 5)).toBe(pack);
+    expect(moveLevelTo(pack, 'a', -1)).toBe(pack);
   });
 });
