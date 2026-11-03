@@ -572,14 +572,16 @@ export class LevelValidator {
   }
 
   /**
-   * The cells a block pushed from (x, y) one step in `dir` may rest on: the
-   * cell it enters, plus, when that cell is ice and the block type slides on
-   * ice, every cell where its slide can end. The slide follows the engine: the
-   * direction is deflected by an ice corner on entry, the block stops on the
-   * first non-ice cell, in water or slime or fire, and when blocked on ice it
-   * bounces back along the lane. Other blocks, the player and the exact slide
-   * timing are ignored, so the result over-approximates. Without ice it is
-   * just the entered cell.
+   * The cells a block pushed from (x, y) one step in `dir` may reach: the cell
+   * it enters and, when that cell is ice and the block type slides on ice,
+   * every cell its slide passes over (another block in the lane could stop it
+   * on any of them). The slide follows the engine: an ice corner deflects the
+   * direction, the block stops on the first non-ice cell, vanishes in water or
+   * slime (or in fire when the type burns), and when blocked on ice it bounces
+   * back along the lane. Other blocks, the player and the exact slide timing
+   * are ignored, so the result over-approximates. Known limits: force floors
+   * after the ice are not followed, and terrain changed during play (melted or
+   * filled cells) is not modelled. Without ice it is just the entered cell.
    */
   private static blockLandings(level: CompiledLevel, type: string, x: number, y: number, dir: Direction): GridPoint[] {
     const vec = DIRECTION_VECTORS[dir];
@@ -603,18 +605,17 @@ export class LevelValidator {
       return { x: tx, y: ty };
     };
 
-    const landings: GridPoint[] = [entered];
+    const landings: GridPoint[] = [];
     const visited = new Set<string>();
     let cur = entered;
     let heading: Direction = enterTile.deflectionMap?.[dir] ?? dir;
     for (;;) {
+      landings.push(cur);
       const tile = ConfigRegistry.getTile(level.terrain[cur.y][cur.x]);
-      // A block that sank, burned or dissolved rests nowhere further on.
-      if (tile.hazard === 'water' || tile.hazard === 'slime' || tile.hazard === 'fire') break;
-      if (tile.slideType !== 'ice') {
-        landings.push(cur);
-        break;
-      }
+      // A block that sank or dissolved rests nowhere further on; fire only destroys the types that burn.
+      if (tile.hazard === 'water' || tile.hazard === 'slime') break;
+      if (tile.hazard === 'fire' && def?.destroyedByFire) break;
+      if (tile.slideType !== 'ice') break;
       const key = `${cur.x},${cur.y},${heading}`;
       if (visited.has(key)) break;
       visited.add(key);
@@ -627,10 +628,7 @@ export class LevelValidator {
       }
       const bounce = tile.deflectionMap?.[OPPOSITE_DIRECTION[heading]] ?? OPPOSITE_DIRECTION[heading];
       const back = canEnter(cur.x, cur.y, bounce);
-      if (!back) {
-        landings.push(cur);
-        break;
-      }
+      if (!back) break;
       cur = back;
       heading = bounce;
       const backTile = ConfigRegistry.getTile(level.terrain[cur.y][cur.x]);
@@ -666,7 +664,7 @@ export class LevelValidator {
           const vec = DIRECTION_VECTORS[dir];
           const nx = x + vec.dx;
           const ny = y + vec.dy;
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen[ny * width + nx]) continue;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
           const dest = ConfigRegistry.getTile(level.terrain[ny][nx]);
           if (dest.passableByBlock !== true) continue;
           if (dest.hazard && refused.includes(dest.hazard)) continue;

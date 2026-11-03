@@ -31,11 +31,12 @@ const TERRAIN_CODES: Record<string, string> = {
   E: 'exit',
   W: 'water',
   I: 'ice',
-  '4': 'ice_se'
+  '4': 'ice_se',
+  '3': 'ice_sw'
 };
 
 /** Rows: # wall, . floor, P player, $ block, c chip on floor, E exit, W water, I ice, 4 ice_se corner. */
-function grid(rows: string[], block: EntityPlacement): CompiledLevel {
+function grid(rows: string[], blocks: EntityPlacement | EntityPlacement[]): CompiledLevel {
   let start = { x: 0, y: 0 };
   const terrain = rows.map((row, y) =>
     [...row].map((ch, x) => {
@@ -53,7 +54,7 @@ function grid(rows: string[], block: EntityPlacement): CompiledLevel {
     playerStart: { ...start, dir: 'S' },
     terrain,
     items,
-    entities: [block],
+    entities: Array.isArray(blocks) ? blocks : [blocks],
     trapLinks: [],
     cloneLinks: []
   };
@@ -89,6 +90,22 @@ describe('hidden_by_block follows a slide on ice', () => {
   it('does not flag a chip beside the lane that the slide never reaches', () => {
     const rows = ['###c###', '#P$IIII', '#######'];
     expect(hiddenCount(grid(rows, LANE_BLOCK))).toBe(0);
+  });
+
+  it('explores a second lane through an entry cell another lane already reached', () => {
+    // The first block's lane east marks the shared ice cell (3,3); the second block comes from the north
+    // and slides south through it, round the ice_sw corner at (3,4), to the chip. Nobody can stand at (2,4).
+    const rows = ['#.....#', '#.....#', '#.....#', '#.$II.#', '###3Ic#', '#######'];
+    const blocks: EntityPlacement[] = [
+      { type: 'dirt_block', x: 2, y: 3, dir: 'S' },
+      { type: 'dirt_block', x: 3, y: 1, dir: 'S' }
+    ];
+    expect(hiddenCount(grid(rows, blocks))).toBe(1);
+  });
+
+  it('flags a cell the slide only passes over, since another block could stop it there', () => {
+    const rows = ['#########', '#P$IcIII#', '#########'];
+    expect(hiddenCount(grid(rows, LANE_BLOCK))).toBe(1);
   });
 
   it('does not flag a chip behind water at the end of the lane, since the block sinks there', () => {

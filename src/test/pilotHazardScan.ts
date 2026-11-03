@@ -17,8 +17,9 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../config/constants';
 import { OPPOSITE_DIRECTION } from '../core/coreConstants';
+import { isEdgeBlockedBetween } from '../core/EdgeRules';
 import { GameEngine } from '../core/GameEngine';
-import { CompiledLevel, Direction, UndoSnapshot } from '../core/types';
+import { CompiledLevel, Direction, RuntimeEntity, UndoSnapshot } from '../core/types';
 import { WAIT_ACTION } from '../generator/PieceSolver';
 import {
   DEFAULT_SEARCH_STATE_CAP,
@@ -88,18 +89,43 @@ function isMoving(engine: GameEngine): boolean {
   return player.isSliding || player.moveCooldown > 0 || engine.getEntities().some((e) => e.isSliding);
 }
 
-/** Starts one search action without ticking. Returns nothing: a refused move simply changes nothing. */
+/** Starts one search action without ticking. A refused move simply changes nothing. */
 function startAction(engine: GameEngine, action: SearchAction): void {
   if (action.startsWith(DROP_ACTION_PREFIX)) {
     engine.dropItem(action.slice(DROP_ACTION_PREFIX.length));
     return;
   }
-  if (action === WAIT_ACTION) {
-    const ticks = ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
-    for (let i = 0; i < ticks && engine.getPlayer().alive; i++) engine.tick();
-    return;
-  }
+  if (action === WAIT_ACTION) return;
   engine.attemptPlayerMove(action as Direction);
+}
+
+/** Whether a block could enter a cell, with the engine's own rules (bounds, edges, tile, refused hazards, occupant). */
+function blockCanEnter(engine: GameEngine, block: RuntimeEntity, dir: Direction): boolean {
+  const vec = DIRECTION_VECTORS[dir];
+  const x = block.x + vec.dx;
+  const y = block.y + vec.dy;
+  const terrain = engine.getTerrain();
+  if (y < 0 || y >= terrain.length || x < 0 || x >= terrain[0].length) return false;
+  if (isEdgeBlockedBetween(terrain[block.y][block.x], terrain[y][x], dir)) return false;
+  const tile = ConfigRegistry.getTile(terrain[y][x]);
+  if (!tile.passableByBlock) return false;
+  if (tile.hazard && ConfigRegistry.getEntityDef(block.type)?.refusesHazards?.includes(tile.hazard)) return false;
+  return !engine.getEntities().some((e) => e.x === x && e.y === y);
+}
+
+/**
+ * Whether the block, about to act this tick, will bounce: it slides, its way is
+ * blocked, it stands on ice and the cell behind it (after the tile's
+ * deflection) is free. Decided before the tick, so a block that vanishes in
+ * water, fire or a bomb on the way back is still seen.
+ */
+function willBounce(engine: GameEngine, block: RuntimeEntity): boolean {
+  if (block.kind !== 'block' || !block.isSliding || block.cooldownTicks > 0) return false;
+  const tile = ConfigRegistry.getTile(engine.getTerrain()[block.y][block.x]);
+  if (tile.slideType !== 'ice') return false;
+  if (blockCanEnter(engine, block, block.dir)) return false;
+  const opposite = OPPOSITE_DIRECTION[block.dir];
+  return blockCanEnter(engine, block, tile.deflectionMap?.[opposite] ?? opposite);
 }
 
 /**
@@ -138,22 +164,30 @@ export function scanHazards(level: CompiledLevel | GameEngine, options: HazardSc
     if (!deaths.has(key)) deaths.set(key, { reason, x: player.x, y: player.y, path: pathTo(head, action) });
   };
 
-  /** Probes every sliding block before a tick, then compares to find the ones that came back. */
-  const probe = (): Map<number, SlideProbe> => {
-    const map = new Map<number, SlideProbe>();
+  /** The sliding blocks about to bounce this tick, and where every sliding block stands before it. */
+  const probe = (): { bouncing: Map<number, SlideProbe>; sliding: Map<number, SlideProbe> } => {
+    const bouncing = new Map<number, SlideProbe>();
+    const sliding = new Map<number, SlideProbe>();
     for (const e of engine.getEntities()) {
-      if (e.kind === 'block' && e.isSliding) map.set(e.uid, { x: e.x, y: e.y, dir: e.dir });
+      if (e.kind !== 'block' || !e.isSliding) continue;
+      const at = { x: e.x, y: e.y, dir: e.dir };
+      sliding.set(e.uid, at);
+      if (willBounce(engine, e)) bouncing.set(e.uid, at);
     }
-    return map;
+    return { bouncing, sliding };
   };
-  const recordBounces = (before: Map<number, SlideProbe>, head: number, action: SearchAction): void => {
+  /** Records the predicted bounces, plus any block that ended a tick on the cell behind its slide. */
+  const recordBounces = (before: ReturnType<typeof probe>, head: number, action: SearchAction): void => {
+    const note = (at: SlideProbe): void => {
+      const key = `${at.x},${at.y},${at.dir}`;
+      if (!bounces.has(key)) bounces.set(key, { ...at, path: pathTo(head, action) });
+    };
+    before.bouncing.forEach(note);
     for (const e of engine.getEntities()) {
-      const prev = before.get(e.uid);
+      const prev = before.sliding.get(e.uid);
       if (!prev) continue;
       const back = DIRECTION_VECTORS[OPPOSITE_DIRECTION[prev.dir]];
-      if (e.x !== prev.x + back.dx || e.y !== prev.y + back.dy) continue;
-      const key = `${prev.x},${prev.y},${prev.dir}`;
-      if (!bounces.has(key)) bounces.set(key, { ...prev, path: pathTo(head, action) });
+      if (e.x === prev.x + back.dx && e.y === prev.y + back.dy) note(prev);
     }
   };
 
@@ -163,13 +197,13 @@ export function scanHazards(level: CompiledLevel | GameEngine, options: HazardSc
     for (const action of actions) {
       engine.restoreState(nodes[head].state);
       startAction(engine, action);
+      let forcedTicks = action === WAIT_ACTION ? ConfigRegistry.getGame().timing.playerMoveCooldownTicks : 0;
       let settled = false;
-      for (let tick = 0; tick <= MAX_SCAN_SETTLE_TICKS; tick++) {
-        if (!engine.getPlayer().alive) {
-          recordDeath(head, action);
-          break;
-        }
-        if (engine.isLevelCompleted() || !isMoving(engine)) {
+      let died = false;
+      for (let tick = 0; tick < MAX_SCAN_SETTLE_TICKS + forcedTicks; tick++) {
+        if (!engine.getPlayer().alive) break;
+        if (forcedTicks > 0) forcedTicks--;
+        else if (engine.isLevelCompleted() || !isMoving(engine)) {
           settled = true;
           break;
         }
@@ -177,8 +211,15 @@ export function scanHazards(level: CompiledLevel | GameEngine, options: HazardSc
         engine.tick();
         recordBounces(before, head, action);
       }
+      if (!engine.getPlayer().alive) {
+        recordDeath(head, action);
+        died = true;
+      } else if (!settled && (engine.isLevelCompleted() || !isMoving(engine))) {
+        settled = true;
+      }
+      if (died) continue;
       if (!settled) {
-        if (engine.getPlayer().alive) unsettled++;
+        unsettled++;
         continue;
       }
       if (engine.isLevelCompleted()) continue;
@@ -208,7 +249,12 @@ function loadEngine(level: CompiledLevel): GameEngine {
   return engine;
 }
 
-/** Whether a scan found nothing that can crush the player: no reachable block bounce and no `death_block`. */
+/**
+ * Whether a scan proves nothing can crush the player: no reachable block
+ * bounce and no `death_block`. An incomplete scan (truncated, or with an
+ * action that never settled) proves nothing, so it never passes.
+ */
 export function hasNoCrushHazard(scan: HazardScan): boolean {
+  if (scan.truncated || scan.unsettled > 0) return false;
   return scan.blockBounces === 0 && !scan.deaths.some((d) => d.reason === DEATH_BLOCK_REASON);
 }

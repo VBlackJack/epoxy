@@ -18,8 +18,9 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => import('./silentAudio'));
 
+import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, EntityPlacement } from '../core/types';
-import { DEATH_BLOCK_REASON, hasNoCrushHazard, scanHazards } from './pilotHazardScan';
+import { DEATH_BLOCK_REASON, HazardScan, hasNoCrushHazard, scanHazards } from './pilotHazardScan';
 import { loadTestConfigs } from './loadTestConfigs';
 
 const SCAN_TIMEOUT_MS = 60000;
@@ -35,6 +36,7 @@ const TERRAIN_CODES: Record<string, string> = {
   W: 'water',
   F: 'fire',
   I: 'ice',
+  '4': 'ice_se',
   E: 'exit'
 };
 
@@ -136,4 +138,40 @@ describe('pilot hazard scan', () => {
     },
     SCAN_TIMEOUT_MS
   );
+
+  it(
+    'detects the bounce of a block that is deflected by an ice corner and hits a wall',
+    () => {
+      // Entering the ice_se corner heading east turns the block north into the wall; it bounces west, back to the pusher.
+      const scan = scanHazards(room(['#####', '#P$4#', '#####']), { maxStates: STATE_CAP });
+      expect(scan.bounces.some((b) => b.x === 3 && b.y === 1 && b.dir === 'N')).toBe(true);
+      expect(scan.deaths.map((d) => d.reason)).toContain(DEATH_BLOCK_REASON);
+    },
+    SCAN_TIMEOUT_MS
+  );
+
+  it(
+    'detects a bounce whose block vanishes in water on the way back',
+    () => {
+      const engine = new GameEngine();
+      engine.loadLevel(room(['######', '#PWI##', '######']));
+      // Put a block already sliding east on the ice, with a wall ahead and the pool behind it.
+      const state = engine.captureState();
+      state.entities.push({ uid: 900, type: 'dirt_block', kind: 'block', x: 3, y: 1, dir: 'E', cooldownTicks: 0, isSliding: true });
+      engine.restoreState(state);
+      const scan = scanHazards(engine, { maxStates: STATE_CAP });
+      expect(scan.bounces.some((b) => b.x === 3 && b.y === 1 && b.dir === 'E')).toBe(true);
+      expect(scan.blockBounces).toBeGreaterThan(0);
+    },
+    SCAN_TIMEOUT_MS
+  );
+
+  it('never passes the crush check on an incomplete scan', () => {
+    const complete: HazardScan = { states: 1, deaths: [], blockBounces: 0, bounces: [], unsettled: 0, truncated: false };
+    expect(hasNoCrushHazard(complete)).toBe(true);
+    expect(hasNoCrushHazard({ ...complete, truncated: true })).toBe(false);
+    expect(hasNoCrushHazard({ ...complete, unsettled: 1 })).toBe(false);
+    const scan = scanHazards(room(['#####', '#P..#', '#...#', '#####']), { maxStates: 2 });
+    expect(hasNoCrushHazard(scan)).toBe(false);
+  });
 });

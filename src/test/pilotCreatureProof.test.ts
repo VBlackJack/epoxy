@@ -105,4 +105,25 @@ describe('pilot creature proof', () => {
     },
     PROOF_TIMEOUT_MS
   );
+
+  it(
+    'refuses to call a level proven when it cannot be won at all',
+    () => {
+      // The exit is walled off: no win exists, with the bug alive or not.
+      const level = room(['#########', '#P#E....#', '#######b#', '#########'], 'W');
+      expect(searchWinWithCreatureAlive(level, { stateCap: STATE_CAP })).toBeNull();
+      expect(() => assertNoWinWithCreatureAlive(level, { stateCap: STATE_CAP })).toThrow(/cannot be won/);
+    },
+    PROOF_TIMEOUT_MS
+  );
+
+  it(
+    'requires every starting bug to survive, not just one of them',
+    () => {
+      // Two bugs walk down the corridor: the first must drown in the pool before the way opens, so no win keeps both.
+      const level = room(['#############', '#P$W..b.b.E.#', '#############'], 'W');
+      expect(searchWinWithCreatureAlive(level, { stateCap: STATE_CAP })).toBeNull();
+    },
+    PROOF_TIMEOUT_MS
+  );
 });
