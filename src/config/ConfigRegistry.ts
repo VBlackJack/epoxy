@@ -63,6 +63,7 @@ import {
 import { DatCodec } from '../formats/DatCodec';
 import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
 import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
+import { dedupeLevelIdsAcrossPacks, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 
@@ -445,6 +446,21 @@ class ConfigRegistryService {
     this.legacyWriteBlocked = false;
     this.storedPacks = stored ?? [];
     await this.migrateLegacyCustomLevels();
+    await this.dedupeStoredLevelIds();
+  }
+
+  /**
+   * Imports used to keep the ids from the file, so two packs could hold the same
+   * level id and share its records. The first holder keeps its ids; a later pack
+   * gets scoped ids and is written again. A failed write keeps the new ids in memory.
+   */
+  private async dedupeStoredLevelIds(): Promise<void> {
+    const builtIn = this.getAllPacks().filter((p) => p.builtIn === true);
+    const { packs, changed } = dedupeLevelIdsAcrossPacks(builtIn, this.storedPacks);
+    if (changed.length === 0) return;
+    this.storedPacks = packs;
+    // A refused write is not reported: the next start finds the same duplicates and renames them again.
+    for (const pack of changed) await this.persistPack(pack);
   }
 
   /**
@@ -603,12 +619,16 @@ class ConfigRegistryService {
     name: string,
     levels: CompiledLevel[]
   ): Promise<{ pack: LevelPack; persisted: boolean }> {
-    const cleanId = `pack_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${Date.now()}`;
+    const baseId = `pack_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+    const takenPacks = this.takenPackIds();
+    let stamp = Date.now();
+    while (takenPacks.has(`${baseId}_${stamp}`)) stamp += 1;
+    const cleanId = `${baseId}_${stamp}`;
     const pack: LevelPack = {
       id: cleanId,
       name,
       builtIn: false,
-      levels: ensureUniqueLevelIds(levels, cleanId)
+      levels: ensureUniqueLevelIds(scopeLevelIds(levels, cleanId), cleanId)
     };
     this.storedPacks.push(pack);
     const persisted = await this.persistPack(pack);
