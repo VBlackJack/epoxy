@@ -2196,8 +2196,8 @@ body.fullscreen-mode .view-section {
 
 .packs-thumb {
   flex-shrink: 0;
-  background: #10131a;
-  border: 1px solid #333b4d;
+  background: var(--bg-dark);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 40%, transparent);
   border-radius: 2px;
   image-rendering: pixelated;
   box-sizing: content-box;
@@ -2336,6 +2336,8 @@ body.fullscreen-mode .view-section {
   padding-inline: 0.2rem;
   cursor: grab;
   touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .packs-drag-spacer {
@@ -2447,6 +2449,30 @@ body.fullscreen-mode .view-section {
 }
 
 @media (max-width: 720px) {
+  /* Narrow: the title gets the whole first line, the badges drop under it, the thumbnail shrinks. */
+  .packs-level {
+    grid-template-columns: 1.6rem auto 1.6rem minmax(0, 1fr);
+  }
+
+  .packs-level > :nth-child(1),
+  .packs-level > .packs-thumb {
+    grid-row: 1 / span 2;
+  }
+
+  .packs-level > .packs-thumb {
+    width: 2.5rem !important;
+    height: auto !important;
+  }
+
+  .packs-level-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .packs-level > .packs-badges {
+    grid-column: 3 / -1;
+  }
+
   .packs-level-actions {
     grid-column: 1 / -1;
     flex-wrap: wrap;

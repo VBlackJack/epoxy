@@ -165,6 +165,12 @@ describe('packJson', () => {
       expect(odd.ok && 'description' in odd).toBe(false);
     });
 
+    it('strips bidirectional overrides and puts an imported author on one line', () => {
+      const result = withLimits(file({ author: '\u202eAnn\nBob\u202c', description: 'a\u202eb\nc' }));
+      expect(result.ok && result.author).toBe('Ann Bob');
+      expect(result.ok && result.description).toBe('ab\nc');
+    });
+
     it('ignores the fields when no limits are given', () => {
       const result = parse(file({ author: 'Ann' }));
       expect(result.ok && 'author' in result).toBe(false);

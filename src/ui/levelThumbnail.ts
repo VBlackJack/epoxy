@@ -182,7 +182,7 @@ export function renderLevelThumbnail(level: CompiledLevel, palette: Readonly<Rec
   const buffer = emptyBuffer(width, height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < level.terrain[y].length; x++) {
-      const item = level.items[y]?.[x];
+      const item = level.items?.[y]?.[x];
       paint(buffer, x, y, tileColor(item ?? level.terrain[y][x], palette, fallback));
     }
   }
@@ -194,7 +194,8 @@ export function renderLevelThumbnail(level: CompiledLevel, palette: Readonly<Rec
 
 /**
  * CSS size to show a buffer at: the largest whole multiple of its pixels that
- * fits the box, and never smaller than one pixel per cell, so cells stay sharp.
+ * fits the box (cells stay sharp); a map longer than the box is scaled down to
+ * fit it, which gives fractional CSS pixels.
  */
 export function thumbnailDisplaySize(
   width: number,
@@ -202,6 +203,6 @@ export function thumbnailDisplaySize(
   box: number
 ): { width: number; height: number } {
   const longest = Math.max(width, height, 1);
-  const scale = Math.max(1, Math.floor(box / longest));
+  const scale = longest > box ? box / longest : Math.floor(box / longest);
   return { width: width * scale, height: height * scale };
 }

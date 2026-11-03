@@ -490,4 +490,120 @@ describe('PackManager (DOM)', () => {
       expect(authorInput().value).toBe('');
     });
   });
+
+  describe('metadata and drag interplay', () => {
+    const ROW_HEIGHT = 100;
+    const authorEl = () => document.getElementById('packs-author-input') as HTMLInputElement;
+    const descriptionEl = () => document.getElementById('packs-description-input') as HTMLTextAreaElement;
+
+    function pointer(target: Element, type: string, clientY: number): void {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.assign(event, { pointerId: 1, pointerType: 'mouse', button: 0, clientY });
+      target.dispatchEvent(event);
+    }
+
+    function layoutRows(): void {
+      document.querySelectorAll<HTMLElement>('#packs-levels-list > .packs-level').forEach((el, i) => {
+        el.getBoundingClientRect = () =>
+          ({ top: i * ROW_HEIGHT, bottom: (i + 1) * ROW_HEIGHT, height: ROW_HEIGHT, left: 0, right: 0, width: 0 }) as DOMRect;
+      });
+    }
+
+    it('keeps the text typed in the description while the author save completes', async () => {
+      let finish: (value: typeof OK) => void = () => undefined;
+      vi.mocked(registry.setPackMetadata).mockImplementationOnce(async (id, patch) => {
+        await new Promise<typeof OK>((resolve) => (finish = resolve));
+        packs = packs.map((p) => (p.id === id ? ({ ...p, ...patch } as LevelPack) : p));
+        return OK;
+      });
+      manager.open('u1');
+      authorEl().focus();
+      authorEl().value = 'Ann';
+      authorEl().dispatchEvent(new Event('blur'));
+      descriptionEl().focus();
+      descriptionEl().value = 'Being typed';
+      finish(OK);
+      await settleAsync();
+      expect(registry.setPackMetadata).toHaveBeenCalledWith('u1', { author: 'Ann' });
+      expect(descriptionEl().value).toBe('Being typed');
+      expect(authorEl().value).toBe('Ann');
+    });
+
+    it('queues a blur that arrives while another field is being stored', async () => {
+      let finish: (value: typeof OK) => void = () => undefined;
+      vi.mocked(registry.setPackMetadata).mockImplementationOnce(async (id, patch) => {
+        await new Promise<typeof OK>((resolve) => (finish = resolve));
+        packs = packs.map((p) => (p.id === id ? ({ ...p, ...patch } as LevelPack) : p));
+        return OK;
+      });
+      manager.open('u1');
+      authorEl().value = 'Ann';
+      authorEl().dispatchEvent(new Event('blur'));
+      descriptionEl().value = 'Notes';
+      descriptionEl().dispatchEvent(new Event('blur'));
+      finish(OK);
+      await settleAsync();
+      expect(registry.setPackMetadata).toHaveBeenCalledTimes(2);
+      expect(registry.setPackMetadata).toHaveBeenLastCalledWith('u1', { description: 'Notes' });
+    });
+
+    it('writes nothing when a field is focused and left while its stored form differs only by spacing or line ends', async () => {
+      packs = [{ ...pack('u1', 'Mine', true, ['l1']), author: 'Ann Bob', description: 'a\nb' } as LevelPack];
+      manager.open('u1');
+      authorEl().value = 'Ann   Bob ';
+      authorEl().dispatchEvent(new Event('blur'));
+      descriptionEl().value = 'a \r\nb';
+      descriptionEl().dispatchEvent(new Event('blur'));
+      await settleAsync();
+      expect(registry.setPackMetadata).not.toHaveBeenCalled();
+    });
+
+    it('lets a drag started right after editing a field survive the blur commit', async () => {
+      manager.open('u1');
+      layoutRows();
+      authorEl().value = 'Ann';
+      const handleEl = document.querySelector('[data-drag-handle="l1"]') as HTMLElement;
+      pointer(handleEl, 'pointerdown', 50);
+      authorEl().dispatchEvent(new Event('blur'));
+      await settleAsync();
+      pointer(handleEl, 'pointermove', 260);
+      pointer(handleEl, 'pointerup', 260);
+      await settleAsync();
+      expect(registry.setPackMetadata).toHaveBeenCalledWith('u1', { author: 'Ann' });
+      expect(registry.moveLevelToIndex).toHaveBeenCalledWith('u1', 'l1', 2);
+    });
+
+    it('ends a drag in flight when the manager closes', () => {
+      manager.open('u1');
+      layoutRows();
+      const handleEl = document.querySelector('[data-drag-handle="l1"]') as HTMLElement;
+      pointer(handleEl, 'pointerdown', 50);
+      pointer(handleEl, 'pointermove', 260);
+      manager.close();
+      expect(document.querySelector('.packs-level-dragging')).toBeNull();
+      pointer(handleEl, 'pointerup', 260);
+      expect(registry.moveLevelToIndex).not.toHaveBeenCalled();
+    });
+
+    it('keeps scrolling while the pointer rests at the edge of the scrolling column, then stops on drop', () => {
+      const frames: FrameRequestCallback[] = [];
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
+      vi.stubGlobal('cancelAnimationFrame', () => frames.splice(0));
+      manager.open('u1');
+      layoutRows();
+      const column = document.getElementById('packs-detail') as HTMLElement;
+      column.getBoundingClientRect = () => ({ top: 0, bottom: 300, height: 300, left: 0, right: 0, width: 0 }) as DOMRect;
+      const handleEl = document.querySelector('[data-drag-handle="l1"]') as HTMLElement;
+      pointer(handleEl, 'pointerdown', 50);
+      pointer(handleEl, 'pointermove', 295);
+      const before = column.scrollTop;
+      frames.shift()?.(0);
+      frames.shift()?.(0);
+      expect(column.scrollTop).toBeGreaterThan(before);
+      expect(frames).toHaveLength(1);
+      pointer(handleEl, 'pointerup', 295);
+      expect(frames).toHaveLength(0);
+      vi.unstubAllGlobals();
+    });
+  });
 });

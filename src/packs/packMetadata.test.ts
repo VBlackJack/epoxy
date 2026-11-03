@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { LevelPack } from '../core/types';
-import { clampPackMetadata, normalizePackAuthor, normalizePackDescription, withPackMetadata } from './packMetadata';
+import { cleanPackAuthor, cleanPackDescription, clampPackMetadata, normalizePackAuthor, normalizePackDescription, withPackMetadata } from './packMetadata';
 
 const LIMITS = { authorMaxLength: 10, descriptionMaxLength: 20 };
 
@@ -56,5 +56,19 @@ describe('packMetadata', () => {
     expect(withPackMetadata(base, { author: 'Ann ' }, LIMITS)).toBe(base);
     expect(withPackMetadata(base, {}, LIMITS)).toBe(base);
     expect(withPackMetadata(pack(), { description: '  ' }, LIMITS)).toEqual(pack());
+  });
+
+  it('strips control and bidirectional format characters', () => {
+    const rtl = '\u202eevil\u202c \u2066x\u2069\u200f\u200e\u0007\u0085name';
+    expect(normalizePackAuthor(rtl, { authorMaxLength: 99, descriptionMaxLength: 99 })).toBe('evil xname');
+    expect(clampPackMetadata({ author: rtl, description: rtl }, { authorMaxLength: 99, descriptionMaxLength: 99 })).toEqual({
+      author: 'evil xname',
+      description: 'evil xname'
+    });
+  });
+
+  it('puts the author on one line and keeps the line breaks of the description', () => {
+    expect(cleanPackAuthor('A\nB\t C\r\nD')).toBe('A B C D');
+    expect(cleanPackDescription('a  b\t\r\n  c \r d\u202e')).toBe('a b\nc\nd');
   });
 });

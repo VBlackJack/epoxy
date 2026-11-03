@@ -19,7 +19,7 @@ import { PACK_NAME_MAX_LENGTH } from '../config/constants';
 import { CompiledLevel, LevelPack } from '../core/types';
 import { datRefusalReason } from '../formats/DatCodec';
 import { t } from '../i18n/I18nManager';
-import { PackMetadataLimits } from '../packs/packMetadata';
+import { cleanPackAuthor, cleanPackDescription, PackMetadataLimits } from '../packs/packMetadata';
 import { normalizePackName } from '../packs/userPacks';
 import { choiceDialog } from './choiceDialog';
 import { confirmDialog } from './confirmDialog';
@@ -123,6 +123,13 @@ export class PackManager {
   /** True while an author or description change is being stored. */
   private metaCommitting = false;
   private drag: DragState | null = null;
+  /** Vertical position of the pointer during a drag, for the auto-scroll loop. */
+  private dragPointerY = 0;
+  private scrollFrame: number | null = null;
+  /** A redraw asked for during a drag, run when it ends so the rows under the pointer stay. */
+  private renderPending: { focusKey: string | null } | null = null;
+  /** Fields whose commit was asked for while another was being stored. */
+  private readonly queuedMeta = new Set<MetadataField>();
   private libraryThumbs: ThumbnailBatch | null = null;
   private levelThumbs: ThumbnailBatch | null = null;
   /** Packs with a change in flight: their row actions stay disabled until it resolves. */
@@ -155,6 +162,11 @@ export class PackManager {
   }
 
   public close(): void {
+    this.endDrag();
+    this.libraryThumbs?.dispose();
+    this.levelThumbs?.dispose();
+    this.libraryThumbs = null;
+    this.levelThumbs = null;
     closeDialog(byId(MODAL_ID));
   }
 
@@ -206,7 +218,7 @@ export class PackManager {
     window.addEventListener(
       'keydown',
       (e) => {
-        if (e.key !== 'Escape') return;
+        if (e.key !== 'Escape' || !this.isOpen()) return;
         if (this.drag) {
           e.preventDefault();
           e.stopImmediatePropagation();
@@ -217,7 +229,7 @@ export class PackManager {
         if (target?.id === 'packs-name-input' || target?.id === 'packs-author-input' || target?.id === 'packs-description-input') {
           e.preventDefault();
           e.stopImmediatePropagation();
-          this.syncDetail();
+          this.syncDetail(true);
         } else if (target?.id === 'packs-new-input') {
           e.preventDefault();
           e.stopImmediatePropagation();
@@ -300,8 +312,11 @@ export class PackManager {
   // -- Rendering -------------------------------------------------------------------
 
   private render(focusKey: string | null = null): void {
-    // The rows are rebuilt: a drag in flight would point at a row that is gone.
-    this.endDrag();
+    // The rows would be rebuilt under a drag in flight: wait for it to end.
+    if (this.drag) {
+      this.renderPending = { focusKey };
+      return;
+    }
     const rows = this.libraryRows();
     this.selectedId = resolveSelection(rows, this.selectedId);
     this.renderLibrary(rows);
@@ -386,7 +401,19 @@ export class PackManager {
   }
 
   /** Header of the selected pack: name, badges, action states; or the empty library call to action. */
-  private syncDetail(): void {
+  /** Sets a field the player may be typing in; a field that has focus keeps its text unless `force` is set. */
+  private setFieldValue(
+    input: HTMLInputElement | HTMLTextAreaElement | null,
+    field: MetadataField,
+    value: string,
+    force: boolean
+  ): void {
+    // A field that has focus, or whose commit is queued, still holds text the player typed.
+    if (!input || (!force && (document.activeElement === input || this.queuedMeta.has(field)))) return;
+    input.value = value;
+  }
+
+  private syncDetail(forceFields = false): void {
     const rows = this.libraryRows();
     const selectedRow = rows.find((row) => row.id === this.selectedId);
     const pack = this.selectedPack();
@@ -401,12 +428,12 @@ export class PackManager {
     const limits = this.metadataLimits();
     const authorInput = byId<HTMLInputElement>('packs-author-input');
     if (authorInput) {
-      authorInput.value = pack.author ?? '';
+      this.setFieldValue(authorInput, 'author', pack.author ?? '', forceFields);
       if (limits) authorInput.maxLength = limits.authorMaxLength;
     }
     const descriptionInput = byId<HTMLTextAreaElement>('packs-description-input');
     if (descriptionInput) {
-      descriptionInput.value = pack.description ?? '';
+      this.setFieldValue(descriptionInput, 'description', pack.description ?? '', forceFields);
       if (limits) descriptionInput.maxLength = limits.descriptionMaxLength;
     }
     const badges = byId('packs-detail-badges');
@@ -581,6 +608,8 @@ export class PackManager {
     handle.setAttribute('aria-label', t('app.packs.manager.level.drag.aria', { number: row.number, title: row.title }));
     handle.setAttribute(DRAG_HANDLE_ATTRIBUTE, row.levelId);
     handle.disabled = busy;
+    // A long press must start a drag on a touch screen, not open the context menu.
+    handle.addEventListener('contextmenu', (e) => e.preventDefault());
     handle.addEventListener('pointerdown', (e) => this.beginDrag(e, pack, row, item, handle));
     handle.addEventListener('keydown', (e) => {
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -628,10 +657,16 @@ export class PackManager {
       byId('packs-levels-list')?.classList.add(LIST_DRAGGING_CLASS);
     }
     e.preventDefault();
-    this.scrollWhileDragging(e.clientY);
+    this.dragPointerY = e.clientY;
+    this.updateDropTarget(drag);
+    this.ensureAutoScroll();
+  };
+
+  /** Finds the slot under the pointer and draws the drop line there. */
+  private updateDropTarget(drag: DragState): void {
     const rows = this.levelRowElements();
     const slot = dropSlotAt(
-      e.clientY,
+      this.dragPointerY,
       rows.map((el) => {
         const box = el.getBoundingClientRect();
         return box.top + box.height / 2;
@@ -639,7 +674,7 @@ export class PackManager {
     );
     drag.targetIndex = dropTargetIndex(drag.fromIndex, slot);
     this.showDropIndicator(rows, slot, drag.targetIndex !== drag.fromIndex);
-  };
+  }
 
   private readonly onDragEnd = (e: PointerEvent): void => {
     const drag = this.drag;
@@ -662,6 +697,8 @@ export class PackManager {
     const drag = this.drag;
     if (!drag) return;
     this.drag = null;
+    if (this.scrollFrame !== null && typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(this.scrollFrame);
+    this.scrollFrame = null;
     drag.handle.removeEventListener('pointermove', this.onDragMove);
     drag.handle.removeEventListener('pointerup', this.onDragEnd);
     drag.handle.removeEventListener('pointercancel', this.onDragCancel);
@@ -669,6 +706,9 @@ export class PackManager {
     drag.item.classList.remove(DRAGGING_CLASS);
     byId('packs-levels-list')?.classList.remove(LIST_DRAGGING_CLASS);
     this.showDropIndicator(this.levelRowElements(), 0, false);
+    const pending = this.renderPending;
+    this.renderPending = null;
+    if (pending) this.render(pending.focusKey);
   }
 
   private levelRowElements(): HTMLElement[] {
@@ -683,14 +723,42 @@ export class PackManager {
     else rows[rows.length - 1].classList.add(DROP_AFTER_CLASS);
   }
 
-  /** Scrolls the detail column when the pointer nears its top or bottom edge. */
-  private scrollWhileDragging(pointerY: number): void {
-    const column = byId('packs-detail');
-    if (!column) return;
-    const box = column.getBoundingClientRect();
-    if (pointerY < box.top + PACK_DRAG_SCROLL_EDGE_PX) column.scrollTop -= PACK_DRAG_SCROLL_STEP_PX;
-    else if (pointerY > box.bottom - PACK_DRAG_SCROLL_EDGE_PX) column.scrollTop += PACK_DRAG_SCROLL_STEP_PX;
+  /** The nearest ancestor of the levels list that actually scrolls: the layout on narrow screens, else the detail column. */
+  private dragScroller(): HTMLElement | null {
+    let el = byId('packs-levels-list')?.parentElement ?? null;
+    while (el && el !== document.body) {
+      const overflow = getComputedStyle(el).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+      el = el.parentElement;
+    }
+    return byId('packs-detail');
   }
+
+  /** Scroll step the pointer's position asks for: up near the top edge, down near the bottom one, else none. */
+  private autoScrollStep(scroller: HTMLElement): number {
+    const box = scroller.getBoundingClientRect();
+    if (this.dragPointerY < box.top + PACK_DRAG_SCROLL_EDGE_PX) return -PACK_DRAG_SCROLL_STEP_PX;
+    if (this.dragPointerY > box.bottom - PACK_DRAG_SCROLL_EDGE_PX) return PACK_DRAG_SCROLL_STEP_PX;
+    return 0;
+  }
+
+  /** Starts the frame loop that keeps scrolling while the pointer rests at an edge. */
+  private ensureAutoScroll(): void {
+    if (this.scrollFrame !== null || typeof requestAnimationFrame === 'undefined') return;
+    this.scrollFrame = requestAnimationFrame(this.autoScrollTick);
+  }
+
+  private readonly autoScrollTick = (): void => {
+    this.scrollFrame = null;
+    const drag = this.drag;
+    const scroller = this.dragScroller();
+    if (!drag?.active || !scroller) return;
+    const step = this.autoScrollStep(scroller);
+    if (step === 0) return;
+    scroller.scrollTop += step;
+    this.updateDropTarget(drag);
+    this.ensureAutoScroll();
+  };
 
   private transferPanel(pack: LevelPack, row: LevelRow): HTMLElement {
     const panel = document.createElement('div');
@@ -850,16 +918,32 @@ export class PackManager {
     return (ConfigRegistry.getGame() as { packMetadata?: PackMetadataLimits } | undefined)?.packMetadata ?? null;
   }
 
-  /** Stores the author or description field of the selected pack when its text changed. */
+  /** The text of a metadata field as it would be stored: cleaned and cut to the configured length. */
+  private cleanedMetadata(field: MetadataField, raw: string): string {
+    const limits = this.metadataLimits();
+    const clean = field === 'author' ? cleanPackAuthor(raw) : cleanPackDescription(raw);
+    const max = field === 'author' ? limits?.authorMaxLength : limits?.descriptionMaxLength;
+    return (max === undefined ? clean : clean.slice(0, max)).trim();
+  }
+
+  /**
+   * Stores the author or description field of the selected pack when its text
+   * changed. A commit asked for while another is running is queued. Only the
+   * saved field is reset afterwards: the other one may hold text being typed.
+   */
   private async commitMetadata(field: MetadataField): Promise<void> {
+    if (this.metaCommitting) {
+      this.queuedMeta.add(field);
+      return;
+    }
     const pack = this.selectedPack();
     const input = byId<HTMLInputElement | HTMLTextAreaElement>(
       field === 'author' ? 'packs-author-input' : 'packs-description-input'
     );
-    if (!pack || !input || this.metaCommitting) return;
-    const text = input.value.replace(/\r\n?/g, '\n').trim();
+    if (!pack || !input) return;
+    const text = this.cleanedMetadata(field, input.value);
     if (text === (pack[field] ?? '')) {
-      input.value = pack[field] ?? '';
+      this.setFieldValue(input, field, pack[field] ?? '', false);
       return;
     }
     this.metaCommitting = true;
@@ -877,6 +961,14 @@ export class PackManager {
       this.metaCommitting = false;
     }
     this.render();
+    const saved = ConfigRegistry.getEditablePacks().find((p) => p.id === packId);
+    // The field keeps what the player typed since, but shows the stored form of what was saved.
+    if (saved && this.selectedId === packId && this.cleanedMetadata(field, input.value) === text) {
+      input.value = saved[field] ?? '';
+    }
+    const queued = Array.from(this.queuedMeta);
+    this.queuedMeta.clear();
+    for (const next of queued) await this.commitMetadata(next);
   }
 
   private playFrom(packId: string, levelIndex: number): void {

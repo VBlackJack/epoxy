@@ -114,10 +114,16 @@ describe('levelThumbnail', () => {
     expect(pixel(level, 2, 1)).toEqual([128, 128, 128, 255]);
   });
 
-  it('scales to the largest whole multiple that fits the box', () => {
+  it('tolerates a level without an items layer', () => {
+    const level = makeLevel('a');
+    delete (level as unknown as Record<string, unknown>).items;
+    expect(pixel(level, 3, 3)).toEqual(paletteRgba("floorBase"));
+  });
+
+  it('scales to the largest whole multiple that fits the box, and down for a larger map', () => {
     expect(thumbnailDisplaySize(32, 32, 64)).toEqual({ width: 64, height: 64 });
     expect(thumbnailDisplaySize(40, 20, 64)).toEqual({ width: 40, height: 20 });
     expect(thumbnailDisplaySize(10, 5, 64)).toEqual({ width: 60, height: 30 });
-    expect(thumbnailDisplaySize(100, 100, 64)).toEqual({ width: 100, height: 100 });
+    expect(thumbnailDisplaySize(100, 50, 64)).toEqual({ width: 64, height: 32 });
   });
 });

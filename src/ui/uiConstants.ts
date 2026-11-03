@@ -153,6 +153,6 @@ export const THUMBNAIL_LIBRARY_BOX = 32;
 export const PACK_DRAG_HANDLE_GLYPH = '\u2807';
 /** Pack-manager drag: how close to the edge of the scrolling list, in CSS pixels, the pointer starts scrolling it, and by how much per move. */
 export const PACK_DRAG_SCROLL_EDGE_PX = 32;
-export const PACK_DRAG_SCROLL_STEP_PX = 16;
+export const PACK_DRAG_SCROLL_STEP_PX = 10;
 /** Pixels the pointer must travel before a press on a handle counts as a drag. */
 export const PACK_DRAG_START_DISTANCE_PX = 4;

@@ -32,15 +32,39 @@ export interface PackMetadata {
 export type PackMetadataLimits = PackMetadataConfig;
 
 const LINE_BREAKS = /\r\n?/g;
+/** C0 and C1 controls but the whitespace ones (tab, line feed, carriage return), then the bidirectional format characters. */
+const UNSAFE_CHARACTERS = new RegExp(
+  '[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]',
+  'g'
+);
+const WHITESPACE_RUN = /\s+/g;
+const INLINE_WHITESPACE_RUN = /[^\S\n]+/g;
 
-/** Trimmed author cut to the longest length kept; empty when nothing usable is left. */
-export function normalizePackAuthor(text: string, limits: PackMetadataLimits): string {
-  return text.trim().slice(0, limits.authorMaxLength).trim();
+/** The author on one line: control and bidirectional format characters removed, whitespace collapsed, trimmed. Not cut. */
+export function cleanPackAuthor(text: string): string {
+  return text.replace(UNSAFE_CHARACTERS, '').replace(WHITESPACE_RUN, ' ').trim();
 }
 
-/** Trimmed description with line breaks unified to LF, cut to the longest length kept. */
+/** The description with LF line breaks: unsafe characters removed, spaces collapsed inside each line, trimmed. Not cut. */
+export function cleanPackDescription(text: string): string {
+  return text
+    .replace(LINE_BREAKS, '\n')
+    .replace(UNSAFE_CHARACTERS, '')
+    .replace(INLINE_WHITESPACE_RUN, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .trim();
+}
+
+/** Cleaned author cut to the longest length kept; empty when nothing usable is left. */
+export function normalizePackAuthor(text: string, limits: PackMetadataLimits): string {
+  return cleanPackAuthor(text).slice(0, limits.authorMaxLength).trim();
+}
+
+/** Cleaned description cut to the longest length kept. */
 export function normalizePackDescription(text: string, limits: PackMetadataLimits): string {
-  return text.replace(LINE_BREAKS, '\n').trim().slice(0, limits.descriptionMaxLength).trim();
+  return cleanPackDescription(text).slice(0, limits.descriptionMaxLength).trim();
 }
 
 /**

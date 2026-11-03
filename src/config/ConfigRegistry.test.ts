@@ -406,6 +406,19 @@ describe('game tunables validation', () => {
     }
   });
 
+  it('refuses a missing, zero, fractional or non-numeric pack metadata limit', () => {
+    for (const key of ['authorMaxLength', 'descriptionMaxLength']) {
+      for (const bad of [undefined, 0, -3, 2.5, '60']) {
+        const bundle = createTestBundle();
+        (bundle.game.packMetadata as unknown as Record<string, unknown>)[key] = bad;
+        expect(() => ConfigRegistry.applyConfigs(bundle), `${key}=${String(bad)}`).toThrow(ConfigLoadError);
+      }
+    }
+    const missing = createTestBundle();
+    delete (missing.game as unknown as Record<string, unknown>).packMetadata;
+    expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
+  });
+
   it('refuses a missing, negative or fractional fallback candidate count', () => {
     for (const bad of [undefined, -1, 1.5, '2']) {
       const bundle = createTestBundle();

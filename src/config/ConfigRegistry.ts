@@ -710,12 +710,12 @@ class ConfigRegistryService {
     return { ok: true, persisted: await this.commitPack(next) };
   }
 
-  /** Moves the level with this id so it ends up at `index`; fails when nothing would change. */
+  /** Moves the level with this id so it ends up at `index`; a level already there is a success with nothing to store. */
   public async moveLevelToIndex(packId: string, levelId: string, index: number): Promise<PackOperationResult> {
     const pack = this.findStoredPack(packId);
     if (!pack) return FAILED;
     const next = userPacks.moveLevelTo(pack, levelId, index);
-    if (next === pack) return FAILED;
+    if (next === pack) return pack.levels[index]?.id === levelId ? { ok: true, persisted: true } : FAILED;
     return { ok: true, persisted: await this.commitPack(next) };
   }
 

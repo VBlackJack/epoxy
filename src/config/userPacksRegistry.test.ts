@@ -504,7 +504,7 @@ describe('operations on the library', () => {
     expect(ConfigRegistry.exportPackJson(pack?.id ?? '')).toBeNull();
   });
 
-  it('moves a level to an index, persists it and refuses a no-op or an unknown level', async () => {
+  it('moves a level to an index, persists it, accepts the same place and refuses an unknown level', async () => {
     const { pack } = await ConfigRegistry.createUserPack('P');
     const id = pack?.id ?? '';
     for (const levelId of ['a', 'b', 'c']) await ConfigRegistry.saveLevelToPack(id, makeLevel(levelId));
@@ -512,7 +512,8 @@ describe('operations on the library', () => {
     expect(idsOf(id)).toEqual(['b', 'c', 'a']);
     expect(numbersOf(id)).toEqual([1, 2, 3]);
     expect(stored(id)?.levels.map((l) => l.id)).toEqual(['b', 'c', 'a']);
-    expect((await ConfigRegistry.moveLevelToIndex(id, 'a', 2)).ok).toBe(false);
+    expect(await ConfigRegistry.moveLevelToIndex(id, 'a', 2)).toEqual({ ok: true, persisted: true });
+    expect((await ConfigRegistry.moveLevelToIndex(id, 'a', 9)).ok).toBe(false);
     expect((await ConfigRegistry.moveLevelToIndex(id, 'gone', 0)).ok).toBe(false);
     expect((await ConfigRegistry.moveLevelToIndex('missing', 'a', 0)).ok).toBe(false);
   });
