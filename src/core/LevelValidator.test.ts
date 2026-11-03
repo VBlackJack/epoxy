@@ -39,12 +39,15 @@ const TERRAIN_CODES: Record<string, string> = {
   j: 'flame_jet_off',
   K: 'thief_keys',
   D: 'door_red',
-  X: 'forbid_key_red'
+  X: 'forbid_key_red',
+  e: 'thin_wall_e',
+  n: 'thin_wall_n'
 };
 const ITEM_CODES: Record<string, { terrain: string; item: string }> = {
   c: { terrain: 'floor', item: 'chip' },
   b: { terrain: 'floor', item: 'boots_water' },
-  r: { terrain: 'floor', item: 'key_red' }
+  r: { terrain: 'floor', item: 'key_red' },
+  y: { terrain: 'floor', item: 'key_yellow' }
 };
 
 function grid(
@@ -78,6 +81,9 @@ function grid(
     cloneLinks: extra.cloneLinks ?? []
   };
 }
+
+/** Fetch the red key, come back, then take the south door to the exit. */
+const WINNING_TRAP_SOLUTION = 'EWSSS';
 
 const keys = (level: CompiledLevel): string[] =>
   LevelValidator.validate(level).issues.map((i) => i.i18nKey);
@@ -236,6 +242,64 @@ describe('LevelValidator', () => {
       const onEntity = grid(['#####', '#P.E#', '#####'], { entities: [{ x: 1, y: 1, type: 'dirt_block', dir: 'S' }] });
       expect(warns(onEntity, 'validator.issues.start_on_entity.label')).toBe(true);
       expect(keys(grid(['#####', '#P.E#', '#####']))).not.toContain('validator.issues.start_on_wall.label');
+    });
+  });
+
+  describe('socket bypass', () => {
+    const BYPASS = 'validator.issues.socket_bypass.label';
+
+    it('ignores a detour that a thin wall closes', () => {
+      // The lower corridor would reach the exit, but the thin wall stops it east of its third cell.
+      const level = grid(['#######', '#P.cSE#', '#..e..#', '#######'], { chipsRequired: 1 });
+      expect(keys(level)).not.toContain(BYPASS);
+      expect(LevelValidator.validate(level).valid).toBe(true);
+    });
+
+    it('still reports a bypass past a thin wall that does not face the route', () => {
+      const level = grid(['#######', '#P.cSE#', '#..n..#', '#######'], { chipsRequired: 1 });
+      expect(keys(level)).toContain(BYPASS);
+    });
+
+    it('does not count a door whose key lies behind the socket', () => {
+      const level = grid(['########', '#P.cSr##', '#...DE##', '########'], { chipsRequired: 1 });
+      expect(keys(level)).not.toContain(BYPASS);
+      expect(LevelValidator.validate(level).valid).toBe(true);
+    });
+
+    it('reports a bypass through a door whose key is reachable without the socket', () => {
+      const level = grid(['########', '#P.cS###', '#r..DE##', '########'], { chipsRequired: 1 });
+      expect(keys(level)).toContain(BYPASS);
+    });
+  });
+
+  describe('key order trap', () => {
+    // Two red doors, one reachable red key (the other is walled in): the north room holds a bait key, the south door leads to the exit.
+    const trap = (solution?: string): CompiledLevel => {
+      const level = grid(['#####', '#y..#', '#D###', '#Pr.#', '#D###', '#E#r#', '#####']);
+      if (solution !== undefined) level.solution = solution;
+      return level;
+    };
+    const UNREACHABLE = 'validator.issues.unreachable_exit.label';
+    const PROVEN = 'validator.issues.unreachable_exit_proven.label';
+
+    it('errors when no solution proves the level', () => {
+      const report = LevelValidator.validate(trap());
+      expect(report.valid).toBe(false);
+      expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE);
+    });
+
+    it('only warns when the stored solution wins', () => {
+      const report = LevelValidator.validate(trap(WINNING_TRAP_SOLUTION));
+      expect(report.valid).toBe(true);
+      const found = report.issues.find((i) => i.i18nKey === PROVEN);
+      expect(found?.severity).toBe('warning');
+      expect(report.issues.map((i) => i.i18nKey)).not.toContain(UNREACHABLE);
+    });
+
+    it('keeps the error when the stored solution does not win', () => {
+      const report = LevelValidator.validate(trap('EWNNN'));
+      expect(report.valid).toBe(false);
+      expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE);
     });
   });
 });

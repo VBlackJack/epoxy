@@ -495,6 +495,8 @@
       "fewer_keys_than_doors": { "label": "Warning: {doors, plural, one {# door} other {# doors}} for only {keys, plural, one {# key} other {# keys}} ({key})." },
       "unreachable_chips": { "label": "Error: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable from start." },
       "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." },
+      "unreachable_chips_proven": { "label": "Warning: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable by the simulation, but the stored solution wins." },
+      "unreachable_exit_proven": { "label": "Warning: The simulation finds the Exit Portal unreachable, but the stored solution wins." },
       "socket_bypass": { "label": "Error: The Exit can be reached without passing the Socket." },
       "invalid_start": { "label": "Error: The player start is outside the map." },
       "no_targets": { "label": "Error: No block target placed on the map." },
