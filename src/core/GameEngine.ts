@@ -24,8 +24,7 @@ import {
   GRAY_BUTTON_RADIUS,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLOOR_TILE_ID,
-  OPPOSITE_DIRECTION,
-  SUNK_BLOCK_TILE_ID
+  OPPOSITE_DIRECTION
 } from './coreConstants';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
@@ -48,6 +47,7 @@ import {
   mapWidth,
   removeEntity
 } from './epoxy/epoxyWorld';
+import { attemptPushBlock, isCanBlockEnter, moveBlockTo, stepSlidingBlock } from './epoxy/epoxyBlocks';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { SeededRandom } from './Random';
 import {
@@ -658,7 +658,7 @@ export class GameEngine {
     const entityAtTarget = getEntityAt(this.w, targetX, targetY);
     if (entityAtTarget) {
       if (entityAtTarget.kind === 'block') {
-        const pushed = this.attemptPushBlock(entityAtTarget, dir);
+        const pushed = attemptPushBlock(this.ctx, entityAtTarget, dir);
         if (!pushed) {
           if (!fromSlide) AudioManager.playSfx('blocked');
           return false;
@@ -872,123 +872,6 @@ export class GameEngine {
     this.checkTargetsWin();
   }
 
-  private attemptPushBlock(block: RuntimeEntity, dir: Direction): boolean {
-    if (isCellClosedTrap(this.w, block.x, block.y)) {
-      return false;
-    }
-    const vec = DIRECTION_VECTORS[dir];
-    const destX = block.x + vec.dx;
-    const destY = block.y + vec.dy;
-
-    if (!this.isCanBlockEnter(block, destX, destY, dir)) {
-      return false;
-    }
-
-    this.moveBlockTo(block, destX, destY, dir);
-    return true;
-  }
-
-  private isCanBlockEnter(block: RuntimeEntity, destX: number, destY: number, dir: Direction): boolean {
-    if (!isInBounds(this.w, destX, destY)) return false;
-    if (isEdgeBlocked(this.w, block.x, block.y, destX, destY, dir)) return false;
-
-    const destTile = ConfigRegistry.getTile(this.w.terrain[destY][destX]);
-    if (!destTile.passableByBlock) return false;
-    if (destTile.hazard && ConfigRegistry.getEntityDef(block.type)?.refusesHazards?.includes(destTile.hazard)) {
-      return false;
-    }
-
-    const existingEntity = getEntityAt(this.w, destX, destY);
-    if (existingEntity) return false;
-
-    return true;
-  }
-
-  private moveBlockTo(
-    block: RuntimeEntity,
-    destX: number,
-    destY: number,
-    dir: Direction,
-    allowTeleport = true
-  ): void {
-    // A clone spawns in place and leaves no cell behind.
-    if (block.x !== destX || block.y !== destY) {
-      leaveCell(this.w, block.x, block.y);
-    }
-    block.x = destX;
-    block.y = destY;
-    block.dir = dir;
-
-    const blockDef = ConfigRegistry.getEntityDef(block.type);
-    const tileId = this.w.terrain[destY][destX];
-    const tile = ConfigRegistry.getTile(tileId);
-    const itemId = this.w.items[destY][destX];
-
-    if (this.w.player.x === destX && this.w.player.y === destY && this.w.player.alive) {
-      killPlayer(this.ctx, 'hud.messages.death_block', 'death');
-      return;
-    }
-
-    if (itemId && ConfigRegistry.getTile(itemId).hazard === 'bomb' && blockDef?.destroyedByBomb) {
-      this.w.items[destY][destX] = null;
-      removeEntity(this.w, block.uid);
-      AudioManager.playSfx('bomb');
-      this.emitVisual('explosion', destX, destY);
-      return;
-    }
-
-    if (tile.hazard === 'water') {
-      this.w.terrain[destY][destX] = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
-      removeEntity(this.w, block.uid);
-      AudioManager.playSfx('splash');
-      this.emitVisual('splash', destX, destY);
-      return;
-    }
-
-    if (tile.hazard === 'slime') {
-      this.w.terrain[destY][destX] = tile.blockTransformsTo || FLOOR_TILE_ID;
-      removeEntity(this.w, block.uid);
-      AudioManager.playSfx('splash');
-      this.emitVisual('splash', destX, destY, 'green');
-      return;
-    }
-
-    if (tile.hazard === 'fire' && blockDef?.destroyedByFire) {
-      if (blockDef.meltsInFireTo) {
-        this.w.terrain[destY][destX] = blockDef.meltsInFireTo;
-      }
-      removeEntity(this.w, block.uid);
-      AudioManager.playSfx('burn');
-      return;
-    }
-
-    if (tile.buttonAction) {
-      this.triggerButton(destX, destY, tile.buttonAction);
-      if (!this.w.player.alive) return;
-    }
-
-    // A jump resolves the arrival (and the sliding state) at the exit itself.
-    if (tile.isTeleporter && allowTeleport && this.teleportEntity(block, destX, destY, dir)) {
-      return;
-    }
-
-    const updatedTile = ConfigRegistry.getTile(this.w.terrain[block.y][block.x]);
-    if (updatedTile.slideType === 'ice' && blockDef?.slidesOnIce) {
-      block.dir = updatedTile.deflectionMap?.[dir] || dir;
-      block.isSliding = true;
-      block.cooldownTicks = ConfigRegistry.getGame().timing.slideCooldownTicks;
-    } else if (updatedTile.slideType === 'force' && blockDef?.slidesOnForce) {
-      block.dir =
-        updatedTile.forceDirection === 'RANDOM' || !updatedTile.forceDirection
-          ? dir
-          : updatedTile.forceDirection;
-      block.isSliding = true;
-      block.cooldownTicks = ConfigRegistry.getGame().timing.slideCooldownTicks;
-    } else {
-      block.isSliding = false;
-    }
-  }
-
   private updateEntities(): void {
     this.w.removedUids.clear();
     const snapshotEntities = [...this.w.entities];
@@ -1001,31 +884,7 @@ export class GameEngine {
       }
 
       if (entity.kind === 'block') {
-        if (!entity.isSliding) continue;
-        if (entity.cooldownTicks > 0) {
-          entity.cooldownTicks--;
-          continue;
-        }
-        const tile = ConfigRegistry.getTile(this.w.terrain[entity.y][entity.x]);
-        const slideDir = entity.dir;
-        const vec = DIRECTION_VECTORS[slideDir];
-        const nx = entity.x + vec.dx;
-        const ny = entity.y + vec.dy;
-
-        if (this.isCanBlockEnter(entity, nx, ny, slideDir)) {
-          this.moveBlockTo(entity, nx, ny, slideDir);
-        } else if (tile.slideType === 'ice') {
-          const bounceDir = OPPOSITE_DIRECTION[slideDir];
-          const deflected = tile.deflectionMap?.[bounceDir] || bounceDir;
-          const bVec = DIRECTION_VECTORS[deflected];
-          if (this.isCanBlockEnter(entity, entity.x + bVec.dx, entity.y + bVec.dy, deflected)) {
-            this.moveBlockTo(entity, entity.x + bVec.dx, entity.y + bVec.dy, deflected);
-          } else {
-            entity.isSliding = false;
-          }
-        } else {
-          entity.isSliding = false;
-        }
+        stepSlidingBlock(this.ctx, entity);
         continue;
       }
 
@@ -1345,7 +1204,7 @@ export class GameEngine {
     };
     const canEnter =
       kind === 'block'
-        ? this.isCanBlockEnter(probe, spawnX, spawnY, templateDir)
+        ? isCanBlockEnter(this.w, probe, spawnX, spawnY, templateDir)
         : this.canMonsterEnter(probe, templateDir);
     if (!canEnter) return true;
 
@@ -1361,7 +1220,7 @@ export class GameEngine {
     };
     this.w.entities.push(spawned);
     if (spawned.kind === 'block') {
-      this.moveBlockTo(spawned, spawnX, spawnY, templateDir);
+      moveBlockTo(this.ctx, spawned, spawnX, spawnY, templateDir);
     } else {
       return this.resolveMonsterArrival(spawned, true);
     }
@@ -1432,7 +1291,7 @@ export class GameEngine {
       const probe: RuntimeEntity = { ...entity, x: candidate.x, y: candidate.y, dir };
       const canExit =
         entity.kind === 'block'
-          ? this.isCanBlockEnter(probe, exitX, exitY, dir)
+          ? isCanBlockEnter(this.w, probe, exitX, exitY, dir)
           : this.canMonsterEnter(probe, dir);
       if (!canExit) continue;
 
@@ -1441,7 +1300,7 @@ export class GameEngine {
       entity.dir = dir;
       if (entity.kind === 'block') {
         // Already standing on the exit cell: resolves the arrival without another jump.
-        this.moveBlockTo(entity, exitX, exitY, dir, false);
+        moveBlockTo(this.ctx, entity, exitX, exitY, dir, false);
       }
       return true;
     }
