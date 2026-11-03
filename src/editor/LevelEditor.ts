@@ -283,6 +283,9 @@ interface StaticLayer {
   look: string;
   width: number;
   height: number;
+  /** Size of the editor canvas the chunks were drawn for: a resized canvas means a new fit, so new chunks. */
+  backingWidth: number;
+  backingHeight: number;
   /** Chunk side in cells, and chunks per row. */
   side: number;
   perRow: number;
@@ -389,6 +392,8 @@ export class LevelEditor {
   private iconCache = new Map<string, string>();
   /** The animation frame a redraw is waiting for, so pointer moves redraw at most once per frame. */
   private frameRequest: number | null = null;
+  /** True while render() is fitting the canvas itself, so the fit's own redraw does not fit again. */
+  private refitting = false;
   /** The links of a CC3D level version, derived once for the overlay. */
   private linksCache = new WeakMap<Cc3dLevel, Cc3dLinks>();
   /** The side of the hovered cell nearest the pointer, for the thin wall mode. */
@@ -659,6 +664,8 @@ export class LevelEditor {
     this.updateCanvasLabel();
     this.scheduleCheck();
     this.render();
+    // The stage may not have its final size yet (a view just shown, a dialog just closed): fit once more after layout.
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => this.applyFit());
   }
 
   /** Asks before unsaved work is thrown away; true when there is none or the player agrees. */
@@ -2757,7 +2764,16 @@ export class LevelEditor {
     // A change of style, theme, player skin or quality changes how every cell looks: the picture is stale.
     const look = this.renderer.getAppearanceKey();
     const cached = this.staticLayer;
-    if (cached && cached.tile === s && cached.look === look && cached.width === level.width && cached.height === level.height) {
+    const { width: backingWidth, height: backingHeight } = this.canvas;
+    if (
+      cached &&
+      cached.tile === s &&
+      cached.look === look &&
+      cached.width === level.width &&
+      cached.height === level.height &&
+      cached.backingWidth === backingWidth &&
+      cached.backingHeight === backingHeight
+    ) {
       if (cached.level === level) return cached;
       // A stroke touches a few cells: only those are drawn again, not the thousands that did not change.
       const dirty = dirtyCc3dCells(cached.level, level);
@@ -2801,7 +2817,7 @@ export class LevelEditor {
         chunks.push(chunk);
       }
     }
-    this.staticLayer = { level, tile: s, look, width: level.width, height: level.height, side, perRow, chunks };
+    this.staticLayer = { level, tile: s, look, width: level.width, height: level.height, backingWidth, backingHeight, side, perRow, chunks };
     return this.staticLayer;
   }
 
@@ -2811,6 +2827,16 @@ export class LevelEditor {
       this.frameRequest = null;
     }
     const doc = this.doc;
+    // The canvas must be exactly the map at the tile size: after a new level or a late layout it may not be yet.
+    if (!this.refitting && (this.canvas.width !== this.mapWidth() * this.tilePx || this.canvas.height !== this.mapHeight() * this.tilePx)) {
+      this.refitting = true;
+      try {
+        this.applyFit();
+      } finally {
+        this.refitting = false;
+      }
+      return;
+    }
     this.updateTestFromState();
     const s = this.tilePx;
     this.lastDrawnTilePx = s;

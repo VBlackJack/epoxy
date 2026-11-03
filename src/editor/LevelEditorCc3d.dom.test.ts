@@ -35,6 +35,7 @@ import { loadTestConfigs } from '../test/loadTestConfigs';
 import { mountModals, settleAsync } from '../test/domFixture';
 import { cc3dEntriesOf, CC3D_CATEGORIES } from './cc3dPalette';
 import { compiledCc3d, editableCc3dModel, smallCc3dLevel } from './cc3dEditorFixtures';
+import { emptyCc3dRoom } from './cc3dRoom';
 import { LevelEditor } from './LevelEditor';
 
 const CELL_PX = 10;
@@ -49,6 +50,22 @@ let store: Map<string, string>;
 let editor: LevelEditor;
 let canvas: HTMLCanvasElement;
 let renderer: ReturnType<typeof fakeRenderer>;
+
+interface Blit {
+  source: HTMLCanvasElement;
+  x: number;
+  y: number;
+}
+const blitLog: Blit[] = [];
+
+/** The editor canvas context: a no-op that logs the pictures laid on it. */
+const recordingContext = (): CanvasRenderingContext2D =>
+  new Proxy(() => undefined, {
+    get: (_target, name) =>
+      name === 'drawImage' ? (source: HTMLCanvasElement, x: number, y: number) => blitLog.push({ source, x, y }) : noopContext(),
+    set: () => true,
+    apply: () => undefined
+  }) as unknown as CanvasRenderingContext2D;
 
 const noopContext = (): CanvasRenderingContext2D =>
   new Proxy(() => undefined, { get: () => noopContext(), set: () => true, apply: () => undefined }) as unknown as CanvasRenderingContext2D;
@@ -131,6 +148,8 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => noopContext()) as unknown as HTMLCanvasElement['getContext']);
   canvas.getBoundingClientRect = () =>
     ({ left: 0, top: 0, right: GRID_WIDTH * CELL_PX, bottom: GRID_HEIGHT * CELL_PX, width: GRID_WIDTH * CELL_PX, height: GRID_HEIGHT * CELL_PX, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  canvas.getContext = (() => recordingContext()) as unknown as HTMLCanvasElement['getContext'];
+  blitLog.length = 0;
   canvas.setPointerCapture = () => undefined;
   const hooks = {
     onTestPlay: vi.fn(),
@@ -291,6 +310,50 @@ describe('painting, erasing and undo on a CC3D level', () => {
     click(WIDE_WIDTH - 5, 1);
     expect(renderer.drawTile.mock.calls.length).toBeLessThanOrEqual(9);
     expect(created.mock.calls.filter((call) => call[0] === 'canvas')).toHaveLength(0);
+  });
+
+  /** A stage of a known size, so the editor can fit the level into it (happy-dom does no layout). */
+  function sizeStage(width: number, height: number): void {
+    const stage = byId('editor-stage');
+    Object.defineProperty(stage, 'offsetWidth', { value: width, configurable: true });
+    Object.defineProperty(stage, 'offsetHeight', { value: height, configurable: true });
+  }
+
+  /** What was blitted onto the editor canvas since the log was last emptied. */
+  function recordBlits(): Blit[] {
+    blitLog.length = 0;
+    return blitLog;
+  }
+
+  it('draws a new CC3D room, and a level opened from a pack, at the fitted size on the first render', () => {
+    const FIT_TILE = 50;
+    const room = { width: 16, height: 12 };
+    sizeStage(room.width * FIT_TILE, room.height * FIT_TILE);
+    const blits = recordBlits();
+    for (const open of [() => editor.initBlankMap({ ruleset: 'cc3d' }), () => editor.loadCompiledLevel(compiledCc3d(emptyCc3dRoom(room.width, room.height), 'from_pack'))]) {
+      blits.length = 0;
+      renderer.drawTile.mockClear();
+      open();
+      expect(canvas.width).toBe(room.width * FIT_TILE);
+      expect(canvas.height).toBe(room.height * FIT_TILE);
+      expect(blits.length).toBeGreaterThan(0);
+      // The picture laid on the canvas covers the map exactly: the chunks tile the fitted size.
+      expect(Math.max(...blits.map((blit) => blit.x + blit.source.width))).toBe(canvas.width);
+      expect(Math.max(...blits.map((blit) => blit.y + blit.source.height))).toBe(canvas.height);
+      // Every cell was drawn at the fitted tile size.
+      expect(renderer.drawTile.mock.calls.length).toBeGreaterThan(0);
+      expect(renderer.drawTile.mock.calls.every((call) => call[4] === FIT_TILE)).toBe(true);
+    }
+  });
+
+  it('refits when the stage only gets its size after the level was opened', () => {
+    const blits = recordBlits();
+    editor.initBlankMap({ ruleset: 'cc3d' });
+    sizeStage(16 * 60, 12 * 60);
+    editor.buildUI();
+    editor.render();
+    expect(canvas.width).toBe(16 * 60);
+    expect(Math.max(...blits.map((blit) => blit.x + blit.source.width))).toBe(16 * 60);
   });
 
   it('marks a cell as hiding layers only when something is really hidden', () => {
