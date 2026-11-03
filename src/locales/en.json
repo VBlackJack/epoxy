@@ -472,6 +472,7 @@
         "paste_cancelled": "Paste cancelled.",
         "nothing_to_paste": "Nothing to paste: copy or cut a selection first.",
         "links_dropped": "{count, plural, one {# link was dropped} other {# links were dropped}}.",
+        "border_skipped": "{count, plural, one {# cell on the outer wall ring was left alone} other {# cells on the outer wall ring were left alone}}.",
         "paste_skipped": "{count, plural, one {# entry was skipped: Lynx rules cannot play it} other {# entries were skipped: Lynx rules cannot play them}}."
       }
     },

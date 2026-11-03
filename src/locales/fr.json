@@ -472,6 +472,7 @@
         "paste_cancelled": "Collage annulé.",
         "nothing_to_paste": "Rien à coller : copiez ou coupez d'abord une sélection.",
         "links_dropped": "{count, plural, one {# lien a été abandonné} other {# liens ont été abandonnés}}.",
+        "border_skipped": "{count, plural, one {# case de l'anneau de murs extérieur a été laissée telle quelle} other {# cases de l'anneau de murs extérieur ont été laissées telles quelles}}.",
         "paste_skipped": "{count, plural, one {# élément a été ignoré : les règles Lynx ne peuvent pas le jouer} other {# éléments ont été ignorés : les règles Lynx ne peuvent pas les jouer}}."
       }
     },

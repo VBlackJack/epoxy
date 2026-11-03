@@ -217,6 +217,26 @@ describe('pasteClip', () => {
     expect(epoxy.map.terrain[5][2]).toBe('laser_emitter_n');
   });
 
+  it('never writes the outer ring and counts the ring cells it left alone', () => {
+    const map = bordered(9, 9);
+    const source = bordered(9, 9);
+    source.entities = [{ x: 3, y: 3, type: 'dirt_block', dir: 'S' }, { x: 4, y: 4, type: 'dirt_block', dir: 'S' }];
+    const clip = extractClip(source, { x: 3, y: 3, width: 3, height: 3 }, false);
+    const result = pasteClip(map, clip, 6, 6, 'epoxy');
+    expect(result.borderSkipped).toBe(5);
+    expect(result.map.terrain[7][8]).toBe('wall');
+    expect(result.map.terrain[8][8]).toBe('wall');
+    expect(result.map.terrain[6][8]).toBe('wall');
+    expect(result.map.entities).toEqual([{ x: 6, y: 6, type: 'dirt_block', dir: 'S' }, { x: 7, y: 7, type: 'dirt_block', dir: 'S' }]);
+  });
+
+  it('does not move the player start onto the ring', () => {
+    const map = populated();
+    const clip = extractClip(map, { x: 0, y: 0, width: 3, height: 3 }, true);
+    const result = pasteClip(map, clip, 7, 7, 'epoxy');
+    expect(result.map.playerStart).toEqual({ x: 1, y: 1, dir: 'S' });
+  });
+
   it('is not a change when the destination already matches', () => {
     const map = populated();
     const clip = extractClip(map, { x: 5, y: 5, width: 3, height: 3 }, false);
@@ -291,6 +311,28 @@ describe('moveRect', () => {
     expect(result.map.items[2][2]).toBeNull();
     expect(result.map.items[2][3]).toBe('key_red');
     expect(result.map.items[2][4]).toBe('key_blue');
+  });
+
+  it('does not write onto the ring when a move reaches it, and counts the cells', () => {
+    const map = bordered(9, 9);
+    map.items[6][6] = 'key_red';
+    map.items[7][7] = 'key_blue';
+    const result = moveRect(map, { x: 6, y: 6, width: 2, height: 2 }, 1, 1);
+    expect(result.borderSkipped).toBe(3);
+    expect(result.map.terrain[8][8]).toBe('wall');
+    expect(result.map.terrain[7][8]).toBe('wall');
+    expect(result.map.items[7][7]).toBe('key_red');
+    expect(result.map.items[6][6]).toBeNull();
+  });
+
+  it('leaves ring cells of the selection in place when they are moved', () => {
+    const result = moveRect(bordered(9, 9), { x: 0, y: 0, width: 3, height: 3 }, 2, 2);
+    expect(result.map.terrain[0][0]).toBe('wall');
+    expect(result.map.terrain[0][1]).toBe('wall');
+    expect(result.map.terrain[1][0]).toBe('wall');
+    expect(result.map.terrain[2][2]).toBe('floor');
+    expect(result.map.terrain[3][3]).toBe('floor');
+    expect(result.borderSkipped).toBe(5);
   });
 
   it('refuses to push the selection out of the map and treats a zero step as no change', () => {

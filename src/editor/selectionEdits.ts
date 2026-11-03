@@ -56,6 +56,8 @@ export interface SelectionEditResult {
   droppedLinks: number;
   /** Palette entries of a clip skipped because the level's ruleset cannot play them. */
   skipped: number;
+  /** Cells left alone because they sit on the outer ring of the map, which a paste or a move never writes. */
+  borderSkipped: number;
   /** True when the edit hit the player start cell and left the start in place (clear). */
   playerStartKept: boolean;
   /** The cells the edit produced or targeted, clipped to the map; null when none are inside it. */
@@ -66,6 +68,11 @@ export interface SelectionEditResult {
 export interface MoveStep {
   dx: number;
   dy: number;
+}
+
+/** True for the cells of the outer ring: first and last row, first and last column. */
+function onRing(map: EditorMap, x: number, y: number): boolean {
+  return x === 0 || y === 0 || x === mapWidthOf(map) - 1 || y === mapHeightOf(map) - 1;
 }
 
 function inGrid(map: EditorMap, x: number, y: number): boolean {
@@ -154,14 +161,15 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
   return { width: rect.width, height: rect.height, terrain, items, entities, playerStart };
 }
 
-function clearCells(map: EditorMap, rect: CellRect): void {
+function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number) => boolean = () => false): void {
   for (let y = rect.y; y < rect.y + rect.height; y++) {
     for (let x = rect.x; x < rect.x + rect.width; x++) {
+      if (keep(x, y)) continue;
       map.terrain[y][x] = FLOOR_TILE_ID;
       map.items[y][x] = null;
     }
   }
-  map.entities = map.entities.filter((e) => !rectContains(rect, e.x, e.y));
+  map.entities = map.entities.filter((e) => !rectContains(rect, e.x, e.y) || keep(e.x, e.y));
 }
 
 /**
@@ -176,7 +184,7 @@ export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResul
     for (let x = rect.x; x < rect.x + rect.width; x++) droppedLinks += dropLinksAt(map, x, y);
   }
   const playerStartKept = rectContains(rect, source.playerStart.x, source.playerStart.y);
-  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped: 0, playerStartKept, rect };
+  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped: 0, borderSkipped: 0, playerStartKept, rect };
 }
 
 /**
@@ -185,16 +193,24 @@ export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResul
  * there, whatever the tile. With a ruleset, a cell whose terrain that ruleset
  * cannot play is left out whole (it keeps what it had, entity included) and
  * counted once; an item or entity it cannot play is left out alone and counted.
+ * The outer ring of the map is never written: its cells are left out whole and
+ * counted apart. With `sourceOrigin` (a move), clip cells that came from the
+ * ring are left out too, so the ring stays where it is.
  */
 function stampClip(
   map: EditorMap,
   clip: Clip,
   originX: number,
   originY: number,
-  ruleset: EditableRuleset | null
-): { skipped: number; droppedLinks: number } {
+  ruleset: EditableRuleset | null,
+  sourceOrigin: { x: number; y: number } | null = null
+): { skipped: number; borderSkipped: number; droppedLinks: number } {
   let skipped = 0;
+  let borderSkipped = 0;
   let droppedLinks = 0;
+  const fromRing = (cx: number, cy: number): boolean =>
+    sourceOrigin !== null && onRing(map, sourceOrigin.x + cx, sourceOrigin.y + cy);
+  const ringCells = new Set<string>();
   const tileOk = (id: string): boolean => ruleset === null || tileAvailability(ruleset, id).available;
   const keepEntities = new Set<string>();
   const skippedCells = new Set<string>();
@@ -202,7 +218,11 @@ function stampClip(
     for (let cx = 0; cx < clip.width; cx++) {
       const x = originX + cx;
       const y = originY + cy;
-      if (inGrid(map, x, y) && !tileOk(clip.terrain[cy][cx])) {
+      if (!inGrid(map, x, y)) continue;
+      if (onRing(map, x, y) || fromRing(cx, cy)) {
+        ringCells.add(`${x},${y}`);
+        keepEntities.add(`${x},${y}`);
+      } else if (!tileOk(clip.terrain[cy][cx])) {
         skippedCells.add(`${x},${y}`);
         keepEntities.add(`${x},${y}`);
       }
@@ -218,6 +238,10 @@ function stampClip(
       const x = originX + cx;
       const y = originY + cy;
       if (!inGrid(map, x, y)) continue;
+      if (ringCells.has(`${x},${y}`)) {
+        borderSkipped++;
+        continue;
+      }
       if (skippedCells.has(`${x},${y}`)) {
         skipped++;
         continue;
@@ -238,7 +262,7 @@ function stampClip(
     const y = originY + e.dy;
     if (!inGrid(map, x, y)) continue;
     if (keepEntities.has(`${x},${y}`)) {
-      if (!skippedCells.has(`${x},${y}`)) skipped++;
+      if (!skippedCells.has(`${x},${y}`) && !ringCells.has(`${x},${y}`)) skipped++;
       continue;
     }
     map.entities.push({ x, y, type: e.type, dir: e.dir });
@@ -246,9 +270,9 @@ function stampClip(
   if (clip.playerStart) {
     const x = originX + clip.playerStart.dx;
     const y = originY + clip.playerStart.dy;
-    if (inGrid(map, x, y)) map.playerStart = { x, y, dir: clip.playerStart.dir };
+    if (inGrid(map, x, y) && !ringCells.has(`${x},${y}`)) map.playerStart = { x, y, dir: clip.playerStart.dir };
   }
-  return { skipped, droppedLinks };
+  return { skipped, borderSkipped, droppedLinks };
 }
 
 /**
@@ -268,10 +292,10 @@ export function pasteClip(
     mapWidthOf(source),
     mapHeightOf(source)
   );
-  if (!rect) return { map: source, changed: false, droppedLinks: 0, skipped: 0, playerStartKept: false, rect: null };
+  if (!rect) return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect: null };
   const map = cloneMap(source);
-  const { skipped, droppedLinks } = stampClip(map, clip, originX, originY, ruleset);
-  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped, playerStartKept: false, rect };
+  const { skipped, borderSkipped, droppedLinks } = stampClip(map, clip, originX, originY, ruleset);
+  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped, borderSkipped, playerStartKept: false, rect };
 }
 
 /**
@@ -289,17 +313,19 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
     destination.x + destination.width <= mapWidthOf(source) &&
     destination.y + destination.height <= mapHeightOf(source);
   if (!fits || (dx === 0 && dy === 0)) {
-    return { map: source, changed: false, droppedLinks: 0, skipped: 0, playerStartKept: false, rect };
+    return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect };
   }
   const clip = extractClip(source, rect, true);
   const map = cloneMap(source);
 
+  // Source cells on the ring stay where they are and do not move.
+  const inSource = (x: number, y: number): boolean => rectContains(rect, x, y) && !onRing(source, x, y);
   let droppedLinks = 0;
   const keptTrap: TrapLink[] = [];
   const movedTrap: TrapLink[] = [];
   for (const l of map.trapLinks) {
-    const button = rectContains(rect, l.buttonX, l.buttonY);
-    const target = rectContains(rect, l.trapX, l.trapY);
+    const button = inSource(l.buttonX, l.buttonY);
+    const target = inSource(l.trapX, l.trapY);
     if (button && target) {
       movedTrap.push({ buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, trapX: l.trapX + dx, trapY: l.trapY + dy });
     } else if (button || target) {
@@ -311,8 +337,8 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
   const keptClone: CloneLink[] = [];
   const movedClone: CloneLink[] = [];
   for (const l of map.cloneLinks) {
-    const button = rectContains(rect, l.buttonX, l.buttonY);
-    const target = rectContains(rect, l.clonerX, l.clonerY);
+    const button = inSource(l.buttonX, l.buttonY);
+    const target = inSource(l.clonerX, l.clonerY);
     if (button && target) {
       movedClone.push({ ...l, buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, clonerX: l.clonerX + dx, clonerY: l.clonerY + dy });
     } else if (button || target) {
@@ -324,9 +350,18 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
   map.trapLinks = keptTrap;
   map.cloneLinks = keptClone;
 
-  clearCells(map, rect);
-  droppedLinks += stampClip(map, clip, destination.x, destination.y, null).droppedLinks;
+  clearCells(map, rect, (x, y) => onRing(source, x, y));
+  const stamped = stampClip(map, clip, destination.x, destination.y, null, { x: rect.x, y: rect.y });
+  droppedLinks += stamped.droppedLinks;
   map.trapLinks.push(...movedTrap);
   map.cloneLinks.push(...movedClone);
-  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped: 0, playerStartKept: false, rect: destination };
+  return {
+    map,
+    changed: !sameMapLayers(source, map),
+    droppedLinks,
+    skipped: 0,
+    borderSkipped: stamped.borderSkipped,
+    playerStartKept: false,
+    rect: destination
+  };
 }
