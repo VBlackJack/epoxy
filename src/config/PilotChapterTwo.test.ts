@@ -27,7 +27,13 @@ import { storedSolutionWins } from '../generator/SolutionReplay';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { analyseNaturalPlay } from '../test/pilotNaturalPlay';
 import { pushWinExists, searchPushWin } from '../test/pilotPushSearch';
-import { searchCanWin, searchShortestWin } from '../test/pilotSearch';
+import {
+  applySearchAction,
+  searchActions,
+  searchCanWin,
+  searchShortestWin,
+  searchStateKey
+} from '../test/pilotSearch';
 import { ConfigRegistry } from './ConfigRegistry';
 
 /** Generous search ceilings: the rooms are small, so a runaway proof fails loudly instead of hanging. */
@@ -615,9 +621,10 @@ describe('pilot pack hidden items', () => {
 
   /**
    * The level whose chip lies at the dead end of a ball corridor the block is pushed into: the
-   * validator, which lets a block travel the corridor from the cell it lands on, cannot see that
-   * the block can only be pushed that far by a player standing in the corridor. Every other level
-   * must be silent.
+   * validator lets a block travel the corridor from the cell it lands on, but the block can only
+   * be pushed that far by a player standing east of it, where the ball is. The exhaustive state
+   * search in 'never lets a block reach a chip or the hint of the metronome' proves that no
+   * reachable state puts a block on such a cell. Every other level must be silent.
    */
   const KNOWN_CORRIDOR_CHIP = new Set([METRONOME_LEVEL]);
 
@@ -629,5 +636,46 @@ describe('pilot pack hidden items', () => {
       const hidden = report.issues.some((i) => i.i18nKey === 'validator.issues.hidden_by_block.label');
       expect({ id: level.id, hidden }).toEqual({ id: level.id, hidden: KNOWN_CORRIDOR_CHIP.has(level.id) });
     }
+  });
+});
+
+describe('pilot chapter 2 the metronome, covered cells', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('never lets a block reach a chip or the hint of the metronome: no reachable state, ball and drops included, covers one', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(METRONOME_LEVEL);
+    const guarded = new Set<string>();
+    level.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        if (ConfigRegistry.getTile(id).showsHint || level.items[y][x] === 'chip') guarded.add(`${x},${y}`);
+      })
+    );
+    expect(guarded.size).toBe(2);
+    const engine = engineFor(level);
+    const seen = new Set<string>([searchStateKey(engine)]);
+    const queue = [engine.captureState()];
+    let covered: string | null = null;
+    for (let head = 0; head < queue.length && covered === null; head++) {
+      for (const action of (engine.restoreState(queue[head]), searchActions(engine, true))) {
+        engine.restoreState(queue[head]);
+        if (!applySearchAction(engine, action)) continue;
+        const hit = engine.getEntities().find((e) => e.type === 'dirt_block' && guarded.has(`${e.x},${e.y}`));
+        if (hit) {
+          covered = `${hit.x},${hit.y}`;
+          break;
+        }
+        if (engine.isLevelCompleted()) continue;
+        const key = searchStateKey(engine);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        expect(seen.size).toBeLessThan(3000000);
+        queue.push(engine.captureState());
+      }
+    }
+    expect(covered).toBeNull();
+    // The search really explored the level, including the states after the block drops.
+    expect(seen.size).toBeGreaterThan(1000);
   });
 });
