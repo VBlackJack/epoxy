@@ -1500,14 +1500,14 @@ body.editor-mode #app {
 }
 
 .scores-chapter-summary::before {
-  content: 'B8';
+  content: '\25B8';
   grid-row: 1 / span 2;
   grid-column: 1;
   color: var(--accent-yellow);
 }
 
 .scores-chapter[open] > .scores-chapter-summary::before {
-  content: 'BE';
+  content: '\25BE';
 }
 
 .scores-chapter-summary:focus-visible {
