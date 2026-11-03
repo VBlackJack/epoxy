@@ -101,6 +101,34 @@
       "delete": { "action": "Delete" },
       "replace": { "action": "Replace" }
     },
+    "playtest": {
+      "badge": { "label": "Playtest", "hint": "Playtest mode is on: this session is being recorded on this device only" },
+      "toggle": { "action": "Playtest mode", "hint": "Record how you play each level so it can be improved" },
+      "export": { "action": "Export playtest data", "done": { "label": "Playtest data saved to a file" }, "empty": { "label": "No playtest data to export yet" } },
+      "clear": {
+        "action": "Clear playtest data",
+        "confirm": { "message": "Delete every recorded playtest session from this device? Export them first if you want to keep them.", "action": "Delete data" },
+        "done": { "label": "Playtest data cleared" }
+      },
+      "count": { "label": "Recorded sessions: {count}" },
+      "rating": {
+        "title": { "label": "How was this level?" },
+        "level_won": { "label": "Level {number} solved." },
+        "level_left": { "label": "You left level {number} before solving it." },
+        "difficulty": { "label": "Difficulty" },
+        "difficulty_low": { "label": "Too easy" },
+        "difficulty_high": { "label": "Too hard" },
+        "fun": { "label": "Fun" },
+        "fun_low": { "label": "Boring" },
+        "fun_high": { "label": "Great" },
+        "aha": { "label": "Did you have an aha moment?" },
+        "aha_yes": { "action": "Yes" },
+        "aha_no": { "action": "No" },
+        "note": { "label": "Note (optional)" },
+        "skip": { "action": "Skip" },
+        "submit": { "action": "Save" }
+      }
+    },
     "packs": {
       "manager": {
         "title": { "label": "My packs" },

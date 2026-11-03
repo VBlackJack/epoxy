@@ -101,6 +101,34 @@
       "delete": { "action": "Supprimer" },
       "replace": { "action": "Remplacer" }
     },
+    "playtest": {
+      "badge": { "label": "Playtest", "hint": "Le mode playtest est actif : cette session est enregistrée sur cet appareil uniquement" },
+      "toggle": { "action": "Mode playtest", "hint": "Enregistrer la façon dont vous jouez chaque niveau pour l'améliorer" },
+      "export": { "action": "Exporter les données de playtest", "done": { "label": "Données de playtest enregistrées dans un fichier" }, "empty": { "label": "Aucune donnée de playtest à exporter pour l'instant" } },
+      "clear": {
+        "action": "Effacer les données de playtest",
+        "confirm": { "message": "Supprimer toutes les sessions de playtest enregistrées sur cet appareil ? Exportez-les d'abord si vous voulez les garder.", "action": "Supprimer les données" },
+        "done": { "label": "Données de playtest effacées" }
+      },
+      "count": { "label": "Sessions enregistrées : {count}" },
+      "rating": {
+        "title": { "label": "Comment était ce niveau ?" },
+        "level_won": { "label": "Niveau {number} résolu." },
+        "level_left": { "label": "Vous avez quitté le niveau {number} avant de le résoudre." },
+        "difficulty": { "label": "Difficulté" },
+        "difficulty_low": { "label": "Trop facile" },
+        "difficulty_high": { "label": "Trop difficile" },
+        "fun": { "label": "Plaisir" },
+        "fun_low": { "label": "Ennuyeux" },
+        "fun_high": { "label": "Super" },
+        "aha": { "label": "Avez-vous eu un déclic ?" },
+        "aha_yes": { "action": "Oui" },
+        "aha_no": { "action": "Non" },
+        "note": { "label": "Remarque (facultatif)" },
+        "skip": { "action": "Passer" },
+        "submit": { "action": "Enregistrer" }
+      }
+    },
     "packs": {
       "manager": {
         "title": { "label": "Mes packs" },

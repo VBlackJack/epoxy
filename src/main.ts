@@ -74,7 +74,12 @@ import {
   SEED_MAX_VALUE,
   suggestStartLevel
 } from './ui/proceduralPack';
-import { downloadBytes } from './ui/download';
+import { downloadBytes, downloadJson } from './ui/download';
+import { appVersion } from './playtest/appVersion';
+import { PlaytestController } from './playtest/PlaytestController';
+import { PlaytestStore } from './playtest/PlaytestStore';
+import { askPlaytestRating } from './ui/playtestRatingDialog';
+import { bindPlaytestOptions, refreshPlaytestOptions } from './ui/playtestOptions';
 import { PackFlows } from './ui/packFlows';
 import { PackManager } from './ui/packManager';
 import { applyLevelTextInputLimits } from './ui/levelTextInputs';
@@ -198,6 +203,7 @@ class EpoxyApplication {
   private parkedShareHash = '';
   private shareFlow: ShareLinkFlow | null = null;
   private packFlows!: PackFlows;
+  private playtest!: PlaytestController;
   /** Level of an editor test play still on screen; null otherwise. */
   private testPlayLevel: CompiledLevel | null = null;
   /** Pack the level on screen was started from. */
@@ -306,6 +312,7 @@ class EpoxyApplication {
     this.buildInventorySlots();
 
     this.loadHighScores();
+    this.playtest = this.createPlaytest();
     this.bindEngineCallbacks();
     this.createEditor(editorCanvas);
     this.packFlows = this.createPackFlows();
@@ -323,7 +330,9 @@ class EpoxyApplication {
     this.bindDragAndDrop();
     this.bindKeyboardEvents();
     this.bindFocusHandoff();
+    this.bindPlaytest();
     i18n.translateDOM();
+    refreshPlaytestOptions(this.playtest);
 
     i18n.onChange(() => {
       this.refreshPackSelector();
@@ -334,6 +343,7 @@ class EpoxyApplication {
       this.setupMusicControls();
       this.syncSoundControls();
       this.updateHUD();
+      refreshPlaytestOptions(this.playtest);
       this.editor.refreshTranslations();
       // translateDOM resets the seed placeholder to its generic text.
       const seedInput = byId<HTMLInputElement>('procedural-seed-input');
@@ -344,6 +354,50 @@ class EpoxyApplication {
     this.startRenderLoop();
     this.maybeShowOnboarding(hadSavedProgress);
     this.bindShareLinks();
+  }
+
+  /** Playtest mode: recorder, storage and the rating form, all kept inside this browser. */
+  private createPlaytest(): PlaytestController {
+    const config = ConfigRegistry.getPlaytestConfig();
+    const storage = ConfigRegistry.getGame().storage;
+    return new PlaytestController({
+      engine: () => this.engine,
+      store: new PlaytestStore(
+        localStorage,
+        {
+          enabledKey: ConfigRegistry.getStorageKey(storage.playtestEnabledKey),
+          sessionsKey: ConfigRegistry.getStorageKey(storage.playtestSessionsKey)
+        },
+        config
+      ),
+      config,
+      appVersion: appVersion(),
+      now: () => Date.now(),
+      isPageVisible: () => document.visibilityState !== 'hidden',
+      askRating: ({ levelNumber, won }) =>
+        askPlaytestRating({
+          limits: config,
+          levelText: won
+            ? t('app.playtest.rating.level_won.label', { number: levelNumber })
+            : t('app.playtest.rating.level_left.label', { number: levelNumber })
+        }),
+      onChange: () => refreshPlaytestOptions(this.playtest)
+    });
+  }
+
+  /** Options controls of Playtest mode, and the page events that end a series. */
+  private bindPlaytest(): void {
+    bindPlaytestOptions(this.playtest, {
+      save: downloadJson,
+      notify: (message) => this.showTransientStatus(message),
+      now: () => Date.now(),
+      onToggled: (enabled) => {
+        // The level on screen starts its series now rather than at the next level.
+        if (enabled && this.activeMode === 'play' && !this.isTestPlaying()) this.playtest.levelStarted(this.playedPackId);
+      }
+    });
+    window.addEventListener('pagehide', () => this.playtest.pageHiding());
+    document.addEventListener('visibilitychange', () => this.playtest.visibilityChanged());
   }
 
   /** Opens the pack share link of the address bar, now and each time its fragment changes. */
@@ -497,6 +551,7 @@ class EpoxyApplication {
       // A test play of an editor draft is not a record for the stored level that shares its id.
       if (!this.isReplaying && !this.isTestPlaying()) {
         this.recordHighScore(levelId, timeRemaining, steps, score, this.engine.getTimedMoveHistory());
+        this.playtest.won();
       }
       this.stopAutoMoveAndReplay();
     });
@@ -564,6 +619,7 @@ class EpoxyApplication {
   }
 
   private runGameTick(): void {
+    this.playtest.tick({ playing: !isDialogOpen() && this.activeMode === 'play', replaying: this.isReplaying });
     // A modal or the drawer owns the keyboard: skip the tick, the game is not paused.
     if (isDialogOpen()) {
       this.refreshGamepadSnapshot();
@@ -620,6 +676,7 @@ class EpoxyApplication {
     window.setTimeout(() => {
       if (layout !== this.lastBlockLayout || !engine.getPlayer().alive) return;
       if (BlockPuzzleSolver.isStuck(engine)) {
+        this.playtest.deadEndShown();
         this.showTransientStatus(t(stuckMessageKey(engine.getLevel().winRule)));
       }
     }, 0);
@@ -1743,6 +1800,7 @@ class EpoxyApplication {
 
   /** Single entry point for every restart control. */
   private restartLevel(): void {
+    this.playtest.restarted();
     this.stopAutoMoveAndReplay();
     this.heldDirection = null;
     this.lastWarnedSecond = NO_WARNED_SECOND;
@@ -1753,7 +1811,7 @@ class EpoxyApplication {
   /** Single entry point for every undo control. */
   private undoMove(): void {
     this.stopAutoMoveAndReplay();
-    this.engine.undo();
+    if (this.engine.undo()) this.playtest.undone();
     this.updateHUD();
   }
 
@@ -1768,12 +1826,16 @@ class EpoxyApplication {
   }
 
   private triggerObjectiveAndLinks(): void {
-    if (this.playBlockHint()) return;
+    if (this.playBlockHint()) {
+      this.playtest.hintUsed();
+      return;
+    }
     const active = this.renderer.toggleMechanismLinks();
     byId('hud-btn-objective')?.classList.toggle('active', active);
     byId('mobile-btn-objective')?.classList.toggle('active', active);
 
     if (active) {
+      this.playtest.hintUsed();
       const target = this.nextObjective();
       this.renderer.setObjectivePoint(target);
       if (target) {
@@ -1805,6 +1867,7 @@ class EpoxyApplication {
       cancelLabel: t('app.confirm.cancel.action')
     });
     if (!confirmed) return;
+    this.playtest.solutionViewed();
     this.startReplay(moves);
     this.showTransientStatus(t('hud.messages.solution_playing.label'));
   }
@@ -1863,6 +1926,7 @@ class EpoxyApplication {
   private startLevelByIndex(index: number, announce: boolean = true, arrival: ChapterArrival = 'other'): void {
     const levels = ConfigRegistry.getLevels();
     if (levels.length === 0) return;
+    this.playtest.levelLeaving(ConfigRegistry.getActivePackId());
     this.stopAutoMoveAndReplay();
     this.lastWarnedSecond = NO_WARNED_SECOND;
     this.testPlayLevel = null;
@@ -1877,6 +1941,7 @@ class EpoxyApplication {
       ? Math.min(Math.max(index, 0), levels.length - 1)
       : ((index % levels.length) + levels.length) % levels.length;
     this.loadPlayLevel(levels[this.currentLevelIndex]);
+    this.playtest.levelStarted(this.playedPackId);
     AudioManager.setEndlessTracks(this.isEndlessActive() ? ConfigRegistry.getGame().endlessUi.musicTrackIds ?? [] : null);
     AudioManager.onLevelLoaded(levels[this.currentLevelIndex].id);
     this.showLevelTheme(levels[this.currentLevelIndex]);

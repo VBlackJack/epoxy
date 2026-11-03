@@ -2632,3 +2632,71 @@ body.fullscreen-mode .view-section {
     width: 100%;
   }
 }
+
+/* Playtest mode */
+.hud-playtest-badge {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1b202b;
+  background: var(--accent-yellow);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+.hud-playtest-badge.hidden {
+  display: none;
+}
+
+.playtest-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid #333b4d;
+  padding-top: 0.6rem;
+}
+
+.playtest-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.playtest-rating-dialog {
+  width: 420px;
+  max-width: 100%;
+}
+
+.playtest-fieldset {
+  border: 1px solid #333b4d;
+  border-radius: 6px;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+}
+
+.playtest-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.playtest-scale-options {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.playtest-scale-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.playtest-note {
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
