@@ -22,7 +22,7 @@ vi.mock('../../audio/AudioManager', () => ({
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { Cc3dEngine } from './Cc3dEngine';
-import { cc3dLevel, stacked } from './cc3dTestMaps';
+import { cc3dLevel, panelled, stacked } from './cc3dTestMaps';
 import { Cc3dRig } from './cc3dTestRig';
 
 beforeAll(() => {
@@ -216,5 +216,32 @@ describe('input and trap queries', () => {
     expect(new Cc3dRig(level).player.dir).toBe('W');
     level.cc3d!.player.dir = 'N';
     expect(new Cc3dRig(level).player.dir).toBe('N');
+  });
+});
+
+describe('panel and hidden layer views', () => {
+  const index = (x: number, y: number, width: number): number => y * width + x;
+
+  it('lists the panels on terrain whose display id does not show them', () => {
+    const glyphs = {
+      p: { stack: [{ kind: 'water' as const }], panels: ['N' as const, 'E' as const] },
+      q: { stack: [{ kind: 'ice' as const }], panels: ['W' as const] },
+      r: panelled('S')
+    };
+    const rig = new Cc3dRig(cc3dLevel(['#@pqr.#'], { glyphs }));
+    const panels = rig.engine.getPanels();
+    const width = rig.engine.getMapWidth();
+    expect([...panels.keys()].sort((a, b) => a - b)).toEqual([index(2, 0, width), index(3, 0, width)]);
+    expect(panels.get(index(2, 0, width))).toEqual(['N', 'E']);
+    expect(panels.get(index(3, 0, width))).toEqual(['W']);
+    // A floor with panels shows them through its thin wall id: no second drawing.
+    expect(panels.has(index(4, 0, width))).toBe(false);
+    expect(rig.engine.getTerrain()[0][4]).toMatch(/^thin_wall_/);
+  });
+
+  it('flags the cells whose stack holds more than the shown layer', () => {
+    const rig = new Cc3dRig(cc3dLevel(['#@O..#']));
+    const width = rig.engine.getMapWidth();
+    expect([...rig.engine.getHiddenLayerCells()]).toEqual([index(2, 0, width)]);
   });
 });
