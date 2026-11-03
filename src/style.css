@@ -1473,6 +1473,59 @@ body.editor-mode #app {
   border-radius: 6px;
 }
 
+.scores-chapter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.scores-chapter {
+  border-bottom: 1px solid #2e3646;
+}
+
+.scores-chapter-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  background: #12151c;
+}
+
+.scores-chapter-summary:focus-visible {
+  outline: 2px solid var(--accent-yellow);
+  outline-offset: -2px;
+}
+
+.scores-chapter-title {
+  color: var(--accent-yellow);
+  font-weight: 800;
+}
+
+.scores-chapter-subtitle {
+  grid-column: 1;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.scores-chapter-progress {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--led-green);
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.scores-chapter-bar {
+  grid-column: 2;
+  grid-row: 2;
+  width: 100%;
+  height: 0.4rem;
+  accent-color: var(--led-green);
+}
+
 .help-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
