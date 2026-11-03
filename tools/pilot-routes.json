@@ -236,47 +236,40 @@
     },
     "epoxy_p_16": {
       "segments": [
-        "EEEEE",
-        "SS",
-        "WWWWW",
-        "EEEEEEEEEE",
-        "SSS",
-        "WWWWWWW",
-        "SS"
+        "SSEEEESSWWW",
+        "WSNEEEEEEEE",
+        "SSSWWWWWSS"
       ]
     },
     "epoxy_p_17": {
       "segments": [
-        "ESSEESEE",
-        "WWSSSWWNN",
-        "WNEEEEEEEEEE",
-        "NNNSSSSS"
+        "SSEEESEEWWS",
+        "SSWNNWNEEEE",
+        "EEEEENNNSSS",
+        "SS"
       ]
     },
     "epoxy_p_18": {
       "segments": [
-        "EEESE",
-        "NESSS",
-        "NNNEEEE",
-        "SWNWSSS"
+        "SSESENESSSN",
+        "NNEEEESWNWS",
+        "SS"
       ]
     },
     "epoxy_p_19": {
       "segments": [
-        "EEENNNE",
-        "SSSSSSS",
-        "NNNEEENE",
-        "SSSS",
-        "NNNNNWNW",
-        "SSSSSS"
+        "SSEESSSSSSS",
+        "SNNNNEEENES",
+        "SSSSNNNNNNW",
+        "NWSSSSSSS"
       ]
     },
     "epoxy_p_20": {
       "segments": [
-        "EEESSSWS",
-        "EEEWSSWNWN",
-        "EEEEE",
-        "NNNNEEESSWSS"
+        "SSSSSEENNEN",
+        "ESSSWSEEWSS",
+        "WNWNEEEEENN",
+        "NNEEESSWSS"
       ]
     }
   }
