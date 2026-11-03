@@ -2042,7 +2042,10 @@ class EpoxyApplication {
     if (isPlay) {
       this.editor?.onLeave();
     } else {
-      void this.syncEditorWithEngineLevel().then(() => this.editor.refreshContext());
+      // The draft a previous visit left is offered once, after the editor took the engine's level.
+      void this.syncEditorWithEngineLevel()
+        .then(() => this.editor.refreshContext())
+        .then(() => this.editor.offerDraftOnce());
     }
   }
 

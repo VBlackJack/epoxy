@@ -642,6 +642,24 @@
       "laser": { "label": "Puzzle laser" },
       "load_failed": "Les modèles de niveau n'ont pas pu être chargés ; départ sur une salle vide."
     },
+    "draft": {
+      "offer": {
+        "title": { "label": "Récupérer votre travail ?" },
+        "restore": { "label": "Des modifications non enregistrées de \"{title}\" datent de votre dernière visite. Les restaurer ?", "action": "Restaurer" },
+        "conflict": { "label": "Des modifications non enregistrées de \"{title}\" ont été retrouvées, mais le niveau a changé dans son pack depuis. Les restaurer puis enregistrer remplacera cette version plus récente." },
+        "orphan": { "label": "Un niveau non enregistré \"{title}\" date de votre dernière visite. Le restaurer comme nouveau niveau ?" },
+        "discard": { "action": "Abandonner" },
+        "later": { "action": "Décider plus tard" }
+      },
+      "status": {
+        "restored": { "label": "Travail non enregistré restauré. Annuler revient à la version enregistrée." },
+        "invalid": { "label": "Le brouillon enregistré est illisible et a été supprimé." },
+        "too_large": { "label": "Ce niveau est trop grand pour garder un brouillon automatique." },
+        "write_failed": { "label": "Le brouillon automatique n'a pas pu être stocké : le navigateur l'a refusé." },
+        "export_failed": { "label": "Le brouillon automatique n'a pas pu être construit à partir de l'éditeur : aucun n'a été enregistré." },
+        "others_waiting": { "label": "D'autres brouillons non enregistrés de visites précédentes attendent toujours et n'ont pas été touchés." }
+      }
+    },
     "pack": {
       "save_copy": { "action": "Enregistrer une copie..." },
       "back_to_editor": { "action": "Retour à l'éditeur" },

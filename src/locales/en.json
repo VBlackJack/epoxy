@@ -642,6 +642,24 @@
       "laser": { "label": "Laser puzzle" },
       "load_failed": "The level templates could not be loaded; starting from an empty room."
     },
+    "draft": {
+      "offer": {
+        "title": { "label": "Recover your work?" },
+        "restore": { "label": "Unsaved changes to \"{title}\" were found from your last visit. Restore them?", "action": "Restore" },
+        "conflict": { "label": "Unsaved changes to \"{title}\" were found, but the level was changed in its pack since. Restoring them and saving will replace that newer version." },
+        "orphan": { "label": "An unsaved level \"{title}\" was found from your last visit. Restore it as a new level?" },
+        "discard": { "action": "Discard" },
+        "later": { "action": "Decide later" }
+      },
+      "status": {
+        "restored": { "label": "Unsaved work restored. Undo goes back to the stored version." },
+        "invalid": { "label": "The saved draft could not be read and was removed." },
+        "too_large": { "label": "This level is too large to keep an automatic draft." },
+        "write_failed": { "label": "The automatic draft could not be stored: the browser refused it." },
+        "export_failed": { "label": "The automatic draft could not be built from the editor, so none was stored." },
+        "others_waiting": { "label": "Other unsaved drafts from earlier visits are still waiting and were left untouched." }
+      }
+    },
     "pack": {
       "save_copy": { "action": "Save a copy..." },
       "back_to_editor": { "action": "Back to editor" },

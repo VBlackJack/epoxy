@@ -17,7 +17,7 @@
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { IMPORTED_PACK_RULESET } from '../config/constants';
-import { InvalidLevelError } from '../config/ConfigValidation';
+import { InvalidLevelError, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
 import { parsePackJson } from '../packs/packJson';
 import { choiceDialog } from '../ui/choiceDialog';
@@ -62,6 +62,16 @@ import {
 } from './testFromHere';
 import { CheckSummary, summarizeValidation } from './checkSummary';
 import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d } from './editorDocument';
+import {
+  DRAFT_VERSION,
+  type DraftOffer,
+  type EditorDraft,
+  draftLevelOf,
+  draftOffer,
+  hydrateDraftLevel,
+  levelFingerprint
+} from './editorDraft';
+import { type DraftWrite, EditorDraftStore } from './editorDraftStore';
 import { CC3D_RULESET, documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
 import { removeLayerAt, removeMob, setItem, setPanelSide } from './cc3dEdits';
 import {
@@ -207,11 +217,21 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_LINK_COLOR,
   EDITOR_CLONE_BUTTON_TILE,
+  EDITOR_DRAFT_MAX_CHARS,
+  EDITOR_DRAFT_STORAGE_PREFIX,
+  EDITOR_DRAFT_WRITE_DELAY_MS,
   EDITOR_WIRE_SOURCE_COLOR,
   TIMING_DEFAULTS
 } from '../ui/uiConstants';
 
 const EXPORT_FALLBACK_FILE_NAME = 'epoxy_level';
+
+/** Dialog answers of the draft offer. */
+const DRAFT_RESTORE_CHOICE = 'restore';
+const DRAFT_DISCARD_CHOICE = 'discard';
+/** Base and skipped characters of the fallback tab id, for a browser without crypto.randomUUID. */
+const DRAFT_TAB_ID_RADIX = 36;
+const DRAFT_TAB_ID_SKIP = 2;
 const METADATA_INPUT_IDS = [
   'editor-meta-title',
   'editor-meta-hint',
@@ -319,6 +339,28 @@ interface Stroke {
   forceErase: boolean;
   /** CC3D: Shift was held when the eraser stroke began, so it takes the whole cell. */
   wholeCell: boolean;
+}
+
+/** Optional seams of the editor. */
+export interface EditorOptions {
+  /** Keys whose owner page is still alive; defaults to the Web Locks held on this origin (none without the API). */
+  liveKeys?: () => Promise<Set<string>>;
+}
+
+/** A stored draft of an earlier visit, read from its key. */
+interface DraftCandidate {
+  key: string;
+  draft: EditorDraft;
+  raw: string;
+}
+
+/** What reading a draft key for the offer found. */
+type CandidateRead = ({ kind: 'draft' } & DraftCandidate) | { kind: 'invalid'; raw: string } | { kind: 'skip' };
+
+/** The level a draft started from, with the pack and level it is stored as now. */
+interface DraftSourceMatch {
+  level: CompiledLevel;
+  source: SaveSource;
 }
 
 /** A pointer gesture of the Select tool: drawing a rectangle, or dragging the selected cells. */
@@ -462,14 +504,39 @@ export class LevelEditor {
     // Any edit or load makes a running block check stale.
     this.abortBlockCheck();
     this.updateDirtyBadge();
+    this.syncDraft();
   }
+
+  /** The autosaved draft of unsaved work. Every page writes and deletes only its own key. */
+  private readonly draftStore = new EditorDraftStore(EDITOR_DRAFT_MAX_CHARS);
+  /** Random id of this page; it names the page's draft key and its Web Lock. */
+  private readonly draftTabId: string = LevelEditor.newTabId();
+  /** Keys whose Web Lock is held by a living page: those drafts are not abandoned, so they are not offered. */
+  private readonly liveKeys: () => Promise<Set<string>>;
+  /** Aborts the page-level draft listeners when the editor is disposed. */
+  private readonly draftListeners = new AbortController();
+  private disposed = false;
+  private draftOffered = false;
+  private draftTimer: ReturnType<typeof setTimeout> | null = null;
+  /** True after a failed or oversized write was reported, until a write succeeds. */
+  private draftProblemReported = false;
+  /** Drafts of earlier visits found at startup and not yet answered or removed. */
+  private readonly waitingDraftKeys = new Set<string>();
+  /** A restored draft whose own copy could not be written yet: removed once a write succeeds. */
+  private adoptedDraft: { key: string; raw: string } | null = null;
+  /** Releases this page's Web Lock; null when the browser has no Web Locks or the lock is not held yet. */
+  private releaseDraftLock: (() => void) | null = null;
+  /** The fingerprint of `originalLevel`, computed once per level it is for. */
+  private baseHashCache: { level: CompiledLevel | null; hash: string } | null = null;
 
   public constructor(
     canvas: HTMLCanvasElement,
     renderer: PixelRenderer,
-    hooks: EditorHooks
+    hooks: EditorHooks,
+    options: EditorOptions = {}
   ) {
     this.canvas = canvas;
+    this.liveKeys = options.liveKeys ?? (() => LevelEditor.heldLockNames());
     const context = canvas.getContext('2d');
     if (!context) {
       throw new Error('Canvas 2D context unavailable');
@@ -490,6 +557,8 @@ export class LevelEditor {
     this.bindPaletteChrome();
     this.bindInspectorSections();
     this.bindLayoutEvents();
+    this.bindDraftEvents();
+    this.holdDraftLock();
   }
 
   private static emptyDocument(): EditorDocument {
@@ -1604,6 +1673,7 @@ export class LevelEditor {
 
   /** The editor view is left: stops the check and releases the idle worker. */
   public onLeave(): void {
+    this.flushDraft();
     this.abortBlockCheck();
     this.blockRunner?.dispose();
   }
@@ -1916,6 +1986,367 @@ export class LevelEditor {
     const observer = new ResizeObserver(update);
     observer.observe(view);
     if (stage) observer.observe(stage);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Draft autosave and recovery
+  // ---------------------------------------------------------------------------
+
+  private static newTabId(): string {
+    return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(DRAFT_TAB_ID_RADIX)}${Math.random().toString(DRAFT_TAB_ID_RADIX).slice(DRAFT_TAB_ID_SKIP)}`;
+  }
+
+  /** The names of the Web Locks held on this origin; empty when the browser has no Web Locks. */
+  private static async heldLockNames(): Promise<Set<string>> {
+    const names = new Set<string>();
+    try {
+      if (typeof navigator === 'undefined' || !navigator.locks || typeof navigator.locks.query !== 'function') return names;
+      const snapshot = await navigator.locks.query();
+      for (const info of [...(snapshot.held ?? []), ...(snapshot.pending ?? [])]) if (info.name) names.add(info.name);
+    } catch {
+      // No answer: every draft is offered.
+    }
+    return names;
+  }
+
+  private draftKeyPrefix(): string {
+    return ConfigRegistry.getStorageKey(EDITOR_DRAFT_STORAGE_PREFIX);
+  }
+
+  /** The only key this page writes or deletes. */
+  private ownDraftKey(): string {
+    return ConfigRegistry.getStorageKey(`${EDITOR_DRAFT_STORAGE_PREFIX}${this.draftTabId}`);
+  }
+
+  /**
+   * Holds a Web Lock named after the own key for the life of the page, so other pages see the draft as live.
+   * A held Web Lock may make the page ineligible for the back-forward cache (performance only; the pageshow
+   * rewrite keeps correctness).
+   */
+  private holdDraftLock(): void {
+    try {
+      if (typeof navigator === 'undefined' || !navigator.locks) return;
+      const held = new Promise<void>((resolve) => {
+        this.releaseDraftLock = resolve;
+      });
+      void navigator.locks.request(this.ownDraftKey(), () => held).catch(() => undefined);
+    } catch {
+      // Without the lock every other page offers this page's draft: nothing is lost.
+    }
+  }
+
+  /** Dirty work is written after a pause in the edits; a clean level removes this page's draft, and only that. */
+  private syncDraft(): void {
+    if (this.disposed) return;
+    if (this.dirty) {
+      this.scheduleDraftWrite();
+      return;
+    }
+    this.cancelDraftTimer();
+    this.draftStore.remove(this.ownDraftKey());
+    if (this.adoptedDraft) {
+      const adopted = this.adoptedDraft;
+      this.draftStore.removeIfRaw(adopted.key, adopted.raw);
+      this.waitingDraftKeys.delete(adopted.key);
+      this.adoptedDraft = null;
+    }
+  }
+
+  private cancelDraftTimer(): void {
+    if (this.draftTimer === null) return;
+    clearTimeout(this.draftTimer);
+    this.draftTimer = null;
+  }
+
+  private scheduleDraftWrite(): void {
+    this.cancelDraftTimer();
+    this.draftTimer = setTimeout(() => {
+      this.draftTimer = null;
+      // Never in the middle of a stroke: wait for the next pause.
+      if (this.stroke) this.scheduleDraftWrite();
+      else this.writeDraft();
+    }, EDITOR_DRAFT_WRITE_DELAY_MS);
+  }
+
+  /** Writes a pending draft now, when the page is hidden or the editor is left. */
+  private flushDraft(): void {
+    if (this.draftTimer === null) return;
+    this.writeDraftNow();
+  }
+
+  private writeDraftNow(): DraftWrite | 'skipped' {
+    this.cancelDraftTimer();
+    return this.writeDraft();
+  }
+
+  /** The page is back (or restored from the back-forward cache) while dirty: a draft cleared meanwhile is rewritten. */
+  private rewriteMissingDraft(): void {
+    if (this.disposed || !this.dirty) return;
+    if (this.draftStore.read(this.ownDraftKey()).kind === 'none') this.writeDraftNow();
+  }
+
+  private baseHash(): string {
+    const original = this.originalLevel;
+    if (original === null) return '';
+    if (this.baseHashCache?.level !== original) this.baseHashCache = { level: original, hash: levelFingerprint(original) };
+    return this.baseHashCache.hash;
+  }
+
+  private writeDraft(): DraftWrite | 'skipped' {
+    if (!this.dirty || this.disposed) return 'skipped';
+    let level: CompiledLevel;
+    try {
+      // Mid-stroke (the page is hidden while a stroke runs) the draft holds the document the stroke started from.
+      level = draftLevelOf(this.compileDocument(this.stroke ? this.stroke.base : this.doc));
+    } catch {
+      this.reportDraftProblem('editor.draft.status.export_failed.label');
+      return 'failed';
+    }
+    const outcome = this.draftStore.write(this.ownDraftKey(), {
+      v: DRAFT_VERSION,
+      tabId: this.draftTabId,
+      writtenAt: Date.now(),
+      source: { ...this.source },
+      currentLevelId: this.currentLevelId,
+      baseHash: this.baseHash(),
+      level
+    });
+    if (outcome === 'written') {
+      this.draftProblemReported = false;
+      if (this.adoptedDraft) {
+        this.draftStore.removeIfRaw(this.adoptedDraft.key, this.adoptedDraft.raw);
+        this.waitingDraftKeys.delete(this.adoptedDraft.key);
+        this.adoptedDraft = null;
+      }
+      return outcome;
+    }
+    this.reportDraftProblem(outcome === 'too_large' ? 'editor.draft.status.too_large.label' : 'editor.draft.status.write_failed.label');
+    return outcome;
+  }
+
+  /** One message per run of failures; editing goes on without a draft, and no other draft is touched. */
+  private reportDraftProblem(key: string): void {
+    if (this.draftProblemReported) return;
+    this.draftProblemReported = true;
+    const others = this.waitingDraftKeys.size > 0 ? ` ${t('editor.draft.status.others_waiting.label')}` : '';
+    this.setStatusText(`${t(key)}${others}`);
+  }
+
+  private bindDraftEvents(): void {
+    const { signal } = this.draftListeners;
+    window.addEventListener('pagehide', () => this.flushDraft(), { signal });
+    window.addEventListener('pageshow', () => this.rewriteMissingDraft(), { signal });
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (document.visibilityState === 'hidden') this.flushDraft();
+        else this.rewriteMissingDraft();
+      },
+      { signal }
+    );
+    window.addEventListener('storage', (event) => this.onDraftStorage(event), { signal });
+  }
+
+  /** Stops the page-level draft listeners, the pending write and the Web Lock: the editor is no longer in use. */
+  public dispose(): void {
+    this.disposed = true;
+    this.draftListeners.abort();
+    this.cancelDraftTimer();
+    this.releaseDraftLock?.();
+    this.releaseDraftLock = null;
+  }
+
+  /**
+   * Another tab (or the player) removed this page's draft key, or cleared the whole storage, while this page
+   * has unsaved work: the draft is rewritten at once. Other pages' keys are none of this page's business.
+   */
+  private onDraftStorage(event: StorageEvent): void {
+    if (this.disposed || !this.dirty) return;
+    const cleared = event.key === null;
+    if (!cleared && (event.key !== this.ownDraftKey() || event.newValue !== null)) return;
+    this.writeDraftNow();
+  }
+
+  /**
+   * Offers the work earlier visits left, once per page: called the first time the editor view is shown, after
+   * it took the engine's level. Each draft is Restored, Discarded, or left for later (which stops the queue).
+   */
+  public async offerDraftOnce(): Promise<void> {
+    if (this.draftOffered) return;
+    this.draftOffered = true;
+    const keys = this.draftStore.listKeys(this.draftKeyPrefix()).filter((key) => key !== this.ownDraftKey());
+    if (keys.length === 0) return;
+    let live: Set<string>;
+    try {
+      live = await this.liveKeys();
+    } catch {
+      live = new Set();
+    }
+    // Everything is read before anything is removed.
+    const candidates: DraftCandidate[] = [];
+    let invalid = false;
+    for (const key of keys) {
+      if (live.has(key)) continue;
+      const read = this.readCandidate(key);
+      if (read.kind === 'draft') candidates.push(read);
+      else if (read.kind === 'invalid') {
+        this.draftStore.removeIfRaw(key, read.raw);
+        invalid = true;
+      }
+    }
+    candidates.sort((a, b) => b.draft.writtenAt - a.draft.writtenAt || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    this.waitingDraftKeys.clear();
+    for (const candidate of candidates) this.waitingDraftKeys.add(candidate.key);
+    const result = await this.walkDraftQueue(candidates);
+    if ((invalid || result.invalid) && !result.restored) this.setStatusText(t('editor.draft.status.invalid.label'));
+  }
+
+  /** Reads a draft key for the offer: a text that is not a draft of this key's page is unreadable; other versions are left alone. */
+  private readCandidate(key: string): CandidateRead {
+    const found = this.draftStore.read(key);
+    if (found.kind === 'invalid') return { kind: 'invalid', raw: found.raw };
+    if (found.kind !== 'draft') return { kind: 'skip' };
+    if (found.draft.tabId !== key.slice(this.draftKeyPrefix().length)) return { kind: 'invalid', raw: found.raw };
+    return { kind: 'draft', key, draft: found.draft, raw: found.raw };
+  }
+
+  /** Removes a draft the player is done with, only while its key still holds the text that was read. */
+  private dropDraft(key: string, raw: string): void {
+    this.draftStore.removeIfRaw(key, raw);
+    this.waitingDraftKeys.delete(key);
+  }
+
+  /** Walks the drafts newest first. "Later" and a restore stop the walk. */
+  private async walkDraftQueue(candidates: readonly DraftCandidate[]): Promise<{ restored: boolean; invalid: boolean }> {
+    let invalid = false;
+    for (const candidate of candidates) {
+      // The key may have gone, or changed, since it was listed (another page answered it).
+      const read = this.readCandidate(candidate.key);
+      if (read.kind === 'invalid') {
+        this.dropDraft(candidate.key, read.raw);
+        invalid = true;
+        continue;
+      }
+      if (read.kind !== 'draft') {
+        this.waitingDraftKeys.delete(candidate.key);
+        continue;
+      }
+      const { key, draft, raw } = read;
+      const level = this.validatedDraftLevel(draft);
+      if (!level) {
+        this.dropDraft(key, raw);
+        invalid = true;
+        continue;
+      }
+      const found = this.findDraftSource(draft);
+      let offer = draftOffer(draft, found?.level);
+      if (offer !== 'identical' && found && this.sameAsSource(level, found.level)) offer = 'identical';
+      if (offer === 'identical') {
+        this.dropDraft(key, raw);
+        continue;
+      }
+      const choice = await this.askAboutDraft(level, offer);
+      if (choice === DRAFT_DISCARD_CHOICE) {
+        this.dropDraft(key, raw);
+        continue;
+      }
+      if (choice !== DRAFT_RESTORE_CHOICE) return { restored: false, invalid };
+      // Work the player started before answering is not thrown away without asking; refusing is "later".
+      if (!(await this.confirmDiscardIfDirty())) return { restored: false, invalid };
+      if (!this.applyDraft(draft, level, found)) {
+        this.dropDraft(key, raw);
+        invalid = true;
+        continue;
+      }
+      this.setStatusText(t('editor.draft.status.restored.label'));
+      // Written under this page's own key at once, so a crash right after still finds it.
+      const outcome = this.writeDraftNow();
+      if (outcome === 'written' || outcome === 'skipped') this.dropDraft(key, raw);
+      else this.adoptedDraft = { key, raw };
+      return { restored: true, invalid };
+    }
+    return { restored: false, invalid };
+  }
+
+  /**
+   * The level a draft started from. The pack it names first; when that pack no longer holds the level,
+   * the level is looked up by id in every pack (ids are unique), since it may have been moved.
+   */
+  private findDraftSource(draft: EditorDraft): DraftSourceMatch | undefined {
+    const { packId, levelId } = draft.source;
+    if (levelId === null) return undefined;
+    const packs = ConfigRegistry.getAllPacks();
+    const named = packId === null ? undefined : packs.find((pack) => pack.id === packId)?.levels.find((lvl) => lvl.id === levelId);
+    if (named) return { level: named, source: { packId, levelId } };
+    for (const pack of packs) {
+      const level = pack.levels.find((lvl) => lvl.id === levelId);
+      if (level) return { level, source: { packId: pack.id, levelId } };
+    }
+    return undefined;
+  }
+
+  /** True when both levels make the same editor document (the stored form of a level can differ in layout only). */
+  private sameAsSource(level: CompiledLevel, sourceLevel: CompiledLevel): boolean {
+    return sameDocument(documentFromLevel(level, this.draftTexts(level)), documentFromLevel(sourceLevel, this.draftTexts(sourceLevel)));
+  }
+
+  /** The draft's level when it passes the checks a stored level passes and the editor can hold it. */
+  private validatedDraftLevel(draft: EditorDraft): CompiledLevel | null {
+    // An unknown rule is refused here: the sanitizer below would drop it and restore the level as Epoxy.
+    const raw = draft.level as unknown as Record<string, unknown>;
+    if (raw.ruleset !== undefined && !isRuleset(raw.ruleset)) return null;
+    if (raw.winRule !== undefined && !isWinRule(raw.winRule)) return null;
+    try {
+      const [valid] = sanitizeStoredLevels(
+        [hydrateDraftLevel(draft.level)],
+        ConfigRegistry.getLevelSizeBounds(),
+        ConfigRegistry.getLevelTextLimits()
+      );
+      return valid && isEditableRuleset(valid.ruleset) ? valid : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private draftOfferMessage(offer: DraftOffer, title: string): string {
+    if (offer === 'conflict') return t('editor.draft.offer.conflict.label', { title });
+    if (offer === 'orphan') return t('editor.draft.offer.orphan.label', { title });
+    return t('editor.draft.offer.restore.label', { title });
+  }
+
+  private askAboutDraft(level: CompiledLevel, offer: DraftOffer): Promise<string | null> {
+    return choiceDialog({
+      title: t('editor.draft.offer.title.label'),
+      message: this.draftOfferMessage(offer, level.customTitle || level.id),
+      cancelLabel: t('editor.draft.offer.later.action'),
+      options: [
+        { id: DRAFT_RESTORE_CHOICE, label: t('editor.draft.offer.restore.action'), primary: true },
+        { id: DRAFT_DISCARD_CHOICE, label: t('editor.draft.offer.discard.action') }
+      ]
+    });
+  }
+
+  /**
+   * Puts the draft in the editor. On top of its source, the clean source is the first undo step, so undo
+   * returns to the stored version; a level with no source opens as unsaved work in the pack it came from.
+   */
+  private applyDraft(draft: EditorDraft, level: CompiledLevel, found: DraftSourceMatch | undefined): boolean {
+    if (found && this.loadCompiledLevel(found.level, { source: found.source })) {
+      this.history.push(this.doc);
+      // Dirty only when the draft differs from the source: restoreDocument decides.
+      this.restoreDocument(documentFromLevel(level, this.draftTexts(level)));
+      return true;
+    }
+    // No source, or the source cannot be edited: the draft opens as new unsaved work.
+    const packExists = ConfigRegistry.getAllPacks().some((pack) => pack.id === draft.source.packId);
+    const source: SaveSource = packExists ? { packId: draft.source.packId, levelId: null } : NO_SOURCE;
+    return this.loadCompiledLevel(level, { source, dirty: true });
+  }
+
+  private draftTexts(level: CompiledLevel): LoadedTexts {
+    return { title: this.resolveLevelTitle(level), hint: level.customHint || (level.hintKey ? t(level.hintKey) : '') };
   }
 
   // ---------------------------------------------------------------------------
@@ -3167,10 +3598,14 @@ export class LevelEditor {
    * any other content carries the id it was given when it was opened.
    */
   public exportCompiledLevel(): CompiledLevel {
+    return this.compileDocument(this.doc);
+  }
+
+  /** A document compiled the way the editor exports its own: the draft uses it for the pre-stroke document too. */
+  private compileDocument(doc: EditorDocument): CompiledLevel {
     const id = this.source.levelId ?? this.currentLevelId;
     const targetLevels = this.sourcePack()?.levels ?? [];
     const existing = targetLevels.find((l) => l.id === id);
-    const doc = this.doc;
     const level = levelFromDocument(doc, {
       id,
       number: existing ? existing.number : targetLevels.length + 1,
@@ -3363,6 +3798,9 @@ export class LevelEditor {
         this.isDirty = !persisted;
       }
     }
+    // An edit made while the save was in flight, or a write the browser refused, keeps the draft: it
+    // is rewritten against the level that was just saved.
+    if (rebind && this.isDirty) this.syncDraft();
     const packName = stored ? this.packLabel(stored) : packId;
     this.setStatusText(
       t(persisted ? 'editor.pack.saved.label' : 'editor.pack.saved_session_only.label', {
