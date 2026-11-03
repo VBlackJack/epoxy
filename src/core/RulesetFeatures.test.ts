@@ -83,6 +83,20 @@ describe('colour channel aids', () => {
     expect(featuresFor(levelWith('floor')).tapToPath).toBe(true);
   });
 
+  it('turns tap to path off on a receivers level that also has colour content', () => {
+    const colour = { ...levelWith('pressure_plate_red'), winRule: 'receivers' as const };
+    const features = featuresFor(colour);
+    expect(features.tapToPath).toBe(false);
+    expect(features.objectiveMarker).toBe(false);
+    expect(features.blockHint).toBe(false);
+    expect(featuresFor({ ...levelWith('floor'), winRule: 'receivers' as const }).tapToPath).toBe(true);
+  });
+
+  it('returns the same features object for every laser and colour level', () => {
+    const first = featuresFor(levelWith('laser_emitter_e', 'color_block_red'));
+    expect(featuresFor(levelWith('laser_emitter_e', 'color_block_blue'))).toBe(first);
+  });
+
   it('keeps the laser aids off when a level has lasers and colours', () => {
     const features = featuresFor(levelWith('laser_emitter_e', 'color_block_red'));
     expect(features.blockHint).toBe(false);

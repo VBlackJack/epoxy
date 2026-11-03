@@ -370,6 +370,30 @@ describe('colour channels in the validator and the helpers', () => {
     expect(issueKeys(['#########', '#P1r.RE.#', '#########'])).not.toContain('validator.issues.unreachable_exit.label');
   });
 
+  it('lets the player alone pass a hold door that touches a plate of its colour', () => {
+    const rows = ['#######', '#P.rRE#', '#######'];
+    expect(issueKeys(rows)).not.toContain('validator.issues.unreachable_exit.label');
+    // With a gap between the plate and the door the player cannot do it alone.
+    expect(issueKeys(['########', '#P.r.RE#', '########'])).toContain('validator.issues.unreachable_exit.label');
+    // A second plate of the colour needs a second presser again.
+    expect(issueKeys(['#########', '#P.rRrE.#', '#########'])).toContain('validator.issues.unreachable_exit.label');
+    expect(issueKeys(['###########', '#P.rRE.r..#', '###########'])).toContain('validator.issues.unreachable_exit.label');
+  });
+
+  it('wins the level where the player steps from the plate into the hold door and out of it', () => {
+    const engine = engineFor(['#######', '#P.rRE#', '#######']);
+    moves(engine, 'EEEE');
+    expect(engine.getPlayer().x).toBe(5);
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('names the colour of a channel warning in the language of the player', () => {
+    const issue = LevelValidator.validate(room(['######', '#P.RE#', '######'])).issues.find(
+      (i) => i.i18nKey === 'validator.issues.hold_door_no_plate.label'
+    );
+    expect(issue?.params?.color).not.toBe('red');
+  });
+
   it('warns about a hold door with no plate, orphan channel walls and buttons, and a door placed against its plates', () => {
     expect(issueKeys(['######', '#P.RE#', '######'])).toContain('validator.issues.hold_door_no_plate.label');
     expect(issueKeys(['######', '#P.xE#', '######'])).toContain('validator.issues.channel_walls_no_button.label');

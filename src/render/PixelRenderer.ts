@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, channelOfButtonAction } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, ThemePalette, TileDefinition } from '../core/types';
 import {
@@ -326,9 +326,9 @@ export const LCD_GAP_RATIO = 0.25;
 const IRIS_MIN_RADIUS_TILE = 0.6;
 
 /** Colours of the plate, hold door, toggle and block families that Epoxy shares with the cc3d painters. */
-const CHANNEL_PAINTER_COLORS = ['red', 'green', 'blue', 'yellow'] as const;
+const CHANNEL_PAINTER_COLORS = CHANNEL_COLORS;
 /** Colours that have a colour toggle wall and button (green is the plain toggle wall). */
-const TOGGLE_PAINTER_COLORS = ['red', 'blue', 'yellow'] as const;
+const TOGGLE_PAINTER_COLORS = TOGGLE_CHANNEL_COLORS;
 
 /**
  * Epoxy colour channel ids drawn by the cc3d painter of the same mechanic: the cc3d display id to paint.

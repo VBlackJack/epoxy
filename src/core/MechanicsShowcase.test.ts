@@ -27,6 +27,8 @@ import { LevelValidator } from './LevelValidator';
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { CompiledLevel, Direction, LevelBlueprint } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { t } from '../i18n/I18nManager';
+import { CHANNEL_COLOR_NAME_KEY_PREFIX } from './coreConstants';
 import showcase from '../test/fixtures/mechanicsShowcase.json';
 
 /** Ticks the move cooldown away, then plays one step and reports whether it was taken. */
@@ -180,7 +182,8 @@ describe('colour channels showcase level', () => {
       .filter((i) => i.i18nKey === 'validator.issues.hold_door_wrong_start.label')
       .map((i) => i.params?.color)
       .sort();
-    expect(colours).toEqual([...COLORS].sort());
+    // The warning shows the localized colour name, not the raw id.
+    expect(colours).toEqual(COLORS.map((c) => t(`${CHANNEL_COLOR_NAME_KEY_PREFIX}${c}`)).sort());
     expect(report.issues).toHaveLength(COLORS.length);
   });
 

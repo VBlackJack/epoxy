@@ -20,6 +20,7 @@
  * module: no DOM, so the sprite data can be validated and rasterized in tests and tools.
  */
 
+import { CHANNEL_COLORS } from '../core/coreConstants';
 import terrainSheet from './retro/sprites/terrain.json';
 import itemsSheet from './retro/sprites/items.json';
 import actorsSheet from './retro/sprites/actors.json';
@@ -160,7 +161,7 @@ const FLOOR_DETAIL_COUNT = 3;
 const DIGIT_COUNT = 10;
 const GLYPH_COLOURS: readonly string[] = ['red', 'blue', 'yellow', 'green', 'orange'];
 /** The colour block sprites: one per channel colour, named after the entity they draw. */
-const COLOR_BLOCK_SPRITES: readonly string[] = ['red', 'green', 'blue', 'yellow'].map((c) => `color_block_${c}`);
+const COLOR_BLOCK_SPRITES: readonly string[] = CHANNEL_COLORS.map((c) => `color_block_${c}`);
 
 /** Every sprite name the renderer needs (spec section 4). */
 export const RETRO_SPRITE_NAMES: readonly string[] = [

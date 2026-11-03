@@ -15,6 +15,7 @@
  */
 
 import { ORDERED_DIRECTIONS } from './constants';
+import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -673,15 +674,6 @@ export function findLaserConfigErrors(tiles: Record<string, TileDefinition>): st
   }
   return errors;
 }
-
-/** Colours a plate, hold door or toggle channel may have. */
-const CHANNEL_COLORS: readonly string[] = ['red', 'green', 'blue', 'yellow'];
-/** Button actions of the colour wall channels, by channel colour. */
-const CHANNEL_BUTTON_ACTIONS: Record<string, string> = {
-  red: 'toggle_walls_red',
-  blue: 'toggle_walls_blue',
-  yellow: 'toggle_walls_yellow'
-};
 
 /**
  * Problems of the colour channel fields: a plate colour is a channel colour, a hold door needs a colour,

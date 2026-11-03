@@ -84,12 +84,26 @@ export const OPPOSITE_DIRECTION: Readonly<Record<Direction, Direction>> = {
   W: 'E'
 };
 
-/** The colour wall channel each colour toggle button drives; the green button is the plain toggle_walls action. */
-const CHANNEL_OF_BUTTON_ACTION: Readonly<Partial<Record<ButtonAction, ChannelColor>>> = {
-  toggle_walls_red: 'red',
-  toggle_walls_blue: 'blue',
-  toggle_walls_yellow: 'yellow'
+/** The colours a plate, hold door, colour block or toggle channel may have. */
+export const CHANNEL_COLORS: readonly ChannelColor[] = ['red', 'green', 'blue', 'yellow'];
+
+/** The colour channels that have toggle walls; green is the plain toggle_walls action, not a colour channel. */
+export const TOGGLE_CHANNEL_COLORS: readonly ChannelColor[] = ['red', 'blue', 'yellow'];
+
+/** Locale key prefix of the channel colour names ("Red", "Rouge"...), followed by the colour. */
+export const CHANNEL_COLOR_NAME_KEY_PREFIX = 'editor.cc3d.color.';
+
+/** The button action that drives each colour wall channel; the green button is the plain toggle_walls action. */
+export const CHANNEL_BUTTON_ACTIONS: Readonly<Partial<Record<ChannelColor, ButtonAction>>> = {
+  red: 'toggle_walls_red',
+  blue: 'toggle_walls_blue',
+  yellow: 'toggle_walls_yellow'
 };
+
+/** The colour wall channel each colour toggle button drives, the inverse of CHANNEL_BUTTON_ACTIONS. */
+const CHANNEL_OF_BUTTON_ACTION: Readonly<Partial<Record<ButtonAction, ChannelColor>>> = Object.fromEntries(
+  Object.entries(CHANNEL_BUTTON_ACTIONS).map(([color, action]) => [action, color])
+);
 
 /** The channel a colour toggle button drives, or undefined for any other button action. */
 export function channelOfButtonAction(action: ButtonAction | undefined): ChannelColor | undefined {

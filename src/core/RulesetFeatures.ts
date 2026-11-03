@@ -88,6 +88,15 @@ const COLOR_LEVEL_FEATURES: RulesetFeatures = {
   deadEndWatch: false
 };
 
+/** Laser aids win for what a laser level already loses; the colour aids are turned off too. */
+const LASER_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, tapToPath: COLOR_LEVEL_FEATURES.tapToPath };
+
+/** A receivers level with colour content: the receivers aids and the colour aids are both off. */
+const RECEIVER_COLOR_LEVEL_FEATURES: RulesetFeatures = {
+  ...RECEIVER_LEVEL_FEATURES,
+  tapToPath: COLOR_LEVEL_FEATURES.tapToPath
+};
+
 /** True when the tile id is a laser emitter, receiver or gate, as the tile config defines them. */
 export function isLaserTileId(id: string | null | undefined): boolean {
   if (!id) return false;
@@ -173,8 +182,8 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
       throw new Error(`Unknown ruleset: ${String(unreachable)}`);
     }
   }
-  if (level.winRule === 'receivers') return RECEIVER_LEVEL_FEATURES;
-  if (!level.terrain) return EPOXY_FEATURES;
+  const receivers = level.winRule === 'receivers';
+  if (!level.terrain) return receivers ? RECEIVER_LEVEL_FEATURES : EPOXY_FEATURES;
   let laser = laserContentCache.get(level);
   if (laser === undefined) {
     laser = hasLaserContent({ terrain: level.terrain, items: level.items ?? [], entities: level.entities ?? [] });
@@ -185,7 +194,7 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     color = hasColorChannelContent({ terrain: level.terrain, items: level.items ?? [], entities: level.entities ?? [] });
     colorContentCache.set(level, color);
   }
+  if (receivers) return color ? RECEIVER_COLOR_LEVEL_FEATURES : RECEIVER_LEVEL_FEATURES;
   if (!color) return laser ? LASER_LEVEL_FEATURES : EPOXY_FEATURES;
-  // Laser features win for the aids a laser level already loses; the colour aids are turned off too.
-  return laser ? { ...LASER_LEVEL_FEATURES, tapToPath: COLOR_LEVEL_FEATURES.tapToPath } : COLOR_LEVEL_FEATURES;
+  return laser ? LASER_COLOR_LEVEL_FEATURES : COLOR_LEVEL_FEATURES;
 }

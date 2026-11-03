@@ -24,8 +24,10 @@ import {
   HINT_TILE_ID,
   OPPOSITE_DIRECTION,
   WALL_TILE_ID,
+  CHANNEL_COLOR_NAME_KEY_PREFIX,
   channelOfButtonAction
 } from './coreConstants';
+import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
 import { isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
@@ -964,7 +966,11 @@ export class LevelValidator {
     return bits;
   }
 
-  /** Replaces every tile for which `target` names a terrain, reporting each change. */
+  /** The localized name of a channel colour, as the colour warnings show it. */
+  private static colorName(color: ChannelColor): string {
+    return t(`${CHANNEL_COLOR_NAME_KEY_PREFIX}${color}`);
+  }
+
   /**
    * Warnings about the colour channels: a hold door whose colour has no plate (it can never open), colour
    * walls with no button of their channel, a colour button with no wall to move, and a hold door placed
@@ -1004,22 +1010,22 @@ export class LevelValidator {
     for (const [color, doors] of doorsByColor) {
       const plates = platesByColor.get(color) ?? [];
       if (plates.length === 0) {
-        issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_no_plate.label', params: { color } });
+        issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_no_plate.label', params: { color: this.colorName(color) } });
         continue;
       }
       const shouldBeOpen = plates.every((plate) => pressedAtStart(plate, color));
       if (doors.some((door) => door.open !== shouldBeOpen)) {
-        issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_wrong_start.label', params: { color } });
+        issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_wrong_start.label', params: { color: this.colorName(color) } });
       }
     }
     for (const [channel, count] of wallsByChannel) {
       if (!buttonsByChannel.has(channel) && count > 0) {
-        issues.push({ severity: 'warning', i18nKey: 'validator.issues.channel_walls_no_button.label', params: { color: channel } });
+        issues.push({ severity: 'warning', i18nKey: 'validator.issues.channel_walls_no_button.label', params: { color: this.colorName(channel) } });
       }
     }
     for (const channel of buttonsByChannel.keys()) {
       if (!wallsByChannel.has(channel)) {
-        issues.push({ severity: 'warning', i18nKey: 'validator.issues.channel_button_no_walls.label', params: { color: channel } });
+        issues.push({ severity: 'warning', i18nKey: 'validator.issues.channel_button_no_walls.label', params: { color: this.colorName(channel) } });
       }
     }
   }
@@ -1027,18 +1033,29 @@ export class LevelValidator {
   /**
    * Colours whose hold doors the player can pass, as far as the level can tell: the colour has at least one
    * plate and at least as many things that can lie on a plate for good (blocks, monsters that press plates,
-   * a cloned block) as it has plates. The player cannot hold a plate and walk through the door too.
+   * a cloned block) as it has plates. The player cannot hold a plate and walk through the door too, except
+   * when a plate of the colour touches a door of the colour: the player opens the door from the plate, steps
+   * in, and the door shuts on the occupant, who may leave. Then the player counts as one presser.
    */
   private static openableHoldDoorColors(level: CompiledLevel): Set<ChannelColor> {
     const platesByColor = new Map<ChannelColor, number>();
     const doorColors = new Set<ChannelColor>();
-    for (const row of level.terrain) {
-      for (const id of row) {
+    const adjacentColors = new Set<ChannelColor>();
+    level.terrain.forEach((row, y) => {
+      row.forEach((id, x) => {
         const tile = ConfigRegistry.getTile(id);
         if (tile.plateColor !== undefined) platesByColor.set(tile.plateColor, (platesByColor.get(tile.plateColor) ?? 0) + 1);
-        if (tile.holdDoorColor !== undefined) doorColors.add(tile.holdDoorColor);
-      }
-    }
+        if (tile.holdDoorColor === undefined) return;
+        doorColors.add(tile.holdDoorColor);
+        for (const dir of ORDERED_DIRECTIONS) {
+          const vec = DIRECTION_VECTORS[dir];
+          const neighbour = level.terrain[y + vec.dy]?.[x + vec.dx];
+          if (neighbour !== undefined && ConfigRegistry.getTile(neighbour).plateColor === tile.holdDoorColor) {
+            adjacentColors.add(tile.holdDoorColor);
+          }
+        }
+      });
+    });
     const openable = new Set<ChannelColor>();
     for (const color of doorColors) {
       const plates = platesByColor.get(color) ?? 0;
@@ -1053,11 +1070,13 @@ export class LevelValidator {
           pressers += CLONER_BLOCK_ALLOWANCE;
         }
       }
-      if (pressers >= plates) openable.add(color);
+      const playerPresses = adjacentColors.has(color) ? 1 : 0;
+      if (pressers + playerPresses >= plates) openable.add(color);
     }
     return openable;
   }
 
+  /** Replaces every tile for which `target` names a terrain, reporting each change. */
   private static openToggledTiles(
     simTerrain: string[][],
     target: (tile: TileDefinition) => string | undefined,
