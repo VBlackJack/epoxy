@@ -20,6 +20,9 @@
     "5": [
       "door_green",
       "key_green"
+    ],
+    "6": [
+      "dirt"
     ]
   },
   "firstTimedLevel": 13,

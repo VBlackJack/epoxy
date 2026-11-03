@@ -1128,6 +1128,26 @@
       "level_5": {
         "title": "The Greenhouse Keeper",
         "hint": "A green key is never used up: one key opens every green door."
+      },
+      "level_6": {
+        "title": "Footprints",
+        "hint": "Dirt turns into floor once you step on it, so the dirt that is left shows where you have not been yet."
+      },
+      "level_7": {
+        "title": "Printed Circuit",
+        "hint": "The socket opens when its counter reaches zero."
+      },
+      "level_8": {
+        "title": "The Cheapest Basket",
+        "hint": "The counter shows how many chips the socket still needs, not how many lie on the board, so you do not have to take them all."
+      },
+      "level_9": {
+        "title": "The Socket Door",
+        "hint": "The socket is not always the last gate: look at what lies behind it before you count on the exit."
+      },
+      "level_10": {
+        "title": "The Key Ring",
+        "hint": "A red door eats the key that opens it: count keys before opening a room without one."
       }
     },
     "chapter": {
