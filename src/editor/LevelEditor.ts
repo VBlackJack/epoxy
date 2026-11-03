@@ -29,6 +29,9 @@ import { CC3D_XML_EXTENSION } from '../formats/Cc3dXmlCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
 import { LevelValidator } from '../core/LevelValidator';
 import { hasLaserContent } from '../core/RulesetFeatures';
+import { cc3dLinks, type Cc3dLinks } from '../core/cc3d/cc3dLinks';
+import { displayItemId, displayMobId, displayShowsPanels, displayTerrainId } from '../core/cc3d/display';
+import { type Cc3dLevel, type Cc3dTerrain, cellAt as cc3dCellAt } from '../core/cc3d/model';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
   CompiledLevel,
@@ -56,8 +59,34 @@ import {
   TestFromHereBlock
 } from './testFromHere';
 import { CheckSummary, summarizeValidation } from './checkSummary';
-import { cloneDocument, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
-import { documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
+import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d } from './editorDocument';
+import { CC3D_RULESET, documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
+import { removeLayerAt, removeMob, setItem, setPanelSide } from './cc3dEdits';
+import { describeLinkChanges, diffCc3dLinks, linkOverlayFor, type LinkOverlay, type OverlayArrowKind } from './cc3dLinkOverlay';
+import {
+  CC3D_CATEGORIES,
+  CC3D_CORNERS,
+  CC3D_MIRRORS,
+  type Cc3dAttribute,
+  type Cc3dBrushAttributes,
+  type Cc3dCategoryId,
+  type Cc3dPaletteEntry,
+  cc3dEntriesOf,
+  DEFAULT_CC3D_ATTRIBUTES,
+  entryDisplay,
+  findCc3dEntry,
+  needsAttribute
+} from './cc3dPalette';
+import { dirtyCc3dCells, hasHiddenLayers } from './cc3dLayerDiff';
+import { CC3D_ROOM_CHOICE_ID, emptyCc3dRoom } from './cc3dRoom';
+import {
+  applyCc3dTool,
+  CC3D_RESIZE_UNAVAILABLE_KEY,
+  cc3dContinuesOnDrag,
+  cc3dToolBlock,
+  nearestSide,
+  pickCc3dCell
+} from './cc3dTools';
 import { EditorHistory } from './editorHistory';
 import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise, SelectionKeyAction } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
@@ -126,6 +155,17 @@ import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   EDITOR_BLOCK_CHECK_TIMEOUT_MS,
   EDITOR_CHECK_DEBOUNCE_MS,
+  EDITOR_CC3D_ARROW_HEAD_SPREAD,
+  EDITOR_CC3D_ARROW_HEAD_TILE,
+  EDITOR_CC3D_BADGE_RADIUS_TILE,
+  EDITOR_CC3D_LINK_COLORS,
+  EDITOR_CC3D_OVERLAY_ALPHA,
+  EDITOR_CC3D_ROOM_HEIGHT,
+  EDITOR_CC3D_SIDE_HINT_LINE_WIDTH,
+  EDITOR_CC3D_ROOM_WIDTH,
+  EDITOR_CC3D_SWATCH_COLORS,
+  EDITOR_STATIC_LAYER_MAX_PIXELS,
+  EDITOR_STATIC_LAYER_REDRAW_SHARE,
   EDITOR_CLONE_LINK_COLOR,
   EDITOR_CURSOR_OUTLINE_COLOR,
   EDITOR_DEFAULT_CHIPS_REQUIRED,
@@ -178,6 +218,27 @@ const IMPORT_FIRST_CHOICE = 'first';
 const SEPARATOR_BETWEEN_MESSAGES = ' ';
 const NO_COORDS_TEXT = '--';
 const EDITOR_PLAYER_BRUSH_ID = 'player_start';
+const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
+const LAYERS_SECTION_ID = 'editor-layers-section';
+const LAYERS_LIST_ID = 'editor-layers-list';
+const CC3D_COLOR_LABEL_KEYS: Record<Cc3dBrushAttributes['color'], string> = {
+  red: 'editor.cc3d.color.red',
+  green: 'editor.cc3d.color.green',
+  blue: 'editor.cc3d.color.blue',
+  yellow: 'editor.cc3d.color.yellow'
+};
+const SIDE_LABEL_KEYS: Record<Direction, string> = {
+  N: 'editor.metadata.dir_north.label',
+  E: 'editor.metadata.dir_east.label',
+  S: 'editor.metadata.dir_south.label',
+  W: 'editor.metadata.dir_west.label'
+};
+const CC3D_ATTRIBUTE_LABEL_KEYS: Record<Exclude<Cc3dAttribute, 'dir'>, string> = {
+  color: 'editor.cc3d.attr.color',
+  corner: 'editor.cc3d.attr.corner',
+  mirror: 'editor.cc3d.attr.mirror'
+};
+
 const WIRE_TRAP_BRUSH_ID = 'wire_trap';
 const WIRE_CLONER_BRUSH_ID = 'wire_cloner';
 /** Win rules offered by the select, to mark the ones the engine cannot play. */
@@ -205,11 +266,39 @@ interface SaveDestination {
   asCopy: boolean;
 }
 
+/** One piece of the off-screen CC3D map: a block of cells drawn into its own canvas. */
+interface StaticChunk {
+  canvas: HTMLCanvasElement;
+  /** First cell, and size in cells. */
+  x0: number;
+  y0: number;
+  cols: number;
+  rows: number;
+}
+
+/** The CC3D map kept as chunks, for the level version, tile size and look it was drawn for. */
+interface StaticLayer {
+  level: Cc3dLevel;
+  tile: number;
+  look: string;
+  width: number;
+  height: number;
+  /** Size of the editor canvas the chunks were drawn for: a resized canvas means a new fit, so new chunks. */
+  backingWidth: number;
+  backingHeight: number;
+  /** Chunk side in cells, and chunks per row. */
+  side: number;
+  perRow: number;
+  chunks: StaticChunk[];
+}
+
 /** One pointer stroke or key press: the document it started from, and whether it changed anything. */
 interface Stroke {
   base: EditorDocument;
   changed: boolean;
   forceErase: boolean;
+  /** CC3D: Shift was held when the eraser stroke began, so it takes the whole cell. */
+  wholeCell: boolean;
 }
 
 /** A pointer gesture of the Select tool: drawing a rectangle, or dragging the selected cells. */
@@ -295,6 +384,22 @@ export class LevelEditor {
   private activeDir: Direction = 'S';
   private stroke: Stroke | null = null;
   private pendingWire: PendingWire | null = null;
+  /** CC3D palette state: the selected entry, its category and the attributes the choosers hold. */
+  private cc3dEntryId: string = 'layer:wall';
+  private cc3dCategory: Cc3dCategoryId = 'blockers';
+  private cc3dAttrs: Cc3dBrushAttributes = { ...DEFAULT_CC3D_ATTRIBUTES };
+  /** Palette icons by display id, so a direction change does not draw them all again. */
+  private iconCache = new Map<string, string>();
+  /** The animation frame a redraw is waiting for, so pointer moves redraw at most once per frame. */
+  private frameRequest: number | null = null;
+  /** True while render() is fitting the canvas itself, so the fit's own redraw does not fit again. */
+  private refitting = false;
+  /** The links of a CC3D level version, derived once for the overlay. */
+  private linksCache = new WeakMap<Cc3dLevel, Cc3dLinks>();
+  /** The side of the hovered cell nearest the pointer, for the thin wall mode. */
+  private hoverSide: Direction = 'N';
+  /** The CC3D map drawn off-screen, kept while the document and the tile size stay the same. */
+  private staticLayer: StaticLayer | null = null;
   /** The cells selected with the Select tool. */
   private selection: CellRect | null = null;
   /** The corner the keyboard selection grows from; null once the cursor moved without Shift. */
@@ -445,8 +550,33 @@ export class LevelEditor {
     this.applyFit();
   }
 
+  /** True when the level being edited is a CC3D one: its cells, not the Epoxy layers, are the map. */
+  private isCc3d(): boolean {
+    return this.doc.cc3d !== undefined;
+  }
+
+  /** The selected CC3D palette entry, or null when the id names none. */
+  private cc3dEntry(): Cc3dPaletteEntry | null {
+    return findCc3dEntry(this.cc3dEntryId) ?? null;
+  }
+
+  /** A new CC3D room: walls around, floor inside, the player start and an exit. */
+  private cc3dRoomDocument(): EditorDocument {
+    const cc3d = emptyCc3dRoom(EDITOR_CC3D_ROOM_WIDTH, EDITOR_CC3D_ROOM_HEIGHT);
+    return {
+      ...LevelEditor.emptyDocument(),
+      ...displayLayersOf(cc3d),
+      cc3d,
+      title: t('editor.metadata.default_title.label'),
+      timeLimitSeconds: 0,
+      chipsRequired: 0,
+      ruleset: CC3D_RULESET
+    };
+  }
+
   /** A blank level in the grid the game configures. */
   private blankDocument(ruleset: Ruleset | undefined): EditorDocument {
+    if (ruleset === CC3D_RULESET) return this.cc3dRoomDocument();
     const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
     return {
       ...LevelEditor.emptyDocument(),
@@ -523,15 +653,19 @@ export class LevelEditor {
     this.zoomOffset = 0;
     this.cleanDoc = dirty ? null : cloneDocument(this.doc);
     this.isDirty = dirty;
+    this.syncCc3dChrome();
     this.applyFit();
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
+    this.renderCategoryTabs();
     this.renderPaletteItems();
     this.setStatusText(t('editor.palette.status.ready.label'));
     this.refreshContext();
     this.updateCanvasLabel();
     this.scheduleCheck();
     this.render();
+    // The stage may not have its final size yet (a view just shown, a dialog just closed): fit once more after layout.
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => this.applyFit());
   }
 
   /** Asks before unsaved work is thrown away; true when there is none or the player agrees. */
@@ -574,11 +708,11 @@ export class LevelEditor {
   }
 
   /** Opens the new map without asking about unsaved work; the caller has already asked. */
-  private openNewLevel(packId: string | null, template?: LevelTemplate): void {
+  private openNewLevel(packId: string | null, template?: LevelTemplate, ruleset?: Ruleset): void {
     const pack = packId ? ConfigRegistry.getEditablePacks().find((p) => p.id === packId) : undefined;
     this.initBlankMap({
       packId: pack?.id ?? null,
-      ruleset: pack ? majorityRuleset(pack.levels) : undefined,
+      ruleset: ruleset ?? (pack ? majorityRuleset(pack.levels) : undefined),
       template
     });
   }
@@ -609,11 +743,16 @@ export class LevelEditor {
         message: t(lynxPack ? 'editor.template.lynx_only' : 'editor.template.message'),
         options: [
           { id: EMPTY_TEMPLATE_ID, label: t('editor.template.empty.label'), primary: true },
+          { id: CC3D_ROOM_CHOICE_ID, label: t('editor.template.cc3d_room.label') },
           ...templates.map((template) => ({ id: template.id, label: t(template.labelKey) }))
         ],
         cancelLabel: t('app.confirm.cancel.action')
       });
       if (choice === null) return;
+      if (choice === CC3D_ROOM_CHOICE_ID) {
+        this.openNewLevel(packId, undefined, CC3D_RULESET);
+        return;
+      }
       this.openNewLevel(packId, templates.find((candidate) => candidate.id === choice));
     } finally {
       this.newLevelPending = false;
@@ -621,7 +760,10 @@ export class LevelEditor {
   }
 
   public buildUI(): void {
+    this.iconCache.clear();
+    this.staticLayer = null;
     this.playerIconUrl = this.renderer.renderIconToDataUrl('player', EDITOR_PLAYER_BRUSH_ID);
+    this.syncCc3dChrome();
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.refreshContext();
@@ -651,6 +793,7 @@ export class LevelEditor {
   }
 
   public refreshTranslations(): void {
+    this.syncCc3dChrome();
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.refreshContext();
@@ -670,6 +813,10 @@ export class LevelEditor {
     const container = byId('editor-category-tabs');
     if (!container) return;
     container.innerHTML = '';
+    if (this.isCc3d()) {
+      this.renderCc3dCategoryTabs(container);
+      return;
+    }
 
     const categories = ConfigRegistry.getTiles().categories;
     const active = categories.find((cat) => cat.id === this.activeCategory);
@@ -687,6 +834,157 @@ export class LevelEditor {
       });
       container.appendChild(btn);
     }
+  }
+
+  private renderCc3dCategoryTabs(container: HTMLElement): void {
+    const active = CC3D_CATEGORIES.find((cat) => cat.id === this.cc3dCategory);
+    byId('editor-palette-grid')?.setAttribute('aria-label', active ? t(active.labelKey) : '');
+    for (const cat of CC3D_CATEGORIES) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('aria-pressed', String(this.cc3dCategory === cat.id));
+      btn.className = `editor-tab-btn ${this.cc3dCategory === cat.id ? 'active' : ''}`;
+      btn.textContent = t(cat.labelKey);
+      btn.addEventListener('click', () => {
+        this.cc3dCategory = cat.id;
+        this.renderCategoryTabs();
+        this.renderPaletteItems();
+      });
+      container.appendChild(btn);
+    }
+  }
+
+  /** A palette icon, drawn once per display id until the graphics style changes. */
+  private cachedIcon(kind: 'tile' | 'item' | 'entity' | 'player', id: string): string {
+    const key = `${kind}|${id}`;
+    let url = this.iconCache.get(key);
+    if (url === undefined) {
+      url = this.renderer.renderIconToDataUrl(kind, id);
+      this.iconCache.set(key, url);
+    }
+    return url;
+  }
+
+  /** The definition behind a display id: creatures of the shared rules first, else the tile configs (CC3D creatures live there). */
+  private cc3dDefinition(kind: string, id: string): { i18nKey: string } | undefined {
+    if (kind === 'entity') return ConfigRegistry.getEntityDef(id) ?? ConfigRegistry.getTile(id);
+    return ConfigRegistry.getTile(id);
+  }
+
+  /** The name of a CC3D palette entry: its own key when it has one, else the name of the id it is drawn with. */
+  private cc3dEntryLabel(entry: Cc3dPaletteEntry, display: { kind: string; id: string }): string {
+    if (entry.labelKey) return t(entry.labelKey);
+    const definition = this.cc3dDefinition(display.kind, display.id);
+    return definition ? t(definition.i18nKey) : display.id;
+  }
+
+  private renderCc3dPaletteItems(container: HTMLElement): void {
+    for (const entry of cc3dEntriesOf(this.cc3dCategory)) {
+      const display = entryDisplay(entry, this.cc3dAttrs, this.activeDir);
+      container.appendChild(
+        this.createPaletteButton(
+          this.cc3dEntryLabel(entry, display),
+          this.cachedIcon(display.kind, display.id),
+          entry.id === this.cc3dEntryId,
+          { available: true },
+          () => this.selectCc3dEntry(entry)
+        )
+      );
+    }
+    this.renderCc3dAttributes();
+  }
+
+  /** Choosing a CC3D entry puts the brush back in hand (fill and select do not exist for CC3D levels). */
+  private selectCc3dEntry(entry: Cc3dPaletteEntry): void {
+    this.cc3dEntryId = entry.id;
+    this.cc3dCategory = entry.category;
+    if (this.tool !== 'brush') {
+      this.tool = 'brush';
+      this.resetSelectionState();
+      this.updateToolButtons();
+    }
+    this.updateCanvasLabel();
+    this.renderCategoryTabs();
+    this.renderPaletteItems();
+    if (entry.action === 'panel') this.setStatusText(t('editor.cc3d.status.panel_mode'));
+    this.render();
+  }
+
+  /** A small button of the attribute choosers: an icon, a swatch or a word, pressed when it is the choice. */
+  private attributeButton(label: string, title: string, pressed: boolean, onClick: () => void, iconUrl = '', swatch = ''): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hud-btn small editor-cc3d-choice';
+    btn.setAttribute('aria-pressed', String(pressed));
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+    if (swatch) {
+      const dot = document.createElement('span');
+      dot.className = 'editor-cc3d-swatch';
+      dot.style.backgroundColor = swatch;
+      btn.appendChild(dot);
+    }
+    if (iconUrl) {
+      const img = document.createElement('img');
+      img.src = iconUrl;
+      img.alt = '';
+      img.className = 'palette-item-icon';
+      btn.appendChild(img);
+    }
+    if (label) btn.appendChild(document.createTextNode(label));
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  /** The choosers of the attributes the selected entry needs: colour, ice corner, reflector mirror. */
+  private renderCc3dAttributes(): void {
+    const host = byId(CC3D_ATTRS_ID);
+    if (!host) return;
+    host.innerHTML = '';
+    const entry = this.cc3dEntry();
+    const needed = (['color', 'corner', 'mirror'] as const).filter((attribute) => entry !== null && needsAttribute(entry, attribute));
+    host.classList.toggle('hidden', !this.isCc3d() || entry === null || needed.length === 0);
+    if (!entry) return;
+    for (const attribute of needed) {
+      const group = document.createElement('div');
+      group.className = 'editor-cc3d-attr-group';
+      group.setAttribute('role', 'group');
+      const caption = t(CC3D_ATTRIBUTE_LABEL_KEYS[attribute]);
+      group.setAttribute('aria-label', caption);
+      const title = document.createElement('span');
+      title.className = 'editor-dir-label';
+      title.textContent = caption;
+      group.appendChild(title);
+      if (attribute === 'color') {
+        for (const color of Object.keys(CC3D_COLOR_LABEL_KEYS) as Array<Cc3dBrushAttributes['color']>) {
+          const name = t(CC3D_COLOR_LABEL_KEYS[color]);
+          group.appendChild(
+            this.attributeButton(name, name, this.cc3dAttrs.color === color, () => this.setCc3dAttribute({ color }), '', EDITOR_CC3D_SWATCH_COLORS[color])
+          );
+        }
+      } else if (attribute === 'corner') {
+        for (const corner of CC3D_CORNERS) {
+          const display = entryDisplay(entry, { ...this.cc3dAttrs, corner }, this.activeDir);
+          const name = this.cc3dEntryLabel(entry, display);
+          const pressed = this.cc3dAttrs.corner[0] === corner[0] && this.cc3dAttrs.corner[1] === corner[1];
+          group.appendChild(this.attributeButton('', name, pressed, () => this.setCc3dAttribute({ corner }), this.cachedIcon(display.kind, display.id)));
+        }
+      } else {
+        for (const mirror of CC3D_MIRRORS) {
+          const display = entryDisplay(entry, { ...this.cc3dAttrs, mirror }, this.activeDir);
+          const name = this.cc3dEntryLabel(entry, display);
+          group.appendChild(
+            this.attributeButton('', name, this.cc3dAttrs.mirror === mirror, () => this.setCc3dAttribute({ mirror }), this.cachedIcon(display.kind, display.id))
+          );
+        }
+      }
+      host.appendChild(group);
+    }
+  }
+
+  private setCc3dAttribute(patch: Partial<Cc3dBrushAttributes>): void {
+    this.cc3dAttrs = { ...this.cc3dAttrs, ...patch };
+    this.renderPaletteItems();
   }
 
   /** Whether the brush can be used in the level's engine. */
@@ -717,6 +1015,12 @@ export class LevelEditor {
     const container = byId('editor-palette-grid');
     if (!container) return;
     container.innerHTML = '';
+    if (this.isCc3d()) {
+      this.renderCc3dPaletteItems(container);
+      this.updateSwitchEngineButton();
+      return;
+    }
+    byId(CC3D_ATTRS_ID)?.classList.add('hidden');
     const entry = (brush: Brush, label: string, iconUrl: string): void => {
       container.appendChild(
         this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
@@ -818,7 +1122,7 @@ export class LevelEditor {
   }
 
   private updateSwitchEngineButton(): void {
-    byId('editor-switch-epoxy-btn')?.classList.toggle('hidden', !this.hasUnavailableItems());
+    byId('editor-switch-epoxy-btn')?.classList.toggle('hidden', this.isCc3d() || !this.hasUnavailableItems());
   }
 
   private bindPaletteChrome(): void {
@@ -832,7 +1136,7 @@ export class LevelEditor {
     for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-dir-group [data-dir]'))) {
       btn.addEventListener('click', () => {
         this.activeDir = (btn.dataset.dir as Direction) || 'S';
-        this.updateDirButtons();
+        this.afterDirectionChange();
       });
     }
     byId('editor-dir-rotate-btn')?.addEventListener('click', () => this.rotateDirection());
@@ -849,7 +1153,15 @@ export class LevelEditor {
 
   private rotateDirection(): void {
     this.activeDir = rotateClockwise(this.activeDir);
+    this.afterDirectionChange();
+  }
+
+  /** The direction control changed: the buttons follow it, and the CC3D icons that show a direction are redrawn. */
+  private afterDirectionChange(): void {
     this.updateDirButtons();
+    if (!this.isCc3d()) return;
+    this.renderPaletteItems();
+    this.render();
   }
 
   // ---------------------------------------------------------------------------
@@ -866,8 +1178,63 @@ export class LevelEditor {
     }
   }
 
+  /**
+   * Brings the chrome that depends on the kind of level in line with the document: on a CC3D level the
+   * fill and select tools and the resize controls say why they do nothing, the eraser describes its two
+   * modes, and the fields that do not apply (win rule, chips) give way to the layers of the cursor cell.
+   */
+  private syncCc3dChrome(): void {
+    const cc3d = this.isCc3d();
+    if (cc3d && cc3dToolBlock(this.tool)) {
+      this.tool = 'brush';
+      this.resetSelectionState();
+    }
+    for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tool]'))) {
+      const tool = btn.dataset.tool as EditorTool;
+      const blocked = cc3d ? cc3dToolBlock(tool) : null;
+      const defaultTitleKey = btn.dataset.i18nTitle ?? '';
+      btn.classList.toggle('is-unavailable', blocked !== null);
+      if (blocked) {
+        btn.setAttribute('aria-disabled', 'true');
+        btn.setAttribute('aria-description', t(blocked));
+        btn.title = t(blocked);
+        continue;
+      }
+      btn.removeAttribute('aria-disabled');
+      btn.removeAttribute('aria-description');
+      if (cc3d && tool === 'eraser') btn.title = t('editor.cc3d.eraser.title');
+      else if (defaultTitleKey) btn.title = t(defaultTitleKey);
+    }
+    const reason = t(CC3D_RESIZE_UNAVAILABLE_KEY);
+    for (const id of ['editor-size-width', 'editor-size-height', 'editor-size-apply-btn']) {
+      const el = byId<HTMLButtonElement | HTMLInputElement>(id);
+      if (!el) continue;
+      if (el instanceof HTMLInputElement) el.readOnly = cc3d;
+      else el.disabled = cc3d;
+      el.classList.toggle('is-unavailable', cc3d);
+      if (cc3d) {
+        el.setAttribute('aria-disabled', 'true');
+        el.setAttribute('aria-description', reason);
+        el.title = reason;
+      } else {
+        el.removeAttribute('aria-disabled');
+        el.removeAttribute('aria-description');
+        el.removeAttribute('title');
+      }
+    }
+    for (const id of ['editor-field-winrule', 'editor-field-chips']) byId(id)?.classList.toggle('hidden', cc3d);
+    byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !cc3d);
+    this.updateToolButtons();
+    this.refreshLayersList();
+  }
+
   public setTool(tool: EditorTool): void {
     if (tool === this.tool) return;
+    const block = this.isCc3d() ? cc3dToolBlock(tool) : null;
+    if (block) {
+      this.setStatusText(t(block));
+      return;
+    }
     this.cancelPendingWire(false);
     this.tool = tool;
     // A selection or a floating paste belongs to the Select tool.
@@ -1018,12 +1385,7 @@ export class LevelEditor {
       await this.newLevelInPack(pack.id);
       return;
     }
-    const first = isEditableRuleset(pack.levels[0].ruleset) ? 0 : nextEditableIndex(pack.levels, 0, 1);
-    if (first < 0) {
-      this.setStatusText(t('editor.palette.status.not_editable.label'));
-      return;
-    }
-    await this.openLevel(pack.id, pack.levels[first].id);
+    await this.openLevel(pack.id, pack.levels[0].id);
   }
 
   private async stepLevel(step: 1 | -1): Promise<void> {
@@ -1377,20 +1739,37 @@ export class LevelEditor {
   private syncRulesetInput(): void {
     const rulesetEl = byId<HTMLSelectElement>(RULESET_INPUT_ID);
     if (!rulesetEl) return;
-    const lynxLocked = requiresEpoxyRules(this.doc.winRule, hasLaserContent(this.doc));
+    const cc3d = this.isCc3d();
+    // A CC3D level keeps its engine: the laser tiles its display layers hold and its win rule do not make it Epoxy.
+    const lynxLocked = !cc3d && requiresEpoxyRules(this.doc.winRule, hasLaserContent(this.doc));
     if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
     rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
+    // The engine of a level never changes into another one here: a CC3D level shows its own engine
+    // read-only, and the other levels cannot take the CC3D option.
+    rulesetEl.disabled = cc3d;
     for (const option of Array.from(rulesetEl.options)) {
-      if (option.value !== LYNX_RULESET) continue;
-      option.disabled = lynxLocked;
-      option.title = lynxLocked ? t('editor.metadata.ruleset_lynx_unavailable.label') : '';
+      if (option.value === CC3D_RULESET) {
+        option.disabled = !cc3d;
+        option.title = cc3d ? '' : t('editor.metadata.ruleset_cc3d_unavailable.label');
+        continue;
+      }
+      option.disabled = cc3d || (option.value === LYNX_RULESET && lynxLocked);
+      option.title = cc3d
+        ? t('editor.metadata.ruleset_cc3d_locked.label')
+        : option.value === LYNX_RULESET && lynxLocked
+          ? t('editor.metadata.ruleset_lynx_unavailable.label')
+          : '';
     }
+    if (cc3d) rulesetEl.setAttribute('aria-description', t('editor.metadata.ruleset_cc3d_locked.label'));
+    else rulesetEl.removeAttribute('aria-description');
     const description = byId('editor-ruleset-description');
     if (description) {
       description.textContent = t(
-        editableRulesetOf(this.doc.ruleset) === LYNX_RULESET
-          ? 'editor.layout.rules.description.lynx'
-          : 'editor.layout.rules.description.epoxy'
+        cc3d
+          ? 'editor.layout.rules.description.cc3d'
+          : editableRulesetOf(this.doc.ruleset) === LYNX_RULESET
+            ? 'editor.layout.rules.description.lynx'
+            : 'editor.layout.rules.description.epoxy'
       );
     }
     const winRuleEl = byId<HTMLSelectElement>(WIN_RULE_INPUT_ID);
@@ -1426,6 +1805,11 @@ export class LevelEditor {
 
   /** Resizes the map to the typed size as one undoable step and says what it dropped. */
   private applySize(): void {
+    if (this.isCc3d()) {
+      this.setStatusText(t(CC3D_RESIZE_UNAVAILABLE_KEY));
+      this.syncSizeInputs();
+      return;
+    }
     const widthInput = byId<HTMLInputElement>('editor-size-width');
     const heightInput = byId<HTMLInputElement>('editor-size-height');
     const typedWidth = Number.parseInt(widthInput?.value ?? '', 10);
@@ -1523,11 +1907,13 @@ export class LevelEditor {
     this.pendingWire = null;
     this.resetSelectionState();
     this.cursorCell = null;
+    this.syncCc3dChrome();
     this.applyFit();
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
     this.updateContextTitle();
     this.updateCanvasLabel();
+    this.renderCategoryTabs();
     this.renderPaletteItems();
     this.scheduleCheck();
     this.render();
@@ -1569,7 +1955,36 @@ export class LevelEditor {
   // Canvas
   // ---------------------------------------------------------------------------
 
+  /** The picker on a CC3D level: the creature or block, else the item, else the top layer, with its attributes and facing. */
+  private pickAtCc3d(cc3d: Cc3dLevel, x: number, y: number): void {
+    const picked = pickCc3dCell(cc3d, x, y);
+    const entry = picked ? findCc3dEntry(picked.entryId) : undefined;
+    if (!picked || !entry) return;
+    this.cc3dEntryId = entry.id;
+    this.cc3dCategory = entry.category;
+    this.cc3dAttrs = { ...this.cc3dAttrs, ...picked.attrs };
+    if (picked.dir) {
+      this.activeDir = picked.dir;
+      this.updateDirButtons();
+    }
+    // The picker hands the brush back once it has taken something.
+    if (this.tool === 'picker') {
+      this.tool = 'brush';
+      this.updateToolButtons();
+      this.updateCanvasLabel();
+    }
+    this.renderCategoryTabs();
+    this.renderPaletteItems();
+    const display = entryDisplay(entry, this.cc3dAttrs, this.activeDir);
+    this.setStatusText(t('editor.palette.status.picked.label', { name: this.cc3dEntryLabel(entry, display) }));
+    this.render();
+  }
+
   private pickAt(x: number, y: number): void {
+    if (this.doc.cc3d) {
+      this.pickAtCc3d(this.doc.cc3d, x, y);
+      return;
+    }
     const picked = pickFromCell(this.doc, x, y, FLOOR_TILE_ID);
     this.cancelPendingWire(false);
     this.brush = picked.brush;
@@ -1603,12 +2018,37 @@ export class LevelEditor {
     return { x, y };
   }
 
+  /**
+   * The side of a cell a pointer is nearest to, for the thin wall mode of a CC3D level.
+   * The pointer position is read inside the cell, from 0 (west, north) to 1 (east, south).
+   */
+  private pointerSide(clientX: number, clientY: number, cell: { x: number; y: number }): Direction {
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return this.activeDir;
+    const fx = ((clientX - rect.left) / rect.width) * this.mapWidth() - cell.x;
+    const fy = ((clientY - rect.top) / rect.height) * this.mapHeight() - cell.y;
+    return nearestSide(fx, fy);
+  }
+
+  /** Redraws on the next animation frame; pointer moves that arrive before it share that one redraw. */
+  private requestRender(): void {
+    if (typeof requestAnimationFrame !== 'function') {
+      this.render();
+      return;
+    }
+    if (this.frameRequest !== null) return;
+    this.frameRequest = requestAnimationFrame(() => {
+      this.frameRequest = null;
+      this.render();
+    });
+  }
+
   private setHover(cell: { x: number; y: number } | null): void {
     const same = this.hoverCell?.x === cell?.x && this.hoverCell?.y === cell?.y;
     this.hoverCell = cell;
     if (cell) this.lastHoverCell = cell;
     this.setCoordsText(cell ? t('editor.palette.status.coords', { x: cell.x, y: cell.y }) : NO_COORDS_TEXT);
-    if (!same) this.render();
+    if (!same) this.requestRender();
   }
 
   private bindCanvasEvents(): void {
@@ -1623,6 +2063,8 @@ export class LevelEditor {
       this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(ev.pointerId);
       this.cursorCell = cell;
+      // Every path below (picker, Alt or middle click, a stroke) starts from this cell: the layers list follows it.
+      this.refreshLayersList();
 
       if (this.pasting) {
         // Any button other than the primary one cancels a floating paste.
@@ -1644,17 +2086,27 @@ export class LevelEditor {
         return;
       }
 
-      this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON);
-      this.applyAt(cell.x, cell.y);
+      if (this.isCc3d()) this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
+      this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON, ev.shiftKey);
+      this.applyAt(cell.x, cell.y, this.hoverSide);
+      this.refreshLayersList();
     });
 
     this.canvas.addEventListener('pointermove', (ev) => {
       const cell = this.cellAt(ev.clientX, ev.clientY);
       if (cell && this.pasting) this.pasteAnchor = cell;
+      if (cell && this.isCc3d()) {
+        const side = this.pointerSide(ev.clientX, ev.clientY, cell);
+        if (side !== this.hoverSide) {
+          this.hoverSide = side;
+          // The thin wall mode shows which side a click would toggle.
+          if (this.cc3dEntry()?.action === 'panel') this.requestRender();
+        }
+      }
       this.setHover(cell);
       if (cell && this.selectionGesture) this.updateSelectionGesture(cell);
-      if (cell && this.stroke && continuesOnDrag(this.tool, this.brush, this.stroke.forceErase)) {
-        this.applyAt(cell.x, cell.y);
+      if (cell && this.stroke && this.continuesOnDrag(this.stroke.forceErase)) {
+        this.applyAt(cell.x, cell.y, this.hoverSide, true);
       }
     });
 
@@ -1682,6 +2134,7 @@ export class LevelEditor {
         if (this.pasting) this.pasteAnchor = this.cursorCell;
         if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, this.cursorCell, ev.shiftKey);
         this.setCoordsText(t('editor.palette.status.coords', { x: this.cursorCell.x, y: this.cursorCell.y }));
+        this.refreshLayersList();
         this.render();
         return;
       }
@@ -1701,16 +2154,24 @@ export class LevelEditor {
         this.pickAt(cell.x, cell.y);
         return;
       }
-      this.beginStroke(false);
-      this.applyAt(cell.x, cell.y);
+      // The keyboard has no pointer: the thin wall side is the direction control, and Shift on the eraser takes the whole cell.
+      this.beginStroke(false, ev.shiftKey);
+      this.applyAt(cell.x, cell.y, this.activeDir);
       this.endStroke();
     });
     this.canvas.addEventListener('focus', () => this.render());
     this.canvas.addEventListener('blur', () => this.render());
   }
 
-  private beginStroke(forceErase: boolean): void {
-    this.stroke = { base: cloneDocument(this.doc), changed: false, forceErase };
+  private beginStroke(forceErase: boolean, wholeCell = false): void {
+    this.stroke = { base: cloneDocument(this.doc), changed: false, forceErase, wholeCell };
+  }
+
+  /** True when holding the pointer down and moving keeps acting, for the level being edited. */
+  private continuesOnDrag(forceErase: boolean): boolean {
+    return this.isCc3d()
+      ? cc3dContinuesOnDrag(this.tool, this.cc3dEntry(), forceErase)
+      : continuesOnDrag(this.tool, this.brush, forceErase);
   }
 
   /** A stroke that changed the level is one history step; one that changed nothing leaves no trace. */
@@ -1720,6 +2181,97 @@ export class LevelEditor {
     this.stroke = null;
     if (!stroke.changed) return;
     this.recordChange(stroke.base);
+    this.announceLinkChanges(stroke.base);
+  }
+
+  /** After an edit of a CC3D level: says in the status line when a link that existed now points elsewhere. */
+  private announceLinkChanges(base: EditorDocument): void {
+    const before = base.cc3d;
+    const after = this.doc.cc3d;
+    if (!before || !after) return;
+    this.announce(describeLinkChanges(diffCc3dLinks(before, after, this.cc3dLinksOf(before), this.cc3dLinksOf(after))));
+  }
+
+  /** The name of a layer, item or creature of a CC3D cell, from the display id it is drawn with. */
+  private cc3dPartName(kind: 'tile' | 'entity', draw: () => string): string {
+    let id = '';
+    try {
+      id = draw();
+    } catch {
+      // A stored level that lacks an attribute its kind needs has no display id: the list shows the raw kind.
+      return '';
+    }
+    const definition = this.cc3dDefinition(kind, id);
+    return definition ? t(definition.i18nKey) : id;
+  }
+
+  /** One row of the layers list: a name and its remove button. */
+  private layerRow(name: string, onRemove: (() => void) | null): HTMLLIElement {
+    const row = document.createElement('li');
+    row.className = 'editor-layer-row';
+    const label = document.createElement('span');
+    label.className = 'editor-layer-name';
+    label.textContent = name;
+    row.appendChild(label);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hud-btn small';
+    btn.textContent = t('editor.cc3d.layers.remove.action');
+    btn.setAttribute('aria-label', t('editor.cc3d.layers.remove.aria', { name }));
+    if (onRemove) btn.addEventListener('click', onRemove);
+    else btn.disabled = true;
+    row.appendChild(btn);
+    return row;
+  }
+
+  /**
+   * The read-only list of what the cursor cell holds, bottom layer first: terrain layers, thin walls, the
+   * item and the creature. Each has a button that removes just that thing, as one undoable edit.
+   */
+  private refreshLayersList(): void {
+    const list = byId(LAYERS_LIST_ID);
+    if (!list) return;
+    list.innerHTML = '';
+    const level = this.doc.cc3d;
+    const at = this.cursorCell;
+    const cell = level && at ? cc3dCellAt(level, at.x, at.y) : undefined;
+    const caption = byId('editor-layers-cell');
+    if (caption) caption.textContent = at && cell ? t('editor.cc3d.layers.cell', { x: at.x, y: at.y }) : t('editor.cc3d.layers.none');
+    if (!level || !at || !cell) return;
+    cell.terrain.forEach((layer: Cc3dTerrain, index) => {
+      const name =
+        this.cc3dPartName('tile', () => displayTerrainId({ terrain: [layer], panels: [], item: null })) || layer.kind;
+      const plainBase = index === 0 && layer.kind === 'floor';
+      list.appendChild(this.layerRow(name, plainBase ? null : () => this.commitCc3dEdit((current) => removeLayerAt(current, at.x, at.y, index))));
+    });
+    for (const side of cell.panels) {
+      const name = t('editor.cc3d.layers.panel', { side: t(SIDE_LABEL_KEYS[side]) });
+      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => setPanelSide(current, at.x, at.y, side, false))));
+    }
+    if (cell.item) {
+      const item = cell.item;
+      const name = this.cc3dPartName('tile', () => displayItemId(item) ?? '') || item.kind;
+      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => setItem(current, at.x, at.y, null))));
+    }
+    const mob = level.mobs.find((candidate) => candidate.x === at.x && candidate.y === at.y);
+    if (mob) {
+      const name = this.cc3dPartName('entity', () => displayMobId(mob)) || mob.kind;
+      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => removeMob(current, at.x, at.y))));
+    }
+  }
+
+  /** An edit of the CC3D level made outside a stroke (the layers list): one history step. */
+  private commitCc3dEdit(edit: (level: Cc3dLevel) => Cc3dLevel): void {
+    const before = this.doc.cc3d;
+    if (!before || this.stroke) return;
+    // The level is read now, at the click, not when the list was drawn.
+    const next = edit(before);
+    if (next === before) return;
+    const base = cloneDocument(this.doc);
+    this.doc = withCc3d(this.doc, next);
+    this.recordChange(base);
+    this.announceLinkChanges(base);
+    this.render();
   }
 
   /** Makes a change that already sits in `doc` one history step, with `base` as the document before it. */
@@ -1730,13 +2282,44 @@ export class LevelEditor {
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
     this.updateSwitchEngineButton();
+    this.refreshLayersList();
     this.scheduleCheck();
   }
 
-  /** Applies the active tool to a cell as part of the running stroke. */
-  private applyAt(x: number, y: number): void {
+  /** Applies the active tool to a CC3D cell as part of the running stroke. */
+  private applyCc3dAt(stroke: Stroke, cc3d: Cc3dLevel, x: number, y: number, side: Direction, deferRender: boolean): void {
+    const outcome = applyCc3dTool({
+      level: cc3d,
+      tool: this.tool,
+      entry: this.cc3dEntry(),
+      attrs: this.cc3dAttrs,
+      dir: this.activeDir,
+      x,
+      y,
+      side,
+      forceErase: stroke.forceErase,
+      wholeCell: stroke.wholeCell
+    });
+    if (outcome.changed) {
+      this.doc = withCc3d(this.doc, outcome.level);
+      stroke.changed = true;
+    }
+    this.announce(outcome.messages);
+    if (deferRender) this.requestRender();
+    else this.render();
+  }
+
+  /**
+   * Applies the active tool to a cell as part of the running stroke. `side` is the side of the cell a
+   * CC3D thin wall acts on; `deferRender` redraws on the next frame (pointer moves) rather than at once.
+   */
+  private applyAt(x: number, y: number, side: Direction = this.activeDir, deferRender = false): void {
     const stroke = this.stroke;
     if (!stroke) return;
+    if (this.doc.cc3d) {
+      this.applyCc3dAt(stroke, this.doc.cc3d, x, y, side, deferRender);
+      return;
+    }
     const availability = stroke.forceErase || this.tool === 'eraser' ? { available: true as const } : this.brushAvailability(this.brush);
     if (!availability.available) {
       this.setStatusText(t(availability.reasonKey));
@@ -1758,7 +2341,8 @@ export class LevelEditor {
       stroke.changed = true;
     }
     this.announce(outcome.messages);
-    this.render();
+    if (deferRender) this.requestRender();
+    else this.render();
   }
 
   private announce(messages: ToolMessage[]): void {
@@ -1889,7 +2473,8 @@ export class LevelEditor {
    * application leaves the browser's own handling alone only then.
    */
   public handleSelectionAction(action: SelectionKeyAction): boolean {
-    if (this.stroke || this.selectionGesture) return false;
+    // Selections and pastes are Epoxy and Lynx edits: a CC3D level has none, and the browser keeps the chord.
+    if (this.isCc3d() || this.stroke || this.selectionGesture) return false;
     if (action.kind === 'paste') return this.beginPaste();
     // While a paste floats, only the paste itself acts: Delete and Alt+Arrow are ignored.
     if (this.pasting && (action.kind === 'clear' || action.kind === 'move')) return true;
@@ -2069,40 +2654,202 @@ export class LevelEditor {
     this.outlineRect({ x: ox, y: oy, width: clip.width, height: clip.height }, s, 1);
   }
 
+  /** One cell: its terrain, the panels and the stacked-layer marker of a CC3D cell over it, then its item. */
+  private drawCellLayers(ctx: CanvasRenderingContext2D, doc: EditorDocument, x: number, y: number, s: number): void {
+    this.renderer.drawTile(ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
+    const cc3d = doc.cc3d;
+    if (cc3d) {
+      const cell = cc3d.cells[y * cc3d.width + x];
+      const edges = cell.panels.length > 0 && !displayShowsPanels(cell) ? cell.panels : undefined;
+      this.renderer.drawCellOverlay(ctx, edges, hasHiddenLayers(cell), x * s, y * s, s);
+    }
+    const item = doc.items[y][x];
+    if (item) this.renderer.drawItem(ctx, item, x * s, y * s, s);
+  }
+
+  /**
+   * Draws some cells of a CC3D document again into one chunk (`origin` is the chunk's first cell). Each is
+   * clipped to its own square and redrawn with its eight neighbours under that clip, so the glow a
+   * neighbour spills into it is drawn once, not stacked on the old one. The player start is not part of
+   * the layer.
+   */
+  private redrawCc3dCells(ctx: CanvasRenderingContext2D, doc: EditorDocument, indices: readonly number[], s: number, origin: { x: number; y: number }): void {
+    const width = mapWidthOf(doc);
+    const height = mapHeightOf(doc);
+    this.renderer.setHiddenLayerMarkers(true);
+    try {
+      ctx.save();
+      ctx.translate(-origin.x * s, -origin.y * s);
+      for (const index of indices) {
+        const x = index % width;
+        const y = Math.floor(index / width);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x * s, y * s, s, s);
+        ctx.clip();
+        ctx.clearRect(x * s, y * s, s, s);
+        this.drawMapRegion(ctx, doc, s, Math.max(0, x - 1), Math.max(0, y - 1), Math.min(width, x + 2), Math.min(height, y + 2));
+        ctx.restore();
+      }
+      ctx.restore();
+    } finally {
+      this.renderer.setHiddenLayerMarkers(false);
+    }
+  }
+
+  /** Draws the cells of a rectangle of cells (end excluded), then the creatures standing in it. */
+  private drawMapRegion(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number, x0: number, y0: number, x1: number, y1: number): void {
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s);
+    }
+    for (const ent of doc.entities) {
+      if (ent.x >= x0 && ent.x < x1 && ent.y >= y0 && ent.y < y1) this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
+    }
+  }
+
+  /** Draws the cells, items, creatures and the player start of a document at tile size `s`. */
+  private drawMapLayers(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
+    // The stacked-layer marker belongs to this canvas only: the renderer is shared with play.
+    if (doc.cc3d) this.renderer.setHiddenLayerMarkers(true);
+    try {
+      this.drawMapRegion(ctx, doc, s, 0, 0, mapWidthOf(doc), mapHeightOf(doc));
+    } finally {
+      if (doc.cc3d) this.renderer.setHiddenLayerMarkers(false);
+    }
+    // A CC3D map is kept as a picture without the player start, which is drawn over it on every redraw.
+    if (!doc.cc3d) this.drawPlayerStart(ctx, doc, s);
+  }
+
+  private drawPlayerStart(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
+    this.renderer.drawPlayer(ctx, doc.playerStart.x * s, doc.playerStart.y * s, s, doc.playerStart.dir, false, true);
+  }
+
+  /** Draws one chunk of the CC3D map from scratch (a margin of one cell around it lets neighbours' glow in). */
+  private buildChunk(doc: EditorDocument, s: number, chunk: StaticChunk): boolean {
+    const ctx = chunk.canvas.getContext('2d');
+    if (!ctx) return false;
+    const width = mapWidthOf(doc);
+    const height = mapHeightOf(doc);
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, chunk.canvas.width, chunk.canvas.height);
+    ctx.save();
+    ctx.translate(-chunk.x0 * s, -chunk.y0 * s);
+    this.renderer.setHiddenLayerMarkers(true);
+    try {
+      this.drawMapRegion(
+        ctx,
+        doc,
+        s,
+        Math.max(0, chunk.x0 - 1),
+        Math.max(0, chunk.y0 - 1),
+        Math.min(width, chunk.x0 + chunk.cols + 1),
+        Math.min(height, chunk.y0 + chunk.rows + 1)
+      );
+    } finally {
+      this.renderer.setHiddenLayerMarkers(false);
+      ctx.restore();
+    }
+    return true;
+  }
+
+  /**
+   * The map of a CC3D document as off-screen chunks, each at most EDITOR_STATIC_LAYER_MAX_PIXELS big, so
+   * even the largest level is drawn whole only once. They are rebuilt when the level size, the tile size or
+   * the look changed, and otherwise patched: an edit redraws just the cells it changed, in the chunk that
+   * holds each. Null (draw directly) only when a chunk cannot be created.
+   */
+  private cc3dStaticLayer(doc: EditorDocument, s: number): StaticLayer | null {
+    const level = doc.cc3d;
+    if (!level) return null;
+    // A change of style, theme, player skin or quality changes how every cell looks: the picture is stale.
+    const look = this.renderer.getAppearanceKey();
+    const cached = this.staticLayer;
+    const { width: backingWidth, height: backingHeight } = this.canvas;
+    if (
+      cached &&
+      cached.tile === s &&
+      cached.look === look &&
+      cached.width === level.width &&
+      cached.height === level.height &&
+      cached.backingWidth === backingWidth &&
+      cached.backingHeight === backingHeight
+    ) {
+      if (cached.level === level) return cached;
+      // A stroke touches a few cells: only those are drawn again, not the thousands that did not change.
+      const dirty = dirtyCc3dCells(cached.level, level);
+      if (dirty && dirty.length <= level.cells.length * EDITOR_STATIC_LAYER_REDRAW_SHARE) {
+        const byChunk = new Map<StaticChunk, number[]>();
+        for (const index of dirty) {
+          const x = index % level.width;
+          const y = Math.floor(index / level.width);
+          const chunk = cached.chunks[Math.floor(y / cached.side) * cached.perRow + Math.floor(x / cached.side)];
+          byChunk.set(chunk, [...(byChunk.get(chunk) ?? []), index]);
+        }
+        let patched = true;
+        for (const [chunk, indices] of byChunk) {
+          const ctx = chunk.canvas.getContext('2d');
+          if (!ctx) {
+            patched = false;
+            break;
+          }
+          ctx.imageSmoothingEnabled = false;
+          this.redrawCc3dCells(ctx, doc, indices, s, { x: chunk.x0, y: chunk.y0 });
+        }
+        if (patched) {
+          cached.level = level;
+          return cached;
+        }
+      }
+    }
+    // Chunks of side x side cells whose canvas stays within the pixel cap.
+    const side = Math.max(1, Math.floor(Math.sqrt(EDITOR_STATIC_LAYER_MAX_PIXELS) / s));
+    const perRow = Math.ceil(level.width / side);
+    const chunks: StaticChunk[] = [];
+    for (let y0 = 0; y0 < level.height; y0 += side) {
+      for (let x0 = 0; x0 < level.width; x0 += side) {
+        const cols = Math.min(side, level.width - x0);
+        const rows = Math.min(side, level.height - y0);
+        const canvas = document.createElement('canvas');
+        canvas.width = cols * s;
+        canvas.height = rows * s;
+        const chunk: StaticChunk = { canvas, x0, y0, cols, rows };
+        if (!this.buildChunk(doc, s, chunk)) return null;
+        chunks.push(chunk);
+      }
+    }
+    this.staticLayer = { level, tile: s, look, width: level.width, height: level.height, backingWidth, backingHeight, side, perRow, chunks };
+    return this.staticLayer;
+  }
+
   public render(): void {
+    if (this.frameRequest !== null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this.frameRequest);
+      this.frameRequest = null;
+    }
     const doc = this.doc;
+    // The canvas must be exactly the map at the tile size: after a new level or a late layout it may not be yet.
+    if (!this.refitting && (this.canvas.width !== this.mapWidth() * this.tilePx || this.canvas.height !== this.mapHeight() * this.tilePx)) {
+      this.refitting = true;
+      try {
+        this.applyFit();
+      } finally {
+        this.refitting = false;
+      }
+      return;
+    }
     this.updateTestFromState();
-    const mapWidth = this.mapWidth();
-    const mapHeight = this.mapHeight();
     const s = this.tilePx;
     this.lastDrawnTilePx = s;
     // Resizing the canvas resets the context: keep the pixel art sharp at any tile size.
     this.ctx.imageSmoothingEnabled = false;
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    for (let y = 0; y < mapHeight; y++) {
-      for (let x = 0; x < mapWidth; x++) {
-        this.renderer.drawTile(this.ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
-        const item = doc.items[y][x];
-        if (item) {
-          this.renderer.drawItem(this.ctx, item, x * s, y * s, s);
-        }
-      }
-    }
-
-    for (const ent of doc.entities) {
-      this.renderer.drawEntity(this.ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
-    }
-
-    this.renderer.drawPlayer(
-      this.ctx,
-      doc.playerStart.x * s,
-      doc.playerStart.y * s,
-      s,
-      doc.playerStart.dir,
-      false,
-      true
-    );
+    // A CC3D level can be huge (100 x 114 cells): its map is drawn once into a layer that a pointer move
+    // only copies, then the overlays go on top.
+    const layer = doc.cc3d ? this.cc3dStaticLayer(doc, s) : null;
+    if (layer) for (const chunk of layer.chunks) this.ctx.drawImage(chunk.canvas, chunk.x0 * s, chunk.y0 * s);
+    else this.drawMapLayers(this.ctx, doc, s);
+    if (doc.cc3d) this.drawPlayerStart(this.ctx, doc, s);
 
     this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
     for (const link of doc.trapLinks) {
@@ -2112,12 +2859,108 @@ export class LevelEditor {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
 
+    this.renderCc3dOverlay(s);
     this.renderSelectionOverlay(s);
     if (this.pendingWire) this.outlineCell(this.pendingWire.x, this.pendingWire.y, EDITOR_WIRE_SOURCE_COLOR, s);
     if (this.hoverCell) this.outlineCell(this.hoverCell.x, this.hoverCell.y, EDITOR_HOVER_OUTLINE_COLOR, s);
     if (this.cursorCell && document.activeElement === this.canvas) {
       this.outlineCell(this.cursorCell.x, this.cursorCell.y, EDITOR_CURSOR_OUTLINE_COLOR, s);
     }
+  }
+
+  /** The links derived from the level, once per version of it. */
+  private cc3dLinksOf(level: Cc3dLevel): Cc3dLinks {
+    let links = this.linksCache.get(level);
+    if (!links) {
+      links = cc3dLinks(level);
+      this.linksCache.set(level, links);
+    }
+    return links;
+  }
+
+  /** An arrow from the centre of one cell to the centre of another, head at the target. */
+  private drawArrow(color: string, from: { x: number; y: number }, to: { x: number; y: number }, s: number): void {
+    const c = EDITOR_TILE_CENTER_OFFSET;
+    const x0 = (from.x + c) * s;
+    const y0 = (from.y + c) * s;
+    const x1 = (to.x + c) * s;
+    const y1 = (to.y + c) * s;
+    const angle = Math.atan2(y1 - y0, x1 - x0);
+    const head = EDITOR_CC3D_ARROW_HEAD_TILE * s;
+    const spread = head * EDITOR_CC3D_ARROW_HEAD_SPREAD;
+    this.ctx.strokeStyle = color;
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    this.ctx.moveTo(x0, y0);
+    this.ctx.lineTo(x1, y1);
+    this.ctx.stroke();
+    const baseX = x1 - Math.cos(angle) * head;
+    const baseY = y1 - Math.sin(angle) * head;
+    this.ctx.beginPath();
+    this.ctx.moveTo(x1, y1);
+    this.ctx.lineTo(baseX - Math.sin(angle) * spread, baseY + Math.cos(angle) * spread);
+    this.ctx.lineTo(baseX + Math.sin(angle) * spread, baseY - Math.cos(angle) * spread);
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  /** A disc in the top right corner of a cell: the template mob of a clone machine. */
+  private drawBadge(color: string, cell: { x: number; y: number }, s: number): void {
+    const radius = EDITOR_CC3D_BADGE_RADIUS_TILE * s;
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    this.ctx.arc((cell.x + 1) * s - radius, cell.y * s + radius, radius, 0, Math.PI * 2);
+    this.ctx.fill();
+  }
+
+  /** A bar on one side of a cell: the side a click in the thin wall mode would toggle. */
+  private drawSideHint(cell: { x: number; y: number }, side: Direction, s: number): void {
+    const x0 = cell.x * s;
+    const y0 = cell.y * s;
+    this.ctx.lineWidth = EDITOR_CC3D_SIDE_HINT_LINE_WIDTH;
+    this.ctx.strokeStyle = EDITOR_HOVER_OUTLINE_COLOR;
+    this.ctx.beginPath();
+    if (side === 'N' || side === 'S') {
+      const y = side === 'N' ? y0 : y0 + s;
+      this.ctx.moveTo(x0, y);
+      this.ctx.lineTo(x0 + s, y);
+    } else {
+      const x = side === 'W' ? x0 : x0 + s;
+      this.ctx.moveTo(x, y0);
+      this.ctx.lineTo(x, y0 + s);
+    }
+    this.ctx.stroke();
+  }
+
+  /**
+   * The link overlay of a CC3D level: for the hovered cell and the keyboard cursor cell, arrows to what
+   * a device works (and from what works it), the cells of its colour group, and the template badge.
+   */
+  private renderCc3dOverlay(s: number): void {
+    const level = this.doc.cc3d;
+    if (!level) return;
+    const cells = [this.cursorCell, this.hoverCell].filter((cell): cell is { x: number; y: number } => cell !== null);
+    if (cells.length === 0) return;
+    const links = this.cc3dLinksOf(level);
+    const colors: Record<OverlayArrowKind, string> = EDITOR_CC3D_LINK_COLORS;
+    this.ctx.save();
+    this.ctx.globalAlpha = EDITOR_CC3D_OVERLAY_ALPHA;
+    this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
+    const drawn = new Set<string>();
+    for (const cell of cells) {
+      const key = `${cell.x},${cell.y}`;
+      if (drawn.has(key)) continue;
+      drawn.add(key);
+      const overlay: LinkOverlay = linkOverlayFor(level, cell, links);
+      for (const target of overlay.highlights) this.outlineCell(target.x, target.y, EDITOR_CC3D_LINK_COLORS.group, s);
+      for (const arrow of overlay.arrows) this.drawArrow(colors[arrow.kind], arrow.from, arrow.to, s);
+      for (const badge of overlay.badges) this.drawBadge(EDITOR_CC3D_LINK_COLORS.template, badge, s);
+    }
+    if (this.cc3dEntry()?.action === 'panel') {
+      if (this.hoverCell) this.drawSideHint(this.hoverCell, this.hoverSide, s);
+      else if (this.cursorCell) this.drawSideHint(this.cursorCell, this.activeDir, s);
+    }
+    this.ctx.restore();
   }
 
   private outlineCell(x: number, y: number, color: string, s: number): void {
@@ -2239,7 +3082,26 @@ export class LevelEditor {
     }
   }
 
+  /**
+   * A CC3D level with validator errors is saved only when the player confirms, as a level that
+   * fails the check is tested: the errors are listed, and cancelling keeps the editor as it is.
+   */
+  private async confirmSaveDespiteErrors(): Promise<boolean> {
+    if (!this.isCc3d()) return true;
+    const report = LevelValidator.validate(this.exportCompiledLevel(), storedSolutionWins);
+    if (report.valid) return true;
+    const issuesText = this.formatIssues(report.issues.filter((issue) => issue.severity === 'error'));
+    this.setStatusText(issuesText);
+    return confirmDialog({
+      title: t('app.confirm.title.label'),
+      message: t('editor.toolbar.confirm_save_invalid.label', { issues: issuesText }),
+      confirmLabel: t('editor.pack.save_anyway.action'),
+      cancelLabel: t('app.confirm.cancel.action')
+    });
+  }
+
   private async performSave(forceCopy: boolean): Promise<void> {
+    if (!(await this.confirmSaveDespiteErrors())) return;
     const generation = this.loadGeneration;
     const decision = decideSave({
       source: this.source,

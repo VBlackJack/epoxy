@@ -1257,6 +1257,72 @@ body.editor-mode #app {
   color: #111;
 }
 
+.editor-cc3d-attrs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.editor-cc3d-attr-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.editor-cc3d-attr-group [aria-pressed='true'] {
+  background: var(--accent-orange);
+  border-color: var(--accent-orange);
+  color: #111;
+}
+
+.editor-cc3d-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.editor-cc3d-choice .palette-item-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.editor-cc3d-swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  border: 1px solid #111;
+}
+
+.editor-layers-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.editor-layer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.editor-layer-name {
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+
+.editor-tool-btn.is-unavailable,
+.editor-input.is-unavailable,
+.hud-btn.is-unavailable {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .editor-stage {
   flex: 1;
   min-height: 0;

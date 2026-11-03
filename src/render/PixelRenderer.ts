@@ -220,8 +220,8 @@ const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
 const THIN_BAR_MIN_PX_FLAT = 4;
 /**
- * Whether cells with stacked layers under the shown one get a corner marker. Off in play; meant for the
- * upcoming CC3D editor, which will turn it on (nothing calls setHiddenLayerMarkers yet).
+ * Whether cells with stacked layers under the shown one get a corner marker. Off in play; meant for
+ * the CC3D editor, which turns it on for its own canvas.
  */
 const HIDDEN_LAYER_MARKER_DEFAULT = false;
 const HIDDEN_LAYER_MARKER_TILE = 0.22;
@@ -624,6 +624,14 @@ export class PixelRenderer {
   /** Installs the loader of the Sokoban skin images. */
   public setSkinLoader(loader: SokobanSkinLoader | null): void {
     this.skinLoader = loader;
+  }
+
+  /**
+   * One string that changes whenever how the same cells look changes (style, theme, player skin, quality):
+   * a caller that keeps a picture of the map compares it to know the picture is stale.
+   */
+  public getAppearanceKey(): string {
+    return [this.getStyle(), this.getThemeId(), this.getPlayerSkin(), this.getQuality()].join('|');
   }
 
   public getPlayerSkin(): PlayerSkinId {
@@ -2025,10 +2033,25 @@ export class PixelRenderer {
         if (!edges && !marked) continue;
         const px = originX + Math.floor((mx - region.x0) * unit);
         const py = originY + Math.floor((my - region.y0) * unit);
-        if (edges) this.drawPanelBars(ctx, edges, px, py, drawSize);
-        if (marked) this.drawHiddenLayerMarker(ctx, px, py, drawSize);
+        this.drawCellOverlay(ctx, edges, marked, px, py, drawSize);
       }
     }
+  }
+
+  /**
+   * The panel bars and the stacked-layer marker of one cell, for a caller that draws its cells itself
+   * (the level editor). The marker only shows while setHiddenLayerMarkers(true) is on.
+   */
+  public drawCellOverlay(
+    ctx: CanvasRenderingContext2D,
+    edges: readonly Direction[] | undefined,
+    marked: boolean,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    if (edges && edges.length > 0) this.drawPanelBars(ctx, edges, x, y, size);
+    if (marked && this.hiddenLayerMarkers) this.drawHiddenLayerMarker(ctx, x, y, size);
   }
 
   /** Palette and colour-blind glyphs the cc3d painters draw with. */

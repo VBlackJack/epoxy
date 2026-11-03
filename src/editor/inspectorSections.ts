@@ -15,14 +15,14 @@
  */
 
 /** Inspector sections the player can fold, in display order. */
-export const INSPECTOR_SECTIONS = ['level', 'rules', 'size', 'generate'] as const;
+export const INSPECTOR_SECTIONS = ['level', 'rules', 'layers', 'size', 'generate'] as const;
 
 export type InspectorSection = (typeof INSPECTOR_SECTIONS)[number];
 
 export type SectionState = Record<InspectorSection, boolean>;
 
 /** Open state of a section the player never touched: the generator starts closed. */
-export const DEFAULT_SECTION_STATE: SectionState = { level: true, rules: true, size: true, generate: false };
+export const DEFAULT_SECTION_STATE: SectionState = { level: true, rules: true, layers: true, size: true, generate: false };
 
 /** Reads a stored section state; a missing or damaged value keeps the defaults. */
 export function parseSectionState(raw: string | null): SectionState {

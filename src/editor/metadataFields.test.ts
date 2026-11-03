@@ -91,7 +91,7 @@ describe('isEditableRuleset', () => {
     }
   });
 
-  it('keeps cc3d levels out of the editor', () => {
-    expect(isEditableRuleset('cc3d')).toBe(false);
+  it('opens cc3d levels in the editor, like every other ruleset', () => {
+    for (const ruleset of [undefined, 'epoxy', 'lynx', 'cc3d'] as const) expect(isEditableRuleset(ruleset), String(ruleset)).toBe(true);
   });
 });

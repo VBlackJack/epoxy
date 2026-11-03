@@ -355,6 +355,7 @@
                 </div>
                 <div id="editor-category-tabs" class="editor-category-tabs" role="group" data-i18n-aria-label="editor.layout.palette.tabs"></div>
                 <div id="editor-palette-grid" class="editor-palette-grid" role="group"></div>
+                <div id="editor-cc3d-attrs" class="editor-cc3d-attrs hidden"></div>
                 <div id="editor-dir-group" class="editor-dir-group" role="group" data-i18n-aria-label="editor.layout.palette.direction.label">
                   <span class="editor-dir-label" data-i18n="editor.layout.palette.direction.label"></span>
                   <button class="hud-btn small" type="button" data-dir="N" aria-pressed="false" data-i18n="editor.metadata.dir_north.label" data-i18n-aria-label="editor.layout.palette.direction.north.aria"></button>
@@ -396,10 +397,11 @@
                       <select id="editor-meta-ruleset" class="editor-input" aria-describedby="editor-ruleset-description">
                         <option value="epoxy" selected data-i18n="editor.metadata.ruleset_epoxy.label"></option>
                         <option value="lynx" data-i18n="editor.metadata.ruleset_lynx.label"></option>
+                        <option value="cc3d" data-i18n="editor.metadata.ruleset_cc3d.label"></option>
                       </select>
                       <p id="editor-ruleset-description" class="hint-text"></p>
                     </div>
-                    <div class="meta-field">
+                    <div id="editor-field-winrule" class="meta-field">
                       <label for="editor-meta-winrule" data-i18n="editor.metadata.win_rule.label"></label>
                       <select id="editor-meta-winrule" class="editor-input">
                         <option value="exit" selected data-i18n="editor.metadata.win_rule_exit.label"></option>
@@ -411,13 +413,21 @@
                       <label for="editor-meta-time" data-i18n="editor.metadata.time_limit.label"></label>
                       <input id="editor-meta-time" type="number" min="0" max="999" class="editor-input" />
                     </div>
-                    <div class="meta-field">
+                    <div id="editor-field-chips" class="meta-field">
                       <label for="editor-meta-chips" data-i18n="editor.metadata.chips_needed.label"></label>
                       <div class="inline-field">
                         <input id="editor-meta-chips" type="number" min="0" max="999" class="editor-input" />
                         <button id="editor-autocount-btn" class="hud-btn small" type="button" data-i18n="editor.metadata.auto_count_chips.action"></button>
                       </div>
                     </div>
+                  </div>
+                </details>
+
+                <details id="editor-layers-section" class="editor-section hidden" data-section="layers" open>
+                  <summary data-i18n="editor.cc3d.layers.title"></summary>
+                  <div class="editor-section-body">
+                    <p id="editor-layers-cell" class="hint-text"></p>
+                    <ul id="editor-layers-list" class="editor-layers-list"></ul>
                   </div>
                 </details>
 
@@ -637,6 +647,9 @@
                   <li data-i18n="hud.help_modal.kb_editor_cursor.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_test_here.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_select.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_cc3d_eraser.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_cc3d_panel.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_cc3d_links.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_history.label"></li>
                 </ul>
               </div>
