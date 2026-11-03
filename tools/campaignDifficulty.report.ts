@@ -321,7 +321,15 @@ function buildMarkdown(rhythm: CampaignRhythm, campaign: CampaignRow[], endless:
 
 it('writes the campaign difficulty report', { timeout: GENERATION_TIMEOUT_MS }, () => {
   loadTestConfigs();
-  const rhythm = JSON.parse(readFileSync(RHYTHM_FILE, 'utf-8')) as CampaignRhythm;
+  const numberOf = new Map(ConfigRegistry.getLevels().map((level) => [level.id, level.number]));
+  const rhythm: CampaignRhythm = {
+    ...(JSON.parse(readFileSync(RHYTHM_FILE, 'utf-8')) as Omit<CampaignRhythm, 'chapters'>),
+    // Chapters live in public/configs/campaign.json, by level id; the tables below group by level number.
+    chapters: ConfigRegistry.getCampaignChapters().map((chapter) => ({
+      titleKey: chapter.titleKey,
+      levels: chapter.levels.map((id) => numberOf.get(id) as number)
+    }))
+  };
   const endless = measureEndless();
   const campaign: CampaignRow[] = measureCampaign(rhythm).map((row) => ({
     ...row,

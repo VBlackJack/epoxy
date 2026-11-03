@@ -33,6 +33,7 @@ import { resolveMessage, TranslationNode } from '../i18n/messageFormat';
 import { buildTestLevel } from '../test/buildTestLevel';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { ConfigRegistry } from './ConfigRegistry';
+import { CampaignChapter } from '../core/types';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const ROUTES_FILE = resolve(ROOT, 'tools', 'campaign-routes.json');
@@ -47,7 +48,6 @@ interface CampaignRoutes {
 }
 
 interface CampaignRhythm {
-  chapters: Array<{ titleKey: string; levels: number[] }>;
   introduces: Record<string, string[]>;
   firstTimedLevel: number;
   minTimeMargin: number;
@@ -60,6 +60,7 @@ interface DesignInput {
   levels: CompiledLevel[];
   routes: CampaignRoutes;
   rhythm: CampaignRhythm;
+  chapters: CampaignChapter[];
   locales: TranslationNode[];
 }
 
@@ -149,7 +150,7 @@ function timingProblems({ levels, rhythm }: DesignInput): string[] {
   return problems;
 }
 
-function hintProblems({ levels, rhythm, locales }: DesignInput): string[] {
+function hintProblems({ levels, chapters, locales }: DesignInput): string[] {
   const problems: string[] = [];
   const hasText = (tree: TranslationNode, key: string | undefined): boolean => Boolean(key && resolveMessage(tree, key));
   for (const level of levels) {
@@ -164,20 +165,38 @@ function hintProblems({ levels, rhythm, locales }: DesignInput): string[] {
       if (locales.some((tree) => !hasText(tree, key))) problems.push(`${level.id}: ${name} ${key} missing in a locale`);
     }
   }
-  for (const chapter of rhythm.chapters) {
-    if (locales.some((tree) => !hasText(tree, chapter.titleKey))) {
-      problems.push(`chapter ${chapter.titleKey}: missing in a locale`);
+  for (const chapter of chapters) {
+    for (const key of [chapter.titleKey, chapter.subtitleKey]) {
+      if (locales.some((tree) => !hasText(tree, key))) problems.push(`chapter ${key}: missing in a locale`);
     }
   }
   return problems;
 }
 
-function chapterProblems({ levels, rhythm }: DesignInput): string[] {
-  const listed = rhythm.chapters.flatMap((c) => c.levels);
-  const expected = levels.map((l) => l.number);
+function chapterProblems({ levels, chapters }: DesignInput): string[] {
+  const listed = chapters.flatMap((c) => c.levels);
+  const expected = levels.map((l) => l.id);
   return JSON.stringify(listed) === JSON.stringify(expected)
     ? []
     : [`chapters list levels ${listed.join()} but the campaign runs ${expected.join()}`];
+}
+
+/** Each campaign level sits in exactly one chapter, and every listed id is a campaign level. */
+function chapterMembershipProblems({ levels, chapters }: DesignInput): string[] {
+  const problems: string[] = [];
+  const known = new Set(levels.map((l) => l.id));
+  const counts = new Map<string, number>();
+  for (const chapter of chapters) {
+    for (const id of chapter.levels) {
+      if (!known.has(id)) problems.push(`chapter ${chapter.id}: ${id} is not a campaign level`);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  for (const level of levels) {
+    const count = counts.get(level.id) ?? 0;
+    if (count !== 1) problems.push(`${level.id}: in ${count} chapters, expected exactly 1`);
+  }
+  return problems;
 }
 
 const CHECKS: Array<[string, (input: DesignInput) => string[]]> = [
@@ -186,7 +205,8 @@ const CHECKS: Array<[string, (input: DesignInput) => string[]]> = [
   ['every tile, item and entity is introduced where declared', introductionProblems],
   ['time limits keep their margin over the solution', timingProblems],
   ['every level has a hint tile and its texts in both languages', hintProblems],
-  ['chapters cover every level once, in order', chapterProblems]
+  ['chapters cover every level once, in order', chapterProblems],
+  ['every level is in exactly one chapter, whose ids exist', chapterMembershipProblems]
 ];
 
 describe('campaign design', () => {
@@ -198,6 +218,7 @@ describe('campaign design', () => {
       levels: ConfigRegistry.getLevels(),
       routes: readJson<CampaignRoutes>(ROUTES_FILE),
       rhythm: readJson<CampaignRhythm>(RHYTHM_FILE),
+      chapters: ConfigRegistry.getCampaignChapters(),
       locales: [EN, FR]
     };
   });
@@ -213,7 +234,7 @@ describe('campaign design checks on a fixture', () => {
   const FIXTURE_LOCALES: TranslationNode[] = [
     {
       levels: { level_1: { title: 'One', hint: 'First' }, level_2: { title: 'Two', hint: 'Second' } },
-      chapter: { one: 'Chapter' }
+      chapter: { one: 'Chapter', sub: 'Subtitle' }
     }
   ];
 
@@ -237,8 +258,8 @@ describe('campaign design checks on a fixture', () => {
     return {
       levels: [first, second],
       routes: { levels: { fix_1: { segments: ['EEEE'] }, fix_2: { segments: ['EEEE'], requires: ['key_red'] } } },
+      chapters: [{ id: 'one', titleKey: 'chapter.one', subtitleKey: 'chapter.sub', levels: ['fix_1', 'fix_2'] }],
       rhythm: {
-        chapters: [{ titleKey: 'chapter.one', levels: [1, 2] }],
         introduces: { '1': ['hint', 'chip', 'socket', 'exit'], '2': ['door_red', 'key_red'] },
         firstTimedLevel: 2,
         minTimeMargin: 3,
@@ -304,18 +325,33 @@ describe('campaign design checks on a fixture', () => {
       titleKey: 'levels.level_3.title',
       hintKey: 'levels.level_2.hint'
     };
-    input.rhythm.chapters[0].titleKey = 'chapter.two';
+    input.chapters[0].titleKey = 'chapter.two';
+    input.chapters[0].subtitleKey = 'chapter.sub_two';
     const problems = hintProblems(input);
     expect(problems).toContain('fix_2: no hint tile');
     expect(problems).toContain('fix_2: titleKey levels.level_3.title missing in a locale');
     expect(problems).toContain('chapter chapter.two: missing in a locale');
+    expect(problems).toContain('chapter chapter.sub_two: missing in a locale');
   });
 
   it('reports chapters that skip, repeat or reorder levels', () => {
     const input = fixture();
-    input.rhythm.chapters = [{ titleKey: 'chapter.one', levels: [2, 1] }];
+    const chapter = input.chapters[0];
+    input.chapters = [{ ...chapter, levels: ['fix_2', 'fix_1'] }];
     expect(chapterProblems(input)).toHaveLength(1);
-    input.rhythm.chapters = [{ titleKey: 'chapter.one', levels: [1] }];
+    input.chapters = [{ ...chapter, levels: ['fix_1'] }];
     expect(chapterProblems(input)).toHaveLength(1);
+  });
+
+  it('reports a level in two chapters, in none, or an unknown id', () => {
+    const input = fixture();
+    const chapter = input.chapters[0];
+    input.chapters = [chapter, { ...chapter, id: 'two', levels: ['fix_2', 'ghost'] }];
+    expect(chapterMembershipProblems(input)).toEqual([
+      'chapter two: ghost is not a campaign level',
+      'fix_2: in 2 chapters, expected exactly 1'
+    ]);
+    input.chapters = [{ ...chapter, levels: ['fix_1'] }];
+    expect(chapterMembershipProblems(input)).toEqual(['fix_2: in 0 chapters, expected exactly 1']);
   });
 });

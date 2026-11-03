@@ -993,6 +993,19 @@ export interface LevelBlueprint {
   cloneLinks: CloneLink[];
 }
 
+/** One chapter of the Epoxy campaign: a titled run of levels, listed by id. */
+export interface CampaignChapter {
+  id: string;
+  titleKey: string;
+  subtitleKey: string;
+  levels: string[];
+}
+
+/** public/configs/campaign.json: how the Epoxy campaign levels are grouped into chapters. */
+export interface CampaignConfig {
+  chapters: CampaignChapter[];
+}
+
 export interface LevelsConfig {
   legend: Record<string, { terrain: string; item?: string }>;
   levels: LevelBlueprint[];

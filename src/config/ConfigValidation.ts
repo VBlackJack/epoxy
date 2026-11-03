@@ -18,6 +18,7 @@ import { ORDERED_DIRECTIONS } from './constants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
+  CampaignConfig,
   CompiledLevel,
   DatFormatConfig,
   Direction,
@@ -29,6 +30,39 @@ import {
   TileDefinition,
   WinRule
 } from '../core/types';
+
+/**
+ * Problems in the campaign chapter list: every chapter needs a unique id, title
+ * and subtitle keys, and at least one level; a level may sit in one chapter
+ * only, and must exist among the campaign levels.
+ */
+export function findCampaignConfigErrors(campaign: CampaignConfig, levelIds: readonly string[]): string[] {
+  const errors: string[] = [];
+  if (!Array.isArray(campaign.chapters)) return ['chapters: expected a list'];
+  const known = new Set(levelIds);
+  const chapterIds = new Set<string>();
+  const placedIn = new Map<string, string>();
+  campaign.chapters.forEach((chapter, index) => {
+    const label = `chapters[${index}]`;
+    if (typeof chapter.id !== 'string' || chapter.id === '') errors.push(`${label}: id must be a non-empty string`);
+    else if (chapterIds.has(chapter.id)) errors.push(`${label}: duplicate id ${chapter.id}`);
+    else chapterIds.add(chapter.id);
+    for (const field of ['titleKey', 'subtitleKey'] as const) {
+      if (typeof chapter[field] !== 'string' || chapter[field] === '') errors.push(`${label}: ${field} must be a non-empty string`);
+    }
+    if (!Array.isArray(chapter.levels) || chapter.levels.length === 0) {
+      errors.push(`${label}: levels must be a non-empty list`);
+      return;
+    }
+    for (const id of chapter.levels) {
+      if (!known.has(id)) errors.push(`${label}: unknown level ${String(id)}`);
+      const first = placedIn.get(id);
+      if (first !== undefined) errors.push(`${label}: level ${id} is already in ${first}`);
+      else placedIn.set(id, String(chapter.id));
+    }
+  });
+  return errors;
+}
 
 /**
  * Raised when a fetched configuration file is missing or does not match the

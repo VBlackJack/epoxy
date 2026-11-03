@@ -389,6 +389,9 @@
     "scores_modal": {
       "title": { "label": "Level Select & High Scores" },
       "progress": { "label": "{completed} / {total} completed" },
+      "chapter_progress": { "label": "{solved} / {total} solved" },
+      "chapter_chip": { "label": "{title}: {solved} / {total} solved" },
+      "chapters_nav": { "label": "Chapters" },
       "search_placeholder": { "label": "Filter by #, title, or code..." },
       "filter_all": { "action": "All" },
       "filter_unsolved": { "action": "Unsolved" },
@@ -1064,11 +1067,12 @@
   },
   "campaign": {
     "chapter": {
-      "1": { "title": "Foundations" },
-      "2": { "title": "Mechanisms" },
-      "3": { "title": "Creatures" },
-      "4": { "title": "Contraband" },
-      "5": { "title": "Core" }
-    }
+      "1": { "title": "First Steps", "subtitle": "Chips, keys, boots, ice and force floors." },
+      "2": { "title": "Clockwork", "subtitle": "Buttons, traps, bombs, teleporters and thin walls." },
+      "3": { "title": "Moving Targets", "subtitle": "Bugs, tanks, hidden walls and clone machines." },
+      "4": { "title": "Sticky Fingers", "subtitle": "Thieves, item barriers, turtles and flame jets." },
+      "5": { "title": "Full Circuit", "subtitle": "Gold keys, bonus clocks and fast hunters, all together." }
+    },
+    "chapter_banner": { "label": "Chapter {number}: {title}. {subtitle}" }
   }
 }

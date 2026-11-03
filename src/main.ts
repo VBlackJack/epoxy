@@ -1069,7 +1069,7 @@ class EpoxyApplication {
 
   /**
    * The configs the page loaded, for the generator worker. The campaign
-   * blueprints are left out (the generator never reads them); the merged piece
+   * blueprints and chapters are left out (the generator never reads them); the merged piece
    * legend stands in for the levels legend.
    */
   private captureConfigBundle(): ConfigBundle {
@@ -1080,6 +1080,8 @@ class EpoxyApplication {
       monsters: ConfigRegistry.getMonsters(),
       audio: ConfigRegistry.getAudio(),
       levels: { legend: ConfigRegistry.getPieceLegend(), levels: [] },
+      // No campaign levels travel with the bundle, so no chapter may refer to one.
+      campaign: { chapters: [] },
       datFormat: ConfigRegistry.getDatFormat(),
       motifs: ConfigRegistry.getMotifs(),
       motifAnnotations: ConfigRegistry.getMotifAnnotations()

@@ -40,6 +40,7 @@ import {
   isRuleset,
   isWinRule,
   findAudioConfigErrors,
+  findCampaignConfigErrors,
   findCc3dTileErrors,
   findDatFormatErrors,
   findGameTunableErrors,
@@ -49,6 +50,8 @@ import { DEFAULT_RULESET } from '../core/coreConstants';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
 import {
   AudioConfig,
+  CampaignChapter,
+  CampaignConfig,
   CompiledLevel,
   DatFormatConfig,
   EntityDefinition,
@@ -79,6 +82,7 @@ const REQUIRED_CONFIG_KEYS = {
   MONSTERS: ['entities'],
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
   LEVELS: ['legend', 'levels'],
+  CAMPAIGN: ['chapters'],
   DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement'],
   MOTIFS: ['legend', 'pieces', 'monsterPortTerrain'],
   MOTIF_ANNOTATIONS: []
@@ -95,6 +99,7 @@ export interface ConfigBundle {
   monsters: MonstersConfig;
   audio: AudioConfig;
   levels: LevelsConfig;
+  campaign: CampaignConfig;
   datFormat: DatFormatConfig;
   motifs: MotifsConfig;
   motifAnnotations: MotifAnnotations;
@@ -155,6 +160,7 @@ class ConfigRegistryService {
   private monstersConfig!: MonstersConfig;
   private audioConfig!: AudioConfig;
   private levelsConfig!: LevelsConfig;
+  private campaignConfig: CampaignConfig = { chapters: [] };
   private datFormatConfig!: DatFormatConfig;
   private motifsConfig!: MotifsConfig;
   private motifAnnotations: MotifAnnotations = {};
@@ -178,19 +184,20 @@ class ConfigRegistryService {
       () => [] as FetchedPack[]
     );
 
-    const [game, tiles, cc3dTiles, monsters, audio, levels, datFormat, motifs, motifAnnotations] = await Promise.all([
+    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
       this.fetchJson<Pick<TilesConfig, 'tiles'>>(CONFIG_ENDPOINTS.CC3D_TILES, REQUIRED_CONFIG_KEYS.CC3D_TILES),
       this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS, REQUIRED_CONFIG_KEYS.MONSTERS),
       this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
+      this.fetchJson<CampaignConfig>(CONFIG_ENDPOINTS.CAMPAIGN, REQUIRED_CONFIG_KEYS.CAMPAIGN),
       this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT),
       this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS),
       this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
     ]);
 
-    this.applyConfigs({ game, tiles, cc3dTiles, monsters, audio, levels, datFormat, motifs, motifAnnotations });
+    this.applyConfigs({ game, tiles, cc3dTiles, monsters, audio, levels, campaign, datFormat, motifs, motifAnnotations });
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     // The store name and the level size bounds come from game.json, so the
     // stored packs are read only once the configs are installed.
@@ -248,12 +255,20 @@ class ConfigRegistryService {
     if (audioErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.AUDIO, audioErrors.join('; '));
     }
+    const campaignErrors = findCampaignConfigErrors(
+      bundle.campaign,
+      bundle.levels.levels.map((level) => level.id)
+    );
+    if (campaignErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.CAMPAIGN, campaignErrors.join('; '));
+    }
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
     this.cc3dTilesConfig = bundle.cc3dTiles;
     this.monstersConfig = bundle.monsters;
     this.audioConfig = bundle.audio;
     this.levelsConfig = bundle.levels;
+    this.campaignConfig = bundle.campaign;
     this.datFormatConfig = bundle.datFormat;
     this.motifsConfig = bundle.motifs;
     this.motifAnnotations = bundle.motifAnnotations;
@@ -429,6 +444,11 @@ class ConfigRegistryService {
         // Ignore storage error
       }
     }
+  }
+
+  /** The chapters of the Epoxy campaign, in play order. */
+  public getCampaignChapters(): CampaignChapter[] {
+    return this.campaignConfig.chapters;
   }
 
   public getLevels(): CompiledLevel[] {

@@ -1,0 +1,69 @@
+{
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "titleKey": "campaign.chapter.1.title",
+      "subtitleKey": "campaign.chapter.1.subtitle",
+      "levels": [
+        "epoxy_c_1",
+        "epoxy_c_2",
+        "epoxy_c_3",
+        "epoxy_c_4",
+        "epoxy_c_5",
+        "epoxy_c_6"
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "titleKey": "campaign.chapter.2.title",
+      "subtitleKey": "campaign.chapter.2.subtitle",
+      "levels": [
+        "epoxy_c_7",
+        "epoxy_c_8",
+        "epoxy_c_9",
+        "epoxy_c_10",
+        "epoxy_c_11",
+        "epoxy_c_12"
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "titleKey": "campaign.chapter.3.title",
+      "subtitleKey": "campaign.chapter.3.subtitle",
+      "levels": [
+        "epoxy_c_13",
+        "epoxy_c_14",
+        "epoxy_c_15",
+        "epoxy_c_16",
+        "epoxy_c_17",
+        "epoxy_c_18"
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "titleKey": "campaign.chapter.4.title",
+      "subtitleKey": "campaign.chapter.4.subtitle",
+      "levels": [
+        "epoxy_c_19",
+        "epoxy_c_20",
+        "epoxy_c_21",
+        "epoxy_c_22",
+        "epoxy_c_23",
+        "epoxy_c_24"
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "titleKey": "campaign.chapter.5.title",
+      "subtitleKey": "campaign.chapter.5.subtitle",
+      "levels": [
+        "epoxy_c_25",
+        "epoxy_c_26",
+        "epoxy_c_27",
+        "epoxy_c_28",
+        "epoxy_c_29",
+        "epoxy_c_30"
+      ]
+    }
+  ]
+}
