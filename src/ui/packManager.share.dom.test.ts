@@ -119,6 +119,7 @@ describe('pack manager share controls (DOM)', () => {
     await openManager('full');
     button('packs-share-copy-btn').click();
     await vi.waitFor(() => expect(host.notify).toHaveBeenCalledWith('Share link copied.'), WAIT);
+    expect(document.getElementById('packs-share-status')?.textContent).toBe('Share link copied.');
     expect(writeText).toHaveBeenCalledTimes(1);
     const url = writeText.mock.calls[0][0] as string;
     expect(url).toMatch(/#pack=1\.[A-Za-z0-9_-]+$/);
@@ -133,6 +134,23 @@ describe('pack manager share controls (DOM)', () => {
     expect(field.readOnly).toBe(true);
     expect(field.value).toMatch(/#pack=1\./);
     expect((field.selectionEnd ?? 0) - (field.selectionStart ?? 0)).toBe(field.value.length);
+    expect(host.notify).not.toHaveBeenCalled();
+  });
+
+  it('shows the field when the browser has no clipboard API', async () => {
+    vi.stubGlobal('navigator', {});
+    await openManager('full');
+    button('packs-share-copy-btn').click();
+    await vi.waitFor(() => expect(document.getElementById('share-link-modal')?.classList.contains('hidden')).toBe(false), WAIT);
+    expect((document.getElementById('share-link-field') as HTMLInputElement).value).toMatch(/#pack=1\./);
+    expect(document.getElementById('packs-share-status')?.textContent).toBe('');
+  });
+
+  it('shows the field when the clipboard never answers', async () => {
+    writeText.mockReturnValue(new Promise(() => undefined));
+    await openManager('full');
+    button('packs-share-copy-btn').click();
+    await vi.waitFor(() => expect(document.getElementById('share-link-modal')?.classList.contains('hidden')).toBe(false), WAIT);
     expect(host.notify).not.toHaveBeenCalled();
   });
 

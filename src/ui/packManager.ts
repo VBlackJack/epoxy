@@ -480,23 +480,33 @@ export class PackManager {
       this.setDisabledReason(button, !canShare, SHARE_BLOCKED_REASON_KEY);
     }
     byId('packs-share-hint')?.classList.toggle(HIDDEN_CLASS, !supported);
+    this.setShareStatus('');
   }
 
   /** Makes the link of the selected pack, then copies it or hands it to the system share sheet. */
   private async shareSelected(how: 'copy' | 'native'): Promise<void> {
     const pack = this.selectedPack();
     if (!pack || !canSharePack(pack.levels)) return;
+    this.setShareStatus('');
     const name = this.host.packDisplayName(pack);
     const link = await makeShareLink(pack, name);
     if (!link.ok) {
+      this.setShareStatus(shareEncodeErrorMessage(link.error));
       this.host.notify(shareEncodeErrorMessage(link.error));
       return;
     }
     if (how === 'native') {
       await shareLinkNatively(link.url, name);
     } else if (await copyShareLink(link.url)) {
+      // The toast sits behind this dialog: the line under the buttons is what the player sees.
+      this.setShareStatus(t('app.packs.share.copied.label'));
       this.host.notify(t('app.packs.share.copied.label'));
     }
+  }
+
+  private setShareStatus(message: string): void {
+    const status = byId('packs-share-status');
+    if (status) status.textContent = message;
   }
 
   private setDisabledReason(button: HTMLElement, disabled: boolean, reasonKey: string): void {

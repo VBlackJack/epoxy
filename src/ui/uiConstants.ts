@@ -157,6 +157,8 @@ export const THUMBNAIL_LEVEL_BOX = 64;
 export const THUMBNAIL_LIBRARY_BOX = 32;
 /** Levels of a shared pack drawn as thumbnails in its preview. */
 export const SHARE_PREVIEW_THUMBNAIL_COUNT = 6;
+/** Longest wait for the clipboard before the link is shown for a copy by hand, in ms. */
+export const SHARE_COPY_TIMEOUT_MS = 2000;
 /** Glyph of the drag handle of a pack level row. */
 export const PACK_DRAG_HANDLE_GLYPH = '\u2807';
 /** Pack-manager drag: how close to the edge of the scrolling list, in CSS pixels, the pointer starts scrolling it, and by how much per move. */

@@ -19,6 +19,7 @@ import { LevelPack } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { encodeShareLink, ShareEncodeError, ShareEncodeResult } from '../packs/shareLink';
 import { closeDialog, openDialog } from './dialog';
+import { SHARE_COPY_TIMEOUT_MS } from './uiConstants';
 
 /**
  * The "share" actions of the pack manager: making the link of a pack, copying it (with a
@@ -68,7 +69,16 @@ export function showLinkFallback(url: string): void {
 /** Copies the link; where the clipboard refuses, the link is shown for a copy by hand. Resolves true when copied. */
 export async function copyShareLink(url: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(url);
+    // A clipboard that neither answers nor refuses (a denied permission in some panes) counts as refused.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('clipboard timeout')), SHARE_COPY_TIMEOUT_MS);
+    });
+    try {
+      await Promise.race([navigator.clipboard.writeText(url), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
     return true;
   } catch {
     showLinkFallback(url);

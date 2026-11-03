@@ -69,6 +69,7 @@ import {
 import { downloadBytes } from './ui/download';
 import { PackFlows } from './ui/packFlows';
 import { PackManager } from './ui/packManager';
+import { applyLevelTextInputLimits } from './ui/levelTextInputs';
 import { ShareLinkFlow } from './ui/shareLinkFlow';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
@@ -151,8 +152,6 @@ const PLAY_MODE_BUTTON_IDS = ['btn-mode-play', 'btn-drawer-mode-play'] as const;
 const EDITOR_MODE_BUTTON_IDS = ['btn-mode-editor', 'btn-drawer-mode-editor'] as const;
 /** Body class that makes the editor fill the viewport while it is on screen. */
 const EDITOR_BODY_CLASS = 'editor-mode';
-/** Toast of a shared pack that was imported and started; it never skips a level, so this is the plain one. */
-const SHARED_PACK_TOAST_KEY = 'app.packs.imported_toast.label';
 /** Id prefixes of the procedural seed boxes: the header one and its drawer copy. */
 const SEED_BOX_ID_PREFIXES = ['procedural', 'drawer'] as const;
 const SEED_COPY_BUTTON_IDS: Record<(typeof SEED_BOX_ID_PREFIXES)[number], string> = {
@@ -187,6 +186,9 @@ class EpoxyApplication {
   private renderer: PixelRenderer = new PixelRenderer();
   private editor!: LevelEditor;
   private packManager!: PackManager;
+  /** Fragment of the address bar (or a later one) kept until the configs are loaded. */
+  private parkedShareHash = '';
+  private shareFlow: ShareLinkFlow | null = null;
   private packFlows!: PackFlows;
   /** Level of an editor test play still on screen; null otherwise. */
   private testPlayLevel: CompiledLevel | null = null;
@@ -266,7 +268,11 @@ class EpoxyApplication {
 
   public async init(): Promise<void> {
     // A pack share link waits in the address bar until the configs are loaded.
-    const parkedHash = window.location.hash;
+    this.parkedShareHash = window.location.hash;
+    window.addEventListener('hashchange', () => {
+      if (this.shareFlow) void this.shareFlow.handle(window.location.hash);
+      else this.parkedShareHash = window.location.hash;
+    });
     await ConfigRegistry.loadAll();
 
     const gameCfg = ConfigRegistry.getGame();
@@ -277,6 +283,7 @@ class EpoxyApplication {
         : gameCfg.locales.default;
     this.setupLocaleSelector(gameCfg.locales.supported, initialLocale);
 
+    applyLevelTextInputLimits(ConfigRegistry.getLevelTextLimits());
     const editorCanvas = this.setupGameCanvas();
     this.applyDisplaySettings(savedSettings);
     this.applyAudioSettings(savedSettings);
@@ -328,19 +335,18 @@ class EpoxyApplication {
     this.startGameLoop();
     this.startRenderLoop();
     this.maybeShowOnboarding(hadSavedProgress);
-    this.bindShareLinks(parkedHash);
+    this.bindShareLinks();
   }
 
   /** Opens the pack share link of the address bar, now and each time its fragment changes. */
-  private bindShareLinks(parkedHash: string): void {
-    const flow = new ShareLinkFlow({
+  private bindShareLinks(): void {
+    this.shareFlow = new ShareLinkFlow({
       showStatus: (message) => this.showTransientStatus(message),
       announceImported: (pack, persisted, play) =>
-        play ? this.announceImportedPack(pack, persisted, 0, SHARED_PACK_TOAST_KEY) : this.announceStoredPack(pack, persisted),
+        play ? this.announceImportedPack(pack, persisted, 0, 'app.packs.imported_toast.label') : this.announceStoredPack(pack, persisted),
       playPack: (packId) => this.playPackFromManager(packId, 0)
     });
-    window.addEventListener('hashchange', () => void flow.handle(window.location.hash));
-    void flow.handle(parkedHash);
+    void this.shareFlow.handle(this.parkedShareHash);
   }
 
   /** Tells that a pack joined the library, without leaving the level being played. */

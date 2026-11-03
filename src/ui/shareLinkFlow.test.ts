@@ -67,6 +67,7 @@ beforeEach(() => {
       events.push('import');
       return { ok: true as const, pack: stored, persisted: true };
     }),
+    whenNoDialogOpen: vi.fn((callback: () => void) => callback()),
     clearFragment: vi.fn(() => void events.push('clear'))
   };
 });
@@ -159,6 +160,20 @@ describe('ShareLinkFlow', () => {
     await makeFlow().handle(HASH);
     expect(host.announceImported).not.toHaveBeenCalled();
     expect(host.showStatus).toHaveBeenCalledWith('This link is damaged.');
+  });
+
+  it('waits for an open dialog to close before reading the link', async () => {
+    let close: () => void = () => undefined;
+    deps.whenNoDialogOpen = vi.fn((callback: () => void) => {
+      close = callback;
+    });
+    const done = makeFlow().handle(HASH);
+    await Promise.resolve();
+    expect(deps.read).not.toHaveBeenCalled();
+    close();
+    await done;
+    expect(deps.read).toHaveBeenCalledTimes(1);
+    expect(deps.preview).toHaveBeenCalledTimes(1);
   });
 
   it('handles a link received during a preview once the first is done', async () => {

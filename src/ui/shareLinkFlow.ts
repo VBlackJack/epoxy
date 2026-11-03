@@ -18,6 +18,7 @@ import { ConfigRegistry, ImportPackJsonResult } from '../config/ConfigRegistry';
 import { LevelPack } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { isShareHash, ShareDecodeError, SharedPackResult } from '../packs/shareLink';
+import { whenNoDialogOpen } from './dialog';
 import { SharePreviewChoice, SharePreviewRequest, showSharePreview } from './sharePreviewDialog';
 
 /**
@@ -48,6 +49,8 @@ export interface ShareLinkFlowDeps {
   importText: (text: string, sourceHash: string | undefined) => Promise<ImportPackJsonResult>;
   /** Drops the fragment from the address bar without adding a history entry. */
   clearFragment: () => void;
+  /** Runs the callback once no dialog is open (at once when none is). */
+  whenNoDialogOpen: (callback: () => void) => void;
 }
 
 function defaultDeps(): ShareLinkFlowDeps {
@@ -56,6 +59,7 @@ function defaultDeps(): ShareLinkFlowDeps {
     findExisting: (sourceHash) => ConfigRegistry.findPackBySourceHash(sourceHash),
     preview: showSharePreview,
     importText: (text, sourceHash) => ConfigRegistry.importPackJson(text, { sourceHash }),
+    whenNoDialogOpen,
     clearFragment: () => window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
   };
 }
@@ -79,6 +83,8 @@ export class ShareLinkFlow {
     }
     this.busy = true;
     try {
+      // Another dialog may be on screen (the manager, a question): the preview waits for it to close.
+      await new Promise<void>((resolve) => this.deps.whenNoDialogOpen(resolve));
       await this.process(hash);
     } finally {
       this.busy = false;
