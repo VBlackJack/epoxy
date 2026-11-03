@@ -132,7 +132,7 @@ describe('pack manager share controls (DOM)', () => {
     expect(document.getElementById('share-link-modal')?.classList.contains('hidden')).toBe(false);
     expect(field.readOnly).toBe(true);
     expect(field.value).toMatch(/#pack=1\./);
-    expect(field.selectionEnd - field.selectionStart).toBe(field.value.length);
+    expect((field.selectionEnd ?? 0) - (field.selectionStart ?? 0)).toBe(field.value.length);
     expect(host.notify).not.toHaveBeenCalled();
   });
 
