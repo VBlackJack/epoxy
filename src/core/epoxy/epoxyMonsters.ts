@@ -1,0 +1,233 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { ConfigRegistry } from '../../config/ConfigRegistry';
+import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
+import { AudioManager } from '../../audio/AudioManager';
+import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, OPPOSITE_DIRECTION } from '../coreConstants';
+import { Direction, RelativeTurn, RuntimeEntity } from '../types';
+import { stepSlidingBlock } from './epoxyBlocks';
+import {
+  EpoxyContext,
+  EpoxyWorld,
+  applyRelativeTurn,
+  getEntityAt,
+  isCellClosedTrap,
+  isEdgeBlocked,
+  isInBounds,
+  killPlayer,
+  removeEntity
+} from './epoxyWorld';
+
+export function updateEntities(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  w.removedUids.clear();
+  const snapshotEntities = [...w.entities];
+  for (const entity of snapshotEntities) {
+    if (w.removedUids.has(entity.uid)) continue;
+
+    // Entities sitting directly on a clone machine act as templates and do not move on their own
+    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) {
+      continue;
+    }
+
+    if (entity.kind === 'block') {
+      stepSlidingBlock(ctx, entity);
+      continue;
+    }
+
+    if (!stepMonster(ctx, entity)) return;
+  }
+}
+
+/** Advances one monster of the entity loop by a tick. Returns false when the player was killed, so the loop stops. */
+function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
+  const w = ctx.world;
+  if (entity.cooldownTicks > 0) {
+    entity.cooldownTicks--;
+    return true;
+  }
+
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  entity.cooldownTicks = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
+
+  if (isCellClosedTrap(w, entity.x, entity.y)) {
+    return true;
+  }
+
+  const chosenDir = chooseMonsterDirection(w, entity);
+  if (!chosenDir) return true;
+
+  const vec = DIRECTION_VECTORS[chosenDir];
+  const nx = entity.x + vec.dx;
+  const ny = entity.y + vec.dy;
+  entity.x = nx;
+  entity.y = ny;
+  entity.dir = chosenDir;
+
+  return resolveMonsterArrival(ctx, entity, true);
+}
+
+/**
+ * Applies the effects of the cell a monster has just entered (by a step, a
+ * teleport or a clone spawn): the player under it dies, a bomb or water or
+ * fire removes it, a button is pressed and a teleporter jumps it on.
+ * Returns false when the player was killed, so the caller stops processing.
+ */
+export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, allowTeleport: boolean): boolean {
+  const w = ctx.world;
+  const nx = entity.x;
+  const ny = entity.y;
+  const def = ConfigRegistry.getEntityDef(entity.type);
+
+  if (w.player.x === nx && w.player.y === ny && w.player.alive) {
+    killPlayer(ctx, 'hud.messages.death_monster', 'death');
+    return false;
+  }
+
+  const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
+  const destItem = w.items[ny][nx];
+
+  if (destItem && ConfigRegistry.getTile(destItem).hazard === 'bomb') {
+    w.items[ny][nx] = null;
+    removeEntity(w, entity.uid);
+    AudioManager.playSfx('bomb');
+    return true;
+  }
+
+  if (destTile.hazard === 'water' && !def?.immuneToWater) {
+    removeEntity(w, entity.uid);
+    AudioManager.playSfx('splash');
+    return true;
+  }
+  if (destTile.hazard === 'fire' && !def?.immuneToFire) {
+    removeEntity(w, entity.uid);
+    AudioManager.playSfx('burn');
+    return true;
+  }
+
+  if (destTile.hazard === 'slime') {
+    removeEntity(w, entity.uid);
+    AudioManager.playSfx('splash');
+    return true;
+  }
+
+  if (destTile.buttonAction && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
+    return false;
+  }
+
+  if (destTile.isTeleporter && allowTeleport) {
+    return ctx.teleportEntity(entity, nx, ny, entity.dir) ? resolveMonsterArrival(ctx, entity, false) : true;
+  }
+  return true;
+}
+
+function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Direction | null {
+  const def = ConfigRegistry.getEntityDef(monster.type);
+  if (!def) return null;
+
+  const currentTile = ConfigRegistry.getTile(w.terrain[monster.y][monster.x]);
+  if (currentTile.slideType === 'ice') {
+    const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
+    if (canMonsterEnter(w, monster, slideDir)) return slideDir;
+    const bounce = OPPOSITE_DIRECTION[slideDir];
+    if (canMonsterEnter(w, monster, bounce)) return bounce;
+    return null;
+  }
+
+  if (currentTile.slideType === 'force' && currentTile.forceDirection) {
+    const forceDir =
+      currentTile.forceDirection === 'RANDOM'
+        ? ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)]
+        : currentTile.forceDirection;
+    return canMonsterEnter(w, monster, forceDir) ? forceDir : null;
+  }
+
+  if (def.movementPattern === 'chase_player') {
+    const dx = w.player.x - monster.x;
+    const dy = w.player.y - monster.y;
+    const candidates: Direction[] = [];
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx !== 0) candidates.push(dx > 0 ? 'E' : 'W');
+      if (dy !== 0) candidates.push(dy > 0 ? 'S' : 'N');
+    } else {
+      if (dy !== 0) candidates.push(dy > 0 ? 'S' : 'N');
+      if (dx !== 0) candidates.push(dx > 0 ? 'E' : 'W');
+    }
+    for (const c of candidates) {
+      if (canMonsterEnter(w, monster, c)) return c;
+    }
+    return null;
+  }
+
+  if (def.movementPattern === 'forward_else_random') {
+    if (canMonsterEnter(w, monster, monster.dir)) {
+      return monster.dir;
+    }
+    const turns: RelativeTurn[] = ['LEFT', 'RIGHT', 'BACK'];
+    w.rng.shuffle(turns);
+    for (const turn of turns) {
+      const d = applyRelativeTurn(monster.dir, turn);
+      if (canMonsterEnter(w, monster, d)) return d;
+    }
+    return null;
+  }
+
+  if (def.movementPattern === 'pure_random') {
+    const dirs: Direction[] = [...ORDERED_DIRECTIONS];
+    w.rng.shuffle(dirs);
+    for (const d of dirs) {
+      if (canMonsterEnter(w, monster, d)) return d;
+    }
+    return null;
+  }
+
+  const turnOrder = def.turnOrder || ['FORWARD'];
+  for (const rel of turnOrder) {
+    const candidateDir = applyRelativeTurn(monster.dir, rel);
+    if (canMonsterEnter(w, monster, candidateDir)) {
+      return candidateDir;
+    }
+  }
+
+  return null;
+}
+
+export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction): boolean {
+  const vec = DIRECTION_VECTORS[dir];
+  const nx = monster.x + vec.dx;
+  const ny = monster.y + vec.dy;
+  if (!isInBounds(w, nx, ny)) return false;
+  if (isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
+
+  const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
+  const def = ConfigRegistry.getEntityDef(monster.type);
+
+  if (!destTile.passableByMonster && !(destTile.hazard === 'fire' && def?.immuneToFire)) {
+    return false;
+  }
+  if (destTile.hazard === 'fire' && def?.avoidsFire) return false;
+
+  const itemId = w.items[ny][nx];
+  if (itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb') {
+    return false;
+  }
+
+  const existing = getEntityAt(w, nx, ny);
+  if (existing) return false;
+
+  return true;
+}
