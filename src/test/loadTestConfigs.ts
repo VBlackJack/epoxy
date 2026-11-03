@@ -18,6 +18,7 @@ import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import audio from '../../public/configs/audio.json';
 import datFormat from '../../public/configs/dat_format.json';
 import game from '../../public/configs/game.json';
+import campaign from '../../public/configs/campaign.json';
 import levels from '../../public/configs/levels.json';
 import monsters from '../../public/configs/monsters.json';
 import motifs from '../../public/configs/motifs.json';
@@ -34,6 +35,7 @@ export function createTestBundle(): ConfigBundle {
     monsters,
     audio,
     levels,
+    campaign,
     datFormat,
     motifs,
     motifAnnotations

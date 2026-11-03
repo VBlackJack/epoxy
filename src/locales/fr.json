@@ -389,6 +389,9 @@
     "scores_modal": {
       "title": { "label": "Sélection de Niveau & Records" },
       "progress": { "label": "{completed} / {total} complétés" },
+      "chapter_progress": { "label": "{solved} / {total} résolus" },
+      "chapter_chip": { "label": "{title} : {solved} / {total} résolus" },
+      "chapters_nav": { "label": "Chapitres" },
       "search_placeholder": { "label": "Filtrer par #, titre ou code..." },
       "filter_all": { "action": "Tous" },
       "filter_unsolved": { "action": "À faire" },
@@ -1064,11 +1067,12 @@
   },
   "campaign": {
     "chapter": {
-      "1": { "title": "Fondations" },
-      "2": { "title": "Mécanismes" },
-      "3": { "title": "Créatures" },
-      "4": { "title": "Contrebande" },
-      "5": { "title": "Noyau" }
-    }
+      "1": { "title": "Fondations", "subtitle": "Puces, clés, bottes, glace et sols directionnels." },
+      "2": { "title": "Mécanismes", "subtitle": "Boutons, pièges, bombes, téléporteurs et cloisons fines." },
+      "3": { "title": "Créatures", "subtitle": "Insectes, chars, murs cachés et machines à cloner." },
+      "4": { "title": "Contrebande", "subtitle": "Voleurs, barrières d'objets, tortues et jets de flamme." },
+      "5": { "title": "Noyau", "subtitle": "Clés jaunes, chronos bonus et chasseurs rapides, tous ensemble." }
+    },
+    "chapter_banner": { "label": "Chapitre {number} : {title}. {subtitle}" }
   }
 }

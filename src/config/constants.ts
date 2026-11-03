@@ -32,6 +32,7 @@ export const CONFIG_ENDPOINTS = {
   DAT_FORMAT: `${ENV_CONFIG.CONFIG_BASE_URL}/dat_format.json`,
   MOTIFS: `${ENV_CONFIG.CONFIG_BASE_URL}/motifs.json`,
   MOTIF_ANNOTATIONS: `${ENV_CONFIG.CONFIG_BASE_URL}/motif-annotations.json`,
+  CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/campaign.json`,
   TEMPLATES: `${ENV_CONFIG.CONFIG_BASE_URL}/templates.json`
 } as const;
 

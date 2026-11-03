@@ -38,6 +38,14 @@ import { isCc3dId } from './render/cc3dPainters';
 import { classifyImportSelection, importCc3dSelection, packNameFromFile } from './ui/cc3dImport';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
+import {
+  chapterBannerText,
+  chapterOfLevel,
+  chapterToAnnounce,
+  ChapterArrival,
+  groupLevelsByChapter,
+  renderChapterView
+} from './ui/campaignChapters';
 import { Pathfinder } from './core/Pathfinder';
 import { ProceduralGenerator } from './core/ProceduralGenerator';
 import {
@@ -308,7 +316,7 @@ class EpoxyApplication {
     // Read before the first level starts: starting a level writes the save slot.
     const hadSavedProgress = this.hasSavedProgress();
     this.restoreSavedProgress();
-    this.startLevelByIndex(this.currentLevelIndex);
+    this.startLevelByIndex(this.currentLevelIndex, true, hadSavedProgress ? 'other' : 'first-run');
 
     this.bindUIEvents();
     this.bindTouchGestures();
@@ -1069,7 +1077,7 @@ class EpoxyApplication {
 
   /**
    * The configs the page loaded, for the generator worker. The campaign
-   * blueprints are left out (the generator never reads them); the merged piece
+   * blueprints and chapters are left out (the generator never reads them); the merged piece
    * legend stands in for the levels legend.
    */
   private captureConfigBundle(): ConfigBundle {
@@ -1080,6 +1088,8 @@ class EpoxyApplication {
       monsters: ConfigRegistry.getMonsters(),
       audio: ConfigRegistry.getAudio(),
       levels: { legend: ConfigRegistry.getPieceLegend(), levels: [] },
+      // No campaign levels travel with the bundle, so no chapter may refer to one.
+      campaign: { chapters: [] },
       datFormat: ConfigRegistry.getDatFormat(),
       motifs: ConfigRegistry.getMotifs(),
       motifAnnotations: ConfigRegistry.getMotifAnnotations()
@@ -1843,8 +1853,14 @@ class EpoxyApplication {
     return tier ? t(keyOf(tier)) : '';
   }
 
-  /** Starts a level; `announce` is false when a replay is about to play it. */
-  private startLevelByIndex(index: number, announce: boolean = true): void {
+  /** Chapters stay open while a search or filter is active, so no match hides in a closed one. */
+  private scoresChaptersForcedOpen = false;
+
+  /**
+   * Starts a level; `announce` is false when a replay is about to play it.
+   * `arrival` says how the player got here, which decides whether a chapter banner shows.
+   */
+  private startLevelByIndex(index: number, announce: boolean = true, arrival: ChapterArrival = 'other'): void {
     const levels = ConfigRegistry.getLevels();
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
@@ -1867,9 +1883,17 @@ class EpoxyApplication {
     this.saveProgress();
     this.updateHUD();
     const objective = this.objectiveMessage();
-    if (announce && objective) this.showTransientStatus(objective);
+    const chapterStart = this.chapterBannerFor(levels[this.currentLevelIndex], arrival);
+    if (announce && (objective || chapterStart)) this.showTransientStatus(combineStatusMessages(chapterStart, objective));
     this.noteEndlessLevelReached(levels[this.currentLevelIndex]);
     this.prefetchNextEndlessLevel();
+  }
+
+  /** The chapter banner when the level opens a campaign chapter, otherwise null. */
+  private chapterBannerFor(level: CompiledLevel, arrival: ChapterArrival): string | null {
+    if (ConfigRegistry.getActivePackId() !== BUILTIN_PACK_IDS.CAMPAIGN || this.isEndlessActive()) return null;
+    const opened = chapterToAnnounce(ConfigRegistry.getCampaignChapters(), level.id, arrival);
+    return opened ? chapterBannerText(opened.chapter, opened.position) : null;
   }
 
   private isPackFullyCompleted(levels: CompiledLevel[]): boolean {
@@ -1898,7 +1922,7 @@ class EpoxyApplication {
     const levels = ConfigRegistry.getLevels();
     const wraps = this.isOnLastLevel();
     const wrapped = wraps && levels.length > 0;
-    this.startLevelByIndex(this.currentLevelIndex + 1, !wrapped);
+    this.startLevelByIndex(this.currentLevelIndex + 1, !wrapped, 'finished-previous');
     if (wrapped) {
       this.showTransientStatus(
         combineStatusMessages(
@@ -2623,17 +2647,18 @@ class EpoxyApplication {
 
     let activeRowEl: HTMLTableRowElement | null = null;
 
-    levels.forEach((lvl, idx) => {
+    const isShown = (lvl: CompiledLevel): boolean => {
       const rec = this.highScores[lvl.id];
-      if (this.scoresFilterMode === 'unsolved' && rec) return;
-      if (this.scoresFilterMode === 'completed' && !rec) return;
+      if (this.scoresFilterMode === 'unsolved' && rec) return false;
+      if (this.scoresFilterMode === 'completed' && !rec) return false;
+      if (!this.scoresSearchQuery) return true;
+      const hay = `${lvl.number} ${this.resolveLevelTitle(lvl)} ${showCodes ? lvl.password : ''}`.toLowerCase();
+      return hay.includes(this.scoresSearchQuery);
+    };
 
+    const buildRow = (lvl: CompiledLevel, idx: number): HTMLTableRowElement => {
+      const rec = this.highScores[lvl.id];
       const title = this.resolveLevelTitle(lvl);
-      if (this.scoresSearchQuery) {
-        const hay = `${lvl.number} ${title} ${showCodes ? lvl.password : ''}`.toLowerCase();
-        if (!hay.includes(this.scoresSearchQuery)) return;
-      }
-
       const tr = document.createElement('tr');
       if (idx === this.currentLevelIndex) {
         tr.classList.add('current-level-row');
@@ -2690,8 +2715,40 @@ class EpoxyApplication {
         cell(rec ? String(rec.minSteps) : noRecord),
         tdAction
       );
-      tbody.appendChild(tr);
-    });
+      return tr;
+    };
+
+    // The Epoxy campaign lists its levels under chapters; every other pack stays a flat list.
+    const chapters = ConfigRegistry.getCampaignChapters();
+    const chapterHost = byId('scores-chapters');
+    const chapterStrip = byId('scores-chapter-strip');
+    const chapterMode =
+      ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.CAMPAIGN &&
+      chapters.length > 0 &&
+      chapterHost !== null &&
+      chapterStrip !== null;
+    byId('scores-table')?.classList.toggle('hidden', chapterMode);
+    chapterHost?.classList.toggle('hidden', !chapterMode);
+    chapterStrip?.classList.toggle('hidden', !chapterMode);
+    if (chapterMode && chapterHost && chapterStrip) {
+      const filtering = this.scoresFilterMode !== 'all' || this.scoresSearchQuery !== '';
+      const wasForcedOpen = this.scoresChaptersForcedOpen;
+      this.scoresChaptersForcedOpen = filtering;
+      renderChapterView({
+        host: chapterHost,
+        strip: chapterStrip,
+        tableHead: document.querySelector<HTMLTableSectionElement>('#scores-table thead'),
+        groups: groupLevelsByChapter(levels, chapters, (lvl) => Boolean(this.highScores[lvl.id]), isShown),
+        buildRow: ({ level, index }) => buildRow(level, index),
+        currentChapterId: chapterOfLevel(chapters, levels[this.currentLevelIndex]?.id ?? '')?.id,
+        openAll: filtering,
+        keepState: !scrollToActive && !wasForcedOpen
+      });
+    } else {
+      levels.forEach((lvl, idx) => {
+        if (isShown(lvl)) tbody.appendChild(buildRow(lvl, idx));
+      });
+    }
 
     if (scrollToActive && activeRowEl) {
       requestAnimationFrame(() => {
