@@ -829,7 +829,7 @@ export class GameEngine {
     this.player.inWater = tile.hazard === 'water';
     if (tile.hazard === 'water' && (!tile.protectedByItem || !this.player.boots.has(tile.protectedByItem))) {
       this.emitVisual('splash', x, y);
-      this.killPlayer('hud.messages.death_water', 'splash');
+      this.killPlayer('hud.messages.death_water', 'death');
       return;
     }
     if (tile.hazard === 'fire' && (!tile.protectedByItem || !this.player.boots.has(tile.protectedByItem))) {
@@ -840,7 +840,7 @@ export class GameEngine {
 
     if (tile.hazard === 'slime' && (!tile.protectedByItem || !this.player.boots.has(tile.protectedByItem))) {
       this.emitVisual('splash', x, y, 'green');
-      this.killPlayer('hud.messages.death_slime', 'splash');
+      this.killPlayer('hud.messages.death_slime', 'death');
       return;
     }
 

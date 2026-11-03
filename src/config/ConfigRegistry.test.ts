@@ -688,6 +688,16 @@ describe('audio configuration validation', () => {
     expect(errorsFor({ minIntervalMs: 0 })).toEqual([]);
     expect(errorsFor({ minIntervalMs: 250 })).toEqual([]);
     expect(errorsFor({ files: ['a.wav'], maxDurationMs: 100, fadeOutMs: 100, gain: 0.4 })).toEqual([]);
+    const noteErrors = (note: Record<string, unknown>): string[] =>
+      errorsFor({ notes: [{ freq: 200, durationMs: 50, gain: 0.3, ...note }] });
+    expect(noteErrors({ slideToFreq: 0 })).toHaveLength(1);
+    expect(noteErrors({ slideToFreq: Number.NaN })).toHaveLength(1);
+    expect(noteErrors({ slideToFreq: '400' })).toHaveLength(1);
+    expect(noteErrors({ slideToFreq: 400 })).toEqual([]);
+    expect(noteErrors({ attackMs: -1 })).toHaveLength(1);
+    expect(noteErrors({ attackMs: 50 })).toHaveLength(1);
+    expect(noteErrors({ attackMs: '5' })).toHaveLength(1);
+    expect(noteErrors({ attackMs: 10 })).toEqual([]);
     expect(findAudioConfigErrors(base, undefined)).toEqual([]);
   });
 

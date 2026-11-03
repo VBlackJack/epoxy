@@ -154,8 +154,7 @@ export class Cc3dSimulation implements RuleContext {
     player.deathKey = DEATH_KEY[cause];
     const watery = cause === 'water' || cause === 'slime';
     this.events.visual(watery ? 'splash' : 'explosion', player.x, player.y, watery ? undefined : VISUAL_COLOR.death);
-    if (watery) this.events.sound(SFX.splash);
-    else if (cause === 'fire') this.events.sound(SFX.burn);
+    if (cause === 'fire') this.events.sound(SFX.burn);
     else if (cause === 'bomb') this.events.sound(SFX.bomb);
     else if (cause !== 'time') this.events.sound(SFX.death);
   }

@@ -142,11 +142,11 @@
       ]
     },
     "splash": {
-      "waveform": "sawtooth",
+      "waveform": "sine",
       "notes": [
-        { "freq": 280, "durationMs": 70, "gain": 0.5 },
-        { "freq": 190, "durationMs": 90, "gain": 0.45 },
-        { "freq": 110, "durationMs": 140, "gain": 0.4 }
+        { "freq": 220, "slideToFreq": 520, "attackMs": 12, "durationMs": 70, "gain": 0.3 },
+        { "freq": 700, "slideToFreq": 1100, "attackMs": 6, "durationMs": 40, "gain": 0.12 },
+        { "freq": 900, "slideToFreq": 1500, "attackMs": 6, "durationMs": 35, "gain": 0.08 }
       ]
     },
     "burn": {
