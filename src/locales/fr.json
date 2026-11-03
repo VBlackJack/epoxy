@@ -1130,12 +1130,12 @@
         "hint": "Une clé verte ne s'use jamais : une seule clé ouvre toutes les portes vertes."
       },
       "level_6": {
-        "title": "Terre et gravier",
+        "title": "Empreintes",
         "hint": "La terre devient du sol dès que tu marches dessus : la terre qui reste montre les endroits où tu n'es pas encore passé."
       },
       "level_7": {
         "title": "Circuit imprimé",
-        "hint": "Certains niveaux sont une simple balade : suis la piste et les puces viennent à toi."
+        "hint": "Le socle s'ouvre quand son compteur atteint zéro."
       },
       "level_8": {
         "title": "Le panier le moins cher",
@@ -1147,7 +1147,7 @@
       },
       "level_10": {
         "title": "Le trousseau",
-        "hint": "Ne reste jamais les mains vides tant qu'une pièce de clé est fermée : une porte qui ne rend rien peut te piéger."
+        "hint": "Une porte rouge mange la clé qui l'ouvre : compte tes clés avant d'ouvrir une pièce qui n'en rend pas."
       }
     },
     "chapter": {

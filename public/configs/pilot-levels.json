@@ -213,19 +213,20 @@
       "hintKey": "pilot.levels.level_6.hint",
       "password": "SOIL",
       "timeLimitSeconds": 0,
-      "chipsRequired": 8,
+      "chipsRequired": 6,
       "playerStart": {
         "x": 6,
-        "y": 3,
+        "y": 4,
         "dir": "S"
       },
       "rows": [
         "#############",
         "##C#C#d#C#C##",
         "##d#d#d#d#d##",
-        "#ddddd@ddddd#",
-        "##d#d#H#d#d##",
-        "##C#C#d#C#C##",
+        "##d#d#d#d#d##",
+        "##dddd@dddd##",
+        "####d#H#d####",
+        "####C#d#C####",
         "######S######",
         "######E######",
         "#############"
@@ -235,7 +236,7 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "WWWWNNSSEENNSSWWSSNNEESSNNEEEENNSSEENNSSWWSSNNEESSNNWWWWSSSS"
+      "solution": "WWWWNNNSSSEENNNSSSSSNNEEEESSNNNNNSSSEENNNSSSWWWWSSSS"
     },
     {
       "id": "epoxy_p_7",
@@ -285,12 +286,13 @@
       },
       "rows": [
         "###############",
-        "#@H...r.......#",
-        "#.#.#.###.###.#",
-        "#.#.#.###.###.#",
-        "#.#.#.###R###.#",
-        "#C#C#C##CCC##S#",
-        "#C#C#C#######E#",
+        "#@H...........#",
+        "#.#.#.#.#.###.#",
+        "#.#.#.#R#.###.#",
+        "#.#.#.#C#.###.#",
+        "#.#.#r#C#.###S#",
+        "#C#C###C#C###E#",
+        "#C#C#####C#####",
         "###############"
       ],
       "terrainOverrides": [],
@@ -298,7 +300,7 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "EEEEEEEESSSSWEEWNNNNEEEESSSSS"
+      "solution": "EEEESSSSNNNNEESSSSSNNNNNEEEEEESSSSS"
     },
     {
       "id": "epoxy_p_9",
@@ -308,29 +310,29 @@
       "hintKey": "pilot.levels.level_9.hint",
       "password": "PLUG",
       "timeLimitSeconds": 0,
-      "chipsRequired": 7,
+      "chipsRequired": 5,
       "playerStart": {
         "x": 1,
         "y": 1,
         "dir": "S"
       },
       "rows": [
-        "###############",
-        "#@H..C#..C#####",
-        "#.#.###.#######",
-        "#.#.#C#...SrRE#",
-        "#.#.#.#.#######",
-        "#.#.......#####",
-        "#.###.###.#####",
-        "#C#C...C#C#####",
-        "###############"
+        "#############",
+        "#@H..C#C#####",
+        "###.###.#####",
+        "#C#..C#...RE#",
+        "#.#.###.#S###",
+        "#...#...#r###",
+        "#.###.#.#####",
+        "#.....#C#####",
+        "#############"
       ],
       "terrainOverrides": [],
       "items": [],
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "SSSSSSNNNNNNEEEEWWSSSSEESSEEWWWWEENNNNSSEEEESSNNWWNNNNEEWWSSEEEEEE"
+      "solution": "EEEEWWSSEEWWSSWWNNSSSSEEEENNEESSNNNNNNSSEESSNNEE"
     },
     {
       "id": "epoxy_p_10",
@@ -354,7 +356,7 @@
         "#..#..#..#..#.#",
         "####R##R##R##R#",
         "#.............#",
-        "#r.....@....H.#",
+        "#rH....@.....#",
         "#######S#######",
         "#######E#######",
         "###############"
@@ -364,7 +366,7 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "WWWWWWNEEENNNNNWWWEEESSSSSEEENNNNNSSSSSEEENNNNNESSSWSSEEENNNNNSSSSSSWWWWWWSS"
+      "solution": "WWWWWWNEEENNNNNWWWEEESSSSSEEENNNNNSSSSSEEENNNNNESSSWSSEEENNNNNSSSSSWSWWWWWSS"
     }
   ]
 }

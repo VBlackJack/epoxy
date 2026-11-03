@@ -35,7 +35,11 @@ const LARGE_STATE_CAP = 400000;
 
 const BASKET_LEVEL = 'epoxy_p_8';
 /** The red door that closes the three-chip room of level 8. */
-const BASKET_DOOR = { x: 9, y: 4 };
+const BASKET_DOOR = { x: 7, y: 3 };
+const FOOTPRINTS_LEVEL = 'epoxy_p_6';
+/** The dirt column above the start of level 6: the one deliberately empty stub. */
+const FOOTPRINTS_STUB_X = 6;
+const FOOTPRINTS_STUB_ROWS = [1, 2, 3];
 const KEYRING_LEVEL = 'epoxy_p_10';
 /** Key room doors of level 10 on its east-west hall, from the key at the west end. */
 const KEY_TO_HALL = 'WWWWWWN';
@@ -61,24 +65,26 @@ function engineAfter(level: CompiledLevel, moves: string): GameEngine {
   return engine;
 }
 
+/** Identity of a game state for the exhaustive searches: position, keys held, chips left, terrain and items. */
+function stateKey(engine: GameEngine): string {
+  const state = engine.captureState();
+  const keys = Object.entries(state.player.keys)
+    .filter(([, count]) => count > 0)
+    .sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify([state.player.x, state.player.y, keys, state.chipsRemaining, state.terrain, state.items]);
+}
+
 /** Exhaustive search of every state reachable from the engine's current one; true when one wins. */
 function canStillWin(engine: GameEngine, stateCap = SEARCH_STATE_CAP): boolean {
-  const key = (): string => {
-    const state = engine.captureState();
-    const keys = Object.entries(state.player.keys)
-      .filter(([, count]) => count > 0)
-      .sort(([a], [b]) => a.localeCompare(b));
-    return JSON.stringify([state.player.x, state.player.y, keys, state.chipsRemaining, state.terrain, state.items]);
-  };
-  const seen = new Set<string>([key()]);
+  const seen = new Set<string>([stateKey(engine)]);
   const queue = [engine.captureState()];
-  while (queue.length > 0) {
-    const from = queue.shift()!;
+  for (let head = 0; head < queue.length; head++) {
+    const from = queue[head];
     for (const dir of DIRECTIONS) {
       engine.restoreState(from);
       if (!PieceSolver.play(engine, dir)) continue;
       if (engine.isLevelCompleted() && engine.getChipsRemaining() === 0) return true;
-      const id = key();
+      const id = stateKey(engine);
       if (seen.has(id)) continue;
       seen.add(id);
       expect(seen.size).toBeLessThan(stateCap);
@@ -107,14 +113,7 @@ describe('pilot chapter 1 order trap', () => {
 
 /** Fewest moves of a win from the engine's current state, or null; `accept` can reject a win by its final state. */
 function shortestWin(engine: GameEngine, accept: (e: GameEngine) => boolean = () => true): number | null {
-  const key = (): string => {
-    const state = engine.captureState();
-    const keys = Object.entries(state.player.keys)
-      .filter(([, count]) => count > 0)
-      .sort(([a], [b]) => a.localeCompare(b));
-    return JSON.stringify([state.player.x, state.player.y, keys, state.chipsRemaining, state.terrain, state.items]);
-  };
-  const seen = new Set<string>([key()]);
+  const seen = new Set<string>([stateKey(engine)]);
   let frontier = [engine.captureState()];
   for (let depth = 1; frontier.length > 0; depth++) {
     const next = [];
@@ -123,7 +122,8 @@ function shortestWin(engine: GameEngine, accept: (e: GameEngine) => boolean = ()
         engine.restoreState(from);
         if (!PieceSolver.play(engine, dir)) continue;
         if (engine.isLevelCompleted() && engine.getChipsRemaining() === 0 && accept(engine)) return depth;
-        const id = key();
+        if (engine.isLevelCompleted()) continue;
+        const id = stateKey(engine);
         if (seen.has(id)) continue;
         seen.add(id);
         expect(seen.size).toBeLessThan(LARGE_STATE_CAP);
@@ -183,5 +183,20 @@ describe('pilot chapter 1 key ring order', () => {
   it('leaves the level unsolvable when both plain rooms are opened before the key room', () => {
     const engine = engineAfter(levelById(KEYRING_LEVEL), KEYRING_PLAIN_THEN_FAR);
     expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(false);
+  });
+});
+
+describe('pilot chapter 1 footprints', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('leaves only the deliberately empty stub as dirt once the route is walked', () => {
+    const level = levelById(FOOTPRINTS_LEVEL);
+    const engine = engineAfter(level, level.solution ?? '');
+    expect(engine.isLevelCompleted()).toBe(true);
+    const dirt: Array<[number, number]> = [];
+    engine.getTerrain().forEach((row, y) => row.forEach((id, x) => id === 'dirt' && dirt.push([x, y])));
+    expect(dirt).toEqual(FOOTPRINTS_STUB_ROWS.map((y) => [FOOTPRINTS_STUB_X, y]));
   });
 });

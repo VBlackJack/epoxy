@@ -1130,12 +1130,12 @@
         "hint": "A green key is never used up: one key opens every green door."
       },
       "level_6": {
-        "title": "Dirt and Gravel",
+        "title": "Footprints",
         "hint": "Dirt turns into floor once you step on it, so the dirt that is left shows where you have not been yet."
       },
       "level_7": {
         "title": "Printed Circuit",
-        "hint": "Some levels are just a pleasant walk: follow the track and the chips come to you."
+        "hint": "The socket opens when its counter reaches zero."
       },
       "level_8": {
         "title": "The Cheapest Basket",
@@ -1147,7 +1147,7 @@
       },
       "level_10": {
         "title": "The Key Ring",
-        "hint": "Never stay empty-handed while a key room is still closed: a door that gives nothing back can trap you."
+        "hint": "A red door eats the key that opens it: count keys before opening a room without one."
       }
     },
     "chapter": {
