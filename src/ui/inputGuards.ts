@@ -38,7 +38,7 @@ const SINGLE_ASCII_LETTER = /^[a-z]$/i;
  * keeps AZERTY working (key 'z' on code KeyW). A layout whose key is not an
  * ASCII letter (Cyrillic, Greek) falls back to the physical key code.
  */
-function matchesLetter(chord: KeyChord, letter: string, code: string): boolean {
+export function matchesLetter(chord: KeyChord, letter: string, code: string): boolean {
   if (chord.key.toLowerCase() === letter) return true;
   return !SINGLE_ASCII_LETTER.test(chord.key) && chord.code === code;
 }

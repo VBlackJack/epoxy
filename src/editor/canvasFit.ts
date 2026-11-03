@@ -14,92 +14,102 @@
  * limitations under the License.
  */
 
-import { EDITOR_MAX_ZOOM_STEP, EDITOR_MIN_ZOOM_STEP } from '../ui/uiConstants';
+import { EDITOR_ZOOM_STEPS_EACH_WAY } from '../ui/uiConstants';
 
-/** Fewest device pixels shown for one drawn pixel; below it the art would be unreadable. */
-const MIN_DEVICE_SCALE = 1;
-/** Device pixel ratio assumed when the platform reports none usable. */
 const FALLBACK_DEVICE_PIXEL_RATIO = 1;
+const PERCENT = 100;
 
 export interface CanvasFitInput {
   /** Level size in cells. */
   levelWidth: number;
   levelHeight: number;
-  /** Pixels one cell takes in the canvas drawing buffer (editorTilePixelSize). */
+  /** Smallest tile the editor shows, in CSS pixels (editorTilePixelSize). */
   baseTileSize: number;
+  /** Largest tile the editor shows, in CSS pixels. */
+  maxTileSize: number;
+  /** CSS pixels one zoom step adds or removes. */
+  zoomTileStep: number;
   /** Space the canvas may take, in CSS pixels. */
   containerWidth: number;
   containerHeight: number;
   devicePixelRatio: number;
-  /** Zoom as a whole multiple of the fit scale; clamped to the allowed range. */
-  zoomStep: number;
+  /** Zoom steps away from the fit size; 0 is the fit. Clamped to the allowed range. */
+  zoomOffset: number;
 }
 
 export interface CanvasFit {
-  /** Zoom step actually applied, after clamping. */
-  zoomStep: number;
-  /** Device pixels per drawn pixel; always a whole number, so the pixel art stays crisp. */
-  deviceScale: number;
-  /** Largest whole device scale that shows the whole level in the container (zoom 1). */
-  fitScale: number;
+  /** Zoom offset actually applied, after clamping. */
+  zoomOffset: number;
+  /** Largest whole tile, in CSS pixels, that shows the whole level in the container. */
+  fitTileSize: number;
+  /** Tile size shown, in CSS pixels: the fit size moved by the zoom offset, clamped to the tile range. */
+  tileSize: number;
+  /** Tile size of the drawing buffer, in device pixels: whole, so the pixel art is drawn on whole pixels. */
+  bufferTileSize: number;
   /** Size of the canvas drawing buffer: set it as canvas.width and canvas.height. */
   backingWidth: number;
   backingHeight: number;
   /** Size to display the canvas at, in CSS pixels: set it as style width and height. */
   cssWidth: number;
   cssHeight: number;
-  /** CSS pixels one cell takes on screen; use it to turn a pointer position into a cell. */
+  /** CSS pixels one cell takes on screen. */
   cssTileSize: number;
+  /** Tile size as a percentage of the base tile. */
+  percent: number;
+  canZoomIn: boolean;
+  canZoomOut: boolean;
 }
 
-/** Zoom steps clamped to the allowed range; a non-finite value gives the lowest step. */
-export function clampZoomStep(step: number): number {
-  if (!Number.isFinite(step)) return EDITOR_MIN_ZOOM_STEP;
-  return Math.min(EDITOR_MAX_ZOOM_STEP, Math.max(EDITOR_MIN_ZOOM_STEP, Math.round(step)));
+export function clampZoomOffset(offset: number): number {
+  if (!Number.isFinite(offset)) return 0;
+  return Math.min(EDITOR_ZOOM_STEPS_EACH_WAY, Math.max(-EDITOR_ZOOM_STEPS_EACH_WAY, Math.round(offset)));
 }
 
-/** One step closer, stopping at the highest zoom. */
-export function zoomIn(step: number): number {
-  return clampZoomStep(clampZoomStep(step) + 1);
+export function zoomIn(offset: number): number {
+  return clampZoomOffset(clampZoomOffset(offset) + 1);
 }
 
-/** One step back, stopping at the fit zoom. */
-export function zoomOut(step: number): number {
-  return clampZoomStep(clampZoomStep(step) - 1);
+export function zoomOut(offset: number): number {
+  return clampZoomOffset(clampZoomOffset(offset) - 1);
 }
 
-/**
- * Sizes the editor canvas. The drawing buffer keeps one cell at `baseTileSize`
- * pixels and is shown at a whole number of device pixels per buffer pixel, so
- * pixel art is never smeared. Zoom 1 is the largest whole scale that fits the
- * container (at least 1, even when the level does not fit); each further zoom
- * step multiplies that scale.
- */
+/** Largest whole tile, in CSS pixels, with which the level fits the container; 0 when nothing fits. */
+export function fitTileSize(levelWidth: number, levelHeight: number, containerWidth: number, containerHeight: number): number {
+  if (levelWidth <= 0 || levelHeight <= 0) return 0;
+  const tile = Math.floor(Math.min(containerWidth / levelWidth, containerHeight / levelHeight));
+  return Number.isFinite(tile) ? Math.max(0, tile) : 0;
+}
+
 export function fitCanvas(input: CanvasFitInput): CanvasFit {
-  const ratio = input.devicePixelRatio > 0 && Number.isFinite(input.devicePixelRatio)
-    ? input.devicePixelRatio
-    : FALLBACK_DEVICE_PIXEL_RATIO;
-  const backingWidth = Math.max(0, input.levelWidth) * input.baseTileSize;
-  const backingHeight = Math.max(0, input.levelHeight) * input.baseTileSize;
-  const zoomStep = clampZoomStep(input.zoomStep);
+  const ratio =
+    input.devicePixelRatio > 0 && Number.isFinite(input.devicePixelRatio)
+      ? input.devicePixelRatio
+      : FALLBACK_DEVICE_PIXEL_RATIO;
+  const width = Math.max(0, input.levelWidth);
+  const height = Math.max(0, input.levelHeight);
+  const base = input.baseTileSize;
+  const max = Math.max(base, input.maxTileSize);
+  const clamp = (tile: number): number => Math.min(max, Math.max(base, tile));
 
-  let fitScale = MIN_DEVICE_SCALE;
-  if (backingWidth > 0 && backingHeight > 0) {
-    const byWidth = Math.floor((input.containerWidth * ratio) / backingWidth);
-    const byHeight = Math.floor((input.containerHeight * ratio) / backingHeight);
-    const fitting = Math.min(byWidth, byHeight);
-    fitScale = Number.isFinite(fitting) ? Math.max(MIN_DEVICE_SCALE, fitting) : MIN_DEVICE_SCALE;
-  }
-  const deviceScale = fitScale * zoomStep;
+  const fit = clamp(fitTileSize(width, height, input.containerWidth, input.containerHeight));
+  const zoomOffset = clampZoomOffset(input.zoomOffset);
+  const tileSize = clamp(fit + zoomOffset * input.zoomTileStep);
+  const bufferTileSize = Math.max(1, Math.round(tileSize * ratio));
+  const backingWidth = width * bufferTileSize;
+  const backingHeight = height * bufferTileSize;
 
   return {
-    zoomStep,
-    deviceScale,
-    fitScale,
+    zoomOffset,
+    fitTileSize: fit,
+    tileSize,
+    bufferTileSize,
     backingWidth,
     backingHeight,
-    cssWidth: (backingWidth * deviceScale) / ratio,
-    cssHeight: (backingHeight * deviceScale) / ratio,
-    cssTileSize: (input.baseTileSize * deviceScale) / ratio
+    cssWidth: backingWidth / ratio,
+    cssHeight: backingHeight / ratio,
+    cssTileSize: bufferTileSize / ratio,
+    percent: Math.round((tileSize / base) * PERCENT),
+    canZoomIn: tileSize < max && zoomOffset < EDITOR_ZOOM_STEPS_EACH_WAY,
+    canZoomOut: tileSize > base && zoomOffset > -EDITOR_ZOOM_STEPS_EACH_WAY
   };
 }

@@ -466,6 +466,7 @@
     "lastEndlessKey": "last_endless",
     "onboardingSeenKey": "onboarding_seen",
     "lastSaveDestinationKey": "last_save_destination",
+    "editorSectionsKey": "editor_sections",
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
   },

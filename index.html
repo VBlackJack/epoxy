@@ -302,106 +302,173 @@
       </main>
 
       <!-- LEVEL EDITOR VIEW -->
-      <section id="editor-view" class="view-section hidden">
-        <div class="editor-layout">
-          <div class="editor-left-panel">
-            <div class="editor-toolbar">
-              <button id="editor-new-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.new_map.action"></button>
-              <button id="editor-undo-btn" class="hud-btn small" type="button" disabled data-i18n="editor.toolbar.undo.action"></button>
-              <button id="editor-redo-btn" class="hud-btn small" type="button" disabled data-i18n="editor.toolbar.redo.action"></button>
-              <button id="editor-validate-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.validate_level.action"></button>
-              <button id="editor-test-btn" class="hud-btn small primary" type="button" data-i18n="editor.toolbar.test_level.action"></button>
-              <button id="editor-save-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.save_local.action"></button>
+      <section id="editor-view" class="view-section hidden" data-layout="three">
+        <div class="editor-shell">
+          <div class="editor-toolbar" role="toolbar" data-i18n-aria-label="editor.layout.toolbar.label">
+            <div class="editor-toolbar-group" role="group" data-i18n-aria-label="editor.layout.group.file.label">
+              <button id="editor-new-btn" class="hud-btn small" type="button" data-i18n="editor.layout.file.new.action"></button>
+              <button id="editor-save-btn" class="hud-btn small primary" type="button" data-i18n="editor.layout.file.save.action"></button>
               <button id="editor-save-copy-btn" class="hud-btn small" type="button" data-i18n="editor.pack.save_copy.action"></button>
+              <button id="editor-import-btn" class="hud-btn small" type="button" data-i18n="editor.layout.file.import.action"></button>
               <button id="editor-export-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_json.action"></button>
               <button id="editor-export-ccl-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_ccl.action"></button>
-              <button id="editor-import-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.import_json.action"></button>
               <input id="editor-import-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok,.xml" class="hidden" />
             </div>
-
-            <div class="editor-preset-bar editor-generator-bar">
-              <label for="editor-gen-level" data-i18n="editor.generator.level.label"></label>
-              <input id="editor-gen-level" type="number" class="editor-input editor-input-narrow" />
-              <label for="editor-gen-seed" data-i18n="editor.generator.seed.label"></label>
-              <input id="editor-gen-seed" type="text" inputmode="numeric" class="editor-input" data-i18n-placeholder="editor.generator.seed.placeholder" />
-              <button id="editor-generate-btn" class="hud-btn small primary" type="button" data-i18n="editor.generator.generate.action"></button>
+            <span class="editor-toolbar-separator" role="separator" aria-orientation="vertical"></span>
+            <div class="editor-toolbar-group" role="group" data-i18n-aria-label="editor.layout.group.edit.label">
+              <button id="editor-undo-btn" class="hud-btn small" type="button" disabled data-i18n="editor.layout.edit.undo.action" data-i18n-title="editor.layout.edit.undo.title"></button>
+              <button id="editor-redo-btn" class="hud-btn small" type="button" disabled data-i18n="editor.layout.edit.redo.action" data-i18n-title="editor.layout.edit.redo.title"></button>
             </div>
-
-            <div class="editor-meta-grid">
-              <div class="meta-field">
-                <label for="editor-meta-title" data-i18n="editor.metadata.title.label"></label>
-                <input id="editor-meta-title" type="text" class="editor-input" />
-              </div>
-              <div class="meta-field">
-                <label for="editor-meta-password" data-i18n="editor.metadata.password.label"></label>
-                <input id="editor-meta-password" type="text" maxlength="4" class="editor-input" />
-              </div>
-              <div class="meta-field">
-                <label for="editor-meta-time" data-i18n="editor.metadata.time_limit.label"></label>
-                <input id="editor-meta-time" type="number" min="0" max="999" class="editor-input" />
-              </div>
-              <div class="meta-field">
-                <label for="editor-meta-chips" data-i18n="editor.metadata.chips_needed.label"></label>
-                <div class="inline-field">
-                  <input id="editor-meta-chips" type="number" min="0" max="999" class="editor-input" />
-                  <button id="editor-autocount-btn" class="hud-btn small" type="button" data-i18n="editor.metadata.auto_count_chips.action"></button>
-                </div>
-              </div>
-              <div class="meta-field full-width">
-                <label for="editor-meta-winrule" data-i18n="editor.metadata.win_rule.label"></label>
-                <select id="editor-meta-winrule" class="editor-input">
-                  <option value="exit" selected data-i18n="editor.metadata.win_rule_exit.label"></option>
-                  <option value="targets" data-i18n="editor.metadata.win_rule_targets.label"></option>
-                  <option value="receivers" data-i18n="editor.metadata.win_rule_receivers.label"></option>
-                </select>
-              </div>
-              <div class="meta-field full-width">
-                <label for="editor-meta-ruleset" data-i18n="editor.metadata.ruleset.label"></label>
-                <select id="editor-meta-ruleset" class="editor-input">
-                  <option value="epoxy" selected data-i18n="editor.metadata.ruleset_epoxy.label"></option>
-                  <option value="lynx" data-i18n="editor.metadata.ruleset_lynx.label"></option>
-                </select>
-              </div>
-              <div class="meta-field full-width">
-                <label for="editor-meta-hint" data-i18n="editor.metadata.hint.label"></label>
-                <input id="editor-meta-hint" type="text" class="editor-input" />
-              </div>
-              <div class="meta-field full-width">
-                <label for="editor-meta-author" data-i18n="editor.metadata.author.label"></label>
-                <input id="editor-meta-author" type="text" class="editor-input" />
-              </div>
-              <div class="meta-field full-width">
-                <label for="editor-meta-dir" data-i18n="editor.metadata.entity_dir.label"></label>
-                <select id="editor-meta-dir" class="editor-input">
-                  <option value="N" data-i18n="editor.metadata.dir_north.label"></option>
-                  <option value="E" data-i18n="editor.metadata.dir_east.label"></option>
-                  <option value="S" selected data-i18n="editor.metadata.dir_south.label"></option>
-                  <option value="W" data-i18n="editor.metadata.dir_west.label"></option>
-                </select>
-              </div>
+            <span class="editor-toolbar-separator" role="separator" aria-orientation="vertical"></span>
+            <div class="editor-toolbar-group" role="group" data-i18n-aria-label="editor.layout.group.tools.label">
+              <button class="hud-btn small editor-tool-btn" type="button" data-tool="brush" aria-pressed="true" data-i18n="editor.layout.tool.brush.label" data-i18n-title="editor.layout.tool.brush.title"></button>
+              <button class="hud-btn small editor-tool-btn" type="button" data-tool="fill" aria-pressed="false" data-i18n="editor.layout.tool.fill.label" data-i18n-title="editor.layout.tool.fill.title"></button>
+              <button class="hud-btn small editor-tool-btn" type="button" data-tool="eraser" aria-pressed="false" data-i18n="editor.layout.tool.eraser.label" data-i18n-title="editor.layout.tool.eraser.title"></button>
+              <button class="hud-btn small editor-tool-btn" type="button" data-tool="picker" aria-pressed="false" data-i18n="editor.layout.tool.picker.label" data-i18n-title="editor.layout.tool.picker.title"></button>
             </div>
-
-            <div id="editor-category-tabs" class="editor-category-tabs"></div>
-            <div id="editor-palette-grid" class="editor-palette-grid"></div>
-            <div class="editor-status-row">
-              <div id="editor-coords-badge" class="editor-coords-badge">--</div>
-              <div id="editor-status-bar" class="editor-status-bar" data-i18n="editor.palette.status.ready.label"></div>
+            <div class="editor-toolbar-end">
+              <button id="editor-validate-btn" class="hud-btn small editor-check-btn" type="button" data-i18n-title="editor.layout.check.title">
+                <span data-i18n="editor.layout.check.action"></span>
+                <span id="editor-check-badge" class="editor-check-badge" data-state="idle"></span>
+              </button>
+              <button id="editor-test-btn" class="hud-btn small primary" type="button" data-i18n="editor.layout.test.action" data-i18n-title="editor.layout.test.title"></button>
             </div>
           </div>
 
-          <div class="editor-right-column">
-            <div class="editor-context-line" role="group" data-i18n-aria-label="editor.pack.context.group.label">
-              <label for="editor-context-pack" class="editor-context-label" data-i18n="editor.pack.context.pack.label"></label>
-              <select id="editor-context-pack" class="editor-input editor-context-pack"></select>
-              <button id="editor-context-prev" class="hud-btn small" type="button" data-i18n="editor.pack.context.prev.action" data-i18n-aria-label="editor.pack.context.prev.aria"></button>
-              <span id="editor-context-position" class="editor-context-position" aria-live="polite"></span>
-              <button id="editor-context-next" class="hud-btn small" type="button" data-i18n="editor.pack.context.next.action" data-i18n-aria-label="editor.pack.context.next.aria"></button>
-              <span id="editor-context-title" class="editor-context-title"></span>
-              <span id="editor-context-dirty" class="editor-context-dirty hidden" data-i18n="editor.pack.context.unsaved.label"></span>
-              <button id="editor-context-open" class="hud-btn small" type="button" data-i18n="editor.pack.context.open.action"></button>
+          <div class="editor-body">
+            <div class="editor-side">
+              <aside id="editor-palette-panel" class="editor-panel editor-palette-panel">
+                <div class="editor-panel-header">
+                  <h3 class="editor-panel-title" data-i18n="editor.layout.palette.title"></h3>
+                  <button id="editor-switch-epoxy-btn" class="hud-btn small hidden" type="button" data-i18n="editor.layout.palette.switch_epoxy"></button>
+                </div>
+                <div id="editor-category-tabs" class="editor-category-tabs" role="group" data-i18n-aria-label="editor.layout.palette.tabs"></div>
+                <div id="editor-palette-grid" class="editor-palette-grid" role="group"></div>
+                <div id="editor-dir-group" class="editor-dir-group" role="group" data-i18n-aria-label="editor.layout.palette.direction.label">
+                  <span class="editor-dir-label" data-i18n="editor.layout.palette.direction.label"></span>
+                  <button class="hud-btn small" type="button" data-dir="N" aria-pressed="false" data-i18n="editor.metadata.dir_north.label" data-i18n-aria-label="editor.layout.palette.direction.north.aria"></button>
+                  <button class="hud-btn small" type="button" data-dir="E" aria-pressed="false" data-i18n="editor.metadata.dir_east.label" data-i18n-aria-label="editor.layout.palette.direction.east.aria"></button>
+                  <button class="hud-btn small" type="button" data-dir="S" aria-pressed="true" data-i18n="editor.metadata.dir_south.label" data-i18n-aria-label="editor.layout.palette.direction.south.aria"></button>
+                  <button class="hud-btn small" type="button" data-dir="W" aria-pressed="false" data-i18n="editor.metadata.dir_west.label" data-i18n-aria-label="editor.layout.palette.direction.west.aria"></button>
+                  <button id="editor-dir-rotate-btn" class="hud-btn small" type="button" data-i18n-title="editor.layout.palette.direction.rotate" data-i18n-aria-label="editor.layout.palette.direction.rotate">&#8635;</button>
+                </div>
+              </aside>
+
+              <aside id="editor-inspector" class="editor-panel editor-inspector" data-i18n-aria-label="editor.layout.inspector.title">
+                <details class="editor-section" data-section="level" open>
+                  <summary data-i18n="editor.layout.inspector.section.level"></summary>
+                  <div class="editor-section-body">
+                    <div class="meta-field">
+                      <label for="editor-meta-title" data-i18n="editor.metadata.title.label"></label>
+                      <input id="editor-meta-title" type="text" class="editor-input" />
+                    </div>
+                    <div class="meta-field">
+                      <label for="editor-meta-password" data-i18n="editor.metadata.password.label"></label>
+                      <input id="editor-meta-password" type="text" maxlength="4" class="editor-input" />
+                    </div>
+                    <div class="meta-field">
+                      <label for="editor-meta-hint" data-i18n="editor.metadata.hint.label"></label>
+                      <input id="editor-meta-hint" type="text" class="editor-input" />
+                    </div>
+                    <div class="meta-field">
+                      <label for="editor-meta-author" data-i18n="editor.metadata.author.label"></label>
+                      <input id="editor-meta-author" type="text" class="editor-input" />
+                    </div>
+                  </div>
+                </details>
+
+                <details class="editor-section" data-section="rules" open>
+                  <summary data-i18n="editor.layout.inspector.section.rules"></summary>
+                  <div class="editor-section-body">
+                    <div class="meta-field">
+                      <label for="editor-meta-ruleset" data-i18n="editor.layout.rules.engine.label"></label>
+                      <select id="editor-meta-ruleset" class="editor-input" aria-describedby="editor-ruleset-description">
+                        <option value="epoxy" selected data-i18n="editor.metadata.ruleset_epoxy.label"></option>
+                        <option value="lynx" data-i18n="editor.metadata.ruleset_lynx.label"></option>
+                      </select>
+                      <p id="editor-ruleset-description" class="hint-text"></p>
+                    </div>
+                    <div class="meta-field">
+                      <label for="editor-meta-winrule" data-i18n="editor.metadata.win_rule.label"></label>
+                      <select id="editor-meta-winrule" class="editor-input">
+                        <option value="exit" selected data-i18n="editor.metadata.win_rule_exit.label"></option>
+                        <option value="targets" data-i18n="editor.metadata.win_rule_targets.label"></option>
+                        <option value="receivers" data-i18n="editor.metadata.win_rule_receivers.label"></option>
+                      </select>
+                    </div>
+                    <div class="meta-field">
+                      <label for="editor-meta-time" data-i18n="editor.metadata.time_limit.label"></label>
+                      <input id="editor-meta-time" type="number" min="0" max="999" class="editor-input" />
+                    </div>
+                    <div class="meta-field">
+                      <label for="editor-meta-chips" data-i18n="editor.metadata.chips_needed.label"></label>
+                      <div class="inline-field">
+                        <input id="editor-meta-chips" type="number" min="0" max="999" class="editor-input" />
+                        <button id="editor-autocount-btn" class="hud-btn small" type="button" data-i18n="editor.metadata.auto_count_chips.action"></button>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                <details class="editor-section" data-section="size" open>
+                  <summary data-i18n="editor.layout.inspector.section.size"></summary>
+                  <div class="editor-section-body">
+                    <div class="editor-size-row">
+                      <div class="meta-field">
+                        <label for="editor-size-width" data-i18n="editor.layout.size.width"></label>
+                        <input id="editor-size-width" type="number" class="editor-input" />
+                      </div>
+                      <div class="meta-field">
+                        <label for="editor-size-height" data-i18n="editor.layout.size.height"></label>
+                        <input id="editor-size-height" type="number" class="editor-input" />
+                      </div>
+                      <button id="editor-size-apply-btn" class="hud-btn small" type="button" data-i18n="editor.layout.size.apply"></button>
+                    </div>
+                    <p id="editor-size-range" class="hint-text"></p>
+                  </div>
+                </details>
+
+                <details class="editor-section" data-section="generate">
+                  <summary data-i18n="editor.layout.inspector.section.generate"></summary>
+                  <div class="editor-section-body">
+                    <div class="meta-field">
+                      <label for="editor-gen-level" data-i18n="editor.generator.level.label"></label>
+                      <input id="editor-gen-level" type="number" class="editor-input" />
+                    </div>
+                    <div class="meta-field">
+                      <label for="editor-gen-seed" data-i18n="editor.generator.seed.label"></label>
+                      <input id="editor-gen-seed" type="text" inputmode="numeric" class="editor-input" data-i18n-placeholder="editor.generator.seed.placeholder" />
+                    </div>
+                    <button id="editor-generate-btn" class="hud-btn small primary" type="button" data-i18n="editor.generator.generate.action"></button>
+                  </div>
+                </details>
+              </aside>
             </div>
-            <div class="editor-canvas-container">
-              <canvas id="editor-canvas"></canvas>
+
+            <div class="editor-main">
+              <div class="editor-context-line" role="group" data-i18n-aria-label="editor.pack.context.group.label">
+                <label for="editor-context-pack" class="editor-context-label" data-i18n="editor.pack.context.pack.label"></label>
+                <select id="editor-context-pack" class="editor-input editor-context-pack"></select>
+                <button id="editor-context-prev" class="hud-btn small" type="button" data-i18n="editor.pack.context.prev.action" data-i18n-aria-label="editor.pack.context.prev.aria"></button>
+                <span id="editor-context-position" class="editor-context-position" aria-live="polite"></span>
+                <button id="editor-context-next" class="hud-btn small" type="button" data-i18n="editor.pack.context.next.action" data-i18n-aria-label="editor.pack.context.next.aria"></button>
+                <span id="editor-context-title" class="editor-context-title"></span>
+                <span id="editor-context-dirty" class="editor-context-dirty hidden" data-i18n="editor.pack.context.unsaved.label"></span>
+                <button id="editor-context-open" class="hud-btn small" type="button" data-i18n="editor.pack.context.open.action"></button>
+              </div>
+              <div id="editor-stage" class="editor-stage">
+                <canvas id="editor-canvas" tabindex="0" role="application"></canvas>
+              </div>
+              <div class="editor-statusbar">
+                <div id="editor-coords-badge" class="editor-coords-badge">--</div>
+                <div id="editor-status-bar" class="editor-status-bar" role="status" aria-live="polite" data-i18n="editor.palette.status.ready.label"></div>
+                <div class="editor-zoom" role="group" data-i18n-aria-label="editor.layout.zoom.group">
+                  <button id="editor-zoom-out-btn" class="hud-btn small" type="button" data-i18n-aria-label="editor.layout.zoom.out.aria">-</button>
+                  <button id="editor-zoom-fit-btn" class="hud-btn small" type="button" data-i18n="editor.layout.zoom.fit.action" data-i18n-aria-label="editor.layout.zoom.fit.aria"></button>
+                  <button id="editor-zoom-in-btn" class="hud-btn small" type="button" data-i18n-aria-label="editor.layout.zoom.in.aria">+</button>
+                  <span id="editor-zoom-level" class="editor-zoom-level" aria-live="polite"></span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -545,6 +612,17 @@
                   <li data-i18n="hud.help_modal.kb_theme.label"></li>
                   <li data-i18n="hud.help_modal.kb_procedural.label"></li>
                   <li data-i18n="hud.help_modal.kb_levels.label"></li>
+                </ul>
+              </div>
+              <div class="help-section">
+                <h4 data-i18n="hud.help_modal.sec_editor.label"></h4>
+                <ul class="help-list">
+                  <li data-i18n="hud.help_modal.kb_editor_tools.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_rotate.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_zoom.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_cancel.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_cursor.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_history.label"></li>
                 </ul>
               </div>
               <div class="help-section">

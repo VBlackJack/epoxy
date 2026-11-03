@@ -110,8 +110,27 @@ export const EDITOR_TRAP_BUTTON_TILE = 'button_brown';
 export const EDITOR_TRAP_TILE = 'trap';
 export const EDITOR_CLONE_BUTTON_TILE = 'button_red';
 export const EDITOR_CLONER_TILE = 'clone_machine';
-/** Lowest and highest zoom the editor canvas allows, as a multiple of the fit scale. */
-export const EDITOR_MIN_ZOOM_STEP = 1;
-export const EDITOR_MAX_ZOOM_STEP = 4;
+/** Largest tile the editor canvas shows, in CSS pixels; the smallest is the configured editor tile size. */
+export const EDITOR_MAX_TILE_SIZE = 64;
+/** CSS pixels one zoom step adds to or removes from the tile, and how many steps each way from the fit. */
+export const EDITOR_ZOOM_TILE_STEP = 8;
+export const EDITOR_ZOOM_STEPS_EACH_WAY = 6;
+/** Mouse button number of a pen eraser. */
+export const POINTER_ERASER_BUTTON = 5;
+/** Editor layout: the view width, in CSS pixels, under which it drops to two columns, then to one. */
+export const EDITOR_TWO_COLUMN_BELOW_WIDTH = 1100;
+export const EDITOR_ONE_COLUMN_BELOW_WIDTH = 680;
+/** Delay after the last edit before the Check badge is recomputed. */
+export const EDITOR_CHECK_DEBOUNCE_MS = 400;
+/** Colours of the canvas overlays: hover outline, keyboard cursor, pending wire source. */
+export const EDITOR_HOVER_OUTLINE_COLOR = '#ffffff';
+export const EDITOR_CURSOR_OUTLINE_COLOR = '#00e5ff';
+export const EDITOR_WIRE_SOURCE_COLOR = '#ffd600';
+export const EDITOR_OVERLAY_LINE_WIDTH = 2;
+/** Zoom shown as a percentage of the base tile size. */
+export const EDITOR_PERCENT_BASE = 100;
 /** Pack-manager level row: the buttons whose focus is restored after the list is redrawn. */
 export const PACK_MANAGER_FOCUS_ATTRIBUTE = 'data-focus-key';
+/** Arrows of the compact move buttons of a pack level row. */
+export const PACK_MOVE_UP_GLYPH = '↑';
+export const PACK_MOVE_DOWN_GLYPH = '↓';

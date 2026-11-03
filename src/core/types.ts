@@ -91,6 +91,8 @@ export interface StorageConfig {
   onboardingSeenKey: string;
   /** Pack the editor last saved a level into, preselected in its "Save into" dialog. */
   lastSaveDestinationKey: string;
+  /** Which inspector sections of the editor are open. */
+  editorSectionsKey: string;
   levelPacksDbName: string;
   levelPacksStoreName: string;
 }
