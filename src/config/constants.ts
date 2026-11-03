@@ -67,6 +67,9 @@ export const BUILTIN_PACK_IDS = {
 /** Prefix of the id of a pack the player creates, followed by a timestamp. */
 export const USER_PACK_ID_PREFIX = 'user_pack_';
 
+/** Joins the id of a pack and the original id of one of its levels, so level ids stay unique across packs. */
+export const LEVEL_ID_SEPARATOR = '__';
+
 /** Name of the pack that holds the levels saved by the editor, until the player renames it. */
 export const CUSTOM_PACK_FALLBACK_NAME = 'Custom';
 
