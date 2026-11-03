@@ -22,7 +22,7 @@
  *
  * EPOXY_REFERENCE_XSB (a .xsb/.sok/.txt file or a folder of them) does the same
  * for Sokoban puzzles: every campaign room with targets is compared with every
- * reference puzzle by walls, targets and blocks, and the closest matches go to
+ * reference puzzle by open cells, targets and blocks, and the closest matches go to
  * local/originality-sokoban.md. Never add such a collection to the repository.
  *
  * Run with: EPOXY_REFERENCE_DAT=<path to a .DAT> npm run report:originality
@@ -106,7 +106,7 @@ it.skipIf(!process.env[REFERENCE_XSB_ENV])('writes the Sokoban originality compa
     '# Sokoban originality comparison',
     '',
     `Campaign rooms with targets: ${rooms.length}. Reference puzzles with targets: ${reference.length}.`,
-    `Flag threshold: room similarity >= ${config.maxSokobanSimilarity} (walls, targets and blocks; any rotation, reflection and translation).`,
+    `Flag threshold: room similarity >= ${config.maxSokobanSimilarity} (open cells, targets and blocks; any rotation, reflection and translation).`,
     `Pairs below ${SOKOBAN_REPORT_FLOOR} are not listed.`,
     '',
     '| Campaign room | Reference puzzle | Similarity | Matching cells | Flagged |',

@@ -21,6 +21,7 @@ import {
   ConfigLoadError,
   findAudioConfigErrors,
   findBlockPuzzleConfigErrors,
+  findCampaignGuardConfigErrors,
   findLaserConfigErrors,
   InvalidLevelError,
   isCompiledLevelShape
@@ -390,6 +391,43 @@ describe('findBlockPuzzleConfigErrors', () => {
     expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 0, hintSearchBudget: 1.5, watchMaxCells: 3 })).toHaveLength(2);
     expect(findBlockPuzzleConfigErrors({ watchSearchBudget: 10, hintSearchBudget: 20 })).toHaveLength(1);
     expect(findBlockPuzzleConfigErrors(undefined)).toHaveLength(1);
+  });
+});
+
+describe('findCampaignGuardConfigErrors', () => {
+  const valid = {
+    windowSize: 5,
+    maxJaccard: 0.25,
+    largeWindowSize: 9,
+    largeWindowMinContent: 12,
+    largeWindowMaxShare: 0.6,
+    maxRoomSimilarity: 0.85,
+    maxSokobanSimilarity: 0.8
+  };
+
+  it('accepts the shipped section', () => {
+    expect(findCampaignGuardConfigErrors(valid)).toEqual([]);
+    expect(findCampaignGuardConfigErrors(createTestBundle().game.campaignGuard)).toEqual([]);
+  });
+
+  it('fails loudly on a missing threshold', () => {
+    const { maxRoomSimilarity: _room, ...withoutRoom } = valid;
+    expect(findCampaignGuardConfigErrors(withoutRoom)).toEqual(['campaignGuard.maxRoomSimilarity: not a number in (0, 1]']);
+    expect(() => {
+      const bundle = createTestBundle();
+      delete (bundle.game.campaignGuard as unknown as Record<string, unknown>).maxSokobanSimilarity;
+      ConfigRegistry.applyConfigs(bundle);
+    }).toThrow(/maxSokobanSimilarity/);
+    expect(findCampaignGuardConfigErrors(undefined)).toHaveLength(1);
+  });
+
+  it('rejects ratios outside (0, 1] and bad sizes', () => {
+    expect(findCampaignGuardConfigErrors({ ...valid, maxRoomSimilarity: 0 })).toHaveLength(1);
+    expect(findCampaignGuardConfigErrors({ ...valid, maxSokobanSimilarity: 1.2 })).toHaveLength(1);
+    expect(findCampaignGuardConfigErrors({ ...valid, maxJaccard: '0.25' })).toHaveLength(1);
+    expect(findCampaignGuardConfigErrors({ ...valid, windowSize: 2.5 })).toHaveLength(1);
+    expect(findCampaignGuardConfigErrors({ ...valid, largeWindowMinContent: -1 })).toHaveLength(1);
+    expect(findCampaignGuardConfigErrors({ ...valid, largeWindowSize: 3 })).toHaveLength(1);
   });
 });
 

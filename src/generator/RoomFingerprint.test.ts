@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { parseXsbCollection } from '../formats/XsbCodec';
-import { compareRooms, findSimilarRooms, layoutFromXsb, orientations, RoomLayout } from './RoomFingerprint';
+import { compareRooms, findSimilarRooms, findSimilarRoomsWithin, layoutFromXsb, orientations, RoomLayout } from './RoomFingerprint';
 
 /** Tiny original puzzles written for these tests. */
 const ROOM_A = ['#######', '#.  $ #', '# $ . #', '#  @  #', '#######'];
@@ -28,6 +28,43 @@ const ROOM_B_MOVED_BLOCK = ['######', '#@  .#', '# $  #', '######'];
 const NEAR_IDENTICAL = 1 - 1e-9;
 const MIN_PARTIAL_SIMILARITY = 0.5;
 const STRICT_FLOOR = 0.95;
+
+const BENCH_ROOMS = 120;
+const BENCH_SIZE = 15;
+const BENCH_LARGE_ROOMS = 4;
+const BENCH_LARGE_SIZE = 32;
+const BENCH_FLOOR = 0.85;
+/** Well under the 5 s default test timeout. */
+const BENCH_BUDGET_MS = 3000;
+const LCG_MULTIPLIER = 1664525;
+const LCG_INCREMENT = 1013904223;
+const WALL_SHARE = 0.18;
+const TARGET_SHARE = 0.06;
+const BLOCK_SHARE = 0.06;
+
+/** A walled square puzzle with scattered walls, blocks and targets, from a seeded generator. */
+function randomPuzzle(size: number, seed: number): string[] {
+  let state = seed;
+  const next = () => {
+    state = (Math.imul(state, LCG_MULTIPLIER) + LCG_INCREMENT) >>> 0;
+    return state / 2 ** 32;
+  };
+  const lines: string[] = [];
+  for (let y = 0; y < size; y++) {
+    let line = '';
+    for (let x = 0; x < size; x++) {
+      const border = x === 0 || y === 0 || x === size - 1 || y === size - 1;
+      const r = next();
+      if (border || r < WALL_SHARE) line += '#';
+      else if (r < WALL_SHARE + TARGET_SHARE) line += '.';
+      else if (r < WALL_SHARE + TARGET_SHARE + BLOCK_SHARE) line += '$';
+      else line += ' ';
+    }
+    lines.push(line);
+  }
+  lines[1] = `#@${lines[1].slice(2)}`;
+  return lines;
+}
 
 function room(label: string, lines: string[]): RoomLayout {
   return layoutFromXsb(label, { title: label, lines });
@@ -80,5 +117,16 @@ describe('RoomFingerprint', () => {
   it('reads each puzzle of a collection', () => {
     const levels = parseXsbCollection(`${ROOM_B.join('\n')}\n\n${ROOM_A.join('\n')}\n`);
     expect(levels.map((l) => room('x', l.lines).targets)).toEqual([1, 2]);
+  });
+
+  it('searches 120 campaign-sized rooms and a few large ones within the default timeout', () => {
+    const rooms: RoomLayout[] = [];
+    for (let i = 0; i < BENCH_ROOMS; i++) rooms.push(room(`r${i}`, randomPuzzle(BENCH_SIZE, i + 1)));
+    for (let i = 0; i < BENCH_LARGE_ROOMS; i++) rooms.push(room(`big${i}`, randomPuzzle(BENCH_LARGE_SIZE, 1000 + i)));
+    const started = performance.now();
+    const pairs = findSimilarRoomsWithin(rooms, BENCH_FLOOR);
+    const elapsed = performance.now() - started;
+    console.info(`room search: ${rooms.length} rooms, ${pairs.length} pairs, ${elapsed.toFixed(0)} ms`);
+    expect(elapsed).toBeLessThan(BENCH_BUDGET_MS);
   });
 });

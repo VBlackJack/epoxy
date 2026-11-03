@@ -22,8 +22,6 @@ import { ConfigRegistry } from './ConfigRegistry';
 
 /** How many closest pairs a failure message lists. */
 const REPORTED_PAIRS = 5;
-/** Search floor that keeps every pair, so a message can always name the nearest ones. */
-const NO_FLOOR = 0;
 
 function formatPair(p: { candidate: string; reference: string; similarity: number; matchedCells: number }): string {
   return `${p.candidate} ~ ${p.reference}: similarity ${p.similarity.toFixed(3)} (${p.matchedCells} matching cells)`;
@@ -47,9 +45,8 @@ describe('campaign room originality', () => {
   it('keeps every campaign level unlike every other campaign level', () => {
     const { maxRoomSimilarity } = ConfigRegistry.getGame().campaignGuard;
     expect(rooms.length).toBeGreaterThan(1);
-    const closest = findSimilarRoomsWithin(rooms, NO_FLOOR).slice(0, REPORTED_PAIRS);
-    const offenders = closest.filter((p) => p.similarity >= maxRoomSimilarity);
-    expect(offenders.map(formatPair), `closest pairs (threshold ${maxRoomSimilarity}):\n${closest.map(formatPair).join('\n')}`).toEqual([]);
+    const offenders = findSimilarRoomsWithin(rooms, maxRoomSimilarity).slice(0, REPORTED_PAIRS);
+    expect(offenders.map(formatPair), `closest pairs at or above ${maxRoomSimilarity}`).toEqual([]);
   });
 
   it.skipIf(!process.env[REFERENCE_XSB_ENV])(

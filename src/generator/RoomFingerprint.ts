@@ -247,31 +247,67 @@ export function orientations(layout: RoomLayout): RoomLayout[] {
   return result;
 }
 
+/** Number of distinct room cell classes. */
+const ROOM_CELL_COUNT = 9;
+/** Guards the ceil of the required match count against floating point noise. */
+const REQUIRED_EPSILON = 1e-9;
+
+/** Upper bound of the matching cells of two rooms: per class, the smaller of the two counts. */
+function matchBound(a: RoomLayout, b: RoomLayout): number {
+  const counts = new Int32Array(ROOM_CELL_COUNT);
+  for (let i = 0; i < a.cells.length; i++) if (a.cells[i] !== RoomCell.Wall) counts[a.cells[i]]++;
+  let bound = 0;
+  for (let i = 0; i < b.cells.length; i++) {
+    const cls = b.cells[i];
+    if (cls !== RoomCell.Wall && counts[cls] > 0) {
+      counts[cls]--;
+      bound++;
+    }
+  }
+  return bound;
+}
+
 /**
  * Best similarity of two rooms over translations and the 8 orientations of
  * `b`: matching open cells (same class) over the union of open cells.
- * Returns null when the open-cell counts alone rule out reaching `floor`.
+ * Returns null when cell counts alone rule out reaching `floor`; the search
+ * stops early once every cell of the smaller room matches.
  */
 export function compareRooms(a: RoomLayout, b: RoomLayout, floor = 0): RoomComparison | null {
   if (a.open === 0 || b.open === 0) return { similarity: 0, matchedCells: 0 };
   if (Math.min(a.open, b.open) / Math.max(a.open, b.open) < floor) return null;
+  const bound = matchBound(a, b);
+  if (bound / (a.open + b.open - bound) < floor) return null;
+  const perfect = Math.min(a.open, b.open);
+  // Matching cells a pair needs to reach the floor: m / (a + b - m) >= floor.
+  const required = Math.ceil((floor * (a.open + b.open)) / (1 + floor) - REQUIRED_EPSILON);
   let bestMatched = 0;
-  for (const rotated of orientations(b)) {
+  search: for (const rotated of orientations(b)) {
     for (let dy = -(rotated.height - 1); dy < a.height; dy++) {
+      const yStart = Math.max(0, dy);
+      const yEnd = Math.min(a.height, dy + rotated.height);
       for (let dx = -(rotated.width - 1); dx < a.width; dx++) {
+        const xStart = Math.max(0, dx);
+        const xEnd = Math.min(a.width, dx + rotated.width);
+        const overlap = (yEnd - yStart) * (xEnd - xStart);
+        // The overlapping rectangle must be able to hold the matches the floor demands.
+        if (overlap < required || overlap <= bestMatched) continue;
         let matched = 0;
-        const y1 = Math.min(a.height, dy + rotated.height);
-        const x1 = Math.min(a.width, dx + rotated.width);
-        for (let y = Math.max(0, dy); y < y1; y++) {
-          for (let x = Math.max(0, dx); x < x1; x++) {
+        for (let y = yStart; y < yEnd; y++) {
+          for (let x = xStart; x < xEnd; x++) {
             const value = a.cells[y * a.width + x];
             if (value !== RoomCell.Wall && value === rotated.cells[(y - dy) * rotated.width + (x - dx)]) matched++;
           }
+          if (matched + (yEnd - y - 1) * (xEnd - xStart) < required) break;
         }
-        if (matched > bestMatched) bestMatched = matched;
+        if (matched > bestMatched) {
+          bestMatched = matched;
+          if (bestMatched >= perfect || bestMatched >= bound) break search;
+        }
       }
     }
   }
+  if (bestMatched < required) return null;
   return { similarity: bestMatched / (a.open + b.open - bestMatched), matchedCells: bestMatched };
 }
 

@@ -33,6 +33,7 @@ import {
   GridSize,
   LevelSizeBounds,
   findBlockPuzzleConfigErrors,
+  findCampaignGuardConfigErrors,
   isDirection,
   isFiniteNumber,
   isInBounds,
@@ -222,6 +223,10 @@ class ConfigRegistryService {
     const blockPuzzleErrors = findBlockPuzzleConfigErrors(bundle.game.blockPuzzle);
     if (blockPuzzleErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, blockPuzzleErrors.join('; '));
+    }
+    const campaignGuardErrors = findCampaignGuardConfigErrors(bundle.game.campaignGuard);
+    if (campaignGuardErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, campaignGuardErrors.join('; '));
     }
     const tunableErrors = findGameTunableErrors(bundle.game);
     if (tunableErrors.length > 0) {
