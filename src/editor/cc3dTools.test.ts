@@ -175,8 +175,8 @@ describe('picker on a CC3D level', () => {
     expect(pickCc3dCell(door, 2, 2)).toEqual({ entryId: 'layer:door', attrs: { color: 'green' } });
     const force = applyCc3dTool(input(room(), 'layer:force', { dir: 'S' })).level;
     expect(pickCc3dCell(force, 2, 2)).toEqual({ entryId: 'layer:force', attrs: {}, dir: 'S' });
-    const corner = applyCc3dTool(input(room(), 'layer:ice_corner', { attrs: { ...DEFAULT_CC3D_ATTRIBUTES, corner: ['S', 'E'] } })).level;
-    expect(pickCc3dCell(corner, 2, 2)?.attrs).toEqual({ corner: ['S', 'E'] });
+    const corner = applyCc3dTool(input(room(), 'layer:ice_corner', { attrs: { ...DEFAULT_CC3D_ATTRIBUTES, corner: ['E', 'S'] } })).level;
+    expect(pickCc3dCell(corner, 2, 2)?.attrs).toEqual({ corner: ['E', 'S'] });
     const open = applyCc3dTool(input(room(), 'layer:toggle_door:open')).level;
     expect(pickCc3dCell(open, 2, 2)?.entryId).toBe('layer:toggle_door:open');
   });

@@ -142,3 +142,14 @@ describe('CC3D palette entries', () => {
     expect(entryDisplay(panel, DEFAULT_CC3D_ATTRIBUTES, 'E').id).toBe('thin_wall_e');
   });
 });
+
+describe('palette corners', () => {
+  it('lists the four corners with the south-east one as E, S (the decoder order)', () => {
+    expect(CC3D_CORNERS).toEqual([
+      ['N', 'E'],
+      ['E', 'S'],
+      ['S', 'W'],
+      ['N', 'W']
+    ]);
+  });
+});
