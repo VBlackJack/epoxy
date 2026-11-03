@@ -110,6 +110,13 @@ describe('applyTool', () => {
     expect(outcome.changed).toBe(false);
     expect(outcome.map).toBe(map);
   });
+
+  it('does nothing for the select tool, which works on rectangles', () => {
+    const map = blank(5, 5);
+    const outcome = applyTool(input({ map, tool: 'select' }));
+    expect(outcome.changed).toBe(false);
+    expect(outcome.map).toBe(map);
+  });
 });
 
 describe('wires', () => {

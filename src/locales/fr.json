@@ -405,8 +405,9 @@
       "kb_editor_tools": { "label": "B / F / E / I : Pinceau, Remplir, Gomme, Pipette (Alt+clic ou clic du milieu prend aussi)" },
       "kb_editor_rotate": { "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
-      "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible" },
+      "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible ou un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
+      "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
       "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
@@ -450,6 +451,31 @@
     }
   },
   "editor": {
+    "selection": {
+      "tool": {
+        "label": "Sélection",
+        "title": "Sélection (S) : faites glisser pour choisir un rectangle. Ctrl (Cmd) + C copier, X couper, V coller ; Suppr effacer, Alt+flèches déplacer."
+      },
+      "status": {
+        "size": "Sélection : {width} x {height} cases.",
+        "dropped": "Sélection abandonnée.",
+        "none": "Rien n'est sélectionné : faites glisser sur le niveau, ou utilisez Maj+flèches.",
+        "unchanged": "Rien n'a changé.",
+        "copied": "{width} x {height} cases copiées.",
+        "copied_no_start": "{width} x {height} cases copiées. Le départ du joueur n'est pas copié.",
+        "cut": "{width} x {height} cases coupées.",
+        "cut_start_kept": "{width} x {height} cases coupées. Le départ du joueur reste en place jusqu'au collage.",
+        "cleared": "{width} x {height} cases effacées.",
+        "moved": "Sélection déplacée.",
+        "pasted": "{width} x {height} cases collées.",
+        "paste_ready": "Coller : cliquez ou appuyez sur Entrée pour poser, Échap pour annuler.",
+        "paste_cancelled": "Collage annulé.",
+        "nothing_to_paste": "Rien à coller : copiez ou coupez d'abord une sélection.",
+        "links_dropped": "{count, plural, one {# lien a été abandonné} other {# liens ont été abandonnés}}.",
+        "border_skipped": "{count, plural, one {# case de l'anneau de murs extérieur a été laissée telle quelle} other {# cases de l'anneau de murs extérieur ont été laissées telles quelles}}.",
+        "paste_skipped": "{count, plural, one {# élément a été ignoré : les règles Lynx ne peuvent pas le jouer} other {# éléments ont été ignorés : les règles Lynx ne peuvent pas les jouer}}."
+      }
+    },
     "check": {
       "blocks": {
         "solved": "Blocs : résolu en {count, plural, one {# poussée} other {# poussées}}",

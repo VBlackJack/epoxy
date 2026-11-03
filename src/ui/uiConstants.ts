@@ -129,6 +129,12 @@ export const EDITOR_HOVER_OUTLINE_COLOR = '#ffffff';
 export const EDITOR_CURSOR_OUTLINE_COLOR = '#00e5ff';
 export const EDITOR_WIRE_SOURCE_COLOR = '#ffd600';
 export const EDITOR_OVERLAY_LINE_WIDTH = 2;
+/** Selection overlay: outline colour, dash pattern (on, off in pixels), and the dim laid over cells outside it. */
+export const EDITOR_SELECTION_OUTLINE_COLOR = '#ff4081';
+export const EDITOR_SELECTION_DASH: readonly number[] = [6, 4];
+export const EDITOR_SELECTION_DIM_COLOR = 'rgba(0, 0, 0, 0.35)';
+/** Opacity of the floating paste preview and of the outline of a selection being dragged. */
+export const EDITOR_PASTE_PREVIEW_ALPHA = 0.65;
 /** Zoom shown as a percentage of the base tile size. */
 export const EDITOR_PERCENT_BASE = 100;
 /** Pack-manager level row: the buttons whose focus is restored after the list is redrawn. */

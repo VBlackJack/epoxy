@@ -27,7 +27,7 @@ import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor, SavedLevelInfo } from './editor/LevelEditor';
 import { isEditableRuleset } from './editor/metadataFields';
-import { getEditorKeyAction } from './editor/editorKeyboard';
+import { getEditorKeyAction, getSelectionKeyAction } from './editor/editorKeyboard';
 import { isSaveChord } from './editor/saveTarget';
 import { AudioManager } from './audio/AudioManager';
 import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSelection';
@@ -2759,6 +2759,13 @@ class EpoxyApplication {
   private handleEditorShortcut(e: KeyboardEvent): void {
     const action = getEditorChordAction(e);
     if (!action) {
+      const selectionAction = getSelectionKeyAction(e);
+      if (selectionAction) {
+        const taken = this.editor.handleSelectionAction(selectionAction);
+        // Alt+Arrow is the browser's history navigation: never let it through in the editor.
+        if (taken || selectionAction.kind === 'move') e.preventDefault();
+        return;
+      }
       const keyAction = getEditorKeyAction(e);
       if (!keyAction) return;
       e.preventDefault();

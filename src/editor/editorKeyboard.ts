@@ -32,7 +32,8 @@ const TOOL_LETTERS: ReadonlyArray<{ letter: string; code: string; tool: EditorTo
   { letter: 'b', code: 'KeyB', tool: 'brush' },
   { letter: 'f', code: 'KeyF', tool: 'fill' },
   { letter: 'e', code: 'KeyE', tool: 'eraser' },
-  { letter: 'i', code: 'KeyI', tool: 'picker' }
+  { letter: 'i', code: 'KeyI', tool: 'picker' },
+  { letter: 's', code: 'KeyS', tool: 'select' }
 ];
 const ROTATE_LETTER = 'r';
 const ROTATE_CODE = 'KeyR';
@@ -97,4 +98,40 @@ export function moveCursor(
 ): { x: number; y: number } {
   const clamp = (value: number, size: number): number => Math.min(Math.max(0, size - 1), Math.max(0, value));
   return { x: clamp(cursor.x + dx, width), y: clamp(cursor.y + dy, height) };
+}
+
+/** A selection operation a key chord stands for. */
+export type SelectionKeyAction =
+  | { kind: 'copy' }
+  | { kind: 'cut' }
+  | { kind: 'paste' }
+  | { kind: 'clear' }
+  | { kind: 'move'; dx: number; dy: number };
+
+const COPY_LETTER = 'c';
+const COPY_CODE = 'KeyC';
+const CUT_LETTER = 'x';
+const CUT_CODE = 'KeyX';
+const PASTE_LETTER = 'v';
+const PASTE_CODE = 'KeyV';
+const CLEAR_KEYS: readonly string[] = ['Delete', 'Backspace'];
+
+/**
+ * The selection operation a chord stands for, or null: Ctrl or Meta with C, X
+ * or V (no Shift, no Alt), Delete or Backspace alone, and Alt with an arrow
+ * key. Shift with an arrow extends the selection and is handled with the
+ * canvas keys, not here.
+ */
+export function getSelectionKeyAction(chord: KeyChord): SelectionKeyAction | null {
+  const commandOnly = (chord.ctrlKey || chord.metaKey) && !chord.altKey && !chord.shiftKey;
+  if (commandOnly) {
+    if (matchesLetter(chord, COPY_LETTER, COPY_CODE)) return { kind: 'copy' };
+    if (matchesLetter(chord, CUT_LETTER, CUT_CODE)) return { kind: 'cut' };
+    if (matchesLetter(chord, PASTE_LETTER, PASTE_CODE)) return { kind: 'paste' };
+    return null;
+  }
+  if (!hasCommandModifier(chord) && CLEAR_KEYS.includes(chord.key)) return { kind: 'clear' };
+  const step = ARROW_STEPS[chord.key];
+  if (step && chord.altKey && !chord.ctrlKey && !chord.metaKey && !chord.shiftKey) return { kind: 'move', ...step };
+  return null;
 }

@@ -30,9 +30,9 @@ import {
   WireRefusal
 } from './mapEdits';
 
-export type EditorTool = 'brush' | 'fill' | 'eraser' | 'picker';
+export type EditorTool = 'brush' | 'fill' | 'eraser' | 'picker' | 'select';
 
-export const EDITOR_TOOLS: readonly EditorTool[] = ['brush', 'fill', 'eraser', 'picker'];
+export const EDITOR_TOOLS: readonly EditorTool[] = ['brush', 'fill', 'eraser', 'picker', 'select'];
 
 export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'wire_trap' | 'wire_cloner';
 
@@ -134,7 +134,8 @@ function wireOutcome(input: ToolInput, kind: WireKind): ToolOutcome {
 export function applyTool(input: ToolInput): ToolOutcome {
   const { map, tool, brush, dir, x, y } = input;
   if (input.forceErase || tool === 'eraser') return eraseOutcome(input);
-  if (tool === 'picker') return { map, changed: false, pendingWire: input.pendingWire, messages: [] };
+  // The picker takes from the map and the selection tool works on rectangles: neither paints a single cell.
+  if (tool === 'picker' || tool === 'select') return { map, changed: false, pendingWire: input.pendingWire, messages: [] };
   if (tool === 'fill') {
     if (brush.kind !== 'terrain') {
       return { map, changed: false, pendingWire: input.pendingWire, messages: [{ key: MESSAGE_FILL_NEEDS_TERRAIN }] };

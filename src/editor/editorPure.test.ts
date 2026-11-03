@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { KeyChord } from '../ui/inputGuards';
 import { EDITOR_ONE_COLUMN_BELOW_WIDTH, EDITOR_TWO_COLUMN_BELOW_WIDTH } from '../ui/uiConstants';
 import { summarizeValidation } from './checkSummary';
-import { getCanvasKeyAction, getEditorKeyAction, moveCursor, rotateClockwise } from './editorKeyboard';
+import { getCanvasKeyAction, getEditorKeyAction, getSelectionKeyAction, moveCursor, rotateClockwise } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
 import { DEFAULT_SECTION_STATE, parseSectionState, serializeSectionState } from './inspectorSections';
 import { MetadataEditCoalescer } from './metadataCoalescer';
@@ -35,6 +35,7 @@ describe('getEditorKeyAction', () => {
     expect(getEditorKeyAction(chord('F'))).toEqual({ kind: 'tool', tool: 'fill' });
     expect(getEditorKeyAction(chord('e'))).toEqual({ kind: 'tool', tool: 'eraser' });
     expect(getEditorKeyAction(chord('i'))).toEqual({ kind: 'tool', tool: 'picker' });
+    expect(getEditorKeyAction(chord('S'))).toEqual({ kind: 'tool', tool: 'select' });
   });
 
   it('maps rotate, zoom and cancel', () => {
@@ -179,5 +180,37 @@ describe('inspector section state', () => {
     expect(parseSectionState('not json')).toEqual(DEFAULT_SECTION_STATE);
     expect(parseSectionState('[1]')).toEqual(DEFAULT_SECTION_STATE);
     expect(parseSectionState('{"level":"no","rules":false}')).toEqual({ ...DEFAULT_SECTION_STATE, rules: false });
+  });
+});
+
+describe('getSelectionKeyAction', () => {
+  it('maps Ctrl and Meta with C, X and V', () => {
+    expect(getSelectionKeyAction(chord('c', { ctrlKey: true }))).toEqual({ kind: 'copy' });
+    expect(getSelectionKeyAction(chord('X', { ctrlKey: true }))).toEqual({ kind: 'cut' });
+    expect(getSelectionKeyAction(chord('v', { metaKey: true }))).toEqual({ kind: 'paste' });
+    expect(getSelectionKeyAction(chord('с', { ctrlKey: true, code: 'KeyC' }))).toEqual({ kind: 'copy' });
+  });
+
+  it('leaves the save, undo and redo chords and the bare letters alone', () => {
+    expect(getSelectionKeyAction(chord('s', { ctrlKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('z', { ctrlKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('y', { ctrlKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('c'))).toBeNull();
+    expect(getSelectionKeyAction(chord('c', { ctrlKey: true, shiftKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('c', { ctrlKey: true, altKey: true }))).toBeNull();
+  });
+
+  it('maps Delete and Backspace to clear', () => {
+    expect(getSelectionKeyAction(chord('Delete'))).toEqual({ kind: 'clear' });
+    expect(getSelectionKeyAction(chord('Backspace'))).toEqual({ kind: 'clear' });
+    expect(getSelectionKeyAction(chord('Delete', { ctrlKey: true }))).toBeNull();
+  });
+
+  it('maps Alt with an arrow to a move, and leaves Shift and plain arrows to the cursor', () => {
+    expect(getSelectionKeyAction(chord('ArrowLeft', { altKey: true }))).toEqual({ kind: 'move', dx: -1, dy: 0 });
+    expect(getSelectionKeyAction(chord('ArrowDown', { altKey: true }))).toEqual({ kind: 'move', dx: 0, dy: 1 });
+    expect(getSelectionKeyAction(chord('ArrowUp'))).toBeNull();
+    expect(getSelectionKeyAction(chord('ArrowUp', { shiftKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('ArrowUp', { altKey: true, shiftKey: true }))).toBeNull();
   });
 });
