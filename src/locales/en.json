@@ -497,7 +497,7 @@
       "no_exit": { "label": "Error: No Exit Portal (E) placed on the map." },
       "missing_chips": { "label": "Error: Only {placed, plural, one {# chip} other {# chips}} placed for {required} required." },
       "no_matching_key": { "label": "Error: {doors, plural, one {# door requires} other {# doors require}} {key} but no matching key exists." },
-      "fewer_keys_than_doors": { "label": "Warning: {doors, plural, one {# door} other {# doors}} for only {keys, plural, one {# key} other {# keys}} ({key})." },
+      "fewer_keys_than_doors": { "label": "Error: {doors, plural, one {# door} other {# doors}} for only {keys, plural, one {# key} other {# keys}} ({key})." },
       "unreachable_chips": { "label": "Error: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable from start." },
       "unreachable_exit": { "label": "Error: The Exit Portal is blocked or unreachable." },
       "unreachable_chips_proven": { "label": "Warning: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable by the simulation, but the stored solution wins." },
@@ -621,6 +621,13 @@
         "not_checked": "Blocks: not checked (too large or unsupported ground)",
         "running": "Blocks: checking..."
       }
+    },
+    "issues": {
+      "idle": "Run Check to list what needs attention.",
+      "none": "No issue found.",
+      "more": "and {count, plural, one {# more issue} other {# more issues}}",
+      "jump": { "title": "Go to cell ({x}, {y})" },
+      "severity": { "error": { "label": "Error" }, "warning": { "label": "Warning" } }
     },
     "test_from": {
       "action": "Test from here",
@@ -788,6 +795,7 @@
         "section": {
           "level": "Level",
           "rules": "Rules",
+          "issues": "Issues",
           "size": "Size",
           "generate": "Generate"
         }

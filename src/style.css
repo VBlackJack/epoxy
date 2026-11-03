@@ -1304,6 +1304,54 @@ body.editor-mode #app {
   gap: 0.3rem;
 }
 
+.editor-issues-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.editor-issue-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #2c3344;
+  border-left-width: 4px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.editor-issue-row[data-severity='error'] {
+  border-left-color: var(--danger);
+}
+
+.editor-issue-row[data-severity='warning'] {
+  border-left-color: var(--led-amber);
+}
+
+button.editor-issue-row {
+  cursor: pointer;
+}
+
+button.editor-issue-row:hover,
+button.editor-issue-row:focus-visible {
+  background: #232a3a;
+}
+
+.editor-issue-glyph {
+  flex: none;
+  font-weight: 700;
+}
+
 .editor-layer-row {
   display: flex;
   align-items: center;
@@ -2478,6 +2526,7 @@ body.fullscreen-mode .view-section {
   width: 100%;
 }
 
+.sr-only,
 .packs-live {
   position: absolute;
   width: 1px;
