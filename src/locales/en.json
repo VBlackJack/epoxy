@@ -761,6 +761,12 @@
         "wire_missing_button": "The button of this wire is gone: start the wire again.",
         "wire_cancelled": "Wire cancelled.",
         "wire_cancelled_button_left": "Wire cancelled. The button stays on the map without a link.",
+        "undone_cells": { "label": "Undone: {count, plural, one {# cell} other {# cells}} near ({x}, {y})." },
+        "redone_cells": { "label": "Redone: {count, plural, one {# cell} other {# cells}} near ({x}, {y})." },
+        "undone_settings": { "label": "Undone: level settings." },
+        "redone_settings": { "label": "Redone: level settings." },
+        "undone_size": { "label": "Undone: size back to {width}x{height}." },
+        "redone_size": { "label": "Redone: size set to {width}x{height}." },
         "tool_changed": "Tool: {tool}."
       },
       "palette": {

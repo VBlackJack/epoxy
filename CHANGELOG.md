@@ -7,6 +7,10 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor on large maps: a zoom keeps the pointed cell (else the cursor cell, else the middle) under
+  the same screen spot, arrow keys scroll the map to keep the cursor in view with a cell of margin, and
+  undo and redo keep the cursor, scroll to the change when it is out of view and say what they undid or
+  redid (cells near a position, level settings, or the new size).
 - Level editor draft autosave: unsaved work is kept in the browser while you edit (and when the page is
   hidden), and the next visit after a crash offers to restore it on top of the stored level, restore it as
   a new level, discard it or decide later; each tab keeps its own draft, and a warning says when the
