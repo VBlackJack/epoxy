@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { PACK_JSON_FORMAT, PACK_JSON_VERSION } from '../config/constants';
+import { PACK_JSON_FORMAT, PACK_JSON_MAX_VERSION, PACK_JSON_VERSION, PACK_JSON_VERSION_CELL_EDGES } from '../config/constants';
 import {
   ensureUniqueLevelIds,
   isRecord,
@@ -56,7 +56,7 @@ export function serializePack(
 ): string {
   const file: PackJsonFile = {
     format: PACK_JSON_FORMAT,
-    version: PACK_JSON_VERSION,
+    version: levels.some((level) => level.cellEdges !== undefined) ? PACK_JSON_VERSION_CELL_EDGES : PACK_JSON_VERSION,
     name,
     ...(metadata.author ? { author: metadata.author } : {}),
     ...(metadata.description ? { description: metadata.description } : {}),
@@ -89,7 +89,7 @@ export function parsePackJson(
   }
   if (!isRecord(parsed) || parsed.format !== PACK_JSON_FORMAT) return { ok: false, error: 'format' };
   const version = parsed.version;
-  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > PACK_JSON_VERSION) {
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > PACK_JSON_MAX_VERSION) {
     return { ok: false, error: 'version' };
   }
   const name = typeof parsed.name === 'string' ? normalizePackName(parsed.name) : '';

@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isCompiledLevelShape, isRuleset, LevelSizeBounds, sanitizeStoredLevels } from './ConfigValidation';
+import { isCompiledLevelShape, isRuleset, LevelSizeBounds, normalizeCellEdges, sanitizeStoredLevels } from './ConfigValidation';
 import type { Cc3dCell, Cc3dLevel } from '../core/cc3d/model';
 
 const BOUNDS: LevelSizeBounds = { minSize: 3, maxSize: 32 };
@@ -105,5 +105,56 @@ describe('cc3d ruleset in config validation', () => {
     ['a player direction that is not one', cc3dLevel({ player: { x: 1, y: 2, dir: 'Q' } })]
   ])('rejects a level whose cc3d field has %s', (_name, bad) => {
     expect(isCompiledLevelShape(level(bad), BOUNDS)).toBe(false);
+  });
+});
+
+describe('cell edges in config validation', () => {
+  const edged = (cellEdges: unknown, ruleset: string | null = 'epoxy'): Record<string, unknown> => ({
+    ...level(undefined, ruleset),
+    cellEdges
+  });
+  const keptEdges = (value: Record<string, unknown>) => sanitizeStoredLevels([value], BOUNDS)[0].cellEdges;
+
+  it('keeps well-formed edges untouched, as the same list', () => {
+    const edges = [
+      { x: 1, y: 0, sides: ['N', 'W'] },
+      { x: 2, y: 2, sides: ['E'] }
+    ];
+    expect(keptEdges(edged(edges))).toBe(edges);
+  });
+
+  it('sorts, merges and trims edges into canonical form', () => {
+    const messy = [
+      { x: 2, y: 2, sides: ['W', 'E', 'E'] },
+      { x: 1, y: 0, sides: ['S'] },
+      { x: 1, y: 0, sides: ['N'] },
+      { x: 3, y: 3, sides: [] },
+      { x: 9, y: 0, sides: ['N'] },
+      { x: 0, y: 1, sides: ['X'] },
+      null,
+      { x: 0, y: 0, sides: 'N' }
+    ];
+    expect(keptEdges(edged(messy))).toEqual([
+      { x: 1, y: 0, sides: ['N', 'S'] },
+      { x: 2, y: 2, sides: ['E', 'W'] }
+    ]);
+  });
+
+  it('drops edges that are not a usable list, and edges of a ruleset that has none', () => {
+    expect(keptEdges(edged('N'))).toBeUndefined();
+    expect(keptEdges(edged([{ x: 1, y: 1, sides: [] }]))).toBeUndefined();
+    expect(keptEdges(edged([{ x: 1, y: 1, sides: ['N'] }], 'lynx'))).toBeUndefined();
+  });
+
+  it('refuses a strict level with more edge entries than cells, and keeps a plain level without edges as it is', () => {
+    const tooMany = Array.from({ length: SIZE * SIZE + 1 }, () => ({ x: 0, y: 0, sides: ['N'] }));
+    expect(isCompiledLevelShape(edged(tooMany), BOUNDS, true)).toBe(false);
+    expect(isCompiledLevelShape(edged(tooMany), BOUNDS, false)).toBe(true);
+    const plain = level(undefined, 'epoxy');
+    expect(sanitizeStoredLevels([plain], BOUNDS)[0]).toBe(plain);
+  });
+
+  it('normalises to null when nothing is left', () => {
+    expect(normalizeCellEdges(edged([]) as never)).toBeNull();
   });
 });
