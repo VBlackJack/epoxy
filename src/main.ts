@@ -2761,7 +2761,9 @@ class EpoxyApplication {
     if (!action) {
       const selectionAction = getSelectionKeyAction(e);
       if (selectionAction) {
-        if (this.editor.handleSelectionAction(selectionAction)) e.preventDefault();
+        const taken = this.editor.handleSelectionAction(selectionAction);
+        // Alt+Arrow is the browser's history navigation: never let it through in the editor.
+        if (taken || selectionAction.kind === 'move') e.preventDefault();
         return;
       }
       const keyAction = getEditorKeyAction(e);

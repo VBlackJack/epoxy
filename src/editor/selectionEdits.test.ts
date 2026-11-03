@@ -219,8 +219,31 @@ describe('pasteClip', () => {
 
   it('is not a change when the destination already matches', () => {
     const map = populated();
-    const clip = extractClip(map, { x: 3, y: 3, width: 3, height: 3 }, false);
-    expect(pasteClip(map, clip, 3, 3, 'epoxy').changed).toBe(false);
+    const clip = extractClip(map, { x: 5, y: 5, width: 3, height: 3 }, false);
+    expect(pasteClip(map, clip, 5, 5, 'epoxy').changed).toBe(false);
+  });
+
+  it('drops a link whose end is written over, even with the same tile', () => {
+    const map = populated();
+    const clip = extractClip(map, { x: 4, y: 4, width: 1, height: 1 }, false);
+    const result = pasteClip(map, clip, 4, 4, 'epoxy');
+    expect(result.map.cloneLinks).toEqual([]);
+    expect(result.droppedLinks).toBe(1);
+    expect(result.changed).toBe(true);
+  });
+
+  it('skips the whole cell, entity included, when its terrain is unplayable under Lynx', () => {
+    const source = bordered(9, 9);
+    source.terrain[2][2] = 'laser_emitter_n';
+    source.items[2][2] = 'key_red';
+    source.entities = [{ x: 2, y: 2, type: 'dirt_block', dir: 'S' }];
+    const clip = extractClip(source, { x: 2, y: 2, width: 1, height: 1 }, false);
+    const target = bordered(9, 9);
+    const result = pasteClip(target, clip, 4, 4, 'lynx');
+    expect(result.skipped).toBe(1);
+    expect(result.map.terrain[4][4]).toBe('floor');
+    expect(result.map.items[4][4]).toBeNull();
+    expect(result.map.entities).toEqual([]);
   });
 });
 
@@ -274,6 +297,12 @@ describe('moveRect', () => {
     const map = populated();
     expect(moveRect(map, { x: 6, y: 6, width: 3, height: 3 }, 1, 0).changed).toBe(false);
     expect(moveRect(map, { x: 3, y: 3, width: 2, height: 2 }, 0, 0).changed).toBe(false);
+  });
+
+  it('reports the shifted rectangle even when moving empty cells changes nothing', () => {
+    const result = moveRect(bordered(9, 9), { x: 3, y: 3, width: 2, height: 2 }, 1, 0);
+    expect(result.changed).toBe(false);
+    expect(result.rect).toEqual({ x: 4, y: 3, width: 2, height: 2 });
   });
 
   it('does not modify its input', () => {

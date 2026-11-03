@@ -814,6 +814,7 @@ export class LevelEditor {
     if (this.tool === 'eraser' || this.tool === 'picker' || this.tool === 'select' || (this.tool === 'fill' && brush.kind !== 'terrain')) {
       this.tool = 'brush';
       this.resetSelectionState();
+      this.render();
       this.updateToolButtons();
     }
     this.updateCanvasLabel();
@@ -881,6 +882,7 @@ export class LevelEditor {
     this.updateToolButtons();
     this.updateCanvasLabel();
     this.setStatusText(t('editor.layout.status.tool_changed', { tool: this.toolLabel(tool) }));
+    this.render();
   }
 
   /** Runs an editor shortcut from the keyboard; the application routes the key. */
@@ -1635,6 +1637,11 @@ export class LevelEditor {
         else this.cancelPaste();
         return;
       }
+      if (this.tool === 'select' && (ev.button === 2 || ev.button === POINTER_ERASER_BUTTON)) {
+        // The Select tool has no eraser: the secondary button only drops the selection.
+        this.dropSelection(true);
+        return;
+      }
       if (ev.altKey || ev.button === 1 || this.tool === 'picker') {
         this.pickAt(cell.x, cell.y);
         return;
@@ -1838,6 +1845,7 @@ export class LevelEditor {
     const gesture = this.selectionGesture;
     if (!gesture) return;
     if (gesture.kind === 'select') {
+      this.cursorCell = cell;
       this.selection = rectFromCells(gesture.anchor, cell, this.mapWidth(), this.mapHeight());
     } else if (this.selection) {
       gesture.step = clampMoveStep(
@@ -1888,14 +1896,12 @@ export class LevelEditor {
    */
   public handleSelectionAction(action: SelectionKeyAction): boolean {
     if (this.stroke || this.selectionGesture) return false;
-    if (action.kind === 'paste') {
-      this.beginPaste();
-      return true;
-    }
+    if (action.kind === 'paste') return this.beginPaste();
+    // While a paste floats, only the paste itself acts: Delete and Alt+Arrow are ignored.
+    if (this.pasting && (action.kind === 'clear' || action.kind === 'move')) return true;
     if (!this.selection) {
-      if (this.tool !== 'select') return false;
-      this.announce([{ key: 'editor.selection.status.none' }]);
-      return true;
+      if (this.tool === 'select') this.announce([{ key: 'editor.selection.status.none' }]);
+      return false;
     }
     switch (action.kind) {
       case 'copy':
@@ -1926,7 +1932,10 @@ export class LevelEditor {
     }
     const result = clearRect(this.doc, rect);
     this.commitSelectionEdit(result);
-    this.announce([{ key: 'editor.selection.status.cut', params: size }, ...this.selectionAftermath(result)]);
+    this.announce([
+      { key: result.playerStartKept ? 'editor.selection.status.cut_start_kept' : 'editor.selection.status.cut', params: size },
+      ...this.selectionAftermath(result)
+    ]);
   }
 
   private clearSelectedCells(): void {
@@ -1948,7 +1957,15 @@ export class LevelEditor {
     const rect = this.selection;
     if (!rect) return;
     const result = moveRect(this.doc, rect, dx, dy);
-    if (!this.commitSelectionEdit(result)) return;
+    if (!this.commitSelectionEdit(result)) {
+      // Nothing to move but the outline: it still follows the key, with no history step.
+      if (result.rect && (result.rect.x !== rect.x || result.rect.y !== rect.y)) {
+        this.selection = result.rect;
+        this.selectionAnchor = null;
+        this.render();
+      }
+      return;
+    }
     this.selection = result.rect;
     this.selectionAnchor = null;
     this.announce([{ key: 'editor.selection.status.moved' }, ...this.selectionAftermath(result)]);
@@ -1956,16 +1973,19 @@ export class LevelEditor {
   }
 
   /** Starts a floating paste of the clipboard at the cursor or the last hovered cell. */
-  private beginPaste(): void {
+  private beginPaste(): boolean {
     if (!selectionClipboard) {
       this.announce([{ key: 'editor.selection.status.nothing_to_paste' }]);
-      return;
+      return false;
     }
+    // A paste is a selection action: the placed cells live under the Select tool.
+    this.setTool('select');
     this.cancelPendingWire(false);
     this.pasting = true;
     this.pasteAnchor = this.cursorCell ?? this.lastHoverCell ?? { x: 0, y: 0 };
     this.announce([{ key: 'editor.selection.status.paste_ready' }]);
     this.render();
+    return true;
   }
 
   /** Places the floating paste with its top-left cell on the given cell. */

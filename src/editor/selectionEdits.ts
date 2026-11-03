@@ -181,10 +181,10 @@ export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResul
 
 /**
  * Writes a clip onto the map with its top-left cell on (originX, originY).
- * Cells outside the map are clipped. A terrain tile that differs from the one
- * it replaces drops the links ending there. With a ruleset, terrain, items and
- * entities that ruleset cannot play are left out (the cell keeps what it had)
- * and counted.
+ * Cells outside the map are clipped. Writing a cell drops the links ending
+ * there, whatever the tile. With a ruleset, a cell whose terrain that ruleset
+ * cannot play is left out whole (it keeps what it had, entity included) and
+ * counted once; an item or entity it cannot play is left out alone and counted.
  */
 function stampClip(
   map: EditorMap,
@@ -197,6 +197,17 @@ function stampClip(
   let droppedLinks = 0;
   const tileOk = (id: string): boolean => ruleset === null || tileAvailability(ruleset, id).available;
   const keepEntities = new Set<string>();
+  const skippedCells = new Set<string>();
+  for (let cy = 0; cy < clip.height; cy++) {
+    for (let cx = 0; cx < clip.width; cx++) {
+      const x = originX + cx;
+      const y = originY + cy;
+      if (inGrid(map, x, y) && !tileOk(clip.terrain[cy][cx])) {
+        skippedCells.add(`${x},${y}`);
+        keepEntities.add(`${x},${y}`);
+      }
+    }
+  }
   for (const e of clip.entities) {
     const x = originX + e.dx;
     const y = originY + e.dy;
@@ -207,15 +218,12 @@ function stampClip(
       const x = originX + cx;
       const y = originY + cy;
       if (!inGrid(map, x, y)) continue;
-      const tile = clip.terrain[cy][cx];
-      if (tileOk(tile)) {
-        if (map.terrain[y][x] !== tile) {
-          map.terrain[y][x] = tile;
-          droppedLinks += dropLinksAt(map, x, y);
-        }
-      } else {
+      if (skippedCells.has(`${x},${y}`)) {
         skipped++;
+        continue;
       }
+      map.terrain[y][x] = clip.terrain[cy][cx];
+      droppedLinks += dropLinksAt(map, x, y);
       const item = clip.items[cy][cx];
       if (item === null || tileOk(item)) map.items[y][x] = item;
       else skipped++;
@@ -230,7 +238,7 @@ function stampClip(
     const y = originY + e.dy;
     if (!inGrid(map, x, y)) continue;
     if (keepEntities.has(`${x},${y}`)) {
-      skipped++;
+      if (!skippedCells.has(`${x},${y}`)) skipped++;
       continue;
     }
     map.entities.push({ x, y, type: e.type, dir: e.dir });
