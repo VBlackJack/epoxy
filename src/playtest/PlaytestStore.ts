@@ -29,7 +29,7 @@ import type {
 export type PlaytestStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 /** Values stored under the enabled flag. */
-const FLAG_ON = '1';
+export const FLAG_ON = '1';
 const FLAG_OFF = '0';
 
 /** Error names browsers use for a full storage. */

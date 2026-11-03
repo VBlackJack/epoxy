@@ -381,9 +381,23 @@ class EpoxyApplication {
             ? t('app.playtest.rating.level_won.label', { number: levelNumber })
             : t('app.playtest.rating.level_left.label', { number: levelNumber })
         }),
-      onChange: () => refreshPlaytestOptions(this.playtest),
+      onChange: () => {
+        refreshPlaytestOptions(this.playtest);
+        this.syncPilotPackVisibility();
+      },
       onStorageFull: () => this.showTransientStatus(t('app.playtest.storage_full.label'))
     });
+  }
+
+  /** The pilot pack exists only while Playtest mode is on; turning it off while playing the pilot returns to the campaign. */
+  private syncPilotPackVisibility(): void {
+    const wasPilotActive = ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PILOT;
+    if (!ConfigRegistry.setPilotPackVisible(this.playtest.isEnabled())) return;
+    this.refreshPackSelector();
+    if (!wasPilotActive || ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PILOT) return;
+    this.editor.refreshContext();
+    this.startLevelByIndex(0);
+    this.populateScoresTable();
   }
 
   /** What the playtest recorder needs to know about this moment. */
@@ -1969,10 +1983,10 @@ class EpoxyApplication {
     this.prefetchNextEndlessLevel();
   }
 
-  /** The chapter banner when the level opens a campaign chapter, otherwise null. */
+  /** The chapter banner when the level opens a chapter of the pack being played, otherwise null. */
   private chapterBannerFor(level: CompiledLevel, arrival: ChapterArrival): string | null {
-    if (ConfigRegistry.getActivePackId() !== BUILTIN_PACK_IDS.CAMPAIGN || this.isEndlessActive()) return null;
-    const opened = chapterToAnnounce(ConfigRegistry.getCampaignChapters(), level.id, arrival);
+    if (this.isEndlessActive()) return null;
+    const opened = chapterToAnnounce(ConfigRegistry.getActivePackChapters(), level.id, arrival);
     return opened ? chapterBannerText(opened.chapter, opened.position) : null;
   }
 
@@ -2798,12 +2812,11 @@ class EpoxyApplication {
       return tr;
     };
 
-    // The Epoxy campaign lists its levels under chapters; every other pack stays a flat list.
-    const chapters = ConfigRegistry.getCampaignChapters();
+    // The packs with chapters (the Epoxy campaign and the pilot) list their levels under them; every other pack stays a flat list.
+    const chapters = ConfigRegistry.getActivePackChapters();
     const chapterHost = byId('scores-chapters');
     const chapterStrip = byId('scores-chapter-strip');
     const chapterMode =
-      ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.CAMPAIGN &&
       chapters.length > 0 &&
       chapterHost !== null &&
       chapterStrip !== null;

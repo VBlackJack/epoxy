@@ -1,0 +1,12 @@
+{
+  "chapters": [
+    {
+      "id": "pilot_chapter_1",
+      "titleKey": "pilot.chapter.1.title",
+      "subtitleKey": "pilot.chapter.1.subtitle",
+      "levels": [
+        "epoxy_p_1"
+      ]
+    }
+  ]
+}

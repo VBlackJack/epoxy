@@ -219,6 +219,7 @@
       "selector_label": { "label": "Pack:" },
       "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Epoxy Campaign" },
+      "pilot": { "label": "Epoxy pilot" },
       "ccup_tw_intro": { "label": "Community introduction (Tile World)" },
       "ccup_cclp1": { "label": "Community levels 1 (CCLP)" },
       "ccup_cclp2": { "label": "Community levels 2 (CCLP)" },
@@ -1105,5 +1106,10 @@
       "5": { "title": "Core", "subtitle": "Gold keys, bonus clocks and fast hunters, all together." }
     },
     "chapter_banner": { "label": "Chapter {number}: {title}. {subtitle}" }
+  },
+  "pilot": {
+    "chapter": {
+      "1": { "title": "Pilot foundations", "subtitle": "The first levels of the rebuilt campaign." }
+    }
   }
 }
