@@ -26,12 +26,14 @@ import { askSaveInto } from '../ui/saveIntoDialog';
 import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
 import { CC3D_XML_EXTENSION } from '../formats/Cc3dXmlCodec';
+import { encodeCc3dLevel } from '../formats/Cc3dXmlEncoder';
 import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
 import { LevelValidator } from '../core/LevelValidator';
 import { hasLaserContent } from '../core/RulesetFeatures';
 import { cc3dLinks, type Cc3dLinks } from '../core/cc3d/cc3dLinks';
+import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
 import { displayItemId, displayMobId, displayShowsPanels, displayTerrainId } from '../core/cc3d/display';
-import { type Cc3dLevel, type Cc3dTerrain, cellAt as cc3dCellAt } from '../core/cc3d/model';
+import { type Cc3dCell, type Cc3dLevel, type Cc3dTerrain, cellAt as cc3dCellAt } from '../core/cc3d/model';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
   CompiledLevel,
@@ -42,7 +44,7 @@ import {
   ValidationIssue,
   WinRule
 } from '../core/types';
-import { downloadBytes, downloadJson } from '../ui/download';
+import { downloadBytes, downloadJson, downloadText, MIME_XML } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
@@ -62,7 +64,31 @@ import { CheckSummary, summarizeValidation } from './checkSummary';
 import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d } from './editorDocument';
 import { CC3D_RULESET, documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
 import { removeLayerAt, removeMob, setItem, setPanelSide } from './cc3dEdits';
-import { describeLinkChanges, diffCc3dLinks, linkOverlayFor, type LinkOverlay, type OverlayArrowKind } from './cc3dLinkOverlay';
+import {
+  type Cc3dAreaResult,
+  type Cc3dClip,
+  clearCc3dRect,
+  extractCc3dClip,
+  MESSAGE_CC3D_AREA_MOBS_REMOVED,
+  MESSAGE_CC3D_AREA_MOBS_SKIPPED,
+  MESSAGE_CC3D_AREA_PLAYER_KEPT,
+  MESSAGE_CC3D_AREA_PLAYER_MOVED,
+  MESSAGE_CC3D_RESIZE_MOBS_DROPPED,
+  MESSAGE_CC3D_RESIZE_PLAYER_MOVED,
+  moveCc3dRect,
+  pasteCc3dClip,
+  resizeCc3d,
+  type Cc3dResizeResult
+} from './cc3dAreaEdits';
+import {
+  type Cc3dLinkTranslation,
+  describeLinkChanges,
+  diffCc3dLinks,
+  diffCc3dLinksByPosition,
+  linkOverlayFor,
+  type LinkOverlay,
+  type OverlayArrowKind
+} from './cc3dLinkOverlay';
 import {
   CC3D_CATEGORIES,
   CC3D_CORNERS,
@@ -79,14 +105,7 @@ import {
 } from './cc3dPalette';
 import { dirtyCc3dCells, hasHiddenLayers } from './cc3dLayerDiff';
 import { CC3D_ROOM_CHOICE_ID, emptyCc3dRoom } from './cc3dRoom';
-import {
-  applyCc3dTool,
-  CC3D_RESIZE_UNAVAILABLE_KEY,
-  cc3dContinuesOnDrag,
-  cc3dToolBlock,
-  nearestSide,
-  pickCc3dCell
-} from './cc3dTools';
+import { applyCc3dTool, cc3dContinuesOnDrag, nearestSide, pickCc3dCell } from './cc3dTools';
 import { EditorHistory } from './editorHistory';
 import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise, SelectionKeyAction } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
@@ -136,7 +155,7 @@ import {
   tileAvailability,
   winRuleAvailability
 } from './paletteAvailability';
-import { describeResize } from './resizeReport';
+import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
   decideSave,
   LoadedTexts,
@@ -306,8 +325,14 @@ type SelectionGesture =
   | { kind: 'select'; anchor: { x: number; y: number } }
   | { kind: 'move'; origin: { x: number; y: number }; step: MoveStep };
 
+/** What the clipboard holds: the cells of an Epoxy or Lynx level, or of a CC3D one. The two never mix. */
+type SelectionClipboard = { kind: 'epoxy'; clip: Clip } | { kind: 'cc3d'; clip: Cc3dClip };
+
 /** Cut and copied cells, shared by every level of the session; not the system clipboard. */
-let selectionClipboard: Clip | null = null;
+let selectionClipboard: SelectionClipboard | null = null;
+
+/** The preview of a CC3D clip in the shape the Epoxy preview draws, derived once per clip. */
+const cc3dPreviewClips = new WeakMap<Cc3dClip, Clip>();
 
 /** What the application learns when a level was saved. */
 export interface SavedLevelInfo {
@@ -894,11 +919,11 @@ export class LevelEditor {
     this.renderCc3dAttributes();
   }
 
-  /** Choosing a CC3D entry puts the brush back in hand (fill and select do not exist for CC3D levels). */
+  /** Choosing a CC3D entry puts the brush back in hand, except for a layer entry while filling. */
   private selectCc3dEntry(entry: Cc3dPaletteEntry): void {
     this.cc3dEntryId = entry.id;
     this.cc3dCategory = entry.category;
-    if (this.tool !== 'brush') {
+    if (this.tool !== 'brush' && !(this.tool === 'fill' && entry.action === 'layer')) {
       this.tool = 'brush';
       this.resetSelectionState();
       this.updateToolButtons();
@@ -1180,48 +1205,34 @@ export class LevelEditor {
 
   /**
    * Brings the chrome that depends on the kind of level in line with the document: on a CC3D level the
-   * fill and select tools and the resize controls say why they do nothing, the eraser describes its two
-   * modes, and the fields that do not apply (win rule, chips) give way to the layers of the cursor cell.
+   * eraser describes its two modes, the export buttons follow the formats the level can take, and the
+   * fields that do not apply (win rule, chips) give way to the layers of the cursor cell.
    */
   private syncCc3dChrome(): void {
     const cc3d = this.isCc3d();
-    if (cc3d && cc3dToolBlock(this.tool)) {
-      this.tool = 'brush';
-      this.resetSelectionState();
-    }
     for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tool]'))) {
       const tool = btn.dataset.tool as EditorTool;
-      const blocked = cc3d ? cc3dToolBlock(tool) : null;
       const defaultTitleKey = btn.dataset.i18nTitle ?? '';
-      btn.classList.toggle('is-unavailable', blocked !== null);
-      if (blocked) {
-        btn.setAttribute('aria-disabled', 'true');
-        btn.setAttribute('aria-description', t(blocked));
-        btn.title = t(blocked);
-        continue;
-      }
-      btn.removeAttribute('aria-disabled');
-      btn.removeAttribute('aria-description');
       if (cc3d && tool === 'eraser') btn.title = t('editor.cc3d.eraser.title');
       else if (defaultTitleKey) btn.title = t(defaultTitleKey);
     }
-    const reason = t(CC3D_RESIZE_UNAVAILABLE_KEY);
-    for (const id of ['editor-size-width', 'editor-size-height', 'editor-size-apply-btn']) {
-      const el = byId<HTMLButtonElement | HTMLInputElement>(id);
-      if (!el) continue;
-      if (el instanceof HTMLInputElement) el.readOnly = cc3d;
-      else el.disabled = cc3d;
-      el.classList.toggle('is-unavailable', cc3d);
+    // A CC3D level is written to its XML file; the .CCL format cannot hold it.
+    const ccl = byId<HTMLButtonElement>('editor-export-ccl-btn');
+    if (ccl) {
+      const reason = t('editor.toolbar.export_ccl.reason');
+      ccl.disabled = cc3d;
+      ccl.classList.toggle('is-unavailable', cc3d);
       if (cc3d) {
-        el.setAttribute('aria-disabled', 'true');
-        el.setAttribute('aria-description', reason);
-        el.title = reason;
+        ccl.setAttribute('aria-disabled', 'true');
+        ccl.setAttribute('aria-description', reason);
+        ccl.title = reason;
       } else {
-        el.removeAttribute('aria-disabled');
-        el.removeAttribute('aria-description');
-        el.removeAttribute('title');
+        ccl.removeAttribute('aria-disabled');
+        ccl.removeAttribute('aria-description');
+        ccl.removeAttribute('title');
       }
     }
+    byId('editor-export-xml-btn')?.classList.toggle('hidden', !cc3d);
     for (const id of ['editor-field-winrule', 'editor-field-chips']) byId(id)?.classList.toggle('hidden', cc3d);
     byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !cc3d);
     this.updateToolButtons();
@@ -1230,11 +1241,6 @@ export class LevelEditor {
 
   public setTool(tool: EditorTool): void {
     if (tool === this.tool) return;
-    const block = this.isCc3d() ? cc3dToolBlock(tool) : null;
-    if (block) {
-      this.setStatusText(t(block));
-      return;
-    }
     this.cancelPendingWire(false);
     this.tool = tool;
     // A selection or a floating paste belongs to the Select tool.
@@ -1504,6 +1510,8 @@ export class LevelEditor {
       const notice = lossyExportNotice(encoded);
       if (notice) this.setStatusText(notice);
     });
+
+    byId('editor-export-xml-btn')?.addEventListener('click', () => this.exportCc3dXml());
 
     const importInput = byId<HTMLInputElement>('editor-import-input');
     byId('editor-import-btn')?.addEventListener('click', () => {
@@ -1805,27 +1813,33 @@ export class LevelEditor {
 
   /** Resizes the map to the typed size as one undoable step and says what it dropped. */
   private applySize(): void {
-    if (this.isCc3d()) {
-      this.setStatusText(t(CC3D_RESIZE_UNAVAILABLE_KEY));
-      this.syncSizeInputs();
-      return;
-    }
     const widthInput = byId<HTMLInputElement>('editor-size-width');
     const heightInput = byId<HTMLInputElement>('editor-size-height');
     const typedWidth = Number.parseInt(widthInput?.value ?? '', 10);
     const typedHeight = Number.parseInt(heightInput?.value ?? '', 10);
-    const result = resizeMap(
-      this.doc,
-      Number.isFinite(typedWidth) ? typedWidth : this.mapWidth(),
-      Number.isFinite(typedHeight) ? typedHeight : this.mapHeight(),
-      ConfigRegistry.getLevelSizeBounds()
-    );
-    if (result.changed) {
-      this.history.push(this.doc);
+    const width = Number.isFinite(typedWidth) ? typedWidth : this.mapWidth();
+    const height = Number.isFinite(typedHeight) ? typedHeight : this.mapHeight();
+    const bounds = ConfigRegistry.getLevelSizeBounds();
+    const before = this.doc;
+    const cc3d = before.cc3d;
+    let changed: boolean;
+    let notes: ToolMessage[];
+    if (cc3d) {
+      const result = resizeCc3d(cc3d, width, height, bounds);
+      changed = result.changed;
+      if (changed) this.doc = withCc3d(before, result.level);
+      notes = this.describeCc3dResize(cc3d, result);
+    } else {
+      const result = resizeMap(before, width, height, bounds);
+      changed = result.changed;
+      if (changed) this.doc = { ...before, ...result.map };
+      notes = describeResize(result);
+    }
+    if (changed) {
+      this.history.push(before);
       this.coalescer.reset();
       this.cancelPendingWire(false);
       this.resetSelectionState();
-      this.doc = { ...this.doc, ...result.map };
       this.cursorCell = null;
       this.hoverCell = null;
       this.isDirty = true;
@@ -1833,14 +1847,22 @@ export class LevelEditor {
       this.updateUndoRedoButtons();
       this.syncRulesetInput();
       this.scheduleCheck();
+      if (cc3d) this.refreshLayersList();
       this.render();
     }
     this.syncSizeInputs();
-    this.setStatusText(
-      describeResize(result)
-        .map((note) => t(note.key, note.params))
-        .join(SEPARATOR_BETWEEN_MESSAGES)
-    );
+    this.announce(notes);
+  }
+
+  /** What a CC3D resize did, as the notes to announce: the new size first, then what was dropped or re-routed. */
+  private describeCc3dResize(before: Cc3dLevel, result: Cc3dResizeResult): ToolMessage[] {
+    if (!result.changed) return [{ key: RESIZE_UNCHANGED_KEY, params: { width: result.width, height: result.height } }];
+    return [
+      { key: RESIZE_DONE_KEY, params: { width: result.width, height: result.height } },
+      ...(result.droppedMobs > 0 ? [{ key: MESSAGE_CC3D_RESIZE_MOBS_DROPPED, params: { count: result.droppedMobs } }] : []),
+      ...(result.playerMoved ? [{ key: MESSAGE_CC3D_RESIZE_PLAYER_MOVED }] : []),
+      ...this.cc3dLinkMessages(before, result.level)
+    ];
   }
 
   // ---------------------------------------------------------------------------
@@ -2192,6 +2214,14 @@ export class LevelEditor {
     this.announce(describeLinkChanges(diffCc3dLinks(before, after, this.cc3dLinksOf(before), this.cc3dLinksOf(after))));
   }
 
+  /**
+   * The status messages for the links an area edit re-routed, matched by coordinates so a size change or a
+   * move of a rectangle (`move`) is understood.
+   */
+  private cc3dLinkMessages(before: Cc3dLevel, after: Cc3dLevel, move?: Cc3dLinkTranslation): ToolMessage[] {
+    return describeLinkChanges(diffCc3dLinksByPosition(before, after, move, this.cc3dLinksOf(before), this.cc3dLinksOf(after)));
+  }
+
   /** The name of a layer, item or creature of a CC3D cell, from the display id it is drawn with. */
   private cc3dPartName(kind: 'tile' | 'entity', draw: () => string): string {
     let id = '';
@@ -2459,6 +2489,28 @@ export class LevelEditor {
     return true;
   }
 
+  /**
+   * Puts an edit of the CC3D level made by a selection action in the document as one history step. Returns the
+   * messages about the links it re-routed, or null when the level did not change.
+   */
+  private commitCc3dAreaEdit(level: Cc3dLevel, move?: Cc3dLinkTranslation): ToolMessage[] | null {
+    const before = this.doc;
+    const previous = before.cc3d;
+    if (!previous || level === previous) return null;
+    this.doc = withCc3d(before, level);
+    this.recordChange(before);
+    this.render();
+    return this.cc3dLinkMessages(previous, level, move);
+  }
+
+  /** The status messages that follow a CC3D paste or move: the creatures it replaced and the ones it left out. */
+  private cc3dAreaAftermath(result: Cc3dAreaResult): ToolMessage[] {
+    const messages: ToolMessage[] = [];
+    if (result.removedMobs > 0) messages.push({ key: MESSAGE_CC3D_AREA_MOBS_REMOVED, params: { count: result.removedMobs } });
+    if (result.skippedMobs > 0) messages.push({ key: MESSAGE_CC3D_AREA_MOBS_SKIPPED, params: { count: result.skippedMobs } });
+    return messages;
+  }
+
   /** The status messages that follow a selection edit: the links it dropped and the entries it skipped. */
   private selectionAftermath(result: SelectionEditResult): ToolMessage[] {
     const messages: ToolMessage[] = [];
@@ -2473,8 +2525,7 @@ export class LevelEditor {
    * application leaves the browser's own handling alone only then.
    */
   public handleSelectionAction(action: SelectionKeyAction): boolean {
-    // Selections and pastes are Epoxy and Lynx edits: a CC3D level has none, and the browser keeps the chord.
-    if (this.isCc3d() || this.stroke || this.selectionGesture) return false;
+    if (this.stroke || this.selectionGesture) return false;
     if (action.kind === 'paste') return this.beginPaste();
     // While a paste floats, only the paste itself acts: Delete and Alt+Arrow are ignored.
     if (this.pasting && (action.kind === 'clear' || action.kind === 'move')) return true;
@@ -2502,11 +2553,20 @@ export class LevelEditor {
   private copySelection(cut: boolean): void {
     const rect = this.selection;
     if (!rect) return;
-    selectionClipboard = extractClip(this.doc, rect, cut);
+    const cc3d = this.doc.cc3d;
+    selectionClipboard = cc3d
+      ? { kind: 'cc3d', clip: extractCc3dClip(cc3d, rect, cut) }
+      : { kind: 'epoxy', clip: extractClip(this.doc, rect, cut) };
     const size = { width: rect.width, height: rect.height };
     if (!cut) {
       const withStart = rectContains(rect, this.doc.playerStart.x, this.doc.playerStart.y);
       this.announce([{ key: withStart ? 'editor.selection.status.copied_no_start' : 'editor.selection.status.copied', params: size }]);
+      return;
+    }
+    if (cc3d) {
+      const cleared = clearCc3dRect(cc3d, rect);
+      const links = this.commitCc3dAreaEdit(cleared.level) ?? [];
+      this.announce([{ key: cleared.playerKept ? 'editor.selection.status.cut_start_kept' : 'editor.selection.status.cut', params: size }, ...links]);
       return;
     }
     const result = clearRect(this.doc, rect);
@@ -2520,6 +2580,21 @@ export class LevelEditor {
   private clearSelectedCells(): void {
     const rect = this.selection;
     if (!rect) return;
+    const cc3d = this.doc.cc3d;
+    if (cc3d) {
+      const cleared = clearCc3dRect(cc3d, rect);
+      const links = this.commitCc3dAreaEdit(cleared.level);
+      if (links === null) {
+        this.announce([{ key: cleared.playerKept ? MESSAGE_CC3D_AREA_PLAYER_KEPT : 'editor.selection.status.unchanged' }]);
+        return;
+      }
+      this.announce([
+        { key: 'editor.selection.status.cleared', params: { width: rect.width, height: rect.height } },
+        ...(cleared.playerKept ? [{ key: MESSAGE_CC3D_AREA_PLAYER_KEPT }] : []),
+        ...links
+      ]);
+      return;
+    }
     const result = clearRect(this.doc, rect);
     if (!this.commitSelectionEdit(result)) {
       this.announce([{ key: result.playerStartKept ? MESSAGE_START_KEPT : 'editor.selection.status.unchanged' }]);
@@ -2535,19 +2610,35 @@ export class LevelEditor {
   private moveSelectionBy(dx: number, dy: number): void {
     const rect = this.selection;
     if (!rect) return;
-    const result = moveRect(this.doc, rect, dx, dy);
-    if (!this.commitSelectionEdit(result)) {
+    const cc3d = this.doc.cc3d;
+    let committed: boolean;
+    let resultRect: CellRect | null;
+    let messages: ToolMessage[] = [];
+    if (cc3d) {
+      const result = moveCc3dRect(cc3d, rect, dx, dy);
+      resultRect = result.rect;
+      const move = result.rect ? { rect, dx: result.rect.x - rect.x, dy: result.rect.y - rect.y } : undefined;
+      const links = this.commitCc3dAreaEdit(result.level, move);
+      committed = links !== null;
+      if (links) messages = [...this.cc3dAreaAftermath(result), ...(result.playerKept ? [{ key: MESSAGE_CC3D_AREA_PLAYER_KEPT }] : []), ...links];
+    } else {
+      const result = moveRect(this.doc, rect, dx, dy);
+      resultRect = result.rect;
+      committed = this.commitSelectionEdit(result);
+      messages = this.selectionAftermath(result);
+    }
+    if (!committed) {
       // Nothing to move but the outline: it still follows the key, with no history step.
-      if (result.rect && (result.rect.x !== rect.x || result.rect.y !== rect.y)) {
-        this.selection = result.rect;
+      if (resultRect && (resultRect.x !== rect.x || resultRect.y !== rect.y)) {
+        this.selection = resultRect;
         this.selectionAnchor = null;
         this.render();
       }
       return;
     }
-    this.selection = result.rect;
+    this.selection = resultRect;
     this.selectionAnchor = null;
-    this.announce([{ key: 'editor.selection.status.moved' }, ...this.selectionAftermath(result)]);
+    this.announce([{ key: 'editor.selection.status.moved' }, ...messages]);
     this.render();
   }
 
@@ -2555,6 +2646,11 @@ export class LevelEditor {
   private beginPaste(): boolean {
     if (!selectionClipboard) {
       this.announce([{ key: 'editor.selection.status.nothing_to_paste' }]);
+      return false;
+    }
+    const refusal = this.clipboardRefusal(selectionClipboard);
+    if (refusal) {
+      this.announce([refusal]);
       return false;
     }
     // A paste is a selection action: the placed cells live under the Select tool.
@@ -2567,11 +2663,55 @@ export class LevelEditor {
     return true;
   }
 
+  /** The message that refuses a paste of cells from the other kind of level, or null when the clipboard fits this one. */
+  private clipboardRefusal(clipboard: SelectionClipboard): ToolMessage | null {
+    const cc3d = this.isCc3d();
+    if (clipboard.kind === (cc3d ? 'cc3d' : 'epoxy')) return null;
+    return { key: cc3d ? 'editor.selection.status.paste_refused_epoxy' : 'editor.selection.status.paste_refused_cc3d' };
+  }
+
+  /** Places a floating paste of CC3D cells with its top-left cell on the given cell. */
+  private placeCc3dPaste(clip: Cc3dClip, cell: { x: number; y: number }): void {
+    const cc3d = this.doc.cc3d;
+    if (!cc3d) return;
+    const result = pasteCc3dClip(cc3d, clip, cell.x, cell.y);
+    if (!result.rect) {
+      this.announce([{ key: 'editor.selection.status.unchanged' }]);
+      return;
+    }
+    this.pasting = false;
+    const links = this.commitCc3dAreaEdit(result.level) ?? [];
+    this.selection = result.rect;
+    this.selectionAnchor = null;
+    this.announce([
+      result.changed
+        ? { key: 'editor.selection.status.pasted', params: { width: result.rect.width, height: result.rect.height } }
+        : { key: 'editor.selection.status.unchanged' },
+      ...this.cc3dAreaAftermath(result),
+      ...(result.playerKept ? [{ key: MESSAGE_CC3D_AREA_PLAYER_KEPT }] : []),
+      ...(result.playerMoved ? [{ key: MESSAGE_CC3D_AREA_PLAYER_MOVED }] : []),
+      ...links
+    ]);
+    this.render();
+  }
+
   /** Places the floating paste with its top-left cell on the given cell. */
   private placePaste(cell: { x: number; y: number }): void {
-    const clip = selectionClipboard;
-    if (!clip) return;
+    const clipboard = selectionClipboard;
+    if (!clipboard) return;
+    const refusal = this.clipboardRefusal(clipboard);
+    if (refusal) {
+      this.pasting = false;
+      this.announce([refusal]);
+      this.render();
+      return;
+    }
     this.pasteAnchor = cell;
+    if (clipboard.kind === 'cc3d') {
+      this.placeCc3dPaste(clipboard.clip, cell);
+      return;
+    }
+    const clip = clipboard.clip;
     const result = pasteClip(this.doc, clip, cell.x, cell.y, editableRulesetOf(this.doc.ruleset));
     if (!result.rect) {
       this.announce([{ key: 'editor.selection.status.unchanged' }]);
@@ -2611,8 +2751,9 @@ export class LevelEditor {
         this.outlineRect(shiftRect(selection, gesture.step.dx, gesture.step.dy), s, EDITOR_PASTE_PREVIEW_ALPHA);
       }
     }
-    const clip = selectionClipboard;
-    if (this.pasting && clip) this.drawPastePreview(clip, s);
+    const clipboard = selectionClipboard;
+    if (this.pasting && clipboard?.kind === 'epoxy') this.drawPastePreview(clipboard.clip, s);
+    else if (this.pasting && clipboard?.kind === 'cc3d') this.drawPastePreview(this.cc3dPreviewOf(clipboard.clip), s, clipboard.clip.cells);
   }
 
   private outlineRect(rect: CellRect, s: number, alpha: number): void {
@@ -2631,7 +2772,25 @@ export class LevelEditor {
     this.ctx.restore();
   }
 
-  private drawPastePreview(clip: Clip, s: number): void {
+  /** A CC3D clip as the layers the preview draws: its mobs are already relative to the clip. */
+  private cc3dPreviewOf(clip: Cc3dClip): Clip {
+    const cached = cc3dPreviewClips.get(clip);
+    if (cached) return cached;
+    const { terrain, items, entities } = deriveDisplayLayers(clip);
+    const preview: Clip = {
+      width: clip.width,
+      height: clip.height,
+      terrain,
+      items,
+      entities: entities.map((entity) => ({ dx: entity.x, dy: entity.y, type: entity.type, dir: entity.dir })),
+      playerStart: clip.player
+    };
+    cc3dPreviewClips.set(clip, preview);
+    return preview;
+  }
+
+  /** `cells` are the CC3D cells behind the clip, whose thin walls are drawn over the tiles. */
+  private drawPastePreview(clip: Clip, s: number, cells?: readonly Cc3dCell[]): void {
     const { x: ox, y: oy } = this.pasteAnchor;
     this.ctx.save();
     this.ctx.globalAlpha = EDITOR_PASTE_PREVIEW_ALPHA;
@@ -2640,6 +2799,10 @@ export class LevelEditor {
         const px = (ox + cx) * s;
         const py = (oy + cy) * s;
         this.renderer.drawTile(this.ctx, clip.terrain[cy][cx], px, py, s, true, true);
+        const cc3dCell = cells?.[cy * clip.width + cx];
+        if (cc3dCell && cc3dCell.panels.length > 0 && !displayShowsPanels(cc3dCell)) {
+          this.renderer.drawCellOverlay(this.ctx, cc3dCell.panels, false, px, py, s);
+        }
         const item = clip.items[cy][cx];
         if (item) this.renderer.drawItem(this.ctx, item, px, py, s);
       }
@@ -2977,6 +3140,25 @@ export class LevelEditor {
     this.ctx.moveTo((fromX + c) * s, (fromY + c) * s);
     this.ctx.lineTo((toX + c) * s, (toY + c) * s);
     this.ctx.stroke();
+  }
+
+  /**
+   * Downloads the CC3D level as the XML file the community editor writes. The title is the form's own, never
+   * the translated fallback; the hint, the password and the time limit have no place in that file, and the
+   * status says so.
+   */
+  private exportCc3dXml(): void {
+    const cc3d = this.doc.cc3d;
+    if (!cc3d) return;
+    try {
+      const xml = encodeCc3dLevel(cc3d, { name: this.doc.title, author: this.doc.author });
+      downloadText(xml, `${cc3d.mapId || this.exportCompiledLevel().id || EXPORT_FALLBACK_FILE_NAME}${CC3D_XML_EXTENSION}`, MIME_XML);
+    } catch (err) {
+      console.error('CC3D XML export failed:', err);
+      this.setStatusText(t('editor.cc3d.status.export_xml_failed'));
+      return;
+    }
+    this.setStatusText(t('editor.cc3d.status.export_xml_notice'));
   }
 
   /**

@@ -210,6 +210,10 @@ function translated(point: LinkPoint, move: Cc3dLinkTranslation | undefined): Li
   return { x: point.x + move.dx, y: point.y + move.dy };
 }
 
+function destinationOf(move: Cc3dLinkTranslation): CellRect {
+  return { ...move.rect, x: move.rect.x + move.dx, y: move.rect.y + move.dy };
+}
+
 function pointKey(point: LinkPoint): string {
   return `${point.x},${point.y}`;
 }
@@ -236,6 +240,8 @@ export function diffCc3dLinksByPosition(
     for (const link of family.pick(linksAfter)) afterBySource.set(pointKey(pointOfCell(link.from, after.width)), link);
     for (const link of family.pick(linksBefore)) {
       const source = pointOfCell(link.from, before.width);
+      // A source in the destination but not in the source rectangle was overwritten by the move.
+      if (move && rectContains(move.rect, source.x, source.y) === false && rectContains(destinationOf(move), source.x, source.y)) continue;
       const from = translated(source, move);
       const next = afterBySource.get(pointKey(from));
       if (!next) continue;

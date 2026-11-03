@@ -50,9 +50,9 @@ interface CorpusFile {
 function loadFiles(): CorpusFile[] {
   const dir = CORPUS_DIR as string;
   expect(existsSync(dir)).toBe(true);
-  return readdirSync(dir)
-    .filter((name) => name.toLowerCase().endsWith(CC3D_XML_EXTENSION))
-    .map((name) => ({ name, mapId: name.slice(0, name.lastIndexOf('.')), bytes: new Uint8Array(readFileSync(join(dir, name))) }));
+  const names = readdirSync(dir).filter((name) => name.toLowerCase().endsWith(CC3D_XML_EXTENSION));
+  expect(names.length, 'the corpus folder holds at least one XML file').toBeGreaterThan(0);
+  return names.map((name) => ({ name, mapId: name.slice(0, name.lastIndexOf('.')), bytes: new Uint8Array(readFileSync(join(dir, name))) }));
 }
 
 interface FileTile {

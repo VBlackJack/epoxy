@@ -218,7 +218,13 @@ describe('pasteCc3dClip', () => {
     expect(r.level.mobs[1]).toBe(l.mobs[1]);
     expect(r.level.mobs[2]).toBe(l.mobs[2]);
     expect(r.level.mobs).toHaveLength(3);
+    expect(r.removedMobs).toBe(1);
+  });
+
+  it('does not count the replacement of a mob by an identical one', () => {
+    const r = pasteCc3dClip(l, plainClip(1, [{ ...l.mobs[0], x: 0, y: 0 }]), l.mobs[0].x, l.mobs[0].y);
     expect(r.removedMobs).toBe(0);
+    expect(r.level.mobs[0]).toBe(l.mobs[0]);
   });
 
   it('removes a mob on a written cell that receives none, and counts it', () => {
@@ -399,6 +405,17 @@ describe('floodFillCc3d', () => {
     expect(r.level.mobs).toBe(l.mobs);
     expect(r.level.cells[0]).toBe(l.cells[0]);
     expect(r.level.player).toBe(l.player);
+  });
+
+  it('treats an ice corner stored in the old order as the same region', () => {
+    const corner = (sides: ['S', 'E'] | ['E', 'S']): Cc3dCell => ({ ...emptyCell(), terrain: [{ kind: 'floor' }, { kind: 'ice_corner', corner: sides }] });
+    const base = level(['#####', '#@..#', '#####']);
+    const cells = base.cells.slice();
+    cells[1 * 5 + 2] = corner(['S', 'E']);
+    cells[1 * 5 + 3] = corner(['E', 'S']);
+    const r = floodFillCc3d({ ...base, cells }, 2, 1, { kind: 'water' });
+    expect(r.filled).toBe(2);
+    expect(kindsAt(r.level, 3, 1)).toEqual(['water']);
   });
 
   it('stops at a different stack', () => {

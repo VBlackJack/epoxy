@@ -18,6 +18,7 @@ import { OBJECT_URL_REVOKE_DELAY_MS } from './uiConstants';
 
 export const MIME_JSON = 'application/json';
 export const MIME_BINARY = 'application/octet-stream';
+export const MIME_XML = 'application/xml';
 const JSON_EXPORT_INDENT = 2;
 
 /**
@@ -40,4 +41,8 @@ export function downloadBytes(bytes: Uint8Array, fileName: string): void {
 
 export function downloadJson(value: unknown, fileName: string): void {
   downloadBlob(new Blob([JSON.stringify(value, null, JSON_EXPORT_INDENT)], { type: MIME_JSON }), fileName);
+}
+
+export function downloadText(text: string, fileName: string, mimeType: string): void {
+  downloadBlob(new Blob([text], { type: mimeType }), fileName);
 }

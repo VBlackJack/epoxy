@@ -92,6 +92,7 @@
       "refused_targets_win_rule": { "label": "Non exporté : {levels} se gagne en couvrant des cibles de bloc, que le format .DAT ne peut pas porter." },
       "refused_receivers_win_rule": { "label": "Non exporté : {levels} se gagne en allumant des récepteurs laser, que le format .DAT ne peut pas porter." },
       "refused_laser_content": { "label": "Non exporté : {levels} utilise des lasers ou des miroirs, que le format .DAT ne peut pas porter." },
+      "refused_cc3d_ruleset": { "label": "Non exporté : {levels} se joue avec les règles CC3D, que le format .DAT ne peut pas porter. Utilisez plutôt Exporter XML." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -554,8 +555,6 @@
       "kind": { "fish": "Poisson", "snappy": "Snappy", "nibble": "Nibble", "panel": "Cloison fine" },
       "color": { "red": "Rouge", "green": "Vert", "blue": "Bleu", "yellow": "Jaune" },
       "attr": { "color": "Couleur", "corner": "Coin", "mirror": "Miroir" },
-      "tool_unavailable": { "label": "Indisponible dans un niveau CC3D : le remplissage et la sélection agissent sur des couches entières Epoxy ou Lynx." },
-      "resize_unavailable": { "label": "Un niveau CC3D garde sa taille : le redimensionnement n'est pas disponible." },
       "eraser": { "title": "Gomme (E) : retire l'élément le plus haut de la case. Maj+clic (ou Maj+Espace) vide toute la case." },
       "layers": {
         "title": "Couches",
@@ -576,7 +575,16 @@
         "link_clone_none": "L'interrupteur de clonage en ({x}, {y}) n'a plus de machine à actionner.",
         "link_laser": "Le contrôleur laser en ({x}, {y}) fait maintenant tirer le tireur en ({toX}, {toY}).",
         "link_laser_none": "Le contrôleur laser en ({x}, {y}) n'a plus de tireur à faire tirer.",
-        "link_more": "{count, plural, one {# autre lien a changé.} other {# autres liens ont changé.}}"
+        "link_more": "{count, plural, one {# autre lien a changé.} other {# autres liens ont changé.}}",
+        "fill_needs_layer": "Le remplissage demande une entrée de couche (sol, mur, porte...) : choisissez-en une dans la palette.",
+        "area_mobs_removed": "{count, plural, one {# créature ou bloc a été retiré.} other {# créatures ou blocs ont été retirés.}}",
+        "area_mobs_skipped": "{count, plural, one {# créature ou bloc a été laissé de côté : il se trouverait sur le départ du joueur.} other {# créatures ou blocs ont été laissés de côté : ils se trouveraient sur le départ du joueur.}}",
+        "area_player_kept": "Le départ du joueur reste en place.",
+        "area_player_moved": "Le départ du joueur a été déplacé par le collage.",
+        "resize_mobs_dropped": "{count, plural, one {# créature ou bloc a été retiré.} other {# créatures ou blocs ont été retirés.}}",
+        "resize_player_moved": "Le départ du joueur a été replacé dans le niveau.",
+        "export_xml_notice": "Exporté. L'indice, le mot de passe et la limite de temps ne sont pas conservés dans le fichier XML.",
+        "export_xml_failed": "Le niveau n'a pas pu être exporté en XML."
       }
     },
     "selection": {
@@ -601,7 +609,9 @@
         "nothing_to_paste": "Rien à coller : copiez ou coupez d'abord une sélection.",
         "links_dropped": "{count, plural, one {# lien a été abandonné} other {# liens ont été abandonnés}}.",
         "border_skipped": "{count, plural, one {# case de l'anneau de murs extérieur a été laissée telle quelle} other {# cases de l'anneau de murs extérieur ont été laissées telles quelles}}.",
-        "paste_skipped": "{count, plural, one {# élément a été ignoré : les règles Lynx ne peuvent pas le jouer} other {# éléments ont été ignorés : les règles Lynx ne peuvent pas les jouer}}."
+        "paste_skipped": "{count, plural, one {# élément a été ignoré : les règles Lynx ne peuvent pas le jouer} other {# éléments ont été ignorés : les règles Lynx ne peuvent pas les jouer}}.",
+        "paste_refused_epoxy": "Cette sélection vient d'un niveau Epoxy ou Lynx : elle ne peut pas être collée dans un niveau CC3D.",
+        "paste_refused_cc3d": "Cette sélection vient d'un niveau CC3D : elle ne peut pas être collée dans un niveau Epoxy ou Lynx."
       }
     },
     "check": {
@@ -781,7 +791,8 @@
     },
     "toolbar": {
       "export_json": { "action": "Exporter JSON" },
-      "export_ccl": { "action": "Exporter .CCL" },
+      "export_ccl": { "action": "Exporter .CCL", "reason": "Un niveau CC3D ne peut pas être exporté en .CCL : utilisez Exporter XML." },
+      "export_xml": { "action": "Exporter XML" },
       "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" },
       "confirm_reload": { "label": "L'éditeur contient des modifications non sauvegardées. Les remplacer par le niveau en cours ?" },
       "confirm_save_invalid": { "label": "Ce niveau comporte des erreurs : {issues}\n\nL'enregistrer quand même ?" },

@@ -22,11 +22,10 @@ import { editableCc3dModel } from './cc3dEditorFixtures';
 import { DEFAULT_CC3D_ATTRIBUTES, findCc3dEntry, type Cc3dBrushAttributes } from './cc3dPalette';
 import {
   applyCc3dTool,
-  CC3D_TOOL_UNAVAILABLE_KEY,
   cc3dContinuesOnDrag,
-  cc3dToolBlock,
   type Cc3dToolInput,
   eraseTopmost,
+  MESSAGE_CC3D_FILL_NEEDS_LAYER,
   MESSAGE_CC3D_MOB_ON_START,
   MESSAGE_CC3D_START_ON_MOB,
   nearestSide,
@@ -105,9 +104,9 @@ describe('brush on a CC3D level', () => {
     expect(cellAt(off.level, 2, 2)?.panels).toEqual(['N']);
   });
 
-  it('leaves fill, select and the picker without effect', () => {
+  it('leaves select and the picker without effect', () => {
     const level = room();
-    for (const tool of ['fill', 'select', 'picker'] as const) {
+    for (const tool of ['select', 'picker'] as const) {
       expect(applyCc3dTool(input(level, 'layer:wall', { tool })).level).toBe(level);
     }
   });
@@ -181,16 +180,32 @@ describe('picker on a CC3D level', () => {
     expect(pickCc3dCell(open, 2, 2)?.entryId).toBe('layer:toggle_door:open');
   });
 
+  it('picks an ice corner stored in the old order in the canonical order', () => {
+    const base = applyCc3dTool(input(room(), 'layer:ice_corner', { attrs: { ...DEFAULT_CC3D_ATTRIBUTES, corner: ['E', 'S'] } })).level;
+    const old = { ...base, cells: base.cells.map((cell) => ({ ...cell, terrain: cell.terrain.map((layer) => (layer.corner ? { ...layer, corner: ['S', 'E'] as [Direction, Direction] } : layer)) })) };
+    expect(pickCc3dCell(old, 2, 2)?.attrs).toEqual({ corner: ['E', 'S'] });
+  });
+
   it('refuses a cell outside the grid', () => {
     expect(pickCc3dCell(room(), 9, 9)).toBeNull();
   });
 });
 
 describe('tool helpers', () => {
-  it('turns fill and select off with a reason, and nothing else', () => {
-    expect(cc3dToolBlock('fill')).toBe(CC3D_TOOL_UNAVAILABLE_KEY);
-    expect(cc3dToolBlock('select')).toBe(CC3D_TOOL_UNAVAILABLE_KEY);
-    for (const tool of ['brush', 'eraser', 'picker'] as const) expect(cc3dToolBlock(tool)).toBeNull();
+  it('fills the region around the cell with a layer entry, and answers a message for any other entry', () => {
+    const filled = applyCc3dTool(input(room(), 'layer:water', { tool: 'fill' }));
+    expect(filled.changed).toBe(true);
+    expect([cellAt(filled.level, 1, 1), cellAt(filled.level, 2, 2), cellAt(filled.level, 3, 2)].map((cell) => cell?.terrain.at(-1)?.kind)).toEqual([
+      'water',
+      'water',
+      'water'
+    ]);
+    expect(cellAt(filled.level, 0, 0)?.terrain.at(-1)?.kind).toBe('wall');
+    const refused = applyCc3dTool(input(room(), 'item:fish', { tool: 'fill' }));
+    expect(refused.changed).toBe(false);
+    expect(refused.messages).toEqual([{ key: MESSAGE_CC3D_FILL_NEEDS_LAYER }]);
+    expect(applyCc3dTool(input(room(), null, { tool: 'fill' })).messages).toEqual([{ key: MESSAGE_CC3D_FILL_NEEDS_LAYER }]);
+    expect(applyCc3dTool(input(room(), 'layer:water', { tool: 'select' })).changed).toBe(false);
   });
 
   it('keeps acting on drag except for a thin wall', () => {

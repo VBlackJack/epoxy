@@ -30,10 +30,11 @@ import { type CellRect, clampMoveStep, clipRectToGrid, rectContains } from './se
  * refused, shares every cell and mob it did not touch, and reports the counts the editor announces.
  */
 
-/** Status keys the editor shows for these edits (the locale files are filled by the integration lot). */
+/** Status keys the editor shows for these edits (their texts live in the locale files). */
 export const MESSAGE_CC3D_AREA_MOBS_REMOVED = 'editor.cc3d.status.area_mobs_removed';
 export const MESSAGE_CC3D_AREA_MOBS_SKIPPED = 'editor.cc3d.status.area_mobs_skipped';
 export const MESSAGE_CC3D_AREA_PLAYER_KEPT = 'editor.cc3d.status.area_player_kept';
+export const MESSAGE_CC3D_AREA_PLAYER_MOVED = 'editor.cc3d.status.area_player_moved';
 export const MESSAGE_CC3D_RESIZE_MOBS_DROPPED = 'editor.cc3d.status.resize_mobs_dropped';
 export const MESSAGE_CC3D_RESIZE_PLAYER_MOVED = 'editor.cc3d.status.resize_player_moved';
 
@@ -56,7 +57,7 @@ export interface Cc3dClip {
 export interface Cc3dAreaResult {
   level: Cc3dLevel;
   changed: boolean;
-  /** Mobs taken out of the level: cleared, overwritten by a paste or a move, or standing on a moved start. */
+  /** Mobs taken out of the level: cleared, overwritten or replaced by a different mob (paste, move), or standing on a moved start. */
   removedMobs: number;
   /** Mobs that would have landed on a player start that stays: left out, and counted. */
   skippedMobs: number;
@@ -289,7 +290,12 @@ export function pasteCc3dClip(level: Cc3dLevel, clip: Cc3dClip, ox: number, oy: 
       continue;
     }
     placed.add(key);
-    kept.push(sameMob(mob, replacement) ? mob : replacement);
+    if (sameMob(mob, replacement)) {
+      kept.push(mob);
+    } else {
+      removedMobs++;
+      kept.push(replacement);
+    }
   }
   const fresh = [...incoming].filter(([key]) => !placed.has(key)).map(([, mob]) => mob);
   const mobs = fresh.length > 0 ? insertCanonically(kept, fresh, level.width) : kept;
@@ -372,12 +378,13 @@ export function floodFillCc3d(level: Cc3dLevel, x: number, y: number, layer: Cc3
   const { width, height, cells } = level;
   const startIndex = y * width + x;
   const targetStack = cells[startIndex].terrain;
-  const targetKey = canonicalJson(targetStack);
+  const stackKey = (stack: Cc3dCell['terrain']): string => canonicalJson(stack.map((layer) => normalizeLayer(layer) ?? layer));
+  const targetKey = stackKey(targetStack);
   const replacement = placeTerrain(targetStack, wanted);
-  if (canonicalJson(replacement) === targetKey) return refused;
+  if (stackKey(replacement) === targetKey) return refused;
 
   const keys: Array<string | undefined> = new Array(cells.length);
-  const keyOf = (index: number): string => (keys[index] ??= canonicalJson(cells[index].terrain));
+  const keyOf = (index: number): string => (keys[index] ??= stackKey(cells[index].terrain));
   const visited = new Uint8Array(cells.length);
   const queue = new Int32Array(cells.length);
   let tail = 0;

@@ -24,11 +24,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const confirmDialog = vi.hoisted(() => vi.fn());
 vi.mock('../ui/confirmDialog', () => ({ confirmDialog }));
+const downloadText = vi.hoisted(() => vi.fn());
+vi.mock('../ui/download', async (importOriginal) => ({ ...(await importOriginal<typeof import('../ui/download')>()), downloadText }));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { validateCc3dLevel } from '../core/cc3d/cc3dValidator';
-import { cellAt, topTerrain } from '../core/cc3d/model';
+import { cc3dModel, stacked, type GlyphMeaning } from '../core/cc3d/cc3dTestMaps';
+import { cellAt, normalizeCell, topTerrain, type Cc3dLevel } from '../core/cc3d/model';
 import type { CompiledLevel } from '../core/types';
+import { decodeCc3dLevel } from '../formats/Cc3dXmlCodec';
+import { t } from '../i18n/I18nManager';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -43,6 +48,8 @@ const GRID_WIDTH = 5;
 const GRID_HEIGHT = 4;
 const FIRST_BUTTON = 0;
 const SECOND_BUTTON = 1;
+const ITEMS_TAB = 3;
+const MOBS_TAB = 4;
 const WIDE_WIDTH = 120;
 
 const fake = new FakeIndexedDb();
@@ -141,6 +148,7 @@ beforeEach(() => {
     removeItem: (key: string) => void store.delete(key)
   });
   confirmDialog.mockReset();
+  downloadText.mockReset();
   mountModals('editor-view');
   canvas = byId<HTMLCanvasElement>('editor-canvas');
   // Every canvas, the editor's own and the off-screen layer it keeps, draws into a recording-free no-op context.
@@ -187,24 +195,24 @@ describe('opening a CC3D level', () => {
     expect(options).toEqual({ epoxy: true, lynx: true, cc3d: false });
   });
 
-  it('turns fill, select and resize off with a reason, and keeps the other tools', () => {
+  it('keeps every tool and the resize controls available, and takes .CCL export away with its reason', () => {
     editor.loadCompiledLevel(smallCc3dLevel());
-    for (const tool of ['fill', 'select']) {
+    for (const tool of ['brush', 'fill', 'eraser', 'picker', 'select']) {
       const button = document.querySelector<HTMLButtonElement>(`[data-tool="${tool}"]`)!;
-      expect(button.getAttribute('aria-disabled')).toBe('true');
-      expect(button.getAttribute('aria-description')).toBeTruthy();
-      expect(button.title).toBeTruthy();
+      expect(button.hasAttribute('aria-disabled')).toBe(false);
+      expect(button.hasAttribute('aria-description')).toBe(false);
       editor.setTool(tool as never);
-      expect(document.querySelector('[data-tool="brush"]')?.getAttribute('aria-pressed')).toBe('true');
+      expect(button.getAttribute('aria-pressed')).toBe('true');
     }
-    for (const tool of ['brush', 'eraser', 'picker']) {
-      expect(document.querySelector(`[data-tool="${tool}"]`)?.hasAttribute('aria-disabled')).toBe(false);
-    }
-    expect(byId<HTMLButtonElement>('editor-size-apply-btn').disabled).toBe(true);
-    expect(byId<HTMLButtonElement>('editor-size-apply-btn').title).toBeTruthy();
-    expect(byId<HTMLInputElement>('editor-size-width').readOnly).toBe(true);
-    byId('editor-size-apply-btn').click();
-    expect(exported().cc3d?.width).toBe(GRID_WIDTH);
+    const apply = byId<HTMLButtonElement>('editor-size-apply-btn');
+    expect(apply.disabled).toBe(false);
+    expect(apply.hasAttribute('aria-description')).toBe(false);
+    expect(byId<HTMLInputElement>('editor-size-width').readOnly).toBe(false);
+    expect(byId<HTMLInputElement>('editor-size-height').readOnly).toBe(false);
+    const ccl = byId<HTMLButtonElement>('editor-export-ccl-btn');
+    expect(ccl.disabled).toBe(true);
+    expect(ccl.getAttribute('aria-description')).toBe(t('editor.toolbar.export_ccl.reason'));
+    expect(byId('editor-export-xml-btn').classList.contains('hidden')).toBe(false);
   });
 
   it('gives the Epoxy chrome back when an Epoxy level follows', () => {
@@ -218,6 +226,10 @@ describe('opening a CC3D level', () => {
     expect(document.querySelector('[data-tool="fill"]')?.hasAttribute('aria-disabled')).toBe(false);
     expect(byId<HTMLInputElement>('editor-size-width').readOnly).toBe(false);
     expect(byId<HTMLButtonElement>('editor-size-apply-btn').disabled).toBe(false);
+    const ccl = byId<HTMLButtonElement>('editor-export-ccl-btn');
+    expect(ccl.disabled).toBe(false);
+    expect(ccl.hasAttribute('aria-description')).toBe(false);
+    expect(byId('editor-export-xml-btn').classList.contains('hidden')).toBe(true);
   });
 });
 
@@ -423,11 +435,11 @@ describe('painting, erasing and undo on a CC3D level', () => {
     editor.setTool('picker');
     click(2, 2);
     expect(document.querySelector('#editor-palette-grid .palette-item-btn.active')).not.toBeNull();
-    expect(tabs().find((tab) => tab.classList.contains('active'))).toBe(tabs()[4]);
+    expect(tabs().find((tab) => tab.classList.contains('active'))).toBe(tabs()[MOBS_TAB]);
     expect(document.querySelector('[data-tool="brush"]')?.getAttribute('aria-pressed')).toBe('true');
     editor.setTool('picker');
     click(3, 1);
-    expect(tabs().find((tab) => tab.classList.contains('active'))).toBe(tabs()[3]);
+    expect(tabs().find((tab) => tab.classList.contains('active'))).toBe(tabs()[ITEMS_TAB]);
   });
 
   it('lists the layers of the cursor cell and removes one as an undoable edit', () => {
@@ -533,5 +545,292 @@ describe('saving, checking and new levels', () => {
     ruleset.value = 'cc3d';
     ruleset.dispatchEvent(new Event('input', { bubbles: true }));
     expect(exported().ruleset).toBeUndefined();
+  });
+});
+
+/** The size of the map the canvas shows, for the pointer helpers: one cell is CELL_PX wide and high. */
+function setGrid(width: number, height: number): void {
+  canvas.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, right: width * CELL_PX, bottom: height * CELL_PX, width: width * CELL_PX, height: height * CELL_PX, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+}
+
+function status(): string {
+  return byId('editor-status-bar').textContent ?? '';
+}
+
+/** Drags the Select tool's rectangle from one cell to another. */
+function drag(from: { x: number; y: number }, to: { x: number; y: number }): void {
+  pointer('pointerdown', from.x, from.y);
+  pointer('pointermove', to.x, to.y);
+  window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+}
+
+const CC3D_GLYPHS: Record<string, GlyphMeaning> = {
+  b: stacked({ kind: 'floor' }, { kind: 'trap_control' }),
+  c: stacked({ kind: 'floor' }, { kind: 'trap' })
+};
+
+function canonicalLevel(rows: string[]): Cc3dLevel {
+  const model = cc3dModel(rows, CC3D_GLYPHS);
+  return { ...model, cells: model.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })), mapId: 'area' };
+}
+
+/** 8 x 5: the player at (1, 1), a fish at (3, 1), a dirt block at (4, 1), a walker at (2, 2). */
+function areaLevel(): CompiledLevel {
+  return compiledCc3d(canonicalLevel(['########', '#@.iK..#', '#.M....#', '#......#', '########']), 'cc3d_area');
+}
+
+function openArea(): void {
+  editor.loadCompiledLevel(areaLevel());
+  setGrid(8, 5);
+  editor.setTool('select');
+}
+
+const mobAt = (x: number, y: number) => exported().cc3d?.mobs.find((mob) => mob.x === x && mob.y === y);
+
+describe('selection on a CC3D level', () => {
+  it('copies a rectangle and pastes it elsewhere as one undoable step, with the preview drawn from the clip', () => {
+    openArea();
+    const original = exported().cc3d!;
+    drag({ x: 3, y: 1 }, { x: 4, y: 2 });
+    expect(status()).toContain('2 x 2');
+    expect(editor.handleSelectionAction({ kind: 'copy' })).toBe(true);
+    expect(editor.handleSelectionAction({ kind: 'paste' })).toBe(true);
+    renderer.drawTile.mockClear();
+    renderer.drawItem.mockClear();
+    renderer.drawEntity.mockClear();
+    editor.render();
+    expect(renderer.drawTile).toHaveBeenCalledTimes(4);
+    expect(renderer.drawItem).toHaveBeenCalledTimes(1);
+    expect(renderer.drawEntity).toHaveBeenCalledTimes(1);
+    click(5, 2);
+    expect(cellAt(exported().cc3d!, 5, 2)?.item?.kind).toBe('fish');
+    expect(mobAt(6, 2)?.kind).toBe('block_dirt');
+    expect(mobAt(4, 1)?.kind).toBe('block_dirt');
+    expect(status()).toContain('2 x 2');
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    expect(byId<HTMLButtonElement>('editor-undo-btn').disabled).toBe(true);
+    editor.redo();
+    expect(mobAt(6, 2)?.kind).toBe('block_dirt');
+  });
+
+  it('cuts a rectangle, keeps the player start in place and pastes the cut elsewhere', () => {
+    openArea();
+    const original = exported().cc3d!;
+    drag({ x: 3, y: 1 }, { x: 4, y: 1 });
+    expect(editor.handleSelectionAction({ kind: 'cut' })).toBe(true);
+    expect(cellAt(exported().cc3d!, 3, 1)?.item).toBeNull();
+    expect(mobAt(4, 1)).toBeUndefined();
+    editor.handleSelectionAction({ kind: 'paste' });
+    click(5, 3);
+    expect(cellAt(exported().cc3d!, 5, 3)?.item?.kind).toBe('fish');
+    expect(mobAt(6, 3)?.kind).toBe('block_dirt');
+    editor.undo();
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    // The rectangle holds the start: it stays, and the status says so.
+    drag({ x: 1, y: 1 }, { x: 2, y: 1 });
+    editor.handleSelectionAction({ kind: 'cut' });
+    expect(exported().cc3d?.player).toEqual(original.player);
+    expect(status()).toContain(t('editor.selection.status.cut_start_kept', { width: 2, height: 1 }));
+  });
+
+  it('says so when the pasted cut moves the player start', () => {
+    openArea();
+    drag({ x: 1, y: 1 }, { x: 2, y: 1 });
+    editor.handleSelectionAction({ kind: 'cut' });
+    editor.handleSelectionAction({ kind: 'paste' });
+    click(4, 3);
+    expect(exported().cc3d?.player).toMatchObject({ x: 4, y: 3 });
+    expect(status()).toContain(t('editor.cc3d.status.area_player_moved'));
+  });
+
+  it('clears a rectangle with Delete, leaves the start, and undoes it', () => {
+    openArea();
+    const original = exported().cc3d!;
+    drag({ x: 2, y: 2 }, { x: 2, y: 2 });
+    expect(editor.handleSelectionAction({ kind: 'clear' })).toBe(true);
+    expect(mobAt(2, 2)).toBeUndefined();
+    expect(status()).toContain('1 x 1');
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    drag({ x: 1, y: 1 }, { x: 1, y: 1 });
+    editor.handleSelectionAction({ kind: 'clear' });
+    expect(exported().cc3d).toEqual(original);
+    expect(status()).toBe(t('editor.cc3d.status.area_player_kept'));
+  });
+
+  it('moves the rectangle with Alt+Arrow, the outline following, one undo step each', () => {
+    openArea();
+    const original = exported().cc3d!;
+    drag({ x: 3, y: 1 }, { x: 4, y: 1 });
+    expect(editor.handleSelectionAction({ kind: 'move', dx: 1, dy: 0 })).toBe(true);
+    expect(cellAt(exported().cc3d!, 4, 1)?.item?.kind).toBe('fish');
+    expect(cellAt(exported().cc3d!, 3, 1)?.item).toBeNull();
+    expect(mobAt(5, 1)?.kind).toBe('block_dirt');
+    editor.handleSelectionAction({ kind: 'move', dx: 0, dy: 1 });
+    expect(mobAt(5, 2)?.kind).toBe('block_dirt');
+    editor.undo();
+    expect(mobAt(5, 1)?.kind).toBe('block_dirt');
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    // Against the edge the rectangle does not move and leaves no history step.
+    drag({ x: 7, y: 3 }, { x: 7, y: 3 });
+    editor.handleSelectionAction({ kind: 'move', dx: 1, dy: 0 });
+    editor.handleSelectionAction({ kind: 'move', dx: 1, dy: 0 });
+    expect(editor.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('says how many creatures a paste replaced', () => {
+    openArea();
+    drag({ x: 3, y: 3 }, { x: 3, y: 3 });
+    editor.handleSelectionAction({ kind: 'copy' });
+    editor.handleSelectionAction({ kind: 'paste' });
+    click(2, 2);
+    expect(mobAt(2, 2)).toBeUndefined();
+    expect(status()).toContain(t('editor.cc3d.status.area_mobs_removed', { count: 1 }));
+  });
+
+  it('announces a trap control that opens another trap after the edit', () => {
+    editor.loadCompiledLevel(compiledCc3d(canonicalLevel(['#########', '#@b..c.c#', '#########']), 'cc3d_links'));
+    setGrid(9, 3);
+    editor.setTool('select');
+    drag({ x: 5, y: 1 }, { x: 5, y: 1 });
+    editor.handleSelectionAction({ kind: 'cut' });
+    expect(status()).toContain(t('editor.cc3d.status.link_trap', { x: 2, y: 1, toX: 7, toY: 1 }));
+  });
+
+  it('refuses to paste cells of the other kind of level, both ways', () => {
+    openArea();
+    drag({ x: 3, y: 1 }, { x: 4, y: 1 });
+    editor.handleSelectionAction({ kind: 'copy' });
+    editor.initBlankMap();
+    expect(editor.handleSelectionAction({ kind: 'paste' })).toBe(false);
+    expect(status()).toBe(t('editor.selection.status.paste_refused_cc3d'));
+    // An Epoxy copy, then a CC3D level.
+    editor.setTool('select');
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    editor.handleSelectionAction({ kind: 'copy' });
+    editor.loadCompiledLevel(areaLevel());
+    expect(editor.handleSelectionAction({ kind: 'paste' })).toBe(false);
+    expect(status()).toBe(t('editor.selection.status.paste_refused_epoxy'));
+    expect(editor.hasUnsavedChanges()).toBe(false);
+  });
+});
+
+describe('fill on a CC3D level', () => {
+  it('fills the region around the cell with a layer entry as one undoable step', () => {
+    editor.loadCompiledLevel(areaLevel());
+    setGrid(8, 5);
+    const original = exported().cc3d!;
+    editor.setTool('fill');
+    tabs()[FIRST_BUTTON].click();
+    paletteButtons()[SECOND_BUTTON].click();
+    expect(document.querySelector('[data-tool="fill"]')?.getAttribute('aria-pressed')).toBe('true');
+    click(2, 3);
+    expect(topKindAt(2, 3)).toBe('water');
+    expect(topKindAt(6, 3)).toBe('water');
+    expect(topKindAt(0, 0)).toBe('wall');
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    editor.redo();
+    expect(topKindAt(6, 3)).toBe('water');
+  });
+
+  it('answers a message for an entry that is not a layer, and changes nothing', () => {
+    editor.loadCompiledLevel(areaLevel());
+    setGrid(8, 5);
+    tabs()[ITEMS_TAB].click();
+    paletteButtons()[FIRST_BUTTON].click();
+    editor.setTool('fill');
+    click(2, 3);
+    expect(status()).toBe(t('editor.cc3d.status.fill_needs_layer'));
+    expect(editor.hasUnsavedChanges()).toBe(false);
+  });
+});
+
+describe('resize on a CC3D level', () => {
+  function applySize(width: number, height: number): void {
+    byId<HTMLInputElement>('editor-size-width').value = String(width);
+    byId<HTMLInputElement>('editor-size-height').value = String(height);
+    byId('editor-size-apply-btn').click();
+  }
+
+  it('grows the grid with plain floor, rebuilds the drawn map and undoes in one step', () => {
+    editor.loadCompiledLevel(areaLevel());
+    setGrid(8, 5);
+    editor.render();
+    const original = exported().cc3d!;
+    renderer.drawTile.mockClear();
+    applySize(10, 6);
+    const grown = exported().cc3d!;
+    expect([grown.width, grown.height, grown.cells.length]).toEqual([10, 6, 60]);
+    expect(cellAt(grown, 9, 5)).toEqual({ terrain: [{ kind: 'floor' }], panels: [], item: null });
+    expect(grown.mobs).toEqual(original.mobs);
+    expect(renderer.drawTile.mock.calls.length).toBeGreaterThanOrEqual(60);
+    expect(status()).toContain(t('editor.layout.size.resized', { width: 10, height: 6 }));
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    editor.redo();
+    expect(exported().cc3d?.width).toBe(10);
+  });
+
+  it('crops the grid, says what was dropped and moves a start that falls outside', () => {
+    editor.loadCompiledLevel(areaLevel());
+    setGrid(8, 5);
+    const original = exported().cc3d!;
+    applySize(4, 5);
+    expect(exported().cc3d?.mobs.map((mob) => mob.kind)).toEqual(['walker']);
+    expect(status()).toContain(t('editor.cc3d.status.resize_mobs_dropped', { count: 1 }));
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    applySize(2, 1);
+    expect(exported().cc3d?.player).toEqual({ ...original.player, x: 1, y: 0 });
+    expect(status()).toContain(t('editor.cc3d.status.resize_player_moved'));
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+    // The same size changes nothing.
+    applySize(8, 5);
+    expect(byId<HTMLButtonElement>('editor-undo-btn').disabled).toBe(true);
+  });
+});
+
+describe('exporting a CC3D level', () => {
+  it('downloads the XML the decoder reads back to the same level, with the form title and author', () => {
+    editor.loadCompiledLevel(areaLevel());
+    const original = exported().cc3d!;
+    const title = byId<HTMLInputElement>('editor-meta-title');
+    title.value = 'My area';
+    title.dispatchEvent(new Event('input', { bubbles: true }));
+    const author = byId<HTMLInputElement>('editor-meta-author');
+    author.value = 'Someone';
+    author.dispatchEvent(new Event('input', { bubbles: true }));
+    byId('editor-export-xml-btn').click();
+    expect(downloadText).toHaveBeenCalledTimes(1);
+    const [xml, fileName] = downloadText.mock.calls[0] as [string, string, string];
+    expect(fileName).toBe('area.xml');
+    expect(xml).toContain('name="My area"');
+    expect(xml).toContain('author="Someone"');
+    const decoded = decodeCc3dLevel(xml, { packName: 'pack', mapId: 'area', number: 1 });
+    // The file always names the facing of the start; a level without one faces west.
+    expect(decoded.cc3d).toEqual({ ...original, background: 2, player: { ...original.player, dir: 'W' } });
+    expect(status()).toBe(t('editor.cc3d.status.export_xml_notice'));
+  });
+
+  it('writes the form title as it is, never the translated fallback title', () => {
+    editor.loadCompiledLevel(areaLevel());
+    const title = byId<HTMLInputElement>('editor-meta-title');
+    title.value = '';
+    title.dispatchEvent(new Event('input', { bubbles: true }));
+    byId('editor-export-xml-btn').click();
+    const xml = downloadText.mock.calls[0][0] as string;
+    expect(xml).toContain('name=""');
+    expect(xml).not.toContain(t('editor.metadata.default_title.label'));
+  });
+
+  it('cannot export to .CCL: the button is off', () => {
+    editor.loadCompiledLevel(areaLevel());
+    expect(byId<HTMLButtonElement>('editor-export-ccl-btn').disabled).toBe(true);
   });
 });

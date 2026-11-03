@@ -92,6 +92,7 @@
       "refused_targets_win_rule": { "label": "Not exported: {levels} is won by covering block targets, which the .DAT format cannot hold." },
       "refused_receivers_win_rule": { "label": "Not exported: {levels} is won by lighting laser receivers, which the .DAT format cannot hold." },
       "refused_laser_content": { "label": "Not exported: {levels} uses lasers or mirrors, which the .DAT format cannot hold." },
+      "refused_cc3d_ruleset": { "label": "Not exported: {levels} plays under CC3D rules, which the .DAT format cannot hold. Use Export XML instead." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -554,8 +555,6 @@
       "kind": { "fish": "Fish", "snappy": "Snappy", "nibble": "Nibble", "panel": "Thin wall" },
       "color": { "red": "Red", "green": "Green", "blue": "Blue", "yellow": "Yellow" },
       "attr": { "color": "Colour", "corner": "Corner", "mirror": "Mirror" },
-      "tool_unavailable": { "label": "Not available in a CC3D level: fill and selection work on whole Epoxy or Lynx layers." },
-      "resize_unavailable": { "label": "A CC3D level keeps its size: resizing is not available." },
       "eraser": { "title": "Eraser (E): removes the topmost thing of the cell. Shift+click (or Shift+Space) clears the whole cell." },
       "layers": {
         "title": "Layers",
@@ -576,7 +575,16 @@
         "link_clone_none": "Clone switch at ({x}, {y}) has no machine to work now.",
         "link_laser": "Laser controller at ({x}, {y}) now fires the shooter at ({toX}, {toY}).",
         "link_laser_none": "Laser controller at ({x}, {y}) has no shooter to fire now.",
-        "link_more": "{count, plural, one {# more link changed.} other {# more links changed.}}"
+        "link_more": "{count, plural, one {# more link changed.} other {# more links changed.}}",
+        "fill_needs_layer": "Fill needs a floor, wall, door or other layer entry: pick one in the palette.",
+        "area_mobs_removed": "{count, plural, one {# creature or block was removed.} other {# creatures or blocks were removed.}}",
+        "area_mobs_skipped": "{count, plural, one {# creature or block was left out: it would stand on the player start.} other {# creatures or blocks were left out: they would stand on the player start.}}",
+        "area_player_kept": "The player start stays in place.",
+        "area_player_moved": "The player start was moved by the paste.",
+        "resize_mobs_dropped": "{count, plural, one {# creature or block was removed.} other {# creatures or blocks were removed.}}",
+        "resize_player_moved": "The player start was moved inside the level.",
+        "export_xml_notice": "Exported. The hint, the password and the time limit are not stored in the XML file.",
+        "export_xml_failed": "The level could not be exported to XML."
       }
     },
     "selection": {
@@ -601,7 +609,9 @@
         "nothing_to_paste": "Nothing to paste: copy or cut a selection first.",
         "links_dropped": "{count, plural, one {# link was dropped} other {# links were dropped}}.",
         "border_skipped": "{count, plural, one {# cell on the outer wall ring was left alone} other {# cells on the outer wall ring were left alone}}.",
-        "paste_skipped": "{count, plural, one {# entry was skipped: Lynx rules cannot play it} other {# entries were skipped: Lynx rules cannot play them}}."
+        "paste_skipped": "{count, plural, one {# entry was skipped: Lynx rules cannot play it} other {# entries were skipped: Lynx rules cannot play them}}.",
+        "paste_refused_epoxy": "This selection comes from an Epoxy or Lynx level: it cannot be pasted into a CC3D level.",
+        "paste_refused_cc3d": "This selection comes from a CC3D level: it cannot be pasted into an Epoxy or Lynx level."
       }
     },
     "check": {
@@ -781,7 +791,8 @@
     },
     "toolbar": {
       "export_json": { "action": "Export JSON" },
-      "export_ccl": { "action": "Export .CCL" },
+      "export_ccl": { "action": "Export .CCL", "reason": "A CC3D level cannot be exported to .CCL: use Export XML." },
+      "export_xml": { "action": "Export XML" },
       "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" },
       "confirm_reload": { "label": "The editor has unsaved changes. Replace them with the current level?" },
       "confirm_save_invalid": { "label": "This level has errors: {issues}\n\nSave it anyway?" },

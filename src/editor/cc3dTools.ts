@@ -17,6 +17,7 @@
 import { ORDERED_DIRECTIONS } from '../config/constants';
 import { type Cc3dLevel, cellAt, topTerrain } from '../core/cc3d/model';
 import type { Direction } from '../core/types';
+import { floodFillCc3d } from './cc3dAreaEdits';
 import {
   clearPanels,
   eraseCell,
@@ -26,6 +27,7 @@ import {
   removeMob,
   setItem,
   setPanelSide,
+  normalizeLayer,
   setPlayer
 } from './cc3dEdits';
 import {
@@ -46,17 +48,8 @@ import type { EditorTool, ToolMessage } from './editorTools';
 
 export const MESSAGE_CC3D_MOB_ON_START = 'editor.cc3d.status.mob_on_start';
 export const MESSAGE_CC3D_START_ON_MOB = 'editor.cc3d.status.start_on_mob';
-/** Why fill, select and resize do not act on a CC3D level. */
-export const CC3D_TOOL_UNAVAILABLE_KEY = 'editor.cc3d.tool_unavailable.label';
-export const CC3D_RESIZE_UNAVAILABLE_KEY = 'editor.cc3d.resize_unavailable.label';
-
-/** The tools that work on whole Epoxy or Lynx layers and have no CC3D meaning. */
-const UNAVAILABLE_TOOLS: readonly EditorTool[] = ['fill', 'select'];
-
-/** The i18n key of the reason a tool is off on a CC3D level, or null when it works. */
-export function cc3dToolBlock(tool: EditorTool): string | null {
-  return UNAVAILABLE_TOOLS.includes(tool) ? CC3D_TOOL_UNAVAILABLE_KEY : null;
-}
+/** Why the fill tool did nothing: only a layer entry (floor, wall, door...) can fill a region. */
+export const MESSAGE_CC3D_FILL_NEEDS_LAYER = 'editor.cc3d.status.fill_needs_layer';
 
 export interface Cc3dToolInput {
   level: Cc3dLevel;
@@ -130,13 +123,21 @@ function brushOutcome(input: Cc3dToolInput): Cc3dToolOutcome {
   }
 }
 
-/** Applies the active tool at a cell. Fill and select (and the picker, which only reads) change nothing. */
+/** The fill tool: the region around the cell takes the selected layer; other entries answer a message. */
+function fillOutcome(input: Cc3dToolInput): Cc3dToolOutcome {
+  const { level, entry, attrs, dir, x, y } = input;
+  if (!entry || entry.action !== 'layer') return outcome(level, level, [{ key: MESSAGE_CC3D_FILL_NEEDS_LAYER }]);
+  return outcome(level, floodFillCc3d(level, x, y, layerOf(entry, attrs, dir)).level);
+}
+
+/** Applies the active tool at a cell. Select (and the picker, which only reads) change nothing. */
 export function applyCc3dTool(input: Cc3dToolInput): Cc3dToolOutcome {
   const { level, tool, x, y } = input;
   if (input.forceErase || tool === 'eraser') {
     return outcome(level, input.wholeCell ? eraseCell(level, x, y) : eraseTopmost(level, x, y));
   }
   if (tool === 'brush') return brushOutcome(input);
+  if (tool === 'fill') return fillOutcome(input);
   return outcome(level, level);
 }
 
@@ -177,6 +178,6 @@ export function pickCc3dCell(level: Cc3dLevel, x: number, y: number): Cc3dPicked
   const top = topTerrain(cell);
   const attrs: Partial<Cc3dBrushAttributes> = {};
   if (top.color) attrs.color = top.color;
-  if (top.corner) attrs.corner = top.corner;
+  if (top.corner) attrs.corner = normalizeLayer(top)?.corner ?? top.corner;
   return { entryId: entryIdOfLayer(top), attrs, ...(top.dir ? { dir: top.dir } : {}) };
 }

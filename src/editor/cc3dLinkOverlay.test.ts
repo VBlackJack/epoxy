@@ -188,6 +188,14 @@ describe('diffCc3dLinksByPosition', () => {
     expect(diffCc3dLinksByPosition(before, trapOnly, { rect: rect(4, 1, 1, 1), dx: 2, dy: 0 })).toEqual([]);
   });
 
+  it('does not report a control that the move overwrote', () => {
+    // control A (4,1) opens the trap (6,1); control B (2,2) and its trap (3,2) move onto (4,1) and (5,1)
+    const before = level(['#########', '#...b.c.#', '#.bc....#', '#@......#', '#########']);
+    const move = { rect: rect(2, 2, 2, 1), dx: 2, dy: -1 };
+    const moved = moveCc3dRect(before, move.rect, move.dx, move.dy).level;
+    expect(diffCc3dLinksByPosition(before, moved, move)).toEqual([]);
+  });
+
   it('reports a trap that moved away and left the control on another one', () => {
     const before = level(rows);
     const away = moveCc3dRect(before, rect(4, 2, 1, 1), -3, -2).level; // trap A to (1,0), before the control
