@@ -57,7 +57,7 @@ import {
 import { CheckSummary, summarizeValidation } from './checkSummary';
 import { cloneDocument, cloneMap, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
 import { EditorHistory } from './editorHistory';
-import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise } from './editorKeyboard';
+import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise, SelectionKeyAction } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
 import {
   applyTool,
@@ -66,6 +66,7 @@ import {
   EDITOR_TOOLS,
   EditorTool,
   leavesLooseButton,
+  MESSAGE_START_KEPT,
   MESSAGE_WIRE_CANCELLED,
   MESSAGE_WIRE_CANCELLED_BUTTON_LEFT,
   pickFromCell,
@@ -80,6 +81,20 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
+import {
+  CellRect,
+  clampMoveStep,
+  clearRect,
+  Clip,
+  extractClip,
+  moveRect,
+  MoveStep,
+  pasteClip,
+  rectContains,
+  rectFromCells,
+  SelectionEditResult,
+  shiftRect
+} from './selectionEdits';
 import { MetadataEditCoalescer } from './metadataCoalescer';
 import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 import {
@@ -121,6 +136,10 @@ import {
   POINTER_ERASER_BUTTON,
   EDITOR_OVERLAY_LINE_WIDTH,
   EDITOR_PASSWORD_LENGTH,
+  EDITOR_PASTE_PREVIEW_ALPHA,
+  EDITOR_SELECTION_DASH,
+  EDITOR_SELECTION_DIM_COLOR,
+  EDITOR_SELECTION_OUTLINE_COLOR,
   EDITOR_TILE_CENTER_OFFSET,
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_LINK_COLOR,
@@ -167,7 +186,8 @@ const TOOL_LABEL_KEYS: Record<EditorTool, string> = {
   brush: 'editor.layout.tool.brush.label',
   fill: 'editor.layout.tool.fill.label',
   eraser: 'editor.layout.tool.eraser.label',
-  picker: 'editor.layout.tool.picker.label'
+  picker: 'editor.layout.tool.picker.label',
+  select: 'editor.selection.tool.label'
 };
 const CHECK_TEXT_KEYS: Record<CheckSummary['state'], string> = {
   valid: 'editor.layout.check.valid',
@@ -188,6 +208,14 @@ interface Stroke {
   changed: boolean;
   forceErase: boolean;
 }
+
+/** A pointer gesture of the Select tool: drawing a rectangle, or dragging the selected cells. */
+type SelectionGesture =
+  | { kind: 'select'; anchor: { x: number; y: number } }
+  | { kind: 'move'; origin: { x: number; y: number }; step: MoveStep };
+
+/** Cut and copied cells, shared by every level of the session; not the system clipboard. */
+let selectionClipboard: Clip | null = null;
 
 /** What the application learns when a level was saved. */
 export interface SavedLevelInfo {
@@ -264,6 +292,15 @@ export class LevelEditor {
   private activeDir: Direction = 'S';
   private stroke: Stroke | null = null;
   private pendingWire: PendingWire | null = null;
+  /** The cells selected with the Select tool. */
+  private selection: CellRect | null = null;
+  /** The corner the keyboard selection grows from; null once the cursor moved without Shift. */
+  private selectionAnchor: { x: number; y: number } | null = null;
+  private selectionGesture: SelectionGesture | null = null;
+  /** True while a pasted clip floats at `pasteAnchor`, waiting to be placed. */
+  private pasting = false;
+  /** Top-left cell of the floating paste: follows the pointer and the keyboard cursor. */
+  private pasteAnchor: { x: number; y: number } = { x: 0, y: 0 };
   private hoverCell: { x: number; y: number } | null = null;
   private cursorCell: { x: number; y: number } | null = null;
   /** The last cell the pointer was over, kept after it leaves the canvas so a toolbar button can use it. */
@@ -486,6 +523,7 @@ export class LevelEditor {
     this.coalescer.reset();
     this.stroke = null;
     this.pendingWire = null;
+    this.resetSelectionState();
     this.hoverCell = null;
     this.cursorCell = null;
     this.lastHoverCell = null;
@@ -773,8 +811,9 @@ export class LevelEditor {
   private selectBrush(brush: Brush): void {
     this.cancelPendingWire(false);
     this.brush = brush;
-    if (this.tool === 'eraser' || this.tool === 'picker' || (this.tool === 'fill' && brush.kind !== 'terrain')) {
+    if (this.tool === 'eraser' || this.tool === 'picker' || this.tool === 'select' || (this.tool === 'fill' && brush.kind !== 'terrain')) {
       this.tool = 'brush';
+      this.resetSelectionState();
       this.updateToolButtons();
     }
     this.updateCanvasLabel();
@@ -837,6 +876,8 @@ export class LevelEditor {
     if (tool === this.tool) return;
     this.cancelPendingWire(false);
     this.tool = tool;
+    // A selection or a floating paste belongs to the Select tool.
+    this.resetSelectionState();
     this.updateToolButtons();
     this.updateCanvasLabel();
     this.setStatusText(t('editor.layout.status.tool_changed', { tool: this.toolLabel(tool) }));
@@ -864,6 +905,7 @@ export class LevelEditor {
         this.setZoomOffset(0);
         break;
       case 'cancel':
+        if (this.cancelPaste() || this.dropSelection(true)) break;
         this.cancelPendingWire(true);
         break;
     }
@@ -1403,6 +1445,7 @@ export class LevelEditor {
       this.history.push(this.doc);
       this.coalescer.reset();
       this.cancelPendingWire(false);
+      this.resetSelectionState();
       this.doc = { ...this.doc, ...result.map };
       this.cursorCell = null;
       this.hoverCell = null;
@@ -1483,6 +1526,7 @@ export class LevelEditor {
     this.coalescer.reset();
     this.isDirty = !(this.cleanDoc !== null && sameDocument(doc, this.cleanDoc));
     this.pendingWire = null;
+    this.resetSelectionState();
     this.cursorCell = null;
     this.applyFit();
     this.updateUndoRedoButtons();
@@ -1585,8 +1629,18 @@ export class LevelEditor {
       this.canvas.setPointerCapture(ev.pointerId);
       this.cursorCell = cell;
 
+      if (this.pasting) {
+        // Any button other than the primary one cancels a floating paste.
+        if (ev.button === 0) this.placePaste(cell);
+        else this.cancelPaste();
+        return;
+      }
       if (ev.altKey || ev.button === 1 || this.tool === 'picker') {
         this.pickAt(cell.x, cell.y);
+        return;
+      }
+      if (this.tool === 'select' && ev.button === 0) {
+        this.beginSelectionGesture(cell);
         return;
       }
 
@@ -1596,7 +1650,9 @@ export class LevelEditor {
 
     this.canvas.addEventListener('pointermove', (ev) => {
       const cell = this.cellAt(ev.clientX, ev.clientY);
+      if (cell && this.pasting) this.pasteAnchor = cell;
       this.setHover(cell);
+      if (cell && this.selectionGesture) this.updateSelectionGesture(cell);
       if (cell && this.stroke && continuesOnDrag(this.tool, this.brush, this.stroke.forceErase)) {
         this.applyAt(cell.x, cell.y);
       }
@@ -1606,9 +1662,15 @@ export class LevelEditor {
       if (!this.stroke) this.setHover(null);
     });
 
-    const stopPainting = (): void => this.endStroke();
+    const stopPainting = (): void => {
+      this.endStroke();
+      this.endSelectionGesture(true);
+    };
     window.addEventListener('pointerup', stopPainting);
-    window.addEventListener('pointercancel', stopPainting);
+    window.addEventListener('pointercancel', () => {
+      this.endStroke();
+      this.endSelectionGesture(false);
+    });
 
     this.canvas.addEventListener('keydown', (ev) => {
       const action = getCanvasKeyAction(ev);
@@ -1617,6 +1679,8 @@ export class LevelEditor {
       if (action.kind === 'move') {
         const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
         this.cursorCell = moveCursor(from, action.dx, action.dy, this.mapWidth(), this.mapHeight());
+        if (this.pasting) this.pasteAnchor = this.cursorCell;
+        if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, this.cursorCell, ev.shiftKey);
         this.setCoordsText(t('editor.palette.status.coords', { x: this.cursorCell.x, y: this.cursorCell.y }));
         this.render();
         return;
@@ -1625,6 +1689,14 @@ export class LevelEditor {
       if (this.stroke) return;
       const cell = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
       this.cursorCell = cell;
+      if (this.pasting) {
+        this.placePaste(cell);
+        return;
+      }
+      if (this.tool === 'select') {
+        this.selectCell(cell);
+        return;
+      }
       if (this.tool === 'picker') {
         this.pickAt(cell.x, cell.y);
         return;
@@ -1647,7 +1719,12 @@ export class LevelEditor {
     if (!stroke) return;
     this.stroke = null;
     if (!stroke.changed) return;
-    this.history.push(stroke.base);
+    this.recordChange(stroke.base);
+  }
+
+  /** Makes a change that already sits in `doc` one history step, with `base` as the document before it. */
+  private recordChange(base: EditorDocument): void {
+    this.history.push(base);
     this.coalescer.reset();
     this.isDirty = true;
     this.updateUndoRedoButtons();
@@ -1687,6 +1764,295 @@ export class LevelEditor {
   private announce(messages: ToolMessage[]): void {
     if (messages.length === 0) return;
     this.setStatusText(messages.map((message) => t(message.key, message.params)).join(SEPARATOR_BETWEEN_MESSAGES));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Selection
+  // ---------------------------------------------------------------------------
+
+  /** Forgets the selection, the gesture and the floating paste; the clipboard stays. */
+  private resetSelectionState(): void {
+    this.selection = null;
+    this.selectionAnchor = null;
+    this.selectionGesture = null;
+    this.pasting = false;
+  }
+
+  /** Drops the selection; says so when asked. Returns whether there was one. */
+  private dropSelection(announce: boolean): boolean {
+    if (!this.selection) return false;
+    this.selection = null;
+    this.selectionAnchor = null;
+    this.selectionGesture = null;
+    if (announce) this.setStatusText(t('editor.selection.status.dropped'));
+    this.render();
+    return true;
+  }
+
+  /** Cancels a floating paste. Returns whether there was one. */
+  private cancelPaste(): boolean {
+    if (!this.pasting) return false;
+    this.pasting = false;
+    this.setStatusText(t('editor.selection.status.paste_cancelled'));
+    this.render();
+    return true;
+  }
+
+  private announceSelectionSize(): void {
+    if (!this.selection) return;
+    this.setStatusText(t('editor.selection.status.size', { width: this.selection.width, height: this.selection.height }));
+  }
+
+  /** Selects the single cell under the keyboard cursor. */
+  private selectCell(cell: { x: number; y: number }): void {
+    this.selection = rectFromCells(cell, cell, this.mapWidth(), this.mapHeight());
+    this.selectionAnchor = cell;
+    this.announceSelectionSize();
+    this.render();
+  }
+
+  /** The keyboard cursor moved while the Select tool is active: with Shift the selection grows from its anchor. */
+  private moveSelectionCursor(from: { x: number; y: number }, to: { x: number; y: number }, extend: boolean): void {
+    if (!extend) {
+      this.selectionAnchor = null;
+      return;
+    }
+    const anchor = this.selection && this.selectionAnchor ? this.selectionAnchor : from;
+    this.selectionAnchor = anchor;
+    this.selection = rectFromCells(anchor, to, this.mapWidth(), this.mapHeight());
+    this.announceSelectionSize();
+  }
+
+  private beginSelectionGesture(cell: { x: number; y: number }): void {
+    if (this.selection && rectContains(this.selection, cell.x, cell.y)) {
+      this.selectionGesture = { kind: 'move', origin: cell, step: { dx: 0, dy: 0 } };
+    } else {
+      this.selectionGesture = { kind: 'select', anchor: cell };
+      this.selection = rectFromCells(cell, cell, this.mapWidth(), this.mapHeight());
+      this.selectionAnchor = cell;
+    }
+    this.render();
+  }
+
+  private updateSelectionGesture(cell: { x: number; y: number }): void {
+    const gesture = this.selectionGesture;
+    if (!gesture) return;
+    if (gesture.kind === 'select') {
+      this.selection = rectFromCells(gesture.anchor, cell, this.mapWidth(), this.mapHeight());
+    } else if (this.selection) {
+      gesture.step = clampMoveStep(
+        this.selection,
+        cell.x - gesture.origin.x,
+        cell.y - gesture.origin.y,
+        this.mapWidth(),
+        this.mapHeight()
+      );
+    }
+    this.render();
+  }
+
+  /** Ends a pointer gesture: a drawn rectangle stays selected, a dragged one is moved when `apply` is set. */
+  private endSelectionGesture(apply: boolean): void {
+    const gesture = this.selectionGesture;
+    if (!gesture) return;
+    this.selectionGesture = null;
+    if (gesture.kind === 'select') {
+      this.announceSelectionSize();
+    } else if (apply && this.selection && (gesture.step.dx !== 0 || gesture.step.dy !== 0)) {
+      this.moveSelectionBy(gesture.step.dx, gesture.step.dy);
+    }
+    this.render();
+  }
+
+  /** Puts a selection edit in the document as one history step. Returns whether anything changed. */
+  private commitSelectionEdit(result: SelectionEditResult): boolean {
+    if (!result.changed) return false;
+    const before = this.doc;
+    this.doc = { ...this.doc, ...result.map };
+    this.recordChange(before);
+    this.render();
+    return true;
+  }
+
+  /** The status messages that follow a selection edit: the links it dropped and the entries it skipped. */
+  private selectionAftermath(result: SelectionEditResult): ToolMessage[] {
+    const messages: ToolMessage[] = [];
+    if (result.droppedLinks > 0) messages.push({ key: 'editor.selection.status.links_dropped', params: { count: result.droppedLinks } });
+    if (result.skipped > 0) messages.push({ key: 'editor.selection.status.paste_skipped', params: { count: result.skipped } });
+    return messages;
+  }
+
+  /**
+   * Runs a selection key chord. Returns whether the chord was taken, so the
+   * application leaves the browser's own handling alone only then.
+   */
+  public handleSelectionAction(action: SelectionKeyAction): boolean {
+    if (this.stroke || this.selectionGesture) return false;
+    if (action.kind === 'paste') {
+      this.beginPaste();
+      return true;
+    }
+    if (!this.selection) {
+      if (this.tool !== 'select') return false;
+      this.announce([{ key: 'editor.selection.status.none' }]);
+      return true;
+    }
+    switch (action.kind) {
+      case 'copy':
+        this.copySelection(false);
+        break;
+      case 'cut':
+        this.copySelection(true);
+        break;
+      case 'clear':
+        this.clearSelectedCells();
+        break;
+      case 'move':
+        this.moveSelectionBy(action.dx, action.dy);
+        break;
+    }
+    return true;
+  }
+
+  private copySelection(cut: boolean): void {
+    const rect = this.selection;
+    if (!rect) return;
+    selectionClipboard = extractClip(this.doc, rect, cut);
+    const size = { width: rect.width, height: rect.height };
+    if (!cut) {
+      const withStart = rectContains(rect, this.doc.playerStart.x, this.doc.playerStart.y);
+      this.announce([{ key: withStart ? 'editor.selection.status.copied_no_start' : 'editor.selection.status.copied', params: size }]);
+      return;
+    }
+    const result = clearRect(this.doc, rect);
+    this.commitSelectionEdit(result);
+    this.announce([{ key: 'editor.selection.status.cut', params: size }, ...this.selectionAftermath(result)]);
+  }
+
+  private clearSelectedCells(): void {
+    const rect = this.selection;
+    if (!rect) return;
+    const result = clearRect(this.doc, rect);
+    if (!this.commitSelectionEdit(result)) {
+      this.announce([{ key: result.playerStartKept ? MESSAGE_START_KEPT : 'editor.selection.status.unchanged' }]);
+      return;
+    }
+    this.announce([
+      { key: 'editor.selection.status.cleared', params: { width: rect.width, height: rect.height } },
+      ...this.selectionAftermath(result),
+      ...(result.playerStartKept ? [{ key: MESSAGE_START_KEPT }] : [])
+    ]);
+  }
+
+  private moveSelectionBy(dx: number, dy: number): void {
+    const rect = this.selection;
+    if (!rect) return;
+    const result = moveRect(this.doc, rect, dx, dy);
+    if (!this.commitSelectionEdit(result)) return;
+    this.selection = result.rect;
+    this.selectionAnchor = null;
+    this.announce([{ key: 'editor.selection.status.moved' }, ...this.selectionAftermath(result)]);
+    this.render();
+  }
+
+  /** Starts a floating paste of the clipboard at the cursor or the last hovered cell. */
+  private beginPaste(): void {
+    if (!selectionClipboard) {
+      this.announce([{ key: 'editor.selection.status.nothing_to_paste' }]);
+      return;
+    }
+    this.cancelPendingWire(false);
+    this.pasting = true;
+    this.pasteAnchor = this.cursorCell ?? this.lastHoverCell ?? { x: 0, y: 0 };
+    this.announce([{ key: 'editor.selection.status.paste_ready' }]);
+    this.render();
+  }
+
+  /** Places the floating paste with its top-left cell on the given cell. */
+  private placePaste(cell: { x: number; y: number }): void {
+    const clip = selectionClipboard;
+    if (!clip) return;
+    this.pasteAnchor = cell;
+    const result = pasteClip(this.doc, clip, cell.x, cell.y, editableRulesetOf(this.doc.ruleset));
+    if (!result.rect) {
+      this.announce([{ key: 'editor.selection.status.unchanged' }]);
+      return;
+    }
+    this.pasting = false;
+    this.commitSelectionEdit(result);
+    this.selection = result.rect;
+    this.selectionAnchor = null;
+    this.announce([
+      result.changed
+        ? { key: 'editor.selection.status.pasted', params: { width: result.rect.width, height: result.rect.height } }
+        : { key: 'editor.selection.status.unchanged' },
+      ...this.selectionAftermath(result)
+    ]);
+    this.render();
+  }
+
+  /** Draws the selection (dim outside, dashed outline), the drag ghost and the floating paste. */
+  private renderSelectionOverlay(s: number): void {
+    const selection = this.selection;
+    if (selection) {
+      const width = this.canvas.width;
+      const height = this.canvas.height;
+      const x0 = selection.x * s;
+      const y0 = selection.y * s;
+      const x1 = (selection.x + selection.width) * s;
+      const y1 = (selection.y + selection.height) * s;
+      this.ctx.fillStyle = EDITOR_SELECTION_DIM_COLOR;
+      this.ctx.fillRect(0, 0, width, y0);
+      this.ctx.fillRect(0, y1, width, height - y1);
+      this.ctx.fillRect(0, y0, x0, y1 - y0);
+      this.ctx.fillRect(x1, y0, width - x1, y1 - y0);
+      this.outlineRect(selection, s, 1);
+      const gesture = this.selectionGesture;
+      if (gesture?.kind === 'move' && (gesture.step.dx !== 0 || gesture.step.dy !== 0)) {
+        this.outlineRect(shiftRect(selection, gesture.step.dx, gesture.step.dy), s, EDITOR_PASTE_PREVIEW_ALPHA);
+      }
+    }
+    const clip = selectionClipboard;
+    if (this.pasting && clip) this.drawPastePreview(clip, s);
+  }
+
+  private outlineRect(rect: CellRect, s: number, alpha: number): void {
+    const inset = EDITOR_OVERLAY_LINE_WIDTH / 2;
+    this.ctx.save();
+    this.ctx.globalAlpha = alpha;
+    this.ctx.lineWidth = EDITOR_OVERLAY_LINE_WIDTH;
+    this.ctx.strokeStyle = EDITOR_SELECTION_OUTLINE_COLOR;
+    this.ctx.setLineDash([...EDITOR_SELECTION_DASH]);
+    this.ctx.strokeRect(
+      rect.x * s + inset,
+      rect.y * s + inset,
+      rect.width * s - EDITOR_OVERLAY_LINE_WIDTH,
+      rect.height * s - EDITOR_OVERLAY_LINE_WIDTH
+    );
+    this.ctx.restore();
+  }
+
+  private drawPastePreview(clip: Clip, s: number): void {
+    const { x: ox, y: oy } = this.pasteAnchor;
+    this.ctx.save();
+    this.ctx.globalAlpha = EDITOR_PASTE_PREVIEW_ALPHA;
+    for (let cy = 0; cy < clip.height; cy++) {
+      for (let cx = 0; cx < clip.width; cx++) {
+        const px = (ox + cx) * s;
+        const py = (oy + cy) * s;
+        this.renderer.drawTile(this.ctx, clip.terrain[cy][cx], px, py, s, true, true);
+        const item = clip.items[cy][cx];
+        if (item) this.renderer.drawItem(this.ctx, item, px, py, s);
+      }
+    }
+    for (const e of clip.entities) {
+      this.renderer.drawEntity(this.ctx, e.type, e.dir, (ox + e.dx) * s, (oy + e.dy) * s, s);
+    }
+    if (clip.playerStart) {
+      this.renderer.drawPlayer(this.ctx, (ox + clip.playerStart.dx) * s, (oy + clip.playerStart.dy) * s, s, clip.playerStart.dir, false, true);
+    }
+    this.ctx.restore();
+    this.outlineRect({ x: ox, y: oy, width: clip.width, height: clip.height }, s, 1);
   }
 
   public render(): void {
@@ -1732,6 +2098,7 @@ export class LevelEditor {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
 
+    this.renderSelectionOverlay(s);
     if (this.pendingWire) this.outlineCell(this.pendingWire.x, this.pendingWire.y, EDITOR_WIRE_SOURCE_COLOR, s);
     if (this.hoverCell) this.outlineCell(this.hoverCell.x, this.hoverCell.y, EDITOR_HOVER_OUTLINE_COLOR, s);
     if (this.cursorCell && document.activeElement === this.canvas) {
