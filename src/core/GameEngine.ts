@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { AudioManager } from '../audio/AudioManager';
 import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, OPPOSITE_DIRECTION } from './coreConstants';
-import { triggerButton } from './epoxy/epoxyDevices';
+import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
 import { updateEntities } from './epoxy/epoxyMonsters';
 import {
   FORCE_FLOOR_MOVE_COOLDOWN_TICKS,
@@ -184,6 +184,8 @@ export class GameEngine {
     this.timedMoveHistory = [];
     this.w.removedUids.clear();
     buildLevelLookups(this.w);
+    // A hold door starts in the state its plates ask for (a block may start on a plate); no sound at load.
+    setHoldDoors(this.ctx, false);
     this.w.beamDirty = true;
   }
 
@@ -502,6 +504,8 @@ export class GameEngine {
     }
 
     updateEntities(this.ctx);
+    // Before the laser pass, which may return early; doors settle at the end of each pass.
+    setHoldDoors(this.ctx);
     resolveLasers(this.ctx);
     this.checkTargetsWin();
   }
@@ -544,6 +548,7 @@ export class GameEngine {
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
+      setHoldDoors(this.ctx);
       this.stepsCount++;
       this.moveHistory.push(dir);
       this.timedMoveHistory.push({ tick: tickAtMove, dir });
