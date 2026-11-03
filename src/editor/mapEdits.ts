@@ -91,7 +91,7 @@ function unchanged(map: EditorMap): MapEditResult {
 }
 
 /** Removes every link that has an end on the cell; returns how many were removed. */
-function dropLinksAt(map: EditorMap, x: number, y: number): number {
+export function dropLinksAt(map: EditorMap, x: number, y: number): number {
   const trapBefore = map.trapLinks.length;
   const cloneBefore = map.cloneLinks.length;
   map.trapLinks = map.trapLinks.filter(
