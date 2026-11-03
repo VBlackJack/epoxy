@@ -159,7 +159,7 @@ export const EDITOR_CC3D_SWATCH_COLORS = {
 } as const;
 /** CC3D thin wall mode: line width of the bar that shows the side a click toggles. */
 export const EDITOR_CC3D_SIDE_HINT_LINE_WIDTH = 4;
-/** Largest canvas, in pixels, whose CC3D map is also kept in an off-screen layer (beyond it the map is drawn directly; kept low for iOS canvas memory). */
+/** Largest off-screen chunk, in pixels, of the CC3D map layer: a bigger map is split into several chunks (kept low for iOS canvas memory). */
 export const EDITOR_STATIC_LAYER_MAX_PIXELS = 4_000_000;
 /** Share of a CC3D map's cells that may have changed for the off-screen layer to be patched cell by cell rather than redrawn whole. */
 export const EDITOR_STATIC_LAYER_REDRAW_SHARE = 0.25;

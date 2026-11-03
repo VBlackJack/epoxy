@@ -42,6 +42,7 @@ const GRID_WIDTH = 5;
 const GRID_HEIGHT = 4;
 const FIRST_BUTTON = 0;
 const SECOND_BUTTON = 1;
+const WIDE_WIDTH = 120;
 
 const fake = new FakeIndexedDb();
 let store: Map<string, string>;
@@ -269,6 +270,27 @@ describe('painting, erasing and undo on a CC3D level', () => {
     click(2, 2);
     expect(renderer.drawTile.mock.calls.length).toBeLessThanOrEqual(9);
     expect(renderer.drawPlayer).toHaveBeenCalled();
+  });
+
+  it('keeps a map too wide for one chunk in several chunks and patches only the chunk an edit touches', () => {
+    const wide = compiledCc3d(editableCc3dModel(['#'.repeat(WIDE_WIDTH), `#@${'.'.repeat(WIDE_WIDTH - 4)}X#`, '#'.repeat(WIDE_WIDTH)]), 'cc3d_wide');
+    const created = vi.spyOn(document, 'createElement');
+    editor.loadCompiledLevel(wide);
+    editor.render();
+    const chunks = created.mock.calls.filter((call) => call[0] === 'canvas').length;
+    expect(chunks).toBeGreaterThanOrEqual(2);
+    renderer.drawTile.mockClear();
+    created.mockClear();
+    editor.render();
+    expect(renderer.drawTile).not.toHaveBeenCalled();
+    // Paint a cell in the last column block: a handful of cells are drawn, and no chunk is rebuilt.
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: WIDE_WIDTH * CELL_PX, bottom: 3 * CELL_PX, width: WIDE_WIDTH * CELL_PX, height: 3 * CELL_PX, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    tabs()[0].click();
+    paletteButtons()[SECOND_BUTTON].click();
+    click(WIDE_WIDTH - 5, 1);
+    expect(renderer.drawTile.mock.calls.length).toBeLessThanOrEqual(9);
+    expect(created.mock.calls.filter((call) => call[0] === 'canvas')).toHaveLength(0);
   });
 
   it('marks a cell as hiding layers only when something is really hidden', () => {

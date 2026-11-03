@@ -266,6 +266,29 @@ interface SaveDestination {
   asCopy: boolean;
 }
 
+/** One piece of the off-screen CC3D map: a block of cells drawn into its own canvas. */
+interface StaticChunk {
+  canvas: HTMLCanvasElement;
+  /** First cell, and size in cells. */
+  x0: number;
+  y0: number;
+  cols: number;
+  rows: number;
+}
+
+/** The CC3D map kept as chunks, for the level version, tile size and look it was drawn for. */
+interface StaticLayer {
+  level: Cc3dLevel;
+  tile: number;
+  look: string;
+  width: number;
+  height: number;
+  /** Chunk side in cells, and chunks per row. */
+  side: number;
+  perRow: number;
+  chunks: StaticChunk[];
+}
+
 /** One pointer stroke or key press: the document it started from, and whether it changed anything. */
 interface Stroke {
   base: EditorDocument;
@@ -371,7 +394,7 @@ export class LevelEditor {
   /** The side of the hovered cell nearest the pointer, for the thin wall mode. */
   private hoverSide: Direction = 'N';
   /** The CC3D map drawn off-screen, kept while the document and the tile size stay the same. */
-  private staticLayer: { level: Cc3dLevel; tile: number; look: string; canvas: HTMLCanvasElement } | null = null;
+  private staticLayer: StaticLayer | null = null;
   /** The cells selected with the Select tool. */
   private selection: CellRect | null = null;
   /** The corner the keyboard selection grows from; null once the cursor moved without Shift. */
@@ -2638,15 +2661,18 @@ export class LevelEditor {
   }
 
   /**
-   * Draws some cells of a CC3D document again. Each is clipped to its own square and redrawn with its eight
-   * neighbours under that clip, so the glow a neighbour spills into it is drawn once, not stacked on the old one.
-   * The player start is not part of the layer.
+   * Draws some cells of a CC3D document again into one chunk (`origin` is the chunk's first cell). Each is
+   * clipped to its own square and redrawn with its eight neighbours under that clip, so the glow a
+   * neighbour spills into it is drawn once, not stacked on the old one. The player start is not part of
+   * the layer.
    */
-  private redrawCc3dCells(ctx: CanvasRenderingContext2D, doc: EditorDocument, indices: readonly number[], s: number): void {
+  private redrawCc3dCells(ctx: CanvasRenderingContext2D, doc: EditorDocument, indices: readonly number[], s: number, origin: { x: number; y: number }): void {
     const width = mapWidthOf(doc);
     const height = mapHeightOf(doc);
     this.renderer.setHiddenLayerMarkers(true);
     try {
+      ctx.save();
+      ctx.translate(-origin.x * s, -origin.y * s);
       for (const index of indices) {
         const x = index % width;
         const y = Math.floor(index / width);
@@ -2655,38 +2681,34 @@ export class LevelEditor {
         ctx.rect(x * s, y * s, s, s);
         ctx.clip();
         ctx.clearRect(x * s, y * s, s, s);
-        for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny++) {
-          for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx++) {
-            this.drawCellLayers(ctx, doc, nx, ny, s);
-            const creature = doc.entities.find((entity) => entity.x === nx && entity.y === ny);
-            if (creature) this.renderer.drawEntity(ctx, creature.type, creature.dir, nx * s, ny * s, s);
-          }
-        }
+        this.drawMapRegion(ctx, doc, s, Math.max(0, x - 1), Math.max(0, y - 1), Math.min(width, x + 2), Math.min(height, y + 2));
         ctx.restore();
       }
+      ctx.restore();
     } finally {
       this.renderer.setHiddenLayerMarkers(false);
     }
   }
 
+  /** Draws the cells of a rectangle of cells (end excluded), then the creatures standing in it. */
+  private drawMapRegion(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number, x0: number, y0: number, x1: number, y1: number): void {
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s);
+    }
+    for (const ent of doc.entities) {
+      if (ent.x >= x0 && ent.x < x1 && ent.y >= y0 && ent.y < y1) this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
+    }
+  }
+
   /** Draws the cells, items, creatures and the player start of a document at tile size `s`. */
   private drawMapLayers(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
-    const mapWidth = mapWidthOf(doc);
-    const mapHeight = mapHeightOf(doc);
     // The stacked-layer marker belongs to this canvas only: the renderer is shared with play.
     if (doc.cc3d) this.renderer.setHiddenLayerMarkers(true);
     try {
-      for (let y = 0; y < mapHeight; y++) {
-        for (let x = 0; x < mapWidth; x++) this.drawCellLayers(ctx, doc, x, y, s);
-      }
+      this.drawMapRegion(ctx, doc, s, 0, 0, mapWidthOf(doc), mapHeightOf(doc));
     } finally {
       if (doc.cc3d) this.renderer.setHiddenLayerMarkers(false);
     }
-
-    for (const ent of doc.entities) {
-      this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
-    }
-
     // A CC3D map is kept as a picture without the player start, which is drawn over it on every redraw.
     if (!doc.cc3d) this.drawPlayerStart(ctx, doc, s);
   }
@@ -2695,39 +2717,92 @@ export class LevelEditor {
     this.renderer.drawPlayer(ctx, doc.playerStart.x * s, doc.playerStart.y * s, s, doc.playerStart.dir, false, true);
   }
 
+  /** Draws one chunk of the CC3D map from scratch (a margin of one cell around it lets neighbours' glow in). */
+  private buildChunk(doc: EditorDocument, s: number, chunk: StaticChunk): boolean {
+    const ctx = chunk.canvas.getContext('2d');
+    if (!ctx) return false;
+    const width = mapWidthOf(doc);
+    const height = mapHeightOf(doc);
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, chunk.canvas.width, chunk.canvas.height);
+    ctx.save();
+    ctx.translate(-chunk.x0 * s, -chunk.y0 * s);
+    this.renderer.setHiddenLayerMarkers(true);
+    try {
+      this.drawMapRegion(
+        ctx,
+        doc,
+        s,
+        Math.max(0, chunk.x0 - 1),
+        Math.max(0, chunk.y0 - 1),
+        Math.min(width, chunk.x0 + chunk.cols + 1),
+        Math.min(height, chunk.y0 + chunk.rows + 1)
+      );
+    } finally {
+      this.renderer.setHiddenLayerMarkers(false);
+      ctx.restore();
+    }
+    return true;
+  }
+
   /**
-   * The map of a CC3D document drawn into an off-screen canvas, rebuilt only when its level (not its
-   * title or hint), the tile size or the canvas size changed. Null (draw directly) when the layer would be too large or no
-   * off-screen context exists.
+   * The map of a CC3D document as off-screen chunks, each at most EDITOR_STATIC_LAYER_MAX_PIXELS big, so
+   * even the largest level is drawn whole only once. They are rebuilt when the level size, the tile size or
+   * the look changed, and otherwise patched: an edit redraws just the cells it changed, in the chunk that
+   * holds each. Null (draw directly) only when a chunk cannot be created.
    */
-  private cc3dStaticLayer(doc: EditorDocument, s: number): HTMLCanvasElement | null {
-    const { width, height } = this.canvas;
+  private cc3dStaticLayer(doc: EditorDocument, s: number): StaticLayer | null {
     const level = doc.cc3d;
-    if (!level || width * height > EDITOR_STATIC_LAYER_MAX_PIXELS) return null;
-    const cached = this.staticLayer;
+    if (!level) return null;
     // A change of style, theme, player skin or quality changes how every cell looks: the picture is stale.
     const look = this.renderer.getAppearanceKey();
-    if (cached && cached.tile === s && cached.look === look && cached.canvas.width === width && cached.canvas.height === height) {
-      if (cached.level === level) return cached.canvas;
+    const cached = this.staticLayer;
+    if (cached && cached.tile === s && cached.look === look && cached.width === level.width && cached.height === level.height) {
+      if (cached.level === level) return cached;
       // A stroke touches a few cells: only those are drawn again, not the thousands that did not change.
       const dirty = dirtyCc3dCells(cached.level, level);
-      const ctx = dirty && dirty.length <= level.cells.length * EDITOR_STATIC_LAYER_REDRAW_SHARE ? cached.canvas.getContext('2d') : null;
-      if (dirty && ctx) {
-        ctx.imageSmoothingEnabled = false;
-        this.redrawCc3dCells(ctx, doc, dirty, s);
-        this.staticLayer = { level, tile: s, look, canvas: cached.canvas };
-        return cached.canvas;
+      if (dirty && dirty.length <= level.cells.length * EDITOR_STATIC_LAYER_REDRAW_SHARE) {
+        const byChunk = new Map<StaticChunk, number[]>();
+        for (const index of dirty) {
+          const x = index % level.width;
+          const y = Math.floor(index / level.width);
+          const chunk = cached.chunks[Math.floor(y / cached.side) * cached.perRow + Math.floor(x / cached.side)];
+          byChunk.set(chunk, [...(byChunk.get(chunk) ?? []), index]);
+        }
+        let patched = true;
+        for (const [chunk, indices] of byChunk) {
+          const ctx = chunk.canvas.getContext('2d');
+          if (!ctx) {
+            patched = false;
+            break;
+          }
+          ctx.imageSmoothingEnabled = false;
+          this.redrawCc3dCells(ctx, doc, indices, s, { x: chunk.x0, y: chunk.y0 });
+        }
+        if (patched) {
+          cached.level = level;
+          return cached;
+        }
       }
     }
-    const canvas = cached?.canvas ?? document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.imageSmoothingEnabled = false;
-    this.drawMapLayers(ctx, doc, s);
-    this.staticLayer = { level, tile: s, look, canvas };
-    return canvas;
+    // Chunks of side x side cells whose canvas stays within the pixel cap.
+    const side = Math.max(1, Math.floor(Math.sqrt(EDITOR_STATIC_LAYER_MAX_PIXELS) / s));
+    const perRow = Math.ceil(level.width / side);
+    const chunks: StaticChunk[] = [];
+    for (let y0 = 0; y0 < level.height; y0 += side) {
+      for (let x0 = 0; x0 < level.width; x0 += side) {
+        const cols = Math.min(side, level.width - x0);
+        const rows = Math.min(side, level.height - y0);
+        const canvas = document.createElement('canvas');
+        canvas.width = cols * s;
+        canvas.height = rows * s;
+        const chunk: StaticChunk = { canvas, x0, y0, cols, rows };
+        if (!this.buildChunk(doc, s, chunk)) return null;
+        chunks.push(chunk);
+      }
+    }
+    this.staticLayer = { level, tile: s, look, width: level.width, height: level.height, side, perRow, chunks };
+    return this.staticLayer;
   }
 
   public render(): void {
@@ -2746,7 +2821,7 @@ export class LevelEditor {
     // A CC3D level can be huge (100 x 114 cells): its map is drawn once into a layer that a pointer move
     // only copies, then the overlays go on top.
     const layer = doc.cc3d ? this.cc3dStaticLayer(doc, s) : null;
-    if (layer) this.ctx.drawImage(layer, 0, 0);
+    if (layer) for (const chunk of layer.chunks) this.ctx.drawImage(chunk.canvas, chunk.x0 * s, chunk.y0 * s);
     else this.drawMapLayers(this.ctx, doc, s);
     if (doc.cc3d) this.drawPlayerStart(this.ctx, doc, s);
 
