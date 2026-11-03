@@ -734,6 +734,286 @@
       "trapLinks": [],
       "cloneLinks": [],
       "solution": "NNNNNNNWNSEENSSEEEENWWEESWWWWWSSSSSSEEEEENWWEESWWWWWNNNNNNWWWWWNEEWWSEEEEESSSSSSWWWWWNEEWWSEEEEENNNNNNNNNWWWWWNSEEEEEEEEEENWW"
+    },
+    {
+      "id": "epoxy_p_16",
+      "theme": "cyber_neon",
+      "solution": "EEEEESSWWWWWEEEEEEEEEESSSWWWWWWWSS",
+      "number": 16,
+      "titleKey": "pilot.levels.level_16.title",
+      "hintKey": "pilot.levels.level_16.hint",
+      "password": "BEND",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "#@H.d...#####",
+        "######d######",
+        "#C..d...d..C#",
+        "######.####.#",
+        "###########.#",
+        "###.......dC#",
+        "####S########",
+        "####E########",
+        "#############"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 6,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_p_17",
+      "theme": "cyber_neon",
+      "solution": "ESSEESEEWWSSSWWNNWNEEEEEEEEEENNNSSSSS",
+      "number": 17,
+      "titleKey": "pilot.levels.level_17.title",
+      "hintKey": "pilot.levels.level_17.hint",
+      "password": "FORD",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "#@H###W####C#",
+        "##d###W####.#",
+        "#......####C#",
+        "#.....W...W.#",
+        "#....#W####S#",
+        "#....#W####E#",
+        "#....#W######",
+        "#############"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 6,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "blockBudget": {
+        "waters": 2,
+        "targets": 0
+      }
+    },
+    {
+      "id": "epoxy_p_18",
+      "theme": "cyber_neon",
+      "solution": "EEESENESSSNNNEEEESWNWSSS",
+      "number": 18,
+      "titleKey": "pilot.levels.level_18.title",
+      "hintKey": "pilot.levels.level_18.hint",
+      "password": "RAIL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "#@Hd.......##",
+        "####.......##",
+        "######.#.####",
+        "######.#.####",
+        "######.#.####",
+        "#############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 5,
+          "id": "block_target"
+        },
+        {
+          "x": 8,
+          "y": 5,
+          "id": "block_target"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 9,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "winRule": "targets",
+      "blockBudget": {
+        "waters": 0,
+        "targets": 2
+      }
+    },
+    {
+      "id": "epoxy_p_19",
+      "theme": "cyber_neon",
+      "solution": "EEENNNESSSSSSSNNNEEENESSSSNNNNNWNWSSSSSS",
+      "number": 19,
+      "titleKey": "pilot.levels.level_19.title",
+      "hintKey": "pilot.levels.level_19.hint",
+      "password": "EDGE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "####.......##",
+        "####.....#.##",
+        "####......###",
+        "#@Hd.......##",
+        "####.......##",
+        "####.......##",
+        "####.......##",
+        "####.......##",
+        "####.......##",
+        "#############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 5,
+          "y": 9,
+          "id": "block_target"
+        },
+        {
+          "x": 7,
+          "y": 9,
+          "id": "block_target"
+        },
+        {
+          "x": 9,
+          "y": 9,
+          "id": "block_target"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 8,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 8,
+          "y": 5,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "winRule": "targets",
+      "blockBudget": {
+        "waters": 0,
+        "targets": 3
+      }
+    },
+    {
+      "id": "epoxy_p_20",
+      "theme": "cyber_neon",
+      "solution": "EEESSSWSEEEWSSWNWNEEEEENNNNEEESSWSS",
+      "number": 20,
+      "titleKey": "pilot.levels.level_20.title",
+      "hintKey": "pilot.levels.level_20.hint",
+      "password": "STEP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "#@Hd..WW...C#",
+        "###...WW....#",
+        "###...WW..C.#",
+        "##....WW.#S##",
+        "##....WWC#E##",
+        "##....#######",
+        "##....#######",
+        "#############"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 6,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "blockBudget": {
+        "waters": 2,
+        "targets": 0
+      }
     }
   ]
 }

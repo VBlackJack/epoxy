@@ -97,6 +97,8 @@ function coverageProblems({ levels, routes }: DesignInput): string[] {
 function requirementProblems({ levels, routes }: DesignInput): string[] {
   const problems: string[] = [];
   for (const level of levels) {
+    // A level won by covering its block targets has no exit to reach: its own proofs cover it.
+    if (level.winRule === 'targets') continue;
     if (!exitReachableWithout(level, UNRELATED_ITEM)) problems.push(`${level.id}: exit unreachable at all`);
     for (const item of routes.levels[level.id]?.requires ?? []) {
       if (exitReachableWithout(level, item)) problems.push(`${level.id}: exit reachable without ${item}`);

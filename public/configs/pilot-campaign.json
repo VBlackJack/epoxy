@@ -21,6 +21,18 @@
         "epoxy_p_14",
         "epoxy_p_15"
       ]
+    },
+    {
+      "id": "pilot_chapter_2",
+      "titleKey": "pilot.chapter.2.title",
+      "subtitleKey": "pilot.chapter.2.subtitle",
+      "levels": [
+        "epoxy_p_16",
+        "epoxy_p_17",
+        "epoxy_p_18",
+        "epoxy_p_19",
+        "epoxy_p_20"
+      ]
     }
   ]
 }

@@ -1238,10 +1238,31 @@
       "level_15": {
         "title": "The Clockmaker",
         "hint": "A spent key is gone for good: before opening a door, check that the keys still out of reach can pay for what remains."
+      },
+      "level_16": {
+        "title": "The Bends",
+        "hint": "Walking into a block pushes it one cell, so slide each block into a free cell beside your way to clear the corridor."
+      },
+      "level_17": {
+        "title": "The Ford",
+        "hint": "Water drowns you, but a block pushed into it fills it and leaves loose dirt: step on that dirt before you push anything across it."
+      },
+      "level_18": {
+        "title": "The Rails",
+        "hint": "Cover every target with a block to win, there is no exit, and a block only moves straight ahead of you."
+      },
+      "level_19": {
+        "title": "Dead Ends",
+        "hint": "Before you push, look where the block will stop: in a corner, along a wall with no target or squeezed in a square, it can never move again."
+      },
+      "level_20": {
+        "title": "The Trodden Bridge",
+        "hint": "Fresh dirt stops a block until you have stepped on it, so tread each bridge cell before you push the next block across."
       }
     },
     "chapter": {
-      "1": { "title": "Pilot foundations", "subtitle": "The first levels of the rebuilt campaign." }
+      "1": { "title": "Pilot foundations", "subtitle": "The first levels of the rebuilt campaign." },
+      "2": { "title": "Pushing", "subtitle": "Blocks, water and targets." }
     }
   }
 }
