@@ -1067,11 +1067,11 @@
   },
   "campaign": {
     "chapter": {
-      "1": { "title": "Premiers pas", "subtitle": "Puces, clés, bottes, glace et sols directionnels." },
-      "2": { "title": "Mécanique", "subtitle": "Boutons, pièges, bombes, téléporteurs et cloisons fines." },
-      "3": { "title": "Cibles mouvantes", "subtitle": "Insectes, chars, murs cachés et machines à cloner." },
-      "4": { "title": "Doigts agiles", "subtitle": "Voleurs, barrières d'objets, tortues et jets de flamme." },
-      "5": { "title": "Circuit complet", "subtitle": "Clés jaunes, chronos bonus et chasseurs rapides, tous ensemble." }
+      "1": { "title": "Fondations", "subtitle": "Puces, clés, bottes, glace et sols directionnels." },
+      "2": { "title": "Mécanismes", "subtitle": "Boutons, pièges, bombes, téléporteurs et cloisons fines." },
+      "3": { "title": "Créatures", "subtitle": "Insectes, chars, murs cachés et machines à cloner." },
+      "4": { "title": "Contrebande", "subtitle": "Voleurs, barrières d'objets, tortues et jets de flamme." },
+      "5": { "title": "Noyau", "subtitle": "Clés jaunes, chronos bonus et chasseurs rapides, tous ensemble." }
     },
     "chapter_banner": { "label": "Chapitre {number} : {title}. {subtitle}" }
   }

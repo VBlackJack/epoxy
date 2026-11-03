@@ -1067,11 +1067,11 @@
   },
   "campaign": {
     "chapter": {
-      "1": { "title": "First Steps", "subtitle": "Chips, keys, boots, ice and force floors." },
-      "2": { "title": "Clockwork", "subtitle": "Buttons, traps, bombs, teleporters and thin walls." },
-      "3": { "title": "Moving Targets", "subtitle": "Bugs, tanks, hidden walls and clone machines." },
-      "4": { "title": "Sticky Fingers", "subtitle": "Thieves, item barriers, turtles and flame jets." },
-      "5": { "title": "Full Circuit", "subtitle": "Gold keys, bonus clocks and fast hunters, all together." }
+      "1": { "title": "Foundations", "subtitle": "Chips, keys, boots, ice and force floors." },
+      "2": { "title": "Mechanisms", "subtitle": "Buttons, traps, bombs, teleporters and thin walls." },
+      "3": { "title": "Creatures", "subtitle": "Bugs, tanks, hidden walls and clone machines." },
+      "4": { "title": "Contraband", "subtitle": "Thieves, item barriers, turtles and flame jets." },
+      "5": { "title": "Core", "subtitle": "Gold keys, bonus clocks and fast hunters, all together." }
     },
     "chapter_banner": { "label": "Chapter {number}: {title}. {subtitle}" }
   }
