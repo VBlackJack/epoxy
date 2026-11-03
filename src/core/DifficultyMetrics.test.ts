@@ -98,6 +98,14 @@ describe('DifficultyMetrics', () => {
     expect(report.mechanics).toContain(MECHANICS.KEYS_DOORS);
   });
 
+  it('does not count a door opened with a kept key', () => {
+    const level = withSolution(buildTestLevel(['#########', '#@.kG..E#', '#########']), 'EEEEEE');
+    const report = DifficultyMetrics.measure(level);
+    expect(report.solved).toBe(true);
+    expect(report.irreversibleByKind.door_opened).toBe(0);
+    expect(report.irreversibleEvents).toBe(0);
+  });
+
   it('measures the distance to monsters', () => {
     const level = withSolution(
       buildTestLevel(['#########', '#@.....E#', '#.......#', '#.......#', '#########'], {

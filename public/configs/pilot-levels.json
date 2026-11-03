@@ -3,13 +3,13 @@
     {
       "id": "epoxy_p_1",
       "theme": "cyber_neon",
-      "solution": "NWNNWWWWNNNNSSSSEESSWWSSEESSEEEEEENNEENNNNNNNNWWSSWWSS",
+      "solution": "NWNNWWSSWWSSEESSEEEEEENNEENNNNNNNNWWSSWWSS",
       "number": 1,
       "titleKey": "pilot.levels.level_1.title",
       "hintKey": "pilot.levels.level_1.hint",
       "password": "PLT1",
       "timeLimitSeconds": 0,
-      "chipsRequired": 5,
+      "chipsRequired": 4,
       "playerStart": {
         "x": 6,
         "y": 8,
@@ -17,10 +17,10 @@
       },
       "rows": [
         "#############",
-        "#C..#...#...#",
-        "#.#.#.#.#.#C#",
-        "#.#...#...#.#",
-        "#.#####S###.#",
+        "##..#...#...#",
+        "###.#.#.#.#C#",
+        "###...#...#.#",
+        "#######S###.#",
         "#.....#E#...#",
         "###.#.###.#.#",
         "#C..#.H...#.#",
@@ -34,8 +34,7 @@
       "items": [],
       "entities": [],
       "trapLinks": [],
-      "cloneLinks": [],
-      "reworkOf": "epoxy_c_1"
+      "cloneLinks": []
     },
     {
       "id": "epoxy_p_2",
@@ -73,7 +72,7 @@
         {
           "x": 10,
           "y": 2,
-          "id": "thin_wall_nes"
+          "id": "thin_wall_esw"
         },
         {
           "x": 2,
@@ -83,7 +82,7 @@
         {
           "x": 10,
           "y": 6,
-          "id": "thin_wall_esw"
+          "id": "thin_wall_nes"
         }
       ],
       "items": [
@@ -111,7 +110,7 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "SSENSSSESWENNNNEEEEEEEWSESSSNWSSWWWSS"
+      "solution": "SSENSSSESWENNNNEEEEEENESNESSSSWWSEWSWWWSS"
     },
     {
       "id": "epoxy_p_3",

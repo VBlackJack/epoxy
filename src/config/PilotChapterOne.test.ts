@@ -49,7 +49,10 @@ function engineAfter(level: CompiledLevel, moves: string): GameEngine {
 function canStillWin(engine: GameEngine): boolean {
   const key = (): string => {
     const state = engine.captureState();
-    return JSON.stringify([state.player.x, state.player.y, state.player.keys, state.chipsRemaining, state.terrain]);
+    const keys = Object.entries(state.player.keys)
+      .filter(([, count]) => count > 0)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return JSON.stringify([state.player.x, state.player.y, keys, state.chipsRemaining, state.terrain, state.items]);
   };
   const seen = new Set<string>([key()]);
   const queue = [engine.captureState()];

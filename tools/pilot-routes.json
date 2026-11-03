@@ -2,7 +2,13 @@
   "levels": {
     "epoxy_p_1": {
       "segments": [
-        "NWNNWWWWNNNNSSSSEESSWWSSEESSEEEEEENNEENNNNNNNNWWSSWWSS"
+        "@1,7",
+        "@3,11",
+        "@9,11",
+        "@10,9",
+        "@11,2",
+        "@7,4",
+        "@7,5"
       ]
     },
     "epoxy_p_2": {
