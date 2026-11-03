@@ -626,6 +626,14 @@ export class PixelRenderer {
     this.skinLoader = loader;
   }
 
+  /**
+   * One string that changes whenever how the same cells look changes (style, theme, player skin, quality):
+   * a caller that keeps a picture of the map compares it to know the picture is stale.
+   */
+  public getAppearanceKey(): string {
+    return [this.getStyle(), this.getThemeId(), this.getPlayerSkin(), this.getQuality()].join('|');
+  }
+
   public getPlayerSkin(): PlayerSkinId {
     return this.playerSkin;
   }

@@ -52,8 +52,11 @@ let renderer: ReturnType<typeof fakeRenderer>;
 const noopContext = (): CanvasRenderingContext2D =>
   new Proxy(() => undefined, { get: () => noopContext(), set: () => true, apply: () => undefined }) as unknown as CanvasRenderingContext2D;
 
+let appearance = 'look-a';
+
 function fakeRenderer() {
   return {
+    getAppearanceKey: vi.fn(() => appearance),
     renderIconToDataUrl: vi.fn(() => 'data:,'),
     drawTile: vi.fn(),
     drawItem: vi.fn(),
@@ -123,6 +126,7 @@ beforeEach(() => {
   mountModals('editor-view');
   canvas = byId<HTMLCanvasElement>('editor-canvas');
   // Every canvas, the editor's own and the off-screen layer it keeps, draws into a recording-free no-op context.
+  appearance = 'look-a';
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => noopContext()) as unknown as HTMLCanvasElement['getContext']);
   canvas.getBoundingClientRect = () =>
     ({ left: 0, top: 0, right: GRID_WIDTH * CELL_PX, bottom: GRID_HEIGHT * CELL_PX, width: GRID_WIDTH * CELL_PX, height: GRID_HEIGHT * CELL_PX, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
@@ -176,7 +180,8 @@ describe('opening a CC3D level', () => {
     for (const tool of ['brush', 'eraser', 'picker']) {
       expect(document.querySelector(`[data-tool="${tool}"]`)?.hasAttribute('aria-disabled')).toBe(false);
     }
-    expect(byId<HTMLButtonElement>('editor-size-apply-btn').getAttribute('aria-disabled')).toBe('true');
+    expect(byId<HTMLButtonElement>('editor-size-apply-btn').disabled).toBe(true);
+    expect(byId<HTMLButtonElement>('editor-size-apply-btn').title).toBeTruthy();
     expect(byId<HTMLInputElement>('editor-size-width').readOnly).toBe(true);
     byId('editor-size-apply-btn').click();
     expect(exported().cc3d?.width).toBe(GRID_WIDTH);
@@ -192,6 +197,7 @@ describe('opening a CC3D level', () => {
     expect(Array.from(ruleset.options).find((option) => option.value === 'cc3d')?.disabled).toBe(true);
     expect(document.querySelector('[data-tool="fill"]')?.hasAttribute('aria-disabled')).toBe(false);
     expect(byId<HTMLInputElement>('editor-size-width').readOnly).toBe(false);
+    expect(byId<HTMLButtonElement>('editor-size-apply-btn').disabled).toBe(false);
   });
 });
 
@@ -227,17 +233,69 @@ describe('painting, erasing and undo on a CC3D level', () => {
     pointer('pointermove', 2, 2);
     editor.render();
     expect(renderer.drawTile).not.toHaveBeenCalled();
-    // One painted cell: one cell drawn again.
+    // One painted cell: it and its neighbours under a clip are drawn again, nowhere near the whole map.
     tabs()[0].click();
     paletteButtons()[SECOND_BUTTON].click();
     click(1, 2);
-    expect(renderer.drawTile).toHaveBeenCalledTimes(1);
-    expect(renderer.drawTile.mock.calls[0][1]).toBe('water');
+    expect(renderer.drawTile.mock.calls.length).toBeLessThanOrEqual(9);
+    expect(renderer.drawTile.mock.calls.some((call) => call[1] === 'water')).toBe(true);
     // The marker is switched on for the editor's drawing and back off after it.
     const switches = renderer.setHiddenLayerMarkers.mock.calls.map((call) => call[0]);
     expect(switches.length).toBeGreaterThan(0);
     expect(switches.at(-1)).toBe(false);
     expect(switches).toContain(true);
+  });
+
+  it('draws the whole map again when the look changes, and the player start over the layer every time', () => {
+    renderer.drawTile.mockClear();
+    editor.loadCompiledLevel(smallCc3dLevel());
+    editor.render();
+    const total = GRID_WIDTH * GRID_HEIGHT;
+    expect(renderer.drawTile).toHaveBeenCalledTimes(total);
+    renderer.drawPlayer.mockClear();
+    editor.render();
+    expect(renderer.drawTile).toHaveBeenCalledTimes(total);
+    expect(renderer.drawPlayer).toHaveBeenCalledTimes(1);
+    // A skin or theme change leaves the cells where they are but they must all be drawn in the new look.
+    appearance = 'look-b';
+    editor.render();
+    expect(renderer.drawTile).toHaveBeenCalledTimes(total * 2);
+    expect(renderer.drawPlayer).toHaveBeenCalledTimes(2);
+    // A painted cell patches the layer (its 3x3 neighbourhood at most) and still draws the player once.
+    renderer.drawTile.mockClear();
+    renderer.drawPlayer.mockClear();
+    tabs()[0].click();
+    paletteButtons()[SECOND_BUTTON].click();
+    click(2, 2);
+    expect(renderer.drawTile.mock.calls.length).toBeLessThanOrEqual(9);
+    expect(renderer.drawPlayer).toHaveBeenCalled();
+  });
+
+  it('marks a cell as hiding layers only when something is really hidden', () => {
+    renderer.drawCellOverlay.mockClear();
+    editor.loadCompiledLevel(smallCc3dLevel());
+    editor.render();
+    // Walls and floor-based single layers hide nothing.
+    expect(renderer.drawCellOverlay.mock.calls.every((call) => call[2] === false)).toBe(true);
+    tabs()[0].click();
+    paletteButtons()[SECOND_BUTTON].click();
+    click(1, 2);
+    tabs()[2].click();
+    paletteButtons()[cc3dEntriesOf('blockers').findIndex((entry) => entry.kind === 'wall')].click();
+    renderer.drawCellOverlay.mockClear();
+    click(1, 2);
+    expect(renderer.drawCellOverlay.mock.calls.some((call) => call[2] === true)).toBe(true);
+  });
+
+  it('refreshes the layers list when the picker or Alt-click reads a cell', () => {
+    editor.loadCompiledLevel(smallCc3dLevel());
+    const rows = (): number => document.querySelectorAll('#editor-layers-list li').length;
+    editor.setTool('picker');
+    click(3, 1);
+    expect(byId('editor-layers-cell').textContent).toContain('3');
+    expect(rows()).toBe(2);
+    click(1, 2, { altKey: true });
+    expect(rows()).toBe(1);
   });
 
   it('erases the top layer, and the whole cell with Shift', () => {
@@ -359,6 +417,15 @@ describe('saving, checking and new levels', () => {
     byId('editor-validate-btn').click();
     await settleAsync();
     expect(['valid', 'warnings']).toContain(byId('editor-check-badge').dataset.state);
+  });
+
+  it('creates a CC3D room only by its own choice, never for an empty room in a pack of CC3D levels', async () => {
+    const packId = await storedPackId();
+    editor.loadCompiledLevel(smallCc3dLevel(), { source: { packId, levelId: null } });
+    await editor.save();
+    expect(await editor.newLevelInPack(packId)).toBe(true);
+    expect(exported().ruleset).toBeUndefined();
+    expect(exported().cc3d).toBeUndefined();
   });
 
   it('starts a new CC3D room that validates and is a cc3d level', () => {

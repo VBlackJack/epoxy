@@ -17,7 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Cc3dLevel } from '../core/cc3d/model';
 import { eraseCell, placeLayer, placeMob, removeMob, rotateMob, setItem, setPanelSide, setPlayer } from './cc3dEdits';
-import { dirtyCc3dCells } from './cc3dLayerDiff';
+import { dirtyCc3dCells, hasHiddenLayers } from './cc3dLayerDiff';
 import { editableCc3dModel } from './cc3dEditorFixtures';
 
 const WIDTH = 5;
@@ -60,5 +60,24 @@ describe('dirty cells of a CC3D level', () => {
   it('gives up when the grid changed size', () => {
     const level = room();
     expect(dirtyCc3dCells(level, editableCc3dModel(['#####', '#@.X#']))).toBeNull();
+  });
+});
+
+describe('hidden layers of a cell', () => {
+  const cell = (terrain: Cc3dLevel['cells'][number]['terrain'], extra: Partial<Cc3dLevel['cells'][number]> = {}) => ({ terrain, panels: [], item: null, ...extra });
+
+  it('does not count a plain floor under a single layer', () => {
+    expect(hasHiddenLayers(cell([{ kind: 'floor' }]))).toBe(false);
+    expect(hasHiddenLayers(cell([{ kind: 'floor' }, { kind: 'wall' }]))).toBe(false);
+    expect(hasHiddenLayers(cell([{ kind: 'floor' }, { kind: 'door', color: 'red' }]))).toBe(false);
+    expect(hasHiddenLayers(cell([{ kind: 'water' }]))).toBe(false);
+  });
+
+  it('counts a real base under a layer, two layers over the floor, and a blocker over an item or a thin wall', () => {
+    expect(hasHiddenLayers(cell([{ kind: 'water' }, { kind: 'door', color: 'red' }]))).toBe(true);
+    expect(hasHiddenLayers(cell([{ kind: 'floor' }, { kind: 'plate', color: 'red' }, { kind: 'wall' }]))).toBe(true);
+    expect(hasHiddenLayers(cell([{ kind: 'floor' }, { kind: 'wall' }], { item: { kind: 'fish' } }))).toBe(true);
+    expect(hasHiddenLayers(cell([{ kind: 'floor' }, { kind: 'wall' }], { panels: ['N'] }))).toBe(true);
+    expect(hasHiddenLayers(cell([{ kind: 'floor' }, { kind: 'plate', color: 'red' }], { item: { kind: 'fish' } }))).toBe(false);
   });
 });

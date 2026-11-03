@@ -14,12 +14,24 @@
  * limitations under the License.
  */
 
-import type { Cc3dLevel, Cc3dMob } from '../core/cc3d/model';
+import { CC3D_CLASS_BLOCKER, type Cc3dCell, type Cc3dLevel, type Cc3dMob, terrainClass } from '../core/cc3d/model';
 
 /**
  * Which cells of a CC3D map must be drawn again after an edit. Cells and mobs are immutable and an edit
  * shares every one it did not touch, so a reference comparison finds the changed ones without reading them.
  */
+
+/**
+ * Whether a cell really hides something under what is drawn: more than one layer that is not plain floor
+ * (the base counts when it is water, ice...), or a blocker on top of an item or a thin wall. A plain floor
+ * under a single layer hides nothing.
+ */
+export function hasHiddenLayers(cell: Cc3dCell): boolean {
+  const solid = cell.terrain.filter((layer) => layer.kind !== 'floor');
+  if (solid.length > 1) return true;
+  const top = cell.terrain[cell.terrain.length - 1];
+  return terrainClass(top.kind) === CC3D_CLASS_BLOCKER && (cell.item !== null || cell.panels.length > 0);
+}
 
 function mobsByCell(level: Pick<Cc3dLevel, 'width' | 'mobs'>): Map<number, Cc3dMob> {
   const found = new Map<number, Cc3dMob>();

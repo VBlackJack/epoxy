@@ -77,7 +77,7 @@ import {
   findCc3dEntry,
   needsAttribute
 } from './cc3dPalette';
-import { dirtyCc3dCells } from './cc3dLayerDiff';
+import { dirtyCc3dCells, hasHiddenLayers } from './cc3dLayerDiff';
 import { CC3D_ROOM_CHOICE_ID, emptyCc3dRoom } from './cc3dRoom';
 import {
   applyCc3dTool,
@@ -367,11 +367,11 @@ export class LevelEditor {
   /** The animation frame a redraw is waiting for, so pointer moves redraw at most once per frame. */
   private frameRequest: number | null = null;
   /** The links of a CC3D level version, derived once for the overlay. */
-  private linksCache: { level: Cc3dLevel; links: Cc3dLinks } | null = null;
+  private linksCache = new WeakMap<Cc3dLevel, Cc3dLinks>();
   /** The side of the hovered cell nearest the pointer, for the thin wall mode. */
   private hoverSide: Direction = 'N';
   /** The CC3D map drawn off-screen, kept while the document and the tile size stay the same. */
-  private staticLayer: { level: Cc3dLevel; tile: number; canvas: HTMLCanvasElement } | null = null;
+  private staticLayer: { level: Cc3dLevel; tile: number; look: string; canvas: HTMLCanvasElement } | null = null;
   /** The cells selected with the Select tool. */
   private selection: CellRect | null = null;
   /** The corner the keyboard selection grows from; null once the cursor moved without Shift. */
@@ -1180,6 +1180,7 @@ export class LevelEditor {
       const el = byId<HTMLButtonElement | HTMLInputElement>(id);
       if (!el) continue;
       if (el instanceof HTMLInputElement) el.readOnly = cc3d;
+      else el.disabled = cc3d;
       el.classList.toggle('is-unavailable', cc3d);
       if (cc3d) {
         el.setAttribute('aria-disabled', 'true');
@@ -1354,12 +1355,7 @@ export class LevelEditor {
       await this.newLevelInPack(pack.id);
       return;
     }
-    const first = isEditableRuleset(pack.levels[0].ruleset) ? 0 : nextEditableIndex(pack.levels, 0, 1);
-    if (first < 0) {
-      this.setStatusText(t('editor.palette.status.not_editable.label'));
-      return;
-    }
-    await this.openLevel(pack.id, pack.levels[first].id);
+    await this.openLevel(pack.id, pack.levels[0].id);
   }
 
   private async stepLevel(step: 1 | -1): Promise<void> {
@@ -2037,6 +2033,8 @@ export class LevelEditor {
       this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(ev.pointerId);
       this.cursorCell = cell;
+      // Every path below (picker, Alt or middle click, a stroke) starts from this cell: the layers list follows it.
+      this.refreshLayersList();
 
       if (this.pasting) {
         // Any button other than the primary one cancels a floating paste.
@@ -2058,7 +2056,7 @@ export class LevelEditor {
         return;
       }
 
-      this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
+      if (this.isCc3d()) this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
       this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON, ev.shiftKey);
       this.applyAt(cell.x, cell.y, this.hoverSide);
       this.refreshLayersList();
@@ -2067,12 +2065,12 @@ export class LevelEditor {
     this.canvas.addEventListener('pointermove', (ev) => {
       const cell = this.cellAt(ev.clientX, ev.clientY);
       if (cell && this.pasting) this.pasteAnchor = cell;
-      if (cell) {
+      if (cell && this.isCc3d()) {
         const side = this.pointerSide(ev.clientX, ev.clientY, cell);
         if (side !== this.hoverSide) {
           this.hoverSide = side;
           // The thin wall mode shows which side a click would toggle.
-          if (this.isCc3d() && this.cc3dEntry()?.action === 'panel') this.requestRender();
+          if (this.cc3dEntry()?.action === 'panel') this.requestRender();
         }
       }
       this.setHover(cell);
@@ -2161,7 +2159,7 @@ export class LevelEditor {
     const before = base.cc3d;
     const after = this.doc.cc3d;
     if (!before || !after) return;
-    this.announce(describeLinkChanges(diffCc3dLinks(before, after)));
+    this.announce(describeLinkChanges(diffCc3dLinks(before, after, this.cc3dLinksOf(before), this.cc3dLinksOf(after))));
   }
 
   /** The name of a layer, item or creature of a CC3D cell, from the display id it is drawn with. */
@@ -2214,28 +2212,31 @@ export class LevelEditor {
       const name =
         this.cc3dPartName('tile', () => displayTerrainId({ terrain: [layer], panels: [], item: null })) || layer.kind;
       const plainBase = index === 0 && layer.kind === 'floor';
-      list.appendChild(this.layerRow(name, plainBase ? null : () => this.commitCc3dEdit(removeLayerAt(level, at.x, at.y, index))));
+      list.appendChild(this.layerRow(name, plainBase ? null : () => this.commitCc3dEdit((current) => removeLayerAt(current, at.x, at.y, index))));
     });
     for (const side of cell.panels) {
       const name = t('editor.cc3d.layers.panel', { side: t(SIDE_LABEL_KEYS[side]) });
-      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit(setPanelSide(level, at.x, at.y, side, false))));
+      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => setPanelSide(current, at.x, at.y, side, false))));
     }
     if (cell.item) {
       const item = cell.item;
       const name = this.cc3dPartName('tile', () => displayItemId(item) ?? '') || item.kind;
-      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit(setItem(level, at.x, at.y, null))));
+      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => setItem(current, at.x, at.y, null))));
     }
     const mob = level.mobs.find((candidate) => candidate.x === at.x && candidate.y === at.y);
     if (mob) {
       const name = this.cc3dPartName('entity', () => displayMobId(mob)) || mob.kind;
-      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit(removeMob(level, at.x, at.y))));
+      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => removeMob(current, at.x, at.y))));
     }
   }
 
   /** An edit of the CC3D level made outside a stroke (the layers list): one history step. */
-  private commitCc3dEdit(next: Cc3dLevel): void {
+  private commitCc3dEdit(edit: (level: Cc3dLevel) => Cc3dLevel): void {
     const before = this.doc.cc3d;
-    if (!before || next === before || this.stroke) return;
+    if (!before || this.stroke) return;
+    // The level is read now, at the click, not when the list was drawn.
+    const next = edit(before);
+    if (next === before) return;
     const base = cloneDocument(this.doc);
     this.doc = withCc3d(this.doc, next);
     this.recordChange(base);
@@ -2630,27 +2631,38 @@ export class LevelEditor {
     if (cc3d) {
       const cell = cc3d.cells[y * cc3d.width + x];
       const edges = cell.panels.length > 0 && !displayShowsPanels(cell) ? cell.panels : undefined;
-      this.renderer.drawCellOverlay(ctx, edges, cell.terrain.length > 1, x * s, y * s, s);
+      this.renderer.drawCellOverlay(ctx, edges, hasHiddenLayers(cell), x * s, y * s, s);
     }
     const item = doc.items[y][x];
     if (item) this.renderer.drawItem(ctx, item, x * s, y * s, s);
   }
 
-  /** Draws some cells of a CC3D document again, each with the creature or the player start standing on it. */
+  /**
+   * Draws some cells of a CC3D document again. Each is clipped to its own square and redrawn with its eight
+   * neighbours under that clip, so the glow a neighbour spills into it is drawn once, not stacked on the old one.
+   * The player start is not part of the layer.
+   */
   private redrawCc3dCells(ctx: CanvasRenderingContext2D, doc: EditorDocument, indices: readonly number[], s: number): void {
     const width = mapWidthOf(doc);
+    const height = mapHeightOf(doc);
     this.renderer.setHiddenLayerMarkers(true);
     try {
       for (const index of indices) {
         const x = index % width;
         const y = Math.floor(index / width);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x * s, y * s, s, s);
+        ctx.clip();
         ctx.clearRect(x * s, y * s, s, s);
-        this.drawCellLayers(ctx, doc, x, y, s);
-        const creature = doc.entities.find((entity) => entity.x === x && entity.y === y);
-        if (creature) this.renderer.drawEntity(ctx, creature.type, creature.dir, x * s, y * s, s);
-        if (doc.playerStart.x === x && doc.playerStart.y === y) {
-          this.renderer.drawPlayer(ctx, x * s, y * s, s, doc.playerStart.dir, false, true);
+        for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny++) {
+          for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx++) {
+            this.drawCellLayers(ctx, doc, nx, ny, s);
+            const creature = doc.entities.find((entity) => entity.x === nx && entity.y === ny);
+            if (creature) this.renderer.drawEntity(ctx, creature.type, creature.dir, nx * s, ny * s, s);
+          }
         }
+        ctx.restore();
       }
     } finally {
       this.renderer.setHiddenLayerMarkers(false);
@@ -2675,6 +2687,11 @@ export class LevelEditor {
       this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
     }
 
+    // A CC3D map is kept as a picture without the player start, which is drawn over it on every redraw.
+    if (!doc.cc3d) this.drawPlayerStart(ctx, doc, s);
+  }
+
+  private drawPlayerStart(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
     this.renderer.drawPlayer(ctx, doc.playerStart.x * s, doc.playerStart.y * s, s, doc.playerStart.dir, false, true);
   }
 
@@ -2688,7 +2705,9 @@ export class LevelEditor {
     const level = doc.cc3d;
     if (!level || width * height > EDITOR_STATIC_LAYER_MAX_PIXELS) return null;
     const cached = this.staticLayer;
-    if (cached && cached.tile === s && cached.canvas.width === width && cached.canvas.height === height) {
+    // A change of style, theme, player skin or quality changes how every cell looks: the picture is stale.
+    const look = this.renderer.getAppearanceKey();
+    if (cached && cached.tile === s && cached.look === look && cached.canvas.width === width && cached.canvas.height === height) {
       if (cached.level === level) return cached.canvas;
       // A stroke touches a few cells: only those are drawn again, not the thousands that did not change.
       const dirty = dirtyCc3dCells(cached.level, level);
@@ -2696,7 +2715,7 @@ export class LevelEditor {
       if (dirty && ctx) {
         ctx.imageSmoothingEnabled = false;
         this.redrawCc3dCells(ctx, doc, dirty, s);
-        this.staticLayer = { level, tile: s, canvas: cached.canvas };
+        this.staticLayer = { level, tile: s, look, canvas: cached.canvas };
         return cached.canvas;
       }
     }
@@ -2707,7 +2726,7 @@ export class LevelEditor {
     if (!ctx) return null;
     ctx.imageSmoothingEnabled = false;
     this.drawMapLayers(ctx, doc, s);
-    this.staticLayer = { level, tile: s, canvas };
+    this.staticLayer = { level, tile: s, look, canvas };
     return canvas;
   }
 
@@ -2729,6 +2748,7 @@ export class LevelEditor {
     const layer = doc.cc3d ? this.cc3dStaticLayer(doc, s) : null;
     if (layer) this.ctx.drawImage(layer, 0, 0);
     else this.drawMapLayers(this.ctx, doc, s);
+    if (doc.cc3d) this.drawPlayerStart(this.ctx, doc, s);
 
     this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
     for (const link of doc.trapLinks) {
@@ -2749,8 +2769,12 @@ export class LevelEditor {
 
   /** The links derived from the level, once per version of it. */
   private cc3dLinksOf(level: Cc3dLevel): Cc3dLinks {
-    if (this.linksCache?.level !== level) this.linksCache = { level, links: cc3dLinks(level) };
-    return this.linksCache.links;
+    let links = this.linksCache.get(level);
+    if (!links) {
+      links = cc3dLinks(level);
+      this.linksCache.set(level, links);
+    }
+    return links;
   }
 
   /** An arrow from the centre of one cell to the centre of another, head at the target. */

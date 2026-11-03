@@ -175,10 +175,13 @@ const CHANGE_FAMILIES: ReadonlyArray<{ kind: Cc3dLinkChange['kind']; pick: (link
  * The links that existed before an edit and after it (same source cell) but point somewhere else now.
  * A source that appeared or went away is not a changed link, nor is a template appearing on a machine.
  */
-export function diffCc3dLinks(before: Cc3dLevel, after: Cc3dLevel): Cc3dLinkChange[] {
+export function diffCc3dLinks(
+  before: Cc3dLevel,
+  after: Cc3dLevel,
+  linksBefore: Cc3dLinks = cc3dLinks(before),
+  linksAfter: Cc3dLinks = cc3dLinks(after)
+): Cc3dLinkChange[] {
   if (before === after || before.width !== after.width || before.height !== after.height) return [];
-  const linksBefore = cc3dLinks(before);
-  const linksAfter = cc3dLinks(after);
   const changes: Cc3dLinkChange[] = [];
   for (const family of CHANGE_FAMILIES) {
     const afterBySource = new Map(family.pick(linksAfter).map((link) => [link.from, link]));

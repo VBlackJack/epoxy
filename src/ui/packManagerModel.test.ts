@@ -25,7 +25,6 @@ import {
   buildPackActions,
   dropSlotAt,
   dropTargetIndex,
-  EDIT_BLOCKED_REASON_KEY,
   engineBadgesOf,
   managerState,
   movedLevelIndex,
@@ -147,8 +146,8 @@ describe('level rows', () => {
     const rows = buildLevelRows(levels, () => '');
     expect(rows.map((r) => r.canEdit)).toEqual([true, true, true]);
     expect(rows.map((r) => r.editBlockedReasonKey)).toEqual([null, null, null]);
-    // The reason stays defined for a ruleset the editor may one day refuse.
-    expect(EDIT_BLOCKED_REASON_KEY).toBe('app.packs.manager.level.edit_blocked.label');
+    const everyRuleset = [undefined, 'epoxy', 'lynx', 'cc3d'].map((ruleset, i) => ({ ...makeLevel(`r${i}`), ...(ruleset ? { ruleset: ruleset as 'epoxy' | 'lynx' | 'cc3d' } : {}) }));
+    expect(buildLevelRows(everyRuleset, () => '').every((r) => r.canEdit && r.editBlockedReasonKey === null)).toBe(true);
   });
 
   it('shows one engine badge set per level', () => {

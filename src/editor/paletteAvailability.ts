@@ -52,19 +52,18 @@ export function winRuleAvailability(ruleset: EditableRuleset, winRule: WinRule):
 }
 
 /**
- * The ruleset most levels of the list use, a level with no ruleset counting as Epoxy. Epoxy wins a tie,
- * and an empty list; Lynx and CC3D each need strictly more levels than the others.
+ * The ruleset a new level takes in a pack: the one most of the pack's levels use, a level with no ruleset
+ * counting as Epoxy, and Epoxy winning a tie and an empty list. Only Epoxy and Lynx can win: a CC3D room
+ * is made only by its own choice in the New dialog, never because a pack holds CC3D levels.
  */
-export function majorityRuleset(levels: ReadonlyArray<{ ruleset?: Ruleset }>): EditableRuleset {
+export function majorityRuleset(levels: ReadonlyArray<{ ruleset?: Ruleset }>): 'epoxy' | 'lynx' {
   let lynx = 0;
   let epoxy = 0;
-  let cc3d = 0;
   for (const level of levels) {
     const ruleset = level.ruleset ?? DEFAULT_RULESET;
+    if (ruleset === 'cc3d') continue;
     if (ruleset === 'lynx') lynx++;
-    else if (ruleset === 'cc3d') cc3d++;
     else epoxy++;
   }
-  if (cc3d > lynx && cc3d > epoxy) return 'cc3d';
   return lynx > epoxy ? 'lynx' : 'epoxy';
 }
