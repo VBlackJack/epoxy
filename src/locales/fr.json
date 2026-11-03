@@ -177,7 +177,7 @@
           "drag": { "action": "Glisser pour réordonner", "aria": "Réordonner le niveau {number} : {title}. Glissez-le, ou utilisez les flèches Haut et Bas." },
           "moved": { "label": "Niveau \"{title}\" déplacé en position {position} sur {count}." },
           "edit": { "action": "Modifier" },
-          "edit_blocked": { "label": "Les niveaux CC3D se jouent mais ne se modifient pas." },
+          "edit_blocked": { "label": "Ce niveau ne peut pas être modifié." },
           "play": { "action": "Jouer" },
           "duplicate": { "action": "Dupliquer" },
           "transfer": { "action": "Copier ou déplacer..." },

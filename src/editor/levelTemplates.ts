@@ -57,7 +57,7 @@ export interface TemplateContent {
 export const EMPTY_TEMPLATE_ID = 'empty';
 
 const WIN_RULES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
-/** The rulesets a template may name; CC3D levels are never edited. */
+/** The rulesets a template may name: Epoxy and Lynx (the empty CC3D room is built by the editor, not read from data). */
 const TEMPLATE_RULESETS: readonly Ruleset[] = ['epoxy', 'lynx'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -17,10 +17,10 @@
 import { isLaserTileId, isMirrorEntityType } from '../core/RulesetFeatures';
 import { Ruleset, WinRule } from '../core/types';
 import { DEFAULT_RULESET } from '../core/coreConstants';
-import { EPOXY_ONLY_WIN_RULES, isEditableRuleset } from './metadataFields';
+import { EPOXY_ONLY_WIN_RULES } from './metadataFields';
 
-/** Rulesets the editor can open; cc3d levels are played, never edited. */
-export type EditableRuleset = Exclude<Ruleset, 'cc3d'>;
+/** Rulesets the editor can open: every ruleset the game plays. */
+export type EditableRuleset = Ruleset;
 
 /** i18n key of the reason given for anything only the Epoxy rules play. */
 export const EPOXY_ONLY_REASON_KEY = 'editor.palette.unavailable.epoxy_only.label';
@@ -52,17 +52,19 @@ export function winRuleAvailability(ruleset: EditableRuleset, winRule: WinRule):
 }
 
 /**
- * The editable ruleset most levels of the list use, a level with no ruleset
- * counting as Epoxy. Levels of a ruleset the editor cannot open are ignored.
- * Epoxy wins a tie, and an empty list.
+ * The ruleset most levels of the list use, a level with no ruleset counting as Epoxy. Epoxy wins a tie,
+ * and an empty list; Lynx and CC3D each need strictly more levels than the others.
  */
 export function majorityRuleset(levels: ReadonlyArray<{ ruleset?: Ruleset }>): EditableRuleset {
   let lynx = 0;
   let epoxy = 0;
+  let cc3d = 0;
   for (const level of levels) {
-    if (!isEditableRuleset(level.ruleset)) continue;
-    if ((level.ruleset ?? DEFAULT_RULESET) === 'lynx') lynx++;
+    const ruleset = level.ruleset ?? DEFAULT_RULESET;
+    if (ruleset === 'lynx') lynx++;
+    else if (ruleset === 'cc3d') cc3d++;
     else epoxy++;
   }
+  if (cc3d > lynx && cc3d > epoxy) return 'cc3d';
   return lynx > epoxy ? 'lynx' : 'epoxy';
 }

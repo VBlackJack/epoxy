@@ -143,11 +143,12 @@ describe('level rows', () => {
     expect(rows.map((r) => r.canMoveDown)).toEqual([true, true, false]);
   });
 
-  it('blocks the editor for a cc3d level and says why', () => {
+  it('lets the editor open every level, a cc3d one included, with no blocking reason', () => {
     const rows = buildLevelRows(levels, () => '');
-    expect(rows.map((r) => r.canEdit)).toEqual([true, false, true]);
-    expect(rows[1].editBlockedReasonKey).toBe(EDIT_BLOCKED_REASON_KEY);
-    expect(rows[0].editBlockedReasonKey).toBeNull();
+    expect(rows.map((r) => r.canEdit)).toEqual([true, true, true]);
+    expect(rows.map((r) => r.editBlockedReasonKey)).toEqual([null, null, null]);
+    // The reason stays defined for a ruleset the editor may one day refuse.
+    expect(EDIT_BLOCKED_REASON_KEY).toBe('app.packs.manager.level.edit_blocked.label');
   });
 
   it('shows one engine badge set per level', () => {

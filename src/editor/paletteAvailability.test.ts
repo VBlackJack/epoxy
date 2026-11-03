@@ -95,8 +95,10 @@ describe('majorityRuleset', () => {
     expect(majorityRuleset([])).toBe('epoxy');
   });
 
-  it('ignores cc3d levels', () => {
-    expect(majorityRuleset([{ ruleset: 'cc3d' }, { ruleset: 'cc3d' }, { ruleset: 'lynx' }])).toBe('lynx');
-    expect(majorityRuleset([{ ruleset: 'cc3d' }])).toBe('epoxy');
+  it('counts cc3d levels, which win only with strictly more levels than each other ruleset', () => {
+    expect(majorityRuleset([{ ruleset: 'cc3d' }, { ruleset: 'cc3d' }, { ruleset: 'lynx' }])).toBe('cc3d');
+    expect(majorityRuleset([{ ruleset: 'cc3d' }])).toBe('cc3d');
+    expect(majorityRuleset([{ ruleset: 'cc3d' }, {}])).toBe('epoxy');
+    expect(majorityRuleset([{ ruleset: 'cc3d' }, { ruleset: 'lynx' }, { ruleset: 'lynx' }, { ruleset: 'cc3d' }, {}])).toBe('lynx');
   });
 });

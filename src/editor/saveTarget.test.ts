@@ -308,9 +308,10 @@ describe('resolveSavedPassword', () => {
 describe('nextEditableIndex', () => {
   const levels: Array<{ ruleset?: Ruleset }> = [{}, { ruleset: 'cc3d' }, { ruleset: 'cc3d' }, { ruleset: 'lynx' }, {}];
 
-  it('skips levels the editor cannot open', () => {
-    expect(nextEditableIndex(levels, 0, 1)).toBe(3);
-    expect(nextEditableIndex(levels, 3, -1)).toBe(0);
+  it('steps to the neighbouring level, whatever its ruleset (cc3d levels open too)', () => {
+    expect(nextEditableIndex(levels, 0, 1)).toBe(1);
+    expect(nextEditableIndex(levels, 3, -1)).toBe(2);
+    expect(nextEditableIndex(levels, 2, 1)).toBe(3);
   });
 
   it('returns -1 past either end', () => {
