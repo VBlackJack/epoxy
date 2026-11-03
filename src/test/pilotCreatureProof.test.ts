@@ -122,7 +122,11 @@ describe('pilot creature proof', () => {
     () => {
       // Two bugs walk down the corridor: the first must drown in the pool before the way opens, so no win keeps both.
       const level = room(['#############', '#P$W..b.b.E.#', '#############'], 'W');
+      const engine = new GameEngine();
+      engine.loadLevel(level);
+      expect(searchCanWin(engine, { stateCap: STATE_CAP, allowDrops: true })).toBe(true);
       expect(searchWinWithCreatureAlive(level, { stateCap: STATE_CAP })).toBeNull();
+      expect(() => assertNoWinWithCreatureAlive(level, { stateCap: STATE_CAP })).not.toThrow();
     },
     PROOF_TIMEOUT_MS
   );

@@ -198,9 +198,10 @@ export function scanHazards(level: CompiledLevel | GameEngine, options: HazardSc
       engine.restoreState(nodes[head].state);
       startAction(engine, action);
       let forcedTicks = action === WAIT_ACTION ? ConfigRegistry.getGame().timing.playerMoveCooldownTicks : 0;
+      const tickLimit = MAX_SCAN_SETTLE_TICKS + forcedTicks;
       let settled = false;
       let died = false;
-      for (let tick = 0; tick < MAX_SCAN_SETTLE_TICKS + forcedTicks; tick++) {
+      for (let tick = 0; tick < tickLimit; tick++) {
         if (!engine.getPlayer().alive) break;
         if (forcedTicks > 0) forcedTicks--;
         else if (engine.isLevelCompleted() || !isMoving(engine)) {

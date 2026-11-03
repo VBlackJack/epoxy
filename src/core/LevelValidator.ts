@@ -658,8 +658,9 @@ export class LevelValidator {
       for (let head = 0; head < queue.length; head++) {
         const { x, y } = queue[head];
         const here = ConfigRegistry.getTile(level.terrain[y][x]);
-        // A block that sank in water is gone: nothing is pushed on from there.
-        if (here.hazard === 'water') continue;
+        // A block that sank, dissolved or burned is gone: nothing is pushed on from there.
+        if (here.hazard === 'water' || here.hazard === 'slime') continue;
+        if (here.hazard === 'fire' && ConfigRegistry.getEntityDef(type)?.destroyedByFire) continue;
         for (const dir of ORDERED_DIRECTIONS) {
           const vec = DIRECTION_VECTORS[dir];
           const nx = x + vec.dx;
