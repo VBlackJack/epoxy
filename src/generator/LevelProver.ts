@@ -300,10 +300,10 @@ export class LevelProver {
       const tile = ConfigRegistry.getTile(terrain[y][x]);
       const item = items[y][x];
       // Anything lying on a cell would be picked up, and a cell with a side effect
-      // (buttons, tiles that change when stepped on) would change the level. Only
+      // (buttons, tiles that change when stepped on or left) would change the level. Only
       // the target itself may do either: the caller walks there on purpose.
       const isTarget = x === target.x && y === target.y;
-      if (!isTarget && (item || tile.buttonAction || tile.transformsToOnStep)) return false;
+      if (!isTarget && (item || tile.buttonAction || tile.transformsToOnStep || tile.transformsToOnLeave)) return false;
       if (item && ConfigRegistry.getTile(item).hazard) return false;
       if (tile.isTeleporter || tile.isTrap || tile.stealsBoots) return false;
       const protectedBy = tile.protectedByItem;

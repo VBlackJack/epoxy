@@ -163,13 +163,14 @@ export function terrainEventKind(from: string, to: string): IrreversibleKind | n
   ) {
     return null;
   }
-  if (before.transformsToOnLeave) return 'turtle_sunk';
+  // A cell that changes once left: a turtle sinks, a recessed wall closes for good.
+  if (before.transformsToOnLeave) return isPlayerWalkable(after) ? 'turtle_sunk' : 'wall_raised';
   if (before.hazard === 'water') return 'water_filled';
   if (before.requiredKey) return 'door_opened';
   if (DIRT_TILE_IDS.has(before.id)) return 'dirt_cleared';
   // Forced: a socket opens once the chips are in.
   if (before.transformsToOnUnlock) return null;
-  // Free: a hidden wall found. A step that closes the cell for good (recessed wall) is not free.
+  // Free: a hidden wall found.
   if (before.revealsToOnTouch) return null;
   if (before.transformsToOnStep) return isPlayerWalkable(after) ? null : 'wall_raised';
   if (before.hazard) return 'hazard_cleared';
