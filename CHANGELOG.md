@@ -11,6 +11,13 @@ versions follow Semantic Versioning.
   attempts, deaths, restarts, undos, hints, solution views, active time and move traces, asks for a
   short rating after a win or when a level is left unsolved, and exports one JSON file. See
   `docs/playtest.md`.
+- The Levels dialog groups the Epoxy campaign by chapter, with each chapter's progress and a row
+  of chapter buttons; a short banner names the chapter when you reach its first level.
+
+### Fixed
+
+- A recessed wall now rises when you leave its cell, instead of turning into a wall under you as
+  soon as you step on it.
 
 ## [2.18.0] - 2026-11-03
 
