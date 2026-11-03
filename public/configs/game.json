@@ -477,6 +477,20 @@
     "authorMaxLength": 60,
     "descriptionMaxLength": 500
   },
+  "levelText": {
+    "titleMaxLength": 120,
+    "hintMaxLength": 500,
+    "authorMaxLength": 120,
+    "passwordMaxLength": 16,
+    "solutionMaxLength": 16384,
+    "themeMaxLength": 40,
+    "keyMaxLength": 80,
+    "idMaxLength": 64
+  },
+  "share": {
+    "maxLinkChars": 8000,
+    "maxDecodedBytes": 262144
+  },
   "endlessUi": {
     "fallbackYieldMs": 0,
     "maxStartLevel": 10000,

@@ -109,6 +109,35 @@ export interface PackMetadataConfig {
   descriptionMaxLength: number;
 }
 
+/**
+ * Longest text fields a level keeps, in characters. A stored, imported or shared level is cut to
+ * these; `solutionMaxLength` is the exception: a cut solution is wrong, so a longer one is dropped.
+ */
+export interface LevelTextConfig {
+  /** customTitle. */
+  titleMaxLength: number;
+  /** customHint. */
+  hintMaxLength: number;
+  /** Level author. */
+  authorMaxLength: number;
+  passwordMaxLength: number;
+  /** Longest proven solution kept. */
+  solutionMaxLength: number;
+  themeMaxLength: number;
+  /** Translation keys: titleKey and hintKey. */
+  keyMaxLength: number;
+  /** Tile, item and entity type ids. */
+  idMaxLength: number;
+}
+
+/** Limits of the pack share links. */
+export interface ShareConfig {
+  /** Longest link offered, in characters. */
+  maxLinkChars: number;
+  /** Most bytes a link may inflate to; reading stops as soon as it is passed. */
+  maxDecodedBytes: number;
+}
+
 /** Render styles: 'retro' is the 16-Bit Retro id (kept so saved settings stay valid). */
 export type GraphicsStyle =
   | 'modern'
@@ -634,6 +663,8 @@ export interface GameConfig {
   storage: StorageConfig;
   import: ImportConfig;
   packMetadata: PackMetadataConfig;
+  levelText: LevelTextConfig;
+  share: ShareConfig;
   locales: {
     supported: string[];
     default: string;
@@ -1004,6 +1035,8 @@ export interface LevelPack {
   author?: string;
   /** Optional free text describing a user or imported pack; may span several lines. */
   description?: string;
+  /** SHA-256 (hex) of the shared pack text this pack was imported from; stored only, never exported. */
+  sourceHash?: string;
   levels: CompiledLevel[];
 }
 

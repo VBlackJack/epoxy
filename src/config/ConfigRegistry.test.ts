@@ -419,6 +419,32 @@ describe('game tunables validation', () => {
     expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
   });
 
+  it('refuses a missing, zero, fractional or non-numeric level text limit', () => {
+    for (const key of Object.keys(createTestBundle().game.levelText)) {
+      for (const bad of [undefined, 0, -3, 2.5, '60']) {
+        const bundle = createTestBundle();
+        (bundle.game.levelText as unknown as Record<string, unknown>)[key] = bad;
+        expect(() => ConfigRegistry.applyConfigs(bundle), `${key}=${String(bad)}`).toThrow(ConfigLoadError);
+      }
+    }
+    const missing = createTestBundle();
+    delete (missing.game as unknown as Record<string, unknown>).levelText;
+    expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
+  });
+
+  it('refuses a missing, zero, fractional or non-numeric share limit', () => {
+    for (const key of ['maxLinkChars', 'maxDecodedBytes']) {
+      for (const bad of [undefined, 0, -3, 2.5, '8000']) {
+        const bundle = createTestBundle();
+        (bundle.game.share as unknown as Record<string, unknown>)[key] = bad;
+        expect(() => ConfigRegistry.applyConfigs(bundle), `${key}=${String(bad)}`).toThrow(ConfigLoadError);
+      }
+    }
+    const missing = createTestBundle();
+    delete (missing.game as unknown as Record<string, unknown>).share;
+    expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
+  });
+
   it('refuses a missing, negative or fractional fallback candidate count', () => {
     for (const bad of [undefined, -1, 1.5, '2']) {
       const bundle = createTestBundle();
