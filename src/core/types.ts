@@ -1054,6 +1054,8 @@ export interface LevelBlueprint {
   playerStart: { x: number; y: number; dir: Direction };
   rows?: string[];
   terrain?: string[][];
+  /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
+  cellEdges?: CellEdge[];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
   /** Item placements, or a full item grid as the editor exports it. */
   items?: Array<{ x: number; y: number; id: string }> | (string | null)[][];

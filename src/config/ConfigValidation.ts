@@ -473,13 +473,14 @@ export function isRuleset(value: unknown): value is Ruleset {
  * are merged into one entry, and the entries are sorted by row, then column, with the sides in
  * N, E, S, W order. Returns null when no edge is left.
  */
-export function normalizeCellEdges(level: CompiledLevel): CellEdge[] | null {
-  const record = level as unknown as Record<string, unknown>;
-  const ruleset = isRuleset(record.ruleset) ? record.ruleset : 'epoxy';
-  const edges = record.cellEdges;
-  if (ruleset !== 'epoxy' || !Array.isArray(edges)) return null;
-  const height = level.terrain.length;
-  const width = level.terrain[0]?.length ?? 0;
+export function normalizeCellEdges(
+  edges: unknown,
+  terrain: readonly (readonly string[])[],
+  ruleset: unknown
+): CellEdge[] | null {
+  if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(edges)) return null;
+  const height = terrain.length;
+  const width = terrain[0]?.length ?? 0;
   const bitsByCell = new Map<number, number>();
   for (const entry of edges as unknown[]) {
     if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height) || !Array.isArray(entry.sides)) continue;
@@ -520,7 +521,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const badPassword = typeof record.password !== 'string';
   let edges: CellEdge[] | null = null;
   if ('cellEdges' in record) {
-    edges = normalizeCellEdges(level);
+    edges = normalizeCellEdges(record.cellEdges, level.terrain, record.ruleset);
     if (edges === null || JSON.stringify(edges) !== JSON.stringify(record.cellEdges)) bad.push('cellEdges');
   }
   if (bad.length === 0 && !badPassword) return level;

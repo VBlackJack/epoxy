@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, OPPOSITE_DIRECTION, channelOfButtonAction } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { Direction, GridPoint, TileDefinition } from './types';

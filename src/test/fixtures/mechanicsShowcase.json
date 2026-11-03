@@ -1203,6 +1203,176 @@
       ],
       "trapLinks": [],
       "cloneLinks": []
+    },
+    {
+      "id": "edges_showcase_1",
+      "number": 2,
+      "customTitle": "Cell Edges Showcase",
+      "customHint": "A thin wall can stand on any tile: on water, on a force floor, on ice.",
+      "solution": "ESEEESSESWSE",
+      "password": "EDGE",
+      "timeLimitSeconds": 200,
+      "chipsRequired": 1,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "terrain": [
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "floor",
+          "floor",
+          "water",
+          "floor",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "force_e",
+          "force_e",
+          "force_e",
+          "fire",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "water",
+          "ice",
+          "ice",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "socket",
+          "exit",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ]
+      ],
+      "items": [
+        {
+          "x": 6,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "cellEdges": [
+        {
+          "x": 3,
+          "y": 1,
+          "sides": [
+            "W"
+          ]
+        },
+        {
+          "x": 8,
+          "y": 4,
+          "sides": [
+            "E"
+          ]
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "sides": [
+            "W"
+          ]
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
     }
   ]
 }

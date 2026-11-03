@@ -155,6 +155,6 @@ describe('cell edges in config validation', () => {
   });
 
   it('normalises to null when nothing is left', () => {
-    expect(normalizeCellEdges(edged([]) as never)).toBeNull();
+    expect(normalizeCellEdges([], level().terrain as string[][], 'epoxy')).toBeNull();
   });
 });
