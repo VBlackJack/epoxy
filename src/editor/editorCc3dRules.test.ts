@@ -20,7 +20,9 @@ import type { CompiledLevel } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { placeLayer, placeMob, removeMob, rotateMob, setItem, setPanelSide, setPlayer } from './cc3dEdits';
 import { compiledCc3d, editableCc3dModel, smallCc3dLevel } from './cc3dEditorFixtures';
-import { documentFromLevel, levelFromDocument } from './editorLevelIo';
+import { documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
+import { floodFillTerrain, paintEntity, paintItem, paintPlayerStart, paintTerrain, placeWireLink, resizeMap, eraseCell } from './mapEdits';
+import { clearRect, moveRect, pasteClip, extractClip } from './selectionEdits';
 import { levelMapChanged, prepareLevelForSave } from './saveTarget';
 import { levelStartingAt, startCellProblem } from './testFromHere';
 
@@ -106,5 +108,51 @@ describe('test from here on a CC3D level', () => {
     expect(levelStartingAt(stored, { x: 3, y: 2 }).cc3d?.player).toEqual({ x: 3, y: 2 });
     expect(moved.playerStart).toEqual({ x: 3, y: 2, dir: level.playerStart.dir });
     expect(JSON.stringify(level)).toBe(before);
+  });
+});
+
+describe('guards for the editor paths written for Epoxy', () => {
+  const doc = () => documentFromLevel(smallCc3dLevel(), { title: 'T', hint: '' });
+  const bounds = { minSize: 3, maxSize: 100 };
+
+  it('refuses to export cc3d data under another ruleset', () => {
+    const d = doc();
+    const context = { id: 'x', number: 1, password: 'P', fallbackTitle: 'T' };
+    expect(() => levelFromDocument({ ...d, ruleset: undefined }, context)).toThrow();
+    expect(() => levelFromDocument({ ...d, ruleset: 'epoxy' }, context)).toThrow();
+    expect(() => levelFromDocument(d, context)).not.toThrow();
+  });
+
+  it('keeps the cc3d ruleset whatever the form or the laser rule says', () => {
+    const d = doc();
+    expect(metadataForDocument(d, { ...d, ruleset: undefined }).ruleset).toBe('cc3d');
+    const epoxy = { ...d, cc3d: undefined, ruleset: 'epoxy' as const };
+    expect(metadataForDocument(epoxy, { ...epoxy, ruleset: undefined }).ruleset).toBeUndefined();
+  });
+
+  it('cannot change the derived layers of a cc3d document through any Epoxy edit', () => {
+    const d = doc();
+    const before = JSON.stringify([d.terrain, d.items, d.entities, d.playerStart, d.cc3d]);
+    const clip = extractClip(d, { x: 1, y: 1, width: 2, height: 2 }, false);
+    const results = [
+      paintTerrain(d, 2, 1, 'wall'),
+      paintItem(d, 2, 1, 'bomb'),
+      paintEntity(d, 2, 1, 'dirt_block', 'N'),
+      paintPlayerStart(d, 3, 1, 'N'),
+      eraseCell(d, 2, 2),
+      floodFillTerrain(d, 2, 1, 'wall'),
+      placeWireLink(d, 'trap', { x: 1, y: 1 }, { x: 2, y: 1 }, 'N'),
+      clearRect(d, { x: 1, y: 1, width: 2, height: 2 }),
+      pasteClip(d, clip, 2, 1, 'epoxy'),
+      moveRect(d, { x: 1, y: 1, width: 1, height: 1 }, 1, 0)
+    ];
+    for (const result of results) {
+      expect(result.changed).toBe(false);
+      expect(result.map).toBe(d);
+    }
+    const resized = resizeMap(d, 8, 8, bounds);
+    expect(resized.changed).toBe(false);
+    expect(resized.map).toBe(d);
+    expect(JSON.stringify([d.terrain, d.items, d.entities, d.playerStart, d.cc3d])).toBe(before);
   });
 });

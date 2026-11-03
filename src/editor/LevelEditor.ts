@@ -57,7 +57,7 @@ import {
 } from './testFromHere';
 import { CheckSummary, summarizeValidation } from './checkSummary';
 import { cloneDocument, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
-import { documentFromLevel, levelFromDocument } from './editorLevelIo';
+import { documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
 import { EditorHistory } from './editorHistory';
 import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise, SelectionKeyAction } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
@@ -1310,7 +1310,7 @@ export class LevelEditor {
       next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
     }
     if (requiresEpoxyRules(next.winRule, hasLaserContent(doc))) next.ruleset = undefined;
-    return next;
+    return metadataForDocument(doc, next);
   }
 
   private sameMetadata(a: EditorMetadata, b: EditorMetadata): boolean {

@@ -15,6 +15,7 @@
  */
 
 import { PLAYER_START_FACING } from '../core/cc3d/cc3dConstants';
+import { REFLECTING_FACES } from '../core/cc3d/cc3dLasers';
 import {
   CC3D_COLORS,
   CC3D_ITEM_KINDS,
@@ -49,7 +50,7 @@ const COLORED_TERRAIN: readonly string[] = ['door', 'toggle_door', 'toggle_contr
 const CORNER_SIDE_COUNT = 2;
 const VERTICAL_SIDES: readonly Direction[] = ['N', 'S'];
 const HORIZONTAL_SIDES: readonly Direction[] = ['E', 'W'];
-const MIRROR_LENGTH = 2;
+const MIRROR_NAMES: readonly string[] = Object.keys(REFLECTING_FACES);
 
 function isColor(value: unknown): boolean {
   return typeof value === 'string' && (CC3D_COLORS as readonly string[]).includes(value);
@@ -169,9 +170,9 @@ export function setPanelSide(level: Cc3dLevel, x: number, y: number, side: Direc
   return withCell(level, x, y, { ...cell, panels });
 }
 
-/** Moves the player start, facing `dir` (the current facing, else west, when omitted). Outside the grid is refused. */
+/** Moves the player start, facing `dir` (the current facing, else west, when omitted). Outside the grid or onto a mob is refused. */
 export function setPlayer(level: Cc3dLevel, x: number, y: number, dir?: Direction): Cc3dLevel {
-  if (!inside(level, x, y)) return level;
+  if (!inside(level, x, y) || mobIndexAt(level, x, y) >= 0) return level;
   const facing = dir ?? level.player.dir ?? PLAYER_START_FACING;
   if (!isDirection(facing)) return level;
   const { player } = level;
@@ -189,8 +190,9 @@ function normalizeMob(level: Cc3dLevel, mob: Cc3dMob): Cc3dMob | null {
     out.color = mob.color;
   }
   if (mob.kind === 'reflector') {
-    if (typeof mob.mirror !== 'string' || mob.mirror.length !== MIRROR_LENGTH) return null;
-    out.mirror = mob.mirror;
+    const mirror = typeof mob.mirror === 'string' ? mob.mirror.toUpperCase() : '';
+    if (!MIRROR_NAMES.includes(mirror)) return null;
+    out.mirror = mirror;
   }
   return out;
 }
@@ -202,11 +204,12 @@ function mobIndexAt(level: Cc3dLevel, x: number, y: number): number {
 /**
  * Places a mob. A mob already on that cell is replaced in place (it keeps its index: the order of the mobs
  * decides which clone machine, trap or shooter a device links to); a new one is appended. Refused when the
- * mob is off the grid or lacks the colour or mirror its kind needs.
+ * mob is off the grid, on the player start, or lacks the colour or mirror its kind needs.
  */
 export function placeMob(level: Cc3dLevel, mob: Cc3dMob): Cc3dLevel {
   const next = normalizeMob(level, mob);
   if (!next) return level;
+  if (level.player.x === next.x && level.player.y === next.y) return level;
   const index = mobIndexAt(level, next.x, next.y);
   if (index < 0) return { ...level, mobs: [...level.mobs, next] };
   if (canonicalJson(level.mobs[index]) === canonicalJson(next)) return level;

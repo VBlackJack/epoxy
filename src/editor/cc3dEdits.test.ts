@@ -168,3 +168,21 @@ describe('mobs', () => {
     expect(rotateMob(level, 2, 2, 'W').mobs[0].dir).toBe('W');
   });
 });
+
+describe('conflicts with the player start', () => {
+  it('refuses a reflector whose mirror the validator would not accept, and upper-cases a valid one', () => {
+    const level = base();
+    expect(placeMob(level, { kind: 'reflector', x: 3, y: 1, dir: 'N', mirror: 'XX' })).toBe(level);
+    expect(placeMob(level, { kind: 'reflector', x: 3, y: 1, dir: 'N', mirror: 'ZZ' })).toBe(level);
+    expect(placeMob(level, { kind: 'reflector', x: 3, y: 1, dir: 'N', mirror: '' })).toBe(level);
+    const lower = placeMob(level, { kind: 'reflector', x: 3, y: 1, dir: 'N', mirror: 'lu' });
+    expect(lower.mobs[2].mirror).toBe('LU');
+    expect(errors(lower)).toEqual([]);
+  });
+
+  it('refuses a player start on a mob and a mob on the player start', () => {
+    const level = base();
+    expect(setPlayer(level, 2, 2)).toBe(level);
+    expect(placeMob(level, { kind: 'walker', x: 1, y: 1, dir: 'N' })).toBe(level);
+  });
+});

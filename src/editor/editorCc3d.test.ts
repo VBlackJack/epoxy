@@ -25,7 +25,7 @@ import type { CompiledLevel } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { placeLayer, setItem } from './cc3dEdits';
 import { compiledCc3d, editableCc3dModel, smallCc3dLevel } from './cc3dEditorFixtures';
-import { cloneDocument, cloneMap, sameDocument, withCc3d, type EditorDocument } from './editorDocument';
+import { cloneDocument, cloneMap, sameDocument, snapshotDocument, withCc3d, type EditorDocument } from './editorDocument';
 import { EditorHistory } from './editorHistory';
 import { cc3dFishCount, documentFromLevel, levelFromDocument } from './editorLevelIo';
 
@@ -165,7 +165,7 @@ const MEMORY_LEVEL_WIDTH = 100;
 const MEMORY_LEVEL_HEIGHT = 114;
 const MEMORY_BYTES_PER_MEGABYTE = 1024 * 1024;
 /** Generous: a step is one array of 11400 references (about 90 KB) plus the changed cell. */
-const MEMORY_STEP_BOUND_BYTES = 400 * 1024;
+const MEMORY_STEP_BOUND_BYTES = 1024 * 1024;
 
 describe('history memory on a large cc3d level', () => {
   it('shares every untouched cell across 300 single-cell undo steps', () => {
@@ -176,6 +176,13 @@ describe('history memory on a large cc3d level', () => {
     });
     const first = documentFromLevel(compiledCc3d(editableCc3dModel(rows)), TEXTS);
     const originalCells = (first.cc3d as Cc3dLevel).cells;
+
+    // Primary, deterministic checks: a snapshot is the level reference alone, with no derived layer.
+    const snapshot = snapshotDocument(first);
+    expect(snapshot.cc3d).toBe(first.cc3d);
+    expect(snapshot.terrain).toEqual([]);
+    expect(snapshot.items).toEqual([]);
+    expect(snapshot.entities).toEqual([]);
 
     collectGarbage();
     const before = process.memoryUsage().heapUsed;
@@ -195,7 +202,6 @@ describe('history memory on a large cc3d level', () => {
     const growth = process.memoryUsage().heapUsed - before;
     const perStep = growth / steps;
     console.info(`cc3d history: ${steps} steps on ${MEMORY_LEVEL_WIDTH}x${MEMORY_LEVEL_HEIGHT}, heap growth ${(growth / MEMORY_BYTES_PER_MEGABYTE).toFixed(1)} MB, ${(perStep / 1024).toFixed(1)} KB per step`);
-    expect(perStep).toBeLessThan(MEMORY_STEP_BOUND_BYTES);
 
     // Structural sharing: only the edited cells differ between the first and the last level.
     const differing = finalCells.filter((cell, index) => cell !== originalCells[index]).length;
@@ -212,5 +218,7 @@ describe('history memory on a large cc3d level', () => {
     expect(undone).toBe(steps);
     expect(cellAt(walker.cc3d as Cc3dLevel, 1, 1)).toBe(cellAt(first.cc3d as Cc3dLevel, 1, 1));
     expect(walker.cc3d?.cells).toBe(originalCells);
+    // Secondary and loose: the heap figure is noisy, so it only catches a return to deep copies.
+    expect(perStep).toBeLessThan(MEMORY_STEP_BOUND_BYTES);
   });
 });

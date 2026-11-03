@@ -17,7 +17,7 @@
 import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_WIN_RULE } from '../core/coreConstants';
 import type { CompiledLevel } from '../core/types';
-import { cloneMap, displayLayersOf, type EditorDocument } from './editorDocument';
+import { cloneMap, displayLayersOf, type EditorDocument, type EditorMetadata } from './editorDocument';
 
 /**
  * Conversion between a stored level and the document the editor holds. Pure: the editor supplies the
@@ -25,6 +25,9 @@ import { cloneMap, displayLayersOf, type EditorDocument } from './editorDocument
  */
 
 /** The title and hint shown in the form when a level was opened (already translated). */
+/** The ruleset whose levels are held as cc3d data. */
+const CC3D_RULESET = 'cc3d';
+
 export interface DocumentTexts {
   title: string;
   hint: string;
@@ -65,11 +68,21 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
 }
 
 /**
+ * The metadata the form read, with what a CC3D document cannot change put back: its ruleset stays cc3d
+ * (the Epoxy rules the laser content or the win rule would force do not apply to it).
+ */
+export function metadataForDocument(doc: EditorDocument, next: EditorMetadata): EditorMetadata {
+  return doc.cc3d ? { ...next, ruleset: doc.ruleset } : next;
+}
+
+/**
  * The level an editor document stands for. A CC3D level keeps its cc3d data (map id included), has its
  * display layers derived from it and its required fish recomputed from the cells; any other level is
  * exported exactly as before.
  */
 export function levelFromDocument(doc: EditorDocument, context: LevelExportContext): CompiledLevel {
+  // The ruleset decides which engine reads the level: cc3d data under another ruleset would silently not play.
+  if (doc.cc3d && doc.ruleset !== CC3D_RULESET) throw new Error(`A document with cc3d data must have the ${CC3D_RULESET} ruleset`);
   const level: CompiledLevel = {
     id: context.id,
     ...(doc.winRule === DEFAULT_WIN_RULE ? {} : { winRule: doc.winRule }),
