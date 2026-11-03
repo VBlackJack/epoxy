@@ -5,7 +5,11 @@
       "titleKey": "pilot.chapter.1.title",
       "subtitleKey": "pilot.chapter.1.subtitle",
       "levels": [
-        "epoxy_p_1"
+        "epoxy_p_1",
+        "epoxy_p_2",
+        "epoxy_p_3",
+        "epoxy_p_4",
+        "epoxy_p_5"
       ]
     }
   ]

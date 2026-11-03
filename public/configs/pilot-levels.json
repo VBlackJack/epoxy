@@ -23,9 +23,9 @@
         "#.#####S###.#",
         "#.....#E#...#",
         "###.#.###.#.#",
-        "#C..#..H..#.#",
-        "#.###...###.#",
-        "#...#.....C.#",
+        "#C..#.H...#.#",
+        "#.####.####.#",
+        "#...#####.C.#",
         "#.#.#####.#.#",
         "#.#...C...#.#",
         "#############"
@@ -36,6 +36,175 @@
       "trapLinks": [],
       "cloneLinks": [],
       "reworkOf": "epoxy_c_1"
+    },
+    {
+      "id": "epoxy_p_2",
+      "theme": "cyber_neon",
+      "number": 2,
+      "titleKey": "pilot.levels.level_2.title",
+      "hintKey": "pilot.levels.level_2.hint",
+      "password": "PENS",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "S"
+      },
+      "rows": [
+        "#############",
+        "#@..........#",
+        "#...........#",
+        "#...........#",
+        "#.....H.....#",
+        "#...........#",
+        "#...........#",
+        "#...........#",
+        "######S######",
+        "######E######",
+        "#############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 2,
+          "y": 2,
+          "id": "thin_wall_new"
+        },
+        {
+          "x": 10,
+          "y": 2,
+          "id": "thin_wall_nes"
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "id": "thin_wall_nsw"
+        },
+        {
+          "x": 10,
+          "y": 6,
+          "id": "thin_wall_esw"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 10,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 10,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SSENSSSESWENNNNEEEEEEEWSESSSNWSSWWWSS"
+    },
+    {
+      "id": "epoxy_p_3",
+      "theme": "cyber_neon",
+      "number": 3,
+      "titleKey": "pilot.levels.level_3.title",
+      "hintKey": "pilot.levels.level_3.hint",
+      "password": "DOOR",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "#@H.r...R.C.#",
+        "###########.#",
+        "#C..R...r...#",
+        "#.###########",
+        "#..C.....S.E#",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEEEEEESSWWWWWWWWWWSSEEEEEEEEEE"
+    },
+    {
+      "id": "epoxy_p_4",
+      "theme": "cyber_neon",
+      "number": 4,
+      "titleKey": "pilot.levels.level_4.title",
+      "hintKey": "pilot.levels.level_4.hint",
+      "password": "ATIC",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 5,
+        "y": 2,
+        "dir": "S"
+      },
+      "rows": [
+        "###########",
+        "#C..###r.C#",
+        "#...#@#...#",
+        "##R##.##R##",
+        "#r...H....#",
+        "#####S#####",
+        "#####E#####",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SSWWWWEEEEEEENNNWEEWSSSWWWWWWNNNWESSSEEESS"
+    },
+    {
+      "id": "epoxy_p_5",
+      "theme": "cyber_neon",
+      "number": 5,
+      "titleKey": "pilot.levels.level_5.title",
+      "hintKey": "pilot.levels.level_5.hint",
+      "password": "GREN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 6,
+        "y": 4,
+        "dir": "S"
+      },
+      "rows": [
+        "#############",
+        "#C#C#####C#C#",
+        "#G#G#####G#G#",
+        "#...........#",
+        "#####.@.###.#",
+        "#k....H.....#",
+        "######S######",
+        "######E######",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SWWWWWEEEENNWWNNSSWWNNSSEEEEEEEENNSSEENNSSSSWWWWWSS"
     }
   ]
 }
