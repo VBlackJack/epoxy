@@ -16,6 +16,7 @@
 
 import type { Direction } from '../types';
 import { SFX } from './cc3dConstants';
+import { teleportCandidatesBefore, teleportCells } from './cc3dLinks';
 import { planStep } from './cc3dMovement';
 import { Actor, Cell, RuleContext, cellAt, isPlayerAt, mobAt, moveActor, turnClockwise } from './cc3dWorld';
 
@@ -48,17 +49,11 @@ function exitOrder(kind: TeleportKind, facing: Direction): Direction[] {
  * The other teleports of the kind, the previous one in reading order first, then the ones before it, wrapping
  * from the first to the last [P blue, 05 session 3 and 08 section 8.7; red follows blue, U].
  */
-function candidatesBefore(ctx: RuleContext, entered: Cell, kind: TeleportKind): Cell[] {
+export function candidatesBefore(ctx: RuleContext, entered: Cell, kind: TeleportKind): Cell[] {
   const { world } = ctx;
-  const all: Cell[] = [];
-  world.cells.forEach((cell, index) => {
-    if (cell.terrain[cell.terrain.length - 1].kind === kind) {
-      all.push({ x: index % world.width, y: Math.floor(index / world.width) });
-    }
-  });
-  const here = all.findIndex((c) => c.x === entered.x && c.y === entered.y);
-  const rotated = here < 0 ? [...all].reverse() : [...all.slice(0, here).reverse(), ...all.slice(here + 1).reverse()];
-  return rotated;
+  const toCell = (index: number): Cell => ({ x: index % world.width, y: Math.floor(index / world.width) });
+  const origin = entered.y * world.width + entered.x;
+  return teleportCandidatesBefore(teleportCells(world.cells, kind), origin).map(toCell);
 }
 
 function isFree(ctx: RuleContext, actor: Actor, at: Cell): boolean {

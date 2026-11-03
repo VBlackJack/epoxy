@@ -18,6 +18,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import type { VisualEventKind } from '../PlayEngine';
 import type { BeamCell, Direction } from '../types';
 import { DeathCause, PLAYER_START_FACING, RANDOM_FORCE_ORDER, SPEED_ORB_SLOWDOWN } from './cc3dConstants';
+import { indicesWithLayer, trapTargets } from './cc3dLinks';
 import type { Cc3dCell, Cc3dColor, Cc3dItemKind, Cc3dLevel, Cc3dMobKind, Cc3dTerrain } from './model';
 import { CC3D_FLOOR_LIKE_KINDS, cellIndex, topTerrain } from './model';
 
@@ -330,21 +331,20 @@ export function reindexMobs(world: World): void {
 }
 
 function buildDeviceIndex(cells: Cc3dCell[]): DeviceIndex {
-  const index: DeviceIndex = { plates: [], holdDoors: [], toggleDoors: [], traps: [], trapControls: [], trapTargets: [], workedTraps: [], machines: [] };
-  cells.forEach((cell, i) => {
-    for (const t of cell.terrain) {
-      if (t.kind === 'plate') index.plates.push(i);
-      else if (t.kind === 'hold_door') index.holdDoors.push(i);
-      else if (t.kind === 'toggle_door') index.toggleDoors.push(i);
-      else if (t.kind === 'trap') index.traps.push(i);
-      else if (t.kind === 'trap_control') index.trapControls.push(i);
-      else if (t.kind === 'clone_machine') index.machines.push(i);
-    }
-  });
+  const traps = indicesWithLayer(cells, 'trap');
+  const trapControls = indicesWithLayer(cells, 'trap_control');
   // A trap control works the next trap after it in reading order, wrapping from the last cell to the first.
-  index.trapTargets = index.trapControls.map((control) => index.traps.find((trap) => trap > control) ?? index.traps[0] ?? -1);
-  index.workedTraps = index.traps.map((trap) => index.trapTargets.includes(trap));
-  return index;
+  const targets = trapTargets(trapControls, traps);
+  return {
+    plates: indicesWithLayer(cells, 'plate'),
+    holdDoors: indicesWithLayer(cells, 'hold_door'),
+    toggleDoors: indicesWithLayer(cells, 'toggle_door'),
+    traps,
+    trapControls,
+    trapTargets: targets,
+    workedTraps: traps.map((trap) => targets.includes(trap)),
+    machines: indicesWithLayer(cells, 'clone_machine')
+  };
 }
 
 export function isPlayerAt(world: World, at: Cell): boolean {

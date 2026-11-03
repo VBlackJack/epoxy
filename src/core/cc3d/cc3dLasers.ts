@@ -16,6 +16,7 @@
 
 import type { BeamCell, Direction } from '../types';
 import { BOT_BEAM_LENGTH } from './cc3dConstants';
+import { nearestPoint } from './cc3dLinks';
 import { terrainAdmits } from './cc3dTerrainRules';
 import {
   Cell,
@@ -167,20 +168,18 @@ export function fireShooter(ctx: RuleContext, shooter: MobState): void {
   ctx.stepShot(spawnShot(world, shooter, shooter.dir));
 }
 
-/** The shooter nearest to a cell by straight-line distance (ties in reading order) fires one shot [S, 10 item 11]. */
+/** The shooter nearest to a cell by straight-line distance (ties in reading order), or null when there is none [S, 10 item 11]. */
+export function nearestShooter(world: World, from: Cell): MobState | null {
+  return nearestPoint(
+    world.mobs.filter((mob) => mob.kind === 'laser_shooter'),
+    from,
+    world.width
+  );
+}
+
+/** The nearest shooter fires one shot [S, 10 item 11]. */
 export function fireNearestShooter(ctx: RuleContext, from: Cell): void {
-  let best: MobState | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const mob of ctx.world.mobs) {
-    if (mob.kind !== 'laser_shooter') continue;
-    const distance = (mob.x - from.x) ** 2 + (mob.y - from.y) ** 2;
-    // Strictly smaller: the first in reading order keeps a tie only if the list is in reading order, so compare it too.
-    const earlier = best !== null && distance === bestDistance && mob.y * ctx.world.width + mob.x < best.y * ctx.world.width + best.x;
-    if (distance < bestDistance || earlier) {
-      best = mob;
-      bestDistance = distance;
-    }
-  }
+  const best = nearestShooter(ctx.world, from);
   if (best) fireShooter(ctx, best);
 }
 

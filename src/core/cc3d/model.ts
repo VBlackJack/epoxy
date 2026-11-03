@@ -206,3 +206,109 @@ export function cellAt(level: Pick<Cc3dLevel, 'width' | 'height' | 'cells'>, x: 
 export function topTerrain(cell: Cc3dCell): Cc3dTerrain {
   return cell.terrain[cell.terrain.length - 1];
 }
+
+/** Stacking class of a terrain kind. */
+export const CC3D_CLASS_FLOOR = 1;
+export const CC3D_CLASS_DEVICE = 2;
+export const CC3D_CLASS_BLOCKER = 3;
+export type Cc3dTerrainClass = typeof CC3D_CLASS_FLOOR | typeof CC3D_CLASS_DEVICE | typeof CC3D_CLASS_BLOCKER;
+
+/** Stacking class of a terrain kind (1 floor-like, 2 device, 3 blocker), or undefined for a kind the model does not know. */
+export function terrainClass(kind: string): Cc3dTerrainClass | undefined {
+  if ((CC3D_FLOOR_LIKE_KINDS as readonly string[]).includes(kind)) return CC3D_CLASS_FLOOR;
+  if ((CC3D_DEVICE_KINDS as readonly string[]).includes(kind)) return CC3D_CLASS_DEVICE;
+  if ((CC3D_BLOCKER_KINDS as readonly string[]).includes(kind)) return CC3D_CLASS_BLOCKER;
+  return undefined;
+}
+
+const PLAIN_FLOOR: Cc3dTerrainKind = 'floor';
+
+function classOf(terrain: Cc3dTerrain): Cc3dTerrainClass {
+  const cls = terrainClass(terrain.kind);
+  if (cls === undefined) throw new Error(`CC3D: no stacking class for ${terrain.kind}`);
+  return cls;
+}
+
+/**
+ * Input positions of the first two floor-like layers that are not plain floor: a cell can only have one real
+ * base, so the importer refuses such a cell. Null when there is no conflict.
+ */
+export function baseConflict(layers: readonly Cc3dTerrain[]): [number, number] | null {
+  const found: number[] = [];
+  layers.forEach((layer, index) => {
+    if (classOf(layer) === CC3D_CLASS_FLOOR && layer.kind !== PLAIN_FLOOR) found.push(index);
+  });
+  return found.length > 1 ? [found[0], found[1]] : null;
+}
+
+/**
+ * Builds the terrain stack of a cell from loose layers, in any order: the base is the floor-like layer that is
+ * not plain floor (the last one when several, see baseConflict), else plain floor; devices follow, then
+ * blockers, each class in input order. Never empty. Throws on a kind the model does not know.
+ */
+export function normalizeCell(layers: readonly Cc3dTerrain[]): Cc3dTerrain[] {
+  const bases = layers.filter((layer) => classOf(layer) === CC3D_CLASS_FLOOR && layer.kind !== PLAIN_FLOOR);
+  const base: Cc3dTerrain = bases.length > 0 ? bases[bases.length - 1] : { kind: PLAIN_FLOOR };
+  const above = layers.filter((layer) => classOf(layer) !== CC3D_CLASS_FLOOR);
+  // Array.prototype.sort is stable, so input order holds inside a class.
+  above.sort((a, b) => classOf(a) - classOf(b));
+  return [base, ...above];
+}
+
+/**
+ * The stack after placing one layer: a floor-like layer replaces the base, a device or blocker replaces the
+ * layer of the same kind when there is one, else it is inserted in class order.
+ */
+export function placeTerrain(stack: readonly Cc3dTerrain[], terrain: Cc3dTerrain): Cc3dTerrain[] {
+  if (classOf(terrain) === CC3D_CLASS_FLOOR) return normalizeCell([...stack.filter((l) => classOf(l) !== CC3D_CLASS_FLOOR), terrain]);
+  const sameKind = stack.findIndex((layer) => layer.kind === terrain.kind);
+  if (sameKind >= 0) return stack.map((layer, index) => (index === sameKind ? terrain : layer));
+  return normalizeCell([...stack, terrain]);
+}
+
+/** Every colour a device, key or block can have. */
+export const CC3D_COLORS: readonly Cc3dColor[] = ['red', 'green', 'blue', 'yellow'];
+
+const ITEM_KIND_FLAGS: Record<Cc3dItemKind, true> = {
+  fish: true,
+  fish_extra: true,
+  key: true,
+  orb_ice: true,
+  orb_force: true,
+  orb_fire: true,
+  orb_water: true,
+  orb_speed: true
+};
+
+/** Every item kind a level file can hold. */
+export const CC3D_ITEM_KINDS = Object.keys(ITEM_KIND_FLAGS) as Cc3dItemKind[];
+
+const MOB_KIND_FLAGS: Record<Exclude<Cc3dMobKind, 'shot'>, true> = {
+  block_dirt: true,
+  block_ice: true,
+  block_color: true,
+  reflector: true,
+  walker: true,
+  legs_green: true,
+  legs_red: true,
+  blinky: true,
+  baby_blinky: true,
+  limpa: true,
+  limpy: true,
+  bouncer: true,
+  omni: true,
+  screamer: true,
+  baby_screamer: true,
+  snappy: true,
+  nibble: true,
+  golem_blue: true,
+  golem_yellow: true,
+  laser_shooter: true,
+  bot_static: true,
+  bot_cw: true,
+  bot_ccw: true,
+  bot_multi: true
+};
+
+/** Every mob kind a level file can hold: all of them but the runtime-only laser shot. */
+export const CC3D_MOB_KINDS = Object.keys(MOB_KIND_FLAGS) as Array<Exclude<Cc3dMobKind, 'shot'>>;

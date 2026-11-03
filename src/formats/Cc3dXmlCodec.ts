@@ -26,9 +26,6 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import type { LevelSizeBounds } from '../config/ConfigValidation';
 import {
-  CC3D_BLOCKER_KINDS,
-  CC3D_DEVICE_KINDS,
-  CC3D_FLOOR_LIKE_KINDS,
   type Cc3dCell,
   type Cc3dColor,
   type Cc3dItem,
@@ -36,10 +33,13 @@ import {
   type Cc3dMob,
   type Cc3dMobKind,
   type Cc3dTerrain,
-  type Cc3dTerrainKind
+  type Cc3dTerrainKind,
+  baseConflict,
+  normalizeCell,
+  terrainClass
 } from '../core/cc3d/model';
-import { displayItemId, displayMobId, displayTerrainId } from '../core/cc3d/display';
-import type { CompiledLevel, Direction, EntityPlacement } from '../core/types';
+import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
+import type { CompiledLevel, Direction } from '../core/types';
 
 /** File extension of a level file. */
 export const CC3D_XML_EXTENSION = '.xml';
@@ -536,19 +536,6 @@ mobEntry([72, 73, 190, 74], [{ kind: 'bot_static' }, { kind: 'bot_cw' }, { kind:
 /* Stacking                                                            */
 /* ------------------------------------------------------------------ */
 
-const CLASS_FLOOR = 1;
-const CLASS_DEVICE = 2;
-const CLASS_BLOCKER = 3;
-type StackClass = typeof CLASS_FLOOR | typeof CLASS_DEVICE | typeof CLASS_BLOCKER;
-
-/** Stacking class of a terrain kind: 1 floor-like, 2 device, 3 blocker. */
-function stackClass(kind: Cc3dTerrainKind): StackClass {
-  if (CC3D_FLOOR_LIKE_KINDS.includes(kind)) return CLASS_FLOOR;
-  if (CC3D_DEVICE_KINDS.includes(kind)) return CLASS_DEVICE;
-  if (CC3D_BLOCKER_KINDS.includes(kind)) return CLASS_BLOCKER;
-  throw new Cc3dImportError(CC3D_ERROR_KEYS.unexpected, { detail: `no stacking class for ${kind}` });
-}
-
 interface CellDraft {
   /** Terrain with the type id it came from, in document order. */
   terrain: Array<{ terrain: Cc3dTerrain; typeId: number }>;
@@ -558,19 +545,23 @@ interface CellDraft {
 }
 
 function finishCell(draft: CellDraft, x: number, y: number): Cc3dCell {
-  const classed = draft.terrain.map((entry) => ({ ...entry, cls: stackClass(entry.terrain.kind) }));
-  const floorLike = classed.filter((entry) => entry.cls === CLASS_FLOOR);
-  const others = floorLike.filter((entry) => entry.terrain.kind !== 'floor');
-  if (others.length > 1) {
-    throw new Cc3dImportError(CC3D_ERROR_KEYS.twoFloors, { x, y, first: others[0].typeId, second: others[1].typeId });
+  for (const entry of draft.terrain) {
+    if (terrainClass(entry.terrain.kind) === undefined) {
+      throw new Cc3dImportError(CC3D_ERROR_KEYS.unexpected, { detail: `no stacking class for ${entry.terrain.kind}` });
+    }
   }
-  let base: Cc3dTerrain = { kind: 'floor' };
-  if (others.length === 1) base = others[0].terrain;
-  const above = classed.filter((entry) => entry.cls !== CLASS_FLOOR);
-  // Array.prototype.sort is stable, so document order holds inside a class.
-  above.sort((a, b) => a.cls - b.cls);
+  const layers = draft.terrain.map((entry) => entry.terrain);
+  const conflict = baseConflict(layers);
+  if (conflict) {
+    throw new Cc3dImportError(CC3D_ERROR_KEYS.twoFloors, {
+      x,
+      y,
+      first: draft.terrain[conflict[0]].typeId,
+      second: draft.terrain[conflict[1]].typeId
+    });
+  }
   return {
-    terrain: [base, ...above.map((entry) => entry.terrain)],
+    terrain: normalizeCell(layers),
     panels: PANEL_SIDE_ORDER.filter((side) => draft.panels.has(side)),
     item: draft.item
   };
@@ -665,14 +656,7 @@ export function decodeCc3dLevel(input: ArrayBuffer | Uint8Array | string, option
   const cells = drafts.map((draft, index) => finishCell(draft, index % width, Math.floor(index / width)));
   const cc3d: Cc3dLevel = { width, height, cells, mobs, player: { x: start.x, y: start.y, dir: start.dir }, mapId: options.mapId };
 
-  const terrain: string[][] = [];
-  const items: (string | null)[][] = [];
-  for (let y = 0; y < height; y++) {
-    const row = cells.slice(y * width, (y + 1) * width);
-    terrain.push(row.map(displayTerrainId));
-    items.push(row.map((cell) => displayItemId(cell.item)));
-  }
-  const entities: EntityPlacement[] = mobs.map((mob) => ({ x: mob.x, y: mob.y, type: displayMobId(mob), dir: mob.dir }));
+  const { terrain, items, entities } = deriveDisplayLayers(cc3d);
 
   const name = root.attrs.get(ATTR_NAME) ?? '';
   const author = root.attrs.get(ATTR_AUTHOR) ?? '';

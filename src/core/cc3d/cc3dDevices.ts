@@ -17,6 +17,7 @@
 import type { Direction } from '../types';
 import { SFX, UNCONTROLLED_TRAP_OPEN } from './cc3dConstants';
 import { fireNearestShooter } from './cc3dLasers';
+import { holdDoorWanted, nearestBy } from './cc3dLinks';
 import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { planStep } from './cc3dMovement';
 import {
@@ -104,7 +105,7 @@ function updateHoldDoors(world: World): void {
   for (const index of holdDoors) {
     const layer = layerAt(world, index, 'hold_door');
     const color = layer.color;
-    const wanted = color !== undefined && total[color] > 0 && pressed[color] === total[color];
+    const wanted = color !== undefined && holdDoorWanted(total[color], pressed[color]);
     if (layer.open !== wanted) {
       touch(world, pointOf(world, index));
       layer.open = wanted;
@@ -151,18 +152,9 @@ function flipToggles(world: World, color: Cc3dColor | undefined): void {
 // ------------------------------------------------------------------ cloning
 
 /** The machine nearest to the switch by straight-line distance; the tie goes to the first in reading order [S, 10 item 10]. */
-function nearestMachine(world: World, from: Cell): number | null {
-  let best: number | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const index of world.devices.machines) {
-    const at = pointOf(world, index);
-    const distance = (at.x - from.x) ** 2 + (at.y - from.y) ** 2;
-    if (distance < bestDistance) {
-      best = index;
-      bestDistance = distance;
-    }
-  }
-  return best;
+export function nearestMachine(world: World, from: Cell): number | null {
+  const { width } = world;
+  return nearestBy(world.devices.machines, from, width, (index) => index % width, (index) => Math.floor(index / width));
 }
 
 /**
