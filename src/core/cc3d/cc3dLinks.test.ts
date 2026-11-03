@@ -17,7 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import { nearestMachine } from './cc3dDevices';
 import { nearestShooter } from './cc3dLasers';
-import { cc3dLinks, holdDoorWanted, nearestPoint, NO_LINK, teleportCandidatesBefore, trapTargets } from './cc3dLinks';
+import { cc3dLinks, holdDoorWanted, indicesWithLayer, nearestPoint, NO_LINK, teleportCandidatesBefore, trapTargets } from './cc3dLinks';
 import { buildWorld } from './cc3dWorld';
 import type { Cc3dCell, Cc3dLevel, Cc3dMob, Cc3dTerrain } from './model';
 
@@ -124,6 +124,29 @@ describe('cc3dLinks', () => {
     const world = buildWorld(level, 1);
     expect(nearestMachine(world, { x: 2, y: 2 })).toBe(at(0, 0));
     expect(nearestMachine(world, { x: 5, y: 2 })).toBe(at(4, 0));
+  });
+
+  it('breaks a tie between two machines at equal distance in reading order', () => {
+    // From (2, 1): (1, 0), (3, 2) and (1, 2) are all at squared distance 2; the first in reading order wins.
+    const level = levelWith({
+      '3,2': [{ kind: 'clone_machine', dir: 'E' }],
+      '1,2': [{ kind: 'clone_machine', dir: 'E' }],
+      '1,0': [{ kind: 'clone_machine', dir: 'E' }],
+      '2,1': [{ kind: 'clone_switch' }]
+    });
+    expect(cc3dLinks(level).cloneSwitches).toEqual([{ from: at(2, 1), to: at(1, 0) }]);
+    expect(nearestMachine(buildWorld(level, 1), { x: 2, y: 1 })).toBe(at(1, 0));
+  });
+
+  it('builds the engine index and the links from the same list, duplicate layers included', () => {
+    const level = levelWith({
+      '1,0': [{ kind: 'trap' }, { kind: 'trap' }],
+      '3,0': [{ kind: 'trap_control' }]
+    });
+    const world = buildWorld(level, 1);
+    expect(world.devices.traps).toEqual(indicesWithLayer(level.cells, 'trap'));
+    expect(world.devices.traps).toEqual([at(1, 0), at(1, 0)]);
+    expect(cc3dLinks(level).trapControls.map((l) => l.to ?? NO_LINK)).toEqual(world.devices.trapTargets);
   });
 
   it('gives a clone switch without a machine no target', () => {

@@ -518,6 +518,7 @@
       "cc3d_unknown_terrain": { "label": "Erreur : Terrain inconnu \"{kind}\" en ({x}, {y})." },
       "cc3d_base_not_floor": { "label": "Erreur : La couche du bas en ({x}, {y}) est \"{kind}\", qui ne peut pas servir de sol." },
       "cc3d_stack_order": { "label": "Erreur : Les couches en ({x}, {y}) sont dans le désordre : le sol d'abord, puis les dispositifs, puis les murs et les portes." },
+      "cc3d_duplicate_layer": { "label": "Erreur : La case ({x}, {y}) contient deux couches \"{kind}\"." },
       "cc3d_missing_color": { "label": "Erreur : \"{kind}\" en ({x}, {y}) a besoin d'une couleur." },
       "cc3d_missing_dir": { "label": "Erreur : \"{kind}\" en ({x}, {y}) a besoin d'une direction." },
       "cc3d_missing_corner": { "label": "Erreur : \"{kind}\" en ({x}, {y}) a besoin de ses deux côtés fermés." },

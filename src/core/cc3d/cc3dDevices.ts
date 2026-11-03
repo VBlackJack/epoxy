@@ -17,7 +17,7 @@
 import type { Direction } from '../types';
 import { SFX, UNCONTROLLED_TRAP_OPEN } from './cc3dConstants';
 import { fireNearestShooter } from './cc3dLasers';
-import { holdDoorWanted, nearestPoint } from './cc3dLinks';
+import { holdDoorWanted, nearestBy } from './cc3dLinks';
 import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { planStep } from './cc3dMovement';
 import {
@@ -153,8 +153,8 @@ function flipToggles(world: World, color: Cc3dColor | undefined): void {
 
 /** The machine nearest to the switch by straight-line distance; the tie goes to the first in reading order [S, 10 item 10]. */
 export function nearestMachine(world: World, from: Cell): number | null {
-  const machines = world.devices.machines.map((index) => ({ ...pointOf(world, index), index }));
-  return nearestPoint(machines, from, world.width)?.index ?? null;
+  const { width } = world;
+  return nearestBy(world.devices.machines, from, width, (index) => index % width, (index) => Math.floor(index / width));
 }
 
 /**

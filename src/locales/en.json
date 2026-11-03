@@ -518,6 +518,7 @@
       "cc3d_unknown_terrain": { "label": "Error: Unknown terrain \"{kind}\" at ({x}, {y})." },
       "cc3d_base_not_floor": { "label": "Error: The bottom layer at ({x}, {y}) is \"{kind}\", which cannot be a floor." },
       "cc3d_stack_order": { "label": "Error: The layers at ({x}, {y}) are out of order: floor first, then devices, then walls and doors." },
+      "cc3d_duplicate_layer": { "label": "Error: The cell ({x}, {y}) holds two layers of \"{kind}\"." },
       "cc3d_missing_color": { "label": "Error: \"{kind}\" at ({x}, {y}) needs a colour." },
       "cc3d_missing_dir": { "label": "Error: \"{kind}\" at ({x}, {y}) needs a direction." },
       "cc3d_missing_corner": { "label": "Error: \"{kind}\" at ({x}, {y}) needs its two closed sides." },

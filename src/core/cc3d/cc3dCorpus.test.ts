@@ -19,10 +19,12 @@
  * outside the repository). Every level must have no validator error, a stable cell stack, display layers
  * that match its own cc3d data, and links that match what the engine resolves. When CC3D_CORPUS_DUMP names
  * a file, the SHA-256 of every decoded level is written there, to compare the codec before and after a change.
+ * When CC3D_SIM_GOLDEN names a file, a fixed play-through of every level is hashed: a missing file is
+ * written (run it on the reference checkout first), an existing one must match exactly. Hashes and ids only.
  */
 
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
@@ -30,8 +32,9 @@ import { CC3D_XML_EXTENSION, decodeCc3dFiles } from '../../formats/Cc3dXmlCodec'
 import type { CompiledLevel } from '../types';
 import { nearestMachine } from './cc3dDevices';
 import { nearestShooter } from './cc3dLasers';
-import { cc3dLinks, NO_LINK } from './cc3dLinks';
+import { cc3dLinks } from './cc3dLinks';
 import { deriveDisplayLayers } from './cc3dLayers';
+import { simulationHash } from './cc3dSimHash';
 import { candidatesBefore } from './cc3dTeleports';
 import { validateCc3dLevel } from './cc3dValidator';
 import { buildWorld, type RuleContext } from './cc3dWorld';
@@ -42,6 +45,8 @@ const DUMP_FILE = process.env.CC3D_CORPUS_DUMP;
 const WORLD_SEED = 1;
 const KEY_PREFIX = 'validator.issues.cc3d_';
 const TEST_TIMEOUT_MS = 120_000;
+const SIMULATION_TIMEOUT_MS = 600_000;
+const SIM_GOLDEN_FILE = process.env.CC3D_SIM_GOLDEN;
 
 function loadLevels(): { levels: CompiledLevel[]; fileCount: number } {
   const dir = CORPUS_DIR as string;
@@ -83,33 +88,77 @@ describe.skipIf(!CORPUS_DIR)('cc3d corpus', () => {
     }
   });
 
-  it('derives the links the engine resolves', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('derives the links an independent reading of the rules gives, and the engine agrees', { timeout: TEST_TIMEOUT_MS }, () => {
     const { levels } = loadLevels();
     let checked = 0;
     for (const level of levels) {
       const cc3d = level.cc3d;
       if (!cc3d) throw new Error(`${level.id} has no cc3d data`);
+      const { width } = cc3d;
       const world = buildWorld(cc3d, WORLD_SEED);
       const links = cc3dLinks(cc3d);
-      const at = (index: number) => ({ x: index % cc3d.width, y: Math.floor(index / cc3d.width) });
-      expect(links.trapControls.map((l) => l.to ?? NO_LINK), level.id).toEqual(world.devices.trapTargets);
-      for (const link of links.cloneSwitches) expect(nearestMachine(world, at(link.from)), level.id).toBe(link.to);
+      const at = (index: number) => ({ x: index % width, y: Math.floor(index / width) });
+      const topKind = (index: number) => cc3d.cells[index].terrain[cc3d.cells[index].terrain.length - 1].kind;
+      const cellsWith = (kind: string) => cc3d.cells.flatMap((cell, i) => (cell.terrain.some((l) => l.kind === kind) ? [i] : []));
+      // The oracle: the rules written out the long way, sharing no code with the engine or cc3dLinks.
+      const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+      const nearest = (from: number, targets: Array<{ x: number; y: number; id: number }>) =>
+        [...targets].sort((p, q) => distance(p, at(from)) - distance(q, at(from)) || p.y * width + p.x - (q.y * width + q.x))[0]?.id ?? null;
+
+      const traps = cellsWith('trap');
+      for (const link of links.trapControls) {
+        const oracle = traps.length === 0 ? null : (traps.find((t) => t > link.from) ?? traps[0]);
+        expect(link.to, level.id).toBe(oracle);
+      }
+      expect(links.trapControls.map((l) => l.to ?? -1), level.id).toEqual(world.devices.trapTargets);
+
+      const machines = cellsWith('clone_machine').map((id) => ({ ...at(id), id }));
+      for (const link of links.cloneSwitches) {
+        expect(link.to, level.id).toBe(nearest(link.from, machines));
+        expect(nearestMachine(world, at(link.from)), level.id).toBe(link.to);
+      }
       for (const link of links.cloneMachines) {
+        const oracle = cc3d.mobs.findIndex((m) => m.x === at(link.from).x && m.y === at(link.from).y);
+        expect(link.to, level.id).toBe(oracle < 0 ? null : oracle);
         const template = world.occupancy.get(link.from);
         expect(template === undefined ? null : template.uid - 1, level.id).toBe(link.to);
       }
+
+      const shooters = cc3d.mobs.flatMap((m, id) => (m.kind === 'laser_shooter' ? [{ x: m.x, y: m.y, id }] : []));
       for (const link of links.laserControllers) {
+        expect(link.to, level.id).toBe(nearest(link.from, shooters));
         const shooter = nearestShooter(world, at(link.from));
         expect(shooter === null ? null : shooter.uid - 1, level.id).toBe(link.to);
       }
+
       for (const link of links.teleports) {
-        const kind = cc3d.cells[link.from].terrain[cc3d.cells[link.from].terrain.length - 1].kind;
+        const kind = topKind(link.from);
         if (kind !== 'teleport_red' && kind !== 'teleport_blue') throw new Error(`${level.id}: not a teleport`);
+        const same = cc3d.cells.flatMap((_, i) => (topKind(i) === kind ? [i] : []));
+        const before = same.filter((i) => i < link.from);
+        const oracle = same.length < 2 ? null : before.length > 0 ? before[before.length - 1] : same[same.length - 1];
+        expect(link.to, level.id).toBe(oracle);
         const first = candidatesBefore({ world } as RuleContext, at(link.from), kind)[0];
-        expect(first === undefined ? null : first.y * cc3d.width + first.x, level.id).toBe(link.to);
+        expect(first === undefined ? null : first.y * width + first.x, level.id).toBe(link.to);
       }
       checked += links.trapControls.length + links.cloneSwitches.length + links.cloneMachines.length + links.laserControllers.length + links.teleports.length;
     }
-    console.info(`cc3d corpus: ${checked} links compared with the engine`);
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('plays every level exactly as the reference engine did', { timeout: SIMULATION_TIMEOUT_MS }, () => {
+    if (!SIM_GOLDEN_FILE) return;
+    const { levels } = loadLevels();
+    const hashes: Record<string, string> = {};
+    for (const level of levels) hashes[level.id] = simulationHash(level);
+    if (!existsSync(SIM_GOLDEN_FILE)) {
+      // First run, on the reference checkout: record the hashes.
+      writeFileSync(SIM_GOLDEN_FILE, JSON.stringify(hashes, null, 1));
+      return;
+    }
+    const golden = JSON.parse(readFileSync(SIM_GOLDEN_FILE, 'utf8')) as Record<string, string>;
+    const different = Object.keys(hashes).filter((id) => golden[id] !== hashes[id]);
+    expect(Object.keys(golden).length).toBe(levels.length);
+    expect(different).toEqual([]);
   });
 });

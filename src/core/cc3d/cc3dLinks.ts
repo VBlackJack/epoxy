@@ -49,7 +49,10 @@ export interface Cc3dColorGroup {
 export interface Cc3dLinks {
   /** Trap control -> the trap it opens (cell indices). */
   trapControls: Cc3dLink[];
-  /** Teleport -> the teleport that an arrival there sends the mover to first (cell indices). */
+  /**
+   * Teleport -> the first candidate of an arrival there (cell indices). At run time a candidate that is
+   * occupied or whose exits are blocked is skipped for the next one, so this is the usual target, not a promise.
+   */
   teleports: Cc3dLink[];
   /** Clone switch -> the nearest clone machine (cell indices). */
   cloneSwitches: Cc3dLink[];
@@ -91,14 +94,29 @@ export function teleportCandidatesBefore(teleports: readonly number[], origin: n
  * (then to the first in the list). Null for an empty list.
  */
 export function nearestPoint<T extends LinkPoint>(items: readonly T[], from: LinkPoint, width: number): T | null {
+  return nearestBy(items, from, width, (item) => item.x, (item) => item.y);
+}
+
+/** nearestPoint for items that are not points themselves (cell indices): the accessors read their column and row. */
+export function nearestBy<T>(
+  items: readonly T[],
+  from: LinkPoint,
+  width: number,
+  xOf: (item: T) => number,
+  yOf: (item: T) => number
+): T | null {
   let best: T | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
+  let bestOrder = Number.POSITIVE_INFINITY;
   for (const item of items) {
-    const distance = (item.x - from.x) ** 2 + (item.y - from.y) ** 2;
-    const earlier = best !== null && distance === bestDistance && item.y * width + item.x < best.y * width + best.x;
-    if (distance < bestDistance || earlier) {
+    const x = xOf(item);
+    const y = yOf(item);
+    const distance = (x - from.x) ** 2 + (y - from.y) ** 2;
+    const order = y * width + x;
+    if (distance < bestDistance || (distance === bestDistance && order < bestOrder)) {
       best = item;
       bestDistance = distance;
+      bestOrder = order;
     }
   }
   return best;
@@ -111,14 +129,15 @@ export function holdDoorWanted(plateCount: number, pressedCount: number): boolea
 
 // ----------------------------------------------------------------- derivation
 
-function hasLayer(cell: Cc3dCell, kind: Cc3dTerrainKind): boolean {
-  return cell.terrain.some((layer) => layer.kind === kind);
-}
-
-function indicesWithLayer(cells: readonly Cc3dCell[], kind: Cc3dTerrainKind): number[] {
+/**
+ * Cell indices holding a layer of the kind anywhere in their stack, in reading order: the one index builder
+ * the engine and cc3dLinks share. A cell with two layers of the kind is listed twice (the validator reports
+ * such a stack as an error).
+ */
+export function indicesWithLayer(cells: readonly Cc3dCell[], kind: Cc3dTerrainKind): number[] {
   const found: number[] = [];
   cells.forEach((cell, index) => {
-    if (hasLayer(cell, kind)) found.push(index);
+    for (const layer of cell.terrain) if (layer.kind === kind) found.push(index);
   });
   return found;
 }

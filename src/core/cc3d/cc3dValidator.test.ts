@@ -92,6 +92,11 @@ describe('validateCc3dLevel: errors', () => {
     expect(keys(validateCc3dLevel(twoFloors), 'error')).toEqual(['stack_order']);
   });
 
+  it('rejects two layers of the same kind in one stack', () => {
+    const level = levelWith({ '1,1': [{ kind: 'floor' }, { kind: 'trap' }, { kind: 'trap' }] });
+    expect(keys(validateCc3dLevel(level), 'error')).toEqual(['duplicate_layer']);
+  });
+
   it('requires a colour on doors, toggles, hold doors, plates, keys and colour blocks', () => {
     for (const kind of ['door', 'toggle_door', 'toggle_control', 'hold_door', 'plate'] as const) {
       const level = levelWith({ '1,1': [{ kind: 'floor' }, { kind }] });

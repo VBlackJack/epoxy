@@ -116,6 +116,10 @@ function checkCell(cell: Cc3dCell, x: number, y: number, issues: ValidationIssue
       issues.push({ severity: 'error', i18nKey: 'validator.issues.cc3d_stack_order.label', params: { x, y } });
     }
   }
+  const repeated = cell.terrain.find((layer, i) => cell.terrain.findIndex((other) => other.kind === layer.kind) !== i);
+  if (repeated) {
+    issues.push({ severity: 'error', i18nKey: 'validator.issues.cc3d_duplicate_layer.label', params: { kind: String(repeated.kind), x, y } });
+  }
   if (!Array.isArray(cell.panels) || !cell.panels.every(isDirection) || new Set(cell.panels).size !== cell.panels.length) {
     issues.push({ severity: 'error', i18nKey: 'validator.issues.cc3d_invalid_value.label', params: { kind: 'panel', x, y } });
   }
