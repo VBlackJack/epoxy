@@ -123,4 +123,23 @@ describe('LevelPackStorage', () => {
     const loaded = (await LevelPackStorage.loadAllPacks()) ?? [];
     expect(loaded.map((p) => p.id)).toEqual(['good']);
   });
+
+  it('keeps and clamps the author and description, and drops non-string values', async () => {
+    const { authorMaxLength, descriptionMaxLength } = ConfigRegistry.getPackMetadataLimits();
+    fake.records.set('meta', {
+      ...pack('meta'),
+      author: ' Ann ' + 'x'.repeat(authorMaxLength),
+      description: 'd'.repeat(descriptionMaxLength + 5)
+    });
+    fake.records.set('odd', { ...pack('odd'), author: 12, description: ['no'] });
+    fake.records.set('old', pack('old'));
+    const loaded = (await LevelPackStorage.loadAllPacks()) ?? [];
+    const byId = (id: string) => loaded.find((p) => p.id === id) as object;
+    expect(byId('meta')).toMatchObject({ author: expect.any(String), description: expect.any(String) });
+    expect((byId('meta') as { author: string }).author).toHaveLength(authorMaxLength);
+    expect((byId('meta') as { description: string }).description).toHaveLength(descriptionMaxLength);
+    expect('author' in byId('odd')).toBe(false);
+    expect('description' in byId('odd')).toBe(false);
+    expect('author' in byId('old')).toBe(false);
+  });
 });

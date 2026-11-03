@@ -19,16 +19,20 @@ import { PACK_NAME_MAX_LENGTH } from '../config/constants';
 import { CompiledLevel, LevelPack } from '../core/types';
 import { datRefusalReason } from '../formats/DatCodec';
 import { t } from '../i18n/I18nManager';
+import { cleanPackAuthor, cleanPackDescription, PackMetadataLimits } from '../packs/packMetadata';
 import { normalizePackName } from '../packs/userPacks';
 import { choiceDialog } from './choiceDialog';
 import { confirmDialog } from './confirmDialog';
 import { closeDialog, openDialog } from './dialog';
 import { downloadBlob, MIME_JSON } from './download';
+import { ThumbnailBatch } from './levelThumbnailView';
 import {
   badgeLabelKey,
   buildLevelRows,
   buildLibraryRows,
   buildPackActions,
+  dropSlotAt,
+  dropTargetIndex,
   EngineBadge,
   LevelRow,
   LibraryRow,
@@ -38,7 +42,17 @@ import {
   selectionAfterRemoval,
   transferTargets
 } from './packManagerModel';
-import { PACK_MANAGER_FOCUS_ATTRIBUTE, PACK_MOVE_DOWN_GLYPH, PACK_MOVE_UP_GLYPH } from './uiConstants';
+import {
+  PACK_DRAG_HANDLE_GLYPH,
+  PACK_DRAG_SCROLL_EDGE_PX,
+  PACK_DRAG_SCROLL_STEP_PX,
+  PACK_DRAG_START_DISTANCE_PX,
+  PACK_MANAGER_FOCUS_ATTRIBUTE,
+  PACK_MOVE_DOWN_GLYPH,
+  PACK_MOVE_UP_GLYPH,
+  THUMBNAIL_LEVEL_BOX,
+  THUMBNAIL_LIBRARY_BOX
+} from './uiConstants';
 
 const MODAL_ID = 'packs-modal';
 const DELETE_CHOICE_ID = 'delete';
@@ -46,9 +60,31 @@ const EXPORT_CHOICE_ID = 'export';
 const HIDDEN_CLASS = 'hidden';
 const TRANSFER_COPY = 'copy';
 const TRANSFER_MOVE = 'move';
+const DRAG_FOCUS_ACTION = 'drag';
+const DRAG_HANDLE_ATTRIBUTE = 'data-drag-handle';
+const DRAGGING_CLASS = 'packs-level-dragging';
+const DROP_BEFORE_CLASS = 'packs-drop-before';
+const DROP_AFTER_CLASS = 'packs-drop-after';
+const LIST_DRAGGING_CLASS = 'is-dragging';
+const PRIMARY_BUTTON = 0;
 
 type TransferMode = typeof TRANSFER_COPY | typeof TRANSFER_MOVE;
 type RowAction = 'up' | 'down' | 'edit' | 'play' | 'duplicate' | 'transfer' | 'delete';
+type MoveFocus = 'up' | 'down' | typeof DRAG_FOCUS_ACTION;
+type MetadataField = 'author' | 'description';
+
+/** A level row being dragged by its handle. It becomes `active` once the pointer has travelled far enough. */
+interface DragState {
+  pointerId: number;
+  packId: string;
+  levelId: string;
+  fromIndex: number;
+  startY: number;
+  active: boolean;
+  targetIndex: number;
+  item: HTMLElement;
+  handle: HTMLElement;
+}
 
 /** What the manager needs from the application around it. */
 export interface PackManagerHost {
@@ -84,6 +120,18 @@ export class PackManager {
   /** Level whose "Copy or move" panel is open. */
   private transferLevelId: string | null = null;
   private renaming = false;
+  /** True while an author or description change is being stored. */
+  private metaCommitting = false;
+  private drag: DragState | null = null;
+  /** Vertical position of the pointer during a drag, for the auto-scroll loop. */
+  private dragPointerY = 0;
+  private scrollFrame: number | null = null;
+  /** A redraw asked for during a drag, run when it ends so the rows under the pointer stay. */
+  private renderPending: { focusKey: string | null } | null = null;
+  /** Fields whose commit was asked for while another was being stored. */
+  private readonly queuedMeta = new Set<MetadataField>();
+  private libraryThumbs: ThumbnailBatch | null = null;
+  private levelThumbs: ThumbnailBatch | null = null;
   /** Packs with a change in flight: their row actions stay disabled until it resolves. */
   private readonly busyPackIds = new Set<string>();
   /** Button to focus when the redraw that ends an operation is done. */
@@ -114,6 +162,11 @@ export class PackManager {
   }
 
   public close(): void {
+    this.endDrag();
+    this.libraryThumbs?.dispose();
+    this.levelThumbs?.dispose();
+    this.libraryThumbs = null;
+    this.levelThumbs = null;
     closeDialog(byId(MODAL_ID));
   }
 
@@ -155,7 +208,8 @@ export class PackManager {
   // -- Static controls -------------------------------------------------------------
 
   /**
-   * Escape in the two name fields cancels the edit instead of closing the
+   * Escape in the pack fields (name, author, description) cancels the edit, and
+   * Escape during a drag cancels the drag, instead of closing the
    * dialog. The dialog helper listens on window in the capture phase and binds
    * on its first use, after this constructor: this listener runs first and
    * stops the event.
@@ -164,12 +218,18 @@ export class PackManager {
     window.addEventListener(
       'keydown',
       (e) => {
-        if (e.key !== 'Escape') return;
-        const target = e.target as HTMLElement | null;
-        if (target?.id === 'packs-name-input') {
+        if (e.key !== 'Escape' || !this.isOpen()) return;
+        if (this.drag) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          this.syncDetail();
+          this.endDrag();
+          return;
+        }
+        const target = e.target as HTMLElement | null;
+        if (target?.id === 'packs-name-input' || target?.id === 'packs-author-input' || target?.id === 'packs-description-input') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          this.syncDetail(true);
         } else if (target?.id === 'packs-new-input') {
           e.preventDefault();
           e.stopImmediatePropagation();
@@ -212,6 +272,24 @@ export class PackManager {
     });
     nameInput?.addEventListener('blur', () => void this.commitRename());
 
+    const authorInput = byId<HTMLInputElement>('packs-author-input');
+    authorInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        void this.commitMetadata('author');
+      }
+    });
+    authorInput?.addEventListener('blur', () => void this.commitMetadata('author'));
+    const descriptionInput = byId<HTMLTextAreaElement>('packs-description-input');
+    descriptionInput?.addEventListener('keydown', (e) => {
+      // Enter adds a line; Ctrl+Enter (Cmd+Enter) commits.
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        void this.commitMetadata('description');
+      }
+    });
+    descriptionInput?.addEventListener('blur', () => void this.commitMetadata('description'));
+
     byId('packs-play-btn')?.addEventListener('click', () => {
       const pack = this.selectedPack();
       if (pack && pack.levels.length > 0) this.playFrom(pack.id, 0);
@@ -234,6 +312,11 @@ export class PackManager {
   // -- Rendering -------------------------------------------------------------------
 
   private render(focusKey: string | null = null): void {
+    // The rows would be rebuilt under a drag in flight: wait for it to end.
+    if (this.drag) {
+      this.renderPending = { focusKey };
+      return;
+    }
     const rows = this.libraryRows();
     this.selectedId = resolveSelection(rows, this.selectedId);
     this.renderLibrary(rows);
@@ -250,6 +333,10 @@ export class PackManager {
     const list = byId('packs-library-list');
     if (!list) return;
     list.innerHTML = '';
+    this.libraryThumbs?.dispose();
+    const thumbs = new ThumbnailBatch();
+    this.libraryThumbs = thumbs;
+    const packs = ConfigRegistry.getEditablePacks();
     for (const row of rows) {
       const item = document.createElement('li');
       const button = document.createElement('button');
@@ -263,13 +350,24 @@ export class PackManager {
       const meta = document.createElement('span');
       meta.className = 'packs-row-meta';
       meta.textContent = countText(row.levelCount);
-      button.append(name, meta, this.badgesElement(row.badges));
+      const body = document.createElement('span');
+      body.className = 'packs-row-body';
+      body.append(name);
+      if (row.author) {
+        const author = document.createElement('span');
+        author.className = 'packs-row-author';
+        author.textContent = t('app.packs.manager.library.author.label', { author: row.author });
+        body.appendChild(author);
+      }
+      body.append(meta, this.badgesElement(row.badges));
       if (row.imported) {
         const tag = document.createElement('span');
         tag.className = 'packs-badge packs-badge-imported';
         tag.textContent = t('app.packs.manager.library.imported_tag.label');
-        button.appendChild(tag);
+        body.appendChild(tag);
       }
+      const firstLevel = packs.find((p) => p.id === row.id)?.levels[0];
+      button.append(firstLevel ? thumbs.add(firstLevel, THUMBNAIL_LIBRARY_BOX) : this.emptyThumbnail(THUMBNAIL_LIBRARY_BOX), body);
       button.addEventListener('click', () => {
         this.selectedId = row.id;
         this.transferLevelId = null;
@@ -278,6 +376,16 @@ export class PackManager {
       item.appendChild(button);
       list.appendChild(item);
     }
+  }
+
+  /** Same-size blank in place of the thumbnail of a pack with no level, so the rows stay aligned. */
+  private emptyThumbnail(box: number): HTMLElement {
+    const blank = document.createElement('span');
+    blank.className = 'packs-thumb packs-thumb-empty';
+    blank.setAttribute('aria-hidden', 'true');
+    blank.style.width = `${box}px`;
+    blank.style.height = `${box}px`;
+    return blank;
   }
 
   private badgesElement(badges: readonly EngineBadge[]): HTMLElement {
@@ -293,7 +401,19 @@ export class PackManager {
   }
 
   /** Header of the selected pack: name, badges, action states; or the empty library call to action. */
-  private syncDetail(): void {
+  /** Sets a field the player may be typing in; a field that has focus keeps its text unless `force` is set. */
+  private setFieldValue(
+    input: HTMLInputElement | HTMLTextAreaElement | null,
+    field: MetadataField,
+    value: string,
+    force: boolean
+  ): void {
+    // A field that has focus, or whose commit is queued, still holds text the player typed.
+    if (!input || (!force && (document.activeElement === input || this.queuedMeta.has(field)))) return;
+    input.value = value;
+  }
+
+  private syncDetail(forceFields = false): void {
     const rows = this.libraryRows();
     const selectedRow = rows.find((row) => row.id === this.selectedId);
     const pack = this.selectedPack();
@@ -305,6 +425,17 @@ export class PackManager {
 
     const nameInput = byId<HTMLInputElement>('packs-name-input');
     if (nameInput) nameInput.value = selectedRow.label;
+    const limits = this.metadataLimits();
+    const authorInput = byId<HTMLInputElement>('packs-author-input');
+    if (authorInput) {
+      this.setFieldValue(authorInput, 'author', pack.author ?? '', forceFields);
+      if (limits) authorInput.maxLength = limits.authorMaxLength;
+    }
+    const descriptionInput = byId<HTMLTextAreaElement>('packs-description-input');
+    if (descriptionInput) {
+      this.setFieldValue(descriptionInput, 'description', pack.description ?? '', forceFields);
+      if (limits) descriptionInput.maxLength = limits.descriptionMaxLength;
+    }
     const badges = byId('packs-detail-badges');
     if (badges) {
       badges.innerHTML = '';
@@ -338,6 +469,8 @@ export class PackManager {
     const list = byId('packs-levels-list');
     if (!list) return;
     list.innerHTML = '';
+    this.levelThumbs?.dispose();
+    this.levelThumbs = new ThumbnailBatch();
     const pack = this.selectedPack();
     if (!pack) return;
     for (const row of buildLevelRows(pack.levels, (level) => this.host.levelTitle(level))) {
@@ -381,14 +514,14 @@ export class PackManager {
     const busy = this.busyPackIds.has(pack.id);
 
     const up = button('up', 'app.packs.manager.level.move_up.action', null, !row.canMoveUp || busy, () =>
-      void this.moveLevel(pack.id, index, index - 1, row.levelId, 'up')
+      void this.moveLevel(pack.id, row.levelId, index - 1, 'up', () => ConfigRegistry.moveLevelInPack(pack.id, index, index - 1))
     );
     up.setAttribute('aria-label', t('app.packs.manager.level.move_up.aria', params));
     up.title = t('app.packs.manager.level.move_up.action');
     up.textContent = PACK_MOVE_UP_GLYPH;
     up.classList.add('packs-arrow-btn');
     const down = button('down', 'app.packs.manager.level.move_down.action', null, !row.canMoveDown || busy, () =>
-      void this.moveLevel(pack.id, index, index + 1, row.levelId, 'down')
+      void this.moveLevel(pack.id, row.levelId, index + 1, 'down', () => ConfigRegistry.moveLevelInPack(pack.id, index, index + 1))
     );
     down.setAttribute('aria-label', t('app.packs.manager.level.move_down.aria', params));
     down.title = t('app.packs.manager.level.move_down.action');
@@ -435,7 +568,16 @@ export class PackManager {
       group('packs-level-more', duplicate, transfer, remove)
     );
 
-    item.append(number, title, this.badgesElement(row.badges), actions);
+    const level = pack.levels[index];
+    const thumbnail = level && this.levelThumbs ? this.levelThumbs.add(level, THUMBNAIL_LEVEL_BOX) : this.emptyThumbnail(THUMBNAIL_LEVEL_BOX);
+    item.append(
+      this.dragHandle(pack, row, item, busy),
+      thumbnail,
+      number,
+      title,
+      this.badgesElement(row.badges),
+      actions
+    );
     if (!row.canEdit && row.editBlockedReasonKey) {
       const reason = document.createElement('p');
       reason.className = 'hint-text packs-level-reason';
@@ -445,6 +587,178 @@ export class PackManager {
     if (this.transferLevelId === row.levelId) item.appendChild(this.transferPanel(pack, row));
     return item;
   }
+
+  /**
+   * The handle a level row is dragged by, and that also moves it with the
+   * Up and Down keys. A pack with a single level has nothing to reorder: a
+   * blank keeps the columns aligned.
+   */
+  private dragHandle(pack: LevelPack, row: LevelRow, item: HTMLElement, busy: boolean): HTMLElement {
+    if (pack.levels.length < 2) {
+      const spacer = document.createElement('span');
+      spacer.className = 'packs-drag-spacer';
+      spacer.setAttribute('aria-hidden', 'true');
+      return spacer;
+    }
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'hud-btn small packs-drag-handle';
+    handle.textContent = PACK_DRAG_HANDLE_GLYPH;
+    handle.title = t('app.packs.manager.level.drag.action');
+    handle.setAttribute('aria-label', t('app.packs.manager.level.drag.aria', { number: row.number, title: row.title }));
+    handle.setAttribute(DRAG_HANDLE_ATTRIBUTE, row.levelId);
+    handle.disabled = busy;
+    // A long press must start a drag on a touch screen, not open the context menu.
+    handle.addEventListener('contextmenu', (e) => e.preventDefault());
+    handle.addEventListener('pointerdown', (e) => this.beginDrag(e, pack, row, item, handle));
+    handle.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      const index = row.number - 1;
+      const to = e.key === 'ArrowUp' ? index - 1 : index + 1;
+      if (to < 0 || to >= pack.levels.length) return;
+      void this.moveLevel(pack.id, row.levelId, to, DRAG_FOCUS_ACTION, () =>
+        ConfigRegistry.moveLevelInPack(pack.id, index, to)
+      );
+    });
+    return handle;
+  }
+
+  // -- Drag and drop -----------------------------------------------------------------
+
+  private beginDrag(e: PointerEvent, pack: LevelPack, row: LevelRow, item: HTMLElement, handle: HTMLElement): void {
+    if (e.pointerType === 'mouse' && e.button !== PRIMARY_BUTTON) return;
+    // A rename or metadata change in flight redraws the list when it ends.
+    if (this.drag || this.renaming || this.metaCommitting || this.busyPackIds.has(pack.id)) return;
+    this.drag = {
+      pointerId: e.pointerId,
+      packId: pack.id,
+      levelId: row.levelId,
+      fromIndex: row.number - 1,
+      startY: e.clientY,
+      active: false,
+      targetIndex: row.number - 1,
+      item,
+      handle
+    };
+    handle.setPointerCapture?.(e.pointerId);
+    handle.addEventListener('pointermove', this.onDragMove);
+    handle.addEventListener('pointerup', this.onDragEnd);
+    handle.addEventListener('pointercancel', this.onDragCancel);
+  }
+
+  private readonly onDragMove = (e: PointerEvent): void => {
+    const drag = this.drag;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    if (!drag.active) {
+      if (Math.abs(e.clientY - drag.startY) < PACK_DRAG_START_DISTANCE_PX) return;
+      drag.active = true;
+      drag.item.classList.add(DRAGGING_CLASS);
+      byId('packs-levels-list')?.classList.add(LIST_DRAGGING_CLASS);
+    }
+    e.preventDefault();
+    this.dragPointerY = e.clientY;
+    this.updateDropTarget(drag);
+    this.ensureAutoScroll();
+  };
+
+  /** Finds the slot under the pointer and draws the drop line there. */
+  private updateDropTarget(drag: DragState): void {
+    const rows = this.levelRowElements();
+    const slot = dropSlotAt(
+      this.dragPointerY,
+      rows.map((el) => {
+        const box = el.getBoundingClientRect();
+        return box.top + box.height / 2;
+      })
+    );
+    drag.targetIndex = dropTargetIndex(drag.fromIndex, slot);
+    this.showDropIndicator(rows, slot, drag.targetIndex !== drag.fromIndex);
+  }
+
+  private readonly onDragEnd = (e: PointerEvent): void => {
+    const drag = this.drag;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    this.endDrag();
+    if (drag.active && drag.targetIndex !== drag.fromIndex) {
+      const to = drag.targetIndex;
+      void this.moveLevel(drag.packId, drag.levelId, to, DRAG_FOCUS_ACTION, () =>
+        ConfigRegistry.moveLevelToIndex(drag.packId, drag.levelId, to)
+      );
+    }
+  };
+
+  private readonly onDragCancel = (e: PointerEvent): void => {
+    if (this.drag && e.pointerId === this.drag.pointerId) this.endDrag();
+  };
+
+  /** Ends the drag in flight, if any, without moving anything. */
+  private endDrag(): void {
+    const drag = this.drag;
+    if (!drag) return;
+    this.drag = null;
+    if (this.scrollFrame !== null && typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(this.scrollFrame);
+    this.scrollFrame = null;
+    drag.handle.removeEventListener('pointermove', this.onDragMove);
+    drag.handle.removeEventListener('pointerup', this.onDragEnd);
+    drag.handle.removeEventListener('pointercancel', this.onDragCancel);
+    if (drag.handle.hasPointerCapture?.(drag.pointerId)) drag.handle.releasePointerCapture(drag.pointerId);
+    drag.item.classList.remove(DRAGGING_CLASS);
+    byId('packs-levels-list')?.classList.remove(LIST_DRAGGING_CLASS);
+    this.showDropIndicator(this.levelRowElements(), 0, false);
+    const pending = this.renderPending;
+    this.renderPending = null;
+    if (pending) this.render(pending.focusKey);
+  }
+
+  private levelRowElements(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>('#packs-levels-list > .packs-level'));
+  }
+
+  /** Draws the drop line before the row at `slot`, or after the last row when the slot is past it. */
+  private showDropIndicator(rows: readonly HTMLElement[], slot: number, visible: boolean): void {
+    for (const row of rows) row.classList.remove(DROP_BEFORE_CLASS, DROP_AFTER_CLASS);
+    if (!visible || rows.length === 0) return;
+    if (slot < rows.length) rows[slot].classList.add(DROP_BEFORE_CLASS);
+    else rows[rows.length - 1].classList.add(DROP_AFTER_CLASS);
+  }
+
+  /** The nearest ancestor of the levels list that actually scrolls: the layout on narrow screens, else the detail column. */
+  private dragScroller(): HTMLElement | null {
+    let el = byId('packs-levels-list')?.parentElement ?? null;
+    while (el && el !== document.body) {
+      const overflow = getComputedStyle(el).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+      el = el.parentElement;
+    }
+    return byId('packs-detail');
+  }
+
+  /** Scroll step the pointer's position asks for: up near the top edge, down near the bottom one, else none. */
+  private autoScrollStep(scroller: HTMLElement): number {
+    const box = scroller.getBoundingClientRect();
+    if (this.dragPointerY < box.top + PACK_DRAG_SCROLL_EDGE_PX) return -PACK_DRAG_SCROLL_STEP_PX;
+    if (this.dragPointerY > box.bottom - PACK_DRAG_SCROLL_EDGE_PX) return PACK_DRAG_SCROLL_STEP_PX;
+    return 0;
+  }
+
+  /** Starts the frame loop that keeps scrolling while the pointer rests at an edge. */
+  private ensureAutoScroll(): void {
+    if (this.scrollFrame !== null || typeof requestAnimationFrame === 'undefined') return;
+    this.scrollFrame = requestAnimationFrame(this.autoScrollTick);
+  }
+
+  private readonly autoScrollTick = (): void => {
+    this.scrollFrame = null;
+    const drag = this.drag;
+    const scroller = this.dragScroller();
+    if (!drag?.active || !scroller) return;
+    const step = this.autoScrollStep(scroller);
+    if (step === 0) return;
+    scroller.scrollTop += step;
+    this.updateDropTarget(drag);
+    this.ensureAutoScroll();
+  };
 
   private transferPanel(pack: LevelPack, row: LevelRow): HTMLElement {
     const panel = document.createElement('div');
@@ -502,6 +816,14 @@ export class PackManager {
     if (!focusKey.includes(':')) {
       byId(focusKey)?.focus();
       return;
+    }
+    if (focusKey.endsWith(`:${DRAG_FOCUS_ACTION}`)) {
+      const levelId = focusKey.slice(0, focusKey.lastIndexOf(':'));
+      const handle = document.querySelector<HTMLButtonElement>(`[${DRAG_HANDLE_ATTRIBUTE}="${CSS.escape(levelId)}"]`);
+      if (handle && !handle.disabled) {
+        handle.focus();
+        return;
+      }
     }
     const find = (key: string): HTMLButtonElement | null =>
       document.querySelector<HTMLButtonElement>(`[${PACK_MANAGER_FOCUS_ATTRIBUTE}="${CSS.escape(key)}"]`);
@@ -591,6 +913,64 @@ export class PackManager {
     this.host.libraryChanged({ deletedPackIds: [] });
   }
 
+  /** Limits of the author and description fields; null while the game config is not loaded. */
+  private metadataLimits(): PackMetadataLimits | null {
+    return (ConfigRegistry.getGame() as { packMetadata?: PackMetadataLimits } | undefined)?.packMetadata ?? null;
+  }
+
+  /** The text of a metadata field as it would be stored: cleaned and cut to the configured length. */
+  private cleanedMetadata(field: MetadataField, raw: string): string {
+    const limits = this.metadataLimits();
+    const clean = field === 'author' ? cleanPackAuthor(raw) : cleanPackDescription(raw);
+    const max = field === 'author' ? limits?.authorMaxLength : limits?.descriptionMaxLength;
+    return (max === undefined ? clean : clean.slice(0, max)).trim();
+  }
+
+  /**
+   * Stores the author or description field of the selected pack when its text
+   * changed. A commit asked for while another is running is queued. Only the
+   * saved field is reset afterwards: the other one may hold text being typed.
+   */
+  private async commitMetadata(field: MetadataField): Promise<void> {
+    if (this.metaCommitting) {
+      this.queuedMeta.add(field);
+      return;
+    }
+    const pack = this.selectedPack();
+    const input = byId<HTMLInputElement | HTMLTextAreaElement>(
+      field === 'author' ? 'packs-author-input' : 'packs-description-input'
+    );
+    if (!pack || !input) return;
+    const text = this.cleanedMetadata(field, input.value);
+    if (text === (pack[field] ?? '')) {
+      this.setFieldValue(input, field, pack[field] ?? '', false);
+      return;
+    }
+    this.metaCommitting = true;
+    const packId = pack.id;
+    try {
+      const result = await ConfigRegistry.setPackMetadata(packId, { [field]: text });
+      if (!result.ok) {
+        const current = ConfigRegistry.getEditablePacks().find((p) => p.id === packId);
+        if (current && this.selectedId === packId) input.value = current[field] ?? '';
+        this.host.notify(t('app.packs.manager.toast.failed.label'));
+      } else if (!result.persisted) {
+        this.host.notify(t('app.packs.manager.toast.session_only.label'));
+      }
+    } finally {
+      this.metaCommitting = false;
+    }
+    this.render();
+    const saved = ConfigRegistry.getEditablePacks().find((p) => p.id === packId);
+    // The field keeps what the player typed since, but shows the stored form of what was saved.
+    if (saved && this.selectedId === packId && this.cleanedMetadata(field, input.value) === text) {
+      input.value = saved[field] ?? '';
+    }
+    const queued = Array.from(this.queuedMeta);
+    this.queuedMeta.clear();
+    for (const next of queued) await this.commitMetadata(next);
+  }
+
   private playFrom(packId: string, levelIndex: number): void {
     this.close();
     this.host.playPack(packId, levelIndex);
@@ -667,23 +1047,39 @@ export class PackManager {
     }
   }
 
+  /**
+   * Moves a level to `to` through `change`, then puts focus on the control that
+   * started the move (`focus`) and announces the new position.
+   */
   private async moveLevel(
     packId: string,
-    from: number,
-    to: number,
     levelId: string,
-    direction: 'up' | 'down'
+    to: number,
+    focus: MoveFocus,
+    change: () => Promise<PackOperationResult>
   ): Promise<void> {
+    const moved = this.selectedPack()?.levels.find((l) => l.id === levelId);
+    const title = moved ? this.host.levelTitle(moved) : levelId;
+    const count = this.selectedPack()?.levels.length ?? 0;
     await this.runOp(packId, async () => {
-      const result = await ConfigRegistry.moveLevelInPack(packId, from, to);
+      const result = await change();
       if (!result.ok) {
         this.host.notify(t('app.packs.manager.toast.failed.label'));
         return;
       }
       if (!result.persisted) this.host.notify(t('app.packs.manager.toast.session_only.label'));
-      this.pendingFocus = `${levelId}:${direction}`;
+      this.pendingFocus = `${levelId}:${focus}`;
+      this.announce(t('app.packs.manager.level.moved.label', { title, position: to + 1, count }));
       this.host.libraryChanged({ deletedPackIds: [] });
     });
+  }
+
+  /** Says something to assistive technology through the manager's live region. */
+  private announce(message: string): void {
+    const live = byId('packs-live');
+    if (!live) return;
+    live.textContent = '';
+    live.textContent = message;
   }
 
   private async duplicateLevel(packId: string, levelId: string): Promise<void> {

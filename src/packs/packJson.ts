@@ -22,13 +22,14 @@ import {
   sanitizeStoredLevels
 } from '../config/ConfigValidation';
 import { CompiledLevel } from '../core/types';
+import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
 import { Clock, generateLevelId, normalizePackName, renumberLevels } from './userPacks';
 
 /** Why a pack file was refused. */
 export type PackJsonError = 'malformed' | 'format' | 'version' | 'name' | 'no_levels';
 
 export type PackJsonResult =
-  | { ok: true; name: string; levels: CompiledLevel[] }
+  | ({ ok: true; name: string; levels: CompiledLevel[] } & PackMetadata)
   | { ok: false; error: PackJsonError };
 
 /** The pack file: a format marker, a version, the pack name and its levels as stored. */
@@ -36,12 +37,27 @@ export interface PackJsonFile {
   format: typeof PACK_JSON_FORMAT;
   version: number;
   name: string;
+  /** Optional credit line; absent in files written before the field existed. */
+  author?: string;
+  /** Optional description; absent in files written before the field existed. */
+  description?: string;
   levels: CompiledLevel[];
 }
 
 /** Serialises a pack to the exchange format. Levels are written whole, whatever their ruleset. */
-export function serializePack(name: string, levels: readonly CompiledLevel[]): string {
-  const file: PackJsonFile = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION, name, levels: [...levels] };
+export function serializePack(
+  name: string,
+  levels: readonly CompiledLevel[],
+  metadata: PackMetadata = {}
+): string {
+  const file: PackJsonFile = {
+    format: PACK_JSON_FORMAT,
+    version: PACK_JSON_VERSION,
+    name,
+    ...(metadata.author ? { author: metadata.author } : {}),
+    ...(metadata.description ? { description: metadata.description } : {}),
+    levels: [...levels]
+  };
   return JSON.stringify(file, null, 2);
 }
 
@@ -49,13 +65,16 @@ export function serializePack(name: string, levels: readonly CompiledLevel[]): s
  * Reads a pack file. Levels go through the same validation as stored levels
  * (size bounds included); the ones that fail are dropped, and the file is
  * refused when none is left. Level ids are made unique inside the pack, then
- * re-issued for the ones the library already holds (`takenLevelIds`).
+ * re-issued for the ones the library already holds (`takenLevelIds`). The
+ * optional author and description are clamped to `limits`; without limits they
+ * are not read.
  */
 export function parsePackJson(
   text: string,
   bounds: LevelSizeBounds,
   takenLevelIds: ReadonlySet<string>,
-  now: Clock = Date.now
+  now: Clock = Date.now,
+  limits?: PackMetadataLimits
 ): PackJsonResult {
   let parsed: unknown;
   try {
@@ -83,5 +102,10 @@ export function parsePackJson(
     reserved.add(id);
     return { ...lvl, id };
   });
-  return { ok: true, name, levels: renumberLevels(levels) };
+  return {
+    ok: true,
+    name,
+    levels: renumberLevels(levels),
+    ...(limits ? clampPackMetadata(parsed, limits) : {})
+  };
 }

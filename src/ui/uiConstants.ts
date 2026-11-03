@@ -136,3 +136,23 @@ export const PACK_MANAGER_FOCUS_ATTRIBUTE = 'data-focus-key';
 /** Arrows of the compact move buttons of a pack level row. */
 export const PACK_MOVE_UP_GLYPH = '↑';
 export const PACK_MOVE_DOWN_GLYPH = '↓';
+/** Pack-manager thumbnails: bytes per RGBA pixel and the alpha of a painted one. */
+export const THUMBNAIL_BYTES_PER_PIXEL = 4;
+export const THUMBNAIL_OPAQUE_ALPHA = 255;
+/** Colours of the single pixels that mark entities and the player start, and of a tile the table does not know. */
+export const THUMBNAIL_ENTITY_COLOR = '#ff2bd6';
+export const THUMBNAIL_PLAYER_COLOR = '#00e5ff';
+export const THUMBNAIL_FALLBACK_COLOR = '#808080';
+/** Side, in cells, and palette keys of the chequerboard shown for a level whose map is not read (cc3d). */
+export const THUMBNAIL_PLACEHOLDER_CELLS = 8;
+export const THUMBNAIL_PLACEHOLDER_PALETTE_KEYS = ['floorBorder', 'wallBase'] as const;
+/** Box, in CSS pixels, a level thumbnail and a library row thumbnail are fitted in. */
+export const THUMBNAIL_LEVEL_BOX = 64;
+export const THUMBNAIL_LIBRARY_BOX = 32;
+/** Glyph of the drag handle of a pack level row. */
+export const PACK_DRAG_HANDLE_GLYPH = '\u2807';
+/** Pack-manager drag: how close to the edge of the scrolling list, in CSS pixels, the pointer starts scrolling it, and by how much per move. */
+export const PACK_DRAG_SCROLL_EDGE_PX = 32;
+export const PACK_DRAG_SCROLL_STEP_PX = 10;
+/** Pixels the pointer must travel before a press on a handle counts as a drag. */
+export const PACK_DRAG_START_DISTANCE_PX = 4;

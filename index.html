@@ -693,6 +693,17 @@
                   <input id="packs-name-input" type="text" class="editor-input" autocomplete="off" />
                   <span id="packs-detail-badges" class="packs-badges"></span>
                 </div>
+                <div class="packs-detail-meta">
+                  <div class="packs-meta-field">
+                    <label for="packs-author-input" data-i18n="app.packs.manager.detail.author.label"></label>
+                    <input id="packs-author-input" type="text" class="editor-input" autocomplete="off" data-i18n-placeholder="app.packs.manager.detail.optional.label" />
+                  </div>
+                  <div class="packs-meta-field">
+                    <label for="packs-description-input" data-i18n="app.packs.manager.detail.description.label"></label>
+                    <textarea id="packs-description-input" class="editor-input" rows="2" aria-describedby="packs-description-hint" data-i18n-placeholder="app.packs.manager.detail.optional.label"></textarea>
+                    <span id="packs-description-hint" class="hint-text" data-i18n="app.packs.manager.detail.description.hint"></span>
+                  </div>
+                </div>
                 <div class="packs-detail-actions">
                   <button id="packs-play-btn" class="hud-btn small primary" type="button" data-i18n="app.packs.manager.detail.play.action"></button>
                   <button id="packs-export-json-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.export_json.action"></button>
@@ -705,6 +716,7 @@
               </div>
             </section>
           </div>
+          <p id="packs-live" class="packs-live" role="status" aria-live="polite"></p>
           <div class="modal-actions">
             <button id="packs-close-btn" class="action-btn" type="button" data-i18n="hud.scores_modal.close_btn.action"></button>
           </div>

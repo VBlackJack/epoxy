@@ -123,6 +123,16 @@ export function moveLevel(pack: LevelPack, from: number, to: number): LevelPack 
   return withLevels(pack, levels);
 }
 
+/**
+ * Moves the level with this id so it ends up at `index`, a position in the
+ * list after the move. The pack is returned as is when the level is missing,
+ * the index is out of range or the level is already there.
+ */
+export function moveLevelTo(pack: LevelPack, levelId: string, index: number): LevelPack {
+  const from = pack.levels.findIndex((l) => l.id === levelId);
+  return from < 0 ? pack : moveLevel(pack, from, index);
+}
+
 /** Moves a level one place earlier. */
 export function moveLevelUp(pack: LevelPack, levelId: string): LevelPack {
   const index = pack.levels.findIndex((l) => l.id === levelId);

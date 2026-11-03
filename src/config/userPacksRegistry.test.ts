@@ -503,4 +503,53 @@ describe('operations on the library', () => {
     const { pack } = await ConfigRegistry.createUserPack('Empty');
     expect(ConfigRegistry.exportPackJson(pack?.id ?? '')).toBeNull();
   });
+
+  it('moves a level to an index, persists it, accepts the same place and refuses an unknown level', async () => {
+    const { pack } = await ConfigRegistry.createUserPack('P');
+    const id = pack?.id ?? '';
+    for (const levelId of ['a', 'b', 'c']) await ConfigRegistry.saveLevelToPack(id, makeLevel(levelId));
+    expect(await ConfigRegistry.moveLevelToIndex(id, 'a', 2)).toMatchObject({ ok: true, persisted: true });
+    expect(idsOf(id)).toEqual(['b', 'c', 'a']);
+    expect(numbersOf(id)).toEqual([1, 2, 3]);
+    expect(stored(id)?.levels.map((l) => l.id)).toEqual(['b', 'c', 'a']);
+    expect(await ConfigRegistry.moveLevelToIndex(id, 'a', 2)).toEqual({ ok: true, persisted: true });
+    expect((await ConfigRegistry.moveLevelToIndex(id, 'a', 9)).ok).toBe(false);
+    expect((await ConfigRegistry.moveLevelToIndex(id, 'gone', 0)).ok).toBe(false);
+    expect((await ConfigRegistry.moveLevelToIndex('missing', 'a', 0)).ok).toBe(false);
+  });
+
+  it('reports a move that could not be stored as session only', async () => {
+    const { pack } = await ConfigRegistry.createUserPack('P');
+    const id = pack?.id ?? '';
+    for (const levelId of ['a', 'b']) await ConfigRegistry.saveLevelToPack(id, makeLevel(levelId));
+    fake.abortWrites = true;
+    expect(await ConfigRegistry.moveLevelToIndex(id, 'a', 1)).toMatchObject({ ok: true, persisted: false });
+    expect(idsOf(id)).toEqual(['b', 'a']);
+  });
+
+  it('sets, clamps, persists and clears the author and description of a pack', async () => {
+    const { pack } = await ConfigRegistry.createUserPack('P');
+    const id = pack?.id ?? '';
+    const { authorMaxLength } = ConfigRegistry.getPackMetadataLimits();
+    const result = await ConfigRegistry.setPackMetadata(id, { author: 'x'.repeat(authorMaxLength + 9), description: 'a\nb' });
+    expect(result).toMatchObject({ ok: true, persisted: true });
+    expect(packOf(id)?.author).toHaveLength(authorMaxLength);
+    expect(stored(id)?.description).toBe('a\nb');
+    await ConfigRegistry.setPackMetadata(id, { author: '' });
+    expect(packOf(id) && 'author' in (packOf(id) as object)).toBe(false);
+    expect(packOf(id)?.description).toBe('a\nb');
+    expect((await ConfigRegistry.setPackMetadata('missing', { author: 'A' })).ok).toBe(false);
+  });
+
+  it('carries the metadata through export and import', async () => {
+    const { pack } = await ConfigRegistry.createUserPack('P');
+    const id = pack?.id ?? '';
+    await ConfigRegistry.saveLevelToPack(id, makeLevel('a'));
+    await ConfigRegistry.setPackMetadata(id, { author: 'Ann', description: 'Hello\nworld' });
+    const result = await ConfigRegistry.importPackJson(ConfigRegistry.exportPackJson(id) ?? '');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.pack).toMatchObject({ author: 'Ann', description: 'Hello\nworld' });
+    expect(stored(result.pack.id)).toMatchObject({ author: 'Ann', description: 'Hello\nworld' });
+  });
 });

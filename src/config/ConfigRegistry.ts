@@ -62,6 +62,7 @@ import {
 } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
 import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
+import { clampPackMetadata, PackMetadata, PackMetadataLimits, withPackMetadata } from '../packs/packMetadata';
 import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
 import { dedupeLevelIdsAcrossPacks, scopedLevelId, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
@@ -620,7 +621,7 @@ class ConfigRegistryService {
   public async registerImportedPack(
     name: string,
     levels: CompiledLevel[],
-    options: { scopeIds?: boolean } = {}
+    options: { scopeIds?: boolean; metadata?: PackMetadata } = {}
   ): Promise<{ pack: LevelPack; persisted: boolean }> {
     const baseId = `pack_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
     const takenPacks = this.takenPackIds();
@@ -631,6 +632,7 @@ class ConfigRegistryService {
       id: cleanId,
       name,
       builtIn: false,
+      ...clampPackMetadata(options.metadata, this.gameConfig.packMetadata),
       levels: ensureUniqueLevelIds(options.scopeIds === false ? levels : scopeLevelIds(levels, cleanId), cleanId)
     };
     this.storedPacks.push(pack);
@@ -651,6 +653,15 @@ class ConfigRegistryService {
     const renamed = pack ? userPacks.renamePack(pack, name) : null;
     if (!renamed) return FAILED;
     return { ok: true, pack: renamed, persisted: await this.commitPack(renamed) };
+  }
+
+  /** Sets the author and/or description of a pack; a blank value clears the field. */
+  public async setPackMetadata(packId: string, patch: PackMetadata): Promise<PackResult> {
+    const pack = this.findStoredPack(packId);
+    if (!pack) return FAILED;
+    const next = withPackMetadata(pack, patch, this.gameConfig.packMetadata);
+    if (next === pack) return { ok: true, pack, persisted: true };
+    return { ok: true, pack: next, persisted: await this.commitPack(next) };
   }
 
   /** Deletes any pack that is not built in. The active pack falls back to the campaign. */
@@ -696,6 +707,15 @@ class ConfigRegistryService {
     if (!pack) return FAILED;
     const next = userPacks.moveLevel(pack, from, to);
     if (next === pack) return FAILED;
+    return { ok: true, persisted: await this.commitPack(next) };
+  }
+
+  /** Moves the level with this id so it ends up at `index`; a level already there is a success with nothing to store. */
+  public async moveLevelToIndex(packId: string, levelId: string, index: number): Promise<PackOperationResult> {
+    const pack = this.findStoredPack(packId);
+    if (!pack) return FAILED;
+    const next = userPacks.moveLevelTo(pack, levelId, index);
+    if (next === pack) return pack.levels[index]?.id === levelId ? { ok: true, persisted: true } : FAILED;
     return { ok: true, persisted: await this.commitPack(next) };
   }
 
@@ -745,14 +765,23 @@ class ConfigRegistryService {
    */
   public exportPackJson(packId: string, displayName?: string): string | null {
     const pack = this.getAllPacks().find((p) => p.id === packId);
-    return pack && pack.levels.length > 0 ? serializePack(displayName?.trim() || pack.name, pack.levels) : null;
+    return pack && pack.levels.length > 0 ? serializePack(displayName?.trim() || pack.name, pack.levels, { author: pack.author, description: pack.description }) : null;
   }
 
   /** Adds the pack held by a file made with exportPackJson. */
   public async importPackJson(text: string): Promise<ImportPackJsonResult> {
-    const parsed = parsePackJson(text, this.getLevelSizeBounds(), this.takenLevelIds());
+    const parsed = parsePackJson(
+      text,
+      this.getLevelSizeBounds(),
+      this.takenLevelIds(),
+      Date.now,
+      this.gameConfig.packMetadata
+    );
     if (!parsed.ok) return parsed;
-    const { pack, persisted } = await this.registerImportedPack(parsed.name, parsed.levels, { scopeIds: false });
+    const { pack, persisted } = await this.registerImportedPack(parsed.name, parsed.levels, {
+      scopeIds: false,
+      metadata: { author: parsed.author, description: parsed.description }
+    });
     return { ok: true, pack, persisted };
   }
 
@@ -865,6 +894,11 @@ class ConfigRegistryService {
         .filter((l) => inGrid(l.buttonX, l.buttonY) && inGrid(l.clonerX, l.clonerY))
         .map((l) => ({ ...l }))
     };
+  }
+
+  /** Longest author and description a pack keeps. */
+  public getPackMetadataLimits(): PackMetadataLimits {
+    return this.gameConfig.packMetadata;
   }
 
   /** Width and height a .json level or a custom pack may have. */
