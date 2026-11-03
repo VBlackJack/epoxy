@@ -124,9 +124,11 @@ describe('classifyLevel', () => {
     expect(elementKeys(levelOf(['####', '#@O#', '####'])).has('stacked_terrain')).toBe(false);
   });
 
-  it('flags panels on water but not panels on plain floor', () => {
+  it('detects panels on water, which cell edges now carry exactly', () => {
     const onWater = levelOf(['####', '#@W#', '####'], { W: { stack: [{ kind: 'water' }], panels: ['N'] } });
-    expect(classifyLevel(onWater).lost).toEqual(['panels_on_nonfloor']);
+    expect(elementKeys(onWater).has('panels_on_nonfloor')).toBe(true);
+    expect(classifyLevel(onWater).lost).toEqual([]);
+    expect(classifyLevel(onWater).approx).toEqual(['water']);
     const onFloor = levelOf(['####', '#@.#', '####'], { '.': { stack: [{ kind: 'floor' }], panels: ['N'] } });
     expect(classifyLevel(onFloor).verdict).toBe('exact');
   });
