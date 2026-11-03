@@ -20,9 +20,20 @@ versions follow Semantic Versioning.
   closes with unsaved work.
 - The level checker warns about broken trap and clone wires, and about a player start on a wall or
   on a monster.
+- The level editor is reworked: palette, canvas and level settings side by side on wide screens
+  (two columns, then one with a horizontal palette strip on narrow ones). The canvas fits the window,
+  with zoom out, in and fit (`-`, `+`, `0`).
+- Editor tools: Brush (B), Fill (F), Eraser (E) and Picker (I); R rotates the facing, Escape cancels
+  a wire, and the arrow keys with Space or Enter edit without a mouse.
+- A Check badge shows whether the level is valid or has warnings or errors. Level settings are in
+  sections: Level, Rules (with the engine), Size to resize a level, and Generate.
+- Under Lynx rules the Epoxy-only palette items are disabled, with a one-click "Switch this level to
+  Epoxy".
 
 ### Changed
 
+- Undo and redo in the editor also cover the level settings and the engine, and the unsaved mark
+  clears when you undo back to the saved state.
 - Your previous "Custom" levels are moved automatically into a pack of yours ("My levels"). Nothing
   to do; they stay in your browser.
 - Saving in the editor updates the level in its pack, and never changes the pack you are playing.

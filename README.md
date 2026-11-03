@@ -51,6 +51,11 @@
 - **Export**: a complete JSON file that keeps every engine, or a `.CCL` file. A JSON file exported this way can be imported back with its name.
 - **Delete a pack**: asks for confirmation with the number of levels, and offers "Export first". "Delete imported packs" never touches your own packs.
 - **Your previous Custom levels** were moved automatically into a pack of yours ("My levels"); there is nothing to do.
+- **Layout**: palette, canvas and level settings sit in three columns on wide screens, two on medium ones and one on narrow ones, where the palette becomes a horizontal strip. The canvas is scaled to fit the window; zoom with `-`, `+` or the zoom buttons, and `0` or "Fit" to fit again.
+- **Tools**: Brush (`B`), Fill (`F`), Eraser (`E`) and Picker (`I`; Alt+click or middle click also picks). `R` rotates the facing of the selected creature or player start, and `Escape` cancels a wire that waits for its target.
+- **Without a mouse**: focus the canvas, move the cursor with the arrow keys and paint with `Space` or `Enter`.
+- **Check badge**: shows Valid, the number of warnings or the number of errors for the level.
+- **Level settings** come in sections: Level, Rules (with the engine), Size (resize a level) and Generate. Under Lynx rules the Epoxy-only items of the palette are disabled, with a one-click "Switch this level to Epoxy". Undo and redo also cover the settings and the engine, and the unsaved mark clears when you undo back to the saved state.
 - **Where you are**: the editor shows the pack and the level it edits (Pack, Level n/N) with previous and next buttons.
 - **Saving**: Save updates the level in its pack, also with Ctrl+S. A level from a built-in pack, a generated level or a file opened in the editor is saved with "Save into...": choose a pack, or create one in the same step. "Save a copy..." saves another level and keeps the original. The first save into an imported pack asks whether to modify it or save a copy. Saving never changes the pack you are playing.
 - **Testing**: "Back to editor" returns from a test play, and the browser asks before the tab closes with unsaved work.
