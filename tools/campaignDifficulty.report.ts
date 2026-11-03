@@ -143,6 +143,8 @@ function measureCampaign(rhythm: CampaignRhythm): Array<Omit<CampaignRow, 'close
   });
 }
 
+const failureMessages: string[] = [];
+
 function measureEndless(): EndlessRow[] {
   const rows: EndlessRow[] = [];
   for (const levelNumber of ENDLESS_LEVEL_NUMBERS) {
@@ -152,8 +154,11 @@ function measureEndless(): EndlessRow[] {
       try {
         const generated = ProceduralGenerator.generateEndlessLevel(levelNumber, seed);
         reports.push(DifficultyMetrics.measure({ ...generated.level, solution: encodeActions(generated.solution) }));
-      } catch {
+      } catch (error) {
         failures++;
+        failureMessages.push(
+          `endless ${levelNumber} seed ${seed}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
     const means: Record<string, number | null> = {};
@@ -264,7 +269,7 @@ const METRIC_DOCS: Array<[string, string]> = [
   ['reversals', 'Consecutive moves in opposite directions. Proxy for backtracking; blind to other detours.'],
   ['revisit ratio, distinct cells', 'Positions sampled after each action over distinct positions. Slides are sampled only where they stop.'],
   ['steps per walkable cell', 'Solution actions over walkable cells of the map. Proxy for how much of the map the route uses.'],
-  ['irreversible events', `Terrain or entity changes that cannot be undone, by kind (${IRREVERSIBLE_KINDS.join(', ')}). Toggle walls are reversible and skipped; item pickups are not counted; a block sinking into water counts once as water_filled, and walking over the dirt it leaves counts as dirt_cleared.`],
+  ['irreversible events', `Terrain or entity changes that cannot be undone, by kind (${IRREVERSIBLE_KINDS.join(', ')}). Toggle walls, flame jets and laser gates are reversible and skipped; a hidden wall turning into floor is free and skipped, one that closes a cell for good (wall_raised) counts; item pickups are not counted; a block sinking into water counts once as water_filled, and walking over the dirt it leaves counts as dirt_cleared.`],
   ['after 1st', 'Share of the solution after the action holding the first irreversible event. Proxy for how long a commitment lasts.'],
   ['danger', `Actions after which a monster is within Chebyshev distance ${DEFAULT_DIFFICULTY_CONFIG.dangerDistance} of the player. Sampled once per action, so a brush between two actions is missed.`],
   ['min dist', 'Smallest Chebyshev distance to a monster seen after an action.'],
@@ -306,7 +311,10 @@ function buildMarkdown(rhythm: CampaignRhythm, campaign: CampaignRow[], endless:
     'Each cell is the endless level number whose mean of that metric is closest to the campaign level value. A "<" prefix means the value is below every endless mean, ">" above every one: the nearest number is then only the edge of the sampled range.',
     '',
     ...placementTable(campaign, endless),
-    ''
+    '',
+    ...(failureMessages.length > 0
+      ? ['## Endless generation errors', '', ...failureMessages.map((m) => `- ${m}`), '']
+      : [])
   ];
   return lines.join('\n');
 }

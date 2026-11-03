@@ -17,7 +17,8 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { decodeActions, PieceSolver, SolverAction, WAIT_ACTION } from '../generator/PieceSolver';
 import { GameEngine } from './GameEngine';
-import { LevelMetrics, Mechanic } from './LevelMetrics';
+import { DIRT_TILE_IDS, LevelMetrics, Mechanic } from './LevelMetrics';
+import { isPlayerWalkable } from './Walkability';
 import { CompiledLevel, Direction } from './types';
 
 /** Tunables of the difficulty measures. */
@@ -34,6 +35,7 @@ export const DEFAULT_DIFFICULTY_CONFIG: DifficultyConfig = {
 export const IRREVERSIBLE_KINDS = [
   'water_filled',
   'bomb_used',
+  'wall_raised',
   'door_opened',
   'dirt_cleared',
   'hazard_cleared',
@@ -73,7 +75,7 @@ export interface DifficultyReport {
   /** Solution actions per walkable cell of the map. Proxy for how much of the map the route consumes. */
   stepsPerWalkableCell: number;
 
-  /** Cell and entity changes the player cannot undo, by kind. Reversible (toggle walls, flame jets), forced (socket opening) and free (hidden walls found) changes are skipped, and so is picking up items. */
+  /** Cell and entity changes the player cannot undo, by kind. Reversible (toggle walls, flame jets, laser gates), forced (socket opening) and free (a hidden wall that turns into walkable floor) changes are skipped, and so is picking up items. A block lost next to a hazard cell that changed counts once, as the hazard; removed cloned monsters count in monster_removed. */
   irreversibleByKind: Record<IrreversibleKind, number>;
   /** Total of irreversibleByKind. Proxy for commitment: each one is a place a wrong move can cost the level. */
   irreversibleEvents: number;
@@ -121,6 +123,7 @@ interface Frame {
   terrain: string[][];
   blocks: Map<number, { x: number; y: number }>;
   monsterUids: Set<number>;
+  items: (string | null)[][];
   boots: number;
 }
 
@@ -136,6 +139,7 @@ function frameOf(engine: GameEngine): Frame {
     terrain: engine.getTerrain().map((row) => [...row]),
     blocks,
     monsterUids,
+    items: engine.getItems().map((row) => [...row]),
     boots: engine.getPlayer().boots.size
   };
 }
@@ -145,20 +149,46 @@ function emptyKinds(): Record<IrreversibleKind, number> {
 }
 
 /** Kind of irreversible event a terrain cell turning from `from` to `to` is, or null when reversible. */
-function terrainEventKind(from: string, to: string): IrreversibleKind | null {
+export function terrainEventKind(from: string, to: string): IrreversibleKind | null {
   const before = ConfigRegistry.getTile(from);
   const after = ConfigRegistry.getTile(to);
-  // Reversible (toggle walls, flame jets).
-  if (before.togglesTo || after.togglesTo || before.flameTogglesTo || after.flameTogglesTo) return null;
+  // Reversible (toggle walls, flame jets, laser gates).
+  if (
+    before.togglesTo ||
+    after.togglesTo ||
+    before.flameTogglesTo ||
+    after.flameTogglesTo ||
+    before.laserGateTogglesTo ||
+    after.laserGateTogglesTo
+  ) {
+    return null;
+  }
   if (before.transformsToOnLeave) return 'turtle_sunk';
   if (before.hazard === 'water') return 'water_filled';
-  if (before.hazard === 'bomb') return 'bomb_used';
   if (before.requiredKey) return 'door_opened';
-  if (before.id === 'dirt') return 'dirt_cleared';
-  // Forced (a socket opens once the chips are in) or free (a hidden wall found).
-  if (before.transformsToOnUnlock || before.revealsToOnTouch || before.transformsToOnStep) return null;
+  if (DIRT_TILE_IDS.has(before.id)) return 'dirt_cleared';
+  // Forced: a socket opens once the chips are in.
+  if (before.transformsToOnUnlock) return null;
+  // Free: a hidden wall found. A step that closes the cell for good (recessed wall) is not free.
+  if (before.revealsToOnTouch) return null;
+  if (before.transformsToOnStep) return isPlayerWalkable(after) ? null : 'wall_raised';
   if (before.hazard) return 'hazard_cleared';
   return 'terrain_changed';
+}
+
+/** Bombs that left the item layer between two frames, without turning into a chip (a button swap is reversible). */
+export function bombsUsed(before: (string | null)[][], after: (string | null)[][]): number {
+  let used = 0;
+  for (let y = 0; y < before.length; y++) {
+    for (let x = 0; x < before[y].length; x++) {
+      const was = before[y][x];
+      const now = after[y][x];
+      if (!was || was === now || ConfigRegistry.getTile(was).hazard !== 'bomb') continue;
+      if (now && ConfigRegistry.getTile(now).collectible === 'chip') continue;
+      used++;
+    }
+  }
+  return used;
 }
 
 function chebyshev(ax: number, ay: number, bx: number, by: number): number {
@@ -223,14 +253,26 @@ export class DifficultyMetrics {
           }
         }
       }
-      const terrainEvents = stepEvents;
+      const bombs = bombsUsed(before.items, after.items);
+      if (bombs > 0) {
+        kinds.bomb_used += bombs;
+        stepEvents += bombs;
+      }
+      const hazardCells: Array<{ x: number; y: number }> = [];
+      for (let y = 0; y < after.terrain.length; y++) {
+        for (let x = 0; x < after.terrain[y].length; x++) {
+          if (before.terrain[y][x] !== after.terrain[y][x] && ConfigRegistry.getTile(before.terrain[y][x]).hazard) {
+            hazardCells.push({ x, y });
+          }
+        }
+      }
       let pushed = false;
       for (const [uid, from] of before.blocks) {
         const to = after.blocks.get(uid);
         if (!to) {
           pushed = true;
           // A block that sank into water is already counted as the water being filled.
-          if (terrainEvents === 0) {
+          if (!hazardCells.some((c) => chebyshev(c.x, c.y, from.x, from.y) <= 1)) {
             kinds.block_lost++;
             stepEvents++;
           }

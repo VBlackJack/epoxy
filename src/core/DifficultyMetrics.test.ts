@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
-import { DifficultyMetrics } from './DifficultyMetrics';
+import { bombsUsed, DifficultyMetrics, terrainEventKind } from './DifficultyMetrics';
 import { MECHANICS } from './LevelMetrics';
 import { buildTestLevel } from '../test/buildTestLevel';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -121,6 +121,33 @@ describe('DifficultyMetrics', () => {
     expect(report.solutionSeconds).toBeGreaterThan(0);
     expect(report.timeMarginSeconds).toBeCloseTo(GENEROUS_LIMIT_SECONDS - report.solutionSeconds);
     expect(report.timeRatio).toBeCloseTo(GENEROUS_LIMIT_SECONDS / report.solutionSeconds);
+  });
+
+  it('classifies terrain changes', () => {
+    expect(terrainEventKind('recessed_wall', 'wall')).toBe('wall_raised');
+    expect(terrainEventKind('blue_wall_fake', 'floor')).toBeNull();
+    expect(terrainEventKind('laser_gate_red_closed', 'laser_gate_red_open')).toBeNull();
+    expect(terrainEventKind('toggle_wall_closed', 'toggle_wall_open')).toBeNull();
+    expect(terrainEventKind('flame_jet_off', 'flame_jet_on')).toBeNull();
+    expect(terrainEventKind('socket', 'floor')).toBeNull();
+    expect(terrainEventKind('turtle', 'water')).toBe('turtle_sunk');
+  });
+
+  it('counts bombs that left the item layer but not button swaps', () => {
+    const row = (...ids: Array<string | null>): Array<Array<string | null>> => [ids];
+    expect(bombsUsed(row('bomb', null), row(null, null))).toBe(1);
+    expect(bombsUsed(row('bomb', 'bomb'), row('bomb', 'chip'))).toBe(0);
+    expect(bombsUsed(row('chip'), row(null))).toBe(0);
+  });
+
+  it('does not count a sunk block twice', () => {
+    const sunk = withSolution(
+      buildTestLevel(['#########', '#@.W...E#', '#########'], {
+        entities: [{ x: 2, y: 1, type: 'dirt_block', dir: 'S' }]
+      }),
+      'EEEEEE'
+    );
+    expect(DifficultyMetrics.measure(sunk).irreversibleByKind.block_lost).toBe(0);
   });
 
   it('splits mechanics into known and new', () => {
