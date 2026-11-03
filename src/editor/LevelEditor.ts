@@ -25,7 +25,7 @@ import { confirmDialog } from '../ui/confirmDialog';
 import { askSaveInto } from '../ui/saveIntoDialog';
 import { PixelRenderer } from '../render/PixelRenderer';
 import { DatCodec } from '../formats/DatCodec';
-import { CC3D_XML_EXTENSION } from '../formats/Cc3dXmlCodec';
+import { CC3D_XML_EXTENSION, decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
 import { encodeCc3dLevel } from '../formats/Cc3dXmlEncoder';
 import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
 import { LevelValidator } from '../core/LevelValidator';
@@ -170,6 +170,7 @@ import {
   resolveSavedPassword,
   SaveSource
 } from './saveTarget';
+import { packNameFromFile } from '../ui/cc3dImport';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   EDITOR_BLOCK_CHECK_TIMEOUT_MS,
@@ -3442,8 +3443,8 @@ export class LevelEditor {
 
   /**
    * Opens a file in the editor. A file of several levels can be imported as a
-   * pack instead; a cc3d level is refused before anything is asked about
-   * unsaved work. The level that opens is unsaved work and belongs to no pack.
+   * pack instead; a cc3d .xml file holds one level and opens directly. The
+   * level that opens is unsaved work and belongs to no pack.
    */
   private async importFileIntoEditor(file: File): Promise<void> {
     const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
@@ -3453,7 +3454,7 @@ export class LevelEditor {
     }
     const lower = file.name.toLowerCase();
     if (lower.endsWith(CC3D_XML_EXTENSION)) {
-      this.setStatusText(t('editor.palette.status.not_editable.label'));
+      await this.importCc3dFileIntoEditor(file);
       return;
     }
     const baseName = file.name.replace(/\.[^.]+$/, '');
@@ -3524,6 +3525,28 @@ export class LevelEditor {
         ? t('editor.palette.status.imported_skipped.label', { skipped })
         : t('editor.palette.status.imported')
     );
+  }
+
+  /** Opens one cc3d .xml level; a file that does not decode is reported and the document stays as it was. */
+  private async importCc3dFileIntoEditor(file: File): Promise<void> {
+    let bytes: ArrayBuffer;
+    try {
+      bytes = await file.arrayBuffer();
+    } catch {
+      this.setStatusText(t('editor.palette.status.import_error'));
+      return;
+    }
+    // A file named only by its extension has no stem: the map id and the pack name fall back.
+    const stem = packNameFromFile(file.name) || EXPORT_FALLBACK_FILE_NAME;
+    const decoded = decodeCc3dFiles([{ name: `${stem}${CC3D_XML_EXTENSION}`, bytes }], stem);
+    const failure = decoded.failures[0];
+    if (failure) {
+      this.setStatusText(t(failure.error.key, { ...failure.error.params }));
+      return;
+    }
+    if (!(await this.confirmDiscardIfDirty())) return;
+    if (!this.loadCompiledLevel(decoded.levels[0], { source: NO_SOURCE, dirty: true })) return;
+    this.setStatusText(t('editor.palette.status.imported'));
   }
 
   private setCoordsText(msg: string): void {

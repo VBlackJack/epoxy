@@ -25,6 +25,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const confirmDialog = vi.hoisted(() => vi.fn());
 vi.mock('../ui/confirmDialog', () => ({ confirmDialog }));
 const downloadText = vi.hoisted(() => vi.fn());
+const askSaveInto = vi.hoisted(() => vi.fn());
+vi.mock('../ui/saveIntoDialog', () => ({ askSaveInto }));
 vi.mock('../ui/download', async (importOriginal) => ({ ...(await importOriginal<typeof import('../ui/download')>()), downloadText }));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
@@ -32,7 +34,8 @@ import { validateCc3dLevel } from '../core/cc3d/cc3dValidator';
 import { cc3dModel, stacked, type GlyphMeaning } from '../core/cc3d/cc3dTestMaps';
 import { cellAt, normalizeCell, topTerrain, type Cc3dLevel } from '../core/cc3d/model';
 import type { CompiledLevel } from '../core/types';
-import { decodeCc3dLevel } from '../formats/Cc3dXmlCodec';
+import { Cc3dImportError, decodeCc3dLevel } from '../formats/Cc3dXmlCodec';
+import { encodeCc3dLevel } from '../formats/Cc3dXmlEncoder';
 import { t } from '../i18n/I18nManager';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 import { FakeIndexedDb } from '../test/FakeIndexedDb';
@@ -148,6 +151,7 @@ beforeEach(() => {
     removeItem: (key: string) => void store.delete(key)
   });
   confirmDialog.mockReset();
+  askSaveInto.mockReset();
   downloadText.mockReset();
   mountModals('editor-view');
   canvas = byId<HTMLCanvasElement>('editor-canvas');
@@ -832,5 +836,112 @@ describe('exporting a CC3D level', () => {
   it('cannot export to .CCL: the button is off', () => {
     editor.loadCompiledLevel(areaLevel());
     expect(byId<HTMLButtonElement>('editor-export-ccl-btn').disabled).toBe(true);
+  });
+});
+
+describe('importing a CC3D level', () => {
+  /** Hands a file to the Import input the way the browser does, and lets the async import settle. */
+  async function importFile(name: string, text: string, file: File = new File([text], name, { type: 'text/xml' })): Promise<void> {
+    const input = byId<HTMLInputElement>('editor-import-input');
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await settleAsync();
+  }
+
+  it('opens a .xml level with the CC3D palette, as unsaved work, equal to the level that was encoded', async () => {
+    const source = areaLevel();
+    const level = source.cc3d!;
+    const xml = encodeCc3dLevel(level, { name: 'Area', author: 'Someone' });
+    await importFile('area.xml', xml);
+    expect(tabs()).toHaveLength(CC3D_CATEGORIES.length);
+    expect(editor.hasUnsavedChanges()).toBe(true);
+    expect(status()).toBe(t('editor.palette.status.imported'));
+    const opened = exported();
+    expect(opened.ruleset).toBe('cc3d');
+    expect(opened.cc3d).toEqual(decodeCc3dLevel(xml, { packName: 'area', mapId: 'area', number: 1 }).cc3d);
+    expect(opened.cc3d).toEqual({ ...level, background: 2, player: { ...level.player, dir: 'W' } });
+  });
+
+  /** Paints one cell of the loaded level so the document holds unsaved work. */
+  function paintOneCell(): void {
+    tabs()[FIRST_BUTTON].click();
+    paletteButtons()[SECOND_BUTTON].click();
+    pointer('pointerdown', 1, 2);
+    window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+  }
+
+  it('shows the translated error of a corrupt file and leaves unsaved work untouched, without asking', async () => {
+    editor.loadCompiledLevel(areaLevel());
+    paintOneCell();
+    expect(editor.hasUnsavedChanges()).toBe(true);
+    const edited = exported();
+    await importFile('broken.xml', '<map width="3"');
+    let expected = '';
+    try {
+      decodeCc3dLevel('<map width="3"', { packName: 'broken', mapId: 'broken', number: 1 });
+    } catch (err) {
+      const failure = err as Cc3dImportError;
+      expected = t(failure.key, { ...failure.params });
+    }
+    expect(expected).not.toBe('');
+    expect(status()).toBe(expected);
+    expect(confirmDialog).not.toHaveBeenCalled();
+    expect(editor.hasUnsavedChanges()).toBe(true);
+    expect(exported()).toEqual(edited);
+  });
+
+  it('asks before discarding unsaved work, and keeps it when the answer is no', async () => {
+    editor.loadCompiledLevel(areaLevel());
+    paintOneCell();
+    expect(editor.hasUnsavedChanges()).toBe(true);
+    const edited = exported();
+    const xml = encodeCc3dLevel(smallCc3dLevel().cc3d!, { name: 'Other', author: '' });
+    confirmDialog.mockResolvedValueOnce(false);
+    await importFile('other.xml', xml);
+    expect(confirmDialog).toHaveBeenCalledTimes(1);
+    expect(exported()).toEqual(edited);
+    confirmDialog.mockResolvedValueOnce(true);
+    await importFile('other.xml', xml);
+    expect(confirmDialog).toHaveBeenCalledTimes(2);
+    expect(status()).toBe(t('editor.palette.status.imported'));
+    expect(exported().cc3d).toEqual(decodeCc3dLevel(xml, { packName: 'other', mapId: 'other', number: 1 }).cc3d);
+  });
+
+  it('accepts an upper case extension and opens the CC3D palette', async () => {
+    await importFile('AREA.XML', encodeCc3dLevel(areaLevel().cc3d!, { name: 'Area', author: '' }));
+    expect(status()).toBe(t('editor.palette.status.imported'));
+    expect(exported().ruleset).toBe('cc3d');
+    expect(tabs()).toHaveLength(CC3D_CATEGORIES.length);
+    expect(exported().cc3d?.mapId).toBe('AREA');
+  });
+
+  it('asks for a destination on Save instead of saving in place', async () => {
+    const packId = await storedPackId();
+    await importFile('area.xml', encodeCc3dLevel(areaLevel().cc3d!, { name: 'Area', author: '' }));
+    confirmDialog.mockResolvedValue(true);
+    askSaveInto.mockResolvedValue(null);
+    await editor.save();
+    expect(askSaveInto).toHaveBeenCalledTimes(1);
+    expect(levelsOf(packId)).toHaveLength(0);
+    expect(editor.hasUnsavedChanges()).toBe(true);
+  });
+
+  it('shows the import error when the file cannot be read, and keeps the document', async () => {
+    editor.loadCompiledLevel(areaLevel());
+    const before = exported();
+    const file = new File(['<map/>'], 'area.xml', { type: 'text/xml' });
+    Object.defineProperty(file, 'arrayBuffer', { value: () => Promise.reject(new Error('read failed')) });
+    await importFile('area.xml', '', file);
+    expect(status()).toBe(t('editor.palette.status.import_error'));
+    expect(exported()).toEqual(before);
+    expect(confirmDialog).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the default name for the map id and the pack when the file has no stem', async () => {
+    const xml = encodeCc3dLevel(areaLevel().cc3d!, { name: 'Area', author: '' });
+    await importFile('.xml', xml);
+    expect(status()).toBe(t('editor.palette.status.imported'));
+    expect(exported().cc3d?.mapId).toBe('epoxy_level');
+    expect(exported().id).toContain('epoxy_level');
   });
 });

@@ -15,7 +15,8 @@ versions follow Semantic Versioning.
   of chapter buttons; a short banner names the chapter when you reach its first level.
 - CC3D levels can be edited further: fill (layer entries, bounded by thin walls), selection with copy, cut,
   paste and move (creatures keep their order, changed links are reported), resize anchored top-left, and an
-  Export XML button that writes Chuck's Challenge 3D's own format (CCL export is refused for them).
+  Export XML button that writes Chuck's Challenge 3D's own format (CCL export is refused for them), which
+  Import opens again.
 
 ### Fixed
 
