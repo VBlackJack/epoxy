@@ -19,7 +19,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LevelPack } from '../core/types';
-import { mountModals, resetWindowListeners, settleAsync, stubLayout, trackWindowListeners } from '../test/domFixture';
+import { mountModals, resetWindowListeners, stubLayout, trackWindowListeners } from '../test/domFixture';
 import type { PackManagerHost } from './packManager';
 
 const SHARE_LIMIT_TOO_SMALL = 10;
@@ -116,20 +116,18 @@ describe('pack manager share controls (DOM)', () => {
   it('copies the link of the selected pack and tells so', async () => {
     await openManager('full');
     button('packs-share-copy-btn').click();
-    await settleAsync();
+    await vi.waitFor(() => expect(host.notify).toHaveBeenCalledWith('Share link copied.'));
     expect(writeText).toHaveBeenCalledTimes(1);
     const url = writeText.mock.calls[0][0] as string;
     expect(url).toMatch(/#pack=1\.[A-Za-z0-9_-]+$/);
-    expect(host.notify).toHaveBeenCalledWith('Share link copied.');
   });
 
   it('shows a selected, read-only field when the clipboard refuses', async () => {
     writeText.mockRejectedValue(new Error('denied'));
     await openManager('full');
     button('packs-share-copy-btn').click();
-    await settleAsync();
+    await vi.waitFor(() => expect(document.getElementById('share-link-modal')?.classList.contains('hidden')).toBe(false));
     const field = document.getElementById('share-link-field') as HTMLInputElement;
-    expect(document.getElementById('share-link-modal')?.classList.contains('hidden')).toBe(false);
     expect(field.readOnly).toBe(true);
     expect(field.value).toMatch(/#pack=1\./);
     expect((field.selectionEnd ?? 0) - (field.selectionStart ?? 0)).toBe(field.value.length);
@@ -140,9 +138,8 @@ describe('pack manager share controls (DOM)', () => {
     registry.getGame().share.maxLinkChars = SHARE_LIMIT_TOO_SMALL;
     await openManager('full');
     button('packs-share-copy-btn').click();
-    await settleAsync();
+    await vi.waitFor(() => expect(host.notify).toHaveBeenCalledWith(expect.stringContaining('too big for a share link')));
     expect(writeText).not.toHaveBeenCalled();
-    expect(host.notify).toHaveBeenCalledWith(expect.stringContaining('too big for a share link'));
   });
 
   it('keeps the system share button hidden where the sheet does not exist', async () => {
@@ -155,8 +152,7 @@ describe('pack manager share controls (DOM)', () => {
     await openManager('full');
     expect(isHidden('packs-share-more-btn')).toBe(false);
     button('packs-share-more-btn').click();
-    await settleAsync();
-    expect(nativeShare).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(nativeShare).toHaveBeenCalledTimes(1));
     const data = nativeShare.mock.calls[0][0] as { title: string; url: string };
     expect(data.title).toBe('Full pack');
     expect(data.url).toMatch(/#pack=1\./);
