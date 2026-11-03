@@ -15,6 +15,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
+import { storedSolutionWins } from '../generator/SolutionReplay';
 import { LevelValidator } from './LevelValidator';
 import { CloneLink, CompiledLevel, EntityPlacement } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -41,7 +42,8 @@ const TERRAIN_CODES: Record<string, string> = {
   D: 'door_red',
   X: 'forbid_key_red',
   e: 'thin_wall_e',
-  n: 'thin_wall_n'
+  n: 'thin_wall_n',
+  Y: 'door_yellow'
 };
 const ITEM_CODES: Record<string, { terrain: string; item: string }> = {
   c: { terrain: 'floor', item: 'chip' },
@@ -273,9 +275,9 @@ describe('LevelValidator', () => {
   });
 
   describe('key order trap', () => {
-    // Two red doors, one reachable red key (the other is walled in): the north room holds a bait key, the south door leads to the exit.
+    // Two red doors, one reachable red key (the other is walled in): the north room holds a yellow key that opens only a dead-end yellow door, the south door leads to the exit.
     const trap = (solution?: string): CompiledLevel => {
-      const level = grid(['#####', '#y..#', '#D###', '#Pr.#', '#D###', '#E#r#', '#####']);
+      const level = grid(['#####', '#yY.#', '#D###', '#Pr.#', '#D###', '#E#r#', '#####']);
       if (solution !== undefined) level.solution = solution;
       return level;
     };
@@ -289,7 +291,7 @@ describe('LevelValidator', () => {
     });
 
     it('only warns when the stored solution wins', () => {
-      const report = LevelValidator.validate(trap(WINNING_TRAP_SOLUTION));
+      const report = LevelValidator.validate(trap(WINNING_TRAP_SOLUTION), storedSolutionWins);
       expect(report.valid).toBe(true);
       const found = report.issues.find((i) => i.i18nKey === PROVEN);
       expect(found?.severity).toBe('warning');
@@ -297,9 +299,29 @@ describe('LevelValidator', () => {
     });
 
     it('keeps the error when the stored solution does not win', () => {
-      const report = LevelValidator.validate(trap('EWNNN'));
+      const report = LevelValidator.validate(trap('EWNNN'), storedSolutionWins);
       expect(report.valid).toBe(false);
       expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE);
+    });
+  });
+
+  describe('key scarcity', () => {
+    // One red door leads nowhere, the other holds the second key and the exit: the spare key must go to the second.
+    const rooms = (rows: string[]): boolean => LevelValidator.validate(grid(rows)).valid;
+
+    it('opens the rewarding door first with no stored solution (dead end north)', () => {
+      expect(rooms(['#####', '#...#', '#D###', '#Pr.#', '#D###', '#Er.#', '#####'])).toBe(true);
+    });
+
+    it('opens the rewarding door first with no stored solution (dead end south)', () => {
+      expect(rooms(['#####', '#Er.#', '#D###', '#Pr.#', '#D###', '#...#', '#####'])).toBe(true);
+    });
+
+    it('opens every door of a long corridor when the keys cover them', () => {
+      const doors = 90;
+      const row = `#P${'r'.repeat(doors)}${'D'.repeat(doors)}E#`;
+      const wall = '#'.repeat(row.length);
+      expect(rooms([wall, row, wall])).toBe(true);
     });
   });
 });
