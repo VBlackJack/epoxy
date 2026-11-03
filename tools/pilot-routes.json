@@ -270,6 +270,52 @@
         "ESNNNNEEESS",
         "WSS"
       ]
+    },
+    "epoxy_p_21": {
+      "segments": [
+        "SESEEEEEWWN",
+        "EEEEWSWWWWW",
+        "SSWWNESENWN",
+        "EEEEESEEWNW",
+        "WWSEEEEEEEW",
+        "WWWNWNEEEEE"
+      ]
+    },
+    "epoxy_p_22": {
+      "segments": [
+        "EENNNWWWNSE",
+        "ENWWENWEENW",
+        "WEEEEEESESS",
+        "WNSWWNEEWNE"
+      ]
+    },
+    "epoxy_p_23": {
+      "segments": [
+        "EEEEEWEWEWE",
+        ".SWSWWWWWWW",
+        "WWEEEEEEEEE",
+        "NNWWWWWWWWW"
+      ]
+    },
+    "epoxy_p_24": {
+      "segments": [
+        "EWWWWWWWSSW",
+        "SEEEEEESS"
+      ]
+    },
+    "epoxy_p_25": {
+      "segments": [
+        "SWSWSSEESSW",
+        "WWWWSWNNNEN",
+        "WWWNWWSWWWW",
+        "SSSSSNNNNNE",
+        "EEENEESWWWW",
+        "WNWSSSSSNNN",
+        "NEEEEEEEENN",
+        "NEESSESWWWW",
+        "WWWWWWNWSSS",
+        "S"
+      ]
     }
   }
 }

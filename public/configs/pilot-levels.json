@@ -1019,6 +1019,342 @@
         "waters": 2,
         "targets": 0
       }
+    },
+    {
+      "id": "epoxy_p_21",
+      "theme": "cyber_neon",
+      "solution": "SESEEEEEWWNEEEEWSWWWWWSSWWNESENWNEEEEESEEWNWWWSEEEEEEEWWWWNWNEEEEE",
+      "number": 21,
+      "titleKey": "pilot.levels.level_21.title",
+      "hintKey": "pilot.levels.level_21.hint",
+      "password": "FILL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###############",
+        "#.###....W#####",
+        "#H.##....W....#",
+        "##.......W#####",
+        "#...#....W....#",
+        "#...#....W#####",
+        "###############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 13,
+          "y": 2,
+          "id": "block_target"
+        },
+        {
+          "x": 13,
+          "y": 4,
+          "id": "block_target"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "winRule": "targets",
+      "blockBudget": {
+        "waters": 2,
+        "targets": 2
+      }
+    },
+    {
+      "id": "epoxy_p_22",
+      "theme": "cyber_neon",
+      "solution": "EENNNWWWNSEENWWENWEENWWEEEEEESESSWNSWWNEEWNE",
+      "number": 22,
+      "titleKey": "pilot.levels.level_22.title",
+      "hintKey": "pilot.levels.level_22.hint",
+      "password": "TIDY",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 3,
+        "y": 8,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.........#",
+        "#.........#",
+        "#.........#",
+        "#.........#",
+        "#.........#",
+        "#.........#",
+        "#####.#####",
+        "###.H.#####",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 1,
+          "y": 2,
+          "id": "block_target"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "block_target"
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "id": "block_target"
+        },
+        {
+          "x": 9,
+          "y": 3,
+          "id": "block_target"
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "id": "block_target"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "block_target"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 8,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "winRule": "targets",
+      "blockBudget": {
+        "waters": 0,
+        "targets": 6
+      }
+    },
+    {
+      "id": "epoxy_p_23",
+      "theme": "cyber_neon",
+      "solution": "EEEEEWEWEWE.SWSWWWWWWWWWEEEEEEEEENNWWWWWWWWW",
+      "number": 23,
+      "titleKey": "pilot.levels.level_23.title",
+      "hintKey": "pilot.levels.level_23.hint",
+      "password": "TICK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "playerStart": {
+        "x": 6,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "################",
+        "#ES....H....####",
+        "##########..####",
+        "#C.............#",
+        "################",
+        "################"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 11,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "pink_ball",
+          "x": 4,
+          "y": 3,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_p_24",
+      "theme": "cyber_neon",
+      "solution": "EWWWWWWWSSWSEEEEEESS",
+      "number": 24,
+      "titleKey": "pilot.levels.level_24.title",
+      "hintKey": "pilot.levels.level_24.hint",
+      "password": "SAND",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 12,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###############",
+        "######....H...#",
+        "######.########",
+        "#####..########",
+        "#####.g.......#",
+        "###########.###",
+        "###########E###",
+        "###############"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "pink_ball",
+          "x": 10,
+          "y": 4,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
+      "id": "epoxy_p_25",
+      "theme": "cyber_neon",
+      "solution": "SWSWSSEESSWWWWWSWNNNENWWWNWWSWWWWSSSSSNNNNNEEEENEESWWWWWNWSSSSSNNNNEEEEEEEENNNEESSESWWWWWWWWWWNWSSSS",
+      "number": 25,
+      "titleKey": "pilot.levels.level_25.title",
+      "hintKey": "pilot.levels.level_25.hint",
+      "password": "WORK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 15,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#################",
+        "#.......#....##.#",
+        "#..##...#....#H.#",
+        "#..##...#......##",
+        "#.............###",
+        "#.#######..#....#",
+        "#.#######..#....#",
+        "#.#######.......#",
+        "#.#######.......#",
+        "#.###############",
+        "#.###############",
+        "#################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 1,
+          "y": 8,
+          "id": "block_target"
+        },
+        {
+          "x": 1,
+          "y": 9,
+          "id": "block_target"
+        },
+        {
+          "x": 1,
+          "y": 10,
+          "id": "block_target"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 11,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 1,
+          "y": 6,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 14,
+          "y": 7,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "winRule": "targets",
+      "blockBudget": {
+        "waters": 0,
+        "targets": 3
+      }
     }
   ]
 }

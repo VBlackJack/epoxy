@@ -1258,6 +1258,26 @@
       "level_20": {
         "title": "Le pont foulé",
         "hint": "Une rivière de deux cases demande deux blocs dans la même rangée, et la terre fraîche arrête un bloc tant que tu n'as pas marché dessus."
+      },
+      "level_21": {
+        "title": "Le remblai",
+        "hint": "Un bloc coulé dans la rivière laisse un pont, mais un pont n'aide qu'un bloc qui voyage dans la rangée de sa cible."
+      },
+      "level_22": {
+        "title": "Le rangement",
+        "hint": "Chaque bloc est à quelques poussées de sa cible : couvre toutes les cibles pour gagner, dans l'ordre que tu veux."
+      },
+      "level_23": {
+        "title": "Le métronome",
+        "hint": "Une boule rose file droit dans son couloir et fait demi-tour contre un mur ; un bloc l'arrête : elle ne peut ni le franchir ni le pousser."
+      },
+      "level_24": {
+        "title": "La traverse",
+        "hint": "Une boule rose ne marche jamais sur le gravier, et un bloc entre elle et toi la tient à distance."
+      },
+      "level_25": {
+        "title": "L'atelier",
+        "hint": "Un bloc arrêté au-dessus d'une cible vide est bloqué pour toujours dès qu'un autre bloc se pose dessus : remplis une baie par le bas."
       }
     },
     "chapter": {

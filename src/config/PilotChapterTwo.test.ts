@@ -20,10 +20,20 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { BlockPuzzleSolver } from '../core/BlockPuzzleSolver';
 import { GameEngine } from '../core/GameEngine';
+import { LevelValidator } from '../core/LevelValidator';
 import { CompiledLevel, Direction } from '../core/types';
 import { PieceSolver } from '../generator/PieceSolver';
+import { storedSolutionWins } from '../generator/SolutionReplay';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { searchCanWin, searchShortestWin } from '../test/pilotSearch';
+import { analyseNaturalPlay } from '../test/pilotNaturalPlay';
+import { pushWinExists, searchPushWin } from '../test/pilotPushSearch';
+import {
+  applySearchAction,
+  searchActions,
+  searchCanWin,
+  searchShortestWin,
+  searchStateKey
+} from '../test/pilotSearch';
 import { ConfigRegistry } from './ConfigRegistry';
 
 /** Generous search ceilings: the rooms are small, so a runaway proof fails loudly instead of hanging. */
@@ -36,6 +46,11 @@ const FORD_LEVEL = 'epoxy_p_17';
 const RAILS_LEVEL = 'epoxy_p_18';
 const DEAD_ENDS_LEVEL = 'epoxy_p_19';
 const BRIDGE_LEVEL = 'epoxy_p_20';
+const EMBANKMENT_LEVEL = 'epoxy_p_21';
+const TIDY_LEVEL = 'epoxy_p_22';
+const METRONOME_LEVEL = 'epoxy_p_23';
+const CROSSING_LEVEL = 'epoxy_p_24';
+const WORKSHOP_LEVEL = 'epoxy_p_25';
 
 function levelById(id: string): CompiledLevel {
   const level = ConfigRegistry.getPilotLevels().find((l) => l.id === id);
@@ -355,5 +370,352 @@ describe('pilot chapter 2 the trodden bridge', () => {
     expect(engine.getTerrain()[5][6]).toBe('dirt');
     expect(engine.getEntities().filter((e) => e.type === 'dirt_block')).toHaveLength(0);
     expect(searchCanWin(engine, { stateCap: SEARCH_STATE_CAP })).toBe(false);
+  });
+});
+
+/** The player's, the blocks' and the ball's cells after each move of the stored solution. */
+function trace(level: CompiledLevel): Array<{ player: { x: number; y: number }; block: { x: number; y: number } | null; ball: { x: number; y: number } | null }> {
+  const engine = engineFor(level);
+  const steps: Array<{ player: { x: number; y: number }; block: { x: number; y: number } | null; ball: { x: number; y: number } | null }> = [];
+  for (const move of level.solution ?? '') {
+    expect(PieceSolver.play(engine, (move === '.' ? 'WAIT' : move) as Direction)).toBe(true);
+    const find = (type: string) => engine.getEntities().find((e) => e.type === type);
+    const block = find('dirt_block');
+    const ball = find('pink_ball');
+    steps.push({
+      player: { x: engine.getPlayer().x, y: engine.getPlayer().y },
+      block: block ? { x: block.x, y: block.y } : null,
+      ball: ball ? { x: ball.x, y: ball.y } : null
+    });
+  }
+  expect(engine.isLevelCompleted()).toBe(true);
+  return steps;
+}
+
+describe('pilot chapter 2 the embankment', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  /** Walk to the block beside the hint stair and push it east along row 3 into the river: a bridge in a row with no target. */
+  const WRONG_ROW_BRIDGE = 'SESEEEEEE';
+
+  it('is won by its stored solution: two blocks fill two river cells and two blocks cover the targets', { timeout: TEST_TIMEOUT_MS }, () => {
+    const level = levelById(EMBANKMENT_LEVEL);
+    expect(level.winRule).toBe('targets');
+    expect(level.blockBudget).toEqual({ waters: 2, targets: 2 });
+    expect(level.solution?.length).toBe(66);
+    const engine = engineFor(level);
+    let sunk = 0;
+    for (const move of level.solution ?? '') {
+      const before = engine.getEntities().length;
+      expect(PieceSolver.play(engine, move as Direction)).toBe(true);
+      if (engine.getEntities().length < before) sunk++;
+    }
+    expect(engine.isLevelCompleted()).toBe(true);
+    expect(sunk).toBe(2);
+  });
+
+  it('is proven solvable by the exact push search, with the fewest pushes and nothing to spare', { timeout: TEST_TIMEOUT_MS }, () => {
+    const level = levelById(EMBANKMENT_LEVEL);
+    // Nothing to spare: as many blocks as bridges plus targets.
+    expect(level.entities.filter((e) => e.type === 'dirt_block')).toHaveLength(4);
+    expect(searchPushWin(engineFor(level))).toEqual({ pushes: 30 });
+    // Targets sit in rows 2 and 4 only; the other river rows lead to walls.
+    expect(level.terrain[2][13]).toBe('block_target');
+    expect(level.terrain[4][13]).toBe('block_target');
+    expect(level.terrain[3][10]).toBe('wall');
+  });
+
+  it('is lost by a bridge in a row that holds no target: the block count no longer covers two bridges and two targets', { timeout: TEST_TIMEOUT_MS }, () => {
+    const level = levelById(EMBANKMENT_LEVEL);
+    const engine = engineAfter(level, WRONG_ROW_BRIDGE);
+    expect(engine.getTerrain()[3][9]).toBe('dirt');
+    expect(blockCells(engine)).toHaveLength(3);
+    expect(pushWinExists(engine)).toBe(false);
+    // The same moves in the right row leave the level winnable (the first bridge of the stored solution).
+    expect(pushWinExists(engineFor(level))).toBe(true);
+  });
+});
+
+describe('pilot chapter 2 tidying up', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  /** Where each block starts and the pushes that bring it to its own target. */
+  const PLANS = [
+    { at: [3, 2], pushes: 'WW' },
+    { at: [2, 4], pushes: 'NW' },
+    { at: [3, 4], pushes: 'WW' },
+    { at: [7, 2], pushes: 'EE' },
+    { at: [8, 4], pushes: 'NE' },
+    { at: [7, 4], pushes: 'EE' }
+  ] as Array<{ at: [number, number]; pushes: string }>;
+
+  it('is won by its stored solution with six blocks on six targets, each two pushes from home', () => {
+    const level = levelById(TIDY_LEVEL);
+    expect(level.winRule).toBe('targets');
+    expect(level.blockBudget).toEqual({ waters: 0, targets: 6 });
+    expect(level.solution?.length).toBe(44);
+    expect(pushesOf(level)).toBe(12);
+  });
+
+  it('cannot be stranded by the designer plan: from every state reached by pushing blocks along their own two-push routes, in any order, a finish exists', () => {
+    const level = levelById(TIDY_LEVEL);
+    const report = analyseNaturalPlay(engineFor(level), PLANS);
+    expect(report.deadStates).toBe(0);
+    expect(report.states).toBe(1597);
+    expect(report.shortest).toBe(level.solution);
+  });
+
+  it('is proven solvable by the block solver once the west blocks are home (the full six-block room did not finish in 500 s of exhaustive search, so the plan analysis above is its proof)', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(TIDY_LEVEL);
+    const east = startBlocks(level).filter(([x]) => x > 5);
+    const room = pureRoom(level, [[1, 2], [1, 3], [1, 4], ...east], [5, 6]);
+    expect(BlockPuzzleSolver.verdict(room)).toEqual({ kind: 'solved', pushes: 6 });
+  });
+});
+
+describe('pilot chapter 2 the metronome', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  /** The level with the block gone and its niche closed by a wall: the ball can only be dodged. */
+  function withoutBlock(): CompiledLevel {
+    const level = structuredClone(levelById(METRONOME_LEVEL));
+    level.entities = level.entities.filter((e) => e.type !== 'dirt_block');
+    level.terrain[2][11] = 'wall';
+    return level;
+  }
+
+  it('starts the player outside a corridor of fourteen cells whose dead end holds the only chip, and stores a win that cuts it with the block', () => {
+    const level = levelById(METRONOME_LEVEL);
+    expect(level.terrain[3].filter((id) => id === 'floor')).toHaveLength(14);
+    expect(level.items[3][1]).toBe('chip');
+    expect(level.chipsRequired).toBe(1);
+    // No cell beside the corridor to stand in: row 4 is wall, and row 2 is wall but for the entry (10,2) and the niche (11,2).
+    expect(level.terrain[4].every((id) => id === 'wall')).toBe(true);
+    expect(level.terrain[2].map((id, x) => (id === 'wall' ? null : x)).filter((x) => x !== null)).toEqual([10, 11]);
+    expect(level.playerStart.y).toBe(1);
+    expect(level.solution?.length).toBe(44);
+    const steps = trace(level);
+    const last = steps[steps.length - 1];
+    expect(last.block).toEqual({ x: 11, y: 3 });
+    // The ball ends east of the block, in the part of the corridor the player never uses.
+    expect((last.ball as { x: number }).x).toBeGreaterThan(11);
+    // The player stands on the corridor only after the block is in it.
+    const firstOnCorridor = steps.findIndex((s) => s.player.y === 3);
+    expect(steps[firstOnCorridor].block).toEqual({ x: 11, y: 3 });
+  });
+
+  it('has no shorter win than its stored solution, with drops allowed', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(METRONOME_LEVEL);
+    const win = searchShortestWin(engineFor(level), { stateCap: 3000000, allowDrops: true });
+    expect(win?.length).toBe(44);
+  });
+
+  it('cannot be won by dodging: with the block replaced by a wall no win exists, drops allowed', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    expect(searchCanWin(engineFor(withoutBlock()), { stateCap: 3000000, allowDrops: true })).toBe(false);
+  });
+});
+
+/** Shortest win of the crossing with its gravel cell turned into floor (null when none exists). */
+const GRAVEL_FLOOR_SHORTEST = 23;
+
+describe('pilot chapter 2 the crossing', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('is won by its stored solution, and no shorter win exists, drops allowed', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(CROSSING_LEVEL);
+    expect(level.solution?.length).toBe(20);
+    const win = searchShortestWin(engineFor(level), { stateCap: 3000000, allowDrops: true });
+    expect(win?.length).toBe(20);
+  });
+
+  it('has no dodge: in every reachable state, drops included, the player stands on the live corridor only behind the block, with the ball beyond it', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    // Taking the block out is no counterfactual: with the lane open the corridor can be dodged (16 moves), because
+    // the block is what shuts the corridor to the player. So the proof is over the real level, all states.
+    const level = levelById(CROSSING_LEVEL);
+    const engine = engineFor(level);
+    const seen = new Set<string>([searchStateKey(engine)]);
+    const queue = [engine.captureState()];
+    let breach: string | null = null;
+    for (let head = 0; head < queue.length && breach === null; head++) {
+      for (const action of (engine.restoreState(queue[head]), searchActions(engine, true))) {
+        engine.restoreState(queue[head]);
+        if (!applySearchAction(engine, action)) continue;
+        const player = engine.getPlayer();
+        const block = engine.getEntities().find((e) => e.type === 'dirt_block');
+        const ball = engine.getEntities().find((e) => e.type === 'pink_ball');
+        if (player.y === 4 && player.x >= 7 && !(block && block.y === 4 && block.x > player.x && ball && ball.x > block.x)) {
+          breach = `${player.x},${player.y} block ${block?.x},${block?.y} ball ${ball?.x},${ball?.y}`;
+          break;
+        }
+        if (engine.isLevelCompleted()) continue;
+        const key = searchStateKey(engine);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        expect(seen.size).toBeLessThan(3000000);
+        queue.push(engine.captureState());
+      }
+    }
+    expect(breach).toBeNull();
+    expect(seen.size).toBeGreaterThan(1000);
+  });
+
+  it('gives the gravel a job: as plain floor the ball would reach the cell the block drops on, and the shortest win changes', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = structuredClone(levelById(CROSSING_LEVEL));
+    expect(level.terrain[4][6]).toBe('gravel');
+    expect(level.terrain.flat().filter((id) => id === 'gravel')).toHaveLength(1);
+    level.terrain[4][6] = 'floor';
+    const win = searchShortestWin(engineFor(level), { stateCap: 3000000, allowDrops: true });
+    expect(win?.length ?? null).toBe(GRAVEL_FLOOR_SHORTEST);
+    // The stored solution no longer wins there: the ball walks onto the cell and meets the player or the block.
+    expect(storedSolutionWins(level)).toBe(false);
+    const engine = engineFor(level);
+    let westmost = Number.POSITIVE_INFINITY;
+    for (const move of level.solution ?? '') {
+      if (!PieceSolver.play(engine, (move === '.' ? 'WAIT' : move) as Direction)) break;
+      const ball = engine.getEntities().find((e) => e.type === 'pink_ball');
+      if (ball && ball.y === 4) westmost = Math.min(westmost, ball.x);
+    }
+    expect(westmost).toBeLessThanOrEqual(6);
+  });
+
+  it('never lets the player stand on the ball corridor except behind the block, with the ball beyond it', () => {
+    const level = levelById(CROSSING_LEVEL);
+    const steps = trace(level);
+    const onCorridor = steps.filter((s) => s.player.y === 4);
+    expect(onCorridor.length).toBeGreaterThan(5);
+    for (const step of onCorridor) {
+      expect(step.block?.y).toBe(4);
+      expect(step.block?.x).toBeGreaterThan(step.player.x);
+      expect(step.ball?.x).toBeGreaterThan(step.block?.x ?? 0);
+    }
+  });
+});
+
+describe('pilot chapter 2 the workshop', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('is won by its stored solution with three blocks in a bay of three targets', () => {
+    const level = levelById(WORKSHOP_LEVEL);
+    expect(level.winRule).toBe('targets');
+    expect(level.blockBudget).toEqual({ waters: 0, targets: 3 });
+    expect(level.solution?.length).toBe(100);
+    expect(pushesOf(level)).toBe(41);
+  });
+
+  it('is proven solvable by the block solver on the real level', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(WORKSHOP_LEVEL);
+    expect(BlockPuzzleSolver.verdict(engineFor(level), 3000000)).toEqual({ kind: 'solved', pushes: 41 });
+  });
+
+  it('is lost when the first block rests on the lit top target and a second one is brought right above it', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(WORKSHOP_LEVEL);
+    const [, , c] = startBlocks(level);
+    // Nobody can stand above the second block to push the first one down, and the second cannot go round it.
+    expect(verdictKind(pureRoom(level, [[1, 8], [1, 7], c], [1, 6]))).toBe('unsolvable');
+    // The same blocks one step earlier, the first pushed down to the bottom, are fine.
+    expect(verdictKind(pureRoom(level, [[1, 10], [1, 7], c], [1, 6]))).toBe('solved');
+  });
+
+  it('makes the block wedged in the bay shaft go first: a second block pushed down onto it is lost, pushed first it is fine', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(WORKSHOP_LEVEL);
+    const [a, wedged, c] = startBlocks(level);
+    // The bay is a one-wide shaft with no other way in.
+    expect(wedged).toEqual([1, 6]);
+    expect(level.terrain[wedged[1]][wedged[0] + 1]).toBe('wall');
+    expect(level.terrain[8][2]).toBe('wall');
+    // Arises when another block is brought to the top of the shaft (the player behind it at (1,4)) and pushed
+    // down one cell to (1,5) while the wedged block still stands at (1,6): the wedged block is now under it, nobody
+    // can stand above the wedged block to push it, and the shaft is shut for good.
+    expect(verdictKind(pureRoom(level, [[1, 5], [1, 6], c], [1, 4]))).toBe('unsolvable');
+    // Arises when the wedged block is pushed first, one cell down to (1,7), the player standing where it was at (1,6):
+    // the shaft is clear above it and the rest can follow.
+    expect(verdictKind(pureRoom(level, [a, [1, 7], c], [1, 6]))).toBe('solved');
+  });
+
+  it('is lost by pushing the east block up onto the top wall, where it can only slide along the wall', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(WORKSHOP_LEVEL);
+    const [a, b, c] = startBlocks(level);
+    expect(level.terrain[a[1] - 2][a[0]]).toBe('wall');
+    expect(pushWinExists(pureRoom(level, [a, b, c], [level.playerStart.x, level.playerStart.y]))).toBe(true);
+    expect(verdictKind(pureRoom(level, [[a[0], a[1] - 1], b, c], [a[0], a[1]]))).toBe('unsolvable');
+  });
+});
+
+describe('pilot pack hidden items', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  /**
+   * The level whose chip lies at the dead end of a ball corridor the block is pushed into: the
+   * validator lets a block travel the corridor from the cell it lands on, but the block can only
+   * be pushed that far by a player standing east of it, where the ball is. The exhaustive state
+   * search in 'never lets a block reach a chip or the hint of the metronome' proves that no
+   * reachable state puts a block on such a cell. Every other level must be silent.
+   */
+  const KNOWN_CORRIDOR_CHIP = new Set([METRONOME_LEVEL]);
+
+  it('has no error and no item or hint a block can cover in any pilot level', () => {
+    for (const level of ConfigRegistry.getPilotLevels()) {
+      const report = LevelValidator.validate(level, storedSolutionWins);
+      const errors = report.issues.filter((i) => i.severity === 'error');
+      expect({ id: level.id, errors }).toEqual({ id: level.id, errors: [] });
+      const hidden = report.issues.find((i) => i.i18nKey === 'validator.issues.hidden_by_block.label');
+      // The metronome's chip is the one covered cell the validator sees: exactly one.
+      expect({ id: level.id, count: hidden?.params?.count ?? 0 }).toEqual({ id: level.id, count: KNOWN_CORRIDOR_CHIP.has(level.id) ? 1 : 0 });
+    }
+  });
+});
+
+describe('pilot chapter 2 the metronome, covered cells', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('never lets a block reach a chip or the hint of the metronome: no reachable state, ball and drops included, covers one', { timeout: PURE_ROOM_TIMEOUT_MS }, () => {
+    const level = levelById(METRONOME_LEVEL);
+    const guarded = new Set<string>();
+    level.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        const item = level.items[y][x];
+        const collectible = item !== null && ConfigRegistry.getTile(item).collectible !== undefined;
+        if (ConfigRegistry.getTile(id).showsHint || collectible) guarded.add(`${x},${y}`);
+      })
+    );
+    expect(guarded.size).toBe(2);
+    const engine = engineFor(level);
+    const seen = new Set<string>([searchStateKey(engine)]);
+    const queue = [engine.captureState()];
+    let covered: string | null = null;
+    for (let head = 0; head < queue.length && covered === null; head++) {
+      for (const action of (engine.restoreState(queue[head]), searchActions(engine, true))) {
+        engine.restoreState(queue[head]);
+        if (!applySearchAction(engine, action)) continue;
+        const hit = engine.getEntities().find((e) => e.type === 'dirt_block' && guarded.has(`${e.x},${e.y}`));
+        if (hit) {
+          covered = `${hit.x},${hit.y}`;
+          break;
+        }
+        if (engine.isLevelCompleted()) continue;
+        const key = searchStateKey(engine);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        expect(seen.size).toBeLessThan(3000000);
+        queue.push(engine.captureState());
+      }
+    }
+    expect(covered).toBeNull();
+    // The search really explored the level, including the states after the block drops.
+    expect(seen.size).toBeGreaterThan(1000);
   });
 });
