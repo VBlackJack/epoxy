@@ -121,8 +121,9 @@ function playfieldSignature(level: CompiledLevel): string {
     level.winRule ?? DEFAULT_WIN_RULE,
     level.ruleset ?? DEFAULT_RULESET,
     String(level.chipsRequired),
-    // A CC3D level is its cells and its mobs, in order (mob order decides which clone machine or shooter links).
-    level.cc3d ? canonicalJson({ ...level.cc3d, mapId: undefined }) : ''
+    // A CC3D level is its cells and its mobs, in order (mob order decides which clone machine or shooter links);
+    // its map id and background are display only.
+    level.cc3d ? canonicalJson({ ...level.cc3d, mapId: undefined, background: undefined }) : ''
   ].join('#');
 }
 

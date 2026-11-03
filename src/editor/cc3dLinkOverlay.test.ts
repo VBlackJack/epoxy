@@ -19,7 +19,8 @@ import { cc3dModel, stacked, type GlyphMeaning } from '../core/cc3d/cc3dTestMaps
 import { normalizeCell, type Cc3dLevel } from '../core/cc3d/model';
 import { EDITOR_CC3D_MAX_LINK_MESSAGES } from '../ui/uiConstants';
 import { placeLayer, placeMob, removeMob } from './cc3dEdits';
-import { describeLinkChanges, diffCc3dLinks, linkOverlayFor, MESSAGE_CC3D_LINK_MORE } from './cc3dLinkOverlay';
+import { describeLinkChanges, diffCc3dLinks, diffCc3dLinksByPosition, linkOverlayFor, MESSAGE_CC3D_LINK_MORE } from './cc3dLinkOverlay';
+import { moveCc3dRect, resizeCc3d } from './cc3dAreaEdits';
 
 const GLYPHS: Record<string, GlyphMeaning> = {
   b: stacked({ kind: 'floor' }, { kind: 'trap_control' }),
@@ -133,5 +134,83 @@ describe('link changes after an edit', () => {
     expect(messages.at(-1)).toEqual({ key: MESSAGE_CC3D_LINK_MORE, params: { count: 2 } });
     expect(describeLinkChanges(many.slice(0, EDITOR_CC3D_MAX_LINK_MESSAGES))).toHaveLength(EDITOR_CC3D_MAX_LINK_MESSAGES);
     expect(describeLinkChanges([])).toEqual([]);
+  });
+});
+
+describe('diffCc3dLinksByPosition', () => {
+  const bounds = { minSize: 1, maxSize: 128 };
+  // control b (2,2); traps C (1,1), A (4,2), B (5,3): the control opens A, the next trap after it in reading order
+  const rows = ['#######', '#c....#', '#.b.c.#', '#@...c#', '#######'];
+  const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
+
+  it('reports the trap wrap-around a crop causes', () => {
+    const before = level(rows);
+    const cropped = resizeCc3d(before, 4, 5, bounds).level;
+    expect(diffCc3dLinksByPosition(before, cropped)).toEqual([
+      { kind: 'trap', from: { x: 2, y: 2 }, to: { x: 1, y: 1 }, was: { x: 4, y: 2 } }
+    ]);
+    expect(describeLinkChanges(diffCc3dLinksByPosition(before, cropped))).toEqual([
+      { key: 'editor.cc3d.status.link_trap', params: { x: 2, y: 2, toX: 1, toY: 1 } }
+    ]);
+  });
+
+  it('is silent when the crop keeps every target, drops the source, or the level grows', () => {
+    const before = level(rows);
+    expect(diffCc3dLinksByPosition(before, resizeCc3d(before, 7, 3, bounds).level)).toEqual([]);
+    expect(diffCc3dLinksByPosition(before, resizeCc3d(before, 2, 5, bounds).level)).toEqual([]);
+    expect(diffCc3dLinksByPosition(before, resizeCc3d(before, 12, 9, bounds).level)).toEqual([]);
+    expect(diffCc3dLinksByPosition(before, before)).toEqual([]);
+  });
+
+  it('reports a link that lost every trap in a crop, with no target', () => {
+    const before = level(['#######', '#@.b.c#', '#######']);
+    const cropped = resizeCc3d(before, 5, 3, bounds).level;
+    expect(diffCc3dLinksByPosition(before, cropped)).toEqual([{ kind: 'trap', from: { x: 3, y: 1 }, to: null, was: { x: 5, y: 1 } }]);
+  });
+
+  it('matches a moved source through the translation, and reports where it now points', () => {
+    const before = level(rows);
+    const moved = moveCc3dRect(before, rect(2, 2, 1, 1), 4, 1).level; // control to (6,3): past every trap
+    const move = { rect: rect(2, 2, 1, 1), dx: 4, dy: 1 };
+    expect(diffCc3dLinksByPosition(before, moved, move)).toEqual([
+      { kind: 'trap', from: { x: 6, y: 3 }, to: { x: 1, y: 1 }, was: { x: 4, y: 2 } }
+    ]);
+    // without the translation the source at (2,2) is simply gone
+    expect(diffCc3dLinksByPosition(before, moved)).toEqual([]);
+  });
+
+  it('does not report a trap that moved along with its control, or a trap that kept its role', () => {
+    const before = level(['########', '#@b.c..#', '########']);
+    const together = moveCc3dRect(before, rect(2, 1, 3, 1), 2, 0).level;
+    expect(diffCc3dLinksByPosition(before, together, { rect: rect(2, 1, 3, 1), dx: 2, dy: 0 })).toEqual([]);
+    // the moved trap is still the one the control opens
+    const trapOnly = moveCc3dRect(before, rect(4, 1, 1, 1), 2, 0).level;
+    expect(diffCc3dLinksByPosition(before, trapOnly, { rect: rect(4, 1, 1, 1), dx: 2, dy: 0 })).toEqual([]);
+  });
+
+  it('does not report a control that the move overwrote', () => {
+    // control A (4,1) opens the trap (6,1); control B (2,2) and its trap (3,2) move onto (4,1) and (5,1)
+    const before = level(['#########', '#...b.c.#', '#.bc....#', '#@......#', '#########']);
+    const move = { rect: rect(2, 2, 2, 1), dx: 2, dy: -1 };
+    const moved = moveCc3dRect(before, move.rect, move.dx, move.dy).level;
+    expect(diffCc3dLinksByPosition(before, moved, move)).toEqual([]);
+  });
+
+  it('reports a trap that moved away and left the control on another one', () => {
+    const before = level(rows);
+    const away = moveCc3dRect(before, rect(4, 2, 1, 1), -3, -2).level; // trap A to (1,0), before the control
+    expect(diffCc3dLinksByPosition(before, away, { rect: rect(4, 2, 1, 1), dx: -3, dy: -2 })).toEqual([
+      { kind: 'trap', from: { x: 2, y: 2 }, to: { x: 5, y: 3 }, was: { x: 4, y: 2 } }
+    ]);
+  });
+
+  it('follows a laser controller and a clone switch by position as well', () => {
+    const before = level(['#########', '#@l.....B#', '#########']);
+    const cropped = resizeCc3d(before, 6, 3, bounds).level;
+    expect(diffCc3dLinksByPosition(before, cropped)).toEqual([{ kind: 'laser', from: { x: 2, y: 1 }, to: null, was: { x: 8, y: 1 } }]);
+    const machines = level(['#########', '#@z..m..m#', '#########']);
+    expect(diffCc3dLinksByPosition(machines, resizeCc3d(machines, 4, 3, bounds).level)).toEqual([
+      { kind: 'clone_switch', from: { x: 2, y: 1 }, to: null, was: { x: 5, y: 1 } }
+    ]);
   });
 });

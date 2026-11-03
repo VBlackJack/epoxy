@@ -83,10 +83,10 @@ export interface Cc3dBrushAttributes {
 export const CC3D_PLAYER_ENTRY_KIND = 'player';
 export const CC3D_PANEL_ENTRY_KIND = 'panel';
 
-/** The four corners an ice corner can close, as its two closed sides. */
+/** The four corners an ice corner can close, as its two closed sides (the south-east one is written E, S, as the decoder does). */
 export const CC3D_CORNERS: ReadonlyArray<readonly [Direction, Direction]> = [
   ['N', 'E'],
-  ['S', 'E'],
+  ['E', 'S'],
   ['S', 'W'],
   ['N', 'W']
 ];

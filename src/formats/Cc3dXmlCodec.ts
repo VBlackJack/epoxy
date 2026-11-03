@@ -27,19 +27,39 @@ import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import type { LevelSizeBounds } from '../config/ConfigValidation';
 import {
   type Cc3dCell,
-  type Cc3dColor,
   type Cc3dItem,
   type Cc3dLevel,
   type Cc3dMob,
-  type Cc3dMobKind,
   type Cc3dTerrain,
-  type Cc3dTerrainKind,
   baseConflict,
   normalizeCell,
   terrainClass
 } from '../core/cc3d/model';
 import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
 import type { CompiledLevel, Direction } from '../core/types';
+import {
+  ATTR_AUTHOR,
+  ATTR_BACKGROUND,
+  ATTR_DIRECTION,
+  ATTR_FLAGS,
+  ATTR_HEIGHT,
+  ATTR_NAME,
+  ATTR_TYPE,
+  ATTR_WIDTH,
+  ATTR_X,
+  ATTR_Y,
+  CC3D_ENTRY_BY_ID,
+  DEFAULT_PLAYER_DIRECTION,
+  DIRECTIONS_BY_VALUE,
+  FISH_TYPE_ID,
+  PANEL_SIDE_ORDER,
+  PIXELS_PER_CELL,
+  ROOT_ELEMENT,
+  TILE_ATTRIBUTES_ELEMENT,
+  TILE_ELEMENT,
+  TOGGLE_DOOR_STATE_MASK,
+  type Cc3dTypeEntry
+} from './Cc3dTypeTable';
 
 /** File extension of a level file. */
 export const CC3D_XML_EXTENSION = '.xml';
@@ -87,38 +107,12 @@ export class Cc3dImportError extends Error {
   }
 }
 
-/** Pixels per cell in the file. */
-const PIXELS_PER_CELL = 64;
-/** Mask of the flag bits that carry the initial state of a toggle door. */
-const TOGGLE_DOOR_STATE_MASK = 0b1111;
-/** Id of the tile that marks the player start. */
-const PLAYER_TYPE_ID = 22;
-/** Id of the tile counted as a required fish. */
-const FISH_TYPE_ID = 42;
-/** Directions by the value of the direction attribute. */
-const DIRECTIONS_BY_VALUE: readonly Direction[] = ['N', 'E', 'S', 'W'];
-const PANEL_SIDE_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];
-/** Facing of the player when the file gives none. */
-const DEFAULT_PLAYER_DIRECTION: Direction = 'W';
 /** How many leading bytes are inspected to recognise UTF-16 without a byte order mark. */
 const ENCODING_SNIFF_BYTES = 256;
 /** Deepest element nesting accepted; the real shape is three levels deep. */
 const XML_MAX_DEPTH = 16;
 /** Separator between the pack name and the map id in a level id. */
 const LEVEL_ID_SEPARATOR = '-';
-
-const ROOT_ELEMENT = 'map';
-const TILE_ELEMENT = 'tile';
-const TILE_ATTRIBUTES_ELEMENT = 'attributes';
-const ATTR_NAME = 'name';
-const ATTR_AUTHOR = 'author';
-const ATTR_WIDTH = 'width';
-const ATTR_HEIGHT = 'height';
-const ATTR_TYPE = 'type';
-const ATTR_X = 'x';
-const ATTR_Y = 'y';
-const ATTR_DIRECTION = 'direction';
-const ATTR_FLAGS = 'flags';
 
 /* ------------------------------------------------------------------ */
 /* Decoding of the bytes                                               */
@@ -372,165 +366,17 @@ function readTile(element: XmlElement): TileData {
 /* Type id table                                                       */
 /* ------------------------------------------------------------------ */
 
-interface MobSpec {
-  kind: Cc3dMobKind;
-  color?: Cc3dColor;
-  mirror?: string;
-}
-
-type TableEntry =
-  | { role: 'terrain'; build: (tile: TileData) => Cc3dTerrain }
-  | { role: 'panel'; side: Direction }
-  | { role: 'item'; item: Cc3dItem }
-  | { role: 'mob'; spec: MobSpec }
-  | { role: 'player' };
-
-const TYPE_TABLE = new Map<number, TableEntry>();
-
-function terrainEntry(ids: readonly number[], build: (tile: TileData, index: number) => Cc3dTerrain): void {
-  ids.forEach((id, index) => TYPE_TABLE.set(id, { role: 'terrain', build: (tile) => build(tile, index) }));
-}
-function plainTerrain(ids: readonly number[], kind: Cc3dTerrainKind): void {
-  terrainEntry(ids, () => ({ kind }));
-}
-function coloredTerrain(kind: Cc3dTerrainKind, colorByIds: ReadonlyArray<readonly [Cc3dColor, readonly number[]]>): void {
-  for (const [color, ids] of colorByIds) terrainEntry(ids, () => ({ kind, color }));
-}
-function itemEntry(ids: readonly number[], items: readonly Cc3dItem[]): void {
-  ids.forEach((id, index) => TYPE_TABLE.set(id, { role: 'item', item: items[index] }));
-}
-function mobEntry(ids: readonly number[], specs: readonly MobSpec[]): void {
-  ids.forEach((id, index) => TYPE_TABLE.set(id, { role: 'mob', spec: specs[index] }));
-}
-
-const ICE_CORNER_SIDES: ReadonlyArray<readonly [Direction, Direction]> = [
-  ['S', 'W'],
-  ['N', 'W'],
-  ['N', 'E'],
-  ['E', 'S']
-];
-const TOGGLE_DOOR_IDS: ReadonlyArray<readonly [Cc3dColor, readonly number[]]> = [
-  ['green', [14, 15]],
-  ['blue', [165, 168]],
-  ['red', [166, 169]],
-  ['yellow', [167, 170]]
-];
-
-plainTerrain([1], 'floor');
-plainTerrain([2], 'wall');
-plainTerrain([3], 'ice');
-terrainEntry([4, 5, 6, 7], (_tile, index) => ({
-  kind: 'ice_corner',
-  corner: [ICE_CORNER_SIDES[index][0], ICE_CORNER_SIDES[index][1]]
-}));
-plainTerrain([8], 'water');
-plainTerrain([9], 'fire');
-// Force floors take their direction from the type; the attribute is noise.
-terrainEntry([10, 11, 12, 13], (_tile, index) => ({ kind: 'force', dir: DIRECTIONS_BY_VALUE[index] }));
-plainTerrain([70], 'force_random');
-for (const [color, ids] of TOGGLE_DOOR_IDS) {
+/** The terrain a row stands for, with the state and the direction the tile itself carries. */
+function buildTerrain(entry: Extract<Cc3dTypeEntry['content'], { role: 'terrain' }>, tile: TileData): Cc3dTerrain {
+  const built: Cc3dTerrain = { kind: entry.terrain.kind };
+  if (entry.terrain.color !== undefined) built.color = entry.terrain.color;
+  if (entry.terrain.dir !== undefined) built.dir = entry.terrain.dir;
+  if (entry.terrain.corner !== undefined) built.corner = [entry.terrain.corner[0], entry.terrain.corner[1]];
   // The initial state comes from the flag bits, never from the type id.
-  terrainEntry(ids, (tile) => ({
-    kind: 'toggle_door',
-    color,
-    open: (tile.flags & TOGGLE_DOOR_STATE_MASK) === TOGGLE_DOOR_STATE_MASK
-  }));
+  if (entry.stateFromFlags) built.open = (tile.flags & TOGGLE_DOOR_STATE_MASK) === TOGGLE_DOOR_STATE_MASK;
+  if (entry.directionFromTile) built.dir = readDirection(tile);
+  return built;
 }
-coloredTerrain('toggle_control', [
-  ['green', [31]],
-  ['blue', [158]],
-  ['red', [159]],
-  ['yellow', [160]]
-]);
-coloredTerrain('plate', [
-  ['blue', [154]],
-  ['green', [155]],
-  ['red', [156]],
-  ['yellow', [157]]
-]);
-coloredTerrain('hold_door', [
-  ['green', [175]],
-  ['blue', [176]],
-  ['red', [177]],
-  ['yellow', [178]]
-]);
-plainTerrain([16], 'teleport_red');
-plainTerrain([17], 'teleport_blue');
-plainTerrain([20], 'exit');
-plainTerrain([21], 'slime');
-plainTerrain([30], 'gravel');
-plainTerrain([198], 'sand');
-plainTerrain([50], 'dirt');
-coloredTerrain('door', [
-  ['red', [34]],
-  ['blue', [35]],
-  ['yellow', [36]],
-  ['green', [37]]
-]);
-plainTerrain([44], 'socket');
-plainTerrain([199], 'socket_red');
-plainTerrain([45], 'push_up_wall');
-plainTerrain([46], 'appearing_wall');
-plainTerrain([49], 'false_wall');
-plainTerrain([63], 'gate_tools');
-plainTerrain([138], 'gate_keys');
-plainTerrain([64], 'bomb');
-plainTerrain([65], 'trap');
-plainTerrain([66], 'trap_control');
-plainTerrain([57], 'clone_switch');
-plainTerrain([32], 'golem_control_blue');
-plainTerrain([100], 'golem_control_yellow');
-plainTerrain([75], 'laser_controller');
-plainTerrain([141], 'turtle');
-TYPE_TABLE.set(68, { role: 'terrain', build: (tile) => ({ kind: 'clone_machine', dir: readDirection(tile) }) });
-
-[147, 148, 149, 150].forEach((id, index) => TYPE_TABLE.set(id, { role: 'panel', side: PANEL_SIDE_ORDER[index] }));
-
-itemEntry(
-  [38, 39, 40, 41],
-  [
-    { kind: 'key', color: 'red' },
-    { kind: 'key', color: 'blue' },
-    { kind: 'key', color: 'yellow' },
-    { kind: 'key', color: 'green' }
-  ]
-);
-itemEntry([FISH_TYPE_ID, 43], [{ kind: 'fish' }, { kind: 'fish_extra' }]);
-itemEntry(
-  [59, 60, 61, 62, 144],
-  [{ kind: 'orb_ice' }, { kind: 'orb_force' }, { kind: 'orb_fire' }, { kind: 'orb_water' }, { kind: 'orb_speed' }]
-);
-
-TYPE_TABLE.set(PLAYER_TYPE_ID, { role: 'player' });
-
-mobEntry([23, 26], [{ kind: 'block_dirt' }, { kind: 'block_ice' }]);
-mobEntry(
-  [161, 162, 163, 164, 191, 192],
-  [
-    { kind: 'block_color', color: 'blue' },
-    { kind: 'block_color', color: 'green' },
-    { kind: 'block_color', color: 'red' },
-    { kind: 'block_color', color: 'yellow' },
-    { kind: 'block_color', color: 'green' },
-    { kind: 'block_color', color: 'red' }
-  ]
-);
-mobEntry(
-  [184, 185, 186, 187],
-  [
-    { kind: 'reflector', mirror: 'LU' },
-    { kind: 'reflector', mirror: 'DL' },
-    { kind: 'reflector', mirror: 'UR' },
-    { kind: 'reflector', mirror: 'RD' }
-  ]
-);
-mobEntry([24, 196, 197], [{ kind: 'walker' }, { kind: 'legs_green' }, { kind: 'legs_red' }]);
-mobEntry([25, 194], [{ kind: 'blinky' }, { kind: 'baby_blinky' }]);
-mobEntry([51, 52, 53, 54], [{ kind: 'limpa' }, { kind: 'limpy' }, { kind: 'bouncer' }, { kind: 'omni' }]);
-mobEntry([55, 56, 195, 87], [{ kind: 'snappy' }, { kind: 'screamer' }, { kind: 'baby_screamer' }, { kind: 'nibble' }]);
-mobEntry([33, 99], [{ kind: 'golem_blue' }, { kind: 'golem_yellow' }]);
-mobEntry([76], [{ kind: 'laser_shooter' }]);
-mobEntry([72, 73, 190, 74], [{ kind: 'bot_static' }, { kind: 'bot_cw' }, { kind: 'bot_ccw' }, { kind: 'bot_multi' }]);
 
 /* ------------------------------------------------------------------ */
 /* Stacking                                                            */
@@ -582,6 +428,12 @@ export interface Cc3dDecodeOptions {
   bounds?: LevelSizeBounds;
 }
 
+/** The background theme of the root, or undefined when absent or not a plain number (the engine ignores it). */
+function readBackground(raw: string | undefined): number | undefined {
+  if (raw === undefined || !INTEGER_PATTERN.test(raw.trim())) return undefined;
+  return parseInt(raw.trim(), DEC_RADIX);
+}
+
 function cellCoordinate(raw: number, limit: number, tile: TileData): number {
   const cell = raw / PIXELS_PER_CELL;
   if (!Number.isInteger(cell) || cell < 0 || cell >= limit) {
@@ -623,14 +475,15 @@ export function decodeCc3dLevel(input: ArrayBuffer | Uint8Array | string, option
   let fishCount = 0;
 
   for (const tile of collectTiles(root)) {
-    const entry = TYPE_TABLE.get(tile.type);
-    if (!entry) throw new Cc3dImportError(CC3D_ERROR_KEYS.unknownType, { id: tile.type, name: tile.name });
+    const row = CC3D_ENTRY_BY_ID.get(tile.type);
+    if (!row) throw new Cc3dImportError(CC3D_ERROR_KEYS.unknownType, { id: tile.type, name: tile.name });
     const x = cellCoordinate(tile.x, width, tile);
     const y = cellCoordinate(tile.y, height, tile);
     const draft = drafts[y * width + x];
+    const entry = row.content;
     switch (entry.role) {
       case 'terrain':
-        draft.terrain.push({ terrain: entry.build(tile), typeId: tile.type });
+        draft.terrain.push({ terrain: buildTerrain(entry, tile), typeId: tile.type });
         break;
       case 'panel':
         draft.panels.add(entry.side);
@@ -655,6 +508,8 @@ export function decodeCc3dLevel(input: ArrayBuffer | Uint8Array | string, option
 
   const cells = drafts.map((draft, index) => finishCell(draft, index % width, Math.floor(index / width)));
   const cc3d: Cc3dLevel = { width, height, cells, mobs, player: { x: start.x, y: start.y, dir: start.dir }, mapId: options.mapId };
+  const background = readBackground(root.attrs.get(ATTR_BACKGROUND));
+  if (background !== undefined) cc3d.background = background;
 
   const { terrain, items, entities } = deriveDisplayLayers(cc3d);
 

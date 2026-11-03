@@ -140,6 +140,8 @@ export interface Cc3dLevel {
   /** Start cell and facing; the facing defaults to west when absent (stored levels). */
   player: { x: number; y: number; dir?: Direction };
   mapId?: string;
+  /** Background theme number of the level file; display only. The encoder writes 2 when absent. */
+  background?: number;
 }
 
 /** Class 1: kinds that can sit at the bottom of a cell's stack. */

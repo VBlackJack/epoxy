@@ -42,7 +42,7 @@ import { canonicalJson } from './canonicalJson';
  */
 
 /** The cell of a plain floor with nothing on it. */
-function emptyCell(): Cc3dCell {
+export function emptyCell(): Cc3dCell {
   return { terrain: [{ kind: 'floor' }], panels: [], item: null };
 }
 
@@ -52,11 +52,11 @@ const VERTICAL_SIDES: readonly Direction[] = ['N', 'S'];
 const HORIZONTAL_SIDES: readonly Direction[] = ['E', 'W'];
 const MIRROR_NAMES: readonly string[] = Object.keys(REFLECTING_FACES);
 
-function isColor(value: unknown): boolean {
+export function isColor(value: unknown): boolean {
   return typeof value === 'string' && (CC3D_COLORS as readonly string[]).includes(value);
 }
 
-function isDirection(value: unknown): value is Direction {
+export function isDirection(value: unknown): value is Direction {
   return typeof value === 'string' && (ORDERED_DIRECTIONS as readonly string[]).includes(value);
 }
 
@@ -72,10 +72,29 @@ function isCorner(value: unknown): boolean {
 }
 
 /**
- * The layer cleaned to the attributes its kind uses, or null when the kind is unknown or an attribute the
- * validator requires is missing or invalid.
+ * The two closed sides of each ice corner, in the order the XML decoder writes them (SW, NW, NE, then ES:
+ * the decoder lists E before S). A decoded layer and a brushed one must be equal, so every corner is
+ * rewritten to this form.
  */
-function normalizeLayer(layer: Cc3dTerrain): Cc3dTerrain | null {
+const CANONICAL_CORNERS: ReadonlyArray<readonly [Direction, Direction]> = [
+  ['S', 'W'],
+  ['N', 'W'],
+  ['N', 'E'],
+  ['E', 'S']
+];
+
+function canonicalCorner(corner: readonly [Direction, Direction]): [Direction, Direction] {
+  const found = CANONICAL_CORNERS.find((pair) => corner.includes(pair[0]) && corner.includes(pair[1]));
+  const pair = found ?? corner;
+  return [pair[0], pair[1]];
+}
+
+/**
+ * The layer cleaned to the attributes its kind uses, in the canonical form the decoder produces (a toggle
+ * door always carries its `open` state, an ice corner its sides in decoder order), or null when the kind is
+ * unknown or an attribute the validator requires is missing or invalid.
+ */
+export function normalizeLayer(layer: Cc3dTerrain): Cc3dTerrain | null {
   if (terrainClass(layer.kind) === undefined) return null;
   const out: Cc3dTerrain = { kind: layer.kind };
   if (COLORED_TERRAIN.includes(layer.kind)) {
@@ -90,20 +109,21 @@ function normalizeLayer(layer: Cc3dTerrain): Cc3dTerrain | null {
     if (!isDirection(layer.dir)) return null;
     out.dir = layer.dir;
   }
-  if ((layer.kind === 'toggle_door' || layer.kind === 'hold_door') && layer.open !== undefined) out.open = layer.open;
+  if (layer.kind === 'toggle_door') out.open = layer.open ?? false;
+  else if (layer.kind === 'hold_door' && layer.open !== undefined) out.open = layer.open;
   if (layer.kind === 'ice_corner') {
     if (!isCorner(layer.corner)) return null;
-    out.corner = [layer.corner![0], layer.corner![1]];
+    out.corner = canonicalCorner(layer.corner as [Direction, Direction]);
   }
   return out;
 }
 
-function inside(level: Cc3dLevel, x: number, y: number): boolean {
+export function inside(level: Cc3dLevel, x: number, y: number): boolean {
   return cellAt(level, x, y) !== undefined;
 }
 
 /** A level with one cell replaced; the same level when the new cell equals the old one. */
-function withCell(level: Cc3dLevel, x: number, y: number, cell: Cc3dCell): Cc3dLevel {
+export function withCell(level: Cc3dLevel, x: number, y: number, cell: Cc3dCell): Cc3dLevel {
   const index = cellIndex(level, x, y);
   if (canonicalJson(level.cells[index]) === canonicalJson(cell)) return level;
   const cells = level.cells.slice();
@@ -199,7 +219,7 @@ export function setPlayer(level: Cc3dLevel, x: number, y: number, dir?: Directio
 }
 
 /** The mob reduced to the attributes its kind uses, or null when it cannot be placed. */
-function normalizeMob(level: Cc3dLevel, mob: Cc3dMob): Cc3dMob | null {
+export function normalizeMob(level: Cc3dLevel, mob: Cc3dMob): Cc3dMob | null {
   if (!(CC3D_MOB_KINDS as readonly string[]).includes(mob.kind)) return null;
   if (!inside(level, mob.x, mob.y) || !isDirection(mob.dir)) return null;
   const out: Cc3dMob = { kind: mob.kind, x: mob.x, y: mob.y, dir: mob.dir };
@@ -215,7 +235,7 @@ function normalizeMob(level: Cc3dLevel, mob: Cc3dMob): Cc3dMob | null {
   return out;
 }
 
-function mobIndexAt(level: Cc3dLevel, x: number, y: number): number {
+export function mobIndexAt(level: Cc3dLevel, x: number, y: number): number {
   return level.mobs.findIndex((mob) => mob.x === x && mob.y === y);
 }
 

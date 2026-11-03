@@ -58,6 +58,11 @@ describe('levelMapChanged for a CC3D level', () => {
     for (const edit of edits) expect(levelMapChanged(level, after(level, edit))).toBe(true);
   });
 
+  it('ignores the display only map id and background', () => {
+    const level = smallCc3dLevel();
+    expect(levelMapChanged(level, after(level, (c) => ({ ...c, background: (c.background ?? 0) + 1, mapId: 'other' })))).toBe(false);
+  });
+
   it('sees a reordered mob list, which links devices differently', () => {
     const level = smallCc3dLevel();
     expect(levelMapChanged(level, after(level, (c) => ({ ...c, mobs: [...c.mobs].reverse() })))).toBe(true);

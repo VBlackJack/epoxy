@@ -511,6 +511,16 @@ describe('DatCodec export fidelity', () => {
     expect(datRefusalReason(targets)).toBe('targets_win_rule');
   });
 
+  it('refuses a CC3D level, by its ruleset or by its cc3d data, and the pack encoder leaves it out', () => {
+    const byRuleset = { ...blankLevel(1), ruleset: 'cc3d' as const };
+    const byData = { ...blankLevel(2), cc3d: { width: 1, height: 1, cells: [], mobs: [], player: { x: 0, y: 0 } } };
+    expect(datRefusalReason(byRuleset)).toBe('cc3d_ruleset');
+    expect(datRefusalReason(byData)).toBe('cc3d_ruleset');
+    const encoded = DatCodec.encodeLevelsWithReport([byRuleset, blankLevel(3)]);
+    expect(encoded.refused).toEqual([{ levelId: byRuleset.id, reason: 'cc3d_ruleset' }]);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('refuses a receivers level and any level with laser tiles or mirrors', () => {
     const receivers = { ...blankLevel(1), winRule: 'receivers' as const };
     const emitter = blankLevel(2);

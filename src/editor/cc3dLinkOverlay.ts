@@ -24,6 +24,7 @@ import {
 import type { Cc3dLevel } from '../core/cc3d/model';
 import { EDITOR_CC3D_MAX_LINK_MESSAGES } from '../ui/uiConstants';
 import type { ToolMessage } from './editorTools';
+import { type CellRect, rectContains } from './selectionEdits';
 
 /**
  * What the link overlay of the CC3D editor draws for a cell, and what an edit changed in the links. Both
@@ -192,6 +193,63 @@ export function diffCc3dLinks(
       const to = targetPoint(after, next, family.mobTarget);
       const same = was === to || (was !== null && to !== null && sameCell(was, to));
       if (!same) changes.push({ kind: family.kind, from: pointOfCell(link.from, before.width), to, was });
+    }
+  }
+  return changes;
+}
+
+/** A move of a rectangle of cells: everything inside it (sources and targets alike) went by (dx, dy). */
+export interface Cc3dLinkTranslation {
+  rect: CellRect;
+  dx: number;
+  dy: number;
+}
+
+function translated(point: LinkPoint, move: Cc3dLinkTranslation | undefined): LinkPoint {
+  if (!move || !rectContains(move.rect, point.x, point.y)) return point;
+  return { x: point.x + move.dx, y: point.y + move.dy };
+}
+
+function destinationOf(move: Cc3dLinkTranslation): CellRect {
+  return { ...move.rect, x: move.rect.x + move.dx, y: move.rect.y + move.dy };
+}
+
+function pointKey(point: LinkPoint): string {
+  return `${point.x},${point.y}`;
+}
+
+/**
+ * Like diffCc3dLinks, but matched by coordinates, so it works across a size change (crop, grow) and a move.
+ * A source before the edit is matched with the source at the same (x, y) after it; with `move`, a source
+ * (and a target) inside the moved rectangle is first carried to where it went, so a control that moved
+ * together with its trap is not reported. Targets are compared by position. A source that is gone, or that
+ * appeared, is not a changed link. The change reports `from` where the source is after the edit, `to` where
+ * the link points now and `was` where it pointed before (as it stood before the move).
+ */
+export function diffCc3dLinksByPosition(
+  before: Cc3dLevel,
+  after: Cc3dLevel,
+  move?: Cc3dLinkTranslation,
+  linksBefore: Cc3dLinks = cc3dLinks(before),
+  linksAfter: Cc3dLinks = cc3dLinks(after)
+): Cc3dLinkChange[] {
+  if (before === after) return [];
+  const changes: Cc3dLinkChange[] = [];
+  for (const family of CHANGE_FAMILIES) {
+    const afterBySource = new Map<string, Cc3dLink>();
+    for (const link of family.pick(linksAfter)) afterBySource.set(pointKey(pointOfCell(link.from, after.width)), link);
+    for (const link of family.pick(linksBefore)) {
+      const source = pointOfCell(link.from, before.width);
+      // A source in the destination but not in the source rectangle was overwritten by the move.
+      if (move && rectContains(move.rect, source.x, source.y) === false && rectContains(destinationOf(move), source.x, source.y)) continue;
+      const from = translated(source, move);
+      const next = afterBySource.get(pointKey(from));
+      if (!next) continue;
+      const was = targetPoint(before, link, family.mobTarget);
+      const to = targetPoint(after, next, family.mobTarget);
+      const expected = was === null ? null : translated(was, move);
+      const same = expected === to || (expected !== null && to !== null && sameCell(expected, to));
+      if (!same) changes.push({ kind: family.kind, from, to, was });
     }
   }
   return changes;

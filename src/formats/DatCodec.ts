@@ -81,6 +81,9 @@ const REPLACEMENT_CHAR_CODE = 0x3f;
 /** The ruleset whose reading of a .DAT follows Tile World's Lynx rules. */
 const LYNX_RULESET: Ruleset = 'lynx';
 
+/** The ruleset of the levels held as cc3d data, which the .DAT format cannot hold. */
+const CC3D_LEVEL_RULESET: Ruleset = 'cc3d';
+
 const FALLBACK_ELEMENT: DatElementMapping = { kind: 'terrain', id: FLOOR_TILE_ID };
 
 /** Why a level could not be written to a .DAT pack. */
@@ -89,7 +92,8 @@ export type DatRefusalReason =
   | 'player_out_of_range'
   | 'targets_win_rule'
   | 'receivers_win_rule'
-  | 'laser_content';
+  | 'laser_content'
+  | 'cc3d_ruleset';
 
 /** A level left out of the pack, with the reason. */
 export interface DatRefusal {
@@ -118,6 +122,8 @@ export interface DatEncodeResult {
  * tell whether a pack has anything to export.
  */
 export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null {
+  // A CC3D level is its cc3d data: the layers a .DAT would write are only a display of it, and its rules are not Tile World's.
+  if (level.cc3d !== undefined || level.ruleset === CC3D_LEVEL_RULESET) return 'cc3d_ruleset';
   // The format has no block target and no win by covering targets: writing the level would change its goal.
   if (level.winRule === 'targets') return 'targets_win_rule';
   // Nor does it have laser receivers, emitters, gates or mirrors: they would be written as floor or plain blocks.

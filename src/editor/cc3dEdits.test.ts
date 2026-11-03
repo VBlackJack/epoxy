@@ -19,7 +19,20 @@ import { cc3dModel } from '../core/cc3d/cc3dTestMaps';
 import { validateCc3dLevel } from '../core/cc3d/cc3dValidator';
 import { cellAt, normalizeCell, type Cc3dLevel } from '../core/cc3d/model';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { eraseCell, eraseTop, placeLayer, placeMob, removeMob, rotateMob, setItem, setPanelSide, setPlayer } from './cc3dEdits';
+import { decodeCc3dLevel } from '../formats/Cc3dXmlCodec';
+import {
+  eraseCell,
+  eraseTop,
+  normalizeLayer,
+  placeLayer,
+  placeMob,
+  removeMob,
+  rotateMob,
+  setItem,
+  setPanelSide,
+  setPlayer
+} from './cc3dEdits';
+import { CC3D_CORNERS, DEFAULT_CC3D_ATTRIBUTES, findCc3dEntry, layerOf } from './cc3dPalette';
 
 function base(): Cc3dLevel {
   const model = cc3dModel(['#####', '#@..X', '#.K.M', '#####']);
@@ -184,5 +197,69 @@ describe('conflicts with the player start', () => {
     const level = base();
     expect(setPlayer(level, 2, 2)).toBe(level);
     expect(placeMob(level, { kind: 'walker', x: 1, y: 1, dir: 'N' })).toBe(level);
+  });
+});
+
+const XML_CELL = 64;
+const PLAYER_TYPE = 22;
+const TOGGLE_DOOR_GREEN_OPEN_TYPE = 15;
+const ICE_CORNER_TYPES = [4, 5, 6, 7];
+const ICE_CORNER_PAIRS: ReadonlyArray<readonly ['N' | 'S' | 'E' | 'W', 'N' | 'S' | 'E' | 'W']> = [
+  ['S', 'W'],
+  ['N', 'W'],
+  ['N', 'E'],
+  ['E', 'S']
+];
+
+/** The cells of a one-row level, decoded from a level file: the reference form a brushed layer must equal. */
+function decodedRow(types: number[]) {
+  const tile = (type: number, x: number): string =>
+    `<tile image_index="${type}" x="${x * XML_CELL}" y="0" direction="0" type="${type}"><attributes flags="0" editor_category="0" name="" /></tile>`;
+  const player = `<tile image_index="${PLAYER_TYPE}" x="0" y="${XML_CELL}" direction="3" type="${PLAYER_TYPE}"><attributes flags="0" editor_category="0" name="" /></tile>`;
+  const xml = `<?xml version="1.0" encoding="utf-16"?><map name="T" author="A" width="${types.length}" height="2" background="0"><player>${player}</player><tiles>${types.map(tile).join('')}</tiles></map>`;
+  return decodeCc3dLevel(xml, { packName: 'pack', mapId: '1', number: 1 }).cc3d!.cells.slice(0, types.length);
+}
+
+describe('canonical layers', () => {
+  it('gives a closed toggle door the explicit open: false the decoder writes', () => {
+    const decoded = decodedRow([TOGGLE_DOOR_GREEN_OPEN_TYPE])[0].terrain[1];
+    const entry = findCc3dEntry('layer:toggle_door')!;
+    const brushed = layerOf(entry, { ...DEFAULT_CC3D_ATTRIBUTES, color: 'green' }, 'N');
+    expect(brushed.open).toBeUndefined();
+    expect(normalizeLayer(brushed)).toEqual(decoded);
+    expect(normalizeLayer(brushed)).toEqual({ kind: 'toggle_door', color: 'green', open: false });
+    const placed = placeLayer(base(), 2, 1, brushed);
+    expect(cellAt(placed, 2, 1)?.terrain[1]).toEqual(decoded);
+  });
+
+  it('keeps an open toggle door open and leaves a hold door without a state alone', () => {
+    expect(normalizeLayer({ kind: 'toggle_door', color: 'red', open: true })).toEqual({ kind: 'toggle_door', color: 'red', open: true });
+    expect(normalizeLayer({ kind: 'hold_door', color: 'red' })).toEqual({ kind: 'hold_door', color: 'red' });
+    expect(normalizeLayer({ kind: 'hold_door', color: 'red', open: true })).toEqual({ kind: 'hold_door', color: 'red', open: true });
+  });
+
+  it('writes every palette ice corner in the decoder order, the south-east one included', () => {
+    const decoded = decodedRow(ICE_CORNER_TYPES).map((cell) => cell.terrain[0]);
+    expect(decoded.map((layer) => layer.corner)).toEqual(ICE_CORNER_PAIRS);
+    const entry = findCc3dEntry('layer:ice_corner')!;
+    const brushed = CC3D_CORNERS.map((corner) => normalizeLayer(layerOf(entry, { ...DEFAULT_CC3D_ATTRIBUTES, corner }, 'N')));
+    expect(brushed).toHaveLength(decoded.length);
+    for (const layer of brushed) expect(decoded).toContainEqual(layer);
+    const southEast = CC3D_CORNERS.find((corner) => corner.includes('S') && corner.includes('E'))!;
+    expect(southEast).toEqual(['E', 'S']);
+  });
+
+  it('rewrites a corner given in any order to the decoder order and refuses a non-corner', () => {
+    expect(normalizeLayer({ kind: 'ice_corner', corner: ['W', 'S'] })?.corner).toEqual(['S', 'W']);
+    expect(normalizeLayer({ kind: 'ice_corner', corner: ['W', 'N'] })?.corner).toEqual(['N', 'W']);
+    expect(normalizeLayer({ kind: 'ice_corner', corner: ['E', 'N'] })?.corner).toEqual(['N', 'E']);
+    expect(normalizeLayer({ kind: 'ice_corner', corner: ['S', 'E'] })?.corner).toEqual(['E', 'S']);
+    expect(normalizeLayer({ kind: 'ice_corner', corner: ['E', 'S'] })?.corner).toEqual(['E', 'S']);
+    expect(normalizeLayer({ kind: 'ice_corner', corner: ['N', 'S'] })).toBeNull();
+  });
+
+  it('does not touch the level when the same corner is placed twice in different orders', () => {
+    const first = placeLayer(base(), 2, 1, { kind: 'ice_corner', corner: ['S', 'E'] });
+    expect(placeLayer(first, 2, 1, { kind: 'ice_corner', corner: ['E', 'S'] })).toBe(first);
   });
 });

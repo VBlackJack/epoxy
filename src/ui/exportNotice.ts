@@ -67,6 +67,9 @@ export function lossyExportNotice(
   if (refusedFor('laser_content').length > 0) {
     parts.push(t('app.export.refused_laser_content.label', { levels: levelNames(refusedFor('laser_content')) }));
   }
+  if (refusedFor('cc3d_ruleset').length > 0) {
+    parts.push(t('app.export.refused_cc3d_ruleset.label', { levels: levelNames(refusedFor('cc3d_ruleset')) }));
+  }
   if (padded.length > 0) {
     parts.push(t('app.export.padded.label', { levels: levelNames(padded) }));
   }
