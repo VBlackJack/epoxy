@@ -29,6 +29,13 @@ export function requestedSearchBudget(): number {
   return ConfigRegistry.getGame().blockPuzzle.hintSearchBudget;
 }
 
+/** What `BlockPuzzleSolver.verdict` concludes about the block puzzles of a level. */
+export type BlockPuzzleVerdict =
+  | { kind: 'solved'; pushes: number }
+  | { kind: 'unsolvable' }
+  | { kind: 'not_checked' }
+  | { kind: 'none' };
+
 type Dir = (typeof ORDERED_DIRECTIONS)[number];
 
 interface SearchNode {
@@ -155,6 +162,60 @@ export class BlockPuzzleSolver {
     return detector
       .areas()
       .some((area) => area.modelled && detector.areaIsStuck(area.blocks, area.buttons, budget));
+  }
+
+  /**
+   * An honest verdict on the block puzzles of a level, for a check the
+   * designer asked for. Unlike `isStuck` it also reports success, and it never
+   * runs the fast pre-test: every judged puzzle gets the exact search.
+   * It says nothing about the rest of the level (exit, keys, monsters).
+   *  - `solved`: a sequence of pushes (`pushes` in all) covers every goal.
+   *  - `unsolvable`: the exhaustive search proved no push sequence covers every goal.
+   *  - `not_checked`: the budget ran out, or some puzzle stands on ground the
+   *    model does not follow (ice, water, force floors, clone machines) or
+   *    behind a door the player cannot open yet.
+   *  - `none`: the level has no goal the solver judges (no targets or brown
+   *    buttons, a receivers level, or no block at all).
+   */
+  public static verdict(engine: GameEngine, budget: number = requestedSearchBudget()): BlockPuzzleVerdict {
+    const solver = new BlockPuzzleSolver(engine);
+    if (solver.buttons.length === 0 || solver.blocks.length === 0) return { kind: 'none' };
+    const covered = new Set(solver.blocks);
+    let pushes = 0;
+    let undecided = engine.getLevel().cloneLinks.length > 0;
+    let unsolvable = false;
+    const areas = solver.areas();
+    const inArea = new Set(areas.flatMap((area) => area.buttons));
+    // A goal no block can ever reach cannot be covered, unless a block may slide onto ground the model does not follow.
+    if (solver.buttons.some((b) => !inArea.has(b) && !covered.has(b))) {
+      if (areas.every((area) => area.modelled)) unsolvable = true;
+      else undecided = true;
+    }
+    for (const area of areas) {
+      if (area.buttons.length === 0) continue;
+      if (!area.modelled) {
+        undecided = true;
+        continue;
+      }
+      if (area.blocks.length < area.buttons.length) {
+        unsolvable = true;
+        continue;
+      }
+      if (!solver.playerReaches(area.blocks)) {
+        undecided = true;
+        continue;
+      }
+      const fixed = new Set(solver.blocks.filter((b) => !area.blocks.includes(b)));
+      const outcome = solver.search(area.blocks, area.buttons, fixed, budget);
+      if (outcome.kind === 'exhausted') unsolvable = true;
+      else if (outcome.kind === 'budget') undecided = true;
+      else {
+        for (let node = outcome.goal; outcome.nodes[node].parent >= 0; node = outcome.nodes[node].parent) pushes++;
+      }
+    }
+    if (unsolvable) return { kind: 'unsolvable' };
+    if (undecided) return { kind: 'not_checked' };
+    return { kind: 'solved', pushes };
   }
 
   /**
