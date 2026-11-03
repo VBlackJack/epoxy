@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isRecord, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { LevelPack } from '../core/types';
 import { clampPackMetadata } from '../packs/packMetadata';
+import { isSourceHash } from '../packs/shareLink';
 
 /** IndexedDB schema version of the level pack store. */
 const LEVEL_PACK_DB_VERSION = 1;
@@ -130,11 +131,12 @@ class LevelPackStorageService {
     if (!Array.isArray(raw)) return [];
     const bounds = ConfigRegistry.getLevelSizeBounds();
     const metadataLimits = ConfigRegistry.getPackMetadataLimits();
+    const textLimits = ConfigRegistry.getLevelTextLimits();
     const packs: LevelPack[] = [];
     for (const entry of raw) {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string') continue;
       if (!Array.isArray(entry.levels)) continue;
-      const levels = sanitizeStoredLevels(entry.levels, bounds);
+      const levels = sanitizeStoredLevels(entry.levels, bounds, textLimits);
       const userCreated = entry.userCreated === true;
       // A pack the player created stays even when it holds no level yet.
       if (levels.length === 0 && !userCreated) continue;
@@ -145,6 +147,7 @@ class LevelPackStorageService {
         builtIn: false,
         ...(userCreated ? { userCreated } : {}),
         ...clampPackMetadata(entry, metadataLimits),
+        ...(typeof entry.sourceHash === 'string' && isSourceHash(entry.sourceHash) ? { sourceHash: entry.sourceHash } : {}),
         levels
       });
     }
