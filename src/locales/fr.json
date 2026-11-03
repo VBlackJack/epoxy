@@ -1278,6 +1278,26 @@
       "level_25": {
         "title": "L'atelier",
         "hint": "Un bloc arrêté au-dessus d'une cible vide est bloqué pour toujours dès qu'un autre bloc se pose dessus : remplis une baie par le bas."
+      },
+      "level_26": {
+        "title": "Le portier",
+        "hint": "Une clé ouvre une seule porte et se perd, un bloc ne passe pas une porte fermée, et la terre fraîche arrête un bloc tant que tu n'as pas marché dessus."
+      },
+      "level_27": {
+        "title": "Ne creuse pas",
+        "hint": "Une balle rose file droit jusqu'à ce que quelque chose l'arrête, et la terre l'arrête. Traverse cette terre et la balle continue sa course."
+      },
+      "level_28": {
+        "title": "Les quatre ploufs",
+        "hint": "Un bloc poussé dans l'eau coule et laisse de la terre où l'on peut marcher : un bloc, une mare."
+      },
+      "level_29": {
+        "title": "L'écluse",
+        "hint": "Chaque mare et chaque balle rose à arrêter coûte un bloc, et un bloc dépensé pour autre chose est perdu. Une balle rose ne passe pas un bloc."
+      },
+      "level_30": {
+        "title": "Le grand chantier",
+        "hint": "Couvre toutes les cibles pour gagner. Un bloc comble une mare ou couvre une cible, jamais les deux, et un bloc poussé contre un mur ou à côté d'un autre bloc peut ne plus jamais bouger."
       }
     },
     "chapter": {
