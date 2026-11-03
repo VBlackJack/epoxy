@@ -34,15 +34,16 @@ const BENCH_SIZE = 15;
 const BENCH_LARGE_ROOMS = 4;
 const BENCH_LARGE_SIZE = 32;
 const BENCH_FLOOR = 0.85;
-/** Well under the 5 s default test timeout. */
+/** CPU time budget of the search, well under the 5 s default test timeout. */
 const BENCH_BUDGET_MS = 3000;
+const MICROSECONDS_PER_MS = 1000;
 const LCG_MULTIPLIER = 1664525;
 const LCG_INCREMENT = 1013904223;
 const WALL_SHARE = 0.18;
 const TARGET_SHARE = 0.06;
 const BLOCK_SHARE = 0.06;
 
-/** A walled square puzzle with scattered walls, blocks and targets, from a seeded generator. */
+/** A walled square puzzle with scattered walls, blocks and targets, from a fixed seed so the work is deterministic. */
 function randomPuzzle(size: number, seed: number): string[] {
   let state = seed;
   const next = () => {
@@ -123,10 +124,11 @@ describe('RoomFingerprint', () => {
     const rooms: RoomLayout[] = [];
     for (let i = 0; i < BENCH_ROOMS; i++) rooms.push(room(`r${i}`, randomPuzzle(BENCH_SIZE, i + 1)));
     for (let i = 0; i < BENCH_LARGE_ROOMS; i++) rooms.push(room(`big${i}`, randomPuzzle(BENCH_LARGE_SIZE, 1000 + i)));
-    const started = performance.now();
+    const started = process.cpuUsage();
     const pairs = findSimilarRoomsWithin(rooms, BENCH_FLOOR);
-    const elapsed = performance.now() - started;
-    console.info(`room search: ${rooms.length} rooms, ${pairs.length} pairs, ${elapsed.toFixed(0)} ms`);
+    const used = process.cpuUsage(started);
+    const elapsed = (used.user + used.system) / MICROSECONDS_PER_MS;
+    console.info(`room search: ${rooms.length} rooms, ${pairs.length} pairs, ${elapsed.toFixed(0)} ms CPU`);
     expect(elapsed).toBeLessThan(BENCH_BUDGET_MS);
   });
 });
