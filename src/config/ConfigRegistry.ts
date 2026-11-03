@@ -54,6 +54,7 @@ import {
   GameConfig,
   LevelBlueprint,
   LevelPack,
+  LevelTextConfig,
   LevelsConfig,
   MonstersConfig,
   TileDefinition,
@@ -64,6 +65,7 @@ import { DatCodec } from '../formats/DatCodec';
 import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits, withPackMetadata } from '../packs/packMetadata';
 import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
+import { readSharedPack, SharedPackResult } from '../packs/shareLink';
 import { dedupeLevelIdsAcrossPacks, scopedLevelId, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
@@ -599,6 +601,11 @@ class ConfigRegistryService {
     return new Set(this.getAllPacks().flatMap((p) => p.levels.map((l) => l.id)));
   }
 
+  /** Ids of every level of every pack. */
+  public getTakenLevelIds(): Set<string> {
+    return this.takenLevelIds();
+  }
+
   /** A level id no pack of the library holds. */
   public newLevelId(): string {
     return userPacks.generateLevelId(this.takenLevelIds());
@@ -621,7 +628,7 @@ class ConfigRegistryService {
   public async registerImportedPack(
     name: string,
     levels: CompiledLevel[],
-    options: { scopeIds?: boolean; metadata?: PackMetadata } = {}
+    options: { scopeIds?: boolean; metadata?: PackMetadata; sourceHash?: string } = {}
   ): Promise<{ pack: LevelPack; persisted: boolean }> {
     const baseId = `pack_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
     const takenPacks = this.takenPackIds();
@@ -633,6 +640,7 @@ class ConfigRegistryService {
       name,
       builtIn: false,
       ...clampPackMetadata(options.metadata, this.gameConfig.packMetadata),
+      ...(options.sourceHash ? { sourceHash: options.sourceHash } : {}),
       levels: ensureUniqueLevelIds(options.scopeIds === false ? levels : scopeLevelIds(levels, cleanId), cleanId)
     };
     this.storedPacks.push(pack);
@@ -763,24 +771,47 @@ class ConfigRegistryService {
    * The pack as a shareable file, or null for an unknown or empty pack. The caller passes the
    * display name (the translated label of a pack that has an i18n key); it defaults to the pack name.
    */
-  public exportPackJson(packId: string, displayName?: string): string | null {
+  public exportPackJson(packId: string, displayName?: string, compact = false): string | null {
     const pack = this.getAllPacks().find((p) => p.id === packId);
-    return pack && pack.levels.length > 0 ? serializePack(displayName?.trim() || pack.name, pack.levels, { author: pack.author, description: pack.description }) : null;
+    return pack && pack.levels.length > 0
+      ? serializePack(displayName?.trim() || pack.name, pack.levels, { author: pack.author, description: pack.description }, compact)
+      : null;
   }
 
-  /** Adds the pack held by a file made with exportPackJson. */
-  public async importPackJson(text: string): Promise<ImportPackJsonResult> {
+  /** Reads the pack held by a share link, validated as a file import would be; nothing is stored. */
+  public readSharedPack(hash: string): Promise<SharedPackResult> {
+    return readSharedPack(hash, {
+      bounds: this.getLevelSizeBounds(),
+      takenLevelIds: this.takenLevelIds(),
+      metadataLimits: this.gameConfig.packMetadata,
+      textLimits: this.gameConfig.levelText,
+      share: this.gameConfig.share
+    });
+  }
+
+  /** The pack imported from the shared text with this hash, if the library still holds it. */
+  public findPackBySourceHash(sourceHash: string): LevelPack | null {
+    return this.getAllPacks().find((p) => p.sourceHash === sourceHash) ?? null;
+  }
+
+  /**
+   * Adds the pack held by a file made with exportPackJson. `sourceHash` marks a pack that
+   * came from a share link, so the same link can be recognised later.
+   */
+  public async importPackJson(text: string, options: { sourceHash?: string } = {}): Promise<ImportPackJsonResult> {
     const parsed = parsePackJson(
       text,
       this.getLevelSizeBounds(),
       this.takenLevelIds(),
       Date.now,
-      this.gameConfig.packMetadata
+      this.gameConfig.packMetadata,
+      this.gameConfig.levelText
     );
     if (!parsed.ok) return parsed;
     const { pack, persisted } = await this.registerImportedPack(parsed.name, parsed.levels, {
       scopeIds: false,
-      metadata: { author: parsed.author, description: parsed.description }
+      metadata: { author: parsed.author, description: parsed.description },
+      sourceHash: options.sourceHash
     });
     return { ok: true, pack, persisted };
   }
@@ -899,6 +930,11 @@ class ConfigRegistryService {
   /** Longest author and description a pack keeps. */
   public getPackMetadataLimits(): PackMetadataLimits {
     return this.gameConfig.packMetadata;
+  }
+
+  /** Longest text fields a stored, imported or shared level keeps. */
+  public getLevelTextLimits(): LevelTextConfig {
+    return this.gameConfig.levelText;
   }
 
   /** Width and height a .json level or a custom pack may have. */

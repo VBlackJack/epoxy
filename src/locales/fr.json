@@ -219,6 +219,36 @@
       "procedural_seed_copy_aria": { "label": "Copier la graine {seed} dans le presse-papiers" },
       "procedural_seed_copied": { "label": "Graine {seed} copiée." },
       "procedural_seed_copy_failed": { "label": "Copie impossible. Sélectionnez la graine et copiez-la à la main." },
+      "share": {
+        "preview": {
+          "title": { "label": "Pack partagé" },
+          "by": { "label": "Par {author}" },
+          "duplicate": { "label": "Déjà dans votre bibliothèque" },
+          "import": { "action": "Importer" },
+          "import_play": { "action": "Importer et jouer" },
+          "play": { "action": "Jouer" },
+          "cancel": { "action": "Annuler" }
+        },
+        "error": {
+          "unsupported": { "label": "Ouvrez ce lien dans un navigateur plus récent." },
+          "newer": { "label": "Ce lien a été créé avec une version plus récente d'Epoxy." },
+          "damaged": { "label": "Ce lien est endommagé." },
+          "encode": { "label": "Le lien n'a pas pu être créé." }
+        },
+        "copy": { "action": "Copier le lien de partage" },
+        "copied": { "label": "Lien de partage copié." },
+        "share": { "action": "Partager..." },
+        "text": { "label": "Jouez à mon pack Epoxy {name}" },
+        "too_long": { "label": "Ce pack est trop gros pour un lien de partage. Exportez-le en fichier JSON et envoyez le fichier à la place." },
+        "empty": { "label": "Ajoutez un niveau avant de partager ce pack." },
+        "hint": { "label": "Les liens longs ne passent pas dans certaines messageries. Exportez le fichier JSON pour les gros packs." },
+        "fallback": {
+          "title": { "label": "Lien de partage" },
+          "hint": { "label": "Sélectionnez le lien, puis copiez-le." },
+          "field": { "label": "Lien de partage" },
+          "close": { "action": "Fermer" }
+        }
+      },
       "import_btn": { "action": "Importer un pack..." },
       "import_formats": { "label": "Packs Chip's Challenge (.dat, .ccl), collections Sokoban (.xsb, .sok), niveaux Epoxy (.json), niveaux Chuck's Challenge 3D (.xml)." },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },

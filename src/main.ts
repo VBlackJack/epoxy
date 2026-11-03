@@ -69,6 +69,8 @@ import {
 import { downloadBytes } from './ui/download';
 import { PackFlows } from './ui/packFlows';
 import { PackManager } from './ui/packManager';
+import { applyLevelTextInputLimits } from './ui/levelTextInputs';
+import { ShareLinkFlow } from './ui/shareLinkFlow';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
@@ -184,6 +186,9 @@ class EpoxyApplication {
   private renderer: PixelRenderer = new PixelRenderer();
   private editor!: LevelEditor;
   private packManager!: PackManager;
+  /** Fragment of the address bar (or a later one) kept until the configs are loaded. */
+  private parkedShareHash = '';
+  private shareFlow: ShareLinkFlow | null = null;
   private packFlows!: PackFlows;
   /** Level of an editor test play still on screen; null otherwise. */
   private testPlayLevel: CompiledLevel | null = null;
@@ -262,6 +267,12 @@ class EpoxyApplication {
   // ---------------------------------------------------------------------------
 
   public async init(): Promise<void> {
+    // A pack share link waits in the address bar until the configs are loaded.
+    this.parkedShareHash = window.location.hash;
+    window.addEventListener('hashchange', () => {
+      if (this.shareFlow) void this.shareFlow.handle(window.location.hash);
+      else this.parkedShareHash = window.location.hash;
+    });
     await ConfigRegistry.loadAll();
 
     const gameCfg = ConfigRegistry.getGame();
@@ -272,6 +283,7 @@ class EpoxyApplication {
         : gameCfg.locales.default;
     this.setupLocaleSelector(gameCfg.locales.supported, initialLocale);
 
+    applyLevelTextInputLimits(ConfigRegistry.getLevelTextLimits());
     const editorCanvas = this.setupGameCanvas();
     this.applyDisplaySettings(savedSettings);
     this.applyAudioSettings(savedSettings);
@@ -323,6 +335,30 @@ class EpoxyApplication {
     this.startGameLoop();
     this.startRenderLoop();
     this.maybeShowOnboarding(hadSavedProgress);
+    this.bindShareLinks();
+  }
+
+  /** Opens the pack share link of the address bar, now and each time its fragment changes. */
+  private bindShareLinks(): void {
+    this.shareFlow = new ShareLinkFlow({
+      showStatus: (message) => this.showTransientStatus(message),
+      announceImported: (pack, persisted, play) =>
+        play ? this.announceImportedPack(pack, persisted, 0, 'app.packs.imported_toast.label') : this.announceStoredPack(pack, persisted),
+      playPack: (packId) => this.playPackFromManager(packId, 0)
+    });
+    void this.shareFlow.handle(this.parkedShareHash);
+  }
+
+  /** Tells that a pack joined the library, without leaving the level being played. */
+  private announceStoredPack(pack: LevelPack, persisted: boolean): void {
+    this.refreshPackSelector();
+    this.editor.refreshContext();
+    this.showTransientStatus(
+      persisted
+        ? t('app.packs.imported_toast.label', { name: pack.name, count: pack.levels.length })
+        : t('app.packs.imported_session_only_toast.label', { name: pack.name })
+    );
+    this.packManager.refresh(pack.id);
   }
 
   /** Sizes the play canvas and grabs its contexts; returns the editor canvas. */

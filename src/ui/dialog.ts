@@ -47,6 +47,7 @@ interface OpenDialogEntry {
 }
 
 const openStack: OpenDialogEntry[] = [];
+const closedWaiters: Array<() => void> = [];
 let keyListenerBound = false;
 
 /**
@@ -155,4 +156,13 @@ export function closeDialog(el?: HTMLElement | null): void {
   if (entry.opener && entry.opener.isConnected) {
     entry.opener.focus();
   }
+  if (openStack.length === 0) {
+    for (const waiter of closedWaiters.splice(0)) waiter();
+  }
+}
+
+/** Runs `callback` once no dialog is open: at once when none is. */
+export function whenNoDialogOpen(callback: () => void): void {
+  if (openStack.length === 0) callback();
+  else closedWaiters.push(callback);
 }

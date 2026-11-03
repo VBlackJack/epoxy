@@ -85,3 +85,15 @@ export const PACK_JSON_FORMAT = 'epoxy-pack';
 
 /** Version of the exported pack file format; a file with a higher version is refused. */
 export const PACK_JSON_VERSION = 1;
+
+/** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
+export const SHARE_LINK_PARAM = 'pack';
+
+/** Version of the share link transport (deflate-raw, then base64url); read before anything is decoded. */
+export const SHARE_LINK_TRANSPORT_VERSION = 1;
+
+/** Separates the transport version from the payload in a share link. */
+export const SHARE_LINK_VERSION_SEPARATOR = '.';
+
+/** Compression format of the share link payload. */
+export const SHARE_LINK_COMPRESSION_FORMAT = 'deflate-raw';

@@ -21,9 +21,12 @@ import {
   LevelSizeBounds,
   sanitizeStoredLevels
 } from '../config/ConfigValidation';
-import { CompiledLevel } from '../core/types';
+import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
 import { Clock, generateLevelId, normalizePackName, renumberLevels } from './userPacks';
+
+/** Indent of the pack file written for people; a share link writes it compact. */
+const PACK_JSON_INDENT = 2;
 
 /** Why a pack file was refused. */
 export type PackJsonError = 'malformed' | 'format' | 'version' | 'name' | 'no_levels';
@@ -44,11 +47,12 @@ export interface PackJsonFile {
   levels: CompiledLevel[];
 }
 
-/** Serialises a pack to the exchange format. Levels are written whole, whatever their ruleset. */
+/** Serialises a pack to the exchange format. Levels are written whole, whatever their ruleset. `compact` drops the indentation. */
 export function serializePack(
   name: string,
   levels: readonly CompiledLevel[],
-  metadata: PackMetadata = {}
+  metadata: PackMetadata = {},
+  compact = false
 ): string {
   const file: PackJsonFile = {
     format: PACK_JSON_FORMAT,
@@ -58,7 +62,7 @@ export function serializePack(
     ...(metadata.description ? { description: metadata.description } : {}),
     levels: [...levels]
   };
-  return JSON.stringify(file, null, 2);
+  return compact ? JSON.stringify(file) : JSON.stringify(file, null, PACK_JSON_INDENT);
 }
 
 /**
@@ -67,14 +71,15 @@ export function serializePack(
  * refused when none is left. Level ids are made unique inside the pack, then
  * re-issued for the ones the library already holds (`takenLevelIds`). The
  * optional author and description are clamped to `limits`; without limits they
- * are not read.
+ * are not read. With `textLimits`, the text of the levels is cut to them.
  */
 export function parsePackJson(
   text: string,
   bounds: LevelSizeBounds,
   takenLevelIds: ReadonlySet<string>,
   now: Clock = Date.now,
-  limits?: PackMetadataLimits
+  limits?: PackMetadataLimits,
+  textLimits?: LevelTextConfig
 ): PackJsonResult {
   let parsed: unknown;
   try {
@@ -90,7 +95,7 @@ export function parsePackJson(
   const name = typeof parsed.name === 'string' ? normalizePackName(parsed.name) : '';
   if (name === '') return { ok: false, error: 'name' };
   if (!Array.isArray(parsed.levels)) return { ok: false, error: 'malformed' };
-  const valid = sanitizeStoredLevels(parsed.levels, bounds);
+  const valid = sanitizeStoredLevels(parsed.levels, bounds, textLimits);
   if (valid.length === 0) return { ok: false, error: 'no_levels' };
 
   const unique = ensureUniqueLevelIds(valid, name);

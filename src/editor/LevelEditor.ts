@@ -2435,7 +2435,14 @@ export class LevelEditor {
         skipped = decoded.skipped.length;
       } else {
         const text = await file.text();
-        const pack = parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set());
+        const pack = parsePackJson(
+          text,
+          ConfigRegistry.getLevelSizeBounds(),
+          ConfigRegistry.getTakenLevelIds(),
+          Date.now,
+          ConfigRegistry.getPackMetadataLimits(),
+          ConfigRegistry.getLevelTextLimits()
+        );
         if (pack.ok) {
           levels = pack.levels;
           packName = pack.name;

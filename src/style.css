@@ -2249,6 +2249,7 @@ body.fullscreen-mode .view-section {
 .packs-detail {
   flex: 1;
   min-width: 0;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -2292,6 +2293,51 @@ body.fullscreen-mode .view-section {
 .packs-meta-field textarea.editor-input {
   resize: vertical;
   font-family: inherit;
+}
+
+.share-preview-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 32rem;
+}
+
+.share-preview-name {
+  font-weight: bold;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.share-preview-description {
+  margin: 0;
+  max-height: 8rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+.share-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.share-preview-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.share-preview-status {
+  margin: 0;
+  color: var(--accent-yellow);
+}
+
+#share-link-field {
+  width: 100%;
 }
 
 .packs-live {
@@ -2446,6 +2492,33 @@ body.fullscreen-mode .view-section {
 .save-into-new .editor-input {
   flex: 1;
   width: auto;
+}
+
+/* The detail column is short on room well before the window is narrow (the library list sits beside it): wrap by its own width. */
+@container (max-width: 46rem) {
+  .packs-level {
+    grid-template-columns: 1.6rem auto 1.6rem minmax(0, 1fr);
+  }
+
+  .packs-level > :nth-child(1),
+  .packs-level > .packs-thumb {
+    grid-row: 1 / span 2;
+  }
+
+  .packs-level-title {
+    min-width: 6rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .packs-level > .packs-badges {
+    grid-column: 3 / -1;
+  }
+
+  .packs-level-actions {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 720px) {

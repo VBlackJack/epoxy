@@ -219,6 +219,36 @@
       "procedural_seed_copy_aria": { "label": "Copy seed {seed} to the clipboard" },
       "procedural_seed_copied": { "label": "Seed {seed} copied." },
       "procedural_seed_copy_failed": { "label": "Could not copy the seed. Select it and copy it by hand." },
+      "share": {
+        "preview": {
+          "title": { "label": "Shared pack" },
+          "by": { "label": "By {author}" },
+          "duplicate": { "label": "Already in your library" },
+          "import": { "action": "Import" },
+          "import_play": { "action": "Import and play" },
+          "play": { "action": "Play" },
+          "cancel": { "action": "Cancel" }
+        },
+        "error": {
+          "unsupported": { "label": "Open this link in a newer browser." },
+          "newer": { "label": "This link was made with a newer version of Epoxy." },
+          "damaged": { "label": "This link is damaged." },
+          "encode": { "label": "The link could not be made." }
+        },
+        "copy": { "action": "Copy share link" },
+        "copied": { "label": "Share link copied." },
+        "share": { "action": "Share..." },
+        "text": { "label": "Play my Epoxy pack {name}" },
+        "too_long": { "label": "This pack is too big for a share link. Export it as a JSON file and send the file instead." },
+        "empty": { "label": "Add a level before sharing this pack." },
+        "hint": { "label": "Long links may not fit in some chat apps. Export the JSON file for big packs." },
+        "fallback": {
+          "title": { "label": "Share link" },
+          "hint": { "label": "Select the link, then copy it." },
+          "field": { "label": "Share link" },
+          "close": { "action": "Close" }
+        }
+      },
       "import_btn": { "action": "Import a pack..." },
       "import_formats": { "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json), Chuck's Challenge 3D levels (.xml)." },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },

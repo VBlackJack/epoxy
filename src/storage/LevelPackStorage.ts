@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isRecord, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { LevelPack } from '../core/types';
 import { clampPackMetadata } from '../packs/packMetadata';
+import { isSourceHash } from '../packs/shareLink';
 
 /** IndexedDB schema version of the level pack store. */
 const LEVEL_PACK_DB_VERSION = 1;
@@ -145,6 +146,7 @@ class LevelPackStorageService {
         builtIn: false,
         ...(userCreated ? { userCreated } : {}),
         ...clampPackMetadata(entry, metadataLimits),
+        ...(typeof entry.sourceHash === 'string' && isSourceHash(entry.sourceHash) ? { sourceHash: entry.sourceHash } : {}),
         levels
       });
     }
