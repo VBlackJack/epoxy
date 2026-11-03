@@ -60,6 +60,15 @@ interface SlideResult {
   fatal: boolean;
 }
 
+/** Tiles that stay solid for the player whatever happens: no pusher can ever stand there. */
+const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
+  'wall',
+  'blue_wall_real',
+  'invisible_wall',
+  'appearing_wall',
+  'clone_machine'
+]);
+
 type BootCheck = (boots: number, bootId: string | undefined) => boolean;
 
 /** Tells whether a level's stored solution wins in the real engine; supplied by callers that can replay it. */
@@ -542,11 +551,26 @@ export class LevelValidator {
   /**
    * Warns when a collectible item or a hint tile lies on a cell a pushable
    * block can reach: a block covering it hides it from the player. Cheap
-   * approximation: the cells each block type can reach from its starts across
-   * block-passable terrain, ignoring where the player can stand to push. A
+   * approximation: the cells each block type can reach from its starts by
+   * pushes: a block moves from a cell to a neighbour only when that neighbour
+   * is block-passable and the cell opposite is ground the player can stand on.
+   * Other blocks and the player's route are ignored. A
    * hazard the block type refuses (mirrors and water) is never entered; water
    * the block may enter is reached but not crossed, since the block sinks there.
    */
+  /**
+   * True for ground nobody can ever stand on: walls and fixtures. Doors, sockets, toggle walls
+   * and hazards are not solid here, since a key, chips, a switch, boots or a filled pool can
+   * make them standable, so a push from them is still possible.
+   */
+  private static isSolidForPusher(terrainId: string): boolean {
+    return (
+      PERMANENT_SOLID_TILES.has(terrainId) ||
+      terrainId.startsWith('laser_emitter') ||
+      terrainId.startsWith('laser_receiver')
+    );
+  }
+
   private static checkHiddenByBlocks(level: CompiledLevel, issues: ValidationIssue[]): void {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length ?? 0;
@@ -579,6 +603,11 @@ export class LevelValidator {
           if (dest.passableByBlock !== true) continue;
           if (dest.hazard && refused.includes(dest.hazard)) continue;
           if (this.isEdgeBlocked(level.terrain[y][x], level.terrain[ny][nx], dir)) continue;
+          // The player must be able to stand on the cell behind the block to push it this way.
+          const px = x - vec.dx;
+          const py = y - vec.dy;
+          if (px < 0 || py < 0 || px >= width || py >= height) continue;
+          if (this.isSolidForPusher(level.terrain[py][px])) continue;
           seen[ny * width + nx] = 1;
           queue.push({ x: nx, y: ny });
         }

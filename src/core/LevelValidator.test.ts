@@ -360,6 +360,32 @@ describe('LevelValidator', () => {
       expect(keys(level)).not.toContain(HIDDEN);
     });
 
+    it('stays silent for a chip in a side pocket no push can send a block into', () => {
+      // A wall lies below the pocket, so nobody can stand there to push the block up into it.
+      const level = grid(['###c###', '#P...E#', '#######'], { entities: [block] });
+      expect(keys(level)).not.toContain(HIDDEN);
+    });
+
+    it('still warns for a chip in a pocket that has room below it for the pusher', () => {
+      const level = grid(['###c###', '#P...E#', '#.....#', '#######'], { entities: [{ ...block, x: 3, y: 1 }] });
+      expect(keys(level)).toContain(HIDDEN);
+    });
+
+    it('still warns for a chip in the straight push line of the block', () => {
+      expect(keys(grid(['#######', '#P.c..#', '#######'], { entities: [block] }))).toContain(HIDDEN);
+    });
+
+    it('still warns when the pusher would stand in a doorway', () => {
+      const level = grid(['###c###', '#P...E#', '###D###', '#######'], { entities: [{ ...block, x: 3, y: 1 }] });
+      expect(keys(level)).toContain(HIDDEN);
+    });
+
+    it('stays silent when the cell behind the block is a blue wall that stays solid', () => {
+      const level = grid(['###c###', '#P...E#', '#######'], { entities: [block] });
+      level.terrain[2][3] = 'blue_wall_real';
+      expect(keys(level)).not.toContain(HIDDEN);
+    });
+
     it('stays silent without any block', () => {
       expect(keys(grid(['#######', '#P.cHE#', '#######']))).not.toContain(HIDDEN);
     });

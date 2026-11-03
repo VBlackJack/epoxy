@@ -233,6 +233,43 @@
         "key_red",
         "key_green"
       ]
+    },
+    "epoxy_p_16": {
+      "segments": [
+        "SSEEEESSWWW",
+        "WSNEEEEEEEE",
+        "SSSWWWWWSS"
+      ]
+    },
+    "epoxy_p_17": {
+      "segments": [
+        "SSEEESEEWWW",
+        "WSSSEENNSSW",
+        "WNNNEEEEEEE",
+        "EENNNSSSSS"
+      ]
+    },
+    "epoxy_p_18": {
+      "segments": [
+        "SSESENESSSN",
+        "NNEEEESWNWS",
+        "SS"
+      ]
+    },
+    "epoxy_p_19": {
+      "segments": [
+        "EEESSSSWSSS",
+        "SEEENESNNWN",
+        "WSSS"
+      ]
+    },
+    "epoxy_p_20": {
+      "segments": [
+        "EESSESWSEEE",
+        "WSSWNWNEEEE",
+        "ESNNNNEEESS",
+        "WSS"
+      ]
     }
   }
 }

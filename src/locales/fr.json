@@ -1238,10 +1238,31 @@
       "level_15": {
         "title": "L'horloger",
         "hint": "Une clé dépensée est perdue pour de bon : avant d'ouvrir une porte, vérifie que les clés encore hors de portée paieront ce qui reste."
+      },
+      "level_16": {
+        "title": "Les coudes",
+        "hint": "Marcher dans un bloc le pousse d'une case : glisse chaque bloc dans une case libre à côté de ton chemin pour dégager le couloir."
+      },
+      "level_17": {
+        "title": "Le gué",
+        "hint": "L'eau te noie, mais un bloc poussé dedans comble le bassin."
+      },
+      "level_18": {
+        "title": "Les rails",
+        "hint": "Couvre chaque cible d'un bloc pour gagner, il n'y a pas de sortie, et un bloc ne bouge qu'en ligne droite devant toi."
+      },
+      "level_19": {
+        "title": "Les impasses",
+        "hint": "Avant de pousser, regarde où le bloc va s'arrêter : coincé dans un angle, le long d'un mur sans cible ou serré dans un carré, il ne bougera plus jamais."
+      },
+      "level_20": {
+        "title": "Le pont foulé",
+        "hint": "Une rivière de deux cases demande deux blocs dans la même rangée, et la terre fraîche arrête un bloc tant que tu n'as pas marché dessus."
       }
     },
     "chapter": {
-      "1": { "title": "Fondations du pilote", "subtitle": "Les premiers niveaux de la campagne reconstruite." }
+      "1": { "title": "Fondations du pilote", "subtitle": "Les premiers niveaux de la campagne reconstruite." },
+      "2": { "title": "Pousser", "subtitle": "Les blocs, l'eau et les cibles." }
     }
   }
 }

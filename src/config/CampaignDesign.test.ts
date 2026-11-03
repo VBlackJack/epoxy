@@ -25,6 +25,7 @@ import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel } from '../core/types';
 import { exitReachableWithout } from '../generator/GuardCheck';
 import { decodeActions, PieceSolver } from '../generator/PieceSolver';
+import { storedSolutionWins } from '../generator/SolutionReplay';
 import enLocale from '../locales/en.json';
 import frLocale from '../locales/fr.json';
 import { resolveMessage, TranslationNode } from '../i18n/messageFormat';
@@ -94,9 +95,54 @@ function coverageProblems({ levels, routes }: DesignInput): string[] {
   return problems;
 }
 
+/**
+ * A level won by covering its block targets has no exit to reach, so it must
+ * hold none (an exit would let the player skip the puzzle), its stored solution
+ * must replay to a win and every target must lie where the player or a block can
+ * go. The exact room proofs (block solver) live in PilotChapterTwo.test.ts.
+ */
+function targetsLevelProblems(level: CompiledLevel): string[] {
+  const problems: string[] = [];
+  const width = level.terrain[0].length;
+  const height = level.terrain.length;
+  if (level.terrain.flat().some((id) => ConfigRegistry.getTile(id).isLevelExit)) {
+    problems.push(`${level.id}: a targets level holds an exit`);
+  }
+  if (!storedSolutionWins(level)) problems.push(`${level.id}: the stored solution does not win`);
+  // Flood from the player over ground the player or a block may enter.
+  const seen = new Set<number>([level.playerStart.y * width + level.playerStart.x]);
+  const queue: Array<{ x: number; y: number }> = [level.playerStart];
+  for (let head = 0; head < queue.length; head++) {
+    const { x, y } = queue[head];
+    for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen.has(ny * width + nx)) continue;
+      const tile = ConfigRegistry.getTile(level.terrain[ny][nx]);
+      if (tile.passableByPlayer !== true && tile.passableByBlock !== true) continue;
+      seen.add(ny * width + nx);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  level.terrain.forEach((row, y) =>
+    row.forEach((id, x) => {
+      if (id === 'block_target' && !seen.has(y * width + x)) problems.push(`${level.id}: target ${x},${y} is out of reach`);
+    })
+  );
+  return problems;
+}
+
 function requirementProblems({ levels, routes }: DesignInput): string[] {
   const problems: string[] = [];
   for (const level of levels) {
+    if (level.winRule === 'targets') {
+      problems.push(...targetsLevelProblems(level));
+      // A level with no exit has no item to require: a stray declaration must not pass silently.
+      if ((routes.levels[level.id]?.requires ?? []).length > 0) {
+        problems.push(`${level.id}: a targets level declares required items`);
+      }
+      continue;
+    }
     if (!exitReachableWithout(level, UNRELATED_ITEM)) problems.push(`${level.id}: exit unreachable at all`);
     for (const item of routes.levels[level.id]?.requires ?? []) {
       if (exitReachableWithout(level, item)) problems.push(`${level.id}: exit reachable without ${item}`);
