@@ -24,7 +24,7 @@
  * When EPOXY_SIM_GOLDEN names a file, the hashes of every level and script must match that file exactly; a
  * missing file fails. The file is only written when EPOXY_SIM_GOLDEN_WRITE=1 is also set, and that must be
  * done on the reference checkout (before the refactor), never on the branch under test. Hashes and ids only.
- * Without EPOXY_SIM_GOLDEN, a quick determinism check hashes the first levels twice.
+ * Without EPOXY_SIM_GOLDEN, a quick determinism check hashes the first campaign levels twice, and a guard checks\n * that every stored solution of a campaign or pilot level is won and that the levels without a stored solution\n * (hashed from their initial state only) are exactly the expected ones.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -37,7 +37,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import laserShowcase from '../test/fixtures/laserShowcase.json';
 import mechanicsShowcase from '../test/fixtures/mechanicsShowcase.json';
-import { ENGINE_SCRIPTS, engineSimulationHash } from './engineSimHash';
+import { ENGINE_SCRIPTS, engineSimulationHash, engineSimulationRun } from './engineSimHash';
 import { ProceduralGenerator } from './ProceduralGenerator';
 import type { CompiledLevel, LevelBlueprint } from './types';
 
@@ -46,7 +46,11 @@ const SIM_GOLDEN_WRITE = process.env.EPOXY_SIM_GOLDEN_WRITE === '1';
 const GENERATED_LEVEL_COUNT = 20;
 const GENERATOR_SEED = 7;
 const DETERMINISM_LEVEL_COUNT = 3;
+const DETERMINISM_TIMEOUT_MS = 30_000;
+const SOLUTION_GUARD_TIMEOUT_MS = 60_000;
 const SIMULATION_TIMEOUT_MS = 600_000;
+/** Campaign, pilot and showcase levels (not the generated ones) that carry no stored solution: only their initial state is hashed. */
+const EXPECTED_NO_SOLUTION_COUNT = 3;
 const SKIPPED_RULESETS: readonly string[] = ['lynx', 'cc3d'];
 
 /** Whether the engine selector hands this level to GameEngine. */
@@ -54,20 +58,33 @@ function playedByGameEngine(level: CompiledLevel): boolean {
   return !SKIPPED_RULESETS.includes(level.ruleset ?? 'epoxy');
 }
 
-function collectLevels(): CompiledLevel[] {
-  const showcases = [laserShowcase, mechanicsShowcase].flatMap((pack) =>
-    (pack as { levels: LevelBlueprint[] }).levels.map((blueprint) => ConfigRegistry.compileBlueprint(blueprint))
-  );
-  const generated = Array.from({ length: GENERATED_LEVEL_COUNT }, (_, index) =>
-    ProceduralGenerator.generateLevel(index + 1, GENERATOR_SEED)
-  );
-  const all = [...ConfigRegistry.getLevels(), ...ConfigRegistry.getPilotLevels(), ...showcases, ...generated];
+function dedupe(levels: readonly CompiledLevel[]): CompiledLevel[] {
   const seen = new Set<string>();
-  return all.filter((level) => {
+  return levels.filter((level) => {
     if (!playedByGameEngine(level) || seen.has(level.id)) return false;
     seen.add(level.id);
     return true;
   });
+}
+
+function campaignAndPilotLevels(): CompiledLevel[] {
+  return dedupe([...ConfigRegistry.getLevels(), ...ConfigRegistry.getPilotLevels()]);
+}
+
+function showcaseLevels(): CompiledLevel[] {
+  return [laserShowcase, mechanicsShowcase].flatMap((pack) =>
+    (pack as { levels: LevelBlueprint[] }).levels.map((blueprint) => ConfigRegistry.compileBlueprint(blueprint))
+  );
+}
+
+function generatedLevels(): CompiledLevel[] {
+  return Array.from({ length: GENERATED_LEVEL_COUNT }, (_, index) =>
+    ProceduralGenerator.generateLevel(index + 1, GENERATOR_SEED)
+  );
+}
+
+function collectLevels(): CompiledLevel[] {
+  return dedupe([...campaignAndPilotLevels(), ...showcaseLevels(), ...generatedLevels()]);
 }
 
 function hashAll(levels: readonly CompiledLevel[]): Record<string, string> {
@@ -86,10 +103,24 @@ describe('engine simulation golden', () => {
   });
 
   it('hashes the same level twice to the same value', () => {
-    const levels = collectLevels().slice(0, DETERMINISM_LEVEL_COUNT);
+    const levels = campaignAndPilotLevels().slice(0, DETERMINISM_LEVEL_COUNT);
     expect(levels.length).toBe(DETERMINISM_LEVEL_COUNT);
     expect(hashAll(levels)).toEqual(hashAll(levels));
-  }, SIMULATION_TIMEOUT_MS);
+  }, DETERMINISM_TIMEOUT_MS);
+
+  it('wins every stored solution of a campaign or pilot level and lists the levels without a solution', () => {
+    const stored = campaignAndPilotLevels();
+    for (const level of stored) {
+      const run = engineSimulationRun(level, 'solution');
+      if (run.hasSolution) expect(run.won, `${level.id} stored solution is not won`).toBe(true);
+    }
+    const withoutSolution = [...stored, ...showcaseLevels()]
+      .filter((level) => !engineSimulationRun(level, 'solution').hasSolution)
+      .map((level) => level.id);
+    expect(withoutSolution, `levels hashed from their initial state only: ${withoutSolution.join(', ')}`).toHaveLength(
+      EXPECTED_NO_SOLUTION_COUNT
+    );
+  }, SOLUTION_GUARD_TIMEOUT_MS);
 
   it.skipIf(!SIM_GOLDEN_FILE)(
     'matches the golden hashes of every level',

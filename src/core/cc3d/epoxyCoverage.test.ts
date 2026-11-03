@@ -142,6 +142,15 @@ describe('classifyLevel', () => {
 });
 
 describe('stackedPairs', () => {
+  it('flags water+trap as stacked and floor+trap as not, and keeps the base in the key', () => {
+    const wet = levelOf(['####', '#@T#', '####'], { T: stacked({ kind: 'water' }, { kind: 'trap' }) });
+    expect(elementKeys(wet).has('stacked_terrain')).toBe(true);
+    expect(stackedPairs(wet).get('water+trap')).toBe(1);
+    const dry = levelOf(['####', '#@T#', '####'], { T: stacked({ kind: 'floor' }, { kind: 'trap' }) });
+    expect(elementKeys(dry).has('stacked_terrain')).toBe(false);
+    expect(stackedPairs(dry).size).toBe(0);
+  });
+
   it('counts the stacks bottom to top with colours', () => {
     const glyphs = {
       S: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'door', color: SAMPLE_COLOR }),
@@ -150,7 +159,7 @@ describe('stackedPairs', () => {
     const level = levelOf(['#####', '#@SS#', '#TS.#', '#####'], glyphs);
     const pairs = stackedPairs(level);
     expect(pairs.get('bomb+door')).toBe(3);
-    expect(pairs.get('trap+wall')).toBe(1);
+    expect(pairs.get('water+trap+wall')).toBe(1);
     expect(pairs.size).toBe(2);
   });
 });

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { CC3D_CLASS_FLOOR, CC3D_COLORS, terrainClass, topTerrain } from './model';
+import { CC3D_COLORS, topTerrain } from './model';
 import type { Cc3dCell, Cc3dColor, Cc3dLevel, Cc3dTerrain } from './model';
 
 /**
@@ -150,9 +150,14 @@ function terrainKey(terrain: Cc3dTerrain): string {
   return COLOR_KEY_KINDS.includes(terrain.kind) ? withColor(terrain.kind, terrain.color) : terrain.kind;
 }
 
-/** The devices and blockers of a cell, bottom first: everything but the floor-like base. */
-function aboveBase(cell: Cc3dCell): Cc3dTerrain[] {
-  return cell.terrain.filter((layer) => terrainClass(layer.kind) !== CC3D_CLASS_FLOOR);
+/**
+ * The entries of a cell that are not plain floor, bottom first. A cell stack is [base, devices..., blockers...]
+ * (see normalizeCell in model.ts), and the base is plain floor unless the cell is water, fire, ice and so on.
+ * Epoxy holds one terrain per cell, so a cell is "stacked" exactly when this list has two or more entries:
+ * water+trap, ice+bomb and fire+wall count, [floor, trap] does not (one entry), and [floor, bomb, door] does.
+ */
+function nonFloorLayers(cell: Cc3dCell): Cc3dTerrain[] {
+  return cell.terrain.filter((layer) => layer.kind !== PLAIN_FLOOR);
 }
 
 /** The element keys of a level, structural ones included. */
@@ -161,7 +166,7 @@ export function elementKeys(level: Cc3dLevel): Set<string> {
   for (const cell of level.cells) {
     for (const layer of cell.terrain) keys.add(terrainKey(layer));
     if (cell.item) keys.add(cell.item.kind);
-    if (aboveBase(cell).length >= MIN_STACKED_ENTRIES) keys.add(KEY_STACKED_TERRAIN);
+    if (nonFloorLayers(cell).length >= MIN_STACKED_ENTRIES) keys.add(KEY_STACKED_TERRAIN);
     if (cell.panels.length > 0 && topTerrain(cell).kind !== PLAIN_FLOOR) keys.add(KEY_PANELS_ON_NONFLOOR);
   }
   for (const mob of level.mobs) keys.add(mob.kind === COLOR_MOB_KIND ? withColor(mob.kind, mob.color) : mob.kind);
@@ -182,11 +187,11 @@ export function classifyLevel(level: Cc3dLevel): LevelCoverage {
   return { verdict, lost: lostKeys, approx: approxKeys };
 }
 
-/** Counts, over cells with two or more devices or blockers, the stack "kindA+kindB" bottom to top, with colours. */
+/** Counts, over stacked cells (see nonFloorLayers), the stack "base+device+blocker" bottom to top, base kind included, with colours. */
 export function stackedPairs(level: Cc3dLevel): Map<string, number> {
   const counts = new Map<string, number>();
   for (const cell of level.cells) {
-    const above = aboveBase(cell);
+    const above = nonFloorLayers(cell);
     if (above.length < MIN_STACKED_ENTRIES) continue;
     const key = above.map(terrainKey).join(STACK_SEPARATOR);
     counts.set(key, (counts.get(key) ?? 0) + 1);
