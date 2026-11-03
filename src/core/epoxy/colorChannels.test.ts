@@ -20,7 +20,12 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { terrainEventKind } from '../DifficultyMetrics';
 import { GameEngine } from '../GameEngine';
+import { LevelMetrics, MECHANICS } from '../LevelMetrics';
+import { LevelValidator } from '../LevelValidator';
+import { Pathfinder } from '../Pathfinder';
+import { isPlayerWalkable } from '../Walkability';
 import { CompiledLevel, Direction, EntityPlacement } from '../types';
 
 const TERRAIN_CODES: Record<string, string> = {
@@ -341,5 +346,66 @@ describe('colour blocks and floating blocks', () => {
     expect(engine.getEntities()).toHaveLength(0);
     moves(engine, 'E');
     expect(engine.getPlayer().x).toBe(2);
+  });
+});
+
+describe('colour channels in the validator and the helpers', () => {
+  const issueKeys = (rows: string[], items: Record<string, string> = {}): string[] =>
+    LevelValidator.validate(room(rows, items)).issues.map((i) => i.i18nKey);
+
+  it('lets a green button leave a red wall shut, but a red button open it', () => {
+    expect(issueKeys(['#######', '#P[.xE#', '#######'])).toContain('validator.issues.unreachable_exit.label');
+    expect(issueKeys(['#######', '#Pk.xE#', '#######'])).not.toContain('validator.issues.unreachable_exit.label');
+    // A blue button does not open a red wall either.
+    expect(issueKeys(['#######', '#PK.xE#', '#######'])).toContain('validator.issues.unreachable_exit.label');
+  });
+
+  it('passes a hold door only when blocks can hold every plate of its colour', () => {
+    const noBlock = ['#########', '#P.r.RE.#', '#########'];
+    expect(issueKeys(noBlock)).toContain('validator.issues.unreachable_exit.label');
+    const withBlock = ['#########', '#P2r.RE.#', '#########'];
+    expect(issueKeys(withBlock)).not.toContain('validator.issues.unreachable_exit.label');
+    // A blue block cannot hold a red plate.
+    expect(issueKeys(['#########', '#P3r.RE.#', '#########'])).toContain('validator.issues.unreachable_exit.label');
+    expect(issueKeys(['#########', '#P1r.RE.#', '#########'])).not.toContain('validator.issues.unreachable_exit.label');
+  });
+
+  it('warns about a hold door with no plate, orphan channel walls and buttons, and a door placed against its plates', () => {
+    expect(issueKeys(['######', '#P.RE#', '######'])).toContain('validator.issues.hold_door_no_plate.label');
+    expect(issueKeys(['######', '#P.xE#', '######'])).toContain('validator.issues.channel_walls_no_button.label');
+    expect(issueKeys(['######', '#PkxE#', '######'])).not.toContain('validator.issues.channel_walls_no_button.label');
+    expect(issueKeys(['######', '#PkIE#', '######'])).toContain('validator.issues.channel_button_no_walls.label');
+    // A block on the plate at the start keeps the door open: placed closed, it is the wrong way round.
+    const wrong = LevelValidator.validate(room(['#######', '#P2rRE#', '#######']));
+    expect(wrong.issues.map((i) => i.i18nKey)).not.toContain('validator.issues.hold_door_wrong_start.label');
+    const placedClosed = room(['#######', '#Pr.RE#', '#######']);
+    placedClosed.entities = [{ type: 'dirt_block', x: 2, y: 1, dir: 'S' }];
+    const report = LevelValidator.validate(placedClosed);
+    expect(report.issues.map((i) => i.i18nKey)).toContain('validator.issues.hold_door_wrong_start.label');
+    expect(report.issues.every((i) => i.severity === 'warning' || i.i18nKey.includes('unreachable'))).toBe(true);
+  });
+
+  it('counts the channel mechanics of a level', () => {
+    const mechanics = LevelMetrics.measure(room(['#########', '#Pkx2rRE#', '#########'])).mechanics;
+    expect(mechanics).toContain(MECHANICS.PLATES_HOLD_DOORS);
+    expect(mechanics).toContain(MECHANICS.TOGGLE_WALLS);
+    expect(mechanics).not.toContain(MECHANICS.COLOR_BLOCKS);
+    const withBlock = room(['#####', '#P.E#', '#####']);
+    withBlock.entities = [{ type: 'color_block_red', x: 2, y: 1, dir: 'S' }];
+    expect(LevelMetrics.measure(withBlock).mechanics).toContain(MECHANICS.COLOR_BLOCKS);
+  });
+
+  it('treats channel walls and hold doors as walkable for the metrics and as reversible for the difficulty count', () => {
+    for (const id of ['toggle_wall_red_closed', 'hold_door_blue_closed', 'hold_door_blue_open']) {
+      expect(isPlayerWalkable(ConfigRegistry.getTile(id)), id).toBe(true);
+    }
+    expect(terrainEventKind('toggle_wall_red_closed', 'toggle_wall_red_open')).toBeNull();
+    expect(terrainEventKind('hold_door_red_closed', 'hold_door_red_open')).toBeNull();
+  });
+
+  it('points the objective at a colour button only when a wall of its channel is shut', () => {
+    expect(Pathfinder.findNextObjective(engineFor(['#######', '#Pk.xE#', '#######']))).toEqual({ x: 2, y: 1 });
+    expect(Pathfinder.findNextObjective(engineFor(['#######', '#PK.xE#', '#######']))).toBeNull();
+    expect(Pathfinder.findNextObjective(engineFor(['#######', '#P[.xE#', '#######']))).toBeNull();
   });
 });

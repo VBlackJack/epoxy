@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, ThemePalette, TileDefinition } from '../core/types';
 import {
@@ -1808,7 +1808,8 @@ export class PixelRenderer {
     }
 
     // 3. Buttons <-> the tiles they toggle, and teleporter networks (lists cached on terrain change)
-    const { toggleButtons, toggleWalls, flameButtons, flameTargets, teleporterGroups } = this.terrainFeatures;
+    const { toggleButtons, toggleWalls, channelButtons, channelWalls, flameButtons, flameTargets, teleporterGroups } =
+      this.terrainFeatures;
     const hovDef = hovTile ? ConfigRegistry.getTile(hovTile) : undefined;
     const toggleVisible = showAll || hovDef?.buttonAction === 'toggle_walls';
     const flameVisible = showAll || hovDef?.buttonAction === 'toggle_flames';
@@ -1816,6 +1817,12 @@ export class PixelRenderer {
     ctx.globalAlpha = LINK_STYLE.toggleAlpha;
     if (toggleVisible) {
       this.strokeButtonLinks(ctx, toggleButtons, toggleWalls, camX, camY, tilePixelSize);
+    }
+    // A colour toggle button links to the walls of its own channel only.
+    const hoveredChannel = channelOfButtonAction(hovDef?.buttonAction);
+    for (const [channel, buttons] of channelButtons) {
+      if (!showAll && channel !== hoveredChannel) continue;
+      this.strokeButtonLinks(ctx, buttons, channelWalls.get(channel) ?? [], camX, camY, tilePixelSize);
     }
     if (flameVisible) {
       this.strokeButtonLinks(ctx, flameButtons, flameTargets, camX, camY, tilePixelSize);

@@ -43,7 +43,9 @@ export const MECHANICS = {
   BOMB: 'bomb',
   BLOCKS: 'blocks',
   MONSTERS: 'monsters',
-  LASERS: 'lasers'
+  LASERS: 'lasers',
+  PLATES_HOLD_DOORS: 'plates_hold_doors',
+  COLOR_BLOCKS: 'color_blocks'
 } as const;
 
 export type Mechanic = (typeof MECHANICS)[keyof typeof MECHANICS];
@@ -414,7 +416,8 @@ export class LevelMetrics {
     if (tile.isTeleporter) found.add(MECHANICS.TELEPORT);
     if (tile.isTrap) found.add(MECHANICS.TRAP);
     if (tile.isCloneMachine) found.add(MECHANICS.CLONER);
-    if (tile.togglesTo) found.add(MECHANICS.TOGGLE_WALLS);
+    if (tile.togglesTo || tile.channelTogglesTo) found.add(MECHANICS.TOGGLE_WALLS);
+    if (tile.plateColor !== undefined || tile.holdDoorColor !== undefined) found.add(MECHANICS.PLATES_HOLD_DOORS);
     if (tile.laserEmitter || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined) {
       found.add(MECHANICS.LASERS);
     }
@@ -428,6 +431,7 @@ export class LevelMetrics {
     const def = ConfigRegistry.getEntityDef(entityType);
     if (def?.kind === 'block') found.add(MECHANICS.BLOCKS);
     if (def?.mirrorAxis) found.add(MECHANICS.LASERS);
+    if (def?.plateColor !== undefined) found.add(MECHANICS.COLOR_BLOCKS);
     if (def?.kind === 'monster') found.add(MECHANICS.MONSTERS);
   }
 

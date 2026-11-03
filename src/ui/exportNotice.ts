@@ -70,6 +70,11 @@ export function lossyExportNotice(
   if (refusedFor('cc3d_ruleset').length > 0) {
     parts.push(t('app.export.refused_cc3d_ruleset.label', { levels: levelNames(refusedFor('cc3d_ruleset')) }));
   }
+  if (refusedFor('color_channel_content').length > 0) {
+    parts.push(
+      t('app.export.refused_color_channel_content.label', { levels: levelNames(refusedFor('color_channel_content')) })
+    );
+  }
   if (padded.length > 0) {
     parts.push(t('app.export.padded.label', { levels: levelNames(padded) }));
   }

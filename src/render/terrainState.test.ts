@@ -76,6 +76,24 @@ describe('collectTerrainFeatures', () => {
     expect(features.litCells).toEqual([]);
   });
 
+  it('keeps the colour toggle buttons and walls of each channel apart from the green ones', () => {
+    const defs = {
+      button_green: { id: 'button_green', buttonAction: 'toggle_walls' },
+      toggle_wall_closed: { id: 'toggle_wall_closed', togglesTo: 'toggle_wall_open' },
+      toggle_button_red: { id: 'toggle_button_red', buttonAction: 'toggle_walls_red' },
+      toggle_wall_red_closed: { id: 'toggle_wall_red_closed', toggleChannel: 'red', channelTogglesTo: 'toggle_wall_red_open' },
+      toggle_button_blue: { id: 'toggle_button_blue', buttonAction: 'toggle_walls_blue' }
+    } as unknown as Parameters<typeof collectTerrainFeatures>[3];
+    const terrain = [['button_green', 'toggle_wall_closed', 'toggle_button_red', 'toggle_wall_red_closed', 'toggle_button_blue']];
+    const features = collectTerrainFeatures(terrain, new Set(), new Set(), defs);
+    expect(features.toggleButtons).toEqual([{ x: 0, y: 0 }]);
+    expect(features.toggleWalls).toEqual([{ x: 1, y: 0 }]);
+    expect(features.channelButtons.get('red')).toEqual([{ x: 2, y: 0 }]);
+    expect(features.channelWalls.get('red')).toEqual([{ x: 3, y: 0 }]);
+    expect(features.channelButtons.get('blue')).toEqual([{ x: 4, y: 0 }]);
+    expect(features.channelWalls.has('blue')).toBe(false);
+  });
+
   it('lists lit cells only for the lit tile ids given', () => {
     const features = collectTerrainFeatures(grid(), new Set(), new Set(['teleport']));
     expect(features.litCells).toEqual([

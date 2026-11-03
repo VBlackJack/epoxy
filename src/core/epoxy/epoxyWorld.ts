@@ -255,14 +255,20 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
  */
 export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: ChannelColor): boolean {
   if (w.player.alive && w.player.x === x && w.player.y === y) return true;
-  return w.entities.some((e) => {
-    if (e.x !== x || e.y !== y || e.isSliding) return false;
-    const def = ConfigRegistry.getEntityDef(e.type);
-    if (e.kind === 'block') {
-      return def?.pressesPlates !== false && (def?.plateColor === undefined || def.plateColor === color);
-    }
-    return def?.pressesPlates === true;
-  });
+  return w.entities.some((e) => e.x === x && e.y === y && !e.isSliding && entityPressesPlate(e.type, e.kind, color));
+}
+
+/**
+ * Whether an entity of this type, standing still on a plate of this colour, presses it: a block does
+ * (a colour block only on a plate of its own colour) unless its definition says otherwise, a monster
+ * only when its definition says so.
+ */
+export function entityPressesPlate(type: string, kind: 'block' | 'monster', color: ChannelColor): boolean {
+  const def = ConfigRegistry.getEntityDef(type);
+  if (kind === 'block') {
+    return def?.pressesPlates !== false && (def?.plateColor === undefined || def.plateColor === color);
+  }
+  return def?.pressesPlates === true;
 }
 
 export function killPlayer(ctx: EpoxyContext, reasonKey: string, sfxId: string): void {
