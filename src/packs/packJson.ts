@@ -21,6 +21,7 @@ import {
   LevelSizeBounds,
   sanitizeStoredLevels
 } from '../config/ConfigValidation';
+import { cellEdgeMask } from '../core/EdgeRules';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
 import { Clock, generateLevelId, normalizePackName, renumberLevels } from './userPacks';
@@ -56,7 +57,7 @@ export function serializePack(
 ): string {
   const file: PackJsonFile = {
     format: PACK_JSON_FORMAT,
-    version: levels.some((level) => level.cellEdges !== undefined) ? PACK_JSON_VERSION_CELL_EDGES : PACK_JSON_VERSION,
+    version: levels.some((level) => cellEdgeMask(level) !== null) ? PACK_JSON_VERSION_CELL_EDGES : PACK_JSON_VERSION,
     name,
     ...(metadata.author ? { author: metadata.author } : {}),
     ...(metadata.description ? { description: metadata.description } : {}),

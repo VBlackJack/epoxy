@@ -84,6 +84,8 @@ describe('packJson', () => {
     expect(JSON.parse(serializePack('N', [makeLevel('a')])).version).toBe(PACK_JSON_VERSION);
     expect(JSON.parse(serializePack('N', [makeLevel('a'), edged])).version).toBe(PACK_JSON_VERSION_CELL_EDGES);
     expect(serializePack('N', [makeLevel('a')])).not.toContain('cellEdges');
+    // An empty list holds no edge: it writes version 1 like a level without the field.
+    expect(JSON.parse(serializePack('N', [{ ...makeLevel('a'), cellEdges: [] }])).version).toBe(PACK_JSON_VERSION);
   });
 
   it('round-trips cell edges and reads both versions', () => {

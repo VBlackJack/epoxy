@@ -94,7 +94,7 @@
       "refused_laser_content": { "label": "Non exporté : {levels} utilise des lasers ou des miroirs, que le format .DAT ne peut pas porter." },
       "refused_cc3d_ruleset": { "label": "Non exporté : {levels} se joue avec les règles CC3D, que le format .DAT ne peut pas porter. Utilisez plutôt Exporter XML." },
       "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascule de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
-      "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins sur des cases où le format .DAT n'a pas de tuile de mur fin." },
+      "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins posés sur des cases, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
