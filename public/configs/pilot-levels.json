@@ -376,7 +376,7 @@
       "hintKey": "pilot.levels.level_11.hint",
       "password": "HEDG",
       "timeLimitSeconds": 0,
-      "chipsRequired": 10,
+      "chipsRequired": 8,
       "playerStart": {
         "x": 6,
         "y": 10,
@@ -493,22 +493,11 @@
           "id": "thin_wall_n"
         }
       ],
-      "items": [
-        {
-          "x": 1,
-          "y": 8,
-          "id": "chip"
-        },
-        {
-          "x": 11,
-          "y": 8,
-          "id": "chip"
-        }
-      ],
+      "items": [],
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "NNEEEEEWWWWWWWWWWEEEEENEEEEENWWWWSWWNWWWWNENNNNWEESSWSSEEEEEEEENNNNEWWSSESSWWWNNWWENN"
+      "solution": "NNNEEEEENWWWWSWWNWWWWNENNNNWEESSWSSEEEEEEEENNNNEWWSSESSWWWNNWWENN"
     },
     {
       "id": "epoxy_p_12",
@@ -527,8 +516,8 @@
       "rows": [
         "#############",
         "#r.C#..C#..C#",
-        "#.#.#.#.#.#.#",
-        "#.#.#.#.#.#.#",
+        "#...#...#...#",
+        "#...#...#...#",
         "#..C#..C#..C#",
         "#G###G###G###",
         "#..........k#",
@@ -590,7 +579,7 @@
       "hintKey": "pilot.levels.level_14.hint",
       "password": "TWIN",
       "timeLimitSeconds": 0,
-      "chipsRequired": 11,
+      "chipsRequired": 7,
       "playerStart": {
         "x": 1,
         "y": 6,
@@ -608,7 +597,7 @@
         "#.C.#C#.C.#E#",
         "#...#.#...###",
         "###.#k###.###",
-        "#C.C###C.C###",
+        "#...###...###",
         "#############"
       ],
       "terrainOverrides": [],
@@ -616,7 +605,7 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "EEEEEEWWSSSSNNNNWWWNNENNNWWESESSWSSSSESSSWWEENNNWNNEEEENNENNNWWEESSSWSSESSEESSSWWEENNNWWNNEEENNWNNNEESWWSSESSESS"
+      "solution": "EEEEEEWWSSSSNNNNWWWNNENNNWWESESSWSSSSNNEEEENNENNNWWEESSSWSSESSEWNNEEENNWNNNEESWWSSESSESS"
     },
     {
       "id": "epoxy_p_15",
@@ -626,7 +615,7 @@
       "hintKey": "pilot.levels.level_15.hint",
       "password": "CLOK",
       "timeLimitSeconds": 0,
-      "chipsRequired": 15,
+      "chipsRequired": 11,
       "playerStart": {
         "x": 6,
         "y": 11,
@@ -639,10 +628,10 @@
         "#####.S.#####",
         "#r.C#r..#r.C#",
         "#C..G...R...#",
-        "#####...#####",
+        "######.######",
         "#C..#...#..C#",
         "#...R...R...#",
-        "#####C.C#####",
+        "######.######",
         "#CCC##H##k.C#",
         "#...R.@.R...#",
         "#############"
@@ -659,11 +648,6 @@
           "id": "thin_wall_n"
         },
         {
-          "x": 6,
-          "y": 2,
-          "id": "thin_wall_e"
-        },
-        {
           "x": 9,
           "y": 2,
           "id": "thin_wall_n"
@@ -694,11 +678,6 @@
           "id": "thin_wall_n"
         },
         {
-          "x": 6,
-          "y": 5,
-          "id": "thin_wall_w"
-        },
-        {
           "x": 9,
           "y": 5,
           "id": "thin_wall_n"
@@ -707,21 +686,6 @@
           "x": 10,
           "y": 5,
           "id": "thin_wall_n"
-        },
-        {
-          "x": 5,
-          "y": 6,
-          "id": "thin_wall_n"
-        },
-        {
-          "x": 7,
-          "y": 6,
-          "id": "thin_wall_n"
-        },
-        {
-          "x": 6,
-          "y": 8,
-          "id": "thin_wall_w"
         },
         {
           "x": 2,
@@ -764,22 +728,12 @@
           "x": 10,
           "y": 5,
           "id": "chip"
-        },
-        {
-          "x": 5,
-          "y": 6,
-          "id": "chip"
-        },
-        {
-          "x": 7,
-          "y": 6,
-          "id": "chip"
         }
       ],
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "NNNNNNNWNSEENSSEEEENWWEESWWWWWSESSSWSSEEEEENWWEESWWWWWNNNNNNNWSWWWWNEEWWSEEEENESSSSSSSWWWWWNEEWWSEEEEENNWNNNENNNNWWWWWNSEEEEENESEEEENWW"
+      "solution": "NNNNNNNWNSEENSSEEEENWWEESWWWWWSSSSSSEEEEENWWEESWWWWWNNNNNNWWWWWNEEWWSEEEEESSSSSSWWWWWNEEWWSEEEEENNNNNNNNNWWWWWNSEEEEEEEEEENWW"
     }
   ]
 }

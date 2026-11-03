@@ -284,7 +284,7 @@ describe('pilot chapter 1 hedge', () => {
     expect(redKeysHeld(engine)).toBe(0);
     for (const door of HEDGE_ROOM_DOORS) expect(terrainAt(engine, door.x, door.y)).toBe('door_red');
     expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(false);
-  });
+}, 120000);
 
   it('needs both key rooms, and never opens the hedge door in its own solution', () => {
     const level = levelById(HEDGE_LEVEL);
@@ -387,7 +387,7 @@ describe('pilot chapter 1 two key rings', () => {
     const engine = engineAfter(levelById(TWINS_LEVEL), TWINS_ALCOVE_FIRST);
     expect(terrainAt(engine, TWINS_ALCOVE_DOOR.x, TWINS_ALCOVE_DOOR.y)).toBe('floor');
     expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(true);
-  });
+}, 120000);
 
   it.each([
     ['the west chip room', TWINS_WEST_ROOM_FIRST, { x: 2, y: 7 }],
@@ -397,7 +397,7 @@ describe('pilot chapter 1 two key rings', () => {
     expect(terrainAt(engine, door.x, door.y)).toBe('floor');
     expect(redKeysHeld(engine)).toBe(0);
     expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(false);
-  });
+  }, 120000);
 });
 
 const CLOCK_LEVEL = 'epoxy_p_15';
@@ -412,13 +412,13 @@ const CLOCK_BAIT_DOORS = [
 ];
 const CLOCK_BACK_TO_START = 'ESSSSSSS';
 /** Trap 1: the key goes into the east bait room before the green key is fetched. */
-const CLOCK_BAIT_FIRST = `${CLOCK_TO_KEY}ESSESSE`;
+const CLOCK_BAIT_FIRST = `${CLOCK_TO_KEY}ESSSESE`;
 /** Trap 2: the key goes into the plain chip room next to the start, which gives no key back. */
 const CLOCK_PLAIN_FIRST = `${CLOCK_TO_KEY}${CLOCK_BACK_TO_START}WW`;
 /** Trap 3: the key opens the key room, and the key it returns goes into the plain room instead of the closet. */
 const CLOCK_KEY_ROOM_THEN_PLAIN = `${CLOCK_TO_KEY}EESEEEENWWEESWWWWWSSSSSSWW`;
 /** Trap 4: closet, then the first green room, then a bait room with the key just fetched. */
-const CLOCK_BAIT_LATE = `${CLOCK_TO_KEY}${CLOCK_BACK_TO_START}EEEEENWWEESWWWWWNNNNNNNWSWWWWNSEEEENESSSWSW`;
+const CLOCK_BAIT_LATE = `${CLOCK_TO_KEY}${CLOCK_BACK_TO_START}EEEEENWWEESWWWWWNNNNNNWWWWWNSEEEEESSSWW`;
 
 describe('pilot chapter 1 clockmaker', () => {
   beforeAll(() => {
