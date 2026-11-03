@@ -32,7 +32,6 @@ import {
   EpoxyContext,
   EpoxyVisualKind,
   EpoxyWorld,
-  applyRelativeTurn,
   buildLevelLookups,
   canPlayerEnter,
   createEpoxyWorld,
@@ -47,7 +46,8 @@ import {
   mapWidth,
   removeEntity
 } from './epoxy/epoxyWorld';
-import { attemptPushBlock, isCanBlockEnter, moveBlockTo, stepSlidingBlock } from './epoxy/epoxyBlocks';
+import { attemptPushBlock, isCanBlockEnter, moveBlockTo } from './epoxy/epoxyBlocks';
+import { canMonsterEnter, resolveMonsterArrival, updateEntities } from './epoxy/epoxyMonsters';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { SeededRandom } from './Random';
 import {
@@ -58,7 +58,6 @@ import {
   Direction,
   GridPoint,
   PlayerState,
-  RelativeTurn,
   RuntimeEntity,
   TileDefinition,
   TimedMove,
@@ -525,7 +524,7 @@ export class GameEngine {
       }
     }
 
-    this.updateEntities();
+    updateEntities(this.ctx);
     resolveLasers(this.ctx);
     this.checkTargetsWin();
   }
@@ -872,198 +871,6 @@ export class GameEngine {
     this.checkTargetsWin();
   }
 
-  private updateEntities(): void {
-    this.w.removedUids.clear();
-    const snapshotEntities = [...this.w.entities];
-    for (const entity of snapshotEntities) {
-      if (this.w.removedUids.has(entity.uid)) continue;
-
-      // Entities sitting directly on a clone machine act as templates and do not move on their own
-      if (ConfigRegistry.getTile(this.w.terrain[entity.y]?.[entity.x]).isCloneMachine) {
-        continue;
-      }
-
-      if (entity.kind === 'block') {
-        stepSlidingBlock(this.ctx, entity);
-        continue;
-      }
-
-      if (entity.cooldownTicks > 0) {
-        entity.cooldownTicks--;
-        continue;
-      }
-
-      const def = ConfigRegistry.getEntityDef(entity.type);
-      entity.cooldownTicks = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
-
-      if (isCellClosedTrap(this.w, entity.x, entity.y)) {
-        continue;
-      }
-
-      const chosenDir = this.chooseMonsterDirection(entity);
-      if (!chosenDir) continue;
-
-      const vec = DIRECTION_VECTORS[chosenDir];
-      const nx = entity.x + vec.dx;
-      const ny = entity.y + vec.dy;
-      entity.x = nx;
-      entity.y = ny;
-      entity.dir = chosenDir;
-
-      if (!this.resolveMonsterArrival(entity, true)) return;
-    }
-  }
-
-  /**
-   * Applies the effects of the cell a monster has just entered (by a step, a
-   * teleport or a clone spawn): the player under it dies, a bomb or water or
-   * fire removes it, a button is pressed and a teleporter jumps it on.
-   * Returns false when the player was killed, so the caller stops processing.
-   */
-  private resolveMonsterArrival(entity: RuntimeEntity, allowTeleport: boolean): boolean {
-    const nx = entity.x;
-    const ny = entity.y;
-    const def = ConfigRegistry.getEntityDef(entity.type);
-
-    if (this.w.player.x === nx && this.w.player.y === ny && this.w.player.alive) {
-      killPlayer(this.ctx, 'hud.messages.death_monster', 'death');
-      return false;
-    }
-
-    const destTile = ConfigRegistry.getTile(this.w.terrain[ny][nx]);
-    const destItem = this.w.items[ny][nx];
-
-    if (destItem && ConfigRegistry.getTile(destItem).hazard === 'bomb') {
-      this.w.items[ny][nx] = null;
-      removeEntity(this.w, entity.uid);
-      AudioManager.playSfx('bomb');
-      return true;
-    }
-
-    if (destTile.hazard === 'water' && !def?.immuneToWater) {
-      removeEntity(this.w, entity.uid);
-      AudioManager.playSfx('splash');
-      return true;
-    }
-    if (destTile.hazard === 'fire' && !def?.immuneToFire) {
-      removeEntity(this.w, entity.uid);
-      AudioManager.playSfx('burn');
-      return true;
-    }
-
-    if (destTile.hazard === 'slime') {
-      removeEntity(this.w, entity.uid);
-      AudioManager.playSfx('splash');
-      return true;
-    }
-
-    if (destTile.buttonAction && !this.triggerButton(nx, ny, destTile.buttonAction)) {
-      return false;
-    }
-
-    if (destTile.isTeleporter && allowTeleport) {
-      return this.teleportEntity(entity, nx, ny, entity.dir) ? this.resolveMonsterArrival(entity, false) : true;
-    }
-    return true;
-  }
-
-  private chooseMonsterDirection(monster: RuntimeEntity): Direction | null {
-    const def = ConfigRegistry.getEntityDef(monster.type);
-    if (!def) return null;
-
-    const currentTile = ConfigRegistry.getTile(this.w.terrain[monster.y][monster.x]);
-    if (currentTile.slideType === 'ice') {
-      const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
-      if (this.canMonsterEnter(monster, slideDir)) return slideDir;
-      const bounce = OPPOSITE_DIRECTION[slideDir];
-      if (this.canMonsterEnter(monster, bounce)) return bounce;
-      return null;
-    }
-
-    if (currentTile.slideType === 'force' && currentTile.forceDirection) {
-      const forceDir =
-        currentTile.forceDirection === 'RANDOM'
-          ? ORDERED_DIRECTIONS[this.w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)]
-          : currentTile.forceDirection;
-      return this.canMonsterEnter(monster, forceDir) ? forceDir : null;
-    }
-
-    if (def.movementPattern === 'chase_player') {
-      const dx = this.w.player.x - monster.x;
-      const dy = this.w.player.y - monster.y;
-      const candidates: Direction[] = [];
-      if (Math.abs(dx) >= Math.abs(dy)) {
-        if (dx !== 0) candidates.push(dx > 0 ? 'E' : 'W');
-        if (dy !== 0) candidates.push(dy > 0 ? 'S' : 'N');
-      } else {
-        if (dy !== 0) candidates.push(dy > 0 ? 'S' : 'N');
-        if (dx !== 0) candidates.push(dx > 0 ? 'E' : 'W');
-      }
-      for (const c of candidates) {
-        if (this.canMonsterEnter(monster, c)) return c;
-      }
-      return null;
-    }
-
-    if (def.movementPattern === 'forward_else_random') {
-      if (this.canMonsterEnter(monster, monster.dir)) {
-        return monster.dir;
-      }
-      const turns: RelativeTurn[] = ['LEFT', 'RIGHT', 'BACK'];
-      this.w.rng.shuffle(turns);
-      for (const turn of turns) {
-        const d = applyRelativeTurn(monster.dir, turn);
-        if (this.canMonsterEnter(monster, d)) return d;
-      }
-      return null;
-    }
-
-    if (def.movementPattern === 'pure_random') {
-      const dirs: Direction[] = [...ORDERED_DIRECTIONS];
-      this.w.rng.shuffle(dirs);
-      for (const d of dirs) {
-        if (this.canMonsterEnter(monster, d)) return d;
-      }
-      return null;
-    }
-
-    const turnOrder = def.turnOrder || ['FORWARD'];
-    for (const rel of turnOrder) {
-      const candidateDir = applyRelativeTurn(monster.dir, rel);
-      if (this.canMonsterEnter(monster, candidateDir)) {
-        return candidateDir;
-      }
-    }
-
-    return null;
-  }
-
-  private canMonsterEnter(monster: RuntimeEntity, dir: Direction): boolean {
-    const vec = DIRECTION_VECTORS[dir];
-    const nx = monster.x + vec.dx;
-    const ny = monster.y + vec.dy;
-    if (!isInBounds(this.w, nx, ny)) return false;
-    if (isEdgeBlocked(this.w, monster.x, monster.y, nx, ny, dir)) return false;
-
-    const destTile = ConfigRegistry.getTile(this.w.terrain[ny][nx]);
-    const def = ConfigRegistry.getEntityDef(monster.type);
-
-    if (!destTile.passableByMonster && !(destTile.hazard === 'fire' && def?.immuneToFire)) {
-      return false;
-    }
-    if (destTile.hazard === 'fire' && def?.avoidsFire) return false;
-
-    const itemId = this.w.items[ny][nx];
-    if (itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb') {
-      return false;
-    }
-
-    const existing = getEntityAt(this.w, nx, ny);
-    if (existing) return false;
-
-    return true;
-  }
-
   /** Returns false when a clone spawned by the button killed the player. */
   private triggerButton(bx: number, by: number, action: ButtonAction): boolean {
     AudioManager.playSfx('button');
@@ -1205,7 +1012,7 @@ export class GameEngine {
     const canEnter =
       kind === 'block'
         ? isCanBlockEnter(this.w, probe, spawnX, spawnY, templateDir)
-        : this.canMonsterEnter(probe, templateDir);
+        : canMonsterEnter(this.w, probe, templateDir);
     if (!canEnter) return true;
 
     const spawned: RuntimeEntity = {
@@ -1222,7 +1029,7 @@ export class GameEngine {
     if (spawned.kind === 'block') {
       moveBlockTo(this.ctx, spawned, spawnX, spawnY, templateDir);
     } else {
-      return this.resolveMonsterArrival(spawned, true);
+      return resolveMonsterArrival(this.ctx, spawned, true);
     }
     return true;
   }
@@ -1292,7 +1099,7 @@ export class GameEngine {
       const canExit =
         entity.kind === 'block'
           ? isCanBlockEnter(this.w, probe, exitX, exitY, dir)
-          : this.canMonsterEnter(probe, dir);
+          : canMonsterEnter(this.w, probe, dir);
       if (!canExit) continue;
 
       entity.x = exitX;
