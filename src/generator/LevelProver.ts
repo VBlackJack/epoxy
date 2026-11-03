@@ -19,11 +19,17 @@ import { GameEngine } from '../core/GameEngine';
 import { DIRECTION_VECTORS, MAX_SOLVER_CACHE_ENTRIES, ORDERED_DIRECTIONS } from '../config/constants';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, Direction, GridPoint } from '../core/types';
+import { isPlayerWalkable } from '../core/Walkability';
 import { RouteSegment } from './LevelAssembler';
 import { PieceSolver, SolverAction } from './PieceSolver';
 import { DEFAULT_MAX_REGION_STATES, RegionSolver } from './RegionSolver';
 import { helpfulItems } from './PieceCompiler';
 import { CompiledPiece } from './PieceTypes';
+
+/** Whether leaving the tile turns it into something the player cannot stand on (a recessed wall; a turtle does not). */
+function closesWhenLeft(tile: ReturnType<typeof ConfigRegistry.getTile>): boolean {
+  return Boolean(tile.transformsToOnLeave) && !isPlayerWalkable(ConfigRegistry.getTile(tile.transformsToOnLeave as string));
+}
 
 export interface LevelProof {
   solved: boolean;
@@ -280,8 +286,8 @@ export class LevelProver {
    * Shortest path to a cell over ground the player can cross calmly: floor
    * and the like, doors the player holds a key for, hazards the player has
    * boots for. Cells holding an item, buttons, tiles that change when stepped
-   * on, teleporters, traps and occupied cells are avoided on the way, so the
-   * walk cannot surprise; the target itself is exempt from the first three.
+   * on or that close when left (recessed wall), teleporters, traps and occupied
+   * cells are avoided on the way, so the walk cannot surprise; the target itself is exempt from the first three.
    * Null when no such path exists.
    */
   private static safePath(
@@ -300,10 +306,10 @@ export class LevelProver {
       const tile = ConfigRegistry.getTile(terrain[y][x]);
       const item = items[y][x];
       // Anything lying on a cell would be picked up, and a cell with a side effect
-      // (buttons, tiles that change when stepped on) would change the level. Only
+      // (buttons, tiles that change when stepped on, tiles that close when left) would change the level. Only
       // the target itself may do either: the caller walks there on purpose.
       const isTarget = x === target.x && y === target.y;
-      if (!isTarget && (item || tile.buttonAction || tile.transformsToOnStep)) return false;
+      if (!isTarget && (item || tile.buttonAction || tile.transformsToOnStep || closesWhenLeft(tile))) return false;
       if (item && ConfigRegistry.getTile(item).hazard) return false;
       if (tile.isTeleporter || tile.isTrap || tile.stealsBoots) return false;
       const protectedBy = tile.protectedByItem;

@@ -218,7 +218,7 @@ export class Pathfinder {
             continue;
           }
         } else if (!nextTile.passableByPlayer) {
-          // Allow bumping into a fake blue wall or recessed wall if it is the clicked target
+          // Allow bumping into a hidden wall (revealed on touch) if it is the clicked target
           if (!(isTarget && Boolean(nextTile.revealsToOnTouch))) {
             continue;
           }

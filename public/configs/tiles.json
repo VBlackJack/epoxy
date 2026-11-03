@@ -37,7 +37,7 @@
       "passableByPlayer": true,
       "passableByMonster": false,
       "passableByBlock": false,
-      "transformsToOnStep": "wall"
+      "transformsToOnLeave": "wall"
     },
     "blue_wall_real": {
       "id": "blue_wall_real",
