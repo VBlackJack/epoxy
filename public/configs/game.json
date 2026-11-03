@@ -440,7 +440,9 @@
     "maxJaccard": 0.25,
     "largeWindowSize": 9,
     "largeWindowMinContent": 12,
-    "largeWindowMaxShare": 0.6
+    "largeWindowMaxShare": 0.6,
+    "maxRoomSimilarity": 0.85,
+    "maxSokobanSimilarity": 0.8
   },
   "timing": {
     "tickIntervalMs": 50,
