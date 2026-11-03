@@ -472,6 +472,9 @@
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
       "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
+      "kb_editor_cc3d_eraser": { "label": "CC3D levels: the eraser removes the topmost thing of a cell (creature, then item, then top layer); Shift+eraser clears the whole cell" },
+      "kb_editor_cc3d_panel": { "label": "CC3D thin walls: with the thin wall entry selected, click near a side of a cell to toggle it (keyboard: the side of the direction control)" },
+      "kb_editor_cc3d_links": { "label": "CC3D links: hover a device or put the cursor on it to see what it works; the status line says when an edit changes a link" },
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
@@ -546,6 +549,36 @@
     }
   },
   "editor": {
+    "cc3d": {
+      "category": { "floors": "Floors", "devices": "Devices", "blockers": "Blockers", "items": "Items", "mobs": "Creatures", "player": "Player" },
+      "kind": { "fish": "Fish", "snappy": "Snappy", "nibble": "Nibble", "panel": "Thin wall" },
+      "color": { "red": "Red", "green": "Green", "blue": "Blue", "yellow": "Yellow" },
+      "attr": { "color": "Colour", "corner": "Corner", "mirror": "Mirror" },
+      "tool_unavailable": { "label": "Not available in a CC3D level: fill and selection work on whole Epoxy or Lynx layers." },
+      "resize_unavailable": { "label": "A CC3D level keeps its size: resizing is not available." },
+      "eraser": { "title": "Eraser (E): removes the topmost thing of the cell. Shift+click (or Shift+Space) clears the whole cell." },
+      "layers": {
+        "title": "Layers",
+        "cell": "Cell ({x}, {y}), bottom first",
+        "none": "Select a cell on the map to list its layers.",
+        "remove": { "action": "Remove", "aria": "Remove {name}" },
+        "panel": "Thin wall, side {side}"
+      },
+      "status": {
+        "mob_on_start": "A creature cannot stand on the player start.",
+        "start_on_mob": "The player start cannot go on a creature.",
+        "panel_mode": "Thin wall: click near a side of a cell to add or remove it (keyboard: the side of the direction control).",
+        "link_trap": "Trap control at ({x}, {y}) now opens the trap at ({toX}, {toY}).",
+        "link_trap_none": "Trap control at ({x}, {y}) has no trap to open now.",
+        "link_teleport": "Teleport at ({x}, {y}) now leads to ({toX}, {toY}).",
+        "link_teleport_none": "Teleport at ({x}, {y}) leads nowhere now.",
+        "link_clone": "Clone switch at ({x}, {y}) now works the machine at ({toX}, {toY}).",
+        "link_clone_none": "Clone switch at ({x}, {y}) has no machine to work now.",
+        "link_laser": "Laser controller at ({x}, {y}) now fires the shooter at ({toX}, {toY}).",
+        "link_laser_none": "Laser controller at ({x}, {y}) has no shooter to fire now.",
+        "link_more": "{count, plural, one {# more link changed.} other {# more links changed.}}"
+      }
+    },
     "selection": {
       "tool": {
         "label": "Select",
@@ -592,8 +625,9 @@
     "template": {
       "title": "New level",
       "message": "Choose what the new level starts from.",
-      "lynx_only": "This pack is mostly Lynx, and templates are Epoxy levels: only the empty room is offered here.",
+      "lynx_only": "This pack is mostly Lynx, and templates are Epoxy levels: only the empty rooms are offered here.",
       "empty": { "label": "Empty room" },
+      "cc3d_room": { "label": "Empty CC3D room" },
       "sokoban": { "label": "Sokoban room" },
       "laser": { "label": "Laser puzzle" },
       "load_failed": "The level templates could not be loaded; starting from an empty room."
@@ -603,6 +637,7 @@
       "back_to_editor": { "action": "Back to editor" },
       "discard": { "action": "Discard changes" },
       "test_anyway": { "action": "Test anyway" },
+      "save_anyway": { "action": "Save anyway" },
       "context": {
         "group": { "label": "Level being edited" },
         "pack": { "label": "Pack" },
@@ -727,7 +762,8 @@
         "engine": { "label": "Engine" },
         "description": {
           "epoxy": "Epoxy: the native rules, with lasers, block targets and every tile of the editor.",
-          "lynx": "Lynx: the rules of community packs. Lasers, mirrors and block targets are not available."
+          "lynx": "Lynx: the rules of community packs. Lasers, mirrors and block targets are not available.",
+          "cc3d": "CC3D: the rules of Chuck's Challenge 3D levels. The engine of such a level cannot be changed."
         }
       },
       "size": {
@@ -748,6 +784,7 @@
       "export_ccl": { "action": "Export .CCL" },
       "confirm_discard": { "label": "Unsaved map changes will be lost. Continue?" },
       "confirm_reload": { "label": "The editor has unsaved changes. Replace them with the current level?" },
+      "confirm_save_invalid": { "label": "This level has errors: {issues}\n\nSave it anyway?" },
       "confirm_test_invalid": { "label": "This level has problems: {issues}\n\nTest it anyway?" }
     },
     "metadata": {
@@ -770,6 +807,9 @@
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (community packs)" },
       "ruleset_lynx_unavailable": { "label": "Levels with block targets or lasers play under Epoxy rules only" },
+      "ruleset_cc3d": { "label": "CC3D (Chuck's Challenge 3D)" },
+      "ruleset_cc3d_unavailable": { "label": "Only a CC3D level plays under CC3D rules" },
+      "ruleset_cc3d_locked": { "label": "A CC3D level keeps its own rules: the engine cannot be changed" },
       "auto_count_chips": { "action": "Auto Count" }
     },
     "palette": {

@@ -472,6 +472,9 @@
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
       "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
+      "kb_editor_cc3d_eraser": { "label": "Niveaux CC3D : la gomme retire l'élément le plus haut d'une case (créature, puis objet, puis couche du haut) ; Maj+gomme vide toute la case" },
+      "kb_editor_cc3d_panel": { "label": "Cloisons fines CC3D : avec l'entrée cloison fine choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction)" },
+      "kb_editor_cc3d_links": { "label": "Liens CC3D : survolez un dispositif ou placez le curseur dessus pour voir ce qu'il actionne ; la ligne d'état signale une modification qui change un lien" },
       "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
@@ -546,6 +549,36 @@
     }
   },
   "editor": {
+    "cc3d": {
+      "category": { "floors": "Sols", "devices": "Dispositifs", "blockers": "Obstacles", "items": "Objets", "mobs": "Créatures", "player": "Joueur" },
+      "kind": { "fish": "Poisson", "snappy": "Snappy", "nibble": "Nibble", "panel": "Cloison fine" },
+      "color": { "red": "Rouge", "green": "Vert", "blue": "Bleu", "yellow": "Jaune" },
+      "attr": { "color": "Couleur", "corner": "Coin", "mirror": "Miroir" },
+      "tool_unavailable": { "label": "Indisponible dans un niveau CC3D : le remplissage et la sélection agissent sur des couches entières Epoxy ou Lynx." },
+      "resize_unavailable": { "label": "Un niveau CC3D garde sa taille : le redimensionnement n'est pas disponible." },
+      "eraser": { "title": "Gomme (E) : retire l'élément le plus haut de la case. Maj+clic (ou Maj+Espace) vide toute la case." },
+      "layers": {
+        "title": "Couches",
+        "cell": "Case ({x}, {y}), du bas vers le haut",
+        "none": "Choisissez une case sur la carte pour lister ses couches.",
+        "remove": { "action": "Retirer", "aria": "Retirer {name}" },
+        "panel": "Cloison fine, côté {side}"
+      },
+      "status": {
+        "mob_on_start": "Une créature ne peut pas se tenir sur le départ du joueur.",
+        "start_on_mob": "Le départ du joueur ne peut pas aller sur une créature.",
+        "panel_mode": "Cloison fine : cliquez près d'un côté d'une case pour l'ajouter ou le retirer (clavier : le côté du contrôle de direction).",
+        "link_trap": "Le contrôle de piège en ({x}, {y}) ouvre maintenant le piège en ({toX}, {toY}).",
+        "link_trap_none": "Le contrôle de piège en ({x}, {y}) n'a plus de piège à ouvrir.",
+        "link_teleport": "Le téléporteur en ({x}, {y}) mène maintenant en ({toX}, {toY}).",
+        "link_teleport_none": "Le téléporteur en ({x}, {y}) ne mène plus nulle part.",
+        "link_clone": "L'interrupteur de clonage en ({x}, {y}) actionne maintenant la machine en ({toX}, {toY}).",
+        "link_clone_none": "L'interrupteur de clonage en ({x}, {y}) n'a plus de machine à actionner.",
+        "link_laser": "Le contrôleur laser en ({x}, {y}) fait maintenant tirer le tireur en ({toX}, {toY}).",
+        "link_laser_none": "Le contrôleur laser en ({x}, {y}) n'a plus de tireur à faire tirer.",
+        "link_more": "{count, plural, one {# autre lien a changé.} other {# autres liens ont changé.}}"
+      }
+    },
     "selection": {
       "tool": {
         "label": "Sélection",
@@ -592,8 +625,9 @@
     "template": {
       "title": "Nouveau niveau",
       "message": "Choisissez le point de départ du nouveau niveau.",
-      "lynx_only": "Ce pack est surtout en Lynx, et les modèles sont des niveaux Epoxy : seule la salle vide est proposée ici.",
+      "lynx_only": "Ce pack est surtout en Lynx, et les modèles sont des niveaux Epoxy : seules les salles vides sont proposées ici.",
       "empty": { "label": "Salle vide" },
+      "cc3d_room": { "label": "Salle CC3D vide" },
       "sokoban": { "label": "Salle de Sokoban" },
       "laser": { "label": "Puzzle laser" },
       "load_failed": "Les modèles de niveau n'ont pas pu être chargés ; départ sur une salle vide."
@@ -603,6 +637,7 @@
       "back_to_editor": { "action": "Retour à l'éditeur" },
       "discard": { "action": "Abandonner les changements" },
       "test_anyway": { "action": "Tester quand même" },
+      "save_anyway": { "action": "Enregistrer quand même" },
       "context": {
         "group": { "label": "Niveau en cours d'édition" },
         "pack": { "label": "Pack" },
@@ -727,7 +762,8 @@
         "engine": { "label": "Moteur" },
         "description": {
           "epoxy": "Epoxy : les règles natives, avec lasers, cibles de blocs et toutes les tuiles de l'éditeur.",
-          "lynx": "Lynx : les règles des packs communautaires. Les lasers, les miroirs et les cibles de blocs ne sont pas disponibles."
+          "lynx": "Lynx : les règles des packs communautaires. Les lasers, les miroirs et les cibles de blocs ne sont pas disponibles.",
+          "cc3d": "CC3D : les règles des niveaux de Chuck's Challenge 3D. Le moteur d'un tel niveau ne peut pas être changé."
         }
       },
       "size": {
@@ -748,6 +784,7 @@
       "export_ccl": { "action": "Exporter .CCL" },
       "confirm_discard": { "label": "Des modifications non sauvegardées seront perdues. Continuer ?" },
       "confirm_reload": { "label": "L'éditeur contient des modifications non sauvegardées. Les remplacer par le niveau en cours ?" },
+      "confirm_save_invalid": { "label": "Ce niveau comporte des erreurs : {issues}\n\nL'enregistrer quand même ?" },
       "confirm_test_invalid": { "label": "Ce niveau présente des problèmes : {issues}\n\nLe tester quand même ?" }
     },
     "metadata": {
@@ -770,6 +807,9 @@
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (packs communautaires)" },
       "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc ou à lasers ne se jouent qu'avec les règles Epoxy" },
+      "ruleset_cc3d": { "label": "CC3D (Chuck's Challenge 3D)" },
+      "ruleset_cc3d_unavailable": { "label": "Seul un niveau CC3D se joue avec les règles CC3D" },
+      "ruleset_cc3d_locked": { "label": "Un niveau CC3D garde ses propres règles : le moteur ne peut pas être changé" },
       "auto_count_chips": { "action": "Compter auto." }
     },
     "palette": {

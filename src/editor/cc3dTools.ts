@@ -95,7 +95,8 @@ export function eraseTopmost(level: Cc3dLevel, x: number, y: number): Cc3dLevel 
   if (!cell) return level;
   if (level.mobs.some((mob) => mob.x === x && mob.y === y)) return removeMob(level, x, y);
   if (cell.item) return setItem(level, x, y, null);
-  if (cell.terrain.length > 1) return eraseTop(level, x, y);
+  // A base that is not plain floor (water, an exit...) goes back to plain floor too.
+  if (cell.terrain.length > 1 || cell.terrain[0].kind !== 'floor') return eraseTop(level, x, y);
   return clearPanels(level, x, y);
 }
 
