@@ -555,6 +555,15 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level with cell edges and leaves it out of the pack', () => {
+    const edged = { ...blankLevel(1), cellEdges: [{ x: 3, y: 3, sides: ['N' as const] }] };
+    expect(datRefusalReason(edged)).toBe('cell_edges');
+    expect(datRefusalReason({ ...blankLevel(2), cellEdges: [] })).toBeNull();
+    const encoded = DatCodec.encodeLevelsWithReport([edged, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['cell_edges']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('reports what a stacked cell cannot hold', () => {
     const lvl = blankLevel(1);
     // player start (2,2) over a bug and a chip: the bug is dropped, so is the fire under them

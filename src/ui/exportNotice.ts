@@ -75,6 +75,9 @@ export function lossyExportNotice(
       t('app.export.refused_color_channel_content.label', { levels: levelNames(refusedFor('color_channel_content')) })
     );
   }
+  if (refusedFor('cell_edges').length > 0) {
+    parts.push(t('app.export.refused_cell_edges.label', { levels: levelNames(refusedFor('cell_edges')) }));
+  }
   if (padded.length > 0) {
     parts.push(t('app.export.padded.label', { levels: levelNames(padded) }));
   }

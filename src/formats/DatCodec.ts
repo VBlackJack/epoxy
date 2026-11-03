@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isInBounds } from '../config/ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
+import { cellEdgeMask } from '../core/EdgeRules';
 import { hasColorChannelContent, hasLaserContent } from '../core/RulesetFeatures';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
@@ -94,7 +95,8 @@ export type DatRefusalReason =
   | 'receivers_win_rule'
   | 'laser_content'
   | 'cc3d_ruleset'
-  | 'color_channel_content';
+  | 'color_channel_content'
+  | 'cell_edges';
 
 /** A level left out of the pack, with the reason. */
 export interface DatRefusal {
@@ -132,6 +134,8 @@ export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null 
   if (hasLaserContent(level)) return 'laser_content';
   // Nor plates, hold doors, colour toggle walls or colour blocks: they would be written as floor or plain blocks.
   if (hasColorChannelContent(level)) return 'color_channel_content';
+  // Thin walls on any terrain have no .DAT form: writing the level would open them.
+  if (cellEdgeMask(level) !== null) return 'cell_edges';
   const datCfg = ConfigRegistry.getDatFormat();
   const { mapWidth: gridWidth, mapHeight: gridHeight } = ConfigRegistry.getGame().grid;
   const layerWidth = datCfg.layerWidth ?? gridWidth;

@@ -94,6 +94,7 @@
       "refused_laser_content": { "label": "Not exported: {levels} uses lasers or mirrors, which the .DAT format cannot hold." },
       "refused_cc3d_ruleset": { "label": "Not exported: {levels} plays under CC3D rules, which the .DAT format cannot hold. Use Export XML instead." },
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
+      "refused_cell_edges": { "label": "Not exported: {levels} has thin walls on cells where the .DAT format has no thin wall tile." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
