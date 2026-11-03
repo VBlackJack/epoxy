@@ -85,6 +85,7 @@ import {
   retroPlayerSprite,
   retroShadowExtent,
   retroShadowSignature,
+  retroThinLayers,
   retroTileLayers,
   RETRO_SPRITE_ANIMATED_TILES
 } from './retroCompose';
@@ -214,6 +215,16 @@ const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([
 ]);
 
 const FULL_TURN = Math.PI * 2;
+/** Thin wall bar: thickness as a share of the tile, with a floor in pixels per drawing style. */
+const THIN_BAR_TILE = 0.14;
+const THIN_BAR_MIN_PX_NEON = 5;
+const THIN_BAR_MIN_PX_FLAT = 4;
+/**
+ * Whether cells with stacked layers under the shown one get a corner marker. Off in play; meant for the
+ * upcoming CC3D editor, which will turn it on (nothing calls setHiddenLayerMarkers yet).
+ */
+const HIDDEN_LAYER_MARKER_DEFAULT = false;
+const HIDDEN_LAYER_MARKER_TILE = 0.22;
 const HINT_GLYPH = '?';
 const HINT_FONT_WEIGHT = 'bold';
 /** Forbidden-item barrier: the item's icon, scaled down, under a crossed ring. */
@@ -473,6 +484,8 @@ export class PixelRenderer {
   // Cells covered by pushable blocks this frame (key y * width + x); a block hides what is under it.
   private readonly blockCells: Set<number> = new Set();
   private blockCellsWidth: number = 0;
+  private hiddenLayerMarkers: boolean = HIDDEN_LAYER_MARKER_DEFAULT;
+  private readonly panelLayerCache = new Map<string, readonly RetroLayer[]>();
   private lastLevelId: string = '';
 
   private particles: Particle[] = [];
@@ -1076,6 +1089,8 @@ export class PixelRenderer {
       animNeighbours.shadowMask = lowRes ? neighbourMask(terrain, cell.x, cell.y, this.shadowCasterTiles, false) : 0;
       this.drawTile(sceneCtx, cell.tileId, px, py, drawSize, false, false, 'animated', animNeighbours);
     }
+
+    this.drawCellOverlays(sceneCtx, engine, mapWidth, startTileX, endTileX, startTileY, endTileY, originX, originY, region, unit, drawSize);
 
     this.drawLaserBeams(sceneCtx, engine, entities, terrain, originX, originY, region, unit, !lowRes);
 
@@ -1883,6 +1898,139 @@ export class PixelRenderer {
     }
   }
 
+  /** One neon bar per blocked edge (modern style), drawn over whatever is under the cell. */
+  private paintNeonPanelBars(
+    ctx: CanvasRenderingContext2D,
+    edges: readonly Direction[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    if (edges.length === 0) return;
+    const pal = this.pal();
+    const bar = Math.max(THIN_BAR_MIN_PX_NEON, Math.floor(size * THIN_BAR_TILE));
+    ctx.save();
+    ctx.fillStyle = pal.modernThinWall;
+    ctx.shadowColor = pal.modernThinWall;
+    ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    if (edges.includes('N')) ctx.fillRect(x, y, size, bar);
+    if (edges.includes('S')) ctx.fillRect(x, y + size - bar, size, bar);
+    if (edges.includes('W')) ctx.fillRect(x, y, bar, size);
+    if (edges.includes('E')) ctx.fillRect(x + size - bar, y, bar, size);
+    ctx.restore();
+  }
+
+  /** One flat bar per blocked edge (vector retro look), drawn over whatever is under the cell. */
+  private paintFlatPanelBars(
+    ctx: CanvasRenderingContext2D,
+    edges: readonly Direction[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    if (edges.length === 0) return;
+    const pal = this.pal();
+    const bar = Math.max(THIN_BAR_MIN_PX_FLAT, Math.floor(size * THIN_BAR_TILE));
+    ctx.fillStyle = pal.wallShadow;
+    if (edges.includes('N')) ctx.fillRect(x, y, size, bar);
+    if (edges.includes('S')) ctx.fillRect(x, y + size - bar, size, bar);
+    if (edges.includes('W')) ctx.fillRect(x, y, bar, size);
+    if (edges.includes('E')) ctx.fillRect(x + size - bar, y, bar, size);
+
+    ctx.fillStyle = pal.wallTop;
+    if (edges.includes('N')) ctx.fillRect(x + 1, y + 1, size - 2, bar - 2);
+    if (edges.includes('S')) ctx.fillRect(x + 1, y + size - bar + 1, size - 2, bar - 2);
+    if (edges.includes('W')) ctx.fillRect(x + 1, y + 1, bar - 2, size - 2);
+    if (edges.includes('E')) ctx.fillRect(x + size - bar + 1, y + 1, bar - 2, size - 2);
+  }
+
+  /**
+   * Panel bars over a cell that shows other terrain (water, ice, gravel...), in the bar look of the
+   * current style: the same drawing a plain floor cell uses for its thin wall, without the floor.
+   */
+  public drawPanelBars(
+    ctx: CanvasRenderingContext2D,
+    edges: readonly Direction[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    if (this.isHdVector()) {
+      if (!this.getActiveTheme()) this.paintFlatPanelBars(ctx, edges, x, y, size);
+      else this.paintNeonPanelBars(ctx, edges, x, y, size);
+      return;
+    }
+    if (this.retroSpritesReady()) {
+      // The first layer of a thin wall is its floor: only the panels go over the terrain.
+      this.drawRetroLayers(ctx, this.panelLayers(edges), x, y, size);
+      return;
+    }
+    this.paintFlatPanelBars(ctx, edges, x, y, size);
+  }
+
+  /** Sprite layers of the panels alone (no floor) for an edge set, built once per set. */
+  private panelLayers(edges: readonly Direction[]): readonly RetroLayer[] {
+    const key = edges.join('');
+    let layers = this.panelLayerCache.get(key);
+    if (!layers) {
+      layers = retroThinLayers(edges).slice(1);
+      this.panelLayerCache.set(key, layers);
+    }
+    return layers;
+  }
+
+  /** A small corner triangle on a cell whose stack holds layers under the shown one. */
+  private drawHiddenLayerMarker(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const reach = size * HIDDEN_LAYER_MARKER_TILE;
+    ctx.save();
+    ctx.fillStyle = this.pal().yellow;
+    ctx.beginPath();
+    ctx.moveTo(x + size - reach, y);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x + size, y + reach);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** Turns the stacked-layer corner marker on or off (the level editor shows it, play does not). */
+  public setHiddenLayerMarkers(visible: boolean): void {
+    this.hiddenLayerMarkers = visible;
+  }
+
+  /** Panels and layer markers of the visible cells, over the terrain and under items and mobs. */
+  private drawCellOverlays(
+    ctx: CanvasRenderingContext2D,
+    engine: PlayEngine,
+    mapWidth: number,
+    startTileX: number,
+    endTileX: number,
+    startTileY: number,
+    endTileY: number,
+    originX: number,
+    originY: number,
+    region: { x0: number; y0: number },
+    unit: number,
+    drawSize: number
+  ): void {
+    const panels = engine.getPanels?.();
+    const hidden = this.hiddenLayerMarkers ? engine.getHiddenLayerCells?.() : undefined;
+    if (!panels?.size && !hidden?.size) return;
+    for (let my = startTileY; my <= endTileY; my++) {
+      for (let mx = startTileX; mx <= endTileX; mx++) {
+        if (this.isBlockCovered(mx, my)) continue;
+        const index = my * mapWidth + mx;
+        const edges = panels?.get(index);
+        const marked = hidden?.has(index) ?? false;
+        if (!edges && !marked) continue;
+        const px = originX + Math.floor((mx - region.x0) * unit);
+        const py = originY + Math.floor((my - region.y0) * unit);
+        if (edges) this.drawPanelBars(ctx, edges, px, py, drawSize);
+        if (marked) this.drawHiddenLayerMarker(ctx, px, py, drawSize);
+      }
+    }
+  }
+
   /** Palette and colour-blind glyphs the cc3d painters draw with. */
   private cc3dTools(ctx: CanvasRenderingContext2D): Cc3dPaintTools {
     return {
@@ -1988,21 +2136,7 @@ export class PixelRenderer {
 
       default: {
         // Any thin panel combination: one bar per blocked edge, read from tiles.json.
-        const def = ConfigRegistry.getTile(tileId);
-        const edges = def.blockedEdges || [];
-        if (edges.length === 0) break;
-        const bar = Math.max(4, Math.floor(size * 0.14));
-        ctx.fillStyle = pal.wallShadow;
-        if (edges.includes('N')) ctx.fillRect(x, y, size, bar);
-        if (edges.includes('S')) ctx.fillRect(x, y + size - bar, size, bar);
-        if (edges.includes('W')) ctx.fillRect(x, y, bar, size);
-        if (edges.includes('E')) ctx.fillRect(x + size - bar, y, bar, size);
-
-        ctx.fillStyle = pal.wallTop;
-        if (edges.includes('N')) ctx.fillRect(x + 1, y + 1, size - 2, bar - 2);
-        if (edges.includes('S')) ctx.fillRect(x + 1, y + size - bar + 1, size - 2, bar - 2);
-        if (edges.includes('W')) ctx.fillRect(x + 1, y + 1, bar - 2, size - 2);
-        if (edges.includes('E')) ctx.fillRect(x + size - bar + 1, y + 1, bar - 2, size - 2);
+        this.paintFlatPanelBars(ctx, ConfigRegistry.getTile(tileId).blockedEdges || [], x, y, size);
         break;
       }
 
@@ -3059,19 +3193,7 @@ export class PixelRenderer {
 
       default: {
         // Any thin panel combination: one neon bar per blocked edge, read from tiles.json.
-        const def = ConfigRegistry.getTile(tileId);
-        const edges = def.blockedEdges || [];
-        if (edges.length === 0) break;
-        const bar = Math.max(5, Math.floor(size * 0.14));
-        ctx.save();
-        ctx.fillStyle = pal.modernThinWall;
-        ctx.shadowColor = pal.modernThinWall;
-        ctx.shadowBlur = glow.soft;
-        if (edges.includes('N')) ctx.fillRect(x, y, size, bar);
-        if (edges.includes('S')) ctx.fillRect(x, y + size - bar, size, bar);
-        if (edges.includes('W')) ctx.fillRect(x, y, bar, size);
-        if (edges.includes('E')) ctx.fillRect(x + size - bar, y, bar, size);
-        ctx.restore();
+        this.paintNeonPanelBars(ctx, ConfigRegistry.getTile(tileId).blockedEdges || [], x, y, size);
         break;
       }
 

@@ -257,6 +257,14 @@ describe('clone machines and switches [U]', () => {
     expect(rig.entities).toHaveLength(2);
   });
 
+  it('works a machine on the very first cell of the map (index 0)', () => {
+    const rig = new Cc3dRig(cc3dLevel(['m.b@..', '......'], { glyphs: { b: sw, m: machine('S') } }));
+    rig.walk('W');
+    rig.tick(SETTLE_TICKS);
+    expect(rig.entityAt(0, 1)?.type).toBe('ice_block');
+    expect(rig.entities).toHaveLength(2);
+  });
+
   it('the copy waiting on the machine cannot be pushed away', () => {
     const rig = new Cc3dRig(cc3dLevel(['#@bm..#'], { glyphs: { b: sw, m: machine('E') } }));
     rig.walk('E');

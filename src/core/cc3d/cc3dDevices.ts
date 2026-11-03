@@ -230,7 +230,7 @@ export function triggerEntryDevice(ctx: RuleContext, actor: Actor): void {
       break;
     case 'clone_switch': {
       const machine = nearestMachine(world, at);
-      if (machine) activateMachine(ctx, machine);
+      if (machine !== null) activateMachine(ctx, machine);
       ctx.playSfx(SFX.button);
       break;
     }

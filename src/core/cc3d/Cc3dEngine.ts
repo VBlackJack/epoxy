@@ -24,7 +24,7 @@ import { Cc3dSimulation, Cc3dSnapshot } from './Cc3dSimulation';
 import { BOT_ROTATION_SECONDS, PLAYER_START_FACING, SFX } from './cc3dConstants';
 import { isSupportedMonster } from './cc3dMonsterTraits';
 import { World, buildWorld, cellAt, isBlockKind, isInertMob } from './cc3dWorld';
-import { displayItemId, displayMobId, displayTerrainId } from './display';
+import { displayItemId, displayMobId, displayShowsPanels, displayTerrainId } from './display';
 import type { Cc3dColor, Cc3dItemKind, Cc3dTerrainKind } from './model';
 
 /** Where the engine sends its sounds, so tests can listen in. */
@@ -112,6 +112,8 @@ export class Cc3dEngine implements PlayEngine {
   private unsupported: string[] = [];
   private terrainView: string[][] = [];
   private itemView: (string | null)[][] = [];
+  private panelView = new Map<number, readonly Direction[]>();
+  private hiddenLayerView = new Set<number>();
   private undoStack: UndoSnapshot[] = [];
   private paused = false;
   private winReported = false;
@@ -253,6 +255,8 @@ export class Cc3dEngine implements PlayEngine {
     if (!world) return;
     this.terrainView = Array.from({ length: world.height }, () => new Array<string>(world.width));
     this.itemView = Array.from({ length: world.height }, () => new Array<string | null>(world.width).fill(null));
+    this.panelView.clear();
+    this.hiddenLayerView.clear();
     for (let i = 0; i < world.cells.length; i++) this.refreshCell(world, i);
     world.changed = [];
   }
@@ -270,6 +274,11 @@ export class Cc3dEngine implements PlayEngine {
     const cell = world.cells[index];
     this.terrainView[y][x] = displayTerrainId(cell);
     this.itemView[y][x] = displayItemId(cell.item);
+    // Panels the display id already shows (plain floor) are not repeated here, so nothing draws twice.
+    if (cell.panels.length > 0 && !displayShowsPanels(cell)) this.panelView.set(index, cell.panels);
+    else this.panelView.delete(index);
+    if (cell.terrain.length > 1) this.hiddenLayerView.add(index);
+    else this.hiddenLayerView.delete(index);
   }
 
   public getTerrain(): string[][] {
@@ -278,6 +287,14 @@ export class Cc3dEngine implements PlayEngine {
 
   public getItems(): (string | null)[][] {
     return this.itemView;
+  }
+
+  public getPanels(): ReadonlyMap<number, readonly Direction[]> {
+    return this.panelView;
+  }
+
+  public getHiddenLayerCells(): ReadonlySet<number> {
+    return this.hiddenLayerView;
   }
 
   public getEntities(): RuntimeEntity[] {

@@ -27,6 +27,8 @@ vi.mock('../audio/AudioManager', () => ({
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { REFLECTING_FACES } from '../core/cc3d/cc3dLasers';
+import { Cc3dEngine } from '../core/cc3d/Cc3dEngine';
+import { cc3dLevel, panelled } from '../core/cc3d/cc3dTestMaps';
 import { CC3D_DISPLAY_IDS } from '../core/cc3d/display';
 import { GameEngine } from '../core/GameEngine';
 import type { CompiledLevel, Direction, GraphicsStyle } from '../core/types';
@@ -178,6 +180,72 @@ describe('cc3d display ids in every render style', () => {
       expect(JSON.stringify(callsOf((ctx) => renderer.drawTile(ctx, 'wall', 0, 0, TILE_PX)))).toBe(before);
     });
   }
+
+  describe('panels over any terrain', () => {
+    const glyphs = {
+      p: { stack: [{ kind: 'water' as const }], panels: ['N' as const] },
+      q: { stack: [{ kind: 'ice' as const }], panels: ['E' as const, 'S' as const] },
+      r: panelled('W')
+    };
+
+    /** The panel bars drawn for one frame of a cc3d level, by the cell they cover. */
+    function barsOf(style: GraphicsStyle, rows: string[]): Array<{ edges: readonly string[]; x: number; y: number }> {
+      const engine = new Cc3dEngine({ effect: () => undefined, step: () => undefined });
+      engine.loadLevel(cc3dLevel(rows, { glyphs }));
+      const renderer = new PixelRenderer();
+      renderer.setStyle(style);
+      renderer.setThemeId(THEME_ID);
+      renderer.setViewportTiles(SCENE_SIZE);
+      const bars: Array<{ edges: readonly string[]; x: number; y: number }> = [];
+      const real = renderer.drawPanelBars.bind(renderer);
+      vi.spyOn(renderer, 'drawPanelBars').mockImplementation((ctx, edges, x, y, size) => {
+        bars.push({ edges: [...edges], x, y });
+        real(ctx, edges, x, y, size);
+      });
+      renderer.renderViewport(createCanvas(SCENE_SIZE * TILE_PX, SCENE_SIZE * TILE_PX).getContext('2d'), engine);
+      return bars;
+    }
+
+    for (const style of STYLES) {
+      it(`${style}: draws bars over water and ice, not again over a floor`, () => {
+        const bars = barsOf(style, ['#@pqr.#']);
+        expect(bars.map((b) => b.edges)).toEqual([['N'], ['E', 'S']]);
+        // The two cells are neighbours on one row: the bars land on the same line, the second to the right of the first.
+        expect(bars[1].y).toBe(bars[0].y);
+        expect(bars[1].x).toBeGreaterThan(bars[0].x);
+      });
+
+      it(`${style}: a panel bar draws something and differs per side`, () => {
+        const renderer = readyRenderer(style);
+        const north = callsOf((ctx) => renderer.drawPanelBars(ctx, ['N'], 0, 0, TILE_PX));
+        const west = callsOf((ctx) => renderer.drawPanelBars(ctx, ['W'], 0, 0, TILE_PX));
+        expect(drewSomething(north)).toBe(true);
+        expect(JSON.stringify(north)).not.toBe(JSON.stringify(west));
+        expect(drewSomething(callsOf((ctx) => renderer.drawPanelBars(ctx, [], 0, 0, TILE_PX)))).toBe(false);
+      });
+    }
+
+    it('draws the stacked layer marker only when asked', () => {
+      const engine = new Cc3dEngine({ effect: () => undefined, step: () => undefined });
+      engine.loadLevel(cc3dLevel(['#@O..#']));
+      const renderer = new PixelRenderer();
+      renderer.setStyle('modern');
+      renderer.setThemeId(THEME_ID);
+      renderer.setViewportTiles(SCENE_SIZE);
+      const marker = vi.spyOn(renderer as unknown as { drawHiddenLayerMarker: () => void }, 'drawHiddenLayerMarker');
+      const frame = (): void => {
+        renderer.renderViewport(createCanvas(SCENE_SIZE * TILE_PX, SCENE_SIZE * TILE_PX).getContext('2d'), engine);
+      };
+      frame();
+      expect(marker).not.toHaveBeenCalled();
+      renderer.setHiddenLayerMarkers(true);
+      frame();
+      expect(marker).toHaveBeenCalledTimes(1);
+      renderer.setHiddenLayerMarkers(false);
+      frame();
+      expect(marker).toHaveBeenCalledTimes(1);
+    });
+  });
 
   it('tells a cc3d id from a base id', () => {
     expect(CC3D_DISPLAY_IDS.every(isCc3dId)).toBe(true);

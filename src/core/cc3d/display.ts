@@ -181,14 +181,20 @@ function thinWallId(panels: readonly Direction[]): string {
 
 /**
  * The id that shows a cell: its top terrain, or the thin wall of its panels
- * when that terrain is plain floor. Panels on any other terrain are not shown
- * here (the renderer draws them from the cc3d data).
+ * when that terrain is plain floor. Panels on any other terrain are not part of
+ * this id: they still block, so the engine exposes them separately (getPanels)
+ * and the renderer draws their bars over that terrain.
  */
 export function displayTerrainId(cell: Cc3dCell): string {
   const top = cell.terrain[cell.terrain.length - 1];
   const id = terrainId(top);
   if (id === FLOOR_ID && cell.panels.length > 0) return thinWallId(cell.panels);
   return id;
+}
+
+/** True when the display id of the cell already shows its panels (plain floor: the thin wall id). */
+export function displayShowsPanels(cell: Cc3dCell): boolean {
+  return cell.panels.length > 0 && terrainId(cell.terrain[cell.terrain.length - 1]) === FLOOR_ID;
 }
 
 /** The id that shows the item of a cell, or null for none. */
