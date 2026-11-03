@@ -26,7 +26,7 @@ import {
   isSimilar
 } from './OriginalityGuard';
 
-const CONFIG: CampaignGuardConfig = { windowSize: 3, maxJaccard: 0.25, largeWindowSize: 5, largeWindowMinContent: 0, largeWindowMaxShare: 1 };
+const CONFIG: CampaignGuardConfig = { windowSize: 3, maxJaccard: 0.25, largeWindowSize: 5, largeWindowMinContent: 0, largeWindowMaxShare: 1, maxRoomSimilarity: 0.85, maxSokobanSimilarity: 0.8 };
 const GLYPH_CLASS: Record<string, CellClass> = {
   '#': CellClass.Wall,
   '.': CellClass.Floor,

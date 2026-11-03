@@ -500,6 +500,34 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
 }
 
+/** campaignGuard fields that must be whole numbers of at least 1. */
+const CAMPAIGN_GUARD_SIZE_KEYS = ['windowSize', 'largeWindowSize'];
+/** campaignGuard fields that are shares or similarities, in (0, 1]. */
+const CAMPAIGN_GUARD_RATIO_KEYS = ['maxJaccard', 'largeWindowMaxShare', 'maxRoomSimilarity', 'maxSokobanSimilarity'];
+
+/** Problems of the game.json campaignGuard section; a missing threshold is an error, not a silent default. */
+export function findCampaignGuardConfigErrors(value: unknown): string[] {
+  if (!isRecord(value)) return ['campaignGuard: not an object'];
+  const errors: string[] = [];
+  for (const key of CAMPAIGN_GUARD_SIZE_KEYS) {
+    if (!Number.isInteger(value[key]) || (value[key] as number) < 1) errors.push(`campaignGuard.${key}: not a positive integer`);
+  }
+  const content = value.largeWindowMinContent;
+  if (!Number.isInteger(content) || (content as number) < 0) errors.push('campaignGuard.largeWindowMinContent: not a non-negative integer');
+  for (const key of CAMPAIGN_GUARD_RATIO_KEYS) {
+    const v = value[key];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || v > 1) errors.push(`campaignGuard.${key}: not a number in (0, 1]`);
+  }
+  if (
+    Number.isInteger(value.windowSize) &&
+    Number.isInteger(value.largeWindowSize) &&
+    (value.largeWindowSize as number) < (value.windowSize as number)
+  ) {
+    errors.push('campaignGuard.largeWindowSize: smaller than windowSize');
+  }
+  return errors;
+}
+
 /**
  * Problems of the laser fields of tiles.json: an emitter needs a direction, a
  * receiver and a gate need a group, a gate needs the other form of its pair

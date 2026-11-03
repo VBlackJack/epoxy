@@ -647,6 +647,10 @@ export interface CampaignGuardConfig {
   largeWindowMinContent: number;
   /** Largest share of a large window one cell class may cover before the window is ignored. */
   largeWindowMaxShare: number;
+  /** Room similarity (open cells, blocks, targets; any rotation, reflection, translation) at or above which two campaign levels are too alike. */
+  maxRoomSimilarity: number;
+  /** Room similarity at or above which a campaign room with targets is too close to a reference Sokoban puzzle. */
+  maxSokobanSimilarity: number;
 }
 
 export interface GameConfig {

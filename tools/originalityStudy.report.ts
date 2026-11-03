@@ -20,7 +20,13 @@
  * given by EPOXY_REFERENCE_DAT and must never be added to the repository;
  * only the pair labels and scores are written, into the git-ignored local/.
  *
+ * EPOXY_REFERENCE_XSB (a .xsb/.sok/.txt file or a folder of them) does the same
+ * for Sokoban puzzles: every campaign room with targets is compared with every
+ * reference puzzle by open cells, targets and blocks, and the closest matches go to
+ * local/originality-sokoban.md. Never add such a collection to the repository.
+ *
  * Run with: EPOXY_REFERENCE_DAT=<path to a .DAT> npm run report:originality
+ *      or:  EPOXY_REFERENCE_XSB=<file or folder> npm run report:originality
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -32,17 +38,28 @@ import { DEFAULT_RULESET } from '../src/core/coreConstants';
 import { CompiledLevel } from '../src/core/types';
 import { DatCodec } from '../src/formats/DatCodec';
 import { findSimilarPairs, fingerprintGrid, isSimilar, toCellGrid } from '../src/generator/OriginalityGuard';
+import { findSimilarRooms, layoutFromLevel } from '../src/generator/RoomFingerprint';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
+import { loadReferenceRooms, REFERENCE_XSB_ENV } from '../src/test/referenceXsb';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_FILE = resolve(ROOT, 'local', 'originality.md');
+const SOKOBAN_OUTPUT_FILE = resolve(ROOT, 'local', 'originality-sokoban.md');
 const REFERENCE_ENV = 'EPOXY_REFERENCE_DAT';
 const REFERENCE_PREFIX = 'reference';
 const TOP_PAIRS = 20;
+/** Lowest room similarity listed in the Sokoban report. */
+const SOKOBAN_REPORT_FLOOR = 0.3;
 
-it('writes the originality comparison', () => {
+it('needs a reference', () => {
+  expect(
+    process.env[REFERENCE_ENV] || process.env[REFERENCE_XSB_ENV],
+    `set ${REFERENCE_ENV} to a .DAT file or ${REFERENCE_XSB_ENV} to a Sokoban file or folder`
+  ).toBeTruthy();
+});
+
+it.skipIf(!process.env[REFERENCE_ENV])('writes the originality comparison', () => {
   const referencePath = process.env[REFERENCE_ENV];
-  expect(referencePath, `set ${REFERENCE_ENV} to the path of a .DAT file`).toBeTruthy();
   loadTestConfigs();
   const config = ConfigRegistry.getGame().campaignGuard;
   const fingerprint = (level: CompiledLevel, label: string) =>
@@ -68,4 +85,36 @@ it('writes the originality comparison', () => {
   ];
   mkdirSync(dirname(OUTPUT_FILE), { recursive: true });
   writeFileSync(OUTPUT_FILE, `${lines.join('\n')}\n`);
+});
+
+it.skipIf(!process.env[REFERENCE_XSB_ENV])('writes the Sokoban originality comparison', () => {
+  loadTestConfigs();
+  const config = ConfigRegistry.getGame().campaignGuard;
+  const reference = loadReferenceRooms(process.env[REFERENCE_XSB_ENV] as string);
+  const rooms = ConfigRegistry.getLevels()
+    .map((level) =>
+      layoutFromLevel(
+        `campaign #${level.number} ${level.id}`,
+        level,
+        (id) => ConfigRegistry.getTile(id),
+        (id) => ConfigRegistry.getEntityDef(id)
+      )
+    )
+    .filter((room) => room.targets > 0);
+  const pairs = findSimilarRooms(rooms, reference, SOKOBAN_REPORT_FLOOR).slice(0, TOP_PAIRS);
+  const lines = [
+    '# Sokoban originality comparison',
+    '',
+    `Campaign rooms with targets: ${rooms.length}. Reference puzzles with targets: ${reference.length}.`,
+    `Flag threshold: room similarity >= ${config.maxSokobanSimilarity} (open cells, targets and blocks; any rotation, reflection and translation).`,
+    `Pairs below ${SOKOBAN_REPORT_FLOOR} are not listed.`,
+    '',
+    '| Campaign room | Reference puzzle | Similarity | Matching cells | Flagged |',
+    '|---|---|---|---|---|',
+    ...pairs.map(
+      (p) => `| ${p.candidate} | ${p.reference} | ${p.similarity.toFixed(3)} | ${p.matchedCells} | ${p.similarity >= config.maxSokobanSimilarity ? 'yes' : 'no'} |`
+    )
+  ];
+  mkdirSync(dirname(SOKOBAN_OUTPUT_FILE), { recursive: true });
+  writeFileSync(SOKOBAN_OUTPUT_FILE, `${lines.join('\n')}\n`);
 });
