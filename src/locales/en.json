@@ -449,7 +449,7 @@
         "solved": "Blocks: solved in {count, plural, one {# push} other {# pushes}}",
         "unsolvable": "Blocks: no way to cover every target",
         "not_checked": "Blocks: not checked (too large or unsupported ground)",
-        "none": "Only block puzzles are checked"
+        "running": "Blocks: checking..."
       }
     },
     "test_from": {
@@ -465,6 +465,7 @@
     "template": {
       "title": "New level",
       "message": "Choose what the new level starts from.",
+      "lynx_only": "This pack is mostly Lynx, and templates are Epoxy levels: only the empty room is offered here.",
       "empty": { "label": "Empty room" },
       "sokoban": { "label": "Sokoban room" },
       "laser": { "label": "Laser puzzle" },

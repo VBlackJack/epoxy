@@ -125,6 +125,9 @@ export function findTemplateErrors(raw: unknown): string[] {
     if (typeof entry.labelKey !== 'string' || entry.labelKey === '') errors.push(`${id}: labelKey is missing`);
     if (!WIN_RULES.includes(entry.winRule as WinRule)) errors.push(`${id}: invalid winRule`);
     if (!TEMPLATE_RULESETS.includes(entry.ruleset as Ruleset)) errors.push(`${id}: invalid ruleset`);
+    if (entry.ruleset === 'lynx' && entry.winRule !== 'exit') {
+      errors.push(`${id}: the lynx ruleset cannot use the ${String(entry.winRule)} win rule`);
+    }
     for (const field of ['timeLimitSeconds', 'chipsRequired'] as const) {
       const value = entry[field];
       if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {

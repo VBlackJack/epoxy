@@ -24,28 +24,33 @@ export interface BlockCheckLine {
   params?: Record<string, number>;
 }
 
-const BLOCK_CHECK_KEYS: Record<BlockPuzzleVerdict['kind'], string> = {
-  solved: 'editor.check.blocks.solved',
-  unsolvable: 'editor.check.blocks.unsolvable',
-  not_checked: 'editor.check.blocks.not_checked',
-  none: 'editor.check.blocks.none'
-};
+/** The Check line that states a block verdict; null when there is nothing to judge, so no line shows. */
+export function describeBlockVerdict(verdict: BlockPuzzleVerdict): BlockCheckLine | null {
+  switch (verdict.kind) {
+    case 'solved':
+      return { key: 'editor.check.blocks.solved', params: { count: verdict.pushes } };
+    case 'unsolvable':
+      return { key: 'editor.check.blocks.unsolvable' };
+    case 'not_checked':
+      return { key: 'editor.check.blocks.not_checked' };
+    case 'none':
+      return null;
+  }
+}
 
-/** The Check line that states a block verdict. */
-export function describeBlockVerdict(verdict: BlockPuzzleVerdict): BlockCheckLine {
-  const key = BLOCK_CHECK_KEYS[verdict.kind];
-  return verdict.kind === 'solved' ? { key, params: { count: verdict.pushes } } : { key };
+/** True when the Blocks line applies to the level: only the Epoxy rules play the block puzzles the solver models. */
+export function blockCheckApplies(level: CompiledLevel): boolean {
+  return level.ruleset === undefined || level.ruleset === 'epoxy';
 }
 
 /**
- * The block puzzle verdict of a level for the Check button, or null when the
- * line does not apply: only the Epoxy rules play the block puzzles the solver
- * models (a Lynx or CC3D level is not judged), and a start outside the map
- * cannot be loaded. The search is bounded by `requestedSearchBudget`, so it
- * runs synchronously; it only runs when the designer asks for a Check.
+ * The block puzzle verdict of a level, or null when the line does not apply
+ * (a Lynx or CC3D level, or a start outside the map that cannot be loaded).
+ * The search is exhaustive up to `requestedSearchBudget` layouts and can take
+ * seconds on a large open room: the page runs it in a worker, never inline.
  */
-export function checkBlocks(level: CompiledLevel): BlockPuzzleVerdict | null {
-  if (level.ruleset !== undefined && level.ruleset !== 'epoxy') return null;
+export function evaluateBlocks(level: CompiledLevel): BlockPuzzleVerdict | null {
+  if (!blockCheckApplies(level)) return null;
   const { x, y } = level.playerStart;
   const insideMap =
     Number.isInteger(x) &&

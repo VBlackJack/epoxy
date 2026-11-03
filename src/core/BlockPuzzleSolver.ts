@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
 import { GameEngine } from './GameEngine';
 
 /** Layouts the exact search may visit, for the dead-end watch that runs by itself, before giving up without a verdict. */
@@ -35,6 +35,17 @@ export type BlockPuzzleVerdict =
   | { kind: 'unsolvable' }
   | { kind: 'not_checked' }
   | { kind: 'none' };
+
+/**
+ * Ground the verdict models exactly: plain floor and walls a block is pushed
+ * across or stopped by, and the block targets. The exit is left out because
+ * the player ends the level by stepping on it, which the search does not model.
+ */
+const MODELLED_TERRAIN: readonly string[] = [FLOOR_TILE_ID, WALL_TILE_ID, BLOCK_TARGET_TILE_ID];
+/** Items that change nothing about where the player or a block may go: chips are only collected. */
+const MODELLED_ITEMS: readonly string[] = ['chip'];
+/** The one piece the search moves: a plain pushable block. Mirrors, ice blocks and monsters are not modelled. */
+const MODELLED_ENTITIES: readonly string[] = ['dirt_block'];
 
 type Dir = (typeof ORDERED_DIRECTIONS)[number];
 
@@ -165,24 +176,31 @@ export class BlockPuzzleSolver {
   }
 
   /**
-   * An honest verdict on the block puzzles of a level, for a check the
+   * An honest verdict on the block puzzle of a 'targets' level, for a check the
    * designer asked for. Unlike `isStuck` it also reports success, and it never
-   * runs the fast pre-test: every judged puzzle gets the exact search.
-   * It says nothing about the rest of the level (exit, keys, monsters).
-   *  - `solved`: a sequence of pushes (`pushes` in all) covers every goal.
-   *  - `unsolvable`: the exhaustive search proved no push sequence covers every goal.
-   *  - `not_checked`: the budget ran out, or some puzzle stands on ground the
-   *    model does not follow (ice, water, force floors, clone machines) or
-   *    behind a door the player cannot open yet.
-   *  - `none`: the level has no goal the solver judges (no targets or brown
-   *    buttons, a receivers level, or no block at all).
+   * runs the fast pre-test. It judges a level only when every cell of the map
+   * is in the whitelists above, ground and pieces the search models exactly;
+   * anything else anywhere on the map makes the verdict `not_checked`, so a
+   * monster, a door, a trap or a cloner can never turn into a false claim.
+   * It says nothing about the rest of the level (exit, chips, time).
+   *  - `solved`: a sequence of pushes (`pushes` in all) covers every target.
+   *  - `unsolvable`: the exhaustive search proved no push sequence covers every target.
+   *  - `not_checked`: the map holds something outside the whitelists, the
+   *    playable area is above `watchMaxCells`, the budget ran out, or the
+   *    player cannot walk up to a block.
+   *  - `none`: nothing to judge (not a 'targets' level, no target or no block).
    */
   public static verdict(engine: GameEngine, budget: number = requestedSearchBudget()): BlockPuzzleVerdict {
+    if (engine.getLevel().winRule !== 'targets') return { kind: 'none' };
+    const playable = BlockPuzzleSolver.modelledCellCount(engine);
+    if (playable === null || playable > ConfigRegistry.getGame().blockPuzzle.watchMaxCells) {
+      return { kind: 'not_checked' };
+    }
     const solver = new BlockPuzzleSolver(engine);
     if (solver.buttons.length === 0 || solver.blocks.length === 0) return { kind: 'none' };
     const covered = new Set(solver.blocks);
     let pushes = 0;
-    let undecided = engine.getLevel().cloneLinks.length > 0;
+    let undecided = false;
     let unsolvable = false;
     const areas = solver.areas();
     const inArea = new Set(areas.flatMap((area) => area.buttons));
@@ -216,6 +234,28 @@ export class BlockPuzzleSolver {
     if (unsolvable) return { kind: 'unsolvable' };
     if (undecided) return { kind: 'not_checked' };
     return { kind: 'solved', pushes };
+  }
+
+  /**
+   * The number of non-wall cells of the map when everything on it is in the
+   * whitelists, else null. The start cell must be walkable ground too.
+   */
+  private static modelledCellCount(engine: GameEngine): number | null {
+    const terrain = engine.getTerrain();
+    const items = engine.getItems();
+    let cells = 0;
+    for (let y = 0; y < terrain.length; y++) {
+      for (let x = 0; x < terrain[y].length; x++) {
+        if (!MODELLED_TERRAIN.includes(terrain[y][x])) return null;
+        const item = items[y][x];
+        if (item !== null && !MODELLED_ITEMS.includes(item)) return null;
+        if (terrain[y][x] !== WALL_TILE_ID) cells++;
+      }
+    }
+    if (engine.getEntities().some((e) => !MODELLED_ENTITIES.includes(e.type))) return null;
+    if (engine.getLevel().cloneLinks.length > 0 || engine.getLevel().trapLinks.length > 0) return null;
+    const { x, y } = engine.getPlayer();
+    return terrain[y]?.[x] === WALL_TILE_ID ? null : cells;
   }
 
   /**

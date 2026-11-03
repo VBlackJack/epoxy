@@ -449,7 +449,7 @@
         "solved": "Blocs : résolu en {count, plural, one {# poussée} other {# poussées}}",
         "unsolvable": "Blocs : aucun moyen de couvrir toutes les cibles",
         "not_checked": "Blocs : non vérifié (trop grand ou terrain non géré)",
-        "none": "Seuls les puzzles de blocs sont vérifiés"
+        "running": "Blocs : vérification..."
       }
     },
     "test_from": {
@@ -465,6 +465,7 @@
     "template": {
       "title": "Nouveau niveau",
       "message": "Choisissez le point de départ du nouveau niveau.",
+      "lynx_only": "Ce pack est surtout en Lynx, et les modèles sont des niveaux Epoxy : seule la salle vide est proposée ici.",
       "empty": { "label": "Salle vide" },
       "sokoban": { "label": "Salle de Sokoban" },
       "laser": { "label": "Puzzle laser" },

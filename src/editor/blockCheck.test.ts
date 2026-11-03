@@ -20,7 +20,7 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { CompiledLevel } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { checkBlocks, describeBlockVerdict } from './blockCheck';
+import { blockCheckApplies, describeBlockVerdict, evaluateBlocks } from './blockCheck';
 
 function sokobanRoom(): CompiledLevel {
   const rows = [
@@ -56,21 +56,30 @@ describe('describeBlockVerdict', () => {
     });
     expect(describeBlockVerdict({ kind: 'unsolvable' })).toEqual({ key: 'editor.check.blocks.unsolvable' });
     expect(describeBlockVerdict({ kind: 'not_checked' })).toEqual({ key: 'editor.check.blocks.not_checked' });
-    expect(describeBlockVerdict({ kind: 'none' })).toEqual({ key: 'editor.check.blocks.none' });
+    expect(describeBlockVerdict({ kind: 'none' })).toBeNull();
   });
 });
 
-describe('checkBlocks', () => {
+describe('blockCheckApplies', () => {
+  it('is true for Epoxy levels only', () => {
+    expect(blockCheckApplies(sokobanRoom())).toBe(true);
+    expect(blockCheckApplies({ ...sokobanRoom(), ruleset: 'epoxy' })).toBe(true);
+    expect(blockCheckApplies({ ...sokobanRoom(), ruleset: 'lynx' })).toBe(false);
+    expect(blockCheckApplies({ ...sokobanRoom(), ruleset: 'cc3d' })).toBe(false);
+  });
+});
+
+describe('evaluateBlocks', () => {
   it('solves a Sokoban room on the Epoxy rules', () => {
-    expect(checkBlocks(sokobanRoom())).toEqual({ kind: 'solved', pushes: 1 });
+    expect(evaluateBlocks(sokobanRoom())).toEqual({ kind: 'solved', pushes: 1 });
   });
 
   it('is hidden for the Lynx and CC3D rulesets', () => {
-    expect(checkBlocks({ ...sokobanRoom(), ruleset: 'lynx' })).toBeNull();
-    expect(checkBlocks({ ...sokobanRoom(), ruleset: 'cc3d' })).toBeNull();
+    expect(evaluateBlocks({ ...sokobanRoom(), ruleset: 'lynx' })).toBeNull();
+    expect(evaluateBlocks({ ...sokobanRoom(), ruleset: 'cc3d' })).toBeNull();
   });
 
   it('is skipped when the start lies outside the map', () => {
-    expect(checkBlocks({ ...sokobanRoom(), playerStart: { x: 9, y: 9, dir: 'E' } })).toBeNull();
+    expect(evaluateBlocks({ ...sokobanRoom(), playerStart: { x: 9, y: 9, dir: 'E' } })).toBeNull();
   });
 });

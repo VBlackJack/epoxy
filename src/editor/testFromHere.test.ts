@@ -49,10 +49,12 @@ beforeEach(() => {
 });
 
 describe('startCellProblem', () => {
-  const map = { terrain: TERRAIN, entities: ENTITIES };
+  const items = TERRAIN.map((row) => row.map(() => null as string | null));
+  items[2][2] = 'bomb';
+  const map = { terrain: TERRAIN, entities: ENTITIES, items };
 
   it('accepts a plain floor cell', () => {
-    expect(startCellProblem(map, { x: 2, y: 2 })).toBeNull();
+    expect(startCellProblem(map, { x: 1, y: 2 })).toBeNull();
   });
 
   it('refuses walls, hazards, exits and entities as not walkable', () => {
@@ -62,6 +64,11 @@ describe('startCellProblem', () => {
     expect(startCellProblem(map, { x: 3, y: 2 })).toBe('not_walkable');
   });
 
+  it('refuses a cell that holds a bomb', () => {
+    expect(startCellProblem(map, { x: 2, y: 2 })).toBe('not_walkable');
+    expect(startCellProblem(map, { x: 1, y: 2 })).toBeNull();
+  });
+
   it('asks for a cell when there is none or it lies outside the map', () => {
     expect(startCellProblem(map, null)).toBe('no_cell');
     expect(startCellProblem(map, { x: 9, y: 9 })).toBe('no_cell');
@@ -69,8 +76,8 @@ describe('startCellProblem', () => {
   });
 
   it('serves Epoxy and Lynx, and refuses CC3D', () => {
-    expect(startCellProblem({ ...map, ruleset: 'lynx' }, { x: 2, y: 2 })).toBeNull();
-    expect(startCellProblem({ ...map, ruleset: 'epoxy' }, { x: 2, y: 2 })).toBeNull();
+    expect(startCellProblem({ ...map, ruleset: 'lynx' }, { x: 1, y: 2 })).toBeNull();
+    expect(startCellProblem({ ...map, ruleset: 'epoxy' }, { x: 1, y: 2 })).toBeNull();
     expect(startCellProblem({ ...map, ruleset: 'cc3d' }, { x: 2, y: 2 })).toBe('not_supported');
   });
 });
@@ -79,15 +86,11 @@ describe('pickTestCell', () => {
   const cursor = { x: 1, y: 1 };
   const hover = { x: 2, y: 2 };
 
-  it('prefers the cursor while the canvas has the focus, else the last hovered cell', () => {
-    expect(pickTestCell(cursor, hover, true)).toBe(cursor);
-    expect(pickTestCell(cursor, hover, false)).toBe(hover);
-  });
-
-  it('falls back to whichever cell exists', () => {
-    expect(pickTestCell(cursor, null, false)).toBe(cursor);
-    expect(pickTestCell(null, hover, true)).toBe(hover);
-    expect(pickTestCell(null, null, true)).toBeNull();
+  it('prefers the cursor, else the last hovered cell', () => {
+    expect(pickTestCell(cursor, hover)).toBe(cursor);
+    expect(pickTestCell(null, hover)).toBe(hover);
+    expect(pickTestCell(cursor, null)).toBe(cursor);
+    expect(pickTestCell(null, null)).toBeNull();
   });
 });
 

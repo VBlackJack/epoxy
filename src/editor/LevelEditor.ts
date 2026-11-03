@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ConfigRegistry } from '../config/ConfigRegistry';
+import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError } from '../config/ConfigValidation';
 import { t } from '../i18n/I18nManager';
@@ -43,7 +43,8 @@ import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { CanvasFit, fitCanvas, zoomIn, zoomOut } from './canvasFit';
-import { checkBlocks, describeBlockVerdict } from './blockCheck';
+import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
+import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
 import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
 import {
   GridCell,
@@ -105,6 +106,7 @@ import {
 } from './saveTarget';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
+  EDITOR_BLOCK_CHECK_TIMEOUT_MS,
   EDITOR_CHECK_DEBOUNCE_MS,
   EDITOR_CLONE_LINK_COLOR,
   EDITOR_CURSOR_OUTLINE_COLOR,
@@ -208,6 +210,8 @@ export interface EditorHooks {
   openManager: (packId: string | null) => void;
   /** Registers a file's levels as an imported pack (the existing import flow). */
   importAsPack: (name: string, levels: CompiledLevel[], skipped: number) => Promise<void>;
+  /** The configs the page loaded, for the block check worker. */
+  getConfigBundle: () => ConfigBundle;
 }
 
 /** Where a loaded level comes from, and whether it counts as unsaved work. */
@@ -246,6 +250,9 @@ export class LevelEditor {
   /** Imported packs the player agreed to modify during this session. */
   private confirmedImportedPackIds = new Set<string>();
   private saving = false;
+  /** True while the New button is asking its questions, so a second click does not open a second dialog. */
+  private newLevelPending = false;
+  private blockRunner: BlockCheckRunner | null = null;
   /** Bumped each time another level is loaded, so a save that outlives its level cannot rebind the editor. */
   private loadGeneration = 0;
 
@@ -259,6 +266,8 @@ export class LevelEditor {
   private cursorCell: { x: number; y: number } | null = null;
   /** The last cell the pointer was over, kept after it leaves the canvas so a toolbar button can use it. */
   private lastHoverCell: GridCell | null = null;
+  /** What the Test from here button state was computed for, to skip recomputing it on every redraw. */
+  private testFromStateKey = '';
   /** Zoom steps away from the fit size; 0 fits the level to the stage. */
   private zoomOffset: number = 0;
   /** Tile size, in pixels, the canvas buffer is drawn at. */
@@ -523,39 +532,55 @@ export class LevelEditor {
    */
   public async newLevelInPack(packId: string | null, template?: LevelTemplate): Promise<boolean> {
     if (!(await this.confirmDiscardIfDirty())) return false;
+    this.openNewLevel(packId, template);
+    return true;
+  }
+
+  /** Opens the new map without asking about unsaved work; the caller has already asked. */
+  private openNewLevel(packId: string | null, template?: LevelTemplate): void {
     const pack = packId ? ConfigRegistry.getEditablePacks().find((p) => p.id === packId) : undefined;
     this.initBlankMap({
       packId: pack?.id ?? null,
       ruleset: pack ? majorityRuleset(pack.levels) : undefined,
       template
     });
-    return true;
   }
 
   /**
-   * The New button: offers the empty room and the templates, then opens the
-   * choice. Without templates (the file did not load) it opens the empty room
-   * and says so.
+   * The New button. It first asks about unsaved work, then offers the empty
+   * room and the templates. Templates are Epoxy levels: in a pack that is
+   * mostly Lynx only the empty room is offered, and the dialog says why. If
+   * the templates cannot be loaded the empty room opens, and the status line
+   * says so once it is open.
    */
   private async startNewLevel(): Promise<void> {
-    const templates = await loadLevelTemplates();
-    if (!templates) {
-      this.setStatusText(t('editor.template.load_failed'));
-      await this.newLevelInPack(this.source.packId);
-      return;
+    if (this.newLevelPending) return;
+    this.newLevelPending = true;
+    try {
+      if (!(await this.confirmDiscardIfDirty())) return;
+      const packId = this.source.packId;
+      const pack = packId ? ConfigRegistry.getEditablePacks().find((p) => p.id === packId) : undefined;
+      const lynxPack = pack !== undefined && majorityRuleset(pack.levels) === LYNX_RULESET;
+      const templates = lynxPack ? [] : await loadLevelTemplates();
+      if (!templates) {
+        this.openNewLevel(packId);
+        this.setStatusText(t('editor.template.load_failed'));
+        return;
+      }
+      const choice = await choiceDialog({
+        title: t('editor.template.title'),
+        message: t(lynxPack ? 'editor.template.lynx_only' : 'editor.template.message'),
+        options: [
+          { id: EMPTY_TEMPLATE_ID, label: t('editor.template.empty.label'), primary: true },
+          ...templates.map((template) => ({ id: template.id, label: t(template.labelKey) }))
+        ],
+        cancelLabel: t('app.confirm.cancel.action')
+      });
+      if (choice === null) return;
+      this.openNewLevel(packId, templates.find((candidate) => candidate.id === choice));
+    } finally {
+      this.newLevelPending = false;
     }
-    const choice = await choiceDialog({
-      title: t('editor.template.title'),
-      message: t('editor.template.message'),
-      options: [
-        { id: EMPTY_TEMPLATE_ID, label: t('editor.template.empty.label'), primary: true },
-        ...templates.map((template) => ({ id: template.id, label: t(template.labelKey) }))
-      ],
-      cancelLabel: t('app.confirm.cancel.action')
-    });
-    if (choice === null) return;
-    const template = templates.find((candidate) => candidate.id === choice);
-    await this.newLevelInPack(this.source.packId, template);
   }
 
   public buildUI(): void {
@@ -595,6 +620,7 @@ export class LevelEditor {
     this.syncMetadataInputs();
     this.updateCanvasLabel();
     this.updateCheckBadge(this.lastCheck);
+    this.testFromStateKey = '';
     this.updateTestFromState();
     this.applyFit();
   }
@@ -1048,7 +1074,7 @@ export class LevelEditor {
       } else {
         this.setStatusText(this.formatIssues(report.issues));
       }
-      this.appendBlocksLine(compiled);
+      void this.appendBlocksLine(compiled);
     });
 
     byId('editor-save-btn')?.addEventListener('click', () => {
@@ -1129,16 +1155,40 @@ export class LevelEditor {
 
   /**
    * Adds the block puzzle verdict to the status line after an explicit Check.
-   * It only runs on request (the search can be slow) and is hidden for the
-   * Lynx rules.
+   * The exhaustive search runs in a worker, only on request, and never for the
+   * Lynx rules. A line that nothing judges (`none`) leaves the status as it was,
+   * and a result that arrives after the level or the status changed is dropped.
    */
-  private appendBlocksLine(compiled: CompiledLevel): void {
-    const verdict = checkBlocks(compiled);
-    if (!verdict) return;
-    const line = describeBlockVerdict(verdict);
+  private async appendBlocksLine(compiled: CompiledLevel): Promise<void> {
+    if (!blockCheckApplies(compiled)) return;
     const el = document.getElementById('editor-status-bar');
-    const current = el?.textContent ?? '';
-    this.setStatusText(`${current}${t('validator.status.issue_separator.label')}${t(line.key, line.params)}`);
+    if (!el) return;
+    const separator = t('validator.status.issue_separator.label');
+    const base = el.textContent ?? '';
+    const running = `${base}${separator}${t('editor.check.blocks.running')}`;
+    const generation = this.loadGeneration;
+    const revision = this.editRevision;
+    this.setStatusText(running);
+    const verdict = await this.blockCheckRunner().check(compiled);
+    if (verdict === null || generation !== this.loadGeneration || revision !== this.editRevision) return;
+    if (el.textContent !== running) return;
+    const line = describeBlockVerdict(verdict);
+    this.setStatusText(line ? `${base}${separator}${t(line.key, line.params)}` : base);
+  }
+
+  private blockCheckRunner(): BlockCheckRunner {
+    this.blockRunner ??= new BlockCheckRunner({
+      createWorker:
+        typeof Worker === 'undefined'
+          ? null
+          : () =>
+              new Worker(new URL('../workers/blockCheck.worker.ts', import.meta.url), {
+                type: 'module'
+              }) as unknown as BlockCheckWorkerLike,
+      getBundle: () => this.hooks.getConfigBundle(),
+      timeoutMs: EDITOR_BLOCK_CHECK_TIMEOUT_MS
+    });
+    return this.blockRunner;
   }
 
   private setCheck(summary: CheckSummary): void {
@@ -1711,7 +1761,7 @@ export class LevelEditor {
 
   /** Why "Test from here" cannot run now, or null when it can; the cell it would start on comes with it. */
   private testFromHereTarget(): { cell: GridCell | null; block: TestFromHereBlock | null } {
-    const cell = pickTestCell(this.cursorCell, this.lastHoverCell, document.activeElement === this.canvas);
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
     return { cell, block: startCellProblem(this.doc, cell) };
   }
 
@@ -1719,6 +1769,11 @@ export class LevelEditor {
   private updateTestFromState(): void {
     const button = byId<HTMLButtonElement>('editor-test-from-btn');
     if (!button) return;
+    // Only the target cell and the level decide the state: skip the work when neither changed.
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    const key = `${this.loadGeneration}:${this.editRevision}:${cell?.x ?? ''},${cell?.y ?? ''}`;
+    if (key === this.testFromStateKey) return;
+    this.testFromStateKey = key;
     const { block } = this.testFromHereTarget();
     button.disabled = block !== null;
     button.title = t(block ? TEST_FROM_HERE_REASON_KEYS[block] : 'editor.test_from.title');

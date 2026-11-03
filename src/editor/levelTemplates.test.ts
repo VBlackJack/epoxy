@@ -24,7 +24,7 @@ import fr from '../locales/fr.json';
 import { LevelValidator } from '../core/LevelValidator';
 import { CompiledLevel } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { checkBlocks } from './blockCheck';
+import { evaluateBlocks } from './blockCheck';
 import { EMPTY_TEMPLATE_ID, findTemplateErrors, LevelTemplate, templateContent } from './levelTemplates';
 
 const templates = (templatesJson as unknown as { templates: LevelTemplate[] }).templates;
@@ -78,8 +78,14 @@ describe('templates.json', () => {
 
   it('the Sokoban template is solved by the block check', () => {
     const sokoban = templates.find((template) => template.id === 'sokoban') as LevelTemplate;
-    const verdict = checkBlocks(compile(sokoban));
+    const verdict = evaluateBlocks(compile(sokoban));
     expect(verdict?.kind).toBe('solved');
+  });
+
+  it('rejects a Lynx template that is won by targets or receivers', () => {
+    const raw = structuredClone(templatesJson) as unknown as { templates: Array<Record<string, unknown>> };
+    raw.templates[0].ruleset = 'lynx';
+    expect(findTemplateErrors(raw)).toContainEqual(expect.stringContaining('lynx'));
   });
 
   it('the laser template wins by receivers and keeps the default ruleset field absent', () => {

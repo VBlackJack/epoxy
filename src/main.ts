@@ -485,7 +485,8 @@ class EpoxyApplication {
         this.packManager.open(packId !== null && ConfigRegistry.isEditablePack(packId) ? packId : this.managerStartPackId());
       },
       importAsPack: (name: string, levels: CompiledLevel[], skipped: number) =>
-        this.packFlows.importLevelsAsPack(name, levels, skipped)
+        this.packFlows.importLevelsAsPack(name, levels, skipped),
+      getConfigBundle: () => this.captureConfigBundle()
     });
     this.editor.buildUI();
   }

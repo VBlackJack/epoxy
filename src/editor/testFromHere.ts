@@ -39,21 +39,21 @@ function supportsTestFromHere(ruleset: Ruleset | undefined): boolean {
 }
 
 /**
- * The cell "Test from here" would start on: the keyboard cursor while the
- * canvas has the focus, else the last hovered cell, else the cursor.
+ * The cell "Test from here" would start on: the keyboard cursor, which a click
+ * or a paint on the canvas also sets, else the last hovered cell.
  */
-export function pickTestCell(cursor: GridCell | null, lastHover: GridCell | null, canvasFocused: boolean): GridCell | null {
-  if (canvasFocused && cursor) return cursor;
-  return lastHover ?? cursor;
+export function pickTestCell(cursor: GridCell | null, lastHover: GridCell | null): GridCell | null {
+  return cursor ?? lastHover;
 }
 
 /**
  * Whether the player may start on a cell: inside the map, on a floor the
  * player walks on (no wall, hazard, exit or locked tile) and not on an
- * entity, the same cells the validator warns about for the start.
+ * entity or a hazardous item such as a bomb. Walls and entities are the cells
+ * the validator warns about for the start.
  */
 export function startCellProblem(
-  map: Pick<EditorMap, 'terrain' | 'entities'> & { ruleset?: Ruleset },
+  map: Pick<EditorMap, 'terrain' | 'entities' | 'items'> & { ruleset?: Ruleset },
   cell: GridCell | null
 ): TestFromHereBlock | null {
   if (!supportsTestFromHere(map.ruleset)) return 'not_supported';
@@ -66,6 +66,8 @@ export function startCellProblem(
     id !== WALL_TILE_ID && tile.passableByPlayer === true && !tile.hazard && !tile.isLevelExit && !tile.requiredKey;
   if (!walkable) return 'not_walkable';
   if (map.entities.some((e) => e.x === cell.x && e.y === cell.y)) return 'not_walkable';
+  const item = map.items[cell.y]?.[cell.x];
+  if (item && ConfigRegistry.getTile(item).hazard) return 'not_walkable';
   return null;
 }
 
