@@ -21,6 +21,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { FLAG_ON } from '../playtest/PlaytestStore';
+import { resolveSavedLevel } from '../storage/persistedState';
 import { createTestBundle, loadTestConfigs } from '../test/loadTestConfigs';
 import { BUILTIN_PACK_IDS, PILOT_LEVEL_ID_PREFIX } from './constants';
 import { ConfigRegistry } from './ConfigRegistry';
@@ -85,6 +86,34 @@ describe('pilot pack config', () => {
     ConfigRegistry.setPilotPackVisible(true);
     expect(ConfigRegistry.getAllPacks().map((p) => p.id)).not.toContain(BUILTIN_PACK_IDS.PILOT);
     expect(ConfigRegistry.getPilotChapters()).toEqual([]);
+  });
+});
+
+describe('save slot per pack', () => {
+  afterEach(() => {
+    ConfigRegistry.setPilotPackVisible(false);
+  });
+
+  it('keeps the historical slot for the campaign and gives the pilot its own', () => {
+    loadTestConfigs();
+    const base = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
+    expect(ConfigRegistry.getSaveSlotKey(BUILTIN_PACK_IDS.CAMPAIGN)).toBe(base);
+    expect(ConfigRegistry.getSaveSlotKey(BUILTIN_PACK_IDS.PILOT)).not.toBe(base);
+    expect(ConfigRegistry.getSaveSlotKey(BUILTIN_PACK_IDS.PILOT)).toContain(BUILTIN_PACK_IDS.PILOT);
+  });
+});
+
+describe('resume points of the campaign and the pilot', () => {
+  it('resumes each pack only from a record written for it', () => {
+    const campaignLevels = [{ id: 'epoxy_c_1' }, { id: 'epoxy_c_2' }, { id: 'epoxy_c_3' }];
+    const pilotLevels = [{ id: 'epoxy_p_1' }, { id: 'epoxy_p_2' }];
+    const campaignSave = { packId: BUILTIN_PACK_IDS.CAMPAIGN, levelIndex: 2, levelId: 'epoxy_c_3' };
+    const pilotSave = { packId: BUILTIN_PACK_IDS.PILOT, levelIndex: 1, levelId: 'epoxy_p_2' };
+    expect(resolveSavedLevel(campaignSave, BUILTIN_PACK_IDS.CAMPAIGN, campaignLevels)).toBe(2);
+    expect(resolveSavedLevel(pilotSave, BUILTIN_PACK_IDS.PILOT, pilotLevels)).toBe(1);
+    // Leaving the pilot must not resume the campaign from a pilot record, nor the reverse.
+    expect(resolveSavedLevel(pilotSave, BUILTIN_PACK_IDS.CAMPAIGN, campaignLevels)).toBeNull();
+    expect(resolveSavedLevel(campaignSave, BUILTIN_PACK_IDS.PILOT, pilotLevels)).toBeNull();
   });
 });
 
@@ -156,6 +185,15 @@ describe('pilot pack at load time', () => {
     await ConfigRegistry.loadAll();
     expect(ConfigRegistry.getPilotLevels().length).toBeGreaterThan(0);
     expect(ConfigRegistry.getAllPacks().map((p) => p.id)).not.toContain(BUILTIN_PACK_IDS.PILOT);
+  });
+
+  it('forgets a saved pilot pack when Playtest mode is off', async () => {
+    loadTestConfigs();
+    const activeKey = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.activePackKey);
+    stubFetch([], { [activeKey]: BUILTIN_PACK_IDS.PILOT });
+    await ConfigRegistry.loadAll();
+    expect(ConfigRegistry.getActivePackId()).toBe(BUILTIN_PACK_IDS.CAMPAIGN);
+    expect(localStorage.getItem(activeKey)).toBe(BUILTIN_PACK_IDS.CAMPAIGN);
   });
 
   it('lists the pilot when Playtest mode was left on', async () => {

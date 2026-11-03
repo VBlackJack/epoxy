@@ -396,7 +396,8 @@ class EpoxyApplication {
     this.refreshPackSelector();
     if (!wasPilotActive || ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PILOT) return;
     this.editor.refreshContext();
-    this.startLevelByIndex(0);
+    // Back on the campaign: resume where the player left it, not at the first level.
+    this.startLevelByIndex(this.savedLevelIndex() ?? 0);
     this.populateScoresTable();
   }
 
@@ -3591,7 +3592,7 @@ class EpoxyApplication {
 
   private saveProgress(): void {
     try {
-      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
+      const key = ConfigRegistry.getSaveSlotKey(ConfigRegistry.getActivePackId());
       localStorage.setItem(
         key,
         JSON.stringify({
@@ -3654,7 +3655,7 @@ class EpoxyApplication {
 
   private hasSavedProgress(): boolean {
     try {
-      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
+      const key = ConfigRegistry.getSaveSlotKey(ConfigRegistry.getActivePackId());
       return localStorage.getItem(key) !== null;
     } catch {
       return false;
@@ -3689,16 +3690,22 @@ class EpoxyApplication {
   }
 
   private restoreSavedProgress(): void {
+    const index = this.savedLevelIndex();
+    if (index !== null) this.currentLevelIndex = index;
+  }
+
+  /** Resume point of the pack being played, from that pack's own slot; null when there is none. */
+  private savedLevelIndex(): number | null {
     try {
-      const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.saveSlotKey);
-      const raw = localStorage.getItem(key);
-      if (!raw) return;
+      const packId = ConfigRegistry.getActivePackId();
+      const raw = localStorage.getItem(ConfigRegistry.getSaveSlotKey(packId));
+      if (!raw) return null;
       // The level id survives a reorder; an old save has none and falls back to its index.
       // A pack can shrink between releases: a stale index restarts the pack.
-      const index = resolveSavedLevel(JSON.parse(raw), ConfigRegistry.getActivePackId(), ConfigRegistry.getLevels());
-      if (index !== null) this.currentLevelIndex = index;
+      return resolveSavedLevel(JSON.parse(raw), packId, ConfigRegistry.getLevels());
     } catch {
       // Ignore corrupt save
+      return null;
     }
   }
 }

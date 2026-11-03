@@ -21,6 +21,7 @@ import {
   DEFAULT_LEVEL_PASSWORD,
   ENV_CONFIG,
   PILOT_LEVEL_ID_PREFIX,
+  SAVE_SLOT_PACK_SEPARATOR,
   UNORDERED_PACK_RANK
 } from './constants';
 import { FLAG_ON as PLAYTEST_FLAG_ON } from '../playtest/PlaytestStore';
@@ -238,6 +239,9 @@ class ConfigRegistryService {
     const savedPackId = this.readStorage(this.gameConfig.storage.activePackKey);
     if (savedPackId && this.getAllPacks().some((p) => p.id === savedPackId && p.levels.length > 0)) {
       this.activePackId = savedPackId;
+    } else if (savedPackId === BUILTIN_PACK_IDS.PILOT) {
+      // The pilot is gone from this page (Playtest mode is off): forget it as the saved pack.
+      this.resetActivePack();
     }
   }
 
@@ -523,6 +527,15 @@ class ConfigRegistryService {
     this.pilotVisible = visible;
     if (!visible && this.activePackId === BUILTIN_PACK_IDS.PILOT) this.resetActivePack();
     return true;
+  }
+
+  /**
+   * Storage key of the resume point for a pack. The pilot has a slot of its own so playing it never
+   * overwrites the campaign resume point; every other pack shares the historical slot.
+   */
+  public getSaveSlotKey(packId: string): string {
+    const base = this.gameConfig.storage.saveSlotKey;
+    return this.getStorageKey(packId === BUILTIN_PACK_IDS.PILOT ? `${base}${SAVE_SLOT_PACK_SEPARATOR}${packId}` : base);
   }
 
   /** The pilot levels whether or not the pack is visible, for the authoring tools and tests. */

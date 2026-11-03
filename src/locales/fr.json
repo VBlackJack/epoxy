@@ -1108,6 +1108,12 @@
     "chapter_banner": { "label": "Chapitre {number} : {title}. {subtitle}" }
   },
   "pilot": {
+    "levels": {
+      "level_1": {
+        "title": "Mise sous tension",
+        "hint": "Ramasse toutes les puces pour ouvrir le socle, puis franchis la sortie."
+      }
+    },
     "chapter": {
       "1": { "title": "Fondations du pilote", "subtitle": "Les premiers niveaux de la campagne reconstruite." }
     }

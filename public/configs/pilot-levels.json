@@ -5,9 +5,9 @@
       "theme": "cyber_neon",
       "solution": "NWNNWWWWNNNNSSSSEESSWWSSEESSEEEEEENNEENNNNNNNNWWSSWWSS",
       "number": 1,
-      "titleKey": "levels.level_1.title",
-      "hintKey": "levels.level_1.hint",
-      "password": "KQZD",
+      "titleKey": "pilot.levels.level_1.title",
+      "hintKey": "pilot.levels.level_1.hint",
+      "password": "PLT1",
       "timeLimitSeconds": 0,
       "chipsRequired": 5,
       "playerStart": {

@@ -1,4 +1,5 @@
 {
+  "placeholder": "firstTimedLevel, minTimeMargin, raceLevels, minRaceMargin and baseline are copied from the campaign until the pilot pacing is set",
   "introduces": {
     "1": [
       "chip",

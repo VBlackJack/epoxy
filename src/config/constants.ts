@@ -70,6 +70,9 @@ export const BUILTIN_PACK_IDS = {
   PROCEDURAL: 'epoxy_procedural'
 } as const;
 
+/** Joins the save slot key and a pack id, for the packs that keep a resume point of their own. */
+export const SAVE_SLOT_PACK_SEPARATOR = '_';
+
 /** Prefix every pilot level id carries, so its records never collide with the campaign ones. */
 export const PILOT_LEVEL_ID_PREFIX = 'epoxy_p_';
 

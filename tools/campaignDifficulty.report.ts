@@ -21,7 +21,8 @@
  * local/campaign-difficulty.json and local/campaign-difficulty.md.
  *
  * Run with: npm run report:difficulty
- * The pilot pack: EPOXY_DIFFICULTY_PACK=pilot npm run report:difficulty
+ * The pilot pack: npm run report:difficulty:pilot (the same tool with
+ * EPOXY_DIFFICULTY_PACK=pilot)
  * (writes local/pilot-difficulty.json and local/pilot-difficulty.md).
  */
 

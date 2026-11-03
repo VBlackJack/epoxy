@@ -1108,6 +1108,12 @@
     "chapter_banner": { "label": "Chapter {number}: {title}. {subtitle}" }
   },
   "pilot": {
+    "levels": {
+      "level_1": {
+        "title": "Power Up",
+        "hint": "Collect every chip to open the socket, then step through the exit."
+      }
+    },
     "chapter": {
       "1": { "title": "Pilot foundations", "subtitle": "The first levels of the rebuilt campaign." }
     }
