@@ -94,6 +94,8 @@ const HEX_BYTE_WIDTH = 2;
 const BINARY_CHUNK = 0x8000;
 const SHA256_ALGORITHM = 'SHA-256';
 const NO_LIMIT = Number.POSITIVE_INFINITY;
+/** Bytes handed to the decompressor at a time, so inflation can stop between two slices. */
+const WRITE_SLICE_BYTES = 1024;
 
 /** True for a text shaped like a SHA-256 hex digest. */
 export function isSourceHash(value: string): boolean {
@@ -163,12 +165,17 @@ export function fromBase64Url(text: string): Uint8Array | null {
 /** Runs the bytes through a stream pair and returns what comes out, stopping once `maxBytes` is passed (null then). */
 async function pump(pair: ByteTransform, input: Uint8Array, maxBytes: number): Promise<Uint8Array | null> {
   const writer = pair.writable.getWriter();
-  // The write is not awaited before reading: a full pipe would wait for a reader. A failure
-  // reaches the reader as well, which is where it is handled.
-  void writer
-    .write(input)
-    .then(() => writer.close())
-    .catch(() => undefined);
+  let stopped = false;
+  // The input goes in slices, each one awaited, and the feeding runs beside the reading: a full
+  // pipe waits for the reader. A failure reaches the reader as well, which is where it is handled.
+  void (async () => {
+    for (let at = 0; at < input.length && !stopped; at += WRITE_SLICE_BYTES) {
+      await writer.ready;
+      if (stopped) return;
+      await writer.write(input.subarray(at, at + WRITE_SLICE_BYTES));
+    }
+    if (!stopped) await writer.close();
+  })().catch(() => undefined);
   const reader = pair.readable.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -177,6 +184,7 @@ async function pump(pair: ByteTransform, input: Uint8Array, maxBytes: number): P
     if (done) break;
     total += value.length;
     if (total > maxBytes) {
+      stopped = true;
       await reader.cancel().catch(() => undefined);
       void writer.abort().catch(() => undefined);
       return null;
@@ -237,7 +245,8 @@ export function isShareHash(hash: string): boolean {
 export async function decodeShareHash(
   hash: string,
   maxDecodedBytes: number,
-  streams: ShareStreams = browserStreams()
+  streams: ShareStreams = browserStreams(),
+  maxPayloadChars: number = NO_LIMIT
 ): Promise<ShareDecodeResult> {
   const parts = splitShareHash(hash);
   if (!parts || !VERSION_PATTERN.test(parts.version)) return { ok: false, error: 'damaged' };
@@ -245,6 +254,8 @@ export async function decodeShareHash(
   if (version > SHARE_LINK_TRANSPORT_VERSION) return { ok: false, error: 'newer' };
   if (version !== SHARE_LINK_TRANSPORT_VERSION) return { ok: false, error: 'damaged' };
   if (!streams.createDecompressor) return { ok: false, error: 'unsupported' };
+  // Too long a payload is refused before any decoding is spent on it.
+  if (parts.payload.length > maxPayloadChars) return { ok: false, error: 'damaged' };
   const compressed = fromBase64Url(parts.payload);
   if (!compressed || compressed.length === 0) return { ok: false, error: 'damaged' };
   try {
@@ -273,7 +284,7 @@ export async function sha256Hex(text: string, digest: DigestFunction | null = br
  * other refusal is "damaged".
  */
 export async function readSharedPack(hash: string, context: ShareReadContext): Promise<SharedPackResult> {
-  const decoded = await decodeShareHash(hash, context.share.maxDecodedBytes, context.streams);
+  const decoded = await decodeShareHash(hash, context.share.maxDecodedBytes, context.streams, context.share.maxLinkChars);
   if (!decoded.ok) return decoded;
   const parsed = parsePackJson(
     decoded.text,

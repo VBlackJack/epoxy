@@ -261,7 +261,7 @@ export function measureGrid(value: unknown, bounds: LevelSizeBounds): GridSize |
 }
 
 /** Cheap structural check of the cc3d field of a level: sizes, cell shapes, mobs and player inside the grid. */
-export function isCc3dLevelShape(value: unknown, bounds: LevelSizeBounds): boolean {
+export function isCc3dLevelShape(value: unknown, bounds: LevelSizeBounds, strict = false): boolean {
   if (!isRecord(value)) return false;
   const { width, height, cells, mobs, player } = value;
   if (!Number.isInteger(width) || !Number.isInteger(height)) return false;
@@ -273,7 +273,7 @@ export function isCc3dLevelShape(value: unknown, bounds: LevelSizeBounds): boole
       Array.isArray(cell.terrain) &&
       cell.terrain.length > 0 &&
       Array.isArray(cell.panels) &&
-      cell.panels.length <= ORDERED_DIRECTIONS.length &&
+      (!strict || cell.panels.length <= ORDERED_DIRECTIONS.length) &&
       (cell.item === null || isRecord(cell.item))
   );
   const w = width as number;
@@ -281,7 +281,7 @@ export function isCc3dLevelShape(value: unknown, bounds: LevelSizeBounds): boole
   return (
     cellsOk &&
     Array.isArray(mobs) &&
-    mobs.length <= cells.length &&
+    (!strict || mobs.length <= cells.length) &&
     mobs.every((mob) => isRecord(mob) && isInBounds(mob.x, mob.y, w, h)) &&
     isRecord(player) &&
     isInBounds(player.x, player.y, w, h) &&
@@ -313,13 +313,12 @@ export function findCc3dTileErrors(
 function isRecordList(
   value: unknown,
   size: GridSize,
+  strict: boolean,
   accept: (entry: Record<string, unknown>) => boolean = () => true
 ): boolean {
-  return (
-    Array.isArray(value) &&
-    value.length <= size.width * size.height &&
-    value.every((entry) => isRecord(entry) && accept(entry))
-  );
+  if (!Array.isArray(value)) return false;
+  if (!strict) return true;
+  return value.length <= size.width * size.height && value.every((entry) => isRecord(entry) && accept(entry));
 }
 
 /**
@@ -328,7 +327,7 @@ function isRecordList(
  * its own size: the terrain must be a rectangular grid within the bounds,
  * the items grid must match it and the player start must lie inside it.
  */
-export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): value is CompiledLevel {
+export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, strict = false): value is CompiledLevel {
   if (!isRecord(value)) return false;
   const size = measureGrid(value.terrain, bounds);
   if (!size) return false;
@@ -341,11 +340,11 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds): v
     isRecord(start) &&
     isInBounds(start.x, start.y, size.width, size.height) &&
     isGrid(value.items, size.width, size.height) &&
-    isRecordList(value.entities, size, (entity) => typeof entity.type === 'string') &&
-    isRecordList(value.trapLinks, size) &&
-    isRecordList(value.cloneLinks, size) &&
+    isRecordList(value.entities, size, strict, (entity) => typeof entity.type === 'string') &&
+    isRecordList(value.trapLinks, size, strict) &&
+    isRecordList(value.cloneLinks, size, strict) &&
     // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
-    (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds) : value.cc3d === undefined)
+    (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds, strict) : value.cc3d === undefined)
   );
 }
 
@@ -447,8 +446,10 @@ export function clampLevelText(level: CompiledLevel, limits: LevelTextConfig): C
 
 /**
  * Keeps the well-formed levels of a persisted list. A level with a non-string
- * text field stays and loses only that field. With `textLimits`, the text of the
- * levels that stay is cut to them (see clampLevelText).
+ * text field stays and loses only that field. With `textLimits` the call is at a trust
+ * boundary (a file or a link): entities and links must be well formed and bounded, and
+ * the text of the levels that stay is cut to the limits (see clampLevelText). Stored data
+ * is read without them, so a record written by an older version loads unchanged.
  */
 export function sanitizeStoredLevels(
   values: readonly unknown[],
@@ -456,7 +457,7 @@ export function sanitizeStoredLevels(
   textLimits?: LevelTextConfig
 ): CompiledLevel[] {
   const levels = values
-    .filter((lvl): lvl is CompiledLevel => isCompiledLevelShape(lvl, bounds))
+    .filter((lvl): lvl is CompiledLevel => isCompiledLevelShape(lvl, bounds, textLimits !== undefined))
     .map(stripInvalidTextFields);
   return textLimits ? levels.map((lvl) => clampLevelText(lvl, textLimits)) : levels;
 }

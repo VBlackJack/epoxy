@@ -131,12 +131,11 @@ class LevelPackStorageService {
     if (!Array.isArray(raw)) return [];
     const bounds = ConfigRegistry.getLevelSizeBounds();
     const metadataLimits = ConfigRegistry.getPackMetadataLimits();
-    const textLimits = ConfigRegistry.getLevelTextLimits();
     const packs: LevelPack[] = [];
     for (const entry of raw) {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string') continue;
       if (!Array.isArray(entry.levels)) continue;
-      const levels = sanitizeStoredLevels(entry.levels, bounds, textLimits);
+      const levels = sanitizeStoredLevels(entry.levels, bounds);
       const userCreated = entry.userCreated === true;
       // A pack the player created stays even when it holds no level yet.
       if (levels.length === 0 && !userCreated) continue;

@@ -49,8 +49,11 @@ const APP_URL = 'https://example.test/epoxy/?lang=fr';
 const CELL = 64;
 const PLAYER_TYPE = 22;
 const FISH_TYPE = 42;
-const BOMB_BYTES = 4_000_000;
+const BOMB_BYTES = 64_000_000;
 const SMALL_CAP = 1000;
+const WRITE_SLICE = 1024;
+/** What the inflater may have produced in the chunk that crossed the cap. */
+const OUTPUT_CHUNK_ALLOWANCE = 262144;
 const FIXED_NOW = () => 7000;
 
 function cc3dXml(): string {
@@ -203,24 +206,56 @@ describe('shareLink', () => {
 
     it('stops inflating as soon as the output passes the byte cap', async () => {
       const bomb = await linkOfBytes(new Uint8Array(BOMB_BYTES));
-      expect(bomb.length).toBeLessThan(BOMB_BYTES / 100);
       const streams = browserStreams();
+      const totalSlices = Math.ceil(fromBase64Url(bomb.slice('#pack=1.'.length))!.length / WRITE_SLICE);
       let produced = 0;
+      let slicesWritten = 0;
       const counting: ShareStreams = {
         createDecompressor: () => {
           const pair = streams.createDecompressor!();
-          const counter = new TransformStream<Uint8Array, Uint8Array>({
-            transform(chunk, controller) {
-              produced += chunk.length;
-              controller.enqueue(chunk);
-            }
-          });
-          void pair.readable.pipeTo(counter.writable).catch(() => undefined);
-          return { readable: counter.readable, writable: pair.writable };
+          const writer = pair.writable.getWriter();
+          const input = new TransformStream<Uint8Array, Uint8Array>();
+          void input.readable.pipeTo(
+            new WritableStream<Uint8Array>({
+              async write(chunk) {
+                slicesWritten += 1;
+                await writer.ready;
+                await writer.write(chunk);
+              },
+              close: () => writer.close(),
+              abort: (reason) => writer.abort(reason)
+            })
+          ).catch(() => undefined);
+          const output = new TransformStream<Uint8Array, Uint8Array>(
+            {
+              transform(chunk, controller) {
+                produced += chunk.length;
+                controller.enqueue(chunk);
+              }
+            },
+            undefined,
+            { highWaterMark: 0 }
+          );
+          void pair.readable.pipeTo(output.writable).catch(() => undefined);
+          return { readable: output.readable, writable: input.writable };
         }
       };
+      expect(totalSlices).toBeGreaterThan(8);
       expect(await decodeShareHash(bomb, SMALL_CAP, counting)).toEqual({ ok: false, error: 'damaged' });
-      expect(produced).toBeLessThan(BOMB_BYTES);
+      expect(produced).toBeLessThanOrEqual(SMALL_CAP + OUTPUT_CHUNK_ALLOWANCE);
+      expect(slicesWritten).toBeLessThan(totalSlices);
+    });
+
+    it('refuses a payload above the bound before decoding it', async () => {
+      const url = await linkOf(serializePack('P', [makeLevel('a')], {}, true));
+      const hash = hashOf(url);
+      const streams = browserStreams();
+      const createDecompressor = vi.fn(streams.createDecompressor!);
+      const spy = { createDecompressor };
+      expect(await decodeShareHash(hash, 262144, spy, hash.length)).toMatchObject({ ok: true });
+      createDecompressor.mockClear();
+      expect(await decodeShareHash(hash, 262144, spy, 20)).toEqual({ ok: false, error: 'damaged' });
+      expect(createDecompressor).not.toHaveBeenCalled();
     });
 
     it('keeps a text exactly at the cap', async () => {

@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => ({
   AudioManager: { playSfx: vi.fn(), playStep: vi.fn() }
 }));
 
 import { CompiledLevel, LevelTextConfig } from '../core/types';
+import { LevelPackStorage } from '../storage/LevelPackStorage';
 import { importCc3dSelection } from '../ui/cc3dImport';
+import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { makeLevel } from '../test/packFixtures';
 import { ConfigRegistry } from './ConfigRegistry';
@@ -69,24 +71,24 @@ describe('level shape and text limits', () => {
       entities: [{ x: 2, y: 2, type: 'blob', dir: 'N' }],
       trapLinks: [{ buttonX: 1, buttonY: 1, trapX: 2, trapY: 2 }]
     });
-    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds(), true)).toBe(true);
   });
 
   it('refuses entities and links that are not records', () => {
     const level = makeLevel('e') as unknown as Record<string, unknown>;
     const bounds = ConfigRegistry.getLevelSizeBounds();
     for (const bad of [[1], [null], ['x'], [[]]]) {
-      expect(isCompiledLevelShape({ ...level, entities: bad }, bounds)).toBe(false);
-      expect(isCompiledLevelShape({ ...level, trapLinks: bad }, bounds)).toBe(false);
-      expect(isCompiledLevelShape({ ...level, cloneLinks: bad }, bounds)).toBe(false);
+      expect(isCompiledLevelShape({ ...level, entities: bad }, bounds, true)).toBe(false);
+      expect(isCompiledLevelShape({ ...level, trapLinks: bad }, bounds, true)).toBe(false);
+      expect(isCompiledLevelShape({ ...level, cloneLinks: bad }, bounds, true)).toBe(false);
     }
   });
 
   it('refuses an entity without a string type', () => {
     const level = makeLevel('e') as unknown as Record<string, unknown>;
     const bounds = ConfigRegistry.getLevelSizeBounds();
-    expect(isCompiledLevelShape({ ...level, entities: [{ x: 1, y: 1, dir: 'N' }] }, bounds)).toBe(false);
-    expect(isCompiledLevelShape({ ...level, entities: [{ x: 1, y: 1, type: 4, dir: 'N' }] }, bounds)).toBe(false);
+    expect(isCompiledLevelShape({ ...level, entities: [{ x: 1, y: 1, dir: 'N' }] }, bounds, true)).toBe(false);
+    expect(isCompiledLevelShape({ ...level, entities: [{ x: 1, y: 1, type: 4, dir: 'N' }] }, bounds, true)).toBe(false);
   });
 
   it('refuses more entities or links than the map has cells', () => {
@@ -95,10 +97,10 @@ describe('level shape and text limits', () => {
     const entity = { x: 1, y: 1, type: 'blob', dir: 'N' };
     const link = { buttonX: 1, buttonY: 1, trapX: 2, trapY: 2 };
     const bounds = ConfigRegistry.getLevelSizeBounds();
-    expect(isCompiledLevelShape({ ...level, entities: Array(cells).fill(entity) }, bounds)).toBe(true);
-    expect(isCompiledLevelShape({ ...level, entities: Array(cells + 1).fill(entity) }, bounds)).toBe(false);
-    expect(isCompiledLevelShape({ ...level, trapLinks: Array(cells + 1).fill(link) }, bounds)).toBe(false);
-    expect(isCompiledLevelShape({ ...level, cloneLinks: Array(cells + 1).fill(link) }, bounds)).toBe(false);
+    expect(isCompiledLevelShape({ ...level, entities: Array(cells).fill(entity) }, bounds, true)).toBe(true);
+    expect(isCompiledLevelShape({ ...level, entities: Array(cells + 1).fill(entity) }, bounds, true)).toBe(false);
+    expect(isCompiledLevelShape({ ...level, trapLinks: Array(cells + 1).fill(link) }, bounds, true)).toBe(false);
+    expect(isCompiledLevelShape({ ...level, cloneLinks: Array(cells + 1).fill(link) }, bounds, true)).toBe(false);
   });
 
   it('refuses more cc3d mobs than cells and more than four panels on a cell', async () => {
@@ -107,9 +109,9 @@ describe('level shape and text limits', () => {
     const cc3d = level.cc3d!;
     const mob = { kind: 'walker', x: 0, y: 0, dir: 'N' };
     const manyMobs = { ...level, cc3d: { ...cc3d, mobs: Array(cc3d.cells.length + 1).fill(mob) } };
-    expect(isCompiledLevelShape(manyMobs, bounds)).toBe(false);
+    expect(isCompiledLevelShape(manyMobs, bounds, true)).toBe(false);
     const cells = cc3d.cells.map((cell, i) => (i === 0 ? { ...cell, panels: ['N', 'E', 'S', 'W', 'N'] } : cell));
-    expect(isCompiledLevelShape({ ...level, cc3d: { ...cc3d, cells } }, bounds)).toBe(false);
+    expect(isCompiledLevelShape({ ...level, cc3d: { ...cc3d, cells } }, bounds, true)).toBe(false);
   });
 
   it('cuts the text fields to their limits', () => {
@@ -155,6 +157,19 @@ describe('level shape and text limits', () => {
     expect(kept.entities[0].type).toHaveLength(limits.idMaxLength);
   });
 
+  it('reads stored data without the new shape rules or cuts', () => {
+    const base = makeLevel('old', { entities: [{ x: 2, y: 2, type: 'blob', dir: 'N' }] });
+    const stored = {
+      ...base,
+      customTitle: 'x'.repeat(150),
+      solution: 'N'.repeat(limits.solutionMaxLength + 100),
+      entities: [...base.entities, 7]
+    };
+    const [kept] = sanitizeStoredLevels([stored], ConfigRegistry.getLevelSizeBounds());
+    expect(kept).toEqual(stored);
+    expect(sanitize([stored])).toEqual([]);
+  });
+
   it('returns the very same level when nothing is over a limit', () => {
     const level = makeLevel('same');
     expect(clampLevelText(level, limits)).toBe(level);
@@ -164,5 +179,28 @@ describe('level shape and text limits', () => {
     const level = { ...makeLevel('free'), customTitle: 'x'.repeat(limits.titleMaxLength + 50) };
     const [kept] = sanitizeStoredLevels([level], ConfigRegistry.getLevelSizeBounds());
     expect(kept.customTitle).toHaveLength(limits.titleMaxLength + 50);
+  });
+});
+
+describe('IndexedDB reads', () => {
+  const fake = new FakeIndexedDb();
+
+  beforeEach(() => {
+    loadTestConfigs();
+    fake.records.clear();
+    vi.stubGlobal('indexedDB', fake);
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await LevelPackStorage.closeConnection();
+  });
+
+  it('loads a stored level with a long title and a long solution unchanged', async () => {
+    const limits = ConfigRegistry.getLevelTextLimits();
+    const level = { ...makeLevel('s1'), customTitle: 'x'.repeat(150), solution: 'N'.repeat(limits.solutionMaxLength + 10) };
+    fake.records.set('p1', { id: 'p1', name: 'Stored', userCreated: true, levels: [level] });
+    const packs = await LevelPackStorage.loadAllPacks();
+    expect(packs?.[0].levels[0]).toEqual(level);
   });
 });

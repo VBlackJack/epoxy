@@ -601,6 +601,11 @@ class ConfigRegistryService {
     return new Set(this.getAllPacks().flatMap((p) => p.levels.map((l) => l.id)));
   }
 
+  /** Ids of every level of every pack. */
+  public getTakenLevelIds(): Set<string> {
+    return this.takenLevelIds();
+  }
+
   /** A level id no pack of the library holds. */
   public newLevelId(): string {
     return userPacks.generateLevelId(this.takenLevelIds());
