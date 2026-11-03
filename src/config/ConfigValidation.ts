@@ -23,6 +23,7 @@ import {
   CompiledLevel,
   DatFormatConfig,
   Direction,
+  EntityDefinition,
   GameConfig,
   GridConfig,
   LevelTextConfig,
@@ -668,6 +669,92 @@ export function findLaserConfigErrors(tiles: Record<string, TileDefinition>): st
     }
     if (!receiverGroups.has(tile.laserGateGroup)) {
       errors.push(`${id}.laserGateGroup: no receiver drives the group ${tile.laserGateGroup}`);
+    }
+  }
+  return errors;
+}
+
+/** Colours a plate, hold door or toggle channel may have. */
+const CHANNEL_COLORS: readonly string[] = ['red', 'green', 'blue', 'yellow'];
+/** Button actions of the colour wall channels, by channel colour. */
+const CHANNEL_BUTTON_ACTIONS: Record<string, string> = {
+  red: 'toggle_walls_red',
+  blue: 'toggle_walls_blue',
+  yellow: 'toggle_walls_yellow'
+};
+
+/**
+ * Problems of the colour channel fields: a plate colour is a channel colour, a hold door needs a colour,
+ * an open or closed flag and the other form of its pair (same colour, opposite state, pointing back), a
+ * colour toggle wall needs the other form of its pair in the same channel (never green: green walls are
+ * the plain toggle walls), a colour toggle button names its channel, and a colour block names a colour.
+ * Empty when all is well; each entry names the offending tile or entity.
+ */
+export function findColorChannelConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition> = {}
+): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.plateColor !== undefined && !CHANNEL_COLORS.includes(tile.plateColor)) {
+      errors.push(`${id}.plateColor: expected a channel colour`);
+    }
+    if (tile.floatingBlockColor !== undefined && !CHANNEL_COLORS.includes(tile.floatingBlockColor)) {
+      errors.push(`${id}.floatingBlockColor: expected a channel colour`);
+    }
+    if (tile.holdDoorClosesOnOccupant !== undefined && typeof tile.holdDoorClosesOnOccupant !== 'boolean') {
+      errors.push(`${id}.holdDoorClosesOnOccupant: expected a boolean`);
+    }
+    const isHoldDoor =
+      tile.holdDoorColor !== undefined || tile.holdDoorOpen !== undefined || tile.holdDoorTogglesTo !== undefined;
+    if (isHoldDoor) {
+      if (typeof tile.holdDoorColor !== 'string' || !CHANNEL_COLORS.includes(tile.holdDoorColor)) {
+        errors.push(`${id}.holdDoorColor: expected a channel colour`);
+      } else if (typeof tile.holdDoorOpen !== 'boolean') {
+        errors.push(`${id}.holdDoorOpen: expected a boolean`);
+      } else {
+        const pair = typeof tile.holdDoorTogglesTo === 'string' ? tiles[tile.holdDoorTogglesTo] : undefined;
+        if (!pair) {
+          errors.push(`${id}.holdDoorTogglesTo: expected the id of an existing tile`);
+        } else if (pair.holdDoorColor !== tile.holdDoorColor || pair.holdDoorOpen !== !tile.holdDoorOpen) {
+          errors.push(
+            `${id}.holdDoorTogglesTo: expected the ${tile.holdDoorOpen ? 'closed' : 'open'} form of colour ${tile.holdDoorColor}`
+          );
+        } else if (pair.holdDoorTogglesTo !== id) {
+          errors.push(`${id}.holdDoorTogglesTo: ${pair.id} does not point back`);
+        }
+      }
+    }
+    if (tile.toggleChannel !== undefined || tile.channelTogglesTo !== undefined) {
+      if (typeof tile.toggleChannel !== 'string' || !CHANNEL_COLORS.includes(tile.toggleChannel) || tile.toggleChannel === 'green') {
+        errors.push(`${id}.toggleChannel: expected red, blue or yellow`);
+      } else {
+        const pair = typeof tile.channelTogglesTo === 'string' ? tiles[tile.channelTogglesTo] : undefined;
+        if (!pair) {
+          errors.push(`${id}.channelTogglesTo: expected the id of an existing tile`);
+        } else if (pair.toggleChannel !== tile.toggleChannel) {
+          errors.push(`${id}.channelTogglesTo: expected a tile of channel ${tile.toggleChannel}`);
+        } else if (pair.channelTogglesTo !== id) {
+          errors.push(`${id}.channelTogglesTo: ${pair.id} does not point back`);
+        }
+        if (tile.togglesTo !== undefined) {
+          errors.push(`${id}.togglesTo: a colour wall uses channelTogglesTo, togglesTo is the green channel`);
+        }
+      }
+    }
+    const channelOfButton = Object.entries(CHANNEL_BUTTON_ACTIONS).find(([, action]) => action === tile.buttonAction);
+    if (channelOfButton) {
+      const hasWalls = Object.values(tiles).some((t) => t.toggleChannel === channelOfButton[0]);
+      if (!hasWalls) errors.push(`${id}.buttonAction: no wall of channel ${channelOfButton[0]}`);
+    }
+  }
+  for (const entity of Object.values(entities)) {
+    if (entity.plateColor !== undefined && !CHANNEL_COLORS.includes(entity.plateColor)) {
+      errors.push(`${entity.id}.plateColor: expected a channel colour`);
+    }
+    if (entity.pressesPlates !== undefined && typeof entity.pressesPlates !== 'boolean') {
+      errors.push(`${entity.id}.pressesPlates: expected a boolean`);
     }
   }
   return errors;

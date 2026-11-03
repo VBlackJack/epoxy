@@ -66,6 +66,22 @@ entity blob dir=N tick=3 c30fa6a07040543d
 entity blob dir=E tick=3 a51888621fe134c0
 entity blob dir=S tick=3 baa034370c5f627d
 entity blob dir=W tick=3 6987f7a1c44daa71
+entity color_block_red dir=N tick=3 581c87b4eca49bc2
+entity color_block_red dir=E tick=3 3e9329c7353df202
+entity color_block_red dir=S tick=3 22f8fecf358baddb
+entity color_block_red dir=W tick=3 2474604f544aade5
+entity color_block_green dir=N tick=3 4d0b78d3951acc46
+entity color_block_green dir=E tick=3 88f819c9f4a2cef7
+entity color_block_green dir=S tick=3 0faf35e7200228bb
+entity color_block_green dir=W tick=3 3e39971972aa8718
+entity color_block_blue dir=N tick=3 590445c345e6332b
+entity color_block_blue dir=E tick=3 6a27b5525756748e
+entity color_block_blue dir=S tick=3 02cd97122af7f245
+entity color_block_blue dir=W tick=3 1bb0650b036941a4
+entity color_block_yellow dir=N tick=3 c323f6df9d477d79
+entity color_block_yellow dir=E tick=3 ca80e04d8bc49040
+entity color_block_yellow dir=S tick=3 993f662c161951f4
+entity color_block_yellow dir=W tick=3 6323d2287f95bb38
 item key_red tick=13 7815b0d8f751667f
 item key_blue tick=13 c851fdbde6c228c8
 item key_yellow tick=13 9f9031aaf15bd1fb
@@ -134,6 +150,22 @@ entity blob dir=N tick=13 253bb26882d9eb9f
 entity blob dir=E tick=13 75748fb7ca042ee4
 entity blob dir=S tick=13 566c498b7f86ef40
 entity blob dir=W tick=13 c746c86d98eeb010
+entity color_block_red dir=N tick=13 041db1097bbd7a3d
+entity color_block_red dir=E tick=13 beaeb7d2a7007185
+entity color_block_red dir=S tick=13 e058373b42666bd4
+entity color_block_red dir=W tick=13 c1e5d0dd89d50dcf
+entity color_block_green dir=N tick=13 f505034270d14398
+entity color_block_green dir=E tick=13 e71d2f9269231262
+entity color_block_green dir=S tick=13 de9d2736a8839534
+entity color_block_green dir=W tick=13 2e83ca0f2b8c2f13
+entity color_block_blue dir=N tick=13 86281f7607b818e0
+entity color_block_blue dir=E tick=13 c224a25697137430
+entity color_block_blue dir=S tick=13 88aedaa25a8dff90
+entity color_block_blue dir=W tick=13 25a2a50891164da1
+entity color_block_yellow dir=N tick=13 fdd8eaed74c37450
+entity color_block_yellow dir=E tick=13 2514363558afff32
+entity color_block_yellow dir=S tick=13 00a7315636a1f0a6
+entity color_block_yellow dir=W tick=13 dbc56482f38d1f68
 player dir=N inWater=false alive=true frame=0 hop=0 817261ef34bfd5f4
 player dir=N inWater=false alive=true frame=0 hop=0.3 f1347bca5b873c9e
 player dir=N inWater=false alive=true frame=1 hop=0 6318cd7b53e37c3f

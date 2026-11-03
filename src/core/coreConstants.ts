@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Direction, MirrorAxis, Ruleset, WinRule } from './types';
+import { ButtonAction, ChannelColor, Direction, MirrorAxis, Ruleset, WinRule } from './types';
 
 /** Terrain id used when a cell has no explicit terrain, or a tile has no transform target. */
 export const FLOOR_TILE_ID = 'floor';
@@ -83,3 +83,15 @@ export const OPPOSITE_DIRECTION: Readonly<Record<Direction, Direction>> = {
   E: 'W',
   W: 'E'
 };
+
+/** The colour wall channel each colour toggle button drives; the green button is the plain toggle_walls action. */
+const CHANNEL_OF_BUTTON_ACTION: Readonly<Partial<Record<ButtonAction, ChannelColor>>> = {
+  toggle_walls_red: 'red',
+  toggle_walls_blue: 'blue',
+  toggle_walls_yellow: 'yellow'
+};
+
+/** The channel a colour toggle button drives, or undefined for any other button action. */
+export function channelOfButtonAction(action: ButtonAction | undefined): ChannelColor | undefined {
+  return action === undefined ? undefined : CHANNEL_OF_BUTTON_ACTION[action];
+}

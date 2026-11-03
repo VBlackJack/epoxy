@@ -1019,7 +1019,32 @@
     "laser_gate_red_closed": { "name": "Barrière Laser Rouge (Fermée)" },
     "laser_gate_red_open": { "name": "Barrière Laser Rouge (Ouverte)" },
     "laser_gate_blue_closed": { "name": "Barrière Laser Bleue (Fermée)" },
-    "laser_gate_blue_open": { "name": "Barrière Laser Bleue (Ouverte)" }
+    "laser_gate_blue_open": { "name": "Barrière Laser Bleue (Ouverte)" },
+    "pressure_plate_red": { "name": "Plaque de Pression Rouge" },
+    "pressure_plate_green": { "name": "Plaque de Pression Verte" },
+    "pressure_plate_blue": { "name": "Plaque de Pression Bleue" },
+    "pressure_plate_yellow": { "name": "Plaque de Pression Jaune" },
+    "hold_door_red_closed": { "name": "Porte à Plaque Rouge (Fermée)" },
+    "hold_door_red_open": { "name": "Porte à Plaque Rouge (Ouverte)" },
+    "hold_door_green_closed": { "name": "Porte à Plaque Verte (Fermée)" },
+    "hold_door_green_open": { "name": "Porte à Plaque Verte (Ouverte)" },
+    "hold_door_blue_closed": { "name": "Porte à Plaque Bleue (Fermée)" },
+    "hold_door_blue_open": { "name": "Porte à Plaque Bleue (Ouverte)" },
+    "hold_door_yellow_closed": { "name": "Porte à Plaque Jaune (Fermée)" },
+    "hold_door_yellow_open": { "name": "Porte à Plaque Jaune (Ouverte)" },
+    "toggle_wall_red_closed": { "name": "Mur Bascule Rouge (Fermé)" },
+    "toggle_wall_red_open": { "name": "Mur Bascule Rouge (Ouvert)" },
+    "toggle_wall_blue_closed": { "name": "Mur Bascule Bleu (Fermé)" },
+    "toggle_wall_blue_open": { "name": "Mur Bascule Bleu (Ouvert)" },
+    "toggle_wall_yellow_closed": { "name": "Mur Bascule Jaune (Fermé)" },
+    "toggle_wall_yellow_open": { "name": "Mur Bascule Jaune (Ouvert)" },
+    "toggle_button_red": { "name": "Bouton Bascule Rouge" },
+    "toggle_button_blue": { "name": "Bouton Bascule Bleu" },
+    "toggle_button_yellow": { "name": "Bouton Bascule Jaune" },
+    "floating_block_red": { "name": "Bloc Flottant Rouge" },
+    "floating_block_green": { "name": "Bloc Flottant Vert" },
+    "floating_block_blue": { "name": "Bloc Flottant Bleu" },
+    "floating_block_yellow": { "name": "Bloc Flottant Jaune" }
   },
   "entities": {
     "dirt_block": { "name": "Bloc de Terre Mobile" },
@@ -1034,7 +1059,11 @@
     "tank": { "name": "Tank Blindé (Bouton Bleu)" },
     "blob": { "name": "Blob Gélatineux" },
     "mirror_slash": { "name": "Miroir (Barre oblique)" },
-    "mirror_backslash": { "name": "Miroir (Barre oblique inverse)" }
+    "mirror_backslash": { "name": "Miroir (Barre oblique inverse)" },
+    "color_block_red": { "name": "Bloc de Couleur Rouge" },
+    "color_block_green": { "name": "Bloc de Couleur Vert" },
+    "color_block_blue": { "name": "Bloc de Couleur Bleu" },
+    "color_block_yellow": { "name": "Bloc de Couleur Jaune" }
   },
   "levels": {
     "level_1": {

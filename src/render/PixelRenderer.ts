@@ -37,6 +37,7 @@ import {
   Cc3dPaintTools,
   isCc3dId,
   paintCc3dBadge,
+  paintCc3dFloatingBlock,
   paintCc3dItem,
   paintCc3dMob,
   paintCc3dTerrain
@@ -324,7 +325,39 @@ export const LCD_GAP_RATIO = 0.25;
 /** The iris starts as a small window on the player, this many tiles wide. */
 const IRIS_MIN_RADIUS_TILE = 0.6;
 
-const BLOCK_TYPES:ReadonlySet<string> = new Set(['dirt_block', 'ice_block']);
+/** Colours of the plate, hold door, toggle and block families that Epoxy shares with the cc3d painters. */
+const CHANNEL_PAINTER_COLORS = ['red', 'green', 'blue', 'yellow'] as const;
+/** Colours that have a colour toggle wall and button (green is the plain toggle wall). */
+const TOGGLE_PAINTER_COLORS = ['red', 'blue', 'yellow'] as const;
+
+/**
+ * Epoxy colour channel ids drawn by the cc3d painter of the same mechanic: the cc3d display id to paint.
+ * Looked up before `isCc3dId`, which only knows the ids of the cc3d ruleset.
+ */
+const EPOXY_TO_CC3D_PAINTER: Readonly<Record<string, string>> = Object.fromEntries([
+  ...CHANNEL_PAINTER_COLORS.map((c) => [`pressure_plate_${c}`, `cc3d_plate_${c}`]),
+  ...CHANNEL_PAINTER_COLORS.flatMap((c) => [
+    [`hold_door_${c}_closed`, `cc3d_hold_door_${c}_closed`],
+    [`hold_door_${c}_open`, `cc3d_hold_door_${c}_open`]
+  ]),
+  ...TOGGLE_PAINTER_COLORS.flatMap((c) => [
+    [`toggle_wall_${c}_closed`, `cc3d_toggle_door_${c}_closed`],
+    [`toggle_wall_${c}_open`, `cc3d_toggle_door_${c}_open`],
+    [`toggle_button_${c}`, `cc3d_toggle_control_${c}`]
+  ]),
+  ...CHANNEL_PAINTER_COLORS.map((c) => [`color_block_${c}`, `cc3d_block_${c}`])
+]);
+
+/** Colour of each floating block tile: water with the block faint under the surface. */
+const FLOATING_BLOCK_COLORS: Readonly<Record<string, string>> = Object.fromEntries(
+  CHANNEL_PAINTER_COLORS.map((c) => [`floating_block_${c}`, c])
+);
+
+const BLOCK_TYPES:ReadonlySet<string> = new Set([
+  'dirt_block',
+  'ice_block',
+  ...CHANNEL_PAINTER_COLORS.map((c) => `color_block_${c}`)
+]);
 const GLOWING_MONSTERS: ReadonlySet<string> = new Set(['fireball', 'pink_ball', 'glider']);
 /** Monsters drawn facing their direction of travel; the others stay upright and look towards it. */
 const HEAD_FIRST_MONSTERS: ReadonlySet<string> = new Set(['bug', 'paramecium', 'glider', 'tank', 'fireball']);
@@ -1884,6 +1917,17 @@ export class PixelRenderer {
     pass: TilePass = 'all',
     neighbours: Readonly<TileNeighbours> = ISOLATED_TILE
   ): void {
+    const painterId = EPOXY_TO_CC3D_PAINTER[tileId];
+    if (painterId) {
+      this.drawCc3dTile(ctx, painterId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      return;
+    }
+    const floatingColor = FLOATING_BLOCK_COLORS[tileId];
+    if (floatingColor) {
+      this.drawTile(ctx, 'water', x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      if (pass !== 'animated') paintCc3dFloatingBlock(ctx, floatingColor, x, y, size, this.cc3dTools(ctx));
+      return;
+    }
     if (isCc3dId(tileId)) {
       this.drawCc3dTile(ctx, tileId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
       return;
@@ -4397,6 +4441,11 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    const painterId = EPOXY_TO_CC3D_PAINTER[type];
+    if (painterId) {
+      this.drawCc3dEntity(ctx, painterId, dir, x, y, size);
+      return;
+    }
     if (isCc3dId(type)) {
       this.drawCc3dEntity(ctx, type, dir, x, y, size);
       return;

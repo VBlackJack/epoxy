@@ -159,6 +159,8 @@ const FORCE_FRAMES = 4;
 const FLOOR_DETAIL_COUNT = 3;
 const DIGIT_COUNT = 10;
 const GLYPH_COLOURS: readonly string[] = ['red', 'blue', 'yellow', 'green', 'orange'];
+/** The colour block sprites: one per channel colour, named after the entity they draw. */
+const COLOR_BLOCK_SPRITES: readonly string[] = ['red', 'green', 'blue', 'yellow'].map((c) => `color_block_${c}`);
 
 /** Every sprite name the renderer needs (spec section 4). */
 export const RETRO_SPRITE_NAMES: readonly string[] = [
@@ -182,7 +184,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...DIRECTIONS.flatMap((d) => framed(`player_${d}`, PLAYER_FRAMES)),
   ...DIRECTIONS.map((d) => `player_swim_${d}`), 'player_dead',
   ...MONSTER_TYPES.flatMap((t) => DIRECTIONS.flatMap((d) => framed(`${t}_${d}`, MONSTER_FRAMES))),
-  'dirt_block', 'ice_block', 'mirror_slash', 'mirror_backslash', 'block_on_target'
+  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', 'block_on_target'
 ];
 
 /** Names of RETRO_SPRITE_NAMES the sheet does not define. */

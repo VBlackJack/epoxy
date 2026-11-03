@@ -1019,7 +1019,32 @@
     "laser_gate_red_closed": { "name": "Red Laser Gate (Closed)" },
     "laser_gate_red_open": { "name": "Red Laser Gate (Open)" },
     "laser_gate_blue_closed": { "name": "Blue Laser Gate (Closed)" },
-    "laser_gate_blue_open": { "name": "Blue Laser Gate (Open)" }
+    "laser_gate_blue_open": { "name": "Blue Laser Gate (Open)" },
+    "pressure_plate_red": { "name": "Red Pressure Plate" },
+    "pressure_plate_green": { "name": "Green Pressure Plate" },
+    "pressure_plate_blue": { "name": "Blue Pressure Plate" },
+    "pressure_plate_yellow": { "name": "Yellow Pressure Plate" },
+    "hold_door_red_closed": { "name": "Red Hold Door (Closed)" },
+    "hold_door_red_open": { "name": "Red Hold Door (Open)" },
+    "hold_door_green_closed": { "name": "Green Hold Door (Closed)" },
+    "hold_door_green_open": { "name": "Green Hold Door (Open)" },
+    "hold_door_blue_closed": { "name": "Blue Hold Door (Closed)" },
+    "hold_door_blue_open": { "name": "Blue Hold Door (Open)" },
+    "hold_door_yellow_closed": { "name": "Yellow Hold Door (Closed)" },
+    "hold_door_yellow_open": { "name": "Yellow Hold Door (Open)" },
+    "toggle_wall_red_closed": { "name": "Red Toggle Wall (Closed)" },
+    "toggle_wall_red_open": { "name": "Red Toggle Wall (Open)" },
+    "toggle_wall_blue_closed": { "name": "Blue Toggle Wall (Closed)" },
+    "toggle_wall_blue_open": { "name": "Blue Toggle Wall (Open)" },
+    "toggle_wall_yellow_closed": { "name": "Yellow Toggle Wall (Closed)" },
+    "toggle_wall_yellow_open": { "name": "Yellow Toggle Wall (Open)" },
+    "toggle_button_red": { "name": "Red Toggle Button" },
+    "toggle_button_blue": { "name": "Blue Toggle Button" },
+    "toggle_button_yellow": { "name": "Yellow Toggle Button" },
+    "floating_block_red": { "name": "Red Floating Block" },
+    "floating_block_green": { "name": "Green Floating Block" },
+    "floating_block_blue": { "name": "Blue Floating Block" },
+    "floating_block_yellow": { "name": "Yellow Floating Block" }
   },
   "entities": {
     "dirt_block": { "name": "Movable Dirt Block" },
@@ -1034,7 +1059,11 @@
     "tank": { "name": "Tank (Blue Button Reversal)" },
     "blob": { "name": "Slow Blob" },
     "mirror_slash": { "name": "Mirror (Slash)" },
-    "mirror_backslash": { "name": "Mirror (Backslash)" }
+    "mirror_backslash": { "name": "Mirror (Backslash)" },
+    "color_block_red": { "name": "Red Color Block" },
+    "color_block_green": { "name": "Green Color Block" },
+    "color_block_blue": { "name": "Blue Color Block" },
+    "color_block_yellow": { "name": "Yellow Color Block" }
   },
   "levels": {
     "level_1": {

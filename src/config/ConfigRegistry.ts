@@ -29,6 +29,7 @@ import {
   assertConfigShape,
   ConfigLoadError,
   ensureUniqueLevelIds,
+  findColorChannelConfigErrors,
   findLaserConfigErrors,
   sanitizeStoredLevels,
   isSizeWithinBounds,
@@ -279,6 +280,10 @@ class ConfigRegistryService {
     const laserErrors = findLaserConfigErrors(bundle.tiles.tiles);
     if (laserErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, laserErrors.join('; '));
+    }
+    const colorErrors = findColorChannelConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
+    if (colorErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, colorErrors.join('; '));
     }
     const cc3dTileErrors = findCc3dTileErrors(bundle.cc3dTiles, bundle.tiles.tiles);
     if (cc3dTileErrors.length > 0) {
