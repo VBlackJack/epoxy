@@ -18,10 +18,8 @@ import type { ConfigBundle } from '../config/ConfigRegistry';
 import type { BlockPuzzleVerdict } from '../core/BlockPuzzleSolver';
 import type { CompiledLevel } from '../core/types';
 
-/** Messages the page sends to the block check worker. */
-export type BlockCheckWorkerRequest =
-  | { type: 'init'; bundle: ConfigBundle }
-  | { type: 'check'; id: number; level: CompiledLevel };
+/** Messages the page sends to the block check worker; each carries the configs it must search with. */
+export type BlockCheckWorkerRequest = { type: 'check'; id: number; level: CompiledLevel; bundle: ConfigBundle };
 
 /** Messages the block check worker answers with; a null verdict means the level is not one the line applies to. */
 export type BlockCheckWorkerResponse =

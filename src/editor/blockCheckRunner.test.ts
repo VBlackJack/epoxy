@@ -66,9 +66,9 @@ describe('BlockCheckRunner', () => {
     vi.useRealTimers();
   });
 
-  it('initialises the worker, posts the level and resolves with the verdict', async () => {
+  it('posts the level with its configs and resolves with the verdict', async () => {
     const promise = runner.check(level());
-    expect(workers[0].requests.map((r) => r.type)).toEqual(['init', 'check']);
+    expect(workers[0].requests).toEqual([expect.objectContaining({ type: 'check', id: 1, bundle })]);
     workers[0].answer(1, { kind: 'solved', pushes: 2 });
     await expect(promise).resolves.toEqual({ kind: 'solved', pushes: 2 });
   });
@@ -94,6 +94,14 @@ describe('BlockCheckRunner', () => {
     expect(workers[0].terminated).toBe(true);
   });
 
+  it('terminates the idle worker when disposed', async () => {
+    const promise = runner.check(level());
+    workers[0].answer(1, null);
+    await promise;
+    runner.dispose();
+    expect(workers[0].terminated).toBe(true);
+  });
+
   it('reports not checked when the worker crashes or cannot start', async () => {
     const crashed = runner.check(level());
     workers[0].onerror?.({});
@@ -104,7 +112,7 @@ describe('BlockCheckRunner', () => {
 });
 
 describe('createBlockCheckWorkerCore', () => {
-  it('answers a check only after its configuration, and turns an error into a reply', () => {
+  it('installs the configs of each check, and turns an error into a reply', () => {
     const replies: unknown[] = [];
     const applied: ConfigBundle[] = [];
     const handle = createBlockCheckWorkerCore(
@@ -117,13 +125,10 @@ describe('createBlockCheckWorkerCore', () => {
       },
       (response) => replies.push(response)
     );
-    handle({ type: 'check', id: 1, level: level() });
-    handle({ type: 'init', bundle });
-    handle({ type: 'check', id: 2, level: level() });
-    handle({ type: 'check', id: 3, level: { id: 'boom' } as CompiledLevel });
-    expect(applied).toEqual([bundle]);
+    handle({ type: 'check', id: 2, level: level(), bundle });
+    handle({ type: 'check', id: 3, level: { id: 'boom' } as CompiledLevel, bundle });
+    expect(applied).toEqual([bundle, bundle]);
     expect(replies).toEqual([
-      expect.objectContaining({ type: 'error', id: 1 }),
       { type: 'verdict', id: 2, verdict: { kind: 'unsolvable' } },
       { type: 'error', id: 3, message: 'boom' }
     ]);

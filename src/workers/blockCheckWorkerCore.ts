@@ -25,25 +25,14 @@ export interface BlockCheckWorkerDeps {
   check(level: CompiledLevel): BlockPuzzleVerdict | null;
 }
 
-const NOT_INITIALISED_MESSAGE = 'Block check worker received a request before its configuration';
-
-/** Returns the request handler of the worker: init installs the configs, check answers one verdict. */
+/** Returns the request handler of the worker: each check installs its configs, then answers one verdict. */
 export function createBlockCheckWorkerCore(
   deps: BlockCheckWorkerDeps,
   reply: (response: BlockCheckWorkerResponse) => void
 ): (request: BlockCheckWorkerRequest) => void {
-  let initialised = false;
   return (request) => {
-    if (request.type === 'init') {
-      deps.applyConfigs(request.bundle);
-      initialised = true;
-      return;
-    }
-    if (!initialised) {
-      reply({ type: 'error', id: request.id, message: NOT_INITIALISED_MESSAGE });
-      return;
-    }
     try {
+      deps.applyConfigs(request.bundle);
       reply({ type: 'verdict', id: request.id, verdict: deps.check(request.level) });
     } catch (err) {
       reply({ type: 'error', id: request.id, message: err instanceof Error ? err.message : String(err) });

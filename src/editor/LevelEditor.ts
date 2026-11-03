@@ -253,6 +253,8 @@ export class LevelEditor {
   /** True while the New button is asking its questions, so a second click does not open a second dialog. */
   private newLevelPending = false;
   private blockRunner: BlockCheckRunner | null = null;
+  /** The status texts around a block check in progress, to restore the line if it is abandoned. */
+  private runningBlockCheck: { running: string; base: string } | null = null;
   /** Bumped each time another level is loaded, so a save that outlives its level cannot rebind the editor. */
   private loadGeneration = 0;
 
@@ -286,6 +288,8 @@ export class LevelEditor {
   private set isDirty(value: boolean) {
     this.dirty = value;
     this.editRevision++;
+    // Any edit or load makes a running block check stale.
+    this.abortBlockCheck();
     this.updateDirtyBadge();
   }
 
@@ -424,6 +428,7 @@ export class LevelEditor {
     return {
       ...this.blankDocument(undefined),
       ...content.map,
+      title: t(template.labelKey),
       winRule: content.winRule,
       ruleset: content.ruleset,
       timeLimitSeconds: content.timeLimitSeconds,
@@ -476,6 +481,7 @@ export class LevelEditor {
   /** Resets everything that belongs to the previous level once another one is in `doc`. */
   private afterDocumentReplaced(dirty: boolean): void {
     this.loadGeneration++;
+    this.blockRunner?.dispose();
     this.history.clear();
     this.coalescer.reset();
     this.stroke = null;
@@ -1166,14 +1172,32 @@ export class LevelEditor {
     const separator = t('validator.status.issue_separator.label');
     const base = el.textContent ?? '';
     const running = `${base}${separator}${t('editor.check.blocks.running')}`;
+    this.runningBlockCheck = { running, base };
     const generation = this.loadGeneration;
     const revision = this.editRevision;
     this.setStatusText(running);
     const verdict = await this.blockCheckRunner().check(compiled);
+    if (this.runningBlockCheck?.running === running) this.runningBlockCheck = null;
     if (verdict === null || generation !== this.loadGeneration || revision !== this.editRevision) return;
     if (el.textContent !== running) return;
     const line = describeBlockVerdict(verdict);
     this.setStatusText(line ? `${base}${separator}${t(line.key, line.params)}` : base);
+  }
+
+  /** Cancels the block check in progress and puts the status line back as it was before "checking". */
+  private abortBlockCheck(): void {
+    const running = this.runningBlockCheck;
+    if (!running) return;
+    this.runningBlockCheck = null;
+    this.blockRunner?.cancel();
+    const el = document.getElementById('editor-status-bar');
+    if (el && el.textContent === running.running) this.setStatusText(running.base);
+  }
+
+  /** The editor view is left: stops the check and releases the idle worker. */
+  public onLeave(): void {
+    this.abortBlockCheck();
+    this.blockRunner?.dispose();
   }
 
   private blockCheckRunner(): BlockCheckRunner {

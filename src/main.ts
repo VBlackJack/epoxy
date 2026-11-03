@@ -1884,7 +1884,9 @@ class EpoxyApplication {
     for (const id of PLAY_MODE_BUTTON_IDS) setToggleState(byId(id), isPlay);
     for (const id of EDITOR_MODE_BUTTON_IDS) setToggleState(byId(id), !isPlay);
 
-    if (!isPlay) {
+    if (isPlay) {
+      this.editor?.onLeave();
+    } else {
       void this.syncEditorWithEngineLevel().then(() => this.editor.refreshContext());
     }
   }

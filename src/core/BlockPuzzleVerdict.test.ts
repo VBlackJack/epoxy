@@ -78,6 +78,12 @@ beforeEach(() => {
 });
 
 describe('BlockPuzzleSolver.verdict', () => {
+  it('still solves a room with a chip on the path', () => {
+    const level = room(['#####', '#P$T#', '#####']);
+    level.items[1][2] = 'chip';
+    expect(BlockPuzzleSolver.verdict(engineFor(level))).toEqual({ kind: 'solved', pushes: 1 });
+  });
+
   it('counts the pushes of a solvable room', () => {
     const verdict = BlockPuzzleSolver.verdict(engineFor(room(['#####', '#P$T#', '#####'])));
     expect(verdict).toEqual({ kind: 'solved', pushes: 1 });

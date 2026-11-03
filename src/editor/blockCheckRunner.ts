@@ -31,7 +31,7 @@ export interface BlockCheckWorkerLike {
 export interface BlockCheckRunnerDeps {
   /** Starts the worker; null when workers are unavailable. May throw. */
   createWorker: (() => BlockCheckWorkerLike) | null;
-  /** The config bundle the page loaded, posted once to each new worker. */
+  /** The config bundle the page loaded, posted with every check so a reused worker never searches with old configs. */
   getBundle: () => ConfigBundle;
   /** How long a check may run before it is abandoned as not checked. */
   timeoutMs: number;
@@ -74,7 +74,7 @@ export class BlockCheckRunner {
     return new Promise((resolve) => {
       const timer = setTimeout(() => this.finish(id, NOT_CHECKED, true), this.deps.timeoutMs);
       this.pending = { id, resolve, timer };
-      worker.postMessage({ type: 'check', id, level });
+      worker.postMessage({ type: 'check', id, level, bundle: this.deps.getBundle() });
     });
   }
 
@@ -86,6 +86,12 @@ export class BlockCheckRunner {
     clearTimeout(pending.timer);
     this.dropWorker();
     pending.resolve(null);
+  }
+
+  /** Abandons the check in progress and terminates the idle worker. */
+  public dispose(): void {
+    this.cancel();
+    this.dropWorker();
   }
 
   private startWorker(): BlockCheckWorkerLike | null {
@@ -101,7 +107,6 @@ export class BlockCheckRunner {
         const id = this.pending?.id;
         if (id !== undefined) this.finish(id, NOT_CHECKED, true);
       };
-      worker.postMessage({ type: 'init', bundle: this.deps.getBundle() });
       this.worker = worker;
       return worker;
     } catch {
