@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BlockPuzzleSolver, requestedSearchBudget } from './BlockPuzzleSolver';
 import { cc3dValidationReport } from './cc3d/cc3dValidator';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
 import { isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import {
@@ -201,6 +201,7 @@ export class LevelValidator {
 
     this.checkStartCell(level, issues);
     this.checkLinkEndpoints(level, issues);
+    if (level.ruleset !== 'lynx') this.checkHiddenByBlocks(level, issues);
 
     if (needsExit && exitCount > 0 && level.chipsRequired > 0) {
       if (this.canReachExitWithoutSocket(level)) {
@@ -535,6 +536,52 @@ export class LevelValidator {
         targetCount
       }
     };
+  }
+
+  /**
+   * Warns when an item or a hint tile lies on a cell a pushable block can
+   * reach: a block covering it hides it from the player. Cheap approximation:
+   * the cells each block can reach from its start across block-passable
+   * terrain, ignoring where the player can stand to push.
+   */
+  private static checkHiddenByBlocks(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const height = level.terrain.length;
+    const width = level.terrain[0]?.length ?? 0;
+    const blockTypes = new Set(
+      Object.values(ConfigRegistry.getMonsters().entities)
+        .filter((def) => def.kind === 'block')
+        .map((def) => def.id)
+    );
+    const reached = new Uint8Array(width * height);
+    const queue: GridPoint[] = [];
+    for (const e of level.entities) {
+      if (!blockTypes.has(e.type) || e.x < 0 || e.y < 0 || e.x >= width || e.y >= height) continue;
+      if (reached[e.y * width + e.x]) continue;
+      reached[e.y * width + e.x] = 1;
+      queue.push({ x: e.x, y: e.y });
+    }
+    for (let head = 0; head < queue.length; head++) {
+      const { x, y } = queue[head];
+      for (const dir of ORDERED_DIRECTIONS) {
+        const vec = DIRECTION_VECTORS[dir];
+        const nx = x + vec.dx;
+        const ny = y + vec.dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height || reached[ny * width + nx]) continue;
+        if (ConfigRegistry.getTile(level.terrain[ny][nx]).passableByBlock !== true) continue;
+        if (this.isEdgeBlocked(level.terrain[y][x], level.terrain[ny][nx], dir)) continue;
+        reached[ny * width + nx] = 1;
+        queue.push({ x: nx, y: ny });
+      }
+    }
+    let hidden = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (reached[y * width + x] && (level.items[y][x] !== null || level.terrain[y][x] === HINT_TILE_ID)) hidden++;
+      }
+    }
+    if (hidden > 0) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.hidden_by_block.label', params: { count: hidden } });
+    }
   }
 
   /** Warns when the player starts inside a wall or on a cell that holds an entity. */

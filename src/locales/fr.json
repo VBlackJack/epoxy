@@ -503,6 +503,7 @@
       "no_targets": { "label": "Erreur : Aucune cible de bloc placée sur la carte." },
       "fewer_blocks_than_targets": { "label": "Erreur : {blocks, plural, one {# seul bloc} other {# blocs}} pour {targets, plural, one {# cible} other {# cibles}}." },
       "targets_unsolvable": { "label": "Avertissement : plus aucune suite de poussées ne couvre toutes les cibles." },
+      "hidden_by_block": { "label": "Avertissement : {count} case(s) avec un objet ou une case d'indice peuvent être couvertes par un bloc poussable, qui les cache." },
       "no_emitter": { "label": "Erreur : Aucun émetteur laser placé sur la carte." },
       "no_receiver": { "label": "Erreur : Aucun récepteur laser placé sur la carte." },
       "laser_gate_on_beam": { "label": "Avertissement : une barrière laser ({group}) se trouve sur un rayon qui allume un récepteur : fermée, elle coupe ce rayon." },

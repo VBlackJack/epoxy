@@ -503,6 +503,7 @@
       "no_targets": { "label": "Error: No block target placed on the map." },
       "fewer_blocks_than_targets": { "label": "Error: Only {blocks, plural, one {# block} other {# blocks}} for {targets, plural, one {# target} other {# targets}}." },
       "targets_unsolvable": { "label": "Warning: No sequence of pushes covers every target any more." },
+      "hidden_by_block": { "label": "Warning: {count} cell(s) holding an item or a hint tile can be covered by a pushable block, which hides them." },
       "no_emitter": { "label": "Error: No laser emitter placed on the map." },
       "no_receiver": { "label": "Error: No laser receiver placed on the map." },
       "laser_gate_on_beam": { "label": "Warning: A laser gate ({group}) lies on a beam that lights a receiver: closed, it cuts that beam." },

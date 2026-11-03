@@ -43,7 +43,8 @@ const TERRAIN_CODES: Record<string, string> = {
   X: 'forbid_key_red',
   e: 'thin_wall_e',
   n: 'thin_wall_n',
-  Y: 'door_yellow'
+  Y: 'door_yellow',
+  H: 'hint'
 };
 const ITEM_CODES: Record<string, { terrain: string; item: string }> = {
   c: { terrain: 'floor', item: 'chip' },
@@ -322,6 +323,30 @@ describe('LevelValidator', () => {
       const row = `#P${'r'.repeat(doors)}${'D'.repeat(doors)}E#`;
       const wall = '#'.repeat(row.length);
       expect(rooms([wall, row, wall])).toBe(true);
+    });
+  });
+
+  describe('items hidden by pushable blocks', () => {
+    const HIDDEN = 'validator.issues.hidden_by_block.label';
+    const block: EntityPlacement = { type: 'dirt_block', x: 2, y: 1, dir: 'S' };
+
+    it('warns about a chip on a cell a block can reach', () => {
+      const level = grid(['#######', '#P.c.E#', '#######'], { entities: [block] });
+      const issue = LevelValidator.validate(level).issues.find((i) => i.i18nKey === HIDDEN);
+      expect(issue?.severity).toBe('warning');
+      expect(issue?.params).toEqual({ count: 1 });
+    });
+
+    it('warns about a hint tile on a cell a block can reach', () => {
+      expect(keys(grid(['#######', '#P.H.E#', '#######'], { entities: [block] }))).toContain(HIDDEN);
+    });
+
+    it('stays silent when a wall cuts the block off from the item', () => {
+      expect(keys(grid(['########', '#P.#cE.#', '########'], { entities: [block] }))).not.toContain(HIDDEN);
+    });
+
+    it('stays silent without any block', () => {
+      expect(keys(grid(['#######', '#P.cHE#', '#######']))).not.toContain(HIDDEN);
     });
   });
 });
