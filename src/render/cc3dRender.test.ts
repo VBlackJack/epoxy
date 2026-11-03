@@ -189,17 +189,17 @@ describe('cc3d display ids in every render style', () => {
     };
 
     /** The panel bars drawn for one frame of a cc3d level, by the cell they cover. */
-    function barsOf(style: GraphicsStyle, rows: string[]): Array<readonly string[]> {
+    function barsOf(style: GraphicsStyle, rows: string[]): Array<{ edges: readonly string[]; x: number; y: number }> {
       const engine = new Cc3dEngine({ effect: () => undefined, step: () => undefined });
       engine.loadLevel(cc3dLevel(rows, { glyphs }));
       const renderer = new PixelRenderer();
       renderer.setStyle(style);
       renderer.setThemeId(THEME_ID);
       renderer.setViewportTiles(SCENE_SIZE);
-      const bars: Array<readonly string[]> = [];
+      const bars: Array<{ edges: readonly string[]; x: number; y: number }> = [];
       const real = renderer.drawPanelBars.bind(renderer);
       vi.spyOn(renderer, 'drawPanelBars').mockImplementation((ctx, edges, x, y, size) => {
-        bars.push([...edges]);
+        bars.push({ edges: [...edges], x, y });
         real(ctx, edges, x, y, size);
       });
       renderer.renderViewport(createCanvas(SCENE_SIZE * TILE_PX, SCENE_SIZE * TILE_PX).getContext('2d'), engine);
@@ -209,7 +209,10 @@ describe('cc3d display ids in every render style', () => {
     for (const style of STYLES) {
       it(`${style}: draws bars over water and ice, not again over a floor`, () => {
         const bars = barsOf(style, ['#@pqr.#']);
-        expect(bars).toEqual([['N'], ['E', 'S']]);
+        expect(bars.map((b) => b.edges)).toEqual([['N'], ['E', 'S']]);
+        // The two cells are neighbours on one row: the bars land on the same line, the second to the right of the first.
+        expect(bars[1].y).toBe(bars[0].y);
+        expect(bars[1].x).toBeGreaterThan(bars[0].x);
       });
 
       it(`${style}: a panel bar draws something and differs per side`, () => {

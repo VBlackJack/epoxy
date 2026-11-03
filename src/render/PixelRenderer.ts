@@ -219,7 +219,10 @@ const FULL_TURN = Math.PI * 2;
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
 const THIN_BAR_MIN_PX_FLAT = 4;
-/** Whether cells with stacked layers under the shown one get a corner marker; off in play, the editor turns it on. */
+/**
+ * Whether cells with stacked layers under the shown one get a corner marker. Off in play; meant for the
+ * upcoming CC3D editor, which will turn it on (nothing calls setHiddenLayerMarkers yet).
+ */
 const HIDDEN_LAYER_MARKER_DEFAULT = false;
 const HIDDEN_LAYER_MARKER_TILE = 0.22;
 const HINT_GLYPH = '?';
@@ -482,6 +485,7 @@ export class PixelRenderer {
   private readonly blockCells: Set<number> = new Set();
   private blockCellsWidth: number = 0;
   private hiddenLayerMarkers: boolean = HIDDEN_LAYER_MARKER_DEFAULT;
+  private readonly panelLayerCache = new Map<string, readonly RetroLayer[]>();
   private lastLevelId: string = '';
 
   private particles: Particle[] = [];
@@ -1958,10 +1962,21 @@ export class PixelRenderer {
     }
     if (this.retroSpritesReady()) {
       // The first layer of a thin wall is its floor: only the panels go over the terrain.
-      this.drawRetroLayers(ctx, retroThinLayers(edges).slice(1), x, y, size);
+      this.drawRetroLayers(ctx, this.panelLayers(edges), x, y, size);
       return;
     }
     this.paintFlatPanelBars(ctx, edges, x, y, size);
+  }
+
+  /** Sprite layers of the panels alone (no floor) for an edge set, built once per set. */
+  private panelLayers(edges: readonly Direction[]): readonly RetroLayer[] {
+    const key = edges.join('');
+    let layers = this.panelLayerCache.get(key);
+    if (!layers) {
+      layers = retroThinLayers(edges).slice(1);
+      this.panelLayerCache.set(key, layers);
+    }
+    return layers;
   }
 
   /** A small corner triangle on a cell whose stack holds layers under the shown one. */
