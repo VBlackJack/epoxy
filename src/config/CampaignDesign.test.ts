@@ -17,8 +17,6 @@
 /// <reference types="node" />
 
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
@@ -31,13 +29,12 @@ import enLocale from '../locales/en.json';
 import frLocale from '../locales/fr.json';
 import { resolveMessage, TranslationNode } from '../i18n/messageFormat';
 import { buildTestLevel } from '../test/buildTestLevel';
+import { DESIGN_PACK_IDS, designPack } from '../test/designPacks';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { PILOT_LEVEL_ID_PREFIX } from './constants';
 import { ConfigRegistry } from './ConfigRegistry';
 import { CampaignChapter } from '../core/types';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const ROUTES_FILE = resolve(ROOT, 'tools', 'campaign-routes.json');
-const RHYTHM_FILE = resolve(ROOT, 'tools', 'campaign-rhythm.json');
 /** An item id no level holds, to prove an exit does not depend on what is not there. */
 const UNRELATED_ITEM = 'no_such_item';
 const EN = enLocale as TranslationNode;
@@ -209,25 +206,48 @@ const CHECKS: Array<[string, (input: DesignInput) => string[]]> = [
   ['every level is in exactly one chapter, whose ids exist', chapterMembershipProblems]
 ];
 
-describe('campaign design', () => {
-  let input: DesignInput;
+// The same checks run on every hand-designed pack, each with its own routes and rhythm files.
+for (const packId of DESIGN_PACK_IDS) {
+  describe(`${packId} design`, () => {
+    let input: DesignInput;
 
+    beforeAll(() => {
+      loadTestConfigs();
+      const pack = designPack(packId);
+      input = {
+        levels: pack.levels(),
+        routes: readJson<CampaignRoutes>(pack.routesFile),
+        rhythm: readJson<CampaignRhythm>(pack.rhythmFile),
+        chapters: pack.chapters(),
+        locales: [EN, FR]
+      };
+    });
+
+    for (const [name, check] of CHECKS) {
+      it(name, () => {
+        expect(check(input)).toEqual([]);
+      });
+    }
+  });
+}
+
+describe('pilot pack identity', () => {
   beforeAll(() => {
     loadTestConfigs();
-    input = {
-      levels: ConfigRegistry.getLevels(),
-      routes: readJson<CampaignRoutes>(ROUTES_FILE),
-      rhythm: readJson<CampaignRhythm>(RHYTHM_FILE),
-      chapters: ConfigRegistry.getCampaignChapters(),
-      locales: [EN, FR]
-    };
   });
 
-  for (const [name, check] of CHECKS) {
-    it(name, () => {
-      expect(check(input)).toEqual([]);
-    });
-  }
+  it('prefixes every pilot level id so its records never collide with the campaign', () => {
+    const offenders = ConfigRegistry.getPilotLevels().filter((level) => !level.id.startsWith(PILOT_LEVEL_ID_PREFIX));
+    expect(offenders.map((level) => level.id)).toEqual([]);
+  });
+
+  it('lets reworkOf name only an existing campaign level', () => {
+    const campaignIds = new Set(ConfigRegistry.getLevels().map((level) => level.id));
+    const offenders = ConfigRegistry.getPilotBlueprints().filter(
+      (blueprint) => blueprint.reworkOf !== undefined && !campaignIds.has(blueprint.reworkOf)
+    );
+    expect(offenders.map((blueprint) => `${blueprint.id}: reworkOf ${blueprint.reworkOf}`)).toEqual([]);
+  });
 });
 
 describe('campaign design checks on a fixture', () => {
@@ -277,6 +297,17 @@ describe('campaign design checks on a fixture', () => {
 
   it('accepts a consistent campaign', () => {
     const input = fixture();
+    for (const [name, check] of CHECKS) expect(check(input), name).toEqual([]);
+  });
+
+  it('accepts an empty pack, so an unfilled pilot passes', () => {
+    const input: DesignInput = {
+      levels: [],
+      routes: { levels: {} },
+      chapters: [],
+      rhythm: { ...fixture().rhythm, introduces: {} },
+      locales: FIXTURE_LOCALES
+    };
     for (const [name, check] of CHECKS) expect(check(input), name).toEqual([]);
   });
 

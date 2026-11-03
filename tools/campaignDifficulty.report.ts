@@ -21,6 +21,8 @@
  * local/campaign-difficulty.json and local/campaign-difficulty.md.
  *
  * Run with: npm run report:difficulty
+ * The pilot pack: EPOXY_DIFFICULTY_PACK=pilot npm run report:difficulty
+ * (writes local/pilot-difficulty.json and local/pilot-difficulty.md).
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -30,23 +32,24 @@ import { it, vi } from 'vitest';
 
 vi.mock('../src/audio/AudioManager', () => import('../src/test/silentAudio'));
 
-import { ConfigRegistry } from '../src/config/ConfigRegistry';
 import {
   DEFAULT_DIFFICULTY_CONFIG,
   DifficultyMetrics,
   DifficultyReport,
   IRREVERSIBLE_KINDS
 } from '../src/core/DifficultyMetrics';
+import { CompiledLevel } from '../src/core/types';
 import { LevelMetrics, Mechanic } from '../src/core/LevelMetrics';
 import { ProceduralGenerator } from '../src/core/ProceduralGenerator';
 import { encodeActions } from '../src/generator/PieceSolver';
+import { DESIGN_PACK_VARIABLES, designPackFromEnv } from '../src/test/designPacks';
 import { loadTestConfigs } from '../src/test/loadTestConfigs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const RHYTHM_FILE = resolve(ROOT, 'tools', 'campaign-rhythm.json');
 const OUTPUT_DIR = resolve(ROOT, 'local');
-const OUTPUT_JSON = resolve(OUTPUT_DIR, 'campaign-difficulty.json');
-const OUTPUT_MD = resolve(OUTPUT_DIR, 'campaign-difficulty.md');
+/** The campaign keeps its historical file names; any other pack is prefixed with its id. */
+const CAMPAIGN_PACK_ID = 'campaign';
+const OUTPUT_BASE_NAME = 'campaign-difficulty';
 
 /** Endless level numbers and fixed seeds of the baseline sample. */
 const ENDLESS_LEVEL_NUMBERS = [1, 5, 10, 20, 30, 50];
@@ -132,8 +135,11 @@ function mechanicsOf(ids: readonly string[]): Set<Mechanic> {
   return found;
 }
 
-function measureCampaign(rhythm: CampaignRhythm): Array<Omit<CampaignRow, 'closestEndless'>> {
-  const levels = [...ConfigRegistry.getLevels()].sort((a, b) => a.number - b.number);
+function measureCampaign(
+  levelsInOrder: readonly CompiledLevel[],
+  rhythm: CampaignRhythm
+): Array<Omit<CampaignRow, 'closestEndless'>> {
+  const levels = [...levelsInOrder].sort((a, b) => a.number - b.number);
   const prior = mechanicsOf(rhythm.baseline);
   return levels.map((level) => {
     const introduces = rhythm.introduces[String(level.number)] ?? [];
@@ -321,30 +327,33 @@ function buildMarkdown(rhythm: CampaignRhythm, campaign: CampaignRow[], endless:
 
 it('writes the campaign difficulty report', { timeout: GENERATION_TIMEOUT_MS }, () => {
   loadTestConfigs();
-  const numberOf = new Map(ConfigRegistry.getLevels().map((level) => [level.id, level.number]));
+  const pack = designPackFromEnv(DESIGN_PACK_VARIABLES.DIFFICULTY);
+  const packLevels = pack.levels();
+  const numberOf = new Map(packLevels.map((level) => [level.id, level.number]));
   const rhythm: CampaignRhythm = {
-    ...(JSON.parse(readFileSync(RHYTHM_FILE, 'utf-8')) as Omit<CampaignRhythm, 'chapters'>),
-    // Chapters live in public/configs/campaign.json, by level id; the tables below group by level number.
-    chapters: ConfigRegistry.getCampaignChapters().map((chapter) => ({
+    ...(JSON.parse(readFileSync(pack.rhythmFile, 'utf-8')) as Omit<CampaignRhythm, 'chapters'>),
+    // Chapters live in the pack's chapter file, by level id; the tables below group by level number.
+    chapters: pack.chapters().map((chapter) => ({
       titleKey: chapter.titleKey,
       levels: chapter.levels.map((id) => {
         const number = numberOf.get(id);
-        if (number === undefined) throw new Error(`campaign.json names an unknown level: ${id}`);
+        if (number === undefined) throw new Error(`${pack.id} chapters name an unknown level: ${id}`);
         return number;
       })
     }))
   };
   const endless = measureEndless();
-  const campaign: CampaignRow[] = measureCampaign(rhythm).map((row) => ({
+  const campaign: CampaignRow[] = measureCampaign(packLevels, rhythm).map((row) => ({
     ...row,
     closestEndless: Object.fromEntries(
       BASELINE_METRICS.map((metric) => [metric, closestEndless(endless, metric, row.report[metric])])
     ) as Record<BaselineMetric, number>
   }));
   mkdirSync(OUTPUT_DIR, { recursive: true });
+  const outputBase = resolve(OUTPUT_DIR, pack.id === CAMPAIGN_PACK_ID ? OUTPUT_BASE_NAME : `${pack.id}-difficulty`);
   writeFileSync(
-    OUTPUT_JSON,
+    `${outputBase}.json`,
     `${JSON.stringify({ config: DEFAULT_DIFFICULTY_CONFIG, campaign, endless }, null, 2)}\n`
   );
-  writeFileSync(OUTPUT_MD, buildMarkdown(rhythm, campaign, endless));
+  writeFileSync(`${outputBase}.md`, buildMarkdown(rhythm, campaign, endless));
 });
