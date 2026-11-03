@@ -3,6 +3,15 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Playtest mode (Options > Advanced, off by default): records per level, on the device only, the
+  attempts, deaths, restarts, undos, hints, solution views, active time and move traces, asks for a
+  short rating after a win or when a level is left unsolved, and exports one JSON file. See
+  `docs/playtest.md`.
+
 ## [2.18.0] - 2026-11-03
 
 ### Added

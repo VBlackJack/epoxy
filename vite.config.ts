@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
+
+const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 export default defineConfig({
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version)
+  },
   server: {
     port: 5173,
     open: false

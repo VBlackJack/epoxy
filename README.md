@@ -69,6 +69,10 @@
 - **Testing**: "Back to editor" returns from a test play, and the browser asks before the tab closes with unsaved work.
 - **Validator**: new warnings for broken trap and clone wires, and for a player start on a wall or on a monster.
 
+## Playtesting
+
+Testers can turn on Playtest mode in Options > Advanced: it records how each level is played, on the device only, and exports one file the tester chooses to send. See the [tester guide](./docs/playtest.md) ([version française](./docs/fr/playtest.md)).
+
 ## Development
 
 Requires Node.js 24 (see `.nvmrc`).

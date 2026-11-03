@@ -159,6 +159,14 @@
               <legend data-i18n="app.music.custom_tracks.label"></legend>
               <div class="music-track-list"></div>
             </fieldset>
+            <div class="playtest-options">
+              <button id="btn-playtest-toggle" class="nav-btn" type="button" aria-pressed="false" data-i18n="app.playtest.toggle.action" data-i18n-title="app.playtest.toggle.hint"></button>
+              <p id="playtest-count" class="hint-text" role="status"></p>
+              <div class="playtest-actions">
+                <button id="btn-playtest-export" class="nav-btn" type="button" data-i18n="app.playtest.export.action"></button>
+                <button id="btn-playtest-clear" class="nav-btn" type="button" data-i18n="app.playtest.clear.action"></button>
+              </div>
+            </div>
           </details>
         </div>
       </aside>
@@ -241,6 +249,7 @@
                     <span class="hud-password-edit" aria-hidden="true">&#9998;</span>
                   </button>
                 </div>
+                <span id="hud-playtest-badge" class="hud-playtest-badge hidden" data-i18n="app.playtest.badge.label" data-i18n-title="app.playtest.badge.hint"></span>
                 <div class="hud-level-title"><span id="hud-level-name" class="hud-level-name"></span><span id="hud-level-author" class="hud-level-author hidden"></span></div>
 
                 <div class="led-counters">
@@ -788,6 +797,43 @@
           <div class="modal-actions">
             <button id="save-into-cancel-btn" class="action-btn" type="button" data-i18n="app.confirm.cancel.action"></button>
             <button id="save-into-submit-btn" class="action-btn primary" type="submit" data-i18n="editor.pack.save_into.submit.action"></button>
+          </div>
+        </form>
+      </div>
+
+      <!-- PLAYTEST RATING: short, dismissable; Escape skips it -->
+      <div id="playtest-rating-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="playtest-rating-title">
+        <form id="playtest-rating-form" class="modal-dialog playtest-rating-dialog">
+          <h3 id="playtest-rating-title" data-i18n="app.playtest.rating.title.label"></h3>
+          <p id="playtest-rating-level" class="hint-text"></p>
+          <fieldset class="playtest-fieldset">
+            <legend data-i18n="app.playtest.rating.difficulty.label"></legend>
+            <div class="playtest-scale">
+              <span class="hint-text" data-i18n="app.playtest.rating.difficulty_low.label"></span>
+              <div id="playtest-rating-difficulty" class="playtest-scale-options"></div>
+              <span class="hint-text" data-i18n="app.playtest.rating.difficulty_high.label"></span>
+            </div>
+          </fieldset>
+          <fieldset class="playtest-fieldset">
+            <legend data-i18n="app.playtest.rating.fun.label"></legend>
+            <div class="playtest-scale">
+              <span class="hint-text" data-i18n="app.playtest.rating.fun_low.label"></span>
+              <div id="playtest-rating-fun" class="playtest-scale-options"></div>
+              <span class="hint-text" data-i18n="app.playtest.rating.fun_high.label"></span>
+            </div>
+          </fieldset>
+          <fieldset class="playtest-fieldset">
+            <legend data-i18n="app.playtest.rating.aha.label"></legend>
+            <div class="playtest-scale-options">
+              <label class="playtest-scale-option"><input type="radio" name="playtest-rating-aha" value="yes" /><span data-i18n="app.playtest.rating.aha_yes.action"></span></label>
+              <label class="playtest-scale-option"><input type="radio" name="playtest-rating-aha" value="no" /><span data-i18n="app.playtest.rating.aha_no.action"></span></label>
+            </div>
+          </fieldset>
+          <label for="playtest-rating-note" data-i18n="app.playtest.rating.note.label"></label>
+          <textarea id="playtest-rating-note" class="editor-input playtest-note" rows="2" autocomplete="off"></textarea>
+          <div class="modal-actions">
+            <button id="playtest-rating-skip-btn" class="action-btn" type="button" data-i18n="app.playtest.rating.skip.action"></button>
+            <button id="playtest-rating-submit-btn" class="action-btn primary" type="submit" data-i18n="app.playtest.rating.submit.action"></button>
           </div>
         </form>
       </div>

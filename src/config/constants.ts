@@ -98,3 +98,10 @@ export const SHARE_LINK_VERSION_SEPARATOR = '.';
 
 /** Compression format of the share link payload. */
 export const SHARE_LINK_COMPRESSION_FORMAT = 'deflate-raw';
+
+/** Format id of the playtest export file. */
+export const PLAYTEST_FORMAT_ID = 'epoxy-playtest';
+/** Version of the playtest export file layout; bumped when a field changes meaning. */
+export const PLAYTEST_FORMAT_VERSION = 1;
+/** Start of the playtest export file name; the export date follows. */
+export const PLAYTEST_FILE_BASE = 'epoxy-playtest';

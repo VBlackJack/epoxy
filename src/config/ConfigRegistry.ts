@@ -59,6 +59,7 @@ import {
   LevelBlueprint,
   LevelPack,
   LevelTextConfig,
+  PlaytestConfig,
   LevelsConfig,
   MonstersConfig,
   TileDefinition,
@@ -965,6 +966,11 @@ class ConfigRegistryService {
   /** Longest author and description a pack keeps. */
   public getPackMetadataLimits(): PackMetadataLimits {
     return this.gameConfig.packMetadata;
+  }
+
+  /** Bounds of the Playtest recorder and of its rating form. */
+  public getPlaytestConfig(): PlaytestConfig {
+    return this.gameConfig.playtest;
   }
 
   /** Longest text fields a stored, imported or shared level keeps. */

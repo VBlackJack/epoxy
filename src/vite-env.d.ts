@@ -25,3 +25,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Version from package.json, injected by the Vite build; undefined under the test runner. */
+declare const __APP_VERSION__: string | undefined;

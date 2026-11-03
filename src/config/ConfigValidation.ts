@@ -25,6 +25,7 @@ import {
   GameConfig,
   GridConfig,
   LevelTextConfig,
+  PlaytestConfig,
   Ruleset,
   ThemePalette,
   TileDefinition,
@@ -158,6 +159,15 @@ const LEVEL_TEXT_LIMIT_KEYS: ReadonlyArray<keyof LevelTextConfig> = [
   'idMaxLength'
 ];
 
+const PLAYTEST_COUNT_KEYS: ReadonlyArray<keyof PlaytestConfig> = [
+  'maxSessions',
+  'maxTraceLength',
+  'maxDeathsPerSession',
+  'maxStoredBytes',
+  'noteMaxLength',
+  'ratingMin'
+];
+
 /**
  * Checks the endless and procedural tunables that code relies on as whole
  * numbers or unit shares. Empty when all is well; each entry names the offending key.
@@ -180,6 +190,22 @@ export function findGameTunableErrors(game: GameConfig): string[] {
     if (!isIntegerAtLeast(game.packMetadata?.[key], MIN_POSITIVE_STEP)) {
       errors.push(`packMetadata.${key}: expected a whole number of at least ${MIN_POSITIVE_STEP}`);
     }
+  }
+  for (const key of ['playtestEnabledKey', 'playtestSessionsKey'] as const) {
+    if (typeof game.storage?.[key] !== 'string' || game.storage[key].length === 0) {
+      errors.push(`storage.${key}: expected a non-empty string`);
+    }
+  }
+  for (const key of PLAYTEST_COUNT_KEYS) {
+    if (!isIntegerAtLeast(game.playtest?.[key], MIN_POSITIVE_STEP)) {
+      errors.push(`playtest.${key}: expected a whole number of at least ${MIN_POSITIVE_STEP}`);
+    }
+  }
+  if (
+    isIntegerAtLeast(game.playtest?.ratingMin, MIN_POSITIVE_STEP) &&
+    (!isIntegerAtLeast(game.playtest?.ratingMax, MIN_POSITIVE_STEP) || game.playtest.ratingMax <= game.playtest.ratingMin)
+  ) {
+    errors.push('playtest.ratingMax: expected a whole number above ratingMin');
   }
   for (const key of LEVEL_TEXT_LIMIT_KEYS) {
     if (!isIntegerAtLeast(game.levelText?.[key], MIN_POSITIVE_STEP)) {

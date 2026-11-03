@@ -483,6 +483,33 @@ describe('game tunables validation', () => {
     expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
   });
 
+  it('refuses a missing, zero, fractional or non-numeric playtest bound', () => {
+    for (const key of Object.keys(createTestBundle().game.playtest)) {
+      for (const bad of [undefined, 0, -3, 2.5, '5']) {
+        const bundle = createTestBundle();
+        (bundle.game.playtest as unknown as Record<string, unknown>)[key] = bad;
+        expect(() => ConfigRegistry.applyConfigs(bundle), `${key}=${String(bad)}`).toThrow(ConfigLoadError);
+      }
+    }
+    const missing = createTestBundle();
+    delete (missing.game as unknown as Record<string, unknown>).playtest;
+    expect(() => ConfigRegistry.applyConfigs(missing)).toThrow(ConfigLoadError);
+  });
+
+  it('refuses a rating scale whose top is not above its bottom', () => {
+    const bundle = createTestBundle();
+    bundle.game.playtest.ratingMax = bundle.game.playtest.ratingMin;
+    expect(() => ConfigRegistry.applyConfigs(bundle)).toThrow(ConfigLoadError);
+  });
+
+  it('refuses a missing playtest storage key', () => {
+    for (const key of ['playtestEnabledKey', 'playtestSessionsKey']) {
+      const bundle = createTestBundle();
+      (bundle.game.storage as unknown as Record<string, unknown>)[key] = '';
+      expect(() => ConfigRegistry.applyConfigs(bundle), key).toThrow(ConfigLoadError);
+    }
+  });
+
   it('refuses a missing, negative or fractional fallback candidate count', () => {
     for (const bad of [undefined, -1, 1.5, '2']) {
       const bundle = createTestBundle();
