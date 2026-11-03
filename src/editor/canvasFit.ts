@@ -113,3 +113,96 @@ export function fitCanvas(input: CanvasFitInput): CanvasFit {
     canZoomOut: tileSize > base && zoomOffset > -EDITOR_ZOOM_STEPS_EACH_WAY
   };
 }
+
+/** What the stage shows: where it is scrolled, how much room it has, and how big the canvas is, in CSS pixels. */
+export interface StageView {
+  scrollLeft: number;
+  scrollTop: number;
+  clientWidth: number;
+  clientHeight: number;
+  canvasCssWidth: number;
+  canvasCssHeight: number;
+}
+
+export interface ScrollPosition {
+  left: number;
+  top: number;
+}
+
+/** Cells of context a reveal keeps between the cell and the edge of the stage. */
+export const REVEAL_MARGIN_CELLS = 1;
+
+const CENTRE_DIVISOR = 2;
+
+/** Gap the canvas leaves before its first cell when it is smaller than the stage (margin: auto centres it). */
+function canvasOffset(client: number, css: number): number {
+  return Math.max(0, (client - css) / CENTRE_DIVISOR);
+}
+
+function clampScroll(scroll: number, css: number, client: number): number {
+  return Math.min(Math.max(0, css - client), Math.max(0, scroll));
+}
+
+/** Smallest scroll along one axis that shows the cell and its margin; unchanged when they are already visible. */
+function revealAxis(index: number, cssTile: number, scroll: number, client: number, css: number, marginCells: number): number {
+  const offset = canvasOffset(client, css);
+  const margin = Math.max(0, marginCells) * cssTile;
+  const start = offset + index * cssTile - margin;
+  const end = offset + (index + 1) * cssTile + margin;
+  let next = scroll;
+  if (end - start > client) next = offset + index * cssTile - (client - cssTile) / CENTRE_DIVISOR;
+  else if (start < scroll) next = start;
+  else if (end > scroll + client) next = end - client;
+  return clampScroll(next, css, client);
+}
+
+/**
+ * The scroll that shows a cell with `marginCells` cells of context around it, moving as little as possible.
+ * The scroll stays as it is when the cell and its margin are already in view; a canvas smaller than the stage
+ * never scrolls.
+ */
+export function revealScroll(
+  cell: { x: number; y: number },
+  cssTile: number,
+  view: StageView,
+  marginCells: number = REVEAL_MARGIN_CELLS
+): ScrollPosition {
+  return {
+    left: revealAxis(cell.x, cssTile, view.scrollLeft, view.clientWidth, view.canvasCssWidth, marginCells),
+    top: revealAxis(cell.y, cssTile, view.scrollTop, view.clientHeight, view.canvasCssHeight, marginCells)
+  };
+}
+
+function anchoredAxis(
+  anchor: number,
+  scroll: number,
+  client: number,
+  oldCss: number,
+  oldTile: number,
+  newCss: number,
+  newTile: number,
+  newClient: number
+): number {
+  if (oldTile <= 0) return clampScroll(scroll, newCss, newClient);
+  const cells = (scroll + anchor - canvasOffset(client, oldCss)) / oldTile;
+  return clampScroll(canvasOffset(newClient, newCss) + cells * newTile - anchor, newCss, newClient);
+}
+
+/**
+ * The scroll that keeps the point under `anchor` (CSS pixels from the top left of the stage's visible area) at
+ * the same place on screen when the tile size changes from `oldFit` to `newFit`. `view` is the stage as it was
+ * before the change; its canvas size is not used, the fits carry it. `newClient` is the stage's visible size
+ * after the change (scrollbars may have appeared or gone); it defaults to the size in `view`.
+ */
+export function anchoredZoomScroll(
+  anchor: { x: number; y: number },
+  oldFit: Pick<CanvasFit, 'cssWidth' | 'cssHeight' | 'cssTileSize'>,
+  newFit: Pick<CanvasFit, 'cssWidth' | 'cssHeight' | 'cssTileSize'>,
+  view: Pick<StageView, 'scrollLeft' | 'scrollTop' | 'clientWidth' | 'clientHeight'>,
+  newClient: Pick<StageView, 'clientWidth' | 'clientHeight'> = view
+): ScrollPosition {
+  return {
+    left: anchoredAxis(anchor.x, view.scrollLeft, view.clientWidth, oldFit.cssWidth, oldFit.cssTileSize, newFit.cssWidth, newFit.cssTileSize, newClient.clientWidth),
+    top: anchoredAxis(anchor.y, view.scrollTop, view.clientHeight, oldFit.cssHeight, oldFit.cssTileSize, newFit.cssHeight, newFit.cssTileSize, newClient.clientHeight)
+  };
+}

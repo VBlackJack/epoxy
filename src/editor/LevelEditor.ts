@@ -48,7 +48,8 @@ import { downloadBytes, downloadJson, downloadText, MIME_XML } from '../ui/downl
 import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
-import { CanvasFit, fitCanvas, zoomIn, zoomOut } from './canvasFit';
+import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
+import { historyDiff, HistoryDiff } from './historyDiff';
 import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
 import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
 import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
@@ -257,6 +258,8 @@ const IMPORT_AS_PACK_CHOICE = 'pack';
 const IMPORT_FIRST_CHOICE = 'first';
 const SEPARATOR_BETWEEN_MESSAGES = ' ';
 const NO_COORDS_TEXT = '--';
+const STAGE_CENTRE_DIVISOR = 2;
+const CELL_CENTRE = 0.5;
 const EDITOR_PLAYER_BRUSH_ID = 'player_start';
 const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
 const LAYERS_SECTION_ID = 'editor-layers-section';
@@ -485,6 +488,10 @@ export class LevelEditor {
   private testFromStateKey = '';
   /** Zoom steps away from the fit size; 0 fits the level to the stage. */
   private zoomOffset: number = 0;
+  /** The fit the canvas has now: the size a zoom starts from and a reveal measures with. */
+  private lastFit: CanvasFit | null = null;
+  /** Last pointer position over the canvas, null once it left: where a zoom pivots. */
+  private lastPointer: { clientX: number; clientY: number } | null = null;
   /** Tile size, in pixels, the canvas buffer is drawn at. */
   private tilePx: number = 0;
   /** The level as it was loaded or last saved; null when the content was never stored. */
@@ -625,6 +632,7 @@ export class LevelEditor {
     this.canvas.style.width = `${fit.cssWidth}px`;
     this.canvas.style.height = `${fit.cssHeight}px`;
     this.updateZoomControls(fit);
+    this.lastFit = fit;
     if (resized || this.tilePx !== this.lastDrawnTilePx) this.render();
     return fit;
   }
@@ -640,9 +648,62 @@ export class LevelEditor {
     if (label) label.textContent = t('editor.layout.zoom.level.label', { percent: fit.percent });
   }
 
+  /** Changes the zoom and keeps the pointed cell (else the cursor cell, else the middle of the stage) where it was on screen. */
   private setZoomOffset(offset: number): void {
+    const stage = byId('editor-stage');
+    const before = this.lastFit;
+    const view = stage && before ? this.stageView(stage, before) : null;
+    const anchor = stage && view && before ? this.zoomAnchor(stage, view, before) : null;
     this.zoomOffset = offset;
-    this.applyFit();
+    const fit = this.applyFit();
+    if (!stage || !view || !before || !anchor || !fit) return;
+    this.scrollStage(stage, anchoredZoomScroll(anchor, before, fit, view, { clientWidth: stage.clientWidth, clientHeight: stage.clientHeight }));
+  }
+
+  /** The stage as it is scrolled and sized now, with the canvas size of `fit`. */
+  private stageView(stage: HTMLElement, fit: CanvasFit): StageView {
+    return {
+      scrollLeft: stage.scrollLeft,
+      scrollTop: stage.scrollTop,
+      clientWidth: stage.clientWidth,
+      clientHeight: stage.clientHeight,
+      canvasCssWidth: fit.cssWidth,
+      canvasCssHeight: fit.cssHeight
+    };
+  }
+
+  /** Where a zoom pivots, in CSS pixels from the top left of the visible stage. */
+  private zoomAnchor(stage: HTMLElement, view: StageView, fit: CanvasFit): { x: number; y: number } {
+    if (this.lastPointer) {
+      const rect = stage.getBoundingClientRect();
+      return { x: this.lastPointer.clientX - rect.left - stage.clientLeft, y: this.lastPointer.clientY - rect.top - stage.clientTop };
+    }
+    const cursor = this.cursorCell;
+    if (cursor) {
+      const x = this.cellCentreOnScreen(cursor.x, view.scrollLeft, view.clientWidth, view.canvasCssWidth, fit.cssTileSize);
+      const y = this.cellCentreOnScreen(cursor.y, view.scrollTop, view.clientHeight, view.canvasCssHeight, fit.cssTileSize);
+      if (x >= 0 && x <= view.clientWidth && y >= 0 && y <= view.clientHeight) return { x, y };
+    }
+    return { x: view.clientWidth / STAGE_CENTRE_DIVISOR, y: view.clientHeight / STAGE_CENTRE_DIVISOR };
+  }
+
+  /** Where the middle of a cell is on one axis of the visible stage, in CSS pixels from its start. */
+  private cellCentreOnScreen(index: number, scroll: number, client: number, canvasCss: number, cssTile: number): number {
+    const offset = Math.max(0, (client - canvasCss) / STAGE_CENTRE_DIVISOR);
+    return offset + (index + CELL_CENTRE) * cssTile - scroll;
+  }
+
+  private scrollStage(stage: HTMLElement, to: ScrollPosition): void {
+    stage.scrollLeft = to.left;
+    stage.scrollTop = to.top;
+  }
+
+  /** Scrolls the stage the least that shows a cell with a cell of context around it. */
+  private revealCell(cell: { x: number; y: number }): void {
+    const stage = byId('editor-stage');
+    const fit = this.lastFit;
+    if (!stage || !fit) return;
+    this.scrollStage(stage, revealScroll(cell, fit.cssTileSize, this.stageView(stage, fit)));
   }
 
   /** True when the level being edited is a CC3D one: its cells, not the Epoxy layers, are the map. */
@@ -2354,13 +2415,15 @@ export class LevelEditor {
   // ---------------------------------------------------------------------------
 
   /** Puts a document from the history in place of the current one. */
-  private restoreDocument(doc: EditorDocument): void {
+  private restoreDocument(doc: EditorDocument, keepCursor = false): void {
+    const cursor = this.cursorCell;
     this.doc = doc;
     this.coalescer.reset();
     this.isDirty = !(this.cleanDoc !== null && sameDocument(doc, this.cleanDoc));
     this.pendingWire = null;
     this.resetSelectionState();
-    this.cursorCell = null;
+    // An undo keeps the keyboard cursor where it was while that cell still exists.
+    this.cursorCell = keepCursor && cursor && cursor.x < this.mapWidth() && cursor.y < this.mapHeight() ? cursor : null;
     this.syncCc3dChrome();
     this.applyFit();
     this.updateUndoRedoButtons();
@@ -2376,26 +2439,85 @@ export class LevelEditor {
   public undo(): void {
     if (this.stroke) return;
     const wire = this.pendingWire;
+    const from = this.doc;
     const previous = this.history.undo(this.doc);
     if (!previous) return;
-    this.restoreDocument(previous);
-    this.announceDroppedWire(wire);
+    this.restoreDocument(previous, true);
+    this.afterHistoryStep(from, wire, 'undone');
   }
 
   public redo(): void {
     if (this.stroke) return;
     const wire = this.pendingWire;
+    const from = this.doc;
     const next = this.history.redo(this.doc);
     if (!next) return;
-    this.restoreDocument(next);
-    this.announceDroppedWire(wire);
+    this.restoreDocument(next, true);
+    this.afterHistoryStep(from, wire, 'redone');
   }
 
-  /** A wire dropped by undo or redo leaves a message when its button stays on the map. */
-  private announceDroppedWire(wire: PendingWire | null): void {
-    if (!wire) return;
+  /** Brings the change an undo or redo made into view and says what it was; a dropped wire's message comes first. */
+  private afterHistoryStep(from: EditorDocument, wire: PendingWire | null, verb: 'undone' | 'redone'): void {
+    const diff = historyDiff(from, this.doc);
+    const near = this.revealChange(diff);
+    if (this.announceDroppedWire(wire)) return;
+    if (diff.sizeChanged) {
+      this.setStatusText(t(`editor.layout.status.${verb}_size.label`, { width: this.mapWidth(), height: this.mapHeight() }));
+    } else if (diff.metadataOnly) {
+      this.setStatusText(t(`editor.layout.status.${verb}_settings.label`));
+    } else if (diff.cells && near) {
+      this.setStatusText(t(`editor.layout.status.${verb}_cells.label`, { count: diff.cells.length, x: near.x, y: near.y }));
+    }
+  }
+
+  /**
+   * Scrolls to the changed cell nearest the middle of the stage when none of the changed cells is in view.
+   * Returns that cell, or null when nothing changed on the map.
+   */
+  private revealChange(diff: HistoryDiff): { x: number; y: number } | null {
+    const cells = diff.cells;
+    if (!cells || cells.length === 0) return null;
+    const stage = byId('editor-stage');
+    const fit = this.lastFit;
+    if (!stage || !fit) return cells[0];
+    const view = this.stageView(stage, fit);
+    const centreX = this.centreInCells(view.scrollLeft, view.clientWidth, view.canvasCssWidth, fit.cssTileSize);
+    const centreY = this.centreInCells(view.scrollTop, view.clientHeight, view.canvasCssHeight, fit.cssTileSize);
+    let nearest = cells[0];
+    let best = Infinity;
+    let anyVisible = false;
+    for (const cell of cells) {
+      const distance = (cell.x + CELL_CENTRE - centreX) ** 2 + (cell.y + CELL_CENTRE - centreY) ** 2;
+      if (distance < best) {
+        best = distance;
+        nearest = cell;
+      }
+      if (!anyVisible && this.cellInView(cell, view, fit.cssTileSize)) anyVisible = true;
+    }
+    if (!anyVisible) this.revealCell(nearest);
+    return nearest;
+  }
+
+  /** The middle of the visible stage on one axis, in cells from the canvas start. */
+  private centreInCells(scroll: number, client: number, canvasCss: number, cssTile: number): number {
+    const offset = Math.max(0, (client - canvasCss) / STAGE_CENTRE_DIVISOR);
+    return (scroll + client / STAGE_CENTRE_DIVISOR - offset) / cssTile;
+  }
+
+  /** Whether any part of a cell is in the visible stage. */
+  private cellInView(cell: { x: number; y: number }, view: StageView, cssTile: number): boolean {
+    const left = Math.max(0, (view.clientWidth - view.canvasCssWidth) / STAGE_CENTRE_DIVISOR) + cell.x * cssTile - view.scrollLeft;
+    const top = Math.max(0, (view.clientHeight - view.canvasCssHeight) / STAGE_CENTRE_DIVISOR) + cell.y * cssTile - view.scrollTop;
+    return left < view.clientWidth && left + cssTile > 0 && top < view.clientHeight && top + cssTile > 0;
+  }
+
+  /** A wire dropped by undo or redo leaves a message when its button stays on the map; true when it did. */
+  private announceDroppedWire(wire: PendingWire | null): boolean {
+    if (!wire) return false;
     const buttonTile = wire.kind === 'trap' ? EDITOR_TRAP_BUTTON_TILE : EDITOR_CLONE_BUTTON_TILE;
-    if (leavesLooseButton(this.doc, wire, buttonTile)) this.setStatusText(t(MESSAGE_WIRE_CANCELLED_BUTTON_LEFT));
+    if (!leavesLooseButton(this.doc, wire, buttonTile)) return false;
+    this.setStatusText(t(MESSAGE_WIRE_CANCELLED_BUTTON_LEFT));
+    return true;
   }
 
   private updateUndoRedoButtons(): void {
@@ -2547,6 +2669,7 @@ export class LevelEditor {
     });
 
     this.canvas.addEventListener('pointermove', (ev) => {
+      this.lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
       const cell = this.cellAt(ev.clientX, ev.clientY);
       if (cell && this.pasting) this.pasteAnchor = cell;
       if (cell && this.isCc3d()) {
@@ -2565,6 +2688,7 @@ export class LevelEditor {
     });
 
     this.canvas.addEventListener('pointerleave', () => {
+      this.lastPointer = null;
       if (!this.stroke) this.setHover(null);
     });
 
@@ -2588,6 +2712,7 @@ export class LevelEditor {
         if (this.pasting) this.pasteAnchor = this.cursorCell;
         if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, this.cursorCell, ev.shiftKey);
         this.setCoordsText(t('editor.palette.status.coords', { x: this.cursorCell.x, y: this.cursorCell.y }));
+        this.revealCell(this.cursorCell);
         this.refreshLayersList();
         this.render();
         return;

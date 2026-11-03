@@ -761,6 +761,12 @@
         "wire_missing_button": "Le bouton de ce fil a disparu : recommencez le fil.",
         "wire_cancelled": "Fil annulé.",
         "wire_cancelled_button_left": "Fil annulé. Le bouton reste sur la carte sans lien.",
+        "undone_cells": { "label": "Annulé : {count, plural, one {# case} other {# cases}} près de ({x}, {y})." },
+        "redone_cells": { "label": "Rétabli : {count, plural, one {# case} other {# cases}} près de ({x}, {y})." },
+        "undone_settings": { "label": "Annulé : réglages du niveau." },
+        "redone_settings": { "label": "Rétabli : réglages du niveau." },
+        "undone_size": { "label": "Annulé : retour à la taille {width}x{height}." },
+        "redone_size": { "label": "Rétabli : taille {width}x{height}." },
         "tool_changed": "Outil : {tool}."
       },
       "palette": {
