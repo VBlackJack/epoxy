@@ -1112,6 +1112,22 @@
       "level_1": {
         "title": "Mise sous tension",
         "hint": "Ramasse toutes les puces pour ouvrir le socle, puis franchis la sortie."
+      },
+      "level_2": {
+        "title": "Les quatre enclos",
+        "hint": "Un mur fin ne ferme qu'un seul bord d'une case : repère le côté ouvert de chaque enclos avant d'y entrer."
+      },
+      "level_3": {
+        "title": "Deux portes, deux clés",
+        "hint": "Une clé rouge ouvre une porte rouge puis disparaît : utilise chaque clé sur la porte qui la suit."
+      },
+      "level_4": {
+        "title": "Les deux greniers",
+        "hint": "Réfléchis avant d'ouvrir une porte, et si tu es coincé, appuie sur U pour annuler un pas ou sur R pour recommencer."
+      },
+      "level_5": {
+        "title": "Le gardien des serres",
+        "hint": "Une clé verte ne s'use jamais : une seule clé ouvre toutes les portes vertes."
       }
     },
     "chapter": {

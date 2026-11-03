@@ -1112,6 +1112,22 @@
       "level_1": {
         "title": "Power Up",
         "hint": "Collect every chip to open the socket, then step through the exit."
+      },
+      "level_2": {
+        "title": "Four Pens",
+        "hint": "A thin wall closes only one edge of a square, so check which side of each pen is open before you walk in."
+      },
+      "level_3": {
+        "title": "Two Doors, Two Keys",
+        "hint": "A red key opens one red door and then disappears, so spend each key on the door right after it."
+      },
+      "level_4": {
+        "title": "The Two Attics",
+        "hint": "Think before you open a door, and if you get stuck press U to undo a step or R to restart."
+      },
+      "level_5": {
+        "title": "The Greenhouse Keeper",
+        "hint": "A green key is never used up: one key opens every green door."
       }
     },
     "chapter": {

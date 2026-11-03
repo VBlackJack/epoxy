@@ -6,6 +6,20 @@
       "exit",
       "hint",
       "socket"
+    ],
+    "2": [
+      "thin_wall_esw",
+      "thin_wall_nes",
+      "thin_wall_new",
+      "thin_wall_nsw"
+    ],
+    "3": [
+      "door_red",
+      "key_red"
+    ],
+    "5": [
+      "door_green",
+      "key_green"
     ]
   },
   "firstTimedLevel": 13,

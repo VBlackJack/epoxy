@@ -166,7 +166,8 @@ export function terrainEventKind(from: string, to: string): IrreversibleKind | n
   // A cell that changes once left: a turtle sinks, a recessed wall closes for good.
   if (before.transformsToOnLeave) return isPlayerWalkable(after) ? 'turtle_sunk' : 'wall_raised';
   if (before.hazard === 'water') return 'water_filled';
-  if (before.requiredKey) return 'door_opened';
+  // A door opened with a kept key (green) costs the player nothing: the key stays in hand, so it is not a commitment.
+  if (before.requiredKey) return before.consumesKey === false ? null : 'door_opened';
   if (DIRT_TILE_IDS.has(before.id)) return 'dirt_cleared';
   // Forced: a socket opens once the chips are in.
   if (before.transformsToOnUnlock) return null;
