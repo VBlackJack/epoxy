@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { CC3D_CLASS_FLOOR, cellAt, terrainClass, topTerrain } from '../core/cc3d/model';
 import { WALL_TILE_ID } from '../core/coreConstants';
 import { CompiledLevel, Ruleset } from '../core/types';
 import { EditorMap } from './editorDocument';
@@ -33,9 +34,9 @@ export const TEST_FROM_HERE_REASON_KEYS: Record<TestFromHereBlock, string> = {
   not_supported: 'editor.test_from.reason.not_supported'
 };
 
-/** The rulesets whose levels the editor can play from another start: Epoxy (also the default) and Lynx. */
+/** The rulesets whose levels the editor can play from another start: Epoxy (also the default), Lynx and CC3D. */
 function supportsTestFromHere(ruleset: Ruleset | undefined): boolean {
-  return ruleset === undefined || ruleset === 'epoxy' || ruleset === 'lynx';
+  return ruleset === undefined || ruleset === 'epoxy' || ruleset === 'lynx' || ruleset === 'cc3d';
 }
 
 /**
@@ -46,6 +47,22 @@ export function pickTestCell(cursor: GridCell | null, lastHover: GridCell | null
   return cursor ?? lastHover;
 }
 
+/** CC3D terrain a player must not start on: it kills, or it ends the level at once. */
+const CC3D_UNSAFE_START_KINDS: readonly string[] = ['water', 'fire', 'exit'];
+
+/** The start rule of a CC3D level: a bare floor-like top layer that is not a hazard, with no mob on it. */
+function cc3dStartCellProblem(map: Pick<EditorMap, 'cc3d'>, cell: GridCell | null): TestFromHereBlock | null {
+  const cc3d = map.cc3d;
+  if (!cc3d) return 'not_supported';
+  if (!cell) return 'no_cell';
+  const target = cellAt(cc3d, cell.x, cell.y);
+  if (!target) return 'no_cell';
+  const top = topTerrain(target);
+  if (terrainClass(top.kind) !== CC3D_CLASS_FLOOR || CC3D_UNSAFE_START_KINDS.includes(top.kind)) return 'not_walkable';
+  if (cc3d.mobs.some((mob) => mob.x === cell.x && mob.y === cell.y)) return 'not_walkable';
+  return null;
+}
+
 /**
  * Whether the player may start on a cell: inside the map, on a floor the
  * player walks on (no wall, hazard, exit or locked tile) and not on an
@@ -53,10 +70,11 @@ export function pickTestCell(cursor: GridCell | null, lastHover: GridCell | null
  * the validator warns about for the start.
  */
 export function startCellProblem(
-  map: Pick<EditorMap, 'terrain' | 'entities' | 'items'> & { ruleset?: Ruleset },
+  map: Pick<EditorMap, 'terrain' | 'entities' | 'items' | 'cc3d'> & { ruleset?: Ruleset },
   cell: GridCell | null
 ): TestFromHereBlock | null {
   if (!supportsTestFromHere(map.ruleset)) return 'not_supported';
+  if (map.ruleset === 'cc3d') return cc3dStartCellProblem(map, cell);
   if (!cell) return 'no_cell';
   const row = map.terrain[cell.y];
   if (!row || cell.x < 0 || cell.x >= row.length) return 'no_cell';
@@ -79,5 +97,9 @@ export function startCellProblem(
 export function levelStartingAt(level: CompiledLevel, cell: GridCell): CompiledLevel {
   const copy = structuredClone(level);
   copy.playerStart = { x: cell.x, y: cell.y, dir: level.playerStart.dir };
+  if (copy.cc3d) {
+    const dir = level.cc3d?.player.dir;
+    copy.cc3d.player = dir === undefined ? { x: cell.x, y: cell.y } : { x: cell.x, y: cell.y, dir };
+  }
   return copy;
 }

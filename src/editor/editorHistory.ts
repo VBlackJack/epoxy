@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { cloneDocument, EditorDocument } from './editorDocument';
+import { EditorDocument, restoreDocument, snapshotDocument } from './editorDocument';
 
 /** Fewest steps the history keeps, whatever limit it is given. */
 const MIN_HISTORY_SIZE = 1;
@@ -22,7 +22,8 @@ const MIN_HISTORY_SIZE = 1;
 /**
  * Bounded undo and redo history of whole editor documents (map and metadata),
  * so an undo also brings back the title, the win rule and the ruleset.
- * Every document is deep-copied on the way in and on the way out.
+ * Every document is deep-copied on the way in and on the way out; a CC3D level is shared by reference
+ * (it is immutable) and its derived display layers are rebuilt on the way out.
  */
 export class EditorHistory {
   private readonly maxSize: number;
@@ -37,7 +38,7 @@ export class EditorHistory {
   /** Records the document as it is BEFORE a change. Clears the redo steps. */
   public push(doc: EditorDocument): void {
     if (this.undoStack.length >= this.maxSize) this.undoStack.shift();
-    this.undoStack.push(cloneDocument(doc));
+    this.undoStack.push(snapshotDocument(doc));
     this.redoStack = [];
   }
 
@@ -45,16 +46,16 @@ export class EditorHistory {
   public undo(current: EditorDocument): EditorDocument | null {
     const previous = this.undoStack.pop();
     if (!previous) return null;
-    this.redoStack.push(cloneDocument(current));
-    return previous;
+    this.redoStack.push(snapshotDocument(current));
+    return restoreDocument(previous);
   }
 
   /** Steps forward: returns the document undone last and keeps `current` for undo, or null when there is none. */
   public redo(current: EditorDocument): EditorDocument | null {
     const next = this.redoStack.pop();
     if (!next) return null;
-    this.undoStack.push(cloneDocument(current));
-    return next;
+    this.undoStack.push(snapshotDocument(current));
+    return restoreDocument(next);
   }
 
   public canUndo(): boolean {

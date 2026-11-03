@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+import { PLAYER_START_FACING } from '../core/cc3d/cc3dConstants';
+import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
+import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_RULESET } from '../core/coreConstants';
+import { canonicalJson } from './canonicalJson';
 import { CloneLink, Direction, EntityPlacement, Ruleset, TrapLink, WinRule } from '../core/types';
 
 /** Where the player starts and which way the character faces. */
@@ -32,6 +36,12 @@ export interface EditorMap {
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
   playerStart: EditorPlayerStart;
+  /**
+   * CC3D levels only: the single source of truth of the map. Its cells and mobs are immutable (an edit builds
+   * a new level that shares every untouched cell), so copies and history steps keep references, never deep
+   * copies. `terrain`, `items`, `entities` and `playerStart` are then derived from it for display.
+   */
+  cc3d?: Cc3dLevel;
 }
 
 /** The level fields the editor form edits besides the map. */
@@ -50,7 +60,7 @@ export interface EditorMetadata {
 /** Everything an undo step must bring back: the map and the metadata. */
 export type EditorDocument = EditorMap & EditorMetadata;
 
-/** Deep copy of a map; nothing is shared with the source. */
+/** Deep copy of a map; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneMap(map: EditorMap): EditorMap {
   return {
     terrain: map.terrain.map((row) => [...row]),
@@ -58,13 +68,66 @@ export function cloneMap(map: EditorMap): EditorMap {
     entities: map.entities.map((e) => ({ ...e })),
     trapLinks: map.trapLinks.map((l) => ({ ...l })),
     cloneLinks: map.cloneLinks.map((l) => ({ ...l })),
-    playerStart: { ...map.playerStart }
+    playerStart: { ...map.playerStart },
+    ...(map.cc3d ? { cc3d: map.cc3d } : {})
   };
 }
 
-/** Deep copy of a document; nothing is shared with the source. */
+/** The display layers a CC3D level implies, as the editor map holds them. */
+export function displayLayersOf(cc3d: Cc3dLevel): Pick<EditorMap, 'terrain' | 'items' | 'entities' | 'trapLinks' | 'cloneLinks' | 'playerStart'> {
+  const { terrain, items, entities } = deriveDisplayLayers(cc3d);
+  return {
+    terrain,
+    items,
+    entities,
+    trapLinks: [],
+    cloneLinks: [],
+    playerStart: { x: cc3d.player.x, y: cc3d.player.y, dir: cc3d.player.dir ?? PLAYER_START_FACING }
+  };
+}
+
+/**
+ * The document with another CC3D level and the display layers derived from it. The same level (by reference)
+ * gives the same document back, so a no-op edit makes no history step.
+ */
+export function withCc3d(doc: EditorDocument, cc3d: Cc3dLevel): EditorDocument {
+  if (doc.cc3d === cc3d) return doc;
+  return { ...doc, cc3d, ...displayLayersOf(cc3d) };
+}
+
+/**
+ * What a history step stores. A CC3D document keeps its level by reference and none of the derived layers
+ * (they are rebuilt on the way out), so a step costs the changed cells and one array of references.
+ */
+export function snapshotDocument(doc: EditorDocument): EditorDocument {
+  if (!doc.cc3d) return cloneDocument(doc);
+  return {
+    terrain: [],
+    items: [],
+    entities: [],
+    trapLinks: [],
+    cloneLinks: [],
+    playerStart: doc.playerStart,
+    cc3d: doc.cc3d,
+    title: doc.title,
+    hint: doc.hint,
+    author: doc.author,
+    password: doc.password,
+    timeLimitSeconds: doc.timeLimitSeconds,
+    chipsRequired: doc.chipsRequired,
+    winRule: doc.winRule,
+    ruleset: doc.ruleset
+  };
+}
+
+/** Brings a stored step back into a usable document: a CC3D one gets its derived layers again. */
+export function restoreDocument(snapshot: EditorDocument): EditorDocument {
+  return snapshot.cc3d ? { ...snapshot, ...displayLayersOf(snapshot.cc3d) } : snapshot;
+}
+
+/** Deep copy of a document; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneDocument(doc: EditorDocument): EditorDocument {
-  const { terrain, items, entities, trapLinks, cloneLinks, playerStart } = cloneMap(doc);
+  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, cc3d } = cloneMap(doc);
   return {
     terrain,
     items,
@@ -72,6 +135,7 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     trapLinks,
     cloneLinks,
     playerStart,
+    ...(cc3d ? { cc3d } : {}),
     title: doc.title,
     hint: doc.hint,
     author: doc.author,
@@ -97,14 +161,20 @@ function byPosition<T extends { x: number; y: number }>(items: readonly T[]): T[
  * the links does not matter, and an absent ruleset equals the default one.
  */
 export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
+  if (a === b) return true;
+  if (Boolean(a.cc3d) !== Boolean(b.cc3d)) return false;
+  // A CC3D level is compared by reference first; the canonical text (mob order counts) is only the fallback.
+  if (a.cc3d && b.cc3d && a.cc3d !== b.cc3d && canonicalJson(a.cc3d) !== canonicalJson(b.cc3d)) return false;
+  const hasCc3d = a.cc3d !== undefined;
   const normalize = (doc: EditorDocument): string =>
     JSON.stringify({
-      terrain: doc.terrain,
-      items: doc.items,
-      entities: byPosition(doc.entities),
+      // The layers of a CC3D document are derived from its level, which was compared above.
+      terrain: hasCc3d ? null : doc.terrain,
+      items: hasCc3d ? null : doc.items,
+      entities: hasCc3d ? null : byPosition(doc.entities),
       trapLinks: [...doc.trapLinks].sort((l, m) => l.buttonY - m.buttonY || l.buttonX - m.buttonX || l.trapY - m.trapY || l.trapX - m.trapX),
       cloneLinks: [...doc.cloneLinks].sort((l, m) => l.buttonY - m.buttonY || l.buttonX - m.buttonX || l.clonerY - m.clonerY || l.clonerX - m.clonerX),
-      playerStart: doc.playerStart,
+      playerStart: hasCc3d ? null : doc.playerStart,
       title: doc.title,
       hint: doc.hint,
       author: doc.author,

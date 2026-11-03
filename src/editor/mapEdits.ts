@@ -109,6 +109,7 @@ export function dropLinksAt(map: EditorMap, x: number, y: number): number {
  * left dangling. Painting the tile already there keeps them.
  */
 export function paintTerrain(source: EditorMap, x: number, y: number, tileId: string): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y) || source.terrain[y][x] === tileId) return unchanged(source);
   const map = cloneMap(source);
   map.terrain[y][x] = tileId;
@@ -118,6 +119,7 @@ export function paintTerrain(source: EditorMap, x: number, y: number, tileId: st
 
 /** Paints an item (key, chip, boots...) on the item layer. */
 export function paintItem(source: EditorMap, x: number, y: number, itemId: string): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y) || source.items[y][x] === itemId) return unchanged(source);
   const map = cloneMap(source);
   map.items[y][x] = itemId;
@@ -126,6 +128,7 @@ export function paintItem(source: EditorMap, x: number, y: number, itemId: strin
 
 /** Places an entity, replacing the one already on the cell. */
 export function paintEntity(source: EditorMap, x: number, y: number, type: string, dir: Direction): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y)) return unchanged(source);
   const present = source.entities.filter((e) => e.x === x && e.y === y);
   if (present.length === 1 && present[0].type === type && present[0].dir === dir) return unchanged(source);
@@ -137,6 +140,7 @@ export function paintEntity(source: EditorMap, x: number, y: number, type: strin
 
 /** Moves the player start. */
 export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: Direction): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y)) return unchanged(source);
   const start = source.playerStart;
   if (start.x === x && start.y === y && start.dir === dir) return unchanged(source);
@@ -150,6 +154,7 @@ export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: D
  * is never erased; when it sits on the cell the result reports `playerStartKept`.
  */
 export function eraseCell(source: EditorMap, x: number, y: number): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y)) return unchanged(source);
   const playerStartKept = source.playerStart.x === x && source.playerStart.y === y;
   const empty =
@@ -172,6 +177,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
  * with `tileId`. Links that end on a replaced cell are removed.
  */
 export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId: string): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y)) return unchanged(source);
   const target = source.terrain[y][x];
   if (target === tileId) return unchanged(source);
@@ -224,6 +230,7 @@ export function placeWireLink(
   to: { x: number; y: number },
   fallbackDir: Direction
 ): WireResult {
+  if (source.cc3d) return { ...unchanged(source), refused: false }; // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, from.x, from.y) || !inGrid(source, to.x, to.y)) return { ...unchanged(source), refused: false };
   if (from.x === to.x && from.y === to.y) return { ...unchanged(source), refused: true, refusal: 'same_cell' };
   const tiles = wireTiles(kind);
@@ -276,6 +283,7 @@ const clamp = (value: number, min: number, max: number): number => Math.min(max,
  * start is clamped inside. The requested size is clamped to `bounds`.
  */
 export function resizeMap(source: EditorMap, width: number, height: number, bounds: LevelSizeBounds): ResizeResult {
+  if (source.cc3d) return { map: source, width: mapWidthOf(source), height: mapHeightOf(source), changed: false, report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, playerStartMoved: false, borderKept: false } }; // a CC3D map is edited through cc3dEdits only
   const oldWidth = mapWidthOf(source);
   const oldHeight = mapHeightOf(source);
   const newWidth = clamp(Math.floor(width), bounds.minSize, bounds.maxSize);

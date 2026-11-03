@@ -56,7 +56,8 @@ import {
   TestFromHereBlock
 } from './testFromHere';
 import { CheckSummary, summarizeValidation } from './checkSummary';
-import { cloneDocument, cloneMap, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
+import { cloneDocument, EditorDocument, EditorMetadata, sameDocument } from './editorDocument';
+import { documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
 import { EditorHistory } from './editorHistory';
 import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise, SelectionKeyAction } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
@@ -502,17 +503,7 @@ export class LevelEditor {
     const title = this.resolveLevelTitle(level);
     const hint = level.customHint || (level.hintKey ? t(level.hintKey) : '');
     this.loadedTexts = { title, hint };
-    this.doc = {
-      ...cloneMap(level),
-      title,
-      hint,
-      author: level.author ?? '',
-      password: level.password,
-      timeLimitSeconds: level.timeLimitSeconds,
-      chipsRequired: level.chipsRequired,
-      winRule: level.winRule ?? DEFAULT_WIN_RULE,
-      ruleset: level.ruleset
-    };
+    this.doc = documentFromLevel(level, this.loadedTexts);
     this.afterDocumentReplaced(options.dirty ?? false);
     return true;
   }
@@ -1319,7 +1310,7 @@ export class LevelEditor {
       next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
     }
     if (requiresEpoxyRules(next.winRule, hasLaserContent(doc))) next.ruleset = undefined;
-    return next;
+    return metadataForDocument(doc, next);
   }
 
   private sameMetadata(a: EditorMetadata, b: EditorMetadata): boolean {
@@ -2154,19 +2145,12 @@ export class LevelEditor {
     const targetLevels = this.sourcePack()?.levels ?? [];
     const existing = targetLevels.find((l) => l.id === id);
     const doc = this.doc;
-    const level: CompiledLevel = {
+    const level = levelFromDocument(doc, {
       id,
-      ...(doc.winRule === DEFAULT_WIN_RULE ? {} : { winRule: doc.winRule }),
-      ...(doc.ruleset ? { ruleset: doc.ruleset } : {}),
       number: existing ? existing.number : targetLevels.length + 1,
-      customTitle: doc.title || t('editor.metadata.default_title.label'),
-      customHint: doc.hint,
-      ...(doc.author ? { author: doc.author } : {}),
       password: resolveSavedPassword(doc.password, targetLevels),
-      timeLimitSeconds: doc.timeLimitSeconds,
-      chipsRequired: doc.chipsRequired,
-      ...cloneMap(doc)
-    };
+      fallbackTitle: t('editor.metadata.default_title.label')
+    });
     // The stored solution stays attached while the map is untouched, as on save, so the checks can trust it.
     const original = this.originalLevel;
     if (original?.solution !== undefined && !levelMapChanged(original, level)) level.solution = original.solution;

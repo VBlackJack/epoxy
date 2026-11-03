@@ -17,6 +17,7 @@
 import { BUILTIN_PACK_IDS, DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import { CompiledLevel, Ruleset } from '../core/types';
+import { canonicalJson } from './canonicalJson';
 import { packUsesPasswords } from '../ui/packPasswords';
 import { KeyChord } from '../ui/inputGuards';
 import { EDITOR_DEFAULT_PASSWORD } from '../ui/uiConstants';
@@ -103,37 +104,25 @@ export interface LoadedTexts {
   hint: string;
 }
 
-/** Stable text for a value: object keys sorted, so key order never makes two equal values differ. */
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (value !== null && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record)
-      .filter((key) => record[key] !== undefined)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
-      .join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
-
 /** A list compared as a set: the order of entities and links carries no meaning. */
 function unordered(values: readonly unknown[]): string {
-  return values.map(canonical).sort().join('|');
+  return values.map(canonicalJson).sort().join('|');
 }
 
 /** What makes two levels play differently: the board, the start, the objective and the rules. */
 function playfieldSignature(level: CompiledLevel): string {
   return [
-    canonical(level.terrain),
-    canonical(level.items),
+    canonicalJson(level.terrain),
+    canonicalJson(level.items),
     unordered(level.entities),
     unordered(level.trapLinks),
     unordered(level.cloneLinks),
-    canonical(level.playerStart),
+    canonicalJson(level.playerStart),
     level.winRule ?? DEFAULT_WIN_RULE,
     level.ruleset ?? DEFAULT_RULESET,
-    String(level.chipsRequired)
+    String(level.chipsRequired),
+    // A CC3D level is its cells and its mobs, in order (mob order decides which clone machine or shooter links).
+    level.cc3d ? canonicalJson({ ...level.cc3d, mapId: undefined }) : ''
   ].join('#');
 }
 

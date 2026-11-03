@@ -177,6 +177,7 @@ function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number)
  * it. The player start stays where it is, and the result says so.
  */
 export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResult {
+  if (source.cc3d) return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect: null }; // a CC3D map is edited through cc3dEdits only
   const map = cloneMap(source);
   clearCells(map, rect);
   let droppedLinks = 0;
@@ -287,6 +288,7 @@ export function pasteClip(
   originY: number,
   ruleset: EditableRuleset
 ): SelectionEditResult {
+  if (source.cc3d) return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect: null }; // a CC3D map is edited through cc3dEdits only
   const rect = clipRectToGrid(
     { x: originX, y: originY, width: clip.width, height: clip.height },
     mapWidthOf(source),
@@ -306,6 +308,7 @@ export function pasteClip(
  * overwrites. The player start moves when it is inside the rectangle.
  */
 export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: number): SelectionEditResult {
+  if (source.cc3d) return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect: null }; // a CC3D map is edited through cc3dEdits only
   const destination = shiftRect(rect, dx, dy);
   const fits =
     destination.x >= 0 &&
