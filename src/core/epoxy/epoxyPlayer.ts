@@ -1,0 +1,328 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { ConfigRegistry } from '../../config/ConfigRegistry';
+import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
+import { AudioManager } from '../../audio/AudioManager';
+import { stepTerrainOf } from '../../audio/stepTerrain';
+import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../coreConstants';
+import { Direction, TileDefinition } from '../types';
+import { attemptPushBlock } from './epoxyBlocks';
+import { triggerButton } from './epoxyDevices';
+import { teleportPlayer } from './epoxyTeleports';
+import {
+  EpoxyContext,
+  EpoxyWorld,
+  canPlayerEnter,
+  getEntityAt,
+  isEdgeBlocked,
+  isInBounds,
+  killPlayer,
+  leaveCell
+} from './epoxyWorld';
+
+/** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
+export const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
+/** Extra slide delay on force floors, on top of timing.slideCooldownTicks. */
+const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
+
+/** Whether the tile is a force floor that pushes the player, i.e. one the held boots do not cancel. */
+export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition): boolean {
+  return tile.slideType === 'force' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem));
+}
+
+export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: boolean): boolean {
+  const w = ctx.world;
+  w.player.dir = dir;
+  const vec = DIRECTION_VECTORS[dir];
+  const targetX = w.player.x + vec.dx;
+  const targetY = w.player.y + vec.dy;
+
+  if (!isInBounds(w, targetX, targetY)) {
+    AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  const targetTileId = w.terrain[targetY][targetX];
+  const targetTile = ConfigRegistry.getTile(targetTileId);
+
+  if (targetTile.revealsToOnTouch) {
+    w.terrain[targetY][targetX] = targetTile.revealsToOnTouch;
+    w.gridMutatedByMove = true;
+    AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  if (targetTile.requiresAllChips) {
+    if (w.chipsRemaining <= 0) {
+      w.terrain[targetY][targetX] = targetTile.transformsToOnUnlock || FLOOR_TILE_ID;
+      w.gridMutatedByMove = true;
+      AudioManager.playSfx('socket');
+      ctx.emitVisual('unlock', targetX, targetY, 'yellow');
+    } else {
+      w.statusBannerKey = 'hud.messages.socket_locked';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+  }
+
+  if (targetTile.requiredKey) {
+    const keyCount = w.player.keys[targetTile.requiredKey] || 0;
+    if (keyCount > 0) {
+      if (targetTile.consumesKey) {
+        w.player.keys[targetTile.requiredKey] = keyCount - 1;
+      }
+      w.terrain[targetY][targetX] = targetTile.transformsToOnUnlock || FLOOR_TILE_ID;
+      w.gridMutatedByMove = true;
+      AudioManager.playSfx('door');
+      ctx.emitVisual('unlock', targetX, targetY, targetTile.colorKey || 'yellow');
+    } else {
+      if (!fromSlide) AudioManager.playSfx('blocked');
+      return false;
+    }
+  }
+
+  const updatedTargetTile = ConfigRegistry.getTile(w.terrain[targetY][targetX]);
+  if (!canPlayerEnter(w, updatedTargetTile)) {
+    // A barrier against an item the player carries: solid until the item is dropped elsewhere.
+    if (updatedTargetTile.passableByPlayer) w.statusBannerKey = 'hud.messages.forbidden_item';
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  const entityAtTarget = getEntityAt(w, targetX, targetY);
+  if (entityAtTarget) {
+    if (entityAtTarget.kind === 'block') {
+      const pushed = attemptPushBlock(ctx, entityAtTarget, dir);
+      if (!pushed) {
+        if (!fromSlide) AudioManager.playSfx('blocked');
+        return false;
+      }
+    } else if (entityAtTarget.kind === 'monster') {
+      leaveCell(w, w.player.x, w.player.y);
+      w.player.x = targetX;
+      w.player.y = targetY;
+      killPlayer(ctx, 'hud.messages.death_monster', 'death');
+      return true;
+    }
+  }
+
+  leaveCell(w, w.player.x, w.player.y);
+  w.player.x = targetX;
+  w.player.y = targetY;
+  w.statusBannerKey = null;
+
+  if (!fromSlide) {
+    AudioManager.playStep(stepTerrainOf(ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.player.boots));
+  }
+
+  resolvePlayerArrival(ctx, dir, true);
+  return true;
+}
+
+/**
+ * Applies the effects of the cell the player just entered. A teleporter is
+ * resolved first: the player jumps, then the arrival cell (items, thief,
+ * buttons, hazards, exit) is resolved at the destination coordinates.
+ */
+function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTeleport: boolean): void {
+  const w = ctx.world;
+  const x = w.player.x;
+  const y = w.player.y;
+  let tile = ConfigRegistry.getTile(w.terrain[y][x]);
+
+  if (tile.isTeleporter && allowTeleport) {
+    ctx.emitVisual('teleport', x, y);
+    if (teleportPlayer(w, x, y, entryDir)) {
+      ctx.emitVisual('teleport', w.player.x, w.player.y);
+      resolvePlayerArrival(ctx, w.player.dir, false);
+      return;
+    }
+  }
+
+  if (tile.transformsToOnStep) {
+    w.terrain[y][x] = tile.transformsToOnStep;
+    tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  }
+
+  const itemId = w.items[y][x];
+  if (itemId) {
+    const itemDef = ConfigRegistry.getTile(itemId);
+    if (itemDef.hazard === 'bomb') {
+      w.items[y][x] = null;
+      ctx.emitVisual('explosion', x, y, 'red');
+      killPlayer(ctx, 'hud.messages.death_bomb', 'bomb');
+      return;
+    }
+    if (itemDef.collectible === 'chip') {
+      w.items[y][x] = null;
+      w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
+      AudioManager.playSfx('chip');
+      ctx.emitVisual('chip', x, y, 'green');
+    } else if (itemDef.collectible === 'key') {
+      w.items[y][x] = null;
+      w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
+      AudioManager.playSfx('item');
+      ctx.emitVisual('item', x, y, itemDef.colorKey || 'yellow');
+    } else if (itemDef.collectible === 'boot') {
+      w.items[y][x] = null;
+      w.player.boots.add(itemId);
+      AudioManager.playSfx('item');
+      ctx.emitVisual('item', x, y, 'blue');
+    } else if (itemDef.collectible === 'bonus') {
+      w.items[y][x] = null;
+      collectBonus(w, itemDef);
+      AudioManager.playSfx('item');
+      ctx.emitVisual('item', x, y, itemDef.colorKey || 'yellow');
+    }
+  }
+
+  if (tile.stealsBoots && w.player.boots.size > 0) {
+    w.player.boots.clear();
+    w.statusBannerKey = 'hud.messages.thief_stole';
+    AudioManager.playSfx('thief');
+  }
+
+  if (tile.stealsKeys && Object.values(w.player.keys).some((count) => count > 0)) {
+    w.player.keys = {};
+    w.statusBannerKey = 'hud.messages.thief_stole_keys';
+    AudioManager.playSfx('thief');
+  }
+
+  if (tile.buttonAction) {
+    triggerButton(ctx, x, y, tile.buttonAction);
+    if (!w.player.alive) return;
+  }
+
+  w.player.inWater = tile.hazard === 'water';
+  if (tile.hazard === 'water' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
+    ctx.emitVisual('splash', x, y);
+    killPlayer(ctx, 'hud.messages.death_water', 'death');
+    return;
+  }
+  if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
+    ctx.emitVisual('explosion', x, y);
+    killPlayer(ctx, 'hud.messages.death_fire', 'burn');
+    return;
+  }
+
+  if (tile.hazard === 'slime' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
+    ctx.emitVisual('splash', x, y, 'green');
+    killPlayer(ctx, 'hud.messages.death_slime', 'death');
+    return;
+  }
+
+  if (tile.isLevelExit) {
+    ctx.emitVisual('win', x, y);
+    ctx.completeLevel();
+    return;
+  }
+
+  evaluatePlayerSliding(w, tile, entryDir);
+}
+
+/**
+ * Applies a picked up bonus item: flag points join the level score paid at
+ * the exit (where the multiplier applies to them too), a multiplier raises
+ * that score, and a stopwatch moves the time left (an untimed level stays
+ * untimed).
+ */
+function collectBonus(w: EpoxyWorld, itemDef: TileDefinition): void {
+  if (itemDef.scoreBonus) {
+    w.levelBonusPoints += itemDef.scoreBonus;
+    w.statusBannerKey = 'hud.messages.score_bonus_picked';
+  }
+  if (itemDef.scoreMultiplier) {
+    w.levelScoreMultiplier *= itemDef.scoreMultiplier;
+    w.statusBannerKey = 'hud.messages.score_multiplier_picked';
+  }
+  if (itemDef.timeBonusSeconds) {
+    if (w.level.timeLimitSeconds > 0) {
+      w.extraTimeSeconds += itemDef.timeBonusSeconds;
+    }
+    w.statusBannerKey =
+      itemDef.timeBonusSeconds > 0 ? 'hud.messages.time_bonus_picked' : 'hud.messages.time_penalty_picked';
+  }
+}
+
+function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegistry.getTile>, entryDir: Direction): void {
+  if (tile.slideType === 'ice') {
+    if (tile.protectedByItem && w.player.boots.has(tile.protectedByItem)) {
+      w.player.isSliding = false;
+      w.player.slideDir = null;
+      return;
+    }
+    const nextDir = tile.deflectionMap?.[entryDir] || entryDir;
+    w.player.isSliding = true;
+    w.player.slideDir = nextDir;
+    w.player.dir = nextDir;
+    w.player.slideCooldown = ConfigRegistry.getGame().timing.slideCooldownTicks;
+    return;
+  }
+
+  if (tile.slideType === 'force') {
+    if (tile.protectedByItem && w.player.boots.has(tile.protectedByItem)) {
+      w.player.isSliding = false;
+      w.player.slideDir = null;
+      return;
+    }
+    let forceDir: Direction = entryDir;
+    if (tile.forceDirection === 'RANDOM') {
+      forceDir = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
+    } else if (tile.forceDirection) {
+      forceDir = tile.forceDirection;
+    }
+    w.player.isSliding = true;
+    w.player.slideDir = forceDir;
+    w.player.dir = forceDir;
+    w.player.slideCooldown =
+      ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
+    return;
+  }
+
+  w.player.isSliding = false;
+  w.player.slideDir = null;
+}
+
+export function processPlayerSlideStep(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  const dir = w.player.slideDir || w.player.dir;
+  const currentTile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
+
+  const moved = executePlayerMove(ctx, dir, true);
+  if (!moved) {
+    if (currentTile.slideType === 'ice') {
+      const bounceDir = OPPOSITE_DIRECTION[dir];
+      const deflectedBounce = currentTile.deflectionMap?.[bounceDir] || bounceDir;
+      w.player.slideDir = deflectedBounce;
+      w.player.dir = deflectedBounce;
+      const bouncedMoved = executePlayerMove(ctx, deflectedBounce, true);
+      if (!bouncedMoved) {
+        w.player.isSliding = false;
+        w.player.slideDir = null;
+      }
+    } else {
+      w.player.isSliding = false;
+      w.player.slideDir = null;
+    }
+  }
+  ctx.checkTargetsWin();
+}
