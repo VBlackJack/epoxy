@@ -18,6 +18,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
+import pilotLevels from '../../public/configs/pilot-levels.json';
 import { CompiledLevel, LevelBlueprint } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { blockBudgetProblems } from '../test/pilotBlockBudget';
@@ -101,8 +102,13 @@ describe('pilot block budget', () => {
     expect(blockBudgetProblems(missing)).toEqual(['the stored solution does not replay to a win']);
   });
 
-  it('holds for every pilot level that declares a budget', () => {
-    const declared = ConfigRegistry.getPilotLevels().filter((level) => level.blockBudget !== undefined);
-    for (const level of declared) expect({ id: level.id, problems: blockBudgetProblems(level) }).toEqual({ id: level.id, problems: [] });
+  it('holds for every pilot level that declares a budget, and compile keeps each declared budget', () => {
+    const raw = (pilotLevels as { levels: LevelBlueprint[] }).levels.filter((bp) => bp.blockBudget !== undefined);
+    const compiledById = new Map(ConfigRegistry.getPilotLevels().map((level) => [level.id, level]));
+    for (const bp of raw) {
+      const level = compiledById.get(bp.id);
+      expect({ id: bp.id, budget: level?.blockBudget }).toEqual({ id: bp.id, budget: bp.blockBudget });
+      if (level) expect({ id: bp.id, problems: blockBudgetProblems(level) }).toEqual({ id: bp.id, problems: [] });
+    }
   });
 });

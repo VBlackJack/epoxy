@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { ConfigRegistry } from '../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../config/constants';
 import { GameEngine } from '../core/GameEngine';
 import { Direction, UndoSnapshot } from '../core/types';
@@ -49,45 +48,33 @@ export function dropAction(itemId: string): SearchAction {
   return `${DROP_ACTION_PREFIX}${itemId}`;
 }
 
-/** Ticks of the shortest period of any monster of the level: the phase part of a state key. */
-function monsterPeriod(engine: GameEngine): number {
-  let period = 1;
-  for (const e of engine.getEntities()) {
-    const interval = ConfigRegistry.getEntityDef(e.type)?.moveIntervalTicks;
-    if (e.kind === 'monster' && interval && interval > period) period = interval;
-  }
-  return period;
-}
-
 /**
  * Identity of a game state for the exhaustive searches: the player (cell,
- * facing, keys, boots), chips left, every terrain and item cell (so water
- * turned to dirt and dirt turned to floor count), every entity with its
- * position, direction and cooldown (blocks, pink balls and other monsters),
- * and, when a monster moves, the tick phase modulo its period.
+ * facing, cooldown, keys, boots), chips left, every terrain and item cell (so
+ * water turned to dirt and dirt turned to floor count), every entity in its
+ * array order (which sets the update order) with position, direction and
+ * cooldown (blocks, pink balls and other monsters; the cooldowns carry the
+ * tick phase of their moves), and the random generator state, so levels with
+ * random elements are never merged wrongly.
  */
 export function searchStateKey(engine: GameEngine): string {
   const state: UndoSnapshot = engine.captureState();
   const keys = Object.entries(state.player.keys)
     .filter(([, count]) => count > 0)
     .sort(([a], [b]) => a.localeCompare(b));
-  const entities = state.entities
-    .map((e) => [e.type, e.x, e.y, e.dir, e.cooldownTicks, e.isSliding])
-    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  const hasMonster = state.entities.some((e) => e.kind === 'monster');
-  const phase = hasMonster ? state.ticksElapsed % monsterPeriod(engine) : 0;
+  const entities = state.entities.map((e) => [e.type, e.x, e.y, e.dir, e.cooldownTicks, e.isSliding]);
   return JSON.stringify([
     state.player.x,
     state.player.y,
     state.player.dir,
+    state.player.moveCooldown,
     keys,
     [...state.player.boots].sort(),
     state.chipsRemaining,
     state.terrain,
     state.items,
     entities,
-    phase,
-    state.player.moveCooldown
+    state.rngState
   ]);
 }
 

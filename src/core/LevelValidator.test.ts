@@ -345,6 +345,21 @@ describe('LevelValidator', () => {
       expect(keys(grid(['########', '#P.#cE.#', '########'], { entities: [block] }))).not.toContain(HIDDEN);
     });
 
+    it('stays silent for an item behind a water moat, since the block sinks there', () => {
+      expect(keys(grid(['########', '#P.Wc.E#', '########'], { entities: [block] }))).not.toContain(HIDDEN);
+    });
+
+    it('stays silent where the block type refuses the hazard', () => {
+      const mirror: EntityPlacement = { type: 'mirror_slash', x: 2, y: 1, dir: 'S' };
+      expect(keys(grid(['########', '#P.Wc.E#', '########'], { entities: [mirror] }))).not.toContain(HIDDEN);
+    });
+
+    it('ignores a bomb lying in reach, which is not collectible', () => {
+      const level = grid(['#######', '#P.c.E#', '#######'], { entities: [block] });
+      level.items[1][3] = 'bomb';
+      expect(keys(level)).not.toContain(HIDDEN);
+    });
+
     it('stays silent without any block', () => {
       expect(keys(grid(['#######', '#P.cHE#', '#######']))).not.toContain(HIDDEN);
     });
