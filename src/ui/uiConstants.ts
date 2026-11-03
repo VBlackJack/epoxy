@@ -32,6 +32,16 @@ export const DRAWER_ADVANCED_STORAGE_SUFFIX = 'drawer_advanced_open';
 export const DRAWER_ADVANCED_OPEN_VALUE = '1';
 export const DRAWER_ADVANCED_CLOSED_VALUE = '0';
 
+/**
+ * Storage key suffix (under the game prefix) shared by every editor draft; each page appends its own tab id, so
+ * a page only ever writes its own key. The colon keeps keys of earlier, unreleased schemes out of the listing.
+ */
+export const EDITOR_DRAFT_STORAGE_PREFIX = 'editor_draft:';
+/** Quiet time after the last edit before the draft is written. */
+export const EDITOR_DRAFT_WRITE_DELAY_MS = 1500;
+/** Longest draft stored, in characters: measured 225k for a 128x128 Epoxy map and 536k for the largest corpus CC3D map (100x100), so about twice the largest. */
+export const EDITOR_DRAFT_MAX_CHARS = 1_000_000;
+
 /** Delay before an object URL handed to a download link is revoked. */
 export const OBJECT_URL_REVOKE_DELAY_MS = 1000;
 

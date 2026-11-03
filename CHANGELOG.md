@@ -7,6 +7,10 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor draft autosave: unsaved work is kept in the browser while you edit (and when the page is
+  hidden), and the next visit after a crash offers to restore it on top of the stored level, restore it as
+  a new level, discard it or decide later; each tab keeps its own draft, and a warning says when the
+  stored level changed meanwhile.
 - Playtest mode (Options > Advanced, off by default): records per level, on the device only, the
   attempts, deaths, restarts, undos, hints, solution views, active time and move traces, asks for a
   short rating after a win or when a level is left unsolved, and exports one JSON file. See
