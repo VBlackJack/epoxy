@@ -1200,13 +1200,13 @@
     {
       "id": "epoxy_p_23",
       "theme": "cyber_neon",
-      "solution": "EEEEEWEWEWE.SWSWWWWWWWWWSNEEEEEEEEENNWWWWWWWWW",
+      "solution": "EEEEEWEWEWE.SWSWWWWWWWWWEEEEEEEEENNWWWWWWWWW",
       "number": 23,
       "titleKey": "pilot.levels.level_23.title",
       "hintKey": "pilot.levels.level_23.hint",
       "password": "TICK",
       "timeLimitSeconds": 0,
-      "chipsRequired": 2,
+      "chipsRequired": 1,
       "playerStart": {
         "x": 6,
         "y": 1,
@@ -1214,10 +1214,10 @@
       },
       "rows": [
         "################",
-        "#ES.C..H....####",
+        "#ES....H....####",
         "##########..####",
-        "#..............#",
-        "#C##############",
+        "#C.............#",
+        "################",
         "################"
       ],
       "items": [],
@@ -1241,7 +1241,7 @@
     {
       "id": "epoxy_p_24",
       "theme": "cyber_neon",
-      "solution": "WEWWWWWWWWWWWWWWWWWWWWSSWSEEEEEEEEEEEEEEEEE.ESS",
+      "solution": "EWWWWWWWSSWSEEEEEESS",
       "number": 24,
       "titleKey": "pilot.levels.level_24.title",
       "hintKey": "pilot.levels.level_24.hint",
@@ -1249,19 +1249,19 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 0,
       "playerStart": {
-        "x": 26,
+        "x": 12,
         "y": 1,
         "dir": "E"
       },
       "rows": [
-        "##############################",
-        "######g.................H..###",
-        "######.#######################",
-        "#####gg#######################",
-        "###ggg....................####",
-        "#######################.######",
-        "#######################E######",
-        "##############################"
+        "###############",
+        "######....H...#",
+        "######.########",
+        "#####..########",
+        "#####.g.......#",
+        "###########.###",
+        "###########E###",
+        "###############"
       ],
       "items": [],
       "entities": [
@@ -1273,7 +1273,7 @@
         },
         {
           "type": "pink_ball",
-          "x": 16,
+          "x": 10,
           "y": 4,
           "dir": "W"
         }
@@ -1284,7 +1284,7 @@
     {
       "id": "epoxy_p_25",
       "theme": "cyber_neon",
-      "solution": "SWSWSSSSWWWSWNNNENWWWWWWWWNWSSSSSSNNNNNEEEEEEEENNNEESSESWWWWWWWWWEESWWNWSSSNNNNWSSSSSNEESW",
+      "solution": "SWSWSSEESSWWWWWSWNNNENWWWNWWSWWWWSSSSSNNNNNEEEENEESWWWWWNWSSSSSNNNNEEEEEEEENNNEESSESWWWWWWWWWWNWSSSS",
       "number": 25,
       "titleKey": "pilot.levels.level_25.title",
       "hintKey": "pilot.levels.level_25.hint",
@@ -1302,10 +1302,10 @@
         "#..##...#....#H.#",
         "#..##...#......##",
         "#.............###",
-        "#.......#..#....#",
-        "#....#..#..#....#",
-        "#....#..#.......#",
-        "#.......#.......#",
+        "#.#######..#....#",
+        "#.#######..#....#",
+        "#.#######.......#",
+        "#.#######.......#",
         "#.###############",
         "#.###############",
         "#################"
@@ -1337,13 +1337,13 @@
         },
         {
           "type": "dirt_block",
-          "x": 4,
-          "y": 5,
+          "x": 1,
+          "y": 6,
           "dir": "S"
         },
         {
           "type": "dirt_block",
-          "x": 12,
+          "x": 14,
           "y": 7,
           "dir": "S"
         }

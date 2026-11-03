@@ -100,7 +100,7 @@ export function analyseNaturalPlay(engine: GameEngine, plans: readonly NaturalPl
     edges: Edge[];
   }
   const states = new Map<string, State>();
-  const keyOf = (stages: number[], at: number) => `${stages.join('')}@${at}`;
+  const keyOf = (stages: number[], at: number) => `${stages.join(',')}@${at}`;
   const startStages = plans.map(() => 0);
   const startKey = keyOf(startStages, player.y * width + player.x);
   states.set(startKey, { stages: startStages, player: player.y * width + player.x, edges: [] });
