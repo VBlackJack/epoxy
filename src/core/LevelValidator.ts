@@ -571,6 +571,72 @@ export class LevelValidator {
     );
   }
 
+  /**
+   * The cells a block pushed from (x, y) one step in `dir` may reach: the cell
+   * it enters and, when that cell is ice and the block type slides on ice,
+   * every cell its slide passes over (another block in the lane could stop it
+   * on any of them). The slide follows the engine: an ice corner deflects the
+   * direction, the block stops on the first non-ice cell, vanishes in water or
+   * slime (or in fire when the type burns), and when blocked on ice it bounces
+   * back along the lane. Other blocks, the player and the exact slide timing
+   * are ignored, so the result over-approximates. Known limits: force floors
+   * after the ice are not followed, and terrain changed during play (melted or
+   * filled cells) is not modelled. Without ice it is just the entered cell.
+   */
+  private static blockLandings(level: CompiledLevel, type: string, x: number, y: number, dir: Direction): GridPoint[] {
+    const vec = DIRECTION_VECTORS[dir];
+    const entered = { x: x + vec.dx, y: y + vec.dy };
+    const def = ConfigRegistry.getEntityDef(type);
+    const refused = def?.refusesHazards ?? [];
+    const enterTile = ConfigRegistry.getTile(level.terrain[entered.y][entered.x]);
+    if (enterTile.slideType !== 'ice' || !def?.slidesOnIce) return [entered];
+
+    const height = level.terrain.length;
+    const width = level.terrain[0]?.length ?? 0;
+    const canEnter = (fx: number, fy: number, d: Direction): GridPoint | null => {
+      const v = DIRECTION_VECTORS[d];
+      const tx = fx + v.dx;
+      const ty = fy + v.dy;
+      if (tx < 0 || ty < 0 || tx >= width || ty >= height) return null;
+      const dest = ConfigRegistry.getTile(level.terrain[ty][tx]);
+      if (dest.passableByBlock !== true) return null;
+      if (dest.hazard && refused.includes(dest.hazard)) return null;
+      if (this.isEdgeBlocked(level.terrain[fy][fx], level.terrain[ty][tx], d)) return null;
+      return { x: tx, y: ty };
+    };
+
+    const landings: GridPoint[] = [];
+    const visited = new Set<string>();
+    let cur = entered;
+    let heading: Direction = enterTile.deflectionMap?.[dir] ?? dir;
+    for (;;) {
+      landings.push(cur);
+      const tile = ConfigRegistry.getTile(level.terrain[cur.y][cur.x]);
+      // A block that sank or dissolved rests nowhere further on; fire only destroys the types that burn.
+      if (tile.hazard === 'water' || tile.hazard === 'slime') break;
+      if (tile.hazard === 'fire' && def?.destroyedByFire) break;
+      if (tile.slideType !== 'ice') break;
+      const key = `${cur.x},${cur.y},${heading}`;
+      if (visited.has(key)) break;
+      visited.add(key);
+      const next = canEnter(cur.x, cur.y, heading);
+      if (next) {
+        cur = next;
+        const nextTile = ConfigRegistry.getTile(level.terrain[cur.y][cur.x]);
+        if (nextTile.slideType === 'ice') heading = nextTile.deflectionMap?.[heading] ?? heading;
+        continue;
+      }
+      const bounce = tile.deflectionMap?.[OPPOSITE_DIRECTION[heading]] ?? OPPOSITE_DIRECTION[heading];
+      const back = canEnter(cur.x, cur.y, bounce);
+      if (!back) break;
+      cur = back;
+      heading = bounce;
+      const backTile = ConfigRegistry.getTile(level.terrain[cur.y][cur.x]);
+      if (backTile.slideType === 'ice') heading = backTile.deflectionMap?.[heading] ?? heading;
+    }
+    return landings;
+  }
+
   private static checkHiddenByBlocks(level: CompiledLevel, issues: ValidationIssue[]): void {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length ?? 0;
@@ -592,13 +658,14 @@ export class LevelValidator {
       for (let head = 0; head < queue.length; head++) {
         const { x, y } = queue[head];
         const here = ConfigRegistry.getTile(level.terrain[y][x]);
-        // A block that sank in water is gone: nothing is pushed on from there.
-        if (here.hazard === 'water') continue;
+        // A block that sank, dissolved or burned is gone: nothing is pushed on from there.
+        if (here.hazard === 'water' || here.hazard === 'slime') continue;
+        if (here.hazard === 'fire' && ConfigRegistry.getEntityDef(type)?.destroyedByFire) continue;
         for (const dir of ORDERED_DIRECTIONS) {
           const vec = DIRECTION_VECTORS[dir];
           const nx = x + vec.dx;
           const ny = y + vec.dy;
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen[ny * width + nx]) continue;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
           const dest = ConfigRegistry.getTile(level.terrain[ny][nx]);
           if (dest.passableByBlock !== true) continue;
           if (dest.hazard && refused.includes(dest.hazard)) continue;
@@ -608,8 +675,11 @@ export class LevelValidator {
           const py = y - vec.dy;
           if (px < 0 || py < 0 || px >= width || py >= height) continue;
           if (this.isSolidForPusher(level.terrain[py][px])) continue;
-          seen[ny * width + nx] = 1;
-          queue.push({ x: nx, y: ny });
+          for (const cell of this.blockLandings(level, type, x, y, dir)) {
+            if (seen[cell.y * width + cell.x]) continue;
+            seen[cell.y * width + cell.x] = 1;
+            queue.push(cell);
+          }
         }
       }
       for (let i = 0; i < seen.length; i++) if (seen[i]) reached[i] = 1;
