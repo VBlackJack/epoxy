@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
@@ -64,5 +66,38 @@ describe('campaign chapters config', () => {
 
   it('refuses a malformed chapter list', () => {
     expect(findCampaignConfigErrors({ chapters: 'oops' } as never, [])).toEqual(['chapters: expected a list']);
+  });
+});
+
+describe('campaign chapters at load time', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** Serves the shipped configs from disk, except the files named in `missing`, which answer 404. */
+  function stubFetch(missing: string[]): void {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined, removeItem: () => undefined });
+    vi.stubGlobal('fetch', async (url: string) => {
+      const file = url.split('/').pop() ?? '';
+      if (missing.includes(file)) return { ok: false, status: 404, json: async () => ({}) };
+      const path = resolve(__dirname, '../../public/configs', file);
+      return { ok: true, status: 200, json: async () => JSON.parse(readFileSync(path, 'utf-8')) };
+    });
+  }
+
+  it('loads the game without campaign.json and lists no chapters', async () => {
+    stubFetch(['campaign.json']);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await ConfigRegistry.loadAll();
+    expect(ConfigRegistry.getCampaignChapters()).toEqual([]);
+    expect(ConfigRegistry.getLevels().length).toBeGreaterThan(0);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('loads the chapters when campaign.json is served', async () => {
+    stubFetch([]);
+    await ConfigRegistry.loadAll();
+    expect(ConfigRegistry.getCampaignChapters().length).toBeGreaterThan(0);
   });
 });

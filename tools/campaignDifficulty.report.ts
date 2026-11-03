@@ -327,7 +327,11 @@ it('writes the campaign difficulty report', { timeout: GENERATION_TIMEOUT_MS }, 
     // Chapters live in public/configs/campaign.json, by level id; the tables below group by level number.
     chapters: ConfigRegistry.getCampaignChapters().map((chapter) => ({
       titleKey: chapter.titleKey,
-      levels: chapter.levels.map((id) => numberOf.get(id) as number)
+      levels: chapter.levels.map((id) => {
+        const number = numberOf.get(id);
+        if (number === undefined) throw new Error(`campaign.json names an unknown level: ${id}`);
+        return number;
+      })
     }))
   };
   const endless = measureEndless();

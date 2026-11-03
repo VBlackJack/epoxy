@@ -22,7 +22,13 @@ vi.mock('../i18n/I18nManager', () => ({
     params ? `${key}?${Object.entries(params).map(([k, v]) => `${k}=${String(v)}`).join('&')}` : key
 }));
 
-import { chapterBannerText, chapterOfLevel, chapterOpenedBy, groupLevelsByChapter } from './campaignChapters';
+import {
+  chapterBannerText,
+  chapterOfLevel,
+  chapterOpenedBy,
+  chapterToAnnounce,
+  groupLevelsByChapter
+} from './campaignChapters';
 
 const CHAPTERS: CampaignChapter[] = [
   { id: 'one', titleKey: 'c.1.t', subtitleKey: 'c.1.s', levels: ['a', 'b', 'c'] },
@@ -76,6 +82,13 @@ describe('chapter lookups', () => {
   it('knows which level opens a chapter', () => {
     expect(chapterOpenedBy(CHAPTERS, 'd')).toEqual({ chapter: CHAPTERS[1], position: 2 });
     expect(chapterOpenedBy(CHAPTERS, 'e')).toBeUndefined();
+  });
+
+  it('announces a chapter only on finishing the previous level or on a first run', () => {
+    expect(chapterToAnnounce(CHAPTERS, 'd', 'finished-previous')?.position).toBe(2);
+    expect(chapterToAnnounce(CHAPTERS, 'a', 'first-run')?.position).toBe(1);
+    expect(chapterToAnnounce(CHAPTERS, 'd', 'other')).toBeUndefined();
+    expect(chapterToAnnounce(CHAPTERS, 'e', 'finished-previous')).toBeUndefined();
   });
 
   it('builds the banner from the position and both keys', () => {

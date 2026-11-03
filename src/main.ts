@@ -41,7 +41,8 @@ import { timedSolution } from './generator/SolutionReplay';
 import {
   chapterBannerText,
   chapterOfLevel,
-  chapterOpenedBy,
+  chapterToAnnounce,
+  ChapterArrival,
   groupLevelsByChapter,
   renderChapterView
 } from './ui/campaignChapters';
@@ -315,7 +316,7 @@ class EpoxyApplication {
     // Read before the first level starts: starting a level writes the save slot.
     const hadSavedProgress = this.hasSavedProgress();
     this.restoreSavedProgress();
-    this.startLevelByIndex(this.currentLevelIndex);
+    this.startLevelByIndex(this.currentLevelIndex, true, hadSavedProgress ? 'other' : 'first-run');
 
     this.bindUIEvents();
     this.bindTouchGestures();
@@ -1852,11 +1853,14 @@ class EpoxyApplication {
     return tier ? t(keyOf(tier)) : '';
   }
 
-  /** Starts a level; `announce` is false when a replay is about to play it. */
   /** Chapters stay open while a search or filter is active, so no match hides in a closed one. */
   private scoresChaptersForcedOpen = false;
 
-  private startLevelByIndex(index: number, announce: boolean = true): void {
+  /**
+   * Starts a level; `announce` is false when a replay is about to play it.
+   * `arrival` says how the player got here, which decides whether a chapter banner shows.
+   */
+  private startLevelByIndex(index: number, announce: boolean = true, arrival: ChapterArrival = 'other'): void {
     const levels = ConfigRegistry.getLevels();
     if (levels.length === 0) return;
     this.stopAutoMoveAndReplay();
@@ -1879,16 +1883,16 @@ class EpoxyApplication {
     this.saveProgress();
     this.updateHUD();
     const objective = this.objectiveMessage();
-    const chapterStart = this.chapterBannerFor(levels[this.currentLevelIndex]);
+    const chapterStart = this.chapterBannerFor(levels[this.currentLevelIndex], arrival);
     if (announce && (objective || chapterStart)) this.showTransientStatus(combineStatusMessages(chapterStart, objective));
     this.noteEndlessLevelReached(levels[this.currentLevelIndex]);
     this.prefetchNextEndlessLevel();
   }
 
   /** The chapter banner when the level opens a campaign chapter, otherwise null. */
-  private chapterBannerFor(level: CompiledLevel): string | null {
+  private chapterBannerFor(level: CompiledLevel, arrival: ChapterArrival): string | null {
     if (ConfigRegistry.getActivePackId() !== BUILTIN_PACK_IDS.CAMPAIGN || this.isEndlessActive()) return null;
-    const opened = chapterOpenedBy(ConfigRegistry.getCampaignChapters(), level.id);
+    const opened = chapterToAnnounce(ConfigRegistry.getCampaignChapters(), level.id, arrival);
     return opened ? chapterBannerText(opened.chapter, opened.position) : null;
   }
 
@@ -1918,7 +1922,7 @@ class EpoxyApplication {
     const levels = ConfigRegistry.getLevels();
     const wraps = this.isOnLastLevel();
     const wrapped = wraps && levels.length > 0;
-    this.startLevelByIndex(this.currentLevelIndex + 1, !wrapped);
+    this.startLevelByIndex(this.currentLevelIndex + 1, !wrapped, 'finished-previous');
     if (wrapped) {
       this.showTransientStatus(
         combineStatusMessages(

@@ -191,7 +191,7 @@ class ConfigRegistryService {
       this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS, REQUIRED_CONFIG_KEYS.MONSTERS),
       this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
-      this.fetchJson<CampaignConfig>(CONFIG_ENDPOINTS.CAMPAIGN, REQUIRED_CONFIG_KEYS.CAMPAIGN),
+      this.fetchOptionalCampaign(),
       this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT),
       this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS),
       this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
@@ -324,6 +324,16 @@ class ConfigRegistryService {
         (orderMap.get(a.id) ?? UNORDERED_PACK_RANK) - (orderMap.get(b.id) ?? UNORDERED_PACK_RANK)
     );
     return loaded;
+  }
+
+  /** The chapter list is optional: without it the game loads and the campaign shows as a flat list. */
+  private async fetchOptionalCampaign(): Promise<CampaignConfig> {
+    try {
+      return await this.fetchJson<CampaignConfig>(CONFIG_ENDPOINTS.CAMPAIGN, REQUIRED_CONFIG_KEYS.CAMPAIGN);
+    } catch (err) {
+      console.warn(`Campaign chapters unavailable, the levels are listed without chapters: ${String(err)}`);
+      return { chapters: [] };
+    }
   }
 
   private async fetchJson<T>(url: string, requiredKeys: readonly string[]): Promise<T> {

@@ -81,6 +81,21 @@ export function chapterOpenedBy(
   return at < 0 ? undefined : { chapter: chapters[at], position: at + 1 };
 }
 
+/**
+ * How the player reached a level: by finishing the one before it, by starting a
+ * fresh game, or any other way (reload, Previous, the Levels dialog, a password).
+ */
+export type ChapterArrival = 'finished-previous' | 'first-run' | 'other';
+
+/** The chapter whose banner to show on arriving at a level, if any: only for a chapter's first level, never for 'other'. */
+export function chapterToAnnounce(
+  chapters: readonly CampaignChapter[],
+  levelId: string,
+  arrival: ChapterArrival
+): { chapter: CampaignChapter; position: number } | undefined {
+  return arrival === 'other' ? undefined : chapterOpenedBy(chapters, levelId);
+}
+
 /** The banner shown when a chapter begins. */
 export function chapterBannerText(chapter: CampaignChapter, position: number): string {
   return t('campaign.chapter_banner.label', {
@@ -172,13 +187,13 @@ function buildChip<L>(group: ChapterGroup<L>, host: HTMLElement): HTMLButtonElem
     total: group.total
   });
   chip.title = label;
-  chip.setAttribute('aria-label', label);
   chip.addEventListener('click', () => {
     const target = Array.from(host.querySelectorAll<HTMLDetailsElement>(`details[${CHAPTER_ID_ATTRIBUTE}]`)).find(
       (details) => details.getAttribute(CHAPTER_ID_ATTRIBUTE) === group.chapter.id
     );
     if (!target) return;
     target.open = true;
+    target.querySelector('summary')?.focus();
     target.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() });
   });
   return chip;

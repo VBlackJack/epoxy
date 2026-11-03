@@ -132,10 +132,12 @@ describe('chapter view (DOM)', () => {
     render({ current: 'one' });
     const chips = Array.from(strip.querySelectorAll('button'));
     expect(chips.map((b) => b.textContent)).toEqual(['1: 1/2', '2: 1/2']);
-    expect(chips[1].getAttribute('aria-label')).toBe('hud.scores_modal.chapter_chip.label?title=c.2.t&solved=1&total=2');
+    expect(chips[1].hasAttribute('aria-label')).toBe(false);
+    expect(chips[1].title).toBe('hud.scores_modal.chapter_chip.label?title=c.2.t&solved=1&total=2');
     expect(details()[1].open).toBe(false);
     chips[1].click();
     expect(details()[1].open).toBe(true);
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(details()[1].querySelector('summary'));
   });
 });
