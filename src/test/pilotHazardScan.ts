@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../config/constants';
 import { OPPOSITE_DIRECTION } from '../core/coreConstants';
-import { isEdgeBlockedBetween } from '../core/EdgeRules';
+import { cellEdgeMask, isEdgeBlockedAt } from '../core/EdgeRules';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, RuntimeEntity, UndoSnapshot } from '../core/types';
 import { WAIT_ACTION } from '../generator/PieceSolver';
@@ -106,7 +106,7 @@ function blockCanEnter(engine: GameEngine, block: RuntimeEntity, dir: Direction)
   const y = block.y + vec.dy;
   const terrain = engine.getTerrain();
   if (y < 0 || y >= terrain.length || x < 0 || x >= terrain[0].length) return false;
-  if (isEdgeBlockedBetween(terrain[block.y][block.x], terrain[y][x], dir)) return false;
+  if (isEdgeBlockedAt(terrain, cellEdgeMask(engine.getLevel()), block.x, block.y, x, y, dir)) return false;
   const tile = ConfigRegistry.getTile(terrain[y][x]);
   if (!tile.passableByBlock) return false;
   if (tile.hazard && ConfigRegistry.getEntityDef(block.type)?.refusesHazards?.includes(tile.hazard)) return false;

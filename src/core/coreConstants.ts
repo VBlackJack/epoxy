@@ -109,3 +109,14 @@ const CHANNEL_OF_BUTTON_ACTION: Readonly<Partial<Record<ButtonAction, ChannelCol
 export function channelOfButtonAction(action: ButtonAction | undefined): ChannelColor | undefined {
   return action === undefined ? undefined : CHANNEL_OF_BUTTON_ACTION[action];
 }
+
+/** Bit of each side in the mask of a level's cell edges (see cellEdgeMask). */
+export const CELL_EDGE_BITS: Readonly<Record<Direction, number>> = {
+  N: 1,
+  E: 2,
+  S: 4,
+  W: 8
+};
+
+/** Order in which the sides of a cell edge are stored and listed. */
+export const CELL_EDGE_SIDE_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];

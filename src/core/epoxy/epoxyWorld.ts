@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { BLOCK_TARGET_TILE_ID } from '../coreConstants';
-import { isEdgeBlockedBetween } from '../EdgeRules';
+import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import {
   BeamCell,
@@ -62,6 +62,8 @@ export interface EpoxyWorld {
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
   player: PlayerState;
+  /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask); static, null when none. */
+  edgeMask: Uint8Array | null;
 
   chipsRemaining: number;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
@@ -127,6 +129,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     trapLinks: [],
     cloneLinks: [],
     player: undefined as unknown as PlayerState,
+    edgeMask: null,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
     levelBonusPoints: 0,
@@ -154,6 +157,7 @@ export function createEpoxyWorld(): EpoxyWorld {
 }
 
 export function buildLevelLookups(w: EpoxyWorld): void {
+  w.edgeMask = cellEdgeMask(w.level);
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
     const key = cellKey(link.trapX, link.trapY);
@@ -210,7 +214,7 @@ export function isEdgeBlocked(
   toY: number,
   dir: Direction
 ): boolean {
-  return isEdgeBlockedBetween(w.terrain[fromY][fromX], w.terrain[toY][toX], dir);
+  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir);
 }
 
 /**

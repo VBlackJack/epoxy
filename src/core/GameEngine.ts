@@ -16,7 +16,12 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { AudioManager } from '../audio/AudioManager';
-import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, OPPOSITE_DIRECTION } from './coreConstants';
+import {
+  CELL_EDGE_BITS,
+  CELL_EDGE_SIDE_ORDER,
+  DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+  OPPOSITE_DIRECTION
+} from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
 import { updateEntities } from './epoxy/epoxyMonsters';
 import {
@@ -55,10 +60,17 @@ import {
   UndoSnapshot
 } from './types';
 
+/** The panels of a level without cell edges. */
+const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
+
 export class GameEngine {
   /** The play state of the loaded level, shared with the engine modules. */
   private readonly w: EpoxyWorld = createEpoxyWorld();
   private readonly ctx: EpoxyContext;
+
+  /** The panels built from this mask; rebuilt when a level with other cell edges loads. */
+  private panelsMask: Uint8Array | null = null;
+  private panelsView: ReadonlyMap<number, readonly Direction[]> = NO_PANELS;
 
   private ticksElapsed: number = 0;
   private stepsCount: number = 0;
@@ -570,6 +582,24 @@ export class GameEngine {
 
   public isCellClosedTrap(tx: number, ty: number): boolean {
     return isCellClosedTrap(this.w, tx, ty);
+  }
+
+  /**
+   * The thin wall sides of the cells that carry cell edges, by cell index (y * width + x). Static for
+   * the level; empty when it has none. The map is shared: do not mutate it.
+   */
+  public getPanels(): ReadonlyMap<number, readonly Direction[]> {
+    const mask = this.w.edgeMask;
+    if (mask === null) return NO_PANELS;
+    if (this.panelsMask !== mask) {
+      const panels = new Map<number, readonly Direction[]>();
+      mask.forEach((bits, index) => {
+        if (bits !== 0) panels.set(index, CELL_EDGE_SIDE_ORDER.filter((side) => (bits & CELL_EDGE_BITS[side]) !== 0));
+      });
+      this.panelsMask = mask;
+      this.panelsView = panels;
+    }
+    return this.panelsView;
   }
 
   /**
