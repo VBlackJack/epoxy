@@ -135,6 +135,35 @@ export const EDITOR_SELECTION_DASH: readonly number[] = [6, 4];
 export const EDITOR_SELECTION_DIM_COLOR = 'rgba(0, 0, 0, 0.35)';
 /** Opacity of the floating paste preview and of the outline of a selection being dragged. */
 export const EDITOR_PASTE_PREVIEW_ALPHA = 0.65;
+/** CC3D editing: colours of the link overlay arrows, by kind of link. */
+export const EDITOR_CC3D_LINK_COLORS = {
+  trap: '#ffb300',
+  teleport: '#00e5ff',
+  clone: '#ff1744',
+  template: '#ff80ab',
+  laser: '#76ff03',
+  group: '#ffffff'
+} as const;
+/** CC3D link overlay: arrow head length and half-width as a share of the tile, and the badge radius. */
+export const EDITOR_CC3D_ARROW_HEAD_TILE = 0.3;
+export const EDITOR_CC3D_ARROW_HEAD_SPREAD = 0.5;
+export const EDITOR_CC3D_BADGE_RADIUS_TILE = 0.18;
+/** CC3D link overlay: opacity of the arrows and of the highlighted group cells. */
+export const EDITOR_CC3D_OVERLAY_ALPHA = 0.9;
+/** CC3D editing: swatch colours of the colour chooser. */
+export const EDITOR_CC3D_SWATCH_COLORS = {
+  red: '#e53935',
+  green: '#43a047',
+  blue: '#1e88e5',
+  yellow: '#fdd835'
+} as const;
+/** CC3D thin wall mode: line width of the bar that shows the side a click toggles. */
+export const EDITOR_CC3D_SIDE_HINT_LINE_WIDTH = 4;
+/** Most link changes the status line spells out after one edit; the rest are counted. */
+export const EDITOR_CC3D_MAX_LINK_MESSAGES = 3;
+/** Size of the "Empty CC3D room" the New dialog offers, in cells. */
+export const EDITOR_CC3D_ROOM_WIDTH = 16;
+export const EDITOR_CC3D_ROOM_HEIGHT = 12;
 /** Zoom shown as a percentage of the base tile size. */
 export const EDITOR_PERCENT_BASE = 100;
 /** Pack-manager level row: the buttons whose focus is restored after the list is redrawn. */

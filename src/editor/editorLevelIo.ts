@@ -26,7 +26,7 @@ import { cloneMap, displayLayersOf, type EditorDocument, type EditorMetadata } f
 
 /** The title and hint shown in the form when a level was opened (already translated). */
 /** The ruleset whose levels are held as cc3d data. */
-const CC3D_RULESET = 'cc3d';
+export const CC3D_RULESET = 'cc3d';
 
 export interface DocumentTexts {
   title: string;
@@ -68,11 +68,14 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
 }
 
 /**
- * The metadata the form read, with what a CC3D document cannot change put back: its ruleset stays cc3d
- * (the Epoxy rules the laser content or the win rule would force do not apply to it).
+ * The metadata the form read, with what the engine of the document forbids put back: a CC3D document
+ * keeps its cc3d ruleset (the Epoxy rules the laser content or the win rule would force do not apply to
+ * it), and any other document keeps its own ruleset when the form names cc3d.
  */
 export function metadataForDocument(doc: EditorDocument, next: EditorMetadata): EditorMetadata {
-  return doc.cc3d ? { ...next, ruleset: doc.ruleset } : next;
+  if (doc.cc3d) return { ...next, ruleset: doc.ruleset };
+  // No other level takes the cc3d engine from the form: it would have no cc3d data to play.
+  return next.ruleset === CC3D_RULESET ? { ...next, ruleset: doc.ruleset } : next;
 }
 
 /**

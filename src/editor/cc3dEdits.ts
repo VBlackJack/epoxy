@@ -134,6 +134,17 @@ export function eraseTop(level: Cc3dLevel, x: number, y: number): Cc3dLevel {
   return withCell(level, x, y, { ...cell, terrain });
 }
 
+/**
+ * Removes one layer of a cell's stack by its position. Removing the base leaves plain floor in its place
+ * (a stack is never empty); the layers above stay.
+ */
+export function removeLayerAt(level: Cc3dLevel, x: number, y: number, index: number): Cc3dLevel {
+  const cell = cellAt(level, x, y);
+  if (!cell || !Number.isInteger(index) || index < 0 || index >= cell.terrain.length) return level;
+  const terrain = index === 0 ? [{ kind: 'floor' as const }, ...cell.terrain.slice(1)] : cell.terrain.filter((_, i) => i !== index);
+  return withCell(level, x, y, { ...cell, terrain });
+}
+
 /** Resets a cell to bare floor: no layer, no thin wall, no item. A mob standing on it is removed too. */
 export function eraseCell(level: Cc3dLevel, x: number, y: number): Cc3dLevel {
   if (!inside(level, x, y)) return level;
@@ -168,6 +179,13 @@ export function setPanelSide(level: Cc3dLevel, x: number, y: number, side: Direc
   else wanted.delete(side);
   const panels = ORDERED_DIRECTIONS.filter((d) => wanted.has(d));
   return withCell(level, x, y, { ...cell, panels });
+}
+
+/** Opens every side of a cell: no thin wall is left on it. */
+export function clearPanels(level: Cc3dLevel, x: number, y: number): Cc3dLevel {
+  const cell = cellAt(level, x, y);
+  if (!cell) return level;
+  return withCell(level, x, y, { ...cell, panels: [] });
 }
 
 /** Moves the player start, facing `dir` (the current facing, else west, when omitted). Outside the grid or onto a mob is refused. */
