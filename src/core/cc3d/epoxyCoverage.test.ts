@@ -1,0 +1,204 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Unit tests of the Epoxy coverage classifier. The corpus report at the end is optional: it runs only when
+ * CC3D_CORPUS_DIR names a directory of level files (the data stays outside the repository) and writes to the
+ * file named by CC3D_COVERAGE_REPORT. Ids and counts only, no level content.
+ */
+
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { CC3D_XML_EXTENSION, decodeCc3dFiles } from '../../formats/Cc3dXmlCodec';
+import { cc3dModel, stacked, terrain } from './cc3dTestMaps';
+import { classifyLevel, elementKeys, EPOXY_COVERAGE, stackedPairs } from './epoxyCoverage';
+import type { CoverageLevel } from './epoxyCoverage';
+import { CC3D_COLORS, CC3D_ITEM_KINDS, CC3D_MOB_KINDS } from './model';
+import type { Cc3dColor, Cc3dItemKind, Cc3dMobKind, Cc3dTerrainKind } from './model';
+
+const TERRAIN_KINDS: Record<Cc3dTerrainKind, true> = {
+  floor: true, wall: true, water: true, fire: true, ice: true, ice_corner: true, force: true, force_random: true,
+  exit: true, socket: true, socket_red: true, slime: true, turtle: true, dirt: true, gravel: true, sand: true,
+  teleport_blue: true, teleport_red: true, push_up_wall: true, appearing_wall: true, false_wall: true, door: true,
+  toggle_door: true, toggle_control: true, hold_door: true, plate: true, trap: true, trap_control: true,
+  clone_machine: true, clone_switch: true, golem_control_blue: true, golem_control_yellow: true,
+  laser_controller: true, bomb: true, gate_tools: true, gate_keys: true
+};
+const COLORED_TERRAIN_KINDS: readonly Cc3dTerrainKind[] = ['plate', 'hold_door', 'toggle_door', 'toggle_control'];
+const TOP_N_STACKS = 30;
+const SAMPLE_COLOR: Cc3dColor = 'red';
+
+function levelOf(rows: string[], glyphs: Parameters<typeof cc3dModel>[1] = {}) {
+  return cc3dModel(rows, glyphs);
+}
+
+describe('epoxy coverage table', () => {
+  it('has an entry for every terrain, item and mob kind, with each colour that matters', () => {
+    const missing: string[] = [];
+    const check = (key: string) => {
+      if (!EPOXY_COVERAGE[key]) missing.push(key);
+    };
+    for (const kind of Object.keys(TERRAIN_KINDS) as Cc3dTerrainKind[]) {
+      if (COLORED_TERRAIN_KINDS.includes(kind)) for (const color of CC3D_COLORS) check(`${kind}_${color}`);
+      else check(kind);
+    }
+    const itemKinds: Cc3dItemKind[] = CC3D_ITEM_KINDS;
+    for (const kind of itemKinds) check(kind);
+    const mobKinds: Array<Exclude<Cc3dMobKind, 'shot'>> = CC3D_MOB_KINDS;
+    for (const kind of mobKinds) {
+      if (kind === 'block_color') for (const color of CC3D_COLORS) check(`${kind}_${color}`);
+      else check(kind);
+    }
+    check('stacked_terrain');
+    check('panels_on_nonfloor');
+    expect(missing).toEqual([]);
+  });
+
+  it('gives every entry a level and a reason', () => {
+    const levels: CoverageLevel[] = ['exact', 'approx', 'lost'];
+    for (const found of Object.values(EPOXY_COVERAGE)) {
+      expect(levels).toContain(found.level);
+      expect(found.reason.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('classifyLevel', () => {
+  it('calls a level of exact elements exact', () => {
+    const result = classifyLevel(levelOf(['#####', '#@.X#', '#####']));
+    expect(result).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
+  it('keeps door and key exact whatever their colour', () => {
+    const result = classifyLevel(levelOf(['######', '#@r1X#', '######']));
+    expect(result.verdict).toBe('exact');
+  });
+
+  it('calls a level with a water cell approx', () => {
+    const result = classifyLevel(levelOf(['#####', '#@WX#', '#####']));
+    expect(result).toEqual({ verdict: 'approx', lost: [], approx: ['water'] });
+  });
+
+  it('calls a level with sand lost, and lists approx elements beside it', () => {
+    const result = classifyLevel(levelOf(['######', '#@AWX#', '######']));
+    expect(result.verdict).toBe('lost');
+    expect(result.lost).toEqual(['sand']);
+    expect(result.approx).toEqual(['water']);
+  });
+
+  it('separates the colours of a colour block, a plate and a toggle door', () => {
+    const glyphs = {
+      B: { stack: [{ kind: 'floor' as const }, { kind: 'plate' as const, color: 'blue' as const }] },
+      R: { stack: [{ kind: 'floor' as const }, { kind: 'toggle_door' as const, color: 'red' as const, open: false }] }
+    };
+    const result = classifyLevel(levelOf(['#####', '#@BR#', '#####'], glyphs));
+    expect(result.lost).toEqual(['plate_blue', 'toggle_door_red']);
+    const green = classifyLevel(levelOf(['#####', '#@J.#', '#####']));
+    expect(green.verdict).toBe('exact');
+    const colorBlock = classifyLevel(levelOf(['####', '#@C#', '####']));
+    expect(colorBlock.lost).toEqual(['block_color_blue']);
+  });
+
+  it('detects a cell with two devices or blockers as stacked terrain', () => {
+    const glyphs = { S: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'door', color: 'red' }) };
+    const level = levelOf(['####', '#@S#', '####'], glyphs);
+    expect(elementKeys(level).has('stacked_terrain')).toBe(true);
+    expect(classifyLevel(level).lost).toEqual(['stacked_terrain']);
+    expect(elementKeys(levelOf(['####', '#@O#', '####'])).has('stacked_terrain')).toBe(false);
+  });
+
+  it('flags panels on water but not panels on plain floor', () => {
+    const onWater = levelOf(['####', '#@W#', '####'], { W: { stack: [{ kind: 'water' }], panels: ['N'] } });
+    expect(classifyLevel(onWater).lost).toEqual(['panels_on_nonfloor']);
+    const onFloor = levelOf(['####', '#@.#', '####'], { '.': { stack: [{ kind: 'floor' }], panels: ['N'] } });
+    expect(classifyLevel(onFloor).verdict).toBe('exact');
+  });
+
+  it('throws on a kind the table does not know', () => {
+    const level = levelOf(['###', '#@#', '###']);
+    level.cells[4] = { terrain: [{ kind: 'lava' as unknown as Cc3dTerrainKind }], panels: [], item: null };
+    expect(() => classifyLevel(level)).toThrow(/lava/);
+  });
+
+  it('throws on a coloured plate without a colour', () => {
+    const level = levelOf(['###', '#@#', '###'], { '@': terrain('plate') });
+    expect(() => elementKeys(level)).toThrow(/no colour/);
+  });
+});
+
+describe('stackedPairs', () => {
+  it('counts the stacks bottom to top with colours', () => {
+    const glyphs = {
+      S: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'door', color: SAMPLE_COLOR }),
+      T: stacked({ kind: 'water' }, { kind: 'trap' }, { kind: 'wall' })
+    };
+    const level = levelOf(['#####', '#@SS#', '#TS.#', '#####'], glyphs);
+    const pairs = stackedPairs(level);
+    expect(pairs.get('bomb+door')).toBe(3);
+    expect(pairs.get('trap+wall')).toBe(1);
+    expect(pairs.size).toBe(2);
+  });
+});
+
+const CORPUS_DIR = process.env.CC3D_CORPUS_DIR;
+const REPORT_FILE = process.env.CC3D_COVERAGE_REPORT;
+const CORPUS_TIMEOUT_MS = 120_000;
+
+describe.skipIf(!CORPUS_DIR)('epoxy coverage corpus report', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('classifies every level and writes the report', { timeout: CORPUS_TIMEOUT_MS }, () => {
+    const dir = CORPUS_DIR as string;
+    const files = readdirSync(dir)
+      .filter((name) => name.toLowerCase().endsWith(CC3D_XML_EXTENSION))
+      .map((name) => ({ name, bytes: new Uint8Array(readFileSync(join(dir, name))) }));
+    const { levels, failures } = decodeCc3dFiles(files, 'corpus');
+    expect(failures).toEqual([]);
+
+    const perVerdict: Record<CoverageLevel, number> = { exact: 0, approx: 0, lost: 0 };
+    const lostAlone: Record<string, number> = {};
+    const lostUsed: Record<string, number> = {};
+    const stackMaps: Record<string, number> = {};
+    const stackCells: Record<string, number> = {};
+    for (const compiled of levels) {
+      const cc3d = compiled.cc3d;
+      if (!cc3d) throw new Error(`${compiled.id} has no cc3d data`);
+      const result = classifyLevel(cc3d);
+      perVerdict[result.verdict] += 1;
+      for (const key of result.lost) lostUsed[key] = (lostUsed[key] ?? 0) + 1;
+      if (result.lost.length === 1) lostAlone[result.lost[0]] = (lostAlone[result.lost[0]] ?? 0) + 1;
+      for (const [pair, count] of stackedPairs(cc3d)) {
+        stackCells[pair] = (stackCells[pair] ?? 0) + count;
+        stackMaps[pair] = (stackMaps[pair] ?? 0) + 1;
+      }
+    }
+    const lost = Object.keys(lostUsed)
+      .map((key) => ({ key, mapsWonIfFixedAlone: lostAlone[key] ?? 0, mapsUsing: lostUsed[key] }))
+      .sort((a, b) => b.mapsWonIfFixedAlone - a.mapsWonIfFixedAlone || b.mapsUsing - a.mapsUsing || a.key.localeCompare(b.key));
+    const topStacks = Object.keys(stackCells)
+      .map((pair) => ({ pair, cells: stackCells[pair], maps: stackMaps[pair] }))
+      .sort((a, b) => b.cells - a.cells || a.pair.localeCompare(b.pair))
+      .slice(0, TOP_N_STACKS);
+    const report = { maps: levels.length, perVerdict, lost, topStacks };
+    expect(perVerdict.exact + perVerdict.approx + perVerdict.lost).toBe(levels.length);
+    if (REPORT_FILE) writeFileSync(REPORT_FILE, JSON.stringify(report, null, 1));
+    console.info(`epoxy coverage: ${levels.length} maps, ${JSON.stringify(perVerdict)}`);
+  });
+});
