@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
 import { GameEngine } from './GameEngine';
 
 /** Layouts the exact search may visit, for the dead-end watch that runs by itself, before giving up without a verdict. */
@@ -38,10 +38,11 @@ export type BlockPuzzleVerdict =
 
 /**
  * Ground the verdict models exactly: plain floor and walls a block is pushed
- * across or stopped by, and the block targets. The exit is left out because
+ * across or stopped by, the block targets, and hint tiles (walkable and
+ * pushable-across like floor, with no hazard and no transform). The exit is left out because
  * the player ends the level by stepping on it, which the search does not model.
  */
-const MODELLED_TERRAIN: readonly string[] = [FLOOR_TILE_ID, WALL_TILE_ID, BLOCK_TARGET_TILE_ID];
+const MODELLED_TERRAIN: readonly string[] = [FLOOR_TILE_ID, WALL_TILE_ID, BLOCK_TARGET_TILE_ID, HINT_TILE_ID];
 /** Items that change nothing about where the player or a block may go: chips are only collected. */
 const MODELLED_ITEMS: readonly string[] = ['chip'];
 /** The one piece the search moves: a plain pushable block. Mirrors, ice blocks and monsters are not modelled. */

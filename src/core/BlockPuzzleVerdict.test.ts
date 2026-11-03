@@ -36,10 +36,11 @@ const TERRAIN_CODES: Record<string, string> = {
   R: 'recessed_wall',
   X: 'trap',
   C: 'clone_machine',
-  B: 'button_brown'
+  B: 'button_brown',
+  H: 'hint'
 };
 
-/** Rows: # wall, . floor, P player, T target, $ block, * block on a target, I ice. */
+/** Rows: # wall, . floor, H hint tile, P player, T target, $ block, * block on a target, I ice. */
 function room(rows: string[], winRule: WinRule = 'targets'): CompiledLevel {
   let start = { x: 1, y: 1 };
   const entities: EntityPlacement[] = [];
@@ -82,6 +83,13 @@ describe('BlockPuzzleSolver.verdict', () => {
     const level = room(['#####', '#P$T#', '#####']);
     level.items[1][2] = 'chip';
     expect(BlockPuzzleSolver.verdict(engineFor(level))).toEqual({ kind: 'solved', pushes: 1 });
+  });
+
+  it('judges a pure room that holds a hint tile on the path of the block', () => {
+    const solved = BlockPuzzleSolver.verdict(engineFor(room(['######', '#P$HT#', '######'])));
+    expect(solved).toEqual({ kind: 'solved', pushes: 2 });
+    const stuck = BlockPuzzleSolver.verdict(engineFor(room(['#####', '#PH.#', '#$.T#', '#####'])));
+    expect(stuck).toEqual({ kind: 'unsolvable' });
   });
 
   it('counts the pushes of a solvable room', () => {
