@@ -62,8 +62,12 @@ const MAX_MEDIAN_REVISIT_RATIO = 1.4;
 const MIN_MEDIAN_JUNCTION_SHARE = 0.45;
 /** Generation budget per level in Node (the p95 at level 10 measures 5 s with content to prove, median 2 s). */
 const MAX_GENERATION_MS = 3000;
+const MICROSECONDS_PER_MS = 1000;
 /**
- * The suite runs beside other workers, so the per-level wall clock gets this much headroom. It was
+ * The budget is measured as the CPU time this process spends in the call (user + system), not as wall
+ * clock: the suite runs files in parallel and a descheduled worker made the wall clock fail locally.
+ * Vitest's default pool is forks, one process per test file, so the process CPU time is this file's work.
+ * The headroom still covers the slower clocks of a loaded machine (cache and frequency effects). It was
  * 2; level 25 measured 6.6 s then 9.6 s under the full suite beside another worker (the region search runs on every
  * level; 4.4 s alone at p90), so 4 gives 12 s.
  */
@@ -99,9 +103,10 @@ describe('endless mode quality guard', () => {
     if (!cfg) throw new Error('game.json has no procedural section');
     for (const seed of SEEDS) {
       for (const n of LEVEL_NUMBERS) {
-        const started = performance.now();
+        const started = process.cpuUsage();
         const generated = ProceduralGenerator.generateEndlessLevel(n, seed);
-        const ms = performance.now() - started;
+        const used = process.cpuUsage(started);
+        const ms = (used.user + used.system) / MICROSECONDS_PER_MS;
         samples.push({
           generated,
           planned: profileFor('endless', n, cfg).pieceCount,
