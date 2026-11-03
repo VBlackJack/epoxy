@@ -19,7 +19,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompiledLevel, LevelPack } from '../core/types';
-import { mountModals, pressKey, resetWindowListeners, settleAsync, stubLayout } from './domFixture';
+import { mountModals, pressKey, resetWindowListeners, trackWindowListeners, settleAsync, stubLayout } from '../test/domFixture';
 import type { PackManagerHost } from './packManager';
 
 /** A level reduced to what the manager reads; the 'targets' win rule skips the DAT size check. */
@@ -66,6 +66,7 @@ function selectRow(label: string): void {
 
 // The dialog helpers keep module-level state: load a fresh copy of the whole graph per test.
 beforeEach(async () => {
+  trackWindowListeners();
   vi.resetModules();
   stubLayout();
   mountModals('packs-modal', 'choice-modal', 'confirm-modal');
@@ -184,9 +185,9 @@ describe('PackManager (DOM)', () => {
       levelButton('l2', 'down').click();
       await settleAsync();
       expect(levelOrder()).toEqual(['l1', 'l3', 'l2']);
-      const focused = document.activeElement as HTMLElement;
-      expect(focused.getAttribute('data-focus-key')?.startsWith('l2:')).toBe(true);
-      expect((focused as HTMLButtonElement).disabled).toBe(false);
+      // The disabled arrow cannot hold focus: it goes to the first enabled button of the same row.
+      expect(levelButton('l2', 'down').disabled).toBe(true);
+      expect(document.activeElement).toBe(levelButton('l2', 'edit'));
     });
   });
 

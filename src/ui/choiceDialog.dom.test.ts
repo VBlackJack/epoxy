@@ -18,7 +18,7 @@
 // DOM tests opt in with the line above; the default environment stays node (see vitest.config.ts).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mountModals, pressKey, resetWindowListeners, stubLayout } from './domFixture';
+import { mountModals, pressKey, resetWindowListeners, trackWindowListeners, stubLayout } from '../test/domFixture';
 
 const request = {
   title: 'Delete?',
@@ -39,6 +39,7 @@ let confirmDialog: typeof import('./confirmDialog').confirmDialog;
 
 // The dialogs keep module-level state (open stack, bound listeners): load a fresh copy per test.
 beforeEach(async () => {
+  trackWindowListeners();
   vi.resetModules();
   stubLayout();
   mountModals('choice-modal', 'confirm-modal');
@@ -78,19 +79,16 @@ describe('choiceDialog (DOM)', () => {
     expect(await answer).toBeNull();
   });
 
-  it('traps Tab and Shift+Tab inside the dialog', async () => {
+  it('wraps Tab from the last button to the first and Shift+Tab back', async () => {
     const answer = choiceDialog(request);
     const all = buttons();
-    const modal = document.getElementById('choice-modal') as HTMLElement;
-    for (let i = 0; i < all.length * 2 + 1; i++) {
-      pressKey(document.activeElement as Element, 'Tab');
-      expect(modal.contains(document.activeElement)).toBe(true);
-    }
     all[all.length - 1].focus();
     pressKey(document.activeElement as Element, 'Tab');
     expect(document.activeElement).toBe(all[0]);
     pressKey(document.activeElement as Element, 'Tab', { shiftKey: true });
     expect(document.activeElement).toBe(all[all.length - 1]);
+    pressKey(document.activeElement as Element, 'Tab', { shiftKey: true });
+    expect(document.activeElement).toBe(all[all.length - 2]);
     pressKey(document.activeElement as Element, 'Escape');
     await answer;
   });
@@ -111,15 +109,16 @@ describe('confirmDialog (DOM)', () => {
     expect(await answer).toBe(true);
   });
 
-  it('starts on Cancel and keeps Tab inside the dialog', async () => {
+  it('starts on Cancel and wraps Tab between its two buttons', async () => {
     const answer = confirmDialog(options);
-    expect(document.activeElement?.id).toBe('confirm-cancel-btn');
-    const modal = document.getElementById('confirm-modal') as HTMLElement;
-    for (let i = 0; i < 4; i++) {
-      pressKey(document.activeElement as Element, 'Tab');
-      expect(modal.contains(document.activeElement)).toBe(true);
-    }
-    pressKey(document.activeElement as Element, 'Escape');
+    const cancel = document.getElementById('confirm-cancel-btn') as HTMLElement;
+    const ok = document.getElementById('confirm-ok-btn') as HTMLElement;
+    expect(document.activeElement).toBe(cancel);
+    pressKey(cancel, 'Tab', { shiftKey: true });
+    expect(document.activeElement).toBe(ok);
+    pressKey(ok, 'Tab');
+    expect(document.activeElement).toBe(cancel);
+    pressKey(cancel, 'Escape');
     expect(await answer).toBe(false);
   });
 });

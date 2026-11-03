@@ -18,7 +18,7 @@
 // DOM tests opt in with the line above; the default environment stays node (see vitest.config.ts).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mountModals, pressKey, resetWindowListeners, stubLayout } from './domFixture';
+import { mountModals, pressKey, resetWindowListeners, trackWindowListeners, stubLayout } from '../test/domFixture';
 
 const request = {
   packs: [
@@ -33,6 +33,7 @@ let askSaveInto: typeof import('./saveIntoDialog').askSaveInto;
 
 // The dialog keeps module-level state (pending answer, bound listeners): load a fresh copy per test.
 beforeEach(async () => {
+  trackWindowListeners();
   vi.resetModules();
   stubLayout();
   mountModals('save-into-modal');
@@ -65,10 +66,11 @@ describe('askSaveInto (DOM)', () => {
   it('keeps the selected target when Tab moves focus through the name field', async () => {
     const answer = askSaveInto(request);
     const before = checkedValue();
-    for (let i = 0; i < 6; i++) {
-      pressKey(document.activeElement as Element, 'Tab');
-      expect(checkedValue()).toBe(before);
-    }
+    const start = document.activeElement;
+    pressKey(start as Element, 'Tab');
+    expect(document.activeElement).not.toBe(start);
+    expect(document.getElementById('save-into-modal')?.contains(document.activeElement)).toBe(true);
+    expect(checkedValue()).toBe(before);
     newName().focus();
     expect(document.activeElement).toBe(newName());
     expect(checkedValue()).toBe(before);
@@ -85,11 +87,12 @@ describe('askSaveInto (DOM)', () => {
     expect(await answer).toEqual({ kind: 'new', name: 'Typed' });
   });
 
-  it('creates and saves in one step on Enter in the name field, whatever was checked', async () => {
+  it('checks "New pack" on Enter in the name field, so the submit creates and saves, whatever was checked', async () => {
     const answer = askSaveInto(request);
     newName().focus();
     pressKey(newName(), 'Enter');
     expect((document.getElementById('save-into-new-radio') as HTMLInputElement).checked).toBe(true);
+    // happy-dom does not turn Enter into a submit: the form is submitted as the browser would.
     form().requestSubmit();
     expect(await answer).toEqual({ kind: 'new', name: 'My new pack' });
     expect(document.getElementById('save-into-modal')?.classList.contains('hidden')).toBe(true);

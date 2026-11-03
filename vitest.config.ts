@@ -21,7 +21,7 @@ export default defineConfig({
   assetsInclude: ['**/*.DAT'],
   test: {
     include: ['src/**/*.test.ts'],
-    // DOM tests opt in per file with a `// @vitest-environment happy-dom` comment (see src/ui/domFixture.ts).
+    // DOM tests opt in per file with a `// @vitest-environment happy-dom` comment (see src/test/domFixture.ts).
     environment: 'node'
   }
 });

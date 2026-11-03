@@ -231,11 +231,17 @@ describe('endless levels', () => {
   });
 
   const SEEDS = [1, 2, 3, 4, 5];
-  /** About 2.7 s alone; the margin absorbs a loaded machine and the cold first call. */
+  /**
+   * CPU time of the call (process.cpuUsage, user + system), not wall clock: vitest runs one process per file
+   * (forks pool), so it is this file's work only. Measured 2026-11-03 over 5 seeds at level 50: 0.7 to 5.3 s
+   * alone, 0.8 to 5.7 s in a full run, against the 12 s limit; the factor is kept on purpose.
+   * About 2.7 s alone; the margin absorbs a loaded machine and the cold first call.
+   */
   const DEEP_LEVEL_TIME_LIMIT_MS = 6000;
   /** Shared CI runners measured 6.0 to 6.5 s for the same level: the budget gets this much headroom. */
   const CI_LOAD_FACTOR = 2;
   const DEEP_LEVELS_TEST_TIMEOUT_MS = 60000;
+  const MICROSECONDS_PER_MS = 1000;
   /** Five opening levels, each with a hub grown into its free area, built beside the other workers of the suite. */
   const OPENING_LEVELS_TEST_TIMEOUT_MS = 30000;
 
@@ -253,9 +259,10 @@ describe('endless levels', () => {
 
   it('builds a deep level in a few seconds', () => {
     for (const seed of SEEDS) {
-      const started = performance.now();
+      const started = process.cpuUsage();
       const g = ProceduralGenerator.generateEndlessLevel(50, seed);
-      expect(performance.now() - started).toBeLessThan(DEEP_LEVEL_TIME_LIMIT_MS * CI_LOAD_FACTOR);
+      const used = process.cpuUsage(started);
+      expect((used.user + used.system) / MICROSECONDS_PER_MS).toBeLessThan(DEEP_LEVEL_TIME_LIMIT_MS * CI_LOAD_FACTOR);
       expect(g.level.solution).toBeDefined();
     }
   }, DEEP_LEVELS_TEST_TIMEOUT_MS);

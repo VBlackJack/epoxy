@@ -67,9 +67,10 @@ const MICROSECONDS_PER_MS = 1000;
  * The budget is measured as the CPU time this process spends in the call (user + system), not as wall
  * clock: the suite runs files in parallel and a descheduled worker made the wall clock fail locally.
  * Vitest's default pool is forks, one process per test file, so the process CPU time is this file's work.
- * The headroom still covers the slower clocks of a loaded machine (cache and frequency effects). It was
- * 2; level 25 measured 6.6 s then 9.6 s under the full suite beside another worker (the region search runs on every
- * level; 4.4 s alone at p90), so 4 gives 12 s.
+ * The factor is kept at 4 on purpose, although CPU time is steadier than wall clock: CPU time still
+ * inflates under load (shared caches, SMT, frequency). Measured on 2026-11-03 over the 12 samples
+ * (4 seeds x 3 levels): p50 2.8 s, p90 4.4 s, max 8.5 s with the file run alone; p50 4.3 s, p90 5.8 s,
+ * max 10.3 s inside a full parallel run, against the 12 s limit. Tightening it is a product decision.
  */
 const PARALLEL_LOAD_FACTOR = 4;
 const MIN_SHARE_ALL_PIECES_KEPT = 0.8;

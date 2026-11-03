@@ -65,7 +65,7 @@ export async function settleAsync(): Promise<void> {
 
 type Listener = [string, EventListenerOrEventListenerObject, boolean | AddEventListenerOptions | undefined];
 const windowListeners: Listener[] = [];
-const nativeAddEventListener = window.addEventListener.bind(window);
+let tracking = false;
 
 /**
  * The modules bind their listeners once, at module level, on the window. Each
@@ -77,7 +77,13 @@ export function resetWindowListeners(): void {
   windowListeners.length = 0;
 }
 
-window.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
-  windowListeners.push([type, listener, options]);
-  nativeAddEventListener(type, listener, options);
-}) as typeof window.addEventListener;
+/** Starts recording the window listeners the modules add, so resetWindowListeners can drop them. Call once per file. */
+export function trackWindowListeners(): void {
+  if (tracking) return;
+  tracking = true;
+  const nativeAddEventListener = window.addEventListener.bind(window);
+  window.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
+    windowListeners.push([type, listener, options]);
+    nativeAddEventListener(type, listener, options);
+  }) as typeof window.addEventListener;
+}
