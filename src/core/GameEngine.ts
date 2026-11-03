@@ -28,7 +28,6 @@ import {
 } from './coreConstants';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
-  DEFAULT_TELEPORT_GROUP,
   EpoxyContext,
   EpoxyVisualKind,
   EpoxyWorld,
@@ -48,6 +47,7 @@ import {
 } from './epoxy/epoxyWorld';
 import { attemptPushBlock, isCanBlockEnter, moveBlockTo } from './epoxy/epoxyBlocks';
 import { canMonsterEnter, resolveMonsterArrival, updateEntities } from './epoxy/epoxyMonsters';
+import { teleportEntity, teleportPlayer } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { SeededRandom } from './Random';
 import {
@@ -102,7 +102,7 @@ export class GameEngine {
       completeLevel: () => this.completeLevel(),
       checkTargetsWin: () => this.checkTargetsWin(),
       triggerButton: (x, y, action) => this.triggerButton(x, y, action),
-      teleportEntity: (entity, fromX, fromY, dir) => this.teleportEntity(entity, fromX, fromY, dir)
+      teleportEntity: (entity, fromX, fromY, dir) => teleportEntity(this.ctx, entity, fromX, fromY, dir)
     };
   }
 
@@ -202,12 +202,6 @@ export class GameEngine {
     this.w.removedUids.clear();
     buildLevelLookups(this.w);
     this.w.beamDirty = true;
-  }
-
-  /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
-  private teleportersLinkedTo(x: number, y: number): GridPoint[] {
-    const group = ConfigRegistry.getTile(this.w.terrain[y][x]).teleportGroup ?? DEFAULT_TELEPORT_GROUP;
-    return this.w.teleportersByGroup.get(group) ?? [];
   }
 
   /** Successful player moves, in order. */
@@ -696,7 +690,7 @@ export class GameEngine {
 
     if (tile.isTeleporter && allowTeleport) {
       this.emitVisual('teleport', x, y);
-      if (this.teleportPlayer(x, y, entryDir)) {
+      if (teleportPlayer(this.w, x, y, entryDir)) {
         this.emitVisual('teleport', this.w.player.x, this.w.player.y);
         this.resolvePlayerArrival(this.w.player.dir, false);
         return;
@@ -1032,86 +1026,6 @@ export class GameEngine {
       return resolveMonsterArrival(this.ctx, spawned, true);
     }
     return true;
-  }
-
-  /**
-   * Moves the player out of the next free teleporter of the same group.
-   * Returns false when no exit exists.
-   */
-  private teleportPlayer(fromX: number, fromY: number, dir: Direction): boolean {
-    const teleporters = this.teleportersLinkedTo(fromX, fromY);
-    if (teleporters.length <= 1) return false;
-
-    const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
-    if (startIdx < 0) return false;
-
-    const candidateDirs: Direction[] = [
-      dir,
-      ...ORDERED_DIRECTIONS.filter((d) => d !== dir)
-    ];
-
-    for (let i = 1; i <= teleporters.length; i++) {
-      const idx = (startIdx - i + teleporters.length) % teleporters.length;
-      const candidate = teleporters[idx];
-      for (const tryDir of candidateDirs) {
-        const vec = DIRECTION_VECTORS[tryDir];
-        const exitX = candidate.x + vec.dx;
-        const exitY = candidate.y + vec.dy;
-        if (isInBounds(this.w, exitX, exitY)) {
-          const exitTile = ConfigRegistry.getTile(this.w.terrain[exitY][exitX]);
-          if (
-            canPlayerEnter(this.w, exitTile) &&
-            !getEntityAt(this.w, exitX, exitY) &&
-            !isEdgeBlocked(this.w, candidate.x, candidate.y, exitX, exitY, tryDir)
-          ) {
-            AudioManager.playSfx('teleport');
-            this.w.player.x = exitX;
-            this.w.player.y = exitY;
-            this.w.player.dir = tryDir;
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Moves a block or monster out of the next teleporter of the same group
-   * whose exit it could step onto from there, then resolves the arrival on
-   * the exit cell. Returns false when no exit exists and the entity stays.
-   */
-  private teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction): boolean {
-    const teleporters = this.teleportersLinkedTo(fromX, fromY);
-    if (teleporters.length <= 1) return false;
-
-    const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
-    if (startIdx < 0) return false;
-
-    const vec = DIRECTION_VECTORS[dir];
-    for (let i = 1; i <= teleporters.length; i++) {
-      const idx = (startIdx - i + teleporters.length) % teleporters.length;
-      const candidate = teleporters[idx];
-      const exitX = candidate.x + vec.dx;
-      const exitY = candidate.y + vec.dy;
-      // Same entry rules as a regular step, evaluated as if the entity stood on the candidate pad.
-      const probe: RuntimeEntity = { ...entity, x: candidate.x, y: candidate.y, dir };
-      const canExit =
-        entity.kind === 'block'
-          ? isCanBlockEnter(this.w, probe, exitX, exitY, dir)
-          : canMonsterEnter(this.w, probe, dir);
-      if (!canExit) continue;
-
-      entity.x = exitX;
-      entity.y = exitY;
-      entity.dir = dir;
-      if (entity.kind === 'block') {
-        // Already standing on the exit cell: resolves the arrival without another jump.
-        moveBlockTo(this.ctx, entity, exitX, exitY, dir, false);
-      }
-      return true;
-    }
-    return false;
   }
 
   public isCellClosedTrap(tx: number, ty: number): boolean {
