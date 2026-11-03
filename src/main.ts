@@ -69,6 +69,7 @@ import {
 import { downloadBytes } from './ui/download';
 import { PackFlows } from './ui/packFlows';
 import { PackManager } from './ui/packManager';
+import { ShareLinkFlow } from './ui/shareLinkFlow';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
@@ -150,6 +151,8 @@ const PLAY_MODE_BUTTON_IDS = ['btn-mode-play', 'btn-drawer-mode-play'] as const;
 const EDITOR_MODE_BUTTON_IDS = ['btn-mode-editor', 'btn-drawer-mode-editor'] as const;
 /** Body class that makes the editor fill the viewport while it is on screen. */
 const EDITOR_BODY_CLASS = 'editor-mode';
+/** Toast of a shared pack that was imported and started; it never skips a level, so this is the plain one. */
+const SHARED_PACK_TOAST_KEY = 'app.packs.imported_toast.label';
 /** Id prefixes of the procedural seed boxes: the header one and its drawer copy. */
 const SEED_BOX_ID_PREFIXES = ['procedural', 'drawer'] as const;
 const SEED_COPY_BUTTON_IDS: Record<(typeof SEED_BOX_ID_PREFIXES)[number], string> = {
@@ -262,6 +265,8 @@ class EpoxyApplication {
   // ---------------------------------------------------------------------------
 
   public async init(): Promise<void> {
+    // A pack share link waits in the address bar until the configs are loaded.
+    const parkedHash = window.location.hash;
     await ConfigRegistry.loadAll();
 
     const gameCfg = ConfigRegistry.getGame();
@@ -323,6 +328,31 @@ class EpoxyApplication {
     this.startGameLoop();
     this.startRenderLoop();
     this.maybeShowOnboarding(hadSavedProgress);
+    this.bindShareLinks(parkedHash);
+  }
+
+  /** Opens the pack share link of the address bar, now and each time its fragment changes. */
+  private bindShareLinks(parkedHash: string): void {
+    const flow = new ShareLinkFlow({
+      showStatus: (message) => this.showTransientStatus(message),
+      announceImported: (pack, persisted, play) =>
+        play ? this.announceImportedPack(pack, persisted, 0, SHARED_PACK_TOAST_KEY) : this.announceStoredPack(pack, persisted),
+      playPack: (packId) => this.playPackFromManager(packId, 0)
+    });
+    window.addEventListener('hashchange', () => void flow.handle(window.location.hash));
+    void flow.handle(parkedHash);
+  }
+
+  /** Tells that a pack joined the library, without leaving the level being played. */
+  private announceStoredPack(pack: LevelPack, persisted: boolean): void {
+    this.refreshPackSelector();
+    this.editor.refreshContext();
+    this.showTransientStatus(
+      persisted
+        ? t('app.packs.imported_toast.label', { name: pack.name, count: pack.levels.length })
+        : t('app.packs.imported_session_only_toast.label', { name: pack.name })
+    );
+    this.packManager.refresh(pack.id);
   }
 
   /** Sizes the play canvas and grabs its contexts; returns the editor canvas. */

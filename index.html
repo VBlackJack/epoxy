@@ -710,8 +710,11 @@
                   <button id="packs-play-btn" class="hud-btn small primary" type="button" data-i18n="app.packs.manager.detail.play.action"></button>
                   <button id="packs-export-json-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.export_json.action"></button>
                   <button id="packs-export-ccl-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.export_ccl.action"></button>
+                  <button id="packs-share-copy-btn" class="hud-btn small hidden" type="button" data-i18n="app.packs.share.copy.action"></button>
+                  <button id="packs-share-more-btn" class="hud-btn small hidden" type="button" data-i18n="app.packs.share.share.action"></button>
                   <button id="packs-delete-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.delete.action"></button>
                 </div>
+                <p id="packs-share-hint" class="hint-text hidden" data-i18n="app.packs.share.hint.label"></p>
                 <p id="packs-empty-pack" class="packs-empty hidden" data-i18n="app.packs.manager.empty_pack.message.label"></p>
                 <ol id="packs-levels-list" class="packs-levels" data-i18n-aria-label="app.packs.manager.levels.title.label"></ol>
                 <button id="packs-new-level-btn" class="hud-btn small primary" type="button" data-i18n="app.packs.manager.new_level.action"></button>
@@ -735,7 +738,38 @@
         </div>
       </div>
 
-      <!-- SAVE INTO... -->
+      <!-- SHARED PACK PREVIEW: nothing is stored until a button is pressed -->
+      <div id="share-preview-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="share-preview-title" aria-describedby="share-preview-status">
+        <div class="modal-dialog share-preview-dialog">
+          <h3 id="share-preview-title" data-i18n="app.packs.share.preview.title.label"></h3>
+          <p id="share-preview-name" class="share-preview-name"></p>
+          <p id="share-preview-author" class="hint-text hidden"></p>
+          <p id="share-preview-description" class="share-preview-description hidden"></p>
+          <p class="share-preview-meta"><span id="share-preview-count"></span> <span id="share-preview-badges" class="packs-badges"></span></p>
+          <div id="share-preview-thumbs" class="share-preview-thumbs" aria-hidden="true"></div>
+          <p id="share-preview-status" class="share-preview-status hidden" role="status" data-i18n="app.packs.share.preview.duplicate.label"></p>
+          <div class="modal-actions">
+            <button id="share-preview-cancel-btn" class="action-btn" type="button" data-i18n="app.packs.share.preview.cancel.action"></button>
+            <button id="share-preview-play-btn" class="action-btn primary hidden" type="button" data-i18n="app.packs.share.preview.play.action"></button>
+            <button id="share-preview-import-btn" class="action-btn" type="button" data-i18n="app.packs.share.preview.import.action"></button>
+            <button id="share-preview-import-play-btn" class="action-btn primary" type="button" data-i18n="app.packs.share.preview.import_play.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SHARE LINK: selectable copy of the link where the clipboard is not available -->
+      <div id="share-link-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="share-link-title">
+        <div class="modal-dialog">
+          <h3 id="share-link-title" data-i18n="app.packs.share.fallback.title.label"></h3>
+          <p class="hint-text" data-i18n="app.packs.share.fallback.hint.label"></p>
+          <input id="share-link-field" type="text" class="editor-input" readonly autocomplete="off" spellcheck="false" data-i18n-aria-label="app.packs.share.fallback.field.label" />
+          <div class="modal-actions">
+            <button id="share-link-close-btn" class="action-btn primary" type="button" data-i18n="app.packs.share.fallback.close.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAVE INTO...
       <div id="save-into-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="save-into-title">
         <form id="save-into-form" class="modal-dialog save-into-dialog">
           <h3 id="save-into-title" data-i18n="editor.pack.save_into.title.label"></h3>

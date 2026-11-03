@@ -65,6 +65,7 @@ import { DatCodec } from '../formats/DatCodec';
 import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits, withPackMetadata } from '../packs/packMetadata';
 import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
+import { readSharedPack, SharedPackResult } from '../packs/shareLink';
 import { dedupeLevelIdsAcrossPacks, scopedLevelId, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
@@ -770,6 +771,17 @@ class ConfigRegistryService {
     return pack && pack.levels.length > 0
       ? serializePack(displayName?.trim() || pack.name, pack.levels, { author: pack.author, description: pack.description }, compact)
       : null;
+  }
+
+  /** Reads the pack held by a share link, validated as a file import would be; nothing is stored. */
+  public readSharedPack(hash: string): Promise<SharedPackResult> {
+    return readSharedPack(hash, {
+      bounds: this.getLevelSizeBounds(),
+      takenLevelIds: this.takenLevelIds(),
+      metadataLimits: this.gameConfig.packMetadata,
+      textLimits: this.gameConfig.levelText,
+      share: this.gameConfig.share
+    });
   }
 
   /** The pack imported from the shared text with this hash, if the library still holds it. */

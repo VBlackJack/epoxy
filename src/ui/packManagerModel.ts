@@ -138,6 +138,14 @@ export function buildPackActions(
   };
 }
 
+/** Translation key of the reason a pack cannot be shared yet. */
+export const SHARE_BLOCKED_REASON_KEY = 'app.packs.share.empty.label';
+
+/** A pack can be shared once it holds a level. */
+export function canSharePack(levels: readonly CompiledLevel[]): boolean {
+  return levels.length > 0;
+}
+
 /** A pack a level can be copied or moved to. */
 export interface TransferTarget {
   id: string;

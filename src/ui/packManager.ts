@@ -22,15 +22,18 @@ import { t } from '../i18n/I18nManager';
 import { cleanPackAuthor, cleanPackDescription, PackMetadataLimits } from '../packs/packMetadata';
 import { normalizePackName } from '../packs/userPacks';
 import { choiceDialog } from './choiceDialog';
+import { canShareNatively, copyShareLink, makeShareLink, shareEncodeErrorMessage, shareLinkNatively } from './shareActions';
 import { confirmDialog } from './confirmDialog';
 import { closeDialog, openDialog } from './dialog';
 import { downloadBlob, MIME_JSON } from './download';
 import { ThumbnailBatch } from './levelThumbnailView';
+import { isShareEncoderSupported } from '../packs/shareLink';
 import {
   badgeLabelKey,
   buildLevelRows,
   buildLibraryRows,
   buildPackActions,
+  canSharePack,
   dropSlotAt,
   dropTargetIndex,
   EngineBadge,
@@ -40,6 +43,7 @@ import {
   packFileName,
   resolveSelection,
   selectionAfterRemoval,
+  SHARE_BLOCKED_REASON_KEY,
   transferTargets
 } from './packManagerModel';
 import {
@@ -302,6 +306,8 @@ export class PackManager {
       const pack = this.selectedPack();
       if (pack) this.host.exportCcl(pack);
     });
+    byId('packs-share-copy-btn')?.addEventListener('click', () => void this.shareSelected('copy'));
+    byId('packs-share-more-btn')?.addEventListener('click', () => void this.shareSelected('native'));
     byId('packs-delete-btn')?.addEventListener('click', () => void this.deleteSelectedPack());
     byId('packs-new-level-btn')?.addEventListener('click', () => {
       const pack = this.selectedPack();
@@ -457,6 +463,39 @@ export class PackManager {
     if (exportCcl) {
       exportCcl.disabled = !actions.canExportCcl;
       this.setDisabledReason(exportCcl, !actions.canExportCcl, 'app.export.none_exportable.label');
+    }
+    this.renderShareControls(pack);
+  }
+
+  /** The share buttons: hidden where links cannot be made, disabled with a reason while the pack is empty. */
+  private renderShareControls(pack: LevelPack): void {
+    const supported = isShareEncoderSupported();
+    const canShare = canSharePack(pack.levels);
+    const copy = byId<HTMLButtonElement>('packs-share-copy-btn');
+    const more = byId<HTMLButtonElement>('packs-share-more-btn');
+    for (const [button, available] of [[copy, supported], [more, supported && canShareNatively()]] as const) {
+      if (!button) continue;
+      button.classList.toggle(HIDDEN_CLASS, !available);
+      button.disabled = !canShare;
+      this.setDisabledReason(button, !canShare, SHARE_BLOCKED_REASON_KEY);
+    }
+    byId('packs-share-hint')?.classList.toggle(HIDDEN_CLASS, !supported);
+  }
+
+  /** Makes the link of the selected pack, then copies it or hands it to the system share sheet. */
+  private async shareSelected(how: 'copy' | 'native'): Promise<void> {
+    const pack = this.selectedPack();
+    if (!pack || !canSharePack(pack.levels)) return;
+    const name = this.host.packDisplayName(pack);
+    const link = await makeShareLink(pack, name);
+    if (!link.ok) {
+      this.host.notify(shareEncodeErrorMessage(link.error));
+      return;
+    }
+    if (how === 'native') {
+      await shareLinkNatively(link.url, name);
+    } else if (await copyShareLink(link.url)) {
+      this.host.notify(t('app.packs.share.copied.label'));
     }
   }
 
