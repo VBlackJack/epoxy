@@ -19,9 +19,6 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { AudioManager } from '../audio/AudioManager';
 import { stepTerrainOf } from '../audio/stepTerrain';
 import {
-  BOMB_ITEM_ID,
-  CHIP_ITEM_ID,
-  GRAY_BUTTON_RADIUS,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLOOR_TILE_ID,
   OPPOSITE_DIRECTION
@@ -42,17 +39,16 @@ import {
   killPlayer,
   leaveCell,
   mapHeight,
-  mapWidth,
-  removeEntity
+  mapWidth
 } from './epoxy/epoxyWorld';
-import { attemptPushBlock, isCanBlockEnter, moveBlockTo } from './epoxy/epoxyBlocks';
-import { canMonsterEnter, resolveMonsterArrival, updateEntities } from './epoxy/epoxyMonsters';
+import { attemptPushBlock } from './epoxy/epoxyBlocks';
+import { triggerButton } from './epoxy/epoxyDevices';
+import { updateEntities } from './epoxy/epoxyMonsters';
 import { teleportEntity, teleportPlayer } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { SeededRandom } from './Random';
 import {
   BeamCell,
-  ButtonAction,
   CloneLink,
   CompiledLevel,
   Direction,
@@ -69,8 +65,6 @@ import {
 const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
 /** Extra slide delay on force floors, on top of timing.slideCooldownTicks. */
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
-/** Hard cap on live entities, so a cloner wired to a held button cannot flood the grid. */
-const MAX_ACTIVE_ENTITIES = 512;
 
 export class GameEngine {
   /** The play state of the loaded level, shared with the engine modules. */
@@ -101,7 +95,7 @@ export class GameEngine {
       emitVisual: (kind, x, y, colorKey) => this.emitVisual(kind, x, y, colorKey),
       completeLevel: () => this.completeLevel(),
       checkTargetsWin: () => this.checkTargetsWin(),
-      triggerButton: (x, y, action) => this.triggerButton(x, y, action),
+      triggerButton: (x, y, action) => triggerButton(this.ctx, x, y, action),
       teleportEntity: (entity, fromX, fromY, dir) => teleportEntity(this.ctx, entity, fromX, fromY, dir)
     };
   }
@@ -747,7 +741,7 @@ export class GameEngine {
     }
 
     if (tile.buttonAction) {
-      this.triggerButton(x, y, tile.buttonAction);
+      triggerButton(this.ctx, x, y, tile.buttonAction);
       if (!this.w.player.alive) return;
     }
 
@@ -863,169 +857,6 @@ export class GameEngine {
       }
     }
     this.checkTargetsWin();
-  }
-
-  /** Returns false when a clone spawned by the button killed the player. */
-  private triggerButton(bx: number, by: number, action: ButtonAction): boolean {
-    AudioManager.playSfx('button');
-
-    if (action === 'toggle_walls') {
-      this.swapTerrain((tile) => tile.togglesTo);
-    } else if (action === 'toggle_flames') {
-      this.swapTerrain((tile) => tile.flameTogglesTo);
-      this.burnPlayerIfFlamesLit();
-      this.burnEntitiesOnFire();
-    } else if (action === 'swap_chips_bombs') {
-      this.swapChipsAndBombs(bx, by);
-    } else if (action === 'reverse_tanks') {
-      for (const ent of this.w.entities) {
-        if (ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) {
-          ent.dir = OPPOSITE_DIRECTION[ent.dir];
-        }
-      }
-    } else if (action === 'trigger_cloner') {
-      const links = this.w.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
-      if (links.length > 0) {
-        for (const link of links) {
-          if (!this.spawnFromCloner(link.clonerX, link.clonerY, link.templateType, link.templateDir)) {
-            return false;
-          }
-        }
-      } else {
-        // Fallback: trigger any clone machine that has an entity template sitting on it
-        for (const ent of [...this.w.entities]) {
-          if (ConfigRegistry.getTile(this.w.terrain[ent.y]?.[ent.x]).isCloneMachine) {
-            if (!this.spawnFromCloner(ent.x, ent.y, ent.type, ent.dir)) return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Swaps chips and bombs in the square region centered on `(bx, by)`. The chip count
-   * the exit asks for stays as it is: a chip turned into a bomb never stands in for one
-   * collected, so the button cannot open the exit early.
-   */
-  private swapChipsAndBombs(bx: number, by: number): void {
-    const minY = Math.max(0, by - GRAY_BUTTON_RADIUS);
-    const maxY = Math.min(this.w.items.length - 1, by + GRAY_BUTTON_RADIUS);
-    for (let y = minY; y <= maxY; y++) {
-      const minX = Math.max(0, bx - GRAY_BUTTON_RADIUS);
-      const maxX = Math.min(this.w.items[y].length - 1, bx + GRAY_BUTTON_RADIUS);
-      for (let x = minX; x <= maxX; x++) {
-        const item = this.w.items[y][x];
-        if (item === CHIP_ITEM_ID) {
-          this.w.items[y][x] = BOMB_ITEM_ID;
-        } else if (item === BOMB_ITEM_ID) {
-          this.w.items[y][x] = CHIP_ITEM_ID;
-        }
-      }
-    }
-  }
-
-  /** Replaces every tile for which `target` names a terrain by that terrain. */
-  private swapTerrain(target: (tile: TileDefinition) => string | undefined): void {
-    for (let y = 0; y < this.w.terrain.length; y++) {
-      for (let x = 0; x < this.w.terrain[y].length; x++) {
-        const next = target(ConfigRegistry.getTile(this.w.terrain[y][x]));
-        if (next) {
-          this.w.terrain[y][x] = next;
-        }
-      }
-    }
-  }
-
-  /**
-   * Applies the fire rule to every entity standing on fire after the jets were
-   * swapped, as if it had just stepped there: a block that fire destroys melts
-   * (leaving what its definition names), a monster that is not immune dies.
-   */
-  private burnEntitiesOnFire(): void {
-    for (const entity of [...this.w.entities]) {
-      const tile = ConfigRegistry.getTile(this.w.terrain[entity.y][entity.x]);
-      if (tile.hazard !== 'fire') continue;
-      const def = ConfigRegistry.getEntityDef(entity.type);
-      if (entity.kind === 'block') {
-        if (!def?.destroyedByFire) continue;
-        if (def.meltsInFireTo) {
-          this.w.terrain[entity.y][entity.x] = def.meltsInFireTo;
-        }
-      } else if (def?.immuneToFire) {
-        continue;
-      }
-      removeEntity(this.w, entity.uid);
-      AudioManager.playSfx('burn');
-      this.emitVisual('explosion', entity.x, entity.y);
-    }
-  }
-
-  /** A flame jet lit under the player (a monster or block pressed the button) burns them. */
-  private burnPlayerIfFlamesLit(): void {
-    if (!this.w.player.alive) return;
-    const tile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
-    if (tile.hazard === 'fire' && (!tile.protectedByItem || !this.w.player.boots.has(tile.protectedByItem))) {
-      this.emitVisual('explosion', this.w.player.x, this.w.player.y);
-      killPlayer(this.ctx, 'hud.messages.death_fire', 'burn');
-    }
-  }
-
-  /**
-   * Spawns a copy of the template in front of the cloner, using the same
-   * entry rules as a regular monster step or block push, so a clone never
-   * appears inside a wall or another blocked cell. Returns false when the
-   * clone's arrival killed the player, so the caller stops processing.
-   */
-  private spawnFromCloner(
-    clonerX: number,
-    clonerY: number,
-    templateType: string,
-    templateDir: Direction
-  ): boolean {
-    if (this.w.entities.length >= MAX_ACTIVE_ENTITIES) return true;
-
-    const vec = DIRECTION_VECTORS[templateDir];
-    const spawnX = clonerX + vec.dx;
-    const spawnY = clonerY + vec.dy;
-    if (!isInBounds(this.w, spawnX, spawnY)) return true;
-    if (this.w.player.x === spawnX && this.w.player.y === spawnY) return true;
-
-    const def = ConfigRegistry.getEntityDef(templateType);
-    const kind = def?.kind || 'block';
-    const probe: RuntimeEntity = {
-      uid: 0,
-      type: templateType,
-      kind,
-      x: clonerX,
-      y: clonerY,
-      dir: templateDir,
-      cooldownTicks: 0,
-      isSliding: false
-    };
-    const canEnter =
-      kind === 'block'
-        ? isCanBlockEnter(this.w, probe, spawnX, spawnY, templateDir)
-        : canMonsterEnter(this.w, probe, templateDir);
-    if (!canEnter) return true;
-
-    const spawned: RuntimeEntity = {
-      uid: this.w.nextEntityUid++,
-      type: templateType,
-      kind,
-      x: spawnX,
-      y: spawnY,
-      dir: templateDir,
-      cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
-      isSliding: kind === 'block'
-    };
-    this.w.entities.push(spawned);
-    if (spawned.kind === 'block') {
-      moveBlockTo(this.ctx, spawned, spawnX, spawnY, templateDir);
-    } else {
-      return resolveMonsterArrival(this.ctx, spawned, true);
-    }
-    return true;
   }
 
   public isCellClosedTrap(tx: number, ty: number): boolean {
