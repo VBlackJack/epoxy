@@ -1177,6 +1177,26 @@
       "level_10": {
         "title": "Le trousseau",
         "hint": "Une porte rouge mange la clé qui l'ouvre : compte tes clés avant d'ouvrir une pièce qui n'en rend pas."
+      },
+      "level_11": {
+        "title": "La haie",
+        "hint": "Un mur fin ne ferme qu'un seul bord d'une case : cherche une ouverture le long de la haie avant de payer une clé pour la porte qui s'y trouve."
+      },
+      "level_12": {
+        "title": "Le verger",
+        "hint": "Le socle demande six puces, pas les neuf : détermine les pièces dont tu as vraiment besoin avant qu'une clé rouge n'en ouvre une."
+      },
+      "level_13": {
+        "title": "Jardin zen",
+        "hint": "Rien dans ce jardin ne peut te bloquer : prends les puces dans l'ordre que tu veux et profite de la promenade."
+      },
+      "level_14": {
+        "title": "Deux trousseaux",
+        "hint": "Une clé peut se cacher derrière une porte de l'autre couleur : remonte la chaîne à l'envers pour trouver la serrure dont tout le reste dépend."
+      },
+      "level_15": {
+        "title": "L'horloger",
+        "hint": "Une clé dépensée est perdue pour de bon : avant d'ouvrir une porte, vérifie que les clés encore hors de portée paieront ce qui reste."
       }
     },
     "chapter": {

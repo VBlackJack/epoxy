@@ -1177,6 +1177,26 @@
       "level_10": {
         "title": "The Key Ring",
         "hint": "A red door eats the key that opens it: count keys before opening a room without one."
+      },
+      "level_11": {
+        "title": "The Hedge",
+        "hint": "A thin wall closes only one edge of a square, so look along a hedge for a gap before you pay a key for the door in it."
+      },
+      "level_12": {
+        "title": "The Orchard",
+        "hint": "The socket asks for six chips, not all nine: work out which rooms you really need before a red key opens one."
+      },
+      "level_13": {
+        "title": "Zen Garden",
+        "hint": "Nothing in this garden can lock you out, so take the chips in any order and enjoy the walk."
+      },
+      "level_14": {
+        "title": "Two Key Rings",
+        "hint": "A key can hide behind a door of the other colour: trace the chain backwards to find the one lock everything else hangs from."
+      },
+      "level_15": {
+        "title": "The Clockmaker",
+        "hint": "A spent key is gone for good: before opening a door, check that the keys still out of reach can pay for what remains."
       }
     },
     "chapter": {
