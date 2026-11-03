@@ -18,6 +18,7 @@ import { ORDERED_DIRECTIONS } from './constants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
+  BlockBudget,
   CampaignConfig,
   CompiledLevel,
   DatFormatConfig,
@@ -445,6 +446,13 @@ export function isWinRule(value: unknown): value is WinRule {
   return typeof value === 'string' && (WIN_RULES as readonly string[]).includes(value);
 }
 
+/** True for a block budget made of two non-negative integers; anything else in a stored level is dropped. */
+export function isBlockBudget(value: unknown): value is BlockBudget {
+  if (typeof value !== 'object' || value === null) return false;
+  const { waters, targets } = value as Record<string, unknown>;
+  return Number.isInteger(waters) && (waters as number) >= 0 && Number.isInteger(targets) && (targets as number) >= 0;
+}
+
 /** Rulesets a level may declare; anything else in a stored level is dropped. */
 export const RULESETS: readonly Ruleset[] = ['epoxy', 'lynx', 'cc3d'];
 
@@ -465,6 +473,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const bad: string[] = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
   if ('winRule' in record && !isWinRule(record.winRule)) bad.push('winRule');
   if ('ruleset' in record && !isRuleset(record.ruleset)) bad.push('ruleset');
+  if ('blockBudget' in record && !isBlockBudget(record.blockBudget)) bad.push('blockBudget');
   const badPassword = typeof record.password !== 'string';
   if (bad.length === 0 && !badPassword) return level;
   const copy: Record<string, unknown> = { ...record };

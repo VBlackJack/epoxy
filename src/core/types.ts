@@ -987,10 +987,23 @@ export interface BeamCell {
  */
 export type Ruleset = 'epoxy' | 'lynx' | 'cc3d';
 
+/**
+ * Pilot design note of a block puzzle: how many blocks the level needs and
+ * for what. With no spare, the level holds `waters + targets` blocks.
+ */
+export interface BlockBudget {
+  /** Water cells the stored solution fills with a block. */
+  waters: number;
+  /** Block targets covered when the level is won. */
+  targets: number;
+}
+
 export interface LevelBlueprint {
   id: string;
   /** Pilot levels only: the campaign level this one deliberately reworks, exempt from the originality comparison with it. */
   reworkOf?: string;
+  /** Pilot levels only: the blocks the level needs, checked against its block count by the pilot design tests. */
+  blockBudget?: BlockBudget;
   theme?: string;
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
@@ -1044,6 +1057,8 @@ export interface LevelsConfig {
 
 export interface CompiledLevel {
   id: string;
+  /** Pilot design note: the blocks the level needs; see BlockBudget. */
+  blockBudget?: BlockBudget;
   /** Theme shown when the player lets the level choose; see game.json themes. */
   theme?: string;
   /** A proven winning action list (N, E, S, W, '.' to wait), for the solution replay. */
