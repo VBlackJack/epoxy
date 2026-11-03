@@ -24,6 +24,16 @@ describe('LevelMetrics', () => {
     loadTestConfigs();
   });
 
+  it('maps single elements to mechanics', () => {
+    expect(LevelMetrics.mechanicsOfElement('water')).toEqual([MECHANICS.WATER]);
+    expect(LevelMetrics.mechanicsOfElement('dirt')).toEqual([MECHANICS.DIRT]);
+    expect(LevelMetrics.mechanicsOfElement('dirt_block')).toEqual([MECHANICS.BLOCKS]);
+    expect(LevelMetrics.mechanicsOfElement('bug')).toEqual([MECHANICS.MONSTERS]);
+    expect(LevelMetrics.mechanicsOfElement('door_red')).toEqual([MECHANICS.KEYS_DOORS]);
+    expect(LevelMetrics.mechanicsOfElement('floor')).toEqual([]);
+    expect(LevelMetrics.mechanicsOfElement('no_such_element')).toEqual([]);
+  });
+
   it('measures a straight corridor', () => {
     const report = LevelMetrics.measure(buildTestLevel(['#######', '#@...E#', '#######']));
     expect(report.usedWidth).toBe(5);
