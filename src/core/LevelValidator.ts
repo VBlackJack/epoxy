@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BlockPuzzleSolver, requestedSearchBudget } from './BlockPuzzleSolver';
+import { cc3dValidationReport } from './cc3d/cc3dValidator';
 import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
 import { isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
@@ -70,6 +71,8 @@ export class LevelValidator {
    * solution, a reachability miss of the simulator is downgraded to a warning.
    */
   public static validate(level: CompiledLevel, solutionWins?: SolutionWins): LevelValidationReport {
+    // A CC3D level is checked by its own strict validator, not by the Epoxy tile rules.
+    if (level.ruleset === 'cc3d' && level.cc3d) return cc3dValidationReport(level);
     const issues: ValidationIssue[] = [];
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;

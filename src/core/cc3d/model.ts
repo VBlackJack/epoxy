@@ -265,3 +265,50 @@ export function placeTerrain(stack: readonly Cc3dTerrain[], terrain: Cc3dTerrain
   if (sameKind >= 0) return stack.map((layer, index) => (index === sameKind ? terrain : layer));
   return normalizeCell([...stack, terrain]);
 }
+
+/** Every colour a device, key or block can have. */
+export const CC3D_COLORS: readonly Cc3dColor[] = ['red', 'green', 'blue', 'yellow'];
+
+const ITEM_KIND_FLAGS: Record<Cc3dItemKind, true> = {
+  fish: true,
+  fish_extra: true,
+  key: true,
+  orb_ice: true,
+  orb_force: true,
+  orb_fire: true,
+  orb_water: true,
+  orb_speed: true
+};
+
+/** Every item kind a level file can hold. */
+export const CC3D_ITEM_KINDS = Object.keys(ITEM_KIND_FLAGS) as Cc3dItemKind[];
+
+const MOB_KIND_FLAGS: Record<Exclude<Cc3dMobKind, 'shot'>, true> = {
+  block_dirt: true,
+  block_ice: true,
+  block_color: true,
+  reflector: true,
+  walker: true,
+  legs_green: true,
+  legs_red: true,
+  blinky: true,
+  baby_blinky: true,
+  limpa: true,
+  limpy: true,
+  bouncer: true,
+  omni: true,
+  screamer: true,
+  baby_screamer: true,
+  snappy: true,
+  nibble: true,
+  golem_blue: true,
+  golem_yellow: true,
+  laser_shooter: true,
+  bot_static: true,
+  bot_cw: true,
+  bot_ccw: true,
+  bot_multi: true
+};
+
+/** Every mob kind a level file can hold: all of them but the runtime-only laser shot. */
+export const CC3D_MOB_KINDS = Object.keys(MOB_KIND_FLAGS) as Array<Exclude<Cc3dMobKind, 'shot'>>;
