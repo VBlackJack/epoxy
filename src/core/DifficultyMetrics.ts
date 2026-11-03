@@ -37,6 +37,7 @@ export const IRREVERSIBLE_KINDS = [
   'door_opened',
   'dirt_cleared',
   'hazard_cleared',
+  'turtle_sunk',
   'terrain_changed',
   'block_lost',
   'monster_removed',
@@ -72,7 +73,7 @@ export interface DifficultyReport {
   /** Solution actions per walkable cell of the map. Proxy for how much of the map the route consumes. */
   stepsPerWalkableCell: number;
 
-  /** Cell and entity changes the player cannot undo, by kind. Toggle walls count as reversible and are skipped; picking up items is not counted. */
+  /** Cell and entity changes the player cannot undo, by kind. Reversible (toggle walls, flame jets), forced (socket opening) and free (hidden walls found) changes are skipped, and so is picking up items. */
   irreversibleByKind: Record<IrreversibleKind, number>;
   /** Total of irreversibleByKind. Proxy for commitment: each one is a place a wrong move can cost the level. */
   irreversibleEvents: number;
@@ -147,11 +148,15 @@ function emptyKinds(): Record<IrreversibleKind, number> {
 function terrainEventKind(from: string, to: string): IrreversibleKind | null {
   const before = ConfigRegistry.getTile(from);
   const after = ConfigRegistry.getTile(to);
-  if (before.togglesTo || after.togglesTo) return null;
+  // Reversible (toggle walls, flame jets).
+  if (before.togglesTo || after.togglesTo || before.flameTogglesTo || after.flameTogglesTo) return null;
+  if (before.transformsToOnLeave) return 'turtle_sunk';
   if (before.hazard === 'water') return 'water_filled';
   if (before.hazard === 'bomb') return 'bomb_used';
   if (before.requiredKey) return 'door_opened';
   if (before.id === 'dirt') return 'dirt_cleared';
+  // Forced (a socket opens once the chips are in) or free (a hidden wall found).
+  if (before.transformsToOnUnlock || before.revealsToOnTouch || before.transformsToOnStep) return null;
   if (before.hazard) return 'hazard_cleared';
   return 'terrain_changed';
 }
