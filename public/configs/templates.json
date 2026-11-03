@@ -1,0 +1,54 @@
+{
+  "templates": [
+    {
+      "id": "sokoban",
+      "labelKey": "editor.template.sokoban.label",
+      "winRule": "targets",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "legend": {
+        "#": { "terrain": "wall" },
+        ".": { "terrain": "floor" },
+        "P": { "terrain": "floor", "start": "S" },
+        "T": { "terrain": "block_target" },
+        "$": { "terrain": "floor", "entity": "dirt_block" }
+      },
+      "rows": [
+        "#########",
+        "#P......#",
+        "#..$....#",
+        "#.......#",
+        "#....$..#",
+        "#.......#",
+        "#.T...T.#",
+        "#########"
+      ]
+    },
+    {
+      "id": "laser",
+      "labelKey": "editor.template.laser.label",
+      "winRule": "receivers",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "legend": {
+        "#": { "terrain": "wall" },
+        ".": { "terrain": "floor" },
+        "P": { "terrain": "floor", "start": "S" },
+        ">": { "terrain": "laser_emitter_e" },
+        "R": { "terrain": "laser_receiver_red" },
+        "\\": { "terrain": "floor", "entity": "mirror_backslash" }
+      },
+      "rows": [
+        "#########",
+        "#>..\\...#",
+        "#.P.....#",
+        "#.......#",
+        "#.......#",
+        "#......R#",
+        "#########"
+      ]
+    }
+  ]
+}

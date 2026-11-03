@@ -44,6 +44,7 @@ import { receiversProgress } from '../ui/levelFeedback';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { CanvasFit, fitCanvas, zoomIn, zoomOut } from './canvasFit';
 import { checkBlocks, describeBlockVerdict } from './blockCheck';
+import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
 import {
   GridCell,
   levelStartingAt,
@@ -408,8 +409,21 @@ export class LevelEditor {
     };
   }
 
-  public initBlankMap(options: { packId?: string | null; ruleset?: Ruleset } = {}): void {
-    this.doc = this.blankDocument(options.ruleset);
+  /** A new level that starts from a template: its map and rules, in the editor's default metadata. */
+  private templateDocument(template: LevelTemplate): EditorDocument {
+    const content = templateContent(template);
+    return {
+      ...this.blankDocument(undefined),
+      ...content.map,
+      winRule: content.winRule,
+      ruleset: content.ruleset,
+      timeLimitSeconds: content.timeLimitSeconds,
+      chipsRequired: content.chipsRequired
+    };
+  }
+
+  public initBlankMap(options: { packId?: string | null; ruleset?: Ruleset; template?: LevelTemplate } = {}): void {
+    this.doc = options.template ? this.templateDocument(options.template) : this.blankDocument(options.ruleset);
     this.currentLevelId = ConfigRegistry.newLevelId();
     this.source = { packId: options.packId ?? null, levelId: null };
     this.originalLevel = null;
@@ -502,12 +516,46 @@ export class LevelEditor {
     return this.loadCompiledLevel(level, { source: { packId, levelId } });
   }
 
-  /** A blank map aimed at a pack, in the rules most of its levels use. False when the player keeps their work. */
-  public async newLevelInPack(packId: string | null): Promise<boolean> {
+  /**
+   * A new map aimed at a pack. Blank, it takes the rules most of the pack's
+   * levels use; from a template, it takes the template's rules. False when the
+   * player keeps their work.
+   */
+  public async newLevelInPack(packId: string | null, template?: LevelTemplate): Promise<boolean> {
     if (!(await this.confirmDiscardIfDirty())) return false;
     const pack = packId ? ConfigRegistry.getEditablePacks().find((p) => p.id === packId) : undefined;
-    this.initBlankMap({ packId: pack?.id ?? null, ruleset: pack ? majorityRuleset(pack.levels) : undefined });
+    this.initBlankMap({
+      packId: pack?.id ?? null,
+      ruleset: pack ? majorityRuleset(pack.levels) : undefined,
+      template
+    });
     return true;
+  }
+
+  /**
+   * The New button: offers the empty room and the templates, then opens the
+   * choice. Without templates (the file did not load) it opens the empty room
+   * and says so.
+   */
+  private async startNewLevel(): Promise<void> {
+    const templates = await loadLevelTemplates();
+    if (!templates) {
+      this.setStatusText(t('editor.template.load_failed'));
+      await this.newLevelInPack(this.source.packId);
+      return;
+    }
+    const choice = await choiceDialog({
+      title: t('editor.template.title'),
+      message: t('editor.template.message'),
+      options: [
+        { id: EMPTY_TEMPLATE_ID, label: t('editor.template.empty.label'), primary: true },
+        ...templates.map((template) => ({ id: template.id, label: t(template.labelKey) }))
+      ],
+      cancelLabel: t('app.confirm.cancel.action')
+    });
+    if (choice === null) return;
+    const template = templates.find((candidate) => candidate.id === choice);
+    await this.newLevelInPack(this.source.packId, template);
   }
 
   public buildUI(): void {
@@ -950,7 +998,7 @@ export class LevelEditor {
     });
 
     byId('editor-new-btn')?.addEventListener('click', () => {
-      void this.newLevelInPack(this.source.packId);
+      void this.startNewLevel();
     });
 
     byId('editor-undo-btn')?.addEventListener('click', () => {

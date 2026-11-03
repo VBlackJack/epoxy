@@ -31,7 +31,8 @@ export const CONFIG_ENDPOINTS = {
   LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/levels.json`,
   DAT_FORMAT: `${ENV_CONFIG.CONFIG_BASE_URL}/dat_format.json`,
   MOTIFS: `${ENV_CONFIG.CONFIG_BASE_URL}/motifs.json`,
-  MOTIF_ANNOTATIONS: `${ENV_CONFIG.CONFIG_BASE_URL}/motif-annotations.json`
+  MOTIF_ANNOTATIONS: `${ENV_CONFIG.CONFIG_BASE_URL}/motif-annotations.json`,
+  TEMPLATES: `${ENV_CONFIG.CONFIG_BASE_URL}/templates.json`
 } as const;
 
 export const DIRECTION_VECTORS = {
