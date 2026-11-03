@@ -495,6 +495,8 @@
       "fewer_keys_than_doors": { "label": "Attention : {doors, plural, one {# porte} other {# portes}} pour seulement {keys, plural, one {# clé} other {# clés}} ({key})." },
       "unreachable_chips": { "label": "Erreur : Seulement {reachable}/{required, plural, one {# puce est accessible} other {# puces sont accessibles}} depuis le départ." },
       "unreachable_exit": { "label": "Erreur : Le portail de sortie est bloqué ou inaccessible." },
+      "unreachable_chips_proven": { "label": "Avertissement : la simulation n'atteint que {reachable}/{required, plural, one {# puce} other {# puces}}, mais la solution enregistrée gagne." },
+      "unreachable_exit_proven": { "label": "Avertissement : la simulation juge le portail de sortie inaccessible, mais la solution enregistrée gagne." },
       "socket_bypass": { "label": "Erreur : La sortie est accessible sans passer par la serrure à puces." },
       "invalid_start": { "label": "Erreur : Le point de départ du joueur est hors de la carte." },
       "no_targets": { "label": "Erreur : Aucune cible de bloc placée sur la carte." },

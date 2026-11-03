@@ -40,3 +40,8 @@ export function timedSolution(level: CompiledLevel): TimedMove[] | null {
     return engine.isLevelCompleted() ? moves : null;
   });
 }
+
+/** Whether the level's stored solution replays to a win in the real engine. */
+export function storedSolutionWins(level: CompiledLevel): boolean {
+  return timedSolution(level) !== null;
+}

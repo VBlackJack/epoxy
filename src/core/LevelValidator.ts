@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BlockPuzzleSolver, requestedSearchBudget } from './BlockPuzzleSolver';
 import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
+import { isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import {
   CompiledLevel,
@@ -44,6 +45,8 @@ const CLONER_BLOCK_ALLOWANCE = 10;
  */
 const MAX_TRACKED_BOOT_TYPES = 8;
 const NO_BOOTS = 0;
+/** A key in a door's room outweighs any number of chips when choosing which door to open first. */
+const DOOR_KEY_WEIGHT = 1000;
 
 interface QueuedCell extends GridPoint {
   boots: number;
@@ -58,8 +61,15 @@ interface SlideResult {
 
 type BootCheck = (boots: number, bootId: string | undefined) => boolean;
 
+/** Tells whether a level's stored solution wins in the real engine; supplied by callers that can replay it. */
+export type SolutionWins = (level: CompiledLevel) => boolean;
+
 export class LevelValidator {
-  public static validate(level: CompiledLevel): LevelValidationReport {
+  /**
+   * Checks a level. `solutionWins` is the replay of the stored solution: when it confirms the
+   * solution, a reachability miss of the simulator is downgraded to a warning.
+   */
+  public static validate(level: CompiledLevel, solutionWins?: SolutionWins): LevelValidationReport {
     const issues: ValidationIssue[] = [];
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
@@ -277,6 +287,17 @@ export class LevelValidator {
         return boots;
       };
 
+      const deferredDoors = new Map<string, { x: number; y: number; keyId: string }>();
+      // Consumed-key doors still closed, per key: while the keys held cover them all, no order can go wrong.
+      const closedDoors: Record<string, number> = {};
+      for (const row of simTerrain) {
+        for (const id of row) {
+          const door = ConfigRegistry.getTile(id);
+          if (door.requiredKey && door.consumesKey) {
+            closedDoors[door.requiredKey] = (closedDoors[door.requiredKey] || 0) + 1;
+          }
+        }
+      }
       enqueue(sx, sy, NO_BOOTS);
 
       for (let head = 0; head < queue.length; head++) {
@@ -374,12 +395,17 @@ export class LevelValidator {
           if (nextTile.requiredKey) {
             const keyId = nextTile.requiredKey;
             if ((ownedKeys[keyId] || 0) > 0) {
-              if (nextTile.consumesKey) {
-                ownedKeys[keyId]--;
+              if (nextTile.consumesKey && (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)) {
+                // Keys are scarce: a spent key cannot be taken back, so the door waits until nothing
+                // else progresses, then the most rewarding one opens (see below).
+                deferredDoors.set(`${nx},${ny}`, { x: nx, y: ny, keyId });
+              } else {
+                if (nextTile.consumesKey) ownedKeys[keyId]--;
+                closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
+                simTerrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
+                changed = true;
+                enqueue(nx, ny, curr.boots);
               }
-              simTerrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
-              changed = true;
-              enqueue(nx, ny, curr.boots);
             }
             continue;
           }
@@ -457,20 +483,39 @@ export class LevelValidator {
           enqueue(nx, ny, nextBoots);
         }
       }
+
+      if (!changed && deferredDoors.size > 0) {
+        const best = this.pickRewardingDoor([...deferredDoors.values()], simTerrain, simItems);
+        const doorTile = ConfigRegistry.getTile(simTerrain[best.y][best.x]);
+        ownedKeys[best.keyId]--;
+        simTerrain[best.y][best.x] = doorTile.transformsToOnUnlock || FLOOR_TILE_ID;
+        changed = true;
+      }
     }
 
-    if (collectedChips < level.chipsRequired) {
+    // The simulator is a conservative model: a stored solution that wins in the real engine is
+    // stronger evidence, so a reachability miss then only warns (the simulator is what is wrong).
+    const chipsMissed = collectedChips < level.chipsRequired;
+    const exitMissed = needsExit && exitCount > 0 && !reachableExit;
+    const provenSolvable = (chipsMissed || exitMissed) && this.storedSolutionWins(level, solutionWins);
+    const missSeverity = provenSolvable ? 'warning' : 'error';
+
+    if (chipsMissed) {
       issues.push({
-        severity: 'error',
-        i18nKey: 'validator.issues.unreachable_chips.label',
+        severity: missSeverity,
+        i18nKey: provenSolvable
+          ? 'validator.issues.unreachable_chips_proven.label'
+          : 'validator.issues.unreachable_chips.label',
         params: { reachable: collectedChips, required: level.chipsRequired }
       });
     }
 
-    if (needsExit && exitCount > 0 && !reachableExit) {
+    if (exitMissed) {
       issues.push({
-        severity: 'error',
-        i18nKey: 'validator.issues.unreachable_exit.label'
+        severity: missSeverity,
+        i18nKey: provenSolvable
+          ? 'validator.issues.unreachable_exit_proven.label'
+          : 'validator.issues.unreachable_exit.label'
       });
     }
 
@@ -729,7 +774,6 @@ export class LevelValidator {
     return bits;
   }
 
-  /** Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. */
   /** Replaces every tile for which `target` names a terrain, reporting each change. */
   private static openToggledTiles(
     simTerrain: string[][],
@@ -747,6 +791,7 @@ export class LevelValidator {
     }
   }
 
+  /** Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. */
   private static bootsOnArrival(
     boots: number,
     tile: TileDefinition,
@@ -757,6 +802,74 @@ export class LevelValidator {
     return itemId ? boots | (bootBits.get(itemId) ?? NO_BOOTS) : boots;
   }
 
+  /**
+   * Whether the exit can be reached without passing a socket. Thin walls bind
+   * exactly as in the engine, and a key door is crossed only with a key of its
+   * colour picked up on the way,
+   * so a key kept behind the socket opens nothing here. A consumed key is
+   * treated as reusable once one is held: this over-approximates, so a rare false
+   * bypass is possible but a real one is never missed.
+   */
+  /**
+   * Chooses which door a spent key opens first: the one whose room holds the
+   * most keys, then chips. Greedy reachability cannot undo a key spent on the
+   * wrong door, so the order matters on key-order traps.
+   */
+  private static pickRewardingDoor(
+    doors: { x: number; y: number; keyId: string }[],
+    terrain: string[][],
+    items: (string | null)[][]
+  ): { x: number; y: number; keyId: string } {
+    const height = terrain.length;
+    const width = terrain[0]?.length || 0;
+    const closedByKey: Record<string, number> = {};
+    for (const row of terrain) {
+      for (const id of row) {
+        const required = ConfigRegistry.getTile(id).requiredKey;
+        if (required) closedByKey[required] = (closedByKey[required] || 0) + 1;
+      }
+    }
+    // The flood below only follows walkable terrain: hazards and boots are ignored, as this is a ranking.
+    const score = (door: { x: number; y: number; keyId: string }): number => {
+      const seen = new Set<string>([`${door.x},${door.y}`]);
+      const stack: GridPoint[] = [{ x: door.x, y: door.y }];
+      let keyCount = 0;
+      let chipCount = 0;
+      while (stack.length > 0) {
+        const cell = stack.pop() as GridPoint;
+        const item = items[cell.y][cell.x];
+        const collectible = item ? ConfigRegistry.getTile(item).collectible : undefined;
+        // A key only counts while a door of its colour would still be closed once this one is open.
+        if (item && collectible === 'key' && (closedByKey[item] || 0) - (item === door.keyId ? 1 : 0) > 0) {
+          keyCount++;
+        }
+        if (collectible === 'chip') chipCount++;
+        for (const dir of ORDERED_DIRECTIONS) {
+          const vec = DIRECTION_VECTORS[dir];
+          const nx = cell.x + vec.dx;
+          const ny = cell.y + vec.dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height || seen.has(`${nx},${ny}`)) continue;
+          if (this.isEdgeBlocked(terrain[cell.y][cell.x], terrain[ny][nx], dir)) continue;
+          if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) continue;
+          seen.add(`${nx},${ny}`);
+          stack.push({ x: nx, y: ny });
+        }
+      }
+      return keyCount * DOOR_KEY_WEIGHT + chipCount;
+    };
+    return doors.reduce((best, door) => (score(door) > score(best) ? door : best));
+  }
+
+  /** Whether the level's stored solution replays to a win in the real engine. */
+  private static storedSolutionWins(level: CompiledLevel, solutionWins?: SolutionWins): boolean {
+    if (!level.solution || !solutionWins) return false;
+    try {
+      return solutionWins(level);
+    } catch {
+      return false;
+    }
+  }
+
   private static canReachExitWithoutSocket(level: CompiledLevel): boolean {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
@@ -764,42 +877,54 @@ export class LevelValidator {
     if (sx < 0 || sx >= width || sy < 0 || sy >= height) {
       return false;
     }
-    const visited = Array.from({ length: height }, () => new Array<boolean>(width).fill(false));
-    const queue: GridPoint[] = [{ x: sx, y: sy }];
-    visited[sy][sx] = true;
+    const terrain = level.terrain.map((row) => [...row]);
+    const picked = new Set<string>();
+    const ownedKeys: Record<string, number> = {};
+    let changed = true;
 
-    for (let head = 0; head < queue.length; head++) {
-      const curr = queue[head];
-      const currTile = ConfigRegistry.getTile(level.terrain[curr.y][curr.x]);
-      if (currTile.isLevelExit) {
-        return true;
-      }
-      for (const dir of ORDERED_DIRECTIONS) {
-        const vec = DIRECTION_VECTORS[dir];
-        const nx = curr.x + vec.dx;
-        const ny = curr.y + vec.dy;
-        if (nx < 0 || nx >= width || ny < 0 || ny >= height || visited[ny][nx]) continue;
-        const nextTile = ConfigRegistry.getTile(level.terrain[ny][nx]);
-        if (nextTile.requiresAllChips) continue;
-        if (!nextTile.passableByPlayer && !nextTile.requiredKey) {
-          continue;
+    while (changed) {
+      changed = false;
+      const visited = Array.from({ length: height }, () => new Array<boolean>(width).fill(false));
+      const queue: GridPoint[] = [{ x: sx, y: sy }];
+      visited[sy][sx] = true;
+
+      for (let head = 0; head < queue.length; head++) {
+        const curr = queue[head];
+        const currTile = ConfigRegistry.getTile(terrain[curr.y][curr.x]);
+        if (currTile.isLevelExit) {
+          return true;
         }
-        visited[ny][nx] = true;
-        queue.push({ x: nx, y: ny });
+        const cellKey = `${curr.x},${curr.y}`;
+        const item = level.items[curr.y]?.[curr.x];
+        if (item && !picked.has(cellKey) && ConfigRegistry.getTile(item).collectible === 'key') {
+          picked.add(cellKey);
+          ownedKeys[item] = (ownedKeys[item] || 0) + 1;
+          changed = true;
+        }
+        for (const dir of ORDERED_DIRECTIONS) {
+          const vec = DIRECTION_VECTORS[dir];
+          const nx = curr.x + vec.dx;
+          const ny = curr.y + vec.dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height || visited[ny][nx]) continue;
+          if (this.isEdgeBlocked(currTile.id, terrain[ny][nx], dir)) continue;
+          const nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
+          if (nextTile.requiresAllChips) continue;
+          if (nextTile.requiredKey) {
+            if ((ownedKeys[nextTile.requiredKey] || 0) <= 0) continue;
+            terrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
+            changed = true;
+          } else if (!nextTile.passableByPlayer) {
+            continue;
+          }
+          visited[ny][nx] = true;
+          queue.push({ x: nx, y: ny });
+        }
       }
     }
     return false;
   }
 
   private static isEdgeBlocked(fromId: string, toId: string, dir: Direction): boolean {
-    const fromTile = ConfigRegistry.getTile(fromId);
-    const toTile = ConfigRegistry.getTile(toId);
-    const opposite = OPPOSITE_DIRECTION[dir];
-
-    if (fromTile.blockedEdges?.includes(dir)) return true;
-    if (toTile.blockedEdges?.includes(opposite)) return true;
-    if (fromTile.blockedEntryDirections?.includes(opposite)) return true;
-    if (toTile.blockedEntryDirections?.includes(dir)) return true;
-    return false;
+    return isEdgeBlockedBetween(fromId, toId, dir);
   }
 }

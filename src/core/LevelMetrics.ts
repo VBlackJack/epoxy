@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { LevelValidator } from './LevelValidator';
@@ -130,7 +131,7 @@ export class LevelMetrics {
       })
     );
 
-    const validation = LevelValidator.validate(level);
+    const validation = LevelValidator.validate(level, storedSolutionWins);
     const mechanics = this.collectMechanics(level, tiles);
     const bounds = this.usedBounds(tiles, width, height);
     const walkableCells = walkable.flat().filter(Boolean).length;

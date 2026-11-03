@@ -30,6 +30,7 @@ import {
   OPPOSITE_DIRECTION,
   SUNK_BLOCK_TILE_ID
 } from './coreConstants';
+import { isEdgeBlockedBetween } from './EdgeRules';
 import { SeededRandom } from './Random';
 import {
   BeamCell,
@@ -639,16 +640,7 @@ export class GameEngine {
   }
 
   private isEdgeBlocked(fromX: number, fromY: number, toX: number, toY: number, dir: Direction): boolean {
-    const currentTile = ConfigRegistry.getTile(this.terrain[fromY][fromX]);
-    const targetTile = ConfigRegistry.getTile(this.terrain[toY][toX]);
-    const opposite = OPPOSITE_DIRECTION[dir];
-
-    if (currentTile.blockedEdges?.includes(dir)) return true;
-    if (targetTile.blockedEdges?.includes(opposite)) return true;
-    if (currentTile.blockedEntryDirections?.includes(opposite)) return true;
-    if (targetTile.blockedEntryDirections?.includes(dir)) return true;
-
-    return false;
+    return isEdgeBlockedBetween(this.terrain[fromY][fromX], this.terrain[toY][toX], dir);
   }
 
   private executePlayerMove(dir: Direction, fromSlide: boolean): boolean {

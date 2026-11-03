@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError } from '../config/ConfigValidation';
@@ -114,6 +115,7 @@ import {
   NO_SOURCE,
   nextEditableIndex,
   pickSaveDestination,
+  levelMapChanged,
   prepareLevelForSave,
   reconcileSource,
   resolveSavedPassword,
@@ -1101,7 +1103,7 @@ export class LevelEditor {
 
     byId('editor-validate-btn')?.addEventListener('click', () => {
       const compiled = this.exportCompiledLevel();
-      const report = LevelValidator.validate(compiled);
+      const report = LevelValidator.validate(compiled, storedSolutionWins);
       this.setCheck(summarizeValidation(report));
       if (report.valid) {
         const validText =
@@ -1199,7 +1201,7 @@ export class LevelEditor {
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = setTimeout(() => {
       this.checkTimer = null;
-      this.setCheck(summarizeValidation(LevelValidator.validate(this.exportCompiledLevel())));
+      this.setCheck(summarizeValidation(LevelValidator.validate(this.exportCompiledLevel(), storedSolutionWins)));
     }, EDITOR_CHECK_DEBOUNCE_MS);
   }
 
@@ -2152,7 +2154,7 @@ export class LevelEditor {
     const targetLevels = this.sourcePack()?.levels ?? [];
     const existing = targetLevels.find((l) => l.id === id);
     const doc = this.doc;
-    return {
+    const level: CompiledLevel = {
       id,
       ...(doc.winRule === DEFAULT_WIN_RULE ? {} : { winRule: doc.winRule }),
       ...(doc.ruleset ? { ruleset: doc.ruleset } : {}),
@@ -2165,6 +2167,10 @@ export class LevelEditor {
       chipsRequired: doc.chipsRequired,
       ...cloneMap(doc)
     };
+    // The stored solution stays attached while the map is untouched, as on save, so the checks can trust it.
+    const original = this.originalLevel;
+    if (original?.solution !== undefined && !levelMapChanged(original, level)) level.solution = original.solution;
+    return level;
   }
 
   // ---------------------------------------------------------------------------
@@ -2209,7 +2215,7 @@ export class LevelEditor {
   private async testPlay(startCell?: GridCell): Promise<void> {
     const exported = this.exportCompiledLevel();
     const compiled = startCell ? levelStartingAt(exported, startCell) : exported;
-    const report = LevelValidator.validate(compiled);
+    const report = LevelValidator.validate(compiled, storedSolutionWins);
     let issuesText = '';
     if (!report.valid && report.issues.length > 0) {
       issuesText = this.formatIssues(report.issues);
