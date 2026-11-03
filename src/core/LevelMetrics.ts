@@ -392,37 +392,49 @@ export class LevelMetrics {
     return mean / scale;
   }
 
+  /** Mechanic families one tile or entity id belongs to; empty for an unknown id or a plain element. */
+  public static mechanicsOfElement(id: string): Mechanic[] {
+    const found = new Set<Mechanic>();
+    const tile = ConfigRegistry.getTiles().tiles[id];
+    if (tile) this.addTileMechanics(found, tile);
+    this.addEntityMechanics(found, id);
+    return [...found].sort();
+  }
+
+  private static addTileMechanics(found: Set<Mechanic>, tile: TileDefinition): void {
+    if (tile.requiredKey) found.add(MECHANICS.KEYS_DOORS);
+    if (tile.requiresAllChips) found.add(MECHANICS.SOCKET);
+    if (tile.hazard === 'water') found.add(MECHANICS.WATER);
+    if (tile.hazard === 'fire') found.add(MECHANICS.FIRE);
+    if (tile.hazard === 'bomb') found.add(MECHANICS.BOMB);
+    if (tile.slideType === 'ice') found.add(MECHANICS.ICE);
+    if (tile.slideType === 'force') found.add(MECHANICS.FORCE);
+    if (tile.stealsBoots) found.add(MECHANICS.THIEF);
+    if (tile.isTeleporter) found.add(MECHANICS.TELEPORT);
+    if (tile.isTrap) found.add(MECHANICS.TRAP);
+    if (tile.isCloneMachine) found.add(MECHANICS.CLONER);
+    if (tile.togglesTo) found.add(MECHANICS.TOGGLE_WALLS);
+    if (tile.laserEmitter || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined) {
+      found.add(MECHANICS.LASERS);
+    }
+    if (DIRT_TILE_IDS.has(tile.id)) found.add(MECHANICS.DIRT);
+    if (tile.revealsToOnTouch || HIDDEN_WALL_TILE_IDS.has(tile.id)) {
+      found.add(MECHANICS.HIDDEN_WALLS);
+    }
+  }
+
+  private static addEntityMechanics(found: Set<Mechanic>, entityType: string): void {
+    const def = ConfigRegistry.getEntityDef(entityType);
+    if (def?.kind === 'block') found.add(MECHANICS.BLOCKS);
+    if (def?.mirrorAxis) found.add(MECHANICS.LASERS);
+    if (def?.kind === 'monster') found.add(MECHANICS.MONSTERS);
+  }
+
   private static collectMechanics(level: CompiledLevel, tiles: TileDefinition[][]): Mechanic[] {
     const found = new Set<Mechanic>();
-    const addTile = (tile: TileDefinition): void => {
-      if (tile.requiredKey) found.add(MECHANICS.KEYS_DOORS);
-      if (tile.requiresAllChips) found.add(MECHANICS.SOCKET);
-      if (tile.hazard === 'water') found.add(MECHANICS.WATER);
-      if (tile.hazard === 'fire') found.add(MECHANICS.FIRE);
-      if (tile.hazard === 'bomb') found.add(MECHANICS.BOMB);
-      if (tile.slideType === 'ice') found.add(MECHANICS.ICE);
-      if (tile.slideType === 'force') found.add(MECHANICS.FORCE);
-      if (tile.stealsBoots) found.add(MECHANICS.THIEF);
-      if (tile.isTeleporter) found.add(MECHANICS.TELEPORT);
-      if (tile.isTrap) found.add(MECHANICS.TRAP);
-      if (tile.isCloneMachine) found.add(MECHANICS.CLONER);
-      if (tile.togglesTo) found.add(MECHANICS.TOGGLE_WALLS);
-      if (tile.laserEmitter || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined) {
-        found.add(MECHANICS.LASERS);
-      }
-      if (DIRT_TILE_IDS.has(tile.id)) found.add(MECHANICS.DIRT);
-      if (tile.revealsToOnTouch || HIDDEN_WALL_TILE_IDS.has(tile.id)) {
-        found.add(MECHANICS.HIDDEN_WALLS);
-      }
-    };
-    for (const row of tiles) for (const tile of row) addTile(tile);
-    for (const row of level.items) for (const id of row) if (id) addTile(ConfigRegistry.getTile(id));
-    for (const entity of level.entities) {
-      const kind = ConfigRegistry.getEntityDef(entity.type)?.kind;
-      if (kind === 'block') found.add(MECHANICS.BLOCKS);
-      if (ConfigRegistry.getEntityDef(entity.type)?.mirrorAxis) found.add(MECHANICS.LASERS);
-      if (kind === 'monster') found.add(MECHANICS.MONSTERS);
-    }
+    for (const row of tiles) for (const tile of row) this.addTileMechanics(found, tile);
+    for (const row of level.items) for (const id of row) if (id) this.addTileMechanics(found, ConfigRegistry.getTile(id));
+    for (const entity of level.entities) this.addEntityMechanics(found, entity.type);
     return [...found].sort();
   }
 }
