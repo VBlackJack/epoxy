@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { DEADLY_HAZARDS, OPPOSITE_DIRECTION } from '../core/coreConstants';
+import { isEdgeBlockedBetween } from '../core/EdgeRules';
 import { CompiledLevel, Direction, GridPoint, TileDefinition } from '../core/types';
 import { isPlayerWalkable } from '../core/Walkability';
 import { Box } from './LevelAssembler';
@@ -147,10 +148,14 @@ function floodWithout(level: CompiledLevel, itemId: string, socketsOpen: boolean
     if (tile.isLevelExit) return { exit: true, chips };
     const item = level.items[cell.y][cell.x];
     if (item && ConfigRegistry.getTile(item).collectible === 'chip') chips++;
-    const next = ORDERED_DIRECTIONS.map((d) => ({
-      x: cell.x + DIRECTION_VECTORS[d].dx,
-      y: cell.y + DIRECTION_VECTORS[d].dy
-    }));
+    const next: GridPoint[] = [];
+    for (const d of ORDERED_DIRECTIONS) {
+      const n = { x: cell.x + DIRECTION_VECTORS[d].dx, y: cell.y + DIRECTION_VECTORS[d].dy };
+      if (n.x < 0 || n.y < 0 || n.x >= width || n.y >= height) continue;
+      // A thin wall closes one edge of a cell, from either side.
+      if (isEdgeBlockedBetween(level.terrain[cell.y][cell.x], level.terrain[n.y][n.x], d)) continue;
+      next.push(n);
+    }
     if (tile.isTeleporter) next.push(...(teleportersByGroup.get(tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP) ?? []));
     for (const n of next) {
       const k = n.y * width + n.x;

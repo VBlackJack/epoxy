@@ -200,3 +200,259 @@ describe('pilot chapter 1 footprints', () => {
     expect(dirt).toEqual(FOOTPRINTS_STUB_ROWS.map((y) => [FOOTPRINTS_STUB_X, y]));
   });
 });
+
+/** Red keys the player holds; the green key is never spent, so it does not count. */
+function redKeysHeld(engine: GameEngine): number {
+  return engine.captureState().player.keys.key_red ?? 0;
+}
+
+function terrainAt(engine: GameEngine, x: number, y: number): string {
+  return engine.getTerrain()[y][x];
+}
+
+/** Doors of a colour, in the order the level's own solution opens them, as "x,y". */
+function doorsOpenedBySolution(level: CompiledLevel, doorId: string): string[] {
+  const engine = engineAfter(level, '');
+  const closed = new Set<string>();
+  level.terrain.forEach((row, y) => row.forEach((id, x) => id === doorId && closed.add(`${x},${y}`)));
+  const opened: string[] = [];
+  for (const move of level.solution ?? '') {
+    expect(PieceSolver.play(engine, move as Direction)).toBe(true);
+    for (const cell of [...closed]) {
+      const [x, y] = cell.split(',').map(Number);
+      if (terrainAt(engine, x, y) !== doorId) {
+        closed.delete(cell);
+        opened.push(cell);
+      }
+    }
+  }
+  return opened;
+}
+
+function countTerrain(level: CompiledLevel, id: string): number {
+  return level.terrain.flat().filter((cell) => cell === id).length;
+}
+
+function countItems(level: CompiledLevel, id: string): number {
+  return level.items.flat().filter((item) => item === id).length;
+}
+
+/** Replays the solution up to the step that opens the socket: the moves left, and the red doors still shut then. */
+function afterSocket(level: CompiledLevel): { movesLeft: number; redDoorsShut: number } {
+  const socket = level.terrain.flatMap((row, y) => row.map((id, x) => ({ id, x, y }))).find((cell) => cell.id === 'socket');
+  if (!socket) throw new Error('no socket');
+  const engine = engineAfter(level, '');
+  const moves = level.solution ?? '';
+  for (let step = 0; step < moves.length; step++) {
+    expect(PieceSolver.play(engine, moves[step] as Direction)).toBe(true);
+    if (terrainAt(engine, socket.x, socket.y) !== 'socket') {
+      return { movesLeft: moves.length - step - 1, redDoorsShut: engine.getTerrain().flat().filter((id) => id === 'door_red').length };
+    }
+  }
+  throw new Error('the socket never opens');
+}
+
+const HEDGE_LEVEL = 'epoxy_p_11';
+/** The red door set into the hedge, straight ahead of the start, and the two key rooms beyond the hedge. */
+const HEDGE_DOOR = { x: 6, y: 6 };
+const HEDGE_ROOM_DOORS = [
+  { x: 2, y: 4 },
+  { x: 10, y: 4 }
+];
+/** Through the gap in the lower hedge, then east along the lane to the red key. */
+const HEDGE_TO_KEY = 'NNNEEEEE';
+/** Back to the middle of the lane, then north into the hedge door with the key. */
+const HEDGE_SPEND_AT_DOOR = `${HEDGE_TO_KEY}WWWWWN`;
+/** West along the lane, then north through the free gap at the west end of the hedge. */
+const HEDGE_WALK_AROUND = `${HEDGE_TO_KEY}${'W'.repeat(10)}NN`;
+
+describe('pilot chapter 1 hedge', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('keeps the level solvable when the key is carried round through the free gap', () => {
+    const engine = engineAfter(levelById(HEDGE_LEVEL), HEDGE_WALK_AROUND);
+    expect(redKeysHeld(engine)).toBe(1);
+    expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(true);
+  }, 120000);
+
+  it('leaves the level unsolvable once the key is spent on the door in the hedge', () => {
+    const level = levelById(HEDGE_LEVEL);
+    const engine = engineAfter(level, HEDGE_SPEND_AT_DOOR);
+    expect(terrainAt(engine, HEDGE_DOOR.x, HEDGE_DOOR.y)).toBe('floor');
+    expect(redKeysHeld(engine)).toBe(0);
+    for (const door of HEDGE_ROOM_DOORS) expect(terrainAt(engine, door.x, door.y)).toBe('door_red');
+    expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(false);
+}, 120000);
+
+  it('needs both key rooms, and never opens the hedge door in its own solution', () => {
+    const level = levelById(HEDGE_LEVEL);
+    expect(level.chipsRequired).toBe(countItems(level, 'chip'));
+    const opened = doorsOpenedBySolution(level, 'door_red');
+    expect(opened).not.toContain(`${HEDGE_DOOR.x},${HEDGE_DOOR.y}`);
+    expect(opened).toHaveLength(2);
+  });
+});
+
+const ORCHARD_LEVEL = 'epoxy_p_12';
+/** The red door of the three-chip room beside the lane, which the green rooms make unnecessary. */
+const ORCHARD_BAIT_DOOR = { x: 2, y: 7 };
+/** Fetch the red key in its nook off the stem, return to the lane, walk west and open the three-chip room. */
+const ORCHARD_BAIT_FIRST = 'NNEENSWWNNNWWWWS';
+/** Spend that key on the first gate of the socket corridor, then take the second key from the far green room and spend it on the bait. */
+const ORCHARD_BAIT_SECOND = 'NNEENSWWNNNEEEEEWSNWWWWWWWWWNNNNNSSSSSES';
+
+describe('pilot chapter 1 orchard', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('asks for six chips out of nine, with three green doors and three red doors', () => {
+    const level = levelById(ORCHARD_LEVEL);
+    expect(level.chipsRequired).toBe(6);
+    expect(countItems(level, 'chip')).toBe(9);
+    expect(countTerrain(level, 'door_green')).toBe(3);
+    expect(countTerrain(level, 'door_red')).toBe(3);
+  });
+
+  it('never opens the three-chip room in its own solution', () => {
+    const level = levelById(ORCHARD_LEVEL);
+    const opened = doorsOpenedBySolution(level, 'door_red');
+    expect(opened).not.toContain(`${ORCHARD_BAIT_DOOR.x},${ORCHARD_BAIT_DOOR.y}`);
+    expect(opened).toHaveLength(2);
+  });
+
+  it.each([
+    ['the first key', ORCHARD_BAIT_FIRST],
+    ['the second key, after the first gate', ORCHARD_BAIT_SECOND]
+  ])('leaves the level unsolvable when %s is spent on the three-chip room', (_name, moves) => {
+    const engine = engineAfter(levelById(ORCHARD_LEVEL), moves);
+    expect(terrainAt(engine, ORCHARD_BAIT_DOOR.x, ORCHARD_BAIT_DOOR.y)).toBe('floor');
+    expect(redKeysHeld(engine)).toBe(0);
+    expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(false);
+  }, 120000);
+});
+
+const ZEN_LEVEL = 'epoxy_p_13';
+const ZEN_TERRAIN = new Set(['floor', 'wall', 'dirt', 'hint', 'socket', 'exit']);
+
+describe('pilot chapter 1 zen garden', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('holds nothing that can lock the player out: only dirt, walls, three chips, the socket and the exit', () => {
+    const level = levelById(ZEN_LEVEL);
+    const terrain = new Set(level.terrain.flat());
+    expect([...terrain].filter((id) => !ZEN_TERRAIN.has(id))).toEqual([]);
+    expect(terrain.has('dirt')).toBe(true);
+    expect(level.items.flat().filter((id) => id !== null && id !== 'chip')).toEqual([]);
+    expect(countItems(level, 'chip')).toBe(3);
+    expect(level.chipsRequired).toBe(3);
+  });
+
+  it('is a short walk', () => {
+    const level = levelById(ZEN_LEVEL);
+    const engine = engineAfter(level, level.solution ?? '');
+    expect(engine.isLevelCompleted()).toBe(true);
+    expect(level.solution?.length).toBeGreaterThanOrEqual(25);
+    expect(level.solution?.length).toBeLessThanOrEqual(40);
+  });
+});
+
+const TWINS_LEVEL = 'epoxy_p_14';
+/** The red door of the alcove that holds the green key: the only right first door. */
+const TWINS_ALCOVE_DOOR = { x: 5, y: 7 };
+/** Walk east along the lane to the red key, then the three possible first doors. */
+const TWINS_TO_KEY = 'EEEEEE';
+const TWINS_ALCOVE_FIRST = `${TWINS_TO_KEY}WWS`;
+const TWINS_EAST_ROOM_FIRST = `${TWINS_TO_KEY}S`;
+const TWINS_WEST_ROOM_FIRST = `${TWINS_TO_KEY}WWWWWS`;
+
+describe('pilot chapter 1 two key rings', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('opens the alcove door first in its own solution, and keeps the socket in the middle of the work', () => {
+    const level = levelById(TWINS_LEVEL);
+    expect(doorsOpenedBySolution(level, 'door_red')[0]).toBe(`${TWINS_ALCOVE_DOOR.x},${TWINS_ALCOVE_DOOR.y}`);
+    const { movesLeft, redDoorsShut } = afterSocket(level);
+    expect(redDoorsShut).toBeGreaterThan(0);
+    expect(movesLeft).toBeGreaterThanOrEqual(15);
+  });
+
+  it('keeps the level solvable after the alcove door', () => {
+    const engine = engineAfter(levelById(TWINS_LEVEL), TWINS_ALCOVE_FIRST);
+    expect(terrainAt(engine, TWINS_ALCOVE_DOOR.x, TWINS_ALCOVE_DOOR.y)).toBe('floor');
+    expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(true);
+}, 120000);
+
+  it.each([
+    ['the west chip room', TWINS_WEST_ROOM_FIRST, { x: 2, y: 7 }],
+    ['the east chip room', TWINS_EAST_ROOM_FIRST, { x: 7, y: 7 }]
+  ])('leaves the level unsolvable when %s is opened first', (_name, moves, door) => {
+    const engine = engineAfter(levelById(TWINS_LEVEL), moves);
+    expect(terrainAt(engine, door.x, door.y)).toBe('floor');
+    expect(redKeysHeld(engine)).toBe(0);
+    expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(false);
+  }, 120000);
+});
+
+const CLOCK_LEVEL = 'epoxy_p_15';
+/** From the start to the red key in the north-west corner of the central hall (5,4). */
+const CLOCK_TO_KEY = 'NNNNNNNW';
+/** The key room, the plain room in the lower hall beside the start, and the two bait rooms. */
+const CLOCK_KEY_ROOM_DOOR = { x: 8, y: 5 };
+const CLOCK_PLAIN_ROOM_DOOR = { x: 4, y: 11 };
+const CLOCK_BAIT_DOORS = [
+  { x: 4, y: 8 },
+  { x: 8, y: 8 }
+];
+const CLOCK_BACK_TO_START = 'ESSSSSSS';
+/** Trap 1: the key goes into the east bait room before the green key is fetched. */
+const CLOCK_BAIT_FIRST = `${CLOCK_TO_KEY}ESSSESE`;
+/** Trap 2: the key goes into the plain chip room next to the start, which gives no key back. */
+const CLOCK_PLAIN_FIRST = `${CLOCK_TO_KEY}${CLOCK_BACK_TO_START}WW`;
+/** Trap 3: the key opens the key room, and the key it returns goes into the plain room instead of the closet. */
+const CLOCK_KEY_ROOM_THEN_PLAIN = `${CLOCK_TO_KEY}EESEEEENWWEESWWWWWSSSSSSWW`;
+/** Trap 4: closet, then the first green room, then a bait room with the key just fetched. */
+const CLOCK_BAIT_LATE = `${CLOCK_TO_KEY}${CLOCK_BACK_TO_START}EEEEENWWEESWWWWWNNNNNNWWWWWNSEEEEESSSWW`;
+
+describe('pilot chapter 1 clockmaker', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('has six red doors, two green doors and fewer chips required than placed', () => {
+    const level = levelById(CLOCK_LEVEL);
+    expect(countTerrain(level, 'door_red')).toBe(6);
+    expect(countTerrain(level, 'door_green')).toBe(2);
+    expect(countItems(level, 'key_red')).toBe(6);
+    expect(level.chipsRequired).toBeLessThan(countItems(level, 'chip'));
+  });
+
+  it('opens the key room first in its own solution, skips both bait rooms, and keeps work behind the socket', () => {
+    const level = levelById(CLOCK_LEVEL);
+    const opened = doorsOpenedBySolution(level, 'door_red');
+    expect(opened[0]).toBe(`${CLOCK_KEY_ROOM_DOOR.x},${CLOCK_KEY_ROOM_DOOR.y}`);
+    for (const door of CLOCK_BAIT_DOORS) expect(opened).not.toContain(`${door.x},${door.y}`);
+    expect(opened).toContain(`${CLOCK_PLAIN_ROOM_DOOR.x},${CLOCK_PLAIN_ROOM_DOOR.y}`);
+    const { movesLeft, redDoorsShut } = afterSocket(level);
+    expect(redDoorsShut).toBeGreaterThan(0);
+    expect(movesLeft).toBeGreaterThanOrEqual(15);
+  });
+
+  it.each([
+    ['the east bait room is opened first', CLOCK_BAIT_FIRST, CLOCK_BAIT_DOORS[1]],
+    ['the plain chip room is opened first', CLOCK_PLAIN_FIRST, CLOCK_PLAIN_ROOM_DOOR],
+    ['the key room is followed by the plain chip room', CLOCK_KEY_ROOM_THEN_PLAIN, CLOCK_PLAIN_ROOM_DOOR],
+    ['a bait room is opened after the closet and the first green room', CLOCK_BAIT_LATE, CLOCK_BAIT_DOORS[0]]
+  ])('leaves the level unsolvable when %s', (_name, moves, door) => {
+    const engine = engineAfter(levelById(CLOCK_LEVEL), moves);
+    expect(terrainAt(engine, door.x, door.y)).toBe('floor');
+    expect(redKeysHeld(engine)).toBe(0);
+    expect(canStillWin(engine, LARGE_STATE_CAP)).toBe(false);
+  }, 240000);
+});

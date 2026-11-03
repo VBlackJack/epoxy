@@ -39,6 +39,12 @@ describe('exitReachableWithout', () => {
     expect(exitReachableWithout(level, 'key_red')).toBe(true);
   });
 
+  it('honours a thin wall, which closes the edge from either side', () => {
+    expect(exitReachableWithout(buildTestLevel(['@DE']), 'key_blue')).toBe(false);
+    expect(exitReachableWithout(buildTestLevel(['@LE']), 'key_blue')).toBe(false);
+    expect(exitReachableWithout(buildTestLevel(['@.E', '#N.']), 'key_blue')).toBe(true);
+  });
+
   it('proves boots needed when water blocks the way', () => {
     const level = buildTestLevel(['@.WE']);
     expect(exitReachableWithout(level, 'boots_water')).toBe(false);

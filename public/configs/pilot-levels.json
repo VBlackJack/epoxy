@@ -367,6 +367,373 @@
       "trapLinks": [],
       "cloneLinks": [],
       "solution": "WWWWWWNEEENNNNNWWWEEESSSSSEEENNNNNSSSSSEEENNNNNESSSWSSEEENNNNNSSSSSWSWWWWWSS"
+    },
+    {
+      "id": "epoxy_p_11",
+      "theme": "cyber_neon",
+      "number": 11,
+      "titleKey": "pilot.levels.level_11.title",
+      "hintKey": "pilot.levels.level_11.hint",
+      "password": "HEDG",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 8,
+      "playerStart": {
+        "x": 6,
+        "y": 10,
+        "dir": "N"
+      },
+      "rows": [
+        "#############",
+        "#C.C##E##C.C#",
+        "#...##S##...#",
+        "#..r#C.C#r..#",
+        "##R##...##R##",
+        "#...C...C...#",
+        "#.....R.....#",
+        "#..........r#",
+        "#...........#",
+        "######H######",
+        "######@######",
+        "#############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 2,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 8,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 10,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 1,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 2,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 3,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 4,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 5,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 7,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 8,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 9,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 10,
+          "y": 8,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 11,
+          "y": 8,
+          "id": "thin_wall_n"
+        }
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NNNEEEEENWWWWSWWNWWWWNENNNNWEESSWSSEEEEEEEENNNNEWWSSESSWWWNNWWENN"
+    },
+    {
+      "id": "epoxy_p_12",
+      "theme": "cyber_neon",
+      "number": 12,
+      "titleKey": "pilot.levels.level_12.title",
+      "hintKey": "pilot.levels.level_12.hint",
+      "password": "ORCH",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 6,
+      "playerStart": {
+        "x": 6,
+        "y": 11,
+        "dir": "N"
+      },
+      "rows": [
+        "#############",
+        "#r.C#..C#..C#",
+        "#...#...#...#",
+        "#...#...#...#",
+        "#..C#..C#..C#",
+        "#G###G###G###",
+        "#..........k#",
+        "##R###.###R##",
+        "#C..C#.#r#S##",
+        "#....#...#R##",
+        "#C...#H###r##",
+        "######@###E##",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NNEENSWWNNNEEEEEWWNNNNNEESSSWWSSWWWWNNNNNEESSSWWSSWWWWNNNNNEESSSWWSSEEEEEEEEESSSSS"
+    },
+    {
+      "id": "epoxy_p_13",
+      "theme": "cyber_neon",
+      "number": 13,
+      "titleKey": "pilot.levels.level_13.title",
+      "hintKey": "pilot.levels.level_13.hint",
+      "password": "ZENG",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 6,
+        "y": 11,
+        "dir": "N"
+      },
+      "rows": [
+        "#############",
+        "######E######",
+        "######S######",
+        "######d######",
+        "####ddddd####",
+        "###dd###dd###",
+        "##dd#####dd##",
+        "##Cd#####dC##",
+        "###dd###dd###",
+        "####ddCdd####",
+        "######H######",
+        "######@######",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NNEENENEWSWSWWWWNWNWNENENEENNN"
+    },
+    {
+      "id": "epoxy_p_14",
+      "theme": "cyber_neon",
+      "number": 14,
+      "titleKey": "pilot.levels.level_14.title",
+      "hintKey": "pilot.levels.level_14.hint",
+      "password": "TWIN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 7,
+      "playerStart": {
+        "x": 1,
+        "y": 6,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "#r.C#r.C#..r#",
+        "#...#...#...#",
+        "###.###.#.###",
+        "#..C#..C#...#",
+        "##G###G###G##",
+        "#@H....rS...#",
+        "##R##R#R###R#",
+        "#.C.#C#.C.#E#",
+        "#...#.#...###",
+        "###.#k###.###",
+        "#...###...###",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEEWWSSSSNNNNWWWNNENNNWWESESSWSSSSNNEEEENNENNNWWEESSSWSSESSEWNNEEENNWNNNEESWWSSESSESS"
+    },
+    {
+      "id": "epoxy_p_15",
+      "theme": "cyber_neon",
+      "number": 15,
+      "titleKey": "pilot.levels.level_15.title",
+      "hintKey": "pilot.levels.level_15.hint",
+      "password": "CLOK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 11,
+      "playerStart": {
+        "x": 6,
+        "y": 11,
+        "dir": "N"
+      },
+      "rows": [
+        "#############",
+        "#rCC#...#Err#",
+        "#...G...R...#",
+        "#####.S.#####",
+        "#r.C#r..#r.C#",
+        "#C..G...R...#",
+        "######.######",
+        "#C..#...#..C#",
+        "#...R...R...#",
+        "######.######",
+        "#CCC##H##k.C#",
+        "#...R.@.R...#",
+        "#############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 2,
+          "y": 2,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 10,
+          "y": 2,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 10,
+          "y": 5,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 2,
+          "y": 11,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 3,
+          "y": 11,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 9,
+          "y": 11,
+          "id": "thin_wall_n"
+        },
+        {
+          "x": 10,
+          "y": 11,
+          "id": "thin_wall_n"
+        }
+      ],
+      "items": [
+        {
+          "x": 5,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 10,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NNNNNNNWNSEENSSEEEENWWEESWWWWWSSSSSSEEEEENWWEESWWWWWNNNNNNWWWWWNEEWWSEEEEESSSSSSWWWWWNEEWWSEEEEENNNNNNNNNWWWWWNSEEEEEEEEEENWW"
     }
   ]
 }
