@@ -93,6 +93,10 @@ export interface StorageConfig {
   lastSaveDestinationKey: string;
   /** Which inspector sections of the editor are open. */
   editorSectionsKey: string;
+  /** Whether Playtest mode is on. */
+  playtestEnabledKey: string;
+  /** The recorded playtest sessions. */
+  playtestSessionsKey: string;
   levelPacksDbName: string;
   levelPacksStoreName: string;
 }
@@ -128,6 +132,21 @@ export interface LevelTextConfig {
   keyMaxLength: number;
   /** Tile, item and entity type ids. */
   idMaxLength: number;
+}
+
+/** Bounds of the Playtest recorder and of its rating form. */
+export interface PlaytestConfig {
+  /** Sessions kept; the oldest are dropped first. */
+  maxSessions: number;
+  /** Longest move trace kept per attempt, in characters. */
+  maxTraceLength: number;
+  /** Deaths listed per session; further ones are only counted. */
+  maxDeathsPerSession: number;
+  /** Longest tester note, in characters. */
+  noteMaxLength: number;
+  /** Lowest and highest rating on the difficulty and fun scales. */
+  ratingMin: number;
+  ratingMax: number;
 }
 
 /** Limits of the pack share links. */
@@ -669,6 +688,7 @@ export interface GameConfig {
   packMetadata: PackMetadataConfig;
   levelText: LevelTextConfig;
   share: ShareConfig;
+  playtest: PlaytestConfig;
   locales: {
     supported: string[];
     default: string;

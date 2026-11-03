@@ -469,8 +469,18 @@
     "onboardingSeenKey": "onboarding_seen",
     "lastSaveDestinationKey": "last_save_destination",
     "editorSectionsKey": "editor_sections",
+    "playtestEnabledKey": "playtest_enabled",
+    "playtestSessionsKey": "playtest_sessions",
     "levelPacksDbName": "epoxy_level_packs_db",
     "levelPacksStoreName": "packs"
+  },
+  "playtest": {
+    "maxSessions": 400,
+    "maxTraceLength": 1500,
+    "maxDeathsPerSession": 40,
+    "noteMaxLength": 280,
+    "ratingMin": 1,
+    "ratingMax": 5
   },
   "import": {
     "maxFileBytes": 4194304
