@@ -471,7 +471,8 @@ class EpoxyApplication {
         this.loadPlayLevel(testLevel);
         AudioManager.onLevelLoaded(testLevel.id);
         this.showLevelTheme(testLevel);
-        // The editor already holds this content: do not reload it on return.
+        // The editor already holds its own level (the played copy may start elsewhere, as for Test from here):
+        // this object only marks the editor as synced, so returning never reloads it from the copy.
         this.editorSourceLevel = testLevel;
         this.testPlayLevel = testLevel;
         this.updateHUD();
@@ -484,7 +485,8 @@ class EpoxyApplication {
         this.packManager.open(packId !== null && ConfigRegistry.isEditablePack(packId) ? packId : this.managerStartPackId());
       },
       importAsPack: (name: string, levels: CompiledLevel[], skipped: number) =>
-        this.packFlows.importLevelsAsPack(name, levels, skipped)
+        this.packFlows.importLevelsAsPack(name, levels, skipped),
+      getConfigBundle: () => this.captureConfigBundle()
     });
     this.editor.buildUI();
   }
@@ -1882,7 +1884,9 @@ class EpoxyApplication {
     for (const id of PLAY_MODE_BUTTON_IDS) setToggleState(byId(id), isPlay);
     for (const id of EDITOR_MODE_BUTTON_IDS) setToggleState(byId(id), !isPlay);
 
-    if (!isPlay) {
+    if (isPlay) {
+      this.editor?.onLeave();
+    } else {
       void this.syncEditorWithEngineLevel().then(() => this.editor.refreshContext());
     }
   }

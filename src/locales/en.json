@@ -402,6 +402,7 @@
       "kb_editor_cancel": { "label": "Escape: Cancel a wire that waits for its target" },
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
+      "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
@@ -443,6 +444,33 @@
     }
   },
   "editor": {
+    "check": {
+      "blocks": {
+        "solved": "Blocks: solved in {count, plural, one {# push} other {# pushes}}",
+        "unsolvable": "Blocks: no way to cover every target",
+        "not_checked": "Blocks: not checked (too large or unsupported ground)",
+        "running": "Blocks: checking..."
+      }
+    },
+    "test_from": {
+      "action": "Test from here",
+      "title": "Play the level with the player starting on the cursor cell (T)",
+      "reason": {
+        "no_cell": "Test from here: move the cursor or hover a cell first.",
+        "not_walkable": "Test from here: the player cannot start on this cell.",
+        "not_supported": "Test from here: this engine does not support it."
+      },
+      "status": "Testing from ({x}, {y})."
+    },
+    "template": {
+      "title": "New level",
+      "message": "Choose what the new level starts from.",
+      "lynx_only": "This pack is mostly Lynx, and templates are Epoxy levels: only the empty room is offered here.",
+      "empty": { "label": "Empty room" },
+      "sokoban": { "label": "Sokoban room" },
+      "laser": { "label": "Laser puzzle" },
+      "load_failed": "The level templates could not be loaded; starting from an empty room."
+    },
     "pack": {
       "save_copy": { "action": "Save a copy..." },
       "back_to_editor": { "action": "Back to editor" },
