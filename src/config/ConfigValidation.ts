@@ -692,6 +692,16 @@ function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): strin
     if (minIntervalMs !== undefined && !(isFiniteNumber(minIntervalMs) && minIntervalMs >= 0)) {
       errors.push(`effects.${id}.minIntervalMs: expected a finite number of at least 0`);
     }
+    (Array.isArray(effect.notes) ? effect.notes : []).forEach((note, index) => {
+      const at = `effects.${id}.notes[${index}]`;
+      if (note.slideToFreq !== undefined && !(isFiniteNumber(note.slideToFreq) && note.slideToFreq > 0)) {
+        errors.push(`${at}.slideToFreq: expected a finite number above 0`);
+      }
+      if (note.attackMs !== undefined) {
+        const valid = isFiniteNumber(note.attackMs) && note.attackMs >= 0 && note.attackMs < note.durationMs;
+        if (!valid) errors.push(`${at}.attackMs: expected a finite number of at least 0 and below durationMs`);
+      }
+    });
   }
   return errors;
 }

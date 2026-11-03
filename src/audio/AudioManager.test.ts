@@ -86,7 +86,16 @@ class FakeAudioNode {
       this.gainCalls.push(['setTargetAtTime', ...args]);
     }
   };
-  public readonly frequency = { setValueAtTime: (): void => {} };
+  /** Every automation call on the frequency, in order, as [method, ...arguments]. */
+  public readonly frequencyCalls: Array<[string, ...number[]]> = [];
+  public readonly frequency = {
+    setValueAtTime: (...args: number[]): void => {
+      this.frequencyCalls.push(['setValueAtTime', ...args]);
+    },
+    exponentialRampToValueAtTime: (...args: number[]): void => {
+      this.frequencyCalls.push(['exponentialRampToValueAtTime', ...args]);
+    }
+  };
   public type = '';
   public onended: (() => void) | null = null;
   public start(): void {}
@@ -109,9 +118,12 @@ class FakeAudioContext {
     return node;
   }
   public oscillatorsCreated = 0;
+  public readonly oscillators: FakeAudioNode[] = [];
   public createOscillator(): FakeAudioNode {
     this.oscillatorsCreated++;
-    return new FakeAudioNode();
+    const node = new FakeAudioNode();
+    this.oscillators.push(node);
+    return node;
   }
   public createGain(): FakeAudioNode {
     const node = new FakeAudioNode();
@@ -813,5 +825,69 @@ describe('AudioManager volumes', () => {
     const { manager } = await createMusicFixture(env);
     expect(() => manager.setMusicVolumePercent(20)).not.toThrow();
     expect(env.contexts).toHaveLength(0);
+  });
+});
+
+describe('AudioManager note glide and attack', () => {
+  let env: FakeEnvironment;
+  const START_FREQ = 220;
+  const END_FREQ = 520;
+  const NOTE_MS = 70;
+  const ATTACK_MS = 12;
+  const NOTE_GAIN = 0.3;
+  const MS_PER_SECOND = 1000;
+
+  beforeEach(() => {
+    env = new FakeEnvironment();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function playNote(note: Record<string, number>): Promise<{ ctx: FakeAudioContext; floor: number }> {
+    vi.resetModules();
+    const { ConfigRegistry } = await import('../config/ConfigRegistry');
+    const { createTestBundle } = await import('../test/loadTestConfigs');
+    const { AudioService } = await import('./AudioManager');
+    const bundle = createTestBundle();
+    bundle.audio.effects = {
+      bloop: { waveform: 'sine', notes: [note] }
+    } as unknown as typeof bundle.audio.effects;
+    bundle.audio.terrainStepEffects = {};
+    ConfigRegistry.applyConfigs(bundle);
+    vi.stubGlobal('window', env.window);
+    vi.stubGlobal('document', env.document);
+    const manager = new AudioService();
+    env.fire('pointerdown');
+    await flushPromises();
+    manager.playSfx('bloop');
+    return { ctx: env.contexts[0], floor: bundle.audio.musicMix?.releaseFloorGain ?? Number.NaN };
+  }
+
+  it('glides the pitch to slideToFreq by the end of the note', async () => {
+    const { ctx } = await playNote({ freq: START_FREQ, slideToFreq: END_FREQ, durationMs: NOTE_MS, gain: NOTE_GAIN });
+    expect(ctx.oscillators[0].frequencyCalls).toEqual([
+      ['setValueAtTime', START_FREQ, 0],
+      ['exponentialRampToValueAtTime', END_FREQ, NOTE_MS / MS_PER_SECOND]
+    ]);
+  });
+
+  it('keeps a constant pitch and an immediate start without the new fields', async () => {
+    const { ctx } = await playNote({ freq: START_FREQ, durationMs: NOTE_MS, gain: NOTE_GAIN });
+    expect(ctx.oscillators[0].frequencyCalls).toEqual([['setValueAtTime', START_FREQ, 0]]);
+    const gainNode = ctx.nodes.find((node) => node.gainCalls.length > 0);
+    expect(gainNode?.gainCalls[0][0]).toBe('setValueAtTime');
+    expect(gainNode?.gainCalls.some((call) => call[0] === 'linearRampToValueAtTime')).toBe(false);
+  });
+
+  it('rises from the release floor to the note gain over attackMs', async () => {
+    const { ctx, floor } = await playNote({ freq: START_FREQ, attackMs: ATTACK_MS, durationMs: NOTE_MS, gain: NOTE_GAIN });
+    const gainNode = ctx.nodes.find((node) => node.gainCalls.length > 0);
+    const calls = gainNode?.gainCalls ?? [];
+    expect(calls[0]).toEqual(['setValueAtTime', floor, 0]);
+    expect(calls[1][0]).toBe('linearRampToValueAtTime');
+    expect(calls[1][2]).toBeCloseTo(ATTACK_MS / MS_PER_SECOND, 10);
+    expect(calls[2][0]).toBe('exponentialRampToValueAtTime');
   });
 });

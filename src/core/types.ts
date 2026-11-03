@@ -820,6 +820,10 @@ export interface AudioNote {
   freq: number;
   durationMs: number;
   gain: number;
+  /** Frequency the note glides to by its end, in Hz; the pitch stays constant when omitted. */
+  slideToFreq?: number;
+  /** Linear rise from silence to the note gain, in milliseconds; the note starts at full gain when omitted. */
+  attackMs?: number;
 }
 
 export interface AudioEffectConfig {

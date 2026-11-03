@@ -232,13 +232,21 @@ export class AudioService {
     peakGain: number,
     startSec: number,
     durationSec: number,
-    releaseFloorGain: number
+    releaseFloorGain: number,
+    slideToFreq?: number,
+    attackSec = 0
   ): void {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = waveform;
     osc.frequency.setValueAtTime(freq, startSec);
-    gain.gain.setValueAtTime(peakGain, startSec);
+    if (slideToFreq !== undefined) osc.frequency.exponentialRampToValueAtTime(slideToFreq, startSec + durationSec);
+    if (attackSec > 0) {
+      gain.gain.setValueAtTime(releaseFloorGain, startSec);
+      gain.gain.linearRampToValueAtTime(peakGain, startSec + attackSec);
+    } else {
+      gain.gain.setValueAtTime(peakGain, startSec);
+    }
     gain.gain.exponentialRampToValueAtTime(releaseFloorGain, startSec + durationSec);
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -355,7 +363,18 @@ export class AudioService {
     for (const note of effect.notes) {
       const durationSec = note.durationMs / MS_PER_SECOND;
       const peakGain = note.gain * sfxVolume;
-      this.scheduleTone(ctx, effect.waveform, note.freq, peakGain, offsetSec, durationSec, releaseFloorGain);
+      const attackSec = (note.attackMs ?? 0) / MS_PER_SECOND;
+      this.scheduleTone(
+        ctx,
+        effect.waveform,
+        note.freq,
+        peakGain,
+        offsetSec,
+        durationSec,
+        releaseFloorGain,
+        note.slideToFreq,
+        attackSec
+      );
       offsetSec += durationSec;
     }
   }
