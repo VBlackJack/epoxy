@@ -37,7 +37,7 @@ export interface ThumbnailBuffer {
   width: number;
   height: number;
   /** RGBA, row by row, `width * height * 4` bytes. */
-  data: Uint8ClampedArray;
+  data: Uint8ClampedArray<ArrayBuffer>;
 }
 
 /** Palette keys of the tiles that have one colour of their own. */
@@ -162,6 +162,13 @@ function placeholder(palette: Readonly<Record<string, string>>, fallback: Rgb): 
   return buffer;
 }
 
+/** Pixel size of the thumbnail of a level: its map size, or the placeholder's for a cc3d level. */
+export function thumbnailSize(level: CompiledLevel): { width: number; height: number } {
+  if (level.ruleset === 'cc3d') return { width: THUMBNAIL_PLACEHOLDER_CELLS, height: THUMBNAIL_PLACEHOLDER_CELLS };
+  const rows = Array.isArray(level.terrain) ? level.terrain : [];
+  return { width: rows.reduce((widest, row) => Math.max(widest, row.length), 0), height: rows.length };
+}
+
 /**
  * The thumbnail of a level: terrain, then items over it, then the entities and
  * the player start as single contrasting pixels. A cc3d level gets the neutral
@@ -171,8 +178,7 @@ export function renderLevelThumbnail(level: CompiledLevel, palette: Readonly<Rec
   const fallback = parseHexColor(THUMBNAIL_FALLBACK_COLOR) as Rgb;
   if (level.ruleset === 'cc3d') return placeholder(palette, fallback);
 
-  const height = level.terrain.length;
-  const width = level.terrain.reduce((widest, row) => Math.max(widest, row.length), 0);
+  const { width, height } = thumbnailSize(level);
   const buffer = emptyBuffer(width, height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < level.terrain[y].length; x++) {

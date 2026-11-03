@@ -109,7 +109,8 @@
         "library": {
           "title": { "label": "Bibliothèque" },
           "count": { "label": "{count, plural, one {# niveau} other {# niveaux}}" },
-          "imported_tag": { "label": "importé" }
+          "imported_tag": { "label": "importé" },
+          "author": { "label": "par {author}" }
         },
         "new_pack": {
           "action": "+ Nouveau pack",
@@ -129,7 +130,10 @@
           "play_empty": { "label": "Ce pack n'a aucun niveau à jouer." },
           "export_json": { "action": "Exporter en JSON" },
           "export_ccl": { "action": "Exporter en .CCL" },
-          "delete": { "action": "Supprimer le pack" }
+          "delete": { "action": "Supprimer le pack" },
+          "author": { "label": "Auteur" },
+          "description": { "label": "Description", "hint": "Entrée ajoute une ligne, Ctrl+Entrée enregistre, Échap annule." },
+          "optional": { "label": "Facultatif" }
         },
         "badge": {
           "epoxy": { "label": "Epoxy" },
@@ -141,6 +145,8 @@
         "level": {
           "move_up": { "action": "Monter", "aria": "Monter le niveau {number}" },
           "move_down": { "action": "Descendre", "aria": "Descendre le niveau {number}" },
+          "drag": { "action": "Glisser pour réordonner", "aria": "Réordonner le niveau {number} : {title}. Glissez-le, ou utilisez les flèches Haut et Bas." },
+          "moved": { "label": "Niveau \"{title}\" déplacé en position {position} sur {count}." },
           "edit": { "action": "Modifier" },
           "edit_blocked": { "label": "Les niveaux CC3D se jouent mais ne se modifient pas." },
           "play": { "action": "Jouer" },

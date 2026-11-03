@@ -52,6 +52,8 @@ export interface LibraryRow {
   badges: EngineBadge[];
   /** True for a pack that was imported rather than created by the player. */
   imported: boolean;
+  /** Credit line of the pack, when it has one. */
+  author?: string;
 }
 
 /** The library rows: the packs the player created first, then the imported ones, each group in its own order. */
@@ -61,7 +63,8 @@ export function buildLibraryRows(packs: readonly LevelPack[], displayName: (pack
     label: displayName(pack),
     levelCount: pack.levels.length,
     badges: engineBadgesOf(pack.levels),
-    imported: !isUserOwnedPack(pack)
+    imported: !isUserOwnedPack(pack),
+    ...(pack.author ? { author: pack.author } : {})
   });
   return [
     ...packs.filter(isUserOwnedPack).map(toRow),
@@ -177,4 +180,18 @@ export function packFileName(name: string, fallback: string): string {
       .replace(NON_FILE_NAME_CHARACTERS, FILE_NAME_SEPARATOR)
       .replace(/^_+|_+$/g, '');
   return `${slug(name) || slug(fallback) || 'pack'}${PACK_FILE_EXTENSION}`;
+}
+
+/**
+ * Insertion slot (0..n) a pointer at `pointerY` points at, given the vertical
+ * midpoint of each of the n rows, top to bottom: the pointer sits before the
+ * first row whose midpoint is below it.
+ */
+export function dropSlotAt(pointerY: number, rowMidpoints: readonly number[]): number {
+  return rowMidpoints.filter((mid) => mid < pointerY).length;
+}
+
+/** Index the dragged row ends up at when dropped in `slot`; the row's own removal shifts later slots by one. */
+export function dropTargetIndex(fromIndex: number, slot: number): number {
+  return slot > fromIndex ? slot - 1 : slot;
 }

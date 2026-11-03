@@ -23,6 +23,8 @@ import {
   buildLevelRows,
   buildLibraryRows,
   buildPackActions,
+  dropSlotAt,
+  dropTargetIndex,
   EDIT_BLOCKED_REASON_KEY,
   engineBadgesOf,
   managerState,
@@ -191,5 +193,34 @@ describe('packFileName', () => {
   it('falls back to the id, then to a fixed name, when nothing usable is left', () => {
     expect(packFileName('???', 'user_pack_1')).toBe('user_pack_1.json');
     expect(packFileName('???', '!!!')).toBe('pack.json');
+  });
+});
+
+describe('drag and drop slots', () => {
+  const mids = [50, 150, 250];
+
+  it('finds the insertion slot from the row midpoints', () => {
+    expect(dropSlotAt(10, mids)).toBe(0);
+    expect(dropSlotAt(100, mids)).toBe(1);
+    expect(dropSlotAt(200, mids)).toBe(2);
+    expect(dropSlotAt(999, mids)).toBe(3);
+    expect(dropSlotAt(10, [])).toBe(0);
+  });
+
+  it('turns a slot into the index the row ends up at', () => {
+    // Dragging the first of three rows.
+    expect([0, 1, 2, 3].map((slot) => dropTargetIndex(0, slot))).toEqual([0, 0, 1, 2]);
+    // Dragging the last.
+    expect([0, 1, 2, 3].map((slot) => dropTargetIndex(2, slot))).toEqual([0, 1, 2, 2]);
+  });
+});
+
+describe('library rows and author', () => {
+  it('carries the author of a pack and leaves the field out when there is none', () => {
+    const withAuthor = { ...makeUserPack('a', ['x']), author: 'Ann' };
+    const [row] = buildLibraryRows([withAuthor], name);
+    expect(row.author).toBe('Ann');
+    const [plain] = buildLibraryRows([makeUserPack('b', ['x'])], name);
+    expect('author' in plain).toBe(false);
   });
 });

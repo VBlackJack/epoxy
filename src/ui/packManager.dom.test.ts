@@ -91,6 +91,20 @@ beforeEach(async () => {
     });
     return OK;
   });
+  vi.spyOn(registry, 'moveLevelToIndex').mockImplementation(async (id, levelId, to) => {
+    packs = packs.map((p) => {
+      if (p.id !== id) return p;
+      const levels = [...p.levels];
+      const [moved] = levels.splice(levels.findIndex((l) => l.id === levelId), 1);
+      levels.splice(to, 0, moved);
+      return { ...p, levels } as LevelPack;
+    });
+    return OK;
+  });
+  vi.spyOn(registry, 'setPackMetadata').mockImplementation(async (id, patch) => {
+    packs = packs.map((p) => (p.id === id ? ({ ...p, ...patch } as LevelPack) : p));
+    return OK;
+  });
   vi.spyOn(registry, 'deletePack').mockImplementation(async (id) => {
     packs = packs.filter((p) => p.id !== id);
     return OK;
@@ -237,6 +251,243 @@ describe('PackManager (DOM)', () => {
       await settleAsync();
       expect(registry.removeLevelFromPack).toHaveBeenCalledWith('u1', 'l2');
       expect(levelOrder()).toEqual(['l1', 'l3']);
+    });
+  });
+
+  describe('dragging levels', () => {
+    const ROW_HEIGHT = 100;
+
+    /** happy-dom does no layout: give each level row a box so the pointer can be placed between rows. */
+    function layoutRows(): void {
+      document.querySelectorAll<HTMLElement>('#packs-levels-list > .packs-level').forEach((el, i) => {
+        el.getBoundingClientRect = () =>
+          ({ top: i * ROW_HEIGHT, bottom: (i + 1) * ROW_HEIGHT, height: ROW_HEIGHT, left: 0, right: 0, width: 0 }) as DOMRect;
+      });
+    }
+
+    function handle(levelId: string): HTMLButtonElement {
+      const el = document.querySelector<HTMLButtonElement>(`[data-drag-handle="${levelId}"]`);
+      if (!el) throw new Error(`No handle for ${levelId}`);
+      return el;
+    }
+
+    function pointer(target: Element, type: string, clientY: number): void {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.assign(event, { pointerId: 1, pointerType: 'mouse', button: 0, clientY });
+      target.dispatchEvent(event);
+    }
+
+    it('drops a level at the slot under the pointer, keeps focus on its handle and announces the position', async () => {
+      manager.open('u1');
+      layoutRows();
+      pointer(handle('l1'), 'pointerdown', 50);
+      pointer(handle('l1'), 'pointermove', 160);
+      expect(document.querySelector('.packs-level-dragging')?.getAttribute('data-level-id')).toBe('l1');
+      expect(document.querySelectorAll('.packs-drop-before')).toHaveLength(1);
+      pointer(handle('l1'), 'pointermove', 260);
+      expect(document.querySelectorAll('.packs-drop-after, .packs-drop-before')).toHaveLength(1);
+      pointer(handle('l1'), 'pointerup', 260);
+      await settleAsync();
+      expect(registry.moveLevelToIndex).toHaveBeenCalledWith('u1', 'l1', 2);
+      expect(levelOrder()).toEqual(['l2', 'l3', 'l1']);
+      expect(document.activeElement).toBe(handle('l1'));
+      expect(document.getElementById('packs-live')?.textContent).toBe('Level "Level l1" moved to position 3 of 3.');
+      expect(document.querySelector('.packs-drop-before, .packs-drop-after, .packs-level-dragging')).toBeNull();
+    });
+
+    it('does nothing when dropped where it started or after a tiny move', async () => {
+      manager.open('u1');
+      layoutRows();
+      pointer(handle('l2'), 'pointerdown', 150);
+      pointer(handle('l2'), 'pointermove', 152);
+      pointer(handle('l2'), 'pointerup', 152);
+      pointer(handle('l2'), 'pointerdown', 150);
+      pointer(handle('l2'), 'pointermove', 170);
+      pointer(handle('l2'), 'pointerup', 170);
+      await settleAsync();
+      expect(registry.moveLevelToIndex).not.toHaveBeenCalled();
+    });
+
+    it('cancels on Escape without closing the dialog', async () => {
+      manager.open('u1');
+      layoutRows();
+      pointer(handle('l1'), 'pointerdown', 50);
+      pointer(handle('l1'), 'pointermove', 260);
+      const event = pressKey(handle('l1'), 'Escape');
+      expect(event.defaultPrevented).toBe(true);
+      pointer(handle('l1'), 'pointerup', 260);
+      await settleAsync();
+      expect(registry.moveLevelToIndex).not.toHaveBeenCalled();
+      expect(manager.isOpen()).toBe(true);
+      expect(document.querySelector('.packs-drop-before, .packs-drop-after, .packs-level-dragging')).toBeNull();
+      expect(levelOrder()).toEqual(['l1', 'l2', 'l3']);
+    });
+
+    it('offers no handle on a pack with a single level', () => {
+      manager.open('imp1');
+      expect(document.querySelector('[data-drag-handle]')).toBeNull();
+      expect(document.querySelector('.packs-drag-spacer')).not.toBeNull();
+    });
+
+    it('does not start while a rename is being stored', async () => {
+      let finish: (value: typeof OK) => void = () => undefined;
+      vi.mocked(registry.renamePack).mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+      manager.open('u1');
+      layoutRows();
+      nameInput().value = 'Slow';
+      pressKey(nameInput(), 'Enter');
+      pointer(handle('l1'), 'pointerdown', 50);
+      pointer(handle('l1'), 'pointermove', 260);
+      pointer(handle('l1'), 'pointerup', 260);
+      await settleAsync();
+      expect(registry.moveLevelToIndex).not.toHaveBeenCalled();
+      finish(OK);
+      await settleAsync();
+    });
+
+    it('moves a level with the arrow keys on its handle and keeps focus there', async () => {
+      manager.open('u1');
+      pressKey(handle('l1'), 'ArrowDown');
+      await settleAsync();
+      expect(registry.moveLevelInPack).toHaveBeenCalledWith('u1', 0, 1);
+      expect(levelOrder()).toEqual(['l2', 'l1', 'l3']);
+      expect(document.activeElement).toBe(handle('l1'));
+    });
+  });
+
+  describe('thumbnails', () => {
+    const putImageData = vi.fn();
+
+    beforeEach(() => {
+      putImageData.mockClear();
+      vi.stubGlobal('ImageData', class FakeImageData {
+        public constructor(
+          public data: Uint8ClampedArray,
+          public width: number,
+          public height: number
+        ) {}
+      });
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+        (() => ({ putImageData })) as unknown as HTMLCanvasElement['getContext']
+      );
+      const drawable = (id: string) =>
+        ({ id, winRule: 'targets', terrain: [['floor', 'wall']], items: [[null, null]], entities: [], playerStart: { x: 0, y: 0 } }) as unknown as CompiledLevel;
+      packs = [{ ...pack('u1', 'Mine B', true), levels: [drawable('l1'), drawable('l2')] } as LevelPack, pack('u2', 'Mine A', true)];
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('puts a decorative canvas on each level row and the first level on the library row', () => {
+      manager.open('u1');
+      const canvases = document.querySelectorAll<HTMLCanvasElement>('#packs-levels-list canvas');
+      expect(canvases).toHaveLength(2);
+      canvases.forEach((c) => expect(c.getAttribute('aria-hidden')).toBe('true'));
+      expect(document.querySelectorAll('#packs-library-list canvas')).toHaveLength(1);
+      expect(document.querySelectorAll('#packs-library-list .packs-thumb-empty')).toHaveLength(1);
+      expect(document.querySelector('.packs-level-title')?.textContent).toBe('Level l1');
+    });
+
+    it('draws each canvas with one putImageData, at once without IntersectionObserver', () => {
+      vi.stubGlobal('IntersectionObserver', undefined);
+      manager.open('u1');
+      expect(putImageData).toHaveBeenCalledTimes(3);
+    });
+
+    it('waits for a canvas to scroll into view when IntersectionObserver exists', () => {
+      let notify: IntersectionObserverCallback = () => undefined;
+      vi.stubGlobal('IntersectionObserver', class {
+        public constructor(callback: IntersectionObserverCallback) {
+          notify = callback;
+        }
+        public observe(): void {}
+        public unobserve(): void {}
+        public disconnect(): void {}
+      });
+      manager.open('u1');
+      expect(putImageData).not.toHaveBeenCalled();
+      const first = document.querySelector('#packs-levels-list canvas') as HTMLCanvasElement;
+      notify([{ isIntersecting: true, target: first } as unknown as IntersectionObserverEntry], {} as IntersectionObserver);
+      expect(putImageData).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('pack metadata', () => {
+    function authorInput(): HTMLInputElement {
+      return document.getElementById('packs-author-input') as HTMLInputElement;
+    }
+    function descriptionInput(): HTMLTextAreaElement {
+      return document.getElementById('packs-description-input') as HTMLTextAreaElement;
+    }
+
+    it('shows the stored author and description in the header', () => {
+      packs = [{ ...pack('u1', 'Mine', true, ['l1']), author: 'Ann', description: 'Line 1\nLine 2' } as LevelPack];
+      manager.open('u1');
+      expect(authorInput().value).toBe('Ann');
+      expect(descriptionInput().value).toBe('Line 1\nLine 2');
+    });
+
+    it('shows the author, muted, on the library row only when there is one', () => {
+      packs = [{ ...pack('u1', 'Mine', true, ['l1']), author: 'Ann' } as LevelPack, pack('u2', 'Other', true)];
+      manager.open('u1');
+      const authors = Array.from(document.querySelectorAll('#packs-library-list .packs-row-author')).map((el) => el.textContent);
+      expect(authors).toEqual(['by Ann']);
+    });
+
+    it('commits the author on Enter and on blur', async () => {
+      manager.open('u1');
+      authorInput().value = ' Ann ';
+      pressKey(authorInput(), 'Enter');
+      await settleAsync();
+      expect(registry.setPackMetadata).toHaveBeenCalledWith('u1', { author: 'Ann' });
+      expect(document.querySelector('#packs-library-list .packs-row-author')?.textContent).toBe('by Ann');
+      authorInput().value = 'Bob';
+      authorInput().dispatchEvent(new Event('blur'));
+      await settleAsync();
+      expect(registry.setPackMetadata).toHaveBeenLastCalledWith('u1', { author: 'Bob' });
+    });
+
+    it('does not store an unchanged field', async () => {
+      manager.open('u1');
+      authorInput().value = '   ';
+      pressKey(authorInput(), 'Enter');
+      await settleAsync();
+      expect(registry.setPackMetadata).not.toHaveBeenCalled();
+    });
+
+    it('lets Enter add a line in the description and commits on Ctrl+Enter', async () => {
+      manager.open('u1');
+      descriptionInput().value = 'A\nB';
+      const plain = pressKey(descriptionInput(), 'Enter');
+      expect(plain.defaultPrevented).toBe(false);
+      expect(registry.setPackMetadata).not.toHaveBeenCalled();
+      const ctrl = pressKey(descriptionInput(), 'Enter', { ctrlKey: true });
+      expect(ctrl.defaultPrevented).toBe(true);
+      await settleAsync();
+      expect(registry.setPackMetadata).toHaveBeenCalledWith('u1', { description: 'A\nB' });
+    });
+
+    it('cancels on Escape: restores the field, stores nothing and keeps the dialog open', async () => {
+      packs = [{ ...pack('u1', 'Mine', true, ['l1']), author: 'Ann' } as LevelPack];
+      manager.open('u1');
+      authorInput().focus();
+      authorInput().value = 'Discarded';
+      pressKey(authorInput(), 'Escape');
+      await settleAsync();
+      expect(authorInput().value).toBe('Ann');
+      expect(registry.setPackMetadata).not.toHaveBeenCalled();
+      expect(manager.isOpen()).toBe(true);
+    });
+
+    it('reports a change that could not be stored', async () => {
+      vi.mocked(registry.setPackMetadata).mockResolvedValue({ ok: false, persisted: false });
+      manager.open('u1');
+      authorInput().value = 'Ann';
+      pressKey(authorInput(), 'Enter');
+      await settleAsync();
+      expect(host.notify).toHaveBeenCalled();
+      expect(authorInput().value).toBe('');
     });
   });
 });

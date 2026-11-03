@@ -109,7 +109,8 @@
         "library": {
           "title": { "label": "Library" },
           "count": { "label": "{count, plural, one {# level} other {# levels}}" },
-          "imported_tag": { "label": "imported" }
+          "imported_tag": { "label": "imported" },
+          "author": { "label": "by {author}" }
         },
         "new_pack": {
           "action": "+ New pack",
@@ -129,7 +130,10 @@
           "play_empty": { "label": "This pack has no level to play." },
           "export_json": { "action": "Export JSON" },
           "export_ccl": { "action": "Export .CCL" },
-          "delete": { "action": "Delete pack" }
+          "delete": { "action": "Delete pack" },
+          "author": { "label": "Author" },
+          "description": { "label": "Description", "hint": "Enter adds a line, Ctrl+Enter saves, Escape cancels." },
+          "optional": { "label": "Optional" }
         },
         "badge": {
           "epoxy": { "label": "Epoxy" },
@@ -141,6 +145,8 @@
         "level": {
           "move_up": { "action": "Up", "aria": "Move level {number} up" },
           "move_down": { "action": "Down", "aria": "Move level {number} down" },
+          "drag": { "action": "Drag to reorder", "aria": "Reorder level {number}: {title}. Drag it, or use the Up and Down arrow keys." },
+          "moved": { "label": "Level \"{title}\" moved to position {position} of {count}." },
           "edit": { "action": "Edit" },
           "edit_blocked": { "label": "CC3D levels can be played but not edited." },
           "play": { "action": "Play" },
