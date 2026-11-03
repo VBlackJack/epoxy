@@ -1128,6 +1128,26 @@
       "level_5": {
         "title": "Le gardien des serres",
         "hint": "Une clé verte ne s'use jamais : une seule clé ouvre toutes les portes vertes."
+      },
+      "level_6": {
+        "title": "Terre et gravier",
+        "hint": "La terre devient du sol dès que tu marches dessus : la terre qui reste montre les endroits où tu n'es pas encore passé."
+      },
+      "level_7": {
+        "title": "Circuit imprimé",
+        "hint": "Certains niveaux sont une simple balade : suis la piste et les puces viennent à toi."
+      },
+      "level_8": {
+        "title": "Le panier le moins cher",
+        "hint": "Le compteur indique combien de puces il manque encore au socle, pas combien il y en a sur le plateau : inutile de toutes les prendre."
+      },
+      "level_9": {
+        "title": "La prise-porte",
+        "hint": "Le socle n'est pas toujours la dernière barrière : regarde ce qu'il y a derrière lui avant de compter sur la sortie."
+      },
+      "level_10": {
+        "title": "Le trousseau",
+        "hint": "Ne reste jamais les mains vides tant qu'une pièce de clé est fermée : une porte qui ne rend rien peut te piéger."
       }
     },
     "chapter": {
