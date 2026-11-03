@@ -43,7 +43,8 @@ export interface LevelIdDedupe {
 }
 
 /**
- * Gives a level id to its first holder only. Built-in packs keep theirs and
+ * Gives a level id to its first holder only. "First" is the stored order
+ * (IndexedDB getAll sorts by pack id, so the oldest import of a same-named pack wins). Built-in packs keep theirs and
  * are never changed; among the other packs the first in order keeps its ids,
  * and a later pack gets the scoped id for each level whose id is already used.
  * Running it again on its own output changes nothing.

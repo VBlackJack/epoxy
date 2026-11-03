@@ -16,7 +16,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { LEVEL_ID_SEPARATOR } from '../config/constants';
+import { BUILTIN_PACK_IDS, LEVEL_ID_SEPARATOR } from '../config/constants';
 import { LevelPack } from '../core/types';
 import { resolveSavedLevel } from '../storage/persistedState';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
@@ -147,5 +147,66 @@ describe('loading stored packs with duplicate level ids', () => {
     const renamed = [scopedLevelId('pack_b', 'dup_1'), scopedLevelId('pack_b', 'dup_2')].map((id) => ({ id }));
     const saved = { packId: 'pack_b', levelId: 'dup_2', levelIndex: 1 };
     expect(resolveSavedLevel(saved, 'pack_b', renamed)).toBe(1);
+  });
+});
+
+describe('level ids with the legacy migration, ultimate packs and JSON packs', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await LevelPackStorage.closeConnection();
+  });
+
+  it('does not append a legacy level again once the dedupe renamed it', async () => {
+    const fake = new FakeIndexedDb();
+    vi.stubGlobal('indexedDB', fake);
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+      // The legacy key survives every start.
+      removeItem: () => {
+        throw new Error('blocked');
+      }
+    });
+    await LevelPackStorage.savePack(makeUserPack('a_first', ['level_3']));
+    await LevelPackStorage.savePack(makeUserPack(BUILTIN_PACK_IDS.CUSTOM, ['level_3']));
+    store.set(
+      ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.customLevelsKey),
+      JSON.stringify([makeLevel('level_3')])
+    );
+
+    await ConfigRegistry.loadStoredPacks();
+    const custom = () => ConfigRegistry.getAllPacks().find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM)!;
+    const afterFirst = ids(custom());
+    expect(afterFirst).toEqual([scopedLevelId(BUILTIN_PACK_IDS.CUSTOM, 'level_3')]);
+    await ConfigRegistry.loadStoredPacks();
+    expect(ids(custom())).toEqual(afterFirst);
+  });
+
+  it('keeps the ids of a built-in ultimate pack and renames a stored copy', async () => {
+    const fake = new FakeIndexedDb();
+    vi.stubGlobal('indexedDB', fake);
+    const holder = ConfigRegistry as unknown as { ultimatePacks: LevelPack[] };
+    holder.ultimatePacks = [{ ...makeUserPack('cclp1', ['cclp1_level_1']), builtIn: true }];
+    await LevelPackStorage.savePack(makeUserPack('a_copy', ['cclp1_level_1']));
+    try {
+      await ConfigRegistry.loadStoredPacks();
+      const packs = ConfigRegistry.getAllPacks();
+      expect(ids(packs.find((p) => p.id === 'cclp1')!)).toEqual(['cclp1_level_1']);
+      expect(ids(packs.find((p) => p.id === 'a_copy')!)).toEqual([scopedLevelId('a_copy', 'cclp1_level_1')]);
+    } finally {
+      holder.ultimatePacks = [];
+    }
+  });
+
+  it('does not prefix ids again when asked not to scope them', async () => {
+    const { pack } = await ConfigRegistry.registerImportedPack('json', [makeLevel('already_unique')], {
+      scopeIds: false
+    });
+    expect(ids(pack)).toEqual(['already_unique']);
   });
 });

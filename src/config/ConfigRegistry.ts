@@ -63,7 +63,7 @@ import {
 import { DatCodec } from '../formats/DatCodec';
 import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
 import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
-import { dedupeLevelIdsAcrossPacks, scopeLevelIds } from '../packs/levelIds';
+import { dedupeLevelIdsAcrossPacks, scopedLevelId, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 
@@ -493,7 +493,9 @@ class ConfigRegistryService {
 
     const existing = this.storedPacks.find((p) => p.id === BUILTIN_PACK_IDS.CUSTOM);
     const known = new Set(existing?.levels.map((l) => l.id));
-    const fresh = legacy.levels.filter((l) => !known.has(l.id));
+    // A level the dedupe renamed in the custom pack is still known under its original id.
+    const isKnown = (id: string) => known.has(id) || known.has(scopedLevelId(BUILTIN_PACK_IDS.CUSTOM, id));
+    const fresh = legacy.levels.filter((l) => !isKnown(l.id));
     // The stored pack wins for an id both hold; the legacy version is kept aside when it differs.
     const overridden = legacy.levels.some((l) => {
       const held = existing?.levels.find((e) => e.id === l.id);
@@ -617,7 +619,8 @@ class ConfigRegistryService {
    */
   public async registerImportedPack(
     name: string,
-    levels: CompiledLevel[]
+    levels: CompiledLevel[],
+    options: { scopeIds?: boolean } = {}
   ): Promise<{ pack: LevelPack; persisted: boolean }> {
     const baseId = `pack_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
     const takenPacks = this.takenPackIds();
@@ -628,7 +631,7 @@ class ConfigRegistryService {
       id: cleanId,
       name,
       builtIn: false,
-      levels: ensureUniqueLevelIds(scopeLevelIds(levels, cleanId), cleanId)
+      levels: ensureUniqueLevelIds(options.scopeIds === false ? levels : scopeLevelIds(levels, cleanId), cleanId)
     };
     this.storedPacks.push(pack);
     const persisted = await this.persistPack(pack);
@@ -749,7 +752,7 @@ class ConfigRegistryService {
   public async importPackJson(text: string): Promise<ImportPackJsonResult> {
     const parsed = parsePackJson(text, this.getLevelSizeBounds(), this.takenLevelIds());
     if (!parsed.ok) return parsed;
-    const { pack, persisted } = await this.registerImportedPack(parsed.name, parsed.levels);
+    const { pack, persisted } = await this.registerImportedPack(parsed.name, parsed.levels, { scopeIds: false });
     return { ok: true, pack, persisted };
   }
 
