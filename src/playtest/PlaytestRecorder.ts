@@ -42,11 +42,13 @@ export interface PlaytestDeath {
   atActiveMs: number;
 }
 
-export type PlaytestLeaveReason = 'level_change' | 'pack_change' | 'tab_close';
+export type PlaytestLeaveReason = 'level_change' | 'pack_change' | 'tab_close' | 'editor' | 'mode_off';
 
 export type PlaytestOutcome =
   | { kind: 'win'; attempt: number; moves: number; activeMs: number }
-  | { kind: 'leave'; reason: PlaytestLeaveReason };
+  | { kind: 'leave'; reason: PlaytestLeaveReason }
+  /** Only in an export or a saved snapshot: the series was still going on. */
+  | { kind: 'in_progress' };
 
 export interface PlaytestRating {
   difficulty: number | null;
@@ -223,13 +225,20 @@ export class PlaytestRecorder {
     if (this.open) this.open.session.deadEndTriggers += 1;
   }
 
-  /** The solution is about to replay: the attempt so far is kept, the replay is not recorded. */
-  public solutionView(now: number, trace: string): void {
+  /** The tester asked for the solution (the replay itself is reported by replayStarted). */
+  public solutionView(): void {
+    if (this.open) this.open.session.solutionViews += 1;
+  }
+
+  /**
+   * A replay (solution or score) is about to drive the board: the attempt so
+   * far is kept and nothing the replay does is recorded until a restart.
+   */
+  public replayStarted(now: number, trace: string): void {
     const open = this.open;
-    if (!open) return;
+    if (!open || open.replayOwnsBoard) return;
     this.flushClock(open, now);
     this.endAttempt(open, trace);
-    open.session.solutionViews += 1;
     open.replayOwnsBoard = true;
   }
 
@@ -282,7 +291,47 @@ export class PlaytestRecorder {
       open.session.totalMoves += open.attemptSteps;
       open.attemptSteps = 0;
     }
+    if (open.replayOwnsBoard && this.isUntouched(open.session)) {
+      // Someone only watched a replay: nothing worth a session.
+      this.open = null;
+      return null;
+    }
     return this.close(open, now, { kind: 'leave', reason });
+  }
+
+  /**
+   * A copy of the series in progress, clock flushed, for an export or a saved
+   * snapshot. The series goes on; the copy keeps the id and says in_progress.
+   */
+  public snapshot(now: number, trace: string | null): PlaytestSession | null {
+    const open = this.open;
+    if (!open) return null;
+    this.flushClock(open, now);
+    const copy = structuredClone(open.session);
+    if (!open.replayOwnsBoard) {
+      copy.totalMoves += open.attemptSteps;
+      if (trace !== null) copy.lastTrace = trace.slice(0, this.limits.maxTraceLength);
+      copy.tracesTruncated = copy.tracesTruncated || (trace !== null && trace.length > this.limits.maxTraceLength);
+    }
+    copy.endedAt = now;
+    copy.outcome = { kind: 'in_progress' };
+    return copy;
+  }
+
+  /** Drops the oldest finished session; false when there is none. */
+  public dropOldest(): boolean {
+    return this.finished.shift() !== undefined;
+  }
+
+  private isUntouched(session: PlaytestSession): boolean {
+    return (
+      session.totalMoves === 0 &&
+      session.deathCount === 0 &&
+      session.restarts === 0 &&
+      session.undos === 0 &&
+      session.hintUses === 0 &&
+      session.solutionViews === 0
+    );
   }
 
   /** Attaches the tester's rating to a finished session; false when it is gone. */

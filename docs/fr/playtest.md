@@ -25,14 +25,14 @@ Après avoir résolu un niveau, et quand vous quittez un niveau essayé mais non
 
 | Question | Réponse |
 |---|---|
-| Difficulté | 1 (trop facile) à 5 (trop difficile) |
-| Plaisir | 1 (ennuyeux) à 5 (super) |
+| Difficulté | Une échelle courte, de trop facile à trop difficile |
+| Plaisir | Une échelle courte, d'ennuyeux à super |
 | Avez-vous eu un déclic ? | Oui ou Non |
 | Remarque | Facultative, quelques mots |
 
 - Chaque question est facultative.
 - **Échap**, **Passer** ou un clic en dehors du formulaire le ferme sans enregistrer de note. Les données du niveau sont conservées quand même.
-- Le formulaire ne bloque jamais le jeu.
+- Le formulaire peut toujours être passé, et vous pouvez reprendre le jeu dès que vous le fermez.
 
 ## 4. Exporter et envoyer
 
@@ -40,6 +40,8 @@ Après avoir résolu un niveau, et quand vous quittez un niveau essayé mais non
 - [ ] Lisez **Sessions enregistrées** pour voir combien de sessions sont stockées.
 - [ ] Appuyez sur **Exporter les données de playtest**. Un fichier nommé comme `epoxy-playtest-20261103-140509.json` est enregistré par votre navigateur.
 - [ ] Envoyez ce fichier à la personne qui vous a demandé de tester (courriel, messagerie, dossier partagé).
+
+Si vous exportez au milieu d'un niveau, le fichier contient aussi ce niveau en cours, marqué `in_progress`, avec le même identifiant que sa session finale. Si vous envoyez plusieurs fichiers, gardez la dernière copie de chaque identifiant de session.
 
 **Effacer les données de playtest** supprime tout ce qui est stocké sur votre appareil, après confirmation. Exportez d'abord si vous voulez le garder.
 
@@ -50,7 +52,7 @@ Pour chaque niveau joué (une session par série de tentatives) :
 - le pack et le niveau, le jeu de règles et la version du jeu ;
 - les aides que le niveau proposait (indice, solution, alerte d'impasse) ;
 - l'heure de début et de fin, et votre temps de jeu actif (les pauses, un onglet masqué et les menus ouverts ne comptent pas) ;
-- le nombre de tentatives, de redémarrages, d'annulations, d'indices, de solutions affichées et d'alertes d'impasse ;
+- le nombre de tentatives (le premier essai, plus un par redémarrage ; mourir puis annuler reste la même tentative), de redémarrages, d'annulations, d'indices, de solutions affichées et d'alertes d'impasse ;
 - chaque mort, avec sa cause et la case où elle a eu lieu ;
 - si vous avez gagné (avec vos coups et votre temps) ou quitté, et comment vous avez quitté (autre niveau, autre pack, fermeture de l'onglet) ;
 - les coups de votre tentative gagnante et de votre dernière tentative, sous la forme d'une courte suite de directions ;

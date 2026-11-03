@@ -142,6 +142,8 @@ export interface PlaytestConfig {
   maxTraceLength: number;
   /** Deaths listed per session; further ones are only counted. */
   maxDeathsPerSession: number;
+  /** Most bytes the stored sessions may take, so they never crowd out the scores. */
+  maxStoredBytes: number;
   /** Longest tester note, in characters. */
   noteMaxLength: number;
   /** Lowest and highest rating on the difficulty and fun scales. */

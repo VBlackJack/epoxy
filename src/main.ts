@@ -76,7 +76,7 @@ import {
 } from './ui/proceduralPack';
 import { downloadBytes, downloadJson } from './ui/download';
 import { appVersion } from './playtest/appVersion';
-import { PlaytestController } from './playtest/PlaytestController';
+import { PlaytestController, PlaytestTickState } from './playtest/PlaytestController';
 import { PlaytestStore } from './playtest/PlaytestStore';
 import { askPlaytestRating } from './ui/playtestRatingDialog';
 import { bindPlaytestOptions, refreshPlaytestOptions } from './ui/playtestOptions';
@@ -381,8 +381,18 @@ class EpoxyApplication {
             ? t('app.playtest.rating.level_won.label', { number: levelNumber })
             : t('app.playtest.rating.level_left.label', { number: levelNumber })
         }),
-      onChange: () => refreshPlaytestOptions(this.playtest)
+      onChange: () => refreshPlaytestOptions(this.playtest),
+      onStorageFull: () => this.showTransientStatus(t('app.playtest.storage_full.label'))
     });
+  }
+
+  /** What the playtest recorder needs to know about this moment. */
+  private playtestTickState(): PlaytestTickState {
+    return {
+      playing: !isDialogOpen() && this.activeMode === 'play',
+      replaying: this.isReplaying,
+      packId: this.isTestPlaying() ? null : this.playedPackId
+    };
   }
 
   /** Options controls of Playtest mode, and the page events that end a series. */
@@ -398,6 +408,10 @@ class EpoxyApplication {
     });
     window.addEventListener('pagehide', () => this.playtest.pageHiding());
     document.addEventListener('visibilitychange', () => this.playtest.visibilityChanged());
+    // A page restored from the back/forward cache ended its series on pagehide: begin a new one.
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted && this.activeMode === 'play') this.playtest.resume(this.playtestTickState());
+    });
   }
 
   /** Opens the pack share link of the address bar, now and each time its fragment changes. */
@@ -619,7 +633,7 @@ class EpoxyApplication {
   }
 
   private runGameTick(): void {
-    this.playtest.tick({ playing: !isDialogOpen() && this.activeMode === 'play', replaying: this.isReplaying });
+    this.playtest.tick(this.playtestTickState());
     // A modal or the drawer owns the keyboard: skip the tick, the game is not paused.
     if (isDialogOpen()) {
       this.refreshGamepadSnapshot();
@@ -1817,6 +1831,7 @@ class EpoxyApplication {
 
   private startReplay(moves: TimedMove[]): void {
     if (!moves || moves.length === 0) return;
+    this.playtest.replayStarting();
     this.stopAutoMoveAndReplay();
     this.loadPlayLevel(this.engine.getLevel());
     this.replayMoves = [...moves];

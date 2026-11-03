@@ -110,6 +110,7 @@
         "confirm": { "message": "Supprimer toutes les sessions de playtest enregistrées sur cet appareil ? Exportez-les d'abord si vous voulez les garder.", "action": "Supprimer les données" },
         "done": { "label": "Données de playtest effacées" }
       },
+      "storage_full": { "label": "Le stockage du playtest est plein : les sessions les plus anciennes ont été supprimées. Exportez vos données bientôt." },
       "count": { "label": "Sessions enregistrées : {count}" },
       "rating": {
         "title": { "label": "Comment était ce niveau ?" },

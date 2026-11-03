@@ -31,6 +31,7 @@ const LIMITS: PlaytestConfig = {
   maxSessions: 2,
   maxTraceLength: 8,
   maxDeathsPerSession: 2,
+  maxStoredBytes: 100000,
   noteMaxLength: 5,
   ratingMin: 1,
   ratingMax: 5
@@ -128,6 +129,14 @@ describe('playtest sanitizing', () => {
     expect(clean?.rating).toEqual({ difficulty: null, fun: 3, aha: null, note: 'too l' });
   });
 
+  it('reads back an in-progress snapshot and the editor and mode_off reasons', () => {
+    const base = JSON.parse(JSON.stringify(sampleSession())) as Record<string, unknown>;
+    expect(sanitizeSession({ ...base, outcome: { kind: 'in_progress' } }, LIMITS)?.outcome).toEqual({ kind: 'in_progress' });
+    for (const reason of ['editor', 'mode_off']) {
+      expect(sanitizeSession({ ...base, outcome: { kind: 'leave', reason } }, LIMITS)?.outcome).toEqual({ kind: 'leave', reason });
+    }
+  });
+
   it('keeps the newest sessions within the bound and skips unreadable ones', () => {
     const list = ['a', 'b', 'c'].map((id) => JSON.parse(JSON.stringify(sampleSession(id))) as unknown);
     const kept = sanitizeSessions([list[0], 42, list[1], list[2]], LIMITS);
@@ -150,7 +159,7 @@ describe('PlaytestStore', () => {
   it('saves, loads and clears the sessions', () => {
     const storage = new MemoryStorage();
     const store = new PlaytestStore(storage, KEYS, LIMITS);
-    expect(store.saveSessions([sampleSession('a')])).toBe(true);
+    expect(store.saveSessions([sampleSession('a')])).toBe('saved');
     expect(store.loadSessions().map((s) => s.levelId)).toEqual(['a']);
     store.clearSessions();
     expect(store.loadSessions()).toEqual([]);
@@ -162,11 +171,25 @@ describe('PlaytestStore', () => {
     expect(new PlaytestStore(storage, KEYS, LIMITS).loadSessions()).toEqual([]);
   });
 
+  it('refuses data over the byte cap and a full storage, writing nothing', () => {
+    const storage = new MemoryStorage();
+    const tiny = new PlaytestStore(storage, KEYS, { ...LIMITS, maxStoredBytes: 10 });
+    expect(tiny.saveSessions([sampleSession()])).toBe('full');
+    expect(storage.data.size).toBe(0);
+    const quota: PlaytestStorage = {
+      ...BLOCKED,
+      setItem: () => {
+        throw new DOMException('full', 'QuotaExceededError');
+      }
+    };
+    expect(new PlaytestStore(quota, KEYS, LIMITS).saveSessions([sampleSession()])).toBe('full');
+  });
+
   it('survives blocked storage', () => {
     const store = new PlaytestStore(BLOCKED, KEYS, LIMITS);
     expect(store.isEnabled()).toBe(false);
     expect(store.loadSessions()).toEqual([]);
-    expect(store.saveSessions([sampleSession()])).toBe(false);
+    expect(store.saveSessions([sampleSession()])).toBe('blocked');
     expect(() => {
       store.setEnabled(true);
       store.clearSessions();

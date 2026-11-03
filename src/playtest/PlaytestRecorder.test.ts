@@ -22,6 +22,7 @@ const LIMITS: PlaytestConfig = {
   maxSessions: 3,
   maxTraceLength: 10,
   maxDeathsPerSession: 2,
+  maxStoredBytes: 100000,
   noteMaxLength: 20,
   ratingMin: 1,
   ratingMax: 5
@@ -69,7 +70,8 @@ describe('PlaytestRecorder events', () => {
     rec.hint();
     rec.hint();
     rec.deadEndTriggered();
-    rec.solutionView(20, 'E');
+    rec.solutionView();
+    rec.replayStarted(20, 'E');
     const session = rec.leave('level_change', 30, 'ignored');
     expect(session).toMatchObject({
       attempts: 2,
@@ -135,7 +137,8 @@ describe('PlaytestRecorder events', () => {
     const rec = recorder();
     rec.beginLevel(level('a'), 0);
     rec.observeSteps(2);
-    rec.solutionView(5, 'NE');
+    rec.solutionView();
+    rec.replayStarted(5, 'NE');
     rec.observeSteps(40);
     expect(rec.win(9, 'SOLUTION')).toBeNull();
     rec.death(9, { cause: null, x: 0, y: 0 });
@@ -148,10 +151,46 @@ describe('PlaytestRecorder events', () => {
   it('records moves again once the level restarts after a solution view', () => {
     const rec = recorder();
     rec.beginLevel(level('a'), 0);
-    rec.solutionView(5, '');
+    rec.solutionView();
+    rec.replayStarted(5, '');
     rec.restart(6, 'IGNORED');
     rec.observeSteps(1);
     expect(rec.win(7, 'N')?.winTrace).toBe('N');
+  });
+
+  it('leaves no session behind when only a replay was watched', () => {
+    const rec = recorder();
+    rec.beginLevel(level('a'), 0);
+    rec.replayStarted(1, '');
+    expect(rec.leave('level_change', 2, '')).toBeNull();
+    expect(rec.getSessions()).toHaveLength(0);
+    expect(rec.hasOpenSession()).toBe(false);
+  });
+
+  it('snapshots the series in progress without ending it', () => {
+    const rec = recorder();
+    rec.beginLevel(level('a'), 0);
+    rec.setActive(true, 0);
+    rec.observeSteps(2);
+    const copy = rec.snapshot(400, 'NE');
+    expect(copy).toMatchObject({ outcome: { kind: 'in_progress' }, activeMs: 400, totalMoves: 2, lastTrace: 'NE', endedAt: 400 });
+    expect(rec.hasOpenSession()).toBe(true);
+    const final = rec.leave('level_change', 500, 'NES');
+    expect(final?.id).toBe(copy?.id);
+    expect(final?.activeMs).toBe(500);
+    expect(copy?.activeMs).toBe(400);
+  });
+
+  it('drops the oldest finished session on request', () => {
+    const rec = recorder();
+    for (const id of ['a', 'b']) {
+      rec.beginLevel(level(id), 0);
+      rec.leave('level_change', 1, '');
+    }
+    expect(rec.dropOldest()).toBe(true);
+    expect(rec.getSessions().map((s) => s.levelId)).toEqual(['b']);
+    rec.dropOldest();
+    expect(rec.dropOldest()).toBe(false);
   });
 
   it('ignores every event without an open session', () => {

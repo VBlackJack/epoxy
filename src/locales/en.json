@@ -110,6 +110,7 @@
         "confirm": { "message": "Delete every recorded playtest session from this device? Export them first if you want to keep them.", "action": "Delete data" },
         "done": { "label": "Playtest data cleared" }
       },
+      "storage_full": { "label": "Playtest storage is full: the oldest sessions were dropped. Export your data soon." },
       "count": { "label": "Recorded sessions: {count}" },
       "rating": {
         "title": { "label": "How was this level?" },

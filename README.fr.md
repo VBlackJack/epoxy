@@ -69,6 +69,10 @@
 - **Test** : "Retour à l'éditeur" revient d'un essai de jeu, et le navigateur demande confirmation avant de fermer l'onglet avec un travail non enregistré.
 - **Validateur** : de nouveaux avertissements pour les liens de pièges et de clonage cassés, et pour un départ du joueur sur un mur ou sur un monstre.
 
+## Playtest
+
+Les testeurs peuvent activer le mode playtest dans Options > Avancé : il enregistre la façon dont chaque niveau est joué, sur l'appareil uniquement, et exporte un fichier que le testeur choisit d'envoyer. Voir le [guide du testeur](./docs/fr/playtest.md) ([English version](./docs/playtest.md)).
+
 ## Développement
 
 Nécessite Node.js 24 (voir `.nvmrc`).

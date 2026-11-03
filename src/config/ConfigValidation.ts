@@ -163,6 +163,7 @@ const PLAYTEST_COUNT_KEYS: ReadonlyArray<keyof PlaytestConfig> = [
   'maxSessions',
   'maxTraceLength',
   'maxDeathsPerSession',
+  'maxStoredBytes',
   'noteMaxLength',
   'ratingMin'
 ];

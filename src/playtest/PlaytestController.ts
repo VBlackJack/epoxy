@@ -62,6 +62,8 @@ export interface PlaytestTickState {
   playing: boolean;
   /** A solution or score replay drives the board. */
   replaying: boolean;
+  /** Pack of the level on screen; null during an editor test play, which is never recorded. */
+  packId: string | null;
 }
 
 /** Context of the rating form. */
@@ -81,6 +83,8 @@ export interface PlaytestControllerDeps {
   askRating: (context: PlaytestRatingContext) => Promise<PlaytestRating | null>;
   /** The enabled flag or the session count changed. */
   onChange: () => void;
+  /** Stored sessions had to be dropped, or could not be kept at all; told to the tester once. */
+  onStorageFull: () => void;
 }
 
 /**
@@ -93,6 +97,7 @@ export class PlaytestController {
   private enabled: boolean;
   /** Level object the open session is played on, to notice another one loaded behind our back. */
   private trackedLevel: CompiledLevel | null = null;
+  private storageWarned = false;
 
   public constructor(private readonly deps: PlaytestControllerDeps) {
     this.recorder = new PlaytestRecorder(deps.config, deps.appVersion, deps.store.loadSessions());
@@ -109,17 +114,24 @@ export class PlaytestController {
 
   public setEnabled(enabled: boolean): void {
     if (enabled === this.enabled) return;
-    if (!enabled) this.closeOpen('tab_close', false);
+    if (!enabled) this.closeOpen('mode_off', false);
     this.enabled = enabled;
     this.deps.store.setEnabled(enabled);
     this.deps.onChange();
   }
 
-  /** The content of the download, or null when nothing was recorded. The series in progress is not part of it. */
+  /**
+   * The content of the download, or null when nothing was recorded. The series
+   * in progress comes as a snapshot (outcome in_progress, same id as its final
+   * session): whoever reads several exports keeps the last copy of each id.
+   */
   public buildExport(): PlaytestExport | null {
-    const sessions = this.recorder.getSessions();
+    const now = this.deps.now();
+    const snapshot = this.snapshot(now);
+    const sessions = [...this.recorder.getSessions()];
+    if (snapshot && snapshot.totalMoves > 0) sessions.push(snapshot);
     if (sessions.length === 0) return null;
-    return buildPlaytestExport(sessions, this.deps.appVersion, this.deps.now());
+    return buildPlaytestExport(sessions, this.deps.appVersion, now);
   }
 
   public clearData(): void {
@@ -141,7 +153,8 @@ export class PlaytestController {
   public levelStarted(packId: string): void {
     if (!this.enabled) return;
     const level = this.deps.engine().getLevel();
-    this.closeOpen('level_change');
+    // Normally closed already by levelLeaving; never a form from here.
+    this.closeOpen('level_change', false);
     this.recorder.beginLevel(
       {
         packId,
@@ -155,13 +168,21 @@ export class PlaytestController {
     this.trackedLevel = level;
   }
 
-  /** Once per game tick: keeps the clock, the move count and the death watch current. */
+  /**
+   * Once per game tick: keeps the clock, the move count and the death watch
+   * current. A death is seen by polling the engine, so a death undone between
+   * two ticks is never seen; a tick is far shorter than any human reaction.
+   */
   public tick(state: PlaytestTickState): void {
-    if (!this.enabled || !this.recorder.hasOpenSession()) return;
+    if (!this.enabled) return;
+    if (!this.recorder.hasOpenSession()) {
+      this.resume(state);
+      return;
+    }
     const engine = this.deps.engine();
     if (engine.getLevel() !== this.trackedLevel) {
       // Another level was loaded without a start hook (an editor test play).
-      this.closeOpen('level_change');
+      this.closeOpen(state.packId === null ? 'editor' : 'level_change', false);
       return;
     }
     const now = this.deps.now();
@@ -178,6 +199,18 @@ export class PlaytestController {
       player.alive &&
       !engine.isLevelCompleted();
     this.recorder.setActive(active, now);
+  }
+
+  /**
+   * Starts a series when play resumes with none open: after a won level was
+   * restarted, after an editor test play, or when the page comes back from the
+   * back/forward cache.
+   */
+  public resume(state: PlaytestTickState): void {
+    if (!this.enabled || this.recorder.hasOpenSession() || state.packId === null || state.replaying) return;
+    const engine = this.deps.engine();
+    if (engine.isLevelCompleted() || !engine.getPlayer().alive) return;
+    this.levelStarted(state.packId);
   }
 
   public restarted(): void {
@@ -200,9 +233,17 @@ export class PlaytestController {
 
   /** Call after the tester confirmed the solution and before the replay reloads the level. */
   public solutionViewed(): void {
+    if (this.guard()) this.recorder.solutionView();
+  }
+
+  /**
+   * Call before any replay (solution, score or win replay) reloads the level:
+   * from there the board is not the tester's until the next restart.
+   */
+  public replayStarting(): void {
     if (!this.guard()) return;
     this.recorder.observeSteps(this.deps.engine().getStepsCount());
-    this.recorder.solutionView(this.deps.now(), this.trace());
+    this.recorder.replayStarted(this.deps.now(), this.trace());
   }
 
   /** The engine reported a win (never a replay's). */
@@ -218,10 +259,44 @@ export class PlaytestController {
     this.closeOpen('tab_close', false);
   }
 
-  /** Stops the clock while the tab is hidden and restarts it when it returns, on the next tick. */
+  /**
+   * Stops the clock while the tab is hidden (it restarts on the next tick) and
+   * saves a snapshot of the series in progress, since a hidden mobile page may
+   * be killed without any further event.
+   */
   public visibilityChanged(): void {
     if (!this.enabled || this.deps.isPageVisible()) return;
     this.recorder.setActive(false, this.deps.now());
+    const snapshot = this.snapshot(this.deps.now());
+    this.persist(snapshot && snapshot.totalMoves > 0 ? snapshot : null);
+  }
+
+  private snapshot(now: number): PlaytestSession | null {
+    if (!this.recorder.hasOpenSession()) return null;
+    const engine = this.deps.engine();
+    const same = engine.getLevel() === this.trackedLevel;
+    if (same) this.recorder.observeSteps(engine.getStepsCount());
+    return this.recorder.snapshot(now, same ? this.trace() : null);
+  }
+
+  /**
+   * Writes the finished sessions (and a snapshot, when given). A refused write
+   * drops the oldest session and tries again; the tester hears of it once.
+   */
+  private persist(snapshot: PlaytestSession | null = null): void {
+    let dropped = false;
+    for (;;) {
+      const all = snapshot ? [...this.recorder.getSessions(), snapshot] : this.recorder.getSessions();
+      const result = this.deps.store.saveSessions(all);
+      if (result === 'saved') break;
+      dropped = true;
+      // Only a full storage is helped by dropping data; a blocked one keeps it in memory for the export.
+      if (result === 'blocked' || !this.recorder.dropOldest()) break;
+    }
+    if (dropped && !this.storageWarned) {
+      this.storageWarned = true;
+      this.deps.onStorageFull();
+    }
   }
 
   /** The open series, if any, is only valid while the tracked level is still on screen. */
@@ -243,12 +318,12 @@ export class PlaytestController {
   }
 
   private finish(session: PlaytestSession, won: boolean, askRating = true): void {
-    this.deps.store.saveSessions(this.recorder.getSessions());
+    this.persist();
     this.deps.onChange();
     if (!askRating || (!won && session.totalMoves === 0)) return;
     void this.deps.askRating({ levelNumber: session.levelNumber, won }).then((rating) => {
       if (!rating) return;
-      if (this.recorder.attachRating(session.id, rating)) this.deps.store.saveSessions(this.recorder.getSessions());
+      if (this.recorder.attachRating(session.id, rating)) this.persist();
     });
   }
 }

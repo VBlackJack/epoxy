@@ -32,7 +32,12 @@ export type PlaytestStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'
 const FLAG_ON = '1';
 const FLAG_OFF = '0';
 
-const LEAVE_REASONS: readonly PlaytestLeaveReason[] = ['level_change', 'pack_change', 'tab_close'];
+/** Error names browsers use for a full storage. */
+const QUOTA_ERROR_NAMES: readonly string[] = ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'];
+
+export type PlaytestSaveResult = 'saved' | 'full' | 'blocked';
+
+const LEAVE_REASONS: readonly PlaytestLeaveReason[] = ['level_change', 'pack_change', 'tab_close', 'editor', 'mode_off'];
 
 /** Shape of the downloaded file. */
 export interface PlaytestExport {
@@ -67,6 +72,7 @@ function sanitizeDeath(value: unknown): PlaytestDeath | null {
 
 function sanitizeOutcome(value: unknown): PlaytestOutcome | null {
   if (!isRecord(value)) return null;
+  if (value.kind === 'in_progress') return { kind: 'in_progress' };
   if (value.kind === 'win') {
     const attempt = asCount(value.attempt);
     const moves = asCount(value.moves);
@@ -209,13 +215,18 @@ export class PlaytestStore {
     }
   }
 
-  /** Returns false when the browser refused the write (full or blocked storage). */
-  public saveSessions(sessions: readonly PlaytestSession[]): boolean {
+  /**
+   * 'full' when the data is over the configured byte cap or the browser's
+   * quota; 'blocked' for any other refusal. Nothing is written unless 'saved'.
+   */
+  public saveSessions(sessions: readonly PlaytestSession[]): PlaytestSaveResult {
     try {
-      this.storage.setItem(this.keys.sessionsKey, JSON.stringify(sessions));
-      return true;
-    } catch {
-      return false;
+      const json = JSON.stringify(sessions);
+      if (new TextEncoder().encode(json).length > this.limits.maxStoredBytes) return 'full';
+      this.storage.setItem(this.keys.sessionsKey, json);
+      return 'saved';
+    } catch (error) {
+      return error instanceof Error && QUOTA_ERROR_NAMES.includes(error.name) ? 'full' : 'blocked';
     }
   }
 

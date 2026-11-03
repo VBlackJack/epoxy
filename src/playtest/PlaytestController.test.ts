@@ -30,11 +30,12 @@ const LIMITS: PlaytestConfig = {
   maxSessions: 10,
   maxTraceLength: 50,
   maxDeathsPerSession: 5,
+  maxStoredBytes: 100000,
   noteMaxLength: 20,
   ratingMin: 1,
   ratingMax: 5
 };
-const PLAYING = { playing: true, replaying: false };
+const PLAYING = { playing: true, replaying: false, packId: 'campaign' as string | null };
 
 class MemoryStorage implements PlaytestStorage {
   public data = new Map<string, string>();
@@ -93,6 +94,7 @@ function setup(enabled = true) {
   const asked: PlaytestRatingContext[] = [];
   const rating: { answer: PlaytestRating | null } = { answer: null };
   const onChange = vi.fn();
+  const onStorageFull = vi.fn();
   const make = (): PlaytestController =>
     new PlaytestController({
       engine: () => engine,
@@ -105,9 +107,10 @@ function setup(enabled = true) {
         asked.push(context);
         return Promise.resolve(rating.answer);
       },
-      onChange
+      onChange,
+      onStorageFull
     });
-  return { controller: make(), make, engine, clock, visible, asked, rating, store, onChange };
+  return { controller: make(), make, engine, clock, visible, asked, rating, store, onChange, onStorageFull, storage };
 }
 
 describe('compactTrace', () => {
@@ -226,7 +229,7 @@ describe('PlaytestController', () => {
     t.controller.levelStarted('campaign');
     t.controller.tick(PLAYING);
     t.clock.now = 1000;
-    t.controller.tick({ playing: false, replaying: false });
+    t.controller.tick({ ...PLAYING, playing: false });
     t.clock.now = 2000;
     t.controller.tick(PLAYING);
     t.clock.now = 2500;
@@ -243,20 +246,148 @@ describe('PlaytestController', () => {
     expect(t.store.loadSessions()[0].activeMs).toBe(1000 + 500 + 100);
   });
 
-  it('closes the series when another level is loaded behind its back', () => {
+  it('closes the series of an editor test play with reason editor and no form', () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.engine.move('N');
+    t.engine.level = makeLevel('test-play');
+    t.controller.tick({ ...PLAYING, packId: null });
+    expect(t.asked).toHaveLength(0);
+    expect(t.store.loadSessions()[0].outcome).toEqual({ kind: 'leave', reason: 'editor' });
+    // Still in the test play: nothing starts again.
+    t.controller.tick({ ...PLAYING, packId: null });
+    t.controller.restarted();
+    expect(t.controller.sessionCount()).toBe(1);
+  });
+
+  it('starts a new series when play resumes outside test play', () => {
     const t = setup();
     t.controller.levelStarted('campaign');
     t.engine.level = makeLevel('test-play');
+    t.controller.tick({ ...PLAYING, packId: null });
+    t.engine.level = makeLevel('a');
+    t.controller.tick(PLAYING);
+    t.engine.move('N');
+    t.controller.pageHiding();
+    expect(t.controller.sessionCount()).toBe(2);
+    expect(t.store.loadSessions()[1].levelId).toBe('a');
+  });
+
+  it('starts a new series after a won level is restarted, not on the won board', () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.engine.move('N');
+    t.engine.completed = true;
+    t.controller.won();
     t.controller.tick(PLAYING);
     expect(t.controller.sessionCount()).toBe(1);
-    t.controller.restarted();
+    t.engine.completed = false;
+    t.engine.moves = [];
+    t.controller.tick(PLAYING);
+    t.engine.move('E');
+    t.controller.pageHiding();
+    expect(t.controller.sessionCount()).toBe(2);
+  });
+
+  it('records nothing of a replay and leaves no session when only a replay was watched', () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.controller.replayStarting();
+    for (const dir of ['N', 'E', 'S'] as const) t.engine.move(dir);
+    t.controller.tick({ ...PLAYING, replaying: true });
+    t.engine.completed = true;
+    t.controller.won();
+    t.controller.levelLeaving('campaign');
+    expect(t.controller.sessionCount()).toBe(0);
+    expect(t.asked).toHaveLength(0);
+  });
+
+  it('keeps the attempt made before a replay and ignores the replay moves', () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.engine.move('W');
+    t.controller.solutionViewed();
+    t.controller.replayStarting();
+    t.engine.moves = [];
+    for (const dir of ['N', 'E', 'S'] as const) t.engine.move(dir);
+    t.controller.tick({ ...PLAYING, replaying: true });
+    t.controller.pageHiding();
+    expect(t.store.loadSessions()[0]).toMatchObject({ solutionViews: 1, lastTrace: 'W', totalMoves: 1 });
+  });
+
+  it('exports the series in progress as an in_progress snapshot with its final id', () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.clock.now = 100;
+    t.controller.tick(PLAYING);
+    t.clock.now = 600;
+    t.engine.move('N');
+    const exported = t.controller.buildExport();
+    expect(exported?.sessions).toHaveLength(1);
+    expect(exported?.sessions[0]).toMatchObject({ outcome: { kind: 'in_progress' }, activeMs: 500, lastTrace: 'N', totalMoves: 1 });
+    // The series was not ended by the export.
+    expect(t.controller.sessionCount()).toBe(0);
+    const id = exported!.sessions[0].id;
+    t.controller.pageHiding();
+    expect(t.store.loadSessions()[0].id).toBe(id);
+    expect(t.store.loadSessions()[0].outcome).toMatchObject({ kind: 'leave' });
+  });
+
+  it('saves a snapshot when the tab is hidden', () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.engine.move('N');
+    t.visible.value = false;
+    t.controller.visibilityChanged();
+    expect(t.store.loadSessions()[0].outcome).toEqual({ kind: 'in_progress' });
+    expect(t.make().sessionCount()).toBe(1);
+  });
+
+  it('records reason mode_off when the mode is turned off', () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.engine.move('N');
+    t.controller.setEnabled(false);
+    expect(t.store.loadSessions()[0].outcome).toEqual({ kind: 'leave', reason: 'mode_off' });
+  });
+
+  it('drops the oldest sessions and warns once when storage is full', () => {
+    const t = setup();
+    const quota = Object.assign(t.storage, {
+      setItem(key: string, value: string) {
+        if (key === 'sessions' && value.length > 3000) throw new DOMException('full', 'QuotaExceededError');
+        t.storage.data.set(key, value);
+      }
+    });
+    expect(quota).toBe(t.storage);
+    for (let i = 0; i < 12; i += 1) {
+      t.controller.levelStarted('campaign');
+      t.engine.move('N');
+      t.controller.pageHiding();
+    }
+    expect(t.controller.sessionCount()).toBeLessThan(12);
+    expect(t.controller.sessionCount()).toBeGreaterThan(0);
+    expect(t.store.loadSessions().length).toBe(t.controller.sessionCount());
+    expect(t.onStorageFull).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps its data in memory and warns when storage is blocked', () => {
+    const t = setup();
+    t.storage.setItem = () => {
+      throw new Error('blocked');
+    };
+    t.controller.levelStarted('campaign');
+    t.engine.move('N');
+    t.controller.pageHiding();
     expect(t.controller.sessionCount()).toBe(1);
+    expect(t.onStorageFull).toHaveBeenCalledTimes(1);
   });
 
   it('exports what was recorded and clears it on request', () => {
     const t = setup();
     expect(t.controller.buildExport()).toBeNull();
     t.controller.levelStarted('campaign');
+    t.engine.move('N');
     t.controller.pageHiding();
     expect(t.controller.buildExport()?.sessionCount).toBe(1);
     t.controller.clearData();
