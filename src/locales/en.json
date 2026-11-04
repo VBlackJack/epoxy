@@ -566,6 +566,7 @@
       "item": { "label": "item: {name}" },
       "entity": { "label": "{name}, facing {side}" },
       "player": { "label": "Player start, facing {side}" },
+      "underlay": { "label": "hides {name}" },
       "edges": { "label": "thin walls: {sides}" },
       "side": {
         "n": { "label": "north" },
@@ -796,6 +797,10 @@
       "status": {
         "label": "Editor messages",
         "links_removed": "{count, plural, one {# link was removed} other {# links were removed}}.",
+        "underlays_removed": "{count, plural, one {# hidden terrain was removed: the tile on top cannot hide it} other {# hidden terrains were removed: the tile on top cannot hide them}}.",
+        "underlays_erased": {
+          "label": "The hidden terrain of this cell was erased too."
+        },
         "start_kept": "The player start cannot be erased: move it with the Player Start item.",
         "fill_needs_terrain": "Fill needs a terrain tile: pick one in the palette.",
         "wire_same_cell": "A wire needs two different cells.",
@@ -838,7 +843,7 @@
         "engine": { "label": "Engine" },
         "description": {
           "epoxy": "Epoxy: the native rules, with lasers, colour channels, block targets and every tile of the editor.",
-          "lynx": "Lynx: the rules of community packs. Lasers, mirrors, colour channels (plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), block targets and thin walls on cells are not available.",
+          "lynx": "Lynx: the rules of community packs. Lasers, mirrors, colour channels (plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), block targets, thin walls on cells and terrain hidden under tiles are not available.",
           "cc3d": "CC3D: the rules of Chuck's Challenge 3D levels. The engine of such a level cannot be changed."
         }
       },
@@ -853,6 +858,7 @@
         "dropped_links": "{count, plural, one {# wire was} other {# wires were}} removed.",
         "start_moved": "The player start was moved inside the level.",
         "dropped_edges": "{count, plural, one {# cell lost its thin walls} other {# cells lost their thin walls}}.",
+        "dropped_underlays": "{count, plural, one {# cell lost its hidden terrain} other {# cells lost their hidden terrain}}.",
         "border_kept": "The outer ring was closed with walls."
       }
     },
@@ -884,7 +890,7 @@
       "ruleset": { "label": "Rules" },
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (community packs)" },
-      "ruleset_lynx_unavailable": { "label": "Levels with block targets, lasers, colour channels or thin walls on cells play under Epoxy rules only" },
+      "ruleset_lynx_unavailable": { "label": "Levels with block targets, lasers, colour channels, thin walls on cells or terrain hidden under tiles play under Epoxy rules only" },
       "ruleset_cc3d": { "label": "CC3D (Chuck's Challenge 3D)" },
       "ruleset_cc3d_unavailable": { "label": "Only a CC3D level plays under CC3D rules" },
       "ruleset_cc3d_locked": { "label": "A CC3D level keeps its own rules: the engine cannot be changed" },

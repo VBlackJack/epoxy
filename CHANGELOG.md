@@ -44,6 +44,7 @@ versions follow Semantic Versioning.
 
 - The level editor no longer lets a Lynx level be painted with colour channel tiles (pressure plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), which the Lynx engine plays wrongly: they are greyed out and skipped on paste like lasers, and a stored Lynx level that holds some is switched to Epoxy on open.
 - The level editor no longer deletes the thin walls (`cellEdges`) of an Epoxy level on save, autosave or any edit: they are kept through paint, erase, copy, cut, move, paste and resize, drawn on the map, and a level that has some cannot be switched to Lynx.
+- The level editor no longer deletes the terrain hidden under a door, socket or similar tile (`underlays`) of an Epoxy level: it is kept through save, autosave, copy, cut, move, paste and resize, marked on the map, spoken with the cell, and removed with an announcement when the tile on top is changed to one that cannot hide it.
 - A recessed wall now rises when you leave its cell, instead of turning into a wall under you as
   soon as you step on it.
 
