@@ -32,7 +32,7 @@ import {
 import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
 import { isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
-import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
+import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, underlayMap } from './Underlays';
 import {
@@ -2033,14 +2033,17 @@ export class LevelValidator {
     // A swivel door turns behind whoever passes, so for reachability it is open on every side: its own
     // blockedEdges are ignored (over-approximation of every orientation, never a false unreachable). The
     // neighbour's edges and the cell edges (mask) still apply. Cost: a one-way swivel trap is not flagged.
-    // The swivel ids are swapped for a neutral tile for the duration of the call, then restored.
-    if (fromSwivel) terrain[fromY][fromX] = SWIVEL_NEUTRAL_TILE;
-    if (toSwivel) terrain[toY][toX] = SWIVEL_NEUTRAL_TILE;
-    try {
-      return isEdgeBlockedAt(terrain, mask, fromX, fromY, toX, toY, dir);
-    } finally {
-      terrain[fromY][fromX] = fromId;
-      terrain[toY][toX] = toId;
-    }
+    // The edge is read with a neutral tile standing in for the door; the terrain is never written.
+    return isEdgeBlockedBetween(
+      fromSwivel ? SWIVEL_NEUTRAL_TILE : fromId,
+      toSwivel ? SWIVEL_NEUTRAL_TILE : toId,
+      mask,
+      terrain[0].length,
+      fromX,
+      fromY,
+      toX,
+      toY,
+      dir
+    );
   }
 }

@@ -22,6 +22,7 @@ import {
   CELL_EDGE_SIDE_ORDER,
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
+  SWIVEL_ENTRY_KEY_PREFIX,
   TOGGLE_PARITY_KEY_PREFIX
 } from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
@@ -245,7 +246,7 @@ export class GameEngine {
 
   /**
    * The runtime state beyond the grid that tells search states apart: the shots in flight, the toggle
-   * parity and the spent reveal cells. An empty string on a level with none of them, so the keys of other levels stay as they were.
+   * parity, the spent reveal cells and the entry side recorded on swivel doors. An empty string on a level with none of them, so the keys of other levels stay as they were.
    */
   public getRuntimeKeyExtra(): string {
     const parity = this.getToggleParity();
@@ -253,6 +254,10 @@ export class GameEngine {
     const parts = [shotsStateKey(this.getShots())].filter((part) => part !== '');
     if (parity !== undefined) parts.push(`${TOGGLE_PARITY_KEY_PREFIX}${parity}`);
     if (spent !== undefined) parts.push(`${SPENT_REVEAL_KEY_PREFIX}${spent.join(',')}`);
+    if (this.w.swivelEntry.size > 0) {
+      const entries = [...this.w.swivelEntry].sort((a, b) => a[0] - b[0]).map(([cell, side]) => `${cell}${side}`);
+      parts.push(`${SWIVEL_ENTRY_KEY_PREFIX}${entries.join(',')}`);
+    }
     return parts.join('|');
   }
 

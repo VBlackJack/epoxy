@@ -25,6 +25,7 @@ import fr from '../../locales/fr.json';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { BlockPuzzleSolver } from '../BlockPuzzleSolver';
 import { GameEngine } from '../GameEngine';
+import { LevelValidator } from '../LevelValidator';
 import { featuresFor, hasEpoxyOnlyContent, isEpoxyOnlyTileId, isSwivelTileId } from '../RulesetFeatures';
 import { attemptPushBlock, moveBlockTo } from './epoxyBlocks';
 import { leaveSwivel } from './epoxySwivels';
@@ -182,6 +183,17 @@ describe('swivel doors: configuration', () => {
     expect(findSwivelConfigErrors(withTurns({ cw: 'nowhere', ccw: NW })).join()).toContain('unknown tile');
     expect(findSwivelConfigErrors(withTurns({ cw: 'floor', ccw: NW })).join()).toContain('not a swivel door');
     expect(findSwivelConfigErrors(withTurns({ cw: NW, ccw: SE })).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('refuses a door that does not close exactly two adjacent sides', () => {
+    const tiles = ConfigRegistry.getTiles().tiles;
+    const withEdges = (blockedEdges: Direction[]): Record<string, TileDefinition> => ({
+      ...tiles,
+      [NE]: { ...tiles[NE], blockedEdges }
+    });
+    for (const edges of [['N'], ['N', 'S'], ['E', 'W'], ['N', 'E', 'S']] as Direction[][]) {
+      expect(findSwivelConfigErrors(withEdges(edges)).join(), edges.join()).toContain('two adjacent sides');
+    }
   });
 
   it('is an Epoxy-only tile, and a level with one loses the hint, the watch and the tapped path', () => {
@@ -417,5 +429,94 @@ describe('swivel doors: placement', () => {
     const engine = load(room({ terrain: [[CENTER, CENTER, SW]], player: { x: CENTER, y: CENTER } }));
     expect(step(engine, 'N')).toBe(true);
     expect(terrainAt(engine, CENTER, CENTER)).toBe(SW);
+  });
+});
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const inner of Object.values(value)) deepFreeze(inner);
+  }
+  return value;
+}
+
+describe('swivel doors: monsters landing on a door', () => {
+  it('records the entry of a monster a teleporter drops on the door, and turns it when the monster leaves', () => {
+    const engine = load(
+      room({
+        terrain: [
+          [2, 2, 'teleport'],
+          [8, 8, 'teleport'],
+          [9, 8, NE]
+        ],
+        entities: [{ type: 'walker', x: 1, y: 2, dir: 'E' }]
+      })
+    );
+    let landed = false;
+    let turned = false;
+    for (let i = 0; i < MONSTER_WALK_TICKS && !turned; i++) {
+      engine.tick();
+      const walker = entityOf(engine, 'walker');
+      if (walker.x === 9 && walker.y === 8) {
+        landed = true;
+        expect(world(engine).swivelEntry.get(cellKey(9, 8))).toBe('W');
+      }
+      if (landed && terrainAt(engine, 9, 8) !== NE) turned = true;
+    }
+    expect(landed).toBe(true);
+    expect(turned).toBe(true);
+    expect(world(engine).swivelEntry.has(cellKey(9, 8))).toBe(false);
+  });
+
+  it('records the entry of a monster a clone machine spawns on the door, and turns it when the clone leaves', () => {
+    const level = room({
+      terrain: [
+        [CENTER, 3, 'clone_machine'],
+        [CENTER, 4, SE],
+        [2, 3, 'button_red']
+      ],
+      entities: [{ type: 'walker', x: CENTER, y: 3, dir: 'S' }]
+    });
+    level.cloneLinks = [{ buttonX: 2, buttonY: 3, clonerX: CENTER, clonerY: 3, templateType: 'walker', templateDir: 'S' }];
+    const engine = load(level);
+    expect(contextOf(engine).triggerButton(2, 3, 'trigger_cloner')).toBe(true);
+    expect(world(engine).swivelEntry.get(cellKey(CENTER, 4))).toBe('N');
+    let turned = false;
+    for (let i = 0; i < MONSTER_WALK_TICKS && !turned; i++) {
+      engine.tick();
+      if (terrainAt(engine, CENTER, 4) !== SE) turned = true;
+    }
+    expect(turned).toBe(true);
+    expect(world(engine).swivelEntry.has(cellKey(CENTER, 4))).toBe(false);
+  });
+});
+
+describe('swivel doors: search state keys and the validator', () => {
+  it('tells states apart by the entry side recorded on a door, and leaves other levels untouched', () => {
+    const plain = load(room());
+    expect(plain.getRuntimeKeyExtra()).toBe('');
+    const idle = load(room({ terrain: [[CENTER, CENTER, NE]] }));
+    expect(idle.getRuntimeKeyExtra()).toBe('');
+    const west = load(room({ terrain: [[CENTER, CENTER, NE]] }));
+    const south = load(room({ terrain: [[CENTER, CENTER, NE]] }));
+    world(west).swivelEntry.set(cellKey(CENTER, CENTER), 'W');
+    world(south).swivelEntry.set(cellKey(CENTER, CENTER), 'S');
+    expect(west.getRuntimeKeyExtra()).not.toBe('');
+    expect(west.getRuntimeKeyExtra()).not.toBe(south.getRuntimeKeyExtra());
+    const twoDoors = load(room({ terrain: [[3, 3, NE], [7, 7, SW]] }));
+    world(twoDoors).swivelEntry.set(cellKey(7, 7), 'N');
+    world(twoDoors).swivelEntry.set(cellKey(3, 3), 'W');
+    const reordered = load(room({ terrain: [[3, 3, NE], [7, 7, SW]] }));
+    world(reordered).swivelEntry.set(cellKey(3, 3), 'W');
+    world(reordered).swivelEntry.set(cellKey(7, 7), 'N');
+    expect(twoDoors.getRuntimeKeyExtra()).toBe(reordered.getRuntimeKeyExtra());
+  });
+
+  it('validates a deep-frozen level holding a door with the same verdict', () => {
+    const terrain: Array<[number, number, string]> = [[CENTER, CENTER, NE], [CENTER, 6, SW]];
+    const plain = LevelValidator.validate(room({ terrain }));
+    const frozen = deepFreeze(room({ terrain }));
+    const report = LevelValidator.validate(frozen);
+    expect(report).toEqual(plain);
   });
 });

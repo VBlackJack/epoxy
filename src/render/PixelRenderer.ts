@@ -2060,7 +2060,7 @@ export class PixelRenderer {
     ctx.save();
     ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.arc(cx, cy, bar * SWIVEL_PIVOT_RADIUS_BARS, 0, Math.PI * 2);
+    ctx.arc(cx, cy, bar * SWIVEL_PIVOT_RADIUS_BARS, 0, FULL_TURN);
     ctx.fill();
     ctx.restore();
   }

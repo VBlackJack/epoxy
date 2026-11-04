@@ -904,6 +904,12 @@ export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): s
       errors.push(`${id}.swivelTurns: expected { cw, ccw } tile ids`);
       continue;
     }
+    const closed = tile.blockedEdges ?? [];
+    const adjacent =
+      closed.length === 2 &&
+      closed.filter((side) => side === 'N' || side === 'S').length === 1 &&
+      closed.filter((side) => side === 'E' || side === 'W').length === 1;
+    if (!adjacent) errors.push(`${id}.blockedEdges: a swivel door closes exactly two adjacent sides`);
     for (const [field, clockwise] of [['cw', true], ['ccw', false]] as const) {
       const target = tiles[turns[field]];
       if (!target) {
