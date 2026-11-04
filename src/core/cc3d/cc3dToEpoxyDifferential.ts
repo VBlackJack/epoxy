@@ -39,7 +39,7 @@ const UINT32_RANGE = 4294967296;
 export interface DiffMismatch {
   /** Moves played when the mismatch was found (0 = at load). */
   move: number;
-  field: 'player' | 'alive' | 'complete' | 'chips' | 'keys' | 'cells';
+  field: 'player' | 'alive' | 'complete' | 'chips' | 'keys' | 'cells' | 'settle';
   detail: string;
 }
 
@@ -51,6 +51,8 @@ function epoxyIdOf(displayId: string): string {
   if (hold) return `hold_door_${hold[1]}`;
   const toggle = /^cc3d_toggle_door_(\w+)$/.exec(displayId);
   if (toggle) return `toggle_wall_${toggle[1]}`;
+  const control = /^cc3d_toggle_control_(\w+)$/.exec(displayId);
+  if (control) return `toggle_button_${control[1]}`;
   const plate = /^cc3d_plate_(\w+)$/.exec(displayId);
   if (plate) return `pressure_plate_${plate[1]}`;
   return displayId;
@@ -65,6 +67,10 @@ export class DifferentialPair {
   public readonly rig: Cc3dRig;
   public readonly epoxy: GameEngine;
   public moves = 0;
+  /** Both engines were still moving when the settle cap ran out: a perpetual slide, whose phase is not comparable. */
+  public looping = false;
+  private cc3dSettled = true;
+  private epoxySettled = true;
 
   constructor(source: CompiledLevel, converted: CompiledLevel, seed: number) {
     this.rig = new Cc3dRig(source, seed);
@@ -76,7 +82,7 @@ export class DifferentialPair {
    * Ticks an engine until its player has stood still, with nothing under way, for STABLE_TICKS ticks in a row: a
    * slide or a teleport exit may start one tick after the player arrived, so a single quiet tick proves nothing.
    */
-  private settle(tick: () => void, read: () => { x: number; y: number; busy: boolean; over: boolean }): void {
+  private settle(tick: () => void, read: () => { x: number; y: number; busy: boolean; over: boolean }): boolean {
     let quiet = 0;
     let last = read();
     for (let i = 0; i < MAX_SETTLE_TICKS && !last.over; i++) {
@@ -84,8 +90,9 @@ export class DifferentialPair {
       const now = read();
       quiet = !now.busy && !last.busy && now.x === last.x && now.y === last.y ? quiet + 1 : 0;
       last = now;
-      if (quiet >= STABLE_TICKS) return;
+      if (quiet >= STABLE_TICKS) return true;
     }
+    return last.over;
   }
 
   /** True once either engine has ended the level. */
@@ -97,7 +104,7 @@ export class DifferentialPair {
   public step(dir: Direction): void {
     this.moves += 1;
     this.rig.press(dir);
-    this.settle(
+    this.cc3dSettled = this.settle(
       () => this.rig.tick(1),
       () => {
         const p = this.rig.player;
@@ -105,7 +112,7 @@ export class DifferentialPair {
       }
     );
     this.epoxy.attemptPlayerMove(dir);
-    this.settle(
+    this.epoxySettled = this.settle(
       () => this.epoxy.tick(),
       () => {
         const p = this.epoxy.getPlayer();
@@ -117,6 +124,11 @@ export class DifferentialPair {
   /** The first field on which the engines differ, or null. */
   public compare(): DiffMismatch | null {
     const at = (field: DiffMismatch['field'], detail: string): DiffMismatch => ({ move: this.moves, field, detail });
+    if (!this.cc3dSettled && !this.epoxySettled) {
+      this.looping = true;
+      return null;
+    }
+    if (this.cc3dSettled !== this.epoxySettled) return at('settle', `cc3d settles ${this.cc3dSettled} epoxy settles ${this.epoxySettled}`);
     const a = this.rig.player;
     const b = this.epoxy.getPlayer();
     if (a.x !== b.x || a.y !== b.y) return at('player', `cc3d ${a.x},${a.y} epoxy ${b.x},${b.y}`);
@@ -155,7 +167,11 @@ export function seededUnit(seed: number): () => number {
 }
 
 export interface WalkResult {
+  /** The walk changed something: a chip or a key was taken, or a cell changed. */
+  touched: boolean;
   moves: number;
+  /** The walk stopped because both engines slide for ever. */
+  looping: boolean;
   mismatch: DiffMismatch | null;
 }
 
@@ -163,12 +179,22 @@ export interface WalkResult {
 export function differentialWalk(source: CompiledLevel, converted: CompiledLevel, seed: number, moves = WALK_MOVES): WalkResult {
   const pair = new DifferentialPair(source, converted, seed);
   const next = seededUnit(seed);
+  const snapshot = (): string => pair.epoxy.getTerrain().map((row) => row.join(',')).join(';');
+  const startTerrain = snapshot();
+  const startChips = pair.epoxy.getChipsRemaining();
+  let touched = false;
   const initial = pair.compare();
-  if (initial) return { moves: 0, mismatch: initial };
-  for (let i = 0; i < moves && !pair.ended; i++) {
+  if (initial) return { touched, moves: 0, looping: false, mismatch: initial };
+  for (let i = 0; i < moves && !pair.ended && !pair.looping; i++) {
     pair.step(WALK_DIRECTIONS[Math.floor(next() * WALK_DIRECTIONS.length)]);
     const mismatch = pair.compare();
-    if (mismatch) return { moves: pair.moves, mismatch };
+    if (mismatch) return { touched, moves: pair.moves, looping: false, mismatch };
+    if (!touched) {
+      touched =
+        pair.epoxy.getChipsRemaining() !== startChips ||
+        Object.keys(pair.epoxy.getPlayer().keys).length > 0 ||
+        snapshot() !== startTerrain;
+    }
   }
-  return { moves: pair.moves, mismatch: null };
+  return { touched, moves: pair.moves, looping: pair.looping, mismatch: null };
 }
