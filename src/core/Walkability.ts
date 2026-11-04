@@ -18,10 +18,18 @@ import { TileDefinition } from './types';
 
 /**
  * Whether the player can stand on a tile once every lock, socket and toggle
- * wall is dealt with. Doors, sockets and toggle walls count as open and
+ * wall is dealt with. Doors, sockets, toggle walls (colour channels and hold doors
+ * included) count as open and
  * hazards as crossable; only walls and the like are solid. One definition
  * for the guard check, the scorer and the metrics, so they never disagree.
  */
 export function isPlayerWalkable(tile: TileDefinition): boolean {
-  return Boolean(tile.passableByPlayer || tile.requiredKey || tile.requiresAllChips || tile.togglesTo);
+  return Boolean(
+    tile.passableByPlayer ||
+      tile.requiredKey ||
+      tile.requiresAllChips ||
+      tile.togglesTo ||
+      tile.channelTogglesTo ||
+      tile.holdDoorTogglesTo
+  );
 }

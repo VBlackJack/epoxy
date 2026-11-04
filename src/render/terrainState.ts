@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { GridPoint, TileDefinition } from '../core/types';
+import { channelOfButtonAction } from '../core/coreConstants';
+import { ChannelColor, GridPoint, TileDefinition } from '../core/types';
 
 export interface AnimatedCell {
   x: number;
@@ -27,6 +28,10 @@ export interface TerrainFeatures {
   /** Buttons whose action toggles the toggle walls. */
   toggleButtons: GridPoint[];
   toggleWalls: GridPoint[];
+  /** Colour toggle buttons by channel: the green button and walls stay in toggleButtons and toggleWalls. */
+  channelButtons: Map<ChannelColor, GridPoint[]>;
+  /** Colour toggle walls by channel. */
+  channelWalls: Map<ChannelColor, GridPoint[]>;
   /** Buttons whose action toggles the flame jets. */
   flameButtons: GridPoint[];
   /** Cells that swap terrain when a flame button is pressed. */
@@ -53,9 +58,17 @@ export function teleportGroupKey(def: Readonly<TileDefinition> | undefined): str
   return def?.teleportGroup ?? TELEPORT_UNGROUPED_KEY;
 }
 
+function pushByChannel(map: Map<ChannelColor, GridPoint[]>, channel: ChannelColor, point: GridPoint): void {
+  const list = map.get(channel);
+  if (list) list.push(point);
+  else map.set(channel, [point]);
+}
+
 export const EMPTY_TERRAIN_FEATURES: Readonly<TerrainFeatures> = {
   toggleButtons: [],
   toggleWalls: [],
+  channelButtons: new Map(),
+  channelWalls: new Map(),
   flameButtons: [],
   flameTargets: [],
   teleporterGroups: new Map(),
@@ -108,6 +121,8 @@ export function collectTerrainFeatures(
   const features: TerrainFeatures = {
     toggleButtons: [],
     toggleWalls: [],
+    channelButtons: new Map(),
+    channelWalls: new Map(),
     flameButtons: [],
     flameTargets: [],
     teleporterGroups: new Map(),
@@ -123,7 +138,10 @@ export function collectTerrainFeatures(
       if (def) {
         if (def.buttonAction === 'toggle_walls') features.toggleButtons.push({ x, y });
         else if (def.buttonAction === 'toggle_flames') features.flameButtons.push({ x, y });
+        const buttonChannel = channelOfButtonAction(def.buttonAction);
+        if (buttonChannel) pushByChannel(features.channelButtons, buttonChannel, { x, y });
         if (def.togglesTo) features.toggleWalls.push({ x, y });
+        if (def.toggleChannel && def.channelTogglesTo) pushByChannel(features.channelWalls, def.toggleChannel, { x, y });
         if (def.flameTogglesTo) features.flameTargets.push({ x, y });
         if (def.isTeleporter) {
           const key = teleportGroupKey(def);

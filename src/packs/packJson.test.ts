@@ -21,7 +21,12 @@ vi.mock('../audio/AudioManager', () => ({
 }));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { PACK_JSON_FORMAT, PACK_JSON_VERSION } from '../config/constants';
+import {
+  PACK_JSON_FORMAT,
+  PACK_JSON_MAX_VERSION,
+  PACK_JSON_VERSION,
+  PACK_JSON_VERSION_CELL_EDGES
+} from '../config/constants';
 import { CompiledLevel } from '../core/types';
 import { importCc3dSelection } from '../ui/cc3dImport';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -74,6 +79,24 @@ describe('packJson', () => {
     expect(file).toMatchObject({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION, name: 'N' });
   });
 
+  it('writes version 1 unless a level carries cell edges, and then version 2', () => {
+    const edged = { ...makeLevel('edged'), cellEdges: [{ x: 2, y: 2, sides: ['N' as const] }] };
+    expect(JSON.parse(serializePack('N', [makeLevel('a')])).version).toBe(PACK_JSON_VERSION);
+    expect(JSON.parse(serializePack('N', [makeLevel('a'), edged])).version).toBe(PACK_JSON_VERSION_CELL_EDGES);
+    expect(serializePack('N', [makeLevel('a')])).not.toContain('cellEdges');
+    // An empty list holds no edge: it writes version 1 like a level without the field.
+    expect(JSON.parse(serializePack('N', [{ ...makeLevel('a'), cellEdges: [] }])).version).toBe(PACK_JSON_VERSION);
+  });
+
+  it('round-trips cell edges and reads both versions', () => {
+    const edged = { ...makeLevel('edged'), cellEdges: [{ x: 2, y: 2, sides: ['N' as const, 'W' as const] }] };
+    const result = parse(serializePack('Edges', [edged]));
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) expect(result.levels[0].cellEdges).toEqual(edged.cellEdges);
+    const v1 = JSON.parse(serializePack('Plain', [makeLevel('a')]));
+    expect(parse(JSON.stringify(v1))).toMatchObject({ ok: true });
+  });
+
   it('refuses text that is not JSON, another format and a newer version', () => {
     expect(parse('{nope')).toEqual({ ok: false, error: 'malformed' });
     expect(parse('[]')).toEqual({ ok: false, error: 'format' });
@@ -81,7 +104,7 @@ describe('packJson', () => {
       ok: false,
       error: 'format'
     });
-    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION + 1, name: 'x', levels: [makeLevel('a')] };
+    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_MAX_VERSION + 1, name: 'x', levels: [makeLevel('a')] };
     expect(parse(JSON.stringify(future))).toEqual({ ok: false, error: 'version' });
     expect(parse(JSON.stringify({ ...future, version: 'one' }))).toEqual({ ok: false, error: 'version' });
   });

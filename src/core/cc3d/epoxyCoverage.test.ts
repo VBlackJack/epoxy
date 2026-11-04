@@ -101,17 +101,19 @@ describe('classifyLevel', () => {
     expect(result.approx).toEqual(['water']);
   });
 
-  it('separates the colours of a colour block, a plate and a toggle door', () => {
+  it('separates the colours of a colour block, a plate and a toggle door, all played by Epoxy now', () => {
     const glyphs = {
       B: { stack: [{ kind: 'floor' as const }, { kind: 'plate' as const, color: 'blue' as const }] },
       R: { stack: [{ kind: 'floor' as const }, { kind: 'toggle_door' as const, color: 'red' as const, open: false }] }
     };
     const result = classifyLevel(levelOf(['#####', '#@BR#', '#####'], glyphs));
-    expect(result.lost).toEqual(['plate_blue', 'toggle_door_red']);
+    expect(result.lost).toEqual([]);
+    expect(result.approx).toEqual(['plate_blue']);
     const green = classifyLevel(levelOf(['#####', '#@J.#', '#####']));
     expect(green.verdict).toBe('exact');
     const colorBlock = classifyLevel(levelOf(['####', '#@C#', '####']));
-    expect(colorBlock.lost).toEqual(['block_color_blue']);
+    expect(colorBlock.lost).toEqual([]);
+    expect(colorBlock.approx).toEqual(['block_color_blue']);
   });
 
   it('detects a cell with two devices or blockers as stacked terrain', () => {
@@ -122,9 +124,11 @@ describe('classifyLevel', () => {
     expect(elementKeys(levelOf(['####', '#@O#', '####'])).has('stacked_terrain')).toBe(false);
   });
 
-  it('flags panels on water but not panels on plain floor', () => {
+  it('detects panels on water, which cell edges now carry exactly', () => {
     const onWater = levelOf(['####', '#@W#', '####'], { W: { stack: [{ kind: 'water' }], panels: ['N'] } });
-    expect(classifyLevel(onWater).lost).toEqual(['panels_on_nonfloor']);
+    expect(elementKeys(onWater).has('panels_on_nonfloor')).toBe(true);
+    expect(classifyLevel(onWater).lost).toEqual([]);
+    expect(classifyLevel(onWater).approx).toEqual(['water']);
     const onFloor = levelOf(['####', '#@.#', '####'], { '.': { stack: [{ kind: 'floor' }], panels: ['N'] } });
     expect(classifyLevel(onFloor).verdict).toBe('exact');
   });
@@ -161,6 +165,23 @@ describe('stackedPairs', () => {
     expect(pairs.get('bomb+door')).toBe(3);
     expect(pairs.get('water+trap+wall')).toBe(1);
     expect(pairs.size).toBe(2);
+  });
+});
+
+describe('colour channel coverage', () => {
+  it('plays every colour toggle door and control, and every hold door, exactly', () => {
+    for (const color of ['red', 'blue', 'yellow']) {
+      expect(EPOXY_COVERAGE[`toggle_door_${color}`].level).toBe('exact');
+      expect(EPOXY_COVERAGE[`toggle_control_${color}`].level).toBe('exact');
+    }
+    for (const color of CC3D_COLORS) expect(EPOXY_COVERAGE[`hold_door_${color}`].level).toBe('exact');
+  });
+
+  it('plays every plate and colour block approximately, and loses none of them', () => {
+    for (const color of CC3D_COLORS) {
+      expect(EPOXY_COVERAGE[`plate_${color}`].level).toBe('approx');
+      expect(EPOXY_COVERAGE[`block_color_${color}`].level).toBe('approx');
+    }
   });
 });
 

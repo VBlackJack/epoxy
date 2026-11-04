@@ -33,6 +33,9 @@ import { SeededRandom } from './Random';
 import { isPlayerWalkable } from './Walkability';
 import { CompiledLevel, ProceduralConfig } from './types';
 
+/** Raised when a generated level carries cell edges, which the generator does not model. */
+const GENERATED_CELL_EDGES_ERROR = 'Generated levels must not carry cell edges';
+
 const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PASSWORD_HASH_MULTIPLIER = 7919;
 const PASSWORD_HASH_OFFSET = 104729;
@@ -275,6 +278,8 @@ export class ProceduralGenerator {
         trapLinks: assembled.trapLinks,
         cloneLinks: assembled.cloneLinks
       };
+      // The pieces and the guard checks know no cell edges: a generated level must carry none.
+      if (level.cellEdges !== undefined) throw new Error(GENERATED_CELL_EDGES_ERROR);
       const proof = LevelProver.prove(level, assembled.route, built.open?.region);
       if (!proof.solved) continue;
       // No puzzle may be walked around, checked on every level, not only in tests.

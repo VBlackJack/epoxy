@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
+import { CELL_EDGE_BITS, CELL_EDGE_SIDE_ORDER } from '../core/coreConstants';
 import { ORDERED_DIRECTIONS } from './constants';
+import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
   BlockBudget,
   CampaignConfig,
+  CellEdge,
   CompiledLevel,
   DatFormatConfig,
   Direction,
+  EntityDefinition,
   GameConfig,
   GridConfig,
   LevelTextConfig,
@@ -430,6 +434,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     isRecordList(value.entities, size, strict, (entity) => typeof entity.type === 'string') &&
     isRecordList(value.trapLinks, size, strict) &&
     isRecordList(value.cloneLinks, size, strict) &&
+    // Cell edges hold one entry per cell at most; a longer list is not a level, whatever the entries hold.
+    (!strict || !Array.isArray(value.cellEdges) || value.cellEdges.length <= size.width * size.height) &&
     // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
     (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds, strict) : value.cc3d === undefined)
   );
@@ -462,8 +468,46 @@ export function isRuleset(value: unknown): value is Ruleset {
 }
 
 /**
+ * The cell edges of a level in canonical form: only the Epoxy ruleset carries them; entries that
+ * are not records, lie outside the grid or hold no valid side are dropped, the sides of a cell
+ * are merged into one entry, and the entries are sorted by row, then column, with the sides in
+ * N, E, S, W order. Returns null when no edge is left.
+ */
+export function normalizeCellEdges(
+  edges: unknown,
+  terrain: readonly (readonly string[])[],
+  ruleset: unknown
+): CellEdge[] | null {
+  if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(edges)) return null;
+  const height = terrain.length;
+  const width = terrain[0]?.length ?? 0;
+  const bitsByCell = new Map<number, number>();
+  for (const entry of edges as unknown[]) {
+    if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height) || !Array.isArray(entry.sides)) continue;
+    let bits = 0;
+    for (const side of entry.sides as unknown[]) {
+      if (typeof side === 'string' && Object.prototype.hasOwnProperty.call(CELL_EDGE_BITS, side)) {
+        bits |= CELL_EDGE_BITS[side as Direction];
+      }
+    }
+    if (bits === 0) continue;
+    const index = (entry.y as number) * width + (entry.x as number);
+    bitsByCell.set(index, (bitsByCell.get(index) ?? 0) | bits);
+  }
+  if (bitsByCell.size === 0) return null;
+  return [...bitsByCell.keys()]
+    .sort((a, b) => a - b)
+    .map((index) => ({
+      x: index % width,
+      y: Math.floor(index / width),
+      sides: CELL_EDGE_SIDE_ORDER.filter((side) => ((bitsByCell.get(index) ?? 0) & CELL_EDGE_BITS[side]) !== 0)
+    }));
+}
+
+/**
  * Returns the level without any optional text field that is not a string, and
- * without a win rule or ruleset that is not a known one, and with an empty password in place
+ * without a win rule or ruleset that is not a known one, with its cell edges in canonical form (see
+ * normalizeCellEdges), and with an empty password in place
  * of one that is not a string, so a stale or hand-edited record cannot hand a number to the
  * text pipeline or an unknown rule to the engine.
  * The input is never mutated.
@@ -475,9 +519,15 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   if ('ruleset' in record && !isRuleset(record.ruleset)) bad.push('ruleset');
   if ('blockBudget' in record && !isBlockBudget(record.blockBudget)) bad.push('blockBudget');
   const badPassword = typeof record.password !== 'string';
+  let edges: CellEdge[] | null = null;
+  if ('cellEdges' in record) {
+    edges = normalizeCellEdges(record.cellEdges, level.terrain, record.ruleset);
+    if (edges === null || JSON.stringify(edges) !== JSON.stringify(record.cellEdges)) bad.push('cellEdges');
+  }
   if (bad.length === 0 && !badPassword) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
+  if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
   // The game upper-cases passwords, so a level always carries a string one.
   if (badPassword) copy.password = '';
   return copy as unknown as CompiledLevel;
@@ -668,6 +718,83 @@ export function findLaserConfigErrors(tiles: Record<string, TileDefinition>): st
     }
     if (!receiverGroups.has(tile.laserGateGroup)) {
       errors.push(`${id}.laserGateGroup: no receiver drives the group ${tile.laserGateGroup}`);
+    }
+  }
+  return errors;
+}
+
+/**
+ * Problems of the colour channel fields: a plate colour is a channel colour, a hold door needs a colour,
+ * an open or closed flag and the other form of its pair (same colour, opposite state, pointing back), a
+ * colour toggle wall needs the other form of its pair in the same channel (never green: green walls are
+ * the plain toggle walls), a colour toggle button names its channel, and a colour block names a colour.
+ * Empty when all is well; each entry names the offending tile or entity.
+ */
+export function findColorChannelConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition> = {}
+): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.plateColor !== undefined && !CHANNEL_COLORS.includes(tile.plateColor)) {
+      errors.push(`${id}.plateColor: expected a channel colour`);
+    }
+    if (tile.floatingBlockColor !== undefined && !CHANNEL_COLORS.includes(tile.floatingBlockColor)) {
+      errors.push(`${id}.floatingBlockColor: expected a channel colour`);
+    }
+    if (tile.holdDoorClosesOnOccupant !== undefined && typeof tile.holdDoorClosesOnOccupant !== 'boolean') {
+      errors.push(`${id}.holdDoorClosesOnOccupant: expected a boolean`);
+    }
+    const isHoldDoor =
+      tile.holdDoorColor !== undefined || tile.holdDoorOpen !== undefined || tile.holdDoorTogglesTo !== undefined;
+    if (isHoldDoor) {
+      if (typeof tile.holdDoorColor !== 'string' || !CHANNEL_COLORS.includes(tile.holdDoorColor)) {
+        errors.push(`${id}.holdDoorColor: expected a channel colour`);
+      } else if (typeof tile.holdDoorOpen !== 'boolean') {
+        errors.push(`${id}.holdDoorOpen: expected a boolean`);
+      } else {
+        const pair = typeof tile.holdDoorTogglesTo === 'string' ? tiles[tile.holdDoorTogglesTo] : undefined;
+        if (!pair) {
+          errors.push(`${id}.holdDoorTogglesTo: expected the id of an existing tile`);
+        } else if (pair.holdDoorColor !== tile.holdDoorColor || pair.holdDoorOpen !== !tile.holdDoorOpen) {
+          errors.push(
+            `${id}.holdDoorTogglesTo: expected the ${tile.holdDoorOpen ? 'closed' : 'open'} form of colour ${tile.holdDoorColor}`
+          );
+        } else if (pair.holdDoorTogglesTo !== id) {
+          errors.push(`${id}.holdDoorTogglesTo: ${pair.id} does not point back`);
+        }
+      }
+    }
+    if (tile.toggleChannel !== undefined || tile.channelTogglesTo !== undefined) {
+      if (typeof tile.toggleChannel !== 'string' || !CHANNEL_COLORS.includes(tile.toggleChannel) || tile.toggleChannel === 'green') {
+        errors.push(`${id}.toggleChannel: expected red, blue or yellow`);
+      } else {
+        const pair = typeof tile.channelTogglesTo === 'string' ? tiles[tile.channelTogglesTo] : undefined;
+        if (!pair) {
+          errors.push(`${id}.channelTogglesTo: expected the id of an existing tile`);
+        } else if (pair.toggleChannel !== tile.toggleChannel) {
+          errors.push(`${id}.channelTogglesTo: expected a tile of channel ${tile.toggleChannel}`);
+        } else if (pair.channelTogglesTo !== id) {
+          errors.push(`${id}.channelTogglesTo: ${pair.id} does not point back`);
+        }
+        if (tile.togglesTo !== undefined) {
+          errors.push(`${id}.togglesTo: a colour wall uses channelTogglesTo, togglesTo is the green channel`);
+        }
+      }
+    }
+    const channelOfButton = Object.entries(CHANNEL_BUTTON_ACTIONS).find(([, action]) => action === tile.buttonAction);
+    if (channelOfButton) {
+      const hasWalls = Object.values(tiles).some((t) => t.toggleChannel === channelOfButton[0]);
+      if (!hasWalls) errors.push(`${id}.buttonAction: no wall of channel ${channelOfButton[0]}`);
+    }
+  }
+  for (const entity of Object.values(entities)) {
+    if (entity.plateColor !== undefined && !CHANNEL_COLORS.includes(entity.plateColor)) {
+      errors.push(`${entity.id}.plateColor: expected a channel colour`);
+    }
+    if (entity.pressesPlates !== undefined && typeof entity.pressesPlates !== 'boolean') {
+      errors.push(`${entity.id}.pressesPlates: expected a boolean`);
     }
   }
   return errors;

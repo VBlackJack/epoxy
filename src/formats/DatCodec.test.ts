@@ -538,6 +538,32 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses any level with colour channel tiles or colour blocks', () => {
+    const plate = blankLevel(1);
+    plate.terrain[3][3] = 'pressure_plate_red';
+    const door = blankLevel(2);
+    door.terrain[3][3] = 'hold_door_blue_closed';
+    const wall = blankLevel(3);
+    wall.terrain[3][3] = 'toggle_wall_yellow_open';
+    const block = blankLevel(4);
+    block.entities = [{ type: 'color_block_green', x: 3, y: 3, dir: 'S' }];
+    for (const level of [plate, door, wall, block]) {
+      expect(datRefusalReason(level)).toBe('color_channel_content');
+    }
+    const encoded = DatCodec.encodeLevelsWithReport([plate, block, blankLevel(5)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['color_channel_content', 'color_channel_content']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
+  it('refuses a level with cell edges and leaves it out of the pack', () => {
+    const edged = { ...blankLevel(1), cellEdges: [{ x: 3, y: 3, sides: ['N' as const] }] };
+    expect(datRefusalReason(edged)).toBe('cell_edges');
+    expect(datRefusalReason({ ...blankLevel(2), cellEdges: [] })).toBeNull();
+    const encoded = DatCodec.encodeLevelsWithReport([edged, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['cell_edges']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('reports what a stacked cell cannot hold', () => {
     const lvl = blankLevel(1);
     // player start (2,2) over a bug and a chip: the bug is dropped, so is the fire under them

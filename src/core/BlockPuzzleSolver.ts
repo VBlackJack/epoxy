@@ -16,7 +16,8 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, WALL_TILE_ID } from './coreConstants';
+import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 
 /** Layouts the exact search may visit, for the dead-end watch that runs by itself, before giving up without a verdict. */
@@ -133,27 +134,19 @@ export class BlockPuzzleSolver {
       }
     }
     this.player = player.y * this.width + player.x;
-    this.markBlockedEdges(terrain);
+    this.markBlockedEdges(terrain, cellEdgeMask(engine.getLevel()));
   }
 
   /** Records the steps the engine refuses on the edge between two cells, whoever takes them. */
-  private markBlockedEdges(terrain: string[][]): void {
+  private markBlockedEdges(terrain: string[][], mask: Uint8Array | null): void {
     ORDERED_DIRECTIONS.forEach((dir, dirIdx) => {
       const vec = DIRECTION_VECTORS[dir];
-      const opposite = OPPOSITE_DIRECTION[dir];
       for (let y = 0; y < this.height; y++) {
         for (let x = 0; x < this.width; x++) {
           const nx = x + vec.dx;
           const ny = y + vec.dy;
           if (nx < 0 || ny < 0 || nx >= this.width || ny >= this.height) continue;
-          const from = ConfigRegistry.getTile(terrain[y][x]);
-          const to = ConfigRegistry.getTile(terrain[ny][nx]);
-          if (
-            from.blockedEdges?.includes(dir) ||
-            to.blockedEdges?.includes(opposite) ||
-            from.blockedEntryDirections?.includes(opposite) ||
-            to.blockedEntryDirections?.includes(dir)
-          ) {
+          if (isEdgeBlockedAt(terrain, mask, x, y, nx, ny, dir)) {
             this.edgeBlocked[(y * this.width + x) * ORDERED_DIRECTIONS.length + dirIdx] = 1;
           }
         }

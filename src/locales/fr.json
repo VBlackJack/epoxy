@@ -93,6 +93,8 @@
       "refused_receivers_win_rule": { "label": "Non exporté : {levels} se gagne en allumant des récepteurs laser, que le format .DAT ne peut pas porter." },
       "refused_laser_content": { "label": "Non exporté : {levels} utilise des lasers ou des miroirs, que le format .DAT ne peut pas porter." },
       "refused_cc3d_ruleset": { "label": "Non exporté : {levels} se joue avec les règles CC3D, que le format .DAT ne peut pas porter. Utilisez plutôt Exporter XML." },
+      "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascule de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
+      "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins posés sur des cases, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -511,6 +513,10 @@
       "no_emitter": { "label": "Erreur : Aucun émetteur laser placé sur la carte." },
       "no_receiver": { "label": "Erreur : Aucun récepteur laser placé sur la carte." },
       "laser_gate_on_beam": { "label": "Avertissement : une barrière laser ({group}) se trouve sur un rayon qui allume un récepteur : fermée, elle coupe ce rayon." },
+      "hold_door_no_plate": { "label": "Avertissement : une porte à plaque ({color}) n'a aucune plaque de pression de sa couleur, elle ne peut donc jamais s'ouvrir." },
+      "hold_door_wrong_start": { "label": "Avertissement : une porte à plaque ({color}) est posée ouverte ou fermée à l'inverse de ses plaques : elle change dès le début du niveau." },
+      "channel_walls_no_button": { "label": "Avertissement : des murs bascule ({color}) n'ont aucun bouton bascule de leur couleur pour les déplacer." },
+      "channel_button_no_walls": { "label": "Avertissement : un bouton bascule ({color}) n'a aucun mur bascule de sa couleur à déplacer." },
       "exit_on_receivers_level": { "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs." },
       "start_on_wall": { "label": "Avertissement : le départ du joueur est dans un mur." },
       "start_on_entity": { "label": "Avertissement : le départ du joueur partage sa case avec un bloc ou un monstre." },
@@ -1064,7 +1070,32 @@
     "laser_gate_red_closed": { "name": "Barrière Laser Rouge (Fermée)" },
     "laser_gate_red_open": { "name": "Barrière Laser Rouge (Ouverte)" },
     "laser_gate_blue_closed": { "name": "Barrière Laser Bleue (Fermée)" },
-    "laser_gate_blue_open": { "name": "Barrière Laser Bleue (Ouverte)" }
+    "laser_gate_blue_open": { "name": "Barrière Laser Bleue (Ouverte)" },
+    "pressure_plate_red": { "name": "Plaque de Pression Rouge" },
+    "pressure_plate_green": { "name": "Plaque de Pression Verte" },
+    "pressure_plate_blue": { "name": "Plaque de Pression Bleue" },
+    "pressure_plate_yellow": { "name": "Plaque de Pression Jaune" },
+    "hold_door_red_closed": { "name": "Porte à Plaque Rouge (Fermée)" },
+    "hold_door_red_open": { "name": "Porte à Plaque Rouge (Ouverte)" },
+    "hold_door_green_closed": { "name": "Porte à Plaque Verte (Fermée)" },
+    "hold_door_green_open": { "name": "Porte à Plaque Verte (Ouverte)" },
+    "hold_door_blue_closed": { "name": "Porte à Plaque Bleue (Fermée)" },
+    "hold_door_blue_open": { "name": "Porte à Plaque Bleue (Ouverte)" },
+    "hold_door_yellow_closed": { "name": "Porte à Plaque Jaune (Fermée)" },
+    "hold_door_yellow_open": { "name": "Porte à Plaque Jaune (Ouverte)" },
+    "toggle_wall_red_closed": { "name": "Mur Bascule Rouge (Fermé)" },
+    "toggle_wall_red_open": { "name": "Mur Bascule Rouge (Ouvert)" },
+    "toggle_wall_blue_closed": { "name": "Mur Bascule Bleu (Fermé)" },
+    "toggle_wall_blue_open": { "name": "Mur Bascule Bleu (Ouvert)" },
+    "toggle_wall_yellow_closed": { "name": "Mur Bascule Jaune (Fermé)" },
+    "toggle_wall_yellow_open": { "name": "Mur Bascule Jaune (Ouvert)" },
+    "toggle_button_red": { "name": "Bouton Bascule Rouge" },
+    "toggle_button_blue": { "name": "Bouton Bascule Bleu" },
+    "toggle_button_yellow": { "name": "Bouton Bascule Jaune" },
+    "floating_block_red": { "name": "Bloc Flottant Rouge" },
+    "floating_block_green": { "name": "Bloc Flottant Vert" },
+    "floating_block_blue": { "name": "Bloc Flottant Bleu" },
+    "floating_block_yellow": { "name": "Bloc Flottant Jaune" }
   },
   "entities": {
     "dirt_block": { "name": "Bloc de Terre Mobile" },
@@ -1079,7 +1110,11 @@
     "tank": { "name": "Tank Blindé (Bouton Bleu)" },
     "blob": { "name": "Blob Gélatineux" },
     "mirror_slash": { "name": "Miroir (Barre oblique)" },
-    "mirror_backslash": { "name": "Miroir (Barre oblique inverse)" }
+    "mirror_backslash": { "name": "Miroir (Barre oblique inverse)" },
+    "color_block_red": { "name": "Bloc de Couleur Rouge" },
+    "color_block_green": { "name": "Bloc de Couleur Vert" },
+    "color_block_blue": { "name": "Bloc de Couleur Bleu" },
+    "color_block_yellow": { "name": "Bloc de Couleur Jaune" }
   },
   "levels": {
     "level_1": {

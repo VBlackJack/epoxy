@@ -55,14 +55,20 @@ function entry(level: CoverageLevel, reason: string): CoverageEntry {
 const EXACT_REASON = 'Epoxy plays this element as CC3D does.';
 const MONSTER_REASON = 'Monster movement is close to CC3D, not identical.';
 const ORB_REASON = 'The orb effect is close to the Epoxy equivalent, not identical.';
+const PLATE_REASON = 'Hold doors settle at the end of each move or tick, where CC3D reacts at once.';
+const COLOR_BLOCK_REASON = 'Colour block pushing rules differ slightly from CC3D, and a floating block cannot be pushed again.';
+const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
   'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'exit', 'gravel', 'push_up_wall', 'false_wall', 'door',
-  'fish', 'key', 'toggle_door_green', 'toggle_control_green'
+  'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
+  'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
+  // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
+  KEY_PANELS_ON_NONFLOOR
 ];
 
 const APPROX_ENTRIES: Record<string, string> = {
-  water: 'The ice block and the colour block behave differently on water.',
+  water: 'The ice block behaves differently on water, and a colour block floats as a walkable tile that cannot be pushed again.',
   force_random: 'Epoxy draws the direction at random instead of a fixed cycle.',
   socket: 'Epoxy sockets only react to the player.',
   slime: 'Slime is close to the Epoxy equivalent, not identical.',
@@ -85,6 +91,14 @@ const APPROX_ENTRIES: Record<string, string> = {
   orb_water: ORB_REASON,
   block_dirt: 'Dirt block pushing rules differ slightly from CC3D.',
   block_ice: 'Ice block pushing and sliding rules differ slightly from CC3D.',
+  plate_red: PLATE_REASON,
+  plate_green: PLATE_REASON,
+  plate_blue: PLATE_REASON,
+  plate_yellow: PLATE_REASON,
+  block_color_red: COLOR_BLOCK_REASON,
+  block_color_green: COLOR_BLOCK_REASON,
+  block_color_blue: COLOR_BLOCK_REASON,
+  block_color_yellow: COLOR_BLOCK_REASON,
   reflector: 'Reflector bounce rules differ from CC3D.',
   walker: MONSTER_REASON,
   legs_green: MONSTER_REASON,
@@ -115,16 +129,12 @@ const LOST_ENTRIES: Record<string, string> = {
   bot_cw: 'Epoxy has no clockwise bot.',
   bot_ccw: 'Epoxy has no counter-clockwise bot.',
   bot_multi: 'Epoxy has no multi bot.',
-  [KEY_STACKED_TERRAIN]: 'Epoxy holds one terrain per cell, so a stack of devices or blockers is flattened.',
-  [KEY_PANELS_ON_NONFLOOR]: 'Epoxy only keeps panels on plain floor cells.'
+  [KEY_STACKED_TERRAIN]: 'Epoxy holds one terrain per cell, so a stack of devices or blockers is flattened.'
 };
 
-const LOST_COLORED_GROUPS: ReadonlyArray<{ prefix: string; colors: readonly Cc3dColor[]; reason: string }> = [
-  { prefix: 'hold_door', colors: CC3D_COLORS, reason: 'Epoxy has no door held open by a pressure plate.' },
-  { prefix: 'plate', colors: CC3D_COLORS, reason: 'Epoxy has no pressure plate.' },
-  { prefix: 'toggle_door', colors: ['red', 'blue', 'yellow'], reason: 'Epoxy only has the green toggle door.' },
-  { prefix: 'toggle_control', colors: ['red', 'blue', 'yellow'], reason: 'Epoxy only has the green toggle control.' },
-  { prefix: COLOR_MOB_KIND, colors: CC3D_COLORS, reason: 'Epoxy has no colour block.' }
+/** Coloured elements Epoxy plays as CC3D does, one entry per colour. */
+const EXACT_COLORED_GROUPS: ReadonlyArray<{ prefix: string; colors: readonly Cc3dColor[]; reason: string }> = [
+  { prefix: 'hold_door', colors: CC3D_COLORS, reason: HOLD_DOOR_REASON }
 ];
 
 function buildTable(): Record<string, CoverageEntry> {
@@ -132,8 +142,8 @@ function buildTable(): Record<string, CoverageEntry> {
   for (const key of EXACT_KEYS) table[key] = entry('exact', EXACT_REASON);
   for (const [key, reason] of Object.entries(APPROX_ENTRIES)) table[key] = entry('approx', reason);
   for (const [key, reason] of Object.entries(LOST_ENTRIES)) table[key] = entry('lost', reason);
-  for (const group of LOST_COLORED_GROUPS) {
-    for (const color of group.colors) table[`${group.prefix}${KEY_SEPARATOR}${color}`] = entry('lost', group.reason);
+  for (const group of EXACT_COLORED_GROUPS) {
+    for (const color of group.colors) table[`${group.prefix}${KEY_SEPARATOR}${color}`] = entry('exact', group.reason);
   }
   return table;
 }

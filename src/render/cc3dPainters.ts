@@ -313,6 +313,16 @@ function paintColorBlock(ctx: CanvasRenderingContext2D, color: CellColor, x: num
   tools.glyph(color, x + size / 2, y + face + faceHeight / 2, size * GEO.blockGlyph, tools.pal.wallShadow);
 }
 
+/** A colour block that sank into water and floats there: the block, faint, over the water already drawn. */
+export function paintCc3dFloatingBlock(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+  const cellColor = COLORS.find((c) => c === color);
+  if (!cellColor) return;
+  ctx.save();
+  ctx.globalAlpha = GEO.ghostAlpha;
+  paintColorBlock(ctx, cellColor, x, y, size, tools);
+  ctx.restore();
+}
+
 /**
  * A corner reflector, a pushable block cut along a diagonal: the half that faces the two reflecting
  * sides is bright mirror glass with a sheen along those two sides, the back half is dark.

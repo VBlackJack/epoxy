@@ -18,11 +18,12 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { BLOCK_TARGET_TILE_ID } from '../coreConstants';
-import { isEdgeBlockedBetween } from '../EdgeRules';
+import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import {
   BeamCell,
   ButtonAction,
+  ChannelColor,
   CloneLink,
   CompiledLevel,
   Direction,
@@ -38,6 +39,11 @@ import {
 export const DEFAULT_TELEPORT_GROUP = '';
 /** Level score factor before any multiplier item is picked up. */
 export const BASE_LEVEL_SCORE_MULTIPLIER = 1;
+
+/** A cell of a colour channel: a pressure plate or a hold door, with the colour it belongs to. */
+export interface ChannelCell extends GridPoint {
+  color: ChannelColor;
+}
 
 /** Kinds of visual event the engine reports to its renderer. */
 export type EpoxyVisualKind = 'chip' | 'item' | 'unlock' | 'splash' | 'explosion' | 'teleport' | 'win';
@@ -56,6 +62,8 @@ export interface EpoxyWorld {
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
   player: PlayerState;
+  /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask); static, null when none. */
+  edgeMask: Uint8Array | null;
 
   chipsRemaining: number;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
@@ -82,6 +90,10 @@ export interface EpoxyWorld {
   laserReceivers: GridPoint[];
   /** Laser gate cells in reading order; a gate cell stays a gate, only its open or closed form changes. */
   laserGates: GridPoint[];
+  /** Pressure plate cells in reading order; empty on a level without plates. */
+  plates: ChannelCell[];
+  /** Hold door cells in reading order; a door cell stays a door, only its open or closed form changes. */
+  holdDoors: ChannelCell[];
   // Derived from the grid and the entities, never snapshotted: rebuilt after load, restore and any change.
   beamCells: BeamCell[];
   litReceiverCells: GridPoint[];
@@ -117,6 +129,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     trapLinks: [],
     cloneLinks: [],
     player: undefined as unknown as PlayerState,
+    edgeMask: null,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
     levelBonusPoints: 0,
@@ -132,6 +145,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     laserEmitters: [],
     laserReceivers: [],
     laserGates: [],
+    plates: [],
+    holdDoors: [],
     beamCells: [],
     litReceiverCells: [],
     beamHasSlidingMirror: false,
@@ -142,6 +157,7 @@ export function createEpoxyWorld(): EpoxyWorld {
 }
 
 export function buildLevelLookups(w: EpoxyWorld): void {
+  w.edgeMask = cellEdgeMask(w.level);
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
     const key = cellKey(link.trapX, link.trapY);
@@ -158,6 +174,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.laserEmitters = [];
   w.laserReceivers = [];
   w.laserGates = [];
+  w.plates = [];
+  w.holdDoors = [];
   const coversTargets = w.level.winRule === 'targets';
   w.teleportersByGroup.clear();
   for (let y = 0; y < w.terrain.length; y++) {
@@ -167,6 +185,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
       if (tile.laserEmitter) w.laserEmitters.push({ x, y, dir: tile.laserEmitter });
       if (tile.laserReceiverGroup !== undefined) w.laserReceivers.push({ x, y });
       if (tile.laserGateGroup !== undefined) w.laserGates.push({ x, y });
+      if (tile.plateColor !== undefined) w.plates.push({ x, y, color: tile.plateColor });
+      if (tile.holdDoorColor !== undefined) w.holdDoors.push({ x, y, color: tile.holdDoorColor });
       if (coversTargets && w.terrain[y][x] === BLOCK_TARGET_TILE_ID) w.targetCells.push({ x, y });
       if (tile.isTeleporter) {
         const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
@@ -194,7 +214,7 @@ export function isEdgeBlocked(
   toY: number,
   dir: Direction
 ): boolean {
-  return isEdgeBlockedBetween(w.terrain[fromY][fromX], w.terrain[toY][toX], dir);
+  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir);
 }
 
 /**
@@ -230,6 +250,29 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
   if (w.player.x === bx && w.player.y === by) return true;
   return w.entities.some((e) => e.x === bx && e.y === by);
+}
+
+/**
+ * Whether something presses the plate at a cell: the live player, a block at rest (a colour block only
+ * on a plate of its own colour) or a monster that presses plates. A sliding entity is passing, not
+ * pressing. Brown buttons keep their own rule (`isButtonPressed`), which every occupant satisfies.
+ */
+export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: ChannelColor): boolean {
+  if (w.player.alive && w.player.x === x && w.player.y === y) return true;
+  return w.entities.some((e) => e.x === x && e.y === y && !e.isSliding && entityPressesPlate(e.type, e.kind, color));
+}
+
+/**
+ * Whether an entity of this type, standing still on a plate of this colour, presses it: a block does
+ * (a colour block only on a plate of its own colour) unless its definition says otherwise, a monster
+ * only when its definition says so.
+ */
+export function entityPressesPlate(type: string, kind: 'block' | 'monster', color: ChannelColor): boolean {
+  const def = ConfigRegistry.getEntityDef(type);
+  if (kind === 'block') {
+    return def?.pressesPlates !== false && (def?.plateColor === undefined || def.plateColor === color);
+  }
+  return def?.pressesPlates === true;
 }
 
 export function killPlayer(ctx: EpoxyContext, reasonKey: string, sfxId: string): void {

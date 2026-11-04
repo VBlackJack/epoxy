@@ -152,14 +152,18 @@ function emptyKinds(): Record<IrreversibleKind, number> {
 export function terrainEventKind(from: string, to: string): IrreversibleKind | null {
   const before = ConfigRegistry.getTile(from);
   const after = ConfigRegistry.getTile(to);
-  // Reversible (toggle walls, flame jets, laser gates).
+  // Reversible (toggle walls, colour channel walls, hold doors, flame jets, laser gates).
   if (
     before.togglesTo ||
     after.togglesTo ||
     before.flameTogglesTo ||
     after.flameTogglesTo ||
     before.laserGateTogglesTo ||
-    after.laserGateTogglesTo
+    after.laserGateTogglesTo ||
+    before.channelTogglesTo ||
+    after.channelTogglesTo ||
+    before.holdDoorTogglesTo ||
+    after.holdDoorTogglesTo
   ) {
     return null;
   }

@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { DEADLY_HAZARDS, OPPOSITE_DIRECTION } from '../core/coreConstants';
-import { isEdgeBlockedBetween } from '../core/EdgeRules';
+import { cellEdgeMask, isEdgeBlockedAt } from '../core/EdgeRules';
 import { CompiledLevel, Direction, GridPoint, TileDefinition } from '../core/types';
 import { isPlayerWalkable } from '../core/Walkability';
 import { Box } from './LevelAssembler';
@@ -139,6 +139,7 @@ function floodWithout(level: CompiledLevel, itemId: string, socketsOpen: boolean
     })
   );
 
+  const edgeMask = cellEdgeMask(level);
   const seen = new Set<number>([level.playerStart.y * width + level.playerStart.x]);
   const queue: GridPoint[] = [level.playerStart];
   let chips = 0;
@@ -153,7 +154,7 @@ function floodWithout(level: CompiledLevel, itemId: string, socketsOpen: boolean
       const n = { x: cell.x + DIRECTION_VECTORS[d].dx, y: cell.y + DIRECTION_VECTORS[d].dy };
       if (n.x < 0 || n.y < 0 || n.x >= width || n.y >= height) continue;
       // A thin wall closes one edge of a cell, from either side.
-      if (isEdgeBlockedBetween(level.terrain[cell.y][cell.x], level.terrain[n.y][n.x], d)) continue;
+      if (isEdgeBlockedAt(level.terrain, edgeMask, cell.x, cell.y, n.x, n.y, d)) continue;
       next.push(n);
     }
     if (tile.isTeleporter) next.push(...(teleportersByGroup.get(tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP) ?? []));

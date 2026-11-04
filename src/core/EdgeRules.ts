@@ -15,15 +15,14 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { OPPOSITE_DIRECTION } from './coreConstants';
-import { Direction } from './types';
+import { CELL_EDGE_BITS, OPPOSITE_DIRECTION } from './coreConstants';
+import { CompiledLevel, Direction } from './types';
 
 /**
  * Whether a thin wall or a one-way tile stops a step between two adjacent
- * cells. Shared by the engine and the level validator so both read the edges
- * the same way: an edge is blocked from either side.
+ * cells. An edge is blocked from either side.
  */
-export function isEdgeBlockedBetween(fromId: string, toId: string, dir: Direction): boolean {
+function tileEdgeBlocked(fromId: string, toId: string, dir: Direction): boolean {
   const fromTile = ConfigRegistry.getTile(fromId);
   const toTile = ConfigRegistry.getTile(toId);
   const opposite = OPPOSITE_DIRECTION[dir];
@@ -33,4 +32,72 @@ export function isEdgeBlockedBetween(fromId: string, toId: string, dir: Directio
   if (fromTile.blockedEntryDirections?.includes(opposite)) return true;
   if (toTile.blockedEntryDirections?.includes(dir)) return true;
   return false;
+}
+
+interface MaskMemo {
+  width: number;
+  height: number;
+  mask: Uint8Array | null;
+}
+
+const maskMemo = new WeakMap<object, MaskMemo>();
+
+/**
+ * The thin walls a level carries on any terrain (`cellEdges`) as one bit per
+ * side per cell, indexed by y * width + x; null when the level has none. Never
+ * throws: an entry that is not a record, lies outside the grid or names an
+ * unknown side is skipped. The result is memoised on the `cellEdges` array.
+ */
+export function cellEdgeMask(level: CompiledLevel): Uint8Array | null {
+  const edges: unknown = level.cellEdges;
+  if (!Array.isArray(edges) || edges.length === 0) return null;
+  const height = Array.isArray(level.terrain) ? level.terrain.length : 0;
+  const width = height > 0 && Array.isArray(level.terrain[0]) ? level.terrain[0].length : 0;
+  const memo = maskMemo.get(edges);
+  if (memo && memo.width === width && memo.height === height) return memo.mask;
+
+  let mask: Uint8Array | null = null;
+  if (width > 0 && height > 0) {
+    const bits = new Uint8Array(width * height);
+    let any = false;
+    for (const entry of edges as unknown[]) {
+      if (typeof entry !== 'object' || entry === null) continue;
+      const { x, y, sides } = entry as { x?: unknown; y?: unknown; sides?: unknown };
+      if (typeof x !== 'number' || typeof y !== 'number' || !Number.isInteger(x) || !Number.isInteger(y)) continue;
+      if (x < 0 || x >= width || y < 0 || y >= height || !Array.isArray(sides)) continue;
+      for (const side of sides as unknown[]) {
+        const bit = typeof side === 'string' ? CELL_EDGE_BITS[side as Direction] : undefined;
+        if (bit === undefined) continue;
+        bits[y * width + x] |= bit;
+        any = true;
+      }
+    }
+    mask = any ? bits : null;
+  }
+  maskMemo.set(edges, { width, height, mask });
+  return mask;
+}
+
+/**
+ * Whether a step between two adjacent cells is stopped by a thin wall: the
+ * terrain of either cell (thin wall and one-way tiles) or a cell edge of the
+ * level, from either side. Shared by the engine, the validator and the solvers
+ * so they all read the edges the same way.
+ */
+export function isEdgeBlockedAt(
+  terrain: readonly (readonly string[])[],
+  mask: Uint8Array | null,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  dir: Direction
+): boolean {
+  if (tileEdgeBlocked(terrain[fromY][fromX], terrain[toY][toX], dir)) return true;
+  if (mask === null) return false;
+  const width = terrain[0].length;
+  return (
+    (mask[fromY * width + fromX] & CELL_EDGE_BITS[dir]) !== 0 ||
+    (mask[toY * width + toX] & CELL_EDGE_BITS[OPPOSITE_DIRECTION[dir]]) !== 0
+  );
 }
