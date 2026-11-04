@@ -56,6 +56,10 @@ const LASER_CONTROLLER = 'laser_controller';
 const BOT_STATIC = 'static';
 const BOT_MULTI = 'multi';
 const BOT_CLOCKWISE = 'cw';
+/** Display id of the golem control, which Epoxy draws for its puppet control. */
+export const GOLEM_CONTROL_PAINTER_ID = `${CC3D_TILE_PREFIX}${GOLEM_CONTROL}`;
+/** Display id of the yellow golem, which Epoxy draws for its puppet. */
+export const GOLEM_YELLOW_PAINTER_ID = `${CC3D_TILE_PREFIX}golem_yellow`;
 const OPEN_DASH: readonly number[] = [3, 3];
 const HOLD_DASH: readonly number[] = [1.5, 1.5];
 const NO_DASH: readonly number[] = [];
@@ -146,6 +150,11 @@ export const CC3D_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   cc3d_baby_blinky: { base: 'glider', scale: BABY_SCALE, badge: null },
   cc3d_baby_screamer: { base: 'fireball', scale: BABY_SCALE, badge: null },
   cc3d_golem_yellow: { base: 'tank', scale: FULL_SCALE, badge: 'yellow' }
+};
+
+/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away. */
+export const EPOXY_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
+  skitter: { base: 'teeth', scale: FULL_SCALE, badge: 'blue' }
 };
 
 /** What the painters need from the renderer. */

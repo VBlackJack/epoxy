@@ -280,6 +280,33 @@
       "destroyedByFire": false,
       "destroyedByBomb": true,
       "plateColor": "yellow"
+    },
+    "puppet": {
+      "id": "puppet",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.puppet.name",
+      "moveIntervalTicks": 8,
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "steeredBy": "steer_monsters",
+      "pressesPlates": true,
+      "pushesBlocks": true,
+      "passesTiles": ["gravel", "fire"]
+    },
+    "skitter": {
+      "id": "skitter",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.skitter.name",
+      "moveIntervalTicks": 8,
+      "movementPattern": "flee_player",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false
     }
   }
 }

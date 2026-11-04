@@ -1433,6 +1433,18 @@
       "passableByBlock": true,
       "floatingBlockColor": "yellow",
       "colorKey": "yellow"
+    },
+    "puppet_control": {
+      "id": "puppet_control",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.puppet_control.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "buttonAction": "steer_monsters",
+      "buttonWorkedBy": "player"
     }
   }
 }

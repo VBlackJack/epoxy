@@ -74,6 +74,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   toggle_wall_closed: 'wallTop',
   toggle_wall_open: 'floorBorder',
   teleport: 'teleportRing',
+  puppet_control: 'yellow',
   trap: 'trapBorder',
   clone_machine: 'clonerBorder'
 };

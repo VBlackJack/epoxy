@@ -623,6 +623,11 @@ tile theme=cyber_neon id=floating_block_yellow 9beb1aa853ec5d27
 tile theme=arctic_lab id=floating_block_yellow cc7ae0546bb6bda3
 tile theme=magma_core id=floating_block_yellow 46346517db657adc
 tile theme=lynx_lcd id=floating_block_yellow a055f7722880a736
+tile theme=default id=puppet_control 17e664b05b7e2112
+tile theme=cyber_neon id=puppet_control 2580a0c6d8edb006
+tile theme=arctic_lab id=puppet_control 589948db4bf75ad3
+tile theme=magma_core id=puppet_control 1bba9a31f8708295
+tile theme=lynx_lcd id=puppet_control 53944493d44ee1bb
 wall theme=default masks 588c602b4a574bd7
 wall theme=cyber_neon masks 56fce8a2126ac0b7
 wall theme=arctic_lab masks 01bf9f425febfdc0

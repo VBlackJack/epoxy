@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { channelOfButtonAction } from './coreConstants';
+import { FLEE_PLAYER_PATTERN, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -132,6 +132,45 @@ export function hasLaserContent(
   return (level.entities ?? []).some((e) => isMirrorEntityType(e.type)) || hasTurretContent(level);
 }
 
+/** True when the entity type is a steered monster (a puppet), which moves only when a steering pad is worked. */
+export function isSteeredEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.steeredBy !== undefined;
+}
+
+/** True when the entity type is a monster that steps away from the player (a skitter). */
+export function isFleeingEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.movementPattern === FLEE_PLAYER_PATTERN;
+}
+
+/** True when the tile id is a steering pad, the button that makes the puppets step. */
+export function isSteeringTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).buttonAction === STEER_MONSTERS_ACTION;
+}
+
+/** True when the level places a steering pad or a puppet, or links a clone machine to a puppet template. */
+export function hasSteeringContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isSteeringTileId)) ?? false;
+  if (hasTile(level.terrain) || hasTile(level.items)) return true;
+  return (
+    (level.entities ?? []).some((e) => isSteeredEntityType(e.type)) ||
+    (level.cloneLinks ?? []).some((link) => isSteeredEntityType(link.templateType))
+  );
+}
+
+/** True when the level places a monster only the Epoxy engine plays (a puppet or a skitter), or a steering pad. */
+export function hasEpoxyOnlyMonsterContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+): boolean {
+  if (hasSteeringContent(level)) return true;
+  const fleeing = (type: string): boolean => isFleeingEntityType(type);
+  return (
+    (level.entities ?? []).some((e) => fleeing(e.type)) || (level.cloneLinks ?? []).some((link) => fleeing(link.templateType))
+  );
+}
+
 /** True when the tile id is a colour channel tile: a plate, a hold door, a colour wall or button, or a floating block. */
 export function isColorChannelTileId(id: string | null | undefined): boolean {
   if (!id) return false;
@@ -157,12 +196,18 @@ export function isSlowTimeTileId(id: string | null | undefined): boolean {
 
 /** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile or the slow-time item. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
-  return isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id);
+  return isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id) || isSteeringTileId(id);
 }
 
-/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret or a colour block. */
+/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, a colour block, a puppet or a skitter. */
 export function isEpoxyOnlyEntityType(type: string): boolean {
-  return isMirrorEntityType(type) || isTurretEntityType(type) || isColorBlockEntityType(type);
+  return (
+    isMirrorEntityType(type) ||
+    isTurretEntityType(type) ||
+    isColorBlockEntityType(type) ||
+    isSteeredEntityType(type) ||
+    isFleeingEntityType(type)
+  );
 }
 
 /** True when the level places a colour channel tile (terrain or item layer) or a colour block. */
@@ -173,11 +218,19 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
   return (level.entities ?? []).some((e) => isColorBlockEntityType(e.type));
 }
 
-/** True when the level uses a mechanic that only the Epoxy engine plays: lasers or colour channels. */
-export function hasEpoxyOnlyContent(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'>): boolean {
+/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time or steered monsters. */
+export function hasEpoxyOnlyContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+): boolean {
   const hasSlowTime = (grid: Array<Array<string | null>> | undefined): boolean =>
     grid?.some((row) => row.some(isSlowTimeTileId)) ?? false;
-  return hasLaserContent(level) || hasColorChannelContent(level) || hasSlowTime(level.terrain) || hasSlowTime(level.items);
+  return (
+    hasLaserContent(level) ||
+    hasColorChannelContent(level) ||
+    hasSlowTime(level.terrain) ||
+    hasSlowTime(level.items) ||
+    hasEpoxyOnlyMonsterContent(level)
+  );
 }
 
 /**
@@ -196,9 +249,43 @@ type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
 const laserContentCache = new WeakMap<object, boolean>();
 const colorContentCache = new WeakMap<object, boolean>();
 const turretContentCache = new WeakMap<object, boolean>();
+const steeringContentCache = new WeakMap<object, boolean>();
+/** The aids of a steering level, kept per aid set so a level of one kind always gets the same object. */
+const steeringFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+
+/**
+ * The aids a level with puppets loses on top of what its other mechanics already turn off: a tapped path
+ * and the push hint and watch do not know the pads' steps. An overlay on the result of the other rules,
+ * so a pad never has to be combined by hand with each laser and colour case.
+ */
+function withoutSteeringAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = steeringFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, tapToPath: false, blockHint: false, deadEndWatch: false };
+    steeringFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
 
 /** The aids available on a level, by the ruleset it is played under and the mechanics it uses. */
 export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
+  const base = baseFeaturesFor(level);
+  // Lynx and CC3D levels already have these aids off; a level without a grid has no content to read.
+  if (!level?.terrain || level.ruleset === 'lynx' || level.ruleset === 'cc3d') return base;
+  let steering = steeringContentCache.get(level);
+  if (steering === undefined) {
+    steering = hasSteeringContent({
+      terrain: level.terrain,
+      items: level.items ?? [],
+      entities: level.entities ?? [],
+      cloneLinks: level.cloneLinks ?? []
+    });
+    steeringContentCache.set(level, steering);
+  }
+  return steering ? withoutSteeringAids(base) : base;
+}
+
+function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {
   if (!level) return EPOXY_FEATURES;
   switch (level.ruleset) {
     case 'lynx':

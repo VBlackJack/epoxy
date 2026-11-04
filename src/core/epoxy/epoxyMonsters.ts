@@ -17,7 +17,12 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, OPPOSITE_DIRECTION } from '../coreConstants';
+import {
+  CHASE_PLAYER_PATTERN,
+  DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+  FLEE_PLAYER_PATTERN,
+  OPPOSITE_DIRECTION
+} from '../coreConstants';
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
 import {
@@ -57,6 +62,8 @@ export function updateEntities(ctx: EpoxyContext): void {
 /** Advances one monster of the entity loop by a tick. Returns false when the player was killed, so the loop stops. */
 function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
+  // A steered monster never decides a step: it moves only when a steering pad is worked.
+  if (ConfigRegistry.getEntityDef(entity.type)?.steeredBy !== undefined) return true;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
     return true;
@@ -128,7 +135,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     return true;
   }
 
-  if (destTile.buttonAction && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
+  // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
+  if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
     return false;
   }
 
@@ -159,7 +167,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
     return canMonsterEnter(w, monster, forceDir) ? forceDir : null;
   }
 
-  if (def.movementPattern === 'chase_player') {
+  if (def.movementPattern === CHASE_PLAYER_PATTERN || def.movementPattern === FLEE_PLAYER_PATTERN) {
     const dx = w.player.x - monster.x;
     const dy = w.player.y - monster.y;
     const candidates: Direction[] = [];
@@ -169,6 +177,10 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
     } else {
       if (dy !== 0) candidates.push(dy > 0 ? 'S' : 'N');
       if (dx !== 0) candidates.push(dx > 0 ? 'E' : 'W');
+    }
+    // A fleeing monster tries the same axes away from the player; a blocked axis is tried only when it is not lined up.
+    if (def.movementPattern === FLEE_PLAYER_PATTERN) {
+      for (let i = 0; i < candidates.length; i++) candidates[i] = OPPOSITE_DIRECTION[candidates[i]];
     }
     for (const c of candidates) {
       if (canMonsterEnter(w, monster, c)) return c;
@@ -209,7 +221,12 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
   return null;
 }
 
-export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction): boolean {
+/**
+ * Whether the monster may step one cell in `dir`: inside the map, past the cell edges, onto a tile it can
+ * enter (or one its definition passes) with no item but a bomb and no entity. `ignoreOccupant` leaves the
+ * entity check to the caller, which pushes the block in the way (a steered puppet).
+ */
+export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction, ignoreOccupant = false): boolean {
   const vec = DIRECTION_VECTORS[dir];
   const nx = monster.x + vec.dx;
   const ny = monster.y + vec.dy;
@@ -219,7 +236,9 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Dire
   const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
   const def = ConfigRegistry.getEntityDef(monster.type);
 
-  if (!destTile.passableByMonster && !(destTile.hazard === 'fire' && def?.immuneToFire)) {
+  // passesTiles lets a monster enter a tile it otherwise could not (undefined for every monster that exists today).
+  const passesTile = def?.passesTiles?.includes(w.terrain[ny][nx]) === true;
+  if (!destTile.passableByMonster && !passesTile && !(destTile.hazard === 'fire' && def?.immuneToFire)) {
     return false;
   }
   if (destTile.hazard === 'fire' && def?.avoidsFire) return false;
@@ -229,8 +248,7 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Dire
     return false;
   }
 
-  const existing = getEntityAt(w, nx, ny);
-  if (existing) return false;
+  if (!ignoreOccupant && getEntityAt(w, nx, ny)) return false;
 
   return true;
 }

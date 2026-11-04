@@ -23,11 +23,13 @@ import {
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   GRAY_BUTTON_RADIUS,
   OPPOSITE_DIRECTION,
+  STEER_MONSTERS_ACTION,
   channelOfButtonAction
 } from '../coreConstants';
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
+import { steerMonsters } from './epoxySteering';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -67,6 +69,9 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
         ent.dir = OPPOSITE_DIRECTION[ent.dir];
       }
     }
+  } else if (action === STEER_MONSTERS_ACTION) {
+    // The player's step ends on the pad: the puppets step the way the player moved.
+    if (!steerMonsters(ctx, w.player.dir)) return false;
   } else if (action === 'trigger_cloner') {
     const links = w.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
     if (links.length > 0) {

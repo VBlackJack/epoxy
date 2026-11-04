@@ -68,6 +68,12 @@ const FISH_EXTRA_REASON = 'Epoxy plays the extra fish as a chip, and the chips n
 const GRAVEL_REASON = 'Epoxy gravel admits mirrors, where CC3D gravel refuses reflectors.';
 const BOT_REASON =
   'Epoxy plays a bot as a turret: the beam and its turn period are close to CC3D, with a beam length and a period that are guesses, and Epoxy makes no turn at the first step.';
+const GOLEM_YELLOW_REASON =
+  'Epoxy plays the yellow golem as a puppet that steps at once when the player ends a move on the control, where CC3D walks it a step; it enters Epoxy gravel, which stands for both CC3D sand (the golem enters it) and CC3D gravel (the golem is stopped by it); entry order along a line of puppets differs [unverified].';
+const GOLEM_CONTROL_YELLOW_REASON =
+  'Epoxy plays the yellow golem control as the puppet control: only the player works it, and a puppet or block entering it does nothing, as in CC3D; the order of the steps differs [unverified].';
+const NIBBLE_REASON =
+  'Epoxy plays a nibble as a skitter: it steps away from the player on the axis of the greater distance, with its rest folded into a fixed step interval [unverified].';
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
@@ -139,14 +145,14 @@ const APPROX_ENTRIES: Record<string, string> = {
   bot_cw: BOT_REASON,
   bot_ccw: BOT_REASON,
   bot_multi: BOT_REASON,
+  golem_yellow: GOLEM_YELLOW_REASON,
+  golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON,
+  nibble: NIBBLE_REASON,
   golem_blue: 'Golem movement is close to CC3D, not identical.'
 };
 
 const LOST_ENTRIES: Record<string, string> = {
-  golem_control_yellow: 'Epoxy has no yellow golem control.',
   laser_controller: 'Epoxy has no laser controller.',
-  nibble: 'Epoxy has no nibble monster.',
-  golem_yellow: 'Epoxy has no yellow golem.',
   laser_shooter: 'Epoxy has no laser shooter.',
   [KEY_STACKED_RUNTIME]:
     'The stack has a layer that acts while covered, or more layers than a removable top and the one it hides, which Epoxy flattens.'

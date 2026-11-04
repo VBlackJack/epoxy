@@ -939,6 +939,68 @@ export function findTurretConfigErrors(entities: Record<string, EntityDefinition
   return errors;
 }
 
+/** Movement patterns the monster engine knows; an entity that names another one would walk by its turn order. */
+const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
+  'left_wall',
+  'right_wall',
+  'bounce',
+  'forward_else_random',
+  'chase_player',
+  'flee_player',
+  'left_skew',
+  'right_skew',
+  'tank_march',
+  'pure_random'
+];
+/** Who may work a button, as a tile declares it. */
+const BUTTON_WORKERS: readonly string[] = ['player'];
+
+/**
+ * Problems of the steering fields. A tile: buttonWorkedBy is a known worker and sits on a button. An
+ * entity: movementPattern is one the engine knows; steeredBy is only on a monster and names a button
+ * action some tile carries; pushesBlocks is a boolean on a monster; passesTiles is a list of ids of
+ * existing tiles on a monster. Each entry names the tile or the entity.
+ */
+export function findSteeringConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition>
+): string[] {
+  const errors: string[] = [];
+  const usedActions = new Set(Object.values(tiles).map((tile) => tile.buttonAction));
+  for (const tile of Object.values(tiles)) {
+    if (tile.buttonWorkedBy === undefined) continue;
+    if (!BUTTON_WORKERS.includes(tile.buttonWorkedBy)) errors.push(`${tile.id}.buttonWorkedBy: expected "player"`);
+    if (tile.buttonAction === undefined) errors.push(`${tile.id}.buttonWorkedBy: only a button has a worker`);
+  }
+  for (const entity of Object.values(entities)) {
+    const { id } = entity;
+    if (entity.movementPattern !== undefined && !KNOWN_MOVEMENT_PATTERNS.includes(entity.movementPattern)) {
+      errors.push(`${id}.movementPattern: unknown pattern "${entity.movementPattern}"`);
+    }
+    if (entity.steeredBy !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.steeredBy: only a monster may be steered`);
+      if (!usedActions.has(entity.steeredBy)) errors.push(`${id}.steeredBy: no tile carries the button action "${entity.steeredBy}"`);
+    }
+    if (entity.pushesBlocks !== undefined) {
+      if (typeof entity.pushesBlocks !== 'boolean') errors.push(`${id}.pushesBlocks: expected a boolean`);
+      if (entity.kind !== 'monster') errors.push(`${id}.pushesBlocks: only a monster pushes blocks`);
+    }
+    if (entity.passesTiles !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.passesTiles: only a monster passes tiles`);
+      if (!Array.isArray(entity.passesTiles)) {
+        errors.push(`${id}.passesTiles: expected a list of tile ids`);
+      } else {
+        for (const tileId of entity.passesTiles) {
+          if (typeof tileId !== 'string' || tiles[tileId] === undefined) {
+            errors.push(`${id}.passesTiles: "${String(tileId)}" is not the id of an existing tile`);
+          }
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 /** Bounds of the slowsMonsters factor: at least twice as slow, at most four times. */
 const MIN_MONSTER_SLOWDOWN = 2;
 const MAX_MONSTER_SLOWDOWN = 4;

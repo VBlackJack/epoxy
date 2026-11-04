@@ -554,3 +554,6 @@ tile floating_block_blue closed=true shadowMask=128 hash=1 fc8416156d369c48
 tile floating_block_yellow closed=true isolated 198a79ad88127ba4
 tile floating_block_yellow closed=true shadowMask=65 hash=1 60460c84a43aed64
 tile floating_block_yellow closed=true shadowMask=128 hash=1 5af3508d7446f56f
+tile puppet_control closed=true isolated 1683fc80cfcd412c
+tile puppet_control closed=true shadowMask=65 hash=1 7f449689a7a2fe79
+tile puppet_control closed=true shadowMask=128 hash=1 24b83c41b1bea813
