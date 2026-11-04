@@ -229,7 +229,9 @@ export class Pathfinder {
           ? (engine.getRevealedTerrain?.(nx, ny) ?? hiddenUnder(level, terrain, nx, ny))
           : undefined;
         const nextTile = hiddenId === undefined ? topTile : ConfigRegistry.getTile(hiddenId);
-        if (hiddenId !== undefined && !nextTile.passableByPlayer) continue;
+        // A socket revealed here opens in the same step once every chip is taken, as a visible one does.
+        const opensWithNoChipLeft = Boolean(nextTile.requiresAllChips) && engine.getChipsRemaining() === 0;
+        if (hiddenId !== undefined && !nextTile.passableByPlayer && !opensWithNoChipLeft) continue;
 
         const itemOnNext = items[ny][nx];
         if (itemOnNext && ConfigRegistry.getTile(itemOnNext).hazard === 'bomb') continue;

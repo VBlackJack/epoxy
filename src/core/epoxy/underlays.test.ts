@@ -564,6 +564,14 @@ describe('level tools with devices hidden under doors', () => {
     expect(LevelValidator.validate(toggled).stats.reachableExit).toBe(true);
   });
 
+  it('routes through a socket revealed under a door only once every chip is taken', () => {
+    const open = corridor(room('path_socket', under(SOCKET_TOP)));
+    expect(Pathfinder.findPath(start(open), DOOR_X + 1, START_Y).moves).toEqual(['E', 'E']);
+    const locked = corridor(room('path_socket_chips', under(SOCKET_TOP)));
+    locked.chipsRequired = 1;
+    expect(Pathfinder.findPath(start(locked), DOOR_X + 1, START_Y).moves).toEqual([]);
+  });
+
   it('plans through a covered toggle wall in the form the presses have left it', () => {
     const closed = corridor(room('path_toggle', under('toggle_wall_closed')));
     expect(Pathfinder.findPath(start(closed), DOOR_X + 1, START_Y).moves).toEqual([]);
