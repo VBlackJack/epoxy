@@ -77,7 +77,8 @@ const DOOR_ORDER_MAX_WALKS = 32;
  * counted. A walk that outruns what is left is discarded, ranking included. Counted in steps, never in time, so
  * the verdict is the same on every machine. The allowance is DOOR_ORDER_STEP_FLOOR plus the greedy walk's own
  * steps divided by DOOR_ORDER_STEP_SHARE, capped at DOOR_ORDER_STEP_CAP: a retry is a fraction of the validation,
- * never a multiple of it. Measured on the 128 by 128 comb of the timing test (the greedy walk costs 311k steps,
+ * never a multiple of it. The 'deep' mode replaces the floor with the larger of DOOR_ORDER_STEP_FLOOR and
+ * DOOR_ORDER_DEEP_TOTAL_WORK minus the walk's steps, and keeps the fraction and the cap (see the deep constants). Measured on the 128 by 128 comb of the timing test (the greedy walk costs 311k steps,
  * about 0.45 s; each extra walk replays every pass from the start and costs 182k steps, about 0.3 s): the old flat
  * 400k let two full walks run and doubled the time, this allowance (about 39k there) costs under 0.1 s. The door
  * order tests need under 1k steps in all.
@@ -92,8 +93,9 @@ const DOOR_ORDER_MAX_DISCREPANCIES = 2;
  * check: three decisions changed, 64 walks, and a small level may spend about DOOR_ORDER_DEEP_TOTAL_WORK steps on
  * the retries in all (never less than the default allowance, still capped at DOOR_ORDER_STEP_CAP). Measured on the
  * converted CC3D map 15022, whose greedy order is wrong in three places: it needs 3 discrepancies, 46 walks and
- * 161k steps (walk 0 costs 4.1k). A mid-size level (walk 0 above about 150k steps) gets less than one retry,
- * because each retry replays the whole walk: its allowance stays the default fraction of walk 0.
+ * 161k steps (walk 0 costs 4.1k). The deep allowance equals the default one only once walk 0 reaches about 180k steps. From
+ * about 103k to 180k it is above the default yet below one full retry, which replays the whole walk (example: walk 0
+ * at 150k gives 59,375 against 29,375 by default). Below about 103k a full retry fits.
  */
 const DOOR_ORDER_DEEP_MAX_DISCREPANCIES = 3;
 const DOOR_ORDER_DEEP_MAX_WALKS = 64;
@@ -232,7 +234,7 @@ export interface ValidateOptions {
    * The retries only ever add what a legal order reaches; false keeps the greedy walk alone. 'deep' widens
    * the search (3 decisions, 64 walks, about 200k steps on a small level) for a check that runs once.
    */
-  doorOrderSearch?: boolean | 'deep';
+  doorOrderSearch?: DoorOrderSearchMode;
 }
 
 export class LevelValidator {
@@ -1648,7 +1650,7 @@ export class LevelValidator {
     walk0: ReachOutcome,
     walkReach: (forced: readonly string[], stepLimit: number) => ReachOutcome,
     misses: (walk: ReachOutcome) => number,
-    mode: DoorOrderSearchMode = true
+    mode: DoorOrderSearchMode
   ): ReachOutcome {
     let best = walk0;
     const deep = mode === 'deep';
