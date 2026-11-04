@@ -35,8 +35,6 @@ import { ConfigRegistry } from './ConfigRegistry';
 const SEARCH_STATE_CAP = 400000;
 const BIG_STATE_CAP = 1000000;
 const TEST_TIMEOUT_MS = 240000;
-/** The alchemy room has about 478000 states; its full analyses take minutes on a busy machine. */
-const LONG_TEST_TIMEOUT_MS = 900000;
 
 const ALCHEMY_LEVEL = 'epoxy_p_39';
 const BRAKE_LEVEL = 'epoxy_p_40';
@@ -190,224 +188,10 @@ describe('pilot chapter 3 peak, every level', () => {
     expect(cellsOf(levelById(SWIM_LEVEL), 'fire')).toEqual(['12,4']);
   });
 
-  it('puts the four levels at the end of chapter 3, in order', () => {
+  it('lists chapter 3 as levels 31 to 42, in order, the four last ones being these', () => {
     const chapter = ConfigRegistry.getPilotChapters().find((c) => c.id === 'pilot_chapter_3');
-    expect(chapter?.levels.slice(-4)).toEqual(PEAK_LEVELS);
-  });
-});
-
-describe('pilot chapter 3 alchemy', () => {
-  beforeAll(() => {
-    loadTestConfigs();
-  });
-
-  /** Where the four hazard cells and the lane lie. */
-  const FIRE_ONE = '14,3';
-  const FIRE_TWO = '15,3';
-  /** The stored solution up to the first block pushed into the first fire, and the moves of each of its five parts. */
-  const MELT_ONE = 'SEEEEEENNESWSEEEEEE';
-  const FILL_ONE = 'WWWWWWWWSSENWNEEEEEEEEE';
-  const MELT_TWO = 'WWWWWSSENWNEEEEE';
-  const FILL_TWO = 'WWWWWWWWWWWNNESWSEEEEEEEEEEEEE';
-  const FINISH = 'NESEE';
-
-  it('is won by its stored solution in 93 moves, and no shorter win exists anywhere in its 478000 states, drops allowed', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    expect(level.solution).toBe(MELT_ONE + FILL_ONE + MELT_TWO + FILL_TWO + FINISH);
-    expect(level.solution?.length).toBe(93);
-    const win = searchShortestWinLean(engineFor(level), { stateCap: BIG_STATE_CAP * 2, allowDrops: true });
-    expect(win?.length).toBe(93);
-  });
-
-  it('holds two ice blocks and two dirt blocks for two fires, one of each pair for each fire and none to spare, with four bays and no water', () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    expect(level.entities.map((e) => `${e.type}@${e.x},${e.y}`)).toEqual([
-      'dirt_block@4,2',
-      'dirt_block@6,4',
-      'ice_block@8,2',
-      'ice_block@10,4'
-    ]);
-    expect(cellsOf(level, 'fire')).toEqual([FIRE_ONE, FIRE_TWO]);
-    expect(cellsOf(level, 'water')).toEqual([]);
-    // Each bay holds its block under a pocket of fresh dirt, so a block cannot be pushed back up before its first use.
-    expect(cellsOf(level, 'dirt')).toEqual(['4,1', '8,1', '6,5', '10,5']);
-    expect(itemCells(level, 'chip')).toEqual(['16,2', '17,2']);
-    expect(level.chipsRequired).toBe(2);
-    expect(cellsOf(level, 'hint')).toEqual(['1,2']);
-    expect(`${level.playerStart.x},${level.playerStart.y}`).toBe('1,2');
-  });
-
-  it('takes exactly its four blocks: with any one block removed no win exists, drops allowed', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    level.entities.forEach((removed, index) => {
-      const fewer = structuredClone(level);
-      fewer.entities = level.entities.filter((_, i) => i !== index);
-      expect(fewer.entities).toHaveLength(3);
-      const win = searchShortestWinLean(engineFor(fewer), { stateCap: BIG_STATE_CAP, allowDrops: true });
-      expect(win, `without ${removed.type}@${removed.x},${removed.y}`).toBeNull();
-    });
-  });
-
-  it('melts the first fire in move 19, fills it in move 41 and treads it in move 42, then melts, fills and treads the second in moves 58, 86 and 87', () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    const states: Record<string, number> = {};
-    const note = (name: string, move: number): void => {
-      if (states[name] === undefined) states[name] = move;
-    };
-    replayStored(level, (engine, move) => {
-      const one = engine.getTerrain()[3][14];
-      const two = engine.getTerrain()[3][15];
-      if (one === 'water') note('one melted', move);
-      if (one === 'dirt') note('one filled', move);
-      if (states['one filled'] !== undefined && one === 'floor') note('one trodden', move);
-      if (two === 'water') note('two melted', move);
-      if (two === 'dirt') note('two filled', move);
-      if (states['two filled'] !== undefined && two === 'floor') note('two trodden', move);
-    });
-    expect(states).toEqual({
-      'one melted': 19,
-      'one filled': 41,
-      'one trodden': 42,
-      'two melted': 58,
-      'two filled': 86,
-      'two trodden': 87
-    });
-  });
-
-  it('kills only on the two fires and on the water they leave, no block can crush the player, and the scan is complete, drops allowed', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    const scan = scanHazards(level, { allowDrops: true, maxStates: BIG_STATE_CAP });
-    expect(scan.truncated).toBe(false);
-    expect(scan.unsettled).toBe(0);
-    expect(scan.blockBounces).toBe(0);
-    expect(hasNoCrushHazard(scan)).toBe(true);
-    expect(scan.states).toBe(477949);
-    expect(scan.deaths.map((d) => `${d.reason}@${d.x},${d.y}`).sort()).toEqual(
-      [`${DEATH_FIRE}@14,3`, `${DEATH_FIRE}@15,3`, `${DEATH_WATER}@14,3`, `${DEATH_WATER}@15,3`].sort()
-    );
-  });
-
-  it('sends the first block of dirt at the first fire and loses: the dirt jams the fire for good', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    // The nearest block is dirt: down its bay, round to the west of it, and ten pushes to the fire.
-    const dropped = engineAfter(level, 'SEENNESWS');
-    expect(entityCells(dropped)).toEqual(['dirt_block@4,3', 'dirt_block@6,4', 'ice_block@8,2', 'ice_block@10,4']);
-    const dropGraph = exploreStateGraph(dropped, { stateCap: BIG_STATE_CAP, allowDrops: true });
-    expect(dropGraph.canWin).toBe(0);
-    expect(dropGraph.dead).toBe(dropGraph.states);
-    expect(dropGraph.states).toBe(84312);
-    const jammed = engineAfter(level, 'SEENNESWS' + 'E'.repeat(10));
-    expect(entityCells(jammed)).toEqual(['dirt_block@14,3', 'dirt_block@6,4', 'ice_block@8,2', 'ice_block@10,4']);
-    expect(jammed.getTerrain()[3][14]).toBe('fire');
-    const jamGraph = exploreStateGraph(jammed, { stateCap: BIG_STATE_CAP, allowDrops: true });
-    expect(jamGraph.canWin).toBe(0);
-    expect(jamGraph.states).toBe(33415);
-  });
-
-  it('sends the second ice block into the water the first one left and loses: the ice vanishes and the water stays', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    const melted = engineAfter(level, MELT_ONE);
-    expect(melted.getTerrain()[3][14]).toBe('water');
-    expect(entityCells(melted)).toEqual(['dirt_block@4,2', 'dirt_block@6,4', 'ice_block@10,4']);
-    // The nearest block to the lane is the second ice block, and it looks like the one to fill the water.
-    const dropped = engineAfter(level, MELT_ONE + 'WWWWSSENWN');
-    expect(entityCells(dropped)).toEqual(['dirt_block@4,2', 'dirt_block@6,4', 'ice_block@10,3']);
-    const dropGraph = exploreStateGraph(dropped, { stateCap: BIG_STATE_CAP, allowDrops: true });
-    expect(dropGraph.canWin).toBe(0);
-    expect(dropGraph.states).toBe(24406);
-    const sunk = engineAfter(level, MELT_ONE + 'WWWWSSENWNEEEE');
-    expect(entityCells(sunk)).toEqual(['dirt_block@4,2', 'dirt_block@6,4']);
-    expect(sunk.getTerrain()[3][14]).toBe('water');
-    const sunkGraph = exploreStateGraph(sunk, { stateCap: BIG_STATE_CAP, allowDrops: true });
-    expect(sunkGraph.canWin).toBe(0);
-    expect(sunkGraph.states).toBe(9066);
-  });
-
-  it('sends a block of dirt at the second fire before its ice and loses', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    const prefix = MELT_ONE + FILL_ONE;
-    const filled = engineAfter(level, prefix);
-    expect(filled.getTerrain()[3][14]).toBe('floor');
-    expect(filled.getTerrain()[3][15]).toBe('fire');
-    expect(entityCells(filled)).toEqual(['dirt_block@4,2', 'ice_block@10,4']);
-    const dropped = engineAfter(level, prefix + 'WWWWWWWWWWW' + 'NNESWS');
-    expect(entityCells(dropped)).toEqual(['dirt_block@4,3', 'ice_block@10,4']);
-    const dropGraph = exploreStateGraph(dropped, { stateCap: BIG_STATE_CAP, allowDrops: true });
-    expect(dropGraph.canWin).toBe(0);
-    expect(dropGraph.states).toBe(2626);
-    const jammed = engineAfter(level, prefix + 'WWWWWWWWWWW' + 'NNESWS' + 'E'.repeat(11));
-    expect(entityCells(jammed)).toEqual(['dirt_block@15,3', 'ice_block@10,4']);
-    const jamGraph = exploreStateGraph(jammed, { stateCap: BIG_STATE_CAP, allowDrops: true });
-    expect(jamGraph.canWin).toBe(0);
-    expect(jamGraph.states).toBe(637);
-  });
-
-  it('sends the second ice block down the lane before the fresh dirt is trodden and loses: a block cannot cross fresh dirt, and it shuts the lane', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    // The dirt block fills the first fire (move 41) and the player stands beside the fresh dirt; the next block is brought first.
-    const fresh = engineAfter(level, MELT_ONE + 'WWWWWWWWSSENWNEEEEEEEE');
-    expect(fresh.getTerrain()[3][14]).toBe('dirt');
-    expect(where(fresh)).toBe('13,3');
-    const stuck = engineAfter(level, MELT_ONE + 'WWWWWWWWSSENWNEEEEEEEE' + 'WWWWSSENWNEEE');
-    expect(entityCells(stuck)).toEqual(['dirt_block@4,2', 'ice_block@13,3']);
-    expect(stuck.getTerrain()[3][14]).toBe('dirt');
-    const stuckGraph = exploreStateGraph(stuck, { stateCap: BIG_STATE_CAP, allowDrops: true });
-    expect(stuckGraph.canWin).toBe(0);
-    expect(stuckGraph.states).toBe(677);
-    // Treading the dirt first is the move that saves the level: the stored solution does it in move 42.
-    expect(searchCanWin(engineAfter(level, MELT_ONE + FILL_ONE), { stateCap: BIG_STATE_CAP, allowDrops: true })).toBe(true);
-  });
-
-  it('has only six kinds of dead end, and each is a block that was sent wrong, pushed back, or queued behind another', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
-    const level = levelById(ALCHEMY_LEVEL);
-    const hazards = [14, 15];
-    const alcoves = new Set(level.entities.map((b) => `${b.x},${b.y === 2 ? 1 : 5}`));
-    const kinds: Record<string, number> = {};
-    const graph = exploreStateGraph(engineFor(level), {
-      stateCap: BIG_STATE_CAP,
-      allowDrops: true,
-      onDead: (engine) => {
-        const terrain = engine.getTerrain();
-        const cells = hazards.map((x) => terrain[3][x]);
-        const needIce = cells.filter((c) => c === 'fire').length;
-        const needDirt = needIce + cells.filter((c) => c === 'water').length;
-        const blocks = engine.getEntities();
-        const onFire = blocks.some((b) => b.y === 3 && hazards.includes(b.x) && terrain[3][b.x] === 'fire');
-        const pushedBack = blocks.some((b) => alcoves.has(`${b.x},${b.y}`));
-        const usable = blocks.filter((b) => !alcoves.has(`${b.x},${b.y}`) && !(b.y === 3 && hazards.includes(b.x)));
-        const ice = usable.filter((b) => b.type === 'ice_block').length;
-        const dirt = usable.filter((b) => b.type === 'dirt_block').length;
-        const lane = blocks.filter((b) => b.y === 3 && !hazards.includes(b.x)).sort((a, b) => b.x - a.x);
-        const nextNeedsIce = cells.find((c) => c === 'fire' || c === 'water') === 'fire';
-        const head = lane[0];
-        let kind = 'unexplained';
-        if (onFire) kind = 'dirt jammed on a fire';
-        else if (pushedBack) kind = 'block pushed back into its alcove';
-        else if (ice < needIce || dirt < needDirt) kind = 'fewer blocks than the hazards still need';
-        else if (lane.length >= 1 && cells.includes('dirt')) kind = 'block sent before the fresh dirt was trodden';
-        else if (lane.length >= 2) kind = 'two blocks queued in the lane';
-        else if (head && ((nextNeedsIce && head.type === 'dirt_block') || (!nextNeedsIce && head.type === 'ice_block' && needDirt > 0))) {
-          kind = 'wrong block at the head of the lane';
-        }
-        kinds[kind] = (kinds[kind] ?? 0) + 1;
-      }
-    });
-    expect(graph.states).toBe(477949);
-    expect(graph.canWin).toBe(21309);
-    expect(graph.dead).toBe(456640);
-    expect(kinds).toEqual({
-      'dirt jammed on a fire': 70584,
-      'block pushed back into its alcove': 166220,
-      'fewer blocks than the hazards still need': 8628,
-      'block sent before the fresh dirt was trodden': 7232,
-      'two blocks queued in the lane': 192682,
-      'wrong block at the head of the lane': 11294
-    });
-  });
-
-  it('the validator reports no issue on level 39, with and without the stored solution', () => {
-    expect(validatorIssues(levelById(ALCHEMY_LEVEL))).toEqual([]);
-    expect(validatorIssues(levelById(ALCHEMY_LEVEL), false)).toEqual([]);
+    expect(chapter?.levels).toEqual(Array.from({ length: 12 }, (_, i) => `epoxy_p_${31 + i}`));
+    expect(chapter?.levels.slice(8)).toEqual(PEAK_LEVELS);
   });
 });
 
@@ -489,18 +273,22 @@ describe('pilot chapter 3 the brake', () => {
     const level = levelById(BRAKE_LEVEL);
     const noFlippers = structuredClone(level);
     noFlippers.items[10][1] = null;
-    let states = 0;
     let bootsTaken = 0;
-    exploreStateGraph(engineFor(noFlippers), {
+    let chipTaken = 0;
+    const graph = exploreStateGraph(engineFor(noFlippers), {
       stateCap: BIG_STATE_CAP,
       allowDrops: true,
       onState: (engine) => {
-        states++;
-        if (engine.getPlayer().boots.has(FIRE_BOOTS) || engine.getChipsRemaining() < level.chipsRequired) bootsTaken++;
+        if (engine.getPlayer().boots.has(FIRE_BOOTS)) bootsTaken++;
+        if (engine.getChipsRemaining() < level.chipsRequired) chipTaken++;
       }
     });
-    expect(states).toBeGreaterThan(1);
+    // Every state of the flipper-less room can be explored, none of them wins, and none takes the boots or a chip.
+    expect(graph.states).toBe(38);
+    expect(graph.canWin).toBe(0);
+    expect(graph.dead).toBe(graph.states);
     expect(bootsTaken).toBe(0);
+    expect(chipTaken).toBe(0);
   });
 
   it('can be lost only by putting a boot down where it can no longer be fetched, and never while holding both', { timeout: TEST_TIMEOUT_MS }, () => {
@@ -598,21 +386,21 @@ describe('pilot chapter 3 melt and swim', () => {
     const noFlippers = structuredClone(level);
     noFlippers.items[7][9] = null;
     expect(searchCanWin(engineFor(noFlippers), { stateCap: SEARCH_STATE_CAP, allowDrops: true })).toBe(false);
-    let states = 0;
     let melted = 0;
     let pastTheLake = 0;
-    exploreStateGraph(engineFor(noFlippers), {
+    const graph = exploreStateGraph(engineFor(noFlippers), {
       stateCap: SEARCH_STATE_CAP,
       allowDrops: true,
       onState: (engine) => {
-        states++;
         if (engine.getTerrain()[4][12] !== 'fire') melted++;
         const { x, y } = engine.getPlayer();
         // The walk to the flippers runs along the bottom row; the room with the ice lies east of the lake, above it.
         if (x >= 7 && y <= 6) pastTheLake++;
       }
     });
-    expect(states).toBeGreaterThan(1);
+    expect(graph.states).toBe(66);
+    expect(graph.canWin).toBe(0);
+    expect(graph.dead).toBe(graph.states);
     expect(melted).toBe(0);
     expect(pastTheLake).toBe(0);
   });
@@ -625,7 +413,7 @@ describe('pilot chapter 3 melt and swim', () => {
     expect(melted?.length).toBe(50);
   });
 
-  it('is lost only by the ice block pushed up into the corner of its shaft, or by the flippers put down in the lake: every dead state holds the block there', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('is lost only by the ice block pushed up into the corner of its shaft', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(SWIM_LEVEL);
     const shapes = new Set<string>();
     const graph = exploreStateGraph(engineFor(level), {

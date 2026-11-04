@@ -159,11 +159,9 @@ describe('pilot chapter 3 elements, every level', () => {
     expect(level.hintKey).toBe(`pilot.levels.level_${level.number}.hint`);
   });
 
-  it('puts the three levels next to each other in chapter 3, in order', () => {
+  it('puts the three levels at places 6 to 8 of chapter 3, in order', () => {
     const chapter = ConfigRegistry.getPilotChapters().find((c) => c.id === 'pilot_chapter_3');
-    const first = chapter?.levels.indexOf(ELEMENT_LEVELS[0]) ?? -1;
-    expect(first).toBeGreaterThanOrEqual(0);
-    expect(chapter?.levels.slice(first, first + ELEMENT_LEVELS.length)).toEqual(ELEMENT_LEVELS);
+    expect(chapter?.levels.slice(5, 8)).toEqual(ELEMENT_LEVELS);
   });
 });
 

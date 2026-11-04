@@ -1453,7 +1453,7 @@
       },
       "level_39": {
         "title": "Alchimie",
-        "hint": "Un feu prend d'abord un bloc de glace puis un bloc de terre, une eau prend un bloc de terre, et un bloc envoyé sur le mauvais danger est perdu pour de bon. Compte tes blocs, et marche sur la terre fraîche avant l'arrivée du bloc suivant."
+        "hint": "Un feu prend d'abord un bloc de glace puis un bloc de terre, une eau prend un bloc de terre, et un bloc envoyé sur le mauvais danger est perdu pour de bon. Compte tes blocs, et marche sur la terre fraîche avant l'arrivée du bloc suivant. Un seul bloc à la fois peut se trouver dans le couloir."
       },
       "level_40": {
         "title": "Le frein",
@@ -1461,7 +1461,7 @@
       },
       "level_41": {
         "title": "Fonte à la nage",
-        "hint": "Un bloc de glace change un feu en eau, et les palmes te laissent traverser cette eau à la nage : aucun bloc de terre n'est nécessaire. Prends d'abord les palmes, traverse le lac, puis pousse la glace dans son puits et le long du couloir jusqu'aux flammes. Poussée contre le mur, elle reste coincée."
+        "hint": "Un bloc de glace change un feu en eau, et les palmes te laissent traverser cette eau à la nage : aucun bloc de terre n'est nécessaire. Prends d'abord les palmes, traverse le lac, puis pousse la glace dans son puits et le long du couloir jusqu'aux flammes. Poussée vers le haut, contre le mur, elle reste coincée."
       },
       "level_42": {
         "title": "Grand huit",

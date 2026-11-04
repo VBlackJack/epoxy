@@ -1453,7 +1453,7 @@
       },
       "level_39": {
         "title": "Alchemy",
-        "hint": "A fire takes an ice block first and a dirt block after it, a water takes a dirt block, and a block sent at the wrong hazard is lost for good. Count your blocks, and walk over the fresh dirt before the next block comes."
+        "hint": "A fire takes an ice block first and a dirt block after it, a water takes a dirt block, and a block sent at the wrong hazard is lost for good. Count your blocks, and walk over the fresh dirt before the next block comes. Only one block may be in the lane at a time."
       },
       "level_40": {
         "title": "The Brake",
