@@ -160,9 +160,9 @@ const FORCE_FRAMES = 4;
 const FLOOR_DETAIL_COUNT = 3;
 const DIGIT_COUNT = 10;
 const GLYPH_COLOURS: readonly string[] = ['red', 'blue', 'yellow', 'green', 'orange'];
-/** The colour block sprites: one per channel colour, named after the entity they draw. */
 /** The four turret blocks: sprites of the sheet, which the game draws through the cc3d bot painters. */
 const TURRET_SPRITES: readonly string[] = ['turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi'];
+/** The colour block sprites: one per channel colour, named after the entity they draw. */
 const COLOR_BLOCK_SPRITES: readonly string[] = CHANNEL_COLORS.map((c) => `color_block_${c}`);
 
 /** Every sprite name the renderer needs (spec section 4). */

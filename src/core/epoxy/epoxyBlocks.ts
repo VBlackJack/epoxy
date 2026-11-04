@@ -45,7 +45,7 @@ export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: D
     return false;
   }
 
-  // A turret pushed by the player turns toward the push; a slide on ice or a force floor leaves it as it is.
+  // A player push turns the turret toward the push, even while the player slides or is carried; the turret's own slide never turns it.
   const turret = getTurretDef(block.type);
   if (turret && turnsOnPush(turret)) block.facing = dir;
   moveBlockTo(ctx, block, destX, destY, dir);
