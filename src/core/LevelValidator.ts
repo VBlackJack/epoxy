@@ -69,6 +69,8 @@ interface SlideResult {
   path: GridPoint[];
   boots: number;
   fatal: boolean;
+  /** The door or socket the slide opened on its last step (the slide stops on that cell). */
+  opened?: { x: number; y: number; keyId?: string };
 }
 
 /** Tiles that stay solid for the player whatever happens: no pusher can ever stand there. */
@@ -512,13 +514,29 @@ export class LevelValidator {
               nextBoots,
               hasBoot,
               bootBits,
-              edgeMask
+              edgeMask,
+              ownedKeys,
+              collectedChips,
+              level.chipsRequired
             );
             if (slide.fatal) {
               continue;
             }
             for (const passed of slide.path) {
               collectAt(passed.x, passed.y, slide.boots);
+            }
+            if (slide.opened) {
+              // Mirrors the engine: the slide opens the door or socket it reaches and stops there.
+              const { x: ox, y: oy, keyId } = slide.opened;
+              const openedTile = ConfigRegistry.getTile(simTerrain[oy][ox]);
+              if (keyId !== undefined) {
+                if (openedTile.consumesKey) {
+                  ownedKeys[keyId] = Math.max((ownedKeys[keyId] || 0) - 1, 0);
+                  closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
+                }
+              }
+              simTerrain[oy][ox] = openedTile.transformsToOnUnlock || FLOOR_TILE_ID;
+              changed = true;
             }
             enqueue(slide.end.x, slide.end.y, slide.boots);
             continue;
@@ -892,7 +910,10 @@ export class LevelValidator {
     startBoots: number,
     hasBoot: BootCheck,
     bootBits: Map<string, number>,
-    edgeMask: Uint8Array | null
+    edgeMask: Uint8Array | null,
+    heldKeys: Readonly<Record<string, number>>,
+    heldChips: number,
+    chipsRequired: number
   ): SlideResult {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
@@ -905,13 +926,40 @@ export class LevelValidator {
     const path: GridPoint[] = [{ x, y }];
     const fatal = (): SlideResult => ({ end: { x, y }, path, boots, fatal: true });
 
+    // Keys and chips lying on the cells the slide passes count at once, as in the engine.
+    const keys: Record<string, number> = { ...heldKeys };
+    let chips = heldChips;
+    const pickUp = (cx: number, cy: number): void => {
+      const item = items[cy][cx];
+      if (!item) return;
+      const collectible = ConfigRegistry.getTile(item).collectible;
+      if (collectible === 'key') keys[item] = (keys[item] || 0) + 1;
+      else if (collectible === 'chip') chips++;
+    };
+    pickUp(x, y);
+    let opening: { x: number; y: number; keyId?: string } | undefined;
+
     const canEnter = (d: Direction): GridPoint | null => {
       const vec = DIRECTION_VECTORS[d];
       const nx = x + vec.dx;
       const ny = y + vec.dy;
       if (nx < 0 || nx >= width || ny < 0 || ny >= height) return null;
       if (this.isEdgeBlocked(terrain, edgeMask, x, y, nx, ny, d)) return null;
-      if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) return null;
+      const target = ConfigRegistry.getTile(terrain[ny][nx]);
+      let opens: { x: number; y: number; keyId?: string } | undefined;
+      if (target.requiredKey) {
+        if ((keys[target.requiredKey] || 0) <= 0) return null;
+        opens = { x: nx, y: ny, keyId: target.requiredKey };
+      }
+      if (target.requiresAllChips) {
+        if (chips < chipsRequired) return null;
+        opens = opens ?? { x: nx, y: ny };
+      }
+      if (opens) {
+        opening = opens;
+      } else if (!target.passableByPlayer) {
+        return null;
+      }
       return { x: nx, y: ny };
     };
 
@@ -928,11 +976,13 @@ export class LevelValidator {
         dir = tile.deflectionMap?.[dir] || dir;
       }
 
+      opening = undefined;
       let next = canEnter(dir);
       if (!next && tile.slideType === 'ice') {
         // Bounce back on ice
         const bounceDir = OPPOSITE_DIRECTION[dir];
         dir = tile.deflectionMap?.[bounceDir] || bounceDir;
+        opening = undefined;
         next = canEnter(dir);
       }
       if (!next) {
@@ -943,6 +993,12 @@ export class LevelValidator {
       x = next.x;
       y = next.y;
       path.push({ x, y });
+
+      if (opening) {
+        // The door or socket opens under the player; the cell it leaves behind is ground, so the slide ends here.
+        return { end: { x, y }, path, boots, fatal: false, opened: opening };
+      }
+      pickUp(x, y);
 
       const entered = ConfigRegistry.getTile(terrain[y][x]);
       const item = items[y][x];

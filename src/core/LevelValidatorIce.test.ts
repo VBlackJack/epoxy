@@ -16,8 +16,9 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { GameEngine } from './GameEngine';
 import { LevelValidator } from './LevelValidator';
-import { CompiledLevel, EntityPlacement } from './types';
+import { CompiledLevel, Direction, EntityPlacement } from './types';
 
 const HIDDEN = 'validator.issues.hidden_by_block.label';
 const CHIP_ITEM = 'chip';
@@ -110,5 +111,97 @@ describe('hidden_by_block follows a slide on ice', () => {
 
   it('does not flag a chip behind water at the end of the lane, since the block sinks there', () => {
     expect(hiddenCount(grid(['#########', '#P$IIIWc#', '#########'], LANE_BLOCK))).toBe(0);
+  });
+});
+
+const UNREACHABLE_EXIT = 'validator.issues.unreachable_exit.label';
+const KEY_ITEM = 'key_yellow';
+const MAX_ENGINE_TICKS = 200;
+
+const GATE_TERRAIN: Record<string, string> = {
+  '#': 'wall',
+  '.': 'floor',
+  P: 'floor',
+  E: 'exit',
+  I: 'ice',
+  D: 'door_yellow',
+  S: 'socket'
+};
+
+/** One-row corridor: P player, I ice, D yellow door, S socket, E exit; items row: k yellow key, c chip. */
+function corridor(terrainRow: string, itemRow: string, chipsRequired = 0): CompiledLevel {
+  const wallRow = '#'.repeat(terrainRow.length);
+  const rows = [wallRow, terrainRow, wallRow];
+  const itemRows = [wallRow, itemRow, wallRow];
+  const start = { x: terrainRow.indexOf('P'), y: 1 };
+  return {
+    id: 'ice_gate',
+    number: 1,
+    password: 'TEST',
+    timeLimitSeconds: 100,
+    chipsRequired,
+    playerStart: { ...start, dir: 'E' },
+    terrain: rows.map((row) => [...row].map((ch) => GATE_TERRAIN[ch])),
+    items: itemRows.map((row) =>
+      [...row].map((ch) => (ch === 'k' ? KEY_ITEM : ch === 'c' ? CHIP_ITEM : null))
+    ),
+    entities: [],
+    trapLinks: [],
+    cloneLinks: []
+  };
+}
+
+function exitUnreachable(level: CompiledLevel): boolean {
+  return LevelValidator.validate(level).issues.some((i) => i.i18nKey === UNREACHABLE_EXIT);
+}
+
+/** Plays the moves in the real engine, letting every slide run out, and reports whether the level was won. */
+function engineWins(level: CompiledLevel, moves: Direction[]): boolean {
+  const engine = new GameEngine();
+  engine.loadLevel(level);
+  for (const dir of moves) {
+    let waited = 0;
+    while (!engine.attemptPlayerMove(dir)) {
+      engine.tick();
+      if (++waited > MAX_ENGINE_TICKS) throw new Error(`move ${dir} refused`);
+    }
+    for (let i = 0; i < MAX_ENGINE_TICKS && (engine.getPlayer().isSliding || i === 0); i++) engine.tick();
+  }
+  return engine.isLevelCompleted();
+}
+
+describe('a slide opens the door or socket it reaches', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  it('opens a door with a key picked up on the ice before it', () => {
+    const level = corridor('#PIIIDE#', '#..k....');
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['E', 'E'])).toBe(true);
+  });
+
+  it('opens a door with a key held before the slide starts', () => {
+    const level = corridor('#.PIIDE#', '#k......#');
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['W', 'E', 'E', 'E'])).toBe(true);
+  });
+
+  it('still bounces off a door whose key is nowhere', () => {
+    const level = corridor('#PIIIDE#', '#.......#');
+    expect(exitUnreachable(level)).toBe(true);
+    expect(engineWins(level, ['E', 'E'])).toBe(false);
+  });
+
+  it('opens a socket once the chips collected on the ice suffice', () => {
+    const level = corridor('#PIIISE#', '#..c....#', 1);
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['E', 'E'])).toBe(true);
+  });
+
+  it('bounces off a socket while chips are still missing', () => {
+    const level = corridor('#PIIISE#', '#..c....#', 2);
+    expect(exitUnreachable(level)).toBe(true);
+    expect(engineWins(level, ['E', 'E'])).toBe(false);
   });
 });
