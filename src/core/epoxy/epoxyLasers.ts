@@ -30,6 +30,7 @@ import {
   mapWidth,
   removeEntity
 } from './epoxyWorld';
+import { traceTurretBeams } from './epoxyTurrets';
 
 /** Sound played when a beam kills a monster or the player. */
 const LASER_DEATH_SFX = 'burn';
@@ -65,6 +66,8 @@ function traceBeams(w: EpoxyWorld): void {
     const visited = new Set<number>();
     const maxVisits = width * mapHeight(w) * LASER_VISITS_PER_CELL;
     for (const emitter of w.laserEmitters) {
+      // An emitter hidden under a removable top fires only once the top is gone.
+      if (ConfigRegistry.getTile(w.terrain[emitter.y][emitter.x]).laserEmitter !== emitter.dir) continue;
       let { x, y, dir } = emitter;
       while (visited.size < maxVisits) {
         const vec = DIRECTION_VECTORS[dir];
@@ -99,6 +102,7 @@ function traceBeams(w: EpoxyWorld): void {
     }
   }
   w.beamCells = [...crossed.values()];
+  w.turretBeamCells = w.hasTurrets ? traceTurretBeams(w) : [];
   w.litReceiverCells = [...lit.values()];
 }
 
@@ -119,7 +123,7 @@ function markBeamAxis(cell: BeamCell, dir: Direction): void {
  */
 export function resolveLasers(ctx: EpoxyContext): void {
   const w = ctx.world;
-  if (w.laserEmitters.length + w.laserReceivers.length + w.laserGates.length === 0) return;
+  if (w.laserEmitters.length + w.laserReceivers.length + w.laserGates.length === 0 && !w.hasTurrets) return;
   if (!w.player.alive || w.levelCompleted) {
     // Nothing is settled, but a mirror may have moved this pass: leave the cache to be retraced.
     w.beamDirty = true;
@@ -128,12 +132,14 @@ export function resolveLasers(ctx: EpoxyContext): void {
 
   traceBeams(w);
   const width = mapWidth(w);
-  const beamIndexes = new Set(w.beamCells.map((cell) => cell.y * width + cell.x));
+  const beamIndexes = new Set([...w.beamCells, ...w.turretBeamCells].map((cell) => cell.y * width + cell.x));
   for (const entity of [...w.entities]) {
     if (entity.kind !== 'monster' || !beamIndexes.has(entity.y * width + entity.x)) continue;
     removeEntity(w, entity.uid);
     AudioManager.playSfx(LASER_DEATH_SFX);
     ctx.emitVisual('explosion', entity.x, entity.y);
+    // The beam that ended on the monster goes on through its cell.
+    if (w.hasTurrets) w.beamDirty = true;
   }
   if (beamIndexes.has(w.player.y * width + w.player.x)) {
     killPlayer(ctx, 'hud.messages.death_laser', LASER_DEATH_SFX);

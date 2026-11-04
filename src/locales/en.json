@@ -95,6 +95,8 @@
       "refused_cc3d_ruleset": { "label": "Not exported: {levels} plays under CC3D rules, which the .DAT format cannot hold. Use Export XML instead." },
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
+      "refused_epoxy_only_items": { "label": "Not exported: {levels} holds a Slow-Time Charm, which the .DAT format cannot hold." },
+      "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -1059,6 +1061,7 @@
     "score_2x": { "name": "Bonus Flag (Score x2)" },
     "stopwatch_bonus": { "name": "Stopwatch (+10 s)" },
     "stopwatch_penalty": { "name": "Stopwatch (-10 s)" },
+    "slow_time": { "name": "Slow-Time Charm" },
     "button_green": { "name": "Green Button (Toggle Walls)" },
     "button_blue": { "name": "Blue Button (Reverse Tanks)" },
     "button_brown": { "name": "Brown Button (Open Trap)" },
@@ -1125,6 +1128,10 @@
     "fireball": { "name": "Fireball (Fire Immune)" },
     "tank": { "name": "Tank (Blue Button Reversal)" },
     "blob": { "name": "Slow Blob" },
+    "turret_fixed": { "name": "Fixed Turret" },
+    "turret_cw": { "name": "Clockwise Turret" },
+    "turret_ccw": { "name": "Counter-Clockwise Turret" },
+    "turret_multi": { "name": "Four-Way Turret" },
     "mirror_slash": { "name": "Mirror (Slash)" },
     "mirror_backslash": { "name": "Mirror (Backslash)" },
     "color_block_red": { "name": "Red Color Block" },
@@ -1385,11 +1392,52 @@
       "level_25": {
         "title": "The Workshop",
         "hint": "A block that stops above an empty target is stuck for good once another block rests on it, so fill a bay from the bottom."
+      },
+      "level_26": {
+        "title": "The Doorkeeper",
+        "hint": "A key opens one door and is spent, a block cannot pass a closed door, and fresh dirt stops a block until you have walked on it."
+      },
+      "level_27": {
+        "title": "Don't Dig",
+        "hint": "A pink ball runs straight until something stops it, and dirt stops it. Walk through that dirt and the ball runs on."
+      },
+      "level_28": {
+        "title": "Four Splashes",
+        "hint": "A block pushed into water sinks and leaves dirt you can walk on: one block, one pool."
+      },
+      "level_29": {
+        "title": "The Lock",
+        "hint": "Every pool and every pink ball you must stop costs one block, and a block spent on another job is gone. A pink ball cannot pass a block."
+      },
+      "level_30": {
+        "title": "The Great Works",
+        "hint": "Cover every target to win. A block fills a pool or covers a target, never both. A block on the top or bottom row can never leave it, so send each of those rows exactly two blocks."
+      },
+      "level_31": {
+        "title": "Firewall",
+        "hint": "Fire burns you unless you wear fire boots. Look for the boots at the end of the corridor, then walk through the flames."
+      },
+      "level_32": {
+        "title": "A Block for the Flippers",
+        "hint": "Flippers let you walk through water, but a moat guards them and you have a single block. Use it on the moat: once the flippers are on your feet, no other water needs a block."
+      },
+      "level_33": {
+        "title": "Slide",
+        "hint": "Ice carries you until you reach solid ground, and a wall only sends you back. Slide along every corridor to collect all the chips."
+      },
+      "level_34": {
+        "title": "Toboggan",
+        "hint": "A bent ice tile turns your slide. Follow each track with your eyes: one ends beside the exit, so ride it last."
+      },
+      "level_35": {
+        "title": "Key on the Fly",
+        "hint": "A key lying on the ice is picked up as you slide over it, and a door opens as you slide into it with its key. Slide down the lane with the key to reach the door."
       }
     },
     "chapter": {
       "1": { "title": "Pilot foundations", "subtitle": "The first levels of the rebuilt campaign." },
-      "2": { "title": "Pushing", "subtitle": "Blocks, water and targets." }
+      "2": { "title": "Pushing", "subtitle": "Blocks, water and targets." },
+      "3": { "title": "Elements", "subtitle": "Fire, water and ice." }
     }
   }
 }

@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { AudioManager } from '../audio/AudioManager';
 import {
+  BLOCK_TARGET_TILE_ID,
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -32,11 +33,13 @@ import {
 } from './epoxy/epoxyPlayer';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
+import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
   EpoxyContext,
   EpoxyVisualKind,
   EpoxyWorld,
+  NO_PLAY_START_TICK,
   buildLevelLookups,
   createEpoxyWorld,
   getEntityAt,
@@ -161,7 +164,9 @@ export class GameEngine {
         y: e.y,
         dir: e.dir,
         cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
-        isSliding: false
+        isSliding: false,
+        // A turret fires the way it was placed; its direction stays the way it is pushed or slides.
+        ...(def?.turretBeam ? { facing: e.dir } : {})
       };
     });
 
@@ -183,6 +188,7 @@ export class GameEngine {
     this.w.chipsRemaining = level.chipsRequired;
     this.ticksElapsed = 0;
     this.stepsCount = 0;
+    this.w.playStartTick = NO_PLAY_START_TICK;
     this.w.extraTimeSeconds = 0;
     this.w.levelBonusPoints = 0;
     this.w.levelScoreMultiplier = BASE_LEVEL_SCORE_MULTIPLIER;
@@ -204,6 +210,14 @@ export class GameEngine {
   /** Successful player moves, in order. */
   public getMoveHistory(): Direction[] {
     return [...this.moveHistory];
+  }
+
+  /**
+   * Where the turrets' clock stands, for searches that tell game states apart: empty on a level
+   * without turrets (every other key stays as it was).
+   */
+  public getTurretPhaseKey(): string {
+    return turretPhaseKey(this.w, this.ticksElapsed);
   }
 
   /** Ticks elapsed since loadLevel (rolled back by undo). */
@@ -340,6 +354,8 @@ export class GameEngine {
       this.w.player.boots.delete(itemId);
     }
     this.w.items[y][x] = itemId;
+    // An item on the cell may stop a turret beam that opacity 'block' reads.
+    this.w.beamDirty = true;
     this.w.statusBannerKey = null;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, drop: itemId });
     AudioManager.playSfx('item');
@@ -442,7 +458,9 @@ export class GameEngine {
       rngState: this.w.rng.getState(),
       nextEntityUid: this.w.nextEntityUid,
       moveHistoryLength: this.moveHistory.length,
-      timedMoveHistoryLength: this.timedMoveHistory.length
+      timedMoveHistoryLength: this.timedMoveHistory.length,
+      // Only a level with turrets reads the play start; the other snapshots stay as they were.
+      ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {})
     };
   }
 
@@ -485,6 +503,7 @@ export class GameEngine {
     this.w.nextEntityUid = snap.nextEntityUid;
     this.moveHistory.length = snap.moveHistoryLength;
     this.timedMoveHistory.length = snap.timedMoveHistoryLength;
+    this.w.playStartTick = snap.playStartTick ?? NO_PLAY_START_TICK;
     this.w.levelCompleted = false;
     this.w.statusBannerKey = null;
     this.w.beamDirty = true;
@@ -518,6 +537,7 @@ export class GameEngine {
     updateEntities(this.ctx);
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     setHoldDoors(this.ctx);
+    turnTurrets(this.w, this.ticksElapsed);
     resolveLasers(this.ctx);
     this.checkTargetsWin();
   }
@@ -562,6 +582,8 @@ export class GameEngine {
     if (moved) {
       setHoldDoors(this.ctx);
       this.stepsCount++;
+      // The turrets' clock starts with the first step.
+      if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
       this.moveHistory.push(dir);
       this.timedMoveHistory.push({ tick: tickAtMove, dir });
       const destTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
@@ -572,6 +594,8 @@ export class GameEngine {
       resolveLasers(this.ctx);
       this.checkTargetsWin();
     } else {
+      // A move that revealed an underlay and was then rejected still spends the key and drops its undo
+      // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       this.undoStack.pop();
       if (this.w.gridMutatedByMove || this.w.player.dir !== dirBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
@@ -603,11 +627,25 @@ export class GameEngine {
   }
 
   /**
+   * The terrain hidden under the removable tops of the level, by cell index (y * width + x); undefined
+   * when the level has none. Static: it is the level's own data, never part of a snapshot.
+   */
+  public getUnderlays(): ReadonlyMap<number, string> | undefined {
+    return this.w.underlays ?? undefined;
+  }
+
+  /**
    * The cells a laser beam crosses right now, each with the axes the beam
    * follows in it. Empty on a level without emitters. The list is derived from
    * the grid and the entities (never snapshotted) and is shared: do not mutate it.
    */
   public getBeamCells(): readonly BeamCell[] {
+    refreshBeams(this.w);
+    return mergeBeamCells(this.w.beamCells, this.w.turretBeamCells);
+  }
+
+  /** The cells the laser emitters' beams cross, turret beams left out; shared: do not mutate it. */
+  public getEmitterBeamCells(): readonly BeamCell[] {
     refreshBeams(this.w);
     return this.w.beamCells;
   }
@@ -618,6 +656,13 @@ export class GameEngine {
     return this.w.litReceiverCells;
   }
 
+  /** The target cells that are a target now: one hidden under a removable top is not, until the top is gone. */
+  private liveTargetCells(): GridPoint[] {
+    return this.w.underlays === null
+      ? this.w.targetCells
+      : this.w.targetCells.filter(({ x, y }) => this.w.terrain[y][x] === BLOCK_TARGET_TILE_ID);
+  }
+
   /** True when a block at rest holds the target cell. */
   private isTargetCovered({ x, y }: GridPoint): boolean {
     const occupant = getEntityAt(this.w, x, y);
@@ -626,9 +671,10 @@ export class GameEngine {
 
   /** How many targets of a 'targets' level hold a block at rest, out of how many there are. */
   getTargetsProgress(): { covered: number; total: number } {
+    const targets = this.liveTargetCells();
     return {
-      covered: this.w.targetCells.filter((cell) => this.isTargetCovered(cell)).length,
-      total: this.w.targetCells.length
+      covered: targets.filter((cell) => this.isTargetCovered(cell)).length,
+      total: targets.length
     };
   }
 
@@ -638,8 +684,9 @@ export class GameEngine {
    * never wins. Called wherever a block may have settled.
    */
   private checkTargetsWin(): void {
-    if (this.w.targetCells.length === 0 || this.w.levelCompleted || !this.w.player.alive) return;
-    if (!this.w.targetCells.every((cell) => this.isTargetCovered(cell))) return;
+    if (this.w.levelCompleted || !this.w.player.alive) return;
+    const targets = this.liveTargetCells();
+    if (targets.length === 0 || !targets.every((cell) => this.isTargetCovered(cell))) return;
     this.emitVisual('win', this.w.player.x, this.w.player.y);
     this.completeLevel();
   }

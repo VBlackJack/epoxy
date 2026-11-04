@@ -30,6 +30,7 @@ import { t } from '../i18n/I18nManager';
 import { CHANNEL_COLOR_NAME_KEY_PREFIX } from './coreConstants';
 import showcase from '../test/fixtures/mechanicsShowcase.json';
 import { storedSolutionWins } from '../generator/SolutionReplay';
+import { decodeActions, PieceSolver } from '../generator/PieceSolver';
 
 /** Ticks the move cooldown away, then plays one step and reports whether it was taken. */
 function step(engine: GameEngine, dir: Direction): boolean {
@@ -297,5 +298,172 @@ describe('cell edges showcase level', () => {
 
   it('carries a stored solution that wins', () => {
     expect(storedSolutionWins(compileEdges())).toBe(true);
+  });
+});
+
+/** Index of the slow-time level in the showcase pack. */
+const SLOW_TIME_LEVEL_INDEX = 3;
+const SLOW_TIME_ID = 'slow_time';
+/** Cell of the charm, and the actions of the stored solution that bring the player onto it. */
+const CHARM_CELL = { x: 3, y: 2 };
+const CHARM_ACTIONS = 2;
+
+/**
+ * The level of the slow-time charm: three patrols guard a lane that cannot be crossed at their normal pace,
+ * the charm halves their speed while it is held, and the thief at the end of the lane takes it.
+ */
+describe('slow-time showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  function compileSlowTime(): CompiledLevel {
+    const blueprint = (showcase as { levels: LevelBlueprint[] }).levels[SLOW_TIME_LEVEL_INDEX];
+    return ConfigRegistry.compileBlueprint(blueprint);
+  }
+
+  it('compiles with the charm in place and passes the editor validator', () => {
+    const level = compileSlowTime();
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    expect(level.items[CHARM_CELL.y][CHARM_CELL.x]).toBe(SLOW_TIME_ID);
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through: the charm is picked up, the lane is crossed, the thief takes the charm, the exit opens the level', () => {
+    const level = compileSlowTime();
+    const actions = decodeActions(level.solution ?? '');
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    actions.slice(0, CHARM_ACTIONS).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer()).toMatchObject({ x: CHARM_CELL.x, y: CHARM_CELL.y, alive: true });
+    expect(engine.holdsItem(SLOW_TIME_ID)).toBe(true);
+    actions.slice(CHARM_ACTIONS).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.holdsItem(SLOW_TIME_ID)).toBe(false);
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('carries a stored solution that wins, and that fails once the charm is taken away', () => {
+    const level = compileSlowTime();
+    expect(storedSolutionWins(level)).toBe(true);
+    const withoutCharm = { ...level, items: level.items.map((row) => row.map((id) => (id === SLOW_TIME_ID ? null : id))) };
+    expect(storedSolutionWins(withoutCharm)).toBe(false);
+  });
+});
+
+/** Index of the underlays level in the showcase pack. */
+const UNDERLAYS_LEVEL_INDEX = 4;
+
+/**
+ * The level of terrain hidden under removable tops: a key door over ice, a key door over a toggle button
+ * and a socket over the exit. What is under each shows once the top is open.
+ */
+describe('underlays showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  function compileUnderlays(): CompiledLevel {
+    const blueprint = (showcase as { levels: LevelBlueprint[] }).levels[UNDERLAYS_LEVEL_INDEX];
+    return ConfigRegistry.compileBlueprint(blueprint);
+  }
+
+  it('compiles with its underlays and passes the editor validator', () => {
+    const level = compileUnderlays();
+    expect(level.underlays).toEqual([
+      { x: 4, y: 1, terrain: 'ice' },
+      { x: 9, y: 1, terrain: 'button_green' },
+      { x: 8, y: 3, terrain: 'exit' }
+    ]);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through to the exit, each top showing what it hid', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(compileUnderlays());
+    expect(engine.getTerrain()[1][4]).toBe('door_red');
+
+    // The red door opens onto ice: the player slides to the chip.
+    walk(engine, 'EEE');
+    settle(engine);
+    expect(engine.getTerrain()[1][4]).toBe('ice');
+    expect(engine.getPlayer()).toMatchObject({ x: 8, y: 1, alive: true, isSliding: false });
+    expect(engine.getChipsRemaining()).toBe(0);
+
+    // The blue door opens onto a button, which lowers the toggle wall.
+    expect(engine.getTerrain()[2][8]).toBe('toggle_wall_closed');
+    walk(engine, 'E');
+    expect(engine.getTerrain()[1][9]).toBe('button_green');
+    expect(engine.getTerrain()[2][8]).toBe('toggle_wall_open');
+
+    // The socket opens onto the exit.
+    walk(engine, 'WSS');
+    expect(engine.getTerrain()[3][8]).toBe('exit');
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('carries a stored solution that wins', () => {
+    expect(storedSolutionWins(compileUnderlays())).toBe(true);
+  });
+});
+
+/** Index of the turret level in the showcase pack. */
+const TURRET_LEVEL_INDEX = 5;
+const TURRET_TYPES: readonly string[] = ['turret_cw', 'turret_ccw', 'turret_fixed'];
+/** The solution letter that waits one move cooldown. */
+const WAIT_LETTER = '.';
+/** Actions before the lane is crossed: three steps east, then the waits that let both turning turrets look away. */
+const WAIT_ACTIONS_END = 15;
+const FIXED_TURRET_END_CELL = { x: 10, y: 3 };
+
+/**
+ * The level of the turrets: a clockwise and a counter-clockwise turret watch the lane from two alcoves and
+ * turn away after a turn period (60 ticks), and a fixed turret under the lane is pushed aside so it faces away.
+ */
+describe('turret showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('uses the three kinds of turret and passes the validator', () => {
+    const level = compileShowcase(TURRET_LEVEL_INDEX);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    expect(new Set(level.entities.map((e) => e.type))).toEqual(new Set(TURRET_TYPES));
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through: both alcove turrets turn away, the fixed one is pushed aside and the exit opens the level', () => {
+    const level = compileShowcase(TURRET_LEVEL_INDEX);
+    const actions = decodeActions(level.solution ?? '');
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const facingOf = (type: string): string | undefined => engine.getEntities().find((e) => e.type === type)?.facing;
+    expect([facingOf('turret_cw'), facingOf('turret_ccw'), facingOf('turret_fixed')]).toEqual(['S', 'S', 'N']);
+    actions.slice(0, WAIT_ACTIONS_END).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer().alive).toBe(true);
+    // A turn period after the first step each has quarter-turned away from the lane.
+    expect([facingOf('turret_cw'), facingOf('turret_ccw')]).toEqual(['W', 'E']);
+    actions.slice(WAIT_ACTIONS_END).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.isLevelCompleted()).toBe(true);
+    const fixed = engine.getEntities().find((e) => e.type === 'turret_fixed');
+    expect(fixed).toMatchObject({ ...FIXED_TURRET_END_CELL, facing: 'E' });
+  });
+
+  it('carries a stored solution that wins, and that fails once the waits are taken out', () => {
+    const level = compileShowcase(TURRET_LEVEL_INDEX);
+    expect(storedSolutionWins(level)).toBe(true);
+    const hasty = { ...level, solution: (level.solution ?? '').split(WAIT_LETTER).join('') };
+    expect(storedSolutionWins(hasty)).toBe(false);
   });
 });

@@ -20,9 +20,12 @@ import {
   featuresFor,
   hasColorChannelContent,
   hasEpoxyOnlyContent,
+  hasLaserContent,
+  hasTurretContent,
   isColorChannelTileId,
   isEpoxyOnlyEntityType,
-  isEpoxyOnlyTileId
+  isEpoxyOnlyTileId,
+  isTurretEntityType
 } from './RulesetFeatures';
 import { CompiledLevel } from './types';
 
@@ -59,6 +62,14 @@ describe('colour channel aids', () => {
     entities: entityType ? [{ type: entityType, x: 1, y: 1, dir: 'S' }] : []
   });
 
+  it('names the slow-time item as Epoxy only, alone and in a level', () => {
+    expect(isEpoxyOnlyTileId('slow_time')).toBe(true);
+    expect(isEpoxyOnlyTileId('boots_fire')).toBe(false);
+    const level = levelWith('floor');
+    level.items[1][1] = 'slow_time';
+    expect(hasEpoxyOnlyContent(level)).toBe(true);
+  });
+
   it('names the channel tiles and colour blocks as Epoxy only', () => {
     for (const id of ['pressure_plate_red', 'hold_door_blue_open', 'toggle_wall_yellow_closed', 'toggle_button_red', 'floating_block_green']) {
       expect(isColorChannelTileId(id), id).toBe(true);
@@ -71,6 +82,32 @@ describe('colour channel aids', () => {
     expect(isEpoxyOnlyEntityType('color_block_red')).toBe(true);
     expect(isEpoxyOnlyEntityType('mirror_slash')).toBe(true);
     expect(isEpoxyOnlyEntityType('dirt_block')).toBe(false);
+  });
+
+  it('names the turrets as Epoxy only and as laser content, and turns the laser aids and tap to path off', () => {
+    for (const id of ['turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi']) {
+      expect(isTurretEntityType(id), id).toBe(true);
+      expect(isEpoxyOnlyEntityType(id), id).toBe(true);
+    }
+    expect(isTurretEntityType('dirt_block')).toBe(false);
+    const level = levelWith('floor', 'turret_cw');
+    expect(hasTurretContent(level)).toBe(true);
+    expect(hasLaserContent(level)).toBe(true);
+    expect(hasEpoxyOnlyContent(level)).toBe(true);
+    const features = featuresFor(level);
+    expect(features.tapToPath).toBe(false);
+    expect(features.blockHint).toBe(false);
+    expect(features.deadEndWatch).toBe(false);
+    expect(features.objectiveMarker).toBe(true);
+    // A clone machine linked to a turret template counts without a turret on the grid.
+    const linked = {
+      ...levelWith('floor'),
+      cloneLinks: [{ buttonX: 1, buttonY: 1, clonerX: 2, clonerY: 2, templateType: 'turret_fixed', templateDir: 'E' as const }]
+    };
+    expect(hasLaserContent(linked)).toBe(true);
+    expect(featuresFor(linked).tapToPath).toBe(false);
+    expect(featuresFor({ ...level, winRule: 'receivers' }).tapToPath).toBe(false);
+    expect(featuresFor({ ...levelWith('floor'), winRule: 'receivers' }).tapToPath).toBe(true);
   });
 
   it('turns the block hint, the dead end watch and tap to path off on a colour level', () => {

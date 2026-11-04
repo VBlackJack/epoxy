@@ -242,6 +242,9 @@ const BONUS_FONT_SCALE = 0.26;
 const BONUS_MULTIPLIER_PREFIX = 'x';
 /** Stopwatch: dial and crown, as fractions of a tile. */
 const STOPWATCH = { cy: 0.56, radius: 0.28, crownWidth: 0.14, crownHeight: 0.12, signHalf: 0.12, signThickness: 0.07 } as const;
+/** Slow-time charm: the two bars of its pause mark, as fractions of a tile, and the palette key of its blue body. */
+const SLOW_MARK = { barOffset: 0.07, barWidth: 0.06, barHalfHeight: 0.12 } as const;
+const SLOW_TIME_BODY_KEY = 'blue';
 /** Turtle shell and head, as fractions of a tile. */
 const TURTLE = { shellRx: 0.3, shellRy: 0.24, headRadius: 0.1, headX: 0.84 } as const;
 
@@ -345,7 +348,12 @@ const EPOXY_TO_CC3D_PAINTER: Readonly<Record<string, string>> = Object.fromEntri
     [`toggle_wall_${c}_open`, `cc3d_toggle_door_${c}_open`],
     [`toggle_button_${c}`, `cc3d_toggle_control_${c}`]
   ]),
-  ...CHANNEL_PAINTER_COLORS.map((c) => [`color_block_${c}`, `cc3d_block_${c}`])
+  ...CHANNEL_PAINTER_COLORS.map((c) => [`color_block_${c}`, `cc3d_block_${c}`]),
+  // Turrets are drawn as the cc3d bots they play.
+  ['turret_fixed', 'cc3d_bot_static'],
+  ['turret_cw', 'cc3d_bot_cw'],
+  ['turret_ccw', 'cc3d_bot_ccw'],
+  ['turret_multi', 'cc3d_bot_multi']
 ]);
 
 /** Colour of each floating block tile: water with the block faint under the surface. */
@@ -1203,7 +1211,8 @@ export class PixelRenderer {
         if (skinned) {
           this.drawSkinLayers(sceneCtx, skinned, px, py, unit);
         } else {
-          this.drawEntity(sceneCtx, ent.type, ent.dir, px, py, unit);
+          // A turret is drawn facing the way it fires, which is not the way it was pushed.
+          this.drawEntity(sceneCtx, ent.type, ent.facing ?? ent.dir, px, py, unit);
           if (onTarget) this.drawBlockOnTargetOutline(sceneCtx, px, py, unit);
         }
         if (lit) this.addLight(ent.type, vPos.x - camX, vPos.y - camY, tilePixelSize, settings);
@@ -4210,7 +4219,10 @@ export class PixelRenderer {
     ctx.restore();
   }
 
-  /** A stopwatch, with a plus or minus sign on its dial after what it does to the time. */
+  /**
+   * A stopwatch, with a plus or minus sign on its dial after what it does to the time. A tile that slows
+   * the monsters gets a blue body and a pause mark (two bars) instead, so it never reads as a time bonus.
+   */
   private paintStopwatch(
     ctx: CanvasRenderingContext2D,
     def: TileDefinition,
@@ -4221,7 +4233,9 @@ export class PixelRenderer {
   ): void {
     const pal = this.pal();
     const gain = (def.timeBonusSeconds ?? 0) >= 0;
-    const signColor = gain ? pal.stopwatchPlus : pal.stopwatchMinus;
+    const slows = def.slowsMonsters !== undefined;
+    const bodyColor = slows ? pal[SLOW_TIME_BODY_KEY] : pal.stopwatchBody;
+    const signColor = slows ? bodyColor : gain ? pal.stopwatchPlus : pal.stopwatchMinus;
     const cx = x + size / 2;
     const cy = y + size * STOPWATCH.cy;
     const r = size * STOPWATCH.radius;
@@ -4232,7 +4246,7 @@ export class PixelRenderer {
     }
     ctx.fillStyle = pal.stopwatchCrown;
     ctx.fillRect(cx - size * STOPWATCH.crownWidth / 2, cy - r - size * STOPWATCH.crownHeight, size * STOPWATCH.crownWidth, size * STOPWATCH.crownHeight);
-    ctx.fillStyle = pal.stopwatchBody;
+    ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, FULL_TURN);
     ctx.fill();
@@ -4242,6 +4256,14 @@ export class PixelRenderer {
     ctx.arc(cx, cy, r * 0.78, 0, FULL_TURN);
     ctx.fill();
     ctx.fillStyle = signColor;
+    if (slows) {
+      const barWidth = size * SLOW_MARK.barWidth;
+      const barHalfHeight = size * SLOW_MARK.barHalfHeight;
+      const offset = size * SLOW_MARK.barOffset;
+      ctx.fillRect(cx - offset - barWidth / 2, cy - barHalfHeight, barWidth, barHalfHeight * 2);
+      ctx.fillRect(cx + offset - barWidth / 2, cy - barHalfHeight, barWidth, barHalfHeight * 2);
+      return;
+    }
     const half = size * STOPWATCH.signHalf;
     const thick = size * STOPWATCH.signThickness;
     ctx.fillRect(cx - half, cy - thick / 2, half * 2, thick);
@@ -4415,7 +4437,8 @@ export class PixelRenderer {
       }
 
       case 'stopwatch_bonus':
-      case 'stopwatch_penalty': {
+      case 'stopwatch_penalty':
+      case 'slow_time': {
         this.paintStopwatch(ctx, ConfigRegistry.getTile(itemId), x, y, size, isModern);
         break;
       }
@@ -4680,7 +4703,9 @@ export class PixelRenderer {
     if (cells.length > 0) {
       const byCell = new Map<number, BeamCell>();
       const width = terrain[0]?.length ?? 0;
-      for (const cell of cells) byCell.set(cell.y * width + cell.x, cell);
+      // The corners of a mirror follow the emitter beams only: a turret beam never feeds a mirror, and
+      // its cells are drawn as plain lines.
+      for (const cell of laser.getEmitterBeamCells?.() ?? cells) byCell.set(cell.y * width + cell.x, cell);
       const mirrors = new Map<number, MirrorAxis>();
       for (const ent of entities) {
         const axis = ent.kind === 'block' ? ConfigRegistry.getEntityDef(ent.type)?.mirrorAxis : undefined;

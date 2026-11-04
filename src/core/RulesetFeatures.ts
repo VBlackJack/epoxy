@@ -109,12 +109,27 @@ export function isMirrorEntityType(type: string): boolean {
   return ConfigRegistry.getEntityDef(type)?.mirrorAxis !== undefined;
 }
 
-/** True when the level places a laser tile (terrain or item layer) or a mirror, as the configs define them. */
-export function hasLaserContent(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'>): boolean {
+/** True when the entity type is a turret, a block that fires a short beam, as the monster config defines it. */
+export function isTurretEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.turretBeam !== undefined;
+}
+
+/** True when the level places a turret, or links a clone machine to a turret template. */
+export function hasTurretContent(level: Pick<CompiledLevel, 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>): boolean {
+  return (
+    (level.entities ?? []).some((e) => isTurretEntityType(e.type)) ||
+    (level.cloneLinks ?? []).some((link) => isTurretEntityType(link.templateType))
+  );
+}
+
+/** True when the level places a laser tile (terrain or item layer), a mirror or a turret, as the configs define them. */
+export function hasLaserContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+): boolean {
   const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
     grid?.some((row) => row.some(isLaserTileId)) ?? false;
   if (hasTile(level.terrain) || hasTile(level.items)) return true;
-  return (level.entities ?? []).some((e) => isMirrorEntityType(e.type));
+  return (level.entities ?? []).some((e) => isMirrorEntityType(e.type)) || hasTurretContent(level);
 }
 
 /** True when the tile id is a colour channel tile: a plate, a hold door, a colour wall or button, or a floating block. */
@@ -135,14 +150,19 @@ export function isColorBlockEntityType(type: string): boolean {
   return ConfigRegistry.getEntityDef(type)?.plateColor !== undefined;
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile or a colour channel tile. */
-export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
-  return isLaserTileId(id) || isColorChannelTileId(id);
+/** True when the tile slows the monsters down while held, which no Lynx or CC3D rule has. */
+export function isSlowTimeTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).slowsMonsters !== undefined;
 }
 
-/** True when the entity only exists under the Epoxy rules: a laser mirror or a colour block. */
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile or the slow-time item. */
+export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
+  return isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id);
+}
+
+/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret or a colour block. */
 export function isEpoxyOnlyEntityType(type: string): boolean {
-  return isMirrorEntityType(type) || isColorBlockEntityType(type);
+  return isMirrorEntityType(type) || isTurretEntityType(type) || isColorBlockEntityType(type);
 }
 
 /** True when the level places a colour channel tile (terrain or item layer) or a colour block. */
@@ -155,16 +175,27 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
 
 /** True when the level uses a mechanic that only the Epoxy engine plays: lasers or colour channels. */
 export function hasEpoxyOnlyContent(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'>): boolean {
-  return hasLaserContent(level) || hasColorChannelContent(level);
+  const hasSlowTime = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isSlowTimeTileId)) ?? false;
+  return hasLaserContent(level) || hasColorChannelContent(level) || hasSlowTime(level.terrain) || hasSlowTime(level.items);
 }
+
+/**
+ * The aids of a level with turrets and nothing else that already turns tapToPath off: the turrets fire
+ * on a clock a tapped path does not wait for, and the hint and the watch do not model them.
+ */
+const TURRET_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, tapToPath: false };
+/** A receivers level with turrets: the receivers aids and no tapped path. */
+const TURRET_RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_LEVEL_FEATURES, tapToPath: false };
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
-  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule'>>;
+  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks'>>;
 
 /** Laser and colour content never change on a compiled level, so the answers are kept per level object. */
 const laserContentCache = new WeakMap<object, boolean>();
 const colorContentCache = new WeakMap<object, boolean>();
+const turretContentCache = new WeakMap<object, boolean>();
 
 /** The aids available on a level, by the ruleset it is played under and the mechanics it uses. */
 export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
@@ -186,7 +217,12 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
   if (!level.terrain) return receivers ? RECEIVER_LEVEL_FEATURES : EPOXY_FEATURES;
   let laser = laserContentCache.get(level);
   if (laser === undefined) {
-    laser = hasLaserContent({ terrain: level.terrain, items: level.items ?? [], entities: level.entities ?? [] });
+    laser = hasLaserContent({
+      terrain: level.terrain,
+      items: level.items ?? [],
+      entities: level.entities ?? [],
+      cloneLinks: level.cloneLinks ?? []
+    });
     laserContentCache.set(level, laser);
   }
   let color = colorContentCache.get(level);
@@ -194,7 +230,18 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     color = hasColorChannelContent({ terrain: level.terrain, items: level.items ?? [], entities: level.entities ?? [] });
     colorContentCache.set(level, color);
   }
-  if (receivers) return color ? RECEIVER_COLOR_LEVEL_FEATURES : RECEIVER_LEVEL_FEATURES;
-  if (!color) return laser ? LASER_LEVEL_FEATURES : EPOXY_FEATURES;
+  let turret = turretContentCache.get(level);
+  if (turret === undefined) {
+    turret = hasTurretContent({ entities: level.entities ?? [], cloneLinks: level.cloneLinks ?? [] });
+    turretContentCache.set(level, turret);
+  }
+  if (receivers) {
+    if (color) return RECEIVER_COLOR_LEVEL_FEATURES;
+    return turret ? TURRET_RECEIVER_LEVEL_FEATURES : RECEIVER_LEVEL_FEATURES;
+  }
+  if (!color) {
+    if (turret) return TURRET_LEVEL_FEATURES;
+    return laser ? LASER_LEVEL_FEATURES : EPOXY_FEATURES;
+  }
   return laser ? LASER_COLOR_LEVEL_FEATURES : COLOR_LEVEL_FEATURES;
 }

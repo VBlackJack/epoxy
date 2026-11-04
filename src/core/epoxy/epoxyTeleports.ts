@@ -33,7 +33,14 @@ import {
 /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
 function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   const group = ConfigRegistry.getTile(w.terrain[y][x]).teleportGroup ?? DEFAULT_TELEPORT_GROUP;
-  return w.teleportersByGroup.get(group) ?? [];
+  const linked = w.teleportersByGroup.get(group) ?? [];
+  // A teleporter hidden under a removable top is listed too; it takes part once the top is gone.
+  return w.underlays === null
+    ? linked
+    : linked.filter((cell) => {
+        const tile = ConfigRegistry.getTile(w.terrain[cell.y][cell.x]);
+        return tile.isTeleporter === true && (tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP) === group;
+      });
 }
 
 /**

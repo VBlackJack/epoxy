@@ -232,6 +232,8 @@ editor tile boots_ice closed=true ccd373e5a33e55b8
 editor tile boots_ice closed=false 990bf202d86dc2b4
 editor tile boots_force closed=true c1e4dcb77cdb4e18
 editor tile boots_force closed=false 87d69476f9d11bbd
+editor tile slow_time closed=true c894a48723d5e5fa
+editor tile slow_time closed=false e995e3cd75905c78
 editor tile bomb closed=true b3787b17e20e015a
 editor tile bomb closed=false 7fdb433d38dd755c
 editor tile score_10 closed=true 8466cb66054c8157
@@ -255,6 +257,7 @@ editor item over floor boots_water eb58e748779ae021
 editor item over floor boots_fire 952de49fd7123219
 editor item over floor boots_ice 76555e6169a6f200
 editor item over floor boots_force ac21c9a47260de12
+editor item over floor slow_time 3d16f72367446f04
 editor item over floor bomb fc5fd345d6a0c25d
 editor item over floor score_10 3ce80e0c4444f7ba
 editor item over floor score_100 b91c80f565c7b8bd
@@ -266,6 +269,10 @@ editor entity over floor dirt_block 5dc9a42579be7c59
 editor entity over floor ice_block bde2c3497c7dd080
 editor entity over floor mirror_slash 942f2b92b4b68402
 editor entity over floor mirror_backslash 7f43299bbf1a3a64
+editor entity over floor turret_fixed 17d071e0e31116fb
+editor entity over floor turret_cw 2e0993178c375d4c
+editor entity over floor turret_ccw 07b209027b865183
+editor entity over floor turret_multi dbbfd80d2f222b80
 editor entity over floor bug a2ff7df563fdf333
 editor entity over floor paramecium 98dfeefa88d7db4a
 editor entity over floor pink_ball 9a94c3c9236dcd60

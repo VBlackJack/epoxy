@@ -84,6 +84,7 @@ default bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 default flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 default stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 default stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+default slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 default glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 default glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 default glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -201,6 +202,10 @@ default color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 default color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 default mirror_slash plain=832970261e022e03 swap=832970261e022e03
 default mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+default turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
+default turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
+default turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
+default turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
 default block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 cyber_neon floor plain=490bc7251601fafb swap=490bc7251601fafb
 cyber_neon floor_detail_0 plain=600c4f65104e3896 swap=600c4f65104e3896
@@ -288,6 +293,7 @@ cyber_neon bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 cyber_neon flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 cyber_neon stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 cyber_neon stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+cyber_neon slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 cyber_neon glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 cyber_neon glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 cyber_neon glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -405,6 +411,10 @@ cyber_neon color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 cyber_neon color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 cyber_neon mirror_slash plain=832970261e022e03 swap=832970261e022e03
 cyber_neon mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+cyber_neon turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
+cyber_neon turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
+cyber_neon turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
+cyber_neon turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
 cyber_neon block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 arctic_lab floor plain=5d7055caa0f480fe swap=5d7055caa0f480fe
 arctic_lab floor_detail_0 plain=a038aad131a1b9be swap=a038aad131a1b9be
@@ -492,6 +502,7 @@ arctic_lab bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 arctic_lab flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 arctic_lab stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 arctic_lab stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+arctic_lab slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 arctic_lab glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 arctic_lab glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 arctic_lab glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -609,6 +620,10 @@ arctic_lab color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 arctic_lab color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 arctic_lab mirror_slash plain=832970261e022e03 swap=832970261e022e03
 arctic_lab mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+arctic_lab turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
+arctic_lab turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
+arctic_lab turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
+arctic_lab turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
 arctic_lab block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 magma_core floor plain=1257996b3f93bab1 swap=1257996b3f93bab1
 magma_core floor_detail_0 plain=122635e6869f01c1 swap=122635e6869f01c1
@@ -696,6 +711,7 @@ magma_core bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 magma_core flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 magma_core stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 magma_core stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+magma_core slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 magma_core glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 magma_core glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 magma_core glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -813,6 +829,10 @@ magma_core color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 magma_core color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 magma_core mirror_slash plain=832970261e022e03 swap=832970261e022e03
 magma_core mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+magma_core turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
+magma_core turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
+magma_core turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
+magma_core turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
 magma_core block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 lynx_lcd floor plain=cffb6d0ff2a2ab90 swap=cffb6d0ff2a2ab90
 lynx_lcd floor_detail_0 plain=1a9969beb1281ba2 swap=1a9969beb1281ba2
@@ -900,6 +920,7 @@ lynx_lcd bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 lynx_lcd flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 lynx_lcd stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 lynx_lcd stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+lynx_lcd slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 lynx_lcd glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 lynx_lcd glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 lynx_lcd glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -1017,4 +1038,8 @@ lynx_lcd color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 lynx_lcd color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 lynx_lcd mirror_slash plain=832970261e022e03 swap=832970261e022e03
 lynx_lcd mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+lynx_lcd turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
+lynx_lcd turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
+lynx_lcd turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
+lynx_lcd turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
 lynx_lcd block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3

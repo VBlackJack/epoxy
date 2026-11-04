@@ -51,6 +51,75 @@
       "destroyedByFire": false,
       "destroyedByBomb": true
     },
+    "turret_fixed": {
+      "id": "turret_fixed",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.turret_fixed.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "turretBeam": {
+        "length": 3,
+        "turn": 0,
+        "turnPeriodTicks": 60
+      },
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "turret_cw": {
+      "id": "turret_cw",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.turret_cw.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "turretBeam": {
+        "length": 3,
+        "turn": 1,
+        "turnPeriodTicks": 60
+      },
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "turret_ccw": {
+      "id": "turret_ccw",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.turret_ccw.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "turretBeam": {
+        "length": 3,
+        "turn": -1,
+        "turnPeriodTicks": 60
+      },
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "turret_multi": {
+      "id": "turret_multi",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.turret_multi.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "turretBeam": {
+        "length": 3,
+        "turn": 0,
+        "allSides": true,
+        "turnPeriodTicks": 60
+      },
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
     "bug": {
       "id": "bug",
       "category": "entities",

@@ -746,6 +746,8 @@ export interface TileDefinition {
   scoreMultiplier?: number;
   /** Seconds added to (or, negative, taken from) the time left when the item is picked up. */
   timeBonusSeconds?: number;
+  /** Boots only: while held, every monster takes this many times as long per step (an integer, 2 to 4). */
+  slowsMonsters?: number;
   buttonAction?: ButtonAction;
   togglesTo?: string;
   /** Terrain the cell swaps to when a toggle_flames button is pressed. */
@@ -836,7 +838,33 @@ export interface EntityDefinition {
   plateColor?: ChannelColor;
   /** Whether the entity presses pressure plates; blocks do by default, monsters do only when this is true. */
   pressesPlates?: boolean;
+  /** Present on a turret: a block that fires a short beam from the cell it faces. */
+  turretBeam?: TurretBeamDefinition;
 }
+
+/** How a turret fires and turns. Only `length`, `turn` and `turnPeriodTicks` are required in the config. */
+export interface TurretBeamDefinition {
+  /** Cells the beam reaches from the turret, 1 to 8. */
+  length: number;
+  /** Quarter turns per period: 0 fixed, 1 clockwise, -1 counter-clockwise. */
+  turn: TurretTurn;
+  /** Fires in the four directions at once instead of the one it faces. */
+  allSides?: boolean;
+  /** Ticks between two quarter turns of a turning turret. */
+  turnPeriodTicks: number;
+  /** A player push turns the turret toward the push (true by default); slides keep its facing. */
+  faceOnPush?: boolean;
+  /** 'block' (default) stops where a block could not enter, items included; 'laser' follows the laser opacity of tiles. */
+  opacity?: TurretOpacity;
+  /** The turret stays silent and still until the player's first step (true by default). */
+  firesAfterFirstStep?: boolean;
+}
+
+/** Quarter turns a turret makes each period. */
+export type TurretTurn = -1 | 0 | 1;
+
+/** How far a turret beam sees through terrain and items. */
+export type TurretOpacity = 'block' | 'laser';
 
 /** Orientation of a laser mirror. */
 export type MirrorAxis = 'slash' | 'backslash';
@@ -1056,6 +1084,8 @@ export interface LevelBlueprint {
   terrain?: string[][];
   /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
   cellEdges?: CellEdge[];
+  /** Terrain hidden under a removable top (Epoxy ruleset only); see CompiledLevel.underlays. */
+  underlays?: CellUnderlay[];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
   /** Item placements, or a full item grid as the editor exports it. */
   items?: Array<{ x: number; y: number; id: string }> | (string | null)[][];
@@ -1094,6 +1124,16 @@ export interface CellEdge {
   sides: Direction[];
 }
 
+/**
+ * The terrain hidden under a removable top (a door, a socket, a blue fake wall, dirt) of one cell, Epoxy ruleset
+ * only. The cell plays as its top until the top is removed by the player, and then as this terrain.
+ */
+export interface CellUnderlay {
+  x: number;
+  y: number;
+  terrain: string;
+}
+
 export interface CompiledLevel {
   id: string;
   /** Pilot design note: the blocks the level needs; see BlockBudget. */
@@ -1123,6 +1163,8 @@ export interface CompiledLevel {
   items: (string | null)[][];
   /** Thin walls on cells of any terrain; one entry per cell, absent when the level has none. */
   cellEdges?: CellEdge[];
+  /** Terrain hidden under a removable top, one entry per cell (Epoxy ruleset only); absent when the level has none. */
+  underlays?: CellUnderlay[];
   entities: EntityPlacement[];
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
@@ -1153,6 +1195,8 @@ export interface RuntimeEntity {
   dir: Direction;
   cooldownTicks: number;
   isSliding: boolean;
+  /** Turrets only: the way the turret fires; `dir` stays the way it was pushed or slides. */
+  facing?: Direction;
 }
 
 export interface PlayerState {
@@ -1210,6 +1254,8 @@ export interface UndoSnapshot {
   nextEntityUid: number;
   moveHistoryLength: number;
   timedMoveHistoryLength: number;
+  /** Tick of the player's first step; written only on a level with turrets, absent otherwise. */
+  playStartTick?: number;
 }
 
 export interface LevelHighScore {

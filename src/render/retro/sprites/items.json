@@ -1,5 +1,5 @@
 {
- "legend": {"o":"outline.0","s":"shadow.0","W":"white.0","V":"white.1","U":"white.2","A":"chip.0","B":"chip.1","C":"chip.2","D":"chip.3","M":"metal.0","N":"metal.1","P":"metal.2","Q":"metal.3","k":"$.0","K":"$.1","j":"$.2","e":"bomb.0","f":"bomb.1","g":"bomb.2","F":"flag.0","G":"flag.1","H":"flag.2","t":"stopwatch.0","u":"stopwatch.1","v":"stopwatch.2","l":"green.0","m":"green.1","n":"green.2","r":"red.0","R":"red.1","d":"red.2","X":"boot.1","L":"boot.2","S":"fire.0","T":"fire.1","Z":"brown.1"},
+ "legend": {"o":"outline.0","s":"shadow.0","W":"white.0","V":"white.1","U":"white.2","A":"chip.0","B":"chip.1","C":"chip.2","D":"chip.3","M":"metal.0","N":"metal.1","P":"metal.2","Q":"metal.3","k":"$.0","K":"$.1","j":"$.2","e":"bomb.0","f":"bomb.1","g":"bomb.2","F":"flag.0","G":"flag.1","H":"flag.2","t":"stopwatch.0","u":"stopwatch.1","v":"stopwatch.2","l":"green.0","m":"green.1","n":"green.2","r":"red.0","R":"red.1","d":"red.2","X":"boot.1","L":"boot.2","S":"fire.0","T":"fire.1","Z":"brown.1","b":"blue.0","c":"blue.1","p":"blue.2"},
  "sprites": {
   "chip": { "outline": true, "rows": [
    "................",
@@ -106,6 +106,24 @@
    "..MMtttmnuuuQQ..",
    "...NNtttuuuQQ...",
    "....NNtuuuQQ....",
+   ".....QQQQQQ.....",
+   "................"
+  ]},
+  "slow_time": { "outline": true, "rows": [
+   "................",
+   "......MNNN......",
+   "......NNNQ.NQ...",
+   ".....MMMMMM.....",
+   "....MMbbbbMN....",
+   "...MMbbbbbbNN...",
+   "..MMbbpbbpbbNQ..",
+   "..MbbbpbbpbbbQ..",
+   "..MbbbpbbpbbcQ..",
+   "..MbbbpbbpbccQ..",
+   "..MbbbpbbpcccQ..",
+   "..MMbbpbbpcccQ..",
+   "...NNbbbcccQQ...",
+   "....NNbcccQQ....",
    ".....QQQQQQ.....",
    "................"
   ]},

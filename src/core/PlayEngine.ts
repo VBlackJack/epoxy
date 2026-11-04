@@ -71,11 +71,19 @@ export interface PlayEngine {
    * Derived state, never part of a snapshot; an engine without lasers omits it.
    */
   getBeamCells?(): readonly BeamCell[];
+  /** Optional. The cells the laser emitters' beams cross, without the turret beams; an engine without turrets omits it. */
+  getEmitterBeamCells?(): readonly BeamCell[];
   /**
    * Optional. The thin wall sides of the cells that have any, by cell index (y * width + x), only for
    * cells whose display id does not already show them. Derived state; an engine without panels omits it.
    */
   getPanels?(): ReadonlyMap<number, readonly Direction[]>;
+  /**
+   * Optional. The terrain hidden under the removable tops of the level, by cell index (y * width + x), or
+   * undefined when there is none. Static level data for tools; the renderer draws the top only. An engine
+   * without underlays omits it.
+   */
+  getUnderlays?(): ReadonlyMap<number, string> | undefined;
   /**
    * Optional. The cells whose stack holds more layers than the one shown, by cell index (y * width + x).
    * Derived state; an engine without stacked layers omits it.

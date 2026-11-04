@@ -529,10 +529,14 @@ describe('DatCodec export fidelity', () => {
     gate.terrain[3][3] = 'laser_gate_red_closed';
     const mirror = blankLevel(4);
     mirror.entities = [{ type: 'mirror_slash', x: 3, y: 3, dir: 'S' }];
+    // A turret fires a beam the format cannot hold: it would be written as a plain block.
+    const turretLevel = blankLevel(6);
+    turretLevel.entities = [{ type: 'turret_cw', x: 3, y: 3, dir: 'S' }];
     expect(datRefusalReason(receivers)).toBe('receivers_win_rule');
     expect(datRefusalReason(emitter)).toBe('laser_content');
     expect(datRefusalReason(gate)).toBe('laser_content');
     expect(datRefusalReason(mirror)).toBe('laser_content');
+    expect(datRefusalReason(turretLevel)).toBe('laser_content');
     const encoded = DatCodec.encodeLevelsWithReport([emitter, mirror, blankLevel(5)]);
     expect(encoded.refused.map((r) => r.reason)).toEqual(['laser_content', 'laser_content']);
     expect(encoded.levelCount).toBe(1);
@@ -561,6 +565,26 @@ describe('DatCodec export fidelity', () => {
     expect(datRefusalReason({ ...blankLevel(2), cellEdges: [] })).toBeNull();
     const encoded = DatCodec.encodeLevelsWithReport([edged, blankLevel(2)]);
     expect(encoded.refused.map((r) => r.reason)).toEqual(['cell_edges']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
+  it('refuses a level that holds a slow-time charm and leaves it out of the pack', () => {
+    const charmed = blankLevel(1);
+    charmed.items[3][3] = 'slow_time';
+    expect(datRefusalReason(charmed)).toBe('epoxy_only_items');
+    expect(datRefusalReason(blankLevel(2))).toBeNull();
+    const encoded = DatCodec.encodeLevelsWithReport([charmed, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['epoxy_only_items']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
+  it('refuses a level with underlays and leaves it out of the pack', () => {
+    const hidden = { ...blankLevel(1), underlays: [{ x: 3, y: 3, terrain: 'ice' }] };
+    hidden.terrain[3][3] = 'door_red';
+    expect(datRefusalReason(hidden)).toBe('cell_underlays');
+    expect(datRefusalReason({ ...blankLevel(2), underlays: [] })).toBeNull();
+    const encoded = DatCodec.encodeLevelsWithReport([hidden, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['cell_underlays']);
     expect(encoded.levelCount).toBe(1);
   });
 

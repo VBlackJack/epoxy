@@ -160,6 +160,8 @@ const FORCE_FRAMES = 4;
 const FLOOR_DETAIL_COUNT = 3;
 const DIGIT_COUNT = 10;
 const GLYPH_COLOURS: readonly string[] = ['red', 'blue', 'yellow', 'green', 'orange'];
+/** The four turret blocks: sprites of the sheet, which the game draws through the cc3d bot painters. */
+const TURRET_SPRITES: readonly string[] = ['turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi'];
 /** The colour block sprites: one per channel colour, named after the entity they draw. */
 const COLOR_BLOCK_SPRITES: readonly string[] = CHANNEL_COLORS.map((c) => `color_block_${c}`);
 
@@ -178,14 +180,14 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...framed('exit', EXIT_FRAMES), ...framed('teleport', TELEPORT_FRAMES),
   ...DIRECTIONS.flatMap((d) => framed(`force_${d.toLowerCase()}`, FORCE_FRAMES)),
   ...framed('force_random', FORCE_FRAMES),
-  'chip', 'key', 'boots', 'bomb', 'flag', 'stopwatch_bonus', 'stopwatch_penalty',
+  'chip', 'key', 'boots', 'bomb', 'flag', 'stopwatch_bonus', 'stopwatch_penalty', 'slow_time',
   ...GLYPH_COLOURS.map((c) => `${RETRO_GLYPH_PREFIX}${c}`),
   ...range(DIGIT_COUNT).map((d) => `digit_${d}`),
   'char_x', 'char_k', 'char_q', 'char_plus', 'char_minus',
   ...DIRECTIONS.flatMap((d) => framed(`player_${d}`, PLAYER_FRAMES)),
   ...DIRECTIONS.map((d) => `player_swim_${d}`), 'player_dead',
   ...MONSTER_TYPES.flatMap((t) => DIRECTIONS.flatMap((d) => framed(`${t}_${d}`, MONSTER_FRAMES))),
-  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', 'block_on_target'
+  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...TURRET_SPRITES, 'block_on_target'
 ];
 
 /** Names of RETRO_SPRITE_NAMES the sheet does not define. */

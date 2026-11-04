@@ -25,7 +25,8 @@ import {
   PACK_JSON_FORMAT,
   PACK_JSON_MAX_VERSION,
   PACK_JSON_VERSION,
-  PACK_JSON_VERSION_CELL_EDGES
+  PACK_JSON_VERSION_CELL_EDGES,
+  PACK_JSON_VERSION_UNDERLAYS
 } from '../config/constants';
 import { CompiledLevel } from '../core/types';
 import { importCc3dSelection } from '../ui/cc3dImport';
@@ -95,6 +96,37 @@ describe('packJson', () => {
     if (result.ok) expect(result.levels[0].cellEdges).toEqual(edged.cellEdges);
     const v1 = JSON.parse(serializePack('Plain', [makeLevel('a')]));
     expect(parse(JSON.stringify(v1))).toMatchObject({ ok: true });
+  });
+
+  it('writes version 3 only when a level carries underlays, and the highest feature present decides', () => {
+    const hidden = { ...makeLevel('hidden'), underlays: [{ x: 2, y: 2, terrain: 'ice' }] };
+    const edged = { ...makeLevel('edged'), cellEdges: [{ x: 2, y: 2, sides: ['N' as const] }] };
+    expect(JSON.parse(serializePack('N', [makeLevel('a'), hidden])).version).toBe(PACK_JSON_VERSION_UNDERLAYS);
+    expect(JSON.parse(serializePack('N', [edged, hidden])).version).toBe(PACK_JSON_VERSION_UNDERLAYS);
+    expect(JSON.parse(serializePack('N', [makeLevel('a'), edged])).version).toBe(PACK_JSON_VERSION_CELL_EDGES);
+    expect(JSON.parse(serializePack('N', [{ ...makeLevel('a'), underlays: [] }])).version).toBe(PACK_JSON_VERSION);
+    expect(serializePack('N', [makeLevel('a'), edged])).not.toContain('underlays');
+    expect(serializePack('N', [makeLevel('a')])).not.toContain('underlays');
+  });
+
+  it('keeps the bytes of a version 1 and a version 2 pack as they were before underlays', () => {
+    const edged = { ...makeLevel('edged'), cellEdges: [{ x: 2, y: 2, sides: ['N' as const] }] };
+    const v1 = serializePack('N', [makeLevel('a')]);
+    const v2 = serializePack('N', [makeLevel('a'), edged]);
+    expect(v1).toBe(JSON.stringify({ format: PACK_JSON_FORMAT, version: 1, name: 'N', levels: [makeLevel('a')] }, null, 2));
+    expect(v2).toBe(JSON.stringify({ format: PACK_JSON_FORMAT, version: 2, name: 'N', levels: [makeLevel('a'), edged] }, null, 2));
+  });
+
+  it('round-trips underlays and reads versions 1 to 3', () => {
+    const hidden = { ...makeLevel('hidden'), underlays: [{ x: 2, y: 2, terrain: 'ice' }] };
+    hidden.terrain[2][2] = 'door_red';
+    const result = parse(serializePack('Hidden', [hidden]));
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) expect(result.levels[0].underlays).toEqual(hidden.underlays);
+    for (const version of [1, 2, 3]) {
+      const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
+      expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
+    }
   });
 
   it('refuses text that is not JSON, another format and a newer version', () => {

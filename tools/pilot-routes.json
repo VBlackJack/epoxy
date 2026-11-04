@@ -316,6 +316,92 @@
         "WWWWWWNWSSS",
         "S"
       ]
+    },
+    "epoxy_p_26": {
+      "segments": [
+        "EWSSSSWWWEE",
+        "EEEEESEENWW",
+        "WWWWWWWWNNN",
+        "NSSSSWWWEEE",
+        "SSSSNNNNEEE",
+        "ESS"
+      ]
+    },
+    "epoxy_p_27": {
+      "segments": [
+        "SSNNEEEEEEE",
+        "EEEEESSSSWS"
+      ]
+    },
+    "epoxy_p_28": {
+      "segments": [
+        "ESSSNNNEESS",
+        "SNNNEESSSNN",
+        "NEESSSNNNEE"
+      ]
+    },
+    "epoxy_p_29": {
+      "segments": [
+        "NEEEEEEEEEE",
+        "SNWWWWWSWSE",
+        "EEEESNWWWWW",
+        "WSSSSWSEEES",
+        "WNEEESSS"
+      ]
+    },
+    "epoxy_p_30": {
+      "segments": [
+        "NNNNEEEEEEE",
+        "EEWWSSWWWWW",
+        "WNWNEEEEEEE",
+        "EEWWWWWSEEN",
+        "ESWSEEEWWWW",
+        "WWWWWSENEES",
+        "SWNWNEEEEEE",
+        "EEWWWWWSEEN",
+        "ESWWWWWWWSE",
+        "EEENEESENWW",
+        "WSENEESEEWW",
+        "NWWSEEEE"
+      ]
+    },
+    "epoxy_p_31": {
+      "segments": [
+        "EEEENNSSWWW",
+        "WWWNNSSWWNN",
+        "SSEEEESS"
+      ],
+      "requires": [
+        "boots_fire"
+      ]
+    },
+    "epoxy_p_32": {
+      "segments": [
+        "SSESEEEEEEW",
+        "WWWNWNNSSES",
+        "EEEENEEEESS",
+        "SS"
+      ]
+    },
+    "epoxy_p_33": {
+      "segments": [
+        "NNNEWSSSESS",
+        "SEEWWSS"
+      ]
+    },
+    "epoxy_p_34": {
+      "segments": [
+        "NWENSEWWW"
+      ]
+    },
+    "epoxy_p_35": {
+      "segments": [
+        "NEEWWSESEWN",
+        "EEEE"
+      ],
+      "requires": [
+        "key_red"
+      ]
     }
   }
 }

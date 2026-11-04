@@ -84,6 +84,7 @@ sprite theme=default name=bomb 3c25f2d177c94153
 sprite theme=default name=flag cdc3fd0b5560b38d
 sprite theme=default name=stopwatch_bonus 0e9fce7b319124e6
 sprite theme=default name=stopwatch_penalty b99fa635f1093f64
+sprite theme=default name=slow_time b9d8423b8e271189
 sprite theme=default name=glyph_red 004c9c94fd2c2af9
 sprite theme=default name=glyph_blue c8f3d9be8db84303
 sprite theme=default name=glyph_yellow 575b16d9294757c3
@@ -201,6 +202,10 @@ sprite theme=default name=color_block_blue 37221eb03b40583b
 sprite theme=default name=color_block_yellow bd8919bd6b063529
 sprite theme=default name=mirror_slash 59860eb4b97fca2a
 sprite theme=default name=mirror_backslash 0d43b58c2956ba39
+sprite theme=default name=turret_fixed 5271bd594e79b62e
+sprite theme=default name=turret_cw dd181d91c4f04140
+sprite theme=default name=turret_ccw 34b8fb78fad2724c
+sprite theme=default name=turret_multi 696fecb29140addb
 sprite theme=default name=block_on_target a025ecab1cd574cc
 sprite theme=cyber_neon name=floor 833c3af7d294bb8b
 sprite theme=cyber_neon name=floor_detail_0 4e0f0a6a9766b02d
@@ -288,6 +293,7 @@ sprite theme=cyber_neon name=bomb ce3a270d66b9468a
 sprite theme=cyber_neon name=flag b071ea3d45c0bf3a
 sprite theme=cyber_neon name=stopwatch_bonus 5f4ccb634aeb1f4c
 sprite theme=cyber_neon name=stopwatch_penalty c2c032486be49472
+sprite theme=cyber_neon name=slow_time ffb8e2d3fe4d3dae
 sprite theme=cyber_neon name=glyph_red 6e1946b9b5868a11
 sprite theme=cyber_neon name=glyph_blue 5ff5269b4c5eac80
 sprite theme=cyber_neon name=glyph_yellow da615a4fd6a6ab58
@@ -405,6 +411,10 @@ sprite theme=cyber_neon name=color_block_blue c0f7a4d36cd0b438
 sprite theme=cyber_neon name=color_block_yellow 7b04ab70345de32e
 sprite theme=cyber_neon name=mirror_slash a1ee7d29bca3ac47
 sprite theme=cyber_neon name=mirror_backslash db832d9c6664cf9b
+sprite theme=cyber_neon name=turret_fixed 65f23ca66cfefad1
+sprite theme=cyber_neon name=turret_cw af3366a997451341
+sprite theme=cyber_neon name=turret_ccw f39007511cbbd01b
+sprite theme=cyber_neon name=turret_multi a2ffd7d7db6e077b
 sprite theme=cyber_neon name=block_on_target e0d648d8de49fa6e
 sprite theme=arctic_lab name=floor ebb9b14c214111ef
 sprite theme=arctic_lab name=floor_detail_0 a7afa2502af33e92
@@ -492,6 +502,7 @@ sprite theme=arctic_lab name=bomb 6fd67565948c503d
 sprite theme=arctic_lab name=flag 0e8c6ef6656319aa
 sprite theme=arctic_lab name=stopwatch_bonus fc7809722ace33fb
 sprite theme=arctic_lab name=stopwatch_penalty 889ac52f31b4db52
+sprite theme=arctic_lab name=slow_time 95cad4244f5f300e
 sprite theme=arctic_lab name=glyph_red 548b26382dca0e8e
 sprite theme=arctic_lab name=glyph_blue 08d8cf6e401931f9
 sprite theme=arctic_lab name=glyph_yellow 0f972de0ebbbe557
@@ -609,6 +620,10 @@ sprite theme=arctic_lab name=color_block_blue d4f89f1f3933142a
 sprite theme=arctic_lab name=color_block_yellow e2ab746d0ebf914b
 sprite theme=arctic_lab name=mirror_slash 5e6780099a90d03f
 sprite theme=arctic_lab name=mirror_backslash 4ee677dc678cee38
+sprite theme=arctic_lab name=turret_fixed 44b3a8b8edd2ffc7
+sprite theme=arctic_lab name=turret_cw e17fab7c980fc9e0
+sprite theme=arctic_lab name=turret_ccw 2ab33cee3409260b
+sprite theme=arctic_lab name=turret_multi 333079a76856bd29
 sprite theme=arctic_lab name=block_on_target 674c4e6747fb45d7
 sprite theme=magma_core name=floor c1ac33fcce2da3f9
 sprite theme=magma_core name=floor_detail_0 753cdb9827f56bab
@@ -696,6 +711,7 @@ sprite theme=magma_core name=bomb b76540265f8db373
 sprite theme=magma_core name=flag 5b4ce0a19399c6b1
 sprite theme=magma_core name=stopwatch_bonus 85cafaff4511a3fd
 sprite theme=magma_core name=stopwatch_penalty 4ee6718373575536
+sprite theme=magma_core name=slow_time ce8282cc91c7f043
 sprite theme=magma_core name=glyph_red f000f6fccaa8bd2d
 sprite theme=magma_core name=glyph_blue d2bf7d881495e2d4
 sprite theme=magma_core name=glyph_yellow 6bc4f1be9aeb5fba
@@ -813,6 +829,10 @@ sprite theme=magma_core name=color_block_blue 5c2f0874715b8c35
 sprite theme=magma_core name=color_block_yellow 784538e0550d0adb
 sprite theme=magma_core name=mirror_slash 3c35d3a2701fe635
 sprite theme=magma_core name=mirror_backslash 77cc5dd7518ca54a
+sprite theme=magma_core name=turret_fixed d6217086fac94d04
+sprite theme=magma_core name=turret_cw 7d53edfafba8c102
+sprite theme=magma_core name=turret_ccw 02430925e2858cc5
+sprite theme=magma_core name=turret_multi e4615a1747ff5843
 sprite theme=magma_core name=block_on_target b288f6d3db4ff61b
 sprite theme=lynx_lcd name=floor 4e76eb8826d65108
 sprite theme=lynx_lcd name=floor_detail_0 440f493adb2165dd
@@ -900,6 +920,7 @@ sprite theme=lynx_lcd name=bomb 671c3eb46661eb53
 sprite theme=lynx_lcd name=flag 020574d33c91ace4
 sprite theme=lynx_lcd name=stopwatch_bonus 5028d3738366f927
 sprite theme=lynx_lcd name=stopwatch_penalty 26f4e230a371c2d2
+sprite theme=lynx_lcd name=slow_time b65bd4463aa64287
 sprite theme=lynx_lcd name=glyph_red a5eaab6f1be68f08
 sprite theme=lynx_lcd name=glyph_blue 7ad63eafeaac15c4
 sprite theme=lynx_lcd name=glyph_yellow ef08c8ebe14ffda5
@@ -1017,4 +1038,8 @@ sprite theme=lynx_lcd name=color_block_blue 017438c0e0255b8f
 sprite theme=lynx_lcd name=color_block_yellow ba03f28aae538a6e
 sprite theme=lynx_lcd name=mirror_slash dce1810a9409ccb4
 sprite theme=lynx_lcd name=mirror_backslash 00d371245a6d7654
+sprite theme=lynx_lcd name=turret_fixed c3187b63ff136fbe
+sprite theme=lynx_lcd name=turret_cw 5432d0c0a622ff71
+sprite theme=lynx_lcd name=turret_ccw 4f10d3b5bd839268
+sprite theme=lynx_lcd name=turret_multi 7ed5f0c1bf87dafd
 sprite theme=lynx_lcd name=block_on_target 085f7bf03e96c0cb
