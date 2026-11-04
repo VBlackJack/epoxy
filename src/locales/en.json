@@ -839,6 +839,17 @@
           "generate": "Generate"
         }
       },
+      "layers": {
+        "hidden_terrain": {
+          "label": "Hidden terrain",
+          "none": { "label": "None" },
+          "hint": { "label": "The terrain under this tile, revealed when the player removes it." },
+          "unavailable": { "label": "Put the cursor on a door, socket, fake wall or dirt to hide a terrain under it." },
+          "lynx": { "label": "Hidden terrain is not available under Lynx rules: switch this level to Epoxy to set it." },
+          "set": "Cell ({x}, {y}) now hides {name}.",
+          "cleared": "Cell ({x}, {y}): no terrain is hidden now."
+        }
+      },
       "rules": {
         "engine": { "label": "Engine" },
         "description": {

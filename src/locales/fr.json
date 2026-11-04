@@ -839,6 +839,17 @@
           "generate": "Générer"
         }
       },
+      "layers": {
+        "hidden_terrain": {
+          "label": "Terrain caché",
+          "none": { "label": "Aucun" },
+          "hint": { "label": "Le terrain sous cette tuile, révélé quand le joueur la retire." },
+          "unavailable": { "label": "Placez le curseur sur une porte, un verrou de puces, un faux mur ou de la terre meuble pour cacher un terrain dessous." },
+          "lynx": { "label": "Le terrain caché n'est pas disponible avec les règles Lynx : passez ce niveau en Epoxy pour le définir." },
+          "set": "La case ({x}, {y}) cache maintenant {name}.",
+          "cleared": "Case ({x}, {y}) : plus aucun terrain caché."
+        }
+      },
       "rules": {
         "engine": { "label": "Moteur" },
         "description": {
