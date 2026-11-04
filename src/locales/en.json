@@ -558,6 +558,8 @@
       "shot_trigger_no_link": { "label": "Warning: A trigger at ({x}, {y}) is linked to no launcher, so it fires nothing." },
       "shot_launcher_unlinked": { "label": "Warning: A shot launcher at ({x}, {y}) has no trigger linked to it, so it never fires." },
       "shot_launcher_faces_wall": { "label": "Warning: A shot launcher at ({x}, {y}) faces a wall or the edge of the map, so its shots end at once." },
+      "trap_button_no_trap": { "label": "Info: A brown button has no trap to spring: no trap exists on this level." },
+      "clone_button_nothing": { "label": "Info: The red button at ({x}, {y}) has no clone link, and no clone machine holds a template, so it clones nothing." },
       "puppet_no_steering_pad": { "label": "Warning: A puppet has no Puppet Control to move it, so it can never step." },
       "exit_on_receivers_level": { "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers." },
       "start_on_wall": { "label": "Warning: The player start is in a wall." },
