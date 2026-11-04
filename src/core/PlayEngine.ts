@@ -71,6 +71,8 @@ export interface PlayEngine {
    * Derived state, never part of a snapshot; an engine without lasers omits it.
    */
   getBeamCells?(): readonly BeamCell[];
+  /** Optional. The cells the laser emitters' beams cross, without the turret beams; an engine without turrets omits it. */
+  getEmitterBeamCells?(): readonly BeamCell[];
   /**
    * Optional. The thin wall sides of the cells that have any, by cell index (y * width + x), only for
    * cells whose display id does not already show them. Derived state; an engine without panels omits it.

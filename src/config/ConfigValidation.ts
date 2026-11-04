@@ -800,6 +800,46 @@ export function findColorChannelConfigErrors(
   return errors;
 }
 
+/** Bounds of a turret beam, in cells. */
+const MIN_TURRET_BEAM_LENGTH = 1;
+const MAX_TURRET_BEAM_LENGTH = 8;
+/** Quarter turns a turret may make each period: fixed, clockwise or counter-clockwise. */
+const TURRET_TURNS: readonly number[] = [-1, 0, 1];
+/** Opacity modes of a turret beam. */
+const TURRET_OPACITIES: readonly string[] = ['block', 'laser'];
+
+/**
+ * Problems of the turretBeam field of an entity: a block (never a monster) with a beam length of 1 to 8
+ * cells, a turn of -1, 0 or 1, a turn period of at least one tick, boolean flags and a known opacity,
+ * and no mirror axis (a turret is not a mirror). Each entry names the entity.
+ */
+export function findTurretConfigErrors(entities: Record<string, EntityDefinition>): string[] {
+  const errors: string[] = [];
+  for (const entity of Object.values(entities)) {
+    const beam = entity.turretBeam;
+    if (beam === undefined) continue;
+    const { id } = entity;
+    if (entity.kind !== 'block') errors.push(`${id}.turretBeam: only a block may be a turret`);
+    if (entity.mirrorAxis !== undefined) errors.push(`${id}.turretBeam: a turret cannot also be a mirror`);
+    const lengthValid =
+      Number.isInteger(beam.length) && beam.length >= MIN_TURRET_BEAM_LENGTH && beam.length <= MAX_TURRET_BEAM_LENGTH;
+    if (!lengthValid) {
+      errors.push(`${id}.turretBeam.length: expected an integer from ${MIN_TURRET_BEAM_LENGTH} to ${MAX_TURRET_BEAM_LENGTH}`);
+    }
+    if (!TURRET_TURNS.includes(beam.turn)) errors.push(`${id}.turretBeam.turn: expected -1, 0 or 1`);
+    if (!Number.isInteger(beam.turnPeriodTicks) || beam.turnPeriodTicks < 1) {
+      errors.push(`${id}.turretBeam.turnPeriodTicks: expected an integer of at least 1`);
+    }
+    for (const flag of ['allSides', 'faceOnPush', 'firesAfterFirstStep'] as const) {
+      if (beam[flag] !== undefined && typeof beam[flag] !== 'boolean') errors.push(`${id}.turretBeam.${flag}: expected a boolean`);
+    }
+    if (beam.opacity !== undefined && !TURRET_OPACITIES.includes(beam.opacity)) {
+      errors.push(`${id}.turretBeam.opacity: expected "block" or "laser"`);
+    }
+  }
+  return errors;
+}
+
 /** Bounds of the slowsMonsters factor: at least twice as slow, at most four times. */
 const MIN_MONSTER_SLOWDOWN = 2;
 const MAX_MONSTER_SLOWDOWN = 4;

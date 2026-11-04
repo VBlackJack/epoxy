@@ -529,10 +529,14 @@ describe('DatCodec export fidelity', () => {
     gate.terrain[3][3] = 'laser_gate_red_closed';
     const mirror = blankLevel(4);
     mirror.entities = [{ type: 'mirror_slash', x: 3, y: 3, dir: 'S' }];
+    // A turret fires a beam the format cannot hold: it would be written as a plain block.
+    const turretLevel = blankLevel(6);
+    turretLevel.entities = [{ type: 'turret_cw', x: 3, y: 3, dir: 'S' }];
     expect(datRefusalReason(receivers)).toBe('receivers_win_rule');
     expect(datRefusalReason(emitter)).toBe('laser_content');
     expect(datRefusalReason(gate)).toBe('laser_content');
     expect(datRefusalReason(mirror)).toBe('laser_content');
+    expect(datRefusalReason(turretLevel)).toBe('laser_content');
     const encoded = DatCodec.encodeLevelsWithReport([emitter, mirror, blankLevel(5)]);
     expect(encoded.refused.map((r) => r.reason)).toEqual(['laser_content', 'laser_content']);
     expect(encoded.levelCount).toBe(1);
