@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { Direction } from '../core/types';
 import { t } from '../i18n/I18nManager';
+import { closedSidesAt } from './editorCellEdges';
 import { EditorMap } from './editorDocument';
 import { ToolMessage } from './editorTools';
 
@@ -25,7 +26,9 @@ const NAME_KEY = 'editor.cell_speech.name.label';
 const OUTSIDE_KEY = 'editor.cell_speech.outside.label';
 const ITEM_KEY = 'editor.cell_speech.item.label';
 const ENTITY_KEY = 'editor.cell_speech.entity.label';
+const EDGES_KEY = 'editor.cell_speech.edges.label';
 const PLAYER_KEY = 'editor.cell_speech.player.label';
+const SIDE_LIST_SEPARATOR_KEY = 'editor.cell_speech.list_separator.label';
 const SIDE_KEYS: Record<Direction, string> = {
   N: 'editor.cell_speech.side.n.label',
   E: 'editor.cell_speech.side.e.label',
@@ -93,6 +96,9 @@ export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
         );
       }
     }
+    // The line between two cells is one wall: the neighbours' matching walls are spoken as the drawing shows them.
+    const closed = closedSidesAt(map, x, y);
+    if (closed.length > 0) parts.push({ key: EDGES_KEY, params: { sides: closed.map(sideOf).join(t(SIDE_LIST_SEPARATOR_KEY)) } });
   }
   if (map.playerStart.x === x && map.playerStart.y === y) {
     parts.push({ key: PLAYER_KEY, params: { side: sideOf(map.playerStart.dir) } });

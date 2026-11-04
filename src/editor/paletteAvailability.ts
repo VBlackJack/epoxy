@@ -41,6 +41,11 @@ export function tileAvailability(ruleset: EditableRuleset, tileId: string): Avai
   return epoxyOnlyUnless(ruleset, isEpoxyOnlyTileId(tileId));
 }
 
+/** Availability of the thin wall tool: the walls on cell sides need Epoxy rules. */
+export function cellEdgeAvailability(ruleset: EditableRuleset): Availability {
+  return epoxyOnlyUnless(ruleset, true);
+}
+
 /** Availability of an entity (block or monster id): laser mirrors and colour blocks need Epoxy rules. */
 export function entityAvailability(ruleset: EditableRuleset, entityType: string): Availability {
   return epoxyOnlyUnless(ruleset, isEpoxyOnlyEntityType(entityType));

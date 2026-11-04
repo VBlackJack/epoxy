@@ -26,12 +26,15 @@ import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import showcase from '../test/fixtures/mechanicsShowcase.json';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { mountModals } from '../test/domFixture';
+import { cc3dEntriesOf } from './cc3dPalette';
+import { smallCc3dLevel } from './cc3dEditorFixtures';
 import { LevelEditor } from './LevelEditor';
 
 const WIDTH = 8;
 const HEIGHT = 6;
 const EDGES_LEVEL_INDEX = 2;
 const ROOM_EDGES: CellEdge[] = [{ x: 3, y: 2, sides: ['N', 'E'] }];
+const CELL_PX = 10;
 
 const fake = new FakeIndexedDb();
 let editor: LevelEditor;
@@ -232,5 +235,309 @@ describe('thin walls in the editor', () => {
     const played = onTestPlay.mock.calls[0][0] as CompiledLevel;
     expect(played.cellEdges).toEqual(showcaseEdgesLevel().cellEdges);
     expect(played.playerStart).toMatchObject({ x: 2, y: 1 });
+  });
+});
+
+/** The button of the palette whose label is the given text, in the active tab. */
+function paletteButton(label: string): HTMLButtonElement | undefined {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-palette-grid button')).find(
+    (btn) => btn.querySelector('.palette-item-label')?.textContent === label
+  );
+}
+
+function edgeButton(): HTMLButtonElement | undefined {
+  return paletteButton(t('editor.palette.tools.cell_edge'));
+}
+
+/** A pointer event at an offset (0 to 1) inside the cell (x, y); the canvas is WIDTH x HEIGHT cells of CELL_PX. */
+function pointerAt(type: string, x: number, y: number, fx = 0.5, fy = 0.5, init: MouseEventInit = {}): void {
+  canvas.dispatchEvent(
+    new MouseEvent(type, { bubbles: true, cancelable: true, clientX: (x + fx) * CELL_PX, clientY: (y + fy) * CELL_PX, ...init })
+  );
+}
+
+function release(): void {
+  window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+}
+
+const CC3D_WIDTH = 5;
+const CC3D_HEIGHT = 4;
+
+/** The canvas of the small CC3D fixture: CC3D_WIDTH x CC3D_HEIGHT cells of CELL_PX. */
+function useCc3dGrid(): void {
+  canvas.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, right: CC3D_WIDTH * CELL_PX, bottom: CC3D_HEIGHT * CELL_PX, width: CC3D_WIDTH * CELL_PX, height: CC3D_HEIGHT * CELL_PX, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+}
+
+/** A click near the east side of a cell. */
+function clickEast(x: number, y: number): void {
+  pointerAt('pointerdown', x, y, 0.9, 0.5);
+  release();
+}
+
+describe('the thin wall tool', () => {
+  beforeEach(() => {
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: WIDTH * CELL_PX, bottom: HEIGHT * CELL_PX, width: WIDTH * CELL_PX, height: HEIGHT * CELL_PX, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  });
+
+  it('ends the Terrain tab on an Epoxy level, and is absent from a CC3D palette', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    const button = edgeButton();
+    expect(button).toBeDefined();
+    expect(button?.getAttribute('aria-disabled')).toBeNull();
+    const buttons = Array.from(document.querySelectorAll('#editor-palette-grid button'));
+    expect(buttons[buttons.length - 1]).toBe(button);
+
+    editor.loadCompiledLevel(smallCc3dLevel());
+    const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-category-tabs button'));
+    for (const tab of tabs) {
+      tab.click();
+      expect(edgeButton()).toBeUndefined();
+    }
+  });
+
+  it('is greyed under Lynx with the reason, and a click on the map changes nothing', () => {
+    editor.loadCompiledLevel(room('lynx', undefined));
+    const button = edgeButton();
+    expect(button?.getAttribute('aria-disabled')).toBe('true');
+    expect(button?.getAttribute('aria-description')).toBe(t('editor.palette.unavailable.epoxy_only.label'));
+    button?.click();
+    expect(byId('editor-status-bar').textContent).toBe(t('editor.palette.unavailable.epoxy_only.label'));
+    // Even with the brush forced, the application refuses.
+    editor['brush'] = { kind: 'cell_edge', id: 'cell_edge' };
+    clickEast(3, 2);
+    expect(editor.exportCompiledLevel().cellEdges).toBeUndefined();
+    expect(byId('editor-status-bar').textContent).toBe(t('editor.palette.unavailable.epoxy_only.label'));
+  });
+
+  it('says what it does when it is chosen', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    edgeButton()?.click();
+    expect(byId('editor-status-bar').textContent).toBe(t('editor.palette.status.cell_edge_mode'));
+  });
+
+  it('toggles the side nearest the pointer with one undo step, and locks the Lynx choice', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    expect(lynxOption()?.disabled).toBe(false);
+    edgeButton()?.click();
+    clickEast(3, 2);
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 3, y: 2, sides: ['E'] }]);
+    expect(lynxOption()?.disabled).toBe(true);
+    clickEast(3, 2);
+    expect(editor.exportCompiledLevel().cellEdges).toBeUndefined();
+    clickEast(3, 2);
+    pointerAt('pointerdown', 3, 2, 0.5, 0.1);
+    release();
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 3, y: 2, sides: ['N', 'E'] }]);
+    editor.undo();
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 3, y: 2, sides: ['E'] }]);
+  });
+
+  it('toggles once for a drag, not once per cell crossed', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    edgeButton()?.click();
+    pointerAt('pointerdown', 3, 2, 0.9, 0.5);
+    pointerAt('pointermove', 4, 2, 0.9, 0.5);
+    pointerAt('pointermove', 5, 2, 0.9, 0.5);
+    release();
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 3, y: 2, sides: ['E'] }]);
+    editor.undo();
+    expect(editor.exportCompiledLevel().cellEdges).toBeUndefined();
+  });
+
+  it('removes a wall that the neighbour holds, from both cells, in one click', () => {
+    editor.loadCompiledLevel(
+      room(undefined, [
+        { x: 3, y: 2, sides: ['E'] },
+        { x: 4, y: 2, sides: ['W', 'S'] }
+      ])
+    );
+    edgeButton()?.click();
+    pointerAt('pointerdown', 4, 2, 0.1, 0.5);
+    release();
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 4, y: 2, sides: ['S'] }]);
+  });
+
+  it('uses the direction control for the keyboard, on Space', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    edgeButton()?.click();
+    canvas.focus();
+    document.querySelector<HTMLButtonElement>('#editor-dir-group [data-dir="E"]')?.click();
+    press('ArrowRight');
+    press(' ');
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 2, y: 1, sides: ['E'] }]);
+    document.querySelector<HTMLButtonElement>('#editor-dir-group [data-dir="N"]')?.click();
+    press(' ');
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 2, y: 1, sides: ['N', 'E'] }]);
+  });
+
+  it('draws the side bar only while its entry is the brush, and follows the pointer and the direction control', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    const hint = vi.spyOn(editor as unknown as { drawSideHint: (...args: unknown[]) => void }, 'drawSideHint');
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    editor.render();
+    expect(hint).not.toHaveBeenCalled();
+
+    edgeButton()?.click();
+    hint.mockClear();
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    editor.render();
+    expect(hint).toHaveBeenCalledWith({ x: 3, y: 2 }, 'E', expect.any(Number));
+
+    hint.mockClear();
+    pointerAt('pointermove', 3, 2, 0.5, 0.95);
+    editor.render();
+    expect(hint).toHaveBeenCalledWith({ x: 3, y: 2 }, 'S', expect.any(Number));
+
+    // With the pointer gone, the keyboard cursor and the direction control take over.
+    canvas.dispatchEvent(new MouseEvent('pointerleave', { bubbles: true }));
+    canvas.focus();
+    press('ArrowRight');
+    document.querySelector<HTMLButtonElement>('#editor-dir-group [data-dir="W"]')?.click();
+    expect(hint).toHaveBeenLastCalledWith({ x: 2, y: 1 }, 'W', expect.any(Number));
+
+    // Another tool or entry puts the bar away.
+    hint.mockClear();
+    editor.setTool('eraser');
+    editor.render();
+    expect(hint).not.toHaveBeenCalled();
+  });
+
+  it('leaves the picker taking terrain, and the eraser clearing only the walls of its own cell', () => {
+    editor.loadCompiledLevel(
+      room(undefined, [
+        { x: 3, y: 2, sides: ['E'] },
+        { x: 4, y: 2, sides: ['W'] }
+      ])
+    );
+    edgeButton()?.click();
+    editor.setTool('picker');
+    pointerAt('pointerdown', 3, 2);
+    release();
+    expect(editor['brush']).toEqual({ kind: 'terrain', id: 'floor' });
+
+    editor.setTool('eraser');
+    pointerAt('pointerdown', 4, 2);
+    release();
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([{ x: 3, y: 2, sides: ['E'] }]);
+  });
+
+  it('exports several toggled walls in canonical order', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    edgeButton()?.click();
+    clickEast(2, 3);
+    clickEast(1, 3);
+    expect(editor.exportCompiledLevel().cellEdges).toEqual([
+      { x: 1, y: 3, sides: ['E'] },
+      { x: 2, y: 3, sides: ['E'] }
+    ]);
+  });
+
+  it('redraws the map after an Alt-click pick, so the side bar goes away with its entry', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    edgeButton()?.click();
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    const render = vi.spyOn(editor, 'render');
+    const hint = vi.spyOn(editor as unknown as { drawSideHint: (...args: unknown[]) => void }, 'drawSideHint');
+    pointerAt('pointerdown', 3, 2, 0.5, 0.5, { altKey: true });
+    release();
+    expect(editor['brush']).toEqual({ kind: 'terrain', id: 'floor' });
+    expect(render).toHaveBeenCalled();
+    hint.mockClear();
+    editor.render();
+    expect(hint).not.toHaveBeenCalled();
+  });
+
+  it('draws the side bar on a CC3D level with the thin wall entry and not with another entry', () => {
+    editor.loadCompiledLevel(smallCc3dLevel());
+    useCc3dGrid();
+    const hint = vi.spyOn(editor as unknown as { drawSideHint: (...args: unknown[]) => void }, 'drawSideHint');
+    pointerAt('pointermove', 2, 1, 0.9, 0.5);
+    editor.render();
+    expect(hint).not.toHaveBeenCalled();
+
+    const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-category-tabs button'));
+    tabs[2].click();
+    const entries = cc3dEntriesOf('blockers');
+    const panelIndex = entries.findIndex((entry) => entry.action === 'panel');
+    const otherIndex = entries.findIndex((entry) => entry.action !== 'panel');
+    const buttons = (): HTMLButtonElement[] => Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-palette-grid button'));
+    buttons()[otherIndex].click();
+    hint.mockClear();
+    pointerAt('pointermove', 2, 1, 0.9, 0.5);
+    editor.render();
+    expect(hint).not.toHaveBeenCalled();
+
+    buttons()[panelIndex].click();
+    hint.mockClear();
+    pointerAt('pointermove', 2, 1, 0.9, 0.5);
+    editor.render();
+    expect(hint).toHaveBeenCalledWith({ x: 2, y: 1 }, 'E', expect.any(Number));
+  });
+
+  it('follows the keyboard cursor after a keyboard move even while the pointer hovers, and the pointer again after it moves', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    edgeButton()?.click();
+    const hint = vi.spyOn(editor as unknown as { drawSideHint: (...args: unknown[]) => void }, 'drawSideHint');
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    canvas.focus();
+    document.querySelector<HTMLButtonElement>('#editor-dir-group [data-dir]')?.click();
+    press('ArrowRight');
+    document.querySelector<HTMLButtonElement>('#editor-dir-group [data-dir="W"]')?.click();
+    hint.mockClear();
+    editor.render();
+    expect(hint).toHaveBeenLastCalledWith({ x: 2, y: 1 }, 'W', expect.any(Number));
+
+    hint.mockClear();
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    editor.render();
+    expect(hint).toHaveBeenLastCalledWith({ x: 3, y: 2 }, 'E', expect.any(Number));
+  });
+
+  it('puts the bar on the cursor cell after a thin wall entry is chosen by keyboard, on Epoxy and CC3D levels', () => {
+    editor.loadCompiledLevel(room(undefined, undefined));
+    const hint = vi.spyOn(editor as unknown as { drawSideHint: (...args: unknown[]) => void }, 'drawSideHint');
+    canvas.focus();
+    press('ArrowRight');
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    press('ArrowDown');
+    hint.mockClear();
+    // A click with no pointer detail is how Enter or Space activates a button.
+    edgeButton()?.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    expect(hint).toHaveBeenLastCalledWith({ x: 2, y: 2 }, expect.any(String), expect.any(Number));
+
+    editor.loadCompiledLevel(smallCc3dLevel());
+    useCc3dGrid();
+    Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-category-tabs button'))[2].click();
+    canvas.focus();
+    press('ArrowRight');
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    const panelIndex = cc3dEntriesOf('blockers').findIndex((entry) => entry.action === 'panel');
+    hint.mockClear();
+    document
+      .querySelectorAll<HTMLButtonElement>('#editor-palette-grid button')
+      [panelIndex].dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    expect(hint).toHaveBeenLastCalledWith(editor['cursorCell'], expect.any(String), expect.any(Number));
+  });
+
+  it('follows the keyboard cursor on a CC3D level too, and the pointer once it moves', () => {
+    editor.loadCompiledLevel(smallCc3dLevel());
+    useCc3dGrid();
+    Array.from(document.querySelectorAll<HTMLButtonElement>('#editor-category-tabs button'))[2].click();
+    const panelIndex = cc3dEntriesOf('blockers').findIndex((entry) => entry.action === 'panel');
+    document.querySelectorAll<HTMLButtonElement>('#editor-palette-grid button')[panelIndex].click();
+    const hint = vi.spyOn(editor as unknown as { drawSideHint: (...args: unknown[]) => void }, 'drawSideHint');
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    canvas.focus();
+    press('ArrowRight');
+    hint.mockClear();
+    editor.render();
+    expect(hint).toHaveBeenLastCalledWith(editor['cursorCell'], editor['activeDir'], expect.any(Number));
+
+    hint.mockClear();
+    pointerAt('pointermove', 3, 2, 0.9, 0.5);
+    editor.render();
+    expect(hint).toHaveBeenLastCalledWith({ x: 3, y: 2 }, 'E', expect.any(Number));
   });
 });

@@ -15,6 +15,7 @@
  */
 
 import { normalizeCellEdges } from '../config/ConfigValidation';
+import { OPPOSITE_DIRECTION } from '../core/coreConstants';
 import type { CellEdge, Direction, Ruleset } from '../core/types';
 
 /** Thin walls belong to the Epoxy ruleset only; this is the ruleset their canonical form is computed for. */
@@ -55,6 +56,62 @@ export function hasCellEdges(map: Pick<CellEdgeHolder, 'cellEdges'>): boolean {
 export function edgesAt(map: Pick<CellEdgeHolder, 'cellEdges'>, x: number, y: number): Direction[] {
   const entry = map.cellEdges?.find((e) => e.x === x && e.y === y);
   return entry ? [...entry.sides] : [];
+}
+
+/** Step of the neighbour across each side, as a column and row offset. */
+const SIDE_STEP: Readonly<Record<Direction, { dx: number; dy: number }>> = {
+  N: { dx: 0, dy: -1 },
+  E: { dx: 1, dy: 0 },
+  S: { dx: 0, dy: 1 },
+  W: { dx: -1, dy: 0 }
+};
+
+/** Sides in the order the walls are listed and spoken. */
+const SIDE_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];
+
+/** The cell across a side, or null when that side is the border of the grid. */
+function neighbourAcross(
+  map: Pick<CellEdgeHolder, 'terrain'>,
+  x: number,
+  y: number,
+  side: Direction
+): { x: number; y: number } | null {
+  const nx = x + SIDE_STEP[side].dx;
+  const ny = y + SIDE_STEP[side].dy;
+  const row = map.terrain[ny];
+  return row && nx >= 0 && nx < row.length ? { x: nx, y: ny } : null;
+}
+
+/** True when a side of a cell is closed: its own wall, or the matching wall of the neighbour across it. */
+export function isSideClosed(map: CellEdgeHolder, x: number, y: number, side: Direction): boolean {
+  if (edgesAt(map, x, y).includes(side)) return true;
+  const across = neighbourAcross(map, x, y, side);
+  return across !== null && edgesAt(map, across.x, across.y).includes(OPPOSITE_DIRECTION[side]);
+}
+
+/** The closed sides of a cell as the drawing shows them (own walls and the neighbours' matching walls), in N, E, S, W order. */
+export function closedSidesAt(map: CellEdgeHolder, x: number, y: number): Direction[] {
+  return SIDE_ORDER.filter((side) => isSideClosed(map, x, y, side));
+}
+
+/**
+ * Toggles one side of a cell, treating the line between two cells as one wall: a closed line (own wall or the
+ * neighbour's matching one) is opened by removing it from both cells, an open one is closed on the own cell only.
+ * The map is changed in place.
+ */
+export function toggleSide(map: CellEdgeHolder, x: number, y: number, side: Direction): void {
+  if (isSideClosed(map, x, y, side)) {
+    const own = edgesAt(map, x, y);
+    if (own.includes(side)) setEdgesAt(map, x, y, own.filter((s) => s !== side));
+    const across = neighbourAcross(map, x, y, side);
+    if (across) {
+      const opposite = OPPOSITE_DIRECTION[side];
+      const theirs = edgesAt(map, across.x, across.y);
+      if (theirs.includes(opposite)) setEdgesAt(map, across.x, across.y, theirs.filter((s) => s !== opposite));
+    }
+  } else {
+    setEdgesAt(map, x, y, [...edgesAt(map, x, y), side]);
+  }
 }
 
 /** Stores the edges of a map in canonical form, or removes the field when none is left. */
