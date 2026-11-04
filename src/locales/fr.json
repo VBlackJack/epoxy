@@ -884,7 +884,7 @@
         "hidden_terrain": {
           "label": "Terrain caché",
           "none": { "label": "Aucun" },
-          "hint": { "label": "Le terrain sous cette tuile, révélé quand le joueur la retire." },
+          "hint": { "label": "Le terrain sous cette tuile, révélé quand le joueur la retire. Une porte à clé ou un verrou de puces peut aussi cacher un verrou de puces, de la terre meuble, un faux mur, un mur bascule, une porte à plaque ou une plaque de pression ; un petit carré marque un mur bascule ou une porte à plaque caché, plein s'il est enregistré fermé et vide s'il est ouvert." },
           "unavailable": { "label": "Placez le curseur sur une porte, un verrou de puces, un faux mur ou de la terre meuble pour cacher un terrain dessous." },
           "lynx": { "label": "Le terrain caché n'est pas disponible avec les règles Lynx : passez ce niveau en Epoxy pour le définir." },
           "set": "La case ({x}, {y}) cache maintenant {name}.",

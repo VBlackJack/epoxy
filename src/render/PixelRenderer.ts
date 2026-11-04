@@ -71,6 +71,14 @@ import {
 } from './terrainState';
 import { cameraPosition, FrameGeometry, pointToGrid } from './viewMapping';
 import { Light, LightingLayer } from './LightingLayer';
+import {
+  EDITOR_HIDDEN_STATE_BADGE_EDGE,
+  EDITOR_HIDDEN_STATE_BADGE_FILL,
+  EDITOR_HIDDEN_STATE_BADGE_INSET_TILE,
+  EDITOR_HIDDEN_STATE_BADGE_LINE_TILE,
+  EDITOR_HIDDEN_STATE_BADGE_MIN_LINE_PX,
+  EDITOR_HIDDEN_STATE_BADGE_SIZE_TILE
+} from '../ui/uiConstants';
 import { iceBendGeometry, IceBendGeometry, QUARTER_TURN } from './iceBend';
 import { armRects, BEAM_CORE_TILE, BEAM_HALO_TILE, beamArms, BeamBoard } from './laserBeams';
 import {
@@ -2098,6 +2106,27 @@ export class PixelRenderer {
     ctx.restore();
   }
 
+  /** A small square in the opposite corner: filled when the hidden terrain is stored closed, outlined when open. */
+  private drawHiddenStateBadge(ctx: CanvasRenderingContext2D, closed: boolean, x: number, y: number, size: number): void {
+    const side = size * EDITOR_HIDDEN_STATE_BADGE_SIZE_TILE;
+    const inset = size * EDITOR_HIDDEN_STATE_BADGE_INSET_TILE;
+    const line = Math.max(EDITOR_HIDDEN_STATE_BADGE_MIN_LINE_PX, size * EDITOR_HIDDEN_STATE_BADGE_LINE_TILE);
+    const left = x + inset;
+    const top = y + size - inset - side;
+    ctx.save();
+    ctx.fillStyle = EDITOR_HIDDEN_STATE_BADGE_EDGE;
+    ctx.fillRect(left - line, top - line, side + 2 * line, side + 2 * line);
+    if (closed) {
+      ctx.fillStyle = EDITOR_HIDDEN_STATE_BADGE_FILL;
+      ctx.fillRect(left, top, side, side);
+    } else {
+      ctx.strokeStyle = EDITOR_HIDDEN_STATE_BADGE_FILL;
+      ctx.lineWidth = line;
+      ctx.strokeRect(left + line / 2, top + line / 2, side - line, side - line);
+    }
+    ctx.restore();
+  }
+
   /** Turns the stacked-layer corner marker on or off (the level editor shows it, play does not). */
   public setHiddenLayerMarkers(visible: boolean): void {
     this.hiddenLayerMarkers = visible;
@@ -2137,7 +2166,8 @@ export class PixelRenderer {
 
   /**
    * The panel bars and the stacked-layer marker of one cell, for a caller that draws its cells itself
-   * (the level editor). The marker only shows while setHiddenLayerMarkers(true) is on.
+   * (the level editor). The marker only shows while setHiddenLayerMarkers(true) is on. `hiddenClosed` adds the
+   * stored-state badge of a hidden toggle wall or hold door (true closed, false open); play never passes it.
    */
   public drawCellOverlay(
     ctx: CanvasRenderingContext2D,
@@ -2145,10 +2175,14 @@ export class PixelRenderer {
     marked: boolean,
     x: number,
     y: number,
-    size: number
+    size: number,
+    hiddenClosed?: boolean
   ): void {
     if (edges && edges.length > 0) this.drawPanelBars(ctx, edges, x, y, size);
-    if (marked && this.hiddenLayerMarkers) this.drawHiddenLayerMarker(ctx, x, y, size);
+    if (marked && this.hiddenLayerMarkers) {
+      this.drawHiddenLayerMarker(ctx, x, y, size);
+      if (hiddenClosed !== undefined) this.drawHiddenStateBadge(ctx, hiddenClosed, x, y, size);
+    }
   }
 
   /** Palette and colour-blind glyphs the cc3d painters draw with. */

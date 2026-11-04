@@ -154,6 +154,13 @@ export const EDITOR_BLOCK_CHECK_TIMEOUT_MS = 30000;
 export const EDITOR_HOVER_OUTLINE_COLOR = '#ffffff';
 export const EDITOR_CURSOR_OUTLINE_COLOR = '#00e5ff';
 export const EDITOR_WIRE_SOURCE_COLOR = '#ffd600';
+/** Stored-state badge of a hidden toggle wall or hold door (editor only): a square in the bottom-left corner, filled when closed, outlined when open. */
+export const EDITOR_HIDDEN_STATE_BADGE_SIZE_TILE = 0.2;
+export const EDITOR_HIDDEN_STATE_BADGE_INSET_TILE = 0.06;
+export const EDITOR_HIDDEN_STATE_BADGE_LINE_TILE = 0.05;
+export const EDITOR_HIDDEN_STATE_BADGE_MIN_LINE_PX = 1;
+export const EDITOR_HIDDEN_STATE_BADGE_FILL = '#ffffff';
+export const EDITOR_HIDDEN_STATE_BADGE_EDGE = '#000000';
 export const EDITOR_OVERLAY_LINE_WIDTH = 2;
 /** Selection overlay: outline colour, dash pattern (on, off in pixels), and the dim laid over cells outside it. */
 export const EDITOR_SELECTION_OUTLINE_COLOR = '#ff4081';
