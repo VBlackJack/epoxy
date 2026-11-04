@@ -59,6 +59,14 @@ describe('colour channel aids', () => {
     entities: entityType ? [{ type: entityType, x: 1, y: 1, dir: 'S' }] : []
   });
 
+  it('names the slow-time item as Epoxy only, alone and in a level', () => {
+    expect(isEpoxyOnlyTileId('slow_time')).toBe(true);
+    expect(isEpoxyOnlyTileId('boots_fire')).toBe(false);
+    const level = levelWith('floor');
+    level.items[1][1] = 'slow_time';
+    expect(hasEpoxyOnlyContent(level)).toBe(true);
+  });
+
   it('names the channel tiles and colour blocks as Epoxy only', () => {
     for (const id of ['pressure_plate_red', 'hold_door_blue_open', 'toggle_wall_yellow_closed', 'toggle_button_red', 'floating_block_green']) {
       expect(isColorChannelTileId(id), id).toBe(true);

@@ -33,6 +33,15 @@ describe('lossyExportNotice', () => {
     expect(notice).toBe(t('app.export.refused_cc3d_ruleset.label', { levels: 'cc3d_a' }));
   });
 
+  it('names the levels with a slow-time charm a .DAT export left out', () => {
+    const notice = lossyExportNotice({
+      replaced: [],
+      lost: [],
+      refused: [{ levelId: 'charmed_a', reason: 'epoxy_only_items' }]
+    });
+    expect(notice).toBe(t('app.export.refused_epoxy_only_items.label', { levels: 'charmed_a' }));
+  });
+
   it('has no notice for an exact export', () => {
     expect(lossyExportNotice({ replaced: [], lost: [] })).toBeNull();
   });

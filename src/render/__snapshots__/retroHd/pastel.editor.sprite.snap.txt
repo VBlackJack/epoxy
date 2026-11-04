@@ -232,6 +232,8 @@ editor tile boots_ice closed=true 43ae9a998d03d4d9
 editor tile boots_ice closed=false af587f5e18c56527
 editor tile boots_force closed=true 16063e992d8705af
 editor tile boots_force closed=false 9b727931fddebba0
+editor tile slow_time closed=true 1c704c94b3429aea
+editor tile slow_time closed=false 4951f5e21cd45e2d
 editor tile bomb closed=true b6c75513cc19d09b
 editor tile bomb closed=false 2f0c55ffc87beca6
 editor tile score_10 closed=true cbbda2fb02c7f6c8
@@ -255,26 +257,27 @@ editor item over floor boots_water 6bd81698f5109348
 editor item over floor boots_fire fd2cd82a9175f8e0
 editor item over floor boots_ice 06c6683bdd3fa637
 editor item over floor boots_force 5537309f28844878
-editor item over floor bomb 074d0c613cefc876
-editor item over floor score_10 680d2f3585616e03
-editor item over floor score_100 99fae86a6b731065
-editor item over floor score_1000 d78241f7c94a4c56
-editor item over floor score_2x 809ded8394b86292
-editor item over floor stopwatch_bonus a75c35099da2b20f
-editor item over floor stopwatch_penalty 62f184d42a9d1c06
-editor entity over floor dirt_block 1120fdd5b5bbebce
-editor entity over floor ice_block 561799f98e63ee1a
-editor entity over floor mirror_slash cf162e64a21f7cb0
-editor entity over floor mirror_backslash 8d33195735b35556
-editor entity over floor bug 1a588de23d354aaa
-editor entity over floor paramecium 82d719a9833edbd1
-editor entity over floor pink_ball 3bd5db3826c4f5a6
-editor entity over floor walker 238cec0d678b0622
-editor entity over floor teeth bb6644ce32238f33
-editor entity over floor glider 9eb4ce86fd0d1883
-editor entity over floor fireball b742547eba7a9f70
-editor entity over floor tank 980c603305cec421
-editor entity over floor blob e6b0df742a2b387c
+editor item over floor slow_time bd325b3c220aed17
+editor item over floor bomb 4d52c775459f40a9
+editor item over floor score_10 73f4aae53745a54b
+editor item over floor score_100 6816f482cee35903
+editor item over floor score_1000 1553010efe6a07e3
+editor item over floor score_2x f67173fd63ef3278
+editor item over floor stopwatch_bonus e9a7680bbc3d1548
+editor item over floor stopwatch_penalty 019d94e1ebb6eca3
+editor entity over floor dirt_block 75b2d10dde3bd344
+editor entity over floor ice_block 33081331f9247602
+editor entity over floor mirror_slash 3e41835eeb398a76
+editor entity over floor mirror_backslash 53544e9fa36911f7
+editor entity over floor bug a54765dce5c90cd8
+editor entity over floor paramecium 2d1b6a107899bb06
+editor entity over floor pink_ball 06ef70d63ecff4de
+editor entity over floor walker d634db54487acdaf
+editor entity over floor teeth 598ff50c345c1e20
+editor entity over floor glider 7fddd3a4d79bddb0
+editor entity over floor fireball be77949d5e183eb2
+editor entity over floor tank 3849055f43df4cad
+editor entity over floor blob 62b64814321da940
 editor entity over floor color_block_red 23ebf931a7e8c45e
 editor entity over floor color_block_green abbb6c90366350d9
 editor entity over floor color_block_blue 5f9b3bf927e26e14

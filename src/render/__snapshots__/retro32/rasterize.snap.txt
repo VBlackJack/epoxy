@@ -84,6 +84,7 @@ default bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 default flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 default stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 default stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+default slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 default glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 default glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 default glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -288,6 +289,7 @@ cyber_neon bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 cyber_neon flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 cyber_neon stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 cyber_neon stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+cyber_neon slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 cyber_neon glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 cyber_neon glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 cyber_neon glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -492,6 +494,7 @@ arctic_lab bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 arctic_lab flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 arctic_lab stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 arctic_lab stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+arctic_lab slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 arctic_lab glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 arctic_lab glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 arctic_lab glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -696,6 +699,7 @@ magma_core bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 magma_core flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 magma_core stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 magma_core stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+magma_core slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 magma_core glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 magma_core glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 magma_core glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724
@@ -900,6 +904,7 @@ lynx_lcd bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 lynx_lcd flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 lynx_lcd stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 lynx_lcd stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
+lynx_lcd slow_time plain=afdfb4e4b4cfaca5 swap=afdfb4e4b4cfaca5
 lynx_lcd glyph_red plain=fe752a207fbe6f51 swap=fe752a207fbe6f51
 lynx_lcd glyph_blue plain=1e2214ad1c1320b1 swap=1e2214ad1c1320b1
 lynx_lcd glyph_yellow plain=f6bafe03f5559724 swap=f6bafe03f5559724

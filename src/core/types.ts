@@ -746,6 +746,8 @@ export interface TileDefinition {
   scoreMultiplier?: number;
   /** Seconds added to (or, negative, taken from) the time left when the item is picked up. */
   timeBonusSeconds?: number;
+  /** Boots only: while held, every monster takes this many times as long per step (an integer, 2 to 4). */
+  slowsMonsters?: number;
   buttonAction?: ButtonAction;
   togglesTo?: string;
   /** Terrain the cell swaps to when a toggle_flames button is pressed. */
@@ -1056,6 +1058,8 @@ export interface LevelBlueprint {
   terrain?: string[][];
   /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
   cellEdges?: CellEdge[];
+  /** Terrain hidden under a removable top (Epoxy ruleset only); see CompiledLevel.underlays. */
+  underlays?: CellUnderlay[];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
   /** Item placements, or a full item grid as the editor exports it. */
   items?: Array<{ x: number; y: number; id: string }> | (string | null)[][];
@@ -1094,6 +1098,16 @@ export interface CellEdge {
   sides: Direction[];
 }
 
+/**
+ * The terrain hidden under a removable top (a door, a socket, a blue fake wall, dirt) of one cell, Epoxy ruleset
+ * only. The cell plays as its top until the top is removed by the player, and then as this terrain.
+ */
+export interface CellUnderlay {
+  x: number;
+  y: number;
+  terrain: string;
+}
+
 export interface CompiledLevel {
   id: string;
   /** Pilot design note: the blocks the level needs; see BlockBudget. */
@@ -1123,6 +1137,8 @@ export interface CompiledLevel {
   items: (string | null)[][];
   /** Thin walls on cells of any terrain; one entry per cell, absent when the level has none. */
   cellEdges?: CellEdge[];
+  /** Terrain hidden under a removable top, one entry per cell (Epoxy ruleset only); absent when the level has none. */
+  underlays?: CellUnderlay[];
   entities: EntityPlacement[];
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];

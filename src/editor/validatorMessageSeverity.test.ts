@@ -29,6 +29,7 @@ type Severity = 'error' | 'warning';
 const ERR: Severity = 'error';
 const WARN: Severity = 'warning';
 
+// A new validator.issues key must be added here with the severity that core emits.
 const EMITTED_SEVERITY: Record<string, Severity> = {
   no_exit: ERR, missing_chips: ERR, no_matching_key: ERR, fewer_keys_than_doors: ERR, unreachable_chips: ERR,
   unreachable_exit: ERR, socket_bypass: ERR, invalid_start: ERR, no_targets: ERR, fewer_blocks_than_targets: ERR,
@@ -36,6 +37,7 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
   targets_unsolvable: WARN, hidden_by_block: WARN, laser_gate_on_beam: WARN, exit_on_receivers_level: WARN,
   start_on_wall: WARN, start_on_entity: WARN, trap_link_button: WARN, trap_link_target: WARN,
   clone_link_button: WARN, clone_link_target: WARN,
+  channel_button_no_walls: WARN, channel_walls_no_button: WARN, hold_door_no_plate: WARN, hold_door_wrong_start: WARN,
   cc3d_bad_grid: ERR, cc3d_empty_stack: ERR, cc3d_unknown_terrain: ERR, cc3d_base_not_floor: ERR, cc3d_stack_order: ERR,
   cc3d_duplicate_layer: ERR, cc3d_missing_color: ERR, cc3d_missing_dir: ERR, cc3d_missing_corner: ERR,
   cc3d_missing_mirror: ERR, cc3d_invalid_value: ERR, cc3d_unknown_item: ERR, cc3d_unknown_mob: ERR,

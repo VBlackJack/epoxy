@@ -178,7 +178,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...framed('exit', EXIT_FRAMES), ...framed('teleport', TELEPORT_FRAMES),
   ...DIRECTIONS.flatMap((d) => framed(`force_${d.toLowerCase()}`, FORCE_FRAMES)),
   ...framed('force_random', FORCE_FRAMES),
-  'chip', 'key', 'boots', 'bomb', 'flag', 'stopwatch_bonus', 'stopwatch_penalty',
+  'chip', 'key', 'boots', 'bomb', 'flag', 'stopwatch_bonus', 'stopwatch_penalty', 'slow_time',
   ...GLYPH_COLOURS.map((c) => `${RETRO_GLYPH_PREFIX}${c}`),
   ...range(DIGIT_COUNT).map((d) => `digit_${d}`),
   'char_x', 'char_k', 'char_q', 'char_plus', 'char_minus',

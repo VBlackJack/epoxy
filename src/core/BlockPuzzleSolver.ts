@@ -160,6 +160,8 @@ export class BlockPuzzleSolver {
    * within the budget.
    */
   public static isStuck(engine: GameEngine, budget: number = watchSearchBudget()): boolean {
+    // The search reads the grid as it is now; terrain hidden under a removable top is not modelled.
+    if (engine.getUnderlays() !== undefined) return false;
     const detector = new BlockPuzzleSolver(engine);
     if (detector.buttons.length === 0) return false;
     // Separate block puzzles (two Sokoban rooms) are judged one at a time.
@@ -185,7 +187,7 @@ export class BlockPuzzleSolver {
    *  - `none`: nothing to judge (not a 'targets' level, no target or no block).
    */
   public static verdict(engine: GameEngine, budget: number = requestedSearchBudget()): BlockPuzzleVerdict {
-    if (engine.getLevel().winRule !== 'targets') return { kind: 'none' };
+    if (engine.getLevel().winRule !== 'targets' || engine.getUnderlays() !== undefined) return { kind: 'none' };
     const playable = BlockPuzzleSolver.modelledCellCount(engine);
     if (playable === null || playable > ConfigRegistry.getGame().blockPuzzle.watchMaxCells) {
       return { kind: 'not_checked' };
@@ -318,6 +320,7 @@ export class BlockPuzzleSolver {
    * puzzle still open. Null when every puzzle is done, stuck or too large.
    */
   public static hint(engine: GameEngine, budget: number = requestedSearchBudget()): Dir[] | null {
+    if (engine.getUnderlays() !== undefined) return null;
     const solver = new BlockPuzzleSolver(engine);
     const occupied = new Set(solver.blocks);
     for (const area of solver.areas()) {

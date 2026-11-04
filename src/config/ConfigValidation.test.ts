@@ -14,8 +14,16 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
-import { isCompiledLevelShape, isRuleset, LevelSizeBounds, normalizeCellEdges, sanitizeStoredLevels } from './ConfigValidation';
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  isCompiledLevelShape,
+  isRuleset,
+  LevelSizeBounds,
+  normalizeCellEdges,
+  normalizeUnderlays,
+  sanitizeStoredLevels
+} from './ConfigValidation';
+import { loadTestConfigs } from '../test/loadTestConfigs';
 import type { Cc3dCell, Cc3dLevel } from '../core/cc3d/model';
 
 const BOUNDS: LevelSizeBounds = { minSize: 3, maxSize: 32 };
@@ -156,5 +164,84 @@ describe('cell edges in config validation', () => {
 
   it('normalises to null when nothing is left', () => {
     expect(normalizeCellEdges([], level().terrain as string[][], 'epoxy')).toBeNull();
+  });
+});
+
+describe('underlays in config validation', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  const hidden = (underlays: unknown, ruleset: string | null = 'epoxy'): Record<string, unknown> => {
+    const value = level(undefined, ruleset);
+    (value.terrain as string[][])[1][1] = 'door_red';
+    (value.terrain as string[][])[2][2] = 'socket';
+    return { ...value, underlays };
+  };
+  const keptUnderlays = (value: Record<string, unknown>) => sanitizeStoredLevels([value], BOUNDS)[0].underlays;
+
+  it('keeps well-formed underlays untouched, as the same list', () => {
+    const list = [
+      { x: 1, y: 1, terrain: 'ice' },
+      { x: 2, y: 2, terrain: 'water' }
+    ];
+    expect(keptUnderlays(hidden(list))).toBe(list);
+  });
+
+  it('sorts, keeps the first entry of a cell and drops what cannot be an underlay', () => {
+    const messy = [
+      { x: 2, y: 2, terrain: 'water' },
+      { x: 1, y: 1, terrain: 'ice' },
+      { x: 1, y: 1, terrain: 'wall' },
+      { x: 3, y: 3, terrain: 'door_blue' },
+      { x: 3, y: 0, terrain: 'dirt' },
+      { x: 0, y: 3, terrain: 'chip' },
+      { x: 0, y: 0, terrain: 'no_such_tile' },
+      { x: 9, y: 0, terrain: 'ice' },
+      { x: 0, y: 1, terrain: 7 },
+      null
+    ];
+    expect(keptUnderlays(hidden(messy))).toEqual([
+      { x: 1, y: 1, terrain: 'ice' },
+      { x: 2, y: 2, terrain: 'water' }
+    ]);
+  });
+
+  it('drops underlays that are not a usable list, and those of a ruleset that has none', () => {
+    expect(keptUnderlays(hidden('ice'))).toBeUndefined();
+    expect(keptUnderlays(hidden([{ x: 1, y: 1, terrain: 'door_red' }]))).toBeUndefined();
+    expect(keptUnderlays(hidden([{ x: 1, y: 1, terrain: 'ice' }], 'lynx'))).toBeUndefined();
+    expect(normalizeUnderlays([{ x: 1, y: 1, terrain: 'ice' }], level().terrain as string[][], 'cc3d')).toBeNull();
+  });
+
+  it('refuses a strict level with more underlay entries than cells, and keeps a plain level as it is', () => {
+    const tooMany = Array.from({ length: SIZE * SIZE + 1 }, () => ({ x: 1, y: 1, terrain: 'ice' }));
+    expect(isCompiledLevelShape(hidden(tooMany), BOUNDS, true)).toBe(false);
+    expect(isCompiledLevelShape(hidden(tooMany), BOUNDS, false)).toBe(true);
+    const plain = level(undefined, 'epoxy');
+    expect(sanitizeStoredLevels([plain], BOUNDS)[0]).toBe(plain);
+  });
+
+  it('drops an underlay that could reveal a second time, sits under a non-removable top or is a live device', () => {
+    const grid = (top: string): string[][] => {
+      const rows = level().terrain as string[][];
+      rows[1][1] = top;
+      return rows;
+    };
+    const under = (id: string) => [{ x: 1, y: 1, terrain: id }];
+    // Dirt over water: a block sunk in the water makes dirt again, which would reveal the water twice.
+    expect(normalizeUnderlays(under('water'), grid('dirt'), 'epoxy')).toBeNull();
+    expect(normalizeUnderlays(under('ice'), grid('dirt'), 'epoxy')).toEqual(under('ice'));
+    // Ice under a wall: a wall is no removable top.
+    expect(normalizeUnderlays(under('ice'), grid('wall'), 'epoxy')).toBeNull();
+    // Plates, hold doors and toggle walls need run-time state the engine does not give an underlay.
+    for (const id of ['pressure_plate_red', 'hold_door_red_closed', 'toggle_wall_closed']) {
+      expect(normalizeUnderlays(under(id), grid('door_red'), 'epoxy')).toBeNull();
+    }
+  });
+
+  it('normalises to null when nothing is left', () => {
+    expect(normalizeUnderlays([], level().terrain as string[][], 'epoxy')).toBeNull();
+    expect(normalizeUnderlays([{ x: 0, y: 0, terrain: 'door_red' }], level().terrain as string[][], 'epoxy')).toBeNull();
   });
 });
