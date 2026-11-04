@@ -84,6 +84,7 @@ sprite theme=default name=bomb 3c25f2d177c94153
 sprite theme=default name=flag cdc3fd0b5560b38d
 sprite theme=default name=stopwatch_bonus 0e9fce7b319124e6
 sprite theme=default name=stopwatch_penalty b99fa635f1093f64
+sprite theme=default name=slow_time b9d8423b8e271189
 sprite theme=default name=glyph_red 004c9c94fd2c2af9
 sprite theme=default name=glyph_blue c8f3d9be8db84303
 sprite theme=default name=glyph_yellow 575b16d9294757c3
@@ -288,6 +289,7 @@ sprite theme=cyber_neon name=bomb ce3a270d66b9468a
 sprite theme=cyber_neon name=flag b071ea3d45c0bf3a
 sprite theme=cyber_neon name=stopwatch_bonus 5f4ccb634aeb1f4c
 sprite theme=cyber_neon name=stopwatch_penalty c2c032486be49472
+sprite theme=cyber_neon name=slow_time ffb8e2d3fe4d3dae
 sprite theme=cyber_neon name=glyph_red 6e1946b9b5868a11
 sprite theme=cyber_neon name=glyph_blue 5ff5269b4c5eac80
 sprite theme=cyber_neon name=glyph_yellow da615a4fd6a6ab58
@@ -492,6 +494,7 @@ sprite theme=arctic_lab name=bomb 6fd67565948c503d
 sprite theme=arctic_lab name=flag 0e8c6ef6656319aa
 sprite theme=arctic_lab name=stopwatch_bonus fc7809722ace33fb
 sprite theme=arctic_lab name=stopwatch_penalty 889ac52f31b4db52
+sprite theme=arctic_lab name=slow_time 95cad4244f5f300e
 sprite theme=arctic_lab name=glyph_red 548b26382dca0e8e
 sprite theme=arctic_lab name=glyph_blue 08d8cf6e401931f9
 sprite theme=arctic_lab name=glyph_yellow 0f972de0ebbbe557
@@ -696,6 +699,7 @@ sprite theme=magma_core name=bomb b76540265f8db373
 sprite theme=magma_core name=flag 5b4ce0a19399c6b1
 sprite theme=magma_core name=stopwatch_bonus 85cafaff4511a3fd
 sprite theme=magma_core name=stopwatch_penalty 4ee6718373575536
+sprite theme=magma_core name=slow_time ce8282cc91c7f043
 sprite theme=magma_core name=glyph_red f000f6fccaa8bd2d
 sprite theme=magma_core name=glyph_blue d2bf7d881495e2d4
 sprite theme=magma_core name=glyph_yellow 6bc4f1be9aeb5fba
@@ -900,6 +904,7 @@ sprite theme=lynx_lcd name=bomb 671c3eb46661eb53
 sprite theme=lynx_lcd name=flag 020574d33c91ace4
 sprite theme=lynx_lcd name=stopwatch_bonus 5028d3738366f927
 sprite theme=lynx_lcd name=stopwatch_penalty 26f4e230a371c2d2
+sprite theme=lynx_lcd name=slow_time b65bd4463aa64287
 sprite theme=lynx_lcd name=glyph_red a5eaab6f1be68f08
 sprite theme=lynx_lcd name=glyph_blue 7ad63eafeaac15c4
 sprite theme=lynx_lcd name=glyph_yellow ef08c8ebe14ffda5

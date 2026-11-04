@@ -95,6 +95,7 @@
       "refused_cc3d_ruleset": { "label": "Non exporté : {levels} se joue avec les règles CC3D, que le format .DAT ne peut pas porter. Utilisez plutôt Exporter XML." },
       "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascule de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
       "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins posés sur des cases, que le format .DAT ne peut pas porter." },
+      "refused_epoxy_only_items": { "label": "Non exporté : {levels} contient un Ralentisseur, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -1044,6 +1045,7 @@
     "score_2x": { "name": "Fanion Bonus (Score x2)" },
     "stopwatch_bonus": { "name": "Chronomètre (+10 s)" },
     "stopwatch_penalty": { "name": "Chronomètre (-10 s)" },
+    "slow_time": { "name": "Ralentisseur" },
     "button_green": { "name": "Bouton Vert (Portes Bascules)" },
     "button_blue": { "name": "Bouton Bleu (Inverser Tanks)" },
     "button_brown": { "name": "Bouton Brun (Ouvrir Piège)" },
@@ -1370,6 +1372,26 @@
       "level_25": {
         "title": "L'atelier",
         "hint": "Un bloc arrêté au-dessus d'une cible vide est bloqué pour toujours dès qu'un autre bloc se pose dessus : remplis une baie par le bas."
+      },
+      "level_26": {
+        "title": "Le portier",
+        "hint": "Une clé ouvre une seule porte et se perd, un bloc ne passe pas une porte fermée, et la terre fraîche arrête un bloc tant que tu n'as pas marché dessus."
+      },
+      "level_27": {
+        "title": "Ne creuse pas",
+        "hint": "Une balle rose file droit jusqu'à ce que quelque chose l'arrête, et la terre l'arrête. Traverse cette terre et la balle continue sa course."
+      },
+      "level_28": {
+        "title": "Les quatre ploufs",
+        "hint": "Un bloc poussé dans l'eau coule et laisse de la terre où l'on peut marcher : un bloc, une mare."
+      },
+      "level_29": {
+        "title": "L'écluse",
+        "hint": "Chaque mare et chaque balle rose à arrêter coûte un bloc, et un bloc dépensé pour autre chose est perdu. Une balle rose ne passe pas un bloc."
+      },
+      "level_30": {
+        "title": "Le grand chantier",
+        "hint": "Couvre toutes les cibles pour gagner. Un bloc comble une mare ou couvre une cible, jamais les deux. Un bloc sur la rangée du haut ou du bas ne peut plus en sortir : envoie exactement deux blocs dans chacune."
       }
     },
     "chapter": {

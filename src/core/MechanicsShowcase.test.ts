@@ -30,6 +30,7 @@ import { t } from '../i18n/I18nManager';
 import { CHANNEL_COLOR_NAME_KEY_PREFIX } from './coreConstants';
 import showcase from '../test/fixtures/mechanicsShowcase.json';
 import { storedSolutionWins } from '../generator/SolutionReplay';
+import { decodeActions, PieceSolver } from '../generator/PieceSolver';
 
 /** Ticks the move cooldown away, then plays one step and reports whether it was taken. */
 function step(engine: GameEngine, dir: Direction): boolean {
@@ -297,5 +298,58 @@ describe('cell edges showcase level', () => {
 
   it('carries a stored solution that wins', () => {
     expect(storedSolutionWins(compileEdges())).toBe(true);
+  });
+});
+
+/** Index of the slow-time level in the showcase pack. */
+const SLOW_TIME_LEVEL_INDEX = 3;
+const SLOW_TIME_ID = 'slow_time';
+/** Cell of the charm, and the actions of the stored solution that bring the player onto it. */
+const CHARM_CELL = { x: 3, y: 2 };
+const CHARM_ACTIONS = 2;
+
+/**
+ * The level of the slow-time charm: three patrols guard a lane that cannot be crossed at their normal pace,
+ * the charm halves their speed while it is held, and the thief at the end of the lane takes it.
+ */
+describe('slow-time showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  function compileSlowTime(): CompiledLevel {
+    const blueprint = (showcase as { levels: LevelBlueprint[] }).levels[SLOW_TIME_LEVEL_INDEX];
+    return ConfigRegistry.compileBlueprint(blueprint);
+  }
+
+  it('compiles with the charm in place and passes the editor validator', () => {
+    const level = compileSlowTime();
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    expect(level.items[CHARM_CELL.y][CHARM_CELL.x]).toBe(SLOW_TIME_ID);
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through: the charm is picked up, the lane is crossed, the thief takes the charm, the exit opens the level', () => {
+    const level = compileSlowTime();
+    const actions = decodeActions(level.solution ?? '');
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    actions.slice(0, CHARM_ACTIONS).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer()).toMatchObject({ x: CHARM_CELL.x, y: CHARM_CELL.y, alive: true });
+    expect(engine.holdsItem(SLOW_TIME_ID)).toBe(true);
+    actions.slice(CHARM_ACTIONS).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.holdsItem(SLOW_TIME_ID)).toBe(false);
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('carries a stored solution that wins, and that fails once the charm is taken away', () => {
+    const level = compileSlowTime();
+    expect(storedSolutionWins(level)).toBe(true);
+    const withoutCharm = { ...level, items: level.items.map((row) => row.map((id) => (id === SLOW_TIME_ID ? null : id))) };
+    expect(storedSolutionWins(withoutCharm)).toBe(false);
   });
 });

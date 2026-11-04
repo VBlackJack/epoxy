@@ -95,6 +95,7 @@
       "refused_cc3d_ruleset": { "label": "Not exported: {levels} plays under CC3D rules, which the .DAT format cannot hold. Use Export XML instead." },
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
+      "refused_epoxy_only_items": { "label": "Not exported: {levels} holds a Slow-Time Charm, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -1044,6 +1045,7 @@
     "score_2x": { "name": "Bonus Flag (Score x2)" },
     "stopwatch_bonus": { "name": "Stopwatch (+10 s)" },
     "stopwatch_penalty": { "name": "Stopwatch (-10 s)" },
+    "slow_time": { "name": "Slow-Time Charm" },
     "button_green": { "name": "Green Button (Toggle Walls)" },
     "button_blue": { "name": "Blue Button (Reverse Tanks)" },
     "button_brown": { "name": "Brown Button (Open Trap)" },
@@ -1370,6 +1372,26 @@
       "level_25": {
         "title": "The Workshop",
         "hint": "A block that stops above an empty target is stuck for good once another block rests on it, so fill a bay from the bottom."
+      },
+      "level_26": {
+        "title": "The Doorkeeper",
+        "hint": "A key opens one door and is spent, a block cannot pass a closed door, and fresh dirt stops a block until you have walked on it."
+      },
+      "level_27": {
+        "title": "Don't Dig",
+        "hint": "A pink ball runs straight until something stops it, and dirt stops it. Walk through that dirt and the ball runs on."
+      },
+      "level_28": {
+        "title": "Four Splashes",
+        "hint": "A block pushed into water sinks and leaves dirt you can walk on: one block, one pool."
+      },
+      "level_29": {
+        "title": "The Lock",
+        "hint": "Every pool and every pink ball you must stop costs one block, and a block spent on another job is gone. A pink ball cannot pass a block."
+      },
+      "level_30": {
+        "title": "The Great Works",
+        "hint": "Cover every target to win. A block fills a pool or covers a target, never both. A block on the top or bottom row can never leave it, so send each of those rows exactly two blocks."
       }
     },
     "chapter": {

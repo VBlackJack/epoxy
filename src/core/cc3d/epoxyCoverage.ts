@@ -39,6 +39,9 @@ export interface LevelCoverage {
 /** Structural keys: properties of a cell rather than of one element. */
 export const KEY_STACKED_TERRAIN = 'stacked_terrain';
 export const KEY_PANELS_ON_NONFLOOR = 'panels_on_nonfloor';
+/** The red socket, as the key of one whose layer below is not plain floor (the plain one keeps its kind as key). */
+export const KEY_SOCKET_RED = 'socket_red';
+export const KEY_SOCKET_RED_STACKED = 'socket_red_stacked';
 
 const KEY_SEPARATOR = '_';
 const STACK_SEPARATOR = '+';
@@ -57,17 +60,32 @@ const MONSTER_REASON = 'Monster movement is close to CC3D, not identical.';
 const ORB_REASON = 'The orb effect is close to the Epoxy equivalent, not identical.';
 const PLATE_REASON = 'Hold doors settle at the end of each move or tick, where CC3D reacts at once.';
 const COLOR_BLOCK_REASON = 'Colour block pushing rules differ slightly from CC3D, and a floating block cannot be pushed again.';
+const SAND_REASON = 'Epoxy plays CC3D sand as its gravel: the player and every block may enter, monsters may not.';
+const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the player only, open at no chips left, floor once entered.';
+const SOCKET_RED_STACKED_REASON = 'CC3D re-plans a red socket against the layer below it, which Epoxy does not model [unverified].';
+const FISH_EXTRA_REASON = 'Epoxy plays the extra fish as a chip, and the chips needed count the plain fish only, as CC3D does [unverified].';
+const GRAVEL_REASON = 'Epoxy gravel admits mirrors, where CC3D gravel refuses reflectors.';
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
-  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'exit', 'gravel', 'push_up_wall', 'false_wall', 'door',
+  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'exit', 'sand', 'fish_extra', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
   'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
   KEY_PANELS_ON_NONFLOOR
 ];
 
+/** Exact keys that carry their own reason instead of the generic one. */
+const EXACT_REASONS: Readonly<Record<string, string>> = {
+  sand: SAND_REASON,
+  fish_extra: FISH_EXTRA_REASON,
+  [KEY_SOCKET_RED]: SOCKET_RED_REASON
+};
+
 const APPROX_ENTRIES: Record<string, string> = {
+  gravel: GRAVEL_REASON,
+  [KEY_SOCKET_RED_STACKED]: SOCKET_RED_STACKED_REASON,
+  orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   water: 'The ice block behaves differently on water, and a colour block floats as a walkable tile that cannot be pushed again.',
   force_random: 'Epoxy draws the direction at random instead of a fixed cycle.',
   socket: 'Epoxy sockets only react to the player.',
@@ -116,12 +134,8 @@ const APPROX_ENTRIES: Record<string, string> = {
 };
 
 const LOST_ENTRIES: Record<string, string> = {
-  socket_red: 'Epoxy has no red socket.',
-  sand: 'Epoxy has no sand.',
   golem_control_yellow: 'Epoxy has no yellow golem control.',
   laser_controller: 'Epoxy has no laser controller.',
-  fish_extra: 'Epoxy has no extra fish.',
-  orb_speed: 'Epoxy has no speed orb.',
   nibble: 'Epoxy has no nibble monster.',
   golem_yellow: 'Epoxy has no yellow golem.',
   laser_shooter: 'Epoxy has no laser shooter.',
@@ -139,7 +153,7 @@ const EXACT_COLORED_GROUPS: ReadonlyArray<{ prefix: string; colors: readonly Cc3
 
 function buildTable(): Record<string, CoverageEntry> {
   const table: Record<string, CoverageEntry> = {};
-  for (const key of EXACT_KEYS) table[key] = entry('exact', EXACT_REASON);
+  for (const key of EXACT_KEYS) table[key] = entry('exact', EXACT_REASONS[key] ?? EXACT_REASON);
   for (const [key, reason] of Object.entries(APPROX_ENTRIES)) table[key] = entry('approx', reason);
   for (const [key, reason] of Object.entries(LOST_ENTRIES)) table[key] = entry('lost', reason);
   for (const group of EXACT_COLORED_GROUPS) {
@@ -170,11 +184,17 @@ function nonFloorLayers(cell: Cc3dCell): Cc3dTerrain[] {
   return cell.terrain.filter((layer) => layer.kind !== PLAIN_FLOOR);
 }
 
+/** Key of one layer of a cell: its kind and colour, except that a red socket stacked on anything but plain floor is its own key. */
+function coverageKeyOf(cell: Cc3dCell, layer: Cc3dTerrain, index: number): string {
+  if (layer.kind === KEY_SOCKET_RED && cell.terrain[index - 1]?.kind !== PLAIN_FLOOR) return KEY_SOCKET_RED_STACKED;
+  return terrainKey(layer);
+}
+
 /** The element keys of a level, structural ones included. */
 export function elementKeys(level: Cc3dLevel): Set<string> {
   const keys = new Set<string>();
   for (const cell of level.cells) {
-    for (const layer of cell.terrain) keys.add(terrainKey(layer));
+    cell.terrain.forEach((layer, index) => keys.add(coverageKeyOf(cell, layer, index)));
     if (cell.item) keys.add(cell.item.kind);
     if (nonFloorLayers(cell).length >= MIN_STACKED_ENTRIES) keys.add(KEY_STACKED_TERRAIN);
     if (cell.panels.length > 0 && topTerrain(cell).kind !== PLAIN_FLOOR) keys.add(KEY_PANELS_ON_NONFLOOR);
