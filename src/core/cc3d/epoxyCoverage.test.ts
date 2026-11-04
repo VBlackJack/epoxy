@@ -96,12 +96,14 @@ describe('classifyLevel', () => {
     expect(result).toEqual({ verdict: 'approx', lost: [], approx: ['water'] });
   });
 
-  it('calls a level with a laser controller lost, and lists approx elements beside it', () => {
+  it('calls a level with a laser controller approx now that Epoxy has the shot trigger, and lists the other approx elements', () => {
     const glyphs = { Z: terrain('laser_controller') };
     const result = classifyLevel(levelOf(['######', '#@ZWX#', '######'], glyphs));
-    expect(result.verdict).toBe('lost');
-    expect(result.lost).toEqual(['laser_controller']);
-    expect(result.approx).toEqual(['water']);
+    expect(result.verdict).toBe('approx');
+    expect(result.lost).toEqual([]);
+    expect(result.approx).toEqual(['laser_controller', 'water']);
+    expect(EPOXY_COVERAGE.laser_shooter.level).toBe('approx');
+    expect(EPOXY_COVERAGE.laser_controller.level).toBe('approx');
   });
 
   it('plays sand and the extra fish exactly, and gravel approximately', () => {
