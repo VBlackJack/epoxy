@@ -16,7 +16,10 @@
 
 import { ConfigRegistry, PackOperationResult } from '../config/ConfigRegistry';
 import { PACK_NAME_MAX_LENGTH } from '../config/constants';
+import { convertCc3dLevel } from '../core/cc3d/cc3dToEpoxy';
+import { LevelValidator } from '../core/LevelValidator';
 import { CompiledLevel, LevelPack } from '../core/types';
+import { needsImportedConfirmation, pickSaveDestination, resolveSavedPassword } from '../editor/saveTarget';
 import { datRefusalReason } from '../formats/DatCodec';
 import { t } from '../i18n/I18nManager';
 import { cleanPackAuthor, cleanPackDescription, PackMetadataLimits } from '../packs/packMetadata';
@@ -24,8 +27,10 @@ import { normalizePackName } from '../packs/userPacks';
 import { choiceDialog } from './choiceDialog';
 import { canShareNatively, copyShareLink, makeShareLink, shareEncodeErrorMessage, shareLinkNatively } from './shareActions';
 import { confirmDialog } from './confirmDialog';
+import { describeConversion, showConvertReport } from './convertReportDialog';
 import { closeDialog, openDialog } from './dialog';
 import { downloadBlob, MIME_JSON } from './download';
+import { askSaveInto } from './saveIntoDialog';
 import { ThumbnailBatch } from './levelThumbnailView';
 import { isShareEncoderSupported } from '../packs/shareLink';
 import {
@@ -34,6 +39,7 @@ import {
   buildLibraryRows,
   buildPackActions,
   canSharePack,
+  convertedTitle,
   dropSlotAt,
   dropTargetIndex,
   EngineBadge,
@@ -61,6 +67,9 @@ import {
 const MODAL_ID = 'packs-modal';
 const DELETE_CHOICE_ID = 'delete';
 const EXPORT_CHOICE_ID = 'export';
+const CONVERT_OPEN_CHOICE_ID = 'open';
+/** Id of the "modify the imported pack" answer, as the editor's confirmation uses it. */
+const IMPORTED_MODIFY_CHOICE_ID = 'modify';
 const HIDDEN_CLASS = 'hidden';
 const TRANSFER_COPY = 'copy';
 const TRANSFER_MOVE = 'move';
@@ -73,7 +82,13 @@ const LIST_DRAGGING_CLASS = 'is-dragging';
 const PRIMARY_BUTTON = 0;
 
 type TransferMode = typeof TRANSFER_COPY | typeof TRANSFER_MOVE;
-type RowAction = 'up' | 'down' | 'edit' | 'play' | 'duplicate' | 'transfer' | 'delete';
+type RowAction = 'up' | 'down' | 'edit' | 'play' | 'convert' | 'duplicate' | 'transfer' | 'delete';
+/** A converted level once stored: where it went and whether the write reached storage. */
+interface SavedConversion {
+  packId: string;
+  level: CompiledLevel;
+  persisted: boolean;
+}
 type MoveFocus = 'up' | 'down' | typeof DRAG_FOCUS_ACTION;
 type MetadataField = 'author' | 'description';
 
@@ -138,6 +153,8 @@ export class PackManager {
   private levelThumbs: ThumbnailBatch | null = null;
   /** Packs with a change in flight: their row actions stay disabled until it resolves. */
   private readonly busyPackIds = new Set<string>();
+  /** Imported packs the player agreed to modify while converting. */
+  private readonly confirmedImportedPackIds = new Set<string>();
   /** Button to focus when the redraw that ends an operation is done. */
   private pendingFocus: string | null = null;
 
@@ -582,6 +599,13 @@ export class PackManager {
     const play = button('play', 'app.packs.manager.level.play.action', 'app.packs.manager.level.aria.play.label', false, () =>
       this.playFrom(pack.id, index)
     );
+    const convert = button(
+      'convert',
+      'app.packs.manager.level.convert.action',
+      'app.packs.manager.level.aria.convert.label',
+      busy,
+      () => void this.convertLevel(pack, row)
+    );
     const duplicate = button(
       'duplicate',
       'app.packs.manager.level.duplicate.action',
@@ -614,7 +638,7 @@ export class PackManager {
     actions.append(
       group('packs-level-primary', edit, play),
       group('packs-level-order', up, down),
-      group('packs-level-more', duplicate, transfer, remove)
+      group('packs-level-more', ...(row.canConvert ? [convert] : []), duplicate, transfer, remove)
     );
 
     const level = pack.levels[index];
@@ -1138,6 +1162,161 @@ export class PackManager {
       this.pendingFocus = `${result.level?.id ?? levelId}:duplicate`;
       this.host.libraryChanged({ deletedPackIds: [] });
     });
+  }
+
+  /**
+   * Converts a CC3D level to a native Epoxy copy: report, then the pack to save into, then the save, then the
+   * offer to open the copy in the editor. Cancel at any step changes nothing, and the original is never written.
+   */
+  private async convertLevel(pack: LevelPack, row: LevelRow): Promise<void> {
+    if (this.busyPackIds.has(pack.id)) return;
+    const source = pack.levels.find((level) => level.id === row.levelId);
+    if (!source) return;
+    let converted: ReturnType<typeof convertCc3dLevel>;
+    try {
+      converted = convertCc3dLevel(source);
+    } catch {
+      this.host.notify(t('app.packs.manager.convert.failed.label'));
+      return;
+    }
+    const errors = LevelValidator.validate(converted.level)
+      .issues.filter((issue) => issue.severity === 'error')
+      .map((issue) => t(issue.i18nKey, issue.params));
+    if (!(await showConvertReport(describeConversion(converted.report, this.host.levelTitle(source), errors)))) return;
+    const destination = await this.askConvertDestination();
+    if (!destination) return;
+
+    const outcome: { saved: SavedConversion | null } = { saved: null };
+    const store = async (): Promise<void> => {
+      const saved = await this.saveConverted(converted.level, source, destination);
+      if (!saved) {
+        this.host.notify(t('app.packs.manager.toast.failed.label'));
+        return;
+      }
+      outcome.saved = saved;
+      this.rememberDestination(saved.packId);
+      if (!saved.persisted) this.host.notify(t('app.packs.manager.toast.session_only.label'));
+      this.pendingFocus = `${row.levelId}:convert`;
+      this.host.libraryChanged({ deletedPackIds: [] });
+    };
+    // The destination pack is the one written, so it is locked; the source stays locked too when it differs.
+    const lockId = destination.packId ?? pack.id;
+    if (lockId !== pack.id) {
+      if (this.busyPackIds.has(lockId)) return;
+      await this.runOp(pack.id, () => this.runOp(lockId, store));
+    } else {
+      await this.runOp(lockId, store);
+    }
+    if (outcome.saved) await this.offerOpenConverted(outcome.saved);
+  }
+
+  /**
+   * The editor's "Save into" question: every editable pack, the remembered destination preselected, and the
+   * imported-pack confirmation before an imported pack is chosen; null on cancel.
+   */
+  private async askConvertDestination(): Promise<{ packId: string | null; newPackName: string | null } | null> {
+    for (;;) {
+      const editable = ConfigRegistry.getEditablePacks();
+      const choice = await askSaveInto({
+        packs: editable.map((p) => ({ id: p.id, label: this.host.packDisplayName(p), levelCount: p.levels.length })),
+        preselectId: pickSaveDestination(editable, this.readRememberedDestination()),
+        defaultNewName: t('editor.pack.save_into.default_name.label')
+      });
+      if (!choice) return null;
+      if (choice.kind === 'new') return { packId: null, newPackName: choice.name };
+      const target = editable.find((p) => p.id === choice.packId);
+      if (needsImportedConfirmation(target, this.confirmedImportedPackIds)) {
+        const answer = await choiceDialog({
+          title: t('app.confirm.title.label'),
+          message: t('editor.pack.confirm_imported.message.label', {
+            name: target ? this.host.packDisplayName(target) : choice.packId
+          }),
+          cancelLabel: t('editor.pack.confirm_imported.again.action'),
+          options: [
+            {
+              id: IMPORTED_MODIFY_CHOICE_ID,
+              label: t('editor.pack.confirm_imported.modify.action', {
+                name: target ? this.host.packDisplayName(target) : choice.packId
+              }),
+              primary: true
+            }
+          ]
+        });
+        if (answer !== IMPORTED_MODIFY_CHOICE_ID) continue;
+        this.confirmedImportedPackIds.add(choice.packId);
+      }
+      return { packId: choice.packId, newPackName: null };
+    }
+  }
+
+  private destinationStorageKey(): string {
+    return ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastSaveDestinationKey);
+  }
+
+  private readRememberedDestination(): string | null {
+    try {
+      return localStorage.getItem(this.destinationStorageKey());
+    } catch {
+      // Storage blocked: no destination is preselected.
+      return null;
+    }
+  }
+
+  private rememberDestination(packId: string): void {
+    try {
+      localStorage.setItem(this.destinationStorageKey(), packId);
+    } catch {
+      // Storage blocked: the choice is not remembered.
+    }
+  }
+
+  /** Stores the converted level as a new level of the chosen pack (created first when new); null when it failed. */
+  private async saveConverted(
+    convertedLevel: CompiledLevel,
+    source: CompiledLevel,
+    destination: { packId: string | null; newPackName: string | null }
+  ): Promise<SavedConversion | null> {
+    let packId = destination.packId;
+    let persisted = true;
+    if (packId === null) {
+      const created = await ConfigRegistry.createUserPack(destination.newPackName ?? '');
+      if (!created.ok || !created.pack) return null;
+      packId = created.pack.id;
+      persisted = created.persisted;
+    }
+    const createdPackId = destination.packId === null ? packId : null;
+    const discardCreated = async (): Promise<null> => {
+      if (createdPackId !== null) await ConfigRegistry.deletePack(createdPackId);
+      return null;
+    };
+    const target = ConfigRegistry.getAllPacks().find((p) => p.id === packId);
+    if (!target) return discardCreated();
+    const level: CompiledLevel = {
+      ...convertedLevel,
+      id: ConfigRegistry.newLevelId(),
+      customTitle: convertedTitle(this.host.levelTitle(source), ConfigRegistry.getLevelTextLimits().titleMaxLength),
+      password: resolveSavedPassword(source.password ?? '', target.levels)
+    };
+    const result = await ConfigRegistry.saveLevelToPack(packId, level);
+    if (!result.ok) return discardCreated();
+    const stored = ConfigRegistry.getAllPacks().find((p) => p.id === packId)?.levels[result.index] ?? level;
+    return { packId, level: stored, persisted: persisted && result.persisted };
+  }
+
+  /** After the save: says where the copy went and offers, never forces, opening it in the editor. */
+  private async offerOpenConverted(saved: SavedConversion): Promise<void> {
+    const target = ConfigRegistry.getAllPacks().find((p) => p.id === saved.packId);
+    const answer = await choiceDialog({
+      title: t('app.packs.manager.convert.saved.title.label'),
+      message: t('app.packs.manager.convert.saved.message.label', {
+        title: this.host.levelTitle(saved.level),
+        name: target ? this.host.packDisplayName(target) : saved.packId
+      }),
+      cancelLabel: t('app.packs.manager.convert.saved.close.action'),
+      options: [{ id: CONVERT_OPEN_CHOICE_ID, label: t('app.packs.manager.convert.saved.open.action'), primary: true }]
+    });
+    if (answer !== CONVERT_OPEN_CHOICE_ID) return;
+    if (await this.host.editLevel(saved.packId, saved.level.id)) this.close();
   }
 
   private toggleTransfer(levelId: string): void {
