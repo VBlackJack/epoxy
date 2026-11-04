@@ -68,7 +68,35 @@ describe('epoxy coverage table', () => {
     check('stacked_runtime');
     check('panels_on_nonfloor');
     check('socket_red_stacked');
+    check('trap_unworked');
+    check('clone_switch_empty');
+    check('bomb_with_item');
+    check('laser_shooter_covered');
     expect(missing).toEqual([]);
+  });
+
+  it('holds exactly the keys the checks above name: no entry without an element behind it', () => {
+    const named = new Set<string>();
+    for (const kind of Object.keys(TERRAIN_KINDS) as Cc3dTerrainKind[]) {
+      if (COLORED_TERRAIN_KINDS.includes(kind)) for (const color of CC3D_COLORS) named.add(`${kind}_${color}`);
+      else named.add(kind);
+    }
+    for (const kind of CC3D_ITEM_KINDS) named.add(kind);
+    for (const kind of CC3D_MOB_KINDS) {
+      if (kind === 'block_color') for (const color of CC3D_COLORS) named.add(`${kind}_${color}`);
+      else named.add(kind);
+    }
+    for (const key of [
+      'stacked_terrain', 'stacked_runtime', 'panels_on_nonfloor', 'socket_red_stacked', 'trap_unworked',
+      'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'
+    ]) named.add(key);
+    expect(Object.keys(EPOXY_COVERAGE).filter((key) => !named.has(key))).toEqual([]);
+  });
+
+  it('loses the four relation keys, each with its own reason', () => {
+    const keys = ['trap_unworked', 'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'];
+    for (const key of keys) expect(EPOXY_COVERAGE[key].level, key).toBe('lost');
+    expect(new Set(keys.map((key) => EPOXY_COVERAGE[key].reason)).size).toBe(keys.length);
   });
 
   it('gives every entry a level and a reason', () => {
@@ -238,6 +266,54 @@ describe('classifyLevel', () => {
   it('throws on a coloured plate without a colour', () => {
     const level = levelOf(['###', '#@#', '###'], { '@': terrain('plate') });
     expect(() => elementKeys(level)).toThrow(/no colour/);
+  });
+});
+
+describe('relation keys', () => {
+  const trap = { kind: 'trap' as const };
+  const control = { kind: 'trap_control' as const };
+
+  it('flags a trap no control works, and only that one', () => {
+    const worked = levelOf(['#####', '#@bT#', '#####'], { b: stacked({ kind: 'floor' }, control), T: stacked({ kind: 'floor' }, trap) });
+    expect(elementKeys(worked).has('trap_unworked')).toBe(false);
+    const idle = levelOf(['#####', '#@.T#', '#####'], { T: stacked({ kind: 'floor' }, trap) });
+    expect(elementKeys(idle).has('trap_unworked')).toBe(true);
+    expect(classifyLevel(idle).lost).toEqual(['trap_unworked']);
+    const second = levelOf(['######', '#@bTT#', '######'], { b: stacked({ kind: 'floor' }, control), T: stacked({ kind: 'floor' }, trap) });
+    expect(elementKeys(second).has('trap_unworked')).toBe(true);
+  });
+
+  it('flags a clone switch whose nearest machine holds no template or a shooter, not one with a walker', () => {
+    const glyphs = {
+      x: stacked({ kind: 'floor' }, { kind: 'clone_switch' }),
+      c: stacked({ kind: 'floor' }, { kind: 'clone_machine', dir: 'E' })
+    };
+    expect(elementKeys(levelOf(['######', '#@xc.#', '######'], glyphs)).has('clone_switch_empty')).toBe(true);
+    const walker = { ...glyphs, c: { ...glyphs.c, mob: { kind: 'walker' as const } } };
+    expect(elementKeys(levelOf(['######', '#@xc.#', '######'], walker)).has('clone_switch_empty')).toBe(false);
+    const shooter = { ...glyphs, c: { ...glyphs.c, mob: { kind: 'laser_shooter' as const } } };
+    expect(elementKeys(levelOf(['######', '#@xc.#', '######'], shooter)).has('clone_switch_empty')).toBe(true);
+    // No machine at all: nothing to fire, nothing lost.
+    expect(elementKeys(levelOf(['######', '#@x..#', '######'], { x: glyphs.x })).has('clone_switch_empty')).toBe(false);
+  });
+
+  it('flags a bomb layer sharing its cell with an item', () => {
+    const bomb = stacked({ kind: 'floor' }, { kind: 'bomb' });
+    expect(elementKeys(levelOf(['####', '#@O#', '####'], { O: bomb })).has('bomb_with_item')).toBe(false);
+    expect(elementKeys(levelOf(['####', '#@O#', '####'], { O: { ...bomb, item: { kind: 'fish' } } })).has('bomb_with_item')).toBe(true);
+  });
+
+  it('flags a shooter standing on an item or on a layer other than plain floor', () => {
+    const shooter = { kind: 'laser_shooter' as const };
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter } })).has('laser_shooter_covered')).toBe(false);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, item: { kind: 'fish' } } })).has('laser_shooter_covered')).toBe(true);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'ice' }] } })).has('laser_shooter_covered')).toBe(true);
+  });
+
+  it('plays a red socket over a socket as a flattened stack, still exact', () => {
+    const level = levelOf(['####', '#@S#', '####'], { S: stacked({ kind: 'floor' }, { kind: 'socket' }, { kind: 'socket_red' }) });
+    expect(classifyStack(level.cells[level.width + 2])).toBe('flattened');
+    expect(classifyLevel(level).lost).toEqual([]);
   });
 });
 
