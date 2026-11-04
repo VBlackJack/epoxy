@@ -16,18 +16,17 @@
 
 /**
  * Beam preview of the level editor: where the laser beams run on the level as it stands, with the
- * turrets armed as they are at tick 0. Pure module (no DOM): the level is loaded into a private
- * engine and read through its public API only, so the editor never traces a beam on its own.
+ * turrets armed as they are at tick 0. Pure module (no DOM): the beams come from the core's pure
+ * beam tracer, so the editor never traces a beam on its own.
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../config/constants';
-import { GameEngine } from '../core/GameEngine';
+import { traceLevelBeams } from '../core/epoxy/epoxyBeamTrace';
+import { mergeBeamCells } from '../core/epoxy/epoxyTurrets';
 import { hasLaserContent } from '../core/RulesetFeatures';
 import { BeamCell, CompiledLevel, Direction, GridPoint } from '../core/types';
 
-/** Play start tick that arms the turrets which wait for the player's first step. */
-const ARMED_PLAY_START_TICK = 0;
 /** Quarter turns a turning turret makes after tick 0 that the preview shows dimmed. */
 const PREVIEW_TURN_STEPS = 3;
 
@@ -62,15 +61,6 @@ export const EMPTY_BEAM_PREVIEW: BeamPreview = {
   totalReceivers: 0
 };
 
-/**
- * The one place that reaches into the engine's state to arm the turrets as they are once the player
- * has taken a first step, so that the preview shows them firing. Pinned by a test: the engine is to
- * offer a direct trace of a level's beams, and this adapter goes then.
- */
-export function armTurretsAtTickZero(engine: GameEngine): void {
-  engine.restoreState({ ...engine.captureState(), playStartTick: ARMED_PLAY_START_TICK });
-}
-
 /** The cells of `cells` with the axes `covered` already holds taken away; a cell left with no axis is dropped. */
 function subtractAxes(cells: readonly BeamCell[], covered: readonly BeamCell[]): BeamCell[] {
   const held = new Map<string, BeamCell>(covered.map((cell) => [`${cell.x},${cell.y}`, cell]));
@@ -100,25 +90,28 @@ function unionCells(lists: readonly (readonly BeamCell[])[]): BeamCell[] {
   return [...merged.values()];
 }
 
-/** The beam cells at the facings a turning turret takes after `steps` quarter turns, in the state the engine holds. */
-function turnedTurretCells(engine: GameEngine, steps: number): readonly BeamCell[] {
-  const snapshot = engine.captureState();
-  let turning = false;
-  const entities = snapshot.entities.map((entity) => {
+/** The turret beam cells beyond the emitter beams, as traced with the given turret facings. */
+function tracedTurretCells(level: CompiledLevel, turretFacings?: ReadonlyMap<number, Direction>): BeamCell[] {
+  const { emitterCells, turretCells } = traceLevelBeams(level, { armTurrets: true, turretFacings });
+  return subtractAxes(mergeBeamCells(copyCells(emitterCells), turretCells), emitterCells);
+}
+
+function copyCells(cells: readonly BeamCell[]): BeamCell[] {
+  return cells.map((cell) => ({ ...cell }));
+}
+
+/** The beam cells at the facings a turning turret takes after `steps` quarter turns. */
+function turnedTurretCells(level: CompiledLevel, steps: number): readonly BeamCell[] {
+  const facings = new Map<number, Direction>();
+  const count = ORDERED_DIRECTIONS.length;
+  level.entities.forEach((entity, entityIndex) => {
     const turn = ConfigRegistry.getEntityDef(entity.type)?.turretBeam?.turn ?? 0;
-    if (turn === 0) return entity;
-    turning = true;
-    const facing: Direction = entity.facing ?? entity.dir;
-    const count = ORDERED_DIRECTIONS.length;
-    const index = ORDERED_DIRECTIONS.indexOf(facing);
-    return { ...entity, facing: ORDERED_DIRECTIONS[(((index + turn * steps) % count) + count) % count] };
+    if (turn === 0) return;
+    const index = ORDERED_DIRECTIONS.indexOf(entity.dir);
+    facings.set(entityIndex, ORDERED_DIRECTIONS[(((index + turn * steps) % count) + count) % count]);
   });
-  if (!turning) return [];
-  engine.restoreState({ ...snapshot, entities });
-  const emitter = engine.getEmitterBeamCells();
-  const cells = subtractAxes(engine.getBeamCells(), emitter);
-  engine.restoreState(snapshot);
-  return cells;
+  if (facings.size === 0) return [];
+  return tracedTurretCells(level, facings);
 }
 
 /** The closed laser gates whose receiver group a lit receiver belongs to. */
@@ -157,15 +150,13 @@ export function computeBeamPreview(level: CompiledLevel): BeamPreview {
   if (ruleset !== 'epoxy') return EMPTY_BEAM_PREVIEW;
   try {
     if (!hasLaserContent(level)) return EMPTY_BEAM_PREVIEW;
-    const engine = new GameEngine();
-    engine.loadLevel(level);
-    armTurretsAtTickZero(engine);
-    const beamCells = engine.getBeamCells().map((cell) => ({ ...cell }));
-    const emitterCells = engine.getEmitterBeamCells().map((cell) => ({ ...cell }));
-    const litReceivers = engine.getLitReceivers().map((cell) => ({ ...cell }));
+    const trace = traceLevelBeams(level, { armTurrets: true });
+    const emitterCells = trace.emitterCells;
+    const litReceivers = trace.litReceivers;
+    const beamCells = mergeBeamCells(copyCells(emitterCells), trace.turretCells);
     const turretCells = subtractAxes(beamCells, emitterCells);
     const later: BeamCell[][] = [];
-    for (let step = 1; step <= PREVIEW_TURN_STEPS; step++) later.push([...turnedTurretCells(engine, step)]);
+    for (let step = 1; step <= PREVIEW_TURN_STEPS; step++) later.push([...turnedTurretCells(level, step)]);
     return {
       hasLasers: true,
       beamCells,

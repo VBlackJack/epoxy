@@ -24,7 +24,7 @@ import type { BeamCell, CompiledLevel, Direction, EntityPlacement, LevelBlueprin
 import laserShowcase from '../test/fixtures/laserShowcase.json';
 import mechanicsShowcase from '../test/fixtures/mechanicsShowcase.json';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { armTurretsAtTickZero, computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPreview';
+import { computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPreview';
 
 const SIZE = 11;
 const LANE_Y = 5;
@@ -194,15 +194,15 @@ describe('computeBeamPreview refusals', () => {
   });
 });
 
-describe('the engine adapter', () => {
-  it('arms the turrets through one restoreState call with play start at tick 0', () => {
+describe('the beam tracer path', () => {
+  it('shows a turret armed although a freshly loaded engine holds no turret beam', () => {
+    const level = room({ entities: [placed('turret_fixed', TURRET_X, LANE_Y, 'E')] });
     const engine = new GameEngine();
-    engine.loadLevel(room({ entities: [placed('turret_fixed', TURRET_X, LANE_Y, 'E')] }));
+    engine.loadLevel(level);
     expect(engine.getBeamCells()).toEqual([]);
-    const restore = vi.spyOn(engine, 'restoreState');
-    armTurretsAtTickZero(engine);
-    expect(restore).toHaveBeenCalledTimes(1);
-    expect(restore.mock.calls[0][0].playStartTick).toBe(0);
-    expect(engine.getBeamCells()).toHaveLength(TURRET_REACH);
+    const preview = computeBeamPreview(level);
+    expect(preview.emitterCells).toEqual([]);
+    expect(preview.turretCells).toHaveLength(TURRET_REACH);
+    expect(preview.beamCells).toHaveLength(TURRET_REACH);
   });
 });
