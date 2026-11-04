@@ -529,6 +529,17 @@ export class LevelValidator {
               // Mirrors the engine: the slide opens the door or socket it reaches and stops there.
               const { x: ox, y: oy, keyId } = slide.opened;
               const openedTile = ConfigRegistry.getTile(simTerrain[oy][ox]);
+              // Reachability is not purely growing across passes: once a key is held, a slide that used to
+              // bounce off its door now ends on it.
+              if (
+                keyId !== undefined &&
+                openedTile.consumesKey &&
+                (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)
+              ) {
+                // Same rule as walking onto a scarce-key door: the door waits until nothing else progresses.
+                deferredDoors.set(`${ox},${oy}`, { x: ox, y: oy, keyId });
+                continue;
+              }
               if (keyId !== undefined) {
                 if (openedTile.consumesKey) {
                   ownedKeys[keyId] = Math.max((ownedKeys[keyId] || 0) - 1, 0);

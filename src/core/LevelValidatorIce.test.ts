@@ -205,3 +205,82 @@ describe('a slide opens the door or socket it reaches', () => {
     expect(engineWins(level, ['E', 'E'])).toBe(false);
   });
 });
+
+const MAZE_TERRAIN: Record<string, string> = {
+  ...GATE_TERRAIN,
+  R: 'door_red',
+  G: 'door_green',
+  f: 'force_e',
+  '4': 'ice_se'
+};
+const MAZE_ITEMS: Record<string, string> = { k: 'key_yellow', r: 'key_red', g: 'key_green', c: CHIP_ITEM };
+
+/** Free-form grid for the door cases: terrain rows plus an items layer of keys (k yellow, r red, g green). */
+function maze(rows: string[], itemRows: string[]): CompiledLevel {
+  let start = { x: 0, y: 0 };
+  rows.forEach((row, y) => {
+    const x = row.indexOf('P');
+    if (x >= 0) start = { x, y };
+  });
+  return {
+    id: 'ice_maze',
+    number: 1,
+    password: 'TEST',
+    timeLimitSeconds: 100,
+    chipsRequired: 0,
+    playerStart: { ...start, dir: 'E' },
+    terrain: rows.map((row) => [...row].map((ch) => MAZE_TERRAIN[ch])),
+    items: itemRows.map((row) => [...row].map((ch) => MAZE_ITEMS[ch] ?? null)),
+    entities: [],
+    trapLinks: [],
+    cloneLinks: []
+  };
+}
+
+const BLANK = '#######';
+
+describe('a slide into a door follows the same key rules as walking', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  // A chip lies behind the walking-route door, so the key-spending ranking prefers it over the pocket door.
+  const twoDoors = (door: string, key: string): CompiledLevel =>
+    maze(
+      ['########', `#.P.${door}cE#`, '##I#####', '##I#####', `##${door}#####`, '##.#####', '########'],
+      ['########', `#${key}...c.#`, ...Array(5).fill('########')]
+    );
+
+  it('keeps the only red key for the door on the walking route, not a dead-end pocket', () => {
+    const level = twoDoors('R', 'r');
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['W', 'E', 'E', 'E', 'E', 'E'])).toBe(true);
+  });
+
+  it('keeps a green key after a slide opens a green door', () => {
+    const level = twoDoors('G', 'g');
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['W', 'E', 'S', 'N', 'E', 'E', 'E', 'E'])).toBe(true);
+  });
+
+  it('opens a door at the end of a force floor run', () => {
+    const level = maze(['#########', '#.PfffDE#', '#########'], ['#########', '#k.......#', '#########']);
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['W', 'E', 'E', 'E'])).toBe(true);
+  });
+
+  it('opens a door after a turn tile', () => {
+    const level = maze(
+      ['#####E#', '#####D#', '#####I#', '#.PII4#', BLANK],
+      [BLANK, BLANK, BLANK, '#k.....', BLANK]
+    );
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['W', 'E', 'E', 'N'])).toBe(true);
+  });
+
+  it('still bounces off a door whose colour differs from the key passed on the way', () => {
+    const level = maze(['#PIIIRE#'], ['#..k....']);
+    expect(exitUnreachable(level)).toBe(true);
+    expect(engineWins(level, ['E', 'E'])).toBe(false);
+  });
+});
