@@ -113,6 +113,8 @@ export const EDITOR_DEFAULT_CLONE_TEMPLATE = 'dirt_block';
 export const EDITOR_LINK_LINE_WIDTH = 2;
 export const EDITOR_TRAP_LINK_COLOR = '#ffb300';
 export const EDITOR_CLONE_LINK_COLOR = '#ff1744';
+/** The line from a shot trigger to a shot launcher it fires (magenta), apart from the trap, clone and CC3D teleport link colours and the cursor outline. */
+export const EDITOR_LAUNCHER_LINK_COLOR = '#e040fb';
 /** Offset that puts a link line end at the center of its tile. */
 export const EDITOR_TILE_CENTER_OFFSET = 0.5;
 /** Terrain a wire tool places at each end of a link. */
