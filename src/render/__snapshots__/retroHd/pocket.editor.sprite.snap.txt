@@ -164,6 +164,56 @@ editor tile laser_gate_blue_closed closed=true 5d88fc21b520c8ea
 editor tile laser_gate_blue_closed closed=false 8d0938fa38a7eadb
 editor tile laser_gate_blue_open closed=true 691ce59c5426fd27
 editor tile laser_gate_blue_open closed=false 67da9b99687bdca6
+editor tile pressure_plate_red closed=true eb31060b1c247a81
+editor tile pressure_plate_red closed=false 8ac07c46a358b45b
+editor tile pressure_plate_green closed=true 2d16dc8553e76e77
+editor tile pressure_plate_green closed=false 0b86f49eeb1eb53f
+editor tile pressure_plate_blue closed=true e49d1f3ef5128158
+editor tile pressure_plate_blue closed=false 5cb44d959ab88445
+editor tile pressure_plate_yellow closed=true 02df540459390892
+editor tile pressure_plate_yellow closed=false d7458a3fdc676dd0
+editor tile hold_door_red_closed closed=true 53ab8c46a00e8e0c
+editor tile hold_door_red_closed closed=false 878c206b8d840474
+editor tile hold_door_red_open closed=true 25d5b3ca1ba72bca
+editor tile hold_door_red_open closed=false c83303d2a7893aa6
+editor tile hold_door_green_closed closed=true 84fa1f6ee842a78b
+editor tile hold_door_green_closed closed=false b5a60644caf451ac
+editor tile hold_door_green_open closed=true e01712a106175998
+editor tile hold_door_green_open closed=false cd2ac1d2cadde5dc
+editor tile hold_door_blue_closed closed=true 8a3d8b0fc52bf904
+editor tile hold_door_blue_closed closed=false 935477788d41febf
+editor tile hold_door_blue_open closed=true 6fb69d7c339c12e9
+editor tile hold_door_blue_open closed=false 7bc67f1e33eeb912
+editor tile hold_door_yellow_closed closed=true 1ebb0af3c98e7d61
+editor tile hold_door_yellow_closed closed=false 734ee8eb7b757c1d
+editor tile hold_door_yellow_open closed=true 9674d2a760b025c1
+editor tile hold_door_yellow_open closed=false ddd5b939445d5914
+editor tile toggle_wall_red_closed closed=true 90dffe66c73f0d4d
+editor tile toggle_wall_red_closed closed=false 6008c6a7b8792924
+editor tile toggle_wall_red_open closed=true 345f076491c63d53
+editor tile toggle_wall_red_open closed=false 8bbae3493670b472
+editor tile toggle_wall_blue_closed closed=true e4d90b406318452a
+editor tile toggle_wall_blue_closed closed=false 9089c6d2b414c652
+editor tile toggle_wall_blue_open closed=true a717dcf3c525442f
+editor tile toggle_wall_blue_open closed=false 88705b7aa8cb4ae8
+editor tile toggle_wall_yellow_closed closed=true 9e2a2757f6a55315
+editor tile toggle_wall_yellow_closed closed=false e6ed886848f5eaee
+editor tile toggle_wall_yellow_open closed=true aa8c0f30021ddd60
+editor tile toggle_wall_yellow_open closed=false f46234ac61b9b624
+editor tile toggle_button_red closed=true 5e95a6b7f973a390
+editor tile toggle_button_red closed=false c69b653945d9cdd9
+editor tile toggle_button_blue closed=true 22c9c26d617c220f
+editor tile toggle_button_blue closed=false 4dcc810ab73d4c02
+editor tile toggle_button_yellow closed=true 6687e81839b795e4
+editor tile toggle_button_yellow closed=false 5f70a74c1dbd6704
+editor tile floating_block_red closed=true b63fadd8ce61436f
+editor tile floating_block_red closed=false 10b70e22db0f05c9
+editor tile floating_block_green closed=true 8c35b239025dc8df
+editor tile floating_block_green closed=false 42a819e41ec857d6
+editor tile floating_block_blue closed=true 5769da93acc9cb49
+editor tile floating_block_blue closed=false e62ba0a97e2a4c1a
+editor tile floating_block_yellow closed=true 8018e2819262ca62
+editor tile floating_block_yellow closed=false e84881a32f3e0744
 editor tile key_red closed=true a6d2eaeae3e80705
 editor tile key_red closed=false 7e7216f8b69b3428
 editor tile key_blue closed=true 5c6ebfa6dffac7e2
@@ -225,3 +275,7 @@ editor entity over floor glider e1dc06edc737c264
 editor entity over floor fireball 36ff3bb9df51d804
 editor entity over floor tank b9e6d78301af6b51
 editor entity over floor blob 9e2d9e1dbbd1250b
+editor entity over floor color_block_red 85aa5ae2980846f7
+editor entity over floor color_block_green 9d1b8f7edfde4c7f
+editor entity over floor color_block_blue 24e10204f875fb3f
+editor entity over floor color_block_yellow 292aea0ff837e964

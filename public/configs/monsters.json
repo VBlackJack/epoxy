@@ -159,6 +159,58 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false
+    },
+    "color_block_red": {
+      "id": "color_block_red",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.color_block_red.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "floating_block_red",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "plateColor": "red"
+    },
+    "color_block_green": {
+      "id": "color_block_green",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.color_block_green.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "floating_block_green",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "plateColor": "green"
+    },
+    "color_block_blue": {
+      "id": "color_block_blue",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.color_block_blue.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "floating_block_blue",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "plateColor": "blue"
+    },
+    "color_block_yellow": {
+      "id": "color_block_yellow",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.color_block_yellow.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "floating_block_yellow",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "plateColor": "yellow"
     }
   }
 }

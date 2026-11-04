@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, OPPOSITE_DIRECTION } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, OPPOSITE_DIRECTION, channelOfButtonAction } from './coreConstants';
 import { GameEngine } from './GameEngine';
 import { Direction, GridPoint, TileDefinition } from './types';
 
@@ -311,12 +311,15 @@ export class Pathfinder {
     }
 
     let hasClosedToggleWall = false;
+    // Channels (red, blue, yellow) that still have a closed wall: a button of that channel is worth a visit.
+    const closedChannelWalls = new Set<string>();
     let hasLitFlameJet = false;
     const teleporters: GridPoint[] = [];
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
         const tile = ConfigRegistry.getTile(terrain[ty][tx]);
         if (tile.togglesTo && !tile.passableByPlayer) hasClosedToggleWall = true;
+        if (tile.channelTogglesTo && tile.toggleChannel && !tile.passableByPlayer) closedChannelWalls.add(tile.toggleChannel);
         if (tile.flameTogglesTo && tile.hazard) hasLitFlameJet = true;
         if (tile.isTeleporter) teleporters.push({ x: tx, y: ty });
       }
@@ -346,6 +349,10 @@ export class Pathfinder {
           if (!keyOrBootCandidate) keyOrBootCandidate = curr;
         }
         if (tile.buttonAction === 'toggle_walls' && hasClosedToggleWall && !buttonCandidate) {
+          buttonCandidate = curr;
+        }
+        const channelButton = channelOfButtonAction(tile.buttonAction);
+        if (channelButton && closedChannelWalls.has(channelButton) && !buttonCandidate) {
           buttonCandidate = curr;
         }
         if (tile.buttonAction === 'toggle_flames' && hasLitFlameJet && !buttonCandidate) {

@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isInBounds } from '../config/ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
-import { hasLaserContent } from '../core/RulesetFeatures';
+import { hasColorChannelContent, hasLaserContent } from '../core/RulesetFeatures';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
   DEFAULT_FACING,
@@ -93,7 +93,8 @@ export type DatRefusalReason =
   | 'targets_win_rule'
   | 'receivers_win_rule'
   | 'laser_content'
-  | 'cc3d_ruleset';
+  | 'cc3d_ruleset'
+  | 'color_channel_content';
 
 /** A level left out of the pack, with the reason. */
 export interface DatRefusal {
@@ -129,6 +130,8 @@ export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null 
   // Nor does it have laser receivers, emitters, gates or mirrors: they would be written as floor or plain blocks.
   if (level.winRule === 'receivers') return 'receivers_win_rule';
   if (hasLaserContent(level)) return 'laser_content';
+  // Nor plates, hold doors, colour toggle walls or colour blocks: they would be written as floor or plain blocks.
+  if (hasColorChannelContent(level)) return 'color_channel_content';
   const datCfg = ConfigRegistry.getDatFormat();
   const { mapWidth: gridWidth, mapHeight: gridHeight } = ConfigRegistry.getGame().grid;
   const layerWidth = datCfg.layerWidth ?? gridWidth;

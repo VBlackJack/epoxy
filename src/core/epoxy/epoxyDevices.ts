@@ -22,15 +22,27 @@ import {
   CHIP_ITEM_ID,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   GRAY_BUTTON_RADIUS,
-  OPPOSITE_DIRECTION
+  OPPOSITE_DIRECTION,
+  channelOfButtonAction
 } from '../coreConstants';
-import { ButtonAction, Direction, RuntimeEntity, TileDefinition } from '../types';
+import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
-import { EpoxyContext, EpoxyWorld, isInBounds, killPlayer, removeEntity } from './epoxyWorld';
+import {
+  EpoxyContext,
+  EpoxyWorld,
+  getEntityAt,
+  isInBounds,
+  killPlayer,
+  pressesPlate,
+  removeEntity
+} from './epoxyWorld';
 
 /** Hard cap on live entities, so a cloner wired to a held button cannot flood the grid. */
 const MAX_ACTIVE_ENTITIES = 512;
+
+/** Sound played when hold doors open or close. */
+const HOLD_DOOR_SFX = 'door';
 
 /** Returns false when a clone spawned by the button killed the player. */
 export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action: ButtonAction): boolean {
@@ -39,6 +51,10 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
 
   if (action === 'toggle_walls') {
     swapTerrain(w, (tile) => tile.togglesTo);
+  } else if (channelOfButtonAction(action) !== undefined) {
+    // A colour button swaps the walls of its own channel only; green walls and the other colours stay.
+    const channel = channelOfButtonAction(action);
+    swapTerrain(w, (tile) => (tile.toggleChannel === channel ? tile.channelTogglesTo : undefined));
   } else if (action === 'toggle_flames') {
     swapTerrain(w, (tile) => tile.flameTogglesTo);
     burnPlayerIfFlamesLit(ctx);
@@ -69,6 +85,44 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     }
   }
   return true;
+}
+
+/**
+ * Sets every hold door from the plates of its colour: open while the colour has at least one plate and
+ * every one of them is pressed, closed otherwise (a colour with no plate keeps its doors shut). A door
+ * that closes on an occupied cell follows its `holdDoorClosesOnOccupant` rule: shut at once by default,
+ * the occupant may leave and nothing may enter, or kept open until the cell is free. Returns true when a
+ * door changed, so the caller can retrace the lasers. Returns at once on a level without hold doors.
+ * The pass reads the plates as they are when it runs: doors settle at the end of a tick or move, while
+ * a brown trap reads its button live.
+ */
+export function setHoldDoors(ctx: EpoxyContext, playSound: boolean = true): boolean {
+  const w = ctx.world;
+  if (w.holdDoors.length === 0) return false;
+
+  const platesOpen = new Map<ChannelColor, boolean>();
+  for (const plate of w.plates) {
+    if (ConfigRegistry.getTile(w.terrain[plate.y][plate.x]).plateColor !== plate.color) continue;
+    const pressed = pressesPlate(w, plate.x, plate.y, plate.color);
+    platesOpen.set(plate.color, (platesOpen.get(plate.color) ?? true) && pressed);
+  }
+
+  let changed = false;
+  for (const { x, y } of w.holdDoors) {
+    const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+    if (tile.holdDoorColor === undefined || !tile.holdDoorTogglesTo) continue;
+    const wantsOpen = platesOpen.get(tile.holdDoorColor) === true;
+    if (tile.holdDoorOpen === wantsOpen) continue;
+    const occupied = (w.player.x === x && w.player.y === y) || getEntityAt(w, x, y) !== undefined;
+    if (!wantsOpen && occupied && tile.holdDoorClosesOnOccupant === false) continue;
+    w.terrain[y][x] = tile.holdDoorTogglesTo;
+    changed = true;
+  }
+  if (changed) {
+    if (playSound) AudioManager.playSfx(HOLD_DOOR_SFX);
+    w.beamDirty = true;
+  }
+  return changed;
 }
 
 /**

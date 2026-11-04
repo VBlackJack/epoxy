@@ -86,6 +86,9 @@ const TILE_PREFIX_RULES: ReadonlyArray<{ prefix: string; key: string | null }> =
   { prefix: 'door_', key: null },
   { prefix: 'key_', key: null },
   { prefix: 'button_', key: null },
+  { prefix: 'pressure_plate_', key: null },
+  { prefix: 'toggle_button_', key: null },
+  { prefix: 'floating_block_', key: 'waterDeep' },
   { prefix: 'teleport_', key: null },
   { prefix: 'laser_emitter_', key: 'laserBeam' },
   { prefix: 'laser_receiver_', key: null },
@@ -98,12 +101,17 @@ const LASER_GATE_PATTERN = /^laser_gate_([a-z]+)_(closed|open)$/;
 const LASER_GATE_OPEN = 'open';
 const OPEN_GATE_PALETTE_KEY = 'floorBorder';
 
+/** Doors and walls of a colour channel are `<family>_<colour>_<state>`; an open one looks like floor. */
+const CHANNEL_DOOR_PATTERN = /^(?:hold_door|toggle_wall)_([a-z]+)_(closed|open)$/;
+
 /** Palette key that colours a tile id; null when the table has no rule for it. */
 export function thumbnailPaletteKey(tileId: string): string | null {
   const exact = TILE_PALETTE_KEYS[tileId];
   if (exact) return exact;
   const gate = LASER_GATE_PATTERN.exec(tileId);
   if (gate) return gate[2] === LASER_GATE_OPEN ? OPEN_GATE_PALETTE_KEY : gate[1];
+  const channelDoor = CHANNEL_DOOR_PATTERN.exec(tileId);
+  if (channelDoor) return channelDoor[2] === LASER_GATE_OPEN ? OPEN_GATE_PALETTE_KEY : channelDoor[1];
   for (const rule of TILE_PREFIX_RULES) {
     if (tileId.startsWith(rule.prefix)) return rule.key ?? tileId.slice(rule.prefix.length);
   }

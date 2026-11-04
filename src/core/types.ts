@@ -767,7 +767,29 @@ export interface TileDefinition {
   laserGateOpen?: boolean;
   /** The other form of a laser gate (closed to open and back), swapped by the receivers of its group only. */
   laserGateTogglesTo?: string;
+  /** Colour of a pressure plate: a hold door of the same colour opens while every plate of it is pressed. */
+  plateColor?: ChannelColor;
+  /** Colour of a hold door; it is open while every plate of that colour is pressed. */
+  holdDoorColor?: ChannelColor;
+  /** Whether a hold door is the open (true) or the closed (false) form of its pair. */
+  holdDoorOpen?: boolean;
+  /** The other form of a hold door (closed to open and back), swapped by the plates of its colour only. */
+  holdDoorTogglesTo?: string;
+  /**
+   * When a hold door closes on a cell that is occupied: true (the default) closes it at once, the occupant
+   * may leave and nothing may enter; false keeps it open until the cell is free, as a laser gate does.
+   */
+  holdDoorClosesOnOccupant?: boolean;
+  /** Channel of a colour toggle wall; a toggle wall that declares none belongs to the green channel. */
+  toggleChannel?: ChannelColor;
+  /** The other form of a colour toggle wall, swapped by the toggle button of its channel only. */
+  channelTogglesTo?: string;
+  /** Colour of the colour block that made this walkable cell by sinking into water. */
+  floatingBlockColor?: ChannelColor;
 }
+
+/** Colours of the plate, hold door and toggle channels. Green is the existing toggle wall channel. */
+export type ChannelColor = 'red' | 'green' | 'blue' | 'yellow';
 
 export type ButtonAction =
   | 'toggle_walls'
@@ -775,7 +797,10 @@ export type ButtonAction =
   | 'hold_trap'
   | 'trigger_cloner'
   | 'toggle_flames'
-  | 'swap_chips_bombs';
+  | 'swap_chips_bombs'
+  | 'toggle_walls_red'
+  | 'toggle_walls_blue'
+  | 'toggle_walls_yellow';
 
 export interface TilesConfig {
   categories: Array<{ id: string; i18nKey: string }>;
@@ -807,6 +832,10 @@ export interface EntityDefinition {
   mirrorAxis?: MirrorAxis;
   /** Terrain hazards a block refuses to enter, by push, slide, teleport or clone. */
   refusesHazards?: Array<NonNullable<TileDefinition['hazard']>>;
+  /** Colour of a colour block: it presses the plates of this colour only (a plain entity presses every plate). */
+  plateColor?: ChannelColor;
+  /** Whether the entity presses pressure plates; blocks do by default, monsters do only when this is true. */
+  pressesPlates?: boolean;
 }
 
 /** Orientation of a laser mirror. */
