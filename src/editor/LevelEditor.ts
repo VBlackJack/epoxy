@@ -62,6 +62,7 @@ import {
   TestFromHereBlock
 } from './testFromHere';
 import { CheckSummary, summarizeValidation } from './checkSummary';
+import { issueCell, issueRows } from './issueList';
 import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d } from './editorDocument';
 import {
   DRAFT_VERSION,
@@ -264,6 +265,10 @@ const EDITOR_PLAYER_BRUSH_ID = 'player_start';
 const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
 const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
+const ISSUES_LIST_ID = 'editor-issues-list';
+const ISSUES_NOTE_ID = 'editor-issues-note';
+const ISSUES_SECTION_ID = 'editor-issues-section';
+const SEVERITY_GLYPHS: Record<ValidationIssue['severity'], string> = { error: '✖', warning: '⚠' };
 const CC3D_COLOR_LABEL_KEYS: Record<Cc3dBrushAttributes['color'], string> = {
   red: 'editor.cc3d.color.red',
   green: 'editor.cc3d.color.green',
@@ -563,6 +568,7 @@ export class LevelEditor {
     this.bindMetadataEvents();
     this.bindPaletteChrome();
     this.bindInspectorSections();
+    this.renderIssues();
     this.bindLayoutEvents();
     this.bindDraftEvents();
     this.holdDraftLock();
@@ -818,6 +824,11 @@ export class LevelEditor {
     this.setStatusText(t('editor.palette.status.ready.label'));
     this.refreshContext();
     this.updateCanvasLabel();
+    // The previous level's verdict says nothing about this one: back to the idle badge and note until the next check.
+    this.lastCheck = null;
+    this.lastIssues = null;
+    this.updateCheckBadge(null);
+    this.renderIssues();
     this.scheduleCheck();
     this.render();
     // The stage may not have its final size yet (a view just shown, a dialog just closed): fit once more after layout.
@@ -956,6 +967,7 @@ export class LevelEditor {
     this.syncMetadataInputs();
     this.updateCanvasLabel();
     this.updateCheckBadge(this.lastCheck);
+    this.renderIssues();
     this.testFromStateKey = '';
     this.updateTestFromState();
     this.applyFit();
@@ -1594,7 +1606,9 @@ export class LevelEditor {
     byId('editor-validate-btn')?.addEventListener('click', () => {
       const compiled = this.exportCompiledLevel();
       const report = LevelValidator.validate(compiled, storedSolutionWins);
-      this.setCheck(summarizeValidation(report));
+      this.setCheck(summarizeValidation(report), report.issues);
+      const issuesSection = byId<HTMLDetailsElement>(ISSUES_SECTION_ID);
+      if (issuesSection) issuesSection.open = true;
       if (report.valid) {
         const validText =
           compiled.winRule === 'receivers'
@@ -1693,7 +1707,8 @@ export class LevelEditor {
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = setTimeout(() => {
       this.checkTimer = null;
-      this.setCheck(summarizeValidation(LevelValidator.validate(this.exportCompiledLevel(), storedSolutionWins)));
+      const report = LevelValidator.validate(this.exportCompiledLevel(), storedSolutionWins);
+      this.setCheck(summarizeValidation(report), report.issues);
     }, EDITOR_CHECK_DEBOUNCE_MS);
   }
 
@@ -1754,13 +1769,76 @@ export class LevelEditor {
     return this.blockRunner;
   }
 
-  private setCheck(summary: CheckSummary): void {
+  private setCheck(summary: CheckSummary, issues: ValidationIssue[]): void {
     if (this.checkTimer !== null) {
       clearTimeout(this.checkTimer);
       this.checkTimer = null;
     }
     this.lastCheck = summary;
+    this.lastIssues = issues;
     this.updateCheckBadge(summary);
+    this.renderIssues();
+  }
+
+  /** The issues of the last check, or null before any check. */
+  private lastIssues: ValidationIssue[] | null = null;
+
+  /** Fills the issues section from the last check: a jump button for an issue that names a cell, plain text otherwise. */
+  private renderIssues(): void {
+    const list = byId(ISSUES_LIST_ID);
+    const note = byId(ISSUES_NOTE_ID);
+    if (!list || !note) return;
+    // Rebuilding drops the focused row: remember its position to give the focus back to the same one.
+    const rowsBefore = Array.from(list.querySelectorAll<HTMLElement>('.editor-issue-row'));
+    const focusedIndex = rowsBefore.findIndex((row) => row === document.activeElement);
+    list.innerHTML = '';
+    const issues = this.lastIssues;
+    note.textContent = issues === null ? t('editor.issues.idle') : issues.length === 0 ? t('editor.issues.none') : '';
+    if (!issues) return;
+    const { rows, hidden } = issueRows(issues, this.mapWidth(), this.mapHeight());
+    for (const { issue, cell } of rows) {
+      const item = document.createElement('li');
+      const row = document.createElement(cell ? 'button' : 'div');
+      row.className = 'editor-issue-row';
+      row.dataset.severity = issue.severity;
+      const glyph = document.createElement('span');
+      glyph.className = 'editor-issue-glyph';
+      glyph.setAttribute('aria-hidden', 'true');
+      glyph.textContent = SEVERITY_GLYPHS[issue.severity];
+      const text = document.createElement('span');
+      text.textContent = this.formatIssue(issue);
+      const severity = document.createElement('span');
+      severity.className = 'sr-only';
+      severity.textContent = t(`editor.issues.severity.${issue.severity}.label`);
+      row.append(glyph, severity, text);
+      if (cell && row instanceof HTMLButtonElement) {
+        row.type = 'button';
+        row.title = t('editor.issues.jump.title', { x: cell.x, y: cell.y });
+        row.addEventListener('click', () => this.jumpToIssue(issue));
+      }
+      item.appendChild(row);
+      list.appendChild(item);
+    }
+    if (hidden > 0) {
+      const more = document.createElement('li');
+      more.className = 'hint-text';
+      more.textContent = t('editor.issues.more', { count: hidden });
+      list.appendChild(more);
+    }
+    if (focusedIndex >= 0) list.querySelectorAll<HTMLElement>('.editor-issue-row')[focusedIndex]?.focus({ preventScroll: true });
+  }
+
+  /** Puts the cursor on the cell an issue names, scrolls it into view and gives the canvas the focus. */
+  private jumpToIssue(issue: ValidationIssue): void {
+    // The level may have been resized since the check: only a cell that still exists is a target.
+    const cell = issueCell(issue, this.mapWidth(), this.mapHeight());
+    if (!cell) return;
+    this.moveCursorTo(cell, false);
+    this.canvas.focus({ preventScroll: true });
+    const stage = byId('editor-stage');
+    if (byId('editor-view')?.dataset.layout === 'one' && typeof stage?.scrollIntoView === 'function') {
+      stage.scrollIntoView({ block: 'nearest' });
+    }
   }
 
   private updateCheckBadge(summary: CheckSummary | null): void {
@@ -2708,15 +2786,11 @@ export class LevelEditor {
       ev.preventDefault();
       if (action.kind === 'move') {
         const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
-        this.cursorCell = moveCursor(from, action.dx, action.dy, this.mapWidth(), this.mapHeight());
-        if (this.pasting) this.pasteAnchor = this.cursorCell;
-        if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, this.cursorCell, ev.shiftKey);
-        this.setCoordsText(t('editor.palette.status.coords', { x: this.cursorCell.x, y: this.cursorCell.y }));
-        this.revealCell(this.cursorCell);
-        this.refreshLayersList();
-        this.render();
+        this.moveCursorTo(moveCursor(from, action.dx, action.dy, this.mapWidth(), this.mapHeight()), ev.shiftKey);
         return;
       }
+      // A held key must not paint over and over: only the first press acts.
+      if (ev.repeat) return;
       // A pointer stroke is running: its own history step must not be split by a key press.
       if (this.stroke) return;
       const cell = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
@@ -2740,6 +2814,18 @@ export class LevelEditor {
     });
     this.canvas.addEventListener('focus', () => this.render());
     this.canvas.addEventListener('blur', () => this.render());
+  }
+
+  /** Puts the keyboard cursor on a cell: follows a paste, extends or starts the selection, shows the cell and scrolls it into view. */
+  private moveCursorTo(to: { x: number; y: number }, extendSelection: boolean): void {
+    const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
+    this.cursorCell = to;
+    if (this.pasting) this.pasteAnchor = to;
+    if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, to, extendSelection);
+    this.setCoordsText(t('editor.palette.status.coords', { x: to.x, y: to.y }));
+    this.revealCell(to);
+    this.refreshLayersList();
+    this.render();
   }
 
   private beginStroke(forceErase: boolean, wholeCell = false): void {

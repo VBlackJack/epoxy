@@ -7,6 +7,10 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor issues list: an Issues section in the inspector lists the validator's errors and warnings
+  (errors first, up to 100) and follows the Check badge; an issue that names a cell is a button that moves
+  the keyboard cursor there, scrolls it into view and focuses the canvas. A held Enter or Space on the
+  canvas now paints once instead of repeating.
 - Level editor on large maps: a zoom keeps the pointed cell (else the cursor cell, else the middle) under
   the same screen spot, arrow keys scroll the map to keep the cursor in view with a cell of margin, and
   undo and redo keep the cursor, scroll to the change when it is out of view and say what they undid or
