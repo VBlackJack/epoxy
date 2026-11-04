@@ -85,8 +85,34 @@ const DOOR_ORDER_MAX_WALKS = 32;
 const DOOR_ORDER_STEP_FLOOR = 20_000;
 const DOOR_ORDER_STEP_SHARE = 16;
 const DOOR_ORDER_STEP_CAP = 400_000;
-/** Most decisions the search changes in one walk: the greedy order is wrong in a place or two, not more. */
+/** Most decisions the default search changes in one walk: the greedy order is wrong in a place or two, not more. */
 const DOOR_ORDER_MAX_DISCREPANCIES = 2;
+/**
+ * The 'deep' search, asked for by a check that runs once (the CC3D conversion), never by the editor's per-edit
+ * check: three decisions changed, 64 walks, and a small level may spend about DOOR_ORDER_DEEP_TOTAL_WORK steps on
+ * the retries in all (never less than the default allowance, still capped at DOOR_ORDER_STEP_CAP). Measured on the
+ * converted CC3D map 15022, whose greedy order is wrong in three places: it needs 3 discrepancies, 46 walks and
+ * 161k steps (walk 0 costs 4.1k). A mid-size level (walk 0 above about 150k steps) gets less than one retry,
+ * because each retry replays the whole walk: its allowance stays the default fraction of walk 0.
+ */
+const DOOR_ORDER_DEEP_MAX_DISCREPANCIES = 3;
+const DOOR_ORDER_DEEP_MAX_WALKS = 64;
+const DOOR_ORDER_DEEP_TOTAL_WORK = 200_000;
+
+/** Which search the door order uses: false never retries, true is the editor-safe default, 'deep' is wider. */
+export type DoorOrderSearchMode = boolean | 'deep';
+
+/** Steps the retries of the door order search may spend, given the steps of the greedy walk (walk 0). */
+export function doorOrderAllowance(walk0Steps: number, mode: DoorOrderSearchMode = true): number {
+  const fraction = Math.floor(walk0Steps / DOOR_ORDER_STEP_SHARE);
+  if (mode === 'deep') {
+    return Math.min(
+      DOOR_ORDER_STEP_CAP,
+      Math.max(DOOR_ORDER_STEP_FLOOR, DOOR_ORDER_DEEP_TOTAL_WORK - walk0Steps) + fraction
+    );
+  }
+  return Math.min(DOOR_ORDER_STEP_CAP, DOOR_ORDER_STEP_FLOOR + fraction);
+}
 
 /** A block use the stock must cover, as tracked by the reach walk. */
 type BlockUse = 'water' | 'fire' | 'melt' | 'other';
@@ -202,9 +228,11 @@ export interface ValidateOptions {
   blockSearch?: BlockSearchMode;
   /**
    * Whether a reach walk that misses chips or the exit retries other orders for the scarce-key doors
-   * (default true). The retries only ever add what a legal order reaches; false keeps the greedy walk alone.
+   * (default true: up to 2 decisions changed, 32 walks, a small allowance, cheap enough for every edit).
+   * The retries only ever add what a legal order reaches; false keeps the greedy walk alone. 'deep' widens
+   * the search (3 decisions, 64 walks, about 200k steps on a small level) for a check that runs once.
    */
-  doorOrderSearch?: boolean;
+  doorOrderSearch?: boolean | 'deep';
 }
 
 export class LevelValidator {
@@ -889,7 +917,7 @@ export class LevelValidator {
     const wrongAndSearchable =
       misses(reported) > 0 && options.doorOrderSearch !== false && reported.decisions.some((d) => d.ranked.length > 1);
     if (wrongAndSearchable) {
-      reported = this.searchDoorOrders(reported, walkReach, misses);
+      reported = this.searchDoorOrders(reported, walkReach, misses, options.doorOrderSearch ?? true);
     }
     const { collectedChips, reachableExit } = reported;
 
@@ -1614,19 +1642,22 @@ export class LevelValidator {
    * differs from one of those in one decision more. A choice only changes which held-key door opens at a
    * fixpoint, a legal move under the same rules, so a walk that finds more proves more. Stops at the first walk
    * that misses nothing. Reports one walk whole: fewest misses, then most chips, and walk 0 on a tie.
-   * Bounded by DOOR_ORDER_MAX_WALKS and the step allowance (walk steps and ranking work together); a walk cut off by the budget is discarded.
+   * Bounded by the walk cap of the mode and the step allowance (walk steps and ranking work together); a walk cut off by the budget is discarded.
    */
   private static searchDoorOrders(
     walk0: ReachOutcome,
     walkReach: (forced: readonly string[], stepLimit: number) => ReachOutcome,
-    misses: (walk: ReachOutcome) => number
+    misses: (walk: ReachOutcome) => number,
+    mode: DoorOrderSearchMode = true
   ): ReachOutcome {
     let best = walk0;
-    let walksLeft = DOOR_ORDER_MAX_WALKS;
-    let stepsLeft = Math.min(DOOR_ORDER_STEP_CAP, DOOR_ORDER_STEP_FLOOR + Math.floor(walk0.steps / DOOR_ORDER_STEP_SHARE));
+    const deep = mode === 'deep';
+    let walksLeft = deep ? DOOR_ORDER_DEEP_MAX_WALKS : DOOR_ORDER_MAX_WALKS;
+    const maxDiscrepancies = deep ? DOOR_ORDER_DEEP_MAX_DISCREPANCIES : DOOR_ORDER_MAX_DISCREPANCIES;
+    let stepsLeft = doorOrderAllowance(walk0.steps, mode);
     // Walks to branch from, with how many of their decisions are already fixed (forced or branched).
     let frontier: { walk: ReachOutcome; fixed: number }[] = [{ walk: walk0, fixed: 0 }];
-    for (let discrepancies = 1; discrepancies <= DOOR_ORDER_MAX_DISCREPANCIES; discrepancies++) {
+    for (let discrepancies = 1; discrepancies <= maxDiscrepancies; discrepancies++) {
       const next: { walk: ReachOutcome; fixed: number }[] = [];
       for (const { walk: parent, fixed } of frontier) {
         for (let at = parent.decisions.length - 1; at >= fixed; at--) {
