@@ -353,3 +353,63 @@ describe('slow-time showcase level', () => {
     expect(storedSolutionWins(withoutCharm)).toBe(false);
   });
 });
+
+/** Index of the underlays level in the showcase pack. */
+const UNDERLAYS_LEVEL_INDEX = 4;
+
+/**
+ * The level of terrain hidden under removable tops: a key door over ice, a key door over a toggle button
+ * and a socket over the exit. What is under each shows once the top is open.
+ */
+describe('underlays showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  function compileUnderlays(): CompiledLevel {
+    const blueprint = (showcase as { levels: LevelBlueprint[] }).levels[UNDERLAYS_LEVEL_INDEX];
+    return ConfigRegistry.compileBlueprint(blueprint);
+  }
+
+  it('compiles with its underlays and passes the editor validator', () => {
+    const level = compileUnderlays();
+    expect(level.underlays).toEqual([
+      { x: 4, y: 1, terrain: 'ice' },
+      { x: 9, y: 1, terrain: 'button_green' },
+      { x: 8, y: 3, terrain: 'exit' }
+    ]);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through to the exit, each top showing what it hid', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(compileUnderlays());
+    expect(engine.getTerrain()[1][4]).toBe('door_red');
+
+    // The red door opens onto ice: the player slides to the chip.
+    walk(engine, 'EEE');
+    settle(engine);
+    expect(engine.getTerrain()[1][4]).toBe('ice');
+    expect(engine.getPlayer()).toMatchObject({ x: 8, y: 1, alive: true, isSliding: false });
+    expect(engine.getChipsRemaining()).toBe(0);
+
+    // The blue door opens onto a button, which lowers the toggle wall.
+    expect(engine.getTerrain()[2][8]).toBe('toggle_wall_closed');
+    walk(engine, 'E');
+    expect(engine.getTerrain()[1][9]).toBe('button_green');
+    expect(engine.getTerrain()[2][8]).toBe('toggle_wall_open');
+
+    // The socket opens onto the exit.
+    walk(engine, 'WSS');
+    expect(engine.getTerrain()[3][8]).toBe('exit');
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('carries a stored solution that wins', () => {
+    expect(storedSolutionWins(compileUnderlays())).toBe(true);
+  });
+});
