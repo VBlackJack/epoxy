@@ -61,7 +61,8 @@ export const BOOT_COLOR_KEYS: Readonly<Record<string, string>> = {
   boots_water: 'waterWave',
   boots_fire: 'fireMid',
   boots_ice: 'iceShine',
-  boots_force: 'green'
+  boots_force: 'green',
+  boots_speed: 'yellow'
 };
 
 export const MONSTER_COLOR_KEYS: Readonly<Record<string, string>> = {
@@ -106,7 +107,8 @@ export const RETRO_BOOT_RAMPS: Readonly<Record<string, string>> = {
   boots_water: 'water',
   boots_fire: 'fire',
   boots_ice: 'ice',
-  boots_force: 'green'
+  boots_force: 'green',
+  boots_speed: 'yellow'
 };
 
 /** Retro style: ramp of the ring of the plain (colourless) teleporter. */

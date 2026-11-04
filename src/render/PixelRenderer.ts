@@ -4535,7 +4535,8 @@ export class PixelRenderer {
       case 'boots_water':
       case 'boots_fire':
       case 'boots_ice':
-      case 'boots_force': {
+      case 'boots_force':
+      case 'boots_speed': {
         const c = pal[BOOT_COLOR_KEYS[itemId] ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
         ctx.save();
         if (isModern) {
