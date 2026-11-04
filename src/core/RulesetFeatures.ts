@@ -210,6 +210,11 @@ export function isSlowTimeTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).slowsMonsters !== undefined;
 }
 
+/** True when the tile hastes the player while held, which no Lynx or CC3D rule has. */
+export function isSpeedBootsTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).hastesPlayer !== undefined;
+}
+
 /** True when the tile id is a swivel door, which turns a quarter turn behind whoever passes through it. */
 export function isSwivelTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).swivelTurns !== undefined;
@@ -222,10 +227,11 @@ export function hasSwivelContent(level: Pick<CompiledLevel, 'terrain' | 'items'>
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, the slow-time item, a steering pad or a swivel door. */
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, the slow-time or speed boots item, a steering pad or a swivel door. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
-    isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id) || isSteeringTileId(id) || isSwivelTileId(id)
+    isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id) || isSpeedBootsTileId(id) ||
+    isSteeringTileId(id) || isSwivelTileId(id)
   );
 }
 
@@ -253,7 +259,7 @@ export function hasEpoxyOnlyContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {
   const hasSlowTime = (grid: Array<Array<string | null>> | undefined): boolean =>
-    grid?.some((row) => row.some(isSlowTimeTileId)) ?? false;
+    grid?.some((row) => row.some((id) => isSlowTimeTileId(id) || isSpeedBootsTileId(id))) ?? false;
   return (
     hasLaserContent(level) ||
     hasColorChannelContent(level) ||

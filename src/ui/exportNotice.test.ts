@@ -33,7 +33,7 @@ describe('lossyExportNotice', () => {
     expect(notice).toBe(t('app.export.refused_cc3d_ruleset.label', { levels: 'cc3d_a' }));
   });
 
-  it('names the levels with a slow-time charm a .DAT export left out', () => {
+  it('names the levels with an Epoxy-only item (slow-time charm, speed boots) a .DAT export left out', () => {
     const notice = lossyExportNotice({
       replaced: [],
       lost: [],

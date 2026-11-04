@@ -70,6 +70,7 @@ describe('colour channel aids', () => {
   it('names the slow-time item as Epoxy only, alone and in a level', () => {
     expect(isEpoxyOnlyTileId('slow_time')).toBe(true);
     expect(isEpoxyOnlyTileId('boots_fire')).toBe(false);
+    expect(isEpoxyOnlyTileId('boots_speed')).toBe(true);
     const level = levelWith('floor');
     level.items[1][1] = 'slow_time';
     expect(hasEpoxyOnlyContent(level)).toBe(true);
