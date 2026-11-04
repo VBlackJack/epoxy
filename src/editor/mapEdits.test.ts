@@ -579,3 +579,68 @@ describe('toggleCellEdge', () => {
     expect(JSON.stringify(map)).toBe(snapshot);
   });
 });
+
+describe('clone templates', () => {
+  /** A clone machine at (4, 4) holding a walker facing east, wired to a red button at (2, 4). */
+  function withWalkerCloner(): EditorMap {
+    const map = withLinks();
+    map.entities = [{ x: 4, y: 4, type: 'walker', dir: 'E' }];
+    map.cloneLinks = [{ buttonX: 2, buttonY: 4, clonerX: 4, clonerY: 4, templateType: 'walker', templateDir: 'E' }];
+    return map;
+  }
+
+  it('follows a quarter turn of the creature on the clone machine', () => {
+    const map = withWalkerCloner();
+    const turned = paintEntity(map, 4, 4, 'walker', 'S');
+    expect(turned.map.cloneLinks[0]).toMatchObject({ templateType: 'walker', templateDir: 'S' });
+    expect(turned.clonerTemplates).toEqual([{ x: 4, y: 4, type: 'walker', dir: 'S' }]);
+    expect(map.cloneLinks[0].templateDir).toBe('E');
+  });
+
+  it('follows a different creature painted over it, and a stale template of a stored level', () => {
+    const map = withWalkerCloner();
+    map.cloneLinks[0] = { ...map.cloneLinks[0], templateType: 'dirt_block', templateDir: 'N' };
+    const repainted = paintEntity(map, 4, 4, 'turret_fixed', 'W');
+    expect(repainted.map.cloneLinks[0]).toMatchObject({ templateType: 'turret_fixed', templateDir: 'W' });
+  });
+
+  it('reports nothing when the cell is not a linked clone machine, or the template already matches', () => {
+    const map = withWalkerCloner();
+    expect(paintEntity(map, 5, 5, 'walker', 'N').clonerTemplates).toBeUndefined();
+    const stale = withWalkerCloner();
+    stale.entities = [];
+    expect(paintEntity(stale, 4, 4, 'walker', 'E').clonerTemplates).toBeUndefined();
+  });
+
+  it('repainting the same creature and facing re-syncs a drifted template and reports it, else stays a no-op', () => {
+    const drifted = withWalkerCloner();
+    drifted.cloneLinks[0] = { ...drifted.cloneLinks[0], templateType: 'dirt_block', templateDir: 'N' };
+    const synced = paintEntity(drifted, 4, 4, 'walker', 'E');
+    expect(synced.changed).toBe(true);
+    expect(synced.map.cloneLinks[0]).toMatchObject({ templateType: 'walker', templateDir: 'E' });
+    expect(synced.clonerTemplates).toEqual([{ x: 4, y: 4, type: 'walker', dir: 'E' }]);
+    expect(drifted.cloneLinks[0].templateType).toBe('dirt_block');
+    const aligned = withWalkerCloner();
+    const same = paintEntity(aligned, 4, 4, 'walker', 'E');
+    expect(same.changed).toBe(false);
+    expect(same.map).toBe(aligned);
+  });
+
+  it('leaves no link behind when the clone machine is erased or repainted', () => {
+    const map = withWalkerCloner();
+    expect(eraseCell(map, 4, 4).map.cloneLinks).toEqual([]);
+    expect(paintTerrain(map, 4, 4, 'floor').map.cloneLinks).toEqual([]);
+  });
+
+  it('warns when a clone wire ends on an empty clone machine, and not when a creature stands there', () => {
+    const empty = withLinks();
+    empty.cloneLinks = [];
+    const warned = placeWireLink(empty, 'clone', { x: 2, y: 4 }, { x: 4, y: 4 }, 'W');
+    expect(warned.emptyCloner).toBe(true);
+    expect(warned.map.cloneLinks[0]).toMatchObject({ templateType: 'dirt_block', templateDir: 'W' });
+    const occupied = withWalkerCloner();
+    occupied.cloneLinks = [];
+    expect(placeWireLink(occupied, 'clone', { x: 2, y: 4 }, { x: 4, y: 4 }, 'W').emptyCloner).toBeUndefined();
+    expect(placeWireLink(withLinks(), 'trap', { x: 2, y: 2 }, { x: 4, y: 2 }, 'W').emptyCloner).toBeUndefined();
+  });
+});

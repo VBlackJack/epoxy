@@ -40,6 +40,16 @@ export interface MapEditResult {
   removedUnderlays: number;
   /** True when the edit hit the player start cell and left the start in place (eraser). */
   playerStartKept: boolean;
+  /** Clone machines whose stored template followed the creature now standing on them. */
+  clonerTemplates?: ClonerTemplateChange[];
+}
+
+/** A clone machine whose link template now copies the creature standing on it. */
+export interface ClonerTemplateChange {
+  x: number;
+  y: number;
+  type: string;
+  dir: Direction;
 }
 
 /** Which kind of link a wire tool draws. */
@@ -51,6 +61,8 @@ export interface WireResult extends MapEditResult {
   refused: boolean;
   /** Why the wire was refused, when it was. */
   refusal?: WireRefusal;
+  /** True when a clone wire ended on a clone machine with no creature on it, so the link got the default template. */
+  emptyCloner?: boolean;
 }
 
 /** 'same_cell': source and target are one cell. 'missing_button': the source no longer holds the wire's button. */
@@ -150,16 +162,39 @@ export function toggleCellEdge(source: EditorMap, x: number, y: number, side: Di
   return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
-/** Places an entity, replacing the one already on the cell. */
+/**
+ * Makes every clone link ending on the cell copy the creature standing there (the engine reads the stored template, the
+ * creature on the cloner is what the author sees). Returns the change, or null when there is no creature, no link, or
+ * nothing to update. Stored levels are never touched until an edit reaches their cloner.
+ */
+export function syncCloneTemplatesAt(map: EditorMap, x: number, y: number): ClonerTemplateChange | null {
+  const entity = map.entities.find((e) => e.x === x && e.y === y);
+  if (!entity) return null;
+  let changed = false;
+  map.cloneLinks = map.cloneLinks.map((l) => {
+    if (l.clonerX !== x || l.clonerY !== y || (l.templateType === entity.type && l.templateDir === entity.dir)) return l;
+    changed = true;
+    return { ...l, templateType: entity.type, templateDir: entity.dir };
+  });
+  return changed ? { x, y, type: entity.type, dir: entity.dir } : null;
+}
+
+/** Places an entity, replacing the one already on the cell. A clone link ending on the cell copies it as its template. */
 export function paintEntity(source: EditorMap, x: number, y: number, type: string, dir: Direction): MapEditResult {
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y)) return unchanged(source);
   const present = source.entities.filter((e) => e.x === x && e.y === y);
-  if (present.length === 1 && present[0].type === type && present[0].dir === dir) return unchanged(source);
   const map = cloneMap(source);
+  if (present.length === 1 && present[0].type === type && present[0].dir === dir) {
+    // Same creature already there: a user repaint still re-syncs a link template that drifted from it.
+    const resynced = syncCloneTemplatesAt(map, x, y);
+    if (!resynced) return unchanged(source);
+    return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, clonerTemplates: [resynced] };
+  }
   map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
   map.entities.push({ x, y, type, dir });
-  return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
+  const synced = syncCloneTemplatesAt(map, x, y);
+  return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, ...(synced ? { clonerTemplates: [synced] } : {}) };
 }
 
 /** Moves the player start. */
@@ -268,11 +303,13 @@ export function placeWireLink(
   }
   const painted = paintTerrain(source, to.x, to.y, tiles.target);
   const map = cloneMap(painted.map);
+  let emptyCloner = false;
   if (kind === 'trap') {
     map.trapLinks = map.trapLinks.filter((l) => !(l.buttonX === from.x && l.buttonY === from.y && l.trapX === to.x && l.trapY === to.y));
     map.trapLinks.push({ buttonX: from.x, buttonY: from.y, trapX: to.x, trapY: to.y });
   } else {
     const onCloner = map.entities.find((e) => e.x === to.x && e.y === to.y);
+    emptyCloner = onCloner === undefined;
     map.cloneLinks = map.cloneLinks.filter((l) => !(l.buttonX === from.x && l.buttonY === from.y && l.clonerX === to.x && l.clonerY === to.y));
     map.cloneLinks.push({
       buttonX: from.x,
@@ -284,7 +321,7 @@ export function placeWireLink(
     });
   }
   // The map was copied from the painted one, which already pruned the hidden terrain of the target cell.
-  return { map, changed: true, removedLinks: painted.removedLinks, removedUnderlays: painted.removedUnderlays, playerStartKept: false, refused: false };
+  return { map, changed: true, removedLinks: painted.removedLinks, removedUnderlays: painted.removedUnderlays, playerStartKept: false, refused: false, ...(emptyCloner ? { emptyCloner } : {}) };
 }
 
 function hasWallBorder(map: EditorMap): boolean {

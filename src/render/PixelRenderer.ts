@@ -5523,7 +5523,7 @@ export class PixelRenderer {
     ctx.closePath();
   }
 
-  public renderIconToDataUrl(kind: 'tile' | 'item' | 'entity' | 'player', id: string): string {
+  public renderIconToDataUrl(kind: 'tile' | 'item' | 'entity' | 'player', id: string, dir: Direction = ICON_FACING): string {
     const iconSize = this.getSettings().iconPixelSize;
     const canvas = document.createElement('canvas');
     canvas.width = iconSize;
@@ -5538,10 +5538,10 @@ export class PixelRenderer {
       this.drawItem(ctx, id, 0, 0, iconSize);
     } else if (kind === 'entity') {
       this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
-      this.drawEntity(ctx, id, ICON_FACING, 0, 0, iconSize);
+      this.drawEntity(ctx, id, dir, 0, 0, iconSize);
     } else if (kind === 'player') {
       this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
-      this.drawPlayer(ctx, 0, 0, iconSize, ICON_FACING, false, true);
+      this.drawPlayer(ctx, 0, 0, iconSize, dir, false, true);
     }
     return canvas.toDataURL();
   }
