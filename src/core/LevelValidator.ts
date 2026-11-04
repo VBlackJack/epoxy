@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BlockPuzzleSolver, requestedSearchBudget } from './BlockPuzzleSolver';
+import { BlockPuzzleSolver, requestedSearchBudget, watchSearchBudget } from './BlockPuzzleSolver';
 import { cc3dValidationReport } from './cc3d/cc3dValidator';
 import {
   BLOCK_TARGET_TILE_ID,
@@ -106,12 +106,30 @@ type BootCheck = (boots: number, bootId: string | undefined) => boolean;
 /** Tells whether a level's stored solution wins in the real engine; supplied by callers that can replay it. */
 export type SolutionWins = (level: CompiledLevel) => boolean;
 
+/** How hard the validator searches the block puzzle of a 'targets' level. */
+export type BlockSearchMode = 'watch' | 'exhaustive';
+
+export interface ValidateOptions {
+  /**
+   * Budget of the block search behind `targets_unsolvable`. 'watch' (default) spends the in-game
+   * dead-end watch budget, cheap enough to run after every edit. 'exhaustive' spends the hint
+   * budget, for a check the designer asked for. Either way, a level the solver does not model
+   * exactly, a playfield above `watchMaxCells` or an exhausted budget gives no warning.
+   */
+  blockSearch?: BlockSearchMode;
+}
+
 export class LevelValidator {
   /**
    * Checks a level. `solutionWins` is the replay of the stored solution: when it confirms the
    * solution, a reachability miss of the simulator is downgraded to a warning.
+   * `options.blockSearch` picks the block search effort (see `ValidateOptions`).
    */
-  public static validate(level: CompiledLevel, solutionWins?: SolutionWins): LevelValidationReport {
+  public static validate(
+    level: CompiledLevel,
+    solutionWins?: SolutionWins,
+    options: ValidateOptions = {}
+  ): LevelValidationReport {
     // A CC3D level is checked by its own strict validator, not by the Epoxy tile rules.
     if (level.ruleset === 'cc3d' && level.cc3d) return cc3dValidationReport(level);
     const issues: ValidationIssue[] = [];
@@ -182,7 +200,7 @@ export class LevelValidator {
     }
 
     if (coversTargets) {
-      this.checkTargets(level, targetCount, issues);
+      this.checkTargets(level, targetCount, issues, options.blockSearch ?? 'watch');
     } else if (lightsReceivers) {
       if (emitterCount === 0) issues.push({ severity: 'error', i18nKey: 'validator.issues.no_emitter.label' });
       if (receiverCount === 0) issues.push({ severity: 'error', i18nKey: 'validator.issues.no_receiver.label' });
@@ -963,9 +981,14 @@ export class LevelValidator {
   /**
    * Rules of a level won by covering block targets: at least one target, at
    * least as many blocks as targets, and, when the exact block search can
-   * prove it, a way to cover them all. An inconclusive search is silent.
+   * prove it on a fully modelled level, a way to cover them all. An inconclusive search is silent.
    */
-  private static checkTargets(level: CompiledLevel, targetCount: number, issues: ValidationIssue[]): void {
+  private static checkTargets(
+    level: CompiledLevel,
+    targetCount: number,
+    issues: ValidationIssue[],
+    blockSearch: BlockSearchMode
+  ): void {
     if (targetCount === 0) {
       issues.push({ severity: 'error', i18nKey: 'validator.issues.no_targets.label' });
       return;
@@ -1009,7 +1032,9 @@ export class LevelValidator {
     }
     const engine = new GameEngine();
     engine.loadLevel(level);
-    if (BlockPuzzleSolver.isStuck(engine, requestedSearchBudget())) {
+    // Only a proof from the exact model counts: verdict() skips what it does not model and big maps.
+    const budget = blockSearch === 'exhaustive' ? requestedSearchBudget() : watchSearchBudget();
+    if (BlockPuzzleSolver.verdict(engine, budget).kind === 'unsolvable') {
       issues.push({ severity: 'warning', i18nKey: 'validator.issues.targets_unsolvable.label' });
     }
   }
