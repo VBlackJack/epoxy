@@ -26,7 +26,8 @@ import {
   WALL_TILE_ID,
   CHANNEL_COLOR_NAME_KEY_PREFIX,
   channelOfButtonAction,
-  FIRE_LAUNCHERS_ACTION
+  FIRE_LAUNCHERS_ACTION,
+  toggleWallOtherForm
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
@@ -79,8 +80,6 @@ interface DeferredDoor {
   keyId: string;
   /** Boots held by the states that reached the door, combined (the ranking leans optimistic). */
   boots: number;
-  /** Direction of the step that reached the door, when known. */
-  dir?: Direction;
 }
 
 /** What the door ranking needs to know about the reach walk at the moment it must choose. */
@@ -117,8 +116,6 @@ interface SlideResult {
   opened?: { x: number; y: number; keyId?: string };
   /** The hazard cell that made the slide fatal, when a block could deal with it (water, slime, fire, bomb). */
   lethal?: { hazard: string; x: number; y: number };
-  /** Direction of the last step, set when the slide opened a door or socket. */
-  dir?: Direction;
 }
 
 /**
@@ -494,10 +491,10 @@ export class LevelValidator {
       };
 
       const deferredDoors = new Map<string, DeferredDoor>();
-      const deferDoor = (x: number, y: number, keyId: string, boots: number, dir: Direction | undefined): void => {
+      const deferDoor = (x: number, y: number, keyId: string, boots: number): void => {
         const known = deferredDoors.get(`${x},${y}`);
         if (known) known.boots |= boots;
-        else deferredDoors.set(`${x},${y}`, { x, y, keyId, boots, dir });
+        else deferredDoors.set(`${x},${y}`, { x, y, keyId, boots });
       };
       // Consumed-key doors still closed, per key: while the keys held cover them all, no order can go wrong.
       const closedDoors: Record<string, number> = {};
@@ -631,7 +628,7 @@ export class LevelValidator {
               if (nextTile.consumesKey && (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)) {
                 // Keys are scarce: a spent key cannot be taken back, so the door waits until nothing
                 // else progresses, then the most rewarding one opens (see below).
-                deferDoor(nx, ny, keyId, curr.boots, dir);
+                deferDoor(nx, ny, keyId, curr.boots);
               } else {
                 if (nextTile.consumesKey) ownedKeys[keyId]--;
                 closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
@@ -755,7 +752,7 @@ export class LevelValidator {
                 (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)
               ) {
                 // Same rule as walking onto a scarce-key door: the door waits until nothing else progresses.
-                deferDoor(ox, oy, keyId, slide.boots, slide.dir);
+                deferDoor(ox, oy, keyId, slide.boots);
                 continue;
               }
               if (keyId !== undefined) {
@@ -1266,7 +1263,7 @@ export class LevelValidator {
 
       if (opening) {
         // The door or socket opens under the player; the cell it leaves behind is ground, so the slide ends here.
-        return { end: { x, y }, path, boots, fatal: false, opened: opening, dir };
+        return { end: { x, y }, path, boots, fatal: false, opened: opening };
       }
       pickUp(x, y);
 
@@ -1542,11 +1539,13 @@ export class LevelValidator {
         if (required) closedByKey[required] = (closedByKey[required] || 0) + 1;
       }
     }
+    // One scoring mode for the whole call: the budget is read once, so doors are never compared across modes.
+    const precise = ctx.budget.left > 0;
     let best = doors[0];
     let bestScore: [number, number] | undefined;
     for (const door of doors) {
       const score: [number, number] =
-        ctx.budget.left > 0
+        precise
           ? this.rankDoor(door, ctx, closedByKey)
           : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey), 0];
       if (!bestScore || score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] > bestScore[1])) {
@@ -1567,7 +1566,8 @@ export class LevelValidator {
     const doorTile = ConfigRegistry.getTile(terrain[door.y][door.x]);
     const opened = openedTerrain(ctx.level, terrain, door.x, door.y, doorTile);
     const revealed = ConfigRegistry.getTile(opened);
-    // What the door shows is entered at once: a wall shuts the way, ice or a hazard without protection is deadly.
+    // What the door shows is entered at once: a wall shuts the way. Unprotected ice or a hazard is scored
+    // pessimistically (nothing), without simulating the slide or the hazard.
     if (!revealed.passableByPlayer) return [0, 0];
     if (revealed.slideType && !hasBoot(door.boots, revealed.protectedByItem)) return [0, 0];
     if (revealed.hazard && !hasBoot(door.boots, revealed.protectedByItem)) return [0, 0];
@@ -1831,7 +1831,10 @@ export class LevelValidator {
             continue;
           }
           const tileHere = ConfigRegistry.getTile(terrain[ny][nx]);
-          if (tileHere.hazard && !blocksExist) {
+          // A jet the player can switch off (its other form is walkable) is no barrier: a bypass through it is real.
+          const switchable = toggleWallOtherForm(tileHere);
+          const switchedOff = switchable !== undefined && ConfigRegistry.getTile(switchable).passableByPlayer;
+          if (tileHere.hazard && !blocksExist && !switchedOff) {
             const bit = tileHere.protectedByItem ? bootBits.get(tileHere.protectedByItem) : undefined;
             if (bit === undefined || (boots & bit) === 0) continue;
           }
