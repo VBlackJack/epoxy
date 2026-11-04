@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { BLOCK_TARGET_TILE_ID, channelOfButtonAction } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, FIRE_LAUNCHERS_ACTION } from '../core/coreConstants';
 import type { EntityDefinition, TileDefinition } from '../core/types';
 
 /** The sub-headings of the Mechanisms tab, in display order. */
@@ -59,6 +59,9 @@ export function arrangeMechanismSections<T>(entries: readonly GroupedEntry<T>[])
 /** Brush kinds of the wire tools, which sit with the buttons and the traps they connect. */
 const WIRE_TOOL_KINDS: readonly string[] = ['wire_trap', 'wire_cloner'];
 
+/** Brush kind of the launcher wire, which sits with the lasers and the other shot devices. */
+const LAUNCHER_WIRE_TOOL_KIND = 'wire_launcher';
+
 /**
  * The group of a Mechanisms tile, read from the fields the tile config declares so that a new tile
  * lands in a group by itself. The first matching rule wins (a coloured teleporter is a teleporter,
@@ -66,6 +69,8 @@ const WIRE_TOOL_KINDS: readonly string[] = ['wire_trap', 'wire_cloner'];
  */
 export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | null {
   if (tile.isTeleporter) return 'teleports';
+  // A shot trigger fires launchers: it sits with them, not with the buttons.
+  if (tile.buttonAction === FIRE_LAUNCHERS_ACTION) return 'lasers';
   // A colour toggle button sits with the walls of its channel; the plain toggle button stays with the buttons.
   if (channelOfButtonAction(tile.buttonAction) !== undefined) return 'colour';
   if (tile.buttonAction || tile.isTrap || tile.isCloneMachine) return 'buttons';
@@ -87,5 +92,6 @@ export function entityMechanismGroup(entity: EntityDefinition): MechanismGroupId
 
 /** The group of a wire tool brush kind, or null for any other brush kind. */
 export function wireToolMechanismGroup(brushKind: string): MechanismGroupId | null {
+  if (brushKind === LAUNCHER_WIRE_TOOL_KIND) return 'lasers';
   return WIRE_TOOL_KINDS.includes(brushKind) ? 'buttons' : null;
 }

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { normalizeLauncherLinks } from '../config/ConfigValidation';
-import { DEFAULT_RULESET } from '../core/coreConstants';
-import type { CellUnderlay, LauncherLink } from '../core/types';
+import { DEFAULT_RULESET, FIRE_LAUNCHERS_ACTION } from '../core/coreConstants';
+import type { CellUnderlay, LauncherLink, TileDefinition } from '../core/types';
 
 /** The shot trigger to shot launcher links of a map, as the editor reads and rewrites them (Epoxy levels only, never CC3D). */
 export interface LauncherLinkHolder {
@@ -108,6 +109,46 @@ export function pruneLauncherLinks(map: LauncherLinkHolder): number {
 }
 
 const linkKey = (l: LauncherLink): string => [l.buttonX, l.buttonY, l.launcherX, l.launcherY].join('|');
+
+function terrainTile(id: string | undefined): TileDefinition | undefined {
+  return id !== undefined && ConfigRegistry.isTerrainTile(id) ? ConfigRegistry.getTile(id) : undefined;
+}
+
+/** Whether a terrain id is a shot trigger, as the tile config declares it. */
+export function isShotTriggerTile(id: string | undefined): boolean {
+  return terrainTile(id)?.buttonAction === FIRE_LAUNCHERS_ACTION;
+}
+
+/** Whether a terrain id is a shot launcher, as the tile config declares it. */
+export function isShotLauncherTile(id: string | undefined): boolean {
+  return terrainTile(id)?.shotLauncher !== undefined;
+}
+
+/** The terrain a cell shows and the terrain hidden under it, in that order (the hidden one only when present). */
+function terrainIdsAt(map: LauncherLinkHolder, x: number, y: number): Array<string | undefined> {
+  const hidden = (map.underlays ?? []).find((u) => u.x === x && u.y === y)?.terrain;
+  return hidden === undefined ? [map.terrain[y]?.[x]] : [map.terrain[y]?.[x], hidden];
+}
+
+/** Whether the cell holds a shot trigger, on top or hidden under a removable top (the engine works both). */
+export function holdsShotTrigger(map: LauncherLinkHolder, x: number, y: number): boolean {
+  return terrainIdsAt(map, x, y).some(isShotTriggerTile);
+}
+
+/** Whether the cell holds a shot launcher, on top or hidden under a removable top. */
+export function holdsShotLauncher(map: LauncherLinkHolder, x: number, y: number): boolean {
+  return terrainIdsAt(map, x, y).some(isShotLauncherTile);
+}
+
+/** How many launchers the trigger at the cell fires. */
+export function launcherCountAt(map: Pick<LauncherLinkHolder, 'launcherLinks'>, x: number, y: number): number {
+  return (map.launcherLinks ?? []).filter((l) => l.buttonX === x && l.buttonY === y).length;
+}
+
+/** How many triggers fire the launcher at the cell. */
+export function triggerCountAt(map: Pick<LauncherLinkHolder, 'launcherLinks'>, x: number, y: number): number {
+  return (map.launcherLinks ?? []).filter((l) => l.launcherX === x && l.launcherY === y).length;
+}
 
 /** The links held by only one of two lists. */
 export function differingLauncherLinks(before: readonly LauncherLink[] | undefined, after: readonly LauncherLink[] | undefined): LauncherLink[] {

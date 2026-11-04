@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { loadTestConfigs } from '../test/loadTestConfigs';
 import { emptyCc3dRoom } from './cc3dRoom';
 import { EditorMap } from './editorDocument';
 import { ResizeAnchor } from './resizeAnchor';
 import {
   eraseCell,
   floodFillTerrain,
+  keepsLauncherLinks,
   paintEntity,
   paintItem,
   paintPlayerStart,
@@ -28,10 +30,18 @@ import {
   placeWireButton,
   placeWireLink,
   resizeMap,
-  toggleCellEdge
+  startLauncherWire,
+  toggleCellEdge,
+  toggleLauncherLink,
+  wireButtonTile
 } from './mapEdits';
 
 const BOUNDS = { minSize: 5, maxSize: 12 };
+
+// Edits read the tile config (hidden terrain, launcher roles), as the editor does.
+beforeEach(() => {
+  loadTestConfigs();
+});
 
 /** A bordered map of the given size: wall ring, floor inside, player at (1, 1). */
 function bordered(width: number, height: number): EditorMap {
@@ -642,5 +652,166 @@ describe('clone templates', () => {
     occupied.cloneLinks = [];
     expect(placeWireLink(occupied, 'clone', { x: 2, y: 4 }, { x: 4, y: 4 }, 'W').emptyCloner).toBeUndefined();
     expect(placeWireLink(withLinks(), 'trap', { x: 2, y: 2 }, { x: 4, y: 2 }, 'W').emptyCloner).toBeUndefined();
+  });
+});
+
+describe('launcher wire edits', () => {
+  function wiredRoom(): EditorMap {
+    const map = bordered(10, 8);
+    map.terrain[2][2] = 'shot_trigger';
+    map.terrain[2][6] = 'shot_launcher_w';
+    map.terrain[4][6] = 'shot_launcher_n';
+    return map;
+  }
+  const FROM = { x: 2, y: 2 };
+
+  it('names the button tile of each wire, the shot trigger for the launcher wire', () => {
+    expect(wireButtonTile('trap')).toBe('button_brown');
+    expect(wireButtonTile('clone')).toBe('button_red');
+    expect(wireButtonTile('launcher')).toBe('shot_trigger');
+  });
+
+  it('places a shot trigger on the first click', () => {
+    const map = bordered(8, 8);
+    const placed = startLauncherWire(map, 3, 3);
+    expect(placed.changed).toBe(true);
+    expect(placed.map.terrain[3][3]).toBe('shot_trigger');
+    expect(map.terrain[3][3]).toBe('floor');
+    expect(startLauncherWire(placed.map, 3, 3).changed).toBe(false);
+  });
+
+  it('links a launcher that stands on the map, keeping its tile and facing', () => {
+    const map = wiredRoom();
+    const linked = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
+    expect(linked.refused).toBe(false);
+    expect(linked.action).toBe('linked');
+    expect(linked.count).toBe(1);
+    expect(linked.map.terrain[2][6]).toBe('shot_launcher_w');
+    expect(linked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 }]);
+    expect(map.launcherLinks).toBeUndefined();
+  });
+
+  it('paints a launcher facing the given direction on any other cell and links it', () => {
+    for (const [dir, tile] of [['N', 'shot_launcher_n'], ['E', 'shot_launcher_e'], ['S', 'shot_launcher_s'], ['W', 'shot_launcher_w']] as const) {
+      const linked = toggleLauncherLink(wiredRoom(), FROM, { x: 4, y: 5 }, dir);
+      expect(linked.map.terrain[5][4]).toBe(tile);
+      expect(linked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 4, launcherY: 5 }]);
+    }
+  });
+
+  it('unlinks a launcher already linked to the trigger and leaves its tile', () => {
+    const map = wiredRoom();
+    map.launcherLinks = [
+      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 },
+      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 }
+    ];
+    const unlinked = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
+    expect(unlinked.action).toBe('unlinked');
+    expect(unlinked.count).toBe(1);
+    expect(unlinked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 }]);
+    expect(unlinked.map.terrain[2][6]).toBe('shot_launcher_w');
+    expect(map.launcherLinks).toHaveLength(2);
+    const none = toggleLauncherLink(unlinked.map, FROM, { x: 6, y: 4 }, 'S');
+    expect(none.map.launcherLinks).toBeUndefined();
+    expect('launcherLinks' in none.map).toBe(false);
+  });
+
+  it('keeps one trigger firing several launchers and one launcher fired by several triggers, in canonical order', () => {
+    const map = wiredRoom();
+    map.terrain[5][2] = 'shot_trigger';
+    const first = toggleLauncherLink(map, { x: 2, y: 5 }, { x: 6, y: 2 }, 'S');
+    const second = toggleLauncherLink(first.map, FROM, { x: 6, y: 4 }, 'S');
+    const third = toggleLauncherLink(second.map, FROM, { x: 6, y: 2 }, 'S');
+    expect(third.map.launcherLinks).toEqual([
+      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 },
+      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 },
+      { buttonX: 2, buttonY: 5, launcherX: 6, launcherY: 2 }
+    ]);
+  });
+
+  it('refuses the trigger itself and a trigger that is gone, changing nothing', () => {
+    const map = wiredRoom();
+    const same = toggleLauncherLink(map, FROM, FROM, 'S');
+    expect(same).toMatchObject({ refused: true, refusal: 'same_cell', changed: false });
+    expect(same.map).toBe(map);
+    map.terrain[2][2] = 'floor';
+    const gone = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
+    expect(gone).toMatchObject({ refused: true, refusal: 'missing_button', changed: false });
+    expect(gone.map).toBe(map);
+  });
+
+  it('leaves the map alone outside the grid and on a CC3D map', () => {
+    const map = wiredRoom();
+    expect(toggleLauncherLink(map, FROM, { x: 40, y: 2 }, 'S').changed).toBe(false);
+    const cc3d: EditorMap = { ...map, cc3d: emptyCc3dRoom(6, 6) };
+    expect(toggleLauncherLink(cc3d, FROM, { x: 6, y: 2 }, 'S').changed).toBe(false);
+  });
+
+  it('works with a trigger and a launcher hidden under a door, and paints a launcher over other terrain', () => {
+    const map = bordered(10, 8);
+    map.terrain[2][2] = 'door_red';
+    map.terrain[2][6] = 'door_red';
+    map.underlays = [
+      { x: 2, y: 2, terrain: 'shot_trigger' },
+      { x: 6, y: 2, terrain: 'shot_launcher_w' }
+    ];
+    const linked = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
+    expect(linked.map.terrain[2][6]).toBe('door_red');
+    expect(linked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 }]);
+    const onTrigger = bordered(10, 8);
+    onTrigger.terrain[2][2] = 'shot_trigger';
+    onTrigger.terrain[5][5] = 'ice';
+    const iced = toggleLauncherLink(onTrigger, FROM, { x: 5, y: 5 }, 'N');
+    expect(iced.map.terrain[5][5]).toBe('shot_launcher_n');
+  });
+
+  it('keeps the launcher links of a launcher repainted with another facing and of a trigger repainted as a trigger', () => {
+    const map = wiredRoom();
+    map.launcherLinks = [{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 }];
+    expect(keepsLauncherLinks('shot_launcher_w', 'shot_launcher_n')).toBe(true);
+    expect(keepsLauncherLinks('shot_trigger', 'shot_trigger')).toBe(true);
+    expect(keepsLauncherLinks('shot_launcher_w', 'shot_trigger')).toBe(false);
+    expect(keepsLauncherLinks('shot_launcher_w', 'floor')).toBe(false);
+    expect(keepsLauncherLinks('floor', 'shot_launcher_w')).toBe(false);
+    const turned = paintTerrain(map, 6, 2, 'shot_launcher_e');
+    expect(turned.map.terrain[2][6]).toBe('shot_launcher_e');
+    expect(turned.map.launcherLinks).toEqual(map.launcherLinks);
+    expect(turned.removedLinks).toBe(0);
+    const filled = floodFillTerrain(map, 6, 2, 'shot_launcher_s');
+    expect(filled.map.terrain[2][6]).toBe('shot_launcher_s');
+    expect(filled.map.launcherLinks).toEqual(map.launcherLinks);
+  });
+
+  it('drops the launcher links of a launcher or trigger painted over by something else, and counts them', () => {
+    const map = wiredRoom();
+    map.launcherLinks = [{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 }];
+    const wall = paintTerrain(map, 6, 2, 'wall');
+    expect(wall.map.launcherLinks).toBeUndefined();
+    expect(wall.removedLinks).toBe(1);
+    const swapped = paintTerrain(map, 2, 2, 'shot_launcher_n');
+    expect(swapped.map.launcherLinks).toBeUndefined();
+    expect(swapped.removedLinks).toBe(1);
+  });
+
+  it('keeps the launcher links of a device that stays hidden under a removable top, and drops them once it is gone', () => {
+    const map = bordered(10, 8);
+    map.terrain[2][2] = 'door_red';
+    map.terrain[2][6] = 'door_red';
+    map.underlays = [
+      { x: 2, y: 2, terrain: 'shot_trigger' },
+      { x: 6, y: 2, terrain: 'shot_launcher_w' }
+    ];
+    map.launcherLinks = [{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 }];
+    const painted = paintTerrain(map, 2, 2, 'door_blue');
+    expect(painted.map.underlays).toHaveLength(2);
+    expect(painted.map.launcherLinks).toEqual(map.launcherLinks);
+    expect(painted.removedLinks).toBe(0);
+    const filled = floodFillTerrain(map, 6, 2, 'door_blue');
+    expect(filled.map.launcherLinks).toEqual(map.launcherLinks);
+    expect(filled.removedLinks).toBe(0);
+    const walled = paintTerrain(map, 6, 2, 'wall');
+    expect(walled.map.underlays).toHaveLength(1);
+    expect(walled.map.launcherLinks).toBeUndefined();
+    expect(walled.removedLinks).toBe(1);
   });
 });

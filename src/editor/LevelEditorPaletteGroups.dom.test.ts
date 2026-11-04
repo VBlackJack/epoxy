@@ -24,13 +24,12 @@ import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { mountModals } from '../test/domFixture';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { LevelEditor } from './LevelEditor';
-import { hiddenFromEpoxyPalette } from './paletteAvailability';
 import { MECHANISM_GROUPS } from './paletteGroups';
 
 const MECHANISMS_CATEGORY = 'mechanisms';
 const GRID_ID = 'editor-palette-grid';
 const TABS_ID = 'editor-category-tabs';
-const WIRE_TOOL_COUNT = 2;
+const WIRE_TOOL_COUNT = 3;
 
 const fake = new FakeIndexedDb();
 let editor: LevelEditor;
@@ -103,9 +102,7 @@ describe('Mechanisms palette sub-headings', () => {
 
   it('keeps every entry reachable in the DOM order, with headings that cannot take focus', () => {
     openCategory(MECHANISMS_CATEGORY);
-    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
-      (tile) => tile.category === MECHANISMS_CATEGORY && !hiddenFromEpoxyPalette(tile)
-    );
+    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY);
     const entities = Object.values(ConfigRegistry.getMonsters().entities).filter((ent) => ent.category === MECHANISMS_CATEGORY);
     expect(gridButtons()).toHaveLength(tiles.length + entities.length + WIRE_TOOL_COUNT);
     const labels = new Set(gridButtons().map((btn) => btn.querySelector('.palette-item-label')?.textContent));
@@ -115,15 +112,27 @@ describe('Mechanisms palette sub-headings', () => {
     expect(gridChildren().filter((child) => child.tagName === 'BUTTON')).toEqual(gridButtons());
   });
 
-  it('leaves the shot launchers and the shot trigger out until links can be drawn', () => {
-    openCategory(MECHANISMS_CATEGORY);
-    const hidden = ['shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w', 'shot_trigger'];
-    const ids = gridButtons().map((btn) => btn.dataset.brushId);
-    for (const id of hidden) {
-      expect(ConfigRegistry.getTile(id).id, id).toBe(id);
-      expect(ids.includes(id), id).toBe(false);
+  /** The ids of the entries under one heading, in DOM order. */
+  function idsUnder(groupId: string): string[] {
+    const index = MECHANISM_GROUPS.findIndex((group) => group.id === groupId);
+    const heading = headings()[index];
+    const ids: string[] = [];
+    for (let el = heading.nextElementSibling; el && el.tagName === 'BUTTON'; el = el.nextElementSibling) {
+      ids.push((el as HTMLButtonElement).dataset.brushId ?? '');
     }
-    expect(ids.includes('one_sided_mirror_ne')).toBe(true);
+    return ids;
+  }
+
+  it('offers the shot launchers, the shot trigger and the launcher wire under Lasers and mirrors, the wire last', () => {
+    openCategory(MECHANISMS_CATEGORY);
+    const lasers = idsUnder('lasers');
+    for (const id of ['shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w', 'shot_trigger', 'one_sided_mirror_ne']) {
+      expect(lasers.includes(id), id).toBe(true);
+    }
+    expect(lasers[lasers.length - 1]).toBe('wire_launcher');
+    // The trigger fires launchers: it is not listed with the plain buttons.
+    expect(idsUnder('buttons').includes('shot_trigger')).toBe(false);
+    expect(idsUnder('buttons').slice(-2)).toEqual(['wire_trap', 'wire_cloner']);
   });
 
   it('names the headings in French', () => {

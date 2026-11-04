@@ -23,7 +23,7 @@ import {
   cellEdgeAvailability,
   entityAvailability,
   EPOXY_ONLY_REASON_KEY,
-  hiddenFromEpoxyPalette,
+  launcherWireAvailability,
   majorityRuleset,
   tileAvailability,
   winRuleAvailability
@@ -157,13 +157,18 @@ describe('majorityRuleset', () => {
   });
 });
 
-describe('hiddenFromEpoxyPalette', () => {
-  it('hides the shot launchers and the shot trigger and nothing else', () => {
-    const hidden = Object.values(ConfigRegistry.getTiles().tiles)
-      .filter((def) => hiddenFromEpoxyPalette(def))
-      .map((def) => def.id)
-      .sort();
-    expect(hidden).toEqual(['shot_launcher_e', 'shot_launcher_n', 'shot_launcher_s', 'shot_launcher_w', 'shot_trigger']);
+describe('launcherWireAvailability', () => {
+  it('is Epoxy only, with the Epoxy-only reason under Lynx', () => {
+    expect(launcherWireAvailability('epoxy')).toEqual({ available: true });
+    expect(launcherWireAvailability('cc3d')).toEqual({ available: true });
+    expect(launcherWireAvailability('lynx')).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+  });
+
+  it('keeps the shot launchers and the shot trigger Epoxy only as tiles', () => {
+    for (const id of ['shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w', 'shot_trigger']) {
+      expect(tileAvailability('epoxy', id), id).toEqual({ available: true });
+      expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+    }
   });
 });
 
