@@ -27,6 +27,23 @@ import {
   winRuleAvailability
 } from './paletteAvailability';
 
+/** Button actions of the colour channel toggle buttons, as the tile config names them. */
+const COLOUR_BUTTON_ACTIONS: readonly string[] = ['toggle_walls_red', 'toggle_walls_blue', 'toggle_walls_yellow'];
+/** One tile of each colour channel family: plate, hold door, toggle wall, toggle button, floating block. */
+const COLOUR_TILE_IDS: readonly string[] = [
+  'pressure_plate_red',
+  'hold_door_red_closed',
+  'hold_door_red_open',
+  'toggle_wall_red_open',
+  'toggle_wall_blue_closed',
+  'toggle_button_red',
+  'toggle_button_blue',
+  'toggle_button_yellow',
+  'floating_block_red',
+  'floating_block_yellow'
+];
+const COLOUR_BLOCK_IDS: readonly string[] = ['color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow'];
+
 describe('paletteAvailability', () => {
   beforeEach(() => {
     loadTestConfigs();
@@ -42,12 +59,18 @@ describe('paletteAvailability', () => {
     expect(winRuleAvailability('epoxy', 'receivers')).toEqual({ available: true });
   });
 
-  it('blocks exactly the laser tiles under Lynx, derived from the tile config', () => {
+  it('blocks exactly the Epoxy-only tiles under Lynx, derived from the tile config', () => {
     const blocked: string[] = [];
     for (const [id, def] of Object.entries(ConfigRegistry.getTiles().tiles)) {
       const isLaser = def.laserEmitter !== undefined || def.laserReceiverGroup !== undefined || def.laserGateGroup !== undefined;
+      const isColourChannel =
+        def.plateColor !== undefined ||
+        def.holdDoorColor !== undefined ||
+        def.toggleChannel !== undefined ||
+        def.floatingBlockColor !== undefined ||
+        (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
       const result = tileAvailability('lynx', id);
-      expect(result.available).toBe(!isLaser);
+      expect(result.available, id).toBe(!(isLaser || isColourChannel));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
@@ -55,15 +78,37 @@ describe('paletteAvailability', () => {
     expect(tileAvailability('lynx', 'wall')).toEqual({ available: true });
   });
 
-  it('blocks exactly the mirrors under Lynx', () => {
-    let mirrors = 0;
-    for (const [id, def] of Object.entries(ConfigRegistry.getMonsters().entities)) {
-      const result = entityAvailability('lynx', id);
-      expect(result.available).toBe(def.mirrorAxis === undefined);
-      if (def.mirrorAxis !== undefined) mirrors++;
+  it('blocks every colour channel tile family under Lynx and allows it under Epoxy', () => {
+    for (const id of COLOUR_TILE_IDS) {
+      expect(ConfigRegistry.getTile(id), id).toBeDefined();
+      expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+      expect(tileAvailability('epoxy', id), id).toEqual({ available: true });
     }
-    expect(mirrors).toBeGreaterThan(0);
+  });
+
+  it('keeps the original toggle wall and button available under Lynx', () => {
+    expect(tileAvailability('lynx', 'button_green')).toEqual({ available: true });
+    expect(tileAvailability('lynx', 'toggle_wall_closed')).toEqual({ available: true });
+    expect(tileAvailability('lynx', 'toggle_wall_open')).toEqual({ available: true });
+  });
+
+  it('blocks exactly the mirrors and colour blocks under Lynx', () => {
+    let blocked = 0;
+    for (const [id, def] of Object.entries(ConfigRegistry.getMonsters().entities)) {
+      const epoxyOnly = def.mirrorAxis !== undefined || def.plateColor !== undefined;
+      const result = entityAvailability('lynx', id);
+      expect(result.available, id).toBe(!epoxyOnly);
+      if (epoxyOnly) blocked++;
+    }
+    expect(blocked).toBeGreaterThan(0);
     expect(entityAvailability('lynx', 'dirt_block')).toEqual({ available: true });
+  });
+
+  it('blocks each colour block under Lynx and allows it under Epoxy', () => {
+    for (const id of COLOUR_BLOCK_IDS) {
+      expect(entityAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+      expect(entityAvailability('epoxy', id), id).toEqual({ available: true });
+    }
   });
 
   it('blocks the targets and receivers win rules under Lynx only', () => {

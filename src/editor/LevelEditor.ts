@@ -29,7 +29,7 @@ import { CC3D_XML_EXTENSION, decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
 import { encodeCc3dLevel } from '../formats/Cc3dXmlEncoder';
 import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
 import { LevelValidator } from '../core/LevelValidator';
-import { hasLaserContent } from '../core/RulesetFeatures';
+import { hasEpoxyOnlyContent } from '../core/RulesetFeatures';
 import { cc3dLinks, type Cc3dLinks } from '../core/cc3d/cc3dLinks';
 import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
 import { displayItemId, displayMobId, displayShowsPanels, displayTerrainId } from '../core/cc3d/display';
@@ -1900,7 +1900,7 @@ export class LevelEditor {
       const parsed = parseRuleset(ruleset, doc.ruleset ?? DEFAULT_RULESET);
       next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
     }
-    if (requiresEpoxyRules(next.winRule, hasLaserContent(doc))) next.ruleset = undefined;
+    if (requiresEpoxyRules(next.winRule, hasEpoxyOnlyContent(doc))) next.ruleset = undefined;
     return metadataForDocument(doc, next);
   }
 
@@ -1969,8 +1969,8 @@ export class LevelEditor {
     const rulesetEl = byId<HTMLSelectElement>(RULESET_INPUT_ID);
     if (!rulesetEl) return;
     const cc3d = this.isCc3d();
-    // A CC3D level keeps its engine: the laser tiles its display layers hold and its win rule do not make it Epoxy.
-    const lynxLocked = !cc3d && requiresEpoxyRules(this.doc.winRule, hasLaserContent(this.doc));
+    // A CC3D level keeps its engine: the Epoxy-only tiles (lasers, colour channels) its display layers hold and its win rule do not make it Epoxy.
+    const lynxLocked = !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc));
     if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
     rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
     // The engine of a level never changes into another one here: a CC3D level shows its own engine

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { isLaserTileId, isMirrorEntityType } from '../core/RulesetFeatures';
+import { isEpoxyOnlyEntityType, isEpoxyOnlyTileId } from '../core/RulesetFeatures';
 import { Ruleset, WinRule } from '../core/types';
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import { EPOXY_ONLY_WIN_RULES } from './metadataFields';
@@ -36,14 +36,14 @@ function epoxyOnlyUnless(ruleset: EditableRuleset, needsEpoxy: boolean): Availab
   return ruleset === 'lynx' && needsEpoxy ? EPOXY_ONLY : AVAILABLE;
 }
 
-/** Availability of a tile (terrain or item id): laser emitters, receivers and gates need Epoxy rules. */
+/** Availability of a tile (terrain or item id): laser tiles and colour channel tiles (plates, hold doors, toggle walls and buttons, floating blocks) need Epoxy rules. */
 export function tileAvailability(ruleset: EditableRuleset, tileId: string): Availability {
-  return epoxyOnlyUnless(ruleset, isLaserTileId(tileId));
+  return epoxyOnlyUnless(ruleset, isEpoxyOnlyTileId(tileId));
 }
 
-/** Availability of an entity (block or monster id): laser mirrors need Epoxy rules. */
+/** Availability of an entity (block or monster id): laser mirrors and colour blocks need Epoxy rules. */
 export function entityAvailability(ruleset: EditableRuleset, entityType: string): Availability {
-  return epoxyOnlyUnless(ruleset, isMirrorEntityType(entityType));
+  return epoxyOnlyUnless(ruleset, isEpoxyOnlyEntityType(entityType));
 }
 
 /** Availability of a win rule: 'targets' and 'receivers' need Epoxy rules. */
