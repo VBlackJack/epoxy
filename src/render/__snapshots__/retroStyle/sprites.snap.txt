@@ -202,6 +202,10 @@ sprite theme=default name=color_block_blue 37221eb03b40583b
 sprite theme=default name=color_block_yellow bd8919bd6b063529
 sprite theme=default name=mirror_slash 59860eb4b97fca2a
 sprite theme=default name=mirror_backslash 0d43b58c2956ba39
+sprite theme=default name=turret_fixed 5271bd594e79b62e
+sprite theme=default name=turret_cw dd181d91c4f04140
+sprite theme=default name=turret_ccw 34b8fb78fad2724c
+sprite theme=default name=turret_multi 696fecb29140addb
 sprite theme=default name=block_on_target a025ecab1cd574cc
 sprite theme=cyber_neon name=floor 833c3af7d294bb8b
 sprite theme=cyber_neon name=floor_detail_0 4e0f0a6a9766b02d
@@ -407,6 +411,10 @@ sprite theme=cyber_neon name=color_block_blue c0f7a4d36cd0b438
 sprite theme=cyber_neon name=color_block_yellow 7b04ab70345de32e
 sprite theme=cyber_neon name=mirror_slash a1ee7d29bca3ac47
 sprite theme=cyber_neon name=mirror_backslash db832d9c6664cf9b
+sprite theme=cyber_neon name=turret_fixed 65f23ca66cfefad1
+sprite theme=cyber_neon name=turret_cw af3366a997451341
+sprite theme=cyber_neon name=turret_ccw f39007511cbbd01b
+sprite theme=cyber_neon name=turret_multi a2ffd7d7db6e077b
 sprite theme=cyber_neon name=block_on_target e0d648d8de49fa6e
 sprite theme=arctic_lab name=floor ebb9b14c214111ef
 sprite theme=arctic_lab name=floor_detail_0 a7afa2502af33e92
@@ -612,6 +620,10 @@ sprite theme=arctic_lab name=color_block_blue d4f89f1f3933142a
 sprite theme=arctic_lab name=color_block_yellow e2ab746d0ebf914b
 sprite theme=arctic_lab name=mirror_slash 5e6780099a90d03f
 sprite theme=arctic_lab name=mirror_backslash 4ee677dc678cee38
+sprite theme=arctic_lab name=turret_fixed 44b3a8b8edd2ffc7
+sprite theme=arctic_lab name=turret_cw e17fab7c980fc9e0
+sprite theme=arctic_lab name=turret_ccw 2ab33cee3409260b
+sprite theme=arctic_lab name=turret_multi 333079a76856bd29
 sprite theme=arctic_lab name=block_on_target 674c4e6747fb45d7
 sprite theme=magma_core name=floor c1ac33fcce2da3f9
 sprite theme=magma_core name=floor_detail_0 753cdb9827f56bab
@@ -817,6 +829,10 @@ sprite theme=magma_core name=color_block_blue 5c2f0874715b8c35
 sprite theme=magma_core name=color_block_yellow 784538e0550d0adb
 sprite theme=magma_core name=mirror_slash 3c35d3a2701fe635
 sprite theme=magma_core name=mirror_backslash 77cc5dd7518ca54a
+sprite theme=magma_core name=turret_fixed d6217086fac94d04
+sprite theme=magma_core name=turret_cw 7d53edfafba8c102
+sprite theme=magma_core name=turret_ccw 02430925e2858cc5
+sprite theme=magma_core name=turret_multi e4615a1747ff5843
 sprite theme=magma_core name=block_on_target b288f6d3db4ff61b
 sprite theme=lynx_lcd name=floor 4e76eb8826d65108
 sprite theme=lynx_lcd name=floor_detail_0 440f493adb2165dd
@@ -1022,4 +1038,8 @@ sprite theme=lynx_lcd name=color_block_blue 017438c0e0255b8f
 sprite theme=lynx_lcd name=color_block_yellow ba03f28aae538a6e
 sprite theme=lynx_lcd name=mirror_slash dce1810a9409ccb4
 sprite theme=lynx_lcd name=mirror_backslash 00d371245a6d7654
+sprite theme=lynx_lcd name=turret_fixed c3187b63ff136fbe
+sprite theme=lynx_lcd name=turret_cw 5432d0c0a622ff71
+sprite theme=lynx_lcd name=turret_ccw 4f10d3b5bd839268
+sprite theme=lynx_lcd name=turret_multi 7ed5f0c1bf87dafd
 sprite theme=lynx_lcd name=block_on_target 085f7bf03e96c0cb

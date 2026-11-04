@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { Direction, RuntimeEntity } from '../types';
+import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -44,6 +45,9 @@ export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: D
     return false;
   }
 
+  // A player push turns the turret toward the push, even while the player slides or is carried; the turret's own slide never turns it.
+  const turret = getTurretDef(block.type);
+  if (turret && turnsOnPush(turret)) block.facing = dir;
   moveBlockTo(ctx, block, destX, destY, dir);
   return true;
 }

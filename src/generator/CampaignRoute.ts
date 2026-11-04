@@ -272,8 +272,11 @@ function stateKey(engine: GameEngine, base: UndoSnapshot): string {
   }
   const entities: string[] = [];
   for (const e of engine.getEntities()) {
-    entities.push(e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}`);
+    // A turret fires the way it faces, which a push changes and its clock turns.
+    const facing = e.facing === undefined ? '' : `,${e.facing}`;
+    entities.push(e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}${facing}`);
   }
   entities.sort();
-  return `${player.x},${player.y}|${held.sort().join()}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}`;
+  const phase = engine.getTurretPhaseKey();
+  return `${player.x},${player.y}|${held.sort().join()}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}${phase ? `|${phase}` : ''}`;
 }
