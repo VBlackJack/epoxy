@@ -58,7 +58,7 @@ function hashKey(text: string): string {
  * current and the next layer only, and rebuilds the winning path from compact parent records.
  * Two distinct states could in theory share the hash, and a collision hides the second state: it
  * could turn a real win into a missing one (a false null) or lengthen a shortest win. With about
- * 106 hash bits the chance is below 10^-18 at twelve million states, far under any other risk.
+ * 106 hash bits the chance is about 10^-18 for an ideal hash at twelve million states, far under any other risk.
  */
 export function searchShortestWinLean(engine: GameEngine, options: LeanSearchOptions = {}): SearchWin | null {
   const cap = options.stateCap ?? LEAN_SEARCH_STATE_CAP;

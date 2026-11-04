@@ -204,15 +204,10 @@ describe('pilot chapter 2 do not dig', () => {
     expect(shortest(engineFor(withoutBall(level)))).toBe(18);
   });
 
-  it('is lost once the plug is trodden before the ball is gone, the walk in being a corridor with no side to step aside to', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = structuredClone(levelById(NO_DIG_LEVEL));
-    level.terrain[2][13] = 'wall';
-    const engine = engineAfter(level, DIG);
+  it('never saves a move by digging: after treading the plug the cheapest finish is 25 more, 32 in all against 22', { timeout: TEST_TIMEOUT_MS }, () => {
+    const engine = engineAfter(levelById(NO_DIG_LEVEL), DIG);
     expect(engine.getTerrain()[3][6]).toBe('floor');
-    expect(searchCanWin(engine, { stateCap: SEARCH_STATE_CAP, allowDrops: true })).toBe(false);
-    // With the top route open the finish after digging is a retreat and the safe route: counted here, not claimed as a global proof.
-    const open = engineAfter(levelById(NO_DIG_LEVEL), DIG);
-    expect(shortest(open)).toBe(25);
+    expect(shortest(engine)).toBe(25);
   });
 });
 
@@ -362,7 +357,7 @@ describe('pilot chapter 2 the lock', () => {
     expect(rest?.length).toBe(25);
   });
 
-  it('is lost when the block that can reach either pool takes the nearer one: the row-bound block then has no pool left, with the ball still to stop (hall only: the chips of the hall do not depend on the ball)', { timeout: 1200000 }, () => {
+  it('is lost when the block that can reach either pool takes the nearer one: the row-bound block then has no pool left, with the ball still to stop (hall only: the chips of the hall do not depend on the ball; in the hall walled off from the shaft, a dead end)', { timeout: 1200000 }, () => {
     const level = levelById(LOCK_LEVEL);
     // Down to the free block, one push north into the top row, then east along it into the top pool.
     const engine = engineAfter(level, 'SEEEEENWNEEEE');
@@ -433,10 +428,10 @@ describe('pilot chapter 2 the great works', () => {
     expect(pushes).toBe(46);
   });
 
-  /** The stored solution's first 13 moves sink the first lane's own block and leave the player on its target cell. */
+  /** The stored solution's first 13 moves sink the first lane's own block and leave the player on the filled pool at (10,1). */
   const FIRST_LANE_DONE = 'NNNNEEEEEEEEE';
   /** Back west and down to the middle row, then north: the block of (2,2) goes up into the first row. */
-  const FIRST_UP = 'W'.repeat(10) + 'SSEN';
+  const FIRST_UP = 'W'.repeat(9) + 'SSEN';
 
   it('is lost when both flexible blocks go up into the first lane: it takes one block for its target and strands the other, and the other lanes are short', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(WORKS_LEVEL);

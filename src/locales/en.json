@@ -1297,7 +1297,7 @@
       },
       "level_30": {
         "title": "The Great Works",
-        "hint": "Cover every target to win. A block fills a pool or covers a target, never both, and a block in a one-high lane never changes lane, so each lane needs its own two blocks."
+        "hint": "Cover every target to win. A block fills a pool or covers a target, never both. A block on the top or bottom row can never leave it, so send each of those rows exactly two blocks."
       }
     },
     "chapter": {
