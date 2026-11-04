@@ -48,6 +48,7 @@ import {
 import { downloadBytes, downloadJson, downloadText, MIME_XML } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
+import { BeamPreview, computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPreview';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
 import { historyDiff, HistoryDiff } from './historyDiff';
@@ -186,6 +187,7 @@ import {
   tileAvailability,
   winRuleAvailability
 } from './paletteAvailability';
+import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, wireToolMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
   decideSave,
@@ -206,6 +208,10 @@ import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   EDITOR_BLOCK_CHECK_TIMEOUT_MS,
   EDITOR_CELL_ANNOUNCE_DELAY_MS,
+  EDITOR_BEAM_DIM_ALPHA,
+  EDITOR_BEAM_GATE_COLOR,
+  EDITOR_BEAM_GATE_INSET_TILE,
+  EDITOR_BEAM_STALE_ALPHA,
   EDITOR_CHECK_DEBOUNCE_MS,
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
   EDITOR_CC3D_ARROW_HEAD_TILE,
@@ -552,6 +558,8 @@ export class LevelEditor {
   private dirty: boolean = false;
   /** Bumped on every write to isDirty, so an async save can tell whether the editor changed meanwhile. */
   private editRevision: number = 0;
+  /** Bumped whenever the document content changes, never by a save: the beam preview is keyed on it. */
+  private docRevision: number = 0;
   private get isDirty(): boolean {
     return this.dirty;
   }
@@ -862,6 +870,8 @@ export class LevelEditor {
   /** Resets everything that belongs to the previous level once another one is in `doc`. */
   private afterDocumentReplaced(dirty: boolean): void {
     this.loadGeneration++;
+    this.docRevision++;
+    this.resetBeamPreview();
     this.cancelCellSpeech();
     const live = byId(CELL_LIVE_ID);
     if (live) live.textContent = '';
@@ -891,6 +901,7 @@ export class LevelEditor {
     this.lastIssues = null;
     this.updateCheckBadge(null);
     this.renderIssues();
+    if (this.beamPreviewOn) this.refreshBeamPreview(this.exportCompiledLevel(), false, false);
     this.scheduleCheck();
     this.render();
     // The stage may not have its final size yet (a view just shown, a dialog just closed): fit once more after layout.
@@ -1259,6 +1270,10 @@ export class LevelEditor {
   private renderPaletteItems(): void {
     const container = byId('editor-palette-grid');
     if (!container) return;
+    // A click re-renders the palette: remember which entry held focus so it can get it back.
+    const focused = document.activeElement;
+    const focusedKind = focused instanceof HTMLElement && container.contains(focused) ? focused.dataset.brushKind : undefined;
+    const focusedId = focused instanceof HTMLElement && container.contains(focused) ? focused.dataset.brushId : undefined;
     container.innerHTML = '';
     if (this.isCc3d()) {
       this.renderCc3dPaletteItems(container);
@@ -1266,12 +1281,15 @@ export class LevelEditor {
       return;
     }
     byId(CC3D_ATTRS_ID)?.classList.add('hidden');
-    const entry = (brush: Brush, label: string, iconUrl: string): void => {
-      container.appendChild(
-        this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
-          this.selectBrush(brush)
-        )
+    const mechanisms = this.activeCategory === MECHANISMS_CATEGORY;
+    const pending: Array<{ group: MechanismGroupId | null; button: HTMLButtonElement }> = [];
+    const entry = (brush: Brush, label: string, iconUrl: string, group: MechanismGroupId | null = null): void => {
+      const button = this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
+        this.selectBrush(brush)
       );
+      button.dataset.brushKind = brush.kind;
+      button.dataset.brushId = brush.id;
+      pending.push({ group, button });
     };
 
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
@@ -1282,7 +1300,8 @@ export class LevelEditor {
       entry(
         { kind, id: tile.id },
         t(tile.i18nKey),
-        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id)
+        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id),
+        mechanisms ? tileMechanismGroup(tile) : null
       );
     }
 
@@ -1294,7 +1313,7 @@ export class LevelEditor {
       const icon = entityHasFacing(ent.id)
         ? this.cachedIcon('entity', ent.id, this.activeDir)
         : this.cachedIcon('entity', ent.id);
-      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon);
+      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon, mechanisms ? entityMechanismGroup(ent) : null);
     }
 
     if (this.activeCategory === TERRAIN_CATEGORY) {
@@ -1309,19 +1328,38 @@ export class LevelEditor {
       entry({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), this.playerIconUrl);
     }
 
-    if (this.activeCategory === MECHANISMS_CATEGORY) {
+    if (mechanisms) {
       entry(
         { kind: 'wire_trap', id: WIRE_TRAP_BRUSH_ID },
         t('editor.palette.tools.wire_trap'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE)
+        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE),
+        wireToolMechanismGroup('wire_trap')
       );
       entry(
         { kind: 'wire_cloner', id: WIRE_CLONER_BRUSH_ID },
         t('editor.palette.tools.wire_cloner'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE)
+        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE),
+        wireToolMechanismGroup('wire_cloner')
       );
+      // Sub-headings only label the entries that follow them: they are not focusable and the tab order stays the button order.
+      // An entry no rule places is still offered, under an Other heading shown only when there is one.
+      for (const section of arrangeMechanismSections(pending.map((item) => ({ group: item.group, item: item.button })))) {
+        const heading = document.createElement('h4');
+        heading.className = 'palette-group-heading';
+        heading.textContent = t(section.group.labelKey);
+        container.appendChild(heading);
+        for (const button of section.items) container.appendChild(button);
+      }
+    } else {
+      for (const item of pending) container.appendChild(item.button);
     }
 
+    if (focusedKind !== undefined && focusedId !== undefined) {
+      const again = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
+        (btn) => btn.dataset.brushKind === focusedKind && btn.dataset.brushId === focusedId
+      );
+      again?.focus();
+    }
     this.updateSwitchEngineButton();
   }
 
@@ -1524,6 +1562,7 @@ export class LevelEditor {
     for (const id of ['editor-field-winrule', 'editor-field-chips']) byId(id)?.classList.toggle('hidden', cc3d);
     this.updateToolButtons();
     this.refreshLayersList();
+    this.updateBeamPreviewButton();
   }
 
   public setTool(tool: EditorTool): void {
@@ -1552,6 +1591,9 @@ export class LevelEditor {
         break;
       case 'test_from_here':
         void this.testFromHere();
+        break;
+      case 'toggle_beam_preview':
+        this.toggleBeamPreview();
         break;
       case 'zoom_in':
         this.setZoomOffset(zoomIn(this.zoomOffset));
@@ -1748,6 +1790,10 @@ export class LevelEditor {
       void this.testFromHere();
     });
 
+    byId('editor-beam-preview-btn')?.addEventListener('click', () => {
+      this.toggleBeamPreview();
+    });
+
     for (const tool of EDITOR_TOOLS) {
       document.querySelector<HTMLButtonElement>(`[data-tool="${tool}"]`)?.addEventListener('click', () => {
         this.setTool(tool);
@@ -1862,9 +1908,178 @@ export class LevelEditor {
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = setTimeout(() => {
       this.checkTimer = null;
-      const report = LevelValidator.validate(this.exportCompiledLevel(), storedSolutionWins);
+      const compiled = this.exportCompiledLevel();
+      const report = LevelValidator.validate(compiled, storedSolutionWins);
       this.setCheck(summarizeValidation(report), report.issues);
+      if (this.beamPreviewOn) this.refreshBeamPreview(compiled, false);
     }, EDITOR_CHECK_DEBOUNCE_MS);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Beam preview
+  // ---------------------------------------------------------------------------
+
+  /** Whether the beam preview is shown; a session choice, never saved. */
+  private beamPreviewOn = false;
+  private beamPreview: BeamPreview = EMPTY_BEAM_PREVIEW;
+  /** The beams painted once, to be copied on every frame while nothing about them changes. */
+  private beamLayer: { key: string; canvas: HTMLCanvasElement } | null = null;
+  /** The load and document content the preview was computed for. */
+  private beamPreviewKey = '';
+  /** The summary announced last, so a recompute that changes nothing stays silent. */
+  private beamSummaryAnnounced = '';
+
+  private currentBeamPreviewKey(): string {
+    return `${this.loadGeneration}:${this.docRevision}`;
+  }
+
+  /** Forgets the preview of the previous level, so its beams are never drawn on the next one. */
+  private resetBeamPreview(): void {
+    this.beamPreview = EMPTY_BEAM_PREVIEW;
+    this.beamPreviewKey = '';
+    this.beamLayer = null;
+    this.beamSummaryAnnounced = '';
+  }
+
+  /** Why the beam preview cannot run on this level, as a locale key, or null when it can. */
+  private beamPreviewUnavailableKey(): string | null {
+    if (this.isCc3d()) return 'editor.beam_preview.unavailable_cc3d.label';
+    if (editableRulesetOf(this.doc.ruleset) === LYNX_RULESET) return 'editor.beam_preview.unavailable_lynx.label';
+    return null;
+  }
+
+  private beamPreviewSummary(): string {
+    const { beamCells, litReceivers, totalReceivers, gatesOpening } = this.beamPreview;
+    return t('editor.beam_preview.summary.label', {
+      cells: beamCells.length,
+      lit: litReceivers.length,
+      total: totalReceivers,
+      gates: gatesOpening.length
+    });
+  }
+
+  /** The Beams button: pressed state, and unavailable with the reason on a level the preview does not cover. */
+  private updateBeamPreviewButton(): void {
+    const reasonKey = this.beamPreviewUnavailableKey();
+    const wasOn = this.beamPreviewOn;
+    if (reasonKey !== null) this.beamPreviewOn = false;
+    if (wasOn && !this.beamPreviewOn) {
+      this.beamSummaryAnnounced = '';
+      this.render();
+    }
+    const button = byId<HTMLButtonElement>('editor-beam-preview-btn');
+    if (!button) return;
+    button.classList.toggle('is-unavailable', reasonKey !== null);
+    if (reasonKey !== null) {
+      button.setAttribute('aria-disabled', 'true');
+      button.setAttribute('aria-description', t(reasonKey));
+    } else {
+      button.removeAttribute('aria-disabled');
+      button.removeAttribute('aria-description');
+    }
+    button.setAttribute('aria-pressed', String(this.beamPreviewOn));
+    button.title =
+      reasonKey !== null
+        ? t(reasonKey)
+        : this.beamPreviewOn && this.beamPreview.hasLasers
+          ? this.beamPreviewSummary()
+          : t('editor.beam_preview.title.label');
+  }
+
+  /** Computes the preview of a compiled level; announces the summary on request or when it changed. */
+  private refreshBeamPreview(compiled: CompiledLevel, announce: boolean, redraw = true): void {
+    this.beamPreview = computeBeamPreview(compiled);
+    this.beamLayer = null;
+    this.beamPreviewKey = this.currentBeamPreviewKey();
+    const text = this.beamPreview.hasLasers ? this.beamPreviewSummary() : t('editor.beam_preview.none.label');
+    if (announce || text !== this.beamSummaryAnnounced) this.setStatusText(text);
+    this.beamSummaryAnnounced = text;
+    this.updateBeamPreviewButton();
+    if (redraw) this.render();
+  }
+
+  /** Shows or hides the beam preview (button and L key). */
+  private toggleBeamPreview(): void {
+    const reasonKey = this.beamPreviewUnavailableKey();
+    if (reasonKey !== null) {
+      this.setStatusText(t(reasonKey));
+      return;
+    }
+    this.beamPreviewOn = !this.beamPreviewOn;
+    if (this.beamPreviewOn) {
+      this.refreshBeamPreview(this.exportCompiledLevel(), true);
+      return;
+    }
+    this.beamSummaryAnnounced = '';
+    this.setStatusText(t('editor.beam_preview.off.label'));
+    this.updateBeamPreviewButton();
+    this.render();
+  }
+
+  /**
+   * Paints the beams of the preview over the map: tick 0 at full strength, the later facings of a turning
+   * turret dimmed, and a marker on each gate about to open. A preview that lags the last edit is dimmed
+   * until the check timer catches up.
+   */
+  private drawBeamPreview(s: number): void {
+    const preview = this.beamPreview;
+    if (!this.beamPreviewOn || !preview.hasLasers) return;
+    const alpha = this.beamPreviewKey === this.currentBeamPreviewKey() ? 1 : EDITOR_BEAM_STALE_ALPHA;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const layer = this.beamPreviewLayer(preview, s);
+    if (layer) ctx.drawImage(layer, 0, 0);
+    else this.paintBeamPreview(ctx, preview, s);
+    ctx.restore();
+  }
+
+  /**
+   * The beams painted once into an off-screen canvas, keyed on the preview, the tile size, the look and the
+   * canvas size, so a pointer move only copies them. Null (paint directly) when no canvas can be created.
+   */
+  private beamPreviewLayer(preview: BeamPreview, s: number): HTMLCanvasElement | null {
+    const { width, height } = this.canvas;
+    const key = `${this.beamPreviewKey}|${s}|${this.renderer.getAppearanceKey()}|${width}x${height}`;
+    if (this.beamLayer?.key === key) return this.beamLayer.canvas;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const layerCtx = canvas.getContext('2d');
+    if (!layerCtx) return null;
+    layerCtx.imageSmoothingEnabled = false;
+    this.paintBeamPreview(layerCtx, preview, s);
+    this.beamLayer = { key, canvas };
+    return canvas;
+  }
+
+  /** Paints the beams at tick 0, the dimmed later facings of the turning turrets and the gate markers. */
+  private paintBeamPreview(ctx: CanvasRenderingContext2D, preview: BeamPreview, s: number): void {
+    const board = {
+      entities: this.doc.entities.map((entity) => ({ ...entity, kind: ConfigRegistry.getEntityDef(entity.type)?.kind ?? '' })),
+      terrain: this.doc.terrain,
+      originX: 0,
+      originY: 0,
+      region: { x0: 0, y0: 0 },
+      unit: s,
+      round: true
+    };
+    ctx.save();
+    ctx.globalAlpha = 1;
+    this.renderer.drawBeamCells(ctx, {
+      ...board,
+      cells: preview.beamCells,
+      emitterCells: preview.emitterCells,
+      litReceivers: preview.litReceivers
+    });
+    ctx.globalAlpha = EDITOR_BEAM_DIM_ALPHA;
+    this.renderer.drawBeamCells(ctx, { ...board, cells: preview.dimTurretCells, emitterCells: [], litReceivers: [] });
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = EDITOR_OVERLAY_LINE_WIDTH;
+    ctx.strokeStyle = EDITOR_BEAM_GATE_COLOR;
+    const inset = s * EDITOR_BEAM_GATE_INSET_TILE;
+    for (const gate of preview.gatesOpening) ctx.strokeRect(gate.x * s + inset, gate.y * s + inset, s - inset * 2, s - inset * 2);
+    ctx.restore();
   }
 
   /**
@@ -2081,6 +2296,7 @@ export class LevelEditor {
   }
 
   private afterMetadataChange(): void {
+    this.docRevision++;
     this.isDirty = true;
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
@@ -2119,6 +2335,7 @@ export class LevelEditor {
     const lynxLocked =
       !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc) || hasCellEdges(this.doc) || hasUnderlays(this.doc));
     if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
+    this.updateBeamPreviewButton();
     rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
     // The engine of a level never changes into another one here: a CC3D level shows its own engine
     // read-only, and the other levels cannot take the CC3D option.
@@ -2219,6 +2436,7 @@ export class LevelEditor {
       this.resetSelectionState();
       this.cursorCell = null;
       this.hoverCell = null;
+      this.docRevision++;
       this.isDirty = true;
       this.applyFit();
       this.updateUndoRedoButtons();
@@ -2459,6 +2677,8 @@ export class LevelEditor {
   public dispose(): void {
     this.disposed = true;
     this.cancelCellSpeech();
+    if (this.checkTimer !== null) clearTimeout(this.checkTimer);
+    this.checkTimer = null;
     this.draftListeners.abort();
     this.cancelDraftTimer();
     this.releaseDraftLock?.();
@@ -2664,6 +2884,7 @@ export class LevelEditor {
   private restoreDocument(doc: EditorDocument, keepCursor = false): void {
     const cursor = this.cursorCell;
     this.doc = doc;
+    this.docRevision++;
     this.coalescer.reset();
     this.isDirty = !(this.cleanDoc !== null && sameDocument(doc, this.cleanDoc));
     this.pendingWire = null;
@@ -3273,6 +3494,7 @@ export class LevelEditor {
   private recordChange(base: EditorDocument): void {
     this.history.push(base);
     this.coalescer.reset();
+    this.docRevision++;
     this.isDirty = true;
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
@@ -3297,6 +3519,7 @@ export class LevelEditor {
     });
     if (outcome.changed) {
       this.doc = withCc3d(this.doc, outcome.level);
+      this.docRevision++;
       stroke.changed = true;
     }
     this.announce(outcome.messages);
@@ -3334,6 +3557,7 @@ export class LevelEditor {
     this.pendingWire = outcome.pendingWire;
     if (outcome.changed) {
       this.doc = withEditedMap(this.doc, outcome.map);
+      this.docRevision++;
       stroke.changed = true;
     }
     this.announce(outcome.messages);
@@ -4170,6 +4394,7 @@ export class LevelEditor {
     if (layer) for (const chunk of layer.chunks) this.ctx.drawImage(chunk.canvas, chunk.x0 * s, chunk.y0 * s);
     else this.drawMapLayers(this.ctx, doc, s);
     if (doc.cc3d) this.drawPlayerStart(this.ctx, doc, s);
+    this.drawBeamPreview(s);
 
     this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
     for (const link of doc.trapLinks) {

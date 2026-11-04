@@ -484,6 +484,7 @@
       "kb_editor_cc3d_panel": { "label": "CC3D thin walls: with the thin wall entry selected, click near a side of a cell to toggle it (keyboard: the side of the direction control)" },
       "kb_editor_cc3d_links": { "label": "CC3D links: hover a device or put the cursor on it to see what it works; the status line says when an edit changes a link" },
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
+      "kb_editor_beam_preview": { "label": "L: show or hide the laser beam preview (beams at tick 0, turrets armed)" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
@@ -678,6 +679,15 @@
         "not_supported": "Test from here: this engine does not support it."
       },
       "status": "Testing from ({x}, {y})."
+    },
+    "beam_preview": {
+      "action": { "label": "Beams" },
+      "title": { "label": "Show where the laser beams run at tick 0, turrets armed (L)" },
+      "summary": { "label": "Beam preview at tick 0: {cells, plural, one {# beam cell} other {# beam cells}}, {lit, plural, one {# receiver} other {# receivers}} lit of {total}, {gates, plural, one {# gate} other {# gates}} opening." },
+      "none": { "label": "Beam preview: this level has no lasers." },
+      "off": { "label": "Beam preview hidden." },
+      "unavailable_cc3d": { "label": "Beam preview: not available on CC3D levels." },
+      "unavailable_lynx": { "label": "Beam preview: not available on Lynx levels." }
     },
     "template": {
       "title": "New level",
@@ -931,6 +941,15 @@
     },
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Needs Epoxy rules: not available in a Lynx level." } },
+      "group": {
+        "buttons": { "label": "Buttons and wiring" },
+        "teleports": { "label": "Teleports" },
+        "lasers": { "label": "Lasers and mirrors" },
+        "colour": { "label": "Colour channels" },
+        "blocks": { "label": "Blocks and turrets" },
+        "toggles": { "label": "Flames and toggles" },
+        "other": { "label": "Other" }
+      },
       "category": {
         "terrain": { "label": "Terrain & Walls" },
         "hazards": { "label": "Elements & Ice" },
@@ -1486,6 +1505,22 @@
       "level_38": {
         "title": "Thaw",
         "hint": "A block of ice turns a fire into water, and a block of dirt fills that water. Push the ice into the flames first, then bring the dirt: the other way round, the dirt jams the fire for good."
+      },
+      "level_39": {
+        "title": "Alchemy",
+        "hint": "A fire takes an ice block first and a dirt block after it, a water takes a dirt block, and a block sent at the wrong hazard is lost for good. Count your blocks, and walk over the fresh dirt before the next block comes. Only one block may be in the lane at a time."
+      },
+      "level_40": {
+        "title": "The Brake",
+        "hint": "Ice carries you on, but a fire cell stops you if you wear the fire boots, and a water cell stops you if you wear the flippers. Wear the right boots to stop on the right cell: without them the slide ends in the flames or the water."
+      },
+      "level_41": {
+        "title": "Melt and Swim",
+        "hint": "A block of ice turns a fire into water, and flippers let you swim across that water: no dirt block is needed. Fetch the flippers first, cross the lake, then push the ice down its shaft and along the corridor into the flames. Pushed up against the wall, it is stuck."
+      },
+      "level_42": {
+        "title": "Roller Coaster",
+        "hint": "Ride the ice track in one go: its bends carry you over all five chips. The track crosses itself, and whichever end you start from, you pick them all up."
       }
     },
     "chapter": {

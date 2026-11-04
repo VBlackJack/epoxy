@@ -116,6 +116,25 @@ import {
   findStylePaletteErrors
 } from './styles/retroHdPalette';
 
+/** What PixelRenderer.drawBeamCells paints: beam cells, the receivers they light, and the board around them. */
+export interface BeamCellsDraw {
+  /** Every cell a beam crosses, emitter and turret beams together. */
+  readonly cells: readonly BeamCell[];
+  /** The cells the emitter beams cross, which the corners of a mirror follow. */
+  readonly emitterCells: readonly BeamCell[];
+  readonly litReceivers: readonly GridPoint[];
+  readonly entities: readonly { type: string; kind: string; x: number; y: number }[];
+  readonly terrain: readonly (readonly string[])[];
+  readonly originX: number;
+  readonly originY: number;
+  /** Top-left cell of the drawn region. */
+  readonly region: { x0: number; y0: number };
+  /** Size of a cell in pixels. */
+  readonly unit: number;
+  /** Styles that draw a receiver glow as a disc. */
+  readonly round: boolean;
+}
+
 interface Particle {
   x: number;
   y: number;
@@ -4697,11 +4716,7 @@ export class PixelRenderer {
     ctx.restore();
   }
 
-  /**
-   * The laser beams and the glow of the receivers they reach, over the terrain and under the
-   * entities. A beam is drawn as rectangles (a halo and a bright core) so that in the pixel styles it
-   * stays on whole sprite pixels; `round` marks the styles that draw a receiver glow as a disc.
-   */
+  /** The beams and lit receivers of the engine, painted as the game shows them. */
   private drawLaserBeams(
     ctx: CanvasRenderingContext2D,
     engine: PlayEngine,
@@ -4715,7 +4730,30 @@ export class PixelRenderer {
   ): void {
     const laser = engine as PlayEngine & { getLitReceivers?(): readonly GridPoint[] };
     const cells = laser.getBeamCells?.() ?? [];
-    const lit = laser.getLitReceivers?.() ?? [];
+    const litReceivers = laser.getLitReceivers?.() ?? [];
+    this.drawBeamCells(ctx, {
+      cells,
+      emitterCells: laser.getEmitterBeamCells?.() ?? cells,
+      litReceivers,
+      entities,
+      terrain,
+      originX,
+      originY,
+      region,
+      unit,
+      round
+    });
+  }
+
+  /**
+   * Beam cells and the glow of the receivers they reach, over the terrain and under the entities. A
+   * beam is drawn as rectangles (a halo and a bright core) so that in the pixel styles it stays on whole
+   * sprite pixels; `round` marks the styles that draw a receiver glow as a disc. The game and the level
+   * editor both draw through here. `emitterCells` are the cells emitter beams cross: the corners of a
+   * mirror follow them only, a turret beam being drawn as plain lines.
+   */
+  public drawBeamCells(ctx: CanvasRenderingContext2D, draw: BeamCellsDraw): void {
+    const { cells, emitterCells, litReceivers: lit, entities, terrain, originX, originY, region, unit, round } = draw;
     if (cells.length === 0 && lit.length === 0) return;
     const pal = this.pal();
     const glow = this.descriptor().glow ? this.getSettings().glowBlurPx : null;
@@ -4729,7 +4767,7 @@ export class PixelRenderer {
       const width = terrain[0]?.length ?? 0;
       // The corners of a mirror follow the emitter beams only: a turret beam never feeds a mirror, and
       // its cells are drawn as plain lines.
-      for (const cell of laser.getEmitterBeamCells?.() ?? cells) byCell.set(cell.y * width + cell.x, cell);
+      for (const cell of emitterCells) byCell.set(cell.y * width + cell.x, cell);
       const mirrors = new Map<number, MirrorAxis>();
       for (const ent of entities) {
         const axis = ent.kind === 'block' ? ConfigRegistry.getEntityDef(ent.type)?.mirrorAxis : undefined;
