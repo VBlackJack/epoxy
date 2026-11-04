@@ -3622,7 +3622,7 @@ export class LevelEditor {
   private hiddenTerrainChoices(x: number, y: number): Array<{ id: string; name: string }> {
     const choices: Array<{ id: string; name: string }> = [];
     for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
-      if (tile.layer !== 'terrain') continue;
+      if (tile.layer !== 'terrain' || hiddenFromEpoxyPalette(tile)) continue;
       if (normalizeUnderlays([{ x, y, terrain: tile.id }], this.doc.terrain, 'epoxy') === null) continue;
       choices.push({ id: tile.id, name: t(tile.i18nKey) });
     }

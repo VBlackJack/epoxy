@@ -4698,8 +4698,7 @@ export class PixelRenderer {
     axis: MirrorAxis,
     x: number,
     y: number,
-    size: number,
-    frontCorner?: MirrorCorner
+    size: number
   ): void {
     const pal = this.pal();
     const isModern = this.isHdVector();
@@ -4720,22 +4719,6 @@ export class PixelRenderer {
     ctx.fill();
     ctx.fillStyle = pal.mirrorGlass;
     ctx.fillRect(x + pane, y + pane, size - pane * 2, size - pane * 2);
-    if (frontCorner !== undefined) {
-      // The back of a one-sided mirror is a dull half: the triangle on the far side of the diagonal.
-      const left = x + pane;
-      const right = x + size - pane;
-      const top = y + pane;
-      const bottom = y + size - pane;
-      const backX = frontCorner.includes('W') ? right : left;
-      const backY = frontCorner.includes('N') ? bottom : top;
-      ctx.fillStyle = pal.wallShadow;
-      ctx.beginPath();
-      ctx.moveTo(backX, backY);
-      ctx.lineTo(frontCorner.includes('W') ? left : right, backY);
-      ctx.lineTo(backX, frontCorner.includes('N') ? top : bottom);
-      ctx.closePath();
-      ctx.fill();
-    }
     ctx.strokeStyle = pal.mirrorSheen;
     ctx.lineWidth = Math.max(1, size * MIRROR_BODY.lineWidth);
     ctx.beginPath();
@@ -4929,7 +4912,7 @@ export class PixelRenderer {
     const mirrorDef = ConfigRegistry.getEntityDef(type);
     const mirrorAxis = mirrorDef?.mirrorAxis;
     if (mirrorAxis) {
-      this.paintMirror(ctx, mirrorAxis, x, y, size, mirrorDef?.mirrorFrontCorner);
+      this.paintMirror(ctx, mirrorAxis, x, y, size);
       return;
     }
 

@@ -73,7 +73,7 @@ const GOLEM_YELLOW_REASON =
 const GOLEM_CONTROL_YELLOW_REASON =
   'Epoxy plays the yellow golem control as the puppet control: only the player works it, and a puppet or block entering it does nothing, as in CC3D; the order of the steps differs [unverified].';
 const LASER_CONTROLLER_REASON =
-  'Epoxy plays the laser controller as its shot trigger, linked to the shooters it fires (the nearest shooter in CC3D); any mob works it in CC3D, where Epoxy lets whatever steps on it work it, and a covered controller keeps working in both [unverified].';
+  'Epoxy plays the laser controller as its shot trigger, linked to the shooters it fires (the nearest shooter in CC3D); any mob works it in CC3D, and Epoxy lets whatever steps on it work it; in Epoxy a trigger hidden under a removable top acts only once revealed [unverified].';
 const LASER_SHOOTER_REASON =
   'Epoxy plays the shooter as a shot launcher: a wall-like terrain tile that fires the way it faces, so the terrain under the shooter is flattened; a shot crosses cells at the CC3D pace but its opacity follows Epoxy laser transparency, and the exit differs; the order of the first cell hit differs [unverified].';
 const NIBBLE_REASON =
@@ -133,7 +133,7 @@ const APPROX_ENTRIES: Record<string, string> = {
   block_color_blue: COLOR_BLOCK_REASON,
   block_color_yellow: COLOR_BLOCK_REASON,
   reflector:
-    'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its stored name); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
+    'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
   walker: MONSTER_REASON,
   legs_green: MONSTER_REASON,
   legs_red: MONSTER_REASON,
