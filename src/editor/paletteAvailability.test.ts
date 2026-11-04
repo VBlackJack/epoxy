@@ -23,7 +23,7 @@ import {
   cellEdgeAvailability,
   entityAvailability,
   EPOXY_ONLY_REASON_KEY,
-  launcherWireAvailability,
+  linkAvailability,
   majorityRuleset,
   tileAvailability,
   winRuleAvailability
@@ -157,11 +157,14 @@ describe('majorityRuleset', () => {
   });
 });
 
-describe('launcherWireAvailability', () => {
-  it('is Epoxy only, with the Epoxy-only reason under Lynx', () => {
-    expect(launcherWireAvailability('epoxy')).toEqual({ available: true });
-    expect(launcherWireAvailability('cc3d')).toEqual({ available: true });
-    expect(launcherWireAvailability('lynx')).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+describe('linkAvailability', () => {
+  it('refuses the shot system under Lynx with the Epoxy-only reason, and allows traps and clone machines everywhere', () => {
+    expect(linkAvailability('epoxy', 'shot')).toEqual({ available: true });
+    expect(linkAvailability('cc3d', 'shot')).toEqual({ available: true });
+    expect(linkAvailability('lynx', 'shot')).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+    for (const system of ['trap', 'clone'] as const) {
+      for (const ruleset of ['epoxy', 'lynx', 'cc3d'] as const) expect(linkAvailability(ruleset, system), `${system} ${ruleset}`).toEqual({ available: true });
+    }
   });
 
   it('keeps the shot launchers and the shot trigger Epoxy only as tiles', () => {

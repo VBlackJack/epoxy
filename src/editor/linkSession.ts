@@ -87,6 +87,7 @@ const KEY_REFUSED_HIDDEN = 'editor.link.refused.hidden.label';
 const KEY_REFUSED_NOT_FREE = 'editor.link.refused.not_free.label';
 const KEY_REFUSED_OTHER = 'editor.link.refused.other.label';
 const FALLBACK_KEY_PREFIX = 'editor.link.fallback.';
+const FALLBACK_LYNX_KEY_PREFIX = 'editor.link.fallback_lynx.';
 const ROLE_KEY_PREFIX = 'editor.connections.role.';
 const LABEL_SUFFIX = '.label';
 
@@ -167,7 +168,7 @@ export function partnerCandidates(level: EditorMap, session: LinkSession, rulese
 }
 
 /** The status lines of a session that starts or switches: what is linked, and what an unlinked device does. */
-export function sessionStartMessages(level: EditorMap, session: LinkSession): ToolMessage[] {
+export function sessionStartMessages(level: EditorMap, session: LinkSession, ruleset: Ruleset): ToolMessage[] {
   const count = linkCountAt(level, session.system, session.end, session.x, session.y);
   const messages: ToolMessage[] = [
     {
@@ -181,7 +182,11 @@ export function sessionStartMessages(level: EditorMap, session: LinkSession): To
       }
     }
   ];
-  if (count === 0) messages.push({ key: `${FALLBACK_KEY_PREFIX}${roleId(session.system, session.end)}${LABEL_SUFFIX}` });
+  if (count === 0) {
+    // Lynx reads links only: an unlinked device does nothing, so it has its own wording.
+    const prefix = ruleset === 'lynx' ? FALLBACK_LYNX_KEY_PREFIX : FALLBACK_KEY_PREFIX;
+    messages.push({ key: `${prefix}${roleId(session.system, session.end)}${LABEL_SUFFIX}` });
+  }
   return messages;
 }
 
@@ -195,7 +200,7 @@ export function startLinkSession(level: EditorMap, x: number, y: number, ruleset
   if (!role) return { session: null, messages: [{ key: KEY_NOTHING }] };
   if (role.blocked) return { session: null, messages: [{ key: KEY_REFUSED_HIDDEN, params: { role: roleName(role.system, role.end) } }] };
   const session: LinkSession = { system: role.system, end: role.end, x, y };
-  return { session, messages: sessionStartMessages(level, session) };
+  return { session, messages: sessionStartMessages(level, session, ruleset) };
 }
 
 function topTileName(level: EditorMap, x: number, y: number): string {
@@ -214,7 +219,8 @@ function editMessages(result: LinkEditResult, session: LinkSession, ruleset: Rul
     ? { key: KEY_PLACED, params: { ...params, partner: roleName(session.system, otherEnd(session.end)) } }
     : { key: result.action === 'unlinked' ? KEY_UNLINKED : KEY_LINKED, params };
   const messages: ToolMessage[] = [head];
-  if (result.emptyCloner && result.template) messages.push(emptyClonerMessage(result.template.type, result.template.dir));
+  // Lynx frees the creature standing in the machine: there is no template to warn about.
+  if (ruleset !== 'lynx' && result.emptyCloner && result.template) messages.push(emptyClonerMessage(result.template.type, result.template.dir));
   if (result.replaced && replacesLinks(session.system, ruleset)) messages.push({ key: KEY_REPLACED });
   return messages;
 }
@@ -248,7 +254,7 @@ export function sessionClick(
   const here = sessionRoleAt(level, cell.x, cell.y, ruleset);
   if (here && !here.blocked && here.system === session.system && here.end === session.end) {
     const next: LinkSession = { system: session.system, end: session.end, x: cell.x, y: cell.y };
-    return { session: next, messages: sessionStartMessages(level, next) };
+    return { session: next, messages: sessionStartMessages(level, next, ruleset) };
   }
 
   if (here && !here.blocked && here.system === session.system) {

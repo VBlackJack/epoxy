@@ -320,6 +320,47 @@ describe('sessionClick: Lynx keeps one link per button', () => {
     expect(result.messages.map((m) => m.key)).toContain('editor.link.replaced.label');
   });
 
+  it('says what an unlinked device does under Lynx, with the Lynx wording and not the Epoxy one', () => {
+    const cases: Array<[number, number, string]> = [
+      [2, 2, 'trap_button'],
+      [5, 2, 'trap'],
+      [2, 4, 'clone_button'],
+      [5, 4, 'clone_machine']
+    ];
+    for (const [x, y, id] of cases) {
+      expect(startLinkSession(pairs(), x, y, LYNX).messages.map((m) => m.key)).toEqual([
+        'editor.link.started.label',
+        `editor.link.fallback_lynx.${id}.label`
+      ]);
+      expect(startLinkSession(pairs(), x, y, EPOXY).messages[1].key).toBe(`editor.link.fallback.${id}.label`);
+    }
+  });
+
+  it('gives the Lynx fallback wording in both locales', () => {
+    for (const locale of ['en', 'fr'] as const) {
+      i18n.setLocale(locale);
+      for (const id of ['trap_button', 'trap', 'clone_button', 'clone_machine']) {
+        const key = `editor.link.fallback_lynx.${id}.label`;
+        expect(i18n.t(key), `${locale} ${key}`).not.toBe(key);
+      }
+    }
+    i18n.setLocale('en');
+  });
+
+  it('keeps the Lynx wording when the session switches to another device', () => {
+    const map = pairs();
+    map.terrain[3][3] = 'button_brown';
+    const result = sessionClick(map, brown, { x: 3, y: 3 }, 'S', LYNX);
+    expect(result.messages.map((m) => m.key)).toEqual(['editor.link.started.label', 'editor.link.fallback_lynx.trap_button.label']);
+  });
+
+  it('warns about an empty clone machine under Epoxy rules only', () => {
+    const epoxy = sessionClick(pairs(), red, cloner, 'S', EPOXY);
+    expect(epoxy.messages.length).toBeGreaterThan(1);
+    const lynx = sessionClick(pairs(), red, cloner, 'S', LYNX);
+    expect(lynx.messages.map((m) => m.key)).toEqual(['editor.link.linked.label']);
+  });
+
   it('refuses shot devices: the click names the cell as not linkable', () => {
     const result = sessionClick(pairs(), brown, { x: 2, y: 6 }, 'S', LYNX);
     expect(result.map).toBeUndefined();

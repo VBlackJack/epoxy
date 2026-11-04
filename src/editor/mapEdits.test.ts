@@ -31,18 +31,13 @@ import {
   paintPlayerStart,
   paintTerrain,
   placePartnerAndLink,
-  placeWireButton,
-  placeWireLink,
   removeCloneLink,
   removeLauncherLink,
   removeTrapLink,
   replaceButtonLink,
   resizeMap,
-  startLauncherWire,
   toggleCellEdge,
-  toggleLauncherLink,
-  toggleLink,
-  wireButtonTile
+  toggleLink
 } from './mapEdits';
 
 const BOUNDS = { minSize: 5, maxSize: 12 };
@@ -209,53 +204,63 @@ describe('floodFillTerrain', () => {
   });
 });
 
-describe('wires', () => {
-  it('places the button, then links it to the target', () => {
-    let map = bordered(8, 8);
-    map = placeWireButton(map, 'trap', 2, 2).map;
-    const result = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S');
+describe('links between devices placed with the brush', () => {
+  function trapRoom(): EditorMap {
+    const map = bordered(8, 8);
+    map.terrain[2][2] = 'button_brown';
+    map.terrain[5][5] = 'trap';
+    return map;
+  }
+
+  it('links a brown button to a trap that were painted as plain tiles', () => {
+    const result = addTrapLink(trapRoom(), { x: 2, y: 2 }, { x: 5, y: 5 });
     expect(result.refused).toBe(false);
     expect(result.map.terrain[2][2]).toBe('button_brown');
     expect(result.map.terrain[5][5]).toBe('trap');
     expect(result.map.trapLinks).toEqual([{ buttonX: 2, buttonY: 2, trapX: 5, trapY: 5 }]);
   });
 
-  it('refuses a wire whose source is its target', () => {
+  it('refuses a link whose source is its target', () => {
     const map = bordered(8, 8);
-    const result = placeWireLink(map, 'clone', { x: 3, y: 3 }, { x: 3, y: 3 }, 'S');
+    const result = addCloneLink(map, { x: 3, y: 3 }, { x: 3, y: 3 }, 'S');
     expect(result.refused).toBe(true);
     expect(result.refusal).toBe('same_cell');
     expect(result.changed).toBe(false);
     expect(result.map).toBe(map);
   });
 
-  it('refuses a wire whose source no longer holds the button', () => {
+  it('refuses a link whose source no longer holds the button', () => {
     const map = bordered(8, 8);
-    const result = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S');
+    map.terrain[5][5] = 'trap';
+    const result = addTrapLink(map, { x: 2, y: 2 }, { x: 5, y: 5 });
     expect(result.refused).toBe(true);
     expect(result.refusal).toBe('missing_button');
     expect(result.changed).toBe(false);
     expect(result.map).toBe(map);
-    const wrongKind = placeWireButton(map, 'clone', 2, 2).map;
-    expect(placeWireLink(wrongKind, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').refusal).toBe('missing_button');
+    const wrongKind = bordered(8, 8);
+    wrongKind.terrain[2][2] = 'button_red';
+    wrongKind.terrain[5][5] = 'trap';
+    expect(addTrapLink(wrongKind, { x: 2, y: 2 }, { x: 5, y: 5 }).refusal).toBe('missing_button');
   });
 
   it('copies the entity on the cloner into a clone link, else the default template', () => {
-    const map = placeWireButton(bordered(8, 8), 'clone', 2, 2).map;
+    const map = bordered(8, 8);
+    map.terrain[2][2] = 'button_red';
+    map.terrain[5][5] = 'clone_machine';
+    map.terrain[4][4] = 'clone_machine';
     map.entities.push({ x: 5, y: 5, type: 'tank', dir: 'W' });
-    const withEntity = placeWireLink(map, 'clone', { x: 2, y: 2 }, { x: 5, y: 5 }, 'N');
+    const withEntity = addCloneLink(map, { x: 2, y: 2 }, { x: 5, y: 5 }, 'N');
     expect(withEntity.map.cloneLinks[0]).toMatchObject({ clonerX: 5, clonerY: 5, templateType: 'tank', templateDir: 'W' });
-    expect(withEntity.map.terrain[5][5]).toBe('clone_machine');
-    const without = placeWireLink(placeWireButton(bordered(8, 8), 'clone', 2, 2).map, 'clone', { x: 2, y: 2 }, { x: 4, y: 4 }, 'N');
+    const without = addCloneLink(map, { x: 2, y: 2 }, { x: 4, y: 4 }, 'N');
     expect(without.map.cloneLinks[0]).toMatchObject({ templateType: 'dirt_block', templateDir: 'N' });
   });
 
-  it('replaces a link joining the same cells instead of doubling it', () => {
-    let map = bordered(8, 8);
-    map = placeWireButton(map, 'trap', 2, 2).map;
-    map = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').map;
-    map = placeWireLink(map, 'trap', { x: 2, y: 2 }, { x: 5, y: 5 }, 'S').map;
-    expect(map.trapLinks).toHaveLength(1);
+  it('does not double a link joining the same cells', () => {
+    let map = trapRoom();
+    map = addTrapLink(map, { x: 2, y: 2 }, { x: 5, y: 5 }).map;
+    const again = addTrapLink(map, { x: 2, y: 2 }, { x: 5, y: 5 });
+    expect(again.changed).toBe(false);
+    expect(again.map.trapLinks).toHaveLength(1);
   });
 });
 
@@ -651,20 +656,22 @@ describe('clone templates', () => {
     expect(paintTerrain(map, 4, 4, 'floor').map.cloneLinks).toEqual([]);
   });
 
-  it('warns when a clone wire ends on an empty clone machine, and not when a creature stands there', () => {
+  it('warns when a clone link ends on an empty clone machine, and not when a creature stands there', () => {
     const empty = withLinks();
     empty.cloneLinks = [];
-    const warned = placeWireLink(empty, 'clone', { x: 2, y: 4 }, { x: 4, y: 4 }, 'W');
+    const warned = addCloneLink(empty, { x: 2, y: 4 }, { x: 4, y: 4 }, 'W');
     expect(warned.emptyCloner).toBe(true);
     expect(warned.map.cloneLinks[0]).toMatchObject({ templateType: 'dirt_block', templateDir: 'W' });
     const occupied = withWalkerCloner();
     occupied.cloneLinks = [];
-    expect(placeWireLink(occupied, 'clone', { x: 2, y: 4 }, { x: 4, y: 4 }, 'W').emptyCloner).toBeUndefined();
-    expect(placeWireLink(withLinks(), 'trap', { x: 2, y: 2 }, { x: 4, y: 2 }, 'W').emptyCloner).toBeUndefined();
+    expect(addCloneLink(occupied, { x: 2, y: 4 }, { x: 4, y: 4 }, 'W').emptyCloner).toBeUndefined();
+    const unlinked = withLinks();
+    unlinked.trapLinks = [];
+    expect(addTrapLink(unlinked, { x: 2, y: 2 }, { x: 4, y: 2 }).emptyCloner).toBeUndefined();
   });
 });
 
-describe('launcher wire edits', () => {
+describe('launcher link upkeep', () => {
   function wiredRoom(): EditorMap {
     const map = bordered(10, 8);
     map.terrain[2][2] = 'shot_trigger';
@@ -674,63 +681,12 @@ describe('launcher wire edits', () => {
   }
   const FROM = { x: 2, y: 2 };
 
-  it('names the button tile of each wire, the shot trigger for the launcher wire', () => {
-    expect(wireButtonTile('trap')).toBe('button_brown');
-    expect(wireButtonTile('clone')).toBe('button_red');
-    expect(wireButtonTile('launcher')).toBe('shot_trigger');
-  });
-
-  it('places a shot trigger on the first click', () => {
-    const map = bordered(8, 8);
-    const placed = startLauncherWire(map, 3, 3);
-    expect(placed.changed).toBe(true);
-    expect(placed.map.terrain[3][3]).toBe('shot_trigger');
-    expect(map.terrain[3][3]).toBe('floor');
-    expect(startLauncherWire(placed.map, 3, 3).changed).toBe(false);
-  });
-
-  it('links a launcher that stands on the map, keeping its tile and facing', () => {
-    const map = wiredRoom();
-    const linked = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
-    expect(linked.refused).toBe(false);
-    expect(linked.action).toBe('linked');
-    expect(linked.count).toBe(1);
-    expect(linked.map.terrain[2][6]).toBe('shot_launcher_w');
-    expect(linked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 }]);
-    expect(map.launcherLinks).toBeUndefined();
-  });
-
-  it('paints a launcher facing the given direction on any other cell and links it', () => {
-    for (const [dir, tile] of [['N', 'shot_launcher_n'], ['E', 'shot_launcher_e'], ['S', 'shot_launcher_s'], ['W', 'shot_launcher_w']] as const) {
-      const linked = toggleLauncherLink(wiredRoom(), FROM, { x: 4, y: 5 }, dir);
-      expect(linked.map.terrain[5][4]).toBe(tile);
-      expect(linked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 4, launcherY: 5 }]);
-    }
-  });
-
-  it('unlinks a launcher already linked to the trigger and leaves its tile', () => {
-    const map = wiredRoom();
-    map.launcherLinks = [
-      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 },
-      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 }
-    ];
-    const unlinked = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
-    expect(unlinked.action).toBe('unlinked');
-    expect(unlinked.count).toBe(1);
-    expect(unlinked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 }]);
-    expect(unlinked.map.terrain[2][6]).toBe('shot_launcher_w');
-    expect(map.launcherLinks).toHaveLength(2);
-    const none = toggleLauncherLink(unlinked.map, FROM, { x: 6, y: 4 }, 'S');
-    expect(none.map.launcherLinks).toBeUndefined();
-    expect('launcherLinks' in none.map).toBe(false);
-  });
-
   it('keeps one trigger firing several launchers and one launcher fired by several triggers, in canonical order', () => {
     const map = wiredRoom();
     map.terrain[5][2] = 'shot_trigger';
-    const first = toggleLauncherLink(map, { x: 2, y: 5 }, { x: 6, y: 2 }, 'S');
-    const second = toggleLauncherLink(first.map, FROM, { x: 6, y: 4 }, 'S');
-    const third = toggleLauncherLink(second.map, FROM, { x: 6, y: 2 }, 'S');
+    const first = toggleLink(map, 'shot', { x: 2, y: 5 }, { x: 6, y: 2 }, 'S');
+    const second = toggleLink(first.map, 'shot', FROM, { x: 6, y: 4 }, 'S');
+    const third = toggleLink(second.map, 'shot', FROM, { x: 6, y: 2 }, 'S');
     expect(third.map.launcherLinks).toEqual([
       { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 },
       { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 },
@@ -738,40 +694,19 @@ describe('launcher wire edits', () => {
     ]);
   });
 
-  it('refuses the trigger itself and a trigger that is gone, changing nothing', () => {
+  it('drops the launcher links field when the last launcher link is removed', () => {
     const map = wiredRoom();
-    const same = toggleLauncherLink(map, FROM, FROM, 'S');
-    expect(same).toMatchObject({ refused: true, refusal: 'same_cell', changed: false });
-    expect(same.map).toBe(map);
-    map.terrain[2][2] = 'floor';
-    const gone = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
-    expect(gone).toMatchObject({ refused: true, refusal: 'missing_button', changed: false });
-    expect(gone.map).toBe(map);
-  });
-
-  it('leaves the map alone outside the grid and on a CC3D map', () => {
-    const map = wiredRoom();
-    expect(toggleLauncherLink(map, FROM, { x: 40, y: 2 }, 'S').changed).toBe(false);
-    const cc3d: EditorMap = { ...map, cc3d: emptyCc3dRoom(6, 6) };
-    expect(toggleLauncherLink(cc3d, FROM, { x: 6, y: 2 }, 'S').changed).toBe(false);
-  });
-
-  it('works with a trigger and a launcher hidden under a door, and paints a launcher over other terrain', () => {
-    const map = bordered(10, 8);
-    map.terrain[2][2] = 'door_red';
-    map.terrain[2][6] = 'door_red';
-    map.underlays = [
-      { x: 2, y: 2, terrain: 'shot_trigger' },
-      { x: 6, y: 2, terrain: 'shot_launcher_w' }
+    map.launcherLinks = [
+      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 },
+      { buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 }
     ];
-    const linked = toggleLauncherLink(map, FROM, { x: 6, y: 2 }, 'S');
-    expect(linked.map.terrain[2][6]).toBe('door_red');
-    expect(linked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 2 }]);
-    const onTrigger = bordered(10, 8);
-    onTrigger.terrain[2][2] = 'shot_trigger';
-    onTrigger.terrain[5][5] = 'ice';
-    const iced = toggleLauncherLink(onTrigger, FROM, { x: 5, y: 5 }, 'N');
-    expect(iced.map.terrain[5][5]).toBe('shot_launcher_n');
+    const unlinked = toggleLink(map, 'shot', FROM, { x: 6, y: 2 }, 'S');
+    expect(unlinked.action).toBe('unlinked');
+    expect(unlinked.map.launcherLinks).toEqual([{ buttonX: 2, buttonY: 2, launcherX: 6, launcherY: 4 }]);
+    expect(unlinked.map.terrain[2][6]).toBe('shot_launcher_w');
+    expect(map.launcherLinks).toHaveLength(2);
+    const none = toggleLink(unlinked.map, 'shot', FROM, { x: 6, y: 4 }, 'S');
+    expect('launcherLinks' in none.map).toBe(false);
   });
 
   it('keeps the launcher links of a launcher repainted with another facing and of a trigger repainted as a trigger', () => {

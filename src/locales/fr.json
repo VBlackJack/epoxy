@@ -506,7 +506,8 @@
       "kb_editor_rotate": { "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi" },
       "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit)" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
-      "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible, finir la liaison des lanceurs, annuler un collage en attente, ou abandonner la sélection" },
+      "kb_editor_link": { "label": "K : Relier le dispositif sous le curseur (bouton, piège, machine à cloner, déclencheur de tir ou lanceur). Cliquez ensuite, ou appuyez sur Espace, sur un partenaire pour le lier ou le délier, ou sur une case de sol vide pour en poser un" },
+      "kb_editor_cancel": { "label": "Échap : Terminer la liaison, annuler un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
       "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Maj+F remplit la sélection avec l'élément choisi dans la palette ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
@@ -697,10 +698,8 @@
       },
       "link": {
         "action": "Relier...",
-        "hint": "Commencez le lien depuis son bouton.",
-        "blocked": "Ce bouton est caché sous une autre tuile : mettez-le en vue pour le relier.",
-        "note_trap": "Un piège que vous reliez ne répond plus qu'à ses boutons liés.",
-        "note_clone": "Une fois relié, ce bouton n'active plus que ses machines liées au lieu de toutes les machines à cloner qui portent une créature."
+        "done": "Terminé",
+        "blocked": "Ce dispositif est caché sous une autre tuile : mettez-le en vue pour le relier."
       },
       "unlink": {
         "action": "Délier",
@@ -749,27 +748,34 @@
       }
     },
     "link": {
-      "started": { "label": "Liaison de : {role} en ({x}, {y}), avec {count, plural, one {# liaison} other {# liaisons}}. Cliquez sur : {partner} pour le lier ou le délier, ou sur une case de sol vide pour en poser un. Échap pour terminer." },
+      "started": { "label": "Édition des liens : {role} en ({x}, {y}), avec {count, plural, one {# lien} other {# liens}} pour l'instant. Cliquez sur l'un de ces éléments pour créer ou délier un lien : {partner}. Ou cliquez sur une case de sol vide pour y poser le partenaire. Échap pour terminer." },
       "fallback": {
-        "trap_button": { "label": "Sans liaison, ce bouton brun ouvre tous les pièges sans liaison." },
-        "trap": { "label": "Sans liaison, n'importe quel bouton brun ouvre ce piège." },
-        "clone_button": { "label": "Sans liaison, ce bouton rouge déclenche toutes les machines à cloner qui portent une créature." },
-        "clone_machine": { "label": "Sans liaison, n'importe quel bouton rouge déclenche cette machine à cloner dès qu'une créature s'y tient." },
-        "shot_trigger": { "label": "Sans liaison, ce déclencheur de tir ne tire rien." },
-        "shot_launcher": { "label": "Sans liaison, aucun déclencheur de tir ne commande ce lanceur." }
+        "trap_button": { "label": "Sans lien, ce bouton brun ouvre tous les pièges sans lien." },
+        "trap": { "label": "Sans lien, n'importe quel bouton brun ouvre ce piège." },
+        "clone_button": { "label": "Sans lien, ce bouton rouge déclenche toutes les machines à cloner qui portent une créature." },
+        "clone_machine": { "label": "Sans lien, n'importe quel bouton rouge déclenche cette machine à cloner dès qu'une créature s'y tient." },
+        "shot_trigger": { "label": "Sans lien, ce déclencheur de tir ne tire rien." },
+        "shot_launcher": { "label": "Sans lien, aucun déclencheur de tir ne commande ce lanceur." }
       },
-      "linked": { "label": "Lié. Cet élément ({role}) a maintenant {count, plural, one {# liaison} other {# liaisons}}." },
-      "unlinked": { "label": "Délié. Cet élément ({role}) a maintenant {count, plural, one {# liaison} other {# liaisons}}." },
-      "placed": { "label": "Élément posé et lié : {partner}. Cet élément ({role}) a maintenant {count, plural, one {# liaison} other {# liaisons}}." },
-      "replaced": { "label": "Un bouton Lynx ne porte qu'une liaison : l'ancienne a été remplacée." },
-      "done": { "label": "Liaison terminée. Cet élément ({role}) a {count, plural, one {# liaison} other {# liaisons}}." },
-      "source_gone": { "label": "Liaison terminée : l'élément que vous reliiez ({role}) a disparu." },
-      "unavailable": { "label": "Les liaisons ne se tracent pas dans ce type de niveau." },
-      "nothing": { "label": "Rien à lier ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir ou un lanceur de tir." },
+      "fallback_lynx": {
+        "trap_button": { "label": "Sans lien : ce bouton n'ouvre rien." },
+        "trap": { "label": "Sans lien : ce piège ne s'ouvre jamais." },
+        "clone_button": { "label": "Sans lien : ce bouton ne déclenche rien." },
+        "clone_machine": { "label": "Sans lien : cette machine n'est jamais déclenchée." }
+      },
+      "linked": { "label": "Lien créé. {role} : {count, plural, one {# lien} other {# liens}} maintenant." },
+      "unlinked": { "label": "Lien délié. {role} : {count, plural, one {# lien} other {# liens}} maintenant." },
+      "placed": { "label": "Partenaire posé et lié : {partner}. {role} : {count, plural, one {# lien} other {# liens}} maintenant." },
+      "replaced": { "label": "Un bouton Lynx ne porte qu'un lien : l'ancien a été remplacé." },
+      "done": { "label": "Édition des liens terminée. {role} : {count, plural, one {# lien} other {# liens}}." },
+      "source_gone": { "label": "Édition des liens terminée : l'élément de départ ({role}) a disparu." },
+      "busy": { "label": "Un trait de pinceau est en cours : terminez-le avant de créer des liens." },
+      "unavailable": { "label": "Les liens ne se tracent pas dans ce type de niveau." },
+      "nothing": { "label": "Aucun lien possible ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir ou un lanceur de tir." },
       "refused": {
-        "hidden": { "label": "Cet élément ({role}) est caché sous une autre tuile : montrez-le pour le lier." },
-        "not_free": { "label": "Cette case porte un terrain caché : seule une case de sol vide reçoit un nouvel élément ({partner})." },
-        "other": { "label": "{found} ne peut pas être lié ici : cliquez sur un élément ({expected}), ou sur une case de sol vide pour en poser un." }
+        "hidden": { "label": "Caché sous une autre tuile : {role}. Dégagez la case pour créer un lien." },
+        "not_free": { "label": "Cette case porte un terrain caché : seule une case de sol vide reçoit un nouveau partenaire ({partner})." },
+        "other": { "label": "{found} ne peut pas recevoir de lien ici. Cliquez sur l'un de ces éléments : {expected}. Ou cliquez sur une case de sol vide pour y poser le partenaire." }
       }
     },
     "selection": {
@@ -983,20 +989,11 @@
         },
         "start_kept": "Le départ du joueur ne s'efface pas : déplacez-le avec l'élément Départ du joueur.",
         "fill_needs_terrain": "Le remplissage demande une tuile de terrain : choisissez-en une dans la palette.",
-        "wire_same_cell": "Un fil relie deux cases différentes.",
-        "wire_missing_button": "Le bouton de ce fil a disparu : recommencez le fil.",
         "wire_empty_cloner": { "label": "Aucune créature ne se tient encore sur cette machine à cloner : elle clone {name} (orientation {side}) jusqu'à ce que vous en placiez une." },
         "cloner_template": { "label": "La machine à cloner en ({x}, {y}) clone maintenant {name} (orientation {side})." },
         "cloners_template": { "label": "{count} machines à cloner clonent maintenant {name} (orientation {side})." },
         "rotate_nothing": { "label": "Aucune créature ni tourelle à tourner ici." },
         "rotated": { "label": "{name} en ({x}, {y}) : orientation {side}." },
-        "wire_cancelled": "Fil annulé.",
-        "wire_cancelled_button_left": "Fil annulé. Le bouton reste sur la carte sans lien.",
-        "wire_launcher_start_on_trigger": { "label": "Commencez le fil par un déclencheur de tir : cliquez sur un déclencheur, ou sur une case vide pour en poser un." },
-        "wire_launcher_linked": { "label": "Lanceur lié : ce déclencheur tire maintenant {count, plural, one {# lanceur} other {# lanceurs}}. Continuez à cliquer sur des lanceurs, ou appuyez sur Échap pour finir." },
-        "wire_launcher_unlinked": { "label": "Lanceur délié : ce déclencheur tire maintenant {count, plural, one {# lanceur} other {# lanceurs}}. Continuez à cliquer sur des lanceurs, ou appuyez sur Échap pour finir." },
-        "wire_launcher_done": { "label": "Liaison des lanceurs terminée : ce déclencheur tire {count, plural, one {# lanceur} other {# lanceurs}}." },
-        "wire_launcher_trigger_left": { "label": "Liaison des lanceurs interrompue. Le déclencheur reste sur la carte sans lanceur lié, il ne tire donc rien." },
         "undone_cells": { "label": "Annulé : {count, plural, one {# case} other {# cases}} près de ({x}, {y})." },
         "redone_cells": { "label": "Rétabli : {count, plural, one {# case} other {# cases}} près de ({x}, {y})." },
         "undone_settings": { "label": "Annulé : réglages du niveau." },
@@ -1130,10 +1127,7 @@
       },
       "tools": {
         "player_start": { "label": "Départ Joueur" },
-        "cell_edge": { "label": "Cloison fine" },
-        "wire_trap": { "label": "Relier Bouton Brun → Piège" },
-        "wire_cloner": { "label": "Relier Bouton Rouge → Cloneur" },
-        "wire_launcher": { "label": "Relier Déclencheur de tir → Lanceurs" }
+        "cell_edge": { "label": "Cloison fine" }
       },
       "status": {
         "coords": { "label": "Case ({x}, {y})" },
@@ -1147,12 +1141,7 @@
         "import_too_large": { "label": "Fichier trop volumineux (limite : {max} Mo)." },
         "saved_session_only": { "label": "Niveau conservé pour cette session seulement : le navigateur n'a pas pu le sauvegarder." },
         "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
-        "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
-        "cell_edge_mode": { "label": "Cloison fine : cliquez près d'un côté d'une case pour l'ajouter ou le retirer (clavier : le côté du contrôle de direction)." },
-        "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
-        "wire_launcher_select_source": { "label": "Cliquez sur un déclencheur de tir de la carte, ou sur une case vide pour en poser un..." },
-        "wire_launcher_picked": { "label": "Déclencheur choisi : il tire {count, plural, one {# lanceur} other {# lanceurs}}. Cliquez sur un lanceur pour le lier ou le délier, ou sur une case vide pour en poser un nouveau. Appuyez sur Échap pour finir." },
-        "wire_linked": { "label": "Connexion mécanique établie !" }
+        "cell_edge_mode": { "label": "Cloison fine : cliquez près d'un côté d'une case pour l'ajouter ou le retirer (clavier : le côté du contrôle de direction)." }
       }
     }
   },

@@ -36,7 +36,6 @@ import {
   holdsShotTrigger,
   isShotLauncherTile,
   isShotTriggerTile,
-  launcherCountAt,
   launcherLinkTouches,
   pruneLauncherLinks,
   setLauncherLinks,
@@ -66,25 +65,6 @@ export interface ClonerTemplateChange {
   type: string;
   dir: Direction;
 }
-
-/** Which kind of link a wire tool draws. */
-export type WireKind = 'trap' | 'clone' | 'launcher';
-
-/** The wires that close on a second click; the launcher wire stays open and toggles links until it is finished. */
-export type LinkWireKind = Exclude<WireKind, 'launcher'>;
-
-/** Outcome of closing a wire. */
-export interface WireResult extends MapEditResult {
-  /** True when the wire was refused; `refusal` says why. */
-  refused: boolean;
-  /** Why the wire was refused, when it was. */
-  refusal?: WireRefusal;
-  /** True when a clone wire ended on a clone machine with no creature on it, so the link got the default template. */
-  emptyCloner?: boolean;
-}
-
-/** 'same_cell': source and target are one cell. 'missing_button': the source no longer holds the wire's button. */
-export type WireRefusal = 'same_cell' | 'missing_button';
 
 /** What a resize dropped or moved, so the UI can say it. */
 export interface ResizeReport {
@@ -320,86 +300,6 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
 }
 
-/** Terrain placed at the button end and at the target end of a wire. */
-function wireTiles(kind: LinkWireKind): { button: string; target: string } {
-  return kind === 'trap'
-    ? { button: EDITOR_TRAP_BUTTON_TILE, target: EDITOR_TRAP_TILE }
-    : { button: EDITOR_CLONE_BUTTON_TILE, target: EDITOR_CLONER_TILE };
-}
-
-/** The tile a wire tool puts at its button end (the shot trigger for the launcher wire). */
-export function wireButtonTile(kind: WireKind): string {
-  return kind === 'launcher' ? EDITOR_SHOT_TRIGGER_TILE : wireTiles(kind).button;
-}
-
-/** First click of a wire tool: puts the button tile on the source cell. */
-export function placeWireButton(source: EditorMap, kind: LinkWireKind, x: number, y: number): MapEditResult {
-  return paintTerrain(source, x, y, wireTiles(kind).button);
-}
-
-/** First click of the launcher wire on a cell that is no trigger: puts a shot trigger there. */
-export function startLauncherWire(source: EditorMap, x: number, y: number): MapEditResult {
-  return paintTerrain(source, x, y, EDITOR_SHOT_TRIGGER_TILE);
-}
-
-/** Outcome of a click on a launcher while a launcher wire is open. */
-export interface LauncherLinkResult extends MapEditResult {
-  /** True when the click was refused; `refusal` says why. */
-  refused: boolean;
-  refusal?: WireRefusal;
-  /** What the click did to the link, when it did something. */
-  action?: 'linked' | 'unlinked';
-  /** How many launchers the trigger fires after the edit. */
-  count: number;
-}
-
-/**
- * A click on a cell while a launcher wire is open: a launcher already linked to the trigger is unlinked; a launcher
- * not linked yet is linked and keeps its tile and facing; any other cell gets a shot launcher facing `facing` and is
- * linked. Every link change goes through setLauncherLinks. Refused (and unchanged) when the trigger is gone, or the
- * click is on the trigger itself.
- */
-export function toggleLauncherLink(
-  source: EditorMap,
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  facing: Direction
-): LauncherLinkResult {
-  const none = (refusal?: WireRefusal): LauncherLinkResult => ({
-    ...unchanged(source),
-    refused: refusal !== undefined,
-    ...(refusal ? { refusal } : {}),
-    count: launcherCountAt(source, from.x, from.y)
-  });
-  if (source.cc3d) return none();
-  if (!inGrid(source, from.x, from.y) || !inGrid(source, to.x, to.y)) return none();
-  if (from.x === to.x && from.y === to.y) return none('same_cell');
-  if (!holdsShotTrigger(source, from.x, from.y)) return none('missing_button');
-  const joinsThePair = (l: LauncherLink): boolean =>
-    l.buttonX === from.x && l.buttonY === from.y && l.launcherX === to.x && l.launcherY === to.y;
-  if ((source.launcherLinks ?? []).some(joinsThePair)) {
-    const map = cloneMap(source);
-    setLauncherLinks(map, (map.launcherLinks ?? []).filter((l) => !joinsThePair(l)));
-    return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, refused: false, action: 'unlinked', count: launcherCountAt(map, from.x, from.y) };
-  }
-  // A cell that already holds a launcher (on top or hidden) keeps its tile and facing; any other cell is painted.
-  const painted = holdsShotLauncher(source, to.x, to.y)
-    ? { map: cloneMap(source), removedLinks: 0, removedUnderlays: 0 }
-    : paintTerrain(source, to.x, to.y, EDITOR_SHOT_LAUNCHER_TILES[facing]);
-  const map = cloneMap(painted.map);
-  setLauncherLinks(map, [...(map.launcherLinks ?? []), { buttonX: from.x, buttonY: from.y, launcherX: to.x, launcherY: to.y }]);
-  return {
-    map,
-    changed: true,
-    removedLinks: painted.removedLinks,
-    removedUnderlays: painted.removedUnderlays,
-    playerStartKept: false,
-    refused: false,
-    action: 'linked',
-    count: launcherCountAt(map, from.x, from.y)
-  };
-}
-
 /**
  * Removes the trap link joining a brown button to a trap, every duplicate of the pair. Unchanged (same map) when the
  * pair is absent or the map is a CC3D room. Nothing else is touched.
@@ -441,7 +341,7 @@ export function removeCloneLink(
 /**
  * Removes the launcher link joining a shot trigger to a shot launcher, every duplicate of the pair, through
  * setLauncherLinks. Unchanged (same map) when the pair is absent or the map is a CC3D room. Unlike
- * toggleLauncherLink it never adds a link or paints a launcher.
+ * toggleLink it never adds a link or paints a launcher.
  */
 export function removeLauncherLink(
   source: EditorMap,
@@ -456,50 +356,6 @@ export function removeLauncherLink(
   const map = cloneMap(source);
   setLauncherLinks(map, (map.launcherLinks ?? []).filter((l) => !joinsThePair(l)));
   return { map, changed: true, removedLinks: removed, removedUnderlays: 0, playerStartKept: false };
-}
-
-/**
- * Second click of a wire tool: puts the target tile on the target cell and
- * records the link. A wire whose source is its target is refused and changes
- * nothing, and so is a wire whose source no longer holds the button. A link already joining the same two cells is replaced, not doubled.
- * A clone link copies the entity standing on the cloner, else the default
- * template facing `fallbackDir`.
- */
-export function placeWireLink(
-  source: EditorMap,
-  kind: LinkWireKind,
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  fallbackDir: Direction
-): WireResult {
-  if (source.cc3d) return { ...unchanged(source), refused: false }; // a CC3D map is edited through cc3dEdits only
-  if (!inGrid(source, from.x, from.y) || !inGrid(source, to.x, to.y)) return { ...unchanged(source), refused: false };
-  if (from.x === to.x && from.y === to.y) return { ...unchanged(source), refused: true, refusal: 'same_cell' };
-  const tiles = wireTiles(kind);
-  if (source.terrain[from.y][from.x] !== tiles.button) {
-    return { ...unchanged(source), refused: true, refusal: 'missing_button' };
-  }
-  const painted = paintTerrain(source, to.x, to.y, tiles.target);
-  const map = cloneMap(painted.map);
-  let emptyCloner = false;
-  if (kind === 'trap') {
-    map.trapLinks = map.trapLinks.filter((l) => !(l.buttonX === from.x && l.buttonY === from.y && l.trapX === to.x && l.trapY === to.y));
-    map.trapLinks.push({ buttonX: from.x, buttonY: from.y, trapX: to.x, trapY: to.y });
-  } else {
-    const onCloner = map.entities.find((e) => e.x === to.x && e.y === to.y);
-    emptyCloner = onCloner === undefined;
-    map.cloneLinks = map.cloneLinks.filter((l) => !(l.buttonX === from.x && l.buttonY === from.y && l.clonerX === to.x && l.clonerY === to.y));
-    map.cloneLinks.push({
-      buttonX: from.x,
-      buttonY: from.y,
-      clonerX: to.x,
-      clonerY: to.y,
-      templateType: onCloner?.type ?? EDITOR_DEFAULT_CLONE_TEMPLATE,
-      templateDir: onCloner?.dir ?? fallbackDir
-    });
-  }
-  // The map was copied from the painted one, which already pruned the hidden terrain of the target cell.
-  return { map, changed: true, removedLinks: painted.removedLinks, removedUnderlays: painted.removedUnderlays, playerStartKept: false, refused: false, ...(emptyCloner ? { emptyCloner } : {}) };
 }
 
 /** The three mechanisms a link session works: brown button to trap, red button to clone machine, shot trigger to launcher. */
