@@ -1442,7 +1442,8 @@ export class LevelValidator {
   /**
    * Colours whose hold doors the player can pass, as far as the level can tell: the colour has at least one
    * plate and at least as many things that can lie on a plate for good (blocks, monsters that press plates,
-   * a cloned block) as it has plates. The player cannot hold a plate and walk through the door too, except
+   * a cloned block) as it has plates. Walking monsters count as pressers (they press a plate when they stand on
+   * it; only flying ones do not), which makes the "door not openable" warning deliberately more optimistic. The player cannot hold a plate and walk through the door too, except
    * when a plate of the colour touches a door of the colour: the player opens the door from the plate, steps
    * in, and the door shuts on the occupant, who may leave. Then the player counts as one presser.
    */

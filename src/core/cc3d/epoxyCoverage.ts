@@ -69,7 +69,8 @@ const EXACT_REASON = 'Epoxy plays this element as CC3D does.';
 const MONSTER_REASON = 'Monster movement is close to CC3D, not identical.';
 const ORB_REASON = 'The orb effect is close to the Epoxy equivalent, not identical.';
 const PLATE_REASON =
-  'Hold doors settle at the end of each move or tick, where CC3D reacts at once. Every monster that stands on a plate presses it except the flying ones (glider, fireball), as in CC3D where the blinky and screamer families do not.';
+  'Hold doors settle at the end of each move or tick, where CC3D reacts at once. Epoxy monsters press colour plates unless they fly. The CC3D blinky and screamer do not press either, but the CC3D baby blinky, baby screamer and both legs do, and they become flying Epoxy monsters (glider, fireball) that do not [unverified].';
+const FLYER_PLATE_GAP = ' Unlike in CC3D, the converted monster does not press colour plates (it flies in Epoxy).';
 const COLOR_BLOCK_REASON = 'Colour block pushing rules differ slightly from CC3D, and a floating block cannot be pushed again.';
 const SAND_REASON = 'Epoxy plays CC3D sand as its gravel: the player and every block may enter, monsters may not.';
 const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the player only, open at no chips left, floor once entered.';
@@ -93,13 +94,14 @@ const TELEPORT_RED_REASON =
 const TELEPORT_BLUE_REASON =
   'The target (the previous blue teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D leaves forward only; Epoxy blocks and monsters leave forward only.';
 const LEGS_GREEN_REASON =
-  'Epoxy plays the green legs as a fireball, which is immune to fire where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].';
+  'Epoxy plays the green legs as a fireball, which is immune to fire where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].' + FLYER_PLATE_GAP;
 const LEGS_RED_REASON =
-  'Epoxy plays the red legs as a glider, which is immune to water where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].';
+  'Epoxy plays the red legs as a glider, which is immune to water where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].' + FLYER_PLATE_GAP;
 const SCREAMER_REASON =
   'Epoxy plays the screamer as a fireball, which is immune to fire but not to ice and force floors, which the CC3D screamer ignores; the screamer melting ice blocks is not modelled [unverified].';
 const BABY_SCREAMER_REASON =
-  'Epoxy plays the baby screamer as a fireball: the immunity to fire matches, the melting of ice blocks by the baby screamer is not modelled [unverified].';
+  'Epoxy plays the baby screamer as a fireball: the immunity to fire matches, the melting of ice blocks by the baby screamer is not modelled [unverified].' + FLYER_PLATE_GAP;
+const BABY_BLINKY_REASON = MONSTER_REASON + FLYER_PLATE_GAP;
 const TRAP_UNWORKED_REASON =
   'No trap control works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button.';
 const CLONE_SWITCH_EMPTY_REASON =
@@ -168,7 +170,7 @@ const APPROX_ENTRIES: Record<string, string> = {
   legs_green: LEGS_GREEN_REASON,
   legs_red: LEGS_RED_REASON,
   blinky: MONSTER_REASON,
-  baby_blinky: MONSTER_REASON,
+  baby_blinky: BABY_BLINKY_REASON,
   limpa: MONSTER_REASON,
   limpy: MONSTER_REASON,
   bouncer: MONSTER_REASON,
