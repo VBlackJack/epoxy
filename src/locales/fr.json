@@ -475,7 +475,7 @@
       "kb_editor_rotate": { "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi" },
       "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit)" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
-      "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible ou un collage en attente, ou abandonner la sélection" },
+      "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible, finir la liaison des lanceurs, annuler un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
       "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Maj+F remplit la sélection avec l'élément choisi dans la palette ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
@@ -577,6 +577,8 @@
       "cloner": { "label": "clone {name}, orientation {side}" },
       "underlay": { "label": "cache {name}" },
       "edges": { "label": "cloisons fines : {sides}" },
+      "fires": { "label": "tire {count, plural, one {# lanceur} other {# lanceurs}}" },
+      "fired_by": { "label": "tiré par {count, plural, one {# déclencheur} other {# déclencheurs}}" },
       "side": {
         "n": { "label": "le nord" },
         "e": { "label": "l'est" },
@@ -841,6 +843,11 @@
         "rotated": { "label": "{name} en ({x}, {y}) : orientation {side}." },
         "wire_cancelled": "Fil annulé.",
         "wire_cancelled_button_left": "Fil annulé. Le bouton reste sur la carte sans lien.",
+        "wire_launcher_start_on_trigger": { "label": "Commencez le fil par un déclencheur de tir : cliquez sur un déclencheur, ou sur une case vide pour en poser un." },
+        "wire_launcher_linked": { "label": "Lanceur lié : ce déclencheur tire maintenant {count, plural, one {# lanceur} other {# lanceurs}}. Continuez à cliquer sur des lanceurs, ou appuyez sur Échap pour finir." },
+        "wire_launcher_unlinked": { "label": "Lanceur délié : ce déclencheur tire maintenant {count, plural, one {# lanceur} other {# lanceurs}}. Continuez à cliquer sur des lanceurs, ou appuyez sur Échap pour finir." },
+        "wire_launcher_done": { "label": "Liaison des lanceurs terminée : ce déclencheur tire {count, plural, one {# lanceur} other {# lanceurs}}." },
+        "wire_launcher_trigger_left": { "label": "Liaison des lanceurs interrompue. Le déclencheur reste sur la carte sans lanceur lié, il ne tire donc rien." },
         "undone_cells": { "label": "Annulé : {count, plural, one {# case} other {# cases}} près de ({x}, {y})." },
         "redone_cells": { "label": "Rétabli : {count, plural, one {# case} other {# cases}} près de ({x}, {y})." },
         "undone_settings": { "label": "Annulé : réglages du niveau." },
@@ -976,7 +983,8 @@
         "player_start": { "label": "Départ Joueur" },
         "cell_edge": { "label": "Cloison fine" },
         "wire_trap": { "label": "Relier Bouton Brun → Piège" },
-        "wire_cloner": { "label": "Relier Bouton Rouge → Cloneur" }
+        "wire_cloner": { "label": "Relier Bouton Rouge → Cloneur" },
+        "wire_launcher": { "label": "Relier Déclencheur de tir → Lanceurs" }
       },
       "status": {
         "coords": { "label": "Case ({x}, {y})" },
@@ -993,6 +1001,8 @@
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
         "cell_edge_mode": { "label": "Cloison fine : cliquez près d'un côté d'une case pour l'ajouter ou le retirer (clavier : le côté du contrôle de direction)." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
+        "wire_launcher_select_source": { "label": "Cliquez sur un déclencheur de tir de la carte, ou sur une case vide pour en poser un..." },
+        "wire_launcher_picked": { "label": "Déclencheur choisi : il tire {count, plural, one {# lanceur} other {# lanceurs}}. Cliquez sur un lanceur pour le lier ou le délier, ou sur une case vide pour en poser un nouveau. Appuyez sur Échap pour finir." },
         "wire_linked": { "label": "Connexion mécanique établie !" }
       }
     }

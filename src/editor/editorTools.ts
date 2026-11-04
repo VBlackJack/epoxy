@@ -15,12 +15,14 @@
  */
 
 import { Direction } from '../core/types';
-import { EDITOR_DEFAULT_CLONE_TEMPLATE } from '../ui/uiConstants';
+import { EDITOR_DEFAULT_CLONE_TEMPLATE, EDITOR_SHOT_TRIGGER_TILE } from '../ui/uiConstants';
 import { clonerTemplateMessage, emptyClonerMessage } from './cellDescription';
 import { EditorMap } from './editorDocument';
+import { holdsShotLauncher, holdsShotTrigger, launcherCountAt } from './editorLauncherLinks';
 import {
   eraseCell,
   floodFillTerrain,
+  LinkWireKind,
   MapEditResult,
   paintEntity,
   paintItem,
@@ -28,7 +30,9 @@ import {
   paintTerrain,
   placeWireButton,
   placeWireLink,
+  startLauncherWire,
   toggleCellEdge,
+  toggleLauncherLink,
   WireKind,
   WireRefusal
 } from './mapEdits';
@@ -37,7 +41,7 @@ export type EditorTool = 'brush' | 'fill' | 'eraser' | 'picker' | 'select';
 
 export const EDITOR_TOOLS: readonly EditorTool[] = ['brush', 'fill', 'eraser', 'picker', 'select'];
 
-export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'wire_trap' | 'wire_cloner' | 'cell_edge';
+export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'wire_trap' | 'wire_cloner' | 'wire_launcher' | 'cell_edge';
 
 /** Id of the thin wall entry of the Epoxy palette (the CC3D palettes keep their own 'panel' entry). */
 export const CELL_EDGE_BRUSH_ID = 'cell_edge';
@@ -72,6 +76,12 @@ export const MESSAGE_WIRE_SAME_CELL = 'editor.layout.status.wire_same_cell';
 export const MESSAGE_WIRE_MISSING_BUTTON = 'editor.layout.status.wire_missing_button';
 export const MESSAGE_WIRE_CANCELLED = 'editor.layout.status.wire_cancelled';
 export const MESSAGE_WIRE_CANCELLED_BUTTON_LEFT = 'editor.layout.status.wire_cancelled_button_left';
+export const MESSAGE_WIRE_LAUNCHER_PICKED = 'editor.palette.status.wire_launcher_picked.label';
+export const MESSAGE_WIRE_LAUNCHER_START_ON_LAUNCHER = 'editor.layout.status.wire_launcher_start_on_trigger.label';
+export const MESSAGE_WIRE_LAUNCHER_DONE = 'editor.layout.status.wire_launcher_done.label';
+export const MESSAGE_WIRE_LAUNCHER_LINKED = 'editor.layout.status.wire_launcher_linked.label';
+export const MESSAGE_WIRE_LAUNCHER_UNLINKED = 'editor.layout.status.wire_launcher_unlinked.label';
+export const MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT = 'editor.layout.status.wire_launcher_trigger_left.label';
 
 const WIRE_REFUSAL_MESSAGES: Record<WireRefusal, string> = {
   same_cell: MESSAGE_WIRE_SAME_CELL,
@@ -102,6 +112,7 @@ export interface ToolOutcome {
 function wireKindOf(brush: Brush): WireKind | null {
   if (brush.kind === 'wire_trap') return 'trap';
   if (brush.kind === 'wire_cloner') return 'clone';
+  if (brush.kind === 'wire_launcher') return 'launcher';
   return null;
 }
 
@@ -137,13 +148,45 @@ function eraseOutcome(input: ToolInput): ToolOutcome {
   return fromEdit(result, input.pendingWire, result.playerStartKept ? [{ key: MESSAGE_START_KEPT }] : [], MESSAGE_UNDERLAYS_ERASED);
 }
 
-function wireOutcome(input: ToolInput, kind: WireKind): ToolOutcome {
+/**
+ * One click of the launcher wire. A trigger is picked (or placed on a free cell) and stays picked while launchers are
+ * clicked: each click links or unlinks one, and clicking the trigger again, or Escape, finishes the wire.
+ */
+function launcherWireOutcome(input: ToolInput): ToolOutcome {
+  const { map, x, y, pendingWire } = input;
+  const picked = (): ToolMessage => ({ key: MESSAGE_WIRE_LAUNCHER_PICKED, params: { count: launcherCountAt(map, x, y) } });
+  const stay = (pending: PendingWire | null, messages: ToolMessage[]): ToolOutcome => ({ map, changed: false, pendingWire: pending, messages });
+  if (!pendingWire) {
+    if (holdsShotTrigger(map, x, y)) return stay({ kind: 'launcher', x, y }, [picked()]);
+    if (holdsShotLauncher(map, x, y)) return stay(null, [{ key: MESSAGE_WIRE_LAUNCHER_START_ON_LAUNCHER }]);
+    const placed = startLauncherWire(map, x, y);
+    return fromEdit(placed, placed.changed ? { kind: 'launcher', x, y } : null, placed.changed ? [picked()] : []);
+  }
+  if (!holdsShotTrigger(map, pendingWire.x, pendingWire.y)) return stay(null, [{ key: MESSAGE_WIRE_MISSING_BUTTON }]);
+  // A bare visible trigger left without a link says so, as Escape does.
+  const leavesLoose = leavesLooseButton(map, pendingWire, EDITOR_SHOT_TRIGGER_TILE);
+  if (pendingWire.x === x && pendingWire.y === y) {
+    return stay(null, [
+      leavesLoose ? { key: MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT } : { key: MESSAGE_WIRE_LAUNCHER_DONE, params: { count: launcherCountAt(map, x, y) } }
+    ]);
+  }
+  if (holdsShotTrigger(map, x, y)) {
+    return stay({ kind: 'launcher', x, y }, [...(leavesLoose ? [{ key: MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT }] : []), picked()]);
+  }
+  const result = toggleLauncherLink(map, pendingWire, { x, y }, input.dir);
+  if (result.refused) return stay(pendingWire, [{ key: result.refusal ? WIRE_REFUSAL_MESSAGES[result.refusal] : MESSAGE_WIRE_MISSING_BUTTON }]);
+  const key = result.action === 'unlinked' ? MESSAGE_WIRE_LAUNCHER_UNLINKED : MESSAGE_WIRE_LAUNCHER_LINKED;
+  return fromEdit(result, pendingWire, result.changed ? [{ key, params: { count: result.count } }] : []);
+}
+
+function wireOutcome(input: ToolInput, kind: LinkWireKind): ToolOutcome {
   const { map, x, y, pendingWire } = input;
   if (!pendingWire) {
     const placed = placeWireButton(map, kind, x, y);
     return fromEdit(placed, { kind, x, y }, [{ key: MESSAGE_WIRE_SELECT_TARGET }]);
   }
-  const linked = placeWireLink(map, pendingWire.kind, pendingWire, { x, y }, input.dir);
+  // Choosing another wire entry drops the pending wire, so its kind is always the brush's.
+  const linked = placeWireLink(map, kind, pendingWire, { x, y }, input.dir);
   if (linked.refused) {
     const key = linked.refusal ? WIRE_REFUSAL_MESSAGES[linked.refusal] : MESSAGE_WIRE_MISSING_BUTTON;
     return { map, changed: false, pendingWire, messages: [{ key }] };
@@ -168,6 +211,7 @@ export function applyTool(input: ToolInput): ToolOutcome {
     return fromEdit(floodFillTerrain(map, x, y, brush.id), input.pendingWire);
   }
   const wire = wireKindOf(brush);
+  if (wire === 'launcher') return launcherWireOutcome(input);
   if (wire) return wireOutcome(input, wire);
   switch (brush.kind) {
     case 'terrain':
@@ -208,11 +252,12 @@ export function pickFromCell(map: EditorMap, x: number, y: number, floorId: stri
   return { brush: { kind: 'terrain', id: map.terrain[y]?.[x] ?? floorId } };
 }
 
-/** Whether a wire that is dropped leaves its button on the map with no link. */
+/** Whether a wire that is dropped leaves its button (for the launcher wire, its trigger) on the map with no link. */
 export function leavesLooseButton(map: EditorMap, pending: PendingWire, buttonTileId: string): boolean {
   if (map.terrain[pending.y]?.[pending.x] !== buttonTileId) return false;
   const linked =
     map.trapLinks.some((l) => l.buttonX === pending.x && l.buttonY === pending.y) ||
-    map.cloneLinks.some((l) => l.buttonX === pending.x && l.buttonY === pending.y);
+    map.cloneLinks.some((l) => l.buttonX === pending.x && l.buttonY === pending.y) ||
+    launcherCountAt(map, pending.x, pending.y) > 0;
   return !linked;
 }

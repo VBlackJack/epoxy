@@ -29,9 +29,15 @@ import {
   differingLauncherLinks,
   dropLauncherLinksAt,
   hasLauncherLinks,
+  holdsShotLauncher,
+  holdsShotTrigger,
+  isShotLauncherTile,
+  isShotTriggerTile,
+  launcherCountAt,
   pruneLauncherLinks,
   setLauncherLinks,
-  translateLauncherLinks
+  translateLauncherLinks,
+  triggerCountAt
 } from './editorLauncherLinks';
 import { documentFromLevel, levelFromDocument } from './editorLevelIo';
 import { applyTool } from './editorTools';
@@ -443,5 +449,61 @@ describe('selection edits with launcher links', () => {
       ])
     );
     expect(result.map.launcherLinks).toHaveLength(2);
+  });
+});
+
+describe('trigger and launcher roles', () => {
+  const map = (): EditorMap => ({
+    terrain: [
+      ['floor', 'shot_trigger', 'shot_launcher_e'],
+      ['door_red', 'door_red', 'wall']
+    ],
+    items: [
+      [null, null, null],
+      [null, null, null]
+    ],
+    entities: [],
+    trapLinks: [],
+    cloneLinks: [],
+    playerStart: { x: 0, y: 0, dir: 'S' },
+    underlays: [
+      { x: 0, y: 1, terrain: 'shot_trigger' },
+      { x: 1, y: 1, terrain: 'shot_launcher_w' }
+    ],
+    launcherLinks: [
+      { buttonX: 1, buttonY: 0, launcherX: 2, launcherY: 0 },
+      { buttonX: 0, buttonY: 1, launcherX: 2, launcherY: 0 },
+      { buttonX: 0, buttonY: 1, launcherX: 1, launcherY: 1 }
+    ]
+  });
+
+  it('reads the roles from the tile config, ignoring unknown ids and other tiles', () => {
+    expect(isShotTriggerTile('shot_trigger')).toBe(true);
+    expect(isShotTriggerTile('button_brown')).toBe(false);
+    expect(isShotLauncherTile('shot_launcher_n')).toBe(true);
+    expect(isShotLauncherTile('shot_trigger')).toBe(false);
+    expect(isShotLauncherTile('no_such_tile')).toBe(false);
+    expect(isShotTriggerTile(undefined)).toBe(false);
+  });
+
+  it('finds a device on top or hidden under a removable top', () => {
+    const m = map();
+    expect(holdsShotTrigger(m, 1, 0)).toBe(true);
+    expect(holdsShotTrigger(m, 0, 1)).toBe(true);
+    expect(holdsShotTrigger(m, 0, 0)).toBe(false);
+    expect(holdsShotLauncher(m, 2, 0)).toBe(true);
+    expect(holdsShotLauncher(m, 1, 1)).toBe(true);
+    expect(holdsShotLauncher(m, 1, 0)).toBe(false);
+    expect(holdsShotTrigger(m, 9, 9)).toBe(false);
+  });
+
+  it('counts the launchers a trigger fires and the triggers that fire a launcher', () => {
+    const m = map();
+    expect(launcherCountAt(m, 0, 1)).toBe(2);
+    expect(launcherCountAt(m, 1, 0)).toBe(1);
+    expect(launcherCountAt(m, 2, 0)).toBe(0);
+    expect(triggerCountAt(m, 2, 0)).toBe(2);
+    expect(triggerCountAt(m, 1, 1)).toBe(1);
+    expect(triggerCountAt({}, 0, 0)).toBe(0);
   });
 });

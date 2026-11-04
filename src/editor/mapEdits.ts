@@ -16,18 +16,31 @@
 
 import { LevelSizeBounds } from '../config/ConfigValidation';
 import { FLOOR_TILE_ID, WALL_TILE_ID } from '../core/coreConstants';
-import { Direction } from '../core/types';
+import { Direction, LauncherLink } from '../core/types';
 import {
   EDITOR_CLONE_BUTTON_TILE,
   EDITOR_CLONER_TILE,
   EDITOR_DEFAULT_CLONE_TEMPLATE,
+  EDITOR_SHOT_LAUNCHER_TILES,
+  EDITOR_SHOT_TRIGGER_TILE,
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
 import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, translateUnderlays, underlayAt } from './editorUnderlays';
-import { dropLauncherLinksAt, launcherLinkTouches, setLauncherLinks, translateLauncherLinks } from './editorLauncherLinks';
+import {
+  dropLauncherLinksAt,
+  holdsShotLauncher,
+  holdsShotTrigger,
+  isShotLauncherTile,
+  isShotTriggerTile,
+  launcherCountAt,
+  launcherLinkTouches,
+  pruneLauncherLinks,
+  setLauncherLinks,
+  translateLauncherLinks
+} from './editorLauncherLinks';
 import { anchorOffset, ResizeAnchor, TOP_LEFT_ANCHOR } from './resizeAnchor';
 
 /** Outcome of a map edit. The input map is never modified; `map` is a new state. */
@@ -54,7 +67,10 @@ export interface ClonerTemplateChange {
 }
 
 /** Which kind of link a wire tool draws. */
-export type WireKind = 'trap' | 'clone';
+export type WireKind = 'trap' | 'clone' | 'launcher';
+
+/** The wires that close on a second click; the launcher wire stays open and toggles links until it is finished. */
+export type LinkWireKind = Exclude<WireKind, 'launcher'>;
 
 /** Outcome of closing a wire. */
 export interface WireResult extends MapEditResult {
@@ -114,8 +130,30 @@ function unchanged(map: EditorMap): MapEditResult {
   return { map, changed: false, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
-/** Removes every trap, clone and launcher link that has an end on the cell; returns how many were removed. */
-export function dropLinksAt(map: EditorMap, x: number, y: number): number {
+/**
+ * True when changing a terrain tile keeps the launcher links of its cell: a launcher turned to another facing is
+ * still a launcher, and a trigger replaced by a trigger is still a trigger.
+ */
+export function keepsLauncherLinks(oldTileId: string, newTileId: string): boolean {
+  return (
+    (isShotLauncherTile(oldTileId) && isShotLauncherTile(newTileId)) || (isShotTriggerTile(oldTileId) && isShotTriggerTile(newTileId))
+  );
+}
+
+/**
+ * True when the cell hides a shot trigger or launcher under its top: painting a removable top over it may keep the
+ * device (and so its launcher links) hidden, which the caller settles with pruneLauncherLinks once the underlays are pruned.
+ */
+export function hidesShotDevice(map: EditorMap, x: number, y: number): boolean {
+  const hidden = underlayAt(map, x, y);
+  return isShotTriggerTile(hidden) || isShotLauncherTile(hidden);
+}
+
+/**
+ * Removes every trap, clone and launcher link that has an end on the cell; returns how many were removed.
+ * With `keepLauncherLinks` the launcher links of the cell stay (see keepsLauncherLinks).
+ */
+export function dropLinksAt(map: EditorMap, x: number, y: number, keepLauncherLinks = false): number {
   const trapBefore = map.trapLinks.length;
   const cloneBefore = map.cloneLinks.length;
   map.trapLinks = map.trapLinks.filter(
@@ -124,7 +162,7 @@ export function dropLinksAt(map: EditorMap, x: number, y: number): number {
   map.cloneLinks = map.cloneLinks.filter(
     (l) => !(l.buttonX === x && l.buttonY === y) && !(l.clonerX === x && l.clonerY === y)
   );
-  const launcherDropped = dropLauncherLinksAt(map, x, y);
+  const launcherDropped = keepLauncherLinks ? 0 : dropLauncherLinksAt(map, x, y);
   return trapBefore - map.trapLinks.length + (cloneBefore - map.cloneLinks.length) + launcherDropped;
 }
 
@@ -138,9 +176,13 @@ export function paintTerrain(source: EditorMap, x: number, y: number, tileId: st
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y) || source.terrain[y][x] === tileId) return unchanged(source);
   const map = cloneMap(source);
+  const previous = map.terrain[y][x];
   map.terrain[y][x] = tileId;
-  const removedLinks = dropLinksAt(map, x, y);
+  const hidden = hidesShotDevice(map, x, y);
+  let removedLinks = dropLinksAt(map, x, y, keepsLauncherLinks(previous, tileId) || hidden);
   const removedUnderlays = pruneUnderlays(map);
+  // A device still hidden under the new top keeps its links; one that is gone loses them.
+  if (hidden) removedLinks += pruneLauncherLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
 }
 
@@ -255,6 +297,7 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
   const visited = new Set<number>();
   const queue: number[] = [y * width + x];
   let removedLinks = 0;
+  let anyHidden = false;
   for (let head = 0; head < queue.length; head++) {
     const index = queue[head];
     if (visited.has(index)) continue;
@@ -263,26 +306,97 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
     const cy = Math.floor(index / width);
     if (map.terrain[cy][cx] !== target) continue;
     map.terrain[cy][cx] = tileId;
-    removedLinks += dropLinksAt(map, cx, cy);
+    const hidden = hidesShotDevice(map, cx, cy);
+    anyHidden ||= hidden;
+    removedLinks += dropLinksAt(map, cx, cy, keepsLauncherLinks(target, tileId) || hidden);
     if (cx + 1 < width) queue.push(index + 1);
     if (cx > 0) queue.push(index - 1);
     if (cy + 1 < height) queue.push(index + width);
     if (cy > 0) queue.push(index - width);
   }
   const removedUnderlays = pruneUnderlays(map);
+  if (anyHidden) removedLinks += pruneLauncherLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
 }
 
 /** Terrain placed at the button end and at the target end of a wire. */
-function wireTiles(kind: WireKind): { button: string; target: string } {
+function wireTiles(kind: LinkWireKind): { button: string; target: string } {
   return kind === 'trap'
     ? { button: EDITOR_TRAP_BUTTON_TILE, target: EDITOR_TRAP_TILE }
     : { button: EDITOR_CLONE_BUTTON_TILE, target: EDITOR_CLONER_TILE };
 }
 
+/** The tile a wire tool puts at its button end (the shot trigger for the launcher wire). */
+export function wireButtonTile(kind: WireKind): string {
+  return kind === 'launcher' ? EDITOR_SHOT_TRIGGER_TILE : wireTiles(kind).button;
+}
+
 /** First click of a wire tool: puts the button tile on the source cell. */
-export function placeWireButton(source: EditorMap, kind: WireKind, x: number, y: number): MapEditResult {
+export function placeWireButton(source: EditorMap, kind: LinkWireKind, x: number, y: number): MapEditResult {
   return paintTerrain(source, x, y, wireTiles(kind).button);
+}
+
+/** First click of the launcher wire on a cell that is no trigger: puts a shot trigger there. */
+export function startLauncherWire(source: EditorMap, x: number, y: number): MapEditResult {
+  return paintTerrain(source, x, y, EDITOR_SHOT_TRIGGER_TILE);
+}
+
+/** Outcome of a click on a launcher while a launcher wire is open. */
+export interface LauncherLinkResult extends MapEditResult {
+  /** True when the click was refused; `refusal` says why. */
+  refused: boolean;
+  refusal?: WireRefusal;
+  /** What the click did to the link, when it did something. */
+  action?: 'linked' | 'unlinked';
+  /** How many launchers the trigger fires after the edit. */
+  count: number;
+}
+
+/**
+ * A click on a cell while a launcher wire is open: a launcher already linked to the trigger is unlinked; a launcher
+ * not linked yet is linked and keeps its tile and facing; any other cell gets a shot launcher facing `facing` and is
+ * linked. Every link change goes through setLauncherLinks. Refused (and unchanged) when the trigger is gone, or the
+ * click is on the trigger itself.
+ */
+export function toggleLauncherLink(
+  source: EditorMap,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  facing: Direction
+): LauncherLinkResult {
+  const none = (refusal?: WireRefusal): LauncherLinkResult => ({
+    ...unchanged(source),
+    refused: refusal !== undefined,
+    ...(refusal ? { refusal } : {}),
+    count: launcherCountAt(source, from.x, from.y)
+  });
+  if (source.cc3d) return none();
+  if (!inGrid(source, from.x, from.y) || !inGrid(source, to.x, to.y)) return none();
+  if (from.x === to.x && from.y === to.y) return none('same_cell');
+  if (!holdsShotTrigger(source, from.x, from.y)) return none('missing_button');
+  const joinsThePair = (l: LauncherLink): boolean =>
+    l.buttonX === from.x && l.buttonY === from.y && l.launcherX === to.x && l.launcherY === to.y;
+  if ((source.launcherLinks ?? []).some(joinsThePair)) {
+    const map = cloneMap(source);
+    setLauncherLinks(map, (map.launcherLinks ?? []).filter((l) => !joinsThePair(l)));
+    return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, refused: false, action: 'unlinked', count: launcherCountAt(map, from.x, from.y) };
+  }
+  // A cell that already holds a launcher (on top or hidden) keeps its tile and facing; any other cell is painted.
+  const painted = holdsShotLauncher(source, to.x, to.y)
+    ? { map: cloneMap(source), removedLinks: 0, removedUnderlays: 0 }
+    : paintTerrain(source, to.x, to.y, EDITOR_SHOT_LAUNCHER_TILES[facing]);
+  const map = cloneMap(painted.map);
+  setLauncherLinks(map, [...(map.launcherLinks ?? []), { buttonX: from.x, buttonY: from.y, launcherX: to.x, launcherY: to.y }]);
+  return {
+    map,
+    changed: true,
+    removedLinks: painted.removedLinks,
+    removedUnderlays: painted.removedUnderlays,
+    playerStartKept: false,
+    refused: false,
+    action: 'linked',
+    count: launcherCountAt(map, from.x, from.y)
+  };
 }
 
 /**
@@ -294,7 +408,7 @@ export function placeWireButton(source: EditorMap, kind: WireKind, x: number, y:
  */
 export function placeWireLink(
   source: EditorMap,
-  kind: WireKind,
+  kind: LinkWireKind,
   from: { x: number; y: number },
   to: { x: number; y: number },
   fallbackDir: Direction

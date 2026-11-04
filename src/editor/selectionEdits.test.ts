@@ -406,6 +406,23 @@ describe('fillRect', () => {
     expect(dropped.map.cloneLinks).toHaveLength(1);
   });
 
+  it('keeps the launcher links of a device that stays hidden under the new top, and drops them once it is gone', () => {
+    const map = bordered(9, 9);
+    map.terrain[2][2] = 'door_red';
+    map.terrain[2][5] = 'door_red';
+    map.underlays = [
+      { x: 2, y: 2, terrain: 'shot_trigger' },
+      { x: 5, y: 2, terrain: 'shot_launcher_w' }
+    ];
+    map.launcherLinks = [{ buttonX: 2, buttonY: 2, launcherX: 5, launcherY: 2 }];
+    const kept = fillRect(map, { x: 2, y: 2, width: 4, height: 1 }, { kind: 'terrain', id: 'door_blue' }, 'S', 'epoxy');
+    expect(kept.map.launcherLinks).toEqual(map.launcherLinks);
+    expect(kept.droppedLinks).toBe(0);
+    const gone = fillRect(map, { x: 2, y: 2, width: 4, height: 1 }, { kind: 'terrain', id: 'wall' }, 'S', 'epoxy');
+    expect(gone.map.launcherLinks).toBeUndefined();
+    expect(gone.droppedLinks).toBe(1);
+  });
+
   it('writes an item on the item layer only, keeping the links', () => {
     const map = populated();
     const result = fillRect(map, { x: 2, y: 2, width: 3, height: 1 }, { kind: 'item', id: 'key_red' }, 'S', 'epoxy');
@@ -487,7 +504,7 @@ describe('fillRect', () => {
 
   it('refuses the player start, the wires and the thin wall brush', () => {
     const map = bordered(9, 9);
-    for (const kind of ['player_start', 'wire_trap', 'wire_cloner'] as const) {
+    for (const kind of ['player_start', 'wire_trap', 'wire_cloner', 'wire_launcher'] as const) {
       const result = fillRect(map, INTERIOR, { kind, id: kind }, 'S', 'epoxy');
       expect(result.refusal).toEqual({ reason: 'unsupported' });
       expect(result.changed).toBe(false);
@@ -497,6 +514,22 @@ describe('fillRect', () => {
     expect(edge.map).toBe(map);
     expect(fillBrushRefusal({ kind: 'cell_edge', id: 'cell_edge' }, 'lynx')).toEqual({ reason: 'cell_edge' });
     expect(fillBrushRefusal({ kind: 'terrain', id: 'wall' }, 'lynx')).toBeNull();
+  });
+
+  it('keeps the launcher links of launchers filled with another facing, and drops those of any other change', () => {
+    const map = bordered(9, 9);
+    map.terrain[2][2] = 'shot_trigger';
+    map.terrain[2][5] = 'shot_launcher_w';
+    map.launcherLinks = [{ buttonX: 2, buttonY: 2, launcherX: 5, launcherY: 2 }];
+    const area = { x: 5, y: 2, width: 1, height: 1 };
+    const turned = fillRect(map, area, { kind: 'terrain', id: 'shot_launcher_n' }, 'S', 'epoxy');
+    expect(turned.map.terrain[2][5]).toBe('shot_launcher_n');
+    expect(turned.map.launcherLinks).toEqual(map.launcherLinks);
+    expect(turned.droppedLinks).toBe(0);
+    const replaced = fillRect(map, area, { kind: 'terrain', id: 'floor' }, 'S', 'epoxy');
+    expect(replaced.map.launcherLinks).toBeUndefined();
+    expect(replaced.droppedLinks).toBe(1);
+    expect(map.launcherLinks).toHaveLength(1);
   });
 
   it('leaves a CC3D map alone', () => {

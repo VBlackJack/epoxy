@@ -475,7 +475,7 @@
       "kb_editor_rotate": { "label": "R: Rotate the facing of the selected creature or player start" },
       "kb_editor_rotate_in_place": { "label": "Shift+R: Turn the creature or turret under the cursor a quarter turn clockwise (a clone machine under it follows)" },
       "kb_editor_zoom": { "label": "+ / - / 0: Zoom in, zoom out, fit the level to the window" },
-      "kb_editor_cancel": { "label": "Escape: Cancel a wire that waits for its target or a pending paste, or drop the selection" },
+      "kb_editor_cancel": { "label": "Escape: Cancel a wire that waits for its target, finish launcher wiring, cancel a pending paste, or drop the selection" },
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
       "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Shift+F fills the selection with the chosen palette entry; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
@@ -577,6 +577,8 @@
       "cloner": { "label": "clones {name} facing {side}" },
       "underlay": { "label": "hides {name}" },
       "edges": { "label": "thin walls: {sides}" },
+      "fires": { "label": "fires {count, plural, one {# launcher} other {# launchers}}" },
+      "fired_by": { "label": "fired by {count, plural, one {# trigger} other {# triggers}}" },
       "side": {
         "n": { "label": "north" },
         "e": { "label": "east" },
@@ -841,6 +843,11 @@
         "rotated": { "label": "{name} at ({x}, {y}) now faces {side}." },
         "wire_cancelled": "Wire cancelled.",
         "wire_cancelled_button_left": "Wire cancelled. The button stays on the map without a link.",
+        "wire_launcher_start_on_trigger": { "label": "Start the wire from a shot trigger: click a trigger, or an empty cell to place one." },
+        "wire_launcher_linked": { "label": "Launcher linked: this trigger now fires {count, plural, one {# launcher} other {# launchers}}. Keep clicking launchers, or press Escape when done." },
+        "wire_launcher_unlinked": { "label": "Launcher unlinked: this trigger now fires {count, plural, one {# launcher} other {# launchers}}. Keep clicking launchers, or press Escape when done." },
+        "wire_launcher_done": { "label": "Launcher wiring done: this trigger fires {count, plural, one {# launcher} other {# launchers}}." },
+        "wire_launcher_trigger_left": { "label": "Launcher wiring stopped. The trigger stays on the map linked to no launcher, so it fires nothing." },
         "undone_cells": { "label": "Undone: {count, plural, one {# cell} other {# cells}} near ({x}, {y})." },
         "redone_cells": { "label": "Redone: {count, plural, one {# cell} other {# cells}} near ({x}, {y})." },
         "undone_settings": { "label": "Undone: level settings." },
@@ -976,7 +983,8 @@
         "player_start": { "label": "Player Start" },
         "cell_edge": { "label": "Thin Wall" },
         "wire_trap": { "label": "Wire Brown Button → Trap" },
-        "wire_cloner": { "label": "Wire Red Button → Cloner" }
+        "wire_cloner": { "label": "Wire Red Button → Cloner" },
+        "wire_launcher": { "label": "Wire Shot Trigger → Launchers" }
       },
       "status": {
         "coords": { "label": "Tile ({x}, {y})" },
@@ -993,6 +1001,8 @@
         "wire_select_source": { "label": "Click the trigger button on the map..." },
         "cell_edge_mode": { "label": "Thin wall: click near a side of a cell to add or remove it (keyboard: the side of the direction control)." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
+        "wire_launcher_select_source": { "label": "Click a shot trigger on the map, or an empty cell to place one..." },
+        "wire_launcher_picked": { "label": "Trigger picked: it fires {count, plural, one {# launcher} other {# launchers}}. Click a launcher to link or unlink it, or an empty cell to place a new one. Press Escape when done." },
         "wire_linked": { "label": "Mechanism link established!" }
       }
     }

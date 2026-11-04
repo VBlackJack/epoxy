@@ -122,6 +122,14 @@ export const EDITOR_TRAP_BUTTON_TILE = 'button_brown';
 export const EDITOR_TRAP_TILE = 'trap';
 export const EDITOR_CLONE_BUTTON_TILE = 'button_red';
 export const EDITOR_CLONER_TILE = 'clone_machine';
+export const EDITOR_SHOT_TRIGGER_TILE = 'shot_trigger';
+/** The shot launcher tile the launcher wire tool places for each facing. */
+export const EDITOR_SHOT_LAUNCHER_TILES: Readonly<Record<'N' | 'E' | 'S' | 'W', string>> = {
+  N: 'shot_launcher_n',
+  E: 'shot_launcher_e',
+  S: 'shot_launcher_s',
+  W: 'shot_launcher_w'
+};
 /** Largest tile the editor canvas shows, in CSS pixels; the smallest is the configured editor tile size. */
 export const EDITOR_MAX_TILE_SIZE = 64;
 /** CSS pixels one zoom step adds to or removes from the tile, and how many steps each way from the fit. */
