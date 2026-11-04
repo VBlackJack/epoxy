@@ -22,7 +22,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import laserShowcase from '../test/fixtures/laserShowcase.json';
 import mechanicsShowcase from '../test/fixtures/mechanicsShowcase.json';
-import { DeviceLevel, DeviceRole, deviceFacetAt, deviceIndexBuildCount, deviceRelations, isDeviceCell } from './DeviceRelations';
+import { DeviceLevel, DeviceRole, deviceFacetAt, __deviceIndexBuildCountForTests, deviceRelations, isDeviceCell } from './DeviceRelations';
 import { GameEngine } from './GameEngine';
 import { CompiledLevel, LevelBlueprint } from './types';
 
@@ -323,17 +323,32 @@ describe('deviceRelations', () => {
       cloneLinks: full.cloneLinks,
       launcherLinks: full.launcherLinks
     };
-    const before = deviceIndexBuildCount();
+    const before = __deviceIndexBuildCountForTests();
     const first = deviceRelations(level, 0, 0);
     expect(first.controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap', fallback: true }]);
     deviceRelations(level, 4, 0);
     deviceFacetAt(level, 0, 0);
     isDeviceCell(level, 4, 0);
-    expect(deviceIndexBuildCount()).toBe(before + 1);
+    expect(__deviceIndexBuildCountForTests()).toBe(before + 1);
     expect(deviceRelations(level, 0, 0)).toEqual(first);
-    expect(deviceIndexBuildCount()).toBe(before + 1);
+    expect(__deviceIndexBuildCountForTests()).toBe(before + 1);
     deviceRelations({ ...level }, 0, 0);
-    expect(deviceIndexBuildCount()).toBe(before + 2);
+    expect(__deviceIndexBuildCountForTests()).toBe(before + 2);
+  });
+
+  it('does not let an out-of-grid entity leak onto any cell', () => {
+    const level = makeLevel({}, { entities: [{ x: LEVEL_WIDTH, y: 0, type: 'tank' }, { x: -1, y: 1, type: 'tank' }, { x: 0, y: LEVEL_HEIGHT, type: 'puppet' }] });
+    for (let y = 0; y < LEVEL_HEIGHT; y++) {
+      for (let x = 0; x < LEVEL_WIDTH; x++) expect(isDeviceCell(level, x, y)).toBe(false);
+    }
+  });
+
+  it('keeps cells apart on ragged rows', () => {
+    const level = makeLevel({}, { entities: [{ x: 4, y: 1, type: 'tank' }] });
+    level.terrain[0] = level.terrain[0].slice(0, 3);
+    expect(isDeviceCell(level, 4, 1)).toBe(true);
+    expect(isDeviceCell(level, 1, 2)).toBe(false);
+    expect(isDeviceCell(level, 0, 1)).toBe(false);
   });
 
   it('returns nothing for Lynx and CC3D levels', () => {

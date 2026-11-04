@@ -89,7 +89,7 @@ export interface Relation {
   kind: RelationKind;
   system: RelationSystem;
   channel?: string;
-  /** Present (true) only on the 'level' edges of the unlinked brown button and unlinked red button fallbacks. */
+  /** Present (true) only on the 'level' edges of the fallbacks: from any brown button (linked or not) to an unlinked trap, and from an unlinked red button to every machine with a template. */
   fallback?: true;
 }
 
@@ -165,9 +165,9 @@ interface EntityFacet extends Cell {
 
 /** Per-level memo: the edges, their per-cell index and the entity facets by cell. */
 interface LevelIndex {
-  outgoing: Map<number, Edge[]>;
-  incoming: Map<number, Edge[]>;
-  entitiesByCell: Map<number, EntityFacet[]>;
+  outgoing: Map<string, Edge[]>;
+  incoming: Map<string, Edge[]>;
+  entitiesByCell: Map<string, EntityFacet[]>;
 }
 
 function isEpoxy(level: DeviceLevel): boolean {
@@ -251,12 +251,17 @@ function buttonChannel(tile: TileDefinition): string | undefined {
 const indexCache = new WeakMap<DeviceLevel, LevelIndex>();
 
 let indexBuilds = 0;
-/** How many per-level indexes were built so far (lets a test assert the memo without timing). */
-export function deviceIndexBuildCount(): number {
+/** Test-only: how many per-level indexes were built so far (lets a test assert the memo without timing). */
+export function __deviceIndexBuildCountForTests(): number {
   return indexBuilds;
 }
 
-function pushTo<T>(map: Map<number, T[]>, key: number, value: T): void {
+/** A collision-free cell key, valid on ragged grids (no dependence on a row width). */
+function cellKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+function pushTo<T>(map: Map<string, T[]>, key: string, value: T): void {
   const list = map.get(key);
   if (list) list.push(value);
   else map.set(key, [value]);
@@ -271,15 +276,15 @@ function levelIndex(level: DeviceLevel): LevelIndex {
   const cached = indexCache.get(level);
   if (cached) return cached;
   indexBuilds++;
-  const width = level.terrain[0]?.length ?? 0;
-  const outgoing = new Map<number, Edge[]>();
-  const incoming = new Map<number, Edge[]>();
+  const outgoing = new Map<string, Edge[]>();
+  const incoming = new Map<string, Edge[]>();
   for (const e of buildEdges(level)) {
-    pushTo(outgoing, e.from.y * width + e.from.x, e);
-    pushTo(incoming, e.to.y * width + e.to.x, e);
+    pushTo(outgoing, cellKey(e.from.x, e.from.y), e);
+    pushTo(incoming, cellKey(e.to.x, e.to.y), e);
   }
-  const entitiesByCell = new Map<number, EntityFacet[]>();
-  for (const f of entityFacets(level)) pushTo(entitiesByCell, f.y * width + f.x, f);
+  const entitiesByCell = new Map<string, EntityFacet[]>();
+  // An entity outside the grid (an editor document can hold one) belongs to no cell.
+  for (const f of entityFacets(level)) if (inBounds(level, f.x, f.y)) pushTo(entitiesByCell, cellKey(f.x, f.y), f);
   const index: LevelIndex = { outgoing, incoming, entitiesByCell };
   indexCache.set(level, index);
   return index;
@@ -405,8 +410,7 @@ function facetOf(level: DeviceLevel, x: number, y: number): { role: DeviceRole; 
     const role = roleOfTile(t.tile);
     if (role !== null) return { role, facet: { source: t.source, id: t.id } };
   }
-  const width = level.terrain[0]?.length ?? 0;
-  for (const e of levelIndex(level).entitiesByCell.get(y * width + x) ?? []) {
+  for (const e of levelIndex(level).entitiesByCell.get(cellKey(x, y)) ?? []) {
     if (e.role !== null) return { role: e.role, facet: { source: 'entity', id: e.type } };
   }
   return null;
@@ -432,7 +436,7 @@ export function isDeviceCell(level: DeviceLevel, x: number, y: number): boolean 
 export function deviceRelations(level: DeviceLevel, x: number, y: number): DeviceRelations {
   if (!isEpoxy(level) || !inBounds(level, x, y)) return { role: null, facet: null, controls: [], controlledBy: [] };
   const index = levelIndex(level);
-  const cell = y * (level.terrain[0]?.length ?? 0) + x;
+  const cell = cellKey(x, y);
   const toRelation = (c: Cell, e: Edge): Relation => ({
     x: c.x,
     y: c.y,
