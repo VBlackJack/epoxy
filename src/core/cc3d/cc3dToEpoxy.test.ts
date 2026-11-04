@@ -499,7 +499,8 @@ describe('arbitration rules', () => {
       })
     ).toBe('hold_door_green_open');
     // Epoxy monsters press a plate they stand on unless they fly; the puppet the yellow golem becomes does too.
-    expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'walker' } } })).toBe('hold_door_green_closed');
+    expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'walker' } } })).toBe('hold_door_green_open');
+    expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'blinky' } } })).toBe('hold_door_green_closed');
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'golem_yellow' } } })).toBe('hold_door_green_open');
     // A colour block presses only a plate of its own colour.
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'block_color', color: 'red' } } })).toBe('hold_door_green_closed');
