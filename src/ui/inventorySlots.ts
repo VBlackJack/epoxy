@@ -56,10 +56,12 @@ export class InventorySlotView {
   private readonly badgeEl: HTMLSpanElement;
   private state: InventorySlotState | null = null;
 
-  public constructor(container: HTMLElement, onClick?: () => void) {
+  public constructor(container: HTMLElement, onClick?: () => void, startHidden = false) {
     this.slot = document.createElement('button');
     this.slot.type = 'button';
     this.slot.className = 'inv-slot';
+    // Optional slots start out of the grid, so nothing flashes before the first update().
+    if (startHidden) this.slot.classList.add(INVENTORY_SLOT_HIDDEN_CLASS);
     this.img = document.createElement('img');
     this.badgeEl = document.createElement('span');
     this.badgeEl.className = 'inv-count hidden';

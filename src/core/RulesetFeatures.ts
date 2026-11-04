@@ -254,17 +254,17 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
   return (level.entities ?? []).some((e) => isColorBlockEntityType(e.type));
 }
 
-/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time or steered monsters. */
+/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed boots, swivel doors or steered monsters. */
 export function hasEpoxyOnlyContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {
-  const hasSlowTime = (grid: Array<Array<string | null>> | undefined): boolean =>
+  const hasEpoxyOnlyItem = (grid: Array<Array<string | null>> | undefined): boolean =>
     grid?.some((row) => row.some((id) => isSlowTimeTileId(id) || isSpeedBootsTileId(id))) ?? false;
   return (
     hasLaserContent(level) ||
     hasColorChannelContent(level) ||
-    hasSlowTime(level.terrain) ||
-    hasSlowTime(level.items) ||
+    hasEpoxyOnlyItem(level.terrain) ||
+    hasEpoxyOnlyItem(level.items) ||
     hasSwivelContent(level) ||
     hasEpoxyOnlyMonsterContent(level)
   );

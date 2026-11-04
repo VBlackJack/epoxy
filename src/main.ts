@@ -3215,7 +3215,8 @@ class EpoxyApplication {
     }
     if (bootsGrid) {
       bootsGrid.innerHTML = '';
-      this.bootSlots = this.bootIds.map((id) => new InventorySlotView(bootsGrid, () => this.dropHudItem(id)));
+      this.bootSlots = this.bootIds.map((id) => new InventorySlotView(bootsGrid, () => this.dropHudItem(id), EPOXY_ONLY_BOOT_IDS.has(id))
+      );
     }
   }
 

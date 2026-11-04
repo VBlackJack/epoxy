@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+// @vitest-environment happy-dom
+
 import { describe, expect, it } from 'vitest';
 import { TimedMove } from '../core/types';
 import { computeTrapFocusIndex } from './dialog';
-import { slotStateChanged } from './inventorySlots';
+import { InventorySlotView, slotStateChanged } from './inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey } from './medals';
 import { collectDueMoves, sanitizeTimedMoves } from './replaySchedule';
 import { cycleZoomPreset, stepZoomPreset } from './viewportZoom';
@@ -112,5 +114,20 @@ describe('inventory slot change detection', () => {
     expect(slotStateChanged(base, { ...base })).toBe(false);
     expect(slotStateChanged(base, { ...base, owned: true })).toBe(true);
     expect(slotStateChanged(base, { ...base, label: 'Clé Rouge' })).toBe(true);
+  });
+
+  it('reacts to the hidden flag', () => {
+    expect(slotStateChanged(base, { ...base, hidden: true })).toBe(true);
+    expect(slotStateChanged({ ...base, hidden: true }, { ...base, hidden: false })).toBe(true);
+    expect(slotStateChanged(base, { ...base, hidden: false })).toBe(false);
+  });
+
+  it('starts optional slots hidden', () => {
+    const container = document.createElement('div');
+    new InventorySlotView(container, undefined, true);
+    new InventorySlotView(container);
+    const [optional, regular] = Array.from(container.children);
+    expect(optional.classList.contains('inv-slot-hidden')).toBe(true);
+    expect(regular.classList.contains('inv-slot-hidden')).toBe(false);
   });
 });
