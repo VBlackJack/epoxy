@@ -1428,8 +1428,8 @@
         "hint": "La glace emporte un bloc comme elle t'emporte, et un bloc qui coule dans l'eau laisse de la terre où l'on peut marcher. Ne mets pas le pied sur la glace : tu glisserais dans l'eau. Pousse le bloc dans le couloir et laisse-le glisser jusqu'à l'eau."
       },
       "level_37": {
-        "title": "Le cafard",
-        "hint": "Le cafard longe le mur qui est à sa gauche et ne peut pas traverser la terre. Marche sur la terre puis recule : le passage que tu ouvres mène le cafard droit dans la mare."
+        "title": "Le scarabée",
+        "hint": "Le scarabée longe le mur qui est à sa gauche et ne peut pas traverser la terre. Marche sur la terre puis recule : le passage que tu ouvres mène le scarabée droit dans la mare."
       },
       "level_38": {
         "title": "Fonte",
@@ -1437,7 +1437,7 @@
       },
       "level_39": {
         "title": "Bouchon",
-        "hint": "Une puce est un mur pour un cafard : celle-ci le garde enfermé. Prends-la et il est libre, il longe son mur de gauche. Ouvre d'abord le chemin de la mare, puis prends la puce et cours : en te suivant, le cafard tournera dans la mare."
+        "hint": "Une puce est un mur pour un scarabée : celle-ci le garde enfermé. Prends-la et il est libre, il longe son mur de gauche. Ouvre d'abord le chemin de la mare, puis prends la puce et cours : en te suivant, le scarabée tournera dans la mare."
       }
     },
     "chapter": {

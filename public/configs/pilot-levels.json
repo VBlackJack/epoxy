@@ -1860,7 +1860,7 @@
       "entities": [
         {
           "type": "dirt_block",
-          "x": 2,
+          "x": 3,
           "y": 4,
           "dir": "S"
         }
@@ -1871,7 +1871,7 @@
         "waters": 1,
         "targets": 0
       },
-      "solution": "ESSESSWNWNEEEENNEEESSSSNNEE"
+      "solution": "ESSSSENWNEEENNEEESSSSNNEE"
     },
     {
       "id": "epoxy_p_37",
