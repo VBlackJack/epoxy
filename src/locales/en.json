@@ -478,6 +478,7 @@
       "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
       "kb_editor_cc3d_eraser": { "label": "CC3D levels: the eraser removes the topmost thing of a cell (creature, then item, then top layer); Shift+eraser clears the whole cell" },
+      "kb_editor_cell_edge": { "label": "Thin walls: with the thin wall entry of the Terrain tab selected, click near a side of a cell to toggle it (keyboard: the side of the direction control); a wall shared with the next cell is removed from both" },
       "kb_editor_cc3d_panel": { "label": "CC3D thin walls: with the thin wall entry selected, click near a side of a cell to toggle it (keyboard: the side of the direction control)" },
       "kb_editor_cc3d_links": { "label": "CC3D links: hover a device or put the cursor on it to see what it works; the status line says when an edit changes a link" },
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
@@ -559,11 +560,13 @@
   },
   "editor": {
     "cell_speech": {
+      "list_separator": { "label": ", " },
       "name": { "label": "{name}" },
       "outside": { "label": "Outside the grid" },
       "item": { "label": "item: {name}" },
       "entity": { "label": "{name}, facing {side}" },
       "player": { "label": "Player start, facing {side}" },
+      "edges": { "label": "thin walls: {sides}" },
       "side": {
         "n": { "label": "north" },
         "e": { "label": "east" },
@@ -889,6 +892,7 @@
       },
       "tools": {
         "player_start": { "label": "Player Start" },
+        "cell_edge": { "label": "Thin Wall" },
         "wire_trap": { "label": "Wire Brown Button → Trap" },
         "wire_cloner": { "label": "Wire Red Button → Cloner" }
       },
@@ -905,6 +909,7 @@
         "saved_session_only": { "label": "Level kept for this session only: the browser could not save it." },
         "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
         "wire_select_source": { "label": "Click the trigger button on the map..." },
+        "cell_edge_mode": { "label": "Thin wall: click near a side of a cell to add or remove it (keyboard: the side of the direction control)." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
         "wire_linked": { "label": "Mechanism link established!" }
       }

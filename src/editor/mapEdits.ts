@@ -24,7 +24,7 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
-import { edgesAt, removeEdgesWhere, replaceEdges } from './editorCellEdges';
+import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 
 /** Outcome of a map edit. The input map is never modified; `map` is a new state. */
@@ -126,6 +126,19 @@ export function paintItem(source: EditorMap, x: number, y: number, itemId: strin
   if (!inGrid(source, x, y) || source.items[y][x] === itemId) return unchanged(source);
   const map = cloneMap(source);
   map.items[y][x] = itemId;
+  return { map, changed: true, removedLinks: 0, playerStartKept: false };
+}
+
+/**
+ * Toggles the thin wall on one side of a cell (Epoxy levels). The wall is one line shared by two cells: a
+ * closed line (the cell's own wall, or the neighbour's matching one) is removed from both cells, an open one
+ * is added to the cell only; a border side belongs to its cell. Terrain such as thin_wall_* is untouched.
+ */
+export function toggleCellEdge(source: EditorMap, x: number, y: number, side: Direction): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map keeps its thin walls in its own layers
+  if (!inGrid(source, x, y)) return unchanged(source);
+  const map = cloneMap(source);
+  toggleSide(map, x, y, side);
   return { map, changed: true, removedLinks: 0, playerStartKept: false };
 }
 

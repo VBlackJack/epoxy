@@ -125,6 +125,7 @@ import { layoutModeForWidth } from './editorLayout';
 import {
   applyTool,
   Brush,
+  CELL_EDGE_BRUSH_ID,
   continuesOnDrag,
   EDITOR_TOOLS,
   EditorTool,
@@ -163,6 +164,7 @@ import { MetadataEditCoalescer } from './metadataCoalescer';
 import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 import {
   Availability,
+  cellEdgeAvailability,
   EditableRuleset,
   entityAvailability,
   majorityRuleset,
@@ -297,6 +299,9 @@ const WIRE_CLONER_BRUSH_ID = 'wire_cloner';
 const WIN_RULE_VALUES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
 const ENTITIES_CATEGORY = 'entities';
 const MECHANISMS_CATEGORY = 'mechanisms';
+const TERRAIN_CATEGORY = 'terrain';
+/** Tile whose icon stands for the thin wall entry: a floor with a wall on its north side. */
+const CELL_EDGE_ICON_TILE = 'thin_wall_n';
 
 const TOOL_LABEL_KEYS: Record<EditorTool, string> = {
   brush: 'editor.layout.tool.brush.label',
@@ -481,6 +486,8 @@ export class LevelEditor {
   private linksCache = new WeakMap<Cc3dLevel, Cc3dLinks>();
   /** The side of the hovered cell nearest the pointer, for the thin wall mode. */
   private hoverSide: Direction = 'N';
+  /** The last way the map was addressed: the thin wall bar follows the pointer or the keyboard cursor accordingly. */
+  private lastInput: 'pointer' | 'keyboard' = 'pointer';
   /** The CC3D map drawn off-screen, kept while the document and the tile size stay the same. */
   private staticLayer: StaticLayer | null = null;
   /** The cells selected with the Select tool. */
@@ -726,6 +733,15 @@ export class LevelEditor {
   /** True when the level being edited is a CC3D one: its cells, not the Epoxy layers, are the map. */
   private isCc3d(): boolean {
     return this.doc.cc3d !== undefined;
+  }
+
+  /**
+   * True when a click acts on the side of a cell nearest the pointer: the CC3D thin wall entry, or the Epoxy
+   * thin wall entry with the brush tool.
+   */
+  private sideToolActive(): boolean {
+    if (this.isCc3d()) return this.cc3dEntry()?.action === 'panel';
+    return this.tool === 'brush' && this.brush.kind === 'cell_edge';
   }
 
   /** The selected CC3D palette entry, or null when the id names none. */
@@ -1174,6 +1190,7 @@ export class LevelEditor {
     const ruleset = editableRulesetOf(this.doc.ruleset);
     if (brush.kind === 'terrain' || brush.kind === 'item') return tileAvailability(ruleset, brush.id);
     if (brush.kind === 'entity') return entityAvailability(ruleset, brush.id);
+    if (brush.kind === 'cell_edge') return cellEdgeAvailability(ruleset);
     return { available: true };
   }
 
@@ -1230,6 +1247,14 @@ export class LevelEditor {
       entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), this.renderer.renderIconToDataUrl('entity', ent.id));
     }
 
+    if (this.activeCategory === TERRAIN_CATEGORY) {
+      entry(
+        { kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID },
+        t('editor.palette.tools.cell_edge'),
+        this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE)
+      );
+    }
+
     if (this.activeCategory === ENTITIES_CATEGORY) {
       entry({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), this.playerIconUrl);
     }
@@ -1274,7 +1299,11 @@ export class LevelEditor {
     span.textContent = label;
     btn.appendChild(span);
     if (availability.available) {
-      btn.addEventListener('click', onClick);
+      btn.addEventListener('click', (ev) => {
+        // A click with no pointer detail comes from the keyboard (Enter or Space on the button).
+        this.lastInput = ev.detail === 0 ? 'keyboard' : 'pointer';
+        onClick();
+      });
     } else {
       const reason = t(availability.reasonKey);
       btn.classList.add('is-unavailable');
@@ -1289,6 +1318,7 @@ export class LevelEditor {
   /** Choosing a palette item puts the brush back in hand, except for a terrain tile while filling. */
   private selectBrush(brush: Brush): void {
     this.cancelPendingWire(false);
+    const hintBefore = this.sideToolActive();
     this.brush = brush;
     if (this.tool === 'eraser' || this.tool === 'picker' || this.tool === 'select' || (this.tool === 'fill' && brush.kind !== 'terrain')) {
       this.tool = 'brush';
@@ -1301,6 +1331,9 @@ export class LevelEditor {
     if (brush.kind === 'wire_trap' || brush.kind === 'wire_cloner') {
       this.setStatusText(t('editor.palette.status.wire_select_source'));
     }
+    if (brush.kind === 'cell_edge') this.setStatusText(t('editor.palette.status.cell_edge_mode'));
+    // The side bar of the thin wall tool appears and goes away with its entry.
+    if (hintBefore || this.sideToolActive()) this.render();
   }
 
   private updateSwitchEngineButton(): void {
@@ -1341,7 +1374,11 @@ export class LevelEditor {
   /** The direction control changed: the buttons follow it, and the CC3D icons that show a direction are redrawn. */
   private afterDirectionChange(): void {
     this.updateDirButtons();
-    if (!this.isCc3d()) return;
+    if (!this.isCc3d()) {
+      // The keyboard side of the thin wall tool is the direction control: its bar follows it.
+      if (this.sideToolActive()) this.render();
+      return;
+    }
     this.renderPaletteItems();
     this.render();
   }
@@ -2676,6 +2713,7 @@ export class LevelEditor {
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.setStatusText(t('editor.palette.status.picked.label', { name: definition ? t(definition.i18nKey) : picked.brush.id }));
+    this.render();
   }
 
   /** The grid cell under a screen position, or null outside the grid. */
@@ -2689,7 +2727,7 @@ export class LevelEditor {
   }
 
   /**
-   * The side of a cell a pointer is nearest to, for the thin wall mode of a CC3D level.
+   * The side of a cell a pointer is nearest to, for the thin wall mode.
    * The pointer position is read inside the cell, from 0 (west, north) to 1 (east, south).
    */
   private pointerSide(clientX: number, clientY: number, cell: { x: number; y: number }): Direction {
@@ -2733,6 +2771,7 @@ export class LevelEditor {
       this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(ev.pointerId);
       this.cursorCell = cell;
+      this.lastInput = 'pointer';
       // Every path below (picker, Alt or middle click, a stroke) starts from this cell: the layers list follows it.
       this.refreshLayersList();
 
@@ -2756,7 +2795,7 @@ export class LevelEditor {
         return;
       }
 
-      if (this.isCc3d()) this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
+      if (this.isCc3d() || this.sideToolActive()) this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
       this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON, ev.shiftKey);
       this.applyAt(cell.x, cell.y, this.hoverSide);
       this.refreshLayersList();
@@ -2764,14 +2803,15 @@ export class LevelEditor {
 
     this.canvas.addEventListener('pointermove', (ev) => {
       this.lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+      this.lastInput = 'pointer';
       const cell = this.cellAt(ev.clientX, ev.clientY);
       if (cell && this.pasting) this.pasteAnchor = cell;
-      if (cell && this.isCc3d()) {
+      if (cell && (this.isCc3d() || this.sideToolActive())) {
         const side = this.pointerSide(ev.clientX, ev.clientY, cell);
         if (side !== this.hoverSide) {
           this.hoverSide = side;
           // The thin wall mode shows which side a click would toggle.
-          if (this.cc3dEntry()?.action === 'panel') this.requestRender();
+          if (this.sideToolActive()) this.requestRender();
         }
       }
       this.setHover(cell);
@@ -2800,6 +2840,7 @@ export class LevelEditor {
       const action = getCanvasKeyAction(ev);
       if (!action) return;
       ev.preventDefault();
+      this.lastInput = 'keyboard';
       if (action.kind === 'move') {
         const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
         this.moveCursorTo(moveCursor(from, action.dx, action.dy, this.mapWidth(), this.mapHeight()), ev.shiftKey);
@@ -3060,7 +3101,7 @@ export class LevelEditor {
 
   /**
    * Applies the active tool to a cell as part of the running stroke. `side` is the side of the cell a
-   * CC3D thin wall acts on; `deferRender` redraws on the next frame (pointer moves) rather than at once.
+   * thin wall acts on; `deferRender` redraws on the next frame (pointer moves) rather than at once.
    */
   private applyAt(x: number, y: number, side: Direction = this.activeDir, deferRender = false): void {
     const stroke = this.stroke;
@@ -3079,6 +3120,7 @@ export class LevelEditor {
       tool: this.tool,
       brush: this.brush,
       dir: this.activeDir,
+      side,
       x,
       y,
       pendingWire: this.pendingWire,
@@ -3773,6 +3815,7 @@ export class LevelEditor {
     }
 
     this.renderCc3dOverlay(s);
+    this.renderSideHint(s);
     this.renderSelectionOverlay(s);
     if (this.pendingWire) this.outlineCell(this.pendingWire.x, this.pendingWire.y, EDITOR_WIRE_SOURCE_COLOR, s);
     if (this.hoverCell) this.outlineCell(this.hoverCell.x, this.hoverCell.y, EDITOR_HOVER_OUTLINE_COLOR, s);
@@ -3869,10 +3912,17 @@ export class LevelEditor {
       for (const arrow of overlay.arrows) this.drawArrow(colors[arrow.kind], arrow.from, arrow.to, s);
       for (const badge of overlay.badges) this.drawBadge(EDITOR_CC3D_LINK_COLORS.template, badge, s);
     }
-    if (this.cc3dEntry()?.action === 'panel') {
-      if (this.hoverCell) this.drawSideHint(this.hoverCell, this.hoverSide, s);
-      else if (this.cursorCell) this.drawSideHint(this.cursorCell, this.activeDir, s);
-    }
+    this.ctx.restore();
+  }
+
+  /** While a thin wall tool is active, the bar on the side a click would toggle: the hovered cell's, or the keyboard cursor's after a keyboard input. */
+  private renderSideHint(s: number): void {
+    if (!this.sideToolActive()) return;
+    this.ctx.save();
+    this.ctx.globalAlpha = EDITOR_CC3D_OVERLAY_ALPHA;
+    const byKeyboard = this.lastInput === 'keyboard' && this.cursorCell !== null;
+    if (this.hoverCell && !byKeyboard) this.drawSideHint(this.hoverCell, this.hoverSide, s);
+    else if (this.cursorCell) this.drawSideHint(this.cursorCell, this.activeDir, s);
     this.ctx.restore();
   }
 
