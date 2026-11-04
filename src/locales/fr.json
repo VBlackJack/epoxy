@@ -658,9 +658,16 @@
         "unsolvable": "Blocs : aucun moyen de couvrir toutes les cibles",
         "not_checked": "Blocs : non vérifié (trop grand ou terrain non géré)",
         "running": "Blocs : vérification..."
-      }
+      },
+      "running": { "label": "Vérification du niveau..." },
+      "skipped": { "label": "Vérification abandonnée : le niveau est trop long à vérifier." },
+      "test_skipped": { "label": "Testé sans la vérification : le niveau est trop long à vérifier." },
+      "test_cancelled": { "label": "Le niveau a changé pendant la vérification ; la version d'avant la modification a été testée." },
+      "test_error": { "label": "Testé sans la vérification : la vérification a échoué." },
+      "error": { "label": "Vérification en échec." }
     },
     "issues": {
+      "stale": { "label": "Périmé : le niveau a changé depuis cette vérification." },
       "idle": "Lancez Vérifier pour lister ce qui demande attention.",
       "none": "Aucun problème trouvé.",
       "more": "et {count, plural, one {# autre problème} other {# autres problèmes}}",
@@ -792,7 +799,11 @@
         "idle": "Non vérifié",
         "valid": "Valide",
         "warnings": "{count, plural, one {# avertissement} other {# avertissements}}",
-        "errors": "{count, plural, one {# erreur} other {# erreurs}}"
+        "errors": "{count, plural, one {# erreur} other {# erreurs}}",
+        "checking": { "label": "Vérification..." },
+        "skipped": { "label": "Vérification abandonnée : trop lente" },
+        "interrupted": { "label": "Vérification interrompue" },
+        "error": { "label": "Vérification en échec" }
       },
       "test": { "action": "Tester", "title": "Jouer le niveau tel quel" },
       "canvas": {
