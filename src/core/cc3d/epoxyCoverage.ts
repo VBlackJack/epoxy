@@ -68,7 +68,8 @@ function entry(level: CoverageLevel, reason: string): CoverageEntry {
 const EXACT_REASON = 'Epoxy plays this element as CC3D does.';
 const MONSTER_REASON = 'Monster movement is close to CC3D, not identical.';
 const ORB_REASON = 'The orb effect is close to the Epoxy equivalent, not identical.';
-const PLATE_REASON = 'Hold doors settle at the end of each move or tick, where CC3D reacts at once.';
+const PLATE_REASON =
+  'Hold doors settle at the end of each move or tick, where CC3D reacts at once. Every monster that stands on a plate presses it except the flying ones (glider, fireball), as in CC3D where the blinky and screamer families do not.';
 const COLOR_BLOCK_REASON = 'Colour block pushing rules differ slightly from CC3D, and a floating block cannot be pushed again.';
 const SAND_REASON = 'Epoxy plays CC3D sand as its gravel: the player and every block may enter, monsters may not.';
 const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the player only, open at no chips left, floor once entered.';
@@ -182,7 +183,7 @@ const APPROX_ENTRIES: Record<string, string> = {
   golem_yellow: GOLEM_YELLOW_REASON,
   golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON,
   nibble: NIBBLE_REASON,
-  golem_blue: 'Golem movement is close to CC3D, not identical.',
+  golem_blue: 'Golem movement is close to CC3D, not identical. The golem presses a plate it stands on, as in CC3D.',
   laser_controller: LASER_CONTROLLER_REASON,
   laser_shooter: LASER_SHOOTER_REASON
 };

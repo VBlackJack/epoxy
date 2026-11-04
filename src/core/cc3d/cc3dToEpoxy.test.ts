@@ -498,12 +498,28 @@ describe('arbitration rules', () => {
         q: { ...plate, mob: { kind: 'block_ice' } }
       })
     ).toBe('hold_door_green_open');
-    // Epoxy monsters do not press a plate, but the puppet the yellow golem becomes does.
+    // Epoxy monsters press a plate they stand on unless they fly; the puppet the yellow golem becomes does too.
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'walker' } } })).toBe('hold_door_green_closed');
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'golem_yellow' } } })).toBe('hold_door_green_open');
     // A colour block presses only a plate of its own colour.
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'block_color', color: 'red' } } })).toBe('hold_door_green_closed');
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'block_color', color: 'green' } } })).toBe('hold_door_green_open');
+  });
+
+  it('keeps a hold door open under a blue golem, as the Epoxy engine does', () => {
+    const rows = ['#######', '#H@p..#', '#######'];
+    const glyphs: Record<string, GlyphMeaning> = {
+      H: stackOf({ kind: 'hold_door', color: 'red', open: false }),
+      p: { ...stackOf({ kind: 'plate', color: 'red' }), mob: { kind: 'golem_blue' } }
+    };
+    const { result } = convertRows(rows, glyphs);
+    expect(result.level.terrain[1][1]).toBe('hold_door_red_open');
+    const engine = new GameEngine();
+    engine.loadLevel(result.level);
+    expect(engine.getTerrain()[1][1]).toBe('hold_door_red_open');
+    // A flying monster on the plate does not hold the door.
+    const flyer = convertRows(rows, { ...glyphs, p: { ...glyphs.p, mob: { kind: 'blinky' } } }).result;
+    expect(flyer.level.terrain[1][1]).toBe('hold_door_red_closed');
   });
 
   it('presses a hold door plate with the player standing on it', () => {
