@@ -928,6 +928,15 @@
     },
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Needs Epoxy rules: not available in a Lynx level." } },
+      "group": {
+        "buttons": { "label": "Buttons and wiring" },
+        "teleports": { "label": "Teleports" },
+        "lasers": { "label": "Lasers and mirrors" },
+        "colour": { "label": "Colour channels" },
+        "blocks": { "label": "Blocks and turrets" },
+        "toggles": { "label": "Flames and toggles" },
+        "other": { "label": "Other" }
+      },
       "category": {
         "terrain": { "label": "Terrain & Walls" },
         "hazards": { "label": "Elements & Ice" },

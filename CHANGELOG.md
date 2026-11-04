@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor Mechanisms palette sub-headings: the tab groups its entries under headings (buttons and wiring, teleports, lasers and mirrors, colour channels, blocks and turrets, flames and toggles), derived from the tile and entity config so a new engine id lands in a group by itself.
 - Level editor facing and clone templates (Epoxy rules): Shift+R turns the creature or turret under the cursor a quarter turn clockwise as one undo step; a clone machine shows the creature it clones, with its facing, as a corner badge; the cell description speaks a turret's facing and what a clone machine clones; palette icons of creatures and turrets follow the direction control; a clone wire drawn to a clone machine with no creature warns that the default block is used.
 - Level editor resize anchor: a 3 x 3 picker in the Size section chooses which part of the level stays fixed when it is resized (cells, links, thin walls, hidden terrain and CC3D creatures move with it), on Epoxy, Lynx and CC3D levels; the default stays top-left.
 - Level editor Hidden terrain list (Epoxy rules): in the Layers section, a list sets or clears the terrain hidden under a door, socket or similar tile at the cursor cell, as one undo step (not available under Lynx).

@@ -928,6 +928,15 @@
     },
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Demande les règles Epoxy : indisponible dans un niveau Lynx." } },
+      "group": {
+        "buttons": { "label": "Boutons et liens" },
+        "teleports": { "label": "Téléporteurs" },
+        "lasers": { "label": "Lasers et miroirs" },
+        "colour": { "label": "Canaux de couleur" },
+        "blocks": { "label": "Blocs et tourelles" },
+        "toggles": { "label": "Flammes et bascules" },
+        "other": { "label": "Autres" }
+      },
       "category": {
         "terrain": { "label": "Terrains & Murs" },
         "hazards": { "label": "Éléments & Glace" },

@@ -1236,6 +1236,20 @@ body.editor-mode #app {
   cursor: not-allowed;
 }
 
+.palette-group-heading {
+  grid-column: 1 / -1;
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.palette-group-heading:first-child {
+  margin-top: 0;
+}
+
 .palette-item-icon {
   width: 32px;
   height: 32px;
@@ -1513,6 +1527,13 @@ button.editor-issue-row:focus-visible {
 
 #editor-view[data-layout='one'] .palette-item-btn {
   flex: 0 0 var(--editor-strip-tile-width);
+}
+
+#editor-view[data-layout='one'] .palette-group-heading {
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0;
+  white-space: nowrap;
 }
 
 #editor-view[data-layout='one'] .editor-tab-btn {
