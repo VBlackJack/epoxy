@@ -483,6 +483,7 @@
       "kb_editor_cc3d_panel": { "label": "CC3D thin walls: with the thin wall entry selected, click near a side of a cell to toggle it (keyboard: the side of the direction control)" },
       "kb_editor_cc3d_links": { "label": "CC3D links: hover a device or put the cursor on it to see what it works; the status line says when an edit changes a link" },
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
+      "kb_editor_beam_preview": { "label": "L: show or hide the laser beam preview (beams at tick 0, turrets armed)" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
@@ -675,6 +676,15 @@
         "not_supported": "Test from here: this engine does not support it."
       },
       "status": "Testing from ({x}, {y})."
+    },
+    "beam_preview": {
+      "action": { "label": "Beams" },
+      "title": { "label": "Show where the laser beams run at tick 0, turrets armed (L)" },
+      "summary": { "label": "Beam preview at tick 0: {cells, plural, one {# beam cell} other {# beam cells}}, {lit, plural, one {# receiver} other {# receivers}} lit of {total}, {gates, plural, one {# gate} other {# gates}} opening." },
+      "none": { "label": "Beam preview: this level has no lasers." },
+      "off": { "label": "Beam preview hidden." },
+      "unavailable_cc3d": { "label": "Beam preview: not available on CC3D levels." },
+      "unavailable_lynx": { "label": "Beam preview: not available on Lynx levels." }
     },
     "template": {
       "title": "New level",
