@@ -19,7 +19,8 @@ import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
 import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import { canonicalJson } from './canonicalJson';
-import { CloneLink, Direction, EntityPlacement, Ruleset, TrapLink, WinRule } from '../core/types';
+import { canonicalEdges, cloneEdges } from './editorCellEdges';
+import { CellEdge, CloneLink, Direction, EntityPlacement, Ruleset, TrapLink, WinRule } from '../core/types';
 
 /** Where the player starts and which way the character faces. */
 export interface EditorPlayerStart {
@@ -36,6 +37,11 @@ export interface EditorMap {
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
   playerStart: EditorPlayerStart;
+  /**
+   * Thin walls on cells of any terrain (Epoxy ruleset only), in canonical form (see normalizeCellEdges).
+   * Absent when the level has none, and never held by a CC3D level.
+   */
+  cellEdges?: CellEdge[];
   /**
    * CC3D levels only: the single source of truth of the map. Its cells and mobs are immutable (an edit builds
    * a new level that shares every untouched cell), so copies and history steps keep references, never deep
@@ -62,6 +68,7 @@ export type EditorDocument = EditorMap & EditorMetadata;
 
 /** Deep copy of a map; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneMap(map: EditorMap): EditorMap {
+  const cellEdges = map.cc3d ? undefined : cloneEdges(map.cellEdges);
   return {
     terrain: map.terrain.map((row) => [...row]),
     items: map.items.map((row) => [...row]),
@@ -69,8 +76,18 @@ export function cloneMap(map: EditorMap): EditorMap {
     trapLinks: map.trapLinks.map((l) => ({ ...l })),
     cloneLinks: map.cloneLinks.map((l) => ({ ...l })),
     playerStart: { ...map.playerStart },
+    ...(cellEdges ? { cellEdges } : {}),
     ...(map.cc3d ? { cc3d: map.cc3d } : {})
   };
+}
+
+/**
+ * The document with the map layers of an edit result: a layer the map no longer has (the thin walls
+ * of an edit that removed the last one) is gone from the document too, not left over from before.
+ */
+export function withEditedMap(doc: EditorDocument, map: EditorMap): EditorDocument {
+  const { cellEdges: _previous, ...rest } = doc;
+  return { ...rest, ...map };
 }
 
 /** The display layers a CC3D level implies, as the editor map holds them. */
@@ -127,7 +144,7 @@ export function restoreDocument(snapshot: EditorDocument): EditorDocument {
 
 /** Deep copy of a document; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneDocument(doc: EditorDocument): EditorDocument {
-  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, cc3d } = cloneMap(doc);
+  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, cellEdges, cc3d } = cloneMap(doc);
   return {
     terrain,
     items,
@@ -135,6 +152,7 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     trapLinks,
     cloneLinks,
     playerStart,
+    ...(cellEdges ? { cellEdges } : {}),
     ...(cc3d ? { cc3d } : {}),
     title: doc.title,
     hint: doc.hint,
@@ -175,6 +193,7 @@ export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
       trapLinks: [...doc.trapLinks].sort((l, m) => l.buttonY - m.buttonY || l.buttonX - m.buttonX || l.trapY - m.trapY || l.trapX - m.trapX),
       cloneLinks: [...doc.cloneLinks].sort((l, m) => l.buttonY - m.buttonY || l.buttonX - m.buttonX || l.clonerY - m.clonerY || l.clonerX - m.clonerX),
       playerStart: hasCc3d ? null : doc.playerStart,
+      cellEdges: hasCc3d ? null : (canonicalEdges(doc.cellEdges, doc.terrain) ?? []),
       title: doc.title,
       hint: doc.hint,
       author: doc.author,

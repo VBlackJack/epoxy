@@ -823,7 +823,7 @@
         "engine": { "label": "Moteur" },
         "description": {
           "epoxy": "Epoxy : les règles natives, avec lasers, canaux de couleur, cibles de blocs et toutes les tuiles de l'éditeur.",
-          "lynx": "Lynx : les règles des packs communautaires. Les lasers, les miroirs, les canaux de couleur (plaques, portes à maintien, murs et boutons à bascule de couleur, blocs flottants, blocs de couleur) et les cibles de blocs ne sont pas disponibles.",
+          "lynx": "Lynx : les règles des packs communautaires. Les lasers, les miroirs, les canaux de couleur (plaques, portes à maintien, murs et boutons à bascule de couleur, blocs flottants, blocs de couleur), les cibles de blocs et les murs fins sur les cases ne sont pas disponibles.",
           "cc3d": "CC3D : les règles des niveaux de Chuck's Challenge 3D. Le moteur d'un tel niveau ne peut pas être changé."
         }
       },
@@ -837,6 +837,7 @@
         "dropped_entities": "{count, plural, one {# créature ou bloc a été retiré} other {# créatures ou blocs ont été retirés}}.",
         "dropped_links": "{count, plural, one {# fil a été retiré} other {# fils ont été retirés}}.",
         "start_moved": "Le départ du joueur a été ramené à l'intérieur du niveau.",
+        "dropped_edges": "{count, plural, one {# case a perdu ses murs fins} other {# cases ont perdu leurs murs fins}}.",
         "border_kept": "Le contour a été refermé avec des murs."
       }
     },
@@ -868,7 +869,7 @@
       "ruleset": { "label": "Règles" },
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (packs communautaires)" },
-      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc, à lasers ou à canaux de couleur ne se jouent qu'avec les règles Epoxy" },
+      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc, à lasers, à canaux de couleur ou à murs fins sur des cases ne se jouent qu'avec les règles Epoxy" },
       "ruleset_cc3d": { "label": "CC3D (Chuck's Challenge 3D)" },
       "ruleset_cc3d_unavailable": { "label": "Seul un niveau CC3D se joue avec les règles CC3D" },
       "ruleset_cc3d_locked": { "label": "Un niveau CC3D garde ses propres règles : le moteur ne peut pas être changé" },
