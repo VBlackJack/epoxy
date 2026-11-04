@@ -38,6 +38,11 @@ const SPRITE_UNIT = 16;
 const DEFAULT_CANVAS = 300;
 const PLAYER_CELL = 5;
 const BLOCK_CELL = 8;
+/** Cells that hold the hidden walls in the skin scene. */
+const HIDDEN_WALL_CELLS = [
+  { x: 2, y: 6, tile: 'invisible_wall' },
+  { x: 6, y: 2, tile: 'appearing_wall' }
+] as const;
 const FRAME_MS = 16;
 const BYTES = 4;
 /** Frames after which the camera zoom has settled and the terrain cache is stable. */
@@ -159,7 +164,7 @@ describe('SokobanSkinLoader', () => {
 describe('Sokoban skin configuration', () => {
   beforeEach(() => loadTestConfigs());
 
-  it('ships the five roles in game.json', () => {
+  it('ships the roles in game.json', () => {
     const skin = resolveSokobanSkin(ConfigRegistry.getGame().graphics);
     expect(skin).toEqual(DEFAULT_SOKOBAN_SKIN);
     expect(ConfigRegistry.getGame().graphics?.sokobanSkin).toBeDefined();
@@ -204,13 +209,14 @@ describe('Sokoban skin in the renderer', () => {
     vi.restoreAllMocks();
   });
 
-  function level(winRule: 'targets' | undefined, blockOnTarget: boolean): CompiledLevel {
+  function level(winRule: 'targets' | undefined, blockOnTarget: boolean, hiddenWalls = false): CompiledLevel {
     const edge = MAP_SIZE - 1;
     const terrain: string[][] = Array.from({ length: MAP_SIZE }, (_, y) =>
       Array.from({ length: MAP_SIZE }, (_, x) => (x === 0 || y === 0 || x === edge || y === edge ? 'wall' : 'floor'))
     );
     terrain[BLOCK_CELL][BLOCK_CELL] = blockOnTarget ? 'block_target' : 'floor';
     terrain[3][3] = 'block_target';
+    if (hiddenWalls) for (const cell of HIDDEN_WALL_CELLS) terrain[cell.y][cell.x] = cell.tile;
     return {
       id: 'skin-scene',
       number: 1,
@@ -236,11 +242,12 @@ describe('Sokoban skin in the renderer', () => {
   function scene(opts: {
     winRule?: 'targets';
     onTarget?: boolean;
+    hiddenWalls?: boolean;
     style?: GraphicsStyle;
     loader?: SokobanSkinLoader | null;
   }): Scene {
     const engine = new GameEngine();
-    engine.loadLevel(level(opts.winRule, opts.onTarget ?? false));
+    engine.loadLevel(level(opts.winRule, opts.onTarget ?? false, opts.hiddenWalls ?? false));
     const renderer = new PixelRenderer();
     renderer.setStyle(opts.style ?? 'modern');
     renderer.setThemeId('cyber_neon');
@@ -282,6 +289,21 @@ describe('Sokoban skin in the renderer', () => {
       expect(files.has('crate_02.png')).toBe(true);
       // Low-res styles are drawn at the real tile size, not at the sprite unit.
       expect(Math.min(...draws.map((d) => d.size))).toBeGreaterThan(SPRITE_UNIT);
+    }
+  });
+
+  it('draws hidden walls with the skin floor, so they do not stand out on a skinned level', async () => {
+    const loader = await loadedLoader();
+    for (const style of ['modern', 'retro', 'retro32'] as const) {
+      created.length = 0;
+      const withFloor = scene({ winRule: 'targets', style, loader });
+      withFloor.frame();
+      const floorDraws = skinDraws([withFloor.main]).filter((d) => d.file === 'ground_06.png').length;
+      created.length = 0;
+      const hidden = scene({ winRule: 'targets', style, loader, hiddenWalls: true });
+      hidden.frame();
+      const hiddenDraws = skinDraws([hidden.main]).filter((d) => d.file === 'ground_06.png').length;
+      expect(hiddenDraws).toBe(floorDraws);
     }
   });
 
