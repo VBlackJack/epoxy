@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { cc3dLinks } from './cc3dLinks';
 import { CC3D_COLORS, topTerrain } from './model';
 import type { Cc3dCell, Cc3dColor, Cc3dLevel, Cc3dTerrain, Cc3dTerrainKind } from './model';
 
@@ -43,6 +44,14 @@ export const KEY_PANELS_ON_NONFLOOR = 'panels_on_nonfloor';
 /** The red socket, as the key of one whose layer below is not plain floor (the plain one keeps its kind as key). */
 export const KEY_SOCKET_RED = 'socket_red';
 export const KEY_SOCKET_RED_STACKED = 'socket_red_stacked';
+/** A trap no trap control works: CC3D keeps it shut, Epoxy opens an unlinked trap with any brown button. */
+export const KEY_TRAP_UNWORKED = 'trap_unworked';
+/** A clone switch whose nearest machine holds no template Epoxy can clone. */
+export const KEY_CLONE_SWITCH_EMPTY = 'clone_switch_empty';
+/** A bomb layer in a cell whose item slot is already taken. */
+export const KEY_BOMB_WITH_ITEM = 'bomb_with_item';
+/** A laser shooter standing on an item or on a layer other than plain floor. */
+export const KEY_LASER_SHOOTER_COVERED = 'laser_shooter_covered';
 
 const KEY_SEPARATOR = '_';
 const STACK_SEPARATOR = '+';
@@ -78,6 +87,26 @@ const LASER_SHOOTER_REASON =
   'Epoxy plays the shooter as a shot launcher: a wall-like terrain tile that fires the way it faces, so the terrain under the shooter is flattened; a shot crosses cells at the CC3D pace but its opacity follows Epoxy laser transparency, and the exit differs; the order of the first cell hit differs [unverified].';
 const NIBBLE_REASON =
   'Epoxy plays a nibble as a skitter: it steps away from the player on the axis of the greater distance, with its rest folded into a fixed step interval [unverified].';
+const TELEPORT_RED_REASON =
+  'The target (the previous red teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D tries forward, right, left, back; Epoxy blocks and monsters leave forward only.';
+const TELEPORT_BLUE_REASON =
+  'The target (the previous blue teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D leaves forward only; Epoxy blocks and monsters leave forward only.';
+const LEGS_GREEN_REASON =
+  'Epoxy plays the green legs as a fireball, which is immune to fire where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].';
+const LEGS_RED_REASON =
+  'Epoxy plays the red legs as a glider, which is immune to water where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].';
+const SCREAMER_REASON =
+  'Epoxy plays the screamer as a fireball, which is immune to fire but not to ice and force floors, which the CC3D screamer ignores; the screamer melting ice blocks is not modelled [unverified].';
+const BABY_SCREAMER_REASON =
+  'Epoxy plays the baby screamer as a fireball: the immunity to fire matches, the melting of ice blocks by the baby screamer is not modelled [unverified].';
+const TRAP_UNWORKED_REASON =
+  'No trap control works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button.';
+const CLONE_SWITCH_EMPTY_REASON =
+  'The nearest clone machine of this switch holds no template Epoxy can clone (none, or a laser shooter): CC3D does nothing, and a switch left unlinked would fire every machine in Epoxy, so the converter drops the switch link.';
+const BOMB_WITH_ITEM_REASON =
+  'A bomb layer shares its cell with an item: Epoxy holds one item per cell, so the bomb is dropped and the item stays.';
+const LASER_SHOOTER_COVERED_REASON =
+  'The shooter stands on an item or on a layer other than plain floor (a device, a machine, ground): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned.';
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
@@ -107,8 +136,8 @@ const APPROX_ENTRIES: Record<string, string> = {
   slime: 'Slime is close to the Epoxy equivalent, not identical.',
   turtle: 'Turtle behaviour is close to the Epoxy equivalent, not identical.',
   dirt: 'Dirt is close to the Epoxy equivalent, not identical.',
-  teleport_blue: 'Teleport target choice differs from CC3D.',
-  teleport_red: 'Teleport target choice differs from CC3D.',
+  teleport_blue: TELEPORT_BLUE_REASON,
+  teleport_red: TELEPORT_RED_REASON,
   appearing_wall: 'Appearing wall timing differs from CC3D.',
   trap: 'Trap release rules differ from CC3D.',
   trap_control: 'Trap control linking differs from CC3D.',
@@ -135,16 +164,16 @@ const APPROX_ENTRIES: Record<string, string> = {
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
   walker: MONSTER_REASON,
-  legs_green: MONSTER_REASON,
-  legs_red: MONSTER_REASON,
+  legs_green: LEGS_GREEN_REASON,
+  legs_red: LEGS_RED_REASON,
   blinky: MONSTER_REASON,
   baby_blinky: MONSTER_REASON,
   limpa: MONSTER_REASON,
   limpy: MONSTER_REASON,
   bouncer: MONSTER_REASON,
   omni: MONSTER_REASON,
-  screamer: MONSTER_REASON,
-  baby_screamer: MONSTER_REASON,
+  screamer: SCREAMER_REASON,
+  baby_screamer: BABY_SCREAMER_REASON,
   snappy: MONSTER_REASON,
   bot_static: BOT_REASON,
   bot_cw: BOT_REASON,
@@ -159,6 +188,10 @@ const APPROX_ENTRIES: Record<string, string> = {
 };
 
 const LOST_ENTRIES: Record<string, string> = {
+  [KEY_TRAP_UNWORKED]: TRAP_UNWORKED_REASON,
+  [KEY_CLONE_SWITCH_EMPTY]: CLONE_SWITCH_EMPTY_REASON,
+  [KEY_BOMB_WITH_ITEM]: BOMB_WITH_ITEM_REASON,
+  [KEY_LASER_SHOOTER_COVERED]: LASER_SHOOTER_COVERED_REASON,
   [KEY_STACKED_RUNTIME]:
     'The stack has a layer that acts while covered under a top that is not a door or a socket, or more layers than a removable top and the one it hides, which Epoxy flattens.'
 };
@@ -236,6 +269,9 @@ const LIVE_WHILE_COVERED_KINDS: readonly Cc3dTerrainKind[] = [
   'laser_controller', 'gate_tools', 'gate_keys'
 ];
 const BOMB_KIND: Cc3dTerrainKind = 'bomb';
+const SHOOTER_KIND = 'laser_shooter';
+/** Tops that are a socket: a socket over another one is one socket, whichever colour. */
+const SOCKET_KINDS: readonly Cc3dTerrainKind[] = ['socket', 'socket_red'];
 
 /** How Epoxy holds the terrain stack of one cell. */
 export type StackKind = 'plain' | 'flattened' | 'underlay' | 'runtime';
@@ -258,6 +294,8 @@ export function classifyStack(cell: Cc3dCell): StackKind {
   }
   const top = layers[layers.length - 1];
   const below = layers.slice(0, -1);
+  // A red socket over a socket of either colour is one socket: the lower one is never seen.
+  if (top.kind === KEY_SOCKET_RED && below.length === 1 && SOCKET_KINDS.includes(below[0].kind)) return 'flattened';
   if (PERMANENT_TOP_KINDS.includes(top.kind)) {
     return below.some((layer) => LIVE_WHILE_COVERED_KINDS.includes(layer.kind)) ? 'runtime' : 'flattened';
   }
@@ -269,9 +307,42 @@ export function classifyStack(cell: Cc3dCell): StackKind {
   return 'runtime';
 }
 
+/** True when a shooter's cell holds an item or a layer other than plain floor. */
+function isShooterCovered(cell: Cc3dCell | undefined): boolean {
+  return cell !== undefined && (cell.item !== null || nonFloorLayers(cell).length > 0);
+}
+
+/**
+ * The keys that come from how elements relate to one another rather than from one element: a trap nobody works,
+ * a clone switch with nothing to clone, a bomb sharing its cell with an item, a covered shooter.
+ */
+function relationKeys(level: Cc3dLevel): string[] {
+  const keys: string[] = [];
+  const links = cc3dLinks(level);
+  const worked = new Set<number>();
+  for (const link of links.trapControls) if (link.to !== null) worked.add(link.to);
+  const traps = level.cells.flatMap((cell, index) => (cell.terrain.some((layer) => layer.kind === 'trap') ? [index] : []));
+  if (traps.some((index) => !worked.has(index))) keys.push(KEY_TRAP_UNWORKED);
+  const templates = new Map<number, number | null>(links.cloneMachines.map((link) => [link.from, link.to]));
+  const emptySwitch = links.cloneSwitches.some((link) => {
+    if (link.to === null) return false;
+    const template = templates.get(link.to);
+    return template === null || template === undefined || level.mobs[template].kind === SHOOTER_KIND;
+  });
+  if (emptySwitch) keys.push(KEY_CLONE_SWITCH_EMPTY);
+  if (level.cells.some((cell) => cell.item !== null && cell.terrain.some((layer) => layer.kind === BOMB_KIND))) {
+    keys.push(KEY_BOMB_WITH_ITEM);
+  }
+  const covered = level.mobs.some(
+    (mob) => mob.kind === SHOOTER_KIND && isShooterCovered(level.cells[mob.y * level.width + mob.x])
+  );
+  if (covered) keys.push(KEY_LASER_SHOOTER_COVERED);
+  return keys;
+}
+
 /** The element keys of a level, structural ones included. */
 export function elementKeys(level: Cc3dLevel): Set<string> {
-  const keys = new Set<string>();
+  const keys = new Set<string>(relationKeys(level));
   for (const cell of level.cells) {
     cell.terrain.forEach((layer, index) => keys.add(coverageKeyOf(cell, layer, index)));
     if (cell.item) keys.add(cell.item.kind);
