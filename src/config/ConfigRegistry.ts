@@ -46,6 +46,7 @@ import {
   isBlockBudget,
   normalizeCellEdges,
   normalizeUnderlays,
+  registerTerrainTileLookup,
   isWinRule,
   findAudioConfigErrors,
   findCampaignConfigErrors,
@@ -1194,3 +1195,5 @@ function asArray<T>(value: T[] | undefined): T[] {
 }
 
 export const ConfigRegistry = new ConfigRegistryService();
+
+registerTerrainTileLookup((id) => (ConfigRegistry.isTerrainTile(id) ? ConfigRegistry.getTile(id) : undefined));

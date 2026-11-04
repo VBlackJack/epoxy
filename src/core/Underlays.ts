@@ -18,8 +18,10 @@ import { CompiledLevel, TileDefinition } from './types';
 
 /**
  * Whether a tile is a top the player removes by walking into it: a key door, a socket, or a tile that turns
- * to something else under a step (a blue fake wall, dirt). Only these can hide an underlay, and an underlay
- * is never one of them, so a cell reveals its underlay at most once.
+ * to something else under a step (a blue fake wall, dirt). Only these can hide an underlay. The level
+ * normalisation (normalizeUnderlays) keeps an underlay only under such a top, never when the underlay is one
+ * itself, and never when the underlay can turn back into the cell's top (a block sunk in water makes dirt
+ * again), so for a normalised level a cell reveals its underlay at most once.
  */
 export function isRemovableTop(tile: TileDefinition): boolean {
   return Boolean(tile.requiredKey || tile.requiresAllChips || tile.transformsToOnStep);

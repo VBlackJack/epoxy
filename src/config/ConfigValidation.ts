@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { CELL_EDGE_BITS, CELL_EDGE_SIDE_ORDER } from '../core/coreConstants';
+import { CELL_EDGE_BITS, CELL_EDGE_SIDE_ORDER, SUNK_BLOCK_TILE_ID } from '../core/coreConstants';
 import { isRemovableTop } from '../core/Underlays';
-import { ConfigRegistry } from './ConfigRegistry';
 import { ORDERED_DIRECTIONS } from './constants';
 import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
@@ -509,16 +508,70 @@ export function normalizeCellEdges(
     }));
 }
 
+/** Looks a tile of the Epoxy terrain layer up by id; undefined for an item, an unknown id or a foreign tile set. */
+export type TerrainTileLookup = (id: string) => TileDefinition | undefined;
+
+let registeredTerrainLookup: TerrainTileLookup | null = null;
+
 /**
- * The underlays of a level in canonical form: only the Epoxy ruleset carries them; entries that are
- * not records, lie outside the grid, name no terrain of the terrain layer or name a removable top (a
- * door, a socket, a fake wall, dirt) are dropped, the first entry of a cell wins, and the entries are
- * sorted by row, then column. Returns null when none is left.
+ * Registers the tile lookup the underlay checks use when none is passed. The registry calls it once at
+ * load, so this module never imports the registry (which imports this one). Without a lookup the
+ * underlays are only checked for shape.
+ */
+export function registerTerrainTileLookup(lookup: TerrainTileLookup | null): void {
+  registeredTerrainLookup = lookup;
+}
+
+/** True for a tile whose state a live device (plate, hold door, toggle wall) changes at run time. */
+function isLiveDevice(tile: TileDefinition): boolean {
+  return Boolean(
+    tile.plateColor ||
+      tile.holdDoorColor ||
+      tile.holdDoorTogglesTo ||
+      tile.toggleChannel ||
+      tile.channelTogglesTo ||
+      tile.togglesTo
+  );
+}
+
+/** Every terrain id a cell holding the tile can turn into by a block, a step off, an unlock or a toggle. */
+function terrainsReachableFrom(tile: TileDefinition, lookup: TerrainTileLookup): Set<string> {
+  const reached = new Set<string>();
+  const pending: TileDefinition[] = [tile];
+  while (pending.length > 0) {
+    const current = pending.pop() as TileDefinition;
+    const next = [
+      current.blockTransformsTo ?? (current.hazard === 'water' ? SUNK_BLOCK_TILE_ID : undefined),
+      current.transformsToOnLeave,
+      current.transformsToOnUnlock,
+      current.togglesTo,
+      current.flameTogglesTo
+    ];
+    for (const id of next) {
+      if (id === undefined || reached.has(id)) continue;
+      reached.add(id);
+      const tileOfId = lookup(id);
+      if (tileOfId) pending.push(tileOfId);
+    }
+  }
+  return reached;
+}
+
+/**
+ * The underlays of a level in canonical form: only the Epoxy ruleset carries them. Entries that are
+ * not records, lie outside the grid or name no terrain of the terrain layer are dropped. With a tile
+ * lookup, an entry is also dropped when the cell's top is not a removable top (a door, a socket, a fake
+ * wall, dirt), when the underlay is itself a removable top, a plate, a hold door or a toggle wall (the
+ * engine plays underlays statically, a live device would need run-time state), or when the underlay can
+ * turn back into the cell's top (dirt over water: a block sunk there makes dirt again, which would
+ * reveal a second time). The first entry of a cell wins, and the entries are sorted by row, then column.
+ * Returns null when none is left.
  */
 export function normalizeUnderlays(
   underlays: unknown,
   terrain: readonly (readonly string[])[],
-  ruleset: unknown
+  ruleset: unknown,
+  lookup: TerrainTileLookup | null = registeredTerrainLookup
 ): CellUnderlay[] | null {
   if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(underlays)) return null;
   const height = terrain.length;
@@ -527,7 +580,14 @@ export function normalizeUnderlays(
   for (const entry of underlays as unknown[]) {
     if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height)) continue;
     const id = entry.terrain;
-    if (typeof id !== 'string' || !ConfigRegistry.isTerrainTile(id) || isRemovableTop(ConfigRegistry.getTile(id))) continue;
+    if (typeof id !== 'string') continue;
+    if (lookup !== null) {
+      const tile = lookup(id);
+      const topId = terrain[entry.y as number][entry.x as number];
+      const top = lookup(topId);
+      if (!tile || !top || !isRemovableTop(top) || isRemovableTop(tile) || isLiveDevice(tile)) continue;
+      if (terrainsReachableFrom(tile, lookup).has(topId)) continue;
+    }
     const index = (entry.y as number) * width + (entry.x as number);
     if (!byCell.has(index)) byCell.set(index, id);
   }

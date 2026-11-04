@@ -222,6 +222,24 @@ describe('underlays in config validation', () => {
     expect(sanitizeStoredLevels([plain], BOUNDS)[0]).toBe(plain);
   });
 
+  it('drops an underlay that could reveal a second time, sits under a non-removable top or is a live device', () => {
+    const grid = (top: string): string[][] => {
+      const rows = level().terrain as string[][];
+      rows[1][1] = top;
+      return rows;
+    };
+    const under = (id: string) => [{ x: 1, y: 1, terrain: id }];
+    // Dirt over water: a block sunk in the water makes dirt again, which would reveal the water twice.
+    expect(normalizeUnderlays(under('water'), grid('dirt'), 'epoxy')).toBeNull();
+    expect(normalizeUnderlays(under('ice'), grid('dirt'), 'epoxy')).toEqual(under('ice'));
+    // Ice under a wall: a wall is no removable top.
+    expect(normalizeUnderlays(under('ice'), grid('wall'), 'epoxy')).toBeNull();
+    // Plates, hold doors and toggle walls need run-time state the engine does not give an underlay.
+    for (const id of ['pressure_plate_red', 'hold_door_red_closed', 'toggle_wall_closed']) {
+      expect(normalizeUnderlays(under(id), grid('door_red'), 'epoxy')).toBeNull();
+    }
+  });
+
   it('normalises to null when nothing is left', () => {
     expect(normalizeUnderlays([], level().terrain as string[][], 'epoxy')).toBeNull();
     expect(normalizeUnderlays([{ x: 0, y: 0, terrain: 'door_red' }], level().terrain as string[][], 'epoxy')).toBeNull();

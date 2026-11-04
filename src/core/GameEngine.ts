@@ -573,6 +573,8 @@ export class GameEngine {
       resolveLasers(this.ctx);
       this.checkTargetsWin();
     } else {
+      // A move that revealed an underlay and was then rejected still spends the key and drops its undo
+      // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       this.undoStack.pop();
       if (this.w.gridMutatedByMove || this.w.player.dir !== dirBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
