@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor beam preview (Epoxy rules): the Beams button or the L key overlays where the laser beams run on the level at tick 0 with the turrets armed (emitter and mirror paths, lit receivers, the later facings of a turning turret dimmed, a marker on each gate about to open); it follows edits after a short pause, announces a summary for screen readers when it changes, and is unavailable on Lynx and CC3D levels. The game's beam drawing is now shared through a public `drawBeamCells`.
 - Level editor Mechanisms palette sub-headings: the tab groups its entries under headings (buttons and wiring, teleports, lasers and mirrors, colour channels, blocks and turrets, flames and toggles), derived from the tile and entity config so a new engine id lands in a group by itself.
 - Level editor facing and clone templates (Epoxy rules): Shift+R turns the creature or turret under the cursor a quarter turn clockwise as one undo step; a clone machine shows the creature it clones, with its facing, as a corner badge; the cell description speaks a turret's facing and what a clone machine clones; palette icons of creatures and turrets follow the direction control; a clone wire drawn to a clone machine with no creature warns that the default block is used.
 - Level editor resize anchor: a 3 x 3 picker in the Size section chooses which part of the level stays fixed when it is resized (cells, links, thin walls, hidden terrain and CC3D creatures move with it), on Epoxy, Lynx and CC3D levels; the default stays top-left.

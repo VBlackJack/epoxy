@@ -483,6 +483,7 @@
       "kb_editor_cc3d_panel": { "label": "Cloisons fines CC3D : avec l'entrée cloison fine choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction)" },
       "kb_editor_cc3d_links": { "label": "Liens CC3D : survolez un dispositif ou placez le curseur dessus pour voir ce qu'il actionne ; la ligne d'état signale une modification qui change un lien" },
       "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
+      "kb_editor_beam_preview": { "label": "L : afficher ou masquer l'aperçu des faisceaux laser (au tick 0, tourelles armées)" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
       "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
@@ -675,6 +676,15 @@
         "not_supported": "Tester d'ici : ce moteur ne le gère pas."
       },
       "status": "Test depuis ({x}, {y})."
+    },
+    "beam_preview": {
+      "action": { "label": "Faisceaux" },
+      "title": { "label": "Afficher le trajet des faisceaux laser au tick 0, tourelles armées (L)" },
+      "summary": { "label": "Aperçu des faisceaux au tick 0 : {cells, plural, one {# case de faisceau} other {# cases de faisceau}}, {lit, plural, one {# récepteur allumé} other {# récepteurs allumés}} sur {total}, {gates, plural, one {# porte} other {# portes}} en ouverture." },
+      "none": { "label": "Aperçu des faisceaux : ce niveau n'a pas de laser." },
+      "off": { "label": "Aperçu des faisceaux masqué." },
+      "unavailable_cc3d": { "label": "Aperçu des faisceaux : indisponible sur les niveaux CC3D." },
+      "unavailable_lynx": { "label": "Aperçu des faisceaux : indisponible sur les niveaux Lynx." }
     },
     "template": {
       "title": "Nouveau niveau",
