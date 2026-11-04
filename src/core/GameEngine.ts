@@ -33,6 +33,7 @@ import {
 } from './epoxy/epoxyPlayer';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
+import { advanceShots } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
@@ -58,6 +59,7 @@ import {
   GridPoint,
   PlayerState,
   RuntimeEntity,
+  Shot,
   TimedMove,
   TrapLink,
   UndoSnapshot
@@ -275,6 +277,14 @@ export class GameEngine {
     return this.w.player;
   }
 
+  /**
+   * The shots in flight, in the order they were fired; undefined on a level without shot launchers, so
+   * nothing about shots reaches a level that has none. The list is shared: do not mutate it.
+   */
+  public getShots(): readonly Shot[] | undefined {
+    return this.w.hasLaunchers ? this.w.shots : undefined;
+  }
+
   public getChipsRemaining(): number {
     return Math.max(0, this.w.chipsRemaining);
   }
@@ -460,7 +470,9 @@ export class GameEngine {
       moveHistoryLength: this.moveHistory.length,
       timedMoveHistoryLength: this.timedMoveHistory.length,
       // Only a level with turrets reads the play start; the other snapshots stay as they were.
-      ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {})
+      ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {}),
+      // Only a level with shot launchers has shots to put back.
+      ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {})
     };
   }
 
@@ -504,6 +516,10 @@ export class GameEngine {
     this.moveHistory.length = snap.moveHistoryLength;
     this.timedMoveHistory.length = snap.timedMoveHistoryLength;
     this.w.playStartTick = snap.playStartTick ?? NO_PLAY_START_TICK;
+    this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
+    // The launchers fired in the undone moment may fire again.
+    this.w.firedLaunchers.clear();
+    this.w.inTick = false;
     this.w.levelCompleted = false;
     this.w.statusBannerKey = null;
     this.w.beamDirty = true;
@@ -522,6 +538,8 @@ export class GameEngine {
       return;
     }
 
+    // A shot fired from here to the end of the pass is advanced by this very tick.
+    this.w.inTick = true;
     if (this.w.player.moveCooldown > 0) {
       this.w.player.moveCooldown--;
     }
@@ -535,6 +553,10 @@ export class GameEngine {
     }
 
     updateEntities(this.ctx);
+    advanceShots(this.ctx);
+    this.w.inTick = false;
+    // A new tick lets every launcher fire again; a move made before it counts with it.
+    this.w.firedLaunchers.clear();
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     setHoldDoors(this.ctx);
     turnTurrets(this.w, this.ticksElapsed);

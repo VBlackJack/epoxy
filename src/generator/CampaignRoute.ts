@@ -16,6 +16,7 @@
 
 import { ORDERED_DIRECTIONS } from '../config/constants';
 import { GameEngine } from '../core/GameEngine';
+import { shotsStateKey } from '../core/epoxy/epoxyShots';
 import { CompiledLevel, GridPoint, UndoSnapshot } from '../core/types';
 import { encodeActions, PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
 
@@ -278,5 +279,6 @@ function stateKey(engine: GameEngine, base: UndoSnapshot): string {
   }
   entities.sort();
   const phase = engine.getTurretPhaseKey();
-  return `${player.x},${player.y}|${held.sort().join()}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}${phase ? `|${phase}` : ''}`;
+  const shots = shotsStateKey(engine.getShots());
+  return `${player.x},${player.y}|${held.sort().join()}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}${phase ? `|${phase}` : ''}${shots ? `|${shots}` : ''}`;
 }

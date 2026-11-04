@@ -29,7 +29,8 @@ import {
   isInBounds,
   killPlayer,
   leaveCell,
-  removeEntity
+  removeEntity,
+  shotAt
 } from './epoxyWorld';
 
 export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction): boolean {
@@ -70,6 +71,8 @@ export function isCanBlockEnter(
 
   const existingEntity = getEntityAt(w, destX, destY);
   if (existingEntity) return false;
+  // A flying shot is no occupant, but a block never rides into it.
+  if (w.shots.length > 0 && shotAt(w, destX, destY)) return false;
 
   return true;
 }

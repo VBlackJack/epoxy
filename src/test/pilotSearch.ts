@@ -16,6 +16,7 @@
 
 import { ORDERED_DIRECTIONS } from '../config/constants';
 import { GameEngine } from '../core/GameEngine';
+import { shotsStateKey } from '../core/epoxy/epoxyShots';
 import { Direction, UndoSnapshot } from '../core/types';
 import { PieceSolver, WAIT_ACTION } from '../generator/PieceSolver';
 
@@ -70,6 +71,7 @@ export function searchStateKey(engine: GameEngine): string {
   // A turret's facing and the turret clock tell states apart; both are absent (and the key unchanged) elsewhere.
   const entities = state.entities.map((e) => [e.type, e.x, e.y, e.dir, e.cooldownTicks, e.isSliding, ...(e.facing ? [e.facing] : [])]);
   const phase = engine.getTurretPhaseKey();
+  const shots = shotsStateKey(engine.getShots());
   return JSON.stringify([
     state.player.x,
     state.player.y,
@@ -82,7 +84,8 @@ export function searchStateKey(engine: GameEngine): string {
     state.items,
     entities,
     state.rngState,
-    ...(phase ? [phase] : [])
+    ...(phase ? [phase] : []),
+    ...(shots ? [shots] : [])
   ]);
 }
 

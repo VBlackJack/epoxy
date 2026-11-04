@@ -88,6 +88,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           time: engine.getTimeRemainingSeconds(),
           trapLinks: engine.getTrapLinks(),
           cloneLinks: engine.getCloneLinks(),
+          // Undefined (and so left out of the hash) on a level without launchers.
+          shots: engine.getShots(),
           steps: engine.getStepsCount(),
           score: engine.getTotalScore(),
           extraTime: engine.getExtraTimeSeconds(),

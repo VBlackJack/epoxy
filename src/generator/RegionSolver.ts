@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
+import { shotsStateKey } from '../core/epoxy/epoxyShots';
 import { CompiledLevel, Direction, GridPoint, RuntimeEntity, UndoSnapshot } from '../core/types';
 import { PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
 
@@ -371,7 +372,8 @@ export class RegionSolver {
     }
     entities.sort();
     const phase = engine.getTurretPhaseKey();
-    return `${player.x},${player.y}|${keys}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}${phase ? `|${phase}` : ''}`;
+    const shots = shotsStateKey(engine.getShots());
+    return `${player.x},${player.y}|${keys}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}${phase ? `|${phase}` : ''}${shots ? `|${shots}` : ''}`;
   }
 
   /** Plays the moves in the real level: the player must end on the last target with every target collected. */

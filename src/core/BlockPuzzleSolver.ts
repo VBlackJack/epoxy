@@ -251,6 +251,8 @@ export class BlockPuzzleSolver {
     }
     if (engine.getEntities().some((e) => !MODELLED_ENTITIES.includes(e.type))) return null;
     if (engine.getLevel().cloneLinks.length > 0 || engine.getLevel().trapLinks.length > 0) return null;
+    // Flying shots destroy blocks and monsters: the search does not model them.
+    if (engine.getShots() !== undefined || (engine.getLevel().launcherLinks?.length ?? 0) > 0) return null;
     const { x, y } = engine.getPlayer();
     return terrain[y]?.[x] === WALL_TILE_ID ? null : cells;
   }

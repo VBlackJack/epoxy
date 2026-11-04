@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, MAX_SOLVER_CACHE_ENTRIES, ORDERED_DIRECTIONS } from '../config/constants';
 import { EXIT_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
+import { shotsStateKey } from '../core/epoxy/epoxyShots';
 import { CompiledLevel, Direction, EntityPlacement, GridPoint, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
 
@@ -644,6 +645,8 @@ export class PieceSolver {
     ];
     const phase = engine.getTurretPhaseKey();
     if (phase) parts.push(phase);
+    const shots = shotsStateKey(engine.getShots());
+    if (shots) parts.push(shots);
     for (let y = 0; y < piece.height; y++) {
       const row = terrain[y + origin.y];
       const itemRow = items[y + origin.y];

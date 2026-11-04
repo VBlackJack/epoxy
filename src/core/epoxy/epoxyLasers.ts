@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { LASER_VISITS_PER_CELL, MIRROR_REFLECTIONS } from '../coreConstants';
+import { LASER_VISITS_PER_CELL, reflectOnMirror } from '../coreConstants';
 import { BeamCell, Direction, GridPoint, RuntimeEntity } from '../types';
 import {
   EpoxyContext,
@@ -47,7 +47,7 @@ export function refreshBeams(w: EpoxyWorld): void {
  * A beam leaves its emitter in the emitter's direction and goes on until the
  * map edge, a thin wall on the edge it crosses, an opaque cell (the receiver
  * it lights included) or a block that is not a mirror. A mirror, at rest or
- * sliding, turns it. Players and monsters do not stop it, teleporters do not
+ * sliding, turns it (a one-sided mirror only on its front faces; its back stops the beam). Players and monsters do not stop it, teleporters do not
  * move it and bombs are not set off. The emitter cell and the cell that stops
  * a beam are not beam cells.
  */
@@ -82,8 +82,12 @@ function traceBeams(w: EpoxyWorld): void {
         }
         if (tile.laserTransparent !== true) break;
         const block = blocksByCell.get(index);
-        const axis = block ? ConfigRegistry.getEntityDef(block.type)?.mirrorAxis : undefined;
+        const mirror = block ? ConfigRegistry.getEntityDef(block.type) : undefined;
+        const axis = mirror?.mirrorAxis;
         if (block && !axis) break;
+        // A one-sided mirror turns the beam on its front faces; on its back faces it stops it, uncovered and unharmed.
+        const turned = axis ? reflectOnMirror(axis, mirror?.mirrorFrontCorner, dir) : null;
+        if (block && axis && turned === null) break;
         const visit = index * ORDERED_DIRECTIONS.length + ORDERED_DIRECTIONS.indexOf(dir);
         if (visited.has(visit)) break;
         visited.add(visit);
@@ -91,9 +95,9 @@ function traceBeams(w: EpoxyWorld): void {
         const cell = crossed.get(index) ?? { x: nx, y: ny, horizontal: false, vertical: false };
         crossed.set(index, cell);
         markBeamAxis(cell, dir);
-        if (block && axis) {
+        if (block && axis && turned !== null) {
           if (block.isSliding) w.beamHasSlidingMirror = true;
-          dir = MIRROR_REFLECTIONS[axis][dir];
+          dir = turned;
           markBeamAxis(cell, dir);
         }
         x = nx;
