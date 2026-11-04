@@ -348,7 +348,12 @@ const EPOXY_TO_CC3D_PAINTER: Readonly<Record<string, string>> = Object.fromEntri
     [`toggle_wall_${c}_open`, `cc3d_toggle_door_${c}_open`],
     [`toggle_button_${c}`, `cc3d_toggle_control_${c}`]
   ]),
-  ...CHANNEL_PAINTER_COLORS.map((c) => [`color_block_${c}`, `cc3d_block_${c}`])
+  ...CHANNEL_PAINTER_COLORS.map((c) => [`color_block_${c}`, `cc3d_block_${c}`]),
+  // Turrets are drawn as the cc3d bots they play.
+  ['turret_fixed', 'cc3d_bot_static'],
+  ['turret_cw', 'cc3d_bot_cw'],
+  ['turret_ccw', 'cc3d_bot_ccw'],
+  ['turret_multi', 'cc3d_bot_multi']
 ]);
 
 /** Colour of each floating block tile: water with the block faint under the surface. */
@@ -1206,7 +1211,8 @@ export class PixelRenderer {
         if (skinned) {
           this.drawSkinLayers(sceneCtx, skinned, px, py, unit);
         } else {
-          this.drawEntity(sceneCtx, ent.type, ent.dir, px, py, unit);
+          // A turret is drawn facing the way it fires, which is not the way it was pushed.
+          this.drawEntity(sceneCtx, ent.type, ent.facing ?? ent.dir, px, py, unit);
           if (onTarget) this.drawBlockOnTargetOutline(sceneCtx, px, py, unit);
         }
         if (lit) this.addLight(ent.type, vPos.x - camX, vPos.y - camY, tilePixelSize, settings);
@@ -4697,7 +4703,9 @@ export class PixelRenderer {
     if (cells.length > 0) {
       const byCell = new Map<number, BeamCell>();
       const width = terrain[0]?.length ?? 0;
-      for (const cell of cells) byCell.set(cell.y * width + cell.x, cell);
+      // The corners of a mirror follow the emitter beams only: a turret beam never feeds a mirror, and
+      // its cells are drawn as plain lines.
+      for (const cell of laser.getEmitterBeamCells?.() ?? cells) byCell.set(cell.y * width + cell.x, cell);
       const mirrors = new Map<number, MirrorAxis>();
       for (const ent of entities) {
         const axis = ent.kind === 'block' ? ConfigRegistry.getEntityDef(ent.type)?.mirrorAxis : undefined;

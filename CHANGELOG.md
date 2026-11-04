@@ -7,6 +7,13 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor fill selection: Shift+F (or the Fill selection button) fills the selected rectangle with the chosen
+  palette entry as one undo step, on Epoxy, Lynx and CC3D levels; choosing a palette entry on the Select tool now
+  keeps the selection.
+- Level editor thin wall tool (Epoxy rules): the Terrain tab ends with a Thin Wall entry; a click toggles the side
+  of the cell nearest the pointer (keyboard: the side of the direction control), with a bar showing the side
+  first. A wall shared by two cells is removed from both. The cell description spoken to screen readers lists
+  the closed sides.
 - Level editor screen reader support: once the keyboard cursor stops (about 300 ms), a polite live region
   speaks the cell: its coordinates, tile, item, creature and facing, player start, or the CC3D stack from the
   bottom up. Pointer hover, selection resizing and paste previews stay silent.

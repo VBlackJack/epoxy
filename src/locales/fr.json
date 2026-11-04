@@ -475,9 +475,10 @@
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
       "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible ou un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
-      "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
+      "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Maj+F remplit la sélection avec l'élément choisi dans la palette ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
       "kb_editor_cc3d_eraser": { "label": "Niveaux CC3D : la gomme retire l'élément le plus haut d'une case (créature, puis objet, puis couche du haut) ; Maj+gomme vide toute la case" },
+      "kb_editor_cell_edge": { "label": "Cloisons fines : avec l'entrée cloison fine de l'onglet Terrain choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction) ; une cloison partagée avec la case voisine est retirée des deux" },
       "kb_editor_cc3d_panel": { "label": "Cloisons fines CC3D : avec l'entrée cloison fine choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction)" },
       "kb_editor_cc3d_links": { "label": "Liens CC3D : survolez un dispositif ou placez le curseur dessus pour voir ce qu'il actionne ; la ligne d'état signale une modification qui change un lien" },
       "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
@@ -559,11 +560,13 @@
   },
   "editor": {
     "cell_speech": {
+      "list_separator": { "label": ", " },
       "name": { "label": "{name}" },
       "outside": { "label": "Hors de la grille" },
       "item": { "label": "objet : {name}" },
       "entity": { "label": "{name}, tourné vers {side}" },
       "player": { "label": "Départ du joueur, tourné vers {side}" },
+      "edges": { "label": "cloisons fines : {sides}" },
       "side": {
         "n": { "label": "le nord" },
         "e": { "label": "l'est" },
@@ -611,7 +614,11 @@
     "selection": {
       "tool": {
         "label": "Sélection",
-        "title": "Sélection (S) : faites glisser pour choisir un rectangle. Ctrl (Cmd) + C copier, X couper, V coller ; Suppr effacer, Alt+flèches déplacer."
+        "title": "Sélection (S) : faites glisser pour choisir un rectangle. Ctrl (Cmd) + C copier, X couper, V coller ; Suppr effacer, Maj+F remplir, Alt+flèches déplacer."
+      },
+      "fill": {
+        "label": "Remplir la sélection",
+        "title": "Remplit la sélection avec l'élément choisi dans la palette (Maj+F). Choisissez d'abord un rectangle."
       },
       "status": {
         "size": "Sélection : {width} x {height} cases.",
@@ -632,7 +639,13 @@
         "border_skipped": "{count, plural, one {# case de l'anneau de murs extérieur a été laissée telle quelle} other {# cases de l'anneau de murs extérieur ont été laissées telles quelles}}.",
         "paste_skipped": "{count, plural, one {# élément a été ignoré : les règles Lynx ne peuvent pas le jouer} other {# éléments ont été ignorés : les règles Lynx ne peuvent pas les jouer}}.",
         "paste_refused_epoxy": "Cette sélection vient d'un niveau Epoxy ou Lynx : elle ne peut pas être collée dans un niveau CC3D.",
-        "paste_refused_cc3d": "Cette sélection vient d'un niveau CC3D : elle ne peut pas être collée dans un niveau Epoxy ou Lynx."
+        "paste_refused_cc3d": "Cette sélection vient d'un niveau CC3D : elle ne peut pas être collée dans un niveau Epoxy ou Lynx.",
+        "fill_hint": "Maj+F remplit la sélection avec {name}.",
+        "filled": "{width} x {height} cases remplies avec {name}.",
+        "fill_start_kept": "La case de départ du joueur a été laissée telle quelle.",
+        "fill_refused_cell_edge": "Les cloisons fines ne peuvent pas remplir une sélection : dessinez-les avec le pinceau.",
+        "fill_refused_entry": "Cet élément ne peut pas remplir une sélection.",
+        "fill_refused_attributes": "Cet élément demande une couleur ou un réglage valide : choisissez-le dans les options de la palette."
       }
     },
     "check": {
@@ -889,6 +902,7 @@
       },
       "tools": {
         "player_start": { "label": "Départ Joueur" },
+        "cell_edge": { "label": "Cloison fine" },
         "wire_trap": { "label": "Relier Bouton Brun → Piège" },
         "wire_cloner": { "label": "Relier Bouton Rouge → Cloneur" }
       },
@@ -905,6 +919,7 @@
         "saved_session_only": { "label": "Niveau conservé pour cette session seulement : le navigateur n'a pas pu le sauvegarder." },
         "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
+        "cell_edge_mode": { "label": "Cloison fine : cliquez près d'un côté d'une case pour l'ajouter ou le retirer (clavier : le côté du contrôle de direction)." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
         "wire_linked": { "label": "Connexion mécanique établie !" }
       }
@@ -1113,6 +1128,10 @@
     "fireball": { "name": "Boule de Feu (Ignifugée)" },
     "tank": { "name": "Tank Blindé (Bouton Bleu)" },
     "blob": { "name": "Blob Gélatineux" },
+    "turret_fixed": { "name": "Tourelle fixe" },
+    "turret_cw": { "name": "Tourelle horaire" },
+    "turret_ccw": { "name": "Tourelle antihoraire" },
+    "turret_multi": { "name": "Tourelle quadruple" },
     "mirror_slash": { "name": "Miroir (Barre oblique)" },
     "mirror_backslash": { "name": "Miroir (Barre oblique inverse)" },
     "color_block_red": { "name": "Bloc de Couleur Rouge" },

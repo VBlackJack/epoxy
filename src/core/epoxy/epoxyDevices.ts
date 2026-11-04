@@ -235,6 +235,8 @@ function spawnFromCloner(
       : canMonsterEnter(w, probe, templateDir);
   if (!canEnter) return true;
 
+  // A turret clone fires the way its template does now (templates turn), else the way it is spawned.
+  const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
   const spawned: RuntimeEntity = {
     uid: w.nextEntityUid++,
     type: templateType,
@@ -243,7 +245,8 @@ function spawnFromCloner(
     y: spawnY,
     dir: templateDir,
     cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
-    isSliding: kind === 'block'
+    isSliding: kind === 'block',
+    ...(def?.turretBeam ? { facing: template?.facing ?? templateDir } : {})
   };
   w.entities.push(spawned);
   if (spawned.kind === 'block') {

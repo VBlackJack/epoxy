@@ -62,7 +62,9 @@ export function searchStateKey(engine: GameEngine): string {
   const keys = Object.entries(state.player.keys)
     .filter(([, count]) => count > 0)
     .sort(([a], [b]) => a.localeCompare(b));
-  const entities = state.entities.map((e) => [e.type, e.x, e.y, e.dir, e.cooldownTicks, e.isSliding]);
+  // A turret's facing and the turret clock tell states apart; both are absent (and the key unchanged) elsewhere.
+  const entities = state.entities.map((e) => [e.type, e.x, e.y, e.dir, e.cooldownTicks, e.isSliding, ...(e.facing ? [e.facing] : [])]);
+  const phase = engine.getTurretPhaseKey();
   return JSON.stringify([
     state.player.x,
     state.player.y,
@@ -74,7 +76,8 @@ export function searchStateKey(engine: GameEngine): string {
     state.terrain,
     state.items,
     entities,
-    state.rngState
+    state.rngState,
+    ...(phase ? [phase] : [])
   ]);
 }
 

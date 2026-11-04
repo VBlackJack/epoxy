@@ -22,12 +22,13 @@ import {
   type Cc3dClip,
   clearCc3dRect,
   extractCc3dClip,
+  fillCc3dRect,
   floodFillCc3d,
   moveCc3dRect,
   pasteCc3dClip,
   resizeCc3d
 } from './cc3dAreaEdits';
-import { emptyCell } from './cc3dEdits';
+import { emptyCell, placeLayer } from './cc3dEdits';
 
 const BOUNDS = { minSize: 1, maxSize: 128 };
 const BIG_SIZE = 128;
@@ -571,5 +572,119 @@ describe('purity', () => {
     const clip = extractCc3dClip(l, rect(2, 1, 1, 1), false);
     expect(clip.cells[0].terrain.map((layer) => layer.kind)).toEqual(['floor', 'bomb']);
     expect(kindsAt(pasteCc3dClip(l, clip, 3, 1).level, 3, 1)).toEqual(['floor', 'bomb']);
+  });
+});
+
+describe('fillCc3dRect', () => {
+  const l = level(['#######', '#@.iK.#', '#.WMZ.#', '#######']);
+  const wall = { action: 'layer', layer: { kind: 'wall' } } as const;
+
+  it('returns the very same level when every cell already holds the layer', () => {
+    const result = fillCc3dRect(l, rect(2, 1, 2, 1), { action: 'layer', layer: { kind: 'floor' } });
+    expect(result.changed).toBe(false);
+    expect(result.refused).toBe(false);
+    expect(result.level).toBe(l);
+    expect(result.rect).toEqual(rect(2, 1, 2, 1));
+  });
+
+  it('places the layer on every cell of the rectangle and shares the cells it did not touch', () => {
+    const result = fillCc3dRect(l, rect(1, 2, 2, 1), wall);
+    expect(result.changed).toBe(true);
+    expect(kindsAt(result.level, 1, 2)).toContain('wall');
+    expect(kindsAt(result.level, 2, 2)).toContain('wall');
+    for (let i = 0; i < l.cells.length; i++) {
+      const inside = i === 2 * 7 + 1 || i === 2 * 7 + 2;
+      expect(result.level.cells[i] === l.cells[i]).toBe(!inside);
+    }
+    expect(result.level.mobs).toBe(l.mobs);
+  });
+
+  it('places a layer in class order, exactly as placing it cell by cell does', () => {
+    const door = { action: 'layer', layer: { kind: 'door', color: 'red' } } as const;
+    const result = fillCc3dRect(l, rect(1, 1, 5, 2), door);
+    let expected = l;
+    for (let y = 1; y <= 2; y++) {
+      for (let x = 1; x <= 5; x++) expected = placeLayer(expected, x, y, { kind: 'door', color: 'red' });
+    }
+    expect(result.level.cells).toEqual(expected.cells);
+    expect(kindsAt(result.level, 2, 2)).toEqual(kindsAt(expected, 2, 2));
+  });
+
+  it('refuses a layer without the attribute its kind needs, leaving the level alone', () => {
+    const result = fillCc3dRect(l, rect(1, 1, 2, 2), { action: 'layer', layer: { kind: 'door' } });
+    expect(result.refused).toBe(true);
+    expect(result.changed).toBe(false);
+    expect(result.level).toBe(l);
+  });
+
+  it('writes an item on every cell, a key needing a colour', () => {
+    const result = fillCc3dRect(l, rect(1, 2, 2, 1), { action: 'item', item: { kind: 'key', color: 'blue' } });
+    expect(result.level.cells[2 * 7 + 1].item).toEqual({ kind: 'key', color: 'blue' });
+    expect(result.level.cells[2 * 7 + 2].item).toEqual({ kind: 'key', color: 'blue' });
+    expect(result.level.cells[2 * 7 + 3]).toBe(l.cells[2 * 7 + 3]);
+    const refused = fillCc3dRect(l, rect(1, 2, 2, 1), { action: 'item', item: { kind: 'key' } });
+    expect(refused.refused).toBe(true);
+    expect(refused.level).toBe(l);
+    const same = fillCc3dRect(l, rect(3, 1, 1, 1), { action: 'item', item: { kind: 'fish' } });
+    expect(same.level).toBe(l);
+  });
+
+  it('replaces a creature in place and inserts a new one at its canonical position', () => {
+    expect(mobsOf(l)).toEqual(['block_dirt@4,1', 'walker@3,2', 'block_ice@4,2']);
+    const result = fillCc3dRect(l, rect(2, 2, 3, 1), { action: 'mob', mob: { kind: 'bouncer', x: 0, y: 0, dir: 'E' } });
+    expect(result.changed).toBe(true);
+    expect(result.removedMobs).toBe(2);
+    // The walker and the ice block keep their index; the new bouncer is an enemy, so it lands before the dirt block, which the level files list last.
+    expect(mobsOf(result.level)).toEqual(['bouncer@2,2', 'block_dirt@4,1', 'bouncer@3,2', 'bouncer@4,2']);
+    expect(result.level.mobs.every((mob) => mob.kind !== 'bouncer' || mob.dir === 'E')).toBe(true);
+    expect(result.level.cells).toBe(l.cells);
+  });
+
+  it('replaces only the first creature found on a cell', () => {
+    const stacked = withMobs(l, [...l.mobs, { kind: 'block_ice', x: 3, y: 2, dir: 'N' }]);
+    const result = fillCc3dRect(stacked, rect(3, 2, 1, 1), { action: 'mob', mob: { kind: 'bouncer', x: 0, y: 0, dir: 'E' } });
+    expect(result.removedMobs).toBe(1);
+    expect(mobsOf(result.level).filter((mob) => mob.endsWith('@3,2')).sort()).toEqual(['block_ice@3,2', 'bouncer@3,2']);
+    expect(result.level.mobs).toHaveLength(stacked.mobs.length);
+  });
+
+  it('skips the player start cell and counts it', () => {
+    const result = fillCc3dRect(l, rect(1, 1, 2, 1), { action: 'mob', mob: { kind: 'bouncer', x: 0, y: 0, dir: 'N' } });
+    expect(result.skippedMobs).toBe(1);
+    expect(mobsOf(result.level)).toContain('bouncer@2,1');
+    expect(mobsOf(result.level)).not.toContain('bouncer@1,1');
+    expect(result.level.player).toBe(l.player);
+  });
+
+  it('keeps a creature identical to the one it would place, and returns the same level when nothing changes', () => {
+    const result = fillCc3dRect(l, rect(3, 2, 1, 1), { action: 'mob', mob: { ...l.mobs[1] } });
+    expect(result.changed).toBe(false);
+    expect(result.level).toBe(l);
+  });
+
+  it('refuses a creature that lacks its colour or its mirror', () => {
+    for (const mob of [
+      { kind: 'block_color', x: 0, y: 0, dir: 'N' },
+      { kind: 'reflector', x: 0, y: 0, dir: 'N' }
+    ] as const) {
+      const result = fillCc3dRect(l, rect(1, 2, 2, 1), { action: 'mob', mob });
+      expect(result.refused).toBe(true);
+      expect(result.level).toBe(l);
+    }
+  });
+
+  it('clips the rectangle to the grid and does nothing outside it', () => {
+    const outside = fillCc3dRect(l, rect(20, 20, 2, 2), wall);
+    expect(outside.level).toBe(l);
+    expect(outside.refused).toBe(false);
+    const partial = fillCc3dRect(l, rect(5, 1, 6, 1), wall);
+    expect(partial.rect).toEqual(rect(5, 1, 2, 1));
+  });
+
+  it('does not modify its input', () => {
+    const before = JSON.stringify(l);
+    fillCc3dRect(l, rect(1, 1, 5, 2), wall);
+    fillCc3dRect(l, rect(1, 1, 5, 2), { action: 'mob', mob: { kind: 'bouncer', x: 0, y: 0, dir: 'N' } });
+    expect(JSON.stringify(l)).toBe(before);
   });
 });

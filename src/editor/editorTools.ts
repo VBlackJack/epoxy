@@ -26,6 +26,7 @@ import {
   paintTerrain,
   placeWireButton,
   placeWireLink,
+  toggleCellEdge,
   WireKind,
   WireRefusal
 } from './mapEdits';
@@ -34,7 +35,10 @@ export type EditorTool = 'brush' | 'fill' | 'eraser' | 'picker' | 'select';
 
 export const EDITOR_TOOLS: readonly EditorTool[] = ['brush', 'fill', 'eraser', 'picker', 'select'];
 
-export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'wire_trap' | 'wire_cloner';
+export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'wire_trap' | 'wire_cloner' | 'cell_edge';
+
+/** Id of the thin wall entry of the Epoxy palette (the CC3D palettes keep their own 'panel' entry). */
+export const CELL_EDGE_BRUSH_ID = 'cell_edge';
 
 /** What the brush tool places: a palette entry. */
 export interface Brush {
@@ -75,6 +79,8 @@ export interface ToolInput {
   tool: EditorTool;
   brush: Brush;
   dir: Direction;
+  /** The side of the cell a thin wall acts on (the pointer's nearest side); the facing when absent. */
+  side?: Direction;
   x: number;
   y: number;
   pendingWire: PendingWire | null;
@@ -153,16 +159,18 @@ export function applyTool(input: ToolInput): ToolOutcome {
       return fromEdit(paintEntity(map, x, y, brush.id, dir), input.pendingWire);
     case 'player_start':
       return fromEdit(paintPlayerStart(map, x, y, dir), input.pendingWire);
+    case 'cell_edge':
+      return fromEdit(toggleCellEdge(map, x, y, input.side ?? dir), input.pendingWire);
     default:
       return { map, changed: false, pendingWire: input.pendingWire, messages: [] };
   }
 }
 
-/** True when holding the pointer down and moving keeps painting: wires and fills act once per click. */
+/** True when holding the pointer down and moving keeps painting: wires, fills and thin walls act once per click. */
 export function continuesOnDrag(tool: EditorTool, brush: Brush, forceErase: boolean): boolean {
   if (forceErase || tool === 'eraser') return true;
   if (tool !== 'brush') return false;
-  return wireKindOf(brush) === null;
+  return wireKindOf(brush) === null && brush.kind !== 'cell_edge';
 }
 
 /** What the picker takes from a cell. */

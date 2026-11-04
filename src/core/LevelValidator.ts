@@ -952,7 +952,8 @@ export class LevelValidator {
     });
     if (!litDrivesGates) return [];
     const flagged = new Set<string>();
-    for (const { x, y } of engine.getBeamCells()) {
+    // Emitter beams only: a turret beam lights no receiver, so a gate on its path feeds nothing.
+    for (const { x, y } of engine.getEmitterBeamCells()) {
       const group = ConfigRegistry.getTile(terrain[y][x]).laserGateGroup;
       if (group !== undefined) flagged.add(group);
     }
