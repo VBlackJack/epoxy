@@ -2583,6 +2583,49 @@ body.fullscreen-mode .view-section {
   width: 100%;
 }
 
+.convert-report-dialog {
+  width: 36rem;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.convert-report-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.convert-report-body p,
+.convert-report-body h4,
+.convert-report-body ul {
+  margin: 0;
+}
+
+.convert-report-counts,
+.convert-report-list {
+  padding-left: 1.2rem;
+}
+
+.convert-report-list li {
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.convert-report-warning {
+  color: var(--accent-yellow);
+}
+
+.convert-report-detail summary {
+  cursor: pointer;
+}
+
+.convert-report-errors {
+  color: var(--accent-orange);
+}
+
 .sr-only,
 .packs-live {
   position: absolute;
