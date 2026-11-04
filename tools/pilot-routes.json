@@ -364,6 +364,44 @@
         "WSENEESEEWW",
         "NWWSEEEE"
       ]
+    },
+    "epoxy_p_31": {
+      "segments": [
+        "EEEENNSSWWW",
+        "WWWNNSSWWNN",
+        "SSEEEESS"
+      ],
+      "requires": [
+        "boots_fire"
+      ]
+    },
+    "epoxy_p_32": {
+      "segments": [
+        "SSESEEEEEEW",
+        "WWWNWNNSSES",
+        "EEEENEEEESS",
+        "SS"
+      ]
+    },
+    "epoxy_p_33": {
+      "segments": [
+        "NNNEWSSSESS",
+        "SEEWWSS"
+      ]
+    },
+    "epoxy_p_34": {
+      "segments": [
+        "NWENSEWWW"
+      ]
+    },
+    "epoxy_p_35": {
+      "segments": [
+        "NEEWWSESEWN",
+        "EEEE"
+      ],
+      "requires": [
+        "key_red"
+      ]
     }
   }
 }

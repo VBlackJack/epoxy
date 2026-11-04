@@ -1391,11 +1391,32 @@
       "level_30": {
         "title": "The Great Works",
         "hint": "Cover every target to win. A block fills a pool or covers a target, never both. A block on the top or bottom row can never leave it, so send each of those rows exactly two blocks."
+      },
+      "level_31": {
+        "title": "Firewall",
+        "hint": "Fire burns you unless you wear fire boots. Look for the boots at the end of the corridor, then walk through the flames."
+      },
+      "level_32": {
+        "title": "A Block for the Flippers",
+        "hint": "Flippers let you walk through water, but a moat guards them and you have a single block. Use it on the moat: once the flippers are on your feet, no other water needs a block."
+      },
+      "level_33": {
+        "title": "Slide",
+        "hint": "Ice carries you until you reach solid ground, and a wall only sends you back. Slide along every corridor to collect all the chips."
+      },
+      "level_34": {
+        "title": "Toboggan",
+        "hint": "A bent ice tile turns your slide. Follow each track with your eyes: one ends beside the exit, so ride it last."
+      },
+      "level_35": {
+        "title": "Key on the Fly",
+        "hint": "A key lying on the ice is picked up as you slide over it, and a door opens as you slide into it with its key. Slide down the lane with the key to reach the door."
       }
     },
     "chapter": {
       "1": { "title": "Pilot foundations", "subtitle": "The first levels of the rebuilt campaign." },
-      "2": { "title": "Pushing", "subtitle": "Blocks, water and targets." }
+      "2": { "title": "Pushing", "subtitle": "Blocks, water and targets." },
+      "3": { "title": "Elements", "subtitle": "Fire, water and ice." }
     }
   }
 }
