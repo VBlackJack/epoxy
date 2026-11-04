@@ -99,6 +99,8 @@ export interface LevelRow {
   canMoveDown: boolean;
   canEdit: boolean;
   editBlockedReasonKey: string | null;
+  /** True for a CC3D level that holds its cell data, which the converter turns into a native Epoxy level. */
+  canConvert: boolean;
 }
 
 export function buildLevelRows(
@@ -115,9 +117,32 @@ export function buildLevelRows(
       canMoveUp: index > 0,
       canMoveDown: index < levels.length - 1,
       canEdit,
-      editBlockedReasonKey: canEdit ? null : EDIT_BLOCKED_REASON_KEY
+      editBlockedReasonKey: canEdit ? null : EDIT_BLOCKED_REASON_KEY,
+      canConvert: level.ruleset === 'cc3d' && level.cc3d !== undefined
     };
   });
+}
+
+/** Added to the title of a converted copy, in every language. */
+export const CONVERTED_TITLE_SUFFIX = ' (Epoxy)';
+
+/** The longest prefix of `text` that fits `maxUnits` UTF-16 units (the unit the stored limit counts) without splitting a character. */
+function fitUnits(text: string, maxUnits: number): string {
+  let out = '';
+  for (const char of text) {
+    if (out.length + char.length > maxUnits) break;
+    out += char;
+  }
+  return out;
+}
+
+/**
+ * Title of the Epoxy copy of a level: the base name followed by the suffix, the base cut so the whole
+ * title fits `maxLength`. A limit too small for the suffix cuts the suffix too.
+ */
+export function convertedTitle(baseTitle: string, maxLength: number): string {
+  const base = fitUnits(baseTitle.trim(), Math.max(0, maxLength - CONVERTED_TITLE_SUFFIX.length)).trimEnd();
+  return fitUnits(`${base}${CONVERTED_TITLE_SUFFIX}`, Math.max(0, maxLength));
 }
 
 /** Buttons of the pack header. */

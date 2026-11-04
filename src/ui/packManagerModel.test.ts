@@ -23,6 +23,8 @@ import {
   buildLevelRows,
   buildLibraryRows,
   buildPackActions,
+  CONVERTED_TITLE_SUFFIX,
+  convertedTitle,
   dropSlotAt,
   dropTargetIndex,
   engineBadgesOf,
@@ -222,5 +224,59 @@ describe('library rows and author', () => {
     expect(row.author).toBe('Ann');
     const [plain] = buildLibraryRows([makeUserPack('b', ['x'])], name);
     expect('author' in plain).toBe(false);
+  });
+});
+
+describe('canConvert', () => {
+  const titleOf = (level: CompiledLevel): string => level.id;
+  const cc3dStub = { cc3d: { width: 1, height: 1 } } as unknown as Partial<CompiledLevel>;
+  const rowFor = (level: Partial<CompiledLevel>) => buildLevelRows([{ ...makeLevel('x'), ...level }], titleOf)[0];
+
+  it('is true for a CC3D level that holds its cell data', () => {
+    expect(rowFor({ ruleset: 'cc3d', ...cc3dStub }).canConvert).toBe(true);
+  });
+
+  it('is false for an Epoxy level, a Lynx level and a CC3D level without cell data', () => {
+    expect(rowFor({}).canConvert).toBe(false);
+    expect(rowFor({ ruleset: 'epoxy' }).canConvert).toBe(false);
+    expect(rowFor({ ruleset: 'lynx' }).canConvert).toBe(false);
+    expect(rowFor({ ruleset: 'cc3d' }).canConvert).toBe(false);
+  });
+
+  it('is false for an Epoxy level that happens to carry cc3d data', () => {
+    expect(rowFor({ ruleset: 'epoxy', ...cc3dStub }).canConvert).toBe(false);
+  });
+});
+
+describe('convertedTitle', () => {
+  const MAX = 120;
+  const ROOM = MAX - CONVERTED_TITLE_SUFFIX.length;
+
+  it('adds the same suffix to a short title', () => {
+    expect(convertedTitle('Tutorial', MAX)).toBe(`Tutorial${CONVERTED_TITLE_SUFFIX}`);
+    expect(CONVERTED_TITLE_SUFFIX).toBe(' (Epoxy)');
+  });
+
+  it('cuts the base name so the whole title fits the limit, keeping the suffix', () => {
+    const title = convertedTitle('x'.repeat(500), MAX);
+    expect(title).toHaveLength(MAX);
+    expect(title.endsWith(CONVERTED_TITLE_SUFFIX)).toBe(true);
+  });
+
+  it('keeps a base that fits exactly', () => {
+    const base = 'y'.repeat(ROOM);
+    expect(convertedTitle(base, MAX)).toBe(`${base}${CONVERTED_TITLE_SUFFIX}`);
+  });
+
+  it('never splits a character made of two UTF-16 units, and drops the space left by the cut', () => {
+    const emoji = String.fromCodePoint(0x1f600);
+    expect(convertedTitle(`${'a'.repeat(ROOM - 1)}${emoji}b`, MAX)).toBe(`${'a'.repeat(ROOM - 1)}${CONVERTED_TITLE_SUFFIX}`);
+    expect(convertedTitle(`${'a'.repeat(ROOM - 1)} tail`, MAX)).toBe(`${'a'.repeat(ROOM - 1)}${CONVERTED_TITLE_SUFFIX}`);
+  });
+
+  it('trims the base and stays inside a limit smaller than the suffix', () => {
+    expect(convertedTitle('  Tutorial  ', MAX)).toBe(`Tutorial${CONVERTED_TITLE_SUFFIX}`);
+    expect(convertedTitle('Tutorial', 3)).toHaveLength(3);
+    expect(convertedTitle('Tutorial', 0)).toBe('');
   });
 });
