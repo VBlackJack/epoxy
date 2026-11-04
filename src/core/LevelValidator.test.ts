@@ -305,14 +305,49 @@ describe('LevelValidator', () => {
     const UNREACHABLE = 'validator.issues.unreachable_exit.label';
     const PROVEN = 'validator.issues.unreachable_exit_proven.label';
 
-    it('errors when no solution proves the level', () => {
+    it('finds the south door by retrying the other door order, with no stored solution', () => {
       const report = LevelValidator.validate(trap());
+      expect(report.valid).toBe(true);
+      expect(report.stats.reachableExit).toBe(true);
+      const found = report.issues.map((i) => i.i18nKey);
+      expect(found).not.toContain(UNREACHABLE);
+      expect(found).not.toContain(PROVEN);
+    });
+
+    it('needs no stored solution to be valid, and a winning one changes nothing', () => {
+      const report = LevelValidator.validate(trap(WINNING_TRAP_SOLUTION), storedSolutionWins);
+      expect(report.valid).toBe(true);
+      expect(report.issues.map((i) => i.i18nKey)).not.toContain(PROVEN);
+    });
+
+    it('keeps the greedy verdict when the door order search is off', () => {
+      const report = LevelValidator.validate(trap(), undefined, { doorOrderSearch: false });
+      expect(report.valid).toBe(false);
+      expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE);
+    });
+  });
+
+  describe('a miss no door order explains', () => {
+    // The thief west of the start is not on the way, but the walk assumes it is crossed: it takes the red key
+    // fetched first, so the door two cells on never opens. No door order changes that (the door is not scarce).
+    const thiefTrap = (solution?: string): CompiledLevel => {
+      const level = grid(['#KPr.DE#']);
+      if (solution !== undefined) level.solution = solution;
+      return level;
+    };
+    const UNREACHABLE = 'validator.issues.unreachable_exit.label';
+    const PROVEN = 'validator.issues.unreachable_exit_proven.label';
+    /** Fetch the red key and walk east through the door to the exit, never stepping on the thief. */
+    const WINNING_SOLUTION = 'EEEE';
+
+    it('errors when no solution proves the level', () => {
+      const report = LevelValidator.validate(thiefTrap());
       expect(report.valid).toBe(false);
       expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE);
     });
 
     it('only warns when the stored solution wins', () => {
-      const report = LevelValidator.validate(trap(WINNING_TRAP_SOLUTION), storedSolutionWins);
+      const report = LevelValidator.validate(thiefTrap(WINNING_SOLUTION), storedSolutionWins);
       expect(report.valid).toBe(true);
       const found = report.issues.find((i) => i.i18nKey === PROVEN);
       expect(found?.severity).toBe('warning');
@@ -320,7 +355,7 @@ describe('LevelValidator', () => {
     });
 
     it('keeps the error when the stored solution does not win', () => {
-      const report = LevelValidator.validate(trap('EWNNN'), storedSolutionWins);
+      const report = LevelValidator.validate(thiefTrap('EEE'), storedSolutionWins);
       expect(report.valid).toBe(false);
       expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE);
     });

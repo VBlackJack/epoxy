@@ -135,6 +135,87 @@ describe('which scarce-key door opens first', () => {
   });
 });
 
+/** Scarce doors of the pathological level, keys it holds, and the walks the search is allowed to waste on them. */
+const PATHOLOGICAL_DOORS = 12;
+const PATHOLOGICAL_KEYS = 3;
+
+/** A spine with a few yellow keys and many yellow doors, each over a dead end; the exit is walled in for good. */
+function pathologicalLevel(): CompiledLevel {
+  const width = 5 + 2 * PATHOLOGICAL_DOORS + 1;
+  const wall = '#'.repeat(width);
+  const spine = `#P${'y'.repeat(PATHOLOGICAL_KEYS)}${'.'.repeat(2 * PATHOLOGICAL_DOORS - PATHOLOGICAL_KEYS + 2)}#`;
+  const doors = `#####${'Y#'.repeat(PATHOLOGICAL_DOORS)}#`;
+  const deadEnds = `#####${'c#'.repeat(PATHOLOGICAL_DOORS)}#`;
+  const sealedExit = `${'#'.repeat(width - 2)}E#`;
+  // The other keys exist (a door needs a key somewhere on the level) but lie behind walls.
+  const sealedKeys = `${'#y'.repeat(PATHOLOGICAL_DOORS - PATHOLOGICAL_KEYS)}`.padEnd(width, '#');
+  return grid([wall, spine, doors, deadEnds, sealedExit, sealedKeys, wall]);
+}
+
+describe('door order search', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  // One reachable yellow key (a second lies behind walls), two yellow doors: the left one hides a chip (it
+  // ranks first), the right one the exit.
+  const oneDiscrepancy = (): CompiledLevel =>
+    grid(['#########', '#Py....##', '####Y#Y##', '####c#E##', '#y#######', '#########']);
+
+  // Two reachable yellow keys (two more lie behind walls), four doors. At each of two choices the decoy over a chip outranks the door that matters:
+  // the greedy order is wrong twice, so the right order differs from it in two places.
+  const twoDiscrepancies = (): CompiledLevel =>
+    grid([
+      '###########',
+      '#Pyy...####',
+      '####Y#Y####',
+      '####c#...##',
+      '######Y#Y##',
+      '######c#E##',
+      '#y#y#######',
+      '###########'
+    ]);
+
+  it('reaches the exit when the greedy order is wrong in one place', () => {
+    const level = oneDiscrepancy();
+    const report = LevelValidator.validate(level);
+    expect(report.stats.reachableExit).toBe(true);
+    expect(report.issues.map((i) => i.i18nKey)).not.toContain(UNREACHABLE_EXIT);
+    expect(report.valid).toBe(true);
+    // The greedy walk alone misses it.
+    const greedy = LevelValidator.validate(level, undefined, { doorOrderSearch: false });
+    expect(greedy.stats.reachableExit).toBe(false);
+    expect(greedy.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE_EXIT);
+  });
+
+  it('reaches the exit when the greedy order is wrong in two places', () => {
+    const level = twoDiscrepancies();
+    const report = LevelValidator.validate(level);
+    expect(report.stats.reachableExit).toBe(true);
+    expect(report.issues.map((i) => i.i18nKey)).not.toContain(UNREACHABLE_EXIT);
+    expect(report.valid).toBe(true);
+    const greedy = LevelValidator.validate(level, undefined, { doorOrderSearch: false });
+    expect(greedy.stats.reachableExit).toBe(false);
+  });
+
+  it('gives the same verdict on every run', () => {
+    const first = JSON.stringify(LevelValidator.validate(twoDiscrepancies()));
+    expect(JSON.stringify(LevelValidator.validate(twoDiscrepancies()))).toBe(first);
+  });
+
+  it('gives up within its budget on a level with no way out, and still reports it unreachable', () => {
+    const level = pathologicalLevel();
+    const doors = level.terrain.flat().filter((id) => id === 'door_yellow').length;
+    expect(doors).toBe(PATHOLOGICAL_DOORS);
+    const started = performance.now();
+    const report = LevelValidator.validate(level);
+    expect(performance.now() - started).toBeLessThan(FAST_VALIDATE_MS);
+    expect(report.stats.reachableExit).toBe(false);
+    expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE_EXIT);
+    expect(report.valid).toBe(false);
+  });
+});
+
 describe('socket bypass and hazards', () => {
   beforeEach(() => {
     loadTestConfigs();
