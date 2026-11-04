@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { PACK_JSON_FORMAT, PACK_JSON_MAX_VERSION, PACK_JSON_VERSION, PACK_JSON_VERSION_CELL_EDGES } from '../config/constants';
+import {
+  PACK_JSON_FORMAT,
+  PACK_JSON_MAX_VERSION,
+  PACK_JSON_VERSION,
+  PACK_JSON_VERSION_CELL_EDGES,
+  PACK_JSON_VERSION_UNDERLAYS
+} from '../config/constants';
 import {
   ensureUniqueLevelIds,
   isRecord,
@@ -23,6 +29,7 @@ import {
 } from '../config/ConfigValidation';
 import { cellEdgeMask } from '../core/EdgeRules';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
+import { underlayMap } from '../core/Underlays';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
 import { Clock, generateLevelId, normalizePackName, renumberLevels } from './userPacks';
 
@@ -48,6 +55,13 @@ export interface PackJsonFile {
   levels: CompiledLevel[];
 }
 
+/** The lowest version that carries what the levels hold: the highest feature present decides. */
+function packFileVersion(levels: readonly CompiledLevel[]): number {
+  if (levels.some((level) => underlayMap(level) !== null)) return PACK_JSON_VERSION_UNDERLAYS;
+  if (levels.some((level) => cellEdgeMask(level) !== null)) return PACK_JSON_VERSION_CELL_EDGES;
+  return PACK_JSON_VERSION;
+}
+
 /** Serialises a pack to the exchange format. Levels are written whole, whatever their ruleset. `compact` drops the indentation. */
 export function serializePack(
   name: string,
@@ -57,7 +71,7 @@ export function serializePack(
 ): string {
   const file: PackJsonFile = {
     format: PACK_JSON_FORMAT,
-    version: levels.some((level) => cellEdgeMask(level) !== null) ? PACK_JSON_VERSION_CELL_EDGES : PACK_JSON_VERSION,
+    version: packFileVersion(levels),
     name,
     ...(metadata.author ? { author: metadata.author } : {}),
     ...(metadata.description ? { description: metadata.description } : {}),

@@ -96,6 +96,7 @@
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
       "refused_epoxy_only_items": { "label": "Not exported: {levels} holds a Slow-Time Charm, which the .DAT format cannot hold." },
+      "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
