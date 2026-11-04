@@ -828,6 +828,11 @@ button:disabled {
   min-height: 32px;
 }
 
+/* The boots row holds five slots (the four elemental boots and the slow-time charm). */
+#hud-boots-grid {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 .inv-slot {
   position: relative;
   height: 32px;

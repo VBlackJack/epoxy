@@ -962,8 +962,11 @@ export class LevelValidator {
   /** One bit per boot type of the tile config, in a stable order. */
   private static buildBootBits(): Map<string, number> {
     const bits = new Map<string, number>();
-    const bootIds = Object.values(ConfigRegistry.getTiles().tiles)
-      .filter((t) => t.collectible === 'boot')
+    const tiles = Object.values(ConfigRegistry.getTiles().tiles);
+    // Only boots that some tile names as protection change what the player survives; the others (slow-time) would only grow the state space.
+    const protectingBootIds = new Set(tiles.map((t) => t.protectedByItem).filter((id): id is string => id !== undefined));
+    const bootIds = tiles
+      .filter((t) => t.collectible === 'boot' && protectingBootIds.has(t.id))
       .map((t) => t.id)
       .sort()
       .slice(0, MAX_TRACKED_BOOT_TYPES);

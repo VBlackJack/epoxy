@@ -272,7 +272,7 @@ class EpoxyApplication {
   private inventoryLabelsLocale: string = '';
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force'];
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', 'slow_time'];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
 

@@ -201,6 +201,21 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   }
 }
 
+/** Monster step factor when no held boots slow the monsters. */
+const NORMAL_MONSTER_SLOWDOWN = 1;
+
+/**
+ * How many times longer every monster takes per step: the largest slowsMonsters among the boots the player
+ * holds, 1 when none slows them. Sliding blocks, the player and the timer never read it.
+ */
+export function monsterSlowdown(w: EpoxyWorld): number {
+  let factor = NORMAL_MONSTER_SLOWDOWN;
+  for (const bootId of w.player.boots) {
+    factor = Math.max(factor, ConfigRegistry.getTile(bootId).slowsMonsters ?? NORMAL_MONSTER_SLOWDOWN);
+  }
+  return factor;
+}
+
 /** True when the player holds the item: a key of that colour, or those boots. */
 export function holdsItem(w: EpoxyWorld, itemId: string): boolean {
   return (w.player.keys[itemId] || 0) > 0 || w.player.boots.has(itemId);

@@ -746,6 +746,8 @@ export interface TileDefinition {
   scoreMultiplier?: number;
   /** Seconds added to (or, negative, taken from) the time left when the item is picked up. */
   timeBonusSeconds?: number;
+  /** Boots only: while held, every monster takes this many times as long per step (an integer, 2 to 4). */
+  slowsMonsters?: number;
   buttonAction?: ButtonAction;
   togglesTo?: string;
   /** Terrain the cell swaps to when a toggle_flames button is pressed. */

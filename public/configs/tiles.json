@@ -725,6 +725,15 @@
       "laserTransparent": true,
       "collectible": "boot"
     },
+    "slow_time": {
+      "id": "slow_time",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.slow_time.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "slowsMonsters": 2
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",

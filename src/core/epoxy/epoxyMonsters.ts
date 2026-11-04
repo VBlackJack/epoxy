@@ -29,6 +29,7 @@ import {
   isEdgeBlocked,
   isInBounds,
   killPlayer,
+  monsterSlowdown,
   removeEntity
 } from './epoxyWorld';
 
@@ -62,7 +63,9 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   }
 
   const def = ConfigRegistry.getEntityDef(entity.type);
-  entity.cooldownTicks = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
+  // A step lasts interval + 1 ticks (the countdown, then the move); slow-time boots stretch the whole step.
+  const interval = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
+  entity.cooldownTicks = (interval + 1) * monsterSlowdown(w) - 1;
 
   if (isCellClosedTrap(w, entity.x, entity.y)) {
     return true;

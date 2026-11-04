@@ -564,6 +564,16 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level that holds a slow-time charm and leaves it out of the pack', () => {
+    const charmed = blankLevel(1);
+    charmed.items[3][3] = 'slow_time';
+    expect(datRefusalReason(charmed)).toBe('epoxy_only_items');
+    expect(datRefusalReason(blankLevel(2))).toBeNull();
+    const encoded = DatCodec.encodeLevelsWithReport([charmed, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['epoxy_only_items']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('reports what a stacked cell cannot hold', () => {
     const lvl = blankLevel(1);
     // player start (2,2) over a bug and a chip: the bug is dropped, so is the fire under them
