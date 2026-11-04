@@ -22,6 +22,7 @@ import { OPPOSITE_DIRECTION } from '../core/coreConstants';
 import type { Direction } from '../core/types';
 import { canonicalJson } from './canonicalJson';
 import { emptyCell, normalizeItem, normalizeLayer, normalizeMob } from './cc3dEdits';
+import { anchorOffset, type ResizeAnchor, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import { type CellRect, clampMoveStep, clipRectToGrid, rectContains } from './selectionEdits';
 
 /**
@@ -496,31 +497,44 @@ function clampSize(value: number, current: number, bounds: LevelSizeBounds): num
 }
 
 /**
- * Resizes the grid, anchored on the top-left cell and clamped to the size bounds. New cells are plain floor,
- * mobs outside the new grid are dropped (the rest keep their order), the player start is clamped inside, and
- * a mob standing on the clamped start is dropped too. There is no wall-border rule. Same level when the
- * clamped size equals the current one.
+ * Resizes the grid keeping the cell of the 3 x 3 `anchor` fixed (the top-left cell by default) and clamped to the
+ * size bounds. New cells are plain floor, mobs outside the new grid are dropped (the rest keep their order), the
+ * player start is translated then clamped inside, and a mob standing on the clamped start is dropped too. There
+ * is no wall-border rule. Same level when the clamped size equals the current one.
  */
-export function resizeCc3d(level: Cc3dLevel, width: number, height: number, bounds: LevelSizeBounds): Cc3dResizeResult {
+export function resizeCc3d(
+  level: Cc3dLevel,
+  width: number,
+  height: number,
+  bounds: LevelSizeBounds,
+  anchor: ResizeAnchor = TOP_LEFT_ANCHOR
+): Cc3dResizeResult {
   const newWidth = clampSize(width, level.width, bounds);
   const newHeight = clampSize(height, level.height, bounds);
   if (newWidth === level.width && newHeight === level.height) {
     return { level, changed: false, width: newWidth, height: newHeight, droppedMobs: 0, playerMoved: false };
   }
+  const { dx, dy } = anchorOffset(anchor, newWidth - level.width, newHeight - level.height);
   const cells: Cc3dCell[] = [];
   for (let y = 0; y < newHeight; y++) {
     for (let x = 0; x < newWidth; x++) {
-      cells.push(x < level.width && y < level.height ? level.cells[y * level.width + x] : emptyCell());
+      const fromX = x - dx;
+      const fromY = y - dy;
+      const inside = fromX >= 0 && fromY >= 0 && fromX < level.width && fromY < level.height;
+      cells.push(inside ? level.cells[fromY * level.width + fromX] : emptyCell());
     }
   }
-  const px = Math.min(level.player.x, newWidth - 1);
-  const py = Math.min(level.player.y, newHeight - 1);
-  const playerMoved = px !== level.player.x || py !== level.player.y;
-  const player = playerMoved ? { ...level.player, x: px, y: py } : level.player;
-  const mobs = level.mobs.filter((mob) => mob.x < newWidth && mob.y < newHeight && !(mob.x === player.x && mob.y === player.y));
+  const movedX = level.player.x + dx;
+  const movedY = level.player.y + dy;
+  const px = Math.min(Math.max(movedX, 0), newWidth - 1);
+  const py = Math.min(Math.max(movedY, 0), newHeight - 1);
+  const playerMoved = px !== movedX || py !== movedY;
+  const player = px !== level.player.x || py !== level.player.y ? { ...level.player, x: px, y: py } : level.player;
+  const shifted = dx === 0 && dy === 0 ? level.mobs : level.mobs.map((mob) => ({ ...mob, x: mob.x + dx, y: mob.y + dy }));
+  const mobs = shifted.filter((mob) => mob.x >= 0 && mob.y >= 0 && mob.x < newWidth && mob.y < newHeight && !(mob.x === player.x && mob.y === player.y));
   const droppedMobs = level.mobs.length - mobs.length;
   return {
-    level: { ...level, width: newWidth, height: newHeight, cells, mobs: droppedMobs > 0 ? mobs : level.mobs, player },
+    level: { ...level, width: newWidth, height: newHeight, cells, mobs: droppedMobs > 0 || shifted !== level.mobs ? mobs : level.mobs, player },
     changed: true,
     width: newWidth,
     height: newHeight,

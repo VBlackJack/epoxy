@@ -24,9 +24,10 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
-import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide } from './editorCellEdges';
+import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
-import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, underlayAt } from './editorUnderlays';
+import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, translateUnderlays, underlayAt } from './editorUnderlays';
+import { anchorOffset, ResizeAnchor, TOP_LEFT_ANCHOR } from './resizeAnchor';
 
 /** Outcome of a map edit. The input map is never modified; `map` is a new state. */
 export interface MapEditResult {
@@ -304,15 +305,21 @@ const MIN_BORDERED_SIZE = 3;
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 /**
- * Resizes the map keeping the top-left corner. New cells are floor. When the
- * old map was closed by a wall border, the new one is too: an old border that
- * becomes interior turns to floor (an entity on it is dropped; a cell holding an item stays wall), and the new outer
- * ring is walled (items, entities and links on a cell that becomes wall are
- * dropped). Thin walls and hidden terrain stay with their cell: those outside the new bounds, on a cell that
- * becomes wall, or (hidden terrain) under a top that can no longer hide it are dropped and counted. Entities and links outside the new bounds are dropped; the player
- * start is clamped inside. The requested size is clamped to `bounds`.
+ * Resizes the map keeping the cell of the 3 x 3 `anchor` fixed (the top-left corner by default). New cells are floor.
+ * When the old map was closed by a wall border, the new one is too: an old border cell that leaves its ring side turns
+ * to floor (an entity on it is dropped; a cell holding an item stays wall), and the new outer ring is walled (items,
+ * entities and links on a cell that becomes wall are dropped). Thin walls and hidden terrain stay with their cell
+ * (translated then clamped): those outside the new bounds, on a cell that becomes wall, or (hidden terrain) under a
+ * top that can no longer hide it are dropped and counted. Entities and links outside the new bounds are dropped; the
+ * player start is clamped inside. The requested size is clamped to `bounds`.
  */
-export function resizeMap(source: EditorMap, width: number, height: number, bounds: LevelSizeBounds): ResizeResult {
+export function resizeMap(
+  source: EditorMap,
+  width: number,
+  height: number,
+  bounds: LevelSizeBounds,
+  anchor: ResizeAnchor = TOP_LEFT_ANCHOR
+): ResizeResult {
   if (source.cc3d) return { map: source, width: mapWidthOf(source), height: mapHeightOf(source), changed: false, report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, droppedEdges: 0, droppedUnderlays: 0, playerStartMoved: false, borderKept: false } }; // a CC3D map is edited through cc3dEdits only
   const oldWidth = mapWidthOf(source);
   const oldHeight = mapHeightOf(source);
@@ -332,6 +339,7 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
   }
 
   const bordered = hasWallBorder(source);
+  const { dx, dy } = anchorOffset(anchor, newWidth - oldWidth, newHeight - oldHeight);
   const terrain: string[][] = [];
   const items: (string | null)[][] = [];
   // Old border cells turned to floor: an entity standing there is dropped.
@@ -340,12 +348,19 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     terrain.push([]);
     items.push([]);
     for (let x = 0; x < newWidth; x++) {
-      const kept = x < oldWidth && y < oldHeight;
-      let tile = kept ? source.terrain[y][x] : FLOOR_TILE_ID;
-      const item = kept ? source.items[y][x] : null;
-      const wasOldBorder = kept && (x === oldWidth - 1 || y === oldHeight - 1);
-      const growsPastIt = (x === oldWidth - 1 && newWidth > oldWidth) || (y === oldHeight - 1 && newHeight > oldHeight);
-      if (bordered && wasOldBorder && growsPastIt && tile === WALL_TILE_ID && item === null) {
+      const fromX = x - dx;
+      const fromY = y - dy;
+      const kept = fromX >= 0 && fromY >= 0 && fromX < oldWidth && fromY < oldHeight;
+      let tile = kept ? source.terrain[fromY][fromX] : FLOOR_TILE_ID;
+      const item = kept ? source.items[fromY][fromX] : null;
+      // An old ring cell that has left its ring side is opened; the walling loop below re-walls it when it lands on the new ring.
+      const leftRing =
+        kept &&
+        ((fromX === 0 && x !== 0) ||
+          (fromX === oldWidth - 1 && x !== newWidth - 1) ||
+          (fromY === 0 && y !== 0) ||
+          (fromY === oldHeight - 1 && y !== newHeight - 1));
+      if (bordered && leftRing && tile === WALL_TILE_ID && item === null) {
         tile = FLOOR_TILE_ID;
         opened.add(`${x},${y}`);
       }
@@ -357,9 +372,11 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
   // With a wall border the start stays inside it, when the side is big enough to have an inside.
   const lowX = bordered && newWidth >= MIN_BORDERED_SIZE ? 1 : 0;
   const lowY = bordered && newHeight >= MIN_BORDERED_SIZE ? 1 : 0;
-  const startX = clamp(source.playerStart.x, lowX, newWidth - 1 - lowX);
-  const startY = clamp(source.playerStart.y, lowY, newHeight - 1 - lowY);
-  report.playerStartMoved = startX !== source.playerStart.x || startY !== source.playerStart.y;
+  const movedStartX = source.playerStart.x + dx;
+  const movedStartY = source.playerStart.y + dy;
+  const startX = clamp(movedStartX, lowX, newWidth - 1 - lowX);
+  const startY = clamp(movedStartY, lowY, newHeight - 1 - lowY);
+  report.playerStartMoved = startX !== movedStartX || startY !== movedStartY;
 
   // Cells that turn to wall to close the new map.
   const walled = new Set<string>();
@@ -377,27 +394,27 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     }
   }
 
-  const alive = (x: number, y: number): boolean => x < newWidth && y < newHeight && !walled.has(`${x},${y}`);
+  const alive = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < newWidth && y < newHeight && !walled.has(`${x},${y}`);
   const entities = source.entities
-    .filter((e) => alive(e.x, e.y) && !opened.has(`${e.x},${e.y}`))
-    .map((e) => ({ ...e }));
+    .map((e) => ({ ...e, x: e.x + dx, y: e.y + dy }))
+    .filter((e) => alive(e.x, e.y) && !opened.has(`${e.x},${e.y}`));
   report.droppedEntities = source.entities.length - entities.length;
   const trapLinks = source.trapLinks
-    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.trapX, l.trapY))
-    .map((l) => ({ ...l }));
+    .map((l) => ({ ...l, buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, trapX: l.trapX + dx, trapY: l.trapY + dy }))
+    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.trapX, l.trapY));
   report.droppedTrapLinks = source.trapLinks.length - trapLinks.length;
   const cloneLinks = source.cloneLinks
-    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.clonerX, l.clonerY))
-    .map((l) => ({ ...l }));
+    .map((l) => ({ ...l, buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, clonerX: l.clonerX + dx, clonerY: l.clonerY + dy }))
+    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.clonerX, l.clonerY));
   report.droppedCloneLinks = source.cloneLinks.length - cloneLinks.length;
 
-  const kept = (source.cellEdges ?? []).filter((e) => alive(e.x, e.y));
+  const kept = translateEdges(source.cellEdges ?? [], dx, dy, newWidth, newHeight).filter((e) => alive(e.x, e.y));
   report.droppedEdges = (source.cellEdges?.length ?? 0) - kept.length;
 
   const resized: EditorMap = { terrain, items, entities, trapLinks, cloneLinks, playerStart: { x: startX, y: startY, dir: source.playerStart.dir } };
   replaceEdges(resized, kept);
   // The hidden terrain stays with its cell, then only what the new terrain on top can still hide is kept.
-  replaceUnderlays(resized, (source.underlays ?? []).filter((u) => alive(u.x, u.y)));
+  replaceUnderlays(resized, translateUnderlays(source.underlays ?? [], dx, dy, newWidth, newHeight).filter((u) => alive(u.x, u.y)));
   report.droppedUnderlays = (source.underlays?.length ?? 0) - (resized.underlays?.length ?? 0);
   return {
     map: resized,

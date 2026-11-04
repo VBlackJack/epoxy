@@ -863,6 +863,18 @@
         "height": "Hauteur",
         "range": "De {min} à {max} cases.",
         "apply": "Appliquer",
+        "anchor": {
+          "legend": { "label": "Ancrage" },
+          "top_left": { "label": "Ancrage : en haut à gauche" },
+          "top": { "label": "Ancrage : en haut" },
+          "top_right": { "label": "Ancrage : en haut à droite" },
+          "left": { "label": "Ancrage : à gauche" },
+          "centre": { "label": "Ancrage : au centre" },
+          "right": { "label": "Ancrage : à droite" },
+          "bottom_left": { "label": "Ancrage : en bas à gauche" },
+          "bottom": { "label": "Ancrage : en bas" },
+          "bottom_right": { "label": "Ancrage : en bas à droite" }
+        },
         "resized": "Redimensionné en {width} x {height}.",
         "unchanged": "Le niveau fait déjà {width} x {height}.",
         "dropped_entities": "{count, plural, one {# créature ou bloc a été retiré} other {# créatures ou blocs ont été retirés}}.",

@@ -155,6 +155,7 @@ import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
 import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
+import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
   CellRect,
   clampMoveStep,
@@ -2135,7 +2136,15 @@ export class LevelEditor {
     if (range) range.textContent = t('editor.layout.size.range', { min: bounds.minSize, max: bounds.maxSize });
   }
 
-  /** Resizes the map to the typed size as one undoable step and says what it dropped. */
+  /** The anchor picked in the size section (session only); the top-left cell when none is checked. */
+  private readSizeAnchor(): ResizeAnchor {
+    const checked = document.querySelector<HTMLInputElement>('input[name="editor-size-anchor"]:checked');
+    const [col, row] = (checked?.value ?? '').split(',').map((part) => Number.parseInt(part, 10));
+    const valid = (step: number): step is ResizeAnchorStep => Number.isInteger(step) && step >= 0 && step < ANCHOR_STEPS;
+    return valid(col) && valid(row) ? { col, row } : TOP_LEFT_ANCHOR;
+  }
+
+  /** Resizes the map to the typed size around the picked anchor as one undoable step and says what it dropped. */
   private applySize(): void {
     const widthInput = byId<HTMLInputElement>('editor-size-width');
     const heightInput = byId<HTMLInputElement>('editor-size-height');
@@ -2144,17 +2153,18 @@ export class LevelEditor {
     const width = Number.isFinite(typedWidth) ? typedWidth : this.mapWidth();
     const height = Number.isFinite(typedHeight) ? typedHeight : this.mapHeight();
     const bounds = ConfigRegistry.getLevelSizeBounds();
+    const anchor = this.readSizeAnchor();
     const before = this.doc;
     const cc3d = before.cc3d;
     let changed: boolean;
     let notes: ToolMessage[];
     if (cc3d) {
-      const result = resizeCc3d(cc3d, width, height, bounds);
+      const result = resizeCc3d(cc3d, width, height, bounds, anchor);
       changed = result.changed;
       if (changed) this.doc = withCc3d(before, result.level);
       notes = this.describeCc3dResize(cc3d, result);
     } else {
-      const result = resizeMap(before, width, height, bounds);
+      const result = resizeMap(before, width, height, bounds, anchor);
       changed = result.changed;
       if (changed) this.doc = withEditedMap(before, result.map);
       notes = describeResize(result);

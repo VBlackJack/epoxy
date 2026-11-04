@@ -863,6 +863,18 @@
         "height": "Height",
         "range": "From {min} to {max} cells.",
         "apply": "Apply",
+        "anchor": {
+          "legend": { "label": "Anchor" },
+          "top_left": { "label": "Anchor: top left" },
+          "top": { "label": "Anchor: top" },
+          "top_right": { "label": "Anchor: top right" },
+          "left": { "label": "Anchor: left" },
+          "centre": { "label": "Anchor: centre" },
+          "right": { "label": "Anchor: right" },
+          "bottom_left": { "label": "Anchor: bottom left" },
+          "bottom": { "label": "Anchor: bottom" },
+          "bottom_right": { "label": "Anchor: bottom right" }
+        },
         "resized": "Resized to {width} x {height}.",
         "unchanged": "The level is already {width} x {height}.",
         "dropped_entities": "{count, plural, one {# creature or block was} other {# creatures or blocks were}} removed.",
