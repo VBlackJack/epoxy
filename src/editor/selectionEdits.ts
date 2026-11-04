@@ -15,10 +15,11 @@
  */
 
 import { FLOOR_TILE_ID } from '../core/coreConstants';
-import { CellEdge, CellUnderlay, CloneLink, Direction, TrapLink } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, TrapLink } from '../core/types';
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import type { Brush } from './editorTools';
+import { canonicalLauncherLinks, setLauncherLinks } from './editorLauncherLinks';
 import { canonicalUnderlays, pruneUnderlays, removeUnderlaysWhere, replaceUnderlays } from './editorUnderlays';
 import { ClonerTemplateChange, dropLinksAt, mapHeightOf, mapWidthOf, syncCloneTemplatesAt } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
@@ -156,7 +157,8 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
       cloneLinks: map.cloneLinks,
       playerStart: map.playerStart,
       cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? [],
-      underlays: canonicalUnderlays(map.underlays, map.terrain) ?? []
+      underlays: canonicalUnderlays(map.underlays, map.terrain) ?? [],
+      launcherLinks: canonicalLauncherLinks(map.launcherLinks, map.terrain, map.underlays) ?? []
     });
   return normalize(a) === normalize(b);
 }
@@ -424,14 +426,29 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
       keptClone.push(l);
     }
   }
+  const keptLauncher: LauncherLink[] = [];
+  const movedLauncher: LauncherLink[] = [];
+  for (const l of map.launcherLinks ?? []) {
+    const button = inSource(l.buttonX, l.buttonY);
+    const launcher = inSource(l.launcherX, l.launcherY);
+    if (button && launcher) {
+      movedLauncher.push({ buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, launcherX: l.launcherX + dx, launcherY: l.launcherY + dy });
+    } else if (button || launcher) {
+      droppedLinks++;
+    } else {
+      keptLauncher.push(l);
+    }
+  }
   map.trapLinks = keptTrap;
   map.cloneLinks = keptClone;
+  setLauncherLinks(map, keptLauncher);
 
   clearCells(map, rect, (x, y) => onRing(source, x, y));
   const stamped = stampClip(map, clip, destination.x, destination.y, null, { x: rect.x, y: rect.y });
   droppedLinks += stamped.droppedLinks;
   map.trapLinks.push(...movedTrap);
   map.cloneLinks.push(...movedClone);
+  setLauncherLinks(map, [...(map.launcherLinks ?? []), ...movedLauncher]);
   return {
     map,
     changed: !sameMapLayers(source, map),

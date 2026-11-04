@@ -140,6 +140,7 @@ import {
   EDITOR_TOOLS,
   EditorTool,
   leavesLooseButton,
+  MESSAGE_LINKS_REMOVED,
   MESSAGE_START_KEPT,
   MESSAGE_UNDERLAYS_REMOVED,
   MESSAGE_WIRE_CANCELLED,
@@ -157,6 +158,7 @@ import {
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
 import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
+import { pruneLauncherLinks } from './editorLauncherLinks';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
 import { mapHeightOf, mapWidthOf, paintEntity, resizeMap } from './mapEdits';
@@ -232,6 +234,7 @@ import {
   EDITOR_STATIC_LAYER_MAX_PIXELS,
   EDITOR_STATIC_LAYER_REDRAW_SHARE,
   EDITOR_CLONE_LINK_COLOR,
+  EDITOR_LAUNCHER_LINK_COLOR,
   EDITOR_CURSOR_OUTLINE_COLOR,
   EDITOR_DEFAULT_CHIPS_REQUIRED,
   EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
@@ -3686,17 +3689,21 @@ export class LevelEditor {
     const base = cloneDocument(this.doc);
     const next = cloneDocument(this.doc);
     setUnderlayAt(next, at.x, at.y, terrain);
+    // A shot trigger may have been hidden here: a link whose end no longer holds one is dropped.
+    const droppedLinks = pruneLauncherLinks(next);
     if (sameDocument(base, next)) {
       this.refreshLayersList();
       return;
     }
     this.doc = next;
     this.recordChange(base);
-    this.setStatusText(
+    const messages: ToolMessage[] = [
       terrain === null
-        ? t('editor.layout.layers.hidden_terrain.cleared', { x: at.x, y: at.y })
-        : t('editor.layout.layers.hidden_terrain.set', { x: at.x, y: at.y, name: t(ConfigRegistry.getTile(terrain).i18nKey) })
-    );
+        ? { key: 'editor.layout.layers.hidden_terrain.cleared', params: { x: at.x, y: at.y } }
+        : { key: 'editor.layout.layers.hidden_terrain.set', params: { x: at.x, y: at.y, name: t(ConfigRegistry.getTile(terrain).i18nKey) } }
+    ];
+    if (droppedLinks > 0) messages.push({ key: MESSAGE_LINKS_REMOVED, params: { count: droppedLinks } });
+    this.setStatusText(messages.map((message) => t(message.key, message.params)).join(SEPARATOR_BETWEEN_MESSAGES));
     this.render();
   }
 
@@ -4660,6 +4667,9 @@ export class LevelEditor {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
     for (const link of doc.cloneLinks) this.drawClonerTemplateBadge(link, s);
+    for (const link of doc.launcherLinks ?? []) {
+      this.drawLinkLine(EDITOR_LAUNCHER_LINK_COLOR, link.buttonX, link.buttonY, link.launcherX, link.launcherY, s);
+    }
 
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);

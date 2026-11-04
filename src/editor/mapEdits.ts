@@ -27,6 +27,7 @@ import {
 import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, translateUnderlays, underlayAt } from './editorUnderlays';
+import { dropLauncherLinksAt, launcherLinkTouches, setLauncherLinks, translateLauncherLinks } from './editorLauncherLinks';
 import { anchorOffset, ResizeAnchor, TOP_LEFT_ANCHOR } from './resizeAnchor';
 
 /** Outcome of a map edit. The input map is never modified; `map` is a new state. */
@@ -73,6 +74,8 @@ export interface ResizeReport {
   droppedEntities: number;
   droppedTrapLinks: number;
   droppedCloneLinks: number;
+  /** Shot trigger to launcher links that lost an end; absent from a report that dropped none. */
+  droppedLauncherLinks?: number;
   /** Cells that lost their thin walls: cropped away, or turned to wall by the new border. */
   droppedEdges: number;
   /** Cells that lost their hidden terrain: cropped away, turned to wall by the new border, or no longer under a top that can hide it. */
@@ -111,7 +114,7 @@ function unchanged(map: EditorMap): MapEditResult {
   return { map, changed: false, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
-/** Removes every link that has an end on the cell; returns how many were removed. */
+/** Removes every trap, clone and launcher link that has an end on the cell; returns how many were removed. */
 export function dropLinksAt(map: EditorMap, x: number, y: number): number {
   const trapBefore = map.trapLinks.length;
   const cloneBefore = map.cloneLinks.length;
@@ -121,7 +124,8 @@ export function dropLinksAt(map: EditorMap, x: number, y: number): number {
   map.cloneLinks = map.cloneLinks.filter(
     (l) => !(l.buttonX === x && l.buttonY === y) && !(l.clonerX === x && l.clonerY === y)
   );
-  return trapBefore - map.trapLinks.length + (cloneBefore - map.cloneLinks.length);
+  const launcherDropped = dropLauncherLinksAt(map, x, y);
+  return trapBefore - map.trapLinks.length + (cloneBefore - map.cloneLinks.length) + launcherDropped;
 }
 
 /**
@@ -223,7 +227,8 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
     edgesAt(source, x, y).length === 0 &&
     underlayAt(source, x, y) === undefined &&
     !source.trapLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.trapX === x && l.trapY === y)) &&
-    !source.cloneLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.clonerX === x && l.clonerY === y));
+    !source.cloneLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.clonerX === x && l.clonerY === y)) &&
+    !(source.launcherLinks ?? []).some((l) => launcherLinkTouches(l, x, y));
   if (empty) return { ...unchanged(source), playerStartKept };
   const map = cloneMap(source);
   map.terrain[y][x] = FLOOR_TILE_ID;
@@ -444,12 +449,18 @@ export function resizeMap(
     .map((l) => ({ ...l, buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, clonerX: l.clonerX + dx, clonerY: l.clonerY + dy }))
     .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.clonerX, l.clonerY));
   report.droppedCloneLinks = source.cloneLinks.length - cloneLinks.length;
+  const launcherLinks = translateLauncherLinks(source.launcherLinks ?? [], dx, dy, newWidth, newHeight).filter(
+    (l) => alive(l.buttonX, l.buttonY) && alive(l.launcherX, l.launcherY)
+  );
+  const droppedLauncherLinks = (source.launcherLinks?.length ?? 0) - launcherLinks.length;
+  if (droppedLauncherLinks > 0) report.droppedLauncherLinks = droppedLauncherLinks;
 
   const kept = translateEdges(source.cellEdges ?? [], dx, dy, newWidth, newHeight).filter((e) => alive(e.x, e.y));
   report.droppedEdges = (source.cellEdges?.length ?? 0) - kept.length;
 
   const resized: EditorMap = { terrain, items, entities, trapLinks, cloneLinks, playerStart: { x: startX, y: startY, dir: source.playerStart.dir } };
   replaceEdges(resized, kept);
+  setLauncherLinks(resized, launcherLinks);
   // The hidden terrain stays with its cell, then only what the new terrain on top can still hide is kept.
   replaceUnderlays(resized, translateUnderlays(source.underlays ?? [], dx, dy, newWidth, newHeight).filter((u) => alive(u.x, u.y)));
   report.droppedUnderlays = (source.underlays?.length ?? 0) - (resized.underlays?.length ?? 0);
