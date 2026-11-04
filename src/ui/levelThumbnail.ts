@@ -65,7 +65,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   boots_fire: 'fireMid',
   boots_ice: 'iceShine',
   boots_force: 'forceArrow',
-  slow_time: 'stopwatchBody',
+  slow_time: 'blue',
   bomb: 'bombBody',
   score_2x: 'bonusFlagMultiplier',
   block_target: 'blockTarget',

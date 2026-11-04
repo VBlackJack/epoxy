@@ -828,9 +828,13 @@ button:disabled {
   min-height: 32px;
 }
 
-/* The boots row holds five slots (the four elemental boots and the slow-time charm). */
-#hud-boots-grid {
-  grid-template-columns: repeat(5, 1fr);
+/* The slow-time slot shows only on a level that places the item, so other levels keep four slots. */
+.inv-grid:not(.inv-grid-five) > .inv-slot:nth-child(5) {
+  display: none;
+}
+
+.inv-grid-five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .inv-slot {
@@ -2117,6 +2121,11 @@ body.fullscreen-mode .view-section {
   .inventory-row-split {
     flex-direction: row;
     gap: 0.25rem;
+  }
+
+  /* Five boots slots do not fit beside the keys in the narrow HUD: stack the two sections. */
+  .inventory-row-split:has(.inv-grid-five) {
+    flex-direction: column;
   }
 
   .inventory-section {
