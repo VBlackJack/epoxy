@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { AudioManager } from '../audio/AudioManager';
 import {
+  BLOCK_TARGET_TILE_ID,
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -593,6 +594,8 @@ export class GameEngine {
       resolveLasers(this.ctx);
       this.checkTargetsWin();
     } else {
+      // A move that revealed an underlay and was then rejected still spends the key and drops its undo
+      // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       this.undoStack.pop();
       if (this.w.gridMutatedByMove || this.w.player.dir !== dirBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
@@ -624,6 +627,14 @@ export class GameEngine {
   }
 
   /**
+   * The terrain hidden under the removable tops of the level, by cell index (y * width + x); undefined
+   * when the level has none. Static: it is the level's own data, never part of a snapshot.
+   */
+  public getUnderlays(): ReadonlyMap<number, string> | undefined {
+    return this.w.underlays ?? undefined;
+  }
+
+  /**
    * The cells a laser beam crosses right now, each with the axes the beam
    * follows in it. Empty on a level without emitters. The list is derived from
    * the grid and the entities (never snapshotted) and is shared: do not mutate it.
@@ -645,6 +656,13 @@ export class GameEngine {
     return this.w.litReceiverCells;
   }
 
+  /** The target cells that are a target now: one hidden under a removable top is not, until the top is gone. */
+  private liveTargetCells(): GridPoint[] {
+    return this.w.underlays === null
+      ? this.w.targetCells
+      : this.w.targetCells.filter(({ x, y }) => this.w.terrain[y][x] === BLOCK_TARGET_TILE_ID);
+  }
+
   /** True when a block at rest holds the target cell. */
   private isTargetCovered({ x, y }: GridPoint): boolean {
     const occupant = getEntityAt(this.w, x, y);
@@ -653,9 +671,10 @@ export class GameEngine {
 
   /** How many targets of a 'targets' level hold a block at rest, out of how many there are. */
   getTargetsProgress(): { covered: number; total: number } {
+    const targets = this.liveTargetCells();
     return {
-      covered: this.w.targetCells.filter((cell) => this.isTargetCovered(cell)).length,
-      total: this.w.targetCells.length
+      covered: targets.filter((cell) => this.isTargetCovered(cell)).length,
+      total: targets.length
     };
   }
 
@@ -665,8 +684,9 @@ export class GameEngine {
    * never wins. Called wherever a block may have settled.
    */
   private checkTargetsWin(): void {
-    if (this.w.targetCells.length === 0 || this.w.levelCompleted || !this.w.player.alive) return;
-    if (!this.w.targetCells.every((cell) => this.isTargetCovered(cell))) return;
+    if (this.w.levelCompleted || !this.w.player.alive) return;
+    const targets = this.liveTargetCells();
+    if (targets.length === 0 || !targets.every((cell) => this.isTargetCovered(cell))) return;
     this.emitVisual('win', this.w.player.x, this.w.player.y);
     this.completeLevel();
   }

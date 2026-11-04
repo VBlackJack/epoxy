@@ -1654,6 +1654,184 @@
         "waters": 3,
         "targets": 3
       }
+    },
+    {
+      "id": "epoxy_p_31",
+      "theme": "cyber_neon",
+      "number": 31,
+      "titleKey": "pilot.levels.level_31.title",
+      "hintKey": "pilot.levels.level_31.hint",
+      "password": "BURN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 5,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#C#C#####Z#",
+        "#F#F#####.#",
+        "#...H.....#",
+        "#####S#####",
+        "#####E#####",
+        "###########"
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEENNSSWWWWWWNNSSWWNNSSEEEESS"
+    },
+    {
+      "id": "epoxy_p_32",
+      "theme": "cyber_neon",
+      "number": 32,
+      "titleKey": "pilot.levels.level_32.title",
+      "hintKey": "pilot.levels.level_32.hint",
+      "password": "FLIP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "S"
+      },
+      "rows": [
+        "##############",
+        "#.#C##########",
+        "#H#W##########",
+        "#....###.CWWC#",
+        "##.....WQ.WW.#",
+        "#....###..WW.#",
+        "#....###..WWS#",
+        "############E#",
+        "##############"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "blockBudget": {
+        "waters": 1,
+        "targets": 0
+      },
+      "solution": "SSESEEEEEEWWWWNWNNSSESEEEENEEEESSSS"
+    },
+    {
+      "id": "epoxy_p_33",
+      "theme": "cyber_neon",
+      "number": 33,
+      "titleKey": "pilot.levels.level_33.title",
+      "hintKey": "pilot.levels.level_33.hint",
+      "password": "SLID",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.IIIIIIIC#",
+        "#H#########",
+        "#.#########",
+        "#.IIIIIIII#",
+        "#.#########",
+        "#.#########",
+        "#.III.IIIC#",
+        "#S#########",
+        "#E#########",
+        "###########"
+      ],
+      "items": [
+        {
+          "x": 5,
+          "y": 4,
+          "id": "chip"
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NNNEWSSSESSSEEWWSS"
+    },
+    {
+      "id": "epoxy_p_34",
+      "theme": "cyber_neon",
+      "number": 34,
+      "titleKey": "pilot.levels.level_34.title",
+      "hintKey": "pilot.levels.level_34.hint",
+      "password": "TOBO",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 6,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "############",
+        "#ES.##1IIC##",
+        "###I##I#####",
+        "###I##I#####",
+        "###3IIHII2##",
+        "######I##I##",
+        "######I##I##",
+        "###CII4##C##",
+        "############"
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NWENSEWWW"
+    },
+    {
+      "id": "epoxy_p_35",
+      "theme": "cyber_neon",
+      "number": 35,
+      "titleKey": "pilot.levels.level_35.title",
+      "hintKey": "pilot.levels.level_35.hint",
+      "password": "KEYS",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 4,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "##############",
+        "#.II.II.IIC###",
+        "#I##I#########",
+        "#I##I#########",
+        "#HII.II.IR.SE#",
+        "#I#####I######",
+        "#I#####I######",
+        "#.II.##.IIC###",
+        "##############"
+      ],
+      "items": [
+        {
+          "x": 8,
+          "y": 4,
+          "id": "key_red"
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NEEWWSESEWNEEEE"
     }
   ]
 }

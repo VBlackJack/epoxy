@@ -31,6 +31,7 @@ import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { hiddenUnder, underlayMap } from './Underlays';
 import {
   ChannelColor,
   CompiledLevel,
@@ -71,6 +72,22 @@ interface SlideResult {
   fatal: boolean;
 }
 
+/**
+ * What a removable top leaves in its cell once the player has removed it: the terrain hidden under it,
+ * or, for a cell that hides none, the remains the tile names.
+ */
+function openedTerrain(level: CompiledLevel, terrain: string[][], x: number, y: number, top: TileDefinition): string {
+  return hiddenUnder(level, terrain, x, y) ?? (top.transformsToOnUnlock || FLOOR_TILE_ID);
+}
+
+/**
+ * Whether the reach walk may step onto a cell that just revealed a hidden terrain right away: only plain
+ * ground. A hazard, a slide or a wall there is judged by the next pass, which reads the terrain as it now is.
+ */
+function isPlainGround(tile: TileDefinition): boolean {
+  return tile.passableByPlayer === true && !tile.hazard && tile.slideType === undefined;
+}
+
 /** Tiles that stay solid for the player whatever happens: no pusher can ever stand there. */
 const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
   'wall',
@@ -97,6 +114,7 @@ export class LevelValidator {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
     const edgeMask = cellEdgeMask(level);
+    const underlays = underlayMap(level);
 
     const coversTargets = level.winRule === 'targets';
     const lightsReceivers = level.winRule === 'receivers';
@@ -130,6 +148,20 @@ export class LevelValidator {
           receiverGroups.add(tDef.laserReceiverGroup);
         }
         if (tDef.laserGateGroup !== undefined) gateCount++;
+        // What a removable top hides counts as part of the level: the exit, a target or a laser device
+        // under a door is there to be found once the door is open.
+        const hiddenId = underlays?.get(y * width + x);
+        if (hiddenId !== undefined) {
+          const hiddenDef = ConfigRegistry.getTile(hiddenId);
+          if (hiddenDef.isLevelExit) exitCount++;
+          if (hiddenId === BLOCK_TARGET_TILE_ID) targetCount++;
+          if (hiddenDef.laserEmitter) emitterCount++;
+          if (hiddenDef.laserReceiverGroup !== undefined) {
+            receiverCount++;
+            receiverGroups.add(hiddenDef.laserReceiverGroup);
+          }
+          if (hiddenDef.laserGateGroup !== undefined) gateCount++;
+        }
         if (tDef.requiredKey) {
           const counts = tDef.consumesKey ? consumingDoorCounts : keepingDoorCounts;
           counts[tDef.requiredKey] = (counts[tDef.requiredKey] || 0) + 1;
@@ -265,6 +297,9 @@ export class LevelValidator {
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
         if (ConfigRegistry.getTile(simTerrain[ty][tx]).isTeleporter) teleporters.push({ x: tx, y: ty });
+        // A teleporter hidden under a removable top joins its group once the top is gone (checked at use).
+        const hiddenId = underlays?.get(ty * width + tx);
+        if (hiddenId !== undefined && ConfigRegistry.getTile(hiddenId).isTeleporter) teleporters.push({ x: tx, y: ty });
       }
     }
 
@@ -397,7 +432,8 @@ export class LevelValidator {
 
         if (currTile.isTeleporter) {
           for (const t of teleporters) {
-            if (ConfigRegistry.getTile(simTerrain[t.y][t.x]).teleportGroup !== currTile.teleportGroup) continue;
+            const exitTile = ConfigRegistry.getTile(simTerrain[t.y][t.x]);
+            if (!exitTile.isTeleporter || exitTile.teleportGroup !== currTile.teleportGroup) continue;
             enqueue(t.x, t.y, curr.boots);
           }
         }
@@ -432,6 +468,16 @@ export class LevelValidator {
             changed = true;
           }
 
+          // A top that goes away under the step shows what it hides before the step is judged.
+          if (nextTile.transformsToOnStep) {
+            const hidden = hiddenUnder(level, simTerrain, nx, ny);
+            if (hidden !== undefined) {
+              simTerrain[ny][nx] = hidden;
+              nextTile = ConfigRegistry.getTile(hidden);
+              changed = true;
+            }
+          }
+
           if (nextTile.requiredKey) {
             const keyId = nextTile.requiredKey;
             if ((ownedKeys[keyId] || 0) > 0) {
@@ -442,9 +488,10 @@ export class LevelValidator {
               } else {
                 if (nextTile.consumesKey) ownedKeys[keyId]--;
                 closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
-                simTerrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
+                const hidden = hiddenUnder(level, simTerrain, nx, ny);
+                simTerrain[ny][nx] = openedTerrain(level, simTerrain, nx, ny, nextTile);
                 changed = true;
-                enqueue(nx, ny, curr.boots);
+                if (hidden === undefined || isPlainGround(ConfigRegistry.getTile(hidden))) enqueue(nx, ny, curr.boots);
               }
             }
             continue;
@@ -452,9 +499,10 @@ export class LevelValidator {
 
           if (nextTile.requiresAllChips) {
             if (collectedChips >= level.chipsRequired) {
-              simTerrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
+              const hidden = hiddenUnder(level, simTerrain, nx, ny);
+              simTerrain[ny][nx] = openedTerrain(level, simTerrain, nx, ny, nextTile);
               changed = true;
-              enqueue(nx, ny, curr.boots);
+              if (hidden === undefined || isPlainGround(ConfigRegistry.getTile(hidden))) enqueue(nx, ny, curr.boots);
             }
             continue;
           }
@@ -532,7 +580,7 @@ export class LevelValidator {
         const best = this.pickRewardingDoor([...deferredDoors.values()], simTerrain, simItems, edgeMask);
         const doorTile = ConfigRegistry.getTile(simTerrain[best.y][best.x]);
         ownedKeys[best.keyId]--;
-        simTerrain[best.y][best.x] = doorTile.transformsToOnUnlock || FLOOR_TILE_ID;
+        simTerrain[best.y][best.x] = openedTerrain(level, simTerrain, best.x, best.y, doorTile);
         changed = true;
       }
     }
@@ -993,6 +1041,10 @@ export class LevelValidator {
     const push = <T>(map: Map<ChannelColor, T[]>, color: ChannelColor, value: T): void => {
       map.set(color, [...(map.get(color) ?? []), value]);
     };
+    // Doors hidden under a removable top: their state is not judged against the plates, only their colour counts.
+    const hiddenDoorColors = new Set<ChannelColor>();
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
     level.terrain.forEach((row, y) =>
       row.forEach((id, x) => {
         const tile = ConfigRegistry.getTile(id);
@@ -1005,6 +1057,16 @@ export class LevelValidator {
         }
         const channel = channelOfButtonAction(tile.buttonAction);
         if (channel) buttonsByChannel.set(channel, (buttonsByChannel.get(channel) ?? 0) + 1);
+        const hiddenId = underlays?.get(y * width + x);
+        if (hiddenId === undefined) return;
+        const hidden = ConfigRegistry.getTile(hiddenId);
+        if (hidden.plateColor !== undefined) push(platesByColor, hidden.plateColor, { x, y });
+        if (hidden.holdDoorColor !== undefined) hiddenDoorColors.add(hidden.holdDoorColor);
+        if (hidden.toggleChannel !== undefined) {
+          wallsByChannel.set(hidden.toggleChannel, (wallsByChannel.get(hidden.toggleChannel) ?? 0) + 1);
+        }
+        const hiddenChannel = channelOfButtonAction(hidden.buttonAction);
+        if (hiddenChannel) buttonsByChannel.set(hiddenChannel, (buttonsByChannel.get(hiddenChannel) ?? 0) + 1);
       })
     );
 
@@ -1016,6 +1078,11 @@ export class LevelValidator {
         return kind !== undefined && entityPressesPlate(e.type, kind, color);
       });
 
+    for (const color of hiddenDoorColors) {
+      if (!doorsByColor.has(color) && (platesByColor.get(color) ?? []).length === 0) {
+        issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_no_plate.label', params: { color: this.colorName(color) } });
+      }
+    }
     for (const [color, doors] of doorsByColor) {
       const plates = platesByColor.get(color) ?? [];
       if (plates.length === 0) {
@@ -1050,17 +1117,23 @@ export class LevelValidator {
     const platesByColor = new Map<ChannelColor, number>();
     const doorColors = new Set<ChannelColor>();
     const adjacentColors = new Set<ChannelColor>();
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
     level.terrain.forEach((row, y) => {
       row.forEach((id, x) => {
-        const tile = ConfigRegistry.getTile(id);
-        if (tile.plateColor !== undefined) platesByColor.set(tile.plateColor, (platesByColor.get(tile.plateColor) ?? 0) + 1);
-        if (tile.holdDoorColor === undefined) return;
-        doorColors.add(tile.holdDoorColor);
-        for (const dir of ORDERED_DIRECTIONS) {
-          const vec = DIRECTION_VECTORS[dir];
-          const neighbour = level.terrain[y + vec.dy]?.[x + vec.dx];
-          if (neighbour !== undefined && ConfigRegistry.getTile(neighbour).plateColor === tile.holdDoorColor) {
-            adjacentColors.add(tile.holdDoorColor);
+        // A plate or a door hidden under a removable top counts like one in plain sight.
+        const hiddenId = underlays?.get(y * width + x);
+        const hidden = hiddenId === undefined ? undefined : ConfigRegistry.getTile(hiddenId);
+        for (const tile of hidden ? [ConfigRegistry.getTile(id), hidden] : [ConfigRegistry.getTile(id)]) {
+          if (tile.plateColor !== undefined) platesByColor.set(tile.plateColor, (platesByColor.get(tile.plateColor) ?? 0) + 1);
+          if (tile.holdDoorColor === undefined) continue;
+          doorColors.add(tile.holdDoorColor);
+          for (const dir of ORDERED_DIRECTIONS) {
+            const vec = DIRECTION_VECTORS[dir];
+            const neighbour = level.terrain[y + vec.dy]?.[x + vec.dx];
+            if (neighbour !== undefined && ConfigRegistry.getTile(neighbour).plateColor === tile.holdDoorColor) {
+              adjacentColors.add(tile.holdDoorColor);
+            }
           }
         }
       });
@@ -1220,12 +1293,22 @@ export class LevelValidator {
           const ny = curr.y + vec.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height || visited[ny][nx]) continue;
           if (this.isEdgeBlocked(terrain, edgeMask, curr.x, curr.y, nx, ny, dir)) continue;
-          const nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
+          let nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
           if (nextTile.requiresAllChips) continue;
+          if (nextTile.transformsToOnStep) {
+            const hidden = hiddenUnder(level, terrain, nx, ny);
+            if (hidden !== undefined) {
+              terrain[ny][nx] = hidden;
+              nextTile = ConfigRegistry.getTile(hidden);
+              changed = true;
+            }
+          }
           if (nextTile.requiredKey) {
             if ((ownedKeys[nextTile.requiredKey] || 0) <= 0) continue;
-            terrain[ny][nx] = nextTile.transformsToOnUnlock || FLOOR_TILE_ID;
+            terrain[ny][nx] = openedTerrain(level, terrain, nx, ny, nextTile);
             changed = true;
+            // What the door hid may be a wall: the key is spent and the way stays shut.
+            if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) continue;
           } else if (!nextTile.passableByPlayer) {
             continue;
           }

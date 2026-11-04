@@ -1506,6 +1506,135 @@
       "cloneLinks": []
     },
     {
+      "id": "underlays_showcase_1",
+      "number": 3,
+      "customTitle": "Underlays Showcase",
+      "customHint": "A door can hide ice, a button or the exit: what is under it shows once it is open.",
+      "solution": "EEEEWSSS",
+      "password": "HIDE",
+      "timeLimitSeconds": 200,
+      "chipsRequired": 1,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "terrain": [
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "floor",
+          "floor",
+          "floor",
+          "door_red",
+          "ice",
+          "ice",
+          "ice",
+          "floor",
+          "door_blue",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "toggle_wall_closed",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "socket",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ]
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 1,
+          "id": "key_blue"
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "id": "key_red"
+        },
+        {
+          "x": 8,
+          "y": 1,
+          "id": "chip"
+        }
+      ],
+      "underlays": [
+        {
+          "x": 4,
+          "y": 1,
+          "terrain": "ice"
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "terrain": "button_green"
+        },
+        {
+          "x": 8,
+          "y": 3,
+          "terrain": "exit"
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": []
+    },
+    {
       "id": "turret_showcase_1",
       "number": 4,
       "customTitle": "Turret Showcase",

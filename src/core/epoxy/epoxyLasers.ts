@@ -66,6 +66,8 @@ function traceBeams(w: EpoxyWorld): void {
     const visited = new Set<number>();
     const maxVisits = width * mapHeight(w) * LASER_VISITS_PER_CELL;
     for (const emitter of w.laserEmitters) {
+      // An emitter hidden under a removable top fires only once the top is gone.
+      if (ConfigRegistry.getTile(w.terrain[emitter.y][emitter.x]).laserEmitter !== emitter.dir) continue;
       let { x, y, dir } = emitter;
       while (visited.size < maxVisits) {
         const vec = DIRECTION_VECTORS[dir];

@@ -69,8 +69,9 @@ describe('paletteAvailability', () => {
         def.toggleChannel !== undefined ||
         def.floatingBlockColor !== undefined ||
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
+      const isEpoxyOnlyItem = def.slowsMonsters !== undefined;
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
