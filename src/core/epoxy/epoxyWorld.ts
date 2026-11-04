@@ -29,9 +29,11 @@ import {
   CompiledLevel,
   Direction,
   GridPoint,
+  LauncherLink,
   PlayerState,
   RelativeTurn,
   RuntimeEntity,
+  Shot,
   TileDefinition,
   TrapLink
 } from '../types';
@@ -65,6 +67,11 @@ export interface EpoxyWorld {
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
   player: PlayerState;
+  /**
+   * The shots in flight, in the order they were fired. Empty on a level without launchers. A shot is not
+   * an entity: it is no occupant of a cell for the hold doors, the traps or the targets.
+   */
+  shots: Shot[];
   /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask); static, null when none. */
   edgeMask: Uint8Array | null;
   /** Terrain hidden under removable tops by cell index (see underlayMap); static, null when none. */
@@ -80,6 +87,16 @@ export interface EpoxyWorld {
   levelCompleted: boolean;
   /** True when the level has a turret, or a clone machine that may spawn one; fixed for the level. */
   hasTurrets: boolean;
+  /** True when the level has a shot launcher, even one hidden under a removable top; fixed for the level. */
+  hasLaunchers: boolean;
+  /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
+  shotStepTicks: number;
+  /** The triggers wired to launchers, as the level declares them; static, empty when none. */
+  launcherLinks: LauncherLink[];
+  /** True while GameEngine.tick() runs: a shot fired then is still to be advanced by the same tick. */
+  inTick: boolean;
+  /** The launchers (by cell key) that already fired in this tick; a launcher fires at most once per tick. Transient. */
+  firedLaunchers: Set<string>;
   /** Tick of the player's first step (NO_PLAY_START_TICK until then); only turret levels read it. */
   playStartTick: number;
   statusBannerKey: string | null;
@@ -141,6 +158,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     trapLinks: [],
     cloneLinks: [],
     player: undefined as unknown as PlayerState,
+    shots: [],
     edgeMask: null,
     underlays: null,
     chipsRemaining: 0,
@@ -149,6 +167,11 @@ export function createEpoxyWorld(): EpoxyWorld {
     levelScoreMultiplier: BASE_LEVEL_SCORE_MULTIPLIER,
     levelCompleted: false,
     hasTurrets: false,
+    hasLaunchers: false,
+    shotStepTicks: 0,
+    launcherLinks: [],
+    inTick: false,
+    firedLaunchers: new Set<string>(),
     playStartTick: NO_PLAY_START_TICK,
     statusBannerKey: null,
     nextEntityUid: 1,
@@ -181,6 +204,12 @@ export function levelHasTurrets(w: EpoxyWorld): boolean {
 export function buildLevelLookups(w: EpoxyWorld): void {
   w.edgeMask = cellEdgeMask(w.level);
   w.hasTurrets = levelHasTurrets(w);
+  w.launcherLinks = (w.level.launcherLinks ?? []).map((l) => ({ ...l }));
+  w.hasLaunchers = false;
+  w.shotStepTicks = 0;
+  w.shots = [];
+  w.firedLaunchers.clear();
+  w.inTick = false;
   w.turretBeamCells = [];
   w.underlays = underlayMap(w.level);
   w.trapLinksByTrap.clear();
@@ -234,6 +263,10 @@ function registerDevices(w: EpoxyWorld, x: number, y: number, terrainId: string,
   const tile = ConfigRegistry.getTile(terrainId);
   if (tile.buttonAction === 'hold_trap') w.holdTrapButtons.push({ x, y });
   if (tile.laserEmitter) w.laserEmitters.push({ x, y, dir: tile.laserEmitter });
+  if (tile.shotLauncher) {
+    w.hasLaunchers = true;
+    w.shotStepTicks = tile.shotLauncher.stepTicks;
+  }
   if (tile.laserReceiverGroup !== undefined) w.laserReceivers.push({ x, y });
   if (tile.laserGateGroup !== undefined) w.laserGates.push({ x, y });
   if (tile.plateColor !== undefined) w.plates.push({ x, y, color: tile.plateColor });
@@ -348,6 +381,11 @@ export function killPlayer(ctx: EpoxyContext, reasonKey: string, sfxId: string):
 
 export function getEntityAt(w: EpoxyWorld, x: number, y: number): RuntimeEntity | undefined {
   return w.entities.find((e) => e.x === x && e.y === y);
+}
+
+/** The shot in the cell, if any. Two shots may share a cell: the first fired is returned. */
+export function shotAt(w: EpoxyWorld, x: number, y: number): Shot | undefined {
+  return w.shots.find((s) => s.x === x && s.y === y);
 }
 
 export function removeEntity(w: EpoxyWorld, uid: number): void {

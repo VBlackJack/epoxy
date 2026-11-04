@@ -18,7 +18,9 @@ import {
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
   CHASE_PLAYER_PATTERN,
+  FIRE_LAUNCHERS_ACTION,
   FLEE_PLAYER_PATTERN,
+  MIRROR_FRONT_AXIS,
   STEER_MONSTERS_ACTION,
   SUNK_BLOCK_TILE_ID
 } from '../core/coreConstants';
@@ -38,6 +40,7 @@ import {
   EntityDefinition,
   GameConfig,
   GridConfig,
+  LauncherLink,
   LevelTextConfig,
   PlaytestConfig,
   Ruleset,
@@ -447,6 +450,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     (!strict || !Array.isArray(value.cellEdges) || value.cellEdges.length <= size.width * size.height) &&
     // Underlays hold one entry per cell at most, by the same rule.
     (!strict || !Array.isArray(value.underlays) || value.underlays.length <= size.width * size.height) &&
+    // Launcher links hold one entry per cell at most, by the same rule.
+    (!strict || !Array.isArray(value.launcherLinks) || value.launcherLinks.length <= size.width * size.height) &&
     // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
     (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds, strict) : value.cc3d === undefined)
   );
@@ -604,10 +609,72 @@ export function normalizeUnderlays(
     .map((index) => ({ x: index % width, y: Math.floor(index / width), terrain: byCell.get(index) as string }));
 }
 
+/** Whether a cell can serve as one end of a launcher link: its top or the terrain hidden under it passes `test`. */
+function cellHasDevice(
+  terrain: readonly (readonly string[])[],
+  hidden: ReadonlyMap<number, string>,
+  x: number,
+  y: number,
+  lookup: TerrainTileLookup,
+  test: (tile: TileDefinition) => boolean
+): boolean {
+  const width = terrain[0]?.length ?? 0;
+  const ids = [terrain[y][x], hidden.get(y * width + x)];
+  return ids.some((id) => {
+    const tile = id === undefined ? undefined : lookup(id);
+    return tile !== undefined && test(tile);
+  });
+}
+
+/**
+ * The launcher links of a level in canonical form: only the Epoxy ruleset carries them. Entries that are
+ * not records, lie outside the grid or hold a non-integer coordinate are dropped. With a tile lookup, an
+ * entry is also dropped unless its button cell holds a shot trigger and its launcher cell a shot launcher
+ * (a device hidden under a removable top counts: it works once the top is gone). A link is kept once, and
+ * the links are sorted by trigger row, trigger column, launcher row, then launcher column. Returns null
+ * when none is left.
+ */
+export function normalizeLauncherLinks(
+  links: unknown,
+  terrain: readonly (readonly string[])[],
+  ruleset: unknown,
+  underlays: readonly CellUnderlay[] | null = null,
+  lookup: TerrainTileLookup | null = registeredTerrainLookup
+): LauncherLink[] | null {
+  if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(links)) return null;
+  const height = terrain.length;
+  const width = terrain[0]?.length ?? 0;
+  const hidden = new Map<number, string>();
+  for (const under of underlays ?? []) hidden.set(under.y * width + under.x, under.terrain);
+  const kept = new Map<string, LauncherLink>();
+  for (const entry of links as unknown[]) {
+    if (!isRecord(entry)) continue;
+    const { buttonX, buttonY, launcherX, launcherY } = entry;
+    if (!isInBounds(buttonX, buttonY, width, height) || !isInBounds(launcherX, launcherY, width, height)) continue;
+    const link: LauncherLink = {
+      buttonX: buttonX as number,
+      buttonY: buttonY as number,
+      launcherX: launcherX as number,
+      launcherY: launcherY as number
+    };
+    if (lookup !== null) {
+      const isTrigger = (tile: TileDefinition): boolean => tile.buttonAction === FIRE_LAUNCHERS_ACTION;
+      const isLauncher = (tile: TileDefinition): boolean => tile.shotLauncher !== undefined;
+      if (!cellHasDevice(terrain, hidden, link.buttonX, link.buttonY, lookup, isTrigger)) continue;
+      if (!cellHasDevice(terrain, hidden, link.launcherX, link.launcherY, lookup, isLauncher)) continue;
+    }
+    kept.set(`${link.buttonY},${link.buttonX},${link.launcherY},${link.launcherX}`, link);
+  }
+  if (kept.size === 0) return null;
+  return [...kept.values()].sort(
+    (a, b) => a.buttonY - b.buttonY || a.buttonX - b.buttonX || a.launcherY - b.launcherY || a.launcherX - b.launcherX
+  );
+}
+
 /**
  * Returns the level without any optional text field that is not a string, and
  * without a win rule or ruleset that is not a known one, with its cell edges in canonical form (see
- * normalizeCellEdges), with its underlays in canonical form (see normalizeUnderlays), and with an empty password in place
+ * normalizeCellEdges), with its underlays and launcher links in canonical form (see normalizeUnderlays, normalizeLauncherLinks), and with an empty password in place
  * of one that is not a string, so a stale or hand-edited record cannot hand a number to the
  * text pipeline or an unknown rule to the engine.
  * The input is never mutated.
@@ -629,11 +696,22 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
     hidden = normalizeUnderlays(record.underlays, level.terrain, record.ruleset);
     if (hidden === null || JSON.stringify(hidden) !== JSON.stringify(record.underlays)) bad.push('underlays');
   }
+  let links: LauncherLink[] | null = null;
+  if ('launcherLinks' in record) {
+    links = normalizeLauncherLinks(
+      record.launcherLinks,
+      level.terrain,
+      record.ruleset,
+      normalizeUnderlays(record.underlays, level.terrain, record.ruleset)
+    );
+    if (links === null || JSON.stringify(links) !== JSON.stringify(record.launcherLinks)) bad.push('launcherLinks');
+  }
   if (bad.length === 0 && !badPassword) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
   if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
   if (hidden !== null && bad.includes('underlays')) copy.underlays = hidden;
+  if (links !== null && bad.includes('launcherLinks')) copy.launcherLinks = links;
   // The game upper-cases passwords, so a level always carries a string one.
   if (badPassword) copy.password = '';
   return copy as unknown as CompiledLevel;
@@ -941,6 +1019,68 @@ export function findTurretConfigErrors(entities: Record<string, EntityDefinition
     }
     if (beam.opacity !== undefined && !TURRET_OPACITIES.includes(beam.opacity)) {
       errors.push(`${id}.turretBeam.opacity: expected "block" or "laser"`);
+    }
+  }
+  return errors;
+}
+
+/** Corners a one-sided mirror may face; the axis must be the one that cuts the corner off. */
+const MIRROR_CORNERS: readonly string[] = Object.keys(MIRROR_FRONT_AXIS);
+/** What a flying shot may do to an entity it meets. */
+const SHOT_EFFECTS: readonly string[] = ['stop', 'destroy', 'reflect', 'melt'];
+
+/**
+ * Problems of the shot fields. A tile: a launcher has a direction, a whole number of ticks per cell (at
+ * least 1, the same on every launcher, since the level steps its shots together) and is neither passable
+ * nor laser transparent. An entity: mirrorFrontCorner is on a mirror block, names a corner and agrees with
+ * the mirror axis; shotEffect is a known effect, a melt needs a meltsInFireTo terrain and a reflect needs
+ * a mirror axis. Each entry names the tile or entity.
+ */
+export function findShotConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition>
+): string[] {
+  const errors: string[] = [];
+  const stepTicksSeen = new Set<number>();
+  for (const tile of Object.values(tiles)) {
+    const launcher = tile.shotLauncher;
+    if (launcher === undefined) continue;
+    const { id } = tile;
+    if (!isRecord(launcher) || !isDirection(launcher.dir)) {
+      errors.push(`${id}.shotLauncher.dir: expected a direction`);
+      continue;
+    }
+    if (!Number.isInteger(launcher.stepTicks) || launcher.stepTicks < 1) {
+      errors.push(`${id}.shotLauncher.stepTicks: expected an integer of at least 1`);
+    } else {
+      stepTicksSeen.add(launcher.stepTicks);
+    }
+    if (tile.passableByPlayer || tile.passableByMonster || tile.passableByBlock) {
+      errors.push(`${id}.shotLauncher: a launcher cannot be passable`);
+    }
+    if (tile.laserTransparent === true) errors.push(`${id}.shotLauncher: a launcher cannot be laser transparent`);
+  }
+  if (stepTicksSeen.size > 1) errors.push('shotLauncher.stepTicks: every launcher must declare the same count');
+  for (const entity of Object.values(entities)) {
+    const { id } = entity;
+    if (entity.mirrorFrontCorner !== undefined) {
+      if (entity.kind !== 'block') errors.push(`${id}.mirrorFrontCorner: only a block may be a mirror`);
+      if (!MIRROR_CORNERS.includes(entity.mirrorFrontCorner)) {
+        errors.push(`${id}.mirrorFrontCorner: expected NE, NW, SE or SW`);
+      } else if (entity.mirrorAxis !== MIRROR_FRONT_AXIS[entity.mirrorFrontCorner]) {
+        errors.push(
+          `${id}.mirrorFrontCorner: the corner ${entity.mirrorFrontCorner} needs the ${MIRROR_FRONT_AXIS[entity.mirrorFrontCorner]} axis`
+        );
+      }
+    }
+    if (entity.shotEffect !== undefined) {
+      if (!SHOT_EFFECTS.includes(entity.shotEffect)) {
+        errors.push(`${id}.shotEffect: expected stop, destroy, reflect or melt`);
+      } else if (entity.shotEffect === 'reflect' && entity.mirrorAxis === undefined) {
+        errors.push(`${id}.shotEffect: only a mirror reflects a shot`);
+      } else if (entity.shotEffect === 'melt' && typeof entity.meltsInFireTo !== 'string') {
+        errors.push(`${id}.shotEffect: a melt needs meltsInFireTo`);
+      }
     }
   }
   return errors;

@@ -69,7 +69,7 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   // A colour toggle button sits with the walls of its channel; the plain toggle button stays with the buttons.
   if (channelOfButtonAction(tile.buttonAction) !== undefined) return 'colour';
   if (tile.buttonAction || tile.isTrap || tile.isCloneMachine) return 'buttons';
-  if (tile.laserEmitter || tile.laserReceiverGroup || tile.laserGateGroup) return 'lasers';
+  if (tile.laserEmitter || tile.laserReceiverGroup || tile.laserGateGroup || tile.shotLauncher) return 'lasers';
   if (tile.plateColor || tile.holdDoorColor || tile.toggleChannel || tile.floatingBlockColor) return 'colour';
   if (tile.togglesTo || tile.flameTogglesTo) return 'toggles';
   if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';

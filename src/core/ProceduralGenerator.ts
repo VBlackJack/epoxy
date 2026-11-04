@@ -36,6 +36,7 @@ import { CompiledLevel, ProceduralConfig } from './types';
 /** Raised when a generated level carries cell edges, which the generator does not model. */
 const GENERATED_CELL_EDGES_ERROR = 'Generated levels must not carry cell edges';
 const GENERATED_UNDERLAYS_ERROR = 'Generated levels must not carry underlays';
+const GENERATED_LAUNCHER_LINKS_ERROR = 'Generated levels must not carry launcher links';
 
 const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PASSWORD_HASH_MULTIPLIER = 7919;
@@ -279,9 +280,10 @@ export class ProceduralGenerator {
         trapLinks: assembled.trapLinks,
         cloneLinks: assembled.cloneLinks
       };
-      // The pieces and the guard checks know no cell edges or underlays: a generated level must carry none.
+      // The pieces and the guard checks know no cell edges, underlays or launcher links: a generated level must carry none.
       if (level.cellEdges !== undefined) throw new Error(GENERATED_CELL_EDGES_ERROR);
       if (level.underlays !== undefined) throw new Error(GENERATED_UNDERLAYS_ERROR);
+      if (level.launcherLinks !== undefined) throw new Error(GENERATED_LAUNCHER_LINKS_ERROR);
       const proof = LevelProver.prove(level, assembled.route, built.open?.region);
       if (!proof.solved) continue;
       // No puzzle may be walked around, checked on every level, not only in tests.

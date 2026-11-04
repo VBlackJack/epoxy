@@ -72,8 +72,9 @@ describe('paletteAvailability', () => {
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
       const isEpoxyOnlyItem = def.slowsMonsters !== undefined;
       const isSteeringPad = def.buttonAction === 'steer_monsters';
+      const isShotDevice = def.shotLauncher !== undefined || def.buttonAction === 'fire_launchers';
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
