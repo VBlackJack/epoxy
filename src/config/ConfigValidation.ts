@@ -572,7 +572,9 @@ function terrainsReachableFrom(tile: TileDefinition, lookup: TerrainTileLookup):
       current.transformsToOnLeave,
       current.transformsToOnUnlock,
       current.togglesTo,
-      current.flameTogglesTo
+      current.flameTogglesTo,
+      current.swivelTurns?.cw,
+      current.swivelTurns?.ccw
     ];
     for (const id of next) {
       if (id === undefined || reached.has(id)) continue;
@@ -874,6 +876,46 @@ export function findCampaignGuardConfigErrors(value: unknown): string[] {
     (value.largeWindowSize as number) < (value.windowSize as number)
   ) {
     errors.push('campaignGuard.largeWindowSize: smaller than windowSize');
+  }
+  return errors;
+}
+
+/** The side clockwise of each side around a cell. */
+const CLOCKWISE_SIDE: Readonly<Record<Direction, Direction>> = { N: 'E', E: 'S', S: 'W', W: 'N' };
+
+/** The edges of a cell turned a quarter turn clockwise, as a sorted string. */
+function rotatedEdgesKey(edges: readonly Direction[], clockwise: boolean): string {
+  const turn = (side: Direction): Direction =>
+    clockwise ? CLOCKWISE_SIDE[side] : (ORDERED_DIRECTIONS.find((d) => CLOCKWISE_SIDE[d] === side) as Direction);
+  return edges.map(turn).sort().join('');
+}
+
+/**
+ * Problems of the swivel door fields of tiles.json: both turn targets must exist, be swivel doors
+ * themselves, and carry the edges of the door turned a quarter turn clockwise and counter-clockwise.
+ */
+export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const turns = tile.swivelTurns;
+    if (turns === undefined) continue;
+    const { id } = tile;
+    if (!isRecord(turns) || typeof turns.cw !== 'string' || typeof turns.ccw !== 'string') {
+      errors.push(`${id}.swivelTurns: expected { cw, ccw } tile ids`);
+      continue;
+    }
+    for (const [field, clockwise] of [['cw', true], ['ccw', false]] as const) {
+      const target = tiles[turns[field]];
+      if (!target) {
+        errors.push(`${id}.swivelTurns.${field}: unknown tile ${turns[field]}`);
+        continue;
+      }
+      if (target.swivelTurns === undefined) errors.push(`${id}.swivelTurns.${field}: ${target.id} is not a swivel door`);
+      const expected = rotatedEdgesKey(tile.blockedEdges ?? [], clockwise);
+      if ([...(target.blockedEdges ?? [])].sort().join('') !== expected) {
+        errors.push(`${id}.swivelTurns.${field}: ${target.id} must close the sides ${id} closes turned a quarter turn`);
+      }
+    }
   }
   return errors;
 }

@@ -83,6 +83,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
 /** Families of tiles named `<prefix><suffix>`; the palette key is `key` or, when null, the suffix itself (a colour name). */
 const TILE_PREFIX_RULES: ReadonlyArray<{ prefix: string; key: string | null }> = [
   { prefix: 'thin_wall', key: 'wallTop' },
+  { prefix: 'swivel_door_', key: 'wallTop' },
   { prefix: 'ice', key: 'iceBase' },
   { prefix: 'force_', key: 'forceBase' },
   { prefix: 'forbid_', key: 'forbidSign' },

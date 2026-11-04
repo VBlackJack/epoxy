@@ -80,6 +80,13 @@ describe('deviceRelations', () => {
     loadTestConfigs();
   });
 
+  it('does not count a swivel door as a device', () => {
+    const level = makeLevel({ '2,2': 'swivel_door_ne', '3,2': 'swivel_door_sw' });
+    expect(isDeviceCell(level, 2, 2)).toBe(false);
+    expect(isDeviceCell(level, 3, 2)).toBe(false);
+    expect(deviceFacetAt(level, 2, 2)).toBeNull();
+  });
+
   it('names a role for every device tile', () => {
     const expected: Record<string, DeviceRole> = {
       button_brown: 'trap_button',
