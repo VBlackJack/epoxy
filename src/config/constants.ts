@@ -111,8 +111,11 @@ export const PACK_JSON_VERSION_CELL_EDGES = 2;
 /** Version of a pack file that holds at least one level with underlays (terrain hidden under a removable top). */
 export const PACK_JSON_VERSION_UNDERLAYS = 3;
 
+/** Version of a pack file that holds at least one level with launcher links (triggers wired to shot launchers). */
+export const PACK_JSON_VERSION_LAUNCHERS = 4;
+
 /** Highest pack file version this build reads; a file with a higher version is refused. */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_UNDERLAYS;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_LAUNCHERS;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

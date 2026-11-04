@@ -19,6 +19,7 @@ import {
   PACK_JSON_MAX_VERSION,
   PACK_JSON_VERSION,
   PACK_JSON_VERSION_CELL_EDGES,
+  PACK_JSON_VERSION_LAUNCHERS,
   PACK_JSON_VERSION_UNDERLAYS
 } from '../config/constants';
 import {
@@ -57,6 +58,7 @@ export interface PackJsonFile {
 
 /** The lowest version that carries what the levels hold: the highest feature present decides. */
 function packFileVersion(levels: readonly CompiledLevel[]): number {
+  if (levels.some((level) => (level.launcherLinks?.length ?? 0) > 0)) return PACK_JSON_VERSION_LAUNCHERS;
   if (levels.some((level) => underlayMap(level) !== null)) return PACK_JSON_VERSION_UNDERLAYS;
   if (levels.some((level) => cellEdgeMask(level) !== null)) return PACK_JSON_VERSION_CELL_EDGES;
   return PACK_JSON_VERSION;

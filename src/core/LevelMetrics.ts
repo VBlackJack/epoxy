@@ -17,6 +17,7 @@
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
+import { FIRE_LAUNCHERS_ACTION } from './coreConstants';
 import { LevelValidator } from './LevelValidator';
 import { measurePlayfield } from './PlayfieldMetrics';
 import { isPlayerWalkable } from './Walkability';
@@ -418,7 +419,13 @@ export class LevelMetrics {
     if (tile.isCloneMachine) found.add(MECHANICS.CLONER);
     if (tile.togglesTo || tile.channelTogglesTo) found.add(MECHANICS.TOGGLE_WALLS);
     if (tile.plateColor !== undefined || tile.holdDoorColor !== undefined) found.add(MECHANICS.PLATES_HOLD_DOORS);
-    if (tile.laserEmitter || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined) {
+    if (
+      tile.laserEmitter ||
+      tile.laserReceiverGroup !== undefined ||
+      tile.laserGateGroup !== undefined ||
+      tile.shotLauncher ||
+      tile.buttonAction === FIRE_LAUNCHERS_ACTION
+    ) {
       found.add(MECHANICS.LASERS);
     }
     if (DIRT_TILE_IDS.has(tile.id)) found.add(MECHANICS.DIRT);
