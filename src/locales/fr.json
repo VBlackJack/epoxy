@@ -472,6 +472,7 @@
       "sec_editor": { "label": "Éditeur de niveaux" },
       "kb_editor_tools": { "label": "B / F / E / I : Pinceau, Remplir, Gomme, Pipette (Alt+clic ou clic du milieu prend aussi)" },
       "kb_editor_rotate": { "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi" },
+      "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit)" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
       "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible ou un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
@@ -482,6 +483,7 @@
       "kb_editor_cc3d_panel": { "label": "Cloisons fines CC3D : avec l'entrée cloison fine choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction)" },
       "kb_editor_cc3d_links": { "label": "Liens CC3D : survolez un dispositif ou placez le curseur dessus pour voir ce qu'il actionne ; la ligne d'état signale une modification qui change un lien" },
       "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
+      "kb_editor_beam_preview": { "label": "L : afficher ou masquer l'aperçu des faisceaux laser (au tick 0, tourelles armées)" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
       "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
@@ -564,8 +566,9 @@
       "name": { "label": "{name}" },
       "outside": { "label": "Hors de la grille" },
       "item": { "label": "objet : {name}" },
-      "entity": { "label": "{name}, tourné vers {side}" },
+      "entity": { "label": "{name}, orientation {side}" },
       "player": { "label": "Départ du joueur, tourné vers {side}" },
+      "cloner": { "label": "clone {name}, orientation {side}" },
       "underlay": { "label": "cache {name}" },
       "edges": { "label": "cloisons fines : {sides}" },
       "side": {
@@ -673,6 +676,15 @@
         "not_supported": "Tester d'ici : ce moteur ne le gère pas."
       },
       "status": "Test depuis ({x}, {y})."
+    },
+    "beam_preview": {
+      "action": { "label": "Faisceaux" },
+      "title": { "label": "Afficher le trajet des faisceaux laser au tick 0, tourelles armées (L)" },
+      "summary": { "label": "Aperçu des faisceaux au tick 0 : {cells, plural, one {# case de faisceau} other {# cases de faisceau}}, {lit, plural, one {# récepteur allumé} other {# récepteurs allumés}} sur {total}, {gates, plural, one {# porte} other {# portes}} en ouverture." },
+      "none": { "label": "Aperçu des faisceaux : ce niveau n'a pas de laser." },
+      "off": { "label": "Aperçu des faisceaux masqué." },
+      "unavailable_cc3d": { "label": "Aperçu des faisceaux : indisponible sur les niveaux CC3D." },
+      "unavailable_lynx": { "label": "Aperçu des faisceaux : indisponible sur les niveaux Lynx." }
     },
     "template": {
       "title": "Nouveau niveau",
@@ -805,6 +817,11 @@
         "fill_needs_terrain": "Le remplissage demande une tuile de terrain : choisissez-en une dans la palette.",
         "wire_same_cell": "Un fil relie deux cases différentes.",
         "wire_missing_button": "Le bouton de ce fil a disparu : recommencez le fil.",
+        "wire_empty_cloner": { "label": "Aucune créature ne se tient encore sur cette machine à cloner : elle clone {name} (orientation {side}) jusqu'à ce que vous en placiez une." },
+        "cloner_template": { "label": "La machine à cloner en ({x}, {y}) clone maintenant {name} (orientation {side})." },
+        "cloners_template": { "label": "{count} machines à cloner clonent maintenant {name} (orientation {side})." },
+        "rotate_nothing": { "label": "Aucune créature ni tourelle à tourner ici." },
+        "rotated": { "label": "{name} en ({x}, {y}) : orientation {side}." },
         "wire_cancelled": "Fil annulé.",
         "wire_cancelled_button_left": "Fil annulé. Le bouton reste sur la carte sans lien.",
         "undone_cells": { "label": "Annulé : {count, plural, one {# case} other {# cases}} près de ({x}, {y})." },
@@ -839,6 +856,17 @@
           "generate": "Générer"
         }
       },
+      "layers": {
+        "hidden_terrain": {
+          "label": "Terrain caché",
+          "none": { "label": "Aucun" },
+          "hint": { "label": "Le terrain sous cette tuile, révélé quand le joueur la retire." },
+          "unavailable": { "label": "Placez le curseur sur une porte, un verrou de puces, un faux mur ou de la terre meuble pour cacher un terrain dessous." },
+          "lynx": { "label": "Le terrain caché n'est pas disponible avec les règles Lynx : passez ce niveau en Epoxy pour le définir." },
+          "set": "La case ({x}, {y}) cache maintenant {name}.",
+          "cleared": "Case ({x}, {y}) : plus aucun terrain caché."
+        }
+      },
       "rules": {
         "engine": { "label": "Moteur" },
         "description": {
@@ -852,6 +880,18 @@
         "height": "Hauteur",
         "range": "De {min} à {max} cases.",
         "apply": "Appliquer",
+        "anchor": {
+          "legend": { "label": "Ancrage" },
+          "top_left": { "label": "Ancrage : en haut à gauche" },
+          "top": { "label": "Ancrage : en haut" },
+          "top_right": { "label": "Ancrage : en haut à droite" },
+          "left": { "label": "Ancrage : à gauche" },
+          "centre": { "label": "Ancrage : au centre" },
+          "right": { "label": "Ancrage : à droite" },
+          "bottom_left": { "label": "Ancrage : en bas à gauche" },
+          "bottom": { "label": "Ancrage : en bas" },
+          "bottom_right": { "label": "Ancrage : en bas à droite" }
+        },
         "resized": "Redimensionné en {width} x {height}.",
         "unchanged": "Le niveau fait déjà {width} x {height}.",
         "dropped_entities": "{count, plural, one {# créature ou bloc a été retiré} other {# créatures ou blocs ont été retirés}}.",
@@ -898,6 +938,15 @@
     },
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Demande les règles Epoxy : indisponible dans un niveau Lynx." } },
+      "group": {
+        "buttons": { "label": "Boutons et liens" },
+        "teleports": { "label": "Téléporteurs" },
+        "lasers": { "label": "Lasers et miroirs" },
+        "colour": { "label": "Canaux de couleur" },
+        "blocks": { "label": "Blocs et tourelles" },
+        "toggles": { "label": "Flammes et bascules" },
+        "other": { "label": "Autres" }
+      },
       "category": {
         "terrain": { "label": "Terrains & Murs" },
         "hazards": { "label": "Éléments & Glace" },

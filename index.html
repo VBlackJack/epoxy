@@ -343,6 +343,7 @@
                 <span data-i18n="editor.layout.check.action"></span>
                 <span id="editor-check-badge" class="editor-check-badge" data-state="idle"></span>
               </button>
+              <button id="editor-beam-preview-btn" class="hud-btn small" type="button" aria-pressed="false" data-i18n="editor.beam_preview.action.label" data-i18n-title="editor.beam_preview.title.label"></button>
               <button id="editor-test-from-btn" class="hud-btn small" type="button" data-i18n="editor.test_from.action" data-i18n-title="editor.test_from.title"></button>
               <button id="editor-test-btn" class="hud-btn small primary" type="button" data-i18n="editor.layout.test.action" data-i18n-title="editor.layout.test.title"></button>
             </div>
@@ -430,6 +431,12 @@
                   <div class="editor-section-body">
                     <p id="editor-layers-cell" class="hint-text"></p>
                     <ul id="editor-layers-list" class="editor-layers-list"></ul>
+                    <div id="editor-hidden-terrain-field" class="meta-field hidden">
+                      <label for="editor-hidden-terrain" data-i18n="editor.layout.layers.hidden_terrain.label"></label>
+                      <select id="editor-hidden-terrain" class="editor-input" aria-describedby="editor-hidden-terrain-hint"></select>
+                      <p id="editor-hidden-terrain-hint" class="hint-text"></p>
+                    </div>
+                    <p id="editor-hidden-terrain-unavailable" class="hint-text hidden"></p>
                   </div>
                 </details>
 
@@ -456,6 +463,20 @@
                       <button id="editor-size-apply-btn" class="hud-btn small" type="button" data-i18n="editor.layout.size.apply"></button>
                     </div>
                     <p id="editor-size-range" class="hint-text"></p>
+                    <fieldset class="editor-size-anchor">
+                      <legend data-i18n="editor.layout.size.anchor.legend.label"></legend>
+                      <div class="editor-size-anchor-grid">
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-0-0" value="0,0" checked data-i18n-aria-label="editor.layout.size.anchor.top_left.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-1-0" value="1,0" data-i18n-aria-label="editor.layout.size.anchor.top.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-2-0" value="2,0" data-i18n-aria-label="editor.layout.size.anchor.top_right.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-0-1" value="0,1" data-i18n-aria-label="editor.layout.size.anchor.left.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-1-1" value="1,1" data-i18n-aria-label="editor.layout.size.anchor.centre.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-2-1" value="2,1" data-i18n-aria-label="editor.layout.size.anchor.right.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-0-2" value="0,2" data-i18n-aria-label="editor.layout.size.anchor.bottom_left.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-1-2" value="1,2" data-i18n-aria-label="editor.layout.size.anchor.bottom.label" />
+                        <input type="radio" name="editor-size-anchor" id="editor-size-anchor-2-2" value="2,2" data-i18n-aria-label="editor.layout.size.anchor.bottom_right.label" />
+                      </div>
+                    </fieldset>
                   </div>
                 </details>
 
@@ -653,10 +674,12 @@
                 <ul class="help-list">
                   <li data-i18n="hud.help_modal.kb_editor_tools.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_rotate.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_rotate_in_place.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_zoom.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_cancel.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_cursor.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_test_here.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_beam_preview.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_select.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_cc3d_eraser.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_cell_edge.label"></li>

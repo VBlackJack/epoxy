@@ -22,7 +22,9 @@ import { EditorTool } from './editorTools';
 export type EditorKeyAction =
   | { kind: 'tool'; tool: EditorTool }
   | { kind: 'rotate' }
+  | { kind: 'rotate_in_place' }
   | { kind: 'test_from_here' }
+  | { kind: 'toggle_beam_preview' }
   | { kind: 'zoom_in' }
   | { kind: 'zoom_out' }
   | { kind: 'zoom_fit' }
@@ -39,6 +41,8 @@ const ROTATE_LETTER = 'r';
 const ROTATE_CODE = 'KeyR';
 const TEST_FROM_HERE_LETTER = 't';
 const TEST_FROM_HERE_CODE = 'KeyT';
+const BEAM_PREVIEW_LETTER = 'l';
+const BEAM_PREVIEW_CODE = 'KeyL';
 const ZOOM_IN_KEYS: readonly string[] = ['+', '='];
 const ZOOM_OUT_KEYS: readonly string[] = ['-', '_'];
 const ZOOM_FIT_KEY = '0';
@@ -47,7 +51,8 @@ const CANCEL_KEY = 'Escape';
 /**
  * The editor action a plain key press stands for, or null. Chords with Ctrl,
  * Meta or Alt belong to the browser and to the history and save chords. The
- * produced character wins over the physical key, so AZERTY works.
+ * produced character wins over the physical key, so AZERTY works. R turns the facing control; Shift+R turns the creature
+ * under the cursor (the Shift key is checked, not the case of the letter, so Caps Lock R stays the facing control).
  */
 export function getEditorKeyAction(chord: KeyChord): EditorKeyAction | null {
   if (hasCommandModifier(chord)) return null;
@@ -55,8 +60,9 @@ export function getEditorKeyAction(chord: KeyChord): EditorKeyAction | null {
   if (ZOOM_IN_KEYS.includes(chord.key)) return { kind: 'zoom_in' };
   if (ZOOM_OUT_KEYS.includes(chord.key)) return { kind: 'zoom_out' };
   if (chord.key === ZOOM_FIT_KEY) return { kind: 'zoom_fit' };
-  if (matchesLetter(chord, ROTATE_LETTER, ROTATE_CODE)) return { kind: 'rotate' };
+  if (matchesLetter(chord, ROTATE_LETTER, ROTATE_CODE)) return chord.shiftKey ? { kind: 'rotate_in_place' } : { kind: 'rotate' };
   if (matchesLetter(chord, TEST_FROM_HERE_LETTER, TEST_FROM_HERE_CODE)) return { kind: 'test_from_here' };
+  if (matchesLetter(chord, BEAM_PREVIEW_LETTER, BEAM_PREVIEW_CODE)) return { kind: 'toggle_beam_preview' };
   for (const entry of TOOL_LETTERS) {
     if (matchesLetter(chord, entry.letter, entry.code)) return { kind: 'tool', tool: entry.tool };
   }

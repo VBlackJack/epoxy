@@ -800,6 +800,23 @@ describe('resize on a CC3D level', () => {
   });
 });
 
+describe('resize anchor on a CC3D level', () => {
+  it('translates the player and the creatures around the picked anchor, and undoes in one step', () => {
+    editor.loadCompiledLevel(areaLevel());
+    setGrid(8, 5);
+    const original = exported().cc3d!;
+    byId<HTMLInputElement>('editor-size-anchor-2-2').click();
+    byId<HTMLInputElement>('editor-size-width').value = '10';
+    byId<HTMLInputElement>('editor-size-height').value = '6';
+    byId('editor-size-apply-btn').click();
+    const grown = exported().cc3d!;
+    expect(grown.player).toMatchObject({ x: original.player.x + 2, y: original.player.y + 1 });
+    expect(grown.mobs.map((mob) => [mob.x, mob.y])).toEqual(original.mobs.map((mob) => [mob.x + 2, mob.y + 1]));
+    editor.undo();
+    expect(exported().cc3d).toEqual(original);
+  });
+});
+
 describe('exporting a CC3D level', () => {
   it('downloads the XML the decoder reads back to the same level, with the form title and author', () => {
     editor.loadCompiledLevel(areaLevel());

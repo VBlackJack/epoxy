@@ -1,0 +1,91 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction } from '../core/coreConstants';
+import type { EntityDefinition, TileDefinition } from '../core/types';
+
+/** The sub-headings of the Mechanisms tab, in display order. */
+export type MechanismGroupId = 'buttons' | 'teleports' | 'lasers' | 'colour' | 'blocks' | 'toggles' | 'other';
+
+export interface MechanismGroup {
+  id: MechanismGroupId;
+  /** i18n key of the heading. */
+  labelKey: string;
+}
+
+/** The groups of the Mechanisms tab, top to bottom. */
+export const MECHANISM_GROUPS: readonly MechanismGroup[] = [
+  { id: 'buttons', labelKey: 'editor.palette.group.buttons.label' },
+  { id: 'teleports', labelKey: 'editor.palette.group.teleports.label' },
+  { id: 'lasers', labelKey: 'editor.palette.group.lasers.label' },
+  { id: 'colour', labelKey: 'editor.palette.group.colour.label' },
+  { id: 'blocks', labelKey: 'editor.palette.group.blocks.label' },
+  { id: 'toggles', labelKey: 'editor.palette.group.toggles.label' }
+];
+
+/** The heading of the entries no rule places, shown only when such entries exist. */
+export const OTHER_GROUP: MechanismGroup = { id: 'other', labelKey: 'editor.palette.group.other.label' };
+
+export interface GroupedEntry<T> {
+  group: MechanismGroupId | null;
+  item: T;
+}
+
+/** The sections to show, in order: the known groups with members, then Other when an entry has no group. */
+export function arrangeMechanismSections<T>(entries: readonly GroupedEntry<T>[]): Array<{ group: MechanismGroup; items: T[] }> {
+  const sections: Array<{ group: MechanismGroup; items: T[] }> = [];
+  for (const group of [...MECHANISM_GROUPS, OTHER_GROUP]) {
+    const items = entries
+      .filter((entry) => (group.id === OTHER_GROUP.id ? entry.group === null || entry.group === OTHER_GROUP.id : entry.group === group.id))
+      .map((entry) => entry.item);
+    if (items.length > 0) sections.push({ group, items });
+  }
+  return sections;
+}
+
+/** Brush kinds of the wire tools, which sit with the buttons and the traps they connect. */
+const WIRE_TOOL_KINDS: readonly string[] = ['wire_trap', 'wire_cloner'];
+
+/**
+ * The group of a Mechanisms tile, read from the fields the tile config declares so that a new tile
+ * lands in a group by itself. The first matching rule wins (a coloured teleporter is a teleporter,
+ * a laser gate is a laser part). Null when no rule matches.
+ */
+export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | null {
+  if (tile.isTeleporter) return 'teleports';
+  // A colour toggle button sits with the walls of its channel; the plain toggle button stays with the buttons.
+  if (channelOfButtonAction(tile.buttonAction) !== undefined) return 'colour';
+  if (tile.buttonAction || tile.isTrap || tile.isCloneMachine) return 'buttons';
+  if (tile.laserEmitter || tile.laserReceiverGroup || tile.laserGateGroup) return 'lasers';
+  if (tile.plateColor || tile.holdDoorColor || tile.toggleChannel || tile.floatingBlockColor) return 'colour';
+  if (tile.togglesTo || tile.flameTogglesTo) return 'toggles';
+  if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';
+  return null;
+}
+
+/** The group of a Mechanisms entity: mirrors with the lasers, colour blocks with the channels, other blocks and turrets together. */
+export function entityMechanismGroup(entity: EntityDefinition): MechanismGroupId | null {
+  if (entity.mirrorAxis) return 'lasers';
+  if (entity.turretBeam) return 'blocks';
+  if (entity.plateColor) return 'colour';
+  if (entity.kind === 'block') return 'blocks';
+  return null;
+}
+
+/** The group of a wire tool brush kind, or null for any other brush kind. */
+export function wireToolMechanismGroup(brushKind: string): MechanismGroupId | null {
+  return WIRE_TOOL_KINDS.includes(brushKind) ? 'buttons' : null;
+}

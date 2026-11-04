@@ -18,7 +18,7 @@ import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
-import { t } from '../i18n/I18nManager';
+import { i18n, t } from '../i18n/I18nManager';
 import { parsePackJson } from '../packs/packJson';
 import { choiceDialog } from '../ui/choiceDialog';
 import { confirmDialog } from '../ui/confirmDialog';
@@ -36,6 +36,7 @@ import { displayItemId, displayMobId, displayShowsPanels, displayTerrainId } fro
 import { type Cc3dCell, type Cc3dLevel, type Cc3dTerrain, cellAt as cc3dCellAt } from '../core/cc3d/model';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
+  CloneLink,
   CompiledLevel,
   Direction,
   LevelBlueprint,
@@ -47,11 +48,13 @@ import {
 import { downloadBytes, downloadJson, downloadText, MIME_XML } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
 import { receiversProgress } from '../ui/levelFeedback';
+import { BeamPreview, computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPreview';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
 import { historyDiff, HistoryDiff } from './historyDiff';
 import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
-import { describeEditorCell } from './cellDescription';
+import { clonerTemplateMessage, clonersTemplateMessage, describeEditorCell, entityDisplayName, sideDisplayName } from './cellDescription';
+import { entityHasFacing } from './entityFacing';
 import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
 import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
 import {
@@ -151,8 +154,11 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
-import { hasUnderlays } from './editorUnderlays';
-import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
+import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
+import { isRemovableTop } from '../core/Underlays';
+import { normalizeUnderlays } from '../config/ConfigValidation';
+import { mapHeightOf, mapWidthOf, paintEntity, resizeMap } from './mapEdits';
+import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
   CellRect,
   clampMoveStep,
@@ -181,6 +187,7 @@ import {
   tileAvailability,
   winRuleAvailability
 } from './paletteAvailability';
+import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, wireToolMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
   decideSave,
@@ -201,10 +208,16 @@ import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   EDITOR_BLOCK_CHECK_TIMEOUT_MS,
   EDITOR_CELL_ANNOUNCE_DELAY_MS,
+  EDITOR_BEAM_DIM_ALPHA,
+  EDITOR_BEAM_GATE_COLOR,
+  EDITOR_BEAM_GATE_INSET_TILE,
+  EDITOR_BEAM_STALE_ALPHA,
   EDITOR_CHECK_DEBOUNCE_MS,
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
   EDITOR_CC3D_ARROW_HEAD_TILE,
   EDITOR_CC3D_BADGE_RADIUS_TILE,
+  EDITOR_CLONER_BADGE_BACKING,
+  EDITOR_CLONER_BADGE_TILE,
   EDITOR_CC3D_LINK_COLORS,
   EDITOR_CC3D_OVERLAY_ALPHA,
   EDITOR_CC3D_ROOM_HEIGHT,
@@ -284,6 +297,13 @@ const EDITOR_PLAYER_BRUSH_ID = 'player_start';
 const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
 const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
+const LAYERS_CELL_ID = 'editor-layers-cell';
+const HIDDEN_TERRAIN_FIELD_ID = 'editor-hidden-terrain-field';
+const HIDDEN_TERRAIN_INPUT_ID = 'editor-hidden-terrain';
+const HIDDEN_TERRAIN_HINT_ID = 'editor-hidden-terrain-hint';
+const HIDDEN_TERRAIN_UNAVAILABLE_ID = 'editor-hidden-terrain-unavailable';
+/** Value of the "None" option of the hidden terrain select: no terrain is hidden under the cell. */
+const HIDDEN_TERRAIN_NONE = '';
 const CELL_LIVE_ID = 'editor-cell-live';
 const ISSUES_LIST_ID = 'editor-issues-list';
 const ISSUES_NOTE_ID = 'editor-issues-note';
@@ -518,6 +538,7 @@ export class LevelEditor {
   private pasteAnchor: { x: number; y: number } = { x: 0, y: 0 };
   private hoverCell: { x: number; y: number } | null = null;
   private cursorCell: { x: number; y: number } | null = null;
+  private collatorCache: { locale: string; collator: Intl.Collator } | null = null;
   /** The last cell the pointer was over, kept after it leaves the canvas so a toolbar button can use it. */
   private lastHoverCell: GridCell | null = null;
   /** What the Test from here button state was computed for, to skip recomputing it on every redraw. */
@@ -537,6 +558,8 @@ export class LevelEditor {
   private dirty: boolean = false;
   /** Bumped on every write to isDirty, so an async save can tell whether the editor changed meanwhile. */
   private editRevision: number = 0;
+  /** Bumped whenever the document content changes, never by a save: the beam preview is keyed on it. */
+  private docRevision: number = 0;
   private get isDirty(): boolean {
     return this.dirty;
   }
@@ -847,6 +870,8 @@ export class LevelEditor {
   /** Resets everything that belongs to the previous level once another one is in `doc`. */
   private afterDocumentReplaced(dirty: boolean): void {
     this.loadGeneration++;
+    this.docRevision++;
+    this.resetBeamPreview();
     this.cancelCellSpeech();
     const live = byId(CELL_LIVE_ID);
     if (live) live.textContent = '';
@@ -876,6 +901,7 @@ export class LevelEditor {
     this.lastIssues = null;
     this.updateCheckBadge(null);
     this.renderIssues();
+    if (this.beamPreviewOn) this.refreshBeamPreview(this.exportCompiledLevel(), false, false);
     this.scheduleCheck();
     this.render();
     // The stage may not have its final size yet (a view just shown, a dialog just closed): fit once more after layout.
@@ -1070,11 +1096,11 @@ export class LevelEditor {
   }
 
   /** A palette icon, drawn once per display id until the graphics style changes. */
-  private cachedIcon(kind: 'tile' | 'item' | 'entity' | 'player', id: string): string {
-    const key = `${kind}|${id}`;
+  private cachedIcon(kind: 'tile' | 'item' | 'entity' | 'player', id: string, dir?: Direction): string {
+    const key = `${kind}|${id}|${dir ?? ''}`;
     let url = this.iconCache.get(key);
     if (url === undefined) {
-      url = this.renderer.renderIconToDataUrl(kind, id);
+      url = dir === undefined ? this.renderer.renderIconToDataUrl(kind, id) : this.renderer.renderIconToDataUrl(kind, id, dir);
       this.iconCache.set(key, url);
     }
     return url;
@@ -1244,6 +1270,10 @@ export class LevelEditor {
   private renderPaletteItems(): void {
     const container = byId('editor-palette-grid');
     if (!container) return;
+    // A click re-renders the palette: remember which entry held focus so it can get it back.
+    const focused = document.activeElement;
+    const focusedKind = focused instanceof HTMLElement && container.contains(focused) ? focused.dataset.brushKind : undefined;
+    const focusedId = focused instanceof HTMLElement && container.contains(focused) ? focused.dataset.brushId : undefined;
     container.innerHTML = '';
     if (this.isCc3d()) {
       this.renderCc3dPaletteItems(container);
@@ -1251,12 +1281,15 @@ export class LevelEditor {
       return;
     }
     byId(CC3D_ATTRS_ID)?.classList.add('hidden');
-    const entry = (brush: Brush, label: string, iconUrl: string): void => {
-      container.appendChild(
-        this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
-          this.selectBrush(brush)
-        )
+    const mechanisms = this.activeCategory === MECHANISMS_CATEGORY;
+    const pending: Array<{ group: MechanismGroupId | null; button: HTMLButtonElement }> = [];
+    const entry = (brush: Brush, label: string, iconUrl: string, group: MechanismGroupId | null = null): void => {
+      const button = this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
+        this.selectBrush(brush)
       );
+      button.dataset.brushKind = brush.kind;
+      button.dataset.brushId = brush.id;
+      pending.push({ group, button });
     };
 
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
@@ -1267,7 +1300,8 @@ export class LevelEditor {
       entry(
         { kind, id: tile.id },
         t(tile.i18nKey),
-        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id)
+        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id),
+        mechanisms ? tileMechanismGroup(tile) : null
       );
     }
 
@@ -1275,7 +1309,11 @@ export class LevelEditor {
       (ent) => ent.category === this.activeCategory
     );
     for (const ent of entities) {
-      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), this.renderer.renderIconToDataUrl('entity', ent.id));
+      // A creature or turret is drawn facing the direction control, so the palette shows what a click will place.
+      const icon = entityHasFacing(ent.id)
+        ? this.cachedIcon('entity', ent.id, this.activeDir)
+        : this.cachedIcon('entity', ent.id);
+      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon, mechanisms ? entityMechanismGroup(ent) : null);
     }
 
     if (this.activeCategory === TERRAIN_CATEGORY) {
@@ -1290,19 +1328,38 @@ export class LevelEditor {
       entry({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), this.playerIconUrl);
     }
 
-    if (this.activeCategory === MECHANISMS_CATEGORY) {
+    if (mechanisms) {
       entry(
         { kind: 'wire_trap', id: WIRE_TRAP_BRUSH_ID },
         t('editor.palette.tools.wire_trap'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE)
+        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE),
+        wireToolMechanismGroup('wire_trap')
       );
       entry(
         { kind: 'wire_cloner', id: WIRE_CLONER_BRUSH_ID },
         t('editor.palette.tools.wire_cloner'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE)
+        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE),
+        wireToolMechanismGroup('wire_cloner')
       );
+      // Sub-headings only label the entries that follow them: they are not focusable and the tab order stays the button order.
+      // An entry no rule places is still offered, under an Other heading shown only when there is one.
+      for (const section of arrangeMechanismSections(pending.map((item) => ({ group: item.group, item: item.button })))) {
+        const heading = document.createElement('h4');
+        heading.className = 'palette-group-heading';
+        heading.textContent = t(section.group.labelKey);
+        container.appendChild(heading);
+        for (const button of section.items) container.appendChild(button);
+      }
+    } else {
+      for (const item of pending) container.appendChild(item.button);
     }
 
+    if (focusedKind !== undefined && focusedId !== undefined) {
+      const again = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
+        (btn) => btn.dataset.brushKind === focusedKind && btn.dataset.brushId === focusedId
+      );
+      again?.focus();
+    }
     this.updateSwitchEngineButton();
   }
 
@@ -1414,10 +1471,42 @@ export class LevelEditor {
     this.afterDirectionChange();
   }
 
+  /**
+   * Turns the creature or turret on the keyboard cursor cell (else the last hovered one) a quarter turn clockwise, as
+   * one history step. A clone machine under it copies the new facing.
+   */
+  private rotateEntityInPlace(): void {
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    const entity = cell && !this.doc.cc3d ? this.doc.entities.find((e) => e.x === cell.x && e.y === cell.y) : undefined;
+    if (!cell || !entity || !entityHasFacing(entity.type)) {
+      this.announce([{ key: 'editor.layout.status.rotate_nothing.label' }]);
+      return;
+    }
+    const dir = rotateClockwise(entity.dir);
+    const before = this.doc;
+    const result = paintEntity(before, cell.x, cell.y, entity.type, dir);
+    if (!result.changed) return;
+    this.doc = withEditedMap(before, result.map);
+    this.recordChange(before);
+    this.render();
+    this.announce([
+      {
+        key: 'editor.layout.status.rotated.label',
+        params: { name: entityDisplayName(entity.type), x: cell.x, y: cell.y, side: sideDisplayName(dir) }
+      },
+      ...(result.clonerTemplates ?? []).map(clonerTemplateMessage)
+    ]);
+  }
+
   /** The direction control changed: the buttons follow it, and the CC3D icons that show a direction are redrawn. */
   private afterDirectionChange(): void {
     this.updateDirButtons();
     if (!this.isCc3d()) {
+      // The icons of the creatures and turrets show the facing a click will place.
+      const showsFacing = Object.values(ConfigRegistry.getMonsters().entities).some(
+        (ent) => ent.category === this.activeCategory && entityHasFacing(ent.id)
+      );
+      if (showsFacing) this.renderPaletteItems();
       // The keyboard side of the thin wall tool is the direction control: its bar follows it.
       if (this.sideToolActive()) this.render();
       return;
@@ -1471,9 +1560,9 @@ export class LevelEditor {
     }
     byId('editor-export-xml-btn')?.classList.toggle('hidden', !cc3d);
     for (const id of ['editor-field-winrule', 'editor-field-chips']) byId(id)?.classList.toggle('hidden', cc3d);
-    byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !cc3d);
     this.updateToolButtons();
     this.refreshLayersList();
+    this.updateBeamPreviewButton();
   }
 
   public setTool(tool: EditorTool): void {
@@ -1497,8 +1586,14 @@ export class LevelEditor {
       case 'rotate':
         this.rotateDirection();
         break;
+      case 'rotate_in_place':
+        this.rotateEntityInPlace();
+        break;
       case 'test_from_here':
         void this.testFromHere();
+        break;
+      case 'toggle_beam_preview':
+        this.toggleBeamPreview();
         break;
       case 'zoom_in':
         this.setZoomOffset(zoomIn(this.zoomOffset));
@@ -1695,6 +1790,10 @@ export class LevelEditor {
       void this.testFromHere();
     });
 
+    byId('editor-beam-preview-btn')?.addEventListener('click', () => {
+      this.toggleBeamPreview();
+    });
+
     for (const tool of EDITOR_TOOLS) {
       document.querySelector<HTMLButtonElement>(`[data-tool="${tool}"]`)?.addEventListener('click', () => {
         this.setTool(tool);
@@ -1769,6 +1868,10 @@ export class LevelEditor {
 
     this.bindContextEvents();
 
+    byId<HTMLSelectElement>(HIDDEN_TERRAIN_INPUT_ID)?.addEventListener('change', (ev) =>
+      this.setHiddenTerrain((ev.target as HTMLSelectElement).value)
+    );
+
     byId('editor-autocount-btn')?.addEventListener('click', () => {
       let count = 0;
       for (const row of this.doc.items) {
@@ -1805,9 +1908,178 @@ export class LevelEditor {
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = setTimeout(() => {
       this.checkTimer = null;
-      const report = LevelValidator.validate(this.exportCompiledLevel(), storedSolutionWins);
+      const compiled = this.exportCompiledLevel();
+      const report = LevelValidator.validate(compiled, storedSolutionWins);
       this.setCheck(summarizeValidation(report), report.issues);
+      if (this.beamPreviewOn) this.refreshBeamPreview(compiled, false);
     }, EDITOR_CHECK_DEBOUNCE_MS);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Beam preview
+  // ---------------------------------------------------------------------------
+
+  /** Whether the beam preview is shown; a session choice, never saved. */
+  private beamPreviewOn = false;
+  private beamPreview: BeamPreview = EMPTY_BEAM_PREVIEW;
+  /** The beams painted once, to be copied on every frame while nothing about them changes. */
+  private beamLayer: { key: string; canvas: HTMLCanvasElement } | null = null;
+  /** The load and document content the preview was computed for. */
+  private beamPreviewKey = '';
+  /** The summary announced last, so a recompute that changes nothing stays silent. */
+  private beamSummaryAnnounced = '';
+
+  private currentBeamPreviewKey(): string {
+    return `${this.loadGeneration}:${this.docRevision}`;
+  }
+
+  /** Forgets the preview of the previous level, so its beams are never drawn on the next one. */
+  private resetBeamPreview(): void {
+    this.beamPreview = EMPTY_BEAM_PREVIEW;
+    this.beamPreviewKey = '';
+    this.beamLayer = null;
+    this.beamSummaryAnnounced = '';
+  }
+
+  /** Why the beam preview cannot run on this level, as a locale key, or null when it can. */
+  private beamPreviewUnavailableKey(): string | null {
+    if (this.isCc3d()) return 'editor.beam_preview.unavailable_cc3d.label';
+    if (editableRulesetOf(this.doc.ruleset) === LYNX_RULESET) return 'editor.beam_preview.unavailable_lynx.label';
+    return null;
+  }
+
+  private beamPreviewSummary(): string {
+    const { beamCells, litReceivers, totalReceivers, gatesOpening } = this.beamPreview;
+    return t('editor.beam_preview.summary.label', {
+      cells: beamCells.length,
+      lit: litReceivers.length,
+      total: totalReceivers,
+      gates: gatesOpening.length
+    });
+  }
+
+  /** The Beams button: pressed state, and unavailable with the reason on a level the preview does not cover. */
+  private updateBeamPreviewButton(): void {
+    const reasonKey = this.beamPreviewUnavailableKey();
+    const wasOn = this.beamPreviewOn;
+    if (reasonKey !== null) this.beamPreviewOn = false;
+    if (wasOn && !this.beamPreviewOn) {
+      this.beamSummaryAnnounced = '';
+      this.render();
+    }
+    const button = byId<HTMLButtonElement>('editor-beam-preview-btn');
+    if (!button) return;
+    button.classList.toggle('is-unavailable', reasonKey !== null);
+    if (reasonKey !== null) {
+      button.setAttribute('aria-disabled', 'true');
+      button.setAttribute('aria-description', t(reasonKey));
+    } else {
+      button.removeAttribute('aria-disabled');
+      button.removeAttribute('aria-description');
+    }
+    button.setAttribute('aria-pressed', String(this.beamPreviewOn));
+    button.title =
+      reasonKey !== null
+        ? t(reasonKey)
+        : this.beamPreviewOn && this.beamPreview.hasLasers
+          ? this.beamPreviewSummary()
+          : t('editor.beam_preview.title.label');
+  }
+
+  /** Computes the preview of a compiled level; announces the summary on request or when it changed. */
+  private refreshBeamPreview(compiled: CompiledLevel, announce: boolean, redraw = true): void {
+    this.beamPreview = computeBeamPreview(compiled);
+    this.beamLayer = null;
+    this.beamPreviewKey = this.currentBeamPreviewKey();
+    const text = this.beamPreview.hasLasers ? this.beamPreviewSummary() : t('editor.beam_preview.none.label');
+    if (announce || text !== this.beamSummaryAnnounced) this.setStatusText(text);
+    this.beamSummaryAnnounced = text;
+    this.updateBeamPreviewButton();
+    if (redraw) this.render();
+  }
+
+  /** Shows or hides the beam preview (button and L key). */
+  private toggleBeamPreview(): void {
+    const reasonKey = this.beamPreviewUnavailableKey();
+    if (reasonKey !== null) {
+      this.setStatusText(t(reasonKey));
+      return;
+    }
+    this.beamPreviewOn = !this.beamPreviewOn;
+    if (this.beamPreviewOn) {
+      this.refreshBeamPreview(this.exportCompiledLevel(), true);
+      return;
+    }
+    this.beamSummaryAnnounced = '';
+    this.setStatusText(t('editor.beam_preview.off.label'));
+    this.updateBeamPreviewButton();
+    this.render();
+  }
+
+  /**
+   * Paints the beams of the preview over the map: tick 0 at full strength, the later facings of a turning
+   * turret dimmed, and a marker on each gate about to open. A preview that lags the last edit is dimmed
+   * until the check timer catches up.
+   */
+  private drawBeamPreview(s: number): void {
+    const preview = this.beamPreview;
+    if (!this.beamPreviewOn || !preview.hasLasers) return;
+    const alpha = this.beamPreviewKey === this.currentBeamPreviewKey() ? 1 : EDITOR_BEAM_STALE_ALPHA;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const layer = this.beamPreviewLayer(preview, s);
+    if (layer) ctx.drawImage(layer, 0, 0);
+    else this.paintBeamPreview(ctx, preview, s);
+    ctx.restore();
+  }
+
+  /**
+   * The beams painted once into an off-screen canvas, keyed on the preview, the tile size, the look and the
+   * canvas size, so a pointer move only copies them. Null (paint directly) when no canvas can be created.
+   */
+  private beamPreviewLayer(preview: BeamPreview, s: number): HTMLCanvasElement | null {
+    const { width, height } = this.canvas;
+    const key = `${this.beamPreviewKey}|${s}|${this.renderer.getAppearanceKey()}|${width}x${height}`;
+    if (this.beamLayer?.key === key) return this.beamLayer.canvas;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const layerCtx = canvas.getContext('2d');
+    if (!layerCtx) return null;
+    layerCtx.imageSmoothingEnabled = false;
+    this.paintBeamPreview(layerCtx, preview, s);
+    this.beamLayer = { key, canvas };
+    return canvas;
+  }
+
+  /** Paints the beams at tick 0, the dimmed later facings of the turning turrets and the gate markers. */
+  private paintBeamPreview(ctx: CanvasRenderingContext2D, preview: BeamPreview, s: number): void {
+    const board = {
+      entities: this.doc.entities.map((entity) => ({ ...entity, kind: ConfigRegistry.getEntityDef(entity.type)?.kind ?? '' })),
+      terrain: this.doc.terrain,
+      originX: 0,
+      originY: 0,
+      region: { x0: 0, y0: 0 },
+      unit: s,
+      round: true
+    };
+    ctx.save();
+    ctx.globalAlpha = 1;
+    this.renderer.drawBeamCells(ctx, {
+      ...board,
+      cells: preview.beamCells,
+      emitterCells: preview.emitterCells,
+      litReceivers: preview.litReceivers
+    });
+    ctx.globalAlpha = EDITOR_BEAM_DIM_ALPHA;
+    this.renderer.drawBeamCells(ctx, { ...board, cells: preview.dimTurretCells, emitterCells: [], litReceivers: [] });
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = EDITOR_OVERLAY_LINE_WIDTH;
+    ctx.strokeStyle = EDITOR_BEAM_GATE_COLOR;
+    const inset = s * EDITOR_BEAM_GATE_INSET_TILE;
+    for (const gate of preview.gatesOpening) ctx.strokeRect(gate.x * s + inset, gate.y * s + inset, s - inset * 2, s - inset * 2);
+    ctx.restore();
   }
 
   /**
@@ -2024,10 +2296,12 @@ export class LevelEditor {
   }
 
   private afterMetadataChange(): void {
+    this.docRevision++;
     this.isDirty = true;
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
     this.renderPaletteItems();
+    this.refreshLayersList();
     this.scheduleCheck();
   }
 
@@ -2061,6 +2335,7 @@ export class LevelEditor {
     const lynxLocked =
       !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc) || hasCellEdges(this.doc) || hasUnderlays(this.doc));
     if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
+    this.updateBeamPreviewButton();
     rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
     // The engine of a level never changes into another one here: a CC3D level shows its own engine
     // read-only, and the other levels cannot take the CC3D option.
@@ -2121,7 +2396,15 @@ export class LevelEditor {
     if (range) range.textContent = t('editor.layout.size.range', { min: bounds.minSize, max: bounds.maxSize });
   }
 
-  /** Resizes the map to the typed size as one undoable step and says what it dropped. */
+  /** The anchor picked in the size section (session only); the top-left cell when none is checked. */
+  private readSizeAnchor(): ResizeAnchor {
+    const checked = document.querySelector<HTMLInputElement>('input[name="editor-size-anchor"]:checked');
+    const [col, row] = (checked?.value ?? '').split(',').map((part) => Number.parseInt(part, 10));
+    const valid = (step: number): step is ResizeAnchorStep => Number.isInteger(step) && step >= 0 && step < ANCHOR_STEPS;
+    return valid(col) && valid(row) ? { col, row } : TOP_LEFT_ANCHOR;
+  }
+
+  /** Resizes the map to the typed size around the picked anchor as one undoable step and says what it dropped. */
   private applySize(): void {
     const widthInput = byId<HTMLInputElement>('editor-size-width');
     const heightInput = byId<HTMLInputElement>('editor-size-height');
@@ -2130,17 +2413,18 @@ export class LevelEditor {
     const width = Number.isFinite(typedWidth) ? typedWidth : this.mapWidth();
     const height = Number.isFinite(typedHeight) ? typedHeight : this.mapHeight();
     const bounds = ConfigRegistry.getLevelSizeBounds();
+    const anchor = this.readSizeAnchor();
     const before = this.doc;
     const cc3d = before.cc3d;
     let changed: boolean;
     let notes: ToolMessage[];
     if (cc3d) {
-      const result = resizeCc3d(cc3d, width, height, bounds);
+      const result = resizeCc3d(cc3d, width, height, bounds, anchor);
       changed = result.changed;
       if (changed) this.doc = withCc3d(before, result.level);
       notes = this.describeCc3dResize(cc3d, result);
     } else {
-      const result = resizeMap(before, width, height, bounds);
+      const result = resizeMap(before, width, height, bounds, anchor);
       changed = result.changed;
       if (changed) this.doc = withEditedMap(before, result.map);
       notes = describeResize(result);
@@ -2152,12 +2436,13 @@ export class LevelEditor {
       this.resetSelectionState();
       this.cursorCell = null;
       this.hoverCell = null;
+      this.docRevision++;
       this.isDirty = true;
       this.applyFit();
       this.updateUndoRedoButtons();
       this.syncRulesetInput();
       this.scheduleCheck();
-      if (cc3d) this.refreshLayersList();
+      this.refreshLayersList();
       this.render();
     }
     this.syncSizeInputs();
@@ -2392,6 +2677,8 @@ export class LevelEditor {
   public dispose(): void {
     this.disposed = true;
     this.cancelCellSpeech();
+    if (this.checkTimer !== null) clearTimeout(this.checkTimer);
+    this.checkTimer = null;
     this.draftListeners.abort();
     this.cancelDraftTimer();
     this.releaseDraftLock?.();
@@ -2597,6 +2884,7 @@ export class LevelEditor {
   private restoreDocument(doc: EditorDocument, keepCursor = false): void {
     const cursor = this.cursorCell;
     this.doc = doc;
+    this.docRevision++;
     this.coalescer.reset();
     this.isDirty = !(this.cleanDoc !== null && sameDocument(doc, this.cleanDoc));
     this.pendingWire = null;
@@ -3059,11 +3347,101 @@ export class LevelEditor {
     list.innerHTML = '';
     const level = this.doc.cc3d;
     const at = this.cursorCell;
+    const hiddenTerrain = !level && this.refreshHiddenTerrainField();
+    // Outside CC3D the section follows the cursor, so the inspector does not jump from cell to cell: it holds
+    // the hidden terrain select, or the hint that says which tops can hide a terrain.
+    byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !level && !hiddenTerrain);
+    // A level of the other engines has no list of layers: its section holds the hidden terrain field alone.
+    const cc3dOnly = Boolean(level);
+    byId(LAYERS_CELL_ID)?.classList.toggle('hidden', !cc3dOnly);
+    list.classList.toggle('hidden', !cc3dOnly);
     const cell = level && at ? cc3dCellAt(level, at.x, at.y) : undefined;
-    const caption = byId('editor-layers-cell');
+    const caption = byId(LAYERS_CELL_ID);
     if (caption) caption.textContent = at && cell ? t('editor.cc3d.layers.cell', { x: at.x, y: at.y }) : t('editor.cc3d.layers.none');
     if (!level || !at || !cell) return;
     for (const part of this.cc3dCellParts(level, at.x, at.y)) list.appendChild(this.layerRow(part.name, part.remove));
+  }
+
+  /** The terrain tiles a cell of the Epoxy level can hide under its top, named and sorted by name. */
+  private hiddenTerrainChoices(x: number, y: number): Array<{ id: string; name: string }> {
+    const choices: Array<{ id: string; name: string }> = [];
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+      if (tile.layer !== 'terrain') continue;
+      if (normalizeUnderlays([{ x, y, terrain: tile.id }], this.doc.terrain, 'epoxy') === null) continue;
+      choices.push({ id: tile.id, name: t(tile.i18nKey) });
+    }
+    const collator = this.nameCollator();
+    return choices.sort((a, b) => collator.compare(a.name, b.name));
+  }
+
+  /** The collator of the current locale, built once and rebuilt when the locale changes. */
+  private nameCollator(): Intl.Collator {
+    const locale = i18n.getLocale();
+    if (this.collatorCache?.locale !== locale) this.collatorCache = { locale, collator: new Intl.Collator(locale) };
+    return this.collatorCache.collator;
+  }
+
+  /**
+   * Fills the hidden terrain select for the cursor cell. Returns whether the section shows: there is a cursor
+   * cell. The select is there when the cell's top is one the player removes, a short hint otherwise. The select
+   * is disabled, with the reason, under Lynx rules.
+   */
+  private refreshHiddenTerrainField(): boolean {
+    const field = byId(HIDDEN_TERRAIN_FIELD_ID);
+    const select = byId<HTMLSelectElement>(HIDDEN_TERRAIN_INPUT_ID);
+    const hint = byId(HIDDEN_TERRAIN_HINT_ID);
+    const at = this.cursorCell;
+    const topId = at ? this.doc.terrain[at.y]?.[at.x] : undefined;
+    const top = topId !== undefined && ConfigRegistry.isTerrainTile(topId) ? ConfigRegistry.getTile(topId) : undefined;
+    const applies = Boolean(at && top && isRemovableTop(top));
+    field?.classList.toggle('hidden', !applies);
+    const unavailable = byId(HIDDEN_TERRAIN_UNAVAILABLE_ID);
+    unavailable?.classList.toggle('hidden', applies || !at);
+    if (unavailable) unavailable.textContent = t('editor.layout.layers.hidden_terrain.unavailable.label');
+    if (!applies || !at || !select) return Boolean(at);
+    select.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = HIDDEN_TERRAIN_NONE;
+    none.textContent = t('editor.layout.layers.hidden_terrain.none.label');
+    select.appendChild(none);
+    for (const choice of this.hiddenTerrainChoices(at.x, at.y)) {
+      const option = document.createElement('option');
+      option.value = choice.id;
+      option.textContent = choice.name;
+      select.appendChild(option);
+    }
+    select.value = underlayAt(this.doc, at.x, at.y) ?? HIDDEN_TERRAIN_NONE;
+    const lynx = editableRulesetOf(this.doc.ruleset) === LYNX_RULESET;
+    select.disabled = lynx;
+    if (hint) hint.textContent = t(lynx ? 'editor.layout.layers.hidden_terrain.lynx.label' : 'editor.layout.layers.hidden_terrain.hint.label');
+    return true;
+  }
+
+  /** Sets or clears the terrain hidden under the cursor cell, as one undoable edit. */
+  private setHiddenTerrain(value: string): void {
+    const at = this.cursorCell;
+    if (!at || this.stroke || this.isCc3d()) return;
+    if (editableRulesetOf(this.doc.ruleset) === LYNX_RULESET) {
+      this.refreshLayersList();
+      return;
+    }
+    const terrain = value === HIDDEN_TERRAIN_NONE ? null : value;
+    if ((underlayAt(this.doc, at.x, at.y) ?? null) === terrain) return;
+    const base = cloneDocument(this.doc);
+    const next = cloneDocument(this.doc);
+    setUnderlayAt(next, at.x, at.y, terrain);
+    if (sameDocument(base, next)) {
+      this.refreshLayersList();
+      return;
+    }
+    this.doc = next;
+    this.recordChange(base);
+    this.setStatusText(
+      terrain === null
+        ? t('editor.layout.layers.hidden_terrain.cleared', { x: at.x, y: at.y })
+        : t('editor.layout.layers.hidden_terrain.set', { x: at.x, y: at.y, name: t(ConfigRegistry.getTile(terrain).i18nKey) })
+    );
+    this.render();
   }
 
   /**
@@ -3116,6 +3494,7 @@ export class LevelEditor {
   private recordChange(base: EditorDocument): void {
     this.history.push(base);
     this.coalescer.reset();
+    this.docRevision++;
     this.isDirty = true;
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
@@ -3140,6 +3519,7 @@ export class LevelEditor {
     });
     if (outcome.changed) {
       this.doc = withCc3d(this.doc, outcome.level);
+      this.docRevision++;
       stroke.changed = true;
     }
     this.announce(outcome.messages);
@@ -3177,6 +3557,7 @@ export class LevelEditor {
     this.pendingWire = outcome.pendingWire;
     if (outcome.changed) {
       this.doc = withEditedMap(this.doc, outcome.map);
+      this.docRevision++;
       stroke.changed = true;
     }
     this.announce(outcome.messages);
@@ -3425,6 +3806,9 @@ export class LevelEditor {
     if (result.droppedUnderlays) messages.push({ key: MESSAGE_UNDERLAYS_REMOVED, params: { count: result.droppedUnderlays } });
     if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
     if (result.playerStartKept) messages.push({ key: 'editor.selection.status.fill_start_kept' });
+    const cloners = result.clonerTemplates ?? [];
+    if (cloners.length === 1) messages.push(clonerTemplateMessage(cloners[0]));
+    else if (cloners.length > 1) messages.push(clonersTemplateMessage(cloners.length, cloners[0].type, cloners[0].dir));
     if (!this.commitSelectionEdit(result)) {
       this.announce([{ key: 'editor.selection.status.unchanged' }, ...messages]);
       return;
@@ -4010,6 +4394,7 @@ export class LevelEditor {
     if (layer) for (const chunk of layer.chunks) this.ctx.drawImage(chunk.canvas, chunk.x0 * s, chunk.y0 * s);
     else this.drawMapLayers(this.ctx, doc, s);
     if (doc.cc3d) this.drawPlayerStart(this.ctx, doc, s);
+    this.drawBeamPreview(s);
 
     this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
     for (const link of doc.trapLinks) {
@@ -4018,6 +4403,7 @@ export class LevelEditor {
     for (const link of doc.cloneLinks) {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
+    for (const link of doc.cloneLinks) this.drawClonerTemplateBadge(link, s);
 
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);
@@ -4063,6 +4449,16 @@ export class LevelEditor {
     this.ctx.lineTo(baseX + Math.sin(angle) * spread, baseY - Math.cos(angle) * spread);
     this.ctx.closePath();
     this.ctx.fill();
+  }
+
+  /** The template of an Epoxy clone link, drawn with its facing in the top right corner of its clone machine. */
+  private drawClonerTemplateBadge(link: CloneLink, s: number): void {
+    const size = EDITOR_CLONER_BADGE_TILE * s;
+    const x = (link.clonerX + 1) * s - size;
+    const y = link.clonerY * s;
+    this.ctx.fillStyle = EDITOR_CLONER_BADGE_BACKING;
+    this.ctx.fillRect(x, y, size, size);
+    this.renderer.drawEntity(this.ctx, link.templateType, link.templateDir, x, y, size);
   }
 
   /** A disc in the top right corner of a cell: the template mob of a clone machine. */
