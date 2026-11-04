@@ -190,14 +190,13 @@ describe('hold doors and pressure plates', () => {
     expect(door('color_block_green')).toBe('hold_door_red_closed');
   });
 
-  it('is not pressed by a monster unless its definition says so', () => {
+  it('is not pressed by a flying monster, and is pressed by a walking one', () => {
     const rows = ['######', '#P.rR#', '######'];
-    const monster: EntityPlacement[] = [{ type: 'blob', x: 3, y: 1, dir: 'S' }];
-    expect(tileAt(engineWith(rows, monster), 4, 1)).toBe('hold_door_red_closed');
-    const def = ConfigRegistry.getEntityDef('blob');
-    if (!def) throw new Error('blob is not defined');
-    def.pressesPlates = true;
-    expect(tileAt(engineWith(rows, monster), 4, 1)).toBe('hold_door_red_open');
+    const flyer: EntityPlacement[] = [{ type: 'glider', x: 3, y: 1, dir: 'S' }];
+    expect(ConfigRegistry.getEntityDef('glider')?.flying).toBe(true);
+    expect(tileAt(engineWith(rows, flyer), 4, 1)).toBe('hold_door_red_closed');
+    const walker: EntityPlacement[] = [{ type: 'blob', x: 3, y: 1, dir: 'S' }];
+    expect(tileAt(engineWith(rows, walker), 4, 1)).toBe('hold_door_red_open');
   });
 
   it('does not count a sliding block as pressing a plate', () => {

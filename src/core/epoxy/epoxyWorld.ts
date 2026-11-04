@@ -465,14 +465,14 @@ export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: Channel
 /**
  * Whether an entity of this type, standing still on a plate of this colour, presses it: a block does
  * (a colour block only on a plate of its own colour) unless its definition says otherwise, a monster
- * only when its definition says so.
+ * unless it flies; an explicit `pressesPlates` in the definition wins in both cases.
  */
 export function entityPressesPlate(type: string, kind: 'block' | 'monster', color: ChannelColor): boolean {
   const def = ConfigRegistry.getEntityDef(type);
   if (kind === 'block') {
     return def?.pressesPlates !== false && (def?.plateColor === undefined || def.plateColor === color);
   }
-  return def?.pressesPlates === true;
+  return def?.pressesPlates ?? def?.flying !== true;
 }
 
 export function killPlayer(ctx: EpoxyContext, reasonKey: string, sfxId: string): void {

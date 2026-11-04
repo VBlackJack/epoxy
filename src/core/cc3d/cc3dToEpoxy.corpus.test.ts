@@ -55,6 +55,9 @@ const ALLOWED_ERROR_KEYS: readonly string[] = [
   'no_matching_key',
   'no_exit'
 ];
+const PLATE_REGRESSION_MAP_ID = '17381';
+const RED_HOLD_DOOR_PREFIX = 'hold_door_red';
+const RED_HOLD_DOOR_OPEN = 'hold_door_red_open';
 const IDLE_TICKS = 12;
 const SCRIPT_STEPS = 72;
 const TICKS_PER_STEP = 4;
@@ -247,5 +250,18 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     for (const line of mismatches) console.info(`  mismatch ${line}`);
     expect(exactMaps).toBeGreaterThan(0);
     expect(mismatches).toEqual([]);
+  });
+
+  it('opens the red hold doors of map 17381 at load: the golems stand on the red plates', { timeout: TEST_TIMEOUT_MS }, () => {
+    const source = loadLevels().find((level) => level.id.endsWith(PLATE_REGRESSION_MAP_ID));
+    if (!source) throw new Error('map 17381 is missing from the corpus');
+    const { level } = convertCc3dLevel(source);
+    const doors = level.terrain.flat().filter((id) => id.startsWith(RED_HOLD_DOOR_PREFIX));
+    expect(doors.length).toBeGreaterThan(0);
+    expect(doors.every((id) => id === RED_HOLD_DOOR_OPEN)).toBe(true);
+    const engine = new GameEngine();
+    engine.loadLevel(level, SCRIPT_SEED);
+    const loaded = engine.getTerrain().flat().filter((id) => id.startsWith(RED_HOLD_DOOR_PREFIX));
+    expect(loaded.every((id) => id === RED_HOLD_DOOR_OPEN)).toBe(true);
   });
 });
