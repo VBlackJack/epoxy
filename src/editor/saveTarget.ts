@@ -70,6 +70,9 @@ export interface SaveDecisionInput {
   forceCopy: boolean;
 }
 
+/** Dialog choice id confirming changes to an imported pack. */
+export const IMPORTED_MODIFY_CHOICE = 'modify';
+
 /** True when saving into this pack first needs the "modify an imported pack" confirmation. */
 export function needsImportedConfirmation(
   pack: PackRef | undefined,
