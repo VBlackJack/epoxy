@@ -748,6 +748,30 @@
         "export_xml_failed": "Le niveau n'a pas pu être exporté en XML."
       }
     },
+    "link": {
+      "started": { "label": "Liaison de : {role} en ({x}, {y}), avec {count, plural, one {# liaison} other {# liaisons}}. Cliquez sur : {partner} pour le lier ou le délier, ou sur une case de sol vide pour en poser un. Échap pour terminer." },
+      "fallback": {
+        "trap_button": { "label": "Sans liaison, ce bouton brun ouvre tous les pièges sans liaison." },
+        "trap": { "label": "Sans liaison, n'importe quel bouton brun ouvre ce piège." },
+        "clone_button": { "label": "Sans liaison, ce bouton rouge déclenche toutes les machines à cloner qui portent une créature." },
+        "clone_machine": { "label": "Sans liaison, n'importe quel bouton rouge déclenche cette machine à cloner dès qu'une créature s'y tient." },
+        "shot_trigger": { "label": "Sans liaison, ce déclencheur de tir ne tire rien." },
+        "shot_launcher": { "label": "Sans liaison, aucun déclencheur de tir ne commande ce lanceur." }
+      },
+      "linked": { "label": "Lié. Cet élément ({role}) a maintenant {count, plural, one {# liaison} other {# liaisons}}." },
+      "unlinked": { "label": "Délié. Cet élément ({role}) a maintenant {count, plural, one {# liaison} other {# liaisons}}." },
+      "placed": { "label": "Élément posé et lié : {partner}. Cet élément ({role}) a maintenant {count, plural, one {# liaison} other {# liaisons}}." },
+      "replaced": { "label": "Un bouton Lynx ne porte qu'une liaison : l'ancienne a été remplacée." },
+      "done": { "label": "Liaison terminée. Cet élément ({role}) a {count, plural, one {# liaison} other {# liaisons}}." },
+      "source_gone": { "label": "Liaison terminée : l'élément que vous reliiez ({role}) a disparu." },
+      "unavailable": { "label": "Les liaisons ne se tracent pas dans ce type de niveau." },
+      "nothing": { "label": "Rien à lier ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir ou un lanceur de tir." },
+      "refused": {
+        "hidden": { "label": "Cet élément ({role}) est caché sous une autre tuile : montrez-le pour le lier." },
+        "not_free": { "label": "Cette case porte un terrain caché : seule une case de sol vide reçoit un nouvel élément ({partner})." },
+        "other": { "label": "{found} ne peut pas être lié ici : cliquez sur un élément ({expected}), ou sur une case de sol vide pour en poser un." }
+      }
+    },
     "selection": {
       "tool": {
         "label": "Sélection",

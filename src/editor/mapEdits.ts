@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { LevelSizeBounds } from '../config/ConfigValidation';
 import { FLOOR_TILE_ID, WALL_TILE_ID } from '../core/coreConstants';
-import { Direction, LauncherLink } from '../core/types';
+import { Direction, LauncherLink, TileDefinition } from '../core/types';
 import {
   EDITOR_CLONE_BUTTON_TILE,
   EDITOR_CLONER_TILE,
@@ -499,6 +500,282 @@ export function placeWireLink(
   }
   // The map was copied from the painted one, which already pruned the hidden terrain of the target cell.
   return { map, changed: true, removedLinks: painted.removedLinks, removedUnderlays: painted.removedUnderlays, playerStartKept: false, refused: false, ...(emptyCloner ? { emptyCloner } : {}) };
+}
+
+/** The three mechanisms a link session works: brown button to trap, red button to clone machine, shot trigger to launcher. */
+export type LinkSystem = 'trap' | 'clone' | 'shot';
+
+/** The systems whose links the Lynx ruleset can carry (one link per button). */
+export type ButtonLinkSystem = Exclude<LinkSystem, 'shot'>;
+
+/** Which end of a link a device is: the button (or shot trigger) that works it, or the target it works. */
+export type LinkEnd = 'button' | 'target';
+
+/** Why a link edit was refused. */
+export type LinkRefusal = 'same_cell' | 'missing_button' | 'missing_target' | 'not_free';
+
+/** Outcome of a link edit. */
+export interface LinkEditResult extends MapEditResult {
+  /** True when the edit was refused; `refusal` says why. */
+  refused: boolean;
+  refusal?: LinkRefusal;
+  /** What the edit did to the link, when it did something to a pair. */
+  action?: 'linked' | 'unlinked';
+  /**
+   * How many links the button end has in this system after the edit (the count before it when the edit changed nothing);
+   * placePartnerAndLink counts the links of the device it started from instead.
+   */
+  count: number;
+  /** True when a clone link ended on a clone machine with no creature, so the link got the default template. */
+  emptyCloner?: boolean;
+  /** The template a new clone link stores. */
+  template?: { type: string; dir: Direction };
+  /** Other links of the button that a Lynx edit replaced. */
+  replaced?: number;
+  /** The tile a placement painted. */
+  placed?: string;
+}
+
+/** Facing a clone link template takes when no creature stands on the cloner and the caller gave none. */
+const DEFAULT_LINK_CLONE_DIR: Direction = 'S';
+
+type Cell = { x: number; y: number };
+
+function tileDefinitionOf(id: string | undefined): TileDefinition | undefined {
+  return id !== undefined && ConfigRegistry.isTerrainTile(id) ? ConfigRegistry.getTile(id) : undefined;
+}
+
+function tileHoldsLinkEnd(tile: TileDefinition | undefined, system: ButtonLinkSystem, end: LinkEnd): boolean {
+  if (!tile) return false;
+  if (end === 'button') return tile.buttonAction === (system === 'trap' ? 'hold_trap' : 'trigger_cloner');
+  return (system === 'trap' ? tile.isTrap : tile.isCloneMachine) === true;
+}
+
+/**
+ * Whether the cell holds that end of that system where the engine reads it: on the top tile for traps and clone
+ * machines (and their buttons), on top or hidden under a removable top for a shot trigger and launcher.
+ */
+export function holdsLinkEnd(map: EditorMap, system: LinkSystem, end: LinkEnd, x: number, y: number): boolean {
+  if (system === 'shot') return end === 'button' ? holdsShotTrigger(map, x, y) : holdsShotLauncher(map, x, y);
+  return tileHoldsLinkEnd(tileDefinitionOf(map.terrain[y]?.[x]), system, end);
+}
+
+/** Whether a trap or clone device of that end is hidden under the top tile, where neither the engine nor the validator read it. */
+export function hidesLinkEnd(map: EditorMap, system: LinkSystem, end: LinkEnd, x: number, y: number): boolean {
+  return system !== 'shot' && tileHoldsLinkEnd(tileDefinitionOf(underlayAt(map, x, y)), system, end);
+}
+
+/** How many links of the system have that end on the cell. */
+export function linkCountAt(map: EditorMap, system: LinkSystem, end: LinkEnd, x: number, y: number): number {
+  if (system === 'trap') {
+    return map.trapLinks.filter((l) => (end === 'button' ? l.buttonX === x && l.buttonY === y : l.trapX === x && l.trapY === y)).length;
+  }
+  if (system === 'clone') {
+    return map.cloneLinks.filter((l) => (end === 'button' ? l.buttonX === x && l.buttonY === y : l.clonerX === x && l.clonerY === y)).length;
+  }
+  return (map.launcherLinks ?? []).filter((l) => (end === 'button' ? l.buttonX === x && l.buttonY === y : l.launcherX === x && l.launcherY === y)).length;
+}
+
+/** Whether a link of the system joins the two cells. */
+export function hasLink(map: EditorMap, system: LinkSystem, button: Cell, target: Cell): boolean {
+  if (system === 'trap') {
+    return map.trapLinks.some((l) => l.buttonX === button.x && l.buttonY === button.y && l.trapX === target.x && l.trapY === target.y);
+  }
+  if (system === 'clone') {
+    return map.cloneLinks.some((l) => l.buttonX === button.x && l.buttonY === button.y && l.clonerX === target.x && l.clonerY === target.y);
+  }
+  return (map.launcherLinks ?? []).some(
+    (l) => l.buttonX === button.x && l.buttonY === button.y && l.launcherX === target.x && l.launcherY === target.y
+  );
+}
+
+/** Terrain a link session places for each end of a system; a launcher takes the facing. */
+function partnerTile(system: LinkSystem, end: LinkEnd, dir: Direction): string {
+  if (system === 'trap') return end === 'button' ? EDITOR_TRAP_BUTTON_TILE : EDITOR_TRAP_TILE;
+  if (system === 'clone') return end === 'button' ? EDITOR_CLONE_BUTTON_TILE : EDITOR_CLONER_TILE;
+  return end === 'button' ? EDITOR_SHOT_TRIGGER_TILE : EDITOR_SHOT_LAUNCHER_TILES[dir];
+}
+
+/** Why two cells cannot be linked, when they cannot. */
+function endsRefusal(map: EditorMap, system: LinkSystem, button: Cell, target: Cell): LinkRefusal | undefined {
+  if (button.x === target.x && button.y === target.y) return 'same_cell';
+  if (!holdsLinkEnd(map, system, 'button', button.x, button.y)) return 'missing_button';
+  if (!holdsLinkEnd(map, system, 'target', target.x, target.y)) return 'missing_target';
+  return undefined;
+}
+
+function dropPair(map: EditorMap, system: LinkSystem, button: Cell, target: Cell): void {
+  if (system === 'trap') {
+    map.trapLinks = map.trapLinks.filter((l) => !(l.buttonX === button.x && l.buttonY === button.y && l.trapX === target.x && l.trapY === target.y));
+  } else if (system === 'clone') {
+    map.cloneLinks = map.cloneLinks.filter((l) => !(l.buttonX === button.x && l.buttonY === button.y && l.clonerX === target.x && l.clonerY === target.y));
+  } else {
+    setLauncherLinks(
+      map,
+      (map.launcherLinks ?? []).filter((l) => !(l.buttonX === button.x && l.buttonY === button.y && l.launcherX === target.x && l.launcherY === target.y))
+    );
+  }
+}
+
+/** Removes the links of the button that do not go to the target; returns how many. */
+function dropOtherLinksOf(map: EditorMap, system: ButtonLinkSystem, button: Cell, target: Cell): number {
+  const before = linkCountAt(map, system, 'button', button.x, button.y);
+  if (system === 'trap') {
+    map.trapLinks = map.trapLinks.filter((l) => !(l.buttonX === button.x && l.buttonY === button.y) || (l.trapX === target.x && l.trapY === target.y));
+  } else {
+    map.cloneLinks = map.cloneLinks.filter(
+      (l) => !(l.buttonX === button.x && l.buttonY === button.y) || (l.clonerX === target.x && l.clonerY === target.y)
+    );
+  }
+  return before - linkCountAt(map, system, 'button', button.x, button.y);
+}
+
+/**
+ * Records the link in a map the caller already copied. A clone link copies the creature standing on the cloner, else
+ * the default template facing `cloneDir`.
+ */
+function appendLink(map: EditorMap, system: LinkSystem, button: Cell, target: Cell, cloneDir: Direction): Pick<LinkEditResult, 'emptyCloner' | 'template'> {
+  if (system === 'trap') {
+    map.trapLinks.push({ buttonX: button.x, buttonY: button.y, trapX: target.x, trapY: target.y });
+    return {};
+  }
+  if (system === 'clone') {
+    const onCloner = map.entities.find((e) => e.x === target.x && e.y === target.y);
+    const template = { type: onCloner?.type ?? EDITOR_DEFAULT_CLONE_TEMPLATE, dir: onCloner?.dir ?? cloneDir };
+    map.cloneLinks.push({
+      buttonX: button.x,
+      buttonY: button.y,
+      clonerX: target.x,
+      clonerY: target.y,
+      templateType: template.type,
+      templateDir: template.dir
+    });
+    return { template, ...(onCloner === undefined ? { emptyCloner: true } : {}) };
+  }
+  setLauncherLinks(map, [...(map.launcherLinks ?? []), { buttonX: button.x, buttonY: button.y, launcherX: target.x, launcherY: target.y }]);
+  return {};
+}
+
+/**
+ * Adds one link between two devices that already stand on the map, painting nothing. `replace` (Lynx) first removes
+ * the other links of the button. Unchanged (same map) when the pair is already linked and the button has no other
+ * link to replace, when the map is a CC3D room or a cell is outside the grid; refused when the cells are the same
+ * or an end is not the device it should be.
+ */
+function linkDevices(source: EditorMap, system: LinkSystem, button: Cell, target: Cell, cloneDir: Direction, replace: boolean): LinkEditResult {
+  const none = (refusal?: LinkRefusal): LinkEditResult => ({
+    ...unchanged(source),
+    refused: refusal !== undefined,
+    ...(refusal ? { refusal } : {}),
+    count: source.cc3d || !inGrid(source, button.x, button.y) ? 0 : linkCountAt(source, system, 'button', button.x, button.y)
+  });
+  if (source.cc3d) return none(); // a CC3D map is edited through cc3dEdits only
+  if (!inGrid(source, button.x, button.y) || !inGrid(source, target.x, target.y)) return none();
+  const refusal = endsRefusal(source, system, button, target);
+  if (refusal) return none(refusal);
+  const exists = hasLink(source, system, button, target);
+  const others = replace && system !== 'shot' ? linkCountAt(source, system, 'button', button.x, button.y) - (exists ? 1 : 0) : 0;
+  if (exists && others <= 0) return none();
+  const map = cloneMap(source);
+  const replaced = others > 0 && system !== 'shot' ? dropOtherLinksOf(map, system, button, target) : 0;
+  const added = exists ? {} : appendLink(map, system, button, target, cloneDir);
+  return {
+    map,
+    changed: true,
+    removedLinks: 0,
+    removedUnderlays: 0,
+    playerStartKept: false,
+    refused: false,
+    action: 'linked',
+    count: linkCountAt(map, system, 'button', button.x, button.y),
+    ...added,
+    ...(replaced > 0 ? { replaced } : {})
+  };
+}
+
+/** Links a brown button to a trap, both already on the map. Nothing is painted; a pair already linked leaves the same map. */
+export function addTrapLink(source: EditorMap, button: Cell, trap: Cell): LinkEditResult {
+  return linkDevices(source, 'trap', button, trap, DEFAULT_LINK_CLONE_DIR, false);
+}
+
+/**
+ * Links a red button to a clone machine, both already on the map. The template copies the creature on the cloner, else
+ * the default template facing `fallbackDir` (and the result says `emptyCloner`).
+ */
+export function addCloneLink(source: EditorMap, button: Cell, cloner: Cell, fallbackDir: Direction): LinkEditResult {
+  return linkDevices(source, 'clone', button, cloner, fallbackDir, false);
+}
+
+/** Links a shot trigger to a shot launcher, both already on the map (hidden under a removable top is fine). */
+export function addLauncherLink(source: EditorMap, trigger: Cell, launcher: Cell): LinkEditResult {
+  return linkDevices(source, 'shot', trigger, launcher, DEFAULT_LINK_CLONE_DIR, false);
+}
+
+/**
+ * Links the pair when it is not linked, unlinks it (every duplicate) when it is. Never paints. `dir` is the clone
+ * link's fallback facing. Refused like the add functions; an existing pair is unlinked even if a device is gone.
+ */
+export function toggleLink(source: EditorMap, system: LinkSystem, button: Cell, target: Cell, dir: Direction): LinkEditResult {
+  if (!source.cc3d && inGrid(source, button.x, button.y) && inGrid(source, target.x, target.y) && hasLink(source, system, button, target)) {
+    const map = cloneMap(source);
+    dropPair(map, system, button, target);
+    const count = linkCountAt(map, system, 'button', button.x, button.y);
+    return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, refused: false, action: 'unlinked', count };
+  }
+  return linkDevices(source, system, button, target, dir, false);
+}
+
+/**
+ * Lynx: links the button to the target and removes the button's other links of that system (Lynx reads one link per
+ * button). An existing pair stays; the result says how many other links were replaced. `dir` is the clone template's
+ * fallback facing. Unchanged when the button already has exactly that link.
+ */
+export function replaceButtonLink(source: EditorMap, system: ButtonLinkSystem, button: Cell, target: Cell, dir: Direction): LinkEditResult {
+  return linkDevices(source, system, button, target, dir, true);
+}
+
+/**
+ * Puts the partner of a link session on a free floor cell and links it, as one edit. `sourceEnd` is the end the source
+ * device holds: from a button the cell gets the trap, clone machine or launcher (facing `dir`), from a target a brown
+ * button, red button or shot trigger. Free means the top tile is plain floor with no hidden terrain; items and creatures
+ * on the cell stay (a creature on a new clone machine becomes the template). `replace` (Lynx) also removes the other
+ * links of the button. Never touches an existing device: a cell that is not free is refused (`not_free`).
+ */
+export function placePartnerAndLink(
+  source: EditorMap,
+  system: LinkSystem,
+  sourceEnd: LinkEnd,
+  from: Cell,
+  cell: Cell,
+  dir: Direction,
+  replace = false
+): LinkEditResult {
+  const none = (refusal?: LinkRefusal): LinkEditResult => ({
+    ...unchanged(source),
+    refused: refusal !== undefined,
+    ...(refusal ? { refusal } : {}),
+    count: source.cc3d || !inGrid(source, from.x, from.y) ? 0 : linkCountAt(source, system, sourceEnd, from.x, from.y)
+  });
+  if (source.cc3d) return none(); // a CC3D map is edited through cc3dEdits only
+  if (!inGrid(source, from.x, from.y) || !inGrid(source, cell.x, cell.y)) return none();
+  if (from.x === cell.x && from.y === cell.y) return none('same_cell');
+  if (!holdsLinkEnd(source, system, sourceEnd, from.x, from.y)) return none(sourceEnd === 'button' ? 'missing_button' : 'missing_target');
+  if (source.terrain[cell.y][cell.x] !== FLOOR_TILE_ID || underlayAt(source, cell.x, cell.y) !== undefined) return none('not_free');
+  const partnerEnd: LinkEnd = sourceEnd === 'button' ? 'target' : 'button';
+  const tile = partnerTile(system, partnerEnd, dir);
+  const painted = paintTerrain(source, cell.x, cell.y, tile);
+  const button = sourceEnd === 'button' ? from : cell;
+  const target = sourceEnd === 'button' ? cell : from;
+  const linked = linkDevices(painted.map, system, button, target, dir, replace);
+  if (linked.refused || !linked.map) return none(linked.refusal);
+  return {
+    ...linked,
+    removedLinks: painted.removedLinks,
+    removedUnderlays: painted.removedUnderlays,
+    action: 'linked',
+    count: linkCountAt(linked.map, system, sourceEnd, from.x, from.y),
+    placed: tile
+  };
 }
 
 function hasWallBorder(map: EditorMap): boolean {

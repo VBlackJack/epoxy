@@ -748,6 +748,30 @@
         "export_xml_failed": "The level could not be exported to XML."
       }
     },
+    "link": {
+      "started": { "label": "Linking the {role} at ({x}, {y}), now with {count, plural, one {# link} other {# links}}. Click a {partner} to link or unlink it, or an empty floor cell to place one. Press Escape when done." },
+      "fallback": {
+        "trap_button": { "label": "Unlinked, this brown button opens every unlinked trap." },
+        "trap": { "label": "Unlinked, any brown button opens this trap." },
+        "clone_button": { "label": "Unlinked, this red button fires every clone machine with a creature." },
+        "clone_machine": { "label": "Unlinked, any red button fires this clone machine once a creature stands on it." },
+        "shot_trigger": { "label": "Unlinked, this shot trigger fires nothing." },
+        "shot_launcher": { "label": "Unlinked, no shot trigger fires this launcher." }
+      },
+      "linked": { "label": "Linked. This {role} now has {count, plural, one {# link} other {# links}}." },
+      "unlinked": { "label": "Unlinked. This {role} now has {count, plural, one {# link} other {# links}}." },
+      "placed": { "label": "{partner} placed and linked. This {role} now has {count, plural, one {# link} other {# links}}." },
+      "replaced": { "label": "A Lynx button holds one link: the link it had before was replaced." },
+      "done": { "label": "Linking done. This {role} has {count, plural, one {# link} other {# links}}." },
+      "source_gone": { "label": "Linking ended: the {role} you were linking is gone." },
+      "unavailable": { "label": "Links are not drawn in this kind of level." },
+      "nothing": { "label": "Nothing to link here: pick a button, trap, clone machine, shot trigger or shot launcher." },
+      "refused": {
+        "hidden": { "label": "This {role} is hidden under another tile: bring it into plain view to link it." },
+        "not_free": { "label": "This cell has hidden terrain: only an empty floor cell takes a new {partner}." },
+        "other": { "label": "{found} cannot be linked here: click a {expected}, or an empty floor cell to place one." }
+      }
+    },
     "selection": {
       "tool": {
         "label": "Select",
