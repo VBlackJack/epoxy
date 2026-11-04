@@ -279,6 +279,25 @@ describe('trap and clone links in the description', () => {
     expect(at(map, 3, 1)).toContain('fired by 0 buttons');
   });
 
+  it('says a clone machine with a creature and no link is fired by any red button without a link', () => {
+    const map = linked();
+    map.cloneLinks = [];
+    map.entities.push({ x: 3, y: 1, type: 'walker', dir: 'N' });
+    const text = at(map, 3, 1);
+    expect(text).toContain('fired by any red button without a link');
+    expect(text).not.toContain('fired by 0 buttons');
+    // The machine with no creature is not fired by those buttons.
+    expect(at(map, 2, 1)).toContain('fired by 0 buttons');
+  });
+
+  it('keeps the count of a clone machine that a link names, even with a creature on it', () => {
+    const map = linked();
+    map.entities.push({ x: 2, y: 1, type: 'walker', dir: 'N' });
+    const text = at(map, 2, 1);
+    expect(text).toContain('fired by 2 buttons');
+    expect(text).not.toContain('any red button');
+  });
+
   it('speaks French', () => {
     i18n.setLocale('fr');
     const map = linked();

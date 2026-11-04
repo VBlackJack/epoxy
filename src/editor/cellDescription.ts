@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { deviceRelations } from '../core/DeviceRelations';
 import { Direction } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { closedSidesAt } from './editorCellEdges';
@@ -40,6 +41,7 @@ const OPENS_WITH_ANY_KEY = 'editor.cell_speech.opens_with_any.label';
 const FIRES_CLONERS_KEY = 'editor.cell_speech.fires_cloners.label';
 const FIRES_ANY_CLONER_KEY = 'editor.cell_speech.fires_any_cloner.label';
 const CLONER_FIRED_BY_KEY = 'editor.cell_speech.cloner_fired_by.label';
+const CLONER_FIRED_BY_ANY_KEY = 'editor.cell_speech.cloner_fired_by_any.label';
 const CLONER_KEY ='editor.cell_speech.cloner.label';
 const CLONER_TEMPLATE_KEY = 'editor.layout.status.cloner_template.label';
 const CLONERS_TEMPLATE_KEY = 'editor.layout.status.cloners_template.label';
@@ -136,7 +138,9 @@ function deviceLinkParts(map: EditorMap, x: number, y: number, hidden: string | 
   }
   if (tiles.some((tile) => tile.isCloneMachine)) {
     const count = map.cloneLinks.filter((l) => l.clonerX === x && l.clonerY === y).length;
-    parts.push({ key: CLONER_FIRED_BY_KEY, params: { count } });
+    // A machine no link names is still fired by every red button that has no link of its own.
+    const firedByUnlinked = count === 0 && deviceRelations(map, x, y).controlledBy.some((r) => r.fallback === true && r.system === 'clone');
+    parts.push(firedByUnlinked ? { key: CLONER_FIRED_BY_ANY_KEY } : { key: CLONER_FIRED_BY_KEY, params: { count } });
   }
   return parts;
 }

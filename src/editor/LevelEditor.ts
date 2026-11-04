@@ -147,7 +147,9 @@ import {
   MESSAGE_WIRE_CANCELLED,
   MESSAGE_WIRE_CANCELLED_BUTTON_LEFT,
   MESSAGE_WIRE_LAUNCHER_DONE,
+  MESSAGE_WIRE_LAUNCHER_PICKED,
   MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT,
+  MESSAGE_WIRE_SELECT_TARGET,
   pickFromCell,
   PendingWire,
   ToolMessage
@@ -164,7 +166,22 @@ import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './
 import { holdsShotTrigger, launcherCountAt, pruneLauncherLinks } from './editorLauncherLinks';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
-import { mapHeightOf, mapWidthOf, paintEntity, resizeMap, wireButtonTile } from './mapEdits';
+import { mapHeightOf, mapWidthOf, paintEntity, removeCloneLink, removeLauncherLink, removeTrapLink, resizeMap, wireButtonTile } from './mapEdits';
+import {
+  CHANNEL_NAME_KEYS,
+  type ConnectionList,
+  type ConnectionRow,
+  type ConnectionUnlink,
+  type ConnectionView,
+  type ConnectionWire,
+  type ConnectionLink,
+  KIND_NAME_KEYS,
+  SYSTEM_NAME_KEYS,
+  connectionCellName,
+  connectionRows
+} from './connectionRows';
+import { deviceOverlayFor } from './deviceOverlay';
+import { deviceRelations } from '../core/DeviceRelations';
 import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
   CellRect,
@@ -226,6 +243,8 @@ import {
   EDITOR_TEST_CHECK_TIMEOUT_MS,
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
   EDITOR_CC3D_ARROW_HEAD_TILE,
+  EDITOR_CONNECTIONS_ROW_OUTLINE_WIDTH,
+  EDITOR_RELATION_COLORS,
   EDITOR_CC3D_BADGE_RADIUS_TILE,
   EDITOR_CLONER_BADGE_BACKING,
   EDITOR_CLONER_BADGE_TILE,
@@ -260,6 +279,7 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_LINK_COLOR,
   EDITOR_CLONE_BUTTON_TILE,
+  EDITOR_CONNECTIONS_HOVER_DWELL_MS,
   EDITOR_DRAFT_MAX_CHARS,
   EDITOR_DRAFT_STORAGE_PREFIX,
   EDITOR_DRAFT_WRITE_DELAY_MS,
@@ -310,6 +330,30 @@ const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
 const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
 const LAYERS_CELL_ID = 'editor-layers-cell';
+const CONNECTIONS_SECTION_ID = 'editor-connections-section';
+const CONNECTIONS_CELL_ID = 'editor-connections-cell';
+const CONNECTIONS_LISTS_ID = 'editor-connections-lists';
+const CONNECTIONS_CONTROLS_ID = 'editor-connections-controls';
+const CONNECTIONS_CONTROLLED_ID = 'editor-connections-controlled';
+const CONNECTIONS_NOTE_ID = 'editor-connections-note';
+const CONNECTIONS_LINK_BTN_ID = 'editor-connections-link-btn';
+const CONNECTIONS_LINK_HINT_ID = 'editor-connections-link-hint';
+const CONNECTIONS_NO_CELL_KEY = 'editor.connections.no_cell';
+const CONNECTIONS_MORE_KEY = 'editor.connections.more';
+const CONNECTIONS_ROW_KEY = 'editor.connections.row';
+const CONNECTIONS_LINK_BLOCKED_KEY = 'editor.connections.link.blocked';
+const CONNECTIONS_LINK_NOTE_TRAP_KEY = 'editor.connections.link.note_trap';
+const CONNECTIONS_LINK_NOTE_CLONE_KEY = 'editor.connections.link.note_clone';
+const CONNECTIONS_UNLINK_ACTION_KEY = 'editor.connections.unlink.action';
+const CONNECTIONS_UNLINK_ARIA_KEY = 'editor.connections.unlink.aria';
+const CONNECTIONS_UNLINK_DONE_KEY = 'editor.connections.unlink.done';
+const CONNECTIONS_UNLINK_SUFFIX_TRAP_KEY = 'editor.connections.unlink.suffix_trap';
+const CONNECTIONS_UNLINK_SUFFIX_CLONE_KEY = 'editor.connections.unlink.suffix_clone';
+const CONNECTIONS_UNLINK_SUFFIX_CLONE_NONE_KEY = 'editor.connections.unlink.suffix_clone_none';
+const ISSUE_JUMP_TITLE_KEY = 'editor.issues.jump.title';
+const LIST_SEPARATOR_KEY = 'editor.cell_speech.list_separator.label';
+const CONNECTION_ROW_CLASS = 'editor-connection-row';
+const CONNECTION_GOTO_CLASS = 'editor-connection-goto';
 const HIDDEN_TERRAIN_FIELD_ID = 'editor-hidden-terrain-field';
 const HIDDEN_TERRAIN_INPUT_ID = 'editor-hidden-terrain';
 const HIDDEN_TERRAIN_HINT_ID = 'editor-hidden-terrain-hint';
@@ -342,6 +386,12 @@ const CC3D_ATTRIBUTE_LABEL_KEYS: Record<Exclude<Cc3dAttribute, 'dir'>, string> =
 const WIRE_TRAP_BRUSH_ID = 'wire_trap';
 const WIRE_CLONER_BRUSH_ID = 'wire_cloner';
 const WIRE_LAUNCHER_BRUSH_ID = 'wire_launcher';
+/** The wire brush the Link button of the Connections section selects, by wire. */
+const CONNECTION_WIRE_BRUSHES: Record<ConnectionWire, Brush> = {
+  trap: { kind: 'wire_trap', id: WIRE_TRAP_BRUSH_ID },
+  clone: { kind: 'wire_cloner', id: WIRE_CLONER_BRUSH_ID },
+  launcher: { kind: 'wire_launcher', id: WIRE_LAUNCHER_BRUSH_ID }
+};
 /** Win rules offered by the select, to mark the ones the engine cannot play. */
 const WIN_RULE_VALUES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
 const ENTITIES_CATEGORY = 'entities';
@@ -551,6 +601,24 @@ export class LevelEditor {
   private activeDir: Direction = 'S';
   private stroke: Stroke | null = null;
   private pendingWire: PendingWire | null = null;
+  /** The tool and brush to give back once the wire the Link button started has ended; null when no such wire runs. */
+  private linkReturn: { tool: EditorTool; brush: Brush } | null = null;
+  /** What the Connections section shows now: the key it was drawn for and the cell it is about. */
+  private connectionsKey = '';
+  private connectionsShown: { x: number; y: number } | null = null;
+  /** The relation lookup of the last cell asked for: valid while the document, the cell and the locale stay. */
+  private connectionsCache: { doc: EditorDocument; x: number; y: number; view: ConnectionView } | null = null;
+  /** The cell of the connections row the pointer or the focus is on: it gets a thicker outline on the map. */
+  private connectionsRowCell: { x: number; y: number } | null = null;
+  /** What the Link button of the section starts for the cell shown. */
+  private connectionsLink: ConnectionLink = null;
+  /** True while the section is being rebuilt: a focus change caused by the rebuild itself must not start another. */
+  private connectionsDrawing = false;
+  /** The cell the pointer rested on long enough for the section to follow it; stays after the pointer leaves the map. */
+  private connectionsPointerCell: { x: number; y: number } | null = null;
+  private connectionsDwellTimer: ReturnType<typeof setTimeout> | null = null;
+  /** True while the pointer is over the section: its list must not change under it. */
+  private connectionsPointerInside = false;
   /** CC3D palette state: the selected entry, its category and the attributes the choosers hold. */
   private cc3dEntryId: string = 'layer:wall';
   private cc3dCategory: Cc3dCategoryId = 'blockers';
@@ -669,6 +737,7 @@ export class LevelEditor {
     this.bindMetadataEvents();
     this.bindPaletteChrome();
     this.bindInspectorSections();
+    this.bindConnectionsEvents();
     this.renderIssues();
     this.bindLayoutEvents();
     this.bindDraftEvents();
@@ -926,9 +995,11 @@ export class LevelEditor {
     this.coalescer.reset();
     this.stroke = null;
     this.pendingWire = null;
+    this.restoreLinkReturn();
     this.resetSelectionState();
     this.hoverCell = null;
     this.cursorCell = null;
+    this.resetConnectionsPointer();
     this.lastHoverCell = null;
     this.zoomOffset = 0;
     this.cleanDoc = dirty ? null : cloneDocument(this.doc);
@@ -1085,6 +1156,7 @@ export class LevelEditor {
     this.renderIssues();
     this.testFromStateKey = '';
     this.updateTestFromState();
+    this.refreshConnections();
     this.applyFit();
   }
 
@@ -1668,7 +1740,10 @@ export class LevelEditor {
     const pending = this.pendingWire;
     if (!pending) return;
     this.pendingWire = null;
-    if (leavesLooseButton(this.doc, pending, wireButtonTile(pending.kind))) {
+    // A wire the Link button started never placed a button: it says it was cancelled, not that a button stays unlinked.
+    const startedFromLink = this.linkReturn !== null;
+    this.restoreLinkReturn();
+    if (!startedFromLink && leavesLooseButton(this.doc, pending, wireButtonTile(pending.kind))) {
       this.setStatusText(t(this.looseButtonMessage(pending.kind)));
     } else if (announce) {
       // A launcher wire is not cancelled but finished: it already holds its links.
@@ -2576,6 +2651,8 @@ export class LevelEditor {
     this.renderPaletteItems();
     this.refreshLayersList();
     this.scheduleCheck();
+    // The ruleset decides what the Connections section lists.
+    this.refreshConnections();
   }
 
   private syncMetadataInputs(): void {
@@ -2709,6 +2786,7 @@ export class LevelEditor {
       this.resetSelectionState();
       this.cursorCell = null;
       this.hoverCell = null;
+      this.resetConnectionsPointer();
       this.docRevision++;
       this.isDirty = true;
       this.applyFit();
@@ -2949,6 +3027,7 @@ export class LevelEditor {
   /** Stops the page-level draft listeners, the pending write and the Web Lock: the editor is no longer in use. */
   public dispose(): void {
     this.disposed = true;
+    this.resetConnectionsPointer();
     this.cancelCellSpeech();
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = null;
@@ -3163,6 +3242,7 @@ export class LevelEditor {
     this.coalescer.reset();
     this.isDirty = !(this.cleanDoc !== null && sameDocument(doc, this.cleanDoc));
     this.pendingWire = null;
+    this.restoreLinkReturn();
     this.resetSelectionState();
     // An undo keeps the keyboard cursor where it was while that cell still exists.
     this.cursorCell = keepCursor && cursor && cursor.x < this.mapWidth() && cursor.y < this.mapHeight() ? cursor : null;
@@ -3365,6 +3445,12 @@ export class LevelEditor {
     const same = this.hoverCell?.x === cell?.x && this.hoverCell?.y === cell?.y;
     this.hoverCell = cell;
     if (cell) this.lastHoverCell = cell;
+    // The Connections section follows the pointer after a short pause; leaving the map keeps the last cell it settled on.
+    if (cell) {
+      if (!same) this.startConnectionsDwell(cell);
+    } else {
+      this.clearConnectionsDwell();
+    }
     this.setCoordsText(cell ? t('editor.palette.status.coords', { x: cell.x, y: cell.y }) : NO_COORDS_TEXT);
     if (!same) this.requestRender();
   }
@@ -3381,6 +3467,7 @@ export class LevelEditor {
       this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(ev.pointerId);
       this.cursorCell = cell;
+      this.resetConnectionsPointer();
       this.lastInput = 'pointer';
       // Every path below (picker, Alt or middle click, a stroke) starts from this cell: the layers list follows it.
       this.refreshLayersList();
@@ -3494,6 +3581,7 @@ export class LevelEditor {
     const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
     const writesBefore = this.statusWrites;
     this.cursorCell = to;
+    this.resetConnectionsPointer();
     if (this.pasting) this.pasteAnchor = to;
     if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, to, extendSelection);
     this.setCoordsText(t('editor.palette.status.coords', { x: to.x, y: to.y }));
@@ -3558,8 +3646,14 @@ export class LevelEditor {
     const stroke = this.stroke;
     if (!stroke) return;
     this.stroke = null;
-    if (!stroke.changed) return;
+    // The wire the Link button started has ended with this click: the tool and brush come back (not mid-stroke, a drag would paint with them).
+    if (!this.pendingWire) this.restoreLinkReturn();
+    if (!stroke.changed) {
+      this.refreshConnections();
+      return;
+    }
     this.recordChange(stroke.base);
+    this.refreshConnections();
     this.announceLinkChanges(stroke.base);
   }
 
@@ -3634,6 +3728,320 @@ export class LevelEditor {
     if (caption) caption.textContent = at && cell ? t('editor.cc3d.layers.cell', { x: at.x, y: at.y }) : t('editor.cc3d.layers.none');
     if (!level || !at || !cell) return;
     for (const part of this.cc3dCellParts(level, at.x, at.y)) list.appendChild(this.layerRow(part.name, part.remove));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Connections section
+  // ---------------------------------------------------------------------------
+
+  /** The cell the Connections section is about: the device the pointer rested on, else the keyboard cursor's. */
+  private connectionsSubject(): { x: number; y: number } | null {
+    return this.connectionsPointerCell ?? this.cursorCell;
+  }
+
+  /** Restarts the pause after which the section follows the pointer to `cell`. */
+  private startConnectionsDwell(cell: { x: number; y: number }): void {
+    this.clearConnectionsDwell();
+    this.connectionsDwellTimer = setTimeout(() => {
+      this.connectionsDwellTimer = null;
+      if (this.disposed) return;
+      this.connectionsPointerCell = { x: cell.x, y: cell.y };
+      this.requestRender();
+    }, EDITOR_CONNECTIONS_HOVER_DWELL_MS);
+  }
+
+  private clearConnectionsDwell(): void {
+    if (this.connectionsDwellTimer !== null) clearTimeout(this.connectionsDwellTimer);
+    this.connectionsDwellTimer = null;
+  }
+
+  /** Hands the section back to the keyboard cursor: drops the pause and the cell it settled on. */
+  private resetConnectionsPointer(): void {
+    this.clearConnectionsDwell();
+    this.connectionsPointerCell = null;
+  }
+
+  /** The view of a cell of the current document, kept for the last cell asked for. */
+  private connectionViewAt(x: number, y: number): ConnectionView {
+    const cached = this.connectionsCache;
+    if (cached && cached.doc === this.doc && cached.x === x && cached.y === y) return cached.view;
+    const view = connectionRows(this.doc, x, y);
+    this.connectionsCache = { doc: this.doc, x, y, view };
+    return view;
+  }
+
+  private bindConnectionsEvents(): void {
+    byId(CONNECTIONS_LINK_BTN_ID)?.addEventListener('click', () => this.onConnectionsLinkClick());
+    // Leaving the section for the map hands the section back to the cell the map shows.
+    const section = byId(CONNECTIONS_SECTION_ID);
+    section?.addEventListener('focusout', (ev) => {
+      // A rebuild of the list drops and gives back the focus itself: that is not the focus leaving.
+      if (this.connectionsDrawing) return;
+      const next = ev.relatedTarget;
+      if (!this.disposed && !(next instanceof Node && section.contains(next))) this.render();
+    });
+    // The list stays as it is while the pointer is over it, so a row does not move under the click.
+    section?.addEventListener('pointerenter', () => {
+      this.connectionsPointerInside = true;
+    });
+    section?.addEventListener('pointerleave', () => {
+      this.connectionsPointerInside = false;
+      if (!this.disposed) this.render();
+    });
+  }
+
+  /**
+   * Brings the Connections section in line with the cell it is about. Skipped during a stroke (the document changes
+   * at every cell and the section is redrawn once when the stroke ends) and keyed so that only a new level, edit,
+   * cell or language redraws it. While the focus is inside the section its cell stays the one shown, so a list
+   * never changes under the keyboard.
+   */
+  private refreshConnections(): void {
+    const section = byId(CONNECTIONS_SECTION_ID);
+    if (!section || this.stroke || this.connectionsDrawing) return;
+    const cc3d = this.isCc3d();
+    section.classList.toggle('hidden', cc3d);
+    if (cc3d) {
+      this.connectionsKey = '';
+      return;
+    }
+    const inside = section.contains(document.activeElement) || this.connectionsPointerInside;
+    const subject = inside ? this.connectionsShown : this.connectionsSubject();
+    const key = [this.loadGeneration, this.docRevision, subject?.x ?? '', subject?.y ?? '', i18n.getLocale(), this.doc.ruleset ?? ''].join(':');
+    if (key === this.connectionsKey) return;
+    this.connectionsKey = key;
+    this.connectionsShown = subject;
+    this.connectionsDrawing = true;
+    try {
+      this.drawConnections(section, subject);
+    } finally {
+      this.connectionsDrawing = false;
+    }
+  }
+
+  private drawConnections(section: HTMLElement, subject: { x: number; y: number } | null): void {
+    const caption = byId(CONNECTIONS_CELL_ID);
+    const controls = byId(CONNECTIONS_CONTROLS_ID);
+    const controlled = byId(CONNECTIONS_CONTROLLED_ID);
+    if (!caption || !controls || !controlled) return;
+    // Rebuilding drops the focused row: remember its position (and which of its two buttons) to give the focus back.
+    const focused = document.activeElement;
+    const rowsBefore = Array.from(section.querySelectorAll<HTMLElement>(`.${CONNECTION_ROW_CLASS}`));
+    const focusedRow = rowsBefore.findIndex((row) => focused !== null && row.contains(focused));
+    const focusedUnlink = focusedRow >= 0 && focused instanceof HTMLElement && !focused.classList.contains(CONNECTION_GOTO_CLASS);
+    controls.innerHTML = '';
+    controlled.innerHTML = '';
+    this.connectionsRowCell = null;
+    const view = subject ? this.connectionViewAt(subject.x, subject.y) : null;
+    const message = view?.caption;
+    caption.textContent = view
+      ? message
+        ? t(message.key, { x: message.x, y: message.y, name: message.name ? t(message.name.key, message.name.params) : '' })
+        : ''
+      : t(CONNECTIONS_NO_CELL_KEY);
+    byId(CONNECTIONS_LISTS_ID)?.classList.toggle('hidden', !view?.controls);
+    if (view?.controls) this.fillConnectionList(controls, view.controls);
+    if (view?.controlledBy) this.fillConnectionList(controlled, view.controlledBy);
+    const note = byId(CONNECTIONS_NOTE_ID);
+    if (note) note.textContent = view?.note ? t(view.note.key, view.note.params) : '';
+    this.connectionsLink = view?.link ?? null;
+    this.syncConnectionsLinkButton();
+    if (focusedRow < 0) return;
+    const rowsAfter = Array.from(section.querySelectorAll<HTMLElement>(`.${CONNECTION_ROW_CLASS}`));
+    const target = rowsAfter[focusedRow] ?? rowsAfter[focusedRow - 1];
+    const unlinkButton = focusedUnlink ? target?.querySelector<HTMLElement>(`button:not(.${CONNECTION_GOTO_CLASS})`) : null;
+    const gotoButton = target?.querySelector<HTMLElement>(`.${CONNECTION_GOTO_CLASS}`);
+    (unlinkButton ?? gotoButton ?? caption).focus({ preventScroll: true });
+  }
+
+  private fillConnectionList(list: HTMLElement, data: ConnectionList): void {
+    for (const row of data.rows) list.appendChild(this.connectionRowItem(row));
+    if (data.more > 0) {
+      const more = document.createElement('li');
+      more.className = 'hint-text editor-connections-more';
+      more.textContent = t(CONNECTIONS_MORE_KEY, { count: data.more });
+      list.appendChild(more);
+    }
+    if (data.empty) {
+      const none = document.createElement('li');
+      none.className = 'hint-text';
+      none.textContent = t(data.empty.key);
+      list.appendChild(none);
+    }
+  }
+
+  /** The words of a row: the other cell's name and place, how they are wired, which mechanism, which colour. */
+  private connectionRowText(row: ConnectionRow): string {
+    const channel = row.channel === undefined ? [] : [CHANNEL_NAME_KEYS[row.channel] ? t(CHANNEL_NAME_KEYS[row.channel]) : row.channel];
+    const detail = [t(KIND_NAME_KEYS[row.fallback ? 'fallback' : row.kind]), t(SYSTEM_NAME_KEYS[row.system]), ...channel].join(
+      t(LIST_SEPARATOR_KEY)
+    );
+    return t(CONNECTIONS_ROW_KEY, { name: t(row.name.key, row.name.params), x: row.x, y: row.y, detail });
+  }
+
+  private connectionRowItem(row: ConnectionRow): HTMLLIElement {
+    const item = document.createElement('li');
+    item.className = CONNECTION_ROW_CLASS;
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = CONNECTION_GOTO_CLASS;
+    go.dataset.kind = row.kind;
+    go.textContent = this.connectionRowText(row);
+    go.title = t(ISSUE_JUMP_TITLE_KEY, { x: row.x, y: row.y });
+    go.addEventListener('click', () => this.jumpToConnection(row));
+    // The cell of the row the pointer or the focus is on is outlined thicker on the map.
+    for (const [enter, leave] of [
+      ['pointerenter', 'pointerleave'],
+      ['focus', 'blur']
+    ] as const) {
+      go.addEventListener(enter, () => this.markConnectionRow({ x: row.x, y: row.y }));
+      go.addEventListener(leave, () => this.markConnectionRow(null));
+    }
+    item.appendChild(go);
+    const unlink = row.unlink;
+    if (unlink) {
+      const name = t(row.name.key, row.name.params);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hud-btn small';
+      btn.textContent = t(CONNECTIONS_UNLINK_ACTION_KEY);
+      btn.setAttribute('aria-label', t(CONNECTIONS_UNLINK_ARIA_KEY, { name, x: row.x, y: row.y }));
+      btn.addEventListener('click', () => {
+        // A click focuses its button in most browsers; do it where it does not, so the redraw knows where the focus was.
+        btn.focus({ preventScroll: true });
+        this.unlinkRelation(unlink);
+      });
+      item.appendChild(btn);
+    }
+    return item;
+  }
+
+  private markConnectionRow(cell: { x: number; y: number } | null): void {
+    const same = this.connectionsRowCell?.x === cell?.x && this.connectionsRowCell?.y === cell?.y;
+    this.connectionsRowCell = cell;
+    if (!same) this.requestRender();
+  }
+
+  /** Puts the cursor on the cell of a row, scrolls it into view and gives the canvas the focus. */
+  private jumpToConnection(row: ConnectionRow): void {
+    this.moveCursorTo({ x: row.x, y: row.y }, false);
+    this.canvas.focus({ preventScroll: true });
+  }
+
+  /** The Link button: shown on a button that starts a link (disabled with the reason when it cannot), a hint on the other ends. */
+  private syncConnectionsLinkButton(): void {
+    const button = byId<HTMLButtonElement>(CONNECTIONS_LINK_BTN_ID);
+    const hint = byId(CONNECTIONS_LINK_HINT_ID);
+    const link = this.connectionsLink;
+    hint?.classList.toggle('hidden', link?.type !== 'hint');
+    if (!button) return;
+    button.classList.toggle('hidden', link?.type !== 'start');
+    button.removeAttribute('aria-disabled');
+    button.removeAttribute('aria-description');
+    button.removeAttribute('title');
+    if (link?.type !== 'start') return;
+    const refusal = this.brushAvailability(CONNECTION_WIRE_BRUSHES[link.wire]);
+    const reason = link.blocked ? t(CONNECTIONS_LINK_BLOCKED_KEY) : refusal.available ? null : t(refusal.reasonKey);
+    if (reason === null) return;
+    button.setAttribute('aria-disabled', 'true');
+    button.setAttribute('aria-description', reason);
+    button.title = reason;
+  }
+
+  private onConnectionsLinkClick(): void {
+    const button = byId<HTMLButtonElement>(CONNECTIONS_LINK_BTN_ID);
+    const subject = this.connectionsShown;
+    const link = this.connectionsLink;
+    if (!button || !subject || link?.type !== 'start' || this.stroke || this.isCc3d()) return;
+    if (button.getAttribute('aria-disabled') === 'true') {
+      this.setStatusText(button.getAttribute('aria-description') ?? '');
+      return;
+    }
+    this.startLinkFrom(subject, link.wire);
+  }
+
+  /**
+   * Starts a link from a button of the map without painting it: the wire brush is taken, the wire waits for its
+   * target, and the tool and brush the player held come back when the wire ends.
+   */
+  private startLinkFrom(cell: { x: number; y: number }, wire: ConnectionWire): void {
+    const brush = CONNECTION_WIRE_BRUSHES[wire];
+    const returnTo = this.linkReturn ?? { tool: this.tool, brush: this.brush };
+    // Taking the tool and the brush drops any wire that waits: the return must not fire for that.
+    this.linkReturn = null;
+    this.setTool('brush');
+    this.selectBrush(brush);
+    this.linkReturn = returnTo;
+    const before = deviceRelations(this.doc, cell.x, cell.y);
+    this.pendingWire = { kind: wire, x: cell.x, y: cell.y };
+    const notes: string[] = [];
+    if (wire === 'launcher') notes.push(t(MESSAGE_WIRE_LAUNCHER_PICKED, { count: launcherCountAt(this.doc, cell.x, cell.y) }));
+    else notes.push(t(MESSAGE_WIRE_SELECT_TARGET));
+    if (wire === 'trap' && before.controls.some((r) => r.fallback === true && r.system === 'trap')) notes.push(t(CONNECTIONS_LINK_NOTE_TRAP_KEY));
+    if (wire === 'clone' && !before.controls.some((r) => r.kind === 'link' && r.system === 'clone')) notes.push(t(CONNECTIONS_LINK_NOTE_CLONE_KEY));
+    this.setStatusText(notes.join(SEPARATOR_BETWEEN_MESSAGES));
+    this.moveCursorTo(cell, false);
+    this.canvas.focus({ preventScroll: true });
+    this.render();
+  }
+
+  /** Gives back the tool and brush held before the Link button started a wire. */
+  private restoreLinkReturn(): void {
+    const back = this.linkReturn;
+    if (!back) return;
+    this.linkReturn = null;
+    this.tool = back.tool;
+    this.brush = back.brush;
+    this.updateToolButtons();
+    this.updateCanvasLabel();
+    this.renderPaletteItems();
+    this.requestRender();
+  }
+
+  /** Removes one explicit link from its row, as one undoable edit, and says what that changed. */
+  private unlinkRelation(unlink: ConnectionUnlink): void {
+    if (this.stroke || this.isCc3d()) return;
+    // The removers copy the map they change, so the document before the edit is the history base as it stands.
+    const base = this.doc;
+    const result =
+      unlink.system === 'trap'
+        ? removeTrapLink(base, unlink.button, unlink.target)
+        : unlink.system === 'clone'
+          ? removeCloneLink(base, unlink.button, unlink.target)
+          : removeLauncherLink(base, unlink.button, unlink.target);
+    if (!result.changed) {
+      // The row was out of date: draw the list again.
+      this.connectionsKey = '';
+      this.render();
+      return;
+    }
+    this.doc = withEditedMap(base, result.map);
+    this.recordChange(base);
+    const nameOf = (cell: { x: number; y: number }): string => {
+      const name = connectionCellName(base, cell.x, cell.y);
+      return t(name.key, name.params);
+    };
+    const messages = [
+      t(CONNECTIONS_UNLINK_DONE_KEY, {
+        button: nameOf(unlink.button),
+        buttonX: unlink.button.x,
+        buttonY: unlink.button.y,
+        target: nameOf(unlink.target),
+        targetX: unlink.target.x,
+        targetY: unlink.target.y
+      })
+    ];
+    if (unlink.system === 'trap' && !this.doc.trapLinks.some((l) => l.trapX === unlink.target.x && l.trapY === unlink.target.y)) {
+      messages.push(t(CONNECTIONS_UNLINK_SUFFIX_TRAP_KEY));
+    }
+    if (unlink.system === 'clone' && !this.doc.cloneLinks.some((l) => l.buttonX === unlink.button.x && l.buttonY === unlink.button.y)) {
+      // The red button now fires every machine with a creature, or nothing when no machine holds one.
+      const firesAny = deviceRelations(this.doc, unlink.button.x, unlink.button.y).controls.some((r) => r.system === 'clone' && r.fallback === true);
+      messages.push(t(firesAny ? CONNECTIONS_UNLINK_SUFFIX_CLONE_KEY : CONNECTIONS_UNLINK_SUFFIX_CLONE_NONE_KEY));
+    }
+    this.setStatusText(messages.join(SEPARATOR_BETWEEN_MESSAGES));
+    // The redraw gives the focus to the row that took the place of the unlinked one, else the one above, else the caption.
+    this.render();
   }
 
   /** The terrain tiles a cell of the Epoxy level can hide under its top, named and sorted by name. */
@@ -4669,6 +5077,7 @@ export class LevelEditor {
       return;
     }
     this.updateTestFromState();
+    this.refreshConnections();
     const s = this.tilePx;
     this.lastDrawnTilePx = s;
     // Resizing the canvas resets the context: keep the pixel art sharp at any tile size.
@@ -4695,6 +5104,7 @@ export class LevelEditor {
       this.drawLinkLine(EDITOR_LAUNCHER_LINK_COLOR, link.buttonX, link.buttonY, link.launcherX, link.launcherY, s);
     }
 
+    this.renderDeviceOverlay(s);
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);
     this.renderSelectionOverlay(s);
@@ -4817,11 +5227,38 @@ export class LevelEditor {
     this.ctx.restore();
   }
 
-  private outlineCell(x: number, y: number, color: string, s: number): void {
-    const inset = EDITOR_OVERLAY_LINE_WIDTH / 2;
-    this.ctx.lineWidth = EDITOR_OVERLAY_LINE_WIDTH;
+  private outlineCell(x: number, y: number, color: string, s: number, width: number = EDITOR_OVERLAY_LINE_WIDTH): void {
+    const inset = width / 2;
+    this.ctx.lineWidth = width;
     this.ctx.strokeStyle = color;
-    this.ctx.strokeRect(x * s + inset, y * s + inset, s - EDITOR_OVERLAY_LINE_WIDTH, s - EDITOR_OVERLAY_LINE_WIDTH);
+    this.ctx.strokeRect(x * s + inset, y * s + inset, s - width, s - width);
+  }
+
+  /**
+   * The connections of an Epoxy level for the hovered cell and the keyboard cursor cell: arrows to what a device
+   * works (and from what works it), outlines for its colour or teleport group, and a thicker outline on the cell of
+   * the connections row under the pointer or the focus. Skipped during a stroke: the relations are not asked for
+   * a document that changes at every cell.
+   */
+  private renderDeviceOverlay(s: number): void {
+    if (this.doc.cc3d || this.stroke) return;
+    const cells = [this.cursorCell, this.hoverCell].filter((cell): cell is { x: number; y: number } => cell !== null);
+    const rowCell = this.connectionsRowCell;
+    if (cells.length === 0 && !rowCell) return;
+    this.ctx.save();
+    this.ctx.globalAlpha = EDITOR_CC3D_OVERLAY_ALPHA;
+    this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
+    const drawn = new Set<string>();
+    for (const cell of cells) {
+      const key = `${cell.x},${cell.y}`;
+      if (drawn.has(key)) continue;
+      drawn.add(key);
+      const overlay = deviceOverlayFor(deviceRelations(this.doc, cell.x, cell.y), cell);
+      for (const target of overlay.highlights) this.outlineCell(target.x, target.y, EDITOR_RELATION_COLORS[target.system], s);
+      for (const arrow of overlay.arrows) this.drawArrow(EDITOR_RELATION_COLORS[arrow.system], arrow.from, arrow.to, s);
+    }
+    if (rowCell) this.outlineCell(rowCell.x, rowCell.y, EDITOR_HOVER_OUTLINE_COLOR, s, EDITOR_CONNECTIONS_ROW_OUTLINE_WIDTH);
+    this.ctx.restore();
   }
 
   private drawLinkLine(color: string, fromX: number, fromY: number, toX: number, toY: number, s: number): void {

@@ -616,11 +616,99 @@
       "fires_cloners": { "label": "fires {count, plural, one {# clone machine} other {# clone machines}}" },
       "fires_any_cloner": { "label": "no link: fires every clone machine with a creature" },
       "cloner_fired_by": { "label": "fired by {count, plural, one {# button} other {# buttons}}" },
+      "cloner_fired_by_any": { "label": "fired by any red button without a link" },
       "side": {
         "n": { "label": "north" },
         "e": { "label": "east" },
         "s": { "label": "south" },
         "w": { "label": "west" }
+      }
+    },
+    "connections": {
+      "title": "Connections",
+      "no_cell": "Move the cursor or hover a cell to see what it is wired to.",
+      "cell": "Cell ({x}, {y}): {name}",
+      "cell_hidden": "Cell ({x}, {y}): {name}, hidden under the top tile",
+      "no_device": "Cell ({x}, {y}): no mechanism here",
+      "controls": "Controls",
+      "controlled_by": "Controlled by",
+      "none_controls": "Nothing",
+      "none_controlled": "Nothing controls this cell",
+      "more": "and {count, plural, one {# more} other {# more}}",
+      "row": "{name} ({x}, {y}): {detail}",
+      "epoxy_only": "Connections are listed under Epoxy rules; links stay drawn on the map.",
+      "kind": {
+        "link": "link",
+        "colour": "same colour",
+        "level": "level rule",
+        "fallback": "no link"
+      },
+      "role": {
+        "trap_button": { "label": "Brown button" },
+        "trap": { "label": "Trap" },
+        "clone_button": { "label": "Red button" },
+        "clone_machine": { "label": "Clone machine" },
+        "shot_trigger": { "label": "Shot trigger" },
+        "shot_launcher": { "label": "Shot launcher" },
+        "pressure_plate": { "label": "Pressure plate" },
+        "hold_door": { "label": "Hold door" },
+        "toggle_button": { "label": "Toggle button" },
+        "toggle_wall": { "label": "Toggle wall" },
+        "teleporter": { "label": "Teleporter" },
+        "tank_button": { "label": "Blue button" },
+        "tank": { "label": "Tank" },
+        "flame_button": { "label": "Orange button" },
+        "flame_jet": { "label": "Flame jet" },
+        "swap_button": { "label": "Gray button" },
+        "puppet_control": { "label": "Puppet control" },
+        "puppet": { "label": "Puppet" },
+        "laser_emitter": { "label": "Laser emitter" },
+        "laser_receiver": { "label": "Laser receiver" },
+        "laser_gate": { "label": "Laser gate" }
+      },
+      "system": {
+        "trap": { "label": "brown button and trap" },
+        "clone": { "label": "red button and clone machine" },
+        "shot": { "label": "shot trigger and launcher" },
+        "plate": { "label": "pressure plate and hold door" },
+        "toggle": { "label": "toggle button and wall" },
+        "teleport": { "label": "teleporters" },
+        "laser": { "label": "laser receiver and gate" },
+        "tank": { "label": "blue button and tanks" },
+        "flame": { "label": "orange button and flame jets" },
+        "swap": { "label": "gray button and the chips and bombs around it" },
+        "puppet": { "label": "puppet control and puppets" }
+      },
+      "channel": {
+        "red": "red",
+        "green": "green",
+        "blue": "blue",
+        "yellow": "yellow",
+        "swap_radius": "within reach"
+      },
+      "fallback": {
+        "trap_button": "Opens unlinked traps while held (every brown button opens unlinked traps).",
+        "trap_unlinked": "No link: any brown button opens it.",
+        "trap_linked": "Answers to its linked buttons only.",
+        "clone_any": "No link: fires every clone machine with a creature.",
+        "clone_none": "No link, and no clone machine holds a creature: fires nothing.",
+        "shot_unlinked": "Fires nothing until linked.",
+        "laser_emitter": "Wired to nothing; Beam preview shows the beam."
+      },
+      "link": {
+        "action": "Link...",
+        "hint": "Start the link from its button.",
+        "blocked": "This button is hidden under another tile: bring it into plain view to link it.",
+        "note_trap": "A trap you link answers to its linked buttons only.",
+        "note_clone": "Once linked, this button fires only its linked machines instead of every clone machine with a creature."
+      },
+      "unlink": {
+        "action": "Unlink",
+        "aria": "Unlink {name} ({x}, {y})",
+        "done": "Link removed: {button} ({buttonX}, {buttonY}) to {target} ({targetX}, {targetY}).",
+        "suffix_trap": "The trap now opens with any brown button.",
+        "suffix_clone": "The red button now fires every clone machine with a creature.",
+        "suffix_clone_none": "The red button now fires nothing: no clone machine holds a creature."
       }
     },
     "cc3d": {
