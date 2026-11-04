@@ -1391,11 +1391,32 @@
       "level_30": {
         "title": "Le grand chantier",
         "hint": "Couvre toutes les cibles pour gagner. Un bloc comble une mare ou couvre une cible, jamais les deux. Un bloc sur la rangée du haut ou du bas ne peut plus en sortir : envoie exactement deux blocs dans chacune."
+      },
+      "level_31": {
+        "title": "Pare-feu",
+        "hint": "Le feu te brûle sauf si tu portes les bottes ignifugées. Cherche-les au bout du couloir, puis traverse les flammes."
+      },
+      "level_32": {
+        "title": "Un bloc pour les palmes",
+        "hint": "Les palmes te laissent traverser l'eau, mais un fossé les garde et tu n'as qu'un seul bloc. Utilise-le sur le fossé : une fois les palmes aux pieds, aucune autre eau n'a besoin de bloc."
+      },
+      "level_33": {
+        "title": "Glissade",
+        "hint": "La glace t'emporte jusqu'à un sol ferme, et un mur ne fait que te renvoyer. Glisse le long de chaque couloir pour ramasser toutes les puces."
+      },
+      "level_34": {
+        "title": "Toboggan",
+        "hint": "Une glace coudée fait tourner ta glissade. Suis chaque piste des yeux : l'une finit à côté de la sortie, prends-la en dernier."
+      },
+      "level_35": {
+        "title": "Clé au vol",
+        "hint": "Une clé posée sur la glace se ramasse en glissant dessus, et une porte s'ouvre quand tu glisses contre elle avec sa clé. Glisse dans la piste de la clé pour atteindre la porte."
       }
     },
     "chapter": {
       "1": { "title": "Fondations du pilote", "subtitle": "Les premiers niveaux de la campagne reconstruite." },
-      "2": { "title": "Pousser", "subtitle": "Les blocs, l'eau et les cibles." }
+      "2": { "title": "Pousser", "subtitle": "Les blocs, l'eau et les cibles." },
+      "3": { "title": "Éléments", "subtitle": "Le feu, l'eau et la glace." }
     }
   }
 }
