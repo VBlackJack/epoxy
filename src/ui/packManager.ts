@@ -1178,7 +1178,7 @@ export class PackManager {
       this.host.notify(t('app.packs.manager.convert.failed.label'));
       return;
     }
-    const errors = LevelValidator.validate(converted.level)
+    const errors = LevelValidator.validate(converted.level, undefined, { doorOrderSearch: 'deep' })
       .issues.filter((issue) => issue.severity === 'error')
       .map((issue) => formatValidationIssue(issue));
     if (!(await showConvertReport(describeConversion(converted.report, this.host.levelTitle(source), errors)))) return;

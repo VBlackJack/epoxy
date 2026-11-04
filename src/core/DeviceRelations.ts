@@ -89,10 +89,29 @@ export interface Relation {
   kind: RelationKind;
   system: RelationSystem;
   channel?: string;
+  /** Present (true) only on the 'level' edges of the fallbacks: from any brown button (linked or not) to an unlinked trap, and from an unlinked red button to every machine with a template. */
+  fallback?: true;
 }
+
+/** Which facet of a cell gave its device role: the visible top, the terrain hidden under it, or an entity. */
+export interface DeviceFacet {
+  source: 'top' | 'hidden' | 'entity';
+  /** The tile id for 'top' and 'hidden', the entity type for 'entity'. */
+  id: string;
+}
+
+/**
+ * The fields of a level the device queries read. The editor passes its document as is: it is a new object per
+ * edit and never mutated (the memo is keyed on the object), and a DeviceLevel satisfies it.
+ */
+export type DeviceLevel = Pick<
+  CompiledLevel,
+  'ruleset' | 'terrain' | 'items' | 'entities' | 'underlays' | 'trapLinks' | 'cloneLinks' | 'launcherLinks'
+>;
 
 export interface DeviceRelations {
   role: DeviceRole | null;
+  facet: DeviceFacet | null;
   controls: Relation[];
   controlledBy: Relation[];
 }
@@ -130,32 +149,46 @@ interface Edge {
   kind: RelationKind;
   system: RelationSystem;
   channel?: string;
+  fallback?: true;
 }
 
 interface TileAt extends Cell {
   tile: TileDefinition;
+  id: string;
+  source: 'top' | 'hidden';
 }
 
 interface EntityFacet extends Cell {
+  type: string;
   role: DeviceRole | null;
 }
 
-function isEpoxy(level: CompiledLevel): boolean {
+/** Per-level memo: the edges, their per-cell index and the entity facets by cell. */
+interface LevelIndex {
+  outgoing: Map<string, Edge[]>;
+  incoming: Map<string, Edge[]>;
+  entitiesByCell: Map<string, EntityFacet[]>;
+}
+
+function isEpoxy(level: DeviceLevel): boolean {
   return level.ruleset !== 'lynx' && level.ruleset !== 'cc3d';
 }
 
-function inBounds(level: CompiledLevel, x: number, y: number): boolean {
+function inBounds(level: DeviceLevel, x: number, y: number): boolean {
   return (
     Number.isInteger(x) && Number.isInteger(y) && y >= 0 && y < level.terrain.length && x >= 0 && x < (level.terrain[y]?.length ?? 0)
   );
 }
 
 /** The terrain tiles of a cell: the visible top first, then the one hidden under it, if any. */
-function tilesAt(level: CompiledLevel, x: number, y: number): TileDefinition[] {
-  const tiles = [ConfigRegistry.getTile(level.terrain[y][x])];
+function tilesAt(level: DeviceLevel, x: number, y: number): Array<{ tile: TileDefinition; id: string; source: 'top' | 'hidden' }> {
+  const topId = level.terrain[y][x];
+  const tiles: Array<{ tile: TileDefinition; id: string; source: 'top' | 'hidden' }> = [
+    { tile: ConfigRegistry.getTile(topId), id: topId, source: 'top' }
+  ];
   const width = level.terrain[0]?.length ?? 0;
   const hidden = underlayAt(underlayMap(level), width, x, y);
-  if (hidden !== undefined) tiles.push(ConfigRegistry.getTile(hidden));
+  if (hidden !== undefined) tiles.push({ tile: ConfigRegistry.getTile(hidden), id: hidden, source: 'hidden' });
   return tiles;
 }
 
@@ -183,8 +216,8 @@ function roleOfEntity(type: string): DeviceRole | null {
   return null;
 }
 
-function entityFacets(level: CompiledLevel): EntityFacet[] {
-  return (level.entities ?? []).map((e) => ({ x: e.x, y: e.y, role: roleOfEntity(e.type) }));
+function entityFacets(level: DeviceLevel): EntityFacet[] {
+  return (level.entities ?? []).map((e) => ({ x: e.x, y: e.y, type: e.type, role: roleOfEntity(e.type) }));
 }
 
 /** Channel a wall answers to: the plain toggle walls are green; colour walls use their own channel. */
@@ -215,26 +248,59 @@ function buttonChannel(tile: TileDefinition): string | undefined {
  * The edge list is memoised per level object: a level is treated as immutable (the editor builds a new
  * object on every edit), so repeated calls on the same object are cheap.
  */
-const edgeCache = new WeakMap<CompiledLevel, Edge[]>();
+const indexCache = new WeakMap<DeviceLevel, LevelIndex>();
 
-function collectEdges(level: CompiledLevel): Edge[] {
-  const cached = edgeCache.get(level);
-  if (cached) return cached;
-  const edges = buildEdges(level);
-  edgeCache.set(level, edges);
-  return edges;
+let indexBuilds = 0;
+/** Test-only: how many per-level indexes were built so far (lets a test assert the memo without timing). */
+export function __deviceIndexBuildCountForTests(): number {
+  return indexBuilds;
 }
 
-function buildEdges(level: CompiledLevel): Edge[] {
+/** A collision-free cell key, valid on ragged grids (no dependence on a row width). */
+function cellKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+function pushTo<T>(map: Map<string, T[]>, key: string, value: T): void {
+  const list = map.get(key);
+  if (list) list.push(value);
+  else map.set(key, [value]);
+}
+
+/**
+ * The edges, indexed by cell (outgoing and incoming) with the entity facets by cell, memoised on the level
+ * object so a query is O(degree) after the first call. Contract: the level object is never mutated after its
+ * first query; the editor builds a new document per edit.
+ */
+function levelIndex(level: DeviceLevel): LevelIndex {
+  const cached = indexCache.get(level);
+  if (cached) return cached;
+  indexBuilds++;
+  const outgoing = new Map<string, Edge[]>();
+  const incoming = new Map<string, Edge[]>();
+  for (const e of buildEdges(level)) {
+    pushTo(outgoing, cellKey(e.from.x, e.from.y), e);
+    pushTo(incoming, cellKey(e.to.x, e.to.y), e);
+  }
+  const entitiesByCell = new Map<string, EntityFacet[]>();
+  // An entity outside the grid (an editor document can hold one) belongs to no cell.
+  for (const f of entityFacets(level)) if (inBounds(level, f.x, f.y)) pushTo(entitiesByCell, cellKey(f.x, f.y), f);
+  const index: LevelIndex = { outgoing, incoming, entitiesByCell };
+  indexCache.set(level, index);
+  return index;
+}
+
+function buildEdges(level: DeviceLevel): Edge[] {
   const edges: Edge[] = [];
-  const add = (from: Cell, to: Cell, kind: RelationKind, system: RelationSystem, channel?: string): void => {
+  const add = (from: Cell, to: Cell, kind: RelationKind, system: RelationSystem, channel?: string, fallback?: true): void => {
     if (from.x === to.x && from.y === to.y && system !== 'swap') return;
     edges.push({
       from: { x: from.x, y: from.y },
       to: { x: to.x, y: to.y },
       kind,
       system,
-      ...(channel !== undefined ? { channel } : {})
+      ...(channel !== undefined ? { channel } : {}),
+      ...(fallback ? { fallback } : {})
     });
   };
 
@@ -265,7 +331,7 @@ function buildEdges(level: CompiledLevel): Edge[] {
   const facets: TileAt[] = [];
   for (let y = 0; y < level.terrain.length; y++) {
     for (let x = 0; x < level.terrain[y].length; x++) {
-      for (const tile of tilesAt(level, x, y)) facets.push({ x, y, tile });
+      for (const t of tilesAt(level, x, y)) facets.push({ x, y, tile: t.tile, id: t.id, source: t.source });
     }
   }
 
@@ -283,9 +349,9 @@ function buildEdges(level: CompiledLevel): Edge[] {
   for (const a of facets) {
     const action = a.tile.buttonAction;
     if (action === 'hold_trap') {
-      for (const b of facets) if (b.tile.isTrap && !linkedTraps.has(`${b.x},${b.y}`)) add(a, b, 'level', 'trap');
+      for (const b of facets) if (b.tile.isTrap && !linkedTraps.has(`${b.x},${b.y}`)) add(a, b, 'level', 'trap', undefined, true);
     } else if (action === 'trigger_cloner' && !buttonsWithCloneLinks.has(`${a.x},${a.y}`)) {
-      for (const b of facets) if (b.tile.isCloneMachine && entityCells.has(`${b.x},${b.y}`)) add(a, b, 'level', 'clone');
+      for (const b of facets) if (b.tile.isCloneMachine && entityCells.has(`${b.x},${b.y}`)) add(a, b, 'level', 'clone', undefined, true);
     } else if (action === 'reverse_tanks' || action === STEER_MONSTERS_ACTION) {
       const wanted: 'tank' | 'puppet' = action === 'reverse_tanks' ? 'tank' : 'puppet';
       for (const e of entities) if (e.role === wanted) add(a, e, 'level', wanted);
@@ -317,14 +383,21 @@ function buildEdges(level: CompiledLevel): Edge[] {
 }
 
 function compareRelations(a: Relation, b: Relation): number {
-  return a.y - b.y || a.x - b.x || a.kind.localeCompare(b.kind) || a.system.localeCompare(b.system) || (a.channel ?? '').localeCompare(b.channel ?? '');
+  return (
+    a.y - b.y ||
+    a.x - b.x ||
+    a.kind.localeCompare(b.kind) ||
+    a.system.localeCompare(b.system) ||
+    (a.channel ?? '').localeCompare(b.channel ?? '') ||
+    Number(a.fallback === true) - Number(b.fallback === true)
+  );
 }
 
 function uniqueSorted(relations: Relation[]): Relation[] {
   const seen = new Set<string>();
   const out: Relation[] = [];
   for (const r of [...relations].sort(compareRelations)) {
-    const key = `${r.x},${r.y},${r.kind},${r.system},${r.channel ?? ''}`;
+    const key = `${r.x},${r.y},${r.kind},${r.system},${r.channel ?? ''},${r.fallback === true}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(r);
@@ -332,35 +405,53 @@ function uniqueSorted(relations: Relation[]): Relation[] {
   return out;
 }
 
-function cellRole(level: CompiledLevel, x: number, y: number): DeviceRole | null {
-  for (const tile of tilesAt(level, x, y)) {
-    const role = roleOfTile(tile);
-    if (role !== null) return role;
+function facetOf(level: DeviceLevel, x: number, y: number): { role: DeviceRole; facet: DeviceFacet } | null {
+  for (const t of tilesAt(level, x, y)) {
+    const role = roleOfTile(t.tile);
+    if (role !== null) return { role, facet: { source: t.source, id: t.id } };
   }
-  for (const e of entityFacets(level)) {
-    if (e.x === x && e.y === y && e.role !== null) return e.role;
+  for (const e of levelIndex(level).entitiesByCell.get(cellKey(x, y)) ?? []) {
+    if (e.role !== null) return { role: e.role, facet: { source: 'entity', id: e.type } };
   }
   return null;
 }
 
+/** The facet that gives the cell its device role (top, then hidden, then entity), or null when it has none. */
+export function deviceFacetAt(level: DeviceLevel, x: number, y: number): DeviceFacet | null {
+  if (!isEpoxy(level) || !inBounds(level, x, y)) return null;
+  return facetOf(level, x, y)?.facet ?? null;
+}
+
 /** Whether the cell holds a device (its top, a device hidden under it, or a tank or puppet standing on it). */
-export function isDeviceCell(level: CompiledLevel, x: number, y: number): boolean {
-  return isEpoxy(level) && inBounds(level, x, y) && cellRole(level, x, y) !== null;
+export function isDeviceCell(level: DeviceLevel, x: number, y: number): boolean {
+  return isEpoxy(level) && inBounds(level, x, y) && facetOf(level, x, y) !== null;
 }
 
 /**
  * The role of the cell and what it controls and is controlled by, in reading order. A cell that holds no
  * device but is the end of a link, or a chip or bomb inside a gray button's radius, has role null and
  * still lists those relations. Lynx and CC3D levels, and cells outside the grid, return nothing.
+ * Memoised per level object (see levelIndex): O(degree) after the first call.
  */
-export function deviceRelations(level: CompiledLevel, x: number, y: number): DeviceRelations {
-  if (!isEpoxy(level) || !inBounds(level, x, y)) return { role: null, controls: [], controlledBy: [] };
-  const controls: Relation[] = [];
-  const controlledBy: Relation[] = [];
-  for (const e of collectEdges(level)) {
-    const channel = e.channel !== undefined ? { channel: e.channel } : {};
-    if (e.from.x === x && e.from.y === y) controls.push({ x: e.to.x, y: e.to.y, kind: e.kind, system: e.system, ...channel });
-    if (e.to.x === x && e.to.y === y) controlledBy.push({ x: e.from.x, y: e.from.y, kind: e.kind, system: e.system, ...channel });
-  }
-  return { role: cellRole(level, x, y), controls: uniqueSorted(controls), controlledBy: uniqueSorted(controlledBy) };
+export function deviceRelations(level: DeviceLevel, x: number, y: number): DeviceRelations {
+  if (!isEpoxy(level) || !inBounds(level, x, y)) return { role: null, facet: null, controls: [], controlledBy: [] };
+  const index = levelIndex(level);
+  const cell = cellKey(x, y);
+  const toRelation = (c: Cell, e: Edge): Relation => ({
+    x: c.x,
+    y: c.y,
+    kind: e.kind,
+    system: e.system,
+    ...(e.channel !== undefined ? { channel: e.channel } : {}),
+    ...(e.fallback ? { fallback: true as const } : {})
+  });
+  const controls = (index.outgoing.get(cell) ?? []).map((e) => toRelation(e.to, e));
+  const controlledBy = (index.incoming.get(cell) ?? []).map((e) => toRelation(e.from, e));
+  const found = facetOf(level, x, y);
+  return {
+    role: found?.role ?? null,
+    facet: found?.facet ?? null,
+    controls: uniqueSorted(controls),
+    controlledBy: uniqueSorted(controlledBy)
+  };
 }
