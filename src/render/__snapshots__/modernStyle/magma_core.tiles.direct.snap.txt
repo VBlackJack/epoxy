@@ -293,6 +293,18 @@ tile thin_wall_esw closed=true shadowMask=128 hash=1 f2f99a5bb49e050e
 tile thin_wall_nesw closed=true isolated cb150c16541c3bd4
 tile thin_wall_nesw closed=true shadowMask=65 hash=1 efb7298eb7e006c3
 tile thin_wall_nesw closed=true shadowMask=128 hash=1 65386bedba278dd5
+tile swivel_door_ne closed=true isolated f3ca968d91c5df7f
+tile swivel_door_ne closed=true shadowMask=65 hash=1 55126e33d4882910
+tile swivel_door_ne closed=true shadowMask=128 hash=1 a17673a774cc8aea
+tile swivel_door_se closed=true isolated 061af890aa836713
+tile swivel_door_se closed=true shadowMask=65 hash=1 6f0c22dc4e8c4402
+tile swivel_door_se closed=true shadowMask=128 hash=1 2497201819843af6
+tile swivel_door_sw closed=true isolated b43a401ef0a0926a
+tile swivel_door_sw closed=true shadowMask=65 hash=1 04ae1edf0b16c22a
+tile swivel_door_sw closed=true shadowMask=128 hash=1 9eee951f2a5cd980
+tile swivel_door_nw closed=true isolated a3d0880c99380757
+tile swivel_door_nw closed=true shadowMask=65 hash=1 949c2fa756fc67ca
+tile swivel_door_nw closed=true shadowMask=128 hash=1 a78fcd4ed2ba61fd
 tile dirt closed=true isolated af1533355a83d45e
 tile dirt closed=true shadowMask=65 hash=1 4c3193e6f1e71cdc
 tile dirt closed=true shadowMask=128 hash=1 0184101db99cb291

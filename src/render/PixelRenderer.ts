@@ -253,6 +253,10 @@ const FULL_TURN = Math.PI * 2;
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
 const THIN_BAR_MIN_PX_FLAT = 4;
+/** Swivel door pivot dot radius, as a multiple of the bar thickness. */
+const SWIVEL_PIVOT_RADIUS_BARS = 1.1;
+/** Swivel door pivot dot centre, as a multiple of the bar thickness from the closed corner. */
+const SWIVEL_PIVOT_OFFSET_BARS = 0.5;
 /**
  * Whether cells with stacked layers under the shown one get a corner marker. Off in play; meant for
  * the CC3D editor, which turns it on for its own canvas.
@@ -2033,6 +2037,34 @@ export class PixelRenderer {
     ctx.restore();
   }
 
+  /**
+   * Pivot dot of a swivel door, at the corner where its two closed sides meet. Retro sprite styles keep
+   * the plain thin-wall bars (no dedicated sprite), so only the flat and neon looks call this.
+   */
+  private paintSwivelPivot(
+    ctx: CanvasRenderingContext2D,
+    edges: readonly Direction[],
+    x: number,
+    y: number,
+    size: number,
+    minBarPx: number,
+    fill: string
+  ): void {
+    const vertical = edges.includes('N') ? 'N' : edges.includes('S') ? 'S' : null;
+    const horizontal = edges.includes('W') ? 'W' : edges.includes('E') ? 'E' : null;
+    if (!vertical || !horizontal) return;
+    const bar = Math.max(minBarPx, Math.floor(size * THIN_BAR_TILE));
+    const offset = bar * SWIVEL_PIVOT_OFFSET_BARS;
+    const cx = horizontal === 'W' ? x + offset : x + size - offset;
+    const cy = vertical === 'N' ? y + offset : y + size - offset;
+    ctx.save();
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(cx, cy, bar * SWIVEL_PIVOT_RADIUS_BARS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   /** One flat bar per blocked edge (vector retro look), drawn over whatever is under the cell. */
   private paintFlatPanelBars(
     ctx: CanvasRenderingContext2D,
@@ -2302,7 +2334,11 @@ export class PixelRenderer {
 
       default: {
         // Any thin panel combination: one bar per blocked edge, read from tiles.json.
-        this.paintFlatPanelBars(ctx, ConfigRegistry.getTile(tileId).blockedEdges || [], x, y, size);
+        const tile = ConfigRegistry.getTile(tileId);
+        this.paintFlatPanelBars(ctx, tile.blockedEdges || [], x, y, size);
+        if (tile.swivelTurns) {
+          this.paintSwivelPivot(ctx, tile.blockedEdges || [], x, y, size, THIN_BAR_MIN_PX_FLAT, this.pal().yellow);
+        }
         break;
       }
 
@@ -3359,7 +3395,11 @@ export class PixelRenderer {
 
       default: {
         // Any thin panel combination: one neon bar per blocked edge, read from tiles.json.
-        this.paintNeonPanelBars(ctx, ConfigRegistry.getTile(tileId).blockedEdges || [], x, y, size);
+        const tile = ConfigRegistry.getTile(tileId);
+        this.paintNeonPanelBars(ctx, tile.blockedEdges || [], x, y, size);
+        if (tile.swivelTurns) {
+          this.paintSwivelPivot(ctx, tile.blockedEdges || [], x, y, size, THIN_BAR_MIN_PX_NEON, this.pal().yellow);
+        }
         break;
       }
 
