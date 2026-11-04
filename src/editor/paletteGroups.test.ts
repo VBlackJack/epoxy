@@ -19,10 +19,9 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import enLocale from '../locales/en.json';
 import frLocale from '../locales/fr.json';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { arrangeMechanismSections, entityMechanismGroup, MECHANISM_GROUPS, tileMechanismGroup, wireToolMechanismGroup } from './paletteGroups';
+import { arrangeMechanismSections, entityMechanismGroup, MECHANISM_GROUPS, tileMechanismGroup } from './paletteGroups';
 
 const MECHANISMS_CATEGORY = 'mechanisms';
-const WIRE_BRUSH_KINDS: readonly string[] = ['wire_trap', 'wire_cloner', 'wire_launcher'];
 
 function lookup(locale: unknown, key: string): unknown {
   return key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], locale);
@@ -36,14 +35,13 @@ beforeEach(() => {
 });
 
 describe('Mechanisms palette groups', () => {
-  it('places every Mechanisms tile, entity and wire tool in exactly one known group', () => {
+  it('places every Mechanisms tile and entity in exactly one known group', () => {
     expect(mechanismTiles().length).toBeGreaterThan(0);
     expect(mechanismEntities().length).toBeGreaterThan(0);
     const known = new Set(MECHANISM_GROUPS.map((group) => group.id));
     expect(known.size).toBe(MECHANISM_GROUPS.length);
     for (const tile of mechanismTiles()) expect(known.has(tileMechanismGroup(tile)!), `tile ${tile.id}`).toBe(true);
     for (const ent of mechanismEntities()) expect(known.has(entityMechanismGroup(ent)!), `entity ${ent.id}`).toBe(true);
-    for (const kind of WIRE_BRUSH_KINDS) expect(known.has(wireToolMechanismGroup(kind)!), `wire ${kind}`).toBe(true);
   });
 
   it('has no group without a member, so no heading is ever empty', () => {
@@ -98,7 +96,7 @@ describe('Mechanisms palette groups', () => {
     }
   });
 
-  it('puts the shot trigger, the shot launchers and the launcher wire with the lasers, and the other wires with the buttons', () => {
+  it('puts the shot trigger and the shot launchers with the lasers', () => {
     const tile = (id: string) => ConfigRegistry.getTiles().tiles[id];
     // The trigger carries a button action, yet fires launchers: the rule for it comes before the buttons rule.
     expect(tile('shot_trigger').buttonAction).toBeDefined();
@@ -106,12 +104,5 @@ describe('Mechanisms palette groups', () => {
     for (const id of ['shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w']) {
       expect(tileMechanismGroup(tile(id)), id).toBe('lasers');
     }
-    expect(wireToolMechanismGroup('wire_launcher')).toBe('lasers');
-    expect(wireToolMechanismGroup('wire_trap')).toBe('buttons');
-    expect(wireToolMechanismGroup('wire_cloner')).toBe('buttons');
-  });
-
-  it('gives no group to a brush kind that is not a wire tool', () => {
-    expect(wireToolMechanismGroup('terrain')).toBeNull();
   });
 });

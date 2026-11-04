@@ -29,7 +29,6 @@ import { MECHANISM_GROUPS } from './paletteGroups';
 const MECHANISMS_CATEGORY = 'mechanisms';
 const GRID_ID = 'editor-palette-grid';
 const TABS_ID = 'editor-category-tabs';
-const WIRE_TOOL_COUNT = 3;
 
 const fake = new FakeIndexedDb();
 let editor: LevelEditor;
@@ -104,7 +103,7 @@ describe('Mechanisms palette sub-headings', () => {
     openCategory(MECHANISMS_CATEGORY);
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY);
     const entities = Object.values(ConfigRegistry.getMonsters().entities).filter((ent) => ent.category === MECHANISMS_CATEGORY);
-    expect(gridButtons()).toHaveLength(tiles.length + entities.length + WIRE_TOOL_COUNT);
+    expect(gridButtons()).toHaveLength(tiles.length + entities.length);
     const labels = new Set(gridButtons().map((btn) => btn.querySelector('.palette-item-label')?.textContent));
     for (const tile of tiles) expect(labels.has(t(tile.i18nKey)), tile.id).toBe(true);
     for (const ent of entities) expect(labels.has(t(ent.i18nKey)), ent.id).toBe(true);
@@ -123,16 +122,15 @@ describe('Mechanisms palette sub-headings', () => {
     return ids;
   }
 
-  it('offers the shot launchers, the shot trigger and the launcher wire under Lasers and mirrors, the wire last', () => {
+  it('offers the shot launchers and the shot trigger under Lasers and mirrors, and no wire entry anywhere', () => {
     openCategory(MECHANISMS_CATEGORY);
     const lasers = idsUnder('lasers');
     for (const id of ['shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w', 'shot_trigger', 'one_sided_mirror_ne']) {
       expect(lasers.includes(id), id).toBe(true);
     }
-    expect(lasers[lasers.length - 1]).toBe('wire_launcher');
+    expect(gridButtons().some((btn) => (btn.dataset.brushKind ?? '').startsWith('wire_'))).toBe(false);
     // The trigger fires launchers: it is not listed with the plain buttons.
     expect(idsUnder('buttons').includes('shot_trigger')).toBe(false);
-    expect(idsUnder('buttons').slice(-2)).toEqual(['wire_trap', 'wire_cloner']);
   });
 
   it('names the headings in French', () => {

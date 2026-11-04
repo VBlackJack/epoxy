@@ -506,7 +506,8 @@
       "kb_editor_rotate": { "label": "R: Rotate the facing of the selected creature or player start" },
       "kb_editor_rotate_in_place": { "label": "Shift+R: Turn the creature or turret under the cursor a quarter turn clockwise (a clone machine under it follows)" },
       "kb_editor_zoom": { "label": "+ / - / 0: Zoom in, zoom out, fit the level to the window" },
-      "kb_editor_cancel": { "label": "Escape: Cancel a wire that waits for its target, finish launcher wiring, cancel a pending paste, or drop the selection" },
+      "kb_editor_link": { "label": "K: Link the device under the cursor (button, trap, clone machine, shot trigger or launcher). Then click or press Space on a partner to link or unlink it, or on an empty floor cell to place one" },
+      "kb_editor_cancel": { "label": "Escape: Finish linking, cancel a pending paste, or drop the selection" },
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
       "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Shift+F fills the selection with the chosen palette entry; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
@@ -699,10 +700,8 @@
       },
       "link": {
         "action": "Link...",
-        "hint": "Start the link from its button.",
-        "blocked": "This button is hidden under another tile: bring it into plain view to link it.",
-        "note_trap": "A trap you link answers to its linked buttons only.",
-        "note_clone": "Once linked, this button fires only its linked machines instead of every clone machine with a creature."
+        "done": "Done",
+        "blocked": "This device is hidden under another tile: bring it into plain view to link it."
       },
       "unlink": {
         "action": "Unlink",
@@ -748,6 +747,37 @@
         "resize_player_moved": "The player start was moved inside the level.",
         "export_xml_notice": "Exported. The hint, the password and the time limit are not stored in the XML file.",
         "export_xml_failed": "The level could not be exported to XML."
+      }
+    },
+    "link": {
+      "started": { "label": "Linking: {role} at ({x}, {y}), now with {count, plural, one {# link} other {# links}}. Click one to link or unlink it: {partner}. Or click an empty floor cell to place one. Press Escape when done." },
+      "fallback": {
+        "trap_button": { "label": "Unlinked, this brown button opens every unlinked trap." },
+        "trap": { "label": "Unlinked, any brown button opens this trap." },
+        "clone_button": { "label": "Unlinked, this red button fires every clone machine with a creature." },
+        "clone_machine": { "label": "Unlinked, any red button fires this clone machine once a creature stands on it." },
+        "shot_trigger": { "label": "Unlinked, this shot trigger fires nothing." },
+        "shot_launcher": { "label": "Unlinked, no shot trigger fires this launcher." }
+      },
+      "fallback_lynx": {
+        "trap_button": { "label": "Unlinked: this button opens nothing." },
+        "trap": { "label": "Unlinked: this trap never opens." },
+        "clone_button": { "label": "Unlinked: this button fires nothing." },
+        "clone_machine": { "label": "Unlinked: this machine is never fired." }
+      },
+      "linked": { "label": "Linked. {role}: {count, plural, one {# link} other {# links}} now." },
+      "unlinked": { "label": "Unlinked. {role}: {count, plural, one {# link} other {# links}} now." },
+      "placed": { "label": "Placed and linked: {partner}. {role}: {count, plural, one {# link} other {# links}} now." },
+      "replaced": { "label": "A Lynx button holds one link: the link it had before was replaced." },
+      "done": { "label": "Linking done. {role}: {count, plural, one {# link} other {# links}}." },
+      "source_gone": { "label": "Linking ended: the device you were linking ({role}) is gone." },
+      "busy": { "label": "A brush stroke is in progress: finish it before linking." },
+      "unavailable": { "label": "Links are not drawn in this kind of level." },
+      "nothing": { "label": "Nothing to link here: pick a button, trap, clone machine, shot trigger or shot launcher." },
+      "refused": {
+        "hidden": { "label": "Hidden under another tile: {role}. Bring it into plain view to link it." },
+        "not_free": { "label": "This cell has hidden terrain: only an empty floor cell takes a new partner ({partner})." },
+        "other": { "label": "{found} cannot be linked here. Click one of these: {expected}. Or click an empty floor cell to place one." }
       }
     },
     "selection": {
@@ -961,20 +991,11 @@
         },
         "start_kept": "The player start cannot be erased: move it with the Player Start item.",
         "fill_needs_terrain": "Fill needs a terrain tile: pick one in the palette.",
-        "wire_same_cell": "A wire needs two different cells.",
-        "wire_missing_button": "The button of this wire is gone: start the wire again.",
         "wire_empty_cloner": { "label": "No creature stands on this clone machine yet: it clones {name} facing {side} until you place one on it." },
         "cloner_template": { "label": "The clone machine at ({x}, {y}) now clones {name} facing {side}." },
         "cloners_template": { "label": "{count} clone machines now clone {name} facing {side}." },
         "rotate_nothing": { "label": "No creature or turret to turn here." },
         "rotated": { "label": "{name} at ({x}, {y}) now faces {side}." },
-        "wire_cancelled": "Wire cancelled.",
-        "wire_cancelled_button_left": "Wire cancelled. The button stays on the map without a link.",
-        "wire_launcher_start_on_trigger": { "label": "Start the wire from a shot trigger: click a trigger, or an empty cell to place one." },
-        "wire_launcher_linked": { "label": "Launcher linked: this trigger now fires {count, plural, one {# launcher} other {# launchers}}. Keep clicking launchers, or press Escape when done." },
-        "wire_launcher_unlinked": { "label": "Launcher unlinked: this trigger now fires {count, plural, one {# launcher} other {# launchers}}. Keep clicking launchers, or press Escape when done." },
-        "wire_launcher_done": { "label": "Launcher wiring done: this trigger fires {count, plural, one {# launcher} other {# launchers}}." },
-        "wire_launcher_trigger_left": { "label": "Launcher wiring stopped. The trigger stays on the map linked to no launcher, so it fires nothing." },
         "undone_cells": { "label": "Undone: {count, plural, one {# cell} other {# cells}} near ({x}, {y})." },
         "redone_cells": { "label": "Redone: {count, plural, one {# cell} other {# cells}} near ({x}, {y})." },
         "undone_settings": { "label": "Undone: level settings." },
@@ -1108,10 +1129,7 @@
       },
       "tools": {
         "player_start": { "label": "Player Start" },
-        "cell_edge": { "label": "Thin Wall" },
-        "wire_trap": { "label": "Wire Brown Button → Trap" },
-        "wire_cloner": { "label": "Wire Red Button → Cloner" },
-        "wire_launcher": { "label": "Wire Shot Trigger → Launchers" }
+        "cell_edge": { "label": "Thin Wall" }
       },
       "status": {
         "coords": { "label": "Tile ({x}, {y})" },
@@ -1125,12 +1143,7 @@
         "import_too_large": { "label": "File too large (limit: {max} MB)." },
         "saved_session_only": { "label": "Level kept for this session only: the browser could not save it." },
         "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
-        "wire_select_source": { "label": "Click the trigger button on the map..." },
-        "cell_edge_mode": { "label": "Thin wall: click near a side of a cell to add or remove it (keyboard: the side of the direction control)." },
-        "wire_select_target": { "label": "Now click the target mechanism to link..." },
-        "wire_launcher_select_source": { "label": "Click a shot trigger on the map, or an empty cell to place one..." },
-        "wire_launcher_picked": { "label": "Trigger picked: it fires {count, plural, one {# launcher} other {# launchers}}. Click a launcher to link or unlink it, or an empty cell to place a new one. Press Escape when done." },
-        "wire_linked": { "label": "Mechanism link established!" }
+        "cell_edge_mode": { "label": "Thin wall: click near a side of a cell to add or remove it (keyboard: the side of the direction control)." }
       }
     }
   },

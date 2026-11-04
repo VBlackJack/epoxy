@@ -17,6 +17,7 @@
 import { isEpoxyOnlyEntityType, isEpoxyOnlyTileId } from '../core/RulesetFeatures';
 import { Ruleset, WinRule } from '../core/types';
 import { DEFAULT_RULESET } from '../core/coreConstants';
+import type { LinkSystem } from './mapEdits';
 import { EPOXY_ONLY_WIN_RULES } from './metadataFields';
 
 /** Rulesets the editor can open: every ruleset the game plays. */
@@ -46,9 +47,9 @@ export function cellEdgeAvailability(ruleset: EditableRuleset): Availability {
   return epoxyOnlyUnless(ruleset, true);
 }
 
-/** Availability of the launcher wire tool: shot triggers and launchers need Epoxy rules. */
-export function launcherWireAvailability(ruleset: EditableRuleset): Availability {
-  return epoxyOnlyUnless(ruleset, true);
+/** Availability of a link session for a system: the shot trigger and launcher system needs Epoxy rules, traps and clone machines link under both. */
+export function linkAvailability(ruleset: EditableRuleset, system: LinkSystem): Availability {
+  return epoxyOnlyUnless(ruleset, system === 'shot');
 }
 
 /** Availability of an entity (block or monster id): laser mirrors and colour blocks need Epoxy rules. */

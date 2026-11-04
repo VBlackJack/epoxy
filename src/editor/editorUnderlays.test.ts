@@ -36,7 +36,7 @@ import {
   underlayAt
 } from './editorUnderlays';
 import { historyDiff } from './historyDiff';
-import { eraseCell, floodFillTerrain, paintEntity, paintItem, paintPlayerStart, paintTerrain, placeWireButton, placeWireLink, resizeMap } from './mapEdits';
+import { eraseCell, floodFillTerrain, paintEntity, paintItem, paintPlayerStart, paintTerrain, addTrapLink, resizeMap } from './mapEdits';
 import { describeResize } from './resizeReport';
 import { levelMapChanged } from './saveTarget';
 import { clearRect, extractClip, fillRect, moveRect, pasteClip } from './selectionEdits';
@@ -330,23 +330,23 @@ describe('painting over hidden terrain', () => {
       brush: { kind: 'terrain', id: 'floor' },
       dir: 'S',
       x: DOOR_X,
-      y: DOOR_Y,
-      pendingWire: null
+      y: DOOR_Y
     });
     expect(outcome.messages).toEqual([{ key: 'editor.layout.status.underlays_removed', params: { count: 1 } }]);
     expect(t('editor.layout.status.underlays_removed', { count: 1 })).toContain('1 hidden terrain was removed');
   });
 
-  it('is dropped by a wire button placed over the cell, and by the target of a wire', () => {
-    const button = placeWireButton(doorMap(), 'trap', DOOR_X, DOOR_Y);
+  it('is dropped by a brown button painted over the cell, and a link session never places a partner on it', () => {
+    const button = paintTerrain(doorMap(), DOOR_X, DOOR_Y, 'button_brown');
     expect(button.removedUnderlays).toBe(1);
     expect('underlays' in button.map).toBe(false);
 
-    const source = placeWireButton(doorMap(null), 'trap', 5, 4).map;
-    const linked = placeWireLink({ ...source, underlays: doorMap().underlays }, 'trap', { x: 5, y: 4 }, { x: DOOR_X, y: DOOR_Y }, 'S');
+    // Linking to an existing trap neither paints nor prunes: the hidden terrain of a free-floor target is refused upstream.
+    const source = paintTerrain(doorMap(null), 5, 4, 'button_brown').map;
+    const trap = paintTerrain({ ...source, underlays: doorMap().underlays }, 6, 4, 'trap');
+    const linked = addTrapLink(trap.map, { x: 5, y: 4 }, { x: 6, y: 4 });
     expect(linked.refused).toBe(false);
-    expect(linked.removedUnderlays).toBe(1);
-    expect('underlays' in linked.map).toBe(false);
+    expect(linked.map.underlays).toEqual(doorMap().underlays);
   });
 
   it('is pruned by a flood fill across the region, keeping the cells whose top still hides', () => {

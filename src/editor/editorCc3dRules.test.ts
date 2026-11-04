@@ -21,7 +21,7 @@ import { loadTestConfigs } from '../test/loadTestConfigs';
 import { placeLayer, placeMob, removeMob, rotateMob, setItem, setPanelSide, setPlayer } from './cc3dEdits';
 import { compiledCc3d, editableCc3dModel, smallCc3dLevel } from './cc3dEditorFixtures';
 import { documentFromLevel, levelFromDocument, metadataForDocument } from './editorLevelIo';
-import { floodFillTerrain, paintEntity, paintItem, paintPlayerStart, paintTerrain, placeWireLink, resizeMap, eraseCell } from './mapEdits';
+import { floodFillTerrain, paintEntity, paintItem, paintPlayerStart, paintTerrain, addTrapLink, resizeMap, eraseCell } from './mapEdits';
 import { clearRect, moveRect, pasteClip, extractClip } from './selectionEdits';
 import { levelMapChanged, prepareLevelForSave } from './saveTarget';
 import { levelStartingAt, startCellProblem } from './testFromHere';
@@ -146,7 +146,7 @@ describe('guards for the editor paths written for Epoxy', () => {
       paintPlayerStart(d, 3, 1, 'N'),
       eraseCell(d, 2, 2),
       floodFillTerrain(d, 2, 1, 'wall'),
-      placeWireLink(d, 'trap', { x: 1, y: 1 }, { x: 2, y: 1 }, 'N'),
+      addTrapLink(d, { x: 1, y: 1 }, { x: 2, y: 1 }),
       clearRect(d, { x: 1, y: 1, width: 2, height: 2 }),
       pasteClip(d, clip, 2, 1, 'epoxy'),
       moveRect(d, { x: 1, y: 1, width: 1, height: 1 }, 1, 0)

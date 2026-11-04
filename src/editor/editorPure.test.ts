@@ -55,6 +55,14 @@ describe('getEditorKeyAction', () => {
     expect(getEditorKeyAction(chord('и',{ code: 'KeyB' }))).toEqual({ kind: 'tool', tool: 'brush' });
   });
 
+  it('starts a link session on K, by letter or by key code (AZERTY included), and not on a command chord', () => {
+    expect(getEditorKeyAction(chord('k'))).toEqual({ kind: 'link' });
+    expect(getEditorKeyAction(chord('K'))).toEqual({ kind: 'link' });
+    expect(getEditorKeyAction(chord('к', { code: 'KeyK' }))).toEqual({ kind: 'link' });
+    expect(getEditorKeyAction(chord('k', { ctrlKey: true }))).toBeNull();
+    expect(getEditorKeyAction(chord('k', { altKey: true }))).toBeNull();
+  });
+
   it('toggles the beam preview on L, by letter or by key code, and not on a command chord', () => {
     expect(getEditorKeyAction(chord('l'))).toEqual({ kind: 'toggle_beam_preview' });
     expect(getEditorKeyAction(chord('L'))).toEqual({ kind: 'toggle_beam_preview' });

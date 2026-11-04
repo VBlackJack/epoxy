@@ -502,9 +502,9 @@ describe('fillRect', () => {
     expect(fillRect(map, INTERIOR, { kind: 'terrain', id: 'laser_emitter_n' }, 'S', 'epoxy').refusal).toBeNull();
   });
 
-  it('refuses the player start, the wires and the thin wall brush', () => {
+  it('refuses the player start and the thin wall brush', () => {
     const map = bordered(9, 9);
-    for (const kind of ['player_start', 'wire_trap', 'wire_cloner', 'wire_launcher'] as const) {
+    for (const kind of ['player_start'] as const) {
       const result = fillRect(map, INTERIOR, { kind, id: kind }, 'S', 'epoxy');
       expect(result.refusal).toEqual({ reason: 'unsupported' });
       expect(result.changed).toBe(false);

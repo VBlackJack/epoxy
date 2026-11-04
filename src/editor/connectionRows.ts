@@ -17,7 +17,9 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { type DeviceLevel, type DeviceRelations, type DeviceRole, type Relation, type RelationKind, type RelationSystem, deviceRelations } from '../core/DeviceRelations';
 import { EDITOR_CONNECTIONS_MAX_ROWS } from '../ui/uiConstants';
+import { holdsShotLauncher, holdsShotTrigger } from './editorLauncherLinks';
 import type { ToolMessage } from './editorTools';
+import type { LinkEnd, LinkSystem } from './mapEdits';
 
 /**
  * The view model of the Connections section: what a cell controls and is controlled by, as rows the editor
@@ -132,16 +134,15 @@ export interface ConnectionList {
   empty: ToolMessage | null;
 }
 
-/** The wire the Link button starts, or the hint that tells where to start one. */
-export type ConnectionWire = 'trap' | 'clone' | 'launcher';
+/** The link session the Link button starts from this cell: its system and which end the cell is. */
 export type ConnectionLink =
   | {
       type: 'start';
-      wire: ConnectionWire;
-      /** True when the button sits hidden under another tile: the trap and clone wires need it in plain view. */
+      system: LinkSystem;
+      end: LinkEnd;
+      /** True when the device sits hidden under another tile: a trap or clone device must be in plain view to be linked. */
       blocked: boolean;
     }
-  | { type: 'hint' }
   | null;
 
 /** The line above the lists: the cell and what it is (null name: it holds no mechanism). */
@@ -160,14 +161,55 @@ export interface ConnectionView {
   link: ConnectionLink;
 }
 
-const WIRE_OF_ROLE: Partial<Record<DeviceRole, ConnectionWire>> = {
-  trap_button: 'trap',
-  clone_button: 'clone',
-  shot_trigger: 'launcher'
+/** The roles that take part in an explicit link, by system and end. */
+const LINK_OF_ROLE: Partial<Record<DeviceRole, { system: LinkSystem; end: LinkEnd }>> = {
+  trap_button: { system: 'trap', end: 'button' },
+  trap: { system: 'trap', end: 'target' },
+  clone_button: { system: 'clone', end: 'button' },
+  clone_machine: { system: 'clone', end: 'target' },
+  shot_trigger: { system: 'shot', end: 'button' },
+  shot_launcher: { system: 'shot', end: 'target' }
 };
 
-/** Roles that are the target end of an explicit link: the player starts the link from their button. */
-const LINK_TARGET_ROLES: ReadonlySet<DeviceRole> = new Set<DeviceRole>(['trap', 'clone_machine', 'shot_launcher']);
+/** The link role a terrain tile plays in the trap and clone systems, read from its flags; shot devices do not exist under Lynx rules. */
+function trapCloneLinkOf(tileId: string | undefined): { system: LinkSystem; end: LinkEnd } | null {
+  if (tileId === undefined || !ConfigRegistry.isTerrainTile(tileId)) return null;
+  const tile = ConfigRegistry.getTile(tileId);
+  if (tile.buttonAction === 'hold_trap') return { system: 'trap', end: 'button' };
+  if (tile.buttonAction === 'trigger_cloner') return { system: 'clone', end: 'button' };
+  if (tile.isTrap) return { system: 'trap', end: 'target' };
+  if (tile.isCloneMachine) return { system: 'clone', end: 'target' };
+  return null;
+}
+
+/**
+ * The Link button of a cell of a Lynx level, which the device queries do not cover: a trap, a clone machine or their
+ * buttons on the top tile, or hidden under it (blocked, as the trap and clone systems read the top tile only).
+ */
+function lynxLinkOf(level: DeviceLevel, x: number, y: number): ConnectionLink {
+  const top = trapCloneLinkOf(level.terrain[y]?.[x]);
+  if (top) return { type: 'start', ...top, blocked: false };
+  const hidden = trapCloneLinkOf((level.underlays ?? []).find((u) => u.x === x && u.y === y)?.terrain);
+  return hidden ? { type: 'start', ...hidden, blocked: true } : null;
+}
+
+/** The Link button of a cell of an Epoxy level: set for every device that takes part in an explicit link (none for CC3D). */
+function linkOf(role: DeviceRole | null, facetSource: string | undefined, ruleset: DeviceLevel['ruleset']): ConnectionLink {
+  const link = role === null ? undefined : LINK_OF_ROLE[role];
+  if (!link || ruleset === 'cc3d') return null;
+  return { type: 'start', system: link.system, end: link.end, blocked: link.system !== 'shot' && facetSource !== 'top' };
+}
+
+/**
+ * The Link button for a shot trigger or launcher hidden under a top tile that plays another role: the engine works
+ * a shot device on top or hidden, so it can be linked from the cell although the top role has no link of its own.
+ */
+function hiddenShotLinkOf(level: DeviceLevel, x: number, y: number): ConnectionLink {
+  if (level.ruleset === 'cc3d') return null;
+  if (holdsShotTrigger(level, x, y)) return { type: 'start', system: 'shot', end: 'button', blocked: false };
+  if (holdsShotLauncher(level, x, y)) return { type: 'start', system: 'shot', end: 'target', blocked: false };
+  return null;
+}
 
 const EMPTY_VIEW: ConnectionView = { caption: null, controls: null, controlledBy: null, note: null, link: null };
 
@@ -277,8 +319,8 @@ function noteFor(role: DeviceRole | null, rel: DeviceRelations): ToolMessage | n
  * has no view.
  */
 export function connectionRows(level: DeviceLevel, x: number, y: number): ConnectionView {
-  if (level.ruleset === 'lynx') return { ...EMPTY_VIEW, note: { key: CONNECTIONS_KEYS.epoxyOnly } };
   if (y < 0 || y >= level.terrain.length || x < 0 || x >= (level.terrain[y]?.length ?? 0)) return EMPTY_VIEW;
+  if (level.ruleset === 'lynx') return { ...EMPTY_VIEW, note: { key: CONNECTIONS_KEYS.epoxyOnly }, link: lynxLinkOf(level, x, y) };
   const subject = { x, y };
   const rel = deviceRelations(level, x, y);
   const controls = listOf(level, rel.controls, subject, 'controls', CONNECTIONS_KEYS.noneControls);
@@ -289,11 +331,6 @@ export function connectionRows(level: DeviceLevel, x: number, y: number): Connec
     rel.role === null && !related
       ? { key: CONNECTIONS_KEYS.noDevice, x, y, name: null }
       : { key: rel.facet?.source === 'hidden' ? CONNECTIONS_KEYS.cellHidden : CONNECTIONS_KEYS.cell, x, y, name };
-  const wire = rel.role === null ? undefined : WIRE_OF_ROLE[rel.role];
-  const link: ConnectionLink = wire
-    ? { type: 'start', wire, blocked: wire !== 'launcher' && rel.facet?.source !== 'top' }
-    : rel.role !== null && LINK_TARGET_ROLES.has(rel.role)
-      ? { type: 'hint' }
-      : null;
+  const link = linkOf(rel.role, rel.facet?.source, level.ruleset) ?? hiddenShotLinkOf(level, x, y);
   return { caption, controls, controlledBy, note: noteFor(rel.role, rel), link };
 }

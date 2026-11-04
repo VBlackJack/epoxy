@@ -23,22 +23,10 @@ import {
   Brush,
   CELL_EDGE_BRUSH_ID,
   continuesOnDrag,
-  leavesLooseButton,
   MESSAGE_FILL_NEEDS_TERRAIN,
   MESSAGE_LINKS_REMOVED,
   MESSAGE_START_KEPT,
-  MESSAGE_WIRE_LAUNCHER_DONE,
-  MESSAGE_WIRE_LAUNCHER_LINKED,
-  MESSAGE_WIRE_LAUNCHER_PICKED,
-  MESSAGE_WIRE_LAUNCHER_START_ON_LAUNCHER,
-  MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT,
-  MESSAGE_WIRE_LAUNCHER_UNLINKED,
-  MESSAGE_WIRE_LINKED,
-  MESSAGE_WIRE_MISSING_BUTTON,
-  MESSAGE_WIRE_SAME_CELL,
-  MESSAGE_WIRE_SELECT_TARGET,
   pickFromCell,
-  PendingWire,
   ToolInput
 } from './editorTools';
 
@@ -55,13 +43,9 @@ function input(overrides: Partial<ToolInput> & { map: EditorMap }): ToolInput {
     dir: 'S',
     x: 2,
     y: 2,
-    pendingWire: null,
     ...overrides
   };
 }
-
-const TRAP: Brush = { kind: 'wire_trap', id: 'wire_trap' };
-const LAUNCHER_WIRE: Brush = { kind: 'wire_launcher', id: 'wire_launcher' };
 
 // Edits read the tile config (hidden terrain, launcher roles), as the editor does.
 beforeEach(() => {
@@ -134,47 +118,15 @@ describe('applyTool', () => {
   });
 });
 
-describe('wires', () => {
-  it('places the button first and waits for the target', () => {
+describe('device tiles', () => {
+  it('paints a brown button or a trap like any tile, without placing a link', () => {
     const map = blank(6, 6);
-    const first = applyTool(input({ map, brush: TRAP, x: 1, y: 1 }));
-    expect(first.map.terrain[1][1]).toBe('button_brown');
-    expect(first.pendingWire).toEqual({ kind: 'trap', x: 1, y: 1 });
-    expect(first.messages).toContainEqual({ key: MESSAGE_WIRE_SELECT_TARGET });
-  });
-
-  it('links the pending button to the target', () => {
-    const map = blank(6, 6);
-    const first = applyTool(input({ map, brush: TRAP, x: 1, y: 1 }));
-    const second = applyTool(input({ map: first.map, brush: TRAP, x: 4, y: 4, pendingWire: first.pendingWire }));
-    expect(second.pendingWire).toBeNull();
-    expect(second.map.terrain[4][4]).toBe('trap');
-    expect(second.map.trapLinks).toEqual([{ buttonX: 1, buttonY: 1, trapX: 4, trapY: 4 }]);
-    expect(second.messages).toContainEqual({ key: MESSAGE_WIRE_LINKED });
-  });
-
-  it('refuses a target on the button itself and keeps the wire pending', () => {
-    const map = blank(6, 6);
-    const first = applyTool(input({ map, brush: TRAP, x: 1, y: 1 }));
-    const second = applyTool(input({ map: first.map, brush: TRAP, x: 1, y: 1, pendingWire: first.pendingWire }));
-    expect(second.changed).toBe(false);
-    expect(second.pendingWire).toEqual(first.pendingWire);
-    expect(second.messages).toEqual([{ key: MESSAGE_WIRE_SAME_CELL }]);
-  });
-
-  it('refuses a link whose button is gone', () => {
-    const map = blank(6, 6);
-    const pending: PendingWire = { kind: 'trap', x: 1, y: 1 };
-    const outcome = applyTool(input({ map, brush: TRAP, x: 3, y: 3, pendingWire: pending }));
-    expect(outcome.changed).toBe(false);
-    expect(outcome.messages).toEqual([{ key: MESSAGE_WIRE_MISSING_BUTTON }]);
-  });
-
-  it('detects a button left without a link', () => {
-    const map = blank(6, 6);
-    const first = applyTool(input({ map, brush: TRAP, x: 1, y: 1 }));
-    expect(leavesLooseButton(first.map, first.pendingWire as PendingWire, 'button_brown')).toBe(true);
-    expect(leavesLooseButton(map, { kind: 'trap', x: 1, y: 1 }, 'button_brown')).toBe(false);
+    const button = applyTool(input({ map, brush: { kind: 'terrain', id: 'button_brown' }, x: 1, y: 1 }));
+    expect(button.map.terrain[1][1]).toBe('button_brown');
+    expect(button.map.trapLinks).toEqual([]);
+    const trap = applyTool(input({ map: button.map, brush: { kind: 'terrain', id: 'trap' }, x: 4, y: 4 }));
+    expect(trap.map.terrain[4][4]).toBe('trap');
+    expect(trap.map.trapLinks).toEqual([]);
   });
 });
 
@@ -185,7 +137,6 @@ describe('continuesOnDrag', () => {
     expect(continuesOnDrag('eraser', terrain, false)).toBe(true);
     expect(continuesOnDrag('brush', terrain, true)).toBe(true);
     expect(continuesOnDrag('fill', terrain, false)).toBe(false);
-    expect(continuesOnDrag('brush', TRAP, false)).toBe(false);
     expect(continuesOnDrag('picker', terrain, false)).toBe(false);
   });
 });
@@ -237,9 +188,7 @@ describe('thin wall brush', () => {
   });
 });
 
-describe('the launcher wire', () => {
-  const wire = (map: EditorMap, x: number, y: number, pendingWire: PendingWire | null, dir: 'N' | 'E' | 'S' | 'W' = 'S') =>
-    applyTool(input({ map, brush: LAUNCHER_WIRE, x, y, pendingWire, dir }));
+describe('shot devices as plain tiles', () => {
   const keys = (messages: ReadonlyArray<{ key: string }>): string[] => messages.map((message) => message.key);
 
   function withDevices(): EditorMap {
@@ -249,134 +198,28 @@ describe('the launcher wire', () => {
     return map;
   }
 
-  it('places a trigger on a free cell and holds it picked, without a launcher count above zero', () => {
-    const first = wire(blank(8, 8), 2, 2, null);
-    expect(first.changed).toBe(true);
-    expect(first.map.terrain[2][2]).toBe('shot_trigger');
-    expect(first.pendingWire).toEqual({ kind: 'launcher', x: 2, y: 2 });
-    expect(first.messages).toEqual([{ key: MESSAGE_WIRE_LAUNCHER_PICKED, params: { count: 0 } }]);
+  it('paints a shot trigger or a launcher like any tile, without a link', () => {
+    const trigger = applyTool(input({ map: blank(8, 8), brush: { kind: 'terrain', id: 'shot_trigger' }, x: 2, y: 2 }));
+    expect(trigger.map.terrain[2][2]).toBe('shot_trigger');
+    expect(trigger.map.launcherLinks).toBeUndefined();
   });
 
-  it('picks an existing trigger without changing the map, and says how many launchers it fires', () => {
-    const map = withDevices();
-    map.launcherLinks = [{ buttonX: 1, buttonY: 1, launcherX: 5, launcherY: 1 }];
-    const picked = wire(map, 1, 1, null);
-    expect(picked.changed).toBe(false);
-    expect(picked.map).toBe(map);
-    expect(picked.pendingWire).toEqual({ kind: 'launcher', x: 1, y: 1 });
-    expect(picked.messages).toEqual([{ key: MESSAGE_WIRE_LAUNCHER_PICKED, params: { count: 1 } }]);
-  });
-
-  it('refuses to start from a launcher', () => {
-    const map = withDevices();
-    const refused = wire(map, 5, 1, null);
-    expect(refused.changed).toBe(false);
-    expect(refused.pendingWire).toBeNull();
-    expect(keys(refused.messages)).toEqual([MESSAGE_WIRE_LAUNCHER_START_ON_LAUNCHER]);
-  });
-
-  it('links an unlinked launcher keeping its tile, then unlinks it on the next click, the wire staying open', () => {
-    const map = withDevices();
-    const pending: PendingWire = { kind: 'launcher', x: 1, y: 1 };
-    const linked = wire(map, 5, 1, pending, 'N');
-    expect(linked.changed).toBe(true);
-    expect(linked.map.terrain[1][5]).toBe('shot_launcher_w');
-    expect(linked.map.launcherLinks).toEqual([{ buttonX: 1, buttonY: 1, launcherX: 5, launcherY: 1 }]);
-    expect(linked.pendingWire).toEqual(pending);
-    expect(linked.messages).toEqual([{ key: MESSAGE_WIRE_LAUNCHER_LINKED, params: { count: 1 } }]);
-    const unlinked = wire(linked.map, 5, 1, pending);
-    expect(unlinked.map.launcherLinks).toBeUndefined();
-    expect(unlinked.pendingWire).toEqual(pending);
-    expect(unlinked.messages).toEqual([{ key: MESSAGE_WIRE_LAUNCHER_UNLINKED, params: { count: 0 } }]);
-  });
-
-  it('paints a launcher facing the direction on any other cell and links it', () => {
-    const map = withDevices();
-    const out = wire(map, 4, 4, { kind: 'launcher', x: 1, y: 1 }, 'E');
-    expect(out.map.terrain[4][4]).toBe('shot_launcher_e');
-    expect(out.map.launcherLinks).toEqual([{ buttonX: 1, buttonY: 1, launcherX: 4, launcherY: 4 }]);
-    expect(out.pendingWire).toEqual({ kind: 'launcher', x: 1, y: 1 });
-  });
-
-  it('reports the links removed by painting a launcher over a button', () => {
+  it('reports the links removed by painting a plain tile over a linked button', () => {
     const map = withDevices();
     map.terrain[4][4] = 'button_brown';
     map.terrain[4][5] = 'trap';
     map.trapLinks = [{ buttonX: 4, buttonY: 4, trapX: 5, trapY: 4 }];
-    const out = wire(map, 4, 4, { kind: 'launcher', x: 1, y: 1 });
-    expect(keys(out.messages)).toEqual([MESSAGE_WIRE_LAUNCHER_LINKED, MESSAGE_LINKS_REMOVED]);
+    const out = applyTool(input({ map, brush: { kind: 'terrain', id: 'shot_launcher_e' }, x: 4, y: 4 }));
+    expect(keys(out.messages)).toEqual([MESSAGE_LINKS_REMOVED]);
   });
 
-  it('finishes when the trigger is clicked again, without a change', () => {
+  it('erases a launcher cell and its links', () => {
     const map = withDevices();
     map.launcherLinks = [{ buttonX: 1, buttonY: 1, launcherX: 5, launcherY: 1 }];
-    const done = wire(map, 1, 1, { kind: 'launcher', x: 1, y: 1 });
-    expect(done.changed).toBe(false);
-    expect(done.pendingWire).toBeNull();
-    expect(done.messages).toEqual([{ key: MESSAGE_WIRE_LAUNCHER_DONE, params: { count: 1 } }]);
-  });
-
-  it('switches to another trigger when one is clicked', () => {
-    const map = withDevices();
-    map.terrain[3][3] = 'shot_trigger';
-    map.launcherLinks = [{ buttonX: 1, buttonY: 1, launcherX: 5, launcherY: 1 }];
-    const switched = wire(map, 3, 3, { kind: 'launcher', x: 1, y: 1 });
-    expect(switched.changed).toBe(false);
-    expect(switched.pendingWire).toEqual({ kind: 'launcher', x: 3, y: 3 });
-    expect(switched.messages).toEqual([{ key: MESSAGE_WIRE_LAUNCHER_PICKED, params: { count: 0 } }]);
-  });
-
-  it('says the trigger was left without a link when switching away from a bare visible trigger', () => {
-    const map = withDevices();
-    map.terrain[3][3] = 'shot_trigger';
-    const switched = wire(map, 3, 3, { kind: 'launcher', x: 1, y: 1 });
-    expect(switched.pendingWire).toEqual({ kind: 'launcher', x: 3, y: 3 });
-    expect(switched.messages).toEqual([
-      { key: MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT },
-      { key: MESSAGE_WIRE_LAUNCHER_PICKED, params: { count: 0 } }
-    ]);
-  });
-
-  it('finishes on the picked trigger with the Escape wording when it is left without a link', () => {
-    const map = withDevices();
-    const done = wire(map, 1, 1, { kind: 'launcher', x: 1, y: 1 });
-    expect(done.pendingWire).toBeNull();
-    expect(done.messages).toEqual([{ key: MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT }]);
-  });
-
-  it('drops the wire when its trigger is gone', () => {
-    const map = withDevices();
-    map.terrain[1][1] = 'floor';
-    const out = wire(map, 5, 1, { kind: 'launcher', x: 1, y: 1 });
-    expect(out.changed).toBe(false);
-    expect(out.pendingWire).toBeNull();
-    expect(keys(out.messages)).toEqual([MESSAGE_WIRE_MISSING_BUTTON]);
-  });
-
-  it('acts once per click and never fills', () => {
-    expect(continuesOnDrag('brush', LAUNCHER_WIRE, false)).toBe(false);
-    const filled = applyTool(input({ map: blank(6, 6), tool: 'fill', brush: LAUNCHER_WIRE }));
-    expect(filled.changed).toBe(false);
-    expect(keys(filled.messages)).toEqual([MESSAGE_FILL_NEEDS_TERRAIN]);
-  });
-
-  it('keeps the wire open through the eraser tool but erases the cell and its links', () => {
-    const map = withDevices();
-    map.launcherLinks = [{ buttonX: 1, buttonY: 1, launcherX: 5, launcherY: 1 }];
-    const erased = applyTool(input({ map, tool: 'eraser', brush: LAUNCHER_WIRE, x: 5, y: 1, pendingWire: { kind: 'launcher', x: 1, y: 1 } }));
+    const erased = applyTool(input({ map, tool: 'eraser', x: 5, y: 1 }));
     expect(erased.map.terrain[1][5]).toBe('floor');
     expect(erased.map.launcherLinks).toBeUndefined();
     expect(erased.messages).toContainEqual({ key: MESSAGE_LINKS_REMOVED, params: { count: 1 } });
-  });
-
-  it('counts a trigger with launcher links as linked when a wire is dropped', () => {
-    const map = withDevices();
-    const pending: PendingWire = { kind: 'launcher', x: 1, y: 1 };
-    expect(leavesLooseButton(map, pending, 'shot_trigger')).toBe(true);
-    map.launcherLinks = [{ buttonX: 1, buttonY: 1, launcherX: 5, launcherY: 1 }];
-    expect(leavesLooseButton(map, pending, 'shot_trigger')).toBe(false);
-    map.terrain[1][1] = 'floor';
-    expect(leavesLooseButton(map, pending, 'shot_trigger')).toBe(false);
   });
 });
 
@@ -386,8 +229,6 @@ describe('clone template messages', () => {
     i18n.setLocale('en');
   });
 
-  const CLONER: Brush = { kind: 'wire_cloner', id: 'wire_cloner' };
-
   it('announces the new template when a creature is painted on a linked clone machine', () => {
     const map = blank(6, 6);
     map.terrain[4][4] = 'clone_machine';
@@ -395,12 +236,5 @@ describe('clone template messages', () => {
     const out = applyTool(input({ map, brush: { kind: 'entity', id: 'walker' }, dir: 'E', x: 4, y: 4 }));
     expect(out.map.cloneLinks[0]).toMatchObject({ templateType: 'walker', templateDir: 'E' });
     expect(out.messages.map((m) => m.key)).toContain('editor.layout.status.cloner_template.label');
-  });
-
-  it('warns when a clone wire ends on a clone machine with no creature', () => {
-    const map = blank(6, 6);
-    const first = applyTool(input({ map, brush: CLONER, x: 1, y: 1 }));
-    const second = applyTool(input({ map: first.map, brush: CLONER, x: 4, y: 4, pendingWire: first.pendingWire }));
-    expect(second.messages.map((m) => m.key)).toEqual([MESSAGE_WIRE_LINKED, 'editor.layout.status.wire_empty_cloner.label']);
   });
 });

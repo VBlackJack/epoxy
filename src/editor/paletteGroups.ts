@@ -56,12 +56,6 @@ export function arrangeMechanismSections<T>(entries: readonly GroupedEntry<T>[])
   return sections;
 }
 
-/** Brush kinds of the wire tools, which sit with the buttons and the traps they connect. */
-const WIRE_TOOL_KINDS: readonly string[] = ['wire_trap', 'wire_cloner'];
-
-/** Brush kind of the launcher wire, which sits with the lasers and the other shot devices. */
-const LAUNCHER_WIRE_TOOL_KIND = 'wire_launcher';
-
 /**
  * The group of a Mechanisms tile, read from the fields the tile config declares so that a new tile
  * lands in a group by itself. The first matching rule wins (a coloured teleporter is a teleporter,
@@ -88,10 +82,4 @@ export function entityMechanismGroup(entity: EntityDefinition): MechanismGroupId
   if (entity.plateColor) return 'colour';
   if (entity.kind === 'block') return 'blocks';
   return null;
-}
-
-/** The group of a wire tool brush kind, or null for any other brush kind. */
-export function wireToolMechanismGroup(brushKind: string): MechanismGroupId | null {
-  if (brushKind === LAUNCHER_WIRE_TOOL_KIND) return 'lasers';
-  return WIRE_TOOL_KINDS.includes(brushKind) ? 'buttons' : null;
 }
