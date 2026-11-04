@@ -25,7 +25,9 @@ import { underlayAt, underlayMap } from './Underlays';
  *
  * Facets of a cell: its visible top terrain, the terrain hidden under a removable top (level.underlays) and
  * the entities standing on it. The role is the first facet that is a device (top, then hidden, then
- * entity); the relations are the union of every facet, so a hidden device is wired even under a device top.
+ * entity); the relations are the union of every facet. Underlays are only kept under removable tops (key
+ * doors, sockets, tiles that turn to something else under a step, see Underlays.ts), so a hidden device
+ * never sits under a device top: a hidden device is wired as soon as its top is a plain removable one.
  */
 
 /** Stable role ids of the devices; the editor maps them to names. */
@@ -62,10 +64,30 @@ export type DeviceRole =
  */
 export type RelationKind = 'link' | 'colour' | 'level';
 
+/**
+ * The mechanism a relation belongs to, so the editor can tell channels apart (a red teleport group is not
+ * the red toggle channel): brown button and trap, red button and clone machine, shot trigger and launcher,
+ * plate and hold door, toggle button and wall, teleporter group, laser receiver and gate, blue button and
+ * tank, orange button and flame jet, gray button and the chips and bombs it swaps, puppet control and puppet.
+ */
+export type RelationSystem =
+  | 'trap'
+  | 'clone'
+  | 'shot'
+  | 'plate'
+  | 'toggle'
+  | 'teleport'
+  | 'laser'
+  | 'tank'
+  | 'flame'
+  | 'swap'
+  | 'puppet';
+
 export interface Relation {
   x: number;
   y: number;
   kind: RelationKind;
+  system: RelationSystem;
   channel?: string;
 }
 
@@ -106,6 +128,7 @@ interface Edge {
   from: Cell;
   to: Cell;
   kind: RelationKind;
+  system: RelationSystem;
   channel?: string;
 }
 
@@ -155,7 +178,8 @@ function roleOfTile(tile: TileDefinition): DeviceRole | null {
 function roleOfEntity(type: string): DeviceRole | null {
   const def = ConfigRegistry.getEntityDef(type);
   if (def?.reversedByButton) return 'tank';
-  if (def?.steeredBy === STEER_MONSTERS_ACTION) return 'puppet';
+  // As the engine does (epoxySteering.ts): only a monster is steered.
+  if (def?.kind === 'monster' && def.steeredBy === STEER_MONSTERS_ACTION) return 'puppet';
   return null;
 }
 
@@ -184,14 +208,34 @@ function buttonChannel(tile: TileDefinition): string | undefined {
  * - blue button reverses every tank, puppet control steers every puppet, orange button toggles every flame
  *   jet; the targets are the entity cells or the jet cells;
  * - gray button swaps the chips and bombs in the square of radius GRAY_BUTTON_RADIUS around it: each such
- *   item cell is a target, tagged with the channel 'swap_radius';
+ *   item cell is a target, tagged with the channel 'swap_radius'. The engine swaps the item on the button's
+ *   own cell too, so that cell is listed in the button's controls and controlledBy (the one self relation);
  * - a shot trigger with no launcherLink fires nothing.
+ *
+ * The edge list is memoised per level object: a level is treated as immutable (the editor builds a new
+ * object on every edit), so repeated calls on the same object are cheap.
  */
+const edgeCache = new WeakMap<CompiledLevel, Edge[]>();
+
 function collectEdges(level: CompiledLevel): Edge[] {
+  const cached = edgeCache.get(level);
+  if (cached) return cached;
+  const edges = buildEdges(level);
+  edgeCache.set(level, edges);
+  return edges;
+}
+
+function buildEdges(level: CompiledLevel): Edge[] {
   const edges: Edge[] = [];
-  const add = (from: Cell, to: Cell, kind: RelationKind, channel?: string): void => {
-    if (from.x === to.x && from.y === to.y) return;
-    edges.push({ from: { x: from.x, y: from.y }, to: { x: to.x, y: to.y }, kind, ...(channel !== undefined ? { channel } : {}) });
+  const add = (from: Cell, to: Cell, kind: RelationKind, system: RelationSystem, channel?: string): void => {
+    if (from.x === to.x && from.y === to.y && system !== 'swap') return;
+    edges.push({
+      from: { x: from.x, y: from.y },
+      to: { x: to.x, y: to.y },
+      kind,
+      system,
+      ...(channel !== undefined ? { channel } : {})
+    });
   };
 
   const trapLinks = level.trapLinks ?? [];
@@ -199,17 +243,17 @@ function collectEdges(level: CompiledLevel): Edge[] {
   const launcherLinks = level.launcherLinks ?? [];
   for (const l of trapLinks) {
     if (inBounds(level, l.buttonX, l.buttonY) && inBounds(level, l.trapX, l.trapY)) {
-      add({ x: l.buttonX, y: l.buttonY }, { x: l.trapX, y: l.trapY }, 'link');
+      add({ x: l.buttonX, y: l.buttonY }, { x: l.trapX, y: l.trapY }, 'link', 'trap');
     }
   }
   for (const l of cloneLinks) {
     if (inBounds(level, l.buttonX, l.buttonY) && inBounds(level, l.clonerX, l.clonerY)) {
-      add({ x: l.buttonX, y: l.buttonY }, { x: l.clonerX, y: l.clonerY }, 'link');
+      add({ x: l.buttonX, y: l.buttonY }, { x: l.clonerX, y: l.clonerY }, 'link', 'clone');
     }
   }
   for (const l of launcherLinks) {
     if (inBounds(level, l.buttonX, l.buttonY) && inBounds(level, l.launcherX, l.launcherY)) {
-      add({ x: l.buttonX, y: l.buttonY }, { x: l.launcherX, y: l.launcherY }, 'link');
+      add({ x: l.buttonX, y: l.buttonY }, { x: l.launcherX, y: l.launcherY }, 'link', 'shot');
     }
   }
 
@@ -233,39 +277,39 @@ function collectEdges(level: CompiledLevel): Edge[] {
   }
   for (const [group, members] of teleportersByGroup) {
     const channel = group === UNGROUPED_TELEPORT_GROUP ? undefined : group;
-    for (const a of members) for (const b of members) add(a, b, 'colour', channel);
+    for (const a of members) for (const b of members) add(a, b, 'colour', 'teleport', channel);
   }
 
   for (const a of facets) {
     const action = a.tile.buttonAction;
     if (action === 'hold_trap') {
-      for (const b of facets) if (b.tile.isTrap && !linkedTraps.has(`${b.x},${b.y}`)) add(a, b, 'level');
+      for (const b of facets) if (b.tile.isTrap && !linkedTraps.has(`${b.x},${b.y}`)) add(a, b, 'level', 'trap');
     } else if (action === 'trigger_cloner' && !buttonsWithCloneLinks.has(`${a.x},${a.y}`)) {
-      for (const b of facets) if (b.tile.isCloneMachine && entityCells.has(`${b.x},${b.y}`)) add(a, b, 'level');
+      for (const b of facets) if (b.tile.isCloneMachine && entityCells.has(`${b.x},${b.y}`)) add(a, b, 'level', 'clone');
     } else if (action === 'reverse_tanks' || action === STEER_MONSTERS_ACTION) {
-      const wanted: DeviceRole = action === 'reverse_tanks' ? 'tank' : 'puppet';
-      for (const e of entities) if (e.role === wanted) add(a, e, 'level');
+      const wanted: 'tank' | 'puppet' = action === 'reverse_tanks' ? 'tank' : 'puppet';
+      for (const e of entities) if (e.role === wanted) add(a, e, 'level', wanted);
     } else if (action === 'toggle_flames') {
-      for (const b of facets) if (b.tile.flameTogglesTo !== undefined) add(a, b, 'level');
+      for (const b of facets) if (b.tile.flameTogglesTo !== undefined) add(a, b, 'level', 'flame');
     } else if (action === 'swap_chips_bombs') {
       for (let y = a.y - GRAY_BUTTON_RADIUS; y <= a.y + GRAY_BUTTON_RADIUS; y++) {
         for (let x = a.x - GRAY_BUTTON_RADIUS; x <= a.x + GRAY_BUTTON_RADIUS; x++) {
           const item = level.items?.[y]?.[x];
-          if (item === CHIP_ITEM_ID || item === BOMB_ITEM_ID) add(a, { x, y }, 'level', SWAP_RADIUS_CHANNEL);
+          if (item === CHIP_ITEM_ID || item === BOMB_ITEM_ID) add(a, { x, y }, 'level', 'swap', SWAP_RADIUS_CHANNEL);
         }
       }
     }
 
     const channel = buttonChannel(a.tile);
     if (channel !== undefined) {
-      for (const b of facets) if (wallChannel(b.tile) === channel) add(a, b, 'colour', channel);
+      for (const b of facets) if (wallChannel(b.tile) === channel) add(a, b, 'colour', 'toggle', channel);
     }
     if (a.tile.plateColor !== undefined) {
-      for (const b of facets) if (b.tile.holdDoorColor === a.tile.plateColor) add(a, b, 'colour', a.tile.plateColor);
+      for (const b of facets) if (b.tile.holdDoorColor === a.tile.plateColor) add(a, b, 'colour', 'plate', a.tile.plateColor);
     }
     if (a.tile.laserReceiverGroup !== undefined) {
       for (const b of facets) {
-        if (b.tile.laserGateGroup === a.tile.laserReceiverGroup) add(a, b, 'colour', a.tile.laserReceiverGroup);
+        if (b.tile.laserGateGroup === a.tile.laserReceiverGroup) add(a, b, 'colour', 'laser', a.tile.laserReceiverGroup);
       }
     }
   }
@@ -273,14 +317,14 @@ function collectEdges(level: CompiledLevel): Edge[] {
 }
 
 function compareRelations(a: Relation, b: Relation): number {
-  return a.y - b.y || a.x - b.x || a.kind.localeCompare(b.kind) || (a.channel ?? '').localeCompare(b.channel ?? '');
+  return a.y - b.y || a.x - b.x || a.kind.localeCompare(b.kind) || a.system.localeCompare(b.system) || (a.channel ?? '').localeCompare(b.channel ?? '');
 }
 
 function uniqueSorted(relations: Relation[]): Relation[] {
   const seen = new Set<string>();
   const out: Relation[] = [];
   for (const r of [...relations].sort(compareRelations)) {
-    const key = `${r.x},${r.y},${r.kind},${r.channel ?? ''}`;
+    const key = `${r.x},${r.y},${r.kind},${r.system},${r.channel ?? ''}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(r);
@@ -315,8 +359,8 @@ export function deviceRelations(level: CompiledLevel, x: number, y: number): Dev
   const controlledBy: Relation[] = [];
   for (const e of collectEdges(level)) {
     const channel = e.channel !== undefined ? { channel: e.channel } : {};
-    if (e.from.x === x && e.from.y === y) controls.push({ x: e.to.x, y: e.to.y, kind: e.kind, ...channel });
-    if (e.to.x === x && e.to.y === y) controlledBy.push({ x: e.from.x, y: e.from.y, kind: e.kind, ...channel });
+    if (e.from.x === x && e.from.y === y) controls.push({ x: e.to.x, y: e.to.y, kind: e.kind, system: e.system, ...channel });
+    if (e.to.x === x && e.to.y === y) controlledBy.push({ x: e.from.x, y: e.from.y, kind: e.kind, system: e.system, ...channel });
   }
   return { role: cellRole(level, x, y), controls: uniqueSorted(controls), controlledBy: uniqueSorted(controlledBy) };
 }

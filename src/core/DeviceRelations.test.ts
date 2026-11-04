@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
+
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import laserShowcase from '../test/fixtures/laserShowcase.json';
 import mechanicsShowcase from '../test/fixtures/mechanicsShowcase.json';
 import { DeviceRole, deviceRelations, isDeviceCell } from './DeviceRelations';
+import { GameEngine } from './GameEngine';
 import { CompiledLevel, LevelBlueprint } from './types';
 
 const LEVEL_WIDTH = 8;
@@ -124,17 +128,19 @@ describe('deviceRelations', () => {
         launcherLinks: [{ buttonX: 0, buttonY: 2, launcherX: 3, launcherY: 2 }]
       }
     );
+    const systems = ['trap', 'clone', 'shot'] as const;
     for (const row of [0, 1, 2]) {
-      expect(deviceRelations(level, 0, row).controls).toEqual([{ x: 3, y: row, kind: 'link' }]);
-      expect(deviceRelations(level, 3, row).controlledBy).toEqual([{ x: 0, y: row, kind: 'link' }]);
+      const system = systems[row];
+      expect(deviceRelations(level, 0, row).controls).toEqual([{ x: 3, y: row, kind: 'link', system }]);
+      expect(deviceRelations(level, 3, row).controlledBy).toEqual([{ x: 0, y: row, kind: 'link', system }]);
     }
   });
 
   it('wires plates to the hold doors of their colour', () => {
     const level = makeLevel({ '0,0': 'pressure_plate_red', '4,0': 'hold_door_red_closed', '5,0': 'hold_door_red_open', '6,0': 'hold_door_blue_closed' });
     expect(deviceRelations(level, 0, 0).controls).toEqual([
-      { x: 4, y: 0, kind: 'colour', channel: 'red' },
-      { x: 5, y: 0, kind: 'colour', channel: 'red' }
+      { x: 4, y: 0, kind: 'colour', system: 'plate', channel: 'red' },
+      { x: 5, y: 0, kind: 'colour', system: 'plate', channel: 'red' }
     ]);
     expect(deviceRelations(level, 6, 0).controlledBy).toEqual([]);
   });
@@ -147,23 +153,23 @@ describe('deviceRelations', () => {
       '5,0': 'toggle_wall_red_open',
       '6,0': 'toggle_wall_blue_closed'
     });
-    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'colour', channel: 'green' }]);
-    expect(deviceRelations(level, 1, 0).controls).toEqual([{ x: 5, y: 0, kind: 'colour', channel: 'red' }]);
+    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'colour', system: 'toggle', channel: 'green' }]);
+    expect(deviceRelations(level, 1, 0).controls).toEqual([{ x: 5, y: 0, kind: 'colour', system: 'toggle', channel: 'red' }]);
     expect(deviceRelations(level, 6, 0).controlledBy).toEqual([]);
   });
 
   it('relates the teleporters of a group to each other and keeps groups apart', () => {
     const level = makeLevel({ '0,0': 'teleport_red', '3,0': 'teleport_red', '5,0': 'teleport_blue', '0,2': 'teleport', '2,2': 'teleport' });
-    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 3, y: 0, kind: 'colour', channel: 'red' }]);
-    expect(deviceRelations(level, 3, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'colour', channel: 'red' }]);
+    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 3, y: 0, kind: 'colour', system: 'teleport', channel: 'red' }]);
+    expect(deviceRelations(level, 3, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'colour', system: 'teleport', channel: 'red' }]);
     expect(deviceRelations(level, 5, 0).controls).toEqual([]);
-    expect(deviceRelations(level, 0, 2).controls).toEqual([{ x: 2, y: 2, kind: 'colour' }]);
+    expect(deviceRelations(level, 0, 2).controls).toEqual([{ x: 2, y: 2, kind: 'colour', system: 'teleport' }]);
   });
 
   it('wires laser receivers to the gates of their group', () => {
     const level = makeLevel({ '0,0': 'laser_receiver_red', '4,0': 'laser_gate_red_closed', '5,0': 'laser_gate_blue_open' });
-    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'colour', channel: 'red' }]);
-    expect(deviceRelations(level, 4, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'colour', channel: 'red' }]);
+    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'colour', system: 'laser', channel: 'red' }]);
+    expect(deviceRelations(level, 4, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'colour', system: 'laser', channel: 'red' }]);
     expect(deviceRelations(level, 5, 0).controlledBy).toEqual([]);
     expect(deviceRelations(makeLevel({ '1,1': 'laser_emitter_n' }), 1, 1).controls).toEqual([]);
   });
@@ -174,15 +180,15 @@ describe('deviceRelations', () => {
       { entities: [{ x: 6, y: 3, type: 'tank' }, { x: 7, y: 3, type: 'puppet' }, { x: 7, y: 4, type: 'tank' }] }
     );
     expect(deviceRelations(level, 0, 0).controls).toEqual([
-      { x: 6, y: 3, kind: 'level' },
-      { x: 7, y: 4, kind: 'level' }
+      { x: 6, y: 3, kind: 'level', system: 'tank' },
+      { x: 7, y: 4, kind: 'level', system: 'tank' }
     ]);
     expect(deviceRelations(level, 0, 1).controls).toEqual([
-      { x: 4, y: 1, kind: 'level' },
-      { x: 5, y: 1, kind: 'level' }
+      { x: 4, y: 1, kind: 'level', system: 'flame' },
+      { x: 5, y: 1, kind: 'level', system: 'flame' }
     ]);
-    expect(deviceRelations(level, 0, 2).controls).toEqual([{ x: 7, y: 3, kind: 'level' }]);
-    expect(deviceRelations(level, 7, 3).controlledBy).toEqual([{ x: 0, y: 2, kind: 'level' }]);
+    expect(deviceRelations(level, 0, 2).controls).toEqual([{ x: 7, y: 3, kind: 'level', system: 'puppet' }]);
+    expect(deviceRelations(level, 7, 3).controlledBy).toEqual([{ x: 0, y: 2, kind: 'level', system: 'puppet' }]);
   });
 
   it('lists the chips and bombs a gray button swaps within its radius', () => {
@@ -191,13 +197,13 @@ describe('deviceRelations', () => {
       { items: { '1,2': 'chip', '5,4': 'bomb', '6,2': 'chip', '3,3': 'key_red' } }
     );
     expect(deviceRelations(level, 3, 2).controls).toEqual([
-      { x: 1, y: 2, kind: 'level', channel: 'swap_radius' },
-      { x: 5, y: 4, kind: 'level', channel: 'swap_radius' }
+      { x: 1, y: 2, kind: 'level', system: 'swap', channel: 'swap_radius' },
+      { x: 5, y: 4, kind: 'level', system: 'swap', channel: 'swap_radius' }
     ]);
     expect(deviceRelations(level, 1, 2)).toEqual({
       role: null,
       controls: [],
-      controlledBy: [{ x: 3, y: 2, kind: 'level', channel: 'swap_radius' }]
+      controlledBy: [{ x: 3, y: 2, kind: 'level', system: 'swap', channel: 'swap_radius' }]
     });
   });
 
@@ -208,14 +214,14 @@ describe('deviceRelations', () => {
     );
     // The unlinked trap answers to every brown button; the linked trap to its link, plus nothing else.
     expect(deviceRelations(level, 4, 0).controlledBy).toEqual([
-      { x: 0, y: 0, kind: 'level' },
-      { x: 1, y: 0, kind: 'level' }
+      { x: 0, y: 0, kind: 'level', system: 'trap' },
+      { x: 1, y: 0, kind: 'level', system: 'trap' }
     ]);
-    expect(deviceRelations(level, 5, 0).controlledBy).toEqual([{ x: 1, y: 0, kind: 'link' }]);
-    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level' }]);
+    expect(deviceRelations(level, 5, 0).controlledBy).toEqual([{ x: 1, y: 0, kind: 'link', system: 'trap' }]);
+    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap' }]);
     expect(deviceRelations(level, 1, 0).controls).toEqual([
-      { x: 4, y: 0, kind: 'level' },
-      { x: 5, y: 0, kind: 'link' }
+      { x: 4, y: 0, kind: 'level', system: 'trap' },
+      { x: 5, y: 0, kind: 'link', system: 'trap' }
     ]);
   });
 
@@ -227,20 +233,41 @@ describe('deviceRelations', () => {
         entities: [{ x: 4, y: 0, type: 'tank' }]
       }
     );
-    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level' }]);
-    expect(deviceRelations(level, 1, 0).controls).toEqual([{ x: 5, y: 0, kind: 'link' }]);
-    expect(deviceRelations(level, 4, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'level' }]);
+    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'clone' }]);
+    expect(deviceRelations(level, 1, 0).controls).toEqual([{ x: 5, y: 0, kind: 'link', system: 'clone' }]);
+    expect(deviceRelations(level, 4, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'level', system: 'clone' }]);
   });
 
-  it('reports a device hidden under a removable top, the visible top winning the role', () => {
+  it('reports a device hidden under a removable top', () => {
     const hiddenOnly = makeLevel({ '2,2': 'door_red' }, { underlays: [{ x: 2, y: 2, terrain: 'pressure_plate_red' }], });
     const withDoor = makeLevel({ '2,2': 'door_red', '5,2': 'hold_door_red_closed' }, { underlays: [{ x: 2, y: 2, terrain: 'pressure_plate_red' }] });
     expect(deviceRelations(hiddenOnly, 2, 2).role).toBe('pressure_plate');
-    expect(deviceRelations(withDoor, 2, 2).controls).toEqual([{ x: 5, y: 2, kind: 'colour', channel: 'red' }]);
-    const bothDevices = makeLevel({ '2,2': 'button_green', '5,2': 'hold_door_red_closed' }, { underlays: [{ x: 2, y: 2, terrain: 'pressure_plate_red' }] });
-    const both = deviceRelations(bothDevices, 2, 2);
-    expect(both.role).toBe('toggle_button');
-    expect(both.controls).toEqual([{ x: 5, y: 2, kind: 'colour', channel: 'red' }]);
+    expect(deviceRelations(withDoor, 2, 2).controls).toEqual([{ x: 5, y: 2, kind: 'colour', system: 'plate', channel: 'red' }]);
+  });
+
+  it('lists the gray button own cell when a chip or bomb lies on it', () => {
+    const level = makeLevel({ '3,2': 'button_gray' }, { items: { '3,2': 'bomb', '4,2': 'chip' } });
+    const swap = { kind: 'level', system: 'swap', channel: 'swap_radius' } as const;
+    expect(deviceRelations(level, 3, 2).controls).toEqual([{ x: 3, y: 2, ...swap }, { x: 4, y: 2, ...swap }]);
+    expect(deviceRelations(level, 3, 2).controlledBy).toEqual([{ x: 3, y: 2, ...swap }]);
+  });
+
+  it('steers only monsters, as the engine does', () => {
+    const level = makeLevel({ '0,0': 'puppet_control' }, { entities: [{ x: 3, y: 3, type: 'puppet' }] });
+    expect(deviceRelations(level, 3, 3).role).toBe('puppet');
+    const def = ConfigRegistry.getEntityDef('puppet');
+    if (!def) throw new Error('puppet is not defined');
+    def.kind = 'block';
+    const asBlock = makeLevel({ '0,0': 'puppet_control' }, { entities: [{ x: 3, y: 3, type: 'puppet' }] });
+    expect(deviceRelations(asBlock, 3, 3).role).toBeNull();
+    expect(deviceRelations(asBlock, 0, 0).controls).toEqual([]);
+  });
+
+  it('answers repeated calls on one level object with the same relations', () => {
+    const level = makeLevel({ '0,0': 'button_brown', '4,0': 'trap' });
+    const first = deviceRelations(level, 0, 0);
+    expect(deviceRelations(level, 0, 0)).toEqual(first);
+    expect(first.controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap' }]);
   });
 
   it('returns nothing for Lynx and CC3D levels', () => {
@@ -283,16 +310,118 @@ describe('deviceRelations', () => {
             }
             for (const c of rel.controls) {
               const back = deviceRelations(level, c.x, c.y).controlledBy;
-              expect(back, `${level.id} ${x},${y} -> ${c.x},${c.y}`).toContainEqual({ x, y, kind: c.kind, ...(c.channel !== undefined ? { channel: c.channel } : {}) });
+              expect(back, `${level.id} ${x},${y} -> ${c.x},${c.y}`).toContainEqual({ x, y, kind: c.kind, system: c.system, ...(c.channel !== undefined ? { channel: c.channel } : {}) });
             }
             for (const c of rel.controlledBy) {
               const forth = deviceRelations(level, c.x, c.y).controls;
-              expect(forth, `${level.id} ${x},${y} <- ${c.x},${c.y}`).toContainEqual({ x, y, kind: c.kind, ...(c.channel !== undefined ? { channel: c.channel } : {}) });
+              expect(forth, `${level.id} ${x},${y} <- ${c.x},${c.y}`).toContainEqual({ x, y, kind: c.kind, system: c.system, ...(c.channel !== undefined ? { channel: c.channel } : {}) });
             }
           }
         }
       }
     }
     expect(devices).toBeGreaterThan(0);
+  });
+});
+
+/** What the engine changes in a cell when the player presses a device: terrain, item, entities, trap state. */
+function cellStates(engine: GameEngine): string[][] {
+  const entities = engine.getEntities();
+  return engine.getTerrain().map((row, y) =>
+    row.map((terrain, x) => {
+      const here = entities.filter((e) => e.x === x && e.y === y).map((e) => `${e.type}:${e.dir}`);
+      return JSON.stringify([terrain, engine.getItems()[y][x], here, engine.isCellClosedTrap(x, y)]);
+    })
+  );
+}
+
+/** Cells whose state changed when the player, standing at `start`, steps once in `dir`. */
+function changedByStep(level: CompiledLevel, start: { x: number; y: number }, dir: 'N' | 'E'): Set<string> {
+  const engine = new GameEngine();
+  engine.loadLevel({ ...level, playerStart: { ...start, dir } });
+  const before = cellStates(engine);
+  expect(engine.attemptPlayerMove(dir)).toBe(true);
+  const after = cellStates(engine);
+  const changed = new Set<string>();
+  after.forEach((row, y) => row.forEach((state, x) => state !== before[y][x] && changed.add(`${x},${y}`)));
+  return changed;
+}
+
+function controlledCells(level: CompiledLevel, x: number, y: number): Set<string> {
+  return new Set(deviceRelations(level, x, y).controls.map((r) => `${r.x},${r.y}`));
+}
+
+describe('deviceRelations against the engine', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('brown buttons: a linked button opens its trap and the unlinked ones; the other linked trap stays', () => {
+    const level = makeLevel(
+      { '1,1': 'button_brown', '1,3': 'button_brown', '5,1': 'trap', '5,2': 'trap', '5,3': 'trap' },
+      {
+        trapLinks: [
+          { buttonX: 1, buttonY: 1, trapX: 5, trapY: 1 },
+          { buttonX: 1, buttonY: 3, trapX: 5, trapY: 3 }
+        ]
+      }
+    );
+    for (const button of [{ x: 1, y: 1 }, { x: 1, y: 3 }]) {
+      const expected = controlledCells(level, button.x, button.y);
+      expect(expected.size).toBe(2);
+      expect(changedByStep(level, { x: 0, y: button.y }, 'E')).toEqual(expected);
+    }
+  });
+
+  it('brown button with no link opens every unlinked trap', () => {
+    const level = makeLevel({ '1,1': 'button_brown', '5,1': 'trap', '5,2': 'trap' });
+    expect(changedByStep(level, { x: 0, y: 1 }, 'E')).toEqual(controlledCells(level, 1, 1));
+    expect(controlledCells(level, 1, 1).size).toBe(2);
+  });
+
+  it('red buttons: the linked one and the unlinked fallback fire the machines the relations name', () => {
+    const level = makeLevel(
+      { '1,1': 'button_red', '1,3': 'button_red', '5,1': 'clone_machine', '5,3': 'clone_machine' },
+      {
+        cloneLinks: [{ buttonX: 1, buttonY: 1, clonerX: 5, clonerY: 1, templateType: 'tank', templateDir: 'E' }],
+        entities: [{ x: 5, y: 3, type: 'tank' }]
+      }
+    );
+    // The clone appears on the cell in front of the machine: east for the link template, south for the
+    // template entity the fallback reads (makeLevel faces its entities south).
+    const inFront = (cells: Set<string>, dx: number, dy: number): Set<string> =>
+      new Set([...cells].map((c) => c.split(',').map(Number)).map(([x, y]) => `${x + dx},${y + dy}`));
+    expect(changedByStep(level, { x: 0, y: 1 }, 'E')).toEqual(inFront(controlledCells(level, 1, 1), 1, 0));
+    expect(changedByStep(level, { x: 0, y: 3 }, 'E')).toEqual(inFront(controlledCells(level, 1, 3), 0, 1));
+    expect(controlledCells(level, 1, 3)).toEqual(new Set(['5,3']));
+  });
+
+  it('colour toggle button and green button flip the walls of their own channel only', () => {
+    const level = makeLevel({
+      '1,1': 'toggle_button_red',
+      '1,3': 'button_green',
+      '5,0': 'toggle_wall_red_closed',
+      '5,1': 'toggle_wall_red_open',
+      '5,2': 'toggle_wall_blue_closed',
+      '5,3': 'toggle_wall_closed',
+      '5,4': 'toggle_wall_open'
+    });
+    for (const button of [{ x: 1, y: 1 }, { x: 1, y: 3 }]) {
+      const expected = controlledCells(level, button.x, button.y);
+      expect(expected.size).toBe(2);
+      expect(changedByStep(level, { x: 0, y: button.y }, 'E')).toEqual(expected);
+    }
+  });
+
+  it('a pressure plate opens the hold doors of its colour only', () => {
+    const level = makeLevel({
+      '1,1': 'pressure_plate_red',
+      '5,1': 'hold_door_red_closed',
+      '5,2': 'hold_door_red_closed',
+      '5,3': 'hold_door_blue_closed'
+    });
+    const expected = controlledCells(level, 1, 1);
+    expect(expected).toEqual(new Set(['5,1', '5,2']));
+    expect(changedByStep(level, { x: 0, y: 1 }, 'E')).toEqual(expected);
   });
 });
