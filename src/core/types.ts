@@ -1331,6 +1331,8 @@ export interface UndoSnapshot {
   shots?: Shot[];
   /** The parity of the toggle presses; written only on a level with a toggle wall under a removable top. */
   toggleParity?: number;
+  /** Cells that revealed their hidden terrain, by index; written only once one did, absent otherwise. */
+  revealedCells?: number[];
 }
 
 export interface LevelHighScore {

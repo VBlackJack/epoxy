@@ -78,11 +78,17 @@ export interface EpoxyWorld {
   underlays: ReadonlyMap<number, string> | null;
 
   /**
-   * Parity bits of the toggle wall families that have a wall hidden under a removable top (see
-   * toggleParityBitOf); static, 0 when no wall is hidden. A bit is flipped by each press of its family's
-   * button so a wall revealed later shows the form the presses left it in.
+   * Parity bits of the toggle families (green, colour channels, flame jets) that have a tile hidden under a
+   * removable top (see toggleParityBitOf); static, 0 when none is hidden. A bit is flipped by each press of
+   * its family's button so a tile revealed later shows the form the presses left it in.
    */
   coveredToggleBits: number;
+  /**
+   * Cells (by index y * width + x) whose hidden terrain was already revealed. A cell reveals at most once:
+   * when its top comes back (a block sunk in the revealed water makes dirt again) it hides nothing.
+   * Empty at load.
+   */
+  revealedCells: Set<number>;
   /** One bit per covered toggle family, set while an odd number of presses happened; 0 at load. */
   toggleParity: number;
   chipsRemaining: number;
@@ -170,6 +176,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     edgeMask: null,
     underlays: null,
     coveredToggleBits: 0,
+    revealedCells: new Set<number>(),
     toggleParity: 0,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
@@ -223,6 +230,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.turretBeamCells = [];
   w.underlays = underlayMap(w.level);
   w.coveredToggleBits = 0;
+  w.revealedCells = new Set<number>();
   w.toggleParity = 0;
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
@@ -299,15 +307,41 @@ function registerDevices(w: EpoxyWorld, x: number, y: number, terrainId: string,
 }
 
 /**
+ * Whether the cell still hides its underlay: it has one, still holds the top the level started with and has
+ * not revealed it yet.
+ */
+export function isCovered(w: EpoxyWorld, x: number, y: number): boolean {
+  const width = mapWidth(w);
+  return (
+    underlayAt(w.underlays, width, x, y) !== undefined &&
+    w.terrain[y][x] === w.level.terrain[y][x] &&
+    !w.revealedCells.has(y * width + x)
+  );
+}
+
+/**
+ * The groups of the laser receivers that are lit now. A receiver hidden under a removable top is no
+ * receiver until revealed: only the terrain at a lit cell counts.
+ */
+export function litLaserGroups(w: EpoxyWorld): Set<string> {
+  const litGroups = new Set<string>();
+  for (const { x, y } of w.litReceiverCells) {
+    const group = ConfigRegistry.getTile(w.terrain[y][x]).laserReceiverGroup;
+    if (group !== undefined) litGroups.add(group);
+  }
+  return litGroups;
+}
+
+/**
  * The terrain a removable top reveals at the cell when the player removes it, or null when the cell
- * hides none or no longer holds the top the level started with (a cell the game has since rewritten
- * reveals nothing).
+ * hides none, no longer holds the top the level started with, or has already revealed it. Pure: it
+ * records nothing (see takeRevealedTerrain).
  */
 export function revealedTerrain(w: EpoxyWorld, x: number, y: number): string | null {
-  const hidden = underlayAt(w.underlays, mapWidth(w), x, y);
-  if (hidden === undefined || w.terrain[y][x] !== w.level.terrain[y][x]) return null;
+  if (!isCovered(w, x, y)) return null;
+  const hidden = underlayAt(w.underlays, mapWidth(w), x, y) as string;
   const tile = ConfigRegistry.getTile(hidden);
-  // A toggle wall shows the form the presses of its family have left it in.
+  // A toggle wall or flame jet shows the form the presses of its family have left it in.
   const parityBit = toggleParityBitOf(tile);
   if (parityBit !== 0 && (w.toggleParity & parityBit) !== 0) return toggleWallOtherForm(tile) ?? hidden;
   // A hold door shows the form its colour's plates call for now.
@@ -315,7 +349,19 @@ export function revealedTerrain(w: EpoxyWorld, x: number, y: number): string | n
     const wantsOpen = visibleHoldDoorForm(w, tile.holdDoorColor) ?? holdColorsOpen(w).get(tile.holdDoorColor) === true;
     return tile.holdDoorOpen === wantsOpen ? hidden : tile.holdDoorTogglesTo;
   }
+  // A laser gate shows the form its receivers call for now: open while its group is lit.
+  if (tile.laserGateGroup !== undefined && tile.laserGateTogglesTo !== undefined) {
+    const wantsOpen = litLaserGroups(w).has(tile.laserGateGroup);
+    return tile.laserGateOpen === wantsOpen ? hidden : tile.laserGateTogglesTo;
+  }
   return hidden;
+}
+
+/** Like revealedTerrain, and marks the cell as revealed when it hides something. Called where the reveal happens. */
+export function takeRevealedTerrain(w: EpoxyWorld, x: number, y: number): string | null {
+  const revealed = revealedTerrain(w, x, y);
+  if (revealed !== null) w.revealedCells.add(y * mapWidth(w) + x);
+  return revealed;
 }
 
 /** The open (true) or closed (false) form of a hold door of the colour in plain sight, undefined when none is. */
@@ -340,8 +386,7 @@ export function holdColorsOpen(w: EpoxyWorld): Map<ChannelColor, boolean> {
     if (ConfigRegistry.getTile(w.terrain[plate.y][plate.x]).plateColor === plate.color) {
       pressed = pressesPlate(w, plate.x, plate.y, plate.color);
     } else if (
-      w.terrain[plate.y][plate.x] === w.level.terrain[plate.y][plate.x] &&
-      underlayAt(w.underlays, width, plate.x, plate.y) !== undefined &&
+      isCovered(w, plate.x, plate.y) &&
       ConfigRegistry.getTile(underlayAt(w.underlays, width, plate.x, plate.y) as string).plateColor === plate.color
     ) {
       pressed = false;

@@ -22,10 +22,12 @@ import { CompiledLevel, TileDefinition } from './types';
  * normalisation (normalizeUnderlays) keeps an underlay only under such a top and never when the underlay can
  * turn back into the cell's top (a block sunk in water makes dirt again). Under a key door or a socket, which
  * nothing turns back into, it also keeps a socket, dirt, a blue fake wall (blue_wall_fake), a pressure plate,
- * a hold door and a toggle wall; never a key door, never the top's own id. So for a normalised level a cell
- * reveals its underlay at most once. The engine plays them: a socket revealed by a door opens in the same
- * step when no chip is left, a toggle wall shows the form the presses left it in, a hold door the form its
- * colour's plates call for, and a plate hidden under a closed top counts in its colour's total, unpressed.
+ * a hold door and a toggle wall; never a key door, never the top's own id. The engine also remembers the
+ * cells it revealed, so a cell reveals its underlay at most once even when its top comes back. The engine
+ * plays them: a socket revealed by a door opens in the same step when no chip is left, a toggle wall or a
+ * flame jet shows the form the presses of its family left it in, a hold door the form its colour's plates
+ * call for, a laser gate the form its receivers call for (open while its group is lit), and a plate hidden
+ * under a closed top counts in its colour's total, unpressed.
  */
 export function isRemovableTop(tile: TileDefinition): boolean {
   return Boolean(tile.requiredKey || tile.requiresAllChips || tile.transformsToOnStep);

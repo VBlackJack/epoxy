@@ -24,6 +24,7 @@ import {
   CHANNEL_TOGGLE_PARITY_BITS,
   FIRE_LAUNCHERS_ACTION,
   GRAY_BUTTON_RADIUS,
+  FLAME_TOGGLE_PARITY_BIT,
   GREEN_TOGGLE_PARITY_BIT,
   OPPOSITE_DIRECTION,
   STEER_MONSTERS_ACTION,
@@ -65,6 +66,7 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     flipToggleParity(w, CHANNEL_TOGGLE_PARITY_BITS[channel as ChannelColor] ?? 0);
   } else if (action === 'toggle_flames') {
     swapTerrain(w, (tile) => tile.flameTogglesTo);
+    flipToggleParity(w, FLAME_TOGGLE_PARITY_BIT);
     burnPlayerIfFlamesLit(ctx);
     burnEntitiesOnFire(ctx);
   } else if (action === 'swap_chips_bombs') {

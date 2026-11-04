@@ -92,6 +92,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           shots: engine.getShots(),
           // Undefined (and so left out of the hash) on a level without a toggle wall under a removable top.
           toggleParity: engine.getToggleParity(),
+          // Undefined (and so left out of the hash) until a cell that revealed its underlay holds its top again.
+          spent: engine.getSpentRevealCells?.(),
           steps: engine.getStepsCount(),
           score: engine.getTotalScore(),
           extraTime: engine.getExtraTimeSeconds(),

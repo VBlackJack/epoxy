@@ -226,7 +226,9 @@ export class Pathfinder {
 
         // Once a removable top is gone the cell is what it hid: the rest of the step is judged on that.
         const hiddenId = isRemovableTop(topTile)
-          ? (engine.getRevealedTerrain?.(nx, ny) ?? hiddenUnder(level, terrain, nx, ny))
+          ? engine.getRevealedTerrain
+            ? engine.getRevealedTerrain(nx, ny)
+            : hiddenUnder(level, terrain, nx, ny)
           : undefined;
         const nextTile = hiddenId === undefined ? topTile : ConfigRegistry.getTile(hiddenId);
         // A socket revealed here opens in the same step once every chip is taken, as a visible one does.
@@ -402,7 +404,9 @@ export class Pathfinder {
         if (nextTile.requiredKey) {
           if ((player.keys[nextTile.requiredKey] || 0) > 0) {
             // A door that hides a wall is opened for nothing: the way beyond it stays shut.
-            const hiddenId = engine.getRevealedTerrain?.(nx, ny) ?? hiddenUnder(objectiveLevel, terrain, nx, ny);
+            const hiddenId = engine.getRevealedTerrain
+              ? engine.getRevealedTerrain(nx, ny)
+              : hiddenUnder(objectiveLevel, terrain, nx, ny);
             if (hiddenId !== undefined && !ConfigRegistry.getTile(hiddenId).passableByPlayer) continue;
             if (!unlockableDoorCandidate) {
               unlockableDoorCandidate = { x: nx, y: ny };
