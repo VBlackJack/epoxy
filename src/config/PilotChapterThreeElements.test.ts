@@ -38,15 +38,13 @@ const TEST_TIMEOUT_MS = 240000;
 const DELIVERY_LEVEL = 'epoxy_p_36';
 const BUG_LEVEL = 'epoxy_p_37';
 const THAW_LEVEL = 'epoxy_p_38';
-const CORK_LEVEL = 'epoxy_p_39';
-const ELEMENT_LEVELS = [DELIVERY_LEVEL, BUG_LEVEL, THAW_LEVEL, CORK_LEVEL];
+const ELEMENT_LEVELS = [DELIVERY_LEVEL, BUG_LEVEL, THAW_LEVEL];
 
 /** The creature or blocks each level holds, in entity order. */
 const ENTITY_TYPES: Record<string, string[]> = {
   [DELIVERY_LEVEL]: ['dirt_block'],
   [BUG_LEVEL]: ['bug'],
-  [THAW_LEVEL]: ['ice_block', 'dirt_block'],
-  [CORK_LEVEL]: ['bug']
+  [THAW_LEVEL]: ['ice_block', 'dirt_block']
 };
 
 const DEATH_WATER = 'hud.messages.death_water';
@@ -163,9 +161,9 @@ describe('pilot chapter 3 elements, every level', () => {
     expect(level.hintKey).toBe(`pilot.levels.level_${level.number}.hint`);
   });
 
-  it('puts the four levels at the end of chapter 3, in order', () => {
+  it('puts the three levels at the end of chapter 3, in order', () => {
     const chapter = ConfigRegistry.getPilotChapters().find((c) => c.id === 'pilot_chapter_3');
-    expect(chapter?.levels.slice(-4)).toEqual(ELEMENT_LEVELS);
+    expect(chapter?.levels.slice(-3)).toEqual(ELEMENT_LEVELS);
   });
 });
 
@@ -531,171 +529,5 @@ describe('pilot chapter 3 thaw', () => {
 
   it('known validator limit: the reachability walk does not model a block melting fire (meltsInFireTo is ignored)', () => {
     expect(validatorIssues(levelById(THAW_LEVEL))).toEqual([CHIPS_PROVEN_WARNING, EXIT_PROVEN_WARNING]);
-  });
-});
-
-describe('pilot chapter 3 the cork', () => {
-  beforeAll(() => {
-    loadTestConfigs();
-  });
-
-  const CORK = '7,1';
-  const CORK_PHASE_OUTCOMES = ['0:wins', '1:wins', '2:dies', '3:dies', '4:dies', '5:dies'];
-  const PLUG = '5,2';
-  const POOL = '5,3';
-  const EXPECTED_DEATHS = [
-    `${DEATH_WATER}@5,3`,
-    `${DEATH_MONSTER}@1,1`,
-    `${DEATH_MONSTER}@2,1`,
-    `${DEATH_MONSTER}@3,1`,
-    `${DEATH_MONSTER}@4,1`,
-    `${DEATH_MONSTER}@5,1`,
-    `${DEATH_MONSTER}@5,2`,
-    `${DEATH_MONSTER}@6,1`,
-    `${DEATH_MONSTER}@7,1`,
-    `${DEATH_MONSTER}@7,2`
-  ].sort();
-
-  it('is won by its stored solution, and no shorter win exists, drops allowed', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = levelById(CORK_LEVEL);
-    expect(level.solution?.length).toBe(21);
-    expect(shortestFine(engineFor(level))).toBe(21);
-  });
-
-  it('shuts the bug in a one-cell dead end under a chip, with a plugged side pool two cells down the corridor', () => {
-    const level = levelById(CORK_LEVEL);
-    expect(level.entities.map((e) => `${e.type}@${e.x},${e.y}`)).toEqual(['bug@7,2']);
-    expect(level.items[1][7]).toBe('chip');
-    expect(itemCells(level, 'chip')).toEqual(['2,1', '3,1', CORK]);
-    expect(level.terrain[2][7]).toBe('floor');
-    expect(level.terrain[3][7]).toBe('socket');
-    expect(level.terrain[4][7]).toBe('exit');
-    expect(level.terrain[2][6]).toBe('wall');
-    expect(level.terrain[2][8]).toBe('wall');
-    expect(cellsOf(level, 'dirt')).toEqual([PLUG]);
-    expect(cellsOf(level, 'water')).toEqual([POOL]);
-    expect(cellsOf(level, 'hint')).toEqual(['1,1']);
-    expect(level.chipsRequired).toBe(3);
-  });
-
-  it('cannot be won with the bug alive, with drops on or off, and the level is winnable', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = levelById(CORK_LEVEL);
-    expect(shortestFine(engineFor(level))).toBe(21);
-    expect(() => assertNoWinWithCreatureAlive(level, { stateCap: SEARCH_STATE_CAP, fineWait: true })).not.toThrow();
-    const proof = creatureProof(level, { stateCap: SEARCH_STATE_CAP, fineWait: true });
-    expect(proof.withDrops).toBeNull();
-    expect(proof.withoutDrops).toBeNull();
-  });
-
-  it('treads the plug in move 7, takes the chip that frees the bug in move 10, and the bug is drowned by move 17', () => {
-    const level = levelById(CORK_LEVEL);
-    let plugMove = 0;
-    let corkMove = 0;
-    let goneMove = 0;
-    replayStored(level, (engine, move) => {
-      if (plugMove === 0 && engine.getTerrain()[2][5] !== 'dirt') {
-        plugMove = move;
-        expect(engine.getItems()[1][7]).toBe('chip');
-        expect(entityCells(engine)).toEqual(['bug@7,2']);
-      }
-      if (corkMove === 0 && engine.getItems()[1][7] === null) {
-        corkMove = move;
-        expect(engine.getTerrain()[2][5]).toBe('floor');
-        expect(where(engine)).toBe(CORK);
-      }
-      if (goneMove === 0 && engine.getEntities().length === 0) {
-        goneMove = move;
-        expect(engine.getTerrain()[3][5]).toBe('water');
-        expect(corkMove).toBeGreaterThan(plugMove);
-      }
-    });
-    expect(plugMove).toBe(7);
-    expect(corkMove).toBe(10);
-    expect(goneMove).toBe(17);
-  });
-
-  it('keeps the bug on its cell while the chip lies on the map', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = levelById(CORK_LEVEL);
-    let corkedStates = 0;
-    exploreStateGraph(engineFor(level), {
-      stateCap: SEARCH_STATE_CAP,
-      allowDrops: true,
-      fineWait: true,
-      onState: (engine) => {
-        if (engine.getItems()[1][7] !== 'chip') return;
-        corkedStates++;
-        expect(entityCells(engine)).toEqual(['bug@7,2']);
-      }
-    });
-    expect(corkedStates).toBe(330);
-  });
-
-  it('is lost for good when the chip is taken before the plug is trodden: every such state is a dead end', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = levelById(CORK_LEVEL);
-    const corkTakenPlugShut = (engine: GameEngine): boolean => engine.getItems()[1][7] === null && engine.getTerrain()[2][5] === 'dirt';
-    const wrong = searchShortestWinLean(engineFor(level), { allowDrops: true, fineWait: true, goal: corkTakenPlugShut });
-    // Five steps east, one wait to let the bug's step fall behind the player's, and onto the cork.
-    expect(wrong?.actions.join(' ')).toBe('E E E E E WAIT E');
-    const engine = engineAfterActions(level, wrong?.actions ?? []);
-    expect(where(engine)).toBe(CORK);
-    expect(searchCanWin(engine, { stateCap: SEARCH_STATE_CAP, allowDrops: true, fineWait: true })).toBe(false);
-
-    let wrongStates = 0;
-    let wrongDead = 0;
-    let rightOrderDead = 0;
-    const rightOrderSpots: string[] = [];
-    exploreStateGraph(engineFor(level), {
-      stateCap: SEARCH_STATE_CAP,
-      allowDrops: true,
-      fineWait: true,
-      onState: (e) => {
-        if (corkTakenPlugShut(e)) wrongStates++;
-      },
-      onDead: (e) => {
-        if (corkTakenPlugShut(e)) {
-          wrongDead++;
-        } else {
-          rightOrderDead++;
-          rightOrderSpots.push(`${where(e)} ${entityCells(e).join('|')}`);
-        }
-      }
-    });
-    expect(wrongStates).toBe(166);
-    expect(wrongDead).toBe(166);
-    // The only other dead ends are the player standing on the plug cell when the bug is on the corridor cell beside it.
-    expect(rightOrderDead).toBe(24);
-    for (const spot of rightOrderSpots) expect(spot, spot).toMatch(/^5,2 bug@[56],1$/);
-  });
-
-  it('documents the cork trap: the bug acts every 6 ticks even when boxed in, so landing on the cork kills in some of the 6 tick offsets and nothing on screen tells which', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = levelById(CORK_LEVEL);
-    // Plug trodden, player on the cell west of the cork; only the bug's clock differs between the six runs.
-    const approach = 'EEEEEWSNE';
-    const outcomes: string[] = [];
-    for (let offset = 0; offset < 6; offset++) {
-      const engine = engineFor(level);
-      for (const move of approach) expect(PieceSolver.play(engine, move as Direction)).toBe(true);
-      expect(where(engine)).toBe('6,1');
-      for (let tick = 0; tick < offset; tick++) engine.tick();
-      const survived = PieceSolver.play(engine, 'E');
-      const canWin = survived && searchCanWin(engine, { stateCap: SEARCH_STATE_CAP, allowDrops: true, fineWait: true });
-      outcomes.push(`${offset}:${survived ? (canWin ? 'wins' : 'stuck') : 'dies'}`);
-    }
-    expect(outcomes).toEqual(CORK_PHASE_OUTCOMES);
-  });
-
-  it('kills only by the bug along the corridor, on the plug and under the cork, and by the pool', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = levelById(CORK_LEVEL);
-    const scan = scanHazards(level, { allowDrops: true });
-    expect(scan.states).toBe(326);
-    expect(deathsOf(level)).toEqual(EXPECTED_DEATHS);
-    const graph = exploreStateGraph(engineFor(level), { stateCap: SEARCH_STATE_CAP, allowDrops: true, fineWait: true });
-    expect(graph.states).toBe(720);
-    expect(graph.canWin).toBe(530);
-    expect(graph.dead).toBe(190);
-  });
-
-  it('opens with no known validator issue', () => {
-    expect(validatorIssues(levelById(CORK_LEVEL))).toEqual([]);
   });
 });

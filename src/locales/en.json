@@ -1434,10 +1434,6 @@
       "level_38": {
         "title": "Thaw",
         "hint": "A block of ice turns a fire into water, and a block of dirt fills that water. Push the ice into the flames first, then bring the dirt: the other way round, the dirt jams the fire for good."
-      },
-      "level_39": {
-        "title": "The Cork",
-        "hint": "A chip is a wall to a bug: this one keeps it shut in. Take it and the bug is free, hunting along its left wall. Open the way to the pool first, then take the chip and run: the bug will turn into the pool as it follows you."
       }
     },
     "chapter": {

@@ -1968,41 +1968,6 @@
       "trapLinks": [],
       "cloneLinks": [],
       "solution": "SSSEEEEWNNNEESSSESSS"
-    },
-    {
-      "id": "epoxy_p_39",
-      "theme": "cyber_neon",
-      "number": 39,
-      "titleKey": "pilot.levels.level_39.title",
-      "hintKey": "pilot.levels.level_39.hint",
-      "password": "CORK",
-      "timeLimitSeconds": 0,
-      "chipsRequired": 3,
-      "playerStart": {
-        "x": 1,
-        "y": 1,
-        "dir": "E"
-      },
-      "rows": [
-        "#########",
-        "#HCC...C#",
-        "#####d#.#",
-        "#####W#S#",
-        "#######E#",
-        "#########"
-      ],
-      "items": [],
-      "entities": [
-        {
-          "type": "bug",
-          "x": 7,
-          "y": 2,
-          "dir": "N"
-        }
-      ],
-      "trapLinks": [],
-      "cloneLinks": [],
-      "solution": "EEEEEWSNEEWWWWEEEESSS"
     }
   ]
 }

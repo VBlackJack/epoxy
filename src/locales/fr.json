@@ -1434,10 +1434,6 @@
       "level_38": {
         "title": "Fonte",
         "hint": "Un bloc de glace change un feu en eau, et un bloc de terre comble cette eau. Pousse d'abord la glace dans les flammes, puis amène la terre : dans l'autre sens, la terre bouche le feu pour de bon."
-      },
-      "level_39": {
-        "title": "Bouchon",
-        "hint": "Une puce est un mur pour un scarabée : celle-ci le garde enfermé. Prends-la et il est libre, il longe son mur de gauche. Ouvre d'abord le chemin de la mare, puis prends la puce et cours : en te suivant, le scarabée tournera dans la mare."
       }
     },
     "chapter": {
