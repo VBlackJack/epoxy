@@ -72,7 +72,7 @@ interface SlideResult {
   fatal: boolean;
   /** The door or socket the slide opened on its last step (the slide stops on that cell). */
   opened?: { x: number; y: number; keyId?: string };
-  /** The hazard cell that made the slide fatal, when a block could deal with it (water, slime, fire). */
+  /** The hazard cell that made the slide fatal, when a block could deal with it (water, slime, fire, bomb). */
   lethal?: { hazard: string; x: number; y: number };
 }
 
@@ -290,40 +290,38 @@ export class LevelValidator {
         .filter((def) => def.kind === 'block')
         .map((def) => def.id)
     );
-    // Reachable blocks are counted per type, globally and not by position: what a block can do to a
-    // hazard depends on its type (an ice block melts fire but vanishes in water, a dirt block fills water).
+    // Reachable blocks are counted per type, globally and not by position. What a block can do to a hazard
+    // depends on its type: a dirt block fills water, an ice block melts fire but vanishes in water, a mirror
+    // refuses water. Hazards are demands on that stock, accepted only while a consistent assignment exists.
     const blockStock = new Map<string, number>();
     const stockBlocks = (type: string, count: number): void => {
       blockStock.set(type, (blockStock.get(type) ?? 0) + count);
     };
-    const blockKinds = (type: string): { fills: boolean; melts: boolean } => {
-      const def = ConfigRegistry.getEntityDef(type);
-      return {
-        fills: !def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water',
-        melts: !!def?.meltsInFireTo && !!def?.destroyedByFire
-      };
-    };
-    type BlockUse = 'any' | 'fill' | 'melt';
+    const demand = { water: 0, fire: 0, other: 0 };
+    type BlockUse = 'water' | 'fire' | 'other';
     /**
-     * Spends one reachable block that can do the job. The least useful candidate goes first so the
-     * kinds that stay scarce (a filler for water) are kept for later. Returns the type spent.
+     * Takes the blocks one hazard needs, if the stock still covers every demand taken so far. Water needs a
+     * block that fills it; fire needs an ice block (which melts) and a separate filler (for the water left);
+     * slime and bombs take any block. Feasibility, with fillers F, ice blocks M and all blocks T:
+     * water + fire <= F, fire <= M and water + 2 * fire + other <= T.
      */
-    const spendBlock = (use: BlockUse): string | null => {
-      let best: string | null = null;
-      let bestScore = Infinity;
+    const trySpend = (use: BlockUse): boolean => {
+      let fillers = 0;
+      let melters = 0;
+      let total = 0;
       for (const [type, count] of blockStock) {
         if (count <= 0) continue;
-        const kinds = blockKinds(type);
-        if (use === 'fill' && !kinds.fills) continue;
-        if (use === 'melt' && !kinds.melts) continue;
-        const score = (kinds.fills ? 2 : 0) + (kinds.melts ? 1 : 0);
-        if (score < bestScore) {
-          best = type;
-          bestScore = score;
-        }
+        const def = ConfigRegistry.getEntityDef(type);
+        total += count;
+        if (!def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water') fillers += count;
+        if (def?.meltsInFireTo && def.destroyedByFire) melters += count;
       }
-      if (best !== null) blockStock.set(best, (blockStock.get(best) ?? 0) - 1);
-      return best;
+      const next = { ...demand, [use]: demand[use] + 1 };
+      if (next.water + next.fire > fillers || next.fire > melters || next.water + 2 * next.fire + next.other > total) {
+        return false;
+      }
+      demand[use]++;
+      return true;
     };
     const uncollectedBlocks = new Map<string, string>(
       level.entities.filter((e) => blockTypes.has(e.type)).map((e) => [`${e.x},${e.y}`, e.type])
@@ -562,9 +560,14 @@ export class LevelValidator {
           const protectedHere = hasBoot(nextBoots, nextTile.protectedByItem);
 
           // A block pushed in turns water or slime into ground the player can cross.
-          // Water needs a block that fills it; slime swallows any block.
+          // Known limits of this optimistic count: blocks are tallied per type and not by position, and the
+          // demands are not ordered. Water needs a filler (dirt; an ice block vanishes there and leaves the
+          // water, a mirror refuses it), slime swallows any block, and fire costs an ice block plus a filler,
+          // after which the cell is plain ground. The variant melt-then-swim (water boots, no filler) is
+          // therefore not credited. A dirt block on fire neither burns nor puts it out. A slide that ends in
+          // water, slime, fire or a bomb is replayed on the next pass once the blocks are spent.
           if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
-            if (spendBlock(nextTile.hazard === 'water' ? 'fill' : 'any') !== null) {
+            if (trySpend(nextTile.hazard === 'water' ? 'water' : 'other')) {
               simTerrain[ny][nx] = FLOOR_TILE_ID;
               changed = true;
             } else {
@@ -572,18 +575,19 @@ export class LevelValidator {
             }
           }
 
-          // A block that melts in fire (ice) turns it into what it melts to (water); the player waits for a
-          // later pass, where the water is judged like any other.
+          // An ice block melts the fire and a second block fills the water left. The cell becomes ground at
+          // once: a state that holds fire boots must never meet water where the fire used to be.
           if (nextTile.hazard === 'fire' && !protectedHere) {
-            this.meltFire(spendBlock('melt'), simTerrain, nx, ny, () => {
+            if (trySpend('fire')) {
+              simTerrain[ny][nx] = FLOOR_TILE_ID;
               changed = true;
-            });
+            }
             continue;
           }
 
           const nextItem = simItems[ny][nx];
           if (nextItem && ConfigRegistry.getTile(nextItem).hazard === 'bomb') {
-            if (spendBlock('any') !== null) {
+            if (trySpend('other')) {
               simItems[ny][nx] = null;
               changed = true;
             } else {
@@ -611,13 +615,13 @@ export class LevelValidator {
             if (slide.fatal) {
               // A slide that ends in a hazard a block can deal with is replayed on the next pass.
               const lethal = slide.lethal;
-              if (lethal && lethal.hazard === 'fire') {
-                this.meltFire(spendBlock('melt'), simTerrain, lethal.x, lethal.y, () => {
+              if (lethal) {
+                const use: BlockUse = lethal.hazard === 'water' ? 'water' : lethal.hazard === 'fire' ? 'fire' : 'other';
+                if (trySpend(use)) {
+                  if (lethal.hazard === 'bomb') simItems[lethal.y][lethal.x] = null;
+                  else simTerrain[lethal.y][lethal.x] = FLOOR_TILE_ID;
                   changed = true;
-                });
-              } else if (lethal && spendBlock(lethal.hazard === 'water' ? 'fill' : 'any') !== null) {
-                simTerrain[lethal.y][lethal.x] = FLOOR_TILE_ID;
-                changed = true;
+                }
               }
               continue;
             }
@@ -743,13 +747,7 @@ export class LevelValidator {
    * back along the lane. Other blocks, the player and the exact slide timing
    * are ignored, so the result over-approximates. Known limits: force floors
    * after the ice are not followed, and terrain changed during play (melted or
-   * filled cells) is not modelled here. The reachability walk does model them, as an
-   * optimistic count of reachable blocks per type, not by position: a block that fills
-   * water (not an ice block, which vanishes there and leaves the water, nor a mirror)
-   * is spent per water crossed, and a block that melts in fire (ice) turns the fire
-   * into water for a later fill. A dirt block on fire neither burns nor puts it out.
-   * A slide that ends in water or fire is replayed once a block has dealt with it.
-   * Which block reaches which hazard, and the order, are not checked. Without ice it is just the entered cell.
+   * filled cells) is not modelled here. Without ice it is just the entered cell.
    */
   private static blockLandings(level: CompiledLevel, type: string, x: number, y: number, dir: Direction): GridPoint[] {
     const vec = DIRECTION_VECTORS[dir];
@@ -1128,7 +1126,7 @@ export class LevelValidator {
 
       const entered = ConfigRegistry.getTile(terrain[y][x]);
       const item = items[y][x];
-      if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return fatal();
+      if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return fatal('bomb', x, y);
       boots = this.bootsOnArrival(boots, entered, item, bootBits);
       if (
         (entered.hazard === 'water' || entered.hazard === 'fire' || entered.hazard === 'slime') &&
@@ -1139,20 +1137,6 @@ export class LevelValidator {
     }
 
     return fatal();
-  }
-
-  /** Turns the fire at (x, y) into what the spent block melts to; does nothing without a block. */
-  private static meltFire(
-    spent: string | null,
-    terrain: string[][],
-    x: number,
-    y: number,
-    onChange: () => void
-  ): void {
-    const to = spent === null ? undefined : ConfigRegistry.getEntityDef(spent)?.meltsInFireTo;
-    if (to === undefined) return;
-    terrain[y][x] = to;
-    onChange();
   }
 
   /** One bit per boot type of the tile config, in a stable order. */

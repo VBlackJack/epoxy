@@ -29,13 +29,21 @@ const TERRAIN_CODES: Record<string, string> = {
   P: 'floor',
   i: 'floor',
   d: 'floor',
+  f: 'floor',
+  x: 'floor',
   E: 'exit',
   W: 'water',
   F: 'fire',
+  S: 'slime',
   I: 'ice'
 };
 
-/** Rows: # wall, . floor, P player, i ice block, d dirt block, E exit, W water, F fire, I ice floor. */
+const ITEM_CODES: Record<string, string> = { f: 'boots_fire', x: 'bomb' };
+
+/**
+ * Rows: # wall, . floor, P player, i ice block, d dirt block, E exit, W water, F fire, S slime,
+ * I ice floor, f fire boots on floor, x bomb on floor.
+ */
 function grid(rows: string[]): CompiledLevel {
   let start = { x: 0, y: 0 };
   const entities: EntityPlacement[] = [];
@@ -55,7 +63,7 @@ function grid(rows: string[]): CompiledLevel {
     chipsRequired: 0,
     playerStart: { ...start, dir: 'S' },
     terrain,
-    items: rows.map((row) => [...row].map(() => null)),
+    items: rows.map((row) => [...row].map((ch) => ITEM_CODES[ch] ?? null)),
     entities,
     trapLinks: [],
     cloneLinks: []
@@ -92,45 +100,84 @@ function engineWins(level: CompiledLevel, moves: Direction[]): boolean {
 const REPEAT_EAST: Direction[] = ['E', 'E', 'E', 'E', 'E', 'E', 'E', 'E'];
 // The ice block melts the fire at (5,1); the dirt block at (5,2) is then pushed north into the water.
 const MELT_THEN_FILL: Direction[] = ['E', 'E', 'E', 'S', 'S', 'E', 'N', 'N', 'E', 'E'];
+const WALL = '##########';
 
+// The "engine loses" assertions in the negative tests below replay one scripted route only: they show that
+// route fails, not that no route exists. The validator verdict is what each test guards (over-optimism).
 describe('blocks that fill water or melt fire', () => {
   beforeAll(() => {
     loadTestConfigs();
   });
 
   it('(a) an ice lane carries a dirt block into water: the exit beyond is reachable', () => {
-    const level = grid(['#########', '#PdIIIW.E#', '#########']);
+    const level = grid([WALL, '#PdIIIW.E#', WALL]);
     expect(exitUnreachable(level)).toBe(false);
     expect(engineWins(level, REPEAT_EAST)).toBe(true);
   });
 
-  it('(b) the same ice lane without a block ends in the water', () => {
-    const level = grid(['#########', '#P.IIIW.E#', '#########']);
+  it('(b) guards over-optimism: the same ice lane without a block stays unreachable', () => {
+    const level = grid([WALL, '#P.IIIW.E#', WALL]);
     expect(exitUnreachable(level)).toBe(true);
     expect(engineWins(level, REPEAT_EAST)).toBe(false);
   });
 
-  it('(c) an ice block alone melts the fire into water it cannot fill', () => {
-    const level = grid(['#########', '#Pi.F.E##', '#########']);
+  it('(c) guards over-optimism: an ice block alone cannot fill the water its melt leaves', () => {
+    const level = grid([WALL, '#Pi.F.E###', WALL]);
     expect(exitUnreachable(level)).toBe(true);
     expect(engineWins(level, REPEAT_EAST)).toBe(false);
   });
 
-  it('(d) a dirt block alone neither burns nor puts the fire out', () => {
-    const level = grid(['#########', '#Pd.F.E##', '#########']);
+  it('(d) guards over-optimism: a dirt block alone neither burns nor puts the fire out', () => {
+    const level = grid([WALL, '#Pd.F.E###', WALL]);
     expect(exitUnreachable(level)).toBe(true);
     expect(engineWins(level, REPEAT_EAST)).toBe(false);
   });
 
   it('(e) an ice block melts the fire, then a dirt block fills the water left', () => {
-    const level = grid(['#########', '#P.i.F.E#', '#....d###', '#.......#', '#########']);
+    const level = grid([WALL, '#P.i.F.E##', '#....d####', '#.......##', WALL]);
     expect(exitUnreachable(level)).toBe(false);
     expect(engineWins(level, MELT_THEN_FILL)).toBe(true);
   });
 
-  it('(f) an ice block melts the fire into water and nothing fills it', () => {
-    const level = grid(['#########', '#P.i.F.E#', '#.....###', '#.......#', '#########']);
+  it('(f) guards over-optimism: a melt with nothing to fill the water stays unreachable', () => {
+    const level = grid([WALL, '#P.i.F.E##', '#.....####', '#.......##', WALL]);
     expect(exitUnreachable(level)).toBe(true);
     expect(engineWins(level, MELT_THEN_FILL)).toBe(false);
+  });
+
+  it('keeps fire boots usable when an ice block exists (a melt must not leave water behind)', () => {
+    const level = grid([WALL, '#fP..F.E##', '#.i#######', WALL]);
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['W', 'E', 'E', 'E', 'E', 'E', 'E'])).toBe(true);
+  });
+
+  it('does not let a dead-end fire branch take the only ice block needed for slime', () => {
+    const level = grid([WALL, '#Pi.S.E###', '#.F#######', WALL]);
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['E', 'E', 'E', 'E', 'E', 'E'])).toBe(true);
+  });
+
+  it('shares {ice, dirt, dirt} between slime and a fire melt', () => {
+    const level = grid([
+      '###########',
+      '#PdS.i.F.E#',
+      '####...d###',
+      '####....###',
+      '###########'
+    ]);
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['E', 'E', 'E', 'E', 'E', 'S', 'S', 'E', 'N', 'N', 'E', 'E'])).toBe(true);
+  });
+
+  it('a slide that dies on a bomb is replayed once a block has cleared it', () => {
+    const level = grid([WALL, '#PdIIIx.E#', WALL]);
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, REPEAT_EAST)).toBe(true);
+  });
+
+  it('guards over-optimism: the same bomb lane without a block stays unreachable', () => {
+    const level = grid([WALL, '#P.IIIx.E#', WALL]);
+    expect(exitUnreachable(level)).toBe(true);
+    expect(engineWins(level, REPEAT_EAST)).toBe(false);
   });
 });
