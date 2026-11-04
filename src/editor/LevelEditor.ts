@@ -364,7 +364,7 @@ const CELL_LIVE_ID = 'editor-cell-live';
 const ISSUES_LIST_ID = 'editor-issues-list';
 const ISSUES_NOTE_ID = 'editor-issues-note';
 const ISSUES_SECTION_ID = 'editor-issues-section';
-const SEVERITY_GLYPHS: Record<ValidationIssue['severity'], string> = { error: '✖', warning: '⚠' };
+const SEVERITY_GLYPHS: Record<ValidationIssue['severity'], string> = { error: '✖', warning: '⚠', info: 'i' };
 const CC3D_COLOR_LABEL_KEYS: Record<Cc3dBrushAttributes['color'], string> = {
   red: 'editor.cc3d.color.red',
   green: 'editor.cc3d.color.green',

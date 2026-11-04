@@ -24,10 +24,11 @@ import { describe, expect, it } from 'vitest';
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
-type Severity = 'error' | 'warning';
+type Severity = 'error' | 'warning' | 'info';
 
 const ERR: Severity = 'error';
 const WARN: Severity = 'warning';
+const INFO: Severity = 'info';
 
 // A new validator.issues key must be added here with the severity that core emits.
 const EMITTED_SEVERITY: Record<string, Severity> = {
@@ -40,6 +41,7 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
   channel_button_no_walls: WARN, channel_walls_no_button: WARN, hold_door_no_plate: WARN, hold_door_wrong_start: WARN,
   steering_pad_no_puppet: WARN, puppet_no_steering_pad: WARN,
   shot_trigger_no_link: WARN, shot_launcher_unlinked: WARN, shot_launcher_faces_wall: WARN,
+  trap_button_no_trap: INFO, clone_button_nothing: INFO,
   cc3d_bad_grid: ERR, cc3d_empty_stack: ERR, cc3d_unknown_terrain: ERR, cc3d_base_not_floor: ERR, cc3d_stack_order: ERR,
   cc3d_duplicate_layer: ERR, cc3d_missing_color: ERR, cc3d_missing_dir: ERR, cc3d_missing_corner: ERR,
   cc3d_missing_mirror: ERR, cc3d_invalid_value: ERR, cc3d_unknown_item: ERR, cc3d_unknown_mob: ERR,
@@ -53,8 +55,8 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
 const RUNTIME_SEVERITY_KEYS = ['unreachable_chips_proven', 'unreachable_exit_proven'];
 
 const PREFIXES: Record<'en' | 'fr', Record<Severity, string[]>> = {
-  en: { error: ['Error: '], warning: ['Warning: '] },
-  fr: { error: ['Erreur : '], warning: ['Attention : ', 'Avertissement : '] }
+  en: { error: ['Error: '], warning: ['Warning: '], info: ['Info: '] },
+  fr: { error: ['Erreur : '], warning: ['Attention : ', 'Avertissement : '], info: ['Info : '] }
 };
 
 const messages = { en: en.validator.issues, fr: fr.validator.issues } as unknown as Record<

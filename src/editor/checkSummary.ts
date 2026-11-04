@@ -32,7 +32,7 @@ export interface CheckSummary {
 export function summarizeValidation(report: Pick<LevelValidationReport, 'issues'>): CheckSummary {
   const errors = report.issues.filter((issue) => issue.severity === 'error').length;
   if (errors > 0) return { state: 'errors', count: errors };
-  const warnings = report.issues.length;
+  const warnings = report.issues.filter((issue) => issue.severity === 'warning').length;
   if (warnings > 0) return { state: 'warnings', count: warnings };
   return { state: 'valid', count: 0 };
 }

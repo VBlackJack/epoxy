@@ -1359,7 +1359,8 @@ export interface GridPoint {
 }
 
 export interface ValidationIssue {
-  severity: 'error' | 'warning';
+  /** An 'info' issue is a hint: like a warning it never makes the level invalid. */
+  severity: 'error' | 'warning' | 'info';
   i18nKey: string;
   params?: Record<string, string | number>;
 }
