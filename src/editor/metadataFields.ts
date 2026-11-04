@@ -27,10 +27,10 @@ export const EPOXY_ONLY_WIN_RULES: readonly WinRule[] = ['targets', 'receivers']
 
 /**
  * Whether a level can only be played under Epoxy rules: it is won with block
- * targets or laser receivers, or it places laser tiles or mirrors.
+ * targets or laser receivers, or it places laser tiles, mirrors, colour channel tiles or colour blocks.
  */
-export function requiresEpoxyRules(winRule: WinRule, hasLaserContent: boolean): boolean {
-  return hasLaserContent || EPOXY_ONLY_WIN_RULES.includes(winRule);
+export function requiresEpoxyRules(winRule: WinRule, hasEpoxyOnlyContent: boolean): boolean {
+  return hasEpoxyOnlyContent || EPOXY_ONLY_WIN_RULES.includes(winRule);
 }
 
 /**

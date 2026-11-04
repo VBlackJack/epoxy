@@ -15,6 +15,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { hasEpoxyOnlyContent } from '../core/RulesetFeatures';
+import type { CompiledLevel } from '../core/types';
+import { loadTestConfigs } from '../test/loadTestConfigs';
 import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 
 const CURRENT = 180;
@@ -73,7 +76,7 @@ describe('parseWinRule', () => {
 });
 
 describe('requiresEpoxyRules', () => {
-  it('is true for targets and receivers levels, and for any level with laser content', () => {
+  it('is true for targets and receivers levels, and for any level with Epoxy-only content (lasers or colour channels)', () => {
     expect(requiresEpoxyRules('targets', false)).toBe(true);
     expect(requiresEpoxyRules('receivers', false)).toBe(true);
     expect(requiresEpoxyRules('exit', true)).toBe(true);
@@ -81,6 +84,19 @@ describe('requiresEpoxyRules', () => {
 
   it('is false for a plain exit level', () => {
     expect(requiresEpoxyRules('exit', false)).toBe(false);
+  });
+
+  it('is true for a level that places a colour channel tile or a colour block', () => {
+    loadTestConfigs();
+    const grid = (cell: string): string[][] => [['wall', 'wall', 'wall'], ['wall', cell, 'wall'], ['wall', 'wall', 'wall']];
+    const empty = grid('floor').map((row) => row.map(() => null as string | null));
+    const level = (terrain: string[][], entityType?: string): CompiledLevel =>
+      ({ terrain, items: empty, entities: entityType ? [{ type: entityType, x: 1, y: 1, dir: 'S' }] : [] }) as unknown as CompiledLevel;
+    for (const tile of ['pressure_plate_red', 'hold_door_blue_closed', 'toggle_wall_red_open', 'toggle_button_yellow', 'floating_block_green']) {
+      expect(requiresEpoxyRules('exit', hasEpoxyOnlyContent(level(grid(tile)))), tile).toBe(true);
+    }
+    expect(requiresEpoxyRules('exit', hasEpoxyOnlyContent(level(grid('floor'), 'color_block_blue')))).toBe(true);
+    expect(requiresEpoxyRules('exit', hasEpoxyOnlyContent(level(grid('floor'), 'dirt_block')))).toBe(false);
   });
 });
 
