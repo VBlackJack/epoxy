@@ -1070,6 +1070,28 @@ body.editor-mode #app {
   color: #fff;
 }
 
+.editor-check-badge[data-state='checking'] {
+  color: var(--text-main);
+  font-style: italic;
+}
+
+.editor-check-badge[data-state='skipped'],
+.editor-check-badge[data-state='interrupted'] {
+  background: transparent;
+  color: var(--text-main);
+  outline: 1px dashed var(--led-amber);
+}
+
+.editor-check-badge[data-state='error'] {
+  background: transparent;
+  color: var(--text-main);
+  outline: 1px dashed var(--danger);
+}
+
+.editor-issues-list[data-stale='true'] .editor-issue-row {
+  color: var(--text-muted);
+}
+
 .editor-body {
   flex: 1;
   min-height: 0;

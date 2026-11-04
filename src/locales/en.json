@@ -658,9 +658,16 @@
         "unsolvable": "Blocks: no way to cover every target",
         "not_checked": "Blocks: not checked (too large or unsupported ground)",
         "running": "Blocks: checking..."
-      }
+      },
+      "running": { "label": "Checking the level..." },
+      "skipped": { "label": "Check skipped: the level took too long to check." },
+      "test_skipped": { "label": "Tested without the check: the level took too long to check." },
+      "test_cancelled": { "label": "The level changed during the check; the version from before the edit was tested." },
+      "test_error": { "label": "Tested without the check: the check failed." },
+      "error": { "label": "Check failed." }
     },
     "issues": {
+      "stale": { "label": "Out of date: the level changed since this check." },
       "idle": "Run Check to list what needs attention.",
       "none": "No issue found.",
       "more": "and {count, plural, one {# more issue} other {# more issues}}",
@@ -792,7 +799,11 @@
         "idle": "Not checked",
         "valid": "Valid",
         "warnings": "{count, plural, one {# warning} other {# warnings}}",
-        "errors": "{count, plural, one {# error} other {# errors}}"
+        "errors": "{count, plural, one {# error} other {# errors}}",
+        "checking": { "label": "Checking..." },
+        "skipped": { "label": "Check skipped: too slow" },
+        "interrupted": { "label": "Check interrupted" },
+        "error": { "label": "Check failed" }
       },
       "test": { "action": "Test", "title": "Play the level as it is" },
       "canvas": {

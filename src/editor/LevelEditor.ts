@@ -42,6 +42,7 @@ import {
   LevelBlueprint,
   LevelPack,
   Ruleset,
+  LevelValidationReport,
   ValidationIssue,
   WinRule
 } from '../core/types';
@@ -56,6 +57,7 @@ import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
 import { clonerTemplateMessage, clonersTemplateMessage, describeEditorCell, entityDisplayName, sideDisplayName } from './cellDescription';
 import { entityHasFacing } from './entityFacing';
 import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
+import { LevelCheckResult, LevelCheckRunner, LevelCheckWorkerLike } from './levelCheckRunner';
 import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
 import {
   GridCell,
@@ -65,7 +67,7 @@ import {
   TEST_FROM_HERE_REASON_KEYS,
   TestFromHereBlock
 } from './testFromHere';
-import { CheckSummary, summarizeValidation } from './checkSummary';
+import { CheckState, CheckSummary, summarizeValidation } from './checkSummary';
 import { issueCell, issueRows } from './issueList';
 import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
 import {
@@ -206,6 +208,7 @@ import {
 import { packNameFromFile } from '../ui/cc3dImport';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
+  EDITOR_AUTO_CHECK_TIMEOUT_MS,
   EDITOR_BLOCK_CHECK_TIMEOUT_MS,
   EDITOR_CELL_ANNOUNCE_DELAY_MS,
   EDITOR_BEAM_DIM_ALPHA,
@@ -213,6 +216,7 @@ import {
   EDITOR_BEAM_GATE_INSET_TILE,
   EDITOR_BEAM_STALE_ALPHA,
   EDITOR_CHECK_DEBOUNCE_MS,
+  EDITOR_TEST_CHECK_TIMEOUT_MS,
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
   EDITOR_CC3D_ARROW_HEAD_TILE,
   EDITOR_CC3D_BADGE_RADIUS_TILE,
@@ -344,10 +348,22 @@ const TOOL_LABEL_KEYS: Record<EditorTool, string> = {
   picker: 'editor.layout.tool.picker.label',
   select: 'editor.selection.tool.label'
 };
-const CHECK_TEXT_KEYS: Record<CheckSummary['state'], string> = {
+/** Why Test went ahead without a check report: the notice that says so. */
+type TestCheckSkip = 'timeout' | 'cancelled' | 'error';
+const TEST_CHECK_SKIP_KEYS: Record<TestCheckSkip, string> = {
+  timeout: 'editor.check.test_skipped.label',
+  cancelled: 'editor.check.test_cancelled.label',
+  error: 'editor.check.test_error.label'
+};
+
+const CHECK_TEXT_KEYS: Record<CheckState, string> = {
   valid: 'editor.layout.check.valid',
   warnings: 'editor.layout.check.warnings',
-  errors: 'editor.layout.check.errors'
+  errors: 'editor.layout.check.errors',
+  checking: 'editor.layout.check.checking.label',
+  skipped: 'editor.layout.check.skipped.label',
+  interrupted: 'editor.layout.check.interrupted.label',
+  error: 'editor.layout.check.error.label'
 };
 
 /** Where a save puts the level: an existing pack or a pack to create, and whether it is stored as a new level. */
@@ -498,6 +514,23 @@ export class LevelEditor {
   /** True while the New button is asking its questions, so a second click does not open a second dialog. */
   private newLevelPending = false;
   private blockRunner: BlockCheckRunner | null = null;
+  private levelRunner: LevelCheckRunner | null = null;
+  /** The last finished report with the load and content it is for (`currentBeamPreviewKey`). */
+  private reportCache: { key: string; report: LevelValidationReport } | null = null;
+  /** What the badge shows instead of the last verdict: a check in progress, or one abandoned (too slow, failed, interrupted). */
+  private checkOverlay: 'checking' | 'skipped' | 'interrupted' | 'error' | null = null;
+  /** True while Test waits for its check, so a repeated click does not start a second one. */
+  private testCheckPending = false;
+  /** Bumped when the editor view is left or disposed, so a Test that waits for its check does not play after it. */
+  private checkAbortEpoch = 0;
+  /** The content key of the check running in the worker, so a save (same content) does not abandon it. */
+  private runningCheckKey: string | null = null;
+  /** False while the check in the worker is of a moved-start copy: it is not the content, so nobody joins it or caches it. */
+  private runningCheckCacheable = true;
+  /** Source of the status tokens: each check run that writes "checking" on the status line takes the next one. */
+  private statusTokenSeq = 0;
+  /** The status line before a check wrote "checking", the status write count right after it did, and the token of the run that owns the line. */
+  private runningStatus: { previous: string; writes: number; token: number } | null = null;
   /** The status texts around a block check in progress, to restore the line if it is abandoned. */
   private runningBlockCheck: { running: string; base: string } | null = null;
   /** Bumped each time another level is loaded, so a save that outlives its level cannot rebind the editor. */
@@ -569,6 +602,7 @@ export class LevelEditor {
     this.editRevision++;
     // Any edit or load makes a running block check stale.
     this.abortBlockCheck();
+    this.cancelRunningCheck();
     this.updateDirtyBadge();
     this.syncDraft();
   }
@@ -871,6 +905,9 @@ export class LevelEditor {
   private afterDocumentReplaced(dirty: boolean): void {
     this.loadGeneration++;
     this.docRevision++;
+    this.levelRunner?.cancel();
+    this.checkOverlay = null;
+    this.reportCache = null;
     this.resetBeamPreview();
     this.cancelCellSpeech();
     const live = byId(CELL_LIVE_ID);
@@ -1801,33 +1838,7 @@ export class LevelEditor {
     }
 
     byId('editor-validate-btn')?.addEventListener('click', () => {
-      const compiled = this.exportCompiledLevel();
-      const report = LevelValidator.validate(compiled, storedSolutionWins);
-      this.setCheck(summarizeValidation(report), report.issues);
-      const issuesSection = byId<HTMLDetailsElement>(ISSUES_SECTION_ID);
-      if (issuesSection) issuesSection.open = true;
-      if (report.valid) {
-        const validText =
-          compiled.winRule === 'receivers'
-            ? t('validator.status.valid_receivers.label', {
-                receivers: receiversProgress(compiled.terrain, []).total
-              })
-            : compiled.winRule === 'targets'
-              ? t('validator.status.valid_targets.label', { targets: report.stats.targetCount })
-              : t('validator.status.valid.label', {
-                  chips: report.stats.reachableChips,
-                  required: report.stats.chipsRequired
-                });
-        // A valid level may still carry warnings; they follow the verdict.
-        this.setStatusText(
-          report.issues.length > 0
-            ? `${validText}${t('validator.status.issue_separator.label')}${this.formatIssues(report.issues)}`
-            : validText
-        );
-      } else {
-        this.setStatusText(this.formatIssues(report.issues));
-      }
-      void this.appendBlocksLine(compiled);
+      this.runExplicitCheck();
     });
 
     byId('editor-save-btn')?.addEventListener('click', () => {
@@ -1903,16 +1914,204 @@ export class LevelEditor {
 
   private lastCheck: CheckSummary | null = null;
 
-  /** Recomputes the badge once the player stops editing for a moment. */
+  /**
+   * Recomputes the badge once the player stops editing for a moment. A check still running for the
+   * previous content is abandoned at once; the new one starts when the timer fires.
+   */
   private scheduleCheck(): void {
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
+    this.levelRunner?.cancel();
     this.checkTimer = setTimeout(() => {
       this.checkTimer = null;
-      const compiled = this.exportCompiledLevel();
-      const report = LevelValidator.validate(compiled, storedSolutionWins);
-      this.setCheck(summarizeValidation(report), report.issues);
-      if (this.beamPreviewOn) this.refreshBeamPreview(compiled, false);
+      this.runScheduledCheck();
     }, EDITOR_CHECK_DEBOUNCE_MS);
+  }
+
+  /** The check the timer fires: off the UI thread, except for CC3D and for content already checked. */
+  private runScheduledCheck(): void {
+    const compiled = this.exportCompiledLevel();
+    const key = this.currentCheckKey();
+    const report = this.syncReport(key, compiled);
+    if (report) {
+      this.applyReport(key, report);
+    } else {
+      this.showChecking();
+      this.runningCheckKey = key;
+      this.runningCheckCacheable = true;
+      this.levelCheckRunner().run(compiled, EDITOR_AUTO_CHECK_TIMEOUT_MS, (result) => this.onScheduledCheckDone(key, result));
+    }
+    if (this.beamPreviewOn) this.refreshBeamPreview(compiled, false);
+  }
+
+  private onScheduledCheckDone(key: string, result: LevelCheckResult): void {
+    if (result.kind === 'cancelled' || this.disposed) return;
+    // The content changed without a check being scheduled (a stroke in progress): the next edit step checks again.
+    if (key !== this.currentCheckKey()) {
+      this.scheduleCheck();
+      return;
+    }
+    if (result.kind === 'report') this.applyReport(key, result.report);
+    else this.showAbandoned(result.kind === 'error' ? 'error' : 'skipped');
+  }
+
+  /** The report available without waiting: the one cached for this content, or a CC3D validation (always inline). */
+  private syncReport(key: string, compiled: CompiledLevel): LevelValidationReport | null {
+    if (this.reportCache?.key === key) return this.reportCache.report;
+    return this.isCc3d() ? LevelValidator.validate(compiled, storedSolutionWins) : null;
+  }
+
+  /** Keeps a finished report for its content and shows it on the badge and in the issues list. */
+  private applyReport(key: string, report: LevelValidationReport): void {
+    this.reportCache = { key, report };
+    this.checkOverlay = null;
+    this.setCheck(summarizeValidation(report), report.issues);
+  }
+
+  /** The badge says a check is running; the issues of the last one stay, dimmed. */
+  private showChecking(): void {
+    this.checkOverlay = 'checking';
+    this.updateCheckBadge(this.lastCheck);
+    this.renderIssues();
+  }
+
+  /** The badge says the check was abandoned (too slow, failed, or cut short); the issues of the last one stay, dimmed. */
+  private showAbandoned(overlay: 'skipped' | 'interrupted' | 'error'): void {
+    this.checkOverlay = overlay;
+    this.updateCheckBadge(this.lastCheck);
+    this.renderIssues();
+  }
+
+  /** Abandons a check running for content that just changed, and checks again once the edits settle. */
+  private cancelRunningCheck(): void {
+    const runner = this.levelRunner;
+    if (!runner?.isRunning()) return;
+    // A save changes no content: the check of the content as it is goes on.
+    if (this.runningCheckKey === this.currentCheckKey()) return;
+    runner.cancel();
+    if (!this.disposed) this.scheduleCheck();
+  }
+
+  /** The Check button: the verdict now when it is known without waiting, else off the UI thread. */
+  private runExplicitCheck(): void {
+    if (this.testCheckPending) {
+      // Test is already checking this level: show that, instead of starting a second check.
+      this.refreshRunningStatus();
+      return;
+    }
+    const compiled = this.exportCompiledLevel();
+    const key = this.currentCheckKey();
+    const report = this.syncReport(key, compiled);
+    if (report) {
+      this.applyReport(key, report);
+      this.showCheckOutcome(compiled, report);
+      return;
+    }
+    if (this.checkTimer !== null) {
+      clearTimeout(this.checkTimer);
+      this.checkTimer = null;
+    }
+    this.showChecking();
+    const token = this.beginRunningStatus();
+    const onDone = (result: LevelCheckResult): void => this.onExplicitCheckDone(key, compiled, token, result);
+    // The automatic check is already running on this content: wait for it instead of restarting it.
+    if (this.joinRunningCheck(key, EDITOR_AUTO_CHECK_TIMEOUT_MS, onDone)) return;
+    this.runningCheckKey = key;
+    this.runningCheckCacheable = true;
+    this.levelCheckRunner().run(compiled, EDITOR_AUTO_CHECK_TIMEOUT_MS, onDone);
+  }
+
+  /** The Check button's check ended: the badge, and the status line unless a later run owns it now. */
+  private onExplicitCheckDone(key: string, compiled: CompiledLevel, token: number, result: LevelCheckResult): void {
+    if (result.kind === 'cancelled' || this.disposed) {
+      this.endRunningStatus(token, true);
+      return;
+    }
+    if (key !== this.currentCheckKey()) {
+      this.endRunningStatus(token, true);
+      this.scheduleCheck();
+      return;
+    }
+    // Whether this run still owns the status line: a Test that joined it shows its own wait there.
+    const owned = this.runningStatus?.token === token;
+    if (result.kind === 'report') {
+      this.endRunningStatus(token, false);
+      this.applyReport(key, result.report);
+      if (owned) this.showCheckOutcome(compiled, result.report);
+      return;
+    }
+    const failed = result.kind === 'error';
+    this.showAbandoned(failed ? 'error' : 'skipped');
+    const untouched = owned && this.runningStatus?.writes === this.statusWrites;
+    this.endRunningStatus(token, false);
+    if (untouched) this.setStatusText(t(failed ? 'editor.check.error.label' : 'editor.check.skipped.label'));
+  }
+
+  /** Attaches to the check running in the worker when it is of this very content; false when there is none to join. */
+  private joinRunningCheck(key: string, timeoutMs: number, onDone: (result: LevelCheckResult) => void): boolean {
+    const runner = this.levelRunner;
+    if (!runner?.isRunning() || !this.runningCheckCacheable || this.runningCheckKey !== key) return false;
+    return runner.join(timeoutMs, onDone);
+  }
+
+  /**
+   * Starts a run that writes "checking" on the status line, remembering what it said before (a run that
+   * takes over from another one keeps that older text). Returns the token that run ends the line with.
+   */
+  private beginRunningStatus(): number {
+    const statusBar = document.getElementById('editor-status-bar');
+    const previous = this.runningStatus?.previous ?? statusBar?.textContent ?? '';
+    const token = ++this.statusTokenSeq;
+    this.setStatusText(t('editor.check.running.label'));
+    this.runningStatus = { previous, writes: this.statusWrites, token };
+    return token;
+  }
+
+  /** Writes "checking" on the status line again for the run that owns it, without taking its token. */
+  private refreshRunningStatus(): void {
+    const running = this.runningStatus;
+    if (!running) return;
+    this.setStatusText(t('editor.check.running.label'));
+    this.runningStatus = { ...running, writes: this.statusWrites };
+  }
+
+  /**
+   * Ends the "checking" line of the run `token`, only when that run still owns it. The line is put back as
+   * it was only when nothing else wrote to the status line since. True when the run owned the line.
+   */
+  private endRunningStatus(token: number, restore: boolean): boolean {
+    const running = this.runningStatus;
+    if (!running || running.token !== token) return false;
+    this.runningStatus = null;
+    if (restore && running.writes === this.statusWrites) this.setStatusText(running.previous);
+    return true;
+  }
+
+  /** What an explicit Check reports besides the badge: the issues section opens and the status line gives the verdict. */
+  private showCheckOutcome(compiled: CompiledLevel, report: LevelValidationReport): void {
+    const issuesSection = byId<HTMLDetailsElement>(ISSUES_SECTION_ID);
+    if (issuesSection) issuesSection.open = true;
+    if (report.valid) {
+      const validText =
+        compiled.winRule === 'receivers'
+          ? t('validator.status.valid_receivers.label', {
+              receivers: receiversProgress(compiled.terrain, []).total
+            })
+          : compiled.winRule === 'targets'
+            ? t('validator.status.valid_targets.label', { targets: report.stats.targetCount })
+            : t('validator.status.valid.label', {
+                chips: report.stats.reachableChips,
+                required: report.stats.chipsRequired
+              });
+      // A valid level may still carry warnings; they follow the verdict.
+      this.setStatusText(
+        report.issues.length > 0
+          ? `${validText}${t('validator.status.issue_separator.label')}${this.formatIssues(report.issues)}`
+          : validText
+      );
+    } else {
+      this.setStatusText(this.formatIssues(report.issues));
+    }
+    void this.appendBlocksLine(compiled);
   }
 
   // ---------------------------------------------------------------------------
@@ -1929,8 +2128,14 @@ export class LevelEditor {
   /** The summary announced last, so a recompute that changes nothing stays silent. */
   private beamSummaryAnnounced = '';
 
+  /** The content key: the load and the document revision, whatever the language. */
   private currentBeamPreviewKey(): string {
     return `${this.loadGeneration}:${this.docRevision}`;
+  }
+
+  /** The key a check report is cached under: the content, and the language its issues are worded in. */
+  private currentCheckKey(): string {
+    return `${i18n.getLocale()}:${this.currentBeamPreviewKey()}`;
   }
 
   /** Forgets the preview of the previous level, so its beams are never drawn on the next one. */
@@ -2117,12 +2322,52 @@ export class LevelEditor {
     if (el && el.textContent === running.running) this.setStatusText(running.base);
   }
 
+  /** The editor view is shown again: content that was not checked before the view was left is checked now. */
+  public onEnter(): void {
+    if (this.disposed) return;
+    if (this.reportCache?.key !== this.currentCheckKey()) this.scheduleCheck();
+  }
+
   /** The editor view is left: stops the check and releases the idle worker. */
   public onLeave(): void {
     this.cancelCellSpeech();
     this.flushDraft();
     this.abortBlockCheck();
     this.blockRunner?.dispose();
+    const cutShort =
+      this.checkOverlay === 'checking' ||
+      this.checkTimer !== null ||
+      this.testCheckPending ||
+      (this.levelRunner?.isRunning() ?? false);
+    if (this.checkTimer !== null) {
+      clearTimeout(this.checkTimer);
+      this.checkTimer = null;
+    }
+    this.checkAbortEpoch++;
+    this.levelRunner?.dispose();
+    // A check cut short leaves the badge saying so, never an old verdict as if it were current: coming back checks again.
+    if (cutShort && this.reportCache?.key !== this.currentCheckKey()) this.showAbandoned('interrupted');
+    else if (this.checkOverlay === 'checking') {
+      this.checkOverlay = null;
+      this.updateCheckBadge(this.lastCheck);
+      this.renderIssues();
+    }
+  }
+
+  private levelCheckRunner(): LevelCheckRunner {
+    this.levelRunner ??= new LevelCheckRunner({
+      createWorker:
+        typeof Worker === 'undefined'
+          ? null
+          : () =>
+              new Worker(new URL('../workers/levelCheck.worker.ts', import.meta.url), {
+                type: 'module'
+              }) as unknown as LevelCheckWorkerLike,
+      getBundle: () => this.hooks.getConfigBundle(),
+      getLocale: () => i18n.getLocale(),
+      validate: (level) => LevelValidator.validate(level, storedSolutionWins)
+    });
+    return this.levelRunner;
   }
 
   private blockCheckRunner(): BlockCheckRunner {
@@ -2163,6 +2408,11 @@ export class LevelEditor {
     const rowsBefore = Array.from(list.querySelectorAll<HTMLElement>('.editor-issue-row'));
     const focusedIndex = rowsBefore.findIndex((row) => row === document.activeElement);
     list.innerHTML = '';
+    // The issues of the previous check stay while a new one runs or after it was abandoned: dimmed, as out of date.
+    const stale = this.checkOverlay !== null;
+    list.dataset.stale = String(stale);
+    if (stale) list.setAttribute('aria-description', t('editor.issues.stale.label'));
+    else list.removeAttribute('aria-description');
     const issues = this.lastIssues;
     note.textContent = issues === null ? t('editor.issues.idle') : issues.length === 0 ? t('editor.issues.none') : '';
     if (!issues) return;
@@ -2215,10 +2465,13 @@ export class LevelEditor {
   private updateCheckBadge(summary: CheckSummary | null): void {
     const badge = byId('editor-check-badge');
     if (!badge) return;
-    badge.dataset.state = summary?.state ?? 'idle';
-    badge.textContent = summary
-      ? t(CHECK_TEXT_KEYS[summary.state], { count: summary.count })
-      : t('editor.layout.check.idle');
+    const overlay = this.checkOverlay;
+    badge.dataset.state = overlay ?? summary?.state ?? 'idle';
+    badge.textContent = overlay
+      ? t(CHECK_TEXT_KEYS[overlay])
+      : summary
+        ? t(CHECK_TEXT_KEYS[summary.state], { count: summary.count })
+        : t('editor.layout.check.idle');
   }
 
   // ---------------------------------------------------------------------------
@@ -2679,6 +2932,8 @@ export class LevelEditor {
     this.cancelCellSpeech();
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = null;
+    this.checkAbortEpoch++;
+    this.levelRunner?.dispose();
     this.draftListeners.abort();
     this.cancelDraftTimer();
     this.releaseDraftLock?.();
@@ -4617,6 +4872,8 @@ export class LevelEditor {
    * they are: only the copy handed to the game moves.
    */
   private async testFromHere(): Promise<void> {
+    // A Test is already waiting for its check: leave its status line alone.
+    if (this.testCheckPending) return;
     const { cell, block } = this.testFromHereTarget();
     if (block !== null || cell === null) {
       this.setStatusText(t(TEST_FROM_HERE_REASON_KEYS[block ?? 'no_cell']));
@@ -4627,11 +4884,28 @@ export class LevelEditor {
   }
 
   private async testPlay(startCell?: GridCell): Promise<void> {
+    if (this.testCheckPending) return;
     const exported = this.exportCompiledLevel();
     const compiled = startCell ? levelStartingAt(exported, startCell) : exported;
-    const report = LevelValidator.validate(compiled, storedSolutionWins);
+    const key = this.currentCheckKey();
+    const generation = this.loadGeneration;
+    const epoch = this.checkAbortEpoch;
+    // A moved-start copy is another level than the one the cache holds: it is always validated.
+    let report: LevelValidationReport | null =
+      !startCell && this.reportCache?.key === key
+        ? this.reportCache.report
+        : this.isCc3d()
+          ? LevelValidator.validate(compiled, storedSolutionWins)
+          : null;
+    let skipReason: TestCheckSkip | null = null;
+    if (report === null) {
+      const waited = await this.checkBeforeTest(compiled, key, !startCell);
+      if (generation !== this.loadGeneration || epoch !== this.checkAbortEpoch) return;
+      report = waited.report;
+      skipReason = waited.reason;
+    }
     let issuesText = '';
-    if (!report.valid && report.issues.length > 0) {
+    if (report && !report.valid && report.issues.length > 0) {
       issuesText = this.formatIssues(report.issues);
       this.setStatusText(issuesText);
       const proceed = await confirmDialog({
@@ -4646,7 +4920,56 @@ export class LevelEditor {
     if (issuesText) {
       // The editor view is hidden during test play: surface the issues there.
       this.hooks.onNotify(issuesText);
+    } else if (skipReason) {
+      this.hooks.onNotify(t(TEST_CHECK_SKIP_KEYS[skipReason]));
     }
+  }
+
+  /**
+   * Validates the level to test off the UI thread, for at most the test timeout. The report, or no report and
+   * the reason: too slow, abandoned because the level changed during the wait (the version from before the edit
+   * is then tested), or failed. `key` is the content key; `cacheable` tells whether the report may be cached
+   * under it and an already running check joined (false for a moved-start copy, another level than the content).
+   */
+  private async checkBeforeTest(
+    compiled: CompiledLevel,
+    key: string,
+    cacheable: boolean
+  ): Promise<{ report: LevelValidationReport | null; reason: TestCheckSkip | null }> {
+    const epoch = this.checkAbortEpoch;
+    // The Test check replaces the pending scheduled one; a check that is still due is scheduled again below.
+    if (this.checkTimer !== null) {
+      clearTimeout(this.checkTimer);
+      this.checkTimer = null;
+    }
+    this.testCheckPending = true;
+    const token = this.beginRunningStatus();
+    let result: LevelCheckResult;
+    try {
+      result = await new Promise<LevelCheckResult>((resolve) => {
+        // The check of this very content may be running already (automatic, or the Check button): wait for it
+        // for at most the test timeout from now. A moved-start copy is another level: it is checked on its own.
+        if (cacheable && this.joinRunningCheck(key, EDITOR_TEST_CHECK_TIMEOUT_MS, resolve)) return;
+        // The running key is the content either way, so a save (same content) never cancels it.
+        // Test from here (not cacheable) cancels the automatic check: its moved-start copy is a different level; the automatic check is rescheduled after the wait.
+        if (cacheable) this.showChecking();
+        this.runningCheckKey = key;
+        this.runningCheckCacheable = cacheable;
+        this.levelCheckRunner().run(compiled, EDITOR_TEST_CHECK_TIMEOUT_MS, resolve);
+      });
+    } finally {
+      this.testCheckPending = false;
+    }
+    this.endRunningStatus(token, true);
+    if (cacheable && result.kind === 'report' && key === this.currentCheckKey()) {
+      this.applyReport(key, result.report);
+    }
+    // After the view was left, the next visit checks (onEnter). A check this wait only joined goes on by itself.
+    const stillRunning = (this.levelRunner?.isRunning() ?? false) && this.runningCheckKey === this.currentCheckKey();
+    if (!this.disposed && epoch === this.checkAbortEpoch && !stillRunning && this.reportCache?.key !== this.currentCheckKey()) {
+      this.scheduleCheck();
+    }
+    return result.kind === 'report' ? { report: result.report, reason: null } : { report: null, reason: result.kind };
   }
 
   /** Save: updates the level in its pack when that pack is editable, else asks where it goes. */

@@ -16,10 +16,14 @@
 
 import { LevelValidationReport } from '../core/types';
 
-export type CheckState = 'valid' | 'warnings' | 'errors';
+/** The verdicts a finished check gives. */
+export type CheckVerdict = 'valid' | 'warnings' | 'errors';
+
+/** What the Check badge shows: a verdict, a check in progress, one abandoned as too slow, one interrupted by leaving the view, or one that failed. */
+export type CheckState = CheckVerdict | 'checking' | 'skipped' | 'interrupted' | 'error';
 
 export interface CheckSummary {
-  state: CheckState;
+  state: CheckVerdict;
   /** Errors when there are any, else warnings, else 0. */
   count: number;
 }
