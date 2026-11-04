@@ -18,6 +18,7 @@ import { FLOOR_TILE_ID } from '../core/coreConstants';
 import { CellEdge, CloneLink, Direction, TrapLink } from '../core/types';
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
+import type { Brush } from './editorTools';
 import { dropLinksAt, mapHeightOf, mapWidthOf } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
 
@@ -64,11 +65,11 @@ export interface SelectionEditResult {
   changed: boolean;
   /** Links dropped because one end was cleared, overwritten, or left behind by a move. */
   droppedLinks: number;
-  /** Palette entries of a clip skipped because the level's ruleset cannot play them. */
+  /** Palette entries of a clip skipped because the level's ruleset cannot play them; for an entity fill, the start cell it left alone. */
   skipped: number;
   /** Cells left alone because they sit on the outer ring of the map, which a paste or a move never writes. */
   borderSkipped: number;
-  /** True when the edit hit the player start cell and left the start in place (clear). */
+  /** True when the edit hit the player start cell and left the start in place (clear, entity fill). */
   playerStartKept: boolean;
   /** The cells the edit produced or targeted, clipped to the map; null when none are inside it. */
   rect: CellRect | null;
@@ -394,5 +395,101 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
     borderSkipped: stamped.borderSkipped,
     playerStartKept: false,
     rect: destination
+  };
+}
+
+/** Why a fill of a selection was refused; the editor turns it into a status message. */
+export type FillRefusal =
+  /** The entry cannot be played by the level's ruleset; `reasonKey` says why. */
+  | { reason: 'unavailable'; reasonKey: string }
+  /** Thin walls are drawn with the brush: they have no content to fill with. */
+  | { reason: 'cell_edge' }
+  /** The player start and the wires are not content: they place one thing, not a layer of cells. */
+  | { reason: 'unsupported' };
+
+/** The refusal a brush meets when it fills a selection, or null when it can fill. */
+export function fillBrushRefusal(brush: Brush, ruleset: EditableRuleset): FillRefusal | null {
+  switch (brush.kind) {
+    case 'cell_edge':
+      return { reason: 'cell_edge' };
+    case 'player_start':
+    case 'wire_trap':
+    case 'wire_cloner':
+      return { reason: 'unsupported' };
+    case 'terrain':
+    case 'item': {
+      const availability = tileAvailability(ruleset, brush.id);
+      return availability.available ? null : { reason: 'unavailable', reasonKey: availability.reasonKey };
+    }
+    case 'entity': {
+      const availability = entityAvailability(ruleset, brush.id);
+      return availability.available ? null : { reason: 'unavailable', reasonKey: availability.reasonKey };
+    }
+  }
+}
+
+/** Outcome of filling a selection: an ordinary selection edit, or the reason it was refused (the map is then untouched). */
+export interface FillRectResult extends SelectionEditResult {
+  refusal: FillRefusal | null;
+}
+
+/**
+ * Fills the cells of a rectangle with a palette entry, as painting each of them would: a terrain tile drops the
+ * links of the cells whose terrain changes, an item writes the item layer only, an entity replaces whatever
+ * stands on the cell, facing `dir` (the player start cell is left alone and reported). The thin walls of a
+ * cell stay, as when painting. The outer ring is never written: its cells are counted apart. An entry the
+ * level's ruleset cannot play, the player start, a wire or a thin wall refuses the whole fill.
+ */
+export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: Direction, ruleset: EditableRuleset): FillRectResult {
+  const untouched = (refusal: FillRefusal | null): FillRectResult => ({
+    map: source,
+    changed: false,
+    droppedLinks: 0,
+    skipped: 0,
+    borderSkipped: 0,
+    playerStartKept: false,
+    rect: null,
+    refusal
+  });
+  if (source.cc3d) return untouched(null); // a CC3D map is edited through cc3dAreaEdits only
+  const refusal = fillBrushRefusal(brush, ruleset);
+  if (refusal) return untouched(refusal);
+  const area = clipRectToGrid(rect, mapWidthOf(source), mapHeightOf(source));
+  if (!area) return untouched(null);
+  const map = cloneMap(source);
+  let droppedLinks = 0;
+  let borderSkipped = 0;
+  let skipped = 0;
+  for (let y = area.y; y < area.y + area.height; y++) {
+    for (let x = area.x; x < area.x + area.width; x++) {
+      if (onRing(map, x, y)) {
+        borderSkipped++;
+        continue;
+      }
+      if (brush.kind === 'terrain') {
+        if (map.terrain[y][x] === brush.id) continue;
+        map.terrain[y][x] = brush.id;
+        droppedLinks += dropLinksAt(map, x, y);
+      } else if (brush.kind === 'item') {
+        map.items[y][x] = brush.id;
+      } else if (x === source.playerStart.x && y === source.playerStart.y) {
+        skipped++;
+      } else {
+        const present = map.entities.filter((e) => e.x === x && e.y === y);
+        if (present.length === 1 && present[0].type === brush.id && present[0].dir === dir) continue;
+        map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
+        map.entities.push({ x, y, type: brush.id, dir });
+      }
+    }
+  }
+  return {
+    map,
+    changed: !sameMapLayers(source, map),
+    droppedLinks,
+    skipped,
+    borderSkipped,
+    playerStartKept: skipped > 0,
+    rect: area,
+    refusal: null
   };
 }
