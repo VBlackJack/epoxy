@@ -807,7 +807,7 @@
       "none": "No issue found.",
       "more": "and {count, plural, one {# more issue} other {# more issues}}",
       "jump": { "title": "Go to cell ({x}, {y})" },
-      "severity": { "error": { "label": "Error" }, "warning": { "label": "Warning" } }
+      "severity": { "error": { "label": "Error" }, "warning": { "label": "Warning" }, "info": { "label": "Info" } }
     },
     "test_from": {
       "action": "Test from here",

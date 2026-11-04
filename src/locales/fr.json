@@ -807,7 +807,7 @@
       "none": "Aucun problème trouvé.",
       "more": "et {count, plural, one {# autre problème} other {# autres problèmes}}",
       "jump": { "title": "Aller à la case ({x}, {y})" },
-      "severity": { "error": { "label": "Erreur" }, "warning": { "label": "Avertissement" } }
+      "severity": { "error": { "label": "Erreur" }, "warning": { "label": "Avertissement" }, "info": { "label": "Info" } }
     },
     "test_from": {
       "action": "Tester d'ici",
