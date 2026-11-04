@@ -180,6 +180,9 @@ describe('steering: configuration', () => {
     expect(findSteeringConfigErrors(withoutPad, entitiesWith({}))).toEqual([
       `${PUPPET}.steeredBy: no tile carries the button action "${STEER_MONSTERS_ACTION}"`
     ]);
+    expect(findSteeringConfigErrors(tiles, entitiesWith({ steeredBy: 'toggle_walls' }))).toEqual([
+      `${PUPPET}.steeredBy: expected "${STEER_MONSTERS_ACTION}"`
+    ]);
     expect(findSteeringConfigErrors(tiles, entitiesWith({ passesTiles: ['gravel', 'nowhere'] }))).toEqual([
       `${PUPPET}.passesTiles: "nowhere" is not the id of an existing tile`
     ]);

@@ -67,7 +67,8 @@ function entityName(id: string): string {
 
 /** Only creatures that move have a facing worth speaking; blocks and mirrors stay put. */
 function movesOnItsOwn(id: string): boolean {
-  return Boolean(ConfigRegistry.getEntityDef(id)?.movementPattern);
+  const def = ConfigRegistry.getEntityDef(id);
+  return Boolean(def?.movementPattern) || def?.steeredBy !== undefined;
 }
 
 /** The parts of a spoken cell description as locale keys; the first is always the coordinates. */

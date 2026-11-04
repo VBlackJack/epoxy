@@ -147,7 +147,11 @@ export function isSteeringTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).buttonAction === STEER_MONSTERS_ACTION;
 }
 
-/** True when the level places a steering pad or a puppet, or links a clone machine to a puppet template. */
+/**
+ * True when the level places a steering pad or a puppet, or links a clone machine to a puppet template.
+ * A control hidden under a removable top (underlays) is not counted here, which is harmless: DAT refuses
+ * underlays anyway, and the aids turn off when a puppet is present.
+ */
 export function hasSteeringContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {

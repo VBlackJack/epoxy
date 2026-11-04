@@ -60,6 +60,12 @@ describe('describeEditorCell', () => {
     expect(text).toContain('facing east');
   });
 
+  it('speaks the facing of a puppet, which moves only under steering', () => {
+    const map = emptyMap();
+    map.entities.push({ x: 2, y: 1, type: 'puppet', dir: 'E' });
+    expect(spoken(describeEditorCell({ map, x: 2, y: 1 }))).toContain('facing east');
+  });
+
   it('names a block or a mirror without a facing', () => {
     for (const type of ['dirt_block', 'mirror_slash']) {
       const map = emptyMap();

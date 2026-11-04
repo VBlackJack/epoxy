@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { CELL_EDGE_BITS, CELL_EDGE_SIDE_ORDER, SUNK_BLOCK_TILE_ID } from '../core/coreConstants';
+import {
+  CELL_EDGE_BITS,
+  CELL_EDGE_SIDE_ORDER,
+  CHASE_PLAYER_PATTERN,
+  FLEE_PLAYER_PATTERN,
+  STEER_MONSTERS_ACTION,
+  SUNK_BLOCK_TILE_ID
+} from '../core/coreConstants';
 import { isRemovableTop } from '../core/Underlays';
 import { ORDERED_DIRECTIONS } from './constants';
 import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
@@ -945,8 +952,8 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
   'right_wall',
   'bounce',
   'forward_else_random',
-  'chase_player',
-  'flee_player',
+  CHASE_PLAYER_PATTERN,
+  FLEE_PLAYER_PATTERN,
   'left_skew',
   'right_skew',
   'tank_march',
@@ -979,7 +986,11 @@ export function findSteeringConfigErrors(
     }
     if (entity.steeredBy !== undefined) {
       if (entity.kind !== 'monster') errors.push(`${id}.steeredBy: only a monster may be steered`);
-      if (!usedActions.has(entity.steeredBy)) errors.push(`${id}.steeredBy: no tile carries the button action "${entity.steeredBy}"`);
+      if (entity.steeredBy !== STEER_MONSTERS_ACTION) {
+        errors.push(`${id}.steeredBy: expected "${STEER_MONSTERS_ACTION}"`);
+      } else if (!usedActions.has(entity.steeredBy)) {
+        errors.push(`${id}.steeredBy: no tile carries the button action "${entity.steeredBy}"`);
+      }
     }
     if (entity.pushesBlocks !== undefined) {
       if (typeof entity.pushesBlocks !== 'boolean') errors.push(`${id}.pushesBlocks: expected a boolean`);
