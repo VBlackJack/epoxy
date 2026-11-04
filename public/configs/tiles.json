@@ -782,6 +782,15 @@
       "collectible": "boot",
       "slowsMonsters": 2
     },
+    "boots_speed": {
+      "id": "boots_speed",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.boots_speed.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "hastesPlayer": 2
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",

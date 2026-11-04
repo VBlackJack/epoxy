@@ -1241,6 +1241,22 @@ export function findSlowTimeConfigErrors(tiles: Record<string, TileDefinition>):
   return errors;
 }
 
+/** The only hastesPlayer factor accepted until the move tween and the hold-to-move repeat are checked at other values. */
+const SUPPORTED_PLAYER_HASTE = 2;
+
+/** Problems of the hastesPlayer field: exactly 2 for now, carried by boots only. Each entry names the tile. */
+export function findSpeedBootsConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.hastesPlayer === undefined) continue;
+    if (tile.hastesPlayer !== SUPPORTED_PLAYER_HASTE) {
+      errors.push(`${tile.id}.hastesPlayer: expected exactly ${SUPPORTED_PLAYER_HASTE}`);
+    }
+    if (tile.collectible !== 'boot') errors.push(`${tile.id}.hastesPlayer: only boots (collectible "boot") may haste the player`);
+  }
+  return errors;
+}
+
 /** Problems of the optional sampled-file fields of the sound effects. */
 function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): string[] {
   const errors: string[] = [];

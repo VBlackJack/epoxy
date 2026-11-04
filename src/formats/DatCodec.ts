@@ -102,9 +102,15 @@ export type DatRefusalReason =
   | 'epoxy_only_monsters'
   | 'cell_underlays';
 
-/** True when the level places an item only the Epoxy engine plays: the boots that slow the monsters. */
-function hasMonsterSlowingItem(level: Pick<CompiledLevel, 'items'>): boolean {
-  return level.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).slowsMonsters !== undefined));
+/** True when the level places an item only the Epoxy engine plays: the boots that slow the monsters or haste the player. */
+function hasEpoxyOnlyItem(level: Pick<CompiledLevel, 'items'>): boolean {
+  return level.items.some((row) =>
+    row.some((id) => {
+      if (id === null) return false;
+      const def = ConfigRegistry.getTile(id);
+      return def.slowsMonsters !== undefined || def.hastesPlayer !== undefined;
+    })
+  );
 }
 
 /** A level left out of the pack, with the reason. */
@@ -145,8 +151,8 @@ export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null 
   if (hasColorChannelContent(level)) return 'color_channel_content';
   // Thin walls on any terrain have no .DAT form: writing the level would open them.
   if (cellEdgeMask(level) !== null) return 'cell_edges';
-  // The format has no slow-time boots: writing the level would drop them, and the monsters would run at full speed.
-  if (hasMonsterSlowingItem(level)) return 'epoxy_only_items';
+  // The format has no slow-time or speed boots: writing the level would drop them and change the pace of the play.
+  if (hasEpoxyOnlyItem(level)) return 'epoxy_only_items';
   // Nor puppets, steering pads or skitters: a puppet would walk on its own and the pad would be written as floor.
   if (hasEpoxyOnlyMonsterContent(level)) return 'epoxy_only_monsters';
   // Terrain hidden under a door, a socket, a fake wall or dirt has no .DAT form: the stack would be flattened.

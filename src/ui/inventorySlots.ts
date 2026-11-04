@@ -17,6 +17,9 @@
 import { replayAnimation } from './motion';
 import { HUD_BUMP_CLASS } from './uiConstants';
 
+/** Class that takes a slot out of the grid. */
+const INVENTORY_SLOT_HIDDEN_CLASS = 'inv-slot-hidden';
+
 export interface InventorySlotState {
   owned: boolean;
   /** Badge text; empty hides the badge. */
@@ -25,6 +28,8 @@ export interface InventorySlotState {
   iconUrl: string;
   /** The item the drop key will put down. */
   selected?: boolean;
+  /** The slot is left out of the grid (an Epoxy-only item the level does not place). */
+  hidden?: boolean;
 }
 
 /** True when the slot DOM must be touched to show `next`. */
@@ -35,7 +40,8 @@ export function slotStateChanged(prev: InventorySlotState | null, next: Inventor
     prev.badge !== next.badge ||
     prev.label !== next.label ||
     prev.iconUrl !== next.iconUrl ||
-    (prev.selected ?? false) !== (next.selected ?? false)
+    (prev.selected ?? false) !== (next.selected ?? false) ||
+    (prev.hidden ?? false) !== (next.hidden ?? false)
   );
 }
 
@@ -50,10 +56,12 @@ export class InventorySlotView {
   private readonly badgeEl: HTMLSpanElement;
   private state: InventorySlotState | null = null;
 
-  public constructor(container: HTMLElement, onClick?: () => void) {
+  public constructor(container: HTMLElement, onClick?: () => void, startHidden = false) {
     this.slot = document.createElement('button');
     this.slot.type = 'button';
     this.slot.className = 'inv-slot';
+    // Optional slots start out of the grid, so nothing flashes before the first update().
+    if (startHidden) this.slot.classList.add(INVENTORY_SLOT_HIDDEN_CLASS);
     this.img = document.createElement('img');
     this.badgeEl = document.createElement('span');
     this.badgeEl.className = 'inv-count hidden';
@@ -74,6 +82,7 @@ export class InventorySlotView {
     if (this.state && next.owned && !this.state.owned) replayAnimation(this.slot, HUD_BUMP_CLASS);
     this.slot.classList.toggle('owned', next.owned);
     this.slot.classList.toggle('selected', next.selected === true);
+    this.slot.classList.toggle(INVENTORY_SLOT_HIDDEN_CLASS, next.hidden === true);
     this.slot.disabled = !next.owned;
     this.slot.title = next.label;
     this.slot.setAttribute('aria-label', next.label);

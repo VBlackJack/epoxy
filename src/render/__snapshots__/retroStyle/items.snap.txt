@@ -48,6 +48,11 @@ item theme=cyber_neon id=slow_time a1f928a9e7042a9c
 item theme=arctic_lab id=slow_time 7e35844c2ef8581c
 item theme=magma_core id=slow_time a938a5e71ad44f96
 item theme=lynx_lcd id=slow_time f432ef45739c8946
+item theme=default id=boots_speed 840f2fef3bcaa3b2
+item theme=cyber_neon id=boots_speed 4c1fdc777dc40239
+item theme=arctic_lab id=boots_speed d1aafe57903be60a
+item theme=magma_core id=boots_speed 828e1c9987fbc476
+item theme=lynx_lcd id=boots_speed 11094516619f8c39
 item theme=default id=bomb fb0d51cbc2bb84ae
 item theme=cyber_neon id=bomb 2043ce0469ba83ff
 item theme=arctic_lab id=bomb b24ce8e6eddf1738

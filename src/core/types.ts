@@ -750,6 +750,8 @@ export interface TileDefinition {
   timeBonusSeconds?: number;
   /** Boots only: while held, every monster takes this many times as long per step (an integer, 2 to 4). */
   slowsMonsters?: number;
+  /** Boots only: while held, the player takes this many times less time per walking step (exactly 2 for now). */
+  hastesPlayer?: number;
   buttonAction?: ButtonAction;
   /** When 'player', only the player's step works the button: monsters and blocks that enter the cell press nothing. */
   buttonWorkedBy?: ButtonWorker;

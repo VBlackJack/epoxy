@@ -151,6 +151,13 @@ import {
 } from './ui/uiConstants';
 
 const SLOW_TIME_ITEM_ID = 'slow_time';
+const SPEED_BOOTS_ITEM_ID = 'boots_speed';
+/** Boots only the Epoxy rules have: their HUD slot shows only on a level that places them. */
+const EPOXY_ONLY_BOOT_IDS: ReadonlySet<string> = new Set([SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID]);
+/** Boots slots shown on every level; more slots (Epoxy-only boots placed) widen the grid. */
+const BASE_BOOT_SLOT_COUNT = 4;
+/** CSS variable that carries the number of columns of the boots grid. */
+const BOOT_GRID_COLUMNS_VAR = '--inv-columns';
 
 type OverlayState = 'none' | 'complete' | 'dead' | 'paused';
 type ScoresFilter = 'all' | 'unsolved' | 'completed';
@@ -274,11 +281,11 @@ class EpoxyApplication {
   private inventoryLabelsLocale: string = '';
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID];
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
-  private slowTimeLevel: unknown = null;
-  private slowTimePlaced = false;
+  private epoxyBootsLevel: unknown = null;
+  private epoxyBootsPlaced: ReadonlySet<string> = new Set();
 
   // ---------------------------------------------------------------------------
   // Start-up
@@ -3208,7 +3215,8 @@ class EpoxyApplication {
     }
     if (bootsGrid) {
       bootsGrid.innerHTML = '';
-      this.bootSlots = this.bootIds.map((id) => new InventorySlotView(bootsGrid, () => this.dropHudItem(id)));
+      this.bootSlots = this.bootIds.map((id) => new InventorySlotView(bootsGrid, () => this.dropHudItem(id), EPOXY_ONLY_BOOT_IDS.has(id))
+      );
     }
   }
 
@@ -3281,14 +3289,20 @@ class EpoxyApplication {
     return owned ? t('hud.inventory.slot_drop.label', { name }) : name;
   }
 
-  /** True when the level places the slow-time item, which is when its HUD slot shows. */
-  private levelHoldsSlowTime(): boolean {
+  /** The Epoxy-only boots the level places, which are the ones whose HUD slot shows. */
+  private placedEpoxyBoots(): ReadonlySet<string> {
     const level = this.engine.getLevel();
-    if (this.slowTimeLevel !== level) {
-      this.slowTimeLevel = level;
-      this.slowTimePlaced = level.items?.some((row) => row.some((id) => id === SLOW_TIME_ITEM_ID)) ?? false;
+    if (this.epoxyBootsLevel !== level) {
+      this.epoxyBootsLevel = level;
+      const placed = new Set<string>();
+      for (const row of level.items ?? []) {
+        for (const id of row) {
+          if (id !== null && EPOXY_ONLY_BOOT_IDS.has(id)) placed.add(id);
+        }
+      }
+      this.epoxyBootsPlaced = placed;
     }
-    return this.slowTimePlaced;
+    return this.epoxyBootsPlaced;
   }
 
   private updateInventory(): void {
@@ -3310,7 +3324,12 @@ class EpoxyApplication {
         selected: selected === kId
       });
     });
-    byId('hud-boots-grid')?.classList.toggle('inv-grid-five', this.levelHoldsSlowTime());
+    const placedEpoxyBoots = this.placedEpoxyBoots();
+    const isHidden = (bId: string): boolean => EPOXY_ONLY_BOOT_IDS.has(bId) && !placedEpoxyBoots.has(bId);
+    const bootsGrid = byId('hud-boots-grid');
+    const columns = this.bootIds.filter((bId) => !isHidden(bId)).length;
+    bootsGrid?.classList.toggle('inv-grid-wide', columns > BASE_BOOT_SLOT_COUNT);
+    bootsGrid?.style.setProperty(BOOT_GRID_COLUMNS_VAR, String(columns));
     this.bootIds.forEach((bId, i) => {
       const owned = player.boots.has(bId);
       this.bootSlots[i]?.update({
@@ -3318,7 +3337,8 @@ class EpoxyApplication {
         badge: '',
         label: this.slotLabel(bId, owned),
         iconUrl: this.bootIconCache[bId],
-        selected: selected === bId
+        selected: selected === bId,
+        hidden: isHidden(bId)
       });
     });
   }
