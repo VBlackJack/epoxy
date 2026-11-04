@@ -118,10 +118,11 @@ describe('classifyLevel', () => {
     const onSand = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'sand' }, { kind: 'socket_red' }) });
     expect(elementKeys(onSand).has('socket_red')).toBe(false);
     // Any layer under the socket other than plain floor is also a stacked cell, which Epoxy flattens.
-    expect(classifyLevel(onSand)).toEqual({ verdict: 'lost', lost: ['stacked_terrain'], approx: ['socket_red_stacked'] });
+    expect(classifyLevel(onSand)).toEqual({ verdict: 'lost', lost: ['stacked_runtime'], approx: ['socket_red_stacked'] });
     expect(elementKeys(onSand).has('socket_red_stacked')).toBe(true);
+    // A bomb layer becomes the cell's item, so the socket alone is left over the floor: nothing is lost.
     const withDevice = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'socket_red' }) });
-    expect(classifyLevel(withDevice).lost).toEqual(['stacked_terrain']);
+    expect(classifyLevel(withDevice).lost).toEqual([]);
     expect(classifyLevel(withDevice).approx).toContain('socket_red_stacked');
   });
 
