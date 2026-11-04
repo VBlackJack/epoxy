@@ -69,6 +69,17 @@ const DOOR_KEY_WEIGHT = 1000;
  * the verdict stays the same on every machine.
  */
 const RANK_STEP_BUDGET = 3_000_000;
+/** Most extra reach walks the door order search may run on one level, on top of the greedy walk. */
+const DOOR_ORDER_MAX_WALKS = 32;
+/**
+ * Cell expansions the extra walks of the door order search may spend together on one level. A walk that
+ * outruns what is left is discarded. Counted in steps, never in time, so the verdict is the same on every machine.
+ * Sized on the 128 by 128 comb of the timing test: a walk there costs 0.27 s per 182k steps, so more would
+ * overrun the two seconds that test allows.
+ */
+const DOOR_ORDER_STEP_BUDGET = 400_000;
+/** Most decisions the search changes in one walk: the greedy order is wrong in a place or two, not more. */
+const DOOR_ORDER_MAX_DISCREPANCIES = 2;
 
 /** A block use the stock must cover, as tracked by the reach walk. */
 type BlockUse = 'water' | 'fire' | 'melt' | 'other';
@@ -77,7 +88,22 @@ type BlockUse = 'water' | 'fire' | 'melt' | 'other';
 interface ReachOutcome {
   collectedChips: number;
   reachableExit: boolean;
+  /** The doors opened at fixpoints, in order. */
+  decisions: DoorDecision[];
+  /** Cells expanded by the walk. */
+  steps: number;
+  /** The walk was cut off or its forced door was not waiting: its result means nothing. */
+  aborted: boolean;
 }
+
+/** One choice of the reach walk: the door that was opened ("x,y") and every door that waited, best first. */
+interface DoorDecision {
+  chosen: string;
+  ranked: string[];
+}
+
+/** The grid key of a deferred door, as the reach walk files it. */
+const doorKey = (door: DeferredDoor): string => `${door.x},${door.y}`;
 
 /** A closed scarce-key door the player has already reached, with how it was reached. */
 interface DeferredDoor {
@@ -165,6 +191,11 @@ export interface ValidateOptions {
    * exactly, a playfield above `watchMaxCells` or an exhausted budget gives no warning.
    */
   blockSearch?: BlockSearchMode;
+  /**
+   * Whether a reach walk that misses chips or the exit retries other orders for the scarce-key doors
+   * (default true). The retries only ever add what a legal order reaches; false keeps the greedy walk alone.
+   */
+  doorOrderSearch?: boolean;
 }
 
 export class LevelValidator {
@@ -368,7 +399,9 @@ export class LevelValidator {
     const rankBudget = { left: RANK_STEP_BUDGET };
 
     /** Walks the level once from the start: what the greedy reach finds, with the doors opened in ranked order. */
-    const walkReach = (): ReachOutcome => {
+    const walkReach = (forced: readonly string[], stepLimit: number): ReachOutcome => {
+      let steps = 0;
+      const decisions: DoorDecision[] = [];
       const simTerrain = level.terrain.map((row) => [...row]);
       const simItems = level.items.map((row) => [...row]);
       const ownedKeys: Record<string, number> = {};
@@ -521,6 +554,8 @@ export class LevelValidator {
         enqueue(sx, sy, NO_BOOTS);
 
         for (let head = 0; head < queue.length; head++) {
+          // A walk that outruns its step limit is cut off and discarded by the caller.
+          if (++steps > stepLimit) return { collectedChips, reachableExit, decisions, steps, aborted: true };
           const curr = queue[head];
           const currTile = ConfigRegistry.getTile(simTerrain[curr.y][curr.x]);
 
@@ -795,32 +830,55 @@ export class LevelValidator {
               if (visited[mask * width * height + cell]) reached[cell] = 1;
             }
           }
-          const best = this.pickRewardingDoor([...deferredDoors.values()], {
-            level,
-            terrain: simTerrain,
-            items: simItems,
-            edgeMask,
-            bootBits,
-            hasBoot,
-            ownedKeys,
-            collectedChips,
-            chipsRequired: level.chipsRequired,
-            meltedFires,
-            swimProtection,
-            affords,
-            reached,
-            budget: rankBudget
-          });
+          // The first decisions of a re-walk are forced and skip the ranking; the rest is ranked as ever.
+          const forcedKey = decisions.length < forced.length ? forced[decisions.length] : undefined;
+          let best: DeferredDoor;
+          let ranked: string[];
+          if (forcedKey !== undefined) {
+            const forcedDoor = deferredDoors.get(forcedKey);
+            // A forced door that is not waiting means this order leads somewhere else: nothing to report.
+            if (!forcedDoor) return { collectedChips, reachableExit, decisions, steps, aborted: true };
+            best = forcedDoor;
+            ranked = [forcedKey];
+          } else {
+            const order = this.rankDoors([...deferredDoors.values()], {
+              level,
+              terrain: simTerrain,
+              items: simItems,
+              edgeMask,
+              bootBits,
+              hasBoot,
+              ownedKeys,
+              collectedChips,
+              chipsRequired: level.chipsRequired,
+              meltedFires,
+              swimProtection,
+              affords,
+              reached,
+              budget: rankBudget
+            });
+            best = order[0];
+            ranked = order.map(doorKey);
+          }
+          decisions.push({ chosen: doorKey(best), ranked });
           const doorTile = ConfigRegistry.getTile(simTerrain[best.y][best.x]);
           ownedKeys[best.keyId]--;
           simTerrain[best.y][best.x] = openedTerrain(level, simTerrain, best.x, best.y, doorTile);
           changed = true;
         }
       }
-      return { collectedChips, reachableExit };
+      return { collectedChips, reachableExit, decisions, steps, aborted: false };
     };
-    const { collectedChips, reachableExit } = walkReach();
 
+    const misses = (walk: ReachOutcome): number =>
+      (walk.collectedChips < level.chipsRequired ? 1 : 0) +
+      (needsExit && exitCount > 0 && !walk.reachableExit ? 1 : 0);
+    // Walk 0 is the greedy walk: when it finds everything, nothing else is tried and the verdict is unchanged.
+    let reported = walkReach([], Number.POSITIVE_INFINITY);
+    if (misses(reported) > 0 && options.doorOrderSearch !== false && reported.decisions.some((d) => d.ranked.length > 1)) {
+      reported = this.searchDoorOrders(reported, walkReach, misses);
+    }
+    const { collectedChips, reachableExit } = reported;
 
     // The simulator is a conservative model: a stored solution that wins in the real engine is
     // stronger evidence, so a reachability miss then only warns (the simulator is what is wrong).
@@ -1537,6 +1595,51 @@ export class LevelValidator {
   }
 
   /**
+   * Retries the reach walk with other orders for the scarce-key doors when the greedy walk (walk 0) missed
+   * chips or the exit. Limited discrepancy search: first every walk that differs from walk 0 in one decision
+   * (the last decision first, its alternatives in ranked order), then, while budget remains, every walk that
+   * differs from one of those in one decision more. A choice only changes which held-key door opens at a
+   * fixpoint, a legal move under the same rules, so a walk that finds more proves more. Stops at the first walk
+   * that misses nothing. Reports one walk whole: fewest misses, then most chips, and walk 0 on a tie.
+   * Bounded by DOOR_ORDER_MAX_WALKS and DOOR_ORDER_STEP_BUDGET; a walk cut off by the step budget is discarded.
+   */
+  private static searchDoorOrders(
+    walk0: ReachOutcome,
+    walkReach: (forced: readonly string[], stepLimit: number) => ReachOutcome,
+    misses: (walk: ReachOutcome) => number
+  ): ReachOutcome {
+    let best = walk0;
+    let walksLeft = DOOR_ORDER_MAX_WALKS;
+    let stepsLeft = DOOR_ORDER_STEP_BUDGET;
+    // Walks to branch from, with how many of their decisions are already fixed (forced or branched).
+    let frontier: { walk: ReachOutcome; fixed: number }[] = [{ walk: walk0, fixed: 0 }];
+    for (let discrepancies = 1; discrepancies <= DOOR_ORDER_MAX_DISCREPANCIES; discrepancies++) {
+      const next: { walk: ReachOutcome; fixed: number }[] = [];
+      for (const { walk: parent, fixed } of frontier) {
+        for (let at = parent.decisions.length - 1; at >= fixed; at--) {
+          const prefix = parent.decisions.slice(0, at).map((d) => d.chosen);
+          for (const alternative of parent.decisions[at].ranked.slice(1)) {
+            if (walksLeft <= 0 || stepsLeft <= 0) return best;
+            walksLeft--;
+            const walk = walkReach([...prefix, alternative], stepsLeft);
+            stepsLeft -= walk.steps;
+            if (walk.aborted) continue;
+            const walkMisses = misses(walk);
+            if (walkMisses === 0) return walk;
+            const bestMisses = misses(best);
+            if (walkMisses < bestMisses || (walkMisses === bestMisses && walk.collectedChips > best.collectedChips)) {
+              best = walk;
+            }
+            next.push({ walk, fixed: at + 1 });
+          }
+        }
+      }
+      frontier = next;
+    }
+    return best;
+  }
+
+  /**
    * Chooses which door a spent key opens first: the one whose room holds the
    * most keys, then chips, then the most cells not reached yet. Greedy reachability
    * cannot undo a key spent on the wrong door, so the order matters on key-order traps.
@@ -1547,8 +1650,9 @@ export class LevelValidator {
    * follows ice and force floors to where they really end, dropping a slide that drowns. A door that
    * reveals a deadly floor scores nothing. Ties keep the first door, in the order they were met.
    * Once the shared step budget is spent, the remaining doors are ranked by the plain flood.
+   * Returns every door, best first; the search for another order tries the others after the first.
    */
-  private static pickRewardingDoor(doors: DeferredDoor[], ctx: DoorRankContext): DeferredDoor {
+  private static rankDoors(doors: DeferredDoor[], ctx: DoorRankContext): DeferredDoor[] {
     const closedByKey: Record<string, number> = {};
     for (const row of ctx.terrain) {
       for (const id of row) {
@@ -1558,22 +1662,18 @@ export class LevelValidator {
     }
     // One scoring mode for the whole call: the budget is read once, so doors are never compared across modes.
     const precise = ctx.budget.left > 0;
-    let best = doors[0];
-    let bestScore: [number, number] | undefined;
-    for (const door of doors) {
-      const score: [number, number] =
-        precise
-          ? this.rankDoor(door, ctx, closedByKey)
-          : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey), 0];
-      if (!bestScore || score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] > bestScore[1])) {
-        best = door;
-        bestScore = score;
-      }
-    }
-    return best;
+    const scored = doors.map((door) => ({
+      door,
+      score: (precise
+        ? this.rankDoor(door, ctx, closedByKey)
+        : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey), 0]) as [number, number]
+    }));
+    // The sort is stable: doors that tie stay in the order they were met, so the first is today's pick.
+    scored.sort((a, b) => b.score[0] - a.score[0] || b.score[1] - a.score[1]);
+    return scored.map((entry) => entry.door);
   }
 
-  /** Scores one deferred door as [keys and chips weighed, cells not reached yet]; see pickRewardingDoor. */
+  /** Scores one deferred door as [keys and chips weighed, cells not reached yet]; see rankDoors. */
   private static rankDoor(
     door: DeferredDoor,
     ctx: DoorRankContext,
