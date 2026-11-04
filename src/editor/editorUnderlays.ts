@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { normalizeUnderlays } from '../config/ConfigValidation';
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import type { CellUnderlay } from '../core/types';
@@ -51,6 +52,18 @@ export function hasUnderlays(map: Pick<UnderlayHolder, 'underlays'>): boolean {
 /** The terrain id hidden under a cell, or undefined when it hides none. */
 export function underlayAt(map: Pick<UnderlayHolder, 'underlays'>, x: number, y: number): string | undefined {
   return map.underlays?.find((entry) => entry.x === x && entry.y === y)?.terrain;
+}
+
+/**
+ * Whether a hidden terrain is stored closed (true) or open (false), for a toggle wall or a hold door; undefined
+ * for any other terrain, whose stored state needs no badge. Read from the tile's config, never from its id.
+ */
+export function hiddenTerrainClosed(tileId: string): boolean | undefined {
+  if (!ConfigRegistry.isTerrainTile(tileId)) return undefined;
+  const tile = ConfigRegistry.getTile(tileId);
+  if (tile.holdDoorColor !== undefined) return tile.holdDoorOpen !== true;
+  if (tile.togglesTo !== undefined || tile.channelTogglesTo !== undefined) return !tile.passableByPlayer;
+  return undefined;
 }
 
 /** Stores the underlays of a map in canonical form, or removes the field when none is left. */

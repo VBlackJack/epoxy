@@ -915,7 +915,7 @@
         "hidden_terrain": {
           "label": "Hidden terrain",
           "none": { "label": "None" },
-          "hint": { "label": "The terrain under this tile, revealed when the player removes it." },
+          "hint": { "label": "The terrain under this tile, revealed when the player removes it. A key door or a socket can also hide a socket, dirt, a fake wall, a toggle wall, a hold door or a pressure plate; a small square marks a hidden toggle wall or hold door, filled when it is stored closed and outlined when open." },
           "unavailable": { "label": "Put the cursor on a door, socket, fake wall or dirt to hide a terrain under it." },
           "lynx": { "label": "Hidden terrain is not available under Lynx rules: switch this level to Epoxy to set it." },
           "set": "Cell ({x}, {y}) now hides {name}.",

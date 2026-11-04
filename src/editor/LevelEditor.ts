@@ -159,7 +159,7 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
-import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
+import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { holdsShotTrigger, launcherCountAt, pruneLauncherLinks } from './editorLauncherLinks';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
@@ -456,7 +456,7 @@ const cc3dPreviewClips = new WeakMap<Cc3dClip, Clip>();
 const cellEdgeSidesMemo = new WeakMap<object, ReadonlyMap<number, readonly Direction[]>>();
 
 /** The cells of a document that hide terrain, by cell index, built once per list of underlays. */
-const hiddenTerrainCellsMemo = new WeakMap<object, ReadonlySet<number>>();
+const hiddenTerrainCellsMemo = new WeakMap<object, ReadonlyMap<number, boolean | undefined>>();
 
 /** What the application learns when a level was saved. */
 export interface SavedLevelInfo {
@@ -4424,7 +4424,7 @@ export class LevelEditor {
       this.renderer.setHiddenLayerMarkers(true);
       try {
         for (const hidden of clipUnderlays) {
-          this.renderer.drawCellOverlay(this.ctx, undefined, true, (ox + hidden.dx) * s, (oy + hidden.dy) * s, s);
+          this.renderer.drawCellOverlay(this.ctx, undefined, true, (ox + hidden.dx) * s, (oy + hidden.dy) * s, s, hiddenTerrainClosed(hidden.terrain));
         }
       } finally {
         this.renderer.setHiddenLayerMarkers(false);
@@ -4448,7 +4448,7 @@ export class LevelEditor {
     y: number,
     s: number,
     edgeSides: ReadonlyMap<number, readonly Direction[]> | null,
-    hiddenCells: ReadonlySet<number> | null,
+    hiddenCells: ReadonlyMap<number, boolean | undefined> | null,
     width: number
   ): void {
     this.renderer.drawTile(ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
@@ -4461,20 +4461,23 @@ export class LevelEditor {
       const index = y * width + x;
       const sides = edgeSides?.get(index);
       const marked = hiddenCells?.has(index) ?? false;
-      if (sides || marked) this.renderer.drawCellOverlay(ctx, sides, marked, x * s, y * s, s);
+      if (sides || marked) this.renderer.drawCellOverlay(ctx, sides, marked, x * s, y * s, s, hiddenCells?.get(index));
     }
     const item = doc.items[y][x];
     if (item) this.renderer.drawItem(ctx, item, x * s, y * s, s);
   }
 
-  /** The cells of an Epoxy document that hide terrain, by cell index, kept per list so a redraw does not rebuild them. */
-  private hiddenTerrainCells(doc: EditorDocument): ReadonlySet<number> | null {
+  /**
+   * The cells of an Epoxy document that hide terrain, by cell index, kept per list so a redraw does not rebuild
+   * them. The value is the stored state of a hidden toggle wall or hold door (true closed), undefined otherwise.
+   */
+  private hiddenTerrainCells(doc: EditorDocument): ReadonlyMap<number, boolean | undefined> | null {
     const underlays = doc.underlays;
     if (!underlays || underlays.length === 0) return null;
     const width = mapWidthOf(doc);
     let cells = hiddenTerrainCellsMemo.get(underlays);
     if (!cells) {
-      cells = new Set(underlays.map((u) => u.y * width + u.x));
+      cells = new Map(underlays.map((u) => [u.y * width + u.x, hiddenTerrainClosed(u.terrain)]));
       hiddenTerrainCellsMemo.set(underlays, cells);
     }
     return cells;

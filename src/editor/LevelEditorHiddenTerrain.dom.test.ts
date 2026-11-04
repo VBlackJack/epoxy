@@ -427,3 +427,62 @@ describe('hidden terrain select in the Layers section', () => {
     expect(Array.from(select().options).some((option) => option.textContent === t('tiles.ice.name'))).toBe(true);
   });
 });
+
+describe('hidden terrain hint and stored-state badge', () => {
+  const HINT_WORDS = {
+    en: [/socket/, /dirt/, /fake wall/, /toggle wall/, /hold door/, /pressure plate/],
+    fr: [/verrou de puces/, /terre meuble/, /faux mur/, /mur bascule/, /porte à plaque/, /plaque de pression/]
+  } as const;
+  const BADGE_ARG = 6;
+
+  /** The state argument of the marker call drawn at the door cell. */
+  function badgeAtDoor(): unknown {
+    const call = markerCalls().find((c) => c[3] === DOOR_X * (c[5] as number) && c[4] === DOOR_Y * (c[5] as number));
+    expect(call).toBeDefined();
+    return call?.[BADGE_ARG];
+  }
+
+  it.each(['en', 'fr'] as const)('names what a key door or a socket can hide in the field hint (%s)', (locale) => {
+    i18n.setLocale(locale);
+    const hint = t('editor.layout.layers.hidden_terrain.hint.label');
+    for (const word of HINT_WORDS[locale]) expect(hint, String(word)).toMatch(word);
+
+    editor.loadCompiledLevel(room(undefined, undefined));
+    editor.refreshTranslations();
+    cursorToDoor();
+    expect(byId('editor-hidden-terrain-hint').textContent).toBe(hint);
+  });
+
+  it('keeps the unavailable hint on the tops that can hide terrain', () => {
+    for (const locale of ['en', 'fr'] as const) {
+      i18n.setLocale(locale);
+      expect(t('editor.layout.layers.hidden_terrain.unavailable.label').length).toBeGreaterThan(0);
+    }
+  });
+
+  it.each([
+    ['toggle_wall_closed', true],
+    ['toggle_wall_open', false],
+    ['toggle_wall_red_closed', true],
+    ['toggle_wall_red_open', false],
+    ['hold_door_red_closed', true],
+    ['hold_door_red_open', false]
+  ] as const)('passes the stored state of a hidden %s to the overlay', (terrain, closed) => {
+    editor.loadCompiledLevel(room(undefined, [{ x: DOOR_X, y: DOOR_Y, terrain }]));
+    expect(badgeAtDoor()).toBe(closed);
+  });
+
+  it.each(['ice', 'socket', 'dirt', 'blue_wall_fake', 'pressure_plate_red'])('passes no state for a hidden %s', (terrain) => {
+    editor.loadCompiledLevel(room(undefined, [{ x: DOOR_X, y: DOOR_Y, terrain }]));
+    expect(badgeAtDoor()).toBeUndefined();
+  });
+
+  it('needs no extra speech for the stored state: the name of the hidden tile already says open or closed', () => {
+    for (const id of ['toggle_wall_closed', 'toggle_wall_open', 'hold_door_red_closed', 'hold_door_red_open']) {
+      i18n.setLocale('en');
+      expect(t(ConfigRegistry.getTile(id).i18nKey)).toMatch(/\((Open|Closed)\)/);
+      i18n.setLocale('fr');
+      expect(t(ConfigRegistry.getTile(id).i18nKey)).toMatch(/\((Ouvert|Ouverte|Fermé|Fermée)\)/);
+    }
+  });
+});
