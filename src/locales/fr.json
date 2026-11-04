@@ -1411,6 +1411,22 @@
       "level_35": {
         "title": "Clé au vol",
         "hint": "Une clé posée sur la glace se ramasse en glissant dessus, et une porte s'ouvre quand tu glisses contre elle avec sa clé. Glisse dans la piste de la clé pour atteindre la porte."
+      },
+      "level_36": {
+        "title": "Livraison",
+        "hint": "La glace emporte un bloc comme elle t'emporte, et un bloc qui coule dans l'eau laisse de la terre où l'on peut marcher. Ne mets pas le pied sur la glace : tu glisserais dans l'eau. Pousse le bloc dans le couloir et laisse-le glisser jusqu'à l'eau."
+      },
+      "level_37": {
+        "title": "Le cafard",
+        "hint": "Le cafard longe le mur qui est à sa gauche et ne peut pas traverser la terre. Marche sur la terre puis recule : le passage que tu ouvres mène le cafard droit dans la mare."
+      },
+      "level_38": {
+        "title": "Fonte",
+        "hint": "Un bloc de glace change un feu en eau, et un bloc de terre comble cette eau. Pousse d'abord la glace dans les flammes, puis amène la terre : dans l'autre sens, la terre bouche le feu pour de bon."
+      },
+      "level_39": {
+        "title": "Bouchon",
+        "hint": "Une puce est un mur pour un cafard : celle-ci le garde enfermé. Prends-la et il est libre, il longe son mur de gauche. Ouvre d'abord le chemin de la mare, puis prends la puce et cours : en te suivant, le cafard tournera dans la mare."
       }
     },
     "chapter": {
