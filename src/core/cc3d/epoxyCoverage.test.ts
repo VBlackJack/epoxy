@@ -66,6 +66,7 @@ describe('epoxy coverage table', () => {
     }
     check('stacked_terrain');
     check('panels_on_nonfloor');
+    check('socket_red_stacked');
     expect(missing).toEqual([]);
   });
 
@@ -94,11 +95,37 @@ describe('classifyLevel', () => {
     expect(result).toEqual({ verdict: 'approx', lost: [], approx: ['water'] });
   });
 
-  it('calls a level with sand lost, and lists approx elements beside it', () => {
-    const result = classifyLevel(levelOf(['######', '#@AWX#', '######']));
+  it('calls a level with a laser controller lost, and lists approx elements beside it', () => {
+    const glyphs = { Z: terrain('laser_controller') };
+    const result = classifyLevel(levelOf(['######', '#@ZWX#', '######'], glyphs));
     expect(result.verdict).toBe('lost');
-    expect(result.lost).toEqual(['sand']);
+    expect(result.lost).toEqual(['laser_controller']);
     expect(result.approx).toEqual(['water']);
+  });
+
+  it('plays sand and the extra fish exactly, and gravel approximately', () => {
+    expect(classifyLevel(levelOf(['######', '#@AeX#', '######']))).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    expect(EPOXY_COVERAGE.sand.level).toBe('exact');
+    expect(EPOXY_COVERAGE.fish_extra.level).toBe('exact');
+    expect(classifyLevel(levelOf(['#####', '#@GX#', '#####']))).toEqual({ verdict: 'approx', lost: [], approx: ['gravel'] });
+  });
+
+  it('plays a red socket on plain floor exactly, and one on any other layer approximately', () => {
+    const onFloor = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'floor' }, { kind: 'socket_red' }) });
+    expect(elementKeys(onFloor).has('socket_red')).toBe(true);
+    expect(classifyLevel(onFloor).verdict).toBe('exact');
+    const onSand = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'sand' }, { kind: 'socket_red' }) });
+    expect(elementKeys(onSand).has('socket_red')).toBe(false);
+    // Any layer under the socket other than plain floor is also a stacked cell, which Epoxy flattens.
+    expect(classifyLevel(onSand)).toEqual({ verdict: 'lost', lost: ['stacked_terrain'], approx: ['socket_red_stacked'] });
+    expect(elementKeys(onSand).has('socket_red_stacked')).toBe(true);
+    const withDevice = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'socket_red' }) });
+    expect(classifyLevel(withDevice).lost).toEqual(['stacked_terrain']);
+    expect(classifyLevel(withDevice).approx).toContain('socket_red_stacked');
+  });
+
+  it('plays the speed orb approximately', () => {
+    expect(EPOXY_COVERAGE.orb_speed.level).toBe('approx');
   });
 
   it('separates the colours of a colour block, a plate and a toggle door, all played by Epoxy now', () => {

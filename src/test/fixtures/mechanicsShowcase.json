@@ -1373,6 +1373,137 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": []
+    },
+    {
+      "id": "slow_time_showcase_1",
+      "number": 3,
+      "customTitle": "Slow-Time Showcase",
+      "customHint": "Three patrols guard the lane. The charm slows them while you hold it, until the thief takes it.",
+      "solution": "EE.EEENEESEEEE",
+      "password": "SLOW",
+      "timeLimitSeconds": 200,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "terrain": [
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "floor",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "thief",
+          "floor",
+          "exit",
+          "floor",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "floor",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ]
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 2,
+          "id": "slow_time"
+        }
+      ],
+      "entities": [
+        {
+          "type": "pink_ball",
+          "x": 6,
+          "y": 1,
+          "dir": "N"
+        },
+        {
+          "type": "pink_ball",
+          "x": 7,
+          "y": 1,
+          "dir": "N"
+        },
+        {
+          "type": "pink_ball",
+          "x": 8,
+          "y": 2,
+          "dir": "N"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
     }
   ]
 }

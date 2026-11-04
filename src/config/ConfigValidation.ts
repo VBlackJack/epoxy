@@ -800,6 +800,23 @@ export function findColorChannelConfigErrors(
   return errors;
 }
 
+/** Bounds of the slowsMonsters factor: at least twice as slow, at most four times. */
+const MIN_MONSTER_SLOWDOWN = 2;
+const MAX_MONSTER_SLOWDOWN = 4;
+
+/** Problems of the slowsMonsters field: an integer from 2 to 4, carried by boots only. Each entry names the tile. */
+export function findSlowTimeConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.slowsMonsters === undefined) continue;
+    const { slowsMonsters } = tile;
+    const valid = Number.isInteger(slowsMonsters) && slowsMonsters >= MIN_MONSTER_SLOWDOWN && slowsMonsters <= MAX_MONSTER_SLOWDOWN;
+    if (!valid) errors.push(`${tile.id}.slowsMonsters: expected an integer from ${MIN_MONSTER_SLOWDOWN} to ${MAX_MONSTER_SLOWDOWN}`);
+    if (tile.collectible !== 'boot') errors.push(`${tile.id}.slowsMonsters: only boots (collectible "boot") may slow monsters`);
+  }
+  return errors;
+}
+
 /** Problems of the optional sampled-file fields of the sound effects. */
 function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): string[] {
   const errors: string[] = [];

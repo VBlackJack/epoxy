@@ -31,6 +31,7 @@ import {
   ensureUniqueLevelIds,
   findColorChannelConfigErrors,
   findLaserConfigErrors,
+  findSlowTimeConfigErrors,
   sanitizeStoredLevels,
   isSizeWithinBounds,
   levelSizeBoundsOf,
@@ -285,6 +286,10 @@ class ConfigRegistryService {
     const colorErrors = findColorChannelConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (colorErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, colorErrors.join('; '));
+    }
+    const slowTimeErrors = findSlowTimeConfigErrors(bundle.tiles.tiles);
+    if (slowTimeErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, slowTimeErrors.join('; '));
     }
     const cc3dTileErrors = findCc3dTileErrors(bundle.cc3dTiles, bundle.tiles.tiles);
     if (cc3dTileErrors.length > 0) {

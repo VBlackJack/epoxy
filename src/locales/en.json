@@ -95,6 +95,7 @@
       "refused_cc3d_ruleset": { "label": "Not exported: {levels} plays under CC3D rules, which the .DAT format cannot hold. Use Export XML instead." },
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
+      "refused_epoxy_only_items": { "label": "Not exported: {levels} holds a Slow-Time Charm, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -1043,6 +1044,7 @@
     "score_2x": { "name": "Bonus Flag (Score x2)" },
     "stopwatch_bonus": { "name": "Stopwatch (+10 s)" },
     "stopwatch_penalty": { "name": "Stopwatch (-10 s)" },
+    "slow_time": { "name": "Slow-Time Charm" },
     "button_green": { "name": "Green Button (Toggle Walls)" },
     "button_blue": { "name": "Blue Button (Reverse Tanks)" },
     "button_brown": { "name": "Brown Button (Open Trap)" },
