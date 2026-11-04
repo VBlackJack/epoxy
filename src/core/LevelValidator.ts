@@ -26,7 +26,8 @@ import {
   WALL_TILE_ID,
   CHANNEL_COLOR_NAME_KEY_PREFIX,
   channelOfButtonAction,
-  FIRE_LAUNCHERS_ACTION
+  FIRE_LAUNCHERS_ACTION,
+  toggleWallOtherForm
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
@@ -62,6 +63,45 @@ const MAX_TRACKED_BOOT_TYPES = 8;
 const NO_BOOTS = 0;
 /** A key in a door's room outweighs any number of chips when choosing which door to open first. */
 const DOOR_KEY_WEIGHT = 1000;
+/**
+ * Cell expansions the whole validation may spend ranking the doors that wait for a scarce key. Once spent, the
+ * doors left are ranked by the cheap flood that ignores hazards and slides. Counted in steps, never in time, so
+ * the verdict stays the same on every machine.
+ */
+const RANK_STEP_BUDGET = 3_000_000;
+
+/** A block use the stock must cover, as tracked by the reach walk. */
+type BlockUse = 'water' | 'fire' | 'melt' | 'other';
+
+/** A closed scarce-key door the player has already reached, with how it was reached. */
+interface DeferredDoor {
+  x: number;
+  y: number;
+  keyId: string;
+  /** Boots held by the states that reached the door, combined (the ranking leans optimistic). */
+  boots: number;
+}
+
+/** What the door ranking needs to know about the reach walk at the moment it must choose. */
+interface DoorRankContext {
+  level: CompiledLevel;
+  terrain: string[][];
+  items: (string | null)[][];
+  edgeMask: Uint8Array | null;
+  bootBits: Map<string, number>;
+  hasBoot: BootCheck;
+  ownedKeys: Readonly<Record<string, number>>;
+  collectedChips: number;
+  chipsRequired: number;
+  meltedFires: ReadonlySet<string>;
+  swimProtection: string | undefined;
+  /** Whether the block stock would still cover one more demand of this kind; spends nothing. */
+  affords: (use: BlockUse) => boolean;
+  /** One flag per cell (y * width + x): cells some state of the walk has already reached. */
+  reached: Uint8Array;
+  /** Steps left to rank doors precisely, shared by every choice of one validation. */
+  budget: { left: number };
+}
 
 interface QueuedCell extends GridPoint {
   boots: number;
@@ -320,7 +360,6 @@ export class LevelValidator {
       blockStock.set(type, (blockStock.get(type) ?? 0) + count);
     };
     const demand = { water: 0, fire: 0, melt: 0, other: 0 };
-    type BlockUse = 'water' | 'fire' | 'melt' | 'other';
     type Demand = typeof demand;
     /**
      * Whether the stock covers a set of demands. Water needs a block that fills it; fire needs an ice block
@@ -345,6 +384,7 @@ export class LevelValidator {
         next.water + 2 * next.fire + next.melt + next.other > total
       );
     };
+    const affords = (use: BlockUse): boolean => covers({ ...demand, [use]: demand[use] + 1 });
     /** Takes the blocks one hazard needs, if the stock still covers every demand taken so far. */
     const trySpend = (use: BlockUse): boolean => {
       if (!covers({ ...demand, [use]: demand[use] + 1 })) return false;
@@ -404,6 +444,7 @@ export class LevelValidator {
 
     let changed = true;
     let passes = 0;
+    const rankBudget = { left: RANK_STEP_BUDGET };
 
     while (changed && passes < MAX_FIXPOINT_PASSES) {
       changed = false;
@@ -449,7 +490,12 @@ export class LevelValidator {
         return boots;
       };
 
-      const deferredDoors = new Map<string, { x: number; y: number; keyId: string }>();
+      const deferredDoors = new Map<string, DeferredDoor>();
+      const deferDoor = (x: number, y: number, keyId: string, boots: number): void => {
+        const known = deferredDoors.get(`${x},${y}`);
+        if (known) known.boots |= boots;
+        else deferredDoors.set(`${x},${y}`, { x, y, keyId, boots });
+      };
       // Consumed-key doors still closed, per key: while the keys held cover them all, no order can go wrong.
       const closedDoors: Record<string, number> = {};
       for (const row of simTerrain) {
@@ -582,7 +628,7 @@ export class LevelValidator {
               if (nextTile.consumesKey && (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)) {
                 // Keys are scarce: a spent key cannot be taken back, so the door waits until nothing
                 // else progresses, then the most rewarding one opens (see below).
-                deferredDoors.set(`${nx},${ny}`, { x: nx, y: ny, keyId });
+                deferDoor(nx, ny, keyId, curr.boots);
               } else {
                 if (nextTile.consumesKey) ownedKeys[keyId]--;
                 closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
@@ -706,7 +752,7 @@ export class LevelValidator {
                 (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)
               ) {
                 // Same rule as walking onto a scarce-key door: the door waits until nothing else progresses.
-                deferredDoors.set(`${ox},${oy}`, { x: ox, y: oy, keyId });
+                deferDoor(ox, oy, keyId, slide.boots);
                 continue;
               }
               if (keyId !== undefined) {
@@ -731,7 +777,28 @@ export class LevelValidator {
       }
 
       if (!changed && deferredDoors.size > 0) {
-        const best = this.pickRewardingDoor([...deferredDoors.values()], simTerrain, simItems, edgeMask);
+        const reached = new Uint8Array(width * height);
+        for (let mask = 0; mask < maskCount; mask++) {
+          for (let cell = 0; cell < width * height; cell++) {
+            if (visited[mask * width * height + cell]) reached[cell] = 1;
+          }
+        }
+        const best = this.pickRewardingDoor([...deferredDoors.values()], {
+          level,
+          terrain: simTerrain,
+          items: simItems,
+          edgeMask,
+          bootBits,
+          hasBoot,
+          ownedKeys,
+          collectedChips,
+          chipsRequired: level.chipsRequired,
+          meltedFires,
+          swimProtection,
+          affords,
+          reached,
+          budget: rankBudget
+        });
         const doorTile = ConfigRegistry.getTile(simTerrain[best.y][best.x]);
         ownedKeys[best.keyId]--;
         simTerrain[best.y][best.x] = openedTerrain(level, simTerrain, best.x, best.y, doorTile);
@@ -1453,62 +1520,210 @@ export class LevelValidator {
   }
 
   /**
-   * Whether the exit can be reached without passing a socket. Thin walls bind
-   * exactly as in the engine, and a key door is crossed only with a key of its
-   * colour picked up on the way,
-   * so a key kept behind the socket opens nothing here. A consumed key is
-   * treated as reusable once one is held: this over-approximates, so a rare false
-   * bypass is possible but a real one is never missed.
-   */
-  /**
    * Chooses which door a spent key opens first: the one whose room holds the
-   * most keys, then chips. Greedy reachability cannot undo a key spent on the
-   * wrong door, so the order matters on key-order traps.
+   * most keys, then chips, then the most cells not reached yet. Greedy reachability
+   * cannot undo a key spent on the wrong door, so the order matters on key-order traps.
+   *
+   * The ranking flood starts at the door once open and counts only what lies beyond the cells the walk
+   * already reached, so a door joining two known rooms gains nothing. It crosses a hazard only where the
+   * boots the door was reached with protect, or where the block stock would still pay for it, and it
+   * follows ice and force floors to where they really end, dropping a slide that drowns. A door that
+   * reveals a deadly floor scores nothing. Ties keep the first door, in the order they were met.
+   * Once the shared step budget is spent, the remaining doors are ranked by the plain flood.
    */
-  private static pickRewardingDoor(
-    doors: { x: number; y: number; keyId: string }[],
-    terrain: string[][],
-    items: (string | null)[][],
-    edgeMask: Uint8Array | null
-  ): { x: number; y: number; keyId: string } {
-    const height = terrain.length;
-    const width = terrain[0]?.length || 0;
+  private static pickRewardingDoor(doors: DeferredDoor[], ctx: DoorRankContext): DeferredDoor {
     const closedByKey: Record<string, number> = {};
-    for (const row of terrain) {
+    for (const row of ctx.terrain) {
       for (const id of row) {
         const required = ConfigRegistry.getTile(id).requiredKey;
         if (required) closedByKey[required] = (closedByKey[required] || 0) + 1;
       }
     }
-    // The flood below only follows walkable terrain: hazards and boots are ignored, as this is a ranking.
-    const score = (door: { x: number; y: number; keyId: string }): number => {
-      const seen = new Set<string>([`${door.x},${door.y}`]);
-      const stack: GridPoint[] = [{ x: door.x, y: door.y }];
-      let keyCount = 0;
-      let chipCount = 0;
-      while (stack.length > 0) {
-        const cell = stack.pop() as GridPoint;
-        const item = items[cell.y][cell.x];
-        const collectible = item ? ConfigRegistry.getTile(item).collectible : undefined;
-        // A key only counts while a door of its colour would still be closed once this one is open.
-        if (item && collectible === 'key' && (closedByKey[item] || 0) - (item === door.keyId ? 1 : 0) > 0) {
-          keyCount++;
-        }
-        if (collectible === 'chip') chipCount++;
-        for (const dir of ORDERED_DIRECTIONS) {
-          const vec = DIRECTION_VECTORS[dir];
-          const nx = cell.x + vec.dx;
-          const ny = cell.y + vec.dy;
-          if (nx < 0 || nx >= width || ny < 0 || ny >= height || seen.has(`${nx},${ny}`)) continue;
-          if (this.isEdgeBlocked(terrain, edgeMask, cell.x, cell.y, nx, ny, dir)) continue;
-          if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) continue;
-          seen.add(`${nx},${ny}`);
-          stack.push({ x: nx, y: ny });
-        }
+    // One scoring mode for the whole call: the budget is read once, so doors are never compared across modes.
+    const precise = ctx.budget.left > 0;
+    let best = doors[0];
+    let bestScore: [number, number] | undefined;
+    for (const door of doors) {
+      const score: [number, number] =
+        precise
+          ? this.rankDoor(door, ctx, closedByKey)
+          : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey), 0];
+      if (!bestScore || score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] > bestScore[1])) {
+        best = door;
+        bestScore = score;
       }
-      return keyCount * DOOR_KEY_WEIGHT + chipCount;
+    }
+    return best;
+  }
+
+  /** Scores one deferred door as [keys and chips weighed, cells not reached yet]; see pickRewardingDoor. */
+  private static rankDoor(
+    door: DeferredDoor,
+    ctx: DoorRankContext,
+    closedByKey: Readonly<Record<string, number>>
+  ): [number, number] {
+    const { terrain, hasBoot, bootBits } = ctx;
+    const doorTile = ConfigRegistry.getTile(terrain[door.y][door.x]);
+    const opened = openedTerrain(ctx.level, terrain, door.x, door.y, doorTile);
+    const revealed = ConfigRegistry.getTile(opened);
+    // What the door shows is entered at once: a wall shuts the way. Unprotected ice or a hazard is scored
+    // pessimistically (nothing), without simulating the slide or the hazard.
+    if (!revealed.passableByPlayer) return [0, 0];
+    if (revealed.slideType && !hasBoot(door.boots, revealed.protectedByItem)) return [0, 0];
+    if (revealed.hazard && !hasBoot(door.boots, revealed.protectedByItem)) return [0, 0];
+
+    const heldKeys: Record<string, number> = { ...ctx.ownedKeys };
+    heldKeys[door.keyId] = Math.max((heldKeys[door.keyId] || 0) - 1, 0);
+
+    const closedId = terrain[door.y][door.x];
+    terrain[door.y][door.x] = opened;
+    try {
+      let mask = door.boots;
+      let result = { keys: 0, chips: 0, fresh: 0, mask };
+      // A boot found beyond the door can open more of the flood: run it again with the grown mask (bounded).
+      for (let round = 0; round <= bootBits.size; round++) {
+        result = this.floodBeyondDoor(door, mask, heldKeys, ctx, closedByKey);
+        if (result.mask === mask) break;
+        mask = result.mask;
+      }
+      return [result.keys * DOOR_KEY_WEIGHT + result.chips, result.fresh];
+    } finally {
+      terrain[door.y][door.x] = closedId;
+    }
+  }
+
+  /** One ranking flood from an open door cell with a fixed boot mask; the door cell must already be open. */
+  private static floodBeyondDoor(
+    door: DeferredDoor,
+    startMask: number,
+    heldKeys: Readonly<Record<string, number>>,
+    ctx: DoorRankContext,
+    closedByKey: Readonly<Record<string, number>>
+  ): { keys: number; chips: number; fresh: number; mask: number } {
+    const { terrain, items, hasBoot, bootBits } = ctx;
+    const height = terrain.length;
+    const width = terrain[0]?.length || 0;
+    const scored = new Uint8Array(width * height);
+    const expanded = new Uint8Array(width * height);
+    let mask = startMask;
+    let keys = 0;
+    let chips = 0;
+    let fresh = 0;
+    const score = (cx: number, cy: number): void => {
+      const index = cy * width + cx;
+      if (scored[index] || ctx.reached[index]) return;
+      scored[index] = 1;
+      fresh++;
+      const item = items[cy][cx];
+      if (!item) return;
+      const collectible = ConfigRegistry.getTile(item).collectible;
+      // A key only counts while a door of its colour would still be closed once this one is open.
+      if (collectible === 'key' && (closedByKey[item] || 0) - (item === door.keyId ? 1 : 0) > 0) keys++;
+      else if (collectible === 'chip') chips++;
+      else if (collectible === 'boot') mask |= bootBits.get(item) ?? NO_BOOTS;
     };
-    return doors.reduce((best, door) => (score(door) > score(best) ? door : best));
+    const doorIndex = door.y * width + door.x;
+    scored[doorIndex] = 1;
+    expanded[doorIndex] = 1;
+    const stack: GridPoint[] = [{ x: door.x, y: door.y }];
+    while (stack.length > 0) {
+      const cell = stack.pop() as GridPoint;
+      ctx.budget.left--;
+      for (const dir of ORDERED_DIRECTIONS) {
+        const vec = DIRECTION_VECTORS[dir];
+        const nx = cell.x + vec.dx;
+        const ny = cell.y + vec.dy;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+        const index = ny * width + nx;
+        if (expanded[index] || ctx.reached[index]) continue;
+        if (this.isEdgeBlocked(terrain, ctx.edgeMask, cell.x, cell.y, nx, ny, dir)) continue;
+        const tile = ConfigRegistry.getTile(terrain[ny][nx]);
+        if (!tile.passableByPlayer) continue;
+        if (tile.hazard) {
+          const meltedHere = tile.hazard === 'fire' && ctx.meltedFires.has(`${nx},${ny}`);
+          if (!hasBoot(mask, meltedHere ? ctx.swimProtection : tile.protectedByItem)) {
+            const swimming = hasBoot(mask, ctx.swimProtection);
+            const use: BlockUse =
+              tile.hazard === 'water' ? 'water' : tile.hazard === 'fire' ? (swimming ? 'melt' : 'fire') : 'other';
+            if (!ctx.affords(use)) continue;
+          }
+        }
+        const item = items[ny][nx];
+        if (item && ConfigRegistry.getTile(item).hazard === 'bomb' && !ctx.affords('other')) continue;
+
+        if (tile.slideType && !hasBoot(mask, tile.protectedByItem)) {
+          const slide = this.simulateSlide(
+            terrain,
+            items,
+            nx,
+            ny,
+            dir,
+            mask,
+            hasBoot,
+            bootBits,
+            ctx.edgeMask,
+            heldKeys,
+            ctx.collectedChips,
+            ctx.chipsRequired,
+            ctx.meltedFires,
+            ctx.swimProtection
+          );
+          if (slide.fatal || slide.opened) continue;
+          mask |= slide.boots;
+          for (const passed of slide.path) score(passed.x, passed.y);
+          const endIndex = slide.end.y * width + slide.end.x;
+          if (!expanded[endIndex] && !ctx.reached[endIndex]) {
+            expanded[endIndex] = 1;
+            stack.push(slide.end);
+          }
+          continue;
+        }
+
+        expanded[index] = 1;
+        score(nx, ny);
+        stack.push({ x: nx, y: ny });
+      }
+    }
+    return { keys, chips, fresh, mask };
+  }
+
+  /**
+   * The cheap ranking of a door, used once the step budget is spent: a flood over every walkable cell,
+   * hazards and slides ignored, weighing the keys and chips lying in it.
+   */
+  private static plainFloodScore(
+    door: { x: number; y: number; keyId: string },
+    terrain: string[][],
+    items: (string | null)[][],
+    edgeMask: Uint8Array | null,
+    closedByKey: Readonly<Record<string, number>>
+  ): number {
+    const height = terrain.length;
+    const width = terrain[0]?.length || 0;
+    const seen = new Set<string>([`${door.x},${door.y}`]);
+    const stack: GridPoint[] = [{ x: door.x, y: door.y }];
+    let keyCount = 0;
+    let chipCount = 0;
+    while (stack.length > 0) {
+      const cell = stack.pop() as GridPoint;
+      const item = items[cell.y][cell.x];
+      const collectible = item ? ConfigRegistry.getTile(item).collectible : undefined;
+      if (item && collectible === 'key' && (closedByKey[item] || 0) - (item === door.keyId ? 1 : 0) > 0) {
+        keyCount++;
+      }
+      if (collectible === 'chip') chipCount++;
+      for (const dir of ORDERED_DIRECTIONS) {
+        const vec = DIRECTION_VECTORS[dir];
+        const nx = cell.x + vec.dx;
+        const ny = cell.y + vec.dy;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height || seen.has(`${nx},${ny}`)) continue;
+        if (this.isEdgeBlocked(terrain, edgeMask, cell.x, cell.y, nx, ny, dir)) continue;
+        if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) continue;
+        seen.add(`${nx},${ny}`);
+        stack.push({ x: nx, y: ny });
+      }
+    }
+    return keyCount * DOOR_KEY_WEIGHT + chipCount;
   }
 
   /** Whether the level's stored solution replays to a win in the real engine. */
@@ -1521,6 +1736,17 @@ export class LevelValidator {
     }
   }
 
+  /**
+   * Whether the exit can be reached without passing a socket. Thin walls bind
+   * exactly as in the engine, and a key door is crossed only with a key of its
+   * colour picked up on the way,
+   * so a key kept behind the socket opens nothing here. A consumed key is
+   * treated as reusable once one is held: this over-approximates, so a rare false
+   * bypass is possible but a real one is never missed.
+   * Hazards bind too: water, fire and slime stop the walk unless the boots picked up on the way protect.
+   * A level with a block (or a cloner of blocks) keeps them walkable, since a block can fill the hazard,
+   * which preserves the never-miss contract. Teleporters are not followed (a known gap).
+   */
   private static canReachExitWithoutSocket(level: CompiledLevel): boolean {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
@@ -1532,6 +1758,16 @@ export class LevelValidator {
     const terrain = level.terrain.map((row) => [...row]);
     const picked = new Set<string>();
     const ownedKeys: Record<string, number> = {};
+    const bootBits = this.buildBootBits();
+    let boots = NO_BOOTS;
+    const blockTypes = new Set(
+      Object.values(ConfigRegistry.getMonsters().entities)
+        .filter((def) => def.kind === 'block')
+        .map((def) => def.id)
+    );
+    const blocksExist =
+      level.entities.some((e) => blockTypes.has(e.type)) ||
+      (level.cloneLinks ?? []).some((link) => blockTypes.has(link.templateType));
     let changed = true;
 
     while (changed) {
@@ -1548,10 +1784,21 @@ export class LevelValidator {
         }
         const cellKey = `${curr.x},${curr.y}`;
         const item = level.items[curr.y]?.[curr.x];
-        if (item && !picked.has(cellKey) && ConfigRegistry.getTile(item).collectible === 'key') {
-          picked.add(cellKey);
-          ownedKeys[item] = (ownedKeys[item] || 0) + 1;
-          changed = true;
+        if (item && !picked.has(cellKey)) {
+          const collectible = ConfigRegistry.getTile(item).collectible;
+          if (collectible === 'key') {
+            picked.add(cellKey);
+            ownedKeys[item] = (ownedKeys[item] || 0) + 1;
+            changed = true;
+          } else if (collectible === 'boot') {
+            picked.add(cellKey);
+            const bit = bootBits.get(item) ?? NO_BOOTS;
+            // A boot grows the mask for the whole walk (optimistic); the next pass crosses what it protects.
+            if ((boots & bit) !== bit) {
+              boots |= bit;
+              changed = true;
+            }
+          }
         }
         for (const dir of ORDERED_DIRECTIONS) {
           const vec = DIRECTION_VECTORS[dir];
@@ -1561,6 +1808,11 @@ export class LevelValidator {
           if (this.isEdgeBlocked(terrain, edgeMask, curr.x, curr.y, nx, ny, dir)) continue;
           let nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
           if (nextTile.requiresAllChips) continue;
+          if (nextTile.revealsToOnTouch && nextTile.revealsToOnTouch !== terrain[ny][nx]) {
+            terrain[ny][nx] = nextTile.revealsToOnTouch;
+            nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
+            changed = true;
+          }
           if (nextTile.transformsToOnStep) {
             const hidden = hiddenUnder(level, terrain, nx, ny);
             if (hidden !== undefined) {
@@ -1577,6 +1829,14 @@ export class LevelValidator {
             if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) continue;
           } else if (!nextTile.passableByPlayer) {
             continue;
+          }
+          const tileHere = ConfigRegistry.getTile(terrain[ny][nx]);
+          // A jet the player can switch off (its other form is walkable) is no barrier: a bypass through it is real.
+          const switchable = toggleWallOtherForm(tileHere);
+          const switchedOff = switchable !== undefined && ConfigRegistry.getTile(switchable).passableByPlayer;
+          if (tileHere.hazard && !blocksExist && !switchedOff) {
+            const bit = tileHere.protectedByItem ? bootBits.get(tileHere.protectedByItem) : undefined;
+            if (bit === undefined || (boots & bit) === 0) continue;
           }
           visited[ny][nx] = true;
           queue.push({ x: nx, y: ny });
