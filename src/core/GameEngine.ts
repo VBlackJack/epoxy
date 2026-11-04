@@ -20,7 +20,6 @@ import {
   BLOCK_TARGET_TILE_ID,
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
-  DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
   TOGGLE_PARITY_KEY_PREFIX
@@ -33,17 +32,16 @@ import {
   isCarriedByForceFloor,
   processPlayerSlideStep
 } from './epoxy/epoxyPlayer';
+import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { advanceShots, shotsStateKey } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
-  BASE_LEVEL_SCORE_MULTIPLIER,
   EpoxyContext,
   EpoxyVisualKind,
   EpoxyWorld,
   NO_PLAY_START_TICK,
-  buildLevelLookups,
   revealedTerrain,
   createEpoxyWorld,
   getEntityAt,
@@ -53,7 +51,6 @@ import {
   mapHeight,
   mapWidth
 } from './epoxy/epoxyWorld';
-import { SeededRandom } from './Random';
 import {
   BeamCell,
   CloneLink,
@@ -151,65 +148,15 @@ export class GameEngine {
       this.scoreAtLevelStart = this.totalScore;
     }
 
-    this.w.level = level;
-    this.w.terrain = level.terrain.map((row) => [...row]);
-    this.w.items = level.items.map((row) => [...row]);
-    this.w.trapLinks = level.trapLinks.map((l) => ({ ...l }));
-    this.w.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
-    this.w.nextEntityUid = 1;
-    this.w.rng = new SeededRandom(seed ?? SeededRandom.seedFromString(level.id));
-
-    this.w.entities = level.entities.map((e) => {
-      const def = ConfigRegistry.getEntityDef(e.type);
-      return {
-        uid: this.w.nextEntityUid++,
-        type: e.type,
-        kind: def?.kind || 'monster',
-        x: e.x,
-        y: e.y,
-        dir: e.dir,
-        cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
-        isSliding: false,
-        // A turret fires the way it was placed; its direction stays the way it is pushed or slides.
-        ...(def?.turretBeam ? { facing: e.dir } : {})
-      };
-    });
-
-    this.w.player = {
-      x: level.playerStart.x,
-      y: level.playerStart.y,
-      dir: level.playerStart.dir,
-      alive: true,
-      deathReasonKey: null,
-      isSliding: false,
-      slideDir: null,
-      moveCooldown: 0,
-      slideCooldown: 0,
-      inWater: false,
-      keys: {},
-      boots: new Set<string>()
-    };
-
-    this.w.chipsRemaining = level.chipsRequired;
+    startLevelWorld(this.ctx, level, seed);
     this.ticksElapsed = 0;
     this.stepsCount = 0;
-    this.w.playStartTick = NO_PLAY_START_TICK;
-    this.w.extraTimeSeconds = 0;
-    this.w.levelBonusPoints = 0;
-    this.w.levelScoreMultiplier = BASE_LEVEL_SCORE_MULTIPLIER;
     this.lastLevelScore = 0;
     this.lastTimeBonus = 0;
-    this.w.levelCompleted = false;
     this.paused = false;
-    this.w.statusBannerKey = null;
     this.undoStack = [];
     this.moveHistory = [];
     this.timedMoveHistory = [];
-    this.w.removedUids.clear();
-    buildLevelLookups(this.w);
-    // A hold door starts in the state its plates ask for (a block may start on a plate); no sound at load.
-    setHoldDoors(this.ctx, false);
-    this.w.beamDirty = true;
   }
 
   /** Successful player moves, in order. */
