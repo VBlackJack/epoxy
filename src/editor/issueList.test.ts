@@ -49,6 +49,12 @@ describe('issueCell', () => {
 });
 
 describe('issueRows', () => {
+  it('puts info after warnings', () => {
+    const info: ValidationIssue = { severity: 'info', i18nKey: 'i1' };
+    const { rows } = issueRows([info, warning('w1'), error('e1')], WIDTH, HEIGHT);
+    expect(rows.map((row) => row.issue.i18nKey)).toEqual(['e1', 'w1', 'i1']);
+  });
+
   it('puts errors first and keeps the order inside each group', () => {
     const issues = [warning('w1'), error('e1'), warning('w2'), error('e2')];
     const { rows, hidden } = issueRows(issues, WIDTH, HEIGHT);

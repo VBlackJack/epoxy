@@ -154,7 +154,7 @@ export class LevelMetrics {
     return {
       levelId: level.id,
       valid: validation.valid,
-      issueCount: validation.issues.length,
+      issueCount: validation.issues.filter((issue) => issue.severity !== 'info').length,
       usedWidth: bounds.width,
       usedHeight: bounds.height,
       usedAreaRatio: width * height > 0 ? (bounds.width * bounds.height) / (width * height) : 0,

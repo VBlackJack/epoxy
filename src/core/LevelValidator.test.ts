@@ -445,4 +445,81 @@ describe('LevelValidator', () => {
       expect(keys(grid(['#######', '#P.cHE#', '#######']))).not.toContain(HIDDEN);
     });
   });
+
+  describe('info about buttons with no effect', () => {
+    const TRAP_KEY = 'validator.issues.trap_button_no_trap.label';
+    const CLONE_KEY = 'validator.issues.clone_button_nothing.label';
+    const BUTTON_X = 2;
+    const OTHER_X = 4;
+    const infoKeys = (level: CompiledLevel): string[] =>
+      LevelValidator.validate(level).issues.filter((i) => i.severity === 'info').map((i) => i.i18nKey);
+    const base = (): CompiledLevel => grid(['#######', '#P.E..#', '#######']);
+
+    it('flags a brown button when the level has no trap', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'button_brown';
+      expect(infoKeys(level)).toContain(TRAP_KEY);
+      expect(LevelValidator.validate(level).valid).toBe(true);
+    });
+
+    it('stays silent when a trap exists, hidden or not', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'button_brown';
+      level.terrain[1][OTHER_X] = 'trap';
+      expect(infoKeys(level)).not.toContain(TRAP_KEY);
+    });
+
+    it('flags a red button with no link and no loaded machine', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'button_red';
+      expect(infoKeys(level)).toContain(CLONE_KEY);
+      expect(LevelValidator.validate(level).valid).toBe(true);
+    });
+
+    it('stays silent for a red button with a link', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'button_red';
+      level.terrain[1][OTHER_X] = 'clone_machine';
+      level.cloneLinks = [{ buttonX: BUTTON_X, buttonY: 1, clonerX: OTHER_X, clonerY: 1, templateType: 'dirt_block', templateDir: 'S' }];
+      expect(infoKeys(level)).not.toContain(CLONE_KEY);
+    });
+
+    it('stays silent for a red button when a machine holds a template', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'button_red';
+      level.terrain[1][OTHER_X] = 'clone_machine';
+      level.entities = [{ type: 'dirt_block', x: OTHER_X, y: 1, dir: 'S' }];
+      expect(infoKeys(level)).not.toContain(CLONE_KEY);
+    });
+
+    it('does not apply to Lynx levels', () => {
+      const level = base();
+      level.ruleset = 'lynx';
+      level.terrain[1][BUTTON_X] = 'button_brown';
+      level.terrain[1][OTHER_X] = 'button_red';
+      expect(infoKeys(level)).toEqual([]);
+    });
+    it('counts a trap hidden under a removable top as a trap', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'button_brown';
+      level.terrain[1][OTHER_X] = 'door_red';
+      level.underlays = [{ x: OTHER_X, y: 1, terrain: 'trap' }];
+      expect(infoKeys(level)).not.toContain(TRAP_KEY);
+    });
+
+    it('flags a red button hidden under a removable top with nothing to fire', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'door_red';
+      level.underlays = [{ x: BUTTON_X, y: 1, terrain: 'button_red' }];
+      expect(infoKeys(level)).toContain(CLONE_KEY);
+    });
+
+    it('does not apply to CC3D levels', () => {
+      const level = base();
+      level.ruleset = 'cc3d';
+      level.terrain[1][BUTTON_X] = 'button_brown';
+      level.terrain[1][OTHER_X] = 'button_red';
+      expect(infoKeys(level)).toEqual([]);
+    });
+  });
 });

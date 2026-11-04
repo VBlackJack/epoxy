@@ -41,11 +41,12 @@ export function issueCell(issue: ValidationIssue, width: number, height: number)
   return { x, y };
 }
 
-/** The rows to show: errors first, each group in its original order, capped, with the count left out. */
+/** The rows to show: errors first, then warnings, then info, each group in its original order, capped, with the count left out. */
 export function issueRows(issues: readonly ValidationIssue[], width: number, height: number, cap: number = ISSUE_LIST_CAP): IssueRows {
   const ordered = [
     ...issues.filter((issue) => issue.severity === 'error'),
-    ...issues.filter((issue) => issue.severity !== 'error')
+    ...issues.filter((issue) => issue.severity === 'warning'),
+    ...issues.filter((issue) => issue.severity === 'info')
   ];
   const shown = ordered.slice(0, Math.max(0, cap));
   return {
