@@ -202,6 +202,34 @@ describe('hidden terrain in the editor', () => {
     expect(status()).toContain(t('editor.layout.size.dropped_underlays', { count: 1 }));
   });
 
+  it('offers nine labelled anchor positions, top-left checked by default', () => {
+    const radios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="editor-size-anchor"]'));
+    expect(radios).toHaveLength(9);
+    expect(radios.filter((radio) => radio.checked).map((radio) => radio.value)).toEqual(['0,0']);
+    i18n.translateDOM();
+    radios.forEach((radio) => expect(radio.getAttribute('aria-label')).toBe(t(radio.getAttribute('data-i18n-aria-label') ?? '')));
+    const labels = radios.map((radio) => t(radio.getAttribute('data-i18n-aria-label') ?? ''));
+    expect(labels.some((label) => label.startsWith('editor.layout.size.anchor'))).toBe(false);
+    expect(new Set(labels).size).toBe(9);
+    expect(byId('editor-size-anchor-1-1').getAttribute('data-i18n-aria-label')).toBe('editor.layout.size.anchor.centre.label');
+    expect(t('editor.layout.size.anchor.centre.label')).toBe('Anchor: centre');
+  });
+
+  it('resizes around the picked anchor as one undo step', () => {
+    editor.loadCompiledLevel(room(undefined, HIDDEN));
+    byId<HTMLInputElement>('editor-size-anchor-1-1').click();
+    byId<HTMLInputElement>('editor-size-width').value = String(WIDTH + 2);
+    byId<HTMLButtonElement>('editor-size-apply-btn').click();
+    const grown = editor.exportCompiledLevel();
+    expect(grown.terrain[DOOR_Y][DOOR_X + 1]).toBe('door_red');
+    expect(grown.underlays).toEqual([{ x: DOOR_X + 1, y: DOOR_Y, terrain: 'ice' }]);
+    editor.undo();
+    const restored = editor.exportCompiledLevel();
+    expect(restored.terrain[DOOR_Y][DOOR_X]).toBe('door_red');
+    expect(restored.underlays).toEqual(HIDDEN);
+    expect(restored.terrain[0]).toHaveLength(WIDTH);
+  });
+
   it('survives a copy and a paste, and a paste under Lynx drops and counts it', () => {
     editor.loadCompiledLevel(room(undefined, HIDDEN));
     canvas.focus();

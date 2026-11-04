@@ -282,7 +282,7 @@ describe('hidden terrain select in the Layers section', () => {
       i18n.setLocale(locale);
       const text = t('editor.layout.layers.hidden_terrain.unavailable.label');
       expect(text).not.toBe('editor.layout.layers.hidden_terrain.unavailable.label');
-      expect(text).not.toMatch(/[–—]/);
+      expect(text).not.toMatch(/[\u2013\u2014]/);
     }
     i18n.setLocale('fr');
     expect(t('editor.layout.layers.hidden_terrain.unavailable.label')).not.toBe(
