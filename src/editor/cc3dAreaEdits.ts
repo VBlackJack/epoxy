@@ -17,11 +17,11 @@
 import type { LevelSizeBounds } from '../config/ConfigValidation';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { PLAYER_START_FACING } from '../core/cc3d/cc3dConstants';
-import { type Cc3dCell, type Cc3dLevel, type Cc3dMob, type Cc3dMobKind, placeTerrain, type Cc3dTerrain } from '../core/cc3d/model';
+import { type Cc3dCell, type Cc3dItem, type Cc3dLevel, type Cc3dMob, type Cc3dMobKind, placeTerrain, type Cc3dTerrain } from '../core/cc3d/model';
 import { OPPOSITE_DIRECTION } from '../core/coreConstants';
 import type { Direction } from '../core/types';
 import { canonicalJson } from './canonicalJson';
-import { emptyCell, normalizeLayer } from './cc3dEdits';
+import { emptyCell, normalizeItem, normalizeLayer, normalizeMob } from './cc3dEdits';
 import { type CellRect, clampMoveStep, clipRectToGrid, rectContains } from './selectionEdits';
 
 /**
@@ -227,6 +227,80 @@ function insertCanonically(list: readonly Cc3dMob[], fresh: readonly Cc3dMob[], 
     out.splice(at, 0, mob);
   }
   return out;
+}
+
+/** What a fill writes into every cell of a rectangle, resolved from the palette entry and its attributes. */
+export type Cc3dFillContent =
+  | { action: 'layer'; layer: Cc3dTerrain }
+  | { action: 'item'; item: Cc3dItem }
+  /** The position of the mob is ignored: each cell gets its own copy. */
+  | { action: 'mob'; mob: Cc3dMob };
+
+/** Outcome of filling a rectangle. `refused` is set when the content is invalid (a key or door without a colour, say): the level is then untouched. */
+export interface Cc3dRectFillResult extends Cc3dAreaResult {
+  refused: boolean;
+}
+
+/**
+ * Fills a rectangle (clipped to the grid) with one palette entry, as placing it on every cell would. A layer
+ * goes onto each stack in class order (one normalised layer, one cells copy); an item replaces the cell's item
+ * under the rules of setItem; a mob is placed on every cell: one already standing there is replaced in place
+ * (it keeps its index) and counted removed, a new one is inserted at its canonical position, and the player
+ * start cell is skipped and counted. Cells and mobs the fill leaves as they were stay shared; a fill that
+ * changes nothing returns the very same level.
+ */
+export function fillCc3dRect(level: Cc3dLevel, rect: CellRect, content: Cc3dFillContent): Cc3dRectFillResult {
+  const refused: Cc3dRectFillResult = { ...unchanged(level), refused: true };
+  const area = clipRectToGrid(rect, level.width, level.height);
+  if (!area) return { ...unchanged(level), refused: false };
+  const touched = [...cellsOf(area, level.width)];
+  const cells = level.cells.slice();
+
+  if (content.action === 'layer') {
+    const layer = normalizeLayer(content.layer);
+    if (!layer) return refused;
+    for (const index of touched) cells[index] = { ...level.cells[index], terrain: placeTerrain(level.cells[index].terrain, layer) };
+    const next = assemble(level, cells, level.mobs, level.player, touched);
+    return { ...unchanged(next, area), changed: next !== level, refused: false };
+  }
+
+  if (content.action === 'item') {
+    const item = normalizeItem(content.item);
+    if (!item) return refused;
+    for (const index of touched) cells[index] = { ...level.cells[index], item };
+    const next = assemble(level, cells, level.mobs, level.player, touched);
+    return { ...unchanged(next, area), changed: next !== level, refused: false };
+  }
+
+  if (!normalizeMob(level, { ...content.mob, x: area.x, y: area.y })) return refused;
+  let skippedMobs = 0;
+  const incoming = new Map<number, Cc3dMob>();
+  for (const index of touched) {
+    const x = index % level.width;
+    const y = Math.floor(index / level.width);
+    if (x === level.player.x && y === level.player.y) {
+      skippedMobs++;
+      continue;
+    }
+    const mob = normalizeMob(level, { ...content.mob, x, y });
+    if (mob) incoming.set(index, mob);
+  }
+  let removedMobs = 0;
+  const placed = new Set<number>();
+  const kept = level.mobs.map((mob) => {
+    const key = mob.y * level.width + mob.x;
+    const replacement = incoming.get(key);
+    if (!replacement || placed.has(key)) return mob;
+    placed.add(key);
+    if (sameMob(mob, replacement)) return mob;
+    removedMobs++;
+    return replacement;
+  });
+  const fresh = [...incoming].filter(([key]) => !placed.has(key)).map(([, mob]) => mob);
+  const mobs = fresh.length > 0 ? insertCanonically(kept, fresh, level.width) : kept;
+  const next = assemble(level, cells, mobs, level.player, []);
+  if (next === level) return { ...unchanged(level, area), skippedMobs, refused: false };
+  return { ...unchanged(next, area), changed: true, removedMobs, skippedMobs, refused: false };
 }
 
 /**

@@ -80,8 +80,10 @@ import { removeLayerAt, removeMob, setItem, setPanelSide } from './cc3dEdits';
 import {
   type Cc3dAreaResult,
   type Cc3dClip,
+  type Cc3dFillContent,
   clearCc3dRect,
   extractCc3dClip,
+  fillCc3dRect,
   MESSAGE_CC3D_AREA_MOBS_REMOVED,
   MESSAGE_CC3D_AREA_MOBS_SKIPPED,
   MESSAGE_CC3D_AREA_PLAYER_KEPT,
@@ -114,6 +116,9 @@ import {
   DEFAULT_CC3D_ATTRIBUTES,
   entryDisplay,
   findCc3dEntry,
+  itemOf,
+  layerOf,
+  mobOf,
   needsAttribute
 } from './cc3dPalette';
 import { dirtyCc3dCells, hasHiddenLayers } from './cc3dLayerDiff';
@@ -125,6 +130,7 @@ import { layoutModeForWidth } from './editorLayout';
 import {
   applyTool,
   Brush,
+  CELL_EDGE_BRUSH_ID,
   continuesOnDrag,
   EDITOR_TOOLS,
   EditorTool,
@@ -151,6 +157,9 @@ import {
   clearRect,
   Clip,
   extractClip,
+  fillBrushRefusal,
+  FillRefusal,
+  fillRect,
   moveRect,
   MoveStep,
   pasteClip,
@@ -163,6 +172,7 @@ import { MetadataEditCoalescer } from './metadataCoalescer';
 import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 import {
   Availability,
+  cellEdgeAvailability,
   EditableRuleset,
   entityAvailability,
   majorityRuleset,
@@ -261,6 +271,10 @@ const IMPORTED_COPY_CHOICE = 'copy';
 const IMPORT_AS_PACK_CHOICE = 'pack';
 const IMPORT_FIRST_CHOICE = 'first';
 const SEPARATOR_BETWEEN_MESSAGES = ' ';
+/** Status keys of a selection fill that cannot go ahead (their texts live in the locale files). */
+const MESSAGE_FILL_REFUSED_CELL_EDGE = 'editor.selection.status.fill_refused_cell_edge';
+const MESSAGE_FILL_REFUSED_ENTRY = 'editor.selection.status.fill_refused_entry';
+const MESSAGE_FILL_REFUSED_ATTRIBUTES = 'editor.selection.status.fill_refused_attributes';
 const NO_COORDS_TEXT = '--';
 const STAGE_CENTRE_DIVISOR = 2;
 const CELL_CENTRE = 0.5;
@@ -297,6 +311,9 @@ const WIRE_CLONER_BRUSH_ID = 'wire_cloner';
 const WIN_RULE_VALUES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
 const ENTITIES_CATEGORY = 'entities';
 const MECHANISMS_CATEGORY = 'mechanisms';
+const TERRAIN_CATEGORY = 'terrain';
+/** Tile whose icon stands for the thin wall entry: a floor with a wall on its north side. */
+const CELL_EDGE_ICON_TILE = 'thin_wall_n';
 
 const TOOL_LABEL_KEYS: Record<EditorTool, string> = {
   brush: 'editor.layout.tool.brush.label',
@@ -481,6 +498,8 @@ export class LevelEditor {
   private linksCache = new WeakMap<Cc3dLevel, Cc3dLinks>();
   /** The side of the hovered cell nearest the pointer, for the thin wall mode. */
   private hoverSide: Direction = 'N';
+  /** The last way the map was addressed: the thin wall bar follows the pointer or the keyboard cursor accordingly. */
+  private lastInput: 'pointer' | 'keyboard' = 'pointer';
   /** The CC3D map drawn off-screen, kept while the document and the tile size stay the same. */
   private staticLayer: StaticLayer | null = null;
   /** The cells selected with the Select tool. */
@@ -726,6 +745,15 @@ export class LevelEditor {
   /** True when the level being edited is a CC3D one: its cells, not the Epoxy layers, are the map. */
   private isCc3d(): boolean {
     return this.doc.cc3d !== undefined;
+  }
+
+  /**
+   * True when a click acts on the side of a cell nearest the pointer: the CC3D thin wall entry, or the Epoxy
+   * thin wall entry with the brush tool.
+   */
+  private sideToolActive(): boolean {
+    if (this.isCc3d()) return this.tool === 'brush' && this.cc3dEntry()?.action === 'panel';
+    return this.tool === 'brush' && this.brush.kind === 'cell_edge';
   }
 
   /** The selected CC3D palette entry, or null when the id names none. */
@@ -1076,11 +1104,15 @@ export class LevelEditor {
     this.renderCc3dAttributes();
   }
 
-  /** Choosing a CC3D entry puts the brush back in hand, except for a layer entry while filling. */
+  /**
+   * Choosing a CC3D entry puts the brush back in hand, except for a layer entry while filling and on the Select
+   * tool while a selection is there: the entry then waits for Shift+F to fill the selection with it.
+   */
   private selectCc3dEntry(entry: Cc3dPaletteEntry): void {
+    const keepSelection = this.keepsSelectionOnChoice();
     this.cc3dEntryId = entry.id;
     this.cc3dCategory = entry.category;
-    if (this.tool !== 'brush' && !(this.tool === 'fill' && entry.action === 'layer')) {
+    if (!keepSelection && this.tool !== 'brush' && !(this.tool === 'fill' && entry.action === 'layer')) {
       this.tool = 'brush';
       this.resetSelectionState();
       this.updateToolButtons();
@@ -1088,8 +1120,18 @@ export class LevelEditor {
     this.updateCanvasLabel();
     this.renderCategoryTabs();
     this.renderPaletteItems();
-    if (entry.action === 'panel') this.setStatusText(t('editor.cc3d.status.panel_mode'));
+    if (keepSelection) {
+      const refusal: ToolMessage | null = this.cc3dEntryFillable(entry) ? null : { key: MESSAGE_FILL_REFUSED_ENTRY };
+      this.announceFillChoice(refusal, this.cc3dEntryLabel(entry, entryDisplay(entry, this.cc3dAttrs, this.activeDir)));
+    } else if (entry.action === 'panel') {
+      this.setStatusText(t('editor.cc3d.status.panel_mode'));
+    }
     this.render();
+  }
+
+  /** True when a CC3D entry stands for something a rectangle can be filled with: the thin wall mode and the player start are not. */
+  private cc3dEntryFillable(entry: Cc3dPaletteEntry): boolean {
+    return entry.action !== 'panel' && entry.action !== 'player';
   }
 
   /** A small button of the attribute choosers: an icon, a swatch or a word, pressed when it is the choice. */
@@ -1174,6 +1216,7 @@ export class LevelEditor {
     const ruleset = editableRulesetOf(this.doc.ruleset);
     if (brush.kind === 'terrain' || brush.kind === 'item') return tileAvailability(ruleset, brush.id);
     if (brush.kind === 'entity') return entityAvailability(ruleset, brush.id);
+    if (brush.kind === 'cell_edge') return cellEdgeAvailability(ruleset);
     return { available: true };
   }
 
@@ -1230,6 +1273,14 @@ export class LevelEditor {
       entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), this.renderer.renderIconToDataUrl('entity', ent.id));
     }
 
+    if (this.activeCategory === TERRAIN_CATEGORY) {
+      entry(
+        { kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID },
+        t('editor.palette.tools.cell_edge'),
+        this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE)
+      );
+    }
+
     if (this.activeCategory === ENTITIES_CATEGORY) {
       entry({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), this.playerIconUrl);
     }
@@ -1274,7 +1325,11 @@ export class LevelEditor {
     span.textContent = label;
     btn.appendChild(span);
     if (availability.available) {
-      btn.addEventListener('click', onClick);
+      btn.addEventListener('click', (ev) => {
+        // A click with no pointer detail comes from the keyboard (Enter or Space on the button).
+        this.lastInput = ev.detail === 0 ? 'keyboard' : 'pointer';
+        onClick();
+      });
     } else {
       const reason = t(availability.reasonKey);
       btn.classList.add('is-unavailable');
@@ -1286,11 +1341,19 @@ export class LevelEditor {
     return btn;
   }
 
-  /** Choosing a palette item puts the brush back in hand, except for a terrain tile while filling. */
+  /**
+   * Choosing a palette item puts the brush back in hand, except for a terrain tile while filling and on the Select
+   * tool while a selection is there: the entry then waits for Shift+F to fill the selection with it.
+   */
   private selectBrush(brush: Brush): void {
     this.cancelPendingWire(false);
+    const hintBefore = this.sideToolActive();
+    const keepSelection = this.keepsSelectionOnChoice();
     this.brush = brush;
-    if (this.tool === 'eraser' || this.tool === 'picker' || this.tool === 'select' || (this.tool === 'fill' && brush.kind !== 'terrain')) {
+    if (
+      !keepSelection &&
+      (this.tool === 'eraser' || this.tool === 'picker' || this.tool === 'select' || (this.tool === 'fill' && brush.kind !== 'terrain'))
+    ) {
       this.tool = 'brush';
       this.resetSelectionState();
       this.render();
@@ -1298,9 +1361,17 @@ export class LevelEditor {
     }
     this.updateCanvasLabel();
     this.renderPaletteItems();
-    if (brush.kind === 'wire_trap' || brush.kind === 'wire_cloner') {
-      this.setStatusText(t('editor.palette.status.wire_select_source'));
+    if (keepSelection) {
+      const refusal = fillBrushRefusal(brush, editableRulesetOf(this.doc.ruleset));
+      this.announceFillChoice(refusal ? this.fillRefusalMessage(refusal) : null, this.brushLabel(brush));
+    } else {
+      if (brush.kind === 'wire_trap' || brush.kind === 'wire_cloner') {
+        this.setStatusText(t('editor.palette.status.wire_select_source'));
+      }
+      if (brush.kind === 'cell_edge') this.setStatusText(t('editor.palette.status.cell_edge_mode'));
     }
+    // The side bar of the thin wall tool appears and goes away with its entry.
+    if (hintBefore || this.sideToolActive()) this.render();
   }
 
   private updateSwitchEngineButton(): void {
@@ -1341,7 +1412,11 @@ export class LevelEditor {
   /** The direction control changed: the buttons follow it, and the CC3D icons that show a direction are redrawn. */
   private afterDirectionChange(): void {
     this.updateDirButtons();
-    if (!this.isCc3d()) return;
+    if (!this.isCc3d()) {
+      // The keyboard side of the thin wall tool is the direction control: its bar follows it.
+      if (this.sideToolActive()) this.render();
+      return;
+    }
     this.renderPaletteItems();
     this.render();
   }
@@ -1601,6 +1676,10 @@ export class LevelEditor {
 
     byId('editor-redo-btn')?.addEventListener('click', () => {
       this.redo();
+    });
+
+    byId('editor-fill-selection-btn')?.addEventListener('click', () => {
+      this.fillSelectionFromButton();
     });
 
     byId('editor-test-btn')?.addEventListener('click', () => {
@@ -2676,6 +2755,7 @@ export class LevelEditor {
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.setStatusText(t('editor.palette.status.picked.label', { name: definition ? t(definition.i18nKey) : picked.brush.id }));
+    this.render();
   }
 
   /** The grid cell under a screen position, or null outside the grid. */
@@ -2689,7 +2769,7 @@ export class LevelEditor {
   }
 
   /**
-   * The side of a cell a pointer is nearest to, for the thin wall mode of a CC3D level.
+   * The side of a cell a pointer is nearest to, for the thin wall mode.
    * The pointer position is read inside the cell, from 0 (west, north) to 1 (east, south).
    */
   private pointerSide(clientX: number, clientY: number, cell: { x: number; y: number }): Direction {
@@ -2733,6 +2813,7 @@ export class LevelEditor {
       this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(ev.pointerId);
       this.cursorCell = cell;
+      this.lastInput = 'pointer';
       // Every path below (picker, Alt or middle click, a stroke) starts from this cell: the layers list follows it.
       this.refreshLayersList();
 
@@ -2756,7 +2837,7 @@ export class LevelEditor {
         return;
       }
 
-      if (this.isCc3d()) this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
+      if (this.isCc3d() || this.sideToolActive()) this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
       this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON, ev.shiftKey);
       this.applyAt(cell.x, cell.y, this.hoverSide);
       this.refreshLayersList();
@@ -2764,14 +2845,15 @@ export class LevelEditor {
 
     this.canvas.addEventListener('pointermove', (ev) => {
       this.lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+      this.lastInput = 'pointer';
       const cell = this.cellAt(ev.clientX, ev.clientY);
       if (cell && this.pasting) this.pasteAnchor = cell;
-      if (cell && this.isCc3d()) {
+      if (cell && (this.isCc3d() || this.sideToolActive())) {
         const side = this.pointerSide(ev.clientX, ev.clientY, cell);
         if (side !== this.hoverSide) {
           this.hoverSide = side;
           // The thin wall mode shows which side a click would toggle.
-          if (this.cc3dEntry()?.action === 'panel') this.requestRender();
+          if (this.sideToolActive()) this.requestRender();
         }
       }
       this.setHover(cell);
@@ -2800,6 +2882,7 @@ export class LevelEditor {
       const action = getCanvasKeyAction(ev);
       if (!action) return;
       ev.preventDefault();
+      this.lastInput = 'keyboard';
       if (action.kind === 'move') {
         const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
         this.moveCursorTo(moveCursor(from, action.dx, action.dy, this.mapWidth(), this.mapHeight()), ev.shiftKey);
@@ -3060,7 +3143,7 @@ export class LevelEditor {
 
   /**
    * Applies the active tool to a cell as part of the running stroke. `side` is the side of the cell a
-   * CC3D thin wall acts on; `deferRender` redraws on the next frame (pointer moves) rather than at once.
+   * thin wall acts on; `deferRender` redraws on the next frame (pointer moves) rather than at once.
    */
   private applyAt(x: number, y: number, side: Direction = this.activeDir, deferRender = false): void {
     const stroke = this.stroke;
@@ -3079,6 +3162,7 @@ export class LevelEditor {
       tool: this.tool,
       brush: this.brush,
       dir: this.activeDir,
+      side,
       x,
       y,
       pendingWire: this.pendingWire,
@@ -3244,13 +3328,16 @@ export class LevelEditor {
    * application leaves the browser's own handling alone only then.
    */
   public handleSelectionAction(action: SelectionKeyAction): boolean {
-    if (this.stroke || this.selectionGesture) return false;
+    // A fill is taken even then: Shift+F must not turn into a tool change in the middle of a gesture.
+    if (this.stroke || this.selectionGesture) return action.kind === 'fill';
     if (action.kind === 'paste') return this.beginPaste();
-    // While a paste floats, only the paste itself acts: Delete and Alt+Arrow are ignored.
-    if (this.pasting && (action.kind === 'clear' || action.kind === 'move')) return true;
+    // While a paste floats, only the paste itself acts: Delete, Alt+Arrow and the fill are ignored.
+    if (this.pasting && (action.kind === 'clear' || action.kind === 'move' || action.kind === 'fill')) return true;
     if (!this.selection) {
-      if (this.tool === 'select') this.announce([{ key: 'editor.selection.status.none' }]);
-      return false;
+      if (this.tool !== 'select') return false;
+      this.announce([{ key: 'editor.selection.status.none' }]);
+      // With nothing selected, Shift+F on another tool still picks the fill tool; on Select it only says so.
+      return action.kind === 'fill';
     }
     switch (action.kind) {
       case 'copy':
@@ -3262,11 +3349,133 @@ export class LevelEditor {
       case 'clear':
         this.clearSelectedCells();
         break;
+      case 'fill':
+        this.fillSelection();
+        break;
       case 'move':
         this.moveSelectionBy(action.dx, action.dy);
         break;
     }
     return true;
+  }
+
+  /** True when choosing a palette entry leaves the Select tool and its selection as they are. */
+  private keepsSelectionOnChoice(): boolean {
+    return this.tool === 'select' && this.selection !== null && !this.pasting;
+  }
+
+  /** The name of the Epoxy palette entry a brush stands for. */
+  private brushLabel(brush: Brush): string {
+    switch (brush.kind) {
+      case 'terrain':
+      case 'item': {
+        const tile = ConfigRegistry.getTile(brush.id);
+        return tile ? t(tile.i18nKey) : brush.id;
+      }
+      case 'entity': {
+        const entity = ConfigRegistry.getEntityDef(brush.id);
+        return entity ? t(entity.i18nKey) : brush.id;
+      }
+      default:
+        return brush.id;
+    }
+  }
+
+  /** The status message that explains why an entry cannot fill a selection. */
+  private fillRefusalMessage(refusal: FillRefusal): ToolMessage {
+    switch (refusal.reason) {
+      case 'unavailable':
+        return { key: refusal.reasonKey };
+      case 'cell_edge':
+        return { key: MESSAGE_FILL_REFUSED_CELL_EDGE };
+      case 'unsupported':
+        return { key: MESSAGE_FILL_REFUSED_ENTRY };
+    }
+  }
+
+  /** Says what Shift+F does with the entry just chosen, or why it cannot fill. */
+  private announceFillChoice(refusal: ToolMessage | null, name: string): void {
+    this.announce([refusal ?? { key: 'editor.selection.status.fill_hint', params: { name } }]);
+  }
+
+  /** Fills the selected cells with the chosen palette entry, as one history step. The selection stays. */
+  private fillSelection(): void {
+    const rect = this.selection;
+    if (!rect) return;
+    const cc3d = this.doc.cc3d;
+    if (cc3d) {
+      this.fillCc3dSelection(cc3d, rect);
+      return;
+    }
+    const brush = this.brush;
+    const result = fillRect(this.doc, rect, brush, this.activeDir, editableRulesetOf(this.doc.ruleset));
+    if (result.refusal) {
+      this.announce([this.fillRefusalMessage(result.refusal)]);
+      return;
+    }
+    const messages: ToolMessage[] = [];
+    if (result.droppedLinks > 0) messages.push({ key: 'editor.selection.status.links_dropped', params: { count: result.droppedLinks } });
+    if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
+    if (result.playerStartKept) messages.push({ key: 'editor.selection.status.fill_start_kept' });
+    if (!this.commitSelectionEdit(result)) {
+      this.announce([{ key: 'editor.selection.status.unchanged' }, ...messages]);
+      return;
+    }
+    this.announce([
+      { key: 'editor.selection.status.filled', params: { width: rect.width, height: rect.height, name: this.brushLabel(brush) } },
+      ...messages
+    ]);
+  }
+
+  private fillCc3dSelection(cc3d: Cc3dLevel, rect: CellRect): void {
+    const entry = this.cc3dEntry();
+    if (!entry || !this.cc3dEntryFillable(entry)) {
+      this.announce([{ key: MESSAGE_FILL_REFUSED_ENTRY }]);
+      return;
+    }
+    const attrs = this.cc3dAttrs;
+    const dir = this.activeDir;
+    let content: Cc3dFillContent;
+    if (entry.action === 'layer') content = { action: 'layer', layer: layerOf(entry, attrs, dir) };
+    else if (entry.action === 'item') content = { action: 'item', item: itemOf(entry, attrs) };
+    else content = { action: 'mob', mob: mobOf(entry, attrs, dir, 0, 0) };
+    const result = fillCc3dRect(cc3d, rect, content);
+    if (result.refused) {
+      this.announce([{ key: MESSAGE_FILL_REFUSED_ATTRIBUTES }]);
+      return;
+    }
+    const links = this.commitCc3dAreaEdit(result.level);
+    if (links === null) {
+      this.announce([{ key: 'editor.selection.status.unchanged' }, ...this.cc3dAreaAftermath(result)]);
+      return;
+    }
+    const name = this.cc3dEntryLabel(entry, entryDisplay(entry, attrs, dir));
+    this.announce([
+      { key: 'editor.selection.status.filled', params: { width: rect.width, height: rect.height, name } },
+      ...this.cc3dAreaAftermath(result),
+      ...links
+    ]);
+  }
+
+  /** The fill button follows the selection: it works only with one, and not while a paste floats. */
+  private updateFillSelectionButton(): void {
+    const button = byId('editor-fill-selection-btn');
+    const disabled = !this.selection || this.pasting;
+    button?.setAttribute('aria-disabled', String(disabled));
+    button?.classList.toggle('is-unavailable', disabled);
+  }
+
+  /** A click on the fill button. Unlike the keys, it answers when there is nothing to fill. */
+  private fillSelectionFromButton(): void {
+    if (this.pasting) {
+      this.announce([{ key: 'editor.selection.status.paste_ready' }]);
+      return;
+    }
+    if (!this.selection) {
+      this.announce([{ key: 'editor.selection.status.none' }]);
+      return;
+    }
+    this.handleSelectionAction({ kind: 'fill' });
   }
 
   private copySelection(cut: boolean): void {
@@ -3735,6 +3944,7 @@ export class LevelEditor {
   }
 
   public render(): void {
+    this.updateFillSelectionButton();
     if (this.frameRequest !== null && typeof cancelAnimationFrame === 'function') {
       cancelAnimationFrame(this.frameRequest);
       this.frameRequest = null;
@@ -3773,6 +3983,7 @@ export class LevelEditor {
     }
 
     this.renderCc3dOverlay(s);
+    this.renderSideHint(s);
     this.renderSelectionOverlay(s);
     if (this.pendingWire) this.outlineCell(this.pendingWire.x, this.pendingWire.y, EDITOR_WIRE_SOURCE_COLOR, s);
     if (this.hoverCell) this.outlineCell(this.hoverCell.x, this.hoverCell.y, EDITOR_HOVER_OUTLINE_COLOR, s);
@@ -3869,10 +4080,17 @@ export class LevelEditor {
       for (const arrow of overlay.arrows) this.drawArrow(colors[arrow.kind], arrow.from, arrow.to, s);
       for (const badge of overlay.badges) this.drawBadge(EDITOR_CC3D_LINK_COLORS.template, badge, s);
     }
-    if (this.cc3dEntry()?.action === 'panel') {
-      if (this.hoverCell) this.drawSideHint(this.hoverCell, this.hoverSide, s);
-      else if (this.cursorCell) this.drawSideHint(this.cursorCell, this.activeDir, s);
-    }
+    this.ctx.restore();
+  }
+
+  /** While a thin wall tool is active, the bar on the side a click would toggle: the hovered cell's, or the keyboard cursor's after a keyboard input. */
+  private renderSideHint(s: number): void {
+    if (!this.sideToolActive()) return;
+    this.ctx.save();
+    this.ctx.globalAlpha = EDITOR_CC3D_OVERLAY_ALPHA;
+    const byKeyboard = this.lastInput === 'keyboard' && this.cursorCell !== null;
+    if (this.hoverCell && !byKeyboard) this.drawSideHint(this.hoverCell, this.hoverSide, s);
+    else if (this.cursorCell) this.drawSideHint(this.cursorCell, this.activeDir, s);
     this.ctx.restore();
   }
 

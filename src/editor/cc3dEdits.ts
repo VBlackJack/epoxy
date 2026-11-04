@@ -173,20 +173,19 @@ export function eraseCell(level: Cc3dLevel, x: number, y: number): Cc3dLevel {
   return stripped;
 }
 
+/** The item reduced to the attributes its kind uses, or null when the kind is unknown or a key lacks a valid colour. */
+export function normalizeItem(item: Cc3dItem): Cc3dItem | null {
+  if (!(CC3D_ITEM_KINDS as readonly string[]).includes(item.kind)) return null;
+  if (item.kind === 'key') return isColor(item.color) ? { kind: 'key', color: item.color } : null;
+  return { kind: item.kind };
+}
+
 /** Puts an item on a cell, or removes it with null. A key without a valid colour is refused. */
 export function setItem(level: Cc3dLevel, x: number, y: number, item: Cc3dItem | null): Cc3dLevel {
   const cell = cellAt(level, x, y);
   if (!cell) return level;
-  let next: Cc3dItem | null = null;
-  if (item !== null) {
-    if (!(CC3D_ITEM_KINDS as readonly string[]).includes(item.kind)) return level;
-    if (item.kind === 'key') {
-      if (!isColor(item.color)) return level;
-      next = { kind: 'key', color: item.color };
-    } else {
-      next = { kind: item.kind };
-    }
-  }
+  const next = item === null ? null : normalizeItem(item);
+  if (item !== null && next === null) return level;
   return withCell(level, x, y, { ...cell, item: next });
 }
 

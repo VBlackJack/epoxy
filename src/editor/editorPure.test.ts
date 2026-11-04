@@ -206,6 +206,24 @@ describe('getSelectionKeyAction', () => {
     expect(getSelectionKeyAction(chord('Delete', { ctrlKey: true }))).toBeNull();
   });
 
+  it('maps Shift+F to the selection fill, checking the Shift key and not the case of the letter', () => {
+    expect(getSelectionKeyAction(chord('F', { shiftKey: true }))).toEqual({ kind: 'fill' });
+    expect(getSelectionKeyAction(chord('f', { shiftKey: true }))).toEqual({ kind: 'fill' });
+    // Caps Lock gives a capital F with no Shift: that is still the fill tool.
+    expect(getSelectionKeyAction(chord('F'))).toBeNull();
+    expect(getEditorKeyAction(chord('F'))).toEqual({ kind: 'tool', tool: 'fill' });
+    expect(getSelectionKeyAction(chord('f'))).toBeNull();
+    expect(getEditorKeyAction(chord('f'))).toEqual({ kind: 'tool', tool: 'fill' });
+  });
+
+  it('leaves the command chords of F alone and falls back to the key code on other layouts', () => {
+    expect(getSelectionKeyAction(chord('F', { shiftKey: true, ctrlKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('F', { shiftKey: true, metaKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('F', { shiftKey: true, altKey: true }))).toBeNull();
+    expect(getEditorKeyAction(chord('F', { shiftKey: true, ctrlKey: true }))).toBeNull();
+    expect(getSelectionKeyAction(chord('А', { shiftKey: true, code: 'KeyF' }))).toEqual({ kind: 'fill' });
+  });
+
   it('maps Alt with an arrow to a move, and leaves Shift and plain arrows to the cursor', () => {
     expect(getSelectionKeyAction(chord('ArrowLeft', { altKey: true }))).toEqual({ kind: 'move', dx: -1, dy: 0 });
     expect(getSelectionKeyAction(chord('ArrowDown', { altKey: true }))).toEqual({ kind: 'move', dx: 0, dy: 1 });

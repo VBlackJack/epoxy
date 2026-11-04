@@ -476,9 +476,10 @@
       "kb_editor_zoom": { "label": "+ / - / 0: Zoom in, zoom out, fit the level to the window" },
       "kb_editor_cancel": { "label": "Escape: Cancel a wire that waits for its target or a pending paste, or drop the selection" },
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
-      "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
+      "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Shift+F fills the selection with the chosen palette entry; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
       "kb_editor_cc3d_eraser": { "label": "CC3D levels: the eraser removes the topmost thing of a cell (creature, then item, then top layer); Shift+eraser clears the whole cell" },
+      "kb_editor_cell_edge": { "label": "Thin walls: with the thin wall entry of the Terrain tab selected, click near a side of a cell to toggle it (keyboard: the side of the direction control); a wall shared with the next cell is removed from both" },
       "kb_editor_cc3d_panel": { "label": "CC3D thin walls: with the thin wall entry selected, click near a side of a cell to toggle it (keyboard: the side of the direction control)" },
       "kb_editor_cc3d_links": { "label": "CC3D links: hover a device or put the cursor on it to see what it works; the status line says when an edit changes a link" },
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
@@ -562,11 +563,13 @@
   },
   "editor": {
     "cell_speech": {
+      "list_separator": { "label": ", " },
       "name": { "label": "{name}" },
       "outside": { "label": "Outside the grid" },
       "item": { "label": "item: {name}" },
       "entity": { "label": "{name}, facing {side}" },
       "player": { "label": "Player start, facing {side}" },
+      "edges": { "label": "thin walls: {sides}" },
       "side": {
         "n": { "label": "north" },
         "e": { "label": "east" },
@@ -614,7 +617,11 @@
     "selection": {
       "tool": {
         "label": "Select",
-        "title": "Select (S): drag to select a rectangle. Ctrl (Cmd) + C copy, X cut, V paste; Delete clear; Alt+arrows move."
+        "title": "Select (S): drag to select a rectangle. Ctrl (Cmd) + C copy, X cut, V paste; Delete clear; Shift+F fill; Alt+arrows move."
+      },
+      "fill": {
+        "label": "Fill selection",
+        "title": "Fill the selection with the chosen palette entry (Shift+F). Select a rectangle first."
       },
       "status": {
         "size": "Selection: {width} x {height} cells.",
@@ -635,7 +642,13 @@
         "border_skipped": "{count, plural, one {# cell on the outer wall ring was left alone} other {# cells on the outer wall ring were left alone}}.",
         "paste_skipped": "{count, plural, one {# entry was skipped: Lynx rules cannot play it} other {# entries were skipped: Lynx rules cannot play them}}.",
         "paste_refused_epoxy": "This selection comes from an Epoxy or Lynx level: it cannot be pasted into a CC3D level.",
-        "paste_refused_cc3d": "This selection comes from a CC3D level: it cannot be pasted into an Epoxy or Lynx level."
+        "paste_refused_cc3d": "This selection comes from a CC3D level: it cannot be pasted into an Epoxy or Lynx level.",
+        "fill_hint": "Shift+F fills the selection with {name}.",
+        "filled": "Filled {width} x {height} cells with {name}.",
+        "fill_start_kept": "The player start cell was left alone.",
+        "fill_refused_cell_edge": "Thin walls cannot fill a selection: draw them with the brush.",
+        "fill_refused_entry": "This entry cannot fill a selection.",
+        "fill_refused_attributes": "This entry needs a valid colour or setting: choose it in the palette options."
       }
     },
     "check": {
@@ -892,6 +905,7 @@
       },
       "tools": {
         "player_start": { "label": "Player Start" },
+        "cell_edge": { "label": "Thin Wall" },
         "wire_trap": { "label": "Wire Brown Button → Trap" },
         "wire_cloner": { "label": "Wire Red Button → Cloner" }
       },
@@ -908,6 +922,7 @@
         "saved_session_only": { "label": "Level kept for this session only: the browser could not save it." },
         "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
         "wire_select_source": { "label": "Click the trigger button on the map..." },
+        "cell_edge_mode": { "label": "Thin wall: click near a side of a cell to add or remove it (keyboard: the side of the direction control)." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
         "wire_linked": { "label": "Mechanism link established!" }
       }

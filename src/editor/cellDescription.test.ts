@@ -96,3 +96,40 @@ describe('describeEditorCell', () => {
     expect(spoken(describeEditorCell({ map: emptyMap(), x: 0, y: 0 }))).toContain('Départ du joueur, tourné vers le nord');
   });
 });
+
+describe('thin walls in the description', () => {
+  it('lists the closed sides in N, E, S, W order after the tile', () => {
+    const map = emptyMap();
+    map.cellEdges = [{ x: 2, y: 1, sides: ['W', 'N'] }];
+    const text = spoken(describeEditorCell({ map, x: 2, y: 1 }));
+    expect(text).toBe(`Tile (2, 1) ${nameOf('floor')} thin walls: north, west`);
+  });
+
+  it('says nothing when the cell has none', () => {
+    const map = emptyMap();
+    map.cellEdges = [{ x: 0, y: 0, sides: ['N'] }];
+    expect(spoken(describeEditorCell({ map, x: 2, y: 1 }))).not.toContain('thin walls');
+  });
+
+  it('includes the matching wall of the neighbour, as the drawing shows it', () => {
+    const map = emptyMap();
+    map.cellEdges = [
+      { x: 1, y: 1, sides: ['E'] },
+      { x: 2, y: 0, sides: ['S'] }
+    ];
+    expect(spoken(describeEditorCell({ map, x: 2, y: 1 }))).toContain('thin walls: north, west');
+  });
+
+  it('is left out of a CC3D stack', () => {
+    const map = emptyMap();
+    map.cellEdges = [{ x: 1, y: 1, sides: ['N'] }];
+    expect(spoken(describeEditorCell({ map, x: 1, y: 1, cc3dNames: ['Floor'] }))).not.toContain('thin walls');
+  });
+
+  it('speaks French', () => {
+    i18n.setLocale('fr');
+    const map = emptyMap();
+    map.cellEdges = [{ x: 1, y: 1, sides: ['N'] }];
+    expect(spoken(describeEditorCell({ map, x: 1, y: 1 }))).toContain('cloisons fines : le nord');
+  });
+});

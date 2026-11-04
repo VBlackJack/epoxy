@@ -19,6 +19,7 @@ import { EditorMap } from './editorDocument';
 import {
   applyTool,
   Brush,
+  CELL_EDGE_BRUSH_ID,
   continuesOnDrag,
   leavesLooseButton,
   MESSAGE_FILL_NEEDS_TERRAIN,
@@ -184,5 +185,40 @@ describe('pickFromCell', () => {
     map.entities = [{ x: 1, y: 1, type: 'bug', dir: 'W' }];
     expect(pickFromCell(map, 1, 1, 'floor')).toEqual({ brush: { kind: 'entity', id: 'bug' }, dir: 'W' });
     expect(pickFromCell(map, 2, 2, 'floor').brush).toEqual({ kind: 'terrain', id: 'floor' });
+  });
+});
+
+describe('thin wall brush', () => {
+  const EDGE: Brush = { kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID };
+
+  it('toggles the given side, falling back to the facing', () => {
+    const map = blank(5, 5);
+    const withSide = applyTool(input({ map, brush: EDGE, side: 'E', dir: 'S' }));
+    expect(withSide.changed).toBe(true);
+    expect(withSide.map.cellEdges).toEqual([{ x: 2, y: 2, sides: ['E'] }]);
+    const byFacing = applyTool(input({ map, brush: EDGE, dir: 'W' }));
+    expect(byFacing.map.cellEdges).toEqual([{ x: 2, y: 2, sides: ['W'] }]);
+    const again = applyTool(input({ map: withSide.map, brush: EDGE, side: 'E' }));
+    expect(again.map.cellEdges).toBeUndefined();
+  });
+
+  it('acts once per click and refuses to fill', () => {
+    expect(continuesOnDrag('brush', EDGE, false)).toBe(false);
+    expect(continuesOnDrag('brush', { kind: 'terrain', id: 'wall' }, false)).toBe(true);
+    const map = blank(5, 5);
+    const outcome = applyTool(input({ map, tool: 'fill', brush: EDGE }));
+    expect(outcome.changed).toBe(false);
+    expect(outcome.messages).toEqual([{ key: MESSAGE_FILL_NEEDS_TERRAIN }]);
+  });
+
+  it('is not painted by the picker, and the eraser clears the walls of its own cell only', () => {
+    const map = blank(5, 5);
+    map.cellEdges = [
+      { x: 2, y: 2, sides: ['N'] },
+      { x: 3, y: 2, sides: ['W'] }
+    ];
+    expect(applyTool(input({ map, tool: 'picker', brush: EDGE })).changed).toBe(false);
+    const erased = applyTool(input({ map, tool: 'eraser', brush: EDGE }));
+    expect(erased.map.cellEdges).toEqual([{ x: 3, y: 2, sides: ['W'] }]);
   });
 });

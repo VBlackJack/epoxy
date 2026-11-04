@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { emptyCc3dRoom } from './cc3dRoom';
 import { EditorMap } from './editorDocument';
 import {
   eraseCell,
@@ -25,7 +26,8 @@ import {
   paintTerrain,
   placeWireButton,
   placeWireLink,
-  resizeMap
+  resizeMap,
+  toggleCellEdge
 } from './mapEdits';
 
 const BOUNDS = { minSize: 5, maxSize: 12 };
@@ -337,6 +339,87 @@ describe('resizeMap', () => {
     const map = withLinks();
     const snapshot = JSON.stringify(map);
     resizeMap(map, 5, 5, BOUNDS);
+    expect(JSON.stringify(map)).toBe(snapshot);
+  });
+});
+
+describe('toggleCellEdge', () => {
+  const edgesOf = (map: EditorMap): unknown => map.cellEdges;
+
+  it('adds a side to the cell, then removes it, leaving the field absent', () => {
+    const map = bordered(8, 8);
+    const added = toggleCellEdge(map, 3, 3, 'E');
+    expect(added.changed).toBe(true);
+    expect(edgesOf(added.map)).toEqual([{ x: 3, y: 3, sides: ['E'] }]);
+    const removed = toggleCellEdge(added.map, 3, 3, 'E');
+    expect(removed.changed).toBe(true);
+    expect(removed.map.cellEdges).toBeUndefined();
+  });
+
+  it('keeps the walls in canonical order, merged per cell', () => {
+    let map = bordered(8, 8);
+    map = toggleCellEdge(map, 4, 4, 'W').map;
+    map = toggleCellEdge(map, 2, 2, 'S').map;
+    map = toggleCellEdge(map, 4, 4, 'N').map;
+    expect(edgesOf(map)).toEqual([
+      { x: 2, y: 2, sides: ['S'] },
+      { x: 4, y: 4, sides: ['N', 'W'] }
+    ]);
+  });
+
+  it('treats the line between two cells as one wall: closed by the neighbour, it is removed from both', () => {
+    const map = bordered(8, 8);
+    map.cellEdges = [
+      { x: 3, y: 3, sides: ['E'] },
+      { x: 4, y: 3, sides: ['W', 'S'] }
+    ];
+    const result = toggleCellEdge(map, 4, 3, 'W');
+    expect(edgesOf(result.map)).toEqual([{ x: 4, y: 3, sides: ['S'] }]);
+    // A wall stored on the neighbour alone also counts as closed from the other cell.
+    const only = bordered(8, 8);
+    only.cellEdges = [{ x: 3, y: 3, sides: ['E'] }];
+    expect(toggleCellEdge(only, 4, 3, 'W').map.cellEdges).toBeUndefined();
+  });
+
+  it('adds an open line to the own cell only', () => {
+    const result = toggleCellEdge(bordered(8, 8), 3, 3, 'S');
+    expect(edgesOf(result.map)).toEqual([{ x: 3, y: 3, sides: ['S'] }]);
+  });
+
+  it('lets a border side belong to its own cell', () => {
+    const map = toggleCellEdge(bordered(8, 8), 0, 0, 'N').map;
+    expect(edgesOf(map)).toEqual([{ x: 0, y: 0, sides: ['N'] }]);
+    expect(toggleCellEdge(map, 0, 0, 'N').map.cellEdges).toBeUndefined();
+  });
+
+  it('leaves thin_wall terrain untouched', () => {
+    const map = bordered(8, 8);
+    map.terrain[3][3] = 'thin_wall_n';
+    const result = toggleCellEdge(map, 3, 3, 'N');
+    expect(result.map.terrain[3][3]).toBe('thin_wall_n');
+    expect(edgesOf(result.map)).toEqual([{ x: 3, y: 3, sides: ['N'] }]);
+  });
+
+  it('changes nothing outside the grid or on a CC3D map', () => {
+    const map = bordered(8, 8);
+    for (const [x, y] of [[-1, 0], [0, -1], [8, 0], [0, 8], [1.5, 1]]) {
+      const result = toggleCellEdge(map, x, y, 'N');
+      expect(result.changed).toBe(false);
+      expect(result.map).toBe(map);
+    }
+    const cc3d = { ...map, cc3d: emptyCc3dRoom(5, 5) };
+    const result = toggleCellEdge(cc3d, 2, 2, 'N');
+    expect(result.changed).toBe(false);
+    expect(result.map).toBe(cc3d);
+  });
+
+  it('does not modify its input', () => {
+    const map = bordered(8, 8);
+    map.cellEdges = [{ x: 3, y: 3, sides: ['E'] }];
+    const snapshot = JSON.stringify(map);
+    toggleCellEdge(map, 3, 3, 'E');
+    toggleCellEdge(map, 4, 3, 'W');
+    toggleCellEdge(map, 2, 2, 'N');
     expect(JSON.stringify(map)).toBe(snapshot);
   });
 });
