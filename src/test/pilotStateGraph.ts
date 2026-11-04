@@ -34,6 +34,8 @@ export interface StateGraphOptions {
   onState?: (engine: GameEngine) => void;
   /** Called once per dead state (see `StateGraph.dead`), with the engine standing in that state. */
   onDead?: (engine: GameEngine) => void;
+  /** Record the breadth-first depth of every state and report `StateGraph.shortestWin`; off by default. */
+  trackDepth?: boolean;
 }
 
 export interface StateGraph {
@@ -45,6 +47,11 @@ export interface StateGraph {
   canWin: number;
   /** Expanded states from which no sequence of actions wins: a softlock, for example a closed ice room. */
   dead: number;
+  /**
+   * With `trackDepth`: the fewest actions of a win, taken from the same breadth-first discovery order, or null when
+   * no expanded state wins. Absent otherwise.
+   */
+  shortestWin?: number | null;
 }
 
 /**
@@ -63,6 +70,8 @@ export function exploreStateGraph(engine: GameEngine, options: StateGraphOptions
   const predecessors: number[][] = [];
   const winning: boolean[] = [];
   const expandable: boolean[] = [];
+  const depth: number[] = [0];
+  let shortestWin: number | null = null;
 
   const discover = (): number => {
     const key = searchStateKey(engine);
@@ -89,10 +98,14 @@ export function exploreStateGraph(engine: GameEngine, options: StateGraphOptions
       engine.restoreState(from);
       if (!applySearchAction(engine, action)) continue;
       if (engine.isLevelCompleted()) {
-        if (engine.getChipsRemaining() === 0) winning[head] = true;
+        if (engine.getChipsRemaining() === 0) {
+          winning[head] = true;
+          if (shortestWin === null || depth[head] + 1 < shortestWin) shortestWin = depth[head] + 1;
+        }
         continue;
       }
       const to = discover();
+      if (depth[to] === undefined) depth[to] = depth[head] + 1;
       predecessors[to].push(head);
     }
   }
@@ -122,5 +135,7 @@ export function exploreStateGraph(engine: GameEngine, options: StateGraphOptions
       options.onDead?.(engine);
     });
   }
-  return { states: snapshots.length, expanded, canWin: winCount, dead };
+  return options.trackDepth
+    ? { states: snapshots.length, expanded, canWin: winCount, dead, shortestWin }
+    : { states: snapshots.length, expanded, canWin: winCount, dead };
 }
