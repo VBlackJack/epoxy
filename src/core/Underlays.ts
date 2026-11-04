@@ -46,7 +46,7 @@ const underlayMemo = new WeakMap<object, UnderlayMemo>();
  * entry that is not a record, lies outside the grid or names no terrain is skipped, and the first entry
  * of a cell wins. The result is memoised on the `underlays` array.
  */
-export function underlayMap(level: CompiledLevel): ReadonlyMap<number, string> | null {
+export function underlayMap(level: Pick<CompiledLevel, 'terrain' | 'underlays'>): ReadonlyMap<number, string> | null {
   const entries: unknown = level.underlays;
   if (!Array.isArray(entries) || entries.length === 0) return null;
   const height = Array.isArray(level.terrain) ? level.terrain.length : 0;

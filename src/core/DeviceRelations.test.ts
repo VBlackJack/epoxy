@@ -22,7 +22,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import laserShowcase from '../test/fixtures/laserShowcase.json';
 import mechanicsShowcase from '../test/fixtures/mechanicsShowcase.json';
-import { DeviceRole, deviceRelations, isDeviceCell } from './DeviceRelations';
+import { DeviceLevel, DeviceRole, deviceFacetAt, deviceIndexBuildCount, deviceRelations, isDeviceCell } from './DeviceRelations';
 import { GameEngine } from './GameEngine';
 import { CompiledLevel, LevelBlueprint } from './types';
 
@@ -110,7 +110,7 @@ describe('deviceRelations', () => {
       expect(isDeviceCell(level, 1, 1), tile).toBe(true);
     }
     expect(isDeviceCell(makeLevel({}), 1, 1)).toBe(false);
-    expect(deviceRelations(makeLevel({}), 1, 1)).toEqual({ role: null, controls: [], controlledBy: [] });
+    expect(deviceRelations(makeLevel({}), 1, 1)).toEqual({ role: null, facet: null, controls: [], controlledBy: [] });
   });
 
   it('names entity roles for tanks and puppets', () => {
@@ -202,6 +202,7 @@ describe('deviceRelations', () => {
     ]);
     expect(deviceRelations(level, 1, 2)).toEqual({
       role: null,
+      facet: null,
       controls: [],
       controlledBy: [{ x: 3, y: 2, kind: 'level', system: 'swap', channel: 'swap_radius' }]
     });
@@ -214,13 +215,13 @@ describe('deviceRelations', () => {
     );
     // The unlinked trap answers to every brown button; the linked trap to its link, plus nothing else.
     expect(deviceRelations(level, 4, 0).controlledBy).toEqual([
-      { x: 0, y: 0, kind: 'level', system: 'trap' },
-      { x: 1, y: 0, kind: 'level', system: 'trap' }
+      { x: 0, y: 0, kind: 'level', system: 'trap', fallback: true },
+      { x: 1, y: 0, kind: 'level', system: 'trap', fallback: true }
     ]);
     expect(deviceRelations(level, 5, 0).controlledBy).toEqual([{ x: 1, y: 0, kind: 'link', system: 'trap' }]);
-    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap' }]);
+    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap', fallback: true }]);
     expect(deviceRelations(level, 1, 0).controls).toEqual([
-      { x: 4, y: 0, kind: 'level', system: 'trap' },
+      { x: 4, y: 0, kind: 'level', system: 'trap', fallback: true },
       { x: 5, y: 0, kind: 'link', system: 'trap' }
     ]);
   });
@@ -233,9 +234,9 @@ describe('deviceRelations', () => {
         entities: [{ x: 4, y: 0, type: 'tank' }]
       }
     );
-    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'clone' }]);
+    expect(deviceRelations(level, 0, 0).controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'clone', fallback: true }]);
     expect(deviceRelations(level, 1, 0).controls).toEqual([{ x: 5, y: 0, kind: 'link', system: 'clone' }]);
-    expect(deviceRelations(level, 4, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'level', system: 'clone' }]);
+    expect(deviceRelations(level, 4, 0).controlledBy).toEqual([{ x: 0, y: 0, kind: 'level', system: 'clone', fallback: true }]);
   });
 
   it('reports a device hidden under a removable top', () => {
@@ -267,13 +268,78 @@ describe('deviceRelations', () => {
     const level = makeLevel({ '0,0': 'button_brown', '4,0': 'trap' });
     const first = deviceRelations(level, 0, 0);
     expect(deviceRelations(level, 0, 0)).toEqual(first);
-    expect(first.controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap' }]);
+    expect(first.controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap', fallback: true }]);
+  });
+
+  it('names the facet that gives the role: top, hidden, entity, or none', () => {
+    const level = makeLevel(
+      { '0,0': 'button_brown', '2,2': 'door_red', '4,4': 'floor' },
+      { underlays: [{ x: 2, y: 2, terrain: 'pressure_plate_red' }], entities: [{ x: 4, y: 4, type: 'tank' }] }
+    );
+    expect(deviceRelations(level, 0, 0).facet).toEqual({ source: 'top', id: 'button_brown' });
+    expect(deviceRelations(level, 2, 2).facet).toEqual({ source: 'hidden', id: 'pressure_plate_red' });
+    expect(deviceRelations(level, 4, 4).facet).toEqual({ source: 'entity', id: 'tank' });
+    expect(deviceRelations(level, 6, 5).facet).toBeNull();
+    for (const [x, y] of [[0, 0], [2, 2], [4, 4], [6, 5], [-1, 0], [99, 0]]) {
+      expect(deviceFacetAt(level, x, y)).toEqual(deviceRelations(level, x, y).facet);
+    }
+    expect(deviceFacetAt(makeLevel({ '0,0': 'button_brown' }, { ruleset: 'lynx' }), 0, 0)).toBeNull();
+  });
+
+  it('flags the fallback edges and only those', () => {
+    const level = makeLevel(
+      { '0,0': 'button_brown', '1,0': 'button_brown', '4,0': 'trap', '5,0': 'trap', '0,2': 'button_red', '1,2': 'button_red', '4,2': 'clone_machine', '5,2': 'clone_machine' },
+      {
+        trapLinks: [{ buttonX: 1, buttonY: 0, trapX: 5, trapY: 0 }],
+        cloneLinks: [{ buttonX: 1, buttonY: 2, clonerX: 5, clonerY: 2, templateType: 'tank', templateDir: 'E' }],
+        entities: [{ x: 4, y: 2, type: 'tank' }]
+      }
+    );
+    const all: Array<{ fallback?: true; kind: string }> = [];
+    for (let y = 0; y < LEVEL_HEIGHT; y++) {
+      for (let x = 0; x < LEVEL_WIDTH; x++) {
+        const r = deviceRelations(level, x, y);
+        all.push(...r.controls, ...r.controlledBy);
+      }
+    }
+    expect(all.filter((r) => r.fallback).length).toBeGreaterThan(0);
+    expect(all.filter((r) => r.fallback).every((r) => r.kind === 'level')).toBe(true);
+    expect(all.filter((r) => r.kind === 'link').some((r) => 'fallback' in r)).toBe(false);
+    expect(deviceRelations(level, 1, 0).controls).toEqual([
+      { x: 4, y: 0, kind: 'level', system: 'trap', fallback: true },
+      { x: 5, y: 0, kind: 'link', system: 'trap' }
+    ]);
+  });
+
+  it('accepts a plain object holding only the DeviceLevel fields and memoises on it', () => {
+    const full = makeLevel({ '0,0': 'button_brown', '4,0': 'trap' });
+    const level: DeviceLevel = {
+      ruleset: full.ruleset,
+      terrain: full.terrain,
+      items: full.items,
+      entities: full.entities,
+      underlays: full.underlays,
+      trapLinks: full.trapLinks,
+      cloneLinks: full.cloneLinks,
+      launcherLinks: full.launcherLinks
+    };
+    const before = deviceIndexBuildCount();
+    const first = deviceRelations(level, 0, 0);
+    expect(first.controls).toEqual([{ x: 4, y: 0, kind: 'level', system: 'trap', fallback: true }]);
+    deviceRelations(level, 4, 0);
+    deviceFacetAt(level, 0, 0);
+    isDeviceCell(level, 4, 0);
+    expect(deviceIndexBuildCount()).toBe(before + 1);
+    expect(deviceRelations(level, 0, 0)).toEqual(first);
+    expect(deviceIndexBuildCount()).toBe(before + 1);
+    deviceRelations({ ...level }, 0, 0);
+    expect(deviceIndexBuildCount()).toBe(before + 2);
   });
 
   it('returns nothing for Lynx and CC3D levels', () => {
     for (const ruleset of ['lynx', 'cc3d'] as const) {
       const level = makeLevel({ '1,1': 'button_brown', '2,1': 'trap' }, { ruleset });
-      expect(deviceRelations(level, 1, 1)).toEqual({ role: null, controls: [], controlledBy: [] });
+      expect(deviceRelations(level, 1, 1)).toEqual({ role: null, facet: null, controls: [], controlledBy: [] });
       expect(isDeviceCell(level, 1, 1)).toBe(false);
     }
   });
