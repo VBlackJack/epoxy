@@ -499,5 +499,27 @@ describe('LevelValidator', () => {
       level.terrain[1][OTHER_X] = 'button_red';
       expect(infoKeys(level)).toEqual([]);
     });
+    it('counts a trap hidden under a removable top as a trap', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'button_brown';
+      level.terrain[1][OTHER_X] = 'door_red';
+      level.underlays = [{ x: OTHER_X, y: 1, terrain: 'trap' }];
+      expect(infoKeys(level)).not.toContain(TRAP_KEY);
+    });
+
+    it('flags a red button hidden under a removable top with nothing to fire', () => {
+      const level = base();
+      level.terrain[1][BUTTON_X] = 'door_red';
+      level.underlays = [{ x: BUTTON_X, y: 1, terrain: 'button_red' }];
+      expect(infoKeys(level)).toContain(CLONE_KEY);
+    });
+
+    it('does not apply to CC3D levels', () => {
+      const level = base();
+      level.ruleset = 'cc3d';
+      level.terrain[1][BUTTON_X] = 'button_brown';
+      level.terrain[1][OTHER_X] = 'button_red';
+      expect(infoKeys(level)).toEqual([]);
+    });
   });
 });
