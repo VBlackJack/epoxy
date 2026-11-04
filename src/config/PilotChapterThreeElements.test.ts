@@ -50,8 +50,6 @@ const ENTITY_TYPES: Record<string, string[]> = {
 const DEATH_WATER = 'hud.messages.death_water';
 const DEATH_FIRE = 'hud.messages.death_fire';
 const DEATH_MONSTER = 'hud.messages.death_monster';
-const CHIPS_PROVEN_WARNING = 'warning:validator.issues.unreachable_chips_proven.label';
-const EXIT_PROVEN_WARNING = 'warning:validator.issues.unreachable_exit_proven.label';
 
 function levelById(id: string): CompiledLevel {
   const level = ConfigRegistry.getPilotLevels().find((l) => l.id === id);
@@ -110,8 +108,8 @@ function deathsOf(level: CompiledLevel): string[] {
     .sort();
 }
 
-function validatorIssues(level: CompiledLevel): string[] {
-  return LevelValidator.validate(level, storedSolutionWins).issues.map((i) => `${i.severity}:${i.i18nKey}`);
+function validatorIssues(level: CompiledLevel, withSolution = true): string[] {
+  return LevelValidator.validate(level, withSolution ? storedSolutionWins : undefined).issues.map((i) => `${i.severity}:${i.i18nKey}`);
 }
 
 /** Plays the stored solution move by move, reporting the engine after each move (1-based). */
@@ -274,8 +272,9 @@ describe('pilot chapter 3 delivery', () => {
     expect([...deadCells].sort()).toEqual(DEAD_BLOCK_CELLS);
   });
 
-  it('known validator limit: water reached only at the end of an ice slide is never filled by a block (simulateSlide treats it as fatal)', () => {
-    expect(validatorIssues(levelById(DELIVERY_LEVEL))).toEqual([CHIPS_PROVEN_WARNING, EXIT_PROVEN_WARNING]);
+  it('the validator reports no issue on level 36, with and without the stored solution', () => {
+    expect(validatorIssues(levelById(DELIVERY_LEVEL))).toEqual([]);
+    expect(validatorIssues(levelById(DELIVERY_LEVEL), false)).toEqual([]);
   });
 });
 
@@ -527,7 +526,8 @@ describe('pilot chapter 3 thaw', () => {
     expect(kinds).toEqual({ 'dirt on the fire': 316, 'ice against the west wall': 97 });
   });
 
-  it('known validator limit: the reachability walk does not model a block melting fire (meltsInFireTo is ignored)', () => {
-    expect(validatorIssues(levelById(THAW_LEVEL))).toEqual([CHIPS_PROVEN_WARNING, EXIT_PROVEN_WARNING]);
+  it('the validator reports no issue on level 38, with and without the stored solution', () => {
+    expect(validatorIssues(levelById(THAW_LEVEL))).toEqual([]);
+    expect(validatorIssues(levelById(THAW_LEVEL), false)).toEqual([]);
   });
 });
