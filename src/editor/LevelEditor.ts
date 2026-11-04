@@ -187,7 +187,8 @@ import {
   entityAvailability,
   majorityRuleset,
   tileAvailability,
-  winRuleAvailability
+  winRuleAvailability,
+  hiddenFromEpoxyPalette
 } from './paletteAvailability';
 import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, wireToolMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
@@ -1330,7 +1331,7 @@ export class LevelEditor {
     };
 
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
-      (tile) => tile.category === this.activeCategory
+      (tile) => tile.category === this.activeCategory && !hiddenFromEpoxyPalette(tile)
     );
     for (const tile of tiles) {
       const kind = tile.layer === 'item' ? 'item' : 'terrain';
