@@ -73,6 +73,12 @@ const RANK_STEP_BUDGET = 3_000_000;
 /** A block use the stock must cover, as tracked by the reach walk. */
 type BlockUse = 'water' | 'fire' | 'melt' | 'other';
 
+/** What one reach walk found: the chips it collected and whether it stood on an exit. */
+interface ReachOutcome {
+  collectedChips: number;
+  reachableExit: boolean;
+}
+
 /** A closed scarce-key door the player has already reached, with how it was reached. */
 interface DeferredDoor {
   x: number;
@@ -335,476 +341,486 @@ export class LevelValidator {
     }
 
     const holdDoorOpenable = this.openableHoldDoorColors(level);
-    const simTerrain = level.terrain.map((row) => [...row]);
-    const simItems = level.items.map((row) => [...row]);
-    const ownedKeys: Record<string, number> = {};
     const bootBits = this.buildBootBits();
     const maskCount = 1 << bootBits.size;
     const hasBoot: BootCheck = (boots, bootId) => {
       const bit = bootId ? bootBits.get(bootId) : undefined;
       return bit !== undefined && (boots & bit) !== 0;
     };
-    let collectedChips = 0;
-    let reachableExit = false;
 
     const blockTypes = new Set(
       Object.values(ConfigRegistry.getMonsters().entities)
         .filter((def) => def.kind === 'block')
         .map((def) => def.id)
     );
-    // Reachable blocks are counted per type, globally and not by position. What a block can do to a hazard
-    // depends on its type: a dirt block fills water, an ice block melts fire but vanishes in water, a mirror
-    // refuses water. Hazards are demands on that stock, accepted only while a consistent assignment exists.
-    const blockStock = new Map<string, number>();
-    const stockBlocks = (type: string, count: number): void => {
-      blockStock.set(type, (blockStock.get(type) ?? 0) + count);
-    };
-    const demand = { water: 0, fire: 0, melt: 0, other: 0 };
-    type Demand = typeof demand;
-    /**
-     * Whether the stock covers a set of demands. Water needs a block that fills it; fire needs an ice block
-     * (which melts) and a separate filler (for the water left); a melt needs only the ice block, because the
-     * player swims the water left; slime and bombs take any block. With fillers F, ice blocks M and all blocks T:
-     * water + fire <= F, fire + melt <= M and water + 2 * fire + melt + other <= T.
-     */
-    const covers = (next: Demand): boolean => {
-      let fillers = 0;
-      let melters = 0;
-      let total = 0;
-      for (const [type, count] of blockStock) {
-        if (count <= 0) continue;
-        const def = ConfigRegistry.getEntityDef(type);
-        total += count;
-        if (!def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water') fillers += count;
-        if (def?.meltsInFireTo && def.destroyedByFire) melters += count;
-      }
-      return !(
-        next.water + next.fire > fillers ||
-        next.fire + next.melt > melters ||
-        next.water + 2 * next.fire + next.melt + next.other > total
-      );
-    };
-    const affords = (use: BlockUse): boolean => covers({ ...demand, [use]: demand[use] + 1 });
-    /** Takes the blocks one hazard needs, if the stock still covers every demand taken so far. */
-    const trySpend = (use: BlockUse): boolean => {
-      if (!covers({ ...demand, [use]: demand[use] + 1 })) return false;
-      demand[use]++;
-      return true;
-    };
-    // Fires an ice block melted into water. The terrain grid is shared by every boot state and stays fire
-    // there: writing water would make the cell harder for a state holding fire boots.
-    const meltedFires = new Set<string>();
     const swimProtection = ConfigRegistry.getTile('water').protectedByItem;
-    /**
-     * Deals with an unprotected fire reached by a state: 'pass' when it can cross the cell now (swimming the
-     * melt), 'floor' when the cell just became ground (replayed on the next pass), 'blocked' otherwise.
-     */
-    const settleFire = (fx: number, fy: number, boots: number): 'pass' | 'floor' | 'blocked' => {
-      const key = `${fx},${fy}`;
-      const swims = hasBoot(boots, swimProtection);
-      if (meltedFires.has(key)) {
-        if (swims) return 'pass';
-        // A bootless state needs the water filled: upgrade the melt to a full fire demand (filler included).
-        if (!covers({ ...demand, melt: demand.melt - 1, fire: demand.fire + 1 })) return 'blocked';
-        demand.melt--;
-        demand.fire++;
-        meltedFires.delete(key);
-        simTerrain[fy][fx] = FLOOR_TILE_ID;
-        changed = true;
-        return 'floor';
-      }
-      if (swims) {
-        if (!trySpend('melt')) return 'blocked';
-        meltedFires.add(key);
-        changed = true;
-        return 'pass';
-      }
-      if (!trySpend('fire')) return 'blocked';
-      simTerrain[fy][fx] = FLOOR_TILE_ID;
-      changed = true;
-      return 'floor';
-    };
-    const uncollectedBlocks = new Map<string, string>(
-      level.entities.filter((e) => blockTypes.has(e.type)).map((e) => [`${e.x},${e.y}`, e.type])
-    );
-    // A cloner only supplies blocks once the player can reach its button
-    const grantedCloneLinks = new Set<number>();
 
     const teleporters: GridPoint[] = [];
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
-        if (ConfigRegistry.getTile(simTerrain[ty][tx]).isTeleporter) teleporters.push({ x: tx, y: ty });
+        if (ConfigRegistry.getTile(level.terrain[ty][tx]).isTeleporter) teleporters.push({ x: tx, y: ty });
         // A teleporter hidden under a removable top joins its group once the top is gone (checked at use).
         const hiddenId = underlays?.get(ty * width + tx);
         if (hiddenId !== undefined && ConfigRegistry.getTile(hiddenId).isTeleporter) teleporters.push({ x: tx, y: ty });
       }
     }
 
-    const appliedKeyThieves = new Set<string>();
-
-    let changed = true;
-    let passes = 0;
     const rankBudget = { left: RANK_STEP_BUDGET };
 
-    while (changed && passes < MAX_FIXPOINT_PASSES) {
-      changed = false;
-      passes++;
+    /** Walks the level once from the start: what the greedy reach finds, with the doors opened in ranked order. */
+    const walkReach = (): ReachOutcome => {
+      const simTerrain = level.terrain.map((row) => [...row]);
+      const simItems = level.items.map((row) => [...row]);
+      const ownedKeys: Record<string, number> = {};
+      let collectedChips = 0;
+      let reachableExit = false;
 
-      const visited = new Uint8Array(maskCount * width * height);
-      const queue: QueuedCell[] = [];
-      const enqueue = (x: number, y: number, boots: number): void => {
-        const idx = (boots * height + y) * width + x;
-        if (!visited[idx]) {
-          visited[idx] = 1;
-          queue.push({ x, y, boots });
-        }
+      // Reachable blocks are counted per type, globally and not by position. What a block can do to a hazard
+      // depends on its type: a dirt block fills water, an ice block melts fire but vanishes in water, a mirror
+      // refuses water. Hazards are demands on that stock, accepted only while a consistent assignment exists.
+      const blockStock = new Map<string, number>();
+      const stockBlocks = (type: string, count: number): void => {
+        blockStock.set(type, (blockStock.get(type) ?? 0) + count);
       };
-
+      const demand = { water: 0, fire: 0, melt: 0, other: 0 };
+      type Demand = typeof demand;
       /**
-       * Picks up what lies on a cell. Chips, keys and blocks are shared by
-       * every state; a boot only extends the mask of the state standing there,
-       * and stays on the grid for the states that arrive without it.
+       * Whether the stock covers a set of demands. Water needs a block that fills it; fire needs an ice block
+       * (which melts) and a separate filler (for the water left); a melt needs only the ice block, because the
+       * player swims the water left; slime and bombs take any block. With fillers F, ice blocks M and all blocks T:
+       * water + fire <= F, fire + melt <= M and water + 2 * fire + melt + other <= T.
        */
-      const collectAt = (cx: number, cy: number, boots: number): number => {
-        const bKey = `${cx},${cy}`;
-        const blockHere = uncollectedBlocks.get(bKey);
-        if (blockHere !== undefined) {
-          uncollectedBlocks.delete(bKey);
-          stockBlocks(blockHere, 1);
-          changed = true;
+      const covers = (next: Demand): boolean => {
+        let fillers = 0;
+        let melters = 0;
+        let total = 0;
+        for (const [type, count] of blockStock) {
+          if (count <= 0) continue;
+          const def = ConfigRegistry.getEntityDef(type);
+          total += count;
+          if (!def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water') fillers += count;
+          if (def?.meltsInFireTo && def.destroyedByFire) melters += count;
         }
-        const item = simItems[cy][cx];
-        if (!item) return boots;
-        const itemDef = ConfigRegistry.getTile(item);
-        if (itemDef.collectible === 'chip') {
-          collectedChips++;
-          simItems[cy][cx] = null;
-          changed = true;
-        } else if (itemDef.collectible === 'key') {
-          ownedKeys[item] = (ownedKeys[item] || 0) + 1;
-          simItems[cy][cx] = null;
-          changed = true;
-        } else if (itemDef.collectible === 'boot') {
-          return boots | (bootBits.get(item) ?? NO_BOOTS);
-        }
-        return boots;
+        return !(
+          next.water + next.fire > fillers ||
+          next.fire + next.melt > melters ||
+          next.water + 2 * next.fire + next.melt + next.other > total
+        );
       };
-
-      const deferredDoors = new Map<string, DeferredDoor>();
-      const deferDoor = (x: number, y: number, keyId: string, boots: number): void => {
-        const known = deferredDoors.get(`${x},${y}`);
-        if (known) known.boots |= boots;
-        else deferredDoors.set(`${x},${y}`, { x, y, keyId, boots });
+      const affords = (use: BlockUse): boolean => covers({ ...demand, [use]: demand[use] + 1 });
+      /** Takes the blocks one hazard needs, if the stock still covers every demand taken so far. */
+      const trySpend = (use: BlockUse): boolean => {
+        if (!covers({ ...demand, [use]: demand[use] + 1 })) return false;
+        demand[use]++;
+        return true;
       };
-      // Consumed-key doors still closed, per key: while the keys held cover them all, no order can go wrong.
-      const closedDoors: Record<string, number> = {};
-      for (const row of simTerrain) {
-        for (const id of row) {
-          const door = ConfigRegistry.getTile(id);
-          if (door.requiredKey && door.consumesKey) {
-            closedDoors[door.requiredKey] = (closedDoors[door.requiredKey] || 0) + 1;
+      // Fires an ice block melted into water. The terrain grid is shared by every boot state and stays fire
+      // there: writing water would make the cell harder for a state holding fire boots.
+      const meltedFires = new Set<string>();
+      /**
+       * Deals with an unprotected fire reached by a state: 'pass' when it can cross the cell now (swimming the
+       * melt), 'floor' when the cell just became ground (replayed on the next pass), 'blocked' otherwise.
+       */
+      const settleFire = (fx: number, fy: number, boots: number): 'pass' | 'floor' | 'blocked' => {
+        const key = `${fx},${fy}`;
+        const swims = hasBoot(boots, swimProtection);
+        if (meltedFires.has(key)) {
+          if (swims) return 'pass';
+          // A bootless state needs the water filled: upgrade the melt to a full fire demand (filler included).
+          if (!covers({ ...demand, melt: demand.melt - 1, fire: demand.fire + 1 })) return 'blocked';
+          demand.melt--;
+          demand.fire++;
+          meltedFires.delete(key);
+          simTerrain[fy][fx] = FLOOR_TILE_ID;
+          changed = true;
+          return 'floor';
+        }
+        if (swims) {
+          if (!trySpend('melt')) return 'blocked';
+          meltedFires.add(key);
+          changed = true;
+          return 'pass';
+        }
+        if (!trySpend('fire')) return 'blocked';
+        simTerrain[fy][fx] = FLOOR_TILE_ID;
+        changed = true;
+        return 'floor';
+      };
+      const uncollectedBlocks = new Map<string, string>(
+        level.entities.filter((e) => blockTypes.has(e.type)).map((e) => [`${e.x},${e.y}`, e.type])
+      );
+      // A cloner only supplies blocks once the player can reach its button
+      const grantedCloneLinks = new Set<number>();
+
+
+      const appliedKeyThieves = new Set<string>();
+
+      let changed = true;
+      let passes = 0;
+
+      while (changed && passes < MAX_FIXPOINT_PASSES) {
+        changed = false;
+        passes++;
+
+        const visited = new Uint8Array(maskCount * width * height);
+        const queue: QueuedCell[] = [];
+        const enqueue = (x: number, y: number, boots: number): void => {
+          const idx = (boots * height + y) * width + x;
+          if (!visited[idx]) {
+            visited[idx] = 1;
+            queue.push({ x, y, boots });
           }
-        }
-      }
-      enqueue(sx, sy, NO_BOOTS);
+        };
 
-      for (let head = 0; head < queue.length; head++) {
-        const curr = queue[head];
-        const currTile = ConfigRegistry.getTile(simTerrain[curr.y][curr.x]);
-
-        const pickedUp = collectAt(curr.x, curr.y, curr.boots);
-        if (pickedUp !== curr.boots) {
-          // Same cell, now holding the boot: continue from that state instead
-          enqueue(curr.x, curr.y, pickedUp);
-          continue;
-        }
-
-        if (currTile.isLevelExit) {
-          reachableExit = true;
-        }
-
-        // A key thief the player can reach is assumed to be crossed once: the keys held then are gone.
-        // Later passes carry the keys picked up since, which the same thief must not rob again.
-        if (currTile.stealsKeys && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
-          appliedKeyThieves.add(`${curr.x},${curr.y}`);
-          for (const keyId of Object.keys(ownedKeys)) {
-            if (ownedKeys[keyId] > 0) {
-              ownedKeys[keyId] = 0;
-              changed = true;
-            }
-          }
-        }
-
-        // A reachable button lets the player set its tiles to the open state: closed
-        // toggle walls open, lit flame jets go out (off jets stay off, so both are passable).
-        if (currTile.buttonAction === 'toggle_walls') {
-          this.openToggledTiles(simTerrain, (tile) => (tile.passableByPlayer ? undefined : tile.togglesTo), () => {
+        /**
+         * Picks up what lies on a cell. Chips, keys and blocks are shared by
+         * every state; a boot only extends the mask of the state standing there,
+         * and stays on the grid for the states that arrive without it.
+         */
+        const collectAt = (cx: number, cy: number, boots: number): number => {
+          const bKey = `${cx},${cy}`;
+          const blockHere = uncollectedBlocks.get(bKey);
+          if (blockHere !== undefined) {
+            uncollectedBlocks.delete(bKey);
+            stockBlocks(blockHere, 1);
             changed = true;
-          });
-        }
-        // A colour button opens the closed walls of its own channel only; the green button leaves them shut.
-        const buttonChannel = channelOfButtonAction(currTile.buttonAction);
-        if (buttonChannel) {
-          this.openToggledTiles(
-            simTerrain,
-            (tile) => (tile.toggleChannel === buttonChannel && !tile.passableByPlayer ? tile.channelTogglesTo : undefined),
-            () => {
-              changed = true;
-            }
-          );
-        }
-        if (currTile.buttonAction === 'toggle_flames') {
-          this.openToggledTiles(simTerrain, (tile) => (tile.hazard ? tile.flameTogglesTo : undefined), () => {
+          }
+          const item = simItems[cy][cx];
+          if (!item) return boots;
+          const itemDef = ConfigRegistry.getTile(item);
+          if (itemDef.collectible === 'chip') {
+            collectedChips++;
+            simItems[cy][cx] = null;
             changed = true;
-          });
-        }
+          } else if (itemDef.collectible === 'key') {
+            ownedKeys[item] = (ownedKeys[item] || 0) + 1;
+            simItems[cy][cx] = null;
+            changed = true;
+          } else if (itemDef.collectible === 'boot') {
+            return boots | (bootBits.get(item) ?? NO_BOOTS);
+          }
+          return boots;
+        };
 
-        if (currTile.buttonAction === 'trigger_cloner') {
-          level.cloneLinks.forEach((link, linkIdx) => {
-            if (
-              link.buttonX === curr.x &&
-              link.buttonY === curr.y &&
-              blockTypes.has(link.templateType) &&
-              !grantedCloneLinks.has(linkIdx)
-            ) {
-              grantedCloneLinks.add(linkIdx);
-              stockBlocks(link.templateType, CLONER_BLOCK_ALLOWANCE);
-              changed = true;
+        const deferredDoors = new Map<string, DeferredDoor>();
+        const deferDoor = (x: number, y: number, keyId: string, boots: number): void => {
+          const known = deferredDoors.get(`${x},${y}`);
+          if (known) known.boots |= boots;
+          else deferredDoors.set(`${x},${y}`, { x, y, keyId, boots });
+        };
+        // Consumed-key doors still closed, per key: while the keys held cover them all, no order can go wrong.
+        const closedDoors: Record<string, number> = {};
+        for (const row of simTerrain) {
+          for (const id of row) {
+            const door = ConfigRegistry.getTile(id);
+            if (door.requiredKey && door.consumesKey) {
+              closedDoors[door.requiredKey] = (closedDoors[door.requiredKey] || 0) + 1;
             }
-          });
-        }
-
-        if (currTile.isTeleporter) {
-          for (const t of teleporters) {
-            const exitTile = ConfigRegistry.getTile(simTerrain[t.y][t.x]);
-            if (!exitTile.isTeleporter || exitTile.teleportGroup !== currTile.teleportGroup) continue;
-            enqueue(t.x, t.y, curr.boots);
           }
         }
+        enqueue(sx, sy, NO_BOOTS);
 
-        // Standing on an unprotected force floor, the player cannot walk against it
-        const pushedAgainst: Direction | null =
-          currTile.slideType === 'force' &&
-          !hasBoot(curr.boots, currTile.protectedByItem) &&
-          currTile.forceDirection &&
-          currTile.forceDirection !== 'RANDOM'
-            ? OPPOSITE_DIRECTION[currTile.forceDirection]
-            : null;
+        for (let head = 0; head < queue.length; head++) {
+          const curr = queue[head];
+          const currTile = ConfigRegistry.getTile(simTerrain[curr.y][curr.x]);
 
-        for (const dir of ORDERED_DIRECTIONS) {
-          if (dir === pushedAgainst) continue;
-          const vec = DIRECTION_VECTORS[dir];
-          const nx = curr.x + vec.dx;
-          const ny = curr.y + vec.dy;
-          if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+          const pickedUp = collectAt(curr.x, curr.y, curr.boots);
+          if (pickedUp !== curr.boots) {
+            // Same cell, now holding the boot: continue from that state instead
+            enqueue(curr.x, curr.y, pickedUp);
             continue;
           }
 
-          if (this.isEdgeBlocked(simTerrain, edgeMask, curr.x, curr.y, nx, ny, dir)) {
-            continue;
+          if (currTile.isLevelExit) {
+            reachableExit = true;
           }
 
-          let nextTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
-
-          if (nextTile.revealsToOnTouch && nextTile.revealsToOnTouch !== simTerrain[ny][nx]) {
-            simTerrain[ny][nx] = nextTile.revealsToOnTouch;
-            nextTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
-            changed = true;
-          }
-
-          // A top that goes away under the step shows what it hides before the step is judged.
-          if (nextTile.transformsToOnStep) {
-            const hidden = hiddenUnder(level, simTerrain, nx, ny);
-            if (hidden !== undefined) {
-              simTerrain[ny][nx] = hidden;
-              nextTile = ConfigRegistry.getTile(hidden);
-              changed = true;
+          // A key thief the player can reach is assumed to be crossed once: the keys held then are gone.
+          // Later passes carry the keys picked up since, which the same thief must not rob again.
+          if (currTile.stealsKeys && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
+            appliedKeyThieves.add(`${curr.x},${curr.y}`);
+            for (const keyId of Object.keys(ownedKeys)) {
+              if (ownedKeys[keyId] > 0) {
+                ownedKeys[keyId] = 0;
+                changed = true;
+              }
             }
           }
 
-          if (nextTile.requiredKey) {
-            const keyId = nextTile.requiredKey;
-            if ((ownedKeys[keyId] || 0) > 0) {
-              if (nextTile.consumesKey && (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)) {
-                // Keys are scarce: a spent key cannot be taken back, so the door waits until nothing
-                // else progresses, then the most rewarding one opens (see below).
-                deferDoor(nx, ny, keyId, curr.boots);
-              } else {
-                if (nextTile.consumesKey) ownedKeys[keyId]--;
-                closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
+          // A reachable button lets the player set its tiles to the open state: closed
+          // toggle walls open, lit flame jets go out (off jets stay off, so both are passable).
+          if (currTile.buttonAction === 'toggle_walls') {
+            this.openToggledTiles(simTerrain, (tile) => (tile.passableByPlayer ? undefined : tile.togglesTo), () => {
+              changed = true;
+            });
+          }
+          // A colour button opens the closed walls of its own channel only; the green button leaves them shut.
+          const buttonChannel = channelOfButtonAction(currTile.buttonAction);
+          if (buttonChannel) {
+            this.openToggledTiles(
+              simTerrain,
+              (tile) => (tile.toggleChannel === buttonChannel && !tile.passableByPlayer ? tile.channelTogglesTo : undefined),
+              () => {
+                changed = true;
+              }
+            );
+          }
+          if (currTile.buttonAction === 'toggle_flames') {
+            this.openToggledTiles(simTerrain, (tile) => (tile.hazard ? tile.flameTogglesTo : undefined), () => {
+              changed = true;
+            });
+          }
+
+          if (currTile.buttonAction === 'trigger_cloner') {
+            level.cloneLinks.forEach((link, linkIdx) => {
+              if (
+                link.buttonX === curr.x &&
+                link.buttonY === curr.y &&
+                blockTypes.has(link.templateType) &&
+                !grantedCloneLinks.has(linkIdx)
+              ) {
+                grantedCloneLinks.add(linkIdx);
+                stockBlocks(link.templateType, CLONER_BLOCK_ALLOWANCE);
+                changed = true;
+              }
+            });
+          }
+
+          if (currTile.isTeleporter) {
+            for (const t of teleporters) {
+              const exitTile = ConfigRegistry.getTile(simTerrain[t.y][t.x]);
+              if (!exitTile.isTeleporter || exitTile.teleportGroup !== currTile.teleportGroup) continue;
+              enqueue(t.x, t.y, curr.boots);
+            }
+          }
+
+          // Standing on an unprotected force floor, the player cannot walk against it
+          const pushedAgainst: Direction | null =
+            currTile.slideType === 'force' &&
+            !hasBoot(curr.boots, currTile.protectedByItem) &&
+            currTile.forceDirection &&
+            currTile.forceDirection !== 'RANDOM'
+              ? OPPOSITE_DIRECTION[currTile.forceDirection]
+              : null;
+
+          for (const dir of ORDERED_DIRECTIONS) {
+            if (dir === pushedAgainst) continue;
+            const vec = DIRECTION_VECTORS[dir];
+            const nx = curr.x + vec.dx;
+            const ny = curr.y + vec.dy;
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+              continue;
+            }
+
+            if (this.isEdgeBlocked(simTerrain, edgeMask, curr.x, curr.y, nx, ny, dir)) {
+              continue;
+            }
+
+            let nextTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
+
+            if (nextTile.revealsToOnTouch && nextTile.revealsToOnTouch !== simTerrain[ny][nx]) {
+              simTerrain[ny][nx] = nextTile.revealsToOnTouch;
+              nextTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
+              changed = true;
+            }
+
+            // A top that goes away under the step shows what it hides before the step is judged.
+            if (nextTile.transformsToOnStep) {
+              const hidden = hiddenUnder(level, simTerrain, nx, ny);
+              if (hidden !== undefined) {
+                simTerrain[ny][nx] = hidden;
+                nextTile = ConfigRegistry.getTile(hidden);
+                changed = true;
+              }
+            }
+
+            if (nextTile.requiredKey) {
+              const keyId = nextTile.requiredKey;
+              if ((ownedKeys[keyId] || 0) > 0) {
+                if (nextTile.consumesKey && (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)) {
+                  // Keys are scarce: a spent key cannot be taken back, so the door waits until nothing
+                  // else progresses, then the most rewarding one opens (see below).
+                  deferDoor(nx, ny, keyId, curr.boots);
+                } else {
+                  if (nextTile.consumesKey) ownedKeys[keyId]--;
+                  closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
+                  const hidden = hiddenUnder(level, simTerrain, nx, ny);
+                  simTerrain[ny][nx] = openedTerrain(level, simTerrain, nx, ny, nextTile);
+                  changed = true;
+                  if (hidden === undefined || isPlainGround(ConfigRegistry.getTile(hidden))) enqueue(nx, ny, curr.boots);
+                }
+              }
+              continue;
+            }
+
+            if (nextTile.requiresAllChips) {
+              if (collectedChips >= level.chipsRequired) {
                 const hidden = hiddenUnder(level, simTerrain, nx, ny);
                 simTerrain[ny][nx] = openedTerrain(level, simTerrain, nx, ny, nextTile);
                 changed = true;
                 if (hidden === undefined || isPlainGround(ConfigRegistry.getTile(hidden))) enqueue(nx, ny, curr.boots);
               }
-            }
-            continue;
-          }
-
-          if (nextTile.requiresAllChips) {
-            if (collectedChips >= level.chipsRequired) {
-              const hidden = hiddenUnder(level, simTerrain, nx, ny);
-              simTerrain[ny][nx] = openedTerrain(level, simTerrain, nx, ny, nextTile);
-              changed = true;
-              if (hidden === undefined || isPlainGround(ConfigRegistry.getTile(hidden))) enqueue(nx, ny, curr.boots);
-            }
-            continue;
-          }
-
-          const gateCanOpen =
-            emitterCount > 0 && nextTile.laserGateGroup !== undefined && receiverGroups.has(nextTile.laserGateGroup);
-          // A hold door can be passed when blocks can hold down every plate of its colour.
-          const holdDoorCanOpen =
-            nextTile.holdDoorColor !== undefined && holdDoorOpenable.has(nextTile.holdDoorColor);
-          if (!nextTile.passableByPlayer && !gateCanOpen && !holdDoorCanOpen) {
-            continue;
-          }
-
-          // A barrier against a held item is passable here: the item can be put down
-          // before it and fetched later, so reachability stays optimistic about it.
-
-          const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
-          // A fire an ice block melted is water in the engine: only flippers protect there, not fire boots.
-          const meltedHere = nextTile.hazard === 'fire' && meltedFires.has(`${nx},${ny}`);
-          const protectedHere = hasBoot(nextBoots, meltedHere ? swimProtection : nextTile.protectedByItem);
-
-          // A block pushed in turns water or slime into ground the player can cross.
-          // Known limits of this optimistic count: blocks are tallied per type and not by position, and the
-          // demands are not ordered. Water needs a filler (dirt; an ice block vanishes there and leaves the
-          // water, a mirror refuses it), slime swallows any block, and fire costs an ice block plus a filler,
-          // after which the cell is plain ground. A state holding flippers only pays the ice block (melt then
-          // swim); the cell is remembered as melted. Any other state that later needs it, fire boots included
-          // (the cell is water by then), upgrades that melt to a full fire demand.
-          // The melt is committed greedily as soon as a flippers-only state reaches a fire, so where fire boots and
-          // flippers cannot be held together, a fire-boots crossing that skips the melt can be missed: the verdict is
-          // then pessimistic (unreachable). A dirt block on fire neither burns nor puts it out. A slide that ends in
-          // water, slime, fire or a bomb is replayed on the next pass once the blocks are spent.
-          if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
-            if (trySpend(nextTile.hazard === 'water' ? 'water' : 'other')) {
-              simTerrain[ny][nx] = FLOOR_TILE_ID;
-              changed = true;
-            } else {
               continue;
             }
-          }
 
-          // An ice block melts the fire. A state with flippers swims the water left; any other state needs a
-          // second block to fill it, and the cell then becomes ground.
-          if (nextTile.hazard === 'fire' && !protectedHere) {
-            if (settleFire(nx, ny, nextBoots) !== 'pass') continue;
-          }
-
-          const nextItem = simItems[ny][nx];
-          if (nextItem && ConfigRegistry.getTile(nextItem).hazard === 'bomb') {
-            if (trySpend('other')) {
-              simItems[ny][nx] = null;
-              changed = true;
-            } else {
+            const gateCanOpen =
+              emitterCount > 0 && nextTile.laserGateGroup !== undefined && receiverGroups.has(nextTile.laserGateGroup);
+            // A hold door can be passed when blocks can hold down every plate of its colour.
+            const holdDoorCanOpen =
+              nextTile.holdDoorColor !== undefined && holdDoorOpenable.has(nextTile.holdDoorColor);
+            if (!nextTile.passableByPlayer && !gateCanOpen && !holdDoorCanOpen) {
               continue;
             }
-          }
 
-          // Ice and force floors carry the player: follow the slide to where it really ends
-          const landedTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
-          if (landedTile.slideType && !hasBoot(nextBoots, landedTile.protectedByItem)) {
-            const slide = this.simulateSlide(
-              simTerrain,
-              simItems,
-              nx,
-              ny,
-              dir,
-              nextBoots,
-              hasBoot,
-              bootBits,
-              edgeMask,
-              ownedKeys,
-              collectedChips,
-              level.chipsRequired,
-              meltedFires,
-              swimProtection
-            );
-            if (slide.fatal) {
-              // A slide that ends in a hazard a block can deal with is replayed on the next pass.
-              const lethal = slide.lethal;
-              if (lethal) {
-                if (lethal.hazard === 'fire') {
-                  settleFire(lethal.x, lethal.y, slide.boots);
-                } else if (trySpend(lethal.hazard === 'water' ? 'water' : 'other')) {
-                  if (lethal.hazard === 'bomb') simItems[lethal.y][lethal.x] = null;
-                  else simTerrain[lethal.y][lethal.x] = FLOOR_TILE_ID;
-                  changed = true;
-                }
-              }
-              continue;
-            }
-            for (const passed of slide.path) {
-              collectAt(passed.x, passed.y, slide.boots);
-            }
-            if (slide.opened) {
-              // Mirrors the engine: the slide opens the door or socket it reaches and stops there.
-              const { x: ox, y: oy, keyId } = slide.opened;
-              const openedTile = ConfigRegistry.getTile(simTerrain[oy][ox]);
-              // Reachability is not purely growing across passes: once a key is held, a slide that used to
-              // bounce off its door now ends on it.
-              if (
-                keyId !== undefined &&
-                openedTile.consumesKey &&
-                (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)
-              ) {
-                // Same rule as walking onto a scarce-key door: the door waits until nothing else progresses.
-                deferDoor(ox, oy, keyId, slide.boots);
+            // A barrier against a held item is passable here: the item can be put down
+            // before it and fetched later, so reachability stays optimistic about it.
+
+            const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
+            // A fire an ice block melted is water in the engine: only flippers protect there, not fire boots.
+            const meltedHere = nextTile.hazard === 'fire' && meltedFires.has(`${nx},${ny}`);
+            const protectedHere = hasBoot(nextBoots, meltedHere ? swimProtection : nextTile.protectedByItem);
+
+            // A block pushed in turns water or slime into ground the player can cross.
+            // Known limits of this optimistic count: blocks are tallied per type and not by position, and the
+            // demands are not ordered. Water needs a filler (dirt; an ice block vanishes there and leaves the
+            // water, a mirror refuses it), slime swallows any block, and fire costs an ice block plus a filler,
+            // after which the cell is plain ground. A state holding flippers only pays the ice block (melt then
+            // swim); the cell is remembered as melted. Any other state that later needs it, fire boots included
+            // (the cell is water by then), upgrades that melt to a full fire demand.
+            // The melt is committed greedily as soon as a flippers-only state reaches a fire, so where fire boots and
+            // flippers cannot be held together, a fire-boots crossing that skips the melt can be missed: the verdict is
+            // then pessimistic (unreachable). A dirt block on fire neither burns nor puts it out. A slide that ends in
+            // water, slime, fire or a bomb is replayed on the next pass once the blocks are spent.
+            if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
+              if (trySpend(nextTile.hazard === 'water' ? 'water' : 'other')) {
+                simTerrain[ny][nx] = FLOOR_TILE_ID;
+                changed = true;
+              } else {
                 continue;
               }
-              if (keyId !== undefined) {
-                if (openedTile.consumesKey) {
-                  ownedKeys[keyId] = Math.max((ownedKeys[keyId] || 0) - 1, 0);
-                  closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
-                }
-              }
-              const hidden = hiddenUnder(level, simTerrain, ox, oy);
-              simTerrain[oy][ox] = openedTerrain(level, simTerrain, ox, oy, openedTile);
-              changed = true;
-              // As for a door opened on foot: the engine lets the player enter whatever the opening reveals
-              // (ice carries on, water kills), so only plain ground is entered here; the next pass judges the rest.
-              if (hidden !== undefined && !isPlainGround(ConfigRegistry.getTile(hidden))) continue;
             }
-            enqueue(slide.end.x, slide.end.y, slide.boots);
-            continue;
-          }
 
-          enqueue(nx, ny, nextBoots);
+            // An ice block melts the fire. A state with flippers swims the water left; any other state needs a
+            // second block to fill it, and the cell then becomes ground.
+            if (nextTile.hazard === 'fire' && !protectedHere) {
+              if (settleFire(nx, ny, nextBoots) !== 'pass') continue;
+            }
+
+            const nextItem = simItems[ny][nx];
+            if (nextItem && ConfigRegistry.getTile(nextItem).hazard === 'bomb') {
+              if (trySpend('other')) {
+                simItems[ny][nx] = null;
+                changed = true;
+              } else {
+                continue;
+              }
+            }
+
+            // Ice and force floors carry the player: follow the slide to where it really ends
+            const landedTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
+            if (landedTile.slideType && !hasBoot(nextBoots, landedTile.protectedByItem)) {
+              const slide = this.simulateSlide(
+                simTerrain,
+                simItems,
+                nx,
+                ny,
+                dir,
+                nextBoots,
+                hasBoot,
+                bootBits,
+                edgeMask,
+                ownedKeys,
+                collectedChips,
+                level.chipsRequired,
+                meltedFires,
+                swimProtection
+              );
+              if (slide.fatal) {
+                // A slide that ends in a hazard a block can deal with is replayed on the next pass.
+                const lethal = slide.lethal;
+                if (lethal) {
+                  if (lethal.hazard === 'fire') {
+                    settleFire(lethal.x, lethal.y, slide.boots);
+                  } else if (trySpend(lethal.hazard === 'water' ? 'water' : 'other')) {
+                    if (lethal.hazard === 'bomb') simItems[lethal.y][lethal.x] = null;
+                    else simTerrain[lethal.y][lethal.x] = FLOOR_TILE_ID;
+                    changed = true;
+                  }
+                }
+                continue;
+              }
+              for (const passed of slide.path) {
+                collectAt(passed.x, passed.y, slide.boots);
+              }
+              if (slide.opened) {
+                // Mirrors the engine: the slide opens the door or socket it reaches and stops there.
+                const { x: ox, y: oy, keyId } = slide.opened;
+                const openedTile = ConfigRegistry.getTile(simTerrain[oy][ox]);
+                // Reachability is not purely growing across passes: once a key is held, a slide that used to
+                // bounce off its door now ends on it.
+                if (
+                  keyId !== undefined &&
+                  openedTile.consumesKey &&
+                  (ownedKeys[keyId] || 0) < (closedDoors[keyId] || 0)
+                ) {
+                  // Same rule as walking onto a scarce-key door: the door waits until nothing else progresses.
+                  deferDoor(ox, oy, keyId, slide.boots);
+                  continue;
+                }
+                if (keyId !== undefined) {
+                  if (openedTile.consumesKey) {
+                    ownedKeys[keyId] = Math.max((ownedKeys[keyId] || 0) - 1, 0);
+                    closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
+                  }
+                }
+                const hidden = hiddenUnder(level, simTerrain, ox, oy);
+                simTerrain[oy][ox] = openedTerrain(level, simTerrain, ox, oy, openedTile);
+                changed = true;
+                // As for a door opened on foot: the engine lets the player enter whatever the opening reveals
+                // (ice carries on, water kills), so only plain ground is entered here; the next pass judges the rest.
+                if (hidden !== undefined && !isPlainGround(ConfigRegistry.getTile(hidden))) continue;
+              }
+              enqueue(slide.end.x, slide.end.y, slide.boots);
+              continue;
+            }
+
+            enqueue(nx, ny, nextBoots);
+          }
+        }
+
+        if (!changed && deferredDoors.size > 0) {
+          const reached = new Uint8Array(width * height);
+          for (let mask = 0; mask < maskCount; mask++) {
+            for (let cell = 0; cell < width * height; cell++) {
+              if (visited[mask * width * height + cell]) reached[cell] = 1;
+            }
+          }
+          const best = this.pickRewardingDoor([...deferredDoors.values()], {
+            level,
+            terrain: simTerrain,
+            items: simItems,
+            edgeMask,
+            bootBits,
+            hasBoot,
+            ownedKeys,
+            collectedChips,
+            chipsRequired: level.chipsRequired,
+            meltedFires,
+            swimProtection,
+            affords,
+            reached,
+            budget: rankBudget
+          });
+          const doorTile = ConfigRegistry.getTile(simTerrain[best.y][best.x]);
+          ownedKeys[best.keyId]--;
+          simTerrain[best.y][best.x] = openedTerrain(level, simTerrain, best.x, best.y, doorTile);
+          changed = true;
         }
       }
+      return { collectedChips, reachableExit };
+    };
+    const { collectedChips, reachableExit } = walkReach();
 
-      if (!changed && deferredDoors.size > 0) {
-        const reached = new Uint8Array(width * height);
-        for (let mask = 0; mask < maskCount; mask++) {
-          for (let cell = 0; cell < width * height; cell++) {
-            if (visited[mask * width * height + cell]) reached[cell] = 1;
-          }
-        }
-        const best = this.pickRewardingDoor([...deferredDoors.values()], {
-          level,
-          terrain: simTerrain,
-          items: simItems,
-          edgeMask,
-          bootBits,
-          hasBoot,
-          ownedKeys,
-          collectedChips,
-          chipsRequired: level.chipsRequired,
-          meltedFires,
-          swimProtection,
-          affords,
-          reached,
-          budget: rankBudget
-        });
-        const doorTile = ConfigRegistry.getTile(simTerrain[best.y][best.x]);
-        ownedKeys[best.keyId]--;
-        simTerrain[best.y][best.x] = openedTerrain(level, simTerrain, best.x, best.y, doorTile);
-        changed = true;
-      }
-    }
 
     // The simulator is a conservative model: a stored solution that wins in the real engine is
     // stronger evidence, so a reachability miss then only warns (the simulator is what is wrong).
