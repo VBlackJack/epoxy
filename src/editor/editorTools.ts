@@ -15,6 +15,8 @@
  */
 
 import { Direction } from '../core/types';
+import { EDITOR_DEFAULT_CLONE_TEMPLATE } from '../ui/uiConstants';
+import { clonerTemplateMessage, emptyClonerMessage } from './cellDescription';
 import { EditorMap } from './editorDocument';
 import {
   eraseCell,
@@ -121,7 +123,12 @@ function fromEdit(
     map: result.map,
     changed: result.changed,
     pendingWire,
-    messages: [...messages, ...removedLinksMessage(result.removedLinks), ...removedUnderlaysMessage(result.removedUnderlays, underlaysKey)]
+    messages: [
+      ...messages,
+      ...(result.clonerTemplates ?? []).map(clonerTemplateMessage),
+      ...removedLinksMessage(result.removedLinks),
+      ...removedUnderlaysMessage(result.removedUnderlays, underlaysKey)
+    ]
   };
 }
 
@@ -141,7 +148,8 @@ function wireOutcome(input: ToolInput, kind: WireKind): ToolOutcome {
     const key = linked.refusal ? WIRE_REFUSAL_MESSAGES[linked.refusal] : MESSAGE_WIRE_MISSING_BUTTON;
     return { map, changed: false, pendingWire, messages: [{ key }] };
   }
-  return fromEdit(linked, null, [{ key: MESSAGE_WIRE_LINKED }]);
+  const warning = linked.emptyCloner ? [emptyClonerMessage(EDITOR_DEFAULT_CLONE_TEMPLATE, input.dir)] : [];
+  return fromEdit(linked, null, [{ key: MESSAGE_WIRE_LINKED }, ...warning]);
 }
 
 /**

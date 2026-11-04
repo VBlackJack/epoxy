@@ -36,6 +36,7 @@ import { displayItemId, displayMobId, displayShowsPanels, displayTerrainId } fro
 import { type Cc3dCell, type Cc3dLevel, type Cc3dTerrain, cellAt as cc3dCellAt } from '../core/cc3d/model';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
+  CloneLink,
   CompiledLevel,
   Direction,
   LevelBlueprint,
@@ -51,7 +52,8 @@ import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreCo
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
 import { historyDiff, HistoryDiff } from './historyDiff';
 import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
-import { describeEditorCell } from './cellDescription';
+import { clonerTemplateMessage, clonersTemplateMessage, describeEditorCell, entityDisplayName, sideDisplayName } from './cellDescription';
+import { entityHasFacing } from './entityFacing';
 import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
 import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
 import {
@@ -154,7 +156,7 @@ import { hasCellEdges } from './editorCellEdges';
 import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
-import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
+import { mapHeightOf, mapWidthOf, paintEntity, resizeMap } from './mapEdits';
 import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
   CellRect,
@@ -208,6 +210,8 @@ import {
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
   EDITOR_CC3D_ARROW_HEAD_TILE,
   EDITOR_CC3D_BADGE_RADIUS_TILE,
+  EDITOR_CLONER_BADGE_BACKING,
+  EDITOR_CLONER_BADGE_TILE,
   EDITOR_CC3D_LINK_COLORS,
   EDITOR_CC3D_OVERLAY_ALPHA,
   EDITOR_CC3D_ROOM_HEIGHT,
@@ -1081,11 +1085,11 @@ export class LevelEditor {
   }
 
   /** A palette icon, drawn once per display id until the graphics style changes. */
-  private cachedIcon(kind: 'tile' | 'item' | 'entity' | 'player', id: string): string {
-    const key = `${kind}|${id}`;
+  private cachedIcon(kind: 'tile' | 'item' | 'entity' | 'player', id: string, dir?: Direction): string {
+    const key = `${kind}|${id}|${dir ?? ''}`;
     let url = this.iconCache.get(key);
     if (url === undefined) {
-      url = this.renderer.renderIconToDataUrl(kind, id);
+      url = dir === undefined ? this.renderer.renderIconToDataUrl(kind, id) : this.renderer.renderIconToDataUrl(kind, id, dir);
       this.iconCache.set(key, url);
     }
     return url;
@@ -1286,7 +1290,11 @@ export class LevelEditor {
       (ent) => ent.category === this.activeCategory
     );
     for (const ent of entities) {
-      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), this.renderer.renderIconToDataUrl('entity', ent.id));
+      // A creature or turret is drawn facing the direction control, so the palette shows what a click will place.
+      const icon = entityHasFacing(ent.id)
+        ? this.cachedIcon('entity', ent.id, this.activeDir)
+        : this.cachedIcon('entity', ent.id);
+      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon);
     }
 
     if (this.activeCategory === TERRAIN_CATEGORY) {
@@ -1425,10 +1433,42 @@ export class LevelEditor {
     this.afterDirectionChange();
   }
 
+  /**
+   * Turns the creature or turret on the keyboard cursor cell (else the last hovered one) a quarter turn clockwise, as
+   * one history step. A clone machine under it copies the new facing.
+   */
+  private rotateEntityInPlace(): void {
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    const entity = cell && !this.doc.cc3d ? this.doc.entities.find((e) => e.x === cell.x && e.y === cell.y) : undefined;
+    if (!cell || !entity || !entityHasFacing(entity.type)) {
+      this.announce([{ key: 'editor.layout.status.rotate_nothing.label' }]);
+      return;
+    }
+    const dir = rotateClockwise(entity.dir);
+    const before = this.doc;
+    const result = paintEntity(before, cell.x, cell.y, entity.type, dir);
+    if (!result.changed) return;
+    this.doc = withEditedMap(before, result.map);
+    this.recordChange(before);
+    this.render();
+    this.announce([
+      {
+        key: 'editor.layout.status.rotated.label',
+        params: { name: entityDisplayName(entity.type), x: cell.x, y: cell.y, side: sideDisplayName(dir) }
+      },
+      ...(result.clonerTemplates ?? []).map(clonerTemplateMessage)
+    ]);
+  }
+
   /** The direction control changed: the buttons follow it, and the CC3D icons that show a direction are redrawn. */
   private afterDirectionChange(): void {
     this.updateDirButtons();
     if (!this.isCc3d()) {
+      // The icons of the creatures and turrets show the facing a click will place.
+      const showsFacing = Object.values(ConfigRegistry.getMonsters().entities).some(
+        (ent) => ent.category === this.activeCategory && entityHasFacing(ent.id)
+      );
+      if (showsFacing) this.renderPaletteItems();
       // The keyboard side of the thin wall tool is the direction control: its bar follows it.
       if (this.sideToolActive()) this.render();
       return;
@@ -1506,6 +1546,9 @@ export class LevelEditor {
         break;
       case 'rotate':
         this.rotateDirection();
+        break;
+      case 'rotate_in_place':
+        this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();
@@ -3539,6 +3582,9 @@ export class LevelEditor {
     if (result.droppedUnderlays) messages.push({ key: MESSAGE_UNDERLAYS_REMOVED, params: { count: result.droppedUnderlays } });
     if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
     if (result.playerStartKept) messages.push({ key: 'editor.selection.status.fill_start_kept' });
+    const cloners = result.clonerTemplates ?? [];
+    if (cloners.length === 1) messages.push(clonerTemplateMessage(cloners[0]));
+    else if (cloners.length > 1) messages.push(clonersTemplateMessage(cloners.length, cloners[0].type, cloners[0].dir));
     if (!this.commitSelectionEdit(result)) {
       this.announce([{ key: 'editor.selection.status.unchanged' }, ...messages]);
       return;
@@ -4132,6 +4178,7 @@ export class LevelEditor {
     for (const link of doc.cloneLinks) {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
+    for (const link of doc.cloneLinks) this.drawClonerTemplateBadge(link, s);
 
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);
@@ -4177,6 +4224,16 @@ export class LevelEditor {
     this.ctx.lineTo(baseX + Math.sin(angle) * spread, baseY - Math.cos(angle) * spread);
     this.ctx.closePath();
     this.ctx.fill();
+  }
+
+  /** The template of an Epoxy clone link, drawn with its facing in the top right corner of its clone machine. */
+  private drawClonerTemplateBadge(link: CloneLink, s: number): void {
+    const size = EDITOR_CLONER_BADGE_TILE * s;
+    const x = (link.clonerX + 1) * s - size;
+    const y = link.clonerY * s;
+    this.ctx.fillStyle = EDITOR_CLONER_BADGE_BACKING;
+    this.ctx.fillRect(x, y, size, size);
+    this.renderer.drawEntity(this.ctx, link.templateType, link.templateDir, x, y, size);
   }
 
   /** A disc in the top right corner of a cell: the template mob of a clone machine. */

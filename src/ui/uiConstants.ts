@@ -160,6 +160,9 @@ export const EDITOR_CC3D_LINK_COLORS = {
 export const EDITOR_CC3D_ARROW_HEAD_TILE = 0.3;
 export const EDITOR_CC3D_ARROW_HEAD_SPREAD = 0.5;
 export const EDITOR_CC3D_BADGE_RADIUS_TILE = 0.18;
+/** Epoxy clone machines: side of the template badge as a share of the tile, and the backing colour behind it. */
+export const EDITOR_CLONER_BADGE_TILE = 0.45;
+export const EDITOR_CLONER_BADGE_BACKING = 'rgba(0, 0, 0, 0.55)';
 /** CC3D link overlay: opacity of the arrows and of the highlighted group cells. */
 export const EDITOR_CC3D_OVERLAY_ALPHA = 0.9;
 /** CC3D editing: swatch colours of the colour chooser. */

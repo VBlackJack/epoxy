@@ -19,8 +19,10 @@ import { Direction } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { closedSidesAt } from './editorCellEdges';
 import { EditorMap } from './editorDocument';
+import { entityHasFacing } from './entityFacing';
 import { underlayAt } from './editorUnderlays';
-import { ToolMessage } from './editorTools';
+import type { ToolMessage } from './editorTools';
+import type { ClonerTemplateChange } from './mapEdits';
 
 const COORDS_KEY = 'editor.palette.status.coords';
 const NAME_KEY = 'editor.cell_speech.name.label';
@@ -29,6 +31,10 @@ const ITEM_KEY = 'editor.cell_speech.item.label';
 const ENTITY_KEY = 'editor.cell_speech.entity.label';
 const UNDERLAY_KEY = 'editor.cell_speech.underlay.label';
 const EDGES_KEY = 'editor.cell_speech.edges.label';
+const CLONER_KEY = 'editor.cell_speech.cloner.label';
+const CLONER_TEMPLATE_KEY = 'editor.layout.status.cloner_template.label';
+const CLONERS_TEMPLATE_KEY = 'editor.layout.status.cloners_template.label';
+const EMPTY_CLONER_KEY = 'editor.layout.status.wire_empty_cloner.label';
 const PLAYER_KEY = 'editor.cell_speech.player.label';
 const SIDE_LIST_SEPARATOR_KEY = 'editor.cell_speech.list_separator.label';
 const SIDE_KEYS: Record<Direction, string> = {
@@ -70,9 +76,32 @@ function entityName(id: string): string {
   return t(definition.i18nKey);
 }
 
-/** Only creatures that move have a facing worth speaking; blocks and mirrors stay put. */
-function movesOnItsOwn(id: string): boolean {
-  return Boolean(ConfigRegistry.getEntityDef(id)?.movementPattern);
+/** The name of an entity type, as the palette shows it. */
+export function entityDisplayName(id: string): string {
+  return entityName(id);
+}
+
+/** The name of a side, as it is spoken. */
+export function sideDisplayName(dir: Direction): string {
+  return sideOf(dir);
+}
+
+/** The status line for a clone machine whose template followed the creature put on it. */
+export function clonerTemplateMessage(change: ClonerTemplateChange): ToolMessage {
+  return {
+    key: CLONER_TEMPLATE_KEY,
+    params: { x: change.x, y: change.y, name: entityName(change.type), side: sideOf(change.dir) }
+  };
+}
+
+/** The status line for several clone machines that now copy the same creature (a fill). */
+export function clonersTemplateMessage(count: number, type: string, dir: Direction): ToolMessage {
+  return { key: CLONERS_TEMPLATE_KEY, params: { count, name: entityName(type), side: sideOf(dir) } };
+}
+
+/** The warning for a clone wire drawn to a clone machine with no creature: the link uses the default template. */
+export function emptyClonerMessage(type: string, dir: Direction): ToolMessage {
+  return { key: EMPTY_CLONER_KEY, params: { name: entityName(type), side: sideOf(dir) } };
 }
 
 /** The parts of a spoken cell description as locale keys; the first is always the coordinates. */
@@ -96,9 +125,20 @@ export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
       if (entity.x === x && entity.y === y) {
         const name = entityName(entity.type);
         parts.push(
-          movesOnItsOwn(entity.type) ? { key: ENTITY_KEY, params: { name, side: sideOf(entity.dir) } } : literal(name)
+          entityHasFacing(entity.type) ? { key: ENTITY_KEY, params: { name, side: sideOf(entity.dir) } } : literal(name)
         );
       }
+    }
+    // A clone machine says what it clones: the template its link stores, which is what the engine spawns.
+    const link = map.cloneLinks.find((l) => l.clonerX === x && l.clonerY === y);
+    // It is spoken only when it differs from the creature standing on the machine (that one was just spoken).
+    if (link) {
+      const standing = map.entities.find((e) => e.x === x && e.y === y);
+      const differs =
+        !standing ||
+        standing.type !== link.templateType ||
+        (entityHasFacing(link.templateType) && standing.dir !== link.templateDir);
+      if (differs) parts.push({ key: CLONER_KEY, params: { name: entityName(link.templateType), side: sideOf(link.templateDir) } });
     }
     // The line between two cells is one wall: the neighbours' matching walls are spoken as the drawing shows them.
     const closed = closedSidesAt(map, x, y);

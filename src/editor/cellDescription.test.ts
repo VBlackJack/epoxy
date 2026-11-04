@@ -126,4 +126,28 @@ describe('thin walls in the description', () => {
     map.cellEdges = [{ x: 1, y: 1, sides: ['N'] }];
     expect(spoken(describeEditorCell({ map, x: 1, y: 1 }))).toContain('cloisons fines : le nord');
   });
+
+  it('speaks the facing of a turret, and what a clone machine clones', () => {
+    const map = emptyMap();
+    map.entities.push({ x: 2, y: 1, type: 'turret_fixed', dir: 'W' });
+    expect(spoken(describeEditorCell({ map, x: 2, y: 1 }))).toContain('facing west');
+
+    map.terrain[0][3] = 'clone_machine';
+    map.cloneLinks.push({ buttonX: 0, buttonY: 1, clonerX: 3, clonerY: 0, templateType: 'walker', templateDir: 'N' });
+    const text = spoken(describeEditorCell({ map, x: 3, y: 0 }));
+    expect(text).toContain(`clones ${t(ConfigRegistry.getEntityDef('walker')!.i18nKey)} facing north`);
+    expect(spoken(describeEditorCell({ map, x: 0, y: 0 }))).not.toContain('clones');
+  });
+
+  it('speaks the clone template only when it differs from the creature on the machine', () => {
+    const map = emptyMap();
+    map.terrain[0][3] = 'clone_machine';
+    map.cloneLinks.push({ buttonX: 0, buttonY: 1, clonerX: 3, clonerY: 0, templateType: 'walker', templateDir: 'N' });
+    map.entities.push({ x: 3, y: 0, type: 'walker', dir: 'N' });
+    expect(spoken(describeEditorCell({ map, x: 3, y: 0 }))).not.toContain('clones');
+    map.entities[0] = { x: 3, y: 0, type: 'walker', dir: 'E' };
+    expect(spoken(describeEditorCell({ map, x: 3, y: 0 }))).toContain('clones');
+    map.entities[0] = { x: 3, y: 0, type: 'dirt_block', dir: 'N' };
+    expect(spoken(describeEditorCell({ map, x: 3, y: 0 }))).toContain('clones');
+  });
 });

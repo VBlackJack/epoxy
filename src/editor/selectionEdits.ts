@@ -20,7 +20,7 @@ import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdge
 import { cloneMap, EditorMap } from './editorDocument';
 import type { Brush } from './editorTools';
 import { canonicalUnderlays, pruneUnderlays, removeUnderlaysWhere, replaceUnderlays } from './editorUnderlays';
-import { dropLinksAt, mapHeightOf, mapWidthOf } from './mapEdits';
+import { ClonerTemplateChange, dropLinksAt, mapHeightOf, mapWidthOf, syncCloneTemplatesAt } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
 
 /** A rectangle of cells: its top-left cell and its size, both at least 1 once normalised. */
@@ -83,6 +83,8 @@ export interface SelectionEditResult {
   playerStartKept: boolean;
   /** Hidden terrain removed because a terrain fill left a top that cannot hide it; only a fill reports it. */
   droppedUnderlays?: number;
+  /** Clone machines whose stored template followed the creature a fill put on them. */
+  clonerTemplates?: ClonerTemplateChange[];
   /** The cells the edit produced or targeted, clipped to the map; null when none are inside it. */
   rect: CellRect | null;
 }
@@ -505,6 +507,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
   let droppedLinks = 0;
   let borderSkipped = 0;
   let skipped = 0;
+  const clonerTemplates: ClonerTemplateChange[] = [];
   for (let y = area.y; y < area.y + area.height; y++) {
     for (let x = area.x; x < area.x + area.width; x++) {
       if (onRing(map, x, y)) {
@@ -521,9 +524,16 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
         skipped++;
       } else {
         const present = map.entities.filter((e) => e.x === x && e.y === y);
-        if (present.length === 1 && present[0].type === brush.id && present[0].dir === dir) continue;
+        if (present.length === 1 && present[0].type === brush.id && present[0].dir === dir) {
+          // Same creature already there: a user fill still re-syncs a link template that drifted from it.
+          const resynced = syncCloneTemplatesAt(map, x, y);
+          if (resynced) clonerTemplates.push(resynced);
+          continue;
+        }
         map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
         map.entities.push({ x, y, type: brush.id, dir });
+        const synced = syncCloneTemplatesAt(map, x, y);
+        if (synced) clonerTemplates.push(synced);
       }
     }
   }
@@ -536,6 +546,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
     borderSkipped,
     playerStartKept: skipped > 0,
     droppedUnderlays,
+    ...(clonerTemplates.length > 0 ? { clonerTemplates } : {}),
     rect: area,
     refusal: null
   };

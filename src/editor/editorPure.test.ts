@@ -40,6 +40,10 @@ describe('getEditorKeyAction', () => {
 
   it('maps rotate, zoom and cancel', () => {
     expect(getEditorKeyAction(chord('r'))).toEqual({ kind: 'rotate' });
+    // Caps Lock R has no Shift: it stays the facing control. Shift+R turns the creature under the cursor.
+    expect(getEditorKeyAction(chord('R'))).toEqual({ kind: 'rotate' });
+    expect(getEditorKeyAction(chord('R', { shiftKey: true }))).toEqual({ kind: 'rotate_in_place' });
+    expect(getEditorKeyAction(chord('r', { shiftKey: true, ctrlKey: true }))).toBeNull();
     expect(getEditorKeyAction(chord('+'))).toEqual({ kind: 'zoom_in' });
     expect(getEditorKeyAction(chord('='))).toEqual({ kind: 'zoom_in' });
     expect(getEditorKeyAction(chord('-'))).toEqual({ kind: 'zoom_out' });
