@@ -75,10 +75,16 @@ const DOOR_ORDER_MAX_WALKS = 32;
  * Work the extra walks of the door order search may spend together on one level, in cell expansions: the walk's
  * own steps plus every cell its door ranking expands (the precise flood and the plain flood alike). Walk 0 is not
  * counted. A walk that outruns what is left is discarded, ranking included. Counted in steps, never in time, so
- * the verdict is the same on every machine. Sized on the 128 by 128 comb of the timing test: a walk there costs 0.27 s per 182k steps, so more would
- * overrun the two seconds that test allows.
+ * the verdict is the same on every machine. The allowance is DOOR_ORDER_STEP_FLOOR plus the greedy walk's own
+ * steps divided by DOOR_ORDER_STEP_SHARE, capped at DOOR_ORDER_STEP_CAP: a retry is a fraction of the validation,
+ * never a multiple of it. Measured on the 128 by 128 comb of the timing test (the greedy walk costs 311k steps,
+ * about 0.45 s; each extra walk replays every pass from the start and costs 182k steps, about 0.3 s): the old flat
+ * 400k let two full walks run and doubled the time, this allowance (about 39k there) costs under 0.1 s. The door
+ * order tests need under 1k steps in all.
  */
-const DOOR_ORDER_STEP_BUDGET = 400_000;
+const DOOR_ORDER_STEP_FLOOR = 20_000;
+const DOOR_ORDER_STEP_SHARE = 16;
+const DOOR_ORDER_STEP_CAP = 400_000;
 /** Most decisions the search changes in one walk: the greedy order is wrong in a place or two, not more. */
 const DOOR_ORDER_MAX_DISCREPANCIES = 2;
 
@@ -1608,7 +1614,7 @@ export class LevelValidator {
    * differs from one of those in one decision more. A choice only changes which held-key door opens at a
    * fixpoint, a legal move under the same rules, so a walk that finds more proves more. Stops at the first walk
    * that misses nothing. Reports one walk whole: fewest misses, then most chips, and walk 0 on a tie.
-   * Bounded by DOOR_ORDER_MAX_WALKS and DOOR_ORDER_STEP_BUDGET (walk steps and ranking work together); a walk cut off by the budget is discarded.
+   * Bounded by DOOR_ORDER_MAX_WALKS and the step allowance (walk steps and ranking work together); a walk cut off by the budget is discarded.
    */
   private static searchDoorOrders(
     walk0: ReachOutcome,
@@ -1617,7 +1623,7 @@ export class LevelValidator {
   ): ReachOutcome {
     let best = walk0;
     let walksLeft = DOOR_ORDER_MAX_WALKS;
-    let stepsLeft = DOOR_ORDER_STEP_BUDGET;
+    let stepsLeft = Math.min(DOOR_ORDER_STEP_CAP, DOOR_ORDER_STEP_FLOOR + Math.floor(walk0.steps / DOOR_ORDER_STEP_SHARE));
     // Walks to branch from, with how many of their decisions are already fixed (forced or branched).
     let frontier: { walk: ReachOutcome; fixed: number }[] = [{ walk: walk0, fixed: 0 }];
     for (let discrepancies = 1; discrepancies <= DOOR_ORDER_MAX_DISCREPANCIES; discrepancies++) {
