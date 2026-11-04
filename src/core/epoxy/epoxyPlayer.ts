@@ -23,6 +23,7 @@ import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { triggerButton } from './epoxyDevices';
 import { consumeShotAt, killPlayerByShot } from './epoxyShots';
+import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
   EpoxyContext,
@@ -153,6 +154,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
         return false;
       }
     } else if (entityAtTarget.kind === 'monster') {
+      leaveSwivel(w, w.player.x, w.player.y);
       leaveCell(w, w.player.x, w.player.y);
       w.player.x = targetX;
       w.player.y = targetY;
@@ -161,6 +163,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     }
   }
 
+  leaveSwivel(w, w.player.x, w.player.y);
   leaveCell(w, w.player.x, w.player.y);
   w.player.x = targetX;
   w.player.y = targetY;
@@ -184,6 +187,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   const x = w.player.x;
   const y = w.player.y;
   let tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  enterSwivel(w, x, y, entryDir);
 
   // Running into a flying shot kills the player and spends the shot; a teleport lands here again for its exit cell.
   if (w.shots.length > 0 && consumeShotAt(w, x, y)) {

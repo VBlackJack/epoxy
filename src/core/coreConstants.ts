@@ -163,6 +163,9 @@ export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
 /** Prefix of the spent reveal cells in a search state key. */
 export const SPENT_REVEAL_KEY_PREFIX = 'rv';
 
+/** Prefix of the swivel door entry sides in a search state key. */
+export const SWIVEL_ENTRY_KEY_PREFIX = 'sw';
+
 /** The fields of a tile that tell which toggle family it belongs to. */
 interface ToggleFamilyFields {
   togglesTo?: string;

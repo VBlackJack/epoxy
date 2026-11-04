@@ -26,6 +26,7 @@ import {
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
+import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -85,6 +86,7 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const vec = DIRECTION_VECTORS[chosenDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
+  leaveSwivel(w, entity.x, entity.y);
   entity.x = nx;
   entity.y = ny;
   entity.dir = chosenDir;
@@ -103,6 +105,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   const nx = entity.x;
   const ny = entity.y;
   const def = ConfigRegistry.getEntityDef(entity.type);
+  enterSwivel(w, nx, ny, entity.dir);
 
   if (w.player.x === nx && w.player.y === ny && w.player.alive) {
     killPlayer(ctx, 'hud.messages.death_monster', 'death');

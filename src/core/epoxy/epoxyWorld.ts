@@ -89,6 +89,11 @@ export interface EpoxyWorld {
    * Empty at load.
    */
   revealedCells: Set<number>;
+  /**
+   * The side an actor came into a swivel door by, per cell (index y * width + x). The door turns when the
+   * actor leaves. Empty at load.
+   */
+  swivelEntry: Map<number, Direction>;
   /** One bit per covered toggle family, set while an odd number of presses happened; 0 at load. */
   toggleParity: number;
   chipsRemaining: number;
@@ -177,6 +182,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     underlays: null,
     coveredToggleBits: 0,
     revealedCells: new Set<number>(),
+    swivelEntry: new Map<number, Direction>(),
     toggleParity: 0,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
