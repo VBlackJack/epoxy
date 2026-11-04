@@ -1,5 +1,5 @@
 {
-  "placeholder": "firstTimedLevel is 26 so chapters 1 and 2 (levels 1 to 25) stay untimed; minTimeMargin, raceLevels, minRaceMargin and baseline are copied from the campaign until the pilot pacing is set",
+  "placeholder": "firstTimedLevel is 31 so chapters 1 and 2 (levels 1 to 30) stay untimed; minTimeMargin, raceLevels, minRaceMargin and baseline are copied from the campaign until the pilot pacing is set",
   "introduces": {
     "1": [
       "chip",
@@ -43,7 +43,7 @@
       "gravel"
     ]
   },
-  "firstTimedLevel": 26,
+  "firstTimedLevel": 31,
   "minTimeMargin": 3,
   "raceLevels": [
     18,
