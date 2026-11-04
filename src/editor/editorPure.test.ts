@@ -55,6 +55,15 @@ describe('getEditorKeyAction', () => {
     expect(getEditorKeyAction(chord('и',{ code: 'KeyB' }))).toEqual({ kind: 'tool', tool: 'brush' });
   });
 
+  it('toggles the beam preview on L, by letter or by key code, and not on a command chord', () => {
+    expect(getEditorKeyAction(chord('l'))).toEqual({ kind: 'toggle_beam_preview' });
+    expect(getEditorKeyAction(chord('L'))).toEqual({ kind: 'toggle_beam_preview' });
+    expect(getEditorKeyAction(chord('д', { code: 'KeyL' }))).toEqual({ kind: 'toggle_beam_preview' });
+    expect(getEditorKeyAction(chord('l', { ctrlKey: true }))).toBeNull();
+    expect(getEditorKeyAction(chord('l', { metaKey: true }))).toBeNull();
+    expect(getEditorKeyAction(chord('l', { altKey: true }))).toBeNull();
+  });
+
   it('leaves command chords and unrelated keys alone', () => {
     expect(getEditorKeyAction(chord('b', { ctrlKey: true }))).toBeNull();
     expect(getEditorKeyAction(chord('r', { metaKey: true }))).toBeNull();
