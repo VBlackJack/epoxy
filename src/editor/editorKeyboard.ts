@@ -106,6 +106,7 @@ export type SelectionKeyAction =
   | { kind: 'cut' }
   | { kind: 'paste' }
   | { kind: 'clear' }
+  | { kind: 'fill' }
   | { kind: 'move'; dx: number; dy: number };
 
 const COPY_LETTER = 'c';
@@ -114,13 +115,16 @@ const CUT_LETTER = 'x';
 const CUT_CODE = 'KeyX';
 const PASTE_LETTER = 'v';
 const PASTE_CODE = 'KeyV';
+const FILL_LETTER = 'f';
+const FILL_CODE = 'KeyF';
 const CLEAR_KEYS: readonly string[] = ['Delete', 'Backspace'];
 
 /**
  * The selection operation a chord stands for, or null: Ctrl or Meta with C, X
- * or V (no Shift, no Alt), Delete or Backspace alone, and Alt with an arrow
- * key. Shift with an arrow extends the selection and is handled with the
- * canvas keys, not here.
+ * or V (no Shift, no Alt), Delete or Backspace alone, Shift+F (fill the
+ * selection; the Shift key is checked, not the case of the letter, so Caps Lock
+ * F stays the fill tool), and Alt with an arrow key. Shift with an arrow
+ * extends the selection and is handled with the canvas keys, not here.
  */
 export function getSelectionKeyAction(chord: KeyChord): SelectionKeyAction | null {
   const commandOnly = (chord.ctrlKey || chord.metaKey) && !chord.altKey && !chord.shiftKey;
@@ -131,6 +135,7 @@ export function getSelectionKeyAction(chord: KeyChord): SelectionKeyAction | nul
     return null;
   }
   if (!hasCommandModifier(chord) && CLEAR_KEYS.includes(chord.key)) return { kind: 'clear' };
+  if (!hasCommandModifier(chord) && chord.shiftKey && matchesLetter(chord, FILL_LETTER, FILL_CODE)) return { kind: 'fill' };
   const step = ARROW_STEPS[chord.key];
   if (step && chord.altKey && !chord.ctrlKey && !chord.metaKey && !chord.shiftKey) return { kind: 'move', ...step };
   return null;
