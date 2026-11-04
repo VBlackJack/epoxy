@@ -635,11 +635,15 @@ export class PieceSolver {
         .filter((e) => this.inPiece(e, piece, origin))
         // A monster's next move depends on where it faces and when it moves next.
         .map((e) =>
-          e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}`
+          e.kind === 'monster'
+            ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}`
+            : `${e.type}@${e.x},${e.y}${e.facing === undefined ? '' : `,${e.facing}`}`
         )
         .sort()
         .join(';')
     ];
+    const phase = engine.getTurretPhaseKey();
+    if (phase) parts.push(phase);
     for (let y = 0; y < piece.height; y++) {
       const row = terrain[y + origin.y];
       const itemRow = items[y + origin.y];

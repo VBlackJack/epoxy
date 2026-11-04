@@ -24,6 +24,7 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
+import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 
 /** Outcome of a map edit. The input map is never modified; `map` is a new state. */
@@ -56,6 +57,8 @@ export interface ResizeReport {
   droppedEntities: number;
   droppedTrapLinks: number;
   droppedCloneLinks: number;
+  /** Cells that lost their thin walls: cropped away, or turned to wall by the new border. */
+  droppedEdges: number;
   /** True when the player start had to be moved to stay inside the new map. */
   playerStartMoved: boolean;
   /** True when the outer ring of the new map was set to wall. */
@@ -126,6 +129,19 @@ export function paintItem(source: EditorMap, x: number, y: number, itemId: strin
   return { map, changed: true, removedLinks: 0, playerStartKept: false };
 }
 
+/**
+ * Toggles the thin wall on one side of a cell (Epoxy levels). The wall is one line shared by two cells: a
+ * closed line (the cell's own wall, or the neighbour's matching one) is removed from both cells, an open one
+ * is added to the cell only; a border side belongs to its cell. Terrain such as thin_wall_* is untouched.
+ */
+export function toggleCellEdge(source: EditorMap, x: number, y: number, side: Direction): MapEditResult {
+  if (source.cc3d) return unchanged(source); // a CC3D map keeps its thin walls in its own layers
+  if (!inGrid(source, x, y)) return unchanged(source);
+  const map = cloneMap(source);
+  toggleSide(map, x, y, side);
+  return { map, changed: true, removedLinks: 0, playerStartKept: false };
+}
+
 /** Places an entity, replacing the one already on the cell. */
 export function paintEntity(source: EditorMap, x: number, y: number, type: string, dir: Direction): MapEditResult {
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
@@ -150,7 +166,7 @@ export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: D
 }
 
 /**
- * Erases a cell: floor terrain, no item, no entity, no link. The player start
+ * Erases a cell: floor terrain, no item, no entity, no link, no thin wall. The player start
  * is never erased; when it sits on the cell the result reports `playerStartKept`.
  */
 export function eraseCell(source: EditorMap, x: number, y: number): MapEditResult {
@@ -161,6 +177,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
     source.terrain[y][x] === FLOOR_TILE_ID &&
     source.items[y][x] === null &&
     !source.entities.some((e) => e.x === x && e.y === y) &&
+    edgesAt(source, x, y).length === 0 &&
     !source.trapLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.trapX === x && l.trapY === y)) &&
     !source.cloneLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.clonerX === x && l.clonerY === y));
   if (empty) return { ...unchanged(source), playerStartKept };
@@ -168,6 +185,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
   map.terrain[y][x] = FLOOR_TILE_ID;
   map.items[y][x] = null;
   map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
+  removeEdgesWhere(map, (ex, ey) => ex === x && ey === y);
   const removedLinks = dropLinksAt(map, x, y);
   return { map, changed: true, removedLinks, playerStartKept };
 }
@@ -279,11 +297,12 @@ const clamp = (value: number, min: number, max: number): number => Math.min(max,
  * old map was closed by a wall border, the new one is too: an old border that
  * becomes interior turns to floor (an entity on it is dropped; a cell holding an item stays wall), and the new outer
  * ring is walled (items, entities and links on a cell that becomes wall are
- * dropped). Entities and links outside the new bounds are dropped; the player
+ * dropped). Thin walls stay with their cell: those outside the new bounds or on a cell that
+ * becomes wall are dropped and counted. Entities and links outside the new bounds are dropped; the player
  * start is clamped inside. The requested size is clamped to `bounds`.
  */
 export function resizeMap(source: EditorMap, width: number, height: number, bounds: LevelSizeBounds): ResizeResult {
-  if (source.cc3d) return { map: source, width: mapWidthOf(source), height: mapHeightOf(source), changed: false, report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, playerStartMoved: false, borderKept: false } }; // a CC3D map is edited through cc3dEdits only
+  if (source.cc3d) return { map: source, width: mapWidthOf(source), height: mapHeightOf(source), changed: false, report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, droppedEdges: 0, playerStartMoved: false, borderKept: false } }; // a CC3D map is edited through cc3dEdits only
   const oldWidth = mapWidthOf(source);
   const oldHeight = mapHeightOf(source);
   const newWidth = clamp(Math.floor(width), bounds.minSize, bounds.maxSize);
@@ -292,6 +311,7 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     droppedEntities: 0,
     droppedTrapLinks: 0,
     droppedCloneLinks: 0,
+    droppedEdges: 0,
     playerStartMoved: false,
     borderKept: false
   };
@@ -359,8 +379,13 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     .map((l) => ({ ...l }));
   report.droppedCloneLinks = source.cloneLinks.length - cloneLinks.length;
 
+  const kept = (source.cellEdges ?? []).filter((e) => alive(e.x, e.y));
+  report.droppedEdges = (source.cellEdges?.length ?? 0) - kept.length;
+
+  const resized: EditorMap = { terrain, items, entities, trapLinks, cloneLinks, playerStart: { x: startX, y: startY, dir: source.playerStart.dir } };
+  replaceEdges(resized, kept);
   return {
-    map: { terrain, items, entities, trapLinks, cloneLinks, playerStart: { x: startX, y: startY, dir: source.playerStart.dir } },
+    map: resized,
     width: newWidth,
     height: newHeight,
     changed: true,

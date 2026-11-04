@@ -15,7 +15,7 @@
  */
 
 import { CC3D_COLORS, topTerrain } from './model';
-import type { Cc3dCell, Cc3dColor, Cc3dLevel, Cc3dTerrain } from './model';
+import type { Cc3dCell, Cc3dColor, Cc3dLevel, Cc3dTerrain, Cc3dTerrainKind } from './model';
 
 /**
  * Coverage of the CC3D elements by the native Epoxy engine: for one level, which elements Epoxy plays
@@ -38,6 +38,7 @@ export interface LevelCoverage {
 
 /** Structural keys: properties of a cell rather than of one element. */
 export const KEY_STACKED_TERRAIN = 'stacked_terrain';
+export const KEY_STACKED_RUNTIME = 'stacked_runtime';
 export const KEY_PANELS_ON_NONFLOOR = 'panels_on_nonfloor';
 /** The red socket, as the key of one whose layer below is not plain floor (the plain one keeps its kind as key). */
 export const KEY_SOCKET_RED = 'socket_red';
@@ -65,6 +66,8 @@ const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the pl
 const SOCKET_RED_STACKED_REASON = 'CC3D re-plans a red socket against the layer below it, which Epoxy does not model [unverified].';
 const FISH_EXTRA_REASON = 'Epoxy plays the extra fish as a chip, and the chips needed count the plain fish only, as CC3D does [unverified].';
 const GRAVEL_REASON = 'Epoxy gravel admits mirrors, where CC3D gravel refuses reflectors.';
+const BOT_REASON =
+  'Epoxy plays a bot as a turret: the beam and its turn period are close to CC3D, with a beam length and a period that are guesses, and Epoxy makes no turn at the first step.';
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
@@ -72,7 +75,9 @@ const EXACT_KEYS: readonly string[] = [
   'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
-  KEY_PANELS_ON_NONFLOOR
+  KEY_PANELS_ON_NONFLOOR,
+  // A stack Epoxy holds exactly: see classifyStack.
+  KEY_STACKED_TERRAIN
 ];
 
 /** Exact keys that carry their own reason instead of the generic one. */
@@ -130,6 +135,10 @@ const APPROX_ENTRIES: Record<string, string> = {
   screamer: MONSTER_REASON,
   baby_screamer: MONSTER_REASON,
   snappy: MONSTER_REASON,
+  bot_static: BOT_REASON,
+  bot_cw: BOT_REASON,
+  bot_ccw: BOT_REASON,
+  bot_multi: BOT_REASON,
   golem_blue: 'Golem movement is close to CC3D, not identical.'
 };
 
@@ -139,11 +148,8 @@ const LOST_ENTRIES: Record<string, string> = {
   nibble: 'Epoxy has no nibble monster.',
   golem_yellow: 'Epoxy has no yellow golem.',
   laser_shooter: 'Epoxy has no laser shooter.',
-  bot_static: 'Epoxy has no static bot.',
-  bot_cw: 'Epoxy has no clockwise bot.',
-  bot_ccw: 'Epoxy has no counter-clockwise bot.',
-  bot_multi: 'Epoxy has no multi bot.',
-  [KEY_STACKED_TERRAIN]: 'Epoxy holds one terrain per cell, so a stack of devices or blockers is flattened.'
+  [KEY_STACKED_RUNTIME]:
+    'The stack has a layer that acts while covered, or more layers than a removable top and the one it hides, which Epoxy flattens.'
 };
 
 /** Coloured elements Epoxy plays as CC3D does, one entry per colour. */
@@ -190,13 +196,63 @@ function coverageKeyOf(cell: Cc3dCell, layer: Cc3dTerrain, index: number): strin
   return terrainKey(layer);
 }
 
+/** Tops the player removes by walking into them: what they hide shows once they are gone (Epoxy underlays). */
+const REMOVABLE_TOP_KINDS: readonly Cc3dTerrainKind[] = ['door', 'socket', 'false_wall'];
+/** Tops that stay as they are or turn into another blocker: whatever is under them is never seen. */
+const PERMANENT_TOP_KINDS: readonly Cc3dTerrainKind[] = ['wall', 'push_up_wall', 'appearing_wall', 'toggle_door', 'hold_door'];
+/**
+ * What Epoxy can hide under a removable top and play exactly: ground that only acts when someone stands
+ * on it, a wall, or a toggle control (inert until revealed). Dirt is left out (it is a removable top
+ * itself), and so are the devices that act while covered (plates, hold doors, toggle doors, traps...).
+ */
+const UNDER_KINDS: readonly Cc3dTerrainKind[] = [
+  'water', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'slime', 'turtle', 'gravel', 'sand',
+  'teleport_blue', 'teleport_red', 'wall', 'toggle_control'
+];
+/** Layers that act on the cell, or on a trap, a clone machine or a door, even while another layer covers them. */
+const LIVE_WHILE_COVERED_KINDS: readonly Cc3dTerrainKind[] = [
+  'plate', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_control_yellow',
+  'laser_controller', 'gate_tools', 'gate_keys'
+];
+const BOMB_KIND: Cc3dTerrainKind = 'bomb';
+
+/** How Epoxy holds the terrain stack of one cell. */
+export type StackKind = 'plain' | 'flattened' | 'underlay' | 'runtime';
+
+/**
+ * Classifies the terrain stack of a cell. A stack is stacked when two or more entries are not plain floor
+ * (see nonFloorLayers). A bomb layer becomes the cell's item when the item slot is free. What is left is
+ * played exactly when it is
+ *  - under a top that is never removed, with nothing live under it: the covered layers are inert, so they
+ *    are dropped ('flattened');
+ *  - a removable top over exactly one layer Epoxy can hide ('underlay').
+ * Anything else ('runtime') needs a layer that acts while covered, or a deeper stack, and is lost.
+ */
+export function classifyStack(cell: Cc3dCell): StackKind {
+  let layers = nonFloorLayers(cell);
+  if (layers.length < MIN_STACKED_ENTRIES) return 'plain';
+  if (cell.item === null && layers.filter((layer) => layer.kind === BOMB_KIND).length === 1) {
+    layers = layers.filter((layer) => layer.kind !== BOMB_KIND);
+    if (layers.length < MIN_STACKED_ENTRIES) return 'flattened';
+  }
+  const top = layers[layers.length - 1];
+  const below = layers.slice(0, -1);
+  if (PERMANENT_TOP_KINDS.includes(top.kind)) {
+    return below.some((layer) => LIVE_WHILE_COVERED_KINDS.includes(layer.kind)) ? 'runtime' : 'flattened';
+  }
+  if (REMOVABLE_TOP_KINDS.includes(top.kind) && below.length === 1 && UNDER_KINDS.includes(below[0].kind)) return 'underlay';
+  return 'runtime';
+}
+
 /** The element keys of a level, structural ones included. */
 export function elementKeys(level: Cc3dLevel): Set<string> {
   const keys = new Set<string>();
   for (const cell of level.cells) {
     cell.terrain.forEach((layer, index) => keys.add(coverageKeyOf(cell, layer, index)));
     if (cell.item) keys.add(cell.item.kind);
-    if (nonFloorLayers(cell).length >= MIN_STACKED_ENTRIES) keys.add(KEY_STACKED_TERRAIN);
+    const stack = classifyStack(cell);
+    if (stack === 'flattened' || stack === 'underlay') keys.add(KEY_STACKED_TERRAIN);
+    if (stack === 'runtime') keys.add(KEY_STACKED_RUNTIME);
     if (cell.panels.length > 0 && topTerrain(cell).kind !== PLAIN_FLOOR) keys.add(KEY_PANELS_ON_NONFLOOR);
   }
   for (const mob of level.mobs) keys.add(mob.kind === COLOR_MOB_KIND ? withColor(mob.kind, mob.color) : mob.kind);

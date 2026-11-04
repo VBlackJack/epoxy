@@ -365,10 +365,13 @@ export class RegionSolver {
     const keys = held.length > 1 ? held.sort().join() : held.join();
     const entities: string[] = [];
     for (const e of engine.getEntities()) {
-      entities.push(e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}`);
+      // A turret fires the way it faces, which a push changes and its clock turns.
+      const facing = e.facing === undefined ? '' : `,${e.facing}`;
+      entities.push(e.kind === 'monster' ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}` : `${e.type}@${e.x},${e.y}${facing}`);
     }
     entities.sort();
-    return `${player.x},${player.y}|${keys}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}`;
+    const phase = engine.getTurretPhaseKey();
+    return `${player.x},${player.y}|${keys}|${[...player.boots].sort().join()}|${engine.getChipsRemaining()}|${entities.join(';')}|${changed}${phase ? `|${phase}` : ''}`;
   }
 
   /** Plays the moves in the real level: the player must end on the last target with every target collected. */

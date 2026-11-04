@@ -588,9 +588,9 @@ describe('pilot chapter 3 key on the fly', () => {
     expect(scan.unsettled).toBe(0);
   });
 
-  it('known limitation of the validator slide model: doors and sockets are never entered by a slide (warning on 35)', () => {
+  it('the validator reports no issue on level 35, with or without the stored solution', () => {
     const level = levelById(KEY_ON_THE_FLY_LEVEL);
-    const report = LevelValidator.validate(level, storedSolutionWins);
-    expect(report.issues.map((i) => `${i.severity}:${i.i18nKey}`)).toEqual(['warning:validator.issues.unreachable_exit_proven.label']);
+    expect(LevelValidator.validate(level, storedSolutionWins).issues).toEqual([]);
+    expect(LevelValidator.validate(level).issues).toEqual([]);
   });
 });

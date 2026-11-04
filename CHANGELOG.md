@@ -7,6 +7,10 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor thin wall tool (Epoxy rules): the Terrain tab ends with a Thin Wall entry; a click toggles the side
+  of the cell nearest the pointer (keyboard: the side of the direction control), with a bar showing the side
+  first. A wall shared by two cells is removed from both. The cell description spoken to screen readers lists
+  the closed sides.
 - Level editor screen reader support: once the keyboard cursor stops (about 300 ms), a polite live region
   speaks the cell: its coordinates, tile, item, creature and facing, player start, or the CC3D stack from the
   bottom up. Pointer hover, selection resizing and paste previews stay silent.
@@ -36,6 +40,7 @@ versions follow Semantic Versioning.
 ### Fixed
 
 - The level editor no longer lets a Lynx level be painted with colour channel tiles (pressure plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), which the Lynx engine plays wrongly: they are greyed out and skipped on paste like lasers, and a stored Lynx level that holds some is switched to Epoxy on open.
+- The level editor no longer deletes the thin walls (`cellEdges`) of an Epoxy level on save, autosave or any edit: they are kept through paint, erase, copy, cut, move, paste and resize, drawn on the map, and a level that has some cannot be switched to Lynx.
 - A recessed wall now rises when you leave its cell, instead of turning into a wall under you as
   soon as you step on it.
 

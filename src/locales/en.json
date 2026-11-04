@@ -96,6 +96,7 @@
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
       "refused_epoxy_only_items": { "label": "Not exported: {levels} holds a Slow-Time Charm, which the .DAT format cannot hold." },
+      "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -477,6 +478,7 @@
       "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
       "kb_editor_cc3d_eraser": { "label": "CC3D levels: the eraser removes the topmost thing of a cell (creature, then item, then top layer); Shift+eraser clears the whole cell" },
+      "kb_editor_cell_edge": { "label": "Thin walls: with the thin wall entry of the Terrain tab selected, click near a side of a cell to toggle it (keyboard: the side of the direction control); a wall shared with the next cell is removed from both" },
       "kb_editor_cc3d_panel": { "label": "CC3D thin walls: with the thin wall entry selected, click near a side of a cell to toggle it (keyboard: the side of the direction control)" },
       "kb_editor_cc3d_links": { "label": "CC3D links: hover a device or put the cursor on it to see what it works; the status line says when an edit changes a link" },
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
@@ -558,11 +560,13 @@
   },
   "editor": {
     "cell_speech": {
+      "list_separator": { "label": ", " },
       "name": { "label": "{name}" },
       "outside": { "label": "Outside the grid" },
       "item": { "label": "item: {name}" },
       "entity": { "label": "{name}, facing {side}" },
       "player": { "label": "Player start, facing {side}" },
+      "edges": { "label": "thin walls: {sides}" },
       "side": {
         "n": { "label": "north" },
         "e": { "label": "east" },
@@ -824,7 +828,7 @@
         "engine": { "label": "Engine" },
         "description": {
           "epoxy": "Epoxy: the native rules, with lasers, colour channels, block targets and every tile of the editor.",
-          "lynx": "Lynx: the rules of community packs. Lasers, mirrors, colour channels (plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks) and block targets are not available.",
+          "lynx": "Lynx: the rules of community packs. Lasers, mirrors, colour channels (plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), block targets and thin walls on cells are not available.",
           "cc3d": "CC3D: the rules of Chuck's Challenge 3D levels. The engine of such a level cannot be changed."
         }
       },
@@ -838,6 +842,7 @@
         "dropped_entities": "{count, plural, one {# creature or block was} other {# creatures or blocks were}} removed.",
         "dropped_links": "{count, plural, one {# wire was} other {# wires were}} removed.",
         "start_moved": "The player start was moved inside the level.",
+        "dropped_edges": "{count, plural, one {# cell lost its thin walls} other {# cells lost their thin walls}}.",
         "border_kept": "The outer ring was closed with walls."
       }
     },
@@ -869,7 +874,7 @@
       "ruleset": { "label": "Rules" },
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (community packs)" },
-      "ruleset_lynx_unavailable": { "label": "Levels with block targets, lasers or colour channels play under Epoxy rules only" },
+      "ruleset_lynx_unavailable": { "label": "Levels with block targets, lasers, colour channels or thin walls on cells play under Epoxy rules only" },
       "ruleset_cc3d": { "label": "CC3D (Chuck's Challenge 3D)" },
       "ruleset_cc3d_unavailable": { "label": "Only a CC3D level plays under CC3D rules" },
       "ruleset_cc3d_locked": { "label": "A CC3D level keeps its own rules: the engine cannot be changed" },
@@ -887,6 +892,7 @@
       },
       "tools": {
         "player_start": { "label": "Player Start" },
+        "cell_edge": { "label": "Thin Wall" },
         "wire_trap": { "label": "Wire Brown Button → Trap" },
         "wire_cloner": { "label": "Wire Red Button → Cloner" }
       },
@@ -903,6 +909,7 @@
         "saved_session_only": { "label": "Level kept for this session only: the browser could not save it." },
         "invalid_level": { "label": "Import cancelled: level \"{id}\" has no valid player start on the grid." },
         "wire_select_source": { "label": "Click the trigger button on the map..." },
+        "cell_edge_mode": { "label": "Thin wall: click near a side of a cell to add or remove it (keyboard: the side of the direction control)." },
         "wire_select_target": { "label": "Now click the target mechanism to link..." },
         "wire_linked": { "label": "Mechanism link established!" }
       }
@@ -1111,6 +1118,10 @@
     "fireball": { "name": "Fireball (Fire Immune)" },
     "tank": { "name": "Tank (Blue Button Reversal)" },
     "blob": { "name": "Slow Blob" },
+    "turret_fixed": { "name": "Fixed Turret" },
+    "turret_cw": { "name": "Clockwise Turret" },
+    "turret_ccw": { "name": "Counter-Clockwise Turret" },
+    "turret_multi": { "name": "Four-Way Turret" },
     "mirror_slash": { "name": "Mirror (Slash)" },
     "mirror_backslash": { "name": "Mirror (Backslash)" },
     "color_block_red": { "name": "Red Color Block" },

@@ -269,6 +269,10 @@ editor entity over floor dirt_block 424050c09e8a0007
 editor entity over floor ice_block 6b8286a59c60981d
 editor entity over floor mirror_slash e36a923215ee7dda
 editor entity over floor mirror_backslash d915131f0ace1fce
+editor entity over floor turret_fixed 3b3635452468cf2d
+editor entity over floor turret_cw 5ea684eec9b559d4
+editor entity over floor turret_ccw 7759e1a4c9ce6c82
+editor entity over floor turret_multi 020d51ecd5cf8d34
 editor entity over floor bug 45d35bf5240c29f9
 editor entity over floor paramecium 54f28fcfe9f7c569
 editor entity over floor pink_ball 000812edc4bf2a0d

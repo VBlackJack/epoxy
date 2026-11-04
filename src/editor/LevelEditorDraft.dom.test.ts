@@ -400,6 +400,24 @@ describe('writing the draft', () => {
   });
 });
 
+describe('thin walls in a draft', () => {
+  it('are written to the draft and come back when it is restored', async () => {
+    const edges = [{ x: 2, y: 2, sides: ['N', 'W'] as Array<'N' | 'W'> }];
+    editor = openEditor();
+    editor.loadCompiledLevel({ ...epoxyLevel(), cellEdges: edges });
+    typeTitle('Edged');
+    await pause();
+    const written = storedDraft()!;
+    expect(written.level.cellEdges).toEqual(edges);
+    store.delete(ownKey());
+    seedDraft({ level: written.level, source: written.source, baseHash: written.baseHash });
+    editor = openEditor();
+    choiceDialog.mockResolvedValue('restore');
+    await editor.offerDraftOnce();
+    expect(editor.exportCompiledLevel().cellEdges).toEqual(edges);
+  });
+});
+
 describe('a page touches only its own key', () => {
   it('writes and removes nothing but its own key, whatever other drafts the storage holds', async () => {
     seedDraft({ level: epoxyLevel('lvl_old'), tabId: OTHER_TAB_ID });

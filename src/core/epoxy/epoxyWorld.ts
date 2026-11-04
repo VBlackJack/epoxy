@@ -20,6 +20,7 @@ import { AudioManager } from '../../audio/AudioManager';
 import { BLOCK_TARGET_TILE_ID } from '../coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
+import { underlayAt, underlayMap } from '../Underlays';
 import {
   BeamCell,
   ButtonAction,
@@ -37,6 +38,8 @@ import {
 
 /** Group of the teleporters that declare none: they all chain together. */
 export const DEFAULT_TELEPORT_GROUP = '';
+/** The world's play start tick while the player has not taken a first step. */
+export const NO_PLAY_START_TICK = -1;
 /** Level score factor before any multiplier item is picked up. */
 export const BASE_LEVEL_SCORE_MULTIPLIER = 1;
 
@@ -64,6 +67,8 @@ export interface EpoxyWorld {
   player: PlayerState;
   /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask); static, null when none. */
   edgeMask: Uint8Array | null;
+  /** Terrain hidden under removable tops by cell index (see underlayMap); static, null when none. */
+  underlays: ReadonlyMap<number, string> | null;
 
   chipsRemaining: number;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
@@ -73,6 +78,10 @@ export interface EpoxyWorld {
   /** Factor applied to the level score at the exit, raised by multiplier items. */
   levelScoreMultiplier: number;
   levelCompleted: boolean;
+  /** True when the level has a turret, or a clone machine that may spawn one; fixed for the level. */
+  hasTurrets: boolean;
+  /** Tick of the player's first step (NO_PLAY_START_TICK until then); only turret levels read it. */
+  playStartTick: number;
   statusBannerKey: string | null;
   nextEntityUid: number;
   rng: SeededRandom;
@@ -95,7 +104,10 @@ export interface EpoxyWorld {
   /** Hold door cells in reading order; a door cell stays a door, only its open or closed form changes. */
   holdDoors: ChannelCell[];
   // Derived from the grid and the entities, never snapshotted: rebuilt after load, restore and any change.
+  /** Cells the laser emitters' beams cross (turret beams are kept apart in turretBeamCells). */
   beamCells: BeamCell[];
+  /** Cells the turret beams cross; empty on a level without turrets. */
+  turretBeamCells: BeamCell[];
   litReceiverCells: GridPoint[];
   /** True while a mirror on a beam path is sliding. */
   beamHasSlidingMirror: boolean;
@@ -130,11 +142,14 @@ export function createEpoxyWorld(): EpoxyWorld {
     cloneLinks: [],
     player: undefined as unknown as PlayerState,
     edgeMask: null,
+    underlays: null,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
     levelBonusPoints: 0,
     levelScoreMultiplier: BASE_LEVEL_SCORE_MULTIPLIER,
     levelCompleted: false,
+    hasTurrets: false,
+    playStartTick: NO_PLAY_START_TICK,
     statusBannerKey: null,
     nextEntityUid: 1,
     rng: new SeededRandom(0),
@@ -148,6 +163,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     plates: [],
     holdDoors: [],
     beamCells: [],
+    turretBeamCells: [],
     litReceiverCells: [],
     beamHasSlidingMirror: false,
     beamDirty: true,
@@ -156,8 +172,17 @@ export function createEpoxyWorld(): EpoxyWorld {
   };
 }
 
+/** True when the level has a turret now, or a clone machine that may spawn one. */
+export function levelHasTurrets(w: EpoxyWorld): boolean {
+  if (w.entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.turretBeam !== undefined)) return true;
+  return w.cloneLinks.some((link) => ConfigRegistry.getEntityDef(link.templateType)?.turretBeam !== undefined);
+}
+
 export function buildLevelLookups(w: EpoxyWorld): void {
   w.edgeMask = cellEdgeMask(w.level);
+  w.hasTurrets = levelHasTurrets(w);
+  w.turretBeamCells = [];
+  w.underlays = underlayMap(w.level);
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
     const key = cellKey(link.trapX, link.trapY);
@@ -178,25 +203,13 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.holdDoors = [];
   const coversTargets = w.level.winRule === 'targets';
   w.teleportersByGroup.clear();
+  const width = mapWidth(w);
   for (let y = 0; y < w.terrain.length; y++) {
     for (let x = 0; x < w.terrain[y].length; x++) {
-      const tile = ConfigRegistry.getTile(w.terrain[y][x]);
-      if (tile.buttonAction === 'hold_trap') w.holdTrapButtons.push({ x, y });
-      if (tile.laserEmitter) w.laserEmitters.push({ x, y, dir: tile.laserEmitter });
-      if (tile.laserReceiverGroup !== undefined) w.laserReceivers.push({ x, y });
-      if (tile.laserGateGroup !== undefined) w.laserGates.push({ x, y });
-      if (tile.plateColor !== undefined) w.plates.push({ x, y, color: tile.plateColor });
-      if (tile.holdDoorColor !== undefined) w.holdDoors.push({ x, y, color: tile.holdDoorColor });
-      if (coversTargets && w.terrain[y][x] === BLOCK_TARGET_TILE_ID) w.targetCells.push({ x, y });
-      if (tile.isTeleporter) {
-        const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
-        const list = w.teleportersByGroup.get(group);
-        if (list) {
-          list.push({ x, y });
-        } else {
-          w.teleportersByGroup.set(group, [{ x, y }]);
-        }
-      }
+      registerDevices(w, x, y, w.terrain[y][x], coversTargets);
+      // A device hidden under a removable top is listed too; every use checks that the top is that device now.
+      const hidden = underlayAt(w.underlays, width, x, y);
+      if (hidden !== undefined) registerDevices(w, x, y, hidden, coversTargets);
     }
   }
 }
@@ -216,6 +229,37 @@ export function monsterSlowdown(w: EpoxyWorld): number {
   return factor;
 }
 
+/** Lists the cell in the device lookups its terrain belongs to. */
+function registerDevices(w: EpoxyWorld, x: number, y: number, terrainId: string, coversTargets: boolean): void {
+  const tile = ConfigRegistry.getTile(terrainId);
+  if (tile.buttonAction === 'hold_trap') w.holdTrapButtons.push({ x, y });
+  if (tile.laserEmitter) w.laserEmitters.push({ x, y, dir: tile.laserEmitter });
+  if (tile.laserReceiverGroup !== undefined) w.laserReceivers.push({ x, y });
+  if (tile.laserGateGroup !== undefined) w.laserGates.push({ x, y });
+  if (tile.plateColor !== undefined) w.plates.push({ x, y, color: tile.plateColor });
+  if (tile.holdDoorColor !== undefined) w.holdDoors.push({ x, y, color: tile.holdDoorColor });
+  if (coversTargets && terrainId === BLOCK_TARGET_TILE_ID) w.targetCells.push({ x, y });
+  if (tile.isTeleporter) {
+    const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
+    const list = w.teleportersByGroup.get(group);
+    if (list) {
+      list.push({ x, y });
+    } else {
+      w.teleportersByGroup.set(group, [{ x, y }]);
+    }
+  }
+}
+
+/**
+ * The terrain a removable top reveals at the cell when the player removes it, or null when the cell
+ * hides none or no longer holds the top the level started with (a cell the game has since rewritten
+ * reveals nothing).
+ */
+export function revealedTerrain(w: EpoxyWorld, x: number, y: number): string | null {
+  const hidden = underlayAt(w.underlays, mapWidth(w), x, y);
+  if (hidden === undefined || w.terrain[y][x] !== w.level.terrain[y][x]) return null;
+  return hidden;
+}
 /** True when the player holds the item: a key of that colour, or those boots. */
 export function holdsItem(w: EpoxyWorld, itemId: string): boolean {
   return (w.player.keys[itemId] || 0) > 0 || w.player.boots.has(itemId);
@@ -259,7 +303,10 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
   }
 
   // Unlinked trap: any held trap button releases it
-  return !w.holdTrapButtons.some((b) => isButtonPressed(w, b.x, b.y));
+  // A button hidden under a removable top is listed too, and presses nothing until the top is gone.
+  return !w.holdTrapButtons.some(
+    (b) => ConfigRegistry.getTile(w.terrain[b.y][b.x]).buttonAction === 'hold_trap' && isButtonPressed(w, b.x, b.y)
+  );
 }
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {

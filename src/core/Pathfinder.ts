@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BLOCK_TARGET_TILE_ID, channelOfButtonAction } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { hiddenUnder, isRemovableTop } from './Underlays';
 import { Direction, GridPoint, TileDefinition } from './types';
 
 /** Step cost of a plain cell. */
@@ -127,7 +128,8 @@ export class Pathfinder {
     }
 
     // A cell a laser beam crosses kills whoever steps in: never planned, not even as the final cell.
-    const edgeMask = cellEdgeMask(engine.getLevel());
+    const level = engine.getLevel();
+    const edgeMask = cellEdgeMask(level);
     const beamCells = new Set<string>();
     for (const cell of engine.getBeamCells()) beamCells.add(`${cell.x},${cell.y}`);
 
@@ -181,7 +183,7 @@ export class Pathfinder {
         const ny = curr.y + vec.dy;
         if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
 
-        const nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
+        const topTile = ConfigRegistry.getTile(terrain[ny][nx]);
         const isTarget = nx === targetX && ny === targetY;
 
         if (isEdgeBlockedAt(terrain, edgeMask, curr.x, curr.y, nx, ny, dir)) continue;
@@ -202,25 +204,30 @@ export class Pathfinder {
         }
 
         let keysUsed = curr.keysUsed;
-        if (nextTile.requiredKey) {
-          const keyId = nextTile.requiredKey;
+        if (topTile.requiredKey) {
+          const keyId = topTile.requiredKey;
           const held = (player.keys[keyId] || 0) - (curr.keysUsed[keyId] || 0);
           if (held <= 0) {
             continue;
           }
-          if (nextTile.consumesKey) {
+          if (topTile.consumesKey) {
             keysUsed = { ...curr.keysUsed, [keyId]: (curr.keysUsed[keyId] || 0) + 1 };
           }
-        } else if (nextTile.requiresAllChips) {
+        } else if (topTile.requiresAllChips) {
           if (engine.getChipsRemaining() > 0) {
             continue;
           }
-        } else if (!nextTile.passableByPlayer) {
+        } else if (!topTile.passableByPlayer) {
           // Allow bumping into a hidden wall (revealed on touch) if it is the clicked target
-          if (!(isTarget && Boolean(nextTile.revealsToOnTouch))) {
+          if (!(isTarget && Boolean(topTile.revealsToOnTouch))) {
             continue;
           }
         }
+
+        // Once a removable top is gone the cell is what it hid: the rest of the step is judged on that.
+        const hiddenId = isRemovableTop(topTile) ? hiddenUnder(level, terrain, nx, ny) : undefined;
+        const nextTile = hiddenId === undefined ? topTile : ConfigRegistry.getTile(hiddenId);
+        if (hiddenId !== undefined && !nextTile.passableByPlayer) continue;
 
         const itemOnNext = items[ny][nx];
         if (itemOnNext && ConfigRegistry.getTile(itemOnNext).hazard === 'bomb') continue;
@@ -288,7 +295,8 @@ export class Pathfinder {
       return null;
     }
 
-    const objectiveEdgeMask = cellEdgeMask(engine.getLevel());
+    const objectiveLevel = engine.getLevel();
+    const objectiveEdgeMask = cellEdgeMask(objectiveLevel);
     const visited = Array.from({ length: height }, () => new Array<boolean>(width).fill(false));
     const queue: GridPoint[] = [{ x: player.x, y: player.y }];
     visited[player.y][player.x] = true;
@@ -389,6 +397,9 @@ export class Pathfinder {
 
         if (nextTile.requiredKey) {
           if ((player.keys[nextTile.requiredKey] || 0) > 0) {
+            // A door that hides a wall is opened for nothing: the way beyond it stays shut.
+            const hiddenId = hiddenUnder(objectiveLevel, terrain, nx, ny);
+            if (hiddenId !== undefined && !ConfigRegistry.getTile(hiddenId).passableByPlayer) continue;
             if (!unlockableDoorCandidate) {
               unlockableDoorCandidate = { x: nx, y: ny };
             }

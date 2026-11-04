@@ -17,6 +17,7 @@
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import type { CloneLink, EntityPlacement, TrapLink } from '../core/types';
 import { dirtyCc3dCells } from './cc3dLayerDiff';
+import { differingEdgeCells } from './editorCellEdges';
 import type { EditorDocument } from './editorDocument';
 
 export interface HistoryCell {
@@ -82,6 +83,8 @@ function epoxyDirtyCells(before: EditorDocument, after: EditorDocument, width: n
   for (const link of unmatched(before.cloneLinks, after.cloneLinks, cloneLinkKey)) {
     dirty.push({ x: link.buttonX, y: link.buttonY }, { x: link.clonerX, y: link.clonerY });
   }
+  // A thin wall counts at its cell, whichever side holds it: added, removed or changed sides.
+  dirty.push(...differingEdgeCells(before.cellEdges, after.cellEdges));
   const a = before.playerStart;
   const b = after.playerStart;
   if (a.x !== b.x || a.y !== b.y || a.dir !== b.dir) dirty.push({ x: a.x, y: a.y }, { x: b.x, y: b.y });
