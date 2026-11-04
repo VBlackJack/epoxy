@@ -19,7 +19,7 @@ import { PACK_NAME_MAX_LENGTH } from '../config/constants';
 import { convertCc3dLevel } from '../core/cc3d/cc3dToEpoxy';
 import { LevelValidator } from '../core/LevelValidator';
 import { CompiledLevel, LevelPack } from '../core/types';
-import { needsImportedConfirmation, pickSaveDestination, resolveSavedPassword } from '../editor/saveTarget';
+import { IMPORTED_MODIFY_CHOICE, needsImportedConfirmation, pickSaveDestination, resolveSavedPassword } from '../editor/saveTarget';
 import { datRefusalReason } from '../formats/DatCodec';
 import { t } from '../i18n/I18nManager';
 import { cleanPackAuthor, cleanPackDescription, PackMetadataLimits } from '../packs/packMetadata';
@@ -68,8 +68,6 @@ const MODAL_ID = 'packs-modal';
 const DELETE_CHOICE_ID = 'delete';
 const EXPORT_CHOICE_ID = 'export';
 const CONVERT_OPEN_CHOICE_ID = 'open';
-/** Id of the "modify the imported pack" answer, as the editor's confirmation uses it. */
-const IMPORTED_MODIFY_CHOICE_ID = 'modify';
 const HIDDEN_CLASS = 'hidden';
 const TRANSFER_COPY = 'copy';
 const TRANSFER_MOVE = 'move';
@@ -1234,7 +1232,7 @@ export class PackManager {
           cancelLabel: t('editor.pack.confirm_imported.again.action'),
           options: [
             {
-              id: IMPORTED_MODIFY_CHOICE_ID,
+              id: IMPORTED_MODIFY_CHOICE,
               label: t('editor.pack.confirm_imported.modify.action', {
                 name: target ? this.host.packDisplayName(target) : choice.packId
               }),
@@ -1242,7 +1240,7 @@ export class PackManager {
             }
           ]
         });
-        if (answer !== IMPORTED_MODIFY_CHOICE_ID) continue;
+        if (answer !== IMPORTED_MODIFY_CHOICE) continue;
         this.confirmedImportedPackIds.add(choice.packId);
       }
       return { packId: choice.packId, newPackName: null };

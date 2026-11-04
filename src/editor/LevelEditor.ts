@@ -202,6 +202,7 @@ import {
   mayRebindAfterSave,
   needsImportedConfirmation,
   NO_SOURCE,
+  IMPORTED_MODIFY_CHOICE,
   nextEditableIndex,
   pickSaveDestination,
   levelMapChanged,
@@ -292,7 +293,6 @@ const LYNX_RULESET = 'lynx' as const;
 /** Value of the context pack select while the editor content belongs to no pack. */
 const NO_PACK_OPTION_VALUE = '';
 /** Answers of the imported-pack and multi-level-file questions. */
-const IMPORTED_MODIFY_CHOICE = 'modify';
 const IMPORTED_COPY_CHOICE = 'copy';
 const IMPORT_AS_PACK_CHOICE = 'pack';
 const IMPORT_FIRST_CHOICE = 'first';
