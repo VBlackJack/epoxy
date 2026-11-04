@@ -1406,11 +1406,11 @@
       },
       "level_34": {
         "title": "Toboggan",
-        "hint": "Une glace coudée fait tourner ta glissade. Chaque piste t'envoie ailleurs : essaie-les toutes pour trouver celle qui mène à la sortie."
+        "hint": "Une glace coudée fait tourner ta glissade. Suis chaque piste des yeux : l'une finit à côté de la sortie, prends-la en dernier."
       },
       "level_35": {
         "title": "Clé au vol",
-        "hint": "Une clé posée sur la glace se ramasse en glissant dessus, et une porte s'ouvre quand tu glisses contre elle. Glisse dans la piste de la clé pour atteindre la porte."
+        "hint": "Une clé posée sur la glace se ramasse en glissant dessus, et une porte s'ouvre quand tu glisses contre elle avec sa clé. Glisse dans la piste de la clé pour atteindre la porte."
       }
     },
     "chapter": {

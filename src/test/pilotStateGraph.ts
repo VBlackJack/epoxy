@@ -30,6 +30,8 @@ export interface StateGraphOptions {
   expandIf?: (engine: GameEngine) => boolean;
   /** Called once per distinct state, with the engine standing in that state. */
   onState?: (engine: GameEngine) => void;
+  /** Called once per dead state (see `StateGraph.dead`), with the engine standing in that state. */
+  onDead?: (engine: GameEngine) => void;
 }
 
 export interface StateGraph {
@@ -111,5 +113,12 @@ export function exploreStateGraph(engine: GameEngine, options: StateGraphOptions
   const expanded = expandable.filter(Boolean).length;
   const winCount = canWin.filter(Boolean).length;
   const dead = canWin.filter((wins, id) => !wins && expandable[id]).length;
+  if (options.onDead) {
+    canWin.forEach((wins, id) => {
+      if (wins || !expandable[id]) return;
+      engine.restoreState(snapshots[id]);
+      options.onDead?.(engine);
+    });
+  }
   return { states: snapshots.length, expanded, canWin: winCount, dead };
 }

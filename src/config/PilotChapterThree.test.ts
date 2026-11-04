@@ -189,9 +189,10 @@ describe('pilot chapter 3 firewall', () => {
     expect(scan.deaths.map((d) => `${d.reason}@${d.x},${d.y}`).sort()).toEqual([`${DEATH_FIRE}@1,2`, `${DEATH_FIRE}@3,2`]);
   });
 
-  it('collects nothing before the boots: in every state reached without them both chips are still on the map and the exit is far', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('collects nothing before the boots: in every state reached without them both chips are still on the map and the socket stays shut', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(FIREWALL_LEVEL);
     let leastChipsLeft = level.chipsRequired;
+    let socketsShut = true;
     const visited = new Set<string>();
     exploreStateGraph(engineFor(level), {
       stateCap: SEARCH_STATE_CAP,
@@ -199,17 +200,19 @@ describe('pilot chapter 3 firewall', () => {
       expandIf: (engine) => !engine.getPlayer().boots.has(FIRE_BOOTS),
       onState: (engine) => {
         if (engine.getPlayer().boots.has(FIRE_BOOTS)) return;
+        socketsShut = socketsShut && engine.getTerrain()[4][5] === 'socket' && !engine.isLevelCompleted();
         leastChipsLeft = Math.min(leastChipsLeft, engine.getChipsRemaining());
         visited.add(where(engine));
       }
     });
     expect(leastChipsLeft).toBe(2);
+    expect(socketsShut).toBe(true);
     for (const cell of [...FIRE_CELLS, '1,1', '3,1']) expect(visited.has(cell), cell).toBe(false);
     // The hub and the corridor to the boots, up to the cell before them (standing on the boots cell is having them).
     expect([...visited].sort()).toEqual(['1,3', '2,3', '3,3', '4,3', '5,3', '6,3', '7,3', '8,3', '9,2', '9,3']);
   });
 
-  it('cannot step on fire alive before the boots: the shortest way onto a fire cell has the boots in hand and takes 15 moves', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('the shortest way onto a fire cell takes 15 moves, boots in hand', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(FIREWALL_LEVEL);
     const onFire = (engine: GameEngine): boolean => {
       const { x, y } = engine.getPlayer();
@@ -227,9 +230,24 @@ describe('pilot chapter 3 firewall', () => {
     const noDrops = exploreStateGraph(engineFor(level), { stateCap: SEARCH_STATE_CAP, allowDrops: false });
     expect(noDrops.dead).toBe(0);
     // Dropping is a deliberate act (keys E and X): left on a chip cell behind the fire, the boots strand the player.
-    const withDrops = exploreStateGraph(engineFor(level), { stateCap: SEARCH_STATE_CAP, allowDrops: true });
+    const stranded: string[] = [];
+    const withDrops = exploreStateGraph(engineFor(level), {
+      stateCap: SEARCH_STATE_CAP,
+      allowDrops: true,
+      onDead: (engine) => {
+        const { x, y, boots } = engine.getPlayer();
+        const dropped = engine
+          .getItems()
+          .flatMap((row, iy) => row.flatMap((item, ix) => (item === FIRE_BOOTS ? [`${ix},${iy}`] : [])))
+          .filter((cell) => cell !== '9,1');
+        stranded.push(`player ${x},${y} boots ${boots.has(FIRE_BOOTS) ? 'worn' : 'off'} dropped ${dropped.join('|')}`);
+      }
+    });
     expect(withDrops.states).toBe(2404);
     expect(withDrops.dead).toBe(18);
+    expect(stranded).toHaveLength(18);
+    // Every dead state: the player stands beyond a fire cell (x 1 or 3, y 1 or 2), the boots are off his feet and lie on a chip cell behind the fire.
+    for (const line of stranded) expect(line, line).toMatch(/^player [13],[12] boots off dropped [13],1$/);
   });
 });
 
@@ -294,7 +312,7 @@ describe('pilot chapter 3 a block for the flippers', () => {
     let leastChipsLeft = level.chipsRequired;
     exploreStateGraph(engineFor(level), {
       stateCap: SEARCH_STATE_CAP,
-      allowDrops: false,
+      allowDrops: true,
       expandIf: (engine) => !engine.getPlayer().boots.has(WATER_BOOTS),
       onState: (engine) => {
         if (engine.getPlayer().boots.has(WATER_BOOTS)) return;
@@ -332,18 +350,17 @@ describe('pilot chapter 3 slide', () => {
 
   it('is won by its stored solution, and no shorter win exists, drops allowed', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(SLIDE_LEVEL);
-    expect(level.solution?.length).toBe(16);
-    expect(shortest(engineFor(level))).toBe(16);
+    expect(level.solution?.length).toBe(18);
+    expect(shortest(engineFor(level))).toBe(18);
   });
 
-  it('has three ice corridors: the top and bottom end on a chip, the middle one ends on a wall', () => {
+  it('has three ice corridors: the top one ends on a chip, the bottom one has a floor stop halfway, the middle one ends on a wall', () => {
     const level = levelById(SLIDE_LEVEL);
-    expect(countTerrain(level, 'ice')).toBe(7 + 8 + 7);
+    expect(countTerrain(level, 'ice')).toBe(7 + 8 + 3 + 3);
     expect(level.terrain[1][8]).toBe('ice');
     expect(level.terrain[1][9]).toBe('floor');
     expect(level.items[1][9]).toBe('chip');
-    expect(level.terrain[7][8]).toBe('ice');
-    expect(level.terrain[7][9]).toBe('floor');
+    expect(level.terrain[7].slice(1, 10)).toEqual(['floor', 'ice', 'ice', 'ice', 'floor', 'ice', 'ice', 'ice', 'floor']);
     expect(level.items[7][9]).toBe('chip');
     expect(level.terrain[4][9]).toBe('ice');
     expect(level.terrain[4][10]).toBe('wall');
@@ -374,13 +391,29 @@ describe('pilot chapter 3 slide', () => {
     expect(where(engine)).toBe('1,1');
   });
 
+  it('stops a slide on the floor halfway down the bottom corridor, and a second press carries on to the chip', () => {
+    const level = levelById(SLIDE_LEVEL);
+    const engine = engineAfter(level, 'SSS');
+    expect(where(engine)).toBe('1,7');
+    playAll(engine, 'E');
+    expect(where(engine)).toBe('5,7');
+    expect(engine.getChipsRemaining()).toBe(3);
+    playAll(engine, 'E');
+    expect(where(engine)).toBe('9,7');
+    expect(engine.getChipsRemaining()).toBe(2);
+    playAll(engine, 'W');
+    expect(where(engine)).toBe('5,7');
+    playAll(engine, 'W');
+    expect(where(engine)).toBe('1,7');
+  });
+
   it('cannot kill or trap: the scan is complete with no death, and every state can still win', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(SLIDE_LEVEL);
     const scan = scanHazards(level, { allowDrops: true });
-    expect(scan.states).toBe(242);
+    expect(scan.states).toBe(274);
     expect(scan.deaths).toEqual([]);
     const graph = exploreStateGraph(engineFor(level), { stateCap: SEARCH_STATE_CAP, allowDrops: true });
-    expect(graph.states).toBe(242);
+    expect(graph.states).toBe(274);
     expect(graph.dead).toBe(0);
   });
 });
@@ -471,8 +504,8 @@ describe('pilot chapter 3 key on the fly', () => {
 
   it('is won by its stored solution, and no shorter win exists, drops allowed', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(KEY_ON_THE_FLY_LEVEL);
-    expect(level.solution?.length).toBe(21);
-    expect(shortest(engineFor(level))).toBe(21);
+    expect(level.solution?.length).toBe(15);
+    expect(shortest(engineFor(level))).toBe(15);
   });
 
   it('lays the only key on the ice, one cell before the only door, which is the one way to the exit', () => {
@@ -498,9 +531,9 @@ describe('pilot chapter 3 key on the fly', () => {
         if (engine.getTerrain()[4][9] !== RED_DOOR) doorOpenStates++;
       }
     });
-    expect(graph.states).toBe(906);
+    expect(graph.states).toBe(286);
     expect(mostKeysHeld).toBe(0);
-    expect(doorOpenStates).toBe(538);
+    expect(doorOpenStates).toBe(180);
     expect(graph.dead).toBe(0);
   });
 
@@ -525,7 +558,7 @@ describe('pilot chapter 3 key on the fly', () => {
         expect(engine.getPlayer().isSliding).toBe(false);
       }
     }
-    expect(openingMove).toBe(18);
+    expect(openingMove).toBe(12);
     expect(engine.isLevelCompleted()).toBe(true);
   });
 
@@ -550,12 +583,12 @@ describe('pilot chapter 3 key on the fly', () => {
 
   it('cannot kill or trap: the scan is complete with no death and no slide that never ends', { timeout: TEST_TIMEOUT_MS }, () => {
     const scan = scanHazards(levelById(KEY_ON_THE_FLY_LEVEL), { allowDrops: true });
-    expect(scan.states).toBe(906);
+    expect(scan.states).toBe(286);
     expect(scan.deaths).toEqual([]);
     expect(scan.unsettled).toBe(0);
   });
 
-  it('is flagged by the validator only with the proven warning, because its model of a slide stops at a shut door', () => {
+  it('known limitation of the validator slide model: doors and sockets are never entered by a slide (warning on 35)', () => {
     const level = levelById(KEY_ON_THE_FLY_LEVEL);
     const report = LevelValidator.validate(level, storedSolutionWins);
     expect(report.issues.map((i) => `${i.severity}:${i.i18nKey}`)).toEqual(['warning:validator.issues.unreachable_exit_proven.label']);

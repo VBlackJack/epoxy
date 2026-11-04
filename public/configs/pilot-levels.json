@@ -1748,7 +1748,7 @@
         "#.IIIIIIII#",
         "#.#########",
         "#.#########",
-        "#.IIIIIIIC#",
+        "#.III.IIIC#",
         "#S#########",
         "#E#########",
         "###########"
@@ -1763,7 +1763,7 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "NNNEWSSSESSSEWSS"
+      "solution": "NNNEWSSSESSSEEWWSS"
     },
     {
       "id": "epoxy_p_34",
@@ -1804,7 +1804,7 @@
       "hintKey": "pilot.levels.level_35.hint",
       "password": "KEYS",
       "timeLimitSeconds": 0,
-      "chipsRequired": 4,
+      "chipsRequired": 2,
       "playerStart": {
         "x": 4,
         "y": 4,
@@ -1812,13 +1812,13 @@
       },
       "rows": [
         "##############",
-        "#CII.II.IIC###",
+        "#.II.II.IIC###",
         "#I##I#########",
         "#I##I#########",
         "#HII.II.IR.SE#",
         "#I#####I######",
         "#I#####I######",
-        "#.IIC##.IIC###",
+        "#.II.##.IIC###",
         "##############"
       ],
       "items": [
@@ -1831,7 +1831,7 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": [],
-      "solution": "NEEWWWSSEWNEESEWNEEEE"
+      "solution": "NEEWWSESEWNEEEE"
     }
   ]
 }

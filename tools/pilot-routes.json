@@ -386,7 +386,7 @@
     "epoxy_p_33": {
       "segments": [
         "NNNEWSSSESS",
-        "SEWSS"
+        "SEEWWSS"
       ]
     },
     "epoxy_p_34": {
@@ -396,8 +396,8 @@
     },
     "epoxy_p_35": {
       "segments": [
-        "NEEWWWSSEWN",
-        "EESEWNEEEE"
+        "NEEWWSESEWN",
+        "EEEE"
       ],
       "requires": [
         "key_red"
