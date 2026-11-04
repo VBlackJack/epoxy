@@ -1297,7 +1297,7 @@
       },
       "level_30": {
         "title": "Le grand chantier",
-        "hint": "Couvre toutes les cibles pour gagner. Un bloc comble une mare ou couvre une cible, jamais les deux, et un bloc poussé contre un mur ou à côté d'un autre bloc peut ne plus jamais bouger."
+        "hint": "Couvre toutes les cibles pour gagner. Un bloc comble une mare ou couvre une cible, jamais les deux, et un bloc dans une voie d'une case de haut ne change jamais de voie : chaque voie réclame ses deux blocs."
       }
     },
     "chapter": {

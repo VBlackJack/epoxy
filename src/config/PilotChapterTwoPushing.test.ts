@@ -23,7 +23,7 @@ import { CompiledLevel, Direction } from '../core/types';
 import { PieceSolver } from '../generator/PieceSolver';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { searchShortestWinLean } from '../test/pilotLeanSearch';
-import { pushWinExists, searchPushWin } from '../test/pilotPushSearch';
+import { pushWinExists } from '../test/pilotPushSearch';
 import { applySearchAction, searchActions, searchCanWin, searchShortestWin, searchStateKey } from '../test/pilotSearch';
 import { ConfigRegistry } from './ConfigRegistry';
 
@@ -139,8 +139,8 @@ describe('pilot chapter 2 do not dig', () => {
     loadTestConfigs();
   });
 
-  /** From the start to the junction, then east along row 3 onto the plug, which turns to floor under the player. */
-  const DIG = 'EESSEEE';
+  /** Down to the chip cell, then east along row 3 onto the plug, which turns to floor under the player. */
+  const DIG = 'SSEEEEE';
 
   function withoutBall(level: CompiledLevel): CompiledLevel {
     const copy = structuredClone(level);
@@ -150,8 +150,8 @@ describe('pilot chapter 2 do not dig', () => {
 
   it('is won by its stored solution, and no shorter win exists, drops allowed', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(NO_DIG_LEVEL);
-    expect(level.solution?.length).toBe(26);
-    expect(shortest(engineFor(level))).toBe(26);
+    expect(level.solution?.length).toBe(22);
+    expect(shortest(engineFor(level))).toBe(22);
   });
 
   it('starts the player outside a five-cell lane that dirt closes on one side, with a wall closing the other and walls above and below', () => {
@@ -170,6 +170,13 @@ describe('pilot chapter 2 do not dig', () => {
     expect(countItems(level, 'key_red') + countItems(level, 'key_green')).toBe(0);
   });
 
+  it('has no side pocket along row 3: west of the plug the only way in and out is the chip cell at (1,3), the whole row is walled above and below', () => {
+    const level = levelById(NO_DIG_LEVEL);
+    expect(level.terrain[2].map((id, x) => (id === 'wall' ? null : x)).filter((x) => x !== null)).toEqual([1, 13]);
+    for (let x = 1; x <= 10; x++) expect(level.terrain[4][x]).toBe('wall');
+    expect(level.items[3][1]).toBe('chip');
+  });
+
   it('keeps the ball in its lane and the plug untouched all along the stored solution', () => {
     const level = levelById(NO_DIG_LEVEL);
     const engine = engineFor(level);
@@ -184,24 +191,28 @@ describe('pilot chapter 2 do not dig', () => {
     expect(engine.isLevelCompleted()).toBe(true);
   });
 
-  it('makes the ball the only thing that bars the shortcut: without it the shortest win is 22 moves', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('makes the ball the only thing that bars the shortcut: without it the shortest win is 18 moves', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(NO_DIG_LEVEL);
-    expect(shortest(engineFor(withoutBall(level)))).toBe(22);
+    expect(shortest(engineFor(withoutBall(level)))).toBe(18);
   });
 
-  it('prices the lane route above the safe route: with the top route closed the shortest win is 38, and without the ball it is 22 again', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('cannot be won by dodging: with the top route closed (the lane is then the only way on) no win exists, drops allowed, and without the ball one does', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = structuredClone(levelById(NO_DIG_LEVEL));
     level.terrain[2][13] = 'wall';
-    expect(shortest(engineFor(level))).toBe(38);
-    expect(shortest(engineFor(withoutBall(level)))).toBe(22);
+    expect(searchCanWin(engineFor(level), { stateCap: SEARCH_STATE_CAP, allowDrops: true })).toBe(false);
+    // The closed top route leaves the map connected through the lane: without the ball the shortest win is 18 again.
+    expect(shortest(engineFor(withoutBall(level)))).toBe(18);
   });
 
-  it('never saves a move by digging: after treading the plug the cheapest finish costs 25 more, 32 in all against 26', { timeout: TEST_TIMEOUT_MS }, () => {
-    const level = levelById(NO_DIG_LEVEL);
+  it('is lost once the plug is trodden before the ball is gone, the walk in being a corridor with no side to step aside to', { timeout: TEST_TIMEOUT_MS }, () => {
+    const level = structuredClone(levelById(NO_DIG_LEVEL));
+    level.terrain[2][13] = 'wall';
     const engine = engineAfter(level, DIG);
     expect(engine.getTerrain()[3][6]).toBe('floor');
-    expect(shortest(engine)).toBe(25);
-    expect(DIG.length + 25).toBe(32);
+    expect(searchCanWin(engine, { stateCap: SEARCH_STATE_CAP, allowDrops: true })).toBe(false);
+    // With the top route open the finish after digging is a retreat and the safe route: counted here, not claimed as a global proof.
+    const open = engineAfter(levelById(NO_DIG_LEVEL), DIG);
+    expect(shortest(open)).toBe(25);
   });
 });
 
@@ -255,6 +266,23 @@ function lockChamber(level: CompiledLevel, withBlock = true): CompiledLevel {
   copy.entities = copy.entities.filter((e) => e.type === 'pink_ball' || (withBlock && e.type === 'dirt_block' && e.x === 4 && e.y === 4));
   copy.playerStart = { ...copy.playerStart, x: 4, y: 3 };
   copy.chipsRequired = 1;
+  return copy;
+}
+
+/**
+ * The hall of the lock alone: no ball, no shaft block, and everything below the hall walled but the
+ * pocket of the lower chip. The ball and the chamber play no part in the two hall chips.
+ */
+function lockHall(level: CompiledLevel): CompiledLevel {
+  const copy = structuredClone(level);
+  for (let y = 4; y < copy.terrain.length; y++) {
+    for (let x = 1; x < copy.terrain[y].length; x++) {
+      if (y === 4 && x === 10) continue;
+      copy.terrain[y][x] = 'wall';
+      copy.items[y][x] = null;
+    }
+  }
+  copy.entities = copy.entities.filter((e) => e.type === 'dirt_block' && e.y <= 3);
   return copy;
 }
 
@@ -319,13 +347,12 @@ describe('pilot chapter 2 the lock', () => {
     expect(engine.isLevelCompleted()).toBe(true);
   });
 
-  it('is won in 27 + 25 moves, each part the shortest (the whole level exceeds six million states, so only the parts are exhaustive)', { timeout: 1200000 }, () => {
+  it('is won in 27 + 25 moves: each part is the shortest for its part, but their sum (52) is not a proven global minimum, the whole level exceeding six million states', { timeout: 1200000 }, () => {
     const level = levelById(LOCK_LEVEL);
-    const hallOnly = structuredClone(level);
-    hallOnly.entities = hallOnly.entities.filter((e) => e.type !== 'pink_ball');
+    const hallOnly = lockHall(level);
     const hall = searchShortestWinLean(engineFor(hallOnly), {
       stateCap: 6000000,
-      allowDrops: false,
+      allowDrops: true,
       goal: (engine) => hallChipsTaken(engine)
     });
     expect(hall?.length).toBe(HALL_PART);
@@ -342,26 +369,26 @@ describe('pilot chapter 2 the lock', () => {
     expect(engine.getTerrain()[1][10]).toBe('dirt');
     expect(blockCells(engine)).toEqual(['3,1', '4,4']);
     // The hall part alone: the ball plays no part in the two hall chips, so it is taken out to keep the search small.
-    const copy = structuredClone(level);
-    copy.entities = copy.entities.filter((e) => e.type !== 'pink_ball');
+    const copy = lockHall(level);
     const free = engineFor(copy);
     playAll(free, 'SEEEEENWNEEEE');
-    const win = searchShortestWinLean(free, { stateCap: 6000000, allowDrops: false, goal: hallChipsTaken });
+    const win = searchShortestWinLean(free, { stateCap: 6000000, allowDrops: true, goal: hallChipsTaken });
     expect(win).toBeNull();
     // The same hall from the start does reach both chips, in 27 moves (see the test above).
-    expect(searchShortestWinLean(engineFor(copy), { stateCap: 6000000, allowDrops: false, goal: hallChipsTaken })?.length).toBe(27);
+    expect(searchShortestWinLean(engineFor(copy), { stateCap: 6000000, allowDrops: true, goal: hallChipsTaken })?.length).toBe(27);
   });
 
   it('has no dodge: in every reachable state of the chamber, drops included, the player stands in the lane or beyond it only behind the block with the ball beyond, and holds the key only there', { timeout: 1200000 }, () => {
     const scan = scanChamber(lockChamber(levelById(LOCK_LEVEL)));
-    expect(scan.breach).toBeNull();
-    expect(scan.states).toBeGreaterThan(500);
-    expect(scan.keyStates).toBeGreaterThan(0);
+    expect(scan).toEqual({ states: 44653, breach: null, keyStates: 21047 });
   });
 
   it('would be dodged without the block: the same chamber with the shaft empty lets the player into the lane', { timeout: 1200000 }, () => {
-    const scan = scanChamber(lockChamber(levelById(LOCK_LEVEL), false));
-    expect(scan.breach).not.toBeNull();
+    const empty = lockChamber(levelById(LOCK_LEVEL), false);
+    const scan = scanChamber(empty);
+    expect(scan).toEqual({ states: 75, breach: 'player 5,8 block undefined,undefined ball 6,8', keyStates: 0 });
+    // And the dodge really wins: with nothing in the shaft the chamber can be crossed against the ball.
+    expect(searchCanWin(engineFor(empty), { stateCap: SEARCH_STATE_CAP, allowDrops: true })).toBe(true);
   });
 
   it('picks the key only once the block shelters the player, along the stored solution', () => {
@@ -372,6 +399,7 @@ describe('pilot chapter 2 the lock', () => {
       expect(PieceSolver.play(engine, move as Direction)).toBe(true);
       const player = engine.getPlayer();
       if ((player.keys.key_red ?? 0) > 0 && !picked) {
+        // Documented exception to "no key while the ball is live": the ball is pinned, not gone, and the exhaustive drop scan above shows the key never helps the player past the block.
         picked = true;
         const block = engine.getEntities().find((e) => e.type === 'dirt_block');
         const ball = engine.getEntities().find((e) => e.type === 'pink_ball');
@@ -383,19 +411,12 @@ describe('pilot chapter 2 the lock', () => {
   });
 });
 
-function pushRoomWith(level: CompiledLevel, blocks: Array<[number, number]>): GameEngine {
-  const room = structuredClone(level);
-  room.playerStart = { ...room.playerStart, x: 1, y: 3 };
-  room.entities = blocks.map(([x, y]) => ({ type: 'dirt_block', x, y, dir: 'S' }) as CompiledLevel['entities'][number]);
-  return engineFor(room);
-}
-
 describe('pilot chapter 2 the great works', () => {
   beforeAll(() => {
     loadTestConfigs();
   });
 
-  it('is won by its stored solution: six blocks, three of them sunk, three on targets, with the budget replayed', () => {
+  it('is won by its replayed stored solution: six blocks, three of them sunk, three on targets, 46 pushes and 129 moves, with the budget replayed (neither count is claimed minimal: the exact push search ran out of memory in a normal worker)', () => {
     const level = levelById(WORKS_LEVEL);
     expect(level.winRule).toBe('targets');
     expect(level.blockBudget).toEqual({ waters: 3, targets: 3 });
@@ -412,19 +433,34 @@ describe('pilot chapter 2 the great works', () => {
     expect(pushes).toBe(46);
   });
 
-  it('needs 46 pushes at the very least, by the exact push search (the move search exceeds three million states, so the 129 moves are a replayed solution, not a proven minimum)', { timeout: 1200000 }, () => {
-    expect(searchPushWin(engineFor(levelById(WORKS_LEVEL)), { stateCap: 8000000 })).toEqual({ pushes: 46 });
-  });
+  /** The stored solution's first 13 moves sink the first lane's own block and leave the player on its target cell. */
+  const FIRST_LANE_DONE = 'NNNNEEEEEEEEE';
+  /** Back west and down to the middle row, then north: the block of (2,2) goes up into the first row. */
+  const FIRST_UP = 'W'.repeat(10) + 'SSEN';
 
-  it('is lost when both flexible blocks go up into the first lane: it takes one block for its target and strands the other, and the other lanes are short', { timeout: 1200000 }, () => {
+  it('is lost when both flexible blocks go up into the first lane: it takes one block for its target and strands the other, and the other lanes are short', { timeout: TEST_TIMEOUT_MS }, () => {
     const level = levelById(WORKS_LEVEL);
     const start = (level.entities as Array<{ x: number; y: number }>).map((e) => `${e.x},${e.y}`).sort();
     expect(start).toEqual(['2,2', '2,4', '2,5', '3,1', '6,2', '6,4'].sort());
-    // The first pool is already filled and trodden; two blocks wait in the first row for its single target.
-    const filled = structuredClone(level);
-    filled.terrain[1][10] = 'floor';
-    expect(pushWinExists(pushRoomWith(filled, [[5, 1], [7, 1], [2, 4], [6, 4], [2, 5]]), { stateCap: 8000000 })).toBe(false);
-    // One of them went down into the middle lane instead: the same room is fine.
-    expect(pushWinExists(pushRoomWith(filled, [[5, 1], [6, 3], [2, 4], [6, 4], [2, 5]]), { stateCap: 8000000 })).toBe(true);
+    expect((level.solution ?? '').startsWith(FIRST_LANE_DONE)).toBe(true);
+    // Real play: the first lane's own block is sunk, then both flexible blocks of the second row are pushed north.
+    const wrong = engineAfter(level, FIRST_LANE_DONE + FIRST_UP + 'SEEEEN');
+    expect(blockCells(wrong)).toEqual(['2,1', '2,4', '2,5', '6,1', '6,4']);
+    // Row 0 is wall, so a block in the first row never leaves it: the two stranded blocks can only ever cover the first target.
+    expect(level.terrain[0].every((id) => id === 'wall')).toBe(true);
+    // The rest of the room without them and without that target: three blocks for two pools and two targets.
+    const reduced = (blocks: Array<[number, number]>): GameEngine => {
+      const room = structuredClone(level);
+      room.terrain[1][10] = 'floor';
+      room.terrain[1][11] = 'floor';
+      room.playerStart = { ...room.playerStart, x: 1, y: 3 };
+      room.entities = blocks.map(([x, y]) => ({ type: 'dirt_block', x, y, dir: 'S' }) as CompiledLevel['entities'][number]);
+      return engineFor(room);
+    };
+    expect(pushWinExists(reduced([[2, 4], [6, 4], [2, 5]]), { stateCap: 8000000 })).toBe(false);
+    // The second flexible block goes down into the middle lane instead: four blocks remain for them, and the same play stays winnable.
+    const right = engineAfter(level, FIRST_LANE_DONE + FIRST_UP + 'EEENES');
+    expect(blockCells(right)).toEqual(['2,1', '2,4', '2,5', '6,3', '6,4']);
+    expect(pushWinExists(reduced([[6, 3], [2, 4], [6, 4], [2, 5]]), { stateCap: 8000000 })).toBe(true);
   });
 });

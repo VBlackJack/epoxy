@@ -32,30 +32,39 @@ export interface LeanSearchOptions {
   onLayer?: (depth: number, size: number, seen: number) => void;
 }
 
-/** 53-bit hash of a state key (two independent 32-bit string hashes), so the visited set holds numbers, not strings. */
-function hashKey(text: string): number {
+/**
+ * Compact visited-set key: two independent 53-bit hashes of the state key joined into one string
+ * (about 106 bits), so the set holds short strings instead of whole state keys.
+ */
+function hashKey(text: string): string {
   let a = 0x811c9dc5;
   let b = 0x01000193 ^ text.length;
+  let c2 = 0x9e3779b9;
+  let d = 0x7f4a7c15 ^ text.length;
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i);
     a = Math.imul(a ^ c, 0x01000193);
     b = Math.imul(b + c, 0x85ebca6b) ^ (b >>> 13);
+    c2 = Math.imul(c2 ^ (c + 31), 0xcc9e2d51);
+    c2 = (c2 << 15) | (c2 >>> 17);
+    d = Math.imul(d + c * 131, 0x1b873593) ^ (d >>> 11);
   }
-  return (a >>> 0) * 0x200000 + (b >>> 11);
+  return `${(a >>> 0) * 0x200000 + (b >>> 11)}.${(c2 >>> 0) * 0x200000 + (d >>> 11)}`;
 }
 
 /**
  * Breadth-first search like `searchShortestWin`, built for rooms with several blocks: it keeps a
- * 53-bit hash of every visited state instead of a snapshot per node, holds snapshots for the
+ * compact hash of every visited state instead of a snapshot per node, holds snapshots for the
  * current and the next layer only, and rebuilds the winning path from compact parent records.
- * Two distinct states can in theory share a hash; the chance is negligible below the state cap
- * (about 10^-3 at twelve million states) and a collision could only hide a state, never invent a win.
+ * Two distinct states could in theory share the hash, and a collision hides the second state: it
+ * could turn a real win into a missing one (a false null) or lengthen a shortest win. With about
+ * 106 hash bits the chance is below 10^-18 at twelve million states, far under any other risk.
  */
 export function searchShortestWinLean(engine: GameEngine, options: LeanSearchOptions = {}): SearchWin | null {
   const cap = options.stateCap ?? LEAN_SEARCH_STATE_CAP;
   const accept = options.accept ?? (() => true);
   const allowDrops = options.allowDrops ?? true;
-  const seen = new Set<number>([hashKey(searchStateKey(engine))]);
+  const seen = new Set<string>([hashKey(searchStateKey(engine))]);
   const parents: number[] = [-1];
   const actionsTaken: Array<SearchAction | null> = [null];
   let layer: Array<{ state: UndoSnapshot; node: number }> = [{ state: engine.captureState(), node: 0 }];

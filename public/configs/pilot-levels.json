@@ -1399,7 +1399,7 @@
     {
       "id": "epoxy_p_27",
       "theme": "cyber_neon",
-      "solution": "EESSWWEENNEEEEEEEEEESSSSWS",
+      "solution": "SSNNEEEEEEEEEEEESSSSWS",
       "number": 27,
       "titleKey": "pilot.levels.level_27.title",
       "hintKey": "pilot.levels.level_27.hint",
@@ -1414,7 +1414,7 @@
       "rows": [
         "###############",
         "#.......W...W.#",
-        "###H#########.#",
+        "#H###########.#",
         "#C....d.....#.#",
         "###########...#",
         "############SC#",
