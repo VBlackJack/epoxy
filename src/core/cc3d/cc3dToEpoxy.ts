@@ -25,7 +25,6 @@ import type {
   TrapLink
 } from '../types';
 import { cc3dLinks, holdDoorWanted, indicesWithLayer } from './cc3dLinks';
-import { MONSTER_TRAITS } from './cc3dMonsterTraits';
 import { isBlockKind, turnClockwise } from './cc3dWorld';
 import { displayTerrainId } from './display';
 import {
@@ -307,11 +306,14 @@ function isSocketKind(kind: Cc3dTerrainKind): boolean {
   return kind === 'socket' || kind === 'socket_red';
 }
 
-/** Whether something standing on a plate of the colour presses it, by the CC3D rule. */
+/**
+ * Whether something standing on a plate of the colour presses it once converted. Epoxy settles its hold doors at
+ * load by its own rule, so the state written here follows that rule, not the CC3D one: every block presses (a
+ * colour block only a plate of its own colour), the monsters do not, except the puppet that the yellow golem becomes.
+ */
 function pressesPlate(mob: Cc3dMob, color: Cc3dColor): boolean {
   if (mob.kind === 'block_color') return mob.color === color;
-  if (isBlockKind(mob.kind)) return true;
-  return MONSTER_TRAITS[mob.kind]?.pressesPlates ?? false;
+  return isBlockKind(mob.kind) || mob.kind === 'golem_yellow';
 }
 
 /** For each colour: do the hold doors start open, that is, is every plate of the colour pressed at load. */

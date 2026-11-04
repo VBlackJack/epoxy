@@ -498,6 +498,9 @@ describe('arbitration rules', () => {
         q: { ...plate, mob: { kind: 'block_ice' } }
       })
     ).toBe('hold_door_green_open');
+    // Epoxy monsters do not press a plate, but the puppet the yellow golem becomes does.
+    expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'walker' } } })).toBe('hold_door_green_closed');
+    expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'golem_yellow' } } })).toBe('hold_door_green_open');
     // A colour block presses only a plate of its own colour.
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'block_color', color: 'red' } } })).toBe('hold_door_green_closed');
     expect(doorOf(['######', '#H@p.#', '######'], { p: { ...plate, mob: { kind: 'block_color', color: 'green' } } })).toBe('hold_door_green_open');
