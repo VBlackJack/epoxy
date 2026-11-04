@@ -72,6 +72,8 @@ interface SlideResult {
   fatal: boolean;
   /** The door or socket the slide opened on its last step (the slide stops on that cell). */
   opened?: { x: number; y: number; keyId?: string };
+  /** The hazard cell that made the slide fatal, when a block could deal with it (water, slime, fire). */
+  lethal?: { hazard: string; x: number; y: number };
 }
 
 /**
@@ -288,9 +290,43 @@ export class LevelValidator {
         .filter((def) => def.kind === 'block')
         .map((def) => def.id)
     );
-    let availableBlocks = 0;
-    const uncollectedBlocks = new Set<string>(
-      level.entities.filter((e) => blockTypes.has(e.type)).map((e) => `${e.x},${e.y}`)
+    // Reachable blocks are counted per type, globally and not by position: what a block can do to a
+    // hazard depends on its type (an ice block melts fire but vanishes in water, a dirt block fills water).
+    const blockStock = new Map<string, number>();
+    const stockBlocks = (type: string, count: number): void => {
+      blockStock.set(type, (blockStock.get(type) ?? 0) + count);
+    };
+    const blockKinds = (type: string): { fills: boolean; melts: boolean } => {
+      const def = ConfigRegistry.getEntityDef(type);
+      return {
+        fills: !def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water',
+        melts: !!def?.meltsInFireTo && !!def?.destroyedByFire
+      };
+    };
+    type BlockUse = 'any' | 'fill' | 'melt';
+    /**
+     * Spends one reachable block that can do the job. The least useful candidate goes first so the
+     * kinds that stay scarce (a filler for water) are kept for later. Returns the type spent.
+     */
+    const spendBlock = (use: BlockUse): string | null => {
+      let best: string | null = null;
+      let bestScore = Infinity;
+      for (const [type, count] of blockStock) {
+        if (count <= 0) continue;
+        const kinds = blockKinds(type);
+        if (use === 'fill' && !kinds.fills) continue;
+        if (use === 'melt' && !kinds.melts) continue;
+        const score = (kinds.fills ? 2 : 0) + (kinds.melts ? 1 : 0);
+        if (score < bestScore) {
+          best = type;
+          bestScore = score;
+        }
+      }
+      if (best !== null) blockStock.set(best, (blockStock.get(best) ?? 0) - 1);
+      return best;
+    };
+    const uncollectedBlocks = new Map<string, string>(
+      level.entities.filter((e) => blockTypes.has(e.type)).map((e) => [`${e.x},${e.y}`, e.type])
     );
     // A cloner only supplies blocks once the player can reach its button
     const grantedCloneLinks = new Set<number>();
@@ -331,9 +367,10 @@ export class LevelValidator {
        */
       const collectAt = (cx: number, cy: number, boots: number): number => {
         const bKey = `${cx},${cy}`;
-        if (uncollectedBlocks.has(bKey)) {
+        const blockHere = uncollectedBlocks.get(bKey);
+        if (blockHere !== undefined) {
           uncollectedBlocks.delete(bKey);
-          availableBlocks++;
+          stockBlocks(blockHere, 1);
           changed = true;
         }
         const item = simItems[cy][cx];
@@ -426,7 +463,7 @@ export class LevelValidator {
               !grantedCloneLinks.has(linkIdx)
             ) {
               grantedCloneLinks.add(linkIdx);
-              availableBlocks += CLONER_BLOCK_ALLOWANCE;
+              stockBlocks(link.templateType, CLONER_BLOCK_ALLOWANCE);
               changed = true;
             }
           });
@@ -525,9 +562,9 @@ export class LevelValidator {
           const protectedHere = hasBoot(nextBoots, nextTile.protectedByItem);
 
           // A block pushed in turns water or slime into ground the player can cross.
+          // Water needs a block that fills it; slime swallows any block.
           if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
-            if (availableBlocks > 0) {
-              availableBlocks--;
+            if (spendBlock(nextTile.hazard === 'water' ? 'fill' : 'any') !== null) {
               simTerrain[ny][nx] = FLOOR_TILE_ID;
               changed = true;
             } else {
@@ -535,14 +572,18 @@ export class LevelValidator {
             }
           }
 
+          // A block that melts in fire (ice) turns it into what it melts to (water); the player waits for a
+          // later pass, where the water is judged like any other.
           if (nextTile.hazard === 'fire' && !protectedHere) {
+            this.meltFire(spendBlock('melt'), simTerrain, nx, ny, () => {
+              changed = true;
+            });
             continue;
           }
 
           const nextItem = simItems[ny][nx];
           if (nextItem && ConfigRegistry.getTile(nextItem).hazard === 'bomb') {
-            if (availableBlocks > 0) {
-              availableBlocks--;
+            if (spendBlock('any') !== null) {
               simItems[ny][nx] = null;
               changed = true;
             } else {
@@ -568,6 +609,16 @@ export class LevelValidator {
               level.chipsRequired
             );
             if (slide.fatal) {
+              // A slide that ends in a hazard a block can deal with is replayed on the next pass.
+              const lethal = slide.lethal;
+              if (lethal && lethal.hazard === 'fire') {
+                this.meltFire(spendBlock('melt'), simTerrain, lethal.x, lethal.y, () => {
+                  changed = true;
+                });
+              } else if (lethal && spendBlock(lethal.hazard === 'water' ? 'fill' : 'any') !== null) {
+                simTerrain[lethal.y][lethal.x] = FLOOR_TILE_ID;
+                changed = true;
+              }
               continue;
             }
             for (const passed of slide.path) {
@@ -692,7 +743,13 @@ export class LevelValidator {
    * back along the lane. Other blocks, the player and the exact slide timing
    * are ignored, so the result over-approximates. Known limits: force floors
    * after the ice are not followed, and terrain changed during play (melted or
-   * filled cells) is not modelled. Without ice it is just the entered cell.
+   * filled cells) is not modelled here. The reachability walk does model them, as an
+   * optimistic count of reachable blocks per type, not by position: a block that fills
+   * water (not an ice block, which vanishes there and leaves the water, nor a mirror)
+   * is spent per water crossed, and a block that melts in fire (ice) turns the fire
+   * into water for a later fill. A dirt block on fire neither burns nor puts it out.
+   * A slide that ends in water or fire is replayed once a block has dealt with it.
+   * Which block reaches which hazard, and the order, are not checked. Without ice it is just the entered cell.
    */
   private static blockLandings(level: CompiledLevel, type: string, x: number, y: number, dir: Direction): GridPoint[] {
     const vec = DIRECTION_VECTORS[dir];
@@ -987,7 +1044,13 @@ export class LevelValidator {
     let dir = entryDir;
     let boots = startBoots;
     const path: GridPoint[] = [{ x, y }];
-    const fatal = (): SlideResult => ({ end: { x, y }, path, boots, fatal: true });
+    const fatal = (hazard?: string, hx?: number, hy?: number): SlideResult => ({
+      end: { x, y },
+      path,
+      boots,
+      fatal: true,
+      lethal: hazard !== undefined && hx !== undefined && hy !== undefined ? { hazard, x: hx, y: hy } : undefined
+    });
 
     // Keys and chips lying on the cells the slide passes count at once, as in the engine.
     const keys: Record<string, number> = { ...heldKeys };
@@ -1071,11 +1134,25 @@ export class LevelValidator {
         (entered.hazard === 'water' || entered.hazard === 'fire' || entered.hazard === 'slime') &&
         !hasBoot(boots, entered.protectedByItem)
       ) {
-        return fatal();
+        return fatal(entered.hazard, x, y);
       }
     }
 
     return fatal();
+  }
+
+  /** Turns the fire at (x, y) into what the spent block melts to; does nothing without a block. */
+  private static meltFire(
+    spent: string | null,
+    terrain: string[][],
+    x: number,
+    y: number,
+    onChange: () => void
+  ): void {
+    const to = spent === null ? undefined : ConfigRegistry.getEntityDef(spent)?.meltsInFireTo;
+    if (to === undefined) return;
+    terrain[y][x] = to;
+    onChange();
   }
 
   /** One bit per boot type of the tile config, in a stable order. */
