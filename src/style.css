@@ -828,13 +828,13 @@ button:disabled {
   min-height: 32px;
 }
 
-/* The slow-time slot shows only on a level that places the item, so other levels keep four slots. */
-.inv-grid:not(.inv-grid-five) > .inv-slot:nth-child(5) {
+/* An Epoxy-only boots slot shows only on a level that places the item, so other levels keep four slots. */
+.inv-slot.inv-slot-hidden {
   display: none;
 }
 
-.inv-grid-five {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+.inv-grid-wide {
+  grid-template-columns: repeat(var(--inv-columns, 5), minmax(0, 1fr));
 }
 
 .inv-slot {
@@ -2217,8 +2217,8 @@ body.fullscreen-mode .view-section {
     gap: 0.25rem;
   }
 
-  /* Five boots slots do not fit beside the keys in the narrow HUD: stack the two sections. */
-  .inventory-row-split:has(.inv-grid-five) {
+  /* More than four boots slots do not fit beside the keys in the narrow HUD: stack the two sections. */
+  .inventory-row-split:has(.inv-grid-wide) {
     flex-direction: column;
   }
 
