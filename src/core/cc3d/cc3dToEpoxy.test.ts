@@ -575,7 +575,7 @@ describe('arbitration rules', () => {
   });
 
   it('hands the player the exit of the previous teleport in reading order, as CC3D does', () => {
-    const { source, result } = convertRows(['#########', '#@.t.t...#', '#########'], {});
+    const { source, result } = convertRows(['##########', '#@.t.t...#', '##########'], {});
     const pair = new DifferentialPair(source, result.level, 1);
     pair.step('E');
     pair.step('E');
@@ -585,6 +585,22 @@ describe('arbitration rules', () => {
     pair.step('E');
     expect(pair.compare()).toBeNull();
     expect(pair.epoxy.getPlayer().x).toBe(7);
+  });
+
+  it('does not compare chips on a level with fish and no socket', () => {
+    const { source, result } = convertRows(['#####', '#@i.#', '#####'], {});
+    expect(result.level.chipsRequired).toBe(0);
+    const pair = new DifferentialPair(source, result.level, 1);
+    pair.step('E');
+    pair.step('E');
+    expect(pair.rig.engine.getChipsRemaining()).toBe(0);
+    expect(pair.compare()).toBeNull();
+    const left = convertRows(['#####', '#@.i#', '#####'], {});
+    const idle = new DifferentialPair(left.source, left.result.level, 1);
+    expect(left.source.cc3d?.cells.some((c) => c.item?.kind === 'fish')).toBe(true);
+    expect(idle.rig.engine.getChipsRemaining()).toBe(1);
+    expect(idle.epoxy.getChipsRemaining()).toBe(0);
+    expect(idle.compare()).toBeNull();
   });
 
   it('deflects at an ice corner exactly as CC3D does, from every side', () => {
@@ -645,6 +661,32 @@ const RICH_GLYPHS: Record<string, GlyphMeaning> = {
 function richLevel(): CompiledLevel {
   return cc3dLevel(RICH_ROWS, { glyphs: RICH_GLYPHS });
 }
+
+describe('relation keys agree between the table and the converter', () => {
+  const RELATION = ['trap_unworked', 'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'];
+  const cases: Array<[string, string[], Record<string, GlyphMeaning>]> = [
+    ['unworked trap', ['#######', '#@bT.U#', '#######'], { b: stackOf({ kind: 'trap_control' }), T: stackOf({ kind: 'trap' }), U: stackOf({ kind: 'trap' }) }],
+    ['two shooters in one cell', ['#####', '#@..#', '#####'], {}],
+    ['plain room', ['#####', '#@..#', '#####'], {}]
+  ];
+  for (const [name, rows, glyphs] of cases) {
+    it(`gives the same relation keys for: ${name}`, () => {
+      const source = cc3dLevel(rows, { glyphs });
+      if (name === 'two shooters in one cell') {
+        const cc3d = source.cc3d as NonNullable<CompiledLevel['cc3d']>;
+        cc3d.mobs.push({ kind: 'laser_shooter', x: 2, y: 1, dir: 'E' }, { kind: 'laser_shooter', x: 2, y: 1, dir: 'W' });
+      }
+      const result = convertCc3dLevel(source);
+      const table = classifyLevel(source.cc3d as never).lost.filter((key) => RELATION.includes(key)).sort();
+      const converter = result.report.lost.map((e) => e.key).filter((key) => RELATION.includes(key)).sort();
+      expect(converter).toEqual(table);
+      if (name === 'unworked trap') {
+        expect(result.report.drops).toContainEqual({ key: 'trap_unworked', x: 5, y: 1 });
+        expect(result.report.drops).not.toContainEqual({ key: 'trap_unworked', x: 3, y: 1 });
+      }
+    });
+  }
+});
 
 describe('properties of a conversion', () => {
   it('names the converted level after its source and carries no cc3d data', () => {
@@ -780,7 +822,7 @@ describe('properties of a conversion', () => {
     );
   });
 
-  it('gives each teleport the first candidate the CC3D links name', () => {
+  it('gives each teleport the previous teleport of its colour, which is the CC3D link rule', () => {
     const source = richLevel();
     const cc3d = source.cc3d as NonNullable<CompiledLevel['cc3d']>;
     const { level } = convertCc3dLevel(source);

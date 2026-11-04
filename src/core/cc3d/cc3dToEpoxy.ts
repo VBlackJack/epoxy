@@ -427,7 +427,15 @@ function pointOf(input: LinkInput, index: number): { x: number; y: number } {
 
 function buildTrapLinks(input: LinkInput): TrapLink[] {
   const links: TrapLink[] = [];
-  for (const link of cc3dLinks(input.level).trapControls) {
+  const worked = new Set<number>();
+  const trapLinks = cc3dLinks(input.level).trapControls;
+  for (const link of trapLinks) if (link.to !== null) worked.add(link.to);
+  input.level.cells.forEach((cell, index) => {
+    if (!cell.terrain.some((layer) => layer.kind === 'trap') || worked.has(index)) return;
+    const trap = pointOf(input, index);
+    input.drop(KEY_TRAP_UNWORKED, trap.x, trap.y);
+  });
+  for (const link of trapLinks) {
     if (link.to === null) continue;
     if (terrainAt(input, link.from) !== BUTTON_BROWN_ID || terrainAt(input, link.to) !== TRAP_ID) continue;
     const button = pointOf(input, link.from);
@@ -437,6 +445,10 @@ function buildTrapLinks(input: LinkInput): TrapLink[] {
   return links;
 }
 
+/**
+ * The clone machine's own direction is kept when it has one. Without one the template's start direction is used,
+ * while CC3D bots were already turned at the start of play (bot behaviour is approximate anyway).
+ */
 function buildCloneLinks(input: LinkInput): CloneLink[] {
   const { level } = input;
   const links = cc3dLinks(level);
@@ -573,7 +585,8 @@ export function convertCc3dLevel(source: CompiledLevel): ConversionResult {
     ...(source.author !== undefined ? { author: source.author } : {}),
     password: source.password,
     timeLimitSeconds: 0,
-    // Epoxy asks for its chips at the exit too, where CC3D asks for the fish at the socket only.
+    // The Epoxy engine never checks chips at the exit; only the validator does (LevelValidator), which is why
+    // a level without a socket needs chipsRequired 0 while CC3D asks for the fish at the socket only.
     chipsRequired: hasSocket ? plainFish : 0,
     playerStart: { x: cc3d.player.x, y: cc3d.player.y, dir: cc3d.player.dir ?? DEFAULT_PLAYER_DIR },
     terrain,

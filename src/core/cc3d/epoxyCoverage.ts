@@ -73,7 +73,7 @@ const COLOR_BLOCK_REASON = 'Colour block pushing rules differ slightly from CC3D
 const SAND_REASON = 'Epoxy plays CC3D sand as its gravel: the player and every block may enter, monsters may not.';
 const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the player only, open at no chips left, floor once entered.';
 const SOCKET_RED_STACKED_REASON = 'CC3D re-plans a red socket against the layer below it, which Epoxy does not model [unverified].';
-const FISH_EXTRA_REASON = 'Epoxy plays the extra fish as a chip, and the chips needed count the plain fish only, as CC3D does [unverified].';
+const FISH_EXTRA_REASON = 'Epoxy plays the extra fish as a chip. The chips needed count the plain fish only, and every fish of either kind lowers the count, as CC3D does [unverified].';
 const GRAVEL_REASON = 'Epoxy gravel admits mirrors, where CC3D gravel refuses reflectors.';
 const BOT_REASON =
   'Epoxy plays a bot as a turret: the beam and its turn period are close to CC3D, with a beam length and a period that are guesses, and Epoxy makes no turn at the first step.';
@@ -333,9 +333,15 @@ function relationKeys(level: Cc3dLevel): string[] {
   if (level.cells.some((cell) => cell.item !== null && cell.terrain.some((layer) => layer.kind === BOMB_KIND))) {
     keys.push(KEY_BOMB_WITH_ITEM);
   }
-  const covered = level.mobs.some(
-    (mob) => mob.kind === SHOOTER_KIND && isShooterCovered(level.cells[mob.y * level.width + mob.x])
-  );
+  const shooterCells = new Set<number>();
+  let covered = false;
+  for (const mob of level.mobs) {
+    if (mob.kind !== SHOOTER_KIND) continue;
+    const index = mob.y * level.width + mob.x;
+    // A second shooter in one cell is dropped by the converter, so it counts as covered too.
+    if (shooterCells.has(index) || isShooterCovered(level.cells[index])) covered = true;
+    shooterCells.add(index);
+  }
   if (covered) keys.push(KEY_LASER_SHOOTER_COVERED);
   return keys;
 }

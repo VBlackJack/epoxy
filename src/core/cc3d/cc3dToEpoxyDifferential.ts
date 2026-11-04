@@ -71,11 +71,14 @@ export class DifferentialPair {
   public looping = false;
   private cc3dSettled = true;
   private epoxySettled = true;
+  /** The converted level holds a socket, so chips matter; without one it asks for none. */
+  private readonly hasSocket: boolean;
 
   constructor(source: CompiledLevel, converted: CompiledLevel, seed: number) {
     this.rig = new Cc3dRig(source, seed);
     this.epoxy = new GameEngine();
     this.epoxy.loadLevel(converted, seed);
+    this.hasSocket = converted.terrain.some((row) => row.includes('socket'));
   }
 
   /**
@@ -138,7 +141,8 @@ export class DifferentialPair {
     if (doneA !== doneB) return at('complete', `cc3d ${doneA} epoxy ${doneB}`);
     const chipsA = this.rig.engine.getChipsRemaining();
     const chipsB = this.epoxy.getChipsRemaining();
-    if (chipsA !== chipsB) return at('chips', `cc3d ${chipsA} epoxy ${chipsB}`);
+    // Without a socket the converted level needs no chips (chipsRequired 0), while CC3D still counts its fish.
+    if (this.hasSocket && chipsA !== chipsB) return at('chips', `cc3d ${chipsA} epoxy ${chipsB}`);
     const keysA = JSON.stringify(Object.entries(nonZero(a.keys)).sort());
     const keysB = JSON.stringify(Object.entries(nonZero(b.keys)).sort());
     if (keysA !== keysB) return at('keys', `cc3d ${keysA} epoxy ${keysB}`);
@@ -192,7 +196,7 @@ export function differentialWalk(source: CompiledLevel, converted: CompiledLevel
     if (!touched) {
       touched =
         pair.epoxy.getChipsRemaining() !== startChips ||
-        Object.keys(pair.epoxy.getPlayer().keys).length > 0 ||
+        Object.values(pair.epoxy.getPlayer().keys).some((count) => count > 0) ||
         snapshot() !== startTerrain;
     }
   }
