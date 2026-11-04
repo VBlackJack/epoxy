@@ -86,9 +86,10 @@ export interface PlayEngine {
    */
   getUnderlays?(): ReadonlyMap<number, string> | undefined;
   /**
-   * Optional. The terrain a removable top at the cell would show once opened right now (a covered toggle wall
-   * or hold door in the form play has left it in), or undefined when it hides none. An engine without
-   * underlays omits it; the tools then read the level's own underlay.
+   * Optional. The terrain a removable top at the cell would show once opened right now (a covered toggle
+   * wall, flame jet, hold door or laser gate in the form play has left it in), or undefined when it hides
+   * none or the cell has already revealed it. A tool that finds this method trusts its answer, undefined
+   * included; an engine without underlays omits it and the tools then read the level's own underlay.
    */
   getRevealedTerrain?(x: number, y: number): string | undefined;
   /**

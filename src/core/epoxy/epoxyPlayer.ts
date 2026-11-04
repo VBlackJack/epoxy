@@ -33,7 +33,7 @@ import {
   isInBounds,
   killPlayer,
   leaveCell,
-  revealedTerrain
+  takeRevealedTerrain
 } from './epoxyWorld';
 
 /** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
@@ -68,7 +68,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   // A top that goes away under the step (a blue fake wall, dirt) shows what it hides before the step is
   // judged, so a wall or water under it is met as such instead of being walked into.
   if (targetTile.transformsToOnStep) {
-    const hidden = revealedTerrain(w, targetX, targetY);
+    const hidden = takeRevealedTerrain(w, targetX, targetY);
     if (hidden !== null) {
       w.terrain[targetY][targetX] = hidden;
       w.gridMutatedByMove = true;
@@ -88,8 +88,9 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
 
   if (targetTile.requiresAllChips) {
     if (w.chipsRemaining <= 0) {
-      revealedUnder = revealedTerrain(w, targetX, targetY) !== null;
-      w.terrain[targetY][targetX] = unlockedTerrain(w, targetTile, targetX, targetY);
+      const revealed = takeRevealedTerrain(w, targetX, targetY);
+      revealedUnder = revealed !== null;
+      w.terrain[targetY][targetX] = revealed ?? (targetTile.transformsToOnUnlock || FLOOR_TILE_ID);
       w.gridMutatedByMove = true;
       AudioManager.playSfx('socket');
       ctx.emitVisual('unlock', targetX, targetY, 'yellow');
@@ -106,8 +107,9 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
       if (targetTile.consumesKey) {
         w.player.keys[targetTile.requiredKey] = keyCount - 1;
       }
-      revealedUnder = revealedTerrain(w, targetX, targetY) !== null;
-      w.terrain[targetY][targetX] = unlockedTerrain(w, targetTile, targetX, targetY);
+      const revealed = takeRevealedTerrain(w, targetX, targetY);
+      revealedUnder = revealed !== null;
+      w.terrain[targetY][targetX] = revealed ?? (targetTile.transformsToOnUnlock || FLOOR_TILE_ID);
       w.gridMutatedByMove = true;
       AudioManager.playSfx('door');
       ctx.emitVisual('unlock', targetX, targetY, targetTile.colorKey || 'yellow');
@@ -170,11 +172,6 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
 
   resolvePlayerArrival(ctx, dir, true);
   return true;
-}
-
-/** What an opened door or socket leaves in its cell: the terrain hidden under it, or its own remains. */
-function unlockedTerrain(w: EpoxyWorld, opened: TileDefinition, x: number, y: number): string {
-  return revealedTerrain(w, x, y) ?? (opened.transformsToOnUnlock || FLOOR_TILE_ID);
 }
 
 /**

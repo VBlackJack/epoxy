@@ -154,20 +154,35 @@ export const CHANNEL_TOGGLE_PARITY_BITS: Readonly<Partial<Record<ChannelColor, n
   yellow: 8
 };
 
+/** Parity bit of the flame jets (the toggle_flames action), above the colour channel bits. */
+export const FLAME_TOGGLE_PARITY_BIT = 16;
+
 /** Prefix of the toggle parity in a search state key. */
 export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
 
-/** The parity bit of the toggle wall family a tile belongs to, or 0 when the tile is no toggle wall. */
-export function toggleParityBitOf(tile: { togglesTo?: string; toggleChannel?: ChannelColor; channelTogglesTo?: string }): number {
+/** Prefix of the spent reveal cells in a search state key. */
+export const SPENT_REVEAL_KEY_PREFIX = 'rv';
+
+/** The fields of a tile that tell which toggle family it belongs to. */
+interface ToggleFamilyFields {
+  togglesTo?: string;
+  toggleChannel?: ChannelColor;
+  channelTogglesTo?: string;
+  flameTogglesTo?: string;
+}
+
+/** The parity bit of the toggle family (green or colour wall, flame jet) a tile belongs to, or 0 when it is in none. */
+export function toggleParityBitOf(tile: ToggleFamilyFields): number {
   if (tile.toggleChannel !== undefined) {
     return tile.channelTogglesTo === undefined ? 0 : (CHANNEL_TOGGLE_PARITY_BITS[tile.toggleChannel] ?? 0);
   }
-  return tile.togglesTo === undefined ? 0 : GREEN_TOGGLE_PARITY_BIT;
+  if (tile.togglesTo !== undefined) return GREEN_TOGGLE_PARITY_BIT;
+  return tile.flameTogglesTo === undefined ? 0 : FLAME_TOGGLE_PARITY_BIT;
 }
 
-/** The other form of a toggle wall (green or colour), or undefined for any other tile. */
-export function toggleWallOtherForm(tile: { togglesTo?: string; toggleChannel?: ChannelColor; channelTogglesTo?: string }): string | undefined {
-  return tile.toggleChannel !== undefined ? tile.channelTogglesTo : tile.togglesTo;
+/** The other form of a toggle wall (green or colour) or of a flame jet, or undefined for any other tile. */
+export function toggleWallOtherForm(tile: ToggleFamilyFields): string | undefined {
+  return tile.toggleChannel !== undefined ? tile.channelTogglesTo : (tile.togglesTo ?? tile.flameTogglesTo);
 }
 
 /** Bit of each side in the mask of a level's cell edges (see cellEdgeMask). */

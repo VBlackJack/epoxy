@@ -26,6 +26,7 @@ import {
   isEdgeBlocked,
   isInBounds,
   killPlayer,
+  litLaserGroups,
   mapHeight,
   mapWidth,
   removeEntity
@@ -159,11 +160,7 @@ export function resolveLasers(ctx: EpoxyContext): void {
  * otherwise. A gate never closes on a cell the player or an entity occupies.
  */
 function setLaserGates(w: EpoxyWorld): void {
-  const litGroups = new Set<string>();
-  for (const { x, y } of w.litReceiverCells) {
-    const group = ConfigRegistry.getTile(w.terrain[y][x]).laserReceiverGroup;
-    if (group !== undefined) litGroups.add(group);
-  }
+  const litGroups = litLaserGroups(w);
   let changed = false;
   for (const { x, y } of w.laserGates) {
     const tile = ConfigRegistry.getTile(w.terrain[y][x]);

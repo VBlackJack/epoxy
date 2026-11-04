@@ -22,6 +22,7 @@ import {
   CELL_EDGE_SIDE_ORDER,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   OPPOSITE_DIRECTION,
+  SPENT_REVEAL_KEY_PREFIX,
   TOGGLE_PARITY_KEY_PREFIX
 } from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
@@ -288,7 +289,7 @@ export class GameEngine {
   }
 
   /**
-   * The parity of the toggle presses, one bit per toggle family that hides a wall under a removable top;
+   * The parity of the toggle presses, one bit per toggle family that hides a toggle wall or flame jet under a removable top;
    * undefined on a level that hides none, so nothing about it reaches a level without one.
    */
   public getToggleParity(): number | undefined {
@@ -296,16 +297,40 @@ export class GameEngine {
   }
 
   /**
-   * The runtime state beyond the grid that tells search states apart: the shots in flight and the toggle
-   * parity. An empty string on a level with neither, so the keys of other levels stay as they were.
+   * The runtime state beyond the grid that tells search states apart: the shots in flight, the toggle
+   * parity and the spent reveal cells. An empty string on a level with none of them, so the keys of other levels stay as they were.
    */
   public getRuntimeKeyExtra(): string {
     const parity = this.getToggleParity();
-    const shots = shotsStateKey(this.getShots());
-    return parity === undefined ? shots : `${shots}${shots ? '|' : ''}${TOGGLE_PARITY_KEY_PREFIX}${parity}`;
+    const spent = this.getSpentRevealCells();
+    const parts = [shotsStateKey(this.getShots())].filter((part) => part !== '');
+    if (parity !== undefined) parts.push(`${TOGGLE_PARITY_KEY_PREFIX}${parity}`);
+    if (spent !== undefined) parts.push(`${SPENT_REVEAL_KEY_PREFIX}${spent.join(',')}`);
+    return parts.join('|');
   }
 
-  /** The terrain a removable top at the cell would show once opened now, or undefined when it hides none. */
+  /**
+   * The cells that revealed their hidden terrain and hold their original top again (a block sunk in the
+   * revealed water makes dirt again), by sorted cell index; undefined when there is none. Such a cell looks
+   * as it did before the reveal but no longer hides anything, so it tells search states apart.
+   */
+  public getSpentRevealCells(): number[] | undefined {
+    if (this.w.revealedCells.size === 0) return undefined;
+    const width = this.w.terrain[0]?.length ?? 0;
+    const spent = [...this.w.revealedCells]
+      .filter((index) => {
+        const row = Math.floor(index / width);
+        const original = this.w.level.terrain[row];
+        return this.w.terrain[row][index % width] === original[index % width];
+      })
+      .sort((a, b) => a - b);
+    return spent.length > 0 ? spent : undefined;
+  }
+
+  /**
+   * The terrain a removable top at the cell would show once opened now, or undefined when it hides none
+   * or the cell has already revealed it.
+   */
   public getRevealedTerrain(x: number, y: number): string | undefined {
     return revealedTerrain(this.w, x, y) ?? undefined;
   }
@@ -498,8 +523,10 @@ export class GameEngine {
       ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {}),
       // Only a level with shot launchers has shots to put back.
       ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
-      // Only a level with a toggle wall under a removable top reads the parity of the presses.
-      ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {})
+      // Only a level with a toggle wall or flame jet under a removable top reads the parity of the presses.
+      ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
+      // Only a level that revealed something has revealed cells to put back.
+      ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {})
     };
   }
 
@@ -545,6 +572,7 @@ export class GameEngine {
     this.w.playStartTick = snap.playStartTick ?? NO_PLAY_START_TICK;
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
     this.w.toggleParity = snap.toggleParity ?? 0;
+    this.w.revealedCells = new Set(snap.revealedCells ?? []);
     // The launchers fired in the undone moment may fire again.
     this.w.firedLaunchers.clear();
     this.w.inTick = false;

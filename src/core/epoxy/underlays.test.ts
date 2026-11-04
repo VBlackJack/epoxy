@@ -27,6 +27,7 @@ import { GameEngine } from '../GameEngine';
 import { LevelValidator } from '../LevelValidator';
 import { Pathfinder } from '../Pathfinder';
 import { searchStateKey } from '../../test/pilotSearch';
+import { FLAME_TOGGLE_PARITY_BIT } from '../coreConstants';
 import { hiddenUnder, isRemovableTop, underlayMap } from '../Underlays';
 import { CellUnderlay, CompiledLevel, Direction } from '../types';
 
@@ -577,5 +578,195 @@ describe('level tools with devices hidden under doors', () => {
     expect(Pathfinder.findPath(start(closed), DOOR_X + 1, START_Y).moves).toEqual([]);
     const open = corridor(room('path_toggle_open', under('toggle_wall_open')));
     expect(Pathfinder.findPath(start(open), DOOR_X + 1, START_Y).moves).toEqual(['E', 'E']);
+  });
+});
+
+describe('flame jets hidden under removable tops', () => {
+  const ORANGE_BUTTON = 'button_orange';
+  const JET_ON = 'flame_jet_on';
+  const JET_OFF = 'flame_jet_off';
+
+  function jetRoom(stored: string, top = 'door_red'): CompiledLevel {
+    const level = room(`jet_${stored}_${top}`, under(stored), top);
+    level.terrain[BUTTON_Y][START_X] = ORANGE_BUTTON;
+    return level;
+  }
+
+  /** Presses the orange button the given number of times, then steps onto the top; true when the player lives. */
+  function pressThenEnter(engine: GameEngine, presses: number): boolean {
+    for (let i = 0; i < presses; i++) {
+      step(engine, 'N');
+      step(engine, 'S');
+    }
+    step(engine, 'E');
+    return engine.getPlayer().alive;
+  }
+
+  it('shows a jet in the form the orange presses left it in, under a door', () => {
+    expect(pressThenEnter(start(jetRoom(JET_OFF)), 0)).toBe(true);
+    expect(pressThenEnter(start(jetRoom(JET_OFF)), 1)).toBe(false);
+    expect(pressThenEnter(start(jetRoom(JET_OFF)), 2)).toBe(true);
+    expect(pressThenEnter(start(jetRoom(JET_ON)), 0)).toBe(false);
+    expect(pressThenEnter(start(jetRoom(JET_ON)), 1)).toBe(true);
+    expect(pressThenEnter(start(jetRoom(JET_ON)), 2)).toBe(false);
+  });
+
+  it('follows the presses under dirt in the same way', () => {
+    expect(pressThenEnter(start(jetRoom(JET_OFF, 'dirt'), false), 0)).toBe(true);
+    expect(pressThenEnter(start(jetRoom(JET_OFF, 'dirt'), false), 1)).toBe(false);
+    expect(pressThenEnter(start(jetRoom(JET_ON, 'dirt'), false), 1)).toBe(true);
+    expect(pressThenEnter(start(jetRoom(JET_ON, 'dirt'), false), 2)).toBe(false);
+  });
+
+  it('burns nothing while the jet is covered, and counts the press in the flame parity', () => {
+    const engine = start(jetRoom(JET_ON));
+    step(engine, 'N');
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('door_red');
+    expect(engine.getToggleParity()).toBe(FLAME_TOGGLE_PARITY_BIT);
+    step(engine, 'S');
+    step(engine, 'N');
+    expect(engine.getToggleParity()).toBe(0);
+    expect(engine.getPlayer().alive).toBe(true);
+  });
+
+  it('kills the player who steps onto a revealed lit jet, and spares one with fire boots', () => {
+    const engine = start(jetRoom(JET_ON));
+    step(engine, 'E');
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe(JET_ON);
+    expect(engine.getPlayer().alive).toBe(false);
+    const shod = start(jetRoom(JET_ON));
+    shod.getPlayer().boots.add('boots_fire');
+    step(shod, 'E');
+    expect(shod.getPlayer().alive).toBe(true);
+  });
+
+  it('is not moved by a button of another family', () => {
+    const level = jetRoom(JET_ON);
+    level.terrain[BUTTON_Y][START_X] = 'button_green';
+    const engine = start(level);
+    step(engine, 'N');
+    expect(engine.getToggleParity()).toBe(0);
+  });
+});
+
+describe('laser gates hidden under removable tops', () => {
+  const EMITTER = { x: 4, y: 2 };
+  const RECEIVER = { x: 8, y: 2 };
+  const SIBLING = { x: 8, y: 8 };
+  const GATE_OPEN = 'laser_gate_red_open';
+  const GATE_CLOSED = 'laser_gate_red_closed';
+
+  function gateRoom(stored: string, lit: boolean): CompiledLevel {
+    const level = room(`gate_${stored}_${lit}`, under(stored));
+    level.terrain[RECEIVER.y][RECEIVER.x] = 'laser_receiver_red';
+    if (lit) level.terrain[EMITTER.y][EMITTER.x] = 'laser_emitter_e';
+    return level;
+  }
+
+  it('comes out open when its group is lit, whatever form is stored', () => {
+    for (const stored of [GATE_OPEN, GATE_CLOSED]) {
+      const engine = start(gateRoom(stored, true));
+      ticks(engine, COOLDOWN_TICKS);
+      expect(step(engine, 'E')).toBe(true);
+      expect(engine.getTerrain()[START_Y][DOOR_X]).toBe(GATE_OPEN);
+    }
+  });
+
+  it('comes out closed when its group is not lit, whatever form is stored', () => {
+    for (const stored of [GATE_OPEN, GATE_CLOSED]) {
+      const engine = start(gateRoom(stored, false));
+      ticks(engine, COOLDOWN_TICKS);
+      expect(step(engine, 'E')).toBe(false);
+      expect(engine.getTerrain()[START_Y][DOOR_X]).toBe(GATE_CLOSED);
+      expect(engine.getPlayer().keys[KEY_ID]).toBe(0);
+    }
+  });
+
+  it('follows the computed rule, not a visible sibling held open by an occupant', () => {
+    const level = gateRoom(GATE_CLOSED, false);
+    level.terrain[SIBLING.y][SIBLING.x] = GATE_OPEN;
+    level.entities = [{ x: SIBLING.x, y: SIBLING.y, type: 'dirt_block', dir: 'E' }];
+    const engine = start(level);
+    ticks(engine, COOLDOWN_TICKS);
+    expect(engine.getTerrain()[SIBLING.y][SIBLING.x]).toBe(GATE_OPEN);
+    expect(step(engine, 'E')).toBe(false);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe(GATE_CLOSED);
+  });
+});
+
+describe('a cell reveals its hidden terrain once', () => {
+  const FIRE_BOOTS = 'boots_fire';
+  const CELL_INDEX = START_Y * SIZE + DOOR_X;
+
+  /** Dirt over fire with an ice block north of the cell and a dirt block south of it. */
+  function sinkRoom(): CompiledLevel {
+    const level = room('sink', under('fire'), 'dirt');
+    level.entities = [
+      { x: DOOR_X, y: START_Y - 1, type: 'ice_block', dir: 'S' },
+      { x: DOOR_X, y: START_Y + 1, type: 'dirt_block', dir: 'N' }
+    ];
+    return level;
+  }
+
+  /** Reveals the fire, melts the ice block into it, then sinks the dirt block in the water it left. */
+  function playSink(): GameEngine {
+    const engine = start(sinkRoom(), false);
+    engine.getPlayer().boots.add(FIRE_BOOTS);
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('fire');
+    for (const dir of ['W', 'N', 'N', 'E', 'S'] as Direction[]) step(engine, dir);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('water');
+    for (const dir of ['W', 'S', 'S', 'S', 'E', 'N'] as Direction[]) step(engine, dir);
+    return engine;
+  }
+
+  it('does not reveal a second time when a block sunk in the revealed water makes dirt again', () => {
+    const engine = playSink();
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('dirt');
+    expect(engine.getRevealedTerrain(DOOR_X, START_Y)).toBeUndefined();
+    expect(engine.getSpentRevealCells()).toEqual([CELL_INDEX]);
+    expect(step(engine, 'N')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('floor');
+    expect(engine.getPlayer().alive).toBe(true);
+  });
+
+  it('makes the cell revealable again when undo takes the reveal back', () => {
+    const engine = start(room('undo_reveal', under('ice')));
+    expect(engine.getRevealedTerrain(DOOR_X, START_Y)).toBe('ice');
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getRevealedTerrain(DOOR_X, START_Y)).toBeUndefined();
+    expect(engine.undo()).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('door_red');
+    expect(engine.getRevealedTerrain(DOOR_X, START_Y)).toBe('ice');
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('ice');
+  });
+
+  it('keeps the revealed cells in the snapshot only once a cell was revealed', () => {
+    const engine = start(room('snapshot', under('ice')));
+    expect(engine.captureState().revealedCells).toBeUndefined();
+    step(engine, 'E');
+    expect(engine.captureState().revealedCells).toEqual([CELL_INDEX]);
+  });
+
+  it('changes the runtime key with a spent cell, and keeps it empty before', () => {
+    const fresh = start(sinkRoom(), false);
+    expect(fresh.getRuntimeKeyExtra()).toBe('');
+    expect(fresh.getSpentRevealCells()).toBeUndefined();
+    const keyBefore = searchStateKey(fresh);
+    const spent = playSink();
+    expect(spent.getRuntimeKeyExtra()).toBe(`rv${CELL_INDEX}`);
+    expect(searchStateKey(spent)).not.toBe(keyBefore);
+  });
+
+  it('routes through a spent dirt cell instead of fearing the water it once hid', () => {
+    const level = corridor(room('path_spent', under('water'), 'dirt'));
+    const engine = start(level, false);
+    expect(Pathfinder.findPath(engine, DOOR_X + 1, START_Y).moves).toEqual([]);
+    const snapshot = engine.captureState();
+    snapshot.revealedCells = [CELL_INDEX];
+    engine.restoreState(snapshot);
+    expect(Pathfinder.findPath(engine, DOOR_X + 1, START_Y).moves).toEqual(['E', 'E']);
   });
 });
