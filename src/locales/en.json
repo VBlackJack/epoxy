@@ -1438,6 +1438,18 @@
       "level_35": {
         "title": "Key on the Fly",
         "hint": "A key lying on the ice is picked up as you slide over it, and a door opens as you slide into it with its key. Slide down the lane with the key to reach the door."
+      },
+      "level_36": {
+        "title": "Delivery",
+        "hint": "Ice carries a block the way it carries you, and a block that sinks in water leaves dirt you can walk on. Do not step on the ice yourself: you would slide into the water. Push the block into the corridor and let it slide in."
+      },
+      "level_37": {
+        "title": "The Bug",
+        "hint": "A bug follows the wall on its left hand and cannot cross dirt. Step on the dirt and step back: the way you open leads the bug straight into the pool."
+      },
+      "level_38": {
+        "title": "Thaw",
+        "hint": "A block of ice turns a fire into water, and a block of dirt fills that water. Push the ice into the flames first, then bring the dirt: the other way round, the dirt jams the fire for good."
       }
     },
     "chapter": {
