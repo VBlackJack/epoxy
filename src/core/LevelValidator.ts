@@ -72,9 +72,10 @@ const RANK_STEP_BUDGET = 3_000_000;
 /** Most extra reach walks the door order search may run on one level, on top of the greedy walk. */
 const DOOR_ORDER_MAX_WALKS = 32;
 /**
- * Cell expansions the extra walks of the door order search may spend together on one level. A walk that
- * outruns what is left is discarded. Counted in steps, never in time, so the verdict is the same on every machine.
- * Sized on the 128 by 128 comb of the timing test: a walk there costs 0.27 s per 182k steps, so more would
+ * Work the extra walks of the door order search may spend together on one level, in cell expansions: the walk's
+ * own steps plus every cell its door ranking expands (the precise flood and the plain flood alike). Walk 0 is not
+ * counted. A walk that outruns what is left is discarded, ranking included. Counted in steps, never in time, so
+ * the verdict is the same on every machine. Sized on the 128 by 128 comb of the timing test: a walk there costs 0.27 s per 182k steps, so more would
  * overrun the two seconds that test allows.
  */
 const DOOR_ORDER_STEP_BUDGET = 400_000;
@@ -90,7 +91,7 @@ interface ReachOutcome {
   reachableExit: boolean;
   /** The doors opened at fixpoints, in order. */
   decisions: DoorDecision[];
-  /** Cells expanded by the walk. */
+  /** Cells expanded by the walk, its door ranking included. */
   steps: number;
   /** The walk was cut off or its forced door was not waiting: its result means nothing. */
   aborted: boolean;
@@ -133,6 +134,8 @@ interface DoorRankContext {
   reached: Uint8Array;
   /** Steps left to rank doors precisely, shared by every choice of one validation. */
   budget: { left: number };
+  /** Work of the current walk, ranking included; a ranking stops once spent passes limit (the walk is then discarded). */
+  work: { spent: number; limit: number };
 }
 
 interface QueuedCell extends GridPoint {
@@ -400,7 +403,7 @@ export class LevelValidator {
 
     /** Walks the level once from the start: what the greedy reach finds, with the doors opened in ranked order. */
     const walkReach = (forced: readonly string[], stepLimit: number): ReachOutcome => {
-      let steps = 0;
+      const work = { spent: 0, limit: stepLimit };
       const decisions: DoorDecision[] = [];
       const simTerrain = level.terrain.map((row) => [...row]);
       const simItems = level.items.map((row) => [...row]);
@@ -485,7 +488,6 @@ export class LevelValidator {
       // A cloner only supplies blocks once the player can reach its button
       const grantedCloneLinks = new Set<number>();
 
-
       const appliedKeyThieves = new Set<string>();
 
       let changed = true;
@@ -555,7 +557,7 @@ export class LevelValidator {
 
         for (let head = 0; head < queue.length; head++) {
           // A walk that outruns its step limit is cut off and discarded by the caller.
-          if (++steps > stepLimit) return { collectedChips, reachableExit, decisions, steps, aborted: true };
+          if (++work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
           const curr = queue[head];
           const currTile = ConfigRegistry.getTile(simTerrain[curr.y][curr.x]);
 
@@ -837,7 +839,7 @@ export class LevelValidator {
           if (forcedKey !== undefined) {
             const forcedDoor = deferredDoors.get(forcedKey);
             // A forced door that is not waiting means this order leads somewhere else: nothing to report.
-            if (!forcedDoor) return { collectedChips, reachableExit, decisions, steps, aborted: true };
+            if (!forcedDoor) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
             best = forcedDoor;
             ranked = [forcedKey];
           } else {
@@ -855,8 +857,11 @@ export class LevelValidator {
               swimProtection,
               affords,
               reached,
-              budget: rankBudget
+              budget: rankBudget,
+              work
             });
+            // A ranking cut short by the limit is not a ranking: the walk is discarded.
+            if (work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
             best = order[0];
             ranked = order.map(doorKey);
           }
@@ -867,7 +872,7 @@ export class LevelValidator {
           changed = true;
         }
       }
-      return { collectedChips, reachableExit, decisions, steps, aborted: false };
+      return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: false };
     };
 
     const misses = (walk: ReachOutcome): number =>
@@ -875,7 +880,9 @@ export class LevelValidator {
       (needsExit && exitCount > 0 && !walk.reachableExit ? 1 : 0);
     // Walk 0 is the greedy walk: when it finds everything, nothing else is tried and the verdict is unchanged.
     let reported = walkReach([], Number.POSITIVE_INFINITY);
-    if (misses(reported) > 0 && options.doorOrderSearch !== false && reported.decisions.some((d) => d.ranked.length > 1)) {
+    const wrongAndSearchable =
+      misses(reported) > 0 && options.doorOrderSearch !== false && reported.decisions.some((d) => d.ranked.length > 1);
+    if (wrongAndSearchable) {
       reported = this.searchDoorOrders(reported, walkReach, misses);
     }
     const { collectedChips, reachableExit } = reported;
@@ -1601,7 +1608,7 @@ export class LevelValidator {
    * differs from one of those in one decision more. A choice only changes which held-key door opens at a
    * fixpoint, a legal move under the same rules, so a walk that finds more proves more. Stops at the first walk
    * that misses nothing. Reports one walk whole: fewest misses, then most chips, and walk 0 on a tie.
-   * Bounded by DOOR_ORDER_MAX_WALKS and DOOR_ORDER_STEP_BUDGET; a walk cut off by the step budget is discarded.
+   * Bounded by DOOR_ORDER_MAX_WALKS and DOOR_ORDER_STEP_BUDGET (walk steps and ranking work together); a walk cut off by the budget is discarded.
    */
   private static searchDoorOrders(
     walk0: ReachOutcome,
@@ -1666,7 +1673,7 @@ export class LevelValidator {
       door,
       score: (precise
         ? this.rankDoor(door, ctx, closedByKey)
-        : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey), 0]) as [number, number]
+        : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey, ctx.work), 0]) as [number, number]
     }));
     // The sort is stable: doors that tie stay in the order they were met, so the first is today's pick.
     scored.sort((a, b) => b.score[0] - a.score[0] || b.score[1] - a.score[1]);
@@ -1744,6 +1751,7 @@ export class LevelValidator {
     expanded[doorIndex] = 1;
     const stack: GridPoint[] = [{ x: door.x, y: door.y }];
     while (stack.length > 0) {
+      if (++ctx.work.spent > ctx.work.limit) break;
       const cell = stack.pop() as GridPoint;
       ctx.budget.left--;
       for (const dir of ORDERED_DIRECTIONS) {
@@ -1813,7 +1821,8 @@ export class LevelValidator {
     terrain: string[][],
     items: (string | null)[][],
     edgeMask: Uint8Array | null,
-    closedByKey: Readonly<Record<string, number>>
+    closedByKey: Readonly<Record<string, number>>,
+    work: { spent: number; limit: number }
   ): number {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
@@ -1822,6 +1831,7 @@ export class LevelValidator {
     let keyCount = 0;
     let chipCount = 0;
     while (stack.length > 0) {
+      if (++work.spent > work.limit) break;
       const cell = stack.pop() as GridPoint;
       const item = items[cell.y][cell.x];
       const collectible = item ? ConfigRegistry.getTile(item).collectible : undefined;

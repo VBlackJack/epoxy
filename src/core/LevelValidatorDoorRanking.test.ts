@@ -135,7 +135,7 @@ describe('which scarce-key door opens first', () => {
   });
 });
 
-/** Scarce doors of the pathological level, keys it holds, and the walks the search is allowed to waste on them. */
+/** Scarce doors of the pathological level, and the keys it holds. */
 const PATHOLOGICAL_DOORS = 12;
 const PATHOLOGICAL_KEYS = 3;
 
@@ -162,8 +162,8 @@ describe('door order search', () => {
   const oneDiscrepancy = (): CompiledLevel =>
     grid(['#########', '#Py....##', '####Y#Y##', '####c#E##', '#y#######', '#########']);
 
-  // Two reachable yellow keys (two more lie behind walls), four doors. At each of two choices the decoy over a chip outranks the door that matters:
-  // the greedy order is wrong twice, so the right order differs from it in two places.
+  // Two reachable yellow keys (two more behind walls), four doors. Twice a decoy over a chip outranks the
+  // door that matters, so the right order differs from the greedy one in two places.
   const twoDiscrepancies = (): CompiledLevel =>
     grid([
       '###########',
