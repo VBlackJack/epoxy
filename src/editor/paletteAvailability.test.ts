@@ -23,6 +23,7 @@ import {
   cellEdgeAvailability,
   entityAvailability,
   EPOXY_ONLY_REASON_KEY,
+  hiddenFromEpoxyPalette,
   majorityRuleset,
   tileAvailability,
   winRuleAvailability
@@ -72,8 +73,9 @@ describe('paletteAvailability', () => {
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
       const isEpoxyOnlyItem = def.slowsMonsters !== undefined;
       const isSteeringPad = def.buttonAction === 'steer_monsters';
+      const isShotDevice = def.shotLauncher !== undefined || def.buttonAction === 'fire_launchers';
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
@@ -152,6 +154,16 @@ describe('majorityRuleset', () => {
     expect(majorityRuleset([{ ruleset: 'cc3d' }, { ruleset: 'cc3d' }, { ruleset: 'lynx' }])).toBe('lynx');
     expect(majorityRuleset([{ ruleset: 'cc3d' }])).toBe('epoxy');
     expect(majorityRuleset([{ ruleset: 'cc3d' }, { ruleset: 'cc3d' }, {}])).toBe('epoxy');
+  });
+});
+
+describe('hiddenFromEpoxyPalette', () => {
+  it('hides the shot launchers and the shot trigger and nothing else', () => {
+    const hidden = Object.values(ConfigRegistry.getTiles().tiles)
+      .filter((def) => hiddenFromEpoxyPalette(def))
+      .map((def) => def.id)
+      .sort();
+    expect(hidden).toEqual(['shot_launcher_e', 'shot_launcher_n', 'shot_launcher_s', 'shot_launcher_w', 'shot_trigger']);
   });
 });
 

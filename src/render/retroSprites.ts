@@ -20,7 +20,7 @@
  * module: no DOM, so the sprite data can be validated and rasterized in tests and tools.
  */
 
-import { CHANNEL_COLORS } from '../core/coreConstants';
+import { CHANNEL_COLORS, MIRROR_FRONT_AXIS } from '../core/coreConstants';
 import terrainSheet from './retro/sprites/terrain.json';
 import itemsSheet from './retro/sprites/items.json';
 import actorsSheet from './retro/sprites/actors.json';
@@ -162,6 +162,8 @@ const DIGIT_COUNT = 10;
 const GLYPH_COLOURS: readonly string[] = ['red', 'blue', 'yellow', 'green', 'orange'];
 /** The four turret blocks: sprites of the sheet, which the game draws through the cc3d bot painters. */
 const TURRET_SPRITES: readonly string[] = ['turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi'];
+/** The four one-sided mirror blocks: sprites of the sheet, which the game draws through the cc3d reflector painter. */
+const ONE_SIDED_MIRROR_SPRITES: readonly string[] = Object.keys(MIRROR_FRONT_AXIS).map((c) => `one_sided_mirror_${c.toLowerCase()}`);
 /** The colour block sprites: one per channel colour, named after the entity they draw. */
 const COLOR_BLOCK_SPRITES: readonly string[] = CHANNEL_COLORS.map((c) => `color_block_${c}`);
 
@@ -187,7 +189,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...DIRECTIONS.flatMap((d) => framed(`player_${d}`, PLAYER_FRAMES)),
   ...DIRECTIONS.map((d) => `player_swim_${d}`), 'player_dead',
   ...MONSTER_TYPES.flatMap((t) => DIRECTIONS.flatMap((d) => framed(`${t}_${d}`, MONSTER_FRAMES))),
-  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...TURRET_SPRITES, 'block_on_target'
+  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...ONE_SIDED_MIRROR_SPRITES, ...TURRET_SPRITES, 'block_on_target'
 ];
 
 /** Names of RETRO_SPRITE_NAMES the sheet does not define. */

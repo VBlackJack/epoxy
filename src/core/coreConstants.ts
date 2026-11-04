@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ButtonAction, ChannelColor, Direction, MirrorAxis, Ruleset, WinRule } from './types';
+import { ButtonAction, ChannelColor, Direction, MirrorAxis, MirrorCorner, Ruleset, WinRule } from './types';
 
 /** Terrain id used when a cell has no explicit terrain, or a tile has no transform target. */
 export const FLOOR_TILE_ID = 'floor';
@@ -55,6 +55,12 @@ export const DEFAULT_RULESET: Ruleset = 'epoxy';
 /** Button action of a steering pad: every steered monster takes one step the way the player moved. */
 export const STEER_MONSTERS_ACTION: ButtonAction = 'steer_monsters';
 
+/** Button action of a shot trigger: every launcher linked to the button fires one shot. */
+export const FIRE_LAUNCHERS_ACTION: ButtonAction = 'fire_launchers';
+
+/** Tile id of the shot trigger, the tile whose action is fire_launchers. */
+export const SHOT_TRIGGER_TILE_ID = 'shot_trigger';
+
 /** Movement pattern of a monster that steps toward the player. */
 export const CHASE_PLAYER_PATTERN = 'chase_player';
 
@@ -84,6 +90,25 @@ export const LASER_VISITS_PER_CELL = 4;
 export const MIRROR_REFLECTIONS: Readonly<Record<MirrorAxis, Readonly<Record<Direction, Direction>>>> = {
   slash: { E: 'N', N: 'E', W: 'S', S: 'W' },
   backslash: { E: 'S', S: 'E', W: 'N', N: 'W' }
+};
+
+/**
+ * The axis of a one-sided mirror by the corner its reflecting face looks toward: the mirror runs along the
+ * diagonal that cuts the corner off, which is a backslash for the NE and SW corners and a slash for NW and SE.
+ */
+export const MIRROR_FRONT_AXIS: Readonly<Record<MirrorCorner, MirrorAxis>> = {
+  NE: 'backslash',
+  SW: 'backslash',
+  NW: 'slash',
+  SE: 'slash'
+};
+
+/** The two sides of the cell that meet at each corner: a one-sided mirror reflects what enters through them. */
+export const MIRROR_FRONT_SIDES: Readonly<Record<MirrorCorner, readonly Direction[]>> = {
+  NE: ['N', 'E'],
+  NW: ['N', 'W'],
+  SE: ['S', 'E'],
+  SW: ['S', 'W']
 };
 
 export const OPPOSITE_DIRECTION: Readonly<Record<Direction, Direction>> = {
@@ -129,3 +154,14 @@ export const CELL_EDGE_BITS: Readonly<Record<Direction, number>> = {
 
 /** Order in which the sides of a cell edge are stored and listed. */
 export const CELL_EDGE_SIDE_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];
+
+/**
+ * The direction a mirror sends something travelling in `dir` in, or null when it hits the back of a
+ * one-sided mirror. A mirror without a front corner is double-sided and always turns it. Something that
+ * travels south entered through the north side, so it meets the front when the opposite of its
+ * direction is one of the two sides that meet at the front corner.
+ */
+export function reflectOnMirror(axis: MirrorAxis, frontCorner: MirrorCorner | undefined, dir: Direction): Direction | null {
+  if (frontCorner !== undefined && !MIRROR_FRONT_SIDES[frontCorner].includes(OPPOSITE_DIRECTION[dir])) return null;
+  return MIRROR_REFLECTIONS[axis][dir];
+}

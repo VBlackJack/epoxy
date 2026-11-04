@@ -31,6 +31,7 @@ import { mountModals } from '../test/domFixture';
 import { EDITOR_CELL_ANNOUNCE_DELAY_MS } from '../ui/uiConstants';
 import { smallCc3dLevel } from './cc3dEditorFixtures';
 import { LevelEditor } from './LevelEditor';
+import { hiddenFromEpoxyPalette } from './paletteAvailability';
 
 const WIDTH = 8;
 const HEIGHT = 6;
@@ -180,7 +181,7 @@ describe('hidden terrain select in the Layers section', () => {
     expect(ids[0]).toBe('');
     expect(select().options[0].textContent).toBe(t('editor.layout.layers.hidden_terrain.none.label'));
     const expected = Object.values(ConfigRegistry.getTiles().tiles)
-      .filter((tile) => tile.layer === 'terrain')
+      .filter((tile) => tile.layer === 'terrain' && !hiddenFromEpoxyPalette(tile))
       .filter((tile) => normalizeUnderlays([{ x: DOOR_X, y: DOOR_Y, terrain: tile.id }], room(undefined, undefined).terrain, 'epoxy') !== null)
       .map((tile) => tile.id);
     expect([...ids.slice(1)].sort()).toEqual([...expected].sort());
@@ -214,6 +215,14 @@ describe('hidden terrain select in the Layers section', () => {
     expect(field().classList.contains('hidden')).toBe(false);
     expect(optionIds()).not.toContain('water');
     expect(optionIds()).toContain('ice');
+  });
+
+  it('never offers a shot launcher or a trigger to hide under a removable top', () => {
+    const hiddenTiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.layer === 'terrain' && hiddenFromEpoxyPalette(tile));
+    expect(hiddenTiles.length).toBeGreaterThan(0);
+    editor.loadCompiledLevel(room(undefined, undefined));
+    cursorToDoor();
+    for (const tile of hiddenTiles) expect(optionIds()).not.toContain(tile.id);
   });
 
   it('sets the hidden terrain as one undo step, marks and speaks it, and clears it as another', () => {

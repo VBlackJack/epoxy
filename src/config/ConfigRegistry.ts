@@ -32,6 +32,7 @@ import {
   findColorChannelConfigErrors,
   findLaserConfigErrors,
   findSlowTimeConfigErrors,
+  findShotConfigErrors,
   findSteeringConfigErrors,
   findTurretConfigErrors,
   sanitizeStoredLevels,
@@ -47,6 +48,7 @@ import {
   isRuleset,
   isBlockBudget,
   normalizeCellEdges,
+  normalizeLauncherLinks,
   normalizeUnderlays,
   registerTerrainTileLookup,
   isWinRule,
@@ -302,6 +304,10 @@ class ConfigRegistryService {
     const steeringErrors = findSteeringConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (steeringErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, steeringErrors.join('; '));
+    }
+    const shotErrors = findShotConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
+    if (shotErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, shotErrors.join('; '));
     }
     const cc3dTileErrors = findCc3dTileErrors(bundle.cc3dTiles, bundle.tiles.tiles);
     if (cc3dTileErrors.length > 0) {
@@ -1081,6 +1087,7 @@ class ConfigRegistryService {
 
     const cellEdges = normalizeCellEdges(bp.cellEdges, terrain, bp.ruleset);
     const underlays = normalizeUnderlays(bp.underlays, terrain, bp.ruleset);
+    const launcherLinks = normalizeLauncherLinks(bp.launcherLinks, terrain, bp.ruleset, underlays);
 
     return {
       id: levelId,
@@ -1110,6 +1117,7 @@ class ConfigRegistryService {
       items,
       ...(cellEdges ? { cellEdges } : {}),
       ...(underlays ? { underlays } : {}),
+      ...(launcherLinks ? { launcherLinks } : {}),
       entities: asArray(bp.entities)
         .filter((e) => inGrid(e.x, e.y) && typeof e.type === 'string')
         .map((e) => ({ ...e, dir: isDirection(e.dir) ? e.dir : DEFAULT_START_DIRECTION })),

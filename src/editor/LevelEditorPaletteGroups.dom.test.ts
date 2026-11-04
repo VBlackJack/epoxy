@@ -24,6 +24,7 @@ import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { mountModals } from '../test/domFixture';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { LevelEditor } from './LevelEditor';
+import { hiddenFromEpoxyPalette } from './paletteAvailability';
 import { MECHANISM_GROUPS } from './paletteGroups';
 
 const MECHANISMS_CATEGORY = 'mechanisms';
@@ -102,7 +103,9 @@ describe('Mechanisms palette sub-headings', () => {
 
   it('keeps every entry reachable in the DOM order, with headings that cannot take focus', () => {
     openCategory(MECHANISMS_CATEGORY);
-    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY);
+    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
+      (tile) => tile.category === MECHANISMS_CATEGORY && !hiddenFromEpoxyPalette(tile)
+    );
     const entities = Object.values(ConfigRegistry.getMonsters().entities).filter((ent) => ent.category === MECHANISMS_CATEGORY);
     expect(gridButtons()).toHaveLength(tiles.length + entities.length + WIRE_TOOL_COUNT);
     const labels = new Set(gridButtons().map((btn) => btn.querySelector('.palette-item-label')?.textContent));
@@ -110,6 +113,17 @@ describe('Mechanisms palette sub-headings', () => {
     for (const ent of entities) expect(labels.has(t(ent.i18nKey)), ent.id).toBe(true);
     for (const heading of headings()) expect(heading.hasAttribute('tabindex')).toBe(false);
     expect(gridChildren().filter((child) => child.tagName === 'BUTTON')).toEqual(gridButtons());
+  });
+
+  it('leaves the shot launchers and the shot trigger out until links can be drawn', () => {
+    openCategory(MECHANISMS_CATEGORY);
+    const hidden = ['shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w', 'shot_trigger'];
+    const ids = gridButtons().map((btn) => btn.dataset.brushId);
+    for (const id of hidden) {
+      expect(ConfigRegistry.getTile(id).id, id).toBe(id);
+      expect(ids.includes(id), id).toBe(false);
+    }
+    expect(ids.includes('one_sided_mirror_ne')).toBe(true);
   });
 
   it('names the headings in French', () => {

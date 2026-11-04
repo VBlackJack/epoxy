@@ -25,7 +25,8 @@ import {
   OPPOSITE_DIRECTION,
   WALL_TILE_ID,
   CHANNEL_COLOR_NAME_KEY_PREFIX,
-  channelOfButtonAction
+  channelOfButtonAction,
+  FIRE_LAUNCHERS_ACTION
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
@@ -234,6 +235,7 @@ export class LevelValidator {
 
     this.checkColorChannels(level, issues);
     this.checkSteering(level, issues);
+    this.checkShotLaunchers(level, issues);
 
     // A consumed key opens one door; a kept key opens every door of its colour
     for (const [keyId, doors] of Object.entries(consumingDoorCounts)) {
@@ -1251,6 +1253,34 @@ export class LevelValidator {
       (level.cloneLinks ?? []).some((link) => isSteeredEntityType(link.templateType));
     if (pads > 0 && !puppets) issues.push({ severity: 'warning', i18nKey: 'validator.issues.steering_pad_no_puppet.label' });
     if (pads === 0 && puppets) issues.push({ severity: 'warning', i18nKey: 'validator.issues.puppet_no_steering_pad.label' });
+  }
+
+  /**
+   * Warnings about the shot devices: a trigger with no link fires nothing, a launcher no trigger is linked
+   * to never fires, and a launcher facing a wall or the edge of the map fires into it at once.
+   */
+  private static checkShotLaunchers(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const links = level.launcherLinks ?? [];
+    const mask = cellEdgeMask(level);
+    level.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        const tile = ConfigRegistry.getTile(id);
+        if (tile.buttonAction === FIRE_LAUNCHERS_ACTION && !links.some((l) => l.buttonX === x && l.buttonY === y)) {
+          issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_trigger_no_link.label', params: { x, y } });
+        }
+        if (!tile.shotLauncher) return;
+        if (!links.some((l) => l.launcherX === x && l.launcherY === y)) {
+          issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_unlinked.label', params: { x, y } });
+        }
+        const dir = tile.shotLauncher.dir;
+        const nx = x + DIRECTION_VECTORS[dir].dx;
+        const ny = y + DIRECTION_VECTORS[dir].dy;
+        const ahead = level.terrain[ny]?.[nx];
+        if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir)) {
+          issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_faces_wall.label', params: { x, y } });
+        }
+      })
+    );
   }
 
   /** The localized name of a channel colour, as the colour warnings show it. */

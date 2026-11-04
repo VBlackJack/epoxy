@@ -22,6 +22,7 @@ import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../coreConstants';
 import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { triggerButton } from './epoxyDevices';
+import { consumeShotAt, killPlayerByShot } from './epoxyShots';
 import { teleportPlayer } from './epoxyTeleports';
 import {
   EpoxyContext,
@@ -164,6 +165,12 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   const x = w.player.x;
   const y = w.player.y;
   let tile = ConfigRegistry.getTile(w.terrain[y][x]);
+
+  // Running into a flying shot kills the player and spends the shot; a teleport lands here again for its exit cell.
+  if (w.shots.length > 0 && consumeShotAt(w, x, y)) {
+    killPlayerByShot(ctx);
+    return;
+  }
 
   if (tile.isTeleporter && allowTeleport) {
     ctx.emitVisual('teleport', x, y);

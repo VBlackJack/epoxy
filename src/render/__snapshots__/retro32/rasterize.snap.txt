@@ -202,6 +202,10 @@ default color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 default color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 default mirror_slash plain=832970261e022e03 swap=832970261e022e03
 default mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+default one_sided_mirror_ne plain=dc072e07798e657a swap=dc072e07798e657a
+default one_sided_mirror_sw plain=591cf63168421437 swap=591cf63168421437
+default one_sided_mirror_nw plain=094189e7107ab528 swap=094189e7107ab528
+default one_sided_mirror_se plain=0e3df93aec06caa0 swap=0e3df93aec06caa0
 default turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 default turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 default turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
@@ -411,6 +415,10 @@ cyber_neon color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 cyber_neon color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 cyber_neon mirror_slash plain=832970261e022e03 swap=832970261e022e03
 cyber_neon mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+cyber_neon one_sided_mirror_ne plain=dc072e07798e657a swap=dc072e07798e657a
+cyber_neon one_sided_mirror_sw plain=591cf63168421437 swap=591cf63168421437
+cyber_neon one_sided_mirror_nw plain=094189e7107ab528 swap=094189e7107ab528
+cyber_neon one_sided_mirror_se plain=0e3df93aec06caa0 swap=0e3df93aec06caa0
 cyber_neon turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 cyber_neon turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 cyber_neon turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
@@ -620,6 +628,10 @@ arctic_lab color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 arctic_lab color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 arctic_lab mirror_slash plain=832970261e022e03 swap=832970261e022e03
 arctic_lab mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+arctic_lab one_sided_mirror_ne plain=dc072e07798e657a swap=dc072e07798e657a
+arctic_lab one_sided_mirror_sw plain=591cf63168421437 swap=591cf63168421437
+arctic_lab one_sided_mirror_nw plain=094189e7107ab528 swap=094189e7107ab528
+arctic_lab one_sided_mirror_se plain=0e3df93aec06caa0 swap=0e3df93aec06caa0
 arctic_lab turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 arctic_lab turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 arctic_lab turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
@@ -829,6 +841,10 @@ magma_core color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 magma_core color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 magma_core mirror_slash plain=832970261e022e03 swap=832970261e022e03
 magma_core mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+magma_core one_sided_mirror_ne plain=dc072e07798e657a swap=dc072e07798e657a
+magma_core one_sided_mirror_sw plain=591cf63168421437 swap=591cf63168421437
+magma_core one_sided_mirror_nw plain=094189e7107ab528 swap=094189e7107ab528
+magma_core one_sided_mirror_se plain=0e3df93aec06caa0 swap=0e3df93aec06caa0
 magma_core turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 magma_core turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 magma_core turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
@@ -1038,6 +1054,10 @@ lynx_lcd color_block_blue plain=7698b19b9451e423 swap=7698b19b9451e423
 lynx_lcd color_block_yellow plain=f46f5032044a9656 swap=f46f5032044a9656
 lynx_lcd mirror_slash plain=832970261e022e03 swap=832970261e022e03
 lynx_lcd mirror_backslash plain=2cadd569886714ca swap=2cadd569886714ca
+lynx_lcd one_sided_mirror_ne plain=dc072e07798e657a swap=dc072e07798e657a
+lynx_lcd one_sided_mirror_sw plain=591cf63168421437 swap=591cf63168421437
+lynx_lcd one_sided_mirror_nw plain=094189e7107ab528 swap=094189e7107ab528
+lynx_lcd one_sided_mirror_se plain=0e3df93aec06caa0 swap=0e3df93aec06caa0
 lynx_lcd turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 lynx_lcd turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 lynx_lcd turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70

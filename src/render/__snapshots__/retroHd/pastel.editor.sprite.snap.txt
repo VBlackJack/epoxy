@@ -216,6 +216,16 @@ editor tile floating_block_yellow closed=true 77dced61edfddd30
 editor tile floating_block_yellow closed=false 05c38e90d4770e37
 editor tile puppet_control closed=true 88d7c7d12be25378
 editor tile puppet_control closed=false a25eb1e2ea436590
+editor tile shot_launcher_n closed=true a3a1ee4558b83ade
+editor tile shot_launcher_n closed=false 8a56d64824c626ec
+editor tile shot_launcher_e closed=true a59c7f74dfc07754
+editor tile shot_launcher_e closed=false 27a3ca8003bdc26b
+editor tile shot_launcher_s closed=true bbcd3ee10ead8941
+editor tile shot_launcher_s closed=false 4aa2616ff8fb456a
+editor tile shot_launcher_w closed=true 2cd4f382eee0b33d
+editor tile shot_launcher_w closed=false bd3e999290776d07
+editor tile shot_trigger closed=true cf60febe5afc663f
+editor tile shot_trigger closed=false b2912c93fe0aaecd
 editor tile key_red closed=true 5699a67cca9bc873
 editor tile key_red closed=false b9061133b51dc009
 editor tile key_blue closed=true 6b35559aefcf86f6
@@ -271,6 +281,10 @@ editor entity over floor dirt_block 75b2d10dde3bd344
 editor entity over floor ice_block 33081331f9247602
 editor entity over floor mirror_slash 3e41835eeb398a76
 editor entity over floor mirror_backslash 53544e9fa36911f7
+editor entity over floor one_sided_mirror_ne 942ecdfb65ff86ed
+editor entity over floor one_sided_mirror_nw 96c75aea8873eebe
+editor entity over floor one_sided_mirror_se f9159632fba27e11
+editor entity over floor one_sided_mirror_sw 38e6ddb5360f8554
 editor entity over floor turret_fixed fb397e78173e34e6
 editor entity over floor turret_cw 3141659bcbb63c4b
 editor entity over floor turret_ccw 2161fc125ced9798

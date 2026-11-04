@@ -15,8 +15,8 @@
  */
 
 import { isEpoxyOnlyEntityType, isEpoxyOnlyTileId } from '../core/RulesetFeatures';
-import { Ruleset, WinRule } from '../core/types';
-import { DEFAULT_RULESET } from '../core/coreConstants';
+import { TileDefinition, Ruleset, WinRule } from '../core/types';
+import { DEFAULT_RULESET, FIRE_LAUNCHERS_ACTION } from '../core/coreConstants';
 import { EPOXY_ONLY_WIN_RULES } from './metadataFields';
 
 /** Rulesets the editor can open: every ruleset the game plays. */
@@ -34,6 +34,14 @@ const EPOXY_ONLY: Availability = { available: false, reasonKey: EPOXY_ONLY_REASO
 /** Under Lynx everything that needs the Epoxy engine is out; under Epoxy everything is in. */
 function epoxyOnlyUnless(ruleset: EditableRuleset, needsEpoxy: boolean): Availability {
   return ruleset === 'lynx' && needsEpoxy ? EPOXY_ONLY : AVAILABLE;
+}
+
+/**
+ * True for the tiles the palette does not offer yet: shot launchers and shot triggers are useless
+ * until a trigger can be wired to a launcher in the editor, so they stay out of the palette.
+ */
+export function hiddenFromEpoxyPalette(def: Pick<TileDefinition, 'shotLauncher' | 'buttonAction'>): boolean {
+  return def.shotLauncher !== undefined || def.buttonAction === FIRE_LAUNCHERS_ACTION;
 }
 
 /** Availability of a tile (terrain or item id): laser tiles and colour channel tiles (plates, hold doors, toggle walls and buttons, floating blocks) need Epoxy rules. */

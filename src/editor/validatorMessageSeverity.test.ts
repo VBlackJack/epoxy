@@ -39,6 +39,7 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
   clone_link_button: WARN, clone_link_target: WARN,
   channel_button_no_walls: WARN, channel_walls_no_button: WARN, hold_door_no_plate: WARN, hold_door_wrong_start: WARN,
   steering_pad_no_puppet: WARN, puppet_no_steering_pad: WARN,
+  shot_trigger_no_link: WARN, shot_launcher_unlinked: WARN, shot_launcher_faces_wall: WARN,
   cc3d_bad_grid: ERR, cc3d_empty_stack: ERR, cc3d_unknown_terrain: ERR, cc3d_base_not_floor: ERR, cc3d_stack_order: ERR,
   cc3d_duplicate_layer: ERR, cc3d_missing_color: ERR, cc3d_missing_dir: ERR, cc3d_missing_corner: ERR,
   cc3d_missing_mirror: ERR, cc3d_invalid_value: ERR, cc3d_unknown_item: ERR, cc3d_unknown_mob: ERR,

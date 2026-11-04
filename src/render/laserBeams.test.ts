@@ -16,14 +16,16 @@
 
 import { describe, expect, it } from 'vitest';
 import { armRects, BEAM_CORE_TILE, BEAM_HALO_TILE, beamArms, BeamBoard } from './laserBeams';
-import { BeamCell, Direction, MirrorAxis } from '../core/types';
+import { BeamCell, Direction, MirrorAxis, MirrorCorner } from '../core/types';
 
 function board(
   cells: BeamCell[],
   mirrors: Record<string, MirrorAxis> = {},
-  emitters: Record<string, Direction> = {}
+  emitters: Record<string, Direction> = {},
+  fronts: Record<string, MirrorCorner> = {}
 ): BeamBoard {
   return {
+    mirrorFrontAt: (x, y) => fronts[`${x},${y}`],
     beamAt: (x, y) => cells.find((c) => c.x === x && c.y === y),
     mirrorAt: (x, y) => mirrors[`${x},${y}`],
     emitterAt: (x, y) => emitters[`${x},${y}`]
@@ -53,6 +55,17 @@ describe('beamArms', () => {
     const arms = beamArms(mirror, board([mirror], { '2,2': 'backslash' }, { '1,2': 'E' }));
     // Travelling east, a backslash turns the beam south.
     expect(arms).toEqual({ N: false, E: false, S: true, W: true });
+  });
+
+  it('draws the corner of a one-sided mirror on its front and none on its back', () => {
+    const mirror = cell(2, 2, true, true);
+    // A backslash mirror facing the north-east corner: a beam travelling east enters through the west side.
+    // That is the back, so no corner is drawn and the cell shows the axes it carries.
+    const back = beamArms(mirror, board([mirror], { '2,2': 'backslash' }, { '1,2': 'E' }, { '2,2': 'NE' }));
+    expect(back).toEqual({ N: true, E: true, S: true, W: true });
+    // Travelling west it enters through the east side, which is the front: it turns north.
+    const front = beamArms(mirror, board([mirror], { '2,2': 'backslash' }, { '3,2': 'W' }, { '2,2': 'NE' }));
+    expect(front).toEqual({ N: true, E: true, S: false, W: false });
   });
 
   it('draws both corners when a mirror is hit from two sides', () => {

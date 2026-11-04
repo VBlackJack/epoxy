@@ -22,6 +22,7 @@
       "slidesOnForce": true,
       "waterTransformsTo": "water",
       "meltsInFireTo": "water",
+      "shotEffect": "melt",
       "destroyedByFire": true,
       "destroyedByBomb": true
     },
@@ -51,6 +52,62 @@
       "destroyedByFire": false,
       "destroyedByBomb": true
     },
+    "one_sided_mirror_ne": {
+      "id": "one_sided_mirror_ne",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.one_sided_mirror_ne.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "mirrorAxis": "backslash",
+      "mirrorFrontCorner": "NE",
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "one_sided_mirror_nw": {
+      "id": "one_sided_mirror_nw",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.one_sided_mirror_nw.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "mirrorAxis": "slash",
+      "mirrorFrontCorner": "NW",
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "one_sided_mirror_se": {
+      "id": "one_sided_mirror_se",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.one_sided_mirror_se.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "mirrorAxis": "slash",
+      "mirrorFrontCorner": "SE",
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
+    "one_sided_mirror_sw": {
+      "id": "one_sided_mirror_sw",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.one_sided_mirror_sw.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "mirrorAxis": "backslash",
+      "mirrorFrontCorner": "SW",
+      "refusesHazards": ["water"],
+      "destroyedByFire": false,
+      "destroyedByBomb": true
+    },
     "turret_fixed": {
       "id": "turret_fixed",
       "category": "mechanisms",
@@ -64,6 +121,7 @@
         "turn": 0,
         "turnPeriodTicks": 60
       },
+      "shotEffect": "destroy",
       "refusesHazards": ["water"],
       "destroyedByFire": false,
       "destroyedByBomb": true
@@ -81,6 +139,7 @@
         "turn": 1,
         "turnPeriodTicks": 60
       },
+      "shotEffect": "destroy",
       "refusesHazards": ["water"],
       "destroyedByFire": false,
       "destroyedByBomb": true
@@ -98,6 +157,7 @@
         "turn": -1,
         "turnPeriodTicks": 60
       },
+      "shotEffect": "destroy",
       "refusesHazards": ["water"],
       "destroyedByFire": false,
       "destroyedByBomb": true
@@ -116,6 +176,7 @@
         "allSides": true,
         "turnPeriodTicks": 60
       },
+      "shotEffect": "destroy",
       "refusesHazards": ["water"],
       "destroyedByFire": false,
       "destroyedByBomb": true

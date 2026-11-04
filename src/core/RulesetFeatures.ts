@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { FLEE_PLAYER_PATTERN, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -97,11 +97,21 @@ const RECEIVER_COLOR_LEVEL_FEATURES: RulesetFeatures = {
   tapToPath: COLOR_LEVEL_FEATURES.tapToPath
 };
 
-/** True when the tile id is a laser emitter, receiver or gate, as the tile config defines them. */
+/**
+ * True when the tile id is a laser emitter, receiver or gate, a shot launcher or a shot trigger, as the tile
+ * config defines them. Shots count as laser content: they are stopped and turned by the same mirrors and
+ * walls, and the aids that skip laser levels skip them too.
+ */
 export function isLaserTileId(id: string | null | undefined): boolean {
   if (!id) return false;
   const tile = ConfigRegistry.getTile(id);
-  return tile.laserEmitter !== undefined || tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined;
+  return (
+    tile.laserEmitter !== undefined ||
+    tile.laserReceiverGroup !== undefined ||
+    tile.laserGateGroup !== undefined ||
+    tile.shotLauncher !== undefined ||
+    tile.buttonAction === FIRE_LAUNCHERS_ACTION
+  );
 }
 
 /** True when the entity type is a laser mirror, as the monster config defines it. */
@@ -124,8 +134,10 @@ export function hasTurretContent(level: Pick<CompiledLevel, 'entities'> & Partia
 
 /** True when the level places a laser tile (terrain or item layer), a mirror or a turret, as the configs define them. */
 export function hasLaserContent(
-  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks' | 'launcherLinks'>>
 ): boolean {
+  // A launcher or trigger can hide under a removable top, where the grids do not show it: its link does.
+  if ((level.launcherLinks?.length ?? 0) > 0) return true;
   const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
     grid?.some((row) => row.some(isLaserTileId)) ?? false;
   if (hasTile(level.terrain) || hasTile(level.items)) return true;

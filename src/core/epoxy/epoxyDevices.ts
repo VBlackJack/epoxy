@@ -22,6 +22,7 @@ import {
   CHIP_ITEM_ID,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   GRAY_BUTTON_RADIUS,
+  FIRE_LAUNCHERS_ACTION,
   OPPOSITE_DIRECTION,
   STEER_MONSTERS_ACTION,
   channelOfButtonAction
@@ -29,6 +30,7 @@ import {
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
+import { fireLaunchers } from './epoxyShots';
 import { steerMonsters } from './epoxySteering';
 import {
   EpoxyContext,
@@ -72,6 +74,8 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
   } else if (action === STEER_MONSTERS_ACTION) {
     // The player's step ends on the pad: the puppets step the way the player moved.
     if (!steerMonsters(ctx, w.player.dir)) return false;
+  } else if (action === FIRE_LAUNCHERS_ACTION) {
+    if (!fireLaunchers(ctx, bx, by)) return false;
   } else if (action === 'trigger_cloner') {
     const links = w.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
     if (links.length > 0) {

@@ -557,3 +557,18 @@ tile floating_block_yellow closed=true shadowMask=128 hash=1 cdbd0ec7cd5254b4
 tile puppet_control closed=true isolated 0432546705693f42
 tile puppet_control closed=true shadowMask=65 hash=1 f94a6664ed59d3ce
 tile puppet_control closed=true shadowMask=128 hash=1 9f00c91ee263981a
+tile shot_launcher_n closed=true isolated 393661a5ea9ea630
+tile shot_launcher_n closed=true shadowMask=65 hash=1 cf7230f7dee98fb0
+tile shot_launcher_n closed=true shadowMask=128 hash=1 7323cd3421e5c47e
+tile shot_launcher_e closed=true isolated 8cfc9b45a6f96cbd
+tile shot_launcher_e closed=true shadowMask=65 hash=1 994856064785b49f
+tile shot_launcher_e closed=true shadowMask=128 hash=1 093e64537d0915fd
+tile shot_launcher_s closed=true isolated 7f56aa6f3a409123
+tile shot_launcher_s closed=true shadowMask=65 hash=1 cf11790b733af231
+tile shot_launcher_s closed=true shadowMask=128 hash=1 ec1ff33110b57561
+tile shot_launcher_w closed=true isolated cf7fd611bf0b2444
+tile shot_launcher_w closed=true shadowMask=65 hash=1 e2f080af86b8c6db
+tile shot_launcher_w closed=true shadowMask=128 hash=1 e5138ce2fa3bd675
+tile shot_trigger closed=true isolated 3acb36a48373e18a
+tile shot_trigger closed=true shadowMask=65 hash=1 4e65d0d850015ad1
+tile shot_trigger closed=true shadowMask=128 hash=1 3a0c9f05f47ffe5a

@@ -25,6 +25,7 @@ import {
 } from '../coreConstants';
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
+import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -93,7 +94,7 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
 
 /**
  * Applies the effects of the cell a monster has just entered (by a step, a
- * teleport or a clone spawn): the player under it dies, a bomb or water or
+ * teleport or a clone spawn): the player under it dies, a flying shot kills it, a bomb or water or
  * fire removes it, a button is pressed and a teleporter jumps it on.
  * Returns false when the player was killed, so the caller stops processing.
  */
@@ -106,6 +107,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (w.player.x === nx && w.player.y === ny && w.player.alive) {
     killPlayer(ctx, 'hud.messages.death_monster', 'death');
     return false;
+  }
+
+  // Running into a flying shot (by a step, a teleport or a clone spawn) kills the monster and spends the shot.
+  if (w.shots.length > 0 && consumeShotAt(w, nx, ny)) {
+    killMonsterByShot(ctx, entity);
+    return true;
   }
 
   const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);

@@ -75,6 +75,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   toggle_wall_open: 'floorBorder',
   teleport: 'teleportRing',
   puppet_control: 'yellow',
+  shot_trigger: 'yellow',
   trap: 'trapBorder',
   clone_machine: 'clonerBorder'
 };
@@ -93,6 +94,7 @@ const TILE_PREFIX_RULES: ReadonlyArray<{ prefix: string; key: string | null }> =
   { prefix: 'floating_block_', key: 'waterDeep' },
   { prefix: 'teleport_', key: null },
   { prefix: 'laser_emitter_', key: 'laserBeam' },
+  { prefix: 'shot_launcher_', key: 'wallBase' },
   { prefix: 'laser_receiver_', key: null },
   { prefix: 'score_', key: 'bonusFlag' },
   { prefix: 'stopwatch_', key: 'stopwatchBody' }

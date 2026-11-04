@@ -1445,6 +1445,73 @@
       "passableByBlock": true,
       "buttonAction": "steer_monsters",
       "buttonWorkedBy": "player"
+    },
+    "shot_launcher_n": {
+      "id": "shot_launcher_n",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.shot_launcher_n.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "shotLauncher": {
+        "dir": "N",
+        "stepTicks": 2
+      }
+    },
+    "shot_launcher_e": {
+      "id": "shot_launcher_e",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.shot_launcher_e.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "shotLauncher": {
+        "dir": "E",
+        "stepTicks": 2
+      }
+    },
+    "shot_launcher_s": {
+      "id": "shot_launcher_s",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.shot_launcher_s.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "shotLauncher": {
+        "dir": "S",
+        "stepTicks": 2
+      }
+    },
+    "shot_launcher_w": {
+      "id": "shot_launcher_w",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.shot_launcher_w.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "shotLauncher": {
+        "dir": "W",
+        "stepTicks": 2
+      }
+    },
+    "shot_trigger": {
+      "id": "shot_trigger",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.shot_trigger.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "buttonAction": "fire_launchers"
     }
   }
 }

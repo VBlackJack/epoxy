@@ -763,6 +763,8 @@ export interface TileDefinition {
   laserTransparent?: boolean;
   /** Direction a laser emitter fires in. */
   laserEmitter?: Direction;
+  /** Present on a shot launcher: the terrain that fires a flying shot the way it faces when a linked trigger is worked. */
+  shotLauncher?: ShotLauncherDefinition;
   /** Group a laser receiver belongs to: it drives the laser gates of that group while a beam reaches it. */
   laserReceiverGroup?: string;
   /** Group of a laser gate: it is open while any receiver of the group is lit. */
@@ -805,7 +807,16 @@ export type ButtonAction =
   | 'toggle_walls_red'
   | 'toggle_walls_blue'
   | 'toggle_walls_yellow'
-  | 'steer_monsters';
+  | 'steer_monsters'
+  | 'fire_launchers';
+
+/** How a shot launcher fires. */
+export interface ShotLauncherDefinition {
+  /** The way the launcher faces, and the way its shots first fly. */
+  dir: Direction;
+  /** Ticks a shot takes to cross one cell (a whole number of at least 1). */
+  stepTicks: number;
+}
 
 /** Who works a button: only the player when it says 'player', anything that steps on it otherwise. */
 export type ButtonWorker = 'player';
@@ -838,6 +849,16 @@ export interface EntityDefinition {
   reversedByButton?: boolean;
   /** Orientation of a laser mirror: 'slash' (/) or 'backslash' (\). A mirror is a block. */
   mirrorAxis?: MirrorAxis;
+  /**
+   * Makes a mirror one-sided: the corner of the cell its reflecting face looks toward. The mirror runs
+   * along the diagonal that cuts that corner off, so 'NE' and 'SW' need the 'backslash' axis and 'NW' and
+   * 'SE' the 'slash' axis. A shot (or a laser beam) that enters the cell through one of the two sides
+   * that meet at the corner is turned out of the other one; one that enters through the two other sides
+   * hits the back: a shot destroys the mirror and is spent, a beam stops without covering the cell.
+   */
+  mirrorFrontCorner?: MirrorCorner;
+  /** What a flying shot does to the entity it runs into; see ShotEffect for the defaults. */
+  shotEffect?: ShotEffect;
   /** Terrain hazards a block refuses to enter, by push, slide, teleport or clone. */
   refusesHazards?: Array<NonNullable<TileDefinition['hazard']>>;
   /** Colour of a colour block: it presses the plates of this colour only (a plain entity presses every plate). */
@@ -883,6 +904,17 @@ export type TurretOpacity = 'block' | 'laser';
 
 /** Orientation of a laser mirror. */
 export type MirrorAxis = 'slash' | 'backslash';
+
+/** A corner of a cell, named by the two sides that meet there. */
+export type MirrorCorner = 'NE' | 'NW' | 'SE' | 'SW';
+
+/**
+ * What a flying shot does to the entity in the cell it enters, the shot ending in every case but
+ * 'reflect': 'stop' leaves the entity unharmed, 'destroy' removes it, 'melt' removes it and leaves
+ * its meltsInFireTo terrain, 'reflect' turns the shot as the mirror does. When an entity declares
+ * none, a monster is destroyed, a mirror reflects and any other block stops the shot.
+ */
+export type ShotEffect = 'stop' | 'destroy' | 'reflect' | 'melt';
 
 export interface MonstersConfig {
   entities: Record<string, EntityDefinition>;
@@ -1018,6 +1050,26 @@ export interface TrapLink {
   trapY: number;
 }
 
+/**
+ * A trigger (a tile with the fire_launchers action) wired to a shot launcher: working the trigger
+ * fires that launcher. A trigger may have several links; a trigger with none fires nothing.
+ */
+export interface LauncherLink {
+  buttonX: number;
+  buttonY: number;
+  launcherX: number;
+  launcherY: number;
+}
+
+/** A shot in flight. It sits in a cell, never in the launcher's, and flies until it hits something. */
+export interface Shot {
+  x: number;
+  y: number;
+  dir: Direction;
+  /** Ticks left to wait before the shot crosses its next cell. */
+  cooldown: number;
+}
+
 export interface CloneLink {
   buttonX: number;
   buttonY: number;
@@ -1108,6 +1160,8 @@ export interface LevelBlueprint {
   entities: EntityPlacement[];
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
+  /** Triggers wired to shot launchers (Epoxy ruleset only); absent when the level has none. */
+  launcherLinks?: LauncherLink[];
 }
 
 /** One chapter of the Epoxy campaign: a titled run of levels, listed by id. */
@@ -1183,6 +1237,8 @@ export interface CompiledLevel {
   entities: EntityPlacement[];
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
+  /** Triggers wired to shot launchers (Epoxy ruleset only); absent when the level has none. */
+  launcherLinks?: LauncherLink[];
 }
 
 export interface LevelPack {
@@ -1271,6 +1327,8 @@ export interface UndoSnapshot {
   timedMoveHistoryLength: number;
   /** Tick of the player's first step; written only on a level with turrets, absent otherwise. */
   playStartTick?: number;
+  /** The shots in flight; written only on a level with shot launchers, absent otherwise. */
+  shots?: Shot[];
 }
 
 export interface LevelHighScore {

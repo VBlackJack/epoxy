@@ -187,7 +187,8 @@ import {
   entityAvailability,
   majorityRuleset,
   tileAvailability,
-  winRuleAvailability
+  winRuleAvailability,
+  hiddenFromEpoxyPalette
 } from './paletteAvailability';
 import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, wireToolMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
@@ -1330,7 +1331,7 @@ export class LevelEditor {
     };
 
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
-      (tile) => tile.category === this.activeCategory
+      (tile) => tile.category === this.activeCategory && !hiddenFromEpoxyPalette(tile)
     );
     for (const tile of tiles) {
       const kind = tile.layer === 'item' ? 'item' : 'terrain';
@@ -3621,7 +3622,7 @@ export class LevelEditor {
   private hiddenTerrainChoices(x: number, y: number): Array<{ id: string; name: string }> {
     const choices: Array<{ id: string; name: string }> = [];
     for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
-      if (tile.layer !== 'terrain') continue;
+      if (tile.layer !== 'terrain' || hiddenFromEpoxyPalette(tile)) continue;
       if (normalizeUnderlays([{ x, y, terrain: tile.id }], this.doc.terrain, 'epoxy') === null) continue;
       choices.push({ id: tile.id, name: t(tile.i18nKey) });
     }
