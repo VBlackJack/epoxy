@@ -96,6 +96,7 @@
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
       "refused_epoxy_only_items": { "label": "Not exported: {levels} holds a Slow-Time Charm, which the .DAT format cannot hold." },
+      "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -824,7 +825,7 @@
         "engine": { "label": "Engine" },
         "description": {
           "epoxy": "Epoxy: the native rules, with lasers, colour channels, block targets and every tile of the editor.",
-          "lynx": "Lynx: the rules of community packs. Lasers, mirrors, colour channels (plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks) and block targets are not available.",
+          "lynx": "Lynx: the rules of community packs. Lasers, mirrors, colour channels (plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), block targets and thin walls on cells are not available.",
           "cc3d": "CC3D: the rules of Chuck's Challenge 3D levels. The engine of such a level cannot be changed."
         }
       },
@@ -838,6 +839,7 @@
         "dropped_entities": "{count, plural, one {# creature or block was} other {# creatures or blocks were}} removed.",
         "dropped_links": "{count, plural, one {# wire was} other {# wires were}} removed.",
         "start_moved": "The player start was moved inside the level.",
+        "dropped_edges": "{count, plural, one {# cell lost its thin walls} other {# cells lost their thin walls}}.",
         "border_kept": "The outer ring was closed with walls."
       }
     },
@@ -869,7 +871,7 @@
       "ruleset": { "label": "Rules" },
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (community packs)" },
-      "ruleset_lynx_unavailable": { "label": "Levels with block targets, lasers or colour channels play under Epoxy rules only" },
+      "ruleset_lynx_unavailable": { "label": "Levels with block targets, lasers, colour channels or thin walls on cells play under Epoxy rules only" },
       "ruleset_cc3d": { "label": "CC3D (Chuck's Challenge 3D)" },
       "ruleset_cc3d_unavailable": { "label": "Only a CC3D level plays under CC3D rules" },
       "ruleset_cc3d_locked": { "label": "A CC3D level keeps its own rules: the engine cannot be changed" },

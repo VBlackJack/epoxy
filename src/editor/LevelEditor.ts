@@ -64,7 +64,7 @@ import {
 } from './testFromHere';
 import { CheckSummary, summarizeValidation } from './checkSummary';
 import { issueCell, issueRows } from './issueList';
-import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d } from './editorDocument';
+import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
 import {
   DRAFT_VERSION,
   type DraftOffer,
@@ -143,6 +143,7 @@ import {
   SectionState,
   serializeSectionState
 } from './inspectorSections';
+import { hasCellEdges } from './editorCellEdges';
 import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
 import {
   CellRect,
@@ -387,6 +388,9 @@ let selectionClipboard: SelectionClipboard | null = null;
 
 /** The preview of a CC3D clip in the shape the Epoxy preview draws, derived once per clip. */
 const cc3dPreviewClips = new WeakMap<Cc3dClip, Clip>();
+
+/** The thin walls of a document by cell index, built once per list of edges (a document edit makes a new list). */
+const cellEdgeSidesMemo = new WeakMap<object, ReadonlyMap<number, readonly Direction[]>>();
 
 /** What the application learns when a level was saved. */
 export interface SavedLevelInfo {
@@ -1900,7 +1904,7 @@ export class LevelEditor {
       const parsed = parseRuleset(ruleset, doc.ruleset ?? DEFAULT_RULESET);
       next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
     }
-    if (requiresEpoxyRules(next.winRule, hasEpoxyOnlyContent(doc))) next.ruleset = undefined;
+    if (requiresEpoxyRules(next.winRule, hasEpoxyOnlyContent(doc) || hasCellEdges(doc))) next.ruleset = undefined;
     return metadataForDocument(doc, next);
   }
 
@@ -1970,7 +1974,7 @@ export class LevelEditor {
     if (!rulesetEl) return;
     const cc3d = this.isCc3d();
     // A CC3D level keeps its engine: the Epoxy-only tiles (lasers, colour channels) its display layers hold and its win rule do not make it Epoxy.
-    const lynxLocked = !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc));
+    const lynxLocked = !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc) || hasCellEdges(this.doc));
     if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
     rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
     // The engine of a level never changes into another one here: a CC3D level shows its own engine
@@ -2053,7 +2057,7 @@ export class LevelEditor {
     } else {
       const result = resizeMap(before, width, height, bounds);
       changed = result.changed;
-      if (changed) this.doc = { ...before, ...result.map };
+      if (changed) this.doc = withEditedMap(before, result.map);
       notes = describeResize(result);
     }
     if (changed) {
@@ -3082,7 +3086,7 @@ export class LevelEditor {
     });
     this.pendingWire = outcome.pendingWire;
     if (outcome.changed) {
-      this.doc = { ...this.doc, ...outcome.map };
+      this.doc = withEditedMap(this.doc, outcome.map);
       stroke.changed = true;
     }
     this.announce(outcome.messages);
@@ -3198,7 +3202,7 @@ export class LevelEditor {
   private commitSelectionEdit(result: SelectionEditResult): boolean {
     if (!result.changed) return false;
     const before = this.doc;
-    this.doc = { ...this.doc, ...result.map };
+    this.doc = withEditedMap(this.doc, result.map);
     this.recordChange(before);
     this.render();
     return true;
@@ -3522,6 +3526,11 @@ export class LevelEditor {
         if (item) this.renderer.drawItem(this.ctx, item, px, py, s);
       }
     }
+    // Thin walls are an Epoxy feature: a Lynx level neither draws nor receives them.
+    const clipEdges = this.doc.ruleset === LYNX_RULESET ? [] : (clip.edges ?? []);
+    for (const edge of clipEdges) {
+      this.renderer.drawCellOverlay(this.ctx, edge.sides, false, (ox + edge.dx) * s, (oy + edge.dy) * s, s);
+    }
     for (const e of clip.entities) {
       this.renderer.drawEntity(this.ctx, e.type, e.dir, (ox + e.dx) * s, (oy + e.dy) * s, s);
     }
@@ -3533,16 +3542,40 @@ export class LevelEditor {
   }
 
   /** One cell: its terrain, the panels and the stacked-layer marker of a CC3D cell over it, then its item. */
-  private drawCellLayers(ctx: CanvasRenderingContext2D, doc: EditorDocument, x: number, y: number, s: number): void {
+  private drawCellLayers(
+    ctx: CanvasRenderingContext2D,
+    doc: EditorDocument,
+    x: number,
+    y: number,
+    s: number,
+    edgeSides: ReadonlyMap<number, readonly Direction[]> | null,
+    width: number
+  ): void {
     this.renderer.drawTile(ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
     const cc3d = doc.cc3d;
     if (cc3d) {
       const cell = cc3d.cells[y * cc3d.width + x];
       const edges = cell.panels.length > 0 && !displayShowsPanels(cell) ? cell.panels : undefined;
       this.renderer.drawCellOverlay(ctx, edges, hasHiddenLayers(cell), x * s, y * s, s);
+    } else {
+      const sides = edgeSides?.get(y * width + x);
+      if (sides) this.renderer.drawCellOverlay(ctx, sides, false, x * s, y * s, s);
     }
     const item = doc.items[y][x];
     if (item) this.renderer.drawItem(ctx, item, x * s, y * s, s);
+  }
+
+  /** The thin walls of an Epoxy document by cell index, kept per list so a redraw does not rebuild them. */
+  private cellEdgeSides(doc: EditorDocument): ReadonlyMap<number, readonly Direction[]> | null {
+    const edges = doc.cellEdges;
+    if (!edges || edges.length === 0) return null;
+    const width = mapWidthOf(doc);
+    let sidesByCell = cellEdgeSidesMemo.get(edges);
+    if (!sidesByCell) {
+      sidesByCell = new Map(edges.map((e) => [e.y * width + e.x, e.sides]));
+      cellEdgeSidesMemo.set(edges, sidesByCell);
+    }
+    return sidesByCell;
   }
 
   /**
@@ -3577,8 +3610,10 @@ export class LevelEditor {
 
   /** Draws the cells of a rectangle of cells (end excluded), then the creatures standing in it. */
   private drawMapRegion(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number, x0: number, y0: number, x1: number, y1: number): void {
+    const edgeSides = doc.cc3d ? null : this.cellEdgeSides(doc);
+    const width = mapWidthOf(doc);
     for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s);
+      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s, edgeSides, width);
     }
     for (const ent of doc.entities) {
       if (ent.x >= x0 && ent.x < x1 && ent.y >= y0 && ent.y < y1) this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);

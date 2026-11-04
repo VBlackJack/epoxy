@@ -45,6 +45,8 @@ import {
   isRuleset,
   isBlockBudget,
   normalizeCellEdges,
+  normalizeUnderlays,
+  registerTerrainTileLookup,
   isWinRule,
   findAudioConfigErrors,
   findCampaignConfigErrors,
@@ -459,6 +461,11 @@ class ConfigRegistryService {
 
   public getTile(id: string): TileDefinition {
     return this.tilesConfig.tiles[id] || this.cc3dTilesConfig.tiles[id] || this.tilesConfig.tiles.floor;
+  }
+
+  /** True when the id names a tile of the terrain layer in the Epoxy tile set (items and unknown ids are not). */
+  public isTerrainTile(id: string): boolean {
+    return Object.prototype.hasOwnProperty.call(this.tilesConfig.tiles, id) && this.tilesConfig.tiles[id].layer === 'terrain';
   }
 
   public getMonsters(): MonstersConfig {
@@ -1063,6 +1070,7 @@ class ConfigRegistryService {
     }
 
     const cellEdges = normalizeCellEdges(bp.cellEdges, terrain, bp.ruleset);
+    const underlays = normalizeUnderlays(bp.underlays, terrain, bp.ruleset);
 
     return {
       id: levelId,
@@ -1091,6 +1099,7 @@ class ConfigRegistryService {
       terrain,
       items,
       ...(cellEdges ? { cellEdges } : {}),
+      ...(underlays ? { underlays } : {}),
       entities: asArray(bp.entities)
         .filter((e) => inGrid(e.x, e.y) && typeof e.type === 'string')
         .map((e) => ({ ...e, dir: isDirection(e.dir) ? e.dir : DEFAULT_START_DIRECTION })),
@@ -1186,3 +1195,5 @@ function asArray<T>(value: T[] | undefined): T[] {
 }
 
 export const ConfigRegistry = new ConfigRegistryService();
+
+registerTerrainTileLookup((id) => (ConfigRegistry.isTerrainTile(id) ? ConfigRegistry.getTile(id) : undefined));

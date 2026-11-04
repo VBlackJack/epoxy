@@ -15,7 +15,8 @@
  */
 
 import { FLOOR_TILE_ID } from '../core/coreConstants';
-import { CloneLink, Direction, TrapLink } from '../core/types';
+import { CellEdge, CloneLink, Direction, TrapLink } from '../core/types';
+import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import { dropLinksAt, mapHeightOf, mapWidthOf } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
@@ -36,6 +37,13 @@ export interface ClipEntity {
   dir: Direction;
 }
 
+/** The thin walls of one cell of a clip, positioned relative to the clip's top-left cell. */
+export interface ClipEdge {
+  dx: number;
+  dy: number;
+  sides: Direction[];
+}
+
 /** The content of a rectangle of cells, detached from the map. Links are never part of it. */
 export interface Clip {
   width: number;
@@ -43,6 +51,8 @@ export interface Clip {
   terrain: string[][];
   items: (string | null)[][];
   entities: ClipEntity[];
+  /** Thin walls of the clipped cells; absent when none has any. A Lynx level has no such walls, so they are dropped there. */
+  edges?: ClipEdge[];
   /** The player start, relative to the clip, when the clip carries it; null otherwise. */
   playerStart: { dx: number; dy: number; dir: Direction } | null;
 }
@@ -129,7 +139,8 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
       entities: [...map.entities].sort((l, m) => l.y - m.y || l.x - m.x || l.type.localeCompare(m.type)),
       trapLinks: map.trapLinks,
       cloneLinks: map.cloneLinks,
-      playerStart: map.playerStart
+      playerStart: map.playerStart,
+      cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? []
     });
   return normalize(a) === normalize(b);
 }
@@ -153,12 +164,15 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
   const entities: ClipEntity[] = map.entities
     .filter((e) => rectContains(rect, e.x, e.y))
     .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, type: e.type, dir: e.dir }));
+  const edges: ClipEdge[] = (map.cellEdges ?? [])
+    .filter((e) => rectContains(rect, e.x, e.y))
+    .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, sides: [...e.sides] }));
   const start = map.playerStart;
   const playerStart =
     includePlayerStart && rectContains(rect, start.x, start.y)
       ? { dx: start.x - rect.x, dy: start.y - rect.y, dir: start.dir }
       : null;
-  return { width: rect.width, height: rect.height, terrain, items, entities, playerStart };
+  return { width: rect.width, height: rect.height, terrain, items, entities, ...(edges.length > 0 ? { edges } : {}), playerStart };
 }
 
 function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number) => boolean = () => false): void {
@@ -170,10 +184,11 @@ function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number)
     }
   }
   map.entities = map.entities.filter((e) => !rectContains(rect, e.x, e.y) || keep(e.x, e.y));
+  removeEdgesWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
 }
 
 /**
- * Clears the cells of a rectangle to floor and drops the links that end in
+ * Clears the cells of a rectangle to floor, removes their thin walls and drops the links that end in
  * it. The player start stays where it is, and the result says so.
  */
 export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResult {
@@ -195,7 +210,8 @@ export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResul
  * cannot play is left out whole (it keeps what it had, entity included) and
  * counted once; an item or entity it cannot play is left out alone and counted.
  * The outer ring of the map is never written: its cells are left out whole and
- * counted apart. With `sourceOrigin` (a move), clip cells that came from the
+ * counted apart. A written cell takes the thin walls of the clip (none when the clip has none there);
+ * under Lynx, which has no thin walls, the clip's are dropped and each counts as skipped. With `sourceOrigin` (a move), clip cells that came from the
  * ring are left out too, so the ring stays where it is.
  */
 function stampClip(
@@ -215,6 +231,7 @@ function stampClip(
   const tileOk = (id: string): boolean => ruleset === null || tileAvailability(ruleset, id).available;
   const keepEntities = new Set<string>();
   const skippedCells = new Set<string>();
+  const writtenCells = new Set<string>();
   for (let cy = 0; cy < clip.height; cy++) {
     for (let cx = 0; cx < clip.width; cx++) {
       const x = originX + cx;
@@ -248,6 +265,7 @@ function stampClip(
         continue;
       }
       map.terrain[y][x] = clip.terrain[cy][cx];
+      writtenCells.add(`${x},${y}`);
       droppedLinks += dropLinksAt(map, x, y);
       const item = clip.items[cy][cx];
       if (item === null || tileOk(item)) map.items[y][x] = item;
@@ -268,6 +286,16 @@ function stampClip(
     }
     map.entities.push({ x, y, type: e.type, dir: e.dir });
   }
+  const keptEdges = (map.cellEdges ?? []).filter((e) => !writtenCells.has(`${e.x},${e.y}`));
+  const pastedEdges: CellEdge[] = [];
+  for (const e of clip.edges ?? []) {
+    const x = originX + e.dx;
+    const y = originY + e.dy;
+    if (!writtenCells.has(`${x},${y}`)) continue;
+    if (ruleset === 'lynx') skipped++;
+    else pastedEdges.push({ x, y, sides: [...e.sides] });
+  }
+  if (keptEdges.length !== (map.cellEdges?.length ?? 0) || pastedEdges.length > 0) replaceEdges(map, [...keptEdges, ...pastedEdges]);
   if (clip.playerStart) {
     const x = originX + clip.playerStart.dx;
     const y = originY + clip.playerStart.dy;
