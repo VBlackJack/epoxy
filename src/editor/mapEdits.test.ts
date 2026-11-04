@@ -29,6 +29,9 @@ import {
   paintTerrain,
   placeWireButton,
   placeWireLink,
+  removeCloneLink,
+  removeLauncherLink,
+  removeTrapLink,
   resizeMap,
   startLauncherWire,
   toggleCellEdge,
@@ -813,5 +816,92 @@ describe('launcher wire edits', () => {
     expect(walled.map.underlays).toHaveLength(1);
     expect(walled.map.launcherLinks).toBeUndefined();
     expect(walled.removedLinks).toBe(1);
+  });
+});
+
+describe('removing one link', () => {
+  function crowded(): EditorMap {
+    const map = withLinks();
+    map.terrain[3][3] = 'trap';
+    map.terrain[5][5] = 'shot_trigger';
+    map.terrain[5][6] = 'shot_launcher_e';
+    map.terrain[6][6] = 'shot_launcher_n';
+    map.trapLinks = [
+      { buttonX: 2, buttonY: 2, trapX: 4, trapY: 2 },
+      { buttonX: 2, buttonY: 2, trapX: 4, trapY: 2 },
+      { buttonX: 2, buttonY: 2, trapX: 3, trapY: 3 }
+    ];
+    map.cloneLinks = [
+      { buttonX: 2, buttonY: 4, clonerX: 4, clonerY: 4, templateType: 'dirt_block', templateDir: 'S' },
+      { buttonX: 2, buttonY: 4, clonerX: 4, clonerY: 4, templateType: 'dirt_block', templateDir: 'N' },
+      { buttonX: 2, buttonY: 4, clonerX: 5, clonerY: 4, templateType: 'dirt_block', templateDir: 'S' }
+    ];
+    map.launcherLinks = [
+      { buttonX: 5, buttonY: 5, launcherX: 6, launcherY: 5 },
+      { buttonX: 5, buttonY: 5, launcherX: 6, launcherY: 6 }
+    ];
+    return map;
+  }
+
+  it('removes only the pair of a trap link, with its duplicates', () => {
+    const map = crowded();
+    const result = removeTrapLink(map, { x: 2, y: 2 }, { x: 4, y: 2 });
+    expect(result.changed).toBe(true);
+    expect(result.removedLinks).toBe(2);
+    expect(result.map.trapLinks).toEqual([{ buttonX: 2, buttonY: 2, trapX: 3, trapY: 3 }]);
+    expect(result.map.cloneLinks).toHaveLength(3);
+    expect(result.map.launcherLinks).toHaveLength(2);
+  });
+
+  it('removes only the pair of a clone link, with its duplicates', () => {
+    const result = removeCloneLink(crowded(), { x: 2, y: 4 }, { x: 4, y: 4 });
+    expect(result.changed).toBe(true);
+    expect(result.removedLinks).toBe(2);
+    expect(result.map.cloneLinks.map((l) => l.clonerX)).toEqual([5]);
+    expect(result.map.trapLinks).toHaveLength(3);
+  });
+
+  it('removes only the pair of a launcher link, and the field when none is left', () => {
+    const result = removeLauncherLink(crowded(), { x: 5, y: 5 }, { x: 6, y: 5 });
+    expect(result.changed).toBe(true);
+    expect(result.removedLinks).toBe(1);
+    expect(result.map.launcherLinks).toEqual([{ buttonX: 5, buttonY: 5, launcherX: 6, launcherY: 6 }]);
+    const last = removeLauncherLink(result.map, { x: 5, y: 5 }, { x: 6, y: 6 });
+    expect(last.map.launcherLinks).toBeUndefined();
+    expect(last.map.terrain[6][6]).toBe('shot_launcher_n');
+  });
+
+  it('leaves the same map when the pair is absent', () => {
+    const map = crowded();
+    for (const result of [
+      removeTrapLink(map, { x: 2, y: 2 }, { x: 1, y: 1 }),
+      removeCloneLink(map, { x: 4, y: 4 }, { x: 2, y: 4 }),
+      removeLauncherLink(map, { x: 6, y: 5 }, { x: 5, y: 5 })
+    ]) {
+      expect(result.changed).toBe(false);
+      expect(result.removedLinks).toBe(0);
+      expect(result.map).toBe(map);
+    }
+  });
+
+  it('never modifies its input', () => {
+    const map = crowded();
+    const snapshot = JSON.stringify(map);
+    removeTrapLink(map, { x: 2, y: 2 }, { x: 4, y: 2 });
+    removeCloneLink(map, { x: 2, y: 4 }, { x: 4, y: 4 });
+    removeLauncherLink(map, { x: 5, y: 5 }, { x: 6, y: 5 });
+    expect(JSON.stringify(map)).toBe(snapshot);
+  });
+
+  it('leaves a CC3D room as it is', () => {
+    const cc3d = { ...crowded(), cc3d: emptyCc3dRoom(5, 5) };
+    for (const result of [
+      removeTrapLink(cc3d, { x: 2, y: 2 }, { x: 4, y: 2 }),
+      removeCloneLink(cc3d, { x: 2, y: 4 }, { x: 4, y: 4 }),
+      removeLauncherLink(cc3d, { x: 5, y: 5 }, { x: 6, y: 5 })
+    ]) {
+      expect(result.changed).toBe(false);
+      expect(result.map).toBe(cc3d);
+    }
   });
 });

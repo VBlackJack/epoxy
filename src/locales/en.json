@@ -610,6 +610,12 @@
       "edges": { "label": "thin walls: {sides}" },
       "fires": { "label": "fires {count, plural, one {# launcher} other {# launchers}}" },
       "fired_by": { "label": "fired by {count, plural, one {# trigger} other {# triggers}}" },
+      "opens_traps": { "label": "opens {count, plural, one {# trap} other {# traps}}" },
+      "opened_by": { "label": "opened by {count, plural, one {# button} other {# buttons}}" },
+      "opens_with_any": { "label": "opens with any brown button" },
+      "fires_cloners": { "label": "fires {count, plural, one {# clone machine} other {# clone machines}}" },
+      "fires_any_cloner": { "label": "no link: fires every clone machine with a creature" },
+      "cloner_fired_by": { "label": "fired by {count, plural, one {# button} other {# buttons}}" },
       "side": {
         "n": { "label": "north" },
         "e": { "label": "east" },

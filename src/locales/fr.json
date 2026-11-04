@@ -610,6 +610,12 @@
       "edges": { "label": "cloisons fines : {sides}" },
       "fires": { "label": "tire {count, plural, one {# lanceur} other {# lanceurs}}" },
       "fired_by": { "label": "tiré par {count, plural, one {# déclencheur} other {# déclencheurs}}" },
+      "opens_traps": { "label": "ouvre {count, plural, one {# piège} other {# pièges}}" },
+      "opened_by": { "label": "ouvert par {count, plural, one {# bouton} other {# boutons}}" },
+      "opens_with_any": { "label": "s'ouvre avec n'importe quel bouton marron" },
+      "fires_cloners": { "label": "active {count, plural, one {# machine à cloner} other {# machines à cloner}}" },
+      "fires_any_cloner": { "label": "aucun lien : active toutes les machines à cloner qui portent une créature" },
+      "cloner_fired_by": { "label": "activée par {count, plural, one {# bouton} other {# boutons}}" },
       "side": {
         "n": { "label": "le nord" },
         "e": { "label": "l'est" },

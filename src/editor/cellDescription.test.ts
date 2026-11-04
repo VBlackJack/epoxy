@@ -211,3 +211,79 @@ describe('thin walls in the description', () => {
     expect(spoken(describeEditorCell({ map, x: 3, y: 0 }))).toContain('clones');
   });
 });
+
+describe('trap and clone links in the description', () => {
+  function linked(): EditorMap {
+    const map = emptyMap();
+    map.terrain[0][0] = 'button_brown';
+    map.terrain[0][1] = 'button_brown';
+    map.terrain[0][2] = 'trap';
+    map.terrain[0][3] = 'trap';
+    map.terrain[1][0] = 'button_red';
+    map.terrain[1][1] = 'button_red';
+    map.terrain[1][2] = 'clone_machine';
+    map.terrain[1][3] = 'clone_machine';
+    map.trapLinks = [
+      { buttonX: 0, buttonY: 0, trapX: 2, trapY: 0 },
+      { buttonX: 0, buttonY: 0, trapX: 3, trapY: 0 },
+      { buttonX: 1, buttonY: 0, trapX: 2, trapY: 0 }
+    ];
+    map.cloneLinks = [
+      { buttonX: 0, buttonY: 1, clonerX: 2, clonerY: 1, templateType: 'dirt_block', templateDir: 'N' },
+      { buttonX: 0, buttonY: 1, clonerX: 3, clonerY: 1, templateType: 'dirt_block', templateDir: 'N' },
+      { buttonX: 0, buttonY: 1, clonerX: 2, clonerY: 1, templateType: 'dirt_block', templateDir: 'N' }
+    ];
+    return map;
+  }
+  const at = (map: EditorMap, x: number, y: number): string => spoken(describeEditorCell({ map, x, y }));
+
+  it('says how many traps a brown button opens and how many buttons open a trap', () => {
+    const map = linked();
+    expect(at(map, 0, 0)).toContain('opens 2 traps');
+    expect(at(map, 1, 0)).toContain('opens 1 trap');
+    expect(at(map, 1, 0)).not.toContain('opens 1 traps');
+    expect(at(map, 2, 0)).toContain('opened by 2 buttons');
+    expect(at(map, 3, 0)).toContain('opened by 1 button');
+  });
+
+  it('says nothing for a brown button with no link, and that any brown button opens an unlinked trap', () => {
+    const map = linked();
+    map.trapLinks = [];
+    expect(at(map, 0, 0)).not.toContain('opens');
+    expect(at(map, 2, 0)).toContain('opens with any brown button');
+  });
+
+  it('speaks a trap hidden under a removable top', () => {
+    const map = emptyMap();
+    map.terrain[1][2] = 'door_red';
+    map.underlays = [{ x: 2, y: 1, terrain: 'trap' }];
+    expect(at(map, 2, 1)).toContain('opens with any brown button');
+    map.trapLinks = [{ buttonX: 0, buttonY: 0, trapX: 2, trapY: 1 }];
+    expect(at(map, 2, 1)).toContain('opened by 1 button');
+  });
+
+  it('says how many clone machines a red button fires, and the fallback when it has no link', () => {
+    const map = linked();
+    expect(at(map, 0, 1)).toContain('fires 3 clone machines');
+    expect(at(map, 1, 1)).toContain('no link: fires every clone machine with a creature');
+    map.cloneLinks = [map.cloneLinks[0]];
+    expect(at(map, 0, 1)).toContain('fires 1 clone machine');
+    expect(at(map, 0, 1)).not.toContain('fires 1 clone machines');
+  });
+
+  it('says how many buttons fire a clone machine, zero included', () => {
+    const map = linked();
+    expect(at(map, 2, 1)).toContain('fired by 2 buttons');
+    expect(at(map, 3, 1)).toContain('fired by 1 button');
+    map.cloneLinks = [];
+    expect(at(map, 3, 1)).toContain('fired by 0 buttons');
+  });
+
+  it('speaks French', () => {
+    i18n.setLocale('fr');
+    const map = linked();
+    expect(at(map, 0, 0)).toContain('ouvre 2 pièges');
+    expect(at(map, 1, 1)).toContain('aucun lien');
+    expect(at(map, 2, 1)).toContain('activée par 2 boutons');
+  });
+});
