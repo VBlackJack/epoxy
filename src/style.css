@@ -1409,6 +1409,57 @@ button.editor-issue-row:focus-visible {
   font-size: 0.8rem;
 }
 
+.editor-connections-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.editor-connections-heading {
+  margin: 0.4rem 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.editor-connection-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.3rem;
+}
+
+.editor-connection-goto {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #2c3344;
+  border-left-width: 4px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.editor-connection-goto:hover,
+.editor-connection-goto:focus-visible {
+  background: #232a3a;
+}
+
+.editor-connection-goto[data-kind='link'] {
+  border-left-color: var(--led-amber);
+}
+
+.editor-connections-more {
+  font-size: 0.78rem;
+}
+
 .editor-tool-btn.is-unavailable,
 .editor-input.is-unavailable,
 .hud-btn.is-unavailable {

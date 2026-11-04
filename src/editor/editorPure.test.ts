@@ -185,6 +185,7 @@ describe('inspector section state', () => {
   it('starts with the generator closed', () => {
     expect(parseSectionState(null)).toEqual(DEFAULT_SECTION_STATE);
     expect(DEFAULT_SECTION_STATE.generate).toBe(false);
+    expect(DEFAULT_SECTION_STATE.connections).toBe(true);
   });
 
   it('round-trips and ignores damaged values', () => {

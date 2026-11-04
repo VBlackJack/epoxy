@@ -192,6 +192,27 @@ export const EDITOR_BEAM_GATE_COLOR = '#76ff03';
 export const EDITOR_BEAM_GATE_INSET_TILE = 0.12;
 /** CC3D link overlay: opacity of the arrows and of the highlighted group cells. */
 export const EDITOR_CC3D_OVERLAY_ALPHA = 0.9;
+/** Epoxy connections: most colour and level-wide rows listed per mechanism and side, and most such arrows drawn (the rest become outlines). */
+export const EDITOR_CONNECTIONS_MAX_ROWS = 8;
+export const EDITOR_RELATION_MAX_ARROWS = 12;
+/** Epoxy connections: how long the pointer rests on a cell of the map before the Connections section follows it. */
+export const EDITOR_CONNECTIONS_HOVER_DWELL_MS = 300;
+/** Epoxy connections overlay: colour of the arrows and outlines by mechanism (trap, clone, shot and the CC3D teleport and laser colours are reused; the others are white). */
+export const EDITOR_RELATION_COLORS = {
+  trap: EDITOR_TRAP_LINK_COLOR,
+  clone: EDITOR_CLONE_LINK_COLOR,
+  shot: EDITOR_LAUNCHER_LINK_COLOR,
+  teleport: EDITOR_CC3D_LINK_COLORS.teleport,
+  laser: EDITOR_CC3D_LINK_COLORS.laser,
+  plate: EDITOR_CC3D_LINK_COLORS.group,
+  toggle: EDITOR_CC3D_LINK_COLORS.group,
+  tank: EDITOR_CC3D_LINK_COLORS.group,
+  flame: EDITOR_CC3D_LINK_COLORS.group,
+  swap: EDITOR_CC3D_LINK_COLORS.group,
+  puppet: EDITOR_CC3D_LINK_COLORS.group
+} as const;
+/** Line width of the outline of the cell whose connections row is hovered or focused. */
+export const EDITOR_CONNECTIONS_ROW_OUTLINE_WIDTH = 4;
 /** CC3D editing: swatch colours of the colour chooser. */
 export const EDITOR_CC3D_SWATCH_COLORS = {
   red: '#e53935',

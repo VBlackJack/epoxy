@@ -400,6 +400,64 @@ export function toggleLauncherLink(
 }
 
 /**
+ * Removes the trap link joining a brown button to a trap, every duplicate of the pair. Unchanged (same map) when the
+ * pair is absent or the map is a CC3D room. Nothing else is touched.
+ */
+export function removeTrapLink(
+  source: EditorMap,
+  button: { x: number; y: number },
+  trap: { x: number; y: number }
+): MapEditResult {
+  if (source.cc3d) return unchanged(source);
+  const joinsThePair = (l: EditorMap['trapLinks'][number]): boolean =>
+    l.buttonX === button.x && l.buttonY === button.y && l.trapX === trap.x && l.trapY === trap.y;
+  const removed = source.trapLinks.filter(joinsThePair).length;
+  if (removed === 0) return unchanged(source);
+  const map = cloneMap(source);
+  map.trapLinks = map.trapLinks.filter((l) => !joinsThePair(l));
+  return { map, changed: true, removedLinks: removed, removedUnderlays: 0, playerStartKept: false };
+}
+
+/**
+ * Removes the clone link joining a red button to a clone machine, every duplicate of the pair. Unchanged (same map)
+ * when the pair is absent or the map is a CC3D room.
+ */
+export function removeCloneLink(
+  source: EditorMap,
+  button: { x: number; y: number },
+  cloner: { x: number; y: number }
+): MapEditResult {
+  if (source.cc3d) return unchanged(source);
+  const joinsThePair = (l: EditorMap['cloneLinks'][number]): boolean =>
+    l.buttonX === button.x && l.buttonY === button.y && l.clonerX === cloner.x && l.clonerY === cloner.y;
+  const removed = source.cloneLinks.filter(joinsThePair).length;
+  if (removed === 0) return unchanged(source);
+  const map = cloneMap(source);
+  map.cloneLinks = map.cloneLinks.filter((l) => !joinsThePair(l));
+  return { map, changed: true, removedLinks: removed, removedUnderlays: 0, playerStartKept: false };
+}
+
+/**
+ * Removes the launcher link joining a shot trigger to a shot launcher, every duplicate of the pair, through
+ * setLauncherLinks. Unchanged (same map) when the pair is absent or the map is a CC3D room. Unlike
+ * toggleLauncherLink it never adds a link or paints a launcher.
+ */
+export function removeLauncherLink(
+  source: EditorMap,
+  trigger: { x: number; y: number },
+  launcher: { x: number; y: number }
+): MapEditResult {
+  if (source.cc3d) return unchanged(source);
+  const joinsThePair = (l: LauncherLink): boolean =>
+    l.buttonX === trigger.x && l.buttonY === trigger.y && l.launcherX === launcher.x && l.launcherY === launcher.y;
+  const removed = (source.launcherLinks ?? []).filter(joinsThePair).length;
+  if (removed === 0) return unchanged(source);
+  const map = cloneMap(source);
+  setLauncherLinks(map, (map.launcherLinks ?? []).filter((l) => !joinsThePair(l)));
+  return { map, changed: true, removedLinks: removed, removedUnderlays: 0, playerStartKept: false };
+}
+
+/**
  * Second click of a wire tool: puts the target tile on the target cell and
  * records the link. A wire whose source is its target is refused and changes
  * nothing, and so is a wire whose source no longer holds the button. A link already joining the same two cells is replaced, not doubled.

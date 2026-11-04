@@ -610,11 +610,105 @@
       "edges": { "label": "cloisons fines : {sides}" },
       "fires": { "label": "tire {count, plural, one {# lanceur} other {# lanceurs}}" },
       "fired_by": { "label": "tiré par {count, plural, one {# déclencheur} other {# déclencheurs}}" },
+      "opens_traps": { "label": "ouvre {count, plural, one {# piège} other {# pièges}}" },
+      "opened_by": { "label": "ouvert par {count, plural, one {# bouton} other {# boutons}}" },
+      "opens_with_any": { "label": "s'ouvre avec n'importe quel bouton marron" },
+      "fires_cloners": { "label": "active {count, plural, one {# machine à cloner} other {# machines à cloner}}" },
+      "fires_any_cloner": { "label": "aucun lien : active toutes les machines à cloner qui portent une créature" },
+      "cloner_fired_by": { "label": "activée par {count, plural, one {# bouton} other {# boutons}}" },
+      "cloner_fired_by_any": { "label": "activée par tout bouton rouge sans lien" },
       "side": {
         "n": { "label": "le nord" },
         "e": { "label": "l'est" },
         "s": { "label": "le sud" },
         "w": { "label": "l'ouest" }
+      }
+    },
+    "connections": {
+      "title": "Connexions",
+      "no_cell": "Déplacez le curseur ou survolez une case pour voir à quoi elle est reliée.",
+      "cell": "Case ({x}, {y}) : {name}",
+      "cell_hidden": "Case ({x}, {y}) : {name}, cachée sous la tuile du dessus",
+      "no_device": "Case ({x}, {y}) : aucun mécanisme ici",
+      "controls": "Commande",
+      "controlled_by": "Commandée par",
+      "none_controls": "Rien",
+      "none_controlled": "Rien ne commande cette case",
+      "more": "et {count, plural, one {# autre} other {# autres}}",
+      "row": "{name} ({x}, {y}) : {detail}",
+      "epoxy_only": "Les connexions sont listées avec les règles Epoxy ; les liens restent dessinés sur la carte.",
+      "kind": {
+        "link": "lien",
+        "colour": "même couleur",
+        "level": "règle du niveau",
+        "fallback": "sans lien"
+      },
+      "role": {
+        "trap_button": { "label": "Bouton brun" },
+        "trap": { "label": "Piège" },
+        "clone_button": { "label": "Bouton rouge" },
+        "clone_machine": { "label": "Machine à cloner" },
+        "shot_trigger": { "label": "Déclencheur de tir" },
+        "shot_launcher": { "label": "Lanceur de tir" },
+        "pressure_plate": { "label": "Plaque de pression" },
+        "hold_door": { "label": "Porte à maintien" },
+        "toggle_button": { "label": "Bouton bascule" },
+        "toggle_wall": { "label": "Mur bascule" },
+        "teleporter": { "label": "Téléporteur" },
+        "tank_button": { "label": "Bouton bleu" },
+        "tank": { "label": "Tank" },
+        "flame_button": { "label": "Bouton orange" },
+        "flame_jet": { "label": "Jet de flammes" },
+        "swap_button": { "label": "Bouton gris" },
+        "puppet_control": { "label": "Commande de marionnette" },
+        "puppet": { "label": "Marionnette" },
+        "laser_emitter": { "label": "Émetteur laser" },
+        "laser_receiver": { "label": "Récepteur laser" },
+        "laser_gate": { "label": "Porte laser" }
+      },
+      "system": {
+        "trap": { "label": "bouton brun et piège" },
+        "clone": { "label": "bouton rouge et machine à cloner" },
+        "shot": { "label": "déclencheur de tir et lanceur" },
+        "plate": { "label": "plaque de pression et porte à maintien" },
+        "toggle": { "label": "bouton bascule et mur" },
+        "teleport": { "label": "téléporteurs" },
+        "laser": { "label": "récepteur laser et porte" },
+        "tank": { "label": "bouton bleu et tanks" },
+        "flame": { "label": "bouton orange et jets de flammes" },
+        "swap": { "label": "bouton gris et puces et bombes autour" },
+        "puppet": { "label": "commande de marionnettes et marionnettes" }
+      },
+      "channel": {
+        "red": "rouge",
+        "green": "vert",
+        "blue": "bleu",
+        "yellow": "jaune",
+        "swap_radius": "à portée"
+      },
+      "fallback": {
+        "trap_button": "Ouvre les pièges sans lien tant qu'il est maintenu (tout bouton brun ouvre les pièges sans lien).",
+        "trap_unlinked": "Aucun lien : n'importe quel bouton brun l'ouvre.",
+        "trap_linked": "Ne répond qu'à ses boutons liés.",
+        "clone_any": "Aucun lien : active toutes les machines à cloner qui portent une créature.",
+        "clone_none": "Aucun lien, et aucune machine à cloner ne porte de créature : n'active rien.",
+        "shot_unlinked": "N'active rien tant qu'il n'est pas lié.",
+        "laser_emitter": "Relié à rien ; l'aperçu du faisceau montre le rayon."
+      },
+      "link": {
+        "action": "Relier...",
+        "hint": "Commencez le lien depuis son bouton.",
+        "blocked": "Ce bouton est caché sous une autre tuile : mettez-le en vue pour le relier.",
+        "note_trap": "Un piège que vous reliez ne répond plus qu'à ses boutons liés.",
+        "note_clone": "Une fois relié, ce bouton n'active plus que ses machines liées au lieu de toutes les machines à cloner qui portent une créature."
+      },
+      "unlink": {
+        "action": "Délier",
+        "aria": "Délier {name} ({x}, {y})",
+        "done": "Lien supprimé : {button} ({buttonX}, {buttonY}) vers {target} ({targetX}, {targetY}).",
+        "suffix_trap": "Le piège s'ouvre maintenant avec n'importe quel bouton brun.",
+        "suffix_clone": "Le bouton rouge active maintenant toutes les machines à cloner qui portent une créature.",
+        "suffix_clone_none": "Le bouton rouge n'active plus rien : aucune machine à cloner ne porte de créature."
       }
     },
     "cc3d": {

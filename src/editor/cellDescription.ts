@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { deviceRelations } from '../core/DeviceRelations';
 import { Direction } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { closedSidesAt } from './editorCellEdges';
@@ -34,7 +35,14 @@ const UNDERLAY_KEY = 'editor.cell_speech.underlay.label';
 const EDGES_KEY = 'editor.cell_speech.edges.label';
 const FIRES_KEY = 'editor.cell_speech.fires.label';
 const FIRED_BY_KEY = 'editor.cell_speech.fired_by.label';
-const CLONER_KEY = 'editor.cell_speech.cloner.label';
+const OPENS_TRAPS_KEY = 'editor.cell_speech.opens_traps.label';
+const OPENED_BY_KEY = 'editor.cell_speech.opened_by.label';
+const OPENS_WITH_ANY_KEY = 'editor.cell_speech.opens_with_any.label';
+const FIRES_CLONERS_KEY = 'editor.cell_speech.fires_cloners.label';
+const FIRES_ANY_CLONER_KEY = 'editor.cell_speech.fires_any_cloner.label';
+const CLONER_FIRED_BY_KEY = 'editor.cell_speech.cloner_fired_by.label';
+const CLONER_FIRED_BY_ANY_KEY = 'editor.cell_speech.cloner_fired_by_any.label';
+const CLONER_KEY ='editor.cell_speech.cloner.label';
 const CLONER_TEMPLATE_KEY = 'editor.layout.status.cloner_template.label';
 const CLONERS_TEMPLATE_KEY = 'editor.layout.status.cloners_template.label';
 const EMPTY_CLONER_KEY = 'editor.layout.status.wire_empty_cloner.label';
@@ -107,6 +115,36 @@ export function emptyClonerMessage(type: string, dir: Direction): ToolMessage {
   return { key: EMPTY_CLONER_KEY, params: { name: entityName(type), side: sideOf(dir) } };
 }
 
+/**
+ * What the trap and clone links say about the devices of a cell (on top or hidden): a brown button how many traps it
+ * opens, a trap how many buttons open it (or that any brown button does), a red button how many clone machines it
+ * fires (or that it fires every one with a creature), a clone machine how many buttons fire it.
+ */
+function deviceLinkParts(map: EditorMap, x: number, y: number, hidden: string | undefined): ToolMessage[] {
+  const tiles = [ConfigRegistry.getTile(map.terrain[y][x])];
+  if (hidden !== undefined) tiles.push(ConfigRegistry.getTile(hidden));
+  const parts: ToolMessage[] = [];
+  if (tiles.some((tile) => tile.buttonAction === 'hold_trap')) {
+    const count = map.trapLinks.filter((l) => l.buttonX === x && l.buttonY === y).length;
+    if (count > 0) parts.push({ key: OPENS_TRAPS_KEY, params: { count } });
+  }
+  if (tiles.some((tile) => tile.isTrap)) {
+    const count = map.trapLinks.filter((l) => l.trapX === x && l.trapY === y).length;
+    parts.push(count > 0 ? { key: OPENED_BY_KEY, params: { count } } : { key: OPENS_WITH_ANY_KEY });
+  }
+  if (tiles.some((tile) => tile.buttonAction === 'trigger_cloner')) {
+    const count = map.cloneLinks.filter((l) => l.buttonX === x && l.buttonY === y).length;
+    parts.push(count > 0 ? { key: FIRES_CLONERS_KEY, params: { count } } : { key: FIRES_ANY_CLONER_KEY });
+  }
+  if (tiles.some((tile) => tile.isCloneMachine)) {
+    const count = map.cloneLinks.filter((l) => l.clonerX === x && l.clonerY === y).length;
+    // A machine no link names is still fired by every red button that has no link of its own.
+    const firedByUnlinked = count === 0 && deviceRelations(map, x, y).controlledBy.some((r) => r.fallback === true && r.system === 'clone');
+    parts.push(firedByUnlinked ? { key: CLONER_FIRED_BY_ANY_KEY } : { key: CLONER_FIRED_BY_KEY, params: { count } });
+  }
+  return parts;
+}
+
 /** The parts of a spoken cell description as locale keys; the first is always the coordinates. */
 export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
   const { map, x, y, cc3dNames } = input;
@@ -125,6 +163,7 @@ export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
     // A trigger says how many launchers it fires, a launcher how many triggers fire it, whether in plain view or hidden.
     if (holdsShotTrigger(map, x, y)) parts.push({ key: FIRES_KEY, params: { count: launcherCountAt(map, x, y) } });
     if (holdsShotLauncher(map, x, y)) parts.push({ key: FIRED_BY_KEY, params: { count: triggerCountAt(map, x, y) } });
+    parts.push(...deviceLinkParts(map, x, y, hidden));
     const item = map.items[y]?.[x];
     if (item) parts.push({ key: ITEM_KEY, params: { name: tileName(item) } });
     for (const entity of map.entities) {
