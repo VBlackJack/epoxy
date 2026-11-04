@@ -289,7 +289,7 @@ export class GameEngine {
   }
 
   /**
-   * The parity of the toggle presses, one bit per toggle family that hides a wall under a removable top;
+   * The parity of the toggle presses, one bit per toggle family that hides a toggle wall or flame jet under a removable top;
    * undefined on a level that hides none, so nothing about it reaches a level without one.
    */
   public getToggleParity(): number | undefined {
@@ -297,8 +297,8 @@ export class GameEngine {
   }
 
   /**
-   * The runtime state beyond the grid that tells search states apart: the shots in flight and the toggle
-   * parity. An empty string on a level with neither, so the keys of other levels stay as they were.
+   * The runtime state beyond the grid that tells search states apart: the shots in flight, the toggle
+   * parity and the spent reveal cells. An empty string on a level with none of them, so the keys of other levels stay as they were.
    */
   public getRuntimeKeyExtra(): string {
     const parity = this.getToggleParity();
@@ -318,12 +318,19 @@ export class GameEngine {
     if (this.w.revealedCells.size === 0) return undefined;
     const width = this.w.terrain[0]?.length ?? 0;
     const spent = [...this.w.revealedCells]
-      .filter((index) => this.w.terrain[Math.floor(index / width)][index % width] === this.w.level.terrain[Math.floor(index / width)][index % width])
+      .filter((index) => {
+        const row = Math.floor(index / width);
+        const original = this.w.level.terrain[row];
+        return this.w.terrain[row][index % width] === original[index % width];
+      })
       .sort((a, b) => a - b);
     return spent.length > 0 ? spent : undefined;
   }
 
-  /** The terrain a removable top at the cell would show once opened now, or undefined when it hides none. */
+  /**
+   * The terrain a removable top at the cell would show once opened now, or undefined when it hides none
+   * or the cell has already revealed it.
+   */
   public getRevealedTerrain(x: number, y: number): string | undefined {
     return revealedTerrain(this.w, x, y) ?? undefined;
   }
@@ -516,7 +523,7 @@ export class GameEngine {
       ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {}),
       // Only a level with shot launchers has shots to put back.
       ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
-      // Only a level with a toggle wall under a removable top reads the parity of the presses.
+      // Only a level with a toggle wall or flame jet under a removable top reads the parity of the presses.
       ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
       // Only a level that revealed something has revealed cells to put back.
       ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {})

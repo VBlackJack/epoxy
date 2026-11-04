@@ -591,8 +591,9 @@ function terrainsReachableFrom(tile: TileDefinition, lookup: TerrainTileLookup):
  * wall, dirt), when the underlay is itself a removable top, a plate, a hold door or a toggle wall (except
  * under a key door or a socket, which nothing turns back into: there a socket, dirt, a blue fake wall, a
  * plate, a hold door and a green or colour toggle wall are kept, never a key door and never the top's own
- * id), or when the underlay can turn back into the cell's top (dirt over water: a block sunk there makes dirt again; the
- * engine reveals a cell at most once anyway, this keeps the level model simple). The first entry of a cell wins, and the entries are sorted by row, then column.
+ * id), or when the underlay can turn back into the cell's top (dirt over water: a block sunk there makes
+ * dirt again; the engine reveals a cell at most once anyway, this keeps the level model simple). The first
+ * entry of a cell wins, and the entries are sorted by row, then column.
  * Returns null when none is left.
  */
 export function normalizeUnderlays(

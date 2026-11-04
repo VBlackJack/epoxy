@@ -760,7 +760,7 @@ describe('a cell reveals its hidden terrain once', () => {
     expect(searchStateKey(spent)).not.toBe(keyBefore);
   });
 
-  it('does not route the pathfinder through a spent cell that would reveal water', () => {
+  it('routes through a spent dirt cell instead of fearing the water it once hid', () => {
     const level = corridor(room('path_spent', under('water'), 'dirt'));
     const engine = start(level, false);
     expect(Pathfinder.findPath(engine, DOOR_X + 1, START_Y).moves).toEqual([]);

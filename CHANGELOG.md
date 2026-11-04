@@ -54,6 +54,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- Hidden flame jets and laser gates now appear in their current state (following the orange button and their receivers), and a cell reveals its hidden terrain only once.
 - The level editor now keeps the links between shot triggers and shot launchers (`launcherLinks`) through opening, editing, copy, move, resize, undo, autosave and saving, drops a link when either end is overwritten or erased, and locks the Lynx option for a level that has some.
 - The level editor no longer freezes on large block puzzle levels while checking: the automatic check, the Check button and the check before Test run in a worker, the badge says when a check is running, was skipped as too slow, was interrupted (editor left) or failed, and Test plays without the check if it takes too long.
 - The level editor now keeps the template of a clone link in step with the creature standing on its clone machine: painting, filling or turning a creature there updates the stored type and facing (the engine spawns the stored copy, so a rotated turret no longer cloned the old facing), and the status line says so. Stored levels are not rewritten on load.
