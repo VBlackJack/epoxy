@@ -353,3 +353,57 @@ describe('slow-time showcase level', () => {
     expect(storedSolutionWins(withoutCharm)).toBe(false);
   });
 });
+
+/** Index of the turret level in the showcase pack. */
+const TURRET_LEVEL_INDEX = 4;
+const TURRET_TYPES: readonly string[] = ['turret_cw', 'turret_ccw', 'turret_fixed'];
+/** The solution letter that waits one move cooldown. */
+const WAIT_LETTER = '.';
+/** Actions before the lane is crossed: three steps east, then the waits that let both turning turrets look away. */
+const WAIT_ACTIONS_END = 15;
+const FIXED_TURRET_END_CELL = { x: 10, y: 3 };
+
+/**
+ * The level of the turrets: a clockwise and a counter-clockwise turret watch the lane from two alcoves and
+ * turn away after a minute of play, and a fixed turret under the lane is pushed aside so it faces away.
+ */
+describe('turret showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('uses the three kinds of turret and passes the validator', () => {
+    const level = compileShowcase(TURRET_LEVEL_INDEX);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    expect(new Set(level.entities.map((e) => e.type))).toEqual(new Set(TURRET_TYPES));
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through: both alcove turrets turn away, the fixed one is pushed aside and the exit opens the level', () => {
+    const level = compileShowcase(TURRET_LEVEL_INDEX);
+    const actions = decodeActions(level.solution ?? '');
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const facingOf = (type: string): string | undefined => engine.getEntities().find((e) => e.type === type)?.facing;
+    expect([facingOf('turret_cw'), facingOf('turret_ccw'), facingOf('turret_fixed')]).toEqual(['S', 'S', 'N']);
+    actions.slice(0, WAIT_ACTIONS_END).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer().alive).toBe(true);
+    // A minute after the first step each has quarter-turned away from the lane.
+    expect([facingOf('turret_cw'), facingOf('turret_ccw')]).toEqual(['W', 'E']);
+    actions.slice(WAIT_ACTIONS_END).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.isLevelCompleted()).toBe(true);
+    const fixed = engine.getEntities().find((e) => e.type === 'turret_fixed');
+    expect(fixed).toMatchObject({ ...FIXED_TURRET_END_CELL, facing: 'E' });
+  });
+
+  it('carries a stored solution that wins, and that fails once the waits are taken out', () => {
+    const level = compileShowcase(TURRET_LEVEL_INDEX);
+    expect(storedSolutionWins(level)).toBe(true);
+    const hasty = { ...level, solution: (level.solution ?? '').split(WAIT_LETTER).join('') };
+    expect(storedSolutionWins(hasty)).toBe(false);
+  });
+});
