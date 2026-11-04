@@ -20,11 +20,16 @@ import {
   featuresFor,
   hasColorChannelContent,
   hasEpoxyOnlyContent,
+  hasEpoxyOnlyMonsterContent,
   hasLaserContent,
+  hasSteeringContent,
   hasTurretContent,
   isColorChannelTileId,
   isEpoxyOnlyEntityType,
   isEpoxyOnlyTileId,
+  isFleeingEntityType,
+  isSteeredEntityType,
+  isSteeringTileId,
   isTurretEntityType
 } from './RulesetFeatures';
 import { CompiledLevel } from './types';
@@ -108,6 +113,68 @@ describe('colour channel aids', () => {
     expect(featuresFor(linked).tapToPath).toBe(false);
     expect(featuresFor({ ...level, winRule: 'receivers' }).tapToPath).toBe(false);
     expect(featuresFor({ ...levelWith('floor'), winRule: 'receivers' }).tapToPath).toBe(true);
+  });
+
+  it('names the puppet, its control and the skitter as Epoxy only', () => {
+    expect(isSteeredEntityType('puppet')).toBe(true);
+    expect(isSteeredEntityType('skitter')).toBe(false);
+    expect(isFleeingEntityType('skitter')).toBe(true);
+    expect(isFleeingEntityType('teeth')).toBe(false);
+    expect(isSteeringTileId('puppet_control')).toBe(true);
+    expect(isSteeringTileId('button_green')).toBe(false);
+    for (const id of ['puppet', 'skitter']) expect(isEpoxyOnlyEntityType(id), id).toBe(true);
+    expect(isEpoxyOnlyTileId('puppet_control')).toBe(true);
+    expect(isEpoxyOnlyEntityType('teeth')).toBe(false);
+  });
+
+  it('turns tap to path, the block hint and the dead end watch off on a steering level, and keeps the rest', () => {
+    for (const level of [levelWith('puppet_control'), levelWith('floor', 'puppet')]) {
+      expect(hasSteeringContent(level)).toBe(true);
+      expect(hasEpoxyOnlyContent(level)).toBe(true);
+      const features = featuresFor(level);
+      expect(features.tapToPath).toBe(false);
+      expect(features.blockHint).toBe(false);
+      expect(features.deadEndWatch).toBe(false);
+      expect(features.objectiveMarker).toBe(true);
+      expect(features.solutionReplay).toBe(true);
+    }
+    // A clone machine linked to a puppet template counts without a puppet on the grid.
+    const linked = {
+      ...levelWith('floor'),
+      cloneLinks: [{ buttonX: 1, buttonY: 1, clonerX: 2, clonerY: 2, templateType: 'puppet', templateDir: 'E' as const }]
+    };
+    expect(hasSteeringContent(linked)).toBe(true);
+    expect(featuresFor(linked).tapToPath).toBe(false);
+    expect(featuresFor(levelWith('floor')).tapToPath).toBe(true);
+  });
+
+  it('puts the steering overlay on top of the laser, colour and receivers rules, as one object per case', () => {
+    const lasers = featuresFor(levelWith('puppet_control', 'mirror_slash'));
+    expect(lasers.tapToPath).toBe(false);
+    expect(lasers.blockHint).toBe(false);
+    const receivers = featuresFor({ ...levelWith('puppet_control'), winRule: 'receivers' as const });
+    expect(receivers.objectiveMarker).toBe(false);
+    expect(receivers.tapToPath).toBe(false);
+    const colour = featuresFor(levelWith('pressure_plate_red', 'puppet'));
+    expect(colour.tapToPath).toBe(false);
+    expect(featuresFor(levelWith('puppet_control', 'color_block_red'))).toBe(featuresFor(levelWith('puppet_control', 'color_block_blue')));
+    // The overlay is a new aid set only where it changes something.
+    const plain = featuresFor(levelWith('puppet_control'));
+    expect(plain).toBe(featuresFor(levelWith('puppet_control')));
+    expect(plain).not.toBe(featuresFor(levelWith('floor')));
+  });
+
+  it('leaves a lynx or cc3d level as it was, whatever it holds', () => {
+    expect(featuresFor({ ...levelWith('puppet_control'), ruleset: 'lynx' })).toEqual(featuresFor({ ruleset: 'lynx' }));
+    expect(featuresFor({ ...levelWith('puppet_control'), ruleset: 'cc3d' })).toEqual(featuresFor({ ruleset: 'cc3d' }));
+  });
+
+  it('counts a skitter as Epoxy only without turning any aid off', () => {
+    const level = levelWith('floor', 'skitter');
+    expect(hasSteeringContent(level)).toBe(false);
+    expect(hasEpoxyOnlyMonsterContent(level)).toBe(true);
+    expect(hasEpoxyOnlyContent(level)).toBe(true);
+    expect(featuresFor(level).tapToPath).toBe(true);
   });
 
   it('turns the block hint, the dead end watch and tap to path off on a colour level', () => {
