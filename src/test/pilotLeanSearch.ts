@@ -24,6 +24,8 @@ export const LEAN_SEARCH_STATE_CAP = 12000000;
 export interface LeanSearchOptions {
   stateCap?: number;
   allowDrops?: boolean;
+  /** Also offer the one-tick wait (see `SearchOptions.fineWait`). */
+  fineWait?: boolean;
   /** Rejects a win by its final state. */
   accept?: (engine: GameEngine) => boolean;
   /** Searches for the first state satisfying this instead of a win (the level may be left unfinished). */
@@ -79,7 +81,7 @@ export function searchShortestWinLean(engine: GameEngine, options: LeanSearchOpt
     const next: Array<{ state: UndoSnapshot; node: number }> = [];
     for (const { state, node } of layer) {
       engine.restoreState(state);
-      const actions = searchActions(engine, allowDrops);
+      const actions = searchActions(engine, allowDrops, options.fineWait ?? false);
       for (const action of actions) {
         engine.restoreState(state);
         if (!applySearchAction(engine, action)) continue;

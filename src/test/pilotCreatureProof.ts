@@ -28,6 +28,8 @@ export interface CreatureProofOptions {
   stateCap?: number;
   /** Offer the drop of held items as a move; true by default. */
   allowDrops?: boolean;
+  /** Also offer the one-tick wait, so every phase of the creature is searched. */
+  fineWait?: boolean;
 }
 
 function loadEngine(level: CompiledLevel): GameEngine {
@@ -49,6 +51,7 @@ export function searchWinWithCreatureAlive(level: CompiledLevel, options: Creatu
   return searchShortestWin(engine, {
     stateCap: options.stateCap ?? DEFAULT_SEARCH_STATE_CAP,
     allowDrops: options.allowDrops,
+    fineWait: options.fineWait,
     // By identity, not by count: a clone spawned meanwhile must not stand in for a creature that died.
     accept: (e) => {
       const alive = new Set(e.getEntities().map((x) => x.uid));
@@ -78,7 +81,7 @@ export function creatureProof(level: CompiledLevel, options: CreatureProofOption
  */
 export function assertNoWinWithCreatureAlive(level: CompiledLevel, options: CreatureProofOptions = {}): void {
   const creature = options.creature ?? DEFAULT_CREATURE;
-  if (!searchCanWin(loadEngine(level), { stateCap: options.stateCap ?? DEFAULT_SEARCH_STATE_CAP, allowDrops: true })) {
+  if (!searchCanWin(loadEngine(level), { stateCap: options.stateCap ?? DEFAULT_SEARCH_STATE_CAP, allowDrops: true, fineWait: options.fineWait })) {
     throw new Error('the level cannot be won at all, so the proof would be vacuous');
   }
   const proof = creatureProof(level, options);

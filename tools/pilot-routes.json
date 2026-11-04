@@ -402,6 +402,26 @@
       "requires": [
         "key_red"
       ]
+    },
+    "epoxy_p_36": {
+      "segments": [
+        "ESSSSENWNEE",
+        "ENNEEESSSSN",
+        "NEE"
+      ]
+    },
+    "epoxy_p_37": {
+      "segments": [
+        "NNNSSSWWWWN",
+        "NEEEENNWWWW",
+        "WWWW"
+      ]
+    },
+    "epoxy_p_38": {
+      "segments": [
+        "SSSEEEEWNNN",
+        "EESSSESSS"
+      ]
     }
   }
 }

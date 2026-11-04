@@ -23,6 +23,8 @@ export interface StateGraphOptions {
   stateCap?: number;
   /** Offer the drop of held items as a move; true by default. */
   allowDrops?: boolean;
+  /** Also offer the one-tick wait (see `SearchOptions.fineWait`). */
+  fineWait?: boolean;
   /**
    * Decides whether a discovered state is expanded further (true by default). A state that is not
    * expanded is still counted and still reported to `onState`, but nothing leaves it.
@@ -82,7 +84,7 @@ export function exploreStateGraph(engine: GameEngine, options: StateGraphOptions
     if (!expandable[head]) continue;
     const from = snapshots[head];
     engine.restoreState(from);
-    const actions = searchActions(engine, allowDrops);
+    const actions = searchActions(engine, allowDrops, options.fineWait ?? false);
     for (const action of actions) {
       engine.restoreState(from);
       if (!applySearchAction(engine, action)) continue;

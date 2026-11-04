@@ -555,6 +555,40 @@ describe('resizeCc3d', () => {
   });
 });
 
+describe('resizeCc3d with an anchor', () => {
+  const l = level(['#######', '#@.iK.#', '#.WMZ.#', '#######']);
+  const CENTRE = { col: 1, row: 1 } as const;
+  const BOTTOM_RIGHT = { col: 2, row: 2 } as const;
+
+  it('translates cells, mobs (order kept) and the player when growing around the centre', () => {
+    const r = resizeCc3d(l, 9, 6, BOUNDS, CENTRE);
+    expect(r.changed).toBe(true);
+    expect(r.level.cells).toHaveLength(54);
+    expect(r.level.cells[2 * 9 + 2]).toBe(l.cells[1 * 7 + 1]);
+    expect(r.level.cells[0]).toEqual(emptyCell());
+    expect(mobsOf(r.level)).toEqual(l.mobs.map((mob) => `${mob.kind}@${mob.x + 1},${mob.y + 1}`));
+    expect(r.level.player).toMatchObject({ x: l.player.x + 1, y: l.player.y + 1 });
+    expect(r.playerMoved).toBe(false);
+    expect(r.droppedMobs).toBe(0);
+  });
+
+  it('clamps the player and drops the mob left standing on the clamped start', () => {
+    const base = withMobs(l, [walker(3, 1), walker(6, 2), walker(5, 2)]);
+    const r = resizeCc3d(base, 4, 3, BOUNDS, BOTTOM_RIGHT);
+    // dx = -3, dy = -1: the start (1, 1) lands outside and clamps to (0, 0), where the first mob arrives.
+    expect(r.level.player).toMatchObject({ x: 0, y: 0 });
+    expect(r.playerMoved).toBe(true);
+    expect(mobsOf(r.level)).toEqual(['walker@3,1', 'walker@2,1']);
+    expect(r.droppedMobs).toBe(1);
+    expect(r.level.cells[0]).toBe(base.cells[1 * 7 + 3]);
+  });
+
+  it('returns the same level for the same size whatever the anchor', () => {
+    expect(resizeCc3d(l, 7, 4, BOUNDS, BOTTOM_RIGHT).level).toBe(l);
+    expect(resizeCc3d(l, 7, 4, BOUNDS, CENTRE).changed).toBe(false);
+  });
+});
+
 describe('purity', () => {
   it('never mutates its input', () => {
     const l = level(['#######', '#@.iK.#', '#.WMZ.#', '#######']);

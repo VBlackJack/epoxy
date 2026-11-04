@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyCc3dRoom } from './cc3dRoom';
 import { EditorMap } from './editorDocument';
+import { ResizeAnchor } from './resizeAnchor';
 import {
   eraseCell,
   floodFillTerrain,
@@ -343,6 +344,161 @@ describe('resizeMap', () => {
   });
 });
 
+describe('resizeMap with an anchor', () => {
+  const CENTRE: ResizeAnchor = { col: 1, row: 1 };
+  const RIGHT: ResizeAnchor = { col: 2, row: 1 };
+  const BOTTOM_RIGHT: ResizeAnchor = { col: 2, row: 2 };
+  const BOTTOM_LEFT: ResizeAnchor = { col: 0, row: 2 };
+
+  it('opens both side borders when a bordered map grows around its centre, and walls the new ring', () => {
+    const result = resizeMap(bordered(7, 7), 9, 7, BOUNDS, CENTRE);
+    expect(result.map.terrain[3]).toEqual(['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall']);
+    expect(result.map.terrain[0].every((tile) => tile === 'wall')).toBe(true);
+    expect(result.map.terrain[6].every((tile) => tile === 'wall')).toBe(true);
+    expect(result.map.playerStart).toMatchObject({ x: 2, y: 1 });
+    expect(result.report.playerStartMoved).toBe(false);
+  });
+
+  it.each([
+    [9, 9, 1, 1],
+    [9, 7, 1, 1],
+    [7, 9, 0, 1]
+  ])('top-left growth to %ix%i drops a thin wall (%i) and an entity (%i) on the old right/bottom ring that ends on the new ring', (w, h, edgesDropped, entitiesDropped) => {
+    const map = bordered(7, 7);
+    map.cellEdges = [{ x: 6, y: 0, sides: ['N'] }];
+    map.entities.push({ x: 6, y: 6, type: 'tank', dir: 'N' });
+    const result = resizeMap(map, w, h, BOUNDS);
+    expect(result.report.droppedEdges).toBe(edgesDropped);
+    expect(result.report.droppedEntities).toBe(entitiesDropped);
+    expect(result.map.entities).toEqual([]);
+  });
+
+  it('centre growth to 9x9 opens the old ring and drops the entity that stood on it, keeping the thin wall on its floor cell', () => {
+    const map = bordered(7, 7);
+    map.cellEdges = [{ x: 6, y: 0, sides: ['N'] }];
+    map.entities.push({ x: 6, y: 6, type: 'tank', dir: 'N' });
+    const result = resizeMap(map, 9, 9, BOUNDS, CENTRE);
+    expect(result.report.droppedEntities).toBe(1);
+    expect(result.map.entities).toEqual([]);
+    expect(result.map.terrain[7][7]).toBe('floor');
+    expect(result.report.droppedEdges).toBe(0);
+    expect(result.map.cellEdges).toEqual([{ x: 7, y: 1, sides: ['N'] }]);
+  });
+
+  it('rounds an odd growth toward zero, leaving the extra column on the end side', () => {
+    const map = bordered(7, 7);
+    map.entities.push({ x: 3, y: 3, type: 'tank', dir: 'N' });
+    const result = resizeMap(map, 10, 7, BOUNDS, CENTRE);
+    expect(result.map.entities[0]).toMatchObject({ x: 4, y: 3 });
+    expect(result.map.playerStart.x).toBe(2);
+  });
+
+  it('crops the left side on a right-anchored shrink and translates what stays', () => {
+    const map = bordered(10, 7);
+    map.entities.push({ x: 2, y: 3, type: 'tank', dir: 'N' }, { x: 5, y: 3, type: 'tank', dir: 'N' });
+    map.terrain[3][6] = 'exit';
+    const result = resizeMap(map, 7, 7, BOUNDS, RIGHT);
+    expect(result.map.terrain[3][3]).toBe('exit');
+    expect(result.map.terrain[3][0]).toBe('wall');
+    expect(result.map.terrain[3][6]).toBe('wall');
+    expect(result.map.entities).toEqual([{ x: 2, y: 3, type: 'tank', dir: 'N' }]);
+    expect(result.report.droppedEntities).toBe(1);
+  });
+
+  it('translates both ends of the links and drops those that land on the new ring', () => {
+    const grown = resizeMap(withLinks(), 10, 8, BOUNDS, RIGHT);
+    expect(grown.map.trapLinks).toEqual([{ buttonX: 4, buttonY: 2, trapX: 6, trapY: 2 }]);
+    expect(grown.map.cloneLinks[0]).toMatchObject({ buttonX: 4, buttonY: 4, clonerX: 6, clonerY: 4 });
+    expect(grown.map.terrain[2][4]).toBe('button_brown');
+    const shrunk = resizeMap(withLinks(), 6, 8, BOUNDS, RIGHT);
+    expect(shrunk.map.trapLinks).toEqual([]);
+    expect(shrunk.map.cloneLinks).toEqual([]);
+    expect(shrunk.report.droppedTrapLinks).toBe(1);
+    expect(shrunk.report.droppedCloneLinks).toBe(1);
+    const centred = resizeMap(withLinks(), 6, 8, BOUNDS, CENTRE);
+    expect(centred.map.trapLinks).toEqual([{ buttonX: 1, buttonY: 2, trapX: 3, trapY: 2 }]);
+  });
+
+  it('translates then clamps the player start, reporting a start that had to move', () => {
+    const result = resizeMap(bordered(8, 8), 5, 5, BOUNDS, BOTTOM_RIGHT);
+    expect(result.map.playerStart).toMatchObject({ x: 1, y: 1 });
+    expect(result.report.playerStartMoved).toBe(true);
+    const inner = bordered(8, 8);
+    inner.playerStart = { x: 3, y: 3, dir: 'S' };
+    const kept = resizeMap(inner, 6, 6, BOUNDS, CENTRE);
+    expect(kept.map.playerStart).toMatchObject({ x: 2, y: 2 });
+    expect(kept.report.playerStartMoved).toBe(false);
+    const pushed = resizeMap(bordered(8, 8), 6, 6, BOUNDS, CENTRE);
+    expect(pushed.map.playerStart).toMatchObject({ x: 1, y: 1 });
+    expect(pushed.report.playerStartMoved).toBe(true);
+  });
+
+  it('keeps a wall that holds an item when the old border becomes interior', () => {
+    const map = bordered(7, 7);
+    map.items[3][6] = 'key_red';
+    const result = resizeMap(map, 9, 7, BOUNDS, CENTRE);
+    expect(result.map.terrain[3][7]).toBe('wall');
+    expect(result.map.items[3][7]).toBe('key_red');
+    expect(result.map.terrain[2][7]).toBe('floor');
+  });
+
+  it('drops an entity standing on an old border cell that opens', () => {
+    const map = bordered(7, 7);
+    map.entities.push({ x: 6, y: 3, type: 'tank', dir: 'N' });
+    const result = resizeMap(map, 9, 7, BOUNDS, CENTRE);
+    expect(result.map.entities).toEqual([]);
+    expect(result.report.droppedEntities).toBe(1);
+  });
+
+  it('opens only the old border facing the grown axis for a one-axis, corner-anchored growth', () => {
+    const result = resizeMap(bordered(7, 7), 7, 9, BOUNDS, BOTTOM_LEFT);
+    expect(result.map.terrain[2][3]).toBe('floor');
+    expect(result.map.terrain[2][0]).toBe('wall');
+    expect(result.map.terrain[2][6]).toBe('wall');
+    expect(result.map.terrain[0][3]).toBe('wall');
+    expect(result.map.terrain[8][3]).toBe('wall');
+    expect(result.map.playerStart).toMatchObject({ x: 1, y: 3 });
+  });
+
+  it('returns the same map for the same size whatever the anchor', () => {
+    const map = bordered(7, 7);
+    for (const anchor of [CENTRE, RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT]) {
+      const result = resizeMap(map, 7, 7, BOUNDS, anchor);
+      expect(result.changed).toBe(false);
+      expect(result.map).toBe(map);
+    }
+  });
+
+  it('moves thin walls and hidden terrain with their cell around a centre and a right anchor', () => {
+    const map = bordered(7, 7);
+    map.terrain[3][3] = 'door_red';
+    map.cellEdges = [{ x: 3, y: 3, sides: ['E'] }];
+    map.underlays = [{ x: 3, y: 3, terrain: 'ice' }];
+    const centred = resizeMap(map, 9, 7, BOUNDS, CENTRE);
+    expect(centred.map.terrain[3][4]).toBe('door_red');
+    expect(centred.map.cellEdges).toEqual([{ x: 4, y: 3, sides: ['E'] }]);
+    expect(centred.map.underlays).toEqual([{ x: 4, y: 3, terrain: 'ice' }]);
+    const right = resizeMap(map, 9, 7, BOUNDS, RIGHT);
+    expect(right.map.cellEdges).toEqual([{ x: 5, y: 3, sides: ['E'] }]);
+    expect(right.map.underlays).toEqual([{ x: 5, y: 3, terrain: 'ice' }]);
+    expect(right.report.droppedEdges).toBe(0);
+    expect(right.report.droppedUnderlays).toBe(0);
+  });
+
+  it('drops and counts thin walls and hidden terrain that land outside the new bounds', () => {
+    const map = bordered(10, 7);
+    map.terrain[3][2] = 'door_red';
+    map.terrain[3][5] = 'door_red';
+    map.cellEdges = [{ x: 2, y: 3, sides: ['E'] }, { x: 5, y: 3, sides: ['N'] }];
+    map.underlays = [{ x: 2, y: 3, terrain: 'ice' }, { x: 5, y: 3, terrain: 'ice' }];
+    const result = resizeMap(map, 7, 7, BOUNDS, RIGHT);
+    expect(result.map.cellEdges).toEqual([{ x: 2, y: 3, sides: ['N'] }]);
+    expect(result.map.underlays).toEqual([{ x: 2, y: 3, terrain: 'ice' }]);
+    expect(result.report.droppedEdges).toBe(1);
+    expect(result.report.droppedUnderlays).toBe(1);
+  });
+});
+
 describe('toggleCellEdge', () => {
   const edgesOf = (map: EditorMap): unknown => map.cellEdges;
 
@@ -421,5 +577,70 @@ describe('toggleCellEdge', () => {
     toggleCellEdge(map, 4, 3, 'W');
     toggleCellEdge(map, 2, 2, 'N');
     expect(JSON.stringify(map)).toBe(snapshot);
+  });
+});
+
+describe('clone templates', () => {
+  /** A clone machine at (4, 4) holding a walker facing east, wired to a red button at (2, 4). */
+  function withWalkerCloner(): EditorMap {
+    const map = withLinks();
+    map.entities = [{ x: 4, y: 4, type: 'walker', dir: 'E' }];
+    map.cloneLinks = [{ buttonX: 2, buttonY: 4, clonerX: 4, clonerY: 4, templateType: 'walker', templateDir: 'E' }];
+    return map;
+  }
+
+  it('follows a quarter turn of the creature on the clone machine', () => {
+    const map = withWalkerCloner();
+    const turned = paintEntity(map, 4, 4, 'walker', 'S');
+    expect(turned.map.cloneLinks[0]).toMatchObject({ templateType: 'walker', templateDir: 'S' });
+    expect(turned.clonerTemplates).toEqual([{ x: 4, y: 4, type: 'walker', dir: 'S' }]);
+    expect(map.cloneLinks[0].templateDir).toBe('E');
+  });
+
+  it('follows a different creature painted over it, and a stale template of a stored level', () => {
+    const map = withWalkerCloner();
+    map.cloneLinks[0] = { ...map.cloneLinks[0], templateType: 'dirt_block', templateDir: 'N' };
+    const repainted = paintEntity(map, 4, 4, 'turret_fixed', 'W');
+    expect(repainted.map.cloneLinks[0]).toMatchObject({ templateType: 'turret_fixed', templateDir: 'W' });
+  });
+
+  it('reports nothing when the cell is not a linked clone machine, or the template already matches', () => {
+    const map = withWalkerCloner();
+    expect(paintEntity(map, 5, 5, 'walker', 'N').clonerTemplates).toBeUndefined();
+    const stale = withWalkerCloner();
+    stale.entities = [];
+    expect(paintEntity(stale, 4, 4, 'walker', 'E').clonerTemplates).toBeUndefined();
+  });
+
+  it('repainting the same creature and facing re-syncs a drifted template and reports it, else stays a no-op', () => {
+    const drifted = withWalkerCloner();
+    drifted.cloneLinks[0] = { ...drifted.cloneLinks[0], templateType: 'dirt_block', templateDir: 'N' };
+    const synced = paintEntity(drifted, 4, 4, 'walker', 'E');
+    expect(synced.changed).toBe(true);
+    expect(synced.map.cloneLinks[0]).toMatchObject({ templateType: 'walker', templateDir: 'E' });
+    expect(synced.clonerTemplates).toEqual([{ x: 4, y: 4, type: 'walker', dir: 'E' }]);
+    expect(drifted.cloneLinks[0].templateType).toBe('dirt_block');
+    const aligned = withWalkerCloner();
+    const same = paintEntity(aligned, 4, 4, 'walker', 'E');
+    expect(same.changed).toBe(false);
+    expect(same.map).toBe(aligned);
+  });
+
+  it('leaves no link behind when the clone machine is erased or repainted', () => {
+    const map = withWalkerCloner();
+    expect(eraseCell(map, 4, 4).map.cloneLinks).toEqual([]);
+    expect(paintTerrain(map, 4, 4, 'floor').map.cloneLinks).toEqual([]);
+  });
+
+  it('warns when a clone wire ends on an empty clone machine, and not when a creature stands there', () => {
+    const empty = withLinks();
+    empty.cloneLinks = [];
+    const warned = placeWireLink(empty, 'clone', { x: 2, y: 4 }, { x: 4, y: 4 }, 'W');
+    expect(warned.emptyCloner).toBe(true);
+    expect(warned.map.cloneLinks[0]).toMatchObject({ templateType: 'dirt_block', templateDir: 'W' });
+    const occupied = withWalkerCloner();
+    occupied.cloneLinks = [];
+    expect(placeWireLink(occupied, 'clone', { x: 2, y: 4 }, { x: 4, y: 4 }, 'W').emptyCloner).toBeUndefined();
+    expect(placeWireLink(withLinks(), 'trap', { x: 2, y: 2 }, { x: 4, y: 2 }, 'W').emptyCloner).toBeUndefined();
   });
 });

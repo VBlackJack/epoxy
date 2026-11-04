@@ -24,8 +24,10 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
-import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide } from './editorCellEdges';
+import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
+import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, translateUnderlays, underlayAt } from './editorUnderlays';
+import { anchorOffset, ResizeAnchor, TOP_LEFT_ANCHOR } from './resizeAnchor';
 
 /** Outcome of a map edit. The input map is never modified; `map` is a new state. */
 export interface MapEditResult {
@@ -34,8 +36,20 @@ export interface MapEditResult {
   changed: boolean;
   /** Trap and clone links removed because one of their cells was overwritten or erased. */
   removedLinks: number;
+  /** Hidden terrain removed because the terrain on top of it changed to something that can no longer hide it, or its cell was erased. */
+  removedUnderlays: number;
   /** True when the edit hit the player start cell and left the start in place (eraser). */
   playerStartKept: boolean;
+  /** Clone machines whose stored template followed the creature now standing on them. */
+  clonerTemplates?: ClonerTemplateChange[];
+}
+
+/** A clone machine whose link template now copies the creature standing on it. */
+export interface ClonerTemplateChange {
+  x: number;
+  y: number;
+  type: string;
+  dir: Direction;
 }
 
 /** Which kind of link a wire tool draws. */
@@ -47,6 +61,8 @@ export interface WireResult extends MapEditResult {
   refused: boolean;
   /** Why the wire was refused, when it was. */
   refusal?: WireRefusal;
+  /** True when a clone wire ended on a clone machine with no creature on it, so the link got the default template. */
+  emptyCloner?: boolean;
 }
 
 /** 'same_cell': source and target are one cell. 'missing_button': the source no longer holds the wire's button. */
@@ -59,6 +75,8 @@ export interface ResizeReport {
   droppedCloneLinks: number;
   /** Cells that lost their thin walls: cropped away, or turned to wall by the new border. */
   droppedEdges: number;
+  /** Cells that lost their hidden terrain: cropped away, turned to wall by the new border, or no longer under a top that can hide it. */
+  droppedUnderlays: number;
   /** True when the player start had to be moved to stay inside the new map. */
   playerStartMoved: boolean;
   /** True when the outer ring of the new map was set to wall. */
@@ -90,7 +108,7 @@ function inGrid(map: EditorMap, x: number, y: number): boolean {
 }
 
 function unchanged(map: EditorMap): MapEditResult {
-  return { map, changed: false, removedLinks: 0, playerStartKept: false };
+  return { map, changed: false, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
 /** Removes every link that has an end on the cell; returns how many were removed. */
@@ -109,7 +127,8 @@ export function dropLinksAt(map: EditorMap, x: number, y: number): number {
 /**
  * Paints a terrain tile. Overwriting a cell that is the button or the target
  * of a trap or clone link with another tile removes those links, so none is
- * left dangling. Painting the tile already there keeps them.
+ * left dangling. Painting the tile already there keeps them. Hidden terrain under the cell stays only while the
+ * new tile can still hide it; otherwise it is removed and counted.
  */
 export function paintTerrain(source: EditorMap, x: number, y: number, tileId: string): MapEditResult {
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
@@ -117,7 +136,8 @@ export function paintTerrain(source: EditorMap, x: number, y: number, tileId: st
   const map = cloneMap(source);
   map.terrain[y][x] = tileId;
   const removedLinks = dropLinksAt(map, x, y);
-  return { map, changed: true, removedLinks, playerStartKept: false };
+  const removedUnderlays = pruneUnderlays(map);
+  return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
 }
 
 /** Paints an item (key, chip, boots...) on the item layer. */
@@ -126,7 +146,7 @@ export function paintItem(source: EditorMap, x: number, y: number, itemId: strin
   if (!inGrid(source, x, y) || source.items[y][x] === itemId) return unchanged(source);
   const map = cloneMap(source);
   map.items[y][x] = itemId;
-  return { map, changed: true, removedLinks: 0, playerStartKept: false };
+  return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
 /**
@@ -139,19 +159,42 @@ export function toggleCellEdge(source: EditorMap, x: number, y: number, side: Di
   if (!inGrid(source, x, y)) return unchanged(source);
   const map = cloneMap(source);
   toggleSide(map, x, y, side);
-  return { map, changed: true, removedLinks: 0, playerStartKept: false };
+  return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
-/** Places an entity, replacing the one already on the cell. */
+/**
+ * Makes every clone link ending on the cell copy the creature standing there (the engine reads the stored template, the
+ * creature on the cloner is what the author sees). Returns the change, or null when there is no creature, no link, or
+ * nothing to update. Stored levels are never touched until an edit reaches their cloner.
+ */
+export function syncCloneTemplatesAt(map: EditorMap, x: number, y: number): ClonerTemplateChange | null {
+  const entity = map.entities.find((e) => e.x === x && e.y === y);
+  if (!entity) return null;
+  let changed = false;
+  map.cloneLinks = map.cloneLinks.map((l) => {
+    if (l.clonerX !== x || l.clonerY !== y || (l.templateType === entity.type && l.templateDir === entity.dir)) return l;
+    changed = true;
+    return { ...l, templateType: entity.type, templateDir: entity.dir };
+  });
+  return changed ? { x, y, type: entity.type, dir: entity.dir } : null;
+}
+
+/** Places an entity, replacing the one already on the cell. A clone link ending on the cell copies it as its template. */
 export function paintEntity(source: EditorMap, x: number, y: number, type: string, dir: Direction): MapEditResult {
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y)) return unchanged(source);
   const present = source.entities.filter((e) => e.x === x && e.y === y);
-  if (present.length === 1 && present[0].type === type && present[0].dir === dir) return unchanged(source);
   const map = cloneMap(source);
+  if (present.length === 1 && present[0].type === type && present[0].dir === dir) {
+    // Same creature already there: a user repaint still re-syncs a link template that drifted from it.
+    const resynced = syncCloneTemplatesAt(map, x, y);
+    if (!resynced) return unchanged(source);
+    return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, clonerTemplates: [resynced] };
+  }
   map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
   map.entities.push({ x, y, type, dir });
-  return { map, changed: true, removedLinks: 0, playerStartKept: false };
+  const synced = syncCloneTemplatesAt(map, x, y);
+  return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, ...(synced ? { clonerTemplates: [synced] } : {}) };
 }
 
 /** Moves the player start. */
@@ -162,11 +205,11 @@ export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: D
   if (start.x === x && start.y === y && start.dir === dir) return unchanged(source);
   const map = cloneMap(source);
   map.playerStart = { x, y, dir };
-  return { map, changed: true, removedLinks: 0, playerStartKept: false };
+  return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
 /**
- * Erases a cell: floor terrain, no item, no entity, no link, no thin wall. The player start
+ * Erases a cell: floor terrain, no item, no entity, no link, no thin wall, no hidden terrain. The player start
  * is never erased; when it sits on the cell the result reports `playerStartKept`.
  */
 export function eraseCell(source: EditorMap, x: number, y: number): MapEditResult {
@@ -178,6 +221,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
     source.items[y][x] === null &&
     !source.entities.some((e) => e.x === x && e.y === y) &&
     edgesAt(source, x, y).length === 0 &&
+    underlayAt(source, x, y) === undefined &&
     !source.trapLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.trapX === x && l.trapY === y)) &&
     !source.cloneLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.clonerX === x && l.clonerY === y));
   if (empty) return { ...unchanged(source), playerStartKept };
@@ -186,13 +230,14 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
   map.items[y][x] = null;
   map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
   removeEdgesWhere(map, (ex, ey) => ex === x && ey === y);
+  const removedUnderlays = removeUnderlaysWhere(map, (ux, uy) => ux === x && uy === y);
   const removedLinks = dropLinksAt(map, x, y);
-  return { map, changed: true, removedLinks, playerStartKept };
+  return { map, changed: true, removedLinks, removedUnderlays, playerStartKept };
 }
 
 /**
  * Replaces the 4-connected region of identical terrain that contains the cell
- * with `tileId`. Links that end on a replaced cell are removed.
+ * with `tileId`. Links that end on a replaced cell are removed, and so is hidden terrain the new tile cannot hide.
  */
 export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId: string): MapEditResult {
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
@@ -219,7 +264,8 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
     if (cy + 1 < height) queue.push(index + width);
     if (cy > 0) queue.push(index - width);
   }
-  return { map, changed: true, removedLinks, playerStartKept: false };
+  const removedUnderlays = pruneUnderlays(map);
+  return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
 }
 
 /** Terrain placed at the button end and at the target end of a wire. */
@@ -257,11 +303,13 @@ export function placeWireLink(
   }
   const painted = paintTerrain(source, to.x, to.y, tiles.target);
   const map = cloneMap(painted.map);
+  let emptyCloner = false;
   if (kind === 'trap') {
     map.trapLinks = map.trapLinks.filter((l) => !(l.buttonX === from.x && l.buttonY === from.y && l.trapX === to.x && l.trapY === to.y));
     map.trapLinks.push({ buttonX: from.x, buttonY: from.y, trapX: to.x, trapY: to.y });
   } else {
     const onCloner = map.entities.find((e) => e.x === to.x && e.y === to.y);
+    emptyCloner = onCloner === undefined;
     map.cloneLinks = map.cloneLinks.filter((l) => !(l.buttonX === from.x && l.buttonY === from.y && l.clonerX === to.x && l.clonerY === to.y));
     map.cloneLinks.push({
       buttonX: from.x,
@@ -272,7 +320,8 @@ export function placeWireLink(
       templateDir: onCloner?.dir ?? fallbackDir
     });
   }
-  return { map, changed: true, removedLinks: painted.removedLinks, playerStartKept: false, refused: false };
+  // The map was copied from the painted one, which already pruned the hidden terrain of the target cell.
+  return { map, changed: true, removedLinks: painted.removedLinks, removedUnderlays: painted.removedUnderlays, playerStartKept: false, refused: false, ...(emptyCloner ? { emptyCloner } : {}) };
 }
 
 function hasWallBorder(map: EditorMap): boolean {
@@ -293,16 +342,22 @@ const MIN_BORDERED_SIZE = 3;
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 /**
- * Resizes the map keeping the top-left corner. New cells are floor. When the
- * old map was closed by a wall border, the new one is too: an old border that
- * becomes interior turns to floor (an entity on it is dropped; a cell holding an item stays wall), and the new outer
- * ring is walled (items, entities and links on a cell that becomes wall are
- * dropped). Thin walls stay with their cell: those outside the new bounds or on a cell that
- * becomes wall are dropped and counted. Entities and links outside the new bounds are dropped; the player
- * start is clamped inside. The requested size is clamped to `bounds`.
+ * Resizes the map keeping the cell of the 3 x 3 `anchor` fixed (the top-left corner by default). New cells are floor.
+ * When the old map was closed by a wall border, the new one is too: an old border cell that leaves its ring side turns
+ * to floor (an entity on it is dropped; a cell holding an item stays wall), and the new outer ring is walled (items,
+ * entities and links on a cell that becomes wall are dropped). Thin walls and hidden terrain stay with their cell
+ * (translated then clamped): those outside the new bounds, on a cell that becomes wall, or (hidden terrain) under a
+ * top that can no longer hide it are dropped and counted. Entities and links outside the new bounds are dropped; the
+ * player start is clamped inside. The requested size is clamped to `bounds`.
  */
-export function resizeMap(source: EditorMap, width: number, height: number, bounds: LevelSizeBounds): ResizeResult {
-  if (source.cc3d) return { map: source, width: mapWidthOf(source), height: mapHeightOf(source), changed: false, report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, droppedEdges: 0, playerStartMoved: false, borderKept: false } }; // a CC3D map is edited through cc3dEdits only
+export function resizeMap(
+  source: EditorMap,
+  width: number,
+  height: number,
+  bounds: LevelSizeBounds,
+  anchor: ResizeAnchor = TOP_LEFT_ANCHOR
+): ResizeResult {
+  if (source.cc3d) return { map: source, width: mapWidthOf(source), height: mapHeightOf(source), changed: false, report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, droppedEdges: 0, droppedUnderlays: 0, playerStartMoved: false, borderKept: false } }; // a CC3D map is edited through cc3dEdits only
   const oldWidth = mapWidthOf(source);
   const oldHeight = mapHeightOf(source);
   const newWidth = clamp(Math.floor(width), bounds.minSize, bounds.maxSize);
@@ -312,6 +367,7 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     droppedTrapLinks: 0,
     droppedCloneLinks: 0,
     droppedEdges: 0,
+    droppedUnderlays: 0,
     playerStartMoved: false,
     borderKept: false
   };
@@ -320,6 +376,7 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
   }
 
   const bordered = hasWallBorder(source);
+  const { dx, dy } = anchorOffset(anchor, newWidth - oldWidth, newHeight - oldHeight);
   const terrain: string[][] = [];
   const items: (string | null)[][] = [];
   // Old border cells turned to floor: an entity standing there is dropped.
@@ -328,12 +385,19 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     terrain.push([]);
     items.push([]);
     for (let x = 0; x < newWidth; x++) {
-      const kept = x < oldWidth && y < oldHeight;
-      let tile = kept ? source.terrain[y][x] : FLOOR_TILE_ID;
-      const item = kept ? source.items[y][x] : null;
-      const wasOldBorder = kept && (x === oldWidth - 1 || y === oldHeight - 1);
-      const growsPastIt = (x === oldWidth - 1 && newWidth > oldWidth) || (y === oldHeight - 1 && newHeight > oldHeight);
-      if (bordered && wasOldBorder && growsPastIt && tile === WALL_TILE_ID && item === null) {
+      const fromX = x - dx;
+      const fromY = y - dy;
+      const kept = fromX >= 0 && fromY >= 0 && fromX < oldWidth && fromY < oldHeight;
+      let tile = kept ? source.terrain[fromY][fromX] : FLOOR_TILE_ID;
+      const item = kept ? source.items[fromY][fromX] : null;
+      // An old ring cell that has left its ring side is opened; the walling loop below re-walls it when it lands on the new ring.
+      const leftRing =
+        kept &&
+        ((fromX === 0 && x !== 0) ||
+          (fromX === oldWidth - 1 && x !== newWidth - 1) ||
+          (fromY === 0 && y !== 0) ||
+          (fromY === oldHeight - 1 && y !== newHeight - 1));
+      if (bordered && leftRing && tile === WALL_TILE_ID && item === null) {
         tile = FLOOR_TILE_ID;
         opened.add(`${x},${y}`);
       }
@@ -345,9 +409,11 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
   // With a wall border the start stays inside it, when the side is big enough to have an inside.
   const lowX = bordered && newWidth >= MIN_BORDERED_SIZE ? 1 : 0;
   const lowY = bordered && newHeight >= MIN_BORDERED_SIZE ? 1 : 0;
-  const startX = clamp(source.playerStart.x, lowX, newWidth - 1 - lowX);
-  const startY = clamp(source.playerStart.y, lowY, newHeight - 1 - lowY);
-  report.playerStartMoved = startX !== source.playerStart.x || startY !== source.playerStart.y;
+  const movedStartX = source.playerStart.x + dx;
+  const movedStartY = source.playerStart.y + dy;
+  const startX = clamp(movedStartX, lowX, newWidth - 1 - lowX);
+  const startY = clamp(movedStartY, lowY, newHeight - 1 - lowY);
+  report.playerStartMoved = startX !== movedStartX || startY !== movedStartY;
 
   // Cells that turn to wall to close the new map.
   const walled = new Set<string>();
@@ -365,25 +431,28 @@ export function resizeMap(source: EditorMap, width: number, height: number, boun
     }
   }
 
-  const alive = (x: number, y: number): boolean => x < newWidth && y < newHeight && !walled.has(`${x},${y}`);
+  const alive = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < newWidth && y < newHeight && !walled.has(`${x},${y}`);
   const entities = source.entities
-    .filter((e) => alive(e.x, e.y) && !opened.has(`${e.x},${e.y}`))
-    .map((e) => ({ ...e }));
+    .map((e) => ({ ...e, x: e.x + dx, y: e.y + dy }))
+    .filter((e) => alive(e.x, e.y) && !opened.has(`${e.x},${e.y}`));
   report.droppedEntities = source.entities.length - entities.length;
   const trapLinks = source.trapLinks
-    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.trapX, l.trapY))
-    .map((l) => ({ ...l }));
+    .map((l) => ({ ...l, buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, trapX: l.trapX + dx, trapY: l.trapY + dy }))
+    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.trapX, l.trapY));
   report.droppedTrapLinks = source.trapLinks.length - trapLinks.length;
   const cloneLinks = source.cloneLinks
-    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.clonerX, l.clonerY))
-    .map((l) => ({ ...l }));
+    .map((l) => ({ ...l, buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, clonerX: l.clonerX + dx, clonerY: l.clonerY + dy }))
+    .filter((l) => alive(l.buttonX, l.buttonY) && alive(l.clonerX, l.clonerY));
   report.droppedCloneLinks = source.cloneLinks.length - cloneLinks.length;
 
-  const kept = (source.cellEdges ?? []).filter((e) => alive(e.x, e.y));
+  const kept = translateEdges(source.cellEdges ?? [], dx, dy, newWidth, newHeight).filter((e) => alive(e.x, e.y));
   report.droppedEdges = (source.cellEdges?.length ?? 0) - kept.length;
 
   const resized: EditorMap = { terrain, items, entities, trapLinks, cloneLinks, playerStart: { x: startX, y: startY, dir: source.playerStart.dir } };
   replaceEdges(resized, kept);
+  // The hidden terrain stays with its cell, then only what the new terrain on top can still hide is kept.
+  replaceUnderlays(resized, translateUnderlays(source.underlays ?? [], dx, dy, newWidth, newHeight).filter((u) => alive(u.x, u.y)));
+  report.droppedUnderlays = (source.underlays?.length ?? 0) - (resized.underlays?.length ?? 0);
   return {
     map: resized,
     width: newWidth,

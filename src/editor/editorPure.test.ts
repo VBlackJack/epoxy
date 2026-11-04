@@ -40,6 +40,10 @@ describe('getEditorKeyAction', () => {
 
   it('maps rotate, zoom and cancel', () => {
     expect(getEditorKeyAction(chord('r'))).toEqual({ kind: 'rotate' });
+    // Caps Lock R has no Shift: it stays the facing control. Shift+R turns the creature under the cursor.
+    expect(getEditorKeyAction(chord('R'))).toEqual({ kind: 'rotate' });
+    expect(getEditorKeyAction(chord('R', { shiftKey: true }))).toEqual({ kind: 'rotate_in_place' });
+    expect(getEditorKeyAction(chord('r', { shiftKey: true, ctrlKey: true }))).toBeNull();
     expect(getEditorKeyAction(chord('+'))).toEqual({ kind: 'zoom_in' });
     expect(getEditorKeyAction(chord('='))).toEqual({ kind: 'zoom_in' });
     expect(getEditorKeyAction(chord('-'))).toEqual({ kind: 'zoom_out' });
@@ -142,7 +146,7 @@ describe('describeResize', () => {
     width: 10,
     height: 8,
     changed: true,
-    report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, droppedEdges: 0, playerStartMoved: false, borderKept: false }
+    report: { droppedEntities: 0, droppedTrapLinks: 0, droppedCloneLinks: 0, droppedEdges: 0, droppedUnderlays: 0, playerStartMoved: false, borderKept: false }
   };
 
   it('reports an unchanged size on its own', () => {
@@ -155,7 +159,7 @@ describe('describeResize', () => {
     expect(describeResize(base)).toEqual([{ key: 'editor.layout.size.resized', params: { width: 10, height: 8 } }]);
     const notes = describeResize({
       ...base,
-      report: { droppedEntities: 2, droppedTrapLinks: 1, droppedCloneLinks: 2, droppedEdges: 0, playerStartMoved: true, borderKept: true }
+      report: { droppedEntities: 2, droppedTrapLinks: 1, droppedCloneLinks: 2, droppedEdges: 0, droppedUnderlays: 0, playerStartMoved: true, borderKept: true }
     });
     expect(notes.map((note) => note.key)).toEqual([
       'editor.layout.size.resized',

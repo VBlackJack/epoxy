@@ -15,6 +15,8 @@
  */
 
 import { Direction } from '../core/types';
+import { EDITOR_DEFAULT_CLONE_TEMPLATE } from '../ui/uiConstants';
+import { clonerTemplateMessage, emptyClonerMessage } from './cellDescription';
 import { EditorMap } from './editorDocument';
 import {
   eraseCell,
@@ -62,6 +64,8 @@ export interface ToolMessage {
 export const MESSAGE_WIRE_SELECT_TARGET = 'editor.palette.status.wire_select_target';
 export const MESSAGE_WIRE_LINKED = 'editor.palette.status.wire_linked';
 export const MESSAGE_LINKS_REMOVED = 'editor.layout.status.links_removed';
+export const MESSAGE_UNDERLAYS_REMOVED = 'editor.layout.status.underlays_removed';
+export const MESSAGE_UNDERLAYS_ERASED = 'editor.layout.status.underlays_erased.label';
 export const MESSAGE_START_KEPT = 'editor.layout.status.start_kept';
 export const MESSAGE_FILL_NEEDS_TERRAIN = 'editor.layout.status.fill_needs_terrain';
 export const MESSAGE_WIRE_SAME_CELL = 'editor.layout.status.wire_same_cell';
@@ -105,18 +109,32 @@ function removedLinksMessage(removed: number): ToolMessage[] {
   return removed > 0 ? [{ key: MESSAGE_LINKS_REMOVED, params: { count: removed } }] : [];
 }
 
-function fromEdit(result: MapEditResult, pendingWire: PendingWire | null, messages: ToolMessage[] = []): ToolOutcome {
+function removedUnderlaysMessage(removed: number, key: string = MESSAGE_UNDERLAYS_REMOVED): ToolMessage[] {
+  return removed > 0 ? [{ key, params: { count: removed } }] : [];
+}
+
+function fromEdit(
+  result: MapEditResult,
+  pendingWire: PendingWire | null,
+  messages: ToolMessage[] = [],
+  underlaysKey: string = MESSAGE_UNDERLAYS_REMOVED
+): ToolOutcome {
   return {
     map: result.map,
     changed: result.changed,
     pendingWire,
-    messages: [...messages, ...removedLinksMessage(result.removedLinks)]
+    messages: [
+      ...messages,
+      ...(result.clonerTemplates ?? []).map(clonerTemplateMessage),
+      ...removedLinksMessage(result.removedLinks),
+      ...removedUnderlaysMessage(result.removedUnderlays, underlaysKey)
+    ]
   };
 }
 
 function eraseOutcome(input: ToolInput): ToolOutcome {
   const result = eraseCell(input.map, input.x, input.y);
-  return fromEdit(result, input.pendingWire, result.playerStartKept ? [{ key: MESSAGE_START_KEPT }] : []);
+  return fromEdit(result, input.pendingWire, result.playerStartKept ? [{ key: MESSAGE_START_KEPT }] : [], MESSAGE_UNDERLAYS_ERASED);
 }
 
 function wireOutcome(input: ToolInput, kind: WireKind): ToolOutcome {
@@ -130,7 +148,8 @@ function wireOutcome(input: ToolInput, kind: WireKind): ToolOutcome {
     const key = linked.refusal ? WIRE_REFUSAL_MESSAGES[linked.refusal] : MESSAGE_WIRE_MISSING_BUTTON;
     return { map, changed: false, pendingWire, messages: [{ key }] };
   }
-  return fromEdit(linked, null, [{ key: MESSAGE_WIRE_LINKED }]);
+  const warning = linked.emptyCloner ? [emptyClonerMessage(EDITOR_DEFAULT_CLONE_TEMPLATE, input.dir)] : [];
+  return fromEdit(linked, null, [{ key: MESSAGE_WIRE_LINKED }, ...warning]);
 }
 
 /**

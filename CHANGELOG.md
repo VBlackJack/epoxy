@@ -7,6 +7,9 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor facing and clone templates (Epoxy rules): Shift+R turns the creature or turret under the cursor a quarter turn clockwise as one undo step; a clone machine shows the creature it clones, with its facing, as a corner badge; the cell description speaks a turret's facing and what a clone machine clones; palette icons of creatures and turrets follow the direction control; a clone wire drawn to a clone machine with no creature warns that the default block is used.
+- Level editor resize anchor: a 3 x 3 picker in the Size section chooses which part of the level stays fixed when it is resized (cells, links, thin walls, hidden terrain and CC3D creatures move with it), on Epoxy, Lynx and CC3D levels; the default stays top-left.
+- Level editor Hidden terrain list (Epoxy rules): in the Layers section, a list sets or clears the terrain hidden under a door, socket or similar tile at the cursor cell, as one undo step (not available under Lynx).
 - Level editor fill selection: Shift+F (or the Fill selection button) fills the selected rectangle with the chosen
   palette entry as one undo step, on Epoxy, Lynx and CC3D levels; choosing a palette entry on the Select tool now
   keeps the selection.
@@ -47,8 +50,10 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- The level editor now keeps the template of a clone link in step with the creature standing on its clone machine: painting, filling or turning a creature there updates the stored type and facing (the engine spawns the stored copy, so a rotated turret no longer cloned the old facing), and the status line says so. Stored levels are not rewritten on load.
 - The level editor no longer lets a Lynx level be painted with colour channel tiles (pressure plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), which the Lynx engine plays wrongly: they are greyed out and skipped on paste like lasers, and a stored Lynx level that holds some is switched to Epoxy on open.
 - The level editor no longer deletes the thin walls (`cellEdges`) of an Epoxy level on save, autosave or any edit: they are kept through paint, erase, copy, cut, move, paste and resize, drawn on the map, and a level that has some cannot be switched to Lynx.
+- The level editor no longer deletes the terrain hidden under a door, socket or similar tile (`underlays`) of an Epoxy level: it is kept through save, autosave, copy, cut, move, paste and resize, marked on the map, spoken with the cell, and removed with an announcement when the tile on top is changed to one that cannot hide it.
 - A recessed wall now rises when you leave its cell, instead of turning into a wall under you as
   soon as you step on it.
 

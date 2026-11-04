@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { i18n } from '../i18n/I18nManager';
+import { loadTestConfigs } from '../test/loadTestConfigs';
 import { EditorMap } from './editorDocument';
 import {
   applyTool,
@@ -220,5 +222,30 @@ describe('thin wall brush', () => {
     expect(applyTool(input({ map, tool: 'picker', brush: EDGE })).changed).toBe(false);
     const erased = applyTool(input({ map, tool: 'eraser', brush: EDGE }));
     expect(erased.map.cellEdges).toEqual([{ x: 3, y: 2, sides: ['W'] }]);
+  });
+});
+
+describe('clone template messages', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+    i18n.setLocale('en');
+  });
+
+  const CLONER: Brush = { kind: 'wire_cloner', id: 'wire_cloner' };
+
+  it('announces the new template when a creature is painted on a linked clone machine', () => {
+    const map = blank(6, 6);
+    map.terrain[4][4] = 'clone_machine';
+    map.cloneLinks = [{ buttonX: 1, buttonY: 1, clonerX: 4, clonerY: 4, templateType: 'dirt_block', templateDir: 'S' }];
+    const out = applyTool(input({ map, brush: { kind: 'entity', id: 'walker' }, dir: 'E', x: 4, y: 4 }));
+    expect(out.map.cloneLinks[0]).toMatchObject({ templateType: 'walker', templateDir: 'E' });
+    expect(out.messages.map((m) => m.key)).toContain('editor.layout.status.cloner_template.label');
+  });
+
+  it('warns when a clone wire ends on a clone machine with no creature', () => {
+    const map = blank(6, 6);
+    const first = applyTool(input({ map, brush: CLONER, x: 1, y: 1 }));
+    const second = applyTool(input({ map: first.map, brush: CLONER, x: 4, y: 4, pendingWire: first.pendingWire }));
+    expect(second.messages.map((m) => m.key)).toEqual([MESSAGE_WIRE_LINKED, 'editor.layout.status.wire_empty_cloner.label']);
   });
 });

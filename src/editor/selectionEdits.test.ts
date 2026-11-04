@@ -514,3 +514,42 @@ describe('fillRect', () => {
     expect(JSON.stringify(map)).toBe(before);
   });
 });
+
+describe('clone templates in selections', () => {
+  it('a fill with a creature updates the templates of the clone machines it covers', () => {
+    const map = populated();
+    const result = fillRect(map, { x: 4, y: 4, width: 1, height: 1 }, { kind: 'entity', id: 'turret_fixed' }, 'W', 'epoxy');
+    expect(result.map.cloneLinks[0]).toMatchObject({ templateType: 'turret_fixed', templateDir: 'W' });
+    expect(result.clonerTemplates).toEqual([{ x: 4, y: 4, type: 'turret_fixed', dir: 'W' }]);
+  });
+
+  it('a fill with the same creature and facing re-syncs a drifted template and reports it, else changes nothing', () => {
+    const map = populated();
+    map.entities.push({ x: 4, y: 4, type: 'walker', dir: 'E' });
+    const rect = { x: 4, y: 4, width: 1, height: 1 };
+    const drifted = fillRect(map, rect, { kind: 'entity', id: 'walker' }, 'E', 'epoxy');
+    expect(drifted.changed).toBe(true);
+    expect(drifted.map.cloneLinks[0]).toMatchObject({ templateType: 'walker', templateDir: 'E' });
+    expect(drifted.clonerTemplates).toEqual([{ x: 4, y: 4, type: 'walker', dir: 'E' }]);
+    const aligned = fillRect(drifted.map, rect, { kind: 'entity', id: 'walker' }, 'E', 'epoxy');
+    expect(aligned.changed).toBe(false);
+    expect(aligned.clonerTemplates).toBeUndefined();
+  });
+
+  it('a move carries a clone machine with its link and creature, template intact', () => {
+    const map = populated();
+    map.entities.push({ x: 4, y: 4, type: 'walker', dir: 'E' });
+    map.cloneLinks[0] = { ...map.cloneLinks[0], templateType: 'walker', templateDir: 'E' };
+    const moved = moveRect(map, { x: 2, y: 4, width: 3, height: 1 }, 0, 1);
+    expect(moved.map.cloneLinks[0]).toMatchObject({ clonerY: 5, templateType: 'walker', templateDir: 'E' });
+    expect(moved.map.entities.find((e) => e.type === 'walker')).toMatchObject({ x: 4, y: 5, dir: 'E' });
+  });
+
+  it('a paste over a clone machine drops its link instead of leaving a stale template', () => {
+    const map = populated();
+    const clip = extractClip(map, { x: 5, y: 5, width: 1, height: 1 }, false);
+    const pasted = pasteClip(map, clip, 4, 4, 'epoxy');
+    expect(pasted.map.cloneLinks).toEqual([]);
+    expect(pasted.droppedLinks).toBe(1);
+  });
+});

@@ -119,6 +119,7 @@ function playfieldSignature(level: CompiledLevel): string {
     unordered(level.cloneLinks),
     canonicalJson(level.playerStart),
     canonicalJson(level.cellEdges ?? []),
+    canonicalJson(level.underlays ?? []),
     level.winRule ?? DEFAULT_WIN_RULE,
     level.ruleset ?? DEFAULT_RULESET,
     String(level.chipsRequired),

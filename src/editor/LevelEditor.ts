@@ -18,7 +18,7 @@ import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
-import { t } from '../i18n/I18nManager';
+import { i18n, t } from '../i18n/I18nManager';
 import { parsePackJson } from '../packs/packJson';
 import { choiceDialog } from '../ui/choiceDialog';
 import { confirmDialog } from '../ui/confirmDialog';
@@ -36,6 +36,7 @@ import { displayItemId, displayMobId, displayShowsPanels, displayTerrainId } fro
 import { type Cc3dCell, type Cc3dLevel, type Cc3dTerrain, cellAt as cc3dCellAt } from '../core/cc3d/model';
 import { ProceduralGenerationError, ProceduralGenerator } from '../core/ProceduralGenerator';
 import {
+  CloneLink,
   CompiledLevel,
   Direction,
   LevelBlueprint,
@@ -51,7 +52,8 @@ import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreCo
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
 import { historyDiff, HistoryDiff } from './historyDiff';
 import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
-import { describeEditorCell } from './cellDescription';
+import { clonerTemplateMessage, clonersTemplateMessage, describeEditorCell, entityDisplayName, sideDisplayName } from './cellDescription';
+import { entityHasFacing } from './entityFacing';
 import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
 import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
 import {
@@ -136,6 +138,7 @@ import {
   EditorTool,
   leavesLooseButton,
   MESSAGE_START_KEPT,
+  MESSAGE_UNDERLAYS_REMOVED,
   MESSAGE_WIRE_CANCELLED,
   MESSAGE_WIRE_CANCELLED_BUTTON_LEFT,
   pickFromCell,
@@ -150,7 +153,11 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
-import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
+import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
+import { isRemovableTop } from '../core/Underlays';
+import { normalizeUnderlays } from '../config/ConfigValidation';
+import { mapHeightOf, mapWidthOf, paintEntity, resizeMap } from './mapEdits';
+import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
   CellRect,
   clampMoveStep,
@@ -203,6 +210,8 @@ import {
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
   EDITOR_CC3D_ARROW_HEAD_TILE,
   EDITOR_CC3D_BADGE_RADIUS_TILE,
+  EDITOR_CLONER_BADGE_BACKING,
+  EDITOR_CLONER_BADGE_TILE,
   EDITOR_CC3D_LINK_COLORS,
   EDITOR_CC3D_OVERLAY_ALPHA,
   EDITOR_CC3D_ROOM_HEIGHT,
@@ -282,6 +291,13 @@ const EDITOR_PLAYER_BRUSH_ID = 'player_start';
 const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
 const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
+const LAYERS_CELL_ID = 'editor-layers-cell';
+const HIDDEN_TERRAIN_FIELD_ID = 'editor-hidden-terrain-field';
+const HIDDEN_TERRAIN_INPUT_ID = 'editor-hidden-terrain';
+const HIDDEN_TERRAIN_HINT_ID = 'editor-hidden-terrain-hint';
+const HIDDEN_TERRAIN_UNAVAILABLE_ID = 'editor-hidden-terrain-unavailable';
+/** Value of the "None" option of the hidden terrain select: no terrain is hidden under the cell. */
+const HIDDEN_TERRAIN_NONE = '';
 const CELL_LIVE_ID = 'editor-cell-live';
 const ISSUES_LIST_ID = 'editor-issues-list';
 const ISSUES_NOTE_ID = 'editor-issues-note';
@@ -409,6 +425,9 @@ const cc3dPreviewClips = new WeakMap<Cc3dClip, Clip>();
 /** The thin walls of a document by cell index, built once per list of edges (a document edit makes a new list). */
 const cellEdgeSidesMemo = new WeakMap<object, ReadonlyMap<number, readonly Direction[]>>();
 
+/** The cells of a document that hide terrain, by cell index, built once per list of underlays. */
+const hiddenTerrainCellsMemo = new WeakMap<object, ReadonlySet<number>>();
+
 /** What the application learns when a level was saved. */
 export interface SavedLevelInfo {
   packId: string;
@@ -513,6 +532,7 @@ export class LevelEditor {
   private pasteAnchor: { x: number; y: number } = { x: 0, y: 0 };
   private hoverCell: { x: number; y: number } | null = null;
   private cursorCell: { x: number; y: number } | null = null;
+  private collatorCache: { locale: string; collator: Intl.Collator } | null = null;
   /** The last cell the pointer was over, kept after it leaves the canvas so a toolbar button can use it. */
   private lastHoverCell: GridCell | null = null;
   /** What the Test from here button state was computed for, to skip recomputing it on every redraw. */
@@ -1065,11 +1085,11 @@ export class LevelEditor {
   }
 
   /** A palette icon, drawn once per display id until the graphics style changes. */
-  private cachedIcon(kind: 'tile' | 'item' | 'entity' | 'player', id: string): string {
-    const key = `${kind}|${id}`;
+  private cachedIcon(kind: 'tile' | 'item' | 'entity' | 'player', id: string, dir?: Direction): string {
+    const key = `${kind}|${id}|${dir ?? ''}`;
     let url = this.iconCache.get(key);
     if (url === undefined) {
-      url = this.renderer.renderIconToDataUrl(kind, id);
+      url = dir === undefined ? this.renderer.renderIconToDataUrl(kind, id) : this.renderer.renderIconToDataUrl(kind, id, dir);
       this.iconCache.set(key, url);
     }
     return url;
@@ -1270,7 +1290,11 @@ export class LevelEditor {
       (ent) => ent.category === this.activeCategory
     );
     for (const ent of entities) {
-      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), this.renderer.renderIconToDataUrl('entity', ent.id));
+      // A creature or turret is drawn facing the direction control, so the palette shows what a click will place.
+      const icon = entityHasFacing(ent.id)
+        ? this.cachedIcon('entity', ent.id, this.activeDir)
+        : this.cachedIcon('entity', ent.id);
+      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon);
     }
 
     if (this.activeCategory === TERRAIN_CATEGORY) {
@@ -1409,10 +1433,42 @@ export class LevelEditor {
     this.afterDirectionChange();
   }
 
+  /**
+   * Turns the creature or turret on the keyboard cursor cell (else the last hovered one) a quarter turn clockwise, as
+   * one history step. A clone machine under it copies the new facing.
+   */
+  private rotateEntityInPlace(): void {
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    const entity = cell && !this.doc.cc3d ? this.doc.entities.find((e) => e.x === cell.x && e.y === cell.y) : undefined;
+    if (!cell || !entity || !entityHasFacing(entity.type)) {
+      this.announce([{ key: 'editor.layout.status.rotate_nothing.label' }]);
+      return;
+    }
+    const dir = rotateClockwise(entity.dir);
+    const before = this.doc;
+    const result = paintEntity(before, cell.x, cell.y, entity.type, dir);
+    if (!result.changed) return;
+    this.doc = withEditedMap(before, result.map);
+    this.recordChange(before);
+    this.render();
+    this.announce([
+      {
+        key: 'editor.layout.status.rotated.label',
+        params: { name: entityDisplayName(entity.type), x: cell.x, y: cell.y, side: sideDisplayName(dir) }
+      },
+      ...(result.clonerTemplates ?? []).map(clonerTemplateMessage)
+    ]);
+  }
+
   /** The direction control changed: the buttons follow it, and the CC3D icons that show a direction are redrawn. */
   private afterDirectionChange(): void {
     this.updateDirButtons();
     if (!this.isCc3d()) {
+      // The icons of the creatures and turrets show the facing a click will place.
+      const showsFacing = Object.values(ConfigRegistry.getMonsters().entities).some(
+        (ent) => ent.category === this.activeCategory && entityHasFacing(ent.id)
+      );
+      if (showsFacing) this.renderPaletteItems();
       // The keyboard side of the thin wall tool is the direction control: its bar follows it.
       if (this.sideToolActive()) this.render();
       return;
@@ -1466,7 +1522,6 @@ export class LevelEditor {
     }
     byId('editor-export-xml-btn')?.classList.toggle('hidden', !cc3d);
     for (const id of ['editor-field-winrule', 'editor-field-chips']) byId(id)?.classList.toggle('hidden', cc3d);
-    byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !cc3d);
     this.updateToolButtons();
     this.refreshLayersList();
   }
@@ -1491,6 +1546,9 @@ export class LevelEditor {
         break;
       case 'rotate':
         this.rotateDirection();
+        break;
+      case 'rotate_in_place':
+        this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();
@@ -1764,6 +1822,10 @@ export class LevelEditor {
 
     this.bindContextEvents();
 
+    byId<HTMLSelectElement>(HIDDEN_TERRAIN_INPUT_ID)?.addEventListener('change', (ev) =>
+      this.setHiddenTerrain((ev.target as HTMLSelectElement).value)
+    );
+
     byId('editor-autocount-btn')?.addEventListener('click', () => {
       let count = 0;
       for (const row of this.doc.items) {
@@ -1983,7 +2045,7 @@ export class LevelEditor {
       const parsed = parseRuleset(ruleset, doc.ruleset ?? DEFAULT_RULESET);
       next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
     }
-    if (requiresEpoxyRules(next.winRule, hasEpoxyOnlyContent(doc) || hasCellEdges(doc))) next.ruleset = undefined;
+    if (requiresEpoxyRules(next.winRule, hasEpoxyOnlyContent(doc) || hasCellEdges(doc) || hasUnderlays(doc))) next.ruleset = undefined;
     return metadataForDocument(doc, next);
   }
 
@@ -2023,6 +2085,7 @@ export class LevelEditor {
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
     this.renderPaletteItems();
+    this.refreshLayersList();
     this.scheduleCheck();
   }
 
@@ -2053,7 +2116,8 @@ export class LevelEditor {
     if (!rulesetEl) return;
     const cc3d = this.isCc3d();
     // A CC3D level keeps its engine: the Epoxy-only tiles (lasers, colour channels) its display layers hold and its win rule do not make it Epoxy.
-    const lynxLocked = !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc) || hasCellEdges(this.doc));
+    const lynxLocked =
+      !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc) || hasCellEdges(this.doc) || hasUnderlays(this.doc));
     if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
     rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
     // The engine of a level never changes into another one here: a CC3D level shows its own engine
@@ -2115,7 +2179,15 @@ export class LevelEditor {
     if (range) range.textContent = t('editor.layout.size.range', { min: bounds.minSize, max: bounds.maxSize });
   }
 
-  /** Resizes the map to the typed size as one undoable step and says what it dropped. */
+  /** The anchor picked in the size section (session only); the top-left cell when none is checked. */
+  private readSizeAnchor(): ResizeAnchor {
+    const checked = document.querySelector<HTMLInputElement>('input[name="editor-size-anchor"]:checked');
+    const [col, row] = (checked?.value ?? '').split(',').map((part) => Number.parseInt(part, 10));
+    const valid = (step: number): step is ResizeAnchorStep => Number.isInteger(step) && step >= 0 && step < ANCHOR_STEPS;
+    return valid(col) && valid(row) ? { col, row } : TOP_LEFT_ANCHOR;
+  }
+
+  /** Resizes the map to the typed size around the picked anchor as one undoable step and says what it dropped. */
   private applySize(): void {
     const widthInput = byId<HTMLInputElement>('editor-size-width');
     const heightInput = byId<HTMLInputElement>('editor-size-height');
@@ -2124,17 +2196,18 @@ export class LevelEditor {
     const width = Number.isFinite(typedWidth) ? typedWidth : this.mapWidth();
     const height = Number.isFinite(typedHeight) ? typedHeight : this.mapHeight();
     const bounds = ConfigRegistry.getLevelSizeBounds();
+    const anchor = this.readSizeAnchor();
     const before = this.doc;
     const cc3d = before.cc3d;
     let changed: boolean;
     let notes: ToolMessage[];
     if (cc3d) {
-      const result = resizeCc3d(cc3d, width, height, bounds);
+      const result = resizeCc3d(cc3d, width, height, bounds, anchor);
       changed = result.changed;
       if (changed) this.doc = withCc3d(before, result.level);
       notes = this.describeCc3dResize(cc3d, result);
     } else {
-      const result = resizeMap(before, width, height, bounds);
+      const result = resizeMap(before, width, height, bounds, anchor);
       changed = result.changed;
       if (changed) this.doc = withEditedMap(before, result.map);
       notes = describeResize(result);
@@ -2151,7 +2224,7 @@ export class LevelEditor {
       this.updateUndoRedoButtons();
       this.syncRulesetInput();
       this.scheduleCheck();
-      if (cc3d) this.refreshLayersList();
+      this.refreshLayersList();
       this.render();
     }
     this.syncSizeInputs();
@@ -3053,11 +3126,101 @@ export class LevelEditor {
     list.innerHTML = '';
     const level = this.doc.cc3d;
     const at = this.cursorCell;
+    const hiddenTerrain = !level && this.refreshHiddenTerrainField();
+    // Outside CC3D the section follows the cursor, so the inspector does not jump from cell to cell: it holds
+    // the hidden terrain select, or the hint that says which tops can hide a terrain.
+    byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !level && !hiddenTerrain);
+    // A level of the other engines has no list of layers: its section holds the hidden terrain field alone.
+    const cc3dOnly = Boolean(level);
+    byId(LAYERS_CELL_ID)?.classList.toggle('hidden', !cc3dOnly);
+    list.classList.toggle('hidden', !cc3dOnly);
     const cell = level && at ? cc3dCellAt(level, at.x, at.y) : undefined;
-    const caption = byId('editor-layers-cell');
+    const caption = byId(LAYERS_CELL_ID);
     if (caption) caption.textContent = at && cell ? t('editor.cc3d.layers.cell', { x: at.x, y: at.y }) : t('editor.cc3d.layers.none');
     if (!level || !at || !cell) return;
     for (const part of this.cc3dCellParts(level, at.x, at.y)) list.appendChild(this.layerRow(part.name, part.remove));
+  }
+
+  /** The terrain tiles a cell of the Epoxy level can hide under its top, named and sorted by name. */
+  private hiddenTerrainChoices(x: number, y: number): Array<{ id: string; name: string }> {
+    const choices: Array<{ id: string; name: string }> = [];
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+      if (tile.layer !== 'terrain') continue;
+      if (normalizeUnderlays([{ x, y, terrain: tile.id }], this.doc.terrain, 'epoxy') === null) continue;
+      choices.push({ id: tile.id, name: t(tile.i18nKey) });
+    }
+    const collator = this.nameCollator();
+    return choices.sort((a, b) => collator.compare(a.name, b.name));
+  }
+
+  /** The collator of the current locale, built once and rebuilt when the locale changes. */
+  private nameCollator(): Intl.Collator {
+    const locale = i18n.getLocale();
+    if (this.collatorCache?.locale !== locale) this.collatorCache = { locale, collator: new Intl.Collator(locale) };
+    return this.collatorCache.collator;
+  }
+
+  /**
+   * Fills the hidden terrain select for the cursor cell. Returns whether the section shows: there is a cursor
+   * cell. The select is there when the cell's top is one the player removes, a short hint otherwise. The select
+   * is disabled, with the reason, under Lynx rules.
+   */
+  private refreshHiddenTerrainField(): boolean {
+    const field = byId(HIDDEN_TERRAIN_FIELD_ID);
+    const select = byId<HTMLSelectElement>(HIDDEN_TERRAIN_INPUT_ID);
+    const hint = byId(HIDDEN_TERRAIN_HINT_ID);
+    const at = this.cursorCell;
+    const topId = at ? this.doc.terrain[at.y]?.[at.x] : undefined;
+    const top = topId !== undefined && ConfigRegistry.isTerrainTile(topId) ? ConfigRegistry.getTile(topId) : undefined;
+    const applies = Boolean(at && top && isRemovableTop(top));
+    field?.classList.toggle('hidden', !applies);
+    const unavailable = byId(HIDDEN_TERRAIN_UNAVAILABLE_ID);
+    unavailable?.classList.toggle('hidden', applies || !at);
+    if (unavailable) unavailable.textContent = t('editor.layout.layers.hidden_terrain.unavailable.label');
+    if (!applies || !at || !select) return Boolean(at);
+    select.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = HIDDEN_TERRAIN_NONE;
+    none.textContent = t('editor.layout.layers.hidden_terrain.none.label');
+    select.appendChild(none);
+    for (const choice of this.hiddenTerrainChoices(at.x, at.y)) {
+      const option = document.createElement('option');
+      option.value = choice.id;
+      option.textContent = choice.name;
+      select.appendChild(option);
+    }
+    select.value = underlayAt(this.doc, at.x, at.y) ?? HIDDEN_TERRAIN_NONE;
+    const lynx = editableRulesetOf(this.doc.ruleset) === LYNX_RULESET;
+    select.disabled = lynx;
+    if (hint) hint.textContent = t(lynx ? 'editor.layout.layers.hidden_terrain.lynx.label' : 'editor.layout.layers.hidden_terrain.hint.label');
+    return true;
+  }
+
+  /** Sets or clears the terrain hidden under the cursor cell, as one undoable edit. */
+  private setHiddenTerrain(value: string): void {
+    const at = this.cursorCell;
+    if (!at || this.stroke || this.isCc3d()) return;
+    if (editableRulesetOf(this.doc.ruleset) === LYNX_RULESET) {
+      this.refreshLayersList();
+      return;
+    }
+    const terrain = value === HIDDEN_TERRAIN_NONE ? null : value;
+    if ((underlayAt(this.doc, at.x, at.y) ?? null) === terrain) return;
+    const base = cloneDocument(this.doc);
+    const next = cloneDocument(this.doc);
+    setUnderlayAt(next, at.x, at.y, terrain);
+    if (sameDocument(base, next)) {
+      this.refreshLayersList();
+      return;
+    }
+    this.doc = next;
+    this.recordChange(base);
+    this.setStatusText(
+      terrain === null
+        ? t('editor.layout.layers.hidden_terrain.cleared', { x: at.x, y: at.y })
+        : t('editor.layout.layers.hidden_terrain.set', { x: at.x, y: at.y, name: t(ConfigRegistry.getTile(terrain).i18nKey) })
+    );
+    this.render();
   }
 
   /**
@@ -3319,6 +3482,7 @@ export class LevelEditor {
     const messages: ToolMessage[] = [];
     if (result.droppedLinks > 0) messages.push({ key: 'editor.selection.status.links_dropped', params: { count: result.droppedLinks } });
     if (result.skipped > 0) messages.push({ key: 'editor.selection.status.paste_skipped', params: { count: result.skipped } });
+    if (result.droppedUnderlays) messages.push({ key: MESSAGE_UNDERLAYS_REMOVED, params: { count: result.droppedUnderlays } });
     if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
     return messages;
   }
@@ -3415,8 +3579,12 @@ export class LevelEditor {
     }
     const messages: ToolMessage[] = [];
     if (result.droppedLinks > 0) messages.push({ key: 'editor.selection.status.links_dropped', params: { count: result.droppedLinks } });
+    if (result.droppedUnderlays) messages.push({ key: MESSAGE_UNDERLAYS_REMOVED, params: { count: result.droppedUnderlays } });
     if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
     if (result.playerStartKept) messages.push({ key: 'editor.selection.status.fill_start_kept' });
+    const cloners = result.clonerTemplates ?? [];
+    if (cloners.length === 1) messages.push(clonerTemplateMessage(cloners[0]));
+    else if (cloners.length > 1) messages.push(clonersTemplateMessage(cloners.length, cloners[0].type, cloners[0].dir));
     if (!this.commitSelectionEdit(result)) {
       this.announce([{ key: 'editor.selection.status.unchanged' }, ...messages]);
       return;
@@ -3735,10 +3903,21 @@ export class LevelEditor {
         if (item) this.renderer.drawItem(this.ctx, item, px, py, s);
       }
     }
-    // Thin walls are an Epoxy feature: a Lynx level neither draws nor receives them.
+    // Thin walls and hidden terrain are Epoxy features: a Lynx level neither draws nor receives them.
     const clipEdges = this.doc.ruleset === LYNX_RULESET ? [] : (clip.edges ?? []);
     for (const edge of clipEdges) {
       this.renderer.drawCellOverlay(this.ctx, edge.sides, false, (ox + edge.dx) * s, (oy + edge.dy) * s, s);
+    }
+    const clipUnderlays = this.doc.ruleset === LYNX_RULESET ? [] : (clip.underlays ?? []);
+    if (clipUnderlays.length > 0) {
+      this.renderer.setHiddenLayerMarkers(true);
+      try {
+        for (const hidden of clipUnderlays) {
+          this.renderer.drawCellOverlay(this.ctx, undefined, true, (ox + hidden.dx) * s, (oy + hidden.dy) * s, s);
+        }
+      } finally {
+        this.renderer.setHiddenLayerMarkers(false);
+      }
     }
     for (const e of clip.entities) {
       this.renderer.drawEntity(this.ctx, e.type, e.dir, (ox + e.dx) * s, (oy + e.dy) * s, s);
@@ -3758,6 +3937,7 @@ export class LevelEditor {
     y: number,
     s: number,
     edgeSides: ReadonlyMap<number, readonly Direction[]> | null,
+    hiddenCells: ReadonlySet<number> | null,
     width: number
   ): void {
     this.renderer.drawTile(ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
@@ -3767,11 +3947,26 @@ export class LevelEditor {
       const edges = cell.panels.length > 0 && !displayShowsPanels(cell) ? cell.panels : undefined;
       this.renderer.drawCellOverlay(ctx, edges, hasHiddenLayers(cell), x * s, y * s, s);
     } else {
-      const sides = edgeSides?.get(y * width + x);
-      if (sides) this.renderer.drawCellOverlay(ctx, sides, false, x * s, y * s, s);
+      const index = y * width + x;
+      const sides = edgeSides?.get(index);
+      const marked = hiddenCells?.has(index) ?? false;
+      if (sides || marked) this.renderer.drawCellOverlay(ctx, sides, marked, x * s, y * s, s);
     }
     const item = doc.items[y][x];
     if (item) this.renderer.drawItem(ctx, item, x * s, y * s, s);
+  }
+
+  /** The cells of an Epoxy document that hide terrain, by cell index, kept per list so a redraw does not rebuild them. */
+  private hiddenTerrainCells(doc: EditorDocument): ReadonlySet<number> | null {
+    const underlays = doc.underlays;
+    if (!underlays || underlays.length === 0) return null;
+    const width = mapWidthOf(doc);
+    let cells = hiddenTerrainCellsMemo.get(underlays);
+    if (!cells) {
+      cells = new Set(underlays.map((u) => u.y * width + u.x));
+      hiddenTerrainCellsMemo.set(underlays, cells);
+    }
+    return cells;
   }
 
   /** The thin walls of an Epoxy document by cell index, kept per list so a redraw does not rebuild them. */
@@ -3820,9 +4015,10 @@ export class LevelEditor {
   /** Draws the cells of a rectangle of cells (end excluded), then the creatures standing in it. */
   private drawMapRegion(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number, x0: number, y0: number, x1: number, y1: number): void {
     const edgeSides = doc.cc3d ? null : this.cellEdgeSides(doc);
+    const hiddenCells = doc.cc3d ? null : this.hiddenTerrainCells(doc);
     const width = mapWidthOf(doc);
     for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s, edgeSides, width);
+      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s, edgeSides, hiddenCells, width);
     }
     for (const ent of doc.entities) {
       if (ent.x >= x0 && ent.x < x1 && ent.y >= y0 && ent.y < y1) this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
@@ -3831,12 +4027,13 @@ export class LevelEditor {
 
   /** Draws the cells, items, creatures and the player start of a document at tile size `s`. */
   private drawMapLayers(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
-    // The stacked-layer marker belongs to this canvas only: the renderer is shared with play.
-    if (doc.cc3d) this.renderer.setHiddenLayerMarkers(true);
+    // The hidden-layer marker (stacked CC3D layers, terrain hidden under an Epoxy top) belongs to this canvas only: the renderer is shared with play.
+    const markers = Boolean(doc.cc3d) || hasUnderlays(doc);
+    if (markers) this.renderer.setHiddenLayerMarkers(true);
     try {
       this.drawMapRegion(ctx, doc, s, 0, 0, mapWidthOf(doc), mapHeightOf(doc));
     } finally {
-      if (doc.cc3d) this.renderer.setHiddenLayerMarkers(false);
+      if (markers) this.renderer.setHiddenLayerMarkers(false);
     }
     // A CC3D map is kept as a picture without the player start, which is drawn over it on every redraw.
     if (!doc.cc3d) this.drawPlayerStart(ctx, doc, s);
@@ -3981,6 +4178,7 @@ export class LevelEditor {
     for (const link of doc.cloneLinks) {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
+    for (const link of doc.cloneLinks) this.drawClonerTemplateBadge(link, s);
 
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);
@@ -4026,6 +4224,16 @@ export class LevelEditor {
     this.ctx.lineTo(baseX + Math.sin(angle) * spread, baseY - Math.cos(angle) * spread);
     this.ctx.closePath();
     this.ctx.fill();
+  }
+
+  /** The template of an Epoxy clone link, drawn with its facing in the top right corner of its clone machine. */
+  private drawClonerTemplateBadge(link: CloneLink, s: number): void {
+    const size = EDITOR_CLONER_BADGE_TILE * s;
+    const x = (link.clonerX + 1) * s - size;
+    const y = link.clonerY * s;
+    this.ctx.fillStyle = EDITOR_CLONER_BADGE_BACKING;
+    this.ctx.fillRect(x, y, size, size);
+    this.renderer.drawEntity(this.ctx, link.templateType, link.templateDir, x, y, size);
   }
 
   /** A disc in the top right corner of a cell: the template mob of a clone machine. */

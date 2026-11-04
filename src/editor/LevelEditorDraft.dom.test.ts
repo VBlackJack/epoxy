@@ -418,6 +418,26 @@ describe('thin walls in a draft', () => {
   });
 });
 
+describe('hidden terrain in a draft', () => {
+  it('is written to the draft and comes back when it is restored', async () => {
+    const hidden = [{ x: 2, y: 2, terrain: 'ice' }];
+    const level = epoxyLevel();
+    level.terrain[2][2] = 'door_red';
+    editor = openEditor();
+    editor.loadCompiledLevel({ ...level, underlays: hidden });
+    typeTitle('Hidden');
+    await pause();
+    const written = storedDraft()!;
+    expect(written.level.underlays).toEqual(hidden);
+    store.delete(ownKey());
+    seedDraft({ level: written.level, source: written.source, baseHash: written.baseHash });
+    editor = openEditor();
+    choiceDialog.mockResolvedValue('restore');
+    await editor.offerDraftOnce();
+    expect(editor.exportCompiledLevel().underlays).toEqual(hidden);
+  });
+});
+
 describe('a page touches only its own key', () => {
   it('writes and removes nothing but its own key, whatever other drafts the storage holds', async () => {
     seedDraft({ level: epoxyLevel('lvl_old'), tabId: OTHER_TAB_ID });
