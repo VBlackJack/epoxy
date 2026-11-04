@@ -43,6 +43,7 @@ import {
   isInBounds,
   isRuleset,
   isBlockBudget,
+  normalizeCellEdges,
   isWinRule,
   findAudioConfigErrors,
   findCampaignConfigErrors,
@@ -1056,6 +1057,8 @@ class ConfigRegistryService {
       }
     }
 
+    const cellEdges = normalizeCellEdges(bp.cellEdges, terrain, bp.ruleset);
+
     return {
       id: levelId,
       ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
@@ -1082,6 +1085,7 @@ class ConfigRegistryService {
       },
       terrain,
       items,
+      ...(cellEdges ? { cellEdges } : {}),
       entities: asArray(bp.entities)
         .filter((e) => inGrid(e.x, e.y) && typeof e.type === 'string')
         .map((e) => ({ ...e, dir: isDirection(e.dir) ? e.dir : DEFAULT_START_DIRECTION })),

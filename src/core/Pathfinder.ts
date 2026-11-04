@@ -16,7 +16,8 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, OPPOSITE_DIRECTION, channelOfButtonAction } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction } from './coreConstants';
+import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { Direction, GridPoint, TileDefinition } from './types';
 
@@ -126,6 +127,7 @@ export class Pathfinder {
     }
 
     // A cell a laser beam crosses kills whoever steps in: never planned, not even as the final cell.
+    const edgeMask = cellEdgeMask(engine.getLevel());
     const beamCells = new Set<string>();
     for (const cell of engine.getBeamCells()) beamCells.add(`${cell.x},${cell.y}`);
 
@@ -180,13 +182,9 @@ export class Pathfinder {
         if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
 
         const nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
-        const opposite = OPPOSITE_DIRECTION[dir];
         const isTarget = nx === targetX && ny === targetY;
 
-        if (currTile.blockedEdges?.includes(dir)) continue;
-        if (nextTile.blockedEdges?.includes(opposite)) continue;
-        if (currTile.blockedEntryDirections?.includes(opposite)) continue;
-        if (nextTile.blockedEntryDirections?.includes(dir)) continue;
+        if (isEdgeBlockedAt(terrain, edgeMask, curr.x, curr.y, nx, ny, dir)) continue;
 
         const keyCoord = `${nx},${ny}`;
         if (monsterPositions.has(keyCoord)) continue;
@@ -290,6 +288,7 @@ export class Pathfinder {
       return null;
     }
 
+    const objectiveEdgeMask = cellEdgeMask(engine.getLevel());
     const visited = Array.from({ length: height }, () => new Array<boolean>(width).fill(false));
     const queue: GridPoint[] = [{ x: player.x, y: player.y }];
     visited[player.y][player.x] = true;
@@ -384,6 +383,7 @@ export class Pathfinder {
         const nx = curr.x + vec.dx;
         const ny = curr.y + vec.dy;
         if (nx < 0 || nx >= width || ny < 0 || ny >= height || visited[ny][nx]) continue;
+        if (isEdgeBlockedAt(terrain, objectiveEdgeMask, curr.x, curr.y, nx, ny, dir)) continue;
 
         const nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
 

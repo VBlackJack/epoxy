@@ -22,7 +22,7 @@ vi.mock('../audio/AudioManager', () => ({
 }));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { PACK_JSON_FORMAT, PACK_JSON_VERSION } from '../config/constants';
+import { PACK_JSON_FORMAT, PACK_JSON_MAX_VERSION } from '../config/constants';
 import { CompiledLevel } from '../core/types';
 import { importCc3dSelection } from '../ui/cc3dImport';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -173,7 +173,7 @@ describe('shareLink', () => {
     });
 
     it('reports a pack file of a newer schema as made with a newer version', async () => {
-      const file = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION + 1, name: 'Later', levels: [makeLevel('a')] };
+      const file = { format: PACK_JSON_FORMAT, version: PACK_JSON_MAX_VERSION + 1, name: 'Later', levels: [makeLevel('a')] };
       const url = await linkOf(JSON.stringify(file));
       expect(await readSharedPack(hashOf(url), context())).toEqual({ ok: false, error: 'newer' });
     });

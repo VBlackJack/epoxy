@@ -62,7 +62,9 @@ const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of 
 const EXACT_KEYS: readonly string[] = [
   'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'exit', 'gravel', 'push_up_wall', 'false_wall', 'door',
   'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
-  'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow'
+  'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
+  // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
+  KEY_PANELS_ON_NONFLOOR
 ];
 
 const APPROX_ENTRIES: Record<string, string> = {
@@ -127,8 +129,7 @@ const LOST_ENTRIES: Record<string, string> = {
   bot_cw: 'Epoxy has no clockwise bot.',
   bot_ccw: 'Epoxy has no counter-clockwise bot.',
   bot_multi: 'Epoxy has no multi bot.',
-  [KEY_STACKED_TERRAIN]: 'Epoxy holds one terrain per cell, so a stack of devices or blockers is flattened.',
-  [KEY_PANELS_ON_NONFLOOR]: 'Epoxy only keeps panels on plain floor cells.'
+  [KEY_STACKED_TERRAIN]: 'Epoxy holds one terrain per cell, so a stack of devices or blockers is flattened.'
 };
 
 /** Coloured elements Epoxy plays as CC3D does, one entry per colour. */

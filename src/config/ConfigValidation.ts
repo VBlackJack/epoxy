@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { CELL_EDGE_BITS, CELL_EDGE_SIDE_ORDER } from '../core/coreConstants';
 import { ORDERED_DIRECTIONS } from './constants';
 import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
@@ -21,6 +22,7 @@ import {
   AudioConfig,
   BlockBudget,
   CampaignConfig,
+  CellEdge,
   CompiledLevel,
   DatFormatConfig,
   Direction,
@@ -432,6 +434,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     isRecordList(value.entities, size, strict, (entity) => typeof entity.type === 'string') &&
     isRecordList(value.trapLinks, size, strict) &&
     isRecordList(value.cloneLinks, size, strict) &&
+    // Cell edges hold one entry per cell at most; a longer list is not a level, whatever the entries hold.
+    (!strict || !Array.isArray(value.cellEdges) || value.cellEdges.length <= size.width * size.height) &&
     // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
     (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds, strict) : value.cc3d === undefined)
   );
@@ -464,8 +468,46 @@ export function isRuleset(value: unknown): value is Ruleset {
 }
 
 /**
+ * The cell edges of a level in canonical form: only the Epoxy ruleset carries them; entries that
+ * are not records, lie outside the grid or hold no valid side are dropped, the sides of a cell
+ * are merged into one entry, and the entries are sorted by row, then column, with the sides in
+ * N, E, S, W order. Returns null when no edge is left.
+ */
+export function normalizeCellEdges(
+  edges: unknown,
+  terrain: readonly (readonly string[])[],
+  ruleset: unknown
+): CellEdge[] | null {
+  if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(edges)) return null;
+  const height = terrain.length;
+  const width = terrain[0]?.length ?? 0;
+  const bitsByCell = new Map<number, number>();
+  for (const entry of edges as unknown[]) {
+    if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height) || !Array.isArray(entry.sides)) continue;
+    let bits = 0;
+    for (const side of entry.sides as unknown[]) {
+      if (typeof side === 'string' && Object.prototype.hasOwnProperty.call(CELL_EDGE_BITS, side)) {
+        bits |= CELL_EDGE_BITS[side as Direction];
+      }
+    }
+    if (bits === 0) continue;
+    const index = (entry.y as number) * width + (entry.x as number);
+    bitsByCell.set(index, (bitsByCell.get(index) ?? 0) | bits);
+  }
+  if (bitsByCell.size === 0) return null;
+  return [...bitsByCell.keys()]
+    .sort((a, b) => a - b)
+    .map((index) => ({
+      x: index % width,
+      y: Math.floor(index / width),
+      sides: CELL_EDGE_SIDE_ORDER.filter((side) => ((bitsByCell.get(index) ?? 0) & CELL_EDGE_BITS[side]) !== 0)
+    }));
+}
+
+/**
  * Returns the level without any optional text field that is not a string, and
- * without a win rule or ruleset that is not a known one, and with an empty password in place
+ * without a win rule or ruleset that is not a known one, with its cell edges in canonical form (see
+ * normalizeCellEdges), and with an empty password in place
  * of one that is not a string, so a stale or hand-edited record cannot hand a number to the
  * text pipeline or an unknown rule to the engine.
  * The input is never mutated.
@@ -477,9 +519,15 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   if ('ruleset' in record && !isRuleset(record.ruleset)) bad.push('ruleset');
   if ('blockBudget' in record && !isBlockBudget(record.blockBudget)) bad.push('blockBudget');
   const badPassword = typeof record.password !== 'string';
+  let edges: CellEdge[] | null = null;
+  if ('cellEdges' in record) {
+    edges = normalizeCellEdges(record.cellEdges, level.terrain, record.ruleset);
+    if (edges === null || JSON.stringify(edges) !== JSON.stringify(record.cellEdges)) bad.push('cellEdges');
+  }
   if (bad.length === 0 && !badPassword) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
+  if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
   // The game upper-cases passwords, so a level always carries a string one.
   if (badPassword) copy.password = '';
   return copy as unknown as CompiledLevel;

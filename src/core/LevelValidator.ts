@@ -29,7 +29,7 @@ import {
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
-import { isEdgeBlockedBetween } from './EdgeRules';
+import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import {
   ChannelColor,
@@ -96,6 +96,7 @@ export class LevelValidator {
     const issues: ValidationIssue[] = [];
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
+    const edgeMask = cellEdgeMask(level);
 
     const coversTargets = level.winRule === 'targets';
     const lightsReceivers = level.winRule === 'receivers';
@@ -419,7 +420,7 @@ export class LevelValidator {
             continue;
           }
 
-          if (this.isEdgeBlocked(currTile.id, simTerrain[ny][nx], dir)) {
+          if (this.isEdgeBlocked(simTerrain, edgeMask, curr.x, curr.y, nx, ny, dir)) {
             continue;
           }
 
@@ -510,7 +511,8 @@ export class LevelValidator {
               dir,
               nextBoots,
               hasBoot,
-              bootBits
+              bootBits,
+              edgeMask
             );
             if (slide.fatal) {
               continue;
@@ -527,7 +529,7 @@ export class LevelValidator {
       }
 
       if (!changed && deferredDoors.size > 0) {
-        const best = this.pickRewardingDoor([...deferredDoors.values()], simTerrain, simItems);
+        const best = this.pickRewardingDoor([...deferredDoors.values()], simTerrain, simItems, edgeMask);
         const doorTile = ConfigRegistry.getTile(simTerrain[best.y][best.x]);
         ownedKeys[best.keyId]--;
         simTerrain[best.y][best.x] = doorTile.transformsToOnUnlock || FLOOR_TILE_ID;
@@ -621,6 +623,7 @@ export class LevelValidator {
 
     const height = level.terrain.length;
     const width = level.terrain[0]?.length ?? 0;
+    const edgeMask = cellEdgeMask(level);
     const canEnter = (fx: number, fy: number, d: Direction): GridPoint | null => {
       const v = DIRECTION_VECTORS[d];
       const tx = fx + v.dx;
@@ -629,7 +632,7 @@ export class LevelValidator {
       const dest = ConfigRegistry.getTile(level.terrain[ty][tx]);
       if (dest.passableByBlock !== true) return null;
       if (dest.hazard && refused.includes(dest.hazard)) return null;
-      if (this.isEdgeBlocked(level.terrain[fy][fx], level.terrain[ty][tx], d)) return null;
+      if (this.isEdgeBlocked(level.terrain, edgeMask, fx, fy, tx, ty, d)) return null;
       return { x: tx, y: ty };
     };
 
@@ -668,6 +671,7 @@ export class LevelValidator {
   private static checkHiddenByBlocks(level: CompiledLevel, issues: ValidationIssue[]): void {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length ?? 0;
+    const edgeMask = cellEdgeMask(level);
     const starts = new Map<string, GridPoint[]>();
     for (const e of level.entities) {
       if (ConfigRegistry.getEntityDef(e.type)?.kind !== 'block') continue;
@@ -697,7 +701,7 @@ export class LevelValidator {
           const dest = ConfigRegistry.getTile(level.terrain[ny][nx]);
           if (dest.passableByBlock !== true) continue;
           if (dest.hazard && refused.includes(dest.hazard)) continue;
-          if (this.isEdgeBlocked(level.terrain[y][x], level.terrain[ny][nx], dir)) continue;
+          if (this.isEdgeBlocked(level.terrain, edgeMask, x, y, nx, ny, dir)) continue;
           // The player must be able to stand on the cell behind the block to push it this way.
           const px = x - vec.dx;
           const py = y - vec.dy;
@@ -887,7 +891,8 @@ export class LevelValidator {
     entryDir: Direction,
     startBoots: number,
     hasBoot: BootCheck,
-    bootBits: Map<string, number>
+    bootBits: Map<string, number>,
+    edgeMask: Uint8Array | null
   ): SlideResult {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
@@ -900,12 +905,12 @@ export class LevelValidator {
     const path: GridPoint[] = [{ x, y }];
     const fatal = (): SlideResult => ({ end: { x, y }, path, boots, fatal: true });
 
-    const canEnter = (fromTile: TileDefinition, d: Direction): GridPoint | null => {
+    const canEnter = (d: Direction): GridPoint | null => {
       const vec = DIRECTION_VECTORS[d];
       const nx = x + vec.dx;
       const ny = y + vec.dy;
       if (nx < 0 || nx >= width || ny < 0 || ny >= height) return null;
-      if (this.isEdgeBlocked(fromTile.id, terrain[ny][nx], d)) return null;
+      if (this.isEdgeBlocked(terrain, edgeMask, x, y, nx, ny, d)) return null;
       if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) return null;
       return { x: nx, y: ny };
     };
@@ -923,12 +928,12 @@ export class LevelValidator {
         dir = tile.deflectionMap?.[dir] || dir;
       }
 
-      let next = canEnter(tile, dir);
+      let next = canEnter(dir);
       if (!next && tile.slideType === 'ice') {
         // Bounce back on ice
         const bounceDir = OPPOSITE_DIRECTION[dir];
         dir = tile.deflectionMap?.[bounceDir] || bounceDir;
-        next = canEnter(tile, dir);
+        next = canEnter(dir);
       }
       if (!next) {
         // Blocked both ways: the player stops here and walks off on foot
@@ -1120,7 +1125,8 @@ export class LevelValidator {
   private static pickRewardingDoor(
     doors: { x: number; y: number; keyId: string }[],
     terrain: string[][],
-    items: (string | null)[][]
+    items: (string | null)[][],
+    edgeMask: Uint8Array | null
   ): { x: number; y: number; keyId: string } {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
@@ -1151,7 +1157,7 @@ export class LevelValidator {
           const nx = cell.x + vec.dx;
           const ny = cell.y + vec.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height || seen.has(`${nx},${ny}`)) continue;
-          if (this.isEdgeBlocked(terrain[cell.y][cell.x], terrain[ny][nx], dir)) continue;
+          if (this.isEdgeBlocked(terrain, edgeMask, cell.x, cell.y, nx, ny, dir)) continue;
           if (!ConfigRegistry.getTile(terrain[ny][nx]).passableByPlayer) continue;
           seen.add(`${nx},${ny}`);
           stack.push({ x: nx, y: ny });
@@ -1175,6 +1181,7 @@ export class LevelValidator {
   private static canReachExitWithoutSocket(level: CompiledLevel): boolean {
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
+    const edgeMask = cellEdgeMask(level);
     const { x: sx, y: sy } = level.playerStart;
     if (sx < 0 || sx >= width || sy < 0 || sy >= height) {
       return false;
@@ -1208,7 +1215,7 @@ export class LevelValidator {
           const nx = curr.x + vec.dx;
           const ny = curr.y + vec.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height || visited[ny][nx]) continue;
-          if (this.isEdgeBlocked(currTile.id, terrain[ny][nx], dir)) continue;
+          if (this.isEdgeBlocked(terrain, edgeMask, curr.x, curr.y, nx, ny, dir)) continue;
           const nextTile = ConfigRegistry.getTile(terrain[ny][nx]);
           if (nextTile.requiresAllChips) continue;
           if (nextTile.requiredKey) {
@@ -1226,7 +1233,15 @@ export class LevelValidator {
     return false;
   }
 
-  private static isEdgeBlocked(fromId: string, toId: string, dir: Direction): boolean {
-    return isEdgeBlockedBetween(fromId, toId, dir);
+  private static isEdgeBlocked(
+    terrain: string[][],
+    mask: Uint8Array | null,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    dir: Direction
+  ): boolean {
+    return isEdgeBlockedAt(terrain, mask, fromX, fromY, toX, toY, dir);
   }
 }

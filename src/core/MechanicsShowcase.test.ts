@@ -24,12 +24,12 @@ import { GameEngine } from './GameEngine';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isCompiledLevelShape } from '../config/ConfigValidation';
 import { LevelValidator } from './LevelValidator';
-import { storedSolutionWins } from '../generator/SolutionReplay';
 import { CompiledLevel, Direction, LevelBlueprint } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { t } from '../i18n/I18nManager';
 import { CHANNEL_COLOR_NAME_KEY_PREFIX } from './coreConstants';
 import showcase from '../test/fixtures/mechanicsShowcase.json';
+import { storedSolutionWins } from '../generator/SolutionReplay';
 
 /** Ticks the move cooldown away, then plays one step and reports whether it was taken. */
 function step(engine: GameEngine, dir: Direction): boolean {
@@ -229,5 +229,73 @@ describe('colour channels showcase level', () => {
 
   it('carries a stored solution that wins in the engine', () => {
     expect(storedSolutionWins(compileShowcase(COLOR_LEVEL_INDEX))).toBe(true);
+  });
+});
+
+/** Index of the cell edges level in the showcase pack. */
+const EDGES_LEVEL_INDEX = 2;
+
+/** Ticks a slide on ice or on a force floor needs to settle in the cell-edges level. */
+const SLIDE_SETTLE_TICKS = 120;
+
+function settle(engine: GameEngine): void {
+  for (let i = 0; i < SLIDE_SETTLE_TICKS; i++) engine.tick();
+}
+
+/**
+ * The level of thin walls on any terrain: one on water, one on a force floor, one on ice. Each stops
+ * what would otherwise drown, burn or slide the player on.
+ */
+describe('cell edges showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  function compileEdges(): CompiledLevel {
+    const blueprint = (showcase as { levels: LevelBlueprint[] }).levels[EDGES_LEVEL_INDEX];
+    return ConfigRegistry.compileBlueprint(blueprint);
+  }
+
+  it('compiles with its cell edges and passes the editor validator', () => {
+    const level = compileEdges();
+    expect(level.cellEdges).toEqual([
+      { x: 3, y: 1, sides: ['W'] },
+      { x: 8, y: 4, sides: ['E'] },
+      { x: 6, y: 5, sides: ['W'] }
+    ]);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through to the exit, the edges holding on water, force floor and ice', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(compileEdges());
+
+    // The edge on the water refuses the step before the water can take the player.
+    walk(engine, 'E');
+    expect(step(engine, 'E')).toBe(false);
+    expect(engine.getPlayer()).toMatchObject({ x: 2, y: 1, alive: true });
+    walk(engine, 'SEEESS');
+    expect(engine.getPlayer()).toMatchObject({ x: 5, y: 4 });
+
+    // The force floor pushes east and the edge stops the slide before the fire.
+    walk(engine, 'E');
+    settle(engine);
+    expect(engine.getPlayer()).toMatchObject({ x: 8, y: 4, alive: true, isSliding: false });
+
+    // The ice slide stops at the edge before the water, bounces back and has taken the chip.
+    walk(engine, 'SW');
+    settle(engine);
+    expect(engine.getPlayer()).toMatchObject({ x: 8, y: 5, alive: true, isSliding: false });
+    expect(engine.getChipsRemaining()).toBe(0);
+    walk(engine, 'SE');
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('carries a stored solution that wins', () => {
+    expect(storedSolutionWins(compileEdges())).toBe(true);
   });
 });

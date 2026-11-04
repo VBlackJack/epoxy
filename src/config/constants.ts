@@ -94,8 +94,22 @@ export const PACK_NAME_MAX_LENGTH = 60;
 /** Value of the `format` field of an exported pack file. */
 export const PACK_JSON_FORMAT = 'epoxy-pack';
 
-/** Version of the exported pack file format; a file with a higher version is refused. */
+/**
+ * Version of the exported pack file format that a pack without cell edges is written in.
+ *
+ * Rule: the version goes up when a level field changes how a level plays and an older build
+ * would play the file wrongly instead of refusing it. A file is written in the lowest version
+ * that carries what it holds, so a pack that does not need the new field stays readable by older
+ * builds. Levels kept in the browser carry no version: a build older than the field drops it on
+ * load, which loses the walls and nothing else (declared, not guarded).
+ */
 export const PACK_JSON_VERSION = 1;
+
+/** Version of a pack file that holds at least one level with cell edges (thin walls on any terrain). */
+export const PACK_JSON_VERSION_CELL_EDGES = 2;
+
+/** Highest pack file version this build reads; a file with a higher version is refused. */
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_CELL_EDGES;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

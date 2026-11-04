@@ -1054,6 +1054,8 @@ export interface LevelBlueprint {
   playerStart: { x: number; y: number; dir: Direction };
   rows?: string[];
   terrain?: string[][];
+  /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
+  cellEdges?: CellEdge[];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
   /** Item placements, or a full item grid as the editor exports it. */
   items?: Array<{ x: number; y: number; id: string }> | (string | null)[][];
@@ -1084,6 +1086,14 @@ export interface LevelsConfig {
   levels: LevelBlueprint[];
 }
 
+/** Thin walls on the sides of one cell, whatever its terrain (Epoxy ruleset only). */
+export interface CellEdge {
+  x: number;
+  y: number;
+  /** The blocked sides of the cell; a step across a blocked side is stopped from either cell. */
+  sides: Direction[];
+}
+
 export interface CompiledLevel {
   id: string;
   /** Pilot design note: the blocks the level needs; see BlockBudget. */
@@ -1111,6 +1121,8 @@ export interface CompiledLevel {
   playerStart: { x: number; y: number; dir: Direction };
   terrain: string[][];
   items: (string | null)[][];
+  /** Thin walls on cells of any terrain; one entry per cell, absent when the level has none. */
+  cellEdges?: CellEdge[];
   entities: EntityPlacement[];
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
