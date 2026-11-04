@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { createTestBundle, loadTestConfigs } from '../test/loadTestConfigs';
-import { LevelValidator } from './LevelValidator';
+import { doorOrderAllowance, LevelValidator } from './LevelValidator';
 import { CompiledLevel, EntityPlacement } from './types';
 
 const BYPASS = 'validator.issues.socket_bypass.label';
@@ -176,6 +176,22 @@ describe('door order search', () => {
       '###########'
     ]);
 
+  // Three reachable yellow keys (three more behind walls), six doors in a chain. At each stage a decoy over a
+  // chip outranks the door that matters, so the right order differs from the greedy one in three places.
+  const threeDiscrepancies = (): CompiledLevel =>
+    grid([
+      '#############',
+      '#Pyyy...#####',
+      '#####Y#Y#####',
+      '#####c#...###',
+      '#######Y#Y###',
+      '#######c#...#',
+      '#########Y#Y#',
+      '#########c#E#',
+      '#y#y#y#######',
+      '#############'
+    ]);
+
   it('reaches the exit when the greedy order is wrong in one place', () => {
     const level = oneDiscrepancy();
     const report = LevelValidator.validate(level);
@@ -201,6 +217,55 @@ describe('door order search', () => {
   it('gives the same verdict on every run', () => {
     const first = JSON.stringify(LevelValidator.validate(twoDiscrepancies()));
     expect(JSON.stringify(LevelValidator.validate(twoDiscrepancies()))).toBe(first);
+  });
+
+  it('needs the deep search when the greedy order is wrong in three places', () => {
+    const level = threeDiscrepancies();
+    const greedy = LevelValidator.validate(level, undefined, { doorOrderSearch: false });
+    expect(greedy.stats.reachableExit).toBe(false);
+    const shallow = LevelValidator.validate(level);
+    expect(shallow.stats.reachableExit).toBe(false);
+    expect(shallow.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE_EXIT);
+    const deep = LevelValidator.validate(level, undefined, { doorOrderSearch: 'deep' });
+    expect(deep.stats.reachableExit).toBe(true);
+    expect(deep.issues.map((i) => i.i18nKey)).not.toContain(UNREACHABLE_EXIT);
+    expect(deep.valid).toBe(true);
+  });
+
+  it('gives the same deep verdict on every run', () => {
+    const run = (): string => JSON.stringify(LevelValidator.validate(threeDiscrepancies(), undefined, { doorOrderSearch: 'deep' }));
+    expect(run()).toBe(run());
+  });
+
+  it('sizes the retry allowance by mode and never gives the deep search less than the default', () => {
+    const cases: [number, number, number][] = [
+      // walk 0 steps, default allowance, deep allowance
+      [0, 20_000, 200_000],
+      [100_000, 26_250, 106_250],
+      [180_000, 31_250, 31_250],
+      [200_000, 32_500, 32_500],
+      [300_000, 38_750, 38_750],
+      [10_000_000, 400_000, 400_000]
+    ];
+    for (const [walk0, shallow, deep] of cases) {
+      expect(doorOrderAllowance(walk0, true)).toBe(shallow);
+      expect(doorOrderAllowance(walk0, 'deep')).toBe(deep);
+      expect(doorOrderAllowance(walk0, 'deep')).toBeGreaterThanOrEqual(doorOrderAllowance(walk0, true));
+    }
+  });
+
+  it('stops the deep search at 64 walks', () => {
+    let walks = 0;
+    const decision = { chosen: 'a', ranked: ['a', 'b', 'c'] };
+    const outcome = { collectedChips: 0, reachableExit: false, decisions: Array.from({ length: 6 }, () => decision), steps: 1, aborted: false };
+    const search = (LevelValidator as unknown as {
+      searchDoorOrders: (w: typeof outcome, r: () => typeof outcome, m: () => number, mode: boolean | 'deep') => unknown;
+    }).searchDoorOrders.bind(LevelValidator);
+    search(outcome, () => (walks++, outcome), () => 1, 'deep');
+    expect(walks).toBe(64);
+    walks = 0;
+    search(outcome, () => (walks++, outcome), () => 1, true);
+    expect(walks).toBe(32);
   });
 
   it('gives up within its budget on a level with no way out, and still reports it unreachable', () => {

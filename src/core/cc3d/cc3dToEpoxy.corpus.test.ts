@@ -163,7 +163,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
       for (const entity of level.entities) if (!ConfigRegistry.getEntityDef(entity.type)) problems.push(`${source.id}: entity ${entity.type} does not resolve`);
       for (const link of level.cloneLinks) if (!ConfigRegistry.getEntityDef(link.templateType)) problems.push(`${source.id}: template ${link.templateType} does not resolve`);
 
-      const validation = LevelValidator.validate(level);
+      const validation = LevelValidator.validate(level, undefined, { doorOrderSearch: 'deep' });
       const seen = new Set<string>();
       keysPerMap[source.id] = validation.issues
         .map((issue) => `${issue.severity}:${issue.i18nKey.slice(ISSUE_PREFIX.length).replace(ISSUE_SUFFIX, '')}`)
