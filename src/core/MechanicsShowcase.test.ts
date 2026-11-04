@@ -467,3 +467,81 @@ describe('turret showcase level', () => {
     expect(storedSolutionWins(hasty)).toBe(false);
   });
 });
+/** Index of the puppet level in the showcase pack. */
+const PUPPET_LEVEL_INDEX = 6;
+/** Actions that bring the puppet onto the plate: east onto the control, back, east again, back, east a third time. */
+const PUPPET_ROUTINE = 'EWEWE';
+const PUPPET_START = { x: 3, y: 1 };
+const PUPPET_PLATE = { x: 6, y: 1 };
+const PUPPET_DOOR = { x: 8, y: 3 };
+const SKITTER_START = { x: 13, y: 3 };
+/** Moves east along the corridor, from the control to the room before the exit. */
+const CORRIDOR_WALK = 'E'.repeat(10);
+
+/**
+ * The level of the puppet: three steps onto the control walk the puppet to the plate that holds the door,
+ * and the skitter that blocks the room is flushed out of the way by coming at it from the side.
+ */
+describe('puppet showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  const entityCell = (engine: GameEngine, type: string): { x: number; y: number } | undefined => {
+    const found = engine.getEntities().find((e) => e.type === type);
+    return found ? { x: found.x, y: found.y } : undefined;
+  };
+
+  it('uses a puppet, its control, a plate with its door and a skitter, and passes the validator', () => {
+    const level = compileShowcase(PUPPET_LEVEL_INDEX);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    expect(new Set(level.entities.map((e) => e.type))).toEqual(new Set(['puppet', 'skitter']));
+    expect(level.terrain.flat()).toEqual(expect.arrayContaining(['puppet_control', 'pressure_plate_red', 'hold_door_red_closed']));
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
+  it('plays through: the puppet walks to the plate, the door holds, the skitter is flushed from the way', () => {
+    const level = compileShowcase(PUPPET_LEVEL_INDEX);
+    const actions = decodeActions(level.solution ?? '');
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    expect(entityCell(engine, 'puppet')).toEqual(PUPPET_START);
+    expect(engine.getTerrain()[PUPPET_DOOR.y][PUPPET_DOOR.x]).toBe('hold_door_red_closed');
+    // One step of the puppet for each time the player steps east onto the control.
+    const puppetAfter = actions.slice(0, PUPPET_ROUTINE.length).map((action) => {
+      PieceSolver.play(engine, action);
+      return entityCell(engine, 'puppet')?.x;
+    });
+    expect(puppetAfter).toEqual([4, 4, 5, 5, PUPPET_PLATE.x]);
+    expect(entityCell(engine, 'puppet')).toEqual(PUPPET_PLATE);
+    expect(engine.getTerrain()[PUPPET_DOOR.y][PUPPET_DOOR.x]).toBe('hold_door_red_open');
+    // The skitter has run from the player as far as the east wall allows and waits, lined up with the player.
+    expect(entityCell(engine, 'skitter')).toEqual(SKITTER_START);
+    actions.slice(PUPPET_ROUTINE.length).forEach((action) => PieceSolver.play(engine, action));
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.isLevelCompleted()).toBe(true);
+    expect(entityCell(engine, 'puppet')).toEqual(PUPPET_PLATE);
+    // Coming at it from above made it run south, off the way to the exit.
+    const skitter = entityCell(engine, 'skitter');
+    expect(skitter).toBeDefined();
+    expect(skitter?.y).toBeGreaterThan(SKITTER_START.y);
+  });
+
+  it('carries a stored solution that wins', () => {
+    expect(storedSolutionWins(compileShowcase(PUPPET_LEVEL_INDEX))).toBe(true);
+  });
+
+  it('is not won without the puppet on the plate, nor by walking straight at the skitter', () => {
+    const level = compileShowcase(PUPPET_LEVEL_INDEX);
+    const solution = level.solution ?? '';
+    // Never working the control: the door stays shut.
+    expect(storedSolutionWins({ ...level, solution: `${CORRIDOR_WALK}EEEE` })).toBe(false);
+    // The routine, then straight along the row into the skitter on the exit.
+    const straight = `${PUPPET_ROUTINE}${CORRIDOR_WALK}EEEE`;
+    expect(solution.startsWith(PUPPET_ROUTINE)).toBe(true);
+    expect(storedSolutionWins({ ...level, solution: straight })).toBe(false);
+  });
+});
