@@ -23,7 +23,10 @@ import { PieceSolver, WAIT_ACTION } from '../generator/PieceSolver';
 export const DROP_ACTION_PREFIX = 'DROP:';
 
 /** One step of an exhaustive search: a move, a wait, or the drop of a held item. */
-export type SearchAction = Direction | typeof WAIT_ACTION | `${typeof DROP_ACTION_PREFIX}${string}`;
+/** A one-tick wait, offered only on request (`fineWait`) and only when a monster exists: it reaches every tick phase of a monster. */
+export const FINE_WAIT_ACTION = 'WAIT1';
+
+export type SearchAction = Direction | typeof WAIT_ACTION | typeof FINE_WAIT_ACTION | `${typeof DROP_ACTION_PREFIX}${string}`;
 
 /** States a search may visit before it gives up by throwing, so a runaway proof fails loudly. */
 export const DEFAULT_SEARCH_STATE_CAP = 400000;
@@ -35,6 +38,8 @@ export interface SearchOptions {
   accept?: (engine: GameEngine) => boolean;
   /** Offer the drop of held items as a move; true by default. Turn it off to prove a drop is needed. */
   allowDrops?: boolean;
+  /** Also offer a one-tick wait when a monster exists (off by default: every other action lasts four ticks, so a monster acting every six is seen in half of its phases only). */
+  fineWait?: boolean;
 }
 
 export interface SearchWin {
@@ -62,7 +67,9 @@ export function searchStateKey(engine: GameEngine): string {
   const keys = Object.entries(state.player.keys)
     .filter(([, count]) => count > 0)
     .sort(([a], [b]) => a.localeCompare(b));
-  const entities = state.entities.map((e) => [e.type, e.x, e.y, e.dir, e.cooldownTicks, e.isSliding]);
+  // A turret's facing and the turret clock tell states apart; both are absent (and the key unchanged) elsewhere.
+  const entities = state.entities.map((e) => [e.type, e.x, e.y, e.dir, e.cooldownTicks, e.isSliding, ...(e.facing ? [e.facing] : [])]);
+  const phase = engine.getTurretPhaseKey();
   return JSON.stringify([
     state.player.x,
     state.player.y,
@@ -74,14 +81,18 @@ export function searchStateKey(engine: GameEngine): string {
     state.terrain,
     state.items,
     entities,
-    state.rngState
+    state.rngState,
+    ...(phase ? [phase] : [])
   ]);
 }
 
 /** The actions worth trying from the engine's current state: moves, a wait when something moves, drops of held items. */
-export function searchActions(engine: GameEngine, allowDrops = true): SearchAction[] {
+export function searchActions(engine: GameEngine, allowDrops = true, fineWait = false): SearchAction[] {
   const actions: SearchAction[] = [...ORDERED_DIRECTIONS];
-  if (engine.getEntities().some((e) => e.kind === 'monster')) actions.push(WAIT_ACTION);
+  if (engine.getEntities().some((e) => e.kind === 'monster')) {
+    actions.push(WAIT_ACTION);
+    if (fineWait) actions.push(FINE_WAIT_ACTION);
+  }
   if (!allowDrops) return actions;
   const state = engine.captureState();
   const held = [
@@ -97,6 +108,10 @@ export function searchActions(engine: GameEngine, allowDrops = true): SearchActi
 /** Plays one search action and lets it settle; false when it does nothing, kills the player or never settles. */
 export function applySearchAction(engine: GameEngine, action: SearchAction): boolean {
   if (action.startsWith(DROP_ACTION_PREFIX)) return engine.dropItem(action.slice(DROP_ACTION_PREFIX.length));
+  if (action === FINE_WAIT_ACTION) {
+    engine.tick();
+    return engine.getPlayer().alive;
+  }
   return PieceSolver.play(engine, action as Direction | typeof WAIT_ACTION);
 }
 
@@ -124,7 +139,7 @@ export function searchShortestWin(engine: GameEngine, options: SearchOptions = {
   };
   for (let head = 0; head < nodes.length; head++) {
     engine.restoreState(nodes[head].state);
-    const actions = searchActions(engine, options.allowDrops ?? true);
+    const actions = searchActions(engine, options.allowDrops ?? true, options.fineWait ?? false);
     for (const action of actions) {
       engine.restoreState(nodes[head].state);
       if (!applySearchAction(engine, action)) continue;

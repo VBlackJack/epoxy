@@ -1832,6 +1832,142 @@
       "trapLinks": [],
       "cloneLinks": [],
       "solution": "NEEWWSESEWNEEEE"
+    },
+    {
+      "id": "epoxy_p_36",
+      "theme": "cyber_neon",
+      "number": 36,
+      "titleKey": "pilot.levels.level_36.title",
+      "hintKey": "pilot.levels.level_36.hint",
+      "password": "HAUL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "################",
+        "#H.######C..C###",
+        "##.######....###",
+        "#...IIIIW....SE#",
+        "#...#####....###",
+        "#...#####...C###",
+        "################"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "blockBudget": {
+        "waters": 1,
+        "targets": 0
+      },
+      "solution": "ESSSSENWNEEENNEEESSSSNNEE"
+    },
+    {
+      "id": "epoxy_p_37",
+      "theme": "cyber_neon",
+      "number": 37,
+      "titleKey": "pilot.levels.level_37.title",
+      "hintKey": "pilot.levels.level_37.hint",
+      "password": "BUGS",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 9,
+        "y": 5,
+        "dir": "N"
+      },
+      "rows": [
+        "############",
+        "#ES.......##",
+        "#########dW#",
+        "#####.....##",
+        "#####.....##",
+        "#####....H##",
+        "############"
+      ],
+      "items": [
+        {
+          "x": 7,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "bug",
+          "x": 5,
+          "y": 1,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NNNSSSWWWWNNEEEENNWWWWWWWW"
+    },
+    {
+      "id": "epoxy_p_38",
+      "theme": "cyber_neon",
+      "number": 38,
+      "titleKey": "pilot.levels.level_38.title",
+      "hintKey": "pilot.levels.level_38.hint",
+      "password": "MELT",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "S"
+      },
+      "rows": [
+        "#########",
+        "#H.....##",
+        "#.##.#.##",
+        "#.##.#.##",
+        "#.....F.#",
+        "#######C#",
+        "#######S#",
+        "#######E#",
+        "#########"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "ice_block",
+          "x": 2,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SSSEEEEWNNNEESSSESSS"
     }
   ]
 }

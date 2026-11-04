@@ -1633,6 +1633,141 @@
       "entities": [],
       "trapLinks": [],
       "cloneLinks": []
+    },
+    {
+      "id": "turret_showcase_1",
+      "number": 4,
+      "customTitle": "Turret Showcase",
+      "customHint": "Turrets fire three cells ahead. Wait out the two that turn, and push the fixed one aside so it faces away from the lane.",
+      "solution": "EEE............EEEESENEEEEEE",
+      "password": "TURR",
+      "timeLimitSeconds": 200,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "terrain": [
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "exit",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "floor",
+          "floor",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ]
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "turret_cw",
+          "x": 5,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "turret_ccw",
+          "x": 13,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "turret_fixed",
+          "x": 9,
+          "y": 3,
+          "dir": "N"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": []
     }
   ]
 }

@@ -41,6 +41,11 @@ versions follow Semantic Versioning.
   paste and move (creatures keep their order, changed links are reported), resize anchored top-left, and an
   Export XML button that writes Chuck's Challenge 3D's own format (CCL export is refused for them), which
   Import opens again.
+- Colour channels (Epoxy rules only): pressure plates and hold doors in red, green, blue and yellow (`pressure_plate_*`, `hold_door_*`), where a door stays open while every plate of its colour is pressed, by the player, a block at rest, or a colour block of the same colour only; colour blocks (`color_block_*`) that float in water as walkable floating blocks (`floating_block_*`); and red, blue and yellow toggle walls with their own toggle buttons (`toggle_wall_*`, `toggle_button_*`). Play aids are off on levels that use them. Lynx levels and DAT export refuse them.
+- Thin walls on any terrain (Epoxy rules only): a level can block cell edges on water, ice, force floors and the rest, not only with the standalone thin wall tiles (level field `cellEdges`). Pack JSON is written as version 2 only when a level uses them. Lynx levels and DAT export refuse them.
+- Terrain hidden under removable tops (Epoxy rules only): a level can hide ice, water, a wall or the exit under a key door, a socket, a blue fake wall or dirt, revealed when the top is removed (level field `underlays`). Pack JSON is written as version 3 when a level uses them. Lynx levels and DAT export refuse them.
+- Slow-time charm (`slow_time`, Epoxy rules only): carried like boots, it makes every monster take twice as long per step while held; the player, blocks, timer and lasers keep their speed, and a thief takes it. A fifth HUD slot appears only on levels that place it. Lynx levels and DAT export refuse it.
+- Turrets (Epoxy rules only): pushable blocks that fire a 3-cell beam killing the first player or monster it reaches (`turret_fixed`, `turret_cw`, `turret_ccw`, `turret_multi`). The rotating ones turn a quarter every 60 ticks, the four-way one fires in all directions, a turret faces the way a player pushes it, and turrets fire only after the player's first step. Lynx levels and DAT export refuse them.
 
 ### Fixed
 
@@ -49,6 +54,11 @@ versions follow Semantic Versioning.
 - The level editor no longer deletes the terrain hidden under a door, socket or similar tile (`underlays`) of an Epoxy level: it is kept through save, autosave, copy, cut, move, paste and resize, marked on the map, spoken with the cell, and removed with an announcement when the tile on top is changed to one that cannot hide it.
 - A recessed wall now rises when you leave its cell, instead of turning into a wall under you as
   soon as you step on it.
+
+### Changed
+
+- The Epoxy engine is split from one file into modules under `src/core/epoxy/` (world, player, blocks, monsters, devices, teleports, lasers) behind the same `GameEngine` API, with no behaviour change.
+- Developer tools: `engineSimHash` hashes a tick-by-tick play of every shipped Epoxy level and compares it with a golden file named by `EPOXY_SIM_GOLDEN`; `epoxyCoverage` classifies each Chuck's Challenge 3D element as exact, approximate or lost on the Epoxy engine and can write a corpus report (`CC3D_CORPUS_DIR`, `CC3D_COVERAGE_REPORT`). On the 485 community maps, maps with a lost element went from 404 to 93.
 
 ## [2.18.0] - 2026-11-03
 

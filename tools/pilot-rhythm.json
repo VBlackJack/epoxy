@@ -1,5 +1,5 @@
 {
-  "placeholder": "firstTimedLevel is 36 so chapters 1 to 3 (levels 1 to 35) stay untimed; minTimeMargin, raceLevels, minRaceMargin and baseline are copied from the campaign until the pilot pacing is set",
+  "placeholder": "firstTimedLevel is 39 so levels 1 to 38 stay untimed; minTimeMargin, raceLevels, minRaceMargin and baseline are copied from the campaign until the pilot pacing is set",
   "introduces": {
     "1": [
       "chip",
@@ -57,9 +57,15 @@
       "ice_nw",
       "ice_se",
       "ice_sw"
+    ],
+    "37": [
+      "bug"
+    ],
+    "38": [
+      "ice_block"
     ]
   },
-  "firstTimedLevel": 36,
+  "firstTimedLevel": 39,
   "minTimeMargin": 3,
   "raceLevels": [
     18,
