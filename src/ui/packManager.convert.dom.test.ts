@@ -162,13 +162,61 @@ describe('Convert to Epoxy (DOM)', () => {
     expect(isHidden('choice-modal')).toBe(true);
   });
 
-  it('offers only the packs the player owns, with the first one preselected', async () => {
+  it('offers every editable pack, imported ones included, with the first owned pack preselected', async () => {
     await convertUntilSaveInto();
     const radios = Array.from(document.querySelectorAll<HTMLInputElement>('#save-into-list input[type="radio"]'));
-    expect(radios.map((r) => r.value)).toEqual([userPackId]);
-    expect(radios[0].checked).toBe(true);
+    expect(radios.map((r) => r.value)).toEqual(registry.getEditablePacks().map((p) => p.id));
+    expect(radios.map((r) => r.value)).toContain(importedId);
+    expect(radios.find((r) => r.checked)?.value).toBe(userPackId);
     pressKey(document.activeElement as Element, 'Escape');
     await settleAsync();
+  });
+
+  it('preselects the remembered destination', async () => {
+    const key = registry.getStorageKey(registry.getGame().storage.lastSaveDestinationKey);
+    localStorage.setItem(key, importedId);
+    await convertUntilSaveInto();
+    const radios = Array.from(document.querySelectorAll<HTMLInputElement>('#save-into-list input[type="radio"]'));
+    expect(radios.find((r) => r.checked)?.value).toBe(importedId);
+    pressKey(document.activeElement as Element, 'Escape');
+    await settleAsync();
+  });
+
+  it('asks before saving into an imported pack, and saves nothing when declined', async () => {
+    const key = registry.getStorageKey(registry.getGame().storage.lastSaveDestinationKey);
+    localStorage.setItem(key, importedId);
+    await convertUntilSaveInto();
+    await submitSaveInto();
+    expect(isHidden('choice-modal')).toBe(false);
+    const cancel = document.querySelector<HTMLButtonElement>('#choice-modal-actions button');
+    await click(cancel);
+    expect(packOf(importedId).levels).toHaveLength(1);
+    expect(isHidden('save-into-modal')).toBe(false);
+    pressKey(document.activeElement as Element, 'Escape');
+    await settleAsync();
+  });
+
+  it('saves into the imported pack once the player confirms', async () => {
+    const key = registry.getStorageKey(registry.getGame().storage.lastSaveDestinationKey);
+    localStorage.setItem(key, importedId);
+    await convertUntilSaveInto();
+    await submitSaveInto();
+    const modify = Array.from(document.querySelectorAll<HTMLButtonElement>('#choice-modal-actions button')).find((b) =>
+      b.classList.contains('primary')
+    );
+    await click(modify ?? null);
+    expect(packOf(importedId).levels).toHaveLength(2);
+    expect(localStorage.getItem(key)).toBe(importedId);
+  });
+
+  it('deletes the new pack when the level could not be saved into it', async () => {
+    vi.spyOn(registry, 'saveLevelToPack').mockResolvedValue({ ok: false, persisted: false } as never);
+    const before = registry.getEditablePacks().length;
+    await convertUntilSaveInto();
+    await chooseNewPack('Doomed');
+    expect(registry.getEditablePacks().find((p) => p.name === 'Doomed')).toBeUndefined();
+    expect(registry.getEditablePacks()).toHaveLength(before);
+    expect(host.notify).toHaveBeenCalled();
   });
 
   it('saves the Epoxy copy as a new level of the chosen pack and never touches the original', async () => {

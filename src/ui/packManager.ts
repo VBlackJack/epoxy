@@ -19,7 +19,7 @@ import { PACK_NAME_MAX_LENGTH } from '../config/constants';
 import { convertCc3dLevel } from '../core/cc3d/cc3dToEpoxy';
 import { LevelValidator } from '../core/LevelValidator';
 import { CompiledLevel, LevelPack } from '../core/types';
-import { isUserOwnedPack, resolveSavedPassword } from '../editor/saveTarget';
+import { needsImportedConfirmation, pickSaveDestination, resolveSavedPassword } from '../editor/saveTarget';
 import { datRefusalReason } from '../formats/DatCodec';
 import { t } from '../i18n/I18nManager';
 import { cleanPackAuthor, cleanPackDescription, PackMetadataLimits } from '../packs/packMetadata';
@@ -68,6 +68,8 @@ const MODAL_ID = 'packs-modal';
 const DELETE_CHOICE_ID = 'delete';
 const EXPORT_CHOICE_ID = 'export';
 const CONVERT_OPEN_CHOICE_ID = 'open';
+/** Id of the "modify the imported pack" answer, as the editor's confirmation uses it. */
+const IMPORTED_MODIFY_CHOICE_ID = 'modify';
 const HIDDEN_CLASS = 'hidden';
 const TRANSFER_COPY = 'copy';
 const TRANSFER_MOVE = 'move';
@@ -151,6 +153,8 @@ export class PackManager {
   private levelThumbs: ThumbnailBatch | null = null;
   /** Packs with a change in flight: their row actions stay disabled until it resolves. */
   private readonly busyPackIds = new Set<string>();
+  /** Imported packs the player agreed to modify while converting. */
+  private readonly confirmedImportedPackIds = new Set<string>();
   /** Button to focus when the redraw that ends an operation is done. */
   private pendingFocus: string | null = null;
 
@@ -1178,35 +1182,92 @@ export class PackManager {
     const errors = LevelValidator.validate(converted.level)
       .issues.filter((issue) => issue.severity === 'error')
       .map((issue) => t(issue.i18nKey, issue.params));
-    if (!(await showConvertReport(describeConversion(converted.report, row.title, errors)))) return;
+    if (!(await showConvertReport(describeConversion(converted.report, this.host.levelTitle(source), errors)))) return;
     const destination = await this.askConvertDestination();
     if (!destination) return;
 
     const outcome: { saved: SavedConversion | null } = { saved: null };
-    await this.runOp(pack.id, async () => {
+    const store = async (): Promise<void> => {
       const saved = await this.saveConverted(converted.level, source, destination);
       if (!saved) {
         this.host.notify(t('app.packs.manager.toast.failed.label'));
         return;
       }
       outcome.saved = saved;
+      this.rememberDestination(saved.packId);
       if (!saved.persisted) this.host.notify(t('app.packs.manager.toast.session_only.label'));
       this.pendingFocus = `${row.levelId}:convert`;
       this.host.libraryChanged({ deletedPackIds: [] });
-    });
+    };
+    // The destination pack is the one written, so it is locked; the source stays locked too when it differs.
+    const lockId = destination.packId ?? pack.id;
+    if (lockId !== pack.id) {
+      if (this.busyPackIds.has(lockId)) return;
+      await this.runOp(pack.id, () => this.runOp(lockId, store));
+    } else {
+      await this.runOp(lockId, store);
+    }
     if (outcome.saved) await this.offerOpenConverted(outcome.saved);
   }
 
-  /** The "Save into" question, limited to the packs the player owns plus a new one; null on cancel. */
+  /**
+   * The editor's "Save into" question: every editable pack, the remembered destination preselected, and the
+   * imported-pack confirmation before an imported pack is chosen; null on cancel.
+   */
   private async askConvertDestination(): Promise<{ packId: string | null; newPackName: string | null } | null> {
-    const owned = ConfigRegistry.getEditablePacks().filter(isUserOwnedPack);
-    const choice = await askSaveInto({
-      packs: owned.map((p) => ({ id: p.id, label: this.host.packDisplayName(p), levelCount: p.levels.length })),
-      preselectId: owned[0]?.id ?? null,
-      defaultNewName: t('editor.pack.save_into.default_name.label')
-    });
-    if (!choice) return null;
-    return choice.kind === 'new' ? { packId: null, newPackName: choice.name } : { packId: choice.packId, newPackName: null };
+    for (;;) {
+      const editable = ConfigRegistry.getEditablePacks();
+      const choice = await askSaveInto({
+        packs: editable.map((p) => ({ id: p.id, label: this.host.packDisplayName(p), levelCount: p.levels.length })),
+        preselectId: pickSaveDestination(editable, this.readRememberedDestination()),
+        defaultNewName: t('editor.pack.save_into.default_name.label')
+      });
+      if (!choice) return null;
+      if (choice.kind === 'new') return { packId: null, newPackName: choice.name };
+      const target = editable.find((p) => p.id === choice.packId);
+      if (needsImportedConfirmation(target, this.confirmedImportedPackIds)) {
+        const answer = await choiceDialog({
+          title: t('app.confirm.title.label'),
+          message: t('editor.pack.confirm_imported.message.label', {
+            name: target ? this.host.packDisplayName(target) : choice.packId
+          }),
+          cancelLabel: t('editor.pack.confirm_imported.again.action'),
+          options: [
+            {
+              id: IMPORTED_MODIFY_CHOICE_ID,
+              label: t('editor.pack.confirm_imported.modify.action', {
+                name: target ? this.host.packDisplayName(target) : choice.packId
+              }),
+              primary: true
+            }
+          ]
+        });
+        if (answer !== IMPORTED_MODIFY_CHOICE_ID) continue;
+        this.confirmedImportedPackIds.add(choice.packId);
+      }
+      return { packId: choice.packId, newPackName: null };
+    }
+  }
+
+  private destinationStorageKey(): string {
+    return ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.lastSaveDestinationKey);
+  }
+
+  private readRememberedDestination(): string | null {
+    try {
+      return localStorage.getItem(this.destinationStorageKey());
+    } catch {
+      // Storage blocked: no destination is preselected.
+      return null;
+    }
+  }
+
+  private rememberDestination(packId: string): void {
+    try {
+      localStorage.setItem(this.destinationStorageKey(), packId);
+    } catch {
+      // Storage blocked: the choice is not remembered.
+    }
   }
 
   /** Stores the converted level as a new level of the chosen pack (created first when new); null when it failed. */
@@ -1223,8 +1284,13 @@ export class PackManager {
       packId = created.pack.id;
       persisted = created.persisted;
     }
+    const createdPackId = destination.packId === null ? packId : null;
+    const discardCreated = async (): Promise<null> => {
+      if (createdPackId !== null) await ConfigRegistry.deletePack(createdPackId);
+      return null;
+    };
     const target = ConfigRegistry.getAllPacks().find((p) => p.id === packId);
-    if (!target) return null;
+    if (!target) return discardCreated();
     const level: CompiledLevel = {
       ...convertedLevel,
       id: ConfigRegistry.newLevelId(),
@@ -1232,7 +1298,7 @@ export class PackManager {
       password: resolveSavedPassword(source.password ?? '', target.levels)
     };
     const result = await ConfigRegistry.saveLevelToPack(packId, level);
-    if (!result.ok) return null;
+    if (!result.ok) return discardCreated();
     const stored = ConfigRegistry.getAllPacks().find((p) => p.id === packId)?.levels[result.index] ?? level;
     return { packId, level: stored, persisted: persisted && result.persisted };
   }

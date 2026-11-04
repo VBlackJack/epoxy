@@ -39,10 +39,17 @@ describe('CC3D coverage labels', () => {
     expect(missing).toEqual([]);
   });
 
-  it('keeps the English reason of the coverage table as the English label', () => {
-    for (const [key, entry] of Object.entries(EPOXY_COVERAGE)) {
-      expect(resolveMessage(EN, coverageKey(key, 'label'))).toBe(entry.reason);
+  it('words every label for the player: no marker, no internal id', () => {
+    const offenders: string[] = [];
+    for (const key of Object.keys(EPOXY_COVERAGE)) {
+      for (const [lang, tree] of [['en', EN], ['fr', FR]] as const) {
+        const text = resolveMessage(tree, coverageKey(key, 'label'));
+        if (typeof text !== 'string' || text.trim() === '' || text.includes('[') || /_[a-z]+_/.test(text)) {
+          offenders.push(`${lang}:${key}`);
+        }
+      }
     }
+    expect(offenders).toEqual([]);
   });
 
   it('translates the reasons: no French label is the English text', () => {
