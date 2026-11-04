@@ -476,6 +476,7 @@
       "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
       "kb_editor_cc3d_eraser": { "label": "Niveaux CC3D : la gomme retire l'élément le plus haut d'une case (créature, puis objet, puis couche du haut) ; Maj+gomme vide toute la case" },
+      "kb_editor_cell_edge": { "label": "Cloisons fines : avec l'entrée cloison fine de l'onglet Terrain choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction) ; une cloison partagée avec la case voisine est retirée des deux" },
       "kb_editor_cc3d_panel": { "label": "Cloisons fines CC3D : avec l'entrée cloison fine choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction)" },
       "kb_editor_cc3d_links": { "label": "Liens CC3D : survolez un dispositif ou placez le curseur dessus pour voir ce qu'il actionne ; la ligne d'état signale une modification qui change un lien" },
       "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
@@ -557,11 +558,13 @@
   },
   "editor": {
     "cell_speech": {
+      "list_separator": { "label": ", " },
       "name": { "label": "{name}" },
       "outside": { "label": "Hors de la grille" },
       "item": { "label": "objet : {name}" },
       "entity": { "label": "{name}, tourné vers {side}" },
       "player": { "label": "Départ du joueur, tourné vers {side}" },
+      "edges": { "label": "cloisons fines : {sides}" },
       "side": {
         "n": { "label": "le nord" },
         "e": { "label": "l'est" },
@@ -887,6 +890,7 @@
       },
       "tools": {
         "player_start": { "label": "Départ Joueur" },
+        "cell_edge": { "label": "Cloison fine" },
         "wire_trap": { "label": "Relier Bouton Brun → Piège" },
         "wire_cloner": { "label": "Relier Bouton Rouge → Cloneur" }
       },
@@ -903,6 +907,7 @@
         "saved_session_only": { "label": "Niveau conservé pour cette session seulement : le navigateur n'a pas pu le sauvegarder." },
         "invalid_level": { "label": "Import annulé : le niveau \"{id}\" n'a pas de départ joueur valide sur la grille." },
         "wire_select_source": { "label": "Cliquez sur le bouton déclencheur sur la carte..." },
+        "cell_edge_mode": { "label": "Cloison fine : cliquez près d'un côté d'une case pour l'ajouter ou le retirer (clavier : le côté du contrôle de direction)." },
         "wire_select_target": { "label": "Cliquez maintenant sur la cible à relier..." },
         "wire_linked": { "label": "Connexion mécanique établie !" }
       }

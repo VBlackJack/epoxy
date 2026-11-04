@@ -20,6 +20,7 @@ import enLocale from '../locales/en.json';
 import frLocale from '../locales/fr.json';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import {
+  cellEdgeAvailability,
   entityAvailability,
   EPOXY_ONLY_REASON_KEY,
   majorityRuleset,
@@ -144,5 +145,13 @@ describe('majorityRuleset', () => {
     expect(majorityRuleset([{ ruleset: 'cc3d' }, { ruleset: 'cc3d' }, { ruleset: 'lynx' }])).toBe('lynx');
     expect(majorityRuleset([{ ruleset: 'cc3d' }])).toBe('epoxy');
     expect(majorityRuleset([{ ruleset: 'cc3d' }, { ruleset: 'cc3d' }, {}])).toBe('epoxy');
+  });
+});
+
+describe('cellEdgeAvailability', () => {
+  it('is Epoxy only, with the Epoxy-only reason under Lynx', () => {
+    expect(cellEdgeAvailability('epoxy')).toEqual({ available: true });
+    expect(cellEdgeAvailability('cc3d')).toEqual({ available: true });
+    expect(cellEdgeAvailability('lynx')).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
   });
 });
