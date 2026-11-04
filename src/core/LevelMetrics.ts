@@ -430,7 +430,7 @@ export class LevelMetrics {
   private static addEntityMechanics(found: Set<Mechanic>, entityType: string): void {
     const def = ConfigRegistry.getEntityDef(entityType);
     if (def?.kind === 'block') found.add(MECHANICS.BLOCKS);
-    if (def?.mirrorAxis) found.add(MECHANICS.LASERS);
+    if (def?.mirrorAxis || def?.turretBeam) found.add(MECHANICS.LASERS);
     if (def?.plateColor !== undefined) found.add(MECHANICS.COLOR_BLOCKS);
     if (def?.kind === 'monster') found.add(MECHANICS.MONSTERS);
   }
