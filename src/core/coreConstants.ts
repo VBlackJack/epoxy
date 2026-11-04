@@ -52,6 +52,15 @@ export const DEFAULT_WIN_RULE: WinRule = 'exit';
 /** Ruleset of a level that declares none. */
 export const DEFAULT_RULESET: Ruleset = 'epoxy';
 
+/** Button action of a steering pad: every steered monster takes one step the way the player moved. */
+export const STEER_MONSTERS_ACTION: ButtonAction = 'steer_monsters';
+
+/** Movement pattern of a monster that steps toward the player. */
+export const CHASE_PLAYER_PATTERN = 'chase_player';
+
+/** Movement pattern of a monster that steps away from the player (a chase with the candidates reversed). */
+export const FLEE_PLAYER_PATTERN = 'flee_player';
+
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';
 

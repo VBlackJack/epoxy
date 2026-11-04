@@ -42,6 +42,16 @@ describe('lossyExportNotice', () => {
     expect(notice).toBe(t('app.export.refused_epoxy_only_items.label', { levels: 'charmed_a' }));
   });
 
+  it('names the levels with a puppet, a puppet control or a skitter a .DAT export left out', () => {
+    const notice = lossyExportNotice({
+      replaced: [],
+      lost: [],
+      refused: [{ levelId: 'puppet_a', reason: 'epoxy_only_monsters' }]
+    });
+    expect(notice).toBe(t('app.export.refused_epoxy_only_monsters.label', { levels: 'puppet_a' }));
+    expect(notice).not.toBe('app.export.refused_epoxy_only_monsters.label');
+  });
+
   it('has no notice for an exact export', () => {
     expect(lossyExportNotice({ replaced: [], lost: [] })).toBeNull();
   });

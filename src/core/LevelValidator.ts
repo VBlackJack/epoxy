@@ -29,6 +29,7 @@ import {
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
+import { isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, underlayMap } from './Underlays';
@@ -232,6 +233,7 @@ export class LevelValidator {
     }
 
     this.checkColorChannels(level, issues);
+    this.checkSteering(level, issues);
 
     // A consumed key opens one door; a kept key opens every door of its colour
     for (const [keyId, doors] of Object.entries(consumingDoorCounts)) {
@@ -1227,6 +1229,28 @@ export class LevelValidator {
       .slice(0, MAX_TRACKED_BOOT_TYPES);
     bootIds.forEach((id, idx) => bits.set(id, 1 << idx));
     return bits;
+  }
+
+  /**
+   * Warnings about the steering pads: a puppet control with no puppet on the map or cloned to steer, and
+   * a puppet with no control to move it (it can never step). A hidden pad counts like one in plain sight.
+   */
+  private static checkSteering(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
+    let pads = 0;
+    level.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        if (isSteeringTileId(id)) pads++;
+        const hiddenId = underlays?.get(y * width + x);
+        if (hiddenId !== undefined && isSteeringTileId(hiddenId)) pads++;
+      })
+    );
+    const puppets =
+      level.entities.some((e) => isSteeredEntityType(e.type)) ||
+      (level.cloneLinks ?? []).some((link) => isSteeredEntityType(link.templateType));
+    if (pads > 0 && !puppets) issues.push({ severity: 'warning', i18nKey: 'validator.issues.steering_pad_no_puppet.label' });
+    if (pads === 0 && puppets) issues.push({ severity: 'warning', i18nKey: 'validator.issues.puppet_no_steering_pad.label' });
   }
 
   /** The localized name of a channel colour, as the colour warnings show it. */

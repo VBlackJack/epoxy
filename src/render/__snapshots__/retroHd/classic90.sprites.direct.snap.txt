@@ -99,6 +99,14 @@ entity color_block_yellow dir=N tick=3 a3659ed8a5e1d23a
 entity color_block_yellow dir=E tick=3 1dc6a5f18083f9e1
 entity color_block_yellow dir=S tick=3 da6adf9b7f5eda66
 entity color_block_yellow dir=W tick=3 d896f7cd45e5df2c
+entity puppet dir=N tick=3 7aad5b82ee270467
+entity puppet dir=E tick=3 fc3cde5d28f57cb2
+entity puppet dir=S tick=3 82442305645fe75f
+entity puppet dir=W tick=3 a7b78a6ebf8b654b
+entity skitter dir=N tick=3 8255ce5603df6705
+entity skitter dir=E tick=3 975d9ff8355be90a
+entity skitter dir=S tick=3 791d955c69ab0eff
+entity skitter dir=W tick=3 533580283b5620bc
 item key_red tick=13 46b7f1fa3f3e8adb
 item key_blue tick=13 56f472ffae95d0f8
 item key_yellow tick=13 7688e128bff98c6f
@@ -200,6 +208,14 @@ entity color_block_yellow dir=N tick=13 64fb289d45a0a623
 entity color_block_yellow dir=E tick=13 37651e92bd04126c
 entity color_block_yellow dir=S tick=13 ae66184df7e50cbe
 entity color_block_yellow dir=W tick=13 ee2fd482b15dd250
+entity puppet dir=N tick=13 dc7faffbca27ebfe
+entity puppet dir=E tick=13 32932062c453c2ac
+entity puppet dir=S tick=13 7b7ebcf39c204812
+entity puppet dir=W tick=13 d43784ccd132356e
+entity skitter dir=N tick=13 cba314d5d968e3d5
+entity skitter dir=E tick=13 beeadad3c7d00b45
+entity skitter dir=S tick=13 4ea33889a2062420
+entity skitter dir=W tick=13 d7576c26dd4231df
 player dir=N inWater=false alive=true frame=0 hop=0 15e42441a6916ea4
 player dir=N inWater=false alive=true frame=0 hop=0.3 828043425ac0de71
 player dir=N inWater=false alive=true frame=1 hop=0 df9e7eab2f7b0b94

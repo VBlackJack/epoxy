@@ -34,6 +34,10 @@ import {
 import { blockCellsKey, collectBlockCells } from './blockCover';
 import {
   CC3D_MOB_BASES,
+  EPOXY_MOB_BASES,
+  GOLEM_CONTROL_PAINTER_ID,
+  GOLEM_YELLOW_PAINTER_ID,
+  Cc3dMobBase,
   Cc3dPaintTools,
   isCc3dId,
   paintCc3dBadge,
@@ -372,7 +376,10 @@ const EPOXY_TO_CC3D_PAINTER: Readonly<Record<string, string>> = Object.fromEntri
   ['turret_fixed', 'cc3d_bot_static'],
   ['turret_cw', 'cc3d_bot_cw'],
   ['turret_ccw', 'cc3d_bot_ccw'],
-  ['turret_multi', 'cc3d_bot_multi']
+  ['turret_multi', 'cc3d_bot_multi'],
+  // The puppet is the yellow golem and its control the golem control; the skitter is in EPOXY_MOB_BASES.
+  ['puppet', GOLEM_YELLOW_PAINTER_ID],
+  ['puppet_control', GOLEM_CONTROL_PAINTER_ID]
 ]);
 
 /** Colour of each floating block tile: water with the block faint under the surface. */
@@ -2175,11 +2182,23 @@ export class PixelRenderer {
     size: number
   ): void {
     const variant = CC3D_MOB_BASES[type];
-    const tools = this.cc3dTools(ctx);
     if (!variant) {
-      paintCc3dMob(ctx, type, dir, x, y, size, tools);
+      paintCc3dMob(ctx, type, dir, x, y, size, this.cc3dTools(ctx));
       return;
     }
+    this.drawMobVariant(ctx, variant, dir, x, y, size);
+  }
+
+  /** A monster of the active style, scaled and marked with a colour dot, as a variant of it. */
+  private drawMobVariant(
+    ctx: CanvasRenderingContext2D,
+    variant: Cc3dMobBase,
+    dir: Direction,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const tools = this.cc3dTools(ctx);
     const scaled = size * variant.scale;
     const offset = (size - scaled) / 2;
     this.drawEntity(ctx, variant.base, dir, x + offset, y + offset, scaled);
@@ -4493,6 +4512,11 @@ export class PixelRenderer {
     const painterId = EPOXY_TO_CC3D_PAINTER[type];
     if (painterId) {
       this.drawCc3dEntity(ctx, painterId, dir, x, y, size);
+      return;
+    }
+    const epoxyVariant = EPOXY_MOB_BASES[type];
+    if (epoxyVariant) {
+      this.drawMobVariant(ctx, epoxyVariant, dir, x, y, size);
       return;
     }
     if (isCc3dId(type)) {

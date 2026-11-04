@@ -45,7 +45,7 @@ export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: D
     return false;
   }
 
-  // A player push turns the turret toward the push, even while the player slides or is carried; the turret's own slide never turns it.
+  // A push by the player, or by a steered puppet, turns the turret toward the push; the turret's own slide never turns it.
   const turret = getTurretDef(block.type);
   if (turret && turnsOnPush(turret)) block.facing = dir;
   moveBlockTo(ctx, block, destX, destY, dir);
@@ -134,7 +134,8 @@ export function moveBlockTo(
     return;
   }
 
-  if (tile.buttonAction) {
+  // A button worked by the player alone (a steering pad) does nothing when a block slides onto it.
+  if (tile.buttonAction && tile.buttonWorkedBy !== 'player') {
     ctx.triggerButton(destX, destY, tile.buttonAction);
     if (!w.player.alive) return;
   }

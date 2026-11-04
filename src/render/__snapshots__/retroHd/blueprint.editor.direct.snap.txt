@@ -214,6 +214,8 @@ editor tile floating_block_blue closed=true ea38638aeb284186
 editor tile floating_block_blue closed=false 7f57ab3b311bb909
 editor tile floating_block_yellow closed=true 976f50cb7f06025a
 editor tile floating_block_yellow closed=false 8050c13949f3e1b8
+editor tile puppet_control closed=true fb86cea209e578d0
+editor tile puppet_control closed=false 8409b83893cb1bba
 editor tile key_red closed=true fcf2f6844705adce
 editor tile key_red closed=false e54d12f07389b5c2
 editor tile key_blue closed=true 9605ed2bf8a796e6
@@ -286,3 +288,5 @@ editor entity over floor color_block_red 3dd1543db88857d6
 editor entity over floor color_block_green b3ff82f84ae2a2dd
 editor entity over floor color_block_blue 0ef40c5d7ee3f494
 editor entity over floor color_block_yellow 40cc9b21426882cd
+editor entity over floor puppet 6ae2cd2a33964d76
+editor entity over floor skitter 626f215db91bd290

@@ -749,6 +749,8 @@ export interface TileDefinition {
   /** Boots only: while held, every monster takes this many times as long per step (an integer, 2 to 4). */
   slowsMonsters?: number;
   buttonAction?: ButtonAction;
+  /** When 'player', only the player's step works the button: monsters and blocks that enter the cell press nothing. */
+  buttonWorkedBy?: ButtonWorker;
   togglesTo?: string;
   /** Terrain the cell swaps to when a toggle_flames button is pressed. */
   flameTogglesTo?: string;
@@ -802,7 +804,11 @@ export type ButtonAction =
   | 'swap_chips_bombs'
   | 'toggle_walls_red'
   | 'toggle_walls_blue'
-  | 'toggle_walls_yellow';
+  | 'toggle_walls_yellow'
+  | 'steer_monsters';
+
+/** Who works a button: only the player when it says 'player', anything that steps on it otherwise. */
+export type ButtonWorker = 'player';
 
 export interface TilesConfig {
   categories: Array<{ id: string; i18nKey: string }>;
@@ -840,6 +846,15 @@ export interface EntityDefinition {
   pressesPlates?: boolean;
   /** Present on a turret: a block that fires a short beam from the cell it faces. */
   turretBeam?: TurretBeamDefinition;
+  /**
+   * A monster that never decides a step of its own: it moves only when a button of this action is worked
+   * (see ButtonAction 'steer_monsters'), one step in the direction the player moved.
+   */
+  steeredBy?: ButtonAction;
+  /** Whether a monster pushes a block it walks into (one block, never a chain). */
+  pushesBlocks?: boolean;
+  /** Tile ids a monster may enter although the tile is not passable by monsters (hazards still apply on arrival). */
+  passesTiles?: string[];
 }
 
 /** How a turret fires and turns. Only `length`, `turn` and `turnPeriodTicks` are required in the config. */

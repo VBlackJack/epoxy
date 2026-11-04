@@ -71,8 +71,9 @@ describe('paletteAvailability', () => {
         def.floatingBlockColor !== undefined ||
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
       const isEpoxyOnlyItem = def.slowsMonsters !== undefined;
+      const isSteeringPad = def.buttonAction === 'steer_monsters';
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
@@ -94,10 +95,15 @@ describe('paletteAvailability', () => {
     expect(tileAvailability('lynx', 'toggle_wall_open')).toEqual({ available: true });
   });
 
-  it('blocks exactly the mirrors, turrets and colour blocks under Lynx', () => {
+  it('blocks exactly the mirrors, turrets, colour blocks, puppets and skitters under Lynx', () => {
     let blocked = 0;
     for (const [id, def] of Object.entries(ConfigRegistry.getMonsters().entities)) {
-      const epoxyOnly = def.mirrorAxis !== undefined || def.plateColor !== undefined || def.turretBeam !== undefined;
+      const epoxyOnly =
+        def.mirrorAxis !== undefined ||
+        def.plateColor !== undefined ||
+        def.turretBeam !== undefined ||
+        def.steeredBy !== undefined ||
+        def.movementPattern === 'flee_player';
       const result = entityAvailability('lynx', id);
       expect(result.available, id).toBe(!epoxyOnly);
       if (epoxyOnly) blocked++;

@@ -578,6 +578,24 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level with a puppet, a puppet control or a skitter and leaves it out of the pack', () => {
+    const puppet = blankLevel(1);
+    puppet.entities = [{ type: 'puppet', x: 3, y: 3, dir: 'E' }];
+    const control = blankLevel(2);
+    control.terrain[3][3] = 'puppet_control';
+    const skitter = blankLevel(3);
+    skitter.entities = [{ type: 'skitter', x: 3, y: 3, dir: 'E' }];
+    const cloned = blankLevel(4);
+    cloned.cloneLinks = [{ buttonX: 1, buttonY: 1, clonerX: 2, clonerY: 2, templateType: 'puppet', templateDir: 'E' }];
+    for (const level of [puppet, control, skitter, cloned]) {
+      expect(datRefusalReason(level), level.id).toBe('epoxy_only_monsters');
+    }
+    expect(datRefusalReason(blankLevel(5))).toBeNull();
+    const encoded = DatCodec.encodeLevelsWithReport([puppet, control, skitter, blankLevel(5)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['epoxy_only_monsters', 'epoxy_only_monsters', 'epoxy_only_monsters']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('refuses a level with underlays and leaves it out of the pack', () => {
     const hidden = { ...blankLevel(1), underlays: [{ x: 3, y: 3, terrain: 'ice' }] };
     hidden.terrain[3][3] = 'door_red';

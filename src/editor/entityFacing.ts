@@ -17,7 +17,8 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isTurretEntityType } from '../core/RulesetFeatures';
 
-/** True when the facing of an Epoxy entity matters: a creature that moves on its own, or a turret. Blocks and mirrors stay put. */
+/** True when the facing of an Epoxy entity matters: a creature that moves on its own, a steerable puppet, or a turret. Blocks and mirrors stay put. */
 export function entityHasFacing(type: string): boolean {
-  return Boolean(ConfigRegistry.getEntityDef(type)?.movementPattern) || isTurretEntityType(type);
+  const def = ConfigRegistry.getEntityDef(type);
+  return Boolean(def?.movementPattern) || def?.steeredBy !== undefined || isTurretEntityType(type);
 }

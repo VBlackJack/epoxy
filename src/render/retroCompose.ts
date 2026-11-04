@@ -345,9 +345,15 @@ export function retroTileLayers(input: RetroTileInput): RetroLayer[] {
   return [floorOnly];
 }
 
+/** Epoxy-only monsters that wear the sprites of another monster (the game also marks them with a badge). */
+const RETRO_MONSTER_SPRITE_BASES: Readonly<Record<string, string>> = {
+  puppet: 'tank',
+  skitter: 'teeth'
+};
+
 /** Sprite name of a monster for a facing and walk frame. */
 export function retroMonsterSprite(type: string, dir: Direction, frame: number): string {
-  return `${type}_${dir}_${frame}`;
+  return `${RETRO_MONSTER_SPRITE_BASES[type] ?? type}_${dir}_${frame}`;
 }
 
 /**

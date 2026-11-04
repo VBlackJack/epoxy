@@ -132,6 +132,14 @@ describe('classifyLevel', () => {
     }
   });
 
+  it('plays the yellow golem, its control and the nibble approximately, and names the gravel difference', () => {
+    for (const key of ['golem_yellow', 'golem_control_yellow', 'nibble']) {
+      expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
+    }
+    expect(EPOXY_COVERAGE.golem_yellow.reason).toMatch(/gravel/);
+    expect(EPOXY_COVERAGE.golem_yellow.reason).toMatch(/sand/);
+  });
+
   it('plays the speed orb approximately', () => {
     expect(EPOXY_COVERAGE.orb_speed.level).toBe('approx');
   });
