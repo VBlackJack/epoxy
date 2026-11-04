@@ -556,6 +556,19 @@
     }
   },
   "editor": {
+    "cell_speech": {
+      "name": { "label": "{name}" },
+      "outside": { "label": "Outside the grid" },
+      "item": { "label": "item: {name}" },
+      "entity": { "label": "{name}, facing {side}" },
+      "player": { "label": "Player start, facing {side}" },
+      "side": {
+        "n": { "label": "north" },
+        "e": { "label": "east" },
+        "s": { "label": "south" },
+        "w": { "label": "west" }
+      }
+    },
     "cc3d": {
       "category": { "floors": "Floors", "devices": "Devices", "blockers": "Blockers", "items": "Items", "mobs": "Creatures", "player": "Player" },
       "kind": { "fish": "Fish", "snappy": "Snappy", "nibble": "Nibble", "panel": "Thin wall" },

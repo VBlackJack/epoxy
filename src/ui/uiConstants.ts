@@ -132,6 +132,8 @@ export const EDITOR_TWO_COLUMN_BELOW_WIDTH = 1100;
 export const EDITOR_ONE_COLUMN_BELOW_WIDTH = 680;
 /** Delay after the last edit before the Check badge is recomputed. */
 export const EDITOR_CHECK_DEBOUNCE_MS = 400;
+/** Quiet time after the last keyboard cursor move before a screen reader is told what the cell holds. */
+export const EDITOR_CELL_ANNOUNCE_DELAY_MS = 300;
 /** How long the block check may search before it is reported as not checked. */
 export const EDITOR_BLOCK_CHECK_TIMEOUT_MS = 30000;
 /** Colours of the canvas overlays: hover outline, keyboard cursor, pending wire source. */

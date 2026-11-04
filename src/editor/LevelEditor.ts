@@ -51,6 +51,7 @@ import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreCo
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
 import { historyDiff, HistoryDiff } from './historyDiff';
 import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
+import { describeEditorCell } from './cellDescription';
 import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
 import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
 import {
@@ -186,6 +187,7 @@ import { packNameFromFile } from '../ui/cc3dImport';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   EDITOR_BLOCK_CHECK_TIMEOUT_MS,
+  EDITOR_CELL_ANNOUNCE_DELAY_MS,
   EDITOR_CHECK_DEBOUNCE_MS,
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
   EDITOR_CC3D_ARROW_HEAD_TILE,
@@ -265,6 +267,7 @@ const EDITOR_PLAYER_BRUSH_ID = 'player_start';
 const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
 const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
+const CELL_LIVE_ID = 'editor-cell-live';
 const ISSUES_LIST_ID = 'editor-issues-list';
 const ISSUES_NOTE_ID = 'editor-issues-note';
 const ISSUES_SECTION_ID = 'editor-issues-section';
@@ -530,6 +533,10 @@ export class LevelEditor {
   private disposed = false;
   private draftOffered = false;
   private draftTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Pending spoken description of the keyboard cursor cell. */
+  private cellSpeechTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Counts status bar writes, so a move or an edit can tell whether it already said something. */
+  private statusWrites = 0;
   /** True after a failed or oversized write was reported, until a write succeeds. */
   private draftProblemReported = false;
   /** Drafts of earlier visits found at startup and not yet answered or removed. */
@@ -803,6 +810,9 @@ export class LevelEditor {
   /** Resets everything that belongs to the previous level once another one is in `doc`. */
   private afterDocumentReplaced(dirty: boolean): void {
     this.loadGeneration++;
+    this.cancelCellSpeech();
+    const live = byId(CELL_LIVE_ID);
+    if (live) live.textContent = '';
     this.blockRunner?.dispose();
     this.history.clear();
     this.coalescer.reset();
@@ -1749,6 +1759,7 @@ export class LevelEditor {
 
   /** The editor view is left: stops the check and releases the idle worker. */
   public onLeave(): void {
+    this.cancelCellSpeech();
     this.flushDraft();
     this.abortBlockCheck();
     this.blockRunner?.dispose();
@@ -2291,6 +2302,7 @@ export class LevelEditor {
   /** Stops the page-level draft listeners, the pending write and the Web Lock: the editor is no longer in use. */
   public dispose(): void {
     this.disposed = true;
+    this.cancelCellSpeech();
     this.draftListeners.abort();
     this.cancelDraftTimer();
     this.releaseDraftLock?.();
@@ -2808,17 +2820,24 @@ export class LevelEditor {
         return;
       }
       // The keyboard has no pointer: the thin wall side is the direction control, and Shift on the eraser takes the whole cell.
+      const writesBefore = this.statusWrites;
       this.beginStroke(false, ev.shiftKey);
       this.applyAt(cell.x, cell.y, this.activeDir);
       this.endStroke();
+      // A paint that said nothing in the status bar re-reads the cell it changed.
+      if (this.statusWrites === writesBefore) this.scheduleCellSpeech();
     });
     this.canvas.addEventListener('focus', () => this.render());
-    this.canvas.addEventListener('blur', () => this.render());
+    this.canvas.addEventListener('blur', () => {
+      this.cancelCellSpeech();
+      this.render();
+    });
   }
 
   /** Puts the keyboard cursor on a cell: follows a paste, extends or starts the selection, shows the cell and scrolls it into view. */
   private moveCursorTo(to: { x: number; y: number }, extendSelection: boolean): void {
     const from = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
+    const writesBefore = this.statusWrites;
     this.cursorCell = to;
     if (this.pasting) this.pasteAnchor = to;
     if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, to, extendSelection);
@@ -2826,6 +2845,46 @@ export class LevelEditor {
     this.revealCell(to);
     this.refreshLayersList();
     this.render();
+    // The status bar already says something about this move (a selection size), or a paste preview floats: the cell stays quiet.
+    if (this.statusWrites !== writesBefore || this.pasting) this.cancelCellSpeech();
+    else this.scheduleCellSpeech();
+  }
+
+  /** Speaks what the keyboard cursor cell holds once the cursor has stopped, so a held arrow says only the last cell. */
+  private scheduleCellSpeech(): void {
+    this.cancelCellSpeech();
+    this.cellSpeechTimer = setTimeout(() => {
+      this.cellSpeechTimer = null;
+      this.speakCursorCell();
+    }, EDITOR_CELL_ANNOUNCE_DELAY_MS);
+  }
+
+  private cancelCellSpeech(): void {
+    if (this.cellSpeechTimer === null) return;
+    clearTimeout(this.cellSpeechTimer);
+    this.cellSpeechTimer = null;
+  }
+
+  private speakCursorCell(): void {
+    const at = this.cursorCell;
+    const live = byId(CELL_LIVE_ID);
+    if (this.disposed || !at || !live) return;
+    // Only the focused canvas speaks: a cursor left behind after the focus moved elsewhere stays silent.
+    if (document.activeElement !== this.canvas) return;
+    const level = this.doc.cc3d;
+    const cc3dNames = level ? this.cc3dCellParts(level, at.x, at.y).map((part) => part.name) : undefined;
+    const parts = describeEditorCell({ map: this.doc, x: at.x, y: at.y, cc3dNames });
+    const text = parts.map((part) => t(part.key, part.params)).join(SEPARATOR_BETWEEN_MESSAGES);
+    if (live.textContent !== text) {
+      live.textContent = text;
+      return;
+    }
+    // The same words again are not announced: empty the region and write them on the next tick.
+    live.textContent = '';
+    this.cellSpeechTimer = setTimeout(() => {
+      this.cellSpeechTimer = null;
+      live.textContent = text;
+    }, 0);
   }
 
   private beginStroke(forceErase: boolean, wholeCell = false): void {
@@ -2911,26 +2970,39 @@ export class LevelEditor {
     const caption = byId('editor-layers-cell');
     if (caption) caption.textContent = at && cell ? t('editor.cc3d.layers.cell', { x: at.x, y: at.y }) : t('editor.cc3d.layers.none');
     if (!level || !at || !cell) return;
+    for (const part of this.cc3dCellParts(level, at.x, at.y)) list.appendChild(this.layerRow(part.name, part.remove));
+  }
+
+  /**
+   * What a CC3D cell holds, bottom first: terrain layers, thin walls, the item and the creature. Each part has
+   * its name (shared by the layers list and the spoken description) and the edit that removes it, or null when
+   * it cannot be removed.
+   */
+  private cc3dCellParts(level: Cc3dLevel, x: number, y: number): Array<{ name: string; remove: (() => void) | null }> {
+    const cell = cc3dCellAt(level, x, y);
+    if (!cell) return [];
+    const parts: Array<{ name: string; remove: (() => void) | null }> = [];
     cell.terrain.forEach((layer: Cc3dTerrain, index) => {
       const name =
         this.cc3dPartName('tile', () => displayTerrainId({ terrain: [layer], panels: [], item: null })) || layer.kind;
       const plainBase = index === 0 && layer.kind === 'floor';
-      list.appendChild(this.layerRow(name, plainBase ? null : () => this.commitCc3dEdit((current) => removeLayerAt(current, at.x, at.y, index))));
+      parts.push({ name, remove: plainBase ? null : () => this.commitCc3dEdit((current) => removeLayerAt(current, x, y, index)) });
     });
     for (const side of cell.panels) {
       const name = t('editor.cc3d.layers.panel', { side: t(SIDE_LABEL_KEYS[side]) });
-      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => setPanelSide(current, at.x, at.y, side, false))));
+      parts.push({ name, remove: () => this.commitCc3dEdit((current) => setPanelSide(current, x, y, side, false)) });
     }
     if (cell.item) {
       const item = cell.item;
       const name = this.cc3dPartName('tile', () => displayItemId(item) ?? '') || item.kind;
-      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => setItem(current, at.x, at.y, null))));
+      parts.push({ name, remove: () => this.commitCc3dEdit((current) => setItem(current, x, y, null)) });
     }
-    const mob = level.mobs.find((candidate) => candidate.x === at.x && candidate.y === at.y);
+    const mob = level.mobs.find((candidate) => candidate.x === x && candidate.y === y);
     if (mob) {
       const name = this.cc3dPartName('entity', () => displayMobId(mob)) || mob.kind;
-      list.appendChild(this.layerRow(name, () => this.commitCc3dEdit((current) => removeMob(current, at.x, at.y))));
+      parts.push({ name, remove: () => this.commitCc3dEdit((current) => removeMob(current, x, y)) });
     }
+    return parts;
   }
 
   /** An edit of the CC3D level made outside a stroke (the layers list): one history step. */
@@ -4240,6 +4312,9 @@ export class LevelEditor {
   private setStatusText(msg: string): void {
     const el = document.getElementById('editor-status-bar');
     if (!el) return;
+    // A status line always wins over a cell description still waiting to be spoken.
+    this.cancelCellSpeech();
+    this.statusWrites++;
     el.textContent = msg;
     // One line with an ellipsis: a long message must not resize the stage and refit the canvas.
     el.title = msg;

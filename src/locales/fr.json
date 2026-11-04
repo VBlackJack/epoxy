@@ -556,6 +556,19 @@
     }
   },
   "editor": {
+    "cell_speech": {
+      "name": { "label": "{name}" },
+      "outside": { "label": "Hors de la grille" },
+      "item": { "label": "objet : {name}" },
+      "entity": { "label": "{name}, tourné vers {side}" },
+      "player": { "label": "Départ du joueur, tourné vers {side}" },
+      "side": {
+        "n": { "label": "le nord" },
+        "e": { "label": "l'est" },
+        "s": { "label": "le sud" },
+        "w": { "label": "l'ouest" }
+      }
+    },
     "cc3d": {
       "category": { "floors": "Sols", "devices": "Dispositifs", "blockers": "Obstacles", "items": "Objets", "mobs": "Créatures", "player": "Joueur" },
       "kind": { "fish": "Poisson", "snappy": "Snappy", "nibble": "Nibble", "panel": "Cloison fine" },
