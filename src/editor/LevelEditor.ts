@@ -48,6 +48,7 @@ import {
 } from '../core/types';
 import { downloadBytes, downloadJson, downloadText, MIME_XML } from '../ui/download';
 import { lossyExportNotice } from '../ui/exportNotice';
+import { formatValidationIssue } from '../ui/validatorIssueText';
 import { receiversProgress } from '../ui/levelFeedback';
 import { BeamPreview, computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPreview';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
@@ -1066,11 +1067,7 @@ export class LevelEditor {
 
   /** Localized validator issue; a key id parameter is shown by its tile name. */
   private formatIssue(issue: ValidationIssue): string {
-    const params = { ...(issue.params || {}) };
-    if (typeof params.key === 'string' && ConfigRegistry.getTiles().tiles[params.key]) {
-      params.key = t(ConfigRegistry.getTile(params.key).i18nKey);
-    }
-    return t(issue.i18nKey, params);
+    return formatValidationIssue(issue);
   }
 
   private formatIssues(issues: ValidationIssue[]): string {

@@ -273,6 +273,26 @@ describe('LevelValidator', () => {
       const level = grid(['########', '#P.cS###', '#r..DE##', '########'], { chipsRequired: 1 });
       expect(keys(level)).toContain(BYPASS);
     });
+
+    it('reports a bypass through a flame jet the player can switch off', () => {
+      // No boots and no block: the lit jet is deadly to walk, but the orange button turns it off.
+      const level = grid(['#######', '#P.cSE#', '#O.J..#', '#######'], { chipsRequired: 1 });
+      expect(keys(level)).toContain(BYPASS);
+    });
+
+    it('does not count a bypass through a fire with no boots and no block', () => {
+      const level = grid(['#######', '#P.cSE#', '#..F..#', '#######'], { chipsRequired: 1 });
+      expect(keys(level)).not.toContain(BYPASS);
+    });
+
+    it('keeps hazards walkable when a clone link templates a block', () => {
+      const rows = ['#######', '#P.cSE#', '#R.W..#', '#######'];
+      const cloneLinks: CloneLink[] = [
+        { buttonX: 1, buttonY: 2, clonerX: 5, clonerY: 2, templateType: 'dirt_block', templateDir: 'S' }
+      ];
+      expect(keys(grid(rows, { chipsRequired: 1 }))).not.toContain(BYPASS);
+      expect(keys(grid(rows, { chipsRequired: 1, cloneLinks }))).toContain(BYPASS);
+    });
   });
 
   describe('key order trap', () => {

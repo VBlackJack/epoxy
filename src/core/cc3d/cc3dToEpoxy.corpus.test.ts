@@ -20,7 +20,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -40,6 +40,8 @@ import { differentialWalk } from './cc3dToEpoxyDifferential';
 import { classifyLevel } from './epoxyCoverage';
 
 const CORPUS_DIR = process.env.CC3D_CORPUS_DIR;
+/** When set, names a file that receives the validator issue keys of every map (kept out of git, under local/). */
+const KEYS_OUT_FILE = process.env.CC3D_VALIDATOR_KEYS_OUT;
 const TEST_TIMEOUT_MS = 600_000;
 const ISSUE_PREFIX = 'validator.issues.';
 const ISSUE_SUFFIX = '.label';
@@ -134,6 +136,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     const lostMaps: string[] = [];
     const verdicts: Record<string, number> = { exact: 0, approx: 0, lost: 0 };
     const problems: string[] = [];
+    const keysPerMap: Record<string, string[]> = {};
     let waterFireBlocks = 0;
     let dropCount = 0;
     for (const source of levels) {
@@ -162,6 +165,9 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
 
       const validation = LevelValidator.validate(level);
       const seen = new Set<string>();
+      keysPerMap[source.id] = validation.issues
+        .map((issue) => `${issue.severity}:${issue.i18nKey.slice(ISSUE_PREFIX.length).replace(ISSUE_SUFFIX, '')}`)
+        .sort();
       for (const issue of validation.issues) {
         const key = issue.i18nKey.slice(ISSUE_PREFIX.length).replace(ISSUE_SUFFIX, '');
         if (issue.severity === 'error') {
@@ -184,6 +190,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
         for (const entry of report.lost) bump(lostKeys, entry.key);
       }
     }
+    if (KEYS_OUT_FILE) writeFileSync(KEYS_OUT_FILE, JSON.stringify(keysPerMap, null, 1));
     console.info(`cc3d to epoxy: ${levels.length} maps, verdicts ${JSON.stringify(verdicts)}`);
     console.info(`validator errors (count) ${JSON.stringify(errorKeys)}`);
     console.info(`validator errors (maps) ${JSON.stringify(errorMaps)}`);

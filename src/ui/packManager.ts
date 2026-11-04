@@ -32,6 +32,7 @@ import { closeDialog, openDialog } from './dialog';
 import { downloadBlob, MIME_JSON } from './download';
 import { askSaveInto } from './saveIntoDialog';
 import { ThumbnailBatch } from './levelThumbnailView';
+import { formatValidationIssue } from './validatorIssueText';
 import { isShareEncoderSupported } from '../packs/shareLink';
 import {
   badgeLabelKey,
@@ -1179,7 +1180,7 @@ export class PackManager {
     }
     const errors = LevelValidator.validate(converted.level)
       .issues.filter((issue) => issue.severity === 'error')
-      .map((issue) => t(issue.i18nKey, issue.params));
+      .map((issue) => formatValidationIssue(issue));
     if (!(await showConvertReport(describeConversion(converted.report, this.host.levelTitle(source), errors)))) return;
     const destination = await this.askConvertDestination();
     if (!destination) return;

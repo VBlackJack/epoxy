@@ -1,0 +1,1170 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`validator output of every shipped level > campaign levels 1`] = `
+{
+  "epoxy_c_1": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 5,
+      "chipsRequired": 5,
+      "exitCount": 1,
+      "reachableChips": 5,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_10": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_11": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 7,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 6,
+      "chipsRequired": 6,
+      "exitCount": 1,
+      "reachableChips": 6,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_12": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 5,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_13": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 6,
+      "chipsRequired": 6,
+      "exitCount": 1,
+      "reachableChips": 6,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_14": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_15": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_16": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_17": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_18": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_19": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_2": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 6,
+      "chipsRequired": 6,
+      "exitCount": 1,
+      "reachableChips": 6,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_20": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_21": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_22": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_23": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_24": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_25": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.fewer_keys_than_doors.label",
+        "params": {
+          "doors": 3,
+          "key": "key_blue",
+          "keys": 2,
+        },
+        "severity": "error",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": false,
+  },
+  "epoxy_c_26": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 1,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_27": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_28": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 5,
+      "chipsRequired": 5,
+      "exitCount": 1,
+      "reachableChips": 5,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_29": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 1,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_3": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.unreachable_chips.label",
+        "params": {
+          "reachable": 2,
+          "required": 4,
+        },
+        "severity": "error",
+      },
+      {
+        "i18nKey": "validator.issues.unreachable_exit.label",
+        "params": null,
+        "severity": "error",
+      },
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 3,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": false,
+      "targetCount": 0,
+    },
+    "valid": false,
+  },
+  "epoxy_c_30": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 5,
+      "chipsRequired": 5,
+      "exitCount": 1,
+      "reachableChips": 5,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_4": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 5,
+      "chipsRequired": 5,
+      "exitCount": 1,
+      "reachableChips": 5,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_5": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_6": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_7": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_8": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 4,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_c_9": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.unreachable_exit.label",
+        "params": null,
+        "severity": "error",
+      },
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 3,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": false,
+      "targetCount": 0,
+    },
+    "valid": false,
+  },
+}
+`;
+
+exports[`validator output of every shipped level > level templates 1`] = `
+{
+  "template_laser": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "template_sokoban": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 2,
+    },
+    "valid": true,
+  },
+}
+`;
+
+exports[`validator output of every shipped level > pilot levels 1`] = `
+{
+  "epoxy_p_1": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_10": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_11": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 8,
+      "chipsRequired": 8,
+      "exitCount": 1,
+      "reachableChips": 8,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_12": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.unreachable_exit.label",
+        "params": null,
+        "severity": "error",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 9,
+      "chipsRequired": 6,
+      "exitCount": 1,
+      "reachableChips": 9,
+      "reachableExit": false,
+      "targetCount": 0,
+    },
+    "valid": false,
+  },
+  "epoxy_p_13": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_14": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 7,
+      "chipsRequired": 7,
+      "exitCount": 1,
+      "reachableChips": 7,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_15": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 15,
+      "chipsRequired": 11,
+      "exitCount": 1,
+      "reachableChips": 15,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_16": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_17": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_18": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 2,
+    },
+    "valid": true,
+  },
+  "epoxy_p_19": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 3,
+    },
+    "valid": true,
+  },
+  "epoxy_p_2": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_20": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.unreachable_chips.label",
+        "params": {
+          "reachable": 0,
+          "required": 3,
+        },
+        "severity": "error",
+      },
+      {
+        "i18nKey": "validator.issues.unreachable_exit.label",
+        "params": null,
+        "severity": "error",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 0,
+    },
+    "valid": false,
+  },
+  "epoxy_p_21": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 2,
+    },
+    "valid": true,
+  },
+  "epoxy_p_22": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 6,
+    },
+    "valid": true,
+  },
+  "epoxy_p_23": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.hidden_by_block.label",
+        "params": {
+          "count": 1,
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_24": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_25": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 3,
+    },
+    "valid": true,
+  },
+  "epoxy_p_26": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_27": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_28": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_29": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_3": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_30": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 3,
+    },
+    "valid": true,
+  },
+  "epoxy_p_31": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_32": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_33": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_34": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_35": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_36": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_37": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_38": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_39": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_4": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 2,
+      "chipsRequired": 2,
+      "exitCount": 1,
+      "reachableChips": 2,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_40": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_41": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 3,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 3,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_42": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 5,
+      "chipsRequired": 5,
+      "exitCount": 1,
+      "reachableChips": 5,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_5": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 4,
+      "chipsRequired": 4,
+      "exitCount": 1,
+      "reachableChips": 4,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_6": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 6,
+      "chipsRequired": 6,
+      "exitCount": 1,
+      "reachableChips": 6,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_7": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 13,
+      "chipsRequired": 13,
+      "exitCount": 1,
+      "reachableChips": 13,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_8": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 9,
+      "chipsRequired": 3,
+      "exitCount": 1,
+      "reachableChips": 9,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "epoxy_p_9": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 5,
+      "chipsRequired": 5,
+      "exitCount": 1,
+      "reachableChips": 5,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+}
+`;
+
+exports[`validator output of every shipped level > showcase packs 1`] = `
+{
+  "laser_0": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 0,
+      "reachableChips": 0,
+      "reachableExit": false,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "laser_1": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_0": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_1": {
+    "issues": [
+      {
+        "i18nKey": "validator.issues.hold_door_wrong_start.label",
+        "params": {
+          "color": "Bleu",
+        },
+        "severity": "warning",
+      },
+      {
+        "i18nKey": "validator.issues.hold_door_wrong_start.label",
+        "params": {
+          "color": "Jaune",
+        },
+        "severity": "warning",
+      },
+      {
+        "i18nKey": "validator.issues.hold_door_wrong_start.label",
+        "params": {
+          "color": "Rouge",
+        },
+        "severity": "warning",
+      },
+      {
+        "i18nKey": "validator.issues.hold_door_wrong_start.label",
+        "params": {
+          "color": "Vert",
+        },
+        "severity": "warning",
+      },
+    ],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_2": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_3": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_4": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_5": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_6": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "mechanics_7": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 0,
+      "chipsRequired": 0,
+      "exitCount": 1,
+      "reachableChips": 0,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+}
+`;
