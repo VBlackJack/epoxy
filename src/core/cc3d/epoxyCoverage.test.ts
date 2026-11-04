@@ -124,6 +124,12 @@ describe('classifyLevel', () => {
     expect(classifyLevel(withDevice).approx).toContain('socket_red_stacked');
   });
 
+  it('plays every bot approximately, as an Epoxy turret', () => {
+    for (const key of ['bot_static', 'bot_cw', 'bot_ccw', 'bot_multi']) {
+      expect(EPOXY_COVERAGE[key].level).toBe('approx');
+    }
+  });
+
   it('plays the speed orb approximately', () => {
     expect(EPOXY_COVERAGE.orb_speed.level).toBe('approx');
   });

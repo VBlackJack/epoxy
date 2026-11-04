@@ -65,6 +65,8 @@ const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the pl
 const SOCKET_RED_STACKED_REASON = 'CC3D re-plans a red socket against the layer below it, which Epoxy does not model [unverified].';
 const FISH_EXTRA_REASON = 'Epoxy plays the extra fish as a chip, and the chips needed count the plain fish only, as CC3D does [unverified].';
 const GRAVEL_REASON = 'Epoxy gravel admits mirrors, where CC3D gravel refuses reflectors.';
+const BOT_REASON =
+  'Epoxy plays a bot as a turret: the beam and its turn period are close to CC3D, with a beam length and a period that are guesses, and the beam is stopped by a mirror instead of reflected.';
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
@@ -130,6 +132,10 @@ const APPROX_ENTRIES: Record<string, string> = {
   screamer: MONSTER_REASON,
   baby_screamer: MONSTER_REASON,
   snappy: MONSTER_REASON,
+  bot_static: BOT_REASON,
+  bot_cw: BOT_REASON,
+  bot_ccw: BOT_REASON,
+  bot_multi: BOT_REASON,
   golem_blue: 'Golem movement is close to CC3D, not identical.'
 };
 
@@ -139,10 +145,6 @@ const LOST_ENTRIES: Record<string, string> = {
   nibble: 'Epoxy has no nibble monster.',
   golem_yellow: 'Epoxy has no yellow golem.',
   laser_shooter: 'Epoxy has no laser shooter.',
-  bot_static: 'Epoxy has no static bot.',
-  bot_cw: 'Epoxy has no clockwise bot.',
-  bot_ccw: 'Epoxy has no counter-clockwise bot.',
-  bot_multi: 'Epoxy has no multi bot.',
   [KEY_STACKED_TERRAIN]: 'Epoxy holds one terrain per cell, so a stack of devices or blockers is flattened.'
 };
 
