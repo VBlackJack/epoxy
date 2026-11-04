@@ -186,6 +186,7 @@ import {
   tileAvailability,
   winRuleAvailability
 } from './paletteAvailability';
+import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, wireToolMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
   decideSave,
@@ -1259,6 +1260,10 @@ export class LevelEditor {
   private renderPaletteItems(): void {
     const container = byId('editor-palette-grid');
     if (!container) return;
+    // A click re-renders the palette: remember which entry held focus so it can get it back.
+    const focused = document.activeElement;
+    const focusedKind = focused instanceof HTMLElement && container.contains(focused) ? focused.dataset.brushKind : undefined;
+    const focusedId = focused instanceof HTMLElement && container.contains(focused) ? focused.dataset.brushId : undefined;
     container.innerHTML = '';
     if (this.isCc3d()) {
       this.renderCc3dPaletteItems(container);
@@ -1266,12 +1271,15 @@ export class LevelEditor {
       return;
     }
     byId(CC3D_ATTRS_ID)?.classList.add('hidden');
-    const entry = (brush: Brush, label: string, iconUrl: string): void => {
-      container.appendChild(
-        this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
-          this.selectBrush(brush)
-        )
+    const mechanisms = this.activeCategory === MECHANISMS_CATEGORY;
+    const pending: Array<{ group: MechanismGroupId | null; button: HTMLButtonElement }> = [];
+    const entry = (brush: Brush, label: string, iconUrl: string, group: MechanismGroupId | null = null): void => {
+      const button = this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
+        this.selectBrush(brush)
       );
+      button.dataset.brushKind = brush.kind;
+      button.dataset.brushId = brush.id;
+      pending.push({ group, button });
     };
 
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
@@ -1282,7 +1290,8 @@ export class LevelEditor {
       entry(
         { kind, id: tile.id },
         t(tile.i18nKey),
-        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id)
+        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id),
+        mechanisms ? tileMechanismGroup(tile) : null
       );
     }
 
@@ -1294,7 +1303,7 @@ export class LevelEditor {
       const icon = entityHasFacing(ent.id)
         ? this.cachedIcon('entity', ent.id, this.activeDir)
         : this.cachedIcon('entity', ent.id);
-      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon);
+      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon, mechanisms ? entityMechanismGroup(ent) : null);
     }
 
     if (this.activeCategory === TERRAIN_CATEGORY) {
@@ -1309,19 +1318,38 @@ export class LevelEditor {
       entry({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), this.playerIconUrl);
     }
 
-    if (this.activeCategory === MECHANISMS_CATEGORY) {
+    if (mechanisms) {
       entry(
         { kind: 'wire_trap', id: WIRE_TRAP_BRUSH_ID },
         t('editor.palette.tools.wire_trap'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE)
+        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE),
+        wireToolMechanismGroup('wire_trap')
       );
       entry(
         { kind: 'wire_cloner', id: WIRE_CLONER_BRUSH_ID },
         t('editor.palette.tools.wire_cloner'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE)
+        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE),
+        wireToolMechanismGroup('wire_cloner')
       );
+      // Sub-headings only label the entries that follow them: they are not focusable and the tab order stays the button order.
+      // An entry no rule places is still offered, under an Other heading shown only when there is one.
+      for (const section of arrangeMechanismSections(pending.map((item) => ({ group: item.group, item: item.button })))) {
+        const heading = document.createElement('h4');
+        heading.className = 'palette-group-heading';
+        heading.textContent = t(section.group.labelKey);
+        container.appendChild(heading);
+        for (const button of section.items) container.appendChild(button);
+      }
+    } else {
+      for (const item of pending) container.appendChild(item.button);
     }
 
+    if (focusedKind !== undefined && focusedId !== undefined) {
+      const again = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
+        (btn) => btn.dataset.brushKind === focusedKind && btn.dataset.brushId === focusedId
+      );
+      again?.focus();
+    }
     this.updateSwitchEngineButton();
   }
 
