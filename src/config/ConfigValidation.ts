@@ -15,6 +15,8 @@
  */
 
 import { CELL_EDGE_BITS, CELL_EDGE_SIDE_ORDER } from '../core/coreConstants';
+import { isRemovableTop } from '../core/Underlays';
+import { ConfigRegistry } from './ConfigRegistry';
 import { ORDERED_DIRECTIONS } from './constants';
 import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
@@ -23,6 +25,7 @@ import {
   BlockBudget,
   CampaignConfig,
   CellEdge,
+  CellUnderlay,
   CompiledLevel,
   DatFormatConfig,
   Direction,
@@ -436,6 +439,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     isRecordList(value.cloneLinks, size, strict) &&
     // Cell edges hold one entry per cell at most; a longer list is not a level, whatever the entries hold.
     (!strict || !Array.isArray(value.cellEdges) || value.cellEdges.length <= size.width * size.height) &&
+    // Underlays hold one entry per cell at most, by the same rule.
+    (!strict || !Array.isArray(value.underlays) || value.underlays.length <= size.width * size.height) &&
     // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
     (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds, strict) : value.cc3d === undefined)
   );
@@ -505,9 +510,37 @@ export function normalizeCellEdges(
 }
 
 /**
+ * The underlays of a level in canonical form: only the Epoxy ruleset carries them; entries that are
+ * not records, lie outside the grid, name no terrain of the terrain layer or name a removable top (a
+ * door, a socket, a fake wall, dirt) are dropped, the first entry of a cell wins, and the entries are
+ * sorted by row, then column. Returns null when none is left.
+ */
+export function normalizeUnderlays(
+  underlays: unknown,
+  terrain: readonly (readonly string[])[],
+  ruleset: unknown
+): CellUnderlay[] | null {
+  if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(underlays)) return null;
+  const height = terrain.length;
+  const width = terrain[0]?.length ?? 0;
+  const byCell = new Map<number, string>();
+  for (const entry of underlays as unknown[]) {
+    if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height)) continue;
+    const id = entry.terrain;
+    if (typeof id !== 'string' || !ConfigRegistry.isTerrainTile(id) || isRemovableTop(ConfigRegistry.getTile(id))) continue;
+    const index = (entry.y as number) * width + (entry.x as number);
+    if (!byCell.has(index)) byCell.set(index, id);
+  }
+  if (byCell.size === 0) return null;
+  return [...byCell.keys()]
+    .sort((a, b) => a - b)
+    .map((index) => ({ x: index % width, y: Math.floor(index / width), terrain: byCell.get(index) as string }));
+}
+
+/**
  * Returns the level without any optional text field that is not a string, and
  * without a win rule or ruleset that is not a known one, with its cell edges in canonical form (see
- * normalizeCellEdges), and with an empty password in place
+ * normalizeCellEdges), with its underlays in canonical form (see normalizeUnderlays), and with an empty password in place
  * of one that is not a string, so a stale or hand-edited record cannot hand a number to the
  * text pipeline or an unknown rule to the engine.
  * The input is never mutated.
@@ -524,10 +557,16 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
     edges = normalizeCellEdges(record.cellEdges, level.terrain, record.ruleset);
     if (edges === null || JSON.stringify(edges) !== JSON.stringify(record.cellEdges)) bad.push('cellEdges');
   }
+  let hidden: CellUnderlay[] | null = null;
+  if ('underlays' in record) {
+    hidden = normalizeUnderlays(record.underlays, level.terrain, record.ruleset);
+    if (hidden === null || JSON.stringify(hidden) !== JSON.stringify(record.underlays)) bad.push('underlays');
+  }
   if (bad.length === 0 && !badPassword) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
   if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
+  if (hidden !== null && bad.includes('underlays')) copy.underlays = hidden;
   // The game upper-cases passwords, so a level always carries a string one.
   if (badPassword) copy.password = '';
   return copy as unknown as CompiledLevel;

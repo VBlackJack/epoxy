@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { isInBounds } from '../config/ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import { cellEdgeMask } from '../core/EdgeRules';
+import { underlayMap } from '../core/Underlays';
 import { hasColorChannelContent, hasLaserContent } from '../core/RulesetFeatures';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
@@ -97,7 +98,8 @@ export type DatRefusalReason =
   | 'cc3d_ruleset'
   | 'color_channel_content'
   | 'cell_edges'
-  | 'epoxy_only_items';
+  | 'epoxy_only_items'
+  | 'cell_underlays';
 
 /** True when the level places an item only the Epoxy engine plays: the boots that slow the monsters. */
 function hasMonsterSlowingItem(level: Pick<CompiledLevel, 'items'>): boolean {
@@ -144,6 +146,8 @@ export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null 
   if (cellEdgeMask(level) !== null) return 'cell_edges';
   // The format has no slow-time boots: writing the level would drop them, and the monsters would run at full speed.
   if (hasMonsterSlowingItem(level)) return 'epoxy_only_items';
+  // Terrain hidden under a door, a socket, a fake wall or dirt has no .DAT form: the stack would be flattened.
+  if (underlayMap(level) !== null) return 'cell_underlays';
   const datCfg = ConfigRegistry.getDatFormat();
   const { mapWidth: gridWidth, mapHeight: gridHeight } = ConfigRegistry.getGame().grid;
   const layerWidth = datCfg.layerWidth ?? gridWidth;
