@@ -81,6 +81,7 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.levelCompleted = false;
   w.statusBannerKey = null;
   w.removedUids.clear();
+  w.swivelEntry.clear();
   buildLevelLookups(w);
   // A hold door starts in the state its plates ask for (a block may start on a plate); no sound at load.
   setHoldDoors(ctx, false);

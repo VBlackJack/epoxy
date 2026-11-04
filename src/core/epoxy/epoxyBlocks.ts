@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { Direction, RuntimeEntity } from '../types';
+import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import {
   EpoxyContext,
@@ -88,11 +89,13 @@ export function moveBlockTo(
   const w = ctx.world;
   // A clone spawns in place and leaves no cell behind.
   if (block.x !== destX || block.y !== destY) {
+    leaveSwivel(w, block.x, block.y);
     leaveCell(w, block.x, block.y);
   }
   block.x = destX;
   block.y = destY;
   block.dir = dir;
+  enterSwivel(w, destX, destY, dir);
 
   const blockDef = ConfigRegistry.getEntityDef(block.type);
   const tileId = w.terrain[destY][destX];

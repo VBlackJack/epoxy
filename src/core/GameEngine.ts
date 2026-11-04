@@ -473,7 +473,9 @@ export class GameEngine {
       // Only a level with a toggle wall or flame jet under a removable top reads the parity of the presses.
       ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
       // Only a level that revealed something has revealed cells to put back.
-      ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {})
+      ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {}),
+      // Only a level with an actor inside a swivel door has an entry side to put back.
+      ...(this.w.swivelEntry.size > 0 ? { swivelEntry: [...this.w.swivelEntry] } : {})
     };
   }
 
@@ -520,6 +522,7 @@ export class GameEngine {
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
     this.w.toggleParity = snap.toggleParity ?? 0;
     this.w.revealedCells = new Set(snap.revealedCells ?? []);
+    this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
     // The launchers fired in the undone moment may fire again.
     this.w.firedLaunchers.clear();
     this.w.inTick = false;
