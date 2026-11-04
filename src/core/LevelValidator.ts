@@ -606,7 +606,10 @@ export class LevelValidator {
           // water, a mirror refuses it), slime swallows any block, and fire costs an ice block plus a filler,
           // after which the cell is plain ground. A state holding flippers only pays the ice block (melt then
           // swim); the cell is remembered as melted. Any other state that later needs it, fire boots included
-          // (the cell is water by then), upgrades that melt to a full fire demand. A dirt block on fire neither burns nor puts it out. A slide that ends in
+          // (the cell is water by then), upgrades that melt to a full fire demand.
+          // The melt is committed greedily as soon as a flippers-only state reaches a fire, so where fire boots and
+          // flippers cannot be held together, a fire-boots crossing that skips the melt can be missed: the verdict is
+          // then pessimistic (unreachable). A dirt block on fire neither burns nor puts it out. A slide that ends in
           // water, slime, fire or a bomb is replayed on the next pass once the blocks are spent.
           if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
             if (trySpend(nextTile.hazard === 'water' ? 'water' : 'other')) {
