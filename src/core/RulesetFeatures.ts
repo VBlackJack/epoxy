@@ -134,8 +134,10 @@ export function hasTurretContent(level: Pick<CompiledLevel, 'entities'> & Partia
 
 /** True when the level places a laser tile (terrain or item layer), a mirror or a turret, as the configs define them. */
 export function hasLaserContent(
-  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks' | 'launcherLinks'>>
 ): boolean {
+  // A launcher or trigger can hide under a removable top, where the grids do not show it: its link does.
+  if ((level.launcherLinks?.length ?? 0) > 0) return true;
   const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
     grid?.some((row) => row.some(isLaserTileId)) ?? false;
   if (hasTile(level.terrain) || hasTile(level.items)) return true;

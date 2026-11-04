@@ -58,7 +58,7 @@ export function shotEffectOf(entity: RuntimeEntity): ShotEffect {
  */
 export function shotsStateKey(shots: readonly Shot[] | undefined): string {
   if (shots === undefined || shots.length === 0) return '';
-  return `S${shots.map((s) => `${s.x},${s.y},${s.dir},${s.cooldown}`).join(';')}`;
+  return `S${shots.map((s) => `${s.x},${s.y},${s.dir},${s.cooldown}`).sort().join(';')}`;
 }
 
 /** Removes the first shot in the cell, spent by what ran into it. Returns false when there is none. */

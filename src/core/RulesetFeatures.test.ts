@@ -115,6 +115,14 @@ describe('colour channel aids', () => {
     expect(featuresFor({ ...levelWith('floor'), winRule: 'receivers' }).tapToPath).toBe(true);
   });
 
+  it('counts a level with launcher links as laser content even when the grids show no launcher', () => {
+    const level = levelWith('floor');
+    expect(hasLaserContent(level)).toBe(false);
+    const linked = { ...level, launcherLinks: [{ buttonX: 1, buttonY: 1, launcherX: 2, launcherY: 2 }] };
+    expect(hasLaserContent(linked)).toBe(true);
+    expect(hasLaserContent({ ...level, launcherLinks: [] })).toBe(false);
+  });
+
   it('names the puppet, its control and the skitter as Epoxy only', () => {
     expect(isSteeredEntityType('puppet')).toBe(true);
     expect(isSteeredEntityType('skitter')).toBe(false);

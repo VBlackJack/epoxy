@@ -991,6 +991,9 @@ describe('shots: searches and hashes', () => {
     const a = shotsStateKey([{ x: 4, y: 5, dir: 'E', cooldown: 1 }]);
     const b = shotsStateKey([{ x: 4, y: 5, dir: 'E', cooldown: 0 }]);
     expect(a).not.toBe('');
+    const one = { x: 1, y: 2, dir: 'N' as const, cooldown: 1 };
+    const two = { x: 3, y: 2, dir: 'S' as const, cooldown: 0 };
+    expect(shotsStateKey([one, two])).toBe(shotsStateKey([two, one]));
     expect(a).not.toBe(b);
   });
 
