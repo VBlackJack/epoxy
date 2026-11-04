@@ -143,8 +143,6 @@ describe('pilot chapter 3 peak, every level', () => {
     const level = levelById(id);
     expect(storedSolutionWins(level)).toBe(true);
     const report = LevelValidator.validate(level, storedSolutionWins);
-    // Level 41 swims through melted water, which the validator does not credit: with its stored solution it
-    // reports two warnings, see the known validator limit below.
     expect(report.issues.filter((i) => i.severity === 'error')).toEqual([]);
     const hidden = report.issues.find((i) => i.i18nKey === 'validator.issues.hidden_by_block.label');
     expect(hidden?.params?.count ?? 0).toBe(0);
@@ -427,23 +425,11 @@ describe('pilot chapter 3 melt and swim', () => {
     expect([...shapes]).toEqual([CORNER]);
   });
 
-  it('known validator limit: melt-then-swim is not credited, a fire always costs an ice block plus a filler block', () => {
+  it('the validator reports no issue on level 41, with and without the stored solution', () => {
     const level = levelById(SWIM_LEVEL);
-    // With the stored solution the replay proves the chips and the exit reachable, so the two findings are downgraded to warnings.
-    expect(validatorIssues(level)).toEqual(['warning:validator.issues.unreachable_chips_proven.label', 'warning:validator.issues.unreachable_exit_proven.label']);
-    expect(validatorIssues(level, false)).toEqual(['error:validator.issues.unreachable_chips.label', 'error:validator.issues.unreachable_exit.label']);
-    // The cause: the validator wants a filler block for the water a fire leaves, whatever boots the player holds. Give the
-    // same room a spare dirt block in the lane, beyond the lake, and it finds the chips and the exit. A spare block west of
-    // the lake does not help: the count spends it on the lake, which the flippers cross for free.
-    const lane = structuredClone(level);
-    lane.entities.push({ type: 'dirt_block', x: 11, y: 4, dir: 'S' });
-    expect(LevelValidator.validate(lane).issues.filter((i) => i.severity === 'error')).toEqual([]);
-    const west = structuredClone(level);
-    west.entities.push({ type: 'dirt_block', x: 1, y: 2, dir: 'S' });
-    expect(LevelValidator.validate(west).issues.filter((i) => i.severity === 'error').map((i) => i.i18nKey)).toEqual([
-      'validator.issues.unreachable_chips.label',
-      'validator.issues.unreachable_exit.label'
-    ]);
+    // An ice block melts the fire and the flippers swim the water left: the validator credits it with no filler block.
+    expect(validatorIssues(level)).toEqual([]);
+    expect(validatorIssues(level, false)).toEqual([]);
   });
 });
 
