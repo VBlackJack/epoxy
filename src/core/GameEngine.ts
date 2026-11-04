@@ -50,7 +50,8 @@ import {
   isCellClosedTrap,
   killPlayer,
   mapHeight,
-  mapWidth
+  mapWidth,
+  playerHaste
 } from './epoxy/epoxyWorld';
 import {
   BeamCell,
@@ -65,6 +66,9 @@ import {
   TrapLink,
   UndoSnapshot
 } from './types';
+
+/** The walking cooldown never drops under one tick, however fast the boots. */
+const MIN_WALK_COOLDOWN_TICKS = 1;
 
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
@@ -623,7 +627,7 @@ export class GameEngine {
       // Boots cancel the push, so a booted player keeps the walking cadence.
       this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
         ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
-        : ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
+        : Math.max(MIN_WALK_COOLDOWN_TICKS, Math.ceil(ConfigRegistry.getGame().timing.playerMoveCooldownTicks / playerHaste(this.w)));
       resolveLasers(this.ctx);
       this.checkTargetsWin();
     } else {

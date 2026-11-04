@@ -287,6 +287,21 @@ export function monsterSlowdown(w: EpoxyWorld): number {
   return factor;
 }
 
+/** Player step factor when no held boots haste the player. */
+const NORMAL_PLAYER_HASTE = 1;
+
+/**
+ * How many times faster the player walks: the largest hastesPlayer among the boots held, exactly 1 when none
+ * hastes the player. Ice and force floor timings never read it.
+ */
+export function playerHaste(w: EpoxyWorld): number {
+  let factor = NORMAL_PLAYER_HASTE;
+  for (const bootId of w.player.boots) {
+    factor = Math.max(factor, ConfigRegistry.getTile(bootId).hastesPlayer ?? NORMAL_PLAYER_HASTE);
+  }
+  return factor;
+}
+
 /** Lists the cell in the device lookups its terrain belongs to. */
 function registerDevices(w: EpoxyWorld, x: number, y: number, terrainId: string, coversTargets: boolean): void {
   const tile = ConfigRegistry.getTile(terrainId);

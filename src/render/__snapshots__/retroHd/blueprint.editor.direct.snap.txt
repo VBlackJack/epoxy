@@ -254,6 +254,8 @@ editor tile boots_force closed=true f8cbee477a10dcc8
 editor tile boots_force closed=false 1920e8eb9dcd902c
 editor tile slow_time closed=true 6fdbb85f29489f11
 editor tile slow_time closed=false 73ca9fa89e40d7c9
+editor tile boots_speed closed=true 01e3236781f2523e
+editor tile boots_speed closed=false feb101d845c28381
 editor tile bomb closed=true a817847f572cc322
 editor tile bomb closed=false 52aa1bd6f32022c0
 editor tile score_10 closed=true f6de9bdaadc78f74
@@ -278,6 +280,7 @@ editor item over floor boots_fire 6fd5f83af2732b80
 editor item over floor boots_ice 4d48e76688ca206b
 editor item over floor boots_force 95fa8fbcd5a52f25
 editor item over floor slow_time f292a11e103b58c9
+editor item over floor boots_speed 8d31d23cb5a177f5
 editor item over floor bomb 8816e00d5aca2f37
 editor item over floor score_10 41cd6090f7e6fe4c
 editor item over floor score_100 90bc0f431aad081f

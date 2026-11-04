@@ -33,6 +33,7 @@ import {
   findLaserConfigErrors,
   findSwivelConfigErrors,
   findSlowTimeConfigErrors,
+  findSpeedBootsConfigErrors,
   findShotConfigErrors,
   findSteeringConfigErrors,
   findTurretConfigErrors,
@@ -301,6 +302,10 @@ class ConfigRegistryService {
     const slowTimeErrors = findSlowTimeConfigErrors(bundle.tiles.tiles);
     if (slowTimeErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, slowTimeErrors.join('; '));
+    }
+    const speedBootsErrors = findSpeedBootsConfigErrors(bundle.tiles.tiles);
+    if (speedBootsErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, speedBootsErrors.join('; '));
     }
     const turretErrors = findTurretConfigErrors(bundle.monsters.entities);
     if (turretErrors.length > 0) {
