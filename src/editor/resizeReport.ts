@@ -27,6 +27,7 @@ export const RESIZE_UNCHANGED_KEY = 'editor.layout.size.unchanged';
 export const RESIZE_DROPPED_ENTITIES_KEY = 'editor.layout.size.dropped_entities';
 export const RESIZE_DROPPED_LINKS_KEY = 'editor.layout.size.dropped_links';
 export const RESIZE_DROPPED_EDGES_KEY = 'editor.layout.size.dropped_edges';
+export const RESIZE_DROPPED_UNDERLAYS_KEY = 'editor.layout.size.dropped_underlays';
 export const RESIZE_START_MOVED_KEY = 'editor.layout.size.start_moved';
 export const RESIZE_BORDER_KEY = 'editor.layout.size.border_kept';
 
@@ -39,6 +40,7 @@ export function describeResize(result: ResizeResult): ResizeNote[] {
   const links = report.droppedTrapLinks + report.droppedCloneLinks;
   if (links > 0) notes.push({ key: RESIZE_DROPPED_LINKS_KEY, params: { count: links } });
   if (report.droppedEdges > 0) notes.push({ key: RESIZE_DROPPED_EDGES_KEY, params: { count: report.droppedEdges } });
+  if (report.droppedUnderlays > 0) notes.push({ key: RESIZE_DROPPED_UNDERLAYS_KEY, params: { count: report.droppedUnderlays } });
   if (report.playerStartMoved) notes.push({ key: RESIZE_START_MOVED_KEY });
   if (report.borderKept) notes.push({ key: RESIZE_BORDER_KEY });
   return notes;

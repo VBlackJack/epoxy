@@ -18,6 +18,7 @@ import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import type { CompiledLevel } from '../core/types';
 import { canonicalEdges } from './editorCellEdges';
+import { canonicalUnderlays } from './editorUnderlays';
 import { cloneMap, displayLayersOf, type EditorDocument, type EditorMetadata } from './editorDocument';
 
 /**
@@ -59,6 +60,10 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
   const cellEdges = level.cc3d ? undefined : canonicalEdges(map.cellEdges, map.terrain);
   if (cellEdges) map.cellEdges = cellEdges;
   else delete map.cellEdges;
+  // Hidden terrain is held in canonical form too, and only where the terrain on top can still hide it.
+  const underlays = level.cc3d ? undefined : canonicalUnderlays(map.underlays, map.terrain);
+  if (underlays) map.underlays = underlays;
+  else delete map.underlays;
   return {
     ...map,
     title: texts.title,
@@ -105,7 +110,11 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
     ...cloneMap(doc)
   };
   // Thin walls exist under the Epoxy ruleset only: a document of another ruleset never exports them.
-  if (doc.ruleset !== undefined && doc.ruleset !== DEFAULT_RULESET) delete level.cellEdges;
+  // Hidden terrain is an Epoxy feature in the same way.
+  if (doc.ruleset !== undefined && doc.ruleset !== DEFAULT_RULESET) {
+    delete level.cellEdges;
+    delete level.underlays;
+  }
   if (doc.cc3d) {
     Object.assign(level, displayLayersOf(doc.cc3d), { chipsRequired: cc3dFishCount(doc.cc3d) });
   }

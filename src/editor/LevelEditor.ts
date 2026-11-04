@@ -136,6 +136,7 @@ import {
   EditorTool,
   leavesLooseButton,
   MESSAGE_START_KEPT,
+  MESSAGE_UNDERLAYS_REMOVED,
   MESSAGE_WIRE_CANCELLED,
   MESSAGE_WIRE_CANCELLED_BUTTON_LEFT,
   pickFromCell,
@@ -150,6 +151,7 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
+import { hasUnderlays } from './editorUnderlays';
 import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
 import {
   CellRect,
@@ -408,6 +410,9 @@ const cc3dPreviewClips = new WeakMap<Cc3dClip, Clip>();
 
 /** The thin walls of a document by cell index, built once per list of edges (a document edit makes a new list). */
 const cellEdgeSidesMemo = new WeakMap<object, ReadonlyMap<number, readonly Direction[]>>();
+
+/** The cells of a document that hide terrain, by cell index, built once per list of underlays. */
+const hiddenTerrainCellsMemo = new WeakMap<object, ReadonlySet<number>>();
 
 /** What the application learns when a level was saved. */
 export interface SavedLevelInfo {
@@ -1983,7 +1988,7 @@ export class LevelEditor {
       const parsed = parseRuleset(ruleset, doc.ruleset ?? DEFAULT_RULESET);
       next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
     }
-    if (requiresEpoxyRules(next.winRule, hasEpoxyOnlyContent(doc) || hasCellEdges(doc))) next.ruleset = undefined;
+    if (requiresEpoxyRules(next.winRule, hasEpoxyOnlyContent(doc) || hasCellEdges(doc) || hasUnderlays(doc))) next.ruleset = undefined;
     return metadataForDocument(doc, next);
   }
 
@@ -2053,7 +2058,8 @@ export class LevelEditor {
     if (!rulesetEl) return;
     const cc3d = this.isCc3d();
     // A CC3D level keeps its engine: the Epoxy-only tiles (lasers, colour channels) its display layers hold and its win rule do not make it Epoxy.
-    const lynxLocked = !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc) || hasCellEdges(this.doc));
+    const lynxLocked =
+      !cc3d && requiresEpoxyRules(this.doc.winRule, hasEpoxyOnlyContent(this.doc) || hasCellEdges(this.doc) || hasUnderlays(this.doc));
     if (lynxLocked) this.doc = { ...this.doc, ruleset: undefined };
     rulesetEl.value = this.doc.ruleset ?? DEFAULT_RULESET;
     // The engine of a level never changes into another one here: a CC3D level shows its own engine
@@ -3319,6 +3325,7 @@ export class LevelEditor {
     const messages: ToolMessage[] = [];
     if (result.droppedLinks > 0) messages.push({ key: 'editor.selection.status.links_dropped', params: { count: result.droppedLinks } });
     if (result.skipped > 0) messages.push({ key: 'editor.selection.status.paste_skipped', params: { count: result.skipped } });
+    if (result.droppedUnderlays) messages.push({ key: MESSAGE_UNDERLAYS_REMOVED, params: { count: result.droppedUnderlays } });
     if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
     return messages;
   }
@@ -3415,6 +3422,7 @@ export class LevelEditor {
     }
     const messages: ToolMessage[] = [];
     if (result.droppedLinks > 0) messages.push({ key: 'editor.selection.status.links_dropped', params: { count: result.droppedLinks } });
+    if (result.droppedUnderlays) messages.push({ key: MESSAGE_UNDERLAYS_REMOVED, params: { count: result.droppedUnderlays } });
     if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
     if (result.playerStartKept) messages.push({ key: 'editor.selection.status.fill_start_kept' });
     if (!this.commitSelectionEdit(result)) {
@@ -3735,10 +3743,21 @@ export class LevelEditor {
         if (item) this.renderer.drawItem(this.ctx, item, px, py, s);
       }
     }
-    // Thin walls are an Epoxy feature: a Lynx level neither draws nor receives them.
+    // Thin walls and hidden terrain are Epoxy features: a Lynx level neither draws nor receives them.
     const clipEdges = this.doc.ruleset === LYNX_RULESET ? [] : (clip.edges ?? []);
     for (const edge of clipEdges) {
       this.renderer.drawCellOverlay(this.ctx, edge.sides, false, (ox + edge.dx) * s, (oy + edge.dy) * s, s);
+    }
+    const clipUnderlays = this.doc.ruleset === LYNX_RULESET ? [] : (clip.underlays ?? []);
+    if (clipUnderlays.length > 0) {
+      this.renderer.setHiddenLayerMarkers(true);
+      try {
+        for (const hidden of clipUnderlays) {
+          this.renderer.drawCellOverlay(this.ctx, undefined, true, (ox + hidden.dx) * s, (oy + hidden.dy) * s, s);
+        }
+      } finally {
+        this.renderer.setHiddenLayerMarkers(false);
+      }
     }
     for (const e of clip.entities) {
       this.renderer.drawEntity(this.ctx, e.type, e.dir, (ox + e.dx) * s, (oy + e.dy) * s, s);
@@ -3758,6 +3777,7 @@ export class LevelEditor {
     y: number,
     s: number,
     edgeSides: ReadonlyMap<number, readonly Direction[]> | null,
+    hiddenCells: ReadonlySet<number> | null,
     width: number
   ): void {
     this.renderer.drawTile(ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
@@ -3767,11 +3787,26 @@ export class LevelEditor {
       const edges = cell.panels.length > 0 && !displayShowsPanels(cell) ? cell.panels : undefined;
       this.renderer.drawCellOverlay(ctx, edges, hasHiddenLayers(cell), x * s, y * s, s);
     } else {
-      const sides = edgeSides?.get(y * width + x);
-      if (sides) this.renderer.drawCellOverlay(ctx, sides, false, x * s, y * s, s);
+      const index = y * width + x;
+      const sides = edgeSides?.get(index);
+      const marked = hiddenCells?.has(index) ?? false;
+      if (sides || marked) this.renderer.drawCellOverlay(ctx, sides, marked, x * s, y * s, s);
     }
     const item = doc.items[y][x];
     if (item) this.renderer.drawItem(ctx, item, x * s, y * s, s);
+  }
+
+  /** The cells of an Epoxy document that hide terrain, by cell index, kept per list so a redraw does not rebuild them. */
+  private hiddenTerrainCells(doc: EditorDocument): ReadonlySet<number> | null {
+    const underlays = doc.underlays;
+    if (!underlays || underlays.length === 0) return null;
+    const width = mapWidthOf(doc);
+    let cells = hiddenTerrainCellsMemo.get(underlays);
+    if (!cells) {
+      cells = new Set(underlays.map((u) => u.y * width + u.x));
+      hiddenTerrainCellsMemo.set(underlays, cells);
+    }
+    return cells;
   }
 
   /** The thin walls of an Epoxy document by cell index, kept per list so a redraw does not rebuild them. */
@@ -3820,9 +3855,10 @@ export class LevelEditor {
   /** Draws the cells of a rectangle of cells (end excluded), then the creatures standing in it. */
   private drawMapRegion(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number, x0: number, y0: number, x1: number, y1: number): void {
     const edgeSides = doc.cc3d ? null : this.cellEdgeSides(doc);
+    const hiddenCells = doc.cc3d ? null : this.hiddenTerrainCells(doc);
     const width = mapWidthOf(doc);
     for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s, edgeSides, width);
+      for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s, edgeSides, hiddenCells, width);
     }
     for (const ent of doc.entities) {
       if (ent.x >= x0 && ent.x < x1 && ent.y >= y0 && ent.y < y1) this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
@@ -3831,12 +3867,13 @@ export class LevelEditor {
 
   /** Draws the cells, items, creatures and the player start of a document at tile size `s`. */
   private drawMapLayers(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
-    // The stacked-layer marker belongs to this canvas only: the renderer is shared with play.
-    if (doc.cc3d) this.renderer.setHiddenLayerMarkers(true);
+    // The hidden-layer marker (stacked CC3D layers, terrain hidden under an Epoxy top) belongs to this canvas only: the renderer is shared with play.
+    const markers = Boolean(doc.cc3d) || hasUnderlays(doc);
+    if (markers) this.renderer.setHiddenLayerMarkers(true);
     try {
       this.drawMapRegion(ctx, doc, s, 0, 0, mapWidthOf(doc), mapHeightOf(doc));
     } finally {
-      if (doc.cc3d) this.renderer.setHiddenLayerMarkers(false);
+      if (markers) this.renderer.setHiddenLayerMarkers(false);
     }
     // A CC3D map is kept as a picture without the player start, which is drawn over it on every redraw.
     if (!doc.cc3d) this.drawPlayerStart(ctx, doc, s);

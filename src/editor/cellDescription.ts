@@ -19,6 +19,7 @@ import { Direction } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { closedSidesAt } from './editorCellEdges';
 import { EditorMap } from './editorDocument';
+import { underlayAt } from './editorUnderlays';
 import { ToolMessage } from './editorTools';
 
 const COORDS_KEY = 'editor.palette.status.coords';
@@ -26,6 +27,7 @@ const NAME_KEY = 'editor.cell_speech.name.label';
 const OUTSIDE_KEY = 'editor.cell_speech.outside.label';
 const ITEM_KEY = 'editor.cell_speech.item.label';
 const ENTITY_KEY = 'editor.cell_speech.entity.label';
+const UNDERLAY_KEY = 'editor.cell_speech.underlay.label';
 const EDGES_KEY = 'editor.cell_speech.edges.label';
 const PLAYER_KEY = 'editor.cell_speech.player.label';
 const SIDE_LIST_SEPARATOR_KEY = 'editor.cell_speech.list_separator.label';
@@ -86,6 +88,8 @@ export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
     for (const name of cc3dNames) parts.push(literal(name));
   } else {
     parts.push(tileMessage(row[x]));
+    const hidden = underlayAt(map, x, y);
+    if (hidden !== undefined) parts.push({ key: UNDERLAY_KEY, params: { name: tileName(hidden) } });
     const item = map.items[y]?.[x];
     if (item) parts.push({ key: ITEM_KEY, params: { name: tileName(item) } });
     for (const entity of map.entities) {

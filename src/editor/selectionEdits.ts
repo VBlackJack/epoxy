@@ -15,10 +15,11 @@
  */
 
 import { FLOOR_TILE_ID } from '../core/coreConstants';
-import { CellEdge, CloneLink, Direction, TrapLink } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, TrapLink } from '../core/types';
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import type { Brush } from './editorTools';
+import { canonicalUnderlays, pruneUnderlays, removeUnderlaysWhere, replaceUnderlays } from './editorUnderlays';
 import { dropLinksAt, mapHeightOf, mapWidthOf } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
 
@@ -45,6 +46,13 @@ export interface ClipEdge {
   sides: Direction[];
 }
 
+/** The terrain hidden under one cell of a clip, positioned relative to the clip's top-left cell. */
+export interface ClipUnderlay {
+  dx: number;
+  dy: number;
+  terrain: string;
+}
+
 /** The content of a rectangle of cells, detached from the map. Links are never part of it. */
 export interface Clip {
   width: number;
@@ -54,6 +62,8 @@ export interface Clip {
   entities: ClipEntity[];
   /** Thin walls of the clipped cells; absent when none has any. A Lynx level has no such walls, so they are dropped there. */
   edges?: ClipEdge[];
+  /** Terrain hidden under the clipped cells; absent when none hides any. A Lynx level has no hidden terrain, so it is dropped there. */
+  underlays?: ClipUnderlay[];
   /** The player start, relative to the clip, when the clip carries it; null otherwise. */
   playerStart: { dx: number; dy: number; dir: Direction } | null;
 }
@@ -71,6 +81,8 @@ export interface SelectionEditResult {
   borderSkipped: number;
   /** True when the edit hit the player start cell and left the start in place (clear, entity fill). */
   playerStartKept: boolean;
+  /** Hidden terrain removed because a terrain fill left a top that cannot hide it; only a fill reports it. */
+  droppedUnderlays?: number;
   /** The cells the edit produced or targeted, clipped to the map; null when none are inside it. */
   rect: CellRect | null;
 }
@@ -141,7 +153,8 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
       trapLinks: map.trapLinks,
       cloneLinks: map.cloneLinks,
       playerStart: map.playerStart,
-      cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? []
+      cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? [],
+      underlays: canonicalUnderlays(map.underlays, map.terrain) ?? []
     });
   return normalize(a) === normalize(b);
 }
@@ -168,12 +181,24 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
   const edges: ClipEdge[] = (map.cellEdges ?? [])
     .filter((e) => rectContains(rect, e.x, e.y))
     .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, sides: [...e.sides] }));
+  const underlays: ClipUnderlay[] = (map.underlays ?? [])
+    .filter((u) => rectContains(rect, u.x, u.y))
+    .map((u) => ({ dx: u.x - rect.x, dy: u.y - rect.y, terrain: u.terrain }));
   const start = map.playerStart;
   const playerStart =
     includePlayerStart && rectContains(rect, start.x, start.y)
       ? { dx: start.x - rect.x, dy: start.y - rect.y, dir: start.dir }
       : null;
-  return { width: rect.width, height: rect.height, terrain, items, entities, ...(edges.length > 0 ? { edges } : {}), playerStart };
+  return {
+    width: rect.width,
+    height: rect.height,
+    terrain,
+    items,
+    entities,
+    ...(edges.length > 0 ? { edges } : {}),
+    ...(underlays.length > 0 ? { underlays } : {}),
+    playerStart
+  };
 }
 
 function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number) => boolean = () => false): void {
@@ -186,10 +211,11 @@ function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number)
   }
   map.entities = map.entities.filter((e) => !rectContains(rect, e.x, e.y) || keep(e.x, e.y));
   removeEdgesWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
+  removeUnderlaysWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
 }
 
 /**
- * Clears the cells of a rectangle to floor, removes their thin walls and drops the links that end in
+ * Clears the cells of a rectangle to floor, removes their thin walls and hidden terrain and drops the links that end in
  * it. The player start stays where it is, and the result says so.
  */
 export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResult {
@@ -212,7 +238,9 @@ export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResul
  * counted once; an item or entity it cannot play is left out alone and counted.
  * The outer ring of the map is never written: its cells are left out whole and
  * counted apart. A written cell takes the thin walls of the clip (none when the clip has none there);
- * under Lynx, which has no thin walls, the clip's are dropped and each counts as skipped. With `sourceOrigin` (a move), clip cells that came from the
+ * under Lynx, which has no thin walls, the clip's are dropped and each counts as skipped. Hidden terrain
+ * follows its cell the same way: a written cell takes the clip's (none when the clip has none there), Lynx
+ * drops and counts it, and a cell left out keeps its own. With `sourceOrigin` (a move), clip cells that came from the
  * ring are left out too, so the ring stays where it is.
  */
 function stampClip(
@@ -222,7 +250,7 @@ function stampClip(
   originY: number,
   ruleset: EditableRuleset | null,
   sourceOrigin: { x: number; y: number } | null = null
-): { skipped: number; borderSkipped: number; droppedLinks: number } {
+): { skipped: number; borderSkipped: number; droppedLinks: number; droppedUnderlays: number } {
   let skipped = 0;
   let borderSkipped = 0;
   let droppedLinks = 0;
@@ -297,12 +325,27 @@ function stampClip(
     else pastedEdges.push({ x, y, sides: [...e.sides] });
   }
   if (keptEdges.length !== (map.cellEdges?.length ?? 0) || pastedEdges.length > 0) replaceEdges(map, [...keptEdges, ...pastedEdges]);
+  const keptUnderlays = (map.underlays ?? []).filter((u) => !writtenCells.has(`${u.x},${u.y}`));
+  const pastedUnderlays: CellUnderlay[] = [];
+  for (const u of clip.underlays ?? []) {
+    const x = originX + u.dx;
+    const y = originY + u.dy;
+    if (!writtenCells.has(`${x},${y}`)) continue;
+    if (ruleset === 'lynx') skipped++;
+    else pastedUnderlays.push({ x, y, terrain: u.terrain });
+  }
+  if (keptUnderlays.length !== (map.underlays?.length ?? 0) || pastedUnderlays.length > 0) {
+    replaceUnderlays(map, [...keptUnderlays, ...pastedUnderlays]);
+  }
+  // Defensive canonical pass: the clip's underlays are expected to be valid already, but a hand-built or stale clip
+  // could leave a top that cannot hide the terrain under it. Anything dropped here is counted, never silent.
+  const droppedUnderlays = pruneUnderlays(map);
   if (clip.playerStart) {
     const x = originX + clip.playerStart.dx;
     const y = originY + clip.playerStart.dy;
     if (inGrid(map, x, y) && !ringCells.has(`${x},${y}`)) map.playerStart = { x, y, dir: clip.playerStart.dir };
   }
-  return { skipped, borderSkipped, droppedLinks };
+  return { skipped, borderSkipped, droppedLinks, droppedUnderlays };
 }
 
 /**
@@ -325,8 +368,8 @@ export function pasteClip(
   );
   if (!rect) return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect: null };
   const map = cloneMap(source);
-  const { skipped, borderSkipped, droppedLinks } = stampClip(map, clip, originX, originY, ruleset);
-  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped, borderSkipped, playerStartKept: false, rect };
+  const { skipped, borderSkipped, droppedLinks, droppedUnderlays } = stampClip(map, clip, originX, originY, ruleset);
+  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped, borderSkipped, playerStartKept: false, rect, droppedUnderlays };
 }
 
 /**
@@ -394,7 +437,8 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
     skipped: 0,
     borderSkipped: stamped.borderSkipped,
     playerStartKept: false,
-    rect: destination
+    rect: destination,
+    droppedUnderlays: stamped.droppedUnderlays
   };
 }
 
@@ -437,7 +481,8 @@ export interface FillRectResult extends SelectionEditResult {
  * Fills the cells of a rectangle with a palette entry, as painting each of them would: a terrain tile drops the
  * links of the cells whose terrain changes, an item writes the item layer only, an entity replaces whatever
  * stands on the cell, facing `dir` (the player start cell is left alone and reported). The thin walls of a
- * cell stay, as when painting. The outer ring is never written: its cells are counted apart. An entry the
+ * cell stay, as when painting; hidden terrain stays only under a terrain that can still hide it, and the result counts
+ * what a terrain fill removed. The outer ring is never written: its cells are counted apart. An entry the
  * level's ruleset cannot play, the player start, a wire or a thin wall refuses the whole fill.
  */
 export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: Direction, ruleset: EditableRuleset): FillRectResult {
@@ -482,6 +527,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
       }
     }
   }
+  const droppedUnderlays = brush.kind === 'terrain' ? pruneUnderlays(map) : 0;
   return {
     map,
     changed: !sameMapLayers(source, map),
@@ -489,6 +535,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
     skipped,
     borderSkipped,
     playerStartKept: skipped > 0,
+    droppedUnderlays,
     rect: area,
     refusal: null
   };

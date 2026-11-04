@@ -566,6 +566,7 @@
       "item": { "label": "objet : {name}" },
       "entity": { "label": "{name}, tourné vers {side}" },
       "player": { "label": "Départ du joueur, tourné vers {side}" },
+      "underlay": { "label": "cache {name}" },
       "edges": { "label": "cloisons fines : {sides}" },
       "side": {
         "n": { "label": "le nord" },
@@ -796,6 +797,10 @@
       "status": {
         "label": "Messages de l'éditeur",
         "links_removed": "{count, plural, one {# lien a été supprimé} other {# liens ont été supprimés}}.",
+        "underlays_removed": "{count, plural, one {# terrain caché a été retiré : la tuile du dessus ne peut pas le cacher} other {# terrains cachés ont été retirés : la tuile du dessus ne peut pas les cacher}}.",
+        "underlays_erased": {
+          "label": "Le terrain caché de cette cellule a aussi été effacé."
+        },
         "start_kept": "Le départ du joueur ne s'efface pas : déplacez-le avec l'élément Départ du joueur.",
         "fill_needs_terrain": "Le remplissage demande une tuile de terrain : choisissez-en une dans la palette.",
         "wire_same_cell": "Un fil relie deux cases différentes.",
@@ -838,7 +843,7 @@
         "engine": { "label": "Moteur" },
         "description": {
           "epoxy": "Epoxy : les règles natives, avec lasers, canaux de couleur, cibles de blocs et toutes les tuiles de l'éditeur.",
-          "lynx": "Lynx : les règles des packs communautaires. Les lasers, les miroirs, les canaux de couleur (plaques, portes à maintien, murs et boutons à bascule de couleur, blocs flottants, blocs de couleur), les cibles de blocs et les murs fins sur les cases ne sont pas disponibles.",
+          "lynx": "Lynx : les règles des packs communautaires. Les lasers, les miroirs, les canaux de couleur (plaques, portes à maintien, murs et boutons à bascule de couleur, blocs flottants, blocs de couleur), les cibles de blocs, les murs fins sur les cases et le terrain caché sous des tuiles ne sont pas disponibles.",
           "cc3d": "CC3D : les règles des niveaux de Chuck's Challenge 3D. Le moteur d'un tel niveau ne peut pas être changé."
         }
       },
@@ -853,6 +858,7 @@
         "dropped_links": "{count, plural, one {# fil a été retiré} other {# fils ont été retirés}}.",
         "start_moved": "Le départ du joueur a été ramené à l'intérieur du niveau.",
         "dropped_edges": "{count, plural, one {# case a perdu ses murs fins} other {# cases ont perdu leurs murs fins}}.",
+        "dropped_underlays": "{count, plural, one {# case a perdu son terrain caché} other {# cases ont perdu leur terrain caché}}.",
         "border_kept": "Le contour a été refermé avec des murs."
       }
     },
@@ -884,7 +890,7 @@
       "ruleset": { "label": "Règles" },
       "ruleset_epoxy": { "label": "Epoxy" },
       "ruleset_lynx": { "label": "Lynx (packs communautaires)" },
-      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc, à lasers, à canaux de couleur ou à murs fins sur des cases ne se jouent qu'avec les règles Epoxy" },
+      "ruleset_lynx_unavailable": { "label": "Les niveaux à cibles de bloc, à lasers, à canaux de couleur, à murs fins sur des cases ou à terrain caché sous des tuiles ne se jouent qu'avec les règles Epoxy" },
       "ruleset_cc3d": { "label": "CC3D (Chuck's Challenge 3D)" },
       "ruleset_cc3d_unavailable": { "label": "Seul un niveau CC3D se joue avec les règles CC3D" },
       "ruleset_cc3d_locked": { "label": "Un niveau CC3D garde ses propres règles : le moteur ne peut pas être changé" },
