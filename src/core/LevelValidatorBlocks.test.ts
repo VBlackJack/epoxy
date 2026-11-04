@@ -31,6 +31,7 @@ const TERRAIN_CODES: Record<string, string> = {
   d: 'floor',
   w: 'floor',
   t: 'thief',
+  v: 'force_w',
   f: 'floor',
   x: 'floor',
   E: 'exit',
@@ -44,7 +45,7 @@ const ITEM_CODES: Record<string, string> = { f: 'boots_fire', w: 'boots_water', 
 
 /**
  * Rows: # wall, . floor, P player, i ice block, d dirt block, E exit, W water, F fire, S slime,
- * I ice floor, f fire boots on floor, w flippers on floor, t thief, x bomb on floor.
+ * I ice floor, f fire boots on floor, w flippers on floor, t thief, v west force floor, x bomb on floor.
  */
 function grid(rows: string[]): CompiledLevel {
   let start = { x: 0, y: 0 };
@@ -184,6 +185,7 @@ describe('blocks that fill water or melt fire', () => {
   });
 
   describe('melt then swim', () => {
+    const WIDE_WALL = '############';
     // Flippers at (2,1), ice block at (3,1) pushed east onto the fire at (5,1): it melts into water that is swum.
     const SWIM_MOVES: Direction[] = ['E', 'E', 'E', 'E', 'E', 'E', 'E', 'E'];
 
@@ -213,7 +215,6 @@ describe('blocks that fill water or melt fire', () => {
 
     // After the melt the thief takes the flippers, so the water further on needs the only filler: the melt
     // itself must not have used it.
-    const WIDE_WALL = '############';
     const THIEF_ROUTE: Direction[] = ['E', 'E', 'E', 'E', 'E', 'E', 'S', 'S', 'E', 'N', 'N', 'E', 'E'];
 
     it('(e) a melt costs no filler: the dirt block is left for the water after the thief', () => {
@@ -224,9 +225,68 @@ describe('blocks that fill water or melt fire', () => {
 
     it('(e) guards over-optimism: without the filler the water after the thief stays unreachable', () => {
       const level = grid([WIDE_WALL, '#Pwi.F.tW.E#', '#######..###', '#######..###', WIDE_WALL]);
-     
       expect(exitUnreachable(level)).toBe(true);
       expect(engineWins(level, THIEF_ROUTE)).toBe(false);
+    });
+
+    // The melted fire is water for everyone: fire boots do not protect there, so crossing it again after the
+    // thief needs the filler. The far fire at the west end needs fire boots (the one ice block is spent). The
+    // force floors let the player back from the fire boots without passing the thief again.
+    const RECROSS_WALL = '####################';
+    const RECROSS_ROUTE: Direction[] = [
+      ...Array<Direction>(7).fill('E'),
+      'S', 'W', 'S', 'W', 'N', 'N',
+      ...Array<Direction>(13).fill('W')
+    ];
+    const recrossLevel = (dirt: boolean): CompiledLevel =>
+      grid([
+        RECROSS_WALL,
+        '#EF........PwiF.t..#',
+        dirt ? '##############d.vvf#' : '##############..vvf#',
+        '##############..####',
+        RECROSS_WALL
+      ]);
+
+    it('(f) fire boots recross a melted fire once a dirt block has filled it', () => {
+      const level = recrossLevel(true);
+      expect(exitUnreachable(level)).toBe(false);
+      expect(engineWins(level, RECROSS_ROUTE)).toBe(true);
+    });
+
+    it('(f) guards over-optimism: fire boots do not cross a melted fire without a filler', () => {
+      const level = recrossLevel(false);
+      expect(exitUnreachable(level)).toBe(true);
+      expect(engineWins(level, RECROSS_ROUTE)).toBe(false);
+    });
+
+    it('(g) an ice-floor slide ends in a melted fire: a swimmer survives it', () => {
+      const level = grid([
+        '#######',
+        '###F.E#',
+        '###I###',
+        '###I###',
+        '###I###',
+        '###i###',
+        '#Pw...#',
+        '#######'
+      ]);
+      expect(exitUnreachable(level)).toBe(false);
+      expect(engineWins(level, ['E', 'E', 'N', 'N', 'E', 'E'])).toBe(true);
+    });
+
+    it('(g) guards over-optimism: the same slide without flippers stays unreachable', () => {
+      const level = grid([
+        '#######',
+        '###F.E#',
+        '###I###',
+        '###I###',
+        '###I###',
+        '###i###',
+        '#P....#',
+        '#######'
+      ]);
+      expect(exitUnreachable(level)).toBe(true);
+      expect(engineWins(level, ['E', 'E', 'N', 'N', 'E', 'E'])).toBe(false);
     });
   });
 });

@@ -596,15 +596,17 @@ export class LevelValidator {
           // before it and fetched later, so reachability stays optimistic about it.
 
           const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
-          const protectedHere = hasBoot(nextBoots, nextTile.protectedByItem);
+          // A fire an ice block melted is water in the engine: only flippers protect there, not fire boots.
+          const meltedHere = nextTile.hazard === 'fire' && meltedFires.has(`${nx},${ny}`);
+          const protectedHere = hasBoot(nextBoots, meltedHere ? swimProtection : nextTile.protectedByItem);
 
           // A block pushed in turns water or slime into ground the player can cross.
           // Known limits of this optimistic count: blocks are tallied per type and not by position, and the
           // demands are not ordered. Water needs a filler (dirt; an ice block vanishes there and leaves the
           // water, a mirror refuses it), slime swallows any block, and fire costs an ice block plus a filler,
           // after which the cell is plain ground. A state holding flippers only pays the ice block (melt then
-          // swim); the cell is remembered as melted and a bootless state that later needs it upgrades that
-          // melt to a full fire demand. A melted cell stays passable for fire boots, which is optimistic. A dirt block on fire neither burns nor puts it out. A slide that ends in
+          // swim); the cell is remembered as melted. Any other state that later needs it, fire boots included
+          // (the cell is water by then), upgrades that melt to a full fire demand. A dirt block on fire neither burns nor puts it out. A slide that ends in
           // water, slime, fire or a bomb is replayed on the next pass once the blocks are spent.
           if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
             if (trySpend(nextTile.hazard === 'water' ? 'water' : 'other')) {
@@ -1170,11 +1172,12 @@ export class LevelValidator {
       const item = items[y][x];
       if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return fatal('bomb', x, y);
       boots = this.bootsOnArrival(boots, entered, item, bootBits);
-      // A fire an ice block melted is water now: a swimmer slides through it.
-      if (entered.hazard === 'fire' && meltedFires.has(`${x},${y}`) && hasBoot(boots, swimProtection)) continue;
+      // A fire an ice block melted is water now: a swimmer survives it (the slide stops there), fire boots do not.
+      const protection =
+        entered.hazard === 'fire' && meltedFires.has(`${x},${y}`) ? swimProtection : entered.protectedByItem;
       if (
         (entered.hazard === 'water' || entered.hazard === 'fire' || entered.hazard === 'slime') &&
-        !hasBoot(boots, entered.protectedByItem)
+        !hasBoot(boots, protection)
       ) {
         return fatal(entered.hazard, x, y);
       }
