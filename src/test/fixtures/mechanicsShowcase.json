@@ -1916,6 +1916,120 @@
       ],
       "trapLinks": [],
       "cloneLinks": []
+    },
+    {
+      "id": "shots_showcase_1",
+      "number": 6,
+      "customTitle": "Shots Showcase",
+      "customHint": "The yellow trigger fires the launcher. Its shot bounces off the bright face of the one-sided mirror and clears the tank that guards the exit.",
+      "solution": "EEEEEESS",
+      "password": "SHOT",
+      "timeLimitSeconds": 200,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "terrain": [
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "shot_launcher_e",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "floor",
+          "floor",
+          "shot_trigger",
+          "floor",
+          "floor",
+          "floor",
+          "floor",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "floor",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "exit",
+          "wall",
+          "wall"
+        ],
+        [
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall",
+          "wall"
+        ]
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "one_sided_mirror_sw",
+          "x": 7,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "tank",
+          "x": 7,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "launcherLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 2,
+          "launcherX": 1,
+          "launcherY": 1
+        }
+      ]
     }
   ]
 }

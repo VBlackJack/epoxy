@@ -545,3 +545,54 @@ describe('puppet showcase level', () => {
     expect(storedSolutionWins({ ...level, solution: straight })).toBe(false);
   });
 });
+
+/** Index of the shot launcher level in the showcase pack: the last one. */
+const SHOT_LEVEL_INDEX = 7;
+const SHOT_TRIGGER_CELL = { x: 3, y: 2 };
+const SHOT_MAX_FLIGHT_TICKS = 60;
+
+describe('shot launcher showcase level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  const hasType = (engine: GameEngine, type: string): boolean => engine.getEntities().some((e) => e.type === type);
+
+  it('uses a trigger, a linked launcher, a one-sided mirror and a tank, and passes the validator without a warning', () => {
+    const level = compileShowcase(SHOT_LEVEL_INDEX);
+    expect(isCompiledLevelShape(level, ConfigRegistry.getLevelSizeBounds())).toBe(true);
+    expect(level.terrain.flat()).toEqual(expect.arrayContaining(['shot_launcher_e', 'shot_trigger']));
+    expect(new Set(level.entities.map((e) => e.type))).toEqual(new Set(['one_sided_mirror_sw', 'tank']));
+    expect(level.launcherLinks).toHaveLength(1);
+    const report = LevelValidator.validate(level);
+    expect(report.issues.map((i) => i.i18nKey)).toEqual([]);
+    expect(report.valid).toBe(true);
+  });
+
+  it('plays through: the trigger fires, the mirror turns the shot south and the shot clears the tank', () => {
+    const level = compileShowcase(SHOT_LEVEL_INDEX);
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    expect(hasType(engine, 'tank')).toBe(true);
+    expect(engine.getShots()).toEqual([]);
+    // Two steps east put the player on the trigger.
+    walk(engine, 'EE');
+    expect(engine.getPlayer()).toMatchObject(SHOT_TRIGGER_CELL);
+    expect(engine.getShots()?.length).toBeGreaterThan(0);
+    for (let i = 0; i < SHOT_MAX_FLIGHT_TICKS; i++) engine.tick();
+    expect(hasType(engine, 'tank')).toBe(false);
+    expect(engine.getShots()).toEqual([]);
+    expect(engine.getEntities().some((e) => e.type === 'one_sided_mirror_sw')).toBe(true);
+    // The way is clear: along the corridor, down through the tank's cell to the exit.
+    walk(engine, 'EEEESS');
+    expect(engine.isLevelCompleted()).toBe(true);
+  });
+
+  it('carries a stored solution that wins, and is not won when the trigger is never worked', () => {
+    const level = compileShowcase(SHOT_LEVEL_INDEX);
+    expect(storedSolutionWins(level)).toBe(true);
+    expect(level.solution?.startsWith('EE')).toBe(true);
+    // Without the link the trigger fires nothing, the tank stays and the walk into it fails.
+    expect(storedSolutionWins({ ...level, launcherLinks: [] })).toBe(false);
+  });
+});
