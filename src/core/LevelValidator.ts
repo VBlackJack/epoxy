@@ -355,6 +355,7 @@ export class LevelValidator {
     this.checkColorChannels(level, issues);
     this.checkSteering(level, issues);
     this.checkShotLaunchers(level, issues);
+    this.checkButtonsWithoutEffect(level, issues);
 
     // A consumed key opens one door; a kept key opens every door of its colour
     for (const [keyId, doors] of Object.entries(consumingDoorCounts)) {
@@ -1475,6 +1476,48 @@ export class LevelValidator {
         }
       })
     );
+  }
+
+  /**
+   * Info about brown and red buttons that cannot do anything on an Epoxy level: a brown button with no trap tile
+   * anywhere, and a red button with no link of its own while no clone machine holds an entity template (the engine
+   * fallback then has nothing to clone). Hidden underlays count like tiles in plain sight.
+   */
+  private static checkButtonsWithoutEffect(level: CompiledLevel, issues: ValidationIssue[]): void {
+    if (level.ruleset === 'lynx' || level.ruleset === 'cc3d') return;
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
+    const tilesAt = (x: number, y: number): TileDefinition[] => {
+      const hiddenId = underlays?.get(y * width + x);
+      const ids = hiddenId === undefined ? [level.terrain[y][x]] : [level.terrain[y][x], hiddenId];
+      return ids.map((id) => ConfigRegistry.getTile(id));
+    };
+    const links = level.cloneLinks ?? [];
+    let trapExists = false;
+    let brownButtons = 0;
+    const redButtons: GridPoint[] = [];
+    const machineCells: GridPoint[] = [];
+    level.terrain.forEach((row, y) =>
+      row.forEach((_id, x) => {
+        for (const tile of tilesAt(x, y)) {
+          if (tile.isTrap) trapExists = true;
+          if (tile.buttonAction === 'hold_trap') brownButtons++;
+          if (tile.buttonAction === 'trigger_cloner') redButtons.push({ x, y });
+          if (tile.isCloneMachine) machineCells.push({ x, y });
+        }
+      })
+    );
+    if (brownButtons > 0 && !trapExists) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.trap_button_no_trap.label' });
+    }
+    const templateOnMachine = machineCells.some((cell) =>
+      (level.entities ?? []).some((e) => e.x === cell.x && e.y === cell.y)
+    );
+    if (templateOnMachine) return;
+    for (const button of redButtons) {
+      if (links.some((l) => l.buttonX === button.x && l.buttonY === button.y)) continue;
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.clone_button_nothing.label', params: { x: button.x, y: button.y } });
+    }
   }
 
   /** The localized name of a channel colour, as the colour warnings show it. */

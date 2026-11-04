@@ -559,6 +559,8 @@
       "shot_trigger_no_link": { "label": "Avertissement : un déclencheur en ({x}, {y}) n'est lié à aucun lanceur, il ne tire donc rien." },
       "shot_launcher_unlinked": { "label": "Avertissement : un lanceur de tirs en ({x}, {y}) n'a aucun déclencheur lié, il ne tire donc jamais." },
       "shot_launcher_faces_wall": { "label": "Avertissement : un lanceur de tirs en ({x}, {y}) fait face à un mur ou au bord de la carte, ses tirs s'arrêtent donc aussitôt." },
+      "trap_button_no_trap": { "label": "Info : un bouton marron n'a aucun piège à déclencher : le niveau ne contient pas de piège." },
+      "clone_button_nothing": { "label": "Info : le bouton rouge en ({x}, {y}) n'a aucun lien de clonage et aucune machine à cloner ne porte de modèle, il ne clone donc rien." },
       "puppet_no_steering_pad": { "label": "Avertissement : une marionnette n'a aucune commande de marionnette pour la déplacer, elle ne peut donc jamais bouger." },
       "exit_on_receivers_level": { "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs." },
       "start_on_wall": { "label": "Avertissement : le départ du joueur est dans un mur." },
@@ -835,7 +837,7 @@
       "none": "Aucun problème trouvé.",
       "more": "et {count, plural, one {# autre problème} other {# autres problèmes}}",
       "jump": { "title": "Aller à la case ({x}, {y})" },
-      "severity": { "error": { "label": "Erreur" }, "warning": { "label": "Avertissement" } }
+      "severity": { "error": { "label": "Erreur" }, "warning": { "label": "Avertissement" }, "info": { "label": "Info" } }
     },
     "test_from": {
       "action": "Tester d'ici",

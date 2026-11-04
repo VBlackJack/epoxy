@@ -132,6 +132,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     const errorKeys: Record<string, number> = {};
     const errorMaps: Record<string, number> = {};
     const warningKeys: Record<string, number> = {};
+    const infoKeys: Record<string, number> = {};
     const lostKeys: Record<string, number> = {};
     const lostMaps: string[] = [];
     const verdicts: Record<string, number> = { exact: 0, approx: 0, lost: 0 };
@@ -175,7 +176,8 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
           if (!seen.has(key)) bump(errorMaps, key);
           seen.add(key);
           if (!ALLOWED_ERROR_KEYS.includes(key)) problems.push(`${source.id}: validator error ${key}`);
-        } else bump(warningKeys, key);
+        } else if (issue.severity === 'warning') bump(warningKeys, key);
+        else bump(infoKeys, key);
       }
 
       // A block that starts on water or fire stays an entity (measured, not an error).
@@ -195,6 +197,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     console.info(`validator errors (count) ${JSON.stringify(errorKeys)}`);
     console.info(`validator errors (maps) ${JSON.stringify(errorMaps)}`);
     console.info(`validator warnings ${JSON.stringify(warningKeys)}`);
+    console.info(`validator info ${JSON.stringify(infoKeys)}`);
     console.info(`maps with lost keys: ${lostMaps.length}; per key (maps) ${JSON.stringify(lostKeys)}`);
     console.info(`blocks starting on water or fire: ${waterFireBlocks}; converter drops: ${dropCount}`);
     expect(problems).toEqual([]);
