@@ -284,3 +284,26 @@ describe('a slide into a door follows the same key rules as walking', () => {
     expect(engineWins(level, ['E', 'E'])).toBe(false);
   });
 });
+
+describe('a slide into a door that hides terrain', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  const hiding = (terrain: string, row = '#PIIID#'): CompiledLevel => ({
+    ...corridor(row, '#..k....'.slice(0, row.length)),
+    underlays: [{ x: 5, y: 1, terrain }]
+  });
+
+  it('wins on the exit the door hides, in the validator and in the engine', () => {
+    const level = hiding('exit');
+    expect(exitUnreachable(level)).toBe(false);
+    expect(engineWins(level, ['E'])).toBe(true);
+  });
+
+  it('does not count the player safe on water the door hides, as the engine drowns them', () => {
+    const level = { ...hiding('water', '#PIIIDE#'), id: 'ice_gate_water' };
+    expect(exitUnreachable(level)).toBe(true);
+    expect(engineWins(level, ['E'])).toBe(false);
+  });
+});

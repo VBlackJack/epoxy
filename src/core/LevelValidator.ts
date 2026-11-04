@@ -594,8 +594,12 @@ export class LevelValidator {
                   closedDoors[keyId] = Math.max((closedDoors[keyId] || 0) - 1, 0);
                 }
               }
-              simTerrain[oy][ox] = openedTile.transformsToOnUnlock || FLOOR_TILE_ID;
+              const hidden = hiddenUnder(level, simTerrain, ox, oy);
+              simTerrain[oy][ox] = openedTerrain(level, simTerrain, ox, oy, openedTile);
               changed = true;
+              // As for a door opened on foot: the engine lets the player enter whatever the opening reveals
+              // (ice carries on, water kills), so only plain ground is entered here; the next pass judges the rest.
+              if (hidden !== undefined && !isPlainGround(ConfigRegistry.getTile(hidden))) continue;
             }
             enqueue(slide.end.x, slide.end.y, slide.boots);
             continue;
