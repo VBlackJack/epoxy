@@ -21,6 +21,7 @@ import {
   Direction,
   PlayerState,
   RuntimeEntity,
+  Shot,
   TimedMove,
   TrapLink
 } from './types';
@@ -89,6 +90,8 @@ export interface PlayEngine {
    * Derived state; an engine without stacked layers omits it.
    */
   getHiddenLayerCells?(): ReadonlySet<number>;
+  /** Optional. The shots in flight; undefined on a level without shot launchers. An engine without them omits it. */
+  getShots?(): readonly Shot[] | undefined;
   getTrapLinks(): TrapLink[];
   getCloneLinks(): CloneLink[];
   getMapWidth(): number;

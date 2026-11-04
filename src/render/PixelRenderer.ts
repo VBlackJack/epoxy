@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
-import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, ThemePalette, TileDefinition } from '../core/types';
+import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, MirrorCorner, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BLOCK_ON_TARGET_COLOR_KEY,
@@ -35,6 +35,8 @@ import { blockCellsKey, collectBlockCells } from './blockCover';
 import {
   CC3D_MOB_BASES,
   EPOXY_MOB_BASES,
+  EPOXY_SHOT_PAINTERS,
+  SHOT_PAINTER_ID,
   GOLEM_CONTROL_PAINTER_ID,
   GOLEM_YELLOW_PAINTER_ID,
   Cc3dMobBase,
@@ -379,7 +381,8 @@ const EPOXY_TO_CC3D_PAINTER: Readonly<Record<string, string>> = Object.fromEntri
   ['turret_multi', 'cc3d_bot_multi'],
   // The puppet is the yellow golem and its control the golem control; the skitter is in EPOXY_MOB_BASES.
   ['puppet', GOLEM_YELLOW_PAINTER_ID],
-  ['puppet_control', GOLEM_CONTROL_PAINTER_ID]
+  ['puppet_control', GOLEM_CONTROL_PAINTER_ID],
+  ...Object.entries(EPOXY_SHOT_PAINTERS)
 ]);
 
 /** Colour of each floating block tile: water with the block faint under the surface. */
@@ -1249,6 +1252,14 @@ export class PixelRenderer {
       if (!activeUids.has(uid)) {
         this.visualEntityPos.delete(uid);
       }
+    }
+
+    // Shots in flight sit in their cell, over the entities and under the player.
+    for (const shot of engine.getShots?.() ?? []) {
+      if (shot.x < camX - 1 || shot.x > camX + viewportWidth + 1 || shot.y < camY - 1 || shot.y > camY + viewportHeight + 1) continue;
+      const px = lowRes ? originX + Math.round((shot.x - region.x0) * unit) : (shot.x - camX) * tilePixelSize;
+      const py = lowRes ? originY + Math.round((shot.y - region.y0) * unit) : (shot.y - camY) * tilePixelSize;
+      this.drawCc3dEntity(sceneCtx, SHOT_PAINTER_ID, shot.dir, px, py, unit);
     }
 
     // Render A* Click-to-Move planned path waypoints (retro draws it after the scene is scaled up)
@@ -4682,7 +4693,14 @@ export class PixelRenderer {
   }
 
   /** A mirror block: a frame around a pane with the reflecting diagonal drawn across it. */
-  private paintMirror(ctx: CanvasRenderingContext2D, axis: MirrorAxis, x: number, y: number, size: number): void {
+  private paintMirror(
+    ctx: CanvasRenderingContext2D,
+    axis: MirrorAxis,
+    x: number,
+    y: number,
+    size: number,
+    frontCorner?: MirrorCorner
+  ): void {
     const pal = this.pal();
     const isModern = this.isHdVector();
     const inset = size * MIRROR_BODY.inset;
@@ -4702,6 +4720,22 @@ export class PixelRenderer {
     ctx.fill();
     ctx.fillStyle = pal.mirrorGlass;
     ctx.fillRect(x + pane, y + pane, size - pane * 2, size - pane * 2);
+    if (frontCorner !== undefined) {
+      // The back of a one-sided mirror is a dull half: the triangle on the far side of the diagonal.
+      const left = x + pane;
+      const right = x + size - pane;
+      const top = y + pane;
+      const bottom = y + size - pane;
+      const backX = frontCorner.includes('W') ? right : left;
+      const backY = frontCorner.includes('N') ? bottom : top;
+      ctx.fillStyle = pal.wallShadow;
+      ctx.beginPath();
+      ctx.moveTo(backX, backY);
+      ctx.lineTo(frontCorner.includes('W') ? left : right, backY);
+      ctx.lineTo(backX, frontCorner.includes('N') ? top : bottom);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.strokeStyle = pal.mirrorSheen;
     ctx.lineWidth = Math.max(1, size * MIRROR_BODY.lineWidth);
     ctx.beginPath();
@@ -4769,13 +4803,17 @@ export class PixelRenderer {
       // its cells are drawn as plain lines.
       for (const cell of emitterCells) byCell.set(cell.y * width + cell.x, cell);
       const mirrors = new Map<number, MirrorAxis>();
+      const mirrorFronts = new Map<number, MirrorCorner>();
       for (const ent of entities) {
-        const axis = ent.kind === 'block' ? ConfigRegistry.getEntityDef(ent.type)?.mirrorAxis : undefined;
-        if (axis) mirrors.set(ent.y * width + ent.x, axis);
+        const def = ent.kind === 'block' ? ConfigRegistry.getEntityDef(ent.type) : undefined;
+        if (!def?.mirrorAxis) continue;
+        mirrors.set(ent.y * width + ent.x, def.mirrorAxis);
+        if (def.mirrorFrontCorner) mirrorFronts.set(ent.y * width + ent.x, def.mirrorFrontCorner);
       }
       const board: BeamBoard = {
         beamAt: (bx, by) => byCell.get(by * width + bx),
         mirrorAt: (bx, by) => mirrors.get(by * width + bx),
+        mirrorFrontAt: (bx, by) => mirrorFronts.get(by * width + bx),
         emitterAt: (bx, by) => ConfigRegistry.getTile(terrain[by]?.[bx] ?? '').laserEmitter
       };
       const paintLayer = (thickness: number, color: string, blur: number): void => {
@@ -4888,9 +4926,10 @@ export class PixelRenderer {
       this.paintBlock(ctx, type, x, y, size);
       return;
     }
-    const mirrorAxis = ConfigRegistry.getEntityDef(type)?.mirrorAxis;
+    const mirrorDef = ConfigRegistry.getEntityDef(type);
+    const mirrorAxis = mirrorDef?.mirrorAxis;
     if (mirrorAxis) {
-      this.paintMirror(ctx, mirrorAxis, x, y, size);
+      this.paintMirror(ctx, mirrorAxis, x, y, size, mirrorDef?.mirrorFrontCorner);
       return;
     }
 

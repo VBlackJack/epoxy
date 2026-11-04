@@ -58,6 +58,9 @@ export const STEER_MONSTERS_ACTION: ButtonAction = 'steer_monsters';
 /** Button action of a shot trigger: every launcher linked to the button fires one shot. */
 export const FIRE_LAUNCHERS_ACTION: ButtonAction = 'fire_launchers';
 
+/** Tile id of the shot trigger, the tile whose action is fire_launchers. */
+export const SHOT_TRIGGER_TILE_ID = 'shot_trigger';
+
 /** Movement pattern of a monster that steps toward the player. */
 export const CHASE_PLAYER_PATTERN = 'chase_player';
 

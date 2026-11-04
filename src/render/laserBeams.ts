@@ -21,8 +21,8 @@
  */
 
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { MIRROR_REFLECTIONS, OPPOSITE_DIRECTION } from '../core/coreConstants';
-import { BeamCell, Direction, MirrorAxis } from '../core/types';
+import { OPPOSITE_DIRECTION, reflectOnMirror } from '../core/coreConstants';
+import { BeamCell, Direction, MirrorAxis, MirrorCorner } from '../core/types';
 
 /** Which of the four half-lines from the centre of a cell to its edges the beam draws. */
 export type BeamArms = Readonly<Record<Direction, boolean>>;
@@ -41,6 +41,8 @@ export interface BeamBoard {
   beamAt(x: number, y: number): BeamCell | undefined;
   /** Axis of the mirror standing on a position, if any. */
   mirrorAt(x: number, y: number): MirrorAxis | undefined;
+  /** The reflecting corner of a one-sided mirror; undefined for a double-sided mirror or no mirror. */
+  mirrorFrontAt?(x: number, y: number): MirrorCorner | undefined;
   /** Direction the emitter on a position fires in, if any. */
   emitterAt(x: number, y: number): Direction | undefined;
 }
@@ -88,8 +90,11 @@ export function beamArms(cell: BeamCell, board: BeamBoard): BeamArms {
   for (const dir of ORDERED_DIRECTIONS) {
     const entry = OPPOSITE_DIRECTION[dir];
     if (!feedsFrom(board, cell.x, cell.y, entry, dir)) continue;
+    // A beam that meets the back of a one-sided mirror draws no corner there.
+    const out = reflectOnMirror(axis, board.mirrorFrontAt?.(cell.x, cell.y), dir);
+    if (out === null) continue;
     arms[entry] = true;
-    arms[MIRROR_REFLECTIONS[axis][dir]] = true;
+    arms[out] = true;
   }
   // No neighbour could be traced to the beam (touching mirrors): show the axes it carries rather than nothing.
   return ORDERED_DIRECTIONS.some((dir) => arms[dir]) ? arms : lines;

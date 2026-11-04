@@ -21,6 +21,7 @@
  */
 
 import { REFLECTING_FACES } from '../core/cc3d/cc3dLasers';
+import { MIRROR_FRONT_AXIS, SHOT_TRIGGER_TILE_ID } from '../core/coreConstants';
 import type { Direction } from '../core/types';
 
 /** Prefix of every display id that only the cc3d ruleset uses. */
@@ -35,6 +36,8 @@ const DIR_VECTOR: Readonly<Record<Direction, readonly [number, number]>> = {
   W: [-1, 0]
 };
 const ALL_DIRECTIONS: readonly Direction[] = ['N', 'E', 'S', 'W'];
+/** Stored name of the reflector whose glass sits in each corner of the cell. */
+const REFLECTOR_NAME_BY_CORNER: Readonly<Record<string, string>> = { NE: 'rd', NW: 'dl', SE: 'ur', SW: 'lu' };
 const COLORS = ['red', 'green', 'blue', 'yellow'] as const;
 type CellColor = (typeof COLORS)[number];
 
@@ -48,6 +51,8 @@ const REFLECTOR_FAMILY = 'reflector_';
 const BOT_FAMILY = 'bot_';
 const FISH_EXTRA = 'fish_extra';
 const LASER_SHOOTER = 'laser_shooter';
+/** Prefix of the terrain form of the shooter, which carries its facing as a last letter (Epoxy's shot launchers). */
+const LASER_SHOOTER_TERRAIN_FAMILY = 'laser_shooter_';
 const SHOT = 'shot';
 const SOCKET_RED = 'socket_red';
 const SAND = 'sand';
@@ -56,6 +61,27 @@ const LASER_CONTROLLER = 'laser_controller';
 const BOT_STATIC = 'static';
 const BOT_MULTI = 'multi';
 const BOT_CLOCKWISE = 'cw';
+/** Display id of the cc3d shot, which Epoxy draws for its flying shots. */
+export const SHOT_PAINTER_ID = `${CC3D_TILE_PREFIX}${SHOT}`;
+/** Display id of the shooter as a terrain glyph facing `dir`, which Epoxy draws for its shot launchers. */
+export function shooterTerrainPainterId(dir: Direction): string {
+  return `${CC3D_TILE_PREFIX}${LASER_SHOOTER_TERRAIN_FAMILY}${dir.toLowerCase()}`;
+}
+/** Display id of the reflector that turns the shots coming in through the two sides that meet at `corner`. */
+export function reflectorPainterId(corner: string): string {
+  const name = REFLECTOR_NAME_BY_CORNER[corner];
+  return `${CC3D_TILE_PREFIX}${REFLECTOR_FAMILY}${name}`;
+}
+/**
+ * The cc3d glyph each Epoxy shot device is drawn as: a shot launcher is the shooter facing its way, the shot
+ * trigger is the laser controller and a one-sided mirror is the reflector with its glass in the corner the
+ * mirror faces.
+ */
+export const EPOXY_SHOT_PAINTERS: Readonly<Record<string, string>> = Object.fromEntries([
+  ...ALL_DIRECTIONS.map((d) => [`shot_launcher_${d.toLowerCase()}`, shooterTerrainPainterId(d)]),
+  [SHOT_TRIGGER_TILE_ID, `${CC3D_TILE_PREFIX}${LASER_CONTROLLER}`],
+  ...Object.keys(MIRROR_FRONT_AXIS).map((c) => [`one_sided_mirror_${c.toLowerCase()}`, reflectorPainterId(c)])
+]);
 /** Display id of the golem control, which Epoxy draws for its puppet control. */
 export const GOLEM_CONTROL_PAINTER_ID = `${CC3D_TILE_PREFIX}${GOLEM_CONTROL}`;
 /** Display id of the yellow golem, which Epoxy draws for its puppet. */
@@ -434,6 +460,10 @@ export function paintCc3dTerrain(ctx: CanvasRenderingContext2D, id: string, x: n
   else if (name === SAND) paintSand(ctx, x, y, size, tools);
   else if (name === GOLEM_CONTROL) paintControl(ctx, 'yellow', x, y, size, tools);
   else if (name === LASER_CONTROLLER) paintLaserController(ctx, x, y, size, tools);
+  else if (name.startsWith(LASER_SHOOTER_TERRAIN_FAMILY)) {
+    const dir = name.slice(LASER_SHOOTER_TERRAIN_FAMILY.length).toUpperCase();
+    if (Object.hasOwn(DIR_VECTOR, dir)) paintLaserShooter(ctx, dir as Direction, x, y, size, tools);
+  }
 }
 
 /** Paints an item of the cc3d ruleset: the extra fish. */
