@@ -210,9 +210,23 @@ export function isSlowTimeTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).slowsMonsters !== undefined;
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile or the slow-time item. */
+/** True when the tile id is a swivel door, which turns a quarter turn behind whoever passes through it. */
+export function isSwivelTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).swivelTurns !== undefined;
+}
+
+/** True when the level places a swivel door (terrain or item layer). */
+export function hasSwivelContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isSwivelTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, the slow-time item, a steering pad or a swivel door. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
-  return isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id) || isSteeringTileId(id);
+  return (
+    isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id) || isSteeringTileId(id) || isSwivelTileId(id)
+  );
 }
 
 /** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, a colour block, a puppet or a skitter. */
@@ -245,6 +259,7 @@ export function hasEpoxyOnlyContent(
     hasColorChannelContent(level) ||
     hasSlowTime(level.terrain) ||
     hasSlowTime(level.items) ||
+    hasSwivelContent(level) ||
     hasEpoxyOnlyMonsterContent(level)
   );
 }
@@ -266,12 +281,13 @@ const laserContentCache = new WeakMap<object, boolean>();
 const colorContentCache = new WeakMap<object, boolean>();
 const turretContentCache = new WeakMap<object, boolean>();
 const steeringContentCache = new WeakMap<object, boolean>();
+const swivelContentCache = new WeakMap<object, boolean>();
 /** The aids of a steering level, kept per aid set so a level of one kind always gets the same object. */
 const steeringFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 
 /**
- * The aids a level with puppets loses on top of what its other mechanics already turn off: a tapped path
- * and the push hint and watch do not know the pads' steps. An overlay on the result of the other rules,
+ * The aids a level with puppets or swivel doors loses on top of what its other mechanics already turn off: a tapped path
+ * and the push hint and watch do not know the pads' steps nor the doors that turn. An overlay on the result of the other rules,
  * so a pad never has to be combined by hand with each laser and colour case.
  */
 function withoutSteeringAids(base: RulesetFeatures): RulesetFeatures {
@@ -298,7 +314,12 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     });
     steeringContentCache.set(level, steering);
   }
-  return steering ? withoutSteeringAids(base) : base;
+  let swivel = swivelContentCache.get(level);
+  if (swivel === undefined) {
+    swivel = hasSwivelContent({ terrain: level.terrain, items: level.items ?? [] });
+    swivelContentCache.set(level, swivel);
+  }
+  return steering || swivel ? withoutSteeringAids(base) : base;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

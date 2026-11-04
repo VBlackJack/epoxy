@@ -124,7 +124,7 @@ export class BlockPuzzleSolver {
         const tile = ConfigRegistry.getTile(terrain[y][x]);
         const item = items[y][x];
         const itemHazard = item ? Boolean(ConfigRegistry.getTile(item).hazard) : false;
-        const plain = !tile.slideType && !tile.hazard && !tile.isTrap && !tile.isTeleporter && !itemHazard;
+        const plain = !tile.slideType && !tile.hazard && !tile.isTrap && !tile.isTeleporter && !tile.swivelTurns && !itemHazard;
         const unlocked = !tile.requiredKey || (player.keys[tile.requiredKey] ?? 0) > 0;
         this.playerOk[k] = plain && unlocked && tile.passableByPlayer === true && !monsters.has(k) ? 1 : 0;
         this.blockOk[k] = plain && tile.passableByBlock === true && !monsters.has(k) ? 1 : 0;
@@ -243,6 +243,8 @@ export class BlockPuzzleSolver {
     let cells = 0;
     for (let y = 0; y < terrain.length; y++) {
       for (let x = 0; x < terrain[y].length; x++) {
+        // A swivel door turns behind whoever passes: the search keeps edges fixed, so it never judges one.
+        if (ConfigRegistry.getTile(terrain[y][x]).swivelTurns) return null;
         if (!MODELLED_TERRAIN.includes(terrain[y][x])) return null;
         const item = items[y][x];
         if (item !== null && !MODELLED_ITEMS.includes(item)) return null;

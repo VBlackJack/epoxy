@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { STEER_MONSTERS_ACTION } from '../coreConstants';
 import { Direction, RuntimeEntity } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
+import { leaveSwivel } from './epoxySwivels';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
 import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap } from './epoxyWorld';
 
@@ -69,6 +70,7 @@ function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, dir: Direction): 
     if (getEntityAt(w, nx, ny)) return 'stayed';
   }
 
+  leaveSwivel(w, entity.x, entity.y);
   entity.x = nx;
   entity.y = ny;
   entity.dir = dir;

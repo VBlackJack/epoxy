@@ -32,7 +32,7 @@ import {
 import { t } from '../i18n/I18nManager';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
 import { isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
-import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
+import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, underlayMap } from './Underlays';
 import {
@@ -216,6 +216,9 @@ type BootCheck = (boots: number, bootId: string | undefined) => boolean;
 
 /** Tells whether a level's stored solution wins in the real engine; supplied by callers that can replay it. */
 export type SolutionWins = (level: CompiledLevel) => boolean;
+
+/** Tile standing in for a swivel door while its own edges are ignored by the reachability checks. */
+const SWIVEL_NEUTRAL_TILE = 'floor';
 
 /** How hard the validator searches the block puzzle of a 'targets' level. */
 export type BlockSearchMode = 'watch' | 'exhaustive';
@@ -1464,6 +1467,7 @@ export class LevelValidator {
           const dir = tile.shotLauncher.dir;
           const nx = x + DIRECTION_VECTORS[dir].dx;
           const ny = y + DIRECTION_VECTORS[dir].dy;
+          // Raw edge check on purpose: a swivel launcher or target cell keeps its start orientation here.
           const ahead = level.terrain[ny]?.[nx];
           if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir)) {
             issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_faces_wall.label', params: { x, y } });
@@ -2021,6 +2025,25 @@ export class LevelValidator {
     toY: number,
     dir: Direction
   ): boolean {
-    return isEdgeBlockedAt(terrain, mask, fromX, fromY, toX, toY, dir);
+    const fromId = terrain[fromY][fromX];
+    const toId = terrain[toY][toX];
+    const fromSwivel = ConfigRegistry.getTile(fromId).swivelTurns !== undefined;
+    const toSwivel = ConfigRegistry.getTile(toId).swivelTurns !== undefined;
+    if (!fromSwivel && !toSwivel) return isEdgeBlockedAt(terrain, mask, fromX, fromY, toX, toY, dir);
+    // A swivel door turns behind whoever passes, so for reachability it is open on every side: its own
+    // blockedEdges are ignored (over-approximation of every orientation, never a false unreachable). The
+    // neighbour's edges and the cell edges (mask) still apply. Cost: a one-way swivel trap is not flagged.
+    // The edge is read with a neutral tile standing in for the door; the terrain is never written.
+    return isEdgeBlockedBetween(
+      fromSwivel ? SWIVEL_NEUTRAL_TILE : fromId,
+      toSwivel ? SWIVEL_NEUTRAL_TILE : toId,
+      mask,
+      terrain[0].length,
+      fromX,
+      fromY,
+      toX,
+      toY,
+      dir
+    );
   }
 }

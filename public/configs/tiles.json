@@ -247,6 +247,54 @@
       "passableByBlock": true,
       "blockedEdges": ["N", "E", "S", "W"]
     },
+    "swivel_door_ne": {
+      "id": "swivel_door_ne",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_ne.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "E"],
+      "swivelTurns": { "cw": "swivel_door_se", "ccw": "swivel_door_nw" }
+    },
+    "swivel_door_se": {
+      "id": "swivel_door_se",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_se.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["S", "E"],
+      "swivelTurns": { "cw": "swivel_door_sw", "ccw": "swivel_door_ne" }
+    },
+    "swivel_door_sw": {
+      "id": "swivel_door_sw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_sw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["S", "W"],
+      "swivelTurns": { "cw": "swivel_door_nw", "ccw": "swivel_door_se" }
+    },
+    "swivel_door_nw": {
+      "id": "swivel_door_nw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_nw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "W"],
+      "swivelTurns": { "cw": "swivel_door_ne", "ccw": "swivel_door_sw" }
+    },
     "dirt": {
       "id": "dirt",
       "category": "terrain",

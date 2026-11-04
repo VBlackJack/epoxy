@@ -727,6 +727,8 @@ export interface TileDefinition {
   slideType?: 'ice' | 'force';
   blockedEntryDirections?: Direction[];
   blockedEdges?: Direction[];
+  /** A swivel door: the tile the cell turns into after a quarter turn clockwise and counter-clockwise. */
+  swivelTurns?: { cw: string; ccw: string };
   deflectionMap?: Partial<Record<Direction, Direction>>;
   forceDirection?: Direction | 'RANDOM';
   stealsBoots?: boolean;
@@ -1338,6 +1340,8 @@ export interface UndoSnapshot {
   toggleParity?: number;
   /** Cells that revealed their hidden terrain, by index; written only once one did, absent otherwise. */
   revealedCells?: number[];
+  /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */
+  swivelEntry?: [number, Direction][];
 }
 
 export interface LevelHighScore {

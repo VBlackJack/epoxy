@@ -93,9 +93,26 @@ export function isEdgeBlockedAt(
   toY: number,
   dir: Direction
 ): boolean {
-  if (tileEdgeBlocked(terrain[fromY][fromX], terrain[toY][toX], dir)) return true;
+  return isEdgeBlockedBetween(terrain[fromY][fromX], terrain[toY][toX], mask, terrain[0].length, fromX, fromY, toX, toY, dir);
+}
+
+/**
+ * The same verdict as `isEdgeBlockedAt` for tile ids given by the caller, so a check can read an edge as if a
+ * cell held another tile without writing into the terrain.
+ */
+export function isEdgeBlockedBetween(
+  fromId: string,
+  toId: string,
+  mask: Uint8Array | null,
+  width: number,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  dir: Direction
+): boolean {
+  if (tileEdgeBlocked(fromId, toId, dir)) return true;
   if (mask === null) return false;
-  const width = terrain[0].length;
   return (
     (mask[fromY * width + fromX] & CELL_EDGE_BITS[dir]) !== 0 ||
     (mask[toY * width + toX] & CELL_EDGE_BITS[OPPOSITE_DIRECTION[dir]]) !== 0
