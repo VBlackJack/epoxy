@@ -102,8 +102,10 @@ describe('targets_unsolvable in the validator', () => {
     expect(warns(level, 'exhaustive')).toBe(true);
   });
 
-  it('does not warn when the quick test calls stuck a level a moving monster leaves solvable', () => {
+  it('does not warn when the quick test calls stuck a level holding a moving monster', () => {
     // The bug sits in the corridor cell the block must cross; the quick test reads it as a wall.
+    // The monster is an entity the search does not model, so the check stays silent
+    // rather than claim anything about the level.
     const level = room(['#######', '#.....#', '#.P$mT#', '#.....#', '#######']);
     const engine = new GameEngine();
     engine.loadLevel(level);

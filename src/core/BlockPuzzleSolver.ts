@@ -173,7 +173,8 @@ export class BlockPuzzleSolver {
 
   /**
    * An honest verdict on the block puzzle of a 'targets' level, for a check the
-   * designer asked for. Unlike `isStuck` it also reports success, and it never
+   * designer asked for and for the automatic validator, which runs it with the
+   * watch budget. Unlike `isStuck` it also reports success, and it never
    * runs the fast pre-test. It judges a level only when every cell of the map
    * is in the whitelists above, ground and pieces the search models exactly;
    * anything else anywhere on the map makes the verdict `not_checked`, so a
