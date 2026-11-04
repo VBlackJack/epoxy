@@ -26,7 +26,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { CC3D_XML_EXTENSION, decodeCc3dFiles } from '../../formats/Cc3dXmlCodec';
 import { cc3dModel, stacked, terrain } from './cc3dTestMaps';
-import { classifyLevel, elementKeys, EPOXY_COVERAGE, stackedPairs } from './epoxyCoverage';
+import { classifyLevel, classifyStack, elementKeys, EPOXY_COVERAGE, stackedPairs } from './epoxyCoverage';
 import type { CoverageLevel } from './epoxyCoverage';
 import { CC3D_COLORS, CC3D_ITEM_KINDS, CC3D_MOB_KINDS } from './model';
 import type { Cc3dColor, Cc3dItemKind, Cc3dMobKind, Cc3dTerrainKind } from './model';
@@ -65,7 +65,9 @@ describe('epoxy coverage table', () => {
       else check(kind);
     }
     check('stacked_terrain');
+    check('stacked_runtime');
     check('panels_on_nonfloor');
+    check('socket_red_stacked');
     expect(missing).toEqual([]);
   });
 
@@ -94,11 +96,38 @@ describe('classifyLevel', () => {
     expect(result).toEqual({ verdict: 'approx', lost: [], approx: ['water'] });
   });
 
-  it('calls a level with sand lost, and lists approx elements beside it', () => {
-    const result = classifyLevel(levelOf(['######', '#@AWX#', '######']));
+  it('calls a level with a laser controller lost, and lists approx elements beside it', () => {
+    const glyphs = { Z: terrain('laser_controller') };
+    const result = classifyLevel(levelOf(['######', '#@ZWX#', '######'], glyphs));
     expect(result.verdict).toBe('lost');
-    expect(result.lost).toEqual(['sand']);
+    expect(result.lost).toEqual(['laser_controller']);
     expect(result.approx).toEqual(['water']);
+  });
+
+  it('plays sand and the extra fish exactly, and gravel approximately', () => {
+    expect(classifyLevel(levelOf(['######', '#@AeX#', '######']))).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    expect(EPOXY_COVERAGE.sand.level).toBe('exact');
+    expect(EPOXY_COVERAGE.fish_extra.level).toBe('exact');
+    expect(classifyLevel(levelOf(['#####', '#@GX#', '#####']))).toEqual({ verdict: 'approx', lost: [], approx: ['gravel'] });
+  });
+
+  it('plays a red socket on plain floor exactly, and one on any other layer approximately', () => {
+    const onFloor = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'floor' }, { kind: 'socket_red' }) });
+    expect(elementKeys(onFloor).has('socket_red')).toBe(true);
+    expect(classifyLevel(onFloor).verdict).toBe('exact');
+    const onSand = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'sand' }, { kind: 'socket_red' }) });
+    expect(elementKeys(onSand).has('socket_red')).toBe(false);
+    // Any layer under the socket other than plain floor is also a stacked cell, which Epoxy flattens.
+    expect(classifyLevel(onSand)).toEqual({ verdict: 'lost', lost: ['stacked_runtime'], approx: ['socket_red_stacked'] });
+    expect(elementKeys(onSand).has('socket_red_stacked')).toBe(true);
+    // A bomb layer becomes the cell's item, so the socket alone is left over the floor: nothing is lost.
+    const withDevice = levelOf(['#####', '#@RX#', '#####'], { R: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'socket_red' }) });
+    expect(classifyLevel(withDevice).lost).toEqual([]);
+    expect(classifyLevel(withDevice).approx).toContain('socket_red_stacked');
+  });
+
+  it('plays the speed orb approximately', () => {
+    expect(EPOXY_COVERAGE.orb_speed.level).toBe('approx');
   });
 
   it('separates the colours of a colour block, a plate and a toggle door, all played by Epoxy now', () => {
@@ -116,12 +145,55 @@ describe('classifyLevel', () => {
     expect(colorBlock.approx).toEqual(['block_color_blue']);
   });
 
-  it('detects a cell with two devices or blockers as stacked terrain', () => {
-    const glyphs = { S: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'door', color: 'red' }) };
+  it('detects a cell with two devices or blockers as stacked terrain, and loses it when a layer acts while covered', () => {
+    const glyphs = { S: stacked({ kind: 'floor' }, { kind: 'plate', color: 'red' }, { kind: 'door', color: 'red' }) };
     const level = levelOf(['####', '#@S#', '####'], glyphs);
-    expect(elementKeys(level).has('stacked_terrain')).toBe(true);
-    expect(classifyLevel(level).lost).toEqual(['stacked_terrain']);
+    expect(elementKeys(level).has('stacked_runtime')).toBe(true);
+    expect(classifyLevel(level).lost).toEqual(['stacked_runtime']);
     expect(elementKeys(levelOf(['####', '#@O#', '####'])).has('stacked_terrain')).toBe(false);
+  });
+
+  it('plays a removable top over one inert layer exactly, as an underlay', () => {
+    const door = { kind: 'door' as const, color: 'red' as const };
+    const under = (kind: Cc3dTerrainKind) => classifyStack({ terrain: [{ kind: 'floor' }, { kind }, door], panels: [], item: null });
+    for (const kind of ['ice', 'ice_corner', 'water', 'exit', 'sand', 'slime', 'wall', 'toggle_control'] as const) {
+      expect(under(kind)).toBe('underlay');
+    }
+    for (const kind of ['plate', 'toggle_door', 'hold_door', 'trap', 'dirt', 'door'] as const) {
+      expect(under(kind)).toBe('runtime');
+    }
+    const socketOverIce = levelOf(['####', '#@S#', '####'], { S: stacked({ kind: 'ice' }, { kind: 'socket' }) });
+    expect(elementKeys(socketOverIce).has('stacked_terrain')).toBe(true);
+    expect(classifyLevel(socketOverIce).lost).toEqual([]);
+  });
+
+  it('turns a bomb layer into the cell item when the slot is free, and keeps it a layer otherwise', () => {
+    const door = { kind: 'door' as const, color: 'red' as const };
+    const free = { terrain: [{ kind: 'floor' as const }, { kind: 'bomb' as const }, door], panels: [], item: null };
+    expect(classifyStack(free)).toBe('flattened');
+    const overToggle = { ...free, terrain: [{ kind: 'toggle_control' as const, color: 'red' as const }, { kind: 'bomb' as const }, door] };
+    expect(classifyStack(overToggle)).toBe('underlay');
+    const iceBomb = { terrain: [{ kind: 'ice' as const }, { kind: 'bomb' as const }], panels: [], item: null };
+    expect(classifyStack(iceBomb)).toBe('flattened');
+    const taken = { ...iceBomb, item: { kind: 'fish' as const } };
+    expect(classifyStack(taken)).toBe('runtime');
+  });
+
+  it('drops inert layers under a top that is never removed, and keeps live ones lost', () => {
+    const wetWall = { terrain: [{ kind: 'water' as const }, { kind: 'trap' as const }, { kind: 'wall' as const }], panels: [], item: null };
+    expect(classifyStack(wetWall)).toBe('runtime');
+    const iceWall = { terrain: [{ kind: 'ice' as const }, { kind: 'toggle_control' as const, color: 'red' as const }, { kind: 'wall' as const }], panels: [], item: null };
+    expect(classifyStack(iceWall)).toBe('flattened');
+    expect(classifyStack({ terrain: [{ kind: 'floor' }], panels: [], item: null })).toBe('plain');
+  });
+
+  it('loses a stack deeper than a removable top over one layer', () => {
+    const deep = {
+      terrain: [{ kind: 'ice' as const }, { kind: 'toggle_control' as const, color: 'red' as const }, { kind: 'door' as const, color: 'red' as const }],
+      panels: [],
+      item: null
+    };
+    expect(classifyStack(deep)).toBe('runtime');
   });
 
   it('detects panels on water, which cell edges now carry exactly', () => {
@@ -148,10 +220,11 @@ describe('classifyLevel', () => {
 describe('stackedPairs', () => {
   it('flags water+trap as stacked and floor+trap as not, and keeps the base in the key', () => {
     const wet = levelOf(['####', '#@T#', '####'], { T: stacked({ kind: 'water' }, { kind: 'trap' }) });
-    expect(elementKeys(wet).has('stacked_terrain')).toBe(true);
+    expect(elementKeys(wet).has('stacked_runtime')).toBe(true);
     expect(stackedPairs(wet).get('water+trap')).toBe(1);
     const dry = levelOf(['####', '#@T#', '####'], { T: stacked({ kind: 'floor' }, { kind: 'trap' }) });
     expect(elementKeys(dry).has('stacked_terrain')).toBe(false);
+    expect(elementKeys(dry).has('stacked_runtime')).toBe(false);
     expect(stackedPairs(dry).size).toBe(0);
   });
 

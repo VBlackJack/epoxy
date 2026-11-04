@@ -78,6 +78,12 @@ export function lossyExportNotice(
   if (refusedFor('cell_edges').length > 0) {
     parts.push(t('app.export.refused_cell_edges.label', { levels: levelNames(refusedFor('cell_edges')) }));
   }
+  if (refusedFor('epoxy_only_items').length > 0) {
+    parts.push(t('app.export.refused_epoxy_only_items.label', { levels: levelNames(refusedFor('epoxy_only_items')) }));
+  }
+  if (refusedFor('cell_underlays').length > 0) {
+    parts.push(t('app.export.refused_cell_underlays.label', { levels: levelNames(refusedFor('cell_underlays')) }));
+  }
   if (padded.length > 0) {
     parts.push(t('app.export.padded.label', { levels: levelNames(padded) }));
   }

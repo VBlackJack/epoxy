@@ -135,9 +135,14 @@ export function isColorBlockEntityType(type: string): boolean {
   return ConfigRegistry.getEntityDef(type)?.plateColor !== undefined;
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile or a colour channel tile. */
+/** True when the tile slows the monsters down while held, which no Lynx or CC3D rule has. */
+export function isSlowTimeTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).slowsMonsters !== undefined;
+}
+
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile or the slow-time item. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
-  return isLaserTileId(id) || isColorChannelTileId(id);
+  return isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id);
 }
 
 /** True when the entity only exists under the Epoxy rules: a laser mirror or a colour block. */
@@ -155,7 +160,9 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
 
 /** True when the level uses a mechanic that only the Epoxy engine plays: lasers or colour channels. */
 export function hasEpoxyOnlyContent(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'>): boolean {
-  return hasLaserContent(level) || hasColorChannelContent(level);
+  const hasSlowTime = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isSlowTimeTileId)) ?? false;
+  return hasLaserContent(level) || hasColorChannelContent(level) || hasSlowTime(level.terrain) || hasSlowTime(level.items);
 }
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
