@@ -140,10 +140,13 @@ import {
   EDITOR_TOOLS,
   EditorTool,
   leavesLooseButton,
+  MESSAGE_LINKS_REMOVED,
   MESSAGE_START_KEPT,
   MESSAGE_UNDERLAYS_REMOVED,
   MESSAGE_WIRE_CANCELLED,
   MESSAGE_WIRE_CANCELLED_BUTTON_LEFT,
+  MESSAGE_WIRE_LAUNCHER_DONE,
+  MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT,
   pickFromCell,
   PendingWire,
   ToolMessage
@@ -157,9 +160,10 @@ import {
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
 import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
+import { holdsShotTrigger, launcherCountAt, pruneLauncherLinks } from './editorLauncherLinks';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
-import { mapHeightOf, mapWidthOf, paintEntity, resizeMap } from './mapEdits';
+import { mapHeightOf, mapWidthOf, paintEntity, resizeMap, wireButtonTile } from './mapEdits';
 import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
   CellRect,
@@ -185,10 +189,10 @@ import {
   cellEdgeAvailability,
   EditableRuleset,
   entityAvailability,
+  launcherWireAvailability,
   majorityRuleset,
   tileAvailability,
-  winRuleAvailability,
-  hiddenFromEpoxyPalette
+  winRuleAvailability
 } from './paletteAvailability';
 import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, wireToolMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
@@ -232,6 +236,7 @@ import {
   EDITOR_STATIC_LAYER_MAX_PIXELS,
   EDITOR_STATIC_LAYER_REDRAW_SHARE,
   EDITOR_CLONE_LINK_COLOR,
+  EDITOR_LAUNCHER_LINK_COLOR,
   EDITOR_CURSOR_OUTLINE_COLOR,
   EDITOR_DEFAULT_CHIPS_REQUIRED,
   EDITOR_DEFAULT_TIME_LIMIT_SECONDS,
@@ -249,6 +254,7 @@ import {
   EDITOR_SELECTION_DIM_COLOR,
   EDITOR_SELECTION_OUTLINE_COLOR,
   EDITOR_TILE_CENTER_OFFSET,
+  EDITOR_SHOT_TRIGGER_TILE,
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_LINK_COLOR,
   EDITOR_CLONE_BUTTON_TILE,
@@ -334,6 +340,7 @@ const CC3D_ATTRIBUTE_LABEL_KEYS: Record<Exclude<Cc3dAttribute, 'dir'>, string> =
 
 const WIRE_TRAP_BRUSH_ID = 'wire_trap';
 const WIRE_CLONER_BRUSH_ID = 'wire_cloner';
+const WIRE_LAUNCHER_BRUSH_ID = 'wire_launcher';
 /** Win rules offered by the select, to mark the ones the engine cannot play. */
 const WIN_RULE_VALUES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
 const ENTITIES_CATEGORY = 'entities';
@@ -1286,6 +1293,7 @@ export class LevelEditor {
     if (brush.kind === 'terrain' || brush.kind === 'item') return tileAvailability(ruleset, brush.id);
     if (brush.kind === 'entity') return entityAvailability(ruleset, brush.id);
     if (brush.kind === 'cell_edge') return cellEdgeAvailability(ruleset);
+    if (brush.kind === 'wire_launcher') return launcherWireAvailability(ruleset);
     return { available: true };
   }
 
@@ -1330,9 +1338,7 @@ export class LevelEditor {
       pending.push({ group, button });
     };
 
-    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter(
-      (tile) => tile.category === this.activeCategory && !hiddenFromEpoxyPalette(tile)
-    );
+    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === this.activeCategory);
     for (const tile of tiles) {
       const kind = tile.layer === 'item' ? 'item' : 'terrain';
       entry(
@@ -1378,6 +1384,12 @@ export class LevelEditor {
         t('editor.palette.tools.wire_cloner'),
         this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE),
         wireToolMechanismGroup('wire_cloner')
+      );
+      entry(
+        { kind: 'wire_launcher', id: WIRE_LAUNCHER_BRUSH_ID },
+        t('editor.palette.tools.wire_launcher'),
+        this.renderer.renderIconToDataUrl('tile', EDITOR_SHOT_TRIGGER_TILE),
+        wireToolMechanismGroup('wire_launcher')
       );
       // Sub-headings only label the entries that follow them: they are not focusable and the tab order stays the button order.
       // An entry no rule places is still offered, under an Other heading shown only when there is one.
@@ -1468,6 +1480,7 @@ export class LevelEditor {
       if (brush.kind === 'wire_trap' || brush.kind === 'wire_cloner') {
         this.setStatusText(t('editor.palette.status.wire_select_source'));
       }
+      if (brush.kind === 'wire_launcher') this.setStatusText(t('editor.palette.status.wire_launcher_select_source.label'));
       if (brush.kind === 'cell_edge') this.setStatusText(t('editor.palette.status.cell_edge_mode'));
     }
     // The side bar of the thin wall tool appears and goes away with its entry.
@@ -1658,13 +1671,22 @@ export class LevelEditor {
     const pending = this.pendingWire;
     if (!pending) return;
     this.pendingWire = null;
-    const buttonTile = pending.kind === 'trap' ? EDITOR_TRAP_BUTTON_TILE : EDITOR_CLONE_BUTTON_TILE;
-    if (leavesLooseButton(this.doc, pending, buttonTile)) {
-      this.setStatusText(t(MESSAGE_WIRE_CANCELLED_BUTTON_LEFT));
+    if (leavesLooseButton(this.doc, pending, wireButtonTile(pending.kind))) {
+      this.setStatusText(t(this.looseButtonMessage(pending.kind)));
     } else if (announce) {
-      this.setStatusText(t(MESSAGE_WIRE_CANCELLED));
+      // A launcher wire is not cancelled but finished: it already holds its links.
+      this.setStatusText(
+        pending.kind === 'launcher' && holdsShotTrigger(this.doc, pending.x, pending.y)
+          ? t(MESSAGE_WIRE_LAUNCHER_DONE, { count: launcherCountAt(this.doc, pending.x, pending.y) })
+          : t(MESSAGE_WIRE_CANCELLED)
+      );
     }
     this.render();
+  }
+
+  /** The message for a wire dropped while its button (trigger) stays on the map with no link. */
+  private looseButtonMessage(kind: PendingWire['kind']): string {
+    return kind === 'launcher' ? MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT : MESSAGE_WIRE_CANCELLED_BUTTON_LEFT;
   }
 
   private updateCanvasLabel(): void {
@@ -3237,9 +3259,8 @@ export class LevelEditor {
   /** A wire dropped by undo or redo leaves a message when its button stays on the map; true when it did. */
   private announceDroppedWire(wire: PendingWire | null): boolean {
     if (!wire) return false;
-    const buttonTile = wire.kind === 'trap' ? EDITOR_TRAP_BUTTON_TILE : EDITOR_CLONE_BUTTON_TILE;
-    if (!leavesLooseButton(this.doc, wire, buttonTile)) return false;
-    this.setStatusText(t(MESSAGE_WIRE_CANCELLED_BUTTON_LEFT));
+    if (!leavesLooseButton(this.doc, wire, wireButtonTile(wire.kind))) return false;
+    this.setStatusText(t(this.looseButtonMessage(wire.kind)));
     return true;
   }
 
@@ -3622,7 +3643,7 @@ export class LevelEditor {
   private hiddenTerrainChoices(x: number, y: number): Array<{ id: string; name: string }> {
     const choices: Array<{ id: string; name: string }> = [];
     for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
-      if (tile.layer !== 'terrain' || hiddenFromEpoxyPalette(tile)) continue;
+      if (tile.layer !== 'terrain') continue;
       if (normalizeUnderlays([{ x, y, terrain: tile.id }], this.doc.terrain, 'epoxy') === null) continue;
       choices.push({ id: tile.id, name: t(tile.i18nKey) });
     }
@@ -3686,17 +3707,25 @@ export class LevelEditor {
     const base = cloneDocument(this.doc);
     const next = cloneDocument(this.doc);
     setUnderlayAt(next, at.x, at.y, terrain);
+    // A shot trigger may have been hidden here: a link whose end no longer holds one is dropped.
+    const droppedLinks = pruneLauncherLinks(next);
     if (sameDocument(base, next)) {
       this.refreshLayersList();
       return;
     }
     this.doc = next;
     this.recordChange(base);
-    this.setStatusText(
+    // The pending launcher wire's trigger may have just left the map: drop its outline.
+    if (this.pendingWire?.kind === 'launcher' && !holdsShotTrigger(this.doc, this.pendingWire.x, this.pendingWire.y)) {
+      this.cancelPendingWire(false);
+    }
+    const messages: ToolMessage[] = [
       terrain === null
-        ? t('editor.layout.layers.hidden_terrain.cleared', { x: at.x, y: at.y })
-        : t('editor.layout.layers.hidden_terrain.set', { x: at.x, y: at.y, name: t(ConfigRegistry.getTile(terrain).i18nKey) })
-    );
+        ? { key: 'editor.layout.layers.hidden_terrain.cleared', params: { x: at.x, y: at.y } }
+        : { key: 'editor.layout.layers.hidden_terrain.set', params: { x: at.x, y: at.y, name: t(ConfigRegistry.getTile(terrain).i18nKey) } }
+    ];
+    if (droppedLinks > 0) messages.push({ key: MESSAGE_LINKS_REMOVED, params: { count: droppedLinks } });
+    this.setStatusText(messages.map((message) => t(message.key, message.params)).join(SEPARATOR_BETWEEN_MESSAGES));
     this.render();
   }
 
@@ -4020,6 +4049,8 @@ export class LevelEditor {
         const entity = ConfigRegistry.getEntityDef(brush.id);
         return entity ? t(entity.i18nKey) : brush.id;
       }
+      case 'wire_launcher':
+        return t('editor.palette.tools.wire_launcher');
       default:
         return brush.id;
     }
@@ -4660,6 +4691,9 @@ export class LevelEditor {
       this.drawLinkLine(EDITOR_CLONE_LINK_COLOR, link.buttonX, link.buttonY, link.clonerX, link.clonerY, s);
     }
     for (const link of doc.cloneLinks) this.drawClonerTemplateBadge(link, s);
+    for (const link of doc.launcherLinks ?? []) {
+      this.drawLinkLine(EDITOR_LAUNCHER_LINK_COLOR, link.buttonX, link.buttonY, link.launcherX, link.launcherY, s);
+    }
 
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);

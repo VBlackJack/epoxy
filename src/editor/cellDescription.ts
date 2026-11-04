@@ -19,6 +19,7 @@ import { Direction } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { closedSidesAt } from './editorCellEdges';
 import { EditorMap } from './editorDocument';
+import { holdsShotLauncher, holdsShotTrigger, launcherCountAt, triggerCountAt } from './editorLauncherLinks';
 import { entityHasFacing } from './entityFacing';
 import { underlayAt } from './editorUnderlays';
 import type { ToolMessage } from './editorTools';
@@ -31,6 +32,8 @@ const ITEM_KEY = 'editor.cell_speech.item.label';
 const ENTITY_KEY = 'editor.cell_speech.entity.label';
 const UNDERLAY_KEY = 'editor.cell_speech.underlay.label';
 const EDGES_KEY = 'editor.cell_speech.edges.label';
+const FIRES_KEY = 'editor.cell_speech.fires.label';
+const FIRED_BY_KEY = 'editor.cell_speech.fired_by.label';
 const CLONER_KEY = 'editor.cell_speech.cloner.label';
 const CLONER_TEMPLATE_KEY = 'editor.layout.status.cloner_template.label';
 const CLONERS_TEMPLATE_KEY = 'editor.layout.status.cloners_template.label';
@@ -119,6 +122,9 @@ export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
     parts.push(tileMessage(row[x]));
     const hidden = underlayAt(map, x, y);
     if (hidden !== undefined) parts.push({ key: UNDERLAY_KEY, params: { name: tileName(hidden) } });
+    // A trigger says how many launchers it fires, a launcher how many triggers fire it, whether in plain view or hidden.
+    if (holdsShotTrigger(map, x, y)) parts.push({ key: FIRES_KEY, params: { count: launcherCountAt(map, x, y) } });
+    if (holdsShotLauncher(map, x, y)) parts.push({ key: FIRED_BY_KEY, params: { count: triggerCountAt(map, x, y) } });
     const item = map.items[y]?.[x];
     if (item) parts.push({ key: ITEM_KEY, params: { name: tileName(item) } });
     for (const entity of map.entities) {

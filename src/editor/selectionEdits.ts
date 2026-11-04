@@ -15,12 +15,13 @@
  */
 
 import { FLOOR_TILE_ID } from '../core/coreConstants';
-import { CellEdge, CellUnderlay, CloneLink, Direction, TrapLink } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, TrapLink } from '../core/types';
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import type { Brush } from './editorTools';
+import { canonicalLauncherLinks, pruneLauncherLinks, setLauncherLinks } from './editorLauncherLinks';
 import { canonicalUnderlays, pruneUnderlays, removeUnderlaysWhere, replaceUnderlays } from './editorUnderlays';
-import { ClonerTemplateChange, dropLinksAt, mapHeightOf, mapWidthOf, syncCloneTemplatesAt } from './mapEdits';
+import { ClonerTemplateChange, dropLinksAt, hidesShotDevice, keepsLauncherLinks, mapHeightOf, mapWidthOf, syncCloneTemplatesAt } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
 
 /** A rectangle of cells: its top-left cell and its size, both at least 1 once normalised. */
@@ -156,7 +157,8 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
       cloneLinks: map.cloneLinks,
       playerStart: map.playerStart,
       cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? [],
-      underlays: canonicalUnderlays(map.underlays, map.terrain) ?? []
+      underlays: canonicalUnderlays(map.underlays, map.terrain) ?? [],
+      launcherLinks: canonicalLauncherLinks(map.launcherLinks, map.terrain, map.underlays) ?? []
     });
   return normalize(a) === normalize(b);
 }
@@ -424,14 +426,29 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
       keptClone.push(l);
     }
   }
+  const keptLauncher: LauncherLink[] = [];
+  const movedLauncher: LauncherLink[] = [];
+  for (const l of map.launcherLinks ?? []) {
+    const button = inSource(l.buttonX, l.buttonY);
+    const launcher = inSource(l.launcherX, l.launcherY);
+    if (button && launcher) {
+      movedLauncher.push({ buttonX: l.buttonX + dx, buttonY: l.buttonY + dy, launcherX: l.launcherX + dx, launcherY: l.launcherY + dy });
+    } else if (button || launcher) {
+      droppedLinks++;
+    } else {
+      keptLauncher.push(l);
+    }
+  }
   map.trapLinks = keptTrap;
   map.cloneLinks = keptClone;
+  setLauncherLinks(map, keptLauncher);
 
   clearCells(map, rect, (x, y) => onRing(source, x, y));
   const stamped = stampClip(map, clip, destination.x, destination.y, null, { x: rect.x, y: rect.y });
   droppedLinks += stamped.droppedLinks;
   map.trapLinks.push(...movedTrap);
   map.cloneLinks.push(...movedClone);
+  setLauncherLinks(map, [...(map.launcherLinks ?? []), ...movedLauncher]);
   return {
     map,
     changed: !sameMapLayers(source, map),
@@ -461,6 +478,7 @@ export function fillBrushRefusal(brush: Brush, ruleset: EditableRuleset): FillRe
     case 'player_start':
     case 'wire_trap':
     case 'wire_cloner':
+    case 'wire_launcher':
       return { reason: 'unsupported' };
     case 'terrain':
     case 'item': {
@@ -505,6 +523,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
   if (!area) return untouched(null);
   const map = cloneMap(source);
   let droppedLinks = 0;
+  let anyHidden = false;
   let borderSkipped = 0;
   let skipped = 0;
   const clonerTemplates: ClonerTemplateChange[] = [];
@@ -515,9 +534,12 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
         continue;
       }
       if (brush.kind === 'terrain') {
-        if (map.terrain[y][x] === brush.id) continue;
+        const previous = map.terrain[y][x];
+        if (previous === brush.id) continue;
         map.terrain[y][x] = brush.id;
-        droppedLinks += dropLinksAt(map, x, y);
+        const hidden = hidesShotDevice(map, x, y);
+        anyHidden ||= hidden;
+        droppedLinks += dropLinksAt(map, x, y, keepsLauncherLinks(previous, brush.id) || hidden);
       } else if (brush.kind === 'item') {
         map.items[y][x] = brush.id;
       } else if (x === source.playerStart.x && y === source.playerStart.y) {
@@ -538,6 +560,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
     }
   }
   const droppedUnderlays = brush.kind === 'terrain' ? pruneUnderlays(map) : 0;
+  if (anyHidden) droppedLinks += pruneLauncherLinks(map);
   return {
     map,
     changed: !sameMapLayers(source, map),

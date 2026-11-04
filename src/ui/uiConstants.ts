@@ -113,6 +113,8 @@ export const EDITOR_DEFAULT_CLONE_TEMPLATE = 'dirt_block';
 export const EDITOR_LINK_LINE_WIDTH = 2;
 export const EDITOR_TRAP_LINK_COLOR = '#ffb300';
 export const EDITOR_CLONE_LINK_COLOR = '#ff1744';
+/** The line from a shot trigger to a shot launcher it fires (magenta), apart from the trap, clone and CC3D teleport link colours and the cursor outline. */
+export const EDITOR_LAUNCHER_LINK_COLOR = '#e040fb';
 /** Offset that puts a link line end at the center of its tile. */
 export const EDITOR_TILE_CENTER_OFFSET = 0.5;
 /** Terrain a wire tool places at each end of a link. */
@@ -120,6 +122,14 @@ export const EDITOR_TRAP_BUTTON_TILE = 'button_brown';
 export const EDITOR_TRAP_TILE = 'trap';
 export const EDITOR_CLONE_BUTTON_TILE = 'button_red';
 export const EDITOR_CLONER_TILE = 'clone_machine';
+export const EDITOR_SHOT_TRIGGER_TILE = 'shot_trigger';
+/** The shot launcher tile the launcher wire tool places for each facing. */
+export const EDITOR_SHOT_LAUNCHER_TILES: Readonly<Record<'N' | 'E' | 'S' | 'W', string>> = {
+  N: 'shot_launcher_n',
+  E: 'shot_launcher_e',
+  S: 'shot_launcher_s',
+  W: 'shot_launcher_w'
+};
 /** Largest tile the editor canvas shows, in CSS pixels; the smallest is the configured editor tile size. */
 export const EDITOR_MAX_TILE_SIZE = 64;
 /** CSS pixels one zoom step adds to or removes from the tile, and how many steps each way from the fit. */

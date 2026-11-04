@@ -97,6 +97,60 @@ describe('describeEditorCell', () => {
   });
 });
 
+describe('shot triggers and launchers in the description', () => {
+  function wired(): EditorMap {
+    const map = emptyMap();
+    map.terrain[1][0] = 'shot_trigger';
+    map.terrain[1][1] = 'shot_trigger';
+    map.terrain[0][3] = 'shot_launcher_s';
+    map.terrain[2][3] = 'shot_launcher_n';
+    map.launcherLinks = [
+      { buttonX: 0, buttonY: 1, launcherX: 3, launcherY: 0 },
+      { buttonX: 0, buttonY: 1, launcherX: 3, launcherY: 2 },
+      { buttonX: 1, buttonY: 1, launcherX: 3, launcherY: 0 }
+    ];
+    return map;
+  }
+
+  it('says how many launchers a trigger fires, and how many triggers fire a launcher', () => {
+    const map = wired();
+    expect(spoken(describeEditorCell({ map, x: 0, y: 1 }))).toBe(`Tile (0, 1) ${nameOf('shot_trigger')} fires 2 launchers`);
+    expect(spoken(describeEditorCell({ map, x: 1, y: 1 }))).toContain('fires 1 launcher');
+    expect(spoken(describeEditorCell({ map, x: 3, y: 0 }))).toBe(`Tile (3, 0) ${nameOf('shot_launcher_s')} fired by 2 triggers`);
+    expect(spoken(describeEditorCell({ map, x: 3, y: 2 }))).toContain('fired by 1 trigger');
+  });
+
+  it('says zero for a trigger and a launcher with no link', () => {
+    const map = emptyMap();
+    map.terrain[1][0] = 'shot_trigger';
+    map.terrain[1][2] = 'shot_launcher_e';
+    expect(spoken(describeEditorCell({ map, x: 0, y: 1 }))).toContain('fires 0 launchers');
+    expect(spoken(describeEditorCell({ map, x: 2, y: 1 }))).toContain('fired by 0 triggers');
+  });
+
+  it('speaks a trigger or a launcher hidden under a removable top', () => {
+    const map = emptyMap();
+    map.terrain[1][0] = 'door_red';
+    map.terrain[1][2] = 'door_red';
+    map.underlays = [
+      { x: 0, y: 1, terrain: 'shot_trigger' },
+      { x: 2, y: 1, terrain: 'shot_launcher_e' }
+    ];
+    map.launcherLinks = [{ buttonX: 0, buttonY: 1, launcherX: 2, launcherY: 1 }];
+    expect(spoken(describeEditorCell({ map, x: 0, y: 1 }))).toContain('fires 1 launcher');
+    expect(spoken(describeEditorCell({ map, x: 2, y: 1 }))).toContain('fired by 1 trigger');
+  });
+
+  it('says nothing about launchers on other cells or a CC3D stack, and speaks French', () => {
+    const map = wired();
+    expect(spoken(describeEditorCell({ map, x: 2, y: 1 }))).not.toMatch(/fires|fired/);
+    expect(spoken(describeEditorCell({ map, x: 0, y: 1, cc3dNames: ['Floor'] }))).not.toMatch(/fires|fired/);
+    i18n.setLocale('fr');
+    expect(spoken(describeEditorCell({ map, x: 0, y: 1 }))).toContain('tire 2 lanceurs');
+    expect(spoken(describeEditorCell({ map, x: 3, y: 0 }))).toContain('tiré par 2 déclencheurs');
+  });
+});
+
 describe('thin walls in the description', () => {
   it('lists the closed sides in N, E, S, W order after the tile', () => {
     const map = emptyMap();

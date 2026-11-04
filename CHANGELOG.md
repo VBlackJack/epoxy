@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor launcher wire (Epoxy rules): the shot trigger and the shot launchers are now in the Mechanisms palette, with a Wire Shot Trigger entry that picks or places a trigger and links or unlinks launchers by clicking them (a free cell gets a new launcher facing the direction control; Escape finishes), one undo step per change, and the cell description says how many launchers a trigger fires and how many triggers fire a launcher.
 - Level editor beam preview (Epoxy rules): the Beams button or the L key overlays where the laser beams run on the level at tick 0 with the turrets armed (emitter and mirror paths, lit receivers, the later facings of a turning turret dimmed, a marker on each gate about to open); it follows edits after a short pause, announces a summary for screen readers when it changes, and is unavailable on Lynx and CC3D levels. The game's beam drawing is now shared through a public `drawBeamCells`.
 - Level editor Mechanisms palette sub-headings: the tab groups its entries under headings (buttons and wiring, teleports, lasers and mirrors, colour channels, blocks and turrets, flames and toggles), derived from the tile and entity config so a new engine id lands in a group by itself.
 - Level editor facing and clone templates (Epoxy rules): Shift+R turns the creature or turret under the cursor a quarter turn clockwise as one undo step; a clone machine shows the creature it clones, with its facing, as a corner badge; the cell description speaks a turret's facing and what a clone machine clones; palette icons of creatures and turrets follow the direction control; a clone wire drawn to a clone machine with no creature warns that the default block is used.
@@ -52,6 +53,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- The level editor now keeps the links between shot triggers and shot launchers (`launcherLinks`) through opening, editing, copy, move, resize, undo, autosave and saving, drops a link when either end is overwritten or erased, and locks the Lynx option for a level that has some.
 - The level editor no longer freezes on large block puzzle levels while checking: the automatic check, the Check button and the check before Test run in a worker, the badge says when a check is running, was skipped as too slow, was interrupted (editor left) or failed, and Test plays without the check if it takes too long.
 - The level editor now keeps the template of a clone link in step with the creature standing on its clone machine: painting, filling or turning a creature there updates the stored type and facing (the engine spawns the stored copy, so a rotated turret no longer cloned the old facing), and the status line says so. Stored levels are not rewritten on load.
 - The level editor no longer lets a Lynx level be painted with colour channel tiles (pressure plates, hold doors, colour toggle walls and buttons, floating blocks, colour blocks), which the Lynx engine plays wrongly: they are greyed out and skipped on paste like lasers, and a stored Lynx level that holds some is switched to Epoxy on open.

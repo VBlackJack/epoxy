@@ -37,7 +37,7 @@ export function describeResize(result: ResizeResult): ResizeNote[] {
   const notes: ResizeNote[] = [{ key: RESIZE_DONE_KEY, params: { width: result.width, height: result.height } }];
   const { report } = result;
   if (report.droppedEntities > 0) notes.push({ key: RESIZE_DROPPED_ENTITIES_KEY, params: { count: report.droppedEntities } });
-  const links = report.droppedTrapLinks + report.droppedCloneLinks;
+  const links = report.droppedTrapLinks + report.droppedCloneLinks + (report.droppedLauncherLinks ?? 0);
   if (links > 0) notes.push({ key: RESIZE_DROPPED_LINKS_KEY, params: { count: links } });
   if (report.droppedEdges > 0) notes.push({ key: RESIZE_DROPPED_EDGES_KEY, params: { count: report.droppedEdges } });
   if (report.droppedUnderlays > 0) notes.push({ key: RESIZE_DROPPED_UNDERLAYS_KEY, params: { count: report.droppedUnderlays } });

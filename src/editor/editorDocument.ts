@@ -21,7 +21,8 @@ import { DEFAULT_RULESET } from '../core/coreConstants';
 import { canonicalJson } from './canonicalJson';
 import { canonicalEdges, cloneEdges } from './editorCellEdges';
 import { canonicalUnderlays, cloneUnderlays } from './editorUnderlays';
-import { CellEdge, CellUnderlay, CloneLink, Direction, EntityPlacement, Ruleset, TrapLink, WinRule } from '../core/types';
+import { canonicalLauncherLinks, cloneLauncherLinks } from './editorLauncherLinks';
+import { CellEdge, CellUnderlay, CloneLink, Direction, EntityPlacement, LauncherLink, Ruleset, TrapLink, WinRule } from '../core/types';
 
 /** Where the player starts and which way the character faces. */
 export interface EditorPlayerStart {
@@ -48,6 +49,11 @@ export interface EditorMap {
    * normalizeUnderlays). Absent when the level has none, and never held by a CC3D level.
    */
   underlays?: CellUnderlay[];
+  /**
+   * Shot trigger to shot launcher links (Epoxy ruleset only), in canonical form (see normalizeLauncherLinks).
+   * Absent when the level has none, and never held by a CC3D level.
+   */
+  launcherLinks?: LauncherLink[];
   /**
    * CC3D levels only: the single source of truth of the map. Its cells and mobs are immutable (an edit builds
    * a new level that shares every untouched cell), so copies and history steps keep references, never deep
@@ -76,6 +82,7 @@ export type EditorDocument = EditorMap & EditorMetadata;
 export function cloneMap(map: EditorMap): EditorMap {
   const cellEdges = map.cc3d ? undefined : cloneEdges(map.cellEdges);
   const underlays = map.cc3d ? undefined : cloneUnderlays(map.underlays);
+  const launcherLinks = map.cc3d ? undefined : cloneLauncherLinks(map.launcherLinks);
   return {
     terrain: map.terrain.map((row) => [...row]),
     items: map.items.map((row) => [...row]),
@@ -85,6 +92,7 @@ export function cloneMap(map: EditorMap): EditorMap {
     playerStart: { ...map.playerStart },
     ...(cellEdges ? { cellEdges } : {}),
     ...(underlays ? { underlays } : {}),
+    ...(launcherLinks ? { launcherLinks } : {}),
     ...(map.cc3d ? { cc3d: map.cc3d } : {})
   };
 }
@@ -95,7 +103,7 @@ export function cloneMap(map: EditorMap): EditorMap {
  * from before.
  */
 export function withEditedMap(doc: EditorDocument, map: EditorMap): EditorDocument {
-  const { cellEdges: _previousEdges, underlays: _previousUnderlays, ...rest } = doc;
+  const { cellEdges: _previousEdges, underlays: _previousUnderlays, launcherLinks: _previousLauncherLinks, ...rest } = doc;
   return { ...rest, ...map };
 }
 
@@ -153,7 +161,7 @@ export function restoreDocument(snapshot: EditorDocument): EditorDocument {
 
 /** Deep copy of a document; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneDocument(doc: EditorDocument): EditorDocument {
-  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, cellEdges, underlays, cc3d } = cloneMap(doc);
+  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, cellEdges, underlays, launcherLinks, cc3d } = cloneMap(doc);
   return {
     terrain,
     items,
@@ -163,6 +171,7 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     playerStart,
     ...(cellEdges ? { cellEdges } : {}),
     ...(underlays ? { underlays } : {}),
+    ...(launcherLinks ? { launcherLinks } : {}),
     ...(cc3d ? { cc3d } : {}),
     title: doc.title,
     hint: doc.hint,
@@ -205,6 +214,7 @@ export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
       playerStart: hasCc3d ? null : doc.playerStart,
       cellEdges: hasCc3d ? null : (canonicalEdges(doc.cellEdges, doc.terrain) ?? []),
       underlays: hasCc3d ? null : (canonicalUnderlays(doc.underlays, doc.terrain) ?? []),
+      launcherLinks: hasCc3d ? null : (canonicalLauncherLinks(doc.launcherLinks, doc.terrain, doc.underlays) ?? []),
       title: doc.title,
       hint: doc.hint,
       author: doc.author,
