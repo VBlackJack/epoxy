@@ -41,6 +41,8 @@ const SKIPPED_RULESETS: readonly string[] = ['lynx', 'cc3d'];
 const OUT_OF_RANGE_INDEX = 99;
 const NEGATIVE_INDEX = -1;
 const FRACTIONAL_INDEX = 0.5;
+/** Floor on the laser levels the sweep compares: the count today, so a filter that drops levels fails loudly. */
+const MIN_LASER_LEVEL_COUNT = 4;
 /** Collecting and generating the levels takes seconds. */
 const LEVEL_SWEEP_TIMEOUT_MS = 120_000;
 
@@ -85,6 +87,7 @@ const sorted = <T extends { x: number; y: number }>(cells: readonly T[]): T[] =>
 function engineOf(level: CompiledLevel, armTurrets: boolean, facings?: ReadonlyMap<number, Direction>): GameEngine {
   const engine = new GameEngine();
   engine.loadLevel(level);
+  // Armed through restoreState({ playStartTick: 0 }) rather than a real first step: the world state is equivalent and no move is taken.
   const snapshot = engine.captureState();
   const entities = snapshot.entities.map((entity, index) => {
     const facing = facings?.get(index);
@@ -148,7 +151,11 @@ beforeEach(() => {
 
 describe('traceLevelBeams against the engine', () => {
   it('finds laser levels to compare', () => {
-    expect(laserLevels().length).toBeGreaterThan(0);
+    const levels = laserLevels();
+    expect(levels.length).toBeGreaterThanOrEqual(MIN_LASER_LEVEL_COUNT);
+    const traces = levels.map((level) => traceLevelBeams(level, { armTurrets: true }));
+    expect(traces.some((trace) => trace.emitterCells.length > 0)).toBe(true);
+    expect(traces.some((trace) => trace.turretCells.length > 0)).toBe(true);
   }, LEVEL_SWEEP_TIMEOUT_MS);
 
   it('matches a freshly loaded engine on every laser level, turrets not armed', () => {
