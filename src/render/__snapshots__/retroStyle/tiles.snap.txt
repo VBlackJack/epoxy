@@ -343,6 +343,11 @@ tile theme=cyber_neon id=slow_time b274aa3f9e61ce75
 tile theme=arctic_lab id=slow_time 0bef2abe7d2f27cb
 tile theme=magma_core id=slow_time eb19168a6be612e0
 tile theme=lynx_lcd id=slow_time a2f6d8fe92911713
+tile theme=default id=boots_speed 8628890de3c3cd16
+tile theme=cyber_neon id=boots_speed e46abd20b112cd18
+tile theme=arctic_lab id=boots_speed 4339ab472eff8981
+tile theme=magma_core id=boots_speed 89ad97f673b757be
+tile theme=lynx_lcd id=boots_speed dddc3d65c10aece8
 tile theme=default id=bomb 7cb427a2958d2d1d
 tile theme=cyber_neon id=bomb 9e1297537687ba52
 tile theme=arctic_lab id=bomb 20a774d30ad2894e
