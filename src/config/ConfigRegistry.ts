@@ -32,6 +32,7 @@ import {
   findColorChannelConfigErrors,
   findLaserConfigErrors,
   findSlowTimeConfigErrors,
+  findTurretConfigErrors,
   sanitizeStoredLevels,
   isSizeWithinBounds,
   levelSizeBoundsOf,
@@ -292,6 +293,10 @@ class ConfigRegistryService {
     const slowTimeErrors = findSlowTimeConfigErrors(bundle.tiles.tiles);
     if (slowTimeErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, slowTimeErrors.join('; '));
+    }
+    const turretErrors = findTurretConfigErrors(bundle.monsters.entities);
+    if (turretErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, turretErrors.join('; '));
     }
     const cc3dTileErrors = findCc3dTileErrors(bundle.cc3dTiles, bundle.tiles.tiles);
     if (cc3dTileErrors.length > 0) {

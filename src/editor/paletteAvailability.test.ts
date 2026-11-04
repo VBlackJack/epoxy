@@ -93,10 +93,10 @@ describe('paletteAvailability', () => {
     expect(tileAvailability('lynx', 'toggle_wall_open')).toEqual({ available: true });
   });
 
-  it('blocks exactly the mirrors and colour blocks under Lynx', () => {
+  it('blocks exactly the mirrors, turrets and colour blocks under Lynx', () => {
     let blocked = 0;
     for (const [id, def] of Object.entries(ConfigRegistry.getMonsters().entities)) {
-      const epoxyOnly = def.mirrorAxis !== undefined || def.plateColor !== undefined;
+      const epoxyOnly = def.mirrorAxis !== undefined || def.plateColor !== undefined || def.turretBeam !== undefined;
       const result = entityAvailability('lynx', id);
       expect(result.available, id).toBe(!epoxyOnly);
       if (epoxyOnly) blocked++;

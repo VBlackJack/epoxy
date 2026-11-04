@@ -38,6 +38,8 @@ import {
 
 /** Group of the teleporters that declare none: they all chain together. */
 export const DEFAULT_TELEPORT_GROUP = '';
+/** The world's play start tick while the player has not taken a first step. */
+export const NO_PLAY_START_TICK = -1;
 /** Level score factor before any multiplier item is picked up. */
 export const BASE_LEVEL_SCORE_MULTIPLIER = 1;
 
@@ -76,6 +78,10 @@ export interface EpoxyWorld {
   /** Factor applied to the level score at the exit, raised by multiplier items. */
   levelScoreMultiplier: number;
   levelCompleted: boolean;
+  /** True when the level has a turret, or a clone machine that may spawn one; fixed for the level. */
+  hasTurrets: boolean;
+  /** Tick of the player's first step (NO_PLAY_START_TICK until then); only turret levels read it. */
+  playStartTick: number;
   statusBannerKey: string | null;
   nextEntityUid: number;
   rng: SeededRandom;
@@ -98,7 +104,10 @@ export interface EpoxyWorld {
   /** Hold door cells in reading order; a door cell stays a door, only its open or closed form changes. */
   holdDoors: ChannelCell[];
   // Derived from the grid and the entities, never snapshotted: rebuilt after load, restore and any change.
+  /** Cells the laser emitters' beams cross (turret beams are kept apart in turretBeamCells). */
   beamCells: BeamCell[];
+  /** Cells the turret beams cross; empty on a level without turrets. */
+  turretBeamCells: BeamCell[];
   litReceiverCells: GridPoint[];
   /** True while a mirror on a beam path is sliding. */
   beamHasSlidingMirror: boolean;
@@ -139,6 +148,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     levelBonusPoints: 0,
     levelScoreMultiplier: BASE_LEVEL_SCORE_MULTIPLIER,
     levelCompleted: false,
+    hasTurrets: false,
+    playStartTick: NO_PLAY_START_TICK,
     statusBannerKey: null,
     nextEntityUid: 1,
     rng: new SeededRandom(0),
@@ -152,6 +163,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     plates: [],
     holdDoors: [],
     beamCells: [],
+    turretBeamCells: [],
     litReceiverCells: [],
     beamHasSlidingMirror: false,
     beamDirty: true,
@@ -160,8 +172,16 @@ export function createEpoxyWorld(): EpoxyWorld {
   };
 }
 
+/** True when the level has a turret now, or a clone machine that may spawn one. */
+export function levelHasTurrets(w: EpoxyWorld): boolean {
+  if (w.entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.turretBeam !== undefined)) return true;
+  return w.cloneLinks.some((link) => ConfigRegistry.getEntityDef(link.templateType)?.turretBeam !== undefined);
+}
+
 export function buildLevelLookups(w: EpoxyWorld): void {
   w.edgeMask = cellEdgeMask(w.level);
+  w.hasTurrets = levelHasTurrets(w);
+  w.turretBeamCells = [];
   w.underlays = underlayMap(w.level);
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {

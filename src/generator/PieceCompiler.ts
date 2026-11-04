@@ -203,6 +203,10 @@ export function compilePiece(
       throw new PieceError(def.id, 'ports must not sit on a piece corner');
     }
   }
+  // The piece search does not follow a turret's clock, so a piece must not hold one.
+  if (entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.turretBeam !== undefined)) {
+    throw new PieceError(def.id, 'a piece must not hold a turret');
+  }
   const hasMonsters = entities.some((e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster');
   if (hasMonsters) {
     const portTerrain = ConfigRegistry.getMotifs().monsterPortTerrain;

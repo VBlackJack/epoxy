@@ -20,9 +20,12 @@ import {
   featuresFor,
   hasColorChannelContent,
   hasEpoxyOnlyContent,
+  hasLaserContent,
+  hasTurretContent,
   isColorChannelTileId,
   isEpoxyOnlyEntityType,
-  isEpoxyOnlyTileId
+  isEpoxyOnlyTileId,
+  isTurretEntityType
 } from './RulesetFeatures';
 import { CompiledLevel } from './types';
 
@@ -79,6 +82,32 @@ describe('colour channel aids', () => {
     expect(isEpoxyOnlyEntityType('color_block_red')).toBe(true);
     expect(isEpoxyOnlyEntityType('mirror_slash')).toBe(true);
     expect(isEpoxyOnlyEntityType('dirt_block')).toBe(false);
+  });
+
+  it('names the turrets as Epoxy only and as laser content, and turns the laser aids and tap to path off', () => {
+    for (const id of ['turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi']) {
+      expect(isTurretEntityType(id), id).toBe(true);
+      expect(isEpoxyOnlyEntityType(id), id).toBe(true);
+    }
+    expect(isTurretEntityType('dirt_block')).toBe(false);
+    const level = levelWith('floor', 'turret_cw');
+    expect(hasTurretContent(level)).toBe(true);
+    expect(hasLaserContent(level)).toBe(true);
+    expect(hasEpoxyOnlyContent(level)).toBe(true);
+    const features = featuresFor(level);
+    expect(features.tapToPath).toBe(false);
+    expect(features.blockHint).toBe(false);
+    expect(features.deadEndWatch).toBe(false);
+    expect(features.objectiveMarker).toBe(true);
+    // A clone machine linked to a turret template counts without a turret on the grid.
+    const linked = {
+      ...levelWith('floor'),
+      cloneLinks: [{ buttonX: 1, buttonY: 1, clonerX: 2, clonerY: 2, templateType: 'turret_fixed', templateDir: 'E' as const }]
+    };
+    expect(hasLaserContent(linked)).toBe(true);
+    expect(featuresFor(linked).tapToPath).toBe(false);
+    expect(featuresFor({ ...level, winRule: 'receivers' }).tapToPath).toBe(false);
+    expect(featuresFor({ ...levelWith('floor'), winRule: 'receivers' }).tapToPath).toBe(true);
   });
 
   it('turns the block hint, the dead end watch and tap to path off on a colour level', () => {
