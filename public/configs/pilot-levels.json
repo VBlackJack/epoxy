@@ -1968,6 +1968,190 @@
       "trapLinks": [],
       "cloneLinks": [],
       "solution": "SSSEEEEWNNNEESSSESSS"
+    },
+    {
+      "id": "epoxy_p_39",
+      "theme": "cyber_neon",
+      "number": 39,
+      "titleKey": "pilot.levels.level_39.title",
+      "hintKey": "pilot.levels.level_39.hint",
+      "password": "ALCH",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "S"
+      },
+      "rows": [
+        "#######################",
+        "###.d##.d##############",
+        "#H#..##..#######CC#####",
+        "#.............FF..SE###",
+        "#####..##..############",
+        "#####.d##.d############",
+        "#######################"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "ice_block",
+          "x": 8,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "ice_block",
+          "x": 10,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SEEEEEENNESWSEEEEEEWWWWWWWWSSENWNEEEEEEEEEWWWWWSSENWNEEEEEWWWWWWWWWWWNNESWSEEEEEEEEEEEEENESEE"
+    },
+    {
+      "id": "epoxy_p_40",
+      "theme": "cyber_neon",
+      "number": 40,
+      "titleKey": "pilot.levels.level_40.title",
+      "hintKey": "pilot.levels.level_40.hint",
+      "password": "STOP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "S"
+      },
+      "rows": [
+        "#################",
+        "#H##C############",
+        "#.##.############",
+        "#.##.############",
+        "#.##Z############",
+        "#.IIWII.#########",
+        "#.#####I#########",
+        "#.#####F..C######",
+        "#.#####I###C#####",
+        "#.#####W.C#.#####",
+        "#Q#####I###.#####",
+        "#######.IIIWI.SE#",
+        "#################"
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SSSSSSSSSNNNNNENNNNSSSSESEEEWWWSEEWWSENNNSSSEEE"
+    },
+    {
+      "id": "epoxy_p_41",
+      "theme": "cyber_neon",
+      "number": 41,
+      "titleKey": "pilot.levels.level_41.title",
+      "hintKey": "pilot.levels.level_41.hint",
+      "password": "SWIM",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "S"
+      },
+      "rows": [
+        "##################",
+        "#H#####..#########",
+        "#.#####..#########",
+        "#.#####..####C.C##",
+        "#.#.WWW.....F..SE#",
+        "#.#.#########.C.##",
+        "#.#.##############",
+        "#........Q########",
+        "##################"
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "ice_block",
+          "x": 8,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SSSSSSEEEEEEEEWWWWWWNNNEEEENNNESSWSEEEEEENEEWSSNEE"
+    },
+    {
+      "id": "epoxy_p_42",
+      "theme": "cyber_neon",
+      "number": 42,
+      "titleKey": "pilot.levels.level_42.title",
+      "hintKey": "pilot.levels.level_42.hint",
+      "password": "LOOP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 5,
+      "playerStart": {
+        "x": 9,
+        "y": 7,
+        "dir": "W"
+      },
+      "rows": [
+        "###########",
+        "#E####1II2#",
+        "#S####I##I#",
+        "#.IIIIIII4#",
+        "#.####I####",
+        "#..III4####",
+        "#.#########",
+        "#........H#",
+        "###########"
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "WWWWWWWWNNEENN"
     }
   ]
 }

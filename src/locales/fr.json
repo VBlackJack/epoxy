@@ -1450,6 +1450,22 @@
       "level_38": {
         "title": "Fonte",
         "hint": "Un bloc de glace change un feu en eau, et un bloc de terre comble cette eau. Pousse d'abord la glace dans les flammes, puis amène la terre : dans l'autre sens, la terre bouche le feu pour de bon."
+      },
+      "level_39": {
+        "title": "Alchimie",
+        "hint": "Un feu prend d'abord un bloc de glace puis un bloc de terre, une eau prend un bloc de terre, et un bloc envoyé sur le mauvais danger est perdu pour de bon. Compte tes blocs, et marche sur la terre fraîche avant l'arrivée du bloc suivant."
+      },
+      "level_40": {
+        "title": "Le frein",
+        "hint": "La glace t'emporte, mais une case de feu t'arrête si tu portes les bottes ignifugées, et une case d'eau t'arrête si tu portes les palmes. Porte les bonnes bottes pour t'arrêter sur la bonne case : sans elles, la glissade finit dans les flammes ou dans l'eau."
+      },
+      "level_41": {
+        "title": "Fonte à la nage",
+        "hint": "Un bloc de glace change un feu en eau, et les palmes te laissent traverser cette eau à la nage : aucun bloc de terre n'est nécessaire. Prends d'abord les palmes, traverse le lac, puis pousse la glace dans son puits et le long du couloir jusqu'aux flammes. Poussée contre le mur, elle reste coincée."
+      },
+      "level_42": {
+        "title": "Grand huit",
+        "hint": "Glisse sur la piste de glace d'une seule traite : ses virages t'emportent sur les cinq puces. La piste se croise elle-même, et quel que soit le bout par lequel tu commences, tu les ramasses toutes."
       }
     },
     "chapter": {

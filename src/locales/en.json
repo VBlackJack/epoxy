@@ -1450,6 +1450,22 @@
       "level_38": {
         "title": "Thaw",
         "hint": "A block of ice turns a fire into water, and a block of dirt fills that water. Push the ice into the flames first, then bring the dirt: the other way round, the dirt jams the fire for good."
+      },
+      "level_39": {
+        "title": "Alchemy",
+        "hint": "A fire takes an ice block first and a dirt block after it, a water takes a dirt block, and a block sent at the wrong hazard is lost for good. Count your blocks, and walk over the fresh dirt before the next block comes."
+      },
+      "level_40": {
+        "title": "The Brake",
+        "hint": "Ice carries you on, but a fire cell stops you if you wear the fire boots, and a water cell stops you if you wear the flippers. Wear the right boots to stop on the right cell: without them the slide ends in the flames or the water."
+      },
+      "level_41": {
+        "title": "Melt and Swim",
+        "hint": "A block of ice turns a fire into water, and flippers let you swim across that water: no dirt block is needed. Fetch the flippers first, cross the lake, then push the ice down its shaft and along the corridor into the flames. Pushed up against the wall, it is stuck."
+      },
+      "level_42": {
+        "title": "Roller Coaster",
+        "hint": "Ride the ice track in one go: its bends carry you over all five chips. The track crosses itself, and whichever end you start from, you pick them all up."
       }
     },
     "chapter": {
