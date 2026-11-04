@@ -251,7 +251,8 @@
       "turnOrder": ["FORWARD", "LEFT", "RIGHT", "BACK"],
       "immuneToWater": true,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "flying": true
     },
     "fireball": {
       "id": "fireball",
@@ -263,7 +264,8 @@
       "turnOrder": ["FORWARD", "RIGHT", "LEFT", "BACK"],
       "immuneToWater": false,
       "immuneToFire": true,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "flying": true
     },
     "tank": {
       "id": "tank",

@@ -863,8 +863,13 @@ export interface EntityDefinition {
   refusesHazards?: Array<NonNullable<TileDefinition['hazard']>>;
   /** Colour of a colour block: it presses the plates of this colour only (a plain entity presses every plate). */
   plateColor?: ChannelColor;
-  /** Whether the entity presses pressure plates; blocks do by default, monsters do only when this is true. */
+  /**
+   * Whether the entity presses pressure plates. Blocks do by default; a monster does by default unless it
+   * flies (see `flying`). An explicit value always wins.
+   */
   pressesPlates?: boolean;
+  /** A flying monster passes over a colour plate without pressing it, unless `pressesPlates` says otherwise. */
+  flying?: boolean;
   /** Present on a turret: a block that fires a short beam from the cell it faces. */
   turretBeam?: TurretBeamDefinition;
   /**

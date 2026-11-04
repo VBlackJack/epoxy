@@ -1001,6 +1001,9 @@ export function findColorChannelConfigErrors(
     if (entity.pressesPlates !== undefined && typeof entity.pressesPlates !== 'boolean') {
       errors.push(`${entity.id}.pressesPlates: expected a boolean`);
     }
+    if (entity.flying !== undefined && typeof entity.flying !== 'boolean') {
+      errors.push(`${entity.id}.flying: expected a boolean`);
+    }
   }
   return errors;
 }
