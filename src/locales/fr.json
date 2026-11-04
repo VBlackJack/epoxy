@@ -473,7 +473,7 @@
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
       "kb_editor_cancel": { "label": "Échap : Annuler un fil qui attend sa cible ou un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
-      "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
+      "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Maj+F remplit la sélection avec l'élément choisi dans la palette ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
       "kb_editor_cc3d_eraser": { "label": "Niveaux CC3D : la gomme retire l'élément le plus haut d'une case (créature, puis objet, puis couche du haut) ; Maj+gomme vide toute la case" },
       "kb_editor_cell_edge": { "label": "Cloisons fines : avec l'entrée cloison fine de l'onglet Terrain choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction) ; une cloison partagée avec la case voisine est retirée des deux" },
@@ -612,7 +612,11 @@
     "selection": {
       "tool": {
         "label": "Sélection",
-        "title": "Sélection (S) : faites glisser pour choisir un rectangle. Ctrl (Cmd) + C copier, X couper, V coller ; Suppr effacer, Alt+flèches déplacer."
+        "title": "Sélection (S) : faites glisser pour choisir un rectangle. Ctrl (Cmd) + C copier, X couper, V coller ; Suppr effacer, Maj+F remplir, Alt+flèches déplacer."
+      },
+      "fill": {
+        "label": "Remplir la sélection",
+        "title": "Remplit la sélection avec l'élément choisi dans la palette (Maj+F). Choisissez d'abord un rectangle."
       },
       "status": {
         "size": "Sélection : {width} x {height} cases.",
@@ -633,7 +637,13 @@
         "border_skipped": "{count, plural, one {# case de l'anneau de murs extérieur a été laissée telle quelle} other {# cases de l'anneau de murs extérieur ont été laissées telles quelles}}.",
         "paste_skipped": "{count, plural, one {# élément a été ignoré : les règles Lynx ne peuvent pas le jouer} other {# éléments ont été ignorés : les règles Lynx ne peuvent pas les jouer}}.",
         "paste_refused_epoxy": "Cette sélection vient d'un niveau Epoxy ou Lynx : elle ne peut pas être collée dans un niveau CC3D.",
-        "paste_refused_cc3d": "Cette sélection vient d'un niveau CC3D : elle ne peut pas être collée dans un niveau Epoxy ou Lynx."
+        "paste_refused_cc3d": "Cette sélection vient d'un niveau CC3D : elle ne peut pas être collée dans un niveau Epoxy ou Lynx.",
+        "fill_hint": "Maj+F remplit la sélection avec {name}.",
+        "filled": "{width} x {height} cases remplies avec {name}.",
+        "fill_start_kept": "La case de départ du joueur a été laissée telle quelle.",
+        "fill_refused_cell_edge": "Les cloisons fines ne peuvent pas remplir une sélection : dessinez-les avec le pinceau.",
+        "fill_refused_entry": "Cet élément ne peut pas remplir une sélection.",
+        "fill_refused_attributes": "Cet élément demande une couleur ou un réglage valide : choisissez-le dans les options de la palette."
       }
     },
     "check": {

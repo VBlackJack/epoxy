@@ -15,13 +15,18 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { editableCc3dModel } from './cc3dEditorFixtures';
 import { EditorMap } from './editorDocument';
+import { EPOXY_ONLY_REASON_KEY } from './paletteAvailability';
 import {
   clampMoveStep,
   clearRect,
   clipRectToGrid,
   extractClip,
+  fillBrushRefusal,
+  fillRect,
   moveRect,
   pasteClip,
   rectContains,
@@ -351,6 +356,161 @@ describe('moveRect', () => {
     const map = populated();
     const before = JSON.stringify(map);
     moveRect(map, { x: 2, y: 2, width: 3, height: 3 }, 1, 1);
+    expect(JSON.stringify(map)).toBe(before);
+  });
+});
+
+describe('fillRect', () => {
+  const INTERIOR = { x: 2, y: 2, width: 3, height: 3 };
+
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('paints every interior cell of the rectangle with a terrain tile', () => {
+    const result = fillRect(bordered(9, 9), INTERIOR, { kind: 'terrain', id: 'water' }, 'S', 'epoxy');
+    expect(result.refusal).toBeNull();
+    expect(result.changed).toBe(true);
+    expect(result.rect).toEqual(INTERIOR);
+    for (let y = 2; y <= 4; y++) for (let x = 2; x <= 4; x++) expect(result.map.terrain[y][x]).toBe('water');
+    expect(result.map.terrain[1][1]).toBe('floor');
+    expect(result.map.terrain[5][5]).toBe('floor');
+  });
+
+  it('never writes the outer ring and counts the cells it left alone', () => {
+    const result = fillRect(bordered(9, 9), { x: 0, y: 0, width: 3, height: 3 }, { kind: 'terrain', id: 'water' }, 'S', 'epoxy');
+    expect(result.borderSkipped).toBe(5);
+    expect(result.map.terrain[0][0]).toBe('wall');
+    expect(result.map.terrain[2][0]).toBe('wall');
+    expect(result.map.terrain[1][1]).toBe('water');
+    expect(result.map.terrain[2][2]).toBe('water');
+  });
+
+  it('keeps the links of a cell whose terrain is already the tile', () => {
+    const map = populated();
+    const result = fillRect(map, { x: 2, y: 2, width: 1, height: 1 }, { kind: 'terrain', id: 'button_brown' }, 'S', 'epoxy');
+    expect(result.changed).toBe(false);
+    expect(result.map.trapLinks).toHaveLength(1);
+  });
+
+  it('drops links only on the cells whose terrain changes', () => {
+    const map = populated();
+    // (4,2) is already the trap: only (3,2) changes, so the link from the button to the trap stays.
+    const kept = fillRect(map, { x: 3, y: 2, width: 2, height: 1 }, { kind: 'terrain', id: 'trap' }, 'S', 'epoxy');
+    expect(kept.droppedLinks).toBe(0);
+    expect(kept.map.trapLinks).toHaveLength(1);
+    // (2,2) is the button: turning it to another tile drops the link.
+    const dropped = fillRect(map, { x: 2, y: 2, width: 3, height: 1 }, { kind: 'terrain', id: 'water' }, 'S', 'epoxy');
+    expect(dropped.droppedLinks).toBe(1);
+    expect(dropped.map.trapLinks).toHaveLength(0);
+    expect(dropped.map.cloneLinks).toHaveLength(1);
+  });
+
+  it('writes an item on the item layer only, keeping the links', () => {
+    const map = populated();
+    const result = fillRect(map, { x: 2, y: 2, width: 3, height: 1 }, { kind: 'item', id: 'key_red' }, 'S', 'epoxy');
+    expect(result.changed).toBe(true);
+    expect(result.droppedLinks).toBe(0);
+    expect(result.map.items[2].slice(2, 5)).toEqual(['key_red', 'key_red', 'key_red']);
+    expect(result.map.terrain).toEqual(map.terrain);
+    expect(result.map.trapLinks).toEqual(map.trapLinks);
+  });
+
+  it('replaces whatever stands on the cells with the entity, facing the given direction', () => {
+    const result = fillRect(populated(), { x: 4, y: 4, width: 3, height: 3 }, { kind: 'entity', id: 'dirt_block' }, 'E', 'epoxy');
+    expect(result.map.entities).toHaveLength(9);
+    expect(result.map.entities.every((e) => e.type === 'dirt_block' && e.dir === 'E')).toBe(true);
+    expect(result.map.entities.filter((e) => e.x === 5 && e.y === 5)).toHaveLength(1);
+  });
+
+  it('keeps the order of entities that already match the fill', () => {
+    const map = bordered(9, 9);
+    map.entities = [
+      { x: 3, y: 3, type: 'dirt_block', dir: 'E' },
+      { x: 2, y: 3, type: 'dirt_block', dir: 'E' }
+    ];
+    const result = fillRect(map, { x: 2, y: 3, width: 2, height: 1 }, { kind: 'entity', id: 'dirt_block' }, 'E', 'epoxy');
+    expect(result.changed).toBe(false);
+    expect(result.map.entities).toEqual(map.entities);
+  });
+
+  it('leaves the player start cell alone when filling with an entity, and says so', () => {
+    const result = fillRect(bordered(9, 9), { x: 1, y: 1, width: 2, height: 1 }, { kind: 'entity', id: 'dirt_block' }, 'S', 'epoxy');
+    expect(result.playerStartKept).toBe(true);
+    expect(result.skipped).toBe(1);
+    expect(result.map.entities).toEqual([{ x: 2, y: 1, type: 'dirt_block', dir: 'S' }]);
+    expect(result.map.playerStart).toEqual({ x: 1, y: 1, dir: 'S' });
+  });
+
+  it('does paint the terrain of the player start cell', () => {
+    const result = fillRect(bordered(9, 9), { x: 1, y: 1, width: 1, height: 1 }, { kind: 'terrain', id: 'water' }, 'S', 'epoxy');
+    expect(result.playerStartKept).toBe(false);
+    expect(result.map.terrain[1][1]).toBe('water');
+  });
+
+  it('keeps the thin walls of the cells, as painting does', () => {
+    const map = { ...bordered(9, 9), cellEdges: [{ x: 3, y: 3, sides: ['N' as const, 'E' as const] }] };
+    for (const brush of [
+      { kind: 'terrain' as const, id: 'water' },
+      { kind: 'item' as const, id: 'key_red' },
+      { kind: 'entity' as const, id: 'dirt_block' }
+    ]) {
+      const result = fillRect(map, INTERIOR, brush, 'S', 'epoxy');
+      expect(result.changed).toBe(true);
+      expect(result.map.cellEdges).toEqual(map.cellEdges);
+    }
+  });
+
+  it('is a no-op when the cells already hold the tile', () => {
+    const result = fillRect(bordered(9, 9), INTERIOR, { kind: 'terrain', id: 'floor' }, 'S', 'epoxy');
+    expect(result.changed).toBe(false);
+    expect(result.refusal).toBeNull();
+    expect(result.rect).toEqual(INTERIOR);
+  });
+
+  it('refuses the whole fill when the ruleset cannot play the entry, with its reason', () => {
+    const map = bordered(9, 9);
+    const mirror = Object.entries(ConfigRegistry.getMonsters().entities).find(([, def]) => def.mirrorAxis !== undefined)?.[0] ?? '';
+    expect(mirror).not.toBe('');
+    for (const brush of [
+      { kind: 'terrain' as const, id: 'laser_emitter_n' },
+      { kind: 'item' as const, id: 'laser_emitter_n' },
+      { kind: 'entity' as const, id: mirror }
+    ]) {
+      const result = fillRect(map, INTERIOR, brush, 'S', 'lynx');
+      expect(result.refusal).toEqual({ reason: 'unavailable', reasonKey: EPOXY_ONLY_REASON_KEY });
+      expect(result.changed).toBe(false);
+      expect(result.map).toBe(map);
+    }
+    expect(fillRect(map, INTERIOR, { kind: 'terrain', id: 'laser_emitter_n' }, 'S', 'epoxy').refusal).toBeNull();
+  });
+
+  it('refuses the player start, the wires and the thin wall brush', () => {
+    const map = bordered(9, 9);
+    for (const kind of ['player_start', 'wire_trap', 'wire_cloner'] as const) {
+      const result = fillRect(map, INTERIOR, { kind, id: kind }, 'S', 'epoxy');
+      expect(result.refusal).toEqual({ reason: 'unsupported' });
+      expect(result.changed).toBe(false);
+    }
+    const edge = fillRect(map, INTERIOR, { kind: 'cell_edge', id: 'cell_edge' }, 'S', 'epoxy');
+    expect(edge.refusal).toEqual({ reason: 'cell_edge' });
+    expect(edge.map).toBe(map);
+    expect(fillBrushRefusal({ kind: 'cell_edge', id: 'cell_edge' }, 'lynx')).toEqual({ reason: 'cell_edge' });
+    expect(fillBrushRefusal({ kind: 'terrain', id: 'wall' }, 'lynx')).toBeNull();
+  });
+
+  it('leaves a CC3D map alone', () => {
+    const map: EditorMap = { ...bordered(5, 5), cc3d: editableCc3dModel(['###', '#@#', '###']) };
+    const result = fillRect(map, INTERIOR, { kind: 'terrain', id: 'water' }, 'S', 'epoxy');
+    expect(result.changed).toBe(false);
+    expect(result.map).toBe(map);
+  });
+
+  it('does not modify its input', () => {
+    const map = populated();
+    const before = JSON.stringify(map);
+    fillRect(map, { x: 2, y: 2, width: 4, height: 4 }, { kind: 'terrain', id: 'water' }, 'S', 'epoxy');
+    fillRect(map, { x: 2, y: 2, width: 4, height: 4 }, { kind: 'entity', id: 'dirt_block' }, 'S', 'epoxy');
     expect(JSON.stringify(map)).toBe(before);
   });
 });

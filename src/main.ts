@@ -2954,7 +2954,8 @@ class EpoxyApplication {
         const taken = this.editor.handleSelectionAction(selectionAction);
         // Alt+Arrow is the browser's history navigation: never let it through in the editor.
         if (taken || selectionAction.kind === 'move') e.preventDefault();
-        return;
+        // Shift+F with nothing to fill is still the fill tool: it falls through to the tool letters.
+        if (taken || selectionAction.kind !== 'fill') return;
       }
       const keyAction = getEditorKeyAction(e);
       if (!keyAction) return;
