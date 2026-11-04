@@ -86,6 +86,12 @@ export interface PlayEngine {
    */
   getUnderlays?(): ReadonlyMap<number, string> | undefined;
   /**
+   * Optional. The terrain a removable top at the cell would show once opened right now (a covered toggle wall
+   * or hold door in the form play has left it in), or undefined when it hides none. An engine without
+   * underlays omits it; the tools then read the level's own underlay.
+   */
+  getRevealedTerrain?(x: number, y: number): string | undefined;
+  /**
    * Optional. The cells whose stack holds more layers than the one shown, by cell index (y * width + x).
    * Derived state; an engine without stacked layers omits it.
    */

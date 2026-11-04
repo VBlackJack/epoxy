@@ -534,7 +534,16 @@ export function registerTerrainTileLookup(lookup: TerrainTileLookup | null): voi
   registeredTerrainLookup = lookup;
 }
 
-/** True for a tile whose state a live device (plate, hold door, toggle wall) changes at run time. */
+/** True for a top only the opening of a key door or a socket removes: nothing turns back into it. */
+function isOpeningTop(tile: TileDefinition): boolean {
+  return Boolean(tile.requiredKey || tile.requiresAllChips);
+}
+
+/**
+ * True for a tile whose state a live device (plate, hold door, toggle wall) changes at run time. The engine
+ * plays these hidden under a door or a socket only (it keeps a toggle parity and settles hold doors on the
+ * reveal); under any other top they stay refused.
+ */
 function isLiveDevice(tile: TileDefinition): boolean {
   return Boolean(
     tile.plateColor ||
@@ -544,6 +553,11 @@ function isLiveDevice(tile: TileDefinition): boolean {
       tile.channelTogglesTo ||
       tile.togglesTo
   );
+}
+
+/** Whether a removable top may be hidden under a door or a socket: a socket, dirt or a blue fake wall, never a key door. */
+function isRemovableUnderlay(tile: TileDefinition): boolean {
+  return !tile.requiredKey && isRemovableTop(tile);
 }
 
 /** Every terrain id a cell holding the tile can turn into by a block, a step off, an unlock or a toggle. */
@@ -573,9 +587,10 @@ function terrainsReachableFrom(tile: TileDefinition, lookup: TerrainTileLookup):
  * The underlays of a level in canonical form: only the Epoxy ruleset carries them. Entries that are
  * not records, lie outside the grid or name no terrain of the terrain layer are dropped. With a tile
  * lookup, an entry is also dropped when the cell's top is not a removable top (a door, a socket, a fake
- * wall, dirt), when the underlay is itself a removable top, a plate, a hold door or a toggle wall (the
- * engine plays underlays statically, a live device would need run-time state), or when the underlay can
- * turn back into the cell's top (dirt over water: a block sunk there makes dirt again, which would
+ * wall, dirt), when the underlay is itself a removable top, a plate, a hold door or a toggle wall (except
+ * under a key door or a socket, which nothing turns back into: there a socket, dirt, a blue fake wall, a
+ * plate, a hold door and a green or colour toggle wall are kept, never a key door and never the top's own
+ * id), or when the underlay can turn back into the cell's top (dirt over water: a block sunk there makes dirt again, which would
  * reveal a second time). The first entry of a cell wins, and the entries are sorted by row, then column.
  * Returns null when none is left.
  */
@@ -597,7 +612,11 @@ export function normalizeUnderlays(
       const tile = lookup(id);
       const topId = terrain[entry.y as number][entry.x as number];
       const top = lookup(topId);
-      if (!tile || !top || !isRemovableTop(top) || isRemovableTop(tile) || isLiveDevice(tile)) continue;
+      if (!tile || !top || !isRemovableTop(top)) continue;
+      // Under a door or a socket (which nothing turns back into) the engine also plays a socket, dirt, a blue
+      // fake wall and the live devices; under any other top an underlay stays a plain, static terrain.
+      const widened = isOpeningTop(top) && id !== topId && isRemovableUnderlay(tile);
+      if (isRemovableTop(tile) ? !widened : isLiveDevice(tile) && !(isOpeningTop(top) && id !== topId)) continue;
       if (terrainsReachableFrom(tile, lookup).has(topId)) continue;
     }
     const index = (entry.y as number) * width + (entry.x as number);

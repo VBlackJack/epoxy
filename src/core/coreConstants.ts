@@ -144,6 +144,32 @@ export function channelOfButtonAction(action: ButtonAction | undefined): Channel
   return action === undefined ? undefined : CHANNEL_OF_BUTTON_ACTION[action];
 }
 
+/** Parity bit of the green toggle walls (the plain toggle_walls action). */
+export const GREEN_TOGGLE_PARITY_BIT = 1;
+
+/** Parity bit of each colour toggle channel, above the green bit. */
+export const CHANNEL_TOGGLE_PARITY_BITS: Readonly<Partial<Record<ChannelColor, number>>> = {
+  red: 2,
+  blue: 4,
+  yellow: 8
+};
+
+/** Prefix of the toggle parity in a search state key. */
+export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
+
+/** The parity bit of the toggle wall family a tile belongs to, or 0 when the tile is no toggle wall. */
+export function toggleParityBitOf(tile: { togglesTo?: string; toggleChannel?: ChannelColor; channelTogglesTo?: string }): number {
+  if (tile.toggleChannel !== undefined) {
+    return tile.channelTogglesTo === undefined ? 0 : (CHANNEL_TOGGLE_PARITY_BITS[tile.toggleChannel] ?? 0);
+  }
+  return tile.togglesTo === undefined ? 0 : GREEN_TOGGLE_PARITY_BIT;
+}
+
+/** The other form of a toggle wall (green or colour), or undefined for any other tile. */
+export function toggleWallOtherForm(tile: { togglesTo?: string; toggleChannel?: ChannelColor; channelTogglesTo?: string }): string | undefined {
+  return tile.toggleChannel !== undefined ? tile.channelTogglesTo : tile.togglesTo;
+}
+
 /** Bit of each side in the mask of a level's cell edges (see cellEdgeMask). */
 export const CELL_EDGE_BITS: Readonly<Record<Direction, number>> = {
   N: 1,

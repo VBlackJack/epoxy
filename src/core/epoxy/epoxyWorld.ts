@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { BLOCK_TARGET_TILE_ID } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
@@ -77,6 +77,14 @@ export interface EpoxyWorld {
   /** Terrain hidden under removable tops by cell index (see underlayMap); static, null when none. */
   underlays: ReadonlyMap<number, string> | null;
 
+  /**
+   * Parity bits of the toggle wall families that have a wall hidden under a removable top (see
+   * toggleParityBitOf); static, 0 when no wall is hidden. A bit is flipped by each press of its family's
+   * button so a wall revealed later shows the form the presses left it in.
+   */
+  coveredToggleBits: number;
+  /** One bit per covered toggle family, set while an odd number of presses happened; 0 at load. */
+  toggleParity: number;
   chipsRemaining: number;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
   extraTimeSeconds: number;
@@ -161,6 +169,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     shots: [],
     edgeMask: null,
     underlays: null,
+    coveredToggleBits: 0,
+    toggleParity: 0,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
     levelBonusPoints: 0,
@@ -212,6 +222,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.inTick = false;
   w.turretBeamCells = [];
   w.underlays = underlayMap(w.level);
+  w.coveredToggleBits = 0;
+  w.toggleParity = 0;
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
     const key = cellKey(link.trapX, link.trapY);
@@ -238,7 +250,10 @@ export function buildLevelLookups(w: EpoxyWorld): void {
       registerDevices(w, x, y, w.terrain[y][x], coversTargets);
       // A device hidden under a removable top is listed too; every use checks that the top is that device now.
       const hidden = underlayAt(w.underlays, width, x, y);
-      if (hidden !== undefined) registerDevices(w, x, y, hidden, coversTargets);
+      if (hidden !== undefined) {
+        registerDevices(w, x, y, hidden, coversTargets);
+        w.coveredToggleBits |= toggleParityBitOf(ConfigRegistry.getTile(hidden));
+      }
     }
   }
 }
@@ -291,8 +306,53 @@ function registerDevices(w: EpoxyWorld, x: number, y: number, terrainId: string,
 export function revealedTerrain(w: EpoxyWorld, x: number, y: number): string | null {
   const hidden = underlayAt(w.underlays, mapWidth(w), x, y);
   if (hidden === undefined || w.terrain[y][x] !== w.level.terrain[y][x]) return null;
+  const tile = ConfigRegistry.getTile(hidden);
+  // A toggle wall shows the form the presses of its family have left it in.
+  const parityBit = toggleParityBitOf(tile);
+  if (parityBit !== 0 && (w.toggleParity & parityBit) !== 0) return toggleWallOtherForm(tile) ?? hidden;
+  // A hold door shows the form its colour's plates call for now.
+  if (tile.holdDoorColor !== undefined && tile.holdDoorTogglesTo !== undefined) {
+    const wantsOpen = visibleHoldDoorForm(w, tile.holdDoorColor) ?? holdColorsOpen(w).get(tile.holdDoorColor) === true;
+    return tile.holdDoorOpen === wantsOpen ? hidden : tile.holdDoorTogglesTo;
+  }
   return hidden;
 }
+
+/** The open (true) or closed (false) form of a hold door of the colour in plain sight, undefined when none is. */
+function visibleHoldDoorForm(w: EpoxyWorld, color: ChannelColor): boolean | undefined {
+  for (const door of w.holdDoors) {
+    const tile = ConfigRegistry.getTile(w.terrain[door.y][door.x]);
+    if (tile.holdDoorColor === color && tile.holdDoorOpen !== undefined) return tile.holdDoorOpen;
+  }
+  return undefined;
+}
+
+/**
+ * Whether each colour's hold doors are called open by its plates: open while the colour has at least one
+ * plate and every one is pressed. A plate hidden under a cell that still holds its original top counts in
+ * the total and is never pressed. A colour with no plate is absent from the map (its doors stay shut).
+ */
+export function holdColorsOpen(w: EpoxyWorld): Map<ChannelColor, boolean> {
+  const open = new Map<ChannelColor, boolean>();
+  const width = mapWidth(w);
+  for (const plate of w.plates) {
+    let pressed: boolean;
+    if (ConfigRegistry.getTile(w.terrain[plate.y][plate.x]).plateColor === plate.color) {
+      pressed = pressesPlate(w, plate.x, plate.y, plate.color);
+    } else if (
+      w.terrain[plate.y][plate.x] === w.level.terrain[plate.y][plate.x] &&
+      underlayAt(w.underlays, width, plate.x, plate.y) !== undefined &&
+      ConfigRegistry.getTile(underlayAt(w.underlays, width, plate.x, plate.y) as string).plateColor === plate.color
+    ) {
+      pressed = false;
+    } else {
+      continue;
+    }
+    open.set(plate.color, (open.get(plate.color) ?? true) && pressed);
+  }
+  return open;
+}
+
 /** True when the player holds the item: a key of that colour, or those boots. */
 export function holdsItem(w: EpoxyWorld, itemId: string): boolean {
   return (w.player.keys[itemId] || 0) > 0 || w.player.boots.has(itemId);

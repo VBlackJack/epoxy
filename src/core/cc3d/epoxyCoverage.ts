@@ -160,7 +160,7 @@ const APPROX_ENTRIES: Record<string, string> = {
 
 const LOST_ENTRIES: Record<string, string> = {
   [KEY_STACKED_RUNTIME]:
-    'The stack has a layer that acts while covered, or more layers than a removable top and the one it hides, which Epoxy flattens.'
+    'The stack has a layer that acts while covered under a top that is not a door or a socket, or more layers than a removable top and the one it hides, which Epoxy flattens.'
 };
 
 /** Coloured elements Epoxy plays as CC3D does, one entry per colour. */
@@ -211,14 +211,24 @@ function coverageKeyOf(cell: Cc3dCell, layer: Cc3dTerrain, index: number): strin
 const REMOVABLE_TOP_KINDS: readonly Cc3dTerrainKind[] = ['door', 'socket', 'false_wall'];
 /** Tops that stay as they are or turn into another blocker: whatever is under them is never seen. */
 const PERMANENT_TOP_KINDS: readonly Cc3dTerrainKind[] = ['wall', 'push_up_wall', 'appearing_wall', 'toggle_door', 'hold_door'];
+/** Tops a key or the chips open: nothing turns back into them, so Epoxy can hide live devices under them. */
+const OPENING_TOP_KINDS: readonly Cc3dTerrainKind[] = ['door', 'socket'];
 /**
- * What Epoxy can hide under a removable top and play exactly: ground that only acts when someone stands
- * on it, a wall, or a toggle control (inert until revealed). Dirt is left out (it is a removable top
- * itself), and so are the devices that act while covered (plates, hold doors, toggle doors, traps...).
+ * What Epoxy can hide under any removable top and play exactly: ground that only acts when someone stands
+ * on it, a wall, or a toggle control (inert until revealed).
  */
 const UNDER_KINDS: readonly Cc3dTerrainKind[] = [
   'water', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'slime', 'turtle', 'gravel', 'sand',
   'teleport_blue', 'teleport_red', 'wall', 'toggle_control'
+];
+/**
+ * What Epoxy hides only under a door or a socket (see OPENING_TOP_KINDS): a socket, dirt, a permanent
+ * blocker or an appearing wall (shown by the reveal), a laser controller (the shot trigger, working once
+ * revealed), and the devices whose state the engine keeps while they are covered (toggle doors through the
+ * toggle parity, hold doors and plates through the plates of their colour).
+ */
+const UNDER_OPENING_TOP_KINDS: readonly Cc3dTerrainKind[] = [
+  'socket', 'socket_red', 'dirt', 'push_up_wall', 'appearing_wall', 'laser_controller', 'toggle_door', 'hold_door', 'plate'
 ];
 /** Layers that act on the cell, or on a trap, a clone machine or a door, even while another layer covers them. */
 const LIVE_WHILE_COVERED_KINDS: readonly Cc3dTerrainKind[] = [
@@ -236,7 +246,7 @@ export type StackKind = 'plain' | 'flattened' | 'underlay' | 'runtime';
  * played exactly when it is
  *  - under a top that is never removed, with nothing live under it: the covered layers are inert, so they
  *    are dropped ('flattened');
- *  - a removable top over exactly one layer Epoxy can hide ('underlay').
+ *  - a removable top over exactly one layer Epoxy can hide ('underlay'), the wider set only under a door or a socket.
  * Anything else ('runtime') needs a layer that acts while covered, or a deeper stack, and is lost.
  */
 export function classifyStack(cell: Cc3dCell): StackKind {
@@ -251,7 +261,11 @@ export function classifyStack(cell: Cc3dCell): StackKind {
   if (PERMANENT_TOP_KINDS.includes(top.kind)) {
     return below.some((layer) => LIVE_WHILE_COVERED_KINDS.includes(layer.kind)) ? 'runtime' : 'flattened';
   }
-  if (REMOVABLE_TOP_KINDS.includes(top.kind) && below.length === 1 && UNDER_KINDS.includes(below[0].kind)) return 'underlay';
+  if (REMOVABLE_TOP_KINDS.includes(top.kind) && below.length === 1) {
+    const hidden = below[0].kind;
+    if (UNDER_KINDS.includes(hidden)) return 'underlay';
+    if (OPENING_TOP_KINDS.includes(top.kind) && UNDER_OPENING_TOP_KINDS.includes(hidden)) return 'underlay';
+  }
   return 'runtime';
 }
 

@@ -21,7 +21,8 @@ import {
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
-  OPPOSITE_DIRECTION
+  OPPOSITE_DIRECTION,
+  TOGGLE_PARITY_KEY_PREFIX
 } from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
 import { updateEntities } from './epoxy/epoxyMonsters';
@@ -33,7 +34,7 @@ import {
 } from './epoxy/epoxyPlayer';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
-import { advanceShots } from './epoxy/epoxyShots';
+import { advanceShots, shotsStateKey } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
@@ -42,6 +43,7 @@ import {
   EpoxyWorld,
   NO_PLAY_START_TICK,
   buildLevelLookups,
+  revealedTerrain,
   createEpoxyWorld,
   getEntityAt,
   holdsItem,
@@ -285,6 +287,29 @@ export class GameEngine {
     return this.w.hasLaunchers ? this.w.shots : undefined;
   }
 
+  /**
+   * The parity of the toggle presses, one bit per toggle family that hides a wall under a removable top;
+   * undefined on a level that hides none, so nothing about it reaches a level without one.
+   */
+  public getToggleParity(): number | undefined {
+    return this.w.coveredToggleBits !== 0 ? this.w.toggleParity : undefined;
+  }
+
+  /**
+   * The runtime state beyond the grid that tells search states apart: the shots in flight and the toggle
+   * parity. An empty string on a level with neither, so the keys of other levels stay as they were.
+   */
+  public getRuntimeKeyExtra(): string {
+    const parity = this.getToggleParity();
+    const shots = shotsStateKey(this.getShots());
+    return parity === undefined ? shots : `${shots}${shots ? '|' : ''}${TOGGLE_PARITY_KEY_PREFIX}${parity}`;
+  }
+
+  /** The terrain a removable top at the cell would show once opened now, or undefined when it hides none. */
+  public getRevealedTerrain(x: number, y: number): string | undefined {
+    return revealedTerrain(this.w, x, y) ?? undefined;
+  }
+
   public getChipsRemaining(): number {
     return Math.max(0, this.w.chipsRemaining);
   }
@@ -472,7 +497,9 @@ export class GameEngine {
       // Only a level with turrets reads the play start; the other snapshots stay as they were.
       ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {}),
       // Only a level with shot launchers has shots to put back.
-      ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {})
+      ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
+      // Only a level with a toggle wall under a removable top reads the parity of the presses.
+      ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {})
     };
   }
 
@@ -517,6 +544,7 @@ export class GameEngine {
     this.timedMoveHistory.length = snap.timedMoveHistoryLength;
     this.w.playStartTick = snap.playStartTick ?? NO_PLAY_START_TICK;
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
+    this.w.toggleParity = snap.toggleParity ?? 0;
     // The launchers fired in the undone moment may fire again.
     this.w.firedLaunchers.clear();
     this.w.inTick = false;
