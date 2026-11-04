@@ -26,6 +26,7 @@ import { BlockPuzzleSolver } from '../BlockPuzzleSolver';
 import { GameEngine } from '../GameEngine';
 import { LevelValidator } from '../LevelValidator';
 import { Pathfinder } from '../Pathfinder';
+import { searchStateKey } from '../../test/pilotSearch';
 import { hiddenUnder, isRemovableTop, underlayMap } from '../Underlays';
 import { CellUnderlay, CompiledLevel, Direction } from '../types';
 
@@ -347,5 +348,234 @@ describe('level tools with underlays', () => {
     expect(BlockPuzzleSolver.verdict(engine)).toEqual({ kind: 'none' });
     expect(BlockPuzzleSolver.isStuck(engine)).toBe(false);
     expect(BlockPuzzleSolver.hint(engine)).toBeNull();
+  });
+});
+
+/** Cell of the toggle button next to the player's start (north of it). */
+const BUTTON_Y = START_Y - 1;
+const SOCKET_TOP = 'socket';
+
+describe('removable tops revealed under a door', () => {
+  it('opens a socket that was under a door in the same step when no chip is left', () => {
+    const engine = start(room('socket_door', under(SOCKET_TOP)));
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('floor');
+    expect(engine.getPlayer()).toMatchObject({ x: DOOR_X, alive: true });
+    expect(engine.getPlayer().keys[KEY_ID]).toBe(0);
+  });
+
+  it('spends the key and keeps the socket shut while chips are missing, then opens it with no second reveal', () => {
+    const level = room('socket_door_chips', under(SOCKET_TOP));
+    level.chipsRequired = 1;
+    level.items[START_Y][START_X - 1] = 'chip';
+    const engine = start(level);
+    expect(step(engine, 'E')).toBe(false);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe(SOCKET_TOP);
+    expect(engine.getPlayer()).toMatchObject({ x: START_X, alive: true });
+    expect(engine.getPlayer().keys[KEY_ID]).toBe(0);
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.socket_locked');
+    expect(step(engine, 'W')).toBe(true);
+    expect(engine.getChipsRemaining()).toBe(0);
+    expect(step(engine, 'E')).toBe(true);
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('floor');
+    expect(engine.getPlayer().x).toBe(DOOR_X);
+  });
+
+  it('clears dirt that was under a door, and a blue fake wall, when the player steps in', () => {
+    for (const hidden of ['dirt', 'blue_wall_fake']) {
+      const engine = start(room(`${hidden}_door`, under(hidden)));
+      expect(step(engine, 'E')).toBe(true);
+      expect(engine.getPlayer()).toMatchObject({ x: DOOR_X, alive: true });
+      expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('floor');
+    }
+  });
+
+  it('lets the player onto a recessed wall that was under a door, which rises behind them', () => {
+    const engine = start(room('recessed_door', under('recessed_wall')));
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getPlayer().x).toBe(DOOR_X);
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('wall');
+  });
+
+  it('spends the key on an appearing wall under a door, which stays until touched and then turns into a wall', () => {
+    const engine = start(room('appearing_door', under('appearing_wall')));
+    expect(step(engine, 'E')).toBe(false);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('appearing_wall');
+    expect(engine.getPlayer().keys[KEY_ID]).toBe(0);
+    expect(step(engine, 'E')).toBe(false);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('wall');
+  });
+
+  it('fires a shot trigger that was under a door once the door is open', () => {
+    const level = room('trigger_door', under('shot_trigger'));
+    level.terrain[2][6] = 'shot_launcher_e';
+    level.launcherLinks = [{ buttonX: DOOR_X, buttonY: START_Y, launcherX: 6, launcherY: 2 }];
+    const engine = start(level);
+    expect(engine.getShots()).toEqual([]);
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getShots()?.length).toBe(1);
+  });
+});
+
+describe('toggle walls hidden under doors', () => {
+  const GREEN_BUTTON = 'button_green';
+
+  /** The room with a green button north of the start and a toggle wall (in the given form) under the door. */
+  function toggleRoom(form: string): CompiledLevel {
+    const level = room(`toggle_${form}`, under(form));
+    level.terrain[BUTTON_Y][START_X] = GREEN_BUTTON;
+    return level;
+  }
+
+  /** Presses the button the given number of times (a step onto it, a step back), then opens the door. */
+  function pressThenOpen(engine: GameEngine, presses: number): boolean {
+    for (let i = 0; i < presses; i++) {
+      step(engine, 'N');
+      step(engine, 'S');
+    }
+    return step(engine, 'E');
+  }
+
+  it('shows the stored form after no press, flipped after one, and back after two', () => {
+    expect(pressThenOpen(start(toggleRoom('toggle_wall_closed')), 0)).toBe(false);
+    expect(pressThenOpen(start(toggleRoom('toggle_wall_closed')), 1)).toBe(true);
+    expect(pressThenOpen(start(toggleRoom('toggle_wall_closed')), 2)).toBe(false);
+    expect(pressThenOpen(start(toggleRoom('toggle_wall_open')), 0)).toBe(true);
+    expect(pressThenOpen(start(toggleRoom('toggle_wall_open')), 1)).toBe(false);
+  });
+
+  it('counts the presses in a parity that undo takes back, and reports none without a covered wall', () => {
+    const engine = start(toggleRoom('toggle_wall_closed'));
+    expect(engine.getToggleParity()).toBe(0);
+    step(engine, 'N');
+    expect(engine.getToggleParity()).toBe(1);
+    step(engine, 'S');
+    step(engine, 'N');
+    expect(engine.getToggleParity()).toBe(0);
+    expect(engine.undo()).toBe(true);
+    expect(engine.getToggleParity()).toBe(1);
+    expect(engine.undo()).toBe(true);
+    expect(engine.undo()).toBe(true);
+    expect(engine.getToggleParity()).toBe(0);
+    expect(start(room('no_toggle', under('ice'))).getToggleParity()).toBeUndefined();
+    expect(start(room('plain')).getToggleParity()).toBeUndefined();
+    engine.loadLevel(room('reloaded'));
+    expect(engine.getToggleParity()).toBeUndefined();
+  });
+
+  it('keeps one parity per colour channel and lets two walls of a channel start in different forms', () => {
+    const level = room('channels', [
+      { x: DOOR_X, y: START_Y, terrain: 'toggle_wall_red_closed' },
+      { x: START_X, y: START_Y + 1, terrain: 'toggle_wall_red_open' }
+    ]);
+    level.terrain[START_Y + 1][START_X] = 'door_red';
+    level.terrain[BUTTON_Y][START_X] = 'toggle_button_red';
+    const engine = start(level);
+    engine.getPlayer().keys[KEY_ID] = 2;
+    step(engine, 'N');
+    step(engine, 'S');
+    expect(engine.getToggleParity()).toBe(2);
+    // One press: the wall stored closed is open, the one stored open is closed.
+    expect(step(engine, 'S')).toBe(false);
+    expect(engine.getTerrain()[START_Y + 1][START_X]).toBe('toggle_wall_red_closed');
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('toggle_wall_red_open');
+  });
+
+  it('is not moved by a button of another family', () => {
+    const level = room('other_family', under('toggle_wall_red_closed'));
+    level.terrain[BUTTON_Y][START_X] = GREEN_BUTTON;
+    const engine = start(level);
+    step(engine, 'N');
+    expect(engine.getToggleParity()).toBe(0);
+  });
+
+  it('tells search states apart by parity', () => {
+    const engine = start(toggleRoom('toggle_wall_closed'));
+    const before = engine.getRuntimeKeyExtra();
+    const stateBefore = searchStateKey(engine);
+    step(engine, 'N');
+    step(engine, 'S');
+    expect(engine.getRuntimeKeyExtra()).not.toBe(before);
+    expect(searchStateKey(engine)).not.toBe(stateBefore);
+    expect(start(room('no_extra')).getRuntimeKeyExtra()).toBe('');
+  });
+});
+
+describe('hold doors and plates hidden under doors', () => {
+  const BLOCK_X = 8;
+  const BLOCK_Y = 8;
+  const DOOR_RED_CLOSED = 'hold_door_red_closed';
+
+  function holdRoom(withVisibleDoor: boolean, pressed: boolean): CompiledLevel {
+    const level = room('hold', under(DOOR_RED_CLOSED));
+    if (pressed) {
+      level.terrain[BLOCK_Y][BLOCK_X] = 'pressure_plate_red';
+      level.entities = [{ x: BLOCK_X, y: BLOCK_Y, type: 'dirt_block', dir: 'E' }];
+    }
+    if (withVisibleDoor) level.terrain[2][8] = DOOR_RED_CLOSED;
+    return level;
+  }
+
+  it('shows a covered hold door open when its colour is pressed, matching a visible door of the colour', () => {
+    const engine = start(holdRoom(true, true));
+    expect(engine.getTerrain()[2][8]).toBe('hold_door_red_open');
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[START_Y][DOOR_X]).toBe('hold_door_red_open');
+  });
+
+  it('falls back to what the plates call for when no door of the colour is in sight', () => {
+    const pressed = start(holdRoom(false, true));
+    expect(step(pressed, 'E')).toBe(true);
+    expect(pressed.getTerrain()[START_Y][DOOR_X]).toBe('hold_door_red_open');
+    const unpressed = start(holdRoom(false, false));
+    expect(step(unpressed, 'E')).toBe(false);
+    expect(unpressed.getTerrain()[START_Y][DOOR_X]).toBe(DOOR_RED_CLOSED);
+  });
+
+  it('keeps a colour shut while a plate of it is still hidden, and opens it once the player stands on that plate', () => {
+    const level = room('covered_plate', under('pressure_plate_red'));
+    level.terrain[BLOCK_Y][BLOCK_X] = 'pressure_plate_red';
+    level.entities = [{ x: BLOCK_X, y: BLOCK_Y, type: 'dirt_block', dir: 'E' }];
+    level.terrain[2][8] = 'hold_door_red_closed';
+    const engine = start(level);
+    // The visible plate is pressed by the block, but the hidden one is not: the colour stays shut.
+    ticks(engine, SETTLE_TICKS);
+    expect(engine.getTerrain()[2][8]).toBe('hold_door_red_closed');
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getTerrain()[2][8]).toBe('hold_door_red_open');
+  });
+});
+
+describe('level tools with devices hidden under doors', () => {
+  function beyondDoor(hidden: string): CompiledLevel {
+    const level = corridor(room(`tool_${hidden}`, under(hidden)));
+    level.terrain[START_Y][DOOR_X + 2] = 'exit';
+    level.items[START_Y - 1][START_X] = KEY_ID;
+    return level;
+  }
+
+  it('reaches an exit beyond a socket hidden under a door, and beyond a toggle wall that a button opens', () => {
+    expect(LevelValidator.validate(beyondDoor(SOCKET_TOP)).stats.reachableExit).toBe(true);
+    const toggled = beyondDoor('toggle_wall_closed');
+    toggled.terrain[START_Y + 1][START_X] = 'button_green';
+    expect(LevelValidator.validate(toggled).stats.reachableExit).toBe(true);
+  });
+
+  it('routes through a socket revealed under a door only once every chip is taken', () => {
+    const open = corridor(room('path_socket', under(SOCKET_TOP)));
+    expect(Pathfinder.findPath(start(open), DOOR_X + 1, START_Y).moves).toEqual(['E', 'E']);
+    const locked = corridor(room('path_socket_chips', under(SOCKET_TOP)));
+    locked.chipsRequired = 1;
+    expect(Pathfinder.findPath(start(locked), DOOR_X + 1, START_Y).moves).toEqual([]);
+  });
+
+  it('plans through a covered toggle wall in the form the presses have left it', () => {
+    const closed = corridor(room('path_toggle', under('toggle_wall_closed')));
+    expect(Pathfinder.findPath(start(closed), DOOR_X + 1, START_Y).moves).toEqual([]);
+    const open = corridor(room('path_toggle_open', under('toggle_wall_open')));
+    expect(Pathfinder.findPath(start(open), DOOR_X + 1, START_Y).moves).toEqual(['E', 'E']);
   });
 });

@@ -21,8 +21,10 @@ import {
   BOMB_ITEM_ID,
   CHIP_ITEM_ID,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
-  GRAY_BUTTON_RADIUS,
+  CHANNEL_TOGGLE_PARITY_BITS,
   FIRE_LAUNCHERS_ACTION,
+  GRAY_BUTTON_RADIUS,
+  GREEN_TOGGLE_PARITY_BIT,
   OPPOSITE_DIRECTION,
   STEER_MONSTERS_ACTION,
   channelOfButtonAction
@@ -36,9 +38,9 @@ import {
   EpoxyContext,
   EpoxyWorld,
   getEntityAt,
+  holdColorsOpen,
   isInBounds,
   killPlayer,
-  pressesPlate,
   removeEntity
 } from './epoxyWorld';
 
@@ -55,10 +57,12 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
 
   if (action === 'toggle_walls') {
     swapTerrain(w, (tile) => tile.togglesTo);
+    flipToggleParity(w, GREEN_TOGGLE_PARITY_BIT);
   } else if (channelOfButtonAction(action) !== undefined) {
     // A colour button swaps the walls of its own channel only; green walls and the other colours stay.
     const channel = channelOfButtonAction(action);
     swapTerrain(w, (tile) => (tile.toggleChannel === channel ? tile.channelTogglesTo : undefined));
+    flipToggleParity(w, CHANNEL_TOGGLE_PARITY_BITS[channel as ChannelColor] ?? 0);
   } else if (action === 'toggle_flames') {
     swapTerrain(w, (tile) => tile.flameTogglesTo);
     burnPlayerIfFlamesLit(ctx);
@@ -96,6 +100,11 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
   return true;
 }
 
+/** Records one press of a toggle family, when the level hides a wall of that family under a removable top. */
+function flipToggleParity(w: EpoxyWorld, bit: number): void {
+  if ((w.coveredToggleBits & bit) !== 0) w.toggleParity ^= bit;
+}
+
 /**
  * Sets every hold door from the plates of its colour: open while the colour has at least one plate and
  * every one of them is pressed, closed otherwise (a colour with no plate keeps its doors shut). A door
@@ -109,12 +118,7 @@ export function setHoldDoors(ctx: EpoxyContext, playSound: boolean = true): bool
   const w = ctx.world;
   if (w.holdDoors.length === 0) return false;
 
-  const platesOpen = new Map<ChannelColor, boolean>();
-  for (const plate of w.plates) {
-    if (ConfigRegistry.getTile(w.terrain[plate.y][plate.x]).plateColor !== plate.color) continue;
-    const pressed = pressesPlate(w, plate.x, plate.y, plate.color);
-    platesOpen.set(plate.color, (platesOpen.get(plate.color) ?? true) && pressed);
-  }
+  const platesOpen = holdColorsOpen(w);
 
   let changed = false;
   for (const { x, y } of w.holdDoors) {

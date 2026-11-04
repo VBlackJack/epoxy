@@ -186,13 +186,49 @@ describe('hidden terrain select in the Layers section', () => {
     expect([...ids.slice(1)].sort()).toEqual([...expected].sort());
     expect(ids).toContain('ice');
     expect(ids).toContain('floor');
-    // Removable tops, plates, hold doors, toggle walls and items are refused by the normaliser.
-    for (const refused of ['door_red', 'door_blue', 'socket', 'dirt', 'toggle_wall_closed', 'toggle_wall_open']) {
-      expect(ids).not.toContain(refused);
+    // Under a key door a socket, dirt, a blue fake wall and the live devices are offered; key doors never are.
+    for (const offered of ['socket', 'dirt', 'blue_wall_fake', 'toggle_wall_closed', 'toggle_wall_open']) {
+      expect(ids, offered).toContain(offered);
     }
     for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
-      if (tile.plateColor || tile.holdDoorColor || tile.holdDoorTogglesTo) expect(ids).not.toContain(tile.id);
+      if (tile.plateColor || tile.holdDoorColor) expect(ids, tile.id).toContain(tile.id);
+      if (tile.requiredKey) expect(ids, tile.id).not.toContain(tile.id);
       if (tile.layer === 'item') expect(ids).not.toContain(tile.id);
+    }
+    for (const refused of ['door_red', 'door_blue']) expect(ids).not.toContain(refused);
+  });
+
+  it('offers the same live devices under a socket, but never the socket itself or a key door', () => {
+    const level = room(undefined, undefined, false);
+    level.terrain[DOOR_Y][DOOR_X] = 'socket';
+    editor.loadCompiledLevel(level);
+    cursorToDoor();
+    expect(field().classList.contains('hidden')).toBe(false);
+    const ids = optionIds();
+    for (const offered of ['dirt', 'blue_wall_fake', 'toggle_wall_closed', 'toggle_wall_open', 'ice', 'floor']) {
+      expect(ids, offered).toContain(offered);
+    }
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+      if (tile.plateColor || tile.holdDoorColor) expect(ids, tile.id).toContain(tile.id);
+      if (tile.requiredKey) expect(ids, tile.id).not.toContain(tile.id);
+    }
+    expect(ids).not.toContain('socket');
+  });
+
+  it('keeps the live devices out of the list under other removable tops (dirt, blue fake wall)', () => {
+    for (const top of ['dirt', 'blue_wall_fake']) {
+      const level = room(undefined, undefined, false);
+      level.terrain[DOOR_Y][DOOR_X] = top;
+      editor.loadCompiledLevel(level);
+      cursorToDoor();
+      const ids = optionIds();
+      expect(ids, top).toContain('ice');
+      for (const refused of ['socket', 'dirt', 'blue_wall_fake', 'door_red', 'toggle_wall_closed', 'toggle_wall_open']) {
+        expect(ids, `${refused} under ${top}`).not.toContain(refused);
+      }
+      for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+        if (tile.plateColor || tile.holdDoorColor) expect(ids, `${tile.id} under ${top}`).not.toContain(tile.id);
+      }
     }
   });
 

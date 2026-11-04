@@ -234,10 +234,58 @@ describe('underlays in config validation', () => {
     expect(normalizeUnderlays(under('ice'), grid('dirt'), 'epoxy')).toEqual(under('ice'));
     // Ice under a wall: a wall is no removable top.
     expect(normalizeUnderlays(under('ice'), grid('wall'), 'epoxy')).toBeNull();
-    // Plates, hold doors and toggle walls need run-time state the engine does not give an underlay.
+    // Plates, hold doors and toggle walls keep run-time state: refused under a top that is not a door or a socket.
     for (const id of ['pressure_plate_red', 'hold_door_red_closed', 'toggle_wall_closed']) {
-      expect(normalizeUnderlays(under(id), grid('door_red'), 'epoxy')).toBeNull();
+      expect(normalizeUnderlays(under(id), grid('dirt'), 'epoxy')).toBeNull();
+      expect(normalizeUnderlays(under(id), grid('blue_wall_fake'), 'epoxy')).toBeNull();
     }
+  });
+
+  it('keeps sockets, dirt, blue fake walls and live devices only under a door or a socket', () => {
+    const grid = (top: string): string[][] => {
+      const rows = level().terrain as string[][];
+      rows[1][1] = top;
+      return rows;
+    };
+    const under = (id: string) => [{ x: 1, y: 1, terrain: id }];
+    const widened = [
+      'socket', 'dirt', 'blue_wall_fake', 'toggle_wall_closed', 'toggle_wall_open', 'toggle_wall_red_closed',
+      'toggle_wall_blue_open', 'toggle_wall_yellow_closed', 'hold_door_red_closed', 'hold_door_blue_open',
+      'pressure_plate_red', 'pressure_plate_green'
+    ];
+    for (const top of ['door_red', 'door_blue', 'socket']) {
+      for (const id of widened) {
+        const expected = id === top ? null : under(id);
+        expect(normalizeUnderlays(under(id), grid(top), 'epoxy'), `${id} under ${top}`).toEqual(expected);
+      }
+    }
+    // Never a key door, whatever the top.
+    for (const top of ['door_red', 'socket']) {
+      expect(normalizeUnderlays(under('door_blue'), grid(top), 'epoxy')).toBeNull();
+      expect(normalizeUnderlays(under('door_red'), grid(top), 'epoxy')).toBeNull();
+    }
+    // Other tops (dirt, a blue fake wall, plain ground) accept none of the new kinds.
+    for (const top of ['dirt', 'blue_wall_fake', 'floor', 'wall']) {
+      for (const id of widened) {
+        expect(normalizeUnderlays(under(id), grid(top), 'epoxy'), `${id} under ${top}`).toBeNull();
+      }
+    }
+  });
+
+  it('still keeps every static underlay it kept before the widening', () => {
+    const grid = (top: string): string[][] => {
+      const rows = level().terrain as string[][];
+      rows[1][1] = top;
+      return rows;
+    };
+    const under = (id: string) => [{ x: 1, y: 1, terrain: id }];
+    const statics = ['ice', 'wall', 'exit', 'floor', 'teleport', 'button_green', 'recessed_wall', 'appearing_wall', 'trap'];
+    for (const top of ['door_red', 'socket', 'dirt', 'blue_wall_fake']) {
+      for (const id of statics) {
+        expect(normalizeUnderlays(under(id), grid(top), 'epoxy'), `${id} under ${top}`).toEqual(under(id));
+      }
+    }
+    expect(normalizeUnderlays(under('ice'), grid('dirt'), 'epoxy')).toEqual(under('ice'));
   });
 
   it('normalises to null when nothing is left', () => {

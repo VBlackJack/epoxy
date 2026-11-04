@@ -90,6 +90,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           cloneLinks: engine.getCloneLinks(),
           // Undefined (and so left out of the hash) on a level without launchers.
           shots: engine.getShots(),
+          // Undefined (and so left out of the hash) on a level without a toggle wall under a removable top.
+          toggleParity: engine.getToggleParity(),
           steps: engine.getStepsCount(),
           score: engine.getTotalScore(),
           extraTime: engine.getExtraTimeSeconds(),

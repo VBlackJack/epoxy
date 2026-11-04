@@ -67,6 +67,31 @@ describe('shots: validator warnings', () => {
     expect(lone.find((i) => i.i18nKey === UNLINKED_KEY)?.severity).toBe('warning');
   });
 
+  it('judges a trigger and a launcher hidden under doors like visible ones', () => {
+    const covered = (links?: LauncherLink[]): CompiledLevel => {
+      const level = wired(links);
+      level.terrain[1][1] = 'door_red';
+      level.terrain[1][3] = 'door_green';
+      return {
+        ...level,
+        underlays: [
+          { x: 1, y: 1, terrain: 'shot_trigger' },
+          { x: 3, y: 1, terrain: 'shot_launcher_e' }
+        ]
+      };
+    };
+    const lone = keys(covered());
+    expect(lone).toContain(TRIGGER_KEY);
+    expect(lone).toContain(UNLINKED_KEY);
+    const linked = keys(covered([LINK]));
+    expect(linked).not.toContain(TRIGGER_KEY);
+    expect(linked).not.toContain(UNLINKED_KEY);
+    expect(linked).not.toContain(WALL_KEY);
+    const blocked = covered([LINK]);
+    blocked.terrain[1][4] = 'wall';
+    expect(keys(blocked)).toContain(WALL_KEY);
+  });
+
   it('has English and French messages that open with the warning prefix', () => {
     for (const key of ['shot_trigger_no_link', 'shot_launcher_unlinked', 'shot_launcher_faces_wall']) {
       expect(en.validator.issues[key as keyof typeof en.validator.issues].label.startsWith('Warning: ')).toBe(true);

@@ -83,8 +83,12 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     return false;
   }
 
+  // True when opening the target shows terrain the level hid under it (see the entry pass below).
+  let revealedUnder = false;
+
   if (targetTile.requiresAllChips) {
     if (w.chipsRemaining <= 0) {
+      revealedUnder = revealedTerrain(w, targetX, targetY) !== null;
       w.terrain[targetY][targetX] = unlockedTerrain(w, targetTile, targetX, targetY);
       w.gridMutatedByMove = true;
       AudioManager.playSfx('socket');
@@ -102,6 +106,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
       if (targetTile.consumesKey) {
         w.player.keys[targetTile.requiredKey] = keyCount - 1;
       }
+      revealedUnder = revealedTerrain(w, targetX, targetY) !== null;
       w.terrain[targetY][targetX] = unlockedTerrain(w, targetTile, targetX, targetY);
       w.gridMutatedByMove = true;
       AudioManager.playSfx('door');
@@ -109,6 +114,23 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     } else {
       if (!fromSlide) AudioManager.playSfx('blocked');
       return false;
+    }
+  }
+
+  // Entry pass: a socket the opening revealed is met in the same step. With no chip left it opens onto its
+  // remains; with chips left the key is spent, the socket shows and the move is refused.
+  if (revealedUnder) {
+    const shown = ConfigRegistry.getTile(w.terrain[targetY][targetX]);
+    if (shown.requiresAllChips) {
+      if (w.chipsRemaining <= 0) {
+        w.terrain[targetY][targetX] = shown.transformsToOnUnlock || FLOOR_TILE_ID;
+        AudioManager.playSfx('socket');
+        ctx.emitVisual('unlock', targetX, targetY, 'yellow');
+      } else {
+        w.statusBannerKey = 'hud.messages.socket_locked';
+        AudioManager.playSfx('blocked');
+        return false;
+      }
     }
   }
 

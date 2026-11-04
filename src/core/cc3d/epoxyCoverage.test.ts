@@ -162,7 +162,7 @@ describe('classifyLevel', () => {
   });
 
   it('detects a cell with two devices or blockers as stacked terrain, and loses it when a layer acts while covered', () => {
-    const glyphs = { S: stacked({ kind: 'floor' }, { kind: 'plate', color: 'red' }, { kind: 'door', color: 'red' }) };
+    const glyphs = { S: stacked({ kind: 'floor' }, { kind: 'plate', color: 'red' }, { kind: 'false_wall' }) };
     const level = levelOf(['####', '#@S#', '####'], glyphs);
     expect(elementKeys(level).has('stacked_runtime')).toBe(true);
     expect(classifyLevel(level).lost).toEqual(['stacked_runtime']);
@@ -175,8 +175,16 @@ describe('classifyLevel', () => {
     for (const kind of ['ice', 'ice_corner', 'water', 'exit', 'sand', 'slime', 'wall', 'toggle_control'] as const) {
       expect(under(kind)).toBe('underlay');
     }
-    for (const kind of ['plate', 'toggle_door', 'hold_door', 'trap', 'dirt', 'door'] as const) {
+    for (const kind of ['trap', 'door'] as const) {
       expect(under(kind)).toBe('runtime');
+    }
+    // Under a door or a socket Epoxy also plays a socket, dirt, a blocker, a trigger and the covered devices.
+    const wider = ['socket', 'socket_red', 'dirt', 'push_up_wall', 'appearing_wall', 'laser_controller', 'toggle_door', 'hold_door', 'plate'] as const;
+    for (const kind of wider) {
+      expect(under(kind)).toBe('underlay');
+      expect(classifyStack({ terrain: [{ kind: 'floor' }, { kind }, { kind: 'socket' }], panels: [], item: null })).toBe('underlay');
+      // Under a false wall (which a push turns back into other things) they stay lost.
+      expect(classifyStack({ terrain: [{ kind: 'floor' }, { kind }, { kind: 'false_wall' }], panels: [], item: null })).toBe('runtime');
     }
     const socketOverIce = levelOf(['####', '#@S#', '####'], { S: stacked({ kind: 'ice' }, { kind: 'socket' }) });
     expect(elementKeys(socketOverIce).has('stacked_terrain')).toBe(true);

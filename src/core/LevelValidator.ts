@@ -1262,22 +1262,28 @@ export class LevelValidator {
   private static checkShotLaunchers(level: CompiledLevel, issues: ValidationIssue[]): void {
     const links = level.launcherLinks ?? [];
     const mask = cellEdgeMask(level);
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
     level.terrain.forEach((row, y) =>
-      row.forEach((id, x) => {
-        const tile = ConfigRegistry.getTile(id);
-        if (tile.buttonAction === FIRE_LAUNCHERS_ACTION && !links.some((l) => l.buttonX === x && l.buttonY === y)) {
-          issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_trigger_no_link.label', params: { x, y } });
-        }
-        if (!tile.shotLauncher) return;
-        if (!links.some((l) => l.launcherX === x && l.launcherY === y)) {
-          issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_unlinked.label', params: { x, y } });
-        }
-        const dir = tile.shotLauncher.dir;
-        const nx = x + DIRECTION_VECTORS[dir].dx;
-        const ny = y + DIRECTION_VECTORS[dir].dy;
-        const ahead = level.terrain[ny]?.[nx];
-        if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir)) {
-          issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_faces_wall.label', params: { x, y } });
+      row.forEach((topId, x) => {
+        // A device hidden under a removable top is judged like one in plain sight: it works once the top is gone.
+        const hiddenId = underlays?.get(y * width + x);
+        for (const id of hiddenId === undefined ? [topId] : [topId, hiddenId]) {
+          const tile = ConfigRegistry.getTile(id);
+          if (tile.buttonAction === FIRE_LAUNCHERS_ACTION && !links.some((l) => l.buttonX === x && l.buttonY === y)) {
+            issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_trigger_no_link.label', params: { x, y } });
+          }
+          if (!tile.shotLauncher) continue;
+          if (!links.some((l) => l.launcherX === x && l.launcherY === y)) {
+            issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_unlinked.label', params: { x, y } });
+          }
+          const dir = tile.shotLauncher.dir;
+          const nx = x + DIRECTION_VECTORS[dir].dx;
+          const ny = y + DIRECTION_VECTORS[dir].dy;
+          const ahead = level.terrain[ny]?.[nx];
+          if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir)) {
+            issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_faces_wall.label', params: { x, y } });
+          }
         }
       })
     );

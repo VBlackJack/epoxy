@@ -1329,6 +1329,8 @@ export interface UndoSnapshot {
   playStartTick?: number;
   /** The shots in flight; written only on a level with shot launchers, absent otherwise. */
   shots?: Shot[];
+  /** The parity of the toggle presses; written only on a level with a toggle wall under a removable top. */
+  toggleParity?: number;
 }
 
 export interface LevelHighScore {
