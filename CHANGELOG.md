@@ -7,6 +7,9 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor screen reader support: once the keyboard cursor stops (about 300 ms), a polite live region
+  speaks the cell: its coordinates, tile, item, creature and facing, player start, or the CC3D stack from the
+  bottom up. Pointer hover, selection resizing and paste previews stay silent.
 - Level editor issues list: an Issues section in the inspector lists the validator's errors and warnings
   (errors first, up to 100) and follows the Check badge; an issue that names a cell is a button that moves
   the keyboard cursor there, scrolls it into view and focuses the canvas. A held Enter or Space on the
