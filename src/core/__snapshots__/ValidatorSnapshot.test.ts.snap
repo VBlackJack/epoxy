@@ -517,22 +517,16 @@ exports[`validator output of every shipped level > pilot levels 1`] = `
     "valid": true,
   },
   "epoxy_p_12": {
-    "issues": [
-      {
-        "i18nKey": "validator.issues.unreachable_exit.label",
-        "params": null,
-        "severity": "error",
-      },
-    ],
+    "issues": [],
     "stats": {
       "chipsPlaced": 9,
       "chipsRequired": 6,
       "exitCount": 1,
       "reachableChips": 9,
-      "reachableExit": false,
+      "reachableExit": true,
       "targetCount": 0,
     },
-    "valid": false,
+    "valid": true,
   },
   "epoxy_p_13": {
     "issues": [],
