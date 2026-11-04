@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor Hidden terrain list (Epoxy rules): in the Layers section, a list sets or clears the terrain hidden under a door, socket or similar tile at the cursor cell, as one undo step (not available under Lynx).
 - Level editor fill selection: Shift+F (or the Fill selection button) fills the selected rectangle with the chosen
   palette entry as one undo step, on Epoxy, Lynx and CC3D levels; choosing a palette entry on the Select tool now
   keeps the selection.

@@ -18,7 +18,7 @@ import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
-import { t } from '../i18n/I18nManager';
+import { i18n, t } from '../i18n/I18nManager';
 import { parsePackJson } from '../packs/packJson';
 import { choiceDialog } from '../ui/choiceDialog';
 import { confirmDialog } from '../ui/confirmDialog';
@@ -151,7 +151,9 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
-import { hasUnderlays } from './editorUnderlays';
+import { hasUnderlays, setUnderlayAt, underlayAt } from './editorUnderlays';
+import { isRemovableTop } from '../core/Underlays';
+import { normalizeUnderlays } from '../config/ConfigValidation';
 import { mapHeightOf, mapWidthOf, resizeMap } from './mapEdits';
 import {
   CellRect,
@@ -284,6 +286,13 @@ const EDITOR_PLAYER_BRUSH_ID = 'player_start';
 const CC3D_ATTRS_ID = 'editor-cc3d-attrs';
 const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
+const LAYERS_CELL_ID = 'editor-layers-cell';
+const HIDDEN_TERRAIN_FIELD_ID = 'editor-hidden-terrain-field';
+const HIDDEN_TERRAIN_INPUT_ID = 'editor-hidden-terrain';
+const HIDDEN_TERRAIN_HINT_ID = 'editor-hidden-terrain-hint';
+const HIDDEN_TERRAIN_UNAVAILABLE_ID = 'editor-hidden-terrain-unavailable';
+/** Value of the "None" option of the hidden terrain select: no terrain is hidden under the cell. */
+const HIDDEN_TERRAIN_NONE = '';
 const CELL_LIVE_ID = 'editor-cell-live';
 const ISSUES_LIST_ID = 'editor-issues-list';
 const ISSUES_NOTE_ID = 'editor-issues-note';
@@ -518,6 +527,7 @@ export class LevelEditor {
   private pasteAnchor: { x: number; y: number } = { x: 0, y: 0 };
   private hoverCell: { x: number; y: number } | null = null;
   private cursorCell: { x: number; y: number } | null = null;
+  private collatorCache: { locale: string; collator: Intl.Collator } | null = null;
   /** The last cell the pointer was over, kept after it leaves the canvas so a toolbar button can use it. */
   private lastHoverCell: GridCell | null = null;
   /** What the Test from here button state was computed for, to skip recomputing it on every redraw. */
@@ -1471,7 +1481,6 @@ export class LevelEditor {
     }
     byId('editor-export-xml-btn')?.classList.toggle('hidden', !cc3d);
     for (const id of ['editor-field-winrule', 'editor-field-chips']) byId(id)?.classList.toggle('hidden', cc3d);
-    byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !cc3d);
     this.updateToolButtons();
     this.refreshLayersList();
   }
@@ -1769,6 +1778,10 @@ export class LevelEditor {
 
     this.bindContextEvents();
 
+    byId<HTMLSelectElement>(HIDDEN_TERRAIN_INPUT_ID)?.addEventListener('change', (ev) =>
+      this.setHiddenTerrain((ev.target as HTMLSelectElement).value)
+    );
+
     byId('editor-autocount-btn')?.addEventListener('click', () => {
       let count = 0;
       for (const row of this.doc.items) {
@@ -2028,6 +2041,7 @@ export class LevelEditor {
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
     this.renderPaletteItems();
+    this.refreshLayersList();
     this.scheduleCheck();
   }
 
@@ -2157,7 +2171,7 @@ export class LevelEditor {
       this.updateUndoRedoButtons();
       this.syncRulesetInput();
       this.scheduleCheck();
-      if (cc3d) this.refreshLayersList();
+      this.refreshLayersList();
       this.render();
     }
     this.syncSizeInputs();
@@ -3059,11 +3073,101 @@ export class LevelEditor {
     list.innerHTML = '';
     const level = this.doc.cc3d;
     const at = this.cursorCell;
+    const hiddenTerrain = !level && this.refreshHiddenTerrainField();
+    // Outside CC3D the section follows the cursor, so the inspector does not jump from cell to cell: it holds
+    // the hidden terrain select, or the hint that says which tops can hide a terrain.
+    byId(LAYERS_SECTION_ID)?.classList.toggle('hidden', !level && !hiddenTerrain);
+    // A level of the other engines has no list of layers: its section holds the hidden terrain field alone.
+    const cc3dOnly = Boolean(level);
+    byId(LAYERS_CELL_ID)?.classList.toggle('hidden', !cc3dOnly);
+    list.classList.toggle('hidden', !cc3dOnly);
     const cell = level && at ? cc3dCellAt(level, at.x, at.y) : undefined;
-    const caption = byId('editor-layers-cell');
+    const caption = byId(LAYERS_CELL_ID);
     if (caption) caption.textContent = at && cell ? t('editor.cc3d.layers.cell', { x: at.x, y: at.y }) : t('editor.cc3d.layers.none');
     if (!level || !at || !cell) return;
     for (const part of this.cc3dCellParts(level, at.x, at.y)) list.appendChild(this.layerRow(part.name, part.remove));
+  }
+
+  /** The terrain tiles a cell of the Epoxy level can hide under its top, named and sorted by name. */
+  private hiddenTerrainChoices(x: number, y: number): Array<{ id: string; name: string }> {
+    const choices: Array<{ id: string; name: string }> = [];
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+      if (tile.layer !== 'terrain') continue;
+      if (normalizeUnderlays([{ x, y, terrain: tile.id }], this.doc.terrain, 'epoxy') === null) continue;
+      choices.push({ id: tile.id, name: t(tile.i18nKey) });
+    }
+    const collator = this.nameCollator();
+    return choices.sort((a, b) => collator.compare(a.name, b.name));
+  }
+
+  /** The collator of the current locale, built once and rebuilt when the locale changes. */
+  private nameCollator(): Intl.Collator {
+    const locale = i18n.getLocale();
+    if (this.collatorCache?.locale !== locale) this.collatorCache = { locale, collator: new Intl.Collator(locale) };
+    return this.collatorCache.collator;
+  }
+
+  /**
+   * Fills the hidden terrain select for the cursor cell. Returns whether the section shows: there is a cursor
+   * cell. The select is there when the cell's top is one the player removes, a short hint otherwise. The select
+   * is disabled, with the reason, under Lynx rules.
+   */
+  private refreshHiddenTerrainField(): boolean {
+    const field = byId(HIDDEN_TERRAIN_FIELD_ID);
+    const select = byId<HTMLSelectElement>(HIDDEN_TERRAIN_INPUT_ID);
+    const hint = byId(HIDDEN_TERRAIN_HINT_ID);
+    const at = this.cursorCell;
+    const topId = at ? this.doc.terrain[at.y]?.[at.x] : undefined;
+    const top = topId !== undefined && ConfigRegistry.isTerrainTile(topId) ? ConfigRegistry.getTile(topId) : undefined;
+    const applies = Boolean(at && top && isRemovableTop(top));
+    field?.classList.toggle('hidden', !applies);
+    const unavailable = byId(HIDDEN_TERRAIN_UNAVAILABLE_ID);
+    unavailable?.classList.toggle('hidden', applies || !at);
+    if (unavailable) unavailable.textContent = t('editor.layout.layers.hidden_terrain.unavailable.label');
+    if (!applies || !at || !select) return Boolean(at);
+    select.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = HIDDEN_TERRAIN_NONE;
+    none.textContent = t('editor.layout.layers.hidden_terrain.none.label');
+    select.appendChild(none);
+    for (const choice of this.hiddenTerrainChoices(at.x, at.y)) {
+      const option = document.createElement('option');
+      option.value = choice.id;
+      option.textContent = choice.name;
+      select.appendChild(option);
+    }
+    select.value = underlayAt(this.doc, at.x, at.y) ?? HIDDEN_TERRAIN_NONE;
+    const lynx = editableRulesetOf(this.doc.ruleset) === LYNX_RULESET;
+    select.disabled = lynx;
+    if (hint) hint.textContent = t(lynx ? 'editor.layout.layers.hidden_terrain.lynx.label' : 'editor.layout.layers.hidden_terrain.hint.label');
+    return true;
+  }
+
+  /** Sets or clears the terrain hidden under the cursor cell, as one undoable edit. */
+  private setHiddenTerrain(value: string): void {
+    const at = this.cursorCell;
+    if (!at || this.stroke || this.isCc3d()) return;
+    if (editableRulesetOf(this.doc.ruleset) === LYNX_RULESET) {
+      this.refreshLayersList();
+      return;
+    }
+    const terrain = value === HIDDEN_TERRAIN_NONE ? null : value;
+    if ((underlayAt(this.doc, at.x, at.y) ?? null) === terrain) return;
+    const base = cloneDocument(this.doc);
+    const next = cloneDocument(this.doc);
+    setUnderlayAt(next, at.x, at.y, terrain);
+    if (sameDocument(base, next)) {
+      this.refreshLayersList();
+      return;
+    }
+    this.doc = next;
+    this.recordChange(base);
+    this.setStatusText(
+      terrain === null
+        ? t('editor.layout.layers.hidden_terrain.cleared', { x: at.x, y: at.y })
+        : t('editor.layout.layers.hidden_terrain.set', { x: at.x, y: at.y, name: t(ConfigRegistry.getTile(terrain).i18nKey) })
+    );
+    this.render();
   }
 
   /**
