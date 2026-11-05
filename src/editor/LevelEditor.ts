@@ -52,6 +52,7 @@ import { lossyExportNotice } from '../ui/exportNotice';
 import { formatValidationIssue } from '../ui/validatorIssueText';
 import { receiversProgress } from '../ui/levelFeedback';
 import { BeamPreview, computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPreview';
+import { buildIssueMarkers, IssueMarker, markerFreshness } from './issueMarkers';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
 import { historyDiff, HistoryDiff } from './historyDiff';
@@ -253,6 +254,28 @@ import {
   EDITOR_BEAM_GATE_COLOR,
   EDITOR_BEAM_GATE_INSET_TILE,
   EDITOR_BEAM_STALE_ALPHA,
+  BIOME_ACCENT_CSS_VAR,
+  EDITOR_ISSUE_MARKER_BANG_Y,
+  EDITOR_ISSUE_MARKER_BORDER_WIDTH,
+  EDITOR_ISSUE_MARKER_COUNT_MIN_TILE_PX,
+  EDITOR_ISSUE_MARKER_ERROR_CSS_VAR,
+  EDITOR_ISSUE_MARKER_FALLBACK_ERROR,
+  EDITOR_ISSUE_MARKER_FALLBACK_INFO,
+  EDITOR_ISSUE_MARKER_FALLBACK_WARNING,
+  EDITOR_ISSUE_MARKER_FONT_FAMILY,
+  EDITOR_ISSUE_MARKER_GLYPH_COLOR,
+  EDITOR_ISSUE_MARKER_GLYPH_FONT,
+  EDITOR_ISSUE_MARKER_GLYPH_INSET,
+  EDITOR_ISSUE_MARKER_INFO_SCALE,
+  EDITOR_ISSUE_MARKER_INSET_PX,
+  EDITOR_ISSUE_MARKER_MIN_PX,
+  EDITOR_ISSUE_MARKER_OUTLINE_COLOR,
+  EDITOR_ISSUE_MARKER_OUTLINE_WIDTH,
+  EDITOR_ISSUE_MARKER_STALE_ALPHA,
+  EDITOR_ISSUE_MARKER_STROKE_WIDTH,
+  EDITOR_ISSUE_MARKER_TILE,
+  EDITOR_ISSUE_MARKER_WARNING_CSS_VAR,
+  EDITOR_ISSUE_MARKER_ZOOM_THRESHOLD_PX,
   EDITOR_CHECK_DEBOUNCE_MS,
   EDITOR_TEST_CHECK_TIMEOUT_MS,
   EDITOR_CC3D_ARROW_HEAD_SPREAD,
@@ -331,6 +354,7 @@ const IMPORTED_COPY_CHOICE = 'copy';
 const IMPORT_AS_PACK_CHOICE = 'pack';
 const IMPORT_FIRST_CHOICE = 'first';
 const SEPARATOR_BETWEEN_MESSAGES = ' ';
+const SEPARATOR_BETWEEN_PARTS = ', ';
 /** Status keys of a selection fill that cannot go ahead (their texts live in the locale files). */
 const MESSAGE_FILL_REFUSED_CELL_EDGE = 'editor.selection.status.fill_refused_cell_edge';
 const MESSAGE_FILL_REFUSED_ENTRY = 'editor.selection.status.fill_refused_entry';
@@ -600,7 +624,7 @@ export class LevelEditor {
   private blockRunner: BlockCheckRunner | null = null;
   private levelRunner: LevelCheckRunner | null = null;
   /** The last finished report with the load and content it is for (`currentBeamPreviewKey`). */
-  private reportCache: { key: string; report: LevelValidationReport; deep: boolean } | null = null;
+  private reportCache: { key: string; contentKey: string; report: LevelValidationReport; deep: boolean } | null = null;
   /** What the badge shows instead of the last verdict: a check in progress, or one abandoned (too slow, failed, interrupted). */
   private checkOverlay: 'checking' | 'skipped' | 'interrupted' | 'error' | null = null;
   /** True while Test waits for its check, so a repeated click does not start a second one. */
@@ -1050,6 +1074,7 @@ export class LevelEditor {
     // The previous level's verdict says nothing about this one: back to the idle badge and note until the next check.
     this.lastCheck = null;
     this.lastIssues = null;
+    this.lastIssuesContentKey = null;
     this.issuesRevision++;
     this.updateCheckBadge(null);
     this.renderIssues();
@@ -1743,6 +1768,9 @@ export class LevelEditor {
       case 'toggle_beam_preview':
         this.toggleBeamPreview();
         break;
+      case 'toggle_issue_markers':
+        this.toggleIssueMarkers();
+        break;
       case 'link':
         this.linkFromKeyboard();
         break;
@@ -1956,6 +1984,11 @@ export class LevelEditor {
       this.toggleBeamPreview();
     });
 
+    byId('editor-issue-markers-btn')?.addEventListener('click', () => {
+      this.toggleIssueMarkers();
+    });
+    this.updateIssueMarkersButton();
+
     for (const tool of EDITOR_TOOLS) {
       document.querySelector<HTMLButtonElement>(`[data-tool="${tool}"]`)?.addEventListener('click', () => {
         this.setTool(tool);
@@ -2092,10 +2125,14 @@ export class LevelEditor {
   /** Keeps a finished report for its content and shows it on the badge and in the issues list. */
   private applyReport(key: string, report: LevelValidationReport, deep = false): void {
     // A default report never replaces a deep one of the same content.
-    if (deep || this.reportCache?.key !== key || !this.reportCache.deep) this.reportCache = { key, report, deep };
-    const shown = this.reportCache?.report ?? report;
+    // Every caller passes the check key of the content as it is now, so the content key of the report is the current one.
+    if (deep || this.reportCache?.key !== key || !this.reportCache.deep) {
+      this.reportCache = { key, contentKey: this.currentBeamPreviewKey(), report, deep };
+    }
+    const cached = this.reportCache;
+    const shown = cached?.report ?? report;
     this.checkOverlay = null;
-    this.setCheck(summarizeValidation(shown), shown.issues);
+    this.setCheck(summarizeValidation(shown), shown.issues, cached?.contentKey ?? this.currentBeamPreviewKey());
   }
 
   /** The badge says a check is running; the issues of the last one stay, dimmed. */
@@ -2285,6 +2322,185 @@ export class LevelEditor {
   /** The key a check report is cached under: the content, and the language its issues are worded in. */
   private currentCheckKey(): string {
     return `${i18n.getLocale()}:${this.currentBeamPreviewKey()}`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Issue markers
+  // ---------------------------------------------------------------------------
+
+  /** Whether the validator issues are marked on the map; a session choice, never saved. */
+  private issueMarkersOn = true;
+  /** The content key (load and document revision) of the report lastIssues come from, or null before any. */
+  private lastIssuesContentKey: string | null = null;
+  /** The markers built for one issues array and grid size, so a pointer move does not rebuild them. */
+  private markerMemo: { issues: ValidationIssue[]; width: number; height: number; markers: IssueMarker[] } | null = null;
+  /** The severity colours read from the theme tokens, for the biome accent they were read under. */
+  private markerColors: { accent: string; error: string; warning: string; info: string } | null = null;
+
+  private issueMarkersFor(issues: ValidationIssue[]): IssueMarker[] {
+    const width = this.mapWidth();
+    const height = this.mapHeight();
+    const memo = this.markerMemo;
+    if (memo && memo.issues === issues && memo.width === width && memo.height === height) return memo.markers;
+    const markers = buildIssueMarkers(issues, width, height);
+    this.markerMemo = { issues, width, height, markers };
+    return markers;
+  }
+
+  /** The severity colours from the theme tokens (info follows the biome accent), read again only when the accent changes. */
+  private issueMarkerColors(): { error: string; warning: string; info: string } {
+    const accent = document.documentElement.style.getPropertyValue(BIOME_ACCENT_CSS_VAR);
+    if (this.markerColors?.accent === accent) return this.markerColors;
+    const computed = getComputedStyle(document.documentElement);
+    const read = (name: string, fallback: string): string => computed.getPropertyValue(name).trim() || fallback;
+    this.markerColors = {
+      accent,
+      error: read(EDITOR_ISSUE_MARKER_ERROR_CSS_VAR, EDITOR_ISSUE_MARKER_FALLBACK_ERROR),
+      warning: read(EDITOR_ISSUE_MARKER_WARNING_CSS_VAR, EDITOR_ISSUE_MARKER_FALLBACK_WARNING),
+      info: read(BIOME_ACCENT_CSS_VAR, EDITOR_ISSUE_MARKER_FALLBACK_INFO)
+    };
+    return this.markerColors;
+  }
+
+  private updateIssueMarkersButton(): void {
+    byId('editor-issue-markers-btn')?.setAttribute('aria-pressed', String(this.issueMarkersOn));
+  }
+
+  /** Shows or hides the issue markers (button and M key). */
+  private toggleIssueMarkers(): void {
+    this.issueMarkersOn = !this.issueMarkersOn;
+    this.updateIssueMarkersButton();
+    this.setStatusText(t(this.issueMarkersOn ? 'editor.issue_markers.on.label' : 'editor.issue_markers.off.label'));
+    this.render();
+  }
+
+  /**
+   * Marks the cells the last report names, in the top left corner: a filled square with an x for errors, a filled
+   * triangle with ! for warnings, a small hollow circle for hints, with the count written on a large tile. On a
+   * small tile a border in the severity colour replaces the mark (errors and warnings only). Markers whose report
+   * lags the last edit are dimmed and only outlined. Nothing is drawn before a report or after another level loads.
+   */
+  private drawIssueMarkers(s: number): void {
+    const issues = this.lastIssues;
+    if (!this.issueMarkersOn || issues === null || this.lastIssuesContentKey === null) return;
+    const markers = this.issueMarkersFor(issues);
+    if (markers.length === 0) return;
+    const stale = markerFreshness(this.lastIssuesContentKey, this.currentBeamPreviewKey()) === 'stale';
+    const colors = this.issueMarkerColors();
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = stale ? EDITOR_ISSUE_MARKER_STALE_ALPHA : 1;
+    for (const marker of markers) {
+      const color = colors[marker.severity];
+      if (s < EDITOR_ISSUE_MARKER_ZOOM_THRESHOLD_PX) {
+        if (marker.severity !== 'info') this.drawIssueCellBorder(marker, color, s);
+      } else if (marker.severity === 'error') {
+        this.drawErrorMarker(marker, color, s, stale);
+      } else if (marker.severity === 'warning') {
+        this.drawWarningMarker(marker, color, s, stale);
+      } else {
+        this.drawInfoMarker(marker, color, s);
+      }
+    }
+    ctx.restore();
+  }
+
+  private drawIssueCellBorder(marker: IssueMarker, color: string, s: number): void {
+    const half = EDITOR_ISSUE_MARKER_BORDER_WIDTH / 2;
+    this.ctx.lineWidth = EDITOR_ISSUE_MARKER_BORDER_WIDTH;
+    this.ctx.strokeStyle = color;
+    this.ctx.strokeRect(marker.x * s + half, marker.y * s + half, s - EDITOR_ISSUE_MARKER_BORDER_WIDTH, s - EDITOR_ISSUE_MARKER_BORDER_WIDTH);
+  }
+
+  private issueMarkerSize(s: number): number {
+    return Math.max(EDITOR_ISSUE_MARKER_MIN_PX, EDITOR_ISSUE_MARKER_TILE * s);
+  }
+
+  /** Fills (fresh) or strokes (stale) the path in the severity colour, with the thin dark outline around a fresh one. */
+  private paintIssueShape(color: string, stale: boolean): void {
+    const ctx = this.ctx;
+    if (stale) {
+      ctx.lineWidth = EDITOR_ISSUE_MARKER_STROKE_WIDTH;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+      return;
+    }
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = EDITOR_ISSUE_MARKER_OUTLINE_WIDTH;
+    ctx.strokeStyle = EDITOR_ISSUE_MARKER_OUTLINE_COLOR;
+    ctx.stroke();
+  }
+
+  private drawErrorMarker(marker: IssueMarker, color: string, s: number, stale: boolean): void {
+    const ctx = this.ctx;
+    const size = this.issueMarkerSize(s);
+    const x0 = marker.x * s + EDITOR_ISSUE_MARKER_INSET_PX;
+    const y0 = marker.y * s + EDITOR_ISSUE_MARKER_INSET_PX;
+    ctx.beginPath();
+    ctx.rect(x0, y0, size, size);
+    this.paintIssueShape(color, stale);
+    const g = size * EDITOR_ISSUE_MARKER_GLYPH_INSET;
+    ctx.beginPath();
+    ctx.moveTo(x0 + g, y0 + g);
+    ctx.lineTo(x0 + size - g, y0 + size - g);
+    ctx.moveTo(x0 + size - g, y0 + g);
+    ctx.lineTo(x0 + g, y0 + size - g);
+    ctx.lineWidth = EDITOR_ISSUE_MARKER_OUTLINE_WIDTH;
+    ctx.strokeStyle = stale ? color : EDITOR_ISSUE_MARKER_GLYPH_COLOR;
+    ctx.stroke();
+    this.drawIssueCount(marker, x0, y0, size, s);
+  }
+
+  private drawWarningMarker(marker: IssueMarker, color: string, s: number, stale: boolean): void {
+    const ctx = this.ctx;
+    const size = this.issueMarkerSize(s);
+    const x0 = marker.x * s + EDITOR_ISSUE_MARKER_INSET_PX;
+    const y0 = marker.y * s + EDITOR_ISSUE_MARKER_INSET_PX;
+    ctx.beginPath();
+    ctx.moveTo(x0 + size / 2, y0);
+    ctx.lineTo(x0 + size, y0 + size);
+    ctx.lineTo(x0, y0 + size);
+    ctx.closePath();
+    this.paintIssueShape(color, stale);
+    ctx.fillStyle = stale ? color : EDITOR_ISSUE_MARKER_GLYPH_COLOR;
+    ctx.font = `bold ${size * EDITOR_ISSUE_MARKER_GLYPH_FONT}px ${EDITOR_ISSUE_MARKER_FONT_FAMILY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('!', x0 + size / 2, y0 + size * EDITOR_ISSUE_MARKER_BANG_Y);
+    this.drawIssueCount(marker, x0, y0, size, s);
+  }
+
+  private drawInfoMarker(marker: IssueMarker, color: string, s: number): void {
+    const ctx = this.ctx;
+    const size = this.issueMarkerSize(s) * EDITOR_ISSUE_MARKER_INFO_SCALE;
+    const x0 = marker.x * s + EDITOR_ISSUE_MARKER_INSET_PX;
+    const y0 = marker.y * s + EDITOR_ISSUE_MARKER_INSET_PX;
+    ctx.beginPath();
+    ctx.arc(x0 + size / 2, y0 + size / 2, size / 2, 0, Math.PI * 2);
+    ctx.lineWidth = EDITOR_ISSUE_MARKER_STROKE_WIDTH + 2 * EDITOR_ISSUE_MARKER_OUTLINE_WIDTH;
+    ctx.strokeStyle = EDITOR_ISSUE_MARKER_OUTLINE_COLOR;
+    ctx.stroke();
+    ctx.lineWidth = EDITOR_ISSUE_MARKER_STROKE_WIDTH;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    this.drawIssueCount(marker, x0, y0, size, s);
+  }
+
+  /** The number of issues on a cell, written beside its marker when more than one names it and the tile is large. */
+  private drawIssueCount(marker: IssueMarker, x0: number, y0: number, size: number, s: number): void {
+    if (marker.count <= 1 || s < EDITOR_ISSUE_MARKER_COUNT_MIN_TILE_PX) return;
+    const ctx = this.ctx;
+    const text = String(marker.count);
+    const x = x0 + size + EDITOR_ISSUE_MARKER_INSET_PX;
+    ctx.font = `bold ${size * EDITOR_ISSUE_MARKER_GLYPH_FONT}px ${EDITOR_ISSUE_MARKER_FONT_FAMILY}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.lineWidth = EDITOR_ISSUE_MARKER_STROKE_WIDTH;
+    ctx.strokeStyle = EDITOR_ISSUE_MARKER_OUTLINE_COLOR;
+    ctx.strokeText(text, x, y0);
+    ctx.fillStyle = EDITOR_ISSUE_MARKER_GLYPH_COLOR;
+    ctx.fillText(text, x, y0);
   }
 
   /** Forgets the preview of the previous level, so its beams are never drawn on the next one. */
@@ -2546,18 +2762,21 @@ export class LevelEditor {
     return this.blockRunner;
   }
 
-  private setCheck(summary: CheckSummary, issues: ValidationIssue[]): void {
+  private setCheck(summary: CheckSummary, issues: ValidationIssue[], contentKey: string | null = null): void {
     if (this.checkTimer !== null) {
       clearTimeout(this.checkTimer);
       this.checkTimer = null;
     }
     this.lastCheck = summary;
     this.lastIssues = issues;
+    this.lastIssuesContentKey = contentKey;
     // The Connections section is rebuilt only when the problems it shows at its cell changed (a repeated check is quiet).
     if (this.issuesSignature(this.issuesAt(issues, this.connectionIssuesSubject)) !== this.connectionIssuesSignature) this.issuesRevision++;
     this.updateCheckBadge(summary);
     this.renderIssues();
     this.refreshConnections();
+    // The markers on the map follow the issues (and turn from dimmed to full strength): redraw once the state is complete.
+    if (this.issueMarkersOn) this.render();
   }
 
   /** The issues of the last check, or null before any check. */
@@ -3686,6 +3905,24 @@ export class LevelEditor {
     this.cellSpeechTimer = null;
   }
 
+  /** "1 error, 2 warnings here" for the issues of a report that describes the level as it is; empty when none, or when the report lags an edit. */
+  private issueSpeechAt(x: number, y: number): string {
+    const issues = this.lastIssues;
+    if (issues === null || markerFreshness(this.lastIssuesContentKey, this.currentBeamPreviewKey()) !== 'fresh') return '';
+    const here = issuesAtCell(issues, x, y, this.mapWidth(), this.mapHeight());
+    const groups = [
+      { severity: 'error', key: 'editor.issue_markers.cell_speech.errors.label' },
+      { severity: 'warning', key: 'editor.issue_markers.cell_speech.warnings.label' },
+      { severity: 'info', key: 'editor.issue_markers.cell_speech.infos.label' }
+    ] as const;
+    const list = groups
+      .map((group) => ({ key: group.key, count: here.filter((issue) => issue.severity === group.severity).length }))
+      .filter((group) => group.count > 0)
+      .map((group) => t(group.key, { count: group.count }))
+      .join(SEPARATOR_BETWEEN_PARTS);
+    return list ? t('editor.issue_markers.cell_speech.label', { list }) : '';
+  }
+
   private speakCursorCell(): void {
     const at = this.cursorCell;
     const live = byId(CELL_LIVE_ID);
@@ -3695,7 +3932,8 @@ export class LevelEditor {
     const level = this.doc.cc3d;
     const cc3dNames = level ? this.cc3dCellParts(level, at.x, at.y).map((part) => part.name) : undefined;
     const parts = describeEditorCell({ map: this.doc, x: at.x, y: at.y, cc3dNames });
-    const text = parts.map((part) => t(part.key, part.params)).join(SEPARATOR_BETWEEN_MESSAGES);
+    const issueText = this.issueSpeechAt(at.x, at.y);
+    const text = [...parts.map((part) => t(part.key, part.params)), ...(issueText ? [issueText] : [])].join(SEPARATOR_BETWEEN_MESSAGES);
     if (live.textContent !== text) {
       live.textContent = text;
       return;
@@ -5522,6 +5760,7 @@ export class LevelEditor {
       this.drawLinkLine(EDITOR_LAUNCHER_LINK_COLOR, link.buttonX, link.buttonY, link.launcherX, link.launcherY, s);
     }
 
+    this.drawIssueMarkers(s);
     this.renderDeviceOverlay(s);
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);

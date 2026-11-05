@@ -520,6 +520,7 @@
       "kb_editor_cc3d_links": { "label": "Liens CC3D : survolez un dispositif ou placez le curseur dessus pour voir ce qu'il actionne ; la ligne d'état signale une modification qui change un lien" },
       "kb_editor_test_here": { "label": "T : tester le niveau depuis la case du curseur (ou survolée), sans déplacer le départ enregistré" },
       "kb_editor_beam_preview": { "label": "L : afficher ou masquer l'aperçu des faisceaux laser (au tick 0, tourelles armées)" },
+      "kb_editor_issue_markers": { "label": "M : afficher ou masquer les problèmes du validateur sur la carte (un repère de coin par case : carré pour les erreurs, triangle pour les avertissements, rond pour les conseils ; atténué tant que la vérification rattrape une modification)" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
       "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
@@ -978,6 +979,18 @@
       "off": { "label": "Aperçu des faisceaux masqué." },
       "unavailable_cc3d": { "label": "Aperçu des faisceaux : indisponible sur les niveaux CC3D." },
       "unavailable_lynx": { "label": "Aperçu des faisceaux : indisponible sur les niveaux Lynx." }
+    },
+    "issue_markers": {
+      "action": { "label": "Repères" },
+      "title": { "label": "Afficher les problèmes du validateur sur la carte (M)" },
+      "on": { "label": "Repères de problèmes affichés sur la carte." },
+      "off": { "label": "Repères de problèmes masqués." },
+      "cell_speech": {
+        "label": "{list} ici.",
+        "errors": { "label": "{count, plural, one {# erreur} other {# erreurs}}" },
+        "warnings": { "label": "{count, plural, one {# avertissement} other {# avertissements}}" },
+        "infos": { "label": "{count, plural, one {# conseil} other {# conseils}}" }
+      }
     },
     "template": {
       "title": "Nouveau niveau",

@@ -520,6 +520,7 @@
       "kb_editor_cc3d_links": { "label": "CC3D links: hover a device or put the cursor on it to see what it works; the status line says when an edit changes a link" },
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
       "kb_editor_beam_preview": { "label": "L: show or hide the laser beam preview (beams at tick 0, turrets armed)" },
+      "kb_editor_issue_markers": { "label": "M: show or hide the validator issues on the map (a corner mark per cell: square for errors, triangle for warnings, circle for hints; dimmed while the check catches up with an edit)" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
@@ -978,6 +979,18 @@
       "off": { "label": "Beam preview hidden." },
       "unavailable_cc3d": { "label": "Beam preview: not available on CC3D levels." },
       "unavailable_lynx": { "label": "Beam preview: not available on Lynx levels." }
+    },
+    "issue_markers": {
+      "action": { "label": "Markers" },
+      "title": { "label": "Show the validator issues on the map (M)" },
+      "on": { "label": "Issue markers shown on the map." },
+      "off": { "label": "Issue markers hidden." },
+      "cell_speech": {
+        "label": "{list} here.",
+        "errors": { "label": "{count, plural, one {# error} other {# errors}}" },
+        "warnings": { "label": "{count, plural, one {# warning} other {# warnings}}" },
+        "infos": { "label": "{count, plural, one {# hint} other {# hints}}" }
+      }
     },
     "template": {
       "title": "New level",

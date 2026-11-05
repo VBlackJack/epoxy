@@ -25,6 +25,7 @@ export type EditorKeyAction =
   | { kind: 'rotate_in_place' }
   | { kind: 'test_from_here' }
   | { kind: 'toggle_beam_preview' }
+  | { kind: 'toggle_issue_markers' }
   | { kind: 'link' }
   | { kind: 'zoom_in' }
   | { kind: 'zoom_out' }
@@ -44,6 +45,8 @@ const TEST_FROM_HERE_LETTER = 't';
 const TEST_FROM_HERE_CODE = 'KeyT';
 const BEAM_PREVIEW_LETTER = 'l';
 const BEAM_PREVIEW_CODE = 'KeyL';
+const ISSUE_MARKERS_LETTER = 'm';
+const ISSUE_MARKERS_CODE = 'KeyM';
 const LINK_LETTER = 'k';
 const LINK_CODE = 'KeyK';
 const ZOOM_IN_KEYS: readonly string[] = ['+', '='];
@@ -66,6 +69,7 @@ export function getEditorKeyAction(chord: KeyChord): EditorKeyAction | null {
   if (matchesLetter(chord, ROTATE_LETTER, ROTATE_CODE)) return chord.shiftKey ? { kind: 'rotate_in_place' } : { kind: 'rotate' };
   if (matchesLetter(chord, TEST_FROM_HERE_LETTER, TEST_FROM_HERE_CODE)) return { kind: 'test_from_here' };
   if (matchesLetter(chord, BEAM_PREVIEW_LETTER, BEAM_PREVIEW_CODE)) return { kind: 'toggle_beam_preview' };
+  if (matchesLetter(chord, ISSUE_MARKERS_LETTER, ISSUE_MARKERS_CODE)) return { kind: 'toggle_issue_markers' };
   if (matchesLetter(chord, LINK_LETTER, LINK_CODE)) return { kind: 'link' };
   for (const entry of TOOL_LETTERS) {
     if (matchesLetter(chord, entry.letter, entry.code)) return { kind: 'tool', tool: entry.tool };
