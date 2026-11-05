@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
+import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, MirrorCorner, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
@@ -249,6 +250,18 @@ const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([
 ]);
 
 const FULL_TURN = Math.PI * 2;
+/** Tiles that look like floor until the player holds boots that reveal them. */
+const HIDDEN_WALL_TILES: ReadonlySet<string> = new Set(['invisible_wall', 'appearing_wall']);
+const APPEARING_WALL_TILE = 'appearing_wall';
+/** Dashed outline of a hidden wall marker: dash and gap length, and inset from the cell edge, in pixels. */
+const HIDDEN_WALL_DASH_PX = 3;
+const HIDDEN_WALL_INSET_PX = 3;
+/** Line width of the marker in the themed (modern) drawing, which glows and needs a heavier line. */
+const HIDDEN_WALL_LINE_PX_MODERN = 1.5;
+/** Terrain cache key part while the player holds boots that reveal hidden walls. */
+const REVEAL_KEY = 'eye';
+/** Eye drawn on the boots that reveal hidden walls: width and height of the almond, pupil radius, in tiles. */
+const EYE_MARK = { cx: 0.52, cy: 0.4, halfWidth: 0.15, halfHeight: 0.085, pupil: 0.05 } as const;
 /** Thin wall bar: thickness as a share of the tile, with a floor in pixels per drawing style. */
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
@@ -665,6 +678,8 @@ export class PixelRenderer {
   private skinEnabled = true;
   /** Skin in use for the scene being drawn; read only by the scene path, never by public draw calls. */
   private skinActive = false;
+  /** Hidden walls are marked in the scene being drawn (the player holds boots that reveal them); false outside renderViewport. */
+  private frameRevealsHiddenWalls = false;
   /** Look of the player character; the default is the stock player. */
   private playerSkin: PlayerSkinId = DEFAULT_PLAYER_SKIN;
 
@@ -1023,10 +1038,12 @@ export class PixelRenderer {
     this.frameSprite = undefined;
     this.skinActive =
       this.skinEnabled && engine.getLevel().winRule === 'targets' && (this.skinLoader?.ready ?? false);
+    this.frameRevealsHiddenWalls = bootsRevealHiddenWalls(engine.getPlayer().boots);
     try {
       this.renderScene(ctx, engine);
     } finally {
       this.skinActive = false;
+      this.frameRevealsHiddenWalls = false;
       this.inFrame = false;
       this.frameSprite = undefined;
       this.frameTilePx = Number.POSITIVE_INFINITY;
@@ -1689,7 +1706,8 @@ export class PixelRenderer {
 
     const blockKey = blockCellsKey(this.blockCells);
     const skinKey = this.skinActive ? `skin${this.skinLoader?.version ?? 0}` : '';
-    const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}|${skinKey}`;
+    const revealKey = this.frameRevealsHiddenWalls ? REVEAL_KEY : '';
+    const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}|${skinKey}|${revealKey}`;
     const region = this.cacheRegion;
     const covered =
       this.terrainCache !== null &&
@@ -1749,6 +1767,9 @@ export class PixelRenderer {
           const skinLayers = this.skinLoader?.getTerrain(tileId);
           if (skinLayers) {
             this.drawSkinLayers(cacheCtx, skinLayers, px, py, drawSize);
+            if (this.frameRevealsHiddenWalls && HIDDEN_WALL_TILES.has(tileId)) {
+              this.paintHiddenWallMarker(cacheCtx, tileId === APPEARING_WALL_TILE ? this.pal().yellow : this.pal().wallBase, px, py, drawSize);
+            }
             continue;
           }
         }
@@ -2324,11 +2345,8 @@ export class PixelRenderer {
       case 'appearing_wall':
         // Same details as plain floor, so a hidden wall gives nothing away.
         this.drawRetroFloorDetail(ctx, x, y, size, neighbours.hash);
-        if (isEditor) {
-          ctx.strokeStyle = tileId === 'appearing_wall' ? pal.yellow : pal.wallBase;
-          ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x + 3, y + 3, size - 6, size - 6);
-          ctx.setLineDash([]);
+        if (isEditor || this.frameRevealsHiddenWalls) {
+          this.paintHiddenWallMarker(ctx, tileId === APPEARING_WALL_TILE ? pal.yellow : pal.wallBase, x, y, size);
         }
         break;
 
@@ -3015,6 +3033,28 @@ export class PixelRenderer {
     if (shine) this.drawRetroShine(ctx, layers, x, y, size);
   }
 
+  /** Almond eye with a dark pupil on the shaft of the boots that reveal hidden walls. */
+  private paintEyeMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const cx = x + size * EYE_MARK.cx;
+    const cy = y + size * EYE_MARK.cy;
+    ctx.fillStyle = this.pal().eyeWhite;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, size * EYE_MARK.halfWidth, size * EYE_MARK.halfHeight, 0, 0, FULL_TURN);
+    ctx.fill();
+    ctx.fillStyle = this.pal().glyphInk;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * EYE_MARK.pupil, 0, FULL_TURN);
+    ctx.fill();
+  }
+
+  /** Dashed outline that marks a hidden wall to a player who can see it: in the editor, or holding the eye boots. */
+  private paintHiddenWallMarker(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, size: number): void {
+    ctx.strokeStyle = color;
+    ctx.setLineDash([HIDDEN_WALL_DASH_PX, HIDDEN_WALL_DASH_PX]);
+    ctx.strokeRect(x + HIDDEN_WALL_INSET_PX, y + HIDDEN_WALL_INSET_PX, size - 2 * HIDDEN_WALL_INSET_PX, size - 2 * HIDDEN_WALL_INSET_PX);
+    ctx.setLineDash([]);
+  }
+
   /** A tile from sprites: floor, wall, door... stacked from layers, with its floor shadow dithered on. */
   private drawRetroSpriteTile(
     ctx: CanvasRenderingContext2D,
@@ -3036,6 +3076,7 @@ export class PixelRenderer {
       wallMask: neighbours.wallMask,
       floorDetailEvery: this.getSettings().floorDetailEvery,
       isEditor,
+      revealHiddenWalls: this.frameRevealsHiddenWalls,
       isClosedTrap,
       phase: this.retroPhase(),
       reducedMotion: this.reducedMotion
@@ -3362,6 +3403,12 @@ export class PixelRenderer {
       case 'appearing_wall':
         // Hidden walls get the same details as plain floor, so they give nothing away.
         this.drawModernFloorDetail(ctx, x, y, size, neighbours.hash);
+        if (this.frameRevealsHiddenWalls && HIDDEN_WALL_TILES.has(tileId)) {
+          ctx.save();
+          ctx.lineWidth = HIDDEN_WALL_LINE_PX_MODERN;
+          this.paintHiddenWallMarker(ctx, tileId === APPEARING_WALL_TILE ? pal.yellow : theme.accentGlow, x, y, size);
+          ctx.restore();
+        }
         break;
 
       case 'wall':
@@ -4536,7 +4583,8 @@ export class PixelRenderer {
       case 'boots_fire':
       case 'boots_ice':
       case 'boots_force':
-      case 'boots_speed': {
+      case 'boots_speed':
+      case 'boots_eye': {
         const c = pal[BOOT_COLOR_KEYS[itemId] ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
         ctx.save();
         if (isModern) {
@@ -4548,6 +4596,7 @@ export class PixelRenderer {
         ctx.fill();
         this.roundRect(ctx, x + size * 0.25, y + size * 0.54, size * 0.52, size * 0.24, 4);
         ctx.fill();
+        if (ConfigRegistry.getTile(itemId).revealsHiddenWalls) this.paintEyeMark(ctx, x, y, size);
         ctx.restore();
         break;
       }

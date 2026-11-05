@@ -67,6 +67,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Level editor: the Check button and the Test pre-check use the deeper door-order search (the automatic check keeps the fast one), so they no longer report false door errors on levels such as converted CC3D maps; the worker request carries the search options, and a default report is not reused for a deep check.
 - Level editor: the three Wire entries of the Mechanisms palette (brown button to trap, red button to clone machine, shot trigger to launchers) are gone; link sessions (K or Link...) replace them, and they also link from the trap, the clone machine and the launcher end.
 - The Epoxy engine is split from one file into modules under `src/core/epoxy/` (world, player, blocks, monsters, devices, teleports, lasers) behind the same `GameEngine` API, with no behaviour change.
 - Developer tools: `engineSimHash` hashes a tick-by-tick play of every shipped Epoxy level and compares it with a golden file named by `EPOXY_SIM_GOLDEN`; `epoxyCoverage` classifies each Chuck's Challenge 3D element as exact, approximate or lost on the Epoxy engine and can write a corpus report (`CC3D_CORPUS_DIR`, `CC3D_COVERAGE_REPORT`). On the 485 community maps, maps with a lost element went from 404 to 93.

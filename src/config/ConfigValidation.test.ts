@@ -16,6 +16,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  findEyeBootsConfigErrors,
   isCompiledLevelShape,
   isRuleset,
   LevelSizeBounds,
@@ -24,6 +25,7 @@ import {
   sanitizeStoredLevels
 } from './ConfigValidation';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { ConfigRegistry } from './ConfigRegistry';
 import type { Cc3dCell, Cc3dLevel } from '../core/cc3d/model';
 
 const BOUNDS: LevelSizeBounds = { minSize: 3, maxSize: 32 };
@@ -291,5 +293,23 @@ describe('underlays in config validation', () => {
   it('normalises to null when nothing is left', () => {
     expect(normalizeUnderlays([], level().terrain as string[][], 'epoxy')).toBeNull();
     expect(normalizeUnderlays([{ x: 0, y: 0, terrain: 'door_red' }], level().terrain as string[][], 'epoxy')).toBeNull();
+  });
+});
+
+describe('findEyeBootsConfigErrors', () => {
+  beforeEach(() => loadTestConfigs());
+
+  it('accepts the shipped eye boots', () => {
+    const tiles = structuredClone(ConfigRegistry.getTiles().tiles);
+    expect(tiles.boots_eye.revealsHiddenWalls).toBe(true);
+    expect(findEyeBootsConfigErrors(tiles)).toEqual([]);
+  });
+
+  it('refuses a value other than true, and a carrier that is not a boot', () => {
+    const tiles = structuredClone(ConfigRegistry.getTiles().tiles);
+    const falsy = { ...tiles, boots_eye: { ...tiles.boots_eye, revealsHiddenWalls: false } };
+    expect(findEyeBootsConfigErrors(falsy)).toHaveLength(1);
+    const notBoot = { ...tiles.score_10, revealsHiddenWalls: true };
+    expect(findEyeBootsConfigErrors({ ...tiles, score_10: notBoot })).toHaveLength(1);
   });
 });

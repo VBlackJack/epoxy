@@ -1257,6 +1257,17 @@ export function findSpeedBootsConfigErrors(tiles: Record<string, TileDefinition>
   return errors;
 }
 
+/** Problems of the revealsHiddenWalls field: true when present, carried by boots only. Each entry names the tile. */
+export function findEyeBootsConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.revealsHiddenWalls === undefined) continue;
+    if (tile.revealsHiddenWalls !== true) errors.push(`${tile.id}.revealsHiddenWalls: expected true`);
+    if (tile.collectible !== 'boot') errors.push(`${tile.id}.revealsHiddenWalls: only boots (collectible "boot") may reveal hidden walls`);
+  }
+  return errors;
+}
+
 /** Problems of the optional sampled-file fields of the sound effects. */
 function findSfxEffectErrors(effects: AudioConfig['effects'] | undefined): string[] {
   const errors: string[] = [];

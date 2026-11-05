@@ -95,7 +95,7 @@
       "refused_cc3d_ruleset": { "label": "Non exporté : {levels} se joue avec les règles CC3D, que le format .DAT ne peut pas porter. Utilisez plutôt Exporter XML." },
       "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascule de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
       "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins posés sur des cases, que le format .DAT ne peut pas porter." },
-      "refused_epoxy_only_items": { "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur ou les Bottes de vitesse), que le format .DAT ne peut pas porter." },
+      "refused_epoxy_only_items": { "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur, les Bottes de Vitesse ou les Bottes de Clairvoyance), que le format .DAT ne peut pas porter." },
       "refused_epoxy_only_monsters": { "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette ou un Fuyard, que le format .DAT ne peut pas porter." },
       "refused_cell_underlays": { "label": "Non exporté : {levels} cache du terrain sous des portes, des prises ou d'autres tuiles amovibles, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
@@ -1381,6 +1381,7 @@
     "boots_ice": { "name": "Crampons à Glace" },
     "boots_force": { "name": "Bottes Ventouses" },
     "boots_speed": { "name": "Bottes de Vitesse" },
+    "boots_eye": { "name": "Bottes de Clairvoyance" },
     "bomb": { "name": "Bombe" },
     "score_10": { "name": "Fanion Bonus (10 points)" },
     "score_100": { "name": "Fanion Bonus (100 points)" },

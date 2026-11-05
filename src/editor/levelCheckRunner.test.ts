@@ -87,6 +87,14 @@ describe('LevelCheckRunner', () => {
     expect(validate).not.toHaveBeenCalled();
   });
 
+  it('forwards the options to the worker, and to the inline validation', () => {
+    runner.run(level(), TIMEOUT_MS, onDone, { doorOrderSearch: 'deep' });
+    expect(workers[0].requests[0].options).toEqual({ doorOrderSearch: 'deep' });
+    const inline = new LevelCheckRunner({ createWorker: null, getBundle: () => bundle, getLocale: () => LOCALE, validate });
+    inline.run(level(), TIMEOUT_MS, onDone, { doorOrderSearch: 'deep' });
+    expect(validate).toHaveBeenCalledWith(expect.anything(), { doorOrderSearch: 'deep' });
+  });
+
   it('reuses its worker for the next check', () => {
     runner.run(level(), TIMEOUT_MS, onDone);
     workers[0].reply({ type: 'report', id: 1, report: REPORT });
@@ -191,6 +199,12 @@ describe('LevelCheckRunner', () => {
     expect(runner.isRunning()).toBe(false);
   });
 
+  it('forwards the options to the inline fallback when the worker never worked', () => {
+    runner.run(level('first'), TIMEOUT_MS, onDone, { doorOrderSearch: 'deep' });
+    workers[0].onerror?.({});
+    expect(validate).toHaveBeenCalledWith(expect.anything(), { doorOrderSearch: 'deep' });
+  });
+
   it('cancels the check in progress and terminates the idle worker when disposed', () => {
     runner.run(level(), TIMEOUT_MS, onDone);
     runner.dispose();
@@ -271,7 +285,17 @@ describe('createLevelCheckWorkerCore', () => {
     const handle = createLevelCheckWorkerCore({ applyConfigs: () => undefined, setLocale: () => undefined, validate, solutionWins }, () => undefined);
     const checked = level('solved');
     handle({ type: 'check', id: 6, level: checked, bundle, locale: LOCALE });
-    expect(validate).toHaveBeenCalledWith(checked, solutionWins);
+    expect(validate).toHaveBeenCalledWith(checked, solutionWins, undefined);
+  });
+
+  it('passes the options of the request to the validation', () => {
+    const validate = vi.fn((_level: CompiledLevel, _wins: unknown, _options: unknown) => REPORT);
+    const handle = createLevelCheckWorkerCore(
+      { applyConfigs: () => undefined, setLocale: () => undefined, validate, solutionWins: () => true },
+      () => undefined
+    );
+    handle({ type: 'check', id: 7, level: level('deep'), bundle, locale: LOCALE, options: { doorOrderSearch: 'deep' } });
+    expect(validate.mock.calls[0][2]).toEqual({ doorOrderSearch: 'deep' });
   });
 
   it('turns an error into a reply', () => {

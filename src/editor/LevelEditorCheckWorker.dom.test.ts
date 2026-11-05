@@ -44,6 +44,7 @@ const SIZE = 9;
 const CC3D_ROOM_SIZE = 12;
 const TITLE_INPUT_ID = 'editor-meta-title';
 const LEVEL_CHECK_WORKER = 'levelCheck.worker';
+const DEEP = { doorOrderSearch: 'deep' } as const;
 
 const fake = new FakeIndexedDb();
 let editor: LevelEditor;
@@ -102,6 +103,7 @@ const click = (id: string): void => byId<HTMLButtonElement>(id).click();
 /** The requests posted so far, over every worker the editor started. */
 const posted = (): number => workers.reduce((total, worker) => total + worker.requests.length, 0);
 const liveWorker = (): StubWorker => workers[workers.length - 1];
+const lastRequest = (): LevelCheckWorkerRequest => liveWorker().requests[liveWorker().requests.length - 1];
 
 function room(id = 'lvl_check_worker'): CompiledLevel {
   const terrain: string[][] = Array.from({ length: SIZE }, (_, y) =>
@@ -244,6 +246,15 @@ describe('the automatic check in a worker', () => {
     expect(workers).toHaveLength(0);
   });
 
+  it('validates a CC3D Check inline with the deep options', async () => {
+    const { LevelValidator } = await import('../core/LevelValidator');
+    const spy = vi.spyOn(LevelValidator, 'validate');
+    editor.loadCompiledLevel(compiledCc3d(emptyCc3dRoom(CC3D_ROOM_SIZE, CC3D_ROOM_SIZE)));
+    spy.mockClear();
+    click('editor-validate-btn');
+    expect(spy).toHaveBeenCalledWith(expect.anything(), expect.anything(), DEEP);
+  });
+
   it('is cancelled by loading another level', () => {
     openAndStartCheck();
     const running = liveWorker();
@@ -262,13 +273,24 @@ describe('the automatic check in a worker', () => {
 });
 
 describe('the Check button', () => {
-  it('reuses the report already cached for the content', () => {
+  it('posts no deep option for the automatic check', () => {
+    openAndStartCheck();
+    expect(liveWorker().requests[0].options).toBeUndefined();
+  });
+
+  it('does not reuse a default cached report: it posts its own deep check, whose report it then reuses', () => {
     openAndStartCheck();
     liveWorker().answer(VALID);
     click('editor-validate-btn');
-    expect(posted()).toBe(1);
+    expect(posted()).toBe(2);
+    expect(lastRequest().options).toEqual(DEEP);
+    expect(badge().dataset.state).toBe('checking');
+    liveWorker().answer(BROKEN);
+    expect(badge().dataset.state).toBe('errors');
     expect(byId<HTMLDetailsElement>('editor-issues-section').open).toBe(true);
     expect(status()).not.toBe('');
+    click('editor-validate-btn');
+    expect(posted()).toBe(2);
   });
 
   it('does not reuse a report worded in another language', () => {
@@ -292,6 +314,26 @@ describe('the Check button', () => {
     // The pending debounce was taken over by the explicit check: no second post.
     vi.advanceTimersByTime(EDITOR_CHECK_DEBOUNCE_MS);
     expect(posted()).toBe(1);
+  });
+
+  it('keeps the cached default verdict on the badge when the deep run times out, with the notice on the status line', () => {
+    openAndStartCheck();
+    liveWorker().answer(VALID);
+    click('editor-validate-btn');
+    expect(badge().dataset.state).toBe('checking');
+    vi.advanceTimersByTime(EDITOR_AUTO_CHECK_TIMEOUT_MS);
+    expect(badge().dataset.state).toBe('valid');
+    expect(status()).toBe(t('editor.check.skipped.label'));
+  });
+
+  it('keeps the cached default verdict on the badge when the deep run errors', () => {
+    openAndStartCheck();
+    liveWorker().answer(VALID);
+    click('editor-validate-btn');
+    const worker = liveWorker();
+    worker.onmessage?.({ data: { type: 'error', id: worker.requests[worker.requests.length - 1].id, message: 'boom' } });
+    expect(badge().dataset.state).toBe('valid');
+    expect(status()).toBe(t('editor.check.error.label'));
   });
 
   it('says the check was skipped when it is too slow', () => {
@@ -318,6 +360,45 @@ describe('Test', () => {
     click('editor-test-btn');
     expect(onTestPlay).toHaveBeenCalledTimes(1);
     expect(posted()).toBe(1);
+  });
+
+  it('plays at once with a cached default report, without a deep check', () => {
+    openAndStartCheck();
+    expect(liveWorker().requests[0].options).toBeUndefined();
+    liveWorker().answer(VALID);
+    click('editor-test-btn');
+    expect(onTestPlay).toHaveBeenCalledTimes(1);
+    expect(posted()).toBe(1);
+  });
+
+  it('plays at once with a cached deep report', () => {
+    editor.loadCompiledLevel(room());
+    click('editor-validate-btn');
+    liveWorker().answer(VALID);
+    click('editor-test-btn');
+    expect(onTestPlay).toHaveBeenCalledTimes(1);
+    expect(posted()).toBe(1);
+  });
+
+  it('runs a deep check when nothing is cached', () => {
+    editor.loadCompiledLevel(room());
+    click('editor-test-btn');
+    expect(lastRequest().options).toEqual(DEEP);
+  });
+
+  it('puts the cached verdict back on the badge when the cold deep check times out', async () => {
+    openAndStartCheck();
+    liveWorker().answer(VALID);
+    const internals = editor as unknown as {
+      exportCompiledLevel(): CompiledLevel;
+      currentCheckKey(): string;
+      checkBeforeTest(c: CompiledLevel, key: string, cacheable: boolean): Promise<unknown>;
+    };
+    const pending = internals.checkBeforeTest(internals.exportCompiledLevel(), internals.currentCheckKey(), true);
+    expect(badge().dataset.state).toBe('checking');
+    await vi.advanceTimersByTimeAsync(EDITOR_TEST_CHECK_TIMEOUT_MS);
+    await pending;
+    expect(badge().dataset.state).toBe('valid');
   });
 
   it('waits for the check of a level not checked yet, and ignores a repeated click', async () => {
@@ -512,6 +593,7 @@ describe('Test from here', () => {
     );
     expect(onTestPlay).not.toHaveBeenCalled();
     expect(posted()).toBe(2);
+    expect(lastRequest().options).toEqual(DEEP);
     const moved = liveWorker().requests[liveWorker().requests.length - 1].level;
     expect(moved.playerStart).toMatchObject({ x: 2, y: 2 });
     liveWorker().answer(VALID);
@@ -595,13 +677,15 @@ describe('Test from here during a check', () => {
 });
 
 describe('joining the automatic check', () => {
-  it('lets a Check click wait for it instead of restarting it', () => {
+  it('lets a Check click replace it with its own deep check', () => {
     openAndStartCheck();
-    const running = liveWorker();
+    const auto = liveWorker();
     click('editor-validate-btn');
-    expect(posted()).toBe(1);
-    expect(running.terminated).toBe(false);
+    expect(posted()).toBe(2);
+    expect(auto.terminated).toBe(true);
     expect(status()).toBe(t('editor.check.running.label'));
+    const running = liveWorker();
+    expect(running.requests[0].options).toEqual(DEEP);
     running.answer(BROKEN);
     expect(badge().dataset.state).toBe('errors');
     expect(status()).toContain(t('validator.issues.no_exit.label'));
@@ -633,6 +717,18 @@ describe('joining the automatic check', () => {
     expect(posted()).toBe(1);
     running.answer(VALID);
     expect(badge().dataset.state).toBe('valid');
+  });
+
+  it('lets a Test join a deep Check already running instead of restarting it', async () => {
+    editor.loadCompiledLevel(room());
+    click('editor-validate-btn');
+    const running = liveWorker();
+    click('editor-test-btn');
+    expect(posted()).toBe(1);
+    expect(running.terminated).toBe(false);
+    running.answer(VALID);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onTestPlay).toHaveBeenCalledTimes(1);
   });
 });
 
