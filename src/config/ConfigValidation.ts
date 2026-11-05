@@ -1096,6 +1096,20 @@ export function findTurretConfigErrors(entities: Record<string, EntityDefinition
   return errors;
 }
 
+/** Quarter turns a turn plate may apply: clockwise or counter-clockwise. */
+const FACING_TURN_VALUES: readonly unknown[] = [1, -1];
+
+/** Problems of the facingTurn field of tiles.json: a terrain tile turns by exactly 1 or -1 quarter turns. */
+export function findFacingTurnConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.facingTurn === undefined) continue;
+    if (!FACING_TURN_VALUES.includes(tile.facingTurn)) errors.push(`${tile.id}.facingTurn: expected 1 or -1`);
+    if (tile.layer !== 'terrain') errors.push(`${tile.id}.facingTurn: only a terrain tile may turn blocks`);
+  }
+  return errors;
+}
+
 /** Relative sides an arrow block may show an arrow on. */
 const PUSH_ARROW_TURNS: readonly string[] = ['FORWARD', 'RIGHT', 'BACK', 'LEFT'];
 

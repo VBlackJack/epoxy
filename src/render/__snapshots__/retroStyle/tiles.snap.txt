@@ -133,6 +133,16 @@ tile theme=cyber_neon id=transmogrifier e39a5b3930c12e5c
 tile theme=arctic_lab id=transmogrifier 89230a51623ae509
 tile theme=magma_core id=transmogrifier 73a307b1a28824cf
 tile theme=lynx_lcd id=transmogrifier 617295e258ee9d70
+tile theme=default id=turn_plate_cw 303ed9ced97d5ae2
+tile theme=cyber_neon id=turn_plate_cw cfbfe273b5144de4
+tile theme=arctic_lab id=turn_plate_cw 89b7081f6331e5c6
+tile theme=magma_core id=turn_plate_cw 9c7abc4d872094f9
+tile theme=lynx_lcd id=turn_plate_cw 17da288e4650c298
+tile theme=default id=turn_plate_ccw 74a9ee5fc0a16725
+tile theme=cyber_neon id=turn_plate_ccw 922bd8d2e9e67e3e
+tile theme=arctic_lab id=turn_plate_ccw 51307f82502d21fb
+tile theme=magma_core id=turn_plate_ccw 458b104fdfe71be5
+tile theme=lynx_lcd id=turn_plate_ccw b050ee436e53d69a
 tile theme=default id=dirt 58c6b782a7784a71
 tile theme=cyber_neon id=dirt 657e63a6ee154c82
 tile theme=arctic_lab id=dirt ba6bfd52837529e7

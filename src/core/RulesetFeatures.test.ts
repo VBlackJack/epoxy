@@ -32,6 +32,7 @@ import {
   isFleeingEntityType,
   isSteeredEntityType,
   isSteeringTileId,
+  isTurnPlateTileId,
   isTurretEntityType,
   isArrowBlockEntityType
 } from './RulesetFeatures';
@@ -160,6 +161,17 @@ describe('colour channel aids', () => {
     for (const id of ['puppet', 'skitter']) expect(isEpoxyOnlyEntityType(id), id).toBe(true);
     expect(isEpoxyOnlyTileId('puppet_control')).toBe(true);
     expect(isEpoxyOnlyEntityType('teeth')).toBe(false);
+  });
+
+  it('names the turn plates as Epoxy only', () => {
+    for (const id of ['turn_plate_cw', 'turn_plate_ccw']) {
+      expect(isTurnPlateTileId(id), id).toBe(true);
+      expect(isEpoxyOnlyTileId(id), id).toBe(true);
+      expect(hasEpoxyOnlyMonsterContent(levelWith(id)), id).toBe(true);
+    }
+    expect(isTurnPlateTileId('floor')).toBe(false);
+    expect(isTurnPlateTileId(null)).toBe(false);
+    expect(hasEpoxyOnlyMonsterContent(levelWith('floor'))).toBe(false);
   });
 
   it('turns tap to path, the block hint and the dead end watch off on a steering level, and keeps the rest', () => {

@@ -96,7 +96,7 @@
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
       "refused_epoxy_only_items": { "label": "Not exported: {levels} holds an item only Epoxy plays (such as the Slow-Time Charm, the Speed Boots or the Truesight Boots), which the .DAT format cannot hold." },
-      "refused_epoxy_only_monsters": { "label": "Not exported: {levels} holds a Puppet, a Puppet Control, a Skitter or a Transmogrifier, which the .DAT format cannot hold." },
+      "refused_epoxy_only_monsters": { "label": "Not exported: {levels} holds a Puppet, a Puppet Control, a Skitter, a Transmogrifier or a Turn Plate, which the .DAT format cannot hold." },
       "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "trap_links_capped": { "label": "Lossy .CCL export: the .DAT format keeps at most {max} trap links, {count, plural, one {# was} other {# were}} left out." },
       "clone_links_capped": { "label": "Lossy .CCL export: the .DAT format keeps at most {max} clone links, {count, plural, one {# was} other {# were}} left out." },
@@ -581,6 +581,7 @@
       "flame_jets_no_button": { "label": "Info: Flame jets at ({x}, {y}) ({count} in all) never change: no orange button exists on this level." },
       "swivel_sealed": { "label": "Info: A swivel door at ({x}, {y}) ({count} in all) is sealed: every side it opens on faces a wall, a thin wall, a laser emitter or receiver, or the edge of the map." },
       "arrow_block_locked": { "label": "Info: An arrow block at ({x}, {y}) ({count} in all) can never be pushed: every side it shows an arrow on faces a wall, a thin wall or the edge of the map." },
+      "turn_plate_idle": { "label": "Info: A turn plate at ({x}, {y}) ({count} in all) has no arrow block to turn." },
       "exit_on_receivers_level": { "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers." },
       "start_on_wall": { "label": "Warning: The player start is in a wall." },
       "start_on_entity": { "label": "Warning: The player start shares its cell with a block or monster." },
@@ -1549,6 +1550,14 @@
     "transmogrifier": {
       "name": "Transmogrifier",
       "desc": { "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker)." }
+    },
+    "turn_plate_cw": {
+      "name": "Turn Plate (clockwise)",
+      "desc": { "label": "Turns an arrow block that arrives on it a quarter turn clockwise, arrows included. Only arrow blocks turn: monsters and the player are not affected." }
+    },
+    "turn_plate_ccw": {
+      "name": "Turn Plate (counter-clockwise)",
+      "desc": { "label": "Turns an arrow block that arrives on it a quarter turn counter-clockwise, arrows included. Only arrow blocks turn: monsters and the player are not affected." }
     },
     "dirt": { "name": "Soft Dirt" },
     "gravel": { "name": "Gravel (Safe Zone)" },

@@ -176,7 +176,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   'wall_top', 'wall_front', 'wall_rim_n', 'wall_rim_w', 'wall_rim_e',
   'thin_n', 'thin_e', 'thin_s', 'thin_w',
   'recessed_wall', 'blue_wall', 'blue_wall_fake_marker', 'hidden_wall_marker', 'appearing_wall_marker',
-  'dirt', 'slime', 'gravel', 'socket', 'hint', 'thief', 'thief_keys', 'block_target', 'clone_machine', 'transmogrifier',
+  'dirt', 'slime', 'gravel', 'socket', 'hint', 'thief', 'thief_keys', 'block_target', 'clone_machine', 'transmogrifier', 'turn_plate_cw', 'turn_plate_ccw',
   'forbid_sign', 'door', 'button', 'toggle_wall_closed', 'toggle_wall_open', 'trap_open', 'trap_closed',
   'flame_jet_nozzle', 'turtle', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se',
   'laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w',

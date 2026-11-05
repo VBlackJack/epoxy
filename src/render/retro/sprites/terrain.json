@@ -666,6 +666,48 @@
       ],
       "outline": false
     },
+    "turn_plate_cw": {
+      "rows": [
+        "aaaaaaaaaaaaaabb",
+        "aaooooooooooooab",
+        "ao111111111111ob",
+        "ao122222222223ob",
+        "ao122222222223ob",
+        "ao122)2((22223ob",
+        "ao12)))22(2223ob",
+        "ao1)))))22(223ob",
+        "ao122(2222(223ob",
+        "ao1222(22(2223ob",
+        "ao12222((22223ob",
+        "ao122222222223ob",
+        "ao122222222223ob",
+        "ao333333333333ob",
+        "baoooooooooooobb",
+        "bbbbbbbbbbbbbbbc"
+      ],
+      "outline": false
+    },
+    "turn_plate_ccw": {
+      "rows": [
+        "aaaaaaaaaaaaaabb",
+        "aaooooooooooooab",
+        "ao111111111111ob",
+        "ao122222222223ob",
+        "ao122222222223ob",
+        "ao12222((2)223ob",
+        "ao1222(22)))23ob",
+        "ao122(22)))))3ob",
+        "ao122(2222(223ob",
+        "ao1222(22(2223ob",
+        "ao12222((22223ob",
+        "ao122222222223ob",
+        "ao122222222223ob",
+        "ao333333333333ob",
+        "baoooooooooooobb",
+        "bbbbbbbbbbbbbbbc"
+      ],
+      "outline": false
+    },
     "forbid_sign": {
       "rows": [
         ".....oooooo.....",

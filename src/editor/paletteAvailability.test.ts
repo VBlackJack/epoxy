@@ -77,13 +77,21 @@ describe('paletteAvailability', () => {
       const isShotDevice = def.shotLauncher !== undefined || def.buttonAction === 'fire_launchers';
       const isSwivelDoor = def.swivelTurns !== undefined;
       const isTransmogrifier = def.transmogrifies === true;
+      const isTurnPlate = def.facingTurn !== undefined;
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
     expect(tileAvailability('lynx', 'laser_emitter_n')).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
     expect(tileAvailability('lynx', 'wall')).toEqual({ available: true });
+  });
+
+  it('offers the turn plates under the Epoxy rules only', () => {
+    for (const id of ['turn_plate_cw', 'turn_plate_ccw']) {
+      expect(tileAvailability('epoxy', id), id).toEqual({ available: true });
+      expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+    }
   });
 
   it('blocks every colour channel tile family under Lynx and allows it under Epoxy', () => {

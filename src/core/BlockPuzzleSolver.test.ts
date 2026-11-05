@@ -313,4 +313,68 @@ describe('BlockPuzzleSolver', () => {
       expect(BlockPuzzleSolver.verdict(engine)).toEqual({ kind: 'solved', pushes: CORRIDOR_PUSHES });
     });
   });
+
+  describe('turn plates', () => {
+    const ROOM_FIRST = 1;
+    const ROOM_LAST = 5;
+    const START = { x: 1, y: 1 };
+    const BLOCK_CELL = { x: 2, y: 2 };
+    const PLATE_CELL = { x: 3, y: 2 };
+    const TARGET_CELL = { x: 3, y: 4 };
+    /** One push east onto the plate, then two pushes south to the target. */
+    const TURNED_PUSHES = 3;
+
+    /** An open floor room with a block target; the plate id (if any) sits one cell east of the block. */
+    function roomEngine(blockType: string, plate: string | null): GameEngine {
+      const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+      const terrain = Array.from({ length: mapHeight }, () => Array.from({ length: mapWidth }, () => 'wall'));
+      for (let y = ROOM_FIRST; y <= ROOM_LAST; y++) for (let x = ROOM_FIRST; x <= ROOM_LAST; x++) terrain[y][x] = 'floor';
+      terrain[TARGET_CELL.y][TARGET_CELL.x] = 'block_target';
+      if (plate) terrain[PLATE_CELL.y][PLATE_CELL.x] = plate;
+      const level: CompiledLevel = {
+        id: 'turn_room',
+        number: 1,
+        password: 'TEST',
+        timeLimitSeconds: 0,
+        chipsRequired: 0,
+        playerStart: { x: START.x, y: START.y, dir: 'E' },
+        terrain,
+        items: Array.from({ length: mapHeight }, () => Array.from({ length: mapWidth }, () => null)),
+        entities: [{ type: blockType, x: BLOCK_CELL.x, y: BLOCK_CELL.y, dir: 'E' }],
+        trapLinks: [],
+        cloneLinks: [],
+        winRule: 'targets'
+      };
+      const engine = new GameEngine();
+      engine.loadLevel(level);
+      return engine;
+    }
+
+    it('solves a level only a clockwise plate makes solvable', () => {
+      expect(BlockPuzzleSolver.verdict(roomEngine('arrow_block_one', 'turn_plate_cw'))).toEqual({
+        kind: 'solved',
+        pushes: TURNED_PUSHES
+      });
+    });
+
+    it('proves the same level unsolvable without the plate', () => {
+      expect(BlockPuzzleSolver.verdict(roomEngine('arrow_block_one', null))).toEqual({ kind: 'unsolvable' });
+    });
+
+    it('turns the other way on a counter-clockwise plate', () => {
+      expect(BlockPuzzleSolver.verdict(roomEngine('arrow_block_one', 'turn_plate_ccw'))).toEqual({ kind: 'unsolvable' });
+    });
+
+    it('does not report a false dead end that a plate resolves', () => {
+      expect(BlockPuzzleSolver.isStuck(roomEngine('arrow_block_one', 'turn_plate_cw'))).toBe(false);
+      expect(BlockPuzzleSolver.isStuck(roomEngine('arrow_block_one', null))).toBe(true);
+    });
+
+    it('leaves a dirt block unaffected by a plate', () => {
+      const dirt = roomEngine('dirt_block', 'turn_plate_cw');
+      const bare = roomEngine('dirt_block', null);
+      expect(BlockPuzzleSolver.verdict(dirt)).toEqual(BlockPuzzleSolver.verdict(bare));
+      expect(BlockPuzzleSolver.isStuck(dirt)).toBe(false);
+    });
+  });
 });

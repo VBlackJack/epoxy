@@ -308,6 +308,12 @@ tile swivel_door_nw closed=true shadowMask=128 hash=1 9bff557b69e3fedd
 tile transmogrifier closed=true isolated 3107c80c91136367
 tile transmogrifier closed=true shadowMask=65 hash=1 ef990770baa587ac
 tile transmogrifier closed=true shadowMask=128 hash=1 f988b0e48331d1d4
+tile turn_plate_cw closed=true isolated 4f4edb3080b1effa
+tile turn_plate_cw closed=true shadowMask=65 hash=1 0959e93eab39ba1a
+tile turn_plate_cw closed=true shadowMask=128 hash=1 c701575f94abeef4
+tile turn_plate_ccw closed=true isolated a14bd87c06318161
+tile turn_plate_ccw closed=true shadowMask=65 hash=1 cdd82d078dae9e3b
+tile turn_plate_ccw closed=true shadowMask=128 hash=1 d396ac7c2c72bad1
 tile dirt closed=true isolated f888f02b2e2e857c
 tile dirt closed=true shadowMask=65 hash=1 2046fdb306a8e027
 tile dirt closed=true shadowMask=128 hash=1 4c6eabed5793f4da

@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
+import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
@@ -143,6 +144,11 @@ export function moveBlockTo(
     removeEntity(w, block.uid);
     AudioManager.playSfx('burn');
     return;
+  }
+
+  // A turn plate turns the arrows of an arrow block that arrives on it; a destroyed block never gets here.
+  if (tile.facingTurn !== undefined && blockDef?.pushArrows !== undefined) {
+    block.facing = turnClockwise(block.facing ?? block.dir, tile.facingTurn);
   }
 
   // A button worked by the player alone (a steering pad) does nothing when a block slides onto it.
