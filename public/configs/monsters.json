@@ -191,7 +191,8 @@
       "turnOrder": ["LEFT", "FORWARD", "RIGHT", "BACK"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": true
+      "avoidsFire": true,
+      "transmogrifiesTo": "paramecium"
     },
     "paramecium": {
       "id": "paramecium",
@@ -203,7 +204,8 @@
       "turnOrder": ["RIGHT", "FORWARD", "LEFT", "BACK"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "transmogrifiesTo": "bug"
     },
     "pink_ball": {
       "id": "pink_ball",
@@ -215,7 +217,8 @@
       "turnOrder": ["FORWARD", "BACK"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "transmogrifiesTo": "walker"
     },
     "walker": {
       "id": "walker",
@@ -227,7 +230,8 @@
       "turnOrder": ["FORWARD"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "transmogrifiesTo": "pink_ball"
     },
     "teeth": {
       "id": "teeth",
@@ -239,7 +243,8 @@
       "turnOrder": ["FORWARD"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "transmogrifiesTo": "skitter"
     },
     "glider": {
       "id": "glider",
@@ -252,7 +257,8 @@
       "immuneToWater": true,
       "immuneToFire": false,
       "avoidsFire": false,
-      "flying": true
+      "flying": true,
+      "transmogrifiesTo": "fireball"
     },
     "fireball": {
       "id": "fireball",
@@ -265,7 +271,8 @@
       "immuneToWater": false,
       "immuneToFire": true,
       "avoidsFire": false,
-      "flying": true
+      "flying": true,
+      "transmogrifiesTo": "glider"
     },
     "tank": {
       "id": "tank",
@@ -369,7 +376,8 @@
       "turnOrder": ["FORWARD"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "transmogrifiesTo": "teeth"
     }
   }
 }

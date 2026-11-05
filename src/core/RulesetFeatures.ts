@@ -176,11 +176,18 @@ export function hasSteeringContent(
   );
 }
 
-/** True when the level places a monster only the Epoxy engine plays (a puppet or a skitter), or a steering pad. */
+/** True when the level places a transmogrifier (terrain or item layer): a swap can create a monster only Epoxy plays. */
+function hasTransmogrifierContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isTransmogrifierTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
+/** True when the level places a monster only the Epoxy engine plays (a puppet or a skitter), a steering pad, or a transmogrifier. */
 export function hasEpoxyOnlyMonsterContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {
-  if (hasSteeringContent(level)) return true;
+  if (hasSteeringContent(level) || hasTransmogrifierContent(level)) return true;
   const fleeing = (type: string): boolean => isFleeingEntityType(type);
   return (
     (level.entities ?? []).some((e) => fleeing(e.type)) || (level.cloneLinks ?? []).some((link) => fleeing(link.templateType))
@@ -233,6 +240,11 @@ export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id);
 }
 
+/** True when the tile id is a transmogrifier, which swaps a monster arriving on it for its pair. */
+export function isTransmogrifierTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).transmogrifies === true;
+}
+
 /** True when the tile id is a swivel door, which turns a quarter turn behind whoever passes through it. */
 export function isSwivelTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).swivelTurns !== undefined;
@@ -249,7 +261,7 @@ export function hasSwivelContent(level: Pick<CompiledLevel, 'terrain' | 'items'>
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
     isLaserTileId(id) || isColorChannelTileId(id) || isEpoxyOnlyItemId(id) ||
-    isSteeringTileId(id) || isSwivelTileId(id)
+    isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id)
   );
 }
 
