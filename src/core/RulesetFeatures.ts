@@ -274,11 +274,19 @@ export function hasSwivelContent(level: Pick<CompiledLevel, 'terrain' | 'items'>
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier or a turn plate. */
+/** True when the tile id is a signal source or a signal gate, which only exist under the Epoxy rules. */
+export function isSignalTileId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.signalSource !== undefined || tile.signalGate !== undefined;
+}
+
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier, a turn plate or a signal tile. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
     isLaserTileId(id) || isColorChannelTileId(id) || isEpoxyOnlyItemId(id) ||
-    isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id) || isTurnPlateTileId(id)
+    isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id) || isTurnPlateTileId(id) ||
+    isSignalTileId(id)
   );
 }
 

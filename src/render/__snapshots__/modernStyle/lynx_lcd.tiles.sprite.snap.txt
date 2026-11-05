@@ -512,6 +512,27 @@ tile pressure_plate_blue closed=true shadowMask=128 hash=1 ef8f02504600ad87
 tile pressure_plate_yellow closed=true isolated 806bb464cf6b84a4
 tile pressure_plate_yellow closed=true shadowMask=65 hash=1 ca1f811f8aa4f2a4
 tile pressure_plate_yellow closed=true shadowMask=128 hash=1 e21fad1009ecb54f
+tile signal_plate closed=true isolated e23cbec8876b3016
+tile signal_plate closed=true shadowMask=65 hash=1 b98124bfc431222e
+tile signal_plate closed=true shadowMask=128 hash=1 5f579234af7c6971
+tile signal_gate_and closed=true isolated 4aa3a94e120b93b1
+tile signal_gate_and closed=true shadowMask=65 hash=1 4a605783d39c8f74
+tile signal_gate_and closed=true shadowMask=128 hash=1 4d882192d5b68af3
+tile signal_gate_or closed=true isolated 205e4a70cf35cfc2
+tile signal_gate_or closed=true shadowMask=65 hash=1 5d2cb26f886010d7
+tile signal_gate_or closed=true shadowMask=128 hash=1 d0f2a09d18667378
+tile signal_gate_not closed=true isolated cf448d8b80075099
+tile signal_gate_not closed=true shadowMask=65 hash=1 7069bec4b55f5bf8
+tile signal_gate_not closed=true shadowMask=128 hash=1 5a05cbadd4cd1f70
+tile signal_gate_xor closed=true isolated 494d9ade56427d0c
+tile signal_gate_xor closed=true shadowMask=65 hash=1 1dea2156a08e515b
+tile signal_gate_xor closed=true shadowMask=128 hash=1 96a3c8809b062747
+tile signal_latch_off closed=true isolated b9dca8ebf29d7324
+tile signal_latch_off closed=true shadowMask=65 hash=1 eec2d161640bb44d
+tile signal_latch_off closed=true shadowMask=128 hash=1 6421986b553de531
+tile signal_latch_on closed=true isolated ba1a4bcfea205fbb
+tile signal_latch_on closed=true shadowMask=65 hash=1 3c76e276e1556999
+tile signal_latch_on closed=true shadowMask=128 hash=1 2c18efb61f3cc4eb
 tile hold_door_red_closed closed=true isolated 5b98775faad3f35f
 tile hold_door_red_closed closed=true shadowMask=65 hash=1 b85e09d94b2057a0
 tile hold_door_red_closed closed=true shadowMask=128 hash=1 f8e9c6289682c95f
