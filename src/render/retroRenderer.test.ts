@@ -391,12 +391,12 @@ describe('32-Bit Retro scene', () => {
   const additiveCalls = (canvas: FakeCanvas): Call[] =>
     canvas.calls.filter((c) => c.name === 'set globalCompositeOperation' && c.args[0] === 'lighter');
 
-  it('cycles modern, 16-Bit, 32-Bit, then the recolouring styles, and back', () => {
+  it('cycles modern, 16-Bit, 32-Bit, then the recolouring and Runeward styles, and back', () => {
     const renderer = new PixelRenderer();
     expect(renderer.getStyle()).toBe('modern');
     expect(renderer.toggleStyle()).toBe('retro');
     expect(renderer.toggleStyle()).toBe('retro32');
-    for (const id of ['pocket', 'pastel', 'blueprint', 'sepia', 'classic90']) expect(renderer.toggleStyle()).toBe(id);
+    for (const id of ['pocket', 'pastel', 'blueprint', 'sepia', 'classic90', 'runeward', 'runeward_parchment']) expect(renderer.toggleStyle()).toBe(id);
     expect(renderer.toggleStyle()).toBe('modern');
   });
 

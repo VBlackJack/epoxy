@@ -27,16 +27,16 @@ describe('graphics style control helpers', () => {
   it('lists every style in cycle order with its label key', () => {
     const options = buildGraphicsStyleOptions();
     expect(options.map((o) => o.value)).toEqual([
-      'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90'
+      'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90', 'runeward', 'runeward_parchment'
     ]);
     expect(options[2].labelKey).toBe('app.header.graphics_retro32.action');
     expect(options[7].labelKey).toBe('app.header.graphics_classic90.action');
   });
 
-  it('keeps the unselectable Runeward styles out of the list yet restores them from saved settings', () => {
+  it('lists the Runeward styles after Classic 90 and restores them from saved settings', () => {
     for (const id of ['runeward', 'runeward_parchment'] as const) {
-      expect(buildGraphicsStyleOptions().map((o) => o.value)).not.toContain(id);
-      expect(buildGraphicsStyleOptions(RENDER_STYLES).map((o) => o.value)).not.toContain(id);
+      expect(buildGraphicsStyleOptions().map((o) => o.value)).toContain(id);
+      expect(buildGraphicsStyleOptions(RENDER_STYLES).map((o) => o.value)).toContain(id);
       expect(resolveInitialGraphicsStyle(id, 'modern')).toBe(id);
       expect(isLcdAvailable(id)).toBe(false);
       expect(canvasClassesToRemove(id)).toEqual([RETRO_PIXELS_CLASS]);

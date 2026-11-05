@@ -36,9 +36,9 @@ const THIRTY_TWO_BIT_TILE = 32;
 describe('render style registry', () => {
   it('lists the styles in G key order', () => {
     expect(SELECTABLE_RENDER_STYLES.map((s) => s.id)).toEqual([
-      'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90'
+      'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90', 'runeward', 'runeward_parchment'
     ]);
-    expect(RENDER_STYLES.map((s) => s.id)).toEqual([...SELECTABLE_RENDER_STYLES.map((s) => s.id), 'runeward', 'runeward_parchment']);
+    expect(RENDER_STYLES.map((s) => s.id)).toEqual(SELECTABLE_RENDER_STYLES.map((s) => s.id));
   });
 
   it('gives every style a distinct id and a label key following the header naming', () => {
@@ -101,13 +101,13 @@ describe('render style registry', () => {
     expect(id).toBe(DEFAULT_RENDER_STYLE_ID);
   });
 
-  it('keeps the Runeward styles out of the cycle yet hands a saved Runeward style over to the first style', () => {
-    expect(getRenderStyle('runeward').selectable).toBe(false);
-    expect(getRenderStyle('runeward_parchment').selectable).toBe(false);
+  it('puts the Runeward styles in the cycle after Classic 90 and wraps from the last one to the first', () => {
+    expect(getRenderStyle('runeward').selectable).toBe(true);
+    expect(getRenderStyle('runeward_parchment').selectable).toBe(true);
     expect(SELECTABLE_RENDER_STYLES.every((s) => s.selectable)).toBe(true);
-    expect(RENDER_STYLES.filter((s) => !s.selectable).map((s) => s.id)).toEqual(['runeward', 'runeward_parchment']);
-    expect(nextRenderStyle('classic90').id).toBe('modern');
-    expect(nextRenderStyle('runeward').id).toBe('modern');
+    expect(RENDER_STYLES.filter((s) => !s.selectable)).toEqual([]);
+    expect(nextRenderStyle('classic90').id).toBe('runeward');
+    expect(nextRenderStyle('runeward').id).toBe('runeward_parchment');
     expect(nextRenderStyle('runeward_parchment').id).toBe('modern');
   });
 
