@@ -31,6 +31,11 @@ export function requestedSearchBudget(): number {
   return ConfigRegistry.getGame().blockPuzzle.hintSearchBudget;
 }
 
+/** Observe-only counter a test may hand to `verdict`: `nodes` sums the layouts the searches visited. */
+export interface SearchWork {
+  nodes: number;
+}
+
 /** What `BlockPuzzleSolver.verdict` concludes about the block puzzles of a level. */
 export type BlockPuzzleVerdict =
   | { kind: 'solved'; pushes: number }
@@ -219,7 +224,11 @@ export class BlockPuzzleSolver {
    *    player cannot walk up to a block.
    *  - `none`: nothing to judge (not a 'targets' level, no target or no block).
    */
-  public static verdict(engine: GameEngine, budget: number = requestedSearchBudget()): BlockPuzzleVerdict {
+  public static verdict(
+    engine: GameEngine,
+    budget: number = requestedSearchBudget(),
+    work?: SearchWork
+  ): BlockPuzzleVerdict {
     if (engine.getLevel().winRule !== 'targets' || engine.getUnderlays() !== undefined) return { kind: 'none' };
     const playable = BlockPuzzleSolver.modelledCellCount(engine);
     if (playable === null || playable > ConfigRegistry.getGame().blockPuzzle.watchMaxCells) {
@@ -253,7 +262,7 @@ export class BlockPuzzleSolver {
         continue;
       }
       const fixed = new Set(solver.blocks.filter((b) => !area.blocks.includes(b)));
-      const outcome = solver.search(area.blocks, area.buttons, fixed, budget);
+      const outcome = solver.search(area.blocks, area.buttons, fixed, budget, work);
       if (outcome.kind === 'exhausted') unsolvable = true;
       else if (outcome.kind === 'budget') undecided = true;
       else {
@@ -408,7 +417,13 @@ export class BlockPuzzleSolver {
    * freely between pushes; other blocks stay put. A covering result keeps
    * the search tree so the first push can be read back.
    */
-  private search(areaBlocks: number[], buttons: number[], fixed: Set<number>, budget: number): SearchOutcome {
+  private search(
+    areaBlocks: number[],
+    buttons: number[],
+    fixed: Set<number>,
+    budget: number,
+    work?: SearchWork
+  ): SearchOutcome {
     const covered = (blocks: number[]) => buttons.every((b) => blocks.some((c) => blockCell(c) === b));
     const startBlocks = areaBlocks
       .map((cell) => encodeBlock(cell, this.pushMasks.get(cell) ?? FULL_PUSH_MASK))
@@ -416,10 +431,15 @@ export class BlockPuzzleSolver {
     const startReach = this.region(this.player, new Set([...startBlocks.map(blockCell), ...fixed]));
     const keyOf = (blocks: number[], reach: number[]) => `${blocks.join(',')}|${Math.min(...reach)}`;
     const seen = new Set([keyOf(startBlocks, startReach)]);
+    // Observe-only: adds the layouts visited, what the budget counts, to the caller's counter. Never read here.
+    const done = (outcome: SearchOutcome): SearchOutcome => {
+      if (work) work.nodes += seen.size;
+      return outcome;
+    };
     const nodes: SearchNode[] = [{ blocks: startBlocks, reach: startReach, parent: -1, pushFrom: -1, pushDir: null }];
     for (let i = 0; i < nodes.length; i++) {
       const { blocks, reach } = nodes[i];
-      if (covered(blocks)) return { kind: 'covered', nodes, goal: i };
+      if (covered(blocks)) return done({ kind: 'covered', nodes, goal: i });
       // The reach is only read while a node is expanded; keeping it would hold a region per layout.
       nodes[i].reach = [];
       const blockSet = new Set([...blocks.map(blockCell), ...fixed]);
@@ -437,13 +457,13 @@ export class BlockPuzzleSolver {
           const nextReach = this.region(b, new Set([...next.map(blockCell), ...fixed]));
           const key = keyOf(next, nextReach);
           if (seen.has(key)) continue;
-          if (seen.size >= budget) return { kind: 'budget' };
+          if (seen.size >= budget) return done({ kind: 'budget' });
           seen.add(key);
           nodes.push({ blocks: next, reach: nextReach, parent: i, pushFrom: b, pushDir: dir });
         }
       }
     }
-    return { kind: 'exhausted' };
+    return done({ kind: 'exhausted' });
   }
 
   /** Shortest walk between two cells without moving a block. */

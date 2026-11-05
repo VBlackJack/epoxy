@@ -22,12 +22,15 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { BlockPuzzleSolver } from './BlockPuzzleSolver';
 import { GameEngine } from './GameEngine';
-import { LevelValidator } from './LevelValidator';
+import { DOOR_ORDER_MAX_WALKS, LevelValidator, ValidateWorkMeter } from './LevelValidator';
 import { CompiledLevel, EntityPlacement } from './types';
 
 const UNSOLVABLE_KEY = 'validator.issues.targets_unsolvable.label';
-/** Generous wall-clock bound for validating a level the block search must skip. */
-const FAST_VALIDATE_MS = 2000;
+/**
+ * Ceiling on the cells the reach walks touch while validating the huge targets level: about 1.5x the 621576 measured
+ * on 2026-11-05 (one walk, two passes). It counts `ValidateWorkMeter.cells`, work and not time, so it holds on any machine.
+ */
+const HUGE_TARGETS_CELL_BUDGET = 930000;
 /** Side of the huge playfield, far above the cell cap of the block search. */
 const HUGE_SIDE = 128;
 /** Set to run the timing report below. */
@@ -86,6 +89,10 @@ function hugeRoom(side: number): CompiledLevel {
   return room(rows);
 }
 
+function newMeter(): ValidateWorkMeter {
+  return { cells: 0, walks: 0, passes: 0, blockNodes: 0 };
+}
+
 function warns(level: CompiledLevel, blockSearch?: 'watch' | 'exhaustive'): boolean {
   const report = LevelValidator.validate(level, undefined, blockSearch ? { blockSearch } : undefined);
   return report.issues.some((i) => i.i18nKey === UNSOLVABLE_KEY);
@@ -117,10 +124,25 @@ describe('targets_unsolvable in the validator', () => {
   it('validates a huge targets level fast and without a warning', () => {
     const level = hugeRoom(HUGE_SIDE);
     expect(HUGE_SIDE * HUGE_SIDE).toBeGreaterThan(ConfigRegistry.getGame().blockPuzzle.watchMaxCells);
-    const started = performance.now();
-    const report = LevelValidator.validate(level);
-    expect(performance.now() - started).toBeLessThan(FAST_VALIDATE_MS);
+    const meter = newMeter();
+    const report = LevelValidator.validate(level, undefined, { meter });
+    expect(meter.blockNodes).toBe(0);
+    expect(meter.cells).toBeLessThanOrEqual(HUGE_TARGETS_CELL_BUDGET);
+    expect(meter.walks).toBeLessThanOrEqual(1 + DOOR_ORDER_MAX_WALKS);
     expect(report.issues.map((i) => i.i18nKey)).not.toContain(UNSOLVABLE_KEY);
+  });
+
+  it('reports the same with and without the work meter on the huge level', () => {
+    const level = hugeRoom(HUGE_SIDE);
+    const plain = LevelValidator.validate(level);
+    const metered = LevelValidator.validate(level, undefined, { meter: newMeter() });
+    expect(JSON.stringify(metered)).toBe(JSON.stringify(plain));
+  });
+
+  it('counts the block search nodes on a genuinely stuck level', () => {
+    const meter = newMeter();
+    LevelValidator.validate(room(['######', '#$...#', '#.P..#', '#...T#', '######']), undefined, { meter });
+    expect(meter.blockNodes).toBeGreaterThan(0);
   });
 
   it.skipIf(!process.env[MEASURE_ENV])('reports validate timings (manual)', () => {

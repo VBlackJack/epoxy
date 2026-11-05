@@ -287,7 +287,7 @@ describe('door order search', () => {
     const level = pathologicalLevel();
     const doors = level.terrain.flat().filter((id) => id === 'door_yellow').length;
     expect(doors).toBe(PATHOLOGICAL_DOORS);
-    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0 };
+    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0, blockNodes: 0 };
     const report = LevelValidator.validate(level, undefined, { meter });
     expect(meter.walks).toBeLessThanOrEqual(MAX_REACH_WALKS);
     expect(meter.cells).toBeLessThanOrEqual(PATHOLOGICAL_CELL_BUDGET);
@@ -377,7 +377,7 @@ describe('door ranking cost', () => {
     const level = combLevel();
     const doors = level.terrain.flat().filter((id) => id === 'door_yellow').length;
     expect(doors).toBeGreaterThanOrEqual(150);
-    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0 };
+    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0, blockNodes: 0 };
     const report = LevelValidator.validate(level, undefined, { meter });
     expect(meter.walks).toBeLessThanOrEqual(MAX_REACH_WALKS);
     expect(meter.cells).toBeLessThanOrEqual(COMB_CELL_BUDGET);
@@ -386,7 +386,7 @@ describe('door ranking cost', () => {
 
   it('reports the same with a work meter as without, the meter only observes', () => {
     const level = combLevel();
-    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0 };
+    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0, blockNodes: 0 };
     const metered = LevelValidator.validate(level, undefined, { meter });
     const plain = LevelValidator.validate(level);
     expect(meter.cells).toBeGreaterThan(0);
