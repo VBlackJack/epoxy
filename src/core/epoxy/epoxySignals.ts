@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
+import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalNodeDef, SignalSpec } from '../types';
 import { refreshBeams } from './epoxyLasers';
 import { EpoxyWorld, entityPressesPlate, mapWidth } from './epoxyWorld';
@@ -45,6 +46,9 @@ export class SignalWiringError extends Error {
     this.name = 'SignalWiringError';
   }
 }
+
+/** Looks a tile up in the registry, the way the engine reads the terrain; the registry answers floor for an unknown id. */
+export const registryTileLookup: TerrainTileLookup = (id) => ConfigRegistry.getTile(id);
 
 /** Builds the runtime of a level's signal network; everything starts off. */
 export function createSignalRuntime(spec: SignalSpec): SignalRuntime {

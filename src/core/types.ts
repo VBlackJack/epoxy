@@ -799,6 +799,12 @@ export interface TileDefinition {
    * may leave and nothing may enter; false keeps it open until the cell is free, as a laser gate does.
    */
   holdDoorClosesOnOccupant?: boolean;
+  /** A signal source: 'held' is on while its cell is occupied. A laser receiver is a source through laserReceiverGroup. */
+  signalSource?: 'held';
+  /** A signal gate: the logic it applies to the signals linked into it. */
+  signalGate?: 'and' | 'or' | 'not' | 'xor' | 'latch';
+  /** A latch tile that starts with its bit on; the bit itself lives in the signal state. */
+  signalLatchStartsOn?: true;
   /** Channel of a colour toggle wall; a toggle wall that declares none belongs to the green channel. */
   toggleChannel?: ChannelColor;
   /** The other form of a colour toggle wall, swapped by the toggle button of its channel only. */
@@ -1086,6 +1092,19 @@ export interface LauncherLink {
   launcherY: number;
 }
 
+/**
+ * A signal wire from one device to another (Epoxy ruleset only): the output of the `from` cell feeds the `to` cell.
+ * What each end is (a source, a gate or a sink) comes from the tile on the cell, never from the link.
+ */
+export interface SignalLink {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  /** Reserved for ordered gates, 1 to 16 characters; ignored in v1. */
+  port?: string;
+}
+
 /** A shot in flight. It sits in a cell, never in the launcher's, and flies until it hits something. */
 export interface Shot {
   x: number;
@@ -1187,6 +1206,8 @@ export interface LevelBlueprint {
   cloneLinks: CloneLink[];
   /** Triggers wired to shot launchers (Epoxy ruleset only); absent when the level has none. */
   launcherLinks?: LauncherLink[];
+  /** Signal wires between devices (Epoxy ruleset only); absent when the level has none. */
+  signalLinks?: SignalLink[];
 }
 
 /** One chapter of the Epoxy campaign: a titled run of levels, listed by id. */
@@ -1269,7 +1290,7 @@ export interface SignalNodeDef extends SignalNodeSpec {
   color?: ChannelColor;
 }
 
-/** The signal network of a level (Epoxy ruleset only). No loader writes it yet: tests attach it by hand. */
+/** The signal network of a level (Epoxy ruleset only), compiled from its signal links at load; never stored. */
 export interface SignalSpec {
   nodes: SignalNodeDef[];
   links: SignalLinkSpec[];
@@ -1311,8 +1332,8 @@ export interface CompiledLevel {
   cloneLinks: CloneLink[];
   /** Triggers wired to shot launchers (Epoxy ruleset only); absent when the level has none. */
   launcherLinks?: LauncherLink[];
-  /** Logic wiring between devices (Epoxy ruleset only); absent when the level has none. Spike: no loader reads or writes it. */
-  signalSpec?: SignalSpec;
+  /** Signal wires between devices (Epoxy ruleset only); absent when the level has none. */
+  signalLinks?: SignalLink[];
 }
 
 export interface LevelPack {

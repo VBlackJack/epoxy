@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
@@ -22,7 +22,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
 import { engineSimulationHash } from '../engineSimHash';
-import type { CompiledLevel, Direction, EntityPlacement, SignalNodeDef, SignalSpec } from '../types';
+import type { CompiledLevel, Direction, EntityPlacement, SignalLink, TileDefinition } from '../types';
 
 const SIZE = 11;
 const TIME_LIMIT_SECONDS = 100;
@@ -40,12 +40,28 @@ const RECEIVER = { x: 4, y: 2 };
 const BEAM_BLOCKER = { x: 2, y: 2 };
 const SECOND_GATE_CELL = { x: 5, y: 3 };
 
-const cell = (p: { x: number; y: number }): number => p.y * SIZE + p.x;
+// Stub tiles: no shipped tile is a signal device yet, so the registry answers these ids with floor-based fakes.
+const PLATE_TILE = 'test_plate';
+const AND_TILE = 'test_and';
+const OR_TILE = 'test_or';
+const NOT_TILE = 'test_not';
+const XOR_TILE = 'test_xor';
+const LATCH_TILE = 'test_latch';
+const LATCH_ON_TILE = 'test_latch_on';
+const STUB_FIELDS: Record<string, Partial<TileDefinition>> = {
+  [PLATE_TILE]: { signalSource: 'held' },
+  [AND_TILE]: { signalGate: 'and' },
+  [OR_TILE]: { signalGate: 'or' },
+  [NOT_TILE]: { signalGate: 'not' },
+  [XOR_TILE]: { signalGate: 'xor' },
+  [LATCH_TILE]: { signalGate: 'latch' },
+  [LATCH_ON_TILE]: { signalGate: 'latch', signalLatchStartsOn: true }
+};
 
 interface Setup {
   terrain?: Array<[number, number, string]>;
   entities?: EntityPlacement[];
-  signalSpec?: SignalSpec;
+  signalLinks?: SignalLink[];
   player?: { x: number; y: number };
 }
 
@@ -67,24 +83,29 @@ function room(setup: Setup): CompiledLevel {
     trapLinks: [],
     cloneLinks: []
   };
-  if (setup.signalSpec !== undefined) level.signalSpec = setup.signalSpec;
+  if (setup.signalLinks !== undefined) level.signalLinks = setup.signalLinks;
   return level;
 }
 
-const held = (p: { x: number; y: number }): SignalNodeDef => ({ cell: cell(p), kind: 'source', sample: 'held' });
-const receiverSource = (p: { x: number; y: number }): SignalNodeDef => ({ cell: cell(p), kind: 'source', sample: 'receiver' });
-const doorSink = (): SignalNodeDef => ({ cell: cell(DOOR), kind: 'sink', color: 'red' });
-const link = (from: { x: number; y: number }, to: { x: number; y: number }) => ({ from: cell(from), to: cell(to) });
+const link = (from: { x: number; y: number }, to: { x: number; y: number }): SignalLink => ({
+  fromX: from.x,
+  fromY: from.y,
+  toX: to.x,
+  toY: to.y
+});
+const tileAt = (p: { x: number; y: number }, id: string): [number, number, string] => [p.x, p.y, id];
 
 /** plate A and plate B -> AND -> red hold door. A holds a block when `blockOnA`. */
 function andLevel(blockOnA: boolean): CompiledLevel {
   return room({
-    terrain: [[DOOR.x, DOOR.y, CLOSED_DOOR]],
+    terrain: [
+      [DOOR.x, DOOR.y, CLOSED_DOOR],
+      tileAt(PLATE_A, PLATE_TILE),
+      tileAt(PLATE_B, PLATE_TILE),
+      tileAt(GATE_CELL, AND_TILE)
+    ],
     entities: blockOnA ? [{ type: 'dirt_block', x: PLATE_A.x, y: PLATE_A.y, dir: 'N' }] : [],
-    signalSpec: {
-      nodes: [held(PLATE_A), held(PLATE_B), { cell: cell(GATE_CELL), kind: 'and' }, doorSink()],
-      links: [link(PLATE_A, GATE_CELL), link(PLATE_B, GATE_CELL), link(GATE_CELL, DOOR)]
-    }
+    signalLinks: [link(PLATE_A, GATE_CELL), link(PLATE_B, GATE_CELL), link(GATE_CELL, DOOR)]
   });
 }
 
@@ -94,14 +115,12 @@ function notReceiverLevel(beamBlocked: boolean, doorStartsAs: string): CompiledL
     terrain: [
       [DOOR.x, DOOR.y, doorStartsAs],
       [EMITTER.x, EMITTER.y, 'laser_emitter_e'],
-      [RECEIVER.x, RECEIVER.y, 'laser_receiver_red']
+      [RECEIVER.x, RECEIVER.y, 'laser_receiver_red'],
+      tileAt(GATE_CELL, NOT_TILE)
     ],
     entities: beamBlocked ? [{ type: 'dirt_block', x: BEAM_BLOCKER.x, y: BEAM_BLOCKER.y, dir: 'N' }] : [],
     player: { x: DOOR.x - 1, y: DOOR.y },
-    signalSpec: {
-      nodes: [receiverSource(RECEIVER), { cell: cell(GATE_CELL), kind: 'not' }, doorSink()],
-      links: [link(RECEIVER, GATE_CELL), link(GATE_CELL, DOOR)]
-    }
+    signalLinks: [link(RECEIVER, GATE_CELL), link(GATE_CELL, DOOR)]
   });
 }
 
@@ -126,6 +145,14 @@ function doorTile(engine: GameEngine): string {
 
 beforeEach(() => {
   loadTestConfigs();
+  const realGetTile = ConfigRegistry.getTile.bind(ConfigRegistry);
+  const stubs: Record<string, TileDefinition> = {};
+  for (const [id, fields] of Object.entries(STUB_FIELDS)) stubs[id] = { ...realGetTile('floor'), id, ...fields };
+  vi.spyOn(ConfigRegistry, 'getTile').mockImplementation((id: string) => stubs[id] ?? realGetTile(id));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('signals in the engine: plate and plate into AND into a hold door', () => {
@@ -223,11 +250,8 @@ describe('signals in the engine: laser receiver into NOT into a hold door', () =
 /** plate B -> latch -> door, with the latch starting on or off. */
 function latchLevel(id: string, startBit: boolean): CompiledLevel {
   const level = room({
-    terrain: [[DOOR.x, DOOR.y, CLOSED_DOOR]],
-    signalSpec: {
-      nodes: [held(PLATE_B), { cell: cell(GATE_CELL), kind: 'latch', startBit }, doorSink()],
-      links: [link(PLATE_B, GATE_CELL), link(GATE_CELL, DOOR)]
-    }
+    terrain: [[DOOR.x, DOOR.y, CLOSED_DOOR], tileAt(PLATE_B, PLATE_TILE), tileAt(GATE_CELL, startBit ? LATCH_ON_TILE : LATCH_TILE)],
+    signalLinks: [link(PLATE_B, GATE_CELL), link(GATE_CELL, DOOR)]
   });
   level.id = id;
   return level;
@@ -333,15 +357,12 @@ describe('signals in the engine: one edge per change', () => {
     const rowA = { x: 4, y: 3 };
     const rowB = { x: 4, y: 7 };
     const level = room({
-      terrain: [[DOOR.x, DOOR.y, CLOSED_DOOR]],
+      terrain: [[DOOR.x, DOOR.y, CLOSED_DOOR], tileAt(rowA, PLATE_TILE), tileAt(rowB, PLATE_TILE), tileAt(GATE_CELL, OR_TILE)],
       entities: [
         { type: 'tank', x: rowA.x - 1, y: rowA.y, dir: 'E' },
         { type: 'tank', x: rowB.x - 1, y: rowB.y, dir: 'E' }
       ],
-      signalSpec: {
-        nodes: [held(rowA), held(rowB), { cell: cell(GATE_CELL), kind: 'or' }, doorSink()],
-        links: [link(rowA, GATE_CELL), link(rowB, GATE_CELL), link(GATE_CELL, DOOR)]
-      }
+      signalLinks: [link(rowA, GATE_CELL), link(rowB, GATE_CELL), link(GATE_CELL, DOOR)]
     });
     const engine = load(level);
     let entered = -1;
@@ -383,23 +404,53 @@ describe('signals in the engine: levels without signals', () => {
 
   it('chains two gates into one door', () => {
     const level = room({
-      terrain: [[DOOR.x, DOOR.y, CLOSED_DOOR]],
+      terrain: [
+        [DOOR.x, DOOR.y, CLOSED_DOOR],
+        tileAt(PLATE_A, PLATE_TILE),
+        tileAt(PLATE_B, PLATE_TILE),
+        tileAt(GATE_CELL, XOR_TILE),
+        tileAt(SECOND_GATE_CELL, NOT_TILE)
+      ],
       entities: [{ type: 'dirt_block', x: PLATE_A.x, y: PLATE_A.y, dir: 'N' }],
-      signalSpec: {
-        nodes: [
-          held(PLATE_A),
-          held(PLATE_B),
-          { cell: cell(GATE_CELL), kind: 'xor' },
-          { cell: cell(SECOND_GATE_CELL), kind: 'not' },
-          doorSink()
-        ],
-        links: [link(PLATE_A, GATE_CELL), link(PLATE_B, GATE_CELL), link(GATE_CELL, SECOND_GATE_CELL), link(SECOND_GATE_CELL, DOOR)]
-      }
+      signalLinks: [link(PLATE_A, GATE_CELL), link(PLATE_B, GATE_CELL), link(GATE_CELL, SECOND_GATE_CELL), link(SECOND_GATE_CELL, DOOR)]
     });
     const engine = load(level);
     // A on, B off: XOR on, NOT off, door shut. Then B on too: XOR off, NOT on, door open.
     expect(doorTile(engine)).toBe(CLOSED_DOOR);
     step(engine, 'E');
     expect(doorTile(engine)).toBe(OPEN_DOOR);
+  });
+});
+
+describe('signals in the engine: levels compiled from real tiles', () => {
+  /** A laser receiver wired straight to a red hold door, with a block that can cut the beam. */
+  function receiverToDoor(beamBlocked: boolean): CompiledLevel {
+    const level = room({
+      terrain: [
+        [DOOR.x, DOOR.y, CLOSED_DOOR],
+        [EMITTER.x, EMITTER.y, 'laser_emitter_e'],
+        [RECEIVER.x, RECEIVER.y, 'laser_receiver_red']
+      ],
+      entities: beamBlocked ? [{ type: 'dirt_block', x: BEAM_BLOCKER.x, y: BEAM_BLOCKER.y, dir: 'N' }] : [],
+      signalLinks: [link(RECEIVER, DOOR)]
+    });
+    return level;
+  }
+
+  it('opens the door while the receiver is lit and keeps it shut when the beam is cut', () => {
+    const lit = load(receiverToDoor(false));
+    expect(lit.getLitReceivers()).toHaveLength(1);
+    expect(doorTile(lit)).toBe(OPEN_DOOR);
+    expect(lit.getSignalEdgeCounts()).toEqual({ rising: 0, falling: 0 });
+    const dark = load(receiverToDoor(true));
+    expect(dark.getLitReceivers()).toHaveLength(0);
+    expect(doorTile(dark)).toBe(CLOSED_DOOR);
+  });
+
+  it('runs no network when the links name no device', () => {
+    const level = receiverToDoor(false);
+    level.signalLinks = [link(DOOR, RECEIVER)];
+    const engine = load(level);
+    expect(engine.getSignalState()).toBeUndefined();
   });
 });
