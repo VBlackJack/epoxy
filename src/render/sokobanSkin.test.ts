@@ -236,6 +236,7 @@ describe('Sokoban skin in the renderer', () => {
   interface Scene {
     renderer: PixelRenderer;
     main: FakeCanvas;
+    engine: GameEngine;
     frame(): void;
   }
 
@@ -254,7 +255,7 @@ describe('Sokoban skin in the renderer', () => {
     renderer.setViewportTiles(VIEW_TILES);
     if (opts.loader) renderer.setSkinLoader(opts.loader);
     const main = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
-    return { renderer, main, frame: () => renderer.renderViewport(main.getContext('2d'), engine) };
+    return { renderer, main, engine, frame: () => renderer.renderViewport(main.getContext('2d'), engine) };
   }
 
   function resetCalls(): void {
@@ -305,6 +306,24 @@ describe('Sokoban skin in the renderer', () => {
       const hiddenDraws = skinDraws([hidden.main]).filter((d) => d.file === 'ground_06.png').length;
       expect(hiddenDraws).toBe(floorDraws);
     }
+  });
+
+  it('marks the hidden walls over the skin floor while the eye boots are held', async () => {
+    const loader = await loadedLoader();
+    const markers = (canvases: readonly FakeCanvas[]): number =>
+      canvases.reduce(
+        (total, canvas) =>
+          total + canvas.calls.filter((c) => c.name === 'setLineDash' && (c.args[0] as number[]).length === 2).length,
+        0
+      );
+    const without = scene({ winRule: 'targets', loader, hiddenWalls: true });
+    without.frame();
+    const base = markers([...created, without.main]);
+    created.length = 0;
+    const eyed = scene({ winRule: 'targets', loader, hiddenWalls: true });
+    eyed.engine.getPlayer().boots.add('boots_eye');
+    eyed.frame();
+    expect(markers([...created, eyed.main]) - base).toBe(HIDDEN_WALL_CELLS.length);
   });
 
   it('draws only the darker crate for a block standing on a target', async () => {
