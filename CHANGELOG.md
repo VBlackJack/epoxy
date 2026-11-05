@@ -15,6 +15,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- The play board is now landscape on desktop, in the mobile landscape layout and in the phone full screen overlay (the mobile portrait layout keeps a square board): the zoom option sets the rows shown, a level smaller than the view is zoomed up to 1.5 times without hiding any of it (on a phone it fills the space beside the pad), and the space around a level shows a darkened wall colour of the current style instead of black. Both locales.
 - Validator: a level with fewer keys than doors of a colour now gets a warning instead of an error, so winnable levels with spare doors can be saved; a real shortage is still reported as unreachable chips or exit.
 
 ### Fixed

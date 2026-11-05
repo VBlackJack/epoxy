@@ -24,7 +24,7 @@
       "theme_label": { "label": "Biome:" },
       "procedural_btn": { "action": "Endless mode" },
       "fov": { "label": "Zoom:" },
-      "fov_option": { "label": "{size}x{size}" },
+      "fov_option": { "label": "{size} rows" },
       "dpad_side": { "label": "Directional pad (touch):", "left": "Left", "right": "Right" },
       "audio_toggle": { "action_on": "Sound effects: on", "action_off": "Sound effects: off" },
       "music_toggle": { "action_on": "Music: on", "action_off": "Music: off" },
