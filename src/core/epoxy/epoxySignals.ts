@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
-import type { ChannelColor, SignalNodeDef, SignalSpec } from '../types';
+import type { ChannelColor, SignalLink, SignalNodeDef, SignalSpec } from '../types';
 import { refreshBeams } from './epoxyLasers';
 import { EpoxyWorld, entityPressesPlate, mapWidth } from './epoxyWorld';
 import {
@@ -112,6 +112,36 @@ export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false): Signa
     else runtime.edgeCounts.falling++;
   }
   return result.edges;
+}
+
+/**
+ * The links of the world's network as the engine compiled them (normalized, sorted by source then target), by
+ * cell coordinates; undefined without signals. Read only: a drawing aid, never hashed or snapshotted.
+ */
+export function signalLinksOf(w: EpoxyWorld): readonly SignalLink[] | undefined {
+  const runtime = w.signals;
+  if (runtime === undefined) return undefined;
+  const width = mapWidth(w);
+  return runtime.network.links.map((link) => ({
+    fromX: link.from % width,
+    fromY: Math.floor(link.from / width),
+    toX: link.to % width,
+    toY: Math.floor(link.to / width)
+  }));
+}
+
+/**
+ * The cells of the nodes whose output is on at the last settle, by cell index; undefined without signals.
+ * The state arrays follow the evaluation order, so the cell comes from the node at the same position.
+ */
+export function poweredSignalCellsOf(w: EpoxyWorld): ReadonlySet<number> | undefined {
+  const runtime = w.signals;
+  if (runtime === undefined) return undefined;
+  const powered = new Set<number>();
+  runtime.network.nodes.forEach((node, index) => {
+    if (runtime.state.lastOutputs[index]) powered.add(node.cell);
+  });
+  return powered;
 }
 
 /** A copy of the state of the world's network, for a snapshot or a hash; undefined without signals. */

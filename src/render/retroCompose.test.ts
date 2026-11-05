@@ -320,6 +320,8 @@ describe('every in-game id maps to existing sprites', () => {
                       isEditor,
                       revealHiddenWalls: isEditor,
                       isClosedTrap,
+                      // A powered signal tile adds its lit overlay; the editor flag stands in for the second state.
+                      powered: isEditor,
                       phase,
                       reducedMotion
                     });

@@ -97,6 +97,7 @@ import {
   EDITOR_HIDDEN_STATE_BADGE_SIZE_TILE
 } from '../ui/uiConstants';
 import { paintColorGlyph } from './colorGlyph';
+import { paintSignalTile, SIGNAL_TILE_KINDS } from './signalTilePainter';
 import { ICE_BEND_BAND_WIDTH_TILE, ICE_BEND_RADIUS_TILE, iceBendGeometry, IceBendGeometry, paintIceBend, QUARTER_TURN } from './iceBend';
 import { armRects, BEAM_CORE_TILE, BEAM_HALO_TILE, beamArms, BeamBoard } from './laserBeams';
 import {
@@ -596,6 +597,7 @@ const LINK_STYLE = {
   clonerAlpha: 0.75,
   toggleAlpha: 0.65,
   teleportAlpha: 0.72,
+  signalAlpha: 0.72,
   objectiveAlpha: 0.92,
   objectivePulseBase: 0.36,
   objectivePulseAmplitude: 0.12,
@@ -675,6 +677,9 @@ export class PixelRenderer {
   private terrainCacheKey: string = '';
   private trapStateKey: string = '';
   private blockCellsStateKey: string = '';
+  private signalStateKey: string = '';
+  /** The cells whose signal node is on, read from the engine each frame; undefined without signals. */
+  private poweredSignalCells: ReadonlySet<number> | undefined;
   private readonly cacheRegion = { x0: 0, y0: 0, x1: -1, y1: -1 };
 
   /** Pre-rendered glowing shapes, keyed by kind, style and size. */
@@ -1337,6 +1342,7 @@ export class PixelRenderer {
     const entities = engine.getEntities();
     this.blockCellsWidth = mapWidth;
     collectBlockCells(entities, mapWidth, this.blockCells);
+    this.poweredSignalCells = engine.getPoweredSignalCells?.();
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -1910,6 +1916,7 @@ export class PixelRenderer {
     }
 
     const blockKey = blockCellsKey(this.blockCells);
+    const signalKey = this.poweredSignalCells === undefined ? '' : [...this.poweredSignalCells].sort((a, b) => a - b).join(',');
     const skinKey = this.skinActive ? `skin${this.skinLoader?.version ?? 0}` : '';
     const revealKey = this.frameRevealsHiddenWalls ? REVEAL_KEY : '';
     const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}|${skinKey}|${revealKey}`;
@@ -1925,12 +1932,14 @@ export class PixelRenderer {
       covered &&
       trapKey === this.trapStateKey &&
       blockKey === this.blockCellsStateKey &&
+      signalKey === this.signalStateKey &&
       cacheKey === this.terrainCacheKey
     ) {
       return;
     }
     this.trapStateKey = trapKey;
     this.blockCellsStateKey = blockKey;
+    this.signalStateKey = signalKey;
     if (cacheKey !== this.terrainCacheKey) this.restartFrameBudget();
     this.terrainCacheKey = cacheKey;
 
@@ -2047,6 +2056,34 @@ export class PixelRenderer {
     }
   }
 
+  /** Strokes the signal links that are shown: those at the hovered cell, or all of them with showAll. */
+  private strokeSignalLinks(
+    ctx: CanvasRenderingContext2D,
+    engine: PlayEngine,
+    hov: GridPoint | null,
+    showAll: boolean,
+    camX: number,
+    camY: number,
+    tilePixelSize: number
+  ): void {
+    const links = engine.getSignalLinks?.();
+    if (links === undefined || links.length === 0) return;
+    const powered = this.poweredSignalCells;
+    const width = this.blockCellsWidth;
+    ctx.strokeStyle = this.pal().linkSignal;
+    for (const link of links) {
+      const isHovered =
+        hov !== null &&
+        ((hov.x === link.fromX && hov.y === link.fromY) || (hov.x === link.toX && hov.y === link.toY));
+      if (!showAll && !isHovered) continue;
+      const flowing = powered?.has(link.fromY * width + link.fromX) === true;
+      ctx.setLineDash(flowing ? NO_DASH : LINK_DASH_PATTERN);
+      ctx.globalAlpha = isHovered ? LINK_STYLE.hoverAlpha : LINK_STYLE.signalAlpha;
+      this.strokeGridLink(ctx, link.fromX, link.fromY, link.toX, link.toY, camX, camY, tilePixelSize);
+    }
+    ctx.setLineDash(LINK_DASH_PATTERN);
+  }
+
   private drawMechanismLinksAndObjective(
     ctx: CanvasRenderingContext2D,
     engine: PlayEngine,
@@ -2123,6 +2160,9 @@ export class PixelRenderer {
         this.strokeGridLink(ctx, a.x, a.y, b.x, b.y, camX, camY, tilePixelSize);
       }
     }
+
+    // 3b. Signal links: solid while the signal flows, dashed while it does not
+    this.strokeSignalLinks(ctx, engine, hov, showAll, camX, camY, tilePixelSize);
 
     // 4. Objective Beacon Reticle
     if (this.objectivePoint) {
@@ -2262,6 +2302,40 @@ export class PixelRenderer {
     } else {
       this.drawLegacyTile(ctx, tileId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
     }
+  }
+
+  /** Whether the signal node of the cell being drawn is on; false in the editor, which has no running level. */
+  private isSignalPowered(neighbours: Readonly<TileNeighbours>): boolean {
+    if (neighbours.cx === undefined || neighbours.cy === undefined) return false;
+    return this.poweredSignalCells?.has(neighbours.cy * this.blockCellsWidth + neighbours.cx) === true;
+  }
+
+  /**
+   * A signal plate or gate in the flat (square) or neon (rounded, glowing) style. A tile id that is not a signal
+   * tile draws nothing. The colours come from the palette: the dark box, the idle rim and symbol, the lit yellow.
+   */
+  private paintSignalDevice(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    x: number,
+    y: number,
+    size: number,
+    neighbours: Readonly<TileNeighbours>,
+    rounded: boolean
+  ): void {
+    const kind = SIGNAL_TILE_KINDS[tileId];
+    if (kind === undefined) return;
+    const pal = this.pal();
+    paintSignalTile(
+      ctx,
+      x,
+      y,
+      size,
+      kind,
+      this.isSignalPowered(neighbours),
+      { box: rounded ? pal.modernButtonBase : pal.chipBody, idle: pal.gravelBase, lit: pal.yellow },
+      { rounded, glowBlurPx: rounded ? this.getSettings().glowBlurPx.soft : 0 }
+    );
   }
 
   /** One neon bar per blocked edge (modern style), drawn over whatever is under the cell. */
@@ -2995,6 +3069,16 @@ export class PixelRenderer {
         this.paintLaserTile(ctx, tileId, x, y, size, false);
         break;
 
+      case 'signal_plate':
+      case 'signal_gate_and':
+      case 'signal_gate_or':
+      case 'signal_gate_not':
+      case 'signal_gate_xor':
+      case 'signal_latch_off':
+      case 'signal_latch_on':
+        this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, false);
+        break;
+
       case 'transmogrifier':
         this.paintTransmogrifier(ctx, x, y, size, false);
         break;
@@ -3394,6 +3478,7 @@ export class PixelRenderer {
       isEditor,
       revealHiddenWalls: this.frameRevealsHiddenWalls,
       isClosedTrap,
+      powered: this.isSignalPowered(neighbours),
       phase: this.retroPhase(),
       reducedMotion: this.reducedMotion
     });
@@ -4090,6 +4175,16 @@ export class PixelRenderer {
       case 'laser_gate_blue_closed':
       case 'laser_gate_blue_open':
         this.paintLaserTile(ctx, tileId, x, y, size, true);
+        break;
+
+      case 'signal_plate':
+      case 'signal_gate_and':
+      case 'signal_gate_or':
+      case 'signal_gate_not':
+      case 'signal_gate_xor':
+      case 'signal_latch_off':
+      case 'signal_latch_on':
+        this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, true);
         break;
 
       case 'transmogrifier':
