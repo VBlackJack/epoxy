@@ -62,6 +62,7 @@ import {
 } from './core/types';
 import { inspectDisplayTileId } from './ui/inspectMask';
 import { confirmDialog } from './ui/confirmDialog';
+import { applyBoardBackdrop } from './ui/boardBackdrop';
 import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
 import { EndlessGenerator, EndlessWorkerLike } from './ui/endlessGenerator';
 import {
@@ -532,6 +533,7 @@ class EpoxyApplication {
         ? savedSettings.fov
         : gameCfg.grid.viewportWidth;
     this.renderer.setViewportTiles(initialFov);
+    this.renderer.setFitMode('level');
 
     const defaultStyle = resolveInitialGraphicsStyle(savedSettings.graphicsStyle, gameCfg.graphics?.defaultStyle);
     this.renderer.setStyle(defaultStyle);
@@ -562,6 +564,7 @@ class EpoxyApplication {
       );
     });
     this.syncThemeAccent();
+    this.syncBoardBackdrop();
 
     this.setupFovSelector(presets, initialFov);
   }
@@ -1761,6 +1764,7 @@ class EpoxyApplication {
     }
     select.onchange = () => {
       this.renderer.setPlayerSkin(parsePlayerSkin(select.value));
+      this.syncBoardBackdrop();
       this.saveUserSettings();
       if (this.activeMode === 'editor') this.editor.render();
     };
@@ -1784,6 +1788,7 @@ class EpoxyApplication {
   private showTheme(themeId: string): void {
     this.renderer.setThemeId(themeId);
     this.syncThemeAccent();
+    this.syncBoardBackdrop();
     this.refreshRetroIcons();
     AudioManager.setThemeTrack(this.currentThemeTrackId());
   }
@@ -3252,20 +3257,34 @@ class EpoxyApplication {
     });
   }
 
-  /** Tells the renderer which part of the board the pad hides; zeros outside the overlay layout. */
+  /** Paints the space around a level with the darkened wall colour of the current style and theme. */
+  private syncBoardBackdrop(): void {
+    applyBoardBackdrop(document.documentElement, this.renderer.getBackdropColour());
+  }
+
+  /**
+   * Tells the renderer which part of the board the pad hides; zeros outside the overlay layout.
+   * The level fit reserve comes from the pad rect alone, so it does not depend on the tile size.
+   * The half tile of air beside the pad uses the tile of the last drawn frame, or the FOV tile
+   * before the first frame.
+   */
   private syncCameraInsets(): void {
     const canvasRect = this.gameCanvas.getBoundingClientRect();
     const padRect = document.querySelector(TOUCH_PAD_AREA_SELECTOR)?.getBoundingClientRect();
-    const tiles = this.renderer.getViewportTiles();
-    const insets = computeCameraInsets({
+    const insetArgs = {
       active: this.touchOverlayActive && padRect !== undefined,
       landscape: window.innerWidth > window.innerHeight,
       side: this.dpadSide,
       canvas: canvasRect,
-      pad: padRect ?? canvasRect,
-      tilePx: tiles > 0 ? Math.min(canvasRect.width, canvasRect.height) / tiles : 0
-    });
-    this.renderer.setCameraInsets(insets);
+      pad: padRect ?? canvasRect
+    };
+    this.renderer.setFitReserve(computeCameraInsets({ ...insetArgs, tilePx: 0 }));
+    const tiles = this.renderer.getViewportTiles();
+    const frameTilePx = this.renderer.getFrameTileFraction() * canvasRect.width;
+    const fovTilePx = tiles > 0 ? Math.min(canvasRect.width, canvasRect.height) / tiles : 0;
+    this.renderer.setCameraInsets(
+      computeCameraInsets({ ...insetArgs, tilePx: frameTilePx > 0 ? frameTilePx : fovTilePx })
+    );
   }
 
   /** Pause card extras and the inert pad: only the overlay layout shows them, only while the game is paused. */
@@ -3377,6 +3396,7 @@ class EpoxyApplication {
   private applyGraphicsStyle(style: GraphicsStyle): void {
     if (this.renderer.getStyle() !== style) this.renderer.setStyle(style);
     this.syncGraphicsControls(style);
+    this.syncBoardBackdrop();
     this.rebuildHudIcons();
     this.saveUserSettings();
     this.updateHUD();

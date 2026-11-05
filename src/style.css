@@ -31,23 +31,16 @@
   --dpad-cell: 44px;
   /* Height of everything above the board on desktop (top bar, header, screen padding, HUD strip) */
   --board-chrome-height: 217px;
-  --board-min-size: 320px;
   --board-min-height: 500px;
   --board-max-height: 880px;
-  --board-max-size: 740px;
-  --board-preferred-size: 76vh;
   /* Landscape phone layout: columns beside the board, chrome above it, and the smallest HUD column */
   --land-pad-col: 132px;
   --land-hud-min: 216px;
-  --land-chrome-height: 48px;
+  --land-chrome-height: 51px;
   --land-chrome-height-fs: 10px;
   --land-pad: 0.25rem;
   --land-border: 2px;
   --land-gap: 0.4rem;
-  /* Horizontal: view padding + lcd padding (both sides), lcd border (both sides), two column gaps */
-  --land-inset-x: calc(var(--land-pad) * 4 + var(--land-border) * 2 + var(--land-gap) * 2);
-  /* Vertical: lcd padding + lcd border (both sides) */
-  --land-inset-y: calc(var(--land-pad) * 2 + var(--land-border) * 2);
   /* Desktop layout: horizontal space consumed beside the board */
   --hud-width: 280px;
   --desk-view-pad: 1rem;
@@ -56,7 +49,7 @@
   --desk-gap: 1rem;
   /* Allowance for a vertical scrollbar, which 100dvw does not exclude */
   --scrollbar-allowance: 16px;
-  /* Widest square that fits beside the HUD */
+  /* Widest board that fits beside the HUD */
   --board-fit-width: calc(
     100dvw - var(--hud-width) - var(--desk-gap) - var(--desk-view-pad) * 2 - var(--desk-lcd-pad) * 2 -
       var(--desk-lcd-border) * 2 - var(--scrollbar-allowance)
@@ -510,36 +503,35 @@ button:disabled {
 
 .viewport-wrapper {
   position: relative;
-  /* Square board bounded by the viewport minus the chrome above it, so it never overflows */
-  --board-size: clamp(
-    var(--board-min-size),
-    min(var(--board-preferred-size), calc(100dvh - var(--board-chrome-height))),
-    var(--board-max-size)
-  );
-  width: var(--board-size);
-  height: var(--board-size);
   border: 2px solid #37474f;
-  background: #000;
+  background: var(--board-backdrop, #000);
   flex-shrink: 0;
 }
 
 /* Desktop board: fills the row, height bounded by the window minus the chrome above it.
    Media queries below restate it with the same selector to override it. */
 .play-shell .viewport-wrapper {
-  /* Square: the renderer shows exactly N x N tiles, so the box must not follow the screen shape */
+  /* Landscape board: 4:3 to 12:5, wider than tall. The height is bounded by the window minus the chrome
+     above it, and by three quarters of the width that fits, so the minimum height never forces overflow
+     and the width clamp below is always satisfiable (min <= value by construction). */
+  --board-h: min(
+    clamp(var(--board-min-height), calc(100dvh - var(--board-chrome-height)), var(--board-max-height)),
+    calc(var(--board-fit-width) * 3 / 4)
+  );
   flex: 0 0 auto;
-  width: auto;
-  aspect-ratio: 1;
   align-self: center;
   margin-inline: auto;
   min-width: 0;
-  /* The width cap is outermost so the minimum height never forces horizontal overflow */
-  height: min(
-    clamp(var(--board-min-height), calc(100dvh - var(--board-chrome-height)), var(--board-max-height)),
-    var(--board-fit-width)
-  );
+  height: var(--board-h);
+  /* Explicit width: the canvas bitmap follows the box size, so an auto width would grow on every resize */
+  width: clamp(calc(var(--board-h) * 4 / 3), var(--board-fit-width), calc(var(--board-h) * 2.4));
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* Desktop full screen: the top bar is hidden, only the screen padding and border remain above the board */
+body.fullscreen-mode .play-shell .viewport-wrapper {
+  --board-chrome-height: calc(var(--desk-lcd-pad) * 2 + var(--desk-lcd-border) * 2 + var(--desk-view-pad));
 }
 
 #game-canvas {
@@ -559,8 +551,11 @@ button:disabled {
 .hint-banner {
   position: absolute;
   bottom: 8px;
-  left: 8px;
-  right: 8px;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: max-content;
+  max-width: min(calc(100% - 16px), 40rem);
   background: rgba(2, 36, 60, 0.94);
   border: 2px solid #00b0ff;
   border-radius: 6px;
@@ -573,8 +568,11 @@ button:disabled {
 .status-toast {
   position: absolute;
   top: 8px;
-  left: 8px;
-  right: 8px;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: max-content;
+  max-width: min(calc(100% - 16px), 40rem);
   background: rgba(62, 39, 35, 0.94);
   border: 2px solid var(--led-amber);
   border-radius: 6px;
@@ -2204,12 +2202,14 @@ body.fullscreen-mode .view-section {
   .play-shell .viewport-wrapper {
     width: min(94dvw, 46dvh);
     height: auto;
+    aspect-ratio: 1;
     margin-inline: 0;
   }
 
   body.fullscreen-mode .play-shell .viewport-wrapper {
     width: min(96dvw, 52dvh);
     height: auto;
+    aspect-ratio: 1;
   }
 
   /* Board, pad and HUD are taller than a portrait screen: centring them would cut the
@@ -2256,11 +2256,8 @@ body.fullscreen-mode .view-section {
 
   .lcd-screen {
     display: grid;
-    grid-template-columns: var(--land-pad-col) var(--land-board-size) minmax(var(--land-hud-min), 1fr);
-    --land-board-size: min(
-      calc(100dvh - var(--land-chrome-height) - var(--land-inset-y) - var(--safe-top) - var(--safe-bottom)),
-      calc(100dvw - var(--land-pad-col) - var(--land-hud-min) - var(--land-inset-x) - var(--safe-left) - var(--safe-right))
-    );
+    grid-template-columns: var(--land-pad-col) minmax(0, 1fr) var(--land-hud-min);
+    grid-template-rows: minmax(0, 1fr);
     align-items: stretch;
     gap: var(--land-gap);
     padding: var(--land-pad);
@@ -2295,13 +2292,13 @@ body.fullscreen-mode .view-section {
     font-size: 1rem;
   }
 
-  /* Center Column: square board, as wide as its column, centred in the row */
+  /* Center Column: landscape board filling its cell */
   .play-shell .viewport-wrapper,
   body.fullscreen-mode .play-shell .viewport-wrapper {
     grid-column: 2;
     grid-row: 1;
     width: 100%;
-    height: auto;
+    height: 100%;
     margin-inline: 0;
     min-width: 0;
   }
@@ -3158,7 +3155,7 @@ body.touch-overlay .play-shell .lcd-screen {
   gap: 0;
   border: 0;
   border-radius: 0;
-  background: #000;
+  background: var(--board-backdrop, #000);
 }
 
 body.touch-overlay .play-shell .lcd-screen .viewport-wrapper {

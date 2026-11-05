@@ -24,7 +24,7 @@
       "theme_label": { "label": "Biome :" },
       "procedural_btn": { "action": "Mode infini" },
       "fov": { "label": "Zoom :" },
-      "fov_option": { "label": "{size}x{size}" },
+      "fov_option": { "label": "{size} lignes" },
       "dpad_side": { "label": "Croix directionnelle (tactile) :", "left": "Gauche", "right": "Droite" },
       "audio_toggle": { "action_on": "Effets sonores : activés", "action_off": "Effets sonores : désactivés" },
       "music_toggle": { "action_on": "Musique : activée", "action_off": "Musique : désactivée" },
