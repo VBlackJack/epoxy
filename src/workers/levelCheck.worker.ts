@@ -33,7 +33,7 @@ const handle = createLevelCheckWorkerCore(
   {
     applyConfigs: (bundle) => ConfigRegistry.applyConfigs(bundle),
     setLocale: (locale) => i18n.setLocale(locale),
-    validate: (level, solutionWins) => LevelValidator.validate(level, solutionWins),
+    validate: (level, solutionWins, options) => LevelValidator.validate(level, solutionWins, options),
     solutionWins: storedSolutionWins
   },
   (response) => scope.postMessage(response)
