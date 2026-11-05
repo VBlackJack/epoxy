@@ -93,6 +93,7 @@
       "refused_receivers_win_rule": { "label": "Not exported: {levels} is won by lighting laser receivers, which the .DAT format cannot hold." },
       "refused_laser_content": { "label": "Not exported: {levels} uses lasers, mirrors or shot launchers, which the .DAT format cannot hold." },
       "refused_cc3d_ruleset": { "label": "Not exported: {levels} plays under CC3D rules, which the .DAT format cannot hold. Use Export XML instead." },
+      "refused_signal_content": { "label": "Not exported: {levels} uses signal wires, sources or gates, which the .DAT format cannot hold." },
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
       "refused_epoxy_only_items": { "label": "Not exported: {levels} holds an item only Epoxy plays (such as the Slow-Time Charm, the Speed Boots or the Truesight Boots), which the .DAT format cannot hold." },

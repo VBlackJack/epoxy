@@ -124,6 +124,7 @@ function playfieldSignature(level: CompiledLevel): string {
     canonicalJson(level.cellEdges ?? []),
     canonicalJson(level.underlays ?? []),
     unordered(level.launcherLinks ?? []),
+    unordered(level.signalLinks ?? []),
     level.winRule ?? DEFAULT_WIN_RULE,
     level.ruleset ?? DEFAULT_RULESET,
     String(level.chipsRequired),
