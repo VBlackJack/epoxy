@@ -47,6 +47,9 @@ const FRAME_MS = 16;
 const BYTES = 4;
 /** Frames after which the camera zoom has settled and the terrain cache is stable. */
 const SETTLE_FRAMES = 40;
+/** Bumps allowed before an appearing wall must have turned into a wall, and ticks that clear the move cooldown. */
+const TOUCH_ATTEMPTS = 4;
+const MOVE_COOLDOWN_TICKS = 20;
 
 interface Call {
   readonly name: string;
@@ -306,6 +309,30 @@ describe('Sokoban skin in the renderer', () => {
       const hiddenDraws = skinDraws([hidden.main]).filter((d) => d.file === 'ground_06.png').length;
       expect(hiddenDraws).toBe(floorDraws);
     }
+  });
+
+  it('draws an appearing wall as the skin floor before it is touched and as the skin wall after', async () => {
+    const loader = await loadedLoader();
+    const appearing = HIDDEN_WALL_CELLS.find((cell) => cell.tile === 'appearing_wall')!;
+    const countOf = (s: Scene, file: string): number => skinDraws([s.main]).filter((d) => d.file === file).length;
+    const s = scene({ winRule: 'targets', loader, hiddenWalls: true });
+    s.frame();
+    const floorBefore = countOf(s, 'ground_06.png');
+    const wallBefore = countOf(s, 'block_05.png');
+    // Stand under the appearing wall and bump it until it turns into a wall.
+    const player = s.engine.getPlayer();
+    player.x = appearing.x;
+    player.y = appearing.y + 1;
+    for (let attempt = 0; attempt < TOUCH_ATTEMPTS && s.engine.getTerrain()[appearing.y][appearing.x] !== 'wall'; attempt++) {
+      for (let i = 0; i < MOVE_COOLDOWN_TICKS; i++) s.engine.tick();
+      s.engine.attemptPlayerMove('N');
+    }
+    expect(s.engine.getTerrain()[appearing.y][appearing.x]).toBe('wall');
+    resetCalls();
+    s.main.calls.length = 0;
+    s.frame();
+    expect(countOf(s, 'block_05.png')).toBe(wallBefore + 1);
+    expect(countOf(s, 'ground_06.png')).toBe(floorBefore - 1);
   });
 
   it('marks the hidden walls over the skin floor while the eye boots are held', async () => {

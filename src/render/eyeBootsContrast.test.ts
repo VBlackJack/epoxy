@@ -39,6 +39,12 @@ const OUTLINE_KEY = 'o';
  */
 const MIN_SPRITE_MARKER_DISTANCE = 50;
 
+/**
+ * The three dominant tones of public/sprites/sokoban/ground_06.png, the skin floor under every hidden wall
+ * (measured over its opaque pixels: darkest, most common, lightest). The markers use wallBase and yellow there.
+ */
+const SKIN_FLOOR_TONES: readonly string[] = ['rgb(117, 140, 142)', 'rgb(125, 149, 152)', 'rgb(132, 158, 161)'];
+
 function rgbOf(text: string): Rgb {
   const parsed = parseCssColour(text);
   if (!parsed) throw new Error(`not a colour: ${text}`);
@@ -86,25 +92,29 @@ describe('hidden wall marker contrast', () => {
     expect(tooClose([game.palette.wallBase, game.palette.yellow], [game.palette.floorBase])).toEqual([]);
   });
 
+  it('Sokoban skin: both markers part from every tone of the skin floor (ground_06)', () => {
+    expect(tooClose([game.palette.wallBase, game.palette.yellow], SKIN_FLOOR_TONES)).toEqual([]);
+  });
+
   for (const themeId of Object.keys(themes)) {
-    it(`sprite styles in ${themeId}: both marker sprites hold an ink that parts from every floor tone`, () => {
+    it(`sprite styles in ${themeId}: the main ink of both marker sprites parts from every floor tone`, () => {
       const ramps = resolveRetroRamps(game.retroPalettes, themeId);
       const floor = ramps.floor;
       for (const [tileId, name] of Object.entries(RETRO_HIDDEN_WALL_MARKERS)) {
         const sprite = RETRO_SHEET.sprites[name];
-        const inks = new Set<string>();
+        // The main ink is the legend key drawn most often (the dashed border), not the best of several inks.
+        const counts = new Map<string, number>();
         for (const row of sprite.rows) {
           for (const ch of row) {
-            const ref = sprite.legend[ch];
-            if (ref && ch !== OUTLINE_KEY && ch !== RETRO_TRANSPARENT_CHAR) inks.add(ref);
+            if (sprite.legend[ch] && ch !== OUTLINE_KEY && ch !== RETRO_TRANSPARENT_CHAR) counts.set(ch, (counts.get(ch) ?? 0) + 1);
           }
         }
-        const colours = [...inks].map((ref) => {
-          const at = ref.lastIndexOf('.');
-          return ramps[ref.slice(0, at)][Number(ref.slice(at + 1))];
-        });
-        const best = Math.max(...colours.map((c) => Math.min(...floor.map((f) => colourDistance(rgbOf(c), rgbOf(f))))));
-        expect(best, `${tileId} in ${themeId}`).toBeGreaterThanOrEqual(MIN_SPRITE_MARKER_DISTANCE);
+        const [mainKey] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+        const ref = sprite.legend[mainKey];
+        const at = ref.lastIndexOf('.');
+        const ink = ramps[ref.slice(0, at)][Number(ref.slice(at + 1))];
+        const nearest = Math.min(...floor.map((f) => colourDistance(rgbOf(ink), rgbOf(f))));
+        expect(nearest, `${tileId} main ink in ${themeId}`).toBeGreaterThanOrEqual(MIN_SPRITE_MARKER_DISTANCE);
       }
     });
   }
