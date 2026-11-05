@@ -43,7 +43,7 @@ vi.mock('../audio/AudioManager', () => ({
 }));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { Direction } from '../core/types';
+import { Direction, type RunewardArtConfig } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { PixelRenderer } from './PixelRenderer';
 import { cellHash, ISOLATED_TILE, NEIGHBOUR, TileNeighbours } from './tileNeighbours';
@@ -413,8 +413,31 @@ function scannedHashes(): NeighbourCase[] {
 /** Tiles that share the floor details, so a hidden wall gives nothing away. */
 const DETAIL_TILES = new Set(['floor', 'invisible_wall', 'appearing_wall']);
 
+/** Liquid tiles: their crests depend on the map cell, and a wall to the north shades them. */
+const LIQUID_TILES = new Set(['water', 'fire']);
+const LIQUID_CELLS: readonly (readonly [number, number])[] = [[0, 0], [1, 0], [5, 3]];
+
+function liquidNeighbours(): NeighbourCase[] {
+  return LIQUID_CELLS.flatMap(([cx, cy]) => [
+    { title: `cell(${cx},${cy})`, neighbours: { wallMask: 0, shadowMask: 0, hash: 1, cx, cy } },
+    { title: `cell(${cx},${cy}) shaded`, neighbours: { wallMask: 0, shadowMask: NEIGHBOUR.N, hash: 1, cx, cy } }
+  ]);
+}
+
+/** Draws a floor, a wall, water and the player: enough to see whether the Runeward painters ran. */
+function drawFallbackProbe(ctx: CanvasRenderingContext2D, log: CallLog): void {
+  const renderer = createRenderer(THEME_ID);
+  for (const tile of ['floor', 'wall', 'water', 'exit']) {
+    log.section(`probe ${tile}`);
+    renderer.drawTile(ctx, tile, ORIGIN_X, ORIGIN_Y, TILE_SIZE, false, true, 'all', ISOLATED_TILE);
+  }
+  log.section('probe player');
+  renderer.drawPlayer(ctx, ORIGIN_X, ORIGIN_Y, TILE_SIZE, 'S', false, true);
+}
+
 function neighbourCasesFor(tileId: string): NeighbourCase[] {
   if (tileId === 'wall') return wallNeighbours();
+  if (LIQUID_TILES.has(tileId)) return liquidNeighbours();
   if (DETAIL_TILES.has(tileId)) return [...scannedHashes(), ...shadowNeighbours()];
   return [{ title: 'isolated', neighbours: ISOLATED_TILE }, ...reducedShadowNeighbours()];
 }
@@ -512,6 +535,81 @@ describe('Runeward render style snapshots', () => {
       expect(coverage.tiles.size).toBe(tilesByLayer('terrain').length);
       expect(coverage.tiles.size).toBeGreaterThanOrEqual(WALL_MASK_COUNT);
       await verifyCases(out, `${SNAPSHOT_DIR}/${THEME_ID}.tiles.${mode}.snap.txt`);
+    });
+
+    it(`freezes the animated tiles under reduced motion, ${mode} mode`, () => {
+      const drawAt = (tile: string, tick: number, reduced = true): string =>
+        capture(mode, (ctx, log) => {
+          const renderer = createRenderer(THEME_ID);
+          renderer.setReducedMotion(reduced);
+          setClock(renderer, tick);
+          renderer.drawTile(ctx, tile, ORIGIN_X, ORIGIN_Y, TILE_SIZE, false, true, 'animated', {
+            wallMask: 0,
+            shadowMask: 0,
+            hash: 1,
+            cx: 2,
+            cy: 1
+          });
+          log.section(`frozen ${tile}`);
+        });
+      for (const tile of ['water', 'fire', 'exit']) {
+        expect(drawAt(tile, CLOCK_TICKS[0])).toBe(drawAt(tile, CLOCK_TICKS[1]));
+        expect(drawAt(tile, CLOCK_TICKS[0], false)).not.toBe(drawAt(tile, CLOCK_TICKS[1], false));
+      }
+    });
+
+    it(`keeps the hidden wall marker and the Julien skin, ${mode} mode`, () => {
+      const drawWall = (tile: string, isEditor: boolean): string =>
+        capture(mode, (ctx, log) => {
+          const renderer = createRenderer(THEME_ID);
+          log.section(`marker ${tile}`);
+          renderer.drawTile(ctx, tile, ORIGIN_X, ORIGIN_Y, TILE_SIZE, isEditor, true, 'all', ISOLATED_TILE);
+        });
+      for (const tile of ['invisible_wall', 'appearing_wall']) {
+        expect(drawWall(tile, true)).toContain('setLineDash');
+        expect(drawWall(tile, false)).not.toContain('setLineDash');
+      }
+      const drawPlayer = (skin: 'default' | 'julien'): string =>
+        capture(mode, (ctx, log) => {
+          const renderer = createRenderer(THEME_ID);
+          renderer.setPlayerSkin(skin);
+          log.section(`player ${skin}`);
+          renderer.drawPlayer(ctx, ORIGIN_X, ORIGIN_Y, TILE_SIZE, 'S', false, true);
+        });
+      expect(drawPlayer('julien')).not.toBe(drawPlayer('default'));
+    });
+
+    it(`falls back to the shared drawing on a malformed art config, ${mode} mode`, () => {
+      const valid = (): string => capture(mode, (ctx, log) => drawFallbackProbe(ctx, log));
+      const reference = valid();
+      for (const damage of [
+        (art: Record<string, unknown>) => delete art.floor,
+        (art: Record<string, unknown>) => delete art.mage,
+        (art: Record<string, unknown>) => {
+          (art as unknown as RunewardArtConfig).wall.top = 'not-a-colour';
+        },
+        (art: Record<string, unknown>) => {
+          (art as unknown as RunewardArtConfig).exit.glow = '';
+        }
+      ]) {
+        loadTestConfigs();
+        damage(ConfigRegistry.getGame().runewardArt as unknown as Record<string, unknown>);
+        let broken = '';
+        expect(() => (broken = capture(mode, (ctx, log) => drawFallbackProbe(ctx, log)))).not.toThrow();
+        expect(broken).not.toBe(reference);
+        expect(broken).not.toBe('');
+      }
+    });
+
+    it(`draws blue walls alike and marks the fake one only in the editor, ${mode} mode`, () => {
+      const drawBlue = (tile: string, isEditor: boolean): string =>
+        capture(mode, (ctx, log) => {
+          log.section('blue wall');
+          createRenderer(THEME_ID).drawTile(ctx, tile, ORIGIN_X, ORIGIN_Y, TILE_SIZE, isEditor, true, 'all', ISOLATED_TILE);
+        });
+      expect(drawBlue('blue_wall_real', false)).toBe(drawBlue('blue_wall_fake', false));
+      expect(drawBlue('blue_wall_real', true)).toBe(drawBlue('blue_wall_real', false));
+      expect(drawBlue('blue_wall_fake', true)).not.toBe(drawBlue('blue_wall_fake', false));
     });
 
     it(`items, entities and player, ${mode} mode`, async () => {

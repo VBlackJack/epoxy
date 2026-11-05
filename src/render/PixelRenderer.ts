@@ -19,7 +19,7 @@ import { relativeTo } from '../core/lynx/directions';
 import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
-import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, MirrorCorner, ThemePalette, TileDefinition } from '../core/types';
+import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BLOCK_ON_TARGET_COLOR_KEY,
@@ -127,6 +127,7 @@ import {
   type RunewardPaintEnv,
   type RunewardPainters
 } from './styles/runeward/runewardTiles';
+import { validRunewardArt } from './styles/runeward/runewardArtGuard';
 import { createRetro32SpriteCache, createRetro32ThemeSprites, Retro32SpriteCache } from './retro32';
 import { bandStops, GradientStop } from './styles/gradientBands';
 import {
@@ -259,9 +260,16 @@ const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([
 ]);
 
 const FULL_TURN = Math.PI * 2;
+/** Player skin the Runeward style leaves to the shared drawing. */
+const RUNEWARD_DEFERRED_PLAYER_SKIN: PlayerSkinId = 'julien';
 /** Tiles that look like floor until the player holds boots that reveal them. */
 const HIDDEN_WALL_TILES: ReadonlySet<string> = new Set(['invisible_wall', 'appearing_wall']);
 const APPEARING_WALL_TILE = 'appearing_wall';
+/** The fake blue wall, which the editor marks with a small square. */
+const FAKE_BLUE_WALL_TILE = 'blue_wall_fake';
+/** Square marking a fake blue wall in the editor: offset and side, as fractions of the tile. */
+const FAKE_WALL_MARK_OFFSET_TILE = 0.4;
+const FAKE_WALL_MARK_SIZE_TILE = 0.2;
 /** Dashed outline of a hidden wall marker: dash and gap length, and inset from the cell edge, in pixels. */
 const HIDDEN_WALL_DASH_PX = 3;
 const HIDDEN_WALL_INSET_PX = 3;
@@ -788,7 +796,10 @@ export class PixelRenderer {
   }
 
   public setThemeId(id: string): void {
-    if (id !== this.themeId) this.restartFrameBudget();
+    if (id !== this.themeId) {
+      this.restartFrameBudget();
+      this.runewardCache?.clear();
+    }
     this.themeId = id;
   }
 
@@ -811,15 +822,21 @@ export class PixelRenderer {
     return getRenderStyle(this.style);
   }
 
-  /** The Runeward painters when the active style draws with them, else null. */
+  /** The Runeward painters when the active style draws with them and the config has its colours, else null. */
   private runewardPainters(): RunewardPainters | null {
-    return this.descriptor().painterSet === 'runeward' ? RUNEWARD_PAINTERS : null;
+    if (this.descriptor().painterSet !== 'runeward') return null;
+    return this.runewardArt() ? RUNEWARD_PAINTERS : null;
   }
 
   /** What a Runeward painter may use besides its arguments; the cache is created on first use. */
-  private runewardEnv(): RunewardPaintEnv {
+  private runewardEnv(art: RunewardArtConfig): RunewardPaintEnv {
     this.runewardCache ??= new Map<string, unknown>();
-    return { timeTick: this.timeTick, reducedMotion: this.reducedMotion, cache: this.runewardCache };
+    return { timeTick: this.timeTick, reducedMotion: this.reducedMotion, cache: this.runewardCache, art };
+  }
+
+  /** Colours of the Runeward painters, or null when the config lacks them or holds an unusable one. */
+  private runewardArt(): RunewardArtConfig | null {
+    return validRunewardArt(ConfigRegistry.getGame().runewardArt);
   }
 
   /** True for the vector HD Neon drawing, false for the sprite styles and the flat retro fallback look. */
@@ -1065,6 +1082,7 @@ export class PixelRenderer {
     if (memo && (memo.palette !== game.palette || memo.table !== game.renderStylePalettes || memo.families !== game.renderStyleFamilies)) {
       // The config was replaced: sprites and the terrain cache hold colours of the old tables.
       this.sprites.clear();
+      this.runewardCache?.clear();
       this.terrainCacheKey = '';
     }
     this.styleColoursMemo = {
@@ -1240,8 +1258,10 @@ export class PixelRenderer {
       const px = originX + Math.floor((cell.x - region.x0) * unit);
       const py = originY + Math.floor((cell.y - region.y0) * unit);
       animNeighbours.hash = cellHash(cell.x, cell.y);
-      // A retro animated tile redraws its floor shadow, which the frame would otherwise cover.
-      animNeighbours.shadowMask = lowRes ? neighbourMask(terrain, cell.x, cell.y, this.shadowCasterTiles, false) : 0;
+      animNeighbours.cx = cell.x;
+      animNeighbours.cy = cell.y;
+      // A retro or Runeward animated tile redraws its floor shadow, which the frame would otherwise cover.
+      animNeighbours.shadowMask = lowRes || runewardAnimated !== undefined ? neighbourMask(terrain, cell.x, cell.y, this.shadowCasterTiles, false) : 0;
       this.drawTile(sceneCtx, cell.tileId, px, py, drawSize, false, false, 'animated', animNeighbours);
     }
 
@@ -2054,7 +2074,24 @@ export class PixelRenderer {
     const runewardTile = this.runewardPainters();
     const runewardPaint = runewardTile ? findRunewardPainter(runewardTile.tiles, tileId) : undefined;
     if (runewardPaint) {
-      runewardPaint(ctx, x, y, size, pass, neighbours, this.runewardEnv());
+      runewardPaint(ctx, x, y, size, pass, neighbours, this.runewardEnv(this.runewardArt() as RunewardArtConfig), isEditor, isClosedTrap);
+      if (isEditor && tileId === FAKE_BLUE_WALL_TILE) {
+        ctx.fillStyle = this.pal().yellow;
+        ctx.fillRect(
+          x + size * FAKE_WALL_MARK_OFFSET_TILE,
+          y + size * FAKE_WALL_MARK_OFFSET_TILE,
+          size * FAKE_WALL_MARK_SIZE_TILE,
+          size * FAKE_WALL_MARK_SIZE_TILE
+        );
+      }
+      // Hidden walls are drawn as floor; the marker shows them to a player who can see them.
+      if (pass !== 'animated' && HIDDEN_WALL_TILES.has(tileId) && (isEditor || this.frameRevealsHiddenWalls)) {
+        const pal = this.pal();
+        ctx.save();
+        ctx.lineWidth = HIDDEN_WALL_LINE_PX_MODERN;
+        this.paintHiddenWallMarker(ctx, tileId === APPEARING_WALL_TILE ? pal.yellow : pal.wallBase, x, y, size);
+        ctx.restore();
+      }
       return;
     }
     const painterId = EPOXY_TO_CC3D_PAINTER[tileId];
@@ -4633,7 +4670,7 @@ export class PixelRenderer {
     const runewardItems = this.runewardPainters();
     const runewardPaint = runewardItems ? findRunewardPainter(runewardItems.items, itemId) : undefined;
     if (runewardPaint) {
-      runewardPaint(ctx, x, y, size, this.runewardEnv());
+      runewardPaint(ctx, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
     if (isCc3dId(itemId)) {
@@ -4807,7 +4844,7 @@ export class PixelRenderer {
     const runewardEntities = this.runewardPainters();
     const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;
     if (runewardPaint) {
-      runewardPaint(ctx, dir, x, y, size, this.runewardEnv());
+      runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
     const painterId = EPOXY_TO_CC3D_PAINTER[type];
@@ -5541,8 +5578,9 @@ export class PixelRenderer {
     hop: number = 0
   ): void {
     const runewardPlayer = this.runewardPainters()?.player;
-    if (runewardPlayer) {
-      runewardPlayer(ctx, x, y, size, { dir, inWater, alive, frame, hop }, this.runewardEnv());
+    // The Julien skin keeps its own drawing in every style.
+    if (runewardPlayer && this.playerSkin !== RUNEWARD_DEFERRED_PLAYER_SKIN) {
+      runewardPlayer(ctx, x, y, size, { dir, inWater, alive, frame, hop }, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
     if (!this.isHdVector() && this.retroSpritesReady()) {

@@ -86,9 +86,9 @@ describe('Runeward painter coverage', () => {
     expect(findRunewardPainter(table, 'wall')).toBeUndefined();
   });
 
-  it('starts with no painter, so every hook falls through to the shared drawing', () => {
-    expect(painterIds().size).toBe(0);
-    expect(RUNEWARD_PAINTERS.player).toBeNull();
-    expect(RUNEWARD_PAINTERS.animatedTiles.size).toBe(0);
+  it('gives every animated tile a tile painter, and the player a painter', () => {
+    expect(RUNEWARD_PAINTERS.animatedTiles.size).toBeGreaterThan(0);
+    expect([...RUNEWARD_PAINTERS.animatedTiles].filter((id) => !(id in RUNEWARD_PAINTERS.tiles))).toEqual([]);
+    expect(RUNEWARD_PAINTERS.player).not.toBeNull();
   });
 });

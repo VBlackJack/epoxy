@@ -21,8 +21,10 @@
  * Painters are added lot by lot; an id without a painter falls through to the shared drawing.
  */
 
-import type { Direction } from '../../../core/types';
+import type { Direction, RunewardArtConfig } from '../../../core/types';
+import { REFERENCE_FRAME_MS } from '../../renderTiming';
 import type { TileNeighbours } from '../../tileNeighbours';
+import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintWall, paintWater } from './runewardPainters';
 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
 export type RunewardTilePass = 'all' | 'static' | 'animated';
@@ -35,6 +37,13 @@ export interface RunewardPaintEnv {
   readonly reducedMotion: boolean;
   /** Per-renderer cache a painter may fill lazily (sprites, gradients); created on first use. */
   readonly cache: Map<string, unknown>;
+  /** Colours and timings of the painters (game.json runewardArt). */
+  readonly art: Readonly<RunewardArtConfig>;
+}
+
+/** Animation clock of the painters in milliseconds; reduced motion freezes it at 0. */
+export function runewardClockMs(env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>): number {
+  return env.reducedMotion ? 0 : env.timeTick * REFERENCE_FRAME_MS;
 }
 
 export type RunewardTilePainter = (
@@ -44,7 +53,9 @@ export type RunewardTilePainter = (
   size: number,
   pass: RunewardTilePass,
   neighbours: Readonly<TileNeighbours>,
-  env: RunewardPaintEnv
+  env: RunewardPaintEnv,
+  isEditor: boolean,
+  isClosedTrap: boolean
 ) => void;
 
 export type RunewardItemPainter = (
@@ -101,21 +112,79 @@ export function findRunewardPainter<T>(table: Readonly<Record<string, T>>, id: s
   return Object.prototype.hasOwnProperty.call(table, id) ? table[id] : undefined;
 }
 
-/** Ids drawn by a Runeward painter. Empty until the painters land. */
+/** A pure tile drawing (see runewardPainters.ts) at the clock value it is given. */
+type RunewardTileDrawing = (
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  art: Readonly<RunewardArtConfig>,
+  neighbours: Readonly<TileNeighbours>,
+  timeMs: number
+) => void;
+
+/** A tile painter for a motionless tile: drawn with the cached terrain, nothing to redraw per frame. */
+function staticTile(draw: RunewardTileDrawing): RunewardTilePainter {
+  return (ctx, x, y, size, pass, neighbours, env) => {
+    if (pass === 'animated') return;
+    ctx.save();
+    ctx.translate(x, y);
+    draw(ctx, size, env.art, neighbours, 0);
+    ctx.restore();
+  };
+}
+
+/** A tile painter for a moving tile: the cached terrain holds its frame at clock 0, the overlay follows the clock. */
+function animatedTile(draw: RunewardTileDrawing): RunewardTilePainter {
+  return (ctx, x, y, size, pass, neighbours, env) => {
+    ctx.save();
+    ctx.translate(x, y);
+    draw(ctx, size, env.art, neighbours, pass === 'static' ? 0 : runewardClockMs(env));
+    ctx.restore();
+  };
+}
+
+/** The player as the mage, standing on the cell; the sprite lifts with the hop while its shadow stays. */
+const paintPlayer: RunewardPlayerPainter = (ctx, x, y, size, pose, env) => {
+  ctx.save();
+  ctx.translate(x, y);
+  paintMage(ctx, size, env.art, pose, runewardClockMs(env));
+  ctx.restore();
+};
+
+/** Floor-like tiles all show the same flagstones, so hidden walls give nothing away. */
+const FLOOR_PAINTER = staticTile(paintFloor);
+const WALL_PAINTER = staticTile(paintWall);
+/** Both blue walls share one drawing: nothing in it may tell the real one from the fake one. */
+const BLUE_WALL_PAINTER = staticTile(paintBlueWall);
+
+/** Ids drawn by a Runeward painter. */
 export const RUNEWARD_PAINTERS: RunewardPainters = {
-  tiles: {},
+  tiles: {
+    floor: FLOOR_PAINTER,
+    gravel: FLOOR_PAINTER,
+    dirt: FLOOR_PAINTER,
+    hint: FLOOR_PAINTER,
+    socket: FLOOR_PAINTER,
+    invisible_wall: FLOOR_PAINTER,
+    appearing_wall: FLOOR_PAINTER,
+    wall: WALL_PAINTER,
+    blue_wall_real: BLUE_WALL_PAINTER,
+    blue_wall_fake: BLUE_WALL_PAINTER,
+    water: animatedTile(paintWater),
+    fire: animatedTile(paintLava),
+    exit: animatedTile(paintExit)
+  },
   items: {},
   entities: {},
-  player: null,
-  animatedTiles: new Set<string>()
+  player: paintPlayer,
+  animatedTiles: new Set<string>(['water', 'fire', 'exit'])
 };
 
 /** Epoxy tile and item ids (tiles.json) that keep the shared drawing for now. */
 const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
-  'floor', 'wall', 'recessed_wall', 'blue_wall_real', 'blue_wall_fake', 'invisible_wall', 'appearing_wall',
+  'recessed_wall',
   'thin_wall_n', 'thin_wall_e', 'thin_wall_s', 'thin_wall_w', 'thin_wall_se', 'thin_wall_ne',
   'thin_wall_nw', 'thin_wall_sw', 'thin_wall_ns', 'thin_wall_ew', 'thin_wall_nes', 'thin_wall_new',
-  'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw', 'dirt', 'gravel', 'socket', 'exit', 'hint',
+  'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw',
   'swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw', 'transmogrifier',
   'turn_plate_cw', 'turn_plate_ccw', 'button_green', 'button_blue', 'button_brown', 'button_red',
   'block_target', 'button_orange', 'button_gray', 'flame_jet_off', 'flame_jet_on', 'toggle_wall_closed',
@@ -131,7 +200,7 @@ const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
   'floating_block_red', 'floating_block_green', 'floating_block_blue', 'floating_block_yellow',
   'puppet_control', 'shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w',
   'shot_trigger',
-  'turtle', 'water', 'fire', 'slime', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se', 'force_n', 'force_e',
+  'turtle', 'slime', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se', 'force_n', 'force_e',
   'force_s', 'force_w', 'force_random', 'thief', 'thief_keys',
   'forbid_key_red', 'forbid_key_blue', 'forbid_key_yellow', 'forbid_key_green', 'forbid_boots_ice',
   'forbid_boots_water', 'forbid_boots_fire', 'forbid_boots_force', 'door_red', 'door_blue', 'door_yellow',
