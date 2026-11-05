@@ -171,7 +171,8 @@ export type GraphicsStyle =
   | 'blueprint'
   | 'sepia'
   | 'classic90'
-  | 'runeward';
+  | 'runeward'
+  | 'runeward_parchment';
 
 /** Colour families of the Retro HD recolour: every palette and theme colour belongs to exactly one. */
 export type ColourFamily =
@@ -216,6 +217,32 @@ export interface RunewardLiquidColours {
   deep: string;
   light: string;
   crest: string;
+}
+
+/**
+ * Ink-on-paper additions of an art variant (game.json runewardArtVariants): the ink and paper
+ * colours the variant's drawing uses, and the torch light that follows the player. A config without
+ * this section keeps the default Runeward drawing.
+ */
+export interface RunewardInkConfig {
+  /** Outline ink. */
+  line: string;
+  /** Hatching and shading strokes. */
+  hatch: string;
+  /** Specks scattered over the paper. */
+  paperFleck: string;
+  /** Faded stains on the paper. */
+  paperStain: string;
+  /** Gold leaf accents. */
+  gold: string;
+  /** Wood tone of the mage's staff. */
+  wood: string;
+  /** Warm light carried by the player instead of the shared player light. */
+  torch: {
+    color: string;
+    /** Reach of the torch light, in tiles; must be above zero. */
+    radiusTile: number;
+  };
 }
 
 /**
@@ -283,6 +310,8 @@ export interface RunewardArtConfig {
     flowPeriodMs: number;
     portalPeriodMs: number;
   };
+  /** Present on ink-on-paper variants only; the default Runeward art has none. */
+  ink?: RunewardInkConfig;
 }
 
 /**
@@ -784,6 +813,8 @@ export interface GameConfig {
   renderStyleFamilies?: RenderStyleFamilies;
   /** Colours and timings of the Runeward render style painters. */
   runewardArt?: RunewardArtConfig;
+  /** Alternative Runeward art blocks, by the variant name a render style asks for (artVariant). */
+  runewardArtVariants?: Record<string, RunewardArtConfig>;
 }
 
 export interface TileDefinition {

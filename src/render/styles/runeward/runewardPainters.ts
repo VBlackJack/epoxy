@@ -22,8 +22,23 @@
  * themselves, the way pixel art is data: they are art, not settings.
  */
 
-import type { Direction, RunewardArtConfig, RunewardLiquidColours } from '../../../core/types';
+import type { Direction, RunewardArtConfig, RunewardInkConfig, RunewardLiquidColours } from '../../../core/types';
 import { NEIGHBOUR, type TileNeighbours } from '../../tileNeighbours';
+import { tileHash } from './runewardHash';
+import {
+  heavyLineWidth,
+  hasInkHatching,
+  inkLineWidth,
+  paintInkFloor,
+  paintInkShadow,
+  inkUnit,
+  paintVerticalHatching
+} from './runewardInk';
+
+import type { RunewardTilePass } from './runewardTiles';
+
+/** Part of a tile a painter is asked for: the same three passes as the tile dispatch. */
+export type RunewardPaintPart = RunewardTilePass;
 
 type Art = Readonly<RunewardArtConfig>;
 type Neighbours = Readonly<TileNeighbours>;
@@ -34,18 +49,7 @@ const HALF = 0.5;
 
 // ---- Hash and waves -------------------------------------------------------------------------
 
-const HASH_MULTIPLIER_X = 374761393;
-const HASH_MULTIPLIER_Y = 668265263;
-const HASH_MIX_MULTIPLIER = 1274126177;
-const HASH_SHIFT_MIDDLE = 13;
-const HASH_SHIFT_FINAL = 16;
-
-/** A small stable hash of a tile position, for texture variety without randomness. */
-export function tileHash(x: number, y: number): number {
-  let h = (Math.imul(x, HASH_MULTIPLIER_X) + Math.imul(y, HASH_MULTIPLIER_Y)) >>> 0;
-  h = Math.imul(h ^ (h >>> HASH_SHIFT_MIDDLE), HASH_MIX_MULTIPLIER) >>> 0;
-  return (h ^ (h >>> HASH_SHIFT_FINAL)) >>> 0;
-}
+export { tileHash };
 
 /** A 0..1 wave for animations, with an optional phase in turns. */
 export function wave(timeMs: number, periodMs: number, phase = 0): number {
@@ -111,7 +115,8 @@ export function isShadowedFromNorth(neighbours: Neighbours): boolean {
 
 /** Puts the wall shadow on the cell when a caster stands north of it. */
 function castShadowIfNeeded(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours): void {
-  if (isShadowedFromNorth(neighbours)) paintCastShadow(ctx, size, art);
+  if (art.ink) paintInkShadow(ctx, size, art, art.ink, neighbours);
+  else if (isShadowedFromNorth(neighbours)) paintCastShadow(ctx, size, art);
 }
 
 // ---- Floor ------------------------------------------------------------------------------------
@@ -130,6 +135,11 @@ export function floorVariant(art: Art, neighbours: Neighbours): number {
 
 /** Flagstones: four slabs with slightly different shades, picked by the cell hash. */
 export function paintFloor(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours): void {
+  if (art.ink) {
+    // Ink on paper: reads only the hash, the position and the shadow mask of the cell, never a tile id.
+    paintInkFloor(ctx, size, art, art.ink, neighbours);
+    return;
+  }
   const { floor } = art;
   const variant = floorVariant(art, neighbours);
   ctx.fillStyle = floor.grout;
@@ -174,6 +184,10 @@ export function wallHasFront(neighbours: Neighbours): boolean {
  * Real and fake walls share this drawing: nothing here may tell them apart.
  */
 export function paintWall(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours): void {
+  if (art.ink) {
+    paintInkWall(ctx, size, art, art.ink, neighbours);
+    return;
+  }
   const { wall } = art;
   const frontHeight = wallHasFront(neighbours) ? size * WALL.frontHeight : 0;
   const topHeight = size - frontHeight;
@@ -207,10 +221,104 @@ export function paintBlueWall(ctx: CanvasRenderingContext2D, size: number, art: 
   paintWall(ctx, size, art, neighbours);
   ctx.fillStyle = art.blueWall.tint;
   ctx.fillRect(0, 0, size, size);
+  if (art.ink) {
+    paintDiamondLattice(ctx, size, art.blueWall.line);
+    return;
+  }
   const inset = size * BLUE_WALL.inset;
   ctx.strokeStyle = art.blueWall.line;
   ctx.lineWidth = Math.max(MIN_LINE_PX, size * BLUE_WALL.lineWidth);
   ctx.strokeRect(inset, inset, size - inset * 2, size - inset * 2);
+}
+
+// ---- Ink wall ---------------------------------------------------------------------------------
+
+const INK_WALL = {
+  /** Distance of the outer and inner engraved lines of the wall top from its border. */
+  engravedOuter: 0.12,
+  engravedInner: 0.19,
+  /** Reach of the diamond lattice of blue walls: how far its two diamonds stand from the border. */
+  latticeOuter: 0.14,
+  latticeInner: 0.3
+} as const;
+
+/** Walls in ink: outlined silhouette, engraved double line on the top, hatched front face. */
+function paintInkWall(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  art: Art,
+  ink: Readonly<RunewardInkConfig>,
+  neighbours: Neighbours
+): void {
+  const { wall } = art;
+  const frontHeight = wallHasFront(neighbours) ? size * WALL.frontHeight : 0;
+  const topHeight = size - frontHeight;
+  ctx.fillStyle = linear(ctx, 0, 0, 0, topHeight, [[0, wall.topLight], [1, wall.top]]);
+  ctx.fillRect(0, 0, size, topHeight);
+  // Engraved look: two thin lines inset from the border of the top.
+  ctx.lineWidth = inkLineWidth(size);
+  const lines: readonly (readonly [number, string])[] = [
+    [INK_WALL.engravedOuter, ink.line],
+    [INK_WALL.engravedInner, ink.hatch]
+  ];
+  for (const [fraction, color] of lines) {
+    const inset = size * fraction;
+    ctx.strokeStyle = color;
+    ctx.strokeRect(inset, inset, size - inset * 2, topHeight - inset * 2);
+  }
+  if (frontHeight > 0) {
+    ctx.fillStyle = linear(ctx, 0, topHeight, 0, size, [[0, wall.front], [1, wall.frontDark]]);
+    ctx.fillRect(0, topHeight, size, frontHeight);
+    if (hasInkHatching(size)) {
+      paintVerticalHatching(ctx, size, neighbours, { x: 0, y: topHeight, w: size, h: frontHeight }, ink.line);
+    }
+    ctx.strokeStyle = ink.line;
+    ctx.lineWidth = inkLineWidth(size);
+    ctx.beginPath();
+    ctx.moveTo(0, topHeight);
+    ctx.lineTo(size, topHeight);
+    ctx.stroke();
+  }
+  // Heavy silhouette on the sides that do not continue into the same wall mass.
+  const heavy = heavyLineWidth(size);
+  const edge = heavy / 2;
+  ctx.strokeStyle = ink.line;
+  ctx.lineWidth = heavy;
+  ctx.beginPath();
+  if ((neighbours.wallMask & NEIGHBOUR.N) === 0) {
+    ctx.moveTo(0, edge);
+    ctx.lineTo(size, edge);
+  }
+  if ((neighbours.wallMask & NEIGHBOUR.S) === 0) {
+    ctx.moveTo(0, size - edge);
+    ctx.lineTo(size, size - edge);
+  }
+  if ((neighbours.wallMask & NEIGHBOUR.W) === 0) {
+    ctx.moveTo(edge, 0);
+    ctx.lineTo(edge, size);
+  }
+  if ((neighbours.wallMask & NEIGHBOUR.E) === 0) {
+    ctx.moveTo(size - edge, 0);
+    ctx.lineTo(size - edge, size);
+  }
+  ctx.stroke();
+}
+
+/** The lattice mark of blue walls: two nested diamonds. Real and fake blue walls both get it. */
+function paintDiamondLattice(ctx: CanvasRenderingContext2D, size: number, color: string): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = inkLineWidth(size);
+  ctx.beginPath();
+  for (const fraction of [INK_WALL.latticeOuter, INK_WALL.latticeInner]) {
+    const near = size * fraction;
+    const far = size - near;
+    ctx.moveTo(size * HALF, near);
+    ctx.lineTo(far, size * HALF);
+    ctx.lineTo(size * HALF, far);
+    ctx.lineTo(near, size * HALF);
+    ctx.closePath();
+  }
+  ctx.stroke();
 }
 
 // ---- Liquid -----------------------------------------------------------------------------------
@@ -254,8 +362,14 @@ export function paintLiquid(
   colors: Readonly<RunewardLiquidColours>,
   periodMs: number,
   neighbours: Neighbours,
-  timeMs: number
+  timeMs: number,
+  part: RunewardPaintPart = 'all',
+  inkDetail: InkLiquidDetail = INK_WATER_DETAIL
 ): void {
+  if (art.ink) {
+    paintInkLiquid(ctx, size, art, art.ink, colors, periodMs, neighbours, timeMs, part, inkDetail);
+    return;
+  }
   const cx = neighbours.cx ?? 0;
   const cy = neighbours.cy ?? 0;
   ctx.fillStyle = linear(ctx, 0, 0, 0, size, [[0, colors.light], [1, colors.deep]]);
@@ -289,9 +403,10 @@ export function paintWater(
   size: number,
   art: Art,
   neighbours: Neighbours,
-  timeMs: number
+  timeMs: number,
+  part: RunewardPaintPart = 'all'
 ): void {
-  paintLiquid(ctx, size, art, art.water, art.animation.flowPeriodMs, neighbours, timeMs);
+  paintLiquid(ctx, size, art, art.water, art.animation.flowPeriodMs, neighbours, timeMs, part, INK_WATER_DETAIL);
 }
 
 /** Lava is the fire tile: the same flow as water, slower, in the lava colours. */
@@ -300,9 +415,139 @@ export function paintLava(
   size: number,
   art: Art,
   neighbours: Neighbours,
-  timeMs: number
+  timeMs: number,
+  part: RunewardPaintPart = 'all'
 ): void {
-  paintLiquid(ctx, size, art, art.lava, art.animation.flowPeriodMs * LIQUID.lavaPeriodFactor, neighbours, timeMs);
+  const periodMs = art.animation.flowPeriodMs * LIQUID.lavaPeriodFactor;
+  paintLiquid(ctx, size, art, art.lava, periodMs, neighbours, timeMs, part, INK_LAVA_DETAIL);
+}
+
+// ---- Ink liquid -------------------------------------------------------------------------------
+
+/** What an ink liquid adds to the wash and the crests. */
+export interface InkLiquidDetail {
+  /** Static ink crack lines and stipple dots, placed from the cell hash. */
+  readonly cracks: boolean;
+  /** Small curl ticks on the crests. */
+  readonly curls: boolean;
+}
+
+const INK_WATER_DETAIL: InkLiquidDetail = { cracks: false, curls: true };
+const INK_LAVA_DETAIL: InkLiquidDetail = { cracks: true, curls: false };
+
+const INK_LIQUID = {
+  crestAlpha: 0.85,
+  /** Curl ticks sit at these positions along a crest (fractions of the cell). */
+  curlAt: [0.3, 0.75],
+  curlSize: 0.07,
+  crackCount: 3,
+  crackSalt: 7,
+  crackSteps: 3,
+  crackMargin: 0.15,
+  crackStep: 0.22,
+  stippleCount: 2,
+  stippleSalt: 19,
+  stippleRadius: 0.025,
+  stippleMargin: 0.15,
+  /** Bit offsets used to draw independent unit values from one hash. */
+  shiftA: 0,
+  shiftB: 8,
+  shiftC: 16
+} as const;
+
+/** Three static ink cracks and two stipple dots, placed from the hash of the cell. */
+function paintInkCracks(ctx: CanvasRenderingContext2D, size: number, line: string, neighbours: Neighbours): void {
+  const span = 1 - INK_LIQUID.crackMargin * 2;
+  ctx.strokeStyle = line;
+  ctx.lineWidth = inkLineWidth(size);
+  ctx.lineJoin = 'round';
+  for (let k = 0; k < INK_LIQUID.crackCount; k += 1) {
+    const h = tileHash(neighbours.hash, INK_LIQUID.crackSalt + k);
+    let x = size * (INK_LIQUID.crackMargin + inkUnit(h, INK_LIQUID.shiftA) * span);
+    let y = size * (INK_LIQUID.crackMargin + inkUnit(h, INK_LIQUID.shiftB) * span);
+    const bend = inkUnit(h, INK_LIQUID.shiftC) - HALF;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let i = 1; i <= INK_LIQUID.crackSteps; i += 1) {
+      x += size * INK_LIQUID.crackStep * (i % 2 === 0 ? bend : HALF);
+      y += size * INK_LIQUID.crackStep * (i % 2 === 0 ? HALF : bend);
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.fillStyle = line;
+  const dotSpan = 1 - INK_LIQUID.stippleMargin * 2;
+  for (let i = 0; i < INK_LIQUID.stippleCount; i += 1) {
+    const h = tileHash(neighbours.hash, INK_LIQUID.stippleSalt + i);
+    ctx.beginPath();
+    ctx.arc(
+      size * (INK_LIQUID.stippleMargin + inkUnit(h, INK_LIQUID.shiftA) * dotSpan),
+      size * (INK_LIQUID.stippleMargin + inkUnit(h, INK_LIQUID.shiftB) * dotSpan),
+      Math.max(MIN_LINE_PX / 2, size * INK_LIQUID.stippleRadius),
+      0,
+      TAU
+    );
+    ctx.fill();
+  }
+}
+
+/**
+ * Liquid in ink: a wash, then crests in the ink crest colour drifting across the cells. The static
+ * part (wash, cracks, shadow) is separate from the animated crests, so the cached terrain holds the
+ * wash only and each frame adds the crests on top.
+ */
+function paintInkLiquid(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  art: Art,
+  ink: Readonly<RunewardInkConfig>,
+  colors: Readonly<RunewardLiquidColours>,
+  periodMs: number,
+  neighbours: Neighbours,
+  timeMs: number,
+  part: RunewardPaintPart,
+  detail: InkLiquidDetail
+): void {
+  if (part !== 'animated') {
+    ctx.fillStyle = linear(ctx, 0, 0, 0, size, [[0, colors.light], [1, colors.deep]]);
+    ctx.fillRect(0, 0, size, size);
+    if (detail.cracks) paintInkCracks(ctx, size, ink.line, neighbours);
+    castShadowIfNeeded(ctx, size, art, neighbours);
+  }
+  if (part === 'static') return;
+  const cx = neighbours.cx ?? 0;
+  const cy = neighbours.cy ?? 0;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, size, size);
+  ctx.clip();
+  ctx.strokeStyle = colors.crest;
+  ctx.lineWidth = Math.max(MIN_LINE_PX, size * LIQUID.lineWidth);
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = INK_LIQUID.crestAlpha;
+  const crestY = (row: number, across: number): number =>
+    size * (LIQUID.firstRowY + row * LIQUID.rowSpacing) +
+    crestPhase(timeMs, periodMs, cx, cy, row, across) * size * LIQUID.amplitude;
+  for (let row = 0; row < LIQUID.crestRows; row += 1) {
+    ctx.beginPath();
+    for (let i = 0; i <= LIQUID.crestSegments; i += 1) {
+      const across = i / LIQUID.crestSegments;
+      if (i === 0) ctx.moveTo(size * across, crestY(row, across));
+      else ctx.lineTo(size * across, crestY(row, across));
+    }
+    ctx.stroke();
+    if (!detail.curls) continue;
+    const curl = size * INK_LIQUID.curlSize;
+    ctx.beginPath();
+    for (const across of INK_LIQUID.curlAt) {
+      const px = size * across;
+      const py = crestY(row, across);
+      ctx.moveTo(px, py);
+      ctx.quadraticCurveTo(px + curl, py - curl, px + curl * 2, py);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // ---- Exit -------------------------------------------------------------------------------------
@@ -325,8 +570,13 @@ export function paintExit(
   size: number,
   art: Art,
   neighbours: Neighbours,
-  timeMs: number
+  timeMs: number,
+  part: RunewardPaintPart = 'all'
 ): void {
+  if (art.ink) {
+    paintInkExit(ctx, size, art, art.ink, neighbours, timeMs, part);
+    return;
+  }
   const { exit } = art;
   ctx.fillStyle = exit.base;
   ctx.fillRect(0, 0, size, size);
@@ -348,6 +598,77 @@ export function paintExit(
   }
   ctx.globalAlpha = 1;
   castShadowIfNeeded(ctx, size, art, neighbours);
+}
+
+// ---- Ink exit ---------------------------------------------------------------------------------
+
+const INK_EXIT = {
+  /** Distance of the gold rim from the border of the tile. */
+  rimInset: 0.06,
+  starOuter: 0.2,
+  starInner: 0.08,
+  starPoints: 4,
+  ringCount: 2,
+  firstRingRadius: 0.27,
+  ringSpacing: 0.07,
+  ringAlpha: 0.7,
+  ringAlphaStep: 0.25
+} as const;
+
+/** The exit in ink: the glow, a gold rim and a four-point star at rest, and arcs turning around it. */
+function paintInkExit(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  art: Art,
+  ink: Readonly<RunewardInkConfig>,
+  neighbours: Neighbours,
+  timeMs: number,
+  part: RunewardPaintPart
+): void {
+  const { exit } = art;
+  const centre = size / 2;
+  if (part !== 'animated') {
+    ctx.fillStyle = exit.base;
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = radial(ctx, centre, centre, size * EXIT.glowRadius, [
+      [0, exit.core],
+      [EXIT.coreStop, exit.ring],
+      [1, exit.glow]
+    ]);
+    ctx.fillRect(0, 0, size, size);
+    const rim = size * INK_EXIT.rimInset;
+    ctx.strokeStyle = ink.gold;
+    ctx.lineWidth = heavyLineWidth(size);
+    ctx.strokeRect(rim, rim, size - rim * 2, size - rim * 2);
+    ctx.strokeStyle = ink.line;
+    ctx.lineWidth = inkLineWidth(size);
+    ctx.strokeRect(0, 0, size, size);
+    ctx.beginPath();
+    for (let i = 0; i < INK_EXIT.starPoints * 2; i += 1) {
+      const radius = size * (i % 2 === 0 ? INK_EXIT.starOuter : INK_EXIT.starInner);
+      const angle = (i / (INK_EXIT.starPoints * 2)) * TAU - Math.PI / 2;
+      const px = centre + Math.cos(angle) * radius;
+      const py = centre + Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = ink.gold;
+    ctx.fill();
+    ctx.stroke();
+    castShadowIfNeeded(ctx, size, art, neighbours);
+  }
+  if (part === 'static') return;
+  const turn = (timeMs / art.animation.portalPeriodMs) * TAU;
+  ctx.strokeStyle = exit.core;
+  ctx.lineWidth = Math.max(MIN_LINE_PX, size * EXIT.lineWidth);
+  for (let i = 0; i < INK_EXIT.ringCount; i += 1) {
+    ctx.globalAlpha = INK_EXIT.ringAlpha - i * INK_EXIT.ringAlphaStep;
+    ctx.beginPath();
+    ctx.arc(centre, centre, size * (INK_EXIT.firstRingRadius + i * INK_EXIT.ringSpacing), turn + i, turn + i + EXIT.ringSweep);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 }
 
 // ---- The mage ---------------------------------------------------------------------------------
@@ -387,6 +708,14 @@ const MAGE = {
   deadAlpha: 0.45
 } as const;
 
+/** Strokes the current path in ink: the outline of a part of the figure. */
+function inkOutline(ctx: CanvasRenderingContext2D, color: string, width: number): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+}
+
 /** Side the character leans to: -1 west, 1 east, 0 facing the viewer or away. */
 export function mageSide(dir: Direction): number {
   if (dir === 'E') return 1;
@@ -402,7 +731,7 @@ export function paintMage(
   pose: MagePose,
   timeMs: number
 ): void {
-  const { mage, animation } = art;
+  const { mage, animation, ink } = art;
   const side = mageSide(pose.dir);
   const awayFromViewer = pose.dir === 'N';
   const bob = pose.alive ? Math.sin((timeMs / animation.bobPeriodMs) * TAU) * size * animation.bobAmplitude : 0;
@@ -425,8 +754,18 @@ export function paintMage(
 
   // Staff behind the body, on the facing side.
   const staffX = size * (HALF + (side === 0 ? MAGE.staffFrontX : side * MAGE.staffSideX));
-  ctx.strokeStyle = mage.staff;
-  ctx.lineWidth = Math.max(MAGE.staffMinWidthPx, size * MAGE.staffWidth);
+  const staffWidth = Math.max(MAGE.staffMinWidthPx, size * MAGE.staffWidth);
+  if (ink) {
+    // Ink edge under the wood: the same stroke, wider.
+    ctx.strokeStyle = ink.line;
+    ctx.lineWidth = staffWidth + inkLineWidth(size) * 2;
+    ctx.beginPath();
+    ctx.moveTo(staffX, size * MAGE.staffBottom);
+    ctx.lineTo(staffX, size * MAGE.staffTop);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = ink ? ink.wood : mage.staff;
+  ctx.lineWidth = staffWidth;
   ctx.beginPath();
   ctx.moveTo(staffX, size * MAGE.staffBottom);
   ctx.lineTo(staffX, size * MAGE.staffTop);
@@ -451,12 +790,14 @@ export function paintMage(
   ctx.lineTo(size * MAGE.robe.hemLeftX, size * MAGE.robe.hemY);
   ctx.quadraticCurveTo(size * MAGE.robe.leftX, size * MAGE.robe.midY, size * HALF, size * MAGE.robe.topY);
   ctx.fill();
+  if (ink) inkOutline(ctx, ink.line, heavyLineWidth(size));
 
   // Face, hidden when walking away.
   ctx.fillStyle = awayFromViewer ? mage.hat : mage.skin;
   ctx.beginPath();
   ctx.arc(size * MAGE.head.x, size * MAGE.head.y, size * MAGE.head.radius, 0, TAU);
   ctx.fill();
+  if (ink) inkOutline(ctx, ink.line, inkLineWidth(size));
   if (!awayFromViewer) {
     ctx.fillStyle = mage.eyes;
     const eyeShift = side * size * MAGE.eyes.shift;
@@ -476,13 +817,15 @@ export function paintMage(
   ctx.beginPath();
   ctx.ellipse(size * HALF, size * MAGE.hatBrim.y, size * MAGE.hatBrim.rx, size * MAGE.hatBrim.ry, 0, 0, TAU);
   ctx.fill();
+  if (ink) inkOutline(ctx, ink.line, heavyLineWidth(size));
   const cone = MAGE.hatCone;
   ctx.beginPath();
   ctx.moveTo(size * cone.leftX, size * MAGE.hatBrim.y);
   ctx.quadraticCurveTo(size * cone.controlX, size * cone.controlY, size * (cone.tipX + side * cone.tipLean), size * cone.tipY);
   ctx.quadraticCurveTo(size * cone.backX, size * cone.backY, size * cone.rightX, size * MAGE.hatBrim.y);
   ctx.fill();
-  ctx.fillStyle = mage.band;
+  if (ink) inkOutline(ctx, ink.line, heavyLineWidth(size));
+  ctx.fillStyle = ink ? ink.gold : mage.band;
   ctx.fillRect(size * MAGE.hatBand.x, size * MAGE.hatBand.y, size * MAGE.hatBand.w, size * MAGE.hatBand.h);
   ctx.restore();
 }

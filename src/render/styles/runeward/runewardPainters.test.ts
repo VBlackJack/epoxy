@@ -16,10 +16,28 @@
 
 /** Pure maths of the Runeward painters: hash, waves, crest continuity, neighbour reading and the clock. */
 
-import { describe, expect, it } from 'vitest';
-import { NEIGHBOUR } from '../../tileNeighbours';
-import { crestPhase, isShadowedFromNorth, mageSide, tileHash, wallHasFront, wave } from './runewardPainters';
-import { runewardClockMs } from './runewardTiles';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ConfigRegistry } from '../../../config/ConfigRegistry';
+import type { RunewardArtConfig } from '../../../core/types';
+import { loadTestConfigs } from '../../../test/loadTestConfigs';
+import { NEIGHBOUR, type TileNeighbours } from '../../tileNeighbours';
+import {
+  crestPhase,
+  isShadowedFromNorth,
+  mageSide,
+  paintBlueWall,
+  paintExit,
+  paintFloor,
+  paintLava,
+  paintMage,
+  paintWall,
+  paintWater,
+  tileHash,
+  wallHasFront,
+  wave
+} from './runewardPainters';
+import { countCalls, createRecordedContext } from '../../../test/runewardTestContext';
+import { RUNEWARD_PAINTERS, runewardClockMs, type RunewardPaintEnv, type RunewardTilePass } from './runewardTiles';
 
 /** Values of the same hash in the Runeward game (src/render/Painter.js), measured by running it. */
 const REFERENCE_HASHES: readonly (readonly [number, number, number])[] = [
@@ -120,5 +138,172 @@ describe('Runeward clock', () => {
 
   it('is frozen at 0 under reduced motion', () => {
     expect(runewardClockMs({ timeTick: 12345, reducedMotion: true })).toBe(0);
+  });
+});
+
+const TILE = 48;
+const SMALL_TILE = 12;
+const CELL: Readonly<TileNeighbours> = { wallMask: 0, shadowMask: NEIGHBOUR.N, hash: 123456789, cx: 5, cy: 4 };
+const OPEN_CELL: Readonly<TileNeighbours> = { wallMask: 0, shadowMask: 0, hash: 1, cx: 1, cy: 1 };
+const CLOCK_MS = 777;
+/** Calls the tile dispatch adds around a drawing: save and translate before, restore after. */
+const WRAPPER_HEAD = 2;
+const WRAPPER_TAIL = 1;
+const INK_CREST_ALPHA = 'globalAlpha = 0.85';
+const POSE = { dir: 'S', inWater: false, alive: true, frame: 0, hop: 0 } as const;
+
+function plainArt(): RunewardArtConfig {
+  return ConfigRegistry.getGame().runewardArt as RunewardArtConfig;
+}
+
+function parchmentArt(): RunewardArtConfig {
+  return ConfigRegistry.getGame().runewardArtVariants?.parchment as RunewardArtConfig;
+}
+
+function envOf(art: RunewardArtConfig): RunewardPaintEnv {
+  return { timeTick: 0, reducedMotion: false, cache: new Map(), art };
+}
+
+function assignment(property: string, value: string): string {
+  return `${property} = ${JSON.stringify(value)}`;
+}
+
+/** Log of one registered tile painter at the origin of a recording context. */
+function tileLog(id: string, art: RunewardArtConfig, pass: RunewardTilePass, neighbours = CELL): string[] {
+  const { ctx, lines } = createRecordedContext();
+  RUNEWARD_PAINTERS.tiles[id](ctx, 0, 0, TILE, pass, neighbours, envOf(art), false, false);
+  return lines;
+}
+
+describe('ink drawing under the parchment art', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('gives floor, invisible wall and appearing wall the same calls at the same cell', () => {
+    const art = parchmentArt();
+    const floor = tileLog('floor', art, 'static');
+    expect(floor.length).toBeGreaterThan(10);
+    for (const neighbours of [CELL, { ...CELL, shadowMask: 0 }, { ...CELL, hash: 7 }, { ...CELL, cx: 0, cy: 0 }]) {
+      const expected = tileLog('floor', art, 'static', neighbours);
+      expect(tileLog('invisible_wall', art, 'static', neighbours)).toEqual(expected);
+      expect(tileLog('appearing_wall', art, 'static', neighbours)).toEqual(expected);
+    }
+  });
+
+  it('gives real and fake blue walls the same calls', () => {
+    const art = parchmentArt();
+    expect(tileLog('blue_wall_fake', art, 'static')).toEqual(tileLog('blue_wall_real', art, 'static'));
+  });
+
+  it('draws the floor shadow as clipped hatching, not as a gradient', () => {
+    const { ctx, lines } = createRecordedContext();
+    paintFloor(ctx, TILE, parchmentArt(), CELL);
+    expect(countCalls(lines, 'clip')).toBe(2);
+    expect(countCalls(lines, 'createLinearGradient')).toBe(0);
+  });
+
+  it('draws the exit and the liquids in the ink colours of the variant', () => {
+    const art = parchmentArt();
+    const ink = art.ink!;
+    const exit = createRecordedContext();
+    paintExit(exit.ctx, TILE, art, CELL, 0);
+    expect(exit.lines).toContain(assignment('fillStyle', ink.gold));
+    const lava = createRecordedContext();
+    paintLava(lava.ctx, TILE, art, CELL, 0);
+    expect(lava.lines).toContain(assignment('strokeStyle', ink.line));
+    expect(lava.lines).toContain(assignment('strokeStyle', art.lava.crest));
+    const water = createRecordedContext();
+    paintWater(water.ctx, TILE, art, CELL, 0);
+    expect(water.lines).toContain(assignment('strokeStyle', art.water.crest));
+    expect(water.lines).toContain(INK_CREST_ALPHA);
+  });
+
+  it('keeps the wash out of the animated pass and the crests out of the static pass', () => {
+    const art = parchmentArt();
+    for (const id of ['water', 'fire', 'exit']) {
+      const staticLines = tileLog(id, art, 'static');
+      const animatedLines = tileLog(id, art, 'animated');
+      expect(countCalls(staticLines, 'fillRect')).toBeGreaterThan(0);
+      expect(countCalls(animatedLines, 'fillRect')).toBe(0);
+      expect(countCalls(animatedLines, 'stroke')).toBeGreaterThan(0);
+      expect(countCalls(tileLog(id, art, 'all'), 'fillRect')).toBe(countCalls(staticLines, 'fillRect'));
+    }
+    expect(tileLog('water', art, 'static').some((line) => line === INK_CREST_ALPHA)).toBe(false);
+  });
+
+  it('moves the crests with the clock', () => {
+    const art = parchmentArt();
+    const at = (timeMs: number): string[] => {
+      const { ctx, lines } = createRecordedContext();
+      paintWater(ctx, TILE, art, CELL, timeMs, 'animated');
+      return lines;
+    };
+    expect(at(0)).toEqual(at(0));
+    expect(at(CLOCK_MS)).not.toEqual(at(0));
+  });
+
+  it('outlines the mage in ink with a gold band and a wood staff', () => {
+    const art = parchmentArt();
+    const { ctx, lines } = createRecordedContext();
+    paintMage(ctx, TILE, art, POSE, 0);
+    expect(lines).toContain(assignment('strokeStyle', art.ink!.line));
+    expect(lines).toContain(assignment('strokeStyle', art.ink!.wood));
+    expect(lines).toContain(assignment('fillStyle', art.ink!.gold));
+  });
+
+  it('hatches the front of walls from 16 px and washes it below', () => {
+    const art = parchmentArt();
+    const wall = createRecordedContext();
+    paintWall(wall.ctx, TILE, art, OPEN_CELL);
+    expect(countCalls(wall.lines, 'clip')).toBe(1);
+    const small = createRecordedContext();
+    paintWall(small.ctx, SMALL_TILE, art, OPEN_CELL);
+    expect(countCalls(small.lines, 'clip')).toBe(0);
+  });
+
+  it('marks blue walls with a diamond lattice', () => {
+    const blue = createRecordedContext();
+    paintBlueWall(blue.ctx, TILE, parchmentArt(), OPEN_CELL);
+    expect(countCalls(blue.lines, 'closePath')).toBe(2);
+  });
+});
+
+describe('default Runeward art', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('has no ink section', () => {
+    expect(plainArt().ink).toBeUndefined();
+  });
+
+  it('makes no ink calls: no clipped hatching, no ellipse, no curls, no ink alpha', () => {
+    const art = plainArt();
+    const { ctx, lines } = createRecordedContext();
+    paintFloor(ctx, TILE, art, CELL);
+    paintWall(ctx, TILE, art, OPEN_CELL);
+    paintBlueWall(ctx, TILE, art, OPEN_CELL);
+    expect(countCalls(lines, 'clip')).toBe(0);
+    expect(countCalls(lines, 'ellipse')).toBe(0);
+    for (const pass of ['static', 'animated', 'all'] as const) {
+      for (const id of ['water', 'fire', 'exit']) {
+        const log = tileLog(id, art, pass);
+        expect(log).not.toContain(INK_CREST_ALPHA);
+        expect(countCalls(log, 'quadraticCurveTo')).toBe(0);
+        expect(countCalls(log, 'closePath')).toBe(0);
+      }
+    }
+  });
+
+  it('draws the liquids and the exit the same in every pass', () => {
+    const art = plainArt();
+    for (const id of ['water', 'fire', 'exit']) {
+      const reference = createRecordedContext();
+      if (id === 'water') paintWater(reference.ctx, TILE, art, CELL, 0);
+      else if (id === 'fire') paintLava(reference.ctx, TILE, art, CELL, 0);
+      else paintExit(reference.ctx, TILE, art, CELL, 0);
+      expect(tileLog(id, art, 'static').slice(WRAPPER_HEAD, -WRAPPER_TAIL)).toEqual(reference.lines);
+    }
   });
 });

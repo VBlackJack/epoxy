@@ -75,7 +75,7 @@ describe('Retro HD palettes in game.json', () => {
 
   it('give every recoloured style a ramp for every family and no entry for the other styles', () => {
     expect(Object.keys(stylePalettes).sort()).toEqual([...paletteIds].sort());
-    expect(paletteIds).toEqual([...retroHdIds, 'runeward']);
+    expect(paletteIds).toEqual([...retroHdIds, 'runeward', 'runeward_parchment']);
     for (const id of paletteIds) expect(Object.keys(stylePalettes[id].families).sort()).toEqual([...COLOUR_FAMILIES].sort());
   });
 
@@ -191,7 +191,7 @@ describe('palette recolouring', () => {
   });
 
   it('keeps fire warm, and water and ice cool, in every style', () => {
-    for (const id of retroHdIds) {
+    for (const id of [...retroHdIds, 'runeward_parchment']) {
       const out = recolourOf(id).palette(game.palette);
       for (const key of ['modernFireCore', 'modernFireMid', 'modernFireEdge']) {
         expect(isWarm(parseHexColour(out[key])), `${id} ${key}`).toBe(true);

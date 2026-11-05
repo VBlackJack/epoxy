@@ -96,6 +96,8 @@ export interface RenderStyleDescriptor {
   readonly lowResScene: boolean;
   /** Painter set that draws the style's own art where it has some, or null for the shared drawing only. */
   readonly painterSet: PainterSetId | null;
+  /** Name of the game.json runewardArtVariants entry the style draws with, or null for the default Runeward art. */
+  readonly artVariant: string | null;
   /** False keeps the style out of the choices offered to players (Options list, G key); saved settings may still load it. */
   readonly selectable: boolean;
 }
@@ -120,6 +122,7 @@ const MODERN_STYLE: RenderStyleDescriptor = {
   effects: true,
   lowResScene: false,
   painterSet: null,
+  artVariant: null,
   selectable: true
 };
 
@@ -143,6 +146,7 @@ const RETRO16_STYLE: RenderStyleDescriptor = {
   effects: false,
   lowResScene: true,
   painterSet: null,
+  artVariant: null,
   selectable: true
 };
 
@@ -166,6 +170,7 @@ const RETRO32_STYLE: RenderStyleDescriptor = {
   effects: true,
   lowResScene: true,
   painterSet: null,
+  artVariant: null,
   selectable: true
 };
 
@@ -203,6 +208,7 @@ function retroHdStyle(options: RetroHdStyleOptions): RenderStyleDescriptor {
     effects: true,
     lowResScene: false,
     painterSet: null,
+    artVariant: null,
     selectable: true
   };
 }
@@ -247,7 +253,21 @@ const RUNEWARD_STYLE: RenderStyleDescriptor = {
   effects: true,
   lowResScene: false,
   painterSet: 'runeward',
+  artVariant: null,
   selectable: false
+};
+
+/** Id of the Runeward Parchment style and of the art variant it draws with. */
+export const RUNEWARD_PARCHMENT_STYLE_ID: RenderStyleId = 'runeward_parchment';
+const RUNEWARD_PARCHMENT_ART_VARIANT = 'parchment';
+
+/** Runeward Parchment look: the Runeward painters with the ink-on-aged-paper art variant. */
+const RUNEWARD_PARCHMENT_STYLE: RenderStyleDescriptor = {
+  ...RUNEWARD_STYLE,
+  id: RUNEWARD_PARCHMENT_STYLE_ID,
+  labelKey: `${LABEL_KEY_PREFIX}${RUNEWARD_PARCHMENT_STYLE_ID}${LABEL_KEY_SUFFIX}`,
+  transformKey: RUNEWARD_PARCHMENT_STYLE_ID,
+  artVariant: RUNEWARD_PARCHMENT_ART_VARIANT
 };
 
 /** Every style, in registration order (the G key cycles through the selectable ones). */
@@ -260,7 +280,8 @@ export const RENDER_STYLES: readonly RenderStyleDescriptor[] = [
   BLUEPRINT_STYLE,
   SEPIA_STYLE,
   CLASSIC90_STYLE,
-  RUNEWARD_STYLE
+  RUNEWARD_STYLE,
+  RUNEWARD_PARCHMENT_STYLE
 ];
 
 /** The styles offered to players: the Options list and the G key. */
