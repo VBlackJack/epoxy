@@ -1096,6 +1096,32 @@ export function findTurretConfigErrors(entities: Record<string, EntityDefinition
   return errors;
 }
 
+/** Relative sides an arrow block may show an arrow on. */
+const PUSH_ARROW_TURNS: readonly string[] = ['FORWARD', 'RIGHT', 'BACK', 'LEFT'];
+
+/**
+ * Problems of the pushArrows field of an entity: a block (never a monster) with a non-empty list of
+ * unique relative sides (FORWARD, RIGHT, BACK or LEFT). Each entry names the entity.
+ */
+export function findPushArrowConfigErrors(entities: Record<string, EntityDefinition>): string[] {
+  const errors: string[] = [];
+  for (const entity of Object.values(entities)) {
+    const arrows = entity.pushArrows;
+    if (arrows === undefined) continue;
+    const { id } = entity;
+    if (entity.kind !== 'block') errors.push(`${id}.pushArrows: only a block may show push arrows`);
+    if (!Array.isArray(arrows) || arrows.length === 0) {
+      errors.push(`${id}.pushArrows: expected a non-empty array`);
+      continue;
+    }
+    for (const turn of arrows) {
+      if (!PUSH_ARROW_TURNS.includes(turn)) errors.push(`${id}.pushArrows: "${String(turn)}" is not FORWARD, RIGHT, BACK or LEFT`);
+    }
+    if (new Set(arrows).size !== arrows.length) errors.push(`${id}.pushArrows: sides must be unique`);
+  }
+  return errors;
+}
+
 /** Corners a one-sided mirror may face; the axis must be the one that cuts the corner off. */
 const MIRROR_CORNERS: readonly string[] = Object.keys(MIRROR_FRONT_AXIS);
 /** What a flying shot may do to an entity it meets. */

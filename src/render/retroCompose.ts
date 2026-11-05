@@ -20,7 +20,8 @@
  * RGBA buffer and dithers the floor shadow on it, so the rules can be tested in node.
  */
 
-import { Direction, TileDefinition } from '../core/types';
+import { relativeTo } from '../core/lynx/directions';
+import { Direction, RelativeTurn, TileDefinition } from '../core/types';
 import {
   BUTTON_COLOR_KEYS,
   BUTTON_GLYPH_KEYS,
@@ -352,6 +353,17 @@ const RETRO_MONSTER_SPRITE_BASES: Readonly<Record<string, string>> = {
   puppet: 'tank',
   skitter: 'teeth'
 };
+
+/**
+ * Layers of an arrow block: the plain block sprite with one arrow overlay on each face that shows an arrow.
+ * The arrows are read relative to the facing, so a turned block shows them on other faces.
+ */
+export function retroArrowBlockLayers(pushArrows: readonly RelativeTurn[], facing: Direction): RetroLayer[] {
+  return [
+    { name: RETRO_SPRITE.dirtBlock },
+    ...pushArrows.map((turn) => ({ name: `${RETRO_SPRITE_PREFIX.arrowMark}${relativeTo(facing, turn).toLowerCase()}` }))
+  ];
+}
 
 /** Sprite name of a monster for a facing and walk frame. */
 export function retroMonsterSprite(type: string, dir: Direction, frame: number): string {

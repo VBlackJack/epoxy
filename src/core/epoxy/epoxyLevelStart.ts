@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS } from '../coreConstants';
 import { SeededRandom } from '../Random';
 import { CompiledLevel } from '../types';
+import { hasEntityFacing } from './epoxyArrowBlocks';
 import { setHoldDoors } from './epoxyDevices';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
@@ -53,8 +54,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       dir: e.dir,
       cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
       isSliding: false,
-      // A turret fires the way it was placed; its direction stays the way it is pushed or slides.
-      ...(def?.turretBeam ? { facing: e.dir } : {})
+      // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
+      ...(hasEntityFacing(def) ? { facing: e.dir } : {})
     };
   });
 

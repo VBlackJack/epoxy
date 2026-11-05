@@ -290,3 +290,53 @@ describe('blocks that fill water or melt fire', () => {
     });
   });
 });
+
+describe('arrow blocks that can never be pushed', () => {
+  const LOCKED = 'validator.issues.arrow_block_locked.label';
+  const ROWS = ['#######', '#P....#', '#....E#', '#######'];
+
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  function lockedIssues(entity: EntityPlacement) {
+    const level = { ...grid(ROWS), entities: [entity] };
+    return LevelValidator.validate(level).issues.filter((i) => i.i18nKey === LOCKED);
+  }
+
+  it('flags an arrow block whose only arrow faces a wall', () => {
+    const issues = lockedIssues({ type: 'arrow_block_one', x: 3, y: 1, dir: 'N' });
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe('info');
+    expect(issues[0].params).toMatchObject({ x: 3, y: 1 });
+  });
+
+  it('flags an arrow block whose arrows all face a wall or the edge of the map', () => {
+    // Line at (3,1) facing north: forward is the wall above, back is the floor below, so it is free.
+    expect(lockedIssues({ type: 'arrow_block_line', x: 3, y: 1, dir: 'N' })).toHaveLength(0);
+    // Corner at (5,1) facing N: forward is the north wall, right is the east wall (5,1 is the last floor column).
+    expect(lockedIssues({ type: 'arrow_block_corner', x: 5, y: 1, dir: 'N' })).toHaveLength(1);
+  });
+
+  it('does not flag an arrow block with an arrow toward free floor', () => {
+    expect(lockedIssues({ type: 'arrow_block_one', x: 3, y: 1, dir: 'E' })).toHaveLength(0);
+    expect(lockedIssues({ type: 'arrow_block_one', x: 3, y: 1, dir: 'S' })).toHaveLength(0);
+  });
+
+  it('does not flag an arrow block beside a swivel door, whatever side it is closed on', () => {
+    // swivel_door_ne is closed on its north and east sides, but it turns; the block at (3,1) points east.
+    const level = grid(ROWS);
+    level.terrain[1][4] = 'swivel_door_ne';
+    level.entities = [{ type: 'arrow_block_one', x: 3, y: 1, dir: 'E' }];
+    expect(LevelValidator.validate(level).issues.some((i) => i.i18nKey === LOCKED)).toBe(false);
+    // The block standing on a swivel door is not judged by that door's static closed sides either.
+    const onSwivel = grid(ROWS);
+    onSwivel.terrain[1][3] = 'swivel_door_ne';
+    onSwivel.entities = [{ type: 'arrow_block_one', x: 3, y: 1, dir: 'E' }];
+    expect(LevelValidator.validate(onSwivel).issues.some((i) => i.i18nKey === LOCKED)).toBe(false);
+  });
+
+  it('never flags a dirt block', () => {
+    expect(lockedIssues({ type: 'dirt_block', x: 3, y: 1, dir: 'N' })).toHaveLength(0);
+  });
+});

@@ -15,10 +15,11 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { hasEntityFacing } from '../core/epoxy/epoxyArrowBlocks';
 import { isTurretEntityType } from '../core/RulesetFeatures';
 
-/** True when the facing of an Epoxy entity matters: a creature that moves on its own, a steerable puppet, or a turret. Blocks and mirrors stay put. */
+/** True when the facing of an Epoxy entity matters: a creature that moves on its own, a steerable puppet, a turret, or an arrow block (its arrows turn with it). Other blocks and mirrors stay put. */
 export function entityHasFacing(type: string): boolean {
   const def = ConfigRegistry.getEntityDef(type);
-  return Boolean(def?.movementPattern) || def?.steeredBy !== undefined || isTurretEntityType(type);
+  return Boolean(def?.movementPattern) || def?.steeredBy !== undefined || isTurretEntityType(type) || hasEntityFacing(def);
 }

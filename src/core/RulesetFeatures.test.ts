@@ -32,7 +32,8 @@ import {
   isFleeingEntityType,
   isSteeredEntityType,
   isSteeringTileId,
-  isTurretEntityType
+  isTurretEntityType,
+  isArrowBlockEntityType
 } from './RulesetFeatures';
 import { CompiledLevel } from './types';
 
@@ -124,6 +125,21 @@ describe('colour channel aids', () => {
     expect(featuresFor(linked).tapToPath).toBe(false);
     expect(featuresFor({ ...level, winRule: 'receivers' }).tapToPath).toBe(false);
     expect(featuresFor({ ...levelWith('floor'), winRule: 'receivers' }).tapToPath).toBe(true);
+  });
+
+  it('names the arrow blocks as Epoxy only, whether placed or linked to a clone machine', () => {
+    for (const id of ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee']) {
+      expect(isArrowBlockEntityType(id), id).toBe(true);
+      expect(isEpoxyOnlyEntityType(id), id).toBe(true);
+      expect(hasEpoxyOnlyContent(levelWith('floor', id)), id).toBe(true);
+    }
+    expect(isArrowBlockEntityType('dirt_block')).toBe(false);
+    expect(hasEpoxyOnlyContent(levelWith('floor', 'dirt_block'))).toBe(false);
+    const linked = {
+      ...levelWith('floor'),
+      cloneLinks: [{ buttonX: 1, buttonY: 1, clonerX: 2, clonerY: 2, templateType: 'arrow_block_one', templateDir: 'E' as const }]
+    };
+    expect(hasEpoxyOnlyContent(linked)).toBe(true);
   });
 
   it('counts a level with launcher links as laser content even when the grids show no launcher', () => {

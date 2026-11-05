@@ -614,6 +614,18 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level with an arrow block and leaves it out of the pack', () => {
+    const placed = blankLevel(1);
+    placed.entities = [{ type: 'arrow_block_line', x: 3, y: 3, dir: 'E' }];
+    const cloned = blankLevel(2);
+    cloned.cloneLinks = [{ buttonX: 1, buttonY: 1, clonerX: 2, clonerY: 2, templateType: 'arrow_block_one', templateDir: 'E' }];
+    expect(datRefusalReason(placed)).toBe('epoxy_only_monsters');
+    expect(datRefusalReason(cloned)).toBe('epoxy_only_monsters');
+    const encoded = DatCodec.encodeLevelsWithReport([placed, blankLevel(3)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['epoxy_only_monsters']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('refuses a level that holds a transmogrifier and leaves it out of the pack', () => {
     const swapping = blankLevel(1);
     swapping.terrain[3][3] = 'transmogrifier';

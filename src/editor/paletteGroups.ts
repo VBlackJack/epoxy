@@ -75,10 +75,10 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   return null;
 }
 
-/** The group of a Mechanisms entity: mirrors with the lasers, colour blocks with the channels, other blocks and turrets together. */
+/** The group of a Mechanisms entity: mirrors with the lasers, colour blocks with the channels, other blocks, turrets and arrow blocks together. */
 export function entityMechanismGroup(entity: EntityDefinition): MechanismGroupId | null {
   if (entity.mirrorAxis) return 'lasers';
-  if (entity.turretBeam) return 'blocks';
+  if (entity.turretBeam || entity.pushArrows) return 'blocks';
   if (entity.plateColor) return 'colour';
   if (entity.kind === 'block') return 'blocks';
   return null;

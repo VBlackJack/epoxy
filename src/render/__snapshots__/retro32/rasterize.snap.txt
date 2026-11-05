@@ -211,6 +211,10 @@ default turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 default turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 default turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
 default turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
+default arrow_mark_n plain=119a8b04a12fe5af swap=119a8b04a12fe5af
+default arrow_mark_e plain=457e6e8b48d56c58 swap=457e6e8b48d56c58
+default arrow_mark_s plain=de40c8726a3b492b swap=de40c8726a3b492b
+default arrow_mark_w plain=cddc9f64f6c60298 swap=cddc9f64f6c60298
 default block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 cyber_neon floor plain=490bc7251601fafb swap=490bc7251601fafb
 cyber_neon floor_detail_0 plain=600c4f65104e3896 swap=600c4f65104e3896
@@ -425,6 +429,10 @@ cyber_neon turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 cyber_neon turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 cyber_neon turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
 cyber_neon turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
+cyber_neon arrow_mark_n plain=119a8b04a12fe5af swap=119a8b04a12fe5af
+cyber_neon arrow_mark_e plain=457e6e8b48d56c58 swap=457e6e8b48d56c58
+cyber_neon arrow_mark_s plain=de40c8726a3b492b swap=de40c8726a3b492b
+cyber_neon arrow_mark_w plain=cddc9f64f6c60298 swap=cddc9f64f6c60298
 cyber_neon block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 arctic_lab floor plain=5d7055caa0f480fe swap=5d7055caa0f480fe
 arctic_lab floor_detail_0 plain=a038aad131a1b9be swap=a038aad131a1b9be
@@ -639,6 +647,10 @@ arctic_lab turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 arctic_lab turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 arctic_lab turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
 arctic_lab turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
+arctic_lab arrow_mark_n plain=119a8b04a12fe5af swap=119a8b04a12fe5af
+arctic_lab arrow_mark_e plain=457e6e8b48d56c58 swap=457e6e8b48d56c58
+arctic_lab arrow_mark_s plain=de40c8726a3b492b swap=de40c8726a3b492b
+arctic_lab arrow_mark_w plain=cddc9f64f6c60298 swap=cddc9f64f6c60298
 arctic_lab block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 magma_core floor plain=1257996b3f93bab1 swap=1257996b3f93bab1
 magma_core floor_detail_0 plain=122635e6869f01c1 swap=122635e6869f01c1
@@ -853,6 +865,10 @@ magma_core turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 magma_core turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 magma_core turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
 magma_core turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
+magma_core arrow_mark_n plain=119a8b04a12fe5af swap=119a8b04a12fe5af
+magma_core arrow_mark_e plain=457e6e8b48d56c58 swap=457e6e8b48d56c58
+magma_core arrow_mark_s plain=de40c8726a3b492b swap=de40c8726a3b492b
+magma_core arrow_mark_w plain=cddc9f64f6c60298 swap=cddc9f64f6c60298
 magma_core block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3
 lynx_lcd floor plain=cffb6d0ff2a2ab90 swap=cffb6d0ff2a2ab90
 lynx_lcd floor_detail_0 plain=1a9969beb1281ba2 swap=1a9969beb1281ba2
@@ -1067,4 +1083,8 @@ lynx_lcd turret_fixed plain=f70f6074fe34c251 swap=f70f6074fe34c251
 lynx_lcd turret_cw plain=7a7193982ec5be14 swap=7a7193982ec5be14
 lynx_lcd turret_ccw plain=55f681cf117fef70 swap=55f681cf117fef70
 lynx_lcd turret_multi plain=f7d3f0f535028275 swap=f7d3f0f535028275
+lynx_lcd arrow_mark_n plain=119a8b04a12fe5af swap=119a8b04a12fe5af
+lynx_lcd arrow_mark_e plain=457e6e8b48d56c58 swap=457e6e8b48d56c58
+lynx_lcd arrow_mark_s plain=de40c8726a3b492b swap=de40c8726a3b492b
+lynx_lcd arrow_mark_w plain=cddc9f64f6c60298 swap=cddc9f64f6c60298
 lynx_lcd block_on_target plain=cb70d18b3fcbffe3 swap=cb70d18b3fcbffe3

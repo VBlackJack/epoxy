@@ -64,6 +64,9 @@ describe('Mechanisms palette groups', () => {
     const entity = (id: string) => ConfigRegistry.getMonsters().entities[id];
     expect(entityMechanismGroup(entity('mirror_slash'))).toBe('lasers');
     expect(entityMechanismGroup(entity('turret_cw'))).toBe('blocks');
+    for (const id of ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee']) {
+      expect(entityMechanismGroup(entity(id)), id).toBe('blocks');
+    }
     expect(entityMechanismGroup(entity('color_block_red'))).toBe('colour');
     expect(entityMechanismGroup(entity('dirt_block'))).toBe('blocks');
   });

@@ -580,6 +580,7 @@
       "laser_gate_no_receiver": { "label": "Warning: A laser gate ({group}) at ({x}, {y}) ({count} in all) has no receiver of its group, so it stays closed." },
       "flame_jets_no_button": { "label": "Info: Flame jets at ({x}, {y}) ({count} in all) never change: no orange button exists on this level." },
       "swivel_sealed": { "label": "Info: A swivel door at ({x}, {y}) ({count} in all) is sealed: every side it opens on faces a wall, a thin wall, a laser emitter or receiver, or the edge of the map." },
+      "arrow_block_locked": { "label": "Info: An arrow block at ({x}, {y}) ({count} in all) can never be pushed: every side it shows an arrow on faces a wall, a thin wall or the edge of the map." },
       "exit_on_receivers_level": { "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers." },
       "start_on_wall": { "label": "Warning: The player start is in a wall." },
       "start_on_entity": { "label": "Warning: The player start shares its cell with a block or monster." },
@@ -1663,6 +1664,10 @@
   },
   "entities": {
     "dirt_block": { "name": "Movable Dirt Block", "desc": { "label": "A block the player can push. Pushed into water, it turns the water into dirt." } },
+    "arrow_block_one": { "name": "Arrow Block (one way)", "desc": { "label": "A pushable block that moves only toward the one side that shows an arrow. Pushed from any other side, it stays still." } },
+    "arrow_block_line": { "name": "Arrow Block (two ways)", "desc": { "label": "A pushable block that moves only toward the two opposite sides that show an arrow. Pushed from any other side, it stays still." } },
+    "arrow_block_corner": { "name": "Arrow Block (corner)", "desc": { "label": "A pushable block that moves only toward the two adjacent sides that show an arrow. Pushed from any other side, it stays still." } },
+    "arrow_block_tee": { "name": "Arrow Block (three ways)", "desc": { "label": "A pushable block that moves only toward the three sides that show an arrow. Pushed from the fourth side, it stays still." } },
     "ice_block": { "name": "Sliding Ice Block", "desc": { "label": "A block the player can push. Melts into water in fire; a shot also destroys it, leaving water only on plain floor." } },
     "bug": { "name": "Bug (Left-Wall Follower)" },
     "paramecium": { "name": "Paramecium (Right-Wall Follower)" },

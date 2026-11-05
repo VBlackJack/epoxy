@@ -124,6 +124,11 @@ export function isTurretEntityType(type: string): boolean {
   return ConfigRegistry.getEntityDef(type)?.turretBeam !== undefined;
 }
 
+/** True when the entity type is an arrow block, a pushable block that only moves toward a side showing an arrow, as the monster config defines it. */
+export function isArrowBlockEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.pushArrows !== undefined;
+}
+
 /** True when the level places a turret, or links a clone machine to a turret template. */
 export function hasTurretContent(level: Pick<CompiledLevel, 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>): boolean {
   return (
@@ -183,14 +188,14 @@ function hasTransmogrifierContent(level: Pick<CompiledLevel, 'terrain' | 'items'
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the level places a monster only the Epoxy engine plays (a puppet or a skitter), a steering pad, or a transmogrifier. */
+/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter or an arrow block), a steering pad, or a transmogrifier. */
 export function hasEpoxyOnlyMonsterContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {
   if (hasSteeringContent(level) || hasTransmogrifierContent(level)) return true;
-  const fleeing = (type: string): boolean => isFleeingEntityType(type);
+  const epoxyOnly = (type: string): boolean => isFleeingEntityType(type) || isArrowBlockEntityType(type);
   return (
-    (level.entities ?? []).some((e) => fleeing(e.type)) || (level.cloneLinks ?? []).some((link) => fleeing(link.templateType))
+    (level.entities ?? []).some((e) => epoxyOnly(e.type)) || (level.cloneLinks ?? []).some((link) => epoxyOnly(link.templateType))
   );
 }
 
@@ -265,11 +270,12 @@ export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   );
 }
 
-/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, a colour block, a puppet or a skitter. */
+/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet or a skitter. */
 export function isEpoxyOnlyEntityType(type: string): boolean {
   return (
     isMirrorEntityType(type) ||
     isTurretEntityType(type) ||
+    isArrowBlockEntityType(type) ||
     isColorBlockEntityType(type) ||
     isSteeredEntityType(type) ||
     isFleeingEntityType(type)

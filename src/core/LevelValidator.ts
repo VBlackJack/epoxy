@@ -32,6 +32,7 @@ import {
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
+import { relativeTo } from './lynx/directions';
 import { isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
@@ -40,6 +41,7 @@ import {
   ChannelColor,
   CompiledLevel,
   Direction,
+  EntityPlacement,
   GridPoint,
   LevelValidationReport,
   TileDefinition,
@@ -1679,6 +1681,52 @@ export class LevelValidator {
     if (sealed.length > 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.swivel_sealed.label', params: this.locationParams(sealed) });
     }
+    const lockedArrowBlocks = (level.entities ?? [])
+      .filter((entity) => this.isArrowBlockLocked(level, entity, underlays))
+      .map((entity) => ({ x: entity.x, y: entity.y }))
+      .filter((cell) => this.inGrid(level, cell));
+    if (lockedArrowBlocks.length > 0) {
+      issues.push({
+        severity: 'info',
+        i18nKey: 'validator.issues.arrow_block_locked.label',
+        params: this.locationParams(lockedArrowBlocks)
+      });
+    }
+  }
+
+  /**
+   * Whether an arrow block can never be pushed: each side it shows an arrow on (read from its starting direction)
+   * faces the map edge, a thin wall (a cell edge or a thin wall tile) or a plain or invisible wall. A neighbour
+   * that hides an underlay, or any other tile, is judged open, so the check never flags a block that may move.
+   */
+  private static isArrowBlockLocked(level: CompiledLevel, entity: EntityPlacement, underlays: ReadonlyMap<number, string> | null): boolean {
+    const arrows = ConfigRegistry.getEntityDef(entity.type)?.pushArrows;
+    if (arrows === undefined || arrows.length === 0) return false;
+    const width = level.terrain[0]?.length ?? 0;
+    const mask = cellEdgeMask(level);
+    const own = level.terrain[entity.y]?.[entity.x];
+    if (own === undefined) return false;
+    const ownTile = ConfigRegistry.getTile(own);
+    // A swivel door turns, so its static closed sides prove nothing.
+    const ownBlockedEdges = ownTile.swivelTurns !== undefined ? [] : (ownTile.blockedEdges ?? []);
+    return arrows.every((turn) => {
+      const dir = relativeTo(entity.dir, turn);
+      const nx = entity.x + DIRECTION_VECTORS[dir].dx;
+      const ny = entity.y + DIRECTION_VECTORS[dir].dy;
+      const neighbourId = level.terrain[ny]?.[nx];
+      if (neighbourId === undefined) return true;
+      if (ownBlockedEdges.includes(dir)) return true;
+      const opposite = OPPOSITE_DIRECTION[dir];
+      if (mask !== null) {
+        if ((mask[entity.y * width + entity.x] & CELL_EDGE_BITS[dir]) !== 0) return true;
+        if ((mask[ny * width + nx] & CELL_EDGE_BITS[opposite]) !== 0) return true;
+      }
+      if (underlays?.has(ny * width + nx)) return false;
+      const neighbour = ConfigRegistry.getTile(neighbourId);
+      if (neighbour.swivelTurns !== undefined) return false;
+      if (neighbour.blockedEdges?.includes(opposite)) return true;
+      return SWIVEL_SEALING_TILE_IDS.has(neighbourId);
+    });
   }
 
   /**
