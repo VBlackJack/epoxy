@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Signal tiles (Epoxy only): a signal plate and AND, OR, NOT, XOR and latch gates that drive coloured hold doors through signal links, with validator checks for signal wiring (one input per door, NOT with one input, no cycles, no inverting loops through a laser receiver). Both locales.
 - Runeward render styles (preview): two new graphics styles, Runeward, with drawn stone floors and walls, animated water and lava, a glowing exit and a mage player, and Runeward Parchment, the same dungeon drawn as ink on aged paper with hatched shadows and warm torchlight. Tiles they do not draw yet use a recoloured version of the existing drawing. Both locales.
 - Phone full screen overlay layout: the board fills the screen, a translucent HUD shows time, chips, level and held items, and a large translucent directional pad floats over the board, on the left or right as chosen in Options (the HUD and pause button move to the other side); the camera keeps the player clear of the pad, safe areas are respected, and panels turn opaque with high contrast or reduced transparency. Both locales.
 - Turn plates: two Epoxy-only floor tiles that turn an arrow block a quarter turn, clockwise or counter-clockwise, each time it arrives on them by a push, a slide, a teleport or a clone machine; nothing else turns. The block puzzle check and the dead-end watch follow the turn, the validator notes plates on a level without arrow blocks, the .DAT export refuses levels that hold them, and every style draws them. Both locales.

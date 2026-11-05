@@ -78,8 +78,9 @@ describe('paletteAvailability', () => {
       const isSwivelDoor = def.swivelTurns !== undefined;
       const isTransmogrifier = def.transmogrifies === true;
       const isTurnPlate = def.facingTurn !== undefined;
+      const isSignalTile = def.signalSource !== undefined || def.signalGate !== undefined;
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
@@ -89,6 +90,14 @@ describe('paletteAvailability', () => {
 
   it('offers the turn plates under the Epoxy rules only', () => {
     for (const id of ['turn_plate_cw', 'turn_plate_ccw']) {
+      expect(tileAvailability('epoxy', id), id).toEqual({ available: true });
+      expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+    }
+  });
+
+  it('offers the signal plate and gates under the Epoxy rules only', () => {
+    const signalIds = ['signal_plate', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor', 'signal_latch_off', 'signal_latch_on'];
+    for (const id of signalIds) {
       expect(tileAvailability('epoxy', id), id).toEqual({ available: true });
       expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
     }

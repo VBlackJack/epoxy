@@ -17,6 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   findEyeBootsConfigErrors,
+  findSignalConfigErrors,
   isCompiledLevelShape,
   isRuleset,
   LevelSizeBounds,
@@ -27,6 +28,7 @@ import {
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { ConfigRegistry } from './ConfigRegistry';
 import type { Cc3dCell, Cc3dLevel } from '../core/cc3d/model';
+import type { TileDefinition } from '../core/types';
 
 const BOUNDS: LevelSizeBounds = { minSize: 3, maxSize: 32 };
 const SIZE = 4;
@@ -311,5 +313,50 @@ describe('findEyeBootsConfigErrors', () => {
     expect(findEyeBootsConfigErrors(falsy)).toHaveLength(1);
     const notBoot = { ...tiles.score_10, revealsHiddenWalls: true };
     expect(findEyeBootsConfigErrors({ ...tiles, score_10: notBoot })).toHaveLength(1);
+  });
+});
+
+describe('findSignalConfigErrors', () => {
+  beforeEach(() => loadTestConfigs());
+
+  const shipped = (): Record<string, TileDefinition> => structuredClone(ConfigRegistry.getTiles().tiles);
+  const withTile = (id: string, fields: Partial<TileDefinition>): Record<string, TileDefinition> => {
+    const tiles = shipped();
+    return { ...tiles, [id]: { ...tiles[id], ...fields } };
+  };
+
+  it('accepts the shipped signal tiles', () => {
+    const tiles = shipped();
+    expect(tiles.signal_plate.signalSource).toBe('held');
+    expect(tiles.signal_latch_on.signalLatchStartsOn).toBe(true);
+    expect(findSignalConfigErrors(tiles)).toEqual([]);
+  });
+
+  it('refuses a source other than held and a gate that is not one of the five', () => {
+    expect(findSignalConfigErrors(withTile('signal_plate', { signalSource: 'pulse' as 'held' }))).toHaveLength(1);
+    expect(findSignalConfigErrors(withTile('signal_gate_and', { signalGate: 'nand' as 'and' })).join()).toContain('signalGate');
+  });
+
+  it('refuses a latch start flag that is not true or not on a latch', () => {
+    expect(findSignalConfigErrors(withTile('signal_latch_on', { signalLatchStartsOn: false as true })).join()).toContain(
+      'expected true'
+    );
+    expect(findSignalConfigErrors(withTile('signal_gate_and', { signalLatchStartsOn: true })).join()).toContain('latch gate');
+  });
+
+  it('refuses a signal tile outside the terrain layer', () => {
+    expect(findSignalConfigErrors(withTile('signal_plate', { layer: 'item' })).join()).toContain('terrain tile');
+  });
+
+  it('refuses a tile with two signal roles or a colour role beside its signal role', () => {
+    expect(findSignalConfigErrors(withTile('signal_plate', { signalGate: 'or' })).join()).toContain('both');
+    expect(findSignalConfigErrors(withTile('signal_plate', { plateColor: 'red' })).join()).toContain('plate, a hold door');
+    expect(findSignalConfigErrors(withTile('signal_gate_or', { holdDoorColor: 'red' })).join()).toContain('plate, a hold door');
+    expect(findSignalConfigErrors(withTile('signal_gate_or', { laserReceiverGroup: 'red' })).join()).toContain('plate, a hold door');
+  });
+
+  it('refuses a gate that something can walk onto', () => {
+    expect(findSignalConfigErrors(withTile('signal_gate_xor', { passableByPlayer: true })).join()).toContain('impassable');
+    expect(findSignalConfigErrors(withTile('signal_gate_xor', { passableByBlock: true })).join()).toContain('impassable');
   });
 });

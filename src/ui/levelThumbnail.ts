@@ -82,7 +82,8 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   clone_machine: 'clonerBorder',
   transmogrifier: 'teleportRing',
   turn_plate_cw: 'teleportRing',
-  turn_plate_ccw: 'teleportRing'
+  turn_plate_ccw: 'teleportRing',
+  signal_plate: 'yellow'
 };
 
 /** Families of tiles named `<prefix><suffix>`; the palette key is `key` or, when null, the suffix itself (a colour name). */
@@ -103,7 +104,9 @@ const TILE_PREFIX_RULES: ReadonlyArray<{ prefix: string; key: string | null }> =
   { prefix: 'shot_launcher_', key: 'wallBase' },
   { prefix: 'laser_receiver_', key: null },
   { prefix: 'score_', key: 'bonusFlag' },
-  { prefix: 'stopwatch_', key: 'stopwatchBody' }
+  { prefix: 'stopwatch_', key: 'stopwatchBody' },
+  { prefix: 'signal_gate_', key: 'teleportRing' },
+  { prefix: 'signal_latch_', key: 'teleportRing' }
 ];
 
 /** Gates are `laser_gate_<colour>_<state>`; an open gate looks like floor. */

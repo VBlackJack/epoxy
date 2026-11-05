@@ -36,6 +36,7 @@ import { relativeTo } from './lynx/directions';
 import { isArrowBlockEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { checkSignalWiring, signalDrivenColors } from './signalChecks';
 import { hiddenUnder, underlayMap } from './Underlays';
 import {
   ChannelColor,
@@ -386,6 +387,7 @@ export class LevelValidator {
     this.checkShotLaunchers(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
+    checkSignalWiring(level, issues);
 
     // A consumed key opens one door; a kept key opens every door of its colour.
     // Fewer keys than doors only warns that the doors cannot all be opened: spare or decoy
@@ -1834,7 +1836,10 @@ export class LevelValidator {
         return kind !== undefined && entityPressesPlate(e.type, kind, color);
       });
 
+    // A colour whose doors a signal drives opens from the signals, not from plates.
+    const signalColors = signalDrivenColors(level);
     for (const [color, cells] of hiddenDoorCells) {
+      if (signalColors.has(color)) continue;
       if (!doorsByColor.has(color) && (platesByColor.get(color) ?? []).length === 0) {
         issues.push({
           severity: 'warning',
@@ -1844,6 +1849,7 @@ export class LevelValidator {
       }
     }
     for (const [color, doors] of doorsByColor) {
+      if (signalColors.has(color)) continue;
       const plates = platesByColor.get(color) ?? [];
       if (plates.length === 0) {
         issues.push({
@@ -1908,6 +1914,8 @@ export class LevelValidator {
       });
     });
     const openable = new Set<ChannelColor>();
+    // A colour whose doors a signal drives counts as openable: the signals open them, not plates.
+    for (const color of signalDrivenColors(level)) if (doorColors.has(color)) openable.add(color);
     for (const color of doorColors) {
       const plates = platesByColor.get(color) ?? 0;
       if (plates === 0) continue;
