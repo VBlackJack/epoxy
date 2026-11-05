@@ -30,6 +30,7 @@ const COLOUR_PATHS: readonly string[] = [
   'wall.top', 'wall.topLight', 'wall.topDark', 'wall.front', 'wall.frontDark', 'wall.edge',
   'blueWall.tint', 'blueWall.line',
   'shadow.color',
+  'seal.base', 'seal.glyph', 'seal.glow',
   'exit.base', 'exit.ring', 'exit.core', 'exit.glow',
   'water.deep', 'water.light', 'water.crest',
   'lava.deep', 'lava.light', 'lava.crest',

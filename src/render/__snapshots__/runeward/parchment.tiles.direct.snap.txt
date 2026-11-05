@@ -314,24 +314,24 @@ tile turn_plate_cw closed=true shadowMask=128 hash=1 81c19fcada8a5d87
 tile turn_plate_ccw closed=true isolated ece40ba5ad46b0cd
 tile turn_plate_ccw closed=true shadowMask=65 hash=1 84eb340b2a8e2ea9
 tile turn_plate_ccw closed=true shadowMask=128 hash=1 58076315b1392603
-tile dirt closed=true isolated 531695cebfbbd8f9
-tile dirt closed=true shadowMask=65 hash=1 53c6b2fe30e17c93
-tile dirt closed=true shadowMask=128 hash=1 6274dda1e0a600fe
-tile gravel closed=true isolated a0a26bb6639d30d6
-tile gravel closed=true shadowMask=65 hash=1 12d49a4e9aa5228b
-tile gravel closed=true shadowMask=128 hash=1 3c5b39ab7dbfa88e
+tile dirt closed=true isolated 71a9e481f33bbdd4
+tile dirt closed=true shadowMask=65 hash=1 43b74793723db956
+tile dirt closed=true shadowMask=128 hash=1 a401f27862b4b064
+tile gravel closed=true isolated aaaa4b00211329ce
+tile gravel closed=true shadowMask=65 hash=1 e1b34fe9d6143c51
+tile gravel closed=true shadowMask=128 hash=1 55f16290a165443c
 tile turtle closed=true isolated c62a1c3d4b03d278
 tile turtle closed=true shadowMask=65 hash=1 c45ecdbfa2b3d8dd
 tile turtle closed=true shadowMask=128 hash=1 e53e6a6f226abff5
-tile socket closed=true isolated a64b8d99d609a147
-tile socket closed=true shadowMask=65 hash=1 57d76bfffefc6ec9
-tile socket closed=true shadowMask=128 hash=1 a0fa669f48883b4c
+tile socket closed=true isolated e58a3beb67260f2c
+tile socket closed=true shadowMask=65 hash=1 4df99fe952563021
+tile socket closed=true shadowMask=128 hash=1 19e72130002ec45b
 tile exit closed=true isolated 8d449e075c895c08
 tile exit closed=true shadowMask=65 hash=1 b5dd13fca94910e2
 tile exit closed=true shadowMask=128 hash=1 5e69599c2d1bcac6
-tile hint closed=true isolated b60ef778dc5c6ad3
-tile hint closed=true shadowMask=65 hash=1 1b002e160a95792d
-tile hint closed=true shadowMask=128 hash=1 e9e3eab7d58762f2
+tile hint closed=true isolated 27bd467b7131b205
+tile hint closed=true shadowMask=65 hash=1 b15c83b123433550
+tile hint closed=true shadowMask=128 hash=1 64ce8ae92a2644dc
 tile water closed=true cell(0,0) fe076d230d555ba0
 tile water closed=true cell(0,0) shaded 4ac4ac1c03666359
 tile water closed=true cell(1,0) 87f0a56e389d708a

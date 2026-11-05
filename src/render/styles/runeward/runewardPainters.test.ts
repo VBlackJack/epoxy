@@ -37,7 +37,7 @@ import {
   wave
 } from './runewardPainters';
 import { countCalls, createRecordedContext } from '../../../test/runewardTestContext';
-import { RUNEWARD_PAINTERS, runewardClockMs, type RunewardPaintEnv, type RunewardTilePass } from './runewardTiles';
+import { RUNEWARD_FALLBACK, RUNEWARD_PAINTERS, runewardClockMs, type RunewardPaintEnv, type RunewardTilePass } from './runewardTiles';
 
 /** Values of the same hash in the Runeward game (src/render/Painter.js), measured by running it. */
 const REFERENCE_HASHES: readonly (readonly [number, number, number])[] = [
@@ -266,6 +266,33 @@ describe('ink drawing under the parchment art', () => {
     const blue = createRecordedContext();
     paintBlueWall(blue.ctx, TILE, parchmentArt(), OPEN_CELL);
     expect(countCalls(blue.lines, 'closePath')).toBe(2);
+  });
+});
+
+describe('tiles that must not pass for floor', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('draws the socket as its own seal in both variants', () => {
+    for (const art of [plainArt(), parchmentArt()]) {
+      expect(art.seal).toBeDefined();
+      for (const neighbours of [CELL, OPEN_CELL, { ...CELL, hash: 7, cx: 0, cy: 0 }]) {
+        const floor = tileLog('floor', art, 'static', neighbours);
+        expect(tileLog('socket', art, 'static', neighbours)).not.toEqual(floor);
+        expect(tileLog('socket', art, 'animated', neighbours)).toEqual([]);
+      }
+    }
+  });
+
+  it('keeps gravel, dirt and hint out of the floor painter so the shared drawing shows them', () => {
+    for (const id of ['gravel', 'dirt', 'hint']) {
+      expect(RUNEWARD_PAINTERS.tiles[id]).toBeUndefined();
+      expect(RUNEWARD_FALLBACK.has(id)).toBe(true);
+    }
+    for (const id of ['invisible_wall', 'appearing_wall']) {
+      expect(RUNEWARD_PAINTERS.tiles[id]).toBe(RUNEWARD_PAINTERS.tiles.floor);
+    }
   });
 });
 

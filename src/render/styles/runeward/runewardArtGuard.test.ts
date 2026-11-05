@@ -48,7 +48,7 @@ describe('Runeward art guard', () => {
   });
 
   it('refuses a missing sub-object without throwing', () => {
-    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'exit', 'water', 'lava', 'mage', 'animation']) {
+    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'seal', 'exit', 'water', 'lava', 'mage', 'animation']) {
       const art = freshArt() as unknown as Record<string, unknown>;
       delete art[section];
       expect(validRunewardArt(art)).toBeNull();
