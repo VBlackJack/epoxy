@@ -60,9 +60,9 @@ export function wave(timeMs: number, periodMs: number, phase = 0): number {
 
 // ---- Shared drawing helpers -------------------------------------------------------------------
 
-type GradientStop = readonly [number, string];
+export type GradientStop = readonly [number, string];
 
-function linear(
+export function linear(
   ctx: CanvasRenderingContext2D,
   x0: number,
   y0: number,
@@ -75,7 +75,7 @@ function linear(
   return gradient;
 }
 
-function radial(
+export function radial(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
@@ -87,7 +87,7 @@ function radial(
   return gradient;
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   const radius = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
@@ -567,7 +567,7 @@ const SEAL = {
 } as const;
 
 /** Traces a regular polygon around the middle of the cell, one corner pointing up. */
-function tracePolygon(ctx: CanvasRenderingContext2D, centre: number, radius: number, sides: number, turn = 0): void {
+export function tracePolygon(ctx: CanvasRenderingContext2D, centre: number, radius: number, sides: number, turn = 0): void {
   ctx.beginPath();
   for (let i = 0; i < sides; i += 1) {
     const angle = (i / sides) * TAU + turn - Math.PI / 2;
