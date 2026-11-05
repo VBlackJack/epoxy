@@ -239,12 +239,15 @@ export type BlockSearchMode = 'watch' | 'exhaustive';
 /**
  * Work counters a test may hand to `validate` through `ValidateOptions.meter`. `cells` sums the cells the reach
  * walks touch (queue steps, ranking flood steps, slide path lengths, grid scans, the per-mask visited grids and the
- * per-walk grid copies), `walks` counts reach walks and `passes` counts fixpoint passes. They are observed, never read: nothing here feeds a budget or a verdict.
+ * per-walk grid copies), `walks` counts reach walks, `passes` counts fixpoint passes and `blockNodes` sums the block
+ * layouts the `targets_unsolvable` search visited (0 when it never ran). They are observed, never read: nothing here
+ * feeds a budget or a verdict.
  */
 export interface ValidateWorkMeter {
   cells: number;
   walks: number;
   passes: number;
+  blockNodes: number;
 }
 
 export interface ValidateOptions {
@@ -347,7 +350,7 @@ export class LevelValidator {
     }
 
     if (coversTargets) {
-      this.checkTargets(level, targetCount, issues, options.blockSearch ?? 'watch');
+      this.checkTargets(level, targetCount, issues, options.blockSearch ?? 'watch', options.meter);
     } else if (lightsReceivers) {
       if (emitterCount === 0) issues.push({ severity: 'error', i18nKey: 'validator.issues.no_emitter.label' });
       if (receiverCount === 0) issues.push({ severity: 'error', i18nKey: 'validator.issues.no_receiver.label' });
@@ -1267,7 +1270,8 @@ export class LevelValidator {
     level: CompiledLevel,
     targetCount: number,
     issues: ValidationIssue[],
-    blockSearch: BlockSearchMode
+    blockSearch: BlockSearchMode,
+    meter?: ValidateWorkMeter
   ): void {
     if (targetCount === 0) {
       issues.push({ severity: 'error', i18nKey: 'validator.issues.no_targets.label' });
@@ -1314,7 +1318,10 @@ export class LevelValidator {
     engine.loadLevel(level);
     // Only a proof from the exact model counts: verdict() skips what it does not model and big maps.
     const budget = blockSearch === 'exhaustive' ? requestedSearchBudget() : watchSearchBudget();
-    if (BlockPuzzleSolver.verdict(engine, budget).kind === 'unsolvable') {
+    const work = meter ? { nodes: 0 } : undefined;
+    const verdict = BlockPuzzleSolver.verdict(engine, budget, work);
+    if (meter && work) meter.blockNodes += work.nodes;
+    if (verdict.kind === 'unsolvable') {
       issues.push({ severity: 'warning', i18nKey: 'validator.issues.targets_unsolvable.label' });
     }
   }
