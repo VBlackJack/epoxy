@@ -21,9 +21,19 @@
  * Painters are added lot by lot; an id without a painter falls through to the shared drawing.
  */
 
-import type { Direction, RunewardArtConfig } from '../../../core/types';
+import type { Direction, RunewardArtConfig, RunewardKeyColour } from '../../../core/types';
 import { REFERENCE_FRAME_MS } from '../../renderTiming';
 import type { TileNeighbours } from '../../tileNeighbours';
+import {
+  paintButton,
+  paintChipItem,
+  paintGate,
+  paintKeyItem,
+  paintLock,
+  paintPressurePlate,
+  paintToggleSlab,
+  type RunewardButtonKind
+} from './runewardMechanisms';
 import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
@@ -146,6 +156,18 @@ function animatedTile(draw: RunewardTileDrawing): RunewardTilePainter {
   };
 }
 
+/** An item painter whose drawing follows the clock (frozen at 0 under reduced motion). */
+function clockedItem(
+  draw: (ctx: CanvasRenderingContext2D, size: number, art: Readonly<RunewardArtConfig>, timeMs: number) => void
+): RunewardItemPainter {
+  return (ctx, x, y, size, env) => {
+    ctx.save();
+    ctx.translate(x, y);
+    draw(ctx, size, env.art, runewardClockMs(env));
+    ctx.restore();
+  };
+}
+
 /** The player as the mage, standing on the cell; the sprite lifts with the hop while its shadow stays. */
 const paintPlayer: RunewardPlayerPainter = (ctx, x, y, size, pose, env) => {
   ctx.save();
@@ -154,15 +176,58 @@ const paintPlayer: RunewardPlayerPainter = (ctx, x, y, size, pose, env) => {
   ctx.restore();
 };
 
+/** A button tile of the given kind, on its pad. */
+function buttonTile(spec: RunewardButtonKind): RunewardTilePainter {
+  return staticTile((ctx, size, art, nb) => paintButton(ctx, size, art, spec, nb));
+}
+
 /** Floor-like tiles all show the same flagstones, so hidden walls give nothing away. */
 const FLOOR_PAINTER = staticTile(paintFloor);
 const WALL_PAINTER = staticTile(paintWall);
 /** Both blue walls share one drawing: nothing in it may tell the real one from the fake one. */
 const BLUE_WALL_PAINTER = staticTile(paintBlueWall);
 
+/** Colour channels with a locked door, a key, a hold door and a pressure plate. */
+const CHANNEL_COLOURS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'green'];
+/** Colour channels with a colour toggle wall and button; green is the plain toggle wall. */
+const TOGGLE_COLOURS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow'];
+/** The channel of the plain toggle wall and of its button. */
+const PLAIN_TOGGLE_COLOUR: RunewardKeyColour = 'green';
+/** Colours of the one-shot buttons that carry a colour (the brown trap button has none). */
+const BUTTON_COLOURS: readonly RunewardKeyColour[] = ['red', 'blue', 'green'];
+
+/** Painters of the colour mechanisms, by tile id. */
+const MECHANISM_TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromEntries([
+  ...CHANNEL_COLOURS.flatMap((colour): [string, RunewardTilePainter][] => [
+    [`door_${colour}`, staticTile((ctx, size, art, nb) => paintLock(ctx, size, art, colour, nb))],
+    [`pressure_plate_${colour}`, staticTile((ctx, size, art, nb) => paintPressurePlate(ctx, size, art, colour, nb))],
+    [`hold_door_${colour}_closed`, staticTile((ctx, size, art, nb) => paintGate(ctx, size, art, colour, false, nb))],
+    [`hold_door_${colour}_open`, staticTile((ctx, size, art, nb) => paintGate(ctx, size, art, colour, true, nb))]
+  ]),
+  ['toggle_wall_closed', staticTile((ctx, size, art, nb) => paintToggleSlab(ctx, size, art, PLAIN_TOGGLE_COLOUR, false, nb))],
+  ['toggle_wall_open', staticTile((ctx, size, art, nb) => paintToggleSlab(ctx, size, art, PLAIN_TOGGLE_COLOUR, true, nb))],
+  ...TOGGLE_COLOURS.flatMap((colour): [string, RunewardTilePainter][] => [
+    [`toggle_wall_${colour}_closed`, staticTile((ctx, size, art, nb) => paintToggleSlab(ctx, size, art, colour, false, nb))],
+    [`toggle_wall_${colour}_open`, staticTile((ctx, size, art, nb) => paintToggleSlab(ctx, size, art, colour, true, nb))],
+    [`toggle_button_${colour}`, buttonTile({ kind: 'toggle', colour })]
+  ]),
+  ...BUTTON_COLOURS.map((colour): [string, RunewardTilePainter] => [`button_${colour}`, buttonTile({ kind: 'colour', colour })]),
+  ['button_brown', buttonTile({ kind: 'jaw' })]
+]);
+
+/** Painters of the keys and the chip, by item id. */
+const MECHANISM_ITEMS: Readonly<Record<string, RunewardItemPainter>> = Object.fromEntries([
+  ...CHANNEL_COLOURS.map((colour): [string, RunewardItemPainter] => [
+    `key_${colour}`,
+    clockedItem((ctx, size, art, timeMs) => paintKeyItem(ctx, size, art, colour, timeMs))
+  ]),
+  ['chip', clockedItem(paintChipItem)]
+]);
+
 /** Ids drawn by a Runeward painter. */
 export const RUNEWARD_PAINTERS: RunewardPainters = {
   tiles: {
+    ...MECHANISM_TILES,
     floor: FLOOR_PAINTER,
     socket: staticTile(paintSeal),
     invisible_wall: FLOOR_PAINTER,
@@ -174,7 +239,7 @@ export const RUNEWARD_PAINTERS: RunewardPainters = {
     fire: animatedTile(paintLava),
     exit: animatedTile(paintExit)
   },
-  items: {},
+  items: MECHANISM_ITEMS,
   entities: {},
   player: paintPlayer,
   animatedTiles: new Set<string>(['water', 'fire', 'exit'])
@@ -182,35 +247,24 @@ export const RUNEWARD_PAINTERS: RunewardPainters = {
 
 /** Epoxy tile and item ids (tiles.json) that keep the shared drawing for now. */
 const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
-  'gravel', 'dirt', 'hint',
-  'recessed_wall',
-  'thin_wall_n', 'thin_wall_e', 'thin_wall_s', 'thin_wall_w', 'thin_wall_se', 'thin_wall_ne',
-  'thin_wall_nw', 'thin_wall_sw', 'thin_wall_ns', 'thin_wall_ew', 'thin_wall_nes', 'thin_wall_new',
-  'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw',
-  'swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw', 'transmogrifier',
-  'turn_plate_cw', 'turn_plate_ccw', 'button_green', 'button_blue', 'button_brown', 'button_red',
-  'block_target', 'button_orange', 'button_gray', 'flame_jet_off', 'flame_jet_on', 'toggle_wall_closed',
-  'toggle_wall_open', 'teleport', 'teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green',
-  'trap', 'clone_machine', 'laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w',
+  'gravel', 'dirt', 'hint', 'recessed_wall', 'thin_wall_n', 'thin_wall_e', 'thin_wall_s', 'thin_wall_w',
+  'thin_wall_se', 'thin_wall_ne', 'thin_wall_nw', 'thin_wall_sw', 'thin_wall_ns', 'thin_wall_ew',
+  'thin_wall_nes', 'thin_wall_new', 'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw', 'swivel_door_ne',
+  'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw', 'transmogrifier', 'turn_plate_cw',
+  'turn_plate_ccw', 'block_target', 'button_orange', 'button_gray', 'flame_jet_off', 'flame_jet_on',
+  'teleport', 'teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green', 'trap',
+  'clone_machine', 'laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w',
   'laser_receiver_red', 'laser_receiver_blue', 'laser_gate_red_closed', 'laser_gate_red_open',
-  'laser_gate_blue_closed', 'laser_gate_blue_open', 'pressure_plate_red', 'pressure_plate_green',
-  'pressure_plate_blue', 'pressure_plate_yellow', 'hold_door_red_closed', 'hold_door_red_open',
-  'hold_door_green_closed', 'hold_door_green_open', 'hold_door_blue_closed', 'hold_door_blue_open',
-  'hold_door_yellow_closed', 'hold_door_yellow_open', 'toggle_wall_red_closed', 'toggle_wall_red_open',
-  'toggle_wall_blue_closed', 'toggle_wall_blue_open', 'toggle_wall_yellow_closed',
-  'toggle_wall_yellow_open', 'toggle_button_red', 'toggle_button_blue', 'toggle_button_yellow',
-  'floating_block_red', 'floating_block_green', 'floating_block_blue', 'floating_block_yellow',
-  'puppet_control', 'shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w',
-  'shot_trigger',
+  'laser_gate_blue_closed', 'laser_gate_blue_open', 'floating_block_red', 'floating_block_green',
+  'floating_block_blue', 'floating_block_yellow', 'puppet_control', 'shot_launcher_n', 'shot_launcher_e',
+  'shot_launcher_s', 'shot_launcher_w', 'shot_trigger',
   'signal_plate', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor',
-  'signal_latch_off', 'signal_latch_on',
-  'turtle', 'slime', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se', 'force_n', 'force_e',
-  'force_s', 'force_w', 'force_random', 'thief', 'thief_keys',
+  'signal_latch_off', 'signal_latch_on', 'turtle', 'slime', 'ice', 'ice_nw', 'ice_ne',
+  'ice_sw', 'ice_se', 'force_n', 'force_e', 'force_s', 'force_w', 'force_random', 'thief', 'thief_keys',
   'forbid_key_red', 'forbid_key_blue', 'forbid_key_yellow', 'forbid_key_green', 'forbid_boots_ice',
-  'forbid_boots_water', 'forbid_boots_fire', 'forbid_boots_force', 'door_red', 'door_blue', 'door_yellow',
-  'door_green', 'key_red', 'key_blue', 'key_yellow', 'key_green',
-  'chip', 'boots_water', 'boots_fire', 'boots_ice', 'boots_force', 'slow_time', 'boots_speed', 'boots_eye',
-  'bomb', 'score_10', 'score_100', 'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
+  'forbid_boots_water', 'forbid_boots_fire', 'forbid_boots_force', 'boots_water', 'boots_fire',
+  'boots_ice', 'boots_force', 'slow_time', 'boots_speed', 'boots_eye', 'bomb', 'score_10', 'score_100',
+  'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
 ];
 
 /** Epoxy entity ids (monsters.json) that keep the shared drawing for now. */

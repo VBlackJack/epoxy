@@ -23,6 +23,9 @@
 import type { RunewardArtConfig } from '../../../core/types';
 import { parseCssColour } from '../retroHdPalette';
 
+/** Colour channels of the keys block, each with its own main, light and glyph colours. */
+const KEY_COLOUR_CHANNELS: readonly string[] = ['red', 'blue', 'yellow', 'green'];
+
 /** Dotted paths of every colour the painters hand to the canvas. */
 const COLOUR_PATHS: readonly string[] = [
   'clear',
@@ -35,7 +38,12 @@ const COLOUR_PATHS: readonly string[] = [
   'water.deep', 'water.light', 'water.crest',
   'lava.deep', 'lava.light', 'lava.crest',
   'mage.robe', 'mage.robeLight', 'mage.hat', 'mage.hatLight', 'mage.band', 'mage.skin', 'mage.eyes',
-  'mage.staff', 'mage.orb', 'mage.orbCore', 'mage.shadow'
+  'mage.staff', 'mage.orb', 'mage.orbCore', 'mage.shadow',
+  ...KEY_COLOUR_CHANNELS.flatMap((channel) => [`keys.${channel}.main`, `keys.${channel}.light`, `keys.${channel}.glyph`]),
+  'door.frame', 'door.keyhole',
+  'gate.bar', 'gate.barLight', 'gate.frame',
+  'plate.rim', 'plate.face', 'plate.pressed', 'plate.highlight',
+  'rune.stone', 'rune.glow', 'rune.core', 'rune.halo', 'rune.haloClear'
 ];
 
 /** Dotted paths of every colour of the optional ink section, checked only when the section is present. */
@@ -49,12 +57,13 @@ const INK_TORCH_RADIUS_PATH = 'ink.torch.radiusTile';
 /** Dotted paths of every number the painters compute with. */
 const NUMBER_PATHS: readonly string[] = [
   'floor.variants', 'shadow.depth',
-  'animation.bobAmplitude', 'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs'
+  'animation.bobAmplitude', 'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs',
+  'animation.pulsePeriodMs'
 ];
 
 /** Periods divide the clock, so they must be strictly positive. */
 const POSITIVE_PATHS: ReadonlySet<string> = new Set([
-  'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs'
+  'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs', 'animation.pulsePeriodMs'
 ]);
 
 function valueAt(root: unknown, path: string): unknown {

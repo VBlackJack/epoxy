@@ -966,11 +966,56 @@
       "orbCore": "#ffffff",
       "shadow": "rgba(0, 0, 0, 0.35)"
     },
+    "keys": {
+      "red": {
+        "main": "#e8304e",
+        "light": "#ffa8b5",
+        "glyph": "#0c0817"
+      },
+      "blue": {
+        "main": "#2f6cf0",
+        "light": "#a8c4ff",
+        "glyph": "#ffffff"
+      },
+      "yellow": {
+        "main": "#f0a020",
+        "light": "#ffe08a",
+        "glyph": "#120d1d"
+      },
+      "green": {
+        "main": "#22b866",
+        "light": "#9dffc4",
+        "glyph": "#120d1d"
+      }
+    },
+    "door": {
+      "frame": "#34343f",
+      "keyhole": "#120d1d"
+    },
+    "gate": {
+      "bar": "#8d8fa3",
+      "barLight": "#d6d8e8",
+      "frame": "#34343f"
+    },
+    "plate": {
+      "rim": "#4e4126",
+      "face": "#b39a5c",
+      "pressed": "#7d6a3d",
+      "highlight": "rgba(255, 255, 255, 0.25)"
+    },
+    "rune": {
+      "stone": "#26324a",
+      "glow": "#5fd8ef",
+      "core": "#e9fdff",
+      "halo": "#5fd8ef",
+      "haloClear": "rgba(95, 216, 239, 0)"
+    },
     "animation": {
       "bobAmplitude": 0.035,
       "bobPeriodMs": 1500,
       "flowPeriodMs": 2600,
-      "portalPeriodMs": 3200
+      "portalPeriodMs": 3200,
+      "pulsePeriodMs": 1800
     }
   },
   "runewardArtVariants": {
@@ -1034,11 +1079,56 @@
         "orbCore": "#fff3d6",
         "shadow": "rgba(42, 27, 15, 0.3)"
       },
+      "keys": {
+        "red": {
+          "main": "#d0644f",
+          "light": "#e39a86",
+          "glyph": "#1a1008"
+        },
+        "blue": {
+          "main": "#6f95b6",
+          "light": "#a9c2d8",
+          "glyph": "#1a1008"
+        },
+        "yellow": {
+          "main": "#d9a441",
+          "light": "#ecc878",
+          "glyph": "#1a1008"
+        },
+        "green": {
+          "main": "#6f9a5a",
+          "light": "#a3c48f",
+          "glyph": "#1a1008"
+        }
+      },
+      "door": {
+        "frame": "#7f5f3c",
+        "keyhole": "#1a1008"
+      },
+      "gate": {
+        "bar": "#3a2815",
+        "barLight": "#8a6a44",
+        "frame": "#7f5f3c"
+      },
+      "plate": {
+        "rim": "#7f5f3c",
+        "face": "#b58a3c",
+        "pressed": "#8a6a44",
+        "highlight": "rgba(255, 248, 225, 0.35)"
+      },
+      "rune": {
+        "stone": "#dcc795",
+        "glow": "#4f6f86",
+        "core": "#1a1008",
+        "halo": "#8fa9b8",
+        "haloClear": "rgba(143, 169, 184, 0)"
+      },
       "animation": {
         "bobAmplitude": 0.035,
         "bobPeriodMs": 1500,
         "flowPeriodMs": 2600,
-        "portalPeriodMs": 3200
+        "portalPeriodMs": 3200,
+        "pulsePeriodMs": 1800
       },
       "ink": {
         "line": "#1a1008",

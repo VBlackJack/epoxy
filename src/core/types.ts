@@ -219,6 +219,17 @@ export interface RunewardLiquidColours {
   crest: string;
 }
 
+/** Colour channels the Runeward mechanism painters draw: the four colour keys of the game. */
+export type RunewardKeyColour = 'red' | 'blue' | 'yellow' | 'green';
+
+/** Colours of one colour channel: its key, door, plate and glyph. */
+export interface RunewardKeyColours {
+  main: string;
+  light: string;
+  /** Colour-blind glyph drawn on `main`; must stay readable on it. */
+  glyph: string;
+}
+
 /**
  * Ink-on-paper additions of an art variant (game.json runewardArtVariants): the ink and paper
  * colours the variant's drawing uses, and the torch light that follows the player. A config without
@@ -312,11 +323,44 @@ export interface RunewardArtConfig {
     /** Ground shadow under the character. */
     shadow: string;
   };
+  /** Keys, doors, plates, buttons and toggle slabs, by colour channel. */
+  keys: Record<RunewardKeyColour, RunewardKeyColours>;
+  /** Locked doors: the frame and the keyhole. */
+  door: {
+    frame: string;
+    keyhole: string;
+  };
+  /** Hold doors (portcullis): the bars and the frame. */
+  gate: {
+    bar: string;
+    barLight: string;
+    frame: string;
+  };
+  /** Pressure plates and buttons. */
+  plate: {
+    rim: string;
+    face: string;
+    pressed: string;
+    /** Light line along the top of a plate that is not pressed. */
+    highlight: string;
+  };
+  /** The chip: a runed hexagonal gem. */
+  rune: {
+    stone: string;
+    glow: string;
+    core: string;
+    /** Centre of the halo behind the gem. */
+    halo: string;
+    /** The halo colour fully transparent. */
+    haloClear: string;
+  };
   animation: {
     bobAmplitude: number;
     bobPeriodMs: number;
     flowPeriodMs: number;
     portalPeriodMs: number;
+    /** Period of the chip pulse. */
+    pulsePeriodMs: number;
   };
   /** Present on ink-on-paper variants only; the default Runeward art has none. */
   ink?: RunewardInkConfig;
