@@ -158,6 +158,42 @@ describe('toggle controls and toggle doors', () => {
   });
 });
 
+describe('entry devices under a key door', () => {
+  const shooterEast: GlyphMeaning = { mob: { kind: 'laser_shooter', dir: 'E' } };
+  const golem: GlyphMeaning = { mob: { kind: 'golem_yellow', dir: 'E' } };
+
+  it('[S] a toggle control under a red door flips the red doors once, when the door is opened', () => {
+    const covered = stacked({ kind: 'floor' }, { kind: 'toggle_control', color: 'red' }, { kind: 'door', color: 'red' });
+    const closed = stacked({ kind: 'floor' }, { kind: 'toggle_door', color: 'red', open: false });
+    const open = stacked({ kind: 'floor' }, { kind: 'toggle_door', color: 'red', open: true });
+    const rig = new Cc3dRig(cc3dLevel(['#@rc.#', '#BA###'], { glyphs: { c: covered, B: closed, A: open } }));
+    expect(rig.terrainAt(1, 1)).toBe('cc3d_toggle_door_red_closed');
+    expect(rig.terrainAt(2, 1)).toBe('cc3d_toggle_door_red_open');
+    rig.walk('E');
+    expect(rig.terrainAt(1, 1)).toBe('cc3d_toggle_door_red_closed');
+    rig.walk('E');
+    expect(rig.player.x).toBe(3);
+    expect(rig.terrainAt(3, 0)).toBe('cc3d_toggle_control_red');
+    expect(rig.terrainAt(1, 1)).toBe('cc3d_toggle_door_red_open');
+    expect(rig.terrainAt(2, 1)).toBe('cc3d_toggle_door_red_closed');
+    rig.tick(SETTLE_TICKS);
+    expect(rig.terrainAt(1, 1)).toBe('cc3d_toggle_door_red_open');
+    expect(rig.terrainAt(2, 1)).toBe('cc3d_toggle_door_red_closed');
+  });
+
+  it('[S] a laser controller under a green door fires the shooter when the door is opened', () => {
+    const covered = stacked({ kind: 'floor' }, { kind: 'laser_controller' }, { kind: 'door', color: 'green' });
+    const rig = new Cc3dRig(cc3dLevel(['#@gcS.!#'], { glyphs: { c: covered, S: shooterEast, '!': golem } }));
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect(rig.entities.some((e) => e.type === 'cc3d_golem_yellow')).toBe(true);
+    rig.walk('E');
+    rig.tick(SETTLE_TICKS);
+    expect(rig.player.x).toBe(3);
+    expect(rig.entities.some((e) => e.type === 'cc3d_golem_yellow')).toBe(false);
+  });
+});
+
 describe('traps and trap controls [U]', () => {
   const trap = stacked({ kind: 'floor' }, { kind: 'trap' });
   const control = stacked({ kind: 'floor' }, { kind: 'trap_control' });
