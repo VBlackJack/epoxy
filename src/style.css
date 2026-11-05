@@ -1550,6 +1550,8 @@ button.editor-issue-row:focus-visible {
   min-height: 0;
   display: flex;
   overflow: auto;
+  /* Touch only: the canvas and its padding take one finger as an edit and two as a pan; the mouse and the wheel scroll as before. */
+  touch-action: none;
   background: #0a0c10;
   border-radius: 8px;
   box-shadow: 0 0 0 2px #2c3344;
@@ -1562,6 +1564,10 @@ button.editor-issue-row:focus-visible {
   cursor: crosshair;
   image-rendering: pixelated;
   touch-action: none;
+  /* A finger held on the map must not open the system callout or start a text selection. */
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #editor-canvas:focus-visible {

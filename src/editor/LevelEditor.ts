@@ -55,6 +55,7 @@ import { BeamPreview, computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPrevi
 import { buildIssueMarkers, IssueMarker, markerFreshness } from './issueMarkers';
 import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
+import { distance, midpoint, pinchStep, startsPinch, type TouchGestureState, type TouchPoint } from './touchGesture';
 import { historyDiff, HistoryDiff } from './historyDiff';
 import { blockCheckApplies, describeBlockVerdict } from './blockCheck';
 import { clonerTemplateMessage, clonersTemplateMessage, describeEditorCell, entityDisplayName, sideDisplayName } from './cellDescription';
@@ -314,6 +315,11 @@ import {
   EDITOR_MAX_TILE_SIZE,
   EDITOR_ZOOM_TILE_STEP,
   POINTER_ERASER_BUTTON,
+  POINTER_TYPE_TOUCH,
+  EDITOR_TOUCH_PINCH_START_PX,
+  EDITOR_TOUCH_PINCH_STEP_RATIO,
+  EDITOR_TOUCH_STROKE_GRACE_MS,
+  EDITOR_TOUCH_TAP_SLOP_PX,
   EDITOR_OVERLAY_LINE_WIDTH,
   EDITOR_PASSWORD_LENGTH,
   EDITOR_PASTE_PREVIEW_ALPHA,
@@ -549,6 +555,19 @@ interface Stroke {
   wholeCell: boolean;
   /** The status line writes counted when the stroke began: a stroke that wrote a status itself is not talked over. */
   statusWritesAtBegin: number;
+  /** When the stroke began (performance.now), and the status line text then: a touch stroke taken back restores both. */
+  beganAt: number;
+  statusTextAtBegin: string;
+}
+
+/** A touch in a link session or a floating paste: it acts when the finger lifts, not when it lands. */
+interface TouchTap {
+  id: number;
+  mode: 'link' | 'paste';
+  start: TouchPoint;
+  cell: { x: number; y: number };
+  /** The finger travelled farther than the tap slop: a link session ignores the lift. */
+  moved: boolean;
 }
 
 /** Optional seams of the editor. */
@@ -770,6 +789,15 @@ export class LevelEditor {
   private lastFit: CanvasFit | null = null;
   /** Last pointer position over the canvas, null once it left: where a zoom pivots. */
   private lastPointer: { clientX: number; clientY: number } | null = null;
+  /** Touch editing: the fingers on the canvas, the one that owns the stroke, the two-finger gesture and the pending tap. */
+  private touchPointers = new Map<number, TouchPoint>();
+  private strokePointerId: number | null = null;
+  private touchGesture: TouchGestureState | null = null;
+  /** A gesture ended while fingers remain down: none of them paints until every finger is up. */
+  private gestureDone = false;
+  private touchTap: TouchTap | null = null;
+  /** The selection a touch selection gesture replaced, put back when a second finger takes the gesture over. */
+  private touchSelectionBackup: { selection: CellRect | null; anchor: { x: number; y: number } | null } | null = null;
   /** Wheel travel in pixels not yet turned into a zoom step. */
   private wheelTravel = 0;
   /** What the coordinates badge was last built for; empty when it holds something else. */
@@ -4106,12 +4134,165 @@ export class LevelEditor {
     this.lastPointer = previous;
   }
 
+  /**
+   * A finger lands on the canvas. Returns true when this handler dealt with it (a second finger, a finger during a
+   * gesture, a palm during a pen or mouse stroke); false when it is the one finger of an ordinary edit and the
+   * single-pointer path goes on.
+   */
+  private onTouchDown(ev: PointerEvent): boolean {
+    // A primary pointer starts a new touch sequence: fingers still tracked are leftovers of a lost lift.
+    if (ev.isPrimary === true && this.touchPointers.size > 0) this.resetTouch();
+    // A pen or mouse stroke owns the canvas: a resting palm is ignored.
+    if ((this.stroke || this.selectionGesture) && this.strokePointerId === null) return true;
+    ev.preventDefault();
+    if (this.touchPointers.size === 0) {
+      // Every finger of an earlier touch is up (or its lift was lost): start clean.
+      this.gestureDone = false;
+      this.touchGesture = null;
+      this.touchTap = null;
+      this.strokePointerId = null;
+    }
+    this.touchPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (this.gestureDone || this.touchGesture) return true;
+    if (this.touchPointers.size < 2) return false;
+    this.abortFirstTouch();
+    const [a, b] = [...this.touchPointers.keys()];
+    const first = this.touchPointers.get(a);
+    const second = this.touchPointers.get(b);
+    if (!first || !second) return true;
+    const dist = distance(first, second);
+    this.touchGesture = { ids: [a, b], lastMid: midpoint(first, second), refDist: dist, startDist: dist, pinching: false };
+    return true;
+  }
+
+  /** A second finger lands: what the first finger started is taken back (a young stroke), kept (an older one) or dropped. */
+  private abortFirstTouch(): void {
+    this.settleTouchStroke();
+  }
+
+  /** Forgets every finger: settles a touch stroke, then clears the gesture and the finger table (a lost lift must not leave touch dead). */
+  private resetTouch(): void {
+    this.settleTouchStroke();
+    this.touchGesture = null;
+    this.gestureDone = false;
+    this.touchPointers.clear();
+  }
+
+  /** True when the stroke is still young enough to be taken back rather than kept. */
+  private strokeIsYoung(stroke: Stroke): boolean {
+    return performance.now() - stroke.beganAt < EDITOR_TOUCH_STROKE_GRACE_MS;
+  }
+
+  private settleTouchStroke(): void {
+    if (this.stroke && this.strokePointerId !== null) {
+      if (this.strokeIsYoung(this.stroke)) this.cancelStroke();
+      else this.endStroke();
+    }
+    if (this.selectionGesture && this.strokePointerId !== null) {
+      // The gesture is dropped without announcing a size, and the selection it replaced comes back.
+      this.selectionGesture = null;
+      const backup = this.touchSelectionBackup;
+      if (backup) {
+        this.selection = backup.selection;
+        this.selectionAnchor = backup.anchor;
+      }
+      this.render();
+    }
+    this.touchSelectionBackup = null;
+    this.touchTap = null;
+    this.strokePointerId = null;
+  }
+
+  /** A finger moves. Returns true when the single-pointer move path must not run for it. */
+  private onTouchMove(ev: PointerEvent): boolean {
+    const known = this.touchPointers.get(ev.pointerId);
+    if (!known) return true;
+    known.x = ev.clientX;
+    known.y = ev.clientY;
+    if (this.touchGesture) {
+      this.updateTouchGesture(this.touchGesture);
+      return true;
+    }
+    if (this.gestureDone) return true;
+    if (this.strokePointerId !== null && ev.pointerId !== this.strokePointerId) return true;
+    const tap = this.touchTap;
+    if (tap && tap.id === ev.pointerId && distance(tap.start, known) > EDITOR_TOUCH_TAP_SLOP_PX) tap.moved = true;
+    return false;
+  }
+
+  /** Two fingers: the map pans by the move of their midpoint, and zooms one step each time they part or close enough. */
+  private updateTouchGesture(gesture: TouchGestureState): void {
+    const a = this.touchPointers.get(gesture.ids[0]);
+    const b = this.touchPointers.get(gesture.ids[1]);
+    const stage = byId('editor-stage');
+    if (!a || !b || !stage) return;
+    const mid = midpoint(a, b);
+    const dist = distance(a, b);
+    this.scrollStage(stage, { left: stage.scrollLeft - (mid.x - gesture.lastMid.x), top: stage.scrollTop - (mid.y - gesture.lastMid.y) });
+    gesture.lastMid = mid;
+    if (!gesture.pinching && startsPinch(dist, gesture.startDist, EDITOR_TOUCH_PINCH_START_PX)) gesture.pinching = true;
+    if (!gesture.pinching) return;
+    const step = pinchStep(dist, gesture.refDist, EDITOR_TOUCH_PINCH_STEP_RATIO);
+    if (!step) return;
+    gesture.refDist = dist;
+    const fit = this.lastFit;
+    if (fit && !(step === 'in' ? fit.canZoomIn : fit.canZoomOut)) return;
+    // The zoom pivots on the midpoint; the pointer position the canvas last reported is put back after.
+    const previous = this.lastPointer;
+    this.lastPointer = { clientX: mid.x, clientY: mid.y };
+    this.setZoomOffset(step === 'in' ? zoomIn(this.zoomOffset) : zoomOut(this.zoomOffset));
+    this.lastPointer = previous;
+  }
+
+  /** A finger lifts or is cancelled: ends the gesture, or the stroke and tap that finger owns. */
+  private onTouchEnd(ev: PointerEvent, cancelled: boolean): void {
+    const id = ev.pointerId;
+    if (!this.touchPointers.delete(id)) return;
+    const inGesture = this.touchGesture !== null && this.touchGesture.ids.includes(id);
+    const suppressed = inGesture || this.gestureDone;
+    if (inGesture) {
+      this.touchGesture = null;
+      this.gestureDone = true;
+    }
+    if (this.touchPointers.size === 0) this.gestureDone = false;
+    if (suppressed) return;
+    const tap = this.touchTap;
+    if (tap && tap.id === id) {
+      this.touchTap = null;
+      if (!cancelled) this.finishTouchTap(tap, ev);
+    }
+    if (this.strokePointerId === id) {
+      this.strokePointerId = null;
+      // A touch the system cancelled within the grace period was most likely not meant as a paint.
+      if (cancelled && this.stroke && this.strokeIsYoung(this.stroke)) this.cancelStroke();
+      else this.endStroke();
+      this.endSelectionGesture(!cancelled);
+      this.touchSelectionBackup = null;
+    }
+  }
+
+  /** A tap in a link session toggles the partner it landed on; the lift of a paste drag places the paste where it was carried. */
+  private finishTouchTap(tap: TouchTap, ev: PointerEvent): void {
+    if (tap.mode === 'link') {
+      if (!tap.moved && this.linkSession) this.sessionAct(tap.cell);
+      return;
+    }
+    if (!this.pasting) return;
+    // A finger carried off the map and lifted there places nothing; the paste stays floating.
+    const cell = this.cellAt(ev.clientX, ev.clientY);
+    if (cell) this.placePaste(cell);
+  }
+
   private bindCanvasEvents(): void {
     this.canvas.addEventListener('contextmenu', (ev) => {
       ev.preventDefault();
     });
 
     this.canvas.addEventListener('pointerdown', (ev) => {
+      const touch = ev.pointerType === POINTER_TYPE_TOUCH;
+      // A pen or mouse takes the canvas from a finger stroke (a palm landing before the pen).
+      if (!touch && this.strokePointerId !== null) this.resetTouch();
+      if (touch && this.onTouchDown(ev)) return;
       const cell = this.cellAt(ev.clientX, ev.clientY);
       if (!cell) return;
       ev.preventDefault();
@@ -4124,12 +4305,24 @@ export class LevelEditor {
       this.refreshLayersList();
 
       if (this.linkSession) {
+        if (touch) {
+          // A finger acts on lift, as a tap: a pan or pinch that starts here must not toggle a partner.
+          this.touchTap = { id: ev.pointerId, mode: 'link', start: { x: ev.clientX, y: ev.clientY }, cell, moved: false };
+          return;
+        }
         // A link session takes the primary click before any tool does; another button, or Alt, ends it.
         if (ev.button === 0 && !ev.altKey) this.sessionAct(cell);
         else this.endLinkSession(true);
         return;
       }
       if (this.pasting) {
+        if (touch) {
+          // The preview follows the finger; the paste is placed when the only finger lifts.
+          this.touchTap = { id: ev.pointerId, mode: 'paste', start: { x: ev.clientX, y: ev.clientY }, cell, moved: false };
+          this.pasteAnchor = cell;
+          this.render();
+          return;
+        }
         // Any button other than the primary one cancels a floating paste.
         if (ev.button === 0) this.placePaste(cell);
         else this.cancelPaste();
@@ -4145,17 +4338,23 @@ export class LevelEditor {
         return;
       }
       if (this.tool === 'select' && ev.button === 0) {
+        if (touch) {
+          this.strokePointerId = ev.pointerId;
+          this.touchSelectionBackup = { selection: this.selection, anchor: this.selectionAnchor };
+        }
         this.beginSelectionGesture(cell);
         return;
       }
 
       if (this.isCc3d() || this.sideToolActive()) this.hoverSide = this.pointerSide(ev.clientX, ev.clientY, cell);
+      if (touch) this.strokePointerId = ev.pointerId;
       this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON, ev.shiftKey);
       this.applyAt(cell.x, cell.y, this.hoverSide);
       this.refreshLayersList();
     });
 
     this.canvas.addEventListener('pointermove', (ev) => {
+      if (ev.pointerType === POINTER_TYPE_TOUCH && this.onTouchMove(ev)) return;
       this.lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
       this.lastInput = 'pointer';
       const cell = this.cellAt(ev.clientX, ev.clientY);
@@ -4184,8 +4383,32 @@ export class LevelEditor {
       this.endStroke();
       this.endSelectionGesture(true);
     };
-    window.addEventListener('pointerup', stopPainting);
-    window.addEventListener('pointercancel', () => {
+    window.addEventListener('pointerup', (ev) => {
+      if (ev.pointerType === POINTER_TYPE_TOUCH) this.onTouchEnd(ev, false);
+      else stopPainting();
+    });
+    // A lift that never arrives (the window lost focus, the page was hidden, the capture was taken) must not leave touch dead.
+    const signal = this.draftListeners.signal;
+    window.addEventListener('blur', () => this.resetTouch(), { signal });
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (document.visibilityState === 'hidden') this.resetTouch();
+      },
+      { signal }
+    );
+    this.canvas.addEventListener(
+      'lostpointercapture',
+      (ev) => {
+        if (ev.pointerType === POINTER_TYPE_TOUCH) this.onTouchEnd(ev, true);
+      },
+      { signal }
+    );
+    window.addEventListener('pointercancel', (ev) => {
+      if (ev.pointerType === POINTER_TYPE_TOUCH) {
+        this.onTouchEnd(ev, true);
+        return;
+      }
       this.endStroke();
       this.endSelectionGesture(false);
     });
@@ -4311,7 +4534,29 @@ export class LevelEditor {
   }
 
   private beginStroke(forceErase: boolean, wholeCell = false): void {
-    this.stroke = { base: cloneDocument(this.doc), changed: false, forceErase, wholeCell, statusWritesAtBegin: this.statusWrites };
+    this.stroke = {
+      base: cloneDocument(this.doc),
+      changed: false,
+      forceErase,
+      wholeCell,
+      statusWritesAtBegin: this.statusWrites,
+      beganAt: performance.now(),
+      statusTextAtBegin: document.getElementById('editor-status-bar')?.textContent ?? ''
+    };
+  }
+
+  /** Takes a stroke back as if it never began: the document returns to its base, nothing enters the history, no nudge. */
+  private cancelStroke(): void {
+    const stroke = this.stroke;
+    if (!stroke) return;
+    this.stroke = null;
+    this.doc = stroke.base;
+    this.docRevision++;
+    const bar = document.getElementById('editor-status-bar');
+    if (bar && bar.textContent !== stroke.statusTextAtBegin) this.setStatusText(stroke.statusTextAtBegin);
+    this.refreshLayersList();
+    this.refreshConnections();
+    this.render();
   }
 
   /** True when holding the pointer down and moving keeps acting, for the level being edited. */
