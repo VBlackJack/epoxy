@@ -527,6 +527,7 @@
       "kb_editor_beam_preview": { "label": "L: show or hide the laser beam preview (beams at tick 0, turrets armed)" },
       "kb_editor_issue_markers": { "label": "M: show or hide the validator issues on the map (a corner mark per cell: square for errors, triangle for warnings, circle for hints; dimmed while the check catches up with an edit)" },
       "kb_editor_palette_search": { "label": "/: search the palette by name or description, across every tab (Enter picks the first match, Down Arrow goes to the results, Esc clears then leaves the field)" },
+      "kb_editor_palette_arrows": { "label": "Arrow keys, Home, End (on a palette entry): move along the entries; Tab passes the palette in one stop" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
