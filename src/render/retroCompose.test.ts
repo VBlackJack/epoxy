@@ -60,6 +60,7 @@ function layersOf(tileId: string, over: Partial<RetroTileInput> = {}): string[] 
     wallMask: OPEN,
     floorDetailEvery: EVERY,
     isEditor: false,
+    revealHiddenWalls: false,
     isClosedTrap: true,
     phase: 0,
     reducedMotion: false,
@@ -102,6 +103,15 @@ describe('retro tile composition', () => {
     expect(layersOf('blue_wall_real', { isEditor: true })).toEqual(['blue_wall']);
   });
 
+  it('marks the invisible and appearing walls, but never the fake blue wall, while the eye boots are held', () => {
+    const revealed = { revealHiddenWalls: true };
+    expect(layersOf('invisible_wall', revealed)).toEqual(['floor', 'hidden_wall_marker']);
+    expect(layersOf('appearing_wall', revealed)).toEqual(['floor', 'appearing_wall_marker']);
+    expect(layersOf('blue_wall_fake', revealed)).toEqual(['blue_wall']);
+    expect(layersOf('blue_wall_fake', revealed)).toEqual(layersOf('blue_wall_real', revealed));
+    expect(layersOf('invisible_wall', { revealHiddenWalls: false })).toEqual(layersOf('floor'));
+  });
+
   it('colours doors, buttons and keys by swap ramp and stamps the glyph at the centre', () => {
     const door = retroTileLayers({
       tileId: 'door_blue',
@@ -112,6 +122,7 @@ describe('retro tile composition', () => {
       wallMask: 0,
       floorDetailEvery: EVERY,
       isEditor: false,
+      revealHiddenWalls: false,
       isClosedTrap: true,
       phase: 0,
       reducedMotion: false
@@ -146,6 +157,7 @@ describe('retro tile composition', () => {
       wallMask: 0,
       floorDetailEvery: EVERY,
       isEditor: false,
+      revealHiddenWalls: false,
       isClosedTrap: true,
       phase: 1,
       reducedMotion: false
@@ -305,6 +317,7 @@ describe('every in-game id maps to existing sprites', () => {
                       wallMask,
                       floorDetailEvery: EVERY,
                       isEditor,
+                      revealHiddenWalls: isEditor,
                       isClosedTrap,
                       phase,
                       reducedMotion

@@ -81,6 +81,7 @@ function tileInput(tileId: string, over: Partial<RetroTileInput>): RetroTileInpu
     wallMask: 0,
     floorDetailEvery: FLOOR_DETAIL_EVERY,
     isEditor: false,
+    revealHiddenWalls: false,
     isClosedTrap: true,
     phase: 0,
     reducedMotion: false,

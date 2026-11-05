@@ -215,6 +215,24 @@ export function isSpeedBootsTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).hastesPlayer !== undefined;
 }
 
+/** True when the tile is boots that reveal the hidden walls while held, which no Lynx or CC3D rule has. */
+export function isEyeBootsTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).revealsHiddenWalls !== undefined;
+}
+
+/** True when any of the boots held reveals the hidden walls, whatever their id. */
+export function bootsRevealHiddenWalls(boots: Iterable<string>): boolean {
+  for (const bootId of boots) {
+    if (ConfigRegistry.getTile(bootId).revealsHiddenWalls === true) return true;
+  }
+  return false;
+}
+
+/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots or the eye boots. */
+export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
+  return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id);
+}
+
 /** True when the tile id is a swivel door, which turns a quarter turn behind whoever passes through it. */
 export function isSwivelTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).swivelTurns !== undefined;
@@ -227,10 +245,10 @@ export function hasSwivelContent(level: Pick<CompiledLevel, 'terrain' | 'items'>
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, the slow-time or speed boots item, a steering pad or a swivel door. */
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad or a swivel door. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
-    isLaserTileId(id) || isColorChannelTileId(id) || isSlowTimeTileId(id) || isSpeedBootsTileId(id) ||
+    isLaserTileId(id) || isColorChannelTileId(id) || isEpoxyOnlyItemId(id) ||
     isSteeringTileId(id) || isSwivelTileId(id)
   );
 }
@@ -254,12 +272,12 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
   return (level.entities ?? []).some((e) => isColorBlockEntityType(e.type));
 }
 
-/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed boots, swivel doors or steered monsters. */
+/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors or steered monsters. */
 export function hasEpoxyOnlyContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {
   const hasEpoxyOnlyItem = (grid: Array<Array<string | null>> | undefined): boolean =>
-    grid?.some((row) => row.some((id) => isSlowTimeTileId(id) || isSpeedBootsTileId(id))) ?? false;
+    grid?.some((row) => row.some(isEpoxyOnlyItemId)) ?? false;
   return (
     hasLaserContent(level) ||
     hasColorChannelContent(level) ||
