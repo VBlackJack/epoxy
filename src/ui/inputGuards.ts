@@ -31,16 +31,17 @@ const REDO_KEY = 'y';
 const UNDO_CODE = 'KeyZ';
 const REDO_CODE = 'KeyY';
 
-const SINGLE_ASCII_LETTER = /^[a-z]$/i;
+const PRINTABLE_ASCII = /^[\x21-\x7e]$/;
 
 /**
  * True when the chord is the given letter. The produced character wins, which
- * keeps AZERTY working (key 'z' on code KeyW). A layout whose key is not an
- * ASCII letter (Cyrillic, Greek) falls back to the physical key code.
+ * keeps AZERTY working (key 'z' on code KeyW, and ',' on KeyM is not an M). A
+ * layout whose key is not printable ASCII (Cyrillic, Greek) falls back to the
+ * physical key code.
  */
 export function matchesLetter(chord: KeyChord, letter: string, code: string): boolean {
   if (chord.key.toLowerCase() === letter) return true;
-  return !SINGLE_ASCII_LETTER.test(chord.key) && chord.code === code;
+  return !PRINTABLE_ASCII.test(chord.key) && chord.code === code;
 }
 
 /**

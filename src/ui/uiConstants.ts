@@ -190,6 +190,34 @@ export const EDITOR_BEAM_STALE_ALPHA = 0.5;
 /** Beam preview: colour and inset (share of the tile) of the marker on a gate the beams are about to open. */
 export const EDITOR_BEAM_GATE_COLOR = '#76ff03';
 export const EDITOR_BEAM_GATE_INSET_TILE = 0.12;
+/** Issue markers: size as a share of the tile with its floor in pixels, the inset from the cell corner, and the smaller share of an info circle. */
+export const EDITOR_ISSUE_MARKER_TILE = 0.3;
+export const EDITOR_ISSUE_MARKER_MIN_PX = 8;
+export const EDITOR_ISSUE_MARKER_INSET_PX = 2;
+export const EDITOR_ISSUE_MARKER_INFO_SCALE = 0.7;
+/** Issue markers: below this tile size a cell border replaces the marker; from this one the count of a busy cell is written. */
+export const EDITOR_ISSUE_MARKER_ZOOM_THRESHOLD_PX = 12;
+export const EDITOR_ISSUE_MARKER_COUNT_MIN_TILE_PX = 32;
+/** Issue markers: opacity of a marker whose report lags the last edit, and the line widths of the dark outline, the shapes and the cell border. */
+export const EDITOR_ISSUE_MARKER_STALE_ALPHA = 0.35;
+export const EDITOR_ISSUE_MARKER_OUTLINE_WIDTH = 1;
+export const EDITOR_ISSUE_MARKER_STROKE_WIDTH = 2;
+export const EDITOR_ISSUE_MARKER_BORDER_WIDTH = 2;
+/** Issue markers: share of the marker taken by the glyph strokes, the font size of "!" and of the count. */
+export const EDITOR_ISSUE_MARKER_GLYPH_INSET = 0.25;
+export const EDITOR_ISSUE_MARKER_GLYPH_FONT = 0.8;
+export const EDITOR_ISSUE_MARKER_FONT_FAMILY = 'sans-serif';
+/** Issue markers: where the "!" of a warning sits, as a share of the marker height from its top. */
+export const EDITOR_ISSUE_MARKER_BANG_Y = 0.72;
+/** Issue markers: colours of the dark outline and of the glyphs, and the colours used when a theme token cannot be read. */
+export const EDITOR_ISSUE_MARKER_OUTLINE_COLOR = '#0e1015';
+export const EDITOR_ISSUE_MARKER_GLYPH_COLOR = '#ffffff';
+export const EDITOR_ISSUE_MARKER_FALLBACK_ERROR = '#ff1744';
+export const EDITOR_ISSUE_MARKER_FALLBACK_WARNING = '#ffab00';
+export const EDITOR_ISSUE_MARKER_FALLBACK_INFO = '#00e5ff';
+/** Issue markers: the CSS custom properties the severity colours come from (info follows the biome accent, BIOME_ACCENT_CSS_VAR). */
+export const EDITOR_ISSUE_MARKER_ERROR_CSS_VAR = '--danger';
+export const EDITOR_ISSUE_MARKER_WARNING_CSS_VAR = '--led-amber';
 /** CC3D link overlay: opacity of the arrows and of the highlighted group cells. */
 export const EDITOR_CC3D_OVERLAY_ALPHA = 0.9;
 /** Epoxy connections: most colour and level-wide rows listed per mechanism and side, and most such arrows drawn (the rest become outlines). */

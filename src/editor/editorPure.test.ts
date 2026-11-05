@@ -72,6 +72,21 @@ describe('getEditorKeyAction', () => {
     expect(getEditorKeyAction(chord('l', { altKey: true }))).toBeNull();
   });
 
+  it('toggles the issue markers on M, by letter or by key code, and not on a command chord', () => {
+    expect(getEditorKeyAction(chord('m'))).toEqual({ kind: 'toggle_issue_markers' });
+    expect(getEditorKeyAction(chord('M'))).toEqual({ kind: 'toggle_issue_markers' });
+    expect(getEditorKeyAction(chord('ь', { code: 'KeyM' }))).toEqual({ kind: 'toggle_issue_markers' });
+    expect(getEditorKeyAction(chord('m', { ctrlKey: true }))).toBeNull();
+    expect(getEditorKeyAction(chord('m', { metaKey: true }))).toBeNull();
+    expect(getEditorKeyAction(chord('m', { altKey: true }))).toBeNull();
+  });
+
+  it('does not take the comma on the M key of an AZERTY layout for M', () => {
+    expect(getEditorKeyAction(chord(',', { code: 'KeyM' }))).toBeNull();
+    expect(getEditorKeyAction(chord('?', { code: 'KeyM', shiftKey: true }))).toBeNull();
+    expect(getEditorKeyAction(chord('ь', { code: 'KeyM' }))).toEqual({ kind: 'toggle_issue_markers' });
+  });
+
   it('leaves command chords and unrelated keys alone', () => {
     expect(getEditorKeyAction(chord('b', { ctrlKey: true }))).toBeNull();
     expect(getEditorKeyAction(chord('r', { metaKey: true }))).toBeNull();

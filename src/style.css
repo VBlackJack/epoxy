@@ -949,6 +949,11 @@ body.fullscreen-mode #hud-btn-options-drawer {
   border-color: var(--accent-orange);
 }
 
+.hud-btn[aria-pressed='true'] {
+  border-color: var(--biome-accent);
+  background: var(--biome-accent-soft);
+}
+
 .hud-btn.primary {
   background: var(--accent-orange);
   color: #111;
