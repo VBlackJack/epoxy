@@ -31,11 +31,16 @@ const BUTTON_IDS: Record<keyof ReturnType<typeof overlayButtons>, string> = {
   backToEditor: 'overlay-btn-back-to-editor'
 };
 
-function focusedIdFor(state: OverlayState, testPlaying: boolean, canUndo: boolean): string | undefined {
+function focusedIdFor(
+  state: OverlayState,
+  testPlaying: boolean,
+  canUndo: boolean,
+  touchOverlay = false
+): string | undefined {
   const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
   const body = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1] ?? '';
   document.body.innerHTML = body.replace(/<script[\s\S]*?<\/script>/gi, '');
-  const shown = overlayButtons(state, testPlaying, canUndo);
+  const shown = overlayButtons(state, testPlaying, canUndo, touchOverlay);
   for (const [key, id] of Object.entries(BUTTON_IDS)) {
     document.getElementById(id)?.classList.toggle('hidden', !shown[key as keyof typeof shown]);
   }
@@ -58,6 +63,12 @@ describe('firstVisibleOverlayAction on the shipped overlay', () => {
 
   it('falls back to Retry after a lost test run without undo', () => {
     expect(focusedIdFor('dead', true, false)).toBe('overlay-btn-retry');
+  });
+
+  it('keeps Resume first while a test run is paused, with the way back available', () => {
+    expect(focusedIdFor('paused', true, false, true)).toBe('overlay-btn-resume');
+    const html = document.getElementById('overlay-btn-back-to-editor');
+    expect(html?.classList.contains('hidden')).toBe(false);
   });
 
   it('puts Next first after a normal win', () => {

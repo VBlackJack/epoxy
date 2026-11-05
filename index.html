@@ -17,7 +17,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#12151c" />
     <title data-i18n="app.header.title.label"></title>
     <link rel="stylesheet" href="/src/style.css" />
@@ -116,6 +116,13 @@
               <label for="fov-select" data-i18n="app.header.fov.label"></label>
               <select id="fov-select" class="locale-select"></select>
             </div>
+            <div class="lang-box touch-setting-row">
+              <label for="dpad-side-select" data-i18n="app.header.dpad_side.label"></label>
+              <select id="dpad-side-select" class="locale-select">
+                <option value="left" data-i18n="app.header.dpad_side.left"></option>
+                <option value="right" data-i18n="app.header.dpad_side.right"></option>
+              </select>
+            </div>
             <button id="btn-sfx-toggle" class="nav-btn active" type="button"></button>
             <div id="sfx-volume-row" class="lang-box volume-row">
               <label for="sfx-volume-slider" data-i18n="app.header.sfx_volume.label"></label>
@@ -208,6 +215,10 @@
                       <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
                       <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
                       <button id="overlay-btn-retry" class="action-btn" type="button" data-i18n="hud.controls.restart.action" data-i18n-title="hud.controls.restart.hint"></button>
+                      <button id="overlay-btn-hint" class="action-btn hidden" type="button" data-i18n="hud.controls.objective.action" data-i18n-title="hud.controls.objective.hint"></button>
+                      <button id="overlay-btn-solution" class="action-btn hidden" type="button" data-i18n="hud.controls.solution.action" data-i18n-title="hud.controls.solution.hint"></button>
+                      <button id="overlay-btn-options" class="action-btn hidden" type="button" aria-haspopup="dialog" data-i18n="app.header.options_btn.action"></button>
+                      <button id="overlay-btn-exit-fullscreen" class="action-btn hidden" type="button" data-i18n="hud.mobile.exit_fullscreen.action"></button>
                     </div>
                   </div>
                 </div>
@@ -306,6 +317,13 @@
                 </div>
                 <div class="desktop-key-caption" data-i18n="hud.desktop.key_hint.label"></div>
               </aside>
+
+              <!-- Floating controls of the phone full screen layout (hidden elsewhere) -->
+              <div id="touch-overlay-controls" class="touch-overlay-controls" role="group" hidden data-i18n-aria-label="hud.touch_overlay.controls.label">
+                <button id="touch-btn-pause" class="touch-overlay-btn" type="button" data-i18n="hud.controls.pause.action"></button>
+                <button id="touch-btn-undo" class="touch-overlay-btn" type="button" data-i18n="hud.controls.undo.action"></button>
+                <button id="touch-btn-menu" class="touch-overlay-btn" type="button" aria-haspopup="dialog" data-i18n="hud.touch_overlay.menu.action"></button>
+              </div>
             </div>
           </div>
         </div>

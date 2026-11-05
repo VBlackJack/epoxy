@@ -75,6 +75,8 @@ export interface UserSettings {
   sfxVolumePercent?: number;
   /** Music volume, 0 to 100 in steps of 5; read back through sanitizeVolumePercent. */
   musicVolumePercent?: number;
+  /** Side of the screen the touch directional pad floats on in the phone full screen layout; read back through parseDpadSide. */
+  dpadSide?: 'left' | 'right';
 }
 
 export interface StorageConfig {

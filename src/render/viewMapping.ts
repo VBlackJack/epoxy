@@ -45,6 +45,28 @@ export function cameraPosition(wanted: number, mapSize: number, viewSize: number
   return Math.max(0, Math.min(mapSize - viewSize, wanted));
 }
 
+/**
+ * Same as cameraPosition, for a view whose edges are partly covered (insetStart and insetEnd are
+ * tile counts hidden under an overlay at the low and high edge). The wanted coordinate is the one
+ * that would centre the player in the whole view; it is shifted to centre the player in the free
+ * span between the overlays. The camera may scroll past the map edge on the covered side, so an
+ * edge cell can still be brought clear of the overlay. A map that fits in the free span is
+ * centred in it. With both insets at 0 this is exactly cameraPosition.
+ */
+export function cameraPositionWithInsets(
+  wanted: number,
+  mapSize: number,
+  viewSize: number,
+  insetStart: number,
+  insetEnd: number
+): number {
+  if (insetStart === 0 && insetEnd === 0) return cameraPosition(wanted, mapSize, viewSize);
+  const freeSpan = viewSize - insetStart - insetEnd;
+  if (mapSize <= freeSpan) return -(insetStart + (freeSpan - mapSize) / 2);
+  const shifted = wanted - (insetStart - insetEnd) / 2;
+  return Math.max(-insetStart, Math.min(mapSize - viewSize + insetEnd, shifted));
+}
+
 /** Inverse of gridToCanvas, in grid coordinates (not floored). */
 export function canvasToGrid(pixel: number, cam: number, tilePixelSize: number): number {
   return cam + pixel / tilePixelSize;

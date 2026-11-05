@@ -24,6 +24,7 @@
       "procedural_btn": { "action": "Mode infini" },
       "fov": { "label": "Zoom :" },
       "fov_option": { "label": "{size}x{size}" },
+      "dpad_side": { "label": "Croix directionnelle (tactile) :", "left": "Gauche", "right": "Droite" },
       "audio_toggle": { "action_on": "Effets sonores : activés", "action_off": "Effets sonores : désactivés" },
       "music_toggle": { "action_on": "Musique : activée", "action_off": "Musique : désactivée" },
       "sfx_volume": { "label": "Volume des effets" },
@@ -400,6 +401,11 @@
       "fullscreen": { "action": "⛶ Plein écran" },
       "exit_fullscreen": { "action": "⛶ Quitter le plein écran" },
       "gesture_hint": { "label": "Glissez pour bouger - Tap pour aller" }
+    },
+    "touch_overlay": {
+      "hud": { "label": "État du niveau" },
+      "controls": { "label": "Commandes de jeu" },
+      "menu": { "action": "Menu" }
     },
     "messages": {
       "hint_prefix": { "label": "CONSEIL : " },

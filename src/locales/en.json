@@ -24,6 +24,7 @@
       "procedural_btn": { "action": "Endless mode" },
       "fov": { "label": "Zoom:" },
       "fov_option": { "label": "{size}x{size}" },
+      "dpad_side": { "label": "Directional pad (touch):", "left": "Left", "right": "Right" },
       "audio_toggle": { "action_on": "Sound effects: on", "action_off": "Sound effects: off" },
       "music_toggle": { "action_on": "Music: on", "action_off": "Music: off" },
       "sfx_volume": { "label": "Effects volume" },
@@ -400,6 +401,11 @@
       "fullscreen": { "action": "⛶ Fullscreen" },
       "exit_fullscreen": { "action": "⛶ Exit Fullscreen" },
       "gesture_hint": { "label": "Swipe/Hold to move - Tap to pathfind" }
+    },
+    "touch_overlay": {
+      "hud": { "label": "Level status" },
+      "controls": { "label": "Game controls" },
+      "menu": { "action": "Menu" }
     },
     "messages": {
       "hint_prefix": { "label": "HINT: " },

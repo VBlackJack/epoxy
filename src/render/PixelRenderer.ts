@@ -71,7 +71,7 @@ import {
   TerrainSnapshot,
   teleportGroupKey
 } from './terrainState';
-import { cameraPosition, FrameGeometry, pointToGrid } from './viewMapping';
+import { cameraPositionWithInsets, FrameGeometry, pointToGrid } from './viewMapping';
 import { Light, LightingLayer } from './LightingLayer';
 import {
   EDITOR_HIDDEN_STATE_BADGE_EDGE,
@@ -595,6 +595,23 @@ const LINK_STYLE = {
   objectiveHaloWidthTile: 0.029
 } as const;
 
+/** Fractions of the canvas covered by overlays, per side. */
+export interface CameraInsets {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+const NO_CAMERA_INSETS: CameraInsets = { left: 0, right: 0, top: 0, bottom: 0 };
+/** Largest share of the canvas one side may be covered by. */
+const MAX_CAMERA_INSET = 0.5;
+
+function clampCameraInset(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(MAX_CAMERA_INSET, Math.max(0, value));
+}
+
 export class PixelRenderer {
   private animFrame: number = 0;
   /** Animation clock in reference frames (fractional), advanced from real elapsed time. */
@@ -604,6 +621,8 @@ export class PixelRenderer {
   private visualViewportTiles: number = 13;
   /** Camera, tile size and canvas size of the last drawn frame, for mapping clicks to cells. */
   private lastFrame: FrameGeometry | null = null;
+  /** Fractions of the canvas covered by overlays (such as a floating d-pad) the camera keeps the player clear of. */
+  private cameraInsets: CameraInsets = { ...NO_CAMERA_INSETS };
   private lastMapWidth = 0;
   private lastMapHeight = 0;
   private style: GraphicsStyle = 'modern';
@@ -935,6 +954,21 @@ export class PixelRenderer {
     return this.showMechanismLinks;
   }
 
+  /** Fractions of the canvas (0..0.5 each) hidden under overlays; the camera keeps the player in the free area. */
+  public setCameraInsets(insets: CameraInsets): void {
+    const next: CameraInsets = {
+      left: clampCameraInset(insets.left),
+      right: clampCameraInset(insets.right),
+      top: clampCameraInset(insets.top),
+      bottom: clampCameraInset(insets.bottom)
+    };
+    const prev = this.cameraInsets;
+    if (next.left === prev.left && next.right === prev.right && next.top === prev.top && next.bottom === prev.bottom) {
+      return;
+    }
+    this.cameraInsets = next;
+  }
+
   public screenToGrid(canvas: HTMLCanvasElement, clientX: number, clientY: number): GridPoint | null {
     // Map the click with the geometry of the last drawn frame, not the canvas size now.
     if (!this.lastFrame) return null;
@@ -1176,13 +1210,18 @@ export class PixelRenderer {
 
     const halfW = viewportWidth / 2 - 0.5;
     const halfH = viewportHeight / 2 - 0.5;
-    const targetCamX = cameraPosition(this.visualPlayerPos.x - halfW, mapWidth, viewportWidth);
-    const targetCamY = cameraPosition(this.visualPlayerPos.y - halfH, mapHeight, viewportHeight);
+    const insets = this.cameraInsets;
+    const insetLeft = insets.left * viewportWidth;
+    const insetRight = insets.right * viewportWidth;
+    const insetTop = insets.top * viewportHeight;
+    const insetBottom = insets.bottom * viewportHeight;
+    const targetCamX = cameraPositionWithInsets(this.visualPlayerPos.x - halfW, mapWidth, viewportWidth, insetLeft, insetRight);
+    const targetCamY = cameraPositionWithInsets(this.visualPlayerPos.y - halfH, mapHeight, viewportHeight, insetTop, insetBottom);
 
     if (!this.visualCameraPos || !smooth) {
       this.visualCameraPos = {
-        x: cameraPosition(player.x - Math.floor(viewportWidth / 2), mapWidth, viewportWidth),
-        y: cameraPosition(player.y - Math.floor(viewportHeight / 2), mapHeight, viewportHeight)
+        x: cameraPositionWithInsets(player.x - Math.floor(viewportWidth / 2), mapWidth, viewportWidth, insetLeft, insetRight),
+        y: cameraPositionWithInsets(player.y - Math.floor(viewportHeight / 2), mapHeight, viewportHeight, insetTop, insetBottom)
       };
     } else {
       this.visualCameraPos.x += (targetCamX - this.visualCameraPos.x) * camLerp;

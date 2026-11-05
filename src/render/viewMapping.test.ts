@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { cameraPosition, canvasToGrid, FrameGeometry, gridToCanvas, pointToGrid } from './viewMapping';
+import { cameraPosition, cameraPositionWithInsets, canvasToGrid, FrameGeometry, gridToCanvas, pointToGrid } from './viewMapping';
 
 describe('gridToCanvas / canvasToGrid', () => {
   it('are inverse of each other', () => {
@@ -80,5 +80,57 @@ describe('cameraPosition', () => {
 
   it('is plain zero for a map exactly as large as the view', () => {
     expect(cameraPosition(3, 13, 13)).toBe(0);
+  });
+});
+
+describe('cameraPositionWithInsets', () => {
+  it('equals cameraPosition when both insets are 0', () => {
+    for (const mapSize of [5, 9, 11, 13, 30, 64]) {
+      for (const viewSize of [7, 10.5, 13, 16]) {
+        for (let wanted = -4; wanted <= mapSize + 4; wanted += 0.75) {
+          const withInsets = cameraPositionWithInsets(wanted, mapSize, viewSize, 0, 0);
+          expect(Object.is(withInsets, cameraPosition(wanted, mapSize, viewSize))).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('centres the player in the free span', () => {
+    // View of 10 tiles with 4 hidden at the start: the free span is [4, 10], its centre is tile 7 of the view.
+    const wantedCentred = 15 - 4.5;
+    const cam = cameraPositionWithInsets(wantedCentred, 40, 10, 4, 0);
+    expect(cam).toBe(15 - (7 - 0.5));
+  });
+
+  it('keeps a player at the map edge on the covered side outside the inset', () => {
+    const mapSize = 40;
+    const viewSize = 10;
+    const insetStart = 4;
+    const player = 0;
+    const cam = cameraPositionWithInsets(player - (viewSize / 2 - 0.5), mapSize, viewSize, insetStart, 0);
+    expect(cam).toBe(-insetStart);
+    expect(player - cam).toBeGreaterThanOrEqual(insetStart);
+    const camEnd = cameraPositionWithInsets(mapSize - 1 - (viewSize / 2 - 0.5), mapSize, viewSize, 0, insetStart);
+    expect(camEnd).toBe(mapSize - viewSize + insetStart);
+    expect(mapSize - camEnd).toBeLessThanOrEqual(viewSize - insetStart);
+  });
+
+  it('clamps to the extended range', () => {
+    expect(cameraPositionWithInsets(-50, 40, 10, 3, 2)).toBe(-3);
+    expect(cameraPositionWithInsets(90, 40, 10, 3, 2)).toBe(32);
+  });
+
+  it('centres a map that fits in the free span inside it', () => {
+    // 6 tiles in a 13-tile view with 4 hidden at the start: free span 9, 1.5 tiles of margin each side.
+    const cam = cameraPositionWithInsets(3, 6, 13, 4, 0);
+    expect(cam).toBe(-5.5);
+    expect(gridToCanvas(0, cam, 1)).toBe(5.5);
+    expect(gridToCanvas(6, cam, 1)).toBe(11.5);
+  });
+
+  it('scrolls a map that fits the view but not the free span', () => {
+    const cam = cameraPositionWithInsets(0, 12, 13, 4, 0);
+    expect(cam).toBeGreaterThanOrEqual(-4);
+    expect(cam).toBeLessThanOrEqual(12 - 13);
   });
 });

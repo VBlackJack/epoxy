@@ -63,6 +63,11 @@
   );
   --land-touch-min: 32px;
   --land-slot: 24px;
+  /* Notch and gesture bar insets; 0 where the screen has none (needs viewport-fit=cover) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -83,6 +88,11 @@ body {
 
 .hidden {
   display: none !important;
+}
+
+#app {
+  box-sizing: border-box;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
 /* Header Bar */
@@ -167,7 +177,7 @@ body {
   box-shadow: -12px 0 36px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
-  padding: 1rem;
+  padding: calc(1rem + var(--safe-top)) calc(1rem + var(--safe-right)) calc(1rem + var(--safe-bottom)) 1rem;
   gap: 0.9rem;
   overflow-y: auto;
 }
@@ -379,6 +389,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   pointer-events: none;
 }
 
@@ -1717,7 +1728,7 @@ button.editor-issue-row:focus-visible {
   align-items: center;
   justify-content: center;
   z-index: 100;
-  padding: 1rem;
+  padding: calc(1rem + var(--safe-top)) calc(1rem + var(--safe-right)) calc(1rem + var(--safe-bottom)) calc(1rem + var(--safe-left));
 }
 
 .modal-dialog {
@@ -1969,8 +1980,8 @@ button.editor-issue-row:focus-visible {
 
 .floating-fs-exit {
   position: fixed;
-  top: 0.4rem;
-  right: 0.4rem;
+  top: calc(0.4rem + var(--safe-top));
+  right: calc(0.4rem + var(--safe-right));
   z-index: 90;
   background: rgba(18, 21, 28, 0.88);
   color: var(--accent-yellow);
@@ -2247,20 +2258,20 @@ body.fullscreen-mode .view-section {
     display: grid;
     grid-template-columns: var(--land-pad-col) var(--land-board-size) minmax(var(--land-hud-min), 1fr);
     --land-board-size: min(
-      calc(100dvh - var(--land-chrome-height) - var(--land-inset-y)),
-      calc(100dvw - var(--land-pad-col) - var(--land-hud-min) - var(--land-inset-x))
+      calc(100dvh - var(--land-chrome-height) - var(--land-inset-y) - var(--safe-top) - var(--safe-bottom)),
+      calc(100dvw - var(--land-pad-col) - var(--land-hud-min) - var(--land-inset-x) - var(--safe-left) - var(--safe-right))
     );
     align-items: stretch;
     gap: var(--land-gap);
     padding: var(--land-pad);
     border-width: var(--land-border);
     width: 100%;
-    height: calc(100dvh - var(--land-chrome-height));
+    height: calc(100dvh - var(--land-chrome-height) - var(--safe-top) - var(--safe-bottom));
   }
 
   body.fullscreen-mode .lcd-screen {
     --land-chrome-height: var(--land-chrome-height-fs);
-    height: calc(100dvh - var(--land-chrome-height-fs));
+    height: calc(100dvh - var(--land-chrome-height-fs) - var(--safe-top) - var(--safe-bottom));
   }
 
   /* Left Column: Pure D-Pad positioned ergonomically in lower-center thumb zone with zero buttons underneath */
@@ -3074,4 +3085,485 @@ body.fullscreen-mode .view-section {
   grid-template-columns: repeat(3, 1.4rem);
   gap: 0.2rem;
   justify-items: center;
+}
+
+/* ==========================================================================
+   Phone full screen overlay layout
+   The board fills the screen; the HUD, the button cluster and the directional pad float over it.
+   Every rule below is scoped under body.touch-overlay (set by src/ui/touchOverlay.ts), so desktop,
+   tablets and the non-full-screen mobile layouts keep their rules above.
+   ========================================================================== */
+
+/* Touch settings only matter on a phone or a narrow window */
+.drawer-section .touch-setting-row {
+  display: none;
+}
+
+@media (max-width: 980px), (pointer: coarse) {
+  .drawer-section .touch-setting-row {
+    display: flex;
+  }
+}
+
+body.touch-overlay {
+  --overlay-edge: 12px;
+  --overlay-gap: 8px;
+  --overlay-dpad-cell: clamp(48px, 14vmin, 76px);
+  --overlay-button-size: 48px;
+  --overlay-hud-clearance: 6.5rem;
+  --overlay-border-width: 1px;
+  --overlay-text: #ffffff;
+  --overlay-panel-bg: rgba(10, 12, 18, 0.78);
+  --overlay-panel-border: rgba(10, 12, 18, 0.9);
+  --overlay-pad-fill: rgba(10, 12, 18, 0.38);
+  --overlay-pad-fill-pressed: rgba(10, 12, 18, 0.7);
+  --overlay-pad-border: rgba(10, 12, 18, 0.9);
+  --overlay-ring: rgba(255, 255, 255, 0.3);
+  --overlay-chevron: #ffffff;
+  --overlay-chevron-outline: #0a0c12;
+  --overlay-led-green: #00e676;
+  --overlay-led-amber: #ffab00;
+  --overlay-led-danger: #ff8a9b;
+  --overlay-focus: #ffd600;
+  overflow: hidden;
+  width: 100dvw;
+  height: 100dvh;
+}
+
+body.touch-overlay #app {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body.touch-overlay .top-bar,
+body.touch-overlay .floating-fs-exit,
+body.touch-overlay .inspect-pill {
+  display: none;
+}
+
+body.touch-overlay .view-section {
+  padding: 0;
+  height: 100dvh;
+}
+
+/* The screen is the board: it fills the viewport and the rest floats over it. */
+body.touch-overlay .play-shell .lcd-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100dvw;
+  height: 100dvh;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+}
+
+body.touch-overlay .play-shell .lcd-screen .viewport-wrapper {
+  position: absolute;
+  inset: 0;
+  /* Explicit sizes: the desktop rule's align-self: center would otherwise size the box to its content */
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: auto;
+  align-self: stretch;
+  justify-self: stretch;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+/* HUD: level, chips (or targets, receivers), time and the owned items, in the corner opposite the pad */
+body.touch-overlay .play-shell .lcd-screen .hud-panel {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--safe-top) + var(--overlay-gap));
+  width: auto;
+  max-width: min(48dvw, 22rem);
+  height: auto;
+  overflow: visible;
+  padding: 0.4rem 0.6rem;
+  gap: 0.3rem;
+  grid-column: auto;
+  grid-row: auto;
+  background: var(--overlay-panel-bg);
+  color: var(--overlay-text);
+  border: var(--overlay-border-width) solid var(--overlay-panel-border);
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--overlay-ring);
+  pointer-events: none;
+}
+
+body.touch-overlay.dpad-right .play-shell .lcd-screen .hud-panel {
+  left: calc(var(--safe-left) + var(--overlay-gap));
+  right: auto;
+}
+
+body.touch-overlay.dpad-left .play-shell .lcd-screen .hud-panel {
+  right: calc(var(--safe-right) + var(--overlay-gap));
+  left: auto;
+}
+
+body.touch-overlay .hud-panel .hud-level-title,
+body.touch-overlay .hud-panel .hud-password-badge,
+body.touch-overlay .hud-panel .hud-mini-stats,
+body.touch-overlay .hud-panel .hud-Quick-actions,
+body.touch-overlay .hud-panel .desktop-key-caption,
+body.touch-overlay .hud-panel .inv-title {
+  display: none;
+}
+
+body.touch-overlay .hud-panel .hud-level-header {
+  justify-content: flex-start;
+  color: var(--overlay-text);
+}
+
+body.touch-overlay .hud-panel .led-counters {
+  grid-template-columns: auto auto;
+  gap: 0.35rem;
+}
+
+body.touch-overlay .hud-panel .led-box {
+  padding: 0.12rem 0.4rem;
+  white-space: nowrap;
+}
+
+body.touch-overlay .hud-panel .led-label {
+  margin-bottom: 0;
+  font-size: 0.62rem;
+  color: var(--overlay-text);
+}
+
+body.touch-overlay .hud-panel .led-digits {
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+body.touch-overlay .hud-panel .led-green {
+  color: var(--overlay-led-green);
+}
+
+body.touch-overlay .hud-panel .led-amber {
+  color: var(--overlay-led-amber);
+}
+
+body.touch-overlay .hud-panel .led-danger {
+  color: var(--overlay-led-danger);
+}
+
+/* Owned items as an icon-only strip; a tap must never drop one by accident */
+body.touch-overlay .hud-panel .inventory-row-split {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+body.touch-overlay .hud-panel .inventory-row-split:not(:has(.inv-slot.owned)) {
+  display: none;
+}
+
+body.touch-overlay .hud-panel .inventory-section {
+  flex: 0 1 auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+body.touch-overlay .hud-panel .inv-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  min-height: 0;
+}
+
+body.touch-overlay .hud-panel .inv-slot {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+body.touch-overlay .hud-panel .inv-slot:not(.owned) {
+  display: none;
+}
+
+body.touch-overlay .hud-panel .inv-slot img {
+  width: 22px;
+  height: 22px;
+}
+
+body.touch-overlay .hud-panel .inv-count {
+  color: var(--overlay-text);
+  text-shadow: 0 0 2px var(--overlay-chevron-outline);
+}
+
+/* Pause, Undo and Menu, in the bottom corner opposite the pad */
+body.touch-overlay .play-shell .lcd-screen .touch-overlay-controls {
+  display: flex;
+  position: absolute;
+  z-index: 3;
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge));
+  gap: var(--overlay-gap);
+}
+
+body.touch-overlay.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
+  left: calc(var(--safe-left) + var(--overlay-edge));
+  right: auto;
+}
+
+body.touch-overlay.dpad-left .play-shell .lcd-screen .touch-overlay-controls {
+  right: calc(var(--safe-right) + var(--overlay-edge));
+  left: auto;
+}
+
+body.touch-overlay .touch-overlay-controls .touch-overlay-btn {
+  min-width: var(--overlay-button-size);
+  min-height: var(--overlay-button-size);
+  padding: 0 0.85rem;
+  background: var(--overlay-panel-bg);
+  color: var(--overlay-text);
+  border: 2px solid var(--overlay-panel-border);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--overlay-ring);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.touch-overlay .touch-overlay-controls .touch-overlay-btn:active {
+  background: var(--overlay-pad-fill-pressed);
+}
+
+body.touch-overlay .touch-overlay-controls .touch-overlay-btn:focus-visible {
+  outline: 3px solid var(--overlay-focus);
+  outline-offset: 2px;
+}
+
+/* Directional pad: bottom corner on its side, translucent cells, held moves unchanged */
+body.touch-overlay .play-shell .lcd-screen .mobile-touch-bar {
+  display: block;
+  position: absolute;
+  z-index: 3;
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge));
+  grid-column: auto;
+  grid-row: auto;
+  width: auto;
+  height: auto;
+  padding: 0;
+  gap: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  pointer-events: none;
+  --dpad-cell: var(--overlay-dpad-cell);
+}
+
+body.touch-overlay.dpad-right .play-shell .lcd-screen .mobile-touch-bar {
+  right: calc(var(--safe-right) + var(--overlay-edge));
+  left: auto;
+}
+
+body.touch-overlay.dpad-left .play-shell .lcd-screen .mobile-touch-bar {
+  left: calc(var(--safe-left) + var(--overlay-edge));
+  right: auto;
+}
+
+body.touch-overlay .mobile-touch-bar .mobile-actions-zone {
+  display: none;
+}
+
+body.touch-overlay .mobile-touch-bar .dpad-container {
+  pointer-events: none;
+}
+
+body.touch-overlay .mobile-touch-bar .dpad-btn {
+  pointer-events: auto;
+  background: var(--overlay-pad-fill);
+  color: var(--overlay-chevron);
+  border: 2px solid var(--overlay-pad-border);
+  box-shadow: 0 0 0 1px var(--overlay-ring);
+  border-radius: 12px;
+  touch-action: none;
+}
+
+body.touch-overlay .mobile-touch-bar .dpad-btn:active,
+body.touch-overlay .mobile-touch-bar .dpad-btn.pressed {
+  background: var(--overlay-pad-fill-pressed);
+  color: var(--overlay-chevron);
+}
+
+body.touch-overlay .mobile-touch-bar .dpad-btn:focus-visible {
+  outline: 3px solid var(--overlay-focus);
+  outline-offset: 2px;
+}
+
+/* Opaque chevrons with a dark outline stay readable over any scene */
+body.touch-overlay .mobile-touch-bar .dpad-btn span {
+  font-size: calc(var(--dpad-cell) * 0.42);
+  color: var(--overlay-chevron);
+  text-shadow:
+    -1px -1px 0 var(--overlay-chevron-outline),
+    1px -1px 0 var(--overlay-chevron-outline),
+    -1px 1px 0 var(--overlay-chevron-outline),
+    1px 1px 0 var(--overlay-chevron-outline),
+    0 0 4px var(--overlay-chevron-outline);
+}
+
+body.touch-overlay .mobile-touch-bar .dpad-center {
+  background: transparent;
+}
+
+/* Hint and status messages: top centre, below the HUD */
+body.touch-overlay .play-shell .lcd-screen .status-toast,
+body.touch-overlay .play-shell .lcd-screen .hint-banner {
+  z-index: 4;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  width: max-content;
+  max-width: min(60dvw, 28rem);
+  transform: translateX(-50%);
+  top: calc(var(--safe-top) + var(--overlay-hud-clearance));
+}
+
+/* A toast stays visible above the pause / end card (z-index 5) */
+body.touch-overlay .play-shell .lcd-screen .status-toast {
+  z-index: 6;
+}
+
+body.touch-overlay .play-shell .lcd-screen .hint-banner {
+  top: calc(var(--safe-top) + var(--overlay-hud-clearance) + 3rem);
+}
+
+/* Pause / end card: above the floating controls, clear of the notch, scrollable when it is tall */
+body.touch-overlay .play-shell .lcd-screen .viewport-overlay {
+  z-index: 5;
+  padding: calc(1.2rem + var(--safe-top)) calc(1.2rem + var(--safe-right)) calc(1.2rem + var(--safe-bottom)) calc(1.2rem + var(--safe-left));
+}
+
+body.touch-overlay .viewport-overlay .overlay-card {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+body.touch-overlay .viewport-overlay .overlay-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+body.touch-overlay.orientation-landscape .viewport-overlay .overlay-card {
+  max-width: 520px;
+}
+
+body.touch-overlay.orientation-landscape .viewport-overlay .overlay-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body.touch-overlay .viewport-overlay .action-btn {
+  min-height: var(--overlay-button-size);
+}
+
+body.touch-overlay .viewport-overlay .action-btn:focus-visible {
+  outline: 3px solid var(--overlay-focus);
+  outline-offset: 2px;
+}
+
+/* A very narrow portrait screen has no room beside the pad: the cluster stacks above it */
+@media (max-width: 399px) {
+  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls {
+    bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-dpad-cell) * 3 + var(--overlay-gap));
+  }
+
+  body.touch-overlay.orientation-portrait.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
+    right: calc(var(--safe-right) + var(--overlay-edge));
+    left: auto;
+  }
+
+  body.touch-overlay.orientation-portrait.dpad-left .play-shell .lcd-screen .touch-overlay-controls {
+    left: calc(var(--safe-left) + var(--overlay-edge));
+    right: auto;
+  }
+}
+
+/* Less transparency or more contrast: opaque panels with a thicker border */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  body.touch-overlay {
+    --overlay-border-width: 2px;
+    --overlay-panel-bg: rgba(10, 12, 18, 0.95);
+    --overlay-panel-border: #ffffff;
+    --overlay-pad-fill: rgba(10, 12, 18, 0.95);
+    --overlay-pad-fill-pressed: rgba(40, 46, 64, 1);
+    --overlay-pad-border: #ffffff;
+    --overlay-ring: rgba(10, 12, 18, 1);
+  }
+
+  body.touch-overlay .hud-panel,
+  body.touch-overlay .touch-overlay-controls .touch-overlay-btn,
+  body.touch-overlay .mobile-touch-bar .dpad-btn,
+  body.touch-overlay .viewport-overlay {
+    backdrop-filter: none;
+  }
+}
+
+/* Forced colors: system colors with outlines, nothing translucent */
+@media (forced-colors: active) {
+  body.touch-overlay .hud-panel {
+    background: Canvas;
+    color: CanvasText;
+    border: 2px solid ButtonText;
+    forced-color-adjust: none;
+  }
+
+  body.touch-overlay .hud-panel .led-label,
+  body.touch-overlay .hud-panel .led-digits,
+  body.touch-overlay .hud-panel .hud-level-header,
+  body.touch-overlay .hud-panel .inv-count {
+    color: CanvasText;
+    text-shadow: none;
+  }
+
+  body.touch-overlay .touch-overlay-controls .touch-overlay-btn,
+  body.touch-overlay .mobile-touch-bar .dpad-btn {
+    background: ButtonFace;
+    color: ButtonText;
+    border: 2px solid ButtonText;
+    box-shadow: none;
+    forced-color-adjust: none;
+  }
+
+  body.touch-overlay .mobile-touch-bar .dpad-btn span {
+    color: ButtonText;
+    text-shadow: none;
+  }
+
+  body.touch-overlay .mobile-touch-bar .dpad-btn:active,
+  body.touch-overlay .mobile-touch-bar .dpad-btn.pressed,
+  body.touch-overlay .touch-overlay-controls .touch-overlay-btn:active {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  body.touch-overlay .mobile-touch-bar .dpad-btn:active span,
+  body.touch-overlay .mobile-touch-bar .dpad-btn.pressed span {
+    color: HighlightText;
+  }
+
+  body.touch-overlay .touch-overlay-controls .touch-overlay-btn:focus-visible,
+  body.touch-overlay .mobile-touch-bar .dpad-btn:focus-visible,
+  body.touch-overlay .viewport-overlay .action-btn:focus-visible {
+    outline: 3px solid Highlight;
+  }
 }

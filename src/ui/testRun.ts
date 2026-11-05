@@ -30,9 +30,15 @@ export interface OverlayButtons {
 /**
  * The overlay buttons for a state. A test run of an editor draft has no next level and no stored
  * replay: it offers the way back to the editor instead. Retry stays on death (it restarts the same
- * test level) and Undo stays as in normal play.
+ * test level) and Undo stays as in normal play. In the phone full screen overlay layout the way back
+ * also shows while the run is paused: the pause card is the only place left that offers it.
  */
-export function overlayButtons(state: OverlayState, testPlaying: boolean, canUndo: boolean): OverlayButtons {
+export function overlayButtons(
+  state: OverlayState,
+  testPlaying: boolean,
+  canUndo: boolean,
+  touchOverlay = false
+): OverlayButtons {
   const ended = state === 'complete' || state === 'dead';
   return {
     resume: state === 'paused',
@@ -40,7 +46,7 @@ export function overlayButtons(state: OverlayState, testPlaying: boolean, canUnd
     replay: state === 'complete' && !testPlaying,
     undo: state === 'dead' && canUndo,
     retry: state !== 'none',
-    backToEditor: testPlaying && ended
+    backToEditor: testPlaying && (ended || (touchOverlay && state === 'paused'))
   };
 }
 
