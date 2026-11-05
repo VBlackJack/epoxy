@@ -74,7 +74,7 @@
 - **Ligne Blocs de Vérifier** : pour un pur puzzle de blocs (règle "couvrir chaque cible", uniquement sol, murs, cibles, puces et blocs, une zone jouable d'au plus `blockPuzzle.watchMaxCells` cases), Vérifier indique aussi "résolu en N poussées", "impossible de couvrir chaque cible" ou "non vérifié". La recherche tourne en arrière-plan et s'arrête quand vous modifiez le niveau. Elle n'affirme jamais qu'un niveau entier peut être gagné.
 - **Où vous en êtes** : l'éditeur affiche le pack et le niveau modifiés (Pack, Niveau n/N) avec des boutons précédent et suivant.
 - **Enregistrement** : Enregistrer met à jour le niveau dans son pack, aussi avec Ctrl+S. Un niveau d'un pack fourni, un niveau généré ou un fichier ouvert dans l'éditeur s'enregistre avec "Enregistrer dans..." : choisissez un pack, ou créez-en un dans la même étape. "Enregistrer une copie..." enregistre un autre niveau et garde l'original. Le premier enregistrement dans un pack importé demande s'il faut le modifier ou enregistrer une copie. Enregistrer ne change jamais le pack que vous êtes en train de jouer.
-- **Test** : "Retour à l'éditeur" revient d'un essai de jeu, et le navigateur demande confirmation avant de fermer l'onglet avec un travail non enregistré.
+- **Test** : "Retour à l'éditeur" revient d'un essai de jeu (proposé à la fin de la partie, avec son résultat sur la ligne d'état ; ? ouvre les raccourcis de l'éditeur), et le navigateur demande confirmation avant de fermer l'onglet avec un travail non enregistré.
 - **Validateur** : de nouveaux avertissements pour les liens de pièges et de clonage cassés, et pour un départ du joueur sur un mur ou sur un monstre.
 
 ## Playtest

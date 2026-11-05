@@ -950,6 +950,16 @@
       "jump": { "title": "Aller à la case ({x}, {y})" },
       "severity": { "error": { "label": "Erreur" }, "warning": { "label": "Avertissement" }, "info": { "label": "Info" } }
     },
+    "test_run": {
+      "won": { "label": "Test : gagné" },
+      "won_moves": { "label": "Test : gagné en {moves, plural, one {# coup} other {# coups}}" },
+      "lost": { "label": "Test : perdu" },
+      "lost_reason": { "label": "Test : perdu ({reason})" }
+    },
+    "shortcuts": {
+      "action": "Raccourcis",
+      "title": "Afficher les raccourcis clavier de l'éditeur (?)"
+    },
     "test_from": {
       "action": "Tester d'ici",
       "title": "Jouer le niveau avec le joueur placé sur la case du curseur (T)",

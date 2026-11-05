@@ -2477,6 +2477,17 @@ export class LevelEditor {
     if (this.reportCache?.key !== this.currentCheckKey()) this.scheduleCheck();
   }
 
+  /** Gives the keyboard back to the canvas, without scrolling the page. */
+  public focusCanvas(): void {
+    this.canvas.focus({ preventScroll: true });
+  }
+
+  /** Puts the outcome of a test run on the status line; the level itself is not touched. */
+  public showTestRunResult(text: string): void {
+    if (this.disposed) return;
+    this.setStatusText(text);
+  }
+
   /** The editor view is left: stops the check and releases the idle worker. */
   public onLeave(): void {
     this.cancelCellSpeech();
