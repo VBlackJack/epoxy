@@ -177,11 +177,11 @@ describe('pasteClip', () => {
     expect(result.map.playerStart).toEqual({ x: 5, y: 5, dir: 'S' });
   });
 
-  it('does not copy links, and drops the links ending on a cell it overwrites', () => {
+  it('copies the links internal to the clip, and drops the links ending on a cell it overwrites', () => {
     const map = populated();
     const clip = extractClip(map, { x: 2, y: 2, width: 3, height: 1 }, false);
     const pasted = pasteClip(bordered(9, 9), clip, 2, 6, 'epoxy');
-    expect(pasted.map.trapLinks).toEqual([]);
+    expect(pasted.map.trapLinks).toEqual([{ buttonX: 2, buttonY: 6, trapX: 4, trapY: 6 }]);
     expect(pasted.map.terrain[6][2]).toBe('button_brown');
     const over = pasteClip(map, extractClip(bordered(9, 9), { x: 1, y: 1, width: 1, height: 1 }, false), 2, 2, 'epoxy');
     expect(over.map.trapLinks).toEqual([]);

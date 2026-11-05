@@ -98,6 +98,8 @@
       "refused_epoxy_only_items": { "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur, les Bottes de Vitesse ou les Bottes de Clairvoyance), que le format .DAT ne peut pas porter." },
       "refused_epoxy_only_monsters": { "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard ou un Transmogrificateur, que le format .DAT ne peut pas porter." },
       "refused_cell_underlays": { "label": "Non exporté : {levels} cache du terrain sous des portes, des prises ou d'autres tuiles amovibles, que le format .DAT ne peut pas porter." },
+      "trap_links_capped": { "label": "Export .CCL avec pertes : le format .DAT garde au plus {max} liens de piège, {count, plural, one {# a été laissé de côté} other {# ont été laissés de côté}}." },
+      "clone_links_capped": { "label": "Export .CCL avec pertes : le format .DAT garde au plus {max} liens de clonage, {count, plural, one {# a été laissé de côté} other {# ont été laissés de côté}}." },
       "list_separator": { "label": ", " }
     },
     "confirm": {
@@ -882,6 +884,9 @@
         "paste_cancelled": "Collage annulé.",
         "nothing_to_paste": "Rien à coller : copiez ou coupez d'abord une sélection.",
         "links_dropped": "{count, plural, one {# lien a été abandonné} other {# liens ont été abandonnés}}.",
+        "links_pasted": { "label": "{count, plural, one {# lien a été collé avec la sélection} other {# liens ont été collés avec la sélection}}." },
+        "links_not_pasted": { "label": "{count, plural, one {# lien n'a pas pu être collé} other {# liens n'ont pas pu être collés}} : une extrémité tombe hors du niveau, sur l'anneau de murs extérieur ou sur une case ignorée, ou les règles du niveau ne peuvent pas le porter." },
+        "links_left_out": { "label": "{count, plural, one {# lien n'a pas été copié : il sort de la sélection ou finit sur l'anneau de murs extérieur} other {# liens n'ont pas été copiés : ils sortent de la sélection ou finissent sur l'anneau de murs extérieur}}." },
         "border_skipped": "{count, plural, one {# case de l'anneau de murs extérieur a été laissée telle quelle} other {# cases de l'anneau de murs extérieur ont été laissées telles quelles}}.",
         "paste_skipped": "{count, plural, one {# élément a été ignoré : les règles Lynx ne peuvent pas le jouer} other {# éléments ont été ignorés : les règles Lynx ne peuvent pas les jouer}}.",
         "paste_refused_epoxy": "Cette sélection vient d'un niveau Epoxy ou Lynx : elle ne peut pas être collée dans un niveau CC3D.",

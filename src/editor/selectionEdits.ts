@@ -21,7 +21,17 @@ import { cloneMap, EditorMap } from './editorDocument';
 import type { Brush } from './editorTools';
 import { canonicalLauncherLinks, pruneLauncherLinks, setLauncherLinks } from './editorLauncherLinks';
 import { canonicalUnderlays, pruneUnderlays, removeUnderlaysWhere, replaceUnderlays } from './editorUnderlays';
-import { ClonerTemplateChange, dropLinksAt, hidesShotDevice, keepsLauncherLinks, mapHeightOf, mapWidthOf, syncCloneTemplatesAt } from './mapEdits';
+import {
+  ClonerTemplateChange,
+  dropLinksAt,
+  hasLink,
+  hidesShotDevice,
+  holdsLinkEnd,
+  keepsLauncherLinks,
+  mapHeightOf,
+  mapWidthOf,
+  syncCloneTemplatesAt
+} from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
 
 /** A rectangle of cells: its top-left cell and its size, both at least 1 once normalised. */
@@ -54,7 +64,11 @@ export interface ClipUnderlay {
   terrain: string;
 }
 
-/** The content of a rectangle of cells, detached from the map. Links are never part of it. */
+/**
+ * The content of a rectangle of cells, detached from the map. It carries the links whose two ends lie inside the
+ * rectangle (not on the outer ring); a link with an end outside is never carried, so one clip can be pasted many
+ * times, or into another level.
+ */
 export interface Clip {
   width: number;
   height: number;
@@ -65,6 +79,14 @@ export interface Clip {
   edges?: ClipEdge[];
   /** Terrain hidden under the clipped cells; absent when none hides any. A Lynx level has no hidden terrain, so it is dropped there. */
   underlays?: ClipUnderlay[];
+  /** Brown button to trap links with both ends inside the clip, in clip-relative cells; absent when none. */
+  trapLinks?: TrapLink[];
+  /** Red button to clone machine links with both ends inside the clip, in clip-relative cells (templates kept); absent when none. */
+  cloneLinks?: CloneLink[];
+  /** Shot trigger to launcher links with both ends inside the clip, in clip-relative cells; absent when none. */
+  launcherLinks?: LauncherLink[];
+  /** Links with an end inside the rectangle that the clip could not carry (the other end outside, or an end on the ring); absent when none. */
+  linksLeftOut?: number;
   /** The player start, relative to the clip, when the clip carries it; null otherwise. */
   playerStart: { dx: number; dy: number; dir: Direction } | null;
 }
@@ -86,6 +108,10 @@ export interface SelectionEditResult {
   droppedUnderlays?: number;
   /** Clone machines whose stored template followed the creature a fill put on them. */
   clonerTemplates?: ClonerTemplateChange[];
+  /** Links of a pasted clip that were written on the map; absent when the clip carried none. */
+  pastedLinks?: number;
+  /** Links a pasted clip carried that could not be written (an end off the map, on the ring or on a skipped cell, or a rule of the level); absent when none. */
+  linksNotPasted?: number;
   /** The cells the edit produced or targeted, clipped to the map; null when none are inside it. */
   rect: CellRect | null;
 }
@@ -193,6 +219,38 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
     includePlayerStart && rectContains(rect, start.x, start.y)
       ? { dx: start.x - rect.x, dy: start.y - rect.y, dir: start.dir }
       : null;
+  // A link is carried when both ends are inside the rectangle and off the ring (a paste never writes the ring).
+  const carried = (x: number, y: number): boolean => rectContains(rect, x, y) && !onRing(map, x, y);
+  let linksLeftOut = 0;
+  const carryLinks = <T>(links: readonly T[], ends: (l: T) => [number, number, number, number], shift: (l: T) => T): T[] => {
+    const kept: T[] = [];
+    for (const l of links) {
+      const [ax, ay, bx, by] = ends(l);
+      if (carried(ax, ay) && carried(bx, by)) kept.push(shift(l));
+      else if (rectContains(rect, ax, ay) || rectContains(rect, bx, by)) linksLeftOut++;
+    }
+    return kept;
+  };
+  const trapLinks = carryLinks(
+    map.trapLinks,
+    (l) => [l.buttonX, l.buttonY, l.trapX, l.trapY],
+    (l) => ({ buttonX: l.buttonX - rect.x, buttonY: l.buttonY - rect.y, trapX: l.trapX - rect.x, trapY: l.trapY - rect.y })
+  );
+  const cloneLinks = carryLinks(
+    map.cloneLinks,
+    (l) => [l.buttonX, l.buttonY, l.clonerX, l.clonerY],
+    (l) => ({ ...l, buttonX: l.buttonX - rect.x, buttonY: l.buttonY - rect.y, clonerX: l.clonerX - rect.x, clonerY: l.clonerY - rect.y })
+  );
+  const launcherLinks = carryLinks(
+    canonicalLauncherLinks(map.launcherLinks, map.terrain, map.underlays) ?? [],
+    (l) => [l.buttonX, l.buttonY, l.launcherX, l.launcherY],
+    (l) => ({
+      buttonX: l.buttonX - rect.x,
+      buttonY: l.buttonY - rect.y,
+      launcherX: l.launcherX - rect.x,
+      launcherY: l.launcherY - rect.y
+    })
+  );
   return {
     width: rect.width,
     height: rect.height,
@@ -201,6 +259,10 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
     entities,
     ...(edges.length > 0 ? { edges } : {}),
     ...(underlays.length > 0 ? { underlays } : {}),
+    ...(trapLinks.length > 0 ? { trapLinks } : {}),
+    ...(cloneLinks.length > 0 ? { cloneLinks } : {}),
+    ...(launcherLinks.length > 0 ? { launcherLinks } : {}),
+    ...(linksLeftOut > 0 ? { linksLeftOut } : {}),
     playerStart
   };
 }
@@ -254,7 +316,7 @@ function stampClip(
   originY: number,
   ruleset: EditableRuleset | null,
   sourceOrigin: { x: number; y: number } | null = null
-): { skipped: number; borderSkipped: number; droppedLinks: number; droppedUnderlays: number } {
+): { skipped: number; borderSkipped: number; droppedLinks: number; droppedUnderlays: number; writtenCells: ReadonlySet<string> } {
   let skipped = 0;
   let borderSkipped = 0;
   let droppedLinks = 0;
@@ -349,13 +411,112 @@ function stampClip(
     const y = originY + clip.playerStart.dy;
     if (inGrid(map, x, y) && !ringCells.has(`${x},${y}`)) map.playerStart = { x, y, dir: clip.playerStart.dir };
   }
-  return { skipped, borderSkipped, droppedLinks, droppedUnderlays };
+  return { skipped, borderSkipped, droppedLinks, droppedUnderlays, writtenCells };
+}
+
+/** A link as a string that does not depend on the order of its fields. */
+function linkIdentity(link: object): string {
+  return JSON.stringify(Object.entries(link).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
+/** What a list of links gained and lost between two states, by identity; `same` when it is the same set. */
+function diffLinks(before: readonly object[] | undefined, after: readonly object[] | undefined): { dropped: number; added: number; same: boolean } {
+  const was = new Set((before ?? []).map(linkIdentity));
+  const is = new Set((after ?? []).map(linkIdentity));
+  let dropped = 0;
+  let added = 0;
+  for (const key of was) if (!is.has(key)) dropped++;
+  for (const key of is) if (!was.has(key)) added++;
+  return { dropped, added, same: dropped === 0 && added === 0 && (before?.length ?? 0) === (after?.length ?? 0) };
+}
+
+/** How many links a clip carries, all systems together. */
+export function clipLinkCount(clip: Clip): number {
+  return (clip.trapLinks?.length ?? 0) + (clip.cloneLinks?.length ?? 0) + (clip.launcherLinks?.length ?? 0);
 }
 
 /**
- * Pastes a clip with its top-left cell on (originX, originY). Links are not
- * pasted. A clip that carries the player start moves the start; a copy never
- * does. The ruleset of the level decides which entries are skipped.
+ * Writes the links of a clip whose cells were just stamped. A link is kept only when both of its ends, translated, are
+ * in the grid, on cells the paste really wrote, and still hold the device the system needs there. Lynx has no shot
+ * links and reads only the first valid link of a button (the engine's firstValidLinks rule), so the rest are left out.
+ * Returns how many links were written and how many were not.
+ */
+function pasteClipLinks(
+  map: EditorMap,
+  clip: Clip,
+  originX: number,
+  originY: number,
+  ruleset: EditableRuleset,
+  writtenCells: ReadonlySet<string>
+): { pasted: number; notPasted: number } {
+  const total = clipLinkCount(clip);
+  if (total === 0) return { pasted: 0, notPasted: 0 };
+  const lynx = ruleset === 'lynx';
+  const usable = (x: number, y: number): boolean => inGrid(map, x, y) && writtenCells.has(`${x},${y}`);
+  let pasted = 0;
+
+  const trapButtons = new Set<string>();
+  for (const l of clip.trapLinks ?? []) {
+    const button = { x: originX + l.buttonX, y: originY + l.buttonY };
+    const target = { x: originX + l.trapX, y: originY + l.trapY };
+    if (!usable(button.x, button.y) || !usable(target.x, target.y)) continue;
+    if (!holdsLinkEnd(map, 'trap', 'button', button.x, button.y) || !holdsLinkEnd(map, 'trap', 'target', target.x, target.y)) continue;
+    if (hasLink(map, 'trap', button, target)) continue;
+    if (lynx && trapButtons.has(`${button.x},${button.y}`)) continue;
+    trapButtons.add(`${button.x},${button.y}`);
+    map.trapLinks.push({ buttonX: button.x, buttonY: button.y, trapX: target.x, trapY: target.y });
+    pasted++;
+  }
+
+  const cloneButtons = new Set<string>();
+  for (const l of clip.cloneLinks ?? []) {
+    const button = { x: originX + l.buttonX, y: originY + l.buttonY };
+    const target = { x: originX + l.clonerX, y: originY + l.clonerY };
+    if (!usable(button.x, button.y) || !usable(target.x, target.y)) continue;
+    if (!holdsLinkEnd(map, 'clone', 'button', button.x, button.y) || !holdsLinkEnd(map, 'clone', 'target', target.x, target.y)) continue;
+    if (hasLink(map, 'clone', button, target)) continue;
+    if (lynx && cloneButtons.has(`${button.x},${button.y}`)) continue;
+    cloneButtons.add(`${button.x},${button.y}`);
+    map.cloneLinks.push({ ...l, buttonX: button.x, buttonY: button.y, clonerX: target.x, clonerY: target.y });
+    // The engine reads the stored template, the author sees the creature on the cloner: a creature there wins.
+    syncCloneTemplatesAt(map, target.x, target.y);
+    pasted++;
+  }
+
+  if (!lynx && (clip.launcherLinks?.length ?? 0) > 0) {
+    const accepted: LauncherLink[] = [];
+    for (const l of clip.launcherLinks ?? []) {
+      const link: LauncherLink = {
+        buttonX: originX + l.buttonX,
+        buttonY: originY + l.buttonY,
+        launcherX: originX + l.launcherX,
+        launcherY: originY + l.launcherY
+      };
+      if (!usable(link.buttonX, link.buttonY) || !usable(link.launcherX, link.launcherY)) continue;
+      if (!holdsLinkEnd(map, 'shot', 'button', link.buttonX, link.buttonY) || !holdsLinkEnd(map, 'shot', 'target', link.launcherX, link.launcherY)) continue;
+      if (hasLink(map, 'shot', { x: link.buttonX, y: link.buttonY }, { x: link.launcherX, y: link.launcherY })) continue;
+      accepted.push(link);
+    }
+    if (accepted.length > 0) {
+      setLauncherLinks(map, [...(map.launcherLinks ?? []), ...accepted]);
+      pruneLauncherLinks(map);
+      const kept = new Set((map.launcherLinks ?? []).map((l) => `${l.buttonX},${l.buttonY},${l.launcherX},${l.launcherY}`));
+      const seen = new Set<string>();
+      for (const l of accepted) {
+        const key = `${l.buttonX},${l.buttonY},${l.launcherX},${l.launcherY}`;
+        if (kept.has(key) && !seen.has(key)) pasted++;
+        seen.add(key);
+      }
+    }
+  }
+  return { pasted, notPasted: total - pasted };
+}
+
+/**
+ * Pastes a clip with its top-left cell on (originX, originY). The links the clip carries are written at their new
+ * place when both ends land on cells the paste wrote and still fit the level's rules; the others are counted. A
+ * clip that carries the player start moves the start; a copy never does. The ruleset of the level decides which
+ * entries are skipped.
  */
 export function pasteClip(
   source: EditorMap,
@@ -372,8 +533,34 @@ export function pasteClip(
   );
   if (!rect) return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect: null };
   const map = cloneMap(source);
-  const { skipped, borderSkipped, droppedLinks, droppedUnderlays } = stampClip(map, clip, originX, originY, ruleset);
-  return { map, changed: !sameMapLayers(source, map), droppedLinks, skipped, borderSkipped, playerStartKept: false, rect, droppedUnderlays };
+  const { skipped, borderSkipped, droppedUnderlays, writtenCells } = stampClip(map, clip, originX, originY, ruleset);
+  const links = pasteClipLinks(map, clip, originX, originY, ruleset, writtenCells);
+  // Count by what really differs from the source, per system: a link dropped by the overwrite and written back
+  // identically (a paste onto its own cells) is neither dropped nor pasted, and the source array is put back as it was
+  // (link order is meaningful under Lynx).
+  const trap = diffLinks(source.trapLinks, map.trapLinks);
+  if (trap.same) map.trapLinks = source.trapLinks.map((l) => ({ ...l }));
+  const clone = diffLinks(source.cloneLinks, map.cloneLinks);
+  if (clone.same) map.cloneLinks = source.cloneLinks.map((l) => ({ ...l }));
+  const launcher = diffLinks(source.launcherLinks, map.launcherLinks);
+  if (launcher.same) {
+    if (source.launcherLinks) map.launcherLinks = source.launcherLinks.map((l) => ({ ...l }));
+    else delete map.launcherLinks;
+  }
+  const droppedLinksNet = trap.dropped + clone.dropped + launcher.dropped;
+  const pastedLinks = trap.added + clone.added + launcher.added;
+  return {
+    map,
+    changed: !sameMapLayers(source, map),
+    droppedLinks: droppedLinksNet,
+    skipped,
+    borderSkipped,
+    playerStartKept: false,
+    rect,
+    droppedUnderlays,
+    ...(pastedLinks > 0 ? { pastedLinks } : {}),
+    ...(links.notPasted > 0 ? { linksNotPasted: links.notPasted } : {})
+  };
 }
 
 /**

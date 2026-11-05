@@ -184,6 +184,7 @@ import {
   connectionRows
 } from './connectionRows';
 import { deviceOverlayFor } from './deviceOverlay';
+import { datLinkCapNotice } from './datLinkCap';
 import { MECHANISM_HELP_ROWS, MECHANISMS_HELP_KEYS_KEY, MECHANISMS_HELP_LYNX_KEY } from './mechanismsHelp';
 import { deviceRelations } from '../core/DeviceRelations';
 import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
@@ -192,6 +193,7 @@ import {
   clampMoveStep,
   clearRect,
   Clip,
+  clipLinkCount,
   extractClip,
   fillBrushRefusal,
   FillRefusal,
@@ -1956,8 +1958,10 @@ export class LevelEditor {
       if (encoded.levelCount > 0) {
         downloadBytes(encoded.bytes, `${compiled.id || EXPORT_FALLBACK_FILE_NAME}.ccl`);
       }
-      const notice = lossyExportNotice(encoded);
-      if (notice) this.setStatusText(notice);
+      const notices = [lossyExportNotice(encoded), encoded.levelCount > 0 ? datLinkCapNotice(compiled) : null].filter(
+        (notice): notice is string => notice !== null
+      );
+      if (notices.length > 0) this.setStatusText(notices.join(SEPARATOR_BETWEEN_MESSAGES));
     });
 
     byId('editor-export-xml-btn')?.addEventListener('click', () => this.exportCc3dXml());
@@ -4621,6 +4625,8 @@ export class LevelEditor {
   private selectionAftermath(result: SelectionEditResult): ToolMessage[] {
     const messages: ToolMessage[] = [];
     if (result.droppedLinks > 0) messages.push({ key: 'editor.selection.status.links_dropped', params: { count: result.droppedLinks } });
+    if (result.pastedLinks) messages.push({ key: 'editor.selection.status.links_pasted.label', params: { count: result.pastedLinks } });
+    if (result.linksNotPasted) messages.push({ key: 'editor.selection.status.links_not_pasted.label', params: { count: result.linksNotPasted } });
     if (result.skipped > 0) messages.push({ key: 'editor.selection.status.paste_skipped', params: { count: result.skipped } });
     if (result.droppedUnderlays) messages.push({ key: MESSAGE_UNDERLAYS_REMOVED, params: { count: result.droppedUnderlays } });
     if (result.borderSkipped > 0) messages.push({ key: 'editor.selection.status.border_skipped', params: { count: result.borderSkipped } });
@@ -4796,7 +4802,11 @@ export class LevelEditor {
     const size = { width: rect.width, height: rect.height };
     if (!cut) {
       const withStart = rectContains(rect, this.doc.playerStart.x, this.doc.playerStart.y);
-      this.announce([{ key: withStart ? 'editor.selection.status.copied_no_start' : 'editor.selection.status.copied', params: size }]);
+      const leftOut = selectionClipboard.kind === 'epoxy' ? (selectionClipboard.clip.linksLeftOut ?? 0) : 0;
+      this.announce([
+        { key: withStart ? 'editor.selection.status.copied_no_start' : 'editor.selection.status.copied', params: size },
+        ...(leftOut > 0 ? [{ key: 'editor.selection.status.links_left_out.label', params: { count: leftOut } }] : [])
+      ]);
       return;
     }
     if (cc3d) {
@@ -4807,9 +4817,11 @@ export class LevelEditor {
     }
     const result = clearRect(this.doc, rect);
     this.commitSelectionEdit(result);
+    // The links the clip carries are not lost: they come back with a paste. Only the others are reported as dropped.
+    const carried = selectionClipboard.kind === 'epoxy' ? clipLinkCount(selectionClipboard.clip) : 0;
     this.announce([
       { key: result.playerStartKept ? 'editor.selection.status.cut_start_kept' : 'editor.selection.status.cut', params: size },
-      ...this.selectionAftermath(result)
+      ...this.selectionAftermath({ ...result, droppedLinks: Math.max(0, result.droppedLinks - carried) })
     ]);
   }
 
