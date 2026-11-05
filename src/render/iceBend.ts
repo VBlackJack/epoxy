@@ -80,3 +80,81 @@ export function iceBendGeometry(tile: TileDefinition): IceBendGeometry | null {
   const startQuarter = clockwiseGap === 1 ? onFirst : onSecond;
   return { cx, cy, startAngle: startQuarter * QUARTER_TURN, openEdges: [first, second] };
 }
+
+/**
+ * Ice bends: the slide path through a corner tile is a quarter-circle band centred on the open
+ * corner of the cell. Radii and widths are fractions of a tile.
+ */
+export const ICE_BEND_RADIUS_TILE = 0.5;
+export const ICE_BEND_BAND_WIDTH_TILE = 0.3;
+const ICE_BEND_STREAK_WIDTH_TILE = 0.06;
+const ICE_BEND_RIM_WIDTH_TILE = 0.05;
+
+/** Colours of the layers of an ice bend. */
+export interface IceBendPaint {
+  wall: string;
+  fill: string | CanvasGradient;
+  band: string;
+  streak: string;
+  rim?: string;
+}
+
+/**
+ * A corner ice tile drawn as a rounded bend: the walled corner of the cell stays solid, the open
+ * quadrant is a quarter disc of ice reaching both open edges, and a band along the slide path
+ * carries a specular streak. The optional rim lights the curved edge. `insetPx` shrinks the
+ * whole bend by that many pixels on each side, matching a renderer that leaves a gutter around
+ * its ice cells.
+ */
+export function paintIceBend(
+  ctx: CanvasRenderingContext2D,
+  bend: IceBendGeometry,
+  cellX: number,
+  cellY: number,
+  cellSize: number,
+  insetPx: number,
+  paint: IceBendPaint
+): void {
+  const x = cellX + insetPx;
+  const y = cellY + insetPx;
+  const size = cellSize - insetPx * 2;
+  const cx = x + bend.cx * size;
+  const cy = y + bend.cy * size;
+  const endAngle = bend.startAngle + QUARTER_TURN;
+  ctx.save();
+  ctx.lineCap = 'butt';
+
+  ctx.fillStyle = paint.wall;
+  ctx.fillRect(x, y, size, size);
+
+  // Open quadrant: the arc reaches the far corner of each open edge, so plain ice next door joins it.
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, size, bend.startAngle, endAngle);
+  ctx.closePath();
+  ctx.fillStyle = paint.fill;
+  ctx.fill();
+
+  const radius = size * ICE_BEND_RADIUS_TILE;
+  ctx.strokeStyle = paint.band;
+  ctx.lineWidth = size * ICE_BEND_BAND_WIDTH_TILE;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, bend.startAngle, endAngle);
+  ctx.stroke();
+
+  ctx.strokeStyle = paint.streak;
+  ctx.lineWidth = Math.max(1, size * ICE_BEND_STREAK_WIDTH_TILE);
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, bend.startAngle, endAngle);
+  ctx.stroke();
+
+  if (paint.rim) {
+    const rimWidth = Math.max(1, size * ICE_BEND_RIM_WIDTH_TILE);
+    ctx.strokeStyle = paint.rim;
+    ctx.lineWidth = rimWidth;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size - rimWidth / 2, bend.startAngle, endAngle);
+    ctx.stroke();
+  }
+  ctx.restore();
+}

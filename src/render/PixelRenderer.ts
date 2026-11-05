@@ -96,7 +96,8 @@ import {
   EDITOR_HIDDEN_STATE_BADGE_MIN_LINE_PX,
   EDITOR_HIDDEN_STATE_BADGE_SIZE_TILE
 } from '../ui/uiConstants';
-import { iceBendGeometry, IceBendGeometry, QUARTER_TURN } from './iceBend';
+import { paintColorGlyph } from './colorGlyph';
+import { ICE_BEND_BAND_WIDTH_TILE, ICE_BEND_RADIUS_TILE, iceBendGeometry, IceBendGeometry, paintIceBend, QUARTER_TURN } from './iceBend';
 import { armRects, BEAM_CORE_TILE, BEAM_HALO_TILE, beamArms, BeamBoard } from './laserBeams';
 import {
   cellHash,
@@ -578,14 +579,6 @@ const FIRE_EMBER_SIZE_TILE = 0.04;
 const ICE_GLINT_SPEED = 0.18;
 const ICE_GLINT_WINDOW = 0.18;
 const ICE_GLINT_WIDTH_TILE = 0.06;
-/**
- * Ice bends: the slide path through a corner tile is a quarter-circle band centred on the open
- * corner of the cell. Radii and widths are fractions of a tile.
- */
-const ICE_BEND_RADIUS_TILE = 0.5;
-const ICE_BEND_BAND_WIDTH_TILE = 0.3;
-const ICE_BEND_STREAK_WIDTH_TILE = 0.06;
-const ICE_BEND_RIM_WIDTH_TILE = 0.05;
 /** Angular length (radians) of the glint that runs along a bend; it changes direction every cycle. */
 const ICE_BEND_GLINT_SPAN = 0.5;
 /** Retro ice keeps a one-dot floor gutter around the cell; bends keep the same so the seam is even. */
@@ -4501,48 +4494,7 @@ export class PixelRenderer {
     insetPx: number,
     paint: { wall: string; fill: string | CanvasGradient; band: string; streak: string; rim?: string }
   ): void {
-    const x = cellX + insetPx;
-    const y = cellY + insetPx;
-    const size = cellSize - insetPx * 2;
-    const cx = x + bend.cx * size;
-    const cy = y + bend.cy * size;
-    const endAngle = bend.startAngle + QUARTER_TURN;
-    ctx.save();
-    ctx.lineCap = 'butt';
-
-    ctx.fillStyle = paint.wall;
-    ctx.fillRect(x, y, size, size);
-
-    // Open quadrant: the arc reaches the far corner of each open edge, so plain ice next door joins it.
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, size, bend.startAngle, endAngle);
-    ctx.closePath();
-    ctx.fillStyle = paint.fill;
-    ctx.fill();
-
-    const radius = size * ICE_BEND_RADIUS_TILE;
-    ctx.strokeStyle = paint.band;
-    ctx.lineWidth = size * ICE_BEND_BAND_WIDTH_TILE;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, bend.startAngle, endAngle);
-    ctx.stroke();
-
-    ctx.strokeStyle = paint.streak;
-    ctx.lineWidth = Math.max(1, size * ICE_BEND_STREAK_WIDTH_TILE);
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, bend.startAngle, endAngle);
-    ctx.stroke();
-
-    if (paint.rim) {
-      const rimWidth = Math.max(1, size * ICE_BEND_RIM_WIDTH_TILE);
-      ctx.strokeStyle = paint.rim;
-      ctx.lineWidth = rimWidth;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size - rimWidth / 2, bend.startAngle, endAngle);
-      ctx.stroke();
-    }
-    ctx.restore();
+    paintIceBend(ctx, bend, cellX, cellY, cellSize, insetPx, paint);
   }
 
   /**
@@ -6045,46 +5997,7 @@ export class PixelRenderer {
     r: number,
     fillColor: string
   ): void {
-    ctx.save();
-    ctx.fillStyle = fillColor;
-    ctx.strokeStyle = fillColor;
-    ctx.lineWidth = Math.max(1.5, r * 0.35);
-    ctx.beginPath();
-    if (colorKey === 'red') {
-      // Diamond
-      ctx.moveTo(cx, cy - r);
-      ctx.lineTo(cx + r, cy);
-      ctx.lineTo(cx, cy + r);
-      ctx.lineTo(cx - r, cy);
-      ctx.closePath();
-      ctx.fill();
-    } else if (colorKey === 'blue') {
-      // Triangle
-      ctx.moveTo(cx, cy - r);
-      ctx.lineTo(cx + r, cy + r * 0.85);
-      ctx.lineTo(cx - r, cy + r * 0.85);
-      ctx.closePath();
-      ctx.fill();
-    } else if (colorKey === 'yellow') {
-      // Plus / Cross
-      ctx.moveTo(cx - r, cy);
-      ctx.lineTo(cx + r, cy);
-      ctx.moveTo(cx, cy - r);
-      ctx.lineTo(cx, cy + r);
-      ctx.stroke();
-    } else if (colorKey === 'green') {
-      // Ring
-      ctx.arc(cx, cy, r * 0.78, 0, FULL_TURN);
-      ctx.stroke();
-    } else if (colorKey === 'orange') {
-      // Saltire
-      ctx.moveTo(cx - r, cy - r);
-      ctx.lineTo(cx + r, cy + r);
-      ctx.moveTo(cx + r, cy - r);
-      ctx.lineTo(cx - r, cy + r);
-      ctx.stroke();
-    }
-    ctx.restore();
+    paintColorGlyph(ctx, colorKey, cx, cy, r, fillColor);
   }
 
   private roundRect(

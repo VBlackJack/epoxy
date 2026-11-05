@@ -19,6 +19,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- Runeward render styles: sockets, gravel, dirt and hint tiles no longer look like plain floor; sockets get their own seal drawing.
 - The CC3D Connections panel no longer calls a device under a door, socket or false wall dead: it says the device works only if the player opens that cell and then steps onto it.
 
 ## [2.19.0] - 2026-11-05

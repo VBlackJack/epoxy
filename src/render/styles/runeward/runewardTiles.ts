@@ -24,7 +24,7 @@
 import type { Direction, RunewardArtConfig } from '../../../core/types';
 import { REFERENCE_FRAME_MS } from '../../renderTiming';
 import type { TileNeighbours } from '../../tileNeighbours';
-import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintWall, paintWater } from './runewardPainters';
+import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
 export type RunewardTilePass = 'all' | 'static' | 'animated';
@@ -164,10 +164,7 @@ const BLUE_WALL_PAINTER = staticTile(paintBlueWall);
 export const RUNEWARD_PAINTERS: RunewardPainters = {
   tiles: {
     floor: FLOOR_PAINTER,
-    gravel: FLOOR_PAINTER,
-    dirt: FLOOR_PAINTER,
-    hint: FLOOR_PAINTER,
-    socket: FLOOR_PAINTER,
+    socket: staticTile(paintSeal),
     invisible_wall: FLOOR_PAINTER,
     appearing_wall: FLOOR_PAINTER,
     wall: WALL_PAINTER,
@@ -185,6 +182,7 @@ export const RUNEWARD_PAINTERS: RunewardPainters = {
 
 /** Epoxy tile and item ids (tiles.json) that keep the shared drawing for now. */
 const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
+  'gravel', 'dirt', 'hint',
   'recessed_wall',
   'thin_wall_n', 'thin_wall_e', 'thin_wall_s', 'thin_wall_w', 'thin_wall_se', 'thin_wall_ne',
   'thin_wall_nw', 'thin_wall_sw', 'thin_wall_ns', 'thin_wall_ew', 'thin_wall_nes', 'thin_wall_new',

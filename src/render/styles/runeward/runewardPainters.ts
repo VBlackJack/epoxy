@@ -29,8 +29,10 @@ import {
   heavyLineWidth,
   hasInkHatching,
   inkLineWidth,
+  paintHatching,
   paintInkFloor,
   paintInkShadow,
+  paintPaper,
   inkUnit,
   paintVerticalHatching
 } from './runewardInk';
@@ -548,6 +550,100 @@ function paintInkLiquid(
     ctx.stroke();
   }
   ctx.restore();
+}
+
+// ---- Seal -------------------------------------------------------------------------------------
+
+const SEAL = {
+  glowRadius: 0.6,
+  glowAlpha: 0.5,
+  hexRadius: 0.3,
+  innerHexRadius: 0.17,
+  dotRadius: 0.04,
+  lineWidth: 0.04,
+  /** Inset of the cross-hatched recess of the ink seal, from the border of the tile. */
+  recessInset: 0.08,
+  hexSides: 6
+} as const;
+
+/** Traces a regular polygon around the middle of the cell, one corner pointing up. */
+function tracePolygon(ctx: CanvasRenderingContext2D, centre: number, radius: number, sides: number, turn = 0): void {
+  ctx.beginPath();
+  for (let i = 0; i < sides; i += 1) {
+    const angle = (i / sides) * TAU + turn - Math.PI / 2;
+    const px = centre + Math.cos(angle) * radius;
+    const py = centre + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+/** The mark in the seal: a smaller hexagon outline with a dot at its centre, like the facet of the chip gem. */
+function strokeSealMark(ctx: CanvasRenderingContext2D, size: number): void {
+  const centre = size * HALF;
+  tracePolygon(ctx, centre, size * SEAL.innerHexRadius, SEAL.hexSides);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(centre, centre, Math.max(MIN_LINE_PX, size * SEAL.dotRadius), 0, TAU);
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.fill();
+}
+
+/**
+ * The socket seal at rest: a glowing hexagon around a smaller hexagon and a dot on a dark stone. It echoes the
+ * hexagon of the chip and cannot be taken for floor. It does not move, so the clock plays no part.
+ */
+export function paintSeal(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours): void {
+  const { seal } = art;
+  const centre = size * HALF;
+  if (art.ink) {
+    paintInkSeal(ctx, size, art, art.ink, neighbours);
+    return;
+  }
+  ctx.fillStyle = seal.base;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = SEAL.glowAlpha;
+  ctx.fillStyle = radial(ctx, centre, centre, size * SEAL.glowRadius, [[0, seal.glyph], [1, seal.glow]]);
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = seal.glyph;
+  ctx.lineWidth = Math.max(MIN_LINE_PX, size * SEAL.lineWidth);
+  tracePolygon(ctx, centre, size * SEAL.hexRadius, SEAL.hexSides);
+  ctx.stroke();
+  strokeSealMark(ctx, size);
+  castShadowIfNeeded(ctx, size, art, neighbours);
+}
+
+/** The seal in ink: aged paper, a cross-hatched recess, a gold rim around the hexagon and the inner mark in line. */
+function paintInkSeal(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  art: Art,
+  ink: Readonly<RunewardInkConfig>,
+  neighbours: Neighbours
+): void {
+  const centre = size * HALF;
+  paintPaper(ctx, size, art.seal.base, ink, neighbours);
+  if (hasInkHatching(size)) {
+    const inset = size * SEAL.recessInset;
+    const recess = { x: inset, y: inset, w: size - inset * 2, h: size - inset * 2 };
+    paintHatching(ctx, size, neighbours, recess, ink.hatch);
+    paintHatching(ctx, size, neighbours, recess, ink.hatch, true);
+  }
+  ctx.strokeStyle = ink.line;
+  ctx.lineWidth = inkLineWidth(size);
+  ctx.strokeRect(0, 0, size, size);
+  tracePolygon(ctx, centre, size * SEAL.hexRadius, SEAL.hexSides);
+  ctx.fillStyle = art.seal.base;
+  ctx.fill();
+  ctx.strokeStyle = ink.gold;
+  ctx.lineWidth = heavyLineWidth(size);
+  ctx.stroke();
+  ctx.strokeStyle = ink.line;
+  ctx.lineWidth = inkLineWidth(size);
+  strokeSealMark(ctx, size);
+  castShadowIfNeeded(ctx, size, art, neighbours);
 }
 
 // ---- Exit -------------------------------------------------------------------------------------
