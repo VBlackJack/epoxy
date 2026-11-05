@@ -160,8 +160,6 @@ describe('pack variety', () => {
     const MODES: GenerationMode[] = ['pack', 'endless'];
     const FAR_LEVEL = 10000;
     const REPLAY_TIMEOUT_MS = 60000;
-    /** Loose ceiling: the replay measured 5 s at this level before it was memoised, a few tens of ms after. */
-    const MAX_FAR_LEVEL_MS = 1000;
 
     /** The draw replay as it was before the motif lists were memoised, kept verbatim as the reference. */
     function legacyDraws(seed: number, lastLevel: number, mode: GenerationMode) {
@@ -217,10 +215,24 @@ describe('pack variety', () => {
       }
     }, REPLAY_TIMEOUT_MS);
 
-    it('replays a ten thousand level run well under a second', () => {
-      const started = performance.now();
-      leadChoiceFor(FAR_LEVEL, 7, library, rules(), cfg, 'endless');
-      expect(performance.now() - started).toBeLessThan(MAX_FAR_LEVEL_MS);
+    it('builds the motif lists once per distinct profile in a ten thousand level run', () => {
+      const spy = vi.spyOn(ProgressionPlanner, 'playablePieces');
+      try {
+        leadChoiceFor(FAR_LEVEL, 7, library, rules(), cfg, 'endless');
+        // The memo in leadChoiceFor is keyed on these profile fields; the replay covers levels 1..last.
+        // One playablePieces call per distinct key is the most the memo may allow. Without the memo
+        // the same replay makes about 10,010 calls.
+        const distinctKeys = new Set<string>();
+        for (let level = 1; level <= FAR_LEVEL + cfg.noRepeatWindow; level++) {
+          const profile = profileFor('endless', level, cfg);
+          const isLoop = cfg.hub.loopModes.includes(profile.mode);
+          distinctKeys.add(`${profile.layout}|${isLoop}|${profile.maxTier}|${profile.onboarding}|${profile.allowOneShot}`);
+        }
+        expect(spy.mock.calls.length).toBeGreaterThanOrEqual(1);
+        expect(spy.mock.calls.length).toBeLessThanOrEqual(distinctKeys.size);
+      } finally {
+        spy.mockRestore();
+      }
     });
 
     it('admits irreversible loop-wing motifs at tier 1 in endless mode', () => {
