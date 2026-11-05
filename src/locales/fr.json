@@ -570,11 +570,11 @@
       "shot_trigger_no_link": { "label": "Avertissement : un déclencheur en ({x}, {y}) n'est lié à aucun lanceur, il ne tire donc rien." },
       "shot_launcher_unlinked": { "label": "Avertissement : un lanceur de tirs en ({x}, {y}) n'a aucun déclencheur lié, il ne tire donc jamais." },
       "shot_launcher_faces_wall": { "label": "Avertissement : un lanceur de tirs en ({x}, {y}) fait face à un mur ou au bord de la carte, ses tirs s'arrêtent donc aussitôt." },
-      "trap_button_no_trap": { "label": "Info : un bouton marron en ({x}, {y}) (au total : {count}) n'a aucun piège à déclencher : le niveau ne contient pas de piège." },
+      "trap_button_no_trap": { "label": "Info : un bouton brun en ({x}, {y}) (au total : {count}) n'a aucun piège à déclencher : le niveau ne contient pas de piège." },
       "clone_button_nothing": { "label": "Info : le bouton rouge en ({x}, {y}) n'a aucun lien de clonage et aucune machine à cloner ne porte de modèle, il ne clone donc rien." },
       "puppet_no_steering_pad": { "label": "Avertissement : une marionnette en ({x}, {y}) (au total : {count}) n'a aucune commande de marionnette pour la déplacer, elle ne peut donc jamais bouger." },
       "puppet_no_steering_pad_nowhere": { "label": "Avertissement : une marionnette n'a aucune commande de marionnette pour la déplacer, elle ne peut donc jamais bouger." },
-      "trap_no_button": { "label": "Info : un piège en ({x}, {y}) (au total : {count}) ne peut jamais se déclencher : le niveau ne contient pas de bouton marron." },
+      "trap_no_button": { "label": "Info : un piège en ({x}, {y}) (au total : {count}) ne peut jamais se déclencher : le niveau ne contient pas de bouton brun." },
       "teleport_alone": { "label": "Avertissement : le téléporteur {color} en ({x}, {y}) est le seul de sa couleur, il ne mène donc nulle part." },
       "teleport_alone_plain": { "label": "Avertissement : le téléporteur en ({x}, {y}) est le seul téléporteur simple, il ne mène donc nulle part." },
       "laser_gate_no_receiver": { "label": "Avertissement : une barrière laser ({group}) en ({x}, {y}) (au total : {count}) n'a aucun récepteur de son groupe, elle reste donc fermée." },
@@ -583,7 +583,7 @@
       "exit_on_receivers_level": { "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs." },
       "start_on_wall": { "label": "Avertissement : le départ du joueur est dans un mur." },
       "start_on_entity": { "label": "Avertissement : le départ du joueur partage sa case avec un bloc ou un monstre." },
-      "trap_link_button": { "label": "Avertissement : un lien de piège part de ({x}, {y}), qui n'est pas un bouton marron." },
+      "trap_link_button": { "label": "Avertissement : un lien de piège part de ({x}, {y}), qui n'est pas un bouton brun." },
       "trap_link_target": { "label": "Avertissement : un lien de piège arrive en ({x}, {y}), qui n'est pas un piège." },
       "clone_link_button": { "label": "Avertissement : un lien de clonage part de ({x}, {y}), qui n'est pas un bouton rouge." },
       "clone_link_target": { "label": "Avertissement : un lien de clonage arrive en ({x}, {y}), qui n'est pas une machine à cloner." },
@@ -633,7 +633,7 @@
       "fired_by": { "label": "tiré par {count, plural, one {# déclencheur} other {# déclencheurs}}" },
       "opens_traps": { "label": "ouvre {count, plural, one {# piège} other {# pièges}}" },
       "opened_by": { "label": "ouvert par {count, plural, one {# bouton} other {# boutons}}" },
-      "opens_with_any": { "label": "s'ouvre avec n'importe quel bouton marron" },
+      "opens_with_any": { "label": "s'ouvre avec n'importe quel bouton brun" },
       "fires_cloners": { "label": "active {count, plural, one {# machine à cloner} other {# machines à cloner}}" },
       "fires_any_cloner": { "label": "aucun lien : active toutes les machines à cloner qui portent une créature" },
       "cloner_fired_by": { "label": "activée par {count, plural, one {# bouton} other {# boutons}}" },
@@ -1345,6 +1345,7 @@
       },
       "status": {
         "coords": { "label": "Case ({x}, {y})" },
+        "coords_description": { "label": "{coords} : {details}" },
         "ready": { "label": "Clic : peindre | Droit : gommer | Alt+Clic : pipette | K relier | T tester | L faisceaux" },
         "picked": { "label": "Pipette : {name} sélectionné" },
         "saved": { "label": "Niveau sauvegardé dans la bibliothèque locale !" },
@@ -1460,7 +1461,7 @@
       "golem_blue": { "name": "Golem bleu", "label": "Le déplacement du golem est proche de celui de CC3D, sans lui être identique." },
       "laser_controller": { "name": "Contrôleur laser", "label": "Epoxy joue le contrôleur laser comme une gâchette de tir reliée aux tireurs qu'elle déclenche (CC3D prend le tireur le plus proche). Dans CC3D tout monstre l'actionne ; dans Epoxy, tout ce qui marche dessus l'actionne. Une gâchette cachée sous une couche amovible n'agit qu'une fois découverte." },
       "laser_shooter": { "name": "Tireur laser", "label": "Epoxy joue le tireur comme un lanceur de tirs : une case semblable à un mur qui tire dans sa direction, si bien que le terrain sous le tireur est aplati. Un tir traverse les cases au rythme de CC3D, mais son opacité suit la transparence laser d'Epoxy, et la sortie et la première case touchée peuvent différer." },
-      "trap_unworked": { "name": "Piège sans commande", "label": "Aucune commande de piège n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton marron." },
+      "trap_unworked": { "name": "Piège sans commande", "label": "Aucune commande de piège n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton brun." },
       "clone_switch_empty": { "name": "Interrupteur de clonage sans modèle", "label": "La machine à cloner la plus proche de cet interrupteur ne contient aucun modèle qu'Epoxy sache cloner (aucun, ou un tireur laser) : CC3D ne fait rien, et un interrupteur laissé non relié déclencherait toutes les machines dans Epoxy, donc le convertisseur supprime le lien de l'interrupteur." },
       "bomb_with_item": { "name": "Bombe dans une case avec un objet", "label": "Une couche de bombe partage sa case avec un objet : Epoxy ne tient qu'un objet par case, donc la bombe est supprimée et l'objet reste." },
       "laser_shooter_covered": { "name": "Tireur laser sur un objet ou une autre couche", "label": "Le tireur se trouve sur un objet ou sur une couche autre que le sol ordinaire (un dispositif, une machine, un terrain) : le lanceur d'Epoxy remplace toute la case, donc ce qui s'y trouvait est supprimé, et un tireur utilisé comme modèle de clonage n'est pas cloné." },
@@ -1719,7 +1720,7 @@
     },
     "level_8": {
       "title": "Tenir la ligne",
-      "hint": "Un piège retient tout ce qui y entre tant que son bouton marron est libre. Gare d'abord un bloc sur le bouton."
+      "hint": "Un piège retient tout ce qui y entre tant que son bouton brun est libre. Gare d'abord un bloc sur le bouton."
     },
     "level_9": {
       "title": "Rayon d'action",
@@ -1803,7 +1804,7 @@
     },
     "level_29": {
       "title": "Plein air",
-      "hint": "Des planeurs font le tour de la place. Chaque aile donne la clé de la suivante : rouge, puis bleue, puis jaune. Dans l'aile ouest, gare un bloc sur le bouton marron avant de marcher sur le piège."
+      "hint": "Des planeurs font le tour de la place. Chaque aile donne la clé de la suivante : rouge, puis bleue, puis jaune. Dans l'aile ouest, gare un bloc sur le bouton brun avant de marcher sur le piège."
     },
     "level_30": {
       "title": "Noyau Epoxy",
@@ -1818,9 +1819,9 @@
       "force": { "title": "Atelier des Convoyeurs #{number}", "hint": "Les tapis roulants vous emportent. Les bottes de force permettent de marcher à contre-courant." },
       "thief": { "title": "Repaire des Voleurs #{number}", "hint": "Le voleur prend toutes vos bottes. Servez-vous-en avant de le croiser." },
       "toggle_walls": { "title": "Gare de Triage #{number}", "hint": "Chaque bouton vert inverse tous les murs bascules. Comptez vos pressions." },
-      "trap": { "title": "Allée des Pièges #{number}", "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut maintenir le bouton." },
+      "trap": { "title": "Allée des Pièges #{number}", "hint": "Un piège vous retient tant que son bouton brun n'est pas pressé. Un bloc peut maintenir le bouton." },
       "teleport": { "title": "Saut Quantique #{number}", "hint": "Entrez dans un téléporteur pour ressortir par un autre, dans la même direction. Avec plusieurs plaques, l'ordre compte." },
-      "sokoban": { "title": "Entrepôt #{number}", "hint": "Chaque bouton marron maintient un piège ouvert. Poussez un bloc sur chaque bouton, et jamais dans un coin." },
+      "sokoban": { "title": "Entrepôt #{number}", "hint": "Chaque bouton brun maintient un piège ouvert. Poussez un bloc sur chaque bouton, et jamais dans un coin." },
       "monsters": { "title": "Ménagerie #{number}", "hint": "Les monstres suivent des trajectoires fixes. Observez-les, attendez l'ouverture, puis foncez." },
       "bomb": { "title": "Chantier de Démolition #{number}", "hint": "Les bombes détruisent tout ce qui les touche. Poussez-y un bloc pour dégager le passage." },
       "cloner": { "title": "Atelier de Clonage #{number}", "hint": "Un bouton rouge fait déposer par la machine à cloner une copie de son bloc. Clonez autant de blocs que nécessaire." },

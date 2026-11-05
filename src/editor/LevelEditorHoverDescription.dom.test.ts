@@ -188,6 +188,15 @@ describe('the hover description in the coordinates badge', () => {
     expect(text).toContain(tileName('door_red'));
     expect(text).toContain(tileName('ice'));
     expect(text).not.toContain('Tile (');
+    expect(text.startsWith(`Case (${DOOR.x}, ${DOOR.y}) : `)).toBe(true);
+    expect(text).not.toContain(`Case (${DOOR.x}, ${DOOR.y}): `);
+  });
+
+  it('puts the colon straight after the coordinates in English', () => {
+    hover(DOOR);
+    const text = badge().textContent ?? '';
+    expect(text.startsWith(`Tile (${DOOR.x}, ${DOOR.y}): `)).toBe(true);
+    expect(text).not.toContain(`Tile (${DOOR.x}, ${DOOR.y}) : `);
   });
 
   it('does not rebuild the text when the same cell is hovered twice', () => {

@@ -1345,6 +1345,7 @@
       },
       "status": {
         "coords": { "label": "Tile ({x}, {y})" },
+        "coords_description": { "label": "{coords}: {details}" },
         "ready": { "label": "Left: paint | Right: erase | Alt+Click: eyedropper | K link | T test | L beams" },
         "picked": { "label": "Picked: {name}" },
         "saved": { "label": "Level saved to local browser library!" },
