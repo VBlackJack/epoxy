@@ -382,12 +382,17 @@ export class LevelValidator {
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
 
-    // A consumed key opens one door; a kept key opens every door of its colour
+    // A consumed key opens one door; a kept key opens every door of its colour.
+    // Fewer keys than doors only warns that the doors cannot all be opened: spare or decoy
+    // doors are legitimate, and the reach walk decides whether the level can be won.
+    // Known gap, accepted: on levels won by targets or receivers the walk ignores the exit, so a real
+    // key shortage there gets only this warning. The severity stays fixed: making it depend on the
+    // level would bring back the false errors on winnable levels with spare doors.
     for (const [keyId, doors] of Object.entries(consumingDoorCounts)) {
       const keys = keyCounts[keyId] || 0;
       if (doors > keys) {
         issues.push({
-          severity: 'error',
+          severity: 'warning',
           i18nKey: 'validator.issues.fewer_keys_than_doors.label',
           params: { key: keyId, keys, doors }
         });

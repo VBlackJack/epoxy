@@ -364,6 +364,8 @@ describe('LevelValidator', () => {
   describe('key scarcity', () => {
     // One red door leads nowhere, the other holds the second key and the exit: the spare key must go to the second.
     const rooms = (rows: string[]): boolean => LevelValidator.validate(grid(rows)).valid;
+    const FEWER_KEYS = 'validator.issues.fewer_keys_than_doors.label';
+    const UNREACHABLE_EXIT = 'validator.issues.unreachable_exit.label';
 
     it('opens the rewarding door first with no stored solution (dead end north)', () => {
       expect(rooms(['#####', '#...#', '#D###', '#Pr.#', '#D###', '#Er.#', '#####'])).toBe(true);
@@ -378,6 +380,33 @@ describe('LevelValidator', () => {
       const row = `#P${'r'.repeat(doors)}${'D'.repeat(doors)}E#`;
       const wall = '#'.repeat(row.length);
       expect(rooms([wall, row, wall])).toBe(true);
+    });
+
+    it('only warns when a spare door sits on a dead-end branch', () => {
+      const report = LevelValidator.validate(grid(['######', '#...##', '##Y###', '#PyYE#', '######']));
+      const issue = report.issues.find((i) => i.i18nKey === FEWER_KEYS);
+      expect(issue?.severity).toBe('warning');
+      expect(report.valid).toBe(true);
+      expect(report.stats.reachableExit).toBe(true);
+    });
+
+    it('warns and reports the exit unreachable when two doors in series share one key', () => {
+      const report = LevelValidator.validate(grid(['#######', '#PyYYE#', '#######']));
+      const byKey = (key: string) => report.issues.find((i) => i.i18nKey === key);
+      expect(byKey(FEWER_KEYS)?.severity).toBe('warning');
+      expect(byKey(UNREACHABLE_EXIT)?.severity).toBe('error');
+      expect(report.valid).toBe(false);
+    });
+
+    it('gives a door shortage on a targets level only the warning (accepted gap)', () => {
+      const level = grid(['########', '#PyYY..#', '########'], {
+        entities: [{ type: 'dirt_block', x: 5, y: 1, dir: 'S' }]
+      });
+      level.winRule = 'targets';
+      level.terrain[1][6] = 'block_target';
+      const report = LevelValidator.validate(level);
+      expect(report.issues.find((i) => i.i18nKey === FEWER_KEYS)?.severity).toBe('warning');
+      expect(report.issues.filter((i) => i.severity === 'error')).toEqual([]);
     });
   });
 

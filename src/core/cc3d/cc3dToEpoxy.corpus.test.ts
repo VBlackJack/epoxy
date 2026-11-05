@@ -51,7 +51,6 @@ const ALLOWED_ERROR_KEYS: readonly string[] = [
   'socket_bypass',
   'unreachable_chips',
   'unreachable_exit',
-  'fewer_keys_than_doors',
   'no_matching_key',
   'no_exit'
 ];

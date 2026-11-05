@@ -231,7 +231,7 @@ exports[`validator output of every shipped level > campaign levels 1`] = `
           "key": "key_blue",
           "keys": 2,
         },
-        "severity": "error",
+        "severity": "warning",
       },
     ],
     "stats": {
@@ -242,7 +242,7 @@ exports[`validator output of every shipped level > campaign levels 1`] = `
       "reachableExit": true,
       "targetCount": 0,
     },
-    "valid": false,
+    "valid": true,
   },
   "epoxy_c_26": {
     "issues": [
