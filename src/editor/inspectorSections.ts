@@ -15,18 +15,19 @@
  */
 
 /** Inspector sections the player can fold, in display order. */
-export const INSPECTOR_SECTIONS = ['level', 'rules', 'layers', 'connections', 'issues', 'size', 'generate'] as const;
+export const INSPECTOR_SECTIONS = ['level', 'rules', 'layers', 'connections', 'mechanisms', 'issues', 'size', 'generate'] as const;
 
 export type InspectorSection = (typeof INSPECTOR_SECTIONS)[number];
 
 export type SectionState = Record<InspectorSection, boolean>;
 
-/** Open state of a section the player never touched: the issues list and the generator start closed. */
+/** Open state of a section the player never touched: the mechanisms card, the issues list and the generator start closed. */
 export const DEFAULT_SECTION_STATE: SectionState = {
   level: true,
   rules: true,
   layers: true,
   connections: true,
+  mechanisms: false,
   issues: false,
   size: true,
   generate: false

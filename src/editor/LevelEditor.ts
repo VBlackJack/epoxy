@@ -184,6 +184,7 @@ import {
   connectionRows
 } from './connectionRows';
 import { deviceOverlayFor } from './deviceOverlay';
+import { MECHANISM_HELP_ROWS, MECHANISMS_HELP_KEYS_KEY, MECHANISMS_HELP_LYNX_KEY } from './mechanismsHelp';
 import { deviceRelations } from '../core/DeviceRelations';
 import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
@@ -338,6 +339,11 @@ const CONNECTIONS_LISTS_ID = 'editor-connections-lists';
 const CONNECTIONS_CONTROLS_ID = 'editor-connections-controls';
 const CONNECTIONS_CONTROLLED_ID = 'editor-connections-controlled';
 const CONNECTIONS_NOTE_ID = 'editor-connections-note';
+const MECHANISMS_HELP_SECTION_ID = 'editor-mechanisms-help-section';
+const MECHANISMS_HELP_LIST_ID = 'editor-mechanisms-help-list';
+const MECHANISMS_HELP_KEYS_ID = 'editor-mechanisms-help-keys';
+const MECHANISMS_HELP_LYNX_ID = 'editor-mechanisms-help-lynx';
+const MECHANISMS_HELP_NAME_CLASS = 'editor-mechanism-help-name';
 const CONNECTIONS_ISSUES_BLOCK_ID = 'editor-connections-issues-block';
 const CONNECTIONS_ISSUES_ID = 'editor-connections-issues';
 const CONNECTIONS_LINK_HINT_KEY = 'editor.connections.link.hint.label';
@@ -608,6 +614,8 @@ export class LevelEditor {
   private linkCandidatesCache: { key: string; value: PartnerCandidates } | null = null;
   /** What the Connections section shows now: the key it was drawn for and the cell it is about. */
   private connectionsKey = '';
+  /** The locale and ruleset the "How mechanisms work" card was written for. */
+  private mechanismsHelpLocale = '';
   private connectionsShown: { x: number; y: number } | null = null;
   /** The relation lookup of the last cell asked for: valid while the document, the cell and the locale stay. */
   private connectionsCache: { doc: EditorDocument; x: number; y: number; view: ConnectionView } | null = null;
@@ -3837,6 +3845,36 @@ export class LevelEditor {
     });
   }
 
+  /** Writes the "How mechanisms work" card: one row per mechanism, rewritten when the locale or the ruleset changes. */
+  private refreshMechanismsHelp(cc3d: boolean): void {
+    const section = byId(MECHANISMS_HELP_SECTION_ID);
+    const list = byId(MECHANISMS_HELP_LIST_ID);
+    if (!section || !list) return;
+    section.classList.toggle('hidden', cc3d);
+    const lynx = this.doc.ruleset === LYNX_RULESET;
+    const drawnFor = `${i18n.getLocale()}:${lynx ? LYNX_RULESET : 'epoxy'}`;
+    if (cc3d || (drawnFor === this.mechanismsHelpLocale && list.childElementCount > 0)) return;
+    this.mechanismsHelpLocale = drawnFor;
+    list.innerHTML = '';
+    for (const row of MECHANISM_HELP_ROWS) {
+      const item = document.createElement('li');
+      item.dataset.system = row.system;
+      const name = document.createElement('strong');
+      name.className = MECHANISMS_HELP_NAME_CLASS;
+      name.textContent = `${t(row.nameKey)} (${t(KIND_NAME_KEYS[row.kind])})`;
+      const how = document.createElement('span');
+      // Under Lynx rules the Lynx line says what an unlinked trap or clone button does.
+      const unlinked = lynx && row.lynxCoversUnlinked ? '' : ` ${t(row.unlinkedKey, row.params)}`;
+      how.textContent = ` ${t(row.howKey, row.params)}${unlinked}`;
+      item.append(name, how);
+      list.appendChild(item);
+    }
+    const keys = byId(MECHANISMS_HELP_KEYS_ID);
+    if (keys) keys.textContent = t(MECHANISMS_HELP_KEYS_KEY);
+    const lynxLine = byId(MECHANISMS_HELP_LYNX_ID);
+    if (lynxLine) lynxLine.textContent = t(MECHANISMS_HELP_LYNX_KEY);
+  }
+
   /**
    * Brings the Connections section in line with the cell it is about. Skipped during a stroke (the document changes
    * at every cell and the section is redrawn once when the stroke ends) and keyed so that only a new level, edit,
@@ -3847,6 +3885,7 @@ export class LevelEditor {
     const section = byId(CONNECTIONS_SECTION_ID);
     if (!section || this.stroke || this.connectionsDrawing) return;
     const cc3d = this.isCc3d();
+    this.refreshMechanismsHelp(cc3d);
     section.classList.toggle('hidden', cc3d);
     if (cc3d) {
       this.connectionsKey = '';
