@@ -32,6 +32,7 @@ import { loadTestConfigs } from '../test/loadTestConfigs';
 import {
   classifyImportSelection,
   importCc3dSelection,
+  importDiggySelection,
   isCc3dFileName,
   packNameFromFile,
   type ImportableFile
@@ -69,6 +70,12 @@ beforeEach(() => {
 describe('classifyImportSelection', () => {
   it('sends a selection of XML files to the cc3d import', () => {
     expect(classifyImportSelection(['1.xml', '2.XML'])).toBe('cc3d');
+  });
+
+  it('sends multiple Diggy floor JSON files to the diggy import and keeps a single file on single', () => {
+    expect(classifyImportSelection(['floors_4295.json', 'floors_4296.json'])).toBe('diggy');
+    expect(classifyImportSelection(['floors_4295.json'])).toBe('single');
+    expect(classifyImportSelection(['floors_4295.json', 'pack.dat'])).toBe('mixed');
   });
 
   it('imports one file of any other format', () => {
@@ -132,6 +139,29 @@ describe('importCc3dSelection', () => {
     expect(result.levels).toHaveLength(0);
     expect(result.skipped).toBe(2);
     expect(result.firstError).not.toBeNull();
+  });
+});
+
+describe('importDiggySelection', () => {
+  const DIGGY_FLOOR = JSON.stringify({
+    floor: {
+      floor_id: 1,
+      name: 'Mine 1',
+      rows: 5,
+      columns: 5,
+      bg_id: 1,
+      blocked: '0_0;0_1;0_2;0_3;0_4;4_0;4_1;4_2;4_3;4_4'
+    }
+  });
+
+  it('imports multiple Diggy floor files and skips oversized ones without reading them', async () => {
+    const big = file('floors_99.json', DIGGY_FLOOR, MAX_BYTES + 1);
+    const read = vi.spyOn(big, 'arrayBuffer');
+    const result = await importDiggySelection([big, file('floors_1.json', DIGGY_FLOOR, 1)], MAX_BYTES, 'Diggy');
+    expect(read).not.toHaveBeenCalled();
+    expect(result.levels).toHaveLength(1);
+    expect(result.skipped).toBe(1);
+    expect(result.tooLargeMaxMb).not.toBeNull();
   });
 });
 
