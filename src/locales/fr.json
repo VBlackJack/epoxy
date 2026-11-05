@@ -548,7 +548,7 @@
       "no_exit": { "label": "Erreur : Aucun portail de sortie (E) placé sur la carte." },
       "missing_chips": { "label": "Erreur : Seulement {placed, plural, one {# puce placée} other {# puces placées}} pour {required, plural, one {# requise} other {# requises}}." },
       "no_matching_key": { "label": "Erreur : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente." },
-      "fewer_keys_than_doors": { "label": "Erreur : {doors, plural, one {# porte} other {# portes}} pour seulement {keys, plural, one {# clé} other {# clés}} ({key})." },
+      "fewer_keys_than_doors": { "label": "Avertissement : {doors, plural, one {# porte} other {# portes}} pour seulement {keys, plural, one {# clé} other {# clés}} ({key})." },
       "unreachable_chips": { "label": "Erreur : Seulement {reachable}/{required, plural, one {# puce est accessible} other {# puces sont accessibles}} depuis le départ." },
       "unreachable_exit": { "label": "Erreur : Le portail de sortie est bloqué ou inaccessible." },
       "unreachable_chips_proven": { "label": "Avertissement : la simulation n'atteint que {reachable}/{required, plural, one {# puce} other {# puces}}, mais la solution enregistrée gagne." },

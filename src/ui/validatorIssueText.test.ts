@@ -28,7 +28,7 @@ describe('formatValidationIssue', () => {
 
   it('shows a key parameter by the tile name, not by its id', () => {
     const text = formatValidationIssue({
-      severity: 'error',
+      severity: 'warning',
       i18nKey: 'validator.issues.fewer_keys_than_doors.label',
       params: { key: 'key_yellow', keys: 5, doors: 8 }
     });

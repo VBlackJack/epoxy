@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Validator: a level with fewer keys than doors of a colour now gets a warning instead of an error, so winnable levels with spare doors can be saved; a real shortage is still reported as unreachable chips or exit.
+
 ## [2.19.0] - 2026-11-05
 
 ### Added
