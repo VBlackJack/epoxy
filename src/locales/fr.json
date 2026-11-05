@@ -512,6 +512,7 @@
       "kb_editor_rotate": { "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi" },
       "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit), ou tourne un tampon flottant" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
+      "kb_editor_wheel_zoom": { "label": "Ctrl (ou Cmd) + molette : Zoomer autour du pointeur" },
       "kb_editor_link": { "label": "K : Relier le dispositif sous le curseur (bouton, piège, machine à cloner, déclencheur de tir ou lanceur). Cliquez ensuite, ou appuyez sur Espace, sur un partenaire pour le lier ou le délier, ou sur une case de sol vide pour en poser un" },
       "kb_editor_cancel": { "label": "Échap : Terminer la liaison, annuler un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },

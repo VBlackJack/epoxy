@@ -512,6 +512,7 @@
       "kb_editor_rotate": { "label": "R: Rotate the facing of the selected creature or player start" },
       "kb_editor_rotate_in_place": { "label": "Shift+R: Turn the creature or turret under the cursor a quarter turn clockwise (a clone machine under it follows), or turns a floating stamp" },
       "kb_editor_zoom": { "label": "+ / - / 0: Zoom in, zoom out, fit the level to the window" },
+      "kb_editor_wheel_zoom": { "label": "Ctrl (or Cmd) + mouse wheel: Zoom around the pointer" },
       "kb_editor_link": { "label": "K: Link the device under the cursor (button, trap, clone machine, shot trigger or launcher). Then click or press Space on a partner to link or unlink it, or on an empty floor cell to place one" },
       "kb_editor_cancel": { "label": "Escape: Finish linking, cancel a pending paste, or drop the selection" },
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },

@@ -345,3 +345,132 @@ describe('undo and redo on a large map', () => {
     expect(statusText()).toBe(t('editor.link.source_gone.label', { role: t('editor.connections.role.trap_button.label') }));
   });
 });
+
+describe('the wheel zoom', () => {
+  const WHEEL_NOTCH = 100;
+  const SMALL_DELTA = 30;
+  const SMALL_DELTAS_FOR_ONE_STEP = 4;
+  const WHEEL_LINES = 7;
+  const DOM_DELTA_LINE = 1;
+  const WHEEL_NOTCH_LINES = 3;
+  const MANY_NOTCHES = 12;
+
+  function wheel(init: WheelEventInit, at = { clientX: 50, clientY: 40 }): WheelEvent {
+    const ev = new WheelEvent('wheel', { bubbles: true, cancelable: true, ...at, ...init });
+    // happy-dom's WheelEvent lacks the mouse fields a browser's has (modifier keys and position).
+    const mouseFields = { ctrlKey: false, metaKey: false, ...at, ...init };
+    for (const name of ['ctrlKey', 'metaKey', 'clientX', 'clientY'] as const) {
+      Object.defineProperty(ev, name, { value: mouseFields[name] });
+    }
+    stage.dispatchEvent(ev);
+    return ev;
+  }
+
+  const zoomLabel = (): string => byId('editor-zoom-level').textContent ?? '';
+
+  it('zooms in on a Control wheel up and out on a wheel down, around the pointer', () => {
+    openRoom();
+    scrollTo(300, 200);
+    const at = { clientX: 50, clientY: 40 };
+    const cellX = (stage.scrollLeft + at.clientX) / BASE_TILE;
+    const cellY = (stage.scrollTop + at.clientY) / BASE_TILE;
+    const fitLabel = zoomLabel();
+    const up = wheel({ ctrlKey: true, deltaY: -WHEEL_NOTCH }, at);
+    expect(up.defaultPrevented).toBe(true);
+    expect(zoomLabel()).not.toBe(fitLabel);
+    expect(Math.abs(stage.scrollLeft - (cellX * ZOOMED_TILE - at.clientX))).toBeLessThan(ONE_PIXEL);
+    expect(Math.abs(stage.scrollTop - (cellY * ZOOMED_TILE - at.clientY))).toBeLessThan(ONE_PIXEL);
+    wheel({ ctrlKey: true, deltaY: WHEEL_NOTCH }, at);
+    expect(zoomLabel()).toBe(fitLabel);
+    expect(Math.abs(stage.scrollLeft - 300)).toBeLessThan(ONE_PIXEL);
+    expect(Math.abs(stage.scrollTop - 200)).toBeLessThan(ONE_PIXEL);
+  });
+
+  it('keeps the hovered cell where it was when the pointer last moved elsewhere', () => {
+    openRoom();
+    scrollTo(300, 200);
+    pointer('pointermove', { clientX: 150, clientY: 100 });
+    const at = { clientX: 50, clientY: 40 };
+    const cellX = (stage.scrollLeft + at.clientX) / BASE_TILE;
+    wheel({ ctrlKey: true, deltaY: -WHEEL_NOTCH }, at);
+    expect(Math.abs(stage.scrollLeft - (cellX * ZOOMED_TILE - at.clientX))).toBeLessThan(ONE_PIXEL);
+  });
+
+  it('adds small trackpad deltas up to one step', () => {
+    openRoom();
+    const fitLabel = zoomLabel();
+    for (let i = 0; i < SMALL_DELTAS_FOR_ONE_STEP - 1; i++) {
+      const ev = wheel({ ctrlKey: true, deltaY: -SMALL_DELTA });
+      expect(ev.defaultPrevented).toBe(true);
+      expect(zoomLabel()).toBe(fitLabel);
+    }
+    wheel({ ctrlKey: true, deltaY: -SMALL_DELTA });
+    expect(zoomLabel()).not.toBe(fitLabel);
+  });
+
+  it('makes one step per event for a wheel reporting lines, whatever the count', () => {
+    openRoom();
+    const fitLabel = zoomLabel();
+    wheel({ ctrlKey: true, deltaY: -WHEEL_LINES, deltaMode: DOM_DELTA_LINE });
+    const oneStep = zoomLabel();
+    expect(oneStep).not.toBe(fitLabel);
+    wheel({ ctrlKey: true, deltaY: WHEEL_LINES, deltaMode: DOM_DELTA_LINE });
+    expect(zoomLabel()).toBe(fitLabel);
+  });
+
+  it('makes one step for a real three-line notch', () => {
+    openRoom();
+    const fitLabel = zoomLabel();
+    wheel({ ctrlKey: true, deltaY: -WHEEL_NOTCH_LINES, deltaMode: DOM_DELTA_LINE });
+    const oneStep = zoomLabel();
+    wheel({ ctrlKey: true, deltaY: WHEEL_NOTCH_LINES, deltaMode: DOM_DELTA_LINE });
+    expect(oneStep).not.toBe(fitLabel);
+    expect(zoomLabel()).toBe(fitLabel);
+  });
+
+  it('drops the stored travel when the direction reverses', () => {
+    openRoom();
+    const fitLabel = zoomLabel();
+    for (let i = 0; i < SMALL_DELTAS_FOR_ONE_STEP - 1; i++) wheel({ ctrlKey: true, deltaY: -SMALL_DELTA });
+    // The stored -90 is dropped by this +30; without that, two more upward deltas would sum to -120 and zoom in.
+    wheel({ ctrlKey: true, deltaY: SMALL_DELTA });
+    wheel({ ctrlKey: true, deltaY: -SMALL_DELTA });
+    wheel({ ctrlKey: true, deltaY: -SMALL_DELTA });
+    expect(zoomLabel()).toBe(fitLabel);
+  });
+
+  it('stores nothing past the zoom limit, so the next wheel down zooms out at once', () => {
+    openRoom();
+    for (let i = 0; i < MANY_NOTCHES; i++) wheel({ ctrlKey: true, deltaY: -WHEEL_NOTCH_LINES, deltaMode: DOM_DELTA_LINE });
+    const maxLabel = zoomLabel();
+    wheel({ ctrlKey: true, deltaY: -WHEEL_NOTCH });
+    expect(zoomLabel()).toBe(maxLabel);
+    wheel({ ctrlKey: true, deltaY: WHEEL_NOTCH });
+    expect(zoomLabel()).not.toBe(maxLabel);
+  });
+
+  it('leaves a plain wheel to the browser', () => {
+    openRoom();
+    const fitLabel = zoomLabel();
+    const ev = wheel({ deltaY: -WHEEL_NOTCH });
+    expect(ev.defaultPrevented).toBe(false);
+    expect(zoomLabel()).toBe(fitLabel);
+  });
+
+  it('works with the Command key too', () => {
+    openRoom();
+    const fitLabel = zoomLabel();
+    const ev = wheel({ metaKey: true, deltaY: -WHEEL_NOTCH });
+    expect(ev.defaultPrevented).toBe(true);
+    expect(zoomLabel()).not.toBe(fitLabel);
+  });
+
+  it('stops listening when the editor is disposed', () => {
+    openRoom();
+    const fitLabel = zoomLabel();
+    editor.dispose();
+    const ev = wheel({ ctrlKey: true, deltaY: -WHEEL_NOTCH });
+    expect(ev.defaultPrevented).toBe(false);
+    expect(zoomLabel()).toBe(fitLabel);
+  });
+});

@@ -323,6 +323,7 @@ import {
   EDITOR_TILE_CENTER_OFFSET,
   EDITOR_TRAP_LINK_COLOR,
   EDITOR_CONNECTIONS_HOVER_DWELL_MS,
+  EDITOR_WHEEL_ZOOM_STEP_PX,
   EDITOR_DRAFT_MAX_CHARS,
   EDITOR_DRAFT_STORAGE_PREFIX,
   EDITOR_DRAFT_WRITE_DELAY_MS,
@@ -369,6 +370,10 @@ const MESSAGE_FILL_REFUSED_CELL_EDGE = 'editor.selection.status.fill_refused_cel
 const MESSAGE_FILL_REFUSED_ENTRY = 'editor.selection.status.fill_refused_entry';
 const MESSAGE_FILL_REFUSED_ATTRIBUTES = 'editor.selection.status.fill_refused_attributes';
 const NO_COORDS_TEXT = '--';
+const COORDS_DESCRIPTION_SEPARATOR = ': ';
+/** WheelEvent.deltaMode values for a delta counted in lines and in pages. */
+const WHEEL_DELTA_LINE = 1;
+const WHEEL_DELTA_PAGE = 2;
 const STAGE_CENTRE_DIVISOR = 2;
 const CELL_CENTRE = 0.5;
 const EDITOR_PLAYER_BRUSH_ID = 'player_start';
@@ -755,6 +760,10 @@ export class LevelEditor {
   private lastFit: CanvasFit | null = null;
   /** Last pointer position over the canvas, null once it left: where a zoom pivots. */
   private lastPointer: { clientX: number; clientY: number } | null = null;
+  /** Wheel travel in pixels not yet turned into a zoom step. */
+  private wheelTravel = 0;
+  /** What the coordinates badge was last built for; empty when it holds something else. */
+  private hoverTextKey = '';
   /** Tile size, in pixels, the canvas buffer is drawn at. */
   private tilePx: number = 0;
   /** The level as it was loaded or last saved; null when the content was never stored. */
@@ -1840,6 +1849,11 @@ export class LevelEditor {
     byId('editor-zoom-out-btn')?.addEventListener('click', () => this.setZoomOffset(zoomOut(this.zoomOffset)));
     byId('editor-zoom-in-btn')?.addEventListener('click', () => this.setZoomOffset(zoomIn(this.zoomOffset)));
     byId('editor-zoom-fit-btn')?.addEventListener('click', () => this.setZoomOffset(0));
+    // Not passive: the Control wheel is the browser's page zoom, which this takes over on the map only.
+    byId('editor-stage')?.addEventListener('wheel', (ev) => this.onStageWheel(ev as WheelEvent), {
+      passive: false,
+      signal: this.draftListeners.signal
+    });
   }
 
   private updateDirButtons(): void {
@@ -1987,10 +2001,10 @@ export class LevelEditor {
         this.linkFromKeyboard();
         break;
       case 'zoom_in':
-        this.setZoomOffset(zoomIn(this.zoomOffset));
+        if (this.lastFit?.canZoomIn !== false) this.setZoomOffset(zoomIn(this.zoomOffset));
         break;
       case 'zoom_out':
-        this.setZoomOffset(zoomOut(this.zoomOffset));
+        if (this.lastFit?.canZoomOut !== false) this.setZoomOffset(zoomOut(this.zoomOffset));
         break;
       case 'zoom_fit':
         this.setZoomOffset(0);
@@ -3953,8 +3967,60 @@ export class LevelEditor {
     } else {
       this.clearConnectionsDwell();
     }
-    this.setCoordsText(cell ? t('editor.palette.status.coords', { x: cell.x, y: cell.y }) : NO_COORDS_TEXT);
+    this.refreshHoverText();
     if (!same) this.requestRender();
+  }
+
+  /**
+   * Writes what the pointed cell holds into the coordinates badge (and its tooltip), or the empty marker when no cell
+   * is pointed. Rebuilt only when the cell, the level, a change of it or the language differs from the last build.
+   */
+  private refreshHoverText(): void {
+    const cell = this.hoverCell;
+    if (!cell) {
+      this.setCoordsText(NO_COORDS_TEXT);
+      return;
+    }
+    const key = [this.loadGeneration, this.docRevision, i18n.getLocale(), cell.x, cell.y].join(':');
+    if (key === this.hoverTextKey) return;
+    const level = this.doc.cc3d;
+    const cc3dNames = level ? this.cc3dCellParts(level, cell.x, cell.y).map((part) => part.name) : undefined;
+    const [coords, ...rest] = describeEditorCell({ map: this.doc, x: cell.x, y: cell.y, cc3dNames }).map((part) => t(part.key, part.params));
+    this.setCoordsText(rest.length > 0 ? `${coords}${COORDS_DESCRIPTION_SEPARATOR}${rest.join(SEPARATOR_BETWEEN_PARTS)}` : coords);
+    this.hoverTextKey = key;
+  }
+
+  /** Control or Command with the wheel over the map zooms around the pointer; a plain wheel keeps scrolling. */
+  private onStageWheel(ev: WheelEvent): void {
+    if (this.disposed || !(ev.ctrlKey || ev.metaKey)) return;
+    ev.preventDefault();
+    let steps: number;
+    if (ev.deltaMode === WHEEL_DELTA_LINE || ev.deltaMode === WHEEL_DELTA_PAGE) {
+      // A notched wheel reports lines or pages: one event is one step, whatever its size.
+      this.wheelTravel = 0;
+      steps = Math.sign(ev.deltaY);
+    } else {
+      // A change of direction drops the travel stored the other way.
+      if (Math.sign(ev.deltaY) !== Math.sign(this.wheelTravel)) this.wheelTravel = 0;
+      this.wheelTravel += ev.deltaY;
+      steps = Math.trunc(this.wheelTravel / EDITOR_WHEEL_ZOOM_STEP_PX);
+      this.wheelTravel -= steps * EDITOR_WHEEL_ZOOM_STEP_PX;
+    }
+    if (steps === 0) return;
+    // The zoom pivots on the wheel position. The pointer position the canvas last reported is put back after, so the
+    // hover text stays that of the old pointer cell until the next pointer move.
+    const previous = this.lastPointer;
+    this.lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+    // Wheel up (negative delta) zooms in. A step that cannot change the tile size ends the zoom and the travel.
+    for (let i = 0; i < Math.abs(steps); i++) {
+      const fit = this.lastFit;
+      if (fit && !(steps < 0 ? fit.canZoomIn : fit.canZoomOut)) {
+        this.wheelTravel = 0;
+        break;
+      }
+      this.setZoomOffset(steps < 0 ? zoomIn(this.zoomOffset) : zoomOut(this.zoomOffset));
+    }
+    this.lastPointer = previous;
   }
 
   private bindCanvasEvents(): void {
@@ -5971,6 +6037,8 @@ export class LevelEditor {
     }
     this.updateTestFromState();
     this.refreshConnections();
+    // A change under a still pointer rewrites the description; coordinates the keyboard cursor wrote stay.
+    if (this.hoverCell && this.hoverTextKey !== '') this.refreshHoverText();
     const s = this.tilePx;
     this.lastDrawnTilePx = s;
     // Resizing the canvas resets the context: keep the pixel art sharp at any tile size.
@@ -6667,8 +6735,13 @@ export class LevelEditor {
   }
 
   private setCoordsText(msg: string): void {
+    this.hoverTextKey = '';
     const el = document.getElementById('editor-coords-badge');
-    if (el) el.textContent = msg;
+    if (!el) return;
+    el.textContent = msg;
+    // The empty marker needs no tooltip.
+    if (msg === NO_COORDS_TEXT) el.removeAttribute('title');
+    else el.title = msg;
   }
 
   /**

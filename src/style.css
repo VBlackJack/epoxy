@@ -1586,8 +1586,12 @@ button.editor-issue-row:focus-visible {
   padding: 0.4rem 0.55rem;
   border-radius: 4px;
   min-width: 112px;
+  max-width: min(22rem, 100%);
   text-align: center;
   flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .editor-status-bar {
