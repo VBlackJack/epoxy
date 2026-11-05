@@ -950,6 +950,16 @@
       "jump": { "title": "Go to cell ({x}, {y})" },
       "severity": { "error": { "label": "Error" }, "warning": { "label": "Warning" }, "info": { "label": "Info" } }
     },
+    "test_run": {
+      "won": { "label": "Test: won" },
+      "won_moves": { "label": "Test: won in {moves, plural, one {# move} other {# moves}}" },
+      "lost": { "label": "Test: lost" },
+      "lost_reason": { "label": "Test: lost ({reason})" }
+    },
+    "shortcuts": {
+      "action": "Shortcuts",
+      "title": "Show the editor keyboard shortcuts (?)"
+    },
     "test_from": {
       "action": "Test from here",
       "title": "Play the level with the player starting on the cursor cell (T)",

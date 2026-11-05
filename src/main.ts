@@ -90,6 +90,16 @@ import { InventorySlotView } from './ui/inventorySlots';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
 import { preferredScrollBehavior, prefersReducedMotion, replayAnimation, watchReducedMotion } from './ui/motion';
 import { getEditorChordAction, hasCommandModifier, isUndoChord } from './ui/inputGuards';
+import { isEditorHelpKey, revealEditorHelp } from './ui/editorHelp';
+import {
+  firstVisibleOverlayAction,
+  levelNavigationBlocked,
+  nextLevelGoesToEditor,
+  overlayButtons,
+  testRunKeyReturns,
+  testRunStatus
+} from './ui/testRun';
+import type { OverlayState } from './ui/testRun';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
 import { SokobanSkinLoader } from './render/sokobanSkin';
@@ -159,7 +169,6 @@ const BASE_BOOT_SLOT_COUNT = 4;
 /** CSS variable that carries the number of columns of the boots grid. */
 const BOOT_GRID_COLUMNS_VAR = '--inv-columns';
 
-type OverlayState = 'none' | 'complete' | 'dead' | 'paused';
 type ScoresFilter = 'all' | 'unsolved' | 'completed';
 
 /** Displacement that marks a two-finger gesture so it never ends as a tap. */
@@ -2012,6 +2021,7 @@ class EpoxyApplication {
 
   /** Previous level; an endless run has no wrap-around before its first built level. */
   private goToPreviousLevel(): void {
+    if (levelNavigationBlocked(this.isTestPlaying(), this.engine.isLevelCompleted())) return;
     const canGoPrev = this.isEndlessActive()
       ? this.currentLevelIndex > 0
       : ConfigRegistry.getLevels().length > 1;
@@ -2021,6 +2031,12 @@ class EpoxyApplication {
 
   /** Next level; past the last one the pack restarts at level 1 with a message (an endless run waits for its next level instead). */
   private advanceToNextLevel(): void {
+    // A won test run has no next level: the draft goes back to the editor.
+    if (nextLevelGoesToEditor(this.isTestPlaying(), this.engine.isLevelCompleted())) {
+      this.returnToEditorFromTest();
+      return;
+    }
+    if (levelNavigationBlocked(this.isTestPlaying(), this.engine.isLevelCompleted())) return;
     if (this.isEndlessActive() && this.isOnLastLevel()) {
       this.waitForNextEndlessLevel();
       return;
@@ -2289,10 +2305,10 @@ class EpoxyApplication {
 
   // -- Modals ------------------------------------------------------------------
 
-  private openModal(id: string, initialFocus?: HTMLElement | null): void {
+  private openModal(id: string, initialFocus?: HTMLElement | null, onClose?: () => void): void {
     const modal = byId(id);
     if (!modal) return;
-    openDialog(modal, document.activeElement as HTMLElement | null, { initialFocus });
+    openDialog(modal, document.activeElement as HTMLElement | null, { initialFocus, onClose });
   }
 
   private closeModal(id: string): void {
@@ -2316,6 +2332,33 @@ class EpoxyApplication {
 
   private openHelpModal(): void {
     this.openModal(MODAL_IDS.HELP);
+  }
+
+  /** The help modal opened on the editor shortcuts: the "More" section expanded, the editor heading focused. */
+  private openEditorHelp(): void {
+    const modal = byId(MODAL_IDS.HELP);
+    if (!modal) return;
+    // The section state is read before the reveal and given back when the modal closes.
+    let restore: (() => void) | null = null;
+    this.openModal(MODAL_IDS.HELP, undefined, () => restore?.());
+    restore = revealEditorHelp(modal);
+  }
+
+  /**
+   * Leaves a test run for the editor. The editor already holds the tested level, so the document is
+   * unchanged; a run that ended leaves its outcome on the editor status line.
+   */
+  private returnToEditorFromTest(): void {
+    const state = this.computeOverlayState();
+    const reasonKey = this.engine.getPlayer().deathReasonKey;
+    const outcome = testRunStatus(
+      state,
+      this.engine.getStepsCount(),
+      reasonKey ? t(reasonKey) : null
+    );
+    this.switchMode('editor');
+    this.editor.focusCanvas();
+    if (outcome) this.editor.showTestRunResult(t(outcome.key, outcome.params));
   }
 
   private openPasswordModal(): void {
@@ -2675,8 +2718,10 @@ class EpoxyApplication {
       this.restartLevel();
     });
     byId('hud-btn-back-to-editor')?.addEventListener('click', () => {
-      // The editor already holds the tested level: switching back leaves its work intact.
-      this.switchMode('editor');
+      this.returnToEditorFromTest();
+    });
+    byId('editor-shortcuts-btn')?.addEventListener('click', () => {
+      this.openEditorHelp();
     });
     byId('hud-btn-pause')?.addEventListener('click', () => {
       this.engine.togglePause();
@@ -2698,6 +2743,10 @@ class EpoxyApplication {
 
     byId('overlay-btn-next')?.addEventListener('click', () => {
       this.advanceToNextLevel();
+    });
+
+    byId('overlay-btn-back-to-editor')?.addEventListener('click', () => {
+      this.returnToEditorFromTest();
     });
 
     byId('overlay-btn-replay')?.addEventListener('click', () => {
@@ -2959,6 +3008,12 @@ class EpoxyApplication {
   }
 
   private handleEditorShortcut(e: KeyboardEvent): void {
+    // '?' is a Shift chord on a key bound elsewhere on some layouts (AZERTY): the produced character decides.
+    if (isEditorHelpKey(e)) {
+      e.preventDefault();
+      this.openEditorHelp();
+      return;
+    }
     const action = getEditorChordAction(e);
     if (!action) {
       const selectionAction = getSelectionKeyAction(e);
@@ -2995,6 +3050,12 @@ class EpoxyApplication {
     }
     // Other Ctrl, Meta or Alt chords belong to the browser and the system.
     if (hasCommandModifier(e)) return;
+
+    // A finished test run goes back to the editor with Escape.
+    if (testRunKeyReturns(e.key, this.computeOverlayState(), this.isTestPlaying())) {
+      run(() => this.returnToEditorFromTest());
+      return;
+    }
 
     // '?' is a Shift chord on a key whose code is bound elsewhere on some layouts (AZERTY).
     if (e.key === '?') {
@@ -3346,6 +3407,7 @@ class EpoxyApplication {
     const player = this.engine.getPlayer();
 
     byId('hud-btn-back-to-editor')?.classList.toggle('hidden', !this.isTestPlaying());
+    for (const id of ['hud-btn-prev', 'hud-btn-next']) byId(id)?.classList.toggle('hidden', this.isTestPlaying());
     setText(byId('hud-level-num'), String(lvl.number));
     setText(byId('hud-level-pass'), lvl.password);
     this.updatePasswordControls();
@@ -3514,7 +3576,7 @@ class EpoxyApplication {
 
     if (state === 'complete') {
       const levels = ConfigRegistry.getLevels();
-      const finalWin = !this.isEndlessActive() && this.isOnLastLevel() && this.isPackFullyCompleted(levels);
+      const finalWin = !this.isTestPlaying() && !this.isEndlessActive() && this.isOnLastLevel() && this.isPackFullyCompleted(levels);
       setText(
         ovTitle,
         finalWin
@@ -3549,25 +3611,20 @@ class EpoxyApplication {
     }
 
     overlay.classList.toggle('hidden', state === 'none');
-    ovResumeBtn?.classList.toggle('hidden', state !== 'paused');
-    ovNextBtn.classList.toggle('hidden', state !== 'complete');
-    ovReplayBtn?.classList.toggle('hidden', state !== 'complete');
-    ovUndoBtn.classList.toggle('hidden', !(state === 'dead' && this.engine.canUndo()));
-    ovRetryBtn?.classList.toggle('hidden', state === 'none');
+    const buttons = overlayButtons(state, this.isTestPlaying(), this.engine.canUndo());
+    ovResumeBtn?.classList.toggle('hidden', !buttons.resume);
+    ovNextBtn.classList.toggle('hidden', !buttons.next);
+    ovReplayBtn?.classList.toggle('hidden', !buttons.replay);
+    ovUndoBtn.classList.toggle('hidden', !buttons.undo);
+    ovRetryBtn?.classList.toggle('hidden', !buttons.retry);
+    byId('overlay-btn-back-to-editor')?.classList.toggle('hidden', !buttons.backToEditor);
 
     if (state !== this.overlayState) {
       this.overlayState = state;
       if (state !== 'none' && this.activeMode === 'play' && !isDialogOpen()) {
-        this.focusFirstOverlayAction(overlay);
+        firstVisibleOverlayAction(overlay, state)?.focus();
       }
     }
-  }
-
-  private focusFirstOverlayAction(overlay: HTMLElement): void {
-    const first = Array.from(overlay.querySelectorAll<HTMLButtonElement>('.overlay-actions button')).find(
-      (btn) => !btn.classList.contains('hidden')
-    );
-    first?.focus();
   }
 
   // ---------------------------------------------------------------------------

@@ -203,6 +203,7 @@
                     <p id="overlay-extra" class="overlay-extra"></p>
                     <div class="overlay-actions">
                       <button id="overlay-btn-resume" class="action-btn primary hidden" type="button" data-i18n="hud.messages.resume_action.action" data-i18n-title="hud.messages.resume_action.hint"></button>
+                      <button id="overlay-btn-back-to-editor" class="action-btn primary hidden" type="button" data-i18n="editor.pack.back_to_editor.action"></button>
                       <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action" data-i18n-title="hud.messages.next_action.hint"></button>
                       <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
                       <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
@@ -347,6 +348,7 @@
                 <span data-i18n="editor.layout.check.action"></span>
                 <span id="editor-check-badge" class="editor-check-badge" data-state="idle"></span>
               </button>
+              <button id="editor-shortcuts-btn" class="hud-btn small" type="button" data-i18n="editor.shortcuts.action" data-i18n-title="editor.shortcuts.title"></button>
               <button id="editor-beam-preview-btn" class="hud-btn small" type="button" aria-pressed="false" data-i18n="editor.beam_preview.action.label" data-i18n-title="editor.beam_preview.title.label"></button>
               <button id="editor-test-from-btn" class="hud-btn small" type="button" data-i18n="editor.test_from.action" data-i18n-title="editor.test_from.title"></button>
               <button id="editor-test-btn" class="hud-btn small primary" type="button" data-i18n="editor.layout.test.action" data-i18n-title="editor.layout.test.title"></button>
@@ -701,8 +703,8 @@
                   <li data-i18n="hud.help_modal.kb_levels.label"></li>
                 </ul>
               </div>
-              <div class="help-section">
-                <h4 data-i18n="hud.help_modal.sec_editor.label"></h4>
+              <div id="help-editor-section" class="help-section">
+                <h4 id="help-editor-heading" tabindex="-1" data-i18n="hud.help_modal.sec_editor.label"></h4>
                 <ul class="help-list">
                   <li data-i18n="hud.help_modal.kb_editor_tools.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_rotate.label"></li>

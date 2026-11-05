@@ -74,7 +74,7 @@
 - **Blocks line of Check**: for a pure block puzzle (win rule "cover every target", only floor, walls, targets, chips and blocks, a playable area of at most `blockPuzzle.watchMaxCells` cells), Check also says "solved in N pushes", "no way to cover every target" or "not checked". The search runs in the background and stops when you edit. It never claims that a whole level can be won.
 - **Where you are**: the editor shows the pack and the level it edits (Pack, Level n/N) with previous and next buttons.
 - **Saving**: Save updates the level in its pack, also with Ctrl+S. A level from a built-in pack, a generated level or a file opened in the editor is saved with "Save into...": choose a pack, or create one in the same step. "Save a copy..." saves another level and keeps the original. The first save into an imported pack asks whether to modify it or save a copy. Saving never changes the pack you are playing.
-- **Testing**: "Back to editor" returns from a test play, and the browser asks before the tab closes with unsaved work.
+- **Testing**: "Back to editor" returns from a test play (offered when the run ends, with its outcome on the status line; ? opens the editor shortcuts), and the browser asks before the tab closes with unsaved work.
 - **Validator**: new warnings for broken trap and clone wires, and for a player start on a wall or on a monster.
 
 ## Playtesting
