@@ -152,6 +152,8 @@ export const EDITOR_TOUCH_LONG_PRESS_MS = 500;
 /** Editor layout: the view width, in CSS pixels, under which it drops to two columns, then to one. */
 export const EDITOR_TWO_COLUMN_BELOW_WIDTH = 1100;
 export const EDITOR_ONE_COLUMN_BELOW_WIDTH = 680;
+/** Editor layout: a view between the two widths, at least this many times taller than wide (a portrait tablet), shows one column. */
+export const EDITOR_PORTRAIT_MIN_ASPECT = 1.15;
 /** Delay after the last edit before the Check badge is recomputed. */
 export const EDITOR_CHECK_DEBOUNCE_MS = 400;
 /** Quiet time after the last keyboard cursor move before a screen reader is told what the cell holds. */
