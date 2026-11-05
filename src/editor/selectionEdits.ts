@@ -15,11 +15,12 @@
  */
 
 import { FLOOR_TILE_ID } from '../core/coreConstants';
-import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, TrapLink } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, SignalLink, TrapLink } from '../core/types';
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import type { Brush } from './editorTools';
 import { canonicalLauncherLinks, pruneLauncherLinks, setLauncherLinks } from './editorLauncherLinks';
+import { canonicalSignalLinks, pruneSignalLinks, setSignalLinks } from './editorSignalLinks';
 import { canonicalUnderlays, pruneUnderlays, removeUnderlaysWhere, replaceUnderlays } from './editorUnderlays';
 import {
   ClonerTemplateChange,
@@ -184,7 +185,8 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
       playerStart: map.playerStart,
       cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? [],
       underlays: canonicalUnderlays(map.underlays, map.terrain) ?? [],
-      launcherLinks: canonicalLauncherLinks(map.launcherLinks, map.terrain, map.underlays) ?? []
+      launcherLinks: canonicalLauncherLinks(map.launcherLinks, map.terrain, map.underlays) ?? [],
+      signalLinks: canonicalSignalLinks(map.signalLinks, map.terrain) ?? []
     });
   return normalize(a) === normalize(b);
 }
@@ -626,9 +628,23 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
       keptLauncher.push(l);
     }
   }
+  const keptSignal: SignalLink[] = [];
+  const movedSignal: SignalLink[] = [];
+  for (const l of map.signalLinks ?? []) {
+    const from = inSource(l.fromX, l.fromY);
+    const to = inSource(l.toX, l.toY);
+    if (from && to) {
+      movedSignal.push({ ...l, fromX: l.fromX + dx, fromY: l.fromY + dy, toX: l.toX + dx, toY: l.toY + dy });
+    } else if (from || to) {
+      droppedLinks++;
+    } else {
+      keptSignal.push(l);
+    }
+  }
   map.trapLinks = keptTrap;
   map.cloneLinks = keptClone;
   setLauncherLinks(map, keptLauncher);
+  setSignalLinks(map, keptSignal);
 
   clearCells(map, rect, (x, y) => onRing(source, x, y));
   const stamped = stampClip(map, clip, destination.x, destination.y, null, { x: rect.x, y: rect.y });
@@ -636,6 +652,7 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
   map.trapLinks.push(...movedTrap);
   map.cloneLinks.push(...movedClone);
   setLauncherLinks(map, [...(map.launcherLinks ?? []), ...movedLauncher]);
+  setSignalLinks(map, [...(map.signalLinks ?? []), ...movedSignal]);
   return {
     map,
     changed: !sameMapLayers(source, map),
@@ -744,7 +761,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
     }
   }
   const droppedUnderlays = brush.kind === 'terrain' ? pruneUnderlays(map) : 0;
-  if (anyHidden) droppedLinks += pruneLauncherLinks(map);
+  if (anyHidden) droppedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return {
     map,
     changed: !sameMapLayers(source, map),

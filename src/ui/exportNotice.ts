@@ -70,6 +70,9 @@ export function lossyExportNotice(
   if (refusedFor('cc3d_ruleset').length > 0) {
     parts.push(t('app.export.refused_cc3d_ruleset.label', { levels: levelNames(refusedFor('cc3d_ruleset')) }));
   }
+  if (refusedFor('signal_content').length > 0) {
+    parts.push(t('app.export.refused_signal_content.label', { levels: levelNames(refusedFor('signal_content')) }));
+  }
   if (refusedFor('color_channel_content').length > 0) {
     parts.push(
       t('app.export.refused_color_channel_content.label', { levels: levelNames(refusedFor('color_channel_content')) })

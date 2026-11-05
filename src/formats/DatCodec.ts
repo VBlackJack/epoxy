@@ -19,7 +19,7 @@ import { isInBounds } from '../config/ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import { cellEdgeMask } from '../core/EdgeRules';
 import { underlayMap } from '../core/Underlays';
-import { hasColorChannelContent, hasEpoxyOnlyMonsterContent, hasLaserContent, isEpoxyOnlyItemId } from '../core/RulesetFeatures';
+import { hasColorChannelContent, hasEpoxyOnlyMonsterContent, hasLaserContent, hasSignalContent, isEpoxyOnlyItemId } from '../core/RulesetFeatures';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
   DEFAULT_FACING,
@@ -96,6 +96,7 @@ export type DatRefusalReason =
   | 'receivers_win_rule'
   | 'laser_content'
   | 'cc3d_ruleset'
+  | 'signal_content'
   | 'color_channel_content'
   | 'cell_edges'
   | 'epoxy_only_items'
@@ -136,6 +137,8 @@ export interface DatEncodeResult {
 export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null {
   // A CC3D level is its cc3d data: the layers a .DAT would write are only a display of it, and its rules are not Tile World's.
   if (level.cc3d !== undefined || level.ruleset === CC3D_LEVEL_RULESET) return 'cc3d_ruleset';
+  // Signal wires, sources and gates have no .DAT form: writing the level would drop its wiring and change its rules.
+  if (hasSignalContent(level)) return 'signal_content';
   // The format has no block target and no win by covering targets: writing the level would change its goal.
   if (level.winRule === 'targets') return 'targets_win_rule';
   // Nor does it have laser receivers, emitters, gates or mirrors: they would be written as floor or plain blocks.

@@ -227,6 +227,8 @@ export class BlockPuzzleSolver {
   public static isStuck(engine: GameEngine, budget: number = watchSearchBudget()): boolean {
     // The search reads the grid as it is now; terrain hidden under a removable top is not modelled.
     if (engine.getUnderlays() !== undefined) return false;
+    // Signals open and close doors the search does not model: it never reports a wired level stuck.
+    if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return false;
     const detector = new BlockPuzzleSolver(engine);
     if (detector.buttons.length === 0) return false;
     // Separate block puzzles (two Sokoban rooms) are judged one at a time.
@@ -322,6 +324,8 @@ export class BlockPuzzleSolver {
     }
     if (engine.getEntities().some((e) => !isModelledEntityType(e.type))) return null;
     if (engine.getLevel().cloneLinks.length > 0 || engine.getLevel().trapLinks.length > 0) return null;
+    // Signal wiring changes the board as the player moves: the search does not model it.
+    if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     // Flying shots destroy blocks and monsters: the search does not model them.
     if (engine.getShots() !== undefined || (engine.getLevel().launcherLinks?.length ?? 0) > 0) return null;
     const { x, y } = engine.getPlayer();
@@ -395,6 +399,8 @@ export class BlockPuzzleSolver {
    */
   public static hint(engine: GameEngine, budget: number = requestedSearchBudget()): Dir[] | null {
     if (engine.getUnderlays() !== undefined) return null;
+    // Signals open and close doors the search does not model: it offers no hint on a wired level.
+    if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     const solver = new BlockPuzzleSolver(engine);
     const occupied = new Set(solver.blocks);
     for (const area of solver.areas()) {

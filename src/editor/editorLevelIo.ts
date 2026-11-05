@@ -20,6 +20,7 @@ import type { CompiledLevel } from '../core/types';
 import { canonicalEdges } from './editorCellEdges';
 import { canonicalUnderlays } from './editorUnderlays';
 import { canonicalLauncherLinks } from './editorLauncherLinks';
+import { canonicalSignalLinks } from './editorSignalLinks';
 import { cloneMap, displayLayersOf, type EditorDocument, type EditorMetadata } from './editorDocument';
 
 /**
@@ -69,6 +70,10 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
   const launcherLinks = level.cc3d ? undefined : canonicalLauncherLinks(map.launcherLinks, map.terrain, map.underlays);
   if (launcherLinks) map.launcherLinks = launcherLinks;
   else delete map.launcherLinks;
+  // Signal links are held in canonical form too; an end is not checked against the tiles, so an import is kept whole.
+  const signalLinks = level.cc3d ? undefined : canonicalSignalLinks(map.signalLinks, map.terrain);
+  if (signalLinks) map.signalLinks = signalLinks;
+  else delete map.signalLinks;
   return {
     ...map,
     title: texts.title,
@@ -115,11 +120,12 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
     ...cloneMap(doc)
   };
   // Thin walls exist under the Epoxy ruleset only: a document of another ruleset never exports them.
-  // Hidden terrain and shot launcher links are Epoxy features in the same way.
+  // Hidden terrain, shot launcher links and signal links are Epoxy features in the same way.
   if (doc.ruleset !== undefined && doc.ruleset !== DEFAULT_RULESET) {
     delete level.cellEdges;
     delete level.underlays;
     delete level.launcherLinks;
+    delete level.signalLinks;
   }
   if (doc.cc3d) {
     Object.assign(level, displayLayersOf(doc.cc3d), { chipsRequired: cc3dFishCount(doc.cc3d) });

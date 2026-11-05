@@ -21,6 +21,7 @@ import { BLOCK_TARGET_TILE_ID, toggleParityBitOf, toggleWallOtherForm } from '..
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
+import type { SignalRuntime } from './epoxySignals';
 import {
   BeamCell,
   ButtonAction,
@@ -118,6 +119,8 @@ export interface EpoxyWorld {
   firedLaunchers: Set<string>;
   /** Tick of the player's first step (NO_PLAY_START_TICK until then); only turret levels read it. */
   playStartTick: number;
+  /** The level's signal network; undefined on a level without one, which every signal step then skips. */
+  signals: SignalRuntime | undefined;
   statusBannerKey: string | null;
   nextEntityUid: number;
   rng: SeededRandom;
@@ -196,6 +199,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     inTick: false,
     firedLaunchers: new Set<string>(),
     playStartTick: NO_PLAY_START_TICK,
+    signals: undefined,
     statusBannerKey: null,
     nextEntityUid: 1,
     rng: new SeededRandom(0),
@@ -415,6 +419,13 @@ export function holdColorsOpen(w: EpoxyWorld): Map<ChannelColor, boolean> {
       continue;
     }
     open.set(plate.color, (open.get(plate.color) ?? true) && pressed);
+  }
+  // A sink of the signal network counts as a pressed plate of its colour when on and an unpressed one when off.
+  if (w.signals !== undefined) {
+    for (const index of w.signals.network.sinkIndexes) {
+      const color = w.signals.defs.get(index)?.color;
+      if (color !== undefined) open.set(color, (open.get(color) ?? true) && w.signals.state.lastOutputs[index]);
+    }
   }
   return open;
 }

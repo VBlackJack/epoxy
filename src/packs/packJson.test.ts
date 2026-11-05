@@ -27,6 +27,7 @@ import {
   PACK_JSON_VERSION,
   PACK_JSON_VERSION_CELL_EDGES,
   PACK_JSON_VERSION_LAUNCHERS,
+  PACK_JSON_VERSION_SIGNALS,
   PACK_JSON_VERSION_UNDERLAYS
 } from '../config/constants';
 import { CompiledLevel } from '../core/types';
@@ -148,6 +149,28 @@ describe('packJson', () => {
     expect(result).toMatchObject({ ok: true });
     if (result.ok) expect(result.levels[0].launcherLinks).toEqual(linked.launcherLinks);
     for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS]) {
+      const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
+      expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
+    }
+  });
+
+  it('writes version 5 only when a level carries signal links, keeps the older bytes, and reads versions 1 to 5', () => {
+    const wired = makeLevel('wired');
+    wired.terrain[1][1] = 'laser_receiver_red';
+    wired.terrain[3][3] = 'hold_door_red_closed';
+    const signalLinks = [{ fromX: 1, fromY: 1, toX: 3, toY: 3, port: 'door' }];
+    const linked = { ...wired, signalLinks };
+    const launched = { ...makeLevel('launched'), launcherLinks: [{ buttonX: 2, buttonY: 2, launcherX: 4, launcherY: 2 }] };
+    expect(JSON.parse(serializePack('N', [makeLevel('a'), linked])).version).toBe(PACK_JSON_VERSION_SIGNALS);
+    expect(JSON.parse(serializePack('N', [launched, linked])).version).toBe(PACK_JSON_VERSION_SIGNALS);
+    expect(JSON.parse(serializePack('N', [{ ...makeLevel('a'), signalLinks: [] }])).version).toBe(PACK_JSON_VERSION);
+    // A pack without signal links is written exactly as before, in its own version.
+    expect(JSON.parse(serializePack('N', [launched])).version).toBe(PACK_JSON_VERSION_LAUNCHERS);
+    expect(serializePack('N', [makeLevel('a'), launched])).not.toContain('signalLinks');
+    const result = parse(serializePack('Wired', [linked]));
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) expect(result.levels[0].signalLinks).toEqual(signalLinks);
+    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS]) {
       const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
       expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
     }

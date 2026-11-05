@@ -21,10 +21,12 @@ import {
   FIRE_LAUNCHERS_ACTION,
   FLEE_PLAYER_PATTERN,
   MIRROR_FRONT_AXIS,
+  SIGNAL_LINKS_PER_CELL_MAX,
   STEER_MONSTERS_ACTION,
   SUNK_BLOCK_TILE_ID
 } from '../core/coreConstants';
 import { isRemovableTop } from '../core/Underlays';
+import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
 import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
@@ -44,6 +46,7 @@ import {
   LevelTextConfig,
   PlaytestConfig,
   Ruleset,
+  SignalLink,
   ThemePalette,
   TileDefinition,
   WinRule
@@ -452,6 +455,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     (!strict || !Array.isArray(value.underlays) || value.underlays.length <= size.width * size.height) &&
     // Launcher links hold one entry per cell at most, by the same rule.
     (!strict || !Array.isArray(value.launcherLinks) || value.launcherLinks.length <= size.width * size.height) &&
+    // Signal links hold a few entries per cell at most, by the same rule.
+    (!strict || !Array.isArray(value.signalLinks) || value.signalLinks.length <= size.width * size.height * SIGNAL_LINKS_PER_CELL_MAX) &&
     // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
     (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds, strict) : value.cc3d === undefined)
   );
@@ -532,6 +537,11 @@ let registeredTerrainLookup: TerrainTileLookup | null = null;
  */
 export function registerTerrainTileLookup(lookup: TerrainTileLookup | null): void {
   registeredTerrainLookup = lookup;
+}
+
+/** The tile lookup registered by the registry, or null before it loaded; for the checks that default to it. */
+export function getRegisteredTerrainLookup(): TerrainTileLookup | null {
+  return registeredTerrainLookup;
 }
 
 /** True for a top only the opening of a key door or a socket removes: nothing turns back into it. */
@@ -697,7 +707,7 @@ export function normalizeLauncherLinks(
 /**
  * Returns the level without any optional text field that is not a string, and
  * without a win rule or ruleset that is not a known one, with its cell edges in canonical form (see
- * normalizeCellEdges), with its underlays and launcher links in canonical form (see normalizeUnderlays, normalizeLauncherLinks), and with an empty password in place
+ * normalizeCellEdges), with its underlays, launcher links and signal links in canonical form (see normalizeUnderlays, normalizeLauncherLinks, normalizeSignalLinks), and with an empty password in place
  * of one that is not a string, so a stale or hand-edited record cannot hand a number to the
  * text pipeline or an unknown rule to the engine.
  * The input is never mutated.
@@ -729,12 +739,23 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
     );
     if (links === null || JSON.stringify(links) !== JSON.stringify(record.launcherLinks)) bad.push('launcherLinks');
   }
+  let wires: SignalLink[] | null = null;
+  if ('signalLinks' in record) {
+    wires = normalizeSignalLinks(
+      record.signalLinks,
+      level.terrain,
+      record.ruleset,
+      normalizeUnderlays(record.underlays, level.terrain, record.ruleset)
+    );
+    if (wires === null || JSON.stringify(wires) !== JSON.stringify(record.signalLinks)) bad.push('signalLinks');
+  }
   if (bad.length === 0 && !badPassword) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
   if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
   if (hidden !== null && bad.includes('underlays')) copy.underlays = hidden;
   if (links !== null && bad.includes('launcherLinks')) copy.launcherLinks = links;
+  if (wires !== null && bad.includes('signalLinks')) copy.signalLinks = wires;
   // The game upper-cases passwords, so a level always carries a string one.
   if (badPassword) copy.password = '';
   return copy as unknown as CompiledLevel;

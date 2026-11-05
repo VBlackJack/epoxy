@@ -159,6 +159,7 @@ import {
 import { hasCellEdges } from './editorCellEdges';
 import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { pruneLauncherLinks } from './editorLauncherLinks';
+import { pruneSignalLinks } from './editorSignalLinks';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
 import { holdsLinkEnd, mapHeightOf, mapWidthOf, paintEntity, removeCloneLink, removeLauncherLink, removeTrapLink, resizeMap } from './mapEdits';
@@ -5357,7 +5358,7 @@ export class LevelEditor {
     const next = cloneDocument(this.doc);
     setUnderlayAt(next, at.x, at.y, terrain);
     // A shot trigger may have been hidden here: a link whose end no longer holds one is dropped.
-    const droppedLinks = pruneLauncherLinks(next);
+    const droppedLinks = pruneLauncherLinks(next) + pruneSignalLinks(next);
     if (sameDocument(base, next)) {
       this.refreshLayersList();
       return;

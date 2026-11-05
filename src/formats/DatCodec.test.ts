@@ -644,6 +644,15 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level with signal wires and leaves it out of the pack', () => {
+    const wired = { ...blankLevel(1), signalLinks: [{ fromX: 2, fromY: 2, toX: 3, toY: 2 }] };
+    expect(datRefusalReason(wired)).toBe('signal_content');
+    expect(datRefusalReason({ ...blankLevel(2), signalLinks: [] })).toBeNull();
+    const encoded = DatCodec.encodeLevelsWithReport([wired, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['signal_content']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('refuses a level with underlays and leaves it out of the pack', () => {
     const hidden = { ...blankLevel(1), underlays: [{ x: 3, y: 3, terrain: 'ice' }] };
     hidden.terrain[3][3] = 'door_red';

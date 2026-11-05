@@ -33,6 +33,17 @@ describe('lossyExportNotice', () => {
     expect(notice).toBe(t('app.export.refused_cc3d_ruleset.label', { levels: 'cc3d_a' }));
   });
 
+  it('names the levels with signal wiring a .DAT export left out, with a label in both languages', () => {
+    const notice = lossyExportNotice({
+      replaced: [],
+      lost: [],
+      refused: [{ levelId: 'wired_a', reason: 'signal_content' }]
+    });
+    expect(notice).toBe(t('app.export.refused_signal_content.label', { levels: 'wired_a' }));
+    expect(notice).toContain('wired_a');
+    expect(notice).not.toBe('app.export.refused_signal_content.label');
+  });
+
   it('names the levels with an Epoxy-only item (slow-time charm, speed boots) a .DAT export left out', () => {
     const notice = lossyExportNotice({
       replaced: [],

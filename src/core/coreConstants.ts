@@ -58,6 +58,13 @@ export const STEER_MONSTERS_ACTION: ButtonAction = 'steer_monsters';
 /** Button action of a shot trigger: every launcher linked to the button fires one shot. */
 export const FIRE_LAUNCHERS_ACTION: ButtonAction = 'fire_launchers';
 
+/** Signal links a level may hold per cell at most (a shape check on stored levels, not a design limit). */
+export const SIGNAL_LINKS_PER_CELL_MAX = 4;
+
+/** Length bounds of the optional port name of a signal link. */
+export const SIGNAL_PORT_MIN_LENGTH = 1;
+export const SIGNAL_PORT_MAX_LENGTH = 16;
+
 /** Tile id of the shot trigger, the tile whose action is fire_launchers. */
 export const SHOT_TRIGGER_TILE_ID = 'shot_trigger';
 

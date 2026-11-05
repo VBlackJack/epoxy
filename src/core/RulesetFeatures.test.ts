@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import {
   featuresFor,
@@ -22,6 +22,7 @@ import {
   hasEpoxyOnlyContent,
   hasEpoxyOnlyMonsterContent,
   hasLaserContent,
+  hasSignalContent,
   hasSteeringContent,
   hasTurretContent,
   isColorChannelTileId,
@@ -55,6 +56,53 @@ describe('featuresFor rulesets', () => {
     expect(featuresFor({ ruleset: 'cc3d' })).toEqual(featuresFor({ ruleset: 'lynx' }));
     expect(featuresFor({ ruleset: 'epoxy' }).tapToPath).toBe(true);
     expect(featuresFor(undefined).deadEndWatch).toBe(true);
+  });
+});
+
+describe('signal content', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  const level = (): Pick<CompiledLevel, 'ruleset' | 'terrain' | 'items' | 'entities'> &
+    Partial<Pick<CompiledLevel, 'signalLinks'>> => ({
+    ruleset: 'epoxy',
+    terrain: [['wall', 'wall', 'wall'], ['wall', 'floor', 'wall'], ['wall', 'wall', 'wall']],
+    items: [[null, null, null], [null, null, null], [null, null, null]],
+    entities: []
+  });
+
+  it('is false for a plain level and true once it has wires', () => {
+    expect(hasSignalContent(level())).toBe(false);
+    expect(hasEpoxyOnlyContent(level())).toBe(false);
+    const wired = { ...level(), signalLinks: [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }] };
+    expect(hasSignalContent(wired)).toBe(true);
+    expect(hasEpoxyOnlyContent(wired)).toBe(true);
+    expect(hasSignalContent({ ...level(), signalLinks: [] })).toBe(false);
+  });
+
+  it('turns the tapped path, the hint and the watch off for a wired level and keeps the rest', () => {
+    const plain = featuresFor(level());
+    expect(plain.tapToPath).toBe(true);
+    const wired = featuresFor({ ...level(), signalLinks: [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }] });
+    expect(wired.tapToPath).toBe(false);
+    expect(wired.blockHint).toBe(false);
+    expect(wired.deadEndWatch).toBe(false);
+    expect(wired.objectiveMarker).toBe(plain.objectiveMarker);
+  });
+});
+
+describe('signal content before the configs are loaded', () => {
+  it('reads a level without crashing and finds no signal tile', async () => {
+    vi.resetModules();
+    const features = await import('./RulesetFeatures');
+    const codec = await import('../formats/DatCodec');
+    const terrain = [['wall', 'floor'], ['floor', 'wall']];
+    const level = { ruleset: 'epoxy' as const, terrain, items: [[null, null], [null, null]], entities: [] };
+    expect(features.hasSignalContent(level)).toBe(false);
+    expect(features.hasSignalContent({ terrain, underlays: [{ x: 1, y: 0, terrain: 'floor' }] })).toBe(false);
+    expect(features.hasSignalContent({ signalLinks: [{ fromX: 0, fromY: 0, toX: 1, toY: 0 }] })).toBe(true);
+    expect(() => codec.datRefusalReason({ ...level, winRule: 'targets', playerStart: { x: 0, y: 0 } } as never)).not.toThrow();
   });
 });
 
