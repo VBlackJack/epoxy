@@ -239,6 +239,66 @@ describe('the Connections rows of a CC3D level', () => {
     expect(where(view.controls?.rows ?? [])).toEqual(['4,1']);
   });
 
+  it('says a device behind openable covers works once opened, and counts it as a partner', () => {
+    // A toggle control under a key door is not dead: stepping in opens the door.
+    const toggleUnderDoor = stacked({ kind: 'floor' }, { kind: 'toggle_control', color: 'green' }, { kind: 'door', color: 'green' });
+    const model = cc3dModel(['######', '#@T.J#', '######'], { ...GLYPHS, T: toggleUnderDoor });
+    const map: Cc3dLevel = { ...model, cells: model.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })) };
+    const control = viewAt(map, 2, 1);
+    expect(control.note).toEqual({ key: CC3D_CONNECTION_KEYS.behindCover });
+    expect(where(control.controls?.rows ?? [])).toEqual(['4,1']);
+    const door = viewAt(map, 4, 1);
+    expect(where(door.controlledBy?.rows ?? [])).toEqual(['2,1']);
+    expect(door.note).toBeNull();
+    // Stacked covers open one entry at a time: still behind covers.
+    const doubleCovered = stacked({ kind: 'floor' }, { kind: 'clone_switch' }, { kind: 'door', color: 'red' }, { kind: 'socket' });
+    const model2 = cc3dModel(['######', '#@S.m#', '######'], { ...GLYPHS, S: doubleCovered });
+    const map2: Cc3dLevel = { ...model2, cells: model2.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })) };
+    expect(viewAt(map2, 2, 1).note).toEqual({ key: CC3D_CONNECTION_KEYS.behindCover });
+  });
+
+  it('still names what a device behind covers needs, before the cover note', () => {
+    const wrap = (rows: string[], glyph: string, stack: ReturnType<typeof stacked>): Cc3dLevel => {
+      const model = cc3dModel(rows, { ...GLYPHS, [glyph]: stack });
+      return { ...model, cells: model.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })) };
+    };
+    const toggle = wrap(['####', '#@T#', '####'], 'T', stacked({ kind: 'floor' }, { kind: 'toggle_control', color: 'green' }, { kind: 'door', color: 'red' }));
+    expect(viewAt(toggle, 2, 1).note).toEqual({ key: CC3D_CONNECTION_KEYS.needsToggleControl, params: { colour: 'green' } });
+    const clone = wrap(['####', '#@S#', '####'], 'S', stacked({ kind: 'floor' }, { kind: 'clone_switch' }, { kind: 'door', color: 'red' }));
+    expect(viewAt(clone, 2, 1).note).toEqual({ key: CC3D_CONNECTION_KEYS.needsMachine });
+  });
+
+  it('treats a false wall and a red socket as openable covers', () => {
+    const covers = stacked({ kind: 'floor' }, { kind: 'clone_switch' }, { kind: 'false_wall' }, { kind: 'socket_red' });
+    const model = cc3dModel(['######', '#@S.m#', '######'], { ...GLYPHS, S: covers });
+    const map: Cc3dLevel = { ...model, cells: model.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })) };
+    expect(viewAt(map, 2, 1).note).toEqual({ key: CC3D_CONNECTION_KEYS.behindCover });
+  });
+
+  it('reads the highest layer of a kind stacked twice, so a duplicate is not buried', () => {
+    const twice = stacked({ kind: 'floor' }, { kind: 'toggle_control', color: 'red' }, { kind: 'toggle_control', color: 'green' });
+    const redDoor = stacked({ kind: 'floor' }, { kind: 'toggle_door', color: 'red', open: false });
+    const model = cc3dModel(['######', '#@T.R#', '######'], { ...GLYPHS, T: twice, R: redDoor });
+    const map: Cc3dLevel = { ...model, cells: model.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })) };
+    expect(viewAt(map, 2, 1).note).not.toEqual({ key: CC3D_CONNECTION_KEYS.buried });
+    // cc3dLinks groups a cell by its first control layer, so the colour the door pairs with is the lower one.
+    expect(viewAt(map, 4, 1).note).toBeNull();
+  });
+
+  it('keeps a device under a layer that never opens buried, and not a partner', () => {
+    // A wall above the toggle control: nothing opens it.
+    const toggleUnderWall = stacked({ kind: 'floor' }, { kind: 'toggle_control', color: 'green' }, { kind: 'wall' });
+    const model = cc3dModel(['######', '#@T.J#', '######'], { ...GLYPHS, T: toggleUnderWall });
+    const map: Cc3dLevel = { ...model, cells: model.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })) };
+    expect(viewAt(map, 2, 1).note).toEqual({ key: CC3D_CONNECTION_KEYS.buried });
+    expect(viewAt(map, 4, 1).note).toEqual({ key: CC3D_CONNECTION_KEYS.needsToggleDoor, params: { colour: 'green' } });
+    // A door and a wall together: the wall keeps it buried.
+    const mixed = stacked({ kind: 'floor' }, { kind: 'clone_switch' }, { kind: 'door', color: 'red' }, { kind: 'wall' });
+    const model2 = cc3dModel(['######', '#@S.m#', '######'], { ...GLYPHS, S: mixed });
+    const map2: Cc3dLevel = { ...model2, cells: model2.cells.map((cell) => ({ ...cell, terrain: normalizeCell(cell.terrain) })) };
+    expect(viewAt(map2, 2, 1).note).toEqual({ key: CC3D_CONNECTION_KEYS.buried });
+  });
+
   it('says a cell holds no mechanism, and has no view outside the grid', () => {
     const map = level(MAPS.traps);
     expect(viewAt(map, 3, 1).caption).toMatchObject({ key: CONNECTIONS_KEYS.noDevice, name: null });
