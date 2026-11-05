@@ -34,8 +34,9 @@ import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSele
 import { VOLUME_PERCENT_MAX, VOLUME_PERCENT_MIN, VOLUME_PERCENT_STEP } from './audio/volumeSettings';
 import { DatCodec, datRefusalReason } from './formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
+import { decodeDiggyJson, isDiggyJson } from './formats/DiggyCodec';
 import { isCc3dId } from './render/cc3dPainters';
-import { classifyImportSelection, importCc3dSelection, packNameFromFile } from './ui/cc3dImport';
+import { classifyImportSelection, importCc3dSelection, importDiggySelection, packNameFromFile } from './ui/cc3dImport';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
 import {
@@ -976,6 +977,9 @@ class EpoxyApplication {
       case 'cc3d':
         await this.handleCc3dFiles(files);
         return;
+      case 'diggy':
+        await this.handleDiggyFiles(files);
+        return;
       case 'single':
         await this.handleImportedFile(files[0]);
         return;
@@ -1003,6 +1007,27 @@ class EpoxyApplication {
       await this.finishPackImport(packName, levels, skipped, 'app.packs.imported_files_skipped_toast.label');
     } catch (err) {
       console.error('CC3D import failed:', err);
+      this.showTransientStatus(this.importErrorMessage());
+    }
+  }
+
+  private async handleDiggyFiles(files: readonly File[]): Promise<void> {
+    const packName = files.length === 1 ? packNameFromFile(files[0].name) : t('app.packs.cc3d_default_name.label');
+    try {
+      const { levels, skipped, tooLargeMaxMb } = await importDiggySelection(
+        files,
+        ConfigRegistry.getGame().import.maxFileBytes,
+        packName
+      );
+      if (levels.length === 0) {
+        this.showTransientStatus(
+          tooLargeMaxMb ? t('app.packs.import_too_large.label', { max: tooLargeMaxMb }) : this.importErrorMessage()
+        );
+        return;
+      }
+      await this.finishPackImport(packName, levels, skipped, 'app.packs.imported_skipped_toast.label');
+    } catch (err) {
+      console.error('Diggy import failed:', err);
       this.showTransientStatus(this.importErrorMessage());
     }
   }
@@ -1057,7 +1082,17 @@ class EpoxyApplication {
       } else if (lower.endsWith('.json')) {
         const text = await file.text();
         if (await this.packFlows.tryImportPackFile(text)) return;
-        levels = this.compileJsonLevels(JSON.parse(text));
+        const parsed = JSON.parse(text) as unknown;
+        if (isDiggyJson(parsed)) {
+          const decoded = decodeDiggyJson(parsed, packName);
+          levels = decoded.levels;
+          skippedCount = decoded.skipped.length;
+          if (levels.length === 0) {
+            throw new Error('Empty pack');
+          }
+        } else {
+          levels = this.compileJsonLevels(parsed);
+        }
       } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
         const decoded = decodeXsbCollection(await file.text(), packName);
         levels = decoded.levels;

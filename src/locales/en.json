@@ -327,7 +327,7 @@
         }
       },
       "import_btn": { "action": "Import a pack..." },
-      "import_formats": { "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json), Chuck's Challenge 3D levels (.xml)." },
+      "import_formats": { "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json), Diggy's Adventure floors (floors_*.json), Chuck's Challenge 3D levels (.xml)." },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
       "delete_btn": { "action": "Delete Pack" },
       "drop_overlay": { "label": "Drop a pack here to import it" },
