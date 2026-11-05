@@ -1257,6 +1257,61 @@ export function findSpeedBootsConfigErrors(tiles: Record<string, TileDefinition>
   return errors;
 }
 
+/** Fields of a paired monster that would change how it is steered, what it moves or which plates it presses. */
+const TRANSMOGRIFIER_FORBIDDEN_FIELDS = ['steeredBy', 'pushesBlocks', 'passesTiles', 'pressesPlates'] as const;
+
+/** Transmogrifier config problems, split by the config file they belong to. */
+export interface TransmogrifierConfigErrors {
+  tiles: string[];
+  monsters: string[];
+}
+
+/**
+ * Problems of the transmogrifier fields: `transmogrifies` is true when present, and every `transmogrifiesTo`
+ * names another existing monster that points back, moves at the same interval, flies or not alike, and
+ * carries no override of steering, pushing, tile passing or plate pressing. Each entry names the entity or tile.
+ */
+export function findTransmogrifierConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition>
+): TransmogrifierConfigErrors {
+  const tileErrors: string[] = [];
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.transmogrifies !== undefined && tile.transmogrifies !== true) tileErrors.push(`${tile.id}.transmogrifies: expected true`);
+  }
+  for (const entity of Object.values(entities)) {
+    const target = entity.transmogrifiesTo;
+    if (target === undefined) continue;
+    const { id } = entity;
+    if (entity.kind !== 'monster') errors.push(`${id}.transmogrifiesTo: only a monster may transmogrify`);
+    if (typeof target !== 'string') {
+      errors.push(`${id}.transmogrifiesTo: expected a monster id`);
+      continue;
+    }
+    if (target === id) errors.push(`${id}.transmogrifiesTo: a monster cannot transmogrify into itself`);
+    const other = entities[target];
+    if (other === undefined) {
+      errors.push(`${id}.transmogrifiesTo: unknown entity ${target}`);
+      continue;
+    }
+    if (other.kind !== 'monster') errors.push(`${id}.transmogrifiesTo: ${target} is not a monster`);
+    if (other.transmogrifiesTo !== id) errors.push(`${id}.transmogrifiesTo: ${target} must transmogrify back into ${id}`);
+    if (entity.moveIntervalTicks !== other.moveIntervalTicks) {
+      errors.push(`${id}.transmogrifiesTo: ${id} and ${target} must have the same moveIntervalTicks`);
+    }
+    if ((entity.flying === true) !== (other.flying === true)) {
+      errors.push(`${id}.transmogrifiesTo: ${id} and ${target} must both fly or both walk`);
+    }
+    for (const side of [entity, other]) {
+      for (const field of TRANSMOGRIFIER_FORBIDDEN_FIELDS) {
+        if (side[field] !== undefined) errors.push(`${side.id}.${field}: a transmogrified monster must not override it`);
+      }
+    }
+  }
+  return { tiles: tileErrors, monsters: errors };
+}
+
 /** Problems of the revealsHiddenWalls field: true when present, carried by boots only. Each entry names the tile. */
 export function findEyeBootsConfigErrors(tiles: Record<string, TileDefinition>): string[] {
   const errors: string[] = [];

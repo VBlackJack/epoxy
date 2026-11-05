@@ -145,6 +145,15 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     return true;
   }
 
+  // A transmogrifier swaps the kind of the monster for its pair; only `type` changes (uid, position, facing,
+  // cooldown and sliding state stay). It comes after every kill check on purpose: the tile is not a hazard
+  // and a cell holds one terrain, so the kind that arrived is the one the water, fire, bomb and shot checks
+  // above judged, and no hazard of the new kind can share the cell. From the next step on the new kind's
+  // rules apply.
+  if (destTile.transmogrifies && def?.transmogrifiesTo !== undefined) {
+    entity.type = def.transmogrifiesTo;
+  }
+
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
     return false;

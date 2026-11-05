@@ -266,6 +266,16 @@ const EYE_MARK = { cx: 0.52, cy: 0.4, halfWidth: 0.15, halfHeight: 0.085, pupil:
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
 const THIN_BAR_MIN_PX_FLAT = 4;
+/** Transmogrifier pad inset from the cell edge, as a fraction of the cell. */
+const TRANSMOGRIFIER_PAD_INSET = 0.12;
+/** Transmogrifier pad corner radius in the rounded styles, as a fraction of the cell. */
+const TRANSMOGRIFIER_PAD_RADIUS = 0.18;
+/** Distance from the cell centre to the base of each transmogrifier arrow, as a fraction of the cell. */
+const TRANSMOGRIFIER_ARROW_REACH = 0.3;
+/** Half the base height of each transmogrifier arrow, as a fraction of the cell. */
+const TRANSMOGRIFIER_ARROW_HALF_HEIGHT = 0.18;
+/** Distance from the cell centre to the tip of each transmogrifier arrow, as a fraction of the cell. */
+const TRANSMOGRIFIER_ARROW_TIP_GAP = 0.06;
 /** Swivel door pivot dot radius, as a multiple of the bar thickness. */
 const SWIVEL_PIVOT_RADIUS_BARS = 1.1;
 /** Swivel door pivot dot centre, as a multiple of the bar thickness from the closed corner. */
@@ -2059,6 +2069,38 @@ export class PixelRenderer {
   }
 
   /**
+   * A transmogrifier: a ring with two opposed triangles pointing at each other, the two kinds that swap.
+   * The flat style draws a square pad, the neon style rounds only the pad corners; the triangles are the same in both. Both use the plain teleporter ring colour
+   * of their palette for the pad and the yellow of the palette for the triangles.
+   */
+  private paintTransmogrifier(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rounded: boolean): void {
+    const pal = this.pal();
+    const inset = size * TRANSMOGRIFIER_PAD_INSET;
+    ctx.fillStyle = rounded ? pal.modernTeleportRing : pal.teleportRing;
+    if (rounded) {
+      this.roundRect(ctx, x + inset, y + inset, size - inset * 2, size - inset * 2, size * TRANSMOGRIFIER_PAD_RADIUS);
+      ctx.fill();
+    } else {
+      ctx.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
+    }
+    const mid = size / 2;
+    const reach = size * TRANSMOGRIFIER_ARROW_REACH;
+    const half = size * TRANSMOGRIFIER_ARROW_HALF_HEIGHT;
+    const tip = size * TRANSMOGRIFIER_ARROW_TIP_GAP;
+    ctx.fillStyle = pal.yellow;
+    ctx.beginPath();
+    ctx.moveTo(x + mid - reach, y + mid - half);
+    ctx.lineTo(x + mid - tip, y + mid);
+    ctx.lineTo(x + mid - reach, y + mid + half);
+    ctx.closePath();
+    ctx.moveTo(x + mid + reach, y + mid - half);
+    ctx.lineTo(x + mid + tip, y + mid);
+    ctx.lineTo(x + mid + reach, y + mid + half);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /**
    * Pivot dot of a swivel door, at the corner where its two closed sides meet. Retro sprite styles keep
    * the plain thin-wall bars (no dedicated sprite), so only the flat and neon looks call this.
    */
@@ -2689,6 +2731,10 @@ export class PixelRenderer {
       case 'laser_gate_blue_closed':
       case 'laser_gate_blue_open':
         this.paintLaserTile(ctx, tileId, x, y, size, false);
+        break;
+
+      case 'transmogrifier':
+        this.paintTransmogrifier(ctx, x, y, size, false);
         break;
 
       case 'clone_machine': {
@@ -3774,6 +3820,10 @@ export class PixelRenderer {
       case 'laser_gate_blue_closed':
       case 'laser_gate_blue_open':
         this.paintLaserTile(ctx, tileId, x, y, size, true);
+        break;
+
+      case 'transmogrifier':
+        this.paintTransmogrifier(ctx, x, y, size, true);
         break;
 
       case 'clone_machine': {

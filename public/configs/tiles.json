@@ -295,6 +295,17 @@
       "blockedEdges": ["N", "W"],
       "swivelTurns": { "cw": "swivel_door_ne", "ccw": "swivel_door_sw" }
     },
+    "transmogrifier": {
+      "id": "transmogrifier",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.transmogrifier.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "transmogrifies": true
+    },
     "dirt": {
       "id": "dirt",
       "category": "terrain",

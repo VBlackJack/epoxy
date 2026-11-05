@@ -25,6 +25,7 @@ default thief plain=06a95973508d5d08 swap=06a95973508d5d08
 default thief_keys plain=24b68e02b675dab5 swap=24b68e02b675dab5
 default block_target plain=dd7c73820e2d7d84 swap=dd7c73820e2d7d84
 default clone_machine plain=1bc9f4c73db62072 swap=1bc9f4c73db62072
+default transmogrifier plain=1ed7938e412fc0ba swap=1ed7938e412fc0ba
 default forbid_sign plain=15502cecdfd445bd swap=15502cecdfd445bd
 default door plain=a34e56bfda28033c swap=5b4fcc9e955a7710
 default button plain=0bbadbd6b15f1c15 swap=9f1a051c4d5b9b48
@@ -238,6 +239,7 @@ cyber_neon thief plain=092b7d1202a1e2a2 swap=092b7d1202a1e2a2
 cyber_neon thief_keys plain=2f9fcd4f72e86416 swap=2f9fcd4f72e86416
 cyber_neon block_target plain=572a73040914f0ec swap=572a73040914f0ec
 cyber_neon clone_machine plain=1bc9f4c73db62072 swap=1bc9f4c73db62072
+cyber_neon transmogrifier plain=2124fb141acb4e9b swap=2124fb141acb4e9b
 cyber_neon forbid_sign plain=15502cecdfd445bd swap=15502cecdfd445bd
 cyber_neon door plain=a34e56bfda28033c swap=5b4fcc9e955a7710
 cyber_neon button plain=2af152614443cba3 swap=9d56d90c00895743
@@ -451,6 +453,7 @@ arctic_lab thief plain=d8b19182224a4539 swap=d8b19182224a4539
 arctic_lab thief_keys plain=54eea20400a77c41 swap=54eea20400a77c41
 arctic_lab block_target plain=831c4197008b0650 swap=831c4197008b0650
 arctic_lab clone_machine plain=1bc9f4c73db62072 swap=1bc9f4c73db62072
+arctic_lab transmogrifier plain=b041e4a38850afb8 swap=b041e4a38850afb8
 arctic_lab forbid_sign plain=15502cecdfd445bd swap=15502cecdfd445bd
 arctic_lab door plain=a34e56bfda28033c swap=5b4fcc9e955a7710
 arctic_lab button plain=9cd0434cec3c2dfa swap=a2d0035909f4250d
@@ -664,6 +667,7 @@ magma_core thief plain=be822cf506aefe60 swap=be822cf506aefe60
 magma_core thief_keys plain=9c0055ed28ce4693 swap=9c0055ed28ce4693
 magma_core block_target plain=fb2d361714ee6928 swap=fb2d361714ee6928
 magma_core clone_machine plain=1bc9f4c73db62072 swap=1bc9f4c73db62072
+magma_core transmogrifier plain=31c1237fda46f9fa swap=31c1237fda46f9fa
 magma_core forbid_sign plain=15502cecdfd445bd swap=15502cecdfd445bd
 magma_core door plain=a34e56bfda28033c swap=5b4fcc9e955a7710
 magma_core button plain=d3be5fbc7e833dd2 swap=e9cc27bee22ce546
@@ -877,6 +881,7 @@ lynx_lcd thief plain=b92059bc4ce57c2a swap=b92059bc4ce57c2a
 lynx_lcd thief_keys plain=9f563afe8ec3dd0b swap=9f563afe8ec3dd0b
 lynx_lcd block_target plain=b487c019122a0da7 swap=b487c019122a0da7
 lynx_lcd clone_machine plain=1bc9f4c73db62072 swap=1bc9f4c73db62072
+lynx_lcd transmogrifier plain=61ab7fd41f152b83 swap=61ab7fd41f152b83
 lynx_lcd forbid_sign plain=15502cecdfd445bd swap=15502cecdfd445bd
 lynx_lcd door plain=a34e56bfda28033c swap=5b4fcc9e955a7710
 lynx_lcd button plain=713d183ed73c4408 swap=5c8758647939b253

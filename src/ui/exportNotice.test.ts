@@ -52,6 +52,16 @@ describe('lossyExportNotice', () => {
     expect(notice).not.toBe('app.export.refused_epoxy_only_monsters.label');
   });
 
+  it('names the transmogrifier among the Epoxy-only monster content a .DAT export refuses', () => {
+    const notice = lossyExportNotice({
+      replaced: [],
+      lost: [],
+      refused: [{ levelId: 'swap_a', reason: 'epoxy_only_monsters' }]
+    });
+    expect(notice).toContain('swap_a');
+    expect(notice).toMatch(/Transmogrifier|Transmogrificateur/);
+  });
+
   it('has no notice for an exact export', () => {
     expect(lossyExportNotice({ replaced: [], lost: [] })).toBeNull();
   });
