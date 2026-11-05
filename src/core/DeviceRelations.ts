@@ -52,11 +52,13 @@ export type DeviceRole =
   | 'puppet' // an entity steered by the puppet control
   | 'laser_emitter' // fires a beam, wired to nothing (the beam is geometry)
   | 'laser_receiver'
-  | 'laser_gate';
+  | 'laser_gate'
+  | 'signal_source' // a held signal plate
+  | 'signal_gate'; // a signal logic gate or latch
 
 /**
  * How two cells are related:
- * - 'link': an explicit link of the level (trapLinks, cloneLinks, launcherLinks);
+ * - 'link': an explicit link of the level (trapLinks, cloneLinks, launcherLinks, signalLinks);
  * - 'colour': same colour or group (plate and hold door, toggle button and wall of a channel, laser receiver
  *   and gate of a group, teleporters of a group); `channel` holds the colour or group id (absent for the
  *   ungrouped teleporters). Teleporters list the whole group, in both directions;
@@ -74,6 +76,7 @@ export type RelationSystem =
   | 'trap'
   | 'clone'
   | 'shot'
+  | 'signal'
   | 'plate'
   | 'toggle'
   | 'teleport'
@@ -106,7 +109,7 @@ export interface DeviceFacet {
  */
 export type DeviceLevel = Pick<
   CompiledLevel,
-  'ruleset' | 'terrain' | 'items' | 'entities' | 'underlays' | 'trapLinks' | 'cloneLinks' | 'launcherLinks'
+  'ruleset' | 'terrain' | 'items' | 'entities' | 'underlays' | 'trapLinks' | 'cloneLinks' | 'launcherLinks' | 'signalLinks'
 >;
 
 export interface DeviceRelations {
@@ -201,6 +204,8 @@ function roleOfTile(tile: TileDefinition): DeviceRole | null {
   if (tile.laserEmitter !== undefined) return 'laser_emitter';
   if (tile.laserReceiverGroup !== undefined) return 'laser_receiver';
   if (tile.laserGateGroup !== undefined) return 'laser_gate';
+  if (tile.signalSource !== undefined) return 'signal_source';
+  if (tile.signalGate !== undefined) return 'signal_gate';
   if (tile.plateColor !== undefined) return 'pressure_plate';
   if (tile.holdDoorColor !== undefined) return 'hold_door';
   if (tile.togglesTo !== undefined || tile.channelTogglesTo !== undefined) return 'toggle_wall';
@@ -320,6 +325,12 @@ function buildEdges(level: DeviceLevel): Edge[] {
   for (const l of launcherLinks) {
     if (inBounds(level, l.buttonX, l.buttonY) && inBounds(level, l.launcherX, l.launcherY)) {
       add({ x: l.buttonX, y: l.buttonY }, { x: l.launcherX, y: l.launcherY }, 'link', 'shot');
+    }
+  }
+
+  for (const l of level.signalLinks ?? []) {
+    if (inBounds(level, l.fromX, l.fromY) && inBounds(level, l.toX, l.toY)) {
+      add({ x: l.fromX, y: l.fromY }, { x: l.toX, y: l.toY }, 'link', 'signal');
     }
   }
 

@@ -37,6 +37,7 @@ interface Extra {
   trapLinks?: CompiledLevel['trapLinks'];
   cloneLinks?: CompiledLevel['cloneLinks'];
   launcherLinks?: CompiledLevel['launcherLinks'];
+  signalLinks?: CompiledLevel['signalLinks'];
   ruleset?: CompiledLevel['ruleset'];
 }
 
@@ -62,6 +63,7 @@ function makeLevel(terrain: Record<string, string>, extra: Extra = {}): Compiled
     trapLinks: extra.trapLinks ?? [],
     cloneLinks: extra.cloneLinks ?? [],
     ...(extra.launcherLinks ? { launcherLinks: extra.launcherLinks } : {}),
+    ...(extra.signalLinks ? { signalLinks: extra.signalLinks } : {}),
     ...(extra.underlays ? { underlays: extra.underlays } : {}),
     ...(extra.ruleset ? { ruleset: extra.ruleset } : {})
   };
@@ -511,5 +513,37 @@ describe('deviceRelations against the engine', () => {
     const expected = controlledCells(level, 1, 1);
     expect(expected).toEqual(new Set(['5,1', '5,2']));
     expect(changedByStep(level, { x: 0, y: 1 }, 'E')).toEqual(expected);
+  });
+});
+
+describe('signal relations', () => {
+  const links = [
+    { fromX: 1, fromY: 1, toX: 3, toY: 1 },
+    { fromX: 3, fromY: 1, toX: 5, toY: 1 }
+  ];
+  const level = makeLevel({ '1,1': 'signal_plate', '3,1': 'signal_gate_and', '5,1': 'hold_door_red_closed' }, { signalLinks: links });
+
+  it('names the plate and the gate, and keeps the hold door role', () => {
+    expect(deviceRelations(level, 1, 1).role).toBe('signal_source');
+    expect(deviceRelations(level, 3, 1).role).toBe('signal_gate');
+    expect(deviceRelations(level, 5, 1).role).toBe('hold_door');
+  });
+
+  it('lists each wire as a link of the signal mechanism, from the output to the input', () => {
+    expect(deviceRelations(level, 1, 1).controls).toEqual([{ x: 3, y: 1, kind: 'link', system: 'signal' }]);
+    const gate = deviceRelations(level, 3, 1);
+    expect(gate.controlledBy).toEqual([{ x: 1, y: 1, kind: 'link', system: 'signal' }]);
+    expect(gate.controls).toEqual([{ x: 5, y: 1, kind: 'link', system: 'signal' }]);
+    expect(deviceRelations(level, 5, 1).controlledBy).toEqual([{ x: 3, y: 1, kind: 'link', system: 'signal' }]);
+  });
+
+  it('ignores a wire that leaves the grid', () => {
+    const lone = makeLevel({ '1,1': 'signal_plate' }, { signalLinks: [{ fromX: 1, fromY: 1, toX: 99, toY: 1 }] });
+    expect(deviceRelations(lone, 1, 1).controls).toEqual([]);
+  });
+
+  it('has no signal relation in a Lynx level', () => {
+    const lynx = makeLevel({ '1,1': 'signal_plate', '3,1': 'signal_gate_and' }, { signalLinks: [links[0]], ruleset: 'lynx' });
+    expect(deviceRelations(lynx, 1, 1)).toEqual({ role: null, facet: null, controls: [], controlledBy: [] });
   });
 });

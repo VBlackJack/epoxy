@@ -99,6 +99,13 @@ export const MECHANISM_HELP_ROWS: readonly MechanismHelpRow[] = [
     unlinkedKey: 'editor.connections.help.system.shot.unlinked.label'
   },
   {
+    system: 'signal',
+    kind: 'link',
+    nameKey: SYSTEM_NAME_KEYS.signal,
+    howKey: 'editor.connections.help.system.signal.how.label',
+    unlinkedKey: 'editor.connections.help.system.signal.unlinked.label'
+  },
+  {
     system: 'plate',
     kind: 'colour',
     nameKey: SYSTEM_NAME_KEYS.plate,
