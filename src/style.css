@@ -981,6 +981,13 @@ body.fullscreen-mode #hud-btn-options-drawer {
   --editor-strip-tile-width: 5rem;
 }
 
+/* A portrait tablet (single column layout, tall screen) gives the stage more height than a phone does. */
+@media (orientation: portrait) and (min-width: 600px) {
+  :root {
+    --editor-stage-compact-height: 60dvh;
+  }
+}
+
 /* While the editor is on screen it fills the viewport under the header. */
 body.editor-mode {
   height: 100dvh;

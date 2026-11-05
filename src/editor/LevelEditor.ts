@@ -135,7 +135,7 @@ import { CC3D_ROOM_CHOICE_ID, emptyCc3dRoom } from './cc3dRoom';
 import { applyCc3dTool, cc3dContinuesOnDrag, nearestSide, pickCc3dCell } from './cc3dTools';
 import { EditorHistory } from './editorHistory';
 import { EditorKeyAction, getCanvasKeyAction, moveCursor, rotateClockwise, SelectionKeyAction } from './editorKeyboard';
-import { layoutModeForWidth } from './editorLayout';
+import { layoutModeForSize } from './editorLayout';
 import {
   applyTool,
   Brush,
@@ -3500,7 +3500,7 @@ export class LevelEditor {
     if (!view || typeof ResizeObserver === 'undefined') return;
     const update = (): void => {
       // A hidden view measures 0 wide: it keeps the layout it had.
-      if (view.offsetWidth > 0) view.dataset.layout = layoutModeForWidth(view.offsetWidth);
+      if (view.offsetWidth > 0) view.dataset.layout = layoutModeForSize(view.offsetWidth, view.offsetHeight);
       this.applyFit();
     };
     const observer = new ResizeObserver(update);
