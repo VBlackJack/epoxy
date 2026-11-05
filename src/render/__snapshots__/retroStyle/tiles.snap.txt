@@ -128,6 +128,11 @@ tile theme=cyber_neon id=swivel_door_nw c0cc6f01a9260db3
 tile theme=arctic_lab id=swivel_door_nw 6e723ba609850721
 tile theme=magma_core id=swivel_door_nw 9acf9e2837b2e2da
 tile theme=lynx_lcd id=swivel_door_nw 700d2517a7dc6c2a
+tile theme=default id=transmogrifier d4de2e623e7b6039
+tile theme=cyber_neon id=transmogrifier e39a5b3930c12e5c
+tile theme=arctic_lab id=transmogrifier 89230a51623ae509
+tile theme=magma_core id=transmogrifier 73a307b1a28824cf
+tile theme=lynx_lcd id=transmogrifier 617295e258ee9d70
 tile theme=default id=dirt 58c6b782a7784a71
 tile theme=cyber_neon id=dirt 657e63a6ee154c82
 tile theme=arctic_lab id=dirt ba6bfd52837529e7

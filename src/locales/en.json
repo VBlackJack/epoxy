@@ -96,7 +96,7 @@
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
       "refused_epoxy_only_items": { "label": "Not exported: {levels} holds an item only Epoxy plays (such as the Slow-Time Charm, the Speed Boots or the Truesight Boots), which the .DAT format cannot hold." },
-      "refused_epoxy_only_monsters": { "label": "Not exported: {levels} holds a Puppet, a Puppet Control or a Skitter, which the .DAT format cannot hold." },
+      "refused_epoxy_only_monsters": { "label": "Not exported: {levels} holds a Puppet, a Puppet Control, a Skitter or a Transmogrifier, which the .DAT format cannot hold." },
       "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
     },
@@ -1340,6 +1340,10 @@
     "swivel_door_se": { "name": "Swivel Door South-East", "desc": { "label": "Blocks its south and east sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
     "swivel_door_sw": { "name": "Swivel Door South-West", "desc": { "label": "Blocks its south and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
     "swivel_door_nw": { "name": "Swivel Door North-West", "desc": { "label": "Blocks its north and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
+    "transmogrifier": {
+      "name": "Transmogrifier",
+      "desc": { "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker)." }
+    },
     "dirt": { "name": "Soft Dirt" },
     "gravel": { "name": "Gravel (Safe Zone)" },
     "turtle": { "name": "Turtle (Sinks Once Left)" },

@@ -305,6 +305,9 @@ tile swivel_door_sw closed=true shadowMask=128 hash=1 fbb1c7cf94e6a532
 tile swivel_door_nw closed=true isolated c413847b5b944a9f
 tile swivel_door_nw closed=true shadowMask=65 hash=1 fc47a34353a744ca
 tile swivel_door_nw closed=true shadowMask=128 hash=1 a7290571ea64c913
+tile transmogrifier closed=true isolated 3107c80c91136367
+tile transmogrifier closed=true shadowMask=65 hash=1 69d0c106a20f9d47
+tile transmogrifier closed=true shadowMask=128 hash=1 2db5b3e3126c8677
 tile dirt closed=true isolated f888f02b2e2e857c
 tile dirt closed=true shadowMask=65 hash=1 3fb8f5893cbecaac
 tile dirt closed=true shadowMask=128 hash=1 365ef34217c79ca2

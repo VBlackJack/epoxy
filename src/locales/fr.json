@@ -96,7 +96,7 @@
       "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascule de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
       "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins posés sur des cases, que le format .DAT ne peut pas porter." },
       "refused_epoxy_only_items": { "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur, les Bottes de Vitesse ou les Bottes de Clairvoyance), que le format .DAT ne peut pas porter." },
-      "refused_epoxy_only_monsters": { "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette ou un Fuyard, que le format .DAT ne peut pas porter." },
+      "refused_epoxy_only_monsters": { "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard ou un Transmogrificateur, que le format .DAT ne peut pas porter." },
       "refused_cell_underlays": { "label": "Non exporté : {levels} cache du terrain sous des portes, des prises ou d'autres tuiles amovibles, que le format .DAT ne peut pas porter." },
       "list_separator": { "label": ", " }
     },
@@ -1340,6 +1340,10 @@
     "swivel_door_se": { "name": "Porte Pivotante Sud-Est", "desc": { "label": "Bloque ses côtés sud et est. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
     "swivel_door_sw": { "name": "Porte Pivotante Sud-Ouest", "desc": { "label": "Bloque ses côtés sud et ouest. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
     "swivel_door_nw": { "name": "Porte Pivotante Nord-Ouest", "desc": { "label": "Bloque ses côtés nord et ouest. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
+    "transmogrifier": {
+      "name": "Transmogrificateur",
+      "desc": { "label": "Change un monstre qui arrive dessus en son jumeau (scarabée et paramécie, planeur et boule de feu, traqueur et fuyard, balle rose et marcheur)." }
+    },
     "dirt": { "name": "Terre Meuble" },
     "gravel": { "name": "Gravier (Zone Sûre)" },
     "turtle": { "name": "Tortue (Coule Une Fois Quittée)" },

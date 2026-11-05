@@ -754,6 +754,8 @@ export interface TileDefinition {
   hastesPlayer?: number;
   /** Boots only: while held, the renderer marks invisible walls and appearing walls (purely visual). */
   revealsHiddenWalls?: boolean;
+  /** A monster that arrives on the tile swaps its kind for its `transmogrifiesTo` pair; anything else passes unchanged. */
+  transmogrifies?: boolean;
   buttonAction?: ButtonAction;
   /** When 'player', only the player's step works the button: monsters and blocks that enter the cell press nothing. */
   buttonWorkedBy?: ButtonWorker;
@@ -885,6 +887,8 @@ export interface EntityDefinition {
   steeredBy?: ButtonAction;
   /** Whether a monster pushes a block it walks into (one block, never a chain). */
   pushesBlocks?: boolean;
+  /** A monster kind that swaps for this one on a transmogrifier tile (the pairing is symmetric). */
+  transmogrifiesTo?: string;
   /** Tile ids a monster may enter although the tile is not passable by monsters (hazards still apply on arrival). */
   passesTiles?: string[];
 }

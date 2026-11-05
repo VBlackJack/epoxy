@@ -78,6 +78,7 @@ export const RETRO_PLAIN_OVERLAY_TILES: readonly string[] = [
   'thief',
   'thief_keys',
   'clone_machine',
+  'transmogrifier',
   'block_target',
   'toggle_wall_closed',
   'toggle_wall_open',
