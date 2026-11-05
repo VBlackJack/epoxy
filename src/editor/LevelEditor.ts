@@ -70,7 +70,7 @@ import {
   TestFromHereBlock
 } from './testFromHere';
 import { CheckState, CheckSummary, summarizeValidation } from './checkSummary';
-import { issueCell, issueRows } from './issueList';
+import { issueCell, issueRows, issuesAtCell } from './issueList';
 import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
 import {
   DRAFT_VERSION,
@@ -163,9 +163,11 @@ import { holdsLinkEnd, mapHeightOf, mapWidthOf, paintEntity, removeCloneLink, re
 import {
   type LinkSession,
   type PartnerCandidates,
+  nudgeMessages,
   partnerCandidates,
   sessionClick,
   sessionSourceHolds,
+  soleChangedCell,
   startLinkSession
 } from './linkSession';
 import {
@@ -178,6 +180,7 @@ import {
   KIND_NAME_KEYS,
   SYSTEM_NAME_KEYS,
   connectionCellName,
+  connectionNoteText,
   connectionRows
 } from './connectionRows';
 import { deviceOverlayFor } from './deviceOverlay';
@@ -335,6 +338,9 @@ const CONNECTIONS_LISTS_ID = 'editor-connections-lists';
 const CONNECTIONS_CONTROLS_ID = 'editor-connections-controls';
 const CONNECTIONS_CONTROLLED_ID = 'editor-connections-controlled';
 const CONNECTIONS_NOTE_ID = 'editor-connections-note';
+const CONNECTIONS_ISSUES_BLOCK_ID = 'editor-connections-issues-block';
+const CONNECTIONS_ISSUES_ID = 'editor-connections-issues';
+const CONNECTIONS_LINK_HINT_KEY = 'editor.connections.link.hint.label';
 const CONNECTIONS_LINK_BTN_ID = 'editor-connections-link-btn';
 const CONNECTIONS_NO_CELL_KEY = 'editor.connections.no_cell';
 const CONNECTIONS_MORE_KEY = 'editor.connections.more';
@@ -457,6 +463,8 @@ interface Stroke {
   forceErase: boolean;
   /** CC3D: Shift was held when the eraser stroke began, so it takes the whole cell. */
   wholeCell: boolean;
+  /** The status line writes counted when the stroke began: a stroke that wrote a status itself is not talked over. */
+  statusWritesAtBegin: number;
 }
 
 /** Optional seams of the editor. */
@@ -1010,6 +1018,7 @@ export class LevelEditor {
     // The previous level's verdict says nothing about this one: back to the idle badge and note until the next check.
     this.lastCheck = null;
     this.lastIssues = null;
+    this.issuesRevision++;
     this.updateCheckBadge(null);
     this.renderIssues();
     if (this.beamPreviewOn) this.refreshBeamPreview(this.exportCompiledLevel(), false, false);
@@ -2055,6 +2064,7 @@ export class LevelEditor {
     this.checkOverlay = 'checking';
     this.updateCheckBadge(this.lastCheck);
     this.renderIssues();
+    this.refreshConnections();
   }
 
   /** Puts the cached verdict of this content back on the badge, over a "checking" overlay; false when none is cached. */
@@ -2070,6 +2080,7 @@ export class LevelEditor {
     this.checkOverlay = overlay;
     this.updateCheckBadge(this.lastCheck);
     this.renderIssues();
+    this.refreshConnections();
   }
 
   /** Abandons a check running for content that just changed, and checks again once the edits settle. */
@@ -2450,6 +2461,7 @@ export class LevelEditor {
       this.checkOverlay = null;
       this.updateCheckBadge(this.lastCheck);
       this.renderIssues();
+      this.refreshConnections();
     }
   }
 
@@ -2491,12 +2503,20 @@ export class LevelEditor {
     }
     this.lastCheck = summary;
     this.lastIssues = issues;
+    // The Connections section is rebuilt only when the problems it shows at its cell changed (a repeated check is quiet).
+    if (this.issuesSignature(this.issuesAt(issues, this.connectionIssuesSubject)) !== this.connectionIssuesSignature) this.issuesRevision++;
     this.updateCheckBadge(summary);
     this.renderIssues();
+    this.refreshConnections();
   }
 
   /** The issues of the last check, or null before any check. */
   private lastIssues: ValidationIssue[] | null = null;
+  /** Counts the changes of lastIssues, so the Connections section redraws when the problems at its cell change. */
+  private issuesRevision = 0;
+  /** The cell the Connections section last listed problems for, and the words it listed. */
+  private connectionIssuesSubject: { x: number; y: number } | null = null;
+  private connectionIssuesSignature = '[]';
 
   /** Fills the issues section from the last check: a jump button for an issue that names a cell, plain text otherwise. */
   private renderIssues(): void {
@@ -3639,7 +3659,7 @@ export class LevelEditor {
   }
 
   private beginStroke(forceErase: boolean, wholeCell = false): void {
-    this.stroke = { base: cloneDocument(this.doc), changed: false, forceErase, wholeCell };
+    this.stroke = { base: cloneDocument(this.doc), changed: false, forceErase, wholeCell, statusWritesAtBegin: this.statusWrites };
   }
 
   /** True when holding the pointer down and moving keeps acting, for the level being edited. */
@@ -3661,7 +3681,28 @@ export class LevelEditor {
     this.recordChange(stroke.base);
     this.refreshConnections();
     this.announceLinkChanges(stroke.base);
+    this.nudgeToLink(stroke);
   }
+
+  /**
+   * After a brush stroke that placed exactly one linkable device and nothing else changed its tiles, and said nothing in
+   * the status line itself: tells the author the device can be linked (K or Link...) and what it does unlinked. Quiet for
+   * a fill, an erase, a paste, a move, a stroke over several cells and a device that is linked already.
+   */
+  private nudgeToLink(stroke: Stroke): void {
+    if (this.isCc3d() || this.tool !== 'brush' || stroke.forceErase || this.statusWrites !== stroke.statusWritesAtBegin) return;
+    const cell = soleChangedCell(stroke.base, this.doc);
+    if (!cell) return;
+    const messages = nudgeMessages(this.doc, cell.x, cell.y, this.linkRuleset());
+    const role = JSON.stringify(messages[0]?.params ?? null);
+    // The same role again with nothing else said since: the nudge is already on the status line, not repeated.
+    if (messages.length > 0 && this.lastNudge?.writes === this.statusWrites && this.lastNudge.role === role) return;
+    this.announce(messages);
+    if (messages.length > 0) this.lastNudge = { role, writes: this.statusWrites };
+  }
+
+  /** The role of the last nudge and the status write count right after it, to tell a repeat from a new session of strokes. */
+  private lastNudge: { role: string; writes: number } | null = null;
 
   /** After an edit of a CC3D level: says in the status line when a link that existed now points elsewhere. */
   private announceLinkChanges(base: EditorDocument): void {
@@ -3822,7 +3863,9 @@ export class LevelEditor {
       subject?.y ?? '',
       i18n.getLocale(),
       this.doc.ruleset ?? '',
-      session ? 'linking' : ''
+      session ? 'linking' : '',
+      this.issuesRevision,
+      this.checkOverlay ?? ''
     ].join(':');
     if (key === this.connectionsKey) return;
     this.connectionsKey = key;
@@ -3859,7 +3902,8 @@ export class LevelEditor {
     if (view?.controls) this.fillConnectionList(controls, view.controls);
     if (view?.controlledBy) this.fillConnectionList(controlled, view.controlledBy);
     const note = byId(CONNECTIONS_NOTE_ID);
-    if (note) note.textContent = view?.note ? t(view.note.key, view.note.params) : '';
+    if (note) note.textContent = view?.note ? connectionNoteText(view.note, t) : '';
+    this.drawConnectionIssues(view && subject ? subject : null);
     this.connectionsLink = view?.link ?? null;
     this.syncConnectionsLinkButton();
     if (focusedRow < 0) return;
@@ -3868,6 +3912,51 @@ export class LevelEditor {
     const unlinkButton = focusedUnlink ? target?.querySelector<HTMLElement>(`button:not(.${CONNECTION_GOTO_CLASS})`) : null;
     const gotoButton = target?.querySelector<HTMLElement>(`.${CONNECTION_GOTO_CLASS}`);
     (unlinkButton ?? gotoButton ?? caption).focus({ preventScroll: true });
+  }
+
+  /** The issues of a check that point at a cell, errors first; none without a check or a cell. */
+  private issuesAt(issues: ValidationIssue[] | null, cell: { x: number; y: number } | null): ValidationIssue[] {
+    return cell && issues ? issuesAtCell(issues, cell.x, cell.y, this.mapWidth(), this.mapHeight()) : [];
+  }
+
+  /** What the Connections section would show for these issues: their severities and words, in order. */
+  private issuesSignature(issues: ValidationIssue[]): string {
+    return JSON.stringify(issues.map((issue) => [issue.severity, this.formatIssue(issue)]));
+  }
+
+  /** The problems of the last check that point at the shown cell: a glyph and the text, no jump (it is this cell). */
+  private drawConnectionIssues(subject: { x: number; y: number } | null): void {
+    const block = byId(CONNECTIONS_ISSUES_BLOCK_ID);
+    const list = byId(CONNECTIONS_ISSUES_ID);
+    if (!block || !list) return;
+    list.innerHTML = '';
+    this.connectionIssuesSubject = subject;
+    const issues = this.issuesAt(this.lastIssues, subject);
+    this.connectionIssuesSignature = this.issuesSignature(issues);
+    // As in the main list: the issues of a check that is running or was abandoned stay, dimmed, as out of date.
+    const stale = this.checkOverlay !== null;
+    list.dataset.stale = String(stale);
+    if (stale) list.setAttribute('aria-description', t('editor.issues.stale.label'));
+    else list.removeAttribute('aria-description');
+    block.classList.toggle('hidden', issues.length === 0);
+    for (const issue of issues) {
+      const item = document.createElement('li');
+      const row = document.createElement('div');
+      row.className = 'editor-issue-row';
+      row.dataset.severity = issue.severity;
+      const glyph = document.createElement('span');
+      glyph.className = 'editor-issue-glyph';
+      glyph.setAttribute('aria-hidden', 'true');
+      glyph.textContent = SEVERITY_GLYPHS[issue.severity];
+      const severity = document.createElement('span');
+      severity.className = 'sr-only';
+      severity.textContent = t(`editor.issues.severity.${issue.severity}.label`);
+      const text = document.createElement('span');
+      text.textContent = this.formatIssue(issue);
+      row.append(glyph, severity, text);
+      item.appendChild(row);
+      list.appendChild(item);
+    }
   }
 
   private fillConnectionList(list: HTMLElement, data: ConnectionList): void {
@@ -3966,7 +4055,10 @@ export class LevelEditor {
     button.textContent = t(CONNECTIONS_LINK_ACTION_KEY);
     const refusal = linkAvailability(editableRulesetOf(this.doc.ruleset), link.system);
     const reason = link.blocked ? t(CONNECTIONS_LINK_BLOCKED_KEY) : refusal.available ? null : t(refusal.reasonKey);
-    if (reason === null) return;
+    if (reason === null) {
+      button.title = t(CONNECTIONS_LINK_HINT_KEY);
+      return;
+    }
     button.setAttribute('aria-disabled', 'true');
     button.setAttribute('aria-description', reason);
     button.title = reason;

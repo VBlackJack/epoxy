@@ -93,7 +93,7 @@
       "refused_receivers_win_rule": { "label": "Non exporté : {levels} se gagne en allumant des récepteurs laser, que le format .DAT ne peut pas porter." },
       "refused_laser_content": { "label": "Non exporté : {levels} utilise des lasers, des miroirs ou des lanceurs de tirs, que le format .DAT ne peut pas porter." },
       "refused_cc3d_ruleset": { "label": "Non exporté : {levels} se joue avec les règles CC3D, que le format .DAT ne peut pas porter. Utilisez plutôt Exporter XML." },
-      "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascule de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
+      "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascules de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
       "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins posés sur des cases, que le format .DAT ne peut pas porter." },
       "refused_epoxy_only_items": { "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur, les Bottes de Vitesse ou les Bottes de Clairvoyance), que le format .DAT ne peut pas porter." },
       "refused_epoxy_only_monsters": { "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard ou un Transmogrificateur, que le format .DAT ne peut pas porter." },
@@ -553,7 +553,7 @@
       "laser_gate_on_beam": { "label": "Avertissement : une barrière laser ({group}) se trouve sur un rayon qui allume un récepteur : fermée, elle coupe ce rayon." },
       "hold_door_no_plate": { "label": "Avertissement : une porte à plaque ({color}) en ({x}, {y}) (au total : {count}) n'a aucune plaque de pression de sa couleur, elle ne peut donc jamais s'ouvrir." },
       "hold_door_wrong_start": { "label": "Avertissement : une porte à plaque ({color}) est posée ouverte ou fermée à l'inverse de ses plaques : elle change dès le début du niveau." },
-      "channel_walls_no_button": { "label": "Avertissement : des murs bascule ({color}) en ({x}, {y}) (au total : {count}) n'ont aucun bouton bascule de leur couleur pour les déplacer." },
+      "channel_walls_no_button": { "label": "Avertissement : des murs bascules ({color}) en ({x}, {y}) (au total : {count}) n'ont aucun bouton bascule de leur couleur pour les déplacer." },
       "channel_button_no_walls": { "label": "Avertissement : un bouton bascule ({color}) n'a aucun mur bascule de sa couleur à déplacer." },
       "steering_pad_no_puppet": { "label": "Avertissement : une commande de marionnette en ({x}, {y}) (au total : {count}) n'a aucune marionnette à diriger." },
       "shot_trigger_no_link": { "label": "Avertissement : un déclencheur en ({x}, {y}) n'est lié à aucun lanceur, il ne tire donc rien." },
@@ -705,8 +705,26 @@
         "shot_unlinked": "N'active rien tant qu'il n'est pas lié.",
         "laser_emitter": "Relié à rien ; l'aperçu du faisceau montre le rayon."
       },
+      "needs": {
+        "plate": { "label": "Il faut une porte à maintien de la même couleur ({colour}) : cette plaque n'ouvre rien pour l'instant. Une porte à maintien ne s'ouvre que tant que chaque plaque de sa couleur est enfoncée." },
+        "hold_door": { "label": "Il faut une plaque de pression de la même couleur ({colour}) : sans plaque, elle est fermée dès le départ. Elle ne s'ouvre que tant que chaque plaque de sa couleur est enfoncée." },
+        "toggle_button": { "label": "Il faut un mur bascule de la même couleur ({colour}) : ce bouton ne bascule rien pour l'instant. Le bouton vert simple bascule les murs bascules simples." },
+        "toggle_wall": { "label": "Il faut un bouton bascule de la même couleur ({colour}) : rien ne bascule ce mur pour l'instant. Le bouton vert simple bascule les murs bascules simples." },
+        "teleporter_plain": { "label": "Il faut un autre téléporteur simple : un téléporteur simple envoie vers le téléporteur simple précédent dans l'ordre de lecture, et seul il ne mène nulle part." },
+        "teleporter_colour": { "label": "Il faut un autre téléporteur de la même couleur ({colour}) : celui-ci est seul dans son groupe." },
+        "laser_receiver": { "label": "Il faut une porte laser du même groupe ({colour}) : ce récepteur n'ouvre rien pour l'instant." },
+        "laser_gate": { "label": "Il faut un récepteur laser du même groupe ({colour}) : rien n'est relié à cette porte pour l'instant." },
+        "puppet_control": { "label": "Il faut une marionnette : aucune marionnette n'avance avec le joueur quand il termine un déplacement sur cette commande." },
+        "puppet": { "label": "Il faut une commande de marionnette : les marionnettes avancent avec le joueur quand il termine un déplacement sur une commande de marionnette." },
+        "flame_button": { "label": "Il faut un jet de flammes : ce bouton orange n'en bascule aucun pour l'instant." },
+        "flame_jet": { "label": "Il faut un bouton orange : les jets de flammes sont basculés par les boutons orange." }
+      },
+      "issues": {
+        "heading": "Problèmes relevés ici"
+      },
       "link": {
         "action": "Relier...",
+        "hint": { "label": "Relier à un partenaire (K)" },
         "done": "Terminé",
         "blocked": "Ce dispositif est caché sous une autre tuile : mettez-le en vue pour le relier."
       },
@@ -772,6 +790,7 @@
         "clone_button": { "label": "Sans lien : ce bouton ne déclenche rien." },
         "clone_machine": { "label": "Sans lien : cette machine n'est jamais déclenchée." }
       },
+      "nudge": { "label": "{role} en place. Appuyez sur K (ou sur Relier...) pour créer un lien." },
       "linked": { "label": "Lien créé. {role} : {count, plural, one {# lien} other {# liens}} maintenant." },
       "unlinked": { "label": "Lien délié. {role} : {count, plural, one {# lien} other {# liens}} maintenant." },
       "placed": { "label": "Partenaire posé et lié : {partner}. {role} : {count, plural, one {# lien} other {# liens}} maintenant." },
@@ -1142,7 +1161,7 @@
       },
       "status": {
         "coords": { "label": "Case ({x}, {y})" },
-        "ready": { "label": "Clic gauche : peindre | Clic droit : gommer | Alt+Clic : pipette" },
+        "ready": { "label": "Clic : peindre | Droit : gommer | Alt+Clic : pipette | K relier | T tester | L faisceaux" },
         "picked": { "label": "Pipette : {name} sélectionné" },
         "saved": { "label": "Niveau sauvegardé dans la bibliothèque locale !" },
         "imported": { "label": "Niveau importé avec succès !" },
@@ -1614,7 +1633,7 @@
       "ice": { "title": "Dérive Glaciaire #{number}", "hint": "La glace vous fait glisser jusqu'à un obstacle. Les angles dévient la glissade." },
       "force": { "title": "Atelier des Convoyeurs #{number}", "hint": "Les tapis roulants vous emportent. Les bottes de force permettent de marcher à contre-courant." },
       "thief": { "title": "Repaire des Voleurs #{number}", "hint": "Le voleur prend toutes vos bottes. Servez-vous-en avant de le croiser." },
-      "toggle_walls": { "title": "Gare de Triage #{number}", "hint": "Chaque bouton vert inverse tous les murs bascule. Comptez vos pressions." },
+      "toggle_walls": { "title": "Gare de Triage #{number}", "hint": "Chaque bouton vert inverse tous les murs bascules. Comptez vos pressions." },
       "trap": { "title": "Allée des Pièges #{number}", "hint": "Un piège vous retient tant que son bouton marron n'est pas pressé. Un bloc peut maintenir le bouton." },
       "teleport": { "title": "Saut Quantique #{number}", "hint": "Entrez dans un téléporteur pour ressortir par un autre, dans la même direction. Avec plusieurs plaques, l'ordre compte." },
       "sokoban": { "title": "Entrepôt #{number}", "hint": "Chaque bouton marron maintient un piège ouvert. Poussez un bloc sur chaque bouton, et jamais dans un coin." },

@@ -41,6 +41,22 @@ export function issueCell(issue: ValidationIssue, width: number, height: number)
   return { x, y };
 }
 
+/**
+ * The issues whose subject cell is (x, y), errors first, then warnings, then info, each group in its original order.
+ * An issue that names no cell on the grid belongs to no cell.
+ */
+export function issuesAtCell(issues: readonly ValidationIssue[], x: number, y: number, width: number, height: number): ValidationIssue[] {
+  const here = issues.filter((issue) => {
+    const cell = issueCell(issue, width, height);
+    return cell !== null && cell.x === x && cell.y === y;
+  });
+  return [
+    ...here.filter((issue) => issue.severity === 'error'),
+    ...here.filter((issue) => issue.severity === 'warning'),
+    ...here.filter((issue) => issue.severity === 'info')
+  ];
+}
+
 /** The rows to show: errors first, then warnings, then info, each group in its original order, capped, with the count left out. */
 export function issueRows(issues: readonly ValidationIssue[], width: number, height: number, cap: number = ISSUE_LIST_CAP): IssueRows {
   const ordered = [

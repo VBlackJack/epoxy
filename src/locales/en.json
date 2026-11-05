@@ -705,8 +705,26 @@
         "shot_unlinked": "Fires nothing until linked.",
         "laser_emitter": "Wired to nothing; Beam preview shows the beam."
       },
+      "needs": {
+        "plate": { "label": "Needs a hold door of the same colour ({colour}): this plate opens nothing yet. A hold door opens only while every plate of its colour is pressed." },
+        "hold_door": { "label": "Needs a pressure plate of the same colour ({colour}): with no plate it is shut from the start. It opens only while every plate of its colour is pressed." },
+        "toggle_button": { "label": "Needs a toggle wall of the same colour ({colour}): this button flips nothing yet. The plain green button flips the plain toggle walls." },
+        "toggle_wall": { "label": "Needs a toggle button of the same colour ({colour}): nothing flips this wall yet. The plain green button flips the plain toggle walls." },
+        "teleporter_plain": { "label": "Needs another plain teleporter: a plain teleporter sends to the previous plain teleporter in reading order, and alone it goes nowhere." },
+        "teleporter_colour": { "label": "Needs another teleporter of the same colour ({colour}): it is alone in its group." },
+        "laser_receiver": { "label": "Needs a laser gate of the same group ({colour}): this receiver opens nothing yet." },
+        "laser_gate": { "label": "Needs a laser receiver of the same group ({colour}): nothing is wired to this gate yet." },
+        "puppet_control": { "label": "Needs a puppet: no puppet steps with the player when the player ends a move on this control yet." },
+        "puppet": { "label": "Needs a puppet control: puppets step with the player when the player ends a move on a puppet control." },
+        "flame_button": { "label": "Needs a flame jet: this orange button toggles nothing yet." },
+        "flame_jet": { "label": "Needs an orange button: flame jets are toggled by orange buttons." }
+      },
+      "issues": {
+        "heading": "Problems found here"
+      },
       "link": {
         "action": "Link...",
+        "hint": { "label": "Link to a partner (K)" },
         "done": "Done",
         "blocked": "This device is hidden under another tile: bring it into plain view to link it."
       },
@@ -772,6 +790,7 @@
         "clone_button": { "label": "Unlinked: this button fires nothing." },
         "clone_machine": { "label": "Unlinked: this machine is never fired." }
       },
+      "nudge": { "label": "{role} placed. Press K (or Link...) to link it." },
       "linked": { "label": "Linked. {role}: {count, plural, one {# link} other {# links}} now." },
       "unlinked": { "label": "Unlinked. {role}: {count, plural, one {# link} other {# links}} now." },
       "placed": { "label": "Placed and linked: {partner}. {role}: {count, plural, one {# link} other {# links}} now." },
@@ -1142,7 +1161,7 @@
       },
       "status": {
         "coords": { "label": "Tile ({x}, {y})" },
-        "ready": { "label": "Left-click: paint | Right-click: erase | Alt+Click: eyedropper" },
+        "ready": { "label": "Left: paint | Right: erase | Alt+Click: eyedropper | K link | T test | L beams" },
         "picked": { "label": "Picked: {name}" },
         "saved": { "label": "Level saved to local browser library!" },
         "imported": { "label": "Level imported successfully!" },

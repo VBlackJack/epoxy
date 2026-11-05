@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ValidationIssue } from '../core/types';
-import { issueCell, issueRows } from './issueList';
+import { issueCell, issueRows, issuesAtCell } from './issueList';
 
 const WIDTH = 10;
 const HEIGHT = 8;
@@ -45,6 +45,20 @@ describe('issueCell', () => {
     expect(issueCell(error('a', { x: 1.5, y: 2 }), WIDTH, HEIGHT)).toBeNull();
     expect(issueCell(error('a', { x: Number.NaN, y: 2 }), WIDTH, HEIGHT)).toBeNull();
     expect(issueCell(error('a', { x: Number.POSITIVE_INFINITY, y: 2 }), WIDTH, HEIGHT)).toBeNull();
+  });
+});
+
+describe('issuesAtCell', () => {
+  it('keeps the issues whose subject is the cell, errors first', () => {
+    const info: ValidationIssue = { severity: 'info', i18nKey: 'i1', params: { x: 2, y: 2 } };
+    const issues = [info, warning('w1', { x: 2, y: 2 }), error('other', { x: 3, y: 2 }), error('e1', { x: 2, y: 2 }), error('none')];
+    expect(issuesAtCell(issues, 2, 2, WIDTH, HEIGHT).map((issue) => issue.i18nKey)).toEqual(['e1', 'w1', 'i1']);
+  });
+
+  it('is empty for a cell no issue names, and for an issue off the grid', () => {
+    expect(issuesAtCell([error('e1', { x: 2, y: 2 })], 0, 0, WIDTH, HEIGHT)).toEqual([]);
+    expect(issuesAtCell([error('e1', { x: 99, y: 99 })], 99, 99, WIDTH, HEIGHT)).toEqual([]);
+    expect(issuesAtCell([], 1, 1, WIDTH, HEIGHT)).toEqual([]);
   });
 });
 
