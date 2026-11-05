@@ -1383,6 +1383,10 @@ body.editor-mode #app {
   border-left-color: var(--led-amber);
 }
 
+.editor-issue-row[data-severity='info'] {
+  border-left-color: var(--biome-accent);
+}
+
 button.editor-issue-row {
   cursor: pointer;
 }
