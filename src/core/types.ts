@@ -209,6 +209,80 @@ export interface RenderStyleFamilies {
   theme: Record<string, FamilyAssignment>;
 }
 
+/** Colours of a moving liquid in the Runeward style: base, surface and the drifting crest lines. */
+export interface RunewardLiquidColours {
+  deep: string;
+  light: string;
+  crest: string;
+}
+
+/**
+ * Colours and timings the Runeward painters draw with (game.json runewardArt). The proportions of the
+ * drawings live in the painters; everything a theme could change lives here.
+ */
+export interface RunewardArtConfig {
+  /** Transparent end of the fades, in the colour notation the gradients use. */
+  clear: string;
+  floor: {
+    base: string;
+    light: string;
+    dark: string;
+    grout: string;
+    /** Faint highlight along the top of the slabs. */
+    sheen: string;
+    /** Number of slab shade arrangements the cell hash picks from. */
+    variants: number;
+  };
+  wall: {
+    top: string;
+    topLight: string;
+    topDark: string;
+    front: string;
+    frontDark: string;
+    edge: string;
+  };
+  /** Blue walls: the wall drawing under a blue tint, with a line in the blue family. */
+  blueWall: {
+    tint: string;
+    line: string;
+  };
+  shadow: {
+    color: string;
+    /** Reach of the shadow below a wall, in tiles. */
+    depth: number;
+  };
+  exit: {
+    base: string;
+    ring: string;
+    core: string;
+    /** The ring colour fully transparent. */
+    glow: string;
+  };
+  water: RunewardLiquidColours;
+  lava: RunewardLiquidColours;
+  mage: {
+    robe: string;
+    robeLight: string;
+    hat: string;
+    hatLight: string;
+    band: string;
+    skin: string;
+    eyes: string;
+    staff: string;
+    orb: string;
+    /** Centre of the staff orb. */
+    orbCore: string;
+    /** Ground shadow under the character. */
+    shadow: string;
+  };
+  animation: {
+    bobAmplitude: number;
+    bobPeriodMs: number;
+    flowPeriodMs: number;
+    portalPeriodMs: number;
+  };
+}
+
 /**
  * Images that replace the drawn tiles and blocks on Sokoban levels. Files are relative to
  * `baseUrl`; a terrain role lists layers drawn bottom to top.
@@ -706,6 +780,8 @@ export interface GameConfig {
   renderStylePalettes?: Record<string, RenderStylePaletteConfig>;
   /** Colours of the palette and of the themes whose Retro HD family is fixed by hand. */
   renderStyleFamilies?: RenderStyleFamilies;
+  /** Colours and timings of the Runeward render style painters. */
+  runewardArt?: RunewardArtConfig;
 }
 
 export interface TileDefinition {

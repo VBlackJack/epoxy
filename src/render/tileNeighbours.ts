@@ -51,6 +51,10 @@ export interface TileNeighbours {
   shadowMask: number;
   /** Stable pseudo-random value for this cell, used to vary floor details. */
   hash: number;
+  /** Map column of the cell, so effects can continue across cells (absent: 0). */
+  cx?: number;
+  /** Map row of the cell (absent: 0). */
+  cy?: number;
 }
 
 /** A cell with no known surroundings: drawn as a free-standing tile (editor, icons). */
@@ -101,6 +105,8 @@ export function tileNeighbours(
   return {
     wallMask: neighbourMask(terrain, x, y, wallTileIds, true),
     shadowMask: neighbourMask(terrain, x, y, shadowCasterIds, false),
-    hash: cellHash(x, y)
+    hash: cellHash(x, y),
+    cx: x,
+    cy: y
   };
 }
