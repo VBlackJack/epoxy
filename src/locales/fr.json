@@ -1136,6 +1136,9 @@
         "failed": { "label": "Le générateur n'a pas pu construire ce niveau. Essayez une autre graine." }
       }
     },
+    "touch": {
+      "pick": { "nothing": { "label": "Rien à prélever ici" } }
+    },
     "layout": {
       "toolbar": { "label": "Barre d'outils de l'éditeur" },
       "group": {

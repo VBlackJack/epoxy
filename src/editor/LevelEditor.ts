@@ -316,6 +316,7 @@ import {
   EDITOR_ZOOM_TILE_STEP,
   POINTER_ERASER_BUTTON,
   POINTER_TYPE_TOUCH,
+  EDITOR_TOUCH_LONG_PRESS_MS,
   EDITOR_TOUCH_PINCH_START_PX,
   EDITOR_TOUCH_PINCH_STEP_RATIO,
   EDITOR_TOUCH_STROKE_GRACE_MS,
@@ -570,6 +571,14 @@ interface TouchTap {
   moved: boolean;
 }
 
+/** A finger held on a paint stroke: when the timer fires without the finger travelling, the stroke is taken back and the cell is picked. */
+interface TouchLongPress {
+  id: number;
+  start: TouchPoint;
+  cell: { x: number; y: number };
+  timer: ReturnType<typeof setTimeout>;
+}
+
 /** Optional seams of the editor. */
 export interface EditorOptions {
   /** Keys whose owner page is still alive; defaults to the Web Locks held on this origin (none without the API). */
@@ -796,6 +805,10 @@ export class LevelEditor {
   /** A gesture ended while fingers remain down: none of them paints until every finger is up. */
   private gestureDone = false;
   private touchTap: TouchTap | null = null;
+  /** The pending long press (eyedropper) of the finger that owns a paint stroke. */
+  private touchLongPress: TouchLongPress | null = null;
+  /** The hover on show was left by a finger: the first mouse or pen move takes it over or clears it. */
+  private touchHoverShown = false;
   /** The selection a touch selection gesture replaced, put back when a second finger takes the gesture over. */
   private touchSelectionBackup: { selection: CellRect | null; anchor: { x: number; y: number } | null } | null = null;
   /** Wheel travel in pixels not yet turned into a zoom step. */
@@ -1136,6 +1149,7 @@ export class LevelEditor {
     this.blockRunner?.dispose();
     this.history.clear();
     this.coalescer.reset();
+    this.clearTouchLongPress();
     this.stroke = null;
     this.endLinkSession(false);
     this.resetSelectionState();
@@ -3656,6 +3670,7 @@ export class LevelEditor {
 
   /** Stops the page-level draft listeners, the pending write and the Web Lock: the editor is no longer in use. */
   public dispose(): void {
+    this.resetTouch();
     this.disposed = true;
     this.resetConnectionsPointer();
     this.cancelCellSpeech();
@@ -4183,7 +4198,40 @@ export class LevelEditor {
     return performance.now() - stroke.beganAt < EDITOR_TOUCH_STROKE_GRACE_MS;
   }
 
+  /** Arms the long press of a finger that just began a paint stroke on a cell. */
+  private armTouchLongPress(ev: PointerEvent, cell: { x: number; y: number }): void {
+    this.clearTouchLongPress();
+    const pending: TouchLongPress = {
+      id: ev.pointerId,
+      start: { x: ev.clientX, y: ev.clientY },
+      cell,
+      timer: setTimeout(() => this.fireTouchLongPress(pending), EDITOR_TOUCH_LONG_PRESS_MS)
+    };
+    this.touchLongPress = pending;
+  }
+
+  private clearTouchLongPress(): void {
+    const pending = this.touchLongPress;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.touchLongPress = null;
+  }
+
+  /** The finger stayed put: the stroke is taken back whatever its age, the cell is picked, and the finger paints no more. */
+  private fireTouchLongPress(pending: TouchLongPress): void {
+    if (this.disposed || this.touchLongPress !== pending) return;
+    this.touchLongPress = null;
+    if (this.strokePointerId !== pending.id || !this.touchPointers.has(pending.id)) return;
+    this.cancelStroke();
+    this.strokePointerId = null;
+    this.gestureDone = true;
+    const writesBefore = this.statusWrites;
+    this.pickAt(pending.cell.x, pending.cell.y);
+    if (this.statusWrites === writesBefore) this.setStatusText(t('editor.touch.pick.nothing.label'));
+  }
+
   private settleTouchStroke(): void {
+    this.clearTouchLongPress();
     if (this.stroke && this.strokePointerId !== null) {
       if (this.strokeIsYoung(this.stroke)) this.cancelStroke();
       else this.endStroke();
@@ -4209,6 +4257,13 @@ export class LevelEditor {
     if (!known) return true;
     known.x = ev.clientX;
     known.y = ev.clientY;
+    const press = this.touchLongPress;
+    if (press && press.id === ev.pointerId) {
+      // At a small zoom a cell is narrower than the slop: a finger that reached another cell is drawing, not holding.
+      const under = this.cellAt(ev.clientX, ev.clientY);
+      const leftCell = under?.x !== press.cell.x || under?.y !== press.cell.y;
+      if (leftCell || distance(press.start, known) > EDITOR_TOUCH_TAP_SLOP_PX) this.clearTouchLongPress();
+    }
     if (this.touchGesture) {
       this.updateTouchGesture(this.touchGesture);
       return true;
@@ -4248,6 +4303,7 @@ export class LevelEditor {
   private onTouchEnd(ev: PointerEvent, cancelled: boolean): void {
     const id = ev.pointerId;
     if (!this.touchPointers.delete(id)) return;
+    if (this.touchLongPress?.id === id) this.clearTouchLongPress();
     const inGesture = this.touchGesture !== null && this.touchGesture.ids.includes(id);
     const suppressed = inGesture || this.gestureDone;
     if (inGesture) {
@@ -4301,6 +4357,11 @@ export class LevelEditor {
       this.cursorCell = cell;
       this.resetConnectionsPointer();
       this.lastInput = 'pointer';
+      // A finger has no hover: the cell it lands on is the one described, and it stays described after the lift.
+      if (touch) {
+        this.setHover(cell);
+        this.touchHoverShown = true;
+      }
       // Every path below (picker, Alt or middle click, a stroke) starts from this cell: the layers list follows it.
       this.refreshLayersList();
 
@@ -4351,10 +4412,13 @@ export class LevelEditor {
       this.beginStroke(ev.button === 2 || ev.button === POINTER_ERASER_BUTTON, ev.shiftKey);
       this.applyAt(cell.x, cell.y, this.hoverSide);
       this.refreshLayersList();
+      // A held finger turns the stroke into an eyedropper; every paint tool reaches this point (link, paste, picker and select returned above).
+      if (touch) this.armTouchLongPress(ev, cell);
     });
 
     this.canvas.addEventListener('pointermove', (ev) => {
       if (ev.pointerType === POINTER_TYPE_TOUCH && this.onTouchMove(ev)) return;
+      if (ev.pointerType !== POINTER_TYPE_TOUCH) this.touchHoverShown = false;
       this.lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
       this.lastInput = 'pointer';
       const cell = this.cellAt(ev.clientX, ev.clientY);
@@ -4374,10 +4438,35 @@ export class LevelEditor {
       }
     });
 
-    this.canvas.addEventListener('pointerleave', () => {
+    this.canvas.addEventListener('pointerleave', (ev) => {
       this.lastPointer = null;
-      if (!this.stroke) this.setHover(null);
+      // A finger that lifts leaves the badge and the outline on the cell it touched: there is no pointer to hover elsewhere.
+      if (!this.stroke && ev.pointerType !== POINTER_TYPE_TOUCH) this.setHover(null);
     });
+
+    // The padding around a small map belongs to the stage: a finger there joins a gesture but never paints.
+    const stageSignal = this.draftListeners.signal;
+    const stageEl = byId('editor-stage');
+    stageEl?.addEventListener(
+      'pointerdown',
+      (ev) => {
+        if (ev.pointerType === POINTER_TYPE_TOUCH && ev.target !== this.canvas) this.onTouchDown(ev);
+      },
+      { signal: stageSignal }
+    );
+    stageEl?.addEventListener(
+      'pointermove',
+      (ev) => {
+        if (ev.pointerType === POINTER_TYPE_TOUCH) {
+          if (ev.target !== this.canvas) this.onTouchMove(ev);
+        } else if (this.touchHoverShown && ev.target !== this.canvas) {
+          // A mouse or pen on a hybrid device: the outline a finger left must not stay.
+          this.touchHoverShown = false;
+          if (!this.stroke) this.setHover(null);
+        }
+      },
+      { signal: stageSignal }
+    );
 
     const stopPainting = (): void => {
       this.endStroke();

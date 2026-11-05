@@ -33,7 +33,9 @@ import { LevelPackStorage } from '../storage/LevelPackStorage';
 import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { mountModals } from '../test/domFixture';
-import { EDITOR_TOUCH_PINCH_START_PX, EDITOR_TOUCH_STROKE_GRACE_MS, EDITOR_TOUCH_TAP_SLOP_PX } from '../ui/uiConstants';
+import { EDITOR_TOUCH_LONG_PRESS_MS, EDITOR_TOUCH_PINCH_START_PX, EDITOR_TOUCH_STROKE_GRACE_MS, EDITOR_TOUCH_TAP_SLOP_PX } from '../ui/uiConstants';
+import { t } from '../i18n/I18nManager';
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { compiledCc3d } from './cc3dEditorFixtures';
 import { emptyCc3dRoom } from './cc3dRoom';
 import { LevelEditor } from './LevelEditor';
@@ -543,6 +545,275 @@ describe('a paste carried off the map', () => {
     finger('pointermove', FINGER_A, at(-500, -500));
     finger('pointerup', FINGER_A, at(-500, -500));
     expect(levelJson()).toBe(before);
+  });
+});
+
+describe('a long press', () => {
+  const brushId = (): string => (editor['brush'] as { id: string }).id;
+  const hold = (): void => void vi.advanceTimersByTime(EDITOR_TOUCH_LONG_PRESS_MS);
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('on the brush takes the stroke back, picks the cell and makes it the Connections subject', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    const before = levelJson();
+    const statusBefore = statusText();
+    finger('pointerdown', FINGER_A, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    expect(levelJson()).not.toBe(before);
+    clock = EDITOR_TOUCH_LONG_PRESS_MS;
+    hold();
+    expect(levelJson()).toBe(before);
+    expect(undoDepth()).toBe(0);
+    expect(brushId()).toBe('button_brown');
+    expect(statusText()).not.toBe(statusBefore);
+    expect(statusText()).toBe(t('editor.palette.status.picked.label', { name: t(ConfigRegistry.getTile('button_brown')?.i18nKey ?? '') }));
+    expect(editor['cursorCell']).toEqual(BUTTON);
+    expect(editor['tool']).toBe('brush');
+    finger('pointerup', FINGER_A, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    expect(undoDepth()).toBe(0);
+    expect(levelJson()).toBe(before);
+  });
+
+  it('keeps the tool on the eraser and rolls its stroke back', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    editor.setTool('eraser');
+    const before = levelJson();
+    finger('pointerdown', FINGER_A, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    expect(levelJson()).not.toBe(before);
+    hold();
+    expect(levelJson()).toBe(before);
+    expect(editor['tool']).toBe('eraser');
+    expect(brushId()).toBe('button_brown');
+    finger('pointerup', FINGER_A, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    expect(undoDepth()).toBe(0);
+  });
+
+  it('on the fill tool rolls the fill back', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    editor.setTool('fill');
+    const before = levelJson();
+    finger('pointerdown', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    expect(levelJson()).not.toBe(before);
+    hold();
+    expect(levelJson()).toBe(before);
+    finger('pointerup', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    expect(undoDepth()).toBe(0);
+  });
+
+  it('is cancelled by a move past the tap slop: a normal stroke goes on', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    const start = cellPoint(2, 3, SMALL_WIDTH);
+    finger('pointerdown', FINGER_A, start);
+    finger('pointermove', FINGER_A, at(start.clientX + EDITOR_TOUCH_TAP_SLOP_PX + 1, start.clientY));
+    hold();
+    finger('pointerup', FINGER_A, start);
+    expect(undoDepth()).toBe(1);
+  });
+
+  it('is cancelled by a lift before the delay: one step', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    finger('pointerdown', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    finger('pointerup', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    hold();
+    expect(undoDepth()).toBe(1);
+    expect(brushId()).not.toBe('button_brown');
+  });
+
+  it('is replaced by the two-finger gesture when a second finger lands first', () => {
+    openRoom();
+    scrollTo(PAN_FROM, PAN_FROM);
+    const before = levelJson();
+    const brushBefore = brushId();
+    twoFingersDown(at(100, 100), at(140, 100));
+    hold();
+    finger('pointermove', FINGER_A, at(110, 120));
+    finger('pointermove', FINGER_B, at(150, 120));
+    expect(stage.scrollLeft).toBe(PAN_FROM - 10);
+    expect(levelJson()).toBe(before);
+    expect(editor['touchLongPress']).toBeNull();
+    expect(brushId()).toBe(brushBefore);
+  });
+
+  it('is cancelled when the finger reaches another cell within the slop (small cells)', () => {
+    openRoom();
+    // A fit zoom on a wide map: cells of 4 px, narrower than the tap slop.
+    const smallTile = 4;
+    canvas.getBoundingClientRect = () => rectOf(0, 0, ROOM_WIDTH * smallTile, ROOM_HEIGHT * smallTile);
+    const from = cellPoint(3, 3, ROOM_WIDTH);
+    const to = cellPoint(4, 3, ROOM_WIDTH);
+    expect(Math.abs(to.clientX - from.clientX)).toBeLessThanOrEqual(EDITOR_TOUCH_TAP_SLOP_PX);
+    const brushBefore = brushId();
+    finger('pointerdown', FINGER_A, from);
+    finger('pointermove', FINGER_A, to);
+    expect(editor['touchLongPress']).toBeNull();
+    hold();
+    finger('pointerup', FINGER_A, to);
+    expect(undoDepth()).toBe(1);
+    expect(brushId()).toBe(brushBefore);
+  });
+
+  it('once fired leaves the finger inert: a move paints nothing and a second finger does not pan', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    const before = levelJson();
+    finger('pointerdown', FINGER_A, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    hold();
+    finger('pointermove', FINGER_A, cellPoint(5, 5, SMALL_WIDTH));
+    expect(levelJson()).toBe(before);
+    scrollTo(PAN_FROM, PAN_FROM);
+    finger('pointerdown', FINGER_B, at(100, 100));
+    finger('pointermove', FINGER_B, at(130, 130));
+    finger('pointermove', FINGER_A, at(60, 60));
+    expect(stage.scrollLeft).toBe(PAN_FROM);
+    expect(stage.scrollTop).toBe(PAN_FROM);
+    finger('pointerup', FINGER_B, at(130, 130));
+    finger('pointerup', FINGER_A, at(60, 60));
+    expect(levelJson()).toBe(before);
+    expect(undoDepth()).toBe(0);
+    finger('pointerdown', FINGER_C, cellPoint(5, 5, SMALL_WIDTH));
+    finger('pointerup', FINGER_C, cellPoint(5, 5, SMALL_WIDTH));
+    expect(undoDepth()).toBe(1);
+  });
+
+  it('on a cell the picker writes nothing for (an empty CC3D cell) says there is nothing to pick', () => {
+    openRoom();
+    // Defensive branch: pickCc3dCell always returns the top terrain for an in-bounds cell, so the picker is stubbed to write no status.
+    vi.spyOn(editor as unknown as { pickAt: () => void }, 'pickAt').mockImplementation(() => undefined);
+    finger('pointerdown', FINGER_A, cellPoint(3, 3, ROOM_WIDTH));
+    hold();
+    expect(statusText()).toBe(t('editor.touch.pick.nothing.label'));
+    expect(undoDepth()).toBe(0);
+    finger('pointerup', FINGER_A, cellPoint(3, 3, ROOM_WIDTH));
+  });
+
+  it('never fires in a link session, a paste, with the picker or with the select tool', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    editor['moveCursorTo'](BUTTON, false);
+    byId<HTMLButtonElement>('editor-connections-link-btn').click();
+    finger('pointerdown', FINGER_A, cellPoint(TRAP.x, TRAP.y, SMALL_WIDTH));
+    expect(editor['touchLongPress']).toBeNull();
+    finger('pointerup', FINGER_A, cellPoint(TRAP.x, TRAP.y, SMALL_WIDTH));
+    editor['endLinkSession'](true);
+    editor.setTool('picker');
+    finger('pointerdown', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    expect(editor['touchLongPress']).toBeNull();
+    finger('pointerup', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    editor.setTool('select');
+    finger('pointerdown', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    expect(editor['touchLongPress']).toBeNull();
+    finger('pointerup', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    mouse('pointerdown', cellPoint(0, 0, SMALL_WIDTH));
+    mouse('pointerup', cellPoint(0, 0, SMALL_WIDTH));
+    editor.handleSelectionAction({ kind: 'copy' });
+    editor.handleSelectionAction({ kind: 'paste' });
+    finger('pointerdown', FINGER_A, cellPoint(4, 3, SMALL_WIDTH));
+    expect(editor['touchLongPress']).toBeNull();
+    finger('pointerup', FINGER_A, cellPoint(4, 3, SMALL_WIDTH));
+  });
+
+  it('is dropped by a dispose or a blur before the delay: no pick', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    finger('pointerdown', FINGER_A, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    window.dispatchEvent(new Event('blur'));
+    hold();
+    expect(brushId()).not.toBe('button_brown');
+    finger('pointerdown', FINGER_B, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    expect(editor['touchLongPress']).not.toBeNull();
+    editor.dispose();
+    expect(editor['touchLongPress']).toBeNull();
+    hold();
+    expect(brushId()).not.toBe('button_brown');
+  });
+
+  it('is dropped when another level is loaded', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    finger('pointerdown', FINGER_A, cellPoint(BUTTON.x, BUTTON.y, SMALL_WIDTH));
+    editor.loadCompiledLevel(trapRoom(true));
+    expect(editor['touchLongPress']).toBeNull();
+  });
+});
+
+describe('the hover of a finger', () => {
+  const leave = (pointerType: string): void => {
+    const ev = new MouseEvent('pointerleave', { bubbles: false, ...cellPoint(2, 3, SMALL_WIDTH) });
+    Object.defineProperty(ev, 'pointerType', { value: pointerType });
+    canvas.dispatchEvent(ev);
+  };
+
+  it('is kept after a touch lift and the pointer leaving', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    finger('pointerdown', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    finger('pointerup', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    leave('touch');
+    expect(editor['hoverCell']).toEqual({ x: 2, y: 3 });
+  });
+
+  it('is cleared by the first mouse move over the stage (a hybrid device)', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    finger('pointerdown', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    finger('pointerup', FINGER_A, cellPoint(2, 3, SMALL_WIDTH));
+    expect(editor['hoverCell']).toEqual({ x: 2, y: 3 });
+    stage.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 190, clientY: 140 }));
+    expect(editor['hoverCell']).toBeNull();
+  });
+
+  it('is still cleared for a mouse', () => {
+    editor.loadCompiledLevel(trapRoom(false));
+    mouse('pointermove', cellPoint(2, 3, SMALL_WIDTH));
+    expect(editor['hoverCell']).toEqual({ x: 2, y: 3 });
+    leave('mouse');
+    expect(editor['hoverCell']).toBeNull();
+  });
+});
+
+describe('the stage padding', () => {
+  /** A finger event whose target is the stage, as a touch on the padding around a small map. */
+  function stageFinger(type: 'pointerdown' | 'pointermove' | 'pointerup', id: number, point: Point): void {
+    const ev = new MouseEvent(type, { bubbles: true, cancelable: true, ...point });
+    Object.defineProperty(ev, 'pointerType', { value: 'touch' });
+    Object.defineProperty(ev, 'pointerId', { value: id });
+    (type === 'pointerup' ? window : stage).dispatchEvent(ev);
+  }
+
+  it('lets a pinch with both fingers on the stage zoom exactly one step', () => {
+    openRoom();
+    stageFinger('pointerdown', FINGER_A, at(100, 100));
+    stageFinger('pointerdown', FINGER_B, at(100 + FAR_APART, 100));
+    stageFinger('pointermove', FINGER_B, at(100 + FAR_APART + FAR_APART / 2, 100));
+    expect(zoomOffset()).toBe(1);
+    stageFinger('pointerup', FINGER_B, at(100, 100));
+    stageFinger('pointerup', FINGER_A, at(100, 100));
+    expect(undoDepth()).toBe(0);
+  });
+
+  it('pans with one finger on the canvas and one on the stage, and rolls back a young stroke', () => {
+    openRoom();
+    scrollTo(PAN_FROM, PAN_FROM);
+    const before = levelJson();
+    finger('pointerdown', FINGER_A, cellPoint(3, 3, ROOM_WIDTH));
+    stageFinger('pointerdown', FINGER_B, at(150, 100));
+    expect(levelJson()).toBe(before);
+    const a = cellPoint(3, 3, ROOM_WIDTH);
+    finger('pointermove', FINGER_A, at(a.clientX + 10, a.clientY));
+    stageFinger('pointermove', FINGER_B, at(160, 100));
+    expect(stage.scrollLeft).toBeLessThan(PAN_FROM);
+    stageFinger('pointerup', FINGER_B, at(160, 100));
+    finger('pointerup', FINGER_A, a);
+    expect(undoDepth()).toBe(0);
+  });
+
+  it('paints nothing with one finger alone on the stage', () => {
+    openRoom();
+    const before = levelJson();
+    stageFinger('pointerdown', FINGER_A, at(190, 140));
+    stageFinger('pointermove', FINGER_A, at(195, 145));
+    stageFinger('pointerup', FINGER_A, at(195, 145));
+    expect(levelJson()).toBe(before);
+    expect(undoDepth()).toBe(0);
   });
 });
 
