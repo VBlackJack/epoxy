@@ -499,7 +499,7 @@
       "kb_click": { "label": "Clic Gauche / Tap : Déplacement auto (A*) vers la case" },
       "kb_undo": { "label": "U / Retour Arrière / Ctrl+Z : Annuler un pas (même après la mort)" },
       "kb_restart": { "label": "R : Recommencer le niveau" },
-      "kb_objective": { "label": "H : Indice, localiser le prochain objectif et afficher les câbles" },
+      "kb_objective": { "label": "H : Indice, localiser le prochain objectif et afficher les liens" },
       "kb_solution": { "label": "O : Voir la solution prouvée (le niveau recommence)" },
       "kb_items": { "label": "E / X : Déposer l'objet sélectionné sur votre case | C : Sélectionner l'objet suivant | Clic sur une case d'inventaire : déposer cet objet" },
       "kb_fov_options": { "label": "Zoom : Options > Essentiel > Zoom" },
@@ -1826,7 +1826,7 @@
       "cloner": { "title": "Atelier de Clonage #{number}", "hint": "Un bouton rouge fait déposer par la machine à cloner une copie de son bloc. Clonez autant de blocs que nécessaire." },
       "dirt": { "title": "Fouilles #{number}", "hint": "Les blocs ne traversent ni la terre ni les faux murs bleus tant que vous ne les avez pas dégagés à pied. Ouvrez le bon passage avant de pousser." },
       "default": {
-        "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les câbles des pièges, cloneurs et portes."
+        "hint": "Utilisez le bouton Objectif (ou H) pour repérer le prochain mécanisme et visualiser les liens des pièges, cloneurs et portes."
       }
     }
   },

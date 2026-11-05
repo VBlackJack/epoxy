@@ -104,6 +104,18 @@ describe('editor wording', () => {
     }
   });
 
+  it('leaves no wire or câble wording in the HUD strings or the objective hints, in either locale', () => {
+    for (const [name, locale] of [['en', EN], ['fr', FR]] as const) {
+      const root = locale as Record<string, TranslationNode>;
+      const hud = leaves(root.hud, 'hud');
+      const hints = leaves((root.levels as Record<string, TranslationNode>).procedural, 'levels.procedural');
+      expect(hud.some(([key]) => key.endsWith('kb_objective.label'))).toBe(true);
+      expect(hints.some(([key]) => key === 'levels.procedural.default.hint')).toBe(true);
+      const found = [...hud, ...hints].filter(([, value]) => BANNED_WORDS.test(value));
+      expect({ name, found }).toEqual({ name, found: [] });
+    }
+  });
+
   it('writes the multi-direction swivel door and thin panel names with the direction in parentheses, in both locales', () => {
     const names = (locale: TranslationNode): Record<string, { name: string }> =>
       (locale as unknown as Record<string, Record<string, { name: string }>>).tiles;
