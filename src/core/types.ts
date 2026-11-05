@@ -280,6 +280,14 @@ export interface RunewardArtConfig {
     /** Reach of the shadow below a wall, in tiles. */
     depth: number;
   };
+  /** The socket seal: a dark stone with a glowing hexagon, a smaller hexagon inside it and a dot at the centre. */
+  seal: {
+    base: string;
+    /** Lines of both hexagons and the dot. */
+    glyph: string;
+    /** The glyph colour fully transparent. */
+    glow: string;
+  };
   exit: {
     base: string;
     ring: string;

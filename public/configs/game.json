@@ -932,6 +932,11 @@
       "color": "rgba(4, 2, 10, 0.55)",
       "depth": 0.42
     },
+    "seal": {
+      "base": "#1d1a30",
+      "glyph": "#9b4dff",
+      "glow": "rgba(155, 77, 255, 0)"
+    },
     "exit": {
       "base": "#08201a",
       "ring": "#2fd99a",
@@ -994,6 +999,11 @@
       "shadow": {
         "color": "rgba(42, 27, 15, 0.4)",
         "depth": 0.42
+      },
+      "seal": {
+        "base": "#dcc795",
+        "glyph": "#7f5f3c",
+        "glow": "rgba(127, 95, 60, 0)"
       },
       "exit": {
         "base": "#7f5f3c",

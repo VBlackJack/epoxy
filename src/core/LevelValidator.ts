@@ -36,6 +36,7 @@ import { relativeTo } from './lynx/directions';
 import { isArrowBlockEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { checkSignalWiring, signalDrivenColors } from './signalChecks';
 import { hiddenUnder, underlayMap } from './Underlays';
 import {
   ChannelColor,
@@ -386,6 +387,7 @@ export class LevelValidator {
     this.checkShotLaunchers(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
+    checkSignalWiring(level, issues);
 
     // A consumed key opens one door; a kept key opens every door of its colour.
     // Fewer keys than doors only warns that the doors cannot all be opened: spare or decoy
@@ -1834,7 +1836,10 @@ export class LevelValidator {
         return kind !== undefined && entityPressesPlate(e.type, kind, color);
       });
 
+    // A colour whose doors a signal drives opens from the signals, not from plates.
+    const signalColors = signalDrivenColors(level);
     for (const [color, cells] of hiddenDoorCells) {
+      if (signalColors.has(color)) continue;
       if (!doorsByColor.has(color) && (platesByColor.get(color) ?? []).length === 0) {
         issues.push({
           severity: 'warning',
@@ -1844,6 +1849,7 @@ export class LevelValidator {
       }
     }
     for (const [color, doors] of doorsByColor) {
+      if (signalColors.has(color)) continue;
       const plates = platesByColor.get(color) ?? [];
       if (plates.length === 0) {
         issues.push({
@@ -1881,6 +1887,8 @@ export class LevelValidator {
    * it; only flying ones do not), which makes the "door not openable" warning deliberately more optimistic. The player cannot hold a plate and walk through the door too, except
    * when a plate of the colour touches a door of the colour: the player opens the door from the plate, steps
    * in, and the door shuts on the occupant, who may leave. Then the player counts as one presser.
+   * A colour whose doors a signal sink drives is treated as openable. This is an optimistic heuristic: the
+   * signal network may never open that door. The block solver bails on signal levels, so nothing checks it further.
    */
   private static openableHoldDoorColors(level: CompiledLevel): Set<ChannelColor> {
     const platesByColor = new Map<ChannelColor, number>();
@@ -1908,6 +1916,8 @@ export class LevelValidator {
       });
     });
     const openable = new Set<ChannelColor>();
+    // A colour whose doors a signal drives counts as openable: the signals open them, not plates.
+    for (const color of signalDrivenColors(level)) if (doorColors.has(color)) openable.add(color);
     for (const color of doorColors) {
       const plates = platesByColor.get(color) ?? 0;
       if (plates === 0) continue;

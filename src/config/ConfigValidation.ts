@@ -1131,6 +1131,43 @@ export function findFacingTurnConfigErrors(tiles: Record<string, TileDefinition>
   return errors;
 }
 
+/** The gate logics a signal gate tile may declare. */
+const SIGNAL_GATE_VALUES: readonly unknown[] = ['and', 'or', 'not', 'xor', 'latch'];
+
+/**
+ * Problems of the signal fields of tiles.json: a source is 'held'; a gate is one of the five logics; the
+ * latch start flag is true and sits on a latch; all of them belong to a terrain tile, a tile has one signal
+ * role only (never mixed with a plate colour, a hold door or a laser receiver), and a gate is impassable.
+ */
+export function findSignalConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    const hasSource = tile.signalSource !== undefined;
+    const hasGate = tile.signalGate !== undefined;
+    if (tile.signalLatchStartsOn !== undefined && tile.signalLatchStartsOn !== true) {
+      errors.push(`${id}.signalLatchStartsOn: expected true`);
+    }
+    if (tile.signalLatchStartsOn !== undefined && tile.signalGate !== 'latch') {
+      errors.push(`${id}.signalLatchStartsOn: only a latch gate may start on`);
+    }
+    if (!hasSource && !hasGate) continue;
+    if (hasSource && tile.signalSource !== 'held') errors.push(`${id}.signalSource: expected "held"`);
+    if (hasGate && !SIGNAL_GATE_VALUES.includes(tile.signalGate)) {
+      errors.push(`${id}.signalGate: expected "and", "or", "not", "xor" or "latch"`);
+    }
+    if (tile.layer !== 'terrain') errors.push(`${id}: a signal source or gate must be a terrain tile`);
+    if (hasSource && hasGate) errors.push(`${id}: a tile cannot be both a signal source and a signal gate`);
+    if (tile.plateColor !== undefined || tile.holdDoorColor !== undefined || tile.laserReceiverGroup !== undefined) {
+      errors.push(`${id}: a signal tile cannot also be a plate, a hold door or a laser receiver`);
+    }
+    if (hasGate && (tile.passableByPlayer || tile.passableByMonster || tile.passableByBlock)) {
+      errors.push(`${id}: a signal gate must be impassable`);
+    }
+  }
+  return errors;
+}
+
 /** Relative sides an arrow block may show an arrow on. */
 const PUSH_ARROW_TURNS: readonly string[] = ['FORWARD', 'RIGHT', 'BACK', 'LEFT'];
 

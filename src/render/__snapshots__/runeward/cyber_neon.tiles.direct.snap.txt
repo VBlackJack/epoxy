@@ -314,24 +314,24 @@ tile turn_plate_cw closed=true shadowMask=128 hash=1 6d0cf40825cf8a16
 tile turn_plate_ccw closed=true isolated 14c511f08eeb013f
 tile turn_plate_ccw closed=true shadowMask=65 hash=1 d30485b4ae9d4d7d
 tile turn_plate_ccw closed=true shadowMask=128 hash=1 5dfb89451c9a7975
-tile dirt closed=true isolated 6f1aac5befa66dc6
-tile dirt closed=true shadowMask=65 hash=1 3c08aff49a3184c0
-tile dirt closed=true shadowMask=128 hash=1 4cbedd442f43c2c9
-tile gravel closed=true isolated f7a231a22f5651b3
-tile gravel closed=true shadowMask=65 hash=1 0a5a9f469c07dc84
-tile gravel closed=true shadowMask=128 hash=1 fbef1b4b72d4ba44
+tile dirt closed=true isolated 7dbe7e4e8278121d
+tile dirt closed=true shadowMask=65 hash=1 47130712ef8038f0
+tile dirt closed=true shadowMask=128 hash=1 43bcdc7d97840ab7
+tile gravel closed=true isolated 9626fcba2f8b1519
+tile gravel closed=true shadowMask=65 hash=1 73fccd7f49c80c13
+tile gravel closed=true shadowMask=128 hash=1 028a7ab6d7f9a79b
 tile turtle closed=true isolated ee8ac3cba43f3b74
 tile turtle closed=true shadowMask=65 hash=1 369e67846ecd243b
 tile turtle closed=true shadowMask=128 hash=1 0ebf45ae271ccf24
-tile socket closed=true isolated 94652249af38a33a
-tile socket closed=true shadowMask=65 hash=1 90e016e4eaea36d0
-tile socket closed=true shadowMask=128 hash=1 79ac507fdce47bfd
+tile socket closed=true isolated d245ad15df3f77a9
+tile socket closed=true shadowMask=65 hash=1 61cc25244e264a08
+tile socket closed=true shadowMask=128 hash=1 48bb1ad51f4367ef
 tile exit closed=true isolated ae0007cd6a545f7c
 tile exit closed=true shadowMask=65 hash=1 bbfda611cf5073fb
 tile exit closed=true shadowMask=128 hash=1 fd2266efeb722749
-tile hint closed=true isolated 2f626e1b7a8e305d
-tile hint closed=true shadowMask=65 hash=1 3382f282ae1c0c8d
-tile hint closed=true shadowMask=128 hash=1 131c3145c8f5650c
+tile hint closed=true isolated 7ecf6f56dabff9a6
+tile hint closed=true shadowMask=65 hash=1 70094940e94e9c1f
+tile hint closed=true shadowMask=128 hash=1 94aa2139fcf587bc
 tile water closed=true cell(0,0) ad9b19c86f192082
 tile water closed=true cell(0,0) shaded fb75a6e0b7e2ea17
 tile water closed=true cell(1,0) 0e959d04165d3f41
@@ -518,6 +518,27 @@ tile pressure_plate_blue closed=true shadowMask=128 hash=1 98a0f4695b8c088b
 tile pressure_plate_yellow closed=true isolated 70f33fb386b58e8a
 tile pressure_plate_yellow closed=true shadowMask=65 hash=1 3840cb72767959f2
 tile pressure_plate_yellow closed=true shadowMask=128 hash=1 abae90adbf5448a3
+tile signal_plate closed=true isolated c4909c0682a85456
+tile signal_plate closed=true shadowMask=65 hash=1 681da2930812ad49
+tile signal_plate closed=true shadowMask=128 hash=1 957968e6d8109d79
+tile signal_gate_and closed=true isolated 590c2e3f40d4812d
+tile signal_gate_and closed=true shadowMask=65 hash=1 8b559b716a2ac93c
+tile signal_gate_and closed=true shadowMask=128 hash=1 cee5e76e64cd4655
+tile signal_gate_or closed=true isolated 734718b1acc5500c
+tile signal_gate_or closed=true shadowMask=65 hash=1 b946114594046d73
+tile signal_gate_or closed=true shadowMask=128 hash=1 eca2e41652ca7b61
+tile signal_gate_not closed=true isolated 5104a16e7e433749
+tile signal_gate_not closed=true shadowMask=65 hash=1 26bf93b0fcd44604
+tile signal_gate_not closed=true shadowMask=128 hash=1 416c258b99e4a109
+tile signal_gate_xor closed=true isolated 9ec20fc2ec7fb089
+tile signal_gate_xor closed=true shadowMask=65 hash=1 f970dd71531be446
+tile signal_gate_xor closed=true shadowMask=128 hash=1 81a5bfa299e58012
+tile signal_latch_off closed=true isolated 16e49b8f0cbf3bda
+tile signal_latch_off closed=true shadowMask=65 hash=1 e7581d2bb292d598
+tile signal_latch_off closed=true shadowMask=128 hash=1 1b4921dfeabfbecd
+tile signal_latch_on closed=true isolated d5100939629078e6
+tile signal_latch_on closed=true shadowMask=65 hash=1 ff993337cbad038c
+tile signal_latch_on closed=true shadowMask=128 hash=1 1cb488492351bf00
 tile hold_door_red_closed closed=true isolated f2979ca31d8949bc
 tile hold_door_red_closed closed=true shadowMask=65 hash=1 f46b2e388dafb45e
 tile hold_door_red_closed closed=true shadowMask=128 hash=1 6277f5bf04224626

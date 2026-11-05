@@ -39,6 +39,7 @@ import {
   findShotConfigErrors,
   findSteeringConfigErrors,
   findFacingTurnConfigErrors,
+  findSignalConfigErrors,
   findPushArrowConfigErrors,
   findTurretConfigErrors,
   sanitizeStoredLevels,
@@ -303,6 +304,10 @@ class ConfigRegistryService {
     const facingTurnErrors = findFacingTurnConfigErrors(bundle.tiles.tiles);
     if (facingTurnErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, facingTurnErrors.join('; '));
+    }
+    const signalErrors = findSignalConfigErrors(bundle.tiles.tiles);
+    if (signalErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, signalErrors.join('; '));
     }
     const colorErrors = findColorChannelConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (colorErrors.length > 0) {

@@ -71,6 +71,7 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   if (tile.laserEmitter || tile.laserReceiverGroup || tile.laserGateGroup || tile.shotLauncher) return 'lasers';
   if (tile.plateColor || tile.holdDoorColor || tile.toggleChannel || tile.floatingBlockColor) return 'colour';
   if (tile.togglesTo || tile.flameTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.facingTurn !== undefined) return 'toggles';
+  if (tile.signalSource || tile.signalGate) return 'toggles';
   if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';
   return null;
 }
