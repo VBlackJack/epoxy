@@ -377,7 +377,8 @@ const MESSAGE_FILL_REFUSED_CELL_EDGE = 'editor.selection.status.fill_refused_cel
 const MESSAGE_FILL_REFUSED_ENTRY = 'editor.selection.status.fill_refused_entry';
 const MESSAGE_FILL_REFUSED_ATTRIBUTES = 'editor.selection.status.fill_refused_attributes';
 const NO_COORDS_TEXT = '--';
-const COORDS_DESCRIPTION_SEPARATOR = ': ';
+/** Locale template joining the coordinates to the description of the pointed cell (the colon spacing differs by language). */
+const COORDS_DESCRIPTION_KEY = 'editor.palette.status.coords_description';
 /** WheelEvent.deltaMode values for a delta counted in lines and in pages. */
 const WHEEL_DELTA_LINE = 1;
 const WHEEL_DELTA_PAGE = 2;
@@ -4112,7 +4113,7 @@ export class LevelEditor {
     const level = this.doc.cc3d;
     const cc3dNames = level ? this.cc3dCellParts(level, cell.x, cell.y).map((part) => part.name) : undefined;
     const [coords, ...rest] = describeEditorCell({ map: this.doc, x: cell.x, y: cell.y, cc3dNames }).map((part) => t(part.key, part.params));
-    this.setCoordsText(rest.length > 0 ? `${coords}${COORDS_DESCRIPTION_SEPARATOR}${rest.join(SEPARATOR_BETWEEN_PARTS)}` : coords);
+    this.setCoordsText(rest.length > 0 ? t(COORDS_DESCRIPTION_KEY, { coords, details: rest.join(SEPARATOR_BETWEEN_PARTS) }) : coords);
     this.hoverTextKey = key;
   }
 

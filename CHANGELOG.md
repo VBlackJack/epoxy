@@ -82,6 +82,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- French wording: the coordinates badge of the level editor now puts a space before the colon ("Case (3, 4) : Porte", English unchanged) through a locale template, and the brown button is called "bouton brun" everywhere instead of "bouton marron" in nine messages (checks, hints, level hints), as in the palette.
 - Exporting a whole pack as .CCL now warns, in one line with the other lossy-export notices, how many levels lose trap or clone links past the .DAT caps and how many links in total.
 - Level editor wording: the editor says "link" everywhere. "{count} wires were removed" is now "links" (French "fils" is now "liens"), "see what it is wired to" and "nothing is wired to this gate yet" read "linked", the laser emitter note reads "Linked to nothing", the palette group "Buttons and wiring" is "Buttons and links", and the swivel door corner names read "Swivel Door (North-East)" and so on, like the other directional names (French "Porte Pivotante (Nord-Est)"). A locale test keeps wire and fil wording out of the editor strings.
 - Game wording follows the editor: the objective hint messages and the default hint say "links" (French "liens") instead of "wires" ("câbles"), and a second locale test keeps wire and câble wording out of the HUD and hint strings.
