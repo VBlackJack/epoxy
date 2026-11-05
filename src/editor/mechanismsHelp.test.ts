@@ -53,7 +53,7 @@ describe('mechanism help rows', () => {
 
   it('groups the mechanisms by how their parts meet', () => {
     const kinds = (kind: string): string[] => MECHANISM_HELP_ROWS.filter((row) => row.kind === kind).map((row) => row.system);
-    expect(kinds('link')).toEqual(['trap', 'clone', 'shot']);
+    expect(kinds('link')).toEqual(['trap', 'clone', 'shot', 'signal']);
     expect(kinds('colour')).toEqual(['plate', 'toggle', 'teleport', 'laser']);
     expect(kinds('level')).toEqual(['tank', 'flame', 'swap', 'puppet']);
   });

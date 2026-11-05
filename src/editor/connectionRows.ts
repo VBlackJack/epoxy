@@ -20,6 +20,7 @@ import { channelOfButtonAction } from '../core/coreConstants';
 import type { TileDefinition } from '../core/types';
 import { EDITOR_CONNECTIONS_MAX_ROWS } from '../ui/uiConstants';
 import { holdsShotLauncher, holdsShotTrigger } from './editorLauncherLinks';
+import { signalTileHoldsEnd } from './editorSignalLinks';
 import type { ToolMessage } from './editorTools';
 import type { LinkEnd, LinkSystem } from './mapEdits';
 
@@ -86,7 +87,9 @@ export const ROLE_NAME_KEYS: Readonly<Record<DeviceRole, string>> = {
   puppet: 'editor.connections.role.puppet.label',
   laser_emitter: 'editor.connections.role.laser_emitter.label',
   laser_receiver: 'editor.connections.role.laser_receiver.label',
-  laser_gate: 'editor.connections.role.laser_gate.label'
+  laser_gate: 'editor.connections.role.laser_gate.label',
+  signal_source: 'editor.connections.role.signal_source.label',
+  signal_gate: 'editor.connections.role.signal_gate.label'
 };
 
 /** Locale key of the name of each mechanism. */
@@ -94,6 +97,7 @@ export const SYSTEM_NAME_KEYS: Readonly<Record<RelationSystem, string>> = {
   trap: 'editor.connections.system.trap.label',
   clone: 'editor.connections.system.clone.label',
   shot: 'editor.connections.system.shot.label',
+  signal: 'editor.connections.system.signal.label',
   plate: 'editor.connections.system.plate.label',
   toggle: 'editor.connections.system.toggle.label',
   teleport: 'editor.connections.system.teleport.label',
@@ -259,6 +263,24 @@ function hiddenShotLinkOf(level: DeviceLevel, x: number, y: number): ConnectionL
   if (holdsShotTrigger(level, x, y)) return { type: 'start', system: 'shot', end: 'button', blocked: false };
   if (holdsShotLauncher(level, x, y)) return { type: 'start', system: 'shot', end: 'target', blocked: false };
   return null;
+}
+
+/** The signal end a terrain tile plays, read from its flags: an output (source or gate, started first) or an input (hold door). */
+function signalLinkOf(tileId: string | undefined): { system: LinkSystem; end: LinkEnd } | null {
+  if (tileId === undefined || !ConfigRegistry.isTerrainTile(tileId)) return null;
+  const tile = ConfigRegistry.getTile(tileId);
+  if (signalTileHoldsEnd(tile, 'output')) return { system: 'signal', end: 'button' };
+  if (signalTileHoldsEnd(tile, 'input')) return { system: 'signal', end: 'target' };
+  return null;
+}
+
+/** The Link button of a signal device: on the top tile, or hidden under it (blocked, the signal system reads the top tile only). */
+function signalButtonOf(level: DeviceLevel, x: number, y: number): ConnectionLink {
+  if (level.ruleset === 'cc3d') return null;
+  const top = signalLinkOf(level.terrain[y]?.[x]);
+  if (top) return { type: 'start', ...top, blocked: false };
+  const hidden = signalLinkOf((level.underlays ?? []).find((u) => u.x === x && u.y === y)?.terrain);
+  return hidden ? { type: 'start', ...hidden, blocked: true } : null;
 }
 
 const EMPTY_VIEW: ConnectionView = { caption: null, controls: null, controlledBy: null, note: null, link: null };
@@ -442,6 +464,6 @@ export function connectionRows(level: DeviceLevel, x: number, y: number): Connec
     rel.role === null && !related
       ? { key: CONNECTIONS_KEYS.noDevice, x, y, name: null }
       : { key: rel.facet?.source === 'hidden' ? CONNECTIONS_KEYS.cellHidden : CONNECTIONS_KEYS.cell, x, y, name };
-  const link = linkOf(rel.role, rel.facet?.source, level.ruleset) ?? hiddenShotLinkOf(level, x, y);
+  const link = linkOf(rel.role, rel.facet?.source, level.ruleset) ?? hiddenShotLinkOf(level, x, y) ?? signalButtonOf(level, x, y);
   return { caption, controls, controlledBy, note: noteFor(rel.role, rel, roleTileOf(rel)), link };
 }

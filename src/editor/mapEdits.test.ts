@@ -25,7 +25,9 @@ import {
   addTrapLink,
   eraseCell,
   floodFillTerrain,
+  holdsLinkEnd,
   keepsLauncherLinks,
+  linkCountAt,
   paintEntity,
   paintItem,
   paintPlayerStart,
@@ -1126,5 +1128,108 @@ describe('Lynx: one link per button', () => {
     const result = placePartnerAndLink(map, 'trap', 'button', { x: 2, y: 2 }, { x: 3, y: 3 }, 'S', true);
     expect(result.map.trapLinks).toEqual([{ buttonX: 2, buttonY: 2, trapX: 3, trapY: 3 }]);
     expect(result.replaced).toBe(1);
+  });
+});
+
+describe('signal links', () => {
+  function wired(): EditorMap {
+    const map = bordered(10, 8);
+    map.terrain[2][2] = 'signal_plate';
+    map.terrain[2][4] = 'signal_gate_and';
+    map.terrain[2][6] = 'signal_gate_or';
+    map.terrain[2][8] = 'hold_door_red_closed';
+    map.terrain[4][2] = 'laser_receiver_red';
+    return map;
+  }
+  const plate = { x: 2, y: 2 };
+  const and = { x: 4, y: 2 };
+  const or = { x: 6, y: 2 };
+  const door = { x: 8, y: 2 };
+
+  it('reads the ends from the tile flags: a gate holds both, a plate and a receiver the output, a door the input', () => {
+    const map = wired();
+    expect(holdsLinkEnd(map, 'signal', 'button', 2, 2)).toBe(true);
+    expect(holdsLinkEnd(map, 'signal', 'target', 2, 2)).toBe(false);
+    expect(holdsLinkEnd(map, 'signal', 'button', 2, 4)).toBe(true);
+    expect(holdsLinkEnd(map, 'signal', 'button', 4, 2)).toBe(true);
+    expect(holdsLinkEnd(map, 'signal', 'target', 4, 2)).toBe(true);
+    expect(holdsLinkEnd(map, 'signal', 'button', 8, 2)).toBe(false);
+    expect(holdsLinkEnd(map, 'signal', 'target', 8, 2)).toBe(true);
+  });
+
+  it('links and unlinks through toggleLink, painting nothing, in canonical order', () => {
+    let map = toggleLink(wired(), 'signal', and, door, 'S').map;
+    map = toggleLink(map, 'signal', plate, and, 'S').map;
+    expect(map.signalLinks).toEqual([
+      { fromX: 2, fromY: 2, toX: 4, toY: 2 },
+      { fromX: 4, fromY: 2, toX: 8, toY: 2 }
+    ]);
+    expect(map.terrain).toEqual(wired().terrain);
+    expect(linkCountAt(map, 'signal', 'button', 4, 2)).toBe(1);
+    expect(linkCountAt(map, 'signal', 'target', 4, 2)).toBe(1);
+    const unlinked = toggleLink(map, 'signal', plate, and, 'S');
+    expect(unlinked.action).toBe('unlinked');
+    expect(unlinked.map.signalLinks).toEqual([{ fromX: 4, fromY: 2, toX: 8, toY: 2 }]);
+    expect(toggleLink(unlinked.map, 'signal', and, door, 'S').map.signalLinks).toBeUndefined();
+  });
+
+  it('refuses a wire into a plate, out of a door, and onto the same cell', () => {
+    const map = wired();
+    expect(toggleLink(map, 'signal', and, plate, 'S').refusal).toBe('missing_target');
+    expect(toggleLink(map, 'signal', door, and, 'S').refusal).toBe('missing_button');
+    expect(toggleLink(map, 'signal', and, and, 'S').refusal).toBe('same_cell');
+  });
+
+  it('refuses a wire that would close a cycle, directly or through a chain', () => {
+    let map = toggleLink(wired(), 'signal', plate, and, 'S').map;
+    map = toggleLink(map, 'signal', and, or, 'S').map;
+    const loop = toggleLink(map, 'signal', or, and, 'S');
+    expect(loop).toMatchObject({ refused: true, refusal: 'cycle', changed: false });
+    expect(loop.map).toBe(map);
+    const chain = toggleLink(map, 'signal', or, plate, 'S');
+    expect(chain.refusal).toBe('missing_target');
+    expect(toggleLink(map, 'signal', or, door, 'S').refused).toBe(false);
+  });
+
+  it('never places a partner for a signal wire', () => {
+    const result = placePartnerAndLink(wired(), 'signal', 'button', plate, { x: 3, y: 5 }, 'S');
+    expect(result.refused).toBe(true);
+    expect(result.changed).toBe(false);
+  });
+
+  it('drops the wires of a cell that is erased or repainted into something that cannot hold them', () => {
+    const map = toggleLink(toggleLink(wired(), 'signal', plate, and, 'S').map, 'signal', and, door, 'S').map;
+    expect(eraseCell(map, and.x, and.y).map.signalLinks).toBeUndefined();
+    expect(paintTerrain(map, door.x, door.y, 'floor').map.signalLinks).toEqual([{ fromX: 2, fromY: 2, toX: 4, toY: 2 }]);
+  });
+});
+
+describe('signal links: one input only', () => {
+  function gates(): EditorMap {
+    const map = bordered(10, 8);
+    map.terrain[2][2] = 'signal_plate';
+    map.terrain[3][2] = 'signal_plate';
+    map.terrain[2][4] = 'signal_gate_not';
+    map.terrain[2][6] = 'signal_gate_and';
+    map.terrain[2][8] = 'hold_door_red_closed';
+    return map;
+  }
+
+  it('refuses a second signal into a hold door, and into a NOT gate that already has one', () => {
+    let map = toggleLink(gates(), 'signal', { x: 2, y: 2 }, { x: 8, y: 2 }, 'S').map;
+    const door = toggleLink(map, 'signal', { x: 2, y: 3 }, { x: 8, y: 2 }, 'S');
+    expect(door).toMatchObject({ refused: true, refusal: 'single_input', changed: false });
+    map = toggleLink(map, 'signal', { x: 2, y: 2 }, { x: 4, y: 2 }, 'S').map;
+    expect(toggleLink(map, 'signal', { x: 2, y: 3 }, { x: 4, y: 2 }, 'S').refusal).toBe('single_input');
+  });
+
+  it('allows a NOT gate with no input, an AND gate with several, and unlinking a sole input', () => {
+    let map = gates();
+    expect(toggleLink(map, 'signal', { x: 2, y: 2 }, { x: 4, y: 2 }, 'S').refused).toBe(false);
+    map = toggleLink(map, 'signal', { x: 2, y: 2 }, { x: 6, y: 2 }, 'S').map;
+    map = toggleLink(map, 'signal', { x: 2, y: 3 }, { x: 6, y: 2 }, 'S').map;
+    expect(map.signalLinks).toHaveLength(2);
+    const door = toggleLink(map, 'signal', { x: 6, y: 2 }, { x: 8, y: 2 }, 'S').map;
+    expect(toggleLink(door, 'signal', { x: 6, y: 2 }, { x: 8, y: 2 }, 'S').action).toBe('unlinked');
   });
 });

@@ -16,7 +16,7 @@
 
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import { normalizeSignalLinks } from '../core/signalLinks';
-import type { CellUnderlay, SignalLink } from '../core/types';
+import type { CellUnderlay, SignalLink, TileDefinition } from '../core/types';
 
 /** The signal links of a map, as the editor reads and rewrites them (Epoxy levels only, never CC3D). */
 export interface SignalLinkHolder {
@@ -106,4 +106,61 @@ export function pruneSignalLinks(map: SignalLinkHolder): number {
   if (canonical) map.signalLinks = canonical;
   else delete map.signalLinks;
   return before.length - (canonical?.length ?? 0);
+}
+
+type Cell = { x: number; y: number };
+
+/** Which end of a signal wire a cell can be: the output (a source or a gate) or the input (a gate or a hold door). */
+export type SignalEnd = 'output' | 'input';
+
+/**
+ * Whether the tile can be that end of a signal wire, read from the tile flags as normalizeSignalLinks reads them: a
+ * laser receiver or a held source is an output only, a gate is both, a hold door is an input only.
+ */
+export function signalTileHoldsEnd(tile: TileDefinition | undefined, end: SignalEnd): boolean {
+  if (!tile) return false;
+  const isSource = tile.laserReceiverGroup !== undefined || tile.signalSource === 'held';
+  const isGate = tile.signalGate !== undefined;
+  const isSink = tile.holdDoorColor !== undefined;
+  return end === 'output' ? isSource || isGate : isGate || isSink;
+}
+
+/** How many signal links have that end on the cell. */
+export function signalLinkCountAt(map: Pick<SignalLinkHolder, 'signalLinks'>, end: SignalEnd, x: number, y: number): number {
+  return (map.signalLinks ?? []).filter((l) => (end === 'output' ? l.fromX === x && l.fromY === y : l.toX === x && l.toY === y)).length;
+}
+
+/** Whether a signal link joins the two cells, from the output cell to the input cell. */
+export function hasSignalLink(map: Pick<SignalLinkHolder, 'signalLinks'>, from: Cell, to: Cell): boolean {
+  return (map.signalLinks ?? []).some((l) => l.fromX === from.x && l.fromY === from.y && l.toX === to.x && l.toY === to.y);
+}
+
+/** Removes every signal link from the output cell to the input cell. The map is changed in place. */
+export function dropSignalPair(map: SignalLinkHolder, from: Cell, to: Cell): void {
+  const before = map.signalLinks ?? [];
+  const kept = before.filter((l) => !(l.fromX === from.x && l.fromY === from.y && l.toX === to.x && l.toY === to.y));
+  if (kept.length !== before.length) setSignalLinks(map, kept);
+}
+
+/** Adds a signal link from the output cell to the input cell, in canonical order. The map is changed in place. */
+export function appendSignalLink(map: SignalLinkHolder, from: Cell, to: Cell): void {
+  setSignalLinks(map, [...(map.signalLinks ?? []), { fromX: from.x, fromY: from.y, toX: to.x, toY: to.y }]);
+}
+
+/** Whether a wire from `from` to `to` would close a loop: the signal already flows from `to` back to `from`. */
+export function signalLinkClosesCycle(map: Pick<SignalLinkHolder, 'signalLinks'>, from: Cell, to: Cell): boolean {
+  const links = map.signalLinks ?? [];
+  const seen = new Set<string>([`${to.x},${to.y}`]);
+  const pending: Cell[] = [to];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (next.x === from.x && next.y === from.y) return true;
+    for (const l of links) {
+      if (l.fromX !== next.x || l.fromY !== next.y) continue;
+      const key = `${l.toX},${l.toY}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pending.push({ x: l.toX, y: l.toY });
+    }
+  }
+  return false;
 }

@@ -47,9 +47,9 @@ export function cellEdgeAvailability(ruleset: EditableRuleset): Availability {
   return epoxyOnlyUnless(ruleset, true);
 }
 
-/** Availability of a link session for a system: the shot trigger and launcher system needs Epoxy rules, traps and clone machines link under both. */
+/** Availability of a link session for a system: the shot and signal systems need Epoxy rules, traps and clone machines link under both. */
 export function linkAvailability(ruleset: EditableRuleset, system: LinkSystem): Availability {
-  return epoxyOnlyUnless(ruleset, system === 'shot');
+  return epoxyOnlyUnless(ruleset, system === 'shot' || system === 'signal');
 }
 
 /** Availability of an entity (block or monster id): laser mirrors and colour blocks need Epoxy rules. */
