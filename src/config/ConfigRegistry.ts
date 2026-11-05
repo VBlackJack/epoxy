@@ -38,6 +38,7 @@ import {
   findTransmogrifierConfigErrors,
   findShotConfigErrors,
   findSteeringConfigErrors,
+  findPushArrowConfigErrors,
   findTurretConfigErrors,
   sanitizeStoredLevels,
   isSizeWithinBounds,
@@ -323,6 +324,10 @@ class ConfigRegistryService {
     const turretErrors = findTurretConfigErrors(bundle.monsters.entities);
     if (turretErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, turretErrors.join('; '));
+    }
+    const pushArrowErrors = findPushArrowConfigErrors(bundle.monsters.entities);
+    if (pushArrowErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, pushArrowErrors.join('; '));
     }
     const steeringErrors = findSteeringConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (steeringErrors.length > 0) {

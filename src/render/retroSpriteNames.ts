@@ -23,6 +23,7 @@
 /** Single sprites by role. */
 export const RETRO_SPRITE = {
   floor: 'floor',
+  dirtBlock: 'dirt_block',
   wallTop: 'wall_top',
   wallFront: 'wall_front',
   wallRimN: 'wall_rim_n',
@@ -50,6 +51,7 @@ export const RETRO_SPRITE = {
 /** Prefixes of numbered or lettered sprite families. */
 export const RETRO_SPRITE_PREFIX = {
   floorDetail: 'floor_detail_',
+  arrowMark: 'arrow_mark_',
   thin: 'thin_',
   water: 'water_',
   fire: 'fire_',

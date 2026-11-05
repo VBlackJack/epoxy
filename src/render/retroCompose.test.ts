@@ -23,6 +23,7 @@ import {
   composeRetroLayers,
   RETRO_FRAME_COUNTS,
   retroBonusLabel,
+  retroArrowBlockLayers,
   retroItemLayers,
   retroLabelLayers,
   retroLayersKey,
@@ -350,6 +351,15 @@ describe('every in-game id maps to existing sprites', () => {
     const entities = Object.entries(bundle.monsters.entities);
     expect(entities.length).toBeGreaterThan(5);
     for (const [id, def] of entities) {
+      if (def.pushArrows) {
+        for (const dir of DIRECTIONS) {
+          const names = retroArrowBlockLayers(def.pushArrows, dir).map((l) => l.name);
+          collect(names);
+          expect(names.filter((n) => !(n in RETRO_SHEET.sprites)), `${id} ${dir}`).toEqual([]);
+          expect(names.length, `${id} ${dir}`).toBe(def.pushArrows.length + 1);
+        }
+        continue;
+      }
       if (def.kind === 'block') {
         collect([id]);
         expect(id in RETRO_SHEET.sprites, id).toBe(true);

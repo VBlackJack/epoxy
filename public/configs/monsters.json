@@ -12,6 +12,58 @@
       "destroyedByFire": false,
       "destroyedByBomb": true
     },
+    "arrow_block_one": {
+      "id": "arrow_block_one",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.arrow_block_one.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "pushArrows": ["FORWARD"]
+    },
+    "arrow_block_line": {
+      "id": "arrow_block_line",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.arrow_block_line.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "pushArrows": ["FORWARD", "BACK"]
+    },
+    "arrow_block_corner": {
+      "id": "arrow_block_corner",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.arrow_block_corner.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "pushArrows": ["FORWARD", "RIGHT"]
+    },
+    "arrow_block_tee": {
+      "id": "arrow_block_tee",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.arrow_block_tee.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "pushArrows": ["FORWARD", "LEFT", "RIGHT"]
+    },
     "ice_block": {
       "id": "ice_block",
       "category": "mechanisms",

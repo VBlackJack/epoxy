@@ -294,6 +294,10 @@ editor item over floor score_2x 3a33d92f42af3810
 editor item over floor stopwatch_bonus 654ecf9e4c762bea
 editor item over floor stopwatch_penalty 8220d398fee74a66
 editor entity over floor dirt_block 424050c09e8a0007
+editor entity over floor arrow_block_one f3c1551acfe4f27c
+editor entity over floor arrow_block_line e1e7bcbbe49ec576
+editor entity over floor arrow_block_corner de1e070023253046
+editor entity over floor arrow_block_tee 59d47d8427208c23
 editor entity over floor ice_block 6b8286a59c60981d
 editor entity over floor mirror_slash e36a923215ee7dda
 editor entity over floor mirror_backslash d915131f0ace1fce

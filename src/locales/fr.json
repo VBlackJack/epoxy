@@ -580,6 +580,7 @@
       "laser_gate_no_receiver": { "label": "Avertissement : une barrière laser ({group}) en ({x}, {y}) (au total : {count}) n'a aucun récepteur de son groupe, elle reste donc fermée." },
       "flame_jets_no_button": { "label": "Info : les jets de flammes en ({x}, {y}) (au total : {count}) ne changent jamais : le niveau ne contient pas de bouton orange." },
       "swivel_sealed": { "label": "Info : une porte pivotante en ({x}, {y}) (au total : {count}) est scellée : chaque côté par lequel elle s'ouvre donne sur un mur, un mur fin, un émetteur ou un récepteur laser, ou le bord de la carte." },
+      "arrow_block_locked": { "label": "Info : un bloc fléché en ({x}, {y}) (au total : {count}) ne pourra jamais être poussé : chaque côté où il montre une flèche donne sur un mur, un mur fin ou le bord de la carte." },
       "exit_on_receivers_level": { "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs." },
       "start_on_wall": { "label": "Avertissement : le départ du joueur est dans un mur." },
       "start_on_entity": { "label": "Avertissement : le départ du joueur partage sa case avec un bloc ou un monstre." },
@@ -1663,6 +1664,10 @@
   },
   "entities": {
     "dirt_block": { "name": "Bloc de Terre Mobile", "desc": { "label": "Un bloc que le joueur peut pousser. Poussé dans l'eau, il la transforme en terre." } },
+    "arrow_block_one": { "name": "Bloc fléché (un sens)", "desc": { "label": "Un bloc poussable qui ne bouge que vers le seul côté marqué d'une flèche. Poussé par un autre côté, il reste immobile." } },
+    "arrow_block_line": { "name": "Bloc fléché (deux sens)", "desc": { "label": "Un bloc poussable qui ne bouge que vers les deux côtés opposés marqués d'une flèche. Poussé par un autre côté, il reste immobile." } },
+    "arrow_block_corner": { "name": "Bloc fléché (coin)", "desc": { "label": "Un bloc poussable qui ne bouge que vers les deux côtés adjacents marqués d'une flèche. Poussé par un autre côté, il reste immobile." } },
+    "arrow_block_tee": { "name": "Bloc fléché (trois sens)", "desc": { "label": "Un bloc poussable qui ne bouge que vers les trois côtés marqués d'une flèche. Poussé par le quatrième côté, il reste immobile." } },
     "ice_block": { "name": "Bloc de Glace Glissant", "desc": { "label": "Un bloc que le joueur peut pousser. Fond en eau dans le feu ; un tir le détruit aussi, en ne laissant de l'eau que sur un sol simple." } },
     "bug": { "name": "Scarabée (Longe Mur Gauche)" },
     "paramecium": { "name": "Paramécie (Longe Mur Droit)" },

@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, WALL_TILE_ID } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
 
 /** Layouts the exact search may visit, for the dead-end watch that runs by itself, before giving up without a verdict. */
 export function watchSearchBudget(): number {
@@ -48,6 +49,27 @@ const MODELLED_TERRAIN: readonly string[] = [FLOOR_TILE_ID, WALL_TILE_ID, BLOCK_
 const MODELLED_ITEMS: readonly string[] = ['chip'];
 /** The one piece the search moves: a plain pushable block. Mirrors, ice blocks and monsters are not modelled. */
 const MODELLED_ENTITIES: readonly string[] = ['dirt_block'];
+
+/** Bits of a push mask: one per direction, in ORDERED_DIRECTIONS order. */
+const ARROW_MASK_SPAN = 1 << ORDERED_DIRECTIONS.length;
+/** The mask of a block that may be pushed anywhere: a plain dirt block. */
+const FULL_PUSH_MASK = ARROW_MASK_SPAN - 1;
+
+/** A search block is encoded as `cell * ARROW_MASK_SPAN + mask`, so sorting by it still sorts by cell. */
+function encodeBlock(cell: number, mask: number): number {
+  return cell * ARROW_MASK_SPAN + mask;
+}
+function blockCell(encoded: number): number {
+  return Math.floor(encoded / ARROW_MASK_SPAN);
+}
+function blockMask(encoded: number): number {
+  return encoded % ARROW_MASK_SPAN;
+}
+
+/** Whether the level's entity is a block the search models: dirt, or an arrow block (arrows never turn here). */
+function isModelledEntityType(type: string): boolean {
+  return MODELLED_ENTITIES.includes(type) || ConfigRegistry.getEntityDef(type)?.pushArrows !== undefined;
+}
 
 type Dir = (typeof ORDERED_DIRECTIONS)[number];
 
@@ -94,6 +116,8 @@ export class BlockPuzzleSolver {
   /** Cells a block must cover: the block targets of a 'targets' level, else the hold-trap buttons. */
   private readonly buttons: number[];
   private readonly blocks: number[];
+  /** Per block cell: the bitset of absolute directions a push may move it toward. */
+  private readonly pushMasks = new Map<number, number>();
   private readonly player: number;
 
   private constructor(engine: GameEngine) {
@@ -115,7 +139,15 @@ export class BlockPuzzleSolver {
     this.blocks = [];
     for (const e of engine.getEntities()) {
       const kind = ConfigRegistry.getEntityDef(e.type)?.kind;
-      if (kind === 'block') this.blocks.push(e.y * this.width + e.x);
+      if (kind === 'block') {
+        const cell = e.y * this.width + e.x;
+        this.blocks.push(cell);
+        const allowed = allowedPushDirs(e, ConfigRegistry.getEntityDef(e.type));
+        const mask = allowed === undefined
+          ? FULL_PUSH_MASK
+          : allowed.reduce((bits, d) => bits | (1 << ORDERED_DIRECTIONS.indexOf(d)), 0);
+        this.pushMasks.set(cell, mask);
+      }
       else monsters.add(e.y * this.width + e.x);
     }
     for (let y = 0; y < this.height; y++) {
@@ -251,7 +283,7 @@ export class BlockPuzzleSolver {
         if (terrain[y][x] !== WALL_TILE_ID) cells++;
       }
     }
-    if (engine.getEntities().some((e) => !MODELLED_ENTITIES.includes(e.type))) return null;
+    if (engine.getEntities().some((e) => !isModelledEntityType(e.type))) return null;
     if (engine.getLevel().cloneLinks.length > 0 || engine.getLevel().trapLinks.length > 0) return null;
     // Flying shots destroy blocks and monsters: the search does not model them.
     if (engine.getShots() !== undefined || (engine.getLevel().launcherLinks?.length ?? 0) > 0) return null;
@@ -314,7 +346,7 @@ export class BlockPuzzleSolver {
     const cutOff = blocks.some((block) => {
       if (buttons.includes(block)) return false;
       const others = new Set(this.blocks.filter((b) => b !== block));
-      return !this.singleBlockReaches(block, others, freeButtons);
+      return !this.singleBlockReaches(block, others, freeButtons, this.pushMasks.get(block) ?? FULL_PUSH_MASK);
     });
     return cutOff && this.search(blocks, buttons, fixed, budget).kind === 'exhausted';
   }
@@ -346,7 +378,7 @@ export class BlockPuzzleSolver {
     return null;
   }
 
-  private singleBlockReaches(block: number, others: Set<number>, targets: number[]): boolean {
+  private singleBlockReaches(block: number, others: Set<number>, targets: number[], mask: number): boolean {
     const keyOf = (b: number, region: number) => b * this.width * this.height + region;
     const startRegion = this.region(this.player, new Set([...others, block]));
     const seen = new Set([keyOf(block, Math.min(...startRegion))]);
@@ -356,6 +388,7 @@ export class BlockPuzzleSolver {
       if (targets.includes(b)) return true;
       const reachSet = new Set(reach);
       for (const dir of ORDERED_DIRECTIONS) {
+        if ((mask & (1 << ORDERED_DIRECTIONS.indexOf(dir))) === 0) continue;
         const behind = this.step(b, dir, -1);
         const ahead = this.step(b, dir, 1);
         if (behind < 0 || ahead < 0 || !reachSet.has(behind)) continue;
@@ -376,9 +409,11 @@ export class BlockPuzzleSolver {
    * the search tree so the first push can be read back.
    */
   private search(areaBlocks: number[], buttons: number[], fixed: Set<number>, budget: number): SearchOutcome {
-    const covered = (blocks: number[]) => buttons.every((b) => blocks.includes(b));
-    const startBlocks = [...areaBlocks].sort((a, b) => a - b);
-    const startReach = this.region(this.player, new Set([...startBlocks, ...fixed]));
+    const covered = (blocks: number[]) => buttons.every((b) => blocks.some((c) => blockCell(c) === b));
+    const startBlocks = areaBlocks
+      .map((cell) => encodeBlock(cell, this.pushMasks.get(cell) ?? FULL_PUSH_MASK))
+      .sort((a, b) => a - b);
+    const startReach = this.region(this.player, new Set([...startBlocks.map(blockCell), ...fixed]));
     const keyOf = (blocks: number[], reach: number[]) => `${blocks.join(',')}|${Math.min(...reach)}`;
     const seen = new Set([keyOf(startBlocks, startReach)]);
     const nodes: SearchNode[] = [{ blocks: startBlocks, reach: startReach, parent: -1, pushFrom: -1, pushDir: null }];
@@ -387,16 +422,19 @@ export class BlockPuzzleSolver {
       if (covered(blocks)) return { kind: 'covered', nodes, goal: i };
       // The reach is only read while a node is expanded; keeping it would hold a region per layout.
       nodes[i].reach = [];
-      const blockSet = new Set([...blocks, ...fixed]);
+      const blockSet = new Set([...blocks.map(blockCell), ...fixed]);
       const reachSet = new Set(reach);
-      for (const b of blocks) {
+      for (const encoded of blocks) {
+        const b = blockCell(encoded);
+        const mask = blockMask(encoded);
         for (const dir of ORDERED_DIRECTIONS) {
+          if ((mask & (1 << ORDERED_DIRECTIONS.indexOf(dir))) === 0) continue;
           const behind = this.step(b, dir, -1);
           const ahead = this.step(b, dir, 1);
           if (behind < 0 || ahead < 0 || !reachSet.has(behind)) continue;
           if (!this.blockOk[ahead] || blockSet.has(ahead)) continue;
-          const next = blocks.map((c) => (c === b ? ahead : c)).sort((m, n) => m - n);
-          const nextReach = this.region(b, new Set([...next, ...fixed]));
+          const next = blocks.map((c) => (c === encoded ? encodeBlock(ahead, mask) : c)).sort((m, n) => m - n);
+          const nextReach = this.region(b, new Set([...next.map(blockCell), ...fixed]));
           const key = keyOf(next, nextReach);
           if (seen.has(key)) continue;
           if (seen.size >= budget) return { kind: 'budget' };

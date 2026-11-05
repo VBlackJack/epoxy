@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { Direction, RuntimeEntity } from '../types';
+import { isPushAllowed } from './epoxyArrowBlocks';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import {
@@ -37,6 +38,10 @@ import {
 export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction): boolean {
   const w = ctx.world;
   if (isCellClosedTrap(w, block.x, block.y)) {
+    return false;
+  }
+  // An arrow block yields only toward a side that shows an arrow; a refused push is a blocked push.
+  if (!isPushAllowed(block, dir)) {
     return false;
   }
   const vec = DIRECTION_VECTORS[dir];

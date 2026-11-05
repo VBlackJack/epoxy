@@ -27,6 +27,7 @@ import actorsSheet from './retro/sprites/actors.json';
 import monstersSheet from './retro/sprites/monsters.json';
 import skinJulienSheet from './retro/sprites/skinJulien.json';
 import { RETRO_BOOT_RAMPS, RETRO_PLAIN_TELEPORT_RAMP, RETRO_SWAP_RAMPS } from './paletteKeys';
+import { RETRO_SPRITE_PREFIX } from './retroSpriteNames';
 
 /** Side of a tile sprite in pixels. */
 export const RETRO_SPRITE_SIZE = 16;
@@ -162,6 +163,8 @@ const DIGIT_COUNT = 10;
 const GLYPH_COLOURS: readonly string[] = ['red', 'blue', 'yellow', 'green', 'orange'];
 /** The four turret blocks: sprites of the sheet, which the game draws through the cc3d bot painters. */
 const TURRET_SPRITES: readonly string[] = ['turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi'];
+/** The arrow overlay of each face of an arrow block, drawn over the plain block sprite: one per absolute direction. */
+const ARROW_MARK_SPRITES: readonly string[] = DIRECTIONS.map((d) => `${RETRO_SPRITE_PREFIX.arrowMark}${d.toLowerCase()}`);
 /** The four one-sided mirror blocks: sprites of the sheet, which the game draws through the cc3d reflector painter. */
 const ONE_SIDED_MIRROR_SPRITES: readonly string[] = Object.keys(MIRROR_FRONT_AXIS).map((c) => `one_sided_mirror_${c.toLowerCase()}`);
 /** The colour block sprites: one per channel colour, named after the entity they draw. */
@@ -189,7 +192,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...DIRECTIONS.flatMap((d) => framed(`player_${d}`, PLAYER_FRAMES)),
   ...DIRECTIONS.map((d) => `player_swim_${d}`), 'player_dead',
   ...MONSTER_TYPES.flatMap((t) => DIRECTIONS.flatMap((d) => framed(`${t}_${d}`, MONSTER_FRAMES))),
-  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...ONE_SIDED_MIRROR_SPRITES, ...TURRET_SPRITES, 'block_on_target'
+  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...ONE_SIDED_MIRROR_SPRITES, ...TURRET_SPRITES, ...ARROW_MARK_SPRITES, 'block_on_target'
 ];
 
 /** Names of RETRO_SPRITE_NAMES the sheet does not define. */

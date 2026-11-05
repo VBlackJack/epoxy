@@ -31,6 +31,7 @@ import {
   channelOfButtonAction
 } from '../coreConstants';
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
+import { hasEntityFacing } from './epoxyArrowBlocks';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLaunchers } from './epoxyShots';
@@ -250,7 +251,7 @@ function spawnFromCloner(
       : canMonsterEnter(w, probe, templateDir);
   if (!canEnter) return true;
 
-  // A turret clone fires the way its template does now (templates turn), else the way it is spawned.
+  // A turret or arrow block clone keeps the facing its template has now (turrets turn), else the way it is spawned.
   const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
   const spawned: RuntimeEntity = {
     uid: w.nextEntityUid++,
@@ -261,7 +262,7 @@ function spawnFromCloner(
     dir: templateDir,
     cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
     isSliding: kind === 'block',
-    ...(def?.turretBeam ? { facing: template?.facing ?? templateDir } : {})
+    ...(hasEntityFacing(def) ? { facing: template?.facing ?? templateDir } : {})
   };
   w.entities.push(spawned);
   if (spawned.kind === 'block') {

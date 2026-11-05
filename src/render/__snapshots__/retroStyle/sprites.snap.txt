@@ -211,6 +211,10 @@ sprite theme=default name=turret_fixed 5271bd594e79b62e
 sprite theme=default name=turret_cw dd181d91c4f04140
 sprite theme=default name=turret_ccw 34b8fb78fad2724c
 sprite theme=default name=turret_multi 696fecb29140addb
+sprite theme=default name=arrow_mark_n ef16e0da0d415209
+sprite theme=default name=arrow_mark_e fb2cb4bbb4e6e9cf
+sprite theme=default name=arrow_mark_s 767eb1ab2178e9e1
+sprite theme=default name=arrow_mark_w 980158682db9dd45
 sprite theme=default name=block_on_target a025ecab1cd574cc
 sprite theme=cyber_neon name=floor 833c3af7d294bb8b
 sprite theme=cyber_neon name=floor_detail_0 4e0f0a6a9766b02d
@@ -425,6 +429,10 @@ sprite theme=cyber_neon name=turret_fixed 65f23ca66cfefad1
 sprite theme=cyber_neon name=turret_cw af3366a997451341
 sprite theme=cyber_neon name=turret_ccw f39007511cbbd01b
 sprite theme=cyber_neon name=turret_multi a2ffd7d7db6e077b
+sprite theme=cyber_neon name=arrow_mark_n 9fe7af1158b60a3a
+sprite theme=cyber_neon name=arrow_mark_e 0d9b9368b71204a6
+sprite theme=cyber_neon name=arrow_mark_s b4b3b781dca93a73
+sprite theme=cyber_neon name=arrow_mark_w dafe55a74ff43cc8
 sprite theme=cyber_neon name=block_on_target e0d648d8de49fa6e
 sprite theme=arctic_lab name=floor ebb9b14c214111ef
 sprite theme=arctic_lab name=floor_detail_0 a7afa2502af33e92
@@ -639,6 +647,10 @@ sprite theme=arctic_lab name=turret_fixed 44b3a8b8edd2ffc7
 sprite theme=arctic_lab name=turret_cw e17fab7c980fc9e0
 sprite theme=arctic_lab name=turret_ccw 2ab33cee3409260b
 sprite theme=arctic_lab name=turret_multi 333079a76856bd29
+sprite theme=arctic_lab name=arrow_mark_n defb982b51ece3e8
+sprite theme=arctic_lab name=arrow_mark_e e5693e0078ec16a9
+sprite theme=arctic_lab name=arrow_mark_s 7a625fc355ae1f4a
+sprite theme=arctic_lab name=arrow_mark_w f7984cf969f08df3
 sprite theme=arctic_lab name=block_on_target 674c4e6747fb45d7
 sprite theme=magma_core name=floor c1ac33fcce2da3f9
 sprite theme=magma_core name=floor_detail_0 753cdb9827f56bab
@@ -853,6 +865,10 @@ sprite theme=magma_core name=turret_fixed d6217086fac94d04
 sprite theme=magma_core name=turret_cw 7d53edfafba8c102
 sprite theme=magma_core name=turret_ccw 02430925e2858cc5
 sprite theme=magma_core name=turret_multi e4615a1747ff5843
+sprite theme=magma_core name=arrow_mark_n 41c30cb2426e3b23
+sprite theme=magma_core name=arrow_mark_e 34dd18d100e9d99f
+sprite theme=magma_core name=arrow_mark_s b28938e514f8b98d
+sprite theme=magma_core name=arrow_mark_w 257518db11baf78b
 sprite theme=magma_core name=block_on_target b288f6d3db4ff61b
 sprite theme=lynx_lcd name=floor 4e76eb8826d65108
 sprite theme=lynx_lcd name=floor_detail_0 440f493adb2165dd
@@ -1067,4 +1083,8 @@ sprite theme=lynx_lcd name=turret_fixed c3187b63ff136fbe
 sprite theme=lynx_lcd name=turret_cw 5432d0c0a622ff71
 sprite theme=lynx_lcd name=turret_ccw 4f10d3b5bd839268
 sprite theme=lynx_lcd name=turret_multi 7ed5f0c1bf87dafd
+sprite theme=lynx_lcd name=arrow_mark_n cc86f5d54cccb7b7
+sprite theme=lynx_lcd name=arrow_mark_e fe4debb4d5613d63
+sprite theme=lynx_lcd name=arrow_mark_s 7e318be09789251a
+sprite theme=lynx_lcd name=arrow_mark_w 8e09166b6ef4e34c
 sprite theme=lynx_lcd name=block_on_target 085f7bf03e96c0cb

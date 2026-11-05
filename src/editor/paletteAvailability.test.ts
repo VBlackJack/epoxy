@@ -45,6 +45,7 @@ const COLOUR_TILE_IDS: readonly string[] = [
   'floating_block_yellow'
 ];
 const COLOUR_BLOCK_IDS: readonly string[] = ['color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow'];
+const ARROW_BLOCK_IDS: readonly string[] = ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee'];
 
 describe('paletteAvailability', () => {
   beforeEach(() => {
@@ -107,6 +108,7 @@ describe('paletteAvailability', () => {
         def.plateColor !== undefined ||
         def.turretBeam !== undefined ||
         def.steeredBy !== undefined ||
+        def.pushArrows !== undefined ||
         def.movementPattern === 'flee_player';
       const result = entityAvailability('lynx', id);
       expect(result.available, id).toBe(!epoxyOnly);
@@ -118,6 +120,14 @@ describe('paletteAvailability', () => {
 
   it('blocks each colour block under Lynx and allows it under Epoxy', () => {
     for (const id of COLOUR_BLOCK_IDS) {
+      expect(entityAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+      expect(entityAvailability('epoxy', id), id).toEqual({ available: true });
+    }
+  });
+
+  it('keeps the four arrow blocks out of the Lynx palette and in the Epoxy one', () => {
+    for (const id of ARROW_BLOCK_IDS) {
+      expect(ConfigRegistry.getEntityDef(id), id).toBeDefined();
       expect(entityAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
       expect(entityAvailability('epoxy', id), id).toEqual({ available: true });
     }

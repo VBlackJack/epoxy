@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { relativeTo } from '../core/lynx/directions';
 import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
@@ -95,6 +96,7 @@ import {
   applyRetroShadow,
   composeRetroLayers,
   retroItemLayers,
+  retroArrowBlockLayers,
   retroLayersKey,
   RetroLayer,
   retroMonsterSprite,
@@ -439,6 +441,11 @@ const BLOCK_TARGET_MARK = { ringInset: 0.26, ringWidth: 0.08, dotRadius: 0.1 };
 /** Outline of a block standing on a target, in tile units: inset from the block edge and width. */
 const BLOCK_ON_TARGET_OUTLINE = { inset: 0.14, width: 0.07 };
 const BLOCK_RADIUS_TILE = 0.1;
+/**
+ * Arrow drawn on a face of an arrow block, in tile units, pointing away from the centre of the top face:
+ * distance of its tip and of its base from that centre, half the base width, and the outline width.
+ */
+const ARROW_BLOCK_ARROW = { tip: 0.25, base: 0.11, halfBase: 0.11, outlineWidth: 0.025 };
 /**
  * Laser devices, in tile units: housing inset, nozzle length and width, emitter barrel width, emitter
  * turret radius and its glowing core radius, lens radius, gate bar width, glyph radius, post size.
@@ -4708,11 +4715,15 @@ export class PixelRenderer {
       this.drawCc3dEntity(ctx, type, dir, x, y, size);
       return;
     }
-    const isBlock = BLOCK_TYPES.has(type) || ConfigRegistry.getEntityDef(type)?.mirrorAxis !== undefined;
+    const entityDef = ConfigRegistry.getEntityDef(type);
+    const pushArrows = entityDef?.pushArrows;
+    const isBlock = BLOCK_TYPES.has(type) || entityDef?.mirrorAxis !== undefined || pushArrows !== undefined;
     const frame = isBlock ? 0 : Math.floor(this.timeTick / MONSTER_FRAME_TICKS) % WALK_FRAMES;
     if (!this.isHdVector() && this.retroSpritesReady()) {
-      const name = isBlock ? type : retroMonsterSprite(type, dir, frame);
-      this.drawRetroLayers(ctx, [{ name }], x, y, size, 0, isBlock);
+      const layers = pushArrows
+        ? retroArrowBlockLayers(pushArrows, dir)
+        : [{ name: isBlock ? type : retroMonsterSprite(type, dir, frame) }];
+      this.drawRetroLayers(ctx, layers, x, y, size, 0, isBlock);
       return;
     }
     const pad = this.glowPad();
@@ -5029,7 +5040,7 @@ export class PixelRenderer {
   }
 
   /** A pushable block, with a top face and a darker front face like the walls. */
-  private paintBlock(ctx: CanvasRenderingContext2D, type: string, x: number, y: number, size: number): void {
+  private paintBlock(ctx: CanvasRenderingContext2D, type: string, x: number, y: number, size: number, dir: Direction): void {
     const pal = this.pal();
     const isModern = this.isHdVector();
     const isIce = type === 'ice_block';
@@ -5062,6 +5073,31 @@ export class PixelRenderer {
     ctx.fill();
     ctx.fillStyle = pal.monsterHighlight;
     ctx.fillRect(x + inset * 2, y + inset * 2, width - inset * 2, inset);
+    const pushArrows = ConfigRegistry.getEntityDef(type)?.pushArrows;
+    if (pushArrows) {
+      const topCentreX = x + inset * 2 + (width - inset * 2) / 2;
+      const topCentreY = y + inset * 2 + (topHeight - inset * 2) / 2;
+      for (const turn of pushArrows) this.paintArrowBlockArrow(ctx, topCentreX, topCentreY, relativeTo(dir, turn), size);
+    }
+    ctx.restore();
+  }
+
+  /** One arrow of an arrow block, a filled triangle on the top face pointing toward the side it lets the block move. */
+  private paintArrowBlockArrow(ctx: CanvasRenderingContext2D, cx: number, cy: number, side: Direction, size: number): void {
+    const pal = this.pal();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(DIRECTION_ANGLE[side]);
+    ctx.beginPath();
+    ctx.moveTo(0, -size * ARROW_BLOCK_ARROW.tip);
+    ctx.lineTo(size * ARROW_BLOCK_ARROW.halfBase, -size * ARROW_BLOCK_ARROW.base);
+    ctx.lineTo(-size * ARROW_BLOCK_ARROW.halfBase, -size * ARROW_BLOCK_ARROW.base);
+    ctx.closePath();
+    ctx.fillStyle = pal.yellow;
+    ctx.fill();
+    ctx.strokeStyle = pal.blockBorder;
+    ctx.lineWidth = Math.max(1, size * ARROW_BLOCK_ARROW.outlineWidth);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -5079,8 +5115,8 @@ export class PixelRenderer {
     size: number,
     frame: number = 0
   ): void {
-    if (BLOCK_TYPES.has(type)) {
-      this.paintBlock(ctx, type, x, y, size);
+    if (BLOCK_TYPES.has(type) || ConfigRegistry.getEntityDef(type)?.pushArrows !== undefined) {
+      this.paintBlock(ctx, type, x, y, size, dir);
       return;
     }
     const mirrorDef = ConfigRegistry.getEntityDef(type);

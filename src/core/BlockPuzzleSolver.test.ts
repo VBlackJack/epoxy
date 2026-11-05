@@ -21,7 +21,7 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { GameEngine } from './GameEngine';
 import { BlockPuzzleSolver, requestedSearchBudget, watchSearchBudget } from './BlockPuzzleSolver';
-import { CompiledLevel, GridPoint } from './types';
+import { CompiledLevel, Direction, GridPoint } from './types';
 import { compilePiece } from '../generator/PieceCompiler';
 import { PieceSolver } from '../generator/PieceSolver';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -227,5 +227,90 @@ describe('BlockPuzzleSolver', () => {
     const engine = new GameEngine();
     engine.loadLevel(level);
     expect(BlockPuzzleSolver.isStuck(engine)).toBe(false);
+  });
+
+  describe('arrow blocks', () => {
+    const FIRST_LANE_Y = 2;
+    const SECOND_LANE_Y = 3;
+    const LANE_FIRST_X = 1;
+    const LANE_LAST_X = 5;
+    const PLAYER_X = 1;
+    const BLOCK_X = 3;
+    const TARGET_X = 5;
+    const CORRIDOR_PUSHES = 2;
+
+    interface Placed {
+      type: string;
+      x: number;
+      y: number;
+      dir: Direction;
+    }
+
+    /** A targets level: lanes of floor on the given rows, a block target at the end of each, the player at the west end. */
+    function targetsEngine(lanes: number[], blocks: Placed[]): GameEngine {
+      const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+      const terrain = Array.from({ length: mapHeight }, () => Array.from({ length: mapWidth }, () => 'wall'));
+      for (const y of lanes) {
+        for (let x = LANE_FIRST_X; x <= LANE_LAST_X; x++) terrain[y][x] = 'floor';
+        terrain[y][TARGET_X] = 'block_target';
+      }
+      const level: CompiledLevel = {
+        id: 'arrow_lanes',
+        number: 1,
+        password: 'TEST',
+        timeLimitSeconds: 0,
+        chipsRequired: 0,
+        playerStart: { x: PLAYER_X, y: lanes[0], dir: 'E' },
+        terrain,
+        items: Array.from({ length: mapHeight }, () => Array.from({ length: mapWidth }, () => null)),
+        entities: blocks,
+        trapLinks: [],
+        cloneLinks: [],
+        winRule: 'targets'
+      };
+      const engine = new GameEngine();
+      engine.loadLevel(level);
+      return engine;
+    }
+
+    const block = (type: string, dir: Direction, y = FIRST_LANE_Y): Placed => ({ type, x: BLOCK_X, y, dir });
+
+    it('solves a level whose arrow block faces the way it must be pushed', () => {
+      const engine = targetsEngine([FIRST_LANE_Y], [block('arrow_block_one', 'E')]);
+      expect(BlockPuzzleSolver.verdict(engine)).toEqual({ kind: 'solved', pushes: CORRIDOR_PUSHES });
+    });
+
+    it('solves it with the arrow on the back side of a line block', () => {
+      const engine = targetsEngine([FIRST_LANE_Y], [block('arrow_block_line', 'W')]);
+      expect(BlockPuzzleSolver.verdict(engine)).toEqual({ kind: 'solved', pushes: CORRIDOR_PUSHES });
+    });
+
+    it('proves unsolvable a layout that only the arrows make impossible', () => {
+      const arrow = targetsEngine([FIRST_LANE_Y], [block('arrow_block_one', 'N')]);
+      expect(BlockPuzzleSolver.verdict(arrow)).toEqual({ kind: 'unsolvable' });
+      const dirt = targetsEngine([FIRST_LANE_Y], [block('dirt_block', 'N')]);
+      expect(BlockPuzzleSolver.verdict(dirt)).toEqual({ kind: 'solved', pushes: CORRIDOR_PUSHES });
+    });
+
+    it('judges a mix of dirt and arrow blocks', () => {
+      const lanes = [FIRST_LANE_Y, SECOND_LANE_Y];
+      const mixed = targetsEngine(lanes, [block('dirt_block', 'N'), block('arrow_block_one', 'E', SECOND_LANE_Y)]);
+      expect(BlockPuzzleSolver.verdict(mixed)).toEqual({ kind: 'solved', pushes: CORRIDOR_PUSHES * 2 });
+      // Facing north, the arrow block can never travel east, and the dirt block alone covers one target only.
+      const stuck = targetsEngine(lanes, [block('dirt_block', 'N'), block('arrow_block_one', 'N', SECOND_LANE_Y)]);
+      expect(BlockPuzzleSolver.verdict(stuck)).toEqual({ kind: 'unsolvable' });
+    });
+
+    it('flags as stuck a block whose arrows can never lead it to a target', () => {
+      const arrow = targetsEngine([FIRST_LANE_Y], [block('arrow_block_one', 'N')]);
+      expect(BlockPuzzleSolver.isStuck(arrow)).toBe(true);
+      const dirt = targetsEngine([FIRST_LANE_Y], [block('dirt_block', 'N')]);
+      expect(BlockPuzzleSolver.isStuck(dirt)).toBe(false);
+    });
+
+    it('keeps the verdict of a plain dirt level', () => {
+      const engine = targetsEngine([FIRST_LANE_Y], [block('dirt_block', 'E')]);
+      expect(BlockPuzzleSolver.verdict(engine)).toEqual({ kind: 'solved', pushes: CORRIDOR_PUSHES });
+    });
   });
 });

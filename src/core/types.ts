@@ -881,6 +881,11 @@ export interface EntityDefinition {
   /** Present on a turret: a block that fires a short beam from the cell it faces. */
   turretBeam?: TurretBeamDefinition;
   /**
+   * Present on an arrow block: the sides, read relative to its facing, that show an arrow. A push moves
+   * the block only toward one of these sides; slides, teleports and clone machines ignore them.
+   */
+  pushArrows?: RelativeTurn[];
+  /**
    * A monster that never decides a step of its own: it moves only when a button of this action is worked
    * (see ButtonAction 'steer_monsters'), one step in the direction the player moved.
    */

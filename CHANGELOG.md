@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Arrow blocks: four Epoxy-only pushable blocks (one way, two ways, corner, three ways) that move under a push only toward a side showing an arrow; slides, teleports and clone machines move them whatever their arrows and never turn them. The editor rotates them with the direction control, the block puzzle check and the dead-end watch know their arrows, and the validator adds a note when every arrow side of a block is walled for good. Both locales.
+
 ### Changed
 
 - Validator: a level with fewer keys than doors of a colour now gets a warning instead of an error, so winnable levels with spare doors can be saved; a real shortage is still reported as unreachable chips or exit.
