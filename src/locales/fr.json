@@ -506,12 +506,13 @@
       "sec_editor": { "label": "Éditeur de niveaux" },
       "kb_editor_tools": { "label": "B / F / E / I : Pinceau, Remplir, Gomme, Pipette (Alt+clic ou clic du milieu prend aussi)" },
       "kb_editor_rotate": { "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi" },
-      "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit)" },
+      "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit), ou tourne un tampon flottant" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
       "kb_editor_link": { "label": "K : Relier le dispositif sous le curseur (bouton, piège, machine à cloner, déclencheur de tir ou lanceur). Cliquez ensuite, ou appuyez sur Espace, sur un partenaire pour le lier ou le délier, ou sur une case de sol vide pour en poser un" },
       "kb_editor_cancel": { "label": "Échap : Terminer la liaison, annuler un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
       "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Maj+F remplit la sélection avec l'élément choisi dans la palette ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
+      "kb_editor_stamps": { "label": "Tampons... : Fait flotter une paire reliée prête à poser (piège et bouton brun, machine à cloner et bouton rouge, et en règles Epoxy seulement déclencheur de tir et lanceur) comme un collage ; cliquez ou appuyez sur Entrée pour la poser, Maj+R la tourne entre côte à côte et empilée" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y : Annuler / Rétablir | Ctrl+S : Enregistrer" },
       "kb_editor_cc3d_eraser": { "label": "Niveaux CC3D : la gomme retire l'élément le plus haut d'une case (créature, puis objet, puis couche du haut) ; Maj+gomme vide toute la case" },
       "kb_editor_cell_edge": { "label": "Cloisons fines : avec l'entrée cloison fine de l'onglet Terrain choisie, cliquez près d'un côté d'une case pour le basculer (clavier : le côté du contrôle de direction) ; une cloison partagée avec la case voisine est retirée des deux" },
@@ -723,7 +724,7 @@
       },
       "help": {
         "title": "Comment fonctionnent les mécanismes",
-        "keys": { "label": "Touches : K commence ou termine une liaison depuis le dispositif sous le curseur, T teste le niveau depuis le curseur, L affiche ou masque l'aperçu du faisceau laser, Maj+R tourne la créature ou la tourelle sous le curseur, Maj+F remplit la sélection avec l'entrée choisie." },
+        "keys": { "label": "Touches : K commence ou termine une liaison depuis le dispositif sous le curseur, T teste le niveau depuis le curseur, L affiche ou masque l'aperçu du faisceau laser, Maj+R tourne la créature ou la tourelle sous le curseur ou tourne un tampon flottant, Maj+F remplit la sélection avec l'entrée choisie." },
         "lynx": { "label": "Niveaux Lynx : seuls les liens de piège et de clonage existent, un par bouton ; un bouton brun ou rouge sans lien ne fait rien, et son piège ou sa machine à cloner reste fermé." },
         "system": {
           "trap": {
@@ -857,6 +858,34 @@
         "hidden": { "label": "Caché sous une autre tuile : {role}. Dégagez la case pour créer un lien." },
         "not_free": { "label": "Cette case porte un terrain caché : seule une case de sol vide reçoit un nouveau partenaire ({partner})." },
         "other": { "label": "{found} ne peut pas recevoir de lien ici. Cliquez sur l'un de ces éléments : {expected}. Ou cliquez sur une case de sol vide pour y poser le partenaire." }
+      }
+    },
+    "stamps": {
+      "menu": {
+        "label": "Tampons...",
+        "title": "Fait flotter une paire de dispositifs reliés toute prête. Cliquez ensuite pour la poser.",
+        "group": "Tampons"
+      },
+      "trap": {
+        "label": "Piège et bouton brun",
+        "desc": { "label": "Un bouton brun relié à un piège mécanique une case plus loin : le piège libère ce qu'il retient tant que le bouton est tenu." }
+      },
+      "clone": {
+        "label": "Machine à cloner et bouton rouge",
+        "desc": { "label": "Un bouton rouge relié à une machine à cloner qui porte un bloc : chaque pression clone le bloc dans la case libre devant la machine." }
+      },
+      "shot": {
+        "label": "Déclencheur de tir et lanceur",
+        "desc": { "label": "Un déclencheur de tir relié à un lanceur qui tire en s'éloignant de lui. Posez-le avec du sol devant le lanceur. Règles Epoxy seulement." }
+      },
+      "layout": {
+        "horizontal": { "label": "côte à côte" },
+        "vertical": { "label": "empilé" }
+      },
+      "status": {
+        "ready": { "label": "Tampon {name} : cliquez ou appuyez sur Entrée pour le poser, Maj+R pour le tourner, Échap pour annuler." },
+        "turned": { "label": "Le tampon {name} est maintenant {layout}." },
+        "unavailable": { "label": "Les tampons ne sont pas disponibles sur ce niveau : les niveaux CC3D ont leur propre palette." }
       }
     },
     "selection": {

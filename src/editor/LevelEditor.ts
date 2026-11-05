@@ -186,6 +186,14 @@ import {
 import { deviceOverlayFor } from './deviceOverlay';
 import { datLinkCapNotice } from './datLinkCap';
 import { MECHANISM_HELP_ROWS, MECHANISMS_HELP_KEYS_KEY, MECHANISMS_HELP_LYNX_KEY } from './mechanismsHelp';
+import {
+  mechanismStampClip,
+  mechanismStampsFor,
+  STAMP_DEFAULT_LAYOUT,
+  turnedStampLayout,
+  type MechanismStamp,
+  type StampLayout
+} from './mechanismStamps';
 import { deviceRelations } from '../core/DeviceRelations';
 import { ANCHOR_STEPS, ResizeAnchor, ResizeAnchorStep, TOP_LEFT_ANCHOR } from './resizeAnchor';
 import {
@@ -505,6 +513,15 @@ type SelectionGesture =
 /** What the clipboard holds: the cells of an Epoxy or Lynx level, or of a CC3D one. The two never mix. */
 type SelectionClipboard = { kind: 'epoxy'; clip: Clip } | { kind: 'cc3d'; clip: Cc3dClip };
 
+/** The key that closes the Stamps menu. */
+const STAMPS_MENU_CLOSE_KEY = 'Escape';
+
+/** Locale key of how each layout of a stamp is named (literal keys, so the locale checks see them). */
+const STAMP_LAYOUT_KEYS: Readonly<Record<StampLayout, string>> = {
+  horizontal: 'editor.stamps.layout.horizontal.label',
+  vertical: 'editor.stamps.layout.vertical.label'
+};
+
 /** Cut and copied cells, shared by every level of the session; not the system clipboard. */
 let selectionClipboard: SelectionClipboard | null = null;
 
@@ -659,6 +676,11 @@ export class LevelEditor {
   private pasting = false;
   /** Top-left cell of the floating paste: follows the pointer and the keyboard cursor. */
   private pasteAnchor: { x: number; y: number } = { x: 0, y: 0 };
+  /**
+   * The mechanism stamp that floats instead of the clipboard while `pasting`; null for an ordinary paste. The clipboard
+   * itself is never touched by a stamp.
+   */
+  private floatingStamp: { stamp: MechanismStamp; layout: StampLayout } | null = null;
   private hoverCell: { x: number; y: number } | null = null;
   private cursorCell: { x: number; y: number } | null = null;
   private collatorCache: { locale: string; collator: Intl.Collator } | null = null;
@@ -1686,6 +1708,7 @@ export class LevelEditor {
     this.updateToolButtons();
     this.refreshLayersList();
     this.updateBeamPreviewButton();
+    this.updateStampsButton();
   }
 
   public setTool(tool: EditorTool): void {
@@ -1710,7 +1733,9 @@ export class LevelEditor {
         this.rotateDirection();
         break;
       case 'rotate_in_place':
-        this.rotateEntityInPlace();
+        // A floating stamp turns between its two layouts; an ordinary paste leaves the key to the creature under the cursor.
+        if (this.pasting && this.floatingStamp) this.turnStamp();
+        else this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();
@@ -1916,6 +1941,8 @@ export class LevelEditor {
     byId('editor-fill-selection-btn')?.addEventListener('click', () => {
       this.fillSelectionFromButton();
     });
+
+    this.bindStampsMenu();
 
     byId('editor-test-btn')?.addEventListener('click', () => {
       void this.testPlay();
@@ -4500,6 +4527,7 @@ export class LevelEditor {
     this.selectionAnchor = null;
     this.selectionGesture = null;
     this.pasting = false;
+    this.floatingStamp = null;
   }
 
   /** Drops the selection; says so when asked. Returns whether there was one. */
@@ -4517,6 +4545,7 @@ export class LevelEditor {
   private cancelPaste(): boolean {
     if (!this.pasting) return false;
     this.pasting = false;
+    this.floatingStamp = null;
     this.setStatusText(t('editor.selection.status.paste_cancelled'));
     this.render();
     return true;
@@ -4902,6 +4931,7 @@ export class LevelEditor {
       return false;
     }
     // A paste is a selection action: the placed cells live under the Select tool.
+    this.floatingStamp = null;
     this.setTool('select');
     this.endLinkSession(false);
     this.pasting = true;
@@ -4909,6 +4939,144 @@ export class LevelEditor {
     this.announce([{ key: 'editor.selection.status.paste_ready' }]);
     this.render();
     return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mechanism stamps
+  // ---------------------------------------------------------------------------
+
+  /** What floats while a paste is pending: the stamp when there is one, else the clipboard. */
+  private floatingClipboard(): SelectionClipboard | null {
+    if (this.pasting && this.floatingStamp) {
+      return { kind: 'epoxy', clip: mechanismStampClip(this.floatingStamp.stamp, this.floatingStamp.layout) };
+    }
+    return selectionClipboard;
+  }
+
+  /** The stamps the open level can place: none on a CC3D level. */
+  private availableStamps(): MechanismStamp[] {
+    return this.isCc3d() ? [] : mechanismStampsFor(editableRulesetOf(this.doc.ruleset));
+  }
+
+  /** The Stamps button is for Epoxy and Lynx levels only. */
+  private updateStampsButton(): void {
+    const cc3d = this.isCc3d();
+    byId('editor-stamps-btn')?.classList.toggle('hidden', cc3d);
+    if (cc3d) this.closeStampsMenu(false);
+  }
+
+  private bindStampsMenu(): void {
+    const button = byId('editor-stamps-btn');
+    const menu = byId('editor-stamps-menu');
+    if (!button || !menu) return;
+    button.addEventListener('click', () => {
+      if (menu.classList.contains('hidden')) this.openStampsMenu();
+      else this.closeStampsMenu(true);
+    });
+    const wrapper = byId('editor-stamps') ?? menu;
+    // Escape closes an open menu from the button or from an item; a closed menu leaves the key to the editor.
+    wrapper.addEventListener('keydown', (ev) => {
+      if (ev.key !== STAMPS_MENU_CLOSE_KEY || menu.classList.contains('hidden')) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.closeStampsMenu(true);
+    });
+    // Tabbing out of the menu closes it.
+    wrapper.addEventListener('focusout', (ev) => {
+      if (menu.classList.contains('hidden')) return;
+      if (ev.relatedTarget instanceof Node && wrapper.contains(ev.relatedTarget)) return;
+      this.closeStampsMenu(false);
+    });
+    // A click anywhere else closes the menu. Page-level, so it goes when the editor is disposed.
+    document.addEventListener(
+      'click',
+      (ev) => {
+        if (menu.classList.contains('hidden')) return;
+        if (ev.target instanceof Node && (menu.contains(ev.target) || button.contains(ev.target))) return;
+        this.closeStampsMenu(false);
+      },
+      { signal: this.draftListeners.signal }
+    );
+  }
+
+  /** Lists the stamps of the level's ruleset, with a one-line description each, and moves the focus to the first. */
+  private openStampsMenu(): void {
+    const menu = byId('editor-stamps-menu');
+    const button = byId('editor-stamps-btn');
+    if (!menu || !button) return;
+    const stamps = this.availableStamps();
+    if (stamps.length === 0) {
+      this.announce([{ key: 'editor.stamps.status.unavailable.label' }]);
+      return;
+    }
+    menu.replaceChildren(
+      ...stamps.map((stamp) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'editor-stamp-item';
+        item.dataset.stamp = stamp.id;
+        const name = document.createElement('span');
+        name.className = 'editor-stamp-name';
+        name.textContent = t(stamp.i18nKey);
+        const desc = document.createElement('span');
+        desc.className = 'editor-stamp-desc';
+        desc.textContent = t(stamp.descI18nKey);
+        item.append(name, desc);
+        item.addEventListener('click', () => {
+          this.closeStampsMenu(false);
+          this.beginStamp(stamp.id);
+        });
+        return item;
+      })
+    );
+    menu.classList.remove('hidden');
+    button.setAttribute('aria-expanded', 'true');
+    menu.querySelector<HTMLButtonElement>('.editor-stamp-item')?.focus();
+  }
+
+  private closeStampsMenu(returnFocus: boolean): void {
+    const menu = byId('editor-stamps-menu');
+    const button = byId('editor-stamps-btn');
+    if (!menu || menu.classList.contains('hidden')) return;
+    menu.classList.add('hidden');
+    button?.setAttribute('aria-expanded', 'false');
+    if (returnFocus) button?.focus();
+  }
+
+  /**
+   * Floats a stamp in place of a paste. The copied clipboard is left as it is, so a stamp never costs the author a
+   * copy; the stamp is placed, turned and cancelled like a paste, and is one undo step.
+   */
+  private beginStamp(id: string): boolean {
+    const stamp = this.availableStamps().find((candidate) => candidate.id === id);
+    if (!stamp) {
+      this.announce([{ key: 'editor.stamps.status.unavailable.label' }]);
+      return false;
+    }
+    this.setTool('select');
+    this.endLinkSession(false);
+    this.floatingStamp = { stamp, layout: STAMP_DEFAULT_LAYOUT };
+    this.pasting = true;
+    this.pasteAnchor = this.cursorCell ?? this.lastHoverCell ?? { x: 0, y: 0 };
+    this.announce([{ key: 'editor.stamps.status.ready.label', params: { name: t(stamp.i18nKey) } }]);
+    // Back to the canvas, where the stamp is placed with a click or Enter.
+    this.canvas.focus({ preventScroll: true });
+    this.render();
+    return true;
+  }
+
+  /** Shift+R on a floating stamp: swaps its horizontal and vertical layouts. */
+  private turnStamp(): void {
+    const floating = this.floatingStamp;
+    if (!floating) return;
+    floating.layout = turnedStampLayout(floating.layout);
+    this.announce([
+      {
+        key: 'editor.stamps.status.turned.label',
+        params: { name: t(floating.stamp.i18nKey), layout: t(STAMP_LAYOUT_KEYS[floating.layout]) }
+      }
+    ]);
+    this.render();
   }
 
   /** The message that refuses a paste of cells from the other kind of level, or null when the clipboard fits this one. */
@@ -4928,6 +5096,7 @@ export class LevelEditor {
       return;
     }
     this.pasting = false;
+    this.floatingStamp = null;
     const links = this.commitCc3dAreaEdit(result.level) ?? [];
     this.selection = result.rect;
     this.selectionAnchor = null;
@@ -4945,11 +5114,12 @@ export class LevelEditor {
 
   /** Places the floating paste with its top-left cell on the given cell. */
   private placePaste(cell: { x: number; y: number }): void {
-    const clipboard = selectionClipboard;
+    const clipboard = this.floatingClipboard();
     if (!clipboard) return;
     const refusal = this.clipboardRefusal(clipboard);
     if (refusal) {
       this.pasting = false;
+      this.floatingStamp = null;
       this.announce([refusal]);
       this.render();
       return;
@@ -4966,6 +5136,7 @@ export class LevelEditor {
       return;
     }
     this.pasting = false;
+    this.floatingStamp = null;
     this.commitSelectionEdit(result);
     this.selection = result.rect;
     this.selectionAnchor = null;
@@ -4999,7 +5170,7 @@ export class LevelEditor {
         this.outlineRect(shiftRect(selection, gesture.step.dx, gesture.step.dy), s, EDITOR_PASTE_PREVIEW_ALPHA);
       }
     }
-    const clipboard = selectionClipboard;
+    const clipboard = this.floatingClipboard();
     if (this.pasting && clipboard?.kind === 'epoxy') this.drawPastePreview(clipboard.clip, s);
     else if (this.pasting && clipboard?.kind === 'cc3d') this.drawPastePreview(this.cc3dPreviewOf(clipboard.clip), s, clipboard.clip.cells);
   }
