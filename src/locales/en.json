@@ -506,12 +506,13 @@
       "sec_editor": { "label": "Level editor" },
       "kb_editor_tools": { "label": "B / F / E / I: Brush, Fill, Eraser, Picker (Alt+click or middle click also picks)" },
       "kb_editor_rotate": { "label": "R: Rotate the facing of the selected creature or player start" },
-      "kb_editor_rotate_in_place": { "label": "Shift+R: Turn the creature or turret under the cursor a quarter turn clockwise (a clone machine under it follows)" },
+      "kb_editor_rotate_in_place": { "label": "Shift+R: Turn the creature or turret under the cursor a quarter turn clockwise (a clone machine under it follows), or turns a floating stamp" },
       "kb_editor_zoom": { "label": "+ / - / 0: Zoom in, zoom out, fit the level to the window" },
       "kb_editor_link": { "label": "K: Link the device under the cursor (button, trap, clone machine, shot trigger or launcher). Then click or press Space on a partner to link or unlink it, or on an empty floor cell to place one" },
       "kb_editor_cancel": { "label": "Escape: Finish linking, cancel a pending paste, or drop the selection" },
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
       "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Shift+F fills the selection with the chosen palette entry; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
+      "kb_editor_stamps": { "label": "Stamps...: Float a ready-made linked pair (trap and brown button, clone machine and red button, and, on Epoxy rules only, shot trigger and launcher) like a paste; click or press Enter to place it, Shift+R turns it between side by side and stacked" },
       "kb_editor_history": { "label": "Ctrl+Z / Ctrl+Y: Undo / Redo | Ctrl+S: Save" },
       "kb_editor_cc3d_eraser": { "label": "CC3D levels: the eraser removes the topmost thing of a cell (creature, then item, then top layer); Shift+eraser clears the whole cell" },
       "kb_editor_cell_edge": { "label": "Thin walls: with the thin wall entry of the Terrain tab selected, click near a side of a cell to toggle it (keyboard: the side of the direction control); a wall shared with the next cell is removed from both" },
@@ -723,7 +724,7 @@
       },
       "help": {
         "title": "How mechanisms work",
-        "keys": { "label": "Keys: K starts or ends linking from the device under the cursor, T tests the level from the cursor, L shows or hides the laser beam preview, Shift+R turns the creature or turret under the cursor, Shift+F fills the selection with the chosen entry." },
+        "keys": { "label": "Keys: K starts or ends linking from the device under the cursor, T tests the level from the cursor, L shows or hides the laser beam preview, Shift+R turns the creature or turret under the cursor or turns a floating stamp, Shift+F fills the selection with the chosen entry." },
         "lynx": { "label": "Lynx levels: only trap and clone links exist, one per button; a brown or red button with no link does nothing, and its trap or clone machine stays shut." },
         "system": {
           "trap": {
@@ -857,6 +858,34 @@
         "hidden": { "label": "Hidden under another tile: {role}. Bring it into plain view to link it." },
         "not_free": { "label": "This cell has hidden terrain: only an empty floor cell takes a new partner ({partner})." },
         "other": { "label": "{found} cannot be linked here. Click one of these: {expected}. Or click an empty floor cell to place one." }
+      }
+    },
+    "stamps": {
+      "menu": {
+        "label": "Stamps...",
+        "title": "Float a ready-made pair of linked devices, then click to place it.",
+        "group": "Stamps"
+      },
+      "trap": {
+        "label": "Trap and brown button",
+        "desc": { "label": "A brown button linked to a bear trap one cell away: the trap lets go while the button is held." }
+      },
+      "clone": {
+        "label": "Clone machine and red button",
+        "desc": { "label": "A red button linked to a clone machine holding a block: each press clones the block into the free cell in front of the machine." }
+      },
+      "shot": {
+        "label": "Shot trigger and launcher",
+        "desc": { "label": "A shot trigger linked to a launcher that fires away from it. Place it with floor in front of the launcher. Epoxy rules only." }
+      },
+      "layout": {
+        "horizontal": { "label": "side by side" },
+        "vertical": { "label": "stacked" }
+      },
+      "status": {
+        "ready": { "label": "Stamp {name}: click or press Enter to place it, Shift+R to turn it, Escape to cancel." },
+        "turned": { "label": "Stamp {name} is now {layout}." },
+        "unavailable": { "label": "Stamps are not available on this level: CC3D levels have their own palette." }
       }
     },
     "selection": {
