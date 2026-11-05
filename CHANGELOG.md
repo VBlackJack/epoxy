@@ -82,6 +82,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Level editor touch: a second finger landing after the grace period now also takes back the first finger's stroke when that finger never left its first cell (a pinch or pan that started a little slowly), with no history step, no unsaved change and no draft; a stroke whose finger reached another cell is still kept as one step.
 - Level editor on a portrait tablet: a view between 680 and 1099 px wide that is at least 1.15 times taller than wide (a tablet held upright, or a narrow tall window) now shows one column instead of two, so the map keeps the full width, and the one-column map area is 60% of the screen height instead of 50% on portrait screens 600 px wide or more; landscape and wide layouts are unchanged.
 - Level editor Issues list and the Problems here block of Connections no longer say the severity twice: the message loses its own leading severity word and colon when the row already shows the severity badge (validator messages are unchanged).
 - French wording: the coordinates badge of the level editor now puts a space before the colon ("Case (3, 4) : Porte", English unchanged) through a locale template, and the brown button is called "bouton brun" everywhere instead of "bouton marron" in nine messages (checks, hints, level hints), as in the palette.

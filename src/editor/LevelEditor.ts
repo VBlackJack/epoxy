@@ -4183,7 +4183,7 @@ export class LevelEditor {
 
   /** A second finger lands: what the first finger started is taken back (a young stroke), kept (an older one) or dropped. */
   private abortFirstTouch(): void {
-    this.settleTouchStroke();
+    this.settleTouchStroke(true);
   }
 
   /** Forgets every finger: settles a touch stroke, then clears the gesture and the finger table (a lost lift must not leave touch dead). */
@@ -4197,6 +4197,17 @@ export class LevelEditor {
   /** True when the stroke is still young enough to be taken back rather than kept. */
   private strokeIsYoung(stroke: Stroke): boolean {
     return performance.now() - stroke.beganAt < EDITOR_TOUCH_STROKE_GRACE_MS;
+  }
+
+  /**
+   * True when the finger's stroke is still a maybe: it is young, or its finger never left its first cell (its long
+   * press is still armed), so a second finger landing now means a pan or pinch, not a paint. Read before the long
+   * press is cleared. Only a second finger asks; a cancelled touch or a lost lift still goes by age alone.
+   */
+  private strokeIsTentative(): boolean {
+    const stroke = this.stroke;
+    if (!stroke || this.strokePointerId === null) return false;
+    return this.strokeIsYoung(stroke) || this.touchLongPress?.id === this.strokePointerId;
   }
 
   /** Arms the long press of a finger that just began a paint stroke on a cell. */
@@ -4231,10 +4242,11 @@ export class LevelEditor {
     if (this.statusWrites === writesBefore) this.setStatusText(t('editor.touch.pick.nothing.label'));
   }
 
-  private settleTouchStroke(): void {
+  private settleTouchStroke(secondFingerLanded = false): void {
+    const tentative = secondFingerLanded ? this.strokeIsTentative() : this.stroke !== null && this.strokeIsYoung(this.stroke);
     this.clearTouchLongPress();
     if (this.stroke && this.strokePointerId !== null) {
-      if (this.strokeIsYoung(this.stroke)) this.cancelStroke();
+      if (tentative) this.cancelStroke();
       else this.endStroke();
     }
     if (this.selectionGesture && this.strokePointerId !== null) {
