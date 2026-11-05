@@ -19,7 +19,7 @@ import { isInBounds } from '../config/ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import { cellEdgeMask } from '../core/EdgeRules';
 import { underlayMap } from '../core/Underlays';
-import { hasColorChannelContent, hasEpoxyOnlyMonsterContent, hasLaserContent } from '../core/RulesetFeatures';
+import { hasColorChannelContent, hasEpoxyOnlyMonsterContent, hasLaserContent, isEpoxyOnlyItemId } from '../core/RulesetFeatures';
 import {
   DEFAULT_CLONE_TEMPLATE_TYPE,
   DEFAULT_FACING,
@@ -102,15 +102,9 @@ export type DatRefusalReason =
   | 'epoxy_only_monsters'
   | 'cell_underlays';
 
-/** True when the level places an item only the Epoxy engine plays: the boots that slow the monsters or haste the player. */
+/** True when the level places an item only the Epoxy engine plays: the boots that slow the monsters, haste the player or reveal hidden walls. */
 function hasEpoxyOnlyItem(level: Pick<CompiledLevel, 'items'>): boolean {
-  return level.items.some((row) =>
-    row.some((id) => {
-      if (id === null) return false;
-      const def = ConfigRegistry.getTile(id);
-      return def.slowsMonsters !== undefined || def.hastesPlayer !== undefined;
-    })
-  );
+  return level.items.some((row) => row.some(isEpoxyOnlyItemId));
 }
 
 /** A level left out of the pack, with the reason. */

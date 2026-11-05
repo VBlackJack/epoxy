@@ -752,6 +752,8 @@ export interface TileDefinition {
   slowsMonsters?: number;
   /** Boots only: while held, the player takes this many times less time per walking step (exactly 2 for now). */
   hastesPlayer?: number;
+  /** Boots only: while held, the renderer marks invisible walls and appearing walls (purely visual). */
+  revealsHiddenWalls?: boolean;
   buttonAction?: ButtonAction;
   /** When 'player', only the player's step works the button: monsters and blocks that enter the cell press nothing. */
   buttonWorkedBy?: ButtonWorker;
