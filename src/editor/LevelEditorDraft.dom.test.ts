@@ -345,6 +345,17 @@ describe('writing the draft', () => {
     expect(storedDraft()).toBeNull();
   });
 
+  it('deletes its draft when undo returns an Epoxy level to the saved state', async () => {
+    editor = openEditor();
+    editor.loadCompiledLevel(epoxyLevel());
+    paintCell(2, 2);
+    await pause();
+    expect(storedDraft()).not.toBeNull();
+    editor.undo();
+    expect(editor.hasUnsavedChanges()).toBe(false);
+    expect(storedDraft()).toBeNull();
+  });
+
   it('writes a pending draft at once when the page is hidden', async () => {
     editor = openEditor();
     editor.loadCompiledLevel(smallCc3dLevel());

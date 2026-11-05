@@ -82,6 +82,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Level editor touch: a second finger landing after the grace period now also takes back the first finger's stroke when that finger never left its first cell (a pinch or pan that started a little slowly), with no history step, no unsaved change and no draft; a stroke whose finger reached another cell is still kept as one step.
 - Level editor Issues list and the Problems here block of Connections no longer say the severity twice: the message loses its own leading severity word and colon when the row already shows the severity badge (validator messages are unchanged).
 - French wording: the coordinates badge of the level editor now puts a space before the colon ("Case (3, 4) : Porte", English unchanged) through a locale template, and the brown button is called "bouton brun" everywhere instead of "bouton marron" in nine messages (checks, hints, level hints), as in the palette.
 - Exporting a whole pack as .CCL now warns, in one line with the other lossy-export notices, how many levels lose trap or clone links past the .DAT caps and how many links in total.

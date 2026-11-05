@@ -33,7 +33,7 @@ import { LevelPackStorage } from '../storage/LevelPackStorage';
 import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { mountModals } from '../test/domFixture';
-import { EDITOR_TOUCH_LONG_PRESS_MS, EDITOR_TOUCH_PINCH_START_PX, EDITOR_TOUCH_STROKE_GRACE_MS, EDITOR_TOUCH_TAP_SLOP_PX } from '../ui/uiConstants';
+import { EDITOR_DRAFT_STORAGE_PREFIX, EDITOR_DRAFT_WRITE_DELAY_MS, EDITOR_TOUCH_LONG_PRESS_MS, EDITOR_TOUCH_PINCH_START_PX, EDITOR_TOUCH_STROKE_GRACE_MS, EDITOR_TOUCH_TAP_SLOP_PX } from '../ui/uiConstants';
 import { t } from '../i18n/I18nManager';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { compiledCc3d } from './cc3dEditorFixtures';
@@ -53,6 +53,8 @@ const FINGER_B = 2;
 const FINGER_C = 3;
 const PAN_FROM = 50;
 const FAR_APART = 100;
+const LATE_SECOND_FINGER_MS = 100;
+const DRAFT_MARGIN_MS = 100;
 
 const fake = new FakeIndexedDb();
 let store: Map<string, string>;
@@ -106,6 +108,8 @@ function mouse(type: string, at: Point): void {
 
 const at = (clientX: number, clientY: number): Point => ({ clientX, clientY });
 const statusText = (): string => byId('editor-status-bar').textContent ?? '';
+const draftKeys = (): string[] => [...store.keys()].filter((key) => key.startsWith(ConfigRegistry.getStorageKey(EDITOR_DRAFT_STORAGE_PREFIX)));
+const realPause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 const levelJson = (): string => JSON.stringify(editor.exportCompiledLevel());
 const undoDepth = (): number => (editor as unknown as { history: { undoStack: unknown[] } }).history.undoStack.length;
 const zoomOffset = (): number => (editor as unknown as { zoomOffset: number }).zoomOffset;
@@ -261,17 +265,39 @@ describe('a second finger', () => {
     expect(levelJson()).toBe(before);
   });
 
-  it('after the grace period keeps the stroke as one history step', () => {
+  it('after the grace period keeps the stroke of a finger that moved to another cell as one history step, and its draft', async () => {
     openRoom();
     const before = levelJson();
     finger('pointerdown', FINGER_A, cellPoint(3, 3, ROOM_WIDTH));
+    finger('pointermove', FINGER_A, cellPoint(4, 3, ROOM_WIDTH));
     clock = EDITOR_TOUCH_STROKE_GRACE_MS;
     finger('pointerdown', FINGER_B, cellPoint(8, 3, ROOM_WIDTH));
     expect(levelJson()).not.toBe(before);
     expect(undoDepth()).toBe(1);
     finger('pointerup', FINGER_B, cellPoint(8, 3, ROOM_WIDTH));
-    finger('pointerup', FINGER_A, cellPoint(3, 3, ROOM_WIDTH));
+    finger('pointerup', FINGER_A, cellPoint(4, 3, ROOM_WIDTH));
     expect(undoDepth()).toBe(1);
+    expect(editor.hasUnsavedChanges()).toBe(true);
+    await realPause(EDITOR_DRAFT_WRITE_DELAY_MS + DRAFT_MARGIN_MS);
+    expect(draftKeys()).toHaveLength(1);
+  });
+
+  it('after the grace period takes back the stroke of a finger that stayed on its cell: no step, nothing unsaved, no draft', async () => {
+    openRoom();
+    const before = levelJson();
+    finger('pointerdown', FINGER_A, cellPoint(3, 3, ROOM_WIDTH));
+    expect(levelJson()).not.toBe(before);
+    clock = EDITOR_TOUCH_STROKE_GRACE_MS + LATE_SECOND_FINGER_MS;
+    finger('pointerdown', FINGER_B, cellPoint(8, 3, ROOM_WIDTH));
+    expect(levelJson()).toBe(before);
+    expect(undoDepth()).toBe(0);
+    expect(editor.hasUnsavedChanges()).toBe(false);
+    finger('pointerup', FINGER_B, cellPoint(8, 3, ROOM_WIDTH));
+    finger('pointerup', FINGER_A, cellPoint(3, 3, ROOM_WIDTH));
+    expect(undoDepth()).toBe(0);
+    expect(levelJson()).toBe(before);
+    await realPause(EDITOR_DRAFT_WRITE_DELAY_MS + DRAFT_MARGIN_MS);
+    expect(draftKeys()).toEqual([]);
   });
 
   it('pans the map by the midpoint move and paints nothing', () => {
