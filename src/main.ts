@@ -113,6 +113,24 @@ import { getRenderStyle, parseRenderStyleId } from './render/styles/renderStyles
 import { resolveSokobanSkin } from './render/renderSettings';
 import { PLAYER_SKIN_IDS, parsePlayerSkin, playerSkinLabelKey } from './render/playerSkin';
 import { watchDevicePixelRatio } from './ui/displayWatchers';
+import {
+  COARSE_POINTER_QUERY,
+  DEFAULT_DPAD_SIDE,
+  DPAD_PRESSED_CLASS,
+  DpadSide,
+  OVERLAY_HUD_SELECTOR,
+  STANDALONE_QUERIES,
+  TOUCH_PAD_AREA_SELECTOR,
+  applyTouchOverlayClasses,
+  bindDpadSideSelect,
+  computeCameraInsets,
+  parseDpadSide,
+  readTouchOverlayInput,
+  resolveTouchOverlay,
+  syncHudGroup,
+  syncInventoryInert,
+  syncOverlayInert
+} from './ui/touchOverlay';
 import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
 import {
@@ -240,6 +258,12 @@ class EpoxyApplication {
   private currentLevelIndex: number = 0;
   private activeMode: 'play' | 'editor' = 'play';
   private heldDirection: Direction | null = null;
+  /** Side of the screen the touch pad floats on in the phone full screen layout. */
+  private dpadSide: DpadSide = DEFAULT_DPAD_SIDE;
+  /** True while the phone full screen overlay layout is on. */
+  private touchOverlayActive = false;
+  /** True once the first level is loaded and frames may be drawn. */
+  private renderLoopStarted = false;
   private highScores: Record<string, StoredHighScore> = {};
   private prevGamepadButtons: boolean[] = [];
   /** The direction the gamepad holds now; a change to a new direction is a press. */
@@ -355,6 +379,7 @@ class EpoxyApplication {
     this.bindFocusHandoff();
     this.bindPlaytest();
     i18n.translateDOM();
+    this.setupTouchOverlay(savedSettings);
     refreshPlaytestOptions(this.playtest);
 
     i18n.onChange(() => {
@@ -366,6 +391,7 @@ class EpoxyApplication {
       this.setupMusicControls();
       this.syncSoundControls();
       this.updateHUD();
+      this.syncTouchOverlay();
       refreshPlaytestOptions(this.playtest);
       this.editor.refreshTranslations();
       // translateDOM resets the seed placeholder to its generic text.
@@ -750,7 +776,17 @@ class EpoxyApplication {
     }
   }
 
+  /**
+   * Draws one frame now. Resizing a canvas clears it, and the next animation frame can be late
+   * (a page in the background, a layout change such as entering full screen): redraw at once.
+   */
+  private redrawNow(): void {
+    if (!this.renderLoopStarted || this.activeMode !== 'play') return;
+    this.renderer.renderViewport(this.gameCtx, this.engine);
+  }
+
   private startRenderLoop(): void {
+    this.renderLoopStarted = true;
     const renderLoop = (): void => {
       if (this.activeMode === 'play') {
         this.renderer.renderViewport(this.gameCtx, this.engine);
@@ -776,6 +812,7 @@ class EpoxyApplication {
       ) {
         this.gameCanvas.width = targetW;
         this.gameCanvas.height = targetH;
+        this.redrawNow();
       }
     };
 
@@ -1662,6 +1699,8 @@ class EpoxyApplication {
       const val = Number(select.value);
       if (val > 0) {
         this.renderer.setViewportTiles(val);
+        // The half tile of air beside the pad depends on the tile size.
+        this.syncCameraInsets();
         this.saveUserSettings();
       }
     });
@@ -1881,12 +1920,13 @@ class EpoxyApplication {
     this.updateHUD();
   }
 
-  private triggerObjectiveAndLinks(): void {
+  /** `keepLinks`: run only the hint part when the mechanism links already show (the pause card). */
+  private triggerObjectiveAndLinks(keepLinks = false): void {
     if (this.playBlockHint()) {
       this.playtest.hintUsed();
       return;
     }
-    const active = this.renderer.toggleMechanismLinks();
+    const active = keepLinks && this.renderer.isShowingMechanismLinks() ? true : this.renderer.toggleMechanismLinks();
     byId('hud-btn-objective')?.classList.toggle('active', active);
     byId('mobile-btn-objective')?.classList.toggle('active', active);
 
@@ -1904,14 +1944,19 @@ class EpoxyApplication {
     }
   }
 
+  /** The solution the level on screen can replay, or null: the one check every solution control shares. */
+  private playableSolution(): TimedMove[] | null {
+    const level = this.engine.getLevel();
+    return featuresFor(level).solutionReplay ? timedSolution(level) : null;
+  }
+
   /**
    * Restarts the level and plays its proven solution, after a confirmation
    * since progress in the level is lost. Levels without a stored solution
    * (imported packs) say so.
    */
   private async showSolution(): Promise<void> {
-    const level = this.engine.getLevel();
-    const moves = featuresFor(level).solutionReplay ? timedSolution(level) : null;
+    const moves = this.playableSolution();
     if (!moves) {
       this.showTransientStatus(t('hud.messages.no_solution.label'));
       return;
@@ -2069,6 +2114,7 @@ class EpoxyApplication {
     byId('play-view')?.classList.toggle('hidden', !isPlay);
     byId('editor-view')?.classList.toggle('hidden', isPlay);
     document.body.classList.toggle(EDITOR_BODY_CLASS, !isPlay);
+    this.syncTouchOverlay();
     for (const id of PLAY_MODE_BUTTON_IDS) setToggleState(byId(id), isPlay);
     for (const id of EDITOR_MODE_BUTTON_IDS) setToggleState(byId(id), !isPlay);
 
@@ -2543,6 +2589,7 @@ class EpoxyApplication {
       const isNativeFs = Boolean(document.fullscreenElement);
       document.body.classList.toggle('fullscreen-mode', isNativeFs);
       this.syncFullscreenButtons(isNativeFs);
+      this.syncTouchOverlay();
     });
   }
 
@@ -2644,8 +2691,10 @@ class EpoxyApplication {
         e.preventDefault();
         this.triggerHaptic();
         this.beginHeldMove(dir);
+        this.markDpadPressed(btn);
       };
       const stopMove = (): void => {
+        btn.classList.remove(DPAD_PRESSED_CLASS);
         if (this.heldDirection === dir) {
           this.heldDirection = null;
         }
@@ -2672,15 +2721,24 @@ class EpoxyApplication {
           if (dir && dir !== this.heldDirection) {
             this.triggerHaptic();
             this.beginHeldMove(dir);
+            this.markDpadPressed(btn);
           }
         },
         { passive: false }
       );
       const release = (): void => {
         this.heldDirection = null;
+        this.markDpadPressed(null);
       };
       container.addEventListener('touchend', release);
       container.addEventListener('touchcancel', release);
+    });
+  }
+
+  /** Shows which pad cell is held (the overlay layout styles it); null clears every cell. */
+  private markDpadPressed(pressed: HTMLElement | null): void {
+    document.querySelectorAll<HTMLElement>('.dpad-btn').forEach((cell) => {
+      cell.classList.toggle(DPAD_PRESSED_CLASS, cell === pressed);
     });
   }
 
@@ -3118,6 +3176,120 @@ class EpoxyApplication {
   }
 
   // ---------------------------------------------------------------------------
+  // Phone full screen overlay layout
+  // ---------------------------------------------------------------------------
+
+  /** Binds the pad side setting, the floating buttons and the pause card extras, then applies the layout. */
+  private setupTouchOverlay(savedSettings: UserSettings): void {
+    this.dpadSide = parseDpadSide(savedSettings.dpadSide);
+    bindDpadSideSelect(byId<HTMLSelectElement>('dpad-side-select'), this.dpadSide, (side) => {
+      this.dpadSide = side;
+      this.saveUserSettings();
+      this.syncTouchOverlay();
+    });
+
+    const resync = (): void => this.syncTouchOverlay();
+    window.addEventListener('resize', resync);
+    window.addEventListener('orientationchange', resync);
+    if (typeof window.matchMedia === 'function') {
+      for (const query of [COARSE_POINTER_QUERY, ...STANDALONE_QUERIES]) {
+        window.matchMedia(query).addEventListener('change', resync);
+      }
+    }
+
+    byId('touch-btn-pause')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.engine.togglePause();
+      this.updateHUD();
+    });
+    byId('touch-btn-undo')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.undoMove();
+    });
+    byId('touch-btn-menu')?.addEventListener('click', (e) => {
+      this.triggerHaptic();
+      this.setDrawerOpen(true, e.currentTarget as HTMLElement);
+    });
+
+    // The queued moves of a hint are dropped by a paused engine: resume before asking for it.
+    byId('overlay-btn-hint')?.addEventListener('click', () => {
+      this.engine.setPaused(false);
+      this.updateHUD();
+      this.triggerObjectiveAndLinks(true);
+    });
+    byId('overlay-btn-solution')?.addEventListener('click', () => {
+      void this.showSolution();
+    });
+    byId('overlay-btn-options')?.addEventListener('click', (e) => {
+      this.setDrawerOpen(true, e.currentTarget as HTMLElement);
+    });
+    byId('overlay-btn-exit-fullscreen')?.addEventListener('click', () => {
+      this.toggleFullscreen();
+    });
+
+    this.syncTouchOverlay();
+  }
+
+  /** Decides whether the overlay layout applies and brings the classes, the camera and the card in line. */
+  private syncTouchOverlay(): void {
+    const active = resolveTouchOverlay(readTouchOverlayInput(window, document.body, this.activeMode));
+    this.touchOverlayActive = active;
+    applyTouchOverlayClasses(document.body, {
+      active,
+      side: this.dpadSide,
+      landscape: window.innerWidth > window.innerHeight
+    });
+    const hud = document.querySelector(OVERLAY_HUD_SELECTOR);
+    syncHudGroup(hud, active, t('hud.touch_overlay.hud.label'));
+    syncInventoryInert(hud, active);
+    this.syncOverlayExtras();
+    // The layout settles after the classes changed: measure the pad now and again on the next frame.
+    this.syncCameraInsets();
+    this.redrawNow();
+    requestAnimationFrame(() => {
+      this.syncCameraInsets();
+      this.redrawNow();
+    });
+  }
+
+  /** Tells the renderer which part of the board the pad hides; zeros outside the overlay layout. */
+  private syncCameraInsets(): void {
+    const canvasRect = this.gameCanvas.getBoundingClientRect();
+    const padRect = document.querySelector(TOUCH_PAD_AREA_SELECTOR)?.getBoundingClientRect();
+    const tiles = this.renderer.getViewportTiles();
+    const insets = computeCameraInsets({
+      active: this.touchOverlayActive && padRect !== undefined,
+      landscape: window.innerWidth > window.innerHeight,
+      side: this.dpadSide,
+      canvas: canvasRect,
+      pad: padRect ?? canvasRect,
+      tilePx: tiles > 0 ? Math.min(canvasRect.width, canvasRect.height) / tiles : 0
+    });
+    this.renderer.setCameraInsets(insets);
+  }
+
+  /** Pause card extras and the inert pad: only the overlay layout shows them, only while the game is paused. */
+  private syncOverlayExtras(): void {
+    const state = this.computeOverlayState();
+    const showExtras = this.touchOverlayActive && state === 'paused';
+    for (const id of ['overlay-btn-hint', 'overlay-btn-solution', 'overlay-btn-options']) {
+      byId(id)?.classList.toggle('hidden', !showExtras);
+    }
+    byId('overlay-btn-exit-fullscreen')?.classList.toggle(
+      'hidden',
+      !(showExtras && document.body.classList.contains('fullscreen-mode'))
+    );
+    const solutionBtn = byId<HTMLButtonElement>('overlay-btn-solution');
+    if (solutionBtn) solutionBtn.disabled = this.playableSolution() === null;
+    syncOverlayInert(document, this.touchOverlayActive, state !== 'none');
+    // A finger left on an inert pad never sends its release: stop the held move with the card.
+    if (this.touchOverlayActive && state !== 'none' && this.heldDirection) {
+      this.heldDirection = null;
+      this.markDpadPressed(null);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Fullscreen and graphics
   // ---------------------------------------------------------------------------
 
@@ -3128,6 +3300,7 @@ class EpoxyApplication {
     if (isCurrentlyFs) {
       document.body.classList.remove('fullscreen-mode');
       this.syncFullscreenButtons(false);
+      this.syncTouchOverlay();
       if (document.fullscreenElement && document.exitFullscreen) {
         void document.exitFullscreen().catch(() => {
           // Ignore browser exitFullscreen errors
@@ -3136,6 +3309,7 @@ class EpoxyApplication {
     } else {
       document.body.classList.add('fullscreen-mode');
       this.syncFullscreenButtons(true);
+      this.syncTouchOverlay();
       const docEl = document.documentElement;
       if (docEl.requestFullscreen) {
         void docEl.requestFullscreen().catch(() => {
@@ -3622,7 +3796,7 @@ class EpoxyApplication {
     }
 
     overlay.classList.toggle('hidden', state === 'none');
-    const buttons = overlayButtons(state, this.isTestPlaying(), this.engine.canUndo());
+    const buttons = overlayButtons(state, this.isTestPlaying(), this.engine.canUndo(), this.touchOverlayActive);
     ovResumeBtn?.classList.toggle('hidden', !buttons.resume);
     ovNextBtn.classList.toggle('hidden', !buttons.next);
     ovReplayBtn?.classList.toggle('hidden', !buttons.replay);
@@ -3636,6 +3810,7 @@ class EpoxyApplication {
         firstVisibleOverlayAction(overlay, state)?.focus();
       }
     }
+    this.syncOverlayExtras();
   }
 
   // ---------------------------------------------------------------------------
@@ -3733,7 +3908,8 @@ class EpoxyApplication {
         musicCustomTracks: customIdsForStorage(
           AudioManager.getCustomTrackIds(),
           AudioManager.getTrackOptions().map((track) => track.id)
-        )
+        ),
+        dpadSide: this.dpadSide
       };
       localStorage.setItem(key, JSON.stringify(settings));
     } catch {
@@ -3752,7 +3928,8 @@ class EpoxyApplication {
       return {
         ...settings,
         graphicsStyle: parseGraphicsStyle(settings.graphicsStyle),
-        playerSkin: parsePlayerSkin(settings.playerSkin)
+        playerSkin: parsePlayerSkin(settings.playerSkin),
+        dpadSide: parseDpadSide(settings.dpadSide)
       };
     } catch {
       return {};

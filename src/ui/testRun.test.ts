@@ -33,10 +33,19 @@ describe('overlayButtons', () => {
     expect(b).toMatchObject({ backToEditor: true, retry: true, undo: true, next: false });
   });
 
-  it('does not offer the way back on a normal death or while paused or playing', () => {
+  it('does not offer the way back on a normal death or pause, nor while playing', () => {
     expect(overlayButtons('dead', false, true).backToEditor).toBe(false);
-    expect(overlayButtons('paused', true, false)).toMatchObject({ backToEditor: false, resume: true });
+    expect(overlayButtons('paused', false, false).backToEditor).toBe(false);
     expect(overlayButtons('none', true, true)).toMatchObject({ backToEditor: false, retry: false, undo: false });
+  });
+
+  it('keeps the classic layout as it was: no way back while a test run is paused', () => {
+    expect(overlayButtons('paused', true, false)).toMatchObject({ backToEditor: false, resume: true });
+  });
+
+  it('offers the way back while a test run is paused in the phone overlay layout, next to Resume', () => {
+    expect(overlayButtons('paused', true, false, true)).toMatchObject({ backToEditor: true, resume: true });
+    expect(overlayButtons('paused', false, false, true).backToEditor).toBe(false);
   });
 });
 
