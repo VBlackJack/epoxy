@@ -144,6 +144,8 @@ export const EDITOR_ONE_COLUMN_BELOW_WIDTH = 680;
 export const EDITOR_CHECK_DEBOUNCE_MS = 400;
 /** Quiet time after the last keyboard cursor move before a screen reader is told what the cell holds. */
 export const EDITOR_CELL_ANNOUNCE_DELAY_MS = 300;
+/** Quiet time after the last palette search keystroke before a screen reader is told how many entries match. */
+export const EDITOR_PALETTE_SEARCH_COUNT_DELAY_MS = 400;
 /** How long the automatic check and the Check button may run before they are reported as skipped. */
 export const EDITOR_AUTO_CHECK_TIMEOUT_MS = 15000;
 /** How long the check before Test may run before the level is tested without it. */

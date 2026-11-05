@@ -521,6 +521,7 @@
       "kb_editor_test_here": { "label": "T: test the level from the cursor cell (or the hovered cell), without moving the saved start" },
       "kb_editor_beam_preview": { "label": "L: show or hide the laser beam preview (beams at tick 0, turrets armed)" },
       "kb_editor_issue_markers": { "label": "M: show or hide the validator issues on the map (a corner mark per cell: square for errors, triangle for warnings, circle for hints; dimmed while the check catches up with an edit)" },
+      "kb_editor_palette_search": { "label": "/: search the palette by name or description, across every tab (Enter picks the first match, Down Arrow goes to the results, Esc clears then leaves the field)" },
       "sec_rules": { "label": "Mechanisms & Colorblind Symbols" },
       "rule_keys": { "label": "Keys & Doors: Red (◆), Blue (▲), Yellow (+) are single-use. Green Master Key (◯) is infinite." },
       "rule_buttons": { "label": "Buttons: Green (◯) toggles walls | Blue (▲) reverses Tanks | Brown (+) opens traps | Red (◆) triggers cloners." },
@@ -1244,6 +1245,13 @@
     },
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Needs Epoxy rules: not available in a Lynx level." } },
+      "search": {
+        "placeholder": { "label": "Search (/)" },
+        "aria": { "label": "Search the palette by name or description" },
+        "no_match": { "label": "No entry matches \"{query}\"" },
+        "results": { "label": "Search results" },
+        "count": { "label": "{count, plural, one {# entry matches} other {# entries match}}" }
+      },
       "group": {
         "buttons": { "label": "Buttons and links" },
         "teleports": { "label": "Teleports" },

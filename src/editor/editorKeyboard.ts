@@ -16,6 +16,7 @@
 
 import { ORDERED_DIRECTIONS } from '../config/constants';
 import { Direction } from '../core/types';
+import { isTextEntryTarget } from '../ui/editorHelp';
 import { hasCommandModifier, KeyChord, matchesLetter } from '../ui/inputGuards';
 import { EditorTool } from './editorTools';
 
@@ -75,6 +76,25 @@ export function getEditorKeyAction(chord: KeyChord): EditorKeyAction | null {
     if (matchesLetter(chord, entry.letter, entry.code)) return { kind: 'tool', tool: entry.tool };
   }
   return null;
+}
+
+const PALETTE_SEARCH_KEY = '/';
+
+/** The parts of a keydown the palette search key reads. */
+export interface PaletteSearchKeyEvent {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  target: EventTarget | null;
+}
+
+/**
+ * True for the "/" key outside text fields and without Ctrl, Meta or Alt: it focuses the palette search.
+ * The produced character decides, so a layout that types "/" with Shift works too.
+ */
+export function isPaletteSearchKey(e: PaletteSearchKeyEvent): boolean {
+  return e.key === PALETTE_SEARCH_KEY && !e.ctrlKey && !e.metaKey && !e.altKey && !isTextEntryTarget(e.target);
 }
 
 /** The facing after a quarter turn clockwise. */

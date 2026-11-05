@@ -364,6 +364,18 @@
                   <button id="editor-switch-epoxy-btn" class="hud-btn small hidden" type="button" data-i18n="editor.layout.palette.switch_epoxy"></button>
                 </div>
                 <div id="editor-category-tabs" class="editor-category-tabs" role="group" data-i18n-aria-label="editor.layout.palette.tabs"></div>
+                <input
+                  id="editor-palette-search"
+                  type="search"
+                  class="editor-input editor-palette-search"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-controls="editor-palette-grid"
+                  aria-describedby="editor-palette-search-count"
+                  data-i18n-placeholder="editor.palette.search.placeholder.label"
+                  data-i18n-aria-label="editor.palette.search.aria.label"
+                />
+                <p id="editor-palette-search-count" class="sr-only" aria-live="polite"></p>
                 <div id="editor-palette-grid" class="editor-palette-grid" role="group"></div>
                 <div id="editor-cc3d-attrs" class="editor-cc3d-attrs hidden"></div>
                 <div id="editor-dir-group" class="editor-dir-group" role="group" data-i18n-aria-label="editor.layout.palette.direction.label">
@@ -717,6 +729,7 @@
                   <li data-i18n="hud.help_modal.kb_editor_test_here.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_beam_preview.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_issue_markers.label"></li>
+                  <li data-i18n="hud.help_modal.kb_editor_palette_search.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_select.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_stamps.label"></li>
                   <li data-i18n="hud.help_modal.kb_editor_cc3d_eraser.label"></li>

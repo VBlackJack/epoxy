@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { KeyChord } from '../ui/inputGuards';
 import { EDITOR_ONE_COLUMN_BELOW_WIDTH, EDITOR_TWO_COLUMN_BELOW_WIDTH } from '../ui/uiConstants';
 import { summarizeValidation } from './checkSummary';
-import { getCanvasKeyAction, getEditorKeyAction, getSelectionKeyAction, moveCursor, rotateClockwise } from './editorKeyboard';
+import { getCanvasKeyAction, getEditorKeyAction, getSelectionKeyAction, isPaletteSearchKey, moveCursor, rotateClockwise } from './editorKeyboard';
 import { layoutModeForWidth } from './editorLayout';
 import { DEFAULT_SECTION_STATE, parseSectionState, serializeSectionState } from './inspectorSections';
 import { MetadataEditCoalescer } from './metadataCoalescer';
@@ -70,6 +70,22 @@ describe('getEditorKeyAction', () => {
     expect(getEditorKeyAction(chord('l', { ctrlKey: true }))).toBeNull();
     expect(getEditorKeyAction(chord('l', { metaKey: true }))).toBeNull();
     expect(getEditorKeyAction(chord('l', { altKey: true }))).toBeNull();
+  });
+
+  it('focuses the palette search on a bare slash, and not with a command chord', () => {
+    vi.stubGlobal('HTMLElement', class {});
+    try {
+      const base = { key: '/', ctrlKey: false, metaKey: false, altKey: false, target: null };
+      expect(isPaletteSearchKey(base)).toBe(true);
+      expect(isPaletteSearchKey({ ...base, ctrlKey: true })).toBe(false);
+      expect(isPaletteSearchKey({ ...base, metaKey: true })).toBe(false);
+      expect(isPaletteSearchKey({ ...base, altKey: true })).toBe(false);
+      expect(isPaletteSearchKey({ ...base, key: '?' })).toBe(false);
+      // The slash is not a letter, tool or zoom key of the editor.
+      expect(getEditorKeyAction(chord('/'))).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('toggles the issue markers on M, by letter or by key code, and not on a command chord', () => {
