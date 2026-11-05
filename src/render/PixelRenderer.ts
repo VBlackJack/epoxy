@@ -71,7 +71,22 @@ import {
   TerrainSnapshot,
   teleportGroupKey
 } from './terrainState';
-import { cameraPositionWithInsets, FrameGeometry, pointToGrid } from './viewMapping';
+import {
+  averageHexColours,
+  BACKDROP_BLACK_MIX,
+  BACKDROP_FALLBACK_COLOUR,
+  BACKDROP_SPRITE_FALLBACK,
+  darkenHexColour
+} from './backdropColour';
+import {
+  cameraPositionWithInsets,
+  FitReserve,
+  FrameGeometry,
+  LEVEL_FIT_MAX_ZOOM,
+  LEVEL_FIT_MIN_TILES_SHORT_SIDE,
+  levelTilePixelSize,
+  pointToGrid
+} from './viewMapping';
 import { Light, LightingLayer } from './LightingLayer';
 import {
   EDITOR_HIDDEN_STATE_BADGE_EDGE,
@@ -606,6 +621,10 @@ export interface CameraInsets {
 }
 
 const NO_CAMERA_INSETS: CameraInsets = { left: 0, right: 0, top: 0, bottom: 0 };
+
+/** How the tile size is chosen: 'fov' is the short side over the wanted rows, 'level' also fits the map to the canvas. */
+export type FitMode = 'fov' | 'level';
+
 /** Largest share of the canvas one side may be covered by. */
 const MAX_CAMERA_INSET = 0.5;
 
@@ -625,6 +644,11 @@ export class PixelRenderer {
   private lastFrame: FrameGeometry | null = null;
   /** Fractions of the canvas covered by overlays (such as a floating d-pad) the camera keeps the player clear of. */
   private cameraInsets: CameraInsets = { ...NO_CAMERA_INSETS };
+  private fitMode: FitMode = 'fov';
+  /** Fractions of the canvas covered by the phone pad, for the level fit. */
+  private fitReserve: FitReserve = { ...NO_CAMERA_INSETS };
+  /** What the level fit last sized for; a change snaps the zoom and the camera instead of easing. */
+  private levelFitKey = '';
   private lastMapWidth = 0;
   private lastMapHeight = 0;
   private style: GraphicsStyle = 'modern';
@@ -977,6 +1001,47 @@ export class PixelRenderer {
     this.cameraInsets = next;
   }
 
+  /** Tile size rule: 'fov' (default) or 'level', which fits the map to the canvas within a bounded zoom. */
+  public setFitMode(mode: FitMode): void {
+    this.fitMode = mode;
+  }
+
+  /** Fractions of the canvas (0..0.5 each) the phone pad covers, used by the level fit only. */
+  public setFitReserve(reserve: FitReserve): void {
+    this.fitReserve = {
+      left: clampCameraInset(reserve.left),
+      right: clampCameraInset(reserve.right),
+      top: clampCameraInset(reserve.top),
+      bottom: clampCameraInset(reserve.bottom)
+    };
+  }
+
+  /** Tile width of the last drawn frame as a fraction of the canvas width (0 before the first one). */
+  public getFrameTileFraction(): number {
+    const frame = this.lastFrame;
+    return frame && frame.canvasWidth > 0 ? frame.tilePixelSize / frame.canvasWidth : 0;
+  }
+
+  /** CSS colour for the space around the level: the wall colour of the style and theme, darkened. Never throws. */
+  public getBackdropColour(): string {
+    try {
+      const wall = this.resolveBackdropWallColour();
+      return (wall && darkenHexColour(wall, BACKDROP_BLACK_MIX)) || BACKDROP_FALLBACK_COLOUR;
+    } catch {
+      return BACKDROP_FALLBACK_COLOUR;
+    }
+  }
+
+  private resolveBackdropWallColour(): string | null {
+    const desc = this.descriptor();
+    if (desc.painterSet === 'runeward') return this.runewardArt()?.wall.front ?? BACKDROP_SPRITE_FALLBACK;
+    if (desc.sprite) {
+      const ramp = this.getRetroRamps().wall;
+      return (ramp && averageHexColours(ramp)) || BACKDROP_SPRITE_FALLBACK;
+    }
+    return this.getActiveTheme()?.wallBottom ?? null;
+  }
+
   public screenToGrid(canvas: HTMLCanvasElement, clientX: number, clientY: number): GridPoint | null {
     // Map the click with the geometry of the last drawn frame, not the canvas size now.
     if (!this.lastFrame) return null;
@@ -1168,12 +1233,42 @@ export class PixelRenderer {
     const mapHeight = engine.getMapHeight() || gridCfg.mapHeight;
     this.lastMapWidth = mapWidth;
     this.lastMapHeight = mapHeight;
-    const targetTiles = this.currentViewportTiles || gridCfg.viewportWidth;
+    const wantedRows = this.currentViewportTiles || gridCfg.viewportWidth;
+    let targetTiles = wantedRows;
+    // Level fit: the tile size comes from the map and the canvas, so the zoom is expressed as rows.
+    let levelSnap = false;
+    if (this.fitMode === 'level') {
+      const fitW = ctx.canvas.width;
+      const fitH = ctx.canvas.height;
+      const fitSide = Math.max(1, Math.min(fitW, fitH));
+      const fitTile = levelTilePixelSize(
+        fitW,
+        fitH,
+        mapWidth,
+        mapHeight,
+        wantedRows,
+        this.fitReserve,
+        LEVEL_FIT_MAX_ZOOM,
+        LEVEL_FIT_MIN_TILES_SHORT_SIDE
+      );
+      targetTiles = fitSide / fitTile;
+      const mapFits = mapWidth * fitTile <= fitW && mapHeight * fitTile <= fitH;
+      const r = this.fitReserve;
+      const key = [
+        engine.getLevel().id, mapWidth, mapHeight, fitW, fitH, mapFits,
+        r.left, r.right, r.top, r.bottom
+      ].join('|');
+      levelSnap = key !== this.levelFitKey;
+      this.levelFitKey = key;
+      // A new map must not glide from the old one's coordinates: restart the camera too.
+      if (levelSnap) this.visualCameraPos = null;
+    }
     const desc = this.descriptor();
     const smooth = desc.smoothMotion;
     const camLerp = smooth ? scaleLerpFactor(settings.cameraLerpFactor, frameScale) : 1;
 
     if (
+      levelSnap ||
       !this.visualViewportTiles ||
       !smooth ||
       Math.abs(targetTiles - this.visualViewportTiles) < settings.zoomSnapEpsilonTiles

@@ -67,6 +67,52 @@ export function cameraPositionWithInsets(
   return Math.max(-insetStart, Math.min(mapSize - viewSize + insetEnd, shifted));
 }
 
+/** Fractions of the canvas (0..0.5 each) the phone pad covers; the level fit keeps the map out from under it. */
+export interface FitReserve {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/** Level fit: a tile is at most this many times the normal one (short side over the wanted row count). */
+export const LEVEL_FIT_MAX_ZOOM = 1.5;
+/** Level fit: a tile is at most the short side over this many (never below the normal size). */
+export const LEVEL_FIT_MIN_TILES_SHORT_SIDE = 5;
+
+/**
+ * Tile size in pixels for the level fit. The base is the short side over the wanted row count. The
+ * tile grows to the size at which the whole map is visible (contain), or, when a pad reserve takes
+ * part of the canvas, to the size at which the map fills the span the pad leaves free (the width
+ * in landscape, the height in portrait). It never exceeds maxZoom times the base nor the short
+ * side over minTilesShortSide, and never goes below the base: a map that scrolls on some axis at
+ * the base size keeps the base size.
+ */
+export function levelTilePixelSize(
+  canvasWidth: number,
+  canvasHeight: number,
+  mapWidth: number,
+  mapHeight: number,
+  rows: number,
+  reserve: FitReserve,
+  maxZoom: number,
+  minTilesShortSide: number
+): number {
+  const shortSide = Math.max(1, Math.min(canvasWidth, canvasHeight));
+  const base = shortSide / Math.max(1, rows);
+  if (!(mapWidth > 0) || !(mapHeight > 0)) return base;
+  const contain = Math.min(canvasWidth / mapWidth, canvasHeight / mapHeight);
+  const freeWidth = canvasWidth * (1 - reserve.left - reserve.right);
+  const freeHeight = canvasHeight * (1 - reserve.top - reserve.bottom);
+  const reserved = reserve.left + reserve.right + reserve.top + reserve.bottom > 0;
+  let fillFree = 0;
+  if (reserved) fillFree = canvasWidth >= canvasHeight ? freeWidth / mapWidth : freeHeight / mapHeight;
+  const scrollsAtBase = mapWidth * base > canvasWidth || mapHeight * base > canvasHeight;
+  const wanted = Math.max(contain, fillFree, scrollsAtBase ? base : 0);
+  const cap = Math.min(maxZoom * base, shortSide / minTilesShortSide);
+  return Math.max(base, Math.min(cap, wanted));
+}
+
 /** Inverse of gridToCanvas, in grid coordinates (not floored). */
 export function canvasToGrid(pixel: number, cam: number, tilePixelSize: number): number {
   return cam + pixel / tilePixelSize;
