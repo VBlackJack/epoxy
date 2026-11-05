@@ -186,9 +186,27 @@ describe('signal world loops through a laser receiver', () => {
     expect(find(level, 'signal_world_loop_even')).toBeUndefined();
   });
 
-  it('counts a path through a XOR gate or a latch as an error', () => {
+  it('counts a path through a XOR gate as an error', () => {
     expect(find(worldLoop('xor'), 'signal_world_loop_odd')?.severity).toBe('error');
-    expect(find(worldLoop('latch'), 'signal_world_loop_odd')?.severity).toBe('error');
+  });
+
+  it('gives only the warning for a path through a latch, which is edge-triggered and settles', () => {
+    const level = worldLoop('latch');
+    expect(find(level, 'signal_world_loop_odd')).toBeUndefined();
+    expect(find(level, 'signal_world_loop_even')?.severity).toBe('warning');
+  });
+
+  it('gives the same result for two receivers that reach the same door colour', () => {
+    const second: Cell = { x: 5, y: 3 };
+    const emitter2: Cell = { x: 1, y: 3 };
+    const level = room(
+      [[EMITTER, 'laser_emitter_e'], [BEAM_DOOR, DOOR], [RECEIVER, 'laser_receiver_red'], [{ x: 3, y: 3 }, DOOR],
+        [emitter2, 'laser_emitter_e'], [second, 'laser_receiver_red'], [GATE, NOT]],
+      [link(RECEIVER, GATE), link(second, GATE), link(GATE, BEAM_DOOR)]
+    );
+    const odd = find(level, 'signal_world_loop_odd');
+    expect(odd?.severity).toBe('error');
+    expect(odd?.params).toMatchObject({ x: RECEIVER.x, y: RECEIVER.y, count: 2 });
   });
 
   it('reports nothing when the door is not on the beam of its receiver', () => {

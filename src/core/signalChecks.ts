@@ -99,10 +99,11 @@ function danglingCells(level: CompiledLevel): GridPoint[] {
   return cells;
 }
 
-/** What a signal does along a path: nothing, an inversion (NOT), or a change no sign describes (XOR, latch). */
+/** What a signal does along a path: an inversion (NOT), an XOR (no sign describes it), or a latch (edge-triggered, so it cannot oscillate). */
 interface PathState {
   inverted: boolean;
-  tainted: boolean;
+  xor: boolean;
+  latch: boolean;
 }
 
 /** How a laser receiver's signal reaches the sinks: the colours reached and the parities of the paths. */
@@ -110,8 +111,10 @@ interface ReceiverReach {
   colors: Set<ChannelColor>;
   /** Some path inverts the signal an odd number of times. */
   inverting: boolean;
-  /** Some path crosses an XOR or a latch. */
-  tainted: boolean;
+  /** Some path crosses an XOR. */
+  xor: boolean;
+  /** Some path crosses a latch and no XOR. */
+  latchOnly: boolean;
   /** Some path is clean and non-inverting. */
   straight: boolean;
 }
@@ -120,9 +123,9 @@ function receiverReach(spec: SignalSpec, from: number): ReceiverReach {
   const byCell = new Map<number, SignalNodeDef>(spec.nodes.map((n) => [n.cell, n]));
   const outgoing = new Map<number, number[]>();
   for (const link of spec.links) outgoing.set(link.from, [...(outgoing.get(link.from) ?? []), link.to]);
-  const reach: ReceiverReach = { colors: new Set(), inverting: false, tainted: false, straight: false };
+  const reach: ReceiverReach = { colors: new Set(), inverting: false, xor: false, latchOnly: false, straight: false };
   const seen = new Set<string>();
-  const queue: Array<{ cell: number; state: PathState }> = [{ cell: from, state: { inverted: false, tainted: false } }];
+  const queue: Array<{ cell: number; state: PathState }> = [{ cell: from, state: { inverted: false, xor: false, latch: false } }];
   while (queue.length > 0) {
     const { cell, state } = queue.shift() as { cell: number; state: PathState };
     for (const next of outgoing.get(cell) ?? []) {
@@ -130,16 +133,18 @@ function receiverReach(spec: SignalSpec, from: number): ReceiverReach {
       if (node === undefined) continue;
       const arrived: PathState = {
         inverted: node.kind === 'not' ? !state.inverted : state.inverted,
-        tainted: state.tainted || node.kind === 'xor' || node.kind === 'latch'
+        xor: state.xor || node.kind === 'xor',
+        latch: state.latch || node.kind === 'latch'
       };
       if (node.kind === 'sink') {
         if (node.color !== undefined) reach.colors.add(node.color);
-        if (arrived.tainted) reach.tainted = true;
+        if (arrived.xor) reach.xor = true;
+        else if (arrived.latch) reach.latchOnly = true;
         else if (arrived.inverted) reach.inverting = true;
         else reach.straight = true;
         continue;
       }
-      const key = `${next}:${arrived.inverted ? 1 : 0}:${arrived.tainted ? 1 : 0}`;
+      const key = `${next}:${arrived.inverted ? 1 : 0}:${arrived.xor ? 1 : 0}:${arrived.latch ? 1 : 0}`;
       if (seen.has(key)) continue;
       seen.add(key);
       queue.push({ cell: next, state: arrived });
@@ -165,38 +170,57 @@ function withDoors(level: CompiledLevel, colors: ReadonlySet<ChannelColor>, open
   };
 }
 
-function isLit(level: CompiledLevel, cell: GridPoint): boolean {
+/** The cells of the lit receivers of a level, as "x,y" keys. */
+function litReceiverKeys(level: CompiledLevel): Set<string> {
   const engine = new GameEngine();
   engine.loadLevel(level);
-  return engine.getLitReceivers().some(({ x, y }) => x === cell.x && y === cell.y);
+  return new Set(engine.getLitReceivers().map(({ x, y }) => `${x},${y}`));
+}
+
+/** The lit receivers with the doors of a set of colours open and shut, computed once per distinct set. */
+interface DoorLegs {
+  open: Set<string>;
+  shut: Set<string>;
 }
 
 /**
  * Loops closed through the world. A laser receiver feeds a hold door; if that door's state cuts or opens the
  * beam that lights the receiver, the signal loops through the lasers. The beam leg is read by tracing the
  * beams with the doors open and then shut, signal links removed. The loop is odd (it inverts: the door would
- * flicker forever) when the leg and the path disagree in sign, or when the path crosses a XOR or a latch;
- * it is even (it holds itself) otherwise.
+ * flicker forever) when the leg and the path disagree in sign, or when the path crosses a XOR; it is even
+ * (it holds itself) otherwise. A latch flips on an edge and cannot oscillate, so a path whose only taint is
+ * a latch gives the even warning. Receivers reaching the same colours share one open/shut pair of engine loads.
  */
 function checkWorldLoops(level: CompiledLevel, spec: SignalSpec, issues: ValidationIssue[]): void {
   const width = level.terrain[0]?.length ?? 0;
   const odd: GridPoint[] = [];
   const even: GridPoint[] = [];
+  const legsByColors = new Map<string, DoorLegs>();
   for (const node of spec.nodes) {
     if (node.kind !== 'source' || node.sample !== 'receiver') continue;
     const reach = receiverReach(spec, node.cell);
     if (reach.colors.size === 0) continue;
     const cell = { x: node.cell % width, y: Math.floor(node.cell / width) };
-    const litOpen = isLit(withDoors(level, reach.colors, true), cell);
-    const litShut = isLit(withDoors(level, reach.colors, false), cell);
+    const colorsKey = [...reach.colors].sort().join(',');
+    let legs = legsByColors.get(colorsKey);
+    if (legs === undefined) {
+      legs = {
+        open: litReceiverKeys(withDoors(level, reach.colors, true)),
+        shut: litReceiverKeys(withDoors(level, reach.colors, false))
+      };
+      legsByColors.set(colorsKey, legs);
+    }
+    const cellKey = `${cell.x},${cell.y}`;
+    const litOpen = legs.open.has(cellKey);
+    const litShut = legs.shut.has(cellKey);
     if (litOpen === litShut) continue;
     // +1: the beam reaches the receiver with the door open; -1: with the door shut.
     const leg = litOpen ? 1 : -1;
     const gains: number[] = [];
     if (reach.straight) gains.push(leg);
     if (reach.inverting) gains.push(-leg);
-    if (reach.tainted || gains.includes(-1)) odd.push(cell);
-    else if (gains.includes(1)) even.push(cell);
+    if (reach.xor || gains.includes(-1)) odd.push(cell);
+    else if (reach.latchOnly || gains.includes(1)) even.push(cell);
   }
   if (odd.length > 0) {
     issues.push({ severity: 'error', i18nKey: 'validator.issues.signal_world_loop_odd.label', params: located(odd) });

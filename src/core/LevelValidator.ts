@@ -1887,6 +1887,8 @@ export class LevelValidator {
    * it; only flying ones do not), which makes the "door not openable" warning deliberately more optimistic. The player cannot hold a plate and walk through the door too, except
    * when a plate of the colour touches a door of the colour: the player opens the door from the plate, steps
    * in, and the door shuts on the occupant, who may leave. Then the player counts as one presser.
+   * A colour whose doors a signal sink drives is treated as openable. This is an optimistic heuristic: the
+   * signal network may never open that door. The block solver bails on signal levels, so nothing checks it further.
    */
   private static openableHoldDoorColors(level: CompiledLevel): Set<ChannelColor> {
     const platesByColor = new Map<ChannelColor, number>();
