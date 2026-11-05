@@ -140,10 +140,11 @@ describe('the How mechanisms work card', () => {
     expect(swap).not.toContain('{radius}');
   });
 
-  it('is hidden for a CC3D level and its rows are back when the level is Epoxy again', () => {
+  it('shows its own rows for a CC3D level and the Epoxy rows are back when the level is Epoxy again', () => {
     editor.loadCompiledLevel(smallCc3dLevel());
     editor['refreshConnections']();
-    expect(section().classList.contains('hidden')).toBe(true);
+    expect(section().classList.contains('hidden')).toBe(false);
+    expect(rows().map((row) => row.dataset.system)).not.toContain('plate');
     editor.loadCompiledLevel(plainLevel());
     editor['refreshConnections']();
     expect(section().classList.contains('hidden')).toBe(false);

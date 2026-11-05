@@ -255,7 +255,7 @@ describe('starting a session', () => {
     expect(status()).toBe(t('editor.link.nothing.label'));
   });
 
-  it('starts nothing on a CC3D level and says links are not drawn there', () => {
+  it('starts nothing on a CC3D level and says its links come from where things stand', () => {
     editor.loadCompiledLevel(smallCc3dLevel());
     editor.handleKeyAction({ kind: 'link' });
     expect(session()).toBeNull();

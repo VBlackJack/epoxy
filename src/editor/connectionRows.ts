@@ -104,6 +104,34 @@ export const SYSTEM_NAME_KEYS: Readonly<Record<RelationSystem, string>> = {
   puppet: 'editor.connections.system.puppet.label'
 };
 
+/** The mechanisms only CC3D levels have; the other CC3D devices reuse the Epoxy names above. */
+export type Cc3dOnlySystem = 'template' | 'hold' | 'golem';
+
+/** A mechanism a row can belong to: an Epoxy one, or one of the CC3D-only ones. */
+export type ConnectionSystem = RelationSystem | Cc3dOnlySystem;
+
+/** Locale key of the name of each CC3D-only mechanism (literal keys, so the locale checks see them). */
+export const CC3D_SYSTEM_NAME_KEYS: Readonly<Record<Cc3dOnlySystem, string>> = {
+  template: 'editor.connections.system.template.label',
+  hold: 'editor.connections.system.hold.label',
+  golem: 'editor.connections.system.golem.label'
+};
+
+/** Locale key of the name a CC3D row gives each mechanism, so a CC3D row never reads as an Epoxy device. */
+export const CC3D_ROW_SYSTEM_NAME_KEYS: Readonly<Partial<Record<ConnectionSystem, string>>> = {
+  trap: 'editor.connections.system.cc3d.trap.label',
+  teleport: 'editor.connections.system.cc3d.teleport.label',
+  clone: 'editor.connections.system.cc3d.clone.label',
+  laser: 'editor.connections.system.cc3d.laser.label',
+  toggle: 'editor.connections.system.cc3d.toggle.label',
+  ...CC3D_SYSTEM_NAME_KEYS
+};
+
+/** Locale key of the name of a mechanism, Epoxy or CC3D-only. */
+export function systemNameKey(system: ConnectionSystem): string {
+  return system in CC3D_SYSTEM_NAME_KEYS ? CC3D_SYSTEM_NAME_KEYS[system as Cc3dOnlySystem] : SYSTEM_NAME_KEYS[system as RelationSystem];
+}
+
 /** Locale key of how a relation is wired; a fallback edge reads as "no link". */
 export const KIND_NAME_KEYS: Readonly<Record<RelationKind | 'fallback', string>> = {
   link: 'editor.connections.kind.link',
@@ -137,7 +165,9 @@ export interface ConnectionRow {
   x: number;
   y: number;
   kind: RelationKind;
-  system: RelationSystem;
+  system: ConnectionSystem;
+  /** Locale key of the mechanism's name when it is not the Epoxy one (CC3D rows); absent: the name of `system`. */
+  systemNameKey?: string;
   channel?: string;
   /** True for the engine's fallbacks (an unlinked trap or red button): the row reads as "no link". */
   fallback: boolean;

@@ -652,6 +652,7 @@
       "more": "et {count, plural, one {# autre} other {# autres}}",
       "row": "{name} ({x}, {y}) : {detail}",
       "epoxy_only": "Les connexions sont listées avec les règles Epoxy ; les liens restent dessinés sur la carte.",
+      "cc3d_derived": { "label": "Les liens CC3D viennent de la position des éléments : déplacez un dispositif pour changer son lien." },
       "kind": {
         "link": "lien",
         "colour": "même couleur",
@@ -692,7 +693,17 @@
         "tank": { "label": "bouton bleu et tanks" },
         "flame": { "label": "bouton orange et jets de flammes" },
         "swap": { "label": "bouton gris et puces et bombes autour" },
-        "puppet": { "label": "commande de marionnettes et marionnettes" }
+        "puppet": { "label": "commande de marionnettes et marionnettes" },
+        "template": { "label": "machine à cloner et modèle" },
+        "hold": { "label": "plaque et porte à maintien" },
+        "golem": { "label": "commande de golem et golems" },
+        "cc3d": {
+          "trap": { "label": "commande de piège et piège" },
+          "teleport": { "label": "téléporteurs" },
+          "clone": { "label": "bouton de clonage et machine" },
+          "laser": { "label": "commande laser et tireur" },
+          "toggle": { "label": "commande de bascule et porte" }
+        }
       },
       "channel": {
         "red": "rouge",
@@ -722,12 +733,60 @@
         "puppet_control": { "label": "Il faut une marionnette : aucune marionnette n'avance avec le joueur quand il termine un déplacement sur cette commande." },
         "puppet": { "label": "Il faut une commande de marionnette : les marionnettes avancent avec le joueur quand il termine un déplacement sur une commande de marionnette." },
         "flame_button": { "label": "Il faut un jet de flammes : ce bouton orange n'en bascule aucun pour l'instant." },
-        "flame_jet": { "label": "Il faut un bouton orange : les jets de flammes sont basculés par les boutons orange." }
+        "flame_jet": { "label": "Il faut un bouton orange : les jets de flammes sont basculés par les boutons orange." },
+        "cc3d_trap": { "label": "Il faut un piège dans le niveau : cette commande de piège n'ouvre rien pour l'instant." },
+        "cc3d_teleport": { "label": "Il faut un autre téléporteur {colour} : un téléporteur envoie vers le précédent de sa couleur dans l'ordre de lecture, et seul il ne mène nulle part." },
+        "cc3d_machine": { "label": "Il faut une machine à cloner : ce bouton de clonage n'en actionne aucune pour l'instant." },
+        "cc3d_template": { "label": "Il faut une créature ou un bloc posé dessus : une machine à cloner copie ce qui s'y trouve, et celle-ci n'a rien à copier." },
+        "cc3d_shooter": { "label": "Il faut un tireur laser : cette commande laser ne déclenche rien pour l'instant." },
+        "cc3d_toggle_control": { "label": "Il faut une porte à bascule de la même couleur ({colour}) : cette commande ne bascule rien pour l'instant." },
+        "cc3d_toggle_door": { "label": "Il faut une commande de bascule de la même couleur ({colour}) : rien ne bascule cette porte pour l'instant." },
+        "cc3d_golem": { "label": "Il faut un golem {colour} : cette commande ne déplace rien pour l'instant." },
+        "cc3d_golem_control": { "label": "Il faut une commande de golem {colour} : un golem {colour} ne bouge jamais de lui-même." }
+      },
+      "cc3d": {
+        "trap_uncontrolled": { "label": "Aucune commande de piège n'actionne ce piège : il reste fermé." },
+        "buried": { "label": "Ce dispositif est sous une autre couche, il ne fait donc rien : les commandes de bascule, les boutons de clonage, les commandes laser, les commandes de golem et les téléporteurs ne fonctionnent que depuis la couche du dessus de leur case." }
       },
       "help": {
         "title": "Comment fonctionnent les mécanismes",
         "keys": { "label": "Touches : K commence ou termine une liaison depuis le dispositif sous le curseur, T teste le niveau depuis le curseur, L affiche ou masque l'aperçu du faisceau laser, Maj+R tourne la créature ou la tourelle sous le curseur ou tourne un tampon flottant, Maj+F remplit la sélection avec l'entrée choisie." },
         "lynx": { "label": "Niveaux Lynx : seuls les liens de piège et de clonage existent, un par bouton ; un bouton brun ou rouge sans lien ne fait rien, et son piège ou sa machine à cloner reste fermé." },
+        "cc3d": {
+          "trap": {
+            "name": "Commande de piège et piège",
+            "label": "Une commande de piège ouvre le piège suivant dans l'ordre de lecture, ou le premier piège s'il n'y en a plus après elle. Un piège est ouvert tant qu'une commande qui l'actionne est enfoncée ; un piège qu'aucune commande n'actionne reste fermé."
+          },
+          "teleport": {
+            "name": "Téléporteurs rouges et bleus",
+            "label": "Un téléporteur envoie vers le précédent de sa couleur dans l'ordre de lecture, et le premier envoie vers le dernier. Un téléporteur occupé, ou dont les sorties sont bloquées, est sauté au profit de celui d'avant ; un téléporteur seul ne mène nulle part."
+          },
+          "clone": {
+            "name": "Bouton de clonage, machine et modèle",
+            "label": "Un bouton de clonage actionne la machine à cloner la plus proche (à égalité, la première dans l'ordre de lecture). La créature ou le bloc posé sur une machine en est le modèle. Quand le bouton est enfoncé, le modèle sort dans la direction de la machine, ou dans la sienne sur une machine sans direction, et une copie prend sa place. Si sa sortie est bloquée, il ne se passe rien."
+          },
+          "laser": {
+            "name": "Commande laser et tireur",
+            "label": "Une commande laser déclenche le tireur laser le plus proche (à égalité, le premier dans l'ordre de lecture), une fois à chaque fois que quelqu'un ou quelque chose qui actionne les boutons arrive dessus. Sans tireur, elle ne déclenche rien."
+          },
+          "toggle": {
+            "name": "Commande de bascule et porte",
+            "label": "À chaque fois que quelqu'un ou quelque chose qui actionne les boutons arrive sur une commande de bascule, toutes les portes à bascule de sa couleur passent d'ouvertes à fermées, ou l'inverse ; en repartir ne change rien. Une commande sans porte de sa couleur ne bascule rien."
+          },
+          "hold": {
+            "name": "Plaque et porte à maintien",
+            "label": "Une porte à maintien d'une couleur n'est ouverte que tant que chaque plaque de cette couleur est enfoncée. Une couleur sans plaque garde ses portes fermées."
+          },
+          "golem_blue": {
+            "name": "Commande de golem bleu et golems",
+            "label": "À chaque fois que quelqu'un ou quelque chose qui actionne les boutons commence un pas vers une commande de golem bleu, tous les golems bleus font demi-tour."
+          },
+          "golem_yellow": {
+            "name": "Commande de golem jaune et golems",
+            "label": "À chaque fois que le personnage arrive sur une commande de golem jaune, tous les golems jaunes tentent un pas dans la direction de son déplacement. Seul le personnage l'actionne."
+          },
+          "top_layer": { "label": "Les commandes de bascule, les boutons de clonage, les commandes laser, les commandes de golem et les téléporteurs ne fonctionnent que depuis la couche du dessus de leur case ; les plaques et les commandes de piège fonctionnent depuis n'importe quelle couche." }
+        },
         "system": {
           "trap": {
             "how": { "label": "Reliez chaque bouton brun à ses pièges (K ou Relier...)." },
@@ -854,7 +913,7 @@
       "done": { "label": "Édition des liens terminée. {role} : {count, plural, one {# lien} other {# liens}}." },
       "source_gone": { "label": "Édition des liens terminée : l'élément de départ ({role}) a disparu." },
       "busy": { "label": "Un trait de pinceau est en cours : terminez-le avant de créer des liens." },
-      "unavailable": { "label": "Les liens ne se tracent pas dans ce type de niveau." },
+      "unavailable": { "label": "Les liens CC3D viennent de la position des éléments : il n'y a rien à relier." },
       "nothing": { "label": "Aucun lien possible ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir ou un lanceur de tir." },
       "refused": {
         "hidden": { "label": "Caché sous une autre tuile : {role}. Dégagez la case pour créer un lien." },
