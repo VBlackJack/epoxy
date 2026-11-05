@@ -171,6 +171,7 @@ import {
   soleChangedCell,
   startLinkSession
 } from './linkSession';
+import { CC3D_CONNECTION_KEYS, cc3dConnectionRows } from './cc3dConnectionRows';
 import {
   CHANNEL_NAME_KEYS,
   type ConnectionList,
@@ -179,14 +180,20 @@ import {
   type ConnectionView,
   type ConnectionLink,
   KIND_NAME_KEYS,
-  SYSTEM_NAME_KEYS,
   connectionCellName,
   connectionNoteText,
-  connectionRows
+  connectionRows,
+  systemNameKey
 } from './connectionRows';
 import { deviceOverlayFor } from './deviceOverlay';
 import { datLinkCapNotice } from './datLinkCap';
-import { MECHANISM_HELP_ROWS, MECHANISMS_HELP_KEYS_KEY, MECHANISMS_HELP_LYNX_KEY } from './mechanismsHelp';
+import {
+  CC3D_MECHANISM_HELP_ROWS,
+  MECHANISM_HELP_ROWS,
+  MECHANISMS_HELP_CC3D_TOP_LAYER_KEY,
+  MECHANISMS_HELP_KEYS_KEY,
+  MECHANISMS_HELP_LYNX_KEY
+} from './mechanismsHelp';
 import {
   mechanismStampClip,
   mechanismStampsFor,
@@ -375,6 +382,7 @@ const CONNECTIONS_LISTS_ID = 'editor-connections-lists';
 const CONNECTIONS_CONTROLS_ID = 'editor-connections-controls';
 const CONNECTIONS_CONTROLLED_ID = 'editor-connections-controlled';
 const CONNECTIONS_NOTE_ID = 'editor-connections-note';
+const CONNECTIONS_DERIVED_ID = 'editor-connections-derived';
 const MECHANISMS_HELP_SECTION_ID = 'editor-mechanisms-help-section';
 const MECHANISMS_HELP_LIST_ID = 'editor-mechanisms-help-list';
 const MECHANISMS_HELP_KEYS_ID = 'editor-mechanisms-help-keys';
@@ -4307,7 +4315,9 @@ export class LevelEditor {
   private connectionViewAt(x: number, y: number): ConnectionView {
     const cached = this.connectionsCache;
     if (cached && cached.doc === this.doc && cached.x === x && cached.y === y) return cached.view;
-    const view = connectionRows(this.doc, x, y);
+    // A CC3D level derives its links from where things stand: the cached derivation of this version of it is passed on.
+    const cc3d = this.doc.cc3d;
+    const view = cc3d ? cc3dConnectionRows(cc3d, x, y, this.cc3dLinksOf(cc3d)) : connectionRows(this.doc, x, y);
     this.connectionsCache = { doc: this.doc, x, y, view };
     return view;
   }
@@ -4337,12 +4347,32 @@ export class LevelEditor {
     const section = byId(MECHANISMS_HELP_SECTION_ID);
     const list = byId(MECHANISMS_HELP_LIST_ID);
     if (!section || !list) return;
-    section.classList.toggle('hidden', cc3d);
+    section.classList.remove('hidden');
     const lynx = this.doc.ruleset === LYNX_RULESET;
-    const drawnFor = `${i18n.getLocale()}:${lynx ? LYNX_RULESET : 'epoxy'}`;
-    if (cc3d || (drawnFor === this.mechanismsHelpLocale && list.childElementCount > 0)) return;
+    const drawnFor = `${i18n.getLocale()}:${cc3d ? 'cc3d' : lynx ? LYNX_RULESET : 'epoxy'}`;
+    if (drawnFor === this.mechanismsHelpLocale && list.childElementCount > 0) return;
     this.mechanismsHelpLocale = drawnFor;
     list.innerHTML = '';
+    const keys = byId(MECHANISMS_HELP_KEYS_ID);
+    const lynxLine = byId(MECHANISMS_HELP_LYNX_ID);
+    if (cc3d) {
+      // A CC3D level has no links to make: one row per mechanism says how its parts find each other, then the top layer rule.
+      for (const row of CC3D_MECHANISM_HELP_ROWS) {
+        const item = document.createElement('li');
+        item.dataset.system = row.system;
+        const name = document.createElement('strong');
+        name.className = MECHANISMS_HELP_NAME_CLASS;
+        name.textContent = t(row.nameKey);
+        const how = document.createElement('span');
+        how.textContent = ` ${t(row.howKey)}`;
+        item.append(name, how);
+        list.appendChild(item);
+      }
+      // The editor keys line does not apply to CC3D (K links nothing there), so its element carries the top layer footer.
+      if (keys) keys.textContent = t(MECHANISMS_HELP_CC3D_TOP_LAYER_KEY);
+      if (lynxLine) lynxLine.textContent = '';
+      return;
+    }
     for (const row of MECHANISM_HELP_ROWS) {
       const item = document.createElement('li');
       item.dataset.system = row.system;
@@ -4356,9 +4386,7 @@ export class LevelEditor {
       item.append(name, how);
       list.appendChild(item);
     }
-    const keys = byId(MECHANISMS_HELP_KEYS_ID);
     if (keys) keys.textContent = t(MECHANISMS_HELP_KEYS_KEY);
-    const lynxLine = byId(MECHANISMS_HELP_LYNX_ID);
     if (lynxLine) lynxLine.textContent = t(MECHANISMS_HELP_LYNX_KEY);
   }
 
@@ -4373,10 +4401,12 @@ export class LevelEditor {
     if (!section || this.stroke || this.connectionsDrawing) return;
     const cc3d = this.isCc3d();
     this.refreshMechanismsHelp(cc3d);
-    section.classList.toggle('hidden', cc3d);
-    if (cc3d) {
-      this.connectionsKey = '';
-      return;
+    section.classList.remove('hidden');
+    // A CC3D level stores no link: its rows come from where things stand, and the section says so.
+    const derived = byId(CONNECTIONS_DERIVED_ID);
+    if (derived) {
+      derived.classList.toggle('hidden', !cc3d);
+      derived.textContent = cc3d ? t(CC3D_CONNECTION_KEYS.derived) : '';
     }
     const inside = section.contains(document.activeElement) || this.connectionsPointerInside;
     // A link session pins the section to the device being linked: the pointer and the cursor move freely over the map.
@@ -4504,7 +4534,7 @@ export class LevelEditor {
   /** The words of a row: the other cell's name and place, how they are wired, which mechanism, which colour. */
   private connectionRowText(row: ConnectionRow): string {
     const channel = row.channel === undefined ? [] : [CHANNEL_NAME_KEYS[row.channel] ? t(CHANNEL_NAME_KEYS[row.channel]) : row.channel];
-    const detail = [t(KIND_NAME_KEYS[row.fallback ? 'fallback' : row.kind]), t(SYSTEM_NAME_KEYS[row.system]), ...channel].join(
+    const detail = [t(KIND_NAME_KEYS[row.fallback ? 'fallback' : row.kind]), t(row.systemNameKey ?? systemNameKey(row.system)), ...channel].join(
       t(LIST_SEPARATOR_KEY)
     );
     return t(CONNECTIONS_ROW_KEY, { name: t(row.name.key, row.name.params), x: row.x, y: row.y, detail });

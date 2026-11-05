@@ -652,6 +652,7 @@
       "more": "and {count, plural, one {# more} other {# more}}",
       "row": "{name} ({x}, {y}): {detail}",
       "epoxy_only": "Connections are listed under Epoxy rules; links stay drawn on the map.",
+      "cc3d_derived": { "label": "CC3D links come from where things stand; move a device to change its link." },
       "kind": {
         "link": "link",
         "colour": "same colour",
@@ -692,7 +693,17 @@
         "tank": { "label": "blue button and tanks" },
         "flame": { "label": "orange button and flame jets" },
         "swap": { "label": "gray button and the chips and bombs around it" },
-        "puppet": { "label": "puppet control and puppets" }
+        "puppet": { "label": "puppet control and puppets" },
+        "template": { "label": "clone machine and template" },
+        "hold": { "label": "plate and hold door" },
+        "golem": { "label": "golem control and golems" },
+        "cc3d": {
+          "trap": { "label": "trap control and trap" },
+          "teleport": { "label": "teleports" },
+          "clone": { "label": "clone switch and machine" },
+          "laser": { "label": "laser controller and shooter" },
+          "toggle": { "label": "toggle control and door" }
+        }
       },
       "channel": {
         "red": "red",
@@ -722,12 +733,60 @@
         "puppet_control": { "label": "Needs a puppet: no puppet steps with the player when the player ends a move on this control yet." },
         "puppet": { "label": "Needs a puppet control: puppets step with the player when the player ends a move on a puppet control." },
         "flame_button": { "label": "Needs a flame jet: this orange button toggles nothing yet." },
-        "flame_jet": { "label": "Needs an orange button: flame jets are toggled by orange buttons." }
+        "flame_jet": { "label": "Needs an orange button: flame jets are toggled by orange buttons." },
+        "cc3d_trap": { "label": "Needs a trap on the level: this trap control opens nothing yet." },
+        "cc3d_teleport": { "label": "Needs another {colour} teleport: a teleport sends to the previous teleport of its colour in reading order, and alone it goes nowhere." },
+        "cc3d_machine": { "label": "Needs a clone machine: this switch works nothing yet." },
+        "cc3d_template": { "label": "Needs a creature or block standing on it: a clone machine copies what stands on it, and this one has nothing to copy." },
+        "cc3d_shooter": { "label": "Needs a laser shooter: this controller fires nothing yet." },
+        "cc3d_toggle_control": { "label": "Needs a toggle door of the same colour ({colour}): this control flips nothing yet." },
+        "cc3d_toggle_door": { "label": "Needs a toggle control of the same colour ({colour}): nothing flips this door yet." },
+        "cc3d_golem": { "label": "Needs a {colour} golem: this control moves nothing yet." },
+        "cc3d_golem_control": { "label": "Needs a {colour} golem control: a {colour} golem never moves on its own." }
+      },
+      "cc3d": {
+        "trap_uncontrolled": { "label": "No trap control works this trap, so it stays closed." },
+        "buried": { "label": "This device is under another layer, so it does nothing: toggle controls, clone switches, laser controllers, golem controls and teleports work only from the top layer of their cell." }
       },
       "help": {
         "title": "How mechanisms work",
         "keys": { "label": "Keys: K starts or ends linking from the device under the cursor, T tests the level from the cursor, L shows or hides the laser beam preview, Shift+R turns the creature or turret under the cursor or turns a floating stamp, Shift+F fills the selection with the chosen entry." },
         "lynx": { "label": "Lynx levels: only trap and clone links exist, one per button; a brown or red button with no link does nothing, and its trap or clone machine stays shut." },
+        "cc3d": {
+          "trap": {
+            "name": "Trap control and trap",
+            "label": "A trap control opens the next trap after it in reading order, or the first trap when none follows. A trap is open while any control that works it is pressed; a trap no control works stays closed."
+          },
+          "teleport": {
+            "name": "Red and blue teleports",
+            "label": "A teleport sends to the previous teleport of its colour in reading order, and the first one sends to the last. A teleport that is occupied, or whose exits are blocked, is skipped for the one before it; a lone teleport goes nowhere."
+          },
+          "clone": {
+            "name": "Clone switch, machine and template",
+            "label": "A clone switch works the nearest clone machine (on a tie, the first in reading order). The creature or block standing on a machine is its template. When the switch is pressed, the template leaves the way the machine faces, or its own facing on a machine with no direction, and a copy takes its place. If its way out is blocked, nothing happens."
+          },
+          "laser": {
+            "name": "Laser controller and shooter",
+            "label": "A laser controller fires the nearest laser shooter (on a tie, the first in reading order) once each time something that works switches steps onto it. With no shooter it fires nothing."
+          },
+          "toggle": {
+            "name": "Toggle control and door",
+            "label": "Each time something that works switches steps onto a toggle control, every toggle door of its colour flips between open and closed; leaving changes nothing. A control with no door of its colour flips nothing."
+          },
+          "hold": {
+            "name": "Plate and hold door",
+            "label": "A hold door of a colour is open only while every plate of its colour is pressed. A colour with no plates keeps its doors closed."
+          },
+          "golem_blue": {
+            "name": "Blue golem control and golems",
+            "label": "Each time something that works switches starts a step onto a blue golem control, every blue golem turns around."
+          },
+          "golem_yellow": {
+            "name": "Yellow golem control and golems",
+            "label": "Each time the player steps onto a yellow golem control, every yellow golem tries to take one step in the direction the player was moving. Only the player works it."
+          },
+          "top_layer": { "label": "Toggle controls, clone switches, laser controllers, golem controls and teleports work only from the top layer of their cell; plates and trap controls work from any layer." }
+        },
         "system": {
           "trap": {
             "how": { "label": "Link each brown button to its traps (K or Link...)." },
@@ -854,7 +913,7 @@
       "done": { "label": "Linking done. {role}: {count, plural, one {# link} other {# links}}." },
       "source_gone": { "label": "Linking ended: the device you were linking ({role}) is gone." },
       "busy": { "label": "A brush stroke is in progress: finish it before linking." },
-      "unavailable": { "label": "Links are not drawn in this kind of level." },
+      "unavailable": { "label": "CC3D links come from where things stand: there is nothing to link." },
       "nothing": { "label": "Nothing to link here: pick a button, trap, clone machine, shot trigger or shot launcher." },
       "refused": {
         "hidden": { "label": "Hidden under another tile: {role}. Bring it into plain view to link it." },

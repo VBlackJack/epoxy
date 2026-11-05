@@ -21,7 +21,14 @@ import enLocale from '../locales/en.json';
 import frLocale from '../locales/fr.json';
 import { SYSTEM_NAME_KEYS } from './connectionRows';
 import { DEFAULT_SECTION_STATE, INSPECTOR_SECTIONS } from './inspectorSections';
-import { MECHANISM_HELP_ROWS, MECHANISMS_HELP_KEYS_KEY, MECHANISMS_HELP_LYNX_KEY, MECHANISMS_HELP_TITLE_KEY } from './mechanismsHelp';
+import {
+  CC3D_MECHANISM_HELP_ROWS,
+  MECHANISM_HELP_ROWS,
+  MECHANISMS_HELP_CC3D_TOP_LAYER_KEY,
+  MECHANISMS_HELP_KEYS_KEY,
+  MECHANISMS_HELP_LYNX_KEY,
+  MECHANISMS_HELP_TITLE_KEY
+} from './mechanismsHelp';
 
 const EN = enLocale as TranslationNode;
 const FR = frLocale as TranslationNode;
@@ -68,6 +75,16 @@ describe('mechanism help rows', () => {
     for (const key of ['K ', 'T ', 'L ', 'Shift+R', 'Shift+F']) expect(en).toContain(key);
     const fr = resolveMessage(FR, MECHANISMS_HELP_KEYS_KEY) ?? '';
     for (const key of ['K ', 'T ', 'L ', 'Maj+R', 'Maj+F']) expect(fr).toContain(key);
+  });
+});
+
+describe('CC3D mechanism help rows', () => {
+  it('has the eight CC3D mechanisms once, each with a name and a sentence in both locales', () => {
+    expect(CC3D_MECHANISM_HELP_ROWS.map((row) => row.system)).toEqual(['trap', 'teleport', 'clone', 'laser', 'toggle', 'hold', 'golem_blue', 'golem_yellow']);
+    const keys = [MECHANISMS_HELP_CC3D_TOP_LAYER_KEY, ...CC3D_MECHANISM_HELP_ROWS.flatMap((row) => [row.nameKey, row.howKey])];
+    for (const locale of [EN, FR]) {
+      for (const key of keys) expect((resolveMessage(locale, key) ?? '').length).toBeGreaterThan(0);
+    }
   });
 });
 

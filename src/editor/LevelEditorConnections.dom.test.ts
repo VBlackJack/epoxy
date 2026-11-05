@@ -191,14 +191,19 @@ afterEach(async () => {
 });
 
 describe('the Connections section', () => {
-  it('is shown for an Epoxy level and hidden for a CC3D one', () => {
+  it('is shown for an Epoxy level and for a CC3D one, which adds the line saying its links are derived', () => {
+    const derived = (): HTMLElement => byId('editor-connections-derived');
     editor.loadCompiledLevel(trapRoom());
     expect(section().classList.contains('hidden')).toBe(false);
     expect(section().open).toBe(true);
+    expect(derived().classList.contains('hidden')).toBe(true);
     editor.loadCompiledLevel(smallCc3dLevel());
-    expect(section().classList.contains('hidden')).toBe(true);
+    expect(section().classList.contains('hidden')).toBe(false);
+    expect(derived().classList.contains('hidden')).toBe(false);
+    expect(derived().textContent).toBe(t('editor.connections.cc3d_derived.label'));
     editor.loadCompiledLevel(trapRoom());
     expect(section().classList.contains('hidden')).toBe(false);
+    expect(derived().classList.contains('hidden')).toBe(true);
   });
 
   it('asks for a cell until there is one, then follows the keyboard cursor', () => {

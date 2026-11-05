@@ -48,6 +48,31 @@ export const MECHANISMS_HELP_KEYS_KEY = 'editor.connections.help.keys.label';
 /** Locale key of the line on the narrower mechanisms of a Lynx level. */
 export const MECHANISMS_HELP_LYNX_KEY = 'editor.connections.help.lynx.label';
 
+/** Locale key of the footer of the CC3D card: which devices work only from the top layer of their cell. */
+export const MECHANISMS_HELP_CC3D_TOP_LAYER_KEY = 'editor.connections.help.cc3d.top_layer.label';
+
+/** One row of the CC3D card: a CC3D level stores no link, so every row says how its parts find each other by position or colour. */
+export interface Cc3dMechanismHelpRow {
+  /** The mechanism: the Connections system it shows, or one golem colour. */
+  system: 'trap' | 'teleport' | 'clone' | 'laser' | 'toggle' | 'hold' | 'golem_blue' | 'golem_yellow';
+  /** Locale key of the mechanism's name. */
+  nameKey: string;
+  /** Locale key of the sentence saying how the parts find each other and what they do. */
+  howKey: string;
+}
+
+/** The CC3D card's rows, in the order of the mechanisms; literal keys, so the locale checks see them. */
+export const CC3D_MECHANISM_HELP_ROWS: readonly Cc3dMechanismHelpRow[] = [
+  { system: 'trap', nameKey: 'editor.connections.help.cc3d.trap.name', howKey: 'editor.connections.help.cc3d.trap.label' },
+  { system: 'teleport', nameKey: 'editor.connections.help.cc3d.teleport.name', howKey: 'editor.connections.help.cc3d.teleport.label' },
+  { system: 'clone', nameKey: 'editor.connections.help.cc3d.clone.name', howKey: 'editor.connections.help.cc3d.clone.label' },
+  { system: 'laser', nameKey: 'editor.connections.help.cc3d.laser.name', howKey: 'editor.connections.help.cc3d.laser.label' },
+  { system: 'toggle', nameKey: 'editor.connections.help.cc3d.toggle.name', howKey: 'editor.connections.help.cc3d.toggle.label' },
+  { system: 'hold', nameKey: 'editor.connections.help.cc3d.hold.name', howKey: 'editor.connections.help.cc3d.hold.label' },
+  { system: 'golem_blue', nameKey: 'editor.connections.help.cc3d.golem_blue.name', howKey: 'editor.connections.help.cc3d.golem_blue.label' },
+  { system: 'golem_yellow', nameKey: 'editor.connections.help.cc3d.golem_yellow.name', howKey: 'editor.connections.help.cc3d.golem_yellow.label' }
+];
+
 /** The card's rows, in the order of the mechanisms; literal keys, so the locale checks see them. */
 export const MECHANISM_HELP_ROWS: readonly MechanismHelpRow[] = [
   {
