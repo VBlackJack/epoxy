@@ -15,6 +15,18 @@
  */
 
 import { GridPoint, ValidationIssue } from '../core/types';
+import { t } from '../i18n/I18nManager';
+
+/**
+ * The message without its leading severity word, for a row that already shows the severity as a badge.
+ * Only the word of the same severity in the current language is removed, with its colon; any other text is returned as is.
+ */
+export function stripSeverityPrefix(text: string, severity: ValidationIssue['severity']): string {
+  const word = t(`editor.issues.severity.${severity}.label`);
+  if (!text.startsWith(word)) return text;
+  const rest = text.slice(word.length).match(/^ *: */);
+  return rest ? text.slice(word.length + rest[0].length) : text;
+}
 
 /** How many issues the list shows before it folds the rest into "and N more". */
 export const ISSUE_LIST_CAP = 100;

@@ -23,6 +23,7 @@ vi.mock('../ui/saveIntoDialog', () => ({ askSaveInto: vi.fn() }));
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import type { CompiledLevel, Direction, LauncherLink } from '../core/types';
 import { i18n, t } from '../i18n/I18nManager';
+import { stripSeverityPrefix } from './issueList';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -647,7 +648,8 @@ describe('Lynx rules', () => {
 });
 
 describe('the validator warning and the issue list', () => {
-  const triggerWarning = (): string => t('validator.issues.shot_trigger_no_link.label', { x: TRIGGER.x, y: TRIGGER.y });
+  const triggerWarning = (): string =>
+    stripSeverityPrefix(t('validator.issues.shot_trigger_no_link.label', { x: TRIGGER.x, y: TRIGGER.y }), 'warning');
   const rows = (): HTMLElement[] => Array.from(document.querySelectorAll<HTMLElement>('#editor-issues-list .editor-issue-row'));
 
   it('goes away once the trigger is linked in a session, and the row of the warning jumps to the trigger', () => {

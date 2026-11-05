@@ -28,6 +28,7 @@ vi.mock('../ui/saveIntoDialog', () => ({ askSaveInto: vi.fn() }));
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import type { CompiledLevel, ValidationIssue } from '../core/types';
 import { i18n, t } from '../i18n/I18nManager';
+import { stripSeverityPrefix } from './issueList';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -215,8 +216,8 @@ describe('the problems found at a cell', () => {
     editor['setCheck']({ state: 'errors', count: 2 }, issues);
     const rows = issueRowsHere();
     expect(rows.map((row) => row.dataset.severity)).toEqual(['error', 'warning']);
-    expect(rows[0].textContent).toContain(editor['formatIssue'](errorAt(PLATE)));
-    expect(rows[1].textContent).toContain(editor['formatIssue'](warningAt(PLATE)));
+    expect(rows[0].textContent).toContain(stripSeverityPrefix(editor['formatIssue'](errorAt(PLATE)), 'error'));
+    expect(rows[1].textContent).toContain(stripSeverityPrefix(editor['formatIssue'](warningAt(PLATE)), 'warning'));
     expect(rows[0].querySelector('.editor-issue-glyph')?.getAttribute('aria-hidden')).toBe('true');
     expect(rows[0].tagName).toBe('DIV');
     expect(issuesBlock().classList.contains('hidden')).toBe(false);

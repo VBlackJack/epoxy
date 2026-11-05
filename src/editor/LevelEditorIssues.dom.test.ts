@@ -232,7 +232,7 @@ describe('the issues list', () => {
     }
   });
 
-  it('gives an info row the info label, after the errors and warnings', () => {
+  const loadInfoRoom = (): void => {
     const terrain: string[][] = Array.from({ length: EPOXY_ROOM_SIZE }, (_, y) =>
       Array.from({ length: EPOXY_ROOM_SIZE }, (_, x) =>
         x === 0 || y === 0 || x === EPOXY_ROOM_SIZE - 1 || y === EPOXY_ROOM_SIZE - 1 ? 'wall' : 'floor'
@@ -252,6 +252,25 @@ describe('the issues list', () => {
       trapLinks: [],
       cloneLinks: []
     });
+  };
+
+  it.each(['en', 'fr'] as const)('says the severity once in an info row (%s)', (locale) => {
+    i18n.setLocale(locale);
+    loadInfoRoom();
+    byId<HTMLButtonElement>('editor-validate-btn').click();
+    const info = issueRowsOnScreen().filter((row) => row.dataset.severity === 'info');
+    expect(info.length).toBeGreaterThanOrEqual(1);
+    const word = t('editor.issues.severity.info.label');
+    for (const row of info) {
+      const text = row.textContent ?? '';
+      expect(text.split(word)).toHaveLength(2);
+      expect(text.length).toBeGreaterThan(word.length + 5);
+    }
+    i18n.setLocale('en');
+  });
+
+  it('gives an info row the info label, after the errors and warnings', () => {
+    loadInfoRoom();
     byId<HTMLButtonElement>('editor-validate-btn').click();
     const rows = issueRowsOnScreen();
     const info = rows.filter((row) => row.dataset.severity === 'info');

@@ -72,7 +72,7 @@ import {
   TestFromHereBlock
 } from './testFromHere';
 import { CheckState, CheckSummary, summarizeValidation } from './checkSummary';
-import { issueCell, issueRows, issuesAtCell } from './issueList';
+import { issueCell, issueRows, issuesAtCell, stripSeverityPrefix } from './issueList';
 import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
 import {
   DRAFT_VERSION,
@@ -3165,7 +3165,7 @@ export class LevelEditor {
       glyph.setAttribute('aria-hidden', 'true');
       glyph.textContent = SEVERITY_GLYPHS[issue.severity];
       const text = document.createElement('span');
-      text.textContent = this.formatIssue(issue);
+      text.textContent = stripSeverityPrefix(this.formatIssue(issue), issue.severity);
       const severity = document.createElement('span');
       severity.className = 'sr-only';
       severity.textContent = t(`editor.issues.severity.${issue.severity}.label`);
@@ -4992,7 +4992,7 @@ export class LevelEditor {
       severity.className = 'sr-only';
       severity.textContent = t(`editor.issues.severity.${issue.severity}.label`);
       const text = document.createElement('span');
-      text.textContent = this.formatIssue(issue);
+      text.textContent = stripSeverityPrefix(this.formatIssue(issue), issue.severity);
       row.append(glyph, severity, text);
       item.appendChild(row);
       list.appendChild(item);
