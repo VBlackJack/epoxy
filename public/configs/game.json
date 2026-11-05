@@ -1011,12 +1011,35 @@
       "halo": "#5fd8ef",
       "haloClear": "rgba(95, 216, 239, 0)"
     },
+    "trap": {
+      "pit": "#020104",
+      "jaw": "#8d8fa3",
+      "jawLight": "#d6d8e8"
+    },
+    "portal": {
+      "base": "#18102a",
+      "ring": "#d46eff",
+      "core": "#fce6ff",
+      "glow": "rgba(212, 110, 255, 0)"
+    },
+    "ice": {
+      "base": "#a6dcf2",
+      "light": "#effbff",
+      "line": "#74bddf",
+      "edge": "rgba(255, 255, 255, 0.35)"
+    },
+    "force": {
+      "base": "#10303a",
+      "arrow": "#5fd8ef",
+      "arrowLight": "#e9fdff"
+    },
     "animation": {
       "bobAmplitude": 0.035,
       "bobPeriodMs": 1500,
       "flowPeriodMs": 2600,
       "portalPeriodMs": 3200,
-      "pulsePeriodMs": 1800
+      "pulsePeriodMs": 1800,
+      "forceScrollPeriodMs": 1200
     }
   },
   "runewardArtVariants": {
@@ -1124,12 +1147,35 @@
         "halo": "#8fa9b8",
         "haloClear": "rgba(143, 169, 184, 0)"
       },
+      "trap": {
+        "pit": "#5a4230",
+        "jaw": "#a4a6a0",
+        "jawLight": "#d6d3c4"
+      },
+      "portal": {
+        "base": "#dcc795",
+        "ring": "#c99a2e",
+        "core": "#f8efd6",
+        "glow": "rgba(201, 154, 46, 0)"
+      },
+      "ice": {
+        "base": "#a8c4cc",
+        "light": "#e6f0ee",
+        "line": "#4f6f86",
+        "edge": "#4f6f86"
+      },
+      "force": {
+        "base": "#cdb27a",
+        "arrow": "#c99a2e",
+        "arrowLight": "#ecc878"
+      },
       "animation": {
         "bobAmplitude": 0.035,
         "bobPeriodMs": 1500,
         "flowPeriodMs": 2600,
         "portalPeriodMs": 3200,
-        "pulsePeriodMs": 1800
+        "pulsePeriodMs": 1800,
+        "forceScrollPeriodMs": 1200
       },
       "ink": {
         "line": "#1a1008",

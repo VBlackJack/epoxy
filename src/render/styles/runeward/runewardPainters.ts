@@ -116,7 +116,7 @@ export function isShadowedFromNorth(neighbours: Neighbours): boolean {
 }
 
 /** Puts the wall shadow on the cell when a caster stands north of it. */
-function castShadowIfNeeded(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours): void {
+export function castShadowIfNeeded(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours): void {
   if (art.ink) paintInkShadow(ctx, size, art, art.ink, neighbours);
   else if (isShadowedFromNorth(neighbours)) paintCastShadow(ctx, size, art);
 }

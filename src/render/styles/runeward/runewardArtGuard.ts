@@ -43,7 +43,11 @@ const COLOUR_PATHS: readonly string[] = [
   'door.frame', 'door.keyhole',
   'gate.bar', 'gate.barLight', 'gate.frame',
   'plate.rim', 'plate.face', 'plate.pressed', 'plate.highlight',
-  'rune.stone', 'rune.glow', 'rune.core', 'rune.halo', 'rune.haloClear'
+  'rune.stone', 'rune.glow', 'rune.core', 'rune.halo', 'rune.haloClear',
+  'trap.pit', 'trap.jaw', 'trap.jawLight',
+  'portal.base', 'portal.ring', 'portal.core', 'portal.glow',
+  'ice.base', 'ice.light', 'ice.line', 'ice.edge',
+  'force.base', 'force.arrow', 'force.arrowLight'
 ];
 
 /** Dotted paths of every colour of the optional ink section, checked only when the section is present. */
@@ -58,12 +62,13 @@ const INK_TORCH_RADIUS_PATH = 'ink.torch.radiusTile';
 const NUMBER_PATHS: readonly string[] = [
   'floor.variants', 'shadow.depth',
   'animation.bobAmplitude', 'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs',
-  'animation.pulsePeriodMs'
+  'animation.pulsePeriodMs', 'animation.forceScrollPeriodMs'
 ];
 
 /** Periods divide the clock, so they must be strictly positive. */
 const POSITIVE_PATHS: ReadonlySet<string> = new Set([
-  'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs', 'animation.pulsePeriodMs'
+  'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs', 'animation.pulsePeriodMs',
+  'animation.forceScrollPeriodMs'
 ]);
 
 function valueAt(root: unknown, path: string): unknown {
