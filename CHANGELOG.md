@@ -78,6 +78,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Exporting a whole pack as .CCL now warns, in one line with the other lossy-export notices, how many levels lose trap or clone links past the .DAT caps and how many links in total.
 - Level editor wording: the editor says "link" everywhere. "{count} wires were removed" is now "links" (French "fils" is now "liens"), "see what it is wired to" and "nothing is wired to this gate yet" read "linked", the laser emitter note reads "Linked to nothing", the palette group "Buttons and wiring" is "Buttons and links", and the swivel door corner names read "Swivel Door (North-East)" and so on, like the other directional names (French "Porte Pivotante (Nord-Est)"). A locale test keeps wire and fil wording out of the editor strings.
 - Level editor: the Check button and the Test pre-check use the deeper door-order search (the automatic check keeps the fast one), so they no longer report false door errors on levels such as converted CC3D maps; the worker request carries the search options, and a default report is not reused for a deep check.
 - Level editor: the three Wire entries of the Mechanisms palette (brown button to trap, red button to clone machine, shot trigger to launchers) are gone; link sessions (K or Link...) replace them, and they also link from the trap, the clone machine and the launcher end.
