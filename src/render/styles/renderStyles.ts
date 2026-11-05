@@ -254,7 +254,7 @@ const RUNEWARD_STYLE: RenderStyleDescriptor = {
   lowResScene: false,
   painterSet: 'runeward',
   artVariant: null,
-  selectable: false
+  selectable: true
 };
 
 /** Id of the Runeward Parchment style and of the art variant it draws with. */
