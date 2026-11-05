@@ -41,7 +41,19 @@ import {
   setLauncherLinks,
   translateLauncherLinks
 } from './editorLauncherLinks';
-import { dropSignalLinksAt, pruneSignalLinks, setSignalLinks, signalLinkTouches, translateSignalLinks } from './editorSignalLinks';
+import {
+  appendSignalLink,
+  dropSignalLinksAt,
+  dropSignalPair,
+  hasSignalLink,
+  pruneSignalLinks,
+  setSignalLinks,
+  signalLinkClosesCycle,
+  signalLinkCountAt,
+  signalLinkTouches,
+  signalTileHoldsEnd,
+  translateSignalLinks
+} from './editorSignalLinks';
 import { anchorOffset, ResizeAnchor, TOP_LEFT_ANCHOR } from './resizeAnchor';
 
 /** Outcome of a map edit. The input map is never modified; `map` is a new state. */
@@ -363,17 +375,23 @@ export function removeLauncherLink(
   return { map, changed: true, removedLinks: removed, removedUnderlays: 0, playerStartKept: false };
 }
 
-/** The three mechanisms a link session works: brown button to trap, red button to clone machine, shot trigger to launcher. */
-export type LinkSystem = 'trap' | 'clone' | 'shot';
+/**
+ * The mechanisms a link session works: brown button to trap, red button to clone machine, shot trigger to launcher,
+ * and signal output (plate, receiver or gate) to signal input (gate or hold door).
+ */
+export type LinkSystem = 'trap' | 'clone' | 'shot' | 'signal';
 
 /** The systems whose links the Lynx ruleset can carry (one link per button). */
-export type ButtonLinkSystem = Exclude<LinkSystem, 'shot'>;
+export type ButtonLinkSystem = Exclude<LinkSystem, 'shot' | 'signal'>;
 
-/** Which end of a link a device is: the button (or shot trigger) that works it, or the target it works. */
+/**
+ * Which end of a link a device is: the button (or shot trigger, or signal output) that works it, or the target it
+ * works (or signal input).
+ */
 export type LinkEnd = 'button' | 'target';
 
 /** Why a link edit was refused. */
-export type LinkRefusal = 'same_cell' | 'missing_button' | 'missing_target' | 'not_free';
+export type LinkRefusal = 'same_cell' | 'missing_button' | 'missing_target' | 'not_free' | 'cycle' | 'single_input';
 
 /** Outcome of a link edit. */
 export interface LinkEditResult extends MapEditResult {
@@ -418,11 +436,13 @@ function tileHoldsLinkEnd(tile: TileDefinition | undefined, system: ButtonLinkSy
  */
 export function holdsLinkEnd(map: EditorMap, system: LinkSystem, end: LinkEnd, x: number, y: number): boolean {
   if (system === 'shot') return end === 'button' ? holdsShotTrigger(map, x, y) : holdsShotLauncher(map, x, y);
+  if (system === 'signal') return signalTileHoldsEnd(tileDefinitionOf(map.terrain[y]?.[x]), end === 'button' ? 'output' : 'input');
   return tileHoldsLinkEnd(tileDefinitionOf(map.terrain[y]?.[x]), system, end);
 }
 
 /** Whether a trap or clone device of that end is hidden under the top tile, where neither the engine nor the validator read it. */
 export function hidesLinkEnd(map: EditorMap, system: LinkSystem, end: LinkEnd, x: number, y: number): boolean {
+  if (system === 'signal') return signalTileHoldsEnd(tileDefinitionOf(underlayAt(map, x, y)), end === 'button' ? 'output' : 'input');
   return system !== 'shot' && tileHoldsLinkEnd(tileDefinitionOf(underlayAt(map, x, y)), system, end);
 }
 
@@ -434,6 +454,7 @@ export function linkCountAt(map: EditorMap, system: LinkSystem, end: LinkEnd, x:
   if (system === 'clone') {
     return map.cloneLinks.filter((l) => (end === 'button' ? l.buttonX === x && l.buttonY === y : l.clonerX === x && l.clonerY === y)).length;
   }
+  if (system === 'signal') return signalLinkCountAt(map, end === 'button' ? 'output' : 'input', x, y);
   return (map.launcherLinks ?? []).filter((l) => (end === 'button' ? l.buttonX === x && l.buttonY === y : l.launcherX === x && l.launcherY === y)).length;
 }
 
@@ -445,6 +466,7 @@ export function hasLink(map: EditorMap, system: LinkSystem, button: Cell, target
   if (system === 'clone') {
     return map.cloneLinks.some((l) => l.buttonX === button.x && l.buttonY === button.y && l.clonerX === target.x && l.clonerY === target.y);
   }
+  if (system === 'signal') return hasSignalLink(map, button, target);
   return (map.launcherLinks ?? []).some(
     (l) => l.buttonX === button.x && l.buttonY === button.y && l.launcherX === target.x && l.launcherY === target.y
   );
@@ -454,6 +476,7 @@ export function hasLink(map: EditorMap, system: LinkSystem, button: Cell, target
 function partnerTile(system: LinkSystem, end: LinkEnd, dir: Direction): string {
   if (system === 'trap') return end === 'button' ? EDITOR_TRAP_BUTTON_TILE : EDITOR_TRAP_TILE;
   if (system === 'clone') return end === 'button' ? EDITOR_CLONE_BUTTON_TILE : EDITOR_CLONER_TILE;
+  if (system === 'signal') throw new Error('A signal link places no partner tile');
   return end === 'button' ? EDITOR_SHOT_TRIGGER_TILE : EDITOR_SHOT_LAUNCHER_TILES[dir];
 }
 
@@ -462,6 +485,14 @@ function endsRefusal(map: EditorMap, system: LinkSystem, button: Cell, target: C
   if (button.x === target.x && button.y === target.y) return 'same_cell';
   if (!holdsLinkEnd(map, system, 'button', button.x, button.y)) return 'missing_button';
   if (!holdsLinkEnd(map, system, 'target', target.x, target.y)) return 'missing_target';
+  if (system === 'signal' && !hasSignalLink(map, button, target)) {
+    // A hold door and a NOT gate take one signal; the validator refuses more (join them with an OR gate).
+    const takesOne = tileDefinitionOf(map.terrain[target.y]?.[target.x]);
+    if ((takesOne?.holdDoorColor !== undefined || takesOne?.signalGate === 'not') && signalLinkCountAt(map, 'input', target.x, target.y) > 0) {
+      return 'single_input';
+    }
+    if (signalLinkClosesCycle(map, button, target)) return 'cycle';
+  }
   return undefined;
 }
 
@@ -470,6 +501,8 @@ function dropPair(map: EditorMap, system: LinkSystem, button: Cell, target: Cell
     map.trapLinks = map.trapLinks.filter((l) => !(l.buttonX === button.x && l.buttonY === button.y && l.trapX === target.x && l.trapY === target.y));
   } else if (system === 'clone') {
     map.cloneLinks = map.cloneLinks.filter((l) => !(l.buttonX === button.x && l.buttonY === button.y && l.clonerX === target.x && l.clonerY === target.y));
+  } else if (system === 'signal') {
+    dropSignalPair(map, button, target);
   } else {
     setLauncherLinks(
       map,
@@ -513,6 +546,10 @@ function appendLink(map: EditorMap, system: LinkSystem, button: Cell, target: Ce
     });
     return { template, ...(onCloner === undefined ? { emptyCloner: true } : {}) };
   }
+  if (system === 'signal') {
+    appendSignalLink(map, button, target);
+    return {};
+  }
   setLauncherLinks(map, [...(map.launcherLinks ?? []), { buttonX: button.x, buttonY: button.y, launcherX: target.x, launcherY: target.y }]);
   return {};
 }
@@ -535,10 +572,10 @@ function linkDevices(source: EditorMap, system: LinkSystem, button: Cell, target
   const refusal = endsRefusal(source, system, button, target);
   if (refusal) return none(refusal);
   const exists = hasLink(source, system, button, target);
-  const others = replace && system !== 'shot' ? linkCountAt(source, system, 'button', button.x, button.y) - (exists ? 1 : 0) : 0;
+  const others = replace && system !== 'shot' && system !== 'signal' ? linkCountAt(source, system, 'button', button.x, button.y) - (exists ? 1 : 0) : 0;
   if (exists && others <= 0) return none();
   const map = cloneMap(source);
-  const replaced = others > 0 && system !== 'shot' ? dropOtherLinksOf(map, system, button, target) : 0;
+  const replaced = others > 0 && system !== 'shot' && system !== 'signal' ? dropOtherLinksOf(map, system, button, target) : 0;
   const added = exists ? {} : appendLink(map, system, button, target, cloneDir);
   return {
     map,
@@ -620,6 +657,7 @@ export function placePartnerAndLink(
   if (source.cc3d) return none(); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, from.x, from.y) || !inGrid(source, cell.x, cell.y)) return none();
   if (from.x === cell.x && from.y === cell.y) return none('same_cell');
+  if (system === 'signal') return none('not_free'); // a signal wire joins two devices already placed: no partner is painted
   if (!holdsLinkEnd(source, system, sourceEnd, from.x, from.y)) return none(sourceEnd === 'button' ? 'missing_button' : 'missing_target');
   if (source.terrain[cell.y][cell.x] !== FLOOR_TILE_ID || underlayAt(source, cell.x, cell.y) !== undefined) return none('not_free');
   const partnerEnd: LinkEnd = sourceEnd === 'button' ? 'target' : 'button';

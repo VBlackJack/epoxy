@@ -69,6 +69,20 @@ export const RETRO_HIDDEN_WALL_MARKERS: Readonly<Record<string, string>> = {
   appearing_wall: 'appearing_wall_marker'
 };
 
+/** Signal tiles: a sprite of the same name, and the lit overlay drawn over it while the tile is powered. */
+export const RETRO_SIGNAL_TILES: readonly string[] = [
+  'signal_plate',
+  'signal_gate_and',
+  'signal_gate_or',
+  'signal_gate_not',
+  'signal_gate_xor',
+  'signal_latch_off',
+  'signal_latch_on'
+];
+
+/** Suffix of the overlay sprite of a powered signal tile. */
+export const RETRO_SIGNAL_LIT_SUFFIX = '_lit';
+
 /** Tiles drawn as the sprite of the same name over the floor. */
 export const RETRO_PLAIN_OVERLAY_TILES: readonly string[] = [
   'recessed_wall',

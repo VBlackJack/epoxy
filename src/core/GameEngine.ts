@@ -26,7 +26,7 @@ import {
   TOGGLE_PARITY_KEY_PREFIX
 } from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
-import { copySignalState, settleWorldSignals } from './epoxy/epoxySignals';
+import { copySignalState, poweredSignalCellsOf, settleWorldSignals, signalLinksOf } from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
 import { updateEntities } from './epoxy/epoxyMonsters';
 import {
@@ -64,6 +64,7 @@ import {
   PlayerState,
   RuntimeEntity,
   Shot,
+  SignalLink,
   SignalState,
   TimedMove,
   TrapLink,
@@ -246,6 +247,16 @@ export class GameEngine {
   /** The state of the signal network; undefined on a level without one, so nothing about it reaches such a level or its hash. */
   public getSignalState(): SignalState | undefined {
     return copySignalState(this.w);
+  }
+
+  /** The compiled signal links by cell coordinates; undefined on a level without signals. Read only, for drawing. */
+  public getSignalLinks(): readonly SignalLink[] | undefined {
+    return signalLinksOf(this.w);
+  }
+
+  /** The cells (y * width + x) whose signal node is on at the last settle; undefined without signals. Read only, for drawing. */
+  public getPoweredSignalCells(): ReadonlySet<number> | undefined {
+    return poweredSignalCellsOf(this.w);
   }
 
   /** Sink edges the signal network has reported since the level loaded; a diagnostic, undefined without signals. */

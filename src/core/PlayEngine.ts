@@ -22,6 +22,7 @@ import {
   PlayerState,
   RuntimeEntity,
   Shot,
+  SignalLink,
   TimedMove,
   TrapLink
 } from './types';
@@ -99,6 +100,16 @@ export interface PlayEngine {
   getHiddenLayerCells?(): ReadonlySet<number>;
   /** Optional. The shots in flight; undefined on a level without shot launchers. An engine without them omits it. */
   getShots?(): readonly Shot[] | undefined;
+  /**
+   * Optional. The compiled signal links by cell coordinates; undefined on a level without signals. Read only and
+   * never hashed or snapshotted. An engine without a signal network omits it.
+   */
+  getSignalLinks?(): readonly SignalLink[] | undefined;
+  /**
+   * Optional. The cells (y * width + x) whose signal node is on, as of the last settle; undefined without
+   * signals. Read only and never hashed or snapshotted. An engine without a signal network omits it.
+   */
+  getPoweredSignalCells?(): ReadonlySet<number> | undefined;
   getTrapLinks(): TrapLink[];
   getCloneLinks(): CloneLink[];
   getMapWidth(): number;

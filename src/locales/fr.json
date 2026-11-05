@@ -522,7 +522,7 @@
       "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit), ou tourne un tampon flottant" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
       "kb_editor_wheel_zoom": { "label": "Ctrl (ou Cmd) + molette : Zoomer autour du pointeur" },
-      "kb_editor_link": { "label": "K : Relier le dispositif sous le curseur (bouton, piège, machine à cloner, déclencheur de tir ou lanceur). Cliquez ensuite, ou appuyez sur Espace, sur un partenaire pour le lier ou le délier, ou sur une case de sol vide pour en poser un" },
+      "kb_editor_link": { "label": "K : Relier le dispositif sous le curseur (bouton, piège, machine à cloner, déclencheur de tir ou lanceur, plaque de signal, porte logique, récepteur laser ou porte à maintien). Cliquez ensuite, ou appuyez sur Espace, sur un partenaire pour le lier ou le délier, ou sur une case de sol vide pour en poser un" },
       "kb_editor_cancel": { "label": "Échap : Terminer la liaison, annuler un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
       "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Maj+F remplit la sélection avec l'élément choisi dans la palette ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
@@ -706,12 +706,17 @@
         "puppet": { "label": "Marionnette" },
         "laser_emitter": { "label": "Émetteur laser" },
         "laser_receiver": { "label": "Récepteur laser" },
-        "laser_gate": { "label": "Porte laser" }
+        "laser_gate": { "label": "Porte laser" },
+        "signal_source": { "label": "Plaque de signal" },
+        "signal_gate": { "label": "Porte logique" },
+        "signal_out": { "label": "Sortie de signal" },
+        "signal_in": { "label": "Entrée de signal" }
       },
       "system": {
         "trap": { "label": "bouton brun et piège" },
         "clone": { "label": "bouton rouge et machine à cloner" },
         "shot": { "label": "déclencheur de tir et lanceur" },
+        "signal": { "label": "plaques de signal, portes logiques, récepteurs laser et portes à maintien" },
         "plate": { "label": "plaque de pression et porte à maintien" },
         "toggle": { "label": "bouton bascule et mur" },
         "teleport": { "label": "téléporteurs" },
@@ -827,6 +832,10 @@
             "how": { "label": "Reliez chaque déclencheur de tir à ses lanceurs (K ou Relier...)." },
             "unlinked": { "label": "Un déclencheur de tir ne tire que ses lanceurs liés : sans lien, il ne déclenche rien." }
           },
+          "signal": {
+            "how": { "label": "Reliez chaque plaque de signal, récepteur laser ou porte logique aux portes logiques et portes à maintien qu'il alimente (K ou Relier...). Les boucles sont refusées." },
+            "unlinked": { "label": "Une porte logique sans signal relié reste éteinte. Une porte à maintien sans lien suit ses plaques de pression de la même couleur." }
+          },
           "plate": {
             "how": { "label": "Une porte à maintien et ses plaques de pression partagent une couleur." },
             "unlinked": { "label": "Une porte à maintien est ouverte tant que chaque plaque de sa couleur est enfoncée ; sans plaque, elle reste fermée." }
@@ -917,6 +926,7 @@
       }
     },
     "link": {
+      "started_signal": { "label": "Liaison : {role} en ({x}, {y}), avec {count, plural, one {# lien} other {# liens}} pour l'instant. Cliquez sur un partenaire pour le lier ou le délier : {partner}. Les signaux relient des dispositifs existants : aucun partenaire n'est posé. Appuyez sur Échap pour terminer." },
       "started": { "label": "Édition des liens : {role} en ({x}, {y}), avec {count, plural, one {# lien} other {# liens}} pour l'instant. Cliquez sur l'un de ces éléments pour créer ou délier un lien : {partner}. Ou cliquez sur une case de sol vide pour y poser le partenaire. Échap pour terminer." },
       "fallback": {
         "trap_button": { "label": "Sans lien, ce bouton brun ouvre tous les pièges sans lien." },
@@ -924,7 +934,9 @@
         "clone_button": { "label": "Sans lien, ce bouton rouge déclenche toutes les machines à cloner qui portent une créature." },
         "clone_machine": { "label": "Sans lien, n'importe quel bouton rouge déclenche cette machine à cloner dès qu'une créature s'y tient." },
         "shot_trigger": { "label": "Sans lien, ce déclencheur de tir ne tire rien." },
-        "shot_launcher": { "label": "Sans lien, aucun déclencheur de tir ne commande ce lanceur." }
+        "shot_launcher": { "label": "Sans lien, aucun déclencheur de tir ne commande ce lanceur." },
+        "signal_out": { "label": "Sans lien, ce signal n'alimente rien." },
+        "signal_in": { "label": "Sans lien : une porte logique reste éteinte, une porte à maintien suit ses plaques de pression de la même couleur." }
       },
       "fallback_lynx": {
         "trap_button": { "label": "Sans lien : ce bouton n'ouvre rien." },
@@ -941,9 +953,12 @@
       "source_gone": { "label": "Édition des liens terminée : l'élément de départ ({role}) a disparu." },
       "busy": { "label": "Un trait de pinceau est en cours : terminez-le avant de créer des liens." },
       "unavailable": { "label": "Les liens CC3D viennent de la position des éléments : il n'y a rien à relier." },
-      "nothing": { "label": "Aucun lien possible ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir ou un lanceur de tir." },
+      "nothing": { "label": "Aucun lien possible ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir, un lanceur de tir, une plaque de signal, une porte logique, un récepteur laser ou une porte à maintien." },
       "refused": {
         "hidden": { "label": "Caché sous une autre tuile : {role}. Dégagez la case pour créer un lien." },
+        "single_input": { "label": "Lien refusé : ({x}, {y}) ne prend qu'un seul signal. Réunissez d'abord les signaux avec une porte OU." },
+        "other_signal": { "label": "{found} ne peut pas recevoir de lien ici. Cliquez sur l'un de ces éléments : {expected}." },
+        "cycle": { "label": "Lien refusé : un lien de signal vers ({x}, {y}) reviendrait sur ce dispositif. Le signal doit circuler dans un seul sens." },
         "not_free": { "label": "Cette case porte un terrain caché : seule une case de sol vide reçoit un nouveau partenaire ({partner})." },
         "other": { "label": "{found} ne peut pas recevoir de lien ici. Cliquez sur l'un de ces éléments : {expected}. Ou cliquez sur une case de sol vide pour y poser le partenaire." }
       }

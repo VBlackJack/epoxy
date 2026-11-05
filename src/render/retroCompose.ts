@@ -33,7 +33,14 @@ import {
 } from './paletteKeys';
 import { NEIGHBOUR } from './tileNeighbours';
 import { DEFAULT_PLAYER_SKIN, PLAYER_SKIN_SPRITE_PREFIX, type PlayerSkinId } from './playerSkin';
-import { RETRO_HIDDEN_WALL_MARKERS, RETRO_PLAIN_OVERLAY_TILES, RETRO_SPRITE, RETRO_SPRITE_PREFIX } from './retroSpriteNames';
+import {
+  RETRO_HIDDEN_WALL_MARKERS,
+  RETRO_PLAIN_OVERLAY_TILES,
+  RETRO_SIGNAL_LIT_SUFFIX,
+  RETRO_SIGNAL_TILES,
+  RETRO_SPRITE,
+  RETRO_SPRITE_PREFIX
+} from './retroSpriteNames';
 import { quantizeColour } from './retro32/colour';
 import {
   blitPixels,
@@ -97,6 +104,8 @@ export interface RetroTileInput {
   /** Hidden walls show their marker outside the editor too (the player holds boots that reveal them). */
   revealHiddenWalls: boolean;
   isClosedTrap: boolean;
+  /** A signal tile whose node is on: its lit overlay is stacked over the sprite (absent: off). */
+  powered?: boolean;
   /** Animation phase, 0 to RETRO_PHASE_COUNT - 1, shared by every animated tile. */
   phase: number;
   reducedMotion: boolean;
@@ -141,6 +150,7 @@ const THIN_EDGES: readonly Direction[] = ['N', 'E', 'S', 'W'];
 const BLUE_WALL_TILES: ReadonlySet<string> = new Set(['blue_wall_real', 'blue_wall_fake']);
 const BLUE_WALL_FAKE = 'blue_wall_fake';
 const PLAIN_OVERLAY_TILES: ReadonlySet<string> = new Set(RETRO_PLAIN_OVERLAY_TILES);
+const SIGNAL_TILES: ReadonlySet<string> = new Set(RETRO_SIGNAL_TILES);
 const DOOR_TILES: ReadonlySet<string> = new Set(['door_red', 'door_blue', 'door_yellow', 'door_green']);
 const KEY_ITEM_PREFIX = 'key_';
 const BOOTS_ITEM_PREFIX = 'boots_';
@@ -279,6 +289,11 @@ export function retroTileLayers(input: RetroTileInput): RetroLayer[] {
   }
   if (def.blockedEdges && def.blockedEdges.length > 0) return retroThinLayers(def.blockedEdges);
   if (PLAIN_OVERLAY_TILES.has(tileId)) return [floorOnly, { name: tileId }];
+  if (SIGNAL_TILES.has(tileId)) {
+    const layers: RetroLayer[] = [floorOnly, { name: tileId }];
+    if (input.powered === true) layers.push({ name: `${tileId}${RETRO_SIGNAL_LIT_SUFFIX}` });
+    return layers;
+  }
   if (tileId === 'trap') {
     return [floorOnly, { name: input.isClosedTrap ? RETRO_SPRITE.trapClosed : RETRO_SPRITE.trapOpen }];
   }

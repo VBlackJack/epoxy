@@ -115,6 +115,8 @@ export const EDITOR_TRAP_LINK_COLOR = '#ffb300';
 export const EDITOR_CLONE_LINK_COLOR = '#ff1744';
 /** The line from a shot trigger to a shot launcher it fires (magenta), apart from the trap, clone and CC3D teleport link colours and the cursor outline. */
 export const EDITOR_LAUNCHER_LINK_COLOR = '#e040fb';
+/** Level editor: colour of the signal wires and of the devices a signal session can link. */
+export const EDITOR_SIGNAL_LINK_COLOR = '#40c4ff';
 /** Offset that puts a link line end at the center of its tile. */
 export const EDITOR_TILE_CENTER_OFFSET = 0.5;
 /** Terrain a wire tool places at each end of a link. */
@@ -248,6 +250,7 @@ export const EDITOR_RELATION_COLORS = {
   trap: EDITOR_TRAP_LINK_COLOR,
   clone: EDITOR_CLONE_LINK_COLOR,
   shot: EDITOR_LAUNCHER_LINK_COLOR,
+  signal: EDITOR_SIGNAL_LINK_COLOR,
   teleport: EDITOR_CC3D_LINK_COLORS.teleport,
   laser: EDITOR_CC3D_LINK_COLORS.laser,
   plate: EDITOR_CC3D_LINK_COLORS.group,

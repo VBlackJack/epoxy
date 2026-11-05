@@ -678,3 +678,75 @@ describe('the K key in the help and the locales', () => {
     i18n.setLocale('en');
   });
 });
+
+describe('a signal session', () => {
+  const PLATE = { x: 2, y: 2 };
+  const AND = { x: 4, y: 2 };
+  const DOOR = { x: 6, y: 2 };
+  const signalsOf = (): unknown => editor.exportCompiledLevel().signalLinks;
+  const signalRoom = (): CompiledLevel =>
+    room(undefined, [
+      { ...PLATE, tile: 'signal_plate' },
+      { ...AND, tile: 'signal_gate_and' },
+      { ...DOOR, tile: 'hold_door_red_closed' }
+    ]);
+
+  it('links a plate to an AND gate and the gate to a door with K and clicks, one undo step each', () => {
+    editor.loadCompiledLevel(signalRoom());
+    pressK(PLATE);
+    expect(session()).toEqual(sessionAt(PLATE, 'signal', 'button'));
+    expect(status()).toContain(role('signal_out'));
+    click(AND);
+    expect(signalsOf()).toEqual([{ fromX: PLATE.x, fromY: PLATE.y, toX: AND.x, toY: AND.y }]);
+    expect(terrainAt(AND)).toBe('signal_gate_and');
+    pressK(AND);
+    expect(session()).toEqual(sessionAt(AND, 'signal', 'button'));
+    click(DOOR);
+    expect(signalsOf()).toEqual([
+      { fromX: PLATE.x, fromY: PLATE.y, toX: AND.x, toY: AND.y },
+      { fromX: AND.x, fromY: AND.y, toX: DOOR.x, toY: DOOR.y }
+    ]);
+    editor.undo();
+    expect(signalsOf()).toEqual([{ fromX: PLATE.x, fromY: PLATE.y, toX: AND.x, toY: AND.y }]);
+    editor.undo();
+    expect(signalsOf()).toBeUndefined();
+  });
+
+  it('starts on a hold door as the input end and links a plate into it', () => {
+    editor.loadCompiledLevel(signalRoom());
+    pressK(DOOR);
+    expect(session()).toEqual(sessionAt(DOOR, 'signal', 'target'));
+    click(PLATE);
+    expect(signalsOf()).toEqual([{ fromX: PLATE.x, fromY: PLATE.y, toX: DOOR.x, toY: DOOR.y }]);
+  });
+
+  it('refuses a cycle with its message and ends on Escape', () => {
+    const level = signalRoom();
+    level.terrain[3][4] = 'signal_gate_or';
+    level.signalLinks = [{ fromX: AND.x, fromY: AND.y, toX: 4, toY: 3 }];
+    editor.loadCompiledLevel(level);
+    pressK({ x: 4, y: 3 });
+    click(AND);
+    expect(signalsOf()).toEqual([{ fromX: AND.x, fromY: AND.y, toX: 4, toY: 3 }]);
+    expect(status()).toBe(t('editor.link.refused.cycle.label', { x: AND.x, y: AND.y }));
+    expect(session()).not.toBeNull();
+    editor.handleKeyAction({ kind: 'cancel' });
+    expect(session()).toBeNull();
+  });
+
+  it('places nothing on an empty floor cell', () => {
+    editor.loadCompiledLevel(signalRoom());
+    pressK(PLATE);
+    click(EMPTY_FLOOR);
+    expect(terrainAt(EMPTY_FLOOR)).toBe('floor');
+    expect(signalsOf()).toBeUndefined();
+  });
+
+  it('is refused under Lynx rules with the Epoxy-only reason', () => {
+    editor.loadCompiledLevel(signalRoom());
+    editor['doc'] = { ...editor['doc'], ruleset: 'lynx' };
+    pressK(PLATE);
+    expect(session()).toBeNull();
+    expect(status()).toBe(t('editor.palette.unavailable.epoxy_only.label'));
+  });
+});

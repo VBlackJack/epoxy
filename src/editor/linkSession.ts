@@ -36,6 +36,7 @@ import {
   replaceButtonLink,
   toggleLink
 } from './mapEdits';
+import { EPOXY_ONLY_REASON_KEY } from './paletteAvailability';
 
 export type { LinkEnd, LinkSystem } from './mapEdits';
 
@@ -87,19 +88,24 @@ const KEY_NUDGE = 'editor.link.nudge.label';
 const KEY_REFUSED_HIDDEN = 'editor.link.refused.hidden.label';
 const KEY_REFUSED_NOT_FREE = 'editor.link.refused.not_free.label';
 const KEY_REFUSED_OTHER = 'editor.link.refused.other.label';
+const KEY_REFUSED_CYCLE = 'editor.link.refused.cycle.label';
+const KEY_REFUSED_SINGLE_INPUT = 'editor.link.refused.single_input.label';
+const KEY_STARTED_SIGNAL = 'editor.link.started_signal.label';
+const KEY_REFUSED_OTHER_SIGNAL = 'editor.link.refused.other_signal.label';
 const FALLBACK_KEY_PREFIX = 'editor.link.fallback.';
 const FALLBACK_LYNX_KEY_PREFIX = 'editor.link.fallback_lynx.';
 const ROLE_KEY_PREFIX = 'editor.connections.role.';
 const LABEL_SUFFIX = '.label';
 
 /** The systems and ends a session works, in the order a cell is read. */
-const SYSTEMS: readonly LinkSystem[] = ['trap', 'clone', 'shot'];
+const SYSTEMS: readonly LinkSystem[] = ['trap', 'clone', 'shot', 'signal'];
 const ENDS: readonly LinkEnd[] = ['button', 'target'];
 
 /** The role id of a device, as the Connections section names it. */
 function roleId(system: LinkSystem, end: LinkEnd): string {
   if (system === 'trap') return end === 'button' ? 'trap_button' : 'trap';
   if (system === 'clone') return end === 'button' ? 'clone_button' : 'clone_machine';
+  if (system === 'signal') return end === 'button' ? 'signal_out' : 'signal_in';
   return end === 'button' ? 'shot_trigger' : 'shot_launcher';
 }
 
@@ -113,9 +119,9 @@ function inGrid(map: EditorMap, x: number, y: number): boolean {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < mapWidthOf(map) && y < mapHeightOf(map);
 }
 
-/** Whether the ruleset can carry the system at all (Lynx has no shot devices; CC3D draws no links here). */
+/** Whether the ruleset can carry the system at all (Lynx has no shot or signal devices; CC3D draws no links here). */
 function systemAllowed(system: LinkSystem, ruleset: Ruleset): boolean {
-  return ruleset !== 'cc3d' && !(ruleset === 'lynx' && system === 'shot');
+  return ruleset !== 'cc3d' && !(ruleset === 'lynx' && (system === 'shot' || system === 'signal'));
 }
 
 /** Lynx reads one link per button for the system, so a link from a button replaces the others. */
@@ -148,7 +154,9 @@ export function sessionRoleAt(level: EditorMap, x: number, y: number, ruleset: R
 /** Whether the session's source still holds its role (the map changed under the session, or was replaced). */
 export function sessionSourceHolds(level: EditorMap, session: LinkSession, ruleset: Ruleset): boolean {
   const role = sessionRoleAt(level, session.x, session.y, ruleset);
-  return role !== null && !role.blocked && role.system === session.system && role.end === session.end;
+  if (role === null || role.blocked || role.system !== session.system) return false;
+  // A signal gate holds both ends, so it can serve a session of either end.
+  return role.end === session.end || (session.system === 'signal' && holdsLinkEnd(level, 'signal', session.end, session.x, session.y));
 }
 
 /** Every device the session could link to (the opposite end of its system, plain view), and those already linked to its source. */
@@ -173,7 +181,7 @@ export function sessionStartMessages(level: EditorMap, session: LinkSession, rul
   const count = linkCountAt(level, session.system, session.end, session.x, session.y);
   const messages: ToolMessage[] = [
     {
-      key: KEY_STARTED,
+      key: session.system === 'signal' ? KEY_STARTED_SIGNAL : KEY_STARTED,
       params: {
         role: roleName(session.system, session.end),
         partner: roleName(session.system, otherEnd(session.end)),
@@ -197,6 +205,10 @@ export function sessionStartMessages(level: EditorMap, session: LinkSession, rul
  */
 export function startLinkSession(level: EditorMap, x: number, y: number, ruleset: Ruleset): SessionStartResult {
   if (level.cc3d || ruleset === 'cc3d') return { session: null, messages: [{ key: KEY_UNAVAILABLE }] };
+  // A Lynx level has no signal devices: say why instead of saying there is nothing to link.
+  if (ruleset === 'lynx' && (holdsLinkEnd(level, 'signal', 'button', x, y) || holdsLinkEnd(level, 'signal', 'target', x, y))) {
+    return { session: null, messages: [{ key: EPOXY_ONLY_REASON_KEY }] };
+  }
   const role = sessionRoleAt(level, x, y, ruleset);
   if (!role) return { session: null, messages: [{ key: KEY_NOTHING }] };
   if (role.blocked) return { session: null, messages: [{ key: KEY_REFUSED_HIDDEN, params: { role: roleName(role.system, role.end) } }] };
@@ -228,6 +240,11 @@ export function soleChangedCell(before: EditorMap, after: EditorMap): { x: numbe
 export function nudgeMessages(level: EditorMap, x: number, y: number, ruleset: Ruleset): ToolMessage[] {
   const role = sessionRoleAt(level, x, y, ruleset);
   if (!role || role.blocked || linkCountAt(level, role.system, role.end, x, y) > 0) return [];
+  // A hold door and a laser receiver work without a signal link (plates, beams): no nudge to link them.
+  if (role.system === 'signal') {
+    const tile = ConfigRegistry.getTile(level.terrain[y][x]);
+    if (tile.holdDoorColor !== undefined || tile.laserReceiverGroup !== undefined) return [];
+  }
   const prefix = ruleset === 'lynx' ? FALLBACK_LYNX_KEY_PREFIX : FALLBACK_KEY_PREFIX;
   return [
     { key: KEY_NUDGE, params: { role: roleName(role.system, role.end) } },
@@ -284,7 +301,9 @@ export function sessionClick(
   }
 
   const here = sessionRoleAt(level, cell.x, cell.y, ruleset);
-  if (here && !here.blocked && here.system === session.system && here.end === session.end) {
+  // A signal gate holds both ends: it takes the wire of the session before it can replace the source.
+  const takesWire = session.system === 'signal' && holdsLinkEnd(level, 'signal', otherEnd(session.end), cell.x, cell.y);
+  if (here && !here.blocked && !takesWire && here.system === session.system && here.end === session.end) {
     const next: LinkSession = { system: session.system, end: session.end, x: cell.x, y: cell.y };
     return { session: next, messages: sessionStartMessages(level, next, ruleset) };
   }
@@ -294,9 +313,11 @@ export function sessionClick(
     const target = session.end === 'button' ? cell : session;
     const linked = hasLink(level, session.system, button, target);
     const result =
-      replacesLinks(session.system, ruleset) && !linked && session.system !== 'shot'
+      replacesLinks(session.system, ruleset) && !linked && session.system !== 'shot' && session.system !== 'signal'
         ? replaceButtonLink(level, session.system, button, target, dir)
         : toggleLink(level, session.system, button, target, dir);
+    if (result.refusal === 'single_input') return { session, messages: [{ key: KEY_REFUSED_SINGLE_INPUT, params: { x: cell.x, y: cell.y } }] };
+    if (result.refusal === 'cycle') return { session, messages: [{ key: KEY_REFUSED_CYCLE, params: { x: cell.x, y: cell.y } }] };
     return { ...(result.changed ? { map: result.map } : {}), session, messages: editMessages(result, session, ruleset, false) };
   }
 
@@ -305,7 +326,7 @@ export function sessionClick(
   }
 
   const partnerName = roleName(session.system, otherEnd(session.end));
-  if (level.terrain[cell.y][cell.x] === FLOOR_TILE_ID) {
+  if (level.terrain[cell.y][cell.x] === FLOOR_TILE_ID && session.system !== 'signal') {
     if (underlayAt(level, cell.x, cell.y) !== undefined) {
       return { session, messages: [{ key: KEY_REFUSED_NOT_FREE, params: { partner: partnerName } }] };
     }
@@ -316,6 +337,6 @@ export function sessionClick(
 
   return {
     session,
-    messages: [{ key: KEY_REFUSED_OTHER, params: { found: topTileName(level, cell.x, cell.y), expected: partnerName } }]
+    messages: [{ key: session.system === 'signal' ? KEY_REFUSED_OTHER_SIGNAL : KEY_REFUSED_OTHER, params: { found: topTileName(level, cell.x, cell.y), expected: partnerName } }]
   };
 }

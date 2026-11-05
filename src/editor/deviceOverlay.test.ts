@@ -80,6 +80,6 @@ describe('deviceOverlayFor', () => {
   });
 
   it('has a colour for every mechanism', () => {
-    expect(Object.keys(EDITOR_RELATION_COLORS)).toHaveLength(11);
+    expect(Object.keys(EDITOR_RELATION_COLORS)).toHaveLength(12);
   });
 });

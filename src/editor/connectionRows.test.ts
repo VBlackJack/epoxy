@@ -43,6 +43,7 @@ interface Extra {
   trapLinks?: CompiledLevel['trapLinks'];
   cloneLinks?: CompiledLevel['cloneLinks'];
   launcherLinks?: CompiledLevel['launcherLinks'];
+  signalLinks?: CompiledLevel['signalLinks'];
   ruleset?: CompiledLevel['ruleset'];
 }
 
@@ -66,6 +67,7 @@ function makeLevel(terrain: Record<string, string>, extra: Extra = {}): Compiled
     trapLinks: extra.trapLinks ?? [],
     cloneLinks: extra.cloneLinks ?? [],
     ...(extra.launcherLinks ? { launcherLinks: extra.launcherLinks } : {}),
+    ...(extra.signalLinks ? { signalLinks: extra.signalLinks } : {}),
     ...(extra.underlays ? { underlays: extra.underlays } : {}),
     ...(extra.ruleset ? { ruleset: extra.ruleset } : {})
   };
@@ -348,13 +350,42 @@ describe('connection locale keys', () => {
     ...Object.values(CHANNEL_NAME_KEYS)
   ];
 
-  it('covers all 21 roles and 11 mechanisms', () => {
-    expect(Object.keys(ROLE_NAME_KEYS)).toHaveLength(21);
-    expect(Object.keys(SYSTEM_NAME_KEYS)).toHaveLength(11);
+  it('covers all 23 roles and 12 mechanisms', () => {
+    expect(Object.keys(ROLE_NAME_KEYS)).toHaveLength(23);
+    expect(Object.keys(SYSTEM_NAME_KEYS)).toHaveLength(12);
   });
 
   it('has every key the view model names in both languages', () => {
     expect(ALL_KEYS.filter((key) => resolveMessage(EN, key) === undefined)).toEqual([]);
     expect(ALL_KEYS.filter((key) => resolveMessage(FR, key) === undefined)).toEqual([]);
+  });
+});
+
+describe('connectionRows for signals', () => {
+  const level = makeLevel(
+    { '1,1': 'signal_plate', '3,1': 'signal_gate_or', '5,1': 'hold_door_blue_closed', '7,1': 'laser_receiver_red' },
+    { signalLinks: [{ fromX: 1, fromY: 1, toX: 3, toY: 1 }, { fromX: 3, fromY: 1, toX: 5, toY: 1 }] }
+  );
+
+  it('lists the signal partners of a gate on both sides, with no Unlink', () => {
+    const view = connectionRows(level, 3, 1);
+    expect(view.controlledBy?.rows).toEqual([
+      { x: 1, y: 1, kind: 'link', system: 'signal', fallback: false, name: { key: ROLE_NAME_KEYS.signal_source }, unlink: null }
+    ]);
+    expect(view.controls?.rows).toEqual([
+      { x: 5, y: 1, kind: 'link', system: 'signal', fallback: false, name: { key: ROLE_NAME_KEYS.hold_door }, unlink: null }
+    ]);
+  });
+
+  it('offers the Link button on every signal device: output end for a source or gate, input end for a hold door', () => {
+    expect(connectionRows(level, 1, 1).link).toEqual({ type: 'start', system: 'signal', end: 'button', blocked: false });
+    expect(connectionRows(level, 3, 1).link).toEqual({ type: 'start', system: 'signal', end: 'button', blocked: false });
+    expect(connectionRows(level, 7, 1).link).toEqual({ type: 'start', system: 'signal', end: 'button', blocked: false });
+    expect(connectionRows(level, 5, 1).link).toEqual({ type: 'start', system: 'signal', end: 'target', blocked: false });
+  });
+
+  it('marks a signal device hidden under another tile as blocked', () => {
+    const hidden = makeLevel({ '1,1': 'door_red' }, { underlays: [{ x: 1, y: 1, terrain: 'signal_gate_and' }] });
+    expect(connectionRows(hidden, 1, 1).link).toEqual({ type: 'start', system: 'signal', end: 'button', blocked: true });
   });
 });

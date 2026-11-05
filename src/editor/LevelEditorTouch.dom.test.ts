@@ -855,3 +855,40 @@ describe('a mouse or pen', () => {
     expect(undoDepth()).toBe(1);
   });
 });
+
+describe('a signal link session', () => {
+  const PLATE = { x: 2, y: 2 };
+  const GATE = { x: 4, y: 2 };
+  const DOOR = { x: 6, y: 2 };
+
+  function signalRoom(): CompiledLevel {
+    const level = trapRoom(false);
+    level.terrain[PLATE.y][PLATE.x] = 'signal_plate';
+    level.terrain[GATE.y][GATE.x] = 'signal_gate_and';
+    level.terrain[DOOR.y][DOOR.x] = 'hold_door_red_closed';
+    return level;
+  }
+
+  const tap = (cell: { x: number; y: number }): void => {
+    finger('pointerdown', FINGER_A, cellPoint(cell.x, cell.y, SMALL_WIDTH));
+    finger('pointerup', FINGER_A, cellPoint(cell.x, cell.y, SMALL_WIDTH));
+  };
+
+  it('links a plate to a gate and the gate to a door with taps, and refuses the loop back', () => {
+    editor.loadCompiledLevel(signalRoom());
+    editor['moveCursorTo'](PLATE, false);
+    byId<HTMLButtonElement>('editor-connections-link-btn').click();
+    expect(editor['linkSession']).not.toBeNull();
+    tap(GATE);
+    expect(editor.exportCompiledLevel().signalLinks).toEqual([{ fromX: PLATE.x, fromY: PLATE.y, toX: GATE.x, toY: GATE.y }]);
+    tap(PLATE);
+    expect(editor['linkSession']).toBeNull();
+    editor['moveCursorTo'](GATE, false);
+    byId<HTMLButtonElement>('editor-connections-link-btn').click();
+    tap(DOOR);
+    expect(editor.exportCompiledLevel().signalLinks).toHaveLength(2);
+    tap(PLATE);
+    expect(editor.exportCompiledLevel().signalLinks).toHaveLength(2);
+    expect(editor['linkSession']).not.toBeNull();
+  });
+});
