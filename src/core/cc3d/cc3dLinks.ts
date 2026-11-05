@@ -182,7 +182,13 @@ function colorGroups(
 
 const ALL_COLORS: readonly Cc3dColor[] = ['red', 'green', 'blue', 'yellow'];
 
-/** Every position-derived link of a level, exactly as the engine resolves them. */
+/**
+ * Every position-derived link of a level, exactly as the engine resolves them.
+ *
+ * An entry device is linked wherever it sits in its stack, covered or not: a covered device acts
+ * once its cover is removed (a key door opened on entry leaves it on top, and it then fires). A
+ * device under a permanent cover is linked all the same but would never act.
+ */
 export function cc3dLinks(level: Pick<Cc3dLevel, 'width' | 'cells' | 'mobs'>): Cc3dLinks {
   const { width, cells } = level;
   const traps = indicesWithLayer(cells, 'trap');

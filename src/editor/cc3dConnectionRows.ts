@@ -51,7 +51,8 @@ export const CC3D_CONNECTION_KEYS = {
   needsGolem: 'editor.connections.needs.cc3d_golem.label',
   needsGolemControl: 'editor.connections.needs.cc3d_golem_control.label',
   trapUncontrolled: 'editor.connections.cc3d.trap_uncontrolled.label',
-  buried: 'editor.connections.cc3d.buried.label'
+  buried: 'editor.connections.cc3d.buried.label',
+  behindCover: 'editor.connections.cc3d.behind_cover.label'
 } as const;
 
 /** Terrain kinds that make a cell a mechanism, for its caption. */
@@ -84,6 +85,12 @@ const TOP_LAYER_KINDS: ReadonlySet<Cc3dTerrainKind> = new Set<Cc3dTerrainKind>([
   'golem_control_blue',
   'golem_control_yellow'
 ]);
+
+/**
+ * Top layers the player removes by stepping into the cell (openOnEntry in core/cc3d/cc3dArrival.ts), after which the
+ * device underneath is the top layer and acts. Any other layer above a device (wall, toggle door...) keeps it dead.
+ */
+const OPENABLE_COVER_KINDS: ReadonlySet<Cc3dTerrainKind> = new Set<Cc3dTerrainKind>(['door', 'socket', 'socket_red', 'false_wall']);
 
 /** The tile whose name stands in when a stored part has no display id (a level that lacks an attribute its kind needs). */
 const FALLBACK_NAME_TILE = 'floor';
@@ -176,8 +183,16 @@ export function cc3dConnectionRows(level: Cc3dLevel, x: number, y: number, links
     if (!mob) return null;
     return { x: mob.x, y: mob.y, kind, system, ...(channel !== undefined ? { channel } : {}), name: () => nameOfDisplay(true, () => displayMobId(mob)) };
   };
-  // An entry device acts only from the top layer: one buried under another layer is listed but does not count as a partner.
-  const actsFrom = (index: number, kind: Cc3dTerrainKind): boolean => !TOP_LAYER_KINDS.has(kind) || topTerrain(level.cells[index]).kind === kind;
+  // An entry device acts only from the top layer: one buried under a layer the player cannot open is listed but does
+  // not count as a partner. One behind openable covers only will act once the player has opened them, so it counts.
+  // The highest layer of a kind is the one the engine reads when a stored file stacks the same kind twice.
+  const actsFrom = (index: number, kind: Cc3dTerrainKind): boolean => {
+    if (!TOP_LAYER_KINDS.has(kind)) return true;
+    const stack = level.cells[index].terrain;
+    let at = -1;
+    for (let i = stack.length - 1; i >= 0 && at < 0; i--) if (stack[i].kind === kind) at = i;
+    return at >= 0 && stack.slice(at + 1).every((layer) => OPENABLE_COVER_KINDS.has(layer.kind));
+  };
 
   const controls: Entry[] = [];
   const controlledBy: Entry[] = [];
@@ -279,10 +294,19 @@ export function cc3dConnectionRows(level: Cc3dLevel, x: number, y: number, links
     }
   }
 
-  // An entry device under another layer does nothing: the engine reads the top of the stack for it.
+  // An entry device under a layer that does not open does nothing: the engine reads the top of the stack for it.
+  // Under openable covers only, it works once the player has opened the cell and stepped onto it.
   const top = topTerrain(cell);
-  const buried = layers.some((layer) => TOP_LAYER_KINDS.has(layer.kind) && layer.kind !== top.kind);
-  const note = buried ? { key: CC3D_CONNECTION_KEYS.buried } : (notes[0] ?? null);
+  // Only the highest layer of each kind counts (a duplicate lower down is shadowed by the one the engine reads).
+  const covered = layers.filter(
+    (layer, index) => TOP_LAYER_KINDS.has(layer.kind) && index < layers.length - 1 && !layers.slice(index + 1).some((above) => above.kind === layer.kind)
+  );
+  const buried = covered.some((layer) => !actsFrom(here, layer.kind));
+  const behindCover = !buried && covered.length > 0;
+  // A device behind covers is live, so what it still needs comes before the cover note.
+  const note = buried
+    ? { key: CC3D_CONNECTION_KEYS.buried }
+    : (notes[0] ?? (behindCover ? { key: CC3D_CONNECTION_KEYS.behindCover } : null));
 
   const controlsList = listOf(controls, CONNECTIONS_KEYS.noneControls);
   const controlledList = listOf(controlledBy, CONNECTIONS_KEYS.noneControlled);

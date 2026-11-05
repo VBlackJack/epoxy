@@ -752,7 +752,8 @@
       },
       "cc3d": {
         "trap_uncontrolled": { "label": "No trap control works this trap, so it stays closed." },
-        "buried": { "label": "This device is under another layer, so it does nothing: toggle controls, clone switches, laser controllers, golem controls and teleports work only from the top layer of their cell." }
+        "buried": { "label": "This device is under another layer, so it does nothing: toggle controls, clone switches, laser controllers, golem controls and teleports work only from the top layer of their cell." },
+        "behind_cover": { "label": "This device is under a door, socket or false wall: it works only if the player opens that cell and then steps onto it." }
       },
       "help": {
         "title": "How mechanisms work",
