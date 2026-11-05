@@ -15,6 +15,7 @@
  */
 
 import { CC3D_XML_EXTENSION, Cc3dImportError, decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
+import { decodeDiggyFiles, isDiggyFloorFileName } from '../formats/DiggyCodec';
 import type { CompiledLevel } from '../core/types';
 import { formatMegabytes, isImportSizeAllowed } from './importLimits';
 
@@ -30,7 +31,7 @@ export interface ImportableFile {
 }
 
 /** How a selection of files is to be imported. */
-export type ImportSelectionKind = 'cc3d' | 'single' | 'several' | 'mixed';
+export type ImportSelectionKind = 'cc3d' | 'diggy' | 'single' | 'several' | 'mixed';
 
 /** True for a level file of the cc3d ruleset. */
 export function isCc3dFileName(name: string): boolean {
@@ -38,14 +39,18 @@ export function isCc3dFileName(name: string): boolean {
 }
 
 /**
- * XML files import together as one pack; any other format imports one file
- * at a time, so several of them are refused (nothing is imported); a selection
- * that mixes XML with another format is refused too.
+ * XML files import together as one pack, and multiple Diggy floor JSON files
+ * (`floors_*.json` / `*.diggy.json`) import together as one pack; any other
+ * format imports one file at a time, so several of them or a mixed selection
+ * are refused (nothing is imported).
  */
 export function classifyImportSelection(names: readonly string[]): ImportSelectionKind {
   const xmlCount = names.filter(isCc3dFileName).length;
-  if (xmlCount === 0) return names.length > 1 ? 'several' : 'single';
-  return xmlCount === names.length ? 'cc3d' : 'mixed';
+  if (xmlCount > 0) return xmlCount === names.length ? 'cc3d' : 'mixed';
+  if (names.length <= 1) return 'single';
+  const diggyCount = names.filter(isDiggyFloorFileName).length;
+  if (diggyCount === names.length) return 'diggy';
+  return diggyCount > 0 ? 'mixed' : 'several';
 }
 
 export interface Cc3dSelectionResult {
@@ -54,6 +59,14 @@ export interface Cc3dSelectionResult {
   readonly skipped: number;
   /** Why the first of them failed; null when all imported. */
   readonly firstError: Cc3dImportError | null;
+}
+
+export interface DiggySelectionResult {
+  readonly levels: CompiledLevel[];
+  /** Number of files or floors that did not import (unreadable, oversized, or unsolvable). */
+  readonly skipped: number;
+  /** Formatted max megabytes when a file exceeded the size limit, else null. */
+  readonly tooLargeMaxMb: string | null;
 }
 
 /**
@@ -80,6 +93,31 @@ export async function importCc3dSelection(
   skipped += decoded.failures.length;
   firstError ??= decoded.failures[0]?.error ?? null;
   return { levels: decoded.levels, skipped, firstError };
+}
+
+/**
+ * Reads and decodes a selection of Diggy floor JSON files into one pack.
+ */
+export async function importDiggySelection(
+  files: readonly ImportableFile[],
+  maxBytes: number,
+  packName: string
+): Promise<DiggySelectionResult> {
+  const readable: Array<{ name: string; text: string }> = [];
+  let tooLargeMaxMb: string | null = null;
+  let skipped = 0;
+  const decoder = new TextDecoder('utf-8');
+  for (const file of files) {
+    if (!isImportSizeAllowed(file.size, maxBytes)) {
+      skipped++;
+      tooLargeMaxMb ??= formatMegabytes(maxBytes);
+      continue;
+    }
+    readable.push({ name: file.name, text: decoder.decode(await file.arrayBuffer()) });
+  }
+  const decoded = decodeDiggyFiles(readable, packName);
+  skipped += decoded.skipped.length;
+  return { levels: decoded.levels, skipped, tooLargeMaxMb };
 }
 
 /** Name of a pack made from one file: the file name without its extension. */
