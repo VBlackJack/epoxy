@@ -28,7 +28,7 @@ import { DatCodec } from '../formats/DatCodec';
 import { CC3D_XML_EXTENSION, decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
 import { encodeCc3dLevel } from '../formats/Cc3dXmlEncoder';
 import { decodeXsbCollection, XSB_EXTENSIONS } from '../formats/XsbCodec';
-import { LevelValidator } from '../core/LevelValidator';
+import { LevelValidator, type ValidateOptions } from '../core/LevelValidator';
 import { hasEpoxyOnlyContent } from '../core/RulesetFeatures';
 import { cc3dLinks, type Cc3dLinks } from '../core/cc3d/cc3dLinks';
 import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
@@ -307,6 +307,8 @@ const WIN_RULE_INPUT_ID = 'editor-meta-winrule';
 const RULESET_INPUT_ID = 'editor-meta-ruleset';
 const TITLE_INPUT_ID = 'editor-meta-title';
 const LYNX_RULESET = 'lynx' as const;
+/** The explicit Check and the Test pre-check search door orders more thoroughly than the automatic check. */
+const DEEP_CHECK_OPTIONS: ValidateOptions = { doorOrderSearch: 'deep' };
 /** Value of the context pack select while the editor content belongs to no pack. */
 const NO_PACK_OPTION_VALUE = '';
 /** Answers of the imported-pack and multi-level-file questions. */
@@ -564,7 +566,7 @@ export class LevelEditor {
   private blockRunner: BlockCheckRunner | null = null;
   private levelRunner: LevelCheckRunner | null = null;
   /** The last finished report with the load and content it is for (`currentBeamPreviewKey`). */
-  private reportCache: { key: string; report: LevelValidationReport } | null = null;
+  private reportCache: { key: string; report: LevelValidationReport; deep: boolean } | null = null;
   /** What the badge shows instead of the last verdict: a check in progress, or one abandoned (too slow, failed, interrupted). */
   private checkOverlay: 'checking' | 'skipped' | 'interrupted' | 'error' | null = null;
   /** True while Test waits for its check, so a repeated click does not start a second one. */
@@ -575,6 +577,8 @@ export class LevelEditor {
   private runningCheckKey: string | null = null;
   /** False while the check in the worker is of a moved-start copy: it is not the content, so nobody joins it or caches it. */
   private runningCheckCacheable = true;
+  /** Whether the running check uses the deep door-order search (the Check button, Test); a deep run serves default callers too. */
+  private runningCheckDeep = false;
   /** Source of the status tokens: each check run that writes "checking" on the status line takes the next one. */
   private statusTokenSeq = 0;
   /** The status line before a check wrote "checking", the status write count right after it did, and the token of the run that owns the line. */
@@ -1999,6 +2003,7 @@ export class LevelEditor {
       this.showChecking();
       this.runningCheckKey = key;
       this.runningCheckCacheable = true;
+      this.runningCheckDeep = false;
       this.levelCheckRunner().run(compiled, EDITOR_AUTO_CHECK_TIMEOUT_MS, (result) => this.onScheduledCheckDone(key, result));
     }
     if (this.beamPreviewOn) this.refreshBeamPreview(compiled, false);
@@ -2016,16 +2021,19 @@ export class LevelEditor {
   }
 
   /** The report available without waiting: the one cached for this content, or a CC3D validation (always inline). */
-  private syncReport(key: string, compiled: CompiledLevel): LevelValidationReport | null {
-    if (this.reportCache?.key === key) return this.reportCache.report;
-    return this.isCc3d() ? LevelValidator.validate(compiled, storedSolutionWins) : null;
+  private syncReport(key: string, compiled: CompiledLevel, deep = false): LevelValidationReport | null {
+    // A default report is not the answer to a deep check; a deep one answers both.
+    if (this.reportCache?.key === key && (this.reportCache.deep || !deep)) return this.reportCache.report;
+    return this.isCc3d() ? LevelValidator.validate(compiled, storedSolutionWins, deep ? DEEP_CHECK_OPTIONS : undefined) : null;
   }
 
   /** Keeps a finished report for its content and shows it on the badge and in the issues list. */
-  private applyReport(key: string, report: LevelValidationReport): void {
-    this.reportCache = { key, report };
+  private applyReport(key: string, report: LevelValidationReport, deep = false): void {
+    // A default report never replaces a deep one of the same content.
+    if (deep || this.reportCache?.key !== key || !this.reportCache.deep) this.reportCache = { key, report, deep };
+    const shown = this.reportCache?.report ?? report;
     this.checkOverlay = null;
-    this.setCheck(summarizeValidation(report), report.issues);
+    this.setCheck(summarizeValidation(shown), shown.issues);
   }
 
   /** The badge says a check is running; the issues of the last one stay, dimmed. */
@@ -2033,6 +2041,14 @@ export class LevelEditor {
     this.checkOverlay = 'checking';
     this.updateCheckBadge(this.lastCheck);
     this.renderIssues();
+  }
+
+  /** Puts the cached verdict of this content back on the badge, over a "checking" overlay; false when none is cached. */
+  private restoreCachedVerdict(key: string): boolean {
+    const cached = this.reportCache;
+    if (cached?.key !== key) return false;
+    this.applyReport(key, cached.report, cached.deep);
+    return true;
   }
 
   /** The badge says the check was abandoned (too slow, failed, or cut short); the issues of the last one stay, dimmed. */
@@ -2061,9 +2077,9 @@ export class LevelEditor {
     }
     const compiled = this.exportCompiledLevel();
     const key = this.currentCheckKey();
-    const report = this.syncReport(key, compiled);
+    const report = this.syncReport(key, compiled, true);
     if (report) {
-      this.applyReport(key, report);
+      this.applyReport(key, report, true);
       this.showCheckOutcome(compiled, report);
       return;
     }
@@ -2074,11 +2090,12 @@ export class LevelEditor {
     this.showChecking();
     const token = this.beginRunningStatus();
     const onDone = (result: LevelCheckResult): void => this.onExplicitCheckDone(key, compiled, token, result);
-    // The automatic check is already running on this content: wait for it instead of restarting it.
-    if (this.joinRunningCheck(key, EDITOR_AUTO_CHECK_TIMEOUT_MS, onDone)) return;
+    // A deep check already running on this content is waited for; a default automatic one is replaced by this deep run.
+    if (this.joinRunningCheck(key, EDITOR_AUTO_CHECK_TIMEOUT_MS, onDone, true)) return;
     this.runningCheckKey = key;
     this.runningCheckCacheable = true;
-    this.levelCheckRunner().run(compiled, EDITOR_AUTO_CHECK_TIMEOUT_MS, onDone);
+    this.runningCheckDeep = true;
+    this.levelCheckRunner().run(compiled, EDITOR_AUTO_CHECK_TIMEOUT_MS, onDone, DEEP_CHECK_OPTIONS);
   }
 
   /** The Check button's check ended: the badge, and the status line unless a later run owns it now. */
@@ -2096,21 +2113,28 @@ export class LevelEditor {
     const owned = this.runningStatus?.token === token;
     if (result.kind === 'report') {
       this.endRunningStatus(token, false);
-      this.applyReport(key, result.report);
+      this.applyReport(key, result.report, true);
       if (owned) this.showCheckOutcome(compiled, result.report);
       return;
     }
     const failed = result.kind === 'error';
-    this.showAbandoned(failed ? 'error' : 'skipped');
+    // A cached default verdict stays on the badge; the notice goes to the status line only.
+    if (!this.restoreCachedVerdict(key)) this.showAbandoned(failed ? 'error' : 'skipped');
     const untouched = owned && this.runningStatus?.writes === this.statusWrites;
     this.endRunningStatus(token, false);
     if (untouched) this.setStatusText(t(failed ? 'editor.check.error.label' : 'editor.check.skipped.label'));
   }
 
   /** Attaches to the check running in the worker when it is of this very content; false when there is none to join. */
-  private joinRunningCheck(key: string, timeoutMs: number, onDone: (result: LevelCheckResult) => void): boolean {
+  private joinRunningCheck(
+    key: string,
+    timeoutMs: number,
+    onDone: (result: LevelCheckResult) => void,
+    deep: boolean
+  ): boolean {
     const runner = this.levelRunner;
     if (!runner?.isRunning() || !this.runningCheckCacheable || this.runningCheckKey !== key) return false;
+    if (deep && !this.runningCheckDeep) return false;
     return runner.join(timeoutMs, onDone);
   }
 
@@ -2426,7 +2450,7 @@ export class LevelEditor {
               }) as unknown as LevelCheckWorkerLike,
       getBundle: () => this.hooks.getConfigBundle(),
       getLocale: () => i18n.getLocale(),
-      validate: (level) => LevelValidator.validate(level, storedSolutionWins)
+      validate: (level, options) => LevelValidator.validate(level, storedSolutionWins, options)
     });
     return this.levelRunner;
   }
@@ -5428,12 +5452,13 @@ export class LevelEditor {
     const key = this.currentCheckKey();
     const generation = this.loadGeneration;
     const epoch = this.checkAbortEpoch;
-    // A moved-start copy is another level than the one the cache holds: it is always validated.
+    // A moved-start copy is another level than the one the cache holds: it is always validated (deep).
+    // Any cached report of this content (default or deep) answers a normal Test; only a cold Test checks.
     let report: LevelValidationReport | null =
       !startCell && this.reportCache?.key === key
         ? this.reportCache.report
         : this.isCc3d()
-          ? LevelValidator.validate(compiled, storedSolutionWins)
+          ? LevelValidator.validate(compiled, storedSolutionWins, DEEP_CHECK_OPTIONS)
           : null;
     let skipReason: TestCheckSkip | null = null;
     if (report === null) {
@@ -5483,24 +5508,33 @@ export class LevelEditor {
     this.testCheckPending = true;
     const token = this.beginRunningStatus();
     let result: LevelCheckResult;
+    let joinedDeep = true;
     try {
       result = await new Promise<LevelCheckResult>((resolve) => {
         // The check of this very content may be running already (automatic, or the Check button): wait for it
-        // for at most the test timeout from now. A moved-start copy is another level: it is checked on its own.
-        if (cacheable && this.joinRunningCheck(key, EDITOR_TEST_CHECK_TIMEOUT_MS, resolve)) return;
+        // for at most the test timeout from now, whatever its depth. A moved-start copy is another level: it is checked on its own.
+        const runningDeep = this.runningCheckDeep;
+        if (cacheable && this.joinRunningCheck(key, EDITOR_TEST_CHECK_TIMEOUT_MS, resolve, false)) {
+          joinedDeep = runningDeep;
+          return;
+        }
         // The running key is the content either way, so a save (same content) never cancels it.
         // Test from here (not cacheable) cancels the automatic check: its moved-start copy is a different level; the automatic check is rescheduled after the wait.
         if (cacheable) this.showChecking();
         this.runningCheckKey = key;
         this.runningCheckCacheable = cacheable;
-        this.levelCheckRunner().run(compiled, EDITOR_TEST_CHECK_TIMEOUT_MS, resolve);
+        this.runningCheckDeep = true;
+        this.levelCheckRunner().run(compiled, EDITOR_TEST_CHECK_TIMEOUT_MS, resolve, DEEP_CHECK_OPTIONS);
       });
     } finally {
       this.testCheckPending = false;
     }
     this.endRunningStatus(token, true);
     if (cacheable && result.kind === 'report' && key === this.currentCheckKey()) {
-      this.applyReport(key, result.report);
+      this.applyReport(key, result.report, joinedDeep);
+    } else if (cacheable && result.kind !== 'report' && result.kind !== 'cancelled' && key === this.currentCheckKey()) {
+      // No report came (too slow, failed): the cached verdict of this content goes back on the badge, else the badge says so.
+      if (!this.restoreCachedVerdict(key)) this.showAbandoned(result.kind === 'error' ? 'error' : 'skipped');
     }
     // After the view was left, the next visit checks (onEnter). A check this wait only joined goes on by itself.
     const stillRunning = (this.levelRunner?.isRunning() ?? false) && this.runningCheckKey === this.currentCheckKey();

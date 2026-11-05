@@ -15,7 +15,7 @@
  */
 
 import type { ConfigBundle } from '../config/ConfigRegistry';
-import type { SolutionWins } from '../core/LevelValidator';
+import type { SolutionWins, ValidateOptions } from '../core/LevelValidator';
 import type { CompiledLevel, LevelValidationReport } from '../core/types';
 import type { LevelCheckWorkerRequest, LevelCheckWorkerResponse } from './levelCheckProtocol';
 
@@ -23,7 +23,7 @@ import type { LevelCheckWorkerRequest, LevelCheckWorkerResponse } from './levelC
 export interface LevelCheckWorkerDeps {
   applyConfigs(bundle: ConfigBundle): void;
   setLocale(locale: string): void;
-  validate(level: CompiledLevel, solutionWins: SolutionWins): LevelValidationReport;
+  validate(level: CompiledLevel, solutionWins: SolutionWins, options?: ValidateOptions): LevelValidationReport;
   /** Replays a stored solution in the engine; the validator trusts a level whose solution wins. */
   solutionWins: SolutionWins;
 }
@@ -41,7 +41,7 @@ export function createLevelCheckWorkerCore(
     try {
       deps.applyConfigs(request.bundle);
       deps.setLocale(request.locale);
-      reply({ type: 'report', id: request.id, report: deps.validate(request.level, deps.solutionWins) });
+      reply({ type: 'report', id: request.id, report: deps.validate(request.level, deps.solutionWins, request.options) });
     } catch (err) {
       reply({ type: 'error', id: request.id, message: err instanceof Error ? err.message : String(err) });
     }
