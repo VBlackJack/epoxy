@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+
+- The CC3D Connections panel no longer calls a device under a door, socket or false wall dead: it says the device works only if the player opens that cell and then steps onto it.
+
 ## [2.19.0] - 2026-11-05
 
 ### Added

@@ -752,7 +752,8 @@
       },
       "cc3d": {
         "trap_uncontrolled": { "label": "Aucune commande de piège n'actionne ce piège : il reste fermé." },
-        "buried": { "label": "Ce dispositif est sous une autre couche, il ne fait donc rien : les commandes de bascule, les boutons de clonage, les commandes laser, les commandes de golem et les téléporteurs ne fonctionnent que depuis la couche du dessus de leur case." }
+        "buried": { "label": "Ce dispositif est sous une autre couche, il ne fait donc rien : les commandes de bascule, les boutons de clonage, les commandes laser, les commandes de golem et les téléporteurs ne fonctionnent que depuis la couche du dessus de leur case." },
+        "behind_cover": { "label": "Ce dispositif est sous une porte, un verrou de puces ou un faux mur : il ne fonctionne que si le joueur ouvre cette case puis marche dessus." }
       },
       "help": {
         "title": "Comment fonctionnent les mécanismes",
