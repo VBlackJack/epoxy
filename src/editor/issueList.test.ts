@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ValidationIssue } from '../core/types';
-import { issueCell, issueRows, issuesAtCell } from './issueList';
+import { i18n } from '../i18n/I18nManager';
+import { issueCell, issueRows, issuesAtCell, stripSeverityPrefix } from './issueList';
 
 const WIDTH = 10;
 const HEIGHT = 8;
@@ -24,6 +25,40 @@ const CAP = 3;
 
 const error = (key: string, params?: ValidationIssue['params']): ValidationIssue => ({ severity: 'error', i18nKey: key, params });
 const warning = (key: string, params?: ValidationIssue['params']): ValidationIssue => ({ severity: 'warning', i18nKey: key, params });
+
+describe('stripSeverityPrefix', () => {
+  const WORDS = {
+    en: { error: 'Error', warning: 'Warning', info: 'Info' },
+    fr: { error: 'Erreur', warning: 'Avertissement', info: 'Info' }
+  } as const;
+
+  for (const locale of ['en', 'fr'] as const) {
+    describe(locale, () => {
+      beforeEach(() => i18n.setLocale(locale));
+      afterEach(() => i18n.setLocale('en'));
+
+      it('removes the word of the same severity with its colon', () => {
+        for (const severity of ['error', 'warning', 'info'] as const) {
+          const word = WORDS[locale][severity];
+          expect(stripSeverityPrefix(`${word}: a trap at (5, 9)`, severity)).toBe('a trap at (5, 9)');
+          expect(stripSeverityPrefix(`${word} : a trap at (5, 9)`, severity)).toBe('a trap at (5, 9)');
+        }
+      });
+
+      it('keeps a message that opens with another severity', () => {
+        const text = `${WORDS[locale].warning} : a trap at (5, 9)`;
+        expect(stripSeverityPrefix(text, 'info')).toBe(text);
+        expect(stripSeverityPrefix(text, 'error')).toBe(text);
+      });
+
+      it('keeps a message without a prefix, or with the word but no colon', () => {
+        expect(stripSeverityPrefix('a trap at (5, 9)', 'info')).toBe('a trap at (5, 9)');
+        const noColon = `${WORDS[locale].info} trap at (5, 9)`;
+        expect(stripSeverityPrefix(noColon, 'info')).toBe(noColon);
+      });
+    });
+  }
+});
 
 describe('issueCell', () => {
   it('returns the cell of an issue that names one inside the grid', () => {
