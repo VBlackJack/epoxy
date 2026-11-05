@@ -48,7 +48,7 @@ describe('Runeward art guard', () => {
   });
 
   it('refuses a missing sub-object without throwing', () => {
-    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'seal', 'exit', 'water', 'lava', 'mage', 'keys', 'door', 'gate', 'plate', 'rune', 'animation']) {
+    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'seal', 'exit', 'water', 'lava', 'mage', 'keys', 'door', 'gate', 'plate', 'rune', 'trap', 'portal', 'ice', 'force', 'animation']) {
       const art = freshArt() as unknown as Record<string, unknown>;
       delete art[section];
       expect(validRunewardArt(art)).toBeNull();
@@ -65,6 +65,9 @@ describe('Runeward art guard', () => {
     const pulse = freshArt();
     pulse.animation.pulsePeriodMs = 0;
     expect(validRunewardArt(pulse)).toBeNull();
+    const scroll = freshArt();
+    scroll.animation.forceScrollPeriodMs = 0;
+    expect(validRunewardArt(scroll)).toBeNull();
     const glyph = freshArt();
     glyph.keys.blue.glyph = BAD_COLOUR;
     expect(validRunewardArt(glyph)).toBeNull();

@@ -21,9 +21,13 @@
  * Painters are added lot by lot; an id without a painter falls through to the shared drawing.
  */
 
+import { ConfigRegistry } from '../../../config/ConfigRegistry';
 import type { Direction, RunewardArtConfig, RunewardKeyColour } from '../../../core/types';
+import { iceBendGeometry } from '../../iceBend';
+import { teleporterGlyphKey } from '../../paletteKeys';
 import { REFERENCE_FRAME_MS } from '../../renderTiming';
 import type { TileNeighbours } from '../../tileNeighbours';
+import { paintForce, paintIce, paintIceCorner, paintTeleport, paintTrap, type RunewardTeleportColour } from './runewardHazards';
 import {
   paintButton,
   paintChipItem,
@@ -181,6 +185,77 @@ function buttonTile(spec: RunewardButtonKind): RunewardTilePainter {
   return staticTile((ctx, size, art, nb) => paintButton(ctx, size, art, spec, nb));
 }
 
+/** The trap: drawn from the state the caller passes, so it is repainted whenever the jaws change. */
+const TRAP_PAINTER: RunewardTilePainter = (ctx, x, y, size, pass, neighbours, env, _isEditor, isClosedTrap) => {
+  if (pass === 'animated') return;
+  ctx.save();
+  ctx.translate(x, y);
+  paintTrap(ctx, size, env.art, neighbours, isClosedTrap);
+  ctx.restore();
+};
+
+/** Colour channel of a teleport tile id, from the game's own definition; null for the plain one. */
+function teleportColour(id: string, art: Readonly<RunewardArtConfig>): RunewardTeleportColour {
+  const key = teleporterGlyphKey(ConfigRegistry.getTile(id));
+  return key !== null && Object.prototype.hasOwnProperty.call(art.keys, key) ? (key as RunewardKeyColour) : null;
+}
+
+/** A teleport tile: the vortex turns with the clock. */
+function teleportTile(id: string): RunewardTilePainter {
+  return (ctx, x, y, size, pass, neighbours, env) => {
+    ctx.save();
+    ctx.translate(x, y);
+    const timeMs = pass === 'static' ? 0 : runewardClockMs(env);
+    paintTeleport(ctx, size, env.art, neighbours, timeMs, pass, teleportColour(id, env.art));
+    ctx.restore();
+  };
+}
+
+/** Ice with no bend: static. */
+const ICE_PAINTER = staticTile((ctx, size, art, nb) => paintIce(ctx, size, art, nb));
+
+/** A corner ice tile: the bend geometry comes from the tile definition, as it does for the shared drawing. */
+function iceCornerTile(id: string): RunewardTilePainter {
+  return staticTile((ctx, size, art, nb) => {
+    const bend = iceBendGeometry(ConfigRegistry.getTile(id));
+    if (bend) paintIceCorner(ctx, size, art, nb, bend);
+    else paintIce(ctx, size, art, nb);
+  });
+}
+
+/** A force floor tile pushing toward `direction` (null: the random floor): chevrons scroll with the clock. */
+function forceTile(direction: Direction | null): RunewardTilePainter {
+  return animatedTile((ctx, size, art, nb, timeMs) => paintForce(ctx, size, art, nb, timeMs, direction));
+}
+
+/** Push direction of each directional force floor, by tile id; the random floor has none. */
+const FORCE_DIRECTIONS: Readonly<Record<string, Direction>> = {
+  force_n: 'N',
+  force_e: 'E',
+  force_s: 'S',
+  force_w: 'W'
+};
+const RANDOM_FORCE_ID = 'force_random';
+/** Teleport tile ids: the plain one and one per colour channel. */
+const TELEPORT_IDS: readonly string[] = ['teleport', 'teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green'];
+/** Corner ice tile ids. */
+const ICE_CORNER_IDS: readonly string[] = ['ice_nw', 'ice_ne', 'ice_sw', 'ice_se'];
+
+/** Painters of the hazards and movers, by tile id. */
+const HAZARD_TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromEntries([
+  ['trap', TRAP_PAINTER],
+  ['ice', ICE_PAINTER],
+  ...ICE_CORNER_IDS.map((id): [string, RunewardTilePainter] => [id, iceCornerTile(id)]),
+  ...TELEPORT_IDS.map((id): [string, RunewardTilePainter] => [id, teleportTile(id)]),
+  ...Object.entries(FORCE_DIRECTIONS).map(([id, direction]): [string, RunewardTilePainter] => [id, forceTile(direction)]),
+  [RANDOM_FORCE_ID, forceTile(null)]
+]);
+
+/** Tile ids whose painter has an animated pass: the liquids, the exit, the teleports and the force floors. */
+const ANIMATED_TILE_IDS: readonly string[] = [
+  'water', 'fire', 'exit', ...TELEPORT_IDS, ...Object.keys(FORCE_DIRECTIONS), RANDOM_FORCE_ID
+];
+
 /** Floor-like tiles all show the same flagstones, so hidden walls give nothing away. */
 const FLOOR_PAINTER = staticTile(paintFloor);
 const WALL_PAINTER = staticTile(paintWall);
@@ -228,6 +303,7 @@ const MECHANISM_ITEMS: Readonly<Record<string, RunewardItemPainter>> = Object.fr
 export const RUNEWARD_PAINTERS: RunewardPainters = {
   tiles: {
     ...MECHANISM_TILES,
+    ...HAZARD_TILES,
     floor: FLOOR_PAINTER,
     socket: staticTile(paintSeal),
     invisible_wall: FLOOR_PAINTER,
@@ -242,7 +318,7 @@ export const RUNEWARD_PAINTERS: RunewardPainters = {
   items: MECHANISM_ITEMS,
   entities: {},
   player: paintPlayer,
-  animatedTiles: new Set<string>(['water', 'fire', 'exit'])
+  animatedTiles: new Set<string>(ANIMATED_TILE_IDS)
 };
 
 /** Epoxy tile and item ids (tiles.json) that keep the shared drawing for now. */
@@ -252,15 +328,13 @@ const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
   'thin_wall_nes', 'thin_wall_new', 'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw', 'swivel_door_ne',
   'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw', 'transmogrifier', 'turn_plate_cw',
   'turn_plate_ccw', 'block_target', 'button_orange', 'button_gray', 'flame_jet_off', 'flame_jet_on',
-  'teleport', 'teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green', 'trap',
   'clone_machine', 'laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w',
   'laser_receiver_red', 'laser_receiver_blue', 'laser_gate_red_closed', 'laser_gate_red_open',
   'laser_gate_blue_closed', 'laser_gate_blue_open', 'floating_block_red', 'floating_block_green',
   'floating_block_blue', 'floating_block_yellow', 'puppet_control', 'shot_launcher_n', 'shot_launcher_e',
   'shot_launcher_s', 'shot_launcher_w', 'shot_trigger',
   'signal_plate', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor',
-  'signal_latch_off', 'signal_latch_on', 'turtle', 'slime', 'ice', 'ice_nw', 'ice_ne',
-  'ice_sw', 'ice_se', 'force_n', 'force_e', 'force_s', 'force_w', 'force_random', 'thief', 'thief_keys',
+  'signal_latch_off', 'signal_latch_on', 'turtle', 'slime', 'thief', 'thief_keys',
   'forbid_key_red', 'forbid_key_blue', 'forbid_key_yellow', 'forbid_key_green', 'forbid_boots_ice',
   'forbid_boots_water', 'forbid_boots_fire', 'forbid_boots_force', 'boots_water', 'boots_fire',
   'boots_ice', 'boots_force', 'slow_time', 'boots_speed', 'boots_eye', 'bomb', 'score_10', 'score_100',

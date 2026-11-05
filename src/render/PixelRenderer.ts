@@ -567,7 +567,7 @@ const EXIT_PULSE_AMPLITUDE = 0.05;
 const TELEPORT_CORE_BASE = 0.14;
 const TELEPORT_CORE_AMPLITUDE = 0.03;
 /** Radius of the colour-blind glyph at the centre of a colour teleporter, in tiles. */
-const TELEPORT_GLYPH_RADIUS_TILE = 0.11;
+export const TELEPORT_GLYPH_RADIUS_TILE = 0.11;
 /** Low bits of the cell hash turned into an animation phase. */
 const PHASE_MASK = 0xff;
 const WATER_SPARKLE_SPEED = 0.6;
