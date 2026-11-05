@@ -22,6 +22,7 @@ import {
   BLOCK_TARGET_TILE_ID,
   FLOOR_TILE_ID,
   HINT_TILE_ID,
+  CELL_EDGE_BITS,
   OPPOSITE_DIRECTION,
   WALL_TILE_ID,
   CHANNEL_COLOR_NAME_KEY_PREFIX,
@@ -30,7 +31,7 @@ import {
   toggleWallOtherForm
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
-import { entityPressesPlate } from './epoxy/epoxyWorld';
+import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
 import { isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
@@ -212,6 +213,13 @@ const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
   'clone_machine'
 ]);
 
+/**
+ * Tiles that seal a swivel door side for good: a plain wall, an invisible wall, a laser emitter or a laser receiver
+ * (a receiver and an emitter are solid). Anything else a neighbour may be (a door, a toggle wall, a clone machine, a
+ * shot launcher, another swivel) can change or be passed, so it never counts as sealing.
+ */
+const SWIVEL_SEALING_TILE_IDS: ReadonlySet<string> = new Set([WALL_TILE_ID, 'invisible_wall']);
+
 type BootCheck = (boots: number, bootId: string | undefined) => boolean;
 
 /** Tells whether a level's stored solution wins in the real engine; supplied by callers that can replay it. */
@@ -356,6 +364,7 @@ export class LevelValidator {
     this.checkSteering(level, issues);
     this.checkShotLaunchers(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
+    this.checkMechanisms(level, issues);
 
     // A consumed key opens one door; a kept key opens every door of its colour
     for (const [keyId, doors] of Object.entries(consumingDoorCounts)) {
@@ -1428,19 +1437,36 @@ export class LevelValidator {
   private static checkSteering(level: CompiledLevel, issues: ValidationIssue[]): void {
     const underlays = underlayMap(level);
     const width = level.terrain[0]?.length ?? 0;
-    let pads = 0;
+    const padCells: GridPoint[] = [];
     level.terrain.forEach((row, y) =>
       row.forEach((id, x) => {
-        if (isSteeringTileId(id)) pads++;
+        if (isSteeringTileId(id)) padCells.push({ x, y });
         const hiddenId = underlays?.get(y * width + x);
-        if (hiddenId !== undefined && isSteeringTileId(hiddenId)) pads++;
+        if (hiddenId !== undefined && isSteeringTileId(hiddenId)) padCells.push({ x, y });
       })
     );
-    const puppets =
-      level.entities.some((e) => isSteeredEntityType(e.type)) ||
-      (level.cloneLinks ?? []).some((link) => isSteeredEntityType(link.templateType));
-    if (pads > 0 && !puppets) issues.push({ severity: 'warning', i18nKey: 'validator.issues.steering_pad_no_puppet.label' });
-    if (pads === 0 && puppets) issues.push({ severity: 'warning', i18nKey: 'validator.issues.puppet_no_steering_pad.label' });
+    const puppetEntities = level.entities.filter((e) => isSteeredEntityType(e.type));
+    // A puppet a clone machine makes is located at its machine.
+    const puppetLinks = (level.cloneLinks ?? []).filter((link) => isSteeredEntityType(link.templateType));
+    const puppets = puppetEntities.length > 0 || puppetLinks.length > 0;
+    if (padCells.length > 0 && !puppets) {
+      issues.push({
+        severity: 'warning',
+        i18nKey: 'validator.issues.steering_pad_no_puppet.label',
+        params: this.locationParams(padCells)
+      });
+    }
+    if (padCells.length === 0 && puppets) {
+      const puppetCells = [
+        ...puppetEntities.map((e) => ({ x: e.x, y: e.y })),
+        ...puppetLinks.map((link) => ({ x: link.clonerX, y: link.clonerY }))
+      ].filter((cell) => this.inGrid(level, cell));
+      issues.push({
+        severity: 'warning',
+        i18nKey: 'validator.issues.puppet_no_steering_pad.label',
+        params: this.locationParams(puppetCells)
+      });
+    }
   }
 
   /**
@@ -1494,21 +1520,25 @@ export class LevelValidator {
     };
     const links = level.cloneLinks ?? [];
     let trapExists = false;
-    let brownButtons = 0;
+    const brownButtons: GridPoint[] = [];
     const redButtons: GridPoint[] = [];
     const machineCells: GridPoint[] = [];
     level.terrain.forEach((row, y) =>
       row.forEach((_id, x) => {
         for (const tile of tilesAt(x, y)) {
           if (tile.isTrap) trapExists = true;
-          if (tile.buttonAction === 'hold_trap') brownButtons++;
+          if (tile.buttonAction === 'hold_trap') brownButtons.push({ x, y });
           if (tile.buttonAction === 'trigger_cloner') redButtons.push({ x, y });
           if (tile.isCloneMachine) machineCells.push({ x, y });
         }
       })
     );
-    if (brownButtons > 0 && !trapExists) {
-      issues.push({ severity: 'info', i18nKey: 'validator.issues.trap_button_no_trap.label' });
+    if (brownButtons.length > 0 && !trapExists) {
+      issues.push({
+        severity: 'info',
+        i18nKey: 'validator.issues.trap_button_no_trap.label',
+        params: this.locationParams(brownButtons)
+      });
     }
     const templateOnMachine = machineCells.some((cell) =>
       (level.entities ?? []).some((e) => e.x === cell.x && e.y === cell.y)
@@ -1518,6 +1548,134 @@ export class LevelValidator {
       if (links.some((l) => l.buttonX === button.x && l.buttonY === button.y)) continue;
       issues.push({ severity: 'info', i18nKey: 'validator.issues.clone_button_nothing.label', params: { x: button.x, y: button.y } });
     }
+  }
+
+  /** Whether a cell lies inside the terrain grid, as an integer position. */
+  private static inGrid(level: CompiledLevel, cell: GridPoint): boolean {
+    return (
+      Number.isInteger(cell.x) &&
+      Number.isInteger(cell.y) &&
+      cell.x >= 0 &&
+      cell.y >= 0 &&
+      cell.y < level.terrain.length &&
+      cell.x < (level.terrain[cell.y]?.length ?? 0)
+    );
+  }
+
+  /**
+   * The location params of an issue about several cells: the first one in row-major order and how many there are.
+   * The cells must lie inside the grid. An empty list gives no params (the callers never pass one).
+   */
+  private static locationParams(cells: readonly GridPoint[], extra: Record<string, string | number> = {}): Record<string, string | number> {
+    if (cells.length === 0) return extra;
+    const first = cells.reduce((best, cell) => (cell.y < best.y || (cell.y === best.y && cell.x < best.x) ? cell : best));
+    return { ...extra, x: first.x, y: first.y, count: cells.length };
+  }
+
+  /**
+   * Hints and warnings about mechanisms that do nothing on an Epoxy level: a trap with no brown button, a lone
+   * teleporter, a laser gate whose group has no receiver (it stays closed), flame jets with no orange button and a
+   * swivel door sealed on every side it opens on. Hidden underlays count like tiles in plain sight.
+   */
+  private static checkMechanisms(level: CompiledLevel, issues: ValidationIssue[]): void {
+    if (level.ruleset === 'lynx' || level.ruleset === 'cc3d') return;
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
+    const trapCells: GridPoint[] = [];
+    const jetCells: GridPoint[] = [];
+    const swivelCells: GridPoint[] = [];
+    const gateCellsByGroup = new Map<string, GridPoint[]>();
+    const teleportCellsByGroup = new Map<string, GridPoint[]>();
+    const receiverGroups = new Set<string>();
+    let brownButtons = 0;
+    let orangeButtons = 0;
+    level.terrain.forEach((row, y) =>
+      row.forEach((topId, x) => {
+        const hiddenId = underlays?.get(y * width + x);
+        const ids = hiddenId === undefined ? [topId] : [topId, hiddenId];
+        for (const id of ids) {
+          const tile = ConfigRegistry.getTile(id);
+          if (tile.isTrap) trapCells.push({ x, y });
+          if (tile.buttonAction === 'hold_trap') brownButtons++;
+          if (tile.buttonAction === 'toggle_flames') orangeButtons++;
+          if (tile.flameTogglesTo !== undefined) jetCells.push({ x, y });
+          if (tile.isTeleporter) {
+            const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
+            teleportCellsByGroup.set(group, [...(teleportCellsByGroup.get(group) ?? []), { x, y }]);
+          }
+          if (tile.laserGateGroup !== undefined) {
+            gateCellsByGroup.set(tile.laserGateGroup, [...(gateCellsByGroup.get(tile.laserGateGroup) ?? []), { x, y }]);
+          }
+          if (tile.laserReceiverGroup !== undefined) receiverGroups.add(tile.laserReceiverGroup);
+        }
+        if (ConfigRegistry.getTile(topId).swivelTurns !== undefined && hiddenId === undefined) swivelCells.push({ x, y });
+      })
+    );
+
+    if (trapCells.length > 0 && brownButtons === 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.trap_no_button.label', params: this.locationParams(trapCells) });
+    }
+    for (const [group, cells] of teleportCellsByGroup) {
+      if (cells.length !== 1) continue;
+      issues.push(
+        group === DEFAULT_TELEPORT_GROUP
+          ? { severity: 'warning', i18nKey: 'validator.issues.teleport_alone_plain.label', params: this.locationParams(cells) }
+          : {
+              severity: 'warning',
+              i18nKey: 'validator.issues.teleport_alone.label',
+              params: this.locationParams(cells, { color: this.colorName(group as ChannelColor) })
+            }
+      );
+    }
+    for (const [group, cells] of gateCellsByGroup) {
+      if (receiverGroups.has(group)) continue;
+      issues.push({
+        severity: 'warning',
+        i18nKey: 'validator.issues.laser_gate_no_receiver.label',
+        params: this.locationParams(cells, { group })
+      });
+    }
+    if (jetCells.length > 0 && orangeButtons === 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.flame_jets_no_button.label', params: this.locationParams(jetCells) });
+    }
+    const sealed = swivelCells.filter((cell) => this.isSwivelSealed(level, cell, underlays));
+    if (sealed.length > 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.swivel_sealed.label', params: this.locationParams(sealed) });
+    }
+  }
+
+  /**
+   * Whether every side a swivel door opens on faces something that always blocks: the map edge, a thin wall (a
+   * cell edge or a thin wall tile) or a plain wall, invisible wall, laser emitter or laser receiver. A neighbour
+   * that hides an underlay, or any other tile, is judged open. One-way swivel traps stay unflagged.
+   */
+  private static isSwivelSealed(level: CompiledLevel, cell: GridPoint, underlays: ReadonlyMap<number, string> | null): boolean {
+    const width = level.terrain[0]?.length ?? 0;
+    const mask = cellEdgeMask(level);
+    const swivel = ConfigRegistry.getTile(level.terrain[cell.y][cell.x]);
+    const closedSides = swivel.blockedEdges ?? [];
+    const openSides = ORDERED_DIRECTIONS.filter((dir) => !closedSides.includes(dir));
+    if (openSides.length === 0) return false;
+    return openSides.every((dir) => {
+      const nx = cell.x + DIRECTION_VECTORS[dir].dx;
+      const ny = cell.y + DIRECTION_VECTORS[dir].dy;
+      const neighbourId = level.terrain[ny]?.[nx];
+      if (neighbourId === undefined) return true;
+      const opposite = OPPOSITE_DIRECTION[dir];
+      if (mask !== null) {
+        if ((mask[cell.y * width + cell.x] & CELL_EDGE_BITS[dir]) !== 0) return true;
+        if ((mask[ny * width + nx] & CELL_EDGE_BITS[opposite]) !== 0) return true;
+      }
+      if (underlays?.has(ny * width + nx)) return false;
+      const neighbour = ConfigRegistry.getTile(neighbourId);
+      if (neighbour.swivelTurns !== undefined) return false;
+      if (neighbour.blockedEdges?.includes(opposite)) return true;
+      return (
+        SWIVEL_SEALING_TILE_IDS.has(neighbourId) ||
+        neighbour.laserEmitter !== undefined ||
+        neighbour.laserReceiverGroup !== undefined
+      );
+    });
   }
 
   /** The localized name of a channel colour, as the colour warnings show it. */
@@ -1533,13 +1691,13 @@ export class LevelValidator {
   private static checkColorChannels(level: CompiledLevel, issues: ValidationIssue[]): void {
     const platesByColor = new Map<ChannelColor, GridPoint[]>();
     const doorsByColor = new Map<ChannelColor, Array<GridPoint & { open: boolean }>>();
-    const wallsByChannel = new Map<ChannelColor, number>();
+    const wallsByChannel = new Map<ChannelColor, GridPoint[]>();
     const buttonsByChannel = new Map<ChannelColor, number>();
     const push = <T>(map: Map<ChannelColor, T[]>, color: ChannelColor, value: T): void => {
       map.set(color, [...(map.get(color) ?? []), value]);
     };
     // Doors hidden under a removable top: their state is not judged against the plates, only their colour counts.
-    const hiddenDoorColors = new Set<ChannelColor>();
+    const hiddenDoorCells = new Map<ChannelColor, GridPoint[]>();
     const underlays = underlayMap(level);
     const width = level.terrain[0]?.length ?? 0;
     level.terrain.forEach((row, y) =>
@@ -1550,7 +1708,7 @@ export class LevelValidator {
           push(doorsByColor, tile.holdDoorColor, { x, y, open: tile.holdDoorOpen === true });
         }
         if (tile.toggleChannel !== undefined) {
-          wallsByChannel.set(tile.toggleChannel, (wallsByChannel.get(tile.toggleChannel) ?? 0) + 1);
+          push(wallsByChannel, tile.toggleChannel, { x, y });
         }
         const channel = channelOfButtonAction(tile.buttonAction);
         if (channel) buttonsByChannel.set(channel, (buttonsByChannel.get(channel) ?? 0) + 1);
@@ -1558,9 +1716,9 @@ export class LevelValidator {
         if (hiddenId === undefined) return;
         const hidden = ConfigRegistry.getTile(hiddenId);
         if (hidden.plateColor !== undefined) push(platesByColor, hidden.plateColor, { x, y });
-        if (hidden.holdDoorColor !== undefined) hiddenDoorColors.add(hidden.holdDoorColor);
+        if (hidden.holdDoorColor !== undefined) push(hiddenDoorCells, hidden.holdDoorColor, { x, y });
         if (hidden.toggleChannel !== undefined) {
-          wallsByChannel.set(hidden.toggleChannel, (wallsByChannel.get(hidden.toggleChannel) ?? 0) + 1);
+          push(wallsByChannel, hidden.toggleChannel, { x, y });
         }
         const hiddenChannel = channelOfButtonAction(hidden.buttonAction);
         if (hiddenChannel) buttonsByChannel.set(hiddenChannel, (buttonsByChannel.get(hiddenChannel) ?? 0) + 1);
@@ -1575,15 +1733,23 @@ export class LevelValidator {
         return kind !== undefined && entityPressesPlate(e.type, kind, color);
       });
 
-    for (const color of hiddenDoorColors) {
+    for (const [color, cells] of hiddenDoorCells) {
       if (!doorsByColor.has(color) && (platesByColor.get(color) ?? []).length === 0) {
-        issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_no_plate.label', params: { color: this.colorName(color) } });
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.hold_door_no_plate.label',
+          params: this.locationParams(cells, { color: this.colorName(color) })
+        });
       }
     }
     for (const [color, doors] of doorsByColor) {
       const plates = platesByColor.get(color) ?? [];
       if (plates.length === 0) {
-        issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_no_plate.label', params: { color: this.colorName(color) } });
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.hold_door_no_plate.label',
+          params: this.locationParams([...doors, ...(hiddenDoorCells.get(color) ?? [])], { color: this.colorName(color) })
+        });
         continue;
       }
       const shouldBeOpen = plates.every((plate) => pressedAtStart(plate, color));
@@ -1591,9 +1757,13 @@ export class LevelValidator {
         issues.push({ severity: 'warning', i18nKey: 'validator.issues.hold_door_wrong_start.label', params: { color: this.colorName(color) } });
       }
     }
-    for (const [channel, count] of wallsByChannel) {
-      if (!buttonsByChannel.has(channel) && count > 0) {
-        issues.push({ severity: 'warning', i18nKey: 'validator.issues.channel_walls_no_button.label', params: { color: this.colorName(channel) } });
+    for (const [channel, cells] of wallsByChannel) {
+      if (!buttonsByChannel.has(channel) && cells.length > 0) {
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.channel_walls_no_button.label',
+          params: this.locationParams(cells, { color: this.colorName(channel) })
+        });
       }
     }
     for (const channel of buttonsByChannel.keys()) {
