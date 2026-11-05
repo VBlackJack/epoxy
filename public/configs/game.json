@@ -878,6 +878,19 @@
         "skin": ["#aa5500", "#ffaa55"],
         "neutral": ["#000000", "#555555", "#aaaaaa", "#ffffff"]
       }
+    },
+    "runeward": {
+      "families": {
+        "red": ["#3a0c18", "#5e1424", "#9e243c", "#e8304e", "#ff6b84", "#ffa8b5"],
+        "orange": ["#4a1606", "#a3200b", "#ff6a14", "#ffa04a", "#ffd2a8"],
+        "yellow": ["#4e3306", "#7a520a", "#c48a18", "#ffd23f", "#ffe08a", "#fff0c2"],
+        "green": ["#08241c", "#144f35", "#1e7a52", "#2fd99a", "#9dffc4", "#d4fff0"],
+        "cyan": ["#0b2a38", "#124561", "#1d6c94", "#5fd8ef", "#a9ecf8", "#e9fdff"],
+        "blue": ["#0a1440", "#143a94", "#2f6ee0", "#6f9cf0", "#a9cbff", "#dce9ff"],
+        "purple": ["#241338", "#3f1b70", "#6b30b8", "#9b4dff", "#d46eff", "#fce6ff"],
+        "skin": ["#3d2210", "#7a4a2a", "#b8804e", "#d9a070", "#f2c79b", "#fbe3cc"],
+        "neutral": ["#07050d", "#18142a", "#2c2641", "#4a3e6b", "#71619c", "#a99ad6", "#e8e2f8"]
+      }
     }
   },
   "renderStyleFamilies": {

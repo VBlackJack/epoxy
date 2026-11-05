@@ -168,7 +168,8 @@ export type GraphicsStyle =
   | 'pastel'
   | 'blueprint'
   | 'sepia'
-  | 'classic90';
+  | 'classic90'
+  | 'runeward';
 
 /** Colour families of the Retro HD recolour: every palette and theme colour belongs to exactly one. */
 export type ColourFamily =

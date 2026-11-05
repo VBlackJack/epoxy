@@ -22,6 +22,7 @@ import {
   RETRO_HD_GRADIENT_BANDS,
   RENDER_STYLES,
   RETRO_PIXELS_CLASS,
+  SELECTABLE_RENDER_STYLES,
   getRenderStyle,
   nextRenderStyle,
   parseRenderStyleId
@@ -34,9 +35,10 @@ const THIRTY_TWO_BIT_TILE = 32;
 
 describe('render style registry', () => {
   it('lists the styles in G key order', () => {
-    expect(RENDER_STYLES.map((s) => s.id)).toEqual([
+    expect(SELECTABLE_RENDER_STYLES.map((s) => s.id)).toEqual([
       'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90'
     ]);
+    expect(RENDER_STYLES.map((s) => s.id)).toEqual([...SELECTABLE_RENDER_STYLES.map((s) => s.id), 'runeward']);
   });
 
   it('gives every style a distinct id and a label key following the header naming', () => {
@@ -92,11 +94,28 @@ describe('render style registry', () => {
   });
 
   it('cycles through every style in order and wraps around', () => {
-    const ids = RENDER_STYLES.map((s) => s.id);
+    const ids = SELECTABLE_RENDER_STYLES.map((s) => s.id);
     ids.forEach((id, i) => expect(nextRenderStyle(id).id).toBe(ids[(i + 1) % ids.length]));
     let id = DEFAULT_RENDER_STYLE_ID;
-    for (let i = 0; i < RENDER_STYLES.length; i++) id = nextRenderStyle(id).id;
+    for (let i = 0; i < SELECTABLE_RENDER_STYLES.length; i++) id = nextRenderStyle(id).id;
     expect(id).toBe(DEFAULT_RENDER_STYLE_ID);
+  });
+
+  it('keeps the Runeward style out of the cycle yet hands a saved Runeward style over to the first style', () => {
+    expect(getRenderStyle('runeward').selectable).toBe(false);
+    expect(SELECTABLE_RENDER_STYLES.every((s) => s.selectable)).toBe(true);
+    expect(RENDER_STYLES.filter((s) => !s.selectable).map((s) => s.id)).toEqual(['runeward']);
+    expect(nextRenderStyle('classic90').id).toBe('modern');
+    expect(nextRenderStyle('runeward').id).toBe('modern');
+  });
+
+  it('recolours exactly the styles that name a palette entry, and only the Retro HD styles also set a finish', () => {
+    for (const style of RENDER_STYLES) {
+      expect(style.finish !== null, style.id).toBe(style.transformKey !== null && style.id !== 'runeward');
+    }
+    const runeward = getRenderStyle('runeward');
+    expect([runeward.transformKey, runeward.finish, runeward.painterSet]).toEqual(['runeward', null, 'runeward']);
+    for (const style of RENDER_STYLES.filter((s) => s.id !== 'runeward')) expect(style.painterSet, style.id).toBeNull();
   });
 
   it('names the pipeline, recolouring and shadows of every style', () => {
@@ -109,7 +128,8 @@ describe('render style registry', () => {
       ['pastel', null, 'pastel', true],
       ['blueprint', null, 'blueprint', true],
       ['sepia', null, 'sepia', true],
-      ['classic90', null, 'classic90', false]
+      ['classic90', null, 'classic90', false],
+      ['runeward', null, 'runeward', true]
     ]);
   });
 
@@ -167,6 +187,7 @@ describe('render style registry', () => {
     expect(parseRenderStyleId('retro')).toBe('retro');
     expect(parseRenderStyleId('retro32')).toBe('retro32');
     for (const id of ['pocket', 'pastel', 'blueprint', 'sepia', 'classic90']) expect(parseRenderStyleId(id)).toBe(id);
+    expect(parseRenderStyleId('runeward')).toBe('runeward');
     expect(parseRenderStyleId('retro16')).toBeUndefined();
     expect(parseRenderStyleId(32)).toBeUndefined();
     expect(parseRenderStyleId(null)).toBeUndefined();

@@ -44,6 +44,9 @@ export type SpriteBase = 'retro16' | 'retro32';
 export const RETRO_HD_GRADIENT_BANDS = 3;
 export const CLASSIC90_GRADIENT_BANDS = 2;
 
+/** Painter set a style draws tiles, items, entities and the player with, besides the shared drawing. */
+export type PainterSetId = 'runeward';
+
 /** Texture laid over the finished board by a Retro HD style. */
 export type OverlayKind = 'lcdDots' | 'gridLines' | 'vignetteGrain' | 'scanlines';
 
@@ -91,6 +94,10 @@ export interface RenderStyleDescriptor {
   readonly effects: boolean;
   /** The scene is drawn on a canvas with one pixel per sprite pixel, then scaled up in one blit. */
   readonly lowResScene: boolean;
+  /** Painter set that draws the style's own art where it has some, or null for the shared drawing only. */
+  readonly painterSet: PainterSetId | null;
+  /** False keeps the style out of the choices offered to players (Options list, G key); saved settings may still load it. */
+  readonly selectable: boolean;
 }
 
 const MODERN_STYLE: RenderStyleDescriptor = {
@@ -111,7 +118,9 @@ const MODERN_STYLE: RenderStyleDescriptor = {
   itemBob: true,
   lighting: true,
   effects: true,
-  lowResScene: false
+  lowResScene: false,
+  painterSet: null,
+  selectable: true
 };
 
 const RETRO16_STYLE: RenderStyleDescriptor = {
@@ -132,7 +141,9 @@ const RETRO16_STYLE: RenderStyleDescriptor = {
   itemBob: false,
   lighting: false,
   effects: false,
-  lowResScene: true
+  lowResScene: true,
+  painterSet: null,
+  selectable: true
 };
 
 const RETRO32_STYLE: RenderStyleDescriptor = {
@@ -153,7 +164,9 @@ const RETRO32_STYLE: RenderStyleDescriptor = {
   itemBob: false,
   lighting: true,
   effects: true,
-  lowResScene: true
+  lowResScene: true,
+  painterSet: null,
+  selectable: true
 };
 
 /** Everything a Retro HD style sets; the rest is shared by all of them. */
@@ -188,7 +201,9 @@ function retroHdStyle(options: RetroHdStyleOptions): RenderStyleDescriptor {
     itemBob: true,
     lighting: options.lighting,
     effects: true,
-    lowResScene: false
+    lowResScene: false,
+    painterSet: null,
+    selectable: true
   };
 }
 
@@ -208,7 +223,34 @@ const CLASSIC90_STYLE = retroHdStyle({
   id: 'classic90', overlay: 'scanlines', gradientBands: CLASSIC90_GRADIENT_BANDS, lighting: false, floorShadows: false
 });
 
-/** Every style, in the order the G key cycles through them. */
+/** Id of the Runeward style. */
+export const RUNEWARD_STYLE_ID: RenderStyleId = 'runeward';
+
+/** Runeward look: HD drawing in the dark violet Runeward colours; its painters arrive lot by lot. */
+const RUNEWARD_STYLE: RenderStyleDescriptor = {
+  id: RUNEWARD_STYLE_ID,
+  labelKey: `${LABEL_KEY_PREFIX}${RUNEWARD_STYLE_ID}${LABEL_KEY_SUFFIX}`,
+  sprite: null,
+  palettesKey: null,
+  base: null,
+  smallSprite: null,
+  transformKey: RUNEWARD_STYLE_ID,
+  finish: null,
+  glow: false,
+  floorShadows: true,
+  lcdAllowed: false,
+  canvasClass: null,
+  smoothMotion: true,
+  pixelSnap: false,
+  itemBob: true,
+  lighting: true,
+  effects: true,
+  lowResScene: false,
+  painterSet: 'runeward',
+  selectable: false
+};
+
+/** Every style, in registration order (the G key cycles through the selectable ones). */
 export const RENDER_STYLES: readonly RenderStyleDescriptor[] = [
   MODERN_STYLE,
   RETRO16_STYLE,
@@ -217,8 +259,12 @@ export const RENDER_STYLES: readonly RenderStyleDescriptor[] = [
   PASTEL_STYLE,
   BLUEPRINT_STYLE,
   SEPIA_STYLE,
-  CLASSIC90_STYLE
+  CLASSIC90_STYLE,
+  RUNEWARD_STYLE
 ];
+
+/** The styles offered to players: the Options list and the G key. */
+export const SELECTABLE_RENDER_STYLES: readonly RenderStyleDescriptor[] = RENDER_STYLES.filter((style) => style.selectable);
 
 /** Style a fresh install and an unknown id fall back to. */
 export const DEFAULT_RENDER_STYLE_ID: RenderStyleId = 'modern';
@@ -233,8 +279,15 @@ export function getRenderStyle(id: RenderStyleId): RenderStyleDescriptor {
   return RENDER_STYLES.find((style) => style.id === id) ?? RENDER_STYLES[0];
 }
 
-/** Style the G key switches to from `id`, wrapping around after the last one. */
+/**
+ * Style the G key switches to from `id`, wrapping around after the last selectable one. A style that
+ * is not selectable (loaded from saved settings) hands over to the next selectable style after it.
+ */
 export function nextRenderStyle(id: RenderStyleId): RenderStyleDescriptor {
   const index = RENDER_STYLES.findIndex((style) => style.id === id);
-  return RENDER_STYLES[(index + 1) % RENDER_STYLES.length];
+  for (let step = 1; step <= RENDER_STYLES.length; step++) {
+    const candidate = RENDER_STYLES[(index + step) % RENDER_STYLES.length];
+    if (candidate.selectable) return candidate;
+  }
+  return RENDER_STYLES[0];
 }
