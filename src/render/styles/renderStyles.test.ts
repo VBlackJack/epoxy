@@ -38,7 +38,7 @@ describe('render style registry', () => {
     expect(SELECTABLE_RENDER_STYLES.map((s) => s.id)).toEqual([
       'modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90'
     ]);
-    expect(RENDER_STYLES.map((s) => s.id)).toEqual([...SELECTABLE_RENDER_STYLES.map((s) => s.id), 'runeward']);
+    expect(RENDER_STYLES.map((s) => s.id)).toEqual([...SELECTABLE_RENDER_STYLES.map((s) => s.id), 'runeward', 'runeward_parchment']);
   });
 
   it('gives every style a distinct id and a label key following the header naming', () => {
@@ -101,21 +101,30 @@ describe('render style registry', () => {
     expect(id).toBe(DEFAULT_RENDER_STYLE_ID);
   });
 
-  it('keeps the Runeward style out of the cycle yet hands a saved Runeward style over to the first style', () => {
+  it('keeps the Runeward styles out of the cycle yet hands a saved Runeward style over to the first style', () => {
     expect(getRenderStyle('runeward').selectable).toBe(false);
+    expect(getRenderStyle('runeward_parchment').selectable).toBe(false);
     expect(SELECTABLE_RENDER_STYLES.every((s) => s.selectable)).toBe(true);
-    expect(RENDER_STYLES.filter((s) => !s.selectable).map((s) => s.id)).toEqual(['runeward']);
+    expect(RENDER_STYLES.filter((s) => !s.selectable).map((s) => s.id)).toEqual(['runeward', 'runeward_parchment']);
     expect(nextRenderStyle('classic90').id).toBe('modern');
     expect(nextRenderStyle('runeward').id).toBe('modern');
+    expect(nextRenderStyle('runeward_parchment').id).toBe('modern');
   });
 
   it('recolours exactly the styles that name a palette entry, and only the Retro HD styles also set a finish', () => {
     for (const style of RENDER_STYLES) {
-      expect(style.finish !== null, style.id).toBe(style.transformKey !== null && style.id !== 'runeward');
+      expect(style.finish !== null, style.id).toBe(style.transformKey !== null && !style.id.startsWith('runeward'));
     }
     const runeward = getRenderStyle('runeward');
-    expect([runeward.transformKey, runeward.finish, runeward.painterSet]).toEqual(['runeward', null, 'runeward']);
-    for (const style of RENDER_STYLES.filter((s) => s.id !== 'runeward')) expect(style.painterSet, style.id).toBeNull();
+    expect([runeward.transformKey, runeward.finish, runeward.painterSet, runeward.artVariant]).toEqual(['runeward', null, 'runeward', null]);
+    const parchment = getRenderStyle('runeward_parchment');
+    expect([parchment.transformKey, parchment.finish, parchment.painterSet, parchment.artVariant]).toEqual([
+      'runeward_parchment', null, 'runeward', 'parchment'
+    ]);
+    for (const style of RENDER_STYLES.filter((s) => !s.id.startsWith('runeward'))) {
+      expect(style.painterSet, style.id).toBeNull();
+      expect(style.artVariant, style.id).toBeNull();
+    }
   });
 
   it('names the pipeline, recolouring and shadows of every style', () => {
@@ -129,7 +138,8 @@ describe('render style registry', () => {
       ['blueprint', null, 'blueprint', true],
       ['sepia', null, 'sepia', true],
       ['classic90', null, 'classic90', false],
-      ['runeward', null, 'runeward', true]
+      ['runeward', null, 'runeward', true],
+      ['runeward_parchment', null, 'runeward_parchment', true]
     ]);
   });
 

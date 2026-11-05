@@ -33,12 +33,14 @@ describe('graphics style control helpers', () => {
     expect(options[7].labelKey).toBe('app.header.graphics_classic90.action');
   });
 
-  it('keeps the unselectable Runeward style out of the list yet restores it from saved settings', () => {
-    expect(buildGraphicsStyleOptions().map((o) => o.value)).not.toContain('runeward');
-    expect(buildGraphicsStyleOptions(RENDER_STYLES).map((o) => o.value)).not.toContain('runeward');
-    expect(resolveInitialGraphicsStyle('runeward', 'modern')).toBe('runeward');
-    expect(isLcdAvailable('runeward')).toBe(false);
-    expect(canvasClassesToRemove('runeward')).toEqual([RETRO_PIXELS_CLASS]);
+  it('keeps the unselectable Runeward styles out of the list yet restores them from saved settings', () => {
+    for (const id of ['runeward', 'runeward_parchment'] as const) {
+      expect(buildGraphicsStyleOptions().map((o) => o.value)).not.toContain(id);
+      expect(buildGraphicsStyleOptions(RENDER_STYLES).map((o) => o.value)).not.toContain(id);
+      expect(resolveInitialGraphicsStyle(id, 'modern')).toBe(id);
+      expect(isLcdAvailable(id)).toBe(false);
+      expect(canvasClassesToRemove(id)).toEqual([RETRO_PIXELS_CLASS]);
+    }
   });
 
   it('restores a saved retro32 style and falls back on unknown values', () => {

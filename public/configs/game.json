@@ -891,6 +891,19 @@
         "skin": ["#3d2210", "#7a4a2a", "#b8804e", "#d9a070", "#f2c79b", "#fbe3cc"],
         "neutral": ["#07050d", "#18142a", "#2c2641", "#4a3e6b", "#71619c", "#a99ad6", "#e8e2f8"]
       }
+    },
+    "runeward_parchment": {
+      "families": {
+        "red": ["#3a1410", "#6e2a1f", "#a8452f", "#d2674a", "#eba48e"],
+        "orange": ["#4a1c0a", "#8e2414", "#d2622a", "#ffb24a", "#ffe0a8"],
+        "yellow": ["#4a3410", "#7a5a1c", "#c99a2e", "#e6c25a", "#f6e4a0"],
+        "green": ["#262a14", "#4a5226", "#76803e", "#a3ab6c", "#cfd2a0"],
+        "cyan": ["#1f3346", "#355a72", "#4f6f86", "#8fa9b8", "#cadae2"],
+        "blue": ["#1a2438", "#2f4a6e", "#4f6f9a", "#8aa4c4", "#c4d4e6"],
+        "purple": ["#2e1a2c", "#523250", "#7a4c76", "#a67aa0", "#d2b4cc"],
+        "skin": ["#3d2210", "#7a4a2a", "#b8804e", "#e9c49a", "#f6dfc2"],
+        "neutral": ["#4a3420", "#6e5233", "#a58559", "#d4bd8a", "#ead9b0", "#f8efd6"]
+      }
     }
   },
   "runewardArt": {
@@ -953,6 +966,82 @@
       "bobPeriodMs": 1500,
       "flowPeriodMs": 2600,
       "portalPeriodMs": 3200
+    }
+  },
+  "runewardArtVariants": {
+    "parchment": {
+      "clear": "rgba(0, 0, 0, 0)",
+      "floor": {
+        "base": "#ead9b0",
+        "light": "#f1e3bf",
+        "dark": "#dcc795",
+        "grout": "#a58559",
+        "sheen": "rgba(255, 248, 225, 0.12)",
+        "variants": 4
+      },
+      "wall": {
+        "top": "#8a6a44",
+        "topLight": "#a58559",
+        "topDark": "#7f5f3c",
+        "front": "#86653f",
+        "frontDark": "#7f5f3c",
+        "edge": "#2a1b0f"
+      },
+      "blueWall": {
+        "tint": "rgba(79, 111, 134, 0.45)",
+        "line": "#1f3346"
+      },
+      "shadow": {
+        "color": "rgba(42, 27, 15, 0.4)",
+        "depth": 0.42
+      },
+      "exit": {
+        "base": "#7f5f3c",
+        "ring": "#c99a2e",
+        "core": "#f8efd6",
+        "glow": "rgba(201, 154, 46, 0)"
+      },
+      "water": {
+        "deep": "#4f6f86",
+        "light": "#8fa9b8",
+        "crest": "#142230"
+      },
+      "lava": {
+        "deep": "#b8401f",
+        "light": "#d2622a",
+        "crest": "#fde9b4"
+      },
+      "mage": {
+        "robe": "#a64e38",
+        "robeLight": "#c0694f",
+        "hat": "#80603f",
+        "hatLight": "#96744f",
+        "band": "#c99a2e",
+        "skin": "#e9c49a",
+        "eyes": "#2a1b0f",
+        "staff": "#7a4a22",
+        "orb": "#ffb24a",
+        "orbCore": "#fff3d6",
+        "shadow": "rgba(42, 27, 15, 0.3)"
+      },
+      "animation": {
+        "bobAmplitude": 0.035,
+        "bobPeriodMs": 1500,
+        "flowPeriodMs": 2600,
+        "portalPeriodMs": 3200
+      },
+      "ink": {
+        "line": "#1a1008",
+        "hatch": "#5a4230",
+        "paperFleck": "#b89d6a",
+        "paperStain": "#c9ae7a",
+        "gold": "#c99a2e",
+        "wood": "#7a4a22",
+        "torch": {
+          "color": "#ffb24a",
+          "radiusTile": 3.0
+        }
+      }
     }
   },
   "renderStyleFamilies": {

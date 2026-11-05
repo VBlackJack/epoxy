@@ -37,6 +37,14 @@ const COLOUR_PATHS: readonly string[] = [
   'mage.staff', 'mage.orb', 'mage.orbCore', 'mage.shadow'
 ];
 
+/** Dotted paths of every colour of the optional ink section, checked only when the section is present. */
+const INK_COLOUR_PATHS: readonly string[] = [
+  'ink.line', 'ink.hatch', 'ink.paperFleck', 'ink.paperStain', 'ink.gold', 'ink.wood', 'ink.torch.color'
+];
+
+/** Dotted path of the torch reach, which must be above zero when the ink section is present. */
+const INK_TORCH_RADIUS_PATH = 'ink.torch.radiusTile';
+
 /** Dotted paths of every number the painters compute with. */
 const NUMBER_PATHS: readonly string[] = [
   'floor.variants', 'shadow.depth',
@@ -68,6 +76,14 @@ export function isRunewardArtValid(art: unknown): art is RunewardArtConfig {
     const value = valueAt(art, path);
     if (typeof value !== 'number' || !Number.isFinite(value)) return false;
     if (POSITIVE_PATHS.has(path) && value <= 0) return false;
+  }
+  if (valueAt(art, 'ink') !== undefined) {
+    for (const path of INK_COLOUR_PATHS) {
+      const value = valueAt(art, path);
+      if (typeof value !== 'string' || parseCssColour(value) === null) return false;
+    }
+    const radius = valueAt(art, INK_TORCH_RADIUS_PATH);
+    if (typeof radius !== 'number' || !Number.isFinite(radius) || radius <= 0) return false;
   }
   return true;
 }

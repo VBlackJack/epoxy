@@ -118,7 +118,8 @@ type RunewardTileDrawing = (
   size: number,
   art: Readonly<RunewardArtConfig>,
   neighbours: Readonly<TileNeighbours>,
-  timeMs: number
+  timeMs: number,
+  part: RunewardTilePass
 ) => void;
 
 /** A tile painter for a motionless tile: drawn with the cached terrain, nothing to redraw per frame. */
@@ -127,17 +128,20 @@ function staticTile(draw: RunewardTileDrawing): RunewardTilePainter {
     if (pass === 'animated') return;
     ctx.save();
     ctx.translate(x, y);
-    draw(ctx, size, env.art, neighbours, 0);
+    draw(ctx, size, env.art, neighbours, 0, pass);
     ctx.restore();
   };
 }
 
-/** A tile painter for a moving tile: the cached terrain holds its frame at clock 0, the overlay follows the clock. */
+/**
+ * A tile painter for a moving tile: the cached terrain holds its frame at clock 0, the overlay follows the clock.
+ * The pass is handed to the drawing, so an ink drawing can keep its static part out of the animated overlay.
+ */
 function animatedTile(draw: RunewardTileDrawing): RunewardTilePainter {
   return (ctx, x, y, size, pass, neighbours, env) => {
     ctx.save();
     ctx.translate(x, y);
-    draw(ctx, size, env.art, neighbours, pass === 'static' ? 0 : runewardClockMs(env));
+    draw(ctx, size, env.art, neighbours, pass === 'static' ? 0 : runewardClockMs(env), pass);
     ctx.restore();
   };
 }

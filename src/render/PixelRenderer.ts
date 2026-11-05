@@ -263,7 +263,7 @@ const FULL_TURN = Math.PI * 2;
 /** Player skin the Runeward style leaves to the shared drawing. */
 const RUNEWARD_DEFERRED_PLAYER_SKIN: PlayerSkinId = 'julien';
 /** Tiles that look like floor until the player holds boots that reveal them. */
-const HIDDEN_WALL_TILES: ReadonlySet<string> = new Set(['invisible_wall', 'appearing_wall']);
+export const HIDDEN_WALL_TILES: ReadonlySet<string> = new Set(['invisible_wall', 'appearing_wall']);
 const APPEARING_WALL_TILE = 'appearing_wall';
 /** The fake blue wall, which the editor marks with a small square. */
 const FAKE_BLUE_WALL_TILE = 'blue_wall_fake';
@@ -407,6 +407,8 @@ const MOVING_EPSILON_TILES = 0.02;
 /** Lights are gathered from terrain this many tiles beyond the view, so their glow can reach in. */
 const LIGHT_MARGIN_TILES = 2;
 const FLICKERING_LIGHTS: ReadonlySet<string> = new Set(['fire', 'flame_jet_on', 'fireball']);
+/** Light id of the player, whose light an ink-on-paper Runeward variant replaces with a flickering torch. */
+const PLAYER_LIGHT_ID = 'player';
 const LIGHT_FLICKER_SPEED = 0.35;
 const LIGHT_PHASE_X = 1.7;
 const LIGHT_PHASE_Y = 2.3;
@@ -752,7 +754,11 @@ export class PixelRenderer {
   }
 
   public setStyle(style: GraphicsStyle): void {
-    if (style !== this.style) this.restartFrameBudget();
+    if (style !== this.style) {
+      this.restartFrameBudget();
+      // The Runeward cache holds drawings made with the art of the previous style.
+      this.runewardCache?.clear();
+    }
     this.style = style;
   }
 
@@ -836,7 +842,9 @@ export class PixelRenderer {
 
   /** Colours of the Runeward painters, or null when the config lacks them or holds an unusable one. */
   private runewardArt(): RunewardArtConfig | null {
-    return validRunewardArt(ConfigRegistry.getGame().runewardArt);
+    const game = ConfigRegistry.getGame();
+    const variant = this.descriptor().artVariant;
+    return validRunewardArt(variant === null ? game.runewardArt : game.runewardArtVariants?.[variant]);
   }
 
   /** True for the vector HD Neon drawing, false for the sprite styles and the flat retro fallback look. */
@@ -1436,10 +1444,12 @@ export class PixelRenderer {
   private addLight(id: string, gx: number, gy: number, tilePixelSize: number, settings: RenderSettings): void {
     const source = settings.lightSources[id];
     if (!source) return;
-    const color = this.pal()[source.colorKey];
+    // An ink-on-paper Runeward variant gives the player a torch of its own.
+    const torch = id === PLAYER_LIGHT_ID && this.runewardPainters() ? this.runewardArt()?.ink?.torch : undefined;
+    const color = torch ? torch.color : this.pal()[source.colorKey];
     if (!color) return;
-    let radius = source.radiusTile * tilePixelSize;
-    if (FLICKERING_LIGHTS.has(id) && !this.reducedMotion) {
+    let radius = (torch ? torch.radiusTile : source.radiusTile) * tilePixelSize;
+    if ((FLICKERING_LIGHTS.has(id) || torch) && !this.reducedMotion) {
       // Each light flickers on its own phase, taken from where it is.
       const phase = this.timeTick * LIGHT_FLICKER_SPEED + gx * LIGHT_PHASE_X + gy * LIGHT_PHASE_Y;
       radius *= 1 + Math.sin(phase) * settings.lightingFlicker;

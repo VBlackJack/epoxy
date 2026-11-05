@@ -1,0 +1,358 @@
+item key_red tick=3 3339716170acdbfc
+item key_blue tick=3 aca9da7de4f225bb
+item key_yellow tick=3 73d869a87239e2e1
+item key_green tick=3 4bc5c9198c8140ff
+item chip tick=3 877bb08410681dd5
+item boots_water tick=3 bee653f3982e1b20
+item boots_fire tick=3 1e6a4da23a3ba483
+item boots_ice tick=3 a0e5991164bd235f
+item boots_force tick=3 f248866c466432a5
+item slow_time tick=3 116fbcf6dd1588b2
+item boots_speed tick=3 4dc3c09c4aac1149
+item boots_eye tick=3 6da52684cb3eb0da
+item bomb tick=3 3e309c226f138604
+item score_10 tick=3 4fddfc840567fc8b
+item score_100 tick=3 bde73408d8ad2f39
+item score_1000 tick=3 63ab7cfafd9da789
+item score_2x tick=3 2aca0bb71f418bda
+item stopwatch_bonus tick=3 1e98647afef36727
+item stopwatch_penalty tick=3 7dfb5a3c8b257398
+entity dirt_block dir=N tick=3 13f3389dda14f501
+entity dirt_block dir=E tick=3 fd1bd924babcac11
+entity dirt_block dir=S tick=3 22322a6414258259
+entity dirt_block dir=W tick=3 be6d28294b7609ec
+entity arrow_block_one dir=N tick=3 07dce4d68016a9b5
+entity arrow_block_one dir=E tick=3 90fde02becd34c6f
+entity arrow_block_one dir=S tick=3 a554eb46a8571f1e
+entity arrow_block_one dir=W tick=3 f47f1447c15967c0
+entity arrow_block_line dir=N tick=3 a71939c661b101ac
+entity arrow_block_line dir=E tick=3 7d16ac8ed5c1e9d6
+entity arrow_block_line dir=S tick=3 22fe3e31a3101320
+entity arrow_block_line dir=W tick=3 6adc9471aa94842f
+entity arrow_block_corner dir=N tick=3 28e35e3a0b0ae841
+entity arrow_block_corner dir=E tick=3 961fe355c491bcb6
+entity arrow_block_corner dir=S tick=3 5a2acb06a6a0d158
+entity arrow_block_corner dir=W tick=3 cd682523488a57af
+entity arrow_block_tee dir=N tick=3 c2fd84192ff66857
+entity arrow_block_tee dir=E tick=3 6098a09b35b321f2
+entity arrow_block_tee dir=S tick=3 aa2c9072bddc9e5e
+entity arrow_block_tee dir=W tick=3 6108eaf450c6746f
+entity ice_block dir=N tick=3 498af00fb385aa9b
+entity ice_block dir=E tick=3 7053e309b5fd58e9
+entity ice_block dir=S tick=3 ab39f402c49bf2eb
+entity ice_block dir=W tick=3 1b3a0459a3bca3ac
+entity mirror_slash dir=N tick=3 e6121968cd742a17
+entity mirror_slash dir=E tick=3 792a050a75c25af0
+entity mirror_slash dir=S tick=3 15a6472ef3cbe86a
+entity mirror_slash dir=W tick=3 fb6bbf1bac291cc2
+entity mirror_backslash dir=N tick=3 73365200762b5354
+entity mirror_backslash dir=E tick=3 5d22c993952e4bf0
+entity mirror_backslash dir=S tick=3 82cd1bf027c48419
+entity mirror_backslash dir=W tick=3 f95636adaf7a14cb
+entity one_sided_mirror_ne dir=N tick=3 4968a0d1b03a723f
+entity one_sided_mirror_ne dir=E tick=3 bf01397c29fa112c
+entity one_sided_mirror_ne dir=S tick=3 926c1643a134e7df
+entity one_sided_mirror_ne dir=W tick=3 a67d93a83195a689
+entity one_sided_mirror_nw dir=N tick=3 5487bb57bcd31300
+entity one_sided_mirror_nw dir=E tick=3 c2a5ed4c77544c7e
+entity one_sided_mirror_nw dir=S tick=3 61dbd76984600ffb
+entity one_sided_mirror_nw dir=W tick=3 6c32db9e5f8b15bc
+entity one_sided_mirror_se dir=N tick=3 81e2cf48be2e108d
+entity one_sided_mirror_se dir=E tick=3 4da68b2b30ec53fd
+entity one_sided_mirror_se dir=S tick=3 d84539c25b07fca9
+entity one_sided_mirror_se dir=W tick=3 2194701edf2696c5
+entity one_sided_mirror_sw dir=N tick=3 44ef65abe5c82f99
+entity one_sided_mirror_sw dir=E tick=3 209a8e357eae547c
+entity one_sided_mirror_sw dir=S tick=3 233da38ae97bb149
+entity one_sided_mirror_sw dir=W tick=3 93a6f300e48a85f4
+entity turret_fixed dir=N tick=3 d58700de4b808b2a
+entity turret_fixed dir=E tick=3 7a9157289f367260
+entity turret_fixed dir=S tick=3 9fcb29a13c3e65ed
+entity turret_fixed dir=W tick=3 647b3634842b926b
+entity turret_cw dir=N tick=3 5a0533d445195974
+entity turret_cw dir=E tick=3 60c3f84dadd43f4f
+entity turret_cw dir=S tick=3 2e9e93c8cbd63465
+entity turret_cw dir=W tick=3 3c7dae5ad644e135
+entity turret_ccw dir=N tick=3 b9380d89eb77f529
+entity turret_ccw dir=E tick=3 9f729e48dbfd65a4
+entity turret_ccw dir=S tick=3 0ce173aa3e1c8dd5
+entity turret_ccw dir=W tick=3 898276da9d345b03
+entity turret_multi dir=N tick=3 f82426e48ecd35bf
+entity turret_multi dir=E tick=3 300561fdd91e8202
+entity turret_multi dir=S tick=3 9c242020f86fb9f7
+entity turret_multi dir=W tick=3 01c7e4b046c7b9b4
+entity bug dir=N tick=3 70e8973b72efc496
+entity bug dir=E tick=3 47effb246fa95b67
+entity bug dir=S tick=3 73918ce02f1bdb98
+entity bug dir=W tick=3 d43410a94b2f6233
+entity paramecium dir=N tick=3 c6828b1cfe738771
+entity paramecium dir=E tick=3 2a7170297afe0ce7
+entity paramecium dir=S tick=3 405049edbfef0746
+entity paramecium dir=W tick=3 9b7a17a014642ceb
+entity pink_ball dir=N tick=3 a931ecef5ed8a406
+entity pink_ball dir=E tick=3 c38d7bc70be679bd
+entity pink_ball dir=S tick=3 85cf6a9807ddc38d
+entity pink_ball dir=W tick=3 8db470c7186f3ee2
+entity walker dir=N tick=3 fd5f059fcfdae6e8
+entity walker dir=E tick=3 39e141b963813136
+entity walker dir=S tick=3 baa38bdb78b6fc8e
+entity walker dir=W tick=3 a92929874accdba8
+entity teeth dir=N tick=3 2d1607020bc3c217
+entity teeth dir=E tick=3 9c35c1366d068882
+entity teeth dir=S tick=3 a01162414aea15a4
+entity teeth dir=W tick=3 e6f5e3adfd0a0027
+entity glider dir=N tick=3 5a3f17b4f1663d8b
+entity glider dir=E tick=3 7eecd949f4da8062
+entity glider dir=S tick=3 029494c3d0737578
+entity glider dir=W tick=3 2679e8e9b6f08924
+entity fireball dir=N tick=3 0fd4b985b63a79eb
+entity fireball dir=E tick=3 a4cc1d5eca37a89b
+entity fireball dir=S tick=3 a740065a4675d1ff
+entity fireball dir=W tick=3 ac12af72e926e34d
+entity tank dir=N tick=3 f8312b50edfebd12
+entity tank dir=E tick=3 4202a3dc08e9d327
+entity tank dir=S tick=3 b2cb78719332d9ec
+entity tank dir=W tick=3 a531424b406c0759
+entity blob dir=N tick=3 8d6f74cdb66b2ac9
+entity blob dir=E tick=3 edea7cdd88130a3a
+entity blob dir=S tick=3 e80990d1194d91b3
+entity blob dir=W tick=3 d29f3b5e51aed9b4
+entity color_block_red dir=N tick=3 bee647918aee7b7f
+entity color_block_red dir=E tick=3 155339b40f00c95a
+entity color_block_red dir=S tick=3 de481cb07f2e3387
+entity color_block_red dir=W tick=3 fa6d4c8aed92281c
+entity color_block_green dir=N tick=3 e90ba40c957e2ca6
+entity color_block_green dir=E tick=3 d52bd3aed9006ae2
+entity color_block_green dir=S tick=3 71c9c3f01198d861
+entity color_block_green dir=W tick=3 ef84f408f7b25d45
+entity color_block_blue dir=N tick=3 33525791897b2de9
+entity color_block_blue dir=E tick=3 21c1abc0a27e5ba4
+entity color_block_blue dir=S tick=3 51c67a7100bd7d68
+entity color_block_blue dir=W tick=3 4642b1536391af1d
+entity color_block_yellow dir=N tick=3 6b65fce33465d885
+entity color_block_yellow dir=E tick=3 a0f5f6b04bd5aa7d
+entity color_block_yellow dir=S tick=3 859da1baa2e7f848
+entity color_block_yellow dir=W tick=3 182e5610e78f042e
+entity puppet dir=N tick=3 e8a86eccbfadc34e
+entity puppet dir=E tick=3 23f25a22de6bf376
+entity puppet dir=S tick=3 a588e1048c7c6431
+entity puppet dir=W tick=3 40f7991190ec8bbe
+entity skitter dir=N tick=3 6bb2e174ef6b478e
+entity skitter dir=E tick=3 a1a56e7e94f03a68
+entity skitter dir=S tick=3 f531baf375df50fb
+entity skitter dir=W tick=3 7ee72a93dfdb1175
+item key_red tick=13 b30122400c972b4d
+item key_blue tick=13 986875f571f73431
+item key_yellow tick=13 8a5b5b6edf68516f
+item key_green tick=13 96e5075fdbeab761
+item chip tick=13 aa1572d7c09b2e8e
+item boots_water tick=13 943b9da840b3ba5d
+item boots_fire tick=13 f6f3269b5ddb5642
+item boots_ice tick=13 544fca583b10e8e3
+item boots_force tick=13 0072bcadcf1ce7e1
+item slow_time tick=13 fbcc30ef88530d19
+item boots_speed tick=13 f722a7576c8a5dfc
+item boots_eye tick=13 33e477d1514cab18
+item bomb tick=13 733d83ea5e0a7aa4
+item score_10 tick=13 db14a50cbd5a97e9
+item score_100 tick=13 c82d434230f8d5ca
+item score_1000 tick=13 559d5314da84ebbf
+item score_2x tick=13 db719e4dffc6275e
+item stopwatch_bonus tick=13 66837efaf4dd22f6
+item stopwatch_penalty tick=13 d6e8d1289dd6af2b
+entity dirt_block dir=N tick=13 a1112343cb698116
+entity dirt_block dir=E tick=13 2153b1cb2fee8185
+entity dirt_block dir=S tick=13 34aa1b3e4d5eb8bc
+entity dirt_block dir=W tick=13 a2a417043c19aca9
+entity arrow_block_one dir=N tick=13 11d1349e938c2cf7
+entity arrow_block_one dir=E tick=13 285eec32f5a0cce8
+entity arrow_block_one dir=S tick=13 baf5558c6ff90db0
+entity arrow_block_one dir=W tick=13 67d440b8ca5b8cd5
+entity arrow_block_line dir=N tick=13 1524e5e332216152
+entity arrow_block_line dir=E tick=13 d96595074b25a85f
+entity arrow_block_line dir=S tick=13 65e17f04e9b5c7d0
+entity arrow_block_line dir=W tick=13 67adeee51208072d
+entity arrow_block_corner dir=N tick=13 96b784c6772deac7
+entity arrow_block_corner dir=E tick=13 042f6a5e9bcccd8e
+entity arrow_block_corner dir=S tick=13 21be872814945b4f
+entity arrow_block_corner dir=W tick=13 6f0928bbf88f02f1
+entity arrow_block_tee dir=N tick=13 b129384b866fb668
+entity arrow_block_tee dir=E tick=13 a8edc973a39eb519
+entity arrow_block_tee dir=S tick=13 8bac26119dfef53b
+entity arrow_block_tee dir=W tick=13 81f5737cf0730170
+entity ice_block dir=N tick=13 4d44f380937599b2
+entity ice_block dir=E tick=13 9a6968797a88200f
+entity ice_block dir=S tick=13 830d729d12914b4d
+entity ice_block dir=W tick=13 af2a834309c6e72c
+entity mirror_slash dir=N tick=13 23080af1e0b2a347
+entity mirror_slash dir=E tick=13 7b7eacd3f3e5ac33
+entity mirror_slash dir=S tick=13 3c75979cdb5529b6
+entity mirror_slash dir=W tick=13 70557556e29ede79
+entity mirror_backslash dir=N tick=13 6ff70bc660193bd0
+entity mirror_backslash dir=E tick=13 304c43b5a1d653b4
+entity mirror_backslash dir=S tick=13 bb76aac8f667a6bf
+entity mirror_backslash dir=W tick=13 8a7875d41e27a3c9
+entity one_sided_mirror_ne dir=N tick=13 4462ecd7d21bbdbc
+entity one_sided_mirror_ne dir=E tick=13 35ed7d7404b64596
+entity one_sided_mirror_ne dir=S tick=13 e75a7b3bfe2dc54b
+entity one_sided_mirror_ne dir=W tick=13 daeffb52cdeae14f
+entity one_sided_mirror_nw dir=N tick=13 eaaf399eb5d43134
+entity one_sided_mirror_nw dir=E tick=13 12e8a34bfde3e9a0
+entity one_sided_mirror_nw dir=S tick=13 ce3da36d4f36b196
+entity one_sided_mirror_nw dir=W tick=13 5f65def72b8880b2
+entity one_sided_mirror_se dir=N tick=13 9e3688161034ca46
+entity one_sided_mirror_se dir=E tick=13 f6bd99fd56fac645
+entity one_sided_mirror_se dir=S tick=13 466da70c7ae3029b
+entity one_sided_mirror_se dir=W tick=13 dfd35669ddc29bcd
+entity one_sided_mirror_sw dir=N tick=13 d6ac04850bdef60e
+entity one_sided_mirror_sw dir=E tick=13 f828a9cb02dd91cf
+entity one_sided_mirror_sw dir=S tick=13 e1d7a2dad6424763
+entity one_sided_mirror_sw dir=W tick=13 1fc0466922e76698
+entity turret_fixed dir=N tick=13 cd3b6b7e9edd13d7
+entity turret_fixed dir=E tick=13 f3849fb3300cd405
+entity turret_fixed dir=S tick=13 54b44258ef2bed2e
+entity turret_fixed dir=W tick=13 189079fa44797021
+entity turret_cw dir=N tick=13 d0805b08380da96b
+entity turret_cw dir=E tick=13 f9ff2d5534571345
+entity turret_cw dir=S tick=13 df038713110c0551
+entity turret_cw dir=W tick=13 3431f8c92534625e
+entity turret_ccw dir=N tick=13 944c2f287d473e5f
+entity turret_ccw dir=E tick=13 7009f19c44c017b7
+entity turret_ccw dir=S tick=13 d4cf0cb67e46908e
+entity turret_ccw dir=W tick=13 9ac5f9f82ea2a5e6
+entity turret_multi dir=N tick=13 84d7630559ac4556
+entity turret_multi dir=E tick=13 d9a4a551311d59fa
+entity turret_multi dir=S tick=13 cf7643563ae1a579
+entity turret_multi dir=W tick=13 13904767b348b26f
+entity bug dir=N tick=13 955d36b3f3bf6ae2
+entity bug dir=E tick=13 beb0c4454bcd65a6
+entity bug dir=S tick=13 c508e571b8883c8c
+entity bug dir=W tick=13 dec5467991d5d09e
+entity paramecium dir=N tick=13 f672468fe1508a16
+entity paramecium dir=E tick=13 bf08cd65e9428aba
+entity paramecium dir=S tick=13 ecd26691e69969fd
+entity paramecium dir=W tick=13 26c91162a9bc86b1
+entity pink_ball dir=N tick=13 21013e2604c686b0
+entity pink_ball dir=E tick=13 b060361d7e730f41
+entity pink_ball dir=S tick=13 1f6bdee0ba40f620
+entity pink_ball dir=W tick=13 d20c938ea3cd02e9
+entity walker dir=N tick=13 d8342ddd67a9cbce
+entity walker dir=E tick=13 02e284165f88194c
+entity walker dir=S tick=13 243c7fd8fdbd080d
+entity walker dir=W tick=13 fcb99d6a3229773c
+entity teeth dir=N tick=13 f1ae935e868437e3
+entity teeth dir=E tick=13 37412b2ee0c1f0b3
+entity teeth dir=S tick=13 e126716b2c7c538e
+entity teeth dir=W tick=13 3623ea2e5dfb7c25
+entity glider dir=N tick=13 cb6eea6d1cc8b750
+entity glider dir=E tick=13 13e24588c91d13c2
+entity glider dir=S tick=13 cf9843dc718a57dc
+entity glider dir=W tick=13 9b6fe7cd03008a51
+entity fireball dir=N tick=13 87436a1086e57762
+entity fireball dir=E tick=13 b762c8f64125e486
+entity fireball dir=S tick=13 0cb030957bdbb44e
+entity fireball dir=W tick=13 a94598d4b7cf740d
+entity tank dir=N tick=13 cb309e36338bcd30
+entity tank dir=E tick=13 6b09661242c44092
+entity tank dir=S tick=13 fd55d6efe099036d
+entity tank dir=W tick=13 39749c33655702fb
+entity blob dir=N tick=13 44cc8cabe28a86f7
+entity blob dir=E tick=13 4d1ff9b6c022b7f6
+entity blob dir=S tick=13 9d867697d99bd809
+entity blob dir=W tick=13 510243819863d2ed
+entity color_block_red dir=N tick=13 50d2bf76231d3368
+entity color_block_red dir=E tick=13 6e8035866075b7c9
+entity color_block_red dir=S tick=13 4e25bea33dca5515
+entity color_block_red dir=W tick=13 6726f56fd06e63a1
+entity color_block_green dir=N tick=13 e92d2f333d6ba9a2
+entity color_block_green dir=E tick=13 0de98744bf9d7ae2
+entity color_block_green dir=S tick=13 92804092157d6786
+entity color_block_green dir=W tick=13 cc7bff79cbc0de60
+entity color_block_blue dir=N tick=13 198f9c915387a3f6
+entity color_block_blue dir=E tick=13 34ef8c133a3d6e5d
+entity color_block_blue dir=S tick=13 96e5733160aef917
+entity color_block_blue dir=W tick=13 68ce76f58fb47f4a
+entity color_block_yellow dir=N tick=13 86be84d0695813ac
+entity color_block_yellow dir=E tick=13 93ecc55078ef198d
+entity color_block_yellow dir=S tick=13 6fd14b760432be15
+entity color_block_yellow dir=W tick=13 39331d83a4972ac2
+entity puppet dir=N tick=13 f33ab0b8f5607ccb
+entity puppet dir=E tick=13 f767e7ae892cf933
+entity puppet dir=S tick=13 bca4faf6bc03ab4f
+entity puppet dir=W tick=13 241ad42ce8d8a635
+entity skitter dir=N tick=13 e6015c18eca57199
+entity skitter dir=E tick=13 4be699368a5cb573
+entity skitter dir=S tick=13 520fc17048d39647
+entity skitter dir=W tick=13 abd7d052f0482d95
+player dir=N inWater=false alive=true frame=0 hop=0 4f888b30dbb7395a
+player dir=N inWater=false alive=true frame=0 hop=0.3 da577bd3915fd2b1
+player dir=N inWater=false alive=true frame=1 hop=0 bcb93e7262a8e405
+player dir=N inWater=false alive=true frame=1 hop=0.3 08df66d2dcbf1431
+player dir=N inWater=false alive=true frame=2 hop=0 21cf35bd2e6ad865
+player dir=N inWater=false alive=true frame=2 hop=0.3 c8f4b641e0e05c1e
+player dir=E inWater=false alive=true frame=0 hop=0 a8fa25b741d3f99e
+player dir=E inWater=false alive=true frame=0 hop=0.3 a6cecaf6cbedf1ee
+player dir=E inWater=false alive=true frame=1 hop=0 834cd7d48c43fce4
+player dir=E inWater=false alive=true frame=1 hop=0.3 8824b963b2ff2db3
+player dir=E inWater=false alive=true frame=2 hop=0 d6433210c4f7e4aa
+player dir=E inWater=false alive=true frame=2 hop=0.3 3606108709275d05
+player dir=S inWater=false alive=true frame=0 hop=0 f5fd7abc8c5a39df
+player dir=S inWater=false alive=true frame=0 hop=0.3 59a8971fea2e7e99
+player dir=S inWater=false alive=true frame=1 hop=0 8868da08d234e744
+player dir=S inWater=false alive=true frame=1 hop=0.3 7874db28ad9addb2
+player dir=S inWater=false alive=true frame=2 hop=0 486535bb4eff74fc
+player dir=S inWater=false alive=true frame=2 hop=0.3 468024e30cdddfcd
+player dir=W inWater=false alive=true frame=0 hop=0 87003ed8a6ee7fee
+player dir=W inWater=false alive=true frame=0 hop=0.3 d717b8dfb8e65968
+player dir=W inWater=false alive=true frame=1 hop=0 a4c37d07e757caec
+player dir=W inWater=false alive=true frame=1 hop=0.3 75703b82ced2cd97
+player dir=W inWater=false alive=true frame=2 hop=0 f26dbaee10fb0900
+player dir=W inWater=false alive=true frame=2 hop=0.3 d3b0973684cbe861
+player dir=N inWater=true alive=true frame=0 hop=0 9121af91f6e946bd
+player dir=N inWater=true alive=true frame=0 hop=0.3 b0a2154160ba4b2b
+player dir=N inWater=true alive=true frame=1 hop=0 9c2f33d0486b6ce2
+player dir=N inWater=true alive=true frame=1 hop=0.3 9391d725017d4f09
+player dir=N inWater=true alive=true frame=2 hop=0 b8b4c0cb4e7eac1a
+player dir=N inWater=true alive=true frame=2 hop=0.3 96be03bad95f60c4
+player dir=E inWater=true alive=true frame=0 hop=0 6818a3e63c8b27a0
+player dir=E inWater=true alive=true frame=0 hop=0.3 31b2bf2c909703b4
+player dir=E inWater=true alive=true frame=1 hop=0 624f84711e32839a
+player dir=E inWater=true alive=true frame=1 hop=0.3 9d65a551a70efe2b
+player dir=E inWater=true alive=true frame=2 hop=0 0a07e8555a413dc5
+player dir=E inWater=true alive=true frame=2 hop=0.3 df5ca29bd0cfeace
+player dir=S inWater=true alive=true frame=0 hop=0 067387ebab9b569c
+player dir=S inWater=true alive=true frame=0 hop=0.3 d264da8e2d48e24d
+player dir=S inWater=true alive=true frame=1 hop=0 a06c1905c80ae6e0
+player dir=S inWater=true alive=true frame=1 hop=0.3 d700d1f52091e2b2
+player dir=S inWater=true alive=true frame=2 hop=0 369d6820ee7f5f94
+player dir=S inWater=true alive=true frame=2 hop=0.3 aab5c46eda241b26
+player dir=W inWater=true alive=true frame=0 hop=0 d1b28ec9dc26b9a8
+player dir=W inWater=true alive=true frame=0 hop=0.3 8c1c47bd8083b875
+player dir=W inWater=true alive=true frame=1 hop=0 cb6b1dbc9d87a693
+player dir=W inWater=true alive=true frame=1 hop=0.3 85e609a48dda248a
+player dir=W inWater=true alive=true frame=2 hop=0 110170b17500903d
+player dir=W inWater=true alive=true frame=2 hop=0.3 27cb707405ca6ccb
+player dir=N inWater=false alive=false frame=0 hop=0 ec2e59f18d6680c5
+player dir=N inWater=false alive=false frame=0 hop=0.3 ea1a02ba842ddc78
+player dir=N inWater=false alive=false frame=1 hop=0 6e6e70c319fcb8fd
+player dir=N inWater=false alive=false frame=1 hop=0.3 e82fef5ec8193144
+player dir=N inWater=false alive=false frame=2 hop=0 09f7d9139963fd5d
+player dir=N inWater=false alive=false frame=2 hop=0.3 63a8190b400ba9e5
+player dir=E inWater=false alive=false frame=0 hop=0 03a470011933718d
+player dir=E inWater=false alive=false frame=0 hop=0.3 4e147d86995bf5b1
+player dir=E inWater=false alive=false frame=1 hop=0 17af371b307a2605
+player dir=E inWater=false alive=false frame=1 hop=0.3 364a7530a890b005
+player dir=E inWater=false alive=false frame=2 hop=0 debb0c302a8c2c5c
+player dir=E inWater=false alive=false frame=2 hop=0.3 c6b96b66611de23f
+player dir=S inWater=false alive=false frame=0 hop=0 f4f5dc7269595f44
+player dir=S inWater=false alive=false frame=0 hop=0.3 f8ebe6cd25277026
+player dir=S inWater=false alive=false frame=1 hop=0 fd5bb9a7f7049a9b
+player dir=S inWater=false alive=false frame=1 hop=0.3 a69853a421987925
+player dir=S inWater=false alive=false frame=2 hop=0 79bf862be486f035
+player dir=S inWater=false alive=false frame=2 hop=0.3 69b7219bdf3371b8
+player dir=W inWater=false alive=false frame=0 hop=0 53f91f30de0ab301
+player dir=W inWater=false alive=false frame=0 hop=0.3 4e3777bc238363ee
+player dir=W inWater=false alive=false frame=1 hop=0 ce27d06ce79ceebe
+player dir=W inWater=false alive=false frame=1 hop=0.3 06493a1c54e34ee0
+player dir=W inWater=false alive=false frame=2 hop=0 8902b4e9a886ba76
+player dir=W inWater=false alive=false frame=2 hop=0.3 1fe68f1f885d337e
