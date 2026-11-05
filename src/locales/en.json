@@ -1136,6 +1136,9 @@
         "failed": { "label": "The generator could not build this level. Try another seed." }
       }
     },
+    "touch": {
+      "pick": { "nothing": { "label": "Nothing to pick here" } }
+    },
     "layout": {
       "toolbar": { "label": "Editor toolbar" },
       "group": {

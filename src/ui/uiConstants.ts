@@ -147,6 +147,8 @@ export const EDITOR_TOUCH_PINCH_START_PX = 24;
 export const EDITOR_TOUCH_PINCH_STEP_RATIO = 1.25;
 /** Largest finger travel, in CSS pixels, for a touch in a link session to still be a tap. */
 export const EDITOR_TOUCH_TAP_SLOP_PX = 10;
+/** A finger held this long on a paint stroke, without travelling past the tap slop, takes the stroke back and picks the cell (eyedropper). Longer than the stroke grace. */
+export const EDITOR_TOUCH_LONG_PRESS_MS = 500;
 /** Editor layout: the view width, in CSS pixels, under which it drops to two columns, then to one. */
 export const EDITOR_TWO_COLUMN_BELOW_WIDTH = 1100;
 export const EDITOR_ONE_COLUMN_BELOW_WIDTH = 680;
