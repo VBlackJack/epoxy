@@ -212,6 +212,8 @@ export const DEFAULT_SOKOBAN_SKIN: Readonly<SokobanSkinConfig> = {
   baseUrl: './sprites/sokoban',
   terrain: {
     floor: ['ground_06.png'],
+    invisible_wall: ['ground_06.png'],
+    appearing_wall: ['ground_06.png'],
     wall: ['block_05.png'],
     block_target: ['ground_06.png', 'environment_06.png']
   },

@@ -38,10 +38,18 @@ const SPRITE_UNIT = 16;
 const DEFAULT_CANVAS = 300;
 const PLAYER_CELL = 5;
 const BLOCK_CELL = 8;
+/** Cells that hold the hidden walls in the skin scene. */
+const HIDDEN_WALL_CELLS = [
+  { x: 2, y: 6, tile: 'invisible_wall' },
+  { x: 6, y: 2, tile: 'appearing_wall' }
+] as const;
 const FRAME_MS = 16;
 const BYTES = 4;
 /** Frames after which the camera zoom has settled and the terrain cache is stable. */
 const SETTLE_FRAMES = 40;
+/** Bumps allowed before an appearing wall must have turned into a wall, and ticks that clear the move cooldown. */
+const TOUCH_ATTEMPTS = 4;
+const MOVE_COOLDOWN_TICKS = 20;
 
 interface Call {
   readonly name: string;
@@ -159,7 +167,7 @@ describe('SokobanSkinLoader', () => {
 describe('Sokoban skin configuration', () => {
   beforeEach(() => loadTestConfigs());
 
-  it('ships the five roles in game.json', () => {
+  it('ships the roles in game.json', () => {
     const skin = resolveSokobanSkin(ConfigRegistry.getGame().graphics);
     expect(skin).toEqual(DEFAULT_SOKOBAN_SKIN);
     expect(ConfigRegistry.getGame().graphics?.sokobanSkin).toBeDefined();
@@ -204,13 +212,14 @@ describe('Sokoban skin in the renderer', () => {
     vi.restoreAllMocks();
   });
 
-  function level(winRule: 'targets' | undefined, blockOnTarget: boolean): CompiledLevel {
+  function level(winRule: 'targets' | undefined, blockOnTarget: boolean, hiddenWalls = false): CompiledLevel {
     const edge = MAP_SIZE - 1;
     const terrain: string[][] = Array.from({ length: MAP_SIZE }, (_, y) =>
       Array.from({ length: MAP_SIZE }, (_, x) => (x === 0 || y === 0 || x === edge || y === edge ? 'wall' : 'floor'))
     );
     terrain[BLOCK_CELL][BLOCK_CELL] = blockOnTarget ? 'block_target' : 'floor';
     terrain[3][3] = 'block_target';
+    if (hiddenWalls) for (const cell of HIDDEN_WALL_CELLS) terrain[cell.y][cell.x] = cell.tile;
     return {
       id: 'skin-scene',
       number: 1,
@@ -230,24 +239,26 @@ describe('Sokoban skin in the renderer', () => {
   interface Scene {
     renderer: PixelRenderer;
     main: FakeCanvas;
+    engine: GameEngine;
     frame(): void;
   }
 
   function scene(opts: {
     winRule?: 'targets';
     onTarget?: boolean;
+    hiddenWalls?: boolean;
     style?: GraphicsStyle;
     loader?: SokobanSkinLoader | null;
   }): Scene {
     const engine = new GameEngine();
-    engine.loadLevel(level(opts.winRule, opts.onTarget ?? false));
+    engine.loadLevel(level(opts.winRule, opts.onTarget ?? false, opts.hiddenWalls ?? false));
     const renderer = new PixelRenderer();
     renderer.setStyle(opts.style ?? 'modern');
     renderer.setThemeId('cyber_neon');
     renderer.setViewportTiles(VIEW_TILES);
     if (opts.loader) renderer.setSkinLoader(opts.loader);
     const main = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
-    return { renderer, main, frame: () => renderer.renderViewport(main.getContext('2d'), engine) };
+    return { renderer, main, engine, frame: () => renderer.renderViewport(main.getContext('2d'), engine) };
   }
 
   function resetCalls(): void {
@@ -283,6 +294,63 @@ describe('Sokoban skin in the renderer', () => {
       // Low-res styles are drawn at the real tile size, not at the sprite unit.
       expect(Math.min(...draws.map((d) => d.size))).toBeGreaterThan(SPRITE_UNIT);
     }
+  });
+
+  it('draws hidden walls with the skin floor, so they do not stand out on a skinned level', async () => {
+    const loader = await loadedLoader();
+    for (const style of ['modern', 'retro', 'retro32'] as const) {
+      created.length = 0;
+      const withFloor = scene({ winRule: 'targets', style, loader });
+      withFloor.frame();
+      const floorDraws = skinDraws([withFloor.main]).filter((d) => d.file === 'ground_06.png').length;
+      created.length = 0;
+      const hidden = scene({ winRule: 'targets', style, loader, hiddenWalls: true });
+      hidden.frame();
+      const hiddenDraws = skinDraws([hidden.main]).filter((d) => d.file === 'ground_06.png').length;
+      expect(hiddenDraws).toBe(floorDraws);
+    }
+  });
+
+  it('draws an appearing wall as the skin floor before it is touched and as the skin wall after', async () => {
+    const loader = await loadedLoader();
+    const appearing = HIDDEN_WALL_CELLS.find((cell) => cell.tile === 'appearing_wall')!;
+    const countOf = (s: Scene, file: string): number => skinDraws([s.main]).filter((d) => d.file === file).length;
+    const s = scene({ winRule: 'targets', loader, hiddenWalls: true });
+    s.frame();
+    const floorBefore = countOf(s, 'ground_06.png');
+    const wallBefore = countOf(s, 'block_05.png');
+    // Stand under the appearing wall and bump it until it turns into a wall.
+    const player = s.engine.getPlayer();
+    player.x = appearing.x;
+    player.y = appearing.y + 1;
+    for (let attempt = 0; attempt < TOUCH_ATTEMPTS && s.engine.getTerrain()[appearing.y][appearing.x] !== 'wall'; attempt++) {
+      for (let i = 0; i < MOVE_COOLDOWN_TICKS; i++) s.engine.tick();
+      s.engine.attemptPlayerMove('N');
+    }
+    expect(s.engine.getTerrain()[appearing.y][appearing.x]).toBe('wall');
+    resetCalls();
+    s.main.calls.length = 0;
+    s.frame();
+    expect(countOf(s, 'block_05.png')).toBe(wallBefore + 1);
+    expect(countOf(s, 'ground_06.png')).toBe(floorBefore - 1);
+  });
+
+  it('marks the hidden walls over the skin floor while the eye boots are held', async () => {
+    const loader = await loadedLoader();
+    const markers = (canvases: readonly FakeCanvas[]): number =>
+      canvases.reduce(
+        (total, canvas) =>
+          total + canvas.calls.filter((c) => c.name === 'setLineDash' && (c.args[0] as number[]).length === 2).length,
+        0
+      );
+    const without = scene({ winRule: 'targets', loader, hiddenWalls: true });
+    without.frame();
+    const base = markers([...created, without.main]);
+    created.length = 0;
+    const eyed = scene({ winRule: 'targets', loader, hiddenWalls: true });
+    eyed.engine.getPlayer().boots.add('boots_eye');
+    eyed.frame();
+    expect(markers([...created, eyed.main]) - base).toBe(HIDDEN_WALL_CELLS.length);
   });
 
   it('draws only the darker crate for a block standing on a target', async () => {

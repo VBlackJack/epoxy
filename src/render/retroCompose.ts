@@ -93,6 +93,8 @@ export interface RetroTileInput {
   /** One floor cell in this many shows a detail. */
   floorDetailEvery: number;
   isEditor: boolean;
+  /** Hidden walls show their marker outside the editor too (the player holds boots that reveal them). */
+  revealHiddenWalls: boolean;
   isClosedTrap: boolean;
   /** Animation phase, 0 to RETRO_PHASE_COUNT - 1, shared by every animated tile. */
   phase: number;
@@ -266,7 +268,7 @@ export function retroTileLayers(input: RetroTileInput): RetroLayer[] {
   const marker = RETRO_HIDDEN_WALL_MARKERS[tileId];
   if (marker) {
     const floor = floorLayers(input.hash, input.floorDetailEvery);
-    return input.isEditor ? [...floor, { name: marker }] : floor;
+    return input.isEditor || input.revealHiddenWalls ? [...floor, { name: marker }] : floor;
   }
   if (tileId === 'wall') return retroWallLayers(input.wallMask);
   if (BLUE_WALL_TILES.has(tileId)) {

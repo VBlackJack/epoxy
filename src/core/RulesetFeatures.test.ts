@@ -26,7 +26,9 @@ import {
   hasTurretContent,
   isColorChannelTileId,
   isEpoxyOnlyEntityType,
+  isEpoxyOnlyItemId,
   isEpoxyOnlyTileId,
+  isEyeBootsTileId,
   isFleeingEntityType,
   isSteeredEntityType,
   isSteeringTileId,
@@ -71,6 +73,14 @@ describe('colour channel aids', () => {
     expect(isEpoxyOnlyTileId('slow_time')).toBe(true);
     expect(isEpoxyOnlyTileId('boots_fire')).toBe(false);
     expect(isEpoxyOnlyTileId('boots_speed')).toBe(true);
+    expect(isEpoxyOnlyTileId('boots_eye')).toBe(true);
+    expect(isEyeBootsTileId('boots_eye')).toBe(true);
+    expect(isEyeBootsTileId('boots_speed')).toBe(false);
+    expect(isEpoxyOnlyItemId('boots_eye')).toBe(true);
+    expect(isEpoxyOnlyItemId('boots_fire')).toBe(false);
+    const eyed = levelWith('floor');
+    eyed.items[1][1] = 'boots_eye';
+    expect(hasEpoxyOnlyContent(eyed)).toBe(true);
     const level = levelWith('floor');
     level.items[1][1] = 'slow_time';
     expect(hasEpoxyOnlyContent(level)).toBe(true);

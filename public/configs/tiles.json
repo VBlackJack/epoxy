@@ -791,6 +791,15 @@
       "collectible": "boot",
       "hastesPlayer": 2
     },
+    "boots_eye": {
+      "id": "boots_eye",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.boots_eye.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "revealsHiddenWalls": true
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",

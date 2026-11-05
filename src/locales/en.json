@@ -95,7 +95,7 @@
       "refused_cc3d_ruleset": { "label": "Not exported: {levels} plays under CC3D rules, which the .DAT format cannot hold. Use Export XML instead." },
       "refused_color_channel_content": { "label": "Not exported: {levels} uses pressure plates, hold doors, colour toggle walls or colour blocks, which the .DAT format cannot hold." },
       "refused_cell_edges": { "label": "Not exported: {levels} has thin walls set on cells, which the .DAT format cannot hold." },
-      "refused_epoxy_only_items": { "label": "Not exported: {levels} holds an item only Epoxy plays (such as the Slow-Time Charm or the Speed Boots), which the .DAT format cannot hold." },
+      "refused_epoxy_only_items": { "label": "Not exported: {levels} holds an item only Epoxy plays (such as the Slow-Time Charm, the Speed Boots or the Truesight Boots), which the .DAT format cannot hold." },
       "refused_epoxy_only_monsters": { "label": "Not exported: {levels} holds a Puppet, a Puppet Control or a Skitter, which the .DAT format cannot hold." },
       "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "list_separator": { "label": ", " }
@@ -1374,6 +1374,7 @@
     "boots_ice": { "name": "Ice Skates" },
     "boots_force": { "name": "Suction Boots" },
     "boots_speed": { "name": "Speed Boots" },
+    "boots_eye": { "name": "Truesight Boots" },
     "bomb": { "name": "Bomb" },
     "score_10": { "name": "Bonus Flag (10 points)" },
     "score_100": { "name": "Bonus Flag (100 points)" },
