@@ -29,6 +29,7 @@ import {
   ROLE_NAME_KEYS,
   SYSTEM_NAME_KEYS,
   connectionCellName,
+  connectionNoteText,
   connectionRows
 } from './connectionRows';
 
@@ -248,6 +249,91 @@ describe('connectionRows', () => {
     connectionRows(level, 1, 1);
     connectionRows(level, 4, 1);
     expect(JSON.stringify(level)).toBe(snapshot);
+  });
+});
+
+describe('what a device still needs', () => {
+  const noteOf = (level: CompiledLevel, x: number, y: number) => connectionRows(level, x, y).note;
+
+  it('asks a pressure plate for a hold door of its colour, and stops asking once one exists', () => {
+    expect(noteOf(makeLevel({ '1,1': 'pressure_plate_red' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsPlate, params: { colour: 'red' } });
+    expect(noteOf(makeLevel({ '1,1': 'pressure_plate_red', '3,1': 'hold_door_blue_closed' }), 1, 1)).toEqual({
+      key: CONNECTIONS_KEYS.needsPlate,
+      params: { colour: 'red' }
+    });
+    expect(noteOf(makeLevel({ '1,1': 'pressure_plate_red', '3,1': 'hold_door_red_closed' }), 1, 1)).toBeNull();
+  });
+
+  it('asks a hold door for a plate of its colour', () => {
+    expect(noteOf(makeLevel({ '2,2': 'hold_door_green_closed' }), 2, 2)).toEqual({ key: CONNECTIONS_KEYS.needsHoldDoor, params: { colour: 'green' } });
+    expect(noteOf(makeLevel({ '2,2': 'hold_door_green_open', '5,5': 'pressure_plate_green' }), 2, 2)).toBeNull();
+  });
+
+  it('pairs toggle buttons and walls by channel, the plain green button with the plain walls', () => {
+    expect(noteOf(makeLevel({ '1,1': 'button_green' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsToggleButton, params: { colour: 'green' } });
+    expect(noteOf(makeLevel({ '1,1': 'toggle_button_red', '4,4': 'toggle_wall_blue_closed' }), 1, 1)).toEqual({
+      key: CONNECTIONS_KEYS.needsToggleButton,
+      params: { colour: 'red' }
+    });
+    expect(noteOf(makeLevel({ '4,4': 'toggle_wall_closed' }), 4, 4)).toEqual({ key: CONNECTIONS_KEYS.needsToggleWall, params: { colour: 'green' } });
+    expect(noteOf(makeLevel({ '4,4': 'toggle_wall_yellow_open' }), 4, 4)).toEqual({ key: CONNECTIONS_KEYS.needsToggleWall, params: { colour: 'yellow' } });
+    expect(noteOf(makeLevel({ '1,1': 'button_green', '4,4': 'toggle_wall_open' }), 1, 1)).toBeNull();
+    expect(noteOf(makeLevel({ '1,1': 'button_green', '4,4': 'toggle_wall_open' }), 4, 4)).toBeNull();
+  });
+
+  it('says a teleporter alone in its group or among the plain ones goes nowhere, and is quiet with a partner', () => {
+    expect(noteOf(makeLevel({ '1,1': 'teleport' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsTeleporterPlain });
+    expect(noteOf(makeLevel({ '1,1': 'teleport_red', '3,3': 'teleport_blue' }), 1, 1)).toEqual({
+      key: CONNECTIONS_KEYS.needsTeleporterColour,
+      params: { colour: 'red' }
+    });
+    expect(noteOf(makeLevel({ '1,1': 'teleport', '3,3': 'teleport' }), 1, 1)).toBeNull();
+    expect(noteOf(makeLevel({ '1,1': 'teleport_red', '3,3': 'teleport_red' }), 3, 3)).toBeNull();
+  });
+
+  it('asks a laser receiver for a gate of its group and a gate for a receiver', () => {
+    expect(noteOf(makeLevel({ '1,1': 'laser_receiver_red' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsLaserReceiver, params: { colour: 'red' } });
+    expect(noteOf(makeLevel({ '1,1': 'laser_gate_blue_closed' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsLaserGate, params: { colour: 'blue' } });
+    expect(noteOf(makeLevel({ '1,1': 'laser_receiver_red', '2,2': 'laser_gate_red_closed' }), 2, 2)).toBeNull();
+  });
+
+  it('asks a puppet control for a puppet and a puppet for a control', () => {
+    expect(noteOf(makeLevel({ '1,1': 'puppet_control' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsPuppetControl });
+    const withPuppet = makeLevel({ '1,1': 'puppet_control' }, { entities: [{ x: 5, y: 5, type: 'puppet' }] });
+    expect(noteOf(withPuppet, 1, 1)).toBeNull();
+    expect(noteOf(withPuppet, 5, 5)).toBeNull();
+    expect(noteOf(makeLevel({}, { entities: [{ x: 5, y: 5, type: 'puppet' }] }), 5, 5)).toEqual({ key: CONNECTIONS_KEYS.needsPuppet });
+  });
+
+  it('asks a flame jet for an orange button and an orange button for a jet', () => {
+    expect(noteOf(makeLevel({ '1,1': 'flame_jet_off' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsFlameJet });
+    expect(noteOf(makeLevel({ '1,1': 'button_orange' }), 1, 1)).toEqual({ key: CONNECTIONS_KEYS.needsFlameButton });
+    expect(noteOf(makeLevel({ '1,1': 'button_orange', '3,3': 'flame_jet_on' }), 3, 3)).toBeNull();
+  });
+
+  it('reads the colour of a device hidden under a removable top', () => {
+    const level = makeLevel({ '2,2': 'door_red' }, { underlays: [{ x: 2, y: 2, terrain: 'pressure_plate_blue' }] });
+    expect(noteOf(level, 2, 2)).toEqual({ key: CONNECTIONS_KEYS.needsPlate, params: { colour: 'blue' } });
+  });
+
+  it('writes the colour of a note by its name, in both languages, and keeps an unknown group as it is', () => {
+    const translate = (key: string, params?: Record<string, string | number>): string => `${key}|${JSON.stringify(params ?? {})}`;
+    expect(connectionNoteText({ key: 'k', params: { colour: 'red' } }, translate)).toBe(`k|{"colour":"${translate(CHANNEL_NAME_KEYS.red)}"}`);
+    expect(connectionNoteText({ key: 'k', params: { colour: 'violet' } }, translate)).toBe('k|{"colour":"violet"}');
+    expect(connectionNoteText({ key: 'k' }, translate)).toBe('k|{}');
+  });
+
+  it('has a text in both languages for every note, with the colour where the note takes one', () => {
+    const keys = Object.entries(CONNECTIONS_KEYS).filter(([name]) => name.startsWith('needs'));
+    expect(keys).toHaveLength(12);
+    for (const locale of [enLocale, frLocale] as TranslationNode[]) {
+      for (const [name, key] of keys) {
+        const text = resolveMessage(locale, key);
+        expect(typeof text, key).toBe('string');
+        const withColour = /Plate|HoldDoor|Toggle|TeleporterColour|Laser/.test(name);
+        expect(String(text).includes('{colour}'), key).toBe(withColour);
+      }
+    }
   });
 });
 

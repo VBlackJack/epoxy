@@ -83,6 +83,7 @@ const KEY_DONE = 'editor.link.done.label';
 const KEY_SOURCE_GONE = 'editor.link.source_gone.label';
 const KEY_UNAVAILABLE = 'editor.link.unavailable.label';
 const KEY_NOTHING = 'editor.link.nothing.label';
+const KEY_NUDGE = 'editor.link.nudge.label';
 const KEY_REFUSED_HIDDEN = 'editor.link.refused.hidden.label';
 const KEY_REFUSED_NOT_FREE = 'editor.link.refused.not_free.label';
 const KEY_REFUSED_OTHER = 'editor.link.refused.other.label';
@@ -201,6 +202,37 @@ export function startLinkSession(level: EditorMap, x: number, y: number, ruleset
   if (role.blocked) return { session: null, messages: [{ key: KEY_REFUSED_HIDDEN, params: { role: roleName(role.system, role.end) } }] };
   const session: LinkSession = { system: role.system, end: role.end, x, y };
   return { session, messages: sessionStartMessages(level, session, ruleset) };
+}
+
+/**
+ * The one cell whose top tile or hidden terrain differs between two versions of a map, or null when none or several do
+ * (or the size changed). What a single placement leaves behind.
+ */
+export function soleChangedCell(before: EditorMap, after: EditorMap): { x: number; y: number } | null {
+  if (mapWidthOf(before) !== mapWidthOf(after) || mapHeightOf(before) !== mapHeightOf(after)) return null;
+  let found: { x: number; y: number } | null = null;
+  for (let y = 0; y < mapHeightOf(after); y++) {
+    for (let x = 0; x < mapWidthOf(after); x++) {
+      if (before.terrain[y][x] === after.terrain[y][x] && underlayAt(before, x, y) === underlayAt(after, x, y)) continue;
+      if (found) return null;
+      found = { x, y };
+    }
+  }
+  return found;
+}
+
+/**
+ * The status lines that tell the author a device just placed can be linked: what it is, how to start (K or Link...) and
+ * what it does unlinked. Empty when the cell holds no device in plain view or the device is linked already.
+ */
+export function nudgeMessages(level: EditorMap, x: number, y: number, ruleset: Ruleset): ToolMessage[] {
+  const role = sessionRoleAt(level, x, y, ruleset);
+  if (!role || role.blocked || linkCountAt(level, role.system, role.end, x, y) > 0) return [];
+  const prefix = ruleset === 'lynx' ? FALLBACK_LYNX_KEY_PREFIX : FALLBACK_KEY_PREFIX;
+  return [
+    { key: KEY_NUDGE, params: { role: roleName(role.system, role.end) } },
+    { key: `${prefix}${roleId(role.system, role.end)}${LABEL_SUFFIX}` }
+  ];
 }
 
 function topTileName(level: EditorMap, x: number, y: number): string {

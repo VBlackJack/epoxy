@@ -16,6 +16,8 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { type DeviceLevel, type DeviceRelations, type DeviceRole, type Relation, type RelationKind, type RelationSystem, deviceRelations } from '../core/DeviceRelations';
+import { channelOfButtonAction } from '../core/coreConstants';
+import type { TileDefinition } from '../core/types';
 import { EDITOR_CONNECTIONS_MAX_ROWS } from '../ui/uiConstants';
 import { holdsShotLauncher, holdsShotTrigger } from './editorLauncherLinks';
 import type { ToolMessage } from './editorTools';
@@ -41,8 +43,26 @@ export const CONNECTIONS_KEYS = {
   fallbackCloneAny: `${KEY_PREFIX}fallback.clone_any`,
   fallbackCloneNone: `${KEY_PREFIX}fallback.clone_none`,
   fallbackShotUnlinked: `${KEY_PREFIX}fallback.shot_unlinked`,
-  fallbackLaserEmitter: `${KEY_PREFIX}fallback.laser_emitter`
+  fallbackLaserEmitter: `${KEY_PREFIX}fallback.laser_emitter`,
+  needsPlate: `${KEY_PREFIX}needs.plate.label`,
+  needsHoldDoor: `${KEY_PREFIX}needs.hold_door.label`,
+  needsToggleButton: `${KEY_PREFIX}needs.toggle_button.label`,
+  needsToggleWall: `${KEY_PREFIX}needs.toggle_wall.label`,
+  needsTeleporterPlain: `${KEY_PREFIX}needs.teleporter_plain.label`,
+  needsTeleporterColour: `${KEY_PREFIX}needs.teleporter_colour.label`,
+  needsLaserReceiver: `${KEY_PREFIX}needs.laser_receiver.label`,
+  needsLaserGate: `${KEY_PREFIX}needs.laser_gate.label`,
+  needsPuppetControl: `${KEY_PREFIX}needs.puppet_control.label`,
+  needsPuppet: `${KEY_PREFIX}needs.puppet.label`,
+  needsFlameButton: `${KEY_PREFIX}needs.flame_button.label`,
+  needsFlameJet: `${KEY_PREFIX}needs.flame_jet.label`
 } as const;
+
+/** Name of the param of a note that holds a colour or group id, translated by connectionNoteText. */
+export const NOTE_COLOUR_PARAM = 'colour';
+
+/** Channel of the plain toggle button and walls. */
+const GREEN_CHANNEL = 'green';
 
 /** Locale key of the name of each device role (literal keys, so the locale checks see them). */
 export const ROLE_NAME_KEYS: Readonly<Record<DeviceRole, string>> = {
@@ -294,8 +314,69 @@ function hasFallback(relations: readonly Relation[], system: RelationSystem): bo
   return relations.some((r) => r.fallback === true && r.system === system);
 }
 
-/** The sentence that spells out the engine's fallback for the cell's device, or null when there is none to spell. */
-function noteFor(role: DeviceRole | null, rel: DeviceRelations): ToolMessage | null {
+/** The terrain tile that gives the cell its role (top or hidden), or null when an entity or nothing does. */
+function roleTileOf(rel: DeviceRelations): TileDefinition | null {
+  const facet = rel.facet;
+  if (!facet || facet.source === 'entity' || !ConfigRegistry.isTerrainTile(facet.id)) return null;
+  return ConfigRegistry.getTile(facet.id);
+}
+
+/** A "needs" note carrying the colour or group id it is about (translated when the note is written out). */
+function needsNote(key: string, colour: string | undefined): ToolMessage {
+  return { key, ...(colour !== undefined ? { params: { [NOTE_COLOUR_PARAM]: colour } } : {}) };
+}
+
+/**
+ * What a device still needs to do anything, read from the emptiness of its relations (a relation exists exactly when
+ * a partner of the same colour or kind is on the level) and the engine's rules; null when it has a partner, or
+ * when the role has no partner to wait for.
+ */
+function needsNoteFor(role: DeviceRole | null, rel: DeviceRelations, tile: TileDefinition | null): ToolMessage | null {
+  switch (role) {
+    case 'pressure_plate':
+      return rel.controls.length === 0 ? needsNote(CONNECTIONS_KEYS.needsPlate, tile?.plateColor) : null;
+    case 'hold_door':
+      return rel.controlledBy.length === 0 ? needsNote(CONNECTIONS_KEYS.needsHoldDoor, tile?.holdDoorColor) : null;
+    case 'toggle_button':
+      return rel.controls.length === 0
+        ? needsNote(CONNECTIONS_KEYS.needsToggleButton, tile?.buttonAction === 'toggle_walls' ? GREEN_CHANNEL : channelOfButtonAction(tile?.buttonAction))
+        : null;
+    case 'toggle_wall':
+      return rel.controlledBy.length === 0
+        ? needsNote(CONNECTIONS_KEYS.needsToggleWall, tile?.togglesTo !== undefined ? GREEN_CHANNEL : tile?.toggleChannel)
+        : null;
+    case 'teleporter':
+      if (rel.controls.length > 0) return null;
+      return tile?.teleportGroup === undefined
+        ? { key: CONNECTIONS_KEYS.needsTeleporterPlain }
+        : needsNote(CONNECTIONS_KEYS.needsTeleporterColour, tile.teleportGroup);
+    case 'laser_receiver':
+      return rel.controls.length === 0 ? needsNote(CONNECTIONS_KEYS.needsLaserReceiver, tile?.laserReceiverGroup) : null;
+    case 'laser_gate':
+      return rel.controlledBy.length === 0 ? needsNote(CONNECTIONS_KEYS.needsLaserGate, tile?.laserGateGroup) : null;
+    case 'puppet_control':
+      return rel.controls.length === 0 ? { key: CONNECTIONS_KEYS.needsPuppetControl } : null;
+    case 'puppet':
+      return rel.controlledBy.length === 0 ? { key: CONNECTIONS_KEYS.needsPuppet } : null;
+    case 'flame_button':
+      return rel.controls.length === 0 ? { key: CONNECTIONS_KEYS.needsFlameButton } : null;
+    case 'flame_jet':
+      return rel.controlledBy.length === 0 ? { key: CONNECTIONS_KEYS.needsFlameJet } : null;
+    default:
+      return null;
+  }
+}
+
+/** Writes a note out: its colour param (a colour or group id) becomes the colour's name, any other id stays as it is. */
+export function connectionNoteText(note: ToolMessage, translate: (key: string, params?: Record<string, string | number>) => string): string {
+  const colour = note.params?.[NOTE_COLOUR_PARAM];
+  if (typeof colour !== 'string') return translate(note.key, note.params);
+  const name = CHANNEL_NAME_KEYS[colour] ? translate(CHANNEL_NAME_KEYS[colour]) : colour;
+  return translate(note.key, { ...note.params, [NOTE_COLOUR_PARAM]: name });
+}
+
+/** The sentence that spells out the engine's fallback or what the device still needs, or null when there is none to say. */
+function noteFor(role: DeviceRole | null, rel: DeviceRelations, tile: TileDefinition | null): ToolMessage | null {
   switch (role) {
     case 'trap_button':
       return hasFallback(rel.controls, 'trap') ? { key: CONNECTIONS_KEYS.fallbackTrapButton } : null;
@@ -309,7 +390,7 @@ function noteFor(role: DeviceRole | null, rel: DeviceRelations): ToolMessage | n
     case 'laser_emitter':
       return { key: CONNECTIONS_KEYS.fallbackLaserEmitter };
     default:
-      return null;
+      return needsNoteFor(role, rel, tile);
   }
 }
 
@@ -332,5 +413,5 @@ export function connectionRows(level: DeviceLevel, x: number, y: number): Connec
       ? { key: CONNECTIONS_KEYS.noDevice, x, y, name: null }
       : { key: rel.facet?.source === 'hidden' ? CONNECTIONS_KEYS.cellHidden : CONNECTIONS_KEYS.cell, x, y, name };
   const link = linkOf(rel.role, rel.facet?.source, level.ruleset) ?? hiddenShotLinkOf(level, x, y);
-  return { caption, controls, controlledBy, note: noteFor(rel.role, rel), link };
+  return { caption, controls, controlledBy, note: noteFor(rel.role, rel, roleTileOf(rel)), link };
 }
