@@ -33,6 +33,7 @@ import {
   isFleeingEntityType,
   isSteeredEntityType,
   isSteeringTileId,
+  isSignalTileId,
   isTurnPlateTileId,
   isTurretEntityType,
   isArrowBlockEntityType
@@ -220,6 +221,17 @@ describe('colour channel aids', () => {
     expect(isTurnPlateTileId('floor')).toBe(false);
     expect(isTurnPlateTileId(null)).toBe(false);
     expect(hasEpoxyOnlyMonsterContent(levelWith('floor'))).toBe(false);
+  });
+
+  it('names the signal plate and gates as Epoxy only', () => {
+    const ids = ['signal_plate', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor', 'signal_latch_off', 'signal_latch_on'];
+    for (const id of ids) {
+      expect(isSignalTileId(id), id).toBe(true);
+      expect(isEpoxyOnlyTileId(id), id).toBe(true);
+    }
+    expect(isSignalTileId('floor')).toBe(false);
+    expect(isSignalTileId('hold_door_red_closed')).toBe(false);
+    expect(isSignalTileId(null)).toBe(false);
   });
 
   it('turns tap to path, the block hint and the dead end watch off on a steering level, and keeps the rest', () => {

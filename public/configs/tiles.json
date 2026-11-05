@@ -1268,6 +1268,84 @@
       "plateColor": "yellow",
       "colorKey": "yellow"
     },
+    "signal_plate": {
+      "id": "signal_plate",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_plate.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "signalSource": "held"
+    },
+    "signal_gate_and": {
+      "id": "signal_gate_and",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_gate_and.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "and"
+    },
+    "signal_gate_or": {
+      "id": "signal_gate_or",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_gate_or.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "or"
+    },
+    "signal_gate_not": {
+      "id": "signal_gate_not",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_gate_not.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "not"
+    },
+    "signal_gate_xor": {
+      "id": "signal_gate_xor",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_gate_xor.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "xor"
+    },
+    "signal_latch_off": {
+      "id": "signal_latch_off",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_latch_off.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "latch"
+    },
+    "signal_latch_on": {
+      "id": "signal_latch_on",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_latch_on.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "latch",
+      "signalLatchStartsOn": true
+    },
     "hold_door_red_closed": {
       "id": "hold_door_red_closed",
       "category": "mechanisms",

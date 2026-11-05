@@ -202,6 +202,8 @@ const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
   'floating_block_red', 'floating_block_green', 'floating_block_blue', 'floating_block_yellow',
   'puppet_control', 'shot_launcher_n', 'shot_launcher_e', 'shot_launcher_s', 'shot_launcher_w',
   'shot_trigger',
+  'signal_plate', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor',
+  'signal_latch_off', 'signal_latch_on',
   'turtle', 'slime', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se', 'force_n', 'force_e',
   'force_s', 'force_w', 'force_random', 'thief', 'thief_keys',
   'forbid_key_red', 'forbid_key_blue', 'forbid_key_yellow', 'forbid_key_green', 'forbid_boots_ice',
