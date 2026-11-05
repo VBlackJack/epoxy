@@ -190,6 +190,36 @@ describe('BlockPuzzleSolver', () => {
     expect(BlockPuzzleSolver.hint(engine)).toEqual(['E']);
   });
 
+  it('does not check the solvability of a level with signal wires, which the search does not model', () => {
+    const engine = corridorEngine();
+    engine.getLevel().winRule = 'targets';
+    engine.getTerrain()[2][4] = 'block_target';
+    expect(BlockPuzzleSolver.verdict(engine).kind).toBe('solved');
+    engine.getLevel().signalLinks = [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }];
+    expect(BlockPuzzleSolver.verdict(engine)).toEqual({ kind: 'not_checked' });
+  });
+
+  it('gives no hint on a level with signal wires', () => {
+    const engine = corridorEngine();
+    expect(BlockPuzzleSolver.hint(engine)).toEqual(['E']);
+    engine.getLevel().signalLinks = [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }];
+    expect(BlockPuzzleSolver.hint(engine)).toBeNull();
+  });
+
+  it('never reports a level with signal wires stuck', () => {
+    const engine = engineAt(
+      [
+        { x: 1, y: 5 },
+        { x: 3, y: 4 },
+        { x: 6, y: 5 }
+      ],
+      { x: 2, y: 5 }
+    );
+    expect(BlockPuzzleSolver.isStuck(engine)).toBe(true);
+    engine.getLevel().signalLinks = [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }];
+    expect(BlockPuzzleSolver.isStuck(engine)).toBe(false);
+  });
+
   it('does not push a block through a thin wall', () => {
     // The wall bars the west edge of (3, 2): the block cannot be pushed into it, so no push is offered.
     const engine = corridorEngine({ 3: 'thin_wall_w' });

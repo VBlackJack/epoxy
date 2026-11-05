@@ -26,6 +26,8 @@ import {
   TOGGLE_PARITY_KEY_PREFIX
 } from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
+import { copySignalState, settleWorldSignals } from './epoxy/epoxySignals';
+import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
 import { updateEntities } from './epoxy/epoxyMonsters';
 import {
   FORCE_FLOOR_MOVE_COOLDOWN_TICKS,
@@ -62,6 +64,7 @@ import {
   PlayerState,
   RuntimeEntity,
   Shot,
+  SignalState,
   TimedMove,
   TrapLink,
   UndoSnapshot
@@ -238,6 +241,16 @@ export class GameEngine {
    */
   public getShots(): readonly Shot[] | undefined {
     return this.w.hasLaunchers ? this.w.shots : undefined;
+  }
+
+  /** The state of the signal network; undefined on a level without one, so nothing about it reaches such a level or its hash. */
+  public getSignalState(): SignalState | undefined {
+    return copySignalState(this.w);
+  }
+
+  /** Sink edges the signal network has reported since the level loaded; a diagnostic, undefined without signals. */
+  public getSignalEdgeCounts(): { rising: number; falling: number } | undefined {
+    return this.w.signals === undefined ? undefined : { ...this.w.signals.edgeCounts };
   }
 
   /**
@@ -484,7 +497,9 @@ export class GameEngine {
       // Only a level that revealed something has revealed cells to put back.
       ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {}),
       // Only a level with an actor inside a swivel door has an entry side to put back.
-      ...(this.w.swivelEntry.size > 0 ? { swivelEntry: [...this.w.swivelEntry] } : {})
+      ...(this.w.swivelEntry.size > 0 ? { swivelEntry: [...this.w.swivelEntry] } : {}),
+      // Only a level with a signal network has network state to put back.
+      ...(this.w.signals !== undefined ? { signals: cloneSignalState(this.w.signals.state) } : {})
     };
   }
 
@@ -532,6 +547,9 @@ export class GameEngine {
     this.w.toggleParity = snap.toggleParity ?? 0;
     this.w.revealedCells = new Set(snap.revealedCells ?? []);
     this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
+    if (this.w.signals !== undefined) {
+      this.w.signals.state = snap.signals ? cloneSignalState(snap.signals) : createSignalState(this.w.signals.network);
+    }
     // The launchers fired in the undone moment may fire again.
     this.w.firedLaunchers.clear();
     this.w.inTick = false;
@@ -573,6 +591,8 @@ export class GameEngine {
     // A new tick lets every launcher fire again; a move made before it counts with it.
     this.w.firedLaunchers.clear();
     // Before the laser pass, which may return early; doors settle at the end of each pass.
+    // The signals settle before the doors they drive; a no-op without signals.
+    if (this.w.signals !== undefined) settleWorldSignals(this.w);
     setHoldDoors(this.ctx);
     turnTurrets(this.w, this.ticksElapsed);
     resolveLasers(this.ctx);
@@ -617,6 +637,7 @@ export class GameEngine {
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
+      if (this.w.signals !== undefined) settleWorldSignals(this.w);
       setHoldDoors(this.ctx);
       this.stepsCount++;
       // The turrets' clock starts with the first step.

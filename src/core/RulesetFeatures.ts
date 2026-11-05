@@ -302,9 +302,31 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
   return (level.entities ?? []).some((e) => isColorBlockEntityType(e.type));
 }
 
-/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers or turn plates. */
+/** True when the level has signal wires, or places a signal source or gate (terrain or underlay layer). */
+export function hasSignalContent(
+  level: Partial<Pick<CompiledLevel, 'terrain' | 'underlays' | 'signalLinks'>>
+): boolean {
+  if ((level.signalLinks?.length ?? 0) > 0) return true;
+  const underlays = level.underlays ?? [];
+  if (!level.terrain?.length && underlays.length === 0) return false;
+  // Without loaded configs no tile has a signal role (a level can be read before the configs are).
+  const isSignalTile = (id: string | null | undefined): boolean => {
+    if (!id) return false;
+    try {
+      const tile = ConfigRegistry.getTile(id);
+      return tile.signalSource !== undefined || tile.signalGate !== undefined;
+    } catch {
+      return false;
+    }
+  };
+  if (level.terrain?.some((row) => row.some(isSignalTile))) return true;
+  return underlays.some((u) => isSignalTile(u.terrain));
+}
+
+/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers, turn plates or signal wiring. */
 export function hasEpoxyOnlyContent(
-  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> &
+    Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays' | 'signalLinks'>>
 ): boolean {
   const hasEpoxyOnlyItem = (grid: Array<Array<string | null>> | undefined): boolean =>
     grid?.some((row) => row.some(isEpoxyOnlyItemId)) ?? false;
@@ -314,7 +336,8 @@ export function hasEpoxyOnlyContent(
     hasEpoxyOnlyItem(level.terrain) ||
     hasEpoxyOnlyItem(level.items) ||
     hasSwivelContent(level) ||
-    hasEpoxyOnlyMonsterContent(level)
+    hasEpoxyOnlyMonsterContent(level) ||
+    hasSignalContent(level)
   );
 }
 
@@ -328,7 +351,7 @@ const TURRET_RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_LEVEL_FEAT
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
-  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks'>>;
+  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks'>>;
 
 /** Laser and colour content never change on a compiled level, so the answers are kept per level object. */
 const laserContentCache = new WeakMap<object, boolean>();
@@ -336,6 +359,7 @@ const colorContentCache = new WeakMap<object, boolean>();
 const turretContentCache = new WeakMap<object, boolean>();
 const steeringContentCache = new WeakMap<object, boolean>();
 const swivelContentCache = new WeakMap<object, boolean>();
+const signalContentCache = new WeakMap<object, boolean>();
 /** The aids of a steering level, kept per aid set so a level of one kind always gets the same object. */
 const steeringFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 
@@ -349,6 +373,22 @@ function withoutSteeringAids(base: RulesetFeatures): RulesetFeatures {
   if (!overlaid) {
     overlaid = { ...base, tapToPath: false, blockHint: false, deadEndWatch: false };
     steeringFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
+
+/** The aids of a signal level, kept per aid set like the steering overlay. */
+const signalFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+
+/**
+ * The aids a level with signal wiring loses on top of what its other mechanics already turn off: gates and sources
+ * change the board as the player moves, which a tapped path, the push hint and the watch do not model.
+ */
+function withoutSignalAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = signalFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, tapToPath: false, blockHint: false, deadEndWatch: false };
+    signalFeaturesCache.set(base, overlaid);
   }
   return overlaid;
 }
@@ -373,7 +413,13 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     swivel = hasSwivelContent({ terrain: level.terrain, items: level.items ?? [] });
     swivelContentCache.set(level, swivel);
   }
-  return steering || swivel ? withoutSteeringAids(base) : base;
+  let signal = signalContentCache.get(level);
+  if (signal === undefined) {
+    signal = hasSignalContent(level);
+    signalContentCache.set(level, signal);
+  }
+  const steered = steering || swivel ? withoutSteeringAids(base) : base;
+  return signal ? withoutSignalAids(steered) : steered;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {
