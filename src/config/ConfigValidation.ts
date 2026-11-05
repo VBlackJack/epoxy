@@ -1290,7 +1290,7 @@ export function findTransmogrifierConfigErrors(
     }
     if (other.kind !== 'monster') errors.push(`${id}.transmogrifiesTo: ${target} is not a monster`);
     if (other.transmogrifiesTo !== id) errors.push(`${id}.transmogrifiesTo: ${target} must transmogrify back into ${id}`);
-    if ((entity.moveIntervalTicks ?? undefined) !== (other.moveIntervalTicks ?? undefined)) {
+    if (entity.moveIntervalTicks !== other.moveIntervalTicks) {
       errors.push(`${id}.transmogrifiesTo: ${id} and ${target} must have the same moveIntervalTicks`);
     }
     if ((entity.flying === true) !== (other.flying === true)) {

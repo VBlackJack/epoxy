@@ -302,7 +302,7 @@ describe('transmogrifier: the new kind meets the hazards of the next cell', () =
 });
 
 describe('transmogrifier: other ways to arrive', () => {
-  it('swaps a monster that a teleporter drops next to it', () => {
+  it('swaps a monster that steps from a teleporter exit onto the pad', () => {
     const engine = load(
       room({
         terrain: [
@@ -336,7 +336,9 @@ describe('transmogrifier: other ways to arrive', () => {
     expect(found).toEqual([`bug@${CLONER.x},${CLONER.y}`, `paramecium@${CLONER.x},${CLONER.y + 1}`]);
   });
 
-  it('leaves a steered puppet a puppet when a steering step puts it on the pad', () => {
+  // No paired kind can be steered (the config forbids steeredBy on paired kinds), so a swap through
+  // steering is unreachable; this only pins that a steered non-paired kind is left alone.
+  it('leaves a steered puppet when a steering step puts it on the pad', () => {
     const engine = load(
       room({
         terrain: [

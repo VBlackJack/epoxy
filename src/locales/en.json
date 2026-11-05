@@ -1333,7 +1333,7 @@
     "swivel_door_nw": { "name": "Swivel Door North-West" },
     "transmogrifier": {
       "name": "Transmogrifier",
-      "desc": { "label": "Swaps a monster that steps on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker); needs a monster to cross it." }
+      "desc": { "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker)." }
     },
     "dirt": { "name": "Soft Dirt" },
     "gravel": { "name": "Gravel (Safe Zone)" },

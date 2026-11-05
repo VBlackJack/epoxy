@@ -2070,7 +2070,7 @@ export class PixelRenderer {
 
   /**
    * A transmogrifier: a ring with two opposed triangles pointing at each other, the two kinds that swap.
-   * The flat style draws square blocks, the neon style round shapes; both use the plain teleporter ring colour
+   * The flat style draws a square pad, the neon style rounds only the pad corners; the triangles are the same in both. Both use the plain teleporter ring colour
    * of their palette for the pad and the yellow of the palette for the triangles.
    */
   private paintTransmogrifier(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rounded: boolean): void {
