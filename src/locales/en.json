@@ -16,6 +16,7 @@
       "graphics_blueprint": { "action": "Blueprint" },
       "graphics_sepia": { "action": "Sepia" },
       "graphics_classic90": { "action": "Classic 90s" },
+      "graphics_runeward": { "action": "Runeward" },
       "graphics_style": { "label": "Graphics style:" },
       "quality": { "label": "Graphics quality:" },
       "player_skin": { "label": "Character:" },
