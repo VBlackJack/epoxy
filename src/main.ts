@@ -27,7 +27,7 @@ import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor, SavedLevelInfo } from './editor/LevelEditor';
 import { isEditableRuleset } from './editor/metadataFields';
-import { getEditorKeyAction, getSelectionKeyAction } from './editor/editorKeyboard';
+import { getEditorKeyAction, getSelectionKeyAction, isPaletteSearchKey } from './editor/editorKeyboard';
 import { isSaveChord } from './editor/saveTarget';
 import { AudioManager } from './audio/AudioManager';
 import { customIdsForStorage, isMusicMode, MUSIC_MODES } from './audio/musicSelection';
@@ -3012,6 +3012,11 @@ class EpoxyApplication {
     if (isEditorHelpKey(e)) {
       e.preventDefault();
       this.openEditorHelp();
+      return;
+    }
+    if (isPaletteSearchKey(e)) {
+      e.preventDefault();
+      this.editor.focusPaletteSearch();
       return;
     }
     const action = getEditorChordAction(e);

@@ -1277,6 +1277,21 @@ body.editor-mode #app {
   font-weight: 700;
 }
 
+.editor-palette-search {
+  margin: 0.25rem 0;
+}
+
+.editor-tab-btn.is-dimmed {
+  opacity: 0.55;
+}
+
+.palette-search-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
 .editor-palette-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--editor-tile-min-width), 1fr));

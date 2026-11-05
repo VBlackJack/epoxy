@@ -228,6 +228,7 @@ import {
   winRuleAvailability
 } from './paletteAvailability';
 import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
+import { searchPalette, type SearchableEntry } from './paletteSearch';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
   decideSave,
@@ -250,6 +251,7 @@ import {
   EDITOR_AUTO_CHECK_TIMEOUT_MS,
   EDITOR_BLOCK_CHECK_TIMEOUT_MS,
   EDITOR_CELL_ANNOUNCE_DELAY_MS,
+  EDITOR_PALETTE_SEARCH_COUNT_DELAY_MS,
   EDITOR_BEAM_DIM_ALPHA,
   EDITOR_BEAM_GATE_COLOR,
   EDITOR_BEAM_GATE_INSET_TILE,
@@ -408,6 +410,27 @@ const HIDDEN_TERRAIN_UNAVAILABLE_ID = 'editor-hidden-terrain-unavailable';
 /** Value of the "None" option of the hidden terrain select: no terrain is hidden under the cell. */
 const HIDDEN_TERRAIN_NONE = '';
 const CELL_LIVE_ID = 'editor-cell-live';
+const PALETTE_GRID_ID = 'editor-palette-grid';
+const PALETTE_SEARCH_INPUT_ID = 'editor-palette-search';
+const PALETTE_SEARCH_COUNT_ID = 'editor-palette-search-count';
+const PALETTE_SEARCH_EMPTY_CLASS = 'palette-search-empty';
+const PALETTE_TAB_DIMMED_CLASS = 'is-dimmed';
+/** Class of a palette entry the level's engine cannot use. */
+const PALETTE_UNAVAILABLE_CLASS = 'is-unavailable';
+/** keyCode some browsers report for a key press that belongs to an input method composition. */
+const IME_COMPOSITION_KEY_CODE = 229;
+const PALETTE_SEARCH_RESULTS_KEY = 'editor.palette.search.results.label';
+const PALETTE_SEARCH_NO_MATCH_KEY = 'editor.palette.search.no_match.label';
+const PALETTE_SEARCH_COUNT_KEY = 'editor.palette.search.count.label';
+/** Data attribute value of the CC3D entries, whose id is the palette entry id. */
+const CC3D_BRUSH_KIND = 'cc3d';
+
+/** An Epoxy or Lynx palette entry before its button exists: what the search reads, and what building the button needs. */
+interface EpoxyPaletteItem extends SearchableEntry {
+  brush: Brush;
+  group: MechanismGroupId | null;
+  icon: () => string;
+}
 const ISSUES_LIST_ID = 'editor-issues-list';
 const ISSUES_NOTE_ID = 'editor-issues-note';
 const ISSUES_SECTION_ID = 'editor-issues-section';
@@ -647,6 +670,12 @@ export class LevelEditor {
   private loadGeneration = 0;
 
   private activeCategory: string = 'terrain';
+  /** The palette search text: while it is not empty the palette shows the matches of every tab. Session only. */
+  private paletteQuery = '';
+  /** How many entries the last search matched, and the count a screen reader was last told. */
+  private searchMatchCount = 0;
+  private searchCountAnnounced: number | null = null;
+  private searchCountTimer: ReturnType<typeof setTimeout> | null = null;
   private tool: EditorTool = 'brush';
   private brush: Brush = { kind: 'terrain', id: 'wall' };
   private activeDir: Direction = 'S';
@@ -1066,6 +1095,7 @@ export class LevelEditor {
     this.applyFit();
     this.updateUndoRedoButtons();
     this.syncMetadataInputs();
+    this.clearPaletteSearch();
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.setStatusText(t('editor.palette.status.ready.label'));
@@ -1209,6 +1239,12 @@ export class LevelEditor {
     this.syncCc3dChrome();
     this.renderCategoryTabs();
     this.renderPaletteItems();
+    // The count a screen reader was told is in the old language: say it again in the new one.
+    const countRegion = byId(PALETTE_SEARCH_COUNT_ID);
+    if (countRegion && this.paletteQuery !== '' && this.searchCountAnnounced !== null) {
+      countRegion.textContent = t(PALETTE_SEARCH_COUNT_KEY, { count: this.searchMatchCount });
+      this.searchCountAnnounced = this.searchMatchCount;
+    }
     this.refreshContext();
     this.syncMetadataInputs();
     this.updateCanvasLabel();
@@ -1235,14 +1271,19 @@ export class LevelEditor {
 
     const categories = ConfigRegistry.getTiles().categories;
     const active = categories.find((cat) => cat.id === this.activeCategory);
-    byId('editor-palette-grid')?.setAttribute('aria-label', active ? t(active.i18nKey) : '');
+    const searching = this.paletteQuery !== '';
+    byId(PALETTE_GRID_ID)?.setAttribute('aria-label', searching ? t(PALETTE_SEARCH_RESULTS_KEY) : active ? t(active.i18nKey) : '');
     for (const cat of categories) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.setAttribute('aria-pressed', String(this.activeCategory === cat.id));
-      btn.className = `editor-tab-btn ${this.activeCategory === cat.id ? 'active' : ''}`;
+      // While a search is on, the results come from every tab: no tab is the one showing.
+      const shown = !searching && this.activeCategory === cat.id;
+      btn.setAttribute('aria-pressed', String(shown));
+      btn.className = `editor-tab-btn ${shown ? 'active' : ''}`;
+      if (searching) btn.classList.add(PALETTE_TAB_DIMMED_CLASS);
       btn.textContent = t(cat.i18nKey);
       btn.addEventListener('click', () => {
+        this.clearPaletteSearch();
         this.activeCategory = cat.id;
         this.renderCategoryTabs();
         this.renderPaletteItems();
@@ -1253,14 +1294,18 @@ export class LevelEditor {
 
   private renderCc3dCategoryTabs(container: HTMLElement): void {
     const active = CC3D_CATEGORIES.find((cat) => cat.id === this.cc3dCategory);
-    byId('editor-palette-grid')?.setAttribute('aria-label', active ? t(active.labelKey) : '');
+    const searching = this.paletteQuery !== '';
+    byId(PALETTE_GRID_ID)?.setAttribute('aria-label', searching ? t(PALETTE_SEARCH_RESULTS_KEY) : active ? t(active.labelKey) : '');
     for (const cat of CC3D_CATEGORIES) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.setAttribute('aria-pressed', String(this.cc3dCategory === cat.id));
-      btn.className = `editor-tab-btn ${this.cc3dCategory === cat.id ? 'active' : ''}`;
+      const shown = !searching && this.cc3dCategory === cat.id;
+      btn.setAttribute('aria-pressed', String(shown));
+      btn.className = `editor-tab-btn ${shown ? 'active' : ''}`;
+      if (searching) btn.classList.add(PALETTE_TAB_DIMMED_CLASS);
       btn.textContent = t(cat.labelKey);
       btn.addEventListener('click', () => {
+        this.clearPaletteSearch();
         this.cc3dCategory = cat.id;
         this.renderCategoryTabs();
         this.renderPaletteItems();
@@ -1294,19 +1339,59 @@ export class LevelEditor {
   }
 
   private renderCc3dPaletteItems(container: HTMLElement): void {
-    for (const entry of cc3dEntriesOf(this.cc3dCategory)) {
+    const build = (entry: Cc3dPaletteEntry): HTMLButtonElement => {
       const display = entryDisplay(entry, this.cc3dAttrs, this.activeDir);
-      container.appendChild(
-        this.createPaletteButton(
-          this.cc3dEntryLabel(entry, display),
-          this.cachedIcon(display.kind, display.id),
-          entry.id === this.cc3dEntryId,
-          { available: true },
-          () => this.selectCc3dEntry(entry)
-        )
+      const button = this.createPaletteButton(
+        this.cc3dEntryLabel(entry, display),
+        this.cachedIcon(display.kind, display.id),
+        entry.id === this.cc3dEntryId,
+        { available: true },
+        () => this.selectCc3dEntry(entry)
       );
+      button.dataset.brushKind = CC3D_BRUSH_KIND;
+      button.dataset.brushId = entry.id;
+      return button;
+    };
+    if (this.paletteQuery === '') {
+      for (const entry of cc3dEntriesOf(this.cc3dCategory)) container.appendChild(build(entry));
+    } else {
+      // A search covers every tab. CC3D entries have no description: only the name is searched.
+      const all = CC3D_CATEGORIES.flatMap((cat) => cc3dEntriesOf(cat.id)).map((entry) => ({
+        kind: CC3D_BRUSH_KIND,
+        id: entry.id,
+        name: this.cc3dEntryLabel(entry, entryDisplay(entry, this.cc3dAttrs, this.activeDir)),
+        category: entry.category,
+        entry
+      }));
+      this.appendSearchResults(container, searchPalette(all, this.paletteQuery), (match) => build(match.entry));
     }
     this.renderCc3dAttributes();
+  }
+
+  /** Puts the matches in the grid, or the line that says nothing matched. The count is kept for the screen reader region. */
+  private appendSearchResults<T extends SearchableEntry>(
+    container: HTMLElement,
+    matches: readonly T[],
+    build: (match: T) => HTMLButtonElement
+  ): void {
+    this.searchMatchCount = matches.length;
+    if (matches.length === 0) {
+      const none = document.createElement('p');
+      none.className = PALETTE_SEARCH_EMPTY_CLASS;
+      none.textContent = t(PALETTE_SEARCH_NO_MATCH_KEY, { query: this.paletteQuery.trim() });
+      container.appendChild(none);
+      return;
+    }
+    for (const match of matches) container.appendChild(build(match));
+  }
+
+  /** Gives the focus back to the entry that held it before the grid was rebuilt. */
+  private restoreGridFocus(container: HTMLElement, kind: string | undefined, id: string | undefined): void {
+    if (kind === undefined || id === undefined) return;
+    const again = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
+      (btn) => btn.dataset.brushKind === kind && btn.dataset.brushId === id
+    );
+    again?.focus();
   }
 
   /**
@@ -1442,7 +1527,7 @@ export class LevelEditor {
   }
 
   private renderPaletteItems(): void {
-    const container = byId('editor-palette-grid');
+    const container = byId(PALETTE_GRID_ID);
     if (!container) return;
     // A click re-renders the palette: remember which entry held focus so it can get it back.
     const focused = document.activeElement;
@@ -1451,64 +1536,21 @@ export class LevelEditor {
     container.innerHTML = '';
     if (this.isCc3d()) {
       this.renderCc3dPaletteItems(container);
+      this.restoreGridFocus(container, focusedKind, focusedId);
       this.updateSwitchEngineButton();
       return;
     }
     byId(CC3D_ATTRS_ID)?.classList.add('hidden');
-    const mechanisms = this.activeCategory === MECHANISMS_CATEGORY;
-    const pending: Array<{ group: MechanismGroupId | null; button: HTMLButtonElement }> = [];
-    const entry = (brush: Brush, label: string, iconUrl: string, group: MechanismGroupId | null = null): void => {
-      const button = this.createPaletteButton(
-        label,
-        iconUrl,
-        this.isBrushSelected(brush),
-        this.brushAvailability(brush),
-        () => this.selectBrush(brush),
-        paletteDescription(brush.kind, brush.id, t)
-      );
-      button.dataset.brushKind = brush.kind;
-      button.dataset.brushId = brush.id;
-      pending.push({ group, button });
-    };
 
-    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === this.activeCategory);
-    for (const tile of tiles) {
-      const kind = tile.layer === 'item' ? 'item' : 'terrain';
-      entry(
-        { kind, id: tile.id },
-        t(tile.i18nKey),
-        this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id),
-        mechanisms ? tileMechanismGroup(tile) : null
-      );
-    }
-
-    const entities = Object.values(ConfigRegistry.getMonsters().entities).filter(
-      (ent) => ent.category === this.activeCategory
-    );
-    for (const ent of entities) {
-      // A creature or turret is drawn facing the direction control, so the palette shows what a click will place.
-      const icon = entityHasFacing(ent.id)
-        ? this.cachedIcon('entity', ent.id, this.activeDir)
-        : this.cachedIcon('entity', ent.id);
-      entry({ kind: 'entity', id: ent.id }, t(ent.i18nKey), icon, mechanisms ? entityMechanismGroup(ent) : null);
-    }
-
-    if (this.activeCategory === TERRAIN_CATEGORY) {
-      entry(
-        { kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID },
-        t('editor.palette.tools.cell_edge'),
-        this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE)
-      );
-    }
-
-    if (this.activeCategory === ENTITIES_CATEGORY) {
-      entry({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), this.playerIconUrl);
-    }
-
-    if (mechanisms) {
+    if (this.paletteQuery !== '') {
+      // A search covers every tab, in tab order then config order. The buttons are the ordinary ones: no duplicates, same gating.
+      const everything = ConfigRegistry.getTiles().categories.flatMap((cat) => this.epoxyItemsOf(cat.id));
+      this.appendSearchResults(container, searchPalette(everything, this.paletteQuery), (item) => this.epoxyPaletteButton(item));
+    } else if (this.activeCategory === MECHANISMS_CATEGORY) {
       // Sub-headings only label the entries that follow them: they are not focusable and the tab order stays the button order.
       // An entry no rule places is still offered, under an Other heading shown only when there is one.
-      for (const section of arrangeMechanismSections(pending.map((item) => ({ group: item.group, item: item.button })))) {
+      const grouped = this.epoxyItemsOf(this.activeCategory).map((item) => ({ group: item.group, item: this.epoxyPaletteButton(item) }));
+      for (const section of arrangeMechanismSections(grouped)) {
         const heading = document.createElement('h4');
         heading.className = 'palette-group-heading';
         heading.textContent = t(section.group.labelKey);
@@ -1516,16 +1558,80 @@ export class LevelEditor {
         for (const button of section.items) container.appendChild(button);
       }
     } else {
-      for (const item of pending) container.appendChild(item.button);
+      for (const item of this.epoxyItemsOf(this.activeCategory)) container.appendChild(this.epoxyPaletteButton(item));
     }
 
-    if (focusedKind !== undefined && focusedId !== undefined) {
-      const again = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
-        (btn) => btn.dataset.brushKind === focusedKind && btn.dataset.brushId === focusedId
-      );
-      again?.focus();
-    }
+    this.restoreGridFocus(container, focusedKind, focusedId);
     this.updateSwitchEngineButton();
+  }
+
+  /**
+   * The Epoxy and Lynx entries of one tab, in display order: tiles, creatures, then the thin wall (Terrain) and
+   * the player start (Entities). Icons are drawn only for the buttons that get built.
+   */
+  private epoxyItemsOf(category: string): EpoxyPaletteItem[] {
+    const mechanisms = category === MECHANISMS_CATEGORY;
+    const items: EpoxyPaletteItem[] = [];
+    const add = (brush: Brush, name: string, icon: () => string, group: MechanismGroupId | null = null): void => {
+      items.push({
+        kind: brush.kind,
+        id: brush.id,
+        name,
+        description: paletteDescription(brush.kind, brush.id, t),
+        category,
+        brush,
+        group,
+        icon
+      });
+    };
+
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category)) {
+      add(
+        { kind: tile.layer === 'item' ? 'item' : 'terrain', id: tile.id },
+        t(tile.i18nKey),
+        () => this.renderer.renderIconToDataUrl(tile.layer === 'item' ? 'item' : 'tile', tile.id),
+        mechanisms ? tileMechanismGroup(tile) : null
+      );
+    }
+
+    for (const ent of Object.values(ConfigRegistry.getMonsters().entities).filter((candidate) => candidate.category === category)) {
+      // A creature or turret is drawn facing the direction control, so the palette shows what a click will place.
+      add(
+        { kind: 'entity', id: ent.id },
+        t(ent.i18nKey),
+        () => (entityHasFacing(ent.id) ? this.cachedIcon('entity', ent.id, this.activeDir) : this.cachedIcon('entity', ent.id)),
+        mechanisms ? entityMechanismGroup(ent) : null
+      );
+    }
+
+    if (category === TERRAIN_CATEGORY) {
+      add({ kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID }, t('editor.palette.tools.cell_edge'), () =>
+        this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE)
+      );
+    }
+
+    if (category === ENTITIES_CATEGORY) {
+      add({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), () => this.playerIconUrl);
+    }
+    return items;
+  }
+
+  /** The button of an Epoxy or Lynx entry. Choosing it also opens the tab it belongs to, which a search result needs. */
+  private epoxyPaletteButton(item: EpoxyPaletteItem): HTMLButtonElement {
+    const button = this.createPaletteButton(
+      item.name,
+      item.icon(),
+      this.isBrushSelected(item.brush),
+      this.brushAvailability(item.brush),
+      () => {
+        this.activeCategory = item.category;
+        this.selectBrush(item.brush);
+      },
+      item.description
+    );
+    button.dataset.brushKind = item.brush.kind;
+    button.dataset.brushId = item.brush.id;
+    return button;
   }
 
   private createPaletteButton(
@@ -1561,7 +1667,7 @@ export class LevelEditor {
       });
     } else {
       const reason = t(availability.reasonKey);
-      btn.classList.add('is-unavailable');
+      btn.classList.add(PALETTE_UNAVAILABLE_CLASS);
       btn.setAttribute('aria-disabled', 'true');
       btn.setAttribute('aria-description', reason);
       // The reason is what the player needs to know first; the description follows it on hover.
@@ -1610,7 +1716,105 @@ export class LevelEditor {
     byId('editor-switch-epoxy-btn')?.classList.toggle('hidden', this.isCc3d() || !this.hasUnavailableItems());
   }
 
+  /** Puts the keyboard focus in the palette search field, its text selected (the "/" key). */
+  public focusPaletteSearch(): void {
+    const input = byId<HTMLInputElement>(PALETTE_SEARCH_INPUT_ID);
+    if (!input) return;
+    input.focus();
+    input.select();
+  }
+
+  /** Ends the search: the field and the count region are emptied. The caller redraws the tabs and the grid. */
+  private clearPaletteSearch(): void {
+    this.paletteQuery = '';
+    this.searchMatchCount = 0;
+    this.searchCountAnnounced = null;
+    this.cancelSearchCount();
+    const input = byId<HTMLInputElement>(PALETTE_SEARCH_INPUT_ID);
+    if (input) input.value = '';
+    const region = byId(PALETTE_SEARCH_COUNT_ID);
+    if (region) region.textContent = '';
+  }
+
+  private cancelSearchCount(): void {
+    if (this.searchCountTimer === null) return;
+    clearTimeout(this.searchCountTimer);
+    this.searchCountTimer = null;
+  }
+
+  /** Redraws the palette for a new query. The focus stays in the field: typing never moves it. */
+  private applyPaletteQuery(value: string): void {
+    this.paletteQuery = value.trim();
+    this.renderCategoryTabs();
+    this.renderPaletteItems();
+    this.scheduleSearchCount();
+  }
+
+  /** Tells a screen reader how many entries match once the typing has paused, and only when the number changed. */
+  private scheduleSearchCount(): void {
+    this.cancelSearchCount();
+    const region = byId(PALETTE_SEARCH_COUNT_ID);
+    if (!region) return;
+    if (this.paletteQuery === '') {
+      region.textContent = '';
+      this.searchCountAnnounced = null;
+      return;
+    }
+    this.searchCountTimer = setTimeout(() => {
+      this.searchCountTimer = null;
+      if (this.disposed || this.paletteQuery === '') return;
+      const count = this.searchMatchCount;
+      if (count === this.searchCountAnnounced) return;
+      this.searchCountAnnounced = count;
+      region.textContent = t(PALETTE_SEARCH_COUNT_KEY, { count });
+    }, EDITOR_PALETTE_SEARCH_COUNT_DELAY_MS);
+  }
+
+  /** Clicks the first match the level's engine allows, as a click on it would, then hands the keyboard back to the map. */
+  private pickFirstSearchResult(): void {
+    if (this.paletteQuery === '') return;
+    const grid = byId(PALETTE_GRID_ID);
+    const first = grid?.querySelector<HTMLButtonElement>(`button:not(.${PALETTE_UNAVAILABLE_CLASS})`);
+    if (!first) return;
+    first.click();
+    this.clearPaletteSearch();
+    this.renderCategoryTabs();
+    this.renderPaletteItems();
+    this.canvas.focus({ preventScroll: true });
+  }
+
+  private bindPaletteSearch(): void {
+    const input = byId<HTMLInputElement>(PALETTE_SEARCH_INPUT_ID);
+    if (!input) return;
+    input.addEventListener('input', () => this.applyPaletteQuery(input.value));
+    input.addEventListener('keydown', (ev) => {
+      if (ev.isComposing || ev.keyCode === IME_COMPOSITION_KEY_CODE) return;
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (input.value === '') {
+          this.canvas.focus({ preventScroll: true });
+          return;
+        }
+        this.clearPaletteSearch();
+        this.renderCategoryTabs();
+        this.renderPaletteItems();
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.pickFirstSearchResult();
+      } else if (ev.key === 'ArrowDown') {
+        const firstResult = byId(PALETTE_GRID_ID)?.querySelector<HTMLButtonElement>('button');
+        if (!firstResult) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        firstResult.focus();
+      }
+    });
+  }
+
   private bindPaletteChrome(): void {
+    this.bindPaletteSearch();
     byId('editor-switch-epoxy-btn')?.addEventListener('click', () => {
       if (this.doc.ruleset === undefined) return;
       this.recordMetadataStep();
@@ -3324,6 +3528,7 @@ export class LevelEditor {
     this.disposed = true;
     this.resetConnectionsPointer();
     this.cancelCellSpeech();
+    this.cancelSearchCount();
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = null;
     this.checkAbortEpoch++;
@@ -3657,6 +3862,7 @@ export class LevelEditor {
       this.updateToolButtons();
       this.updateCanvasLabel();
     }
+    this.clearPaletteSearch();
     this.renderCategoryTabs();
     this.renderPaletteItems();
     const display = entryDisplay(entry, this.cc3dAttrs, this.activeDir);
@@ -3687,6 +3893,7 @@ export class LevelEditor {
       this.updateToolButtons();
       this.updateCanvasLabel();
     }
+    this.clearPaletteSearch();
     this.renderCategoryTabs();
     this.renderPaletteItems();
     this.setStatusText(t('editor.palette.status.picked.label', { name: definition ? t(definition.i18nKey) : picked.brush.id }));
