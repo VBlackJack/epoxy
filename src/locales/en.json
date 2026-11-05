@@ -421,7 +421,7 @@
       "blocks_stuck_targets": { "label": "Dead end: these blocks can no longer cover every target. Undo (U) or restart (R)." },
       "objective_targets": { "label": "Goal: push the blocks onto every target." },
       "objective_receivers": { "label": "Goal: light every receiver with the laser beams." },
-      "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism wires visible" },
+      "objective_found": { "label": "Next objective located at ({x}, {y}) - Mechanism links visible" },
       "solution_playing": { "label": "Playing the proven solution. Tap the board to take back control." },
       "solution_confirm": { "label": "Show the solution? The level restarts and plays itself to the exit." },
       "no_solution": { "label": "No stored solution for this level (imported packs have none)." },
@@ -499,7 +499,7 @@
       "kb_click": { "label": "Left Click / Tap: Auto-pathfind (A*) to tile" },
       "kb_undo": { "label": "U / Backspace / Ctrl+Z: Undo step (even after death)" },
       "kb_restart": { "label": "R: Restart current level" },
-      "kb_objective": { "label": "H: Hint, locate next objective & reveal mechanism wires" },
+      "kb_objective": { "label": "H: Hint, locate next objective & reveal mechanism links" },
       "kb_solution": { "label": "O: Watch the proven solution (the level restarts)" },
       "kb_items": { "label": "E / X: Drop the selected item on your cell | C: Select the next held item | Click an inventory slot: drop that item" },
       "kb_fov_options": { "label": "Zoom: Options > Essential > Zoom" },
@@ -1826,7 +1826,7 @@
       "cloner": { "title": "Clone Works #{number}", "hint": "A red button makes the clone machine drop a copy of its block. Clone as many blocks as the job needs." },
       "dirt": { "title": "Excavation #{number}", "hint": "Blocks cannot cross dirt or fake blue walls until you clear them on foot. Clear the right path before you push." },
       "default": {
-        "hint": "Use the Objective button (or H) to locate the next mechanism and inspect trap, cloner, and toggle wires."
+        "hint": "Use the Objective button (or H) to locate the next mechanism and inspect trap, cloner, and toggle links."
       }
     }
   },
