@@ -16,10 +16,10 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { KeyChord } from '../ui/inputGuards';
-import { EDITOR_ONE_COLUMN_BELOW_WIDTH, EDITOR_TWO_COLUMN_BELOW_WIDTH } from '../ui/uiConstants';
+import { EDITOR_ONE_COLUMN_BELOW_WIDTH, EDITOR_PORTRAIT_MIN_ASPECT, EDITOR_TWO_COLUMN_BELOW_WIDTH } from '../ui/uiConstants';
 import { summarizeValidation } from './checkSummary';
 import { getCanvasKeyAction, getEditorKeyAction, getSelectionKeyAction, isPaletteSearchKey, moveCursor, rotateClockwise } from './editorKeyboard';
-import { layoutModeForWidth } from './editorLayout';
+import { layoutModeForSize, layoutModeForWidth } from './editorLayout';
 import { DEFAULT_SECTION_STATE, parseSectionState, serializeSectionState } from './inspectorSections';
 import { MetadataEditCoalescer } from './metadataCoalescer';
 import { ResizeResult } from './mapEdits';
@@ -144,6 +144,31 @@ describe('layoutModeForWidth', () => {
     expect(layoutModeForWidth(EDITOR_ONE_COLUMN_BELOW_WIDTH)).toBe('two');
     expect(layoutModeForWidth(EDITOR_ONE_COLUMN_BELOW_WIDTH - 1)).toBe('one');
     expect(layoutModeForWidth(Number.NaN)).toBe('one');
+  });
+});
+
+describe('layoutModeForSize', () => {
+  it('gives a portrait tablet one column and a landscape one two', () => {
+    expect(layoutModeForSize(711, 967)).toBe('one');
+    expect(layoutModeForSize(967, 711)).toBe('two');
+  });
+
+  it('keeps phones on one column and wide views on three, whatever the height', () => {
+    expect(layoutModeForSize(390, 844)).toBe('one');
+    expect(layoutModeForSize(1280, 800)).toBe('three');
+    expect(layoutModeForSize(1200, 1900)).toBe('three');
+  });
+
+  it('switches to one column exactly at the aspect threshold', () => {
+    const width = 800;
+    const threshold = width * EDITOR_PORTRAIT_MIN_ASPECT;
+    expect(layoutModeForSize(width, threshold)).toBe('one');
+    expect(layoutModeForSize(width, threshold - 1)).toBe('two');
+  });
+
+  it('treats a non-finite width as one column and a non-finite height as not portrait', () => {
+    expect(layoutModeForSize(Number.NaN, 900)).toBe('one');
+    expect(layoutModeForSize(800, Number.NaN)).toBe('two');
   });
 });
 
