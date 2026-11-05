@@ -71,7 +71,7 @@ const DOOR_KEY_WEIGHT = 1000;
  */
 const RANK_STEP_BUDGET = 3_000_000;
 /** Most extra reach walks the door order search may run on one level, on top of the greedy walk. */
-const DOOR_ORDER_MAX_WALKS = 32;
+export const DOOR_ORDER_MAX_WALKS = 32;
 /**
  * Work the extra walks of the door order search may spend together on one level, in cell expansions: the walk's
  * own steps plus every cell its door ranking expands (the precise flood and the plain flood alike). Walk 0 is not
@@ -171,6 +171,8 @@ interface DoorRankContext {
   budget: { left: number };
   /** Work of the current walk, ranking included; a ranking stops once spent passes limit (the walk is then discarded). */
   work: { spent: number; limit: number };
+  /** Observe-only work counters, see `ValidateWorkMeter`. */
+  meter?: ValidateWorkMeter;
 }
 
 interface QueuedCell extends GridPoint {
@@ -232,6 +234,17 @@ const SWIVEL_NEUTRAL_TILE = 'floor';
 /** How hard the validator searches the block puzzle of a 'targets' level. */
 export type BlockSearchMode = 'watch' | 'exhaustive';
 
+/**
+ * Work counters a test may hand to `validate` through `ValidateOptions.meter`. `cells` sums the cells the reach
+ * walks touch (queue steps, ranking flood steps, slide path lengths, grid scans, the per-mask visited grids and the
+ * per-walk grid copies), `walks` counts reach walks and `passes` counts fixpoint passes. They are observed, never read: nothing here feeds a budget or a verdict.
+ */
+export interface ValidateWorkMeter {
+  cells: number;
+  walks: number;
+  passes: number;
+}
+
 export interface ValidateOptions {
   /**
    * Budget of the block search behind `targets_unsolvable`. 'watch' (default) spends the in-game
@@ -247,6 +260,8 @@ export interface ValidateOptions {
    * the search (3 decisions, 64 walks, about 200k steps on a small level) for a check that runs once.
    */
   doorOrderSearch?: DoorOrderSearchMode;
+  /** Filled in by validate: counts the work done, for tests. It only observes and never changes any verdict. */
+  meter?: ValidateWorkMeter;
 }
 
 export class LevelValidator {
@@ -450,13 +465,16 @@ export class LevelValidator {
     }
 
     const rankBudget = { left: RANK_STEP_BUDGET };
+    const meter = options.meter;
 
     /** Walks the level once from the start: what the greedy reach finds, with the doors opened in ranked order. */
     const walkReach = (forced: readonly string[], stepLimit: number): ReachOutcome => {
       const work = { spent: 0, limit: stepLimit };
+      if (meter) meter.walks++;
       const decisions: DoorDecision[] = [];
       const simTerrain = level.terrain.map((row) => [...row]);
       const simItems = level.items.map((row) => [...row]);
+      if (meter) meter.cells += 2 * width * height;
       const ownedKeys: Record<string, number> = {};
       let collectedChips = 0;
       let reachableExit = false;
@@ -546,6 +564,11 @@ export class LevelValidator {
       while (changed && passes < MAX_FIXPOINT_PASSES) {
         changed = false;
         passes++;
+        if (meter) {
+          meter.passes++;
+          // The visited grid of every mask, then the closedDoors scan of the whole grid.
+          meter.cells += maskCount * width * height + width * height;
+        }
 
         const visited = new Uint8Array(maskCount * width * height);
         const queue: QueuedCell[] = [];
@@ -608,6 +631,7 @@ export class LevelValidator {
         for (let head = 0; head < queue.length; head++) {
           // A walk that outruns its step limit is cut off and discarded by the caller.
           if (++work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
+          if (meter) meter.cells++;
           const curr = queue[head];
           const currTile = ConfigRegistry.getTile(simTerrain[curr.y][curr.x]);
 
@@ -822,6 +846,7 @@ export class LevelValidator {
                 meltedFires,
                 swimProtection
               );
+              if (meter) meter.cells += slide.path.length;
               if (slide.fatal) {
                 // A slide that ends in a hazard a block can deal with is replayed on the next pass.
                 const lethal = slide.lethal;
@@ -876,6 +901,7 @@ export class LevelValidator {
         }
 
         if (!changed && deferredDoors.size > 0) {
+          if (meter) meter.cells += maskCount * width * height;
           const reached = new Uint8Array(width * height);
           for (let mask = 0; mask < maskCount; mask++) {
             for (let cell = 0; cell < width * height; cell++) {
@@ -908,7 +934,8 @@ export class LevelValidator {
               affords,
               reached,
               budget: rankBudget,
-              work
+              work,
+              meter
             });
             // A ranking cut short by the limit is not a ranking: the walk is discarded.
             if (work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
@@ -1922,6 +1949,7 @@ export class LevelValidator {
    */
   private static rankDoors(doors: DeferredDoor[], ctx: DoorRankContext): DeferredDoor[] {
     const closedByKey: Record<string, number> = {};
+    if (ctx.meter) ctx.meter.cells += ctx.terrain.length * (ctx.terrain[0]?.length || 0);
     for (const row of ctx.terrain) {
       for (const id of row) {
         const required = ConfigRegistry.getTile(id).requiredKey;
@@ -1934,7 +1962,7 @@ export class LevelValidator {
       door,
       score: (precise
         ? this.rankDoor(door, ctx, closedByKey)
-        : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey, ctx.work), 0]) as [number, number]
+        : [this.plainFloodScore(door, ctx.terrain, ctx.items, ctx.edgeMask, closedByKey, ctx.work, ctx.meter), 0]) as [number, number]
     }));
     // The sort is stable: doors that tie stay in the order they were met, so the first is today's pick.
     scored.sort((a, b) => b.score[0] - a.score[0] || b.score[1] - a.score[1]);
@@ -1990,6 +2018,7 @@ export class LevelValidator {
     const width = terrain[0]?.length || 0;
     const scored = new Uint8Array(width * height);
     const expanded = new Uint8Array(width * height);
+    if (ctx.meter) ctx.meter.cells += 2 * width * height;
     let mask = startMask;
     let keys = 0;
     let chips = 0;
@@ -2013,6 +2042,7 @@ export class LevelValidator {
     const stack: GridPoint[] = [{ x: door.x, y: door.y }];
     while (stack.length > 0) {
       if (++ctx.work.spent > ctx.work.limit) break;
+      if (ctx.meter) ctx.meter.cells++;
       const cell = stack.pop() as GridPoint;
       ctx.budget.left--;
       for (const dir of ORDERED_DIRECTIONS) {
@@ -2054,6 +2084,7 @@ export class LevelValidator {
             ctx.meltedFires,
             ctx.swimProtection
           );
+          if (ctx.meter) ctx.meter.cells += slide.path.length;
           if (slide.fatal || slide.opened) continue;
           mask |= slide.boots;
           for (const passed of slide.path) score(passed.x, passed.y);
@@ -2083,7 +2114,8 @@ export class LevelValidator {
     items: (string | null)[][],
     edgeMask: Uint8Array | null,
     closedByKey: Readonly<Record<string, number>>,
-    work: { spent: number; limit: number }
+    work: { spent: number; limit: number },
+    meter?: ValidateWorkMeter
   ): number {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
@@ -2093,6 +2125,7 @@ export class LevelValidator {
     let chipCount = 0;
     while (stack.length > 0) {
       if (++work.spent > work.limit) break;
+      if (meter) meter.cells++;
       const cell = stack.pop() as GridPoint;
       const item = items[cell.y][cell.x];
       const collectible = item ? ConfigRegistry.getTile(item).collectible : undefined;

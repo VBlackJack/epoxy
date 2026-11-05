@@ -17,14 +17,29 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { createTestBundle, loadTestConfigs } from '../test/loadTestConfigs';
-import { doorOrderAllowance, LevelValidator } from './LevelValidator';
+import { DOOR_ORDER_MAX_WALKS, doorOrderAllowance, LevelValidator, ValidateWorkMeter } from './LevelValidator';
 import { CompiledLevel, EntityPlacement } from './types';
 
 const BYPASS = 'validator.issues.socket_bypass.label';
 const UNREACHABLE_CHIPS = 'validator.issues.unreachable_chips.label';
 const UNREACHABLE_EXIT = 'validator.issues.unreachable_exit.label';
-/** Generous wall-clock bound for validating a big level, as in the targets budget test. */
-const FAST_VALIDATE_MS = 2000;
+/**
+ * Most reach walks one validation may run: the greedy walk plus the door order search cap. A guard on the walk cap:
+ * it fails if the cap is raised or a new walkReach call site appears.
+ */
+const MAX_REACH_WALKS = 1 + DOOR_ORDER_MAX_WALKS;
+/**
+ * Cell work of validating the 128 by 128 comb, as the validator's meter counts it (queue steps, ranking flood steps,
+ * slide paths, grid scans, per-mask visited grids and per-walk grid copies). Measured at 159,346,729 cells (2 walks,
+ * 84 passes) on 2026-11-05; the bound is about 1.5 times that. It replaces a wall-clock bound, so it fails on a
+ * regression in work and never on a loaded machine.
+ */
+const COMB_CELL_BUDGET = 239_000_000;
+/**
+ * Cell work of validating the pathological no-exit level, counted as for the comb. Measured at 1,457,858 cells
+ * (33 walks, 264 passes) on 2026-11-05; the bound is about 1.5 times that.
+ */
+const PATHOLOGICAL_CELL_BUDGET = 2_190_000;
 /** Side of the comb level of the timing test. */
 const COMB_SIDE = 128;
 /** Distance between two teeth of the comb (a wall column separates them). */
@@ -272,9 +287,10 @@ describe('door order search', () => {
     const level = pathologicalLevel();
     const doors = level.terrain.flat().filter((id) => id === 'door_yellow').length;
     expect(doors).toBe(PATHOLOGICAL_DOORS);
-    const started = performance.now();
-    const report = LevelValidator.validate(level);
-    expect(performance.now() - started).toBeLessThan(FAST_VALIDATE_MS);
+    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0 };
+    const report = LevelValidator.validate(level, undefined, { meter });
+    expect(meter.walks).toBeLessThanOrEqual(MAX_REACH_WALKS);
+    expect(meter.cells).toBeLessThanOrEqual(PATHOLOGICAL_CELL_BUDGET);
     expect(report.stats.reachableExit).toBe(false);
     expect(report.issues.map((i) => i.i18nKey)).toContain(UNREACHABLE_EXIT);
     expect(report.valid).toBe(false);
@@ -357,13 +373,23 @@ describe('door ranking cost', () => {
     loadTestConfigs();
   });
 
-  it('validates a big comb of scarce-key doors, ice and boots fast', () => {
+  it('validates a big comb of scarce-key doors, ice and boots within a work budget', () => {
     const level = combLevel();
     const doors = level.terrain.flat().filter((id) => id === 'door_yellow').length;
     expect(doors).toBeGreaterThanOrEqual(150);
-    const started = performance.now();
-    const report = LevelValidator.validate(level);
-    expect(performance.now() - started).toBeLessThan(FAST_VALIDATE_MS);
+    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0 };
+    const report = LevelValidator.validate(level, undefined, { meter });
+    expect(meter.walks).toBeLessThanOrEqual(MAX_REACH_WALKS);
+    expect(meter.cells).toBeLessThanOrEqual(COMB_CELL_BUDGET);
     expect(report.stats.exitCount).toBe(1);
+  });
+
+  it('reports the same with a work meter as without, the meter only observes', () => {
+    const level = combLevel();
+    const meter: ValidateWorkMeter = { cells: 0, walks: 0, passes: 0 };
+    const metered = LevelValidator.validate(level, undefined, { meter });
+    const plain = LevelValidator.validate(level);
+    expect(meter.cells).toBeGreaterThan(0);
+    expect(JSON.stringify(metered)).toBe(JSON.stringify(plain));
   });
 });
