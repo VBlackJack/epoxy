@@ -1228,6 +1228,53 @@ export interface CellUnderlay {
   terrain: string;
 }
 
+export type SignalNodeKind = 'source' | 'and' | 'or' | 'not' | 'xor' | 'latch' | 'sink';
+
+export interface SignalNodeSpec {
+  /** Index of the node's cell (y * width + x); unique in a network. */
+  cell: number;
+  kind: SignalNodeKind;
+  /** Latch nodes only: the bit the latch starts with at load; off when absent. */
+  startBit?: boolean;
+}
+
+export interface SignalLinkSpec {
+  /** Cell index of the node the signal leaves. */
+  from: number;
+  /** Cell index of the node the signal enters. */
+  to: number;
+  /** Reserved for ordered gates; ignored in v1. */
+  port?: string;
+}
+
+/**
+ * What a signal network remembers between settles; every array is indexed by node in evaluation order
+ * (so a change to the ordering rules changes the hash of signal levels).
+ */
+export interface SignalState {
+  /** The bit of each latch (false for other nodes). */
+  latchBits: boolean[];
+  /** The output of every node at the last settle; a source's output is the level last sampled for it. */
+  lastOutputs: boolean[];
+}
+
+/** How a signal source reads the world: a held source is on while its cell is occupied, a receiver source while a laser lights it. */
+export type SignalSampler = 'held' | 'receiver';
+
+/** A node of a signal network with what the engine needs to read or drive it. */
+export interface SignalNodeDef extends SignalNodeSpec {
+  /** Source nodes only: what the engine samples. */
+  sample?: SignalSampler;
+  /** Sink nodes only: the colour of the hold doors the node drives, as a pressed plate of that colour would. */
+  color?: ChannelColor;
+}
+
+/** The signal network of a level (Epoxy ruleset only). No loader writes it yet: tests attach it by hand. */
+export interface SignalSpec {
+  nodes: SignalNodeDef[];
+  links: SignalLinkSpec[];
+}
+
 export interface CompiledLevel {
   id: string;
   /** Pilot design note: the blocks the level needs; see BlockBudget. */
@@ -1264,6 +1311,8 @@ export interface CompiledLevel {
   cloneLinks: CloneLink[];
   /** Triggers wired to shot launchers (Epoxy ruleset only); absent when the level has none. */
   launcherLinks?: LauncherLink[];
+  /** Logic wiring between devices (Epoxy ruleset only); absent when the level has none. Spike: no loader reads or writes it. */
+  signalSpec?: SignalSpec;
 }
 
 export interface LevelPack {
@@ -1360,6 +1409,8 @@ export interface UndoSnapshot {
   revealedCells?: number[];
   /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */
   swivelEntry?: [number, Direction][];
+  /** The state of the signal network; written only on a level that has one, absent otherwise. */
+  signals?: SignalState;
 }
 
 export interface LevelHighScore {

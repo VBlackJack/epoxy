@@ -20,6 +20,7 @@ import { SeededRandom } from '../Random';
 import { CompiledLevel } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { setHoldDoors } from './epoxyDevices';
+import { createSignalRuntime, settleWorldSignals } from './epoxySignals';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
   EpoxyContext,
@@ -84,6 +85,10 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.removedUids.clear();
   w.swivelEntry.clear();
   buildLevelLookups(w);
+  w.signals = level.signalSpec === undefined ? undefined : createSignalRuntime(level.signalSpec);
+  // The signals settle first, from a fresh beam trace, so a door never starts in a form its signals would undo.
+  w.beamDirty = true;
+  settleWorldSignals(w, true);
   // A hold door starts in the state its plates ask for (a block may start on a plate); no sound at load.
   setHoldDoors(ctx, false);
   w.beamDirty = true;
