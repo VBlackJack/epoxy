@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Turn plates: two Epoxy-only floor tiles that turn an arrow block a quarter turn, clockwise or counter-clockwise, each time it arrives on them by a push, a slide, a teleport or a clone machine; nothing else turns. The block puzzle check and the dead-end watch follow the turn, the validator notes plates on a level without arrow blocks, the .DAT export refuses levels that hold them, and every style draws them. Both locales.
 - Arrow blocks: four Epoxy-only pushable blocks (one way, two ways, corner, three ways) that move under a push only toward a side showing an arrow; slides, teleports and clone machines move them whatever their arrows and never turn them. The editor rotates them with the direction control, the block puzzle check and the dead-end watch know their arrows, and the validator adds a note when every arrow side of a block is walled for good. Both locales.
 
 ### Changed

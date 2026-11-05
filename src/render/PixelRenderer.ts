@@ -278,6 +278,16 @@ const TRANSMOGRIFIER_ARROW_REACH = 0.3;
 const TRANSMOGRIFIER_ARROW_HALF_HEIGHT = 0.18;
 /** Distance from the cell centre to the tip of each transmogrifier arrow, as a fraction of the cell. */
 const TRANSMOGRIFIER_ARROW_TIP_GAP = 0.06;
+/** Turn plate arc radius, as a fraction of the cell. */
+const TURN_PLATE_ARC_RADIUS = 0.27;
+/** Turn plate arc stroke width, as a fraction of the cell. */
+const TURN_PLATE_ARC_WIDTH = 0.1;
+/** Turn plate arrowhead length along the arc tangent, as a fraction of the cell. */
+const TURN_PLATE_HEAD_LENGTH = 0.22;
+/** Turn plate arrowhead half base width, as a fraction of the cell. */
+const TURN_PLATE_HEAD_HALF_WIDTH = 0.17;
+/** Turn plate arc sweep: three quarters of a turn, starting at the top of the pad. */
+const TURN_PLATE_ARC_SWEEP = QUARTER_TURN * 3;
 /** Swivel door pivot dot radius, as a multiple of the bar thickness. */
 const SWIVEL_PIVOT_RADIUS_BARS = 1.1;
 /** Swivel door pivot dot centre, as a multiple of the bar thickness from the closed corner. */
@@ -2108,6 +2118,50 @@ export class PixelRenderer {
   }
 
   /**
+   * A turn plate: the transmogrifier pad with a three-quarter arc and an arrowhead. The arc starts at the top and
+   * runs the way the plate turns, so the clockwise plate ends with its arrowhead on the left pointing up and the
+   * counter-clockwise plate is its mirror image, with the arrowhead on the right.
+   */
+  private paintTurnPlate(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rounded: boolean, clockwise: boolean): void {
+    const pal = this.pal();
+    const inset = size * TRANSMOGRIFIER_PAD_INSET;
+    ctx.fillStyle = rounded ? pal.modernTeleportRing : pal.teleportRing;
+    if (rounded) {
+      this.roundRect(ctx, x + inset, y + inset, size - inset * 2, size - inset * 2, size * TRANSMOGRIFIER_PAD_RADIUS);
+      ctx.fill();
+    } else {
+      ctx.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
+    }
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    const radius = size * TURN_PLATE_ARC_RADIUS;
+    const direction = clockwise ? 1 : -1;
+    const startAngle = -QUARTER_TURN;
+    const endAngle = startAngle + direction * TURN_PLATE_ARC_SWEEP;
+    ctx.save();
+    ctx.strokeStyle = pal.yellow;
+    ctx.lineWidth = size * TURN_PLATE_ARC_WIDTH;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, endAngle, !clockwise);
+    ctx.stroke();
+    // Arrowhead at the arc end, pointing along the direction of travel.
+    const ex = cx + Math.cos(endAngle) * radius;
+    const ey = cy + Math.sin(endAngle) * radius;
+    const tx = -Math.sin(endAngle) * direction;
+    const ty = Math.cos(endAngle) * direction;
+    const length = size * TURN_PLATE_HEAD_LENGTH;
+    const half = size * TURN_PLATE_HEAD_HALF_WIDTH;
+    ctx.fillStyle = pal.yellow;
+    ctx.beginPath();
+    ctx.moveTo(ex + tx * length, ey + ty * length);
+    ctx.lineTo(ex - ty * half, ey + tx * half);
+    ctx.lineTo(ex + ty * half, ey - tx * half);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /**
    * Pivot dot of a swivel door, at the corner where its two closed sides meet. Retro sprite styles keep
    * the plain thin-wall bars (no dedicated sprite), so only the flat and neon looks call this.
    */
@@ -2742,6 +2796,14 @@ export class PixelRenderer {
 
       case 'transmogrifier':
         this.paintTransmogrifier(ctx, x, y, size, false);
+        break;
+
+      case 'turn_plate_cw':
+        this.paintTurnPlate(ctx, x, y, size, false, true);
+        break;
+
+      case 'turn_plate_ccw':
+        this.paintTurnPlate(ctx, x, y, size, false, false);
         break;
 
       case 'clone_machine': {
@@ -3831,6 +3893,14 @@ export class PixelRenderer {
 
       case 'transmogrifier':
         this.paintTransmogrifier(ctx, x, y, size, true);
+        break;
+
+      case 'turn_plate_cw':
+        this.paintTurnPlate(ctx, x, y, size, true, true);
+        break;
+
+      case 'turn_plate_ccw':
+        this.paintTurnPlate(ctx, x, y, size, true, false);
         break;
 
       case 'clone_machine': {

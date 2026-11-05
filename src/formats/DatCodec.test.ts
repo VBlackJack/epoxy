@@ -635,6 +635,15 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level that holds a turn plate and leaves it out of the pack', () => {
+    const turning = blankLevel(1);
+    turning.terrain[3][3] = 'turn_plate_cw';
+    expect(datRefusalReason(turning)).toBe('epoxy_only_monsters');
+    const encoded = DatCodec.encodeLevelsWithReport([turning, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['epoxy_only_monsters']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('refuses a level with underlays and leaves it out of the pack', () => {
     const hidden = { ...blankLevel(1), underlays: [{ x: 3, y: 3, terrain: 'ice' }] };
     hidden.terrain[3][3] = 'door_red';

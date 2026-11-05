@@ -340,3 +340,59 @@ describe('arrow blocks that can never be pushed', () => {
     expect(lockedIssues({ type: 'dirt_block', x: 3, y: 1, dir: 'N' })).toHaveLength(0);
   });
 });
+
+describe('turn plates with no arrow block', () => {
+  const IDLE = 'validator.issues.turn_plate_idle.label';
+  const ROWS = ['#######', '#P....#', '#....E#', '#######'];
+  const PLATE = { x: 2, y: 1 };
+
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  function plateLevel(): CompiledLevel {
+    const level = grid(ROWS);
+    level.terrain[PLATE.y][PLATE.x] = 'turn_plate_cw';
+    return level;
+  }
+
+  function idleIssues(level: CompiledLevel) {
+    return LevelValidator.validate(level).issues.filter((i) => i.i18nKey === IDLE);
+  }
+
+  it('flags plates when the level has no arrow block', () => {
+    const issues = idleIssues(plateLevel());
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe('info');
+    expect(issues[0].params).toMatchObject({ x: PLATE.x, y: PLATE.y });
+  });
+
+  it('flags plates when only a dirt block is placed', () => {
+    const level = { ...plateLevel(), entities: [{ type: 'dirt_block', x: 3, y: 1, dir: 'S' as const }] };
+    expect(idleIssues(level)).toHaveLength(1);
+  });
+
+  it('does not flag plates when an arrow block is placed', () => {
+    const level = { ...plateLevel(), entities: [{ type: 'arrow_block_one', x: 3, y: 1, dir: 'E' as const }] };
+    expect(idleIssues(level)).toHaveLength(0);
+  });
+
+  it('does not flag plates when an arrow block is a clone template', () => {
+    const level = {
+      ...plateLevel(),
+      cloneLinks: [{ buttonX: 1, buttonY: 2, clonerX: 4, clonerY: 2, templateType: 'arrow_block_one', templateDir: 'E' as const }]
+    };
+    expect(idleIssues(level)).toHaveLength(0);
+  });
+
+  it('does not flag a level without plates', () => {
+    expect(idleIssues(grid(ROWS))).toHaveLength(0);
+  });
+
+  it('still flags a locked arrow block while the plates count as served', () => {
+    const level = { ...plateLevel(), entities: [{ type: 'arrow_block_one', x: 3, y: 1, dir: 'N' as const }] };
+    const keys = LevelValidator.validate(level).issues.map((i) => i.i18nKey);
+    expect(keys).toContain('validator.issues.arrow_block_locked.label');
+    expect(keys).not.toContain(IDLE);
+  });
+});

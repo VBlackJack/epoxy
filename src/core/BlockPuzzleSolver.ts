@@ -21,6 +21,10 @@ import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
 
+/** Terrain ids of the two turn plates, whose quarter turn the search applies to an arrow block that lands on them. */
+const TURN_PLATE_CW_TILE_ID = 'turn_plate_cw';
+const TURN_PLATE_CCW_TILE_ID = 'turn_plate_ccw';
+
 /** Layouts the exact search may visit, for the dead-end watch that runs by itself, before giving up without a verdict. */
 export function watchSearchBudget(): number {
   return ConfigRegistry.getGame().blockPuzzle.watchSearchBudget;
@@ -46,10 +50,22 @@ export type BlockPuzzleVerdict =
 /**
  * Ground the verdict models exactly: plain floor and walls a block is pushed
  * across or stopped by, the block targets, and hint tiles (walkable and
- * pushable-across like floor, with no hazard and no transform). The exit is left out because
+ * pushable-across like floor, with no hazard and no transform), and the two turn plates (the search turns
+ * the arrows of an arrow block that lands on one). The exit is left out because
  * the player ends the level by stepping on it, which the search does not model.
  */
-const MODELLED_TERRAIN: readonly string[] = [FLOOR_TILE_ID, WALL_TILE_ID, BLOCK_TARGET_TILE_ID, HINT_TILE_ID];
+const MODELLED_TERRAIN: readonly string[] = [
+  FLOOR_TILE_ID,
+  WALL_TILE_ID,
+  BLOCK_TARGET_TILE_ID,
+  HINT_TILE_ID,
+  TURN_PLATE_CW_TILE_ID,
+  TURN_PLATE_CCW_TILE_ID
+];
+/** Quarter turns of a push mask a turn plate applies: clockwise and counter-clockwise. */
+const TURN_CLOCKWISE = 1;
+const TURN_COUNTER_CLOCKWISE = -1;
+
 /** Items that change nothing about where the player or a block may go: chips are only collected. */
 const MODELLED_ITEMS: readonly string[] = ['chip'];
 /** The one piece the search moves: a plain pushable block. Mirrors, ice blocks and monsters are not modelled. */
@@ -71,7 +87,15 @@ function blockMask(encoded: number): number {
   return encoded % ARROW_MASK_SPAN;
 }
 
-/** Whether the level's entity is a block the search models: dirt, or an arrow block (arrows never turn here). */
+/** The push mask after a quarter turn: clockwise moves each arrow N to E to S to W, counter-clockwise the reverse. */
+function turnMask(mask: number, turn: number): number {
+  const lastBit = ORDERED_DIRECTIONS.length - 1;
+  if (turn === TURN_CLOCKWISE) return ((mask << 1) | (mask >> lastBit)) & FULL_PUSH_MASK;
+  if (turn === TURN_COUNTER_CLOCKWISE) return ((mask >> 1) | (mask << lastBit)) & FULL_PUSH_MASK;
+  return mask;
+}
+
+/** Whether the level's entity is a block the search models: dirt, or an arrow block (a turn plate turns its arrows, see turnMask). */
 function isModelledEntityType(type: string): boolean {
   return MODELLED_ENTITIES.includes(type) || ConfigRegistry.getEntityDef(type)?.pushArrows !== undefined;
 }
@@ -118,6 +142,8 @@ export class BlockPuzzleSolver {
   private readonly blockUnmodelled: Uint8Array;
   /** Per cell and direction (in ORDERED_DIRECTIONS order): the step is stopped by a thin wall or an entry rule. */
   private readonly edgeBlocked: Uint8Array;
+  /** Per cell: the quarter turns (1, -1 or 0) a block pushed onto it applies to its arrows. */
+  private readonly plateTurn: Int8Array;
   /** Cells a block must cover: the block targets of a 'targets' level, else the hold-trap buttons. */
   private readonly buttons: number[];
   private readonly blocks: number[];
@@ -136,6 +162,7 @@ export class BlockPuzzleSolver {
     this.blockOk = new Uint8Array(size);
     this.blockUnmodelled = new Uint8Array(size);
     this.edgeBlocked = new Uint8Array(size * ORDERED_DIRECTIONS.length);
+    this.plateTurn = new Int8Array(size);
     this.buttons = [];
     const coversTargets = engine.getLevel().winRule === 'targets';
     // A 'receivers' level is won with beams, not by covering buttons: its blocks are not judged here.
@@ -165,6 +192,7 @@ export class BlockPuzzleSolver {
         const unlocked = !tile.requiredKey || (player.keys[tile.requiredKey] ?? 0) > 0;
         this.playerOk[k] = plain && unlocked && tile.passableByPlayer === true && !monsters.has(k) ? 1 : 0;
         this.blockOk[k] = plain && tile.passableByBlock === true && !monsters.has(k) ? 1 : 0;
+        this.plateTurn[k] = tile.facingTurn ?? 0;
         this.blockUnmodelled[k] = !plain && tile.passableByBlock === true ? 1 : 0;
         const isGoal = coversTargets ? terrain[y][x] === BLOCK_TARGET_TILE_ID : tile.buttonAction === 'hold_trap';
         if (isGoal && !lightsReceivers) this.buttons.push(k);
@@ -387,13 +415,14 @@ export class BlockPuzzleSolver {
     return null;
   }
 
-  private singleBlockReaches(block: number, others: Set<number>, targets: number[], mask: number): boolean {
-    const keyOf = (b: number, region: number) => b * this.width * this.height + region;
+  private singleBlockReaches(block: number, others: Set<number>, targets: number[], startMask: number): boolean {
+    const cells = this.width * this.height;
+    const keyOf = (b: number, region: number, mask: number) => (b * cells + region) * ARROW_MASK_SPAN + mask;
     const startRegion = this.region(this.player, new Set([...others, block]));
-    const seen = new Set([keyOf(block, Math.min(...startRegion))]);
-    const queue: Array<{ b: number; reach: number[] }> = [{ b: block, reach: startRegion }];
+    const seen = new Set([keyOf(block, Math.min(...startRegion), startMask)]);
+    const queue: Array<{ b: number; reach: number[]; mask: number }> = [{ b: block, reach: startRegion, mask: startMask }];
     for (let i = 0; i < queue.length; i++) {
-      const { b, reach } = queue[i];
+      const { b, reach, mask } = queue[i];
       if (targets.includes(b)) return true;
       const reachSet = new Set(reach);
       for (const dir of ORDERED_DIRECTIONS) {
@@ -403,10 +432,11 @@ export class BlockPuzzleSolver {
         if (behind < 0 || ahead < 0 || !reachSet.has(behind)) continue;
         if (!this.blockOk[ahead] || others.has(ahead)) continue;
         const nextReach = this.region(b, new Set([...others, ahead]));
-        const key = keyOf(ahead, Math.min(...nextReach));
+        const nextMask = turnMask(mask, this.plateTurn[ahead]);
+        const key = keyOf(ahead, Math.min(...nextReach), nextMask);
         if (seen.has(key)) continue;
         seen.add(key);
-        queue.push({ b: ahead, reach: nextReach });
+        queue.push({ b: ahead, reach: nextReach, mask: nextMask });
       }
     }
     return false;
@@ -453,7 +483,7 @@ export class BlockPuzzleSolver {
           const ahead = this.step(b, dir, 1);
           if (behind < 0 || ahead < 0 || !reachSet.has(behind)) continue;
           if (!this.blockOk[ahead] || blockSet.has(ahead)) continue;
-          const next = blocks.map((c) => (c === encoded ? encodeBlock(ahead, mask) : c)).sort((m, n) => m - n);
+          const next = blocks.map((c) => (c === encoded ? encodeBlock(ahead, turnMask(mask, this.plateTurn[ahead])) : c)).sort((m, n) => m - n);
           const nextReach = this.region(b, new Set([...next.map(blockCell), ...fixed]));
           const key = keyOf(next, nextReach);
           if (seen.has(key)) continue;

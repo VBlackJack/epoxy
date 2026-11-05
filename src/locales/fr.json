@@ -96,7 +96,7 @@
       "refused_color_channel_content": { "label": "Non exporté : {levels} utilise des plaques de pression, des portes à plaque, des murs bascules de couleur ou des blocs de couleur, que le format .DAT ne peut pas porter." },
       "refused_cell_edges": { "label": "Non exporté : {levels} a des murs fins posés sur des cases, que le format .DAT ne peut pas porter." },
       "refused_epoxy_only_items": { "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur, les Bottes de Vitesse ou les Bottes de Clairvoyance), que le format .DAT ne peut pas porter." },
-      "refused_epoxy_only_monsters": { "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard ou un Transmogrificateur, que le format .DAT ne peut pas porter." },
+      "refused_epoxy_only_monsters": { "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard, un Transmogrificateur ou une Plaque tournante, que le format .DAT ne peut pas porter." },
       "refused_cell_underlays": { "label": "Non exporté : {levels} cache du terrain sous des portes, des prises ou d'autres tuiles amovibles, que le format .DAT ne peut pas porter." },
       "trap_links_capped": { "label": "Export .CCL avec pertes : le format .DAT garde au plus {max} liens de piège, {count, plural, one {# a été laissé de côté} other {# ont été laissés de côté}}." },
       "clone_links_capped": { "label": "Export .CCL avec pertes : le format .DAT garde au plus {max} liens de clonage, {count, plural, one {# a été laissé de côté} other {# ont été laissés de côté}}." },
@@ -581,6 +581,7 @@
       "flame_jets_no_button": { "label": "Info : les jets de flammes en ({x}, {y}) (au total : {count}) ne changent jamais : le niveau ne contient pas de bouton orange." },
       "swivel_sealed": { "label": "Info : une porte pivotante en ({x}, {y}) (au total : {count}) est scellée : chaque côté par lequel elle s'ouvre donne sur un mur, un mur fin, un émetteur ou un récepteur laser, ou le bord de la carte." },
       "arrow_block_locked": { "label": "Info : un bloc fléché en ({x}, {y}) (au total : {count}) ne pourra jamais être poussé : chaque côté où il montre une flèche donne sur un mur, un mur fin ou le bord de la carte." },
+      "turn_plate_idle": { "label": "Info : une plaque tournante en ({x}, {y}) (au total : {count}) n'a aucun bloc fléché à faire tourner." },
       "exit_on_receivers_level": { "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs." },
       "start_on_wall": { "label": "Avertissement : le départ du joueur est dans un mur." },
       "start_on_entity": { "label": "Avertissement : le départ du joueur partage sa case avec un bloc ou un monstre." },
@@ -1549,6 +1550,14 @@
     "transmogrifier": {
       "name": "Transmogrificateur",
       "desc": { "label": "Change un monstre qui arrive dessus en son jumeau (scarabée et paramécie, planeur et boule de feu, traqueur et fuyard, balle rose et marcheur)." }
+    },
+    "turn_plate_cw": {
+      "name": "Plaque tournante (horaire)",
+      "desc": { "label": "Fait tourner d'un quart de tour dans le sens horaire un bloc fléché qui arrive dessus, flèches comprises. Seuls les blocs fléchés tournent : les monstres et le joueur ne sont pas affectés." }
+    },
+    "turn_plate_ccw": {
+      "name": "Plaque tournante (antihoraire)",
+      "desc": { "label": "Fait tourner d'un quart de tour dans le sens antihoraire un bloc fléché qui arrive dessus, flèches comprises. Seuls les blocs fléchés tournent : les monstres et le joueur ne sont pas affectés." }
     },
     "dirt": { "name": "Terre Meuble" },
     "gravel": { "name": "Gravier (Zone Sûre)" },

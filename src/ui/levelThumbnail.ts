@@ -80,7 +80,9 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   shot_trigger: 'yellow',
   trap: 'trapBorder',
   clone_machine: 'clonerBorder',
-  transmogrifier: 'teleportRing'
+  transmogrifier: 'teleportRing',
+  turn_plate_cw: 'teleportRing',
+  turn_plate_ccw: 'teleportRing'
 };
 
 /** Families of tiles named `<prefix><suffix>`; the palette key is `key` or, when null, the suffix itself (a colour name). */

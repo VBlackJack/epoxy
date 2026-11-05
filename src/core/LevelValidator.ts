@@ -33,7 +33,7 @@ import {
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
 import { relativeTo } from './lynx/directions';
-import { isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
+import { isArrowBlockEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, underlayMap } from './Underlays';
@@ -1621,7 +1621,7 @@ export class LevelValidator {
   /**
    * Hints and warnings about mechanisms that do nothing on an Epoxy level: a trap with no brown button, a lone
    * teleporter, a laser gate whose group has no receiver (it stays closed), flame jets with no orange button and a
-   * swivel door sealed on every side it opens on. Hidden underlays count like tiles in plain sight.
+   * swivel door sealed on every side it opens on, and turn plates with no arrow block to turn. Hidden underlays count like tiles in plain sight.
    */
   private static checkMechanisms(level: CompiledLevel, issues: ValidationIssue[]): void {
     if (level.ruleset === 'lynx' || level.ruleset === 'cc3d') return;
@@ -1630,6 +1630,7 @@ export class LevelValidator {
     const trapCells: GridPoint[] = [];
     const jetCells: GridPoint[] = [];
     const swivelCells: GridPoint[] = [];
+    const plateCells: GridPoint[] = [];
     const gateCellsByGroup = new Map<string, GridPoint[]>();
     const teleportCellsByGroup = new Map<string, GridPoint[]>();
     const receiverGroups = new Set<string>();
@@ -1645,6 +1646,7 @@ export class LevelValidator {
           if (tile.buttonAction === 'hold_trap') brownButtons++;
           if (tile.buttonAction === 'toggle_flames') orangeButtons++;
           if (tile.flameTogglesTo !== undefined) jetCells.push({ x, y });
+          if (tile.facingTurn !== undefined) plateCells.push({ x, y });
           if (tile.isTeleporter) {
             const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
             teleportCellsByGroup.set(group, [...(teleportCellsByGroup.get(group) ?? []), { x, y }]);
@@ -1687,6 +1689,13 @@ export class LevelValidator {
     const sealed = swivelCells.filter((cell) => this.isSwivelSealed(level, cell, underlays));
     if (sealed.length > 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.swivel_sealed.label', params: this.locationParams(sealed) });
+    }
+    // A turn plate only turns an arrow block: placed on the map or made by a cloner.
+    const hasArrowBlock =
+      (level.entities ?? []).some((entity) => isArrowBlockEntityType(entity.type)) ||
+      (level.cloneLinks ?? []).some((link) => isArrowBlockEntityType(link.templateType));
+    if (plateCells.length > 0 && !hasArrowBlock) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.turn_plate_idle.label', params: this.locationParams(plateCells) });
     }
     const lockedArrowBlocks = (level.entities ?? [])
       .filter((entity) => this.isArrowBlockLocked(level, entity, underlays))

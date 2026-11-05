@@ -26,6 +26,8 @@ sprite theme=default name=thief_keys e1fab586fbd40f94
 sprite theme=default name=block_target c5a1fa8586ee8554
 sprite theme=default name=clone_machine 9b073e703ffaf6c7
 sprite theme=default name=transmogrifier cca7f4696ccd1950
+sprite theme=default name=turn_plate_cw 2a29994309532f26
+sprite theme=default name=turn_plate_ccw d45657b20a7e0297
 sprite theme=default name=forbid_sign c03b888c6226ba9c
 sprite theme=default name=door 16ada7975e3487a2
 sprite theme=default name=button 2bde2dfb5d19029c
@@ -244,6 +246,8 @@ sprite theme=cyber_neon name=thief_keys 219ba223c5ad6b52
 sprite theme=cyber_neon name=block_target b463c2dc35e50f70
 sprite theme=cyber_neon name=clone_machine 6ad25e7ee1a9e4c7
 sprite theme=cyber_neon name=transmogrifier 41156028f2c1d15f
+sprite theme=cyber_neon name=turn_plate_cw 3c67381a8492bcde
+sprite theme=cyber_neon name=turn_plate_ccw 0d3869c70ab05dd3
 sprite theme=cyber_neon name=forbid_sign ada04ed6bf77bc49
 sprite theme=cyber_neon name=door 62ec2fb5711f36af
 sprite theme=cyber_neon name=button 277a2f07d658f3c4
@@ -462,6 +466,8 @@ sprite theme=arctic_lab name=thief_keys 08d9531cfcdaf778
 sprite theme=arctic_lab name=block_target 1cd4ffa88585caf7
 sprite theme=arctic_lab name=clone_machine 6eed6c6f1b80ca8f
 sprite theme=arctic_lab name=transmogrifier b9ca012380eb5874
+sprite theme=arctic_lab name=turn_plate_cw 4cc9b3c05cdf17c4
+sprite theme=arctic_lab name=turn_plate_ccw cc440619b3232a4b
 sprite theme=arctic_lab name=forbid_sign d92a0e5964dab29f
 sprite theme=arctic_lab name=door c0d7d5effae645e5
 sprite theme=arctic_lab name=button d24d2480e27081eb
@@ -680,6 +686,8 @@ sprite theme=magma_core name=thief_keys f22241940427802a
 sprite theme=magma_core name=block_target 4695fe2ed7442d62
 sprite theme=magma_core name=clone_machine cb1c767e8c986cd9
 sprite theme=magma_core name=transmogrifier 80222b365cd56c5e
+sprite theme=magma_core name=turn_plate_cw 64687851b164f950
+sprite theme=magma_core name=turn_plate_ccw bf53718ad12764f8
 sprite theme=magma_core name=forbid_sign 32c5c88f041a7ee4
 sprite theme=magma_core name=door bd0580b6e298fc94
 sprite theme=magma_core name=button 170ff8c852549ee1
@@ -898,6 +906,8 @@ sprite theme=lynx_lcd name=thief_keys ff40f68fd55d8a70
 sprite theme=lynx_lcd name=block_target dfa3fbaf4f7f40ed
 sprite theme=lynx_lcd name=clone_machine d27e748584a9bb2a
 sprite theme=lynx_lcd name=transmogrifier 91e2e562771e81bc
+sprite theme=lynx_lcd name=turn_plate_cw 304c0853d64d62e5
+sprite theme=lynx_lcd name=turn_plate_ccw 94af94742ed09750
 sprite theme=lynx_lcd name=forbid_sign c684b591acf55550
 sprite theme=lynx_lcd name=door f630a900a57ff2fc
 sprite theme=lynx_lcd name=button ac26ec1a3c5f9093

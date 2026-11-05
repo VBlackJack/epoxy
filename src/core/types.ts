@@ -756,6 +756,11 @@ export interface TileDefinition {
   revealsHiddenWalls?: boolean;
   /** A monster that arrives on the tile swaps its kind for its `transmogrifiesTo` pair; anything else passes unchanged. */
   transmogrifies?: boolean;
+  /**
+   * A turn plate: quarter turns clockwise applied to the facing of an arrow block that arrives on the tile
+   * (1 clockwise, -1 counter-clockwise). Anything else passes unchanged.
+   */
+  facingTurn?: 1 | -1;
   buttonAction?: ButtonAction;
   /** When 'player', only the player's step works the button: monsters and blocks that enter the cell press nothing. */
   buttonWorkedBy?: ButtonWorker;

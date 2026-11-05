@@ -306,6 +306,28 @@
       "passableByBlock": true,
       "transmogrifies": true
     },
+    "turn_plate_cw": {
+      "id": "turn_plate_cw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.turn_plate_cw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "facingTurn": 1
+    },
+    "turn_plate_ccw": {
+      "id": "turn_plate_ccw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.turn_plate_ccw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "facingTurn": -1
+    },
     "dirt": {
       "id": "dirt",
       "category": "terrain",

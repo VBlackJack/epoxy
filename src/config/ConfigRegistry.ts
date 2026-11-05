@@ -38,6 +38,7 @@ import {
   findTransmogrifierConfigErrors,
   findShotConfigErrors,
   findSteeringConfigErrors,
+  findFacingTurnConfigErrors,
   findPushArrowConfigErrors,
   findTurretConfigErrors,
   sanitizeStoredLevels,
@@ -297,6 +298,10 @@ class ConfigRegistryService {
     const swivelErrors = findSwivelConfigErrors(bundle.tiles.tiles);
     if (swivelErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, swivelErrors.join('; '));
+    }
+    const facingTurnErrors = findFacingTurnConfigErrors(bundle.tiles.tiles);
+    if (facingTurnErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, facingTurnErrors.join('; '));
     }
     const colorErrors = findColorChannelConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (colorErrors.length > 0) {

@@ -188,11 +188,18 @@ function hasTransmogrifierContent(level: Pick<CompiledLevel, 'terrain' | 'items'
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter or an arrow block), a steering pad, or a transmogrifier. */
+/** True when the level places a turn plate (terrain or item layer): only the Epoxy engine turns an arrow block. */
+function hasTurnPlateContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isTurnPlateTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
+/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter or an arrow block), a steering pad, a transmogrifier, or a turn plate. */
 export function hasEpoxyOnlyMonsterContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {
-  if (hasSteeringContent(level) || hasTransmogrifierContent(level)) return true;
+  if (hasSteeringContent(level) || hasTransmogrifierContent(level) || hasTurnPlateContent(level)) return true;
   const epoxyOnly = (type: string): boolean => isFleeingEntityType(type) || isArrowBlockEntityType(type);
   return (
     (level.entities ?? []).some((e) => epoxyOnly(e.type)) || (level.cloneLinks ?? []).some((link) => epoxyOnly(link.templateType))
@@ -250,6 +257,11 @@ export function isTransmogrifierTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).transmogrifies === true;
 }
 
+/** True when the tile id is a turn plate, which turns the arrows of an arrow block arriving on it. */
+export function isTurnPlateTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).facingTurn !== undefined;
+}
+
 /** True when the tile id is a swivel door, which turns a quarter turn behind whoever passes through it. */
 export function isSwivelTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).swivelTurns !== undefined;
@@ -262,11 +274,11 @@ export function hasSwivelContent(level: Pick<CompiledLevel, 'terrain' | 'items'>
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad or a swivel door. */
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier or a turn plate. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
     isLaserTileId(id) || isColorChannelTileId(id) || isEpoxyOnlyItemId(id) ||
-    isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id)
+    isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id) || isTurnPlateTileId(id)
   );
 }
 
@@ -290,7 +302,7 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
   return (level.entities ?? []).some((e) => isColorBlockEntityType(e.type));
 }
 
-/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors or steered monsters. */
+/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers or turn plates. */
 export function hasEpoxyOnlyContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
 ): boolean {
