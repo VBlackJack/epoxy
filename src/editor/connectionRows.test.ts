@@ -106,7 +106,7 @@ describe('connectionRows', () => {
     expect(view.controlledBy?.rows).toEqual([]);
     expect(view.controlledBy?.empty).toEqual({ key: CONNECTIONS_KEYS.noneControlled });
     expect(view.note).toEqual({ key: CONNECTIONS_KEYS.fallbackTrapButton });
-    expect(view.link).toEqual({ type: 'start', wire: 'trap', blocked: false });
+    expect(view.link).toEqual({ type: 'start', system: 'trap', end: 'button', blocked: false });
   });
 
   it('tells a linked trap from an unlinked one, and unlinks from the button end', () => {
@@ -118,7 +118,7 @@ describe('connectionRows', () => {
     expect(view.controlledBy?.rows.map((r) => [r.x, r.y, r.kind])).toEqual([[1, 1, 'link']]);
     expect(view.controlledBy?.rows[0].unlink).toEqual({ system: 'trap', button: { x: 1, y: 1 }, target: { x: 4, y: 1 } });
     expect(view.note).toEqual({ key: CONNECTIONS_KEYS.fallbackTrapLinked });
-    expect(view.link).toEqual({ type: 'hint' });
+    expect(view.link).toEqual({ type: 'start', system: 'trap', end: 'target', blocked: false });
 
     const unlinked = connectionRows(makeLevel({ '1,1': 'button_brown', '2,1': 'button_brown', '4,1': 'trap' }), 4, 1);
     expect(unlinked.controlledBy?.rows.map((r) => [r.x, r.y, r.fallback])).toEqual([
@@ -134,7 +134,7 @@ describe('connectionRows', () => {
     const withCreature = connectionRows(makeLevel(base, { entities: [{ x: 4, y: 1, type: 'walker' }] }), 1, 1);
     expect(withCreature.controls?.rows.map((r) => [r.x, r.y, r.fallback])).toEqual([[4, 1, true]]);
     expect(withCreature.note).toEqual({ key: CONNECTIONS_KEYS.fallbackCloneAny });
-    expect(withCreature.link).toEqual({ type: 'start', wire: 'clone', blocked: false });
+    expect(withCreature.link).toEqual({ type: 'start', system: 'clone', end: 'button', blocked: false });
 
     const empty = connectionRows(makeLevel(base), 1, 1);
     expect(empty.controls?.rows).toEqual([]);
@@ -150,7 +150,7 @@ describe('connectionRows', () => {
     const base = { '1,1': 'shot_trigger', '4,1': 'shot_launcher_n' };
     const bare = connectionRows(makeLevel(base), 1, 1);
     expect(bare.note).toEqual({ key: CONNECTIONS_KEYS.fallbackShotUnlinked });
-    expect(bare.link).toEqual({ type: 'start', wire: 'launcher', blocked: false });
+    expect(bare.link).toEqual({ type: 'start', system: 'shot', end: 'button', blocked: false });
 
     const level = makeLevel(base, { launcherLinks: [{ buttonX: 1, buttonY: 1, launcherX: 4, launcherY: 1 }] });
     const trigger = connectionRows(level, 1, 1);
@@ -158,17 +158,25 @@ describe('connectionRows', () => {
     expect(trigger.controls?.rows[0].unlink).toEqual({ system: 'shot', button: { x: 1, y: 1 }, target: { x: 4, y: 1 } });
     const launcher = connectionRows(level, 4, 1);
     expect(launcher.controlledBy?.rows[0].unlink).toEqual({ system: 'shot', button: { x: 1, y: 1 }, target: { x: 4, y: 1 } });
-    expect(launcher.link).toEqual({ type: 'hint' });
+    expect(launcher.link).toEqual({ type: 'start', system: 'shot', end: 'target', blocked: false });
   });
 
-  it('blocks the trap and clone wires on a hidden button but not the launcher wire on a hidden trigger', () => {
+  it('blocks a hidden trap or clone device but not a hidden shot trigger', () => {
     const hiddenBrown = makeLevel({ '2,2': 'door_red' }, { underlays: [{ x: 2, y: 2, terrain: 'button_brown' }] });
     const brown = connectionRows(hiddenBrown, 2, 2);
     expect(brown.caption?.key).toBe(CONNECTIONS_KEYS.cellHidden);
-    expect(brown.link).toEqual({ type: 'start', wire: 'trap', blocked: true });
+    expect(brown.link).toEqual({ type: 'start', system: 'trap', end: 'button', blocked: true });
 
     const hiddenTrigger = makeLevel({ '2,2': 'door_red' }, { underlays: [{ x: 2, y: 2, terrain: 'shot_trigger' }] });
-    expect(connectionRows(hiddenTrigger, 2, 2).link).toEqual({ type: 'start', wire: 'launcher', blocked: false });
+    expect(connectionRows(hiddenTrigger, 2, 2).link).toEqual({ type: 'start', system: 'shot', end: 'button', blocked: false });
+  });
+
+  it('offers the Link button for a shot device hidden under a top tile that plays another role', () => {
+    const trigger = connectionRows(makeLevel({ '2,2': 'teleport_red' }, { underlays: [{ x: 2, y: 2, terrain: 'shot_trigger' }] }), 2, 2);
+    expect(trigger.link).toEqual({ type: 'start', system: 'shot', end: 'button', blocked: false });
+    const launcher = connectionRows(makeLevel({ '2,2': 'teleport_red' }, { underlays: [{ x: 2, y: 2, terrain: 'shot_launcher_e' }] }), 2, 2);
+    expect(launcher.link).toEqual({ type: 'start', system: 'shot', end: 'target', blocked: false });
+    expect(connectionRows(makeLevel({ '2,2': 'teleport_red' }), 2, 2).link).toBeNull();
   });
 
   it('names a row after the other cell device, else its item, else its tile', () => {
@@ -226,6 +234,10 @@ describe('connectionRows', () => {
     expect(lynx.controls).toBeNull();
     expect(lynx.controlledBy).toBeNull();
     expect(lynx.note).toEqual({ key: CONNECTIONS_KEYS.epoxyOnly });
+    // A Lynx level still links traps and clone machines (a Link button), but has no shot devices.
+    expect(lynx.link).toEqual({ type: 'start', system: 'trap', end: 'button', blocked: false });
+    const lynxShot = connectionRows(makeLevel({ '1,1': 'shot_trigger' }, { ruleset: 'lynx' }), 1, 1);
+    expect(lynxShot.link).toBeNull();
     const outside = connectionRows(makeLevel({}), WIDTH, 0);
     expect(outside).toEqual({ caption: null, controls: null, controlledBy: null, note: null, link: null });
   });

@@ -313,8 +313,7 @@ describe('painting over a trigger or a launcher', () => {
       brush: { kind: 'terrain', id: 'floor' },
       dir: 'S',
       x: LAUNCHER.x,
-      y: LAUNCHER.y,
-      pendingWire: null
+      y: LAUNCHER.y
     });
     expect(outcome.messages).toEqual([{ key: 'editor.layout.status.links_removed', params: { count: 1 } }]);
   });

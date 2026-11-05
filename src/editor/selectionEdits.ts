@@ -467,7 +467,7 @@ export type FillRefusal =
   | { reason: 'unavailable'; reasonKey: string }
   /** Thin walls are drawn with the brush: they have no content to fill with. */
   | { reason: 'cell_edge' }
-  /** The player start and the wires are not content: they place one thing, not a layer of cells. */
+  /** The player start is not content: it places one thing, not a layer of cells. */
   | { reason: 'unsupported' };
 
 /** The refusal a brush meets when it fills a selection, or null when it can fill. */
@@ -476,9 +476,6 @@ export function fillBrushRefusal(brush: Brush, ruleset: EditableRuleset): FillRe
     case 'cell_edge':
       return { reason: 'cell_edge' };
     case 'player_start':
-    case 'wire_trap':
-    case 'wire_cloner':
-    case 'wire_launcher':
       return { reason: 'unsupported' };
     case 'terrain':
     case 'item': {
@@ -503,7 +500,7 @@ export interface FillRectResult extends SelectionEditResult {
  * stands on the cell, facing `dir` (the player start cell is left alone and reported). The thin walls of a
  * cell stay, as when painting; hidden terrain stays only under a terrain that can still hide it, and the result counts
  * what a terrain fill removed. The outer ring is never written: its cells are counted apart. An entry the
- * level's ruleset cannot play, the player start, a wire or a thin wall refuses the whole fill.
+ * level's ruleset cannot play, the player start or a thin wall refuses the whole fill.
  */
 export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: Direction, ruleset: EditableRuleset): FillRectResult {
   const untouched = (refusal: FillRefusal | null): FillRectResult => ({

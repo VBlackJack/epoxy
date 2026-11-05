@@ -382,11 +382,15 @@ describe('the Connections section', () => {
     expect(caption()).toContain('(6, 4)');
   });
 
-  it('says under Lynx rules where the connections are listed, with no list and no Link button', () => {
-    editor.loadCompiledLevel(room([{ ...BUTTON, tile: 'button_brown' }], { ruleset: 'lynx' }));
+  it('says under Lynx rules where the connections are listed, with no list but a Link button for traps and clone machines', () => {
+    editor.loadCompiledLevel(room([{ ...BUTTON, tile: 'button_brown' }, { ...TRAP, tile: 'trap' }], { ruleset: 'lynx' }));
     cursorTo(BUTTON);
     expect(byId('editor-connections-note').textContent).toBe(t('editor.connections.epoxy_only'));
     expect(byId('editor-connections-lists').classList.contains('hidden')).toBe(true);
+    expect(linkButton().classList.contains('hidden')).toBe(false);
+    cursorTo(TRAP);
+    expect(linkButton().classList.contains('hidden')).toBe(false);
+    cursorTo({ x: 4, y: 4 });
     expect(linkButton().classList.contains('hidden')).toBe(true);
   });
 });
@@ -548,17 +552,16 @@ describe('Unlink', () => {
 });
 
 describe('Link...', () => {
-  it('shows a hint instead of the button on a trap, and nothing on an empty cell', () => {
+  it('shows the button on a trap too (the target end), and nothing on an empty cell', () => {
     editor.loadCompiledLevel(trapRoom());
     cursorTo(TRAP);
-    expect(linkButton().classList.contains('hidden')).toBe(true);
-    expect(byId('editor-connections-link-hint').classList.contains('hidden')).toBe(false);
+    expect(linkButton().classList.contains('hidden')).toBe(false);
+    expect(linkButton().textContent).toBe(t('editor.connections.link.action'));
     cursorTo({ x: 4, y: 4 });
     expect(linkButton().classList.contains('hidden')).toBe(true);
-    expect(byId('editor-connections-link-hint').classList.contains('hidden')).toBe(true);
   });
 
-  it('starts a trap link from a brown button without painting, links on the next click and gives the tool back', () => {
+  it('starts a trap link session from a brown button without painting or touching the tool, links on the next click and stays open', () => {
     editor.loadCompiledLevel(trapRoom([]));
     editor.setTool('eraser');
     const terrainBefore = levelNow().terrain;
@@ -566,23 +569,23 @@ describe('Link...', () => {
     expect(linkButton().classList.contains('hidden')).toBe(false);
     linkButton().click();
     expect(levelNow().terrain).toEqual(terrainBefore);
-    expect(editor['pendingWire']).toEqual({ kind: 'trap', x: BUTTON.x, y: BUTTON.y });
-    expect(editor['tool']).toBe('brush');
-    expect(editor['brush']).toEqual({ kind: 'wire_trap', id: 'wire_trap' });
-    expect(status()).toContain(t('editor.palette.status.wire_select_target'));
-    expect(status()).toContain(t('editor.connections.link.note_trap'));
+    expect(editor['linkSession']).toEqual({ system: 'trap', end: 'button', x: BUTTON.x, y: BUTTON.y });
+    expect(editor['tool']).toBe('eraser');
+    expect(editor['brush']).toEqual({ kind: 'terrain', id: 'wall' });
+    expect(status()).toContain(t('editor.link.fallback.trap_button.label'));
+    expect(linkButton().textContent).toBe(t('editor.connections.link.done'));
     click(TRAP);
     expect(levelNow().trapLinks).toEqual([{ buttonX: BUTTON.x, buttonY: BUTTON.y, trapX: TRAP.x, trapY: TRAP.y }]);
     expect(levelNow().terrain).toEqual(terrainBefore);
-    expect(editor['pendingWire']).toBeNull();
+    expect(editor['linkSession']).not.toBeNull();
     expect(editor['tool']).toBe('eraser');
     expect(document.querySelector('[data-tool="eraser"]')?.getAttribute('aria-pressed')).toBe('true');
-    expect(editor['brush']).toEqual({ kind: 'terrain', id: 'wall' });
-    // The click put the cursor on the trap: it lists the button that now opens it, with an Unlink.
-    expect(controlledRows()[0].querySelectorAll('button')).toHaveLength(2);
+    // The section stays on the button, which now lists the trap with an Unlink.
+    expect(caption()).toContain(`(${BUTTON.x}, ${BUTTON.y})`);
+    expect(controlRows()[0].querySelectorAll('button')).toHaveLength(2);
   });
 
-  it('does not paint when the player moves over the map with the button held after the link', () => {
+  it('does not paint when the player drags over the map during the session', () => {
     editor.loadCompiledLevel(trapRoom([]));
     cursorTo(BUTTON);
     linkButton().click();
@@ -594,43 +597,40 @@ describe('Link...', () => {
     expect(levelNow().terrain[4][4]).toBe('floor');
   });
 
-  it('gives the tool and brush back on Escape', () => {
+  it('ends on Escape, keeping the tool and brush, and says how many links the device has', () => {
     editor.loadCompiledLevel(trapRoom([]));
     cursorTo(BUTTON);
     linkButton().click();
-    expect(editor['pendingWire']).not.toBeNull();
+    expect(editor['linkSession']).not.toBeNull();
     editor.handleKeyAction({ kind: 'cancel' });
-    expect(editor['pendingWire']).toBeNull();
+    expect(editor['linkSession']).toBeNull();
     expect(editor['brush']).toEqual({ kind: 'terrain', id: 'wall' });
     expect(editor['tool']).toBe('brush');
+    expect(status()).toBe(t('editor.link.done.label', { role: t('editor.connections.role.trap_button.label'), count: 0 }));
+    expect(linkButton().textContent).toBe(t('editor.connections.link.action'));
   });
 
-  it('says the wire was cancelled, not that a button stays unlinked, when Escape ends a wire the Link button started', () => {
+  it('ends on the Done button and on a click on the source cell', () => {
     editor.loadCompiledLevel(trapRoom([]));
     cursorTo(BUTTON);
     linkButton().click();
-    editor.handleKeyAction({ kind: 'cancel' });
-    expect(status()).toBe(t('editor.layout.status.wire_cancelled'));
-    expect(status()).not.toContain(t('editor.layout.status.wire_cancelled_button_left'));
-  });
-
-  it('asks for a redraw when the tool and brush come back', () => {
-    editor.loadCompiledLevel(trapRoom([]));
-    cursorTo(BUTTON);
     linkButton().click();
-    const redraw = vi.spyOn(editor as unknown as { requestRender: () => void }, 'requestRender');
-    editor['restoreLinkReturn']();
-    expect(redraw).toHaveBeenCalled();
+    expect(editor['linkSession']).toBeNull();
+    linkButton().click();
+    expect(editor['linkSession']).not.toBeNull();
+    click(BUTTON);
+    expect(editor['linkSession']).toBeNull();
   });
 
-  it('gives the tool and brush back when loading another level drops the wire', () => {
+  it('keeps the tool when loading another level drops the session', () => {
     editor.loadCompiledLevel(trapRoom([]));
     editor.setTool('picker');
     cursorTo(BUTTON);
     linkButton().click();
+    expect(editor['tool']).toBe('picker');
     editor.loadCompiledLevel(trapRoom([]));
     expect(editor['tool']).toBe('picker');
-    expect(editor['linkReturn']).toBeNull();
+    expect(editor['linkSession']).toBeNull();
   });
 
   it('refuses a brown button hidden under another tile, with the reason', () => {
@@ -640,11 +640,11 @@ describe('Link...', () => {
     expect(linkButton().getAttribute('aria-disabled')).toBe('true');
     expect(linkButton().getAttribute('aria-description')).toBe(reason);
     linkButton().click();
-    expect(editor['pendingWire']).toBeNull();
+    expect(editor['linkSession']).toBeNull();
     expect(status()).toBe(reason);
   });
 
-  it('starts the launcher wire from a shot trigger, even hidden, and gives the tool back on Escape', () => {
+  it('starts a launcher session from a shot trigger, even hidden, and keeps the brush through Escape', () => {
     editor.loadCompiledLevel(
       room(
         [
@@ -657,17 +657,18 @@ describe('Link...', () => {
     cursorTo(TRIGGER);
     expect(linkButton().getAttribute('aria-disabled')).toBeNull();
     linkButton().click();
-    expect(editor['pendingWire']).toEqual({ kind: 'launcher', x: TRIGGER.x, y: TRIGGER.y });
-    expect(status()).toContain(t('editor.palette.status.wire_launcher_picked.label', { count: 0 }));
+    expect(editor['linkSession']).toEqual({ system: 'shot', end: 'button', x: TRIGGER.x, y: TRIGGER.y });
+    expect(status()).toContain(t('editor.link.fallback.shot_trigger.label'));
     click(LAUNCHER);
     expect(levelNow().launcherLinks).toEqual([{ buttonX: TRIGGER.x, buttonY: TRIGGER.y, launcherX: LAUNCHER.x, launcherY: LAUNCHER.y }]);
-    // The launcher wire stays open for more launchers: the tool comes back with Escape.
-    expect(editor['brush'].kind).toBe('wire_launcher');
+    // The session stays open for more launchers until Escape.
+    expect(editor['linkSession']).not.toBeNull();
     editor.handleKeyAction({ kind: 'cancel' });
+    expect(editor['linkSession']).toBeNull();
     expect(editor['brush']).toEqual({ kind: 'terrain', id: 'wall' });
   });
 
-  it('says that a first clone link replaces the every-machine fallback', () => {
+  it('says what a red button does while unlinked when the session starts', () => {
     editor.loadCompiledLevel(
       room(
         [
@@ -679,7 +680,7 @@ describe('Link...', () => {
     );
     cursorTo(RED_BUTTON);
     linkButton().click();
-    expect(editor['pendingWire']).toEqual({ kind: 'clone', x: RED_BUTTON.x, y: RED_BUTTON.y });
-    expect(status()).toContain(t('editor.connections.link.note_clone'));
+    expect(editor['linkSession']).toEqual({ system: 'clone', end: 'button', x: RED_BUTTON.x, y: RED_BUTTON.y });
+    expect(status()).toContain(t('editor.link.fallback.clone_button.label'));
   });
 });

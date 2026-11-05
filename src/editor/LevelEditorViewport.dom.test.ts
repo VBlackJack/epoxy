@@ -322,9 +322,12 @@ describe('undo and redo on a large map', () => {
     expect(statusText()).toBe(t('editor.layout.status.redone_settings.label'));
   });
 
-  it('names the changed cells of an Epoxy map too, and lets a dropped wire message win', () => {
+  it('names the changed cells of an Epoxy map too, and lets the message of a link session an undo ended win', () => {
     editor.initBlankMap();
-    const state = editor as unknown as { brush: { kind: string; id: string }; pendingWire: { kind: string; x: number; y: number } | null };
+    const state = editor as unknown as {
+      brush: { kind: string; id: string };
+      linkSession: { system: string; end: string; x: number; y: number } | null;
+    };
     state.brush = { kind: 'terrain', id: 'button_brown' };
     click(3, 3);
     state.brush = { kind: 'terrain', id: 'wall' };
@@ -332,8 +335,13 @@ describe('undo and redo on a large map', () => {
     editor.undo();
     expect(statusText()).toBe(t('editor.layout.status.undone_cells.label', { count: 1, x: 5, y: 4 }));
     editor.redo();
-    state.pendingWire = { kind: 'trap', x: 3, y: 3 };
+    state.linkSession = { system: 'trap', end: 'button', x: 3, y: 3 };
     editor.undo();
-    expect(statusText()).toBe(t('editor.layout.status.wire_cancelled_button_left'));
+    // The brown button is still there: the session stays open.
+    expect(state.linkSession).not.toBeNull();
+    expect(statusText()).toBe(t('editor.layout.status.undone_cells.label', { count: 1, x: 5, y: 4 }));
+    editor.undo();
+    expect(state.linkSession).toBeNull();
+    expect(statusText()).toBe(t('editor.link.source_gone.label', { role: t('editor.connections.role.trap_button.label') }));
   });
 });

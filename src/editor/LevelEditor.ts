@@ -140,18 +140,10 @@ import {
   continuesOnDrag,
   EDITOR_TOOLS,
   EditorTool,
-  leavesLooseButton,
   MESSAGE_LINKS_REMOVED,
   MESSAGE_START_KEPT,
   MESSAGE_UNDERLAYS_REMOVED,
-  MESSAGE_WIRE_CANCELLED,
-  MESSAGE_WIRE_CANCELLED_BUTTON_LEFT,
-  MESSAGE_WIRE_LAUNCHER_DONE,
-  MESSAGE_WIRE_LAUNCHER_PICKED,
-  MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT,
-  MESSAGE_WIRE_SELECT_TARGET,
   pickFromCell,
-  PendingWire,
   ToolMessage
 } from './editorTools';
 import {
@@ -163,17 +155,24 @@ import {
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
 import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
-import { holdsShotTrigger, launcherCountAt, pruneLauncherLinks } from './editorLauncherLinks';
+import { pruneLauncherLinks } from './editorLauncherLinks';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
-import { mapHeightOf, mapWidthOf, paintEntity, removeCloneLink, removeLauncherLink, removeTrapLink, resizeMap, wireButtonTile } from './mapEdits';
+import { holdsLinkEnd, mapHeightOf, mapWidthOf, paintEntity, removeCloneLink, removeLauncherLink, removeTrapLink, resizeMap } from './mapEdits';
+import {
+  type LinkSession,
+  type PartnerCandidates,
+  partnerCandidates,
+  sessionClick,
+  sessionSourceHolds,
+  startLinkSession
+} from './linkSession';
 import {
   CHANNEL_NAME_KEYS,
   type ConnectionList,
   type ConnectionRow,
   type ConnectionUnlink,
   type ConnectionView,
-  type ConnectionWire,
   type ConnectionLink,
   KIND_NAME_KEYS,
   SYSTEM_NAME_KEYS,
@@ -207,12 +206,12 @@ import {
   cellEdgeAvailability,
   EditableRuleset,
   entityAvailability,
-  launcherWireAvailability,
+  linkAvailability,
   majorityRuleset,
   tileAvailability,
   winRuleAvailability
 } from './paletteAvailability';
-import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, wireToolMechanismGroup, type MechanismGroupId } from './paletteGroups';
+import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
   decideSave,
@@ -275,10 +274,7 @@ import {
   EDITOR_SELECTION_DIM_COLOR,
   EDITOR_SELECTION_OUTLINE_COLOR,
   EDITOR_TILE_CENTER_OFFSET,
-  EDITOR_SHOT_TRIGGER_TILE,
-  EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_LINK_COLOR,
-  EDITOR_CLONE_BUTTON_TILE,
   EDITOR_CONNECTIONS_HOVER_DWELL_MS,
   EDITOR_DRAFT_MAX_CHARS,
   EDITOR_DRAFT_STORAGE_PREFIX,
@@ -337,13 +333,15 @@ const CONNECTIONS_CONTROLS_ID = 'editor-connections-controls';
 const CONNECTIONS_CONTROLLED_ID = 'editor-connections-controlled';
 const CONNECTIONS_NOTE_ID = 'editor-connections-note';
 const CONNECTIONS_LINK_BTN_ID = 'editor-connections-link-btn';
-const CONNECTIONS_LINK_HINT_ID = 'editor-connections-link-hint';
 const CONNECTIONS_NO_CELL_KEY = 'editor.connections.no_cell';
 const CONNECTIONS_MORE_KEY = 'editor.connections.more';
 const CONNECTIONS_ROW_KEY = 'editor.connections.row';
+const CONNECTIONS_LINK_ACTION_KEY = 'editor.connections.link.action';
+const CONNECTIONS_LINK_DONE_KEY = 'editor.connections.link.done';
 const CONNECTIONS_LINK_BLOCKED_KEY = 'editor.connections.link.blocked';
-const CONNECTIONS_LINK_NOTE_TRAP_KEY = 'editor.connections.link.note_trap';
-const CONNECTIONS_LINK_NOTE_CLONE_KEY = 'editor.connections.link.note_clone';
+const LINK_UNAVAILABLE_KEY = 'editor.link.unavailable.label';
+const LINK_NOTHING_KEY = 'editor.link.nothing.label';
+const LINK_BUSY_KEY = 'editor.link.busy.label';
 const CONNECTIONS_UNLINK_ACTION_KEY = 'editor.connections.unlink.action';
 const CONNECTIONS_UNLINK_ARIA_KEY = 'editor.connections.unlink.aria';
 const CONNECTIONS_UNLINK_DONE_KEY = 'editor.connections.unlink.done';
@@ -383,15 +381,6 @@ const CC3D_ATTRIBUTE_LABEL_KEYS: Record<Exclude<Cc3dAttribute, 'dir'>, string> =
   mirror: 'editor.cc3d.attr.mirror'
 };
 
-const WIRE_TRAP_BRUSH_ID = 'wire_trap';
-const WIRE_CLONER_BRUSH_ID = 'wire_cloner';
-const WIRE_LAUNCHER_BRUSH_ID = 'wire_launcher';
-/** The wire brush the Link button of the Connections section selects, by wire. */
-const CONNECTION_WIRE_BRUSHES: Record<ConnectionWire, Brush> = {
-  trap: { kind: 'wire_trap', id: WIRE_TRAP_BRUSH_ID },
-  clone: { kind: 'wire_cloner', id: WIRE_CLONER_BRUSH_ID },
-  launcher: { kind: 'wire_launcher', id: WIRE_LAUNCHER_BRUSH_ID }
-};
 /** Win rules offered by the select, to mark the ones the engine cannot play. */
 const WIN_RULE_VALUES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
 const ENTITIES_CATEGORY = 'entities';
@@ -600,9 +589,10 @@ export class LevelEditor {
   private brush: Brush = { kind: 'terrain', id: 'wall' };
   private activeDir: Direction = 'S';
   private stroke: Stroke | null = null;
-  private pendingWire: PendingWire | null = null;
-  /** The tool and brush to give back once the wire the Link button started has ended; null when no such wire runs. */
-  private linkReturn: { tool: EditorTool; brush: Brush } | null = null;
+  /** The open link session: the device being linked from; null when none. The tool and the brush are never touched by it. */
+  private linkSession: LinkSession | null = null;
+  /** The partners the session offers, keyed on the document revision, the session and the ruleset it was computed for. */
+  private linkCandidatesCache: { key: string; value: PartnerCandidates } | null = null;
   /** What the Connections section shows now: the key it was drawn for and the cell it is about. */
   private connectionsKey = '';
   private connectionsShown: { x: number; y: number } | null = null;
@@ -994,8 +984,7 @@ export class LevelEditor {
     this.history.clear();
     this.coalescer.reset();
     this.stroke = null;
-    this.pendingWire = null;
-    this.restoreLinkReturn();
+    this.endLinkSession(false);
     this.resetSelectionState();
     this.hoverCell = null;
     this.cursorCell = null;
@@ -1362,7 +1351,6 @@ export class LevelEditor {
     if (brush.kind === 'terrain' || brush.kind === 'item') return tileAvailability(ruleset, brush.id);
     if (brush.kind === 'entity') return entityAvailability(ruleset, brush.id);
     if (brush.kind === 'cell_edge') return cellEdgeAvailability(ruleset);
-    if (brush.kind === 'wire_launcher') return launcherWireAvailability(ruleset);
     return { available: true };
   }
 
@@ -1442,24 +1430,6 @@ export class LevelEditor {
     }
 
     if (mechanisms) {
-      entry(
-        { kind: 'wire_trap', id: WIRE_TRAP_BRUSH_ID },
-        t('editor.palette.tools.wire_trap'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_TRAP_BUTTON_TILE),
-        wireToolMechanismGroup('wire_trap')
-      );
-      entry(
-        { kind: 'wire_cloner', id: WIRE_CLONER_BRUSH_ID },
-        t('editor.palette.tools.wire_cloner'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_CLONE_BUTTON_TILE),
-        wireToolMechanismGroup('wire_cloner')
-      );
-      entry(
-        { kind: 'wire_launcher', id: WIRE_LAUNCHER_BRUSH_ID },
-        t('editor.palette.tools.wire_launcher'),
-        this.renderer.renderIconToDataUrl('tile', EDITOR_SHOT_TRIGGER_TILE),
-        wireToolMechanismGroup('wire_launcher')
-      );
       // Sub-headings only label the entries that follow them: they are not focusable and the tab order stays the button order.
       // An entry no rule places is still offered, under an Other heading shown only when there is one.
       for (const section of arrangeMechanismSections(pending.map((item) => ({ group: item.group, item: item.button })))) {
@@ -1527,7 +1497,7 @@ export class LevelEditor {
    * tool while a selection is there: the entry then waits for Shift+F to fill the selection with it.
    */
   private selectBrush(brush: Brush): void {
-    this.cancelPendingWire(false);
+    this.endLinkSession(false);
     const hintBefore = this.sideToolActive();
     const keepSelection = this.keepsSelectionOnChoice();
     this.brush = brush;
@@ -1546,10 +1516,6 @@ export class LevelEditor {
       const refusal = fillBrushRefusal(brush, editableRulesetOf(this.doc.ruleset));
       this.announceFillChoice(refusal ? this.fillRefusalMessage(refusal) : null, this.brushLabel(brush));
     } else {
-      if (brush.kind === 'wire_trap' || brush.kind === 'wire_cloner') {
-        this.setStatusText(t('editor.palette.status.wire_select_source'));
-      }
-      if (brush.kind === 'wire_launcher') this.setStatusText(t('editor.palette.status.wire_launcher_select_source.label'));
       if (brush.kind === 'cell_edge') this.setStatusText(t('editor.palette.status.cell_edge_mode'));
     }
     // The side bar of the thin wall tool appears and goes away with its entry.
@@ -1686,8 +1652,8 @@ export class LevelEditor {
   }
 
   public setTool(tool: EditorTool): void {
+    this.endLinkSession(false);
     if (tool === this.tool) return;
-    this.cancelPendingWire(false);
     this.tool = tool;
     // A selection or a floating paste belongs to the Select tool.
     this.resetSelectionState();
@@ -1715,6 +1681,9 @@ export class LevelEditor {
       case 'toggle_beam_preview':
         this.toggleBeamPreview();
         break;
+      case 'link':
+        this.linkFromKeyboard();
+        break;
       case 'zoom_in':
         this.setZoomOffset(zoomIn(this.zoomOffset));
         break;
@@ -1726,39 +1695,36 @@ export class LevelEditor {
         break;
       case 'cancel':
         if (this.cancelPaste() || this.dropSelection(true)) break;
-        this.cancelPendingWire(true);
+        this.endLinkSession(true);
         break;
     }
   }
 
   /**
-   * Drops the wire that waits for its target. A button already placed stays on
-   * the map without a link, and the status line says so. With `announce` the
-   * cancellation is announced even when nothing stays behind.
+   * The K key: starts a link session on the device at the cell the keyboard cursor or the pointer is on. On the
+   * session's own device it ends the session; on another device it moves the session there; on a cell with no device
+   * it says there is nothing to link. A CC3D level starts nothing.
    */
-  private cancelPendingWire(announce: boolean): void {
-    const pending = this.pendingWire;
-    if (!pending) return;
-    this.pendingWire = null;
-    // A wire the Link button started never placed a button: it says it was cancelled, not that a button stays unlinked.
-    const startedFromLink = this.linkReturn !== null;
-    this.restoreLinkReturn();
-    if (!startedFromLink && leavesLooseButton(this.doc, pending, wireButtonTile(pending.kind))) {
-      this.setStatusText(t(this.looseButtonMessage(pending.kind)));
-    } else if (announce) {
-      // A launcher wire is not cancelled but finished: it already holds its links.
-      this.setStatusText(
-        pending.kind === 'launcher' && holdsShotTrigger(this.doc, pending.x, pending.y)
-          ? t(MESSAGE_WIRE_LAUNCHER_DONE, { count: launcherCountAt(this.doc, pending.x, pending.y) })
-          : t(MESSAGE_WIRE_CANCELLED)
-      );
+  private linkFromKeyboard(): void {
+    if (this.stroke) {
+      this.announce([{ key: LINK_BUSY_KEY }]);
+      return;
     }
-    this.render();
-  }
-
-  /** The message for a wire dropped while its button (trigger) stays on the map with no link. */
-  private looseButtonMessage(kind: PendingWire['kind']): string {
-    return kind === 'launcher' ? MESSAGE_WIRE_LAUNCHER_TRIGGER_LEFT : MESSAGE_WIRE_CANCELLED_BUTTON_LEFT;
+    if (this.isCc3d()) {
+      this.announce([{ key: LINK_UNAVAILABLE_KEY }]);
+      return;
+    }
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    if (!cell) {
+      this.announce([{ key: LINK_NOTHING_KEY }]);
+      return;
+    }
+    const session = this.linkSession;
+    if (session && session.x === cell.x && session.y === cell.y) {
+      this.endLinkSession(true);
+      return;
+    }
+    this.startLinkAt(cell);
   }
 
   private updateCanvasLabel(): void {
@@ -2646,6 +2612,8 @@ export class LevelEditor {
   private afterMetadataChange(): void {
     this.docRevision++;
     this.isDirty = true;
+    // A ruleset change can take away the devices a link session works.
+    this.revalidateLinkSession();
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
     this.renderPaletteItems();
@@ -2782,7 +2750,7 @@ export class LevelEditor {
     if (changed) {
       this.history.push(before);
       this.coalescer.reset();
-      this.cancelPendingWire(false);
+      this.endLinkSession(false);
       this.resetSelectionState();
       this.cursorCell = null;
       this.hoverCell = null;
@@ -3241,8 +3209,8 @@ export class LevelEditor {
     this.docRevision++;
     this.coalescer.reset();
     this.isDirty = !(this.cleanDoc !== null && sameDocument(doc, this.cleanDoc));
-    this.pendingWire = null;
-    this.restoreLinkReturn();
+    // An undo or redo keeps the link session open; it ends, saying so, only when its device is gone.
+    this.revalidateLinkSession();
     this.resetSelectionState();
     // An undo keeps the keyboard cursor where it was while that cell still exists.
     this.cursorCell = keepCursor && cursor && cursor.x < this.mapWidth() && cursor.y < this.mapHeight() ? cursor : null;
@@ -3260,29 +3228,29 @@ export class LevelEditor {
 
   public undo(): void {
     if (this.stroke) return;
-    const wire = this.pendingWire;
+    const session = this.linkSession;
     const from = this.doc;
     const previous = this.history.undo(this.doc);
     if (!previous) return;
     this.restoreDocument(previous, true);
-    this.afterHistoryStep(from, wire, 'undone');
+    this.afterHistoryStep(from, session !== null && this.linkSession === null, 'undone');
   }
 
   public redo(): void {
     if (this.stroke) return;
-    const wire = this.pendingWire;
+    const session = this.linkSession;
     const from = this.doc;
     const next = this.history.redo(this.doc);
     if (!next) return;
     this.restoreDocument(next, true);
-    this.afterHistoryStep(from, wire, 'redone');
+    this.afterHistoryStep(from, session !== null && this.linkSession === null, 'redone');
   }
 
-  /** Brings the change an undo or redo made into view and says what it was; a dropped wire's message comes first. */
-  private afterHistoryStep(from: EditorDocument, wire: PendingWire | null, verb: 'undone' | 'redone'): void {
+  /** Brings the change an undo or redo made into view and says what it was; the message of a link session it ended comes first and stands alone. */
+  private afterHistoryStep(from: EditorDocument, sessionEnded: boolean, verb: 'undone' | 'redone'): void {
     const diff = historyDiff(from, this.doc);
     const near = this.revealChange(diff);
-    if (this.announceDroppedWire(wire)) return;
+    if (sessionEnded) return;
     if (diff.sizeChanged) {
       this.setStatusText(t(`editor.layout.status.${verb}_size.label`, { width: this.mapWidth(), height: this.mapHeight() }));
     } else if (diff.metadataOnly) {
@@ -3333,14 +3301,6 @@ export class LevelEditor {
     return left < view.clientWidth && left + cssTile > 0 && top < view.clientHeight && top + cssTile > 0;
   }
 
-  /** A wire dropped by undo or redo leaves a message when its button stays on the map; true when it did. */
-  private announceDroppedWire(wire: PendingWire | null): boolean {
-    if (!wire) return false;
-    if (!leavesLooseButton(this.doc, wire, wireButtonTile(wire.kind))) return false;
-    this.setStatusText(t(this.looseButtonMessage(wire.kind)));
-    return true;
-  }
-
   private updateUndoRedoButtons(): void {
     const undoBtn = byId<HTMLButtonElement>('editor-undo-btn');
     const redoBtn = byId<HTMLButtonElement>('editor-redo-btn');
@@ -3383,7 +3343,7 @@ export class LevelEditor {
       return;
     }
     const picked = pickFromCell(this.doc, x, y, FLOOR_TILE_ID);
-    this.cancelPendingWire(false);
+    this.endLinkSession(false);
     this.brush = picked.brush;
     if (picked.dir) {
       this.activeDir = picked.dir;
@@ -3472,6 +3432,12 @@ export class LevelEditor {
       // Every path below (picker, Alt or middle click, a stroke) starts from this cell: the layers list follows it.
       this.refreshLayersList();
 
+      if (this.linkSession) {
+        // A link session takes the primary click before any tool does; another button, or Alt, ends it.
+        if (ev.button === 0 && !ev.altKey) this.sessionAct(cell);
+        else this.endLinkSession(true);
+        return;
+      }
       if (this.pasting) {
         // Any button other than the primary one cancels a floating paste.
         if (ev.button === 0) this.placePaste(cell);
@@ -3549,6 +3515,10 @@ export class LevelEditor {
       if (this.stroke) return;
       const cell = this.cursorCell ?? { x: this.doc.playerStart.x, y: this.doc.playerStart.y };
       this.cursorCell = cell;
+      if (this.linkSession) {
+        this.sessionAct(cell);
+        return;
+      }
       if (this.pasting) {
         this.placePaste(cell);
         return;
@@ -3583,7 +3553,7 @@ export class LevelEditor {
     this.cursorCell = to;
     this.resetConnectionsPointer();
     if (this.pasting) this.pasteAnchor = to;
-    if (this.tool === 'select' && !this.pasting) this.moveSelectionCursor(from, to, extendSelection);
+    if (this.tool === 'select' && !this.pasting && !this.linkSession) this.moveSelectionCursor(from, to, extendSelection);
     this.setCoordsText(t('editor.palette.status.coords', { x: to.x, y: to.y }));
     this.revealCell(to);
     this.refreshLayersList();
@@ -3646,8 +3616,6 @@ export class LevelEditor {
     const stroke = this.stroke;
     if (!stroke) return;
     this.stroke = null;
-    // The wire the Link button started has ended with this click: the tool and brush come back (not mid-stroke, a drag would paint with them).
-    if (!this.pendingWire) this.restoreLinkReturn();
     if (!stroke.changed) {
       this.refreshConnections();
       return;
@@ -3806,8 +3774,18 @@ export class LevelEditor {
       return;
     }
     const inside = section.contains(document.activeElement) || this.connectionsPointerInside;
-    const subject = inside ? this.connectionsShown : this.connectionsSubject();
-    const key = [this.loadGeneration, this.docRevision, subject?.x ?? '', subject?.y ?? '', i18n.getLocale(), this.doc.ruleset ?? ''].join(':');
+    // A link session pins the section to the device being linked: the pointer and the cursor move freely over the map.
+    const session = this.linkSession;
+    const subject = session ? { x: session.x, y: session.y } : inside ? this.connectionsShown : this.connectionsSubject();
+    const key = [
+      this.loadGeneration,
+      this.docRevision,
+      subject?.x ?? '',
+      subject?.y ?? '',
+      i18n.getLocale(),
+      this.doc.ruleset ?? '',
+      session ? 'linking' : ''
+    ].join(':');
     if (key === this.connectionsKey) return;
     this.connectionsKey = key;
     this.connectionsShown = subject;
@@ -3928,19 +3906,27 @@ export class LevelEditor {
     this.canvas.focus({ preventScroll: true });
   }
 
-  /** The Link button: shown on a button that starts a link (disabled with the reason when it cannot), a hint on the other ends. */
+  /**
+   * The Link button: shown on a device that takes part in a link (disabled with the reason when it cannot start one),
+   * and reading Done while a session is open on the cell shown.
+   */
   private syncConnectionsLinkButton(): void {
     const button = byId<HTMLButtonElement>(CONNECTIONS_LINK_BTN_ID);
-    const hint = byId(CONNECTIONS_LINK_HINT_ID);
-    const link = this.connectionsLink;
-    hint?.classList.toggle('hidden', link?.type !== 'hint');
     if (!button) return;
+    const link = this.connectionsLink;
     button.classList.toggle('hidden', link?.type !== 'start');
     button.removeAttribute('aria-disabled');
     button.removeAttribute('aria-description');
     button.removeAttribute('title');
     if (link?.type !== 'start') return;
-    const refusal = this.brushAvailability(CONNECTION_WIRE_BRUSHES[link.wire]);
+    const session = this.linkSession;
+    const shown = this.connectionsShown;
+    if (session && shown && session.x === shown.x && session.y === shown.y) {
+      button.textContent = t(CONNECTIONS_LINK_DONE_KEY);
+      return;
+    }
+    button.textContent = t(CONNECTIONS_LINK_ACTION_KEY);
+    const refusal = linkAvailability(editableRulesetOf(this.doc.ruleset), link.system);
     const reason = link.blocked ? t(CONNECTIONS_LINK_BLOCKED_KEY) : refusal.available ? null : t(refusal.reasonKey);
     if (reason === null) return;
     button.setAttribute('aria-disabled', 'true');
@@ -3953,49 +3939,125 @@ export class LevelEditor {
     const subject = this.connectionsShown;
     const link = this.connectionsLink;
     if (!button || !subject || link?.type !== 'start' || this.stroke || this.isCc3d()) return;
+    const session = this.linkSession;
+    if (session && session.x === subject.x && session.y === subject.y) {
+      this.endLinkSession(true);
+      this.canvas.focus({ preventScroll: true });
+      return;
+    }
     if (button.getAttribute('aria-disabled') === 'true') {
       this.setStatusText(button.getAttribute('aria-description') ?? '');
       return;
     }
-    this.startLinkFrom(subject, link.wire);
+    this.startLinkAt(subject);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Link sessions
+  // ---------------------------------------------------------------------------
+
+  /** The ruleset the link logic reads: the one the level plays under. */
+  private linkRuleset(): Ruleset {
+    return editableRulesetOf(this.doc.ruleset);
   }
 
   /**
-   * Starts a link from a button of the map without painting it: the wire brush is taken, the wire waits for its
-   * target, and the tool and brush the player held come back when the wire ends.
+   * Opens a link session on the device at `cell` (the K key, the Link button), or says why it cannot. The tool and the
+   * brush stay as they are; a floating paste and the selection gesture end, the cursor moves to the device and the
+   * canvas takes the focus.
    */
-  private startLinkFrom(cell: { x: number; y: number }, wire: ConnectionWire): void {
-    const brush = CONNECTION_WIRE_BRUSHES[wire];
-    const returnTo = this.linkReturn ?? { tool: this.tool, brush: this.brush };
-    // Taking the tool and the brush drops any wire that waits: the return must not fire for that.
-    this.linkReturn = null;
-    this.setTool('brush');
-    this.selectBrush(brush);
-    this.linkReturn = returnTo;
-    const before = deviceRelations(this.doc, cell.x, cell.y);
-    this.pendingWire = { kind: wire, x: cell.x, y: cell.y };
-    const notes: string[] = [];
-    if (wire === 'launcher') notes.push(t(MESSAGE_WIRE_LAUNCHER_PICKED, { count: launcherCountAt(this.doc, cell.x, cell.y) }));
-    else notes.push(t(MESSAGE_WIRE_SELECT_TARGET));
-    if (wire === 'trap' && before.controls.some((r) => r.fallback === true && r.system === 'trap')) notes.push(t(CONNECTIONS_LINK_NOTE_TRAP_KEY));
-    if (wire === 'clone' && !before.controls.some((r) => r.kind === 'link' && r.system === 'clone')) notes.push(t(CONNECTIONS_LINK_NOTE_CLONE_KEY));
-    this.setStatusText(notes.join(SEPARATOR_BETWEEN_MESSAGES));
+  private startLinkAt(cell: { x: number; y: number }): void {
+    if (this.stroke || this.isCc3d()) return;
+    const ruleset = this.linkRuleset();
+    // A Lynx level has no shot devices: say why instead of saying there is nothing to link.
+    const shotRefusal = linkAvailability(ruleset, 'shot');
+    if (!shotRefusal.available && (holdsLinkEnd(this.doc, 'shot', 'button', cell.x, cell.y) || holdsLinkEnd(this.doc, 'shot', 'target', cell.x, cell.y))) {
+      this.setStatusText(t(shotRefusal.reasonKey));
+      return;
+    }
+    const started = startLinkSession(this.doc, cell.x, cell.y, ruleset);
+    if (!started.session) {
+      this.announce(started.messages);
+      return;
+    }
+    this.cancelPaste();
+    this.selectionGesture = null;
+    this.linkSession = started.session;
+    this.linkCandidatesCache = null;
     this.moveCursorTo(cell, false);
     this.canvas.focus({ preventScroll: true });
+    this.announce(started.messages);
+    this.connectionsKey = '';
     this.render();
   }
 
-  /** Gives back the tool and brush held before the Link button started a wire. */
-  private restoreLinkReturn(): void {
-    const back = this.linkReturn;
-    if (!back) return;
-    this.linkReturn = null;
-    this.tool = back.tool;
-    this.brush = back.brush;
-    this.updateToolButtons();
-    this.updateCanvasLabel();
-    this.renderPaletteItems();
-    this.requestRender();
+  /**
+   * Ends the open link session. With `announce` the status line says what the device is linked to; without, nothing
+   * is said (the caller is about to say something else). Returns whether a session was open.
+   */
+  private endLinkSession(announce: boolean): boolean {
+    const session = this.linkSession;
+    if (!session) return false;
+    this.linkSession = null;
+    this.linkCandidatesCache = null;
+    if (announce) {
+      const done = sessionClick(this.doc, session, { x: session.x, y: session.y }, this.activeDir, this.linkRuleset());
+      this.announce(done.messages);
+    }
+    this.connectionsKey = '';
+    // An announced end (Escape, Done, a click on the source) redraws at once; a silent one lets the caller's own redraw follow.
+    if (announce) this.render();
+    else this.requestRender();
+    return true;
+  }
+
+  /** Ends the session when its source no longer holds its role (after an edit, an undo or a redo), saying so. */
+  private revalidateLinkSession(): void {
+    const session = this.linkSession;
+    if (!session || sessionSourceHolds(this.doc, session, this.linkRuleset())) return;
+    const ruleset = this.linkRuleset();
+    // The source still holds its end but the ruleset no longer carries the system (a switch to Lynx): say why.
+    const refusal = linkAvailability(ruleset, session.system);
+    const stillThere = holdsLinkEnd(this.doc, session.system, session.end, session.x, session.y);
+    const messages = stillThere && !refusal.available
+      ? [{ key: refusal.reasonKey }]
+      : sessionClick(this.doc, session, { x: session.x, y: session.y }, this.activeDir, ruleset).messages;
+    this.linkSession = null;
+    this.linkCandidatesCache = null;
+    this.announce(messages);
+    this.connectionsKey = '';
+  }
+
+  /**
+   * A primary click, Space or Enter on a cell while a session is open: links, unlinks, switches, places or refuses.
+   * An edit is one history step of its own and keeps the session open.
+   */
+  private sessionAct(cell: { x: number; y: number }): void {
+    const session = this.linkSession;
+    if (!session) return;
+    const base = this.doc;
+    const outcome = sessionClick(base, session, cell, this.activeDir, this.linkRuleset());
+    this.linkSession = outcome.session;
+    this.linkCandidatesCache = null;
+    if (outcome.map) {
+      this.doc = withEditedMap(base, outcome.map);
+      this.recordChange(base);
+    }
+    if (outcome.session && (outcome.session.x !== session.x || outcome.session.y !== session.y)) this.moveCursorTo(outcome.session, false);
+    this.announce(outcome.messages);
+    this.connectionsKey = '';
+    this.render();
+  }
+
+  /** The partners the open session offers, kept for the current document. */
+  private sessionPartners(): PartnerCandidates | null {
+    const session = this.linkSession;
+    if (!session) return null;
+    const key = [this.loadGeneration, this.docRevision, session.system, session.end, session.x, session.y, this.doc.ruleset ?? ''].join(':');
+    if (this.linkCandidatesCache?.key === key) return this.linkCandidatesCache.value;
+    const value = partnerCandidates(this.doc, session, this.linkRuleset());
+    this.linkCandidatesCache = { key, value };
+    return value;
   }
 
   /** Removes one explicit link from its row, as one undoable edit, and says what that changed. */
@@ -4120,10 +4182,6 @@ export class LevelEditor {
     }
     this.doc = next;
     this.recordChange(base);
-    // The pending launcher wire's trigger may have just left the map: drop its outline.
-    if (this.pendingWire?.kind === 'launcher' && !holdsShotTrigger(this.doc, this.pendingWire.x, this.pendingWire.y)) {
-      this.cancelPendingWire(false);
-    }
     const messages: ToolMessage[] = [
       terrain === null
         ? { key: 'editor.layout.layers.hidden_terrain.cleared', params: { x: at.x, y: at.y } }
@@ -4186,6 +4244,7 @@ export class LevelEditor {
     this.coalescer.reset();
     this.docRevision++;
     this.isDirty = true;
+    this.revalidateLinkSession();
     this.updateUndoRedoButtons();
     this.syncRulesetInput();
     this.updateSwitchEngineButton();
@@ -4241,10 +4300,8 @@ export class LevelEditor {
       side,
       x,
       y,
-      pendingWire: this.pendingWire,
       forceErase: stroke.forceErase
     });
-    this.pendingWire = outcome.pendingWire;
     if (outcome.changed) {
       this.doc = withEditedMap(this.doc, outcome.map);
       this.docRevision++;
@@ -4454,8 +4511,6 @@ export class LevelEditor {
         const entity = ConfigRegistry.getEntityDef(brush.id);
         return entity ? t(entity.i18nKey) : brush.id;
       }
-      case 'wire_launcher':
-        return t('editor.palette.tools.wire_launcher');
       default:
         return brush.id;
     }
@@ -4667,7 +4722,7 @@ export class LevelEditor {
     }
     // A paste is a selection action: the placed cells live under the Select tool.
     this.setTool('select');
-    this.cancelPendingWire(false);
+    this.endLinkSession(false);
     this.pasting = true;
     this.pasteAnchor = this.cursorCell ?? this.lastHoverCell ?? { x: 0, y: 0 };
     this.announce([{ key: 'editor.selection.status.paste_ready' }]);
@@ -5108,7 +5163,7 @@ export class LevelEditor {
     this.renderCc3dOverlay(s);
     this.renderSideHint(s);
     this.renderSelectionOverlay(s);
-    if (this.pendingWire) this.outlineCell(this.pendingWire.x, this.pendingWire.y, EDITOR_WIRE_SOURCE_COLOR, s);
+    if (this.linkSession) this.outlineCell(this.linkSession.x, this.linkSession.y, EDITOR_WIRE_SOURCE_COLOR, s);
     if (this.hoverCell) this.outlineCell(this.hoverCell.x, this.hoverCell.y, EDITOR_HOVER_OUTLINE_COLOR, s);
     if (this.cursorCell && document.activeElement === this.canvas) {
       this.outlineCell(this.cursorCell.x, this.cursorCell.y, EDITOR_CURSOR_OUTLINE_COLOR, s);
@@ -5238,16 +5293,27 @@ export class LevelEditor {
    * The connections of an Epoxy level for the hovered cell and the keyboard cursor cell: arrows to what a device
    * works (and from what works it), outlines for its colour or teleport group, and a thicker outline on the cell of
    * the connections row under the pointer or the focus. Skipped during a stroke: the relations are not asked for
-   * a document that changes at every cell.
+   * a document that changes at every cell. During a link session it draws the session instead: the partners the
+   * device can link to are outlined and the links it holds are arrows, button to target.
    */
   private renderDeviceOverlay(s: number): void {
     if (this.doc.cc3d || this.stroke) return;
-    const cells = [this.cursorCell, this.hoverCell].filter((cell): cell is { x: number; y: number } => cell !== null);
+    const session = this.linkSession;
+    const partners = this.sessionPartners();
+    const cells = session ? [] : [this.cursorCell, this.hoverCell].filter((cell): cell is { x: number; y: number } => cell !== null);
     const rowCell = this.connectionsRowCell;
-    if (cells.length === 0 && !rowCell) return;
+    if (cells.length === 0 && !rowCell && !partners) return;
     this.ctx.save();
     this.ctx.globalAlpha = EDITOR_CC3D_OVERLAY_ALPHA;
     this.ctx.lineWidth = EDITOR_LINK_LINE_WIDTH;
+    if (session && partners) {
+      const color = EDITOR_RELATION_COLORS[session.system];
+      for (const candidate of partners.candidates) this.outlineCell(candidate.x, candidate.y, color, s);
+      for (const linked of partners.linked) {
+        if (session.end === 'button') this.drawArrow(color, session, linked, s);
+        else this.drawArrow(color, linked, session, s);
+      }
+    }
     const drawn = new Set<string>();
     for (const cell of cells) {
       const key = `${cell.x},${cell.y}`;
