@@ -14,7 +14,15 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Pass-through spy: the real canonicalJson runs, calls from other modules are counted.
+vi.mock('./canonicalJson', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./canonicalJson')>();
+  return { ...actual, canonicalJson: vi.fn(actual.canonicalJson) };
+});
+
+import { canonicalJson } from './canonicalJson';
 import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
 import { cc3dModel, panelled, type GlyphMeaning } from '../core/cc3d/cc3dTestMaps';
 import { cellAt, normalizeCell, type Cc3dCell, type Cc3dLevel, type Cc3dMob } from '../core/cc3d/model';
@@ -32,7 +40,6 @@ import { emptyCell, placeLayer } from './cc3dEdits';
 
 const BOUNDS = { minSize: 1, maxSize: 128 };
 const BIG_SIZE = 128;
-const BIG_FAST_MS = 1500;
 
 const GLYPHS: Record<string, GlyphMeaning> = {
   '|': panelled('E'),
@@ -484,12 +491,16 @@ describe('floodFillCc3d', () => {
     expect(kindsAt(r.level, 2, 1)).toEqual(['floor']);
   });
 
-  it('fills a 128 by 128 region quickly, in one copy of the cells', () => {
+  it('flood fills a big area keying each cell once', () => {
     const cells: Cc3dCell[] = Array.from({ length: BIG_SIZE * BIG_SIZE }, () => emptyCell());
     const big: Cc3dLevel = { width: BIG_SIZE, height: BIG_SIZE, cells, mobs: [], player: { x: 0, y: 0, dir: 'S' } };
-    const start = performance.now();
+    vi.mocked(canonicalJson).mockClear();
     const r = floodFillCc3d(big, 5, 5, { kind: 'water' });
-    expect(performance.now() - start).toBeLessThan(BIG_FAST_MS);
+    // One key for the target (reused by the start cell), one for the replacement,
+    // and one for each of the other cells: each cell is keyed exactly once.
+    const keyBuilds = vi.mocked(canonicalJson).mock.calls.length;
+    expect(keyBuilds).toBeGreaterThan(0);
+    expect(keyBuilds).toBe(BIG_SIZE * BIG_SIZE + 1);
     expect(r.filled).toBe(BIG_SIZE * BIG_SIZE);
     expect(r.level.cells).not.toBe(cells);
     expect(r.level.cells.every((cell) => cell.terrain[0].kind === 'water')).toBe(true);
