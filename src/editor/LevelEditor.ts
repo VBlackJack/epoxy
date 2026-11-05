@@ -430,6 +430,14 @@ const PALETTE_SEARCH_EMPTY_CLASS = 'palette-search-empty';
 const PALETTE_TAB_DIMMED_CLASS = 'is-dimmed';
 /** Class of a palette entry the level's engine cannot use. */
 const PALETTE_UNAVAILABLE_CLASS = 'is-unavailable';
+/** The palette is one Tab stop: the entry in it has this tabindex, every other entry has the other one. */
+const PALETTE_TAB_STOP_INDEX = 0;
+const PALETTE_OFF_TAB_INDEX = -1;
+const PALETTE_UP_KEY = 'ArrowUp';
+/** How far each key moves the focus along the entries; Home and End jump to an end instead. */
+const PALETTE_ARROW_STEPS: Readonly<Record<string, number>> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+const PALETTE_HOME_KEY = 'Home';
+const PALETTE_END_KEY = 'End';
 /** keyCode some browsers report for a key press that belongs to an input method composition. */
 const IME_COMPOSITION_KEY_CODE = 229;
 const PALETTE_SEARCH_RESULTS_KEY = 'editor.palette.search.results.label';
@@ -685,6 +693,8 @@ export class LevelEditor {
   private activeCategory: string = 'terrain';
   /** The palette search text: while it is not empty the palette shows the matches of every tab. Session only. */
   private paletteQuery = '';
+  /** The palette entry that last held the focus: it stays the grid's Tab stop through redraws. Session only. */
+  private paletteStop: { kind: string; id: string } | null = null;
   /** How many entries the last search matched, and the count a screen reader was last told. */
   private searchMatchCount = 0;
   private searchCountAnnounced: number | null = null;
@@ -1419,6 +1429,7 @@ export class LevelEditor {
     const keepSelection = this.keepsSelectionOnChoice();
     this.cc3dEntryId = entry.id;
     this.cc3dCategory = entry.category;
+    this.paletteStop = null;
     if (!keepSelection && this.tool !== 'brush' && !(this.tool === 'fill' && entry.action === 'layer')) {
       this.tool = 'brush';
       this.resetSelectionState();
@@ -1553,6 +1564,7 @@ export class LevelEditor {
     container.innerHTML = '';
     if (this.isCc3d()) {
       this.renderCc3dPaletteItems(container);
+      this.syncPaletteTabStop(container);
       this.restoreGridFocus(container, focusedKind, focusedId);
       this.updateSwitchEngineButton();
       return;
@@ -1578,8 +1590,75 @@ export class LevelEditor {
       for (const item of this.epoxyItemsOf(this.activeCategory)) container.appendChild(this.epoxyPaletteButton(item));
     }
 
+    this.syncPaletteTabStop(container);
     this.restoreGridFocus(container, focusedKind, focusedId);
     this.updateSwitchEngineButton();
+  }
+
+  /**
+   * Makes the grid one Tab stop: the entry that last held the focus, else the one in hand, else the first, takes
+   * the Tab stop and every other entry leaves it. The arrow keys move along the entries (see bindPaletteGrid).
+   */
+  private syncPaletteTabStop(container: HTMLElement): void {
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button'));
+    const stop = this.paletteStop;
+    const stopButton = stop === null ? undefined : buttons.find((btn) => btn.dataset.brushKind === stop.kind && btn.dataset.brushId === stop.id);
+    const target =
+      stopButton ?? buttons.find((btn) => btn.getAttribute('aria-pressed') === 'true') ?? buttons[0];
+    for (const btn of buttons) btn.tabIndex = btn === target ? PALETTE_TAB_STOP_INDEX : PALETTE_OFF_TAB_INDEX;
+  }
+
+  /** The Tab stop follows the focus: the entry that just got it takes the stop from the one that had it. */
+  private moveGridTabStop(container: HTMLElement, button: HTMLButtonElement): void {
+    for (const btn of Array.from(container.querySelectorAll<HTMLButtonElement>('button'))) {
+      btn.tabIndex = btn === button ? PALETTE_TAB_STOP_INDEX : PALETTE_OFF_TAB_INDEX;
+    }
+    const { brushKind, brushId } = button.dataset;
+    this.paletteStop = brushKind !== undefined && brushId !== undefined ? { kind: brushKind, id: brushId } : null;
+  }
+
+  /**
+   * Arrow keys, Home and End along the palette entries in reading order, no wrap, one listener on the grid. They are
+   * taken here: the map cursor keys belong to the canvas, and the window shortcuts never see these. ArrowUp on the
+   * first entry of a search goes back to the search field.
+   */
+  private bindPaletteGrid(): void {
+    const grid = byId(PALETTE_GRID_ID);
+    if (!grid) return;
+    const { signal } = this.draftListeners;
+    grid.addEventListener(
+      'focusin',
+      (ev) => {
+        const button = ev.target instanceof HTMLElement ? ev.target.closest('button') : null;
+        if (button && grid.contains(button)) this.moveGridTabStop(grid, button);
+      },
+      { signal }
+    );
+    grid.addEventListener(
+      'keydown',
+      (ev) => {
+        if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey) return;
+        const current = ev.target instanceof HTMLElement ? ev.target.closest('button') : null;
+        if (!current || !grid.contains(current)) return;
+        const step = PALETTE_ARROW_STEPS[ev.key];
+        if (step === undefined && ev.key !== PALETTE_HOME_KEY && ev.key !== PALETTE_END_KEY) return;
+        const buttons = Array.from(grid.querySelectorAll<HTMLButtonElement>('button'));
+        const index = buttons.indexOf(current);
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (ev.key === PALETTE_UP_KEY && index === 0 && this.paletteQuery !== '') {
+          this.focusPaletteSearch();
+          return;
+        }
+        const last = buttons.length - 1;
+        let next: number;
+        if (ev.key === PALETTE_HOME_KEY) next = 0;
+        else if (ev.key === PALETTE_END_KEY) next = last;
+        else next = Math.min(last, Math.max(0, index + (step ?? 0)));
+        buttons[next]?.focus();
+      },
+      { signal }
+    );
   }
 
   /**
@@ -1703,6 +1782,7 @@ export class LevelEditor {
     const hintBefore = this.sideToolActive();
     const keepSelection = this.keepsSelectionOnChoice();
     this.brush = brush;
+    this.paletteStop = null;
     if (
       !keepSelection &&
       (this.tool === 'eraser' || this.tool === 'picker' || this.tool === 'select' || (this.tool === 'fill' && brush.kind !== 'terrain'))
@@ -1832,6 +1912,7 @@ export class LevelEditor {
 
   private bindPaletteChrome(): void {
     this.bindPaletteSearch();
+    this.bindPaletteGrid();
     byId('editor-switch-epoxy-btn')?.addEventListener('click', () => {
       if (this.doc.ruleset === undefined) return;
       this.recordMetadataStep();
@@ -3884,6 +3965,7 @@ export class LevelEditor {
       this.updateToolButtons();
       this.updateCanvasLabel();
     }
+    this.paletteStop = null;
     this.clearPaletteSearch();
     this.renderCategoryTabs();
     this.renderPaletteItems();
@@ -3915,6 +3997,7 @@ export class LevelEditor {
       this.updateToolButtons();
       this.updateCanvasLabel();
     }
+    this.paletteStop = null;
     this.clearPaletteSearch();
     this.renderCategoryTabs();
     this.renderPaletteItems();

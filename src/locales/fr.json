@@ -527,6 +527,7 @@
       "kb_editor_beam_preview": { "label": "L : afficher ou masquer l'aperçu des faisceaux laser (au tick 0, tourelles armées)" },
       "kb_editor_issue_markers": { "label": "M : afficher ou masquer les problèmes du validateur sur la carte (un repère de coin par case : carré pour les erreurs, triangle pour les avertissements, rond pour les conseils ; atténué tant que la vérification rattrape une modification)" },
       "kb_editor_palette_search": { "label": "/ : chercher dans la palette par nom ou description, dans tous les onglets (Entrée choisit le premier résultat, Flèche bas va aux résultats, Échap efface puis quitte le champ)" },
+      "kb_editor_palette_arrows": { "label": "Flèches, Début, Fin (sur une entrée de la palette) : se déplacer entre les entrées ; Tab traverse la palette en un seul arrêt" },
       "sec_rules": { "label": "Mécanismes & Symboles" },
       "rule_keys": { "label": "Clés & Portes : Rouge (◆), Bleue (▲), Jaune (+) à usage unique. La Clé Verte (◯) est infinie." },
       "rule_buttons": { "label": "Boutons : Vert (◯) inverse les murs bascules | Bleu (▲) inverse les Tanks | Brun (+) ouvre un piège | Rouge (◆) active un cloneur." },
