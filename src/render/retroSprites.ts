@@ -27,7 +27,7 @@ import actorsSheet from './retro/sprites/actors.json';
 import monstersSheet from './retro/sprites/monsters.json';
 import skinJulienSheet from './retro/sprites/skinJulien.json';
 import { RETRO_BOOT_RAMPS, RETRO_PLAIN_TELEPORT_RAMP, RETRO_SWAP_RAMPS } from './paletteKeys';
-import { RETRO_SPRITE_PREFIX } from './retroSpriteNames';
+import { RETRO_SIGNAL_LIT_SUFFIX, RETRO_SIGNAL_TILES, RETRO_SPRITE_PREFIX } from './retroSpriteNames';
 
 /** Side of a tile sprite in pixels. */
 export const RETRO_SPRITE_SIZE = 16;
@@ -177,6 +177,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   'thin_n', 'thin_e', 'thin_s', 'thin_w',
   'recessed_wall', 'blue_wall', 'blue_wall_fake_marker', 'hidden_wall_marker', 'appearing_wall_marker',
   'dirt', 'slime', 'gravel', 'socket', 'hint', 'thief', 'thief_keys', 'block_target', 'clone_machine', 'transmogrifier', 'turn_plate_cw', 'turn_plate_ccw',
+  ...RETRO_SIGNAL_TILES.flatMap((id) => [id, `${id}${RETRO_SIGNAL_LIT_SUFFIX}`]),
   'forbid_sign', 'door', 'button', 'toggle_wall_closed', 'toggle_wall_open', 'trap_open', 'trap_closed',
   'flame_jet_nozzle', 'turtle', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se',
   'laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w',
