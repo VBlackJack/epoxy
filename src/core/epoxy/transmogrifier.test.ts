@@ -172,17 +172,21 @@ describe('transmogrifier: configuration', () => {
   });
 
   it('accepts the shipped configuration', () => {
-    expect(findTransmogrifierConfigErrors(ConfigRegistry.getTiles().tiles, ConfigRegistry.getMonsters().entities)).toEqual([]);
+    expect(findTransmogrifierConfigErrors(ConfigRegistry.getTiles().tiles, ConfigRegistry.getMonsters().entities)).toEqual({ tiles: [], monsters: [] });
   });
 
   describe('rejects a bad pairing', () => {
-    const errorsFor = (patch: Record<string, Partial<EntityDefinition>>, tiles?: Record<string, TileDefinition>): string =>
+    const findErrors = (patch: Record<string, Partial<EntityDefinition>>, tiles?: Record<string, TileDefinition>) =>
       findTransmogrifierConfigErrors(
         tiles ?? ConfigRegistry.getTiles().tiles,
         Object.fromEntries(
           Object.entries(ConfigRegistry.getMonsters().entities).map(([id, def]) => [id, { ...def, ...(patch[id] ?? {}) }])
         )
-      ).join('; ');
+      );
+    const errorsFor = (patch: Record<string, Partial<EntityDefinition>>, tiles?: Record<string, TileDefinition>): string => {
+      const found = findErrors(patch, tiles);
+      return [...found.tiles, ...found.monsters].join('; ');
+    };
 
     it('with a missing target, a block target, itself or a one-way pairing', () => {
       expect(errorsFor({ bug: { transmogrifiesTo: 'nowhere' } })).toContain('unknown entity nowhere');
@@ -211,7 +215,9 @@ describe('transmogrifier: configuration', () => {
     it('with a tile flag that is not true', () => {
       const tiles = ConfigRegistry.getTiles().tiles;
       const broken = { ...tiles, [TRANSMOG]: { ...tiles[TRANSMOG], transmogrifies: false as unknown as true } };
-      expect(errorsFor({}, broken)).toContain('transmogrifier.transmogrifies');
+      const found = findErrors({}, broken);
+      expect(found.tiles.join('; ')).toContain('transmogrifier.transmogrifies');
+      expect(found.monsters).toEqual([]);
     });
   });
 });

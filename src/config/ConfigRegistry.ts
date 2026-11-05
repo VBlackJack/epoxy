@@ -314,13 +314,11 @@ class ConfigRegistryService {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, eyeBootsErrors.join('; '));
     }
     const transmogrifierErrors = findTransmogrifierConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
-    if (transmogrifierErrors.length > 0) {
-      // The tile flag is `transmogrifies`; every monster field is `transmogrifiesTo` or a forbidden override.
-      const tileFlagOnly = transmogrifierErrors.every((message) => message.includes('.transmogrifies: '));
-      throw new ConfigLoadError(
-        tileFlagOnly ? CONFIG_ENDPOINTS.TILES : CONFIG_ENDPOINTS.MONSTERS,
-        transmogrifierErrors.join('; ')
-      );
+    if (transmogrifierErrors.tiles.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, transmogrifierErrors.tiles.join('; '));
+    }
+    if (transmogrifierErrors.monsters.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, transmogrifierErrors.monsters.join('; '));
     }
     const turretErrors = findTurretConfigErrors(bundle.monsters.entities);
     if (turretErrors.length > 0) {

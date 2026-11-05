@@ -1260,6 +1260,12 @@ export function findSpeedBootsConfigErrors(tiles: Record<string, TileDefinition>
 /** Fields of a paired monster that would change how it is steered, what it moves or which plates it presses. */
 const TRANSMOGRIFIER_FORBIDDEN_FIELDS = ['steeredBy', 'pushesBlocks', 'passesTiles', 'pressesPlates'] as const;
 
+/** Transmogrifier config problems, split by the config file they belong to. */
+export interface TransmogrifierConfigErrors {
+  tiles: string[];
+  monsters: string[];
+}
+
 /**
  * Problems of the transmogrifier fields: `transmogrifies` is true when present, and every `transmogrifiesTo`
  * names another existing monster that points back, moves at the same interval, flies or not alike, and
@@ -1268,10 +1274,11 @@ const TRANSMOGRIFIER_FORBIDDEN_FIELDS = ['steeredBy', 'pushesBlocks', 'passesTil
 export function findTransmogrifierConfigErrors(
   tiles: Record<string, TileDefinition>,
   entities: Record<string, EntityDefinition>
-): string[] {
+): TransmogrifierConfigErrors {
+  const tileErrors: string[] = [];
   const errors: string[] = [];
   for (const tile of Object.values(tiles)) {
-    if (tile.transmogrifies !== undefined && tile.transmogrifies !== true) errors.push(`${tile.id}.transmogrifies: expected true`);
+    if (tile.transmogrifies !== undefined && tile.transmogrifies !== true) tileErrors.push(`${tile.id}.transmogrifies: expected true`);
   }
   for (const entity of Object.values(entities)) {
     const target = entity.transmogrifiesTo;
@@ -1302,7 +1309,7 @@ export function findTransmogrifierConfigErrors(
       }
     }
   }
-  return errors;
+  return { tiles: tileErrors, monsters: errors };
 }
 
 /** Problems of the revealsHiddenWalls field: true when present, carried by boots only. Each entry names the tile. */
