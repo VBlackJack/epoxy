@@ -22,7 +22,7 @@ import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
-import { featuresFor } from './core/RulesetFeatures';
+import { bootsRevealHiddenWalls, featuresFor, isEpoxyOnlyItemId } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
 import { LevelEditor, SavedLevelInfo } from './editor/LevelEditor';
@@ -60,6 +60,7 @@ import {
   UserSettings,
   WinRule
 } from './core/types';
+import { inspectDisplayTileId } from './ui/inspectMask';
 import { confirmDialog } from './ui/confirmDialog';
 import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
 import { EndlessGenerator, EndlessWorkerLike } from './ui/endlessGenerator';
@@ -152,8 +153,9 @@ import {
 
 const SLOW_TIME_ITEM_ID = 'slow_time';
 const SPEED_BOOTS_ITEM_ID = 'boots_speed';
-/** Boots only the Epoxy rules have: their HUD slot shows only on a level that places them. */
-const EPOXY_ONLY_BOOT_IDS: ReadonlySet<string> = new Set([SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID]);
+const EYE_BOOTS_ITEM_ID = 'boots_eye';
+/** True for boots only the Epoxy rules have: their HUD slot shows only on a level that places them. */
+const isEpoxyOnlyBootId = (id: string): boolean => isEpoxyOnlyItemId(id);
 /** Boots slots shown on every level; more slots (Epoxy-only boots placed) widen the grid. */
 const BASE_BOOT_SLOT_COUNT = 4;
 /** CSS variable that carries the number of columns of the boots grid. */
@@ -281,7 +283,7 @@ class EpoxyApplication {
   private inventoryLabelsLocale: string = '';
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID];
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
   private epoxyBootsLevel: unknown = null;
@@ -3182,10 +3184,8 @@ class EpoxyApplication {
       parts.push(t(ConfigRegistry.getTile(itemId).i18nKey));
     }
 
-    // Mask secret illusions (blue_wall_fake or invisible/appearing walls) as standard appearance
-    let displayTileId = tileId;
-    if (tileId === 'blue_wall_fake') displayTileId = 'blue_wall_real';
-    else if (tileId === 'invisible_wall' || tileId === 'appearing_wall') displayTileId = 'floor';
+    // Mask secret illusions (blue_wall_fake or invisible/appearing walls) as standard appearance; the eye boots unmask the latter
+    const displayTileId = inspectDisplayTileId(tileId, bootsRevealHiddenWalls(this.engine.getPlayer().boots));
 
     if (parts.length === 0 || displayTileId !== 'floor') {
       parts.push(t(ConfigRegistry.getTile(displayTileId).i18nKey));
@@ -3215,7 +3215,7 @@ class EpoxyApplication {
     }
     if (bootsGrid) {
       bootsGrid.innerHTML = '';
-      this.bootSlots = this.bootIds.map((id) => new InventorySlotView(bootsGrid, () => this.dropHudItem(id), EPOXY_ONLY_BOOT_IDS.has(id))
+      this.bootSlots = this.bootIds.map((id) => new InventorySlotView(bootsGrid, () => this.dropHudItem(id), isEpoxyOnlyBootId(id))
       );
     }
   }
@@ -3297,7 +3297,7 @@ class EpoxyApplication {
       const placed = new Set<string>();
       for (const row of level.items ?? []) {
         for (const id of row) {
-          if (id !== null && EPOXY_ONLY_BOOT_IDS.has(id)) placed.add(id);
+          if (id !== null && isEpoxyOnlyBootId(id)) placed.add(id);
         }
       }
       this.epoxyBootsPlaced = placed;
@@ -3325,7 +3325,7 @@ class EpoxyApplication {
       });
     });
     const placedEpoxyBoots = this.placedEpoxyBoots();
-    const isHidden = (bId: string): boolean => EPOXY_ONLY_BOOT_IDS.has(bId) && !placedEpoxyBoots.has(bId);
+    const isHidden = (bId: string): boolean => isEpoxyOnlyBootId(bId) && !placedEpoxyBoots.has(bId);
     const bootsGrid = byId('hud-boots-grid');
     const columns = this.bootIds.filter((bId) => !isHidden(bId)).length;
     bootsGrid?.classList.toggle('inv-grid-wide', columns > BASE_BOOT_SLOT_COUNT);
