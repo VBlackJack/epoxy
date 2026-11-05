@@ -1,8 +1,8 @@
-item key_red tick=3 3339716170acdbfc
-item key_blue tick=3 aca9da7de4f225bb
-item key_yellow tick=3 73d869a87239e2e1
-item key_green tick=3 4bc5c9198c8140ff
-item chip tick=3 877bb08410681dd5
+item key_red tick=3 a7b6add25ac8d9d5
+item key_blue tick=3 039268d2d9647e6e
+item key_yellow tick=3 9b03ea2804990238
+item key_green tick=3 ad2ef8e6a14995ac
+item chip tick=3 876ff2a69ec1e3bf
 item boots_water tick=3 bee653f3982e1b20
 item boots_fire tick=3 1e6a4da23a3ba483
 item boots_ice tick=3 a0e5991164bd235f
@@ -141,11 +141,11 @@ entity skitter dir=N tick=3 6bb2e174ef6b478e
 entity skitter dir=E tick=3 a1a56e7e94f03a68
 entity skitter dir=S tick=3 f531baf375df50fb
 entity skitter dir=W tick=3 7ee72a93dfdb1175
-item key_red tick=13 b30122400c972b4d
-item key_blue tick=13 986875f571f73431
-item key_yellow tick=13 8a5b5b6edf68516f
-item key_green tick=13 96e5075fdbeab761
-item chip tick=13 aa1572d7c09b2e8e
+item key_red tick=13 67d4f2e8dae3d187
+item key_blue tick=13 7ccc81ea8f3e5b1e
+item key_yellow tick=13 74dde4a3e77d1780
+item key_green tick=13 9fbeb1d3c01a33a4
+item chip tick=13 f69bbd6d61be4015
 item boots_water tick=13 943b9da840b3ba5d
 item boots_fire tick=13 f6f3269b5ddb5642
 item boots_ice tick=13 544fca583b10e8e3
