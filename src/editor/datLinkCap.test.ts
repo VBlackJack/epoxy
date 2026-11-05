@@ -19,7 +19,7 @@ import type { CloneLink, TrapLink } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
 import { i18n, t } from '../i18n/I18nManager';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { DAT_MAX_CLONE_LINKS, DAT_MAX_TRAP_LINKS, datLinkCapNotice } from './datLinkCap';
+import { DAT_MAX_CLONE_LINKS, DAT_MAX_TRAP_LINKS, datLinkCapNotice, packDatLinkCapNotice } from './datLinkCap';
 
 const trapLinks = (count: number): TrapLink[] =>
   Array.from({ length: count }, (_, i) => ({ buttonX: 1, buttonY: 1, trapX: 2 + (i % 8), trapY: 1 + Math.floor(i / 8) }));
@@ -48,6 +48,49 @@ describe('datLinkCapNotice', () => {
         'Export .CCL avec pertes : le format .DAT garde au plus 31 liens de clonage, 1 a été laissé de côté.'
     );
     expect(fr).not.toBe(en);
+  });
+
+  describe('packDatLinkCapNotice', () => {
+    const fits = { id: 'fits', trapLinks: trapLinks(DAT_MAX_TRAP_LINKS), cloneLinks: cloneLinks(DAT_MAX_CLONE_LINKS) };
+    const over = (traps: number, clones: number, id = 'over') => ({
+      id,
+      trapLinks: trapLinks(DAT_MAX_TRAP_LINKS + traps),
+      cloneLinks: cloneLinks(DAT_MAX_CLONE_LINKS + clones)
+    });
+
+    it('says nothing while no level is over a cap, a level exactly at the caps included', () => {
+      expect(packDatLinkCapNotice([])).toBeNull();
+      expect(packDatLinkCapNotice([fits, { id: 'empty', trapLinks: [], cloneLinks: [] }])).toBeNull();
+    });
+
+    it('counts the levels over and the links left out in total, in both languages', () => {
+      const levels = [over(3, 0), fits, over(2, 4)];
+      expect(packDatLinkCapNotice(levels)).toBe(
+        'Lossy .CCL export: 2 levels hold more links than the .DAT format keeps, 5 trap links and 4 clone links left out in total.'
+      );
+      expect(packDatLinkCapNotice([over(1, 0)])).toBe(
+        'Lossy .CCL export: 1 level holds more links than the .DAT format keeps, 1 trap link left out in total.'
+      );
+      expect(packDatLinkCapNotice([over(0, 2)])).toBe(
+        'Lossy .CCL export: 1 level holds more links than the .DAT format keeps, 2 clone links left out in total.'
+      );
+      i18n.setLocale('fr');
+      expect(packDatLinkCapNotice([over(0, 1)])).toBe(
+        "Export .CCL avec pertes : 1 niveau compte plus de liens que le format .DAT n'en garde, 1 lien de clonage en moins au total."
+      );
+      i18n.setLocale('fr');
+      expect(packDatLinkCapNotice(levels)).toBe(
+        "Export .CCL avec pertes : 2 niveaux comptent plus de liens que le format .DAT n'en garde, 5 liens de piège et 4 liens de clonage en moins au total."
+      );
+    });
+
+    it('does not count a level the codec refused', () => {
+      const levels = [over(3, 0, 'refused'), over(0, 2, 'kept')];
+      expect(packDatLinkCapNotice(levels, new Set(['refused']))).toBe(
+        'Lossy .CCL export: 1 level holds more links than the .DAT format keeps, 2 clone links left out in total.'
+      );
+      expect(packDatLinkCapNotice([over(3, 0, 'refused')], new Set(['refused']))).toBeNull();
+    });
   });
 
   it('matches what the codec really keeps', () => {

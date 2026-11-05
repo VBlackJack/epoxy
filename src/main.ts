@@ -122,6 +122,7 @@ import {
   StoredHighScore
 } from './storage/persistedState';
 import { lossyExportNotice } from './ui/exportNotice';
+import { packDatLinkCapNotice } from './editor/datLinkCap';
 import {
   hasStoredSolution,
   isSokobanSkinApplicable,
@@ -161,6 +162,8 @@ import {
   TOUCH_DEFAULTS
 } from './ui/uiConstants';
 
+/** Separates the notices of one .CCL pack export. */
+const EXPORT_NOTICE_SEPARATOR = ' ';
 const SLOW_TIME_ITEM_ID = 'slow_time';
 const SPEED_BOOTS_ITEM_ID = 'boots_speed';
 const EYE_BOOTS_ITEM_ID = 'boots_eye';
@@ -1345,8 +1348,11 @@ class EpoxyApplication {
     if (encoded.levelCount > 0) {
       downloadBytes(encoded.bytes, `${fileBase}.ccl`);
     }
-    const notice = lossyExportNotice(encoded);
-    if (notice) this.showTransientStatus(notice);
+    const refusedIds = new Set(encoded.refused.map((refusal) => refusal.levelId));
+    const notices = [lossyExportNotice(encoded), encoded.levelCount > 0 ? packDatLinkCapNotice(levels, refusedIds) : null].filter(
+      (notice): notice is string => notice !== null
+    );
+    if (notices.length > 0) this.showTransientStatus(notices.join(EXPORT_NOTICE_SEPARATOR));
   }
 
   private isRemovablePackId(packId: string): boolean {

@@ -42,3 +42,34 @@ export function datLinkCapNotice(level: Pick<CompiledLevel, 'trapLinks' | 'clone
   if (cloneOver > 0) parts.push(t('app.export.clone_links_capped.label', { max: DAT_MAX_CLONE_LINKS, count: cloneOver }));
   return parts.length > 0 ? parts.join(NOTICE_SEPARATOR) : null;
 }
+
+/**
+ * The warning to show after a .CCL export of a whole pack when some levels hold more trap or clone links than the .DAT
+ * format keeps, or null when every link fits. Pass only the levels the codec actually writes (not the refused ones).
+ */
+export function packDatLinkCapNotice(
+  levels: readonly Pick<CompiledLevel, 'id' | 'trapLinks' | 'cloneLinks'>[],
+  refusedIds: ReadonlySet<string> = new Set()
+): string | null {
+  let affected = 0;
+  let traps = 0;
+  let clones = 0;
+  for (const level of levels) {
+    if (refusedIds.has(level.id)) continue;
+    const trapOver = Math.max(0, level.trapLinks.length - DAT_MAX_TRAP_LINKS);
+    const cloneOver = Math.max(0, level.cloneLinks.length - DAT_MAX_CLONE_LINKS);
+    if (trapOver + cloneOver === 0) continue;
+    affected += 1;
+    traps += trapOver;
+    clones += cloneOver;
+  }
+  if (affected === 0) return null;
+  // Zero parts are left out in code: a plural message has no zero form (French 0 reads as "one").
+  const parts: string[] = [];
+  if (traps > 0) parts.push(t('app.export.pack_trap_links.label', { count: traps }));
+  if (clones > 0) parts.push(t('app.export.pack_clone_links.label', { count: clones }));
+  return t('app.export.pack_links_capped.label', {
+    levels: affected,
+    links: parts.join(t('app.export.pack_links_and.label'))
+  });
+}

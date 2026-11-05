@@ -100,6 +100,10 @@
       "refused_cell_underlays": { "label": "Non exporté : {levels} cache du terrain sous des portes, des prises ou d'autres tuiles amovibles, que le format .DAT ne peut pas porter." },
       "trap_links_capped": { "label": "Export .CCL avec pertes : le format .DAT garde au plus {max} liens de piège, {count, plural, one {# a été laissé de côté} other {# ont été laissés de côté}}." },
       "clone_links_capped": { "label": "Export .CCL avec pertes : le format .DAT garde au plus {max} liens de clonage, {count, plural, one {# a été laissé de côté} other {# ont été laissés de côté}}." },
+      "pack_links_capped": { "label": "Export .CCL avec pertes : {levels, plural, one {# niveau compte} other {# niveaux comptent}} plus de liens que le format .DAT n'en garde, {links} en moins au total." },
+      "pack_trap_links": { "label": "{count, plural, one {# lien de piège} other {# liens de piège}}" },
+      "pack_clone_links": { "label": "{count, plural, one {# lien de clonage} other {# liens de clonage}}" },
+      "pack_links_and": { "label": " et " },
       "list_separator": { "label": ", " }
     },
     "confirm": {

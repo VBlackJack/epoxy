@@ -100,6 +100,10 @@
       "refused_cell_underlays": { "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold." },
       "trap_links_capped": { "label": "Lossy .CCL export: the .DAT format keeps at most {max} trap links, {count, plural, one {# was} other {# were}} left out." },
       "clone_links_capped": { "label": "Lossy .CCL export: the .DAT format keeps at most {max} clone links, {count, plural, one {# was} other {# were}} left out." },
+      "pack_links_capped": { "label": "Lossy .CCL export: {levels, plural, one {# level holds} other {# levels hold}} more links than the .DAT format keeps, {links} left out in total." },
+      "pack_trap_links": { "label": "{count, plural, one {# trap link} other {# trap links}}" },
+      "pack_clone_links": { "label": "{count, plural, one {# clone link} other {# clone links}}" },
+      "pack_links_and": { "label": " and " },
       "list_separator": { "label": ", " }
     },
     "confirm": {
