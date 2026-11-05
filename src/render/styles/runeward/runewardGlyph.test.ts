@@ -25,8 +25,9 @@ import { ConfigRegistry } from '../../../config/ConfigRegistry';
 import type { RunewardArtConfig, TileDefinition } from '../../../core/types';
 import { loadTestConfigs } from '../../../test/loadTestConfigs';
 import { createRecordedContext } from '../../../test/runewardTestContext';
-import { BUTTON_GLYPH_KEYS } from '../../paletteKeys';
+import { BUTTON_GLYPH_KEYS, teleporterGlyphKey } from '../../paletteKeys';
 import { NEIGHBOUR, type TileNeighbours } from '../../tileNeighbours';
+import { TELEPORT_GLYPH_RADIUS } from './runewardHazards';
 import { RUNEWARD_PAINTERS, type RunewardPaintEnv } from './runewardTiles';
 
 vi.mock('../../colorGlyph', async (importOriginal) => {
@@ -202,5 +203,50 @@ describe('Runeward mechanism glyphs', () => {
         plain.filter((line) => line.startsWith('closePath(')).length
       );
     }
+  });
+});
+
+describe('Runeward teleport glyphs', () => {
+  const COLOURED = ['teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green'] as const;
+  const PASSES = ['all', 'static', 'animated'] as const;
+
+  function drawTeleport(id: string, art: RunewardArtConfig, size: number, pass: (typeof PASSES)[number]): unknown[][] {
+    vi.mocked(paintColorGlyph).mockClear();
+    const { ctx } = createRecordedContext();
+    RUNEWARD_PAINTERS.tiles[id](ctx, 0, 0, size, pass, CELL, envOf(art), false, false);
+    return vi.mocked(paintColorGlyph).mock.calls.map((call) => [...call]);
+  }
+
+  it.each(VARIANTS)('draws the glyph of its colour key at the shared radius in the $name drawing', ({ art }) => {
+    for (const size of [TILE, SMALL_TILE]) {
+      for (const id of COLOURED) {
+        const key = teleporterGlyphKey(ConfigRegistry.getTile(id));
+        expect(key, id).not.toBeNull();
+        const glyphs = drawTeleport(id, art(), size, 'all');
+        expect(glyphs.length, id).toBe(1);
+        expect(glyphs[0][1], id).toBe(key);
+        expect(glyphs[0][2], id).toBe(size / 2);
+        expect(glyphs[0][3], id).toBe(size / 2);
+        expect(glyphs[0][4], id).toBeCloseTo(size * TELEPORT_GLYPH_RADIUS, 6);
+      }
+    }
+  });
+
+  it.each(VARIANTS)('keeps the glyph in the static pass of the $name drawing, so a cached tile still shows it', ({ art }) => {
+    for (const id of COLOURED) expect(drawTeleport(id, art(), TILE, 'static').length, id).toBe(1);
+  });
+
+  it('draws the glyph in the ring colour on plain and in the glyph colour of its channel on parchment', () => {
+    for (const id of COLOURED) {
+      const key = teleporterGlyphKey(ConfigRegistry.getTile(id)) as keyof RunewardArtConfig['keys'];
+      const plain = VARIANTS[0].art();
+      const parchment = VARIANTS[1].art();
+      expect(drawTeleport(id, plain, TILE, 'all')[0][5], id).toBe(plain.keys[key].main);
+      expect(drawTeleport(id, parchment, TILE, 'all')[0][5], id).toBe(parchment.keys[key].glyph);
+    }
+  });
+
+  it.each(VARIANTS)('draws no glyph on the plain teleport in the $name drawing', ({ art }) => {
+    expect(drawTeleport('teleport', art(), TILE, 'all')).toEqual([]);
   });
 });

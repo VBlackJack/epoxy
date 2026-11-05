@@ -354,6 +354,37 @@ export interface RunewardArtConfig {
     /** The halo colour fully transparent. */
     haloClear: string;
   };
+  /** Traps: the dark recess and the iron jaws that close over it. */
+  trap: {
+    pit: string;
+    jaw: string;
+    /** Light outline of the jaws. */
+    jawLight: string;
+  };
+  /** Teleports: the stone disc, the ring (replaced by the colour of a coloured teleport) and the vortex. */
+  portal: {
+    base: string;
+    ring: string;
+    core: string;
+    /** The ring colour fully transparent. */
+    glow: string;
+  };
+  /** Ice and its corners. */
+  ice: {
+    base: string;
+    light: string;
+    /** Cracks, and the band along the slide path of a corner. */
+    line: string;
+    /** Outline of the sheet. */
+    edge: string;
+  };
+  /** Force floors: the underlay and the chevrons. */
+  force: {
+    base: string;
+    arrow: string;
+    /** Thin light core of the chevrons. */
+    arrowLight: string;
+  };
   animation: {
     bobAmplitude: number;
     bobPeriodMs: number;
@@ -361,6 +392,8 @@ export interface RunewardArtConfig {
     portalPeriodMs: number;
     /** Period of the chip pulse. */
     pulsePeriodMs: number;
+    /** Time a force floor chevron takes to move one step along the push. */
+    forceScrollPeriodMs: number;
   };
   /** Present on ink-on-paper variants only; the default Runeward art has none. */
   ink?: RunewardInkConfig;
