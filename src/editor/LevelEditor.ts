@@ -19,6 +19,7 @@ import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { i18n, t } from '../i18n/I18nManager';
+import { nameWithDescription, paletteDescription } from './paletteDescriptions';
 import { parsePackJson } from '../packs/packJson';
 import { choiceDialog } from '../ui/choiceDialog';
 import { confirmDialog } from '../ui/confirmDialog';
@@ -1391,8 +1392,13 @@ export class LevelEditor {
     const mechanisms = this.activeCategory === MECHANISMS_CATEGORY;
     const pending: Array<{ group: MechanismGroupId | null; button: HTMLButtonElement }> = [];
     const entry = (brush: Brush, label: string, iconUrl: string, group: MechanismGroupId | null = null): void => {
-      const button = this.createPaletteButton(label, iconUrl, this.isBrushSelected(brush), this.brushAvailability(brush), () =>
-        this.selectBrush(brush)
+      const button = this.createPaletteButton(
+        label,
+        iconUrl,
+        this.isBrushSelected(brush),
+        this.brushAvailability(brush),
+        () => this.selectBrush(brush),
+        paletteDescription(brush.kind, brush.id, t)
       );
       button.dataset.brushKind = brush.kind;
       button.dataset.brushId = brush.id;
@@ -1461,13 +1467,15 @@ export class LevelEditor {
     iconUrl: string,
     selected: boolean,
     availability: Availability,
-    onClick: () => void
+    onClick: () => void,
+    description?: string
   ): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `palette-item-btn ${selected ? 'active' : ''}`;
     btn.setAttribute('aria-pressed', String(selected));
-    btn.title = label;
+    btn.title = nameWithDescription(label, description);
+    if (description !== undefined) btn.setAttribute('aria-description', description);
     if (iconUrl) {
       const img = document.createElement('img');
       img.src = iconUrl;
@@ -1490,7 +1498,8 @@ export class LevelEditor {
       btn.classList.add('is-unavailable');
       btn.setAttribute('aria-disabled', 'true');
       btn.setAttribute('aria-description', reason);
-      btn.title = `${label}: ${reason}`;
+      // The reason is what the player needs to know first; the description follows it on hover.
+      btn.title = description === undefined ? `${label}: ${reason}` : `${label}: ${reason} ${description}`;
       btn.addEventListener('click', () => this.setStatusText(reason));
     }
     return btn;
@@ -1520,7 +1529,12 @@ export class LevelEditor {
       const refusal = fillBrushRefusal(brush, editableRulesetOf(this.doc.ruleset));
       this.announceFillChoice(refusal ? this.fillRefusalMessage(refusal) : null, this.brushLabel(brush));
     } else {
+      // The thin wall keeps its own status, which already says how to use it; every other entry says what it does and needs.
       if (brush.kind === 'cell_edge') this.setStatusText(t('editor.palette.status.cell_edge_mode'));
+      else {
+        const description = paletteDescription(brush.kind, brush.id, t);
+        if (description !== undefined) this.setStatusText(nameWithDescription(this.brushLabel(brush), description));
+      }
     }
     // The side bar of the thin wall tool appears and goes away with its entry.
     if (hintBefore || this.sideToolActive()) this.render();
