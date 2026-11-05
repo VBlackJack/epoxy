@@ -149,6 +149,8 @@ const TWO_MOBS_CELL = { x: 12, y: 9 };
 const OFF_GRID_MOB_X = -3;
 const KEY_CELL_INDEX = 3 * ROOM_WIDTH + 3;
 const SECTIONS_KEY_FRAGMENT = 'section';
+const EPOXY_ROOM_SIZE = 8;
+const BUTTON_CELL = { x: 3, y: 3 };
 
 const snappy = (x: number, y: number): Cc3dMob => ({ kind: 'snappy', x, y, dir: 'S' });
 
@@ -228,6 +230,39 @@ describe('the issues list', () => {
     for (const row of warnings) {
       expect(row.querySelector('.sr-only')?.textContent).toBe(t('editor.issues.severity.warning.label'));
     }
+  });
+
+  it('gives an info row the info label, after the errors and warnings', () => {
+    const terrain: string[][] = Array.from({ length: EPOXY_ROOM_SIZE }, (_, y) =>
+      Array.from({ length: EPOXY_ROOM_SIZE }, (_, x) =>
+        x === 0 || y === 0 || x === EPOXY_ROOM_SIZE - 1 || y === EPOXY_ROOM_SIZE - 1 ? 'wall' : 'floor'
+      )
+    );
+    terrain[BUTTON_CELL.y][BUTTON_CELL.x] = 'button_brown';
+    editor.loadCompiledLevel({
+      id: 'lvl_info_dom',
+      number: 1,
+      password: 'TEST',
+      timeLimitSeconds: 0,
+      chipsRequired: 0,
+      playerStart: { x: 1, y: 1, dir: 'S' },
+      terrain,
+      items: terrain.map((row) => row.map(() => null as string | null)),
+      entities: [],
+      trapLinks: [],
+      cloneLinks: []
+    });
+    byId<HTMLButtonElement>('editor-validate-btn').click();
+    const rows = issueRowsOnScreen();
+    const info = rows.filter((row) => row.dataset.severity === 'info');
+    expect(info.length).toBeGreaterThanOrEqual(1);
+    for (const row of info) {
+      expect(row.querySelector('.sr-only')?.textContent).toBe(t('editor.issues.severity.info.label'));
+    }
+    const rank = (row: HTMLElement): number => ['error', 'warning', 'info'].indexOf(row.dataset.severity ?? '');
+    const ranks = rows.map(rank);
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(rank(rows[rows.length - 1])).toBe(2);
   });
 
   it('goes back to the idle note and badge when another level is loaded', () => {
