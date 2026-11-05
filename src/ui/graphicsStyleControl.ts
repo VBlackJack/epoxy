@@ -22,6 +22,7 @@
 import {
   DEFAULT_RENDER_STYLE_ID,
   RENDER_STYLES,
+  SELECTABLE_RENDER_STYLES,
   getRenderStyle,
   parseRenderStyleId,
   type RenderStyleDescriptor,
@@ -33,11 +34,11 @@ export interface GraphicsStyleOption {
   readonly labelKey: string;
 }
 
-/** One option per registered style, in cycle order. */
+/** One option per selectable style, in cycle order. */
 export function buildGraphicsStyleOptions(
-  styles: readonly RenderStyleDescriptor[] = RENDER_STYLES
+  styles: readonly RenderStyleDescriptor[] = SELECTABLE_RENDER_STYLES
 ): GraphicsStyleOption[] {
-  return styles.map((style) => ({ value: style.id, labelKey: style.labelKey }));
+  return styles.filter((style) => style.selectable).map((style) => ({ value: style.id, labelKey: style.labelKey }));
 }
 
 /** Saved style first, then the configured default; unknown values fall through to the built-in default. */

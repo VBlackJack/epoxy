@@ -34,7 +34,7 @@ import { GameEngine } from '../core/GameEngine';
 import type { CompiledLevel, GraphicsStyle, ThemePalette } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { PixelRenderer } from './PixelRenderer';
-import { RENDER_STYLES, getRenderStyle } from './styles/renderStyles';
+import { SELECTABLE_RENDER_STYLES, getRenderStyle } from './styles/renderStyles';
 
 const SCENE_SIZE = 12;
 const WALL_EDGE = SCENE_SIZE - 1;
@@ -206,8 +206,8 @@ describe('Retro HD styles scene', () => {
   it('cycles through every style with the G key and back to HD Neon', () => {
     const renderer = new PixelRenderer();
     expect(renderer.getStyle()).toBe('modern');
-    const seen = RENDER_STYLES.slice(1).map(() => renderer.toggleStyle());
-    expect(seen).toEqual(RENDER_STYLES.slice(1).map((s) => s.id));
+    const seen = SELECTABLE_RENDER_STYLES.slice(1).map(() => renderer.toggleStyle());
+    expect(seen).toEqual(SELECTABLE_RENDER_STYLES.slice(1).map((s) => s.id));
     expect(renderer.toggleStyle()).toBe('modern');
   });
 

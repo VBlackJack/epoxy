@@ -36,6 +36,7 @@ const stylePalettes = game.renderStylePalettes as Record<string, RenderStylePale
 const families = game.renderStyleFamilies as RenderStyleFamilies;
 const themes = game.themes as Record<string, ThemePalette>;
 const retroHdIds = RENDER_STYLES.filter((style) => style.finish !== null).map((style) => style.id);
+const paletteIds = RENDER_STYLES.filter((style) => style.transformKey !== null).map((style) => style.id);
 const HEX = /^#[0-9a-f]{6}$/;
 /** Channel levels of the 64-colour EGA table the VGA-era 16 colours come from. */
 const EGA_LEVELS = new Set([0x00, 0x55, 0xaa, 0xff]);
@@ -68,13 +69,14 @@ function lumaOf(hex: string): number {
 
 describe('Retro HD palettes in game.json', () => {
   it('are valid for every Retro HD style', () => {
-    expect(findStylePaletteErrors(stylePalettes, retroHdIds)).toEqual([]);
+    expect(findStylePaletteErrors(stylePalettes, paletteIds)).toEqual([]);
     expect(findStyleFamilyErrors(families, Object.keys(game.palette))).toEqual([]);
   });
 
-  it('give every style a ramp for every family and no entry for the other styles', () => {
-    expect(Object.keys(stylePalettes).sort()).toEqual([...retroHdIds].sort());
-    for (const id of retroHdIds) expect(Object.keys(stylePalettes[id].families).sort()).toEqual([...COLOUR_FAMILIES].sort());
+  it('give every recoloured style a ramp for every family and no entry for the other styles', () => {
+    expect(Object.keys(stylePalettes).sort()).toEqual([...paletteIds].sort());
+    expect(paletteIds).toEqual([...retroHdIds, 'runeward']);
+    for (const id of paletteIds) expect(Object.keys(stylePalettes[id].families).sort()).toEqual([...COLOUR_FAMILIES].sort());
   });
 
   it('report a missing table, a missing entry and bad fields', () => {

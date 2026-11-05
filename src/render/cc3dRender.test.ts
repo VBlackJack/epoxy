@@ -43,7 +43,7 @@ import {
 } from './cc3dPainters';
 import { PixelRenderer } from './PixelRenderer';
 
-const STYLES: readonly GraphicsStyle[] = ['modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90'];
+const STYLES: readonly GraphicsStyle[] = ['modern', 'retro', 'retro32', 'pocket', 'pastel', 'blueprint', 'sepia', 'classic90', 'runeward'];
 const SCENE_SIZE = 8;
 const CANVAS_PX = 256;
 const TILE_PX = 32;

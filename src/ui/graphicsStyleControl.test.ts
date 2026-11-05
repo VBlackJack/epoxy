@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getRenderStyle, RETRO_PIXELS_CLASS } from '../render/styles/renderStyles';
+import { getRenderStyle, RENDER_STYLES, RETRO_PIXELS_CLASS } from '../render/styles/renderStyles';
 import {
   buildGraphicsStyleOptions,
   canvasClassesToRemove,
@@ -31,6 +31,14 @@ describe('graphics style control helpers', () => {
     ]);
     expect(options[2].labelKey).toBe('app.header.graphics_retro32.action');
     expect(options[7].labelKey).toBe('app.header.graphics_classic90.action');
+  });
+
+  it('keeps the unselectable Runeward style out of the list yet restores it from saved settings', () => {
+    expect(buildGraphicsStyleOptions().map((o) => o.value)).not.toContain('runeward');
+    expect(buildGraphicsStyleOptions(RENDER_STYLES).map((o) => o.value)).not.toContain('runeward');
+    expect(resolveInitialGraphicsStyle('runeward', 'modern')).toBe('runeward');
+    expect(isLcdAvailable('runeward')).toBe(false);
+    expect(canvasClassesToRemove('runeward')).toEqual([RETRO_PIXELS_CLASS]);
   });
 
   it('restores a saved retro32 style and falls back on unknown values', () => {

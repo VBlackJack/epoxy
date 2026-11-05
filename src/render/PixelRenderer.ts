@@ -121,6 +121,12 @@ import {
 } from './retroSprites';
 import { RETRO_SPRITE } from './retroSpriteNames';
 import { getRenderStyle, nextRenderStyle, OverlayKind, RenderStyleDescriptor } from './styles/renderStyles';
+import {
+  findRunewardPainter,
+  RUNEWARD_PAINTERS,
+  type RunewardPaintEnv,
+  type RunewardPainters
+} from './styles/runeward/runewardTiles';
 import { createRetro32SpriteCache, createRetro32ThemeSprites, Retro32SpriteCache } from './retro32';
 import { bandStops, GradientStop } from './styles/gradientBands';
 import {
@@ -248,7 +254,8 @@ const RETRO_ANIMATED_TILES: ReadonlySet<string> = new Set([
 const ANY_ANIMATED_TILES: ReadonlySet<string> = new Set([
   ...MODERN_ANIMATED_TILES,
   ...RETRO_ANIMATED_TILES,
-  ...RETRO_SPRITE_ANIMATED_TILES
+  ...RETRO_SPRITE_ANIMATED_TILES,
+  ...RUNEWARD_PAINTERS.animatedTiles
 ]);
 
 const FULL_TURN = Math.PI * 2;
@@ -626,6 +633,8 @@ export class PixelRenderer {
 
   /** Pre-rendered glowing shapes, keyed by kind, style and size. */
   private readonly sprites: Map<string, HTMLCanvasElement> = new Map();
+  /** Cache shared by the Runeward painters, created the first time one of them draws. */
+  private runewardCache: Map<string, unknown> | null = null;
 
   /** Wall-joining and shadow-casting tile sets, rebuilt when the settings object changes. */
   private tileSetsSource: RenderSettings | null = null;
@@ -800,6 +809,17 @@ export class PixelRenderer {
 
   private descriptor(): RenderStyleDescriptor {
     return getRenderStyle(this.style);
+  }
+
+  /** The Runeward painters when the active style draws with them, else null. */
+  private runewardPainters(): RunewardPainters | null {
+    return this.descriptor().painterSet === 'runeward' ? RUNEWARD_PAINTERS : null;
+  }
+
+  /** What a Runeward painter may use besides its arguments; the cache is created on first use. */
+  private runewardEnv(): RunewardPaintEnv {
+    this.runewardCache ??= new Map<string, unknown>();
+    return { timeTick: this.timeTick, reducedMotion: this.reducedMotion, cache: this.runewardCache };
   }
 
   /** True for the vector HD Neon drawing, false for the sprite styles and the flat retro fallback look. */
@@ -983,7 +1003,7 @@ export class PixelRenderer {
 
   /** The theme in use, in the colours of the active style. */
   private getActiveTheme(): ThemePalette | undefined {
-    if (!this.descriptor().finish) return this.getRawTheme();
+    if (!this.descriptor().transformKey) return this.getRawTheme();
     return this.getStyleColours().theme;
   }
 
@@ -995,7 +1015,7 @@ export class PixelRenderer {
 
   /** The palette in use: game.json's own, or recoloured for a Retro HD style. */
   private pal(): Record<string, string> {
-    if (!this.descriptor().finish) return ConfigRegistry.getGame().palette;
+    if (!this.descriptor().transformKey) return ConfigRegistry.getGame().palette;
     return this.getStyleColours().palette;
   }
 
@@ -1210,10 +1230,11 @@ export class PixelRenderer {
       : lowRes
         ? RETRO_SPRITE_ANIMATED_TILES
         : RETRO_ANIMATED_TILES;
+    const runewardAnimated = this.runewardPainters()?.animatedTiles;
     const animNeighbours = this.animNeighbours;
     for (const cell of this.terrainFeatures.animatedCells) {
       if (cell.x < startTileX || cell.x > endTileX || cell.y < startTileY || cell.y > endTileY) continue;
-      if (!animatedTiles.has(cell.tileId)) continue;
+      if (!animatedTiles.has(cell.tileId) && !runewardAnimated?.has(cell.tileId)) continue;
       if (this.isBlockCovered(cell.x, cell.y)) continue;
       if (this.skinActive && this.skinLoader?.getTerrain(cell.tileId)) continue;
       const px = originX + Math.floor((cell.x - region.x0) * unit);
@@ -2030,6 +2051,12 @@ export class PixelRenderer {
     pass: TilePass = 'all',
     neighbours: Readonly<TileNeighbours> = ISOLATED_TILE
   ): void {
+    const runewardTile = this.runewardPainters();
+    const runewardPaint = runewardTile ? findRunewardPainter(runewardTile.tiles, tileId) : undefined;
+    if (runewardPaint) {
+      runewardPaint(ctx, x, y, size, pass, neighbours, this.runewardEnv());
+      return;
+    }
     const painterId = EPOXY_TO_CC3D_PAINTER[tileId];
     if (painterId) {
       this.drawCc3dTile(ctx, painterId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
@@ -4603,6 +4630,12 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    const runewardItems = this.runewardPainters();
+    const runewardPaint = runewardItems ? findRunewardPainter(runewardItems.items, itemId) : undefined;
+    if (runewardPaint) {
+      runewardPaint(ctx, x, y, size, this.runewardEnv());
+      return;
+    }
     if (isCc3dId(itemId)) {
       paintCc3dItem(ctx, itemId, x, y, size, this.cc3dTools(ctx));
       return;
@@ -4771,6 +4804,12 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    const runewardEntities = this.runewardPainters();
+    const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;
+    if (runewardPaint) {
+      runewardPaint(ctx, dir, x, y, size, this.runewardEnv());
+      return;
+    }
     const painterId = EPOXY_TO_CC3D_PAINTER[type];
     if (painterId) {
       this.drawCc3dEntity(ctx, painterId, dir, x, y, size);
@@ -5501,6 +5540,11 @@ export class PixelRenderer {
     frame: number = 0,
     hop: number = 0
   ): void {
+    const runewardPlayer = this.runewardPainters()?.player;
+    if (runewardPlayer) {
+      runewardPlayer(ctx, x, y, size, { dir, inWater, alive, frame, hop }, this.runewardEnv());
+      return;
+    }
     if (!this.isHdVector() && this.retroSpritesReady()) {
       this.drawRetroLayers(ctx, [{ name: retroPlayerSprite(dir, inWater, alive, frame, this.playerSkin) }], x, y, size);
       return;
