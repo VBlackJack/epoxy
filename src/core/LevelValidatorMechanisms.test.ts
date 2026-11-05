@@ -118,6 +118,23 @@ describe('validator locations on existing checks', () => {
     expect(issuesOf(cloned, KEY_PUPPET_NO_STEERING)[0].params).toEqual({ x: 3, y: 3, count: 1 });
   });
 
+  it('uses the label without a location when every puppet is off the grid', () => {
+    const level = room((l) => {
+      l.entities = [entity('puppet', 40, 40)];
+    });
+    expect(hasKey(level, KEY_PUPPET_NO_STEERING)).toBe(false);
+    const [issue] = issuesOf(level, `${PREFIX}puppet_no_steering_pad_nowhere.label`);
+    expect(issue.params ?? {}).toEqual({});
+  });
+
+  it('counts a cell once when its top tile and its underlay are both Puppet Controls', () => {
+    const level = room((l) => {
+      l.terrain[2][3] = 'puppet_control';
+      l.underlays = [{ x: 3, y: 2, terrain: 'puppet_control' }];
+    });
+    expect(issuesOf(level, KEY_STEERING_NO_PUPPET)[0].params).toEqual({ x: 3, y: 2, count: 1 });
+  });
+
   it('locates brown buttons when the level has no trap', () => {
     const level = room((l) => {
       l.terrain[3][2] = 'button_brown';

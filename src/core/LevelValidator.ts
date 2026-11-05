@@ -214,9 +214,10 @@ const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Tiles that seal a swivel door side for good: a plain wall, an invisible wall, a laser emitter or a laser receiver
- * (a receiver and an emitter are solid). Anything else a neighbour may be (a door, a toggle wall, a clone machine, a
- * shot launcher, another swivel) can change or be passed, so it never counts as sealing.
+ * Tile ids that seal a swivel door side for good: a plain wall and an invisible wall. Laser emitters and receivers
+ * also seal a side, but they are recognised by their tile properties, not by this set. Anything else a neighbour may
+ * be (a door, a toggle wall, a clone machine, a shot launcher, another swivel) can change or be passed, so it never
+ * counts as sealing.
  */
 const SWIVEL_SEALING_TILE_IDS: ReadonlySet<string> = new Set([WALL_TILE_ID, 'invisible_wall']);
 
@@ -1440,9 +1441,9 @@ export class LevelValidator {
     const padCells: GridPoint[] = [];
     level.terrain.forEach((row, y) =>
       row.forEach((id, x) => {
-        if (isSteeringTileId(id)) padCells.push({ x, y });
+        // One entry per cell, even when both the top tile and its hidden underlay are pads.
         const hiddenId = underlays?.get(y * width + x);
-        if (hiddenId !== undefined && isSteeringTileId(hiddenId)) padCells.push({ x, y });
+        if (isSteeringTileId(id) || (hiddenId !== undefined && isSteeringTileId(hiddenId))) padCells.push({ x, y });
       })
     );
     const puppetEntities = level.entities.filter((e) => isSteeredEntityType(e.type));
@@ -1461,9 +1462,13 @@ export class LevelValidator {
         ...puppetEntities.map((e) => ({ x: e.x, y: e.y })),
         ...puppetLinks.map((link) => ({ x: link.clonerX, y: link.clonerY }))
       ].filter((cell) => this.inGrid(level, cell));
+      // With no puppet inside the grid there is no location to show: use the label variant without one.
       issues.push({
         severity: 'warning',
-        i18nKey: 'validator.issues.puppet_no_steering_pad.label',
+        i18nKey:
+          puppetCells.length > 0
+            ? 'validator.issues.puppet_no_steering_pad.label'
+            : 'validator.issues.puppet_no_steering_pad_nowhere.label',
         params: this.locationParams(puppetCells)
       });
     }
