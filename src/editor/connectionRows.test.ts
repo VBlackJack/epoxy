@@ -219,7 +219,7 @@ describe('connectionRows', () => {
     expect(many.controls?.more).toBe(0);
   });
 
-  it('says a laser emitter is wired to nothing, and an empty cell holds no mechanism', () => {
+  it('says a laser emitter is linked to nothing, and an empty cell holds no mechanism', () => {
     const level = makeLevel({ '3,3': 'laser_emitter_n' });
     expect(connectionRows(level, 3, 3).note).toEqual({ key: CONNECTIONS_KEYS.fallbackLaserEmitter });
     const empty = connectionRows(level, 7, 7);

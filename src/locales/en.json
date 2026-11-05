@@ -636,7 +636,7 @@
     },
     "connections": {
       "title": "Connections",
-      "no_cell": "Move the cursor or hover a cell to see what it is wired to.",
+      "no_cell": "Move the cursor or hover a cell to see what it is linked to.",
       "cell": "Cell ({x}, {y}): {name}",
       "cell_hidden": "Cell ({x}, {y}): {name}, hidden under the top tile",
       "no_device": "Cell ({x}, {y}): no mechanism here",
@@ -703,7 +703,7 @@
         "clone_any": "No link: fires every clone machine with a creature.",
         "clone_none": "No link, and no clone machine holds a creature: fires nothing.",
         "shot_unlinked": "Fires nothing until linked.",
-        "laser_emitter": "Wired to nothing; Beam preview shows the beam."
+        "laser_emitter": "Linked to nothing; Beam preview shows the beam."
       },
       "needs": {
         "plate": { "label": "Needs a hold door of the same colour ({colour}): this plate opens nothing yet. A hold door opens only while every plate of its colour is pressed." },
@@ -713,11 +713,62 @@
         "teleporter_plain": { "label": "Needs another plain teleporter: a plain teleporter sends to the previous plain teleporter in reading order, and alone it goes nowhere." },
         "teleporter_colour": { "label": "Needs another teleporter of the same colour ({colour}): it is alone in its group." },
         "laser_receiver": { "label": "Needs a laser gate of the same group ({colour}): this receiver opens nothing yet." },
-        "laser_gate": { "label": "Needs a laser receiver of the same group ({colour}): nothing is wired to this gate yet." },
+        "laser_gate": { "label": "Needs a laser receiver of the same group ({colour}): nothing is linked to this gate yet." },
         "puppet_control": { "label": "Needs a puppet: no puppet steps with the player when the player ends a move on this control yet." },
         "puppet": { "label": "Needs a puppet control: puppets step with the player when the player ends a move on a puppet control." },
         "flame_button": { "label": "Needs a flame jet: this orange button toggles nothing yet." },
         "flame_jet": { "label": "Needs an orange button: flame jets are toggled by orange buttons." }
+      },
+      "help": {
+        "title": "How mechanisms work",
+        "keys": { "label": "Keys: K starts or ends linking from the device under the cursor, T tests the level from the cursor, L shows or hides the laser beam preview, Shift+R turns the creature or turret under the cursor, Shift+F fills the selection with the chosen entry." },
+        "lynx": { "label": "Lynx levels: only trap and clone links exist, one per button; a brown or red button with no link does nothing, and its trap or clone machine stays shut." },
+        "system": {
+          "trap": {
+            "how": { "label": "Link each brown button to its traps (K or Link...)." },
+            "unlinked": { "label": "With no link, a trap stays open while any brown button is held." }
+          },
+          "clone": {
+            "how": { "label": "Link each red button to its clone machines (K or Link...)." },
+            "unlinked": { "label": "With no link, a red button fires every clone machine holding a monster or block." }
+          },
+          "shot": {
+            "how": { "label": "Link each shot trigger to its launchers (K or Link...)." },
+            "unlinked": { "label": "A shot trigger fires only its linked launchers: with no link it fires nothing." }
+          },
+          "plate": {
+            "how": { "label": "A hold door and its pressure plates share a colour." },
+            "unlinked": { "label": "A hold door is open while every plate of its colour is pressed; with no plate it is shut." }
+          },
+          "toggle": {
+            "how": { "label": "A toggle button flips the toggle walls of its colour (the plain green button flips the plain toggle walls)." },
+            "unlinked": { "label": "A toggle wall with no button of its colour never flips." }
+          },
+          "teleport": {
+            "how": { "label": "Teleporters of one colour form a group; each sends to the previous one of its group in reading order." },
+            "unlinked": { "label": "A teleporter alone in its group goes nowhere." }
+          },
+          "laser": {
+            "how": { "label": "A laser gate is open while a beam lights any laser receiver of its group (same colour)." },
+            "unlinked": { "label": "A receiver with no gate of its group opens nothing, and a gate with no receiver stays shut." }
+          },
+          "tank": {
+            "how": { "label": "Blue buttons turn every tank around; no link needed, the whole level answers." },
+            "unlinked": { "label": "With no blue button, tanks never turn around." }
+          },
+          "flame": {
+            "how": { "label": "Orange buttons toggle flame jets; no link needed, the whole level answers." },
+            "unlinked": { "label": "With no orange button, flame jets are never toggled." }
+          },
+          "swap": {
+            "how": { "label": "A gray button swaps the chips and bombs within radius {radius} of it." },
+            "unlinked": { "label": "With nothing within reach, a gray button swaps nothing." }
+          },
+          "puppet": {
+            "how": { "label": "Puppet controls steer every puppet in the level." },
+            "unlinked": { "label": "With no puppet control, puppets do not step with the player." }
+          }
+        }
       },
       "issues": {
         "heading": "Problems found here"
@@ -1093,7 +1144,7 @@
         "resized": "Resized to {width} x {height}.",
         "unchanged": "The level is already {width} x {height}.",
         "dropped_entities": "{count, plural, one {# creature or block was} other {# creatures or blocks were}} removed.",
-        "dropped_links": "{count, plural, one {# wire was} other {# wires were}} removed.",
+        "dropped_links": "{count, plural, one {# link was} other {# links were}} removed.",
         "start_moved": "The player start was moved inside the level.",
         "dropped_edges": "{count, plural, one {# cell lost its thin walls} other {# cells lost their thin walls}}.",
         "dropped_underlays": "{count, plural, one {# cell lost its hidden terrain} other {# cells lost their hidden terrain}}.",
@@ -1137,7 +1188,7 @@
     "palette": {
       "unavailable": { "epoxy_only": { "label": "Needs Epoxy rules: not available in a Lynx level." } },
       "group": {
-        "buttons": { "label": "Buttons and wiring" },
+        "buttons": { "label": "Buttons and links" },
         "teleports": { "label": "Teleports" },
         "lasers": { "label": "Lasers and mirrors" },
         "colour": { "label": "Colour channels" },
@@ -1344,21 +1395,21 @@
     "thin_wall_e": { "name": "Thin Panel East" },
     "thin_wall_s": { "name": "Thin Panel South" },
     "thin_wall_w": { "name": "Thin Panel West" },
-    "thin_wall_se": { "name": "Thin Panel South-East" },
-    "thin_wall_ne": { "name": "Thin Panel North-East" },
-    "thin_wall_nw": { "name": "Thin Panel North-West" },
-    "thin_wall_sw": { "name": "Thin Panel South-West" },
-    "thin_wall_ns": { "name": "Thin Panel North-South" },
-    "thin_wall_ew": { "name": "Thin Panel East-West" },
+    "thin_wall_se": { "name": "Thin Panel (South-East)" },
+    "thin_wall_ne": { "name": "Thin Panel (North-East)" },
+    "thin_wall_nw": { "name": "Thin Panel (North-West)" },
+    "thin_wall_sw": { "name": "Thin Panel (South-West)" },
+    "thin_wall_ns": { "name": "Thin Panel (North-South)" },
+    "thin_wall_ew": { "name": "Thin Panel (East-West)" },
     "thin_wall_nes": { "name": "Thin Panel N-E-S" },
     "thin_wall_new": { "name": "Thin Panel N-E-W" },
     "thin_wall_nsw": { "name": "Thin Panel N-S-W" },
     "thin_wall_esw": { "name": "Thin Panel E-S-W" },
     "thin_wall_nesw": { "name": "Thin Panel (All Sides)" },
-    "swivel_door_ne": { "name": "Swivel Door North-East", "desc": { "label": "Blocks its north and east sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
-    "swivel_door_se": { "name": "Swivel Door South-East", "desc": { "label": "Blocks its south and east sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
-    "swivel_door_sw": { "name": "Swivel Door South-West", "desc": { "label": "Blocks its south and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
-    "swivel_door_nw": { "name": "Swivel Door North-West", "desc": { "label": "Blocks its north and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
+    "swivel_door_ne": { "name": "Swivel Door (North-East)", "desc": { "label": "Blocks its north and east sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
+    "swivel_door_se": { "name": "Swivel Door (South-East)", "desc": { "label": "Blocks its south and east sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
+    "swivel_door_sw": { "name": "Swivel Door (South-West)", "desc": { "label": "Blocks its south and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
+    "swivel_door_nw": { "name": "Swivel Door (North-West)", "desc": { "label": "Blocks its north and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
     "transmogrifier": {
       "name": "Transmogrifier",
       "desc": { "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker)." }

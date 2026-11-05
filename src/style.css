@@ -1422,6 +1422,10 @@ button.editor-issue-row:focus-visible {
   gap: 0.3rem;
 }
 
+.editor-mechanism-help-name::first-letter {
+  text-transform: uppercase;
+}
+
 .editor-connections-heading {
   margin: 0.4rem 0 0.25rem;
   font-size: 0.78rem;

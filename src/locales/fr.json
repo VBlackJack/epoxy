@@ -719,6 +719,57 @@
         "flame_button": { "label": "Il faut un jet de flammes : ce bouton orange n'en bascule aucun pour l'instant." },
         "flame_jet": { "label": "Il faut un bouton orange : les jets de flammes sont basculés par les boutons orange." }
       },
+      "help": {
+        "title": "Comment fonctionnent les mécanismes",
+        "keys": { "label": "Touches : K commence ou termine une liaison depuis le dispositif sous le curseur, T teste le niveau depuis le curseur, L affiche ou masque l'aperçu du faisceau laser, Maj+R tourne la créature ou la tourelle sous le curseur, Maj+F remplit la sélection avec l'entrée choisie." },
+        "lynx": { "label": "Niveaux Lynx : seuls les liens de piège et de clonage existent, un par bouton ; un bouton brun ou rouge sans lien ne fait rien, et son piège ou sa machine à cloner reste fermé." },
+        "system": {
+          "trap": {
+            "how": { "label": "Reliez chaque bouton brun à ses pièges (K ou Relier...)." },
+            "unlinked": { "label": "Sans lien, un piège reste ouvert tant qu'un bouton brun est maintenu." }
+          },
+          "clone": {
+            "how": { "label": "Reliez chaque bouton rouge à ses machines à cloner (K ou Relier...)." },
+            "unlinked": { "label": "Sans lien, un bouton rouge déclenche toutes les machines à cloner qui contiennent un monstre ou un bloc." }
+          },
+          "shot": {
+            "how": { "label": "Reliez chaque déclencheur de tir à ses lanceurs (K ou Relier...)." },
+            "unlinked": { "label": "Un déclencheur de tir ne tire que ses lanceurs liés : sans lien, il ne déclenche rien." }
+          },
+          "plate": {
+            "how": { "label": "Une porte à maintien et ses plaques de pression partagent une couleur." },
+            "unlinked": { "label": "Une porte à maintien est ouverte tant que chaque plaque de sa couleur est enfoncée ; sans plaque, elle reste fermée." }
+          },
+          "toggle": {
+            "how": { "label": "Un bouton bascule fait basculer les murs de sa couleur (le bouton vert simple bascule les murs bascules simples)." },
+            "unlinked": { "label": "Un mur bascule sans bouton de sa couleur ne bascule jamais." }
+          },
+          "teleport": {
+            "how": { "label": "Les téléporteurs d'une même couleur forment un groupe ; chacun envoie vers le précédent de son groupe dans l'ordre de lecture." },
+            "unlinked": { "label": "Un téléporteur seul dans son groupe ne mène nulle part." }
+          },
+          "laser": {
+            "how": { "label": "Une porte laser est ouverte tant qu'un faisceau éclaire un récepteur laser de son groupe (même couleur)." },
+            "unlinked": { "label": "Un récepteur sans porte de son groupe n'ouvre rien, et une porte sans récepteur reste fermée." }
+          },
+          "tank": {
+            "how": { "label": "Les boutons bleus font faire demi-tour à tous les tanks ; aucun lien à faire, tout le niveau répond." },
+            "unlinked": { "label": "Sans bouton bleu, les tanks ne font jamais demi-tour." }
+          },
+          "flame": {
+            "how": { "label": "Les boutons orange basculent les jets de flammes ; aucun lien à faire, tout le niveau répond." },
+            "unlinked": { "label": "Sans bouton orange, les jets de flammes ne basculent jamais." }
+          },
+          "swap": {
+            "how": { "label": "Un bouton gris échange les puces et les bombes dans un rayon de {radius} autour de lui." },
+            "unlinked": { "label": "Sans rien à portée, un bouton gris n'échange rien." }
+          },
+          "puppet": {
+            "how": { "label": "Les commandes de marionnettes dirigent toutes les marionnettes du niveau." },
+            "unlinked": { "label": "Sans commande de marionnettes, les marionnettes ne font pas de pas avec le joueur." }
+          }
+        }
+      },
       "issues": {
         "heading": "Problèmes relevés ici"
       },
@@ -1093,7 +1144,7 @@
         "resized": "Redimensionné en {width} x {height}.",
         "unchanged": "Le niveau fait déjà {width} x {height}.",
         "dropped_entities": "{count, plural, one {# créature ou bloc a été retiré} other {# créatures ou blocs ont été retirés}}.",
-        "dropped_links": "{count, plural, one {# fil a été retiré} other {# fils ont été retirés}}.",
+        "dropped_links": "{count, plural, one {# lien a été retiré} other {# liens ont été retirés}}.",
         "start_moved": "Le départ du joueur a été ramené à l'intérieur du niveau.",
         "dropped_edges": "{count, plural, one {# case a perdu ses murs fins} other {# cases ont perdu leurs murs fins}}.",
         "dropped_underlays": "{count, plural, one {# case a perdu son terrain caché} other {# cases ont perdu leur terrain caché}}.",
@@ -1344,21 +1395,21 @@
     "thin_wall_e": { "name": "Paroi Fine Est" },
     "thin_wall_s": { "name": "Paroi Fine Sud" },
     "thin_wall_w": { "name": "Paroi Fine Ouest" },
-    "thin_wall_se": { "name": "Paroi Fine Sud-Est" },
-    "thin_wall_ne": { "name": "Paroi Fine Nord-Est" },
-    "thin_wall_nw": { "name": "Paroi Fine Nord-Ouest" },
-    "thin_wall_sw": { "name": "Paroi Fine Sud-Ouest" },
-    "thin_wall_ns": { "name": "Paroi Fine Nord-Sud" },
-    "thin_wall_ew": { "name": "Paroi Fine Est-Ouest" },
+    "thin_wall_se": { "name": "Paroi Fine (Sud-Est)" },
+    "thin_wall_ne": { "name": "Paroi Fine (Nord-Est)" },
+    "thin_wall_nw": { "name": "Paroi Fine (Nord-Ouest)" },
+    "thin_wall_sw": { "name": "Paroi Fine (Sud-Ouest)" },
+    "thin_wall_ns": { "name": "Paroi Fine (Nord-Sud)" },
+    "thin_wall_ew": { "name": "Paroi Fine (Est-Ouest)" },
     "thin_wall_nes": { "name": "Paroi Fine N-E-S" },
     "thin_wall_new": { "name": "Paroi Fine N-E-O" },
     "thin_wall_nsw": { "name": "Paroi Fine N-S-O" },
     "thin_wall_esw": { "name": "Paroi Fine E-S-O" },
     "thin_wall_nesw": { "name": "Paroi Fine (Quatre Côtés)" },
-    "swivel_door_ne": { "name": "Porte Pivotante Nord-Est", "desc": { "label": "Bloque ses côtés nord et est. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
-    "swivel_door_se": { "name": "Porte Pivotante Sud-Est", "desc": { "label": "Bloque ses côtés sud et est. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
-    "swivel_door_sw": { "name": "Porte Pivotante Sud-Ouest", "desc": { "label": "Bloque ses côtés sud et ouest. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
-    "swivel_door_nw": { "name": "Porte Pivotante Nord-Ouest", "desc": { "label": "Bloque ses côtés nord et ouest. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
+    "swivel_door_ne": { "name": "Porte Pivotante (Nord-Est)", "desc": { "label": "Bloque ses côtés nord et est. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
+    "swivel_door_se": { "name": "Porte Pivotante (Sud-Est)", "desc": { "label": "Bloque ses côtés sud et est. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
+    "swivel_door_sw": { "name": "Porte Pivotante (Sud-Ouest)", "desc": { "label": "Bloque ses côtés sud et ouest. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
+    "swivel_door_nw": { "name": "Porte Pivotante (Nord-Ouest)", "desc": { "label": "Bloque ses côtés nord et ouest. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré." } },
     "transmogrifier": {
       "name": "Transmogrificateur",
       "desc": { "label": "Change un monstre qui arrive dessus en son jumeau (scarabée et paramécie, planeur et boule de feu, traqueur et fuyard, balle rose et marcheur)." }
