@@ -982,9 +982,9 @@
       "wall": {
         "top": "#8a6a44",
         "topLight": "#a58559",
-        "topDark": "#6e5233",
-        "front": "#5a4128",
-        "frontDark": "#3f2c19",
+        "topDark": "#7f5f3c",
+        "front": "#86653f",
+        "frontDark": "#7f5f3c",
         "edge": "#2a1b0f"
       },
       "blueWall": {
@@ -996,7 +996,7 @@
         "depth": 0.42
       },
       "exit": {
-        "base": "#3b2a1c",
+        "base": "#7f5f3c",
         "ring": "#c99a2e",
         "core": "#f8efd6",
         "glow": "rgba(201, 154, 46, 0)"
@@ -1004,18 +1004,18 @@
       "water": {
         "deep": "#4f6f86",
         "light": "#8fa9b8",
-        "crest": "#1f3346"
+        "crest": "#142230"
       },
       "lava": {
-        "deep": "#8e2414",
+        "deep": "#b8401f",
         "light": "#d2622a",
-        "crest": "#f0b25a"
+        "crest": "#fde9b4"
       },
       "mage": {
-        "robe": "#6e2a1f",
-        "robeLight": "#8d4332",
-        "hat": "#3b2a1c",
-        "hatLight": "#5a4230",
+        "robe": "#a64e38",
+        "robeLight": "#c0694f",
+        "hat": "#80603f",
+        "hatLight": "#96744f",
         "band": "#c99a2e",
         "skin": "#e9c49a",
         "eyes": "#2a1b0f",
@@ -1031,7 +1031,7 @@
         "portalPeriodMs": 3200
       },
       "ink": {
-        "line": "#2a1b0f",
+        "line": "#1a1008",
         "hatch": "#5a4230",
         "paperFleck": "#b89d6a",
         "paperStain": "#c9ae7a",

@@ -233,7 +233,7 @@ export interface RunewardInkConfig {
   paperStain: string;
   /** Gold leaf accents. */
   gold: string;
-  /** Wood tone of staffs and frames. */
+  /** Wood tone of the mage's staff. */
   wood: string;
   /** Warm light carried by the player instead of the shared player light. */
   torch: {

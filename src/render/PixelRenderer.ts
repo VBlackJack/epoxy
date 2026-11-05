@@ -263,7 +263,7 @@ const FULL_TURN = Math.PI * 2;
 /** Player skin the Runeward style leaves to the shared drawing. */
 const RUNEWARD_DEFERRED_PLAYER_SKIN: PlayerSkinId = 'julien';
 /** Tiles that look like floor until the player holds boots that reveal them. */
-const HIDDEN_WALL_TILES: ReadonlySet<string> = new Set(['invisible_wall', 'appearing_wall']);
+export const HIDDEN_WALL_TILES: ReadonlySet<string> = new Set(['invisible_wall', 'appearing_wall']);
 const APPEARING_WALL_TILE = 'appearing_wall';
 /** The fake blue wall, which the editor marks with a small square. */
 const FAKE_BLUE_WALL_TILE = 'blue_wall_fake';
