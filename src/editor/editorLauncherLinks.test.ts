@@ -381,10 +381,13 @@ describe('selection edits with launcher links', () => {
   const triggerCell = { x: TRIGGER.x, y: TRIGGER.y, width: 1, height: 1 };
   const row = { x: TRIGGER.x, y: TRIGGER.y, width: LAUNCHER.x - TRIGGER.x + 1, height: 1 };
 
-  it('never put a link in a clip', () => {
+  it('go into a clip only when both ends are inside it, relative to the clip', () => {
     const clip = extractClip(linked(), row, false);
-    expect(JSON.stringify(clip)).not.toContain('launcherLinks');
+    expect(clip.launcherLinks).toEqual([{ buttonX: 0, buttonY: 0, launcherX: LAUNCHER.x - TRIGGER.x, launcherY: 0 }]);
     expect(clip.terrain[0][0]).toBe(TRIGGER_TILE);
+    const alone = extractClip(linked(), triggerCell, false);
+    expect(alone.launcherLinks).toBeUndefined();
+    expect(alone.linksLeftOut).toBe(1);
   });
 
   it('are dropped by clearing a rectangle holding an end, with the count', () => {
@@ -393,16 +396,17 @@ describe('selection edits with launcher links', () => {
     expect('launcherLinks' in result.map).toBe(false);
   });
 
-  it('are dropped by pasting over an end, and not pasted', () => {
+  it('are dropped by pasting over an end, and pasted again with a clip that holds both ends', () => {
     const clip = extractClip(linked(null), triggerCell, false);
     const result = pasteClip(linked(), clip, LAUNCHER.x, LAUNCHER.y, 'epoxy');
     expect(result.droppedLinks).toBe(1);
     expect('launcherLinks' in result.map).toBe(false);
-    // Pasting the pair elsewhere makes the trigger and launcher tiles, but no link.
+    // Pasting the whole pair elsewhere makes the trigger and launcher tiles and a second, independent link.
     const rowClip = extractClip(linked(), row, false);
     const copy = pasteClip(linked(), rowClip, 3, 4, 'epoxy');
     expect(copy.droppedLinks).toBe(0);
-    expect(copy.map.launcherLinks).toEqual([LINK]);
+    expect(copy.pastedLinks).toBe(1);
+    expect(copy.map.launcherLinks).toEqual([LINK, { buttonX: 3, buttonY: 4, launcherX: 6, launcherY: 4 }]);
     expect(copy.map.terrain[4][3]).toBe(TRIGGER_TILE);
   });
 
