@@ -15,6 +15,7 @@
  */
 
 import type { ConfigBundle } from '../config/ConfigRegistry';
+import type { ValidateOptions } from '../core/LevelValidator';
 import type { CompiledLevel, LevelValidationReport } from '../core/types';
 
 /** Messages the page sends to the level check worker; each carries the configs and locale it must validate with. */
@@ -25,6 +26,8 @@ export type LevelCheckWorkerRequest = {
   bundle: ConfigBundle;
   /** The page language: the validator words some issues (colour names) in it. */
   locale: string;
+  /** How hard to search (see `ValidateOptions`); absent means the defaults of the automatic check. */
+  options?: ValidateOptions;
 };
 
 /** Messages the level check worker answers with. */

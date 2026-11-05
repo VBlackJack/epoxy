@@ -15,6 +15,7 @@
  */
 
 import type { ConfigBundle } from '../config/ConfigRegistry';
+import type { ValidateOptions } from '../core/LevelValidator';
 import type { CompiledLevel, LevelValidationReport } from '../core/types';
 import type { LevelCheckWorkerRequest, LevelCheckWorkerResponse } from '../workers/levelCheckProtocol';
 
@@ -34,7 +35,7 @@ export interface LevelCheckRunnerDeps {
   /** The page language, posted with every check. */
   getLocale: () => string;
   /** The validation itself, run inline when no worker can be used. */
-  validate: (level: CompiledLevel) => LevelValidationReport;
+  validate: (level: CompiledLevel, options?: ValidateOptions) => LevelValidationReport;
 }
 
 /**
@@ -56,6 +57,7 @@ interface Listener {
 interface Pending {
   id: number;
   level: CompiledLevel;
+  options: ValidateOptions | undefined;
   /** The caller that started the check first, then those that joined it. */
   listeners: Listener[];
   timer: ReturnType<typeof setTimeout>;
@@ -87,17 +89,22 @@ export class LevelCheckRunner {
   }
 
   /** Starts the check of `level`; `onDone` is called exactly once, whatever the outcome. */
-  public run(level: CompiledLevel, timeoutMs: number, onDone: (result: LevelCheckResult) => void): void {
+  public run(
+    level: CompiledLevel,
+    timeoutMs: number,
+    onDone: (result: LevelCheckResult) => void,
+    options?: ValidateOptions
+  ): void {
     this.cancel();
     const worker = this.startWorker();
     if (!worker) {
-      onDone(this.validateInline(level));
+      onDone(this.validateInline(level, options));
       return;
     }
     const id = ++this.nextId;
     const timer = setTimeout(() => this.finish(id, { kind: 'timeout' }, true), timeoutMs);
-    this.pending = { id, level, listeners: [{ onDone, timer: null }], timer };
-    worker.postMessage({ type: 'check', id, level, bundle: this.deps.getBundle(), locale: this.deps.getLocale() });
+    this.pending = { id, level, options, listeners: [{ onDone, timer: null }], timer };
+    worker.postMessage({ type: 'check', id, level, bundle: this.deps.getBundle(), locale: this.deps.getLocale(), options });
   }
 
   /**
@@ -134,9 +141,9 @@ export class LevelCheckRunner {
     this.dropWorker();
   }
 
-  private validateInline(level: CompiledLevel): LevelCheckResult {
+  private validateInline(level: CompiledLevel, options?: ValidateOptions): LevelCheckResult {
     try {
-      return { kind: 'report', report: this.deps.validate(level) };
+      return { kind: 'report', report: this.deps.validate(level, options) };
     } catch (err) {
       console.error('Level check failed:', err);
       return { kind: 'error' };
@@ -168,7 +175,7 @@ export class LevelCheckRunner {
         if (!this.workerAnswered) {
           // The worker never worked: stop using workers, and check this level inline.
           this.workersUnusable = true;
-          if (pending) this.finish(pending.id, this.validateInline(pending.level), true);
+          if (pending) this.finish(pending.id, this.validateInline(pending.level, pending.options), true);
           else this.dropWorker();
           return;
         }
