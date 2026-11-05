@@ -203,6 +203,16 @@ describe('cc3dLinks', () => {
     expect(holds.find((g) => g.color === 'yellow')).toEqual({ color: 'yellow', controls: [], targets: [at(0, 1)] });
   });
 
+  it('lists a toggle control that a door covers among the controls of its colour', () => {
+    const level = levelWith({ '0,0': [{ kind: 'toggle_control', color: 'red' }, { kind: 'door', color: 'red' }] });
+    expect(cc3dLinks(level).toggles.find((g) => g.color === 'red')).toEqual({ color: 'red', controls: [at(0, 0)], targets: [] });
+  });
+
+  it('links a laser controller that a door covers to the nearest shooter', () => {
+    const level = levelWith({ '1,0': [{ kind: 'laser_controller' }, { kind: 'door', color: 'green' }] }, [{ kind: 'laser_shooter', x: 4, y: 0, dir: 'N' }]);
+    expect(cc3dLinks(level).laserControllers).toEqual([{ from: at(1, 0), to: 0 }]);
+  });
+
   it('groups golem controls with the golems of their colour', () => {
     const level = levelWith({ '0,0': [{ kind: 'golem_control_blue' }], '1,0': [{ kind: 'golem_control_yellow' }], '2,0': [{ kind: 'golem_control_yellow' }] }, [
       { kind: 'golem_yellow', x: 3, y: 1, dir: 'E' },
