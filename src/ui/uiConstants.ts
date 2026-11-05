@@ -137,6 +137,16 @@ export const EDITOR_ZOOM_TILE_STEP = 8;
 export const EDITOR_ZOOM_STEPS_EACH_WAY = 6;
 /** Mouse button number of a pen eraser. */
 export const POINTER_ERASER_BUTTON = 5;
+/** Pointer type reported for a finger; mouse and pen events keep the single-pointer path. */
+export const POINTER_TYPE_TOUCH = 'touch';
+/** A touch stroke younger than this is taken back when a second finger lands (a pan or pinch, not a paint); older ones are kept. */
+export const EDITOR_TOUCH_STROKE_GRACE_MS = 250;
+/** Change of the distance between two fingers, in CSS pixels, before the gesture counts as a pinch and not only a pan. */
+export const EDITOR_TOUCH_PINCH_START_PX = 24;
+/** Ratio of the finger distance to its reference that makes one zoom step (or its inverse for a step out). */
+export const EDITOR_TOUCH_PINCH_STEP_RATIO = 1.25;
+/** Largest finger travel, in CSS pixels, for a touch in a link session to still be a tap. */
+export const EDITOR_TOUCH_TAP_SLOP_PX = 10;
 /** Editor layout: the view width, in CSS pixels, under which it drops to two columns, then to one. */
 export const EDITOR_TWO_COLUMN_BELOW_WIDTH = 1100;
 export const EDITOR_ONE_COLUMN_BELOW_WIDTH = 680;
