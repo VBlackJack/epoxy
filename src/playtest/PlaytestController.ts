@@ -98,6 +98,8 @@ export class PlaytestController {
   /** Level object the open session is played on, to notice another one loaded behind our back. */
   private trackedLevel: CompiledLevel | null = null;
   private storageWarned = false;
+  /** The last won series: its rating form opens from the level-complete panel, never by itself. */
+  private lastWin: { sessionId: string; levelNumber: number; level: CompiledLevel; asked: boolean } | null = null;
 
   public constructor(private readonly deps: PlaytestControllerDeps) {
     this.recorder = new PlaytestRecorder(deps.config, deps.appVersion, deps.store.loadSessions());
@@ -114,7 +116,10 @@ export class PlaytestController {
 
   public setEnabled(enabled: boolean): void {
     if (enabled === this.enabled) return;
-    if (!enabled) this.closeOpen('mode_off', false);
+    if (!enabled) {
+      this.closeOpen('mode_off', false);
+      this.lastWin = null;
+    }
     this.enabled = enabled;
     this.deps.store.setEnabled(enabled);
     this.deps.onChange();
@@ -137,6 +142,7 @@ export class PlaytestController {
   public clearData(): void {
     this.recorder.clear();
     this.trackedLevel = null;
+    this.lastWin = null;
     this.deps.store.clearSessions();
     this.deps.onChange();
   }
@@ -250,8 +256,29 @@ export class PlaytestController {
   public won(): void {
     if (!this.guard()) return;
     this.recorder.observeSteps(this.deps.engine().getStepsCount());
+    const level = this.deps.engine().getLevel();
     const session = this.recorder.win(this.deps.now(), this.trace());
-    if (session) this.finish(session, true);
+    if (!session) return;
+    this.lastWin = { sessionId: session.id, levelNumber: session.levelNumber, level, asked: false };
+    this.finish(session, true, false);
+  }
+
+  /** True while the won level is still on screen and its rating was not offered yet. */
+  public canRateWin(): boolean {
+    const win = this.lastWin;
+    if (!this.enabled || !win || win.asked) return false;
+    const engine = this.deps.engine();
+    return engine.getLevel() === win.level && engine.isLevelCompleted();
+  }
+
+  /** Opens the rating form of the won level; a submitted rating is saved, a skipped one leaves the win as recorded. */
+  public async rateWin(): Promise<void> {
+    const win = this.lastWin;
+    if (!win || !this.canRateWin()) return;
+    win.asked = true;
+    const rating = await this.deps.askRating({ levelNumber: win.levelNumber, won: true });
+    if (rating && this.recorder.attachRating(win.sessionId, rating)) this.persist();
+    this.deps.onChange();
   }
 
   /** The page is closing or going away: the series ends and is saved, no form is shown. */

@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { isInBounds } from '../config/ConfigValidation';
+import { isInBounds, normalizeUnderlays } from '../config/ConfigValidation';
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import { cellEdgeMask } from '../core/EdgeRules';
 import { underlayMap } from '../core/Underlays';
@@ -28,6 +28,7 @@ import {
   WALL_TILE_ID
 } from '../core/coreConstants';
 import {
+  CellUnderlay,
   CloneLink,
   CompiledLevel,
   DatElementMapping,
@@ -82,6 +83,8 @@ const REPLACEMENT_CHAR_CODE = 0x3f;
 
 /** The ruleset whose reading of a .DAT follows Tile World's Lynx rules. */
 const LYNX_RULESET: Ruleset = 'lynx';
+/** Terrain the player can enter that turns into a wall when left: a wall under an item in the original files. */
+const RECESSED_WALL_TILE_ID = 'recessed_wall';
 
 /** The ruleset of the levels held as cc3d data, which the .DAT format cannot hold. */
 const CC3D_LEVEL_RULESET: Ruleset = 'cc3d';
@@ -355,6 +358,7 @@ export class DatCodec {
     // The row stride is the layer width, the same one encode writes with.
     const layerWidth = datCfg.layerWidth ?? mapWidth;
     const layerHeight = datCfg.layerHeight ?? mapHeight;
+    const hiddenTerrain: CellUnderlay[] = [];
     const cellCount = Math.min(datCfg.layerByteLength, layerWidth * layerHeight);
     for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
       const x = cellIdx % layerWidth;
@@ -367,7 +371,15 @@ export class DatCodec {
       // the floor under a creature, terrain or item: with anything else on top, or a creature below, it is ignored.
       const topIsCreature = topElem.kind === 'entity' || topElem.kind === 'player';
       const botIsFloor = botElem.kind === 'terrain' || botElem.kind === 'item';
-      const layers = !lynx ? [botElem, topElem] : topIsCreature && botIsFloor ? [botElem, topElem] : [topElem];
+      let layers = !lynx ? [botElem, topElem] : topIsCreature && botIsFloor ? [botElem, topElem] : [topElem];
+      if (!lynx && topElem.kind === 'item' && botElem.kind === 'terrain' && !this.playerCanEnter(botElem.id)) {
+        // The top tile is what the player meets: an item over a wall is collectible, and the wall closes behind
+        // the player once it is taken. A recessed wall plays exactly that; any other solid tile gives open floor.
+        layers = botElem.id === WALL_TILE_ID ? [{ kind: 'terrain', id: RECESSED_WALL_TILE_ID }, topElem] : [topElem];
+      } else if (!lynx && topElem.kind === 'terrain' && botElem.kind === 'terrain' && botElem.id !== FLOOR_TILE_ID) {
+        // A removable top (a socket, a door, dirt, a fake wall) shows the terrain under it once it is gone
+        hiddenTerrain.push({ x, y, terrain: botElem.id });
+      }
       for (const elem of layers) {
         this.applyElementToCell(
           x,
@@ -421,6 +433,9 @@ export class DatCodec {
       (tl) => inGrid(tl.buttonX, tl.buttonY) && inGrid(tl.trapX, tl.trapY)
     );
 
+    // Only the Epoxy reading keeps what a removable top hides; the engine plays the entries the level model accepts
+    const underlays = !lynx && ruleset === DEFAULT_RULESET ? normalizeUnderlays(hiddenTerrain, terrain, ruleset) : null;
+
     return {
       id: `${packPrefix}_level_${levelNumber || idx + 1}`,
       number: levelNumber || idx + 1,
@@ -435,8 +450,14 @@ export class DatCodec {
       items,
       entities: orderedEntities,
       trapLinks,
-      cloneLinks
+      cloneLinks,
+      ...(underlays ? { underlays } : {})
     };
+  }
+
+  /** Whether the player can walk onto the terrain: a wall under an item is not an obstacle to pick it up. */
+  private static playerCanEnter(terrainId: string): boolean {
+    return ConfigRegistry.getTile(terrainId).passableByPlayer !== false;
   }
 
   /** The element a byte code stands for under the given reading: Lynx overrides first, then the shared table. */

@@ -154,7 +154,7 @@ const TERRAIN_RULES: Record<Cc3dTerrainKind, TerrainRule> = {
   ice: { id: fixed('ice') },
   ice_corner: { id: cornerId },
   force: { id: (layer) => `force_${need(layer.dir, 'dir', layer.kind).toLowerCase()}` },
-  force_random: { id: fixed('force_random') },
+  force_random: { id: fixed('force_cycle') },
   exit: { id: fixed('exit') },
   socket: { id: fixed(SOCKET_TILE_ID) },
   socket_red: { id: fixed(SOCKET_TILE_ID) },

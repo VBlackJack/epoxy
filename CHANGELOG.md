@@ -9,6 +9,15 @@ versions follow Semantic Versioning.
 
 - Pocket Gate: carry a teleporter pad and set it down where you want; pads you set down link with each other (Epoxy rules). Pack format 8.
 
+### Changed
+
+- Playtest: the level rating opens from a button in the level-complete panel instead of by itself.
+- Converter: the CC3D random force floor becomes the Turning Force Floor, which plays the same. Converted levels that use it are saved as pack format 7, which builds older than 2.23.0 cannot read.
+
+### Fixed
+
+- CCLP 2 levels: chips and exits stacked over another tile in the original files now play as intended. Chips over walls can be taken and the wall closes behind you (level 17, level 85), and an exit under a chip socket appears when it opens (level 15). A few stacked tiles under water or floor are still dropped.
+
 ## [2.23.0] - 2026-11-06
 
 ### Added

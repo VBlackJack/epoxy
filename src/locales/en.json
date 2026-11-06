@@ -129,6 +129,7 @@
       "storage_full": { "label": "Playtest storage is full: the oldest sessions were dropped. Export your data soon." },
       "count": { "label": "Recorded sessions: {count}" },
       "rating": {
+        "open": { "action": "Rate this level" },
         "title": { "label": "How was this level?" },
         "level_won": { "label": "Level {number} solved." },
         "level_left": { "label": "You left level {number} before solving it." },

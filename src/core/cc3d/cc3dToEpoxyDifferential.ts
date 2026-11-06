@@ -47,6 +47,7 @@ export interface DiffMismatch {
 function epoxyIdOf(displayId: string): string {
   if (displayId === 'cc3d_socket_red') return 'socket';
   if (displayId === 'cc3d_sand') return 'gravel';
+  if (displayId === 'force_random') return 'force_cycle';
   const hold = /^cc3d_hold_door_(\w+)$/.exec(displayId);
   if (hold) return `hold_door_${hold[1]}`;
   const toggle = /^cc3d_toggle_door_(\w+)$/.exec(displayId);
