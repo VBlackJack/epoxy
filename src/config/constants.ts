@@ -161,19 +161,39 @@ export const PACK_JSON_VERSION_V8 = 8;
 export const PACK_JSON_VERSION_V8_IDS: ReadonlySet<string> = new Set(['pocket_gate', 'pocket_gate_pad']);
 
 /**
+ * Version of a pack file that holds at least one level using an id introduced with format 9 (see
+ * PACK_JSON_VERSION_V9_IDS): the rail pieces. An older build would read them as plain floor, so it must refuse the
+ * file.
+ */
+export const PACK_JSON_VERSION_V9 = 9;
+
+/** Ids that only exist from pack format 9; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V9_IDS: ReadonlySet<string> = new Set([
+  'rail_ns',
+  'rail_ew',
+  'rail_ne',
+  'rail_se',
+  'rail_sw',
+  'rail_nw',
+  'rail_switch_a',
+  'rail_switch_b'
+]);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
 export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: ReadonlySet<string> }> = [
   { version: PACK_JSON_VERSION_V7, ids: PACK_JSON_VERSION_V7_IDS },
-  { version: PACK_JSON_VERSION_V8, ids: PACK_JSON_VERSION_V8_IDS }
+  { version: PACK_JSON_VERSION_V8, ids: PACK_JSON_VERSION_V8_IDS },
+  { version: PACK_JSON_VERSION_V9, ids: PACK_JSON_VERSION_V9_IDS }
 ];
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 8.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 9.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V8;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V9;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

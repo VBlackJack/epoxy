@@ -1610,7 +1610,7 @@ export class LevelValidator {
           const ny = y + DIRECTION_VECTORS[dir].dy;
           // Raw edge check on purpose: a swivel launcher or target cell keeps its start orientation here.
           const ahead = level.terrain[ny]?.[nx];
-          if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir)) {
+          if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir, true)) {
             issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_faces_wall.label', params: { x, y } });
           }
         }
@@ -1809,13 +1809,16 @@ export class LevelValidator {
     const ownTile = ConfigRegistry.getTile(own);
     // A swivel door turns, so its static closed sides prove nothing.
     const ownBlockedEdges = ownTile.swivelTurns !== undefined ? [] : (ownTile.blockedEdges ?? []);
+    // A rail straight or bend closes its other sides for good; a switch flips, so it proves nothing.
+    const ownRailClosed = (side: Direction): boolean =>
+      ownTile.railSides !== undefined && ownTile.togglesTo === undefined && !ownTile.railSides.includes(side);
     return arrows.every((turn) => {
       const dir = relativeTo(entity.dir, turn);
       const nx = entity.x + DIRECTION_VECTORS[dir].dx;
       const ny = entity.y + DIRECTION_VECTORS[dir].dy;
       const neighbourId = level.terrain[ny]?.[nx];
       if (neighbourId === undefined) return true;
-      if (ownBlockedEdges.includes(dir)) return true;
+      if (ownBlockedEdges.includes(dir) || ownRailClosed(dir)) return true;
       const opposite = OPPOSITE_DIRECTION[dir];
       if (mask !== null) {
         if ((mask[entity.y * width + entity.x] & CELL_EDGE_BITS[dir]) !== 0) return true;
@@ -1825,6 +1828,7 @@ export class LevelValidator {
       const neighbour = ConfigRegistry.getTile(neighbourId);
       if (neighbour.swivelTurns !== undefined) return false;
       if (neighbour.blockedEdges?.includes(opposite)) return true;
+      if (neighbour.railSides !== undefined && neighbour.togglesTo === undefined && !neighbour.railSides.includes(opposite)) return true;
       return SWIVEL_SEALING_TILE_IDS.has(neighbourId);
     });
   }
@@ -2469,6 +2473,11 @@ export class LevelValidator {
     return false;
   }
 
+  /** Whether the tile's closed sides change during play: a swivel door or a rail switch. */
+  private static turnsItsEdges(tile: TileDefinition): boolean {
+    return tile.swivelTurns !== undefined || (tile.railSides !== undefined && tile.togglesTo !== undefined);
+  }
+
   private static isEdgeBlocked(
     terrain: string[][],
     mask: Uint8Array | null,
@@ -2480,8 +2489,10 @@ export class LevelValidator {
   ): boolean {
     const fromId = terrain[fromY][fromX];
     const toId = terrain[toY][toX];
-    const fromSwivel = ConfigRegistry.getTile(fromId).swivelTurns !== undefined;
-    const toSwivel = ConfigRegistry.getTile(toId).swivelTurns !== undefined;
+    // A rail switch flips with the green button, so like a swivel door its own sides prove nothing (both forms are
+    // taken as open); straights and bends keep their exact sides through the edge rules.
+    const fromSwivel = this.turnsItsEdges(ConfigRegistry.getTile(fromId));
+    const toSwivel = this.turnsItsEdges(ConfigRegistry.getTile(toId));
     if (!fromSwivel && !toSwivel) return isEdgeBlockedAt(terrain, mask, fromX, fromY, toX, toY, dir);
     // A swivel door turns behind whoever passes, so for reachability it is open on every side: its own
     // blockedEdges are ignored (over-approximation of every orientation, never a false unreachable). The

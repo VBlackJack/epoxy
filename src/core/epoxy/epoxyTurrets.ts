@@ -97,7 +97,7 @@ export function traceTurretBeams(w: EpoxyWorld): BeamCell[] {
       for (let step = 0; step < def.length; step++) {
         const nx = x + vec.dx;
         const ny = y + vec.dy;
-        if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, x, y, nx, ny, dir)) break;
+        if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, x, y, nx, ny, dir, true)) break;
         if (blocksTurretBeam(w, def, nx, ny)) break;
         const index = ny * width + nx;
         const cell = crossed.get(index) ?? { x: nx, y: ny, horizontal: false, vertical: false };

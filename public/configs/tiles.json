@@ -295,6 +295,96 @@
       "blockedEdges": ["N", "W"],
       "swivelTurns": { "cw": "swivel_door_ne", "ccw": "swivel_door_sw" }
     },
+    "rail_ns": {
+      "id": "rail_ns",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_ns.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["N", "S"]
+    },
+    "rail_ew": {
+      "id": "rail_ew",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_ew.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["E", "W"]
+    },
+    "rail_ne": {
+      "id": "rail_ne",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_ne.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["N", "E"]
+    },
+    "rail_se": {
+      "id": "rail_se",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_se.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["S", "E"]
+    },
+    "rail_sw": {
+      "id": "rail_sw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_sw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["S", "W"]
+    },
+    "rail_nw": {
+      "id": "rail_nw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_nw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["N", "W"]
+    },
+    "rail_switch_a": {
+      "id": "rail_switch_a",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_switch_a.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["S", "E"],
+      "togglesTo": "rail_switch_b"
+    },
+    "rail_switch_b": {
+      "id": "rail_switch_b",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_switch_b.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railSides": ["S", "W"],
+      "togglesTo": "rail_switch_a"
+    },
     "transmogrifier": {
       "id": "transmogrifier",
       "category": "mechanisms",

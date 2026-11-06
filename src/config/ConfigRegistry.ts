@@ -33,6 +33,7 @@ import {
   findColorChannelConfigErrors,
   findLaserConfigErrors,
   findSwivelConfigErrors,
+  findRailConfigErrors,
   findSlowTimeConfigErrors,
   findSpeedBootsConfigErrors,
   findEyeBootsConfigErrors,
@@ -316,6 +317,10 @@ class ConfigRegistryService {
     const swivelErrors = findSwivelConfigErrors(bundle.tiles.tiles);
     if (swivelErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, swivelErrors.join('; '));
+    }
+    const railErrors = findRailConfigErrors(bundle.tiles.tiles);
+    if (railErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, railErrors.join('; '));
     }
     const facingTurnErrors = findFacingTurnConfigErrors(bundle.tiles.tiles);
     if (facingTurnErrors.length > 0) {

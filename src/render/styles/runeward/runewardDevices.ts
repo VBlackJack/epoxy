@@ -280,6 +280,28 @@ function paintSwivel(ctx: Ctx, size: number, art: Art, nb: Neighbours, id: strin
   ctx.fill();
 }
 
+// ---- Rails ------------------------------------------------------------------------------------
+
+const RAIL = { width: 0.22 } as const;
+
+/** A timber track from the middle of the cell to the middle of each open side, in the colours of the swivel leaf. */
+function paintRail(ctx: Ctx, size: number, art: Art, nb: Neighbours, id: string): void {
+  paintFloor(ctx, size, art, nb);
+  const colours = art.device.swivel;
+  const width = size * RAIL.width;
+  const start = size * HALF - width * HALF;
+  const reach = size * HALF + width * HALF;
+  solidRect(ctx, size, art, { x: start, y: start, w: width, h: width }, colours, 0, false);
+  for (const dir of definitionOf(id).railSides ?? []) {
+    const rect: InkRect =
+      dir === 'N' ? { x: start, y: 0, w: width, h: reach - width }
+      : dir === 'S' ? { x: start, y: reach, w: width, h: size - reach }
+      : dir === 'W' ? { x: 0, y: start, w: reach - width, h: width }
+      : { x: reach, y: start, w: size - reach, h: width };
+    solidRect(ctx, size, art, rect, colours, 0, false);
+  }
+}
+
 // ---- Turn plates ------------------------------------------------------------------------------
 
 const TURN_PLATE = {
@@ -760,6 +782,9 @@ const THIN_WALL_IDS: readonly string[] = [
   'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw'
 ];
 const SWIVEL_IDS: readonly string[] = ['swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw'];
+const RAIL_IDS: readonly string[] = [
+  'rail_ns', 'rail_ew', 'rail_ne', 'rail_se', 'rail_sw', 'rail_nw', 'rail_switch_a', 'rail_switch_b'
+];
 const TURN_PLATE_IDS: readonly string[] = ['turn_plate_cw', 'turn_plate_ccw'];
 const EMITTER_IDS: readonly string[] = ['laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w'];
 const RECEIVER_IDS: readonly string[] = ['laser_receiver_red', 'laser_receiver_blue'];
@@ -778,6 +803,7 @@ function entries(ids: readonly string[], make: (id: string) => RunewardTilePaint
 export const TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromEntries([
   ...entries(THIN_WALL_IDS, (id) => stillTile((ctx, size, art, nb) => paintThinWall(ctx, size, art, nb, id))),
   ...entries(SWIVEL_IDS, (id) => stillTile((ctx, size, art, nb) => paintSwivel(ctx, size, art, nb, id))),
+  ...entries(RAIL_IDS, (id) => stillTile((ctx, size, art, nb) => paintRail(ctx, size, art, nb, id))),
   ...entries(TURN_PLATE_IDS, (id) =>
     stillTile((ctx, size, art, nb) => paintTurnPlate(ctx, size, art, nb, definitionOf(id).facingTurn === -1 ? -1 : 1))),
   ['transmogrifier', stillTile(paintTransmogrifier)],

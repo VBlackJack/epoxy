@@ -80,8 +80,9 @@ describe('paletteAvailability', () => {
       const isTurnPlate = def.facingTurn !== undefined;
       const isSignalTile = def.signalSource !== undefined || def.signalGate !== undefined;
       const isForceCycle = def.forceCycle === true;
+      const isRail = def.railSides !== undefined;
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile || isForceCycle));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile || isForceCycle || isRail));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);

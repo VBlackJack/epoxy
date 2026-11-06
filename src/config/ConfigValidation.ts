@@ -628,6 +628,8 @@ export function normalizeUnderlays(
       const topId = terrain[entry.y as number][entry.x as number];
       const top = lookup(topId);
       if (!tile || !top || !isRemovableTop(top)) continue;
+      // A rail only shapes a step on the cell it lies in: nothing reveals it, so it is never hidden.
+      if (tile.railSides !== undefined) continue;
       // Under a door or a socket (which nothing turns back into) the engine also plays a socket, dirt, a blue
       // fake wall and the live devices; under any other top an underlay stays a plain, static terrain.
       const widened = isOpeningTop(top) && id !== topId && isRemovableUnderlay(tile);
@@ -943,6 +945,59 @@ export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): s
       if ([...(target.blockedEdges ?? [])].sort().join('') !== expected) {
         errors.push(`${id}.swivelTurns.${field}: ${target.id} must close the sides ${id} closes turned a quarter turn`);
       }
+    }
+  }
+  return errors;
+}
+
+/** Number of open sides a rail piece has. */
+const RAIL_OPEN_SIDE_COUNT = 2;
+
+/** Number of open sides the two forms of a rail switch share: they differ by one side each. */
+const RAIL_SWITCH_SHARED_SIDES = 1;
+
+/**
+ * Problems of the rail fields of tiles.json: a rail piece lists exactly two distinct sides, is a terrain a walker
+ * can enter and keeps no other edge rule of its own. A rail switch names the other form of its pair with togglesTo
+ * (the green button flips it): the pair must point at each other and share exactly one open side. Only a rail
+ * switch may toggle into a rail. Each entry names the tile.
+ */
+export function findRailConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    const sides: unknown = tile.railSides;
+    if (sides === undefined) {
+      const target = tile.togglesTo === undefined ? undefined : tiles[tile.togglesTo];
+      if (target?.railSides !== undefined) errors.push(`${id}.togglesTo: only a rail switch may toggle into a rail`);
+      continue;
+    }
+    const wellFormed =
+      Array.isArray(sides) &&
+      sides.length === RAIL_OPEN_SIDE_COUNT &&
+      sides.every(isDirection) &&
+      new Set(sides).size === RAIL_OPEN_SIDE_COUNT;
+    if (!wellFormed) {
+      errors.push(`${id}.railSides: expected ${RAIL_OPEN_SIDE_COUNT} distinct sides among N, E, S, W`);
+      continue;
+    }
+    if (tile.layer !== 'terrain') errors.push(`${id}.railSides: a rail is a terrain`);
+    if (tile.passableByPlayer !== true || tile.passableByMonster !== true || tile.passableByBlock !== true) {
+      errors.push(`${id}.railSides: a rail must be passable by the player, monsters and blocks`);
+    }
+    if (tile.blockedEdges !== undefined || tile.blockedEntryDirections !== undefined || tile.swivelTurns !== undefined) {
+      errors.push(`${id}.railSides: a rail closes its sides through railSides alone`);
+    }
+    if (tile.togglesTo === undefined) continue;
+    const other = tiles[tile.togglesTo];
+    if (other?.railSides === undefined) {
+      errors.push(`${id}.togglesTo: ${tile.togglesTo} is not a rail`);
+      continue;
+    }
+    if (other.togglesTo !== id) errors.push(`${id}.togglesTo: ${other.id} does not toggle back to ${id}`);
+    const shared = (sides as Direction[]).filter((side) => other.railSides?.includes(side)).length;
+    if (shared !== RAIL_SWITCH_SHARED_SIDES) {
+      errors.push(`${id}.togglesTo: ${other.id} must share exactly ${RAIL_SWITCH_SHARED_SIDES} open side with ${id}`);
     }
   }
   return errors;

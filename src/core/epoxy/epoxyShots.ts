@@ -107,7 +107,7 @@ function enterCell(ctx: EpoxyContext, fromX: number, fromY: number, dir: Directi
   const vec = DIRECTION_VECTORS[dir];
   const nx = fromX + vec.dx;
   const ny = fromY + vec.dy;
-  if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, fromX, fromY, nx, ny, dir)) return ENDED;
+  if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, fromX, fromY, nx, ny, dir, true)) return ENDED;
   if (ConfigRegistry.getTile(w.terrain[ny][nx]).laserTransparent !== true) return ENDED;
 
   if (w.player.alive && w.player.x === nx && w.player.y === ny) {

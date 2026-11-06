@@ -16,17 +16,24 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CELL_EDGE_BITS, OPPOSITE_DIRECTION } from './coreConstants';
-import { CompiledLevel, Direction } from './types';
+import { CompiledLevel, Direction, TileDefinition } from './types';
+
+/** Whether a rail piece closes the side: the tile is a rail and the side is not one of its open sides. */
+export function railClosesSide(tile: TileDefinition, side: Direction): boolean {
+  return tile.railSides !== undefined && !tile.railSides.includes(side);
+}
 
 /**
- * Whether a thin wall or a one-way tile stops a step between two adjacent
- * cells. An edge is blocked from either side.
+ * Whether a thin wall, a one-way tile or a rail stops a step between two adjacent cells. An edge is blocked from
+ * either side. A rail only closes the sides it is not open on for walkers, sliders, blocks and teleport exits: a
+ * beam or a shot (`beam`) passes through them.
  */
-function tileEdgeBlocked(fromId: string, toId: string, dir: Direction): boolean {
+function tileEdgeBlocked(fromId: string, toId: string, dir: Direction, beam: boolean): boolean {
   const fromTile = ConfigRegistry.getTile(fromId);
   const toTile = ConfigRegistry.getTile(toId);
   const opposite = OPPOSITE_DIRECTION[dir];
 
+  if (!beam && (railClosesSide(fromTile, dir) || railClosesSide(toTile, opposite))) return true;
   if (fromTile.blockedEdges?.includes(dir)) return true;
   if (toTile.blockedEdges?.includes(opposite)) return true;
   if (fromTile.blockedEntryDirections?.includes(opposite)) return true;
@@ -80,9 +87,10 @@ export function cellEdgeMask(level: CompiledLevel): Uint8Array | null {
 
 /**
  * Whether a step between two adjacent cells is stopped by a thin wall: the
- * terrain of either cell (thin wall and one-way tiles) or a cell edge of the
+ * terrain of either cell (thin wall, one-way and rail tiles) or a cell edge of the
  * level, from either side. Shared by the engine, the validator and the solvers
- * so they all read the edges the same way.
+ * so they all read the edges the same way. A beam or a shot (`beam`) passes the
+ * sides a rail closes to everything else.
  */
 export function isEdgeBlockedAt(
   terrain: readonly (readonly string[])[],
@@ -91,9 +99,10 @@ export function isEdgeBlockedAt(
   fromY: number,
   toX: number,
   toY: number,
-  dir: Direction
+  dir: Direction,
+  beam = false
 ): boolean {
-  return isEdgeBlockedBetween(terrain[fromY][fromX], terrain[toY][toX], mask, terrain[0].length, fromX, fromY, toX, toY, dir);
+  return isEdgeBlockedBetween(terrain[fromY][fromX], terrain[toY][toX], mask, terrain[0].length, fromX, fromY, toX, toY, dir, beam);
 }
 
 /**
@@ -109,9 +118,10 @@ export function isEdgeBlockedBetween(
   fromY: number,
   toX: number,
   toY: number,
-  dir: Direction
+  dir: Direction,
+  beam = false
 ): boolean {
-  if (tileEdgeBlocked(fromId, toId, dir)) return true;
+  if (tileEdgeBlocked(fromId, toId, dir, beam)) return true;
   if (mask === null) return false;
   return (
     (mask[fromY * width + fromX] & CELL_EDGE_BITS[dir]) !== 0 ||

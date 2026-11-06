@@ -8,6 +8,7 @@ versions follow Semantic Versioning.
 ### Added
 
 - Pocket Gate: carry a teleporter pad and set it down where you want; pads you set down link with each other (Epoxy rules). Pack format 8.
+- Rails: straight and bent rail pieces only let you in and out through their open sides; rail switches flip with the green button (Epoxy rules). Pack format 9.
 
 ### Changed
 

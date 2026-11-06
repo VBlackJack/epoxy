@@ -20,6 +20,7 @@ import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COL
 import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
+import { DIRECTION_VECTORS } from '../config/constants';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
@@ -354,6 +355,12 @@ const LURKER_EDITOR_MARKER_ALPHA = 0.55;
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
 const THIN_BAR_MIN_PX_FLAT = 4;
+/** Rail piece bed width, as a share of the tile. */
+const RAIL_BED_TILE = 0.3;
+/** Rail piece rail width (the lighter line over the bed), as a share of the tile. */
+const RAIL_LINE_TILE = 0.12;
+/** Opacity of the other form of a rail switch, drawn faded under the current one. */
+const RAIL_SWITCH_OTHER_ALPHA = 0.3;
 /** Transmogrifier pad inset from the cell edge, as a fraction of the cell. */
 const TRANSMOGRIFIER_PAD_INSET = 0.12;
 /** Transmogrifier pad corner radius in the rounded styles, as a fraction of the cell. */
@@ -2356,6 +2363,13 @@ export class PixelRenderer {
       }
       return;
     }
+    const railSides = ConfigRegistry.getTile(tileId).railSides;
+    if (railSides !== undefined) {
+      // Outside Runeward, a rail piece is the floor of the style with a track drawn over it.
+      this.drawTile(ctx, FLOOR_TILE_ID, x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      if (pass !== 'animated') this.paintRailTrack(ctx, tileId, railSides, x, y, size);
+      return;
+    }
     const painterId = EPOXY_TO_CC3D_PAINTER[tileId];
     if (painterId) {
       this.drawCc3dTile(ctx, painterId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
@@ -2387,6 +2401,64 @@ export class PixelRenderer {
     } else {
       this.drawLegacyTile(ctx, tileId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
     }
+  }
+
+  /**
+   * The track of a rail piece: a bed and a lighter line from the middle of each open side to the centre. A rail
+   * switch also shows its other form faded under the current one, so the player sees where it will turn.
+   */
+  private paintRailTrack(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    sides: readonly Direction[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const otherSides = ConfigRegistry.getTile(ConfigRegistry.getTile(tileId).togglesTo ?? tileId).railSides;
+    ctx.save();
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'round';
+    if (otherSides !== undefined && otherSides !== sides) {
+      ctx.globalAlpha = RAIL_SWITCH_OTHER_ALPHA;
+      this.strokeRailPath(ctx, otherSides, x, y, size);
+      ctx.globalAlpha = 1;
+    }
+    this.strokeRailPath(ctx, sides, x, y, size);
+    ctx.restore();
+  }
+
+  /** One rail path through the centre of the cell, bed first and line over it. */
+  private strokeRailPath(
+    ctx: CanvasRenderingContext2D,
+    sides: readonly Direction[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const pal = this.pal();
+    const centreX = x + size / 2;
+    const centreY = y + size / 2;
+    const trace = (): void => {
+      ctx.beginPath();
+      sides.forEach((side, index) => {
+        const vec = DIRECTION_VECTORS[side];
+        const edgeX = centreX + (vec.dx * size) / 2;
+        const edgeY = centreY + (vec.dy * size) / 2;
+        if (index === 0) ctx.moveTo(edgeX, edgeY);
+        else {
+          ctx.lineTo(centreX, centreY);
+          ctx.lineTo(edgeX, edgeY);
+        }
+      });
+      ctx.stroke();
+    };
+    ctx.strokeStyle = pal.wallShadow;
+    ctx.lineWidth = size * RAIL_BED_TILE;
+    trace();
+    ctx.strokeStyle = pal.wallTop;
+    ctx.lineWidth = size * RAIL_LINE_TILE;
+    trace();
   }
 
   /** Whether the signal node of the cell being drawn is on; false in the editor, which has no running level. */

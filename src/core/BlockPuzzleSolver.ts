@@ -350,7 +350,11 @@ export class BlockPuzzleSolver {
     for (let y = 0; y < terrain.length; y++) {
       for (let x = 0; x < terrain[y].length; x++) {
         // A swivel door turns behind whoever passes: the search keeps edges fixed, so it never judges one.
-        if (ConfigRegistry.getTile(terrain[y][x]).swivelTurns) return null;
+        {
+          const tile = ConfigRegistry.getTile(terrain[y][x]);
+          // A swivel door turns and a rail switch flips with the green button: neither is modelled.
+          if (tile.swivelTurns || (tile.railSides && tile.togglesTo)) return null;
+        }
         if (!MODELLED_TERRAIN.includes(terrain[y][x])) return null;
         const item = items[y][x];
         if (item !== null && !MODELLED_ITEMS.includes(item)) return null;

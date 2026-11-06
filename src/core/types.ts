@@ -1042,6 +1042,11 @@ export interface TileDefinition {
   slideType?: 'ice' | 'force';
   blockedEntryDirections?: Direction[];
   blockedEdges?: Direction[];
+  /**
+   * A rail piece: the two sides it is open on. Every other side of the cell is closed to walkers, sliders, pushed
+   * blocks and teleport exits (never to beams or shots), and the piece is entered and left only through these sides.
+   */
+  railSides?: Direction[];
   /** A swivel door: the tile the cell turns into after a quarter turn clockwise and counter-clockwise. */
   swivelTurns?: { cw: string; ccw: string };
   deflectionMap?: Partial<Record<Direction, Direction>>;

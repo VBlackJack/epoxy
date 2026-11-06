@@ -456,9 +456,10 @@ export function isEdgeBlocked(
   fromY: number,
   toX: number,
   toY: number,
-  dir: Direction
+  dir: Direction,
+  beam = false
 ): boolean {
-  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir);
+  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir, beam);
 }
 
 /**
