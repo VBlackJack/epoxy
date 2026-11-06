@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Blast Charge: pick it up, drop it where you want, and three seconds later it destroys the monsters and blocks around it (Epoxy rules). Pack format 7.
 - Ward: a one-time shield that destroys the first monster you touch (Epoxy rules).
 - Lurker: a monster hidden in the floor that wakes when you arrive on or slide through a cell next to it, then after a short pause chases you slowly (Epoxy rules).
 - Turning Force Floor: a force floor that pushes east, south, west, then north in turn, one shared turn per level (Epoxy rules).

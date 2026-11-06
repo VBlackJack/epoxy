@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { decodeActions, PieceSolver, SolverAction, WAIT_ACTION } from '../generator/PieceSolver';
+import { decodeActions, DROP_CHARGE_ACTION, PieceSolver, SolverAction, WAIT_ACTION } from '../generator/PieceSolver';
 import { GameEngine } from './GameEngine';
 import { DIRT_TILE_IDS, LevelMetrics, Mechanic } from './LevelMetrics';
 import { isPlayerWalkable } from './Walkability';
@@ -241,6 +241,9 @@ export class DifficultyMetrics {
       played++;
       if (action === WAIT_ACTION) {
         waits++;
+      } else if (action === DROP_CHARGE_ACTION) {
+        // Dropping a charge counts as a move but is no step: the run of direction reversals is left as it was.
+        moves++;
       } else {
         moves++;
         if (lastMove && OPPOSITE[lastMove] === action) reversals++;

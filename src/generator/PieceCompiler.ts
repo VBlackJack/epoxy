@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { decodeActions } from './PieceSolver';
+import { decodeActions, isMoveAction, MoveAction } from './PieceSolver';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { DEFAULT_FACING, OPPOSITE_DIRECTION } from '../core/coreConstants';
 import { isPlayerWalkable } from '../core/Walkability';
@@ -39,6 +39,14 @@ export const ALL_ORIENTATIONS: readonly PieceOrientation[] = [false, true].flatM
 export const IDENTITY_ORIENTATION: PieceOrientation = { quarterTurns: 0, mirrored: false };
 
 /** Raised for a malformed piece, or one whose tiles cannot take an orientation. */
+/** The steps and waits of a piece annotation; a charge drop has no place in a piece, so it is an error, not dropped. */
+function moveActionsOf(pieceId: string, text: string): MoveAction[] {
+  const actions = decodeActions(text);
+  const moves = actions.filter(isMoveAction);
+  if (moves.length !== actions.length) throw new PieceError(pieceId, 'a solution annotation cannot drop a charge (X)');
+  return moves;
+}
+
 export class PieceError extends Error {
   constructor(public readonly pieceId: string, detail: string) {
     super(`${pieceId}: ${detail}`);
@@ -247,7 +255,7 @@ export function compilePiece(
     exports: def.exports ? { ...def.exports } : null,
     imports: def.imports ? { ...def.imports } : null,
     deadEnds: countDeadEnds(terrain, ports),
-    solution: annotation ? decodeActions(annotation.solution) : undefined,
+    solution: annotation ? moveActionsOf(def.id, annotation.solution) : undefined,
     reversible: annotation?.reversible,
     orientation: IDENTITY_ORIENTATION
   };

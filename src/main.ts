@@ -22,6 +22,7 @@ import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
+import { CHARGE_ITEM_ID } from './core/coreConstants';
 import { bootsRevealHiddenWalls, featuresFor, isEpoxyOnlyItemId } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
@@ -323,7 +324,8 @@ class EpoxyApplication {
   private inventoryLabelsLocale: string = '';
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID];
+  /** The boots slots, then the blast charge, a counted item that shares their grid. */
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID, CHARGE_ITEM_ID];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
   private epoxyBootsLevel: unknown = null;
@@ -3250,6 +3252,10 @@ class EpoxyApplication {
       this.triggerHaptic();
       this.undoMove();
     });
+    byId('touch-btn-charge')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.dropHudItem(CHARGE_ITEM_ID);
+    });
     byId('touch-btn-menu')?.addEventListener('click', (e) => {
       this.triggerHaptic();
       this.setDrawerOpen(true, e.currentTarget as HTMLElement);
@@ -3613,7 +3619,23 @@ class EpoxyApplication {
     return this.epoxyBootsPlaced;
   }
 
+  /** True for an inventory entry held as a count (the blast charge) rather than as keys or boots. */
+  private isCountedItem(itemId: string): boolean {
+    return ConfigRegistry.getTile(itemId).collectible === 'charge';
+  }
+
+  /** Shows the phone strip's drop button on a level that places a blast charge, enabled while one is held. */
+  private updateChargeButton(): void {
+    const button = byId<HTMLButtonElement>('touch-btn-charge');
+    if (!button) return;
+    const levelHasCharge = this.placedEpoxyBoots().has(CHARGE_ITEM_ID);
+    button.classList.toggle('hidden', !levelHasCharge);
+    document.body.classList.toggle('charge-button-visible', levelHasCharge);
+    button.disabled = !this.engine.holdsItem(CHARGE_ITEM_ID);
+  }
+
   private updateInventory(): void {
+    this.updateChargeButton();
     const player = this.engine.getPlayer();
     const selected = this.resolveSelectedItem();
     this.keyIds.forEach((kId, i) => {
@@ -3639,10 +3661,12 @@ class EpoxyApplication {
     bootsGrid?.classList.toggle('inv-grid-wide', columns > BASE_BOOT_SLOT_COUNT);
     bootsGrid?.style.setProperty(BOOT_GRID_COLUMNS_VAR, String(columns));
     this.bootIds.forEach((bId, i) => {
-      const owned = player.boots.has(bId);
+      // A blast charge is a counted item that shares the grid with the boots.
+      const count = this.isCountedItem(bId) ? player.keys[bId] || 0 : 0;
+      const owned = this.isCountedItem(bId) ? count > 0 : player.boots.has(bId);
       this.bootSlots[i]?.update({
         owned,
-        badge: '',
+        badge: count > 0 ? t('hud.inventory.count.label', { count }) : '',
         label: this.slotLabel(bId, owned),
         iconUrl: this.bootIconCache[bId],
         selected: selected === bId,

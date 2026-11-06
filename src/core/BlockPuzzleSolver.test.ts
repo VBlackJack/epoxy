@@ -117,6 +117,26 @@ describe('BlockPuzzleSolver', () => {
     expect(BlockPuzzleSolver.isStuck(onMap)).toBe(false);
   });
 
+  it('judges nothing while a blast charge is held or lies on the map, since a blast removes blocks and monsters', () => {
+    const stuck = (): GameEngine =>
+      engineAt(
+        [
+          { x: 1, y: 5 },
+          { x: 3, y: 4 },
+          { x: 6, y: 5 }
+        ],
+        { x: 2, y: 5 }
+      );
+    expect(BlockPuzzleSolver.isStuck(stuck())).toBe(true);
+    const held = stuck();
+    held.getPlayer().keys.charge = 1;
+    expect(BlockPuzzleSolver.isStuck(held)).toBe(false);
+    expect(BlockPuzzleSolver.hint(held)).toBeNull();
+    const onMap = stuck();
+    onMap.getItems()[1][1] = 'charge';
+    expect(BlockPuzzleSolver.isStuck(onMap)).toBe(false);
+  });
+
   it('judges nothing on a receivers level, whatever its buttons and blocks', () => {
     const engine = engineAt(
       [

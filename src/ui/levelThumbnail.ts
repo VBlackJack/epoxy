@@ -71,6 +71,8 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   ward: 'blue',
   slow_time: 'blue',
   bomb: 'bombBody',
+  charge: 'orange',
+  charge_lit: 'bombSpark',
   score_2x: 'bonusFlagMultiplier',
   block_target: 'blockTarget',
   flame_jet_off: 'flameJetRim',

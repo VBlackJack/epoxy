@@ -49,6 +49,13 @@ describe('compilePiece', () => {
     expect(piece.entities).toEqual([{ x: 1, y: 1, type: 'dirt_block', dir: 'S' }]);
   });
 
+  it('refuses a solution annotation that drops a charge instead of dropping the letter', () => {
+    const legend = ConfigRegistry.getPieceLegend();
+    const rows = definition(['#@#', '#.#', '#$#']);
+    expect(compilePiece(rows, legend, { solution: 'SS', reversible: true }).solution).toEqual(['S', 'S']);
+    expect(() => compilePiece(rows, legend, { solution: 'SXS', reversible: true })).toThrow(PieceError);
+  });
+
   it('counts the dead ends a piece brings, ports counting as open to the outside', () => {
     const legend = ConfigRegistry.getPieceLegend();
     // A straight tube: both ends are ports, so neither is a dead end.

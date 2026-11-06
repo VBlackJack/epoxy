@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, MAX_SOLVER_CACHE_ENTRIES, ORDERED_DIRECTIONS } from '../config/constants';
-import { EXIT_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from '../core/coreConstants';
+import { CHARGE_ITEM_ID, EXIT_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, EntityPlacement, GridPoint, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
@@ -34,17 +34,34 @@ const reversibleCache = new Map<string, boolean>();
 
 /** Standing still for one step: with monsters around, timing is part of a solution. */
 export const WAIT_ACTION = 'WAIT';
-export type SolverAction = Direction | typeof WAIT_ACTION;
+/** Putting a held blast charge down on the player's cell, lit. */
+export const DROP_CHARGE_ACTION = 'DROP_CHARGE';
+export type SolverAction = Direction | typeof WAIT_ACTION | typeof DROP_CHARGE_ACTION;
+/** The actions a search tries from a state: a step or a wait (dropping a charge is never searched). */
+export type MoveAction = Direction | typeof WAIT_ACTION;
+
+export function isMoveAction(action: SolverAction): action is MoveAction {
+  return action !== DROP_CHARGE_ACTION;
+}
 
 /** Letter standing for a wait in a written action list; moves use N, E, S and W. */
-const WAIT_LETTER = '.';
+export const WAIT_LETTER = '.';
+
+/** Letter standing for dropping a blast charge in a written action list. */
+export const DROP_CHARGE_LETTER = 'X';
 
 export function encodeActions(actions: readonly SolverAction[]): string {
-  return actions.map((a) => (a === WAIT_ACTION ? WAIT_LETTER : a)).join('');
+  return actions
+    .map((a) => (a === WAIT_ACTION ? WAIT_LETTER : a === DROP_CHARGE_ACTION ? DROP_CHARGE_LETTER : a))
+    .join('');
 }
 
 export function decodeActions(text: string): SolverAction[] {
-  return [...text].map((ch) => (ch === WAIT_LETTER ? WAIT_ACTION : (ch as Direction)));
+  return [...text].map((ch) => {
+    if (ch === WAIT_LETTER) return WAIT_ACTION;
+    if (ch === DROP_CHARGE_LETTER) return DROP_CHARGE_ACTION;
+    return ch as Direction;
+  });
 }
 
 export interface PieceSolveOptions {
@@ -305,6 +322,11 @@ export class PieceSolver {
       for (let i = 0; i < ticks; i++) engine.tick();
       return this.settle(engine);
     }
+    if (action === DROP_CHARGE_ACTION) {
+      // A drop that cannot happen (nothing held, the cell is taken) breaks the list, like a move that kills.
+      if (!engine.dropItem(CHARGE_ITEM_ID)) return false;
+      return this.settle(engine);
+    }
     engine.attemptPlayerMove(action);
     return this.settle(engine);
   }
@@ -326,7 +348,7 @@ export class PieceSolver {
     maxStates: number,
     goal: () => boolean | null
   ): PieceSolveResult {
-    const actions: SolverAction[] = this.hasMonsters(piece)
+    const actions: MoveAction[] = this.hasMonsters(piece)
       ? [...ORDERED_DIRECTIONS, WAIT_ACTION]
       : [...ORDERED_DIRECTIONS];
     const nodes: SearchNode[] = [{ state: engine.captureState(), parent: -1, move: null }];
@@ -427,7 +449,7 @@ export class PieceSolver {
     };
 
     const origin = { x: PIECE_OFFSET, y: PIECE_OFFSET };
-    const actions: SolverAction[] = this.hasMonsters(piece)
+    const actions: MoveAction[] = this.hasMonsters(piece)
       ? [...ORDERED_DIRECTIONS, WAIT_ACTION]
       : [...ORDERED_DIRECTIONS];
     const states: (UndoSnapshot | null)[] = [engine.captureState()];

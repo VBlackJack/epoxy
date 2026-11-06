@@ -33,6 +33,7 @@ import {
   LauncherLink,
   PlayerState,
   RelativeTurn,
+  LitCharge,
   RuntimeEntity,
   Shot,
   TileDefinition,
@@ -99,6 +100,8 @@ export interface EpoxyWorld {
   toggleParity: number;
   /** Arrivals counted so far on turning force floors, by any actor; picks the next direction of the shared turn. 0 at load. */
   forceCycleTurn: number;
+  /** The blast charges dropped and not yet blasted, in the order they were lit; empty on a level without charges. */
+  litCharges: LitCharge[];
   /** True when the level has a turning force floor, even one hidden under a removable top; fixed for the level. */
   hasForceCycle: boolean;
   chipsRemaining: number;
@@ -192,6 +195,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     swivelEntry: new Map<number, Direction>(),
     toggleParity: 0,
     forceCycleTurn: 0,
+    litCharges: [],
     hasForceCycle: false,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
@@ -249,6 +253,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.revealedCells = new Set<number>();
   w.toggleParity = 0;
   w.forceCycleTurn = 0;
+  w.litCharges = [];
   w.hasForceCycle = false;
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {

@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { FLOOR_TILE_ID, reflectOnMirror } from '../coreConstants';
 import { Direction, RuntimeEntity, Shot, ShotEffect } from '../types';
+import { isLitChargeItem } from './epoxyCharges';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -118,7 +119,8 @@ function enterCell(ctx: EpoxyContext, fromX: number, fromY: number, dir: Directi
   if (entity) return enterEntityCell(ctx, entity, dir);
 
   const itemId = w.items[ny][nx];
-  if (itemId) {
+  // A lit blast charge lets a shot through, as it lets a creature or a block through.
+  if (itemId && !isLitChargeItem(itemId)) {
     if (ConfigRegistry.getTile(itemId).hazard === 'bomb') {
       w.items[ny][nx] = null;
       AudioManager.playSfx(SHOT_BOMB_SFX);

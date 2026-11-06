@@ -19,7 +19,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, WALL_TILE_ID } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
-import { bootsPullBlocks, hasPullBootsContent, isWardTileId } from './RulesetFeatures';
+import { bootsPullBlocks, hasChargeContent, hasPullBootsContent, isChargeTileId, isWardTileId } from './RulesetFeatures';
 import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
 
 /** Terrain ids of the two turn plates, whose quarter turn the search applies to an arrow block that lands on them. */
@@ -27,6 +27,12 @@ import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
 function wardAvailable(engine: GameEngine): boolean {
   if ([...engine.getPlayer().boots].some(isWardTileId)) return true;
   return engine.getItems().some((row) => row.some(isWardTileId));
+}
+
+/** True when a blast charge is held or lies on the map: a blast removes monsters and blocks, which the search does not model. */
+function chargeAvailable(engine: GameEngine): boolean {
+  if (Object.entries(engine.getPlayer().keys).some(([id, count]) => count > 0 && isChargeTileId(id))) return true;
+  return hasChargeContent({ terrain: engine.getTerrain(), items: engine.getItems() });
 }
 
 const TURN_PLATE_CW_TILE_ID = 'turn_plate_cw';
@@ -239,6 +245,8 @@ export class BlockPuzzleSolver {
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return false;
     // A ward destroys the first monster touched, so no monster is a permanent wall while one is held or lies on the map.
     if (wardAvailable(engine)) return false;
+    // A blast charge destroys monsters and blocks, so neither stays a permanent wall.
+    if (chargeAvailable(engine)) return false;
     const detector = new BlockPuzzleSolver(engine);
     if (detector.buttons.length === 0) return false;
     // Separate block puzzles (two Sokoban rooms) are judged one at a time.
@@ -337,6 +345,8 @@ export class BlockPuzzleSolver {
     // Signal wiring changes the board as the player moves: the search does not model it.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;
+    // A blast charge destroys monsters and blocks: the search does not model it.
+    if (chargeAvailable(engine)) return null;
     // Flying shots destroy blocks and monsters: the search does not model them.
     if (engine.getShots() !== undefined || (engine.getLevel().launcherLinks?.length ?? 0) > 0) return null;
     const { x, y } = engine.getPlayer();
@@ -413,6 +423,8 @@ export class BlockPuzzleSolver {
     // Signals open and close doors the search does not model: it offers no hint on a wired level.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;
+    // A blast charge destroys monsters and blocks: the search does not model it.
+    if (chargeAvailable(engine)) return null;
     const solver = new BlockPuzzleSolver(engine);
     const occupied = new Set(solver.blocks);
     for (const area of solver.areas()) {

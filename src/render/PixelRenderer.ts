@@ -19,7 +19,7 @@ import { relativeTo } from '../core/lynx/directions';
 import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
-import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
+import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BLOCK_ON_TARGET_COLOR_KEY,
@@ -308,6 +308,24 @@ const LURKER_TELL = {
   alpha: 0.4,
   widthTile: 0.035
 } as const;
+/**
+ * Blast charge canister, as tile fractions: the body box, the cap above it, the two bands across it, and the wick
+ * rising from the cap (unlit, the wick is a stub; lit, it carries the spark).
+ */
+const CHARGE_ART = {
+  body: { x: 0.3, y: 0.34, w: 0.4, h: 0.46, radius: 0.08 },
+  cap: { x: 0.36, y: 0.26, w: 0.28, h: 0.1 },
+  bands: [0.45, 0.65] as readonly number[],
+  bandHeight: 0.06,
+  wickFoot: { x: 0.5, y: 0.26 },
+  wickTip: { x: 0.58, y: 0.14 },
+  wickWidthTile: 0.035,
+  sparkRadius: 0.075
+} as const;
+/** Fuse ring of a lit charge: radius and width as tile fractions; the ring empties as the fuse burns, and the cell blinks near the end. */
+const CHARGE_FUSE_RING = { radius: 0.46, widthTile: 0.07, warnFraction: 0.34, blinkTicks: 4, flashAlpha: 0.32 } as const;
+/** Angle the fuse ring starts from (twelve o'clock). */
+const CHARGE_FUSE_RING_START = -Math.PI / 2;
 /** Opacity of the awake lurker drawn over the seam of a sleeping one in the editor, so it can be found and told apart. */
 const LURKER_EDITOR_MARKER_ALPHA = 0.55;
 /** Thin wall bar: thickness as a share of the tile, with a floor in pixels per drawing style. */
@@ -1464,6 +1482,21 @@ export class PixelRenderer {
           if (lit) this.addLight(itemId, mx - camX, my - camY, tilePixelSize, settings);
         }
       }
+    }
+
+    const litCharges = engine.getLitCharges?.();
+    if (litCharges !== undefined) {
+      this.paintChargeFuses(
+        sceneCtx,
+        litCharges,
+        engine.getTick(),
+        (cx, cy) =>
+          cx < startTileX || cx > endTileX || cy < startTileY || cy > endTileY
+            ? null
+            : { px: originX + Math.floor((cx - region.x0) * unit), py: originY + Math.floor((cy - region.y0) * unit) },
+        unit,
+        drawSize
+      );
     }
 
     // Update & render entities with smooth interpolation
@@ -3498,6 +3531,76 @@ export class PixelRenderer {
     ctx.fill();
   }
 
+  /** A blast charge: a banded canister; lit, it carries a burning wick. */
+  private paintCharge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean, lit: boolean): void {
+    const pal = this.pal();
+    const glow = this.getSettings().glowBlurPx;
+    const { body, cap, bands, bandHeight, wickFoot, wickTip, wickWidthTile, sparkRadius } = CHARGE_ART;
+    ctx.save();
+    ctx.fillStyle = pal.orange;
+    this.roundRect(ctx, x + size * body.x, y + size * body.y, size * body.w, size * body.h, size * body.radius);
+    ctx.fill();
+    ctx.fillStyle = pal.bombBody;
+    ctx.fillRect(x + size * cap.x, y + size * cap.y, size * cap.w, size * cap.h);
+    for (const band of bands) {
+      ctx.fillRect(x + size * body.x, y + size * band, size * body.w, size * bandHeight);
+    }
+    ctx.strokeStyle = pal.bombBody;
+    ctx.lineWidth = Math.max(1, size * wickWidthTile);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + size * wickFoot.x, y + size * wickFoot.y);
+    ctx.lineTo(x + size * (lit ? wickTip.x : (wickFoot.x + wickTip.x) / 2), y + size * (lit ? wickTip.y : (wickFoot.y + wickTip.y) / 2));
+    ctx.stroke();
+    if (lit) {
+      ctx.fillStyle = pal.bombSpark;
+      if (isModern) {
+        ctx.shadowColor = pal.bombSpark;
+        ctx.shadowBlur = glow.medium;
+      }
+      ctx.beginPath();
+      ctx.arc(x + size * wickTip.x, y + size * wickTip.y, size * sparkRadius, 0, FULL_TURN);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * The fuse of every lit charge in view: a ring that empties as the fuse burns, and a blink of the whole cell once
+   * the fuse is short. Driven by the engine tick, so a paused or undone game shows the same fuse.
+   */
+  private paintChargeFuses(
+    ctx: CanvasRenderingContext2D,
+    charges: readonly LitCharge[],
+    tick: number,
+    cell: (x: number, y: number) => { px: number; py: number } | null,
+    unit: number,
+    drawSize: number
+  ): void {
+    const fuseTicks = Math.max(1, ConfigRegistry.getGame().timing.chargeFuseTicks);
+    const spark = this.pal().bombSpark;
+    for (const charge of charges) {
+      const at = cell(charge.x, charge.y);
+      if (at === null) continue;
+      const left = Math.max(0, charge.detonateTick - tick);
+      const fraction = Math.min(1, left / fuseTicks);
+      ctx.save();
+      if (fraction <= CHARGE_FUSE_RING.warnFraction && Math.floor(left / CHARGE_FUSE_RING.blinkTicks) % 2 === 0) {
+        ctx.globalAlpha = CHARGE_FUSE_RING.flashAlpha;
+        ctx.fillStyle = spark;
+        ctx.fillRect(at.px, at.py, drawSize, drawSize);
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = spark;
+      ctx.lineWidth = Math.max(1, unit * CHARGE_FUSE_RING.widthTile);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(at.px + unit / 2, at.py + unit / 2, unit * CHARGE_FUSE_RING.radius, CHARGE_FUSE_RING_START, CHARGE_FUSE_RING_START + FULL_TURN * fraction);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   /** The dim seam that gives a sleeping lurker away: a thin, see-through crack across the floor cell. */
   private paintLurkerTell(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.save();
@@ -5119,6 +5222,12 @@ export class PixelRenderer {
       case 'stopwatch_penalty':
       case 'slow_time': {
         this.paintStopwatch(ctx, ConfigRegistry.getTile(itemId), x, y, size, isModern);
+        break;
+      }
+
+      case 'charge':
+      case 'charge_lit': {
+        this.paintCharge(ctx, x, y, size, isModern, ConfigRegistry.getTile(itemId).litCharge === true);
         break;
       }
 

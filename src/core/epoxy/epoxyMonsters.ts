@@ -26,6 +26,7 @@ import {
 } from '../coreConstants';
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
+import { isLitChargeItem } from './epoxyCharges';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { absorbMonsterContact } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
@@ -282,7 +283,7 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Dire
   if (destTile.hazard === 'fire' && def?.avoidsFire) return false;
 
   const itemId = w.items[ny][nx];
-  if (itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb') {
+  if (itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
 

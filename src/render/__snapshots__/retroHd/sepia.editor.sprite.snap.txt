@@ -286,6 +286,10 @@ editor tile boots_pull closed=true 7ae9f99ffa935bb1
 editor tile boots_pull closed=false 7fa518c4390b2cd5
 editor tile ward closed=true 8abd16bb5e5ca44a
 editor tile ward closed=false ec57d5c863036e9c
+editor tile charge closed=true 6363cb647093427d
+editor tile charge closed=false c31cd8b1e2331b2d
+editor tile charge_lit closed=true 06ce6f3b5d7790b6
+editor tile charge_lit closed=false b3be157af1358326
 editor tile bomb closed=true b3787b17e20e015a
 editor tile bomb closed=false 7fdb433d38dd755c
 editor tile score_10 closed=true 8466cb66054c8157
@@ -314,21 +318,23 @@ editor item over floor boots_speed 8c17675bc84a1ce4
 editor item over floor boots_eye aabd258fa685f64b
 editor item over floor boots_pull dc1f52d459a135ee
 editor item over floor ward 416d6bfd0cd92ddb
-editor item over floor bomb 2007e1ad8e8f3b16
-editor item over floor score_10 fe12fd0e5c53cc40
-editor item over floor score_100 855d1455b9f86b26
-editor item over floor score_1000 646d01db507dd910
-editor item over floor score_2x 59ee4025fbd316e5
-editor item over floor stopwatch_bonus 7396991642f89479
-editor item over floor stopwatch_penalty b314701a8b1fc96a
-editor entity over floor dirt_block 489d22f303fdd37d
-editor entity over floor arrow_block_one e77132c7e2b1814a
-editor entity over floor arrow_block_line e4c2cb2196e3ad9f
-editor entity over floor arrow_block_corner b593d1ec3bdea319
-editor entity over floor arrow_block_tee 2424d202df61e15f
-editor entity over floor ice_block 83e3ad894d92daef
-editor entity over floor mirror_slash f2b05d00c22359dd
-editor entity over floor mirror_backslash b7a199ab20bc09b3
+editor item over floor charge 1456bf7a75ffc56e
+editor item over floor charge_lit 85b872facbe4685b
+editor item over floor bomb c2cf708ba166509a
+editor item over floor score_10 b08cf89dcb3d598f
+editor item over floor score_100 74e5c47044b7a421
+editor item over floor score_1000 5563442e8769eb6d
+editor item over floor score_2x 46d21695a37c7eb4
+editor item over floor stopwatch_bonus cfb901fdebd94526
+editor item over floor stopwatch_penalty 783a541920202142
+editor entity over floor dirt_block 87f706f91546b08b
+editor entity over floor arrow_block_one edc6f4049abbc416
+editor entity over floor arrow_block_line acd9ace1a9b7b6d5
+editor entity over floor arrow_block_corner 44bc7c22a9edc3a9
+editor entity over floor arrow_block_tee bd22a024bb26ab5c
+editor entity over floor ice_block 709639c842dda4bf
+editor entity over floor mirror_slash 1f7c376d0bbcb02a
+editor entity over floor mirror_backslash c4fba947cf9eae7f
 editor entity over floor one_sided_mirror_ne 5b83531e7af74f33
 editor entity over floor one_sided_mirror_nw 01e363c59b204aa7
 editor entity over floor one_sided_mirror_se b9b14d8a93f038f2
@@ -337,20 +343,20 @@ editor entity over floor turret_fixed 17d071e0e31116fb
 editor entity over floor turret_cw 2e0993178c375d4c
 editor entity over floor turret_ccw 07b209027b865183
 editor entity over floor turret_multi dbbfd80d2f222b80
-editor entity over floor bug c5b805f4cf25ff13
-editor entity over floor paramecium 2b78ee28231a2bad
-editor entity over floor pink_ball 6ac9935f704d5738
-editor entity over floor walker 45b026016502b452
-editor entity over floor teeth 7335f24fd0b34aad
-editor entity over floor glider 6fb03a6115a5d089
-editor entity over floor fireball 37490029b7efcfd6
-editor entity over floor tank 7e0bf88e1f950734
-editor entity over floor blob 1a9259ae01837933
+editor entity over floor bug 8e15cea5be48f71a
+editor entity over floor paramecium 439ba2bf9698edc8
+editor entity over floor pink_ball 41fc7cf55a0b1837
+editor entity over floor walker d8fad66ed5832d06
+editor entity over floor teeth e62df289af7f253f
+editor entity over floor glider f2cd0c83bc142cf8
+editor entity over floor fireball 19e28c1fe9163abb
+editor entity over floor tank d5dd39b233295cf8
+editor entity over floor blob ea8836adf4384082
 editor entity over floor color_block_red e62dd987427b912b
 editor entity over floor color_block_green f85c7a4dfe9bbfeb
 editor entity over floor color_block_blue d459fd9e797d5a5a
 editor entity over floor color_block_yellow 6570ca943ee59242
-editor entity over floor puppet 0460d765de8967e0
-editor entity over floor skitter 61efb2451fcf2beb
-editor entity over floor lurker_dormant c86bad28beaa61bf
-editor entity over floor lurker 958a081d25ae19c5
+editor entity over floor puppet 929b3242af124d72
+editor entity over floor skitter 63979f071bf4cd05
+editor entity over floor lurker_dormant a44877ff163baa73
+editor entity over floor lurker 62d531a41e6067ff

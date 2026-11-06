@@ -1425,6 +1425,27 @@ export function findPullBootsConfigErrors(tiles: Record<string, TileDefinition>)
   return errors;
 }
 
+/**
+ * Problems of the blast charge fields: a charge (collectible "charge") names the lit form it turns into when
+ * dropped, which must be a tile flagged litCharge; a lit charge is no collectible. Each entry names the tile.
+ */
+export function findChargeConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.collectible === 'charge') {
+      if (typeof tile.dropsAs !== 'string' || tiles[tile.dropsAs]?.litCharge !== true) {
+        errors.push(`${tile.id}.dropsAs: expected the id of a tile flagged litCharge`);
+      }
+    } else if (tile.dropsAs !== undefined) {
+      errors.push(`${tile.id}.dropsAs: only a charge (collectible "charge") may name the item it drops as`);
+    }
+    if (tile.litCharge === undefined) continue;
+    if (tile.litCharge !== true) errors.push(`${tile.id}.litCharge: expected true`);
+    if (tile.collectible !== undefined) errors.push(`${tile.id}.litCharge: a lit charge cannot be collected`);
+  }
+  return errors;
+}
+
 /** Problems of the revealsHiddenWalls field: true when present, carried by boots only. Each entry names the tile. */
 export function findEyeBootsConfigErrors(tiles: Record<string, TileDefinition>): string[] {
   const errors: string[] = [];

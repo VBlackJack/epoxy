@@ -213,12 +213,12 @@ describe('packJson', () => {
     expect(serializePack('N', [plateToDoor])).toBe(
       JSON.stringify({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_SIGNALS, name: 'N', levels: [plateToDoor] }, null, 2)
     );
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V7);
     // The check reads the shipped ids by name, so it holds without a tile lookup.
     expect(usesPulseSinkFormat(pulse, null)).toBe(true);
     expect(usesPulseSinkFormat(edgeSink, null)).toBe(true);
     expect(usesPulseSinkFormat(plateToDoor, null)).toBe(false);
-    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS]) {
+    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS, PACK_JSON_VERSION_V7]) {
       const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
       expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
     }
@@ -365,14 +365,18 @@ describe('pack format 7 id gate', () => {
     expect(version([cc3d])).toBe(PACK_JSON_VERSION);
   });
 
-  it('keeps the loader at version 6 until the feature lots land', () => {
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+  it('reads version 7 and refuses version 8', () => {
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V7);
     const level = makeLevel('t');
-    level.terrain[1][1] = 'charge';
-    expect(parse(serializePack('N', [level]))).toEqual({ ok: false, error: 'version' });
+    level.items[1][1] = 'charge';
+    const written = parse(serializePack('N', [level]));
+    expect(written).toMatchObject({ ok: true });
+    if (written.ok) expect(written.levels[0].items[1][1]).toBe('charge');
+    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V7 + 1, name: 'x', levels: [level] };
+    expect(parse(JSON.stringify(future))).toEqual({ ok: false, error: 'version' });
   });
 
-  it('lists exactly the ids missing from the shipped configs', () => {
+  it('has every id of the gate in the shipped configs', () => {
     const bundle = loadTestConfigs() as unknown as {
       tiles: { tiles: Record<string, unknown> | Array<{ id: string }> };
       monsters: { entities: Record<string, unknown> };
@@ -382,7 +386,6 @@ describe('pack format 7 id gate', () => {
       : Object.keys(bundle.tiles.tiles);
     const known = new Set([...tileIds, ...Object.keys(bundle.monsters.entities)]);
     const missing = [...PACK_JSON_VERSION_V7_IDS].filter((id) => !known.has(id)).sort();
-    // Each feature lot removes its own ids from this expectation when it adds them to the configs.
-    expect(missing).toEqual(['charge', 'charge_lit']);
+    expect(missing).toEqual([]);
   });
 });
