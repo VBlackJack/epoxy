@@ -157,6 +157,7 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { hasCellEdges } from './editorCellEdges';
+import { nextRailPiece } from './railRotation';
 import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { pruneLauncherLinks } from './editorLauncherLinks';
 import { pruneSignalLinks } from './editorSignalLinks';
@@ -1993,6 +1994,20 @@ export class LevelEditor {
   }
 
   private rotateDirection(): void {
+    // A rail piece in hand turns itself: the key picks its next starting position instead of the placing side. The
+    // brush is set in place, so the tool, a selection and a floating paste stay as they are.
+    if (this.brush.kind === 'terrain' && !this.isCc3d()) {
+      const tiles = ConfigRegistry.getTiles().tiles;
+      const turned = tiles[this.brush.id] ? nextRailPiece(tiles[this.brush.id], tiles) : null;
+      if (turned !== null) {
+        this.brush = { kind: 'terrain', id: turned };
+        this.updateCanvasLabel();
+        this.renderPaletteItems();
+        const description = paletteDescription('terrain', turned, t);
+        this.setStatusText(description === undefined ? this.brushLabel(this.brush) : nameWithDescription(this.brushLabel(this.brush), description));
+        return;
+      }
+    }
     this.activeDir = rotateClockwise(this.activeDir);
     this.afterDirectionChange();
   }
