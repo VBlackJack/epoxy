@@ -20,21 +20,18 @@
  * Every id of this module is painted here; PENDING is empty. The dispatch in runewardTiles.ts reads the table
  * and PENDING, so no other file changes. The proportions below are the drawings themselves, the way pixel art
  * is data: they are art, not settings. Every colour comes from the art config (game.json runewardArt).
- *
- * This module does not import the dispatch module for its clock: the dispatch imports this one, and a value
- * import back would be a cycle that fails when this module is loaded first.
  */
 
 import type { RunewardArtConfig, RunewardKeyColour } from '../../../core/types';
 import { paintColorGlyph } from '../../colorGlyph';
 import { BUTTON_GLYPH_KEYS } from '../../paletteKeys';
-import { REFERENCE_FRAME_MS } from '../../renderTiming';
 import { paintSignalTile, SIGNAL_TILE_KINDS, type SignalTileColors, type SignalTileStyle } from '../../signalTilePainter';
 import type { TileNeighbours } from '../../tileNeighbours';
 import { INK, inkUnit } from './runewardInk';
 import { paintButton } from './runewardMechanisms';
 import { linear, paintFloor, paintWater, radial, roundRect, tileHash, wave } from './runewardPainters';
-import type { RunewardPaintEnv, RunewardTilePainter, RunewardTilePass } from './runewardTiles';
+import { runewardClockMs, type RunewardPaintEnv } from './runewardEnv';
+import type { RunewardTilePainter, RunewardTilePass } from './runewardTiles';
 
 type Art = Readonly<RunewardArtConfig>;
 type Neighbours = Readonly<TileNeighbours>;
@@ -49,11 +46,6 @@ const OUTLINE = 0.025;
 
 /** A tile drawing at a clock value, for the part of the tile the pass asks for. */
 type MarkDrawing = (ctx: CanvasRenderingContext2D, size: number, art: Art, nb: Neighbours, env: RunewardPaintEnv, timeMs: number, pass: RunewardTilePass) => void;
-
-/** Animation clock of the painters in milliseconds (the same as the dispatch clock); reduced motion freezes it at 0. */
-function clockMs(env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>): number {
-  return env.reducedMotion ? 0 : env.timeTick * REFERENCE_FRAME_MS;
-}
 
 /** A tile painter for a motionless tile: drawn with the cached terrain, nothing for the animated pass. */
 function staticMark(draw: MarkDrawing): RunewardTilePainter {
@@ -71,7 +63,7 @@ function movingMark(draw: MarkDrawing): RunewardTilePainter {
   return (ctx, x, y, size, pass, nb, env) => {
     ctx.save();
     ctx.translate(x, y);
-    draw(ctx, size, env.art, nb, env, pass === 'static' ? 0 : clockMs(env), pass);
+    draw(ctx, size, env.art, nb, env, pass === 'static' ? 0 : runewardClockMs(env), pass);
     ctx.restore();
   };
 }

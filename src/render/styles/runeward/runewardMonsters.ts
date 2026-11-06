@@ -28,7 +28,8 @@
 
 import type { Direction, RunewardArtConfig, RunewardCreatureColours } from '../../../core/types';
 import { hasInkHatching, heavyLineWidth, inkLineWidth } from './runewardInk';
-import { runewardClockMs, runewardMonsterSprite, runewardWalkFrame, type RunewardEntityPainter } from './runewardTiles';
+import { runewardClockMs, runewardMonsterSprite, runewardWalkFrame } from './runewardEnv';
+import type { RunewardEntityPainter } from './runewardTiles';
 
 type Art = Readonly<RunewardArtConfig>;
 type Point = readonly [number, number];

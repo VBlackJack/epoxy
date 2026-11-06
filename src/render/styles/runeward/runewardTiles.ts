@@ -18,14 +18,12 @@
  * Dispatch of the Runeward render style: which ids have a Runeward painter, which keep the shared
  * drawing, and which belong to the CC3D ruleset. Every id the game can draw is in exactly one of
  * the three sets (a coverage test enforces it), so a new tile, item or entity forces a decision.
- * Painters are added lot by lot; an id without a painter falls through to the shared drawing.
  */
 
 import { ConfigRegistry } from '../../../config/ConfigRegistry';
 import type { Direction, RunewardArtConfig, RunewardKeyColour } from '../../../core/types';
 import { iceBendGeometry } from '../../iceBend';
 import { teleporterGlyphKey } from '../../paletteKeys';
-import { REFERENCE_FRAME_MS } from '../../renderTiming';
 import type { TileNeighbours } from '../../tileNeighbours';
 import { paintForce, paintIce, paintIceCorner, paintTeleport, paintTrap, type RunewardTeleportColour } from './runewardHazards';
 import {
@@ -38,6 +36,7 @@ import {
   paintToggleSlab,
   type RunewardButtonKind
 } from './runewardMechanisms';
+import { runewardClockMs, type RunewardPaintEnv } from './runewardEnv';
 import * as blocks from './runewardBlocks';
 import * as devices from './runewardDevices';
 import * as items from './runewardItems';
@@ -48,62 +47,13 @@ import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
 export type RunewardTilePass = 'all' | 'static' | 'animated';
 
-/** What a painter may use besides its arguments. */
-export interface RunewardPaintEnv {
-  /** Animation clock of the renderer, in frame ticks. */
-  readonly timeTick: number;
-  /** True when the signal node of the cell being drawn is on; false in the editor and for non-signal cells. */
-  readonly signalPowered: boolean;
-  /** True when the player asked for reduced motion. */
-  readonly reducedMotion: boolean;
-  /** Per-renderer cache a painter may fill lazily (sprites, gradients); created on first use. */
-  readonly cache: Map<string, unknown>;
-  /** Colours and timings of the painters (game.json runewardArt). */
-  readonly art: Readonly<RunewardArtConfig>;
-}
-
-/** Animation clock of the painters in milliseconds; reduced motion freezes it at 0. */
-export function runewardClockMs(env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>): number {
-  return env.reducedMotion ? 0 : env.timeTick * REFERENCE_FRAME_MS;
-}
-
-/** Frames of the monster walk cycle. */
-const WALK_FRAME_COUNT = 2;
-
-/** Frame of the monster walk cycle (0 or 1) at the current clock; reduced motion freezes it at 0. */
-export function runewardWalkFrame(
-  env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>,
-  art: { readonly animation: Pick<RunewardArtConfig['animation'], 'monsterStepMs'> }
-): number {
-  return Math.floor(runewardClockMs(env) / art.animation.monsterStepMs) % WALK_FRAME_COUNT;
-}
-
-/** Prefix of the monster sprite keys in the painter cache. */
-const MONSTER_SPRITE_KEY_PREFIX = 'monster';
-
-/** Separator of the parts of a monster sprite key. */
-const MONSTER_SPRITE_KEY_SEPARATOR = '|';
-
-/** Cache key of one monster sprite: type, facing, walk frame and tile size. */
-export function runewardMonsterSpriteKey(type: string, dir: Direction, frame: number, size: number): string {
-  return [MONSTER_SPRITE_KEY_PREFIX, type, dir, frame, size].join(MONSTER_SPRITE_KEY_SEPARATOR);
-}
-
-/** The monster sprite cached in the painter cache under type, facing, frame and size; built on first use. */
-export function runewardMonsterSprite<T>(
-  env: Pick<RunewardPaintEnv, 'cache'>,
-  type: string,
-  dir: Direction,
-  frame: number,
-  size: number,
-  build: () => T
-): T {
-  const key = runewardMonsterSpriteKey(type, dir, frame, size);
-  if (env.cache.has(key)) return env.cache.get(key) as T;
-  const sprite = build();
-  env.cache.set(key, sprite);
-  return sprite;
-}
+export {
+  runewardClockMs,
+  runewardMonsterSprite,
+  runewardMonsterSpriteKey,
+  runewardWalkFrame,
+  type RunewardPaintEnv
+} from './runewardEnv';
 
 export type RunewardTilePainter = (
   ctx: CanvasRenderingContext2D,
@@ -303,6 +253,9 @@ const ANIMATED_TILE_IDS: readonly string[] = [
   'water', 'fire', 'exit', ...TELEPORT_IDS, ...Object.keys(FORCE_DIRECTIONS), RANDOM_FORCE_ID
 ];
 
+/** The turtle tile: it bobs on the water, so it has an animated pass. */
+const TURTLE_TILE_ID = 'turtle';
+
 /** Floor-like tiles all show the same flagstones, so hidden walls give nothing away. */
 const FLOOR_PAINTER = staticTile(paintFloor);
 const WALL_PAINTER = staticTile(paintWall);
@@ -362,16 +315,17 @@ export const RUNEWARD_PAINTERS: RunewardPainters = {
     fire: animatedTile(paintLava),
     exit: animatedTile(paintExit),
     ...devices.TILES,
+    ...items.TILES,
     ...marks.TILES
   },
   items: { ...MECHANISM_ITEMS, ...items.ITEMS },
   entities: { ...blocks.ENTITIES, ...monsters.ENTITIES, ...devices.ENTITIES },
   player: paintPlayer,
   shot: monsters.SHOT,
-  animatedTiles: new Set<string>(ANIMATED_TILE_IDS)
+  animatedTiles: new Set<string>([...ANIMATED_TILE_IDS, ...devices.ANIMATED, TURTLE_TILE_ID])
 };
 
-/** Every Epoxy tile, item and entity id that keeps the shared drawing for now: the ids the lot modules still own. */
+/** Every Epoxy tile, item and entity id that keeps the shared drawing: the ids the lot modules still leave out (none). */
 export const RUNEWARD_FALLBACK: ReadonlySet<string> = new Set([
   ...blocks.PENDING,
   ...monsters.PENDING,

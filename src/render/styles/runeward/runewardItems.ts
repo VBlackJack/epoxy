@@ -28,8 +28,8 @@ import type { RunewardArtConfig, RunewardBootsKind, RunewardKeyColour } from '..
 import { heavyLineWidth, inkLineWidth } from './runewardInk';
 import { paintKeyItem } from './runewardMechanisms';
 import { linear, paintFloor, radial, roundRect } from './runewardPainters';
-import { REFERENCE_FRAME_MS } from '../../renderTiming';
-import type { RunewardItemPainter, RunewardPaintEnv, RunewardTilePainter } from './runewardTiles';
+import { runewardClockMs } from './runewardEnv';
+import type { RunewardItemPainter, RunewardTilePainter } from './runewardTiles';
 
 type Art = Readonly<RunewardArtConfig>;
 type Point = readonly [number, number];
@@ -483,21 +483,12 @@ const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'for
 /** Every boots kind. */
 const ALL_BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye'];
 
-/**
- * The Runeward clock in milliseconds, as runewardClockMs in runewardTiles.ts computes it (a test keeps the two equal).
- * It is not imported from there because the dispatch module imports this one, and a value import back would make the
- * two modules depend on each other at load time.
- */
-function clockMs(env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>): number {
-  return env.reducedMotion ? 0 : env.timeTick * REFERENCE_FRAME_MS;
-}
-
 /** Wraps a clocked drawing as an item painter: it follows the Runeward clock, frozen under reduced motion. */
 function clocked(draw: ClockedDrawing): RunewardItemPainter {
   return (ctx, x, y, size, env) => {
     ctx.save();
     ctx.translate(x, y);
-    draw(ctx, size, env.art, clockMs(env));
+    draw(ctx, size, env.art, runewardClockMs(env));
     ctx.restore();
   };
 }
@@ -520,10 +511,7 @@ export const ITEMS: Readonly<Record<string, RunewardItemPainter>> = {
   stopwatch_penalty: clocked(stopwatchItem('minus'))
 };
 
-/**
- * Painters of the forbidden markers by tile id (terrain layer). The tile dispatch in runewardTiles.ts does not
- * spread this table yet, so these ids stay in PENDING until it does.
- */
+/** Painters of the forbidden markers by tile id (terrain layer); the tile dispatch in runewardTiles.ts spreads this table. */
 export const TILES: Readonly<Record<string, RunewardTilePainter>> = {
   ...Object.fromEntries(
     KEY_CHANNELS.map((colour): [string, RunewardTilePainter] => [
@@ -539,8 +527,5 @@ export const TILES: Readonly<Record<string, RunewardTilePainter>> = {
   )
 };
 
-/** Ids this module will paint, still drawn by the shared drawing. */
-export const PENDING: readonly string[] = [
-  'forbid_key_red', 'forbid_key_blue', 'forbid_key_yellow', 'forbid_key_green', 'forbid_boots_ice',
-  'forbid_boots_water', 'forbid_boots_fire', 'forbid_boots_force'
-];
+/** Ids this module still leaves to the shared drawing: none. */
+export const PENDING: readonly string[] = [];

@@ -149,9 +149,13 @@ describe('Runeward item dispatch', () => {
     for (const id of TILE_IDS) expect(tiles[id]?.layer, id).toBe('terrain');
   });
 
-  it('keeps the forbidden markers pending until the tile dispatch registers them', () => {
-    expect([...PENDING].sort()).toEqual([...TILE_IDS].sort());
-    for (const id of TILE_IDS) expect(TILES[id], id).toBeTypeOf('function');
+  it('registers the forbidden markers in the tile dispatch and leaves nothing pending', () => {
+    expect([...PENDING]).toEqual([]);
+    for (const id of TILE_IDS) {
+      expect(TILES[id], id).toBeTypeOf('function');
+      expect(RUNEWARD_PAINTERS.tiles[id], id).toBe(TILES[id]);
+      expect(RUNEWARD_FALLBACK.has(id), id).toBe(false);
+    }
   });
 });
 

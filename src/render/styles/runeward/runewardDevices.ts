@@ -32,11 +32,11 @@ import type {
   RunewardSolidColours,
   TileDefinition
 } from '../../../core/types';
-import { REFERENCE_FRAME_MS } from '../../renderTiming';
 import type { TileNeighbours } from '../../tileNeighbours';
 import { hasInkHatching, heavyLineWidth, inkLineWidth, paintHatching, type InkRect } from './runewardInk';
 import { linear, paintFloor, roundRect, wave } from './runewardPainters';
-import type { RunewardEntityPainter, RunewardPaintEnv, RunewardTilePainter, RunewardTilePass } from './runewardTiles';
+import { runewardClockMs } from './runewardEnv';
+import type { RunewardEntityPainter, RunewardTilePainter, RunewardTilePass } from './runewardTiles';
 
 type Art = Readonly<RunewardArtConfig>;
 type Neighbours = Readonly<TileNeighbours>;
@@ -125,11 +125,6 @@ function laserChannelOf(art: Art, def: Readonly<TileDefinition>): RunewardChanne
   return { main: art.device.laser.glow, light: art.device.laser.core };
 }
 
-/** Animation clock in milliseconds of a painter; reduced motion freezes it at 0. */
-function clockMs(env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>): number {
-  return env.reducedMotion ? 0 : env.timeTick * REFERENCE_FRAME_MS;
-}
-
 /** Draws in the cell whose corner is at (x, y), restoring the context afterwards. */
 function inCell(ctx: Ctx, x: number, y: number, draw: () => void): void {
   ctx.save();
@@ -149,7 +144,7 @@ function stillTile(draw: (ctx: Ctx, size: number, art: Art, nb: Neighbours) => v
 /** A tile painter whose drawing splits by pass: the cached terrain holds the static part, the overlay follows the clock. */
 function movingTile(draw: (ctx: Ctx, size: number, art: Art, nb: Neighbours, pass: RunewardTilePass, timeMs: number) => void): RunewardTilePainter {
   return (ctx, x, y, size, pass, nb, env) => {
-    inCell(ctx, x, y, () => draw(ctx, size, env.art, nb, pass, pass === 'static' ? 0 : clockMs(env)));
+    inCell(ctx, x, y, () => draw(ctx, size, env.art, nb, pass, pass === 'static' ? 0 : runewardClockMs(env)));
   };
 }
 
