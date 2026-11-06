@@ -187,6 +187,7 @@ const EXPORT_NOTICE_SEPARATOR = ' ';
 const SLOW_TIME_ITEM_ID = 'slow_time';
 const SPEED_BOOTS_ITEM_ID = 'boots_speed';
 const EYE_BOOTS_ITEM_ID = 'boots_eye';
+const PULL_BOOTS_ITEM_ID = 'boots_pull';
 /** Boots slots shown on every level; more slots (Epoxy-only boots placed) widen the grid. */
 const BASE_BOOT_SLOT_COUNT = 4;
 /** CSS variable that carries the number of columns of the boots grid. */
@@ -319,7 +320,7 @@ class EpoxyApplication {
   private inventoryLabelsLocale: string = '';
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID];
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
   private epoxyBootsLevel: unknown = null;
@@ -1079,7 +1080,7 @@ class EpoxyApplication {
         if (levels.length === 0) {
           throw new Error('Empty pack');
         }
-      } else if (lower.endsWith('.json')) {
+      } else if (lower.endsWith('.json') || lower.endsWith('.har')) {
         const text = await file.text();
         if (await this.packFlows.tryImportPackFile(text)) return;
         const parsed = JSON.parse(text) as unknown;

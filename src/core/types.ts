@@ -294,7 +294,7 @@ export type RunewardMonsterType =
 export type RunewardLaserChannel = 'red' | 'blue';
 
 /** Boots kinds. */
-export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye';
+export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye' | 'pull';
 
 /** Button colours that are not a key channel. */
 export type RunewardButtonColour = 'orange' | 'gray';
@@ -1067,6 +1067,7 @@ export interface TileDefinition {
   hastesPlayer?: number;
   /** Boots only: while held, the renderer marks invisible walls and appearing walls (purely visual). */
   revealsHiddenWalls?: boolean;
+  pullsBlocks?: boolean;
   /** A monster that arrives on the tile swaps its kind for its `transmogrifiesTo` pair; anything else passes unchanged. */
   transmogrifies?: boolean;
   /**

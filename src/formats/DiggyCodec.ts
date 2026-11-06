@@ -16,10 +16,11 @@
 
 /**
  * Decoder and converter for Diggy's Adventure mine floor JSON definitions
- * (`floors_*.json` and optional runtime `MineData` tile payloads). Reconstructs
- * the room and corridor topology, diggable dirt tiles, collectible tokens,
- * levers/gates, block puzzles, and teleporter pairs into native Epoxy levels
- * proven solvable end-to-end.
+ * (`floors_*.json`, runtime `MineData` / `CommandSynchronize` payloads, and
+ * browser `.har` network captures). Reconstructs the room and corridor topology,
+ * diggable dirt tiles, collectible tokens, levers/gates, laser/mirror puzzles,
+ * boulder pressure-plate doors, grappling-glove pull recesses, and teleporter
+ * pairs into native Epoxy levels proven solvable end-to-end.
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
@@ -31,19 +32,22 @@ import {
   DEFAULT_WIN_RULE,
   EXIT_TILE_ID,
   FLOOR_TILE_ID,
-  WALL_TILE_ID
+  OPPOSITE_DIRECTION,
+  WALL_TILE_ID,
+  reflectOnMirror
 } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import type {
   CellUnderlay,
+  ChannelColor,
   CompiledLevel,
   Direction,
   EntityPlacement,
   GridPoint
 } from '../core/types';
 
-/** File pattern matching multi-file selections of Diggy floor JSON files. */
-const DIGGY_FLOOR_FILE_PATTERN = /^(?:floors_\d+.*|.*\.diggy)\.json$/i;
+/** File pattern matching multi-file selections of Diggy floor JSON or HAR files. */
+const DIGGY_FLOOR_FILE_PATTERN = /^(?:floors_\d+.*|.*\.diggy)\.json$|\.har$/i;
 
 /** Background ID representing solid void rock in Diggy floor definitions. */
 const DIGGY_VOID_BG_ID = 5;
@@ -67,14 +71,27 @@ const MIN_TELEPORT_COMPONENT_CELLS = 6;
 const MAX_TELEPORT_PAIRS = 5;
 /** Maximum block puzzles placed per converted floor. */
 const MAX_BLOCK_PUZZLES_PER_FLOOR = 2;
+/** Maximum laser and mirror puzzles placed per converted floor. */
+const MAX_LASER_PUZZLES_PER_FLOOR = 2;
+/** Maximum open cells a laser beam corridor may span inside a room. */
+const MAX_BEAM_CORRIDOR_CELLS = 10;
 /** Maximum key/door lever gates placed per converted floor. */
 const MAX_LEVER_GATES_PER_FLOOR = 3;
 /** Maximum ratio of open floor cells that may be filled with diggable dirt. */
 const MAX_DIRT_RATIO = 0.35;
 /** Default untimed time limit for converted mine floors. */
 const UNTIMED_SECONDS = 0;
-/** Block entity type placed for push and pit beacons. */
+/** Maximum recursion depth when unwrapping HAR or CommandSynchronize envelopes. */
+const MAX_JSON_UNWRAP_DEPTH = 6;
+/** Maximum object nodes visited when unwrapping HAR or CommandSynchronize envelopes. */
+const MAX_JSON_UNWRAP_NODES = 5000;
+/** Block entity type placed for push, pull, and pit beacons. */
 const PUSH_BLOCK_ENTITY_ID = 'dirt_block';
+/** Collectible item ID of the Grappling Gloves (`boots_pull`). */
+const BOOTS_PULL_ITEM_ID = 'boots_pull';
+/** Mirror block entity IDs for `/` and `\` laser reflection. */
+const MIRROR_SLASH_ENTITY_ID = 'mirror_slash';
+const MIRROR_BACKSLASH_ENTITY_ID = 'mirror_backslash';
 /** Terrain ID of diggable dirt. */
 const DIRT_TILE_ID = 'dirt';
 /** Terrain ID of water pits filled by pushed dirt blocks. */
@@ -90,6 +107,12 @@ const TELEPORT_TILE_IDS: readonly string[] = [
   'teleport_yellow',
   'teleport_green'
 ];
+
+/** Colour channels used for boulder pressure plates and hold doors. */
+const PLATE_CHANNEL_COLORS: readonly ChannelColor[] = ['red', 'blue'];
+
+/** Colour channels used for laser receivers and laser gates. */
+const LASER_CHANNEL_COLORS: readonly ChannelColor[] = ['red', 'blue'];
 
 /** Key and door pairs used to represent one-way lever gates (`activation: "use"`). */
 const KEY_DOOR_CHANNELS: ReadonlyArray<{ readonly keyId: string; readonly doorId: string }> = [
@@ -209,45 +232,117 @@ function asArray<T>(value: unknown): T[] {
   return [value as T];
 }
 
-/** True when `parsed` is a Diggy's Adventure floor JSON object or container. */
-export function isDiggyJson(parsed: unknown): boolean {
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
-  const obj = parsed as Record<string, unknown>;
-  if ('floor' in obj && (Array.isArray(obj.floor) || (obj.floor && typeof obj.floor === 'object'))) {
-    return true;
+/** Decodes a HAR response content string (plain text or base64) into a parsed JSON value, or null. */
+function parseHarEntryContent(content: Record<string, unknown>): unknown {
+  if (typeof content.mimeType === 'string' && /^(?:image|audio|video|font)\//i.test(content.mimeType)) {
+    return null;
   }
-  if ('floors' in obj && (Array.isArray(obj.floors) || (obj.floors && typeof obj.floors === 'object'))) {
-    return true;
+  const rawText = content.text;
+  if (typeof rawText !== 'string' || rawText.length === 0) return null;
+  let decoded = rawText.trim();
+  if (content.encoding === 'base64') {
+    try {
+      if (typeof atob === 'function') {
+        decoded = atob(decoded).trim();
+      }
+    } catch {
+      return null;
+    }
   }
-  if (
-    'location' in obj &&
-    obj.location &&
-    typeof obj.location === 'object' &&
-    'floor' in (obj.location as Record<string, unknown>)
-  ) {
-    return true;
+  if (!decoded.startsWith('{') && !decoded.startsWith('[')) return null;
+  try {
+    return JSON.parse(decoded) as unknown;
+  } catch {
+    return null;
   }
-  return (
-    typeof obj.rows === 'number' &&
-    typeof obj.columns === 'number' &&
-    ('floor_id' in obj || 'def_id' in obj || 'blocked' in obj || 'blocked_tiles' in obj)
-  );
 }
 
-/** Extracts raw floor definitions from any supported Diggy JSON wrapper shape. */
+/**
+ * Extracts raw Diggy floor definitions from direct CDN floor JSON (`floors_*.json`),
+ * `CommandSynchronize` / `MineData` envelopes, or browser `.har` network captures.
+ */
 function extractRawFloors(parsed: unknown): RawDiggyFloor[] {
-  if (!parsed || typeof parsed !== 'object') return [];
-  const obj = parsed as Record<string, unknown>;
-  if ('floor' in obj) return asArray<RawDiggyFloor>(obj.floor);
-  if ('floors' in obj) return asArray<RawDiggyFloor>(obj.floors);
-  if ('location' in obj && obj.location && typeof obj.location === 'object') {
-    const loc = obj.location as Record<string, unknown>;
-    if ('floor' in loc) return asArray<RawDiggyFloor>(loc.floor);
-  }
-  if (typeof obj.rows === 'number' && typeof obj.columns === 'number') {
-    return [obj as RawDiggyFloor];
-  }
-  return [];
+  const floors: RawDiggyFloor[] = [];
+  let visitedNodes = 0;
+
+  const visit = (node: unknown, depth: number): void => {
+    if (!node || typeof node !== 'object' || depth > MAX_JSON_UNWRAP_DEPTH || visitedNodes >= MAX_JSON_UNWRAP_NODES) {
+      return;
+    }
+    visitedNodes++;
+
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        visit(item, depth + 1);
+      }
+      return;
+    }
+
+    const obj = node as Record<string, unknown>;
+
+    // 1. Direct floor containers (`floor` or `floors`).
+    if ('floor' in obj && (Array.isArray(obj.floor) || (obj.floor && typeof obj.floor === 'object'))) {
+      for (const item of asArray<RawDiggyFloor>(obj.floor)) {
+        if (item && typeof item === 'object' && typeof item.rows === 'number' && typeof item.columns === 'number') {
+          floors.push(item);
+        }
+      }
+      return;
+    }
+    if ('floors' in obj && (Array.isArray(obj.floors) || (obj.floors && typeof obj.floors === 'object'))) {
+      for (const item of asArray<RawDiggyFloor>(obj.floors)) {
+        if (item && typeof item === 'object' && typeof item.rows === 'number' && typeof item.columns === 'number') {
+          floors.push(item);
+        }
+      }
+      return;
+    }
+
+    // 2. Single floor or runtime MineData object (`rows` + `columns` + Diggy floor/tile fields).
+    if (
+      typeof obj.rows === 'number' &&
+      typeof obj.columns === 'number' &&
+      ('floor_id' in obj || 'def_id' in obj || 'blocked' in obj || 'blocked_tiles' in obj || 'tiles' in obj)
+    ) {
+      floors.push(obj as RawDiggyFloor);
+      return;
+    }
+
+    // 3. Browser DevTools HAR archive (`{ log: { entries: [...] } }`).
+    if ('log' in obj && obj.log && typeof obj.log === 'object') {
+      const entries = (obj.log as Record<string, unknown>).entries;
+      if (Array.isArray(entries)) {
+        for (const entry of entries) {
+          if (visitedNodes >= MAX_JSON_UNWRAP_NODES) break;
+          visitedNodes++;
+          if (!entry || typeof entry !== 'object') continue;
+          const response = (entry as Record<string, unknown>).response;
+          if (!response || typeof response !== 'object') continue;
+          const content = (response as Record<string, unknown>).content;
+          if (!content || typeof content !== 'object') continue;
+          const inner = parseHarEntryContent(content as Record<string, unknown>);
+          if (inner) visit(inner, depth + 1);
+        }
+        return;
+      }
+    }
+
+    // 4. Known envelope keys in CommandSynchronize / MineData responses.
+    const envelopeKeys = ['location', 'locations', 'mine', 'mine_data', 'commands', 'data', 'response', 'result'];
+    for (const key of envelopeKeys) {
+      if (key in obj && obj[key] && typeof obj[key] === 'object') {
+        visit(obj[key], depth + 1);
+      }
+    }
+  };
+
+  visit(parsed, 0);
+  return floors;
+}
+
+/** True when `parsed` is a Diggy's Adventure floor JSON object, CommandSynchronize payload, or HAR capture. */
+export function isDiggyJson(parsed: unknown): boolean {
+  return extractRawFloors(parsed).length > 0;
 }
 
 /** Parses `"r,c;r,c"` strings into `{ x: col, y: row }` coordinates within `[0..width-1, 0..height-1]`. */
@@ -522,13 +617,13 @@ function pickTeleportPadCell(
   return best;
 }
 
-/** Reserves a teleporter pad and its orthogonal neighbors so no door, socket, block, or chip blocks arrival. */
-function reservePadNeighborhood(pad: GridPoint, reserved: Set<string>, width: number, height: number): void {
-  reserved.add(pointKey(pad.x, pad.y));
+/** Reserves a cell and its orthogonal neighbors. */
+function reserveNeighborhood(cell: GridPoint, reserved: Set<string>, width: number, height: number): void {
+  reserved.add(pointKey(cell.x, cell.y));
   for (const dir of ORDERED_DIRECTIONS) {
     const vec = DIRECTION_VECTORS[dir];
-    const nx = pad.x + vec.dx;
-    const ny = pad.y + vec.dy;
+    const nx = cell.x + vec.dx;
+    const ny = cell.y + vec.dy;
     if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
       reserved.add(pointKey(nx, ny));
     }
@@ -567,6 +662,86 @@ function bfsDistances(
     }
   }
   return dist;
+}
+
+interface CarvedVaultPocket {
+  readonly entryCell: GridPoint;
+  readonly gateCell: GridPoint;
+  readonly vaultCell: GridPoint;
+}
+
+/**
+ * Finds and reserves an isolated 2-cell vault pocket (`gateCell` + `vaultCell`) in the walls
+ * adjacent to a reachable unreserved open cell `entryCell` in `mainComp`. Every orthogonal neighbor
+ * of `gateCell` (other than `entryCell` and `vaultCell`) and of `vaultCell` (other than `gateCell`)
+ * must be an uncarved wall or map boundary so the vault chip can only be reached through `gateCell`.
+ */
+function carveVaultPocket(
+  activeMask: boolean[][],
+  terrain: string[][],
+  reserved: Set<string>,
+  mainComp: readonly GridPoint[],
+  reachDist: ReadonlyMap<string, number>,
+  width: number,
+  height: number
+): CarvedVaultPocket | null {
+  const isSolidBoundaryOrWall = (x: number, y: number): boolean => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return true;
+    return !activeMask[y][x] && terrain[y][x] === WALL_TILE_ID;
+  };
+
+  for (const entryCell of mainComp) {
+    const eKey = pointKey(entryCell.x, entryCell.y);
+    if (!reachDist.has(eKey) || reserved.has(eKey)) continue;
+
+    for (const dir1 of ORDERED_DIRECTIONS) {
+      const v1 = DIRECTION_VECTORS[dir1];
+      const gateCell: GridPoint = { x: entryCell.x + v1.dx, y: entryCell.y + v1.dy };
+      if (gateCell.x < 0 || gateCell.x >= width || gateCell.y < 0 || gateCell.y >= height) continue;
+      const gKey = pointKey(gateCell.x, gateCell.y);
+      if (activeMask[gateCell.y][gateCell.x] || terrain[gateCell.y][gateCell.x] !== WALL_TILE_ID || reserved.has(gKey)) {
+        continue;
+      }
+
+      const dirOrder: Direction[] = [dir1, ...ORDERED_DIRECTIONS.filter((d) => d !== dir1)];
+      for (const dir2 of dirOrder) {
+        const v2 = DIRECTION_VECTORS[dir2];
+        const vaultCell: GridPoint = { x: gateCell.x + v2.dx, y: gateCell.y + v2.dy };
+        if (vaultCell.x < 0 || vaultCell.x >= width || vaultCell.y < 0 || vaultCell.y >= height) continue;
+        if (vaultCell.x === entryCell.x && vaultCell.y === entryCell.y) continue;
+        const vKey = pointKey(vaultCell.x, vaultCell.y);
+        if (
+          activeMask[vaultCell.y][vaultCell.x] ||
+          terrain[vaultCell.y][vaultCell.x] !== WALL_TILE_ID ||
+          reserved.has(vKey)
+        ) {
+          continue;
+        }
+
+        const gateIsolated = ORDERED_DIRECTIONS.every((d) => {
+          const nx = gateCell.x + DIRECTION_VECTORS[d].dx;
+          const ny = gateCell.y + DIRECTION_VECTORS[d].dy;
+          if ((nx === entryCell.x && ny === entryCell.y) || (nx === vaultCell.x && ny === vaultCell.y)) return true;
+          return isSolidBoundaryOrWall(nx, ny);
+        });
+        if (!gateIsolated) continue;
+
+        const vaultIsolated = ORDERED_DIRECTIONS.every((d) => {
+          const nx = vaultCell.x + DIRECTION_VECTORS[d].dx;
+          const ny = vaultCell.y + DIRECTION_VECTORS[d].dy;
+          if (nx === gateCell.x && ny === gateCell.y) return true;
+          return isSolidBoundaryOrWall(nx, ny);
+        });
+        if (!vaultIsolated) continue;
+
+        reserved.add(eKey);
+        reserveNeighborhood(gateCell, reserved, width, height);
+        reserveNeighborhood(vaultCell, reserved, width, height);
+        return { entryCell, gateCell, vaultCell };
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -653,10 +828,30 @@ function findMovePath(
 }
 
 interface PlannedBlockPuzzle {
+  readonly mode: 'push' | 'pull';
   readonly approach: GridPoint;
   readonly blockStart: GridPoint;
   readonly target: GridPoint;
   readonly pushDir: Direction;
+  readonly color?: ChannelColor;
+  readonly vault?: CarvedVaultPocket;
+  readonly bootsPullPt?: GridPoint;
+  readonly pullStand?: GridPoint;
+}
+
+interface PlannedLaserPuzzle {
+  readonly color: ChannelColor;
+  readonly emitterCell: GridPoint;
+  readonly inDir: Direction;
+  readonly receiverCell: GridPoint;
+  readonly corner: GridPoint;
+  readonly mirrorStart: GridPoint;
+  readonly approach: GridPoint;
+  readonly pushDir: Direction;
+  readonly mirrorEntityId: string;
+  readonly beamCorridorCells: readonly GridPoint[];
+  readonly openCornerNeighbors: readonly GridPoint[];
+  readonly vault: CarvedVaultPocket;
 }
 
 interface PlannedLeverGate {
@@ -667,8 +862,43 @@ interface PlannedLeverGate {
 }
 
 /**
+ * Traces a straight ray from `start` in `dir` over `activeMask` until it hits an uncarved wall cell.
+ * Returns the intermediate open cells and the terminating wall cell, or `null` if the ray goes out of bounds
+ * or crosses a reserved cell.
+ */
+function traceRayToWall(
+  activeMask: boolean[][],
+  terrain: string[][],
+  reserved: ReadonlySet<string>,
+  start: GridPoint,
+  dir: Direction,
+  width: number,
+  height: number
+): { openCells: GridPoint[]; wallCell: GridPoint } | null {
+  const openCells: GridPoint[] = [];
+  const vec = DIRECTION_VECTORS[dir];
+  let cx = start.x + vec.dx;
+  let cy = start.y + vec.dy;
+  while (cx >= 0 && cx < width && cy >= 0 && cy < height) {
+    const k = pointKey(cx, cy);
+    if (reserved.has(k)) return null;
+    if (!activeMask[cy][cx]) {
+      if (terrain[cy][cx] === WALL_TILE_ID) {
+        return { openCells, wallCell: { x: cx, y: cy } };
+      }
+      return null;
+    }
+    openCells.push({ x: cx, y: cy });
+    if (openCells.length > MAX_BEAM_CORRIDOR_CELLS) return null;
+    cx += vec.dx;
+    cy += vec.dy;
+  }
+  return null;
+}
+
+/**
  * Replays a candidate move sequence on a fresh `GameEngine` instance and returns `true`
- * only when the level is won (`engine.isWin() === true` and `engine.isGameOver() === false`).
+ * only when the level is won (`engine.isLevelCompleted() === true` and `engine.getPlayer().alive === true`).
  */
 function verifySolutionInEngine(level: CompiledLevel, moves: readonly Direction[]): boolean {
   const engine = new GameEngine();
@@ -747,8 +977,8 @@ function buildLevelFromDiggyFloor(
     if (padMain && padSub) {
       terrain[padMain.y][padMain.x] = channelId;
       terrain[padSub.y][padSub.x] = channelId;
-      reservePadNeighborhood(padMain, reserved, width, height);
-      reservePadNeighborhood(padSub, reserved, width, height);
+      reserveNeighborhood(padMain, reserved, width, height);
+      reserveNeighborhood(padSub, reserved, width, height);
       teleportPadsByChannel.set(channelId, [padMain, padSub]);
     }
   }
@@ -808,7 +1038,7 @@ function buildLevelFromDiggyFloor(
   }
   reserved.add(pointKey(exitPt.x, exitPt.y));
 
-  // 5. Plan optional push/pit block puzzles (dirt_block + water pit that turns into dirt when filled).
+  // 5. Plan push/pull boulder puzzles (`activation: "push" | "pit"`, `req_drag > 0`).
   const plannedBlocks: PlannedBlockPuzzle[] = [];
   const pushTargetCandidates: GridPoint[] = [];
   for (const beacon of beacons) {
@@ -829,11 +1059,106 @@ function buildLevelFromDiggyFloor(
   }
 
   const closedBlockKeys = new Set<string>([pointKey(exitPt.x, exitPt.y)]);
+  let plateColorIdx = 0;
+
   for (const target of pushTargetCandidates) {
     if (plannedBlocks.length >= MAX_BLOCK_PUZZLES_PER_FLOOR) break;
     const tKey = pointKey(target.x, target.y);
     if (reserved.has(tKey)) continue;
 
+    let plannedThisTarget = false;
+
+    // 5a. Try Lot 3 Pull Recess (`boots_pull` + recessed boulder pulled onto `pressure_plate_<color>`)
+    // for the first boulder puzzle when `target` touches an isolated 1-cell wall recess.
+    if (!plannedBlocks.some((b) => b.mode === 'pull') && plateColorIdx < PLATE_CHANNEL_COLORS.length) {
+      for (const pushDir of ORDERED_DIRECTIONS) {
+        const vec = DIRECTION_VECTORS[pushDir];
+        const recess: GridPoint = { x: target.x - vec.dx, y: target.y - vec.dy };
+        const pullStand: GridPoint = { x: target.x + vec.dx, y: target.y + vec.dy };
+        if (
+          recess.x < 0 ||
+          recess.x >= width ||
+          recess.y < 0 ||
+          recess.y >= height ||
+          pullStand.x < 0 ||
+          pullStand.x >= width ||
+          pullStand.y < 0 ||
+          pullStand.y >= height
+        ) {
+          continue;
+        }
+        const rKey = pointKey(recess.x, recess.y);
+        const pKey = pointKey(pullStand.x, pullStand.y);
+        if (activeMask[recess.y][recess.x] || terrain[recess.y][recess.x] !== WALL_TILE_ID || reserved.has(rKey)) {
+          continue;
+        }
+        if (!activeMask[pullStand.y][pullStand.x] || reserved.has(pKey)) continue;
+
+        const recessIsolated = ORDERED_DIRECTIONS.every((d) => {
+          const nx = recess.x + DIRECTION_VECTORS[d].dx;
+          const ny = recess.y + DIRECTION_VECTORS[d].dy;
+          if (nx === target.x && ny === target.y) return true;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) return true;
+          return !activeMask[ny][nx] && terrain[ny][nx] === WALL_TILE_ID;
+        });
+        if (!recessIsolated) continue;
+
+        const trialClosed = new Set<string>(closedBlockKeys);
+        trialClosed.add(tKey);
+        const distWithoutTarget = bfsDistances(activeMask, playerStartPt, width, height, trialClosed);
+        if (distWithoutTarget.size < mainComp.length - trialClosed.size || !distWithoutTarget.has(pKey)) continue;
+
+        // Pick an unreserved reachable non-articulation cell for `boots_pull`.
+        const bootsPullPt = mainComp.find((pt) => {
+          const k = pointKey(pt.x, pt.y);
+          if (reserved.has(k) || k === tKey || k === pKey || (distWithoutTarget.get(k) ?? 0) < 1) return false;
+          const trialWithBoots = new Set<string>(trialClosed);
+          trialWithBoots.add(k);
+          const distWithBootsClosed = bfsDistances(activeMask, playerStartPt, width, height, trialWithBoots);
+          return distWithBootsClosed.size >= mainComp.length - trialWithBoots.size && distWithBootsClosed.has(pKey);
+        });
+        if (!bootsPullPt) continue;
+
+        const trialReserved = new Set<string>(reserved);
+        trialReserved.add(tKey);
+        trialReserved.add(pKey);
+        trialReserved.add(pointKey(bootsPullPt.x, bootsPullPt.y));
+        reserveNeighborhood(recess, trialReserved, width, height);
+
+        const vault = carveVaultPocket(
+          activeMask,
+          terrain,
+          trialReserved,
+          mainComp,
+          distWithoutTarget,
+          width,
+          height
+        );
+        if (!vault) continue;
+
+        for (const k of trialReserved) reserved.add(k);
+        closedBlockKeys.add(tKey);
+        const color = PLATE_CHANNEL_COLORS[plateColorIdx++];
+        plannedBlocks.push({
+          mode: 'pull',
+          approach: target,
+          blockStart: recess,
+          target,
+          pushDir,
+          color,
+          vault,
+          bootsPullPt,
+          pullStand
+        });
+        plannedThisTarget = true;
+        break;
+      }
+    }
+
+    if (plannedThisTarget) continue;
+
+    // 5b. Try Lot 2 Push (`dirt_block` pushed onto `pressure_plate_<color>` + `hold_door_<color>_closed` vault,
+    // or fallback to `water` pit when no vault pocket can be carved).
     for (const pushDir of ORDERED_DIRECTIONS) {
       const vec = DIRECTION_VECTORS[pushDir];
       const blockStart: GridPoint = { x: target.x - vec.dx, y: target.y - vec.dy };
@@ -866,13 +1191,245 @@ function buildLevelFromDiggyFloor(
       reserved.add(aKey);
       closedBlockKeys.add(tKey);
       closedBlockKeys.add(bKey);
+
+      let color: ChannelColor | undefined;
+      let vault: CarvedVaultPocket | undefined;
+      if (plateColorIdx < PLATE_CHANNEL_COLORS.length) {
+        const carved = carveVaultPocket(activeMask, terrain, reserved, mainComp, distWithoutPair, width, height);
+        if (carved) {
+          color = PLATE_CHANNEL_COLORS[plateColorIdx++];
+          vault = carved;
+        }
+      }
+
       plannedBlocks.push({
+        mode: 'push',
         approach,
         blockStart,
         target,
-        pushDir
+        pushDir,
+        ...(color ? { color } : {}),
+        ...(vault ? { vault } : {})
       });
       break;
+    }
+  }
+
+  // 5c. Plan Lot 1 Laser & Mirror puzzles (`activation: "sensor"` or `req_light > 0`).
+  const plannedLasers: PlannedLaserPuzzle[] = [];
+  const lightBeacons = beacons.filter((beacon) =>
+    asArray<RawBeaconPart>(beacon.parts?.part).some(
+      (p) => p.activation === 'sensor' || Number(p.req_light ?? 0) > 0
+    )
+  );
+  const targetLaserCount = Math.min(MAX_LASER_PUZZLES_PER_FLOOR, lightBeacons.length, LASER_CHANNEL_COLORS.length);
+
+  if (targetLaserCount > 0) {
+    const cornerCandidates: GridPoint[] = [];
+    const seenCornerKeys = new Set<string>();
+    const addCornerCandidate = (pt: GridPoint): void => {
+      const k = pointKey(pt.x, pt.y);
+      if (activeMask[pt.y]?.[pt.x] && mainDist.has(k) && !seenCornerKeys.has(k)) {
+        seenCornerKeys.add(k);
+        cornerCandidates.push(pt);
+      }
+    };
+
+    for (const beacon of lightBeacons) {
+      for (const action of asArray<RawBeaconAction>(beacon.actions?.action)) {
+        for (const pt of parseRowColList(action.tiles, width, height)) {
+          addCornerCandidate(pt);
+        }
+      }
+    }
+    for (const pt of mainComp) {
+      addCornerCandidate(pt);
+    }
+
+    const hasPullBootsOnFloor = plannedBlocks.some((b) => b.mode === 'pull');
+
+    for (let lIdx = 0; lIdx < targetLaserCount; lIdx++) {
+      const laserColor = LASER_CHANNEL_COLORS[lIdx];
+      let bestCandidate: {
+        emitterCell: GridPoint;
+        stopWallCell: GridPoint;
+        inDir: Direction;
+        receiverCell: GridPoint;
+        corner: GridPoint;
+        mirrorStart: GridPoint;
+        approach: GridPoint;
+        pushDir: Direction;
+        mirrorEntityId: string;
+        beamCorridorCells: GridPoint[];
+        openCornerNeighbors: GridPoint[];
+        distAfter: Map<string, number>;
+      } | null = null;
+
+      for (const corner of cornerCandidates) {
+        const cKey = pointKey(corner.x, corner.y);
+        if (reserved.has(cKey)) continue;
+
+        for (const pushDir of ORDERED_DIRECTIONS) {
+          const pVec = DIRECTION_VECTORS[pushDir];
+          const mirrorStart: GridPoint = { x: corner.x - pVec.dx, y: corner.y - pVec.dy };
+          const approach: GridPoint = { x: corner.x - 2 * pVec.dx, y: corner.y - 2 * pVec.dy };
+          if (
+            mirrorStart.x < 0 ||
+            mirrorStart.x >= width ||
+            mirrorStart.y < 0 ||
+            mirrorStart.y >= height ||
+            approach.x < 0 ||
+            approach.x >= width ||
+            approach.y < 0 ||
+            approach.y >= height
+          ) {
+            continue;
+          }
+          const mKey = pointKey(mirrorStart.x, mirrorStart.y);
+          const aKey = pointKey(approach.x, approach.y);
+          if (!activeMask[mirrorStart.y][mirrorStart.x] || !activeMask[approach.y][approach.x]) continue;
+          if (reserved.has(mKey) || reserved.has(aKey)) continue;
+
+          // Trace reflected beam ray (`outDir = pushDir`) from `corner` to `receiverCell`.
+          const outRay = traceRayToWall(activeMask, terrain, reserved, corner, pushDir, width, height);
+          if (!outRay) continue;
+
+          const perpDirs = ORDERED_DIRECTIONS.filter(
+            (d) => d !== pushDir && d !== OPPOSITE_DIRECTION[pushDir]
+          );
+          for (const inDir of perpDirs) {
+            // Trace incoming beam ray (`-inDir`) from `corner` to `emitterCell`, and continuation (`+inDir`) to `stopWallCell`.
+            const inRayBack = traceRayToWall(
+              activeMask,
+              terrain,
+              reserved,
+              corner,
+              OPPOSITE_DIRECTION[inDir],
+              width,
+              height
+            );
+            if (!inRayBack) continue;
+            const inRayFwd = traceRayToWall(activeMask, terrain, reserved, corner, inDir, width, height);
+            if (!inRayFwd) continue;
+
+            const wallKeys = new Set<string>([
+              pointKey(inRayBack.wallCell.x, inRayBack.wallCell.y),
+              pointKey(inRayFwd.wallCell.x, inRayFwd.wallCell.y),
+              pointKey(outRay.wallCell.x, outRay.wallCell.y)
+            ]);
+            if (wallKeys.size < 3) continue;
+
+            const beamCorridorCells: GridPoint[] = [
+              ...inRayBack.openCells,
+              corner,
+              ...inRayFwd.openCells,
+              ...outRay.openCells
+            ];
+            if (beamCorridorCells.length > MAX_BEAM_CORRIDOR_CELLS) continue;
+            if (
+              beamCorridorCells.some((pt) => {
+                const k = pointKey(pt.x, pt.y);
+                return k === mKey || k === aKey || reserved.has(k);
+              })
+            ) {
+              continue;
+            }
+
+            const openCornerNeighbors: GridPoint[] = [];
+            for (const d of ORDERED_DIRECTIONS) {
+              const nx = corner.x + DIRECTION_VECTORS[d].dx;
+              const ny = corner.y + DIRECTION_VECTORS[d].dy;
+              if (nx >= 0 && nx < width && ny >= 0 && ny < height && activeMask[ny][nx]) {
+                openCornerNeighbors.push({ x: nx, y: ny });
+              }
+            }
+            if (hasPullBootsOnFloor && openCornerNeighbors.some((pt) => reserved.has(pointKey(pt.x, pt.y)))) {
+              continue;
+            }
+
+            const trialClosed = new Set<string>(closedBlockKeys);
+            trialClosed.add(mKey);
+            for (const pt of beamCorridorCells) trialClosed.add(pointKey(pt.x, pt.y));
+            if (hasPullBootsOnFloor) {
+              for (const pt of openCornerNeighbors) trialClosed.add(pointKey(pt.x, pt.y));
+            }
+
+            const distAfter = bfsDistances(activeMask, playerStartPt, width, height, trialClosed);
+            if (distAfter.size < mainComp.length - trialClosed.size || !distAfter.has(aKey)) continue;
+
+            const mirrorEntityId =
+              reflectOnMirror('slash', undefined, inDir) === pushDir
+                ? MIRROR_SLASH_ENTITY_ID
+                : MIRROR_BACKSLASH_ENTITY_ID;
+
+            if (!bestCandidate || beamCorridorCells.length < bestCandidate.beamCorridorCells.length) {
+              bestCandidate = {
+                emitterCell: inRayBack.wallCell,
+                stopWallCell: inRayFwd.wallCell,
+                inDir,
+                receiverCell: outRay.wallCell,
+                corner,
+                mirrorStart,
+                approach,
+                pushDir,
+                mirrorEntityId,
+                beamCorridorCells,
+                openCornerNeighbors,
+                distAfter
+              };
+              if (beamCorridorCells.length === 1) break;
+            }
+          }
+          if (bestCandidate && bestCandidate.beamCorridorCells.length === 1) break;
+        }
+        if (bestCandidate && bestCandidate.beamCorridorCells.length === 1) break;
+      }
+
+      if (!bestCandidate) break;
+
+      const trialReserved = new Set<string>(reserved);
+      trialReserved.add(pointKey(bestCandidate.emitterCell.x, bestCandidate.emitterCell.y));
+      trialReserved.add(pointKey(bestCandidate.stopWallCell.x, bestCandidate.stopWallCell.y));
+      trialReserved.add(pointKey(bestCandidate.receiverCell.x, bestCandidate.receiverCell.y));
+      trialReserved.add(pointKey(bestCandidate.mirrorStart.x, bestCandidate.mirrorStart.y));
+      trialReserved.add(pointKey(bestCandidate.approach.x, bestCandidate.approach.y));
+      for (const pt of bestCandidate.beamCorridorCells) trialReserved.add(pointKey(pt.x, pt.y));
+      if (hasPullBootsOnFloor) {
+        for (const pt of bestCandidate.openCornerNeighbors) trialReserved.add(pointKey(pt.x, pt.y));
+      }
+
+      const vault = carveVaultPocket(
+        activeMask,
+        terrain,
+        trialReserved,
+        mainComp,
+        bestCandidate.distAfter,
+        width,
+        height
+      );
+      if (!vault) break;
+
+      for (const k of trialReserved) reserved.add(k);
+      closedBlockKeys.add(pointKey(bestCandidate.mirrorStart.x, bestCandidate.mirrorStart.y));
+      for (const pt of bestCandidate.beamCorridorCells) closedBlockKeys.add(pointKey(pt.x, pt.y));
+      if (hasPullBootsOnFloor) {
+        for (const pt of bestCandidate.openCornerNeighbors) closedBlockKeys.add(pointKey(pt.x, pt.y));
+      }
+
+      plannedLasers.push({
+        color: laserColor,
+        emitterCell: bestCandidate.emitterCell,
+        inDir: bestCandidate.inDir,
+        receiverCell: bestCandidate.receiverCell,
+        corner: bestCandidate.corner,
+        mirrorStart: bestCandidate.mirrorStart,
+        approach: bestCandidate.approach,
+        pushDir: bestCandidate.pushDir,
+        mirrorEntityId: bestCandidate.mirrorEntityId,
+        beamCorridorCells: bestCandidate.beamCorridorCells,
+        openCornerNeighbors: bestCandidate.openCornerNeighbors,
+        vault
+      });
     }
   }
 
@@ -898,7 +1455,7 @@ function buildLevelFromDiggyFloor(
     const dKey = pointKey(doorCell.x, doorCell.y);
     if (reserved.has(dKey)) continue;
 
-    // Check reachability from playerStart when `doorCell`, prior gates, and initial blocks are closed:
+    // Check reachability from playerStart when `doorCell`, prior gates, and initial blocks/lasers are closed:
     const gateClosedSet = new Set<string>([
       ...closedBlockKeys,
       dKey,
@@ -907,14 +1464,37 @@ function buildLevelFromDiggyFloor(
     const upstreamDist = bfsDistances(activeMask, playerStartPt, width, height, gateClosedSet);
     if (upstreamDist.size < MIN_GATE_UPSTREAM_CELLS || upstreamDist.has(pointKey(exitPt.x, exitPt.y))) continue;
 
-    // Ensure `doorCell` is adjacent to the upstream region and all planned block approaches remain reachable.
     const doorTouchesUpstream = ORDERED_DIRECTIONS.some((dir) => {
       const vec = DIRECTION_VECTORS[dir];
       return upstreamDist.has(pointKey(doorCell.x + vec.dx, doorCell.y + vec.dy));
     });
-    const blocksUpstream = plannedBlocks.every((b) => upstreamDist.has(pointKey(b.approach.x, b.approach.y)));
-    const priorGatesUpstream = plannedGates.every((g) => upstreamDist.has(pointKey(g.keyCell.x, g.keyCell.y)));
-    if (!doorTouchesUpstream || !blocksUpstream || !priorGatesUpstream) continue;
+    const blocksUpstream = plannedBlocks.every((b) => {
+      if (b.mode === 'pull') {
+        return (
+          upstreamDist.has(pointKey(b.pullStand!.x, b.pullStand!.y)) &&
+          upstreamDist.has(pointKey(b.bootsPullPt!.x, b.bootsPullPt!.y)) &&
+          upstreamDist.has(pointKey(b.vault!.entryCell.x, b.vault!.entryCell.y))
+        );
+      }
+      return (
+        upstreamDist.has(pointKey(b.approach.x, b.approach.y)) &&
+        (!b.vault || upstreamDist.has(pointKey(b.vault.entryCell.x, b.vault.entryCell.y)))
+      );
+    });
+    const lasersUpstream = plannedLasers.every(
+      (l) =>
+        upstreamDist.has(pointKey(l.approach.x, l.approach.y)) &&
+        upstreamDist.has(pointKey(l.vault.entryCell.x, l.vault.entryCell.y))
+    );
+    const priorGatesUpstream = plannedGates.every(
+      (g) =>
+        upstreamDist.has(pointKey(g.keyCell.x, g.keyCell.y)) &&
+        ORDERED_DIRECTIONS.some((dir) => {
+          const vec = DIRECTION_VECTORS[dir];
+          return upstreamDist.has(pointKey(g.doorCell.x + vec.dx, g.doorCell.y + vec.dy));
+        })
+    );
+    if (!doorTouchesUpstream || !blocksUpstream || !lasersUpstream || !priorGatesUpstream) continue;
 
     // Pick an unreserved upstream cell for the key that opens `doorCell`.
     let keyCell: GridPoint | null = null;
@@ -1019,14 +1599,43 @@ function buildLevelFromDiggyFloor(
     terrain[gate.doorCell.y][gate.doorCell.x] = gate.doorId;
   }
 
-  // Apply block puzzles (`dirt_block` + `water` pit that turns into `dirt` when filled).
+  // Apply boulder puzzles (Lot 2 pressure plates + hold doors + vault chips, Lot 3 `boots_pull` + pull recess, or `water` fallback).
   const entities: EntityPlacement[] = [];
-  for (const blockPuzzle of plannedBlocks) {
-    terrain[blockPuzzle.target.y][blockPuzzle.target.x] = WATER_TILE_ID;
+  for (const bp of plannedBlocks) {
+    if (bp.mode === 'pull') {
+      terrain[bp.blockStart.y][bp.blockStart.x] = FLOOR_TILE_ID;
+      terrain[bp.bootsPullPt!.y][bp.bootsPullPt!.x] = DIRT_TILE_ID;
+      itemGrid[bp.bootsPullPt!.y][bp.bootsPullPt!.x] = BOOTS_PULL_ITEM_ID;
+    }
+    if (bp.color && bp.vault) {
+      terrain[bp.target.y][bp.target.x] = `pressure_plate_${bp.color}`;
+      terrain[bp.vault.gateCell.y][bp.vault.gateCell.x] = `hold_door_${bp.color}_closed`;
+      terrain[bp.vault.vaultCell.y][bp.vault.vaultCell.x] = DIRT_TILE_ID;
+      itemGrid[bp.vault.vaultCell.y][bp.vault.vaultCell.x] = CHIP_ITEM_ID;
+      chipPoints.push(bp.vault.vaultCell);
+    } else {
+      terrain[bp.target.y][bp.target.x] = WATER_TILE_ID;
+    }
     entities.push({
-      x: blockPuzzle.blockStart.x,
-      y: blockPuzzle.blockStart.y,
+      x: bp.blockStart.x,
+      y: bp.blockStart.y,
       type: PUSH_BLOCK_ENTITY_ID,
+      dir: DEFAULT_FACING
+    });
+  }
+
+  // Apply laser & mirror puzzles (Lot 1 emitter + mirror + receiver + laser gate + vault chip).
+  for (const lp of plannedLasers) {
+    terrain[lp.emitterCell.y][lp.emitterCell.x] = `laser_emitter_${lp.inDir.toLowerCase()}`;
+    terrain[lp.receiverCell.y][lp.receiverCell.x] = `laser_receiver_${lp.color}`;
+    terrain[lp.vault.gateCell.y][lp.vault.gateCell.x] = `laser_gate_${lp.color}_closed`;
+    terrain[lp.vault.vaultCell.y][lp.vault.vaultCell.x] = DIRT_TILE_ID;
+    itemGrid[lp.vault.vaultCell.y][lp.vault.vaultCell.x] = CHIP_ITEM_ID;
+    chipPoints.push(lp.vault.vaultCell);
+    entities.push({
+      x: lp.mirrorStart.x,
+      y: lp.mirrorStart.y,
+      type: lp.mirrorEntityId,
       dir: DEFAULT_FACING
     });
   }
@@ -1047,22 +1656,104 @@ function buildLevelFromDiggyFloor(
   for (const bp of plannedBlocks) {
     impassable.add(pointKey(bp.blockStart.x, bp.blockStart.y));
     impassable.add(pointKey(bp.target.x, bp.target.y));
+    if (bp.vault) {
+      impassable.add(pointKey(bp.vault.gateCell.x, bp.vault.gateCell.y));
+    }
+    if (bp.bootsPullPt) {
+      impassable.add(pointKey(bp.bootsPullPt.x, bp.bootsPullPt.y));
+    }
+  }
+  for (const lp of plannedLasers) {
+    impassable.add(pointKey(lp.emitterCell.x, lp.emitterCell.y));
+    impassable.add(pointKey(lp.receiverCell.x, lp.receiverCell.y));
+    impassable.add(pointKey(lp.mirrorStart.x, lp.mirrorStart.y));
+    for (const pt of lp.beamCorridorCells) {
+      impassable.add(pointKey(pt.x, pt.y));
+    }
+    impassable.add(pointKey(lp.vault.gateCell.x, lp.vault.gateCell.y));
   }
   if (chipsRequired > 0) {
     impassable.add(pointKey(exitPt.x, exitPt.y));
   }
 
+  const remainingChips = new Set<string>(chipPoints.map((p) => pointKey(p.x, p.y)));
+  remainingChips.delete(pointKey(playerStartPt.x, playerStartPt.y));
+
   const moves: Direction[] = [];
   let cursor: GridPoint = { x: playerStartPt.x, y: playerStartPt.y };
 
-  // Step A: Execute each block push (`cursor -> approach`, then push `pushDir` onto `water` pit, then step onto `dirt`).
+  // Step A1: Execute standard boulder pushes (`mode === 'push'`).
   for (const bp of plannedBlocks) {
+    if (bp.mode !== 'push') continue;
     const toApproach = findMovePath(terrain, teleportPadsByChannel, cursor, bp.approach, width, height, impassable);
     if (!toApproach) return { level: null, skipReason: 'unsolvable' };
     moves.push(...toApproach, bp.pushDir);
     impassable.delete(pointKey(bp.blockStart.x, bp.blockStart.y));
-    impassable.delete(pointKey(bp.target.x, bp.target.y));
     cursor = { x: bp.blockStart.x, y: bp.blockStart.y };
+    if (bp.vault) {
+      // Keep `bp.target` in `impassable` because `dirt_block` remains on `pressure_plate_<color>`.
+      impassable.delete(pointKey(bp.vault.gateCell.x, bp.vault.gateCell.y));
+      const toVault = findMovePath(
+        terrain,
+        teleportPadsByChannel,
+        cursor,
+        bp.vault.vaultCell,
+        width,
+        height,
+        impassable
+      );
+      if (!toVault) return { level: null, skipReason: 'unsolvable' };
+      moves.push(...toVault);
+      cursor = bp.vault.vaultCell;
+      remainingChips.delete(pointKey(bp.vault.vaultCell.x, bp.vault.vaultCell.y));
+    } else {
+      impassable.delete(pointKey(bp.target.x, bp.target.y));
+    }
+  }
+
+  // Step A2: Execute laser mirror pushes (`plannedLasers`).
+  for (const lp of plannedLasers) {
+    const toApproach = findMovePath(terrain, teleportPadsByChannel, cursor, lp.approach, width, height, impassable);
+    if (!toApproach) return { level: null, skipReason: 'unsolvable' };
+    moves.push(...toApproach, lp.pushDir);
+    impassable.delete(pointKey(lp.mirrorStart.x, lp.mirrorStart.y));
+    cursor = { x: lp.mirrorStart.x, y: lp.mirrorStart.y };
+    impassable.delete(pointKey(lp.vault.gateCell.x, lp.vault.gateCell.y));
+    const toVault = findMovePath(terrain, teleportPadsByChannel, cursor, lp.vault.vaultCell, width, height, impassable);
+    if (!toVault) return { level: null, skipReason: 'unsolvable' };
+    moves.push(...toVault);
+    cursor = lp.vault.vaultCell;
+    remainingChips.delete(pointKey(lp.vault.vaultCell.x, lp.vault.vaultCell.y));
+    if (plannedBlocks.some((b) => b.mode === 'pull')) {
+      for (const pt of lp.openCornerNeighbors) {
+        impassable.add(pointKey(pt.x, pt.y));
+      }
+    }
+  }
+
+  // Step A3: Execute grappling-glove boulder pulls (`mode === 'pull'`), after all mirrors are in place.
+  for (const bp of plannedBlocks) {
+    if (bp.mode !== 'pull' || !bp.bootsPullPt || !bp.pullStand || !bp.vault) continue;
+    impassable.delete(pointKey(bp.bootsPullPt.x, bp.bootsPullPt.y));
+    const toBoots = findMovePath(terrain, teleportPadsByChannel, cursor, bp.bootsPullPt, width, height, impassable);
+    if (!toBoots) return { level: null, skipReason: 'unsolvable' };
+    moves.push(...toBoots);
+    cursor = bp.bootsPullPt;
+
+    impassable.delete(pointKey(bp.target.x, bp.target.y));
+    const toTarget = findMovePath(terrain, teleportPadsByChannel, cursor, bp.target, width, height, impassable);
+    if (!toTarget) return { level: null, skipReason: 'unsolvable' };
+    moves.push(...toTarget, bp.pushDir);
+    cursor = { x: bp.pullStand.x, y: bp.pullStand.y };
+
+    // The boulder now rests on `bp.target` (`pressure_plate_<color>`), opening `bp.vault.gateCell`.
+    impassable.add(pointKey(bp.target.x, bp.target.y));
+    impassable.delete(pointKey(bp.vault.gateCell.x, bp.vault.gateCell.y));
+    const toVault = findMovePath(terrain, teleportPadsByChannel, cursor, bp.vault.vaultCell, width, height, impassable);
+    if (!toVault) return { level: null, skipReason: 'unsolvable' };
+    moves.push(...toVault);
+    cursor = bp.vault.vaultCell;
+    remainingChips.delete(pointKey(bp.vault.vaultCell.x, bp.vault.vaultCell.y));
   }
 
   // Step B: Open each lever gate (`cursor -> keyCell`, then `keyCell -> doorCell`).
@@ -1079,7 +1770,6 @@ function buildLevelFromDiggyFloor(
   }
 
   // Step C: Collect all remaining chips using nearest-neighbor BFS order.
-  const remainingChips = new Set<string>(chipPoints.map((p) => pointKey(p.x, p.y)));
   remainingChips.delete(pointKey(cursor.x, cursor.y));
   while (remainingChips.size > 0) {
     let bestPath: Direction[] | null = null;
@@ -1145,7 +1835,7 @@ function buildLevelFromDiggyFloor(
 
 /**
  * Decodes a parsed Diggy floor JSON payload into native Epoxy levels.
- * Dummy `0x0` placeholder floors (`rows <= 0 || columns <= 0`) are ignored silently.
+ * Dummy `0x0` placeholder floors (`rows <= 0 && columns <= 0`) are ignored silently.
  */
 export function decodeDiggyJson(parsed: unknown, packName: string, startNumber = 1): DiggyDecodeResult {
   const rawFloors = extractRawFloors(parsed);
@@ -1172,7 +1862,7 @@ export function decodeDiggyJson(parsed: unknown, packName: string, startNumber =
 }
 
 /**
- * Decodes a collection of Diggy floor JSON files in natural numeric filename order
+ * Decodes a collection of Diggy floor JSON or HAR files in natural numeric filename order
  * into a single list of native Epoxy levels.
  */
 export function decodeDiggyFiles(

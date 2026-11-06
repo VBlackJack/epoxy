@@ -36,7 +36,7 @@ vi.mock('../../colorGlyph', async (importOriginal) => {
   return { ...actual, paintColorGlyph: vi.fn(actual.paintColorGlyph) };
 });
 
-const BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye'];
+const BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
 const KEY_CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'green'];
 const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'force'];
 const TILE = 48;

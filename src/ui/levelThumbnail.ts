@@ -67,6 +67,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   boots_force: 'forceArrow',
   boots_speed: 'yellow',
   boots_eye: 'teleportRing',
+  boots_pull: 'orange',
   slow_time: 'blue',
   bomb: 'bombBody',
   score_2x: 'bonusFlagMultiplier',

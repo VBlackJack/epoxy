@@ -368,6 +368,11 @@ tile theme=cyber_neon id=boots_eye cda60714b7c38f68
 tile theme=arctic_lab id=boots_eye f4f862e5661a3c6e
 tile theme=magma_core id=boots_eye 1dd4479c79a0d23a
 tile theme=lynx_lcd id=boots_eye db823136f974aa32
+tile theme=default id=boots_pull 02be8d672629aa80
+tile theme=cyber_neon id=boots_pull 327d69c215114a2e
+tile theme=arctic_lab id=boots_pull efba98d27ed35858
+tile theme=magma_core id=boots_pull 143c84db1736604f
+tile theme=lynx_lcd id=boots_pull fbbb062ff6a4bb2f
 tile theme=default id=bomb 7cb427a2958d2d1d
 tile theme=cyber_neon id=bomb 9e1297537687ba52
 tile theme=arctic_lab id=bomb 20a774d30ad2894e

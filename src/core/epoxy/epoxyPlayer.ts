@@ -18,7 +18,8 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../coreConstants';
+import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { triggerButton } from './epoxyDevices';
@@ -29,6 +30,7 @@ import {
   EpoxyContext,
   EpoxyWorld,
   canPlayerEnter,
+  entityPressesPlate,
   getEntityAt,
   isEdgeBlocked,
   isInBounds,
@@ -163,6 +165,9 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     }
   }
 
+  const prevX = w.player.x;
+  const prevY = w.player.y;
+  const hadPullBoots = bootsPullBlocks(w.player.boots);
   leaveSwivel(w, w.player.x, w.player.y);
   leaveCell(w, w.player.x, w.player.y);
   w.player.x = targetX;
@@ -174,6 +179,32 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   }
 
   resolvePlayerArrival(ctx, dir, true);
+
+  if (
+    !fromSlide &&
+    !entityAtTarget &&
+    !updatedTargetTile.isTeleporter &&
+    w.player.alive &&
+    !w.levelCompleted &&
+    hadPullBoots &&
+    bootsPullBlocks(w.player.boots)
+  ) {
+    const behindX = prevX - vec.dx;
+    const behindY = prevY - vec.dy;
+    const blockBehind = getEntityAt(w, behindX, behindY);
+    if (blockBehind && blockBehind.kind === 'block' && !blockBehind.isSliding) {
+      const behindTileId = w.terrain[behindY]?.[behindX];
+      const behindTile = ConfigRegistry.getTile(behindTileId);
+      const lockedOnPlate =
+        (behindTile.plateColor !== undefined && entityPressesPlate(blockBehind.type, 'block', behindTile.plateColor)) ||
+        behindTile.signalSource !== undefined ||
+        behindTile.buttonAction === 'hold_trap' ||
+        behindTileId === BLOCK_TARGET_TILE_ID;
+      if (!lockedOnPlate) {
+        attemptPushBlock(ctx, blockBehind, dir);
+      }
+    }
+  }
   return true;
 }
 

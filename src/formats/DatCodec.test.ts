@@ -596,6 +596,15 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level that holds pull boots and leaves it out of the pack', () => {
+    const pulled = blankLevel(1);
+    pulled.items[3][3] = 'boots_pull';
+    expect(datRefusalReason(pulled)).toBe('epoxy_only_items');
+    const encoded = DatCodec.encodeLevelsWithReport([pulled, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['epoxy_only_items']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('refuses a level with a puppet, a puppet control or a skitter and leaves it out of the pack', () => {
     const puppet = blankLevel(1);
     puppet.entities = [{ type: 'puppet', x: 3, y: 3, dir: 'E' }];

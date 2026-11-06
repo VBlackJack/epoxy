@@ -247,9 +247,29 @@ export function bootsRevealHiddenWalls(boots: Iterable<string>): boolean {
   return false;
 }
 
-/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots or the eye boots. */
+/** True when the tile is boots that pull resting pushable blocks while held, which no Lynx or CC3D rule has. */
+export function isPullBootsTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).pullsBlocks !== undefined;
+}
+
+/** True when any of the boots held pulls blocks, whatever their id. */
+export function bootsPullBlocks(boots: Iterable<string>): boolean {
+  for (const bootId of boots) {
+    if (ConfigRegistry.getTile(bootId).pullsBlocks === true) return true;
+  }
+  return false;
+}
+
+/** True when the level places pull boots (terrain or item layer). */
+export function hasPullBootsContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isPullBootsTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
+/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots or the pull boots. */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
-  return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id);
+  return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id);
 }
 
 /** True when the tile id is a transmogrifier, which swaps a monster arriving on it for its pair. */
@@ -368,6 +388,7 @@ const turretContentCache = new WeakMap<object, boolean>();
 const steeringContentCache = new WeakMap<object, boolean>();
 const swivelContentCache = new WeakMap<object, boolean>();
 const signalContentCache = new WeakMap<object, boolean>();
+const pullBootsContentCache = new WeakMap<object, boolean>();
 /** The aids of a steering level, kept per aid set so a level of one kind always gets the same object. */
 const steeringFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 
@@ -387,6 +408,16 @@ function withoutSteeringAids(base: RulesetFeatures): RulesetFeatures {
 
 /** The aids of a signal level, kept per aid set like the steering overlay. */
 const signalFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const pullBootsFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+
+function withoutPullBootsAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = pullBootsFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    pullBootsFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
 
 /**
  * The aids a level with signal wiring loses on top of what its other mechanics already turn off: gates and sources
@@ -427,7 +458,13 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     signalContentCache.set(level, signal);
   }
   const steered = steering || swivel ? withoutSteeringAids(base) : base;
-  return signal ? withoutSignalAids(steered) : steered;
+  const signaled = signal ? withoutSignalAids(steered) : steered;
+  let pullBoots = pullBootsContentCache.get(level);
+  if (pullBoots === undefined) {
+    pullBoots = hasPullBootsContent({ terrain: level.terrain, items: level.items ?? [] });
+    pullBootsContentCache.set(level, pullBoots);
+  }
+  return pullBoots ? withoutPullBootsAids(signaled) : signaled;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

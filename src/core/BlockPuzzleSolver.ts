@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, WALL_TILE_ID } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { bootsPullBlocks, hasPullBootsContent } from './RulesetFeatures';
 import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
 
 /** Terrain ids of the two turn plates, whose quarter turn the search applies to an arrow block that lands on them. */
@@ -229,6 +230,7 @@ export class BlockPuzzleSolver {
     if (engine.getUnderlays() !== undefined) return false;
     // Signals open and close doors the search does not model: it never reports a wired level stuck.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return false;
+    if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return false;
     const detector = new BlockPuzzleSolver(engine);
     if (detector.buttons.length === 0) return false;
     // Separate block puzzles (two Sokoban rooms) are judged one at a time.
@@ -326,6 +328,7 @@ export class BlockPuzzleSolver {
     if (engine.getLevel().cloneLinks.length > 0 || engine.getLevel().trapLinks.length > 0) return null;
     // Signal wiring changes the board as the player moves: the search does not model it.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
+    if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;
     // Flying shots destroy blocks and monsters: the search does not model them.
     if (engine.getShots() !== undefined || (engine.getLevel().launcherLinks?.length ?? 0) > 0) return null;
     const { x, y } = engine.getPlayer();
@@ -401,6 +404,7 @@ export class BlockPuzzleSolver {
     if (engine.getUnderlays() !== undefined) return null;
     // Signals open and close doors the search does not model: it offers no hint on a wired level.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
+    if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;
     const solver = new BlockPuzzleSolver(engine);
     const occupied = new Set(solver.blocks);
     for (const area of solver.areas()) {

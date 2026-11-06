@@ -177,6 +177,12 @@ function paintBootCharm(ctx: CanvasRenderingContext2D, size: number, art: Art, k
       ctx.arc(cx, cy, radius * BOOT.charm.pupil, 0, TAU);
       ctx.fill();
       break;
+    case 'pull':
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx, cy + radius * 0.2);
+      ctx.arc(cx - radius * 0.35, cy + radius * 0.2, radius * 0.35, 0, Math.PI, false);
+      ctx.stroke();
+      break;
   }
 }
 
@@ -481,7 +487,7 @@ const KEY_CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'gr
 /** Boots kinds with a forbidden marker. */
 const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'force'];
 /** Every boots kind. */
-const ALL_BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye'];
+const ALL_BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
 
 /** Wraps a clocked drawing as an item painter: it follows the Runeward clock, frozen under reduced motion. */
 function clocked(draw: ClockedDrawing): RunewardItemPainter {

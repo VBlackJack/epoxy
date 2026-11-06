@@ -327,7 +327,7 @@
         }
       },
       "import_btn": { "action": "Import a pack..." },
-      "import_formats": { "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json), Diggy's Adventure floors (floors_*.json), Chuck's Challenge 3D levels (.xml)." },
+      "import_formats": { "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json), Diggy's Adventure floors (floors_*.json, .har), Chuck's Challenge 3D levels (.xml)." },
       "export_dat_btn": { "action": "Export Pack (.CCL)" },
       "delete_btn": { "action": "Delete Pack" },
       "drop_overlay": { "label": "Drop a pack here to import it" },
@@ -1636,6 +1636,7 @@
     "boots_force": { "name": "Suction Boots" },
     "boots_speed": { "name": "Speed Boots", "desc": { "label": "While held, the player walks twice as fast." } },
     "boots_eye": { "name": "Truesight Boots", "desc": { "label": "While held, hidden walls (invisible and appearing walls) are revealed." } },
+    "boots_pull": { "name": "Grappling Gloves", "desc": { "label": "While held, stepping away from a resting block pulls it behind you." } },
     "bomb": { "name": "Bomb" },
     "score_10": { "name": "Bonus Flag (10 points)" },
     "score_100": { "name": "Bonus Flag (100 points)" },

@@ -30,6 +30,9 @@ import {
   isEpoxyOnlyItemId,
   isEpoxyOnlyTileId,
   isEyeBootsTileId,
+  isPullBootsTileId,
+  bootsPullBlocks,
+  hasPullBootsContent,
   isFleeingEntityType,
   isSteeredEntityType,
   isSteeringTileId,
@@ -127,6 +130,20 @@ describe('colour channel aids', () => {
     expect(isEpoxyOnlyTileId('boots_eye')).toBe(true);
     expect(isEyeBootsTileId('boots_eye')).toBe(true);
     expect(isEyeBootsTileId('boots_speed')).toBe(false);
+    expect(isPullBootsTileId('boots_pull')).toBe(true);
+    expect(isPullBootsTileId('boots_speed')).toBe(false);
+    expect(bootsPullBlocks(['boots_pull'])).toBe(true);
+    expect(bootsPullBlocks(['boots_speed'])).toBe(false);
+    expect(isEpoxyOnlyItemId('boots_pull')).toBe(true);
+    expect(isEpoxyOnlyTileId('boots_pull')).toBe(true);
+    const pulled = levelWith('floor');
+    pulled.items[1][1] = 'boots_pull';
+    expect(hasPullBootsContent(pulled)).toBe(true);
+    expect(hasEpoxyOnlyContent(pulled)).toBe(true);
+    const pulledFeatures = featuresFor(pulled);
+    expect(pulledFeatures.blockHint).toBe(false);
+    expect(pulledFeatures.deadEndWatch).toBe(false);
+    expect(pulledFeatures.tapToPath).toBe(true);
     expect(isEpoxyOnlyItemId('boots_eye')).toBe(true);
     expect(isEpoxyOnlyItemId('boots_fire')).toBe(false);
     const eyed = levelWith('floor');

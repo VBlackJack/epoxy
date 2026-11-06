@@ -6,7 +6,12 @@
     "maxLevelSize": 128,
     "viewportWidth": 13,
     "viewportHeight": 13,
-    "viewportPresets": [9, 13, 17, 32],
+    "viewportPresets": [
+      9,
+      13,
+      17,
+      32
+    ],
     "viewportCanvasSize": 676,
     "tilePixelSize": 52,
     "editorTilePixelSize": 24,
@@ -18,13 +23,26 @@
     "sokobanSkin": {
       "baseUrl": "./sprites/sokoban",
       "terrain": {
-        "floor": ["ground_06.png"],
-        "invisible_wall": ["ground_06.png"],
-        "appearing_wall": ["ground_06.png"],
-        "wall": ["block_05.png"],
-        "block_target": ["ground_06.png", "environment_06.png"]
+        "floor": [
+          "ground_06.png"
+        ],
+        "invisible_wall": [
+          "ground_06.png"
+        ],
+        "appearing_wall": [
+          "ground_06.png"
+        ],
+        "wall": [
+          "block_05.png"
+        ],
+        "block_target": [
+          "ground_06.png",
+          "environment_06.png"
+        ]
       },
-      "entities": { "dirt_block": "crate_02.png" },
+      "entities": {
+        "dirt_block": "crate_02.png"
+      },
       "blockOnTarget": "crate_12.png"
     },
     "entityLerpFactor": 0.32,
@@ -59,11 +77,17 @@
     "retroSpriteCacheMaxEntries": 1024,
     "retro32SpriteCacheMaxEntries": 1024,
     "retro32ShineAlpha": 0.22,
-    "glowBlurPx": { "soft": 6, "medium": 8, "strong": 10 },
+    "glowBlurPx": {
+      "soft": 6,
+      "medium": 8,
+      "strong": 10
+    },
     "hintFontModern": "system-ui, sans-serif",
     "hintFontRetro": "monospace",
     "iconPixelSize": 32,
-    "wallJoinTiles": ["wall"],
+    "wallJoinTiles": [
+      "wall"
+    ],
     "shadowCasterTiles": [
       "wall",
       "blue_wall_real",
@@ -87,23 +111,74 @@
     "lightingResolutionDivisor": 4,
     "lightingFlicker": 0.06,
     "lightSources": {
-      "player": { "radiusTile": 3.4, "colorKey": "modernPlayerVisor" },
-      "exit": { "radiusTile": 2.4, "colorKey": "modernExitMid" },
-      "fire": { "radiusTile": 1.25, "colorKey": "modernFireMid" },
-      "flame_jet_on": { "radiusTile": 1.25, "colorKey": "modernFireMid" },
-      "teleport": { "radiusTile": 1.8, "colorKey": "modernTeleportRing" },
-      "teleport_red": { "radiusTile": 1.8, "colorKey": "red" },
-      "teleport_blue": { "radiusTile": 1.8, "colorKey": "blue" },
-      "teleport_yellow": { "radiusTile": 1.8, "colorKey": "yellow" },
-      "teleport_green": { "radiusTile": 1.8, "colorKey": "green" },
-      "hint": { "radiusTile": 1.0, "colorKey": "modernHintRing" },
-      "chip": { "radiusTile": 1.0, "colorKey": "chipCore" },
-      "key_red": { "radiusTile": 0.9, "colorKey": "red" },
-      "key_blue": { "radiusTile": 0.9, "colorKey": "blue" },
-      "key_yellow": { "radiusTile": 0.9, "colorKey": "yellow" },
-      "key_green": { "radiusTile": 0.9, "colorKey": "green" },
-      "fireball": { "radiusTile": 1.6, "colorKey": "monsterFireball" },
-      "glider": { "radiusTile": 1.0, "colorKey": "monsterGlider" }
+      "player": {
+        "radiusTile": 3.4,
+        "colorKey": "modernPlayerVisor"
+      },
+      "exit": {
+        "radiusTile": 2.4,
+        "colorKey": "modernExitMid"
+      },
+      "fire": {
+        "radiusTile": 1.25,
+        "colorKey": "modernFireMid"
+      },
+      "flame_jet_on": {
+        "radiusTile": 1.25,
+        "colorKey": "modernFireMid"
+      },
+      "teleport": {
+        "radiusTile": 1.8,
+        "colorKey": "modernTeleportRing"
+      },
+      "teleport_red": {
+        "radiusTile": 1.8,
+        "colorKey": "red"
+      },
+      "teleport_blue": {
+        "radiusTile": 1.8,
+        "colorKey": "blue"
+      },
+      "teleport_yellow": {
+        "radiusTile": 1.8,
+        "colorKey": "yellow"
+      },
+      "teleport_green": {
+        "radiusTile": 1.8,
+        "colorKey": "green"
+      },
+      "hint": {
+        "radiusTile": 1,
+        "colorKey": "modernHintRing"
+      },
+      "chip": {
+        "radiusTile": 1,
+        "colorKey": "chipCore"
+      },
+      "key_red": {
+        "radiusTile": 0.9,
+        "colorKey": "red"
+      },
+      "key_blue": {
+        "radiusTile": 0.9,
+        "colorKey": "blue"
+      },
+      "key_yellow": {
+        "radiusTile": 0.9,
+        "colorKey": "yellow"
+      },
+      "key_green": {
+        "radiusTile": 0.9,
+        "colorKey": "green"
+      },
+      "fireball": {
+        "radiusTile": 1.6,
+        "colorKey": "monsterFireball"
+      },
+      "glider": {
+        "radiusTile": 1,
+        "colorKey": "monsterGlider"
+      }
     },
     "vignetteAlpha": 0.45,
     "vignetteInnerRatio": 0.55,
@@ -193,8 +268,24 @@
     "basePieceCount": 1,
     "levelsPerExtraPiece": 1,
     "maxPieceCount": 6,
-    "motifCountByLevel": [1, 1, 2, 2, 3, 3, 4],
-    "maxTierByLevel": [1, 2, 2, 3, 3, 3, 4],
+    "motifCountByLevel": [
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4
+    ],
+    "maxTierByLevel": [
+      1,
+      2,
+      2,
+      3,
+      3,
+      3,
+      4
+    ],
     "baseRegionSize": 20,
     "regionGrowthPerLevel": 2,
     "regionGrowthPerRetry": 2,
@@ -209,9 +300,16 @@
     "maxPieceDeadEnds": 0,
     "minBoxCellsPerMonster": 20,
     "maxMonstersPerLevel": 8,
-    "irreversibleMotifs": ["sokoban"],
+    "irreversibleMotifs": [
+      "sokoban"
+    ],
     "noRepeatWindow": 2,
-    "firstLevelExcludedMotifs": ["monsters", "teleport", "trap", "thief"],
+    "firstLevelExcludedMotifs": [
+      "monsters",
+      "teleport",
+      "trap",
+      "thief"
+    ],
     "untimedUpToLevel": 3,
     "thinkSecondsPerPiece": 20,
     "timeSlackFactor": 2,
@@ -220,13 +318,92 @@
     "hub": {
       "fromLevel": 3,
       "shapes": [
-        { "id": "square", "rows": [".......", ".......", ".......", ".......", ".......", ".......", "......."] },
-        { "id": "cross", "rows": ["##...##", "##...##", ".......", ".......", ".......", "##...##", "##...##"] },
-        { "id": "ring", "rows": [".......", ".......", "..###..", "..###..", "..###..", ".......", "......."] },
-        { "id": "hall", "rows": ["...........", "...........", "...........", "...........", "..........."] },
-        { "id": "gallery", "rows": [".....", ".....", ".....", ".....", ".....", ".....", ".....", ".....", ".....", ".....", "....."] },
-        { "id": "pillars", "rows": [".........", ".#.#.#.#.", ".........", ".#.#.#.#.", ".........", ".#.#.#.#.", "........."] },
-        { "id": "corner", "rows": ["....####", "....####", "....####", "........", "........", "........", "........"] }
+        {
+          "id": "square",
+          "rows": [
+            ".......",
+            ".......",
+            ".......",
+            ".......",
+            ".......",
+            ".......",
+            "......."
+          ]
+        },
+        {
+          "id": "cross",
+          "rows": [
+            "##...##",
+            "##...##",
+            ".......",
+            ".......",
+            ".......",
+            "##...##",
+            "##...##"
+          ]
+        },
+        {
+          "id": "ring",
+          "rows": [
+            ".......",
+            ".......",
+            "..###..",
+            "..###..",
+            "..###..",
+            ".......",
+            "......."
+          ]
+        },
+        {
+          "id": "hall",
+          "rows": [
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "..........."
+          ]
+        },
+        {
+          "id": "gallery",
+          "rows": [
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+            "....."
+          ]
+        },
+        {
+          "id": "pillars",
+          "rows": [
+            ".........",
+            ".#.#.#.#.",
+            ".........",
+            ".#.#.#.#.",
+            ".........",
+            ".#.#.#.#.",
+            "........."
+          ]
+        },
+        {
+          "id": "corner",
+          "rows": [
+            "....####",
+            "....####",
+            "....####",
+            "........",
+            "........",
+            "........",
+            "........"
+          ]
+        }
       ],
       "maxShift": 7,
       "outlineGrowth": {
@@ -237,8 +414,17 @@
       },
       "openWings": 2,
       "maxConnectorLength": 2,
-      "rewardRoomWidths": [2, 3, 4, 5],
-      "rewardRoomDepths": [2, 3, 4],
+      "rewardRoomWidths": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "rewardRoomDepths": [
+        2,
+        3,
+        4
+      ],
       "rewardRoomPillarMinSize": 3,
       "rewardChips": 1,
       "hubChips": 1,
@@ -252,13 +438,23 @@
       "loopFringeCells": 96,
       "fillTarget": 0.4,
       "attemptsPerDroppedPiece": 8,
-      "loopModes": ["endless"],
+      "loopModes": [
+        "endless"
+      ],
       "maxPiecesPerWing": 5,
-      "returnGate": { "terrain": "force_n", "item": "boots_force", "orientTowardHub": true },
+      "returnGate": {
+        "terrain": "force_n",
+        "item": "boots_force",
+        "orientTowardHub": true
+      },
       "returnDepth": 2,
       "maxReturnLength": 20,
       "maxLinkLength": 6,
-      "scarceGates": { "fromPieces": 6, "piecesPerGate": 4, "max": 2 },
+      "scarceGates": {
+        "fromPieces": 6,
+        "piecesPerGate": 4,
+        "max": 2
+      },
       "scarceRecovery": false,
       "dependencies": {
         "fromPieces": 6,
@@ -277,7 +473,13 @@
         "fromPieces": 6,
         "piecesPerMonster": 2,
         "max": 3,
-        "types": ["pink_ball", "glider", "fireball", "bug", "paramecium"],
+        "types": [
+          "pink_ball",
+          "glider",
+          "fireball",
+          "bug",
+          "paramecium"
+        ],
         "minStartDistance": 5,
         "minLaneCells": 6,
         "maxLaneCells": 28,
@@ -296,7 +498,10 @@
       "openHazards": {
         "patches": 5,
         "patchCells": 3,
-        "terrains": ["fire", "water"],
+        "terrains": [
+          "fire",
+          "water"
+        ],
         "laneClearance": 2,
         "startClearance": 3
       },
@@ -309,21 +514,40 @@
         "attempts": 250
       },
       "doorGates": [
-        { "terrain": "door_red", "item": "key_red" },
-        { "terrain": "door_blue", "item": "key_blue" },
-        { "terrain": "door_yellow", "item": "key_yellow" }
+        {
+          "terrain": "door_red",
+          "item": "key_red"
+        },
+        {
+          "terrain": "door_blue",
+          "item": "key_blue"
+        },
+        {
+          "terrain": "door_yellow",
+          "item": "key_yellow"
+        }
       ],
       "hazardGates": [
-        { "terrain": "fire", "item": "boots_fire" },
-        { "terrain": "water", "item": "boots_water" },
-        { "terrain": "force_n", "item": "boots_force", "orientTowardHub": true }
+        {
+          "terrain": "fire",
+          "item": "boots_fire"
+        },
+        {
+          "terrain": "water",
+          "item": "boots_water"
+        },
+        {
+          "terrain": "force_n",
+          "item": "boots_force",
+          "orientTowardHub": true
+        }
       ]
     },
     "motifThemes": {
       "ice": "arctic_lab",
       "water": "arctic_lab",
       "blocks_water": "arctic_lab",
-    "cloner": "arctic_lab",
+      "cloner": "arctic_lab",
       "fire": "magma_core",
       "bomb": "magma_core",
       "monsters": "magma_core",
@@ -346,7 +570,7 @@
       "corridorShareCeiling": 0.45,
       "revisitLow": 1.1,
       "revisitHigh": 1.35,
-      "weightLength": 1.0,
+      "weightLength": 1,
       "weightJunction": 0.8,
       "weightCorridor": 0.6,
       "weightRevisit": 0.4,
@@ -509,32 +733,86 @@
   "endlessUi": {
     "fallbackYieldMs": 0,
     "maxStartLevel": 10000,
-    "musicTrackIds": ["endless_1", "endless_2"]
+    "musicTrackIds": [
+      "endless_1",
+      "endless_2"
+    ]
   },
   "locales": {
-    "supported": ["fr", "en"],
+    "supported": [
+      "fr",
+      "en"
+    ],
     "default": "fr"
   },
   "keybindings": {
-    "moveUp": ["ArrowUp", "KeyW", "KeyZ"],
-    "moveDown": ["ArrowDown", "KeyS"],
-    "moveLeft": ["ArrowLeft", "KeyA", "KeyQ"],
-    "moveRight": ["ArrowRight", "KeyD"],
-    "undo": ["ArrowBackspace", "KeyU", "Backspace"],
-    "restart": ["KeyR"],
-    "pause": ["KeyP", "Space"],
-    "nextLevel": ["BracketRight"],
-    "prevLevel": ["BracketLeft"],
-    "toggleMute": ["KeyM"],
-    "toggleGraphics": ["KeyG"],
-    "cycleTheme": ["KeyB"],
-    "generateProcedural": ["KeyN"],
-    "showObjective": ["KeyH"],
-    "showSolution": ["KeyO"],
-    "toggleFullscreen": ["KeyF"],
-    "toggleHelp": ["Slash"],
-    "dropItem": ["KeyE", "KeyX"],
-    "cycleItem": ["KeyC"]
+    "moveUp": [
+      "ArrowUp",
+      "KeyW",
+      "KeyZ"
+    ],
+    "moveDown": [
+      "ArrowDown",
+      "KeyS"
+    ],
+    "moveLeft": [
+      "ArrowLeft",
+      "KeyA",
+      "KeyQ"
+    ],
+    "moveRight": [
+      "ArrowRight",
+      "KeyD"
+    ],
+    "undo": [
+      "ArrowBackspace",
+      "KeyU",
+      "Backspace"
+    ],
+    "restart": [
+      "KeyR"
+    ],
+    "pause": [
+      "KeyP",
+      "Space"
+    ],
+    "nextLevel": [
+      "BracketRight"
+    ],
+    "prevLevel": [
+      "BracketLeft"
+    ],
+    "toggleMute": [
+      "KeyM"
+    ],
+    "toggleGraphics": [
+      "KeyG"
+    ],
+    "cycleTheme": [
+      "KeyB"
+    ],
+    "generateProcedural": [
+      "KeyN"
+    ],
+    "showObjective": [
+      "KeyH"
+    ],
+    "showSolution": [
+      "KeyO"
+    ],
+    "toggleFullscreen": [
+      "KeyF"
+    ],
+    "toggleHelp": [
+      "Slash"
+    ],
+    "dropItem": [
+      "KeyE",
+      "KeyX"
+    ],
+    "cycleItem": [
+      "KeyC"
+    ]
   },
   "palette": {
     "floorBase": "#9fa6b2",
@@ -737,173 +1015,800 @@
   },
   "retroPalettes": {
     "default": {
-      "outline": ["#000024"],
-      "shadow": ["#000049"],
-      "floor": ["#6D92B6", "#496D92", "#24496D"],
-      "wall": ["#B6DBFF", "#6D92DB", "#496DB6", "#24246D"],
-      "wallRim": ["#FFFFFF", "#B6DBFF"],
-      "bluewall": ["#92B6FF", "#496DDB", "#2424B6"],
-      "water": ["#92DBFF", "#00B6FF", "#0049DB", "#002492"],
-      "fire": ["#FFFF49", "#FFB600", "#FF4900", "#B60000"],
-      "ice": ["#FFFFFF", "#B6FFFF", "#6DDBFF", "#49B6DB"],
-      "force": ["#92FFDB", "#00DBB6", "#00926D"],
-      "dirt": ["#DBB66D", "#B69249", "#926D24"],
-      "gravel": ["#B6B6B6", "#929292", "#6D6D6D"],
-      "metal": ["#DBDBFF", "#9292B6", "#6D6D92", "#49496D"],
-      "trap": ["#DB9224", "#924900", "#492400"],
-      "exit": ["#FFFFFF", "#FFFF92", "#49FF49", "#00B600"],
-      "teleport": ["#FFB6FF", "#B649FF", "#6D00B6"],
-      "hint": ["#B6FFFF", "#49DBFF", "#0092B6"],
-      "thief": ["#6D6D6D", "#494949", "#242424"],
-      "white": ["#FFFFFF", "#DBDBDB", "#929292"],
-      "skin": ["#FFDBB6", "#DB926D", "#B64924"],
-      "hair": ["#DB9224", "#924900", "#492400"],
-      "suit": ["#92B6FF", "#4992FF", "#2449B6"],
-      "visor": ["#FFFFFF", "#49FFFF", "#00B6DB"],
-      "boot": ["#B66D49", "#924924", "#492400"],
-      "block": ["#DBB692", "#B6926D", "#926D49", "#492400"],
-      "iceblock": ["#FFFFFF", "#B6FFFF", "#6DDBFF", "#4992DB"],
-      "chip": ["#FFFFB6", "#FFDB24", "#DB9200", "#924900"],
-      "bomb": ["#B6B6DB", "#49496D", "#000024"],
-      "flag": ["#FFB6DB", "#FF49B6", "#B60049"],
-      "stopwatch": ["#DBFFFF", "#92DBDB", "#499292"],
-      "turtle": ["#92FFB6", "#24B66D", "#004924"],
-      "target": ["#FFFF49", "#FF9200"],
-      "red": ["#FF9292", "#FF2424", "#B60000"],
-      "blue": ["#92B6FF", "#2449FF", "#0000B6"],
-      "yellow": ["#FFFF6D", "#FFDB00", "#B69200"],
-      "green": ["#B6FF6D", "#24DB24", "#009200"],
-      "orange": ["#FFB649", "#FF6D00", "#B64900"],
-      "brown": ["#DB9249", "#926D24", "#492400"],
-      "bug": ["#FFB6B6", "#DB2424", "#920000"],
-      "paramecium": ["#DBFF49", "#92DB00", "#499200"],
-      "pinkball": ["#FFB6FF", "#FF49DB", "#B60092"],
-      "walker": ["#FF9249", "#FF4924", "#B62400"],
-      "teeth": ["#49DB49", "#009200", "#004900"],
-      "glider": ["#B6B6FF", "#6D49FF", "#2400B6"],
-      "fireball": ["#FFFFB6", "#FFB600", "#FF4900", "#B60000"],
-      "tank": ["#92B692", "#496D49", "#244924"],
-      "blob": ["#49DBB6", "#009292", "#004949"],
-      "eye": ["#FFFFFF", "#FF2424", "#000024"],
-      "darkHair": ["#492424", "#240000"],
-      "faceSkin": ["#FFDBB6", "#DB926D", "#B64924"],
-      "beard": ["#DBDBDB", "#6D6D6D", "#494949"],
-      "glasses": ["#4992FF", "#000024"],
-      "shirt": ["#496DB6", "#24246D", "#000049"],
-      "sunMotif": ["#FFFF92", "#FFB600"]
+      "outline": [
+        "#000024"
+      ],
+      "shadow": [
+        "#000049"
+      ],
+      "floor": [
+        "#6D92B6",
+        "#496D92",
+        "#24496D"
+      ],
+      "wall": [
+        "#B6DBFF",
+        "#6D92DB",
+        "#496DB6",
+        "#24246D"
+      ],
+      "wallRim": [
+        "#FFFFFF",
+        "#B6DBFF"
+      ],
+      "bluewall": [
+        "#92B6FF",
+        "#496DDB",
+        "#2424B6"
+      ],
+      "water": [
+        "#92DBFF",
+        "#00B6FF",
+        "#0049DB",
+        "#002492"
+      ],
+      "fire": [
+        "#FFFF49",
+        "#FFB600",
+        "#FF4900",
+        "#B60000"
+      ],
+      "ice": [
+        "#FFFFFF",
+        "#B6FFFF",
+        "#6DDBFF",
+        "#49B6DB"
+      ],
+      "force": [
+        "#92FFDB",
+        "#00DBB6",
+        "#00926D"
+      ],
+      "dirt": [
+        "#DBB66D",
+        "#B69249",
+        "#926D24"
+      ],
+      "gravel": [
+        "#B6B6B6",
+        "#929292",
+        "#6D6D6D"
+      ],
+      "metal": [
+        "#DBDBFF",
+        "#9292B6",
+        "#6D6D92",
+        "#49496D"
+      ],
+      "trap": [
+        "#DB9224",
+        "#924900",
+        "#492400"
+      ],
+      "exit": [
+        "#FFFFFF",
+        "#FFFF92",
+        "#49FF49",
+        "#00B600"
+      ],
+      "teleport": [
+        "#FFB6FF",
+        "#B649FF",
+        "#6D00B6"
+      ],
+      "hint": [
+        "#B6FFFF",
+        "#49DBFF",
+        "#0092B6"
+      ],
+      "thief": [
+        "#6D6D6D",
+        "#494949",
+        "#242424"
+      ],
+      "white": [
+        "#FFFFFF",
+        "#DBDBDB",
+        "#929292"
+      ],
+      "skin": [
+        "#FFDBB6",
+        "#DB926D",
+        "#B64924"
+      ],
+      "hair": [
+        "#DB9224",
+        "#924900",
+        "#492400"
+      ],
+      "suit": [
+        "#92B6FF",
+        "#4992FF",
+        "#2449B6"
+      ],
+      "visor": [
+        "#FFFFFF",
+        "#49FFFF",
+        "#00B6DB"
+      ],
+      "boot": [
+        "#B66D49",
+        "#924924",
+        "#492400"
+      ],
+      "block": [
+        "#DBB692",
+        "#B6926D",
+        "#926D49",
+        "#492400"
+      ],
+      "iceblock": [
+        "#FFFFFF",
+        "#B6FFFF",
+        "#6DDBFF",
+        "#4992DB"
+      ],
+      "chip": [
+        "#FFFFB6",
+        "#FFDB24",
+        "#DB9200",
+        "#924900"
+      ],
+      "bomb": [
+        "#B6B6DB",
+        "#49496D",
+        "#000024"
+      ],
+      "flag": [
+        "#FFB6DB",
+        "#FF49B6",
+        "#B60049"
+      ],
+      "stopwatch": [
+        "#DBFFFF",
+        "#92DBDB",
+        "#499292"
+      ],
+      "turtle": [
+        "#92FFB6",
+        "#24B66D",
+        "#004924"
+      ],
+      "target": [
+        "#FFFF49",
+        "#FF9200"
+      ],
+      "red": [
+        "#FF9292",
+        "#FF2424",
+        "#B60000"
+      ],
+      "blue": [
+        "#92B6FF",
+        "#2449FF",
+        "#0000B6"
+      ],
+      "yellow": [
+        "#FFFF6D",
+        "#FFDB00",
+        "#B69200"
+      ],
+      "green": [
+        "#B6FF6D",
+        "#24DB24",
+        "#009200"
+      ],
+      "orange": [
+        "#FFB649",
+        "#FF6D00",
+        "#B64900"
+      ],
+      "brown": [
+        "#DB9249",
+        "#926D24",
+        "#492400"
+      ],
+      "bug": [
+        "#FFB6B6",
+        "#DB2424",
+        "#920000"
+      ],
+      "paramecium": [
+        "#DBFF49",
+        "#92DB00",
+        "#499200"
+      ],
+      "pinkball": [
+        "#FFB6FF",
+        "#FF49DB",
+        "#B60092"
+      ],
+      "walker": [
+        "#FF9249",
+        "#FF4924",
+        "#B62400"
+      ],
+      "teeth": [
+        "#49DB49",
+        "#009200",
+        "#004900"
+      ],
+      "glider": [
+        "#B6B6FF",
+        "#6D49FF",
+        "#2400B6"
+      ],
+      "fireball": [
+        "#FFFFB6",
+        "#FFB600",
+        "#FF4900",
+        "#B60000"
+      ],
+      "tank": [
+        "#92B692",
+        "#496D49",
+        "#244924"
+      ],
+      "blob": [
+        "#49DBB6",
+        "#009292",
+        "#004949"
+      ],
+      "eye": [
+        "#FFFFFF",
+        "#FF2424",
+        "#000024"
+      ],
+      "darkHair": [
+        "#492424",
+        "#240000"
+      ],
+      "faceSkin": [
+        "#FFDBB6",
+        "#DB926D",
+        "#B64924"
+      ],
+      "beard": [
+        "#DBDBDB",
+        "#6D6D6D",
+        "#494949"
+      ],
+      "glasses": [
+        "#4992FF",
+        "#000024"
+      ],
+      "shirt": [
+        "#496DB6",
+        "#24246D",
+        "#000049"
+      ],
+      "sunMotif": [
+        "#FFFF92",
+        "#FFB600"
+      ]
     },
     "cyber_neon": {
-      "floor": ["#4992B6", "#246D92", "#24496D"],
-      "wall": ["#B6DBFF", "#6D92DB", "#496DB6", "#24246D"],
-      "wallRim": ["#FFFFFF", "#6DFFFF"]
+      "floor": [
+        "#4992B6",
+        "#246D92",
+        "#24496D"
+      ],
+      "wall": [
+        "#B6DBFF",
+        "#6D92DB",
+        "#496DB6",
+        "#24246D"
+      ],
+      "wallRim": [
+        "#FFFFFF",
+        "#6DFFFF"
+      ]
     },
     "arctic_lab": {
-      "floor": ["#FFFFFF", "#DBFFFF", "#B6DBFF"],
-      "wall": ["#6D92B6", "#496D92", "#24496D", "#242449"],
-      "wallRim": ["#FFFFFF", "#B6FFFF"]
+      "floor": [
+        "#FFFFFF",
+        "#DBFFFF",
+        "#B6DBFF"
+      ],
+      "wall": [
+        "#6D92B6",
+        "#496D92",
+        "#24496D",
+        "#242449"
+      ],
+      "wallRim": [
+        "#FFFFFF",
+        "#B6FFFF"
+      ]
     },
     "magma_core": {
-      "floor": ["#926D6D", "#6D4949", "#492424"],
-      "wall": ["#6D2424", "#490000", "#240000", "#240024"],
-      "wallRim": ["#FFB649", "#FF6D00"]
+      "floor": [
+        "#926D6D",
+        "#6D4949",
+        "#492424"
+      ],
+      "wall": [
+        "#6D2424",
+        "#490000",
+        "#240000",
+        "#240024"
+      ],
+      "wallRim": [
+        "#FFB649",
+        "#FF6D00"
+      ]
     },
     "lynx_lcd": {
-      "floor": ["#92B624", "#6D9200", "#496D00"],
-      "wall": ["#6D9249", "#496D24", "#244900", "#002400"],
-      "wallRim": ["#FFFF92", "#DBFF49"]
+      "floor": [
+        "#92B624",
+        "#6D9200",
+        "#496D00"
+      ],
+      "wall": [
+        "#6D9249",
+        "#496D24",
+        "#244900",
+        "#002400"
+      ],
+      "wallRim": [
+        "#FFFF92",
+        "#DBFF49"
+      ]
     }
   },
   "renderStylePalettes": {
     "pocket": {
       "families": {
-        "red": ["#3a181d", "#742f3b", "#b54a5c", "#d3929d", "#edd4d8"],
-        "orange": ["#3a2518", "#744b2f", "#b5754a", "#d3ac92", "#edded4"],
-        "yellow": ["#3a3818", "#746f2f", "#b5ae4a", "#d3ce92", "#edecd4"],
-        "green": ["#193a18", "#32742f", "#4eb54a", "#95d392", "#d4edd4"],
-        "cyan": ["#183a38", "#2f746f", "#4ab5ae", "#92d3ce", "#d4edec"],
-        "blue": ["#18273a", "#2f4d74", "#4a78b5", "#92aed3", "#d4dfed"],
-        "purple": ["#30183a", "#5f2f74", "#954ab5", "#bf92d3", "#e6d4ed"],
-        "skin": ["#3a2b18", "#74562f", "#b5874a", "#d3b792", "#ede2d4"],
-        "neutral": ["#0f380f", "#306230", "#8bac0f", "#cadc9f"]
+        "red": [
+          "#3a181d",
+          "#742f3b",
+          "#b54a5c",
+          "#d3929d",
+          "#edd4d8"
+        ],
+        "orange": [
+          "#3a2518",
+          "#744b2f",
+          "#b5754a",
+          "#d3ac92",
+          "#edded4"
+        ],
+        "yellow": [
+          "#3a3818",
+          "#746f2f",
+          "#b5ae4a",
+          "#d3ce92",
+          "#edecd4"
+        ],
+        "green": [
+          "#193a18",
+          "#32742f",
+          "#4eb54a",
+          "#95d392",
+          "#d4edd4"
+        ],
+        "cyan": [
+          "#183a38",
+          "#2f746f",
+          "#4ab5ae",
+          "#92d3ce",
+          "#d4edec"
+        ],
+        "blue": [
+          "#18273a",
+          "#2f4d74",
+          "#4a78b5",
+          "#92aed3",
+          "#d4dfed"
+        ],
+        "purple": [
+          "#30183a",
+          "#5f2f74",
+          "#954ab5",
+          "#bf92d3",
+          "#e6d4ed"
+        ],
+        "skin": [
+          "#3a2b18",
+          "#74562f",
+          "#b5874a",
+          "#d3b792",
+          "#ede2d4"
+        ],
+        "neutral": [
+          "#0f380f",
+          "#306230",
+          "#8bac0f",
+          "#cadc9f"
+        ]
       }
     },
     "pastel": {
       "families": {
-        "red": ["#8c2133", "#d03952", "#e07b8c", "#eeb5be", "#f7dee2"],
-        "orange": ["#8c4c21", "#d07539", "#e0a37b", "#eecbb5", "#f7e8de"],
-        "yellow": ["#8c7b21", "#d0b739", "#e0cf7b", "#eee4b5", "#f7f3de"],
-        "green": ["#218c2a", "#39d045", "#7be083", "#b5eeb9", "#def7e0"],
-        "cyan": ["#21838c", "#39c4d0", "#7bd8e0", "#b5e9ee", "#def5f7"],
-        "blue": ["#21458c", "#396bd0", "#7b9de0", "#b5c8ee", "#dee6f7"],
-        "purple": ["#72218c", "#ab39d0", "#c77be0", "#dfb5ee", "#f1def7"],
-        "skin": ["#8c5321", "#d08039", "#e0aa7b", "#eecfb5", "#f7eade"],
-        "neutral": ["#4a4e6e", "#6d7192", "#a3a7c4", "#d6d8e8", "#f6f6fb"]
+        "red": [
+          "#8c2133",
+          "#d03952",
+          "#e07b8c",
+          "#eeb5be",
+          "#f7dee2"
+        ],
+        "orange": [
+          "#8c4c21",
+          "#d07539",
+          "#e0a37b",
+          "#eecbb5",
+          "#f7e8de"
+        ],
+        "yellow": [
+          "#8c7b21",
+          "#d0b739",
+          "#e0cf7b",
+          "#eee4b5",
+          "#f7f3de"
+        ],
+        "green": [
+          "#218c2a",
+          "#39d045",
+          "#7be083",
+          "#b5eeb9",
+          "#def7e0"
+        ],
+        "cyan": [
+          "#21838c",
+          "#39c4d0",
+          "#7bd8e0",
+          "#b5e9ee",
+          "#def5f7"
+        ],
+        "blue": [
+          "#21458c",
+          "#396bd0",
+          "#7b9de0",
+          "#b5c8ee",
+          "#dee6f7"
+        ],
+        "purple": [
+          "#72218c",
+          "#ab39d0",
+          "#c77be0",
+          "#dfb5ee",
+          "#f1def7"
+        ],
+        "skin": [
+          "#8c5321",
+          "#d08039",
+          "#e0aa7b",
+          "#eecfb5",
+          "#f7eade"
+        ],
+        "neutral": [
+          "#4a4e6e",
+          "#6d7192",
+          "#a3a7c4",
+          "#d6d8e8",
+          "#f6f6fb"
+        ]
       }
     },
     "blueprint": {
       "families": {
-        "red": ["#a31427", "#e31c37", "#eb5c6f", "#f39ba7", "#f9d2d7"],
-        "orange": ["#a34d14", "#e36c1c", "#eb955c", "#f3be9b", "#f9e2d2"],
-        "yellow": ["#a38714", "#e3bb1c", "#ebce5c", "#f3e19b", "#f9f1d2"],
-        "green": ["#14a344", "#1ce35e", "#5ceb8b", "#9bf3b8", "#d2f9df"],
-        "cyan": ["#14a3a3", "#1ce3e3", "#5cebeb", "#9bf3f3", "#d2f9f9"],
-        "blue": ["#2014a3", "#2d1ce3", "#685ceb", "#a29bf3", "#d5d2f9"],
-        "purple": ["#8c14a3", "#c21ce3", "#d35ceb", "#e49bf3", "#f3d2f9"],
-        "skin": ["#a34414", "#e35e1c", "#eb8b5c", "#f3b89b", "#f9dfd2"],
-        "neutral": ["#06205a", "#123f94", "#2f6bd0", "#7fa8ec", "#e6efff"]
+        "red": [
+          "#a31427",
+          "#e31c37",
+          "#eb5c6f",
+          "#f39ba7",
+          "#f9d2d7"
+        ],
+        "orange": [
+          "#a34d14",
+          "#e36c1c",
+          "#eb955c",
+          "#f3be9b",
+          "#f9e2d2"
+        ],
+        "yellow": [
+          "#a38714",
+          "#e3bb1c",
+          "#ebce5c",
+          "#f3e19b",
+          "#f9f1d2"
+        ],
+        "green": [
+          "#14a344",
+          "#1ce35e",
+          "#5ceb8b",
+          "#9bf3b8",
+          "#d2f9df"
+        ],
+        "cyan": [
+          "#14a3a3",
+          "#1ce3e3",
+          "#5cebeb",
+          "#9bf3f3",
+          "#d2f9f9"
+        ],
+        "blue": [
+          "#2014a3",
+          "#2d1ce3",
+          "#685ceb",
+          "#a29bf3",
+          "#d5d2f9"
+        ],
+        "purple": [
+          "#8c14a3",
+          "#c21ce3",
+          "#d35ceb",
+          "#e49bf3",
+          "#f3d2f9"
+        ],
+        "skin": [
+          "#a34414",
+          "#e35e1c",
+          "#eb8b5c",
+          "#f3b89b",
+          "#f9dfd2"
+        ],
+        "neutral": [
+          "#06205a",
+          "#123f94",
+          "#2f6bd0",
+          "#7fa8ec",
+          "#e6efff"
+        ]
       }
     },
     "sepia": {
       "families": {
-        "red": ["#3b0c14", "#761928", "#bd2841", "#df687b", "#efb3bd"],
-        "orange": ["#5e2a08", "#a0480d", "#d96112", "#ef8239", "#f4a571"],
-        "yellow": ["#6d5103", "#b38405", "#efb106", "#fac32e", "#fbcf56"],
-        "green": ["#2a3414", "#546827", "#87a63f", "#b4cd7a", "#d9e6bc"],
-        "cyan": ["#14342d", "#27685b", "#3fa692", "#7acdbc", "#bce6dd"],
-        "blue": ["#142634", "#274d68", "#3f7ba6", "#7aaacd", "#bcd5e6"],
-        "purple": ["#361224", "#6b2447", "#ac3973", "#d175a3", "#e8bad1"],
-        "skin": ["#39170e", "#722e1d", "#ab452b", "#d2664b", "#e09785"],
-        "neutral": ["#6b4c2e", "#8a6a44", "#b8956a", "#dcc593", "#f6ecd0"]
+        "red": [
+          "#3b0c14",
+          "#761928",
+          "#bd2841",
+          "#df687b",
+          "#efb3bd"
+        ],
+        "orange": [
+          "#5e2a08",
+          "#a0480d",
+          "#d96112",
+          "#ef8239",
+          "#f4a571"
+        ],
+        "yellow": [
+          "#6d5103",
+          "#b38405",
+          "#efb106",
+          "#fac32e",
+          "#fbcf56"
+        ],
+        "green": [
+          "#2a3414",
+          "#546827",
+          "#87a63f",
+          "#b4cd7a",
+          "#d9e6bc"
+        ],
+        "cyan": [
+          "#14342d",
+          "#27685b",
+          "#3fa692",
+          "#7acdbc",
+          "#bce6dd"
+        ],
+        "blue": [
+          "#142634",
+          "#274d68",
+          "#3f7ba6",
+          "#7aaacd",
+          "#bcd5e6"
+        ],
+        "purple": [
+          "#361224",
+          "#6b2447",
+          "#ac3973",
+          "#d175a3",
+          "#e8bad1"
+        ],
+        "skin": [
+          "#39170e",
+          "#722e1d",
+          "#ab452b",
+          "#d2664b",
+          "#e09785"
+        ],
+        "neutral": [
+          "#6b4c2e",
+          "#8a6a44",
+          "#b8956a",
+          "#dcc593",
+          "#f6ecd0"
+        ]
       }
     },
     "classic90": {
       "quantize": true,
       "families": {
-        "red": ["#aa0000", "#ff5555"],
-        "orange": ["#aa5500", "#ffaa00"],
-        "yellow": ["#aaaa00", "#ffff55"],
-        "green": ["#00aa00", "#55ff55"],
-        "cyan": ["#00aaaa", "#55ffff"],
-        "blue": ["#0000aa", "#5555ff"],
-        "purple": ["#aa00aa", "#ff55ff"],
-        "skin": ["#aa5500", "#ffaa55"],
-        "neutral": ["#000000", "#555555", "#aaaaaa", "#ffffff"]
+        "red": [
+          "#aa0000",
+          "#ff5555"
+        ],
+        "orange": [
+          "#aa5500",
+          "#ffaa00"
+        ],
+        "yellow": [
+          "#aaaa00",
+          "#ffff55"
+        ],
+        "green": [
+          "#00aa00",
+          "#55ff55"
+        ],
+        "cyan": [
+          "#00aaaa",
+          "#55ffff"
+        ],
+        "blue": [
+          "#0000aa",
+          "#5555ff"
+        ],
+        "purple": [
+          "#aa00aa",
+          "#ff55ff"
+        ],
+        "skin": [
+          "#aa5500",
+          "#ffaa55"
+        ],
+        "neutral": [
+          "#000000",
+          "#555555",
+          "#aaaaaa",
+          "#ffffff"
+        ]
       }
     },
     "runeward": {
       "families": {
-        "red": ["#3a0c18", "#5e1424", "#9e243c", "#e8304e", "#ff6b84", "#ffa8b5"],
-        "orange": ["#4a1606", "#a3200b", "#ff6a14", "#ffa04a", "#ffd2a8"],
-        "yellow": ["#4e3306", "#7a520a", "#c48a18", "#ffd23f", "#ffe08a", "#fff0c2"],
-        "green": ["#08241c", "#144f35", "#1e7a52", "#2fd99a", "#9dffc4", "#d4fff0"],
-        "cyan": ["#0b2a38", "#124561", "#1d6c94", "#5fd8ef", "#a9ecf8", "#e9fdff"],
-        "blue": ["#0a1440", "#143a94", "#2f6ee0", "#6f9cf0", "#a9cbff", "#dce9ff"],
-        "purple": ["#241338", "#3f1b70", "#6b30b8", "#9b4dff", "#d46eff", "#fce6ff"],
-        "skin": ["#3d2210", "#7a4a2a", "#b8804e", "#d9a070", "#f2c79b", "#fbe3cc"],
-        "neutral": ["#07050d", "#18142a", "#2c2641", "#4a3e6b", "#71619c", "#a99ad6", "#e8e2f8"]
+        "red": [
+          "#3a0c18",
+          "#5e1424",
+          "#9e243c",
+          "#e8304e",
+          "#ff6b84",
+          "#ffa8b5"
+        ],
+        "orange": [
+          "#4a1606",
+          "#a3200b",
+          "#ff6a14",
+          "#ffa04a",
+          "#ffd2a8"
+        ],
+        "yellow": [
+          "#4e3306",
+          "#7a520a",
+          "#c48a18",
+          "#ffd23f",
+          "#ffe08a",
+          "#fff0c2"
+        ],
+        "green": [
+          "#08241c",
+          "#144f35",
+          "#1e7a52",
+          "#2fd99a",
+          "#9dffc4",
+          "#d4fff0"
+        ],
+        "cyan": [
+          "#0b2a38",
+          "#124561",
+          "#1d6c94",
+          "#5fd8ef",
+          "#a9ecf8",
+          "#e9fdff"
+        ],
+        "blue": [
+          "#0a1440",
+          "#143a94",
+          "#2f6ee0",
+          "#6f9cf0",
+          "#a9cbff",
+          "#dce9ff"
+        ],
+        "purple": [
+          "#241338",
+          "#3f1b70",
+          "#6b30b8",
+          "#9b4dff",
+          "#d46eff",
+          "#fce6ff"
+        ],
+        "skin": [
+          "#3d2210",
+          "#7a4a2a",
+          "#b8804e",
+          "#d9a070",
+          "#f2c79b",
+          "#fbe3cc"
+        ],
+        "neutral": [
+          "#07050d",
+          "#18142a",
+          "#2c2641",
+          "#4a3e6b",
+          "#71619c",
+          "#a99ad6",
+          "#e8e2f8"
+        ]
       }
     },
     "runeward_parchment": {
       "families": {
-        "red": ["#3a1410", "#6e2a1f", "#a8452f", "#d2674a", "#eba48e"],
-        "orange": ["#4a1c0a", "#8e2414", "#d2622a", "#ffb24a", "#ffe0a8"],
-        "yellow": ["#4a3410", "#7a5a1c", "#c99a2e", "#e6c25a", "#f6e4a0"],
-        "green": ["#262a14", "#4a5226", "#76803e", "#a3ab6c", "#cfd2a0"],
-        "cyan": ["#1f3346", "#355a72", "#4f6f86", "#8fa9b8", "#cadae2"],
-        "blue": ["#1a2438", "#2f4a6e", "#4f6f9a", "#8aa4c4", "#c4d4e6"],
-        "purple": ["#2e1a2c", "#523250", "#7a4c76", "#a67aa0", "#d2b4cc"],
-        "skin": ["#3d2210", "#7a4a2a", "#b8804e", "#e9c49a", "#f6dfc2"],
-        "neutral": ["#4a3420", "#6e5233", "#a58559", "#d4bd8a", "#ead9b0", "#f8efd6"]
+        "red": [
+          "#3a1410",
+          "#6e2a1f",
+          "#a8452f",
+          "#d2674a",
+          "#eba48e"
+        ],
+        "orange": [
+          "#4a1c0a",
+          "#8e2414",
+          "#d2622a",
+          "#ffb24a",
+          "#ffe0a8"
+        ],
+        "yellow": [
+          "#4a3410",
+          "#7a5a1c",
+          "#c99a2e",
+          "#e6c25a",
+          "#f6e4a0"
+        ],
+        "green": [
+          "#262a14",
+          "#4a5226",
+          "#76803e",
+          "#a3ab6c",
+          "#cfd2a0"
+        ],
+        "cyan": [
+          "#1f3346",
+          "#355a72",
+          "#4f6f86",
+          "#8fa9b8",
+          "#cadae2"
+        ],
+        "blue": [
+          "#1a2438",
+          "#2f4a6e",
+          "#4f6f9a",
+          "#8aa4c4",
+          "#c4d4e6"
+        ],
+        "purple": [
+          "#2e1a2c",
+          "#523250",
+          "#7a4c76",
+          "#a67aa0",
+          "#d2b4cc"
+        ],
+        "skin": [
+          "#3d2210",
+          "#7a4a2a",
+          "#b8804e",
+          "#e9c49a",
+          "#f6dfc2"
+        ],
+        "neutral": [
+          "#4a3420",
+          "#6e5233",
+          "#a58559",
+          "#d4bd8a",
+          "#ead9b0",
+          "#f8efd6"
+        ]
       }
     }
   },
@@ -1255,6 +2160,10 @@
         "eye": {
           "main": "#d46eff",
           "light": "#fce6ff"
+        },
+        "pull": {
+          "main": "#d97828",
+          "light": "#ffe0a3"
         }
       },
       "bomb": {
@@ -1706,6 +2615,10 @@
           "eye": {
             "main": "#6e4a7a",
             "light": "#9a76a6"
+          },
+          "pull": {
+            "main": "#7a4a22",
+            "light": "#b0824f"
           }
         },
         "bomb": {
@@ -1816,144 +2729,531 @@
         "wood": "#7a4a22",
         "torch": {
           "color": "#ffb24a",
-          "radiusTile": 3.0
+          "radiusTile": 3
         }
       }
     }
   },
   "renderStyleFamilies": {
     "palette": {
-      "modernFireCore": { "family": "yellow", "tone": 0.9 },
-      "modernFireMid": { "family": "orange", "tone": 0.55 },
-      "modernFireEdge": { "family": "orange", "tone": 0.4 },
-      "fireBase": { "family": "orange", "tone": 0.45 },
-      "fireMid": { "family": "orange", "tone": 0.7 },
-      "fireTip": { "family": "yellow", "tone": 0.9 },
-      "fireEmber": { "family": "orange", "tone": 0.85 },
-      "modernFireTongue": { "family": "yellow", "tone": 0.9 },
-      "monsterFlameCore": { "family": "yellow", "tone": 0.9 },
-      "fxExplosion": { "family": "orange", "tone": 0.7 },
-      "waterDeep": { "family": "cyan", "tone": 0.3 },
-      "waterWave": { "family": "cyan", "tone": 0.55 },
-      "modernWaterTop": { "family": "cyan", "tone": 0.45 },
-      "modernWaterBottom": { "family": "cyan", "tone": 0.25 },
-      "modernWaterGlow": { "family": "cyan", "tone": 0.7 },
-      "fxSplash": { "family": "cyan", "tone": 0.7 },
-      "waterSparkle": { "family": "cyan", "tone": 0.9 },
-      "iceBase": { "family": "cyan", "tone": 0.8 },
-      "iceShine": { "family": "cyan", "tone": 0.95 },
-      "iceBendBand": { "family": "cyan", "tone": 0.7 },
-      "modernIceTop": { "family": "cyan", "tone": 0.78 },
-      "modernIceMid": { "family": "cyan", "tone": 0.96 },
-      "modernIceBottom": { "family": "cyan", "tone": 0.68 },
-      "iceBlockBase": { "family": "cyan", "tone": 0.78 },
-      "iceBlockBorder": { "family": "blue", "tone": 0.4 },
-      "forceBase": { "family": "green", "tone": 0.6 },
-      "forceArrow": { "family": "green", "tone": 0.9 },
-      "modernForceBg": { "family": "green", "tone": 0.22 },
-      "modernForceNeon": { "family": "green", "tone": 0.62 },
-      "exitBase": { "family": "green", "tone": 0.9 },
-      "exitPulse": { "family": "green", "tone": 0.9 },
-      "exitCore": { "family": "green", "tone": 0.2 },
-      "modernExitMid": { "family": "green", "tone": 0.9 },
-      "modernExitRing": { "family": "cyan", "tone": 0.9 },
-      "modernExitEdge": { "family": "green", "tone": 0.9 },
-      "green": { "family": "green", "tone": 0.35 },
-      "blockOnTarget": { "family": "cyan", "tone": 0.3 },
-      "modernToggleRing": { "family": "green", "tone": 0.5 },
-      "modernToggleOpen": { "family": "green", "tone": 0.5 },
-      "linkToggle": { "family": "green", "tone": 0.5 },
-      "chipCore": { "family": "green", "tone": 0.6 },
-      "fxChip": { "family": "green", "tone": 0.6 },
-      "fxWin": { "family": "green", "tone": 0.9 },
-      "stopwatchPlus": { "family": "green", "tone": 0.6 },
-      "monsterParamecium": { "family": "green", "tone": 0.85 },
-      "monsterTeeth": { "family": "cyan", "tone": 0.3 },
-      "monsterBug": { "family": "red", "tone": 0.35 },
-      "monsterFireball": { "family": "red", "tone": 0.78 },
-      "monsterWalker": { "family": "red", "tone": 0.22 },
-      "monsterGlider": { "family": "purple", "tone": 0.4 },
-      "monsterPinkBall": { "family": "red", "tone": 0.85 },
-      "monsterBlob": { "family": "cyan", "tone": 0.5 },
-      "monsterTank": { "family": "neutral", "tone": 0.45 },
-      "red": { "family": "red", "tone": 0.8 },
-      "clonerBorder": { "family": "red", "tone": 0.35 },
-      "modernClonerRing": { "family": "red", "tone": 0.8 },
-      "laserBeam": { "family": "red", "tone": 0.8 },
-      "laserBeamCore": { "family": "neutral", "tone": 0.97 },
-      "mirrorFrame": { "family": "neutral", "tone": 0.6 },
-      "mirrorGlass": { "family": "cyan", "tone": 0.9 },
-      "mirrorSheen": { "family": "neutral", "tone": 1 },
-      "bombSpark": { "family": "red", "tone": 0.25 },
-      "trapBorder": { "family": "red", "tone": 0.3 },
-      "modernTrapClosed": { "family": "red", "tone": 0.6 },
-      "modernTrapRing": { "family": "red", "tone": 0.5 },
-      "trapInner": { "family": "red", "tone": 0.15 },
-      "forbidSign": { "family": "red", "tone": 0.55 },
-      "linkCloner": { "family": "red", "tone": 0.55 },
-      "stopwatchMinus": { "family": "red", "tone": 0.55 },
-      "linkTrap": { "family": "orange", "tone": 0.7 },
-      "bombBody": { "family": "neutral", "tone": 0.75 },
-      "blue": { "family": "blue", "tone": 0.5 },
-      "blueWall": { "family": "blue", "tone": 0.5 },
-      "blueWallBorder": { "family": "blue", "tone": 0.3 },
-      "modernBlueWallTop": { "family": "blue", "tone": 0.5 },
-      "modernBlueWallBottom": { "family": "blue", "tone": 0.4 },
-      "modernBlueWallEdge": { "family": "blue", "tone": 0.8 },
-      "yellow": { "family": "yellow", "tone": 0.75 },
-      "objectiveRing": { "family": "yellow", "tone": 0.75 },
-      "thiefMask": { "family": "yellow", "tone": 0.75 },
-      "bonusFlag": { "family": "yellow", "tone": 0.75 },
-      "blockBase": { "family": "skin", "tone": 0.85 },
-      "blockBorder": { "family": "red", "tone": 0.3 },
-      "blockTarget": { "family": "orange", "tone": 0.5 },
-      "dirtBase": { "family": "orange", "tone": 0.3 },
-      "dirtSpeck": { "family": "orange", "tone": 0.15 },
-      "modernDirtCenter": { "family": "orange", "tone": 0.3 },
-      "modernDirtEdge": { "family": "orange", "tone": 0.15 },
-      "gravelBase": { "family": "neutral", "tone": 0.45 },
-      "gravelSpeck": { "family": "neutral", "tone": 0.3 },
-      "modernGravelBase": { "family": "neutral", "tone": 0.4 },
-      "modernGravelStone": { "family": "neutral", "tone": 0.65 },
-      "chipPins": { "family": "neutral", "tone": 0.85 },
-      "chipBody": { "family": "neutral", "tone": 0.1 },
-      "brown": { "family": "orange", "tone": 0.3 },
-      "orange": { "family": "orange", "tone": 0.7 },
-      "modernTeleportRing": { "family": "purple", "tone": 0.8 },
-      "teleportRing": { "family": "purple", "tone": 0.65 },
-      "teleportCore": { "family": "purple", "tone": 0.95 },
-      "thiefCloak": { "family": "purple", "tone": 0.12 },
-      "thiefKeysCloak": { "family": "purple", "tone": 0.22 },
-      "fxTeleport": { "family": "purple", "tone": 0.85 },
-      "linkTeleport": { "family": "purple", "tone": 0.85 },
-      "linkSignal": { "family": "cyan", "tone": 0.85 },
-      "modernClonerBase": { "family": "purple", "tone": 0.15 },
-      "clonerInner": { "family": "purple", "tone": 0.15 },
-      "playerSkin": { "family": "skin", "tone": 0.8 },
-      "playerHair": { "family": "neutral", "tone": 0.1 },
-      "playerSuit": { "family": "blue", "tone": 0.5 },
-      "playerSuitShade": { "family": "blue", "tone": 0.3 },
-      "modernJulienHair": { "family": "neutral", "tone": 0.06 },
-      "modernJulienBeard": { "family": "neutral", "tone": 0.5 },
-      "modernJulienBeardLight": { "family": "neutral", "tone": 0.85 },
-      "modernJulienMoustache": { "family": "neutral", "tone": 0.3 },
-      "modernJulienGlasses": { "family": "neutral", "tone": 0.02 },
-      "modernJulienGlassesAccent": { "family": "blue", "tone": 0.6 },
-      "modernJulienShirt": { "family": "blue", "tone": 0.22 },
-      "modernJulienShirtShade": { "family": "blue", "tone": 0.12 },
-      "modernJulienSun": { "family": "yellow", "tone": 0.9 },
-      "modernThinWall": { "family": "neutral", "tone": 0.88 },
-      "modernWallAccent": { "family": "neutral", "tone": 0.88 },
-      "modernIceCornerWall": { "family": "neutral", "tone": 0.3 },
-      "iceCornerWall": { "family": "neutral", "tone": 0.3 }
+      "modernFireCore": {
+        "family": "yellow",
+        "tone": 0.9
+      },
+      "modernFireMid": {
+        "family": "orange",
+        "tone": 0.55
+      },
+      "modernFireEdge": {
+        "family": "orange",
+        "tone": 0.4
+      },
+      "fireBase": {
+        "family": "orange",
+        "tone": 0.45
+      },
+      "fireMid": {
+        "family": "orange",
+        "tone": 0.7
+      },
+      "fireTip": {
+        "family": "yellow",
+        "tone": 0.9
+      },
+      "fireEmber": {
+        "family": "orange",
+        "tone": 0.85
+      },
+      "modernFireTongue": {
+        "family": "yellow",
+        "tone": 0.9
+      },
+      "monsterFlameCore": {
+        "family": "yellow",
+        "tone": 0.9
+      },
+      "fxExplosion": {
+        "family": "orange",
+        "tone": 0.7
+      },
+      "waterDeep": {
+        "family": "cyan",
+        "tone": 0.3
+      },
+      "waterWave": {
+        "family": "cyan",
+        "tone": 0.55
+      },
+      "modernWaterTop": {
+        "family": "cyan",
+        "tone": 0.45
+      },
+      "modernWaterBottom": {
+        "family": "cyan",
+        "tone": 0.25
+      },
+      "modernWaterGlow": {
+        "family": "cyan",
+        "tone": 0.7
+      },
+      "fxSplash": {
+        "family": "cyan",
+        "tone": 0.7
+      },
+      "waterSparkle": {
+        "family": "cyan",
+        "tone": 0.9
+      },
+      "iceBase": {
+        "family": "cyan",
+        "tone": 0.8
+      },
+      "iceShine": {
+        "family": "cyan",
+        "tone": 0.95
+      },
+      "iceBendBand": {
+        "family": "cyan",
+        "tone": 0.7
+      },
+      "modernIceTop": {
+        "family": "cyan",
+        "tone": 0.78
+      },
+      "modernIceMid": {
+        "family": "cyan",
+        "tone": 0.96
+      },
+      "modernIceBottom": {
+        "family": "cyan",
+        "tone": 0.68
+      },
+      "iceBlockBase": {
+        "family": "cyan",
+        "tone": 0.78
+      },
+      "iceBlockBorder": {
+        "family": "blue",
+        "tone": 0.4
+      },
+      "forceBase": {
+        "family": "green",
+        "tone": 0.6
+      },
+      "forceArrow": {
+        "family": "green",
+        "tone": 0.9
+      },
+      "modernForceBg": {
+        "family": "green",
+        "tone": 0.22
+      },
+      "modernForceNeon": {
+        "family": "green",
+        "tone": 0.62
+      },
+      "exitBase": {
+        "family": "green",
+        "tone": 0.9
+      },
+      "exitPulse": {
+        "family": "green",
+        "tone": 0.9
+      },
+      "exitCore": {
+        "family": "green",
+        "tone": 0.2
+      },
+      "modernExitMid": {
+        "family": "green",
+        "tone": 0.9
+      },
+      "modernExitRing": {
+        "family": "cyan",
+        "tone": 0.9
+      },
+      "modernExitEdge": {
+        "family": "green",
+        "tone": 0.9
+      },
+      "green": {
+        "family": "green",
+        "tone": 0.35
+      },
+      "blockOnTarget": {
+        "family": "cyan",
+        "tone": 0.3
+      },
+      "modernToggleRing": {
+        "family": "green",
+        "tone": 0.5
+      },
+      "modernToggleOpen": {
+        "family": "green",
+        "tone": 0.5
+      },
+      "linkToggle": {
+        "family": "green",
+        "tone": 0.5
+      },
+      "chipCore": {
+        "family": "green",
+        "tone": 0.6
+      },
+      "fxChip": {
+        "family": "green",
+        "tone": 0.6
+      },
+      "fxWin": {
+        "family": "green",
+        "tone": 0.9
+      },
+      "stopwatchPlus": {
+        "family": "green",
+        "tone": 0.6
+      },
+      "monsterParamecium": {
+        "family": "green",
+        "tone": 0.85
+      },
+      "monsterTeeth": {
+        "family": "cyan",
+        "tone": 0.3
+      },
+      "monsterBug": {
+        "family": "red",
+        "tone": 0.35
+      },
+      "monsterFireball": {
+        "family": "red",
+        "tone": 0.78
+      },
+      "monsterWalker": {
+        "family": "red",
+        "tone": 0.22
+      },
+      "monsterGlider": {
+        "family": "purple",
+        "tone": 0.4
+      },
+      "monsterPinkBall": {
+        "family": "red",
+        "tone": 0.85
+      },
+      "monsterBlob": {
+        "family": "cyan",
+        "tone": 0.5
+      },
+      "monsterTank": {
+        "family": "neutral",
+        "tone": 0.45
+      },
+      "red": {
+        "family": "red",
+        "tone": 0.8
+      },
+      "clonerBorder": {
+        "family": "red",
+        "tone": 0.35
+      },
+      "modernClonerRing": {
+        "family": "red",
+        "tone": 0.8
+      },
+      "laserBeam": {
+        "family": "red",
+        "tone": 0.8
+      },
+      "laserBeamCore": {
+        "family": "neutral",
+        "tone": 0.97
+      },
+      "mirrorFrame": {
+        "family": "neutral",
+        "tone": 0.6
+      },
+      "mirrorGlass": {
+        "family": "cyan",
+        "tone": 0.9
+      },
+      "mirrorSheen": {
+        "family": "neutral",
+        "tone": 1
+      },
+      "bombSpark": {
+        "family": "red",
+        "tone": 0.25
+      },
+      "trapBorder": {
+        "family": "red",
+        "tone": 0.3
+      },
+      "modernTrapClosed": {
+        "family": "red",
+        "tone": 0.6
+      },
+      "modernTrapRing": {
+        "family": "red",
+        "tone": 0.5
+      },
+      "trapInner": {
+        "family": "red",
+        "tone": 0.15
+      },
+      "forbidSign": {
+        "family": "red",
+        "tone": 0.55
+      },
+      "linkCloner": {
+        "family": "red",
+        "tone": 0.55
+      },
+      "stopwatchMinus": {
+        "family": "red",
+        "tone": 0.55
+      },
+      "linkTrap": {
+        "family": "orange",
+        "tone": 0.7
+      },
+      "bombBody": {
+        "family": "neutral",
+        "tone": 0.75
+      },
+      "blue": {
+        "family": "blue",
+        "tone": 0.5
+      },
+      "blueWall": {
+        "family": "blue",
+        "tone": 0.5
+      },
+      "blueWallBorder": {
+        "family": "blue",
+        "tone": 0.3
+      },
+      "modernBlueWallTop": {
+        "family": "blue",
+        "tone": 0.5
+      },
+      "modernBlueWallBottom": {
+        "family": "blue",
+        "tone": 0.4
+      },
+      "modernBlueWallEdge": {
+        "family": "blue",
+        "tone": 0.8
+      },
+      "yellow": {
+        "family": "yellow",
+        "tone": 0.75
+      },
+      "objectiveRing": {
+        "family": "yellow",
+        "tone": 0.75
+      },
+      "thiefMask": {
+        "family": "yellow",
+        "tone": 0.75
+      },
+      "bonusFlag": {
+        "family": "yellow",
+        "tone": 0.75
+      },
+      "blockBase": {
+        "family": "skin",
+        "tone": 0.85
+      },
+      "blockBorder": {
+        "family": "red",
+        "tone": 0.3
+      },
+      "blockTarget": {
+        "family": "orange",
+        "tone": 0.5
+      },
+      "dirtBase": {
+        "family": "orange",
+        "tone": 0.3
+      },
+      "dirtSpeck": {
+        "family": "orange",
+        "tone": 0.15
+      },
+      "modernDirtCenter": {
+        "family": "orange",
+        "tone": 0.3
+      },
+      "modernDirtEdge": {
+        "family": "orange",
+        "tone": 0.15
+      },
+      "gravelBase": {
+        "family": "neutral",
+        "tone": 0.45
+      },
+      "gravelSpeck": {
+        "family": "neutral",
+        "tone": 0.3
+      },
+      "modernGravelBase": {
+        "family": "neutral",
+        "tone": 0.4
+      },
+      "modernGravelStone": {
+        "family": "neutral",
+        "tone": 0.65
+      },
+      "chipPins": {
+        "family": "neutral",
+        "tone": 0.85
+      },
+      "chipBody": {
+        "family": "neutral",
+        "tone": 0.1
+      },
+      "brown": {
+        "family": "orange",
+        "tone": 0.3
+      },
+      "orange": {
+        "family": "orange",
+        "tone": 0.7
+      },
+      "modernTeleportRing": {
+        "family": "purple",
+        "tone": 0.8
+      },
+      "teleportRing": {
+        "family": "purple",
+        "tone": 0.65
+      },
+      "teleportCore": {
+        "family": "purple",
+        "tone": 0.95
+      },
+      "thiefCloak": {
+        "family": "purple",
+        "tone": 0.12
+      },
+      "thiefKeysCloak": {
+        "family": "purple",
+        "tone": 0.22
+      },
+      "fxTeleport": {
+        "family": "purple",
+        "tone": 0.85
+      },
+      "linkTeleport": {
+        "family": "purple",
+        "tone": 0.85
+      },
+      "linkSignal": {
+        "family": "cyan",
+        "tone": 0.85
+      },
+      "modernClonerBase": {
+        "family": "purple",
+        "tone": 0.15
+      },
+      "clonerInner": {
+        "family": "purple",
+        "tone": 0.15
+      },
+      "playerSkin": {
+        "family": "skin",
+        "tone": 0.8
+      },
+      "playerHair": {
+        "family": "neutral",
+        "tone": 0.1
+      },
+      "playerSuit": {
+        "family": "blue",
+        "tone": 0.5
+      },
+      "playerSuitShade": {
+        "family": "blue",
+        "tone": 0.3
+      },
+      "modernJulienHair": {
+        "family": "neutral",
+        "tone": 0.06
+      },
+      "modernJulienBeard": {
+        "family": "neutral",
+        "tone": 0.5
+      },
+      "modernJulienBeardLight": {
+        "family": "neutral",
+        "tone": 0.85
+      },
+      "modernJulienMoustache": {
+        "family": "neutral",
+        "tone": 0.3
+      },
+      "modernJulienGlasses": {
+        "family": "neutral",
+        "tone": 0.02
+      },
+      "modernJulienGlassesAccent": {
+        "family": "blue",
+        "tone": 0.6
+      },
+      "modernJulienShirt": {
+        "family": "blue",
+        "tone": 0.22
+      },
+      "modernJulienShirtShade": {
+        "family": "blue",
+        "tone": 0.12
+      },
+      "modernJulienSun": {
+        "family": "yellow",
+        "tone": 0.9
+      },
+      "modernThinWall": {
+        "family": "neutral",
+        "tone": 0.88
+      },
+      "modernWallAccent": {
+        "family": "neutral",
+        "tone": 0.88
+      },
+      "modernIceCornerWall": {
+        "family": "neutral",
+        "tone": 0.3
+      },
+      "iceCornerWall": {
+        "family": "neutral",
+        "tone": 0.3
+      }
     },
     "theme": {
-      "floorTop": { "family": "neutral", "tone": 0.1 },
-      "floorBottom": { "family": "neutral", "tone": 0.06 },
-      "floorGrid": { "family": "neutral", "tone": 0.2 },
-      "wallTop": { "family": "neutral", "tone": 0.62 },
-      "wallBottom": { "family": "neutral", "tone": 0.4 },
-      "wallBevel": { "family": "neutral", "tone": 0.9 }
+      "floorTop": {
+        "family": "neutral",
+        "tone": 0.1
+      },
+      "floorBottom": {
+        "family": "neutral",
+        "tone": 0.06
+      },
+      "floorGrid": {
+        "family": "neutral",
+        "tone": 0.2
+      },
+      "wallTop": {
+        "family": "neutral",
+        "tone": 0.62
+      },
+      "wallBottom": {
+        "family": "neutral",
+        "tone": 0.4
+      },
+      "wallBevel": {
+        "family": "neutral",
+        "tone": 0.9
+      }
     }
   }
 }
