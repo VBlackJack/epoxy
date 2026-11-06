@@ -285,10 +285,11 @@ describe('tiles that must not pass for floor', () => {
     }
   });
 
-  it('keeps gravel, dirt and hint out of the floor painter so the shared drawing shows them', () => {
+  it('gives gravel, dirt and hint their own painters, never the floor painter', () => {
     for (const id of ['gravel', 'dirt', 'hint']) {
-      expect(RUNEWARD_PAINTERS.tiles[id]).toBeUndefined();
-      expect(RUNEWARD_FALLBACK.has(id)).toBe(true);
+      expect(RUNEWARD_PAINTERS.tiles[id]).toBeTypeOf('function');
+      expect(RUNEWARD_PAINTERS.tiles[id]).not.toBe(RUNEWARD_PAINTERS.tiles.floor);
+      expect(RUNEWARD_FALLBACK.has(id)).toBe(false);
     }
     for (const id of ['invisible_wall', 'appearing_wall']) {
       expect(RUNEWARD_PAINTERS.tiles[id]).toBe(RUNEWARD_PAINTERS.tiles.floor);

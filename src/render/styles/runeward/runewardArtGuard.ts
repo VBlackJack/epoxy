@@ -38,7 +38,7 @@ const MONSTER_TYPES: readonly string[] = [
   'skitter', 'shot'
 ];
 const LASER_CHANNELS: readonly string[] = ['red', 'blue'];
-const BOOTS_KINDS: readonly string[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye'];
+const BOOTS_KINDS: readonly string[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
 const BUTTON_COLOURS: readonly string[] = ['orange', 'gray'];
 
 /** Paths `prefix.<name>.<leaf>` for every name and leaf. */

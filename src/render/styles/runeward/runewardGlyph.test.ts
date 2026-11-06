@@ -45,8 +45,8 @@ const TOGGLE_CHANNELS = ['red', 'blue', 'yellow'] as const;
 const PLAIN_TOGGLE_KEY = 'green';
 /** The trap button holds a trap shut and carries a jaw, not a colour glyph. */
 const JAW_BUTTON = 'button_brown';
-/** Buttons that stay on the shared drawing: no Runeward painter, no glyph from it. */
-const SHARED_BUTTONS: readonly string[] = ['button_orange', 'button_gray'];
+/** The flame and swap buttons: their glyph is the colour key BUTTON_GLYPH_KEYS gives them, drawn with a rune on the stud. */
+const RUNE_BUTTONS: readonly string[] = ['button_orange', 'button_gray'];
 const TOGGLE_ACTION_PREFIX = 'toggle_walls_';
 
 interface Variant {
@@ -130,6 +130,39 @@ function drawItem(id: string, art: RunewardArtConfig, size: number): { lines: st
   return { lines, glyphs: vi.mocked(paintColorGlyph).mock.calls.map((call) => [...call]) };
 }
 
+/** Laser receivers and gates by tile id with the group they belong to. */
+function laserTileIds(): string[] {
+  return Object.values(ConfigRegistry.getTiles().tiles)
+    .filter((tile) => tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined)
+    .map((tile) => tile.id);
+}
+
+describe('Runeward laser group glyphs', () => {
+  it('finds receivers and gates of both groups', () => {
+    const groups = new Set(laserTileIds().map((id) => ConfigRegistry.getTile(id).laserReceiverGroup ?? ConfigRegistry.getTile(id).laserGateGroup));
+    expect(laserTileIds().length).toBeGreaterThanOrEqual(4);
+    expect([...groups].sort()).toEqual(['blue', 'red']);
+  });
+
+  it.each(VARIANTS)('draws the glyph of the group on every receiver and gate in the $name drawing', ({ art }) => {
+    for (const size of [TILE, SMALL_TILE]) {
+      for (const id of laserTileIds()) {
+        const def = ConfigRegistry.getTile(id);
+        const { lines, glyphs } = drawTile(id, art(), size);
+        expect(glyphs.length, id).toBe(1);
+        expect(glyphs[0][1], id).toBe(def.laserReceiverGroup ?? def.laserGateGroup);
+        expect(containsRun(lines, glyphLines(glyphs[0])), id).toBe(true);
+      }
+    }
+  });
+
+  it('gives the red and blue receivers different glyph drawings', () => {
+    const red = drawTile('laser_receiver_red', VARIANTS[0].art(), TILE);
+    const blue = drawTile('laser_receiver_blue', VARIANTS[0].art(), TILE);
+    expect(glyphLines(red.glyphs[0])).not.toEqual(glyphLines(blue.glyphs[0]));
+  });
+});
+
 describe('Runeward mechanism glyphs', () => {
   it('knows the colour key of every glyph-carrying tile', () => {
     for (const id of [...glyphTileIds(), ...keyItemIds()]) {
@@ -191,8 +224,30 @@ describe('Runeward mechanism glyphs', () => {
     }
   });
 
-  it('leaves the orange and grey buttons to the shared drawing', () => {
-    for (const id of SHARED_BUTTONS) expect(RUNEWARD_PAINTERS.tiles[id]).toBeUndefined();
+  it.each(VARIANTS)('draws the glyph of the colour key of the flame and swap buttons in the $name drawing', ({ art }) => {
+    for (const size of [TILE, SMALL_TILE]) {
+      for (const id of RUNE_BUTTONS) {
+        const config = art();
+        const { lines, glyphs } = drawTile(id, config, size);
+        expect(RUNEWARD_PAINTERS.tiles[id], id).toBeDefined();
+        expect(glyphs.length, id).toBe(1);
+        expect(glyphs[0][1], id).toBe(BUTTON_GLYPH_KEYS[id]);
+        expect(glyphs[0][5], id).toBe(config.ink ? config.ink.line : config.plate.rim);
+        expect(containsRun(lines, glyphLines(glyphs[0])), id).toBe(true);
+      }
+    }
+  });
+
+  it('gives the flame and swap buttons a rune of their own', () => {
+    for (const { art } of VARIANTS) {
+      const flame = drawTile('button_orange', art(), TILE).lines;
+      const swap = drawTile('button_gray', art(), TILE).lines;
+      const jaw = drawTile(JAW_BUTTON, art(), TILE).lines;
+      expect(flame.some((line) => line.startsWith('bezierCurveTo('))).toBe(true);
+      expect(swap.some((line) => line.startsWith('bezierCurveTo('))).toBe(false);
+      expect(flame).not.toEqual(swap);
+      expect(flame).not.toEqual(jaw);
+    }
   });
 
   it('draws a two-way notch on toggle buttons only', () => {

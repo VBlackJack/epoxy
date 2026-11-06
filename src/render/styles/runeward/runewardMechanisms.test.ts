@@ -259,10 +259,10 @@ describe('Runeward mechanism dispatch', () => {
     }
   });
 
-  it('leaves the orange and grey buttons on the shared drawing', () => {
+  it('draws the orange and grey buttons with their own Runeward painters', () => {
     for (const id of ['button_orange', 'button_gray']) {
-      expect(RUNEWARD_FALLBACK.has(id), id).toBe(true);
-      expect(RUNEWARD_PAINTERS.tiles[id], id).toBeUndefined();
+      expect(RUNEWARD_FALLBACK.has(id), id).toBe(false);
+      expect(RUNEWARD_PAINTERS.tiles[id], id).toBeTypeOf('function');
     }
   });
 });

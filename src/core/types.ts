@@ -294,7 +294,7 @@ export type RunewardMonsterType =
 export type RunewardLaserChannel = 'red' | 'blue';
 
 /** Boots kinds. */
-export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye';
+export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye' | 'pull';
 
 /** Button colours that are not a key channel. */
 export type RunewardButtonColour = 'orange' | 'gray';

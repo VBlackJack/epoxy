@@ -24,6 +24,7 @@ import * as devices from './runewardDevices';
 import * as items from './runewardItems';
 import * as marks from './runewardMarks';
 import * as monsters from './runewardMonsters';
+import { MONSTER_SPRITE_CACHE_MAX_ENTRIES } from './runewardEnv';
 import {
   RUNEWARD_FALLBACK,
   RUNEWARD_PAINTERS,
@@ -62,15 +63,30 @@ describe('Runeward lot modules', () => {
     expect(LOT_MODULES.flatMap((module) => [...module.PENDING]).filter((id) => !known.has(id))).toEqual([]);
   });
 
-  it('starts with no painters in the lot modules and no shot painter', () => {
-    expect(Object.keys(blocks.ENTITIES)).toEqual([]);
-    expect(Object.keys(monsters.ENTITIES)).toEqual([]);
-    expect(Object.keys(devices.TILES)).toEqual([]);
-    expect(Object.keys(devices.ENTITIES)).toEqual([]);
-    expect(Object.keys(items.ITEMS)).toEqual([]);
-    expect(Object.keys(marks.TILES)).toEqual([]);
-    expect(monsters.SHOT).toBeNull();
-    expect(RUNEWARD_PAINTERS.shot).toBeNull();
+  it('has painters for its ids and an empty PENDING in every lot module; the fallback set is empty', () => {
+    expect(Object.keys(blocks.ENTITIES).length).toBeGreaterThan(0);
+    expect(Object.keys(monsters.ENTITIES).length).toBeGreaterThan(0);
+    expect(Object.keys(devices.TILES).length).toBeGreaterThan(0);
+    expect(Object.keys(devices.ENTITIES).length).toBeGreaterThan(0);
+    expect(Object.keys(items.ITEMS).length).toBeGreaterThan(0);
+    expect(Object.keys(items.TILES).length).toBeGreaterThan(0);
+    expect(Object.keys(marks.TILES).length).toBeGreaterThan(0);
+    expect(monsters.SHOT).toBeTypeOf('function');
+    expect(RUNEWARD_PAINTERS.shot).toBe(monsters.SHOT);
+    for (const module of LOT_MODULES) expect([...module.PENDING]).toEqual([]);
+    expect(RUNEWARD_FALLBACK.size).toBe(0);
+  });
+
+  it('registers every lot painter in the dispatch', () => {
+    for (const [id, painter] of Object.entries({ ...devices.TILES, ...items.TILES, ...marks.TILES })) {
+      expect(RUNEWARD_PAINTERS.tiles[id], id).toBe(painter);
+    }
+    for (const [id, painter] of Object.entries(items.ITEMS)) expect(RUNEWARD_PAINTERS.items[id], id).toBe(painter);
+    for (const [id, painter] of Object.entries({ ...blocks.ENTITIES, ...monsters.ENTITIES, ...devices.ENTITIES })) {
+      expect(RUNEWARD_PAINTERS.entities[id], id).toBe(painter);
+    }
+    for (const id of devices.ANIMATED) expect(RUNEWARD_PAINTERS.animatedTiles.has(id), id).toBe(true);
+    expect(RUNEWARD_PAINTERS.animatedTiles.has('turtle')).toBe(true);
   });
 });
 
@@ -113,5 +129,16 @@ describe('Runeward monster sprite cache', () => {
     expect(builds).toBe(1);
     expect(runewardMonsterSprite(env, 'bug', 'N', 1, SPRITE_SIZE, build)).not.toBe(first);
     expect(builds).toBe(2);
+  });
+
+  it('starts over past the cache limit and leaves other cache entries alone', () => {
+    const env = { cache: new Map<string, unknown>([['other', 1]]) };
+    for (let size = 0; size < MONSTER_SPRITE_CACHE_MAX_ENTRIES; size += 1) {
+      runewardMonsterSprite(env, 'bug', 'N', 0, size + 0.5, () => ({}));
+    }
+    expect(env.cache.size).toBe(MONSTER_SPRITE_CACHE_MAX_ENTRIES + 1);
+    runewardMonsterSprite(env, 'bug', 'N', 0, -1, () => ({}));
+    expect(env.cache.size).toBe(2);
+    expect(env.cache.get('other')).toBe(1);
   });
 });
