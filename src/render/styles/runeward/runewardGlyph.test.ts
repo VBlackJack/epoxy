@@ -130,6 +130,39 @@ function drawItem(id: string, art: RunewardArtConfig, size: number): { lines: st
   return { lines, glyphs: vi.mocked(paintColorGlyph).mock.calls.map((call) => [...call]) };
 }
 
+/** Laser receivers and gates by tile id with the group they belong to. */
+function laserTileIds(): string[] {
+  return Object.values(ConfigRegistry.getTiles().tiles)
+    .filter((tile) => tile.laserReceiverGroup !== undefined || tile.laserGateGroup !== undefined)
+    .map((tile) => tile.id);
+}
+
+describe('Runeward laser group glyphs', () => {
+  it('finds receivers and gates of both groups', () => {
+    const groups = new Set(laserTileIds().map((id) => ConfigRegistry.getTile(id).laserReceiverGroup ?? ConfigRegistry.getTile(id).laserGateGroup));
+    expect(laserTileIds().length).toBeGreaterThanOrEqual(4);
+    expect([...groups].sort()).toEqual(['blue', 'red']);
+  });
+
+  it.each(VARIANTS)('draws the glyph of the group on every receiver and gate in the $name drawing', ({ art }) => {
+    for (const size of [TILE, SMALL_TILE]) {
+      for (const id of laserTileIds()) {
+        const def = ConfigRegistry.getTile(id);
+        const { lines, glyphs } = drawTile(id, art(), size);
+        expect(glyphs.length, id).toBe(1);
+        expect(glyphs[0][1], id).toBe(def.laserReceiverGroup ?? def.laserGateGroup);
+        expect(containsRun(lines, glyphLines(glyphs[0])), id).toBe(true);
+      }
+    }
+  });
+
+  it('gives the red and blue receivers different glyph drawings', () => {
+    const red = drawTile('laser_receiver_red', VARIANTS[0].art(), TILE);
+    const blue = drawTile('laser_receiver_blue', VARIANTS[0].art(), TILE);
+    expect(glyphLines(red.glyphs[0])).not.toEqual(glyphLines(blue.glyphs[0]));
+  });
+});
+
 describe('Runeward mechanism glyphs', () => {
   it('knows the colour key of every glyph-carrying tile', () => {
     for (const id of [...glyphTileIds(), ...keyItemIds()]) {

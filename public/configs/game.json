@@ -1110,9 +1110,9 @@
         "eye": "#3a1020"
       },
       "walker": {
-        "body": "#8f8a7a",
-        "light": "#c9c3ae",
-        "dark": "#4b463b",
+        "body": "#a8793a",
+        "light": "#d6ad6a",
+        "dark": "#5a3d16",
         "eye": "#ffe9a8"
       },
       "teeth": {
@@ -1561,9 +1561,9 @@
           "eye": "#f1e3bf"
         },
         "walker": {
-          "body": "#7e6f52",
-          "light": "#a39574",
-          "dark": "#52432d",
+          "body": "#8a5a2b",
+          "light": "#b0824f",
+          "dark": "#54341a",
           "eye": "#ecc866"
         },
         "teeth": {

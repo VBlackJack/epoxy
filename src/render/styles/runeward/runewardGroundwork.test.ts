@@ -24,6 +24,7 @@ import * as devices from './runewardDevices';
 import * as items from './runewardItems';
 import * as marks from './runewardMarks';
 import * as monsters from './runewardMonsters';
+import { MONSTER_SPRITE_CACHE_MAX_ENTRIES } from './runewardEnv';
 import {
   RUNEWARD_FALLBACK,
   RUNEWARD_PAINTERS,
@@ -128,5 +129,16 @@ describe('Runeward monster sprite cache', () => {
     expect(builds).toBe(1);
     expect(runewardMonsterSprite(env, 'bug', 'N', 1, SPRITE_SIZE, build)).not.toBe(first);
     expect(builds).toBe(2);
+  });
+
+  it('starts over past the cache limit and leaves other cache entries alone', () => {
+    const env = { cache: new Map<string, unknown>([['other', 1]]) };
+    for (let size = 0; size < MONSTER_SPRITE_CACHE_MAX_ENTRIES; size += 1) {
+      runewardMonsterSprite(env, 'bug', 'N', 0, size + 0.5, () => ({}));
+    }
+    expect(env.cache.size).toBe(MONSTER_SPRITE_CACHE_MAX_ENTRIES + 1);
+    runewardMonsterSprite(env, 'bug', 'N', 0, -1, () => ({}));
+    expect(env.cache.size).toBe(2);
+    expect(env.cache.get('other')).toBe(1);
   });
 });

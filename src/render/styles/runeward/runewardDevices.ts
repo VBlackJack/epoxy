@@ -35,6 +35,8 @@ import type {
 import type { TileNeighbours } from '../../tileNeighbours';
 import { hasInkHatching, heavyLineWidth, inkLineWidth, paintHatching, type InkRect } from './runewardInk';
 import { linear, paintFloor, roundRect, wave } from './runewardPainters';
+import { paintColorGlyph } from '../../colorGlyph';
+import { DEFAULT_COLOR_KEY } from '../../paletteKeys';
 import { runewardClockMs } from './runewardEnv';
 import type { RunewardEntityPainter, RunewardTilePainter, RunewardTilePass } from './runewardTiles';
 
@@ -124,6 +126,15 @@ function laserChannelOf(art: Art, def: Readonly<TileDefinition>): RunewardChanne
   if (Object.prototype.hasOwnProperty.call(channels, group)) return channels[group as RunewardLaserChannel];
   return { main: art.device.laser.glow, light: art.device.laser.core };
 }
+
+/** Colour key of the glyph of a laser receiver or gate: its group when the art has a channel for it, else the default key. */
+function laserGlyphKeyOf(art: Art, def: Readonly<TileDefinition>): string {
+  const group = def.laserReceiverGroup ?? def.laserGateGroup ?? '';
+  return Object.prototype.hasOwnProperty.call(art.device.laserChannel, group) ? group : DEFAULT_COLOR_KEY;
+}
+
+/** Radius of the colour glyph on a laser receiver lens or gate lintel, in tiles. */
+const LASER_GLYPH_RADIUS = 0.09;
 
 /** Draws in the cell whose corner is at (x, y), restoring the context afterwards. */
 function inCell(ctx: Ctx, x: number, y: number, draw: () => void): void {
@@ -486,7 +497,7 @@ function paintLaserEmitter(ctx: Ctx, size: number, art: Art, nb: Neighbours, dir
 }
 
 /** A receiver: a stone block framed in the colour of its laser group, a lens in the middle. */
-function paintLaserReceiver(ctx: Ctx, size: number, art: Art, nb: Neighbours, channel: RunewardChannelColours): void {
+function paintLaserReceiver(ctx: Ctx, size: number, art: Art, nb: Neighbours, channel: RunewardChannelColours, glyphKey: string): void {
   paintFloor(ctx, size, art, nb);
   const inset = size * LASER.frameInset;
   const span = size - inset * 2;
@@ -505,10 +516,13 @@ function paintLaserReceiver(ctx: Ctx, size: number, art: Art, nb: Neighbours, ch
     ctx.fillStyle = colour;
     ctx.fill();
   }
+  paintColorGlyph(ctx, glyphKey, size * HALF, size * HALF, size * LASER_GLYPH_RADIUS, art.device.thinWall.edge);
 }
 
 /** A laser gate: posts and lintel in the group colour; the bars stand while closed and are raised while open. */
-function paintLaserGate(ctx: Ctx, size: number, art: Art, nb: Neighbours, channel: RunewardChannelColours, open: boolean): void {
+function paintLaserGate(
+  ctx: Ctx, size: number, art: Art, nb: Neighbours, channel: RunewardChannelColours, glyphKey: string, open: boolean
+): void {
   paintFloor(ctx, size, art, nb);
   const post = size * LASER.postWidth;
   const halfWidth = size * LASER.barHalfWidth;
@@ -529,6 +543,7 @@ function paintLaserGate(ctx: Ctx, size: number, art: Art, nb: Neighbours, channe
   for (const part of parts) ctx.fillRect(part.x, part.y, part.w, part.h);
   outline(ctx, size, art, art.device.thinWall.edge, false);
   for (const part of parts) ctx.strokeRect(part.x, part.y, part.w, part.h);
+  paintColorGlyph(ctx, glyphKey, size * HALF, size * LASER.lintelHeight * HALF, size * LASER_GLYPH_RADIUS, art.device.thinWall.edge);
 }
 
 // ---- Shot launchers, trigger and puppet control ----------------------------------------------
@@ -775,10 +790,10 @@ export const TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromE
   ...entries(EMITTER_IDS, (id) =>
     stillTile((ctx, size, art, nb) => paintLaserEmitter(ctx, size, art, nb, definitionOf(id).laserEmitter ?? DEFAULT_FACING))),
   ...entries(RECEIVER_IDS, (id) =>
-    stillTile((ctx, size, art, nb) => paintLaserReceiver(ctx, size, art, nb, laserChannelOf(art, definitionOf(id))))),
+    stillTile((ctx, size, art, nb) => paintLaserReceiver(ctx, size, art, nb, laserChannelOf(art, definitionOf(id)), laserGlyphKeyOf(art, definitionOf(id))))),
   ...entries(GATE_IDS, (id) =>
     stillTile((ctx, size, art, nb) =>
-      paintLaserGate(ctx, size, art, nb, laserChannelOf(art, definitionOf(id)), definitionOf(id).laserGateOpen === true))),
+      paintLaserGate(ctx, size, art, nb, laserChannelOf(art, definitionOf(id)), laserGlyphKeyOf(art, definitionOf(id)), definitionOf(id).laserGateOpen === true))),
   ...entries(LAUNCHER_IDS, (id) =>
     stillTile((ctx, size, art, nb) => paintShotLauncher(ctx, size, art, nb, definitionOf(id).shotLauncher?.dir ?? DEFAULT_FACING))),
   ['shot_trigger', stillTile(paintShotTrigger)],

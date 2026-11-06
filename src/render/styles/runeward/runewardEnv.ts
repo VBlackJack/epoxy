@@ -59,6 +59,9 @@ const MONSTER_SPRITE_KEY_PREFIX = 'monster';
 /** Separator of the parts of a monster sprite key. */
 const MONSTER_SPRITE_KEY_SEPARATOR = '|';
 
+/** Most monster sprites the painter cache keeps; sizes change continuously while zooming, so past this the sprites start over. */
+export const MONSTER_SPRITE_CACHE_MAX_ENTRIES = 256;
+
 /** Cache key of one monster sprite: type, facing, walk frame and tile size. */
 export function runewardMonsterSpriteKey(type: string, dir: Direction, frame: number, size: number): string {
   return [MONSTER_SPRITE_KEY_PREFIX, type, dir, frame, size].join(MONSTER_SPRITE_KEY_SEPARATOR);
@@ -75,6 +78,10 @@ export function runewardMonsterSprite<T>(
 ): T {
   const key = runewardMonsterSpriteKey(type, dir, frame, size);
   if (env.cache.has(key)) return env.cache.get(key) as T;
+  const monsterKeys = [...env.cache.keys()].filter((cached) => cached.startsWith(`${MONSTER_SPRITE_KEY_PREFIX}${MONSTER_SPRITE_KEY_SEPARATOR}`));
+  if (monsterKeys.length >= MONSTER_SPRITE_CACHE_MAX_ENTRIES) {
+    for (const stale of monsterKeys) env.cache.delete(stale);
+  }
   const sprite = build();
   env.cache.set(key, sprite);
   return sprite;
