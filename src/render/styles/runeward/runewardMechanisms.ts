@@ -23,7 +23,7 @@
  * themselves, the way pixel art is data: they are art, not settings.
  */
 
-import type { RunewardArtConfig, RunewardInkConfig, RunewardKeyColour } from '../../../core/types';
+import type { RunewardArtConfig, RunewardChannelColours, RunewardInkConfig, RunewardKeyColour } from '../../../core/types';
 import { paintColorGlyph } from '../../colorGlyph';
 import type { TileNeighbours } from '../../tileNeighbours';
 import { hasInkHatching, heavyLineWidth, inkLineWidth, paintHatching, paintVerticalHatching } from './runewardInk';
@@ -371,7 +371,10 @@ export function paintPressurePlate(
 export type RunewardButtonKind =
   | { readonly kind: 'colour'; readonly colour: RunewardKeyColour }
   | { readonly kind: 'toggle'; readonly colour: RunewardKeyColour }
-  | { readonly kind: 'jaw' };
+  | { readonly kind: 'jaw' }
+  /** The flame button (flame rune) and the swap button (swap rune); `glyphKey` is the colour key the game gives the tile. */
+  | { readonly kind: 'flame'; readonly glyphKey: string }
+  | { readonly kind: 'swap'; readonly glyphKey: string };
 
 const BUTTON = {
   studRadius: 0.2,
@@ -387,8 +390,71 @@ const BUTTON = {
   jawTeeth: 4,
   jawHalfLength: 0.12,
   jawHalfHeight: 0.045,
-  jawLineWidth: 0.04
+  jawLineWidth: 0.04,
+  /** The rune of the flame and swap buttons: half extent, line width and the flame's inner cut. */
+  runeHalf: 0.13,
+  runeLineWidth: 0.04,
+  flameWaist: 0.1,
+  flameCut: 0.5,
+  swapHalfWidth: 0.12,
+  swapRowOffset: 0.05,
+  swapHeadLength: 0.06,
+  swapHeadHalf: 0.04,
+  /** The colour-blind glyph of those two buttons sits in the corner of the pad, clear of the stud. */
+  cornerGlyphX: 0.3,
+  cornerGlyphY: 0.3,
+  cornerGlyphRadius: 0.05
 } as const;
+
+/** The flame rune: a teardrop of fire on the stud, with a lit cut in its heart. */
+function paintFlameRune(ctx: CanvasRenderingContext2D, size: number, fill: string, cut: string): void {
+  const c = size * HALF;
+  const h = size * BUTTON.runeHalf;
+  const w = size * BUTTON.flameWaist;
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.moveTo(c, c - h);
+  ctx.bezierCurveTo(c + w, c - h * BUTTON.flameCut, c + w, c + h, c, c + h);
+  ctx.bezierCurveTo(c - w, c + h, c - w, c - h * BUTTON.flameCut, c, c - h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = cut;
+  ctx.beginPath();
+  ctx.moveTo(c, c);
+  ctx.bezierCurveTo(c + w * BUTTON.flameCut, c + h * BUTTON.flameCut, c + w * BUTTON.flameCut, c + h, c, c + h);
+  ctx.bezierCurveTo(c - w * BUTTON.flameCut, c + h, c - w * BUTTON.flameCut, c + h * BUTTON.flameCut, c, c);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** The swap rune: two arrows running in opposite directions. */
+function paintSwapRune(ctx: CanvasRenderingContext2D, size: number, stroke: string): void {
+  const c = size * HALF;
+  const half = size * BUTTON.swapHalfWidth;
+  const row = size * BUTTON.swapRowOffset;
+  const head = size * BUTTON.swapHeadLength;
+  const headHalf = size * BUTTON.swapHeadHalf;
+  ctx.strokeStyle = stroke;
+  ctx.fillStyle = stroke;
+  ctx.lineWidth = Math.max(MIN_LINE_PX, size * BUTTON.runeLineWidth);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(c - half, c - row);
+  ctx.lineTo(c + half - head, c - row);
+  ctx.moveTo(c + half, c + row);
+  ctx.lineTo(c - half + head, c + row);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c + half, c - row);
+  ctx.lineTo(c + half - head, c - row - headHalf);
+  ctx.lineTo(c + half - head, c - row + headHalf);
+  ctx.closePath();
+  ctx.moveTo(c - half, c + row);
+  ctx.lineTo(c - half + head, c + row - headHalf);
+  ctx.lineTo(c - half + head, c + row + headHalf);
+  ctx.closePath();
+  ctx.fill();
+}
 
 /** The two-way mark of a toggle button: an arrow head on each side of the glyph. */
 function paintToggleNotch(ctx: CanvasRenderingContext2D, size: number, fill: string): void {
@@ -425,6 +491,14 @@ function paintJaw(ctx: CanvasRenderingContext2D, size: number, stroke: string): 
   ctx.stroke();
 }
 
+/** Colours of a button stud: the key colour of its channel, the flame and swap colours, or none for the trap button. */
+function buttonTint(art: Art, spec: RunewardButtonKind): Readonly<RunewardChannelColours> | null {
+  if (spec.kind === 'jaw') return null;
+  if (spec.kind === 'flame') return art.mark.button.orange;
+  if (spec.kind === 'swap') return art.mark.button.gray;
+  return art.keys[spec.colour];
+}
+
 /** A button: a neutral pad with a round stud. Coloured buttons carry their glyph, the trap button a jaw. */
 export function paintButton(
   ctx: CanvasRenderingContext2D,
@@ -438,7 +512,7 @@ export function paintButton(
   paintPad(ctx, size, art, plate.face, false);
   const centre = size * HALF;
   const radius = size * BUTTON.studRadius;
-  const tint = spec.kind === 'jaw' ? null : art.keys[spec.colour];
+  const tint = buttonTint(art, spec);
   const bodyColour = tint ? tint.main : plate.pressed;
   const lightColour = tint ? tint.light : plate.face;
   ctx.fillStyle = radial(ctx, centre + size * BUTTON.studLightX, centre + size * BUTTON.studLightY, radius * 2, [
@@ -455,6 +529,13 @@ export function paintButton(
   }
   if (spec.kind === 'jaw') {
     paintJaw(ctx, size, ink ? ink.line : plate.rim);
+    return;
+  }
+  if (spec.kind === 'flame' || spec.kind === 'swap') {
+    const runeColour = ink ? ink.line : plate.rim;
+    if (spec.kind === 'flame') paintFlameRune(ctx, size, runeColour, lightColour);
+    else paintSwapRune(ctx, size, runeColour);
+    paintColorGlyph(ctx, spec.glyphKey, size * BUTTON.cornerGlyphX, size * BUTTON.cornerGlyphY, size * BUTTON.cornerGlyphRadius, runeColour);
     return;
   }
   const glyphColour = art.keys[spec.colour].glyph;
