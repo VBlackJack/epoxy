@@ -212,12 +212,26 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
 }
 
 /**
+ * Triggers the clone machine at (cx, cy) once, as a trigger button would: the template of the first clone link
+ * that names this machine, else the entity sitting on the machine. Does nothing when the cell holds no clone
+ * machine now. Used by a signal sink. Returns false when the clone's arrival killed the player.
+ */
+export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number): boolean {
+  const w = ctx.world;
+  if (!ConfigRegistry.getTile(w.terrain[cy]?.[cx]).isCloneMachine) return true;
+  const link = w.cloneLinks.find((l) => l.clonerX === cx && l.clonerY === cy);
+  if (link !== undefined) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir);
+  const template = w.entities.find((e) => e.x === cx && e.y === cy);
+  return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir);
+}
+
+/**
  * Spawns a copy of the template in front of the cloner, using the same
  * entry rules as a regular monster step or block push, so a clone never
  * appears inside a wall or another blocked cell. Returns false when the
  * clone's arrival killed the player, so the caller stops processing.
  */
-function spawnFromCloner(
+export function spawnFromCloner(
   ctx: EpoxyContext,
   clonerX: number,
   clonerY: number,

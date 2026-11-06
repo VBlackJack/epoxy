@@ -3076,6 +3076,7 @@ export class PixelRenderer {
         break;
 
       case 'signal_plate':
+      case 'signal_button':
       case 'signal_gate_and':
       case 'signal_gate_or':
       case 'signal_gate_not':
@@ -4184,6 +4185,7 @@ export class PixelRenderer {
         break;
 
       case 'signal_plate':
+      case 'signal_button':
       case 'signal_gate_and':
       case 'signal_gate_or':
       case 'signal_gate_not':

@@ -30,6 +30,8 @@ default turn_plate_cw plain=b80685c7113db6e2 swap=b80685c7113db6e2
 default turn_plate_ccw plain=96c1450f95ab4758 swap=96c1450f95ab4758
 default signal_plate plain=a3d3486d1dd1d5a1 swap=a3d3486d1dd1d5a1
 default signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
+default signal_button plain=a2b0fa6b5282df35 swap=a2b0fa6b5282df35
+default signal_button_lit plain=20f463e8ac64901a swap=20f463e8ac64901a
 default signal_gate_and plain=7d139b54168f1f4b swap=7d139b54168f1f4b
 default signal_gate_and_lit plain=f2192b7f0ea25e43 swap=f2192b7f0ea25e43
 default signal_gate_or plain=ad9a86745fbf0b15 swap=ad9a86745fbf0b15
@@ -264,6 +266,8 @@ cyber_neon turn_plate_cw plain=8c50edbb2ba7b19b swap=8c50edbb2ba7b19b
 cyber_neon turn_plate_ccw plain=18da9c3118e465e3 swap=18da9c3118e465e3
 cyber_neon signal_plate plain=376e31bd9f5882d2 swap=376e31bd9f5882d2
 cyber_neon signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
+cyber_neon signal_button plain=c9c7138112db83f8 swap=c9c7138112db83f8
+cyber_neon signal_button_lit plain=20f463e8ac64901a swap=20f463e8ac64901a
 cyber_neon signal_gate_and plain=a6faa3c9777071ce swap=a6faa3c9777071ce
 cyber_neon signal_gate_and_lit plain=f2192b7f0ea25e43 swap=f2192b7f0ea25e43
 cyber_neon signal_gate_or plain=b5094f2594f0a27a swap=b5094f2594f0a27a
@@ -498,6 +502,8 @@ arctic_lab turn_plate_cw plain=b4d621dab406f255 swap=b4d621dab406f255
 arctic_lab turn_plate_ccw plain=0d50decc73e72967 swap=0d50decc73e72967
 arctic_lab signal_plate plain=0d3dcdce4722bd48 swap=0d3dcdce4722bd48
 arctic_lab signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
+arctic_lab signal_button plain=237dde2bfe378d55 swap=237dde2bfe378d55
+arctic_lab signal_button_lit plain=20f463e8ac64901a swap=20f463e8ac64901a
 arctic_lab signal_gate_and plain=f749b7838c7784e7 swap=f749b7838c7784e7
 arctic_lab signal_gate_and_lit plain=f2192b7f0ea25e43 swap=f2192b7f0ea25e43
 arctic_lab signal_gate_or plain=f74e81e46ea925a6 swap=f74e81e46ea925a6
@@ -732,6 +738,8 @@ magma_core turn_plate_cw plain=b8cfc1d1391e67c1 swap=b8cfc1d1391e67c1
 magma_core turn_plate_ccw plain=63cd733bc4c07e07 swap=63cd733bc4c07e07
 magma_core signal_plate plain=e761945c1d051743 swap=e761945c1d051743
 magma_core signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
+magma_core signal_button plain=45ee61175df5faed swap=45ee61175df5faed
+magma_core signal_button_lit plain=20f463e8ac64901a swap=20f463e8ac64901a
 magma_core signal_gate_and plain=6a2e0786c98ce3d3 swap=6a2e0786c98ce3d3
 magma_core signal_gate_and_lit plain=f2192b7f0ea25e43 swap=f2192b7f0ea25e43
 magma_core signal_gate_or plain=8f2067da23f614ef swap=8f2067da23f614ef
@@ -966,6 +974,8 @@ lynx_lcd turn_plate_cw plain=8e320f26e228729c swap=8e320f26e228729c
 lynx_lcd turn_plate_ccw plain=a835ddfe1bb3ab7d swap=a835ddfe1bb3ab7d
 lynx_lcd signal_plate plain=82cc26bf7ba0a5ce swap=82cc26bf7ba0a5ce
 lynx_lcd signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
+lynx_lcd signal_button plain=a42e2a4cab9c17da swap=a42e2a4cab9c17da
+lynx_lcd signal_button_lit plain=20f463e8ac64901a swap=20f463e8ac64901a
 lynx_lcd signal_gate_and plain=39b8b273b0211394 swap=39b8b273b0211394
 lynx_lcd signal_gate_and_lit plain=f2192b7f0ea25e43 swap=f2192b7f0ea25e43
 lynx_lcd signal_gate_or plain=3eb3535af81b3d78 swap=3eb3535af81b3d78

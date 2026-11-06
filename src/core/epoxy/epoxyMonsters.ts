@@ -37,6 +37,7 @@ import {
   isInBounds,
   killPlayer,
   monsterSlowdown,
+  notePulseArrival,
   removeEntity
 } from './epoxyWorld';
 
@@ -153,6 +154,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (destTile.transmogrifies && def?.transmogrifiesTo !== undefined) {
     entity.type = def.transmogrifiesTo;
   }
+
+  notePulseArrival(w, nx, ny, entity);
 
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {

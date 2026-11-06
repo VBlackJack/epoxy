@@ -94,6 +94,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           toggleParity: engine.getToggleParity(),
           // Undefined (and so left out of the hash) on a level without a signal network.
           signals: engine.getSignalState?.(),
+          // Undefined (and so left out of the hash) unless a pulse button has an unread arrival or a carried press.
+          signalPulses: engine.getSignalPulses?.(),
           // Undefined (and so left out of the hash) until a cell that revealed its underlay holds its top again.
           spent: engine.getSpentRevealCells?.(),
           steps: engine.getStepsCount(),

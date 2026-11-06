@@ -507,6 +507,23 @@ export function entityPressesPlate(type: string, kind: 'block' | 'monster', colo
   return def?.pressesPlates ?? def?.flying !== true;
 }
 
+/**
+ * Records an arrival on a cell for the pulse buttons of the signal network: the player, or a monster or block
+ * that presses plates (the entity argument; null for the player). The next settle reads it and clears it. Does
+ * nothing on a level without pulse buttons, or on a cell that is not one.
+ */
+export function notePulseArrival(w: EpoxyWorld, x: number, y: number, entity: RuntimeEntity | null): void {
+  const runtime = w.signals;
+  if (runtime === undefined || runtime.pulseCells.size === 0) return;
+  const cell = y * mapWidth(w) + x;
+  if (!runtime.pulseCells.has(cell)) return;
+  if (entity !== null) {
+    const ownColor: ChannelColor = ConfigRegistry.getEntityDef(entity.type)?.plateColor ?? 'red';
+    if (!entityPressesPlate(entity.type, entity.kind, ownColor)) return;
+  }
+  runtime.pending.add(cell);
+}
+
 export function killPlayer(ctx: EpoxyContext, reasonKey: string, sfxId: string): void {
   const w = ctx.world;
   w.player.alive = false;

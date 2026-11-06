@@ -246,3 +246,89 @@ describe('signal-driven doors count as openable', () => {
     expect(keys).toContain(`${KEY_PREFIX}unreachable_exit.label`);
   });
 });
+
+describe('pulse buttons and edge sinks', () => {
+  const PULSE = 'signal_button';
+  const LAUNCHER = 'shot_launcher_e';
+  const CLONER = 'clone_machine';
+  const SINK: Cell = { x: 7, y: 3 };
+
+  it('warns when a pulse button drives a hold door with no latch in between', () => {
+    const direct = room([[P1, PULSE], [DOOR_CELL, DOOR]], [link(P1, DOOR_CELL)]);
+    const issue = find(direct, 'signal_pulse_door');
+    expect(issue?.severity).toBe('warning');
+    expect(issue?.params).toMatchObject({ x: P1.x, y: P1.y, count: 1 });
+    for (const gate of [NOT, XOR, OR, AND]) {
+      const level = room([[P1, PULSE], [GATE, gate], [DOOR_CELL, DOOR]], [link(P1, GATE), link(GATE, DOOR_CELL)]);
+      expect(find(level, 'signal_pulse_door')?.severity, gate).toBe('warning');
+    }
+  });
+
+  it('does not warn when a latch holds the pulse, or for a held plate', () => {
+    const latched = room([[P1, PULSE], [GATE, LATCH], [DOOR_CELL, DOOR]], [link(P1, GATE), link(GATE, DOOR_CELL)]);
+    expect(find(latched, 'signal_pulse_door')).toBeUndefined();
+    const viaGateAndLatch = room(
+      [[P1, PULSE], [GATE, NOT], [GATE_B, LATCH], [DOOR_CELL, DOOR]],
+      [link(P1, GATE), link(GATE, GATE_B), link(GATE_B, DOOR_CELL)]
+    );
+    expect(find(viaGateAndLatch, 'signal_pulse_door')).toBeUndefined();
+    const plate = room([[P1, PLATE], [DOOR_CELL, DOOR]], [link(P1, DOOR_CELL)]);
+    expect(find(plate, 'signal_pulse_door')).toBeUndefined();
+  });
+
+  it('does not warn for a pulse that drives a launcher, and keeps the link', () => {
+    const level = room([[P1, PULSE], [SINK, LAUNCHER]], [link(P1, SINK)]);
+    expect(signalIssues(level)).toEqual([]);
+    const cloner = room([[P1, PULSE], [SINK, CLONER]], [link(P1, SINK)]);
+    expect(signalIssues(cloner)).toEqual([]);
+  });
+
+  it('refuses more than one input on an edge sink', () => {
+    const level = room([[P1, PULSE], [P2, PULSE], [SINK, LAUNCHER]], [link(P1, SINK), link(P2, SINK)]);
+    expect(find(level, 'signal_sink_inputs')?.severity).toBe('error');
+  });
+
+  it('warns when a clone machine spawns its clone on a pulse button that drives it', () => {
+    const feeding = room([[SINK, CLONER], [{ x: 8, y: 3 }, PULSE]], [link({ x: 8, y: 3 }, SINK)]);
+    feeding.entities = [{ type: 'dirt_block', x: SINK.x, y: SINK.y, dir: 'E' }];
+    const issue = find(feeding, 'signal_cloner_self_feed');
+    expect(issue?.severity).toBe('warning');
+    expect(issue?.params).toMatchObject({ x: SINK.x, y: SINK.y, count: 1 });
+    // The clone appears elsewhere, or the button there drives something else.
+    const away = room([[SINK, CLONER], [P1, PULSE]], [link(P1, SINK)]);
+    away.entities = [{ type: 'dirt_block', x: SINK.x, y: SINK.y, dir: 'E' }];
+    expect(find(away, 'signal_cloner_self_feed')).toBeUndefined();
+    const other = room([[SINK, CLONER], [{ x: 8, y: 3 }, PULSE], [P1, PULSE], [{ x: 7, y: 5 }, LAUNCHER]], [
+      link(P1, SINK),
+      link({ x: 8, y: 3 }, { x: 7, y: 5 })
+    ]);
+    other.entities = [{ type: 'dirt_block', x: SINK.x, y: SINK.y, dir: 'E' }];
+    expect(find(other, 'signal_cloner_self_feed')).toBeUndefined();
+  });
+
+  it('takes the template direction of the clone link of the machine', () => {
+    const feeding = room([[SINK, CLONER], [{ x: 7, y: 4 }, PULSE]], [link({ x: 7, y: 4 }, SINK)]);
+    feeding.cloneLinks = [{ buttonX: 2, buttonY: 2, clonerX: SINK.x, clonerY: SINK.y, templateType: 'dirt_block', templateDir: 'S' }];
+    expect(find(feeding, 'signal_cloner_self_feed')?.severity).toBe('warning');
+  });
+
+  it('does not count a launcher sink in the parity of a world loop (no spurious flicker error)', () => {
+    // The receiver holds its own door open (an even loop) and also feeds a launcher through a NOT gate.
+    const level = room(
+      [[EMITTER, 'laser_emitter_e'], [BEAM_DOOR, DOOR], [RECEIVER, 'laser_receiver_red'], [GATE, NOT], [SINK, LAUNCHER]],
+      [link(RECEIVER, BEAM_DOOR), link(RECEIVER, GATE), link(GATE, SINK)]
+    );
+    expect(find(level, 'signal_world_loop_odd')).toBeUndefined();
+    expect(find(level, 'signal_world_loop_even')?.severity).toBe('warning');
+  });
+});
+
+describe('launchers driven by a signal link', () => {
+  it('does not report a launcher that only a signal link drives as never firing', () => {
+    const sink: Cell = { x: 7, y: 3 };
+    const level = room([[P1, 'signal_button'], [sink, 'shot_launcher_e']], [link(P1, sink)]);
+    expect(find(level, 'shot_launcher_unlinked')).toBeUndefined();
+    const alone = room([[sink, 'shot_launcher_e']], []);
+    expect(find(alone, 'shot_launcher_unlinked')?.severity).toBe('warning');
+  });
+});

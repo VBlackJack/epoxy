@@ -1536,7 +1536,8 @@ export class LevelValidator {
             issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_trigger_no_link.label', params: { x, y } });
           }
           if (!tile.shotLauncher) continue;
-          if (!links.some((l) => l.launcherX === x && l.launcherY === y)) {
+          const signalDriven = (level.signalLinks ?? []).some((l) => l.toX === x && l.toY === y);
+          if (!signalDriven && !links.some((l) => l.launcherX === x && l.launcherY === y)) {
             issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_unlinked.label', params: { x, y } });
           }
           const dir = tile.shotLauncher.dir;

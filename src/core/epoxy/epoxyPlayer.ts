@@ -36,6 +36,7 @@ import {
   isInBounds,
   killPlayer,
   leaveCell,
+  notePulseArrival,
   takeRevealedTerrain
 } from './epoxyWorld';
 
@@ -197,7 +198,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
       const behindTile = ConfigRegistry.getTile(behindTileId);
       const lockedOnPlate =
         (behindTile.plateColor !== undefined && entityPressesPlate(blockBehind.type, 'block', behindTile.plateColor)) ||
-        behindTile.signalSource !== undefined ||
+        behindTile.signalSource === 'held' ||
         behindTile.buttonAction === 'hold_trap' ||
         behindTileId === BLOCK_TARGET_TILE_ID;
       if (!lockedOnPlate) {
@@ -283,6 +284,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     w.statusBannerKey = 'hud.messages.thief_stole_keys';
     AudioManager.playSfx('thief');
   }
+
+  notePulseArrival(w, x, y, null);
 
   if (tile.buttonAction) {
     triggerButton(ctx, x, y, tile.buttonAction);

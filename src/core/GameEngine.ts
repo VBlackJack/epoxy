@@ -26,7 +26,15 @@ import {
   TOGGLE_PARITY_KEY_PREFIX
 } from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
-import { copySignalState, poweredSignalCellsOf, settleWorldSignals, signalLinksOf } from './epoxy/epoxySignals';
+import {
+  copySignalPulses,
+  copySignalState,
+  fireSignalSinks,
+  poweredSignalCellsOf,
+  restoreSignalPulses,
+  settleWorldSignals,
+  signalLinksOf
+} from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
 import { updateEntities } from './epoxy/epoxyMonsters';
 import {
@@ -65,6 +73,7 @@ import {
   RuntimeEntity,
   Shot,
   SignalLink,
+  SignalPulseState,
   SignalState,
   TimedMove,
   TrapLink,
@@ -247,6 +256,11 @@ export class GameEngine {
   /** The state of the signal network; undefined on a level without one, so nothing about it reaches such a level or its hash. */
   public getSignalState(): SignalState | undefined {
     return copySignalState(this.w);
+  }
+
+  /** The pulse memory of the signal network (arrivals not yet read, presses carried); undefined when empty, so nothing about it reaches a level without pulses or its hash. */
+  public getSignalPulses(): SignalPulseState | undefined {
+    return copySignalPulses(this.w);
   }
 
   /** The compiled signal links by cell coordinates; undefined on a level without signals. Read only, for drawing. */
@@ -510,7 +524,9 @@ export class GameEngine {
       // Only a level with an actor inside a swivel door has an entry side to put back.
       ...(this.w.swivelEntry.size > 0 ? { swivelEntry: [...this.w.swivelEntry] } : {}),
       // Only a level with a signal network has network state to put back.
-      ...(this.w.signals !== undefined ? { signals: cloneSignalState(this.w.signals.state) } : {})
+      ...(this.w.signals !== undefined ? { signals: cloneSignalState(this.w.signals.state) } : {}),
+      // Only a pulse button with an arrival not yet read, or a press carried, has memory to put back.
+      ...(copySignalPulses(this.w) !== undefined ? { signalPulses: copySignalPulses(this.w) } : {})
     };
   }
 
@@ -560,6 +576,7 @@ export class GameEngine {
     this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
     if (this.w.signals !== undefined) {
       this.w.signals.state = snap.signals ? cloneSignalState(snap.signals) : createSignalState(this.w.signals.network);
+      restoreSignalPulses(this.w, snap.signalPulses);
     }
     // The launchers fired in the undone moment may fire again.
     this.w.firedLaunchers.clear();
@@ -599,12 +616,15 @@ export class GameEngine {
     updateEntities(this.ctx);
     advanceShots(this.ctx);
     this.w.inTick = false;
-    // A new tick lets every launcher fire again; a move made before it counts with it.
-    this.w.firedLaunchers.clear();
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     // The signals settle before the doors they drive; a no-op without signals.
-    if (this.w.signals !== undefined) settleWorldSignals(this.w);
+    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
     setHoldDoors(this.ctx);
+    // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
+    fireSignalSinks(this.ctx, edges);
+    // A new tick lets every launcher fire again; a move made before it counts with it. Cleared only now, so a launcher
+    // fired by a signal in this pass counts with the buttons of the pass.
+    this.w.firedLaunchers.clear();
     turnTurrets(this.w, this.ticksElapsed);
     resolveLasers(this.ctx);
     this.checkTargetsWin();
@@ -648,8 +668,11 @@ export class GameEngine {
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
-      if (this.w.signals !== undefined) settleWorldSignals(this.w);
+      const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
       setHoldDoors(this.ctx);
+      // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
+      // following tick, as one fired by a button does (see the clear in tick()).
+      fireSignalSinks(this.ctx, edges);
       this.stepsCount++;
       // The turrets' clock starts with the first step.
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;

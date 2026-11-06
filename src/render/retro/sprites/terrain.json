@@ -750,6 +750,48 @@
       ],
       "outline": false
     },
+    "signal_button": {
+      "rows": [
+        "aaaaaaaaaaaaaaab",
+        "aaaaaaaaaaaaaaab",
+        "aaaaaaaooaaaaaab",
+        "aaaaaooooooaaaab",
+        "aaaao222222oaaab",
+        "aaaoo223322ooaab",
+        "aaao22333322oaab",
+        "aaao22333322oaab",
+        "aaao22333322oaab",
+        "aaaoo223322ooaab",
+        "aaaao222222oaaab",
+        "aaaaaooooooaaaab",
+        "aaaaaaaooaaaaaab",
+        "aaaaaaaaaaaaaaab",
+        "babababababababb",
+        "bbbbbbbbbbbbbbbc"
+      ],
+      "outline": false
+    },
+    "signal_button_lit": {
+      "rows": [
+        "................",
+        "................",
+        ".......)).......",
+        ".....)))))).....",
+        "....)......)....",
+        "...))..((..))...",
+        "...)..((((..)...",
+        "...)..((((..)...",
+        "...)..((((..)...",
+        "...))..((..))...",
+        "....)......)....",
+        ".....)))))).....",
+        ".......)).......",
+        "................",
+        "................",
+        "................"
+      ],
+      "outline": false
+    },
     "signal_gate_and": {
       "rows": [
         "aaaaaaaaaaaaaabb",

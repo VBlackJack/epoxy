@@ -72,6 +72,7 @@ export const RETRO_HIDDEN_WALL_MARKERS: Readonly<Record<string, string>> = {
 /** Signal tiles: a sprite of the same name, and the lit overlay drawn over it while the tile is powered. */
 export const RETRO_SIGNAL_TILES: readonly string[] = [
   'signal_plate',
+  'signal_button',
   'signal_gate_and',
   'signal_gate_or',
   'signal_gate_not',

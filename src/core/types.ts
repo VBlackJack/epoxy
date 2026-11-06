@@ -1113,8 +1113,11 @@ export interface TileDefinition {
    * may leave and nothing may enter; false keeps it open until the cell is free, as a laser gate does.
    */
   holdDoorClosesOnOccupant?: boolean;
-  /** A signal source: 'held' is on while its cell is occupied. A laser receiver is a source through laserReceiverGroup. */
-  signalSource?: 'held';
+  /**
+   * A signal source: 'held' is on while its cell is occupied, 'pulse' is on for one settle after something
+   * arrives on its cell. A laser receiver is a source through laserReceiverGroup.
+   */
+  signalSource?: 'held' | 'pulse';
   /** A signal gate: the logic it applies to the signals linked into it. */
   signalGate?: 'and' | 'or' | 'not' | 'xor' | 'latch';
   /** A latch tile that starts with its bit on; the bit itself lives in the signal state. */
@@ -1594,7 +1597,10 @@ export interface SignalState {
 }
 
 /** How a signal source reads the world: a held source is on while its cell is occupied, a receiver source while a laser lights it. */
-export type SignalSampler = 'held' | 'receiver';
+export type SignalSampler = 'held' | 'pulse' | 'receiver';
+
+/** What a signal sink fires on a rising edge of its input: a shot launcher, or a clone machine. */
+export type SignalSinkFires = 'launcher' | 'cloner';
 
 /** A node of a signal network with what the engine needs to read or drive it. */
 export interface SignalNodeDef extends SignalNodeSpec {
@@ -1602,12 +1608,20 @@ export interface SignalNodeDef extends SignalNodeSpec {
   sample?: SignalSampler;
   /** Sink nodes only: the colour of the hold doors the node drives, as a pressed plate of that colour would. */
   color?: ChannelColor;
+  /** Sink nodes only: the device the node fires once on each rising edge of its input. A sink has a colour or `fires`, never both. */
+  fires?: SignalSinkFires;
 }
 
 /** The signal network of a level (Epoxy ruleset only), compiled from its signal links at load; never stored. */
 export interface SignalSpec {
   nodes: SignalNodeDef[];
   links: SignalLinkSpec[];
+}
+
+/** The pulse memory of a signal network: arrivals since the last settle, and the one-bit carry of each pulse button. Cell indexes, ascending. */
+export interface SignalPulseState {
+  pending: number[];
+  carry: number[];
 }
 
 export interface CompiledLevel {
@@ -1746,6 +1760,8 @@ export interface UndoSnapshot {
   swivelEntry?: [number, Direction][];
   /** The state of the signal network; written only on a level that has one, absent otherwise. */
   signals?: SignalState;
+  /** Pulse buttons with an unconsumed arrival (pending) or a press kept for the next settle (carry); written only when one is non-empty. */
+  signalPulses?: SignalPulseState;
 }
 
 export interface LevelHighScore {

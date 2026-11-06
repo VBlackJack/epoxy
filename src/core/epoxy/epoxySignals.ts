@@ -16,9 +16,11 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
-import type { ChannelColor, SignalLink, SignalNodeDef, SignalSpec } from '../types';
+import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
+import { fireClonerAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
-import { EpoxyWorld, entityPressesPlate, mapWidth } from './epoxyWorld';
+import { fireLauncherAt } from './epoxyShots';
+import { EpoxyContext, EpoxyWorld, entityPressesPlate, mapWidth } from './epoxyWorld';
 import {
   SignalEdge,
   SignalNetwork,
@@ -37,9 +39,15 @@ export interface SignalRuntime {
   defs: ReadonlyMap<number, SignalNodeDef>;
   /** Edges seen since the level loaded. A diagnostic only: not snapshotted, not hashed. */
   edgeCounts: { rising: number; falling: number };
+  /** Cell indexes of the pulse buttons of the network. Static for the level. */
+  pulseCells: ReadonlySet<number>;
+  /** Pulse buttons that saw an arrival since the last settle. The settle reads it and clears it. */
+  pending: Set<number>;
+  /** Pulse buttons holding a press for the next settle (the one-bit carry: never a counter). */
+  carry: Set<number>;
 }
 
-/** Thrown when a source has no sampler or a sink no colour: a level no validator would have let through. */
+/** Thrown when a source has no sampler or a sink neither a colour nor a device to fire (or both): a level no validator would have let through. */
 export class SignalWiringError extends Error {
   constructor(readonly cell: number) {
     super(`signal wiring: node at cell ${cell} lacks its sampler or colour`);
@@ -60,11 +68,23 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
       if (def.sample === undefined) throw new SignalWiringError(def.cell);
       defs.set(index, def);
     } else if (def.kind === 'sink') {
-      if (def.color === undefined) throw new SignalWiringError(def.cell);
+      if ((def.color === undefined) === (def.fires === undefined)) throw new SignalWiringError(def.cell);
       defs.set(index, def);
     }
   }
-  return { network, state: createSignalState(network), defs, edgeCounts: { rising: 0, falling: 0 } };
+  const pulseCells = new Set<number>();
+  for (const index of network.sourceIndexes) {
+    if (defs.get(index)?.sample === 'pulse') pulseCells.add(network.nodes[index].cell);
+  }
+  return {
+    network,
+    state: createSignalState(network),
+    defs,
+    edgeCounts: { rising: 0, falling: 0 },
+    pulseCells,
+    pending: new Set<number>(),
+    carry: new Set<number>()
+  };
 }
 
 /**
@@ -80,8 +100,28 @@ function cellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
   });
 }
 
+/**
+ * The level of a pulse button at this settle. An arrival (or a carried press) makes it on for exactly this settle.
+ * If it was on at the last settle it cannot rise again, so it outputs off now and keeps the press as the carry:
+ * on at the next settle. The carry is one bit, so a constant stream of arrivals gives half the rate, never a
+ * count. An arrival that lands on a settle already consumed by the carry becomes the new carry.
+ */
+function samplePulse(runtime: SignalRuntime, index: number, cell: number, prime: boolean): boolean {
+  if (prime) return false;
+  const arrival = runtime.pending.has(cell);
+  const carried = runtime.carry.has(cell);
+  if (!arrival && !carried) return false;
+  if (runtime.state.lastOutputs[index]) {
+    runtime.carry.add(cell);
+    return false;
+  }
+  if (arrival && carried) runtime.carry.add(cell);
+  else runtime.carry.delete(cell);
+  return true;
+}
+
 /** Samples every source of the network, by cell index. A receiver reads litReceiverCells, so the beams must be fresh. */
-function sampleSources(w: EpoxyWorld, runtime: SignalRuntime): Map<number, boolean> {
+function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): Map<number, boolean> {
   const width = mapWidth(w);
   const lit = new Set(w.litReceiverCells.map((cell) => cell.y * width + cell.x));
   const levels = new Map<number, boolean>();
@@ -90,7 +130,8 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime): Map<number, boole
     const x = cell % width;
     const y = Math.floor(cell / width);
     const def = runtime.defs.get(index) as SignalNodeDef;
-    levels.set(cell, def.sample === 'receiver' ? lit.has(cell) : cellOccupied(w, x, y));
+    if (def.sample === 'pulse') levels.set(cell, samplePulse(runtime, index, cell, prime));
+    else levels.set(cell, def.sample === 'receiver' ? lit.has(cell) : cellOccupied(w, x, y));
   }
   return levels;
 }
@@ -99,14 +140,17 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime): Map<number, boole
  * Settles the level's signal network from the world as it is now and keeps the new state. Does nothing on a
  * level without signals. The beams are refreshed first (a trace only when something moved), so a receiver
  * source never reads the trace of the pass before. With `prime` (level load) it only records, no edge. Settle before the hold doors are set, so a door follows
- * the signals of the same pass. Returns the edges of the sinks.
+ * the signals of the same pass. Returns the edges of the sinks. Clears the pending arrivals of the pulse buttons
+ * right after sampling, before the caller fires the sinks.
  */
 export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false): SignalEdge[] {
   const runtime = w.signals;
   if (runtime === undefined) return [];
   refreshBeams(w);
-  const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime), prime);
+  const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime), prime);
   runtime.state = result.state;
+  // The arrivals are read: an arrival caused by a sink that fires now lands in the next settle, none lost, none doubled.
+  runtime.pending.clear();
   for (const edge of result.edges) {
     if (edge.rising) runtime.edgeCounts.rising++;
     else runtime.edgeCounts.falling++;
@@ -147,4 +191,45 @@ export function poweredSignalCellsOf(w: EpoxyWorld): ReadonlySet<number> | undef
 /** A copy of the state of the world's network, for a snapshot or a hash; undefined without signals. */
 export function copySignalState(w: EpoxyWorld): SignalState | undefined {
   return w.signals === undefined ? undefined : cloneSignalState(w.signals.state);
+}
+
+/**
+ * Fires the launchers and clone machines whose sink rose at the last settle, in evaluation order: a launcher shoots
+ * and a clone machine spawns once, with the rules of a trigger (the per-tick launcher cap, the tile check, the
+ * entity cap). Call it after the settle and the hold doors. Stops as soon as the player is dead or the level is
+ * completed. A falling edge fires nothing.
+ */
+export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
+  const w = ctx.world;
+  const runtime = w.signals;
+  if (runtime === undefined) return;
+  const width = mapWidth(w);
+  for (const edge of edges) {
+    if (!w.player.alive || w.levelCompleted) return;
+    if (!edge.rising) continue;
+    const index = runtime.network.indexOfCell.get(edge.cell);
+    const fires = index === undefined ? undefined : runtime.defs.get(index)?.fires;
+    if (fires === undefined) continue;
+    const x = edge.cell % width;
+    const y = Math.floor(edge.cell / width);
+    if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y))) return;
+  }
+}
+
+/** A copy of the pulse memory of the world's network, for a snapshot or a hash; undefined when nothing is pending or carried. */
+export function copySignalPulses(w: EpoxyWorld): SignalPulseState | undefined {
+  const runtime = w.signals;
+  if (runtime === undefined || (runtime.pending.size === 0 && runtime.carry.size === 0)) return undefined;
+  return {
+    pending: [...runtime.pending].sort((a, b) => a - b),
+    carry: [...runtime.carry].sort((a, b) => a - b)
+  };
+}
+
+/** Puts a pulse memory back (a snapshot restored); undefined means nothing pending, nothing carried. */
+export function restoreSignalPulses(w: EpoxyWorld, pulses: SignalPulseState | undefined): void {
+  const runtime = w.signals;
+  if (runtime === undefined) return;
+  runtime.pending = new Set(pulses?.pending ?? []);
+  runtime.carry = new Set(pulses?.carry ?? []);
 }

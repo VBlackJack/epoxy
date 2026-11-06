@@ -22,6 +22,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { DIRECTION_VECTORS } from '../config/constants';
 import { CHANNEL_COLOR_NAME_KEY_PREFIX, FLOOR_TILE_ID } from './coreConstants';
 import { registryTileLookup } from './epoxy/epoxySignals';
 import { buildSignalNetwork } from './epoxy/signalNetwork';
@@ -137,11 +138,14 @@ function receiverReach(spec: SignalSpec, from: number): ReceiverReach {
         latch: state.latch || node.kind === 'latch'
       };
       if (node.kind === 'sink') {
-        if (node.color !== undefined) reach.colors.add(node.color);
-        if (arrived.xor) reach.xor = true;
-        else if (arrived.latch) reach.latchOnly = true;
-        else if (arrived.inverted) reach.inverting = true;
-        else reach.straight = true;
+        // A launcher or cloner sink has no colour and moves no door: it takes no part in a world loop.
+        if (node.color !== undefined) {
+          reach.colors.add(node.color);
+          if (arrived.xor) reach.xor = true;
+          else if (arrived.latch) reach.latchOnly = true;
+          else if (arrived.inverted) reach.inverting = true;
+          else reach.straight = true;
+        }
         continue;
       }
       const key = `${next}:${arrived.inverted ? 1 : 0}:${arrived.xor ? 1 : 0}:${arrived.latch ? 1 : 0}`;
@@ -151,6 +155,78 @@ function receiverReach(spec: SignalSpec, from: number): ReceiverReach {
     }
   }
   return reach;
+}
+
+/** The pulse buttons that reach a hold door along a path with no latch (NOT and XOR do not latch), located at the button. */
+function pulseDoorCells(spec: SignalSpec): number[] {
+  const byCell = new Map<number, SignalNodeDef>(spec.nodes.map((n) => [n.cell, n]));
+  const outgoing = new Map<number, number[]>();
+  for (const link of spec.links) outgoing.set(link.from, [...(outgoing.get(link.from) ?? []), link.to]);
+  const cells: number[] = [];
+  for (const source of spec.nodes) {
+    if (source.kind !== 'source' || source.sample !== 'pulse') continue;
+    const seen = new Set<string>();
+    const queue: Array<{ cell: number; latched: boolean }> = [{ cell: source.cell, latched: false }];
+    let reachesDoor = false;
+    while (queue.length > 0 && !reachesDoor) {
+      const { cell, latched } = queue.shift() as { cell: number; latched: boolean };
+      for (const next of outgoing.get(cell) ?? []) {
+        const node = byCell.get(next);
+        if (node === undefined) continue;
+        if (node.kind === 'sink') {
+          if (node.color !== undefined && !latched) reachesDoor = true;
+          continue;
+        }
+        const arrived = latched || node.kind === 'latch';
+        const key = `${next}:${arrived ? 1 : 0}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        queue.push({ cell: next, latched: arrived });
+      }
+    }
+    if (reachesDoor) cells.push(source.cell);
+  }
+  return cells;
+}
+
+/** The cells of the clone machines wired to a signal whose clone appears on a pulse button that drives them. */
+function clonerSelfFeedCells(level: CompiledLevel, spec: SignalSpec): number[] {
+  const width = level.terrain[0]?.length ?? 0;
+  const byCell = new Map<number, SignalNodeDef>(spec.nodes.map((n) => [n.cell, n]));
+  const outgoing = new Map<number, number[]>();
+  for (const link of spec.links) outgoing.set(link.from, [...(outgoing.get(link.from) ?? []), link.to]);
+  const reaches = (from: number, target: number): boolean => {
+    const seen = new Set<number>([from]);
+    const queue = [from];
+    while (queue.length > 0) {
+      const cell = queue.shift() as number;
+      for (const next of outgoing.get(cell) ?? []) {
+        if (next === target) return true;
+        if (seen.has(next)) continue;
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+    return false;
+  };
+  const cells: number[] = [];
+  for (const sink of spec.nodes) {
+    if (sink.kind !== 'sink' || sink.fires !== 'cloner') continue;
+    const x = sink.cell % width;
+    const y = Math.floor(sink.cell / width);
+    // The template the engine spawns: the first clone link of the machine, else the entity sitting on it.
+    const link = (level.cloneLinks ?? []).find((l) => l.clonerX === x && l.clonerY === y);
+    const dir = link?.templateDir ?? (level.entities ?? []).find((e) => e.x === x && e.y === y)?.dir;
+    if (dir === undefined) continue;
+    const vec = DIRECTION_VECTORS[dir];
+    const spawnX = x + vec.dx;
+    const spawnY = y + vec.dy;
+    if (spawnX < 0 || spawnX >= width || spawnY < 0 || spawnY >= level.terrain.length) continue;
+    const spawn = spawnY * width + spawnX;
+    const source = byCell.get(spawn);
+    if (source?.kind === 'source' && source.sample === 'pulse' && reaches(spawn, sink.cell)) cells.push(sink.cell);
+  }
+  return cells;
 }
 
 /** The level with its signal links removed and every hold door of the given colours open (as floor) or shut. */
@@ -301,6 +377,15 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
   const cyclic = network.cycles.flat().map((i) => cellOf(network.nodes[i].cell));
   if (cyclic.length > 0) {
     issues.push({ severity: 'error', i18nKey: 'validator.issues.signal_cycle.label', params: located(cyclic) });
+  }
+
+  const pulseDoors = pulseDoorCells(spec).map(cellOf);
+  if (pulseDoors.length > 0) {
+    issues.push({ severity: 'warning', i18nKey: 'validator.issues.signal_pulse_door.label', params: located(pulseDoors) });
+  }
+  const selfFeeding = clonerSelfFeedCells(level, spec).map(cellOf);
+  if (selfFeeding.length > 0) {
+    issues.push({ severity: 'warning', i18nKey: 'validator.issues.signal_cloner_self_feed.label', params: located(selfFeeding) });
   }
 
   checkWorldLoops(level, spec, issues);
