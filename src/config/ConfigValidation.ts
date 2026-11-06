@@ -1410,6 +1410,17 @@ export function findTransmogrifierConfigErrors(
   return { tiles: tileErrors, monsters: errors };
 }
 
+/** Problems of the pullsBlocks field: true when present, carried by boots only. Each entry names the tile. */
+export function findPullBootsConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.pullsBlocks === undefined) continue;
+    if (tile.pullsBlocks !== true) errors.push(`${tile.id}.pullsBlocks: expected true`);
+    if (tile.collectible !== 'boot') errors.push(`${tile.id}.pullsBlocks: only boots (collectible "boot") may pull blocks`);
+  }
+  return errors;
+}
+
 /** Problems of the revealsHiddenWalls field: true when present, carried by boots only. Each entry names the tile. */
 export function findEyeBootsConfigErrors(tiles: Record<string, TileDefinition>): string[] {
   const errors: string[] = [];

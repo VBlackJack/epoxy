@@ -337,7 +337,7 @@ const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
   'signal_latch_off', 'signal_latch_on', 'turtle', 'slime', 'thief', 'thief_keys',
   'forbid_key_red', 'forbid_key_blue', 'forbid_key_yellow', 'forbid_key_green', 'forbid_boots_ice',
   'forbid_boots_water', 'forbid_boots_fire', 'forbid_boots_force', 'boots_water', 'boots_fire',
-  'boots_ice', 'boots_force', 'slow_time', 'boots_speed', 'boots_eye', 'bomb', 'score_10', 'score_100',
+  'boots_ice', 'boots_force', 'slow_time', 'boots_speed', 'boots_eye', 'boots_pull', 'bomb', 'score_10', 'score_100',
   'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
 ];
 

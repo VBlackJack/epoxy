@@ -17,6 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   findEyeBootsConfigErrors,
+  findPullBootsConfigErrors,
   findSignalConfigErrors,
   isCompiledLevelShape,
   isRuleset,
@@ -295,6 +296,24 @@ describe('underlays in config validation', () => {
   it('normalises to null when nothing is left', () => {
     expect(normalizeUnderlays([], level().terrain as string[][], 'epoxy')).toBeNull();
     expect(normalizeUnderlays([{ x: 0, y: 0, terrain: 'door_red' }], level().terrain as string[][], 'epoxy')).toBeNull();
+  });
+});
+
+describe('findPullBootsConfigErrors', () => {
+  beforeEach(() => loadTestConfigs());
+
+  it('accepts the shipped pull boots', () => {
+    const tiles = structuredClone(ConfigRegistry.getTiles().tiles);
+    expect(tiles.boots_pull.pullsBlocks).toBe(true);
+    expect(findPullBootsConfigErrors(tiles)).toEqual([]);
+  });
+
+  it('refuses a value other than true, and a carrier that is not a boot', () => {
+    const tiles = structuredClone(ConfigRegistry.getTiles().tiles);
+    const falsy = { ...tiles, boots_pull: { ...tiles.boots_pull, pullsBlocks: false } };
+    expect(findPullBootsConfigErrors(falsy)).toHaveLength(1);
+    const notBoot = { ...tiles.score_10, pullsBlocks: true };
+    expect(findPullBootsConfigErrors({ ...tiles, score_10: notBoot })).toHaveLength(1);
   });
 });
 

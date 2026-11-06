@@ -48,6 +48,8 @@ describe('isDiggyFloorFileName and isDiggyJson', () => {
     expect(isDiggyFloorFileName('floors_4295.json')).toBe(true);
     expect(isDiggyFloorFileName('FLOORS_12.JSON')).toBe(true);
     expect(isDiggyFloorFileName('custom.diggy.json')).toBe(true);
+    expect(isDiggyFloorFileName('network_capture.har')).toBe(true);
+    expect(isDiggyFloorFileName('CAPTURE.HAR')).toBe(true);
     expect(isDiggyFloorFileName('pack.json')).toBe(false);
     expect(isDiggyFloorFileName('level.xml')).toBe(false);
   });
@@ -57,6 +59,26 @@ describe('isDiggyFloorFileName and isDiggyJson', () => {
     expect(isDiggyJson({ floors: { def_id: 1, rows: 5, columns: 5 } })).toBe(true);
     expect(isDiggyJson({ location: { floor: { def_id: 1, rows: 5, columns: 5 } } })).toBe(true);
     expect(isDiggyJson({ floor_id: 100, rows: 5, columns: 5, blocked: '0_0' })).toBe(true);
+    expect(
+      isDiggyJson({
+        commands: [{ command: 'CommandSynchronize', data: { mine: { floor_id: 400, rows: 5, columns: 5 } } }]
+      })
+    ).toBe(true);
+    expect(
+      isDiggyJson({
+        log: {
+          entries: [
+            {
+              response: {
+                content: {
+                  text: JSON.stringify({ floor: { floor_id: 500, rows: 5, columns: 5 } })
+                }
+              }
+            }
+          ]
+        }
+      })
+    ).toBe(true);
     expect(isDiggyJson({ version: 1, name: 'Epoxy Pack', levels: [] })).toBe(false);
     expect(isDiggyJson({ id: 'lvl-1', number: 1, rows: ['###', '#@#', '###'] })).toBe(false);
     expect(isDiggyJson(null)).toBe(false);
@@ -231,6 +253,152 @@ describe('decodeDiggyJson', () => {
       { floorId: 1, title: 'Oversized', reason: 'bad_size' },
       { floorId: 2, title: 'Tiny Sealed', reason: 'too_few_open_cells' }
     ]);
+  });
+
+  it('translates sensor beacons into laser emitters, movable mirrors, receivers, and laser gates', () => {
+    const payload = {
+      floor: {
+        def_id: 4,
+        floor_id: 404,
+        name: 'Laser Mirror Chamber',
+        rows: 10,
+        columns: 12,
+        bg_id: 5,
+        blocked: '1_5',
+        backgrounds: {
+          background: {
+            id: 118,
+            tiles:
+              '1,1;1,2;1,3;1,4;1,5;1,6;1,7;1,8;' +
+              '2,1;2,2;2,3;2,4;2,5;2,6;2,7;2,8;' +
+              '3,1;3,2;3,3;3,4;3,5;3,6;3,7;3,8;' +
+              '4,1;4,2;4,3;4,4;4,5;4,6;4,7;4,8;' +
+              '5,1;5,2;5,3;5,4;5,5;5,6;5,7;5,8;' +
+              '6,1;6,2;6,3;6,4;6,5;6,6;6,7;6,8'
+          }
+        },
+        loot_areas: {
+          loot_area: { area_id: 1, type: 'token', min: 1, max: 1, tiles: '6,8' }
+        },
+        beacons: {
+          beacon: {
+            beacon_id: 20,
+            parts: { part: { part_id: 1, req_drag: 0, req_light: 1, activation: 'sensor', gr_clip: 'beam_receiver' } },
+            actions: { action: { tiles: '3,4', layer: 'misc', values: 0 } }
+          }
+        }
+      }
+    };
+
+    const result = decodeDiggyJson(payload, 'laser');
+    expect(result.skipped).toEqual([]);
+    expect(result.levels).toHaveLength(1);
+
+    const level = result.levels[0];
+    const flatTerrain = level.terrain.flat();
+    expect(flatTerrain.some((t) => t.startsWith('laser_emitter_'))).toBe(true);
+    expect(flatTerrain.some((t) => t.startsWith('laser_receiver_'))).toBe(true);
+    expect(flatTerrain.some((t) => t.startsWith('laser_gate_'))).toBe(true);
+    expect(level.entities.some((e) => e.type === 'mirror_slash' || e.type === 'mirror_backslash')).toBe(true);
+
+    const validation = LevelValidator.validate(level);
+    expect(validation.issues.filter((i) => i.severity === 'error' || i.severity === 'warning')).toEqual([]);
+    expect(replaySolution(level)).toBe(true);
+  });
+
+  it('translates wall-recess push beacons into boots_pull, pressure plates, and hold doors', () => {
+    const payload = {
+      floor: {
+        def_id: 5,
+        floor_id: 505,
+        name: 'Grappling Pull Vault',
+        rows: 10,
+        columns: 12,
+        bg_id: 5,
+        backgrounds: {
+          background: {
+            id: 118,
+            tiles:
+              '1,1;1,2;1,3;1,4;1,5;1,6;1,7;1,8;' +
+              '2,1;2,2;2,3;2,4;2,5;2,6;2,7;2,8;' +
+              '3,1;3,2;3,3;3,4;3,5;3,6;3,7;3,8;' +
+              '4,1;4,2;4,3;4,4;4,5;4,6;4,7;4,8;' +
+              '5,1;5,2;5,3;5,4;5,5;5,6;5,7;5,8;' +
+              '6,1;6,2;6,3;6,4;6,5;6,6;6,7;6,8'
+          }
+        },
+        loot_areas: {
+          loot_area: { area_id: 1, type: 'token', min: 1, max: 1, tiles: '5,7' }
+        },
+        beacons: {
+          beacon: {
+            beacon_id: 30,
+            parts: { part: { part_id: 1, req_drag: 500, activation: 'push', gr_clip: 'boulder_plate' } },
+            actions: { action: { tiles: '1,4', layer: 'drag', values: 0 } }
+          }
+        }
+      }
+    };
+
+    const result = decodeDiggyJson(payload, 'pull');
+    expect(result.skipped).toEqual([]);
+    expect(result.levels).toHaveLength(1);
+
+    const level = result.levels[0];
+    const flatTerrain = level.terrain.flat();
+    const flatItems = level.items.flat();
+    expect(flatItems.includes('boots_pull')).toBe(true);
+    expect(flatTerrain.some((t) => t.startsWith('pressure_plate_'))).toBe(true);
+    expect(flatTerrain.some((t) => t.startsWith('hold_door_'))).toBe(true);
+    expect(level.entities.some((e) => e.type === 'dirt_block')).toBe(true);
+
+    const validation = LevelValidator.validate(level);
+    expect(validation.issues.filter((i) => i.severity === 'error' || i.severity === 'warning')).toEqual([]);
+    expect(replaySolution(level)).toBe(true);
+  });
+
+  it('unwraps HAR network captures (plain and base64) and CommandSynchronize envelopes', () => {
+    const floorObj = {
+      floor_id: 606,
+      name: 'Captured Online Floor',
+      rows: 5,
+      columns: 5,
+      bg_id: 1,
+      blocked: '0_0;0_1;0_2;0_3;0_4;4_0;4_1;4_2;4_3;4_4'
+    };
+    const syncEnvelope = {
+      commands: [
+        {
+          command: 'CommandSynchronize',
+          data: {
+            mine: floorObj
+          }
+        }
+      ]
+    };
+    const base64Body = Buffer.from(JSON.stringify(syncEnvelope), 'utf8').toString('base64');
+    const harArchive = {
+      log: {
+        entries: [
+          {
+            request: { url: 'https://game.diggysadventure.com/miner/' },
+            response: {
+              content: {
+                mimeType: 'application/json',
+                encoding: 'base64',
+                text: base64Body
+              }
+            }
+          }
+        ]
+      }
+    };
+
+    const result = decodeDiggyJson(harArchive, 'har');
+    expect(result.skipped).toEqual([]);
+    expect(result.levels).toHaveLength(1);
+    expect(result.levels[0].customTitle).toBe('Captured Online Floor');
+    expect(replaySolution(result.levels[0])).toBe(true);
   });
 });
 

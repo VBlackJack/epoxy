@@ -833,6 +833,15 @@
       "collectible": "boot",
       "revealsHiddenWalls": true
     },
+    "boots_pull": {
+      "id": "boots_pull",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.boots_pull.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "pullsBlocks": true
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",

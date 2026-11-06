@@ -327,7 +327,7 @@
         }
       },
       "import_btn": { "action": "Importer un pack..." },
-      "import_formats": { "label": "Packs Chip's Challenge (.dat, .ccl), collections Sokoban (.xsb, .sok), niveaux Epoxy (.json), étages Diggy's Adventure (floors_*.json), niveaux Chuck's Challenge 3D (.xml)." },
+      "import_formats": { "label": "Packs Chip's Challenge (.dat, .ccl), collections Sokoban (.xsb, .sok), niveaux Epoxy (.json), étages Diggy's Adventure (floors_*.json, .har), niveaux Chuck's Challenge 3D (.xml)." },
       "export_dat_btn": { "action": "Exporter Pack (.CCL)" },
       "delete_btn": { "action": "Supprimer ce Pack" },
       "drop_overlay": { "label": "Déposez un pack ici pour l'importer" },
@@ -1636,6 +1636,7 @@
     "boots_force": { "name": "Bottes Ventouses" },
     "boots_speed": { "name": "Bottes de Vitesse", "desc": { "label": "Tant qu'on les porte, le joueur marche deux fois plus vite." } },
     "boots_eye": { "name": "Bottes de Clairvoyance", "desc": { "label": "Tant qu'on les porte, les murs cachés (murs invisibles et murs qui apparaissent) sont révélés." } },
+    "boots_pull": { "name": "Gants de Traction", "desc": { "label": "Tant qu'on les porte, s'éloigner d'un bloc à l'arrêt le tire derrière soi." } },
     "bomb": { "name": "Bombe" },
     "score_10": { "name": "Fanion Bonus (10 points)" },
     "score_100": { "name": "Fanion Bonus (100 points)" },
