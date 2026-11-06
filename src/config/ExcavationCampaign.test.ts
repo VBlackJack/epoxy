@@ -31,8 +31,6 @@ import { ConfigRegistry } from './ConfigRegistry';
 const DEFAULT_MAX_BFS_STATES = 5000;
 const BYPASS_TEST_TIMEOUT_MS = 20000;
 const MIN_SOLUTION_STEPS = 30;
-// Runs the solver on several levels and CI is slower than local, so the default 5 s limit is too tight.
-const SOLVER_PROOF_TIMEOUT_MS = 30_000;
 
 function isLevelWinnable(level: CompiledLevel, maxStates = DEFAULT_MAX_BFS_STATES): boolean {
   const engine = new GameEngine();
@@ -181,7 +179,7 @@ describe('excavation campaign pack ("Buried Sanctuaries")', () => {
     }
   });
 
-  it('proves boots_pull and puzzle entities cannot be bypassed', { timeout: SOLVER_PROOF_TIMEOUT_MS }, () => {
+  it('proves boots_pull and puzzle entities cannot be bypassed', () => {
     loadTestConfigs();
     const levels = ConfigRegistry.getExcavationLevels();
     const pullLevelIds = [
