@@ -18,7 +18,7 @@ import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, FIRE_LAUNCHERS_ACTION } fr
 import type { EntityDefinition, TileDefinition } from '../core/types';
 
 /** The sub-headings of the Mechanisms tab, in display order. */
-export type MechanismGroupId = 'buttons' | 'teleports' | 'lasers' | 'colour' | 'blocks' | 'toggles' | 'other';
+export type MechanismGroupId = 'buttons' | 'teleports' | 'lasers' | 'colour' | 'blocks' | 'toggles' | 'rails' | 'other';
 
 export interface MechanismGroup {
   id: MechanismGroupId;
@@ -33,7 +33,8 @@ export const MECHANISM_GROUPS: readonly MechanismGroup[] = [
   { id: 'lasers', labelKey: 'editor.palette.group.lasers.label' },
   { id: 'colour', labelKey: 'editor.palette.group.colour.label' },
   { id: 'blocks', labelKey: 'editor.palette.group.blocks.label' },
-  { id: 'toggles', labelKey: 'editor.palette.group.toggles.label' }
+  { id: 'toggles', labelKey: 'editor.palette.group.toggles.label' },
+  { id: 'rails', labelKey: 'editor.palette.group.rails.label' }
 ];
 
 /** The heading of the entries no rule places, shown only when such entries exist. */
@@ -70,6 +71,8 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   if (tile.buttonAction || tile.isTrap || tile.isCloneMachine) return 'buttons';
   if (tile.laserEmitter || tile.laserReceiverGroup || tile.laserGateGroup || tile.shotLauncher) return 'lasers';
   if (tile.plateColor || tile.holdDoorColor || tile.toggleChannel || tile.floatingBlockColor) return 'colour';
+  // A rail switch toggles like a wall, but it sits with the rest of the rails.
+  if (tile.railSides !== undefined) return 'rails';
   if (tile.togglesTo || tile.flameTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.facingTurn !== undefined) return 'toggles';
   if (tile.signalSource || tile.signalGate) return 'toggles';
   if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';

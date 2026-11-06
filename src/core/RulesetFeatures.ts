@@ -302,15 +302,20 @@ export function hasPocketGateContent(
   return hasTile(level.terrain) || hasTile(level.items) || (level.underlays ?? []).some((under) => isPocketGateTileId(under.terrain));
 }
 
+/** True when the tile is a rail piece (a straight, a bend or a switch), which closes the sides it is not open on. */
+export function isRailTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).railSides !== undefined;
+}
+
 /**
  * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
- * boots, the ward, a blast charge, or a pocket gate with its pad (the pad is terrain, but a DAT export would write it
- * as a plain teleporter, so it is refused with the items).
+ * boots, the ward, a blast charge, a pocket gate with its pad, or a rail piece (the pad and the rails are terrain,
+ * but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
  */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
-    isChargeTileId(id) || isPocketGateTileId(id)
+    isChargeTileId(id) || isPocketGateTileId(id) || isRailTileId(id)
   );
 }
 

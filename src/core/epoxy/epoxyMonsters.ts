@@ -28,6 +28,7 @@ import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { forceCycleArrival } from './epoxyForceCycle';
+import { followRail } from './epoxyRails';
 import { absorbMonsterContact } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
@@ -113,6 +114,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   const ny = entity.y;
   const def = ConfigRegistry.getEntityDef(entity.type);
   enterSwivel(w, nx, ny, entity.dir);
+  // A rail turns the monster to the open side it did not come in by, so a forward move follows a bend.
+  followRail(w, entity);
 
   if (w.player.x === nx && w.player.y === ny && w.player.alive) {
     // A ward destroys the monster that touches the player; the player lives.

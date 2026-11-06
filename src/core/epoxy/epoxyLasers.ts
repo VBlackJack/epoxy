@@ -74,7 +74,7 @@ function traceBeams(w: EpoxyWorld): void {
         const vec = DIRECTION_VECTORS[dir];
         const nx = x + vec.dx;
         const ny = y + vec.dy;
-        if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, x, y, nx, ny, dir)) break;
+        if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, x, y, nx, ny, dir, true)) break;
         const index = ny * width + nx;
         const tile = ConfigRegistry.getTile(w.terrain[ny][nx]);
         if (tile.laserReceiverGroup !== undefined) {

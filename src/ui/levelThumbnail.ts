@@ -97,6 +97,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
 const TILE_PREFIX_RULES: ReadonlyArray<{ prefix: string; key: string | null }> = [
   { prefix: 'thin_wall', key: 'wallTop' },
   { prefix: 'swivel_door_', key: 'wallTop' },
+  { prefix: 'rail_', key: 'wallTop' },
   { prefix: 'ice', key: 'iceBase' },
   { prefix: 'force_', key: 'forceBase' },
   { prefix: 'forbid_', key: 'forbidSign' },

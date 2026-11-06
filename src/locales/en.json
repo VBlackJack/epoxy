@@ -1381,6 +1381,7 @@
         "colour": { "label": "Colour channels" },
         "blocks": { "label": "Blocks and turrets" },
         "toggles": { "label": "Flames and toggles" },
+        "rails": { "label": "Rails" },
         "other": { "label": "Other" }
       },
       "category": {
@@ -1598,6 +1599,14 @@
     "swivel_door_se": { "name": "Swivel Door (South-East)", "desc": { "label": "Blocks its south and east sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
     "swivel_door_sw": { "name": "Swivel Door (South-West)", "desc": { "label": "Blocks its south and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
     "swivel_door_nw": { "name": "Swivel Door (North-West)", "desc": { "label": "Blocks its north and west sides. After something passes through, it turns a quarter turn so the side it came in by closes." } },
+    "rail_ns": { "name": "Straight Rail (North-South)", "desc": { "label": "Open on its north and south sides, closed on the other two. Walkers, sliders, blocks and teleport exits only get in or out through an open side. Beams and shots pass over it." } },
+    "rail_ew": { "name": "Straight Rail (East-West)", "desc": { "label": "Open on its east and west sides, closed on the other two. Walkers, sliders, blocks and teleport exits only get in or out through an open side. Beams and shots pass over it." } },
+    "rail_ne": { "name": "Bent Rail (North-East)", "desc": { "label": "Open on its north and east sides, closed on the other two. A monster that comes in follows the curve and leaves by the other open side. Beams and shots pass over it." } },
+    "rail_se": { "name": "Bent Rail (South-East)", "desc": { "label": "Open on its south and east sides, closed on the other two. A monster that comes in follows the curve and leaves by the other open side. Beams and shots pass over it." } },
+    "rail_sw": { "name": "Bent Rail (South-West)", "desc": { "label": "Open on its south and west sides, closed on the other two. A monster that comes in follows the curve and leaves by the other open side. Beams and shots pass over it." } },
+    "rail_nw": { "name": "Bent Rail (North-West)", "desc": { "label": "Open on its north and west sides, closed on the other two. A monster that comes in follows the curve and leaves by the other open side. Beams and shots pass over it." } },
+    "rail_switch_a": { "name": "Rail Switch (South-East)", "desc": { "label": "A bent rail open on its south and east sides that swaps with its twin, open on south and west, each time a green button is pressed. Needs: a green button." } },
+    "rail_switch_b": { "name": "Rail Switch (South-West)", "desc": { "label": "A bent rail open on its south and west sides that swaps with its twin, open on south and east, each time a green button is pressed. Needs: a green button." } },
     "transmogrifier": {
       "name": "Transmogrifier",
       "desc": { "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker)." }
