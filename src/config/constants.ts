@@ -131,7 +131,26 @@ export const PACK_JSON_VERSION_SIGNALS = 5;
  */
 export const PACK_JSON_VERSION_PULSE_SINKS = 6;
 
-/** Highest pack file version this build reads; a file with a higher version is refused. */
+/**
+ * Version of a pack file that holds at least one level using a tile, item or entity id introduced with format 7
+ * (see PACK_JSON_VERSION_V7_IDS). An older build would not know the ids, so it must refuse the file.
+ */
+export const PACK_JSON_VERSION_V7 = 7;
+
+/** Ids that only exist from pack format 7; matched by name in terrain, underlays, items, entities and clone templates. */
+export const PACK_JSON_VERSION_V7_IDS: ReadonlySet<string> = new Set([
+  'force_cycle',
+  'charge',
+  'charge_lit',
+  'ward',
+  'lurker_dormant',
+  'lurker'
+]);
+
+/**
+ * Highest pack file version this build reads; a file with a higher version is refused. It stays at 6 until the
+ * commit that lands the last feature lot using the version 7 ids, which raises it to PACK_JSON_VERSION_V7.
+ */
 export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_PULSE_SINKS;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
