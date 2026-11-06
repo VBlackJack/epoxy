@@ -19,7 +19,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { firstVisibleOverlayAction, overlayButtons } from './testRun';
+import { firstVisibleOverlayAction, focusAfterRating, overlayButtons } from './testRun';
 import type { OverlayState } from './testRun';
 
 const BUTTON_IDS: Record<keyof ReturnType<typeof overlayButtons>, string> = {
@@ -28,19 +28,21 @@ const BUTTON_IDS: Record<keyof ReturnType<typeof overlayButtons>, string> = {
   replay: 'overlay-btn-replay',
   undo: 'overlay-btn-undo',
   retry: 'overlay-btn-retry',
-  backToEditor: 'overlay-btn-back-to-editor'
+  backToEditor: 'overlay-btn-back-to-editor',
+  rate: 'overlay-btn-rate'
 };
 
 function focusedIdFor(
   state: OverlayState,
   testPlaying: boolean,
   canUndo: boolean,
-  touchOverlay = false
+  touchOverlay = false,
+  canRate = false
 ): string | undefined {
   const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
   const body = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1] ?? '';
   document.body.innerHTML = body.replace(/<script[\s\S]*?<\/script>/gi, '');
-  const shown = overlayButtons(state, testPlaying, canUndo, touchOverlay);
+  const shown = overlayButtons(state, testPlaying, canUndo, touchOverlay, canRate);
   for (const [key, id] of Object.entries(BUTTON_IDS)) {
     document.getElementById(id)?.classList.toggle('hidden', !shown[key as keyof typeof shown]);
   }
@@ -73,5 +75,28 @@ describe('firstVisibleOverlayAction on the shipped overlay', () => {
 
   it('puts Next first after a normal win', () => {
     expect(focusedIdFor('complete', false, false)).toBe('overlay-btn-next');
+  });
+
+  it('shows the rating button right after Next, only when a rating can be given', () => {
+    expect(focusedIdFor('complete', false, false, false, true)).toBe('overlay-btn-next');
+    const next = document.getElementById('overlay-btn-next') as HTMLElement;
+    const rate = document.getElementById('overlay-btn-rate') as HTMLElement;
+    expect(rate.classList.contains('hidden')).toBe(false);
+    expect(next.nextElementSibling).toBe(rate);
+    focusedIdFor('complete', false, false, false, false);
+    expect(document.getElementById('overlay-btn-rate')?.classList.contains('hidden')).toBe(true);
+  });
+});
+
+describe('focus after the rating form closes', () => {
+  it.each(['submit', 'skip'])('lands on Next after %s, once the rating button is hidden', () => {
+    focusedIdFor('complete', false, false, false, true);
+    const rate = document.getElementById('overlay-btn-rate') as HTMLButtonElement;
+    rate.focus();
+    expect(document.activeElement).toBe(rate);
+    focusedIdFor('complete', false, false, false, false);
+    rate.focus();
+    focusAfterRating(document.getElementById('viewport-overlay') as HTMLElement);
+    expect(document.activeElement?.id).toBe('overlay-btn-next');
   });
 });
