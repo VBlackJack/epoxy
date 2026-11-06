@@ -113,7 +113,7 @@ const LASER_SHOOTER_COVERED_REASON =
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
-  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'exit', 'sand', 'fish_extra', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
+  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'sand', 'fish_extra', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
   'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
@@ -124,6 +124,8 @@ const EXACT_KEYS: readonly string[] = [
 
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
+  force_random:
+    'Epoxy plays the CC3D random force floor as the Turning Force Floor: one counter per level, advanced by every arrival of the player, a block or a monster (boots included), pushing east, south, west, north in turn from the start. Epoxy turns every monster on arrival, where the CC3D monsters immune to force (blinky, screamer, yellow golem) are not turned; the same monster gap exists on plain force floors, so this entry is kept exact for the floor itself [unverified for monsters].',
   sand: SAND_REASON,
   fish_extra: FISH_EXTRA_REASON,
   [KEY_SOCKET_RED]: SOCKET_RED_REASON
@@ -134,7 +136,6 @@ const APPROX_ENTRIES: Record<string, string> = {
   [KEY_SOCKET_RED_STACKED]: SOCKET_RED_STACKED_REASON,
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   water: 'The ice block behaves differently on water, and a colour block floats as a walkable tile that cannot be pushed again.',
-  force_random: 'Epoxy draws the direction at random instead of a fixed cycle.',
   socket: 'Epoxy sockets only react to the player.',
   slime: 'Slime is close to the Epoxy equivalent, not identical.',
   turtle: 'Turtle behaviour is close to the Epoxy equivalent, not identical.',
