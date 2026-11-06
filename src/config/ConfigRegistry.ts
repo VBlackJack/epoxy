@@ -37,6 +37,7 @@ import {
   findSpeedBootsConfigErrors,
   findEyeBootsConfigErrors,
   findChargeConfigErrors,
+  findGateConfigErrors,
   findPullBootsConfigErrors,
   findTransmogrifierConfigErrors,
   findShotConfigErrors,
@@ -347,6 +348,10 @@ class ConfigRegistryService {
     const chargeErrors = findChargeConfigErrors(bundle.tiles.tiles);
     if (chargeErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, chargeErrors.join('; '));
+    }
+    const gateErrors = findGateConfigErrors(bundle.tiles.tiles);
+    if (gateErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, gateErrors.join('; '));
     }
     const transmogrifierErrors = findTransmogrifierConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (transmogrifierErrors.tiles.length > 0) {

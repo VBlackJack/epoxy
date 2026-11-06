@@ -412,7 +412,8 @@ function needsNoteFor(role: DeviceRole | null, rel: DeviceRelations, tile: TileD
         ? needsNote(CONNECTIONS_KEYS.needsToggleWall, tile?.togglesTo !== undefined ? GREEN_CHANNEL : tile?.toggleChannel)
         : null;
     case 'teleporter':
-      if (rel.controls.length > 0) return null;
+      // A pad meant to be paired with one the player sets down needs no partner on the map.
+      if (rel.controls.length > 0 || tile?.portableTeleporter === true) return null;
       return tile?.teleportGroup === undefined
         ? { key: CONNECTIONS_KEYS.needsTeleporterPlain }
         : needsNote(CONNECTIONS_KEYS.needsTeleporterColour, tile.teleportGroup);

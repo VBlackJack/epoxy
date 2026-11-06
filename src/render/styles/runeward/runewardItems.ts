@@ -430,6 +430,56 @@ function chargeItem(lit: boolean): ClockedDrawing {
   };
 }
 
+// ---- Pocket gate ------------------------------------------------------------------------------
+
+const GATE = {
+  /** The ring of the gate: its centre, radius and line width, as fractions of the tile. */
+  centre: [0.5, 0.58] as Point,
+  ringRadius: 0.27,
+  ringWidth: 0.09,
+  /** Half of the notch cut out of the top of the ring, in radians either side of twelve o'clock. */
+  notchHalfAngle: Math.PI / 7,
+  /** The handle tab standing in the notch. */
+  tab: { left: 0.44, top: 0.14, width: 0.12, height: 0.16 },
+  centreRadius: 0.07,
+  lineWidth: 0.03
+} as const;
+
+/** The pocket gate: the notched ring of its pad with a handle tab in the notch. */
+function paintGateItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  hover(ctx, size, art, timeMs, () => {
+    const cx = size * GATE.centre[0];
+    const cy = size * GATE.centre[1];
+    const radius = size * GATE.ringRadius;
+    const start = -Math.PI / 2 + GATE.notchHalfAngle;
+    const end = -Math.PI / 2 - GATE.notchHalfAngle + TAU;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = art.portal.ring;
+    ctx.lineWidth = plainLine(size, GATE.ringWidth);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.stroke();
+    if (art.ink) {
+      const half = (size * GATE.ringWidth) / 2;
+      for (const edge of [radius + half, radius - half]) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, edge, start, end);
+        outline(ctx, size, art, art.portal.ring, GATE.lineWidth);
+      }
+    }
+    const { tab } = GATE;
+    ctx.fillStyle = art.portal.base;
+    ctx.beginPath();
+    ctx.rect(size * tab.left, size * tab.top, size * tab.width, size * tab.height);
+    ctx.fill();
+    outline(ctx, size, art, art.portal.ring, GATE.lineWidth);
+    ctx.fillStyle = art.portal.core;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * GATE.centreRadius, 0, TAU);
+    ctx.fill();
+  });
+}
+
 // ---- Score tokens -----------------------------------------------------------------------------
 
 const COIN = {
@@ -634,6 +684,7 @@ export const ITEMS: Readonly<Record<string, RunewardItemPainter>> = {
   bomb: clocked(paintBombItem),
   charge: clocked(chargeItem(false)),
   charge_lit: clocked(chargeItem(true)),
+  pocket_gate: clocked(paintGateItem),
   score_10: clocked(scoreItem(COIN.one)),
   score_100: clocked(scoreItem(COIN.two)),
   score_1000: clocked(scoreItem(COIN.three)),

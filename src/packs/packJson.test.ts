@@ -31,7 +31,8 @@ import {
   PACK_JSON_VERSION_SIGNALS,
   PACK_JSON_VERSION_UNDERLAYS,
   PACK_JSON_VERSION_V7,
-  PACK_JSON_VERSION_V7_IDS
+  PACK_JSON_VERSION_V7_IDS,
+  PACK_JSON_VERSION_V8
 } from '../config/constants';
 import { usesPulseSinkFormat, usesV7Ids } from '../core/signalLinks';
 import { CompiledLevel } from '../core/types';
@@ -213,12 +214,12 @@ describe('packJson', () => {
     expect(serializePack('N', [plateToDoor])).toBe(
       JSON.stringify({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_SIGNALS, name: 'N', levels: [plateToDoor] }, null, 2)
     );
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V7);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V8);
     // The check reads the shipped ids by name, so it holds without a tile lookup.
     expect(usesPulseSinkFormat(pulse, null)).toBe(true);
     expect(usesPulseSinkFormat(edgeSink, null)).toBe(true);
     expect(usesPulseSinkFormat(plateToDoor, null)).toBe(false);
-    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS, PACK_JSON_VERSION_V7]) {
+    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS, PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8]) {
       const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
       expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
     }
@@ -365,14 +366,16 @@ describe('pack format 7 id gate', () => {
     expect(version([cc3d])).toBe(PACK_JSON_VERSION);
   });
 
-  it('reads version 7 and refuses version 8', () => {
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V7);
+  it('reads versions 7 and 8 and refuses version 9', () => {
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V8);
+    const sevenFile = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V7, name: 'x', levels: [makeLevel('a')] };
+    expect(parse(JSON.stringify(sevenFile))).toMatchObject({ ok: true });
     const level = makeLevel('t');
     level.items[1][1] = 'charge';
     const written = parse(serializePack('N', [level]));
     expect(written).toMatchObject({ ok: true });
     if (written.ok) expect(written.levels[0].items[1][1]).toBe('charge');
-    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V7 + 1, name: 'x', levels: [level] };
+    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V8 + 1, name: 'x', levels: [level] };
     expect(parse(JSON.stringify(future))).toEqual({ ok: false, error: 'version' });
   });
 

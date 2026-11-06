@@ -1446,6 +1446,29 @@ export function findChargeConfigErrors(tiles: Record<string, TileDefinition>): s
   return errors;
 }
 
+/**
+ * Problems of the pocket gate fields: a gate (collectible "gate") names the terrain it turns the floor into, which
+ * must be a teleporter flagged portableTeleporter; only a gate names such a terrain, and the flag is for teleporters
+ * only. Each entry names the tile.
+ */
+export function findGateConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.collectible === 'gate') {
+      const pad = typeof tile.dropsAsTerrain === 'string' ? tiles[tile.dropsAsTerrain] : undefined;
+      if (pad?.portableTeleporter !== true || pad.isTeleporter !== true || pad.layer !== 'terrain') {
+        errors.push(`${tile.id}.dropsAsTerrain: expected the id of a terrain teleporter flagged portableTeleporter`);
+      }
+    } else if (tile.dropsAsTerrain !== undefined) {
+      errors.push(`${tile.id}.dropsAsTerrain: only a pocket gate (collectible "gate") may name the terrain it drops as`);
+    }
+    if (tile.portableTeleporter === undefined) continue;
+    if (tile.portableTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: expected true`);
+    if (tile.isTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: only a teleporter can be portable`);
+  }
+  return errors;
+}
+
 /** Problems of the revealsHiddenWalls field: true when present, carried by boots only. Each entry names the tile. */
 export function findEyeBootsConfigErrors(tiles: Record<string, TileDefinition>): string[] {
   const errors: string[] = [];

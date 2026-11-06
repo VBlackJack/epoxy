@@ -78,6 +78,11 @@ item theme=cyber_neon id=charge_lit 74e531910305c12e
 item theme=arctic_lab id=charge_lit 79983e03393c34e9
 item theme=magma_core id=charge_lit ff64df4b346ba262
 item theme=lynx_lcd id=charge_lit 4343d2face0f7787
+item theme=default id=pocket_gate c03ec22a62676c13
+item theme=cyber_neon id=pocket_gate 865b4df933f30161
+item theme=arctic_lab id=pocket_gate 1c93ead336397d0f
+item theme=magma_core id=pocket_gate 6009522f1bfd2a69
+item theme=lynx_lcd id=pocket_gate 249891fcdb77e153
 item theme=default id=bomb fb0d51cbc2bb84ae
 item theme=cyber_neon id=bomb 2043ce0469ba83ff
 item theme=arctic_lab id=bomb b24ce8e6eddf1738

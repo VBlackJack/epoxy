@@ -1060,9 +1060,11 @@ export interface TileDefinition {
   requiredKey?: string;
   consumesKey?: boolean;
   colorKey?: string;
-  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge';
+  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge' | 'gate';
   /** A blast charge: the lit item it turns into when the player drops it. */
   dropsAs?: string;
+  /** A pocket gate: the terrain tile it turns the player's floor cell into when dropped. */
+  dropsAsTerrain?: string;
   /** A lit blast charge: set on the item a dropped charge becomes, which blocks nothing and cannot be picked up. */
   litCharge?: boolean;
   /** Points added to the score when the item is picked up. */
@@ -1094,6 +1096,8 @@ export interface TileDefinition {
   isTeleporter?: boolean;
   /** Teleporters chain only within their group; ungrouped teleporters form one network. */
   teleportGroup?: string;
+  /** A teleporter the player set down: it links with the other such pads found on the terrain at the moment of the jump. */
+  portableTeleporter?: boolean;
   isTrap?: boolean;
   isCloneMachine?: boolean;
   /** Whether a laser beam passes through the cell; every tile declares it. */
@@ -1644,7 +1648,7 @@ export interface CompiledLevel {
   blockBudget?: BlockBudget;
   /** Theme shown when the player lets the level choose; see game.json themes. */
   theme?: string;
-  /** A proven winning action list (N, E, S, W, '.' to wait, X to drop a blast charge), for the solution replay. */
+  /** A proven winning action list (N, E, S, W, '.' to wait, X to drop a blast charge, G to set down a pocket gate), for the solution replay. */
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
   winRule?: WinRule;

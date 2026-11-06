@@ -56,6 +56,8 @@ import {
  * toggled walls, filled water); the loop stops earlier once a pass changes nothing.
  */
 const MAX_FIXPOINT_PASSES = 60;
+/** Pocket pads it takes to make a link: gates reached plus pads the level places. */
+const MIN_POCKET_PADS = 2;
 /** Blocks assumed available from a reachable cloner button that clones a block. */
 const CLONER_BLOCK_ALLOWANCE = 10;
 
@@ -470,12 +472,16 @@ export class LevelValidator {
     const swimProtection = ConfigRegistry.getTile('water').protectedByItem;
 
     const teleporters: GridPoint[] = [];
+    // The pocket pads the level places itself: pads the player sets down join them, so they are listed apart.
+    const placedPads: GridPoint[] = [];
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
         if (ConfigRegistry.getTile(level.terrain[ty][tx]).isTeleporter) teleporters.push({ x: tx, y: ty });
+        if (ConfigRegistry.getTile(level.terrain[ty][tx]).portableTeleporter === true) placedPads.push({ x: tx, y: ty });
         // A teleporter hidden under a removable top joins its group once the top is gone (checked at use).
         const hiddenId = underlays?.get(ty * width + tx);
         if (hiddenId !== undefined && ConfigRegistry.getTile(hiddenId).isTeleporter) teleporters.push({ x: tx, y: ty });
+        if (hiddenId !== undefined && ConfigRegistry.getTile(hiddenId).portableTeleporter === true) placedPads.push({ x: tx, y: ty });
       }
     }
 
@@ -573,6 +579,11 @@ export class LevelValidator {
 
       const appliedKeyThieves = new Set<string>();
 
+      // Pocket gates the walk has picked up. A pad may be set down on any cell the walk reaches, and the pads link only
+      // with each other, so once gates and placed pads can make a pair the walk over-approximates: every reached cell
+      // and every placed pad link with each other (see linkPocketPads). Kept across passes: the item is gone from the grid by then.
+      let gateCount = 0;
+
       // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
       this.applySignalSinks(level, blockTypes, stockBlocks, simItems);
 
@@ -622,6 +633,10 @@ export class LevelValidator {
             ownedKeys[item] = (ownedKeys[item] || 0) + 1;
             simItems[cy][cx] = null;
             changed = true;
+          } else if (itemDef.collectible === 'gate') {
+            gateCount++;
+            simItems[cy][cx] = null;
+            changed = true;
           } else if (itemDef.collectible === 'boot') {
             return boots | (bootBits.get(item) ?? NO_BOOTS);
           }
@@ -646,7 +661,28 @@ export class LevelValidator {
         }
         enqueue(sx, sy, NO_BOOTS);
 
-        for (let head = 0; head < queue.length; head++) {
+        /**
+         * Links the pocket pads once the gates reached and the placed pads can make a pair: every reached cell may hold
+         * a pad, so each such cell and each placed pad is reached with every boots state seen on any of them. Done
+         * whenever the queue runs dry, so the order the cells were reached in does not matter. True when it queued states.
+         */
+        const linkPocketPads = (): boolean => {
+          if (gateCount === 0 || gateCount + placedPads.length < MIN_POCKET_PADS) return false;
+          const known = queue.length;
+          const masks = new Set<number>();
+          const locations = new Map<number, GridPoint>();
+          for (let i = 0; i < known; i++) {
+            masks.add(queue[i].boots);
+            locations.set(queue[i].y * width + queue[i].x, queue[i]);
+          }
+          for (const pad of placedPads) locations.set(pad.y * width + pad.x, pad);
+          for (const location of locations.values()) {
+            for (const mask of masks) enqueue(location.x, location.y, mask);
+          }
+          return queue.length > known;
+        };
+
+        for (let head = 0; head < queue.length || linkPocketPads(); head++) {
           // A walk that outruns its step limit is cut off and discarded by the caller.
           if (++work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
           if (meter) meter.cells++;
@@ -1665,6 +1701,14 @@ export class LevelValidator {
     const plateCells: GridPoint[] = [];
     const gateCellsByGroup = new Map<string, GridPoint[]>();
     const teleportCellsByGroup = new Map<string, GridPoint[]>();
+    const portableGroups = new Set<string>();
+    const gateCells: GridPoint[] = [];
+    level.items.forEach((row, y) =>
+      row.forEach((id, x) => {
+        if (id !== null && ConfigRegistry.getTile(id).collectible === 'gate') gateCells.push({ x, y });
+      })
+    );
+    const hasGate = gateCells.length > 0;
     const receiverGroups = new Set<string>();
     let brownButtons = 0;
     let orangeButtons = 0;
@@ -1682,6 +1726,7 @@ export class LevelValidator {
           if (tile.isTeleporter) {
             const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
             teleportCellsByGroup.set(group, [...(teleportCellsByGroup.get(group) ?? []), { x, y }]);
+            if (tile.portableTeleporter === true) portableGroups.add(group);
           }
           if (tile.laserGateGroup !== undefined) {
             gateCellsByGroup.set(tile.laserGateGroup, [...(gateCellsByGroup.get(tile.laserGateGroup) ?? []), { x, y }]);
@@ -1695,10 +1740,17 @@ export class LevelValidator {
     if (trapCells.length > 0 && brownButtons === 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.trap_no_button.label', params: this.locationParams(trapCells) });
     }
+    // Pocket pads link only with each other: gates and placed pads that cannot make a pair lead nowhere.
+    const placedPadCount = teleportCellsByGroup.size === 0 ? 0 : [...portableGroups].reduce((n, g) => n + (teleportCellsByGroup.get(g)?.length ?? 0), 0);
+    if (hasGate && gateCells.length + placedPadCount < MIN_POCKET_PADS) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.gate_no_pair.label', params: this.locationParams(gateCells) });
+    }
     for (const [group, cells] of teleportCellsByGroup) {
       if (cells.length !== 1) continue;
+      // A single placed pad is the other end of a pad the player sets down, when the level gives a gate.
+      if (portableGroups.has(group) && hasGate) continue;
       issues.push(
-        group === DEFAULT_TELEPORT_GROUP
+        group === DEFAULT_TELEPORT_GROUP || portableGroups.has(group)
           ? { severity: 'warning', i18nKey: 'validator.issues.teleport_alone_plain.label', params: this.locationParams(cells) }
           : {
               severity: 'warning',

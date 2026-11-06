@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Pocket Gate: carry a teleporter pad and set it down where you want; pads you set down link with each other (Epoxy rules). Pack format 8.
+
 ### Changed
 
 - Playtest: the level rating opens from a button in the level-complete panel instead of by itself.

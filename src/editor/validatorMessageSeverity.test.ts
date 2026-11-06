@@ -42,7 +42,7 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
   steering_pad_no_puppet: WARN, puppet_no_steering_pad: WARN, puppet_no_steering_pad_nowhere: WARN, lurker_not_on_floor: WARN,
   shot_trigger_no_link: WARN, shot_launcher_unlinked: WARN, shot_launcher_faces_wall: WARN,
   trap_button_no_trap: INFO, clone_button_nothing: INFO,
-  trap_no_button: INFO, teleport_alone: WARN, teleport_alone_plain: WARN, laser_gate_no_receiver: WARN,
+  trap_no_button: INFO, teleport_alone: WARN, teleport_alone_plain: WARN, gate_no_pair: WARN, laser_gate_no_receiver: WARN,
   flame_jets_no_button: INFO, swivel_sealed: INFO, arrow_block_locked: INFO, turn_plate_idle: INFO,
   signal_sink_inputs: ERR, signal_colour_mixed: ERR, signal_not_inputs: ERR, signal_gate_no_input: ERR,
   signal_cycle: ERR, signal_link_dangling: WARN, signal_source_unlinked: WARN,

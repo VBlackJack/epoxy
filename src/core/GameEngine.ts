@@ -21,6 +21,7 @@ import {
   BLOCK_TARGET_TILE_ID,
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
+  FLOOR_TILE_ID,
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
   SWIVEL_ENTRY_KEY_PREFIX,
@@ -62,6 +63,7 @@ import {
   getEntityAt,
   holdsItem,
   isCellClosedTrap,
+  isCovered,
   killPlayer,
   mapHeight,
   mapWidth,
@@ -380,7 +382,7 @@ export class GameEngine {
     const held: string[] = [];
     for (const id of Object.keys(ConfigRegistry.getTiles().tiles)) {
       const def = ConfigRegistry.getTile(id);
-      if ((def.collectible === 'key' || def.collectible === 'charge') && (this.w.player.keys[id] || 0) > 0) held.push(id);
+      if ((def.collectible === 'key' || def.collectible === 'charge' || def.collectible === 'gate') && (this.w.player.keys[id] || 0) > 0) held.push(id);
       else if (def.collectible === 'boot' && this.w.player.boots.has(id)) held.push(id);
     }
     return held;
@@ -395,7 +397,8 @@ export class GameEngine {
    * Puts a held key or pair of boots down on the player's cell. The cell must
    * hold no item; the drop does not pick the item up again, since pickups only
    * happen on entering a cell. A held blast charge goes down lit instead, and
-   * blasts when its fuse has run out. Returns false when nothing was dropped.
+   * blasts when its fuse has run out; a held pocket gate becomes a teleporter
+   * pad on a plain floor cell. Returns false when nothing was dropped.
    */
   public dropItem(itemId: string | null): boolean {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
@@ -417,9 +420,16 @@ export class GameEngine {
       return false;
     }
 
-    this.saveUndoSnapshot();
     const def = ConfigRegistry.getTile(itemId);
-    if (def.collectible === 'key' || def.collectible === 'charge') {
+    // A pocket gate is set down as a pad on plain floor only: no other terrain, and nothing hidden under the floor.
+    if (def.collectible === 'gate' && (this.w.terrain[y][x] !== FLOOR_TILE_ID || isCovered(this.w, x, y))) {
+      this.w.statusBannerKey = 'hud.messages.drop_not_floor';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+
+    this.saveUndoSnapshot();
+    if (def.collectible === 'key' || def.collectible === 'charge' || def.collectible === 'gate') {
       const left = (this.w.player.keys[itemId] || 0) - 1;
       if (left > 0) {
         this.w.player.keys[itemId] = left;
@@ -431,6 +441,9 @@ export class GameEngine {
     }
     if (def.collectible === 'charge') {
       lightCharge(this.w, x, y, def.dropsAs as string, this.ticksElapsed, ConfigRegistry.getGame().timing.chargeFuseTicks);
+    } else if (def.collectible === 'gate') {
+      // The pad stays for good; the player stands on it and does not jump, since a jump happens on arrival only.
+      this.w.terrain[y][x] = def.dropsAsTerrain as string;
     } else {
       this.w.items[y][x] = itemId;
     }

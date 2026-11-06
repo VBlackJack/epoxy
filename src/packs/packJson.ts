@@ -22,7 +22,6 @@ import {
   PACK_JSON_VERSION_LAUNCHERS,
   PACK_JSON_VERSION_PULSE_SINKS,
   PACK_JSON_VERSION_SIGNALS,
-  PACK_JSON_VERSION_V7,
   PACK_JSON_VERSION_UNDERLAYS
 } from '../config/constants';
 import {
@@ -32,7 +31,7 @@ import {
   sanitizeStoredLevels
 } from '../config/ConfigValidation';
 import { cellEdgeMask } from '../core/EdgeRules';
-import { usesPulseSinkFormat, usesV7Ids } from '../core/signalLinks';
+import { idSetVersionOf, usesPulseSinkFormat } from '../core/signalLinks';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { underlayMap } from '../core/Underlays';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
@@ -62,7 +61,8 @@ export interface PackJsonFile {
 
 /** The lowest version that carries what the levels hold: the highest feature present decides. */
 function packFileVersion(levels: readonly CompiledLevel[]): number {
-  if (levels.some((level) => usesV7Ids(level))) return PACK_JSON_VERSION_V7;
+  const idSetVersion = levels.reduce((highest, level) => Math.max(highest, idSetVersionOf(level)), 0);
+  if (idSetVersion > 0) return idSetVersion;
   if (levels.some((level) => usesPulseSinkFormat(level))) return PACK_JSON_VERSION_PULSE_SINKS;
   if (levels.some((level) => (level.signalLinks?.length ?? 0) > 0)) return PACK_JSON_VERSION_SIGNALS;
   if (levels.some((level) => (level.launcherLinks?.length ?? 0) > 0)) return PACK_JSON_VERSION_LAUNCHERS;

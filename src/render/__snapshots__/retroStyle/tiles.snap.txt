@@ -393,6 +393,11 @@ tile theme=cyber_neon id=charge_lit 1d7adf916b965063
 tile theme=arctic_lab id=charge_lit 3f98e33d02aa0141
 tile theme=magma_core id=charge_lit e1320823d68bd298
 tile theme=lynx_lcd id=charge_lit 3b2ee8a453980c93
+tile theme=default id=pocket_gate c11be78ba43f0482
+tile theme=cyber_neon id=pocket_gate 452652f8fb8e5d46
+tile theme=arctic_lab id=pocket_gate a5f242a4573cc8ed
+tile theme=magma_core id=pocket_gate a99daa5bf8a0c2af
+tile theme=lynx_lcd id=pocket_gate abf3fcc9329001a5
 tile theme=default id=bomb 7cb427a2958d2d1d
 tile theme=cyber_neon id=bomb 9e1297537687ba52
 tile theme=arctic_lab id=bomb 20a774d30ad2894e
@@ -508,6 +513,11 @@ tile theme=cyber_neon id=teleport_green 04a4b0d218d546de
 tile theme=arctic_lab id=teleport_green 2433772537461022
 tile theme=magma_core id=teleport_green 4eae5c4421c07c96
 tile theme=lynx_lcd id=teleport_green e8ee43bc1218338b
+tile theme=default id=pocket_gate_pad 8fcdb239bc2cc887
+tile theme=cyber_neon id=pocket_gate_pad 1bc36e8919554554
+tile theme=arctic_lab id=pocket_gate_pad df8ac6cc6193ad96
+tile theme=magma_core id=pocket_gate_pad 5567a832b066d11b
+tile theme=lynx_lcd id=pocket_gate_pad a5cecb39c5b96bc3
 tile theme=default id=trap f752e1516d187200
 tile theme=cyber_neon id=trap 2548589391682a76
 tile theme=arctic_lab id=trap c9d8a9ac04ecc562

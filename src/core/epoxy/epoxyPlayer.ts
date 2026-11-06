@@ -266,7 +266,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
       AudioManager.playSfx('chip');
       ctx.emitVisual('chip', x, y, 'green');
-    } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge') {
+    } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
       AudioManager.playSfx('item');
@@ -292,8 +292,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     AudioManager.playSfx('thief');
   }
 
-  // A blast charge is not a key: the thief leaves it in the pocket.
-  const isKey = (id: string): boolean => ConfigRegistry.getTile(id).collectible !== 'charge';
+  // Only keys are stolen: a blast charge or a pocket gate stays in the pocket.
+  const isKey = (id: string): boolean => ConfigRegistry.getTile(id).collectible === 'key';
   if (tile.stealsKeys && Object.entries(w.player.keys).some(([id, count]) => count > 0 && isKey(id))) {
     w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isKey(id)));
     w.statusBannerKey = 'hud.messages.thief_stole_keys';

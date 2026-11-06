@@ -22,7 +22,7 @@ import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
-import { CHARGE_ITEM_ID } from './core/coreConstants';
+import { CHARGE_ITEM_ID, GATE_ITEM_ID } from './core/coreConstants';
 import { bootsRevealHiddenWalls, featuresFor, isEpoxyOnlyItemId } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
@@ -194,6 +194,11 @@ const PULL_BOOTS_ITEM_ID = 'boots_pull';
 const WARD_ITEM_ID = 'ward';
 /** Boots slots shown on every level; more slots (Epoxy-only boots placed) widen the grid. */
 const BASE_BOOT_SLOT_COUNT = 4;
+/** Phone strip buttons that drop a counted item: the id of the button and of the item it puts down. */
+const DROP_BUTTONS: ReadonlyArray<{ buttonId: string; itemId: string }> = [
+  { buttonId: 'touch-btn-charge', itemId: CHARGE_ITEM_ID },
+  { buttonId: 'touch-btn-gate', itemId: GATE_ITEM_ID }
+];
 /** CSS variable that carries the number of columns of the boots grid. */
 const BOOT_GRID_COLUMNS_VAR = '--inv-columns';
 
@@ -325,8 +330,8 @@ class EpoxyApplication {
   private inventoryLabelsLocale: string = '';
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
-  /** The boots slots, then the blast charge, a counted item that shares their grid. */
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID, CHARGE_ITEM_ID];
+  /** The boots slots, then the blast charge and the pocket gate, counted items that share their grid. */
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID, CHARGE_ITEM_ID, GATE_ITEM_ID];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
   private epoxyBootsLevel: unknown = null;
@@ -3261,10 +3266,12 @@ class EpoxyApplication {
       this.triggerHaptic();
       this.undoMove();
     });
-    byId('touch-btn-charge')?.addEventListener('click', () => {
-      this.triggerHaptic();
-      this.dropHudItem(CHARGE_ITEM_ID);
-    });
+    for (const { buttonId, itemId } of DROP_BUTTONS) {
+      byId(buttonId)?.addEventListener('click', () => {
+        this.triggerHaptic();
+        this.dropHudItem(itemId);
+      });
+    }
     byId('touch-btn-menu')?.addEventListener('click', (e) => {
       this.triggerHaptic();
       this.setDrawerOpen(true, e.currentTarget as HTMLElement);
@@ -3628,23 +3635,31 @@ class EpoxyApplication {
     return this.epoxyBootsPlaced;
   }
 
-  /** True for an inventory entry held as a count (the blast charge) rather than as keys or boots. */
+  /** True for an inventory entry held as a count (the blast charge, the pocket gate) rather than as keys or boots. */
   private isCountedItem(itemId: string): boolean {
-    return ConfigRegistry.getTile(itemId).collectible === 'charge';
+    const collectible = ConfigRegistry.getTile(itemId).collectible;
+    return collectible === 'charge' || collectible === 'gate';
   }
 
-  /** Shows the phone strip's drop button on a level that places a blast charge, enabled while one is held. */
-  private updateChargeButton(): void {
-    const button = byId<HTMLButtonElement>('touch-btn-charge');
-    if (!button) return;
-    const levelHasCharge = this.placedEpoxyBoots().has(CHARGE_ITEM_ID);
-    button.classList.toggle('hidden', !levelHasCharge);
-    document.body.classList.toggle('charge-button-visible', levelHasCharge);
-    button.disabled = !this.engine.holdsItem(CHARGE_ITEM_ID);
+  /**
+   * Shows the phone strip's drop button of each counted item the level places (a blast charge, a pocket gate),
+   * enabled while one is held. Any such button wraps the strip onto a second row, which the HUD makes room for.
+   */
+  private updateDropButtons(): void {
+    let anyVisible = false;
+    for (const { buttonId, itemId } of DROP_BUTTONS) {
+      const button = byId<HTMLButtonElement>(buttonId);
+      if (!button) continue;
+      const levelHasItem = this.placedEpoxyBoots().has(itemId);
+      button.classList.toggle('hidden', !levelHasItem);
+      button.disabled = !this.engine.holdsItem(itemId);
+      anyVisible = anyVisible || levelHasItem;
+    }
+    document.body.classList.toggle('charge-button-visible', anyVisible);
   }
 
   private updateInventory(): void {
-    this.updateChargeButton();
+    this.updateDropButtons();
     const player = this.engine.getPlayer();
     const selected = this.resolveSelectedItem();
     this.keyIds.forEach((kId, i) => {
