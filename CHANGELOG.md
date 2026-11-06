@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Level editor: signal links can be removed with the Unlink button in the Connections panel.
+
 ## [2.21.0] - 2026-11-06
 
 ### Added

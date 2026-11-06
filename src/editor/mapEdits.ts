@@ -376,6 +376,17 @@ export function removeLauncherLink(
 }
 
 /**
+ * Removes the one signal link from the output cell to the input cell, as one edit on a copy. Unchanged (same map)
+ * when the link is absent or the map is a CC3D room.
+ */
+export function removeSignalLink(source: EditorMap, from: { x: number; y: number }, to: { x: number; y: number }): MapEditResult {
+  if (source.cc3d || !hasSignalLink(source, from, to)) return unchanged(source);
+  const map = cloneMap(source);
+  dropSignalPair(map, from, to);
+  return { map, changed: true, removedLinks: 1, removedUnderlays: 0, playerStartKept: false };
+}
+
+/**
  * The mechanisms a link session works: brown button to trap, red button to clone machine, shot trigger to launcher,
  * and signal output (plate, receiver or gate) to signal input (gate or hold door).
  */

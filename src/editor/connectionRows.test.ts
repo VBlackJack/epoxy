@@ -367,13 +367,13 @@ describe('connectionRows for signals', () => {
     { signalLinks: [{ fromX: 1, fromY: 1, toX: 3, toY: 1 }, { fromX: 3, fromY: 1, toX: 5, toY: 1 }] }
   );
 
-  it('lists the signal partners of a gate on both sides, with no Unlink', () => {
+  it('lists the signal partners of a gate on both sides, each with an Unlink', () => {
     const view = connectionRows(level, 3, 1);
     expect(view.controlledBy?.rows).toEqual([
-      { x: 1, y: 1, kind: 'link', system: 'signal', fallback: false, name: { key: ROLE_NAME_KEYS.signal_source }, unlink: null }
+      { x: 1, y: 1, kind: 'link', system: 'signal', fallback: false, name: { key: ROLE_NAME_KEYS.signal_source }, unlink: { system: 'signal', button: { x: 1, y: 1 }, target: { x: 3, y: 1 } } }
     ]);
     expect(view.controls?.rows).toEqual([
-      { x: 5, y: 1, kind: 'link', system: 'signal', fallback: false, name: { key: ROLE_NAME_KEYS.hold_door }, unlink: null }
+      { x: 5, y: 1, kind: 'link', system: 'signal', fallback: false, name: { key: ROLE_NAME_KEYS.hold_door }, unlink: { system: 'signal', button: { x: 3, y: 1 }, target: { x: 5, y: 1 } } }
     ]);
   });
 

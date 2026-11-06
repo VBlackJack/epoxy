@@ -76,6 +76,7 @@ function room(
     trapLinks?: TrapLink[];
     cloneLinks?: CompiledLevel['cloneLinks'];
     launcherLinks?: LauncherLink[];
+    signalLinks?: CompiledLevel['signalLinks'];
     entities?: CompiledLevel['entities'];
     underlays?: CompiledLevel['underlays'];
     ruleset?: CompiledLevel['ruleset'];
@@ -101,6 +102,7 @@ function room(
     trapLinks: extra.trapLinks ?? [],
     cloneLinks: extra.cloneLinks ?? [],
     ...(extra.launcherLinks ? { launcherLinks: extra.launcherLinks } : {}),
+    ...(extra.signalLinks ? { signalLinks: extra.signalLinks } : {}),
     ...(extra.underlays ? { underlays: extra.underlays } : {})
   };
 }
@@ -536,6 +538,41 @@ describe('Unlink', () => {
     expect(levelNow().cloneLinks).toEqual([]);
     expect(status()).toContain(t('editor.connections.unlink.suffix_clone_none'));
     expect(status()).not.toContain(t('editor.connections.unlink.suffix_clone'));
+  });
+
+  describe('a signal link', () => {
+    const PLATE = { x: 2, y: 2 };
+    const AND = { x: 4, y: 2 };
+    const link = { fromX: PLATE.x, fromY: PLATE.y, toX: AND.x, toY: AND.y };
+    const load = (): void => {
+      editor.loadCompiledLevel(
+        room(
+          [
+            { ...PLATE, tile: 'signal_plate' },
+            { ...AND, tile: 'signal_gate_and' }
+          ],
+          { signalLinks: [link] }
+        )
+      );
+    };
+
+    it('unlinks from the output row, as one undo step', () => {
+      load();
+      cursorTo(PLATE);
+      unlinkButtonOf(controlRows()[0]).click();
+      expect(levelNow().signalLinks).toBeUndefined();
+      editor.undo();
+      expect(levelNow().signalLinks).toEqual([link]);
+    });
+
+    it('unlinks from the input row, as one undo step', () => {
+      load();
+      cursorTo(AND);
+      unlinkButtonOf(controlledRows()[0]).click();
+      expect(levelNow().signalLinks).toBeUndefined();
+      editor.undo();
+      expect(levelNow().signalLinks).toEqual([link]);
+    });
   });
 
   it('unlinks a launcher from the launcher end, as one undo step', () => {
