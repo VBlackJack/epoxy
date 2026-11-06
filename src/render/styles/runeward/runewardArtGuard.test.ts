@@ -24,6 +24,15 @@ import { isRunewardArtValid, validRunewardArt } from './runewardArtGuard';
 
 const BAD_COLOUR = 'not-a-colour';
 
+/** Sections of the art config that hold the colours of blocks, monsters, devices, items, signals and marks. */
+const OBJECT_SECTIONS: readonly string[] = ['block', 'mirror', 'monster', 'device', 'item', 'signal', 'mark'];
+
+/** Monster types (and the shot) that carry their own colours. */
+const MONSTER_TYPES: readonly string[] = [
+  'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'puppet',
+  'skitter', 'shot'
+];
+
 function freshArt(): RunewardArtConfig {
   return structuredClone(ConfigRegistry.getGame().runewardArt) as RunewardArtConfig;
 }
@@ -48,7 +57,7 @@ describe('Runeward art guard', () => {
   });
 
   it('refuses a missing sub-object without throwing', () => {
-    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'seal', 'exit', 'water', 'lava', 'mage', 'keys', 'door', 'gate', 'plate', 'rune', 'trap', 'portal', 'ice', 'force', 'animation']) {
+    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'seal', 'exit', 'water', 'lava', 'mage', 'keys', 'door', 'gate', 'plate', 'rune', 'trap', 'portal', 'ice', 'force', 'animation', ...OBJECT_SECTIONS]) {
       const art = freshArt() as unknown as Record<string, unknown>;
       delete art[section];
       expect(validRunewardArt(art)).toBeNull();
@@ -100,6 +109,63 @@ describe('Runeward art guard', () => {
     const notObject = parchmentArt() as unknown as { ink: unknown };
     notObject.ink = 'ink';
     expect(validRunewardArt(notObject)).toBeNull();
+  });
+
+  it('refuses an art block missing one of the object sections, in both variants', () => {
+    for (const section of OBJECT_SECTIONS) {
+      for (const make of [freshArt, parchmentArt]) {
+        const art = make() as unknown as Record<string, unknown>;
+        delete art[section];
+        expect(validRunewardArt(art), section).toBeNull();
+      }
+    }
+  });
+
+  it('refuses a bad colour in each object section, in both variants', () => {
+    const leaves: readonly (readonly string[])[] = [
+      ['block', 'dirt', 'base'], ['block', 'arrow', 'glyph'], ['block', 'colour', 'green', 'edge'],
+      ['mirror', 'frame', 'edge'], ['mirror', 'glassLight'],
+      ['device', 'thinWall', 'dark'], ['device', 'flameJet', 'core'], ['device', 'laserChannel', 'blue', 'light'],
+      ['item', 'boots', 'eye', 'main'], ['item', 'stopwatch', 'penalty'], ['item', 'forbid', 'slash'],
+      ['signal', 'lit'], ['mark', 'hint', 'glow'], ['mark', 'button', 'gray', 'light']
+    ];
+    for (const make of [freshArt, parchmentArt]) {
+      for (const path of leaves) {
+        const art = make();
+        let node = art as unknown as Record<string, unknown>;
+        for (const key of path.slice(0, -1)) node = node[key] as Record<string, unknown>;
+        node[path[path.length - 1]] = BAD_COLOUR;
+        expect(validRunewardArt(art), path.join('.')).toBeNull();
+      }
+    }
+  });
+
+  it('refuses a monster type without colours and a bad monster colour', () => {
+    expect(MONSTER_TYPES).toHaveLength(12);
+    for (const type of MONSTER_TYPES) {
+      for (const make of [freshArt, parchmentArt]) {
+        const missing = make();
+        delete (missing.monster as unknown as Record<string, unknown>)[type];
+        expect(validRunewardArt(missing), type).toBeNull();
+        const bad = make();
+        bad.monster[type as keyof typeof bad.monster].eye = BAD_COLOUR;
+        expect(validRunewardArt(bad), type).toBeNull();
+      }
+    }
+  });
+
+  it('refuses a monster step that is not above zero', () => {
+    for (const make of [freshArt, parchmentArt]) {
+      expect(isRunewardArtValid(make())).toBe(true);
+      for (const step of [0, -1, Number.NaN, 'slow']) {
+        const art = make();
+        (art.animation as { monsterStepMs: unknown }).monsterStepMs = step;
+        expect(validRunewardArt(art), String(step)).toBeNull();
+      }
+      const missing = make();
+      delete (missing.animation as unknown as Record<string, unknown>).monsterStepMs;
+      expect(validRunewardArt(missing)).toBeNull();
+    }
   });
 
   it('remembers its verdict per config object', () => {

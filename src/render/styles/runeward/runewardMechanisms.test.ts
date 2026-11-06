@@ -82,7 +82,7 @@ function parchmentArt(): RunewardArtConfig {
 }
 
 function envOf(art: RunewardArtConfig, timeTick: number, reducedMotion: boolean): RunewardPaintEnv {
-  return { timeTick, reducedMotion, cache: new Map(), art };
+  return { timeTick, signalPowered: false, reducedMotion, cache: new Map(), art };
 }
 
 function itemLog(id: string, art: RunewardArtConfig, timeTick: number, reducedMotion: boolean): string[] {

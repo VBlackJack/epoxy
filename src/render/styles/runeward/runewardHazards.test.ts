@@ -102,7 +102,7 @@ const VARIANTS = [
 ] as const;
 
 function envOf(art: RunewardArtConfig, timeTick: number, reducedMotion: boolean): RunewardPaintEnv {
-  return { timeTick, reducedMotion, cache: new Map(), art };
+  return { timeTick, signalPowered: false, reducedMotion, cache: new Map(), art };
 }
 
 interface DrawOptions {
