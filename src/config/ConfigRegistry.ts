@@ -20,6 +20,7 @@ import {
   CUSTOM_PACK_I18N_KEY,
   DEFAULT_LEVEL_PASSWORD,
   ENV_CONFIG,
+  EXCAVATION_LEVEL_ID_PREFIX,
   PILOT_LEVEL_ID_PREFIX,
   SAVE_SLOT_PACK_SEPARATOR,
   UNORDERED_PACK_RANK
@@ -110,6 +111,8 @@ const REQUIRED_CONFIG_KEYS = {
   CAMPAIGN: ['chapters'],
   PILOT_LEVELS: ['levels'],
   PILOT_CAMPAIGN: ['chapters'],
+  EXCAVATION_LEVELS: ['levels'],
+  EXCAVATION_CAMPAIGN: ['chapters'],
   DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement'],
   MOTIFS: ['legend', 'pieces', 'monsterPortTerrain'],
   MOTIF_ANNOTATIONS: []
@@ -131,6 +134,10 @@ export interface ConfigBundle {
   pilotLevels?: PilotLevelsConfig;
   /** The chapters of the pilot pack; absent means none. */
   pilotCampaign?: CampaignConfig;
+  /** The levels of the excavation campaign pack; absent means no excavation pack. */
+  excavationLevels?: PilotLevelsConfig;
+  /** The chapters of the excavation campaign pack; absent means none. */
+  excavationCampaign?: CampaignConfig;
   datFormat: DatFormatConfig;
   motifs: MotifsConfig;
   motifAnnotations: MotifAnnotations;
@@ -195,6 +202,9 @@ class ConfigRegistryService {
   private pilotCampaignConfig: CampaignConfig = { chapters: [] };
   private pilotBlueprints: LevelBlueprint[] = [];
   private pilotLevels: CompiledLevel[] = [];
+  private excavationCampaignConfig: CampaignConfig = { chapters: [] };
+  private excavationBlueprints: LevelBlueprint[] = [];
+  private excavationLevels: CompiledLevel[] = [];
   /** The pilot pack is listed and playable only while this is true (Playtest mode on). */
   private pilotVisible = false;
   private datFormatConfig!: DatFormatConfig;
@@ -220,7 +230,7 @@ class ConfigRegistryService {
       () => [] as FetchedPack[]
     );
 
-    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, pilot, datFormat, motifs, motifAnnotations] = await Promise.all([
+    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, pilot, excavation, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
       this.fetchJson<Pick<TilesConfig, 'tiles'>>(CONFIG_ENDPOINTS.CC3D_TILES, REQUIRED_CONFIG_KEYS.CC3D_TILES),
@@ -229,6 +239,7 @@ class ConfigRegistryService {
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
       this.fetchOptionalCampaign(),
       this.fetchOptionalPilot(),
+      this.fetchOptionalExcavation(),
       this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT),
       this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS),
       this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
@@ -244,6 +255,8 @@ class ConfigRegistryService {
       campaign,
       pilotLevels: pilot.levels,
       pilotCampaign: pilot.campaign,
+      excavationLevels: excavation.levels,
+      excavationCampaign: excavation.campaign,
       datFormat,
       motifs,
       motifAnnotations
@@ -395,12 +408,28 @@ class ConfigRegistryService {
     this.campaignConfig = bundle.campaign;
     this.pilotCampaignConfig = pilotCampaign;
     this.pilotBlueprints = pilotLevels.levels;
+    let excavationLevels = bundle.excavationLevels ?? { levels: [] };
+    let excavationCampaign = bundle.excavationCampaign ?? { chapters: [] };
+    const excavationErrors = findPilotConfigErrors(
+      excavationLevels.levels,
+      excavationCampaign,
+      [...bundle.levels.levels.map((level) => level.id), ...pilotLevels.levels.map((level) => level.id)],
+      EXCAVATION_LEVEL_ID_PREFIX
+    );
+    if (excavationErrors.length > 0) {
+      console.warn(`Excavation pack ignored: ${excavationErrors.join('; ')}`);
+      excavationLevels = { levels: [] };
+      excavationCampaign = { chapters: [] };
+    }
+    this.excavationCampaignConfig = excavationCampaign;
+    this.excavationBlueprints = excavationLevels.levels;
     this.datFormatConfig = bundle.datFormat;
     this.motifsConfig = bundle.motifs;
     this.motifAnnotations = bundle.motifAnnotations;
 
     this.builtInLevels = bundle.levels.levels.map((bp) => this.compileBlueprint(bp));
     this.pilotLevels = this.pilotBlueprints.map((bp) => this.compileBlueprint(bp));
+    this.excavationLevels = this.excavationBlueprints.map((bp) => this.compileBlueprint(bp));
     this.ultimatePacks = [];
     this.proceduralLevels = [];
     this.storedPacks = [];
@@ -473,6 +502,20 @@ class ConfigRegistryService {
       return { levels, campaign };
     } catch (err) {
       console.warn(`Pilot pack unavailable: ${String(err)}`);
+      return {};
+    }
+  }
+
+  /** The excavation campaign pack is optional: without its files the game loads and the pack is simply absent. */
+  private async fetchOptionalExcavation(): Promise<{ levels?: PilotLevelsConfig; campaign?: CampaignConfig }> {
+    try {
+      const [levels, campaign] = await Promise.all([
+        this.fetchJson<PilotLevelsConfig>(CONFIG_ENDPOINTS.EXCAVATION_LEVELS, REQUIRED_CONFIG_KEYS.EXCAVATION_LEVELS),
+        this.fetchJson<CampaignConfig>(CONFIG_ENDPOINTS.EXCAVATION_CAMPAIGN, REQUIRED_CONFIG_KEYS.EXCAVATION_CAMPAIGN)
+      ]);
+      return { levels, campaign };
+    } catch (err) {
+      console.warn(`Excavation pack unavailable: ${String(err)}`);
       return {};
     }
   }
@@ -567,6 +610,7 @@ class ConfigRegistryService {
         levels: this.builtInLevels
       },
       ...this.pilotPacks(),
+      ...this.excavationPacks(),
       ...this.ultimatePacks,
       ...this.storedPacks
     ];
@@ -596,6 +640,35 @@ class ConfigRegistryService {
     ];
   }
 
+  /** The excavation campaign pack, when it holds at least one level. */
+  private excavationPacks(): LevelPack[] {
+    if (this.excavationLevels.length === 0) return [];
+    return [
+      {
+        id: BUILTIN_PACK_IDS.EXCAVATION,
+        name: 'Buried Sanctuaries',
+        i18nKey: 'app.packs.excavation.label',
+        builtIn: true,
+        levels: this.excavationLevels
+      }
+    ];
+  }
+
+  /** The excavation campaign levels, for the authoring tools and tests. */
+  public getExcavationLevels(): CompiledLevel[] {
+    return this.excavationLevels;
+  }
+
+  /** The excavation campaign blueprints as loaded. */
+  public getExcavationBlueprints(): LevelBlueprint[] {
+    return this.excavationBlueprints;
+  }
+
+  /** The chapters of the excavation campaign pack, in play order. */
+  public getExcavationChapters(): CampaignChapter[] {
+    return this.excavationCampaignConfig.chapters;
+  }
+
   /**
    * Shows or hides the pilot pack (it follows Playtest mode). Hiding it while
    * it is the active pack falls back to the campaign. Returns whether the
@@ -614,7 +687,8 @@ class ConfigRegistryService {
    */
   public getSaveSlotKey(packId: string): string {
     const base = this.gameConfig.storage.saveSlotKey;
-    return this.getStorageKey(packId === BUILTIN_PACK_IDS.PILOT ? `${base}${SAVE_SLOT_PACK_SEPARATOR}${packId}` : base);
+    const isolated = packId === BUILTIN_PACK_IDS.PILOT || packId === BUILTIN_PACK_IDS.EXCAVATION;
+    return this.getStorageKey(isolated ? `${base}${SAVE_SLOT_PACK_SEPARATOR}${packId}` : base);
   }
 
   /** The pilot levels whether or not the pack is visible, for the authoring tools and tests. */
@@ -636,6 +710,7 @@ class ConfigRegistryService {
   public getActivePackChapters(): CampaignChapter[] {
     if (this.activePackId === BUILTIN_PACK_IDS.CAMPAIGN) return this.campaignConfig.chapters;
     if (this.activePackId === BUILTIN_PACK_IDS.PILOT) return this.pilotCampaignConfig.chapters;
+    if (this.activePackId === BUILTIN_PACK_IDS.EXCAVATION) return this.excavationCampaignConfig.chapters;
     return [];
   }
 

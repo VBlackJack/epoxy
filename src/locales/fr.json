@@ -267,6 +267,7 @@
       "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Campagne Epoxy" },
       "pilot": { "label": "Pilote Epoxy" },
+      "excavation": { "label": "Sanctuaires Enfouis" },
       "ccup_tw_intro": { "label": "Introduction communautaire (Tile World)" },
       "ccup_cclp1": { "label": "Niveaux communautaires 1 (CCLP)" },
       "ccup_cclp2": { "label": "Niveaux communautaires 2 (CCLP)" },
@@ -2072,6 +2073,63 @@
       "1": { "title": "Fondations du pilote", "subtitle": "Les premiers niveaux de la campagne reconstruite." },
       "2": { "title": "Pousser", "subtitle": "Les blocs, l'eau et les cibles." },
       "3": { "title": "Éléments", "subtitle": "Le feu, l'eau et la glace." }
+    }
+  },
+  "excavation": {
+    "levels": {
+      "level_1": {
+        "title": "Filon d'ambre",
+        "hint": "La terre arrête un rocher tant que tu ne l'as pas creusée. Garde la terre du haut intacte jusqu'au moment de pousser le rocher vers le sud dans le fossé d'eau."
+      },
+      "level_2": {
+        "title": "L'écluse enfouie",
+        "hint": "Un fossé d'eau de deux cases demande deux rochers dans la même colonne. Coule d'abord le rocher de droite, puis amène celui de gauche pour atteindre la clé rouge."
+      },
+      "level_3": {
+        "title": "Caveaux jumeaux",
+        "hint": "Comble le bassin central avec le rocher pour prendre la clé rouge, puis ouvre les caveaux rouge et bleu à la chaîne pour récupérer la clé verte."
+      },
+      "level_4": {
+        "title": "Siphon de grès",
+        "hint": "Chaque caveau du haut est gardé par un fossé d'eau. Pousse un rocher vers l'ouest et l'autre vers l'est pour combler les deux fossés et récupérer les deux clés."
+      },
+      "level_5": {
+        "title": "Le contrepoids vermeil",
+        "hint": "La porte maintenue rouge ne reste ouverte que tant qu'un rocher pèse sur la plaque rouge. Comble le fossé ouest pour prendre la clé rouge, et place le rocher est sur la plaque."
+      },
+      "level_6": {
+        "title": "L'alcôve du rocher",
+        "hint": "Un rocher logé dans une alcôve murale ne peut pas être poussé par derrière. Prends les gants grappins pour le tirer vers le sud hors de sa niche, puis pousse-le sur la plaque bleue."
+      },
+      "level_7": {
+        "title": "Double équilibre",
+        "hint": "Deux portes maintenues gardent le puits de sortie, et les deux rochers partent dans des alcôves au nord. Utilise les gants grappins pour les extraire, puis contourne-les pour les pousser sur les plaques rouge et bleue."
+      },
+      "level_8": {
+        "title": "L'échange du puits",
+        "hint": "Pousse le rocher ouest vers le nord dans l'eau pour atteindre les gants grappins, puis tire le rocher est hors de son alcôve et conduis-le sur la plaque de pression jaune."
+      },
+      "level_9": {
+        "title": "Le rayon enseveli",
+        "hint": "La terre arrête un rayon laser tant qu'elle n'est pas creusée, et un miroir oblique dévie vers le nord un rayon venu de l'ouest. Pousse le miroir dans l'axe du rayon pour allumer le récepteur rouge."
+      },
+      "level_10": {
+        "title": "Prisme rétractable",
+        "hint": "Le mur central protège l'aile est du rayon laser. Utilise les gants grappins pour tirer le miroir hors de son alcôve par le couloir est, puis pousse-le dans le faisceau."
+      },
+      "level_11": {
+        "title": "Réfraction croisée",
+        "hint": "Contourne le pilier central avec deux miroirs : place d'abord le miroir du haut pour dévier le faisceau vers l'ouest dans le récepteur, puis pousse le miroir du bas dans l'axe de l'émetteur."
+      },
+      "level_12": {
+        "title": "Au coeur du sanctuaire",
+        "hint": "Combine tous les outils du sanctuaire : pousse le miroir vers le nord pour allumer le récepteur laser rouge, et utilise les gants grappins dans l'aile est pour extraire le rocher et lester la plaque bleue."
+      }
+    },
+    "chapter": {
+      "1": { "title": "Strates et écluses", "subtitle": "Veines de terre, rochers et fossés souterrains." },
+      "2": { "title": "Contrepoids et grappins", "subtitle": "Plaques de pression, portes maintenues et gants grappins." },
+      "3": { "title": "Optique souterraine", "subtitle": "Émetteurs laser enfouis, prismes mobiles et portes de sanctuaire." }
     }
   }
 }
