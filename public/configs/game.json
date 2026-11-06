@@ -1092,76 +1092,76 @@
     },
     "monster": {
       "bug": {
-        "body": "#a3200b",
-        "light": "#ff6a14",
-        "dark": "#120d1d",
+        "body": "#7d869e",
+        "light": "#b4bbd0",
+        "dark": "#3a4157",
         "eye": "#ffd23f"
       },
       "paramecium": {
-        "body": "#1d6c94",
-        "light": "#5fd8ef",
-        "dark": "#124561",
-        "eye": "#e9fdff"
+        "body": "#9fd6e0",
+        "light": "#e9fdff",
+        "dark": "#3f7f93",
+        "eye": "#124561"
       },
       "pink_ball": {
-        "body": "#bd334e",
-        "light": "#ff6b84",
-        "dark": "#5e1424",
-        "eye": "#ffd4dc"
+        "body": "#e8879b",
+        "light": "#ffc4d0",
+        "dark": "#7a1f38",
+        "eye": "#3a1020"
       },
       "walker": {
-        "body": "#1e7a52",
-        "light": "#4cd495",
-        "dark": "#144f35",
-        "eye": "#d4fff0"
+        "body": "#8f8a7a",
+        "light": "#c9c3ae",
+        "dark": "#4b463b",
+        "eye": "#ffe9a8"
       },
       "teeth": {
-        "body": "#d6d8e8",
-        "light": "#effbff",
-        "dark": "#8d8fa3",
-        "eye": "#a3200b"
+        "body": "#9a78d0",
+        "light": "#c4aaf0",
+        "dark": "#2a1b3d",
+        "eye": "#ffd23f"
       },
       "glider": {
-        "body": "#3550d0",
-        "light": "#6f86ff",
+        "body": "#5a7cff",
+        "light": "#bcd0ff",
         "dark": "#2b2878",
         "eye": "#e9fdff"
       },
       "fireball": {
-        "body": "#ff6a14",
+        "body": "#ff7a1a",
         "light": "#ffd23f",
         "dark": "#a3200b",
         "eye": "#fff8d6"
       },
       "tank": {
-        "body": "#584a7e",
-        "light": "#71619c",
+        "body": "#8a7fb5",
+        "light": "#b4aadc",
         "dark": "#352b52",
         "eye": "#5fd8ef"
       },
       "blob": {
         "body": "#2fd99a",
         "light": "#d4fff0",
-        "dark": "#08201a",
-        "eye": "#120d1d"
+        "dark": "#0f6a4b",
+        "eye": "#08201a"
       },
       "puppet": {
-        "body": "#b87a14",
-        "light": "#ffd23f",
-        "dark": "#6e4608",
-        "eye": "#120d1d"
+        "body": "#8fa078",
+        "light": "#c2d1a6",
+        "dark": "#434f39",
+        "eye": "#ffd23f"
       },
       "skitter": {
-        "body": "#6b30b8",
-        "light": "#b882ff",
-        "dark": "#3f1b70",
-        "eye": "#ecd2ff"
+        "body": "#5a86e6",
+        "light": "#9ab8ff",
+        "dark": "#1f2f7a",
+        "eye": "#e9fdff"
       },
       "shot": {
-        "body": "#ffd23f",
-        "light": "#fff8d6",
-        "dark": "#ff6a14",
-        "eye": "#fff8d6"
+        "body": "#5fd8ef",
+        "light": "#e9fdff",
+        "dark": "#26324a",
+        "eye": "#e9fdff"
       }
     },
     "device": {
@@ -1543,16 +1543,16 @@
       },
       "monster": {
         "bug": {
-          "body": "#b3402f",
-          "light": "#d9705a",
-          "dark": "#7a2a1e",
+          "body": "#6b7488",
+          "light": "#939bae",
+          "dark": "#3f4658",
           "eye": "#ecc866"
         },
         "paramecium": {
-          "body": "#3f6a8c",
-          "light": "#6f98b8",
-          "dark": "#2a4a66",
-          "eye": "#e3eee8"
+          "body": "#3d7584",
+          "light": "#6fa0ac",
+          "dark": "#26505c",
+          "eye": "#f1e3bf"
         },
         "pink_ball": {
           "body": "#b3566b",
@@ -1561,16 +1561,16 @@
           "eye": "#f1e3bf"
         },
         "walker": {
-          "body": "#5b7a3a",
-          "light": "#8aa35f",
-          "dark": "#3d5426",
-          "eye": "#f1e3bf"
+          "body": "#7e6f52",
+          "light": "#a39574",
+          "dark": "#52432d",
+          "eye": "#ecc866"
         },
         "teeth": {
-          "body": "#dcc795",
-          "light": "#f1e3bf",
-          "dark": "#a58559",
-          "eye": "#b3402f"
+          "body": "#7a5a9a",
+          "light": "#a58cc0",
+          "dark": "#3f2d55",
+          "eye": "#ecc866"
         },
         "glider": {
           "body": "#3f5a8c",
@@ -1579,9 +1579,9 @@
           "eye": "#f1e3bf"
         },
         "fireball": {
-          "body": "#d9702b",
-          "light": "#ecc866",
-          "dark": "#b3402f",
+          "body": "#b8561c",
+          "light": "#e0a04a",
+          "dark": "#7a2a1e",
           "eye": "#f1e3bf"
         },
         "tank": {
@@ -1591,27 +1591,27 @@
           "eye": "#ecc866"
         },
         "blob": {
-          "body": "#5b8a6a",
+          "body": "#4d7a5c",
           "light": "#8aa38f",
           "dark": "#3d5440",
           "eye": "#1a1008"
         },
         "puppet": {
-          "body": "#c99a2e",
-          "light": "#ecc866",
-          "dark": "#a37a1a",
-          "eye": "#1a1008"
+          "body": "#6f7a52",
+          "light": "#98a478",
+          "dark": "#444d30",
+          "eye": "#d9a52b"
         },
         "skitter": {
-          "body": "#6e4a7a",
-          "light": "#9a76a6",
-          "dark": "#4a2f55",
+          "body": "#4a6ec0",
+          "light": "#7f9ae0",
+          "dark": "#2a3c7a",
           "eye": "#f1e3bf"
         },
         "shot": {
-          "body": "#d9a52b",
+          "body": "#4f6f86",
           "light": "#f1e3bf",
-          "dark": "#b3402f",
+          "dark": "#1a1008",
           "eye": "#f1e3bf"
         }
       },
