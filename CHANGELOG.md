@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Pocket Gate: carry a teleporter pad and set it down where you want; pads you set down link with each other (Epoxy rules). Pack format 8.
+
 ## [2.23.0] - 2026-11-06
 
 ### Added

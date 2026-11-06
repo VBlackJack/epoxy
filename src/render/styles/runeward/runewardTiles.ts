@@ -25,7 +25,15 @@ import type { Direction, RunewardArtConfig, RunewardKeyColour } from '../../../c
 import { iceBendGeometry } from '../../iceBend';
 import { teleporterGlyphKey } from '../../paletteKeys';
 import type { TileNeighbours } from '../../tileNeighbours';
-import { paintForce, paintIce, paintIceCorner, paintTeleport, paintTrap, type RunewardTeleportColour } from './runewardHazards';
+import {
+  paintForce,
+  paintIce,
+  paintIceCorner,
+  paintPocketPad,
+  paintTeleport,
+  paintTrap,
+  type RunewardTeleportColour
+} from './runewardHazards';
 import {
   paintButton,
   paintChipItem,
@@ -208,6 +216,9 @@ function teleportTile(id: string): RunewardTilePainter {
   };
 }
 
+/** The pocket gate pad: a still notched ring, so it goes with the cached terrain. */
+const POCKET_PAD_PAINTER = staticTile((ctx, size, art, nb) => paintPocketPad(ctx, size, art, nb));
+
 /** Ice with no bend: static. */
 const ICE_PAINTER = staticTile((ctx, size, art, nb) => paintIce(ctx, size, art, nb));
 
@@ -237,6 +248,8 @@ const RANDOM_FORCE_ID = 'force_random';
 const CYCLE_FORCE_ID = 'force_cycle';
 /** Teleport tile ids: the plain one and one per colour channel. */
 const TELEPORT_IDS: readonly string[] = ['teleport', 'teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green'];
+/** The pad a pocket gate becomes when set down. */
+const POCKET_PAD_ID = 'pocket_gate_pad';
 /** Corner ice tile ids. */
 const ICE_CORNER_IDS: readonly string[] = ['ice_nw', 'ice_ne', 'ice_sw', 'ice_se'];
 
@@ -246,6 +259,7 @@ const HAZARD_TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromE
   ['ice', ICE_PAINTER],
   ...ICE_CORNER_IDS.map((id): [string, RunewardTilePainter] => [id, iceCornerTile(id)]),
   ...TELEPORT_IDS.map((id): [string, RunewardTilePainter] => [id, teleportTile(id)]),
+  [POCKET_PAD_ID, POCKET_PAD_PAINTER],
   ...Object.entries(FORCE_DIRECTIONS).map(([id, direction]): [string, RunewardTilePainter] => [id, forceTile(direction)]),
   [RANDOM_FORCE_ID, forceTile(null)],
   [CYCLE_FORCE_ID, forceTile(null, true)]

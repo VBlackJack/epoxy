@@ -103,9 +103,13 @@ export type DatRefusalReason =
   | 'epoxy_only_monsters'
   | 'cell_underlays';
 
-/** True when the level places an item only the Epoxy engine plays: the boots that slow the monsters, haste the player or reveal hidden walls. */
-function hasEpoxyOnlyItem(level: Pick<CompiledLevel, 'items'>): boolean {
-  return level.items.some((row) => row.some(isEpoxyOnlyItemId));
+/**
+ * True when the level places an item only the Epoxy engine plays: the boots that slow the monsters, haste the player
+ * or reveal hidden walls, a blast charge, or a pocket gate. The pocket gate pad is terrain, so the terrain is read
+ * too: left alone, the encoder would write the pad as a plain teleporter.
+ */
+function hasEpoxyOnlyItem(level: Pick<CompiledLevel, 'items' | 'terrain'>): boolean {
+  return level.items.some((row) => row.some(isEpoxyOnlyItemId)) || level.terrain.some((row) => row.some(isEpoxyOnlyItemId));
 }
 
 /** A level left out of the pack, with the reason. */

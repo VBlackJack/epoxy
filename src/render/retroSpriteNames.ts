@@ -100,6 +100,7 @@ export const RETRO_PLAIN_OVERLAY_TILES: readonly string[] = [
   'transmogrifier',
   'turn_plate_cw',
   'turn_plate_ccw',
+  'pocket_gate_pad',
   'block_target',
   'toggle_wall_closed',
   'toggle_wall_open',

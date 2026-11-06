@@ -151,10 +151,29 @@ export const PACK_JSON_VERSION_V7_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_VERSION_V7_IDS now exists in the configs, so this build reads version 7.
+ * Version of a pack file that holds at least one level using an id introduced with format 8 (see
+ * PACK_JSON_VERSION_V8_IDS): the pocket gate and its pad. An older build would read the pad as floor and the gate as
+ * nothing, so it must refuse the file.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V7;
+export const PACK_JSON_VERSION_V8 = 8;
+
+/** Ids that only exist from pack format 8; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V8_IDS: ReadonlySet<string> = new Set(['pocket_gate', 'pocket_gate_pad']);
+
+/**
+ * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
+ * one of its levels uses, so a later format only has to add a row here.
+ */
+export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: ReadonlySet<string> }> = [
+  { version: PACK_JSON_VERSION_V7, ids: PACK_JSON_VERSION_V7_IDS },
+  { version: PACK_JSON_VERSION_V8, ids: PACK_JSON_VERSION_V8_IDS }
+];
+
+/**
+ * Highest pack file version this build reads; a file with a higher version is refused. Every id of
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 8.
+ */
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V8;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

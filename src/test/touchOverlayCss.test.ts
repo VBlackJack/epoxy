@@ -303,6 +303,20 @@ describe('keys and boots slots in narrow layouts', () => {
     expect(withCharge?.body).toMatch(/--overlay-gap\) \* 3/);
   });
 
+  it('wraps the portrait strip below the pad width and lifts the HUD over the second row', () => {
+    const strip = hudRules.find(
+      (r) => r.selectors.includes('body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls') && r.media.length === 0
+    );
+    expect(strip?.body).toMatch(/flex-wrap:\s*wrap/);
+    expect(strip?.body).toMatch(/max-width:\s*calc\(100% - var\(--overlay-dpad-cell\) \* 3/);
+    const lifted = hudRules.find(
+      (r) =>
+        r.selectors.includes('body.touch-overlay.orientation-portrait.charge-button-visible .play-shell .lcd-screen .hud-panel') &&
+        r.media.length === 0
+    );
+    expect(lifted?.body.match(/var\(--overlay-button-size\) \* 2/g)).toHaveLength(1);
+  });
+
   it('lets the overlay keys and boots flow as one wrapping strip', () => {
     for (const selector of ['body.touch-overlay .hud-panel .inventory-section', 'body.touch-overlay .hud-panel .inv-grid']) {
       const rule = hudRules.find((r) => r.selectors.includes(selector));

@@ -470,6 +470,9 @@ tile teleport_yellow closed=true shadowMask=128 hash=1 e6acf491c69c2c29
 tile teleport_green closed=true isolated 27b9868c39d7f8c4
 tile teleport_green closed=true shadowMask=65 hash=1 9b3d2d4e460760be
 tile teleport_green closed=true shadowMask=128 hash=1 b25faf1ea0ce1697
+tile pocket_gate_pad closed=true isolated dc05fa5a02a8c109
+tile pocket_gate_pad closed=true shadowMask=65 hash=1 008a9b0bdc33577e
+tile pocket_gate_pad closed=true shadowMask=128 hash=1 b42762f677871241
 tile trap closed=true isolated 8d651e39e1953f18
 tile trap closed=true shadowMask=65 hash=1 50114dc094e4aafa
 tile trap closed=true shadowMask=128 hash=1 8a8dad5d7d2b4e9c

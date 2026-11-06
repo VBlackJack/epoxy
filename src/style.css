@@ -3399,6 +3399,15 @@ body.touch-overlay .play-shell .lcd-screen .touch-overlay-controls {
 
 body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls {
   bottom: calc(var(--safe-bottom) + var(--overlay-edge));
+  /* With a charge and a gate the strip holds five buttons: it stops at the pad and wraps upward instead of overflowing */
+  flex-wrap: wrap;
+  align-content: flex-end;
+  max-width: calc(100% - var(--overlay-dpad-cell) * 3 - var(--overlay-edge) * 2 - var(--overlay-gap));
+}
+
+/* The HUD clears the second row the strip may wrap onto while a drop button is shown */
+body.touch-overlay.orientation-portrait.charge-button-visible .play-shell .lcd-screen .hud-panel {
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-button-size) * 2 + var(--overlay-gap) * 2);
 }
 
 body.touch-overlay.orientation-portrait.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
@@ -3605,7 +3614,12 @@ body.touch-overlay .viewport-overlay .action-btn:focus-visible {
     bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-dpad-cell) * 3 + var(--overlay-gap));
   }
 
-  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .hud-panel {
+  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls {
+    max-width: calc(100% - var(--overlay-edge) * 2);
+  }
+
+  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .hud-panel,
+  body.touch-overlay.orientation-portrait.charge-button-visible .play-shell .lcd-screen .hud-panel {
     bottom: calc(var(--safe-bottom) + var(--overlay-edge));
   }
 

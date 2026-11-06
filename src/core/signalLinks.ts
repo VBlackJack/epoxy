@@ -22,7 +22,7 @@
  * door, a shot launcher or a clone machine is a sink (only a `to` end). A cell no link touches is not a node.
  */
 
-import { PACK_JSON_VERSION_V7_IDS } from '../config/constants';
+import { PACK_JSON_ID_SET_VERSIONS, PACK_JSON_VERSION_V7_IDS } from '../config/constants';
 import {
   TerrainTileLookup,
   getRegisteredTerrainLookup,
@@ -214,15 +214,32 @@ export function usesPulseSinkFormat(
  * items, entities or clone templates. Ids are matched by name. CC3D levels are skipped: their tile space is
  * separate and cannot carry these ids.
  */
-export function usesV7Ids(
-  level: Pick<CompiledLevel, 'terrain' | 'underlays' | 'items' | 'entities' | 'cloneLinks' | 'ruleset'>
-): boolean {
+export function usesV7Ids(level: IdScanLevel): boolean {
+  return usesIdSet(level, PACK_JSON_VERSION_V7_IDS);
+}
+
+/** The parts of a level the pack format id sets are matched against. */
+type IdScanLevel = Pick<CompiledLevel, 'terrain' | 'underlays' | 'items' | 'entities' | 'cloneLinks' | 'ruleset'>;
+
+/** True when the level places any id of the set on its terrain, hidden terrain, items, entities or clone templates. CC3D levels are skipped. */
+function usesIdSet(level: IdScanLevel, ids: ReadonlySet<string>): boolean {
   if (level.ruleset === 'cc3d') return false;
-  const isV7 = (id: string | null | undefined): boolean =>
-    typeof id === 'string' && PACK_JSON_VERSION_V7_IDS.has(id);
-  if (level.terrain?.some((row) => row.some(isV7))) return true;
-  if ((level.underlays ?? []).some((under) => isV7(under.terrain))) return true;
-  if (level.items?.some((row) => Array.isArray(row) && row.some(isV7))) return true;
-  if ((level.entities ?? []).some((entity) => isV7(entity.type))) return true;
-  return (level.cloneLinks ?? []).some((link) => isV7(link.templateType));
+  const isMember = (id: string | null | undefined): boolean => typeof id === 'string' && ids.has(id);
+  if (level.terrain?.some((row) => row.some(isMember))) return true;
+  if ((level.underlays ?? []).some((under) => isMember(under.terrain))) return true;
+  if (level.items?.some((row) => Array.isArray(row) && row.some(isMember))) return true;
+  if ((level.entities ?? []).some((entity) => isMember(entity.type))) return true;
+  return (level.cloneLinks ?? []).some((link) => isMember(link.templateType));
+}
+
+/**
+ * The highest pack format whose ids the level uses (see PACK_JSON_ID_SET_VERSIONS), or 0 when it uses none, so a
+ * level written before the ids existed keeps its older version.
+ */
+export function idSetVersionOf(level: IdScanLevel): number {
+  let version = 0;
+  for (const row of PACK_JSON_ID_SET_VERSIONS) {
+    if (row.version > version && usesIdSet(level, row.ids)) version = row.version;
+  }
+  return version;
 }

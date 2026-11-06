@@ -156,6 +156,8 @@ editor tile teleport_yellow closed=true 59baa162577c7724
 editor tile teleport_yellow closed=false 9ac4579e14e23714
 editor tile teleport_green closed=true 97f8fc0c73b3dd2f
 editor tile teleport_green closed=false 97335c70229a01ae
+editor tile pocket_gate_pad closed=true 3479e61258557385
+editor tile pocket_gate_pad closed=false 1fb98fcee5e5f818
 editor tile trap closed=true 07e9e2a866a786bc
 editor tile trap closed=false 5926d18fe8ea2c25
 editor tile clone_machine closed=true 7283fb127e2c0224
@@ -290,6 +292,8 @@ editor tile charge closed=true 58462ad961445b26
 editor tile charge closed=false 72a6ca2c6af2d002
 editor tile charge_lit closed=true 9574c31c5dc882d3
 editor tile charge_lit closed=false 31e54f25d543a967
+editor tile pocket_gate closed=true 34787c13bf137add
+editor tile pocket_gate closed=false b5d3e47628837bfb
 editor tile bomb closed=true cb5b1c728fd35959
 editor tile bomb closed=false d18f0390a11d25ea
 editor tile score_10 closed=true 69a1e8c73ea0b29e
@@ -320,6 +324,7 @@ editor item over floor boots_pull 46dc2207b44d7ecd
 editor item over floor ward 17ead71f9f1837c8
 editor item over floor charge e38d372e6f206c1f
 editor item over floor charge_lit 871167b1ee2099d2
+editor item over floor pocket_gate b348b3c4cc813437
 editor item over floor bomb 2fda3e23b0749d54
 editor item over floor score_10 07e51db5a89793af
 editor item over floor score_100 82b54e4fe2197452

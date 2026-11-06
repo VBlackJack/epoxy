@@ -881,6 +881,15 @@
       "laserTransparent": true,
       "litCharge": true
     },
+    "pocket_gate": {
+      "id": "pocket_gate",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.pocket_gate.name",
+      "laserTransparent": true,
+      "collectible": "gate",
+      "dropsAsTerrain": "pocket_gate_pad"
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",
@@ -1127,6 +1136,19 @@
       "isTeleporter": true,
       "teleportGroup": "green",
       "colorKey": "green"
+    },
+    "pocket_gate_pad": {
+      "id": "pocket_gate_pad",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.pocket_gate_pad.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "pocket",
+      "portableTeleporter": true
     },
     "trap": {
       "id": "trap",

@@ -687,7 +687,7 @@ describe('blast charge: rulesets and formats', () => {
   });
 
   it('round-trips through a pack file written as format 7', () => {
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V7);
+    expect(PACK_JSON_MAX_VERSION).toBeGreaterThanOrEqual(PACK_JSON_VERSION_V7);
     const level = corridor(CORRIDOR_SOLUTION);
     expect(usesV7Ids(level)).toBe(true);
     const text = serializePack('Blast', [level]);

@@ -286,11 +286,31 @@ export function hasChargeContent(level: Pick<CompiledLevel, 'terrain' | 'items'>
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull boots, the ward or a blast charge. */
+/** True when the tile is a pocket gate, carried and set down by the player, or the portable pad it turns into. */
+export function isPocketGateTileId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.collectible === 'gate' || tile.portableTeleporter === true;
+}
+
+/** True when the level places a pocket gate or one of its pads (terrain, hidden terrain or item layer). */
+export function hasPocketGateContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items'> & Partial<Pick<CompiledLevel, 'underlays'>>
+): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isPocketGateTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items) || (level.underlays ?? []).some((under) => isPocketGateTileId(under.terrain));
+}
+
+/**
+ * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
+ * boots, the ward, a blast charge, or a pocket gate with its pad (the pad is terrain, but a DAT export would write it
+ * as a plain teleporter, so it is refused with the items).
+ */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
-    isChargeTileId(id)
+    isChargeTileId(id) || isPocketGateTileId(id)
   );
 }
 
@@ -454,6 +474,21 @@ const signalFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const pullBootsFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const chargeFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const chargeContentCache = new WeakMap<object, boolean>();
+const pocketGateFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const pocketGateContentCache = new WeakMap<object, boolean>();
+
+/**
+ * The aids a level with pocket gates loses on top of what its other mechanics already turn off: a pad can be set down
+ * anywhere and links blocks and monsters too, which the push hint and the dead-end watch do not model.
+ */
+function withoutPocketGateAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = pocketGateFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    pocketGateFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
 
 /**
  * The aids a level with blast charges loses on top of what its other mechanics already turn off: a blast removes
@@ -528,7 +563,13 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     charge = hasChargeContent({ terrain: level.terrain, items: level.items ?? [] });
     chargeContentCache.set(level, charge);
   }
-  return charge ? withoutChargeAids(pulling) : pulling;
+  const charged = charge ? withoutChargeAids(pulling) : pulling;
+  let gate = pocketGateContentCache.get(level);
+  if (gate === undefined) {
+    gate = hasPocketGateContent({ terrain: level.terrain, items: level.items ?? [], underlays: level.underlays });
+    pocketGateContentCache.set(level, gate);
+  }
+  return gate ? withoutPocketGateAids(charged) : charged;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

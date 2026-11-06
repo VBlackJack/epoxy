@@ -325,6 +325,25 @@ const CHARGE_ART = {
   wickWidthTile: 0.035,
   sparkRadius: 0.075
 } as const;
+/**
+ * Pocket gate pad, as tile fractions: a ring with a notch cut out of its top, a dot at the centre, and the width of
+ * the ring line. The pad is still (no swirl), so it never reads as one of the portals. The gate item reuses the ring
+ * with a heavier line, and a tab filling the notch that stands for the handle.
+ */
+const POCKET_PAD_ART = {
+  radius: 0.34,
+  /** Half of the notch, in radians either side of twelve o'clock. */
+  notchHalfAngle: Math.PI / 7,
+  lineWidthPx: 2.5,
+  dotRadius: 0.07,
+  itemRadius: 0.27,
+  /** Height of the centre of the gate's ring, which sits low to leave room for the tab above it. */
+  itemCentreY: 0.56,
+  itemLineWidthTile: 0.09,
+  itemTab: { x: 0.44, y: 0.14, w: 0.12, h: 0.14 }
+} as const;
+/** Angle of twelve o'clock on a canvas arc. */
+const POCKET_PAD_TOP = -Math.PI / 2;
 /** Fuse ring of a lit charge: radius and width as tile fractions; the ring empties as the fuse burns, and the cell blinks near the end. */
 const CHARGE_FUSE_RING = { radius: 0.46, widthTile: 0.07, warnFraction: 0.34, blinkTicks: 4, flashAlpha: 0.32 } as const;
 /** Angle the fuse ring starts from (twelve o'clock). */
@@ -3112,6 +3131,10 @@ export class PixelRenderer {
         break;
       }
 
+      case 'pocket_gate_pad':
+        this.paintPocketPad(ctx, x, y, size, pal.teleportRing, pal.teleportCore, 0);
+        break;
+
       case 'trap': {
         ctx.fillStyle = pal.trapBorder;
         ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
@@ -3576,6 +3599,53 @@ export class PixelRenderer {
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.stroke();
+  }
+
+  /** Strokes a ring with a notch at twelve o'clock around (cx, cy); the caller sets the stroke style and width. */
+  private strokeNotchedRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, POCKET_PAD_TOP + POCKET_PAD_ART.notchHalfAngle, POCKET_PAD_TOP - POCKET_PAD_ART.notchHalfAngle + FULL_TURN);
+    ctx.stroke();
+  }
+
+  /** A pocket gate pad: a still ring with a notch and a dot at its centre. */
+  private paintPocketPad(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ringColor: string, dotColor: string, glowPx: number): void {
+    ctx.save();
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = POCKET_PAD_ART.lineWidthPx;
+    ctx.lineCap = 'round';
+    if (glowPx > 0) {
+      ctx.shadowColor = ringColor;
+      ctx.shadowBlur = glowPx;
+    }
+    this.strokeNotchedRing(ctx, x + size / 2, y + size / 2, size * POCKET_PAD_ART.radius);
+    ctx.fillStyle = dotColor;
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, size * POCKET_PAD_ART.dotRadius, 0, FULL_TURN);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** A pocket gate: the notched ring of its pad with a handle tab in the notch. */
+  private paintPocketGate(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const { itemRadius, itemCentreY, itemLineWidthTile, itemTab } = POCKET_PAD_ART;
+    ctx.save();
+    ctx.strokeStyle = isModern ? pal.modernTeleportRing : pal.teleportRing;
+    ctx.lineWidth = Math.max(1, size * itemLineWidthTile);
+    ctx.lineCap = 'round';
+    if (isModern) {
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    this.strokeNotchedRing(ctx, x + size / 2, y + size * itemCentreY, size * itemRadius);
+    ctx.fillStyle = pal.bombBody;
+    ctx.fillRect(x + size * itemTab.x, y + size * itemTab.y, size * itemTab.w, size * itemTab.h);
+    ctx.fillStyle = pal.teleportCore;
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size * itemCentreY, size * POCKET_PAD_ART.dotRadius, 0, FULL_TURN);
+    ctx.fill();
+    ctx.restore();
   }
 
   /** A blast charge: a banded canister; lit, it carries a burning wick. */
@@ -4225,6 +4295,10 @@ export class PixelRenderer {
       case 'teleport_yellow':
       case 'teleport_green':
         // Fully animated, drawn by drawModernAnimatedOverlay.
+        break;
+
+      case 'pocket_gate_pad':
+        this.paintPocketPad(ctx, x, y, size, pal.modernTeleportRing, pal.teleportCore, glow.medium);
         break;
 
       case 'hint': {
@@ -5273,6 +5347,11 @@ export class PixelRenderer {
       case 'stopwatch_penalty':
       case 'slow_time': {
         this.paintStopwatch(ctx, ConfigRegistry.getTile(itemId), x, y, size, isModern);
+        break;
+      }
+
+      case 'pocket_gate': {
+        this.paintPocketGate(ctx, x, y, size, isModern);
         break;
       }
 

@@ -37,6 +37,12 @@ export const GRAY_BUTTON_RADIUS = 2;
 /** Item id of the blast charge a player carries and drops. */
 export const CHARGE_ITEM_ID = 'charge';
 
+/** Item id of the pocket gate a player carries and sets down as a teleporter pad. */
+export const GATE_ITEM_ID = 'pocket_gate';
+
+/** Terrain id of the pad a pocket gate becomes where it is set down. */
+export const GATE_PAD_TILE_ID = 'pocket_gate_pad';
+
 /** Half-width (Chebyshev radius) of the square a blast charge clears of monsters and blocks, and kills the player in. */
 export const CHARGE_BLAST_RADIUS = 1;
 

@@ -116,6 +116,7 @@ function mainFills(art: RunewardArtConfig): Record<string, string> {
     bomb: bomb.base,
     charge: bomb.base,
     charge_lit: bomb.base,
+    pocket_gate: art.portal.ring,
     score_10: score.base,
     score_100: score.base,
     score_1000: score.base,
@@ -136,7 +137,7 @@ describe('Runeward item dispatch', () => {
   it('paints every boots, slow-time, bomb, score and stopwatch item', () => {
     const expected = [
       ...BOOTS.map(bootsId),
-      'slow_time', 'bomb', 'charge', 'charge_lit', 'score_10', 'score_100', 'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
+      'slow_time', 'bomb', 'charge', 'charge_lit', 'pocket_gate', 'score_10', 'score_100', 'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
     ];
     expect(ITEM_IDS.sort()).toEqual(expected.sort());
   });
