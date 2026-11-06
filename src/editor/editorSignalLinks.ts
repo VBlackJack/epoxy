@@ -115,13 +115,14 @@ export type SignalEnd = 'output' | 'input';
 
 /**
  * Whether the tile can be that end of a signal wire, read from the tile flags as normalizeSignalLinks reads them: a
- * laser receiver or a held source is an output only, a gate is both, a hold door is an input only.
+ * laser receiver or a held or pulse source is an output only, a gate is both, a hold door, a shot launcher or a
+ * clone machine is an input only (the last two fire once on the rising edge of their input).
  */
 export function signalTileHoldsEnd(tile: TileDefinition | undefined, end: SignalEnd): boolean {
   if (!tile) return false;
   const isSource = tile.laserReceiverGroup !== undefined || tile.signalSource !== undefined;
   const isGate = tile.signalGate !== undefined;
-  const isSink = tile.holdDoorColor !== undefined;
+  const isSink = tile.holdDoorColor !== undefined || tile.shotLauncher !== undefined || tile.isCloneMachine === true;
   return end === 'output' ? isSource || isGate : isGate || isSink;
 }
 
@@ -163,4 +164,9 @@ export function signalLinkClosesCycle(map: Pick<SignalLinkHolder, 'signalLinks'>
     }
   }
   return false;
+}
+
+/** Whether the tile is a signal sink that takes one input link only (the validator refuses more): a hold door, a shot launcher or a clone machine. */
+export function signalTileTakesOneInput(tile: TileDefinition | undefined): boolean {
+  return tile !== undefined && (tile.holdDoorColor !== undefined || tile.shotLauncher !== undefined || tile.isCloneMachine === true);
 }

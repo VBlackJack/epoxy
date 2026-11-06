@@ -96,7 +96,7 @@ describe('paletteAvailability', () => {
   });
 
   it('offers the signal plate and gates under the Epoxy rules only', () => {
-    const signalIds = ['signal_plate', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor', 'signal_latch_off', 'signal_latch_on'];
+    const signalIds = ['signal_plate', 'signal_button', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor', 'signal_latch_off', 'signal_latch_on'];
     for (const id of signalIds) {
       expect(tileAvailability('epoxy', id), id).toEqual({ available: true });
       expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });

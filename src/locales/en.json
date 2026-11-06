@@ -527,7 +527,7 @@
       "kb_editor_rotate_in_place": { "label": "Shift+R: Turn the creature or turret under the cursor a quarter turn clockwise (a clone machine under it follows), or turns a floating stamp" },
       "kb_editor_zoom": { "label": "+ / - / 0: Zoom in, zoom out, fit the level to the window" },
       "kb_editor_wheel_zoom": { "label": "Ctrl (or Cmd) + mouse wheel: Zoom around the pointer" },
-      "kb_editor_link": { "label": "K: Link the device under the cursor (button, trap, clone machine, shot trigger or launcher, signal plate, gate, laser receiver or hold door). Then click or press Space on a partner to link or unlink it, or on an empty floor cell to place one" },
+      "kb_editor_link": { "label": "K: Link the device under the cursor (button, trap, clone machine, shot trigger or launcher, signal plate or button, gate, laser receiver or hold door). Then click or press Space on a partner to link or unlink it, or on an empty floor cell to place one" },
       "kb_editor_cancel": { "label": "Escape: Finish linking, cancel a pending paste, or drop the selection" },
       "kb_editor_cursor": { "label": "Canvas focused: arrow keys move the cursor, Space or Enter paints with the active tool" },
       "kb_editor_select": { "label": "S: Select tool. Drag or Shift+arrows select a rectangle; Ctrl (Cmd) + C / X / V copy, cut, paste; Delete clears; Shift+F fills the selection with the chosen palette entry; Alt+arrows or dragging inside the selection move it; Escape cancels a paste or drops the selection" },
@@ -581,7 +581,7 @@
       "signal_not_inputs": { "label": "Error: A NOT gate at ({x}, {y}) ({count} in all) needs exactly one input link." },
       "signal_gate_no_input": { "label": "Error: A signal gate at ({x}, {y}) ({count} in all) has no input link." },
       "signal_cycle": { "label": "Error: Signal links loop back on themselves at ({x}, {y}) ({count} cells in all). Signals cannot loop." },
-      "signal_link_dangling": { "label": "Warning: A signal link from ({x}, {y}) ({count} in all) joins cells that are not a signal source, gate or hold door, so it does nothing." },
+      "signal_link_dangling": { "label": "Warning: A signal link from ({x}, {y}) ({count} in all) joins cells that are not a signal source, gate, hold door, shot launcher or clone machine, so it does nothing." },
       "signal_source_unlinked": { "label": "Warning: A signal plate or button at ({x}, {y}) ({count} in all) is not linked to anything." },
       "signal_world_loop_odd": { "label": "Error: The laser receiver at ({x}, {y}) ({count} in all) drives a hold door that cuts or opens its own beam the wrong way round, so the door would flicker forever." },
       "signal_world_loop_even": { "label": "Warning: The laser receiver at ({x}, {y}) ({count} in all) drives a hold door that cuts or opens its own beam, so it holds itself in place." },
@@ -714,7 +714,7 @@
         "laser_emitter": { "label": "Laser emitter" },
         "laser_receiver": { "label": "Laser receiver" },
         "laser_gate": { "label": "Laser gate" },
-        "signal_source": { "label": "Signal plate" },
+        "signal_source": { "label": "Signal plate or button" },
         "signal_gate": { "label": "Signal gate" },
         "signal_out": { "label": "Signal output" },
         "signal_in": { "label": "Signal input" }
@@ -723,7 +723,7 @@
         "trap": { "label": "brown button and trap" },
         "clone": { "label": "red button and clone machine" },
         "shot": { "label": "shot trigger and launcher" },
-        "signal": { "label": "signal plates, gates, laser receivers and hold doors" },
+        "signal": { "label": "signal plates and buttons, gates, laser receivers, hold doors, shot launchers and clone machines" },
         "plate": { "label": "pressure plate and hold door" },
         "toggle": { "label": "toggle button and wall" },
         "teleport": { "label": "teleporters" },
@@ -757,7 +757,9 @@
         "clone_any": "No link: fires every clone machine with a creature.",
         "clone_none": "No link, and no clone machine holds a creature: fires nothing.",
         "shot_unlinked": "Fires nothing until linked.",
-        "laser_emitter": "Linked to nothing; Beam preview shows the beam."
+        "laser_emitter": "Linked to nothing; Beam preview shows the beam.",
+        "signal_fires_launcher": "Fires one shot each time its linked signal starts sending.",
+        "signal_fires_cloner": "Makes one clone each time its linked signal starts sending."
       },
       "needs": {
         "plate": { "label": "Needs a hold door of the same colour ({colour}): this plate opens nothing yet. A hold door opens only while every plate of its colour is pressed." },
@@ -840,8 +842,8 @@
             "unlinked": { "label": "A shot trigger fires only its linked launchers: with no link it fires nothing." }
           },
           "signal": {
-            "how": { "label": "Link each signal plate, laser receiver or gate to the gates and hold doors it feeds (K or Link...). Cycles are refused." },
-            "unlinked": { "label": "A gate with no signal linked into it stays off. A hold door with none follows its pressure plates of the same colour." }
+            "how": { "label": "Link each signal plate, signal button, laser receiver or gate to the gates, hold doors, shot launchers and clone machines it feeds (K or Link...). Cycles are refused. A launcher or clone machine fires once each time its signal starts." },
+            "unlinked": { "label": "A gate with no signal linked into it stays off. A hold door with none follows its pressure plates of the same colour. A launcher or clone machine fired by no signal only answers its buttons." }
           },
           "plate": {
             "how": { "label": "A hold door and its pressure plates share a colour." },
@@ -943,7 +945,7 @@
         "shot_trigger": { "label": "Unlinked, this shot trigger fires nothing." },
         "shot_launcher": { "label": "Unlinked, no shot trigger fires this launcher." },
         "signal_out": { "label": "Unlinked, this signal feeds nothing." },
-        "signal_in": { "label": "Unlinked: a gate stays off, and a hold door follows its pressure plates of the same colour." }
+        "signal_in": { "label": "Unlinked: a gate stays off, a hold door follows its pressure plates of the same colour, and a launcher or clone machine is not fired by signals." }
       },
       "fallback_lynx": {
         "trap_button": { "label": "Unlinked: this button opens nothing." },
@@ -960,7 +962,7 @@
       "source_gone": { "label": "Linking ended: the device you were linking ({role}) is gone." },
       "busy": { "label": "A brush stroke is in progress: finish it before linking." },
       "unavailable": { "label": "CC3D links come from where things stand: there is nothing to link." },
-      "nothing": { "label": "Nothing to link here: pick a button, trap, clone machine, shot trigger, shot launcher, signal plate, gate, laser receiver or hold door." },
+      "nothing": { "label": "Nothing to link here: pick a button, trap, clone machine, shot trigger, shot launcher, signal plate or button, gate, laser receiver or hold door." },
       "refused": {
         "hidden": { "label": "Hidden under another tile: {role}. Bring it into plain view to link it." },
         "single_input": { "label": "Not linked: ({x}, {y}) takes one signal only. Join the signals with an OR gate first." },

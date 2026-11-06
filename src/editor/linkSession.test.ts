@@ -511,6 +511,58 @@ describe('signal sessions', () => {
   });
 });
 
+describe('signal sessions: edge sinks', () => {
+  /** A bordered 9 x 9 map with a pulse button, a shot launcher, a clone machine and a hold door in a row. */
+  function sinks(): EditorMap {
+    const map = pairs();
+    map.terrain[4][5] = 'floor';
+    map.terrain[6][5] = 'floor';
+    map.terrain[1][1] = 'signal_button';
+    map.terrain[1][3] = 'shot_launcher_e';
+    map.terrain[1][5] = 'clone_machine';
+    map.terrain[1][7] = 'hold_door_red_closed';
+    return map;
+  }
+  const button: LinkSession = { system: 'signal', end: 'button', x: 1, y: 1 };
+
+  it('offers the launcher and the clone machine as partners of a signal output', () => {
+    const { candidates } = partnerCandidates(sinks(), button, EPOXY);
+    expect(candidates).toEqual(expect.arrayContaining([{ x: 3, y: 1 }, { x: 5, y: 1 }, { x: 7, y: 1 }]));
+  });
+
+  it('links and unlinks a signal button to a launcher and to a clone machine by clicking them', () => {
+    let map = sinks();
+    for (const target of [{ x: 3, y: 1 }, { x: 5, y: 1 }]) {
+      const result = sessionClick(map, button, target, 'S', EPOXY);
+      expect(result.map, `${target.x}`).toBeDefined();
+      expect(result.session).toEqual(button);
+      map = result.map as EditorMap;
+    }
+    expect(map.signalLinks).toEqual([
+      { fromX: 1, fromY: 1, toX: 3, toY: 1 },
+      { fromX: 1, fromY: 1, toX: 5, toY: 1 }
+    ]);
+    expect(map.launcherLinks ?? []).toEqual([]);
+    expect(map.cloneLinks).toEqual([]);
+    const again = sessionClick(map, button, { x: 3, y: 1 }, 'S', EPOXY);
+    expect(again.map?.signalLinks).toEqual([{ fromX: 1, fromY: 1, toX: 5, toY: 1 }]);
+  });
+
+  it('refuses a second signal into a launcher with the single-input message', () => {
+    const map = sinks();
+    map.terrain[2][1] = 'signal_button';
+    const first = sessionClick(map, button, { x: 3, y: 1 }, 'S', EPOXY).map as EditorMap;
+    const second: LinkSession = { system: 'signal', end: 'button', x: 1, y: 2 };
+    const result = sessionClick(first, second, { x: 3, y: 1 }, 'S', EPOXY);
+    expect(result.map).toBeUndefined();
+    expect(result.messages).toEqual([{ key: 'editor.link.refused.single_input.label', params: { x: 3, y: 1 } }]);
+  });
+
+  it('keeps the launcher as a shot device when a session starts on it', () => {
+    expect(sessionRoleAt(sinks(), 3, 1, EPOXY)).toEqual({ system: 'shot', end: 'target', blocked: false });
+  });
+});
+
 describe('signal sessions: wording and single inputs', () => {
   function row(): EditorMap {
     const map = pairs();

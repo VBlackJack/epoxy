@@ -384,6 +384,27 @@ describe('connectionRows for signals', () => {
     expect(connectionRows(level, 5, 1).link).toEqual({ type: 'start', system: 'signal', end: 'target', blocked: false });
   });
 
+  it('lists a signal wired into a launcher or a clone machine, with an Unlink and a note on what it does', () => {
+    const edge = makeLevel(
+      { '1,1': 'signal_button', '3,1': 'shot_launcher_e', '5,1': 'clone_machine' },
+      { signalLinks: [{ fromX: 1, fromY: 1, toX: 3, toY: 1 }, { fromX: 1, fromY: 1, toX: 5, toY: 1 }] }
+    );
+    const launcher = connectionRows(edge, 3, 1);
+    expect(launcher.controlledBy?.rows).toEqual([
+      { x: 1, y: 1, kind: 'link', system: 'signal', fallback: false, name: { key: ROLE_NAME_KEYS.signal_source }, unlink: { system: 'signal', button: { x: 1, y: 1 }, target: { x: 3, y: 1 } } }
+    ]);
+    expect(launcher.note).toEqual({ key: 'editor.connections.fallback.signal_fires_launcher' });
+    const cloner = connectionRows(edge, 5, 1);
+    expect(cloner.controlledBy?.rows[0].unlink).toEqual({ system: 'signal', button: { x: 1, y: 1 }, target: { x: 5, y: 1 } });
+    expect(cloner.note).toEqual({ key: 'editor.connections.fallback.signal_fires_cloner' });
+    expect(connectionRows(edge, 1, 1).controls?.rows.map((r) => r.name.key)).toEqual([ROLE_NAME_KEYS.shot_launcher, ROLE_NAME_KEYS.clone_machine]);
+    for (const [name, locale] of [['en', enLocale], ['fr', frLocale]] as const) {
+      for (const key of ['signal_fires_launcher', 'signal_fires_cloner']) {
+        expect(resolveMessage(locale as TranslationNode, `editor.connections.fallback.${key}`), `${name} ${key}`).toBeDefined();
+      }
+    }
+  });
+
   it('marks a signal device hidden under another tile as blocked', () => {
     const hidden = makeLevel({ '1,1': 'door_red' }, { underlays: [{ x: 1, y: 1, terrain: 'signal_gate_and' }] });
     expect(connectionRows(hidden, 1, 1).link).toEqual({ type: 'start', system: 'signal', end: 'button', blocked: true });
