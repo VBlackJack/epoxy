@@ -1166,15 +1166,15 @@
     },
     "device": {
       "thinWall": {
-        "base": "#584a7e",
-        "light": "#71619c",
-        "dark": "#352b52",
+        "base": "#8a78b8",
+        "light": "#a595d6",
+        "dark": "#584a7e",
         "edge": "#120d1d"
       },
       "swivel": {
-        "base": "#4a3e6b",
-        "light": "#71619c",
-        "dark": "#251d3b",
+        "base": "#8a78b8",
+        "light": "#a595d6",
+        "dark": "#584a7e",
         "edge": "#120d1d"
       },
       "turnPlate": {
