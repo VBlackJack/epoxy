@@ -1258,7 +1258,7 @@
         }
       },
       "bomb": {
-        "base": "#251d3b",
+        "base": "#7b7599",
         "glow": "#ff6a14",
         "core": "#ffd23f"
       },
@@ -1279,7 +1279,7 @@
         "slash": "#e8304e"
       },
       "slowTime": {
-        "base": "#2b2138",
+        "base": "#8573c4",
         "glow": "#9fe8ff",
         "core": "#e9fdff"
       }
