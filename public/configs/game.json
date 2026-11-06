@@ -1292,15 +1292,15 @@
     },
     "mark": {
       "gravel": {
-        "base": "#3b3253",
-        "light": "#54417f",
-        "dark": "#231e35",
+        "base": "#6a6290",
+        "light": "#8a82b4",
+        "dark": "#3b3253",
         "edge": "#120d1d"
       },
       "dirt": {
-        "base": "#4a3e6b",
-        "light": "#71619c",
-        "dark": "#251d3b",
+        "base": "#6b5038",
+        "light": "#8f6e4c",
+        "dark": "#3d2c20",
         "edge": "#120d1d"
       },
       "hint": {
@@ -1736,10 +1736,10 @@
         }
       },
       "signal": {
-        "box": "#dcc795",
-        "idle": "#a58559",
-        "lit": "#d9a52b",
-        "glyph": "#1a1008"
+        "box": "#2e2013",
+        "idle": "#6e5233",
+        "lit": "#f0b93a",
+        "glyph": "#f1e3bf"
       },
       "mark": {
         "gravel": {
@@ -1757,7 +1757,7 @@
         "hint": {
           "base": "#dcc795",
           "glow": "#6f98b8",
-          "core": "#f1e3bf"
+          "core": "#1a1008"
         },
         "recessedWall": {
           "base": "#a58559",
