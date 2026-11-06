@@ -884,6 +884,7 @@
       },
       "link": {
         "action": "Link...",
+        "signal_action": "Link a signal input...",
         "hint": { "label": "Link to a partner (K)" },
         "done": "Done",
         "blocked": "This device is hidden under another tile: bring it into plain view to link it."

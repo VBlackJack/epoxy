@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Level editor: a signal link can also be started from a shot launcher or a clone machine.
+
 ### Fixed
 
 - Level validator: levels whose clone machines or shot launchers are driven by signals no longer get false unreachable chip or exit reports.

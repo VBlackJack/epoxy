@@ -153,10 +153,14 @@ export function sessionRoleAt(level: EditorMap, x: number, y: number, ruleset: R
 
 /** Whether the session's source still holds its role (the map changed under the session, or was replaced). */
 export function sessionSourceHolds(level: EditorMap, session: LinkSession, ruleset: Ruleset): boolean {
+  // A signal session reads the signal ends alone: a gate holds both, and a launcher or clone machine reads as its own
+  // system first yet can source a session on its signal input (an edge sink).
+  if (session.system === 'signal') {
+    return !level.cc3d && ruleset !== 'cc3d' && systemAllowed('signal', ruleset) && inGrid(level, session.x, session.y) && holdsLinkEnd(level, 'signal', session.end, session.x, session.y);
+  }
   const role = sessionRoleAt(level, session.x, session.y, ruleset);
   if (role === null || role.blocked || role.system !== session.system) return false;
-  // A signal gate holds both ends, so it can serve a session of either end.
-  return role.end === session.end || (session.system === 'signal' && holdsLinkEnd(level, 'signal', session.end, session.x, session.y));
+  return role.end === session.end;
 }
 
 /** Every device the session could link to (the opposite end of its system, plain view), and those already linked to its source. */
@@ -202,9 +206,17 @@ export function sessionStartMessages(level: EditorMap, session: LinkSession, rul
 /**
  * Starts a session on a cell (the K key, Link... in Connections). The cell must hold a device in plain view; a hidden
  * trap or clone device is refused, anything else says there is nothing to link. A CC3D map starts nothing.
+ * With `only: 'signal'` the session is the signal one of a device that reads as another system first (a shot launcher
+ * or a clone machine, which a signal wire can end on): it starts on the device's signal input, or says there is none.
  */
-export function startLinkSession(level: EditorMap, x: number, y: number, ruleset: Ruleset): SessionStartResult {
+export function startLinkSession(level: EditorMap, x: number, y: number, ruleset: Ruleset, only?: 'signal'): SessionStartResult {
   if (level.cc3d || ruleset === 'cc3d') return { session: null, messages: [{ key: KEY_UNAVAILABLE }] };
+  if (only === 'signal') {
+    if (ruleset === 'lynx') return { session: null, messages: [{ key: EPOXY_ONLY_REASON_KEY }] };
+    if (!inGrid(level, x, y) || !holdsLinkEnd(level, 'signal', 'target', x, y)) return { session: null, messages: [{ key: KEY_NOTHING }] };
+    const session: LinkSession = { system: 'signal', end: 'target', x, y };
+    return { session, messages: sessionStartMessages(level, session, ruleset) };
+  }
   const role = sessionRoleAt(level, x, y, ruleset);
   // A Lynx level has no signal devices: say why instead of saying there is nothing to link. A clone machine still links there.
   if (!role && ruleset === 'lynx' && (holdsLinkEnd(level, 'signal', 'button', x, y) || holdsLinkEnd(level, 'signal', 'target', x, y))) {
@@ -304,7 +316,10 @@ export function sessionClick(
   // A signal gate holds both ends: it takes the wire of the session before it can replace the source. A launcher
   // or clone machine on top takes a wire from a signal output session the same way.
   const takesWire = session.system === 'signal' && holdsLinkEnd(level, 'signal', otherEnd(session.end), cell.x, cell.y);
-  if (here && !here.blocked && !takesWire && here.system === session.system && here.end === session.end) {
+  // A signal input session moves to another signal input (a launcher or clone machine reads as its own system first).
+  const movesSignalInput =
+    session.system === 'signal' && session.end === 'target' && !takesWire && holdsLinkEnd(level, 'signal', 'target', cell.x, cell.y);
+  if (movesSignalInput || (here && !here.blocked && !takesWire && here.system === session.system && here.end === session.end)) {
     const next: LinkSession = { system: session.system, end: session.end, x: cell.x, y: cell.y };
     return { session: next, messages: sessionStartMessages(level, next, ruleset) };
   }
