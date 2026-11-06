@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { relativeTo } from '../core/lynx/directions';
 import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
+import { GLOVE } from './gloveShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
@@ -295,6 +296,8 @@ const HIDDEN_WALL_INSET_PX = 3;
 const HIDDEN_WALL_LINE_PX_MODERN = 1.5;
 /** Terrain cache key part while the player holds boots that reveal hidden walls. */
 const REVEAL_KEY = 'eye';
+/** Opacity of the pale sheen laid over the cuff of the Grappling Gloves. */
+const GLOVE_CUFF_SHEEN = 0.45;
 /** Eye drawn on the boots that reveal hidden walls: width and height of the almond, pupil radius, in tiles. */
 const EYE_MARK = { cx: 0.52, cy: 0.4, halfWidth: 0.15, halfHeight: 0.085, pupil: 0.05 } as const;
 /** Shield on the shaft of a ward, as tile fractions: top edge, shoulder, waist and point (x offsets are from the centre line). */
@@ -3531,6 +3534,50 @@ export class PixelRenderer {
     ctx.fill();
   }
 
+  /** The Grappling Gloves: a gripping glove with a cuff and a small hook on a cord, in the colour of its boots key. */
+  private paintGlove(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const c = pal[BOOT_COLOR_KEYS.boots_pull ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
+    const line = Math.max(1, size * GLOVE.lineWidth);
+    ctx.save();
+    if (isModern) {
+      ctx.shadowColor = c;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = pal.eyeWhite;
+    ctx.lineWidth = Math.max(1, size * GLOVE.hookWidth);
+    ctx.beginPath();
+    GLOVE.hook.forEach(([hx, hy], i) => (i === 0 ? ctx.moveTo(x + size * hx, y + size * hy) : ctx.lineTo(x + size * hx, y + size * hy)));
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = c;
+    ctx.strokeStyle = pal.glyphInk;
+    ctx.lineWidth = line;
+    ctx.beginPath();
+    ctx.ellipse(x + size * GLOVE.thumb.cx, y + size * GLOVE.thumb.cy, size * GLOVE.thumb.rx, size * GLOVE.thumb.ry, GLOVE.thumb.turn, 0, FULL_TURN);
+    ctx.fill();
+    ctx.stroke();
+    const palm = GLOVE.palm;
+    this.roundRect(ctx, x + size * palm.x, y + size * palm.y, size * palm.w, size * palm.h, size * palm.r);
+    ctx.fill();
+    for (const finger of GLOVE.fingers) {
+      this.roundRect(ctx, x + size * finger.x, y + size * finger.top, size * GLOVE.fingerWidth, size * (GLOVE.fingerBottom - finger.top), size * GLOVE.fingerRadius);
+      ctx.fill();
+      ctx.stroke();
+    }
+    const cuff = GLOVE.cuff;
+    this.roundRect(ctx, x + size * cuff.x, y + size * cuff.y, size * cuff.w, size * cuff.h, size * cuff.r);
+    ctx.fillStyle = c;
+    ctx.fill();
+    ctx.globalAlpha = GLOVE_CUFF_SHEEN;
+    ctx.fillStyle = pal.eyeWhite;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.stroke();
+  }
+
   /** A blast charge: a banded canister; lit, it carries a burning wick. */
   private paintCharge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean, lit: boolean): void {
     const pal = this.pal();
@@ -5191,7 +5238,6 @@ export class PixelRenderer {
       case 'boots_force':
       case 'boots_speed':
       case 'boots_eye':
-      case 'boots_pull':
       case 'ward': {
         const c = pal[BOOT_COLOR_KEYS[itemId] ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
         ctx.save();
@@ -5207,6 +5253,11 @@ export class PixelRenderer {
         if (ConfigRegistry.getTile(itemId).revealsHiddenWalls) this.paintEyeMark(ctx, x, y, size);
         if (ConfigRegistry.getTile(itemId).absorbsMonsterContact) this.paintWardMark(ctx, x, y, size);
         ctx.restore();
+        break;
+      }
+
+      case 'boots_pull': {
+        this.paintGlove(ctx, x, y, size, isModern);
         break;
       }
 

@@ -25,6 +25,7 @@
  */
 
 import type { RunewardArtConfig, RunewardBootsKind, RunewardKeyColour } from '../../../core/types';
+import { GLOVE } from '../../gloveShape';
 import { heavyLineWidth, inkLineWidth } from './runewardInk';
 import { paintKeyItem } from './runewardMechanisms';
 import { linear, paintFloor, radial, roundRect } from './runewardPainters';
@@ -44,6 +45,9 @@ const MIN_LINE_PX = 1;
 const FADED_ALPHA = 0.45;
 /** Opacity of the soft highlight on the plain bomb. */
 const HIGHLIGHT_ALPHA = 0.4;
+
+/** Boots kind drawn as a glove rather than a boot. */
+const GLOVES_KIND: RunewardBootsKind = 'pull';
 
 const SHADOW = { x: 0.5, y: 0.9, rx: 0.26, ry: 0.05 } as const;
 
@@ -178,10 +182,7 @@ function paintBootCharm(ctx: CanvasRenderingContext2D, size: number, art: Art, k
       ctx.fill();
       break;
     case 'pull':
-      ctx.moveTo(cx, cy - radius);
-      ctx.lineTo(cx, cy + radius * 0.2);
-      ctx.arc(cx - radius * 0.35, cy + radius * 0.2, radius * 0.35, 0, Math.PI, false);
-      ctx.stroke();
+      // The gloves are not a boot: paintGloveItem draws them whole.
       break;
     case 'ward':
       // A small shield: flat top, straight flanks, a point below.
@@ -196,8 +197,48 @@ function paintBootCharm(ctx: CanvasRenderingContext2D, size: number, art: Art, k
   }
 }
 
+/** The Grappling Gloves: a glove with four fingers, a thumb, a cuff and a small hook on a cord, hovering. */
+function paintGloveItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  const tint = art.item.boots.pull;
+  hover(ctx, size, art, timeMs, () => {
+    ctx.beginPath();
+    GLOVE.hook.forEach(([hx, hy], index) => (index === 0 ? ctx.moveTo(size * hx, size * hy) : ctx.lineTo(size * hx, size * hy)));
+    ctx.strokeStyle = markColour(art, tint.light);
+    ctx.lineWidth = plainLine(size, GLOVE.hookWidth);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    const body = art.ink ? tint.main : linear(ctx, 0, 0, 0, size, [[0, tint.light], [BOOT.lightStop, tint.main], [1, tint.main]]);
+    const thumb = GLOVE.thumb;
+    ctx.beginPath();
+    ctx.ellipse(size * thumb.cx, size * thumb.cy, size * thumb.rx, size * thumb.ry, thumb.turn, 0, TAU);
+    ctx.fillStyle = body;
+    ctx.fill();
+    outline(ctx, size, art, tint.light, GLOVE.lineWidth, true);
+    const palm = GLOVE.palm;
+    roundRect(ctx, size * palm.x, size * palm.y, size * palm.w, size * palm.h, size * palm.r);
+    ctx.fillStyle = body;
+    ctx.fill();
+    for (const finger of GLOVE.fingers) {
+      roundRect(ctx, size * finger.x, size * finger.top, size * GLOVE.fingerWidth, size * (GLOVE.fingerBottom - finger.top), size * GLOVE.fingerRadius);
+      ctx.fillStyle = body;
+      ctx.fill();
+      outline(ctx, size, art, tint.light, GLOVE.lineWidth, true);
+    }
+    const cuff = GLOVE.cuff;
+    roundRect(ctx, size * cuff.x, size * cuff.y, size * cuff.w, size * cuff.h, size * cuff.r);
+    ctx.fillStyle = tint.light;
+    ctx.fill();
+    outline(ctx, size, art, tint.light, GLOVE.lineWidth, true);
+  });
+}
+
 /** One boot in side view with the charm of its kind, hovering. */
 export function paintBootsItem(ctx: CanvasRenderingContext2D, size: number, art: Art, kind: RunewardBootsKind, timeMs: number): void {
+  if (kind === GLOVES_KIND) {
+    paintGloveItem(ctx, size, art, timeMs);
+    return;
+  }
   const tint = art.item.boots[kind];
   hover(ctx, size, art, timeMs, () => {
     polygon(ctx, size, BOOT.outline);

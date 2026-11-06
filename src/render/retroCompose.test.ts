@@ -143,6 +143,13 @@ describe('retro tile composition', () => {
     expect(retroItemLayers('boots_force', tiles.boots_force)[0].swap).toBe('green');
   });
 
+  it('draws the Grappling Gloves with their own sprite, not the shared boots', () => {
+    const layers = retroItemLayers('boots_pull', tiles.boots_pull);
+    expect(layers.map((layer) => layer.name)).toEqual(['gloves']);
+    expect(layers[0].swap).toBe('orange');
+    expect(retroItemLayers('boots_water', tiles.boots_water)[0].name).toBe('boots');
+  });
+
   it('draws forbid tiles as floor, the forbidden item and the sign', () => {
     expect(layersOf('forbid_key_red')).toEqual(['floor', 'key', 'glyph_red', 'forbid_sign']);
     expect(layersOf('forbid_boots_ice')).toEqual(['floor', 'boots', 'forbid_sign']);

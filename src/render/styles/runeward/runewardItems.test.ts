@@ -42,6 +42,8 @@ const bootsId = (kind: RunewardBootsKind): string => (kind === 'ward' ? 'ward' :
 const KEY_CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'green'];
 const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'force'];
 const TILE = 48;
+/** Fingers of the glove, each a rounded rectangle drawn with arcs. */
+const GLOVE_FINGERS = 4;
 const SMALL_TILE = 8;
 const FAR_TICK = 937;
 const MAIN_ON_FLOOR_MIN = 3;
@@ -191,6 +193,20 @@ describe('Runeward item drawings', () => {
       return lines.join('\n');
     });
     expect(new Set(logs).size).toBe(BOOTS.length);
+  });
+
+  it.each(ARTS)('draws the pull boots as a glove, not with the shared boot drawing, in the %s drawing', (_name, art) => {
+    const record = (kind: RunewardBootsKind): string => {
+      const { ctx, lines } = createRecordedContext();
+      paintBootsItem(ctx, TILE, art(), kind, 0);
+      return lines.join('\n');
+    };
+    const glove = record('pull');
+    expect(glove).toContain('ellipse(');
+    expect(glove.match(/arcTo\(/g)?.length ?? 0).toBeGreaterThanOrEqual(GLOVE_FINGERS);
+    for (const kind of BOOTS.filter((other) => other !== 'pull')) {
+      expect(record(kind), kind).not.toContain('arcTo(');
+    }
   });
 
   it('draws an ink outline on every parchment item and forbidden marker, and none in the plain drawing', () => {

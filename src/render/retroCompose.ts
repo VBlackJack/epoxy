@@ -155,6 +155,8 @@ const SIGNAL_TILES: ReadonlySet<string> = new Set(RETRO_SIGNAL_TILES);
 const DOOR_TILES: ReadonlySet<string> = new Set(['door_red', 'door_blue', 'door_yellow', 'door_green']);
 const KEY_ITEM_PREFIX = 'key_';
 const BOOTS_ITEM_PREFIX = 'boots_';
+/** The Grappling Gloves are a glove, not a pair of boots: they have their own sprite. */
+const GLOVES_ITEM_ID = 'boots_pull';
 const SCORE_ITEM_PREFIX = 'score_';
 
 /** Centre of a 5x5 glyph in a 16x16 sprite, in authoring-grid pixels. */
@@ -227,6 +229,9 @@ export function retroLabelLayers(label: string): RetroLayer[] {
 export function retroItemLayers(itemId: string, def: RetroTileSource): RetroLayer[] {
   if (itemId.startsWith(KEY_ITEM_PREFIX)) {
     return [{ name: RETRO_SPRITE.key, swap: swapRampOf(def.colorKey) }, ...glyphLayer(def.colorKey ?? DEFAULT_COLOR_KEY)];
+  }
+  if (itemId === GLOVES_ITEM_ID) {
+    return [{ name: RETRO_SPRITE.gloves, swap: RETRO_BOOT_RAMPS[itemId] }];
   }
   if (itemId.startsWith(BOOTS_ITEM_PREFIX) || Object.hasOwn(RETRO_BOOT_RAMPS, itemId)) {
     return [{ name: RETRO_SPRITE.boots, swap: RETRO_BOOT_RAMPS[itemId] }];
