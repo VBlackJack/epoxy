@@ -1699,6 +1699,8 @@ export class LevelValidator {
     const jetCells: GridPoint[] = [];
     const swivelCells: GridPoint[] = [];
     const plateCells: GridPoint[] = [];
+    const railSwitchCells: GridPoint[] = [];
+    let greenButtons = 0;
     const gateCellsByGroup = new Map<string, GridPoint[]>();
     const teleportCellsByGroup = new Map<string, GridPoint[]>();
     const portableGroups = new Set<string>();
@@ -1723,6 +1725,8 @@ export class LevelValidator {
           if (tile.buttonAction === 'toggle_flames') orangeButtons++;
           if (tile.flameTogglesTo !== undefined) jetCells.push({ x, y });
           if (tile.facingTurn !== undefined) plateCells.push({ x, y });
+          if (tile.railSides !== undefined && tile.togglesTo !== undefined) railSwitchCells.push({ x, y });
+          if (tile.buttonAction === 'toggle_walls') greenButtons++;
           if (tile.isTeleporter) {
             const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
             teleportCellsByGroup.set(group, [...(teleportCellsByGroup.get(group) ?? []), { x, y }]);
@@ -1769,6 +1773,9 @@ export class LevelValidator {
     }
     if (jetCells.length > 0 && orangeButtons === 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.flame_jets_no_button.label', params: this.locationParams(jetCells) });
+    }
+    if (railSwitchCells.length > 0 && greenButtons === 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.rail_switch_no_button.label', params: this.locationParams(railSwitchCells) });
     }
     const sealed = swivelCells.filter((cell) => this.isSwivelSealed(level, cell, underlays));
     if (sealed.length > 0) {
