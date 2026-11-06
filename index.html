@@ -266,13 +266,13 @@
 
                 <div class="led-counters">
                   <div class="led-box">
-                    <span id="hud-chips-label" class="led-label" data-i18n="hud.stats.chips.label"></span>
-                    <span id="hud-targets-label" class="led-label hidden" data-i18n="hud.stats.targets.label"></span>
-                    <span id="hud-receivers-label" class="led-label hidden" data-i18n="hud.stats.receivers.label"></span>
+                    <span id="hud-chips-label" class="led-label"><span class="led-label-long" data-i18n="hud.stats.chips.label"></span><span class="led-label-short" aria-hidden="true" data-i18n="hud.touch_overlay.chips.short"></span></span>
+                    <span id="hud-targets-label" class="led-label hidden"><span class="led-label-long" data-i18n="hud.stats.targets.label"></span><span class="led-label-short" aria-hidden="true" data-i18n="hud.touch_overlay.targets.short"></span></span>
+                    <span id="hud-receivers-label" class="led-label hidden"><span class="led-label-long" data-i18n="hud.stats.receivers.label"></span><span class="led-label-short" aria-hidden="true" data-i18n="hud.touch_overlay.receivers.short"></span></span>
                     <div id="hud-chips-left" class="led-digits led-green"></div>
                   </div>
                   <div class="led-box">
-                    <span class="led-label" data-i18n="hud.stats.time.label"></span>
+                    <span class="led-label"><span class="led-label-long" data-i18n="hud.stats.time.label"></span><span class="led-label-short" aria-hidden="true" data-i18n="hud.touch_overlay.time.short"></span></span>
                     <div id="hud-time-left" class="led-digits led-amber"></div>
                   </div>
                 </div>
@@ -320,9 +320,9 @@
 
               <!-- Floating controls of the phone full screen layout (hidden elsewhere) -->
               <div id="touch-overlay-controls" class="touch-overlay-controls" role="group" hidden data-i18n-aria-label="hud.touch_overlay.controls.label">
-                <button id="touch-btn-pause" class="touch-overlay-btn" type="button" data-i18n="hud.controls.pause.action"></button>
-                <button id="touch-btn-undo" class="touch-overlay-btn" type="button" data-i18n="hud.controls.undo.action"></button>
-                <button id="touch-btn-menu" class="touch-overlay-btn" type="button" aria-haspopup="dialog" data-i18n="hud.touch_overlay.menu.action"></button>
+                <button id="touch-btn-pause" class="touch-overlay-btn" type="button" data-i18n-aria-label="hud.controls.pause.action" data-i18n-title="hud.controls.pause.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+                <button id="touch-btn-undo" class="touch-overlay-btn" type="button" data-i18n-aria-label="hud.controls.undo.action" data-i18n-title="hud.controls.undo.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+                <button id="touch-btn-menu" class="touch-overlay-btn" type="button" aria-haspopup="dialog" data-i18n-aria-label="hud.touch_overlay.menu.action" data-i18n-title="hud.touch_overlay.menu.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 7h14M5 12h14M5 17h14"/></svg></button>
               </div>
             </div>
           </div>

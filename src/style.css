@@ -735,6 +735,10 @@ body.fullscreen-mode .play-shell .viewport-wrapper {
   margin-bottom: 0.1rem;
 }
 
+.led-label-short {
+  display: none;
+}
+
 .led-digits {
   font-family: 'Courier New', monospace;
   font-size: 1.38rem;
@@ -3106,8 +3110,8 @@ body.touch-overlay {
   --overlay-edge: 12px;
   --overlay-gap: 8px;
   --overlay-dpad-cell: clamp(48px, 14vmin, 76px);
-  --overlay-button-size: 48px;
-  --overlay-hud-clearance: 6.5rem;
+  --overlay-button-size: 44px;
+  --overlay-hud-clearance: var(--overlay-gap);
   --overlay-border-width: 1px;
   --overlay-text: #ffffff;
   --overlay-panel-bg: rgba(10, 12, 18, 0.78);
@@ -3178,35 +3182,61 @@ body.touch-overlay .play-shell .lcd-screen .viewport-wrapper {
   grid-row: auto;
 }
 
-/* HUD: level, chips (or targets, receivers), time and the owned items, in the corner opposite the pad */
+/*
+   HUD: level, chips (or targets, receivers), time and the owned items, as one compact block.
+   It sits in the strip the board reserves beside the pad (see computeCameraInsets), off the board:
+   portrait, in the bottom band above the buttons, opposite the pad; landscape, at the top of the
+   pad column. A large map can still scroll under the strip, so the text carries a dark outline.
+*/
 body.touch-overlay .play-shell .lcd-screen .hud-panel {
   position: absolute;
   z-index: 3;
-  top: calc(var(--safe-top) + var(--overlay-gap));
-  width: auto;
-  max-width: min(48dvw, 22rem);
+  width: max-content;
+  max-width: calc(100dvw - var(--overlay-dpad-cell) * 3 - var(--overlay-edge) * 3);
   height: auto;
   overflow: visible;
-  padding: 0.4rem 0.6rem;
-  gap: 0.3rem;
+  padding: 0.2rem 0.4rem;
+  gap: 0.15rem;
   grid-column: auto;
   grid-row: auto;
   background: var(--overlay-panel-bg);
   color: var(--overlay-text);
-  border: var(--overlay-border-width) solid var(--overlay-panel-border);
-  border-radius: 10px;
-  box-shadow: 0 0 0 1px var(--overlay-ring);
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
   pointer-events: none;
 }
 
-body.touch-overlay.dpad-right .play-shell .lcd-screen .hud-panel {
-  left: calc(var(--safe-left) + var(--overlay-gap));
+body.touch-overlay.orientation-portrait .play-shell .lcd-screen .hud-panel {
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-button-size) + var(--overlay-gap));
+}
+
+body.touch-overlay.orientation-portrait.dpad-right .play-shell .lcd-screen .hud-panel {
+  left: calc(var(--safe-left) + var(--overlay-edge));
   right: auto;
 }
 
-body.touch-overlay.dpad-left .play-shell .lcd-screen .hud-panel {
-  right: calc(var(--safe-right) + var(--overlay-gap));
+body.touch-overlay.orientation-portrait.dpad-left .play-shell .lcd-screen .hud-panel {
+  right: calc(var(--safe-right) + var(--overlay-edge));
   left: auto;
+}
+
+body.touch-overlay.orientation-landscape .play-shell .lcd-screen .hud-panel {
+  top: calc(var(--safe-top) + var(--overlay-gap));
+  max-width: calc(var(--overlay-dpad-cell) * 3);
+  /* Never reach the buttons above the pad: clip inside the space left */
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - var(--overlay-gap) * 2 - var(--overlay-edge) - var(--overlay-dpad-cell) * 3 - var(--overlay-button-size));
+  overflow: hidden;
+}
+
+body.touch-overlay.orientation-landscape.dpad-right .play-shell .lcd-screen .hud-panel {
+  right: calc(var(--safe-right) + var(--overlay-edge));
+  left: auto;
+}
+
+body.touch-overlay.orientation-landscape.dpad-left .play-shell .lcd-screen .hud-panel {
+  left: calc(var(--safe-left) + var(--overlay-edge));
+  right: auto;
 }
 
 body.touch-overlay .hud-panel .hud-level-title,
@@ -3220,27 +3250,64 @@ body.touch-overlay .hud-panel .inv-title {
 
 body.touch-overlay .hud-panel .hud-level-header {
   justify-content: flex-start;
+  font-size: 0.6rem;
   color: var(--overlay-text);
+}
+
+body.touch-overlay .hud-panel .hud-level-header strong {
+  font-size: 0.9rem;
+}
+
+/* Dark outline: the strip can sit over a large map that scrolls under it */
+body.touch-overlay .hud-panel .hud-level-header,
+body.touch-overlay .hud-panel .led-label,
+body.touch-overlay .hud-panel .led-digits {
+  text-shadow:
+    -1px -1px 0 var(--overlay-chevron-outline),
+    1px -1px 0 var(--overlay-chevron-outline),
+    -1px 1px 0 var(--overlay-chevron-outline),
+    1px 1px 0 var(--overlay-chevron-outline);
 }
 
 body.touch-overlay .hud-panel .led-counters {
   grid-template-columns: auto auto;
-  gap: 0.35rem;
+  gap: 0.5rem;
 }
 
+/* The counters read as plain text on the HUD block, not as boxes of their own */
 body.touch-overlay .hud-panel .led-box {
-  padding: 0.12rem 0.4rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
   white-space: nowrap;
 }
 
 body.touch-overlay .hud-panel .led-label {
+  position: relative;
   margin-bottom: 0;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
+  line-height: 1.1;
   color: var(--overlay-text);
 }
 
+/* The short label shows on the HUD; the long one stays in the page for screen readers */
+body.touch-overlay .hud-panel .led-label-short {
+  display: inline;
+}
+
+body.touch-overlay .hud-panel .led-label-long {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 body.touch-overlay .hud-panel .led-digits {
-  font-size: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.15;
   letter-spacing: 0.04em;
 }
 
@@ -3304,40 +3371,71 @@ body.touch-overlay .hud-panel .inv-count {
   text-shadow: 0 0 2px var(--overlay-chevron-outline);
 }
 
-/* Pause, Undo and Menu, in the bottom corner opposite the pad */
+/*
+   Pause, Undo and Menu: 44px icon buttons in the strip beside the pad, off the board.
+   Portrait: a row at the bottom, opposite the pad, under the HUD. Landscape: a row in the pad
+   column, just above the pad.
+*/
 body.touch-overlay .play-shell .lcd-screen .touch-overlay-controls {
   display: flex;
   position: absolute;
   z-index: 3;
-  bottom: calc(var(--safe-bottom) + var(--overlay-edge));
   gap: var(--overlay-gap);
 }
 
-body.touch-overlay.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
+body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls {
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge));
+}
+
+body.touch-overlay.orientation-portrait.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
   left: calc(var(--safe-left) + var(--overlay-edge));
   right: auto;
 }
 
-body.touch-overlay.dpad-left .play-shell .lcd-screen .touch-overlay-controls {
+body.touch-overlay.orientation-portrait.dpad-left .play-shell .lcd-screen .touch-overlay-controls {
   right: calc(var(--safe-right) + var(--overlay-edge));
   left: auto;
 }
 
+body.touch-overlay.orientation-landscape .play-shell .lcd-screen .touch-overlay-controls {
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-dpad-cell) * 3 + var(--overlay-gap));
+  width: calc(var(--overlay-dpad-cell) * 3);
+  justify-content: space-between;
+  gap: 0;
+}
+
+body.touch-overlay.orientation-landscape.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
+  right: calc(var(--safe-right) + var(--overlay-edge));
+  left: auto;
+}
+
+body.touch-overlay.orientation-landscape.dpad-left .play-shell .lcd-screen .touch-overlay-controls {
+  left: calc(var(--safe-left) + var(--overlay-edge));
+  right: auto;
+}
+
 body.touch-overlay .touch-overlay-controls .touch-overlay-btn {
+  display: grid;
+  place-items: center;
+  width: var(--overlay-button-size);
+  height: var(--overlay-button-size);
   min-width: var(--overlay-button-size);
   min-height: var(--overlay-button-size);
-  padding: 0 0.85rem;
+  padding: 0;
   background: var(--overlay-panel-bg);
   color: var(--overlay-text);
-  border: 2px solid var(--overlay-panel-border);
-  border-radius: 12px;
-  box-shadow: 0 0 0 1px var(--overlay-ring);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
+  border: var(--overlay-border-width) solid var(--overlay-panel-border);
+  border-radius: 10px;
+  box-shadow: none;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+body.touch-overlay .touch-overlay-controls .touch-overlay-icon {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
 }
 
 body.touch-overlay .touch-overlay-controls .touch-overlay-btn:active {
@@ -3436,6 +3534,12 @@ body.touch-overlay .play-shell .lcd-screen .hint-banner {
   top: calc(var(--safe-top) + var(--overlay-hud-clearance));
 }
 
+/* Landscape: keep messages clear of the pad column and the HUD at its top */
+body.touch-overlay.orientation-landscape .play-shell .lcd-screen .status-toast,
+body.touch-overlay.orientation-landscape .play-shell .lcd-screen .hint-banner {
+  max-width: min(28rem, calc(100dvw - 2 * (var(--overlay-dpad-cell) * 3 + var(--overlay-edge) * 2)));
+}
+
 /* A toast stays visible above the pause / end card (z-index 5) */
 body.touch-overlay .play-shell .lcd-screen .status-toast {
   z-index: 6;
@@ -3479,9 +3583,13 @@ body.touch-overlay .viewport-overlay .action-btn:focus-visible {
 }
 
 /* A very narrow portrait screen has no room beside the pad: the cluster stacks above it */
-@media (max-width: 399px) {
+@media (max-width: 339px) {
   body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls {
     bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-dpad-cell) * 3 + var(--overlay-gap));
+  }
+
+  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .hud-panel {
+    bottom: calc(var(--safe-bottom) + var(--overlay-edge));
   }
 
   body.touch-overlay.orientation-portrait.dpad-right .play-shell .lcd-screen .touch-overlay-controls {

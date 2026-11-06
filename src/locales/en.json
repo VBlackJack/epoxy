@@ -406,7 +406,11 @@
     "touch_overlay": {
       "hud": { "label": "Level status" },
       "controls": { "label": "Game controls" },
-      "menu": { "action": "Menu" }
+      "menu": { "action": "Menu" },
+      "chips": { "short": "CHIPS" },
+      "targets": { "short": "TARGETS" },
+      "receivers": { "short": "RECV." },
+      "time": { "short": "TIME" }
     },
     "messages": {
       "hint_prefix": { "label": "HINT: " },

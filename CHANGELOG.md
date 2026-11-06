@@ -9,6 +9,10 @@ versions follow Semantic Versioning.
 
 - Level editor: signal links can be removed with the Unlink button in the Connections panel.
 
+### Changed
+
+- Phone full screen: the HUD and the Pause, Undo and Menu buttons move beside the d-pad, off the board, with a lighter look.
+
 ## [2.21.0] - 2026-11-06
 
 ### Added
