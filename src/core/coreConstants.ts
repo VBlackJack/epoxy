@@ -43,6 +43,11 @@ export const SUNK_BLOCK_TILE_ID = 'dirt';
 /** Terrain a block must cover to win a level whose win rule is 'targets'. */
 export const BLOCK_TARGET_TILE_ID = 'block_target';
 
+/** Tile ids the pack format check reads without the tile registry (an early export may run before the configs load). */
+export const SIGNAL_BUTTON_TILE_ID = 'signal_button';
+export const CLONE_MACHINE_TILE_ID = 'clone_machine';
+export const SHOT_LAUNCHER_TILE_ID_PREFIX = 'shot_launcher_';
+
 /** Terrain that only shows a hint: walkable by the player and pushable across by a block, with no effect. */
 export const HINT_TILE_ID = 'hint';
 

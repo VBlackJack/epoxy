@@ -18,8 +18,8 @@
  * Signal links as a level stores them, and their compilation into the signal network the engine runs.
  *
  * A level stores wires only. What each end is comes from the tile on its cell: a laser receiver or a
- * held signal source is a source (only a `from` end), a gate tile is a gate (either end), a hold door is
- * a sink (only a `to` end). A cell no link touches is not a node.
+ * held or pulse signal source is a source (only a `from` end), a gate tile is a gate (either end), a hold
+ * door, a shot launcher or a clone machine is a sink (only a `to` end). A cell no link touches is not a node.
  */
 
 import {
@@ -29,7 +29,13 @@ import {
   isRecord,
   isRuleset
 } from '../config/ConfigValidation';
-import { SIGNAL_PORT_MAX_LENGTH, SIGNAL_PORT_MIN_LENGTH } from './coreConstants';
+import {
+  CLONE_MACHINE_TILE_ID,
+  SHOT_LAUNCHER_TILE_ID_PREFIX,
+  SIGNAL_BUTTON_TILE_ID,
+  SIGNAL_PORT_MAX_LENGTH,
+  SIGNAL_PORT_MIN_LENGTH
+} from './coreConstants';
 import type { CellUnderlay, CompiledLevel, SignalLink, SignalNodeDef, SignalSpec, TileDefinition } from './types';
 
 /** What a tile is to a signal network. */
@@ -46,8 +52,8 @@ function nodeOfTile(tile: TileDefinition, cell: number): CellNode | null {
   if (tile.laserReceiverGroup !== undefined) {
     return { role: 'source', def: { cell, kind: 'source', sample: 'receiver' } };
   }
-  if (tile.signalSource === 'held') {
-    return { role: 'source', def: { cell, kind: 'source', sample: 'held' } };
+  if (tile.signalSource === 'held' || tile.signalSource === 'pulse') {
+    return { role: 'source', def: { cell, kind: 'source', sample: tile.signalSource } };
   }
   if (tile.signalGate !== undefined) {
     const def: SignalNodeDef =
@@ -58,6 +64,12 @@ function nodeOfTile(tile: TileDefinition, cell: number): CellNode | null {
   }
   if (tile.holdDoorColor !== undefined) {
     return { role: 'sink', def: { cell, kind: 'sink', color: tile.holdDoorColor } };
+  }
+  if (tile.shotLauncher !== undefined) {
+    return { role: 'sink', def: { cell, kind: 'sink', fires: 'launcher' } };
+  }
+  if (tile.isCloneMachine) {
+    return { role: 'sink', def: { cell, kind: 'sink', fires: 'cloner' } };
   }
   return null;
 }
@@ -164,4 +176,34 @@ export function compileSignalSpec(
     ...(l.port === undefined ? {} : { port: l.port })
   }));
   return { nodes: [...nodes.values()].sort((a, b) => a.cell - b.cell), links: specLinks };
+}
+
+/**
+ * True when the level needs pack format version 6: it places a pulse button (on the terrain or hidden under
+ * a removable top), or one of its signal links ends on a shot launcher or a clone machine. An older build
+ * would read the pulse tile as floor and drop the links to launchers and cloners, so it must refuse the
+ * file. The shipped tile ids are read by name, so it holds before the configs are loaded; other tiles go through the lookup when there is one.
+ */
+export function usesPulseSinkFormat(
+  level: Pick<CompiledLevel, 'terrain' | 'underlays' | 'signalLinks'>,
+  lookup: TerrainTileLookup | null = getRegisteredTerrainLookup()
+): boolean {
+  const isPulse = (id: string | null | undefined): boolean =>
+    id !== null && id !== undefined && (id === SIGNAL_BUTTON_TILE_ID || lookup?.(id)?.signalSource === 'pulse');
+  const isEdgeSink = (id: string | null | undefined): boolean => {
+    if (id === null || id === undefined) return false;
+    if (id === CLONE_MACHINE_TILE_ID || id.startsWith(SHOT_LAUNCHER_TILE_ID_PREFIX)) return true;
+    const tile = lookup?.(id);
+    return tile !== undefined && (tile.shotLauncher !== undefined || tile.isCloneMachine === true);
+  };
+  if (level.terrain.some((row) => row.some(isPulse))) return true;
+  const underlays = level.underlays ?? [];
+  if (underlays.some((under) => isPulse(under.terrain))) return true;
+  const hidden = new Map<string, string>(underlays.map((under) => [`${under.x},${under.y}`, under.terrain]));
+  return (level.signalLinks ?? []).some((link) => {
+    if (link === null || typeof link !== 'object') return false;
+    const { toX, toY } = link;
+    if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
+    return isEdgeSink(level.terrain[toY]?.[toX]) || isEdgeSink(hidden.get(`${toX},${toY}`));
+  });
 }

@@ -366,7 +366,7 @@ describe('Runeward signal tiles', () => {
   });
 
   it('gives every signal kind of the game a Runeward painter', () => {
-    expect(SIGNAL_IDS.length).toBe(7);
+    expect(SIGNAL_IDS.length).toBe(8);
     for (const id of SIGNAL_IDS) expect(RUNEWARD_PAINTERS.tiles[id], id).toBeDefined();
   });
 });

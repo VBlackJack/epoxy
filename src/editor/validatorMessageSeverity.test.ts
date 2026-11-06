@@ -47,6 +47,7 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
   signal_sink_inputs: ERR, signal_colour_mixed: ERR, signal_not_inputs: ERR, signal_gate_no_input: ERR,
   signal_cycle: ERR, signal_link_dangling: WARN, signal_source_unlinked: WARN,
   signal_world_loop_odd: ERR, signal_world_loop_even: WARN,
+  signal_pulse_door: WARN, signal_cloner_self_feed: WARN,
   cc3d_bad_grid: ERR, cc3d_empty_stack: ERR, cc3d_unknown_terrain: ERR, cc3d_base_not_floor: ERR, cc3d_stack_order: ERR,
   cc3d_duplicate_layer: ERR, cc3d_missing_color: ERR, cc3d_missing_dir: ERR, cc3d_missing_corner: ERR,
   cc3d_missing_mirror: ERR, cc3d_invalid_value: ERR, cc3d_unknown_item: ERR, cc3d_unknown_mob: ERR,

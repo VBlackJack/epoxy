@@ -32,6 +32,7 @@ import {
   isInBounds,
   killPlayer,
   leaveCell,
+  notePulseArrival,
   removeEntity,
   shotAt
 } from './epoxyWorld';
@@ -150,6 +151,8 @@ export function moveBlockTo(
   if (tile.facingTurn !== undefined && blockDef?.pushArrows !== undefined) {
     block.facing = turnClockwise(block.facing ?? block.dir, tile.facingTurn);
   }
+
+  notePulseArrival(w, destX, destY, block);
 
   // A button worked by the player alone (a steering pad) does nothing when a block slides onto it.
   if (tile.buttonAction && tile.buttonWorkedBy !== 'player') {

@@ -117,8 +117,15 @@ export const PACK_JSON_VERSION_LAUNCHERS = 4;
 /** Version of a pack file that holds at least one level with signal links (wires between logic devices). */
 export const PACK_JSON_VERSION_SIGNALS = 5;
 
+/**
+ * Version of a pack file that holds at least one level with a pulse button, or a signal link that ends on a shot
+ * launcher or a clone machine. An older build would read the pulse tile as floor and drop the links to launchers
+ * and cloners, so the file would play wrongly instead of being refused.
+ */
+export const PACK_JSON_VERSION_PULSE_SINKS = 6;
+
 /** Highest pack file version this build reads; a file with a higher version is refused. */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_SIGNALS;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_PULSE_SINKS;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

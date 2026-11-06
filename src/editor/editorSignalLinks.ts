@@ -119,7 +119,7 @@ export type SignalEnd = 'output' | 'input';
  */
 export function signalTileHoldsEnd(tile: TileDefinition | undefined, end: SignalEnd): boolean {
   if (!tile) return false;
-  const isSource = tile.laserReceiverGroup !== undefined || tile.signalSource === 'held';
+  const isSource = tile.laserReceiverGroup !== undefined || tile.signalSource !== undefined;
   const isGate = tile.signalGate !== undefined;
   const isSink = tile.holdDoorColor !== undefined;
   return end === 'output' ? isSource || isGate : isGate || isSink;

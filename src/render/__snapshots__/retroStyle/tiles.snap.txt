@@ -573,6 +573,11 @@ tile theme=cyber_neon id=signal_plate d543b57a2653850d
 tile theme=arctic_lab id=signal_plate ae2ca3b6580e08b7
 tile theme=magma_core id=signal_plate e028dc9fc4b5b52d
 tile theme=lynx_lcd id=signal_plate b34162b83ae14fdf
+tile theme=default id=signal_button ad514bfa27bef7e9
+tile theme=cyber_neon id=signal_button 2ae68083b26f13e5
+tile theme=arctic_lab id=signal_button f1649c69ba0a8bd2
+tile theme=magma_core id=signal_button 7e2c13bf5fe2a61b
+tile theme=lynx_lcd id=signal_button dd8ab2a5cacc3c9d
 tile theme=default id=signal_gate_and 75d2255433e0f48a
 tile theme=cyber_neon id=signal_gate_and 27657e7623dcf028
 tile theme=arctic_lab id=signal_gate_and be59ef6e7f38b957

@@ -1288,6 +1288,17 @@
       "passableByBlock": true,
       "signalSource": "held"
     },
+    "signal_button": {
+      "id": "signal_button",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_button.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "signalSource": "pulse"
+    },
     "signal_gate_and": {
       "id": "signal_gate_and",
       "category": "mechanisms",

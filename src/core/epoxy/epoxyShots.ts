@@ -162,24 +162,36 @@ export function fireLaunchers(ctx: EpoxyContext, bx: number, by: number): boolea
   if (!w.hasLaunchers) return w.player.alive;
   for (const link of w.launcherLinks) {
     if (link.buttonX !== bx || link.buttonY !== by) continue;
-    const launcher = ConfigRegistry.getTile(w.terrain[link.launcherY]?.[link.launcherX]).shotLauncher;
-    if (!launcher) continue;
-    const key = cellKey(link.launcherX, link.launcherY);
-    if (w.firedLaunchers.has(key)) continue;
-    w.firedLaunchers.add(key);
-
-    const entry = enterCell(ctx, link.launcherX, link.launcherY, launcher.dir);
-    if (!w.player.alive) return false;
-    if (!entry.flies) continue;
-    const vec = DIRECTION_VECTORS[launcher.dir];
-    // Fired during a tick, the shot is advanced by that same tick: it starts one tick later to keep its pace.
-    w.shots.push({
-      x: link.launcherX + vec.dx,
-      y: link.launcherY + vec.dy,
-      dir: entry.dir,
-      cooldown: w.inTick ? w.shotStepTicks : w.shotStepTicks - 1
-    });
+    if (!fireLauncherAt(ctx, link.launcherX, link.launcherY)) return false;
   }
+  return true;
+}
+
+/**
+ * Fires the launcher at (lx, ly) once: the same rules as a trigger's link (the per-tick cap, the tile check, the
+ * first cell entered at once), used by a trigger link and by a signal sink. Does nothing on a level without
+ * launchers or when the cell holds no launcher now. Returns false when a shot killed the player.
+ */
+export function fireLauncherAt(ctx: EpoxyContext, lx: number, ly: number): boolean {
+  const w = ctx.world;
+  if (!w.hasLaunchers) return w.player.alive;
+  const launcher = ConfigRegistry.getTile(w.terrain[ly]?.[lx]).shotLauncher;
+  if (!launcher) return true;
+  const key = cellKey(lx, ly);
+  if (w.firedLaunchers.has(key)) return true;
+  w.firedLaunchers.add(key);
+
+  const entry = enterCell(ctx, lx, ly, launcher.dir);
+  if (!w.player.alive) return false;
+  if (!entry.flies) return true;
+  const vec = DIRECTION_VECTORS[launcher.dir];
+  // Fired during a tick, the shot is advanced by that same tick: it starts one tick later to keep its pace.
+  w.shots.push({
+    x: lx + vec.dx,
+    y: ly + vec.dy,
+    dir: entry.dir,
+    cooldown: w.inTick ? w.shotStepTicks : w.shotStepTicks - 1
+  });
   return true;
 }
 

@@ -23,11 +23,12 @@
  */
 
 /** What a signal tile is drawn as. */
-export type SignalTileKind = 'plate' | 'and' | 'or' | 'not' | 'xor' | 'latch_off' | 'latch_on';
+export type SignalTileKind = 'plate' | 'button' | 'and' | 'or' | 'not' | 'xor' | 'latch_off' | 'latch_on';
 
 /** The kind of each shipped signal tile id. */
 export const SIGNAL_TILE_KINDS: Readonly<Record<string, SignalTileKind>> = {
   signal_plate: 'plate',
+  signal_button: 'button',
   signal_gate_and: 'and',
   signal_gate_or: 'or',
   signal_gate_not: 'not',
@@ -72,6 +73,10 @@ const HEX_SIDES = 6;
 const HEX_RADIUS_TILE = 0.4;
 const HEX_RIM_WIDTH_TILE = 0.07;
 const HEX_CORE_RADIUS_TILE = 0.2;
+
+/** Round pad of the pulse button: radius and the radius of its lit core, in fractions of the cell. */
+const BUTTON_RADIUS_TILE = 0.34;
+const BUTTON_CORE_RADIUS_TILE = 0.16;
 
 /**
  * The ampersand: a diagonal from the lower right up to the head, the head loop, then the bowl that ends
@@ -248,8 +253,20 @@ export function paintSignalTile(
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.strokeStyle = ink;
-  if (kind === 'plate') {
-    hexPath(ctx, x + size * CENTRE_TILE, y + size * CENTRE_TILE, size * HEX_RADIUS_TILE);
+  if (kind === 'plate' || kind === 'button') {
+    // The plate is a hex pad; the pulse button is a round one.
+    const pad = (radius: number): void => {
+      const cx = x + size * CENTRE_TILE;
+      const cy = y + size * CENTRE_TILE;
+      if (kind === 'plate') {
+        hexPath(ctx, cx, cy, size * radius);
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * radius, 0, FULL_TURN);
+        ctx.closePath();
+      }
+    };
+    pad(kind === 'plate' ? HEX_RADIUS_TILE : BUTTON_RADIUS_TILE);
     ctx.fillStyle = colors.box;
     ctx.fill();
     ctx.lineWidth = Math.max(MIN_STROKE_PX, size * HEX_RIM_WIDTH_TILE);
@@ -259,7 +276,7 @@ export function paintSignalTile(
     }
     ctx.stroke();
     if (powered) {
-      hexPath(ctx, x + size * CENTRE_TILE, y + size * CENTRE_TILE, size * HEX_CORE_RADIUS_TILE);
+      pad(kind === 'plate' ? HEX_CORE_RADIUS_TILE : BUTTON_CORE_RADIUS_TILE);
       ctx.fillStyle = colors.lit;
       ctx.fill();
     }

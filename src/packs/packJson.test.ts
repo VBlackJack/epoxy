@@ -27,9 +27,11 @@ import {
   PACK_JSON_VERSION,
   PACK_JSON_VERSION_CELL_EDGES,
   PACK_JSON_VERSION_LAUNCHERS,
+  PACK_JSON_VERSION_PULSE_SINKS,
   PACK_JSON_VERSION_SIGNALS,
   PACK_JSON_VERSION_UNDERLAYS
 } from '../config/constants';
+import { usesPulseSinkFormat } from '../core/signalLinks';
 import { CompiledLevel } from '../core/types';
 import { importCc3dSelection } from '../ui/cc3dImport';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -171,6 +173,50 @@ describe('packJson', () => {
     expect(result).toMatchObject({ ok: true });
     if (result.ok) expect(result.levels[0].signalLinks).toEqual(signalLinks);
     for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS]) {
+      const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
+      expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
+    }
+  });
+
+  it('writes version 6 only for a pulse button or a link to a launcher or clone machine, and reads versions 1 to 6', () => {
+    const wired = makeLevel('wired');
+    wired.terrain[1][1] = 'signal_plate';
+    wired.terrain[3][3] = 'hold_door_red_closed';
+    const plateToDoor = { ...wired, signalLinks: [{ fromX: 1, fromY: 1, toX: 3, toY: 3 }] };
+    // A v1 signal level is still written in version 5.
+    expect(JSON.parse(serializePack('N', [plateToDoor])).version).toBe(PACK_JSON_VERSION_SIGNALS);
+
+    const pulse = makeLevel('pulse');
+    pulse.terrain[2][2] = 'signal_button';
+    expect(JSON.parse(serializePack('N', [makeLevel('a'), pulse])).version).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+
+    const launched = makeLevel('launched');
+    launched.terrain[1][1] = 'signal_plate';
+    launched.terrain[3][3] = 'shot_launcher_e';
+    const launchSignalLinks = [{ fromX: 1, fromY: 1, toX: 3, toY: 3 }];
+    const edgeSink = { ...launched, signalLinks: launchSignalLinks };
+    expect(JSON.parse(serializePack('N', [plateToDoor, edgeSink])).version).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+
+    const cloned = makeLevel('cloned');
+    cloned.terrain[1][1] = 'signal_plate';
+    cloned.terrain[3][3] = 'clone_machine';
+    const clonerSink = { ...cloned, signalLinks: launchSignalLinks };
+    expect(JSON.parse(serializePack('N', [clonerSink])).version).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+
+    const result = parse(serializePack('Edge', [edgeSink]));
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) expect(result.levels[0].signalLinks).toEqual(launchSignalLinks);
+
+    // A pack that needs neither is written exactly as before.
+    expect(serializePack('N', [plateToDoor])).toBe(
+      JSON.stringify({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_SIGNALS, name: 'N', levels: [plateToDoor] }, null, 2)
+    );
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+    // The check reads the shipped ids by name, so it holds without a tile lookup.
+    expect(usesPulseSinkFormat(pulse, null)).toBe(true);
+    expect(usesPulseSinkFormat(edgeSink, null)).toBe(true);
+    expect(usesPulseSinkFormat(plateToDoor, null)).toBe(false);
+    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS]) {
       const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
       expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
     }
