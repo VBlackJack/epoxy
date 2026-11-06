@@ -160,7 +160,7 @@ export interface ConnectionPoint {
 
 /** The link an Unlink button removes: the button cell and the target cell of one explicit link. */
 export interface ConnectionUnlink {
-  system: 'trap' | 'clone' | 'shot';
+  system: 'trap' | 'clone' | 'shot' | 'signal';
   button: ConnectionPoint;
   target: ConnectionPoint;
 }
@@ -328,7 +328,7 @@ function unlinkOf(
   direction: 'controls' | 'controlledBy'
 ): ConnectionUnlink | null {
   if (relation.kind !== 'link') return null;
-  if (relation.system !== 'trap' && relation.system !== 'clone' && relation.system !== 'shot') return null;
+  if (relation.system !== 'trap' && relation.system !== 'clone' && relation.system !== 'shot' && relation.system !== 'signal') return null;
   const other = { x: relation.x, y: relation.y };
   return direction === 'controls'
     ? { system: relation.system, button: subject, target: other }
