@@ -2133,12 +2133,61 @@
       "level_12": {
         "title": "Au coeur du sanctuaire",
         "hint": "Combine tous les outils du sanctuaire : pousse le miroir vers le nord pour allumer le récepteur laser rouge, et utilise les gants grappins dans l'aile est pour extraire le rocher et lester la plaque bleue."
+      },
+      "level_13": {
+        "title": "Nécropole à deux ailes",
+        "hint": "Comble le fossé d'eau à l'ouest avec un rocher pour prendre la clé rouge, leste la plaque bleue à l'est avec le deuxième rocher, puis comble le bassin du haut avec le troisième rocher pour ouvrir la sortie."
+      },
+      "level_14": {
+        "title": "Galeries jumelles à grappin",
+        "hint": "Prends les gants grappins et tire les deux rochers de l'ouest hors de leurs alcôves nord et sud jusque sur les plaques rouge et bleue, puis comble le fossé de l'est avec le troisième rocher pour prendre la clé rouge."
+      },
+      "level_15": {
+        "title": "Double sanctuaire ailé",
+        "hint": "Remonte d'abord les contre-allées intérieures pour ramasser les puces du haut, puis pousse les rochers extérieurs vers le sud dans les deux fossés d'eau pour prendre les clés rouge et bleue, et place le rocher central sur la plaque jaune."
+      },
+      "level_16": {
+        "title": "Lagune aux six ponts",
+        "hint": "Pousse un rocher de l'ouest vers le sud dans le canal étroit pour combler le fossé sud-ouest, place le second rocher de l'ouest sur la plaque bleue, puis comble les trois fossés de l'est à la suite pour ouvrir la sortie."
+      },
+      "level_17": {
+        "title": "Salle cruciforme des rouleaux",
+        "hint": "Prends les gants grappins dans l'aile sud pour tirer le rocher hors de sa niche et le pousser sur la plaque jaune, puis extrais les deux rochers du nord de leurs alcôves jusque sur les plaques rouge et bleue."
+      },
+      "level_18": {
+        "title": "Chambres de la renaissance",
+        "hint": "Leste les plaques rouge et bleue de la salle basse pour ouvrir le puits central, ramasse les puces du haut sans couper le faisceau, puis pousse le miroir oblique vers le nord pour allumer le récepteur rouge."
+      },
+      "level_19": {
+        "title": "Caveau fluvial des prismes",
+        "hint": "Comble le fossé ouest pour récupérer les gants grappins, tire le rocher central du sud pour combler le fossé est, puis tire le miroir du haut vers l'est hors de son alcôve avant de pousser le second miroir dans le faisceau."
+      },
+      "level_20": {
+        "title": "Pyramide de l'harmonie",
+        "hint": "Ramasse d'abord les puces du sud et les gants grappins, pousse le miroir vers le nord dans le faisceau pour ouvrir la barrière rouge, leste la plaque bleue à l'est, puis tire le rocher du nord vers le sud dans le fossé central."
       }
     },
     "chapter": {
-      "1": { "title": "Strates et écluses", "subtitle": "Veines de terre, rochers et fossés souterrains." },
-      "2": { "title": "Contrepoids et grappins", "subtitle": "Plaques de pression, portes maintenues et gants grappins." },
-      "3": { "title": "Optique souterraine", "subtitle": "Émetteurs laser enfouis, prismes mobiles et portes de sanctuaire." }
+      "1": {
+        "title": "Strates et écluses",
+        "subtitle": "Veines de terre, rochers et fossés souterrains."
+      },
+      "2": {
+        "title": "Contrepoids et grappins",
+        "subtitle": "Plaques de pression, portes maintenues et gants grappins."
+      },
+      "3": {
+        "title": "Optique souterraine",
+        "subtitle": "Émetteurs laser enfouis, prismes mobiles et portes de sanctuaire."
+      },
+      "4": {
+        "title": "Temples des gardiens",
+        "subtitle": "Sanctuaires à ailes multiples, ponts de canaux et doubles salles à contrepoids."
+      },
+      "5": {
+        "title": "Pyramide de l'harmonie",
+        "subtitle": "Salles enchaînées mêlant écluses à rochers, alcôves à grappin et optique à prismes."
+      }
     }
   }
 }

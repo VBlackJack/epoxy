@@ -2133,12 +2133,61 @@
       "level_12": {
         "title": "Heart of the Sanctuary",
         "hint": "Combine every tool of the sanctuary: push the slash mirror North to light the red laser receiver, and use the Grappling Gloves in the eastern wing to extract the recessed boulder and weigh down the blue plate."
+      },
+      "level_13": {
+        "title": "Two-Wing Necropolis",
+        "hint": "Bridge the western water trench with a boulder to recover the red key, weigh down the eastern blue pressure plate with the second boulder, then bridge the upper pool with the third boulder to reach the exit."
+      },
+      "level_14": {
+        "title": "Twin Pull Halls",
+        "hint": "Pick up the Grappling Gloves and pull both western boulders out of their top and bottom recesses onto the red and blue plates, then bridge the eastern trench with the third boulder to claim the red key."
+      },
+      "level_15": {
+        "title": "Winged Dual Sanctuary",
+        "hint": "Walk up the inner side aisles to collect the upper chips first, then push the outer boulders South into both water trenches to claim the red and blue keys, and park the central boulder on the yellow pressure plate."
+      },
+      "level_16": {
+        "title": "Lagoon of Six Bridges",
+        "hint": "Push one western boulder South through the narrow canal to bridge the southwest trench, park the second western boulder on the blue plate, then bridge the three eastern trenches in sequence to unlock the exit."
+      },
+      "level_17": {
+        "title": "Cruciform Hall of Scrolls",
+        "hint": "Take the Grappling Gloves in the southern wing to pull the recessed boulder North and push it onto the yellow plate, then pull both northern boulders out of their alcoves onto the red and blue plates."
+      },
+      "level_18": {
+        "title": "Chambers of Rebirth",
+        "hint": "Weigh down the red and blue plates in the lower vault to open the central shaft, collect the upper chips while staying clear of the beam, then push the slash mirror North to light the red laser receiver."
+      },
+      "level_19": {
+        "title": "River Vault of Prisms",
+        "hint": "Bridge the western trench to recover the Grappling Gloves, pull the south-central boulder out to bridge the eastern trench, then pull the upper slash mirror East out of its alcove before pushing the second mirror into the beam."
+      },
+      "level_20": {
+        "title": "Pyramid of Harmony",
+        "hint": "Collect the southern chips and Grappling Gloves first, push the slash mirror North into the beam to open the red laser gate, weigh down the eastern blue plate, and pull the northern boulder South into the central water trench."
       }
     },
     "chapter": {
-      "1": { "title": "Strata & Sluices", "subtitle": "Earth veins, boulders and underground water trenches." },
-      "2": { "title": "Counterweights & Grappling", "subtitle": "Pressure plates, hold doors and the Grappling Gloves." },
-      "3": { "title": "Subterranean Optics", "subtitle": "Buried laser emitters, sliding prisms and sanctuary gates." }
+      "1": {
+        "title": "Strata & Sluices",
+        "subtitle": "Earth veins, boulders and underground water trenches."
+      },
+      "2": {
+        "title": "Counterweights & Grappling",
+        "subtitle": "Pressure plates, hold doors and the Grappling Gloves."
+      },
+      "3": {
+        "title": "Subterranean Optics",
+        "subtitle": "Buried laser emitters, sliding prisms and sanctuary gates."
+      },
+      "4": {
+        "title": "Guardian Temples",
+        "subtitle": "Multi-wing sanctuaries, canal bridges and dual counterweight halls."
+      },
+      "5": {
+        "title": "Pyramid of Harmony",
+        "subtitle": "Chained chambers combining boulder sluices, grappling alcoves and prism optics."
+      }
     }
   }
 }

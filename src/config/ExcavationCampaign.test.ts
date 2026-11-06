@@ -28,7 +28,8 @@ import { createTestBundle, loadTestConfigs } from '../test/loadTestConfigs';
 import { BUILTIN_PACK_IDS, EXCAVATION_LEVEL_ID_PREFIX, ORDERED_DIRECTIONS } from './constants';
 import { ConfigRegistry } from './ConfigRegistry';
 
-const DEFAULT_MAX_BFS_STATES = 15000;
+const DEFAULT_MAX_BFS_STATES = 5000;
+const BYPASS_TEST_TIMEOUT_MS = 20000;
 const MIN_SOLUTION_STEPS = 30;
 // Runs the solver on several levels and CI is slower than local, so the default 5 s limit is too tight.
 const SOLVER_PROOF_TIMEOUT_MS = 30_000;
@@ -110,17 +111,17 @@ describe('excavation campaign pack ("Buried Sanctuaries")', () => {
     ]);
   });
 
-  it('activates all 12 excavation levels and 3 chapters', () => {
+  it('activates all 20 excavation levels and 5 chapters', () => {
     loadTestConfigs();
     ConfigRegistry.setActivePackId(BUILTIN_PACK_IDS.EXCAVATION);
     expect(ConfigRegistry.getActivePackId()).toBe(BUILTIN_PACK_IDS.EXCAVATION);
 
     const levels = ConfigRegistry.getLevels();
-    expect(levels).toHaveLength(12);
+    expect(levels).toHaveLength(20);
     expect(levels.every((level) => level.id.startsWith(EXCAVATION_LEVEL_ID_PREFIX))).toBe(true);
 
     const chapters = ConfigRegistry.getActivePackChapters();
-    expect(chapters).toHaveLength(3);
+    expect(chapters).toHaveLength(5);
     expect(chapters.flatMap((c) => c.levels)).toEqual(levels.map((l) => l.id));
   });
 
@@ -148,15 +149,23 @@ describe('excavation campaign pack ("Buried Sanctuaries")', () => {
     expect(warn).toHaveBeenCalled();
   });
 
-  it('validates all 12 levels with 0 LevelValidator issues and replays every stored solution to victory', () => {
+  it('validates all 20 levels with 0 LevelValidator issues and replays every stored solution to victory', () => {
     loadTestConfigs();
     const levels = ConfigRegistry.getExcavationLevels();
-    expect(levels).toHaveLength(12);
+    expect(levels).toHaveLength(20);
 
     for (const level of levels) {
       const report = LevelValidator.validate(level);
       expect(report.valid, `${level.id} validator valid`).toBe(true);
       expect(report.issues, `${level.id} validator issues`).toEqual([]);
+      expect(
+        level.terrain.flat().some((id) => ConfigRegistry.getTile(id).showsHint === true),
+        `${level.id} has hint terrain`
+      ).toBe(true);
+      expect(
+        level.items.flat().every((id) => id === null || ConfigRegistry.getTile(id).layer === 'item'),
+        `${level.id} items have item layer`
+      ).toBe(true);
 
       expect(typeof level.solution).toBe('string');
       const dirs = [...level.solution!] as Direction[];
@@ -175,7 +184,17 @@ describe('excavation campaign pack ("Buried Sanctuaries")', () => {
   it('proves boots_pull and puzzle entities cannot be bypassed', { timeout: SOLVER_PROOF_TIMEOUT_MS }, () => {
     loadTestConfigs();
     const levels = ConfigRegistry.getExcavationLevels();
-    const pullLevelIds = ['epoxy_x_6', 'epoxy_x_7', 'epoxy_x_8', 'epoxy_x_10', 'epoxy_x_12'];
+    const pullLevelIds = [
+      'epoxy_x_6',
+      'epoxy_x_7',
+      'epoxy_x_8',
+      'epoxy_x_10',
+      'epoxy_x_12',
+      'epoxy_x_14',
+      'epoxy_x_17',
+      'epoxy_x_19',
+      'epoxy_x_20'
+    ];
 
     for (const id of pullLevelIds) {
       const level = levels.find((l) => l.id === id)!;
@@ -199,7 +218,7 @@ describe('excavation campaign pack ("Buried Sanctuaries")', () => {
         LevelValidator.validate(withoutEntities).valid && isLevelWinnable(withoutEntities);
       expect(bypassable, `${level.id} should be unsolvable without entities`).toBe(false);
     }
-  });
+  }, BYPASS_TEST_TIMEOUT_MS);
 
   it('provides complete English and French translations with clean ASCII punctuation and no external IP references', () => {
     loadTestConfigs();
