@@ -7,7 +7,9 @@ versions follow Semantic Versioning.
 
 ### Added
 
-- Buried Sanctuaries campaign (`epoxy_excavation`): expanded from 12 levels / 3 chapters to 20 levels / 5 chapters ("Guardian Temples" and "Pyramid of Harmony", `epoxy_x_13` to `epoxy_x_20`) with multi-room 15x13 sanctuary maps that chain boulder sluices, pressure plates, grappling alcoves (`boots_pull`) and prism optics, each proven solvable with 0 validator issues. Both locales.
+- Buried Sanctuaries campaign (`epoxy_excavation`): a new built-in pack of 20 excavation levels in 5 chapters, with its own save slot. Multi-room 15x13 sanctuary maps chain boulder sluices, pressure plates, grappling alcoves and prism optics; every level is proven solvable with 0 validator issues. Both locales.
+- Grappling Gloves (`boots_pull`), an Epoxy-only item: stepping away from a resting block pulls it behind you, unless it rests on an active plate, button or block target.
+- Diggy's Adventure import: light sensor beacons become laser puzzles and boulder beacons become coloured plate puzzles; browser `.har` captures and `CommandSynchronize` envelopes are unwrapped directly.
 - Level editor: signal links can be removed with the Unlink button in the Connections panel.
 - Signals: pulse buttons, and signal links that fire launchers and clone machines on a rising edge (pack format version 6).
 - Signals: pulse buttons and launcher/clone links can be placed and linked in the level editor, with their own look in every render style.
