@@ -1035,9 +1035,9 @@
     },
     "block": {
       "dirt": {
-        "base": "#4a3e6b",
-        "light": "#71619c",
-        "dark": "#251d3b",
+        "base": "#9a7a52",
+        "light": "#c4a173",
+        "dark": "#4a3820",
         "edge": "#120d1d"
       },
       "ice": {
@@ -1047,11 +1047,11 @@
         "edge": "#120d1d"
       },
       "arrow": {
-        "base": "#584a7e",
-        "light": "#71619c",
-        "dark": "#352b52",
+        "base": "#8272b8",
+        "light": "#a898d8",
+        "dark": "#4a3d78",
         "edge": "#120d1d",
-        "glyph": "#5fd8ef"
+        "glyph": "#120d1d"
       },
       "colour": {
         "red": {
@@ -1492,17 +1492,17 @@
           "edge": "#1a1008"
         },
         "ice": {
-          "base": "#8fb8c4",
-          "light": "#c7dfe0",
-          "dark": "#5f8f9c",
+          "base": "#4a7d8f",
+          "light": "#8fb8c4",
+          "dark": "#2f5a6a",
           "edge": "#1a1008"
         },
         "arrow": {
-          "base": "#a58559",
-          "light": "#c9ae7a",
+          "base": "#7f5f3c",
+          "light": "#a58559",
           "dark": "#7f5f3c",
           "edge": "#1a1008",
-          "glyph": "#5a4230"
+          "glyph": "#f1e3bf"
         },
         "colour": {
           "red": {
@@ -1518,8 +1518,8 @@
             "edge": "#1a1008"
           },
           "yellow": {
-            "base": "#d9a52b",
-            "light": "#ecc866",
+            "base": "#9c7010",
+            "light": "#d9a52b",
             "dark": "#5a4230",
             "edge": "#1a1008"
           },
@@ -1533,8 +1533,8 @@
       },
       "mirror": {
         "frame": {
-          "base": "#8c7f6a",
-          "light": "#b8a98c",
+          "base": "#6f624e",
+          "light": "#8c7f6a",
           "dark": "#5a4230",
           "edge": "#1a1008"
         },
