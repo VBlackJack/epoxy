@@ -19,10 +19,16 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, HINT_TILE_ID, WALL_TILE_ID } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
-import { bootsPullBlocks, hasPullBootsContent } from './RulesetFeatures';
+import { bootsPullBlocks, hasPullBootsContent, isWardTileId } from './RulesetFeatures';
 import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
 
 /** Terrain ids of the two turn plates, whose quarter turn the search applies to an arrow block that lands on them. */
+/** True when the player wears a ward or one lies on the map: it can destroy a monster, so no monster stays a wall. */
+function wardAvailable(engine: GameEngine): boolean {
+  if ([...engine.getPlayer().boots].some(isWardTileId)) return true;
+  return engine.getItems().some((row) => row.some(isWardTileId));
+}
+
 const TURN_PLATE_CW_TILE_ID = 'turn_plate_cw';
 const TURN_PLATE_CCW_TILE_ID = 'turn_plate_ccw';
 
@@ -231,6 +237,8 @@ export class BlockPuzzleSolver {
     // Signals open and close doors the search does not model: it never reports a wired level stuck.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return false;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return false;
+    // A ward destroys the first monster touched, so no monster is a permanent wall while one is held or lies on the map.
+    if (wardAvailable(engine)) return false;
     const detector = new BlockPuzzleSolver(engine);
     if (detector.buttons.length === 0) return false;
     // Separate block puzzles (two Sokoban rooms) are judged one at a time.

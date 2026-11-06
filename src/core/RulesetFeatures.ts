@@ -195,12 +195,12 @@ function hasTurnPlateContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): b
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter or an arrow block), a steering pad, a transmogrifier, a turn plate, or a turning force floor. */
+/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter, a lurker or an arrow block), a steering pad, a transmogrifier, a turn plate, or a turning force floor. */
 export function hasEpoxyOnlyMonsterContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays'>>
 ): boolean {
   if (hasSteeringContent(level) || hasTransmogrifierContent(level) || hasTurnPlateContent(level) || hasForceCycleContent(level)) return true;
-  const epoxyOnly = (type: string): boolean => isFleeingEntityType(type) || isArrowBlockEntityType(type);
+  const epoxyOnly = (type: string): boolean => isFleeingEntityType(type) || isArrowBlockEntityType(type) || isLurkerEntityType(type);
   return (
     (level.entities ?? []).some((e) => epoxyOnly(e.type)) || (level.cloneLinks ?? []).some((link) => epoxyOnly(link.templateType))
   );
@@ -267,9 +267,19 @@ export function hasPullBootsContent(level: Pick<CompiledLevel, 'terrain' | 'item
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots or the pull boots. */
+/** True when the tile is a ward, the boots that destroy the first monster touched and are used up by it. */
+export function isWardTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).absorbsMonsterContact === true;
+}
+
+/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull boots or the ward. */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
-  return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id);
+  return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id);
+}
+
+/** True when the entity type is a lurker, asleep or awake, which only the Epoxy engine plays. */
+export function isLurkerEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.epoxyOnly === true;
 }
 
 /** True when the tile id is a transmogrifier, which swaps a monster arriving on it for its pair. */
@@ -315,7 +325,7 @@ export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   );
 }
 
-/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet or a skitter. */
+/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet, a skitter or a lurker. */
 export function isEpoxyOnlyEntityType(type: string): boolean {
   return (
     isMirrorEntityType(type) ||
@@ -323,7 +333,8 @@ export function isEpoxyOnlyEntityType(type: string): boolean {
     isArrowBlockEntityType(type) ||
     isColorBlockEntityType(type) ||
     isSteeredEntityType(type) ||
-    isFleeingEntityType(type)
+    isFleeingEntityType(type) ||
+    isLurkerEntityType(type)
   );
 }
 

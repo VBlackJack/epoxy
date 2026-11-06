@@ -143,6 +143,16 @@ monster theme=cyber_neon type=skitter 29f162145e51fd9a
 monster theme=arctic_lab type=skitter 5e5d71fda57b4438
 monster theme=magma_core type=skitter 353a500c39b0f03f
 monster theme=lynx_lcd type=skitter 78b25f8ebe2be2d9
+monster theme=default type=lurker_dormant 9d4b79c63477e36b
+monster theme=cyber_neon type=lurker_dormant ad1b5b4b27027df3
+monster theme=arctic_lab type=lurker_dormant 2ac8d70ee415e34f
+monster theme=magma_core type=lurker_dormant a58e6f74361adec5
+monster theme=lynx_lcd type=lurker_dormant be5dfe55ea9a1bc2
+monster theme=default type=lurker ae5f56be5c7ee174
+monster theme=cyber_neon type=lurker 856918018017ca14
+monster theme=arctic_lab type=lurker fa00dd70d76eec7f
+monster theme=magma_core type=lurker 74d402bb7e9f02d8
+monster theme=lynx_lcd type=lurker 9d00834c62b2945d
 block theme=default name=dirt_block 1ff71eb835c677b8
 block theme=cyber_neon name=dirt_block ed95fa4e09e6764b
 block theme=arctic_lab name=dirt_block b3242ffada28932c

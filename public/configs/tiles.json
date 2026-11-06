@@ -855,6 +855,15 @@
       "collectible": "boot",
       "pullsBlocks": true
     },
+    "ward": {
+      "id": "ward",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.ward.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "absorbsMonsterContact": true
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",

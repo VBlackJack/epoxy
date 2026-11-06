@@ -33,8 +33,10 @@ import { RUNEWARD_PAINTERS, type RunewardPaintEnv } from './runewardTiles';
 import * as monsters from './runewardMonsters';
 
 const MONSTER_TYPES = [
-  'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'puppet', 'skitter'
+  'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'puppet', 'skitter', 'lurker'
 ] as const;
+/** The sleeping lurker is no creature: Runeward draws it as a crack in the floor. */
+const DORMANT_LURKER = 'lurker_dormant';
 const WISP_TYPES: readonly string[] = ['glider', 'fireball'];
 const DIRECTIONS: readonly Direction[] = ['N', 'E', 'S', 'W'];
 const FORWARD: Readonly<Record<Direction, readonly [number, number]>> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
@@ -148,8 +150,8 @@ describe('Runeward monster painters', () => {
     loadTestConfigs();
   });
 
-  it('paints the eleven monster types and the shot, with nothing left pending', () => {
-    expect(Object.keys(monsters.ENTITIES).sort()).toEqual([...MONSTER_TYPES].sort());
+  it('paints the twelve monster types, the sleeping lurker and the shot, with nothing left pending', () => {
+    expect(Object.keys(monsters.ENTITIES).sort()).toEqual([...MONSTER_TYPES, DORMANT_LURKER].sort());
     expect(monsters.PENDING).toEqual([]);
     expect(monsters.SHOT).not.toBeNull();
     expect(RUNEWARD_PAINTERS.shot).toBe(monsters.SHOT);
@@ -205,6 +207,15 @@ describe('Runeward monster painters', () => {
 
     it.each(MONSTER_TYPES)('freezes the %s under reduced motion', (type) => {
       expect(monsterLog(type, 'E', art(), { tick: FAR_TICK, reduced: true })).toEqual(monsterLog(type, 'E', art(), { tick: 0, reduced: true }));
+    });
+
+    it('draws the sleeping lurker as a thin crack that does not move, bob or depend on the facing', () => {
+      const crack = monsterLog(DORMANT_LURKER, 'E', art());
+      expect(crack.length).toBeGreaterThan(0);
+      expect(crack.some((line) => line.startsWith('stroke'))).toBe(true);
+      expect(crack.some((line) => line.startsWith('fill'))).toBe(false);
+      expect(monsterLog(DORMANT_LURKER, 'N', art())).toEqual(crack);
+      expect(monsterLog(DORMANT_LURKER, 'E', art(), { tick: BOB_TICK })).toEqual(crack);
     });
 
     it('bobs with the clock otherwise', () => {

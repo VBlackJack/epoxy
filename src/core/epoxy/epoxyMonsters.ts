@@ -21,11 +21,13 @@ import {
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLEE_PLAYER_PATTERN,
-  OPPOSITE_DIRECTION
+  OPPOSITE_DIRECTION,
+  STATIONARY_PATTERN
 } from '../coreConstants';
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
 import { forceCycleArrival } from './epoxyForceCycle';
+import { absorbMonsterContact } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
@@ -68,6 +70,8 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
   // A steered monster never decides a step: it moves only when a steering pad is worked.
   if (ConfigRegistry.getEntityDef(entity.type)?.steeredBy !== undefined) return true;
+  // A sleeping lurker never moves by itself; only the player's arrival next to it changes it.
+  if (ConfigRegistry.getEntityDef(entity.type)?.movementPattern === STATIONARY_PATTERN) return true;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
     return true;
@@ -110,6 +114,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   enterSwivel(w, nx, ny, entity.dir);
 
   if (w.player.x === nx && w.player.y === ny && w.player.alive) {
+    // A ward destroys the monster that touches the player; the player lives.
+    if (absorbMonsterContact(w, entity.uid)) return true;
     killPlayer(ctx, 'hud.messages.death_monster', 'death');
     return false;
   }

@@ -183,6 +183,16 @@ function paintBootCharm(ctx: CanvasRenderingContext2D, size: number, art: Art, k
       ctx.arc(cx - radius * 0.35, cy + radius * 0.2, radius * 0.35, 0, Math.PI, false);
       ctx.stroke();
       break;
+    case 'ward':
+      // A small shield: flat top, straight flanks, a point below.
+      ctx.moveTo(cx - radius * 0.9, cy - radius * 0.9);
+      ctx.lineTo(cx + radius * 0.9, cy - radius * 0.9);
+      ctx.lineTo(cx + radius * 0.9, cy + radius * 0.1);
+      ctx.lineTo(cx, cy + radius * 1.1);
+      ctx.lineTo(cx - radius * 0.9, cy + radius * 0.1);
+      ctx.closePath();
+      ctx.stroke();
+      break;
   }
 }
 
@@ -487,7 +497,15 @@ const KEY_CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'gr
 /** Boots kinds with a forbidden marker. */
 const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'force'];
 /** Every boots kind. */
-const ALL_BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
+const ALL_BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull', 'ward'];
+
+/** Boots kind whose item id is its own name rather than `boots_<kind>`. */
+const WARD_KIND: RunewardBootsKind = 'ward';
+
+/** Item id of a boots kind: the ward is the one pair whose id does not start with `boots_`. */
+function bootsItemId(kind: RunewardBootsKind): string {
+  return kind === WARD_KIND ? WARD_KIND : `boots_${kind}`;
+}
 
 /** Wraps a clocked drawing as an item painter: it follows the Runeward clock, frozen under reduced motion. */
 function clocked(draw: ClockedDrawing): RunewardItemPainter {
@@ -503,7 +521,7 @@ function clocked(draw: ClockedDrawing): RunewardItemPainter {
 export const ITEMS: Readonly<Record<string, RunewardItemPainter>> = {
   ...Object.fromEntries(
     ALL_BOOTS.map((kind): [string, RunewardItemPainter] => [
-      `boots_${kind}`,
+      bootsItemId(kind),
       clocked((ctx, size, art, timeMs) => paintBootsItem(ctx, size, art, kind, timeMs))
     ])
   ),

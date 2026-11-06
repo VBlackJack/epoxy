@@ -386,6 +386,7 @@ export class LevelValidator {
 
     this.checkColorChannels(level, issues);
     this.checkSteering(level, issues);
+    this.checkLurkers(level, issues);
     this.checkShotLaunchers(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
@@ -1523,6 +1524,26 @@ export class LevelValidator {
         params: this.locationParams(puppetCells)
       });
     }
+  }
+
+  /**
+   * A sleeping lurker is drawn as plain floor with a faint tell; on any other tile (dirt, ice, a button, a floor
+   * with something hidden under it) it cannot pass for floor, so each one off plain floor is reported.
+   */
+  private static checkLurkers(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
+    const offFloor = level.entities.filter((entity) => {
+      if (ConfigRegistry.getEntityDef(entity.type)?.wakesTo === undefined) return false;
+      if (!this.inGrid(level, entity)) return false;
+      return level.terrain[entity.y][entity.x] !== FLOOR_TILE_ID || underlays?.has(entity.y * width + entity.x) === true;
+    });
+    if (offFloor.length === 0) return;
+    issues.push({
+      severity: 'warning',
+      i18nKey: 'validator.issues.lurker_not_on_floor.label',
+      params: this.locationParams(offFloor.map((entity) => ({ x: entity.x, y: entity.y })))
+    });
   }
 
   /**

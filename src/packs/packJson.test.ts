@@ -383,6 +383,6 @@ describe('pack format 7 id gate', () => {
     const known = new Set([...tileIds, ...Object.keys(bundle.monsters.entities)]);
     const missing = [...PACK_JSON_VERSION_V7_IDS].filter((id) => !known.has(id)).sort();
     // Each feature lot removes its own ids from this expectation when it adds them to the configs.
-    expect(missing).toEqual(['charge', 'charge_lit', 'lurker', 'lurker_dormant', 'ward']);
+    expect(missing).toEqual(['charge', 'charge_lit']);
   });
 });

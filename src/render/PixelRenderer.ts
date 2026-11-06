@@ -297,6 +297,19 @@ const HIDDEN_WALL_LINE_PX_MODERN = 1.5;
 const REVEAL_KEY = 'eye';
 /** Eye drawn on the boots that reveal hidden walls: width and height of the almond, pupil radius, in tiles. */
 const EYE_MARK = { cx: 0.52, cy: 0.4, halfWidth: 0.15, halfHeight: 0.085, pupil: 0.05 } as const;
+/** Shield on the shaft of a ward, as tile fractions: top edge, shoulder, waist and point (x offsets are from the centre line). */
+const WARD_MARK = { cx: 0.38, top: 0.27, shoulder: 0.33, waist: 0.4, point: 0.5, halfWidth: 0.1 } as const;
+/**
+ * The faint tell of a sleeping lurker on plain floor: a dim seam, as tile fractions of its points, drawn thin
+ * and see-through so it reads only to someone who looks for it.
+ */
+const LURKER_TELL = {
+  seam: [[0.2, 0.58], [0.38, 0.5], [0.5, 0.6], [0.66, 0.48], [0.8, 0.55]] as ReadonlyArray<readonly [number, number]>,
+  alpha: 0.4,
+  widthTile: 0.035
+} as const;
+/** Opacity of the awake lurker drawn over the seam of a sleeping one in the editor, so it can be found and told apart. */
+const LURKER_EDITOR_MARKER_ALPHA = 0.55;
 /** Thin wall bar: thickness as a share of the tile, with a floor in pixels per drawing style. */
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
@@ -3470,6 +3483,38 @@ export class PixelRenderer {
     ctx.fill();
   }
 
+  /** Shield on the shaft of the ward. */
+  private paintWardMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const cx = x + size * WARD_MARK.cx;
+    const half = size * WARD_MARK.halfWidth;
+    ctx.fillStyle = this.pal().eyeWhite;
+    ctx.beginPath();
+    ctx.moveTo(cx - half, y + size * WARD_MARK.top);
+    ctx.lineTo(cx + half, y + size * WARD_MARK.top);
+    ctx.lineTo(cx + half, y + size * WARD_MARK.shoulder);
+    ctx.lineTo(cx, y + size * WARD_MARK.point);
+    ctx.lineTo(cx - half, y + size * WARD_MARK.shoulder);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /** The dim seam that gives a sleeping lurker away: a thin, see-through crack across the floor cell. */
+  private paintLurkerTell(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    ctx.save();
+    ctx.globalAlpha = LURKER_TELL.alpha;
+    ctx.strokeStyle = this.pal().wallShadow;
+    ctx.lineWidth = Math.max(1, size * LURKER_TELL.widthTile);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    LURKER_TELL.seam.forEach(([px, py], i) => {
+      if (i === 0) ctx.moveTo(x + size * px, y + size * py);
+      else ctx.lineTo(x + size * px, y + size * py);
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+
   /** Dashed outline that marks a hidden wall to a player who can see it: in the editor, or holding the eye boots. */
   private paintHiddenWallMarker(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, size: number): void {
     ctx.strokeStyle = color;
@@ -5043,7 +5088,8 @@ export class PixelRenderer {
       case 'boots_force':
       case 'boots_speed':
       case 'boots_eye':
-      case 'boots_pull': {
+      case 'boots_pull':
+      case 'ward': {
         const c = pal[BOOT_COLOR_KEYS[itemId] ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
         ctx.save();
         if (isModern) {
@@ -5056,6 +5102,7 @@ export class PixelRenderer {
         this.roundRect(ctx, x + size * 0.25, y + size * 0.54, size * 0.52, size * 0.24, 4);
         ctx.fill();
         if (ConfigRegistry.getTile(itemId).revealsHiddenWalls) this.paintEyeMark(ctx, x, y, size);
+        if (ConfigRegistry.getTile(itemId).absorbsMonsterContact) this.paintWardMark(ctx, x, y, size);
         ctx.restore();
         break;
       }
@@ -5101,8 +5148,17 @@ export class PixelRenderer {
     dir: Direction,
     x: number,
     y: number,
-    size: number
+    size: number,
+    isEditor = false
   ): void {
+    if (isEditor && ConfigRegistry.getEntityDef(type)?.wakesTo !== undefined) {
+      // A sleeping monster looks like floor in play; the editor also shows the awake one, faint, so it can be found.
+      const awake = ConfigRegistry.getEntityDef(type)?.wakesTo as string;
+      ctx.save();
+      ctx.globalAlpha = LURKER_EDITOR_MARKER_ALPHA;
+      this.drawEntity(ctx, awake, dir, x, y, size);
+      ctx.restore();
+    }
     const runewardEntities = this.runewardPainters();
     const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;
     if (runewardPaint) {
@@ -5525,6 +5581,10 @@ export class PixelRenderer {
   ): void {
     if (BLOCK_TYPES.has(type) || ConfigRegistry.getEntityDef(type)?.pushArrows !== undefined) {
       this.paintBlock(ctx, type, x, y, size, dir);
+      return;
+    }
+    if (ConfigRegistry.getEntityDef(type)?.wakesTo !== undefined) {
+      this.paintLurkerTell(ctx, x, y, size);
       return;
     }
     const mirrorDef = ConfigRegistry.getEntityDef(type);
@@ -6207,7 +6267,7 @@ export class PixelRenderer {
       this.drawItem(ctx, id, 0, 0, iconSize);
     } else if (kind === 'entity') {
       this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
-      this.drawEntity(ctx, id, dir, 0, 0, iconSize);
+      this.drawEntity(ctx, id, dir, 0, 0, iconSize, true);
     } else if (kind === 'player') {
       this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
       this.drawPlayer(ctx, 0, 0, iconSize, dir, false, true);

@@ -284,6 +284,8 @@ editor tile boots_eye closed=true 70197990f14dcba4
 editor tile boots_eye closed=false 381de1c79573fc7b
 editor tile boots_pull closed=true 22909f777ebf9eb0
 editor tile boots_pull closed=false a6ab6214f21bc8d0
+editor tile ward closed=true 7bafa36d00a62c75
+editor tile ward closed=false 3cb06893d962478a
 editor tile bomb closed=true fafb9d32f0125596
 editor tile bomb closed=false 09d3642d6267ad66
 editor tile score_10 closed=true 928f521fe112e079
@@ -311,6 +313,7 @@ editor item over floor slow_time f73d0f31251e8616
 editor item over floor boots_speed e76ae08c672a030a
 editor item over floor boots_eye 11404f47f94aabbd
 editor item over floor boots_pull 3e55b2c5c5e997aa
+editor item over floor ward afdfb5d7a90f7ed7
 editor item over floor bomb ed3b91822e75f22b
 editor item over floor score_10 501c4008416e1197
 editor item over floor score_100 3b896e5753bb892f
@@ -349,3 +352,5 @@ editor entity over floor color_block_blue 7805f7a786d833f8
 editor entity over floor color_block_yellow d256afb26bf92ddb
 editor entity over floor puppet 9c82d8f2868ae76f
 editor entity over floor skitter 4f2a0e3e9dead92f
+editor entity over floor lurker_dormant 0138f09694af9c9a
+editor entity over floor lurker 8774f8c14d8a4d04

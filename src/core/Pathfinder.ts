@@ -358,7 +358,8 @@ export class Pathfinder {
         if (tile.isLevelExit || (tile.requiresAllChips && engine.getChipsRemaining() === 0)) {
           if (!exitCandidate) exitCandidate = curr;
         }
-        if (itemDef && (itemDef.collectible === 'key' || itemDef.collectible === 'boot')) {
+        // A ward is optional gear, never the hint's next objective.
+        if (itemDef && !itemDef.absorbsMonsterContact && (itemDef.collectible === 'key' || itemDef.collectible === 'boot')) {
           if (!keyOrBootCandidate) keyOrBootCandidate = curr;
         }
         if (tile.buttonAction === 'toggle_walls' && hasClosedToggleWall && !buttonCandidate) {

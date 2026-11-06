@@ -178,9 +178,10 @@ export const CC3D_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   cc3d_golem_yellow: { base: 'tank', scale: FULL_SCALE, badge: 'yellow' }
 };
 
-/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away. */
+/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away, the lurker a blob with an orange mark. */
 export const EPOXY_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
-  skitter: { base: 'teeth', scale: FULL_SCALE, badge: 'blue' }
+  skitter: { base: 'teeth', scale: FULL_SCALE, badge: 'blue' },
+  lurker: { base: 'blob', scale: FULL_SCALE, badge: 'orange' }
 };
 
 /** What the painters need from the renderer. */

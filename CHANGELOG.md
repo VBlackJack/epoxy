@@ -7,6 +7,8 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Ward: a one-time shield that destroys the first monster you touch (Epoxy rules).
+- Lurker: a monster hidden in the floor that wakes when you arrive on or slide through a cell next to it, then after a short pause chases you slowly (Epoxy rules).
 - Turning Force Floor: a force floor that pushes east, south, west, then north in turn, one shared turn per level (Epoxy rules).
 - Level editor: a signal link can also be started from a shot launcher or a clone machine.
 
