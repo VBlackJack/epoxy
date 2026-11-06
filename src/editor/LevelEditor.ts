@@ -162,7 +162,7 @@ import { pruneLauncherLinks } from './editorLauncherLinks';
 import { pruneSignalLinks } from './editorSignalLinks';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeUnderlays } from '../config/ConfigValidation';
-import { holdsLinkEnd, mapHeightOf, mapWidthOf, paintEntity, removeCloneLink, removeLauncherLink, removeTrapLink, resizeMap } from './mapEdits';
+import { holdsLinkEnd, mapHeightOf, mapWidthOf, paintEntity, removeCloneLink, removeLauncherLink, removeSignalLink, removeTrapLink, resizeMap } from './mapEdits';
 import {
   type LinkSession,
   type PartnerCandidates,
@@ -5253,7 +5253,9 @@ export class LevelEditor {
         ? removeTrapLink(base, unlink.button, unlink.target)
         : unlink.system === 'clone'
           ? removeCloneLink(base, unlink.button, unlink.target)
-          : removeLauncherLink(base, unlink.button, unlink.target);
+          : unlink.system === 'signal'
+            ? removeSignalLink(base, unlink.button, unlink.target)
+            : removeLauncherLink(base, unlink.button, unlink.target);
     if (!result.changed) {
       // The row was out of date: draw the list again.
       this.connectionsKey = '';
