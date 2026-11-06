@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Turning Force Floor: a force floor that pushes east, south, west, then north in turn, one shared turn per level (Epoxy rules).
 - Level editor: a signal link can also be started from a shot launcher or a clone machine.
 
 ### Fixed

@@ -1989,6 +1989,90 @@
       ],
       "outline": false
     },
+    "force_cycle_0": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "ddddddYddddddddd",
+        "dddddYYYYddddddd",
+        "ddddYYYYdddYdddd",
+        "dddYYddYdddYYddd",
+        "dddYYddddddYYddd",
+        "dddYddddddddYddd",
+        "dddYddddddddYddd",
+        "dddYYddddddYYddd",
+        "dddYYddddddYYddd",
+        "ddddYYYddYYYdddd",
+        "dddddYYYYYYddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
+    "force_cycle_1": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddYYYYYYddddd",
+        "ddddYYYddYYYdddd",
+        "dddYYddddddYYddd",
+        "dddYYddddddYYYdd",
+        "dddYddddddYYYddd",
+        "dddYddddddddYddd",
+        "dddYYddddddddddd",
+        "dddYYddddddddddd",
+        "ddddYYYddYYYdddd",
+        "dddddYYYYYYddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
+    "force_cycle_2": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddYYYYYYddddd",
+        "ddddYYYddYYYdddd",
+        "dddYYddddddYYddd",
+        "dddYYddddddYYddd",
+        "dddYddddddddYddd",
+        "dddYddddddddYddd",
+        "dddYYddddddYYddd",
+        "dddYYdddYddYYddd",
+        "ddddYdddYYYYdddd",
+        "dddddddYYYYddddd",
+        "dddddddddYdddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
+    "force_cycle_3": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddYYYYYYddddd",
+        "ddddYYYddYYYdddd",
+        "dddddddddddYYddd",
+        "dddddddddddYYddd",
+        "dddYddddddddYddd",
+        "dddYYYddddddYddd",
+        "ddYYYddddddYYddd",
+        "dddYYddddddYYddd",
+        "ddddYYYddYYYdddd",
+        "dddddYYYYYYddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
     "laser_emitter_n": {
       "rows": [
         "oooooooWWooooooo",

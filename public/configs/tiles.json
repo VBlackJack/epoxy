@@ -564,6 +564,19 @@
       "forceDirection": "RANDOM",
       "protectedByItem": "boots_force"
     },
+    "force_cycle": {
+      "id": "force_cycle",
+      "category": "hazards",
+      "layer": "terrain",
+      "i18nKey": "tiles.force_cycle.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "slideType": "force",
+      "forceCycle": true,
+      "protectedByItem": "boots_force"
+    },
     "thief": {
       "id": "thief",
       "category": "hazards",

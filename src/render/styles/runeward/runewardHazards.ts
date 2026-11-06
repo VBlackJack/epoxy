@@ -473,7 +473,7 @@ function forcePhase(art: Art, timeMs: number): number {
 
 /**
  * A force floor pushing toward `direction`, or in every direction for `null` (the random floor): chevrons point
- * along the push and scroll with it; the random floor shows four chevrons that turn like a pinwheel. The clock is
+ * along the push and scroll with it; the random floor shows four chevrons that turn like a pinwheel. With `swirl` the pinwheel chevrons follow the circle clockwise (the turning floor). The clock is
  * frozen at 0 by the caller under reduced motion. The underlay is repainted on every call, so the animated pass
  * can be drawn over the cached terrain without leaving ghosts.
  */
@@ -483,7 +483,8 @@ export function paintForce(
   art: Art,
   neighbours: Neighbours,
   timeMs: number,
-  direction: Direction | null
+  direction: Direction | null,
+  swirl = false
 ): void {
   const { force, ink } = art;
   ctx.fillStyle = force.base;
@@ -504,13 +505,15 @@ export function paintForce(
       const angle = turn + arm * QUARTER_TURN;
       const dx = Math.cos(angle);
       const dy = Math.sin(angle);
+      // The turning floor points each chevron along the circle (clockwise); the random floor points them outward.
+      const [pointX, pointY] = swirl ? [-dy, dx] : [dx, dy];
       traceChevron(
         ctx,
         size,
         centre + dx * size * FORCE.pinwheelRadius,
         centre + dy * size * FORCE.pinwheelRadius,
-        dx,
-        dy,
+        pointX,
+        pointY,
         FORCE.pinwheelScale
       );
       strokeChevron(ctx, size, art);

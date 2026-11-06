@@ -92,6 +92,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           shots: engine.getShots(),
           // Undefined (and so left out of the hash) on a level without a toggle wall or flame jet under a removable top.
           toggleParity: engine.getToggleParity(),
+          // Undefined (and so left out of the hash) on a level without a turning force floor.
+          forceCycleTurn: engine.getForceCycleTurn?.(),
           // Undefined (and so left out of the hash) on a level without a signal network.
           signals: engine.getSignalState?.(),
           // Undefined (and so left out of the hash) unless a pulse button has an unread arrival or a carried press.

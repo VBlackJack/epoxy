@@ -623,6 +623,15 @@ describe('DatCodec export fidelity', () => {
     expect(encoded.levelCount).toBe(1);
   });
 
+  it('refuses a level that holds a turning force floor and leaves it out of the pack', () => {
+    const turning = blankLevel(1);
+    turning.terrain[3][3] = 'force_cycle';
+    expect(datRefusalReason(turning)).toBe('epoxy_only_monsters');
+    const encoded = DatCodec.encodeLevelsWithReport([turning, blankLevel(2)]);
+    expect(encoded.refused.map((r) => r.reason)).toEqual(['epoxy_only_monsters']);
+    expect(encoded.levelCount).toBe(1);
+  });
+
   it('refuses a level with an arrow block and leaves it out of the pack', () => {
     const placed = blankLevel(1);
     placed.entities = [{ type: 'arrow_block_line', x: 3, y: 3, dir: 'E' }];

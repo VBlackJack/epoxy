@@ -1416,6 +1416,9 @@ export class LevelValidator {
       }
 
       if (tile.slideType === 'force') {
+        // A turning force floor pushes by the shared turn, which no static walk can know: the slide ends here without
+        // a verdict, so the walk tries every exit from this cell (an over-approximation, never a false unreachable).
+        if (tile.forceCycle === true) return { end: { x, y }, path, boots, fatal: false };
         if (tile.forceDirection === 'RANDOM') return fatal();
         dir = tile.forceDirection || dir;
       } else {

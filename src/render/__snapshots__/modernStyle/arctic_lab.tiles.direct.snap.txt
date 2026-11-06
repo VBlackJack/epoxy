@@ -371,6 +371,9 @@ tile force_w closed=true shadowMask=128 hash=1 5839450fa7bd5356
 tile force_random closed=true isolated 510703223f6b8a77
 tile force_random closed=true shadowMask=65 hash=1 9c12623f7173b170
 tile force_random closed=true shadowMask=128 hash=1 edcb5e21371abeda
+tile force_cycle closed=true isolated 75d4fb044dca881c
+tile force_cycle closed=true shadowMask=65 hash=1 33058f6178db4867
+tile force_cycle closed=true shadowMask=128 hash=1 10d0605087ce5c9d
 tile thief closed=true isolated 26b5d4e7ef09bd2b
 tile thief closed=true shadowMask=65 hash=1 0e955c0972683021
 tile thief closed=true shadowMask=128 hash=1 99c47efa56c3e406

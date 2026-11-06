@@ -221,8 +221,8 @@ function iceCornerTile(id: string): RunewardTilePainter {
 }
 
 /** A force floor tile pushing toward `direction` (null: the random floor): chevrons scroll with the clock. */
-function forceTile(direction: Direction | null): RunewardTilePainter {
-  return animatedTile((ctx, size, art, nb, timeMs) => paintForce(ctx, size, art, nb, timeMs, direction));
+function forceTile(direction: Direction | null, swirl = false): RunewardTilePainter {
+  return animatedTile((ctx, size, art, nb, timeMs) => paintForce(ctx, size, art, nb, timeMs, direction, swirl));
 }
 
 /** Push direction of each directional force floor, by tile id; the random floor has none. */
@@ -233,6 +233,8 @@ const FORCE_DIRECTIONS: Readonly<Record<string, Direction>> = {
   force_w: 'W'
 };
 const RANDOM_FORCE_ID = 'force_random';
+/** The turning force floor: a clockwise pinwheel instead of the random floor's outward one. */
+const CYCLE_FORCE_ID = 'force_cycle';
 /** Teleport tile ids: the plain one and one per colour channel. */
 const TELEPORT_IDS: readonly string[] = ['teleport', 'teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green'];
 /** Corner ice tile ids. */
@@ -245,12 +247,13 @@ const HAZARD_TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromE
   ...ICE_CORNER_IDS.map((id): [string, RunewardTilePainter] => [id, iceCornerTile(id)]),
   ...TELEPORT_IDS.map((id): [string, RunewardTilePainter] => [id, teleportTile(id)]),
   ...Object.entries(FORCE_DIRECTIONS).map(([id, direction]): [string, RunewardTilePainter] => [id, forceTile(direction)]),
-  [RANDOM_FORCE_ID, forceTile(null)]
+  [RANDOM_FORCE_ID, forceTile(null)],
+  [CYCLE_FORCE_ID, forceTile(null, true)]
 ]);
 
 /** Tile ids whose painter has an animated pass: the liquids, the exit, the teleports and the force floors. */
 const ANIMATED_TILE_IDS: readonly string[] = [
-  'water', 'fire', 'exit', ...TELEPORT_IDS, ...Object.keys(FORCE_DIRECTIONS), RANDOM_FORCE_ID
+  'water', 'fire', 'exit', ...TELEPORT_IDS, ...Object.keys(FORCE_DIRECTIONS), RANDOM_FORCE_ID, CYCLE_FORCE_ID
 ];
 
 /** The turtle tile: it bobs on the water, so it has an animated pass. */

@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { AudioManager } from '../audio/AudioManager';
+import { FORCE_CYCLE_ORDER } from '../config/constants';
 import {
   BLOCK_TARGET_TILE_ID,
   CELL_EDGE_BITS,
@@ -23,7 +24,8 @@ import {
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
   SWIVEL_ENTRY_KEY_PREFIX,
-  TOGGLE_PARITY_KEY_PREFIX
+  TOGGLE_PARITY_KEY_PREFIX,
+  FORCE_CYCLE_KEY_PREFIX
 } from './coreConstants';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
 import {
@@ -286,6 +288,11 @@ export class GameEngine {
     return this.w.coveredToggleBits !== 0 ? this.w.toggleParity : undefined;
   }
 
+  /** Arrivals counted on turning force floors; undefined on a level without one, so nothing about it reaches a level without one. */
+  public getForceCycleTurn(): number | undefined {
+    return this.w.hasForceCycle ? this.w.forceCycleTurn : undefined;
+  }
+
   /**
    * The runtime state beyond the grid that tells search states apart: the shots in flight, the toggle
    * parity, the spent reveal cells and the entry side recorded on swivel doors. An empty string on a level with none of them, so the keys of other levels stay as they were.
@@ -295,6 +302,8 @@ export class GameEngine {
     const spent = this.getSpentRevealCells();
     const parts = [shotsStateKey(this.getShots())].filter((part) => part !== '');
     if (parity !== undefined) parts.push(`${TOGGLE_PARITY_KEY_PREFIX}${parity}`);
+    const forceCycleTurn = this.getForceCycleTurn();
+    if (forceCycleTurn !== undefined) parts.push(`${FORCE_CYCLE_KEY_PREFIX}${forceCycleTurn % FORCE_CYCLE_ORDER.length}`);
     if (spent !== undefined) parts.push(`${SPENT_REVEAL_KEY_PREFIX}${spent.join(',')}`);
     if (this.w.swivelEntry.size > 0) {
       const entries = [...this.w.swivelEntry].sort((a, b) => a[0] - b[0]).map(([cell, side]) => `${cell}${side}`);
@@ -519,6 +528,8 @@ export class GameEngine {
       ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
       // Only a level with a toggle wall or flame jet under a removable top reads the parity of the presses.
       ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
+      // Only a level with a turning force floor counts arrivals on it.
+      ...(this.w.hasForceCycle ? { forceCycleTurn: this.w.forceCycleTurn } : {}),
       // Only a level that revealed something has revealed cells to put back.
       ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {}),
       // Only a level with an actor inside a swivel door has an entry side to put back.
@@ -572,6 +583,7 @@ export class GameEngine {
     this.w.playStartTick = snap.playStartTick ?? NO_PLAY_START_TICK;
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
     this.w.toggleParity = snap.toggleParity ?? 0;
+    this.w.forceCycleTurn = snap.forceCycleTurn ?? 0;
     this.w.revealedCells = new Set(snap.revealedCells ?? []);
     this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
     if (this.w.signals !== undefined) {

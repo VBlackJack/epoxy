@@ -23,6 +23,7 @@ import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { triggerButton } from './epoxyDevices';
+import { forceCycleArrival } from './epoxyForceCycle';
 import { consumeShotAt, killPlayerByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
@@ -359,6 +360,8 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
   }
 
   if (tile.slideType === 'force') {
+    // The arrival counts on the shared turn even when boots protect the player from the push.
+    const cycleDir = forceCycleArrival(w, tile);
     if (tile.protectedByItem && w.player.boots.has(tile.protectedByItem)) {
       w.player.isSliding = false;
       w.player.slideDir = null;
@@ -367,6 +370,8 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     let forceDir: Direction = entryDir;
     if (tile.forceDirection === 'RANDOM') {
       forceDir = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
+    } else if (cycleDir) {
+      forceDir = cycleDir;
     } else if (tile.forceDirection) {
       forceDir = tile.forceDirection;
     }
