@@ -46,6 +46,13 @@ describe('Runeward painter coverage', () => {
     loadTestConfigs();
   });
 
+  it('leaves the fallback set empty: only CC3D display ids keep the shared drawing', () => {
+    expect(RUNEWARD_FALLBACK.size).toBe(0);
+    const cc3dIds = Object.keys(ConfigRegistry.getCc3dTiles().tiles);
+    expect(cc3dIds.filter((id) => !RUNEWARD_CC3D_IDS.has(id) && !painterIds().has(id))).toEqual([]);
+    expect(cc3dIds.filter((id) => RUNEWARD_CC3D_IDS.has(id) && painterIds().has(id))).toEqual([]);
+  });
+
   it('places every tile id in exactly one set', () => {
     const wrong = Object.keys(ConfigRegistry.getTiles().tiles).filter((id) => membership(id) !== 1);
     expect(wrong).toEqual([]);

@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Runeward render styles are complete and no longer a preview: blocks, mirrors, monsters and shots, thin walls, swivel doors, turn plates, lasers, launchers, turrets, boots, bonuses, forbidden-item markers, floor marks and signal devices are drawn in the Runeward and Runeward Parchment styles; only tiles of imported CC3D levels keep the shared drawing. Both locales.
+
 ## [2.20.0] - 2026-11-06
 
 ### Added
