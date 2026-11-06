@@ -25,6 +25,7 @@ import {
 } from '../coreConstants';
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
+import { forceCycleArrival } from './epoxyForceCycle';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
@@ -157,6 +158,10 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
 
   notePulseArrival(w, nx, ny, entity);
 
+  // A turning force floor turns the monster to the next direction of the shared turn.
+  const cycleDir = forceCycleArrival(w, destTile);
+  if (cycleDir) entity.dir = cycleDir;
+
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
     return false;
@@ -179,6 +184,11 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
     const bounce = OPPOSITE_DIRECTION[slideDir];
     if (canMonsterEnter(w, monster, bounce)) return bounce;
     return null;
+  }
+
+  // A turning force floor sets the facing on arrival (see resolveMonsterArrival); the monster keeps pushing that way.
+  if (currentTile.forceCycle === true) {
+    return canMonsterEnter(w, monster, monster.dir) ? monster.dir : null;
   }
 
   if (currentTile.slideType === 'force' && currentTile.forceDirection) {

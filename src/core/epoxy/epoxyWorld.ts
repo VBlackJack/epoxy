@@ -97,6 +97,10 @@ export interface EpoxyWorld {
   swivelEntry: Map<number, Direction>;
   /** One bit per covered toggle family, set while an odd number of presses happened; 0 at load. */
   toggleParity: number;
+  /** Arrivals counted so far on turning force floors, by any actor; picks the next direction of the shared turn. 0 at load. */
+  forceCycleTurn: number;
+  /** True when the level has a turning force floor, even one hidden under a removable top; fixed for the level. */
+  hasForceCycle: boolean;
   chipsRemaining: number;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
   extraTimeSeconds: number;
@@ -187,6 +191,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     revealedCells: new Set<number>(),
     swivelEntry: new Map<number, Direction>(),
     toggleParity: 0,
+    forceCycleTurn: 0,
+    hasForceCycle: false,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
     levelBonusPoints: 0,
@@ -242,6 +248,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
   w.toggleParity = 0;
+  w.forceCycleTurn = 0;
+  w.hasForceCycle = false;
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
     const key = cellKey(link.trapX, link.trapY);
@@ -266,11 +274,13 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   for (let y = 0; y < w.terrain.length; y++) {
     for (let x = 0; x < w.terrain[y].length; x++) {
       registerDevices(w, x, y, w.terrain[y][x], coversTargets);
+      if (ConfigRegistry.getTile(w.terrain[y][x]).forceCycle === true) w.hasForceCycle = true;
       // A device hidden under a removable top is listed too; every use checks that the top is that device now.
       const hidden = underlayAt(w.underlays, width, x, y);
       if (hidden !== undefined) {
         registerDevices(w, x, y, hidden, coversTargets);
         w.coveredToggleBits |= toggleParityBitOf(ConfigRegistry.getTile(hidden));
+        if (ConfigRegistry.getTile(hidden).forceCycle === true) w.hasForceCycle = true;
       }
     }
   }

@@ -21,6 +21,7 @@ import { FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreCo
 import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
+import { forceCycleArrival } from './epoxyForceCycle';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import {
@@ -172,9 +173,8 @@ export function moveBlockTo(
     block.cooldownTicks = ConfigRegistry.getGame().timing.slideCooldownTicks;
   } else if (updatedTile.slideType === 'force' && blockDef?.slidesOnForce) {
     block.dir =
-      updatedTile.forceDirection === 'RANDOM' || !updatedTile.forceDirection
-        ? dir
-        : updatedTile.forceDirection;
+      forceCycleArrival(w, updatedTile) ??
+      (updatedTile.forceDirection === 'RANDOM' || !updatedTile.forceDirection ? dir : updatedTile.forceDirection);
     block.isSliding = true;
     block.cooldownTicks = ConfigRegistry.getGame().timing.slideCooldownTicks;
   } else {

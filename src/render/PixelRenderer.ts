@@ -244,6 +244,7 @@ const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_s',
   'force_w',
   'force_random',
+  'force_cycle',
   'flame_jet_on',
   'exit',
   'teleport',
@@ -563,6 +564,16 @@ const ITEM_SHADOW = { y: 0.86, rx: 0.22, ry: 0.06, shrinkPerTile: 4 } as const;
 /** Force floor arrows scroll over this span (tile fraction) at this speed (tile fraction per frame). */
 const FORCE_SCROLL_SPAN_TILE = 0.15;
 const FORCE_SCROLL_SPEED_TILE = 0.015;
+/** Turning force floor: radians the pinwheel of arrows turns per render tick. */
+const FORCE_CYCLE_SPIN_PER_TICK = 0.03;
+/** Turning force floor: ring radius and arrow reach of the pinwheel, as fractions of the tile size. */
+const FORCE_CYCLE_RING_RATIO = 0.2;
+const FORCE_CYCLE_ARM_RATIO = 0.17;
+/** Turning force floor: how far the arrow base sits behind the tip along the ring, and how wide it spreads, in arm lengths. */
+const FORCE_CYCLE_BASE_BACK = 0.6;
+const FORCE_CYCLE_BASE_SPREAD = 0.9;
+/** Turning force floor: number of arrows on the ring, one per direction of the cycle. */
+const FORCE_CYCLE_ARROWS = 4;
 const EXIT_PULSE_BASE = 0.34;
 const EXIT_PULSE_AMPLITUDE = 0.05;
 const TELEPORT_CORE_BASE = 0.14;
@@ -2868,14 +2879,19 @@ export class PixelRenderer {
       case 'force_e':
       case 'force_s':
       case 'force_w':
-      case 'force_random': {
+      case 'force_random':
+      case 'force_cycle': {
         ctx.fillStyle = pal.forceBase;
         ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
         ctx.fillStyle = pal.forceArrow;
         const cx = x + size / 2;
         const cy = y + size / 2;
         const r = size * 0.28;
-        if (tileId === 'force_random') {
+        if (tileId === 'force_cycle') {
+          ctx.beginPath();
+          this.traceForceCyclePinwheel(ctx, cx, cy, size, 0, true);
+          ctx.fill();
+        } else if (tileId === 'force_random') {
           ctx.beginPath();
           ctx.arc(cx, cy, r * 0.8, 0, FULL_TURN);
           ctx.fill();
@@ -3985,7 +4001,8 @@ export class PixelRenderer {
       case 'force_e':
       case 'force_s':
       case 'force_w':
-      case 'force_random': {
+      case 'force_random':
+      case 'force_cycle': {
         ctx.fillStyle = pal.modernForceBg;
         ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
         break;
@@ -4442,12 +4459,22 @@ export class PixelRenderer {
       case 'force_e':
       case 'force_s':
       case 'force_w':
-      case 'force_random': {
+      case 'force_random':
+      case 'force_cycle': {
         const pad = this.glowPad();
         const sprite = this.getSprite(`force|${this.style}|${tileId}|${size}`, size, size, pad, (sctx, o) =>
           this.paintForceArrow(sctx, tileId, o, o, size)
         );
         if (!sprite) break;
+        if (tileId === 'force_cycle') {
+          // The pinwheel of arrows turns clockwise around the tile centre.
+          ctx.save();
+          ctx.translate(x + size / 2, y + size / 2);
+          ctx.rotate(this.timeTick * FORCE_CYCLE_SPIN_PER_TICK);
+          ctx.drawImage(sprite, -size / 2 - pad, -size / 2 - pad);
+          ctx.restore();
+          break;
+        }
         const span = size * FORCE_SCROLL_SPAN_TILE;
         const shift = ((this.timeTick * size * FORCE_SCROLL_SPEED_TILE) % span) - span / 2;
         let dx = 0;
@@ -4549,7 +4576,9 @@ export class PixelRenderer {
     const cy = y + size / 2;
     const r = size * 0.24;
     ctx.beginPath();
-    if (tileId === 'force_random') {
+    if (tileId === 'force_cycle') {
+      this.traceForceCyclePinwheel(ctx, cx, cy, size, 0, false);
+    } else if (tileId === 'force_random') {
       ctx.arc(cx, cy, r, 0, FULL_TURN);
     } else if (tileId === 'force_n') {
       ctx.moveTo(cx - r, cy + r * 0.5);
@@ -4570,6 +4599,39 @@ export class PixelRenderer {
     }
     ctx.stroke();
     ctx.restore();
+  }
+
+  /**
+   * Adds to the current path the pinwheel of the turning force floor: one arrow per direction of the cycle on a
+   * ring around (cx, cy), each pointing along the ring clockwise, the whole turned by `spin` radians. Closed arrows
+   * are triangles to fill; open ones are chevrons to stroke.
+   */
+  private traceForceCyclePinwheel(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number,
+    spin: number,
+    closed: boolean
+  ): void {
+    const ring = size * FORCE_CYCLE_RING_RATIO;
+    const arm = size * FORCE_CYCLE_ARM_RATIO;
+    for (let k = 0; k < FORCE_CYCLE_ARROWS; k++) {
+      const angle = spin + (k * FULL_TURN) / FORCE_CYCLE_ARROWS;
+      const radialX = Math.cos(angle);
+      const radialY = Math.sin(angle);
+      // Clockwise on screen (y grows downward) is the direction of increasing angle.
+      const tangentX = -radialY;
+      const tangentY = radialX;
+      const px = cx + radialX * ring;
+      const py = cy + radialY * ring;
+      const backX = px + tangentX * arm * -FORCE_CYCLE_BASE_BACK;
+      const backY = py + tangentY * arm * -FORCE_CYCLE_BASE_BACK;
+      ctx.moveTo(backX + radialX * arm * FORCE_CYCLE_BASE_SPREAD, backY + radialY * arm * FORCE_CYCLE_BASE_SPREAD);
+      ctx.lineTo(px + tangentX * arm, py + tangentY * arm);
+      ctx.lineTo(backX - radialX * arm * FORCE_CYCLE_BASE_SPREAD, backY - radialY * arm * FORCE_CYCLE_BASE_SPREAD);
+      if (closed) ctx.closePath();
+    }
   }
 
   /** Bend geometry of a corner ice tile, read once per tile id from its definition; null for plain ice. */

@@ -96,6 +96,10 @@ default force_random_0 plain=dc5eea1a4d32a39e swap=dc5eea1a4d32a39e
 default force_random_1 plain=613f6ef4f30381b4 swap=613f6ef4f30381b4
 default force_random_2 plain=b6eb673014f47a75 swap=b6eb673014f47a75
 default force_random_3 plain=6ec7bb93ec420b5c swap=6ec7bb93ec420b5c
+default force_cycle_0 plain=1e00d4540997e375 swap=1e00d4540997e375
+default force_cycle_1 plain=35ea41df59cfb82b swap=35ea41df59cfb82b
+default force_cycle_2 plain=cb248fb7f26f0cd3 swap=cb248fb7f26f0cd3
+default force_cycle_3 plain=ecc12d1efd9cd768 swap=ecc12d1efd9cd768
 default chip plain=4ca4bf5206ee1785 swap=4ca4bf5206ee1785
 default key plain=ad7facb2586fc6e9 swap=651e6974b7152d65
 default boots plain=21fccc10c7d6339b swap=7210f7de284f6f27
@@ -332,6 +336,10 @@ cyber_neon force_random_0 plain=dc5eea1a4d32a39e swap=dc5eea1a4d32a39e
 cyber_neon force_random_1 plain=613f6ef4f30381b4 swap=613f6ef4f30381b4
 cyber_neon force_random_2 plain=b6eb673014f47a75 swap=b6eb673014f47a75
 cyber_neon force_random_3 plain=6ec7bb93ec420b5c swap=6ec7bb93ec420b5c
+cyber_neon force_cycle_0 plain=1e00d4540997e375 swap=1e00d4540997e375
+cyber_neon force_cycle_1 plain=35ea41df59cfb82b swap=35ea41df59cfb82b
+cyber_neon force_cycle_2 plain=cb248fb7f26f0cd3 swap=cb248fb7f26f0cd3
+cyber_neon force_cycle_3 plain=ecc12d1efd9cd768 swap=ecc12d1efd9cd768
 cyber_neon chip plain=4ca4bf5206ee1785 swap=4ca4bf5206ee1785
 cyber_neon key plain=ad7facb2586fc6e9 swap=651e6974b7152d65
 cyber_neon boots plain=21fccc10c7d6339b swap=7210f7de284f6f27
@@ -568,6 +576,10 @@ arctic_lab force_random_0 plain=dc5eea1a4d32a39e swap=dc5eea1a4d32a39e
 arctic_lab force_random_1 plain=613f6ef4f30381b4 swap=613f6ef4f30381b4
 arctic_lab force_random_2 plain=b6eb673014f47a75 swap=b6eb673014f47a75
 arctic_lab force_random_3 plain=6ec7bb93ec420b5c swap=6ec7bb93ec420b5c
+arctic_lab force_cycle_0 plain=1e00d4540997e375 swap=1e00d4540997e375
+arctic_lab force_cycle_1 plain=35ea41df59cfb82b swap=35ea41df59cfb82b
+arctic_lab force_cycle_2 plain=cb248fb7f26f0cd3 swap=cb248fb7f26f0cd3
+arctic_lab force_cycle_3 plain=ecc12d1efd9cd768 swap=ecc12d1efd9cd768
 arctic_lab chip plain=4ca4bf5206ee1785 swap=4ca4bf5206ee1785
 arctic_lab key plain=ad7facb2586fc6e9 swap=651e6974b7152d65
 arctic_lab boots plain=21fccc10c7d6339b swap=7210f7de284f6f27
@@ -804,6 +816,10 @@ magma_core force_random_0 plain=dc5eea1a4d32a39e swap=dc5eea1a4d32a39e
 magma_core force_random_1 plain=613f6ef4f30381b4 swap=613f6ef4f30381b4
 magma_core force_random_2 plain=b6eb673014f47a75 swap=b6eb673014f47a75
 magma_core force_random_3 plain=6ec7bb93ec420b5c swap=6ec7bb93ec420b5c
+magma_core force_cycle_0 plain=1e00d4540997e375 swap=1e00d4540997e375
+magma_core force_cycle_1 plain=35ea41df59cfb82b swap=35ea41df59cfb82b
+magma_core force_cycle_2 plain=cb248fb7f26f0cd3 swap=cb248fb7f26f0cd3
+magma_core force_cycle_3 plain=ecc12d1efd9cd768 swap=ecc12d1efd9cd768
 magma_core chip plain=4ca4bf5206ee1785 swap=4ca4bf5206ee1785
 magma_core key plain=ad7facb2586fc6e9 swap=651e6974b7152d65
 magma_core boots plain=21fccc10c7d6339b swap=7210f7de284f6f27
@@ -1040,6 +1056,10 @@ lynx_lcd force_random_0 plain=dc5eea1a4d32a39e swap=dc5eea1a4d32a39e
 lynx_lcd force_random_1 plain=613f6ef4f30381b4 swap=613f6ef4f30381b4
 lynx_lcd force_random_2 plain=b6eb673014f47a75 swap=b6eb673014f47a75
 lynx_lcd force_random_3 plain=6ec7bb93ec420b5c swap=6ec7bb93ec420b5c
+lynx_lcd force_cycle_0 plain=1e00d4540997e375 swap=1e00d4540997e375
+lynx_lcd force_cycle_1 plain=35ea41df59cfb82b swap=35ea41df59cfb82b
+lynx_lcd force_cycle_2 plain=cb248fb7f26f0cd3 swap=cb248fb7f26f0cd3
+lynx_lcd force_cycle_3 plain=ecc12d1efd9cd768 swap=ecc12d1efd9cd768
 lynx_lcd chip plain=4ca4bf5206ee1785 swap=4ca4bf5206ee1785
 lynx_lcd key plain=ad7facb2586fc6e9 swap=651e6974b7152d65
 lynx_lcd boots plain=21fccc10c7d6339b swap=7210f7de284f6f27

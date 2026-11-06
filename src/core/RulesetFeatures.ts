@@ -195,11 +195,11 @@ function hasTurnPlateContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): b
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter or an arrow block), a steering pad, a transmogrifier, or a turn plate. */
+/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter or an arrow block), a steering pad, a transmogrifier, a turn plate, or a turning force floor. */
 export function hasEpoxyOnlyMonsterContent(
-  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays'>>
 ): boolean {
-  if (hasSteeringContent(level) || hasTransmogrifierContent(level) || hasTurnPlateContent(level)) return true;
+  if (hasSteeringContent(level) || hasTransmogrifierContent(level) || hasTurnPlateContent(level) || hasForceCycleContent(level)) return true;
   const epoxyOnly = (type: string): boolean => isFleeingEntityType(type) || isArrowBlockEntityType(type);
   return (
     (level.entities ?? []).some((e) => epoxyOnly(e.type)) || (level.cloneLinks ?? []).some((link) => epoxyOnly(link.templateType))
@@ -301,12 +301,17 @@ export function isSignalTileId(id: string | null | undefined): boolean {
   return tile.signalSource !== undefined || tile.signalGate !== undefined;
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier, a turn plate or a signal tile. */
+/** True when the tile id is a turning force floor, whose direction is the next one of the level's shared turn. */
+export function isForceCycleTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).forceCycle === true;
+}
+
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier, a turn plate, a turning force floor or a signal tile. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
     isLaserTileId(id) || isColorChannelTileId(id) || isEpoxyOnlyItemId(id) ||
     isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id) || isTurnPlateTileId(id) ||
-    isSignalTileId(id)
+    isSignalTileId(id) || isForceCycleTileId(id)
   );
 }
 
@@ -351,7 +356,16 @@ export function hasSignalContent(
   return underlays.some((u) => isSignalTile(u.terrain));
 }
 
-/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers, turn plates or signal wiring. */
+/** True when the level places a turning force floor (terrain, item layer or an underlay hiding one). */
+export function hasForceCycleContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items'> & Partial<Pick<CompiledLevel, 'underlays'>>
+): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isForceCycleTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items) || (level.underlays ?? []).some((u) => isForceCycleTileId(u.terrain));
+}
+
+/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers, turn plates, turning force floors or signal wiring. */
 export function hasEpoxyOnlyContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> &
     Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays' | 'signalLinks'>>
@@ -364,6 +378,7 @@ export function hasEpoxyOnlyContent(
     hasEpoxyOnlyItem(level.terrain) ||
     hasEpoxyOnlyItem(level.items) ||
     hasSwivelContent(level) ||
+    hasForceCycleContent(level) ||
     hasEpoxyOnlyMonsterContent(level) ||
     hasSignalContent(level)
   );

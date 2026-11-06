@@ -79,8 +79,9 @@ describe('paletteAvailability', () => {
       const isTransmogrifier = def.transmogrifies === true;
       const isTurnPlate = def.facingTurn !== undefined;
       const isSignalTile = def.signalSource !== undefined || def.signalGate !== undefined;
+      const isForceCycle = def.forceCycle === true;
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile || isForceCycle));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);

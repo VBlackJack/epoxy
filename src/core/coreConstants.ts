@@ -172,6 +172,9 @@ export const FLAME_TOGGLE_PARITY_BIT = 16;
 /** Prefix of the toggle parity in a search state key. */
 export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
 
+/** Prefix of the turning force floor turn in a search state key. */
+export const FORCE_CYCLE_KEY_PREFIX = 'fc';
+
 /** Prefix of the spent reveal cells in a search state key. */
 export const SPENT_REVEAL_KEY_PREFIX = 'rv';
 

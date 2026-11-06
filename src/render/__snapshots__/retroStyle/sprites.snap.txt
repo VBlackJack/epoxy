@@ -96,6 +96,10 @@ sprite theme=default name=force_random_0 907e01b3944cf6ef
 sprite theme=default name=force_random_1 3c7d3fac23aa63a9
 sprite theme=default name=force_random_2 ac8e7100cd63cb74
 sprite theme=default name=force_random_3 12401334c852176c
+sprite theme=default name=force_cycle_0 04b6cb736edb0ae6
+sprite theme=default name=force_cycle_1 ab5b8bf34bea5cd1
+sprite theme=default name=force_cycle_2 6fe45e1b509b594c
+sprite theme=default name=force_cycle_3 b9b5cdb6ba48136b
 sprite theme=default name=chip 182bfe124d46ccba
 sprite theme=default name=key 587df5192fefcc0e
 sprite theme=default name=boots a6ec89d302ea8ce6
@@ -332,6 +336,10 @@ sprite theme=cyber_neon name=force_random_0 0d8794da2539a64e
 sprite theme=cyber_neon name=force_random_1 1dc005019955bf59
 sprite theme=cyber_neon name=force_random_2 eb333e53d1b56136
 sprite theme=cyber_neon name=force_random_3 3ef26b7dd2b7d0b0
+sprite theme=cyber_neon name=force_cycle_0 ebc99a7f76232276
+sprite theme=cyber_neon name=force_cycle_1 d4c1f1ff2526a4bd
+sprite theme=cyber_neon name=force_cycle_2 02e67f20cefce029
+sprite theme=cyber_neon name=force_cycle_3 71af637f5d1da8fb
 sprite theme=cyber_neon name=chip 8287f8bbc2c20417
 sprite theme=cyber_neon name=key a850ce52521488d0
 sprite theme=cyber_neon name=boots 675c6cf480702e3a
@@ -568,6 +576,10 @@ sprite theme=arctic_lab name=force_random_0 3103193e696bcfef
 sprite theme=arctic_lab name=force_random_1 61d81867c4e9fc58
 sprite theme=arctic_lab name=force_random_2 8570b1a64f1c2a18
 sprite theme=arctic_lab name=force_random_3 31a3aa819baaa5f2
+sprite theme=arctic_lab name=force_cycle_0 d1a52efad27e29cb
+sprite theme=arctic_lab name=force_cycle_1 b9792299eea999df
+sprite theme=arctic_lab name=force_cycle_2 35886d23167e8f90
+sprite theme=arctic_lab name=force_cycle_3 71436e4e25115da1
 sprite theme=arctic_lab name=chip af0eea3193e5b738
 sprite theme=arctic_lab name=key 033c02c61ef6b3f1
 sprite theme=arctic_lab name=boots f650231dac34646b
@@ -804,6 +816,10 @@ sprite theme=magma_core name=force_random_0 9940b8474c7bc4ac
 sprite theme=magma_core name=force_random_1 b59fb0cdecc13a6d
 sprite theme=magma_core name=force_random_2 a99ae59cd3880fd7
 sprite theme=magma_core name=force_random_3 591e314121e2bfd6
+sprite theme=magma_core name=force_cycle_0 dd93cf14d5d0f8a5
+sprite theme=magma_core name=force_cycle_1 f8311ec6dd367ce1
+sprite theme=magma_core name=force_cycle_2 362b311d7e663176
+sprite theme=magma_core name=force_cycle_3 17a5fc8bb0fed5a8
 sprite theme=magma_core name=chip 55da4d9d09af0e86
 sprite theme=magma_core name=key 56a1d94dc21c96b3
 sprite theme=magma_core name=boots c3a26a3d4cf12bfa
@@ -1040,6 +1056,10 @@ sprite theme=lynx_lcd name=force_random_0 dfeec58481b3b3e5
 sprite theme=lynx_lcd name=force_random_1 5c6516fb86819a9c
 sprite theme=lynx_lcd name=force_random_2 c634601fb48bad4d
 sprite theme=lynx_lcd name=force_random_3 33d3790e652b5b57
+sprite theme=lynx_lcd name=force_cycle_0 a89bd5f57e721029
+sprite theme=lynx_lcd name=force_cycle_1 2a608baf3e87160f
+sprite theme=lynx_lcd name=force_cycle_2 e4d7930c35962869
+sprite theme=lynx_lcd name=force_cycle_3 5a8c09ce8600bd00
 sprite theme=lynx_lcd name=chip 57985cf979a638d0
 sprite theme=lynx_lcd name=key 7a32a9ff838bfef2
 sprite theme=lynx_lcd name=boots a5899abf7d7a8d1a

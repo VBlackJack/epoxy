@@ -1044,6 +1044,8 @@ export interface TileDefinition {
   swivelTurns?: { cw: string; ccw: string };
   deflectionMap?: Partial<Record<Direction, Direction>>;
   forceDirection?: Direction | 'RANDOM';
+  /** A turning force floor: no fixed direction; each arrival of any actor on any such cell takes the next direction of the level's shared turn. */
+  forceCycle?: boolean;
   stealsBoots?: boolean;
   /** Entering the cell empties the player's keys, as stealsBoots empties the boots. */
   stealsKeys?: boolean;
@@ -1754,6 +1756,8 @@ export interface UndoSnapshot {
   shots?: Shot[];
   /** The parity of the toggle presses; written only on a level with a toggle wall or flame jet under a removable top. */
   toggleParity?: number;
+  /** Arrivals counted on turning force floors; written only on a level that has one, absent otherwise. */
+  forceCycleTurn?: number;
   /** Cells that revealed their hidden terrain, by index; written only once one did, absent otherwise. */
   revealedCells?: number[];
   /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */

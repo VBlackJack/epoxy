@@ -136,7 +136,8 @@ export const RETRO_SPRITE_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_e',
   'force_s',
   'force_w',
-  'force_random'
+  'force_random',
+  'force_cycle'
 ]);
 
 const FLOOR_DETAIL_KINDS = 3;
