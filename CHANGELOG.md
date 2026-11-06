@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Buried Sanctuaries campaign (`epoxy_excavation`): expanded from 12 levels / 3 chapters to 20 levels / 5 chapters ("Guardian Temples" and "Pyramid of Harmony", `epoxy_x_13` to `epoxy_x_20`) with multi-room 15x13 sanctuary maps that chain boulder sluices, pressure plates, grappling alcoves (`boots_pull`) and prism optics, each proven solvable with 0 validator issues. Both locales.
 - Level editor: signal links can be removed with the Unlink button in the Connections panel.
 
 ### Changed

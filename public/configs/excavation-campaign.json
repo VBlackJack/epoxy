@@ -32,6 +32,28 @@
         "epoxy_x_11",
         "epoxy_x_12"
       ]
+    },
+    {
+      "id": "excavation_chapter_4",
+      "titleKey": "excavation.chapter.4.title",
+      "subtitleKey": "excavation.chapter.4.subtitle",
+      "levels": [
+        "epoxy_x_13",
+        "epoxy_x_14",
+        "epoxy_x_15",
+        "epoxy_x_16"
+      ]
+    },
+    {
+      "id": "excavation_chapter_5",
+      "titleKey": "excavation.chapter.5.title",
+      "subtitleKey": "excavation.chapter.5.subtitle",
+      "levels": [
+        "epoxy_x_17",
+        "epoxy_x_18",
+        "epoxy_x_19",
+        "epoxy_x_20"
+      ]
     }
   ]
 }
