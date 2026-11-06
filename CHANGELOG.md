@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+
+- CCLP 2 levels: chips and exits stacked over another tile in the original files now play as intended. Chips over walls can be taken and the wall closes behind you (level 17, level 85), and an exit under a chip socket appears when it opens (level 15). A few stacked tiles under water or floor are still dropped.
+
 ## [2.23.0] - 2026-11-06
 
 ### Added
