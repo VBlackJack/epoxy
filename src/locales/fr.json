@@ -884,6 +884,7 @@
       },
       "link": {
         "action": "Relier...",
+        "signal_action": "Relier une entrée de signal...",
         "hint": { "label": "Relier à un partenaire (K)" },
         "done": "Terminé",
         "blocked": "Ce dispositif est caché sous une autre tuile : mettez-le en vue pour le relier."

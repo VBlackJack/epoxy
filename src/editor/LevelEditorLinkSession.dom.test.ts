@@ -750,3 +750,86 @@ describe('a signal session', () => {
     expect(status()).toBe(t('editor.palette.unavailable.epoxy_only.label'));
   });
 });
+
+describe('a signal session started from a launcher or a clone machine', () => {
+  const PLATE = { x: 2, y: 2 };
+  const AND = { x: 4, y: 2 };
+  const SHOT_LAUNCHER = { x: 6, y: 2 };
+  const CLONER = { x: 6, y: 4 };
+  const signalLinkButton = (): HTMLButtonElement => byId<HTMLButtonElement>('editor-connections-signal-link-btn');
+  const signalsOf = (): unknown => editor.exportCompiledLevel().signalLinks;
+  const signalRoom = (): CompiledLevel =>
+    room(undefined, [
+      { ...PLATE, tile: 'signal_plate' },
+      { ...AND, tile: 'signal_gate_and' },
+      { ...SHOT_LAUNCHER, tile: 'shot_launcher_w' },
+      { ...CLONER, tile: 'clone_machine' }
+    ]);
+  const showCell = (cell: { x: number; y: number }): void => {
+    editor['cursorCell'] = { ...cell };
+    editor.render();
+  };
+
+  it('offers the second button on a launcher and a clone machine only', () => {
+    editor.loadCompiledLevel(signalRoom());
+    showCell(SHOT_LAUNCHER);
+    expect(signalLinkButton().classList.contains('hidden')).toBe(false);
+    expect(signalLinkButton().textContent).toBe(t('editor.connections.link.signal_action'));
+    showCell(CLONER);
+    expect(signalLinkButton().classList.contains('hidden')).toBe(false);
+    showCell(PLATE);
+    expect(signalLinkButton().classList.contains('hidden')).toBe(true);
+    showCell(AND);
+    expect(signalLinkButton().classList.contains('hidden')).toBe(true);
+  });
+
+  it('keeps K and the first button starting a shot or clone session', () => {
+    editor.loadCompiledLevel(signalRoom());
+    pressK(SHOT_LAUNCHER);
+    expect(session()).toEqual(sessionAt(SHOT_LAUNCHER, 'shot', 'target'));
+    pressK(SHOT_LAUNCHER);
+    pressK(CLONER);
+    expect(session()).toEqual(sessionAt(CLONER, 'clone', 'target'));
+  });
+
+  it('links a plate and a gate to a launcher and a clone machine, one undo step each', () => {
+    editor.loadCompiledLevel(signalRoom());
+    showCell(SHOT_LAUNCHER);
+    signalLinkButton().click();
+    expect(session()).toEqual(sessionAt(SHOT_LAUNCHER, 'signal', 'target'));
+    expect(signalLinkButton().textContent).toBe(t('editor.connections.link.done'));
+    click(PLATE);
+    expect(signalsOf()).toEqual([{ fromX: PLATE.x, fromY: PLATE.y, toX: SHOT_LAUNCHER.x, toY: SHOT_LAUNCHER.y }]);
+    expect(linksOf()).toBeUndefined();
+    editor.undo();
+    expect(signalsOf()).toBeUndefined();
+    editor.handleKeyAction({ kind: 'cancel' });
+    showCell(CLONER);
+    signalLinkButton().click();
+    expect(session()).toEqual(sessionAt(CLONER, 'signal', 'target'));
+    click(AND);
+    expect(signalsOf()).toEqual([{ fromX: AND.x, fromY: AND.y, toX: CLONER.x, toY: CLONER.y }]);
+    expect(editor.exportCompiledLevel().cloneLinks).toEqual([]);
+    editor.undo();
+    expect(signalsOf()).toBeUndefined();
+  });
+
+  it('refuses a second input on the same sink', () => {
+    editor.loadCompiledLevel(signalRoom());
+    showCell(SHOT_LAUNCHER);
+    signalLinkButton().click();
+    click(PLATE);
+    click(AND);
+    expect(signalsOf()).toHaveLength(1);
+    expect(status()).toBe(t('editor.link.refused.single_input.label', { x: AND.x, y: AND.y }));
+  });
+
+  it('is refused under Lynx rules', () => {
+    editor.loadCompiledLevel(signalRoom());
+    editor['doc'] = { ...editor['doc'], ruleset: 'lynx' };
+    showCell(CLONER);
+    expect(signalLinkButton().classList.contains('hidden')).toBe(true);
+    editor['startLinkAt'](CLONER, 'signal');
+    expect(session()).toBeNull();
+  });
+});

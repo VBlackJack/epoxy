@@ -215,6 +215,8 @@ export interface ConnectionView {
   controlledBy: ConnectionList | null;
   note: ToolMessage | null;
   link: ConnectionLink;
+  /** Second Link button of a shot launcher or clone machine in plain view: starts a signal session on its signal input. Absent elsewhere. */
+  signalLink?: ConnectionLink;
 }
 
 /** The roles that take part in an explicit link, by system and end. */
@@ -283,6 +285,16 @@ function signalButtonOf(level: DeviceLevel, x: number, y: number): ConnectionLin
   if (top) return { type: 'start', ...top, blocked: false };
   const hidden = signalLinkOf((level.underlays ?? []).find((u) => u.x === x && u.y === y)?.terrain);
   return hidden ? { type: 'start', ...hidden, blocked: true } : null;
+}
+
+/**
+ * The second Link button of a device that reads as a shot launcher or a clone machine first: its signal input, which a
+ * wire can end on. Only for a device in plain view whose own Link button starts a shot or clone session.
+ */
+function signalInputLinkOf(level: DeviceLevel, link: ConnectionLink, x: number, y: number): ConnectionLink {
+  if (level.ruleset === 'cc3d' || link?.type !== 'start' || link.end !== 'target' || (link.system !== 'shot' && link.system !== 'clone')) return null;
+  if (!signalTileHoldsEnd(ConfigRegistry.getTile(level.terrain[y]?.[x] ?? ''), 'input')) return null;
+  return { type: 'start', system: 'signal', end: 'target', blocked: false };
 }
 
 const EMPTY_VIEW: ConnectionView = { caption: null, controls: null, controlledBy: null, note: null, link: null };
@@ -472,5 +484,6 @@ export function connectionRows(level: DeviceLevel, x: number, y: number): Connec
       ? { key: CONNECTIONS_KEYS.noDevice, x, y, name: null }
       : { key: rel.facet?.source === 'hidden' ? CONNECTIONS_KEYS.cellHidden : CONNECTIONS_KEYS.cell, x, y, name };
   const link = linkOf(rel.role, rel.facet?.source, level.ruleset) ?? hiddenShotLinkOf(level, x, y) ?? signalButtonOf(level, x, y);
-  return { caption, controls, controlledBy, note: noteFor(rel.role, rel, roleTileOf(rel)), link };
+  const signalLink = signalInputLinkOf(level, link, x, y);
+  return { caption, controls, controlledBy, note: noteFor(rel.role, rel, roleTileOf(rel)), link, ...(signalLink ? { signalLink } : {}) };
 }

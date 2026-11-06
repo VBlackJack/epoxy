@@ -406,6 +406,8 @@ const CONNECTIONS_ISSUES_BLOCK_ID = 'editor-connections-issues-block';
 const CONNECTIONS_ISSUES_ID = 'editor-connections-issues';
 const CONNECTIONS_LINK_HINT_KEY = 'editor.connections.link.hint.label';
 const CONNECTIONS_LINK_BTN_ID = 'editor-connections-link-btn';
+const CONNECTIONS_SIGNAL_LINK_BTN_ID = 'editor-connections-signal-link-btn';
+const CONNECTIONS_SIGNAL_LINK_ACTION_KEY = 'editor.connections.link.signal_action';
 const CONNECTIONS_NO_CELL_KEY = 'editor.connections.no_cell';
 const CONNECTIONS_MORE_KEY = 'editor.connections.more';
 const CONNECTIONS_ROW_KEY = 'editor.connections.row';
@@ -748,6 +750,8 @@ export class LevelEditor {
   private connectionsRowCell: { x: number; y: number } | null = null;
   /** What the Link button of the section starts for the cell shown. */
   private connectionsLink: ConnectionLink = null;
+  /** What the second Link button starts for the cell shown: the signal input of a launcher or clone machine. */
+  private connectionsSignalLink: ConnectionLink = null;
   /** True while the section is being rebuilt: a focus change caused by the rebuild itself must not start another. */
   private connectionsDrawing = false;
   /** The cell the pointer rested on long enough for the section to follow it; stays after the pointer leaves the map. */
@@ -4821,6 +4825,7 @@ export class LevelEditor {
 
   private bindConnectionsEvents(): void {
     byId(CONNECTIONS_LINK_BTN_ID)?.addEventListener('click', () => this.onConnectionsLinkClick());
+    byId(CONNECTIONS_SIGNAL_LINK_BTN_ID)?.addEventListener('click', () => this.onConnectionsLinkClick(true));
     // Leaving the section for the map hands the section back to the cell the map shows.
     const section = byId(CONNECTIONS_SECTION_ID);
     section?.addEventListener('focusout', (ev) => {
@@ -4958,6 +4963,7 @@ export class LevelEditor {
     if (note) note.textContent = view?.note ? connectionNoteText(view.note, t) : '';
     this.drawConnectionIssues(view && subject ? subject : null);
     this.connectionsLink = view?.link ?? null;
+    this.connectionsSignalLink = view?.signalLink ?? null;
     this.syncConnectionsLinkButton();
     if (focusedRow < 0) return;
     const rowsAfter = Array.from(section.querySelectorAll<HTMLElement>(`.${CONNECTION_ROW_CLASS}`));
@@ -5091,9 +5097,13 @@ export class LevelEditor {
    * and reading Done while a session is open on the cell shown.
    */
   private syncConnectionsLinkButton(): void {
-    const button = byId<HTMLButtonElement>(CONNECTIONS_LINK_BTN_ID);
+    this.syncLinkButton(CONNECTIONS_LINK_BTN_ID, this.connectionsLink, CONNECTIONS_LINK_ACTION_KEY);
+    this.syncLinkButton(CONNECTIONS_SIGNAL_LINK_BTN_ID, this.connectionsSignalLink, CONNECTIONS_SIGNAL_LINK_ACTION_KEY);
+  }
+
+  private syncLinkButton(id: string, link: ConnectionLink, actionKey: string): void {
+    const button = byId<HTMLButtonElement>(id);
     if (!button) return;
-    const link = this.connectionsLink;
     button.classList.toggle('hidden', link?.type !== 'start');
     button.removeAttribute('aria-disabled');
     button.removeAttribute('aria-description');
@@ -5101,15 +5111,16 @@ export class LevelEditor {
     if (link?.type !== 'start') return;
     const session = this.linkSession;
     const shown = this.connectionsShown;
-    if (session && shown && session.x === shown.x && session.y === shown.y) {
+    if (session && shown && session.x === shown.x && session.y === shown.y && session.system === link.system) {
       button.textContent = t(CONNECTIONS_LINK_DONE_KEY);
       return;
     }
-    button.textContent = t(CONNECTIONS_LINK_ACTION_KEY);
+    button.textContent = t(actionKey);
     const refusal = linkAvailability(editableRulesetOf(this.doc.ruleset), link.system);
     const reason = link.blocked ? t(CONNECTIONS_LINK_BLOCKED_KEY) : refusal.available ? null : t(refusal.reasonKey);
     if (reason === null) {
-      button.title = t(CONNECTIONS_LINK_HINT_KEY);
+      // The K key starts the first button's session only.
+      if (link.system !== 'signal' || id === CONNECTIONS_LINK_BTN_ID) button.title = t(CONNECTIONS_LINK_HINT_KEY);
       return;
     }
     button.setAttribute('aria-disabled', 'true');
@@ -5117,13 +5128,13 @@ export class LevelEditor {
     button.title = reason;
   }
 
-  private onConnectionsLinkClick(): void {
-    const button = byId<HTMLButtonElement>(CONNECTIONS_LINK_BTN_ID);
+  private onConnectionsLinkClick(signal = false): void {
+    const button = byId<HTMLButtonElement>(signal ? CONNECTIONS_SIGNAL_LINK_BTN_ID : CONNECTIONS_LINK_BTN_ID);
     const subject = this.connectionsShown;
-    const link = this.connectionsLink;
+    const link = signal ? this.connectionsSignalLink : this.connectionsLink;
     if (!button || !subject || link?.type !== 'start' || this.stroke || this.isCc3d()) return;
     const session = this.linkSession;
-    if (session && session.x === subject.x && session.y === subject.y) {
+    if (session && session.x === subject.x && session.y === subject.y && session.system === link.system) {
       this.endLinkSession(true);
       this.canvas.focus({ preventScroll: true });
       return;
@@ -5132,7 +5143,7 @@ export class LevelEditor {
       this.setStatusText(button.getAttribute('aria-description') ?? '');
       return;
     }
-    this.startLinkAt(subject);
+    this.startLinkAt(subject, signal ? 'signal' : undefined);
   }
 
   // ---------------------------------------------------------------------------
@@ -5149,16 +5160,16 @@ export class LevelEditor {
    * brush stay as they are; a floating paste and the selection gesture end, the cursor moves to the device and the
    * canvas takes the focus.
    */
-  private startLinkAt(cell: { x: number; y: number }): void {
+  private startLinkAt(cell: { x: number; y: number }, only?: 'signal'): void {
     if (this.stroke || this.isCc3d()) return;
     const ruleset = this.linkRuleset();
     // A Lynx level has no shot devices: say why instead of saying there is nothing to link.
     const shotRefusal = linkAvailability(ruleset, 'shot');
-    if (!shotRefusal.available && (holdsLinkEnd(this.doc, 'shot', 'button', cell.x, cell.y) || holdsLinkEnd(this.doc, 'shot', 'target', cell.x, cell.y))) {
+    if (only === undefined && !shotRefusal.available && (holdsLinkEnd(this.doc, 'shot', 'button', cell.x, cell.y) || holdsLinkEnd(this.doc, 'shot', 'target', cell.x, cell.y))) {
       this.setStatusText(t(shotRefusal.reasonKey));
       return;
     }
-    const started = startLinkSession(this.doc, cell.x, cell.y, ruleset);
+    const started = startLinkSession(this.doc, cell.x, cell.y, ruleset, only);
     if (!started.session) {
       this.announce(started.messages);
       return;
