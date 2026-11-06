@@ -161,7 +161,7 @@ function parchmentArt(): RunewardArtConfig {
 }
 
 function envOf(art: RunewardArtConfig): RunewardPaintEnv {
-  return { timeTick: 0, reducedMotion: false, cache: new Map(), art };
+  return { timeTick: 0, signalPowered: false, reducedMotion: false, cache: new Map(), art };
 }
 
 function assignment(property: string, value: string): string {

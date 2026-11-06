@@ -1033,13 +1033,328 @@
       "arrow": "#5fd8ef",
       "arrowLight": "#e9fdff"
     },
+    "block": {
+      "dirt": {
+        "base": "#4a3e6b",
+        "light": "#71619c",
+        "dark": "#251d3b",
+        "edge": "#120d1d"
+      },
+      "ice": {
+        "base": "#a6dcf2",
+        "light": "#effbff",
+        "dark": "#74bddf",
+        "edge": "#120d1d"
+      },
+      "arrow": {
+        "base": "#584a7e",
+        "light": "#71619c",
+        "dark": "#352b52",
+        "edge": "#120d1d",
+        "glyph": "#5fd8ef"
+      },
+      "colour": {
+        "red": {
+          "base": "#e8304e",
+          "light": "#ffa8b5",
+          "dark": "#251d3b",
+          "edge": "#120d1d"
+        },
+        "blue": {
+          "base": "#2f6cf0",
+          "light": "#a8c4ff",
+          "dark": "#251d3b",
+          "edge": "#120d1d"
+        },
+        "yellow": {
+          "base": "#f0a020",
+          "light": "#ffe08a",
+          "dark": "#251d3b",
+          "edge": "#120d1d"
+        },
+        "green": {
+          "base": "#22b866",
+          "light": "#9dffc4",
+          "dark": "#251d3b",
+          "edge": "#120d1d"
+        }
+      }
+    },
+    "mirror": {
+      "frame": {
+        "base": "#8d8fa3",
+        "light": "#d6d8e8",
+        "dark": "#352b52",
+        "edge": "#120d1d"
+      },
+      "glass": "#a9cbff",
+      "glassLight": "#effbff"
+    },
+    "monster": {
+      "bug": {
+        "body": "#a3200b",
+        "light": "#ff6a14",
+        "dark": "#120d1d",
+        "eye": "#ffd23f"
+      },
+      "paramecium": {
+        "body": "#1d6c94",
+        "light": "#5fd8ef",
+        "dark": "#124561",
+        "eye": "#e9fdff"
+      },
+      "pink_ball": {
+        "body": "#bd334e",
+        "light": "#ff6b84",
+        "dark": "#5e1424",
+        "eye": "#ffd4dc"
+      },
+      "walker": {
+        "body": "#1e7a52",
+        "light": "#4cd495",
+        "dark": "#144f35",
+        "eye": "#d4fff0"
+      },
+      "teeth": {
+        "body": "#d6d8e8",
+        "light": "#effbff",
+        "dark": "#8d8fa3",
+        "eye": "#a3200b"
+      },
+      "glider": {
+        "body": "#3550d0",
+        "light": "#6f86ff",
+        "dark": "#2b2878",
+        "eye": "#e9fdff"
+      },
+      "fireball": {
+        "body": "#ff6a14",
+        "light": "#ffd23f",
+        "dark": "#a3200b",
+        "eye": "#fff8d6"
+      },
+      "tank": {
+        "body": "#584a7e",
+        "light": "#71619c",
+        "dark": "#352b52",
+        "eye": "#5fd8ef"
+      },
+      "blob": {
+        "body": "#2fd99a",
+        "light": "#d4fff0",
+        "dark": "#08201a",
+        "eye": "#120d1d"
+      },
+      "puppet": {
+        "body": "#b87a14",
+        "light": "#ffd23f",
+        "dark": "#6e4608",
+        "eye": "#120d1d"
+      },
+      "skitter": {
+        "body": "#6b30b8",
+        "light": "#b882ff",
+        "dark": "#3f1b70",
+        "eye": "#ecd2ff"
+      },
+      "shot": {
+        "body": "#ffd23f",
+        "light": "#fff8d6",
+        "dark": "#ff6a14",
+        "eye": "#fff8d6"
+      }
+    },
+    "device": {
+      "thinWall": {
+        "base": "#584a7e",
+        "light": "#71619c",
+        "dark": "#352b52",
+        "edge": "#120d1d"
+      },
+      "swivel": {
+        "base": "#4a3e6b",
+        "light": "#71619c",
+        "dark": "#251d3b",
+        "edge": "#120d1d"
+      },
+      "turnPlate": {
+        "base": "#2b2138",
+        "glow": "#5fd8ef",
+        "core": "#6e588a"
+      },
+      "transmogrifier": {
+        "base": "#18102a",
+        "glow": "#d46eff",
+        "core": "#fce6ff"
+      },
+      "cloneMachine": {
+        "base": "#241338",
+        "glow": "#9b4dff",
+        "core": "#c18cff"
+      },
+      "flameJet": {
+        "base": "#3b3253",
+        "glow": "#ff6a14",
+        "core": "#ffd23f"
+      },
+      "laser": {
+        "base": "#352b52",
+        "glow": "#ff6b84",
+        "core": "#fff8d6"
+      },
+      "laserChannel": {
+        "red": {
+          "main": "#e8304e",
+          "light": "#ffa8b5"
+        },
+        "blue": {
+          "main": "#2f6cf0",
+          "light": "#a8c4ff"
+        }
+      },
+      "shotLauncher": {
+        "base": "#584a7e",
+        "light": "#71619c",
+        "dark": "#352b52",
+        "edge": "#120d1d"
+      },
+      "puppetControl": {
+        "base": "#2b2138",
+        "glow": "#ffd23f",
+        "core": "#fff8d6"
+      },
+      "turret": {
+        "base": "#8d8fa3",
+        "light": "#d6d8e8",
+        "dark": "#352b52",
+        "edge": "#120d1d"
+      }
+    },
+    "item": {
+      "boots": {
+        "water": {
+          "main": "#2f6ee0",
+          "light": "#a9cbff"
+        },
+        "fire": {
+          "main": "#ff6a14",
+          "light": "#ffd23f"
+        },
+        "ice": {
+          "main": "#a6dcf2",
+          "light": "#effbff"
+        },
+        "force": {
+          "main": "#2fd99a",
+          "light": "#d4fff0"
+        },
+        "speed": {
+          "main": "#ffd23f",
+          "light": "#fff8d6"
+        },
+        "eye": {
+          "main": "#d46eff",
+          "light": "#fce6ff"
+        }
+      },
+      "bomb": {
+        "base": "#251d3b",
+        "glow": "#ff6a14",
+        "core": "#ffd23f"
+      },
+      "score": {
+        "base": "#b87a14",
+        "light": "#ffd23f",
+        "dark": "#6e4608",
+        "edge": "#120d1d"
+      },
+      "stopwatch": {
+        "face": "#effbff",
+        "rim": "#8d8fa3",
+        "bonus": "#2fd99a",
+        "penalty": "#ff6b84"
+      },
+      "forbid": {
+        "ring": "#e8304e",
+        "slash": "#e8304e"
+      },
+      "slowTime": {
+        "base": "#2b2138",
+        "glow": "#9fe8ff",
+        "core": "#e9fdff"
+      }
+    },
+    "signal": {
+      "box": "#2b2138",
+      "idle": "#6e588a",
+      "lit": "#ffd23f",
+      "glyph": "#e9fdff"
+    },
+    "mark": {
+      "gravel": {
+        "base": "#3b3253",
+        "light": "#54417f",
+        "dark": "#231e35",
+        "edge": "#120d1d"
+      },
+      "dirt": {
+        "base": "#4a3e6b",
+        "light": "#71619c",
+        "dark": "#251d3b",
+        "edge": "#120d1d"
+      },
+      "hint": {
+        "base": "#2b2138",
+        "glow": "#5fd8ef",
+        "core": "#e9fdff"
+      },
+      "recessedWall": {
+        "base": "#584a7e",
+        "light": "#71619c",
+        "dark": "#352b52",
+        "edge": "#120d1d"
+      },
+      "blockTarget": {
+        "base": "#231e35",
+        "glow": "#ffd23f",
+        "core": "#fff8d6"
+      },
+      "slime": {
+        "base": "#144f35",
+        "glow": "#4cd495",
+        "core": "#d4fff0"
+      },
+      "turtle": {
+        "base": "#1e7a52",
+        "light": "#4cd495",
+        "dark": "#144f35",
+        "edge": "#120d1d"
+      },
+      "thief": {
+        "base": "#1f243d",
+        "light": "#8aa2ff",
+        "dark": "#101324",
+        "edge": "#120d1d"
+      },
+      "button": {
+        "orange": {
+          "main": "#ff6a14",
+          "light": "#ffd23f"
+        },
+        "gray": {
+          "main": "#8d8fa3",
+          "light": "#d6d8e8"
+        }
+      }
+    },
     "animation": {
       "bobAmplitude": 0.035,
       "bobPeriodMs": 1500,
       "flowPeriodMs": 2600,
       "portalPeriodMs": 3200,
       "pulsePeriodMs": 1800,
-      "forceScrollPeriodMs": 1200
+      "forceScrollPeriodMs": 1200,
+      "monsterStepMs": 240
     }
   },
   "runewardArtVariants": {
@@ -1169,13 +1484,328 @@
         "arrow": "#c99a2e",
         "arrowLight": "#ecc878"
       },
+      "block": {
+        "dirt": {
+          "base": "#8a6a44",
+          "light": "#a58559",
+          "dark": "#7f5f3c",
+          "edge": "#1a1008"
+        },
+        "ice": {
+          "base": "#8fb8c4",
+          "light": "#c7dfe0",
+          "dark": "#5f8f9c",
+          "edge": "#1a1008"
+        },
+        "arrow": {
+          "base": "#a58559",
+          "light": "#c9ae7a",
+          "dark": "#7f5f3c",
+          "edge": "#1a1008",
+          "glyph": "#5a4230"
+        },
+        "colour": {
+          "red": {
+            "base": "#b3402f",
+            "light": "#d9705a",
+            "dark": "#5a4230",
+            "edge": "#1a1008"
+          },
+          "blue": {
+            "base": "#3f6a8c",
+            "light": "#6f98b8",
+            "dark": "#5a4230",
+            "edge": "#1a1008"
+          },
+          "yellow": {
+            "base": "#d9a52b",
+            "light": "#ecc866",
+            "dark": "#5a4230",
+            "edge": "#1a1008"
+          },
+          "green": {
+            "base": "#5b7a3a",
+            "light": "#8aa35f",
+            "dark": "#5a4230",
+            "edge": "#1a1008"
+          }
+        }
+      },
+      "mirror": {
+        "frame": {
+          "base": "#8c7f6a",
+          "light": "#b8a98c",
+          "dark": "#5a4230",
+          "edge": "#1a1008"
+        },
+        "glass": "#9fc2cc",
+        "glassLight": "#e3eee8"
+      },
+      "monster": {
+        "bug": {
+          "body": "#b3402f",
+          "light": "#d9705a",
+          "dark": "#7a2a1e",
+          "eye": "#ecc866"
+        },
+        "paramecium": {
+          "body": "#3f6a8c",
+          "light": "#6f98b8",
+          "dark": "#2a4a66",
+          "eye": "#e3eee8"
+        },
+        "pink_ball": {
+          "body": "#b3566b",
+          "light": "#d9899b",
+          "dark": "#7a3346",
+          "eye": "#f1e3bf"
+        },
+        "walker": {
+          "body": "#5b7a3a",
+          "light": "#8aa35f",
+          "dark": "#3d5426",
+          "eye": "#f1e3bf"
+        },
+        "teeth": {
+          "body": "#dcc795",
+          "light": "#f1e3bf",
+          "dark": "#a58559",
+          "eye": "#b3402f"
+        },
+        "glider": {
+          "body": "#3f5a8c",
+          "light": "#6f86b8",
+          "dark": "#2a3c66",
+          "eye": "#f1e3bf"
+        },
+        "fireball": {
+          "body": "#d9702b",
+          "light": "#ecc866",
+          "dark": "#b3402f",
+          "eye": "#f1e3bf"
+        },
+        "tank": {
+          "body": "#8a6a44",
+          "light": "#a58559",
+          "dark": "#5a4230",
+          "eye": "#ecc866"
+        },
+        "blob": {
+          "body": "#5b8a6a",
+          "light": "#8aa38f",
+          "dark": "#3d5440",
+          "eye": "#1a1008"
+        },
+        "puppet": {
+          "body": "#c99a2e",
+          "light": "#ecc866",
+          "dark": "#a37a1a",
+          "eye": "#1a1008"
+        },
+        "skitter": {
+          "body": "#6e4a7a",
+          "light": "#9a76a6",
+          "dark": "#4a2f55",
+          "eye": "#f1e3bf"
+        },
+        "shot": {
+          "body": "#d9a52b",
+          "light": "#f1e3bf",
+          "dark": "#b3402f",
+          "eye": "#f1e3bf"
+        }
+      },
+      "device": {
+        "thinWall": {
+          "base": "#a58559",
+          "light": "#c9ae7a",
+          "dark": "#7f5f3c",
+          "edge": "#1a1008"
+        },
+        "swivel": {
+          "base": "#8a6a44",
+          "light": "#a58559",
+          "dark": "#7f5f3c",
+          "edge": "#1a1008"
+        },
+        "turnPlate": {
+          "base": "#dcc795",
+          "glow": "#5a4230",
+          "core": "#a58559"
+        },
+        "transmogrifier": {
+          "base": "#dcc795",
+          "glow": "#6e4a7a",
+          "core": "#f1e3bf"
+        },
+        "cloneMachine": {
+          "base": "#dcc795",
+          "glow": "#6e4a7a",
+          "core": "#9a76a6"
+        },
+        "flameJet": {
+          "base": "#a58559",
+          "glow": "#d9702b",
+          "core": "#ecc866"
+        },
+        "laser": {
+          "base": "#a58559",
+          "glow": "#b3402f",
+          "core": "#f1e3bf"
+        },
+        "laserChannel": {
+          "red": {
+            "main": "#b3402f",
+            "light": "#d9705a"
+          },
+          "blue": {
+            "main": "#3f6a8c",
+            "light": "#6f98b8"
+          }
+        },
+        "shotLauncher": {
+          "base": "#a58559",
+          "light": "#c9ae7a",
+          "dark": "#7f5f3c",
+          "edge": "#1a1008"
+        },
+        "puppetControl": {
+          "base": "#dcc795",
+          "glow": "#c99a2e",
+          "core": "#f1e3bf"
+        },
+        "turret": {
+          "base": "#8c7f6a",
+          "light": "#b8a98c",
+          "dark": "#5a4230",
+          "edge": "#1a1008"
+        }
+      },
+      "item": {
+        "boots": {
+          "water": {
+            "main": "#3f6a8c",
+            "light": "#6f98b8"
+          },
+          "fire": {
+            "main": "#b3402f",
+            "light": "#d9702b"
+          },
+          "ice": {
+            "main": "#8fb8c4",
+            "light": "#c7dfe0"
+          },
+          "force": {
+            "main": "#5b7a3a",
+            "light": "#8aa35f"
+          },
+          "speed": {
+            "main": "#d9a52b",
+            "light": "#ecc866"
+          },
+          "eye": {
+            "main": "#6e4a7a",
+            "light": "#9a76a6"
+          }
+        },
+        "bomb": {
+          "base": "#5a4230",
+          "glow": "#b3402f",
+          "core": "#ecc866"
+        },
+        "score": {
+          "base": "#c99a2e",
+          "light": "#ecc866",
+          "dark": "#a37a1a",
+          "edge": "#1a1008"
+        },
+        "stopwatch": {
+          "face": "#f1e3bf",
+          "rim": "#5a4230",
+          "bonus": "#5b7a3a",
+          "penalty": "#b3402f"
+        },
+        "forbid": {
+          "ring": "#b3402f",
+          "slash": "#b3402f"
+        },
+        "slowTime": {
+          "base": "#dcc795",
+          "glow": "#6f98b8",
+          "core": "#f1e3bf"
+        }
+      },
+      "signal": {
+        "box": "#dcc795",
+        "idle": "#a58559",
+        "lit": "#d9a52b",
+        "glyph": "#1a1008"
+      },
+      "mark": {
+        "gravel": {
+          "base": "#b89d6a",
+          "light": "#c9ae7a",
+          "dark": "#8a6a44",
+          "edge": "#1a1008"
+        },
+        "dirt": {
+          "base": "#8a6a44",
+          "light": "#a58559",
+          "dark": "#7f5f3c",
+          "edge": "#1a1008"
+        },
+        "hint": {
+          "base": "#dcc795",
+          "glow": "#6f98b8",
+          "core": "#f1e3bf"
+        },
+        "recessedWall": {
+          "base": "#a58559",
+          "light": "#c9ae7a",
+          "dark": "#7f5f3c",
+          "edge": "#1a1008"
+        },
+        "blockTarget": {
+          "base": "#dcc795",
+          "glow": "#c99a2e",
+          "core": "#f1e3bf"
+        },
+        "slime": {
+          "base": "#3d5426",
+          "glow": "#8aa35f",
+          "core": "#f1e3bf"
+        },
+        "turtle": {
+          "base": "#5b7a3a",
+          "light": "#8aa35f",
+          "dark": "#3d5426",
+          "edge": "#1a1008"
+        },
+        "thief": {
+          "base": "#5a4230",
+          "light": "#8a6a44",
+          "dark": "#2a1b0f",
+          "edge": "#1a1008"
+        },
+        "button": {
+          "orange": {
+            "main": "#d9702b",
+            "light": "#ecc866"
+          },
+          "gray": {
+            "main": "#8c7f6a",
+            "light": "#b8a98c"
+          }
+        }
+      },
       "animation": {
         "bobAmplitude": 0.035,
         "bobPeriodMs": 1500,
         "flowPeriodMs": 2600,
         "portalPeriodMs": 3200,
         "pulsePeriodMs": 1800,
-        "forceScrollPeriodMs": 1200
+        "forceScrollPeriodMs": 1200,
+        "monsterStepMs": 240
       },
       "ink": {
         "line": "#1a1008",

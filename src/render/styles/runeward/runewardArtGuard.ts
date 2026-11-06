@@ -26,6 +26,54 @@ import { parseCssColour } from '../retroHdPalette';
 /** Colour channels of the keys block, each with its own main, light and glyph colours. */
 const KEY_COLOUR_CHANNELS: readonly string[] = ['red', 'blue', 'yellow', 'green'];
 
+/** Leaf names of the shared colour groups of the later painter sections. */
+const SOLID_LEAVES: readonly string[] = ['base', 'light', 'dark', 'edge'];
+const GLOW_LEAVES: readonly string[] = ['base', 'glow', 'core'];
+const CREATURE_LEAVES: readonly string[] = ['body', 'light', 'dark', 'eye'];
+const CHANNEL_LEAVES: readonly string[] = ['main', 'light'];
+
+/** Monster types (and the shot) that carry their own colours. */
+const MONSTER_TYPES: readonly string[] = [
+  'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'puppet',
+  'skitter', 'shot'
+];
+const LASER_CHANNELS: readonly string[] = ['red', 'blue'];
+const BOOTS_KINDS: readonly string[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye'];
+const BUTTON_COLOURS: readonly string[] = ['orange', 'gray'];
+
+/** Paths `prefix.<name>.<leaf>` for every name and leaf. */
+function groupPaths(prefix: string, names: readonly string[], leaves: readonly string[]): string[] {
+  return names.flatMap((name) => leaves.map((leaf) => `${prefix}.${name}.${leaf}`));
+}
+
+/** Paths `prefix.<leaf>` for every leaf. */
+function leafPaths(prefix: string, leaves: readonly string[]): string[] {
+  return leaves.map((leaf) => `${prefix}.${leaf}`);
+}
+
+/** Dotted paths of the colours of the block, mirror, monster, device, item, signal and mark sections. */
+const OBJECT_COLOUR_PATHS: readonly string[] = [
+  ...groupPaths('block', ['dirt', 'ice', 'arrow'], SOLID_LEAVES),
+  'block.arrow.glyph',
+  ...groupPaths('block.colour', KEY_COLOUR_CHANNELS, SOLID_LEAVES),
+  ...leafPaths('mirror.frame', SOLID_LEAVES),
+  'mirror.glass', 'mirror.glassLight',
+  ...groupPaths('monster', MONSTER_TYPES, CREATURE_LEAVES),
+  ...groupPaths('device', ['thinWall', 'swivel', 'shotLauncher', 'turret'], SOLID_LEAVES),
+  ...groupPaths('device', ['turnPlate', 'transmogrifier', 'cloneMachine', 'flameJet', 'laser', 'puppetControl'], GLOW_LEAVES),
+  ...groupPaths('device.laserChannel', LASER_CHANNELS, CHANNEL_LEAVES),
+  ...groupPaths('item.boots', BOOTS_KINDS, CHANNEL_LEAVES),
+  ...leafPaths('item.bomb', GLOW_LEAVES),
+  ...leafPaths('item.score', SOLID_LEAVES),
+  'item.stopwatch.face', 'item.stopwatch.rim', 'item.stopwatch.bonus', 'item.stopwatch.penalty',
+  'item.forbid.ring', 'item.forbid.slash',
+  ...leafPaths('item.slowTime', GLOW_LEAVES),
+  'signal.box', 'signal.idle', 'signal.lit', 'signal.glyph',
+  ...groupPaths('mark', ['gravel', 'dirt', 'recessedWall', 'turtle', 'thief'], SOLID_LEAVES),
+  ...groupPaths('mark', ['hint', 'blockTarget', 'slime'], GLOW_LEAVES),
+  ...groupPaths('mark.button', BUTTON_COLOURS, CHANNEL_LEAVES)
+];
+
 /** Dotted paths of every colour the painters hand to the canvas. */
 const COLOUR_PATHS: readonly string[] = [
   'clear',
@@ -47,7 +95,8 @@ const COLOUR_PATHS: readonly string[] = [
   'trap.pit', 'trap.jaw', 'trap.jawLight',
   'portal.base', 'portal.ring', 'portal.core', 'portal.glow',
   'ice.base', 'ice.light', 'ice.line', 'ice.edge',
-  'force.base', 'force.arrow', 'force.arrowLight'
+  'force.base', 'force.arrow', 'force.arrowLight',
+  ...OBJECT_COLOUR_PATHS
 ];
 
 /** Dotted paths of every colour of the optional ink section, checked only when the section is present. */
@@ -62,13 +111,13 @@ const INK_TORCH_RADIUS_PATH = 'ink.torch.radiusTile';
 const NUMBER_PATHS: readonly string[] = [
   'floor.variants', 'shadow.depth',
   'animation.bobAmplitude', 'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs',
-  'animation.pulsePeriodMs', 'animation.forceScrollPeriodMs'
+  'animation.pulsePeriodMs', 'animation.forceScrollPeriodMs', 'animation.monsterStepMs'
 ];
 
 /** Periods divide the clock, so they must be strictly positive. */
 const POSITIVE_PATHS: ReadonlySet<string> = new Set([
   'animation.bobPeriodMs', 'animation.flowPeriodMs', 'animation.portalPeriodMs', 'animation.pulsePeriodMs',
-  'animation.forceScrollPeriodMs'
+  'animation.forceScrollPeriodMs', 'animation.monsterStepMs'
 ]);
 
 function valueAt(root: unknown, path: string): unknown {
