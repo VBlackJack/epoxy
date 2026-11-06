@@ -1729,7 +1729,8 @@ export class LevelEditor {
       });
     };
 
-    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category)) {
+    // A lit charge is what a dropped charge becomes during play: it is not placed by hand.
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true)) {
       add(
         { kind: tile.layer === 'item' ? 'item' : 'terrain', id: tile.id },
         t(tile.i18nKey),

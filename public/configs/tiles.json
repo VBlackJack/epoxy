@@ -864,6 +864,23 @@
       "collectible": "boot",
       "absorbsMonsterContact": true
     },
+    "charge": {
+      "id": "charge",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.charge.name",
+      "laserTransparent": true,
+      "collectible": "charge",
+      "dropsAs": "charge_lit"
+    },
+    "charge_lit": {
+      "id": "charge_lit",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.charge_lit.name",
+      "laserTransparent": true,
+      "litCharge": true
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",

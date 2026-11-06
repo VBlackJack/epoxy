@@ -151,10 +151,10 @@ export const PACK_JSON_VERSION_V7_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Highest pack file version this build reads; a file with a higher version is refused. It stays at 6 until the
- * commit that lands the last feature lot using the version 7 ids, which raises it to PACK_JSON_VERSION_V7.
+ * Highest pack file version this build reads; a file with a higher version is refused. Every id of
+ * PACK_JSON_VERSION_V7_IDS now exists in the configs, so this build reads version 7.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_PULSE_SINKS;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V7;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

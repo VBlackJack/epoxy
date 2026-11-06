@@ -272,9 +272,26 @@ export function isWardTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).absorbsMonsterContact === true;
 }
 
-/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull boots or the ward. */
+/** True when the tile is a blast charge, carried and dropped by the player, or the lit form it turns into. */
+export function isChargeTileId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.collectible === 'charge' || tile.litCharge === true;
+}
+
+/** True when the level places a blast charge (terrain or item layer). */
+export function hasChargeContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isChargeTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
+/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull boots, the ward or a blast charge. */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
-  return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id);
+  return (
+    isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
+    isChargeTileId(id)
+  );
 }
 
 /** True when the entity type is a lurker, asleep or awake, which only the Epoxy engine plays. */
@@ -435,6 +452,21 @@ function withoutSteeringAids(base: RulesetFeatures): RulesetFeatures {
 /** The aids of a signal level, kept per aid set like the steering overlay. */
 const signalFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const pullBootsFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const chargeFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const chargeContentCache = new WeakMap<object, boolean>();
+
+/**
+ * The aids a level with blast charges loses on top of what its other mechanics already turn off: a blast removes
+ * monsters and blocks, which the push hint and the dead-end watch do not model.
+ */
+function withoutChargeAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = chargeFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    chargeFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
 
 function withoutPullBootsAids(base: RulesetFeatures): RulesetFeatures {
   let overlaid = pullBootsFeaturesCache.get(base);
@@ -490,7 +522,13 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     pullBoots = hasPullBootsContent({ terrain: level.terrain, items: level.items ?? [] });
     pullBootsContentCache.set(level, pullBoots);
   }
-  return pullBoots ? withoutPullBootsAids(signaled) : signaled;
+  const pulling = pullBoots ? withoutPullBootsAids(signaled) : signaled;
+  let charge = chargeContentCache.get(level);
+  if (charge === undefined) {
+    charge = hasChargeContent({ terrain: level.terrain, items: level.items ?? [] });
+    chargeContentCache.set(level, charge);
+  }
+  return charge ? withoutChargeAids(pulling) : pulling;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

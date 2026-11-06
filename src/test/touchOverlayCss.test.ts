@@ -292,6 +292,17 @@ describe('keys and boots slots in narrow layouts', () => {
     expect(icon?.body).toMatch(/var\(--overlay-slot-size\)/);
   });
 
+  it('gives the landscape HUD one more button row of height while the charge button wraps the strip', () => {
+    const plain = hudRules.find((r) => r.selectors.includes('body.touch-overlay.orientation-landscape .play-shell .lcd-screen .hud-panel'));
+    const withCharge = hudRules.find((r) =>
+      r.selectors.includes('body.touch-overlay.orientation-landscape.charge-button-visible .play-shell .lcd-screen .hud-panel')
+    );
+    expect(plain?.body).toMatch(/var\(--overlay-button-size\)\)/);
+    expect(plain?.body.match(/--overlay-button-size/g)).toHaveLength(1);
+    expect(withCharge?.body.match(/var\(--overlay-button-size\) \* 2/g)).toHaveLength(1);
+    expect(withCharge?.body).toMatch(/--overlay-gap\) \* 3/);
+  });
+
   it('lets the overlay keys and boots flow as one wrapping strip', () => {
     for (const selector of ['body.touch-overlay .hud-panel .inventory-section', 'body.touch-overlay .hud-panel .inv-grid']) {
       const rule = hudRules.find((r) => r.selectors.includes(selector));

@@ -34,6 +34,18 @@ export const BOMB_ITEM_ID = 'bomb';
 /** Half-width (Chebyshev radius) of the square region where a gray button swaps chips and bombs. */
 export const GRAY_BUTTON_RADIUS = 2;
 
+/** Item id of the blast charge a player carries and drops. */
+export const CHARGE_ITEM_ID = 'charge';
+
+/** Half-width (Chebyshev radius) of the square a blast charge clears of monsters and blocks, and kills the player in. */
+export const CHARGE_BLAST_RADIUS = 1;
+
+/** Sound effect of a blast charge going off. */
+export const CHARGE_BLAST_SFX = 'bomb';
+
+/** Message key of the death caused by a blast charge. */
+export const CHARGE_DEATH_REASON_KEY = 'hud.messages.death_blast';
+
 /** Hazards that end the game on contact unless their immunity boot is held. */
 export const DEADLY_HAZARDS: ReadonlySet<string> = new Set(['water', 'fire', 'slime']);
 
@@ -177,6 +189,9 @@ export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
 
 /** Prefix of the turning force floor turn in a search state key. */
 export const FORCE_CYCLE_KEY_PREFIX = 'fc';
+
+/** Prefix of the lit blast charges in a search state key. */
+export const LIT_CHARGE_KEY_PREFIX = 'lc';
 
 /** Prefix of the spent reveal cells in a search state key. */
 export const SPENT_REVEAL_KEY_PREFIX = 'rv';

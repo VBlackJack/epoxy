@@ -325,6 +325,70 @@ export function paintBombItem(ctx: CanvasRenderingContext2D, size: number, art: 
   });
 }
 
+// ---- Blast charge -----------------------------------------------------------------------------
+
+const CHARGE = {
+  /** The canister, its cap, and the two bands across it, as fractions of the tile. */
+  body: { left: 0.3, top: 0.34, width: 0.4, height: 0.46, corner: 0.08 },
+  cap: { left: 0.35, top: 0.26, width: 0.3, height: 0.09 },
+  bands: [0.46, 0.64] as readonly number[],
+  bandHeight: 0.06,
+  lineWidth: 0.03,
+  /** The wick: a stub when unlit, a curve to the spark when lit. */
+  wickFrom: [0.5, 0.26] as Point,
+  stubTo: [0.55, 0.19] as Point,
+  litControl: [0.56, 0.14] as Point,
+  litTo: [0.68, 0.12] as Point,
+  wickWidth: 0.035,
+  sparkRadius: 0.05,
+  sparkHaloRadius: 0.12
+} as const;
+
+/** The blast charge: a banded canister with a wick; lit, the wick burns with a spark. */
+function chargeItem(lit: boolean): ClockedDrawing {
+  return (ctx, size, art, timeMs) => {
+    const tint = art.item.bomb;
+    hover(ctx, size, art, timeMs, () => {
+      const { body, cap, bands, bandHeight } = CHARGE;
+      ctx.fillStyle = tint.base;
+      roundRect(ctx, size * body.left, size * body.top, size * body.width, size * body.height, size * body.corner);
+      ctx.fill();
+      outline(ctx, size, art, tint.glow, CHARGE.lineWidth, true);
+      ctx.fillStyle = tint.base;
+      ctx.beginPath();
+      ctx.rect(size * cap.left, size * cap.top, size * cap.width, size * cap.height);
+      ctx.fill();
+      outline(ctx, size, art, tint.glow, CHARGE.lineWidth);
+      ctx.fillStyle = markColour(art, tint.glow);
+      for (const band of bands) {
+        ctx.fillRect(size * body.left, size * band, size * body.width, size * bandHeight);
+      }
+      ctx.strokeStyle = markColour(art, tint.glow);
+      ctx.lineWidth = plainLine(size, CHARGE.wickWidth);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(size * CHARGE.wickFrom[0], size * CHARGE.wickFrom[1]);
+      if (lit) {
+        ctx.quadraticCurveTo(size * CHARGE.litControl[0], size * CHARGE.litControl[1], size * CHARGE.litTo[0], size * CHARGE.litTo[1]);
+      } else {
+        ctx.lineTo(size * CHARGE.stubTo[0], size * CHARGE.stubTo[1]);
+      }
+      ctx.stroke();
+      if (!lit) return;
+      const sx = size * CHARGE.litTo[0];
+      const sy = size * CHARGE.litTo[1];
+      const halo = size * CHARGE.sparkHaloRadius;
+      ctx.fillStyle = radial(ctx, sx, sy, halo, [[0, tint.glow], [1, art.clear]]);
+      ctx.fillRect(sx - halo, sy - halo, halo * 2, halo * 2);
+      ctx.fillStyle = tint.core;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size * CHARGE.sparkRadius, 0, TAU);
+      ctx.fill();
+      if (art.ink) outline(ctx, size, art, tint.core, 0);
+    });
+  };
+}
+
 // ---- Score tokens -----------------------------------------------------------------------------
 
 const COIN = {
@@ -527,6 +591,8 @@ export const ITEMS: Readonly<Record<string, RunewardItemPainter>> = {
   ),
   slow_time: clocked(paintSlowTimeItem),
   bomb: clocked(paintBombItem),
+  charge: clocked(chargeItem(false)),
+  charge_lit: clocked(chargeItem(true)),
   score_10: clocked(scoreItem(COIN.one)),
   score_100: clocked(scoreItem(COIN.two)),
   score_1000: clocked(scoreItem(COIN.three)),

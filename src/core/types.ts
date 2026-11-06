@@ -45,6 +45,8 @@ export interface TimingConfig {
   slideCooldownTicks: number;
   animationFrameTicks: number;
   maxUndoSnapshots: number;
+  /** Ticks from the moment a blast charge is dropped to its blast. */
+  chargeFuseTicks: number;
   timeBonusMultiplier: number;
   levelBasePoints: number;
   goldTimeRatio?: number;
@@ -1058,7 +1060,11 @@ export interface TileDefinition {
   requiredKey?: string;
   consumesKey?: boolean;
   colorKey?: string;
-  collectible?: 'key' | 'chip' | 'boot' | 'bonus';
+  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge';
+  /** A blast charge: the lit item it turns into when the player drops it. */
+  dropsAs?: string;
+  /** A lit blast charge: set on the item a dropped charge becomes, which blocks nothing and cannot be picked up. */
+  litCharge?: boolean;
   /** Points added to the score when the item is picked up. */
   scoreBonus?: number;
   /** Factor applied to the level score at the exit when the item is picked up. */
@@ -1638,7 +1644,7 @@ export interface CompiledLevel {
   blockBudget?: BlockBudget;
   /** Theme shown when the player lets the level choose; see game.json themes. */
   theme?: string;
-  /** A proven winning action list (N, E, S, W, '.' to wait), for the solution replay. */
+  /** A proven winning action list (N, E, S, W, '.' to wait, X to drop a blast charge), for the solution replay. */
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
   winRule?: WinRule;
@@ -1726,6 +1732,11 @@ export interface TimedMove {
   drop?: string;
 }
 
+/** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */
+export interface LitCharge extends GridPoint {
+  detonateTick: number;
+}
+
 export interface UndoSnapshot {
   terrain: string[][];
   items: (string | null)[][];
@@ -1764,6 +1775,8 @@ export interface UndoSnapshot {
   toggleParity?: number;
   /** Arrivals counted on turning force floors; written only on a level that has one, absent otherwise. */
   forceCycleTurn?: number;
+  /** The lit blast charges and when each blasts; written only while one is lit, absent otherwise. */
+  litCharges?: LitCharge[];
   /** Cells that revealed their hidden terrain, by index; written only once one did, absent otherwise. */
   revealedCells?: number[];
   /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */

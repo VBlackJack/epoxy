@@ -104,6 +104,8 @@ sprite theme=default name=chip 182bfe124d46ccba
 sprite theme=default name=key 587df5192fefcc0e
 sprite theme=default name=boots a6ec89d302ea8ce6
 sprite theme=default name=bomb 3c25f2d177c94153
+sprite theme=default name=charge 2c1359c68f9b4678
+sprite theme=default name=charge_lit c212f678da61c7e6
 sprite theme=default name=flag cdc3fd0b5560b38d
 sprite theme=default name=stopwatch_bonus 0e9fce7b319124e6
 sprite theme=default name=stopwatch_penalty b99fa635f1093f64
@@ -345,6 +347,8 @@ sprite theme=cyber_neon name=chip 8287f8bbc2c20417
 sprite theme=cyber_neon name=key a850ce52521488d0
 sprite theme=cyber_neon name=boots 675c6cf480702e3a
 sprite theme=cyber_neon name=bomb ce3a270d66b9468a
+sprite theme=cyber_neon name=charge 615b2f95766413ea
+sprite theme=cyber_neon name=charge_lit 1102b57372ab3944
 sprite theme=cyber_neon name=flag b071ea3d45c0bf3a
 sprite theme=cyber_neon name=stopwatch_bonus 5f4ccb634aeb1f4c
 sprite theme=cyber_neon name=stopwatch_penalty c2c032486be49472
@@ -586,6 +590,8 @@ sprite theme=arctic_lab name=chip af0eea3193e5b738
 sprite theme=arctic_lab name=key 033c02c61ef6b3f1
 sprite theme=arctic_lab name=boots f650231dac34646b
 sprite theme=arctic_lab name=bomb 6fd67565948c503d
+sprite theme=arctic_lab name=charge 46ceac84ed8aaf91
+sprite theme=arctic_lab name=charge_lit 8b28a0594d70a5f3
 sprite theme=arctic_lab name=flag 0e8c6ef6656319aa
 sprite theme=arctic_lab name=stopwatch_bonus fc7809722ace33fb
 sprite theme=arctic_lab name=stopwatch_penalty 889ac52f31b4db52
@@ -827,6 +833,8 @@ sprite theme=magma_core name=chip 55da4d9d09af0e86
 sprite theme=magma_core name=key 56a1d94dc21c96b3
 sprite theme=magma_core name=boots c3a26a3d4cf12bfa
 sprite theme=magma_core name=bomb b76540265f8db373
+sprite theme=magma_core name=charge c61e2e3c5279f540
+sprite theme=magma_core name=charge_lit 6f0fc1152a8ce106
 sprite theme=magma_core name=flag 5b4ce0a19399c6b1
 sprite theme=magma_core name=stopwatch_bonus 85cafaff4511a3fd
 sprite theme=magma_core name=stopwatch_penalty 4ee6718373575536
@@ -1068,6 +1076,8 @@ sprite theme=lynx_lcd name=chip 57985cf979a638d0
 sprite theme=lynx_lcd name=key 7a32a9ff838bfef2
 sprite theme=lynx_lcd name=boots a5899abf7d7a8d1a
 sprite theme=lynx_lcd name=bomb 671c3eb46661eb53
+sprite theme=lynx_lcd name=charge 1e45f579199636f4
+sprite theme=lynx_lcd name=charge_lit e449a005dbd1d782
 sprite theme=lynx_lcd name=flag 020574d33c91ace4
 sprite theme=lynx_lcd name=stopwatch_bonus 5028d3738366f927
 sprite theme=lynx_lcd name=stopwatch_penalty 26f4e230a371c2d2

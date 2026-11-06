@@ -68,6 +68,16 @@ item theme=cyber_neon id=ward 7b382a964684d1ed
 item theme=arctic_lab id=ward bc90bad2d1f5f085
 item theme=magma_core id=ward 70633fcdef186a0f
 item theme=lynx_lcd id=ward 57f1e05ef67ec1f1
+item theme=default id=charge e3720bffe0e9f63d
+item theme=cyber_neon id=charge 29b02b60f24f3c9f
+item theme=arctic_lab id=charge 5ab8c22ae1fe3945
+item theme=magma_core id=charge a5eb00ab9ffe7713
+item theme=lynx_lcd id=charge 5ddd2cec869fedd5
+item theme=default id=charge_lit 39d66509392db7d6
+item theme=cyber_neon id=charge_lit 74e531910305c12e
+item theme=arctic_lab id=charge_lit 79983e03393c34e9
+item theme=magma_core id=charge_lit ff64df4b346ba262
+item theme=lynx_lcd id=charge_lit 4343d2face0f7787
 item theme=default id=bomb fb0d51cbc2bb84ae
 item theme=cyber_neon id=bomb 2043ce0469ba83ff
 item theme=arctic_lab id=bomb b24ce8e6eddf1738

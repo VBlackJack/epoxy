@@ -3243,6 +3243,11 @@ body.touch-overlay.orientation-landscape .play-shell .lcd-screen .hud-panel {
   overflow: hidden;
 }
 
+/* The charge button wraps the button row onto a second row: the HUD gives that row up too */
+body.touch-overlay.orientation-landscape.charge-button-visible .play-shell .lcd-screen .hud-panel {
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - var(--overlay-gap) * 3 - var(--overlay-edge) - var(--overlay-dpad-cell) * 3 - var(--overlay-button-size) * 2);
+}
+
 body.touch-overlay.orientation-landscape.dpad-right .play-shell .lcd-screen .hud-panel {
   right: calc(var(--safe-right) + var(--overlay-edge));
   left: auto;
@@ -3381,7 +3386,7 @@ body.touch-overlay .hud-panel .inv-count {
 }
 
 /*
-   Pause, Undo and Menu: 44px icon buttons in the strip beside the pad, off the board.
+   Pause, Undo, Menu and, on a level with a blast charge, Drop Charge: 44px icon buttons in the strip beside the pad, off the board.
    Portrait: a row at the bottom, opposite the pad, under the HUD. Landscape: a row in the pad
    column, just above the pad.
 */
@@ -3410,7 +3415,10 @@ body.touch-overlay.orientation-landscape .play-shell .lcd-screen .touch-overlay-
   bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-dpad-cell) * 3 + var(--overlay-gap));
   width: calc(var(--overlay-dpad-cell) * 3);
   justify-content: space-between;
+  /* The fourth button (drop a blast charge) wraps to a second row instead of overflowing the pad column */
+  flex-wrap: wrap;
   gap: 0;
+  row-gap: var(--overlay-gap);
 }
 
 body.touch-overlay.orientation-landscape.dpad-right .play-shell .lcd-screen .touch-overlay-controls {

@@ -677,6 +677,7 @@
     "slideCooldownTicks": 2,
     "animationFrameTicks": 4,
     "maxUndoSnapshots": 300,
+    "chargeFuseTicks": 60,
     "timeBonusMultiplier": 10,
     "levelBasePoints": 500,
     "goldTimeRatio": 0.5,
