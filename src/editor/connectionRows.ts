@@ -45,6 +45,8 @@ export const CONNECTIONS_KEYS = {
   fallbackCloneNone: `${KEY_PREFIX}fallback.clone_none`,
   fallbackShotUnlinked: `${KEY_PREFIX}fallback.shot_unlinked`,
   fallbackLaserEmitter: `${KEY_PREFIX}fallback.laser_emitter`,
+  signalFiresLauncher: `${KEY_PREFIX}fallback.signal_fires_launcher`,
+  signalFiresCloner: `${KEY_PREFIX}fallback.signal_fires_cloner`,
   needsPlate: `${KEY_PREFIX}needs.plate.label`,
   needsHoldDoor: `${KEY_PREFIX}needs.hold_door.label`,
   needsToggleButton: `${KEY_PREFIX}needs.toggle_button.label`,
@@ -441,6 +443,11 @@ function noteFor(role: DeviceRole | null, rel: DeviceRelations, tile: TileDefini
       return hasLink(rel.controls, 'shot') ? null : { key: CONNECTIONS_KEYS.fallbackShotUnlinked };
     case 'laser_emitter':
       return { key: CONNECTIONS_KEYS.fallbackLaserEmitter };
+    // A signal wired into a launcher or a clone machine fires it once each time the signal starts; trigger links keep their own notes.
+    case 'shot_launcher':
+      return hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFiresLauncher } : null;
+    case 'clone_machine':
+      return hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFiresCloner } : null;
     default:
       return needsNoteFor(role, rel, tile);
   }

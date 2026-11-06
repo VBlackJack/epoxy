@@ -515,9 +515,9 @@ tile pressure_plate_yellow closed=true shadowMask=128 hash=1 ac843b36fbb72d18
 tile signal_plate closed=true isolated 15e25e8efd000475
 tile signal_plate closed=true shadowMask=65 hash=1 c564bdede192f83e
 tile signal_plate closed=true shadowMask=128 hash=1 7b0649d70773d89f
-tile signal_button closed=true isolated 0faf85166855570a
-tile signal_button closed=true shadowMask=65 hash=1 d37677f478820d4a
-tile signal_button closed=true shadowMask=128 hash=1 455fd94ac768865f
+tile signal_button closed=true isolated af7721e2fe26f344
+tile signal_button closed=true shadowMask=65 hash=1 d5c0566bed9a0e33
+tile signal_button closed=true shadowMask=128 hash=1 e4fd9915940f313e
 tile signal_gate_and closed=true isolated bcb7e367b69e70c8
 tile signal_gate_and closed=true shadowMask=65 hash=1 c8f4bfd610a258a1
 tile signal_gate_and closed=true shadowMask=128 hash=1 f6b5eae31c7a06c7

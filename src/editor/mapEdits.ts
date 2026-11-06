@@ -52,6 +52,7 @@ import {
   signalLinkCountAt,
   signalLinkTouches,
   signalTileHoldsEnd,
+  signalTileTakesOneInput,
   translateSignalLinks
 } from './editorSignalLinks';
 import { anchorOffset, ResizeAnchor, TOP_LEFT_ANCHOR } from './resizeAnchor';
@@ -499,7 +500,7 @@ function endsRefusal(map: EditorMap, system: LinkSystem, button: Cell, target: C
   if (system === 'signal' && !hasSignalLink(map, button, target)) {
     // A hold door and a NOT gate take one signal; the validator refuses more (join them with an OR gate).
     const takesOne = tileDefinitionOf(map.terrain[target.y]?.[target.x]);
-    if ((takesOne?.holdDoorColor !== undefined || takesOne?.signalGate === 'not') && signalLinkCountAt(map, 'input', target.x, target.y) > 0) {
+    if ((signalTileTakesOneInput(takesOne) || takesOne?.signalGate === 'not') && signalLinkCountAt(map, 'input', target.x, target.y) > 0) {
       return 'single_input';
     }
     if (signalLinkClosesCycle(map, button, target)) return 'cycle';

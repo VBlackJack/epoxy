@@ -205,11 +205,11 @@ export function sessionStartMessages(level: EditorMap, session: LinkSession, rul
  */
 export function startLinkSession(level: EditorMap, x: number, y: number, ruleset: Ruleset): SessionStartResult {
   if (level.cc3d || ruleset === 'cc3d') return { session: null, messages: [{ key: KEY_UNAVAILABLE }] };
-  // A Lynx level has no signal devices: say why instead of saying there is nothing to link.
-  if (ruleset === 'lynx' && (holdsLinkEnd(level, 'signal', 'button', x, y) || holdsLinkEnd(level, 'signal', 'target', x, y))) {
+  const role = sessionRoleAt(level, x, y, ruleset);
+  // A Lynx level has no signal devices: say why instead of saying there is nothing to link. A clone machine still links there.
+  if (!role && ruleset === 'lynx' && (holdsLinkEnd(level, 'signal', 'button', x, y) || holdsLinkEnd(level, 'signal', 'target', x, y))) {
     return { session: null, messages: [{ key: EPOXY_ONLY_REASON_KEY }] };
   }
-  const role = sessionRoleAt(level, x, y, ruleset);
   if (!role) return { session: null, messages: [{ key: KEY_NOTHING }] };
   if (role.blocked) return { session: null, messages: [{ key: KEY_REFUSED_HIDDEN, params: { role: roleName(role.system, role.end) } }] };
   const session: LinkSession = { system: role.system, end: role.end, x, y };
@@ -301,14 +301,16 @@ export function sessionClick(
   }
 
   const here = sessionRoleAt(level, cell.x, cell.y, ruleset);
-  // A signal gate holds both ends: it takes the wire of the session before it can replace the source.
+  // A signal gate holds both ends: it takes the wire of the session before it can replace the source. A launcher
+  // or clone machine on top takes a wire from a signal output session the same way.
   const takesWire = session.system === 'signal' && holdsLinkEnd(level, 'signal', otherEnd(session.end), cell.x, cell.y);
   if (here && !here.blocked && !takesWire && here.system === session.system && here.end === session.end) {
     const next: LinkSession = { system: session.system, end: session.end, x: cell.x, y: cell.y };
     return { session: next, messages: sessionStartMessages(level, next, ruleset) };
   }
 
-  if (here && !here.blocked && here.system === session.system) {
+  // A shot launcher or clone machine reads as its own system first, yet a signal wire may end on it (an edge sink).
+  if ((here && !here.blocked && here.system === session.system) || takesWire) {
     const button = session.end === 'button' ? session : cell;
     const target = session.end === 'button' ? cell : session;
     const linked = hasLink(level, session.system, button, target);

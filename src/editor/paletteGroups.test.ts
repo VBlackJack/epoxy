@@ -62,6 +62,7 @@ describe('Mechanisms palette groups', () => {
     expect(tileMechanismGroup(tile('toggle_wall_closed'))).toBe('toggles');
     expect(tileMechanismGroup(tile('flame_jet_on'))).toBe('toggles');
     expect(tileMechanismGroup(tile('signal_plate'))).toBe('toggles');
+    expect(tileMechanismGroup(tile('signal_button'))).toBe('toggles');
     expect(tileMechanismGroup(tile('signal_gate_and'))).toBe('toggles');
     expect(tileMechanismGroup(tile('signal_latch_on'))).toBe('toggles');
     const entity = (id: string) => ConfigRegistry.getMonsters().entities[id];

@@ -17,8 +17,9 @@
 /**
  * Vector drawing of the seven signal tiles for the flat and neon styles: a dark device box with a symbol
  * drawn by canvas paths for each gate (AND "&", OR ">=1", NOT a "1" with an inversion circle, XOR "=1",
- * latch "L"), and a hex pad for the signal plate. A powered device shows a lit rim and a lit symbol; the
- * pad lights when pressed. Colours arrive as arguments (the renderer reads them from its palette), so
+ * latch "L"), a flat hex pad for the held signal plate, and a round bezel with a raised cap for the pulse
+ * button (a push button: it reads as momentary, and a lit pulse shows a burst of short rays around the cap).
+ * A powered device shows a lit rim and a lit symbol; the pad lights when pressed. Colours arrive as arguments (the renderer reads them from its palette), so
  * this module holds no colour of its own and works for any theme.
  */
 
@@ -74,9 +75,18 @@ const HEX_RADIUS_TILE = 0.4;
 const HEX_RIM_WIDTH_TILE = 0.07;
 const HEX_CORE_RADIUS_TILE = 0.2;
 
-/** Round pad of the pulse button: radius and the radius of its lit core, in fractions of the cell. */
-const BUTTON_RADIUS_TILE = 0.34;
-const BUTTON_CORE_RADIUS_TILE = 0.16;
+/**
+ * Pulse button, in fractions of the cell: the round bezel, the cap inside it and the rays of a lit pulse.
+ * The rays sit between the cap and the bezel, on the diagonals, so the lit button reads as a spark.
+ */
+const BUTTON_BEZEL_RADIUS_TILE = 0.4;
+const BUTTON_BEZEL_RIM_WIDTH_TILE = 0.06;
+const BUTTON_CAP_RADIUS_TILE = 0.2;
+const BUTTON_CAP_RIM_WIDTH_TILE = 0.07;
+const BUTTON_RAY_INNER_TILE = 0.27;
+const BUTTON_RAY_OUTER_TILE = 0.34;
+const BUTTON_RAY_COUNT = 4;
+const BUTTON_RAY_ANGLE_OFFSET = Math.PI / 4;
 
 /**
  * The ampersand: a diagonal from the lower right up to the head, the head loop, then the bowl that ends
@@ -234,6 +244,50 @@ function paintSymbol(
 }
 
 /**
+ * The pulse button: a bezel ring around a cap. At rest the cap is an outline on the dark box (a button waiting to
+ * be pushed); a lit pulse fills the cap and adds short rays around it. The caller saved the context.
+ */
+function paintPulseButton(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  powered: boolean,
+  colors: SignalTileColors,
+  style: SignalTileStyle
+): void {
+  const cx = x + size * CENTRE_TILE;
+  const cy = y + size * CENTRE_TILE;
+  const disc = (radius: number): void => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * radius, 0, FULL_TURN);
+    ctx.closePath();
+  };
+  disc(BUTTON_BEZEL_RADIUS_TILE);
+  ctx.fillStyle = colors.box;
+  ctx.fill();
+  ctx.lineWidth = Math.max(MIN_STROKE_PX, size * BUTTON_BEZEL_RIM_WIDTH_TILE);
+  ctx.stroke();
+  if (powered && style.glowBlurPx > 0) {
+    ctx.shadowColor = colors.lit;
+    ctx.shadowBlur = style.glowBlurPx;
+  }
+  disc(BUTTON_CAP_RADIUS_TILE);
+  ctx.lineWidth = Math.max(MIN_STROKE_PX, size * BUTTON_CAP_RIM_WIDTH_TILE);
+  if (powered) {
+    ctx.fillStyle = colors.lit;
+    ctx.fill();
+    ctx.beginPath();
+    for (let i = 0; i < BUTTON_RAY_COUNT; i++) {
+      const angle = BUTTON_RAY_ANGLE_OFFSET + (i * FULL_TURN) / BUTTON_RAY_COUNT;
+      ctx.moveTo(cx + Math.cos(angle) * size * BUTTON_RAY_INNER_TILE, cy + Math.sin(angle) * size * BUTTON_RAY_INNER_TILE);
+      ctx.lineTo(cx + Math.cos(angle) * size * BUTTON_RAY_OUTER_TILE, cy + Math.sin(angle) * size * BUTTON_RAY_OUTER_TILE);
+    }
+  }
+  ctx.stroke();
+}
+
+/**
  * Paints one signal tile over whatever is already in the cell (the caller draws the floor first). `powered`
  * lights the rim and the symbol of a device, and the core of the plate's pad.
  */
@@ -253,20 +307,14 @@ export function paintSignalTile(
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.strokeStyle = ink;
-  if (kind === 'plate' || kind === 'button') {
-    // The plate is a hex pad; the pulse button is a round one.
-    const pad = (radius: number): void => {
-      const cx = x + size * CENTRE_TILE;
-      const cy = y + size * CENTRE_TILE;
-      if (kind === 'plate') {
-        hexPath(ctx, cx, cy, size * radius);
-      } else {
-        ctx.beginPath();
-        ctx.arc(cx, cy, size * radius, 0, FULL_TURN);
-        ctx.closePath();
-      }
-    };
-    pad(kind === 'plate' ? HEX_RADIUS_TILE : BUTTON_RADIUS_TILE);
+  if (kind === 'button') {
+    paintPulseButton(ctx, x, y, size, powered, colors, style);
+    ctx.restore();
+    return;
+  }
+  if (kind === 'plate') {
+    const pad = (radius: number): void => hexPath(ctx, x + size * CENTRE_TILE, y + size * CENTRE_TILE, size * radius);
+    pad(HEX_RADIUS_TILE);
     ctx.fillStyle = colors.box;
     ctx.fill();
     ctx.lineWidth = Math.max(MIN_STROKE_PX, size * HEX_RIM_WIDTH_TILE);
@@ -276,7 +324,7 @@ export function paintSignalTile(
     }
     ctx.stroke();
     if (powered) {
-      pad(kind === 'plate' ? HEX_CORE_RADIUS_TILE : BUTTON_CORE_RADIUS_TILE);
+      pad(HEX_CORE_RADIUS_TILE);
       ctx.fillStyle = colors.lit;
       ctx.fill();
     }

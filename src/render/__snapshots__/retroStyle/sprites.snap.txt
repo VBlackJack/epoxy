@@ -30,8 +30,8 @@ sprite theme=default name=turn_plate_cw 2a29994309532f26
 sprite theme=default name=turn_plate_ccw d45657b20a7e0297
 sprite theme=default name=signal_plate e04e7afd311fa2f4
 sprite theme=default name=signal_plate_lit 18dc15df35190005
-sprite theme=default name=signal_button 29a96ceb4a658729
-sprite theme=default name=signal_button_lit 4ecf0e8eb2d3ad77
+sprite theme=default name=signal_button e8c38d699a252098
+sprite theme=default name=signal_button_lit e85d4235c1c09488
 sprite theme=default name=signal_gate_and 595ae858f52426c3
 sprite theme=default name=signal_gate_and_lit 8aa6ba3ca4e1871f
 sprite theme=default name=signal_gate_or b3b5466948f55291
@@ -266,8 +266,8 @@ sprite theme=cyber_neon name=turn_plate_cw 3c67381a8492bcde
 sprite theme=cyber_neon name=turn_plate_ccw 0d3869c70ab05dd3
 sprite theme=cyber_neon name=signal_plate 2eac2519370858a8
 sprite theme=cyber_neon name=signal_plate_lit b8c4b4ad0ca2c8cf
-sprite theme=cyber_neon name=signal_button 480e911ddbf5f897
-sprite theme=cyber_neon name=signal_button_lit 2c812e7bf26adafe
+sprite theme=cyber_neon name=signal_button 00211d102bc0baaa
+sprite theme=cyber_neon name=signal_button_lit 8d6bb5da22f982dc
 sprite theme=cyber_neon name=signal_gate_and 9a4cfc4cae8198bf
 sprite theme=cyber_neon name=signal_gate_and_lit 4b03360913849549
 sprite theme=cyber_neon name=signal_gate_or 177e6fed4cdadd84
@@ -502,8 +502,8 @@ sprite theme=arctic_lab name=turn_plate_cw 4cc9b3c05cdf17c4
 sprite theme=arctic_lab name=turn_plate_ccw cc440619b3232a4b
 sprite theme=arctic_lab name=signal_plate 8c9298cff71452e7
 sprite theme=arctic_lab name=signal_plate_lit ffcd2a8e866b2e1a
-sprite theme=arctic_lab name=signal_button 8d52523bccc1651d
-sprite theme=arctic_lab name=signal_button_lit 0fc0787684ab24cd
+sprite theme=arctic_lab name=signal_button b1bd45e1cfa3f994
+sprite theme=arctic_lab name=signal_button_lit 4e0ab80660956ec7
 sprite theme=arctic_lab name=signal_gate_and 418e5d8e5196cbb1
 sprite theme=arctic_lab name=signal_gate_and_lit 9c8c0eb7f023143d
 sprite theme=arctic_lab name=signal_gate_or f5723928627b7cc7
@@ -738,8 +738,8 @@ sprite theme=magma_core name=turn_plate_cw 64687851b164f950
 sprite theme=magma_core name=turn_plate_ccw bf53718ad12764f8
 sprite theme=magma_core name=signal_plate 62251ef54ffa3d6e
 sprite theme=magma_core name=signal_plate_lit de4df362661b0cba
-sprite theme=magma_core name=signal_button 60cbef7bdd8babbf
-sprite theme=magma_core name=signal_button_lit 241ecdf11937aa0d
+sprite theme=magma_core name=signal_button 8d032aecdfb27da7
+sprite theme=magma_core name=signal_button_lit 591aa7b61b31d5e6
 sprite theme=magma_core name=signal_gate_and ddf4bb51beaef5ed
 sprite theme=magma_core name=signal_gate_and_lit 7f0b6802d59b44ee
 sprite theme=magma_core name=signal_gate_or 7e154ec856575608
@@ -974,8 +974,8 @@ sprite theme=lynx_lcd name=turn_plate_cw 304c0853d64d62e5
 sprite theme=lynx_lcd name=turn_plate_ccw 94af94742ed09750
 sprite theme=lynx_lcd name=signal_plate 2a0da29ff8034799
 sprite theme=lynx_lcd name=signal_plate_lit 7d8ba71b6e341de7
-sprite theme=lynx_lcd name=signal_button 1f31539d0bc627cd
-sprite theme=lynx_lcd name=signal_button_lit e7dce97fda788fa9
+sprite theme=lynx_lcd name=signal_button 9023de9566b17c0b
+sprite theme=lynx_lcd name=signal_button_lit 5e87c0f9e99212cd
 sprite theme=lynx_lcd name=signal_gate_and 1c03126068c3ccf6
 sprite theme=lynx_lcd name=signal_gate_and_lit d1fe3bffcd8747cb
 sprite theme=lynx_lcd name=signal_gate_or a92155e21eb0ee57

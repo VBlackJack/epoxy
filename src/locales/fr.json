@@ -527,7 +527,7 @@
       "kb_editor_rotate_in_place": { "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit), ou tourne un tampon flottant" },
       "kb_editor_zoom": { "label": "+ / - / 0 : Agrandir, réduire, ajuster le niveau à la fenêtre" },
       "kb_editor_wheel_zoom": { "label": "Ctrl (ou Cmd) + molette : Zoomer autour du pointeur" },
-      "kb_editor_link": { "label": "K : Relier le dispositif sous le curseur (bouton, piège, machine à cloner, déclencheur de tir ou lanceur, plaque de signal, porte logique, récepteur laser ou porte à maintien). Cliquez ensuite, ou appuyez sur Espace, sur un partenaire pour le lier ou le délier, ou sur une case de sol vide pour en poser un" },
+      "kb_editor_link": { "label": "K : Relier le dispositif sous le curseur (bouton, piège, machine à cloner, déclencheur de tir ou lanceur, plaque ou bouton de signal, porte logique, récepteur laser ou porte à maintien). Cliquez ensuite, ou appuyez sur Espace, sur un partenaire pour le lier ou le délier, ou sur une case de sol vide pour en poser un" },
       "kb_editor_cancel": { "label": "Échap : Terminer la liaison, annuler un collage en attente, ou abandonner la sélection" },
       "kb_editor_cursor": { "label": "Zone de dessin active : les flèches déplacent le curseur, Espace ou Entrée dessine avec l'outil actif" },
       "kb_editor_select": { "label": "S : outil Sélection. Faire glisser ou Maj+flèches choisit un rectangle ; Ctrl (Cmd) + C / X / V copient, coupent, collent ; Suppr efface ; Maj+F remplit la sélection avec l'élément choisi dans la palette ; Alt+flèches ou glisser dans la sélection la déplacent ; Échap annule un collage ou abandonne la sélection" },
@@ -576,17 +576,17 @@
       "no_emitter": { "label": "Erreur : Aucun émetteur laser placé sur la carte." },
       "no_receiver": { "label": "Erreur : Aucun récepteur laser placé sur la carte." },
       "laser_gate_on_beam": { "label": "Avertissement : une barrière laser ({group}) se trouve sur un rayon qui allume un récepteur : fermée, elle coupe ce rayon." },
-      "signal_sink_inputs": { "label": "Erreur : une porte à plaque, un lanceur de tirs ou une machine à clones en ({x}, {y}) (au total : {count}) reçoit plus d'un lien de signal. Réunissez les signaux avec une porte OU." },
+      "signal_sink_inputs": { "label": "Erreur : une porte à plaque, un lanceur de tirs ou une machine à cloner en ({x}, {y}) (au total : {count}) reçoit plus d'un lien de signal. Réunissez les signaux avec une porte OU." },
       "signal_colour_mixed": { "label": "Erreur : les portes à plaque ({color}) en ({x}, {y}) (au total : {count}) sont pilotées par des signaux, mais cette couleur a aussi des plaques de pression. Choisissez l'un ou l'autre." },
       "signal_not_inputs": { "label": "Erreur : une porte NON en ({x}, {y}) (au total : {count}) demande exactement un lien en entrée." },
       "signal_gate_no_input": { "label": "Erreur : une porte logique en ({x}, {y}) (au total : {count}) n'a aucun lien en entrée." },
       "signal_cycle": { "label": "Erreur : des liens de signal bouclent sur eux-mêmes en ({x}, {y}) (au total : {count} cases). Un signal ne peut pas boucler." },
-      "signal_link_dangling": { "label": "Avertissement : un lien de signal partant de ({x}, {y}) (au total : {count}) relie des cases qui ne sont pas une source, une porte logique ou une porte à plaque, il ne fait donc rien." },
+      "signal_link_dangling": { "label": "Avertissement : un lien de signal partant de ({x}, {y}) (au total : {count}) relie des cases qui ne sont pas une source, une porte logique, une porte à plaque, un lanceur de tirs ou une machine à cloner, il ne fait donc rien." },
       "signal_source_unlinked": { "label": "Avertissement : une plaque ou un bouton de signal en ({x}, {y}) (au total : {count}) n'est lié à rien." },
       "signal_world_loop_odd": { "label": "Erreur : le récepteur laser en ({x}, {y}) (au total : {count}) pilote une porte à plaque qui coupe ou ouvre son propre rayon à l'envers, la porte clignoterait sans fin." },
       "signal_world_loop_even": { "label": "Avertissement : le récepteur laser en ({x}, {y}) (au total : {count}) pilote une porte à plaque qui coupe ou ouvre son propre rayon, il se maintient donc tout seul." },
       "signal_pulse_door": { "label": "Avertissement : un bouton de signal en ({x}, {y}) (au total : {count}) pilote une porte à plaque sans bascule entre eux, la porte ne change donc d'état qu'un instant. Ajoutez une bascule." },
-      "signal_cloner_self_feed": { "label": "Avertissement : la machine à clones en ({x}, {y}) (au total : {count}) fait apparaître son clone sur un bouton de signal qui la pilote, elle peut donc se cloner en boucle." },
+      "signal_cloner_self_feed": { "label": "Avertissement : la machine à cloner en ({x}, {y}) (au total : {count}) fait apparaître son clone sur un bouton de signal qui la pilote, elle peut donc se cloner en boucle." },
       "hold_door_no_plate": { "label": "Avertissement : une porte à plaque ({color}) en ({x}, {y}) (au total : {count}) n'a aucune plaque de pression de sa couleur, elle ne peut donc jamais s'ouvrir." },
       "hold_door_wrong_start": { "label": "Avertissement : une porte à plaque ({color}) est posée ouverte ou fermée à l'inverse de ses plaques : elle change dès le début du niveau." },
       "channel_walls_no_button": { "label": "Avertissement : des murs bascules ({color}) en ({x}, {y}) (au total : {count}) n'ont aucun bouton bascule de leur couleur pour les déplacer." },
@@ -714,7 +714,7 @@
         "laser_emitter": { "label": "Émetteur laser" },
         "laser_receiver": { "label": "Récepteur laser" },
         "laser_gate": { "label": "Porte laser" },
-        "signal_source": { "label": "Plaque de signal" },
+        "signal_source": { "label": "Plaque ou bouton de signal" },
         "signal_gate": { "label": "Porte logique" },
         "signal_out": { "label": "Sortie de signal" },
         "signal_in": { "label": "Entrée de signal" }
@@ -723,7 +723,7 @@
         "trap": { "label": "bouton brun et piège" },
         "clone": { "label": "bouton rouge et machine à cloner" },
         "shot": { "label": "déclencheur de tir et lanceur" },
-        "signal": { "label": "plaques de signal, portes logiques, récepteurs laser et portes à maintien" },
+        "signal": { "label": "plaques et boutons de signal, portes logiques, récepteurs laser, portes à maintien, lanceurs de tirs et machines à cloner" },
         "plate": { "label": "plaque de pression et porte à maintien" },
         "toggle": { "label": "bouton bascule et mur" },
         "teleport": { "label": "téléporteurs" },
@@ -757,7 +757,9 @@
         "clone_any": "Aucun lien : active toutes les machines à cloner qui portent une créature.",
         "clone_none": "Aucun lien, et aucune machine à cloner ne porte de créature : n'active rien.",
         "shot_unlinked": "N'active rien tant qu'il n'est pas lié.",
-        "laser_emitter": "Relié à rien ; l'aperçu du faisceau montre le rayon."
+        "laser_emitter": "Relié à rien ; l'aperçu du faisceau montre le rayon.",
+        "signal_fires_launcher": "Tire une fois chaque fois que son signal relié se met à émettre.",
+        "signal_fires_cloner": "Fait un clone chaque fois que son signal relié se met à émettre."
       },
       "needs": {
         "plate": { "label": "Il faut une porte à maintien de la même couleur ({colour}) : cette plaque n'ouvre rien pour l'instant. Une porte à maintien ne s'ouvre que tant que chaque plaque de sa couleur est enfoncée." },
@@ -840,8 +842,8 @@
             "unlinked": { "label": "Un déclencheur de tir ne tire que ses lanceurs liés : sans lien, il ne déclenche rien." }
           },
           "signal": {
-            "how": { "label": "Reliez chaque plaque de signal, récepteur laser ou porte logique aux portes logiques et portes à maintien qu'il alimente (K ou Relier...). Les boucles sont refusées." },
-            "unlinked": { "label": "Une porte logique sans signal relié reste éteinte. Une porte à maintien sans lien suit ses plaques de pression de la même couleur." }
+            "how": { "label": "Reliez chaque plaque de signal, bouton de signal, récepteur laser ou porte logique aux portes logiques, portes à maintien, lanceurs de tirs et machines à cloner qu'il alimente (K ou Relier...). Les boucles sont refusées. Un lanceur ou une machine à cloner se déclenche une fois chaque fois que son signal démarre." },
+            "unlinked": { "label": "Une porte logique sans signal relié reste éteinte. Une porte à maintien sans lien suit ses plaques de pression de la même couleur. Un lanceur ou une machine à cloner qu'aucun signal ne déclenche ne répond qu'à ses boutons." }
           },
           "plate": {
             "how": { "label": "Une porte à maintien et ses plaques de pression partagent une couleur." },
@@ -943,7 +945,7 @@
         "shot_trigger": { "label": "Sans lien, ce déclencheur de tir ne tire rien." },
         "shot_launcher": { "label": "Sans lien, aucun déclencheur de tir ne commande ce lanceur." },
         "signal_out": { "label": "Sans lien, ce signal n'alimente rien." },
-        "signal_in": { "label": "Sans lien : une porte logique reste éteinte, une porte à maintien suit ses plaques de pression de la même couleur." }
+        "signal_in": { "label": "Sans lien : une porte logique reste éteinte, une porte à maintien suit ses plaques de pression de la même couleur, et un lanceur ou une machine à cloner n'est pas déclenché par les signaux." }
       },
       "fallback_lynx": {
         "trap_button": { "label": "Sans lien : ce bouton n'ouvre rien." },
@@ -960,7 +962,7 @@
       "source_gone": { "label": "Édition des liens terminée : l'élément de départ ({role}) a disparu." },
       "busy": { "label": "Un trait de pinceau est en cours : terminez-le avant de créer des liens." },
       "unavailable": { "label": "Les liens CC3D viennent de la position des éléments : il n'y a rien à relier." },
-      "nothing": { "label": "Aucun lien possible ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir, un lanceur de tir, une plaque de signal, une porte logique, un récepteur laser ou une porte à maintien." },
+      "nothing": { "label": "Aucun lien possible ici : choisissez un bouton, un piège, une machine à cloner, un déclencheur de tir, un lanceur de tir, une plaque ou un bouton de signal, une porte logique, un récepteur laser ou une porte à maintien." },
       "refused": {
         "hidden": { "label": "Caché sous une autre tuile : {role}. Dégagez la case pour créer un lien." },
         "single_input": { "label": "Lien refusé : ({x}, {y}) ne prend qu'un seul signal. Réunissez d'abord les signaux avec une porte OU." },
@@ -1685,7 +1687,7 @@
     "pressure_plate_blue": { "name": "Plaque de Pression Bleue", "desc": { "label": "Une porte à plaque bleue reste ouverte tant que toutes les plaques bleues sont enfoncées. Nécessite : une porte à plaque bleue." } },
     "pressure_plate_yellow": { "name": "Plaque de Pression Jaune", "desc": { "label": "Une porte à plaque jaune reste ouverte tant que toutes les plaques jaunes sont enfoncées. Nécessite : une porte à plaque jaune." } },
     "signal_plate": { "name": "Plaque de signal", "desc": { "label": "Envoie un signal tant que quelque chose se tient dessus. Nécessite : un lien de signal vers une porte logique ou une porte à plaque." } },
-    "signal_button": { "name": "Bouton de signal", "desc": { "label": "Envoie un signal bref chaque fois que quelque chose marche dessus. Nécessite : un lien de signal vers une porte logique, une porte à plaque, un lanceur de tirs ou une machine à clones." } },
+    "signal_button": { "name": "Bouton de signal", "desc": { "label": "Envoie un signal bref chaque fois que quelque chose marche dessus. Nécessite : un lien de signal vers une porte logique, une porte à plaque, un lanceur de tirs ou une machine à cloner." } },
     "signal_gate_and": { "name": "Porte ET", "desc": { "label": "Envoie un signal tant que toutes ses entrées liées en envoient un. Nécessite : des liens de signal en entrée et en sortie." } },
     "signal_gate_or": { "name": "Porte OU", "desc": { "label": "Envoie un signal tant qu'une de ses entrées liées en envoie un. Nécessite : des liens de signal en entrée et en sortie." } },
     "signal_gate_not": { "name": "Porte NON", "desc": { "label": "Envoie un signal tant que son unique entrée liée n'en envoie pas. Nécessite : un lien de signal en entrée et un en sortie." } },

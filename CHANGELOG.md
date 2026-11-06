@@ -9,6 +9,7 @@ versions follow Semantic Versioning.
 
 - Level editor: signal links can be removed with the Unlink button in the Connections panel.
 - Signals: pulse buttons, and signal links that fire launchers and clone machines on a rising edge (pack format version 6).
+- Signals: pulse buttons and launcher/clone links can be placed and linked in the level editor, with their own look in every render style.
 
 ### Changed
 
