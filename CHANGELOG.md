@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+
+- Level validator: levels whose clone machines or shot launchers are driven by signals no longer get false unreachable chip or exit reports.
+
 ## [2.22.0] - 2026-11-06
 
 ### Added

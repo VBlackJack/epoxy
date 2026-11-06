@@ -36,7 +36,9 @@ import { relativeTo } from './lynx/directions';
 import { isArrowBlockEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { registryTileLookup } from './epoxy/epoxySignals';
 import { checkSignalWiring, signalDrivenColors } from './signalChecks';
+import { compileSignalSpec } from './signalLinks';
 import { hiddenUnder, underlayMap } from './Underlays';
 import {
   ChannelColor,
@@ -565,10 +567,13 @@ export class LevelValidator {
       const uncollectedBlocks = new Map<string, string>(
         level.entities.filter((e) => blockTypes.has(e.type)).map((e) => [`${e.x},${e.y}`, e.type])
       );
-      // A cloner only supplies blocks once the player can reach its button
+      // A button-fed cloner only supplies blocks once the player can reach its button (signal-driven ones: applySignalSinks)
       const grantedCloneLinks = new Set<number>();
 
       const appliedKeyThieves = new Set<string>();
+
+      // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
+      this.applySignalSinks(level, blockTypes, stockBlocks, simItems);
 
       let changed = true;
       let passes = 0;
@@ -1882,6 +1887,46 @@ export class LevelValidator {
   }
 
   /**
+   * Applies the signal sinks that act on what the walk counts, as if the network had fired them. Same soundness
+   * stance as the signal-driven hold doors: the sink is assumed to fire, whether or not the network ever does.
+   * A clone machine holding a block grants the cloner allowance of that block type. A shot launcher removes every
+   * bomb on the ray from its cell in its facing direction to the map edge, ignoring obstacles (an
+   * over-approximation). A launcher is a terrain tile of its own, so no swivel can turn it: one direction.
+   */
+  private static applySignalSinks(
+    level: CompiledLevel,
+    blockTypes: ReadonlySet<string>,
+    stockBlocks: (type: string, count: number) => void,
+    simItems: (string | null)[][]
+  ): void {
+    const spec = level.ruleset !== 'lynx' && level.ruleset !== 'cc3d' ? compileSignalSpec(level, registryTileLookup) : undefined;
+    if (spec === undefined) return;
+    const width = level.terrain[0]?.length ?? 0;
+    if (width === 0) return;
+    const underlays = underlayMap(level);
+    for (const node of spec.nodes) {
+      if (node.kind !== 'sink' || node.fires === undefined) continue;
+      const x = node.cell % width;
+      const y = Math.floor(node.cell / width);
+      if (node.fires === 'cloner') {
+        const held = level.entities.find((e) => e.x === x && e.y === y && blockTypes.has(e.type));
+        if (held) stockBlocks(held.type, CLONER_BLOCK_ALLOWANCE);
+        continue;
+      }
+      const hiddenId = underlays?.get(node.cell);
+      const launcher =
+        ConfigRegistry.getTile(level.terrain[y][x]).shotLauncher ??
+        (hiddenId === undefined ? undefined : ConfigRegistry.getTile(hiddenId).shotLauncher);
+      if (!launcher) continue;
+      const vec = DIRECTION_VECTORS[launcher.dir];
+      for (let cx = x + vec.dx, cy = y + vec.dy; simItems[cy]?.[cx] !== undefined; cx += vec.dx, cy += vec.dy) {
+        const item = simItems[cy][cx];
+        if (item && ConfigRegistry.getTile(item).hazard === 'bomb') simItems[cy][cx] = null;
+      }
+    }
+  }
+
+  /**
    * Colours whose hold doors the player can pass, as far as the level can tell: the colour has at least one
    * plate and at least as many things that can lie on a plate for good (blocks, monsters that press plates,
    * a cloned block) as it has plates. Walking monsters count as pressers (they press a plate when they stand on
@@ -1890,6 +1935,7 @@ export class LevelValidator {
    * in, and the door shuts on the occupant, who may leave. Then the player counts as one presser.
    * A colour whose doors a signal sink drives is treated as openable. This is an optimistic heuristic: the
    * signal network may never open that door. The block solver bails on signal levels, so nothing checks it further.
+   * Signal sinks that fire a clone machine or a shot launcher get the same stance in the reach walk (applySignalSinks).
    */
   private static openableHoldDoorColors(level: CompiledLevel): Set<ChannelColor> {
     const platesByColor = new Map<ChannelColor, number>();

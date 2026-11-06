@@ -332,3 +332,70 @@ describe('launchers driven by a signal link', () => {
     expect(find(alone, 'shot_launcher_unlinked')?.severity).toBe('warning');
   });
 });
+
+describe('reach walk with signal-driven clone machines and shot launchers', () => {
+  const PULSE = 'signal_button';
+  const BUTTON_CELL: Cell = { x: 2, y: 3 };
+  const MACHINE: Cell = { x: 2, y: 5 };
+  const GAP: Cell = { x: 5, y: 5 };
+  const FAR_EXIT: Cell = { x: 8, y: 5 };
+  const WEST_START: Cell = { x: 2, y: 8 };
+
+  /** A wall column across the room with a one-cell gap, the start on the west and the exit on the east. */
+  function divided(terrain: Array<[Cell, string]>, links: SignalLink[]): CompiledLevel {
+    const column: Array<[Cell, string]> = [];
+    for (let y = 1; y < SIZE - 1; y++) if (y !== GAP.y) column.push([{ x: GAP.x, y }, 'wall']);
+    const level = room([...column, [EXIT_CELL, 'floor'], [FAR_EXIT, 'exit'], ...terrain], links);
+    level.playerStart = { ...WEST_START, dir: 'E' };
+    return level;
+  }
+
+  const unreachableKeys = (level: CompiledLevel): string[] =>
+    issuesOf(level)
+      .map((issue) => issue.i18nKey)
+      .filter((key) => key.startsWith(`${KEY_PREFIX}unreachable_`));
+
+  it('counts the blocks of a clone machine fired by a pulse button', () => {
+    const level = divided([[BUTTON_CELL, PULSE], [MACHINE, 'clone_machine'], [GAP, 'water']], [link(BUTTON_CELL, MACHINE)]);
+    level.entities = [{ type: 'dirt_block', x: MACHINE.x, y: MACHINE.y, dir: 'E' }];
+    expect(unreachableKeys(level)).toEqual([]);
+  });
+
+  it('removes the bomb a pulse-fired launcher shoots along its row', () => {
+    const level = divided([[BUTTON_CELL, PULSE], [MACHINE, 'shot_launcher_e']], [link(BUTTON_CELL, MACHINE)]);
+    level.items[GAP.y][GAP.x] = 'bomb';
+    expect(unreachableKeys(level)).toEqual([]);
+  });
+
+  it('still reports the unreachable exit when no signal links the launcher', () => {
+    const level = divided([[MACHINE, 'shot_launcher_e']], []);
+    level.items[GAP.y][GAP.x] = 'bomb';
+    expect(unreachableKeys(level)).toContain(`${KEY_PREFIX}unreachable_exit.label`);
+  });
+
+  it('still fills the water with a block once the bomb and the cloner are signal driven', () => {
+    const launcher: Cell = { x: 2, y: 4 };
+    const cloner: Cell = { x: 2, y: 6 };
+    const water: Cell = { x: 7, y: 5 };
+    const second: Array<[Cell, string]> = [];
+    for (let y = 1; y < SIZE - 1; y++) if (y !== water.y) second.push([{ x: water.x, y }, 'wall']);
+    const level = divided(
+      [
+        [BUTTON_CELL, PULSE],
+        [launcher, 'shot_launcher_e'],
+        [cloner, 'clone_machine'],
+        ...second,
+        [water, 'water']
+      ],
+      [link(BUTTON_CELL, launcher), link(BUTTON_CELL, cloner)]
+    );
+    level.items[GAP.y][GAP.x] = 'bomb';
+    level.items[FAR_EXIT.y][FAR_EXIT.x] = 'chip';
+    level.chipsRequired = 1;
+    // The only block is the one the signal-driven cloner holds: it must fill the water once the launcher cleared the bomb.
+    level.entities = [{ type: 'dirt_block', x: cloner.x, y: cloner.y, dir: 'E' }];
+    expect(unreachableKeys(level)).toEqual([]);
+    level.solution = 'EEEEE';
+    expect(unreachableKeys(level)).toEqual([]);
+  });
+});
