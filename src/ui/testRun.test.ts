@@ -49,6 +49,16 @@ describe('overlayButtons', () => {
   });
 });
 
+describe('overlayButtons rating button', () => {
+  it('shows only on a normal win when a rating can be given', () => {
+    expect(overlayButtons('complete', false, false, false, true).rate).toBe(true);
+    expect(overlayButtons('complete', false, false, false, false).rate).toBe(false);
+    expect(overlayButtons('complete', true, false, false, true).rate).toBe(false);
+    expect(overlayButtons('dead', false, false, false, true).rate).toBe(false);
+    expect(overlayButtons('paused', false, false, false, true).rate).toBe(false);
+  });
+});
+
 describe('test run key seams', () => {
   it('Escape returns only a finished test run', () => {
     expect(testRunKeyReturns('Escape', 'complete', true)).toBe(true);

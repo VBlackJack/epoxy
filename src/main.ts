@@ -97,6 +97,7 @@ import { isEditorHelpKey, revealEditorHelp } from './ui/editorHelp';
 import {
   firstVisibleOverlayAction,
   levelNavigationBlocked,
+  focusAfterRating,
   nextLevelGoesToEditor,
   overlayButtons,
   testRunKeyReturns,
@@ -2855,6 +2856,14 @@ class EpoxyApplication {
       this.advanceToNextLevel();
     });
 
+    byId('overlay-btn-rate')?.addEventListener('click', () => {
+      void this.playtest.rateWin().then(() => {
+        this.updateOverlay();
+        const overlay = byId('viewport-overlay');
+        if (overlay && this.overlayState === 'complete') focusAfterRating(overlay);
+      });
+    });
+
     byId('overlay-btn-back-to-editor')?.addEventListener('click', () => {
       this.returnToEditorFromTest();
     });
@@ -3884,13 +3893,20 @@ class EpoxyApplication {
     }
 
     overlay.classList.toggle('hidden', state === 'none');
-    const buttons = overlayButtons(state, this.isTestPlaying(), this.engine.canUndo(), this.touchOverlayActive);
+    const buttons = overlayButtons(
+      state,
+      this.isTestPlaying(),
+      this.engine.canUndo(),
+      this.touchOverlayActive,
+      this.playtest.canRateWin()
+    );
     ovResumeBtn?.classList.toggle('hidden', !buttons.resume);
     ovNextBtn.classList.toggle('hidden', !buttons.next);
     ovReplayBtn?.classList.toggle('hidden', !buttons.replay);
     ovUndoBtn.classList.toggle('hidden', !buttons.undo);
     ovRetryBtn?.classList.toggle('hidden', !buttons.retry);
     byId('overlay-btn-back-to-editor')?.classList.toggle('hidden', !buttons.backToEditor);
+    byId('overlay-btn-rate')?.classList.toggle('hidden', !buttons.rate);
 
     if (state !== this.overlayState) {
       this.overlayState = state;
