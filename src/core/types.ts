@@ -256,6 +256,49 @@ export interface RunewardInkConfig {
   };
 }
 
+/** Four tones of a solid object: the body, a lit face, a shaded face and the outline. */
+export interface RunewardSolidColours {
+  base: string;
+  light: string;
+  dark: string;
+  edge: string;
+}
+
+/** A body with a glow and a bright core (machines, gems, flames). */
+export interface RunewardGlowColours {
+  base: string;
+  glow: string;
+  core: string;
+}
+
+/** A creature: its body, a lit tone, a shaded tone and the eyes. */
+export interface RunewardCreatureColours {
+  body: string;
+  light: string;
+  dark: string;
+  eye: string;
+}
+
+/** A main colour and its lit tone. */
+export interface RunewardChannelColours {
+  main: string;
+  light: string;
+}
+
+/** Monster types (monsters.json) and the shot, each with its own colours. */
+export type RunewardMonsterType =
+  | 'bug' | 'paramecium' | 'pink_ball' | 'walker' | 'teeth' | 'glider' | 'fireball' | 'tank'
+  | 'blob' | 'puppet' | 'skitter' | 'shot';
+
+/** The two laser colours. */
+export type RunewardLaserChannel = 'red' | 'blue';
+
+/** Boots kinds. */
+export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye';
+
+/** Button colours that are not a key channel. */
+export type RunewardButtonColour = 'orange' | 'gray';
+
 /**
  * Colours and timings the Runeward painters draw with (game.json runewardArt). The proportions of the
  * drawings live in the painters; everything a theme could change lives here.
@@ -385,6 +428,79 @@ export interface RunewardArtConfig {
     /** Thin light core of the chevrons. */
     arrowLight: string;
   };
+  /** Pushable blocks: dirt, ice, arrow and colour blocks. */
+  block: {
+    dirt: RunewardSolidColours;
+    ice: RunewardSolidColours;
+    arrow: RunewardSolidColours & {
+      /** Arrow drawn on the block. */
+      glyph: string;
+    };
+    colour: Record<RunewardKeyColour, RunewardSolidColours>;
+  };
+  /** Mirrors, plain and one-sided: the frame and the reflecting glass. */
+  mirror: {
+    frame: RunewardSolidColours;
+    glass: string;
+    /** Highlight line on the glass. */
+    glassLight: string;
+  };
+  /** Monsters and the shot, by monster type. */
+  monster: Record<RunewardMonsterType, RunewardCreatureColours>;
+  /** Wall pieces, rotating doors, plates, machines, lasers, launchers and turrets. */
+  device: {
+    thinWall: RunewardSolidColours;
+    swivel: RunewardSolidColours;
+    turnPlate: RunewardGlowColours;
+    transmogrifier: RunewardGlowColours;
+    cloneMachine: RunewardGlowColours;
+    /** Base is the cold jet, glow and core the lit one. */
+    flameJet: RunewardGlowColours;
+    laser: RunewardGlowColours;
+    /** Receivers and gates of the two laser colours. */
+    laserChannel: Record<RunewardLaserChannel, RunewardChannelColours>;
+    shotLauncher: RunewardSolidColours;
+    puppetControl: RunewardGlowColours;
+    turret: RunewardSolidColours;
+  };
+  /** Boots, bomb, score tokens, stopwatches, forbidden markers and the slow-time item. */
+  item: {
+    boots: Record<RunewardBootsKind, RunewardChannelColours>;
+    bomb: RunewardGlowColours;
+    score: RunewardSolidColours;
+    stopwatch: {
+      face: string;
+      rim: string;
+      bonus: string;
+      penalty: string;
+    };
+    forbid: {
+      ring: string;
+      slash: string;
+    };
+    slowTime: RunewardGlowColours;
+  };
+  /** Signal plates, gates and latches. */
+  signal: {
+    box: string;
+    /** Rim and symbol while unpowered. */
+    idle: string;
+    /** Rim and symbol while powered. */
+    lit: string;
+    glyph: string;
+  };
+  /** Small floor marks and creatures: gravel, dirt, hint, targets, slime, turtle, thief, buttons. */
+  mark: {
+    gravel: RunewardSolidColours;
+    dirt: RunewardSolidColours;
+    hint: RunewardGlowColours;
+    recessedWall: RunewardSolidColours;
+    blockTarget: RunewardGlowColours;
+    slime: RunewardGlowColours;
+    turtle: RunewardSolidColours;
+    thief: RunewardSolidColours;
+    button: Record<RunewardButtonColour, RunewardChannelColours>;
+  };
   animation: {
     bobAmplitude: number;
     bobPeriodMs: number;
@@ -394,6 +510,8 @@ export interface RunewardArtConfig {
     pulsePeriodMs: number;
     /** Time a force floor chevron takes to move one step along the push. */
     forceScrollPeriodMs: number;
+    /** Time a monster takes for one step of its two-frame walk cycle. */
+    monsterStepMs: number;
   };
   /** Present on ink-on-paper variants only; the default Runeward art has none. */
   ink?: RunewardInkConfig;

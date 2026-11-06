@@ -72,7 +72,7 @@ beforeEach(() => {
 });
 
 function envOf(art: RunewardArtConfig): RunewardPaintEnv {
-  return { timeTick: 0, reducedMotion: false, cache: new Map(), art };
+  return { timeTick: 0, signalPowered: false, reducedMotion: false, cache: new Map(), art };
 }
 
 /** The colour key the game gives a mechanism tile, whether through colorKey, its channel or its button action. */

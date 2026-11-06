@@ -876,9 +876,9 @@ export class PixelRenderer {
   }
 
   /** What a Runeward painter may use besides its arguments; the cache is created on first use. */
-  private runewardEnv(art: RunewardArtConfig): RunewardPaintEnv {
+  private runewardEnv(art: RunewardArtConfig, signalPowered: boolean = false): RunewardPaintEnv {
     this.runewardCache ??= new Map<string, unknown>();
-    return { timeTick: this.timeTick, reducedMotion: this.reducedMotion, cache: this.runewardCache, art };
+    return { timeTick: this.timeTick, signalPowered, reducedMotion: this.reducedMotion, cache: this.runewardCache, art };
   }
 
   /** Colours of the Runeward painters, or null when the config lacks them or holds an unusable one. */
@@ -1497,7 +1497,12 @@ export class PixelRenderer {
       if (shot.x < camX - 1 || shot.x > camX + viewportWidth + 1 || shot.y < camY - 1 || shot.y > camY + viewportHeight + 1) continue;
       const px = lowRes ? originX + Math.round((shot.x - region.x0) * unit) : (shot.x - camX) * tilePixelSize;
       const py = lowRes ? originY + Math.round((shot.y - region.y0) * unit) : (shot.y - camY) * tilePixelSize;
-      this.drawCc3dEntity(sceneCtx, SHOT_PAINTER_ID, shot.dir, px, py, unit);
+      const runewardShot = this.runewardPainters()?.shot;
+      if (runewardShot) {
+        runewardShot(sceneCtx, shot.dir, px, py, unit, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
+      } else {
+        this.drawCc3dEntity(sceneCtx, SHOT_PAINTER_ID, shot.dir, px, py, unit);
+      }
     }
 
     // Render A* Click-to-Move planned path waypoints (retro draws it after the scene is scaled up)
@@ -2251,7 +2256,8 @@ export class PixelRenderer {
     const runewardTile = this.runewardPainters();
     const runewardPaint = runewardTile ? findRunewardPainter(runewardTile.tiles, tileId) : undefined;
     if (runewardPaint) {
-      runewardPaint(ctx, x, y, size, pass, neighbours, this.runewardEnv(this.runewardArt() as RunewardArtConfig), isEditor, isClosedTrap);
+      const env = this.runewardEnv(this.runewardArt() as RunewardArtConfig, this.isSignalPowered(neighbours));
+      runewardPaint(ctx, x, y, size, pass, neighbours, env, isEditor, isClosedTrap);
       if (isEditor && tileId === FAKE_BLUE_WALL_TILE) {
         ctx.fillStyle = this.pal().yellow;
         ctx.fillRect(

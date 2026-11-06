@@ -38,6 +38,11 @@ import {
   paintToggleSlab,
   type RunewardButtonKind
 } from './runewardMechanisms';
+import * as blocks from './runewardBlocks';
+import * as devices from './runewardDevices';
+import * as items from './runewardItems';
+import * as marks from './runewardMarks';
+import * as monsters from './runewardMonsters';
 import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
@@ -47,6 +52,8 @@ export type RunewardTilePass = 'all' | 'static' | 'animated';
 export interface RunewardPaintEnv {
   /** Animation clock of the renderer, in frame ticks. */
   readonly timeTick: number;
+  /** True when the signal node of the cell being drawn is on; false in the editor and for non-signal cells. */
+  readonly signalPowered: boolean;
   /** True when the player asked for reduced motion. */
   readonly reducedMotion: boolean;
   /** Per-renderer cache a painter may fill lazily (sprites, gradients); created on first use. */
@@ -58,6 +65,44 @@ export interface RunewardPaintEnv {
 /** Animation clock of the painters in milliseconds; reduced motion freezes it at 0. */
 export function runewardClockMs(env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>): number {
   return env.reducedMotion ? 0 : env.timeTick * REFERENCE_FRAME_MS;
+}
+
+/** Frames of the monster walk cycle. */
+const WALK_FRAME_COUNT = 2;
+
+/** Frame of the monster walk cycle (0 or 1) at the current clock; reduced motion freezes it at 0. */
+export function runewardWalkFrame(
+  env: Pick<RunewardPaintEnv, 'timeTick' | 'reducedMotion'>,
+  art: { readonly animation: Pick<RunewardArtConfig['animation'], 'monsterStepMs'> }
+): number {
+  return Math.floor(runewardClockMs(env) / art.animation.monsterStepMs) % WALK_FRAME_COUNT;
+}
+
+/** Prefix of the monster sprite keys in the painter cache. */
+const MONSTER_SPRITE_KEY_PREFIX = 'monster';
+
+/** Separator of the parts of a monster sprite key. */
+const MONSTER_SPRITE_KEY_SEPARATOR = '|';
+
+/** Cache key of one monster sprite: type, facing, walk frame and tile size. */
+export function runewardMonsterSpriteKey(type: string, dir: Direction, frame: number, size: number): string {
+  return [MONSTER_SPRITE_KEY_PREFIX, type, dir, frame, size].join(MONSTER_SPRITE_KEY_SEPARATOR);
+}
+
+/** The monster sprite cached in the painter cache under type, facing, frame and size; built on first use. */
+export function runewardMonsterSprite<T>(
+  env: Pick<RunewardPaintEnv, 'cache'>,
+  type: string,
+  dir: Direction,
+  frame: number,
+  size: number,
+  build: () => T
+): T {
+  const key = runewardMonsterSpriteKey(type, dir, frame, size);
+  if (env.cache.has(key)) return env.cache.get(key) as T;
+  const sprite = build();
+  env.cache.set(key, sprite);
+  return sprite;
 }
 
 export type RunewardTilePainter = (
@@ -117,6 +162,8 @@ export interface RunewardPainters {
   readonly entities: Readonly<Record<string, RunewardEntityPainter>>;
   /** The player painter, or null while the shared drawing is used. */
   readonly player: RunewardPlayerPainter | null;
+  /** The painter of a shot in flight, or null while the shared drawing is used. */
+  readonly shot: RunewardEntityPainter | null;
   /** Tile ids whose painter has an animated pass (redrawn every frame over the cached terrain). */
   readonly animatedTiles: ReadonlySet<string>;
 }
@@ -313,47 +360,24 @@ export const RUNEWARD_PAINTERS: RunewardPainters = {
     blue_wall_fake: BLUE_WALL_PAINTER,
     water: animatedTile(paintWater),
     fire: animatedTile(paintLava),
-    exit: animatedTile(paintExit)
+    exit: animatedTile(paintExit),
+    ...devices.TILES,
+    ...marks.TILES
   },
-  items: MECHANISM_ITEMS,
-  entities: {},
+  items: { ...MECHANISM_ITEMS, ...items.ITEMS },
+  entities: { ...blocks.ENTITIES, ...monsters.ENTITIES, ...devices.ENTITIES },
   player: paintPlayer,
+  shot: monsters.SHOT,
   animatedTiles: new Set<string>(ANIMATED_TILE_IDS)
 };
 
-/** Epoxy tile and item ids (tiles.json) that keep the shared drawing for now. */
-const RUNEWARD_FALLBACK_TILE_IDS: readonly string[] = [
-  'gravel', 'dirt', 'hint', 'recessed_wall', 'thin_wall_n', 'thin_wall_e', 'thin_wall_s', 'thin_wall_w',
-  'thin_wall_se', 'thin_wall_ne', 'thin_wall_nw', 'thin_wall_sw', 'thin_wall_ns', 'thin_wall_ew',
-  'thin_wall_nes', 'thin_wall_new', 'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw', 'swivel_door_ne',
-  'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw', 'transmogrifier', 'turn_plate_cw',
-  'turn_plate_ccw', 'block_target', 'button_orange', 'button_gray', 'flame_jet_off', 'flame_jet_on',
-  'clone_machine', 'laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w',
-  'laser_receiver_red', 'laser_receiver_blue', 'laser_gate_red_closed', 'laser_gate_red_open',
-  'laser_gate_blue_closed', 'laser_gate_blue_open', 'floating_block_red', 'floating_block_green',
-  'floating_block_blue', 'floating_block_yellow', 'puppet_control', 'shot_launcher_n', 'shot_launcher_e',
-  'shot_launcher_s', 'shot_launcher_w', 'shot_trigger',
-  'signal_plate', 'signal_gate_and', 'signal_gate_or', 'signal_gate_not', 'signal_gate_xor',
-  'signal_latch_off', 'signal_latch_on', 'turtle', 'slime', 'thief', 'thief_keys',
-  'forbid_key_red', 'forbid_key_blue', 'forbid_key_yellow', 'forbid_key_green', 'forbid_boots_ice',
-  'forbid_boots_water', 'forbid_boots_fire', 'forbid_boots_force', 'boots_water', 'boots_fire',
-  'boots_ice', 'boots_force', 'slow_time', 'boots_speed', 'boots_eye', 'boots_pull', 'bomb', 'score_10', 'score_100',
-  'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
-];
-
-/** Epoxy entity ids (monsters.json) that keep the shared drawing for now. */
-const RUNEWARD_FALLBACK_ENTITY_IDS: readonly string[] = [
-  'dirt_block', 'arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee',
-  'ice_block', 'mirror_slash', 'mirror_backslash', 'one_sided_mirror_ne', 'one_sided_mirror_nw',
-  'one_sided_mirror_se', 'one_sided_mirror_sw', 'turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi',
-  'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob',
-  'color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow', 'puppet', 'skitter'
-];
-
-/** Every Epoxy tile, item and entity id that keeps the shared drawing for now. */
+/** Every Epoxy tile, item and entity id that keeps the shared drawing for now: the ids the lot modules still own. */
 export const RUNEWARD_FALLBACK: ReadonlySet<string> = new Set([
-  ...RUNEWARD_FALLBACK_TILE_IDS,
-  ...RUNEWARD_FALLBACK_ENTITY_IDS
+  ...blocks.PENDING,
+  ...monsters.PENDING,
+  ...devices.PENDING,
+  ...items.PENDING,
+  ...marks.PENDING
 ]);
 
 /** Display ids of the CC3D ruleset (cc3d-tiles.json): a third set, drawn by the shared CC3D painters. */
