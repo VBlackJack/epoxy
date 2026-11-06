@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Phone full screen: the HUD and the Pause, Undo and Menu buttons move beside the d-pad, off the board, with a lighter look.
+
 ## [2.21.0] - 2026-11-06
 
 ### Added

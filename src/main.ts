@@ -122,7 +122,8 @@ import {
   DpadSide,
   OVERLAY_HUD_SELECTOR,
   STANDALONE_QUERIES,
-  TOUCH_PAD_AREA_SELECTOR,
+  OVERLAY_STRIP_SELECTORS,
+  observeOverlayStrip,
   applyTouchOverlayClasses,
   bindDpadSideSelect,
   computeCameraInsets,
@@ -265,6 +266,7 @@ class EpoxyApplication {
   private dpadSide: DpadSide = DEFAULT_DPAD_SIDE;
   /** True while the phone full screen overlay layout is on. */
   private touchOverlayActive = false;
+  private stopStripObserver: (() => void) | null = null;
   /** True once the first level is loaded and frames may be drawn. */
   private renderLoopStarted = false;
   private highScores: Record<string, StoredHighScore> = {};
@@ -3275,6 +3277,8 @@ class EpoxyApplication {
   private syncTouchOverlay(): void {
     const active = resolveTouchOverlay(readTouchOverlayInput(window, document.body, this.activeMode));
     this.touchOverlayActive = active;
+    this.stopStripObserver?.();
+    this.stopStripObserver = active ? observeOverlayStrip(document, () => this.syncCameraInsets()) : null;
     applyTouchOverlayClasses(document.body, {
       active,
       side: this.dpadSide,
@@ -3300,19 +3304,22 @@ class EpoxyApplication {
 
   /**
    * Tells the renderer which part of the board the pad hides; zeros outside the overlay layout.
-   * The level fit reserve comes from the pad rect alone, so it does not depend on the tile size.
+   * The level fit reserve comes from the pad, button cluster and HUD rects alone, so it does not depend on the tile size.
    * The half tile of air beside the pad uses the tile of the last drawn frame, or the FOV tile
    * before the first frame.
    */
   private syncCameraInsets(): void {
     const canvasRect = this.gameCanvas.getBoundingClientRect();
-    const padRect = document.querySelector(TOUCH_PAD_AREA_SELECTOR)?.getBoundingClientRect();
+    const rects = OVERLAY_STRIP_SELECTORS.flatMap((selector) => {
+      const rect = document.querySelector(selector)?.getBoundingClientRect();
+      return rect ? [rect] : [];
+    });
     const insetArgs = {
-      active: this.touchOverlayActive && padRect !== undefined,
+      active: this.touchOverlayActive && rects.length > 0,
       landscape: window.innerWidth > window.innerHeight,
       side: this.dpadSide,
       canvas: canvasRect,
-      pad: padRect ?? canvasRect
+      rects
     };
     this.renderer.setFitReserve(computeCameraInsets({ ...insetArgs, tilePx: 0 }));
     const tiles = this.renderer.getViewportTiles();

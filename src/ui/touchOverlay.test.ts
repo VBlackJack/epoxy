@@ -93,20 +93,20 @@ describe('computeCameraInsets', () => {
 
   it('is zero outside the overlay layout', () => {
     const pad = { left: 600, right: 780, top: 220, bottom: 388 };
-    expect(computeCameraInsets({ active: false, landscape: true, side: 'right', canvas, pad, tilePx: 40 })).toEqual(
+    expect(computeCameraInsets({ active: false, landscape: true, side: 'right', canvas, rects: [pad], tilePx: 40 })).toEqual(
       NO_CAMERA_INSETS
     );
   });
 
   it('insets the right side by the pad width plus half a tile in landscape', () => {
     const pad = { left: 620, right: 788, top: 220, bottom: 388 };
-    const insets = computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, pad, tilePx: 40 });
+    const insets = computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, rects: [pad], tilePx: 40 });
     expect(insets).toEqual({ left: 0, right: (800 - 620 + 20) / 800, top: 0, bottom: 0 });
   });
 
   it('insets the left side when the pad is on the left', () => {
     const pad = { left: 12, right: 180, top: 220, bottom: 388 };
-    const insets = computeCameraInsets({ active: true, landscape: true, side: 'left', canvas, pad, tilePx: 40 });
+    const insets = computeCameraInsets({ active: true, landscape: true, side: 'left', canvas, rects: [pad], tilePx: 40 });
     expect(insets).toEqual({ left: (180 + 20) / 800, right: 0, top: 0, bottom: 0 });
   });
 
@@ -114,7 +114,7 @@ describe('computeCameraInsets', () => {
     const portraitCanvas = { left: 0, right: 400, top: 0, bottom: 800 };
     const pad = { left: 220, right: 388, top: 620, bottom: 788 };
     for (const side of ['left', 'right'] as const) {
-      const insets = computeCameraInsets({ active: true, landscape: false, side, canvas: portraitCanvas, pad, tilePx: 40 });
+      const insets = computeCameraInsets({ active: true, landscape: false, side, canvas: portraitCanvas, rects: [pad], tilePx: 40 });
       expect(insets).toEqual({ left: 0, right: 0, top: 0, bottom: (800 - 620 + 20) / 800 });
     }
   });
@@ -122,11 +122,48 @@ describe('computeCameraInsets', () => {
   it('never goes beyond the renderer limit and ignores unusable boxes', () => {
     const huge = { left: 0, right: 800, top: 0, bottom: 400 };
     expect(
-      computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, pad: huge, tilePx: 40 }).right
+      computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, rects: [huge], tilePx: 40 }).right
     ).toBe(MAX_CAMERA_INSET);
     const empty = { left: 0, right: 0, top: 0, bottom: 0 };
     expect(
-      computeCameraInsets({ active: true, landscape: true, side: 'right', canvas: empty, pad: empty, tilePx: 0 })
+      computeCameraInsets({ active: true, landscape: true, side: 'right', canvas: empty, rects: [empty], tilePx: 0 })
     ).toEqual(NO_CAMERA_INSETS);
+  });
+
+  it('uses the extreme extent of the pad, the button cluster and the HUD, ignoring empty boxes', () => {
+    const pad = { left: 620, right: 788, top: 220, bottom: 388 };
+    const controls = { left: 640, right: 788, top: 170, bottom: 214 };
+    const hud = { left: 630, right: 788, top: 12, bottom: 70 };
+    const hidden = { left: 0, right: 0, top: 0, bottom: 0 };
+    const right = computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, rects: [pad, controls, hud, hidden], tilePx: 40 });
+    expect(right.right).toBe((800 - 620 + 20) / 800);
+    const wide = { ...hud, left: 600 };
+    expect(
+      computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, rects: [pad, controls, wide], tilePx: 40 }).right
+    ).toBe((800 - 600 + 20) / 800);
+    const leftPad = { left: 12, right: 180, top: 220, bottom: 388 };
+    const leftHud = { left: 12, right: 200, top: 12, bottom: 70 };
+    expect(
+      computeCameraInsets({ active: true, landscape: true, side: 'left', canvas, rects: [leftPad, leftHud], tilePx: 40 }).left
+    ).toBe((200 + 20) / 800);
+  });
+
+  it('reaches up to the highest box in portrait, and equals the pad alone when the strip fits in the pad height', () => {
+    const portraitCanvas = { left: 0, right: 400, top: 0, bottom: 800 };
+    const pad = { left: 220, right: 388, top: 620, bottom: 788 };
+    const hud = { left: 12, right: 150, top: 640, bottom: 730 };
+    const controls = { left: 12, right: 150, top: 744, bottom: 788 };
+    const alone = computeCameraInsets({ active: true, landscape: false, side: 'right', canvas: portraitCanvas, rects: [pad], tilePx: 40 });
+    const strip = computeCameraInsets({ active: true, landscape: false, side: 'right', canvas: portraitCanvas, rects: [pad, controls, hud], tilePx: 40 });
+    expect(strip).toEqual(alone);
+    const tall = { ...hud, top: 560 };
+    expect(
+      computeCameraInsets({ active: true, landscape: false, side: 'right', canvas: portraitCanvas, rects: [pad, controls, tall], tilePx: 40 }).bottom
+    ).toBe((800 - 560 + 20) / 800);
+  });
+
+  it('is zero when every box is empty', () => {
+    const empty = { left: 0, right: 0, top: 0, bottom: 0 };
+    expect(computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, rects: [empty], tilePx: 40 })).toEqual(NO_CAMERA_INSETS);
   });
 });

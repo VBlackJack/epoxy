@@ -406,7 +406,11 @@
     "touch_overlay": {
       "hud": { "label": "État du niveau" },
       "controls": { "label": "Commandes de jeu" },
-      "menu": { "action": "Menu" }
+      "menu": { "action": "Menu" },
+      "chips": { "short": "PUCES" },
+      "targets": { "short": "CIBLES" },
+      "receivers": { "short": "RÉC." },
+      "time": { "short": "TEMPS" }
     },
     "messages": {
       "hint_prefix": { "label": "CONSEIL : " },

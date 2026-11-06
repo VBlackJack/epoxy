@@ -18,7 +18,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DPAD_SIDE_CLASSES,
   ORIENTATION_CLASSES,
@@ -31,9 +31,11 @@ import {
   resolveTouchOverlay,
   syncHudGroup,
   syncInventoryInert,
+  observeOverlayStrip,
   syncOverlayInert
 } from './touchOverlay';
 import type { DpadSide } from './touchOverlay';
+import { i18n } from '../i18n/I18nManager';
 
 const BODY_CLASS_BEFORE = 'fullscreen-mode';
 
@@ -162,9 +164,72 @@ describe('floating controls', () => {
     expect(buttons.map((b) => b.id)).toEqual(['touch-btn-pause', 'touch-btn-undo', 'touch-btn-menu']);
     for (const button of buttons) {
       expect(button.getAttribute('type')).toBe('button');
-      expect(button.getAttribute('data-i18n')).toBeTruthy();
+      expect(button.getAttribute('data-i18n-aria-label')).toBeTruthy();
+      expect(button.getAttribute('data-i18n-title')).toBe(button.getAttribute('data-i18n-aria-label'));
+      expect(button.hasAttribute('data-i18n')).toBe(false);
+      const icon = button.querySelector('svg');
+      expect(icon?.getAttribute('aria-hidden')).toBe('true');
+      expect(icon?.innerHTML).toContain('currentColor');
     }
     expect(cluster.getAttribute('data-i18n-aria-label')).toBeTruthy();
+  });
+
+  it('fills the accessible name and tooltip of the icon buttons from the locale', () => {
+    i18n.translateDOM(document);
+    const names = ['touch-btn-pause', 'touch-btn-undo', 'touch-btn-menu'].map((id) => {
+      const button = document.getElementById(id) as HTMLElement;
+      expect(button.getAttribute('aria-label')).toBeTruthy();
+      expect(button.getAttribute('title')).toBe(button.getAttribute('aria-label'));
+      expect(button.textContent?.trim()).toBe('');
+      return button.getAttribute('aria-label');
+    });
+    expect(new Set(names).size).toBe(3);
+  });
+
+  it('gives every HUD counter label a short form hidden from screen readers next to the long one', () => {
+    i18n.translateDOM(document);
+    for (const id of ['hud-chips-label', 'hud-targets-label', 'hud-receivers-label']) {
+      const label = document.getElementById(id) as HTMLElement;
+      const long = label.querySelector('.led-label-long');
+      const short = label.querySelector('.led-label-short');
+      expect(long?.textContent).toBeTruthy();
+      expect(short?.textContent).toBeTruthy();
+      expect(short?.getAttribute('aria-hidden')).toBe('true');
+    }
+  });
+
+  describe('strip observer', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('observes the HUD and the cluster, reports size changes and disconnects', () => {
+      const observed: Element[] = [];
+      const disconnect = vi.fn();
+      let notify: () => void = () => undefined;
+      class FakeObserver {
+        constructor(cb: () => void) {
+          notify = cb;
+        }
+        observe(el: Element): void {
+          observed.push(el);
+        }
+        disconnect = disconnect;
+      }
+      vi.stubGlobal('ResizeObserver', FakeObserver);
+      const onChange = vi.fn();
+      const stop = observeOverlayStrip(document, onChange);
+      expect(observed).toEqual([document.querySelector('.hud-panel'), document.getElementById(TOUCH_CLUSTER_ID)]);
+      notify();
+      expect(onChange).toHaveBeenCalledTimes(1);
+      stop();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('is a harmless no-op without ResizeObserver', () => {
+      vi.stubGlobal('ResizeObserver', undefined);
+      expect(() => observeOverlayStrip(document, () => undefined)()).not.toThrow();
+    });
   });
 
   it('makes the pad and the cluster inert while the pause card shows', () => {

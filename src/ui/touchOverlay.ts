@@ -48,6 +48,14 @@ export const TOUCH_CLUSTER_ID = 'touch-overlay-controls';
 /** The pad itself: the part of the touch bar the camera must keep the player clear of. */
 export const TOUCH_PAD_AREA_SELECTOR = '#mobile-touch-bar .dpad-container';
 export const OVERLAY_HUD_SELECTOR = '.hud-panel';
+/** The Pause / Undo / Menu button cluster. */
+export const TOUCH_CLUSTER_SELECTOR = `#${TOUCH_CLUSTER_ID}`;
+/** Every element that sits in the strip the camera keeps clear: the pad, the button cluster and the HUD. */
+export const OVERLAY_STRIP_SELECTORS: readonly string[] = [
+  TOUCH_PAD_AREA_SELECTOR,
+  TOUCH_CLUSTER_SELECTOR,
+  OVERLAY_HUD_SELECTOR
+];
 
 /** Attribute names the module toggles. */
 const INERT_ATTRIBUTE = 'inert';
@@ -178,30 +186,42 @@ function fractionOf(covered: number, total: number): number {
   return Math.min(MAX_CAMERA_INSET, Math.max(0, covered / total));
 }
 
+/** A box with no area (a hidden element) takes no part in the strip. */
+function hasArea(rect: InsetRect): boolean {
+  return rect.right > rect.left && rect.bottom > rect.top;
+}
+
 /**
- * The part of the canvas the pad hides, as fractions of the canvas, plus half a tile of air.
- * Landscape: the pad's side. Portrait: the bottom. Zeros outside overlay mode.
+ * The part of the canvas the pad, the button cluster and the HUD hide, as fractions of the canvas,
+ * plus half a tile of air. Landscape: the pad's side, up to the extreme edge of the rects.
+ * Portrait: the bottom, up to the highest rect. Zeros outside overlay mode.
  */
 export function computeCameraInsets(args: {
   active: boolean;
   landscape: boolean;
   side: DpadSide;
   canvas: InsetRect;
-  pad: InsetRect;
+  /** Boxes of the elements that float over the reserved strip; empty boxes are ignored. */
+  rects: readonly InsetRect[];
   tilePx: number;
 }): CameraInsetsFractions {
   if (!args.active) return NO_CAMERA_INSETS;
-  const { canvas, pad } = args;
+  const { canvas } = args;
+  const used = args.rects.filter(hasArea);
+  if (used.length === 0) return NO_CAMERA_INSETS;
+  const top = Math.min(...used.map((r) => r.top));
+  const left = Math.min(...used.map((r) => r.left));
+  const right = Math.max(...used.map((r) => r.right));
   const margin = Math.max(0, args.tilePx) * CAMERA_INSET_TILE_MARGIN;
   const width = canvas.right - canvas.left;
   const height = canvas.bottom - canvas.top;
   if (!args.landscape) {
-    return { ...NO_CAMERA_INSETS, bottom: fractionOf(canvas.bottom - pad.top + margin, height) };
+    return { ...NO_CAMERA_INSETS, bottom: fractionOf(canvas.bottom - top + margin, height) };
   }
   if (args.side === 'left') {
-    return { ...NO_CAMERA_INSETS, left: fractionOf(pad.right - canvas.left + margin, width) };
+    return { ...NO_CAMERA_INSETS, left: fractionOf(right - canvas.left + margin, width) };
   }
-  return { ...NO_CAMERA_INSETS, right: fractionOf(canvas.right - pad.left + margin, width) };
+  return { ...NO_CAMERA_INSETS, right: fractionOf(canvas.right - left + margin, width) };
 }
 
 /** Shows the saved side in the select and reports each change by the player. */
@@ -213,4 +233,19 @@ export function bindDpadSideSelect(
   if (!select) return;
   select.value = initial;
   select.addEventListener('change', () => onChange(parseDpadSide(select.value)));
+}
+
+/**
+ * Watches the HUD and the button cluster: their size changes with the level, the items held and the
+ * language, and the camera insets come from their rects. Returns a function that stops the watch;
+ * a no-op where ResizeObserver does not exist.
+ */
+export function observeOverlayStrip(doc: Document, onChange: () => void): () => void {
+  if (typeof ResizeObserver === 'undefined') return () => undefined;
+  const observer = new ResizeObserver(() => onChange());
+  for (const selector of [OVERLAY_HUD_SELECTOR, TOUCH_CLUSTER_SELECTOR]) {
+    const el = doc.querySelector(selector);
+    if (el) observer.observe(el);
+  }
+  return () => observer.disconnect();
 }
