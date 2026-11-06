@@ -19,6 +19,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Grappling Gloves now look like gloves in every style.
 - Narrow landscape screens: the keys and boots slots use two columns in the side panel; in phone full screen they wrap as one strip and shrink on short screens.
 
 ## [2.22.0] - 2026-11-06

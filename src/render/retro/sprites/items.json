@@ -55,6 +55,24 @@
    "................",
    "................"
   ]},
+  "gloves": { "outline": true, "rows": [
+   "................",
+   "......KK........",
+   "......KjkKK.....",
+   "...KKkKjkKjk....",
+   "...KKkKjkKjkKK..",
+   "...KjkKjkKjkKj..",
+   "...KjkKjkKjkKj..",
+   "...KKKKKKKKKKj..",
+   "..KKKKKKKKKKKj..",
+   ".KKKKKKKKKKKKjN.",
+   ".KKjKKKKKKKKKjN.",
+   "..jjKKKKKKKKjjN.",
+   "..WWWWWWWWWWWNN.",
+   "..kjjjjjjjjjk...",
+   "................",
+   "................"
+  ]},
   "bomb": { "outline": true, "rows": [
    "................",
    ".........T......",
