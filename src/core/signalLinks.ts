@@ -22,6 +22,7 @@
  * door, a shot launcher or a clone machine is a sink (only a `to` end). A cell no link touches is not a node.
  */
 
+import { PACK_JSON_VERSION_V7_IDS } from '../config/constants';
 import {
   TerrainTileLookup,
   getRegisteredTerrainLookup,
@@ -206,4 +207,22 @@ export function usesPulseSinkFormat(
     if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
     return isEdgeSink(level.terrain[toY]?.[toX]) || isEdgeSink(hidden.get(`${toX},${toY}`));
   });
+}
+
+/**
+ * True when the level places any id of pack format 7 (PACK_JSON_VERSION_V7_IDS) on its terrain, hidden terrain,
+ * items, entities or clone templates. Ids are matched by name. CC3D levels are skipped: their tile space is
+ * separate and cannot carry these ids.
+ */
+export function usesV7Ids(
+  level: Pick<CompiledLevel, 'terrain' | 'underlays' | 'items' | 'entities' | 'cloneLinks' | 'ruleset'>
+): boolean {
+  if (level.ruleset === 'cc3d') return false;
+  const isV7 = (id: string | null | undefined): boolean =>
+    typeof id === 'string' && PACK_JSON_VERSION_V7_IDS.has(id);
+  if (level.terrain?.some((row) => row.some(isV7))) return true;
+  if ((level.underlays ?? []).some((under) => isV7(under.terrain))) return true;
+  if (level.items?.some((row) => Array.isArray(row) && row.some(isV7))) return true;
+  if ((level.entities ?? []).some((entity) => isV7(entity.type))) return true;
+  return (level.cloneLinks ?? []).some((link) => isV7(link.templateType));
 }
