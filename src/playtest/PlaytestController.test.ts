@@ -151,7 +151,7 @@ describe('PlaytestController', () => {
     expect(t.store.loadSessions()).toEqual([]);
   });
 
-  it('records a won level with its trace and asks for a rating', async () => {
+  it('records a won level with its trace and rates it only when the panel button is used', async () => {
     const t = setup();
     t.rating.answer = { difficulty: 2, fun: 4, aha: false, note: 'nice' };
     t.controller.levelStarted('campaign');
@@ -161,14 +161,45 @@ describe('PlaytestController', () => {
     t.controller.won();
     await Promise.resolve();
     await Promise.resolve();
+    expect(t.asked).toEqual([]);
+    expect(t.controller.canRateWin()).toBe(true);
+    expect(t.store.loadSessions()[0].rating).toBeNull();
+    await t.controller.rateWin();
     const [session] = t.store.loadSessions();
     expect(session.outcome).toMatchObject({ kind: 'win', moves: 2 });
     expect(session.winTrace).toBe('NE');
     expect(session.rating).toEqual(t.rating.answer);
     expect(t.asked).toEqual([{ levelNumber: 3, won: true }]);
+    expect(t.controller.canRateWin()).toBe(false);
   });
 
-  it('keeps the data when the rating is skipped', async () => {
+  it('offers no rating when Playtest is off or the won level is no longer on screen', async () => {
+    const off = setup(false);
+    expect(off.controller.canRateWin()).toBe(false);
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.engine.move('N');
+    t.engine.completed = true;
+    t.controller.won();
+    expect(t.controller.canRateWin()).toBe(true);
+    t.engine.completed = false;
+    expect(t.controller.canRateWin()).toBe(false);
+    await t.controller.rateWin();
+    expect(t.asked).toEqual([]);
+  });
+
+  it('stops offering the rating once the form was skipped', async () => {
+    const t = setup();
+    t.controller.levelStarted('campaign');
+    t.engine.move('N');
+    t.engine.completed = true;
+    t.controller.won();
+    await t.controller.rateWin();
+    expect(t.store.loadSessions()[0].rating).toBeNull();
+    expect(t.controller.canRateWin()).toBe(false);
+  });
+
+  it('keeps the data of a win that was never rated', async () => {
     const t = setup();
     t.controller.levelStarted('campaign');
     t.engine.move('N');

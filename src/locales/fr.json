@@ -129,6 +129,7 @@
       "storage_full": { "label": "Le stockage du playtest est plein : les sessions les plus anciennes ont été supprimées. Exportez vos données bientôt." },
       "count": { "label": "Sessions enregistrées : {count}" },
       "rating": {
+        "open": { "action": "Donner mon avis" },
         "title": { "label": "Comment était ce niveau ?" },
         "level_won": { "label": "Niveau {number} résolu." },
         "level_left": { "label": "Vous avez quitté le niveau {number} avant de le résoudre." },
