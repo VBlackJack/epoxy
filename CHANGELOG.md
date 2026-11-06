@@ -9,6 +9,10 @@ versions follow Semantic Versioning.
 
 - Level validator: levels whose clone machines or shot launchers are driven by signals no longer get false unreachable chip or exit reports.
 
+### Changed
+
+- Narrow landscape screens: the keys and boots slots use two columns in the side panel; in phone full screen they wrap as one strip and shrink on short screens.
+
 ## [2.22.0] - 2026-11-06
 
 ### Added

@@ -264,3 +264,40 @@ describe('touch overlay stylesheet scoping', () => {
     expect(CSS).toContain('env(safe-area-inset-top, 0px)');
   });
 });
+
+const hudRules = parseRules(CSS);
+const LANDSCAPE_MEDIA = /orientation:\s*landscape/;
+
+describe('keys and boots slots in narrow layouts', () => {
+  it('names the landscape slot column count instead of hardcoding it', () => {
+    expect(CSS).toMatch(/--land-slot-columns:\s*2\s*;/);
+    const rule = hudRules.find(
+      (r) => r.selectors.includes('.inv-grid:not(.inv-grid-wide)') && r.media.some((m) => LANDSCAPE_MEDIA.test(m))
+    );
+    expect(rule, 'landscape grid rule').toBeDefined();
+    expect(rule?.body).toMatch(/grid-template-columns:\s*repeat\(var\(--land-slot-columns\),\s*minmax\(0,\s*1fr\)\)/);
+  });
+
+  it('leaves the wide boots grid on its own column count', () => {
+    const wide = hudRules.find((r) => r.selectors.includes('.inv-grid-wide') && r.media.length === 0);
+    expect(wide?.body).toMatch(/var\(--inv-columns/);
+  });
+
+  it('sizes the overlay slots from a named, bounded custom property', () => {
+    expect(CSS).toMatch(/--overlay-slot-size:\s*clamp\(\d+px,\s*[\d.]+vmin,\s*\d+px\)\s*;/);
+    const slot = hudRules.find((r) => r.selectors.includes('body.touch-overlay .hud-panel .inv-slot'));
+    expect(slot?.body).toMatch(/width:\s*var\(--overlay-slot-size\)/);
+    expect(slot?.body).toMatch(/height:\s*var\(--overlay-slot-size\)/);
+    const icon = hudRules.find((r) => r.selectors.includes('body.touch-overlay .hud-panel .inv-slot img'));
+    expect(icon?.body).toMatch(/var\(--overlay-slot-size\)/);
+  });
+
+  it('lets the overlay keys and boots flow as one wrapping strip', () => {
+    for (const selector of ['body.touch-overlay .hud-panel .inventory-section', 'body.touch-overlay .hud-panel .inv-grid']) {
+      const rule = hudRules.find((r) => r.selectors.includes(selector));
+      expect(rule?.body, selector).toMatch(/display:\s*contents/);
+    }
+    const row = hudRules.find((r) => r.selectors.includes('body.touch-overlay .hud-panel .inventory-row-split'));
+    expect(row?.body).toMatch(/flex-wrap:\s*wrap/);
+  });
+});
