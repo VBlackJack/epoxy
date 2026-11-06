@@ -1,0 +1,37 @@
+{
+  "chapters": [
+    {
+      "id": "excavation_chapter_1",
+      "titleKey": "excavation.chapter.1.title",
+      "subtitleKey": "excavation.chapter.1.subtitle",
+      "levels": [
+        "epoxy_x_1",
+        "epoxy_x_2",
+        "epoxy_x_3",
+        "epoxy_x_4"
+      ]
+    },
+    {
+      "id": "excavation_chapter_2",
+      "titleKey": "excavation.chapter.2.title",
+      "subtitleKey": "excavation.chapter.2.subtitle",
+      "levels": [
+        "epoxy_x_5",
+        "epoxy_x_6",
+        "epoxy_x_7",
+        "epoxy_x_8"
+      ]
+    },
+    {
+      "id": "excavation_chapter_3",
+      "titleKey": "excavation.chapter.3.title",
+      "subtitleKey": "excavation.chapter.3.subtitle",
+      "levels": [
+        "epoxy_x_9",
+        "epoxy_x_10",
+        "epoxy_x_11",
+        "epoxy_x_12"
+      ]
+    }
+  ]
+}

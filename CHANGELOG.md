@@ -17,6 +17,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Buried Sanctuaries campaign (`epoxy_excavation`, `public/configs/excavation-levels.json` and `excavation-campaign.json`): 12 hand-crafted subterranean puzzle levels across 3 chapters ("Strata & Sluices", "Counterweights & Grappling", "Subterranean Optics") built around earth-vein excavation (`dirt`), boulder trenches (`dirt_block` and `water`), pressure plates and hold doors (`pressure_plate_*` and `hold_door_*`), grappling extraction from wall alcoves (`boots_pull`), and buried laser prism optics (`laser_emitter_*`, `mirror_slash` / `mirror_backslash`, `laser_receiver_*` and `laser_gate_*`), each proven solvable with 0 validator issues, non-bypassable mechanics and a dedicated save slot. Both locales.
 - Runeward render styles are complete and no longer a preview: blocks, mirrors, monsters and shots, thin walls, swivel doors, turn plates, lasers, launchers, turrets, boots, bonuses, forbidden-item markers, floor marks and signal devices are drawn in the Runeward and Runeward Parchment styles; only tiles of imported CC3D levels keep the shared drawing. Both locales.
 
 ## [2.20.0] - 2026-11-06

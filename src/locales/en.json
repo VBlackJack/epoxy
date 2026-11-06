@@ -267,6 +267,7 @@
       "selector_option": { "label": "{name} ({count})" },
       "campaign": { "label": "Epoxy Campaign" },
       "pilot": { "label": "Epoxy pilot" },
+      "excavation": { "label": "Buried Sanctuaries" },
       "ccup_tw_intro": { "label": "Community introduction (Tile World)" },
       "ccup_cclp1": { "label": "Community levels 1 (CCLP)" },
       "ccup_cclp2": { "label": "Community levels 2 (CCLP)" },
@@ -2076,6 +2077,63 @@
       "1": { "title": "Pilot foundations", "subtitle": "The first levels of the rebuilt campaign." },
       "2": { "title": "Pushing", "subtitle": "Blocks, water and targets." },
       "3": { "title": "Elements", "subtitle": "Fire, water and ice." }
+    }
+  },
+  "excavation": {
+    "levels": {
+      "level_1": {
+        "title": "Amber Vein",
+        "hint": "Dirt stops a boulder until you clear it. Leave the upper dirt untouched until you are ready to push the boulder South across the water trench."
+      },
+      "level_2": {
+        "title": "The Buried Sluice",
+        "hint": "A two-cell water trench needs two boulders in the same column. Sink the eastern boulder first, then bring the western one across to reach the red key."
+      },
+      "level_3": {
+        "title": "Twin Vaults",
+        "hint": "Bridge the central pool with the boulder to claim the red key, then unlock the red and blue vaults in chain to recover the green key."
+      },
+      "level_4": {
+        "title": "Sandstone Siphon",
+        "hint": "Each upper vault is guarded by a water trench. Push one boulder West and the other East to bridge both trenches and recover the two keys."
+      },
+      "level_5": {
+        "title": "The Crimson Counterweight",
+        "hint": "The red hold door stays open only while a boulder rests on the red pressure plate. Bridge the western trench for the red key, and park the eastern boulder on the plate."
+      },
+      "level_6": {
+        "title": "The Recessed Boulder",
+        "hint": "A boulder sitting in a wall recess cannot be pushed from behind. Pick up the Grappling Gloves to pull it South out of its alcove and push it onto the blue plate."
+      },
+      "level_7": {
+        "title": "Dual Equilibrium",
+        "hint": "Two hold doors guard the exit shaft, and both boulders start inside northern wall recesses. Use the Grappling Gloves to pull each boulder out, then loop around to push them onto the red and blue plates."
+      },
+      "level_8": {
+        "title": "The Pit Exchange",
+        "hint": "Push the western boulder North into the water to reach the Grappling Gloves, then pull the eastern boulder out of its recess and guide it onto the yellow pressure plate."
+      },
+      "level_9": {
+        "title": "The Buried Beam",
+        "hint": "Dirt blocks a laser beam until you dig it away, and a slash mirror turns an East-bound beam North. Push the mirror into the beam line to light the red receiver and clear the eastern passage."
+      },
+      "level_10": {
+        "title": "Retractable Prism",
+        "hint": "The central wall shields the eastern wing from the laser beam. Use the Grappling Gloves to pull the recessed mirror down the safe eastern corridor, then push it into the beam."
+      },
+      "level_11": {
+        "title": "Crossed Refraction",
+        "hint": "Route the beam around the central pillar with two mirrors: position the upper backslash mirror first so it turns a North-bound beam West into the receiver, then push the lower slash mirror into the emitter line."
+      },
+      "level_12": {
+        "title": "Heart of the Sanctuary",
+        "hint": "Combine every tool of the sanctuary: push the slash mirror North to light the red laser receiver, and use the Grappling Gloves in the eastern wing to extract the recessed boulder and weigh down the blue plate."
+      }
+    },
+    "chapter": {
+      "1": { "title": "Strata & Sluices", "subtitle": "Earth veins, boulders and underground water trenches." },
+      "2": { "title": "Counterweights & Grappling", "subtitle": "Pressure plates, hold doors and the Grappling Gloves." },
+      "3": { "title": "Subterranean Optics", "subtitle": "Buried laser emitters, sliding prisms and sanctuary gates." }
     }
   }
 }

@@ -35,6 +35,8 @@ export const CONFIG_ENDPOINTS = {
   CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/campaign.json`,
   PILOT_LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/pilot-levels.json`,
   PILOT_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/pilot-campaign.json`,
+  EXCAVATION_LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/excavation-levels.json`,
+  EXCAVATION_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/excavation-campaign.json`,
   TEMPLATES: `${ENV_CONFIG.CONFIG_BASE_URL}/templates.json`
 } as const;
 
@@ -66,6 +68,8 @@ export const BUILTIN_PACK_IDS = {
   CAMPAIGN: 'epoxy_campaign',
   /** The pilot of the rebuilt campaign: listed only while Playtest mode is on. */
   PILOT: 'epoxy_pilot',
+  /** Subterranean excavation campaign built around boulder trenches, hold plates, and prism optics. */
+  EXCAVATION: 'epoxy_excavation',
   CUSTOM: 'epoxy_custom',
   PROCEDURAL: 'epoxy_procedural'
 } as const;
@@ -75,6 +79,9 @@ export const SAVE_SLOT_PACK_SEPARATOR = '_';
 
 /** Prefix every pilot level id carries, so its records never collide with the campaign ones. */
 export const PILOT_LEVEL_ID_PREFIX = 'epoxy_p_';
+
+/** Prefix every excavation campaign level id carries, so its records never collide with other packs. */
+export const EXCAVATION_LEVEL_ID_PREFIX = 'epoxy_x_';
 
 /** Prefix of the id of a pack the player creates, followed by a timestamp. */
 export const USER_PACK_ID_PREFIX = 'user_pack_';

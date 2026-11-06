@@ -1,0 +1,1018 @@
+{
+  "levels": [
+    {
+      "id": "epoxy_x_1",
+      "number": 1,
+      "theme": "cyber_neon",
+      "titleKey": "excavation.levels.level_1.title",
+      "hintKey": "excavation.levels.level_1.hint",
+      "password": "VEIN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 2,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#..H..#..C#",
+        "#.....d...#",
+        "#.d.###W###",
+        "#...#..r..#",
+        "#dC.#.###.#",
+        "#...#.R.C.#",
+        "#####.###.#",
+        "#E..S.....#",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SSSNNNEEEEENEESWNWSSSEESSWWWWSSWWWW"
+    },
+    {
+      "id": "epoxy_x_2",
+      "number": 2,
+      "theme": "cyber_neon",
+      "titleKey": "excavation.levels.level_2.title",
+      "hintKey": "excavation.levels.level_2.hint",
+      "password": "SLUC",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 2,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "############",
+        "#d.H#......#",
+        "#.###......#",
+        "#...d...#W##",
+        "#...#...#W##",
+        "#d..#...#d##",
+        "#.###u###.##",
+        "#..d....R.d#",
+        "#######S####",
+        "#######E####",
+        "############"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 1,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_red"
+        },
+        {
+          "x": 10,
+          "y": 7,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 2,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 8,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SWNNNNSSSSSSEEWWNNNNEEEEENEENESSNNWWWWSESWWWSWWNEEEEESENWNEENESSSSSSEWWWSS"
+    },
+    {
+      "id": "epoxy_x_3",
+      "number": 3,
+      "theme": "cyber_neon",
+      "titleKey": "excavation.levels.level_3.title",
+      "hintKey": "excavation.levels.level_3.hint",
+      "password": "TWVA",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 6,
+        "y": 6,
+        "dir": "N"
+      },
+      "rows": [
+        "#############",
+        "#d.d#...#d.d#",
+        "#..R#...#B..#",
+        "###.#.d.#.###",
+        "#...d...d...#",
+        "#.###...###.#",
+        "#.H.d...d...#",
+        "###.##W##.###",
+        "#d..#.d.#..d#",
+        "######G######",
+        "######S######",
+        "######E######",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 6,
+          "y": 8,
+          "id": "key_red"
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "id": "key_blue"
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "id": "key_green"
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 8,
+          "id": "chip"
+        },
+        {
+          "x": 11,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "WWWWWNNEEEENESSSSSNNWWWSSWWEENNWWNNEENNNWWEESSSEEEEEENNNEEWWSSSEESSWWSSEESSWWNNWWWSSSSS"
+    },
+    {
+      "id": "epoxy_x_4",
+      "number": 4,
+      "theme": "cyber_neon",
+      "titleKey": "excavation.levels.level_4.title",
+      "hintKey": "excavation.levels.level_4.hint",
+      "password": "SIPH",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 2,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "#############",
+        "#d.d#...#d.d#",
+        "###W#...#W###",
+        "#..d.....d..#",
+        "#.H.d...d...#",
+        "#.###...###.#",
+        "#...d...d...#",
+        "###R#.d.#B###",
+        "#d..#...#..d#",
+        "######S######",
+        "######E######",
+        "#############"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 1,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "id": "key_red"
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "id": "key_blue"
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 8,
+          "id": "chip"
+        },
+        {
+          "x": 11,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 3,
+          "dir": "W"
+        },
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 3,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NEESEENWWSWNNNWWEESSEESSSWWSSWWEENNEENNNEESEENSWWNESENNNEEWWSSEESSSWWSSEEWWNNWWWSSSS"
+    },
+    {
+      "id": "epoxy_x_5",
+      "number": 5,
+      "theme": "arctic_lab",
+      "titleKey": "excavation.levels.level_5.title",
+      "hintKey": "excavation.levels.level_5.hint",
+      "password": "CWGT",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 2,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#d..d....d#",
+        "#.###.###.#",
+        "#...d.....#",
+        "#dH.d.....#",
+        "#...#.###.#",
+        "###W#.#...#",
+        "#..d..#...#",
+        "#####.#####",
+        "#d..d..R.S#",
+        "#########E#",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 7,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 5,
+          "y": 8,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "dirt"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "id": "dirt"
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "id": "dirt"
+        }
+      ],
+      "items": [
+        {
+          "x": 1,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "key_red"
+        },
+        {
+          "x": 1,
+          "y": 9,
+          "id": "chip"
+        },
+        {
+          "x": 4,
+          "y": 9,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 5,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "ESSSSNNNNWWNNEEEEEEEESSSWWSNNWWSENESSSNNWWSSSSSWEEEWWWWWWEEEEEEEES"
+    },
+    {
+      "id": "epoxy_x_6",
+      "number": 6,
+      "theme": "arctic_lab",
+      "titleKey": "excavation.levels.level_6.title",
+      "hintKey": "excavation.levels.level_6.hint",
+      "password": "GRPL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 2,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#####.#####",
+        "#C..d...C.#",
+        "#.........#",
+        "#.H...d...#",
+        "#.###.###.#",
+        "#.........#",
+        "#####.#####",
+        "#C..#.#SE.#",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 5,
+          "y": 6,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 4,
+          "y": 8,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 6,
+          "y": 8,
+          "id": "floor"
+        }
+      ],
+      "items": [
+        {
+          "x": 8,
+          "y": 4,
+          "id": "boots_pull"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 1,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NNWEEEEEEESSNNWWWSSSSSSWWWWEEEEEEE"
+    },
+    {
+      "id": "epoxy_x_7",
+      "number": 7,
+      "theme": "arctic_lab",
+      "titleKey": "excavation.levels.level_7.title",
+      "hintKey": "excavation.levels.level_7.hint",
+      "password": "EQUL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 5,
+        "y": 3,
+        "dir": "N"
+      },
+      "rows": [
+        "###########",
+        "###.###.###",
+        "#d.d...d.d#",
+        "#.........#",
+        "#.#.###.#.#",
+        "#..d.H.d..#",
+        "#d.......d#",
+        "#####.#####",
+        "#####.#####",
+        "#####S#####",
+        "#####E#####",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 3,
+          "y": 6,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 5,
+          "y": 8,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "id": "dirt"
+        }
+      ],
+      "items": [
+        {
+          "x": 5,
+          "y": 2,
+          "id": "boots_pull"
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 1,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NEESSSSEENNNNSWWSSWSWWWWWNNNNEESSSSWWNNNEESSEESSSSS"
+    },
+    {
+      "id": "epoxy_x_8",
+      "number": 8,
+      "theme": "arctic_lab",
+      "titleKey": "excavation.levels.level_8.title",
+      "hintKey": "excavation.levels.level_8.hint",
+      "password": "EXCH",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 5,
+        "y": 3,
+        "dir": "W"
+      },
+      "rows": [
+        "###########",
+        "###d###.###",
+        "#d.W...d.d#",
+        "#..d......#",
+        "#.#.###.#.#",
+        "#..d.H.d..#",
+        "#d.d.....d#",
+        "#####.#####",
+        "#####R#####",
+        "#####S#####",
+        "#####E#####",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 6,
+          "id": "pressure_plate_yellow"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "id": "hold_door_yellow_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 1,
+          "id": "boots_pull"
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "id": "key_red"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "N"
+        },
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 1,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NEEEESSSSWWNWWWWSWWNNNNESESSWSEEEEWSSSS"
+    },
+    {
+      "id": "epoxy_x_9",
+      "number": 9,
+      "theme": "magma_core",
+      "titleKey": "excavation.levels.level_9.title",
+      "hintKey": "excavation.levels.level_9.hint",
+      "password": "RAYN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 2,
+        "y": 6,
+        "dir": "E"
+      },
+      "rows": [
+        "############",
+        "#####.######",
+        "#...d..d..d#",
+        "#..........#",
+        "#.###..###.#",
+        "#...d..d...#",
+        "#.H.d......#",
+        "#.######.###",
+        "#d....d#.SE#",
+        "############"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 1,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 8,
+          "y": 7,
+          "id": "laser_gate_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 10,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 8,
+          "id": "chip"
+        },
+        {
+          "x": 6,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "mirror_slash",
+          "x": 5,
+          "y": 5,
+          "dir": "N"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "WSSEEEEEWWWWWNNEEEENNENNEEEESSSSWWSSEE"
+    },
+    {
+      "id": "epoxy_x_10",
+      "number": 10,
+      "theme": "magma_core",
+      "titleKey": "excavation.levels.level_10.title",
+      "hintKey": "excavation.levels.level_10.hint",
+      "password": "PRSM",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 3,
+        "y": 5,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#####.#.###",
+        "#####.#d.d#",
+        "#.....#...#",
+        "#.##..#.#.#",
+        "#.H.d.....#",
+        "#d..d....d#",
+        "#####.#####",
+        "#####R#####",
+        "#####S#####",
+        "#####E#####",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 1,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "id": "laser_receiver_blue"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "id": "laser_gate_blue_closed"
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "id": "dirt"
+        }
+      ],
+      "items": [
+        {
+          "x": 4,
+          "y": 5,
+          "id": "boots_pull"
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "id": "key_red"
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "mirror_slash",
+          "x": 7,
+          "y": 1,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "ESWWWEEEEEEEENNNNWWSSSSENWWSWNNWSESSSSS"
+    },
+    {
+      "id": "epoxy_x_11",
+      "number": 11,
+      "theme": "magma_core",
+      "titleKey": "excavation.levels.level_11.title",
+      "hintKey": "excavation.levels.level_11.hint",
+      "password": "REFR",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 3,
+        "y": 6,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#####d...d#",
+        "#........d#",
+        "#####.###.#",
+        "#####.#...#",
+        "#.....#...#",
+        "#.H.d.d..d#",
+        "#d..d....d#",
+        "#####.#####",
+        "#####S#####",
+        "#####E#####",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 1,
+          "y": 5,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 5,
+          "y": 8,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "id": "dirt"
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "id": "dirt"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "id": "dirt"
+        }
+      ],
+      "items": [
+        {
+          "x": 5,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "mirror_slash",
+          "x": 5,
+          "y": 6,
+          "dir": "N"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 7,
+          "y": 2,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SWWEEEENEEEENNNNNWWWSNEESWWNWEEEESSSSSSWWWWSSS"
+    },
+    {
+      "id": "epoxy_x_12",
+      "number": 12,
+      "theme": "magma_core",
+      "titleKey": "excavation.levels.level_12.title",
+      "hintKey": "excavation.levels.level_12.hint",
+      "password": "SANC",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 5,
+      "playerStart": {
+        "x": 3,
+        "y": 5,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#####.#.###",
+        "#####.#d.d#",
+        "#.....#...#",
+        "#.##..#.#.#",
+        "#.H.d.d...#",
+        "#d..d....d#",
+        "#####.#####",
+        "#####.#####",
+        "#####S#####",
+        "#####E#####",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 1,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 5,
+          "y": 8,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "id": "dirt"
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "id": "dirt"
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "id": "dirt"
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "id": "dirt"
+        }
+      ],
+      "items": [
+        {
+          "x": 4,
+          "y": 5,
+          "id": "boots_pull"
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "mirror_slash",
+          "x": 5,
+          "y": 5,
+          "dir": "N"
+        },
+        {
+          "type": "dirt_block",
+          "x": 7,
+          "y": 1,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "ESWWWEEEEEEEENNNNWWSSSSEENNNWWSSWWNSESWNNWSESSSSS"
+    }
+  ]
+}
