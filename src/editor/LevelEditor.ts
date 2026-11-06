@@ -6239,7 +6239,7 @@ export class LevelEditor {
       }
     }
     for (const e of clip.entities) {
-      this.renderer.drawEntity(this.ctx, e.type, e.dir, (ox + e.dx) * s, (oy + e.dy) * s, s);
+      this.renderer.drawEntity(this.ctx, e.type, e.dir, (ox + e.dx) * s, (oy + e.dy) * s, s, true);
     }
     if (clip.playerStart) {
       this.renderer.drawPlayer(this.ctx, (ox + clip.playerStart.dx) * s, (oy + clip.playerStart.dy) * s, s, clip.playerStart.dir, false, true);
@@ -6343,7 +6343,7 @@ export class LevelEditor {
       for (let x = x0; x < x1; x++) this.drawCellLayers(ctx, doc, x, y, s, edgeSides, hiddenCells, width);
     }
     for (const ent of doc.entities) {
-      if (ent.x >= x0 && ent.x < x1 && ent.y >= y0 && ent.y < y1) this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s);
+      if (ent.x >= x0 && ent.x < x1 && ent.y >= y0 && ent.y < y1) this.renderer.drawEntity(ctx, ent.type, ent.dir, ent.x * s, ent.y * s, s, true);
     }
   }
 
@@ -6564,7 +6564,7 @@ export class LevelEditor {
     const y = link.clonerY * s;
     this.ctx.fillStyle = EDITOR_CLONER_BADGE_BACKING;
     this.ctx.fillRect(x, y, size, size);
-    this.renderer.drawEntity(this.ctx, link.templateType, link.templateDir, x, y, size);
+    this.renderer.drawEntity(this.ctx, link.templateType, link.templateDir, x, y, size, true);
   }
 
   /** A disc in the top right corner of a cell: the template mob of a clone machine. */

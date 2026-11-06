@@ -2062,6 +2062,12 @@
         "dark": "#1f2f7a",
         "eye": "#e9fdff"
       },
+      "lurker": {
+        "body": "#8e93b4",
+        "light": "#c4c8e4",
+        "dark": "#25283a",
+        "eye": "#ff9a3c"
+      },
       "shot": {
         "body": "#5fd8ef",
         "light": "#e9fdff",
@@ -2164,6 +2170,10 @@
         "pull": {
           "main": "#d97828",
           "light": "#ffe0a3"
+        },
+        "ward": {
+          "main": "#4aa8ff",
+          "light": "#d6ecff"
         }
       },
       "bomb": {
@@ -2517,6 +2527,12 @@
           "dark": "#2a3c7a",
           "eye": "#f1e3bf"
         },
+        "lurker": {
+          "body": "#6a5f52",
+          "light": "#93877a",
+          "dark": "#3b332a",
+          "eye": "#d9852b"
+        },
         "shot": {
           "body": "#4f6f86",
           "light": "#f1e3bf",
@@ -2619,6 +2635,10 @@
           "pull": {
             "main": "#7a4a22",
             "light": "#b0824f"
+          },
+          "ward": {
+            "main": "#2f5f8a",
+            "light": "#6b94b8"
           }
         },
         "bomb": {

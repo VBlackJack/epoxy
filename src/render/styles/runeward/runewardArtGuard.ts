@@ -35,10 +35,10 @@ const CHANNEL_LEAVES: readonly string[] = ['main', 'light'];
 /** Monster types (and the shot) that carry their own colours. */
 const MONSTER_TYPES: readonly string[] = [
   'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'puppet',
-  'skitter', 'shot'
+  'skitter', 'lurker', 'shot'
 ];
 const LASER_CHANNELS: readonly string[] = ['red', 'blue'];
-const BOOTS_KINDS: readonly string[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
+const BOOTS_KINDS: readonly string[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull', 'ward'];
 const BUTTON_COLOURS: readonly string[] = ['orange', 'gray'];
 
 /** Paths `prefix.<name>.<leaf>` for every name and leaf. */

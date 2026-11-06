@@ -11,6 +11,7 @@ item slow_time tick=3 6d21a8018331e2f8
 item boots_speed tick=3 0b1bea151f0ef7a8
 item boots_eye tick=3 cb3f657ee6644896
 item boots_pull tick=3 cff8e1706c50d669
+item ward tick=3 5528a55f5ba39dfb
 item bomb tick=3 234b91fd96761c67
 item score_10 tick=3 cf836dd3aef66ec2
 item score_100 tick=3 4494c2b5d63be4a4
@@ -142,6 +143,14 @@ entity skitter dir=N tick=3 c3669a5f71c94422
 entity skitter dir=E tick=3 f18d5cc13b4526d0
 entity skitter dir=S tick=3 3aba7528dfe4466e
 entity skitter dir=W tick=3 96dd749686376ebc
+entity lurker_dormant dir=N tick=3 5f4ad185da7b6e16
+entity lurker_dormant dir=E tick=3 09a4b646e99a2c46
+entity lurker_dormant dir=S tick=3 91f055f964db956a
+entity lurker_dormant dir=W tick=3 4fd41d44dd12901b
+entity lurker dir=N tick=3 317fdd36d5ba2d14
+entity lurker dir=E tick=3 88fbea2aee6b13a4
+entity lurker dir=S tick=3 1d62d4b11ff7bd3b
+entity lurker dir=W tick=3 b9d58f934139b896
 item key_red tick=13 0f036c0c8b9234ad
 item key_blue tick=13 dde62c01e90bd6ad
 item key_yellow tick=13 bd3b5697ad3542d5
@@ -155,6 +164,7 @@ item slow_time tick=13 5001c13ca3ef565b
 item boots_speed tick=13 1faa3c3849a2ba73
 item boots_eye tick=13 5a783759d3ee7884
 item boots_pull tick=13 1800b91cfab1783c
+item ward tick=13 8897bc7038941151
 item bomb tick=13 e7dc080d8d209c93
 item score_10 tick=13 e13d752d1660a1ab
 item score_100 tick=13 69fd1375b53c908b
@@ -286,6 +296,14 @@ entity skitter dir=N tick=13 457d8af7822f0edc
 entity skitter dir=E tick=13 085e5c36417346f1
 entity skitter dir=S tick=13 a87349582a485709
 entity skitter dir=W tick=13 de881ef833821791
+entity lurker_dormant dir=N tick=13 26b7dd8133a35c46
+entity lurker_dormant dir=E tick=13 8930b8bba979386d
+entity lurker_dormant dir=S tick=13 6e59fa2e39cce903
+entity lurker_dormant dir=W tick=13 dbf84a903184b33b
+entity lurker dir=N tick=13 c4bf4e325dc8defd
+entity lurker dir=E tick=13 93c3b97803f5b058
+entity lurker dir=S tick=13 af0649789d5ebcd9
+entity lurker dir=W tick=13 4def4ed9f91fdd14
 player dir=N inWater=false alive=true frame=0 hop=0 48a9a3e12d409f8a
 player dir=N inWater=false alive=true frame=0 hop=0.3 d3e9ed583ea4da24
 player dir=N inWater=false alive=true frame=1 hop=0 f08879c7f7fcb2da

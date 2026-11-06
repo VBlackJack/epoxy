@@ -217,6 +217,7 @@ default blob_S_0 plain=739c335a6c03b4ce swap=739c335a6c03b4ce
 default blob_S_1 plain=8288cd984ad75516 swap=8288cd984ad75516
 default blob_W_0 plain=fdef87f80af46574 swap=fdef87f80af46574
 default blob_W_1 plain=3ff693caee8dd9a7 swap=3ff693caee8dd9a7
+default lurker_tell plain=793dea8404fb5c9b swap=793dea8404fb5c9b
 default dirt_block plain=e24c224fc5eb6eee swap=e24c224fc5eb6eee
 default ice_block plain=56fe12dd2e49fe2e swap=56fe12dd2e49fe2e
 default color_block_red plain=c1fdfe5a4173ec81 swap=c1fdfe5a4173ec81
@@ -457,6 +458,7 @@ cyber_neon blob_S_0 plain=739c335a6c03b4ce swap=739c335a6c03b4ce
 cyber_neon blob_S_1 plain=8288cd984ad75516 swap=8288cd984ad75516
 cyber_neon blob_W_0 plain=fdef87f80af46574 swap=fdef87f80af46574
 cyber_neon blob_W_1 plain=3ff693caee8dd9a7 swap=3ff693caee8dd9a7
+cyber_neon lurker_tell plain=793dea8404fb5c9b swap=793dea8404fb5c9b
 cyber_neon dirt_block plain=e24c224fc5eb6eee swap=e24c224fc5eb6eee
 cyber_neon ice_block plain=56fe12dd2e49fe2e swap=56fe12dd2e49fe2e
 cyber_neon color_block_red plain=c1fdfe5a4173ec81 swap=c1fdfe5a4173ec81
@@ -697,6 +699,7 @@ arctic_lab blob_S_0 plain=739c335a6c03b4ce swap=739c335a6c03b4ce
 arctic_lab blob_S_1 plain=8288cd984ad75516 swap=8288cd984ad75516
 arctic_lab blob_W_0 plain=fdef87f80af46574 swap=fdef87f80af46574
 arctic_lab blob_W_1 plain=3ff693caee8dd9a7 swap=3ff693caee8dd9a7
+arctic_lab lurker_tell plain=793dea8404fb5c9b swap=793dea8404fb5c9b
 arctic_lab dirt_block plain=e24c224fc5eb6eee swap=e24c224fc5eb6eee
 arctic_lab ice_block plain=56fe12dd2e49fe2e swap=56fe12dd2e49fe2e
 arctic_lab color_block_red plain=c1fdfe5a4173ec81 swap=c1fdfe5a4173ec81
@@ -937,6 +940,7 @@ magma_core blob_S_0 plain=739c335a6c03b4ce swap=739c335a6c03b4ce
 magma_core blob_S_1 plain=8288cd984ad75516 swap=8288cd984ad75516
 magma_core blob_W_0 plain=fdef87f80af46574 swap=fdef87f80af46574
 magma_core blob_W_1 plain=3ff693caee8dd9a7 swap=3ff693caee8dd9a7
+magma_core lurker_tell plain=793dea8404fb5c9b swap=793dea8404fb5c9b
 magma_core dirt_block plain=e24c224fc5eb6eee swap=e24c224fc5eb6eee
 magma_core ice_block plain=56fe12dd2e49fe2e swap=56fe12dd2e49fe2e
 magma_core color_block_red plain=c1fdfe5a4173ec81 swap=c1fdfe5a4173ec81
@@ -1177,6 +1181,7 @@ lynx_lcd blob_S_0 plain=739c335a6c03b4ce swap=739c335a6c03b4ce
 lynx_lcd blob_S_1 plain=8288cd984ad75516 swap=8288cd984ad75516
 lynx_lcd blob_W_0 plain=fdef87f80af46574 swap=fdef87f80af46574
 lynx_lcd blob_W_1 plain=3ff693caee8dd9a7 swap=3ff693caee8dd9a7
+lynx_lcd lurker_tell plain=793dea8404fb5c9b swap=793dea8404fb5c9b
 lynx_lcd dirt_block plain=e24c224fc5eb6eee swap=e24c224fc5eb6eee
 lynx_lcd ice_block plain=56fe12dd2e49fe2e swap=56fe12dd2e49fe2e
 lynx_lcd color_block_red plain=c1fdfe5a4173ec81 swap=c1fdfe5a4173ec81

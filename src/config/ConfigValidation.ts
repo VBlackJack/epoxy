@@ -22,6 +22,7 @@ import {
   FLEE_PLAYER_PATTERN,
   MIRROR_FRONT_AXIS,
   SIGNAL_LINKS_PER_CELL_MAX,
+  STATIONARY_PATTERN,
   STEER_MONSTERS_ACTION,
   SUNK_BLOCK_TILE_ID
 } from '../core/coreConstants';
@@ -1266,6 +1267,7 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
   'forward_else_random',
   CHASE_PLAYER_PATTERN,
   FLEE_PLAYER_PATTERN,
+  STATIONARY_PATTERN,
   'left_skew',
   'right_skew',
   'tank_march',

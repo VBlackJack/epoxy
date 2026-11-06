@@ -24,6 +24,8 @@ import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { triggerButton } from './epoxyDevices';
 import { forceCycleArrival } from './epoxyForceCycle';
+import { wakeLurkersNearPlayer } from './epoxyLurkers';
+import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
 import { consumeShotAt, killPlayerByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
@@ -149,7 +151,13 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     return false;
   }
 
-  const entityAtTarget = getEntityAt(w, targetX, targetY);
+  let entityAtTarget = getEntityAt(w, targetX, targetY);
+  let wardSpent = false;
+  // A ward destroys the first monster the player runs into; the player walks on into the empty cell.
+  if (entityAtTarget?.kind === 'monster' && absorbMonsterContact(w, entityAtTarget.uid)) {
+    wardSpent = true;
+    entityAtTarget = undefined;
+  }
   if (entityAtTarget) {
     if (entityAtTarget.kind === 'block') {
       const pushed = attemptPushBlock(ctx, entityAtTarget, dir);
@@ -174,13 +182,15 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   leaveCell(w, w.player.x, w.player.y);
   w.player.x = targetX;
   w.player.y = targetY;
-  w.statusBannerKey = null;
+  w.statusBannerKey = wardSpent ? 'hud.messages.ward_spent' : null;
 
   if (!fromSlide) {
     AudioManager.playStep(stepTerrainOf(ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.player.boots));
   }
 
   resolvePlayerArrival(ctx, dir, true);
+  // The arrival is settled (a teleport included): a lurker asleep next to the player wakes.
+  if (w.player.alive && !w.levelCompleted) wakeLurkersNearPlayer(w);
 
   if (
     !fromSlide &&
@@ -261,6 +271,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
       AudioManager.playSfx('item');
       ctx.emitVisual('item', x, y, itemDef.colorKey || 'yellow');
+    } else if (itemDef.collectible === 'boot' && itemDef.absorbsMonsterContact && wardBootsHeld(w.player.boots) !== undefined) {
+      // A second ward stays on the floor while one is worn.
     } else if (itemDef.collectible === 'boot') {
       w.items[y][x] = null;
       w.player.boots.add(itemId);

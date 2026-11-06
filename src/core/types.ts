@@ -288,13 +288,13 @@ export interface RunewardChannelColours {
 /** Monster types (monsters.json) and the shot, each with its own colours. */
 export type RunewardMonsterType =
   | 'bug' | 'paramecium' | 'pink_ball' | 'walker' | 'teeth' | 'glider' | 'fireball' | 'tank'
-  | 'blob' | 'puppet' | 'skitter' | 'shot';
+  | 'blob' | 'puppet' | 'skitter' | 'lurker' | 'shot';
 
 /** The two laser colours. */
 export type RunewardLaserChannel = 'red' | 'blue';
 
 /** Boots kinds. */
-export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye' | 'pull';
+export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye' | 'pull' | 'ward';
 
 /** Button colours that are not a key channel. */
 export type RunewardButtonColour = 'orange' | 'gray';
@@ -1046,6 +1046,8 @@ export interface TileDefinition {
   forceDirection?: Direction | 'RANDOM';
   /** A turning force floor: no fixed direction; each arrival of any actor on any such cell takes the next direction of the level's shared turn. */
   forceCycle?: boolean;
+  /** Boots that destroy the first monster the player touches, from either side, and are used up by it. */
+  absorbsMonsterContact?: boolean;
   stealsBoots?: boolean;
   /** Entering the cell empties the player's keys, as stealsBoots empties the boots. */
   stealsKeys?: boolean;
@@ -1179,6 +1181,10 @@ export interface EntityDefinition {
   destroyedByBomb?: boolean;
   moveIntervalTicks?: number;
   movementPattern?: string;
+  /** A monster that sleeps in the floor: the entity type it becomes when the player ends an arrival next to it. */
+  wakesTo?: string;
+  /** The Epoxy engine alone plays this entity: Lynx and CC3D rulesets and the .DAT format refuse it. */
+  epoxyOnly?: boolean;
   turnOrder?: RelativeTurn[];
   immuneToWater?: boolean;
   immuneToFire?: boolean;

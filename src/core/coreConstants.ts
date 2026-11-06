@@ -79,6 +79,9 @@ export const CHASE_PLAYER_PATTERN = 'chase_player';
 /** Movement pattern of a monster that steps away from the player (a chase with the candidates reversed). */
 export const FLEE_PLAYER_PATTERN = 'flee_player';
 
+/** Movement pattern of a monster that never moves by itself (a sleeping lurker). */
+export const STATIONARY_PATTERN = 'stationary';
+
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';
 

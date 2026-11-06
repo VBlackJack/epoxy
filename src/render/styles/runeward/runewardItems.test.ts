@@ -36,7 +36,9 @@ vi.mock('../../colorGlyph', async (importOriginal) => {
   return { ...actual, paintColorGlyph: vi.fn(actual.paintColorGlyph) };
 });
 
-const BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
+const BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull', 'ward'];
+/** Item id of a boots kind: the ward is the one pair whose id is not `boots_<kind>`. */
+const bootsId = (kind: RunewardBootsKind): string => (kind === 'ward' ? 'ward' : `boots_${kind}`);
 const KEY_CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'green'];
 const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'force'];
 const TILE = 48;
@@ -107,7 +109,7 @@ function tileLog(id: string, art: RunewardArtConfig, pass: 'all' | 'static' | 'a
 function mainFills(art: RunewardArtConfig): Record<string, string> {
   const { boots, bomb, score, stopwatch, slowTime } = art.item;
   return {
-    ...Object.fromEntries(BOOTS.map((kind) => [`boots_${kind}`, boots[kind].main])),
+    ...Object.fromEntries(BOOTS.map((kind) => [bootsId(kind), boots[kind].main])),
     slow_time: slowTime.base,
     bomb: bomb.base,
     score_10: score.base,
@@ -129,7 +131,7 @@ describe('Runeward item dispatch', () => {
 
   it('paints every boots, slow-time, bomb, score and stopwatch item', () => {
     const expected = [
-      ...BOOTS.map((kind) => `boots_${kind}`),
+      ...BOOTS.map(bootsId),
       'slow_time', 'bomb', 'score_10', 'score_100', 'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
     ];
     expect(ITEM_IDS.sort()).toEqual(expected.sort());

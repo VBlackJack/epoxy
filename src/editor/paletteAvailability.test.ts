@@ -72,7 +72,7 @@ describe('paletteAvailability', () => {
         def.toggleChannel !== undefined ||
         def.floatingBlockColor !== undefined ||
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
-      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined;
+      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined || def.absorbsMonsterContact !== undefined;
       const isSteeringPad = def.buttonAction === 'steer_monsters';
       const isShotDevice = def.shotLauncher !== undefined || def.buttonAction === 'fire_launchers';
       const isSwivelDoor = def.swivelTurns !== undefined;
@@ -127,7 +127,8 @@ describe('paletteAvailability', () => {
         def.turretBeam !== undefined ||
         def.steeredBy !== undefined ||
         def.pushArrows !== undefined ||
-        def.movementPattern === 'flee_player';
+        def.movementPattern === 'flee_player' ||
+        def.epoxyOnly === true;
       const result = entityAvailability('lynx', id);
       expect(result.available, id).toBe(!epoxyOnly);
       if (epoxyOnly) blocked++;

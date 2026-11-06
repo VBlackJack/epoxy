@@ -42,6 +42,7 @@ export const RETRO_SPRITE = {
   boots: 'boots',
   flag: 'flag',
   blockOnTarget: 'block_on_target',
+  lurkerTell: 'lurker_tell',
   laserReceiver: 'laser_receiver',
   laserGateClosed: 'laser_gate_closed',
   laserGateOpen: 'laser_gate_open',
