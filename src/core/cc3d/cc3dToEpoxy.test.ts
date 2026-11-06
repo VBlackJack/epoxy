@@ -20,10 +20,11 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { isCompiledLevelShape, sanitizeStoredLevels, stripInvalidTextFields } from '../../config/ConfigValidation';
-import { PACK_JSON_VERSION_LAUNCHERS } from '../../config/constants';
+import { PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_V7 } from '../../config/constants';
 import { parsePackJson, serializePack } from '../../packs/packJson';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
+import { usesV7Ids } from '../signalLinks';
 import type { CompiledLevel, Direction } from '../types';
 import { cc3dLinks } from './cc3dLinks';
 import { cc3dLevel, panelled, stacked, terrain } from './cc3dTestMaps';
@@ -124,7 +125,7 @@ const TERRAIN_CASES: TerrainCase[] = [
   terrainCase('ice_corner', 'ice_se', { kind: 'ice_corner', corner: ['S', 'E'] }),
   terrainCase('ice_corner', 'ice_sw', { kind: 'ice_corner', corner: ['S', 'W'] }),
   ...SIDES.map((dir) => terrainCase('force', `force_${dir.toLowerCase()}`, { kind: 'force', dir })),
-  terrainCase('force_random', 'force_random'),
+  terrainCase('force_random', 'force_cycle'),
   terrainCase('exit', 'exit'),
   terrainCase('socket', 'socket'),
   terrainCase('socket_red', 'socket'),
@@ -645,6 +646,59 @@ describe('arbitration rules', () => {
     }
     // Per corner, two of the four entries are open: eight in all.
     expect(deflected).toBe(8);
+  });
+
+  /** Presses the direction that points at the cell from where the player stands, preferring the long axis. */
+  const towards = (from: { x: number; y: number }, to: { x: number; y: number }): Direction => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? 'E' : 'W';
+    return dy > 0 ? 'S' : 'N';
+  };
+
+  const turningRows = ['#########', '#.......#', '#.......#', '#...?...#', '#...@...#', '#.......#', '#########'];
+
+  it('turns a random force floor into the Turning Force Floor, which plays the same over several arrivals', () => {
+    const source = cc3dLevel(turningRows);
+    const converted = convertCc3dLevel(source).level;
+    expect(converted.terrain.flat()).toContain('force_cycle');
+    expect(converted.terrain.flat()).not.toContain('force_random');
+    const pair = new DifferentialPair(source, converted, 1);
+    const target = { x: 4, y: 3 };
+    const pushed = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      pair.step(towards(pair.epoxy.getPlayer(), target));
+      expect(pair.compare(), `arrival ${i + 1}`).toBeNull();
+      const p = pair.epoxy.getPlayer();
+      pushed.add(`${p.x},${p.y}`);
+    }
+    // The four directions were all handed out, so the player did not stay on one cell.
+    expect(pushed.size).toBeGreaterThan(3);
+  });
+
+  it('counts the arrival of a protected player, as CC3D does', () => {
+    const rows = ['#########', '#.......#', '#.......#', '#...?...#', '#..o@...#', '#.......#', '#########'];
+    const source = cc3dLevel(rows, { glyphs: { o: { item: { kind: 'orb_force' } } } });
+    const converted = convertCc3dLevel(source).level;
+    const pair = new DifferentialPair(source, converted, 1);
+    const target = { x: 4, y: 3 };
+    pair.step('W');
+    expect(pair.compare()).toBeNull();
+    for (let i = 0; i < 10; i++) {
+      pair.step(towards(pair.epoxy.getPlayer(), target));
+      expect(pair.compare(), `arrival ${i + 1}`).toBeNull();
+    }
+  });
+
+  it('classes the random force floor as exact and writes the converted level as pack format 7', () => {
+    expect(EPOXY_COVERAGE.force_random.level).toBe('exact');
+    const { level } = convertCc3dLevel(cc3dLevel(turningRows));
+    expect(usesV7Ids(level)).toBe(true);
+    const text = serializePack('Pack', [level]);
+    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_V7);
+    const parsed = parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set(), Date.now, undefined, ConfigRegistry.getLevelTextLimits());
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.levels).toEqual([level]);
   });
 });
 

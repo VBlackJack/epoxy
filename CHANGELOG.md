@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Converter: the CC3D random force floor becomes the Turning Force Floor, which plays the same. Converted levels that use it are saved as pack format 7, which builds older than 2.23.0 cannot read.
+
 ## [2.23.0] - 2026-11-06
 
 ### Added
