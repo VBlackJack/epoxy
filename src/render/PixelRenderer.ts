@@ -65,7 +65,13 @@ import {
   resolveTheme
 } from './renderSettings';
 import type { SokobanSkinLoader } from './sokobanSkin';
-import { DEFAULT_PLAYER_SKIN, type PlayerSkinId } from './playerSkin';
+import {
+  DEFAULT_PLAYER_SKIN,
+  PLAYER_SKIN_RUNEWARD_CHARACTER,
+  effectivePlayerSkin,
+  type PlayerSkinId
+} from './playerSkin';
+import { completePose, poseExtrasOf, type PlayerPoseExtras } from './styles/runeward/runewardCharacter';
 import { frameScaleFromDelta, scaleDecay, scaleLerpFactor } from './renderTiming';
 import {
   collectTerrainFeatures,
@@ -903,7 +909,7 @@ export class PixelRenderer {
    * a caller that keeps a picture of the map compares it to know the picture is stale.
    */
   public getAppearanceKey(): string {
-    return [this.getStyle(), this.getThemeId(), this.getPlayerSkin(), this.getQuality()].join('|');
+    return [this.getStyle(), this.getThemeId(), effectivePlayerSkin(this.playerSkin, this.usesRunewardCharacters()), this.getQuality()].join('|');
   }
 
   public getPlayerSkin(): PlayerSkinId {
@@ -1634,7 +1640,8 @@ export class PixelRenderer {
       player.inWater,
       player.alive,
       walkFrame,
-      hop
+      hop,
+      this.usesRunewardCharacters() ? this.playerPoseExtras(engine) : undefined
     );
 
     if (lowCtx) {
@@ -6309,9 +6316,29 @@ export class PixelRenderer {
     ctx.restore();
   }
 
+  /** True when the active style draws the player with the Runeward characters. */
+  public usesRunewardCharacters(): boolean {
+    return this.descriptor().painterSet === 'runeward';
+  }
+
+  /**
+   * What the Runeward characters show beyond the walking pose, read from the state of the engine:
+   * gliding, the boots held, a ward, and how the player died. Nothing here changes the engine.
+   */
+  private playerPoseExtras(engine: PlayEngine): PlayerPoseExtras {
+    const player = engine.getPlayer();
+    let hazardUnder: string | null = null;
+    if (!player.alive && !player.deathReasonKey) {
+      const id = engine.getTerrain()[Math.round(player.y)]?.[Math.round(player.x)];
+      hazardUnder = id === undefined ? null : (ConfigRegistry.getTile(id).hazard ?? null);
+    }
+    return poseExtrasOf(player, hazardUnder);
+  }
+
   /**
    * Draws the player. `frame` is 0 standing, 1 or 2 for the two strides; `hop` lifts
-   * the sprite (in tiles) while its shadow stays on the ground.
+   * the sprite (in tiles) while its shadow stays on the ground. `extras` carries what only the
+   * Runeward characters show (gliding, boots, ward, cause of death); the other styles ignore it.
    */
   public drawPlayer(
     ctx: CanvasRenderingContext2D,
@@ -6322,16 +6349,23 @@ export class PixelRenderer {
     inWater: boolean,
     alive: boolean,
     frame: number = 0,
-    hop: number = 0
+    hop: number = 0,
+    extras: PlayerPoseExtras = {}
   ): void {
     const runewardPlayer = this.runewardPainters()?.player;
     // The Julien skin keeps its own drawing in every style.
     if (runewardPlayer && this.playerSkin !== RUNEWARD_DEFERRED_PLAYER_SKIN) {
-      runewardPlayer(ctx, x, y, size, { dir, inWater, alive, frame, hop }, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
+      const pose = completePose(
+        { dir, inWater, alive, frame, hop },
+        { ...extras, character: PLAYER_SKIN_RUNEWARD_CHARACTER[this.playerSkin] }
+      );
+      runewardPlayer(ctx, x, y, size, pose, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
+    // Everywhere else a Runeward-only skin looks like the default one.
+    const skin = effectivePlayerSkin(this.playerSkin, false);
     if (!this.isHdVector() && this.retroSpritesReady()) {
-      this.drawRetroLayers(ctx, [{ name: retroPlayerSprite(dir, inWater, alive, frame, this.playerSkin) }], x, y, size);
+      this.drawRetroLayers(ctx, [{ name: retroPlayerSprite(dir, inWater, alive, frame, skin) }], x, y, size);
       return;
     }
     const pal = this.pal();
@@ -6345,7 +6379,7 @@ export class PixelRenderer {
     const lift = hop * size;
     const pad = this.glowPad();
     const sprite = this.getSprite(
-      `player|${this.style}|${this.playerSkin}|${dir}|${inWater}|${alive}|${frame}|${size}`,
+      `player|${this.style}|${skin}|${dir}|${inWater}|${alive}|${frame}|${size}`,
       size,
       size,
       pad,

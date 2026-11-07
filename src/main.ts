@@ -115,7 +115,7 @@ import {
 } from './ui/graphicsStyleControl';
 import { getRenderStyle, parseRenderStyleId } from './render/styles/renderStyles';
 import { resolveSokobanSkin } from './render/renderSettings';
-import { PLAYER_SKIN_IDS, parsePlayerSkin, playerSkinLabelKey } from './render/playerSkin';
+import { effectivePlayerSkin, parsePlayerSkin, playerSkinLabelKey, playerSkinsForStyle } from './render/playerSkin';
 import { watchDevicePixelRatio } from './ui/displayWatchers';
 import {
   COARSE_POINTER_QUERY,
@@ -1836,11 +1836,14 @@ class EpoxyApplication {
     const select = byId<HTMLSelectElement>('player-skin-select');
     if (!select) return;
     select.innerHTML = '';
-    for (const skin of PLAYER_SKIN_IDS) {
+    // The Runeward characters are offered in the Runeward style only; elsewhere they look like the default.
+    const runeward = this.renderer.usesRunewardCharacters();
+    const shown = effectivePlayerSkin(this.renderer.getPlayerSkin(), runeward);
+    for (const skin of playerSkinsForStyle(runeward)) {
       const opt = document.createElement('option');
       opt.value = skin;
-      opt.textContent = t(playerSkinLabelKey(skin));
-      opt.selected = skin === this.renderer.getPlayerSkin();
+      opt.textContent = t(playerSkinLabelKey(skin, runeward));
+      opt.selected = skin === shown;
       select.appendChild(opt);
     }
     select.onchange = () => {
@@ -3685,6 +3688,8 @@ class EpoxyApplication {
     if (select) select.value = style;
     const touchSelect = byId<HTMLSelectElement>('touch-style-select');
     if (touchSelect) touchSelect.value = style;
+    // The characters on offer depend on the style.
+    this.setupPlayerSkinSelector();
     // The LCD grid only renders where the style allows it: shown off and disabled elsewhere,
     // the stored preference is restored when the style allows it again.
     const lcdBtn = byId<HTMLButtonElement>('btn-lcd-toggle');

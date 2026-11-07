@@ -51,6 +51,7 @@ import * as devices from './runewardDevices';
 import * as items from './runewardItems';
 import * as marks from './runewardMarks';
 import * as monsters from './runewardMonsters';
+import type { MagePose } from './runewardCharacter';
 import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
@@ -93,15 +94,7 @@ export type RunewardEntityPainter = (
   env: RunewardPaintEnv
 ) => void;
 
-export interface RunewardPlayerPose {
-  readonly dir: Direction;
-  readonly inWater: boolean;
-  readonly alive: boolean;
-  /** 0 standing, 1 or 2 for the two strides. */
-  readonly frame: number;
-  /** Lift of the sprite in tiles. */
-  readonly hop: number;
-}
+export type RunewardPlayerPose = MagePose;
 
 export type RunewardPlayerPainter = (
   ctx: CanvasRenderingContext2D,
@@ -178,7 +171,7 @@ function clockedItem(
   };
 }
 
-/** The player as the mage, standing on the cell; the sprite lifts with the hop while its shadow stays. */
+/** The player as the chosen character, standing on the cell; the sprite lifts with the hop while its shadow stays. */
 const paintPlayer: RunewardPlayerPainter = (ctx, x, y, size, pose, env) => {
   ctx.save();
   ctx.translate(x, y);

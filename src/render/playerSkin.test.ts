@@ -23,9 +23,12 @@ import type { Direction } from '../core/types';
 import {
   DEFAULT_PLAYER_SKIN,
   PLAYER_SKIN_IDS,
+  PLAYER_SKIN_RUNEWARD_CHARACTER,
   PLAYER_SKIN_SPRITE_PREFIX,
+  effectivePlayerSkin,
   parsePlayerSkin,
-  playerSkinLabelKey
+  playerSkinLabelKey,
+  playerSkinsForStyle
 } from './playerSkin';
 import { retroPlayerSprite } from './retroCompose';
 import {
@@ -129,5 +132,68 @@ describe('the Julien sprites', () => {
       }
     }
     await expect(`${lines.join('\n')}\n`).toMatchFileSnapshot(SNAPSHOT_PATH);
+  });
+});
+
+describe('the Runeward characters as skins', () => {
+  const RUNEWARD_SKINS = ['runeward_scribe', 'runeward_adventurer'] as const;
+
+  it('keeps every value stored by an earlier version valid', () => {
+    expect(parsePlayerSkin('default')).toBe('default');
+    expect(parsePlayerSkin('julien')).toBe('julien');
+    expect(parsePlayerSkin(undefined)).toBe('default');
+    expect(PLAYER_SKIN_IDS.slice(0, 2)).toEqual(['default', 'julien']);
+  });
+
+  it('parses the Runeward ids and refuses near misses', () => {
+    for (const skin of RUNEWARD_SKINS) expect(parsePlayerSkin(skin)).toBe(skin);
+    for (const value of ['scribe', 'runeward_mage', 'Runeward_scribe', 'runeward_scribe ']) {
+      expect(parsePlayerSkin(value), value).toBe(DEFAULT_PLAYER_SKIN);
+    }
+  });
+
+  it('maps each skin to a character: the default skin is the mage', () => {
+    expect(PLAYER_SKIN_RUNEWARD_CHARACTER.default).toBe('mage');
+    expect(PLAYER_SKIN_RUNEWARD_CHARACTER.runeward_scribe).toBe('scribe');
+    expect(PLAYER_SKIN_RUNEWARD_CHARACTER.runeward_adventurer).toBe('adventurer');
+  });
+
+  it('offers the Runeward characters in the Runeward style only', () => {
+    expect(playerSkinsForStyle(true)).toEqual(['default', 'julien', 'runeward_scribe', 'runeward_adventurer']);
+    expect(playerSkinsForStyle(false)).toEqual(['default', 'julien']);
+  });
+
+  it('draws a Runeward-only skin as the default elsewhere and keeps the others', () => {
+    for (const skin of RUNEWARD_SKINS) {
+      expect(effectivePlayerSkin(skin, false)).toBe('default');
+      expect(effectivePlayerSkin(skin, true)).toBe(skin);
+    }
+    for (const skin of ['default', 'julien'] as const) {
+      expect(effectivePlayerSkin(skin, false)).toBe(skin);
+      expect(effectivePlayerSkin(skin, true)).toBe(skin);
+    }
+  });
+
+  it('keeps the stock sprite names for a Runeward-only skin', () => {
+    for (const skin of RUNEWARD_SKINS) {
+      expect(PLAYER_SKIN_SPRITE_PREFIX[skin]).toBe('');
+      expect(retroPlayerSprite('E', false, true, 1, skin)).toBe(retroPlayerSprite('E', false, true, 1));
+      expect(retroPlayerSprite('S', true, false, 0, skin)).toBe(retroPlayerSprite('S', true, false, 0));
+    }
+  });
+
+  it('names the default skin the mage in Runeward, in both languages', () => {
+    expect(playerSkinLabelKey('default')).toBe('app.player_skin.default.label');
+    expect(playerSkinLabelKey('default', true)).toBe('app.player_skin.runeward_mage.label');
+    expect(playerSkinLabelKey('runeward_scribe', true)).toBe('app.player_skin.runeward_scribe.label');
+    const labels = (locale: unknown, skin: string): unknown =>
+      (locale as { app: { player_skin: Record<string, { label: string }> } }).app.player_skin[skin]?.label;
+    for (const locale of [en, fr]) {
+      for (const name of ['runeward_mage', 'runeward_scribe', 'runeward_adventurer']) {
+        expect(typeof labels(locale, name), name).toBe('string');
+      }
+    }
+    expect(labels(fr, 'runeward_scribe')).toBe('Scribe des runes');
+    expect(labels(fr, 'runeward_adventurer')).toBe('Mage aventurier');
   });
 });
