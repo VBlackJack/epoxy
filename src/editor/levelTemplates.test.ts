@@ -56,7 +56,7 @@ describe('templates.json', () => {
     expect(findTemplateErrors(templatesJson)).toEqual([]);
   });
 
-  it('offers the Sokoban room, laser puzzle, and 5 sanctuary mechanism templates', () => {
+  it('offers the Sokoban room, laser puzzle, and 9 sanctuary mechanism templates', () => {
     expect(templates.map((template) => template.id)).toEqual([
       'sokoban',
       'laser',
@@ -64,7 +64,11 @@ describe('templates.json', () => {
       'counterweight_hold',
       'grappling_alcove',
       'prism_slalom',
-      'elemental_alchemy'
+      'elemental_alchemy',
+      'rail_switchyard',
+      'monster_clock',
+      'turning_force',
+      'hurl_stone_ricochet'
     ]);
   });
 

@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from './ConfigRegistry';
-import { DEFAULT_LEVEL_PASSWORD } from './constants';
+import { DEFAULT_FACING, DEFAULT_LEVEL_PASSWORD } from './constants';
 import { isDirection, isInBounds, isRecord } from './ConfigValidation';
 import {
   CloneLink,
@@ -27,7 +27,16 @@ import {
   WinRule
 } from '../core/types';
 
-export type EncyclopediaFamilyId = 'sluice' | 'extraction' | 'optics' | 'kinetic' | 'network';
+export type EncyclopediaFamilyId =
+  | 'sluice'
+  | 'extraction'
+  | 'optics'
+  | 'kinetic'
+  | 'network'
+  | 'automata'
+  | 'transit'
+  | 'ballistics'
+  | 'parity';
 
 export interface EncyclopediaFamily {
   id: EncyclopediaFamilyId;
@@ -88,13 +97,17 @@ const VALID_FAMILIES: readonly EncyclopediaFamilyId[] = [
   'extraction',
   'optics',
   'kinetic',
-  'network'
+  'network',
+  'automata',
+  'transit',
+  'ballistics',
+  'parity'
 ];
 const VALID_WIN_RULES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
+const SOLUTION_PATTERN = /^[NESW.XGT]+$/;
 const MIN_ARCHETYPE_TIER = 1;
 const MAX_ARCHETYPE_TIER = 5;
 const ARCHETYPE_LEVEL_PREFIX = 'encyclopedia_';
-const DEFAULT_FACING: Direction = 'S';
 
 function validateLegend(id: string, legend: unknown): string[] {
   if (!isRecord(legend)) return [`${id}: legend must be an object`];
@@ -141,8 +154,8 @@ function validateBlueprint(id: string, bp: unknown): string[] {
   if (typeof bp.chipsRequired !== 'number' || !Number.isInteger(bp.chipsRequired) || bp.chipsRequired < 0) {
     errors.push(`${id}: blueprint.chipsRequired must be a non-negative integer`);
   }
-  if (typeof bp.solution !== 'string' || bp.solution.length === 0 || !/^[NESW]+$/.test(bp.solution)) {
-    errors.push(`${id}: blueprint.solution must be a non-empty string of N/E/S/W steps`);
+  if (typeof bp.solution !== 'string' || bp.solution.length === 0 || !SOLUTION_PATTERN.test(bp.solution)) {
+    errors.push(`${id}: blueprint.solution must be a non-empty string of N/E/S/W/./X/G/T actions`);
   }
   const legendErrors = validateLegend(id, bp.legend);
   errors.push(...legendErrors);

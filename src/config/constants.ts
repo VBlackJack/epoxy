@@ -49,6 +49,9 @@ export const DIRECTION_VECTORS = {
 
 export const ORDERED_DIRECTIONS = ['N', 'E', 'S', 'W'] as const;
 
+/** Default facing direction for player starts and template entities when omitted. */
+export const DEFAULT_FACING = 'S' as const;
+
 /** The directions a turning force floor pushes in, one per arrival of any actor, in turn. */
 export const FORCE_CYCLE_ORDER = ['E', 'S', 'W', 'N'] as const;
 
