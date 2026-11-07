@@ -63,7 +63,8 @@ export function arrangeMechanismSections<T>(entries: readonly GroupedEntry<T>[])
  * a laser gate is a laser part). Null when no rule matches.
  */
 export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | null {
-  if (tile.isTeleporter) return 'teleports';
+  // A dark relay pad is no teleporter yet, but it sits with the pads it will join once lit.
+  if (tile.isTeleporter || tile.relayPad !== undefined) return 'teleports';
   // A shot trigger fires launchers: it sits with them, not with the buttons.
   if (tile.buttonAction === FIRE_LAUNCHERS_ACTION) return 'lasers';
   // A colour toggle button sits with the walls of its channel; the plain toggle button stays with the buttons.

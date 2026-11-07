@@ -9,6 +9,7 @@ versions follow Semantic Versioning.
 
 - Sanctuary Puzzle & Mechanism Encyclopedia (`public/configs/excavation-encyclopedia.json`, `src/config/excavationEncyclopedia.ts`, `docs/puzzle-encyclopedia.md` and `docs/fr/puzzle-encyclopedia.md`): 14 machine-verified puzzle archetypes across 5 families (`sluice`, `extraction`, `optics`, `kinetic`, `network`) with ASCII blueprints, design invariants, dead-end traps, chaining rules and verified shortest solutions, plus 5 sanctuary starter templates in the level editor (`boulder_sluice`, `counterweight_hold`, `grappling_alcove`, `prism_slalom`, `elemental_alchemy` in `public/configs/templates.json`) and 6 new Tier-5 sanctuary pieces in the procedural generator (`public/configs/motifs.json`, 165 pieces in total). Both locales.
 - Wired flip: a signal wire can end on a green toggle wall or a rail switch; that one cell flips each time the signal starts sending (not when it stops), and the green button still flips it too (Epoxy rules).
+- Relay pad (`relay_pad_dark`, `relay_pad_lit`): a pad a signal wire ends on lights while its signal is on and goes dark when it is off, a lit pad is a teleporter of its own group that sends whoever steps on it to the previous lit relay pad in reading order (blocks and monsters too), and a pad no wire ends on keeps the form it was placed in; Epoxy rules, pack format 11 ids.
 
 ## [2.24.0] - 2026-11-07
 

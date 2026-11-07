@@ -30,7 +30,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS } from '../core/coreConstants';
+import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -605,7 +605,7 @@ function terrainsReachableFrom(tile: TileDefinition, lookup: TerrainTileLookup):
  * wall, dirt), when the underlay is itself a removable top, a plate, a hold door or a toggle wall (except
  * under a key door or a socket, which nothing turns back into: there a socket, dirt, a blue fake wall, a
  * plate, a hold door and a green or colour toggle wall are kept, never a key door and never the top's own
- * id), or when the underlay can turn back into the cell's top (dirt over water: a block sunk there makes
+ * id), when the underlay is a rail or a relay pad, or when the underlay can turn back into the cell's top (dirt over water: a block sunk there makes
  * dirt again; the engine reveals a cell at most once anyway, this keeps the level model simple). The first
  * entry of a cell wins, and the entries are sorted by row, then column.
  * Returns null when none is left.
@@ -631,6 +631,8 @@ export function normalizeUnderlays(
       if (!tile || !top || !isRemovableTop(top)) continue;
       // A rail only shapes a step on the cell it lies in: nothing reveals it, so it is never hidden.
       if (tile.railSides !== undefined) continue;
+      // A relay pad swaps its form where it lies as the signals change: nothing reveals it, so it is never hidden.
+      if (tile.relayPad !== undefined) continue;
       // Under a door or a socket (which nothing turns back into) the engine also plays a socket, dirt, a blue
       // fake wall and the live devices; under any other top an underlay stays a plain, static terrain.
       const widened = isOpeningTop(top) && id !== topId && isRemovableUnderlay(tile);
@@ -1522,6 +1524,38 @@ export function findGateConfigErrors(tiles: Record<string, TileDefinition>): str
     if (tile.portableTeleporter === undefined) continue;
     if (tile.portableTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: expected true`);
     if (tile.isTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: only a teleporter can be portable`);
+  }
+  return errors;
+}
+
+/**
+ * Problems of the relay pad fields: a pad is `dark` or `lit` and names its other form, which must be a relay pad of the
+ * opposite form that names it back. The lit form is a teleporter of the group "relay" and the dark form is not one;
+ * both are plain terrain that every mover can enter. Each entry names the tile.
+ */
+export function findRelayPadConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.relayPad === undefined) {
+      if (tile.relayTwin !== undefined) errors.push(`${tile.id}.relayTwin: only a relay pad names a twin`);
+      continue;
+    }
+    if (tile.relayPad !== 'dark' && tile.relayPad !== 'lit') {
+      errors.push(`${tile.id}.relayPad: expected "dark" or "lit"`);
+      continue;
+    }
+    const twin = typeof tile.relayTwin === 'string' ? tiles[tile.relayTwin] : undefined;
+    if (twin === undefined || twin.relayTwin !== tile.id || twin.relayPad === tile.relayPad || twin.layer !== 'terrain') {
+      errors.push(`${tile.id}.relayTwin: expected the id of the relay pad terrain of the other form, which names this tile back`);
+    }
+    if (tile.layer !== 'terrain') errors.push(`${tile.id}.relayPad: a relay pad is a terrain`);
+    if (tile.teleportGroup !== RELAY_TELEPORT_GROUP) errors.push(`${tile.id}.teleportGroup: a relay pad belongs to the group "${RELAY_TELEPORT_GROUP}"`);
+    if ((tile.isTeleporter === true) !== (tile.relayPad === 'lit')) {
+      errors.push(`${tile.id}.isTeleporter: a lit relay pad is a teleporter and a dark one is not`);
+    }
+    if (tile.passableByPlayer !== true || tile.passableByMonster !== true || tile.passableByBlock !== true) {
+      errors.push(`${tile.id}.relayPad: a relay pad must be passable by the player, monsters and blocks`);
+    }
   }
   return errors;
 }

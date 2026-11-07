@@ -190,6 +190,17 @@ export const PACK_JSON_VERSION_V10 = 10;
 export const PACK_JSON_VERSION_V10_IDS: ReadonlySet<string> = new Set(['hurl_stone', 'wisp']);
 
 /**
+ * Version of a pack file that holds at least one level using an id introduced with format 11 (see
+ * PACK_JSON_VERSION_V11_IDS): the relay pads. An older build would read the dark pad as floor and the lit pad as a
+ * plain teleporter, and drop the signal links that power them, so it must refuse the file. Reading and writing format
+ * 11 is switched on by PACK_JSON_MAX_VERSION, which a later lot of the same release raises.
+ */
+export const PACK_JSON_VERSION_V11 = 11;
+
+/** Ids that only exist from pack format 11; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V11_IDS: ReadonlySet<string> = new Set(['relay_pad_dark', 'relay_pad_lit']);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
@@ -197,7 +208,8 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
   { version: PACK_JSON_VERSION_V7, ids: PACK_JSON_VERSION_V7_IDS },
   { version: PACK_JSON_VERSION_V8, ids: PACK_JSON_VERSION_V8_IDS },
   { version: PACK_JSON_VERSION_V9, ids: PACK_JSON_VERSION_V9_IDS },
-  { version: PACK_JSON_VERSION_V10, ids: PACK_JSON_VERSION_V10_IDS }
+  { version: PACK_JSON_VERSION_V10, ids: PACK_JSON_VERSION_V10_IDS },
+  { version: PACK_JSON_VERSION_V11, ids: PACK_JSON_VERSION_V11_IDS }
 ];
 
 /**

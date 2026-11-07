@@ -200,7 +200,8 @@ function roleOfTile(tile: TileDefinition): DeviceRole | null {
   if (tile.isTrap) return 'trap';
   if (tile.isCloneMachine) return 'clone_machine';
   if (tile.shotLauncher !== undefined) return 'shot_launcher';
-  if (tile.isTeleporter) return 'teleporter';
+  // A relay pad is a teleporter of the group "relay" in either form: dark, it only waits for its signal.
+  if (tile.isTeleporter || tile.relayPad !== undefined) return 'teleporter';
   if (tile.laserEmitter !== undefined) return 'laser_emitter';
   if (tile.laserReceiverGroup !== undefined) return 'laser_receiver';
   if (tile.laserGateGroup !== undefined) return 'laser_gate';
@@ -348,7 +349,7 @@ function buildEdges(level: DeviceLevel): Edge[] {
 
   const teleportersByGroup = new Map<string, TileAt[]>();
   for (const a of facets) {
-    if (!a.tile.isTeleporter) continue;
+    if (!a.tile.isTeleporter && a.tile.relayPad === undefined) continue;
     const group = a.tile.teleportGroup ?? UNGROUPED_TELEPORT_GROUP;
     teleportersByGroup.set(group, [...(teleportersByGroup.get(group) ?? []), a]);
   }

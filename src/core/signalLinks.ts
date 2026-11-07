@@ -49,12 +49,12 @@ interface CellNode {
   def: SignalNodeDef;
 }
 
-/** What a sink is, as its node def carries it: exactly one of a hold door colour or a device to fire. A third kind slots in here. */
-export type SignalSinkKind = Pick<SignalNodeDef, 'color' | 'fires'>;
+/** What a sink is, as its node def carries it: exactly one of a hold door colour, a device to fire or a relay pad to power. */
+export type SignalSinkKind = Pick<SignalNodeDef, 'color' | 'fires' | 'powers'>;
 
 /** Options of signalSinkOf. */
 interface SignalSinkOptions {
-  /** The tile is the terrain hidden under a removable top. A flip tile there is never a sink (see signalSinkOf). */
+  /** The tile is the terrain hidden under a removable top. A flip tile or a relay pad there is never a sink (see signalSinkOf). */
   hidden?: boolean;
 }
 
@@ -64,13 +64,16 @@ interface SignalSinkOptions {
  * clone machine and a flip tile (a green toggle wall or a rail switch: any tile with `togglesTo`) fire once on each
  * rising edge of their input. A flip tile hidden under a removable top is no sink: the per-family toggle parity of the
  * green button counts a hidden wall by its own bookkeeping, and a wire must not change that cell behind its back. A
- * hidden hold door, launcher or clone machine still is a sink.
+ * hidden hold door, launcher or clone machine still is a sink. A relay pad (lit or dark: a signal link powers the pad, not
+ * its current form) is a level sink that follows its input; it is never hidden (the level normalisation refuses it), and a
+ * hidden one is no sink for the same reason as a hidden flip tile.
  */
 export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = {}): SignalSinkKind | null {
   if (tile.holdDoorColor !== undefined) return { color: tile.holdDoorColor };
   if (tile.shotLauncher !== undefined) return { fires: 'launcher' };
   if (tile.isCloneMachine) return { fires: 'cloner' };
   if (tile.togglesTo !== undefined && options.hidden !== true) return { fires: 'flip' };
+  if (tile.relayPad !== undefined && options.hidden !== true) return { powers: true };
   return null;
 }
 

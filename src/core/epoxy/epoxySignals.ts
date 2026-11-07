@@ -47,10 +47,10 @@ export interface SignalRuntime {
   carry: Set<number>;
 }
 
-/** The fields of a sink def that name what the sink is. A sink has exactly one of them set; a third kind is added here. */
-const SINK_KIND_FIELDS = ['color', 'fires'] as const;
+/** The fields of a sink def that name what the sink is. A sink has exactly one of them set. */
+const SINK_KIND_FIELDS = ['color', 'fires', 'powers'] as const;
 
-/** Thrown when a source has no sampler or a sink does not have exactly one kind (a colour or a device to fire): a level no validator would have let through. */
+/** Thrown when a source has no sampler or a sink does not have exactly one kind (a colour, a device to fire or a relay pad to power): a level no validator would have let through. */
 export class SignalWiringError extends Error {
   constructor(readonly cell: number) {
     super(`signal wiring: node at cell ${cell} lacks its sampler or has not exactly one sink kind`);

@@ -615,6 +615,8 @@
       "teleport_alone": { "label": "Avertissement : le téléporteur {color} en ({x}, {y}) est le seul de sa couleur, il ne mène donc nulle part." },
       "gate_no_pair": { "label": "Avertissement : la porte de poche en ({x}, {y}) ne peut pas former une paire : sans autre porte ni plaque placée, sa plaque ne mène nulle part." },
       "teleport_alone_plain": { "label": "Avertissement : le téléporteur en ({x}, {y}) est le seul téléporteur simple, il ne mène donc nulle part." },
+      "relay_pad_dark_unlinked": { "label": "Info : la plaque relais en ({x}, {y}) est éteinte et aucun lien de signal ne l'alimente, elle ne fonctionne donc jamais." },
+      "relay_group_alone": { "label": "Info : la plaque relais en ({x}, {y}) n'a pas de partenaire : un saut demande au moins deux plaques relais dans le niveau." },
       "laser_gate_no_receiver": { "label": "Avertissement : une barrière laser ({group}) en ({x}, {y}) (au total : {count}) n'a aucun récepteur de son groupe, elle reste donc fermée." },
       "flame_jets_no_button": { "label": "Info : les jets de flammes en ({x}, {y}) (au total : {count}) ne changent jamais : le niveau ne contient pas de bouton orange." },
       "swivel_sealed": { "label": "Info : une porte pivotante en ({x}, {y}) (au total : {count}) est scellée : chaque côté par lequel elle s'ouvre donne sur un mur, un mur fin, un émetteur ou un récepteur laser, ou le bord de la carte." },
@@ -762,7 +764,9 @@
         "green": "vert",
         "blue": "bleu",
         "yellow": "jaune",
-        "swap_radius": "à portée"
+        "swap_radius": "à portée",
+        "relay": "relais",
+        "pocket": "de poche"
       },
       "fallback": {
         "trap_button": "Ouvre les pièges sans lien tant qu'il est maintenu (tout bouton brun ouvre les pièges sans lien).",
@@ -774,7 +778,8 @@
         "laser_emitter": "Relié à rien ; l'aperçu du faisceau montre le rayon.",
         "signal_fires_launcher": "Tire une fois chaque fois que son signal relié se met à émettre.",
         "signal_fires_cloner": "Fait un clone chaque fois que son signal relié se met à émettre.",
-        "signal_flips": "Passe à son autre forme chaque fois que son signal relié se met à émettre, pas quand il s'arrête. Le bouton vert le fait aussi basculer."
+        "signal_flips": "Passe à son autre forme chaque fois que son signal relié se met à émettre, pas quand il s'arrête. Le bouton vert le fait aussi basculer.",
+        "signal_powers": "S'allume tant que son signal relié émet, reste éteinte sinon. Une plaque allumée envoie celui qui marche dessus vers la plaque relais allumée précédente."
       },
       "needs": {
         "plate": { "label": "Il faut une porte à maintien de la même couleur ({colour}) : cette plaque n'ouvre rien pour l'instant. Une porte à maintien ne s'ouvre que tant que chaque plaque de sa couleur est enfoncée." },
@@ -783,6 +788,7 @@
         "toggle_wall": { "label": "Il faut un bouton bascule de la même couleur ({colour}) : rien ne bascule ce mur pour l'instant. Le bouton vert simple bascule les murs bascules simples." },
         "teleporter_plain": { "label": "Il faut un autre téléporteur simple : un téléporteur simple envoie vers le téléporteur simple précédent dans l'ordre de lecture, et seul il ne mène nulle part." },
         "teleporter_colour": { "label": "Il faut un autre téléporteur de la même couleur ({colour}) : celui-ci est seul dans son groupe." },
+        "relay_pad": { "label": "Il faut une autre plaque relais : une plaque relais ne mène qu'aux autres plaques relais allumées, et seule elle ne mène nulle part." },
         "laser_receiver": { "label": "Il faut une porte laser du même groupe ({colour}) : ce récepteur n'ouvre rien pour l'instant." },
         "laser_gate": { "label": "Il faut un récepteur laser du même groupe ({colour}) : rien n'est relié à cette porte pour l'instant." },
         "puppet_control": { "label": "Il faut une marionnette : aucune marionnette n'avance avec le joueur quand il termine un déplacement sur cette commande." },
@@ -1682,6 +1688,8 @@
     "charge_lit": { "name": "Charge Allumée", "desc": { "label": "Explose quelques secondes après avoir été posée. Elle ne bloque rien et ne peut être ni ramassée ni poussée." } },
     "pocket_gate": { "name": "Porte de poche", "desc": { "label": "Ramassez-la, puis posez-la sur un sol nu où vous voulez. Les plaques que vous posez communiquent entre elles : marchez sur l'une et vous ressortez d'une autre. Une plaque seule ne fait rien, et une plaque posée y reste." } },
     "pocket_gate_pad": { "name": "Porte de poche (posée)", "desc": { "label": "Une plaque posée avec une porte de poche. Elle communique avec les autres plaques de porte de poche du niveau, dans l'ordre de lecture inverse. Les blocs et les monstres l'utilisent aussi. On ne peut pas la ramasser de nouveau." } },
+    "relay_pad_dark": { "name": "Plaque relais (éteinte)", "desc": { "label": "Une plaque relais éteinte : un simple sol. Reliez-lui un signal et elle s'allume tant que le signal émet. Les plaques relais allumées envoient vers la plaque relais allumée précédente dans l'ordre de lecture. Sans lien, elle reste comme posée." } },
+    "relay_pad_lit": { "name": "Plaque relais (allumée)", "desc": { "label": "Une plaque relais allumée : un téléporteur qui ne communique qu'avec les autres plaques relais allumées. Reliez-lui un signal et elle s'éteint quand le signal s'arrête. Sans lien, elle reste comme posée." } },
     "hurl_stone": { "name": "Pierre de jet", "desc": { "label": "Ramassez-la, puis lancez-la sur ce qui est devant vous. Elle vole jusqu'à ce qu'elle heurte quelque chose : elle tue un monstre, déclenche une bombe et fait fondre un bloc de glace, et un miroir la dévie. Elle est épuisée là où elle s'arrête, et elle vous tue si un miroir vous la renvoie." } },
     "bomb": { "name": "Bombe" },
     "score_10": { "name": "Fanion Bonus (10 points)" },

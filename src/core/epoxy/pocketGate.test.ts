@@ -28,7 +28,8 @@ import {
   PACK_JSON_VERSION_V8,
   PACK_JSON_VERSION_V8_IDS,
   PACK_JSON_VERSION_V9,
-  PACK_JSON_VERSION_V10
+  PACK_JSON_VERSION_V10,
+  PACK_JSON_VERSION_V11
 } from '../../config/constants';
 import { tileAvailability } from '../../editor/paletteAvailability';
 import { DatCodec, datRefusalReason } from '../../formats/DatCodec';
@@ -630,7 +631,7 @@ describe('pocket gate: rulesets and formats', () => {
   });
 
   it('lists every id set in the table, each with the ids in the shipped configs', () => {
-    expect(PACK_JSON_ID_SET_VERSIONS.map((row) => row.version)).toEqual([PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V10]);
+    expect(PACK_JSON_ID_SET_VERSIONS.map((row) => row.version)).toEqual([PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V10, PACK_JSON_VERSION_V11]);
     expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V10);
     expect([...PACK_JSON_VERSION_V8_IDS].sort()).toEqual([GATE, PAD].sort());
     for (const id of PACK_JSON_VERSION_V8_IDS) expect(ConfigRegistry.getTiles().tiles[id]).toBeDefined();
