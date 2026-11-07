@@ -5,8 +5,13 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Two new playable characters in the Runeward style, the rune scribe and the adventurer mage, chosen in the Character setting (Runeward only; other styles draw the default). All three show the boots held, a ward ring, skating on ice and a fire, water or fainting death.
+
 ### Changed
 
+- Refined default Runeward mage (four facings, boots, skating pose, deaths by cause); old saved Character settings stay valid.
 - Faster endless level generation (corridor search of the loop wings uses typed arrays and groups pieces by entry side); the generated levels are identical for every seed.
 - Runeward loose dirt tile now reads as a patch of earth covering the cell with grain, clods and pebbles, instead of a small lump on the paving.
 

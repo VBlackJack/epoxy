@@ -374,6 +374,31 @@ export interface RunewardArtConfig {
     /** Ground shadow under the character. */
     shadow: string;
   };
+  /** Colours the three playable characters share beyond the mage block: outline, cloth, leather and effects. */
+  character: {
+    /** Outline of the figure when the style draws no ink line. */
+    outline: string;
+    hair: string;
+    /** Skin in shade: the mouth and the nose crease. */
+    skinShade: string;
+    leather: string;
+    leatherDark: string;
+    /** Scroll paper and the lines written on it. */
+    scroll: string;
+    scrollInk: string;
+    satchel: string;
+    satchelLight: string;
+    strap: string;
+    feather: string;
+    /** Shadow inside a hood. */
+    hoodInner: string;
+    trouser: string;
+    /** The scribe's cloak; the edge is the dark rim that keeps its hood readable on a pale floor. */
+    cloak: { main: string; light: string; dark: string; edge: string };
+    lantern: { glassTop: string; glassBottom: string; rib: string };
+    /** The ward ring and its rune diamonds. */
+    halo: { ring: string; inner: string; rune: string };
+  };
   /** Keys, doors, plates, buttons and toggle slabs, by colour channel. */
   keys: Record<RunewardKeyColour, RunewardKeyColours>;
   /** Locked doors: the frame and the keyhole. */

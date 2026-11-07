@@ -171,6 +171,15 @@
       },
       "julien": {
         "label": "Julien"
+      },
+      "runeward_mage": {
+        "label": "Mage"
+      },
+      "runeward_scribe": {
+        "label": "Rune scribe"
+      },
+      "runeward_adventurer": {
+        "label": "Adventurer mage"
       }
     },
     "graphics_quality": {

@@ -57,7 +57,7 @@ describe('Runeward art guard', () => {
   });
 
   it('refuses a missing sub-object without throwing', () => {
-    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'seal', 'exit', 'water', 'lava', 'mage', 'keys', 'door', 'gate', 'plate', 'rune', 'trap', 'portal', 'ice', 'force', 'animation', ...OBJECT_SECTIONS]) {
+    for (const section of ['floor', 'wall', 'blueWall', 'shadow', 'seal', 'exit', 'water', 'lava', 'mage', 'character', 'keys', 'door', 'gate', 'plate', 'rune', 'trap', 'portal', 'ice', 'force', 'animation', ...OBJECT_SECTIONS]) {
       const art = freshArt() as unknown as Record<string, unknown>;
       delete art[section];
       expect(validRunewardArt(art)).toBeNull();
@@ -83,6 +83,23 @@ describe('Runeward art guard', () => {
     const text = freshArt() as unknown as { shadow: { depth: unknown } };
     text.shadow.depth = 'deep';
     expect(validRunewardArt(text)).toBeNull();
+  });
+
+  it('refuses a missing or unusable character colour, in both variants', () => {
+    for (const make of [freshArt, parchmentArt]) {
+      for (const damage of [
+        (art: RunewardArtConfig): void => { art.character.outline = BAD_COLOUR; },
+        (art: RunewardArtConfig): void => { art.character.cloak.edge = BAD_COLOUR; },
+        (art: RunewardArtConfig): void => { art.character.lantern.glassTop = ''; },
+        (art: RunewardArtConfig): void => { art.character.halo.ring = BAD_COLOUR; },
+        (art: RunewardArtConfig): void => { delete (art.character as unknown as Record<string, unknown>).cloak; },
+        (art: RunewardArtConfig): void => { delete (art.character as unknown as Record<string, unknown>).halo; }
+      ]) {
+        const art = make();
+        damage(art);
+        expect(validRunewardArt(art)).toBeNull();
+      }
+    }
   });
 
   it('accepts the shipped parchment variant and an art block without ink', () => {
