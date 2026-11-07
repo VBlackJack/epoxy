@@ -590,7 +590,7 @@ export class LevelValidator {
       let stoneCount = 0;
 
       // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
-      this.applySignalSinks(level, blockTypes, stockBlocks, simItems);
+      this.applySignalSinks(level, blockTypes, stockBlocks, simItems, simTerrain);
 
       let changed = true;
       let passes = 0;
@@ -1815,8 +1815,10 @@ export class LevelValidator {
     if (jetCells.length > 0 && orangeButtons === 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.flame_jets_no_button.label', params: this.locationParams(jetCells) });
     }
-    if (railSwitchCells.length > 0 && greenButtons === 0) {
-      issues.push({ severity: 'info', i18nKey: 'validator.issues.rail_switch_no_button.label', params: this.locationParams(railSwitchCells) });
+    // A switch a signal wire ends on has its controller: only the others wait for a green button.
+    const unwiredSwitches = railSwitchCells.filter((cell) => !(level.signalLinks ?? []).some((l) => l.toX === cell.x && l.toY === cell.y));
+    if (unwiredSwitches.length > 0 && greenButtons === 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.rail_switch_no_button.label', params: this.locationParams(unwiredSwitches) });
     }
     const sealed = swivelCells.filter((cell) => this.isSwivelSealed(level, cell, underlays));
     if (sealed.length > 0) {
@@ -2020,12 +2022,16 @@ export class LevelValidator {
    * A clone machine holding a block grants the cloner allowance of that block type. A shot launcher removes every
    * bomb on the ray from its cell in its facing direction to the map edge, ignoring obstacles (an
    * over-approximation). A launcher is a terrain tile of its own, so no swivel can turn it: one direction.
+   * A flip sink on a closed wall opens it (the green button's predicate: a tile the player cannot enter that has an
+   * other form), so a wired wall with no green button is not reported unreachable. A rail switch is passable on both
+   * forms and needs nothing.
    */
   private static applySignalSinks(
     level: CompiledLevel,
     blockTypes: ReadonlySet<string>,
     stockBlocks: (type: string, count: number) => void,
-    simItems: (string | null)[][]
+    simItems: (string | null)[][],
+    simTerrain: string[][]
   ): void {
     const spec = level.ruleset !== 'lynx' && level.ruleset !== 'cc3d' ? compileSignalSpec(level, registryTileLookup) : undefined;
     if (spec === undefined) return;
@@ -2036,6 +2042,11 @@ export class LevelValidator {
       if (node.kind !== 'sink' || node.fires === undefined) continue;
       const x = node.cell % width;
       const y = Math.floor(node.cell / width);
+      if (node.fires === 'flip') {
+        const tile = ConfigRegistry.getTile(simTerrain[y][x]);
+        if (!tile.passableByPlayer && tile.togglesTo !== undefined) simTerrain[y][x] = tile.togglesTo;
+        continue;
+      }
       if (node.fires === 'cloner') {
         const held = level.entities.find((e) => e.x === x && e.y === y && blockTypes.has(e.type));
         if (held) stockBlocks(held.type, CLONER_BLOCK_ALLOWANCE);

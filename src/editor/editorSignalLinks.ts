@@ -15,7 +15,7 @@
  */
 
 import { DEFAULT_RULESET } from '../core/coreConstants';
-import { normalizeSignalLinks } from '../core/signalLinks';
+import { normalizeSignalLinks, signalSinkOf } from '../core/signalLinks';
 import type { CellUnderlay, SignalLink, TileDefinition } from '../core/types';
 
 /** The signal links of a map, as the editor reads and rewrites them (Epoxy levels only, never CC3D). */
@@ -115,14 +115,15 @@ export type SignalEnd = 'output' | 'input';
 
 /**
  * Whether the tile can be that end of a signal wire, read from the tile flags as normalizeSignalLinks reads them: a
- * laser receiver or a held or pulse source is an output only, a gate is both, a hold door, a shot launcher or a
- * clone machine is an input only (the last two fire once on the rising edge of their input).
+ * laser receiver or a held or pulse source is an output only, a gate is both, a sink (see signalSinkOf: a hold door, a
+ * shot launcher, a clone machine, a green toggle wall or a rail switch) is an input only. All but the hold door act
+ * once, on the rising edge of their input.
  */
 export function signalTileHoldsEnd(tile: TileDefinition | undefined, end: SignalEnd): boolean {
   if (!tile) return false;
   const isSource = tile.laserReceiverGroup !== undefined || tile.signalSource !== undefined;
   const isGate = tile.signalGate !== undefined;
-  const isSink = tile.holdDoorColor !== undefined || tile.shotLauncher !== undefined || tile.isCloneMachine === true;
+  const isSink = signalSinkOf(tile) !== null;
   return end === 'output' ? isSource || isGate : isGate || isSink;
 }
 
@@ -166,7 +167,7 @@ export function signalLinkClosesCycle(map: Pick<SignalLinkHolder, 'signalLinks'>
   return false;
 }
 
-/** Whether the tile is a signal sink that takes one input link only (the validator refuses more): a hold door, a shot launcher or a clone machine. */
+/** Whether the tile is a signal sink that takes one input link only (the validator refuses more): a hold door, a shot launcher, a clone machine or a flip tile. */
 export function signalTileTakesOneInput(tile: TileDefinition | undefined): boolean {
-  return tile !== undefined && (tile.holdDoorColor !== undefined || tile.shotLauncher !== undefined || tile.isCloneMachine === true);
+  return tile !== undefined && signalSinkOf(tile) !== null;
 }

@@ -47,6 +47,7 @@ export const CONNECTIONS_KEYS = {
   fallbackLaserEmitter: `${KEY_PREFIX}fallback.laser_emitter`,
   signalFiresLauncher: `${KEY_PREFIX}fallback.signal_fires_launcher`,
   signalFiresCloner: `${KEY_PREFIX}fallback.signal_fires_cloner`,
+  signalFlips: `${KEY_PREFIX}fallback.signal_flips`,
   needsPlate: `${KEY_PREFIX}needs.plate.label`,
   needsHoldDoor: `${KEY_PREFIX}needs.hold_door.label`,
   needsToggleButton: `${KEY_PREFIX}needs.toggle_button.label`,
@@ -461,6 +462,9 @@ function noteFor(role: DeviceRole | null, rel: DeviceRelations, tile: TileDefini
       return hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFiresLauncher } : null;
     case 'clone_machine':
       return hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFiresCloner } : null;
+    // A signal wired into a toggle wall or a rail switch flips that one cell on each rising edge; the wire is a controller, so no "needs" note.
+    case 'toggle_wall':
+      return tile?.togglesTo !== undefined && hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFlips } : needsNoteFor(role, rel, tile);
     default:
       return needsNoteFor(role, rel, tile);
   }

@@ -773,7 +773,8 @@
         "shot_unlinked": "N'active rien tant qu'il n'est pas lié.",
         "laser_emitter": "Relié à rien ; l'aperçu du faisceau montre le rayon.",
         "signal_fires_launcher": "Tire une fois chaque fois que son signal relié se met à émettre.",
-        "signal_fires_cloner": "Fait un clone chaque fois que son signal relié se met à émettre."
+        "signal_fires_cloner": "Fait un clone chaque fois que son signal relié se met à émettre.",
+        "signal_flips": "Passe à son autre forme chaque fois que son signal relié se met à émettre, pas quand il s'arrête. Le bouton vert le fait aussi basculer."
       },
       "needs": {
         "plate": { "label": "Il faut une porte à maintien de la même couleur ({colour}) : cette plaque n'ouvre rien pour l'instant. Une porte à maintien ne s'ouvre que tant que chaque plaque de sa couleur est enfoncée." },
