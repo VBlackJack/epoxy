@@ -89,6 +89,20 @@ export function nextLevelGoesToEditor(testPlaying: boolean, completed: boolean):
   return testPlaying && completed;
 }
 
+/**
+ * The index of the first level from `index` on that has a player start, walking forward (wrapping unless `wrap` is
+ * false), or null when none can be played. An imported level without a start is never entered.
+ */
+export function nextPlayableLevelIndex(levels: ReadonlyArray<{ missingStart?: boolean }>, index: number, wrap: boolean): number | null {
+  for (let step = 0; step < levels.length; step++) {
+    const candidate = index + step;
+    if (candidate >= levels.length && !wrap) return null;
+    const at = candidate % levels.length;
+    if (!levels[at].missingStart) return at;
+  }
+  return null;
+}
+
 /** Mid-run, a test play stays on its level: level navigation does nothing. */
 export function levelNavigationBlocked(testPlaying: boolean, completed: boolean): boolean {
   return testPlaying && !completed;

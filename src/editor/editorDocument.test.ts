@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
-import { cloneDocument, EditorDocument, sameDocument } from './editorDocument';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { loadTestConfigs } from '../test/loadTestConfigs';
+import { cloneDocument, EditorDocument, sameDocument, withEditedMap } from './editorDocument';
+import { paintPlayerStart, paintTerrain } from './mapEdits';
 
 function doc(): EditorDocument {
   return {
@@ -74,5 +76,30 @@ describe('sameDocument', () => {
     const facing = doc();
     facing.entities[0].dir = 'E';
     expect(sameDocument(doc(), facing)).toBe(false);
+  });
+});
+
+describe('missing player start', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('is carried by a copy, counts as a difference, and is cleared only by placing a start', () => {
+    const flagged: EditorDocument = { ...doc(), missingStart: true };
+    expect(cloneDocument(flagged).missingStart).toBe(true);
+    expect(sameDocument(flagged, doc())).toBe(false);
+    // An edit that does not place a start keeps the flag
+    const kept = withEditedMap(flagged, { ...flagged, terrain: flagged.terrain.map((row) => [...row]) });
+    expect(kept.missingStart).toBe(true);
+    // Placing a start clears it, and the document does not bring it back
+    const painted = paintPlayerStart(flagged, 0, 0, 'E');
+    expect(painted.map.missingStart).toBeUndefined();
+    expect(withEditedMap(flagged, painted.map).missingStart).toBeUndefined();
+  });
+
+  it('keeps the flag through a wall edit', () => {
+    const flagged: EditorDocument = { ...doc(), missingStart: true };
+    const edited = withEditedMap(flagged, paintTerrain(flagged, 1, 1, 'wall').map);
+    expect(edited.missingStart).toBe(true);
   });
 });

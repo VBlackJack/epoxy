@@ -40,6 +40,8 @@ export interface EditorMap {
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
   playerStart: EditorPlayerStart;
+  /** True while an imported level has no start of its own; placing a start clears it. */
+  missingStart?: boolean;
   /**
    * Thin walls on cells of any terrain (Epoxy ruleset only), in canonical form (see normalizeCellEdges).
    * Absent when the level has none, and never held by a CC3D level.
@@ -97,6 +99,7 @@ export function cloneMap(map: EditorMap): EditorMap {
     trapLinks: map.trapLinks.map((l) => ({ ...l })),
     cloneLinks: map.cloneLinks.map((l) => ({ ...l })),
     playerStart: { ...map.playerStart },
+    ...(map.missingStart ? { missingStart: true } : {}),
     ...(cellEdges ? { cellEdges } : {}),
     ...(underlays ? { underlays } : {}),
     ...(launcherLinks ? { launcherLinks } : {}),
@@ -111,7 +114,7 @@ export function cloneMap(map: EditorMap): EditorMap {
  * from before.
  */
 export function withEditedMap(doc: EditorDocument, map: EditorMap): EditorDocument {
-  const { cellEdges: _previousEdges, underlays: _previousUnderlays, launcherLinks: _previousLauncherLinks, signalLinks: _previousSignalLinks, ...rest } = doc;
+  const { missingStart: _previousMissingStart, cellEdges: _previousEdges, underlays: _previousUnderlays, launcherLinks: _previousLauncherLinks, signalLinks: _previousSignalLinks, ...rest } = doc;
   return { ...rest, ...map };
 }
 
@@ -169,7 +172,7 @@ export function restoreDocument(snapshot: EditorDocument): EditorDocument {
 
 /** Deep copy of a document; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneDocument(doc: EditorDocument): EditorDocument {
-  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, cellEdges, underlays, launcherLinks, signalLinks, cc3d } = cloneMap(doc);
+  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, missingStart, cellEdges, underlays, launcherLinks, signalLinks, cc3d } = cloneMap(doc);
   return {
     terrain,
     items,
@@ -177,6 +180,7 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     trapLinks,
     cloneLinks,
     playerStart,
+    ...(missingStart ? { missingStart } : {}),
     ...(cellEdges ? { cellEdges } : {}),
     ...(underlays ? { underlays } : {}),
     ...(launcherLinks ? { launcherLinks } : {}),
@@ -221,6 +225,7 @@ export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
       trapLinks: [...doc.trapLinks].sort((l, m) => l.buttonY - m.buttonY || l.buttonX - m.buttonX || l.trapY - m.trapY || l.trapX - m.trapX),
       cloneLinks: [...doc.cloneLinks].sort((l, m) => l.buttonY - m.buttonY || l.buttonX - m.buttonX || l.clonerY - m.clonerY || l.clonerX - m.clonerX),
       playerStart: hasCc3d ? null : doc.playerStart,
+      missingStart: doc.missingStart === true,
       cellEdges: hasCc3d ? null : (canonicalEdges(doc.cellEdges, doc.terrain) ?? []),
       underlays: hasCc3d ? null : (canonicalUnderlays(doc.underlays, doc.terrain) ?? []),
       launcherLinks: hasCc3d ? null : (canonicalLauncherLinks(doc.launcherLinks, doc.terrain, doc.underlays) ?? []),

@@ -1647,6 +1647,9 @@
       "socket_bypass": {
         "label": "Error: The Exit can be reached without passing the Socket."
       },
+      "no_start": {
+        "label": "Error: The imported level has no player start."
+      },
       "invalid_start": {
         "label": "Error: The player start is outside the map."
       },

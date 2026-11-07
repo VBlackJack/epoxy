@@ -21,6 +21,9 @@ import { findDatFormatErrors } from '../config/ConfigValidation';
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import { CompiledLevel, Direction } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { documentFromLevel, levelFromDocument } from '../editor/editorLevelIo';
+import { withEditedMap } from '../editor/editorDocument';
+import { paintTerrain } from '../editor/mapEdits';
 
 const PREFIX = 'test';
 /** Pack header (magic and level count) and the level record length word that precede the first layer length. */
@@ -992,7 +995,6 @@ describe('DatCodec Lynx decoding', () => {
     CODE.unusedWallCodes.forEach((c) => add(c, 'wall'));
     CODE.unusedInvisibleCodes.forEach((c) => add(c, 'invisible_wall'));
     add(CODE.sealedExit, 'wall');
-    CODE.swimmingChipCodes.forEach((c) => add(c, 'water'));
     add(CODE.firstHighCode, 'wall');
     add(CODE.lastHighCode, 'wall');
     const lynx = decodeOne(cells, {}, 'lynx');
@@ -1001,6 +1003,35 @@ describe('DatCodec Lynx decoding', () => {
     const epoxy = decodeOne({ '1,1': CODE.unusedFloorCode, '2,1': CODE.swimmingChipCodes[0] }, {}, 'epoxy');
     expect(epoxy.terrain[1][1]).toBe('floor');
     expect(epoxy.playerStart).toMatchObject({ x: 2, y: 1 });
+  });
+
+  it('reads a swimming Chip code as the player start under Epoxy, and under Lynx only when no other start exists', () => {
+    const facings = ['N', 'W', 'S', 'E'];
+    CODE.swimmingChipCodes.forEach((code, i) => {
+      for (const ruleset of ['lynx', 'epoxy'] as const) {
+        const level = decodeOne({ '3,4': code }, { '3,4': CODE.water }, ruleset);
+        expect(level.playerStart).toEqual({ x: 3, y: 4, dir: facings[i] });
+        expect(level.terrain[4][3]).toBe('water');
+        expect(level.missingStart).toBeUndefined();
+      }
+    });
+    // With a regular start present, Lynx keeps today's reading: water, for all four codes
+    for (const code of CODE.swimmingChipCodes) {
+      const lynx = decodeOne({ '3,4': code, '1,1': CODE.chipSouth }, {}, 'lynx');
+      expect(lynx.terrain[4][3]).toBe('water');
+      expect(lynx.playerStart).toMatchObject({ x: 1, y: 1 });
+    }
+  });
+
+  it('reports the unused codes and a missing start without placing one', () => {
+    const cells: Cells = { '1,1': 0x33, '2,1': 0x3b, '3,1': CODE.firstHighCode, '4,1': CODE.chipSouth };
+    const withStart = DatCodec.decodeBufferWithDiagnostics(handBuiltPack(cells, {}), PREFIX, 'epoxy');
+    expect(withStart.diagnostics).toEqual([{ levelNumber: 1, kind: 'unused_code', codes: [0x33, 0x3b, CODE.firstHighCode] }]);
+    const noStart = DatCodec.decodeBufferWithDiagnostics(handBuiltPack({ '1,1': CODE.wall }, {}), PREFIX, 'lynx');
+    expect(noStart.diagnostics).toEqual([{ levelNumber: 1, kind: 'no_player_start' }]);
+    expect(noStart.levels[0].missingStart).toBe(true);
+    const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
+    expect(noStart.levels[0].playerStart).not.toMatchObject({ x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2) });
   });
 
   it('keeps the clone machine of an exported block on a cloner', () => {
@@ -1060,5 +1091,31 @@ describe('DatCodec Lynx on the bundled packs', () => {
       });
     }
     expect(failures).toEqual([]);
+  });
+});
+
+describe('DatCodec level without a player start', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('writes no player tile for a flagged level, so it reads back flagged and start-less', () => {
+    const lvl = blankLevel(1);
+    lvl.missingStart = true;
+    const bytes = toBuffer(DatCodec.encodeLevels([lvl]));
+    const [decoded] = DatCodec.decodeBuffer(bytes, PREFIX, DEFAULT_RULESET);
+    expect(decoded.missingStart).toBe(true);
+  });
+
+  it('keeps a level start-less through an editor wall edit and the export', () => {
+    const lvl = blankLevel(1);
+    lvl.missingStart = true;
+    let doc = documentFromLevel(lvl, { title: 'T', hint: '' });
+    doc = withEditedMap(doc, paintTerrain(doc, 3, 3, 'wall').map);
+    const exported = levelFromDocument(doc, { id: lvl.id, number: 1, password: 'ABCD', fallbackTitle: 'T' });
+    expect(exported.missingStart).toBe(true);
+    expect(exported.terrain[3][3]).toBe('wall');
+    const [decoded] = DatCodec.decodeBuffer(toBuffer(DatCodec.encodeLevels([exported])), PREFIX, DEFAULT_RULESET);
+    expect(decoded.missingStart).toBe(true);
   });
 });

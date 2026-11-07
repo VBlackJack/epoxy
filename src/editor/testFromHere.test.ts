@@ -104,6 +104,12 @@ describe('levelStartingAt', () => {
     expect(copy.terrain).not.toBe(source.terrain);
     expect(copy.entities).not.toBe(source.entities);
   });
+
+  it('gives a level flagged without a start the chosen cell as its start', () => {
+    const source = { ...level(), missingStart: true };
+    expect(levelStartingAt(source, { x: 2, y: 2 }).missingStart).toBeUndefined();
+    expect(source.missingStart).toBe(true);
+  });
 });
 
 describe('the T key', () => {

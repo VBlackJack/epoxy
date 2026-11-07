@@ -81,6 +81,16 @@ const MAX_ASCII_CODE = 0x7e;
 const MIN_PRINTABLE_CODE = 0x20;
 const REPLACEMENT_CHAR_CODE = 0x3f;
 
+/** Codes 0x33-0x3B are unused or sealed in the format: a pack that holds one is flagged on import. */
+const UNUSED_CODE_FIRST = 0x33;
+const UNUSED_CODE_LAST = 0x3b;
+/** Codes from 112 up are not defined by the format. */
+const UNDEFINED_CODE_FIRST = 112;
+
+/** The swimming Chip codes, which mark the player start in community packs. */
+const SWIMMING_CHIP_CODE_FIRST = 0x3c;
+const SWIMMING_CHIP_CODE_LAST = 0x3f;
+
 /** The ruleset whose reading of a .DAT follows Tile World's Lynx rules. */
 const LYNX_RULESET: Ruleset = 'lynx';
 /** Terrain the player can enter that turns into a wall when left: a wall under an item in the original files. */
@@ -113,6 +123,23 @@ export type DatRefusalReason =
  */
 function hasEpoxyOnlyItem(level: Pick<CompiledLevel, 'items' | 'terrain'>): boolean {
   return level.items.some((row) => row.some(isEpoxyOnlyItemId)) || level.terrain.some((row) => row.some(isEpoxyOnlyItemId));
+}
+
+/** What an import noticed in a level without refusing it. */
+export type DatDiagnosticKind = 'no_player_start' | 'unused_code';
+
+/** A non-fatal remark on one decoded level. */
+export interface DatDiagnostic {
+  levelNumber: number;
+  kind: DatDiagnosticKind;
+  /** For 'unused_code': the byte codes found, each once, ascending. */
+  codes?: number[];
+}
+
+/** Levels of a decoded pack and the non-fatal remarks made while reading them. */
+export interface DatDecodeResult {
+  levels: CompiledLevel[];
+  diagnostics: DatDiagnostic[];
 }
 
 /** A level left out of the pack, with the reason. */
@@ -181,6 +208,15 @@ export class DatCodec {
    * given ruleset, except the default one, which is left implicit.
    */
   public static decodeBuffer(buffer: ArrayBuffer, packPrefix: string = 'cclp', ruleset: Ruleset): CompiledLevel[] {
+    return this.decodeBufferWithDiagnostics(buffer, packPrefix, ruleset).levels;
+  }
+
+  /** Same as decodeBuffer, and also returns the non-fatal remarks (unused codes, missing player start). */
+  public static decodeBufferWithDiagnostics(
+    buffer: ArrayBuffer,
+    packPrefix: string = 'cclp',
+    ruleset: Ruleset
+  ): DatDecodeResult {
     const datCfg = ConfigRegistry.getDatFormat();
     const view = new DataView(buffer);
 
@@ -196,6 +232,7 @@ export class DatCodec {
     const maxLevelCount = datCfg.maxLevelCount ?? DEFAULT_MAX_LEVEL_COUNT;
     const levelCount = Math.min(view.getUint16(PACK_LEVEL_COUNT_OFFSET, true), maxLevelCount);
     const levels: CompiledLevel[] = [];
+    const diagnostics: DatDiagnostic[] = [];
     const usedIds = new Set<string>();
     let offset = PACK_HEADER_BYTES;
 
@@ -207,7 +244,7 @@ export class DatCodec {
       if (levelEndOffset > buffer.byteLength) break;
 
       if (levelByteLength >= MIN_LEVEL_RECORD_BYTES) {
-        const level = this.decodeLevel(buffer, offset, levelEndOffset, idx, packPrefix, datCfg, ruleset);
+        const level = this.decodeLevel(buffer, offset, levelEndOffset, idx, packPrefix, datCfg, ruleset, diagnostics);
         if (level) {
           // A pack may repeat a level number: keep the first id, tell the others apart by record index
           while (usedIds.has(level.id)) {
@@ -222,7 +259,7 @@ export class DatCodec {
       offset = levelEndOffset;
     }
 
-    return levels;
+    return { levels, diagnostics };
   }
 
   /** Decodes one level record in [start, end). Returns null when the record is malformed. */
@@ -233,7 +270,8 @@ export class DatCodec {
     idx: number,
     packPrefix: string,
     datCfg: DatFormatConfig,
-    ruleset: Ruleset
+    ruleset: Ruleset,
+    diagnostics: DatDiagnostic[]
   ): CompiledLevel | null {
     const lynx = ruleset === LYNX_RULESET;
     const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
@@ -344,14 +382,14 @@ export class DatCodec {
     );
     const entitiesMap = new Map<string, EntityPlacement>();
     const clonerTemplates = new Map<string, { type: string; dir: Direction }>();
-    let playerStart: { x: number; y: number; dir: Direction } = {
-      x: Math.floor(mapWidth / 2),
-      y: Math.floor(mapHeight / 2),
-      dir: DEFAULT_FACING
-    };
+    // Inert placeholder until a start is found; a level that keeps it is flagged, never given a real start
+    let playerStart: { x: number; y: number; dir: Direction } = { x: 0, y: 0, dir: DEFAULT_FACING };
+    let startFound = false;
     const setPlayerStart = (ps: { x: number; y: number; dir: Direction }): void => {
       playerStart = ps;
+      startFound = true;
     };
+    const unusedCodes = new Set<number>();
     const cloneMachineId = this.findCloneMachineTileId();
 
     // A layer longer than the grid would place cells outside the arrays: walk the overlap only
@@ -364,6 +402,11 @@ export class DatCodec {
       const x = cellIdx % layerWidth;
       const y = Math.floor(cellIdx / layerWidth);
       if (!isInBounds(x, y, mapWidth, mapHeight)) continue;
+      for (const code of [layer1[cellIdx], layer2[cellIdx]]) {
+        if ((code >= UNUSED_CODE_FIRST && code <= UNUSED_CODE_LAST) || code >= UNDEFINED_CODE_FIRST) {
+          unusedCodes.add(code);
+        }
+      }
       const topElem = this.elementOfCode(layer1[cellIdx], datCfg, lynx);
       const botElem = this.elementOfCode(layer2[cellIdx], datCfg, lynx);
 
@@ -394,6 +437,36 @@ export class DatCodec {
         );
       }
     }
+
+    // Lynx reads the swimming Chip codes as water, but a level with no other start keeps them as its start
+    if (lynx && !startFound) {
+      for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
+        const code = layer1[cellIdx];
+        if (code < SWIMMING_CHIP_CODE_FIRST || code > SWIMMING_CHIP_CODE_LAST) continue;
+        const x = cellIdx % layerWidth;
+        const y = Math.floor(cellIdx / layerWidth);
+        if (!isInBounds(x, y, mapWidth, mapHeight)) continue;
+        const startElem = datCfg.byteToElement[String(code)];
+        if (!startElem || startElem.kind !== 'player') continue;
+        const botElem = this.elementOfCode(layer2[cellIdx], datCfg, lynx);
+        terrain[y][x] = FLOOR_TILE_ID;
+        items[y][x] = null;
+        const below = botElem.kind === 'terrain' || botElem.kind === 'item' ? [botElem, startElem] : [startElem];
+        for (const elem of below) {
+          this.applyElementToCell(x, y, elem, terrain, items, entitiesMap, clonerTemplates, cloneMachineId, setPlayerStart);
+        }
+      }
+    }
+
+    const reportedNumber = levelNumber || idx + 1;
+    if (unusedCodes.size > 0) {
+      diagnostics.push({
+        levelNumber: reportedNumber,
+        kind: 'unused_code',
+        codes: [...unusedCodes].sort((a, b) => a - b)
+      });
+    }
+    if (!startFound) diagnostics.push({ levelNumber: reportedNumber, kind: 'no_player_start' });
 
     // Order monsters according to Field 10 monster movement list if present
     const orderedEntities: EntityPlacement[] = [];
@@ -446,6 +519,7 @@ export class DatCodec {
       timeLimitSeconds,
       chipsRequired,
       playerStart,
+      ...(startFound ? {} : { missingStart: true }),
       terrain,
       items,
       entities: orderedEntities,
@@ -656,7 +730,7 @@ export class DatCodec {
             entityDirToByte.get(`${ent.type}:${DEFAULT_FACING}`) ??
             null)
           : null;
-        const isPlayer = lvl.playerStart.x === x && lvl.playerStart.y === y;
+        const isPlayer = !lvl.missingStart && lvl.playerStart.x === x && lvl.playerStart.y === y;
         const pCode = isPlayer
           ? (playerDirToByte.get(lvl.playerStart.dir) ?? playerDirToByte.get(DEFAULT_FACING) ?? null)
           : null;

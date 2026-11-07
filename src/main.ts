@@ -99,6 +99,7 @@ import {
   levelNavigationBlocked,
   focusAfterRating,
   nextLevelGoesToEditor,
+  nextPlayableLevelIndex,
   overlayButtons,
   testRunKeyReturns,
   testRunStatus
@@ -2172,6 +2173,15 @@ class EpoxyApplication {
     this.currentLevelIndex = this.isEndlessActive()
       ? Math.min(Math.max(index, 0), levels.length - 1)
       : ((index % levels.length) + levels.length) % levels.length;
+    let announceLevel = announce;
+    if (levels[this.currentLevelIndex].missingStart) {
+      announceLevel = false; // the notice below must stay on screen
+      // An imported level without a start is never entered: say why and go to the next one that can be played
+      this.showTransientStatus(t('validator.issues.no_start.label'));
+      const playable = nextPlayableLevelIndex(levels, this.currentLevelIndex, !this.isEndlessActive());
+      if (playable === null) return;
+      this.currentLevelIndex = playable;
+    }
     this.loadPlayLevel(levels[this.currentLevelIndex]);
     this.playtest.levelStarted(this.playedPackId);
     AudioManager.setEndlessTracks(this.isEndlessActive() ? ConfigRegistry.getGame().endlessUi.musicTrackIds ?? [] : null);
@@ -2181,7 +2191,7 @@ class EpoxyApplication {
     this.updateHUD();
     const objective = this.objectiveMessage();
     const chapterStart = this.chapterBannerFor(levels[this.currentLevelIndex], arrival);
-    if (announce && (objective || chapterStart)) this.showTransientStatus(combineStatusMessages(chapterStart, objective));
+    if (announceLevel && (objective || chapterStart)) this.showTransientStatus(combineStatusMessages(chapterStart, objective));
     this.noteEndlessLevelReached(levels[this.currentLevelIndex]);
     this.prefetchNextEndlessLevel();
   }
