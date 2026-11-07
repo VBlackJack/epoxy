@@ -36,6 +36,7 @@ import {
   wallHasFront,
   wave
 } from './runewardPainters';
+import { completePose } from './runewardCharacter';
 import { countCalls, createRecordedContext } from '../../../test/runewardTestContext';
 import { RUNEWARD_FALLBACK, RUNEWARD_PAINTERS, runewardClockMs, type RunewardPaintEnv, type RunewardTilePass } from './runewardTiles';
 
@@ -150,7 +151,7 @@ const CLOCK_MS = 777;
 const WRAPPER_HEAD = 2;
 const WRAPPER_TAIL = 1;
 const INK_CREST_ALPHA = 'globalAlpha = 0.85';
-const POSE = { dir: 'S', inWater: false, alive: true, frame: 0, hop: 0 } as const;
+const POSE = completePose({ dir: 'S', inWater: false, alive: true, frame: 0, hop: 0 });
 
 function plainArt(): RunewardArtConfig {
   return ConfigRegistry.getGame().runewardArt as RunewardArtConfig;

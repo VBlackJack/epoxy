@@ -156,6 +156,24 @@ describe('Runeward Parchment contrast', () => {
     expect(failures(pairs, ROBE_ON_PAPER_MIN)).toEqual([]);
   });
 
+  it('keeps the scribe hood at 3:1 or more against the paper, with a 7:1 rim', () => {
+    const a = art();
+    const papers = [a.floor.base, a.floor.light, a.floor.dark];
+    const cloak = a.character.cloak;
+    const hood = papers.flatMap((paper) => [cloak.main, cloak.light, cloak.dark].map((colour) => ({ name: `character.cloak ${colour} on ${paper}`, a: colour, b: paper })));
+    expect(failures(hood, ROBE_ON_PAPER_MIN)).toEqual([]);
+    const rim = papers.map((paper) => ({ name: `character.cloak.edge on ${paper}`, a: cloak.edge, b: paper }));
+    expect(failures(rim, INK_ON_PAPER_MIN)).toEqual([]);
+  });
+
+  it('keeps the character outline at 7:1 or more against the paper and 3:1 against the mage cloths', () => {
+    const a = art();
+    const paper = [a.floor.base, a.floor.light, a.floor.dark].map((p) => ({ name: `character.outline on ${p}`, a: a.character.outline, b: p }));
+    expect(failures(paper, INK_ON_PAPER_MIN)).toEqual([]);
+    const cloths = [a.mage.robe, a.mage.hat, a.mage.skin].map((c) => ({ name: `character.outline on ${c}`, a: a.character.outline, b: c }));
+    expect(failures(cloths, INK_ON_SURFACE_MIN)).toEqual([]);
+  });
+
   it('tells water from lava by 1.5:1 or more', () => {
     const a = art();
     expect(contrast(a.water.light, a.lava.light)).toBeGreaterThanOrEqual(WATER_LAVA_MIN);
