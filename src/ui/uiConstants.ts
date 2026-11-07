@@ -50,7 +50,12 @@ export const TOUCH_DEFAULTS = {
   swipeDeadzonePx: 20,
   tapMaxDistancePx: 14,
   tapMaxDurationMs: 280,
-  hapticPulseMs: 10
+  hapticPulseMs: 10,
+  joystickDeadZonePx: 14,
+  joystickReleaseRadiusPx: 10,
+  joystickAxisSwitchRatio: 1.25,
+  joystickBaseFollowRadiusPx: 24,
+  joystickKnobRadiusPx: 48
 } as const;
 
 /**

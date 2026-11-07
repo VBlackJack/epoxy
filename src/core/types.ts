@@ -81,6 +81,10 @@ export interface UserSettings {
   musicVolumePercent?: number;
   /** Side of the screen the touch directional pad floats on in the phone full screen layout; read back through parseDpadSide. */
   dpadSide?: 'left' | 'right';
+  /** Phone touch control: a joystick that appears under the thumb, or the fixed directional pad; read back through parseTouchControl. */
+  touchControl?: 'floating' | 'fixed';
+  /** Vibration pulse when the joystick engages a direction; on unless explicitly false. */
+  hapticsEnabled?: boolean;
 }
 
 export interface StorageConfig {
@@ -957,6 +961,16 @@ export interface TouchConfig {
   tapMaxDistancePx: number;
   tapMaxDurationMs: number;
   hapticPulseMs: number;
+  /** Distance from the touch point before the floating joystick engages a direction, in CSS pixels. */
+  joystickDeadZonePx?: number;
+  /** Distance under which an engaged joystick lets go (smaller than the dead zone: hysteresis). */
+  joystickReleaseRadiusPx?: number;
+  /** The off-axis component must exceed the current axis component by this ratio to switch axis. */
+  joystickAxisSwitchRatio?: number;
+  /** Distance past which the joystick base follows the finger, in CSS pixels. */
+  joystickBaseFollowRadiusPx?: number;
+  /** Radius the knob is drawn within, in CSS pixels (visual only). */
+  joystickKnobRadiusPx?: number;
 }
 
 /** Layout counts the block puzzle solver may visit before giving up without a verdict. */

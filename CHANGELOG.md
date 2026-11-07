@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Phone layout (full screen, touch): a floating joystick appears under the thumb, a status strip tops the board, the level panel (left) and a new game menu (right) are drawers opened from the strip tabs, and Undo plus the drop buttons sit in the corner of the chosen pad side. The fixed pad stays available through the new Touch control setting; vibration can be turned off.
+
 ### Added
 
 - Sanctuary Puzzle & Mechanism Encyclopedia (`public/configs/excavation-encyclopedia.json`, `src/config/excavationEncyclopedia.ts`, `docs/puzzle-encyclopedia.md` and `docs/fr/puzzle-encyclopedia.md`): 14 machine-verified puzzle archetypes across 5 families (`sluice`, `extraction`, `optics`, `kinetic`, `network`) with ASCII blueprints, design invariants, dead-end traps, chaining rules and verified shortest solutions, plus 5 sanctuary starter templates in the level editor (`boulder_sluice`, `counterweight_hold`, `grappling_alcove`, `prism_slalom`, `elemental_alchemy` in `public/configs/templates.json`) and 6 new Tier-5 sanctuary pieces in the procedural generator (`public/configs/motifs.json`, 165 pieces in total). Both locales.

@@ -26,6 +26,8 @@
       "fov": { "label": "Zoom :" },
       "fov_option": { "label": "{size} lignes" },
       "dpad_side": { "label": "Croix directionnelle (tactile) :", "left": "Gauche", "right": "Droite" },
+      "touch_control": { "label": "Contrôle tactile :", "floating": "Joystick flottant", "fixed": "Croix fixe" },
+      "haptics_toggle": { "action_on": "Vibration : activée", "action_off": "Vibration : désactivée" },
       "audio_toggle": { "action_on": "Effets sonores : activés", "action_off": "Effets sonores : désactivés" },
       "music_toggle": { "action_on": "Musique : activée", "action_off": "Musique : désactivée" },
       "sfx_volume": { "label": "Volume des effets" },
@@ -415,7 +417,30 @@
       "chips": { "short": "PUCES" },
       "targets": { "short": "CIBLES" },
       "receivers": { "short": "RÉC." },
-      "time": { "short": "TEMPS" }
+      "time": { "short": "TEMPS" },
+      "strip": { "label": "Barre d'état du niveau" },
+      "tab": {
+        "level": { "label": "Niveau, bottes et clés" },
+        "menu": { "label": "Menu du jeu" }
+      },
+      "drawer": {
+        "level": { "title": "Niveau" },
+        "menu": { "title": "Menu du jeu" },
+        "close": { "action": "Fermer" }
+      },
+      "menu_drawer": {
+        "resume": { "action": "Reprendre" },
+        "all_options": { "action": "Toutes les options" },
+        "levels": { "action": "Niveaux" },
+        "exit_fullscreen": { "action": "Quitter le plein écran" }
+      },
+      "level": { "short": "NIV. {number}" },
+      "count": {
+        "chips": { "label": "{count} puces restantes" },
+        "targets": { "label": "{count} cibles restantes" },
+        "receivers": { "label": "{count} récepteurs restants" },
+        "time": { "label": "{seconds} secondes restantes" }
+      }
     },
     "messages": {
       "hint_prefix": { "label": "CONSEIL : " },
@@ -507,7 +532,7 @@
     "onboarding_modal": {
       "title": { "label": "Comment jouer" },
       "move_keys": { "label": "Ordinateur : déplacez-vous avec les flèches, WASD ou ZQSD." },
-      "move_touch": { "label": "Téléphone : glissez le doigt sur le plateau ou utilisez la croix à l'écran." },
+      "move_touch": { "label": "Téléphone : posez le pouce n'importe où sur le plateau et glissez pour diriger (maintenez pour continuer à marcher), touchez une case pour y aller. Une croix fixe à l'écran est disponible dans les options." },
       "undo": { "label": "U : annuler votre dernier pas." },
       "restart": { "label": "R : recommencer le niveau." },
       "objective": { "label": "H : voir quoi faire ensuite (le bouton Indice sur téléphone)." },

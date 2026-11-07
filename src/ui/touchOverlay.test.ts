@@ -17,11 +17,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_DPAD_SIDE,
+  DEFAULT_TOUCH_CONTROL,
+  DRAWER_STRIP_SELECTORS,
   MAX_CAMERA_INSET,
+  OVERLAY_STRIP_SELECTORS,
   NO_CAMERA_INSETS,
   TOUCH_OVERLAY_MAX_SHORT_SIDE_PX,
   computeCameraInsets,
+  getOverlayStripSelectors,
   parseDpadSide,
+  parseHapticsEnabled,
+  parseTouchControl,
+  resolveTouchLayoutModes,
   resolveTouchOverlay
 } from './touchOverlay';
 import type { TouchOverlayInput } from './touchOverlay';
@@ -165,5 +172,84 @@ describe('computeCameraInsets', () => {
   it('is zero when every box is empty', () => {
     const empty = { left: 0, right: 0, top: 0, bottom: 0 };
     expect(computeCameraInsets({ active: true, landscape: true, side: 'right', canvas, rects: [empty], tilePx: 40 })).toEqual(NO_CAMERA_INSETS);
+  });
+});
+
+describe('parseTouchControl and parseHapticsEnabled', () => {
+  it('keeps a valid control and falls back to floating for anything else', () => {
+    expect(parseTouchControl('fixed')).toBe('fixed');
+    expect(parseTouchControl('floating')).toBe('floating');
+    for (const bad of [undefined, null, 'pad', 3, {}]) expect(parseTouchControl(bad)).toBe(DEFAULT_TOUCH_CONTROL);
+    expect(DEFAULT_TOUCH_CONTROL).toBe('floating');
+  });
+
+  it('keeps haptics on unless the stored value is exactly false', () => {
+    expect(parseHapticsEnabled(false)).toBe(false);
+    for (const other of [undefined, null, true, 0, 'false']) expect(parseHapticsEnabled(other)).toBe(true);
+  });
+});
+
+describe('resolveTouchLayoutModes', () => {
+  it('turns the drawers and the joystick on together for the floating control on a phone', () => {
+    expect(resolveTouchLayoutModes(true, 'floating')).toEqual({ drawers: true, floating: true });
+  });
+
+  it('turns both off for the fixed pad and when the overlay is off', () => {
+    expect(resolveTouchLayoutModes(true, 'fixed')).toEqual({ drawers: false, floating: false });
+    expect(resolveTouchLayoutModes(false, 'floating')).toEqual({ drawers: false, floating: false });
+  });
+});
+
+describe('getOverlayStripSelectors', () => {
+  it('keeps the pad, cluster and HUD selectors when the drawers are off', () => {
+    expect(getOverlayStripSelectors(false)).toBe(OVERLAY_STRIP_SELECTORS);
+  });
+
+  it('reads the top strip and the bottom cluster when the drawers are on, and never a drawer or the HUD', () => {
+    expect(getOverlayStripSelectors(true)).toEqual(['#touch-strip', '#touch-overlay-controls']);
+    expect(getOverlayStripSelectors(true)).toBe(DRAWER_STRIP_SELECTORS);
+    expect(DRAWER_STRIP_SELECTORS).not.toContain('.hud-panel');
+    expect(DRAWER_STRIP_SELECTORS.join(' ')).not.toContain('drawer');
+  });
+});
+
+describe('computeCameraInsets top mode', () => {
+  const canvas = { left: 0, right: 400, top: 0, bottom: 800 };
+  const strip = { left: 0, right: 400, top: 4, bottom: 48 };
+  const cluster = { left: 12, right: 150, top: 700, bottom: 788 };
+
+  it('reserves the strip height plus half a tile at the top', () => {
+    const insets = computeCameraInsets({ active: true, landscape: false, side: 'right', canvas, rects: [], topRects: [strip], tilePx: 40 });
+    expect(insets).toEqual({ left: 0, right: 0, top: (48 + 20) / 800, bottom: 0 });
+  });
+
+  it('adds the bottom cluster inset in portrait and the side inset in landscape', () => {
+    const portrait = computeCameraInsets({ active: true, landscape: false, side: 'right', canvas, rects: [cluster], topRects: [strip], tilePx: 40 });
+    expect(portrait.top).toBe((48 + 20) / 800);
+    expect(portrait.bottom).toBe((800 - 700 + 20) / 800);
+    const landscape = computeCameraInsets({ active: true, landscape: true, side: 'left', canvas, rects: [cluster], topRects: [strip], tilePx: 40 });
+    expect(landscape.top).toBe((48 + 20) / 800);
+    expect(landscape.left).toBe((150 + 20) / 400);
+    expect(landscape.right).toBe(0);
+  });
+
+  it('reads the lowest bottom edge, ignores empty boxes and caps at the renderer limit', () => {
+    const empty = { left: 0, right: 0, top: 0, bottom: 0 };
+    const low = { ...strip, bottom: 60 };
+    expect(computeCameraInsets({ active: true, landscape: false, side: 'right', canvas, rects: [], topRects: [strip, low, empty], tilePx: 0 }).top).toBe(60 / 800);
+    const huge = { ...strip, bottom: 2000 };
+    expect(computeCameraInsets({ active: true, landscape: false, side: 'right', canvas, rects: [], topRects: [huge], tilePx: 0 }).top).toBe(MAX_CAMERA_INSET);
+  });
+
+  it('is zero outside the overlay layout or when the strip is empty', () => {
+    expect(computeCameraInsets({ active: false, landscape: false, side: 'right', canvas, rects: [], topRects: [strip], tilePx: 40 })).toEqual(NO_CAMERA_INSETS);
+    expect(computeCameraInsets({ active: true, landscape: false, side: 'right', canvas, rects: [], topRects: [{ left: 0, right: 0, top: 0, bottom: 0 }], tilePx: 40 })).toEqual(NO_CAMERA_INSETS);
+  });
+
+  it('leaves the classic result untouched when no top boxes are given', () => {
+    const pad = { left: 220, right: 388, top: 620, bottom: 788 };
+    const classic = computeCameraInsets({ active: true, landscape: false, side: 'right', canvas, rects: [pad], tilePx: 40 });
+    expect(classic).toEqual({ left: 0, right: 0, top: 0, bottom: (800 - 620 + 20) / 800 });
+    expect(computeCameraInsets({ active: true, landscape: false, side: 'right', canvas, rects: [pad], topRects: [], tilePx: 40 })).toEqual(classic);
   });
 });

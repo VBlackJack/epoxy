@@ -21,7 +21,10 @@ import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DPAD_SIDE_CLASSES,
+  DRAWER_STRIP_SELECTORS,
+  JOYSTICK_FLOATING_CLASS,
   ORIENTATION_CLASSES,
+  TOUCH_DRAWERS_CLASS,
   TOUCH_CLUSTER_ID,
   TOUCH_OVERLAY_CLASS,
   TOUCH_PAD_ID,
@@ -36,6 +39,9 @@ import {
 } from './touchOverlay';
 import type { DpadSide } from './touchOverlay';
 import { i18n } from '../i18n/I18nManager';
+import { isDialogOpen } from './dialog';
+import { setupTouchDrawers } from './touchDrawers';
+import { stubLayout } from '../test/domFixture';
 
 const BODY_CLASS_BEFORE = 'fullscreen-mode';
 
@@ -274,5 +280,248 @@ describe('floating controls', () => {
       expect(button?.classList.contains('hidden')).toBe(true);
       expect(button?.closest('#viewport-overlay')).not.toBeNull();
     }
+  });
+});
+
+describe('drawer layout classes', () => {
+  beforeEach(() => {
+    mountPage();
+  });
+
+  it('adds touch-drawers and joystick-floating next to the overlay classes', () => {
+    applyTouchOverlayClasses(document.body, { active: true, side: 'right', landscape: false, drawers: true, floating: true });
+    expect(document.body.classList.contains(TOUCH_DRAWERS_CLASS)).toBe(true);
+    expect(document.body.classList.contains(JOYSTICK_FLOATING_CLASS)).toBe(true);
+    expect(document.body.classList.contains(TOUCH_OVERLAY_CLASS)).toBe(true);
+  });
+
+  it('adds neither class when the flags are absent: today layout exactly', () => {
+    applyTouchOverlayClasses(document.body, { active: true, side: 'left', landscape: true });
+    expect(overlayClasses().sort()).toEqual([TOUCH_OVERLAY_CLASS, DPAD_SIDE_CLASSES.left, ORIENTATION_CLASSES.landscape].sort());
+  });
+
+  it('removes both when the control goes back to the fixed pad, and when the overlay turns off', () => {
+    applyTouchOverlayClasses(document.body, { active: true, side: 'right', landscape: false, drawers: true, floating: true });
+    applyTouchOverlayClasses(document.body, { active: true, side: 'right', landscape: false, drawers: false, floating: false });
+    expect(overlayClasses().sort()).toEqual([TOUCH_OVERLAY_CLASS, DPAD_SIDE_CLASSES.right, ORIENTATION_CLASSES.portrait].sort());
+    applyTouchOverlayClasses(document.body, { active: true, side: 'right', landscape: false, drawers: true, floating: true });
+    applyTouchOverlayClasses(document.body, { active: false, side: 'right', landscape: false, drawers: true, floating: true });
+    expect(overlayClasses()).toEqual([]);
+  });
+
+  it('never adds them on a desktop even when the flags are set', () => {
+    applyTouchOverlayClasses(document.body, { active: false, side: 'right', landscape: true, drawers: true, floating: true });
+    expect(document.body.className).toBe(BODY_CLASS_BEFORE);
+  });
+});
+
+describe('HUD group role with drawers', () => {
+  beforeEach(() => {
+    mountPage();
+  });
+
+  it('does not set role group while the drawers are active, and keeps the dialog attributes', () => {
+    const hud = document.querySelector('.hud-panel') as HTMLElement;
+    hud.setAttribute('role', 'dialog');
+    hud.setAttribute('aria-modal', 'true');
+    syncHudGroup(hud, true, 'Level status', true);
+    expect(hud.getAttribute('role')).toBe('dialog');
+    expect(hud.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('drops a leftover group role and label when the drawers take over', () => {
+    const hud = document.querySelector('.hud-panel') as HTMLElement;
+    syncHudGroup(hud, true, 'Level status');
+    expect(hud.getAttribute('role')).toBe('group');
+    syncHudGroup(hud, true, 'Level status', true);
+    expect(hud.hasAttribute('role')).toBe(false);
+    expect(hud.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('still groups the HUD when only the overlay is active', () => {
+    const hud = document.querySelector('.hud-panel') as HTMLElement;
+    syncHudGroup(hud, true, 'Level status', false);
+    expect(hud.getAttribute('role')).toBe('group');
+  });
+});
+
+describe('strip observer with the drawer selectors', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('observes the top strip and the bottom cluster, and not the HUD panel', () => {
+    mountPage();
+    const strip = document.getElementById('touch-strip') as HTMLElement;
+    const observed: Element[] = [];
+    class FakeObserver {
+      observe(el: Element): void {
+        observed.push(el);
+      }
+      disconnect(): void {
+        // Nothing to release.
+      }
+    }
+    vi.stubGlobal('ResizeObserver', FakeObserver);
+    observeOverlayStrip(document, () => undefined, DRAWER_STRIP_SELECTORS);
+    expect(observed).toEqual([strip, document.getElementById(TOUCH_CLUSTER_ID)]);
+  });
+});
+
+describe('overlay turning off with the left drawer set up on the HUD panel', () => {
+  function setupLeftDrawer(): ReturnType<typeof setupTouchDrawers> {
+    stubLayout();
+    const hud = document.querySelector('.hud-panel') as HTMLElement;
+    const title = document.createElement('h2');
+    title.id = 'drawer-title-left';
+    hud.prepend(title);
+    const tab = document.createElement('button');
+    tab.id = 'tab-level';
+    const right = document.createElement('aside');
+    right.id = 'touch-menu-drawer';
+    right.classList.add('hidden');
+    const rightTitle = document.createElement('h2');
+    rightTitle.id = 'drawer-title-right';
+    right.appendChild(rightTitle);
+    const rightTab = document.createElement('button');
+    const scrim = document.createElement('div');
+    document.body.append(tab, rightTab, right, scrim);
+    return setupTouchDrawers({
+      left: { side: 'left', drawer: hud, tab, titleId: title.id, hideWhenOff: false },
+      right: { side: 'right', drawer: right, tab: rightTab, titleId: rightTitle.id, hideWhenOff: true },
+      scrim
+    });
+  }
+
+  beforeEach(() => {
+    mountPage();
+  });
+
+  function expectPlainHud(): void {
+    const hud = document.querySelector('.hud-panel') as HTMLElement;
+    for (const attribute of ['inert', 'hidden', 'aria-modal', 'role', 'aria-labelledby']) {
+      expect(hud.hasAttribute(attribute)).toBe(false);
+    }
+    expect(hud.classList.contains('hidden')).toBe(false);
+    expect(isDialogOpen()).toBe(false);
+  }
+
+  it('leaves the HUD panel as plain markup when the drawer was closed', () => {
+    const drawers = setupLeftDrawer();
+    drawers.destroy();
+    expectPlainHud();
+  });
+
+  it('closes the drawer and leaves the HUD panel as plain markup when it was open', () => {
+    const drawers = setupLeftDrawer();
+    drawers.open('left');
+    expect(isDialogOpen()).toBe(true);
+    drawers.destroy();
+    expectPlainHud();
+    syncHudGroup(document.querySelector('.hud-panel'), false, 'unused', false);
+    expectPlainHud();
+  });
+});
+
+describe('drawer layout markup', () => {
+  beforeEach(() => {
+    mountPage();
+    i18n.translateDOM(document);
+  });
+
+  it('has a status strip in the screen with the level, count and time and two named tabs', () => {
+    const strip = document.getElementById('touch-strip') as HTMLElement;
+    expect(strip.closest('.lcd-screen')).not.toBeNull();
+    expect(strip.getAttribute('role')).toBe('group');
+    expect(strip.getAttribute('aria-live')).toBeNull();
+    for (const id of ['touch-strip-level', 'touch-strip-count-label', 'touch-strip-count-value', 'touch-strip-time-value']) {
+      expect(document.getElementById(id)).not.toBeNull();
+    }
+    for (const id of ['touch-tab-level', 'touch-tab-menu']) {
+      const tab = document.getElementById(id) as HTMLElement;
+      expect(tab.getAttribute('type')).toBe('button');
+      expect(tab.getAttribute('aria-label')).toBeTruthy();
+      expect(strip.contains(tab)).toBe(true);
+    }
+    expect(document.getElementById('touch-tab-level')?.getAttribute('aria-label')).not.toBe(
+      document.getElementById('touch-tab-menu')?.getAttribute('aria-label')
+    );
+  });
+
+  it('has an aria-hidden joystick zone and a hidden scrim', () => {
+    expect(document.getElementById('joystick-zone')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.getElementById('touch-drawer-scrim')?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('keeps the cluster to Undo and the drop buttons for the drawer layout (Pause and Menu are hidden by the stylesheet)', () => {
+    const cluster = document.getElementById(TOUCH_CLUSTER_ID) as HTMLElement;
+    const ids = Array.from(cluster.querySelectorAll('button')).map((b) => b.id);
+    expect(ids).toEqual(expect.arrayContaining(['touch-btn-undo', 'touch-btn-charge', 'touch-btn-gate', 'touch-btn-stone']));
+    expect(DRAWER_STRIP_SELECTORS).toContain(`#${TOUCH_CLUSTER_ID}`);
+  });
+
+  it('has the game menu drawer with every action the plan lists, the closed drawer hidden', () => {
+    const menu = document.getElementById('touch-menu-drawer') as HTMLElement;
+    expect(menu.classList.contains('hidden')).toBe(true);
+    expect(menu.querySelector('#touch-menu-title')).not.toBeNull();
+    for (const id of [
+      'touch-menu-resume',
+      'touch-menu-undo',
+      'touch-menu-restart',
+      'touch-menu-hint',
+      'touch-menu-solution',
+      'touch-style-select',
+      'touch-menu-options',
+      'touch-menu-levels',
+      'touch-menu-exit-fullscreen'
+    ]) {
+      expect(menu.querySelector(`#${id}`)).not.toBeNull();
+    }
+    expect(menu.querySelector('label[for="touch-style-select"]')).not.toBeNull();
+  });
+
+  it('sets the real markup up as two drawers: titled, tabs wired, and torn down to plain markup', () => {
+    stubLayout();
+    const hud = document.querySelector('.hud-panel') as HTMLElement;
+    const drawers = setupTouchDrawers({
+      left: { side: 'left', drawer: hud, tab: document.getElementById('touch-tab-level') as HTMLElement, titleId: 'touch-level-title', hideWhenOff: false },
+      right: { side: 'right', drawer: document.getElementById('touch-menu-drawer') as HTMLElement, tab: document.getElementById('touch-tab-menu') as HTMLElement, titleId: 'touch-menu-title', hideWhenOff: true },
+      scrim: document.getElementById('touch-drawer-scrim') as HTMLElement
+    });
+    expect(document.getElementById(hud.getAttribute('aria-labelledby') ?? '')).not.toBeNull();
+    drawers.open('left');
+    expect(isDialogOpen(hud)).toBe(true);
+    drawers.destroy();
+    expect(hud.hasAttribute('role')).toBe(false);
+    expect(hud.classList.contains('hidden')).toBe(false);
+    expect(document.getElementById('touch-menu-drawer')?.classList.contains('hidden')).toBe(true);
+    expect(isDialogOpen()).toBe(false);
+  });
+});
+
+describe('touch settings rows', () => {
+  beforeEach(() => {
+    mountPage();
+  });
+
+  it('puts the touch control select next to the pad side with floating and fixed', () => {
+    const select = document.getElementById('touch-control-select') as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(['floating', 'fixed']);
+    expect(select.closest('.drawer-section')).toBe(document.getElementById('dpad-side-select')?.closest('.drawer-section'));
+    expect(document.querySelector('label[for="touch-control-select"]')).not.toBeNull();
+    expect(select.closest('.touch-setting-row')).not.toBeNull();
+  });
+
+  it('has a haptics toggle in its own touch row that the code can hide', () => {
+    const button = document.getElementById('btn-haptics-toggle') as HTMLElement;
+    expect(button.closest('#haptics-setting-row')?.classList.contains('touch-setting-row')).toBe(true);
+  });
+});
+
+describe('canvas swipe in floating mode', () => {
+  it('leaves the three canvas touch handlers early while the floating joystick is active', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8');
+    const guards = source.match(/this\.floatingActive\) return;/g) ?? [];
+    expect(guards.length).toBe(3);
   });
 });

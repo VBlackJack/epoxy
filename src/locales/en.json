@@ -26,6 +26,8 @@
       "fov": { "label": "Zoom:" },
       "fov_option": { "label": "{size} rows" },
       "dpad_side": { "label": "Directional pad (touch):", "left": "Left", "right": "Right" },
+      "touch_control": { "label": "Touch control:", "floating": "Floating joystick", "fixed": "Fixed pad" },
+      "haptics_toggle": { "action_on": "Vibration: on", "action_off": "Vibration: off" },
       "audio_toggle": { "action_on": "Sound effects: on", "action_off": "Sound effects: off" },
       "music_toggle": { "action_on": "Music: on", "action_off": "Music: off" },
       "sfx_volume": { "label": "Effects volume" },
@@ -415,7 +417,30 @@
       "chips": { "short": "CHIPS" },
       "targets": { "short": "TARGETS" },
       "receivers": { "short": "RECV." },
-      "time": { "short": "TIME" }
+      "time": { "short": "TIME" },
+      "strip": { "label": "Level status bar" },
+      "tab": {
+        "level": { "label": "Level, boots and keys" },
+        "menu": { "label": "Game menu" }
+      },
+      "drawer": {
+        "level": { "title": "Level" },
+        "menu": { "title": "Game menu" },
+        "close": { "action": "Close" }
+      },
+      "menu_drawer": {
+        "resume": { "action": "Resume" },
+        "all_options": { "action": "All options" },
+        "levels": { "action": "Levels" },
+        "exit_fullscreen": { "action": "Exit full screen" }
+      },
+      "level": { "short": "LV {number}" },
+      "count": {
+        "chips": { "label": "{count} chips left" },
+        "targets": { "label": "{count} targets left" },
+        "receivers": { "label": "{count} receivers left" },
+        "time": { "label": "{seconds} seconds left" }
+      }
     },
     "messages": {
       "hint_prefix": { "label": "HINT: " },
@@ -507,7 +532,7 @@
     "onboarding_modal": {
       "title": { "label": "How to play" },
       "move_keys": { "label": "Computer: move with the arrow keys, WASD or ZQSD." },
-      "move_touch": { "label": "Phone: swipe on the board or use the on-screen pad." },
+      "move_touch": { "label": "Phone: put your thumb anywhere on the board and slide to steer (hold to keep walking), tap a cell to walk there. A fixed on-screen pad is available in the options." },
       "undo": { "label": "U: undo your last step." },
       "restart": { "label": "R: restart the level." },
       "objective": { "label": "H: show what to do next (the Hint button on a phone)." },
