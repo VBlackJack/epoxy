@@ -310,6 +310,8 @@ editor tile charge_lit closed=true 9574c31c5dc882d3
 editor tile charge_lit closed=false 31e54f25d543a967
 editor tile pocket_gate closed=true 34787c13bf137add
 editor tile pocket_gate closed=false b5d3e47628837bfb
+editor tile hurl_stone closed=true e38129f77a477efb
+editor tile hurl_stone closed=false 67ca11e889aab3d4
 editor tile bomb closed=true cb5b1c728fd35959
 editor tile bomb closed=false d18f0390a11d25ea
 editor tile score_10 closed=true 69a1e8c73ea0b29e
@@ -341,6 +343,7 @@ editor item over floor ward 17ead71f9f1837c8
 editor item over floor charge e38d372e6f206c1f
 editor item over floor charge_lit 871167b1ee2099d2
 editor item over floor pocket_gate b348b3c4cc813437
+editor item over floor hurl_stone 02da391d6e1fb458
 editor item over floor bomb 2fda3e23b0749d54
 editor item over floor score_10 07e51db5a89793af
 editor item over floor score_100 82b54e4fe2197452

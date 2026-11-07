@@ -43,6 +43,15 @@ export const GATE_ITEM_ID = 'pocket_gate';
 /** Terrain id of the pad a pocket gate becomes where it is set down. */
 export const GATE_PAD_TILE_ID = 'pocket_gate_pad';
 
+/** Item id of the hurl stone a player carries and throws. */
+export const STONE_ITEM_ID = 'hurl_stone';
+
+/** Payload of a shot the player threw, as opposed to one a launcher fired. */
+export const STONE_SHOT_PAYLOAD = 'hurl_stone';
+
+/** Message key of the death caused by a thrown stone that came back. */
+export const STONE_DEATH_REASON_KEY = 'hud.messages.death_stone';
+
 /** Half-width (Chebyshev radius) of the square a blast charge clears of monsters and blocks, and kills the player in. */
 export const CHARGE_BLAST_RADIUS = 1;
 

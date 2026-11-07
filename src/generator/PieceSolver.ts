@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, MAX_SOLVER_CACHE_ENTRIES, ORDERED_DIRECTIONS } from '../config/constants';
-import { CHARGE_ITEM_ID, EXIT_TILE_ID, FLOOR_TILE_ID, GATE_ITEM_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from '../core/coreConstants';
+import { CHARGE_ITEM_ID, EXIT_TILE_ID, FLOOR_TILE_ID, GATE_ITEM_ID, OPPOSITE_DIRECTION, STONE_ITEM_ID, WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, EntityPlacement, GridPoint, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
@@ -38,8 +38,10 @@ export const WAIT_ACTION = 'WAIT';
 export const DROP_CHARGE_ACTION = 'DROP_CHARGE';
 /** Setting a held pocket gate down on the player's cell, as a teleporter pad. */
 export const DROP_GATE_ACTION = 'DROP_GATE';
-/** The actions that put a held item down. */
-export type DropAction = typeof DROP_CHARGE_ACTION | typeof DROP_GATE_ACTION;
+/** Throwing a held hurl stone one cell ahead in the direction faced. */
+export const DROP_STONE_ACTION = 'DROP_STONE';
+/** The actions that put a held item down or throw it. */
+export type DropAction = typeof DROP_CHARGE_ACTION | typeof DROP_GATE_ACTION | typeof DROP_STONE_ACTION;
 export type SolverAction = Direction | typeof WAIT_ACTION | DropAction;
 /** The actions a search tries from a state: a step or a wait (dropping an item is never searched). */
 export type MoveAction = Direction | typeof WAIT_ACTION;
@@ -47,11 +49,12 @@ export type MoveAction = Direction | typeof WAIT_ACTION;
 /** The item each drop action puts down. */
 export const DROP_ACTION_ITEMS: Readonly<Record<DropAction, string>> = {
   [DROP_CHARGE_ACTION]: CHARGE_ITEM_ID,
-  [DROP_GATE_ACTION]: GATE_ITEM_ID
+  [DROP_GATE_ACTION]: GATE_ITEM_ID,
+  [DROP_STONE_ACTION]: STONE_ITEM_ID
 };
 
 export function isDropAction(action: SolverAction): action is DropAction {
-  return action === DROP_CHARGE_ACTION || action === DROP_GATE_ACTION;
+  return action === DROP_CHARGE_ACTION || action === DROP_GATE_ACTION || action === DROP_STONE_ACTION;
 }
 
 export function isMoveAction(action: SolverAction): action is MoveAction {
@@ -67,10 +70,14 @@ export const DROP_CHARGE_LETTER = 'X';
 /** Letter standing for setting down a pocket gate in a written action list. */
 export const DROP_GATE_LETTER = 'G';
 
+/** Letter standing for throwing a hurl stone in a written action list. */
+export const DROP_STONE_LETTER = 'T';
+
 /** The letter of each drop action in a written action list. */
 const DROP_ACTION_LETTERS: Readonly<Record<DropAction, string>> = {
   [DROP_CHARGE_ACTION]: DROP_CHARGE_LETTER,
-  [DROP_GATE_ACTION]: DROP_GATE_LETTER
+  [DROP_GATE_ACTION]: DROP_GATE_LETTER,
+  [DROP_STONE_ACTION]: DROP_STONE_LETTER
 };
 
 export function encodeActions(actions: readonly SolverAction[]): string {
@@ -84,6 +91,7 @@ export function decodeActions(text: string): SolverAction[] {
     if (ch === WAIT_LETTER) return WAIT_ACTION;
     if (ch === DROP_CHARGE_LETTER) return DROP_CHARGE_ACTION;
     if (ch === DROP_GATE_LETTER) return DROP_GATE_ACTION;
+    if (ch === DROP_STONE_LETTER) return DROP_STONE_ACTION;
     return ch as Direction;
   });
 }

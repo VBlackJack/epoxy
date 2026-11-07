@@ -24,8 +24,10 @@ import {
   hasChargeContent,
   hasPocketGateContent,
   hasPullBootsContent,
+  hasStoneContent,
   isChargeTileId,
   isPocketGateTileId,
+  isStoneTileId,
   isWardTileId
 } from './RulesetFeatures';
 import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
@@ -50,6 +52,12 @@ function chargeAvailable(engine: GameEngine): boolean {
 function gateAvailable(engine: GameEngine): boolean {
   if (Object.entries(engine.getPlayer().keys).some(([id, count]) => count > 0 && isPocketGateTileId(id))) return true;
   return hasPocketGateContent({ terrain: engine.getTerrain(), items: engine.getItems(), underlays: engine.getLevel().underlays });
+}
+
+/** True when a hurl stone is held or lies on the map: a throw destroys monsters and melts ice blocks, which the search does not model. */
+function stoneAvailable(engine: GameEngine): boolean {
+  if (Object.entries(engine.getPlayer().keys).some(([id, count]) => count > 0 && isStoneTileId(id))) return true;
+  return hasStoneContent({ terrain: engine.getTerrain(), items: engine.getItems() });
 }
 
 const TURN_PLATE_CW_TILE_ID = 'turn_plate_cw';
@@ -263,7 +271,7 @@ export class BlockPuzzleSolver {
     // A ward destroys the first monster touched, so no monster is a permanent wall while one is held or lies on the map.
     if (wardAvailable(engine)) return false;
     // A blast charge destroys monsters and blocks, so neither stays a permanent wall; a pocket gate moves them.
-    if (chargeAvailable(engine) || gateAvailable(engine)) return false;
+    if (chargeAvailable(engine) || gateAvailable(engine) || stoneAvailable(engine)) return false;
     const detector = new BlockPuzzleSolver(engine);
     if (detector.buttons.length === 0) return false;
     // Separate block puzzles (two Sokoban rooms) are judged one at a time.
@@ -367,7 +375,7 @@ export class BlockPuzzleSolver {
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;
     // A blast charge destroys monsters and blocks and a pocket gate moves them: the search does not model either.
-    if (chargeAvailable(engine) || gateAvailable(engine)) return null;
+    if (chargeAvailable(engine) || gateAvailable(engine) || stoneAvailable(engine)) return null;
     // Flying shots destroy blocks and monsters: the search does not model them.
     if (engine.getShots() !== undefined || (engine.getLevel().launcherLinks?.length ?? 0) > 0) return null;
     const { x, y } = engine.getPlayer();
@@ -445,7 +453,7 @@ export class BlockPuzzleSolver {
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;
     // A blast charge destroys monsters and blocks and a pocket gate moves them: the search does not model either.
-    if (chargeAvailable(engine) || gateAvailable(engine)) return null;
+    if (chargeAvailable(engine) || gateAvailable(engine) || stoneAvailable(engine)) return null;
     const solver = new BlockPuzzleSolver(engine);
     const occupied = new Set(solver.blocks);
     for (const area of solver.areas()) {

@@ -161,7 +161,7 @@ describe('floating controls', () => {
     const cluster = document.getElementById(TOUCH_CLUSTER_ID) as HTMLElement;
     expect(cluster.hasAttribute('hidden')).toBe(true);
     const buttons = Array.from(cluster.querySelectorAll('button'));
-    expect(buttons.map((b) => b.id)).toEqual(['touch-btn-pause', 'touch-btn-undo', 'touch-btn-charge', 'touch-btn-gate', 'touch-btn-menu']);
+    expect(buttons.map((b) => b.id)).toEqual(['touch-btn-pause', 'touch-btn-undo', 'touch-btn-charge', 'touch-btn-gate', 'touch-btn-stone', 'touch-btn-menu']);
     for (const button of buttons) {
       expect(button.getAttribute('type')).toBe('button');
       expect(button.getAttribute('data-i18n-aria-label')).toBeTruthy();

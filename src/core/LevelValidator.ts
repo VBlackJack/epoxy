@@ -583,6 +583,10 @@ export class LevelValidator {
       // with each other, so once gates and placed pads can make a pair the walk over-approximates: every reached cell
       // and every placed pad link with each other (see linkPocketPads). Kept across passes: the item is gone from the grid by then.
       let gateCount = 0;
+      // Hurl stones the walk has picked up. A stone sets off a bomb it is thrown at, so once one is reachable every bomb
+      // is taken as passable (an over-approximation: the throw needs a clear line, and a stone is used up by one throw).
+      // Kept across passes: the item is gone from the grid by then.
+      let stoneCount = 0;
 
       // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
       this.applySignalSinks(level, blockTypes, stockBlocks, simItems);
@@ -593,6 +597,17 @@ export class LevelValidator {
       while (changed && passes < MAX_FIXPOINT_PASSES) {
         changed = false;
         passes++;
+        if (stoneCount > 0) {
+          for (const row of simItems) {
+            for (let cx = 0; cx < row.length; cx++) {
+              const cell = row[cx];
+              if (cell && ConfigRegistry.getTile(cell).hazard === 'bomb') {
+                row[cx] = null;
+                changed = true;
+              }
+            }
+          }
+        }
         if (meter) {
           meter.passes++;
           // The visited grid of every mask, then the closedDoors scan of the whole grid.
@@ -635,6 +650,10 @@ export class LevelValidator {
             changed = true;
           } else if (itemDef.collectible === 'gate') {
             gateCount++;
+            simItems[cy][cx] = null;
+            changed = true;
+          } else if (itemDef.collectible === 'stone') {
+            stoneCount++;
             simItems[cy][cx] = null;
             changed = true;
           } else if (itemDef.collectible === 'boot') {
@@ -1699,6 +1718,8 @@ export class LevelValidator {
     const jetCells: GridPoint[] = [];
     const swivelCells: GridPoint[] = [];
     const plateCells: GridPoint[] = [];
+    const railSwitchCells: GridPoint[] = [];
+    let greenButtons = 0;
     const gateCellsByGroup = new Map<string, GridPoint[]>();
     const teleportCellsByGroup = new Map<string, GridPoint[]>();
     const portableGroups = new Set<string>();
@@ -1723,6 +1744,8 @@ export class LevelValidator {
           if (tile.buttonAction === 'toggle_flames') orangeButtons++;
           if (tile.flameTogglesTo !== undefined) jetCells.push({ x, y });
           if (tile.facingTurn !== undefined) plateCells.push({ x, y });
+          if (tile.railSides !== undefined && tile.togglesTo !== undefined) railSwitchCells.push({ x, y });
+          if (tile.buttonAction === 'toggle_walls') greenButtons++;
           if (tile.isTeleporter) {
             const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
             teleportCellsByGroup.set(group, [...(teleportCellsByGroup.get(group) ?? []), { x, y }]);
@@ -1769,6 +1792,9 @@ export class LevelValidator {
     }
     if (jetCells.length > 0 && orangeButtons === 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.flame_jets_no_button.label', params: this.locationParams(jetCells) });
+    }
+    if (railSwitchCells.length > 0 && greenButtons === 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.rail_switch_no_button.label', params: this.locationParams(railSwitchCells) });
     }
     const sealed = swivelCells.filter((cell) => this.isSwivelSealed(level, cell, underlays));
     if (sealed.length > 0) {

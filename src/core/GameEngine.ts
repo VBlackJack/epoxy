@@ -51,7 +51,7 @@ import {
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
-import { advanceShots, shotsStateKey } from './epoxy/epoxyShots';
+import { advanceShots, canThrowStone, shotsStateKey, throwStone } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
   EpoxyContext,
@@ -89,6 +89,9 @@ import {
 
 /** The walking cooldown never drops under one tick, however fast the boots. */
 const MIN_WALK_COOLDOWN_TICKS = 1;
+
+/** Collectibles held as a count beside the keys: a key colour, a blast charge, a pocket gate and a hurl stone. */
+const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gate', 'stone']);
 
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
@@ -253,11 +256,11 @@ export class GameEngine {
   }
 
   /**
-   * The shots in flight, in the order they were fired; undefined on a level without shot launchers, so
-   * nothing about shots reaches a level that has none. The list is shared: do not mutate it.
+   * The shots in flight, in the order they were fired; undefined on a level without shot launchers or hurl stones,
+   * so nothing about shots reaches a level that has none. The list is shared: do not mutate it.
    */
   public getShots(): readonly Shot[] | undefined {
-    return this.w.hasLaunchers ? this.w.shots : undefined;
+    return this.w.hasShots ? this.w.shots : undefined;
   }
 
   /** The state of the signal network; undefined on a level without one, so nothing about it reaches such a level or its hash. */
@@ -377,12 +380,12 @@ export class GameEngine {
     return this.w.levelBonusPoints;
   }
 
-  /** Keys, blast charges and boots the player holds, in the order of tiles.json. */
+  /** Keys, blast charges, pocket gates, hurl stones and boots the player holds, in the order of tiles.json. */
   public getHeldItems(): string[] {
     const held: string[] = [];
     for (const id of Object.keys(ConfigRegistry.getTiles().tiles)) {
       const def = ConfigRegistry.getTile(id);
-      if ((def.collectible === 'key' || def.collectible === 'charge' || def.collectible === 'gate') && (this.w.player.keys[id] || 0) > 0) held.push(id);
+      if (COUNTED_COLLECTIBLES.has(def.collectible ?? '') && (this.w.player.keys[id] || 0) > 0) held.push(id);
       else if (def.collectible === 'boot' && this.w.player.boots.has(id)) held.push(id);
     }
     return held;
@@ -406,6 +409,8 @@ export class GameEngine {
       this.w.statusBannerKey = 'hud.messages.drop_nothing';
       return false;
     }
+    // A hurl stone is thrown ahead, not set down: the cell under the player does not matter.
+    if (ConfigRegistry.getTile(itemId).collectible === 'stone') return this.throwHeldStone(itemId);
     const x = this.w.player.x;
     const y = this.w.player.y;
     if (this.w.items[y][x] !== null) {
@@ -429,7 +434,7 @@ export class GameEngine {
     }
 
     this.saveUndoSnapshot();
-    if (def.collectible === 'key' || def.collectible === 'charge' || def.collectible === 'gate') {
+    if (COUNTED_COLLECTIBLES.has(def.collectible ?? '')) {
       const left = (this.w.player.keys[itemId] || 0) - 1;
       if (left > 0) {
         this.w.player.keys[itemId] = left;
@@ -453,6 +458,39 @@ export class GameEngine {
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, drop: itemId });
     AudioManager.playSfx('item');
     this.emitVisual('item', x, y, def.colorKey || 'blue');
+    return true;
+  }
+
+  /**
+   * Throws the held hurl stone one cell ahead in the direction faced. Refused, with no tick and the stone kept, while
+   * the player is sliding or still in the cooldown of a step, and when the cell ahead would stop the stone at once.
+   * The stone is single-use: it is gone once it ends. Returns false when nothing was thrown.
+   */
+  private throwHeldStone(itemId: string): boolean {
+    const { x, y, dir } = this.w.player;
+    if (this.w.player.isSliding || this.w.player.moveCooldown > 0) {
+      this.w.statusBannerKey = 'hud.messages.throw_busy';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+    if (!canThrowStone(this.w, x, y, dir)) {
+      this.w.statusBannerKey = 'hud.messages.throw_blocked';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+    this.saveUndoSnapshot();
+    const left = (this.w.player.keys[itemId] || 0) - 1;
+    if (left > 0) {
+      this.w.player.keys[itemId] = left;
+    } else {
+      delete this.w.player.keys[itemId];
+    }
+    throwStone(this.ctx);
+    // A bomb or a block gone from a beam path changes the beams.
+    this.w.beamDirty = true;
+    this.w.statusBannerKey = null;
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir, drop: itemId });
+    AudioManager.playSfx('item');
     return true;
   }
 
@@ -554,8 +592,8 @@ export class GameEngine {
       timedMoveHistoryLength: this.timedMoveHistory.length,
       // Only a level with turrets reads the play start; the other snapshots stay as they were.
       ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {}),
-      // Only a level with shot launchers has shots to put back.
-      ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
+      // Only a level with shot launchers or hurl stones has shots to put back.
+      ...(this.w.hasShots ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
       // Only a level with a toggle wall or flame jet under a removable top reads the parity of the presses.
       ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
       // Only a level with a turning force floor counts arrivals on it.

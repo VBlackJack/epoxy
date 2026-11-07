@@ -47,6 +47,8 @@ export interface TimingConfig {
   maxUndoSnapshots: number;
   /** Ticks from the moment a blast charge is dropped to its blast. */
   chargeFuseTicks: number;
+  /** Ticks a thrown hurl stone takes to cross one cell (a whole number of at least 1). */
+  hurlStepTicks: number;
   timeBonusMultiplier: number;
   levelBasePoints: number;
   goldTimeRatio?: number;
@@ -1065,7 +1067,7 @@ export interface TileDefinition {
   requiredKey?: string;
   consumesKey?: boolean;
   colorKey?: string;
-  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge' | 'gate';
+  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge' | 'gate' | 'stone';
   /** A blast charge: the lit item it turns into when the player drops it. */
   dropsAs?: string;
   /** A pocket gate: the terrain tile it turns the player's floor cell into when dropped. */
@@ -1452,6 +1454,8 @@ export interface Shot {
   dir: Direction;
   /** Ticks left to wait before the shot crosses its next cell. */
   cooldown: number;
+  /** What the shot is when it is not a launcher's: a stone the player threw. Absent on a launcher shot. */
+  payload?: 'hurl_stone';
 }
 
 export interface CloneLink {

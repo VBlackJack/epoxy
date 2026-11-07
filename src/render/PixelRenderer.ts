@@ -326,6 +326,12 @@ const CHARGE_ART = {
   wickWidthTile: 0.035,
   sparkRadius: 0.075
 } as const;
+/** Hurl stone, as tile fractions: the outline of an irregular rock and the lit facet on its upper left. */
+const STONE_ART = {
+  outline: [[0.28, 0.5], [0.34, 0.36], [0.5, 0.3], [0.66, 0.36], [0.74, 0.52], [0.68, 0.68], [0.5, 0.74], [0.34, 0.66]] as ReadonlyArray<readonly [number, number]>,
+  facet: [[0.34, 0.4], [0.5, 0.34], [0.58, 0.4], [0.44, 0.52], [0.36, 0.52]] as ReadonlyArray<readonly [number, number]>,
+  lineWidthTile: 0.035
+} as const;
 /**
  * Pocket gate pad, as tile fractions: a ring with a notch cut out of its top, a dot at the centre, and the width of
  * the ring line. The pad is still (no swirl), so it never reads as one of the portals. The gate item reuses the ring
@@ -3683,6 +3689,33 @@ export class PixelRenderer {
     ctx.restore();
   }
 
+  /** A hurl stone: an irregular rock, lit on its upper left. */
+  private paintStone(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const trace = (points: ReadonlyArray<readonly [number, number]>): void => {
+      ctx.beginPath();
+      points.forEach(([px, py], index) => (index === 0 ? ctx.moveTo(x + size * px, y + size * py) : ctx.lineTo(x + size * px, y + size * py)));
+      ctx.closePath();
+    };
+    ctx.save();
+    ctx.fillStyle = pal.wallBase;
+    trace(STONE_ART.outline);
+    ctx.fill();
+    ctx.strokeStyle = pal.wallShadow;
+    ctx.lineWidth = Math.max(1, size * STONE_ART.lineWidthTile);
+    ctx.lineJoin = 'round';
+    if (isModern) {
+      ctx.shadowColor = pal.wallShadow;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = pal.wallTop;
+    trace(STONE_ART.facet);
+    ctx.fill();
+    ctx.restore();
+  }
+
   /** A blast charge: a banded canister; lit, it carries a burning wick. */
   private paintCharge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean, lit: boolean): void {
     const pal = this.pal();
@@ -5387,6 +5420,11 @@ export class PixelRenderer {
 
       case 'pocket_gate': {
         this.paintPocketGate(ctx, x, y, size, isModern);
+        break;
+      }
+
+      case 'hurl_stone': {
+        this.paintStone(ctx, x, y, size, isModern);
         break;
       }
 
