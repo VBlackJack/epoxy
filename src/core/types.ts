@@ -1626,8 +1626,11 @@ export interface SignalState {
 /** How a signal source reads the world: a held source is on while its cell is occupied, a receiver source while a laser lights it. */
 export type SignalSampler = 'held' | 'pulse' | 'receiver';
 
-/** What a signal sink fires on a rising edge of its input: a shot launcher, or a clone machine. */
-export type SignalSinkFires = 'launcher' | 'cloner';
+/**
+ * What a signal sink fires on a rising edge of its input: a shot launcher, a clone machine, or a flip tile (a green
+ * toggle wall or a rail switch: the one cell swaps to its other form).
+ */
+export type SignalSinkFires = 'launcher' | 'cloner' | 'flip';
 
 /** A node of a signal network with what the engine needs to read or drive it. */
 export interface SignalNodeDef extends SignalNodeSpec {
@@ -1635,7 +1638,7 @@ export interface SignalNodeDef extends SignalNodeSpec {
   sample?: SignalSampler;
   /** Sink nodes only: the colour of the hold doors the node drives, as a pressed plate of that colour would. */
   color?: ChannelColor;
-  /** Sink nodes only: the device the node fires once on each rising edge of its input. A sink has a colour or `fires`, never both. */
+  /** Sink nodes only: the device the node fires once on each rising edge of its input. A sink has exactly one kind: a colour or `fires`. */
   fires?: SignalSinkFires;
 }
 

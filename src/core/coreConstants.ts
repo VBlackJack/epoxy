@@ -73,6 +73,13 @@ export const BLOCK_TARGET_TILE_ID = 'block_target';
 /** Tile ids the pack format check reads without the tile registry (an early export may run before the configs load). */
 export const SIGNAL_BUTTON_TILE_ID = 'signal_button';
 export const CLONE_MACHINE_TILE_ID = 'clone_machine';
+/** The shipped tiles a signal link can flip (green toggle walls and rail switches), read by name before the configs are loaded. */
+export const FLIP_SINK_TILE_IDS: ReadonlySet<string> = new Set([
+  'toggle_wall_closed',
+  'toggle_wall_open',
+  'rail_switch_a',
+  'rail_switch_b'
+]);
 export const SHOT_LAUNCHER_TILE_ID_PREFIX = 'shot_launcher_';
 
 /** Terrain that only shows a hint: walkable by the player and pushable across by a block, with no effect. */

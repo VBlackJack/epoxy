@@ -32,6 +32,7 @@ import {
 } from '../config/ConfigValidation';
 import {
   CLONE_MACHINE_TILE_ID,
+  FLIP_SINK_TILE_IDS,
   SHOT_LAUNCHER_TILE_ID_PREFIX,
   SIGNAL_BUTTON_TILE_ID,
   SIGNAL_PORT_MAX_LENGTH,
@@ -48,8 +49,33 @@ interface CellNode {
   def: SignalNodeDef;
 }
 
-/** The node a tile makes of its cell, or null when the tile takes no part in signals. */
-function nodeOfTile(tile: TileDefinition, cell: number): CellNode | null {
+/** What a sink is, as its node def carries it: exactly one of a hold door colour or a device to fire. A third kind slots in here. */
+export type SignalSinkKind = Pick<SignalNodeDef, 'color' | 'fires'>;
+
+/** Options of signalSinkOf. */
+interface SignalSinkOptions {
+  /** The tile is the terrain hidden under a removable top. A flip tile there is never a sink (see signalSinkOf). */
+  hidden?: boolean;
+}
+
+/**
+ * The sink a tile makes of its cell, or null when the tile is not a sink. The one place that says what a sink is,
+ * read by the compiler, the pack format predicates and the editor. A hold door drives a colour; a shot launcher, a
+ * clone machine and a flip tile (a green toggle wall or a rail switch: any tile with `togglesTo`) fire once on each
+ * rising edge of their input. A flip tile hidden under a removable top is no sink: the per-family toggle parity of the
+ * green button counts a hidden wall by its own bookkeeping, and a wire must not change that cell behind its back. A
+ * hidden hold door, launcher or clone machine still is a sink.
+ */
+export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = {}): SignalSinkKind | null {
+  if (tile.holdDoorColor !== undefined) return { color: tile.holdDoorColor };
+  if (tile.shotLauncher !== undefined) return { fires: 'launcher' };
+  if (tile.isCloneMachine) return { fires: 'cloner' };
+  if (tile.togglesTo !== undefined && options.hidden !== true) return { fires: 'flip' };
+  return null;
+}
+
+/** The node a tile makes of its cell, or null when the tile takes no part in signals. `hidden`: the tile lies under a removable top. */
+function nodeOfTile(tile: TileDefinition, cell: number, hidden: boolean = false): CellNode | null {
   if (tile.laserReceiverGroup !== undefined) {
     return { role: 'source', def: { cell, kind: 'source', sample: 'receiver' } };
   }
@@ -63,16 +89,8 @@ function nodeOfTile(tile: TileDefinition, cell: number): CellNode | null {
         : { cell, kind: tile.signalGate };
     return { role: 'gate', def };
   }
-  if (tile.holdDoorColor !== undefined) {
-    return { role: 'sink', def: { cell, kind: 'sink', color: tile.holdDoorColor } };
-  }
-  if (tile.shotLauncher !== undefined) {
-    return { role: 'sink', def: { cell, kind: 'sink', fires: 'launcher' } };
-  }
-  if (tile.isCloneMachine) {
-    return { role: 'sink', def: { cell, kind: 'sink', fires: 'cloner' } };
-  }
-  return null;
+  const sink = signalSinkOf(tile, { hidden });
+  return sink === null ? null : { role: 'sink', def: { cell, kind: 'sink', ...sink } };
 }
 
 /** The node of a cell: its top, or the terrain hidden under it when the top takes no part (a hidden device works once the top is gone). */
@@ -85,12 +103,12 @@ function nodeAt(
 ): CellNode | null {
   const width = terrain[0]?.length ?? 0;
   const cell = y * width + x;
-  for (const id of [terrain[y][x], hidden.get(cell)]) {
-    const tile = id === undefined ? undefined : lookup(id);
-    const node = tile === undefined ? null : nodeOfTile(tile, cell);
-    if (node !== null) return node;
-  }
-  return null;
+  const top = lookup(terrain[y][x]);
+  const topNode = top === undefined ? null : nodeOfTile(top, cell);
+  if (topNode !== null) return topNode;
+  const under = hidden.get(cell);
+  const underTile = under === undefined ? undefined : lookup(under);
+  return underTile === undefined ? null : nodeOfTile(underTile, cell, true);
 }
 
 function hiddenTerrain(underlays: readonly CellUnderlay[] | null, width: number): Map<number, string> {
@@ -195,7 +213,8 @@ export function usesPulseSinkFormat(
     if (id === null || id === undefined) return false;
     if (id === CLONE_MACHINE_TILE_ID || id.startsWith(SHOT_LAUNCHER_TILE_ID_PREFIX)) return true;
     const tile = lookup?.(id);
-    return tile !== undefined && (tile.shotLauncher !== undefined || tile.isCloneMachine === true);
+    const fires = tile === undefined ? undefined : signalSinkOf(tile)?.fires;
+    return fires === 'launcher' || fires === 'cloner';
   };
   if (level.terrain.some((row) => row.some(isPulse))) return true;
   const underlays = level.underlays ?? [];
@@ -206,6 +225,26 @@ export function usesPulseSinkFormat(
     const { toX, toY } = link;
     if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
     return isEdgeSink(level.terrain[toY]?.[toX]) || isEdgeSink(hidden.get(`${toX},${toY}`));
+  });
+}
+
+/**
+ * True when a signal link of the level ends on a flip tile (a green toggle wall or a rail switch) in plain view. An
+ * older build would drop such a link silently, so the file needs a format that build refuses. The tile ids are read
+ * by name, so it holds before the configs are loaded; other tiles go through the lookup when there is one. A flip
+ * tile hidden under a removable top is no sink, so a link to it does not count (the load drops it too).
+ */
+export function usesFlipSinkFormat(
+  level: Pick<CompiledLevel, 'terrain' | 'signalLinks'>,
+  lookup: TerrainTileLookup | null = getRegisteredTerrainLookup()
+): boolean {
+  const isFlip = (id: string | null | undefined): boolean =>
+    id !== null && id !== undefined && (FLIP_SINK_TILE_IDS.has(id) || lookup?.(id)?.togglesTo !== undefined);
+  return (level.signalLinks ?? []).some((link) => {
+    if (link === null || typeof link !== 'object') return false;
+    const { toX, toY } = link;
+    if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
+    return isFlip(level.terrain[toY]?.[toX]);
   });
 }
 

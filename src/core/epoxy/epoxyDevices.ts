@@ -105,6 +105,20 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
   return true;
 }
 
+/**
+ * Flips one cell to the other form of its tile (a green toggle wall or a rail switch), as a wired signal asks on a rising
+ * edge. The cell changes whoever stands on it, as it does under the green button. A cell whose tile has no other form
+ * (it was replaced since the level loaded) is left as it is. The toggle parity of the green family is not touched: the
+ * flip is per cell, and a flip tile hidden under a removable top is never wired. The lasers are retraced.
+ */
+export function flipCellAt(w: EpoxyWorld, x: number, y: number): void {
+  const next = ConfigRegistry.getTile(w.terrain[y][x]).togglesTo;
+  if (next === undefined) return;
+  w.terrain[y][x] = next;
+  w.beamDirty = true;
+  AudioManager.playSfx(HOLD_DOOR_SFX);
+}
+
 /** Records one press of a toggle family, when the level hides a wall of that family under a removable top. */
 function flipToggleParity(w: EpoxyWorld, bit: number): void {
   if ((w.coveredToggleBits & bit) !== 0) w.toggleParity ^= bit;

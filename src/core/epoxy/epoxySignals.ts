@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
-import { fireClonerAt } from './epoxyDevices';
+import { fireClonerAt, flipCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, entityPressesPlate, mapWidth } from './epoxyWorld';
@@ -47,10 +47,13 @@ export interface SignalRuntime {
   carry: Set<number>;
 }
 
-/** Thrown when a source has no sampler or a sink neither a colour nor a device to fire (or both): a level no validator would have let through. */
+/** The fields of a sink def that name what the sink is. A sink has exactly one of them set; a third kind is added here. */
+const SINK_KIND_FIELDS = ['color', 'fires'] as const;
+
+/** Thrown when a source has no sampler or a sink does not have exactly one kind (a colour or a device to fire): a level no validator would have let through. */
 export class SignalWiringError extends Error {
   constructor(readonly cell: number) {
-    super(`signal wiring: node at cell ${cell} lacks its sampler or colour`);
+    super(`signal wiring: node at cell ${cell} lacks its sampler or has not exactly one sink kind`);
     this.name = 'SignalWiringError';
   }
 }
@@ -68,7 +71,7 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
       if (def.sample === undefined) throw new SignalWiringError(def.cell);
       defs.set(index, def);
     } else if (def.kind === 'sink') {
-      if ((def.color === undefined) === (def.fires === undefined)) throw new SignalWiringError(def.cell);
+      if (SINK_KIND_FIELDS.filter((field) => def[field] !== undefined).length !== 1) throw new SignalWiringError(def.cell);
       defs.set(index, def);
     }
   }
@@ -194,10 +197,10 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
 }
 
 /**
- * Fires the launchers and clone machines whose sink rose at the last settle, in evaluation order: a launcher shoots
- * and a clone machine spawns once, with the rules of a trigger (the per-tick launcher cap, the tile check, the
- * entity cap). Call it after the settle and the hold doors. Stops as soon as the player is dead or the level is
- * completed. A falling edge fires nothing.
+ * Fires the launchers, clone machines and flip tiles whose sink rose at the last settle, in evaluation order: a
+ * launcher shoots and a clone machine spawns once, with the rules of a trigger (the per-tick launcher cap, the tile
+ * check, the entity cap); a flip tile swaps to its other form. Call it after the settle and the hold doors. Stops as
+ * soon as the player is dead or the level is completed. Only a rising edge fires: a falling edge does nothing.
  */
 export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
   const w = ctx.world;
@@ -212,7 +215,8 @@ export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[])
     if (fires === undefined) continue;
     const x = edge.cell % width;
     const y = Math.floor(edge.cell / width);
-    if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y))) return;
+    if (fires === 'flip') flipCellAt(w, x, y);
+    else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y))) return;
   }
 }
 
