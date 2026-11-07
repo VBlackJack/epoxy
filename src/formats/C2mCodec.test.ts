@@ -396,7 +396,7 @@ describe('map cells', () => {
 
 describe('text', () => {
   it('round trips Windows-1252 text including the 0x80..0x9f block', () => {
-    const text = 'café € “quoted” … \u0081';
+    const text = 'caf\u00e9 \u20ac \u201cquoted\u201d \u2026 \u0081';
     expect(decodeWindows1252(encodeWindows1252(text))).toBe(text);
     expect(encodeWindows1252('€')[0]).toBe(0x80);
   });
