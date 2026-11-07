@@ -5,10 +5,6 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
-### Changed
-
-- Phone layout (full screen, touch): a floating joystick appears under the thumb, a status strip tops the board, the level panel (left) and a new game menu (right) are drawers opened from the strip tabs, and Undo plus the drop buttons sit in the corner of the chosen pad side. The fixed pad stays available through the new Touch control setting; vibration can be turned off.
-
 ### Added
 
 - Sanctuary Puzzle & Mechanism Encyclopedia (`public/configs/excavation-encyclopedia.json`, `src/config/excavationEncyclopedia.ts`, `docs/puzzle-encyclopedia.md` and `docs/fr/puzzle-encyclopedia.md`): 25 machine-verified puzzle archetypes across 9 families (`sluice`, `extraction`, `optics`, `kinetic`, `network`, `automata`, `transit`, `ballistics`, `parity`) with ASCII blueprints, design invariants, dead-end traps, chaining rules and verified shortest solutions, plus 9 sanctuary starter templates in the level editor (`boulder_sluice`, `counterweight_hold`, `grappling_alcove`, `prism_slalom`, `elemental_alchemy`, `rail_switchyard`, `monster_clock`, `turning_force`, `hurl_stone_ricochet` in `public/configs/templates.json`) and 10 Tier-5 sanctuary pieces in the procedural generator (`public/configs/motifs.json`, 169 pieces in total). Both locales.
@@ -18,6 +14,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Phone layout (full screen, touch): a floating joystick appears under the thumb, a status strip tops the board, the level panel (left) and a new game menu (right) are drawers opened from the strip tabs, and Undo plus the drop buttons sit in the corner of the chosen pad side. The fixed pad stays available through the new Touch control setting; vibration can be turned off.
 - Relay pads (lit and dark) have their own look in every style, a plug marks a green toggle wall or rail switch that a signal wire ends on, and the 16-Bit Toll Token is now drawn (it was invisible).
 
 ## [2.24.0] - 2026-11-07
