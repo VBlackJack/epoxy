@@ -135,7 +135,7 @@ const APPROX_ENTRIES: Record<string, string> = {
   gravel: GRAVEL_REASON,
   [KEY_SOCKET_RED_STACKED]: SOCKET_RED_STACKED_REASON,
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
-  water: 'The ice block behaves differently on water, and a colour block floats as a walkable tile that cannot be pushed again.',
+  water: 'A colour block floats as a walkable tile that cannot be pushed again.',
   socket: 'Epoxy sockets only react to the player.',
   slime: 'Slime is close to the Epoxy equivalent, not identical.',
   turtle: 'Turtle behaviour is close to the Epoxy equivalent, not identical.',

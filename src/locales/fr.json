@@ -3615,7 +3615,7 @@
       },
       "water": {
         "name": "Eau",
-        "label": "Le bloc de glace se comporte autrement sur l'eau, et un bloc de couleur flotte comme une case praticable qu'on ne peut plus pousser."
+        "label": "Un bloc de couleur flotte comme une case praticable qu'on ne peut plus pousser."
       },
       "force_random": {
         "name": "Tapis de force aléatoire",
@@ -4827,7 +4827,7 @@
     "ice_block": {
       "name": "Bloc de Glace Glissant",
       "desc": {
-        "label": "Un bloc que le joueur peut pousser. Fond en eau dans le feu ; un tir le détruit aussi, en ne laissant de l'eau que sur un sol simple."
+        "label": "Un bloc que le joueur peut pousser. Transforme l'eau en glace quand on le pousse dedans, et fond en eau dans le feu ; un tir le détruit aussi, en ne laissant de l'eau que sur un sol simple."
       }
     },
     "bug": {
