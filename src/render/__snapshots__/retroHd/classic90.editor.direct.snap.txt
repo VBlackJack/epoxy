@@ -345,7 +345,7 @@ editor item over floor slow_time 22645176685df611
 editor item over floor boots_speed 37443b27be4298f8
 editor item over floor boots_eye 9691a824f6299967
 editor item over floor boots_pull 46dc2207b44d7ecd
-editor item over floor ward 17ead71f9f1837c8
+editor item over floor ward 9a988be722a81d80
 editor item over floor charge e38d372e6f206c1f
 editor item over floor charge_lit 871167b1ee2099d2
 editor item over floor pocket_gate b348b3c4cc813437

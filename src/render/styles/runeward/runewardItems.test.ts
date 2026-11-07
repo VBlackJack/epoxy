@@ -212,6 +212,20 @@ describe('Runeward item drawings', () => {
     }
   });
 
+  it.each(ARTS)('draws the ward as a round shield, not with the shared boot drawing, in the %s drawing', (_name, art) => {
+    const record = (kind: RunewardBootsKind): string => {
+      const { ctx, lines } = createRecordedContext();
+      paintBootsItem(ctx, TILE, art(), kind, 0);
+      return lines.join('\n');
+    };
+    const ward = record('ward');
+    expect(ward).toContain('arc(');
+    expect(ward).not.toContain('arcTo(');
+    for (const kind of BOOTS.filter((other) => other !== 'ward' && other !== 'pull')) {
+      expect(record(kind), kind).not.toBe(ward);
+    }
+  });
+
   it('draws an ink outline on every parchment item and forbidden marker, and none in the plain drawing', () => {
     const outline = `strokeStyle = ${JSON.stringify(parchmentArt().ink!.line)}`;
     for (const id of ITEM_IDS) {

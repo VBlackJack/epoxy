@@ -157,6 +157,8 @@ const KEY_ITEM_PREFIX = 'key_';
 const BOOTS_ITEM_PREFIX = 'boots_';
 /** The Grappling Gloves are a glove, not a pair of boots: they have their own sprite. */
 const GLOVES_ITEM_ID = 'boots_pull';
+/** The Ward is a round shield with a rune, not a pair of boots: it has its own sprite. */
+const WARD_ITEM_ID = 'ward';
 const SCORE_ITEM_PREFIX = 'score_';
 
 /** Centre of a 5x5 glyph in a 16x16 sprite, in authoring-grid pixels. */
@@ -232,6 +234,9 @@ export function retroItemLayers(itemId: string, def: RetroTileSource): RetroLaye
   }
   if (itemId === GLOVES_ITEM_ID) {
     return [{ name: RETRO_SPRITE.gloves, swap: RETRO_BOOT_RAMPS[itemId] }];
+  }
+  if (itemId === WARD_ITEM_ID) {
+    return [{ name: RETRO_SPRITE.ward, swap: RETRO_BOOT_RAMPS[itemId] }];
   }
   if (itemId.startsWith(BOOTS_ITEM_PREFIX) || Object.hasOwn(RETRO_BOOT_RAMPS, itemId)) {
     return [{ name: RETRO_SPRITE.boots, swap: RETRO_BOOT_RAMPS[itemId] }];

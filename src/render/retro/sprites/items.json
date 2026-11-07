@@ -73,6 +73,24 @@
    "................",
    "................"
   ]},
+  "ward": { "outline": true, "rows": [
+   "................",
+   "................",
+   ".....kkkkkk.....",
+   "....kKKKKKKj....",
+   "...kKWKKKKWKj...",
+   "..kKKKWKKWKKKj..",
+   "..kKKKKWWKKKKj..",
+   "..kKKKKWWKKKKj..",
+   "..kKKKKWWKKKKj..",
+   "..kKKKKWWKKKKj..",
+   "..jKKKKWWKKKKj..",
+   "...jKKKWWKKKj...",
+   "....jKKKKKKj....",
+   ".....jjjjjj.....",
+   "................",
+   "................"
+  ]},
   "bomb": { "outline": true, "rows": [
    "................",
    ".........T......",
