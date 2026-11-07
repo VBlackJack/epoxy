@@ -1070,6 +1070,13 @@ export interface TileDefinition {
   category: string;
   layer: 'terrain' | 'item';
   i18nKey: string;
+  /** Key of a longer description, shown where the name alone is not enough (the reserved CC2 ids carry one). */
+  descriptionKey?: string;
+  /**
+   * A reserved id of a source format whose mechanic Epoxy does not play. The definition only keeps the id alive: the
+   * terrain acts as a wall, the item does nothing, and the validator reports the level as unsupported.
+   */
+  unimplemented?: UnimplementedSource;
   passableByPlayer?: boolean;
   passableByMonster?: boolean;
   passableByBlock?: boolean;
@@ -1226,9 +1233,18 @@ export interface ShotLauncherDefinition {
 /** Who works a button: only the player when it says 'player', anything that steps on it otherwise. */
 export type ButtonWorker = 'player';
 
+/** The formats that reserve ids for mechanics Epoxy does not implement. */
+export type UnimplementedSource = 'cc2';
+
 export interface TilesConfig {
   categories: Array<{ id: string; i18nKey: string }>;
   tiles: Record<string, TileDefinition>;
+}
+
+/** The reserved Chip's Challenge 2 definitions (public/configs/cc2-tiles.json): tiles and items, blocks and monsters. */
+export interface Cc2ReservedConfig {
+  tiles: Record<string, TileDefinition>;
+  entities: Record<string, EntityDefinition>;
 }
 
 export interface EntityDefinition {
@@ -1236,6 +1252,10 @@ export interface EntityDefinition {
   category: string;
   kind: 'block' | 'monster';
   i18nKey: string;
+  /** Key of a longer description (the reserved CC2 ids carry one). */
+  descriptionKey?: string;
+  /** A reserved id of a source format whose entity Epoxy does not play: it stays where it was placed and does nothing. */
+  unimplemented?: UnimplementedSource;
   pushable?: boolean;
   slidesOnIce?: boolean;
   slidesOnForce?: boolean;
@@ -1572,6 +1592,8 @@ export interface LevelBlueprint {
   ruleset?: Ruleset;
   /** The CC3D level data; the engine of the 'cc3d' ruleset reads only this. */
   cc3d?: Cc3dLevel;
+  /** Source record of a level imported from a CC2 file; absent on every other level, and ignorable by any reader. */
+  cc2?: Cc2LevelData;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -1704,6 +1726,38 @@ export interface SignalPulseState {
   carry: number[];
 }
 
+/** How well Epoxy plays an element of a CC2 level, or a whole level (the worst of its elements). */
+export type Cc2CoverageVerdict = 'exact' | 'approx' | 'lost';
+
+/** Coverage of one CC2 level, computed at import: the verdict and the keys that decide it (see cc2Coverage.ts). */
+export interface Cc2Coverage {
+  verdict: Cc2CoverageVerdict;
+  /** Keys of the elements Epoxy cannot play, sorted. */
+  lost: string[];
+  /** Keys of the elements Epoxy plays approximately, sorted. */
+  approx: string[];
+}
+
+/**
+ * What a level converted from a CC2 file remembers about its source. The file bytes themselves live in a local
+ * sidecar keyed by `sha256`; a share link never carries them.
+ */
+export interface Cc2LevelData {
+  /** Version of this record. */
+  v: 1;
+  /** SHA-256 (hex) of the source file bytes. */
+  sha256: string;
+  /** File name of the source level, as read from the folder or the game script. */
+  file: string;
+  /** Position of the level in the game script, 1-based. */
+  order: number;
+  /** Music track named by the game script, when it names one. */
+  music?: string;
+  /** Hash of the grid at import time: the source bytes are re-exported as they were only while it still matches. */
+  gridHash: string;
+  coverage: Cc2Coverage;
+}
+
 export interface CompiledLevel {
   id: string;
   /** Pilot design note: the blocks the level needs; see BlockBudget. */
@@ -1718,6 +1772,8 @@ export interface CompiledLevel {
   ruleset?: Ruleset;
   /** The CC3D level data; the engine of the 'cc3d' ruleset reads only this. */
   cc3d?: Cc3dLevel;
+  /** Source record of a level imported from a CC2 file; absent on every other level, and ignorable by any reader. */
+  cc2?: Cc2LevelData;
   number: number;
   titleKey?: string;
   customTitle?: string;

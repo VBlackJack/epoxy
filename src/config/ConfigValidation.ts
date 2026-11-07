@@ -17,6 +17,8 @@
 import {
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
+  CC2_ID_PREFIX,
+  CC2_UNIMPLEMENTED_SOURCE,
   CHASE_PLAYER_PATTERN,
   FIRE_LAUNCHERS_ACTION,
   FLEE_PLAYER_PATTERN,
@@ -36,6 +38,7 @@ import {
   AudioConfig,
   BlockBudget,
   CampaignConfig,
+  Cc2LevelData,
   CellEdge,
   CellUnderlay,
   CompiledLevel,
@@ -420,6 +423,47 @@ export function findCc3dTileErrors(
   return errors;
 }
 
+/**
+ * Problems of the reserved Chip's Challenge 2 definitions: an entry whose id differs from its key or does not start
+ * with the cc2 prefix, one without a name key, one not flagged unimplemented, one that shadows another config, a tile
+ * a walker could enter on the terrain layer, and an entity that moves or can be pushed.
+ */
+export function findCc2Errors(
+  cc2: { tiles?: Record<string, TileDefinition>; entities?: Record<string, EntityDefinition> } | undefined,
+  baseTiles: Record<string, TileDefinition>,
+  cc3dTiles: Record<string, TileDefinition>,
+  baseEntities: Record<string, EntityDefinition>
+): string[] {
+  if (cc2 === undefined) return [];
+  if (!isRecord(cc2.tiles) || !isRecord(cc2.entities)) return ['expected tiles and entities objects'];
+  const errors: string[] = [];
+  const check = (key: string, def: unknown): def is Record<string, unknown> => {
+    if (!isRecord(def) || def.id !== key) {
+      errors.push(`${key}.id: expected the key of the entry`);
+      return false;
+    }
+    if (!key.startsWith(CC2_ID_PREFIX)) errors.push(`${key}: expected the ${CC2_ID_PREFIX} prefix`);
+    if (typeof def.i18nKey !== 'string' || def.i18nKey.length === 0) errors.push(`${key}.i18nKey: expected a key`);
+    if (def.unimplemented !== CC2_UNIMPLEMENTED_SOURCE) errors.push(`${key}.unimplemented: expected '${CC2_UNIMPLEMENTED_SOURCE}'`);
+    if (key in baseTiles || key in cc3dTiles || key in baseEntities) errors.push(`${key}: already defined in another config`);
+    return true;
+  };
+  for (const [key, def] of Object.entries(cc2.tiles)) {
+    if (!check(key, def)) continue;
+    // A reserved terrain is a wall and a reserved item is inert, so neither may open a way or have an effect.
+    if (def.layer === 'terrain' && (def.passableByPlayer !== false || def.passableByMonster !== false || def.passableByBlock !== false)) {
+      errors.push(`${key}: a reserved terrain must be impassable`);
+    }
+  }
+  for (const [key, def] of Object.entries(cc2.entities)) {
+    if (!check(key, def)) continue;
+    if (def.epoxyOnly !== true) errors.push(`${key}.epoxyOnly: expected true`);
+    if (def.pushable === true) errors.push(`${key}: a reserved entity must not be pushable`);
+    if (def.kind === 'monster' && def.movementPattern !== STATIONARY_PATTERN) errors.push(`${key}: a reserved monster must be stationary`);
+  }
+  return errors;
+}
+
 /** A list of records no longer than the map has cells, each one accepted by `accept`. */
 function isRecordList(
   value: unknown,
@@ -476,6 +520,24 @@ export const WIN_RULES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
 /** True for a value that names a known win rule. */
 export function isWinRule(value: unknown): value is WinRule {
   return typeof value === 'string' && (WIN_RULES as readonly string[]).includes(value);
+}
+
+/** True for a CC2 source record: version 1, text fields, a positive order and a coverage with a known verdict. */
+export function isCc2LevelData(value: unknown): value is Cc2LevelData {
+  if (!isRecord(value) || value.v !== 1) return false;
+  const coverage = value.coverage;
+  const isKeyList = (list: unknown): boolean => Array.isArray(list) && list.every((key) => typeof key === 'string');
+  return (
+    typeof value.sha256 === 'string' &&
+    typeof value.file === 'string' &&
+    Number.isInteger(value.order) && (value.order as number) >= 1 &&
+    (value.music === undefined || typeof value.music === 'string') &&
+    typeof value.gridHash === 'string' &&
+    isRecord(coverage) &&
+    (coverage.verdict === 'exact' || coverage.verdict === 'approx' || coverage.verdict === 'lost') &&
+    isKeyList(coverage.lost) &&
+    isKeyList(coverage.approx)
+  );
 }
 
 /** True for a block budget made of two non-negative integers; anything else in a stored level is dropped. */
@@ -727,6 +789,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   if ('winRule' in record && !isWinRule(record.winRule)) bad.push('winRule');
   if ('ruleset' in record && !isRuleset(record.ruleset)) bad.push('ruleset');
   if ('blockBudget' in record && !isBlockBudget(record.blockBudget)) bad.push('blockBudget');
+  if ('cc2' in record && !isCc2LevelData(record.cc2)) bad.push('cc2');
   const badPassword = typeof record.password !== 'string';
   let edges: CellEdge[] | null = null;
   if ('cellEdges' in record) {

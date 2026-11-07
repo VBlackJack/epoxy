@@ -23,6 +23,7 @@ import {
   PACK_JSON_ID_SET_VERSIONS,
   PACK_JSON_MAX_VERSION,
   PACK_JSON_VERSION_V11,
+  PACK_JSON_VERSION_V12,
   PACK_JSON_VERSION_V11_IDS,
   PACK_JSON_VERSION_V9
 } from '../../config/constants';
@@ -310,10 +311,10 @@ describe('toll token: pack format 11', () => {
     ConfigRegistry.compileBlueprint((pack as { levels: LevelBlueprint[] }).levels[index]);
   const version = (levels: CompiledLevel[]): number => JSON.parse(serializePack('N', levels)).version;
 
-  it('puts the token in the format 11 row and raises the reading limit to 11', () => {
+  it('puts the token in the format 11 row and keeps the reading limit at or above 11', () => {
     expect([...PACK_JSON_VERSION_V11_IDS]).toContain(TOKEN);
     expect(PACK_JSON_ID_SET_VERSIONS.map((row) => row.version)).toContain(PACK_JSON_VERSION_V11);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V11);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V12);
     expect(idSetVersionOf(room({ items: [[3, ROW, TOKEN]] }))).toBe(PACK_JSON_VERSION_V11);
     expect(idSetVersionOf(room())).toBe(0);
   });
@@ -340,12 +341,12 @@ describe('toll token: pack format 11', () => {
     expect(version([compile(relayShowcase)])).toBe(PACK_JSON_VERSION_V11);
   });
 
-  it('reads a format 11 file and refuses format 12', () => {
+  it('reads a format 11 file and refuses format 13', () => {
     const level = room({ items: [[3, ROW, TOKEN]] });
     const file = { format: JSON.parse(serializePack('N', [level])).format, name: 'x', levels: [level] };
     const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V11 }), bounds(), new Set<string>(), () => PACK_NOW);
     expect(read.ok).toBe(true);
-    const refused = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V11 + 1 }), bounds(), new Set<string>(), () => PACK_NOW);
+    const refused = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V12 + 1 }), bounds(), new Set<string>(), () => PACK_NOW);
     expect(refused).toEqual({ ok: false, error: 'version' });
   });
 });

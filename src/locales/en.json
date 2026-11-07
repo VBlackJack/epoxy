@@ -952,6 +952,9 @@
       },
       "citadel": {
         "label": "Clockwork Citadel"
+      },
+      "cc2_default_name": {
+        "label": "Imported CC2 levels"
       }
     }
   },
@@ -1886,6 +1889,9 @@
       },
       "cc3d_start_on_hazard": {
         "label": "Warning: The player starts on a hazard at ({x}, {y})."
+      },
+      "cc2_unsupported": {
+        "label": "Error: the level uses CC2 mechanics Epoxy does not play yet: {mechanics}."
       }
     }
   },
@@ -4791,6 +4797,144 @@
       "desc": {
         "label": "Walkable, like floor. It is what a yellow colour block becomes when it is pushed into water."
       }
+    },
+    "cc2_purple_wall": {
+      "name": "CC2 purple wall",
+      "desc": {
+        "label": "A wall driven by CC2 wires. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_purple_floor": {
+      "name": "CC2 purple floor",
+      "desc": {
+        "label": "The wire-driven floor paired with the CC2 purple wall. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_toggle_switch": {
+      "name": "CC2 toggle switch",
+      "desc": {
+        "label": "A switch worked by stepping on it. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_black_button": {
+      "name": "CC2 black button",
+      "desc": {
+        "label": "A wire button of CC2. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_counter_gate": {
+      "name": "CC2 counter gate",
+      "desc": {
+        "label": "A wire gate that counts pulses. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_nand_gate": {
+      "name": "CC2 NAND gate",
+      "desc": {
+        "label": "A wire logic gate. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_button_gray": {
+      "name": "CC2 gray button",
+      "desc": {
+        "label": "The CC2 gray button, which is not the Epoxy one. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_track_junction": {
+      "name": "CC2 track junction",
+      "desc": {
+        "label": "A junction piece of the CC2 tracks. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_button_orange_local": {
+      "name": "CC2 local orange button",
+      "desc": {
+        "label": "An orange button that acts on its neighbours only. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_steel_wall": {
+      "name": "CC2 steel wall",
+      "desc": {
+        "label": "A wall that resists blasts. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_unknown": {
+      "name": "CC2 unknown tile",
+      "desc": {
+        "label": "A tile code the importer does not know. Epoxy does not play it: it acts as a wall."
+      }
+    },
+    "cc2_lightning_bolt": {
+      "name": "CC2 lightning bolt",
+      "desc": {
+        "label": "A CC2 item. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_green_chip": {
+      "name": "CC2 green chip",
+      "desc": {
+        "label": "A chip that the green button flips. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_green_bomb": {
+      "name": "CC2 green bomb",
+      "desc": {
+        "label": "A bomb that the green button flips. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_time_bomb": {
+      "name": "CC2 time bomb",
+      "desc": {
+        "label": "A CC2 bomb that blasts after a delay. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_railroad_sign": {
+      "name": "CC2 railroad sign",
+      "desc": {
+        "label": "A CC2 item. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_helmet": {
+      "name": "CC2 helmet",
+      "desc": {
+        "label": "A CC2 item. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_steel_foil": {
+      "name": "CC2 steel foil",
+      "desc": {
+        "label": "A CC2 item. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_toggle_clock": {
+      "name": "CC2 toggle clock",
+      "desc": {
+        "label": "A CC2 item that stops or starts the clock. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_extra_chip": {
+      "name": "CC2 extra chip",
+      "desc": {
+        "label": "A chip that does not count toward the required total. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_hiking_boots": {
+      "name": "CC2 hiking boots",
+      "desc": {
+        "label": "CC2 boots. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_gender_sign_male": {
+      "name": "CC2 male sign",
+      "desc": {
+        "label": "A CC2 sign. Epoxy does not play it: it does nothing."
+      }
+    },
+    "cc2_gender_sign_female": {
+      "name": "CC2 female sign",
+      "desc": {
+        "label": "A CC2 sign. Epoxy does not play it: it does nothing."
+      }
     }
   },
   "entities": {
@@ -4969,6 +5113,48 @@
       "name": "Yellow Color Block",
       "desc": {
         "label": "A pushable block that presses only the yellow pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block."
+      }
+    },
+    "cc2_melinda": {
+      "name": "CC2 second player",
+      "desc": {
+        "label": "The second player of CC2. Epoxy has one player: she stays where she is and does nothing."
+      }
+    },
+    "cc2_mirror_chip": {
+      "name": "CC2 mirror player",
+      "desc": {
+        "label": "A player that copies the moves of the first one. Epoxy does not play it: it stays where it is."
+      }
+    },
+    "cc2_mirror_melinda": {
+      "name": "CC2 mirror second player",
+      "desc": {
+        "label": "A second player that copies the moves of the first one. Epoxy does not play it: it stays where it is."
+      }
+    },
+    "cc2_ghost": {
+      "name": "CC2 ghost",
+      "desc": {
+        "label": "A CC2 monster. Epoxy does not play it: it stays where it is."
+      }
+    },
+    "cc2_rover": {
+      "name": "CC2 rover",
+      "desc": {
+        "label": "A CC2 monster. Epoxy does not play it: it stays where it is."
+      }
+    },
+    "cc2_floor_mimic": {
+      "name": "CC2 floor mimic",
+      "desc": {
+        "label": "A CC2 monster that looks like floor. Epoxy does not play it: it stays where it is."
+      }
+    },
+    "cc2_timid_teeth": {
+      "name": "CC2 timid teeth",
+      "desc": {
+        "label": "A CC2 monster. Epoxy does not play it: it stays where it is."
       }
     }
   },
@@ -5833,6 +6019,81 @@
       "level_50": {
         "title": "Heart of the Clockwork Citadel",
         "hint": "Conquer the three-chamber citadel finale: time the western pink-ball clock for the green gate, ricochet a hurled stone in the central hall, and solve the eastern parity weave."
+      }
+    }
+  },
+  "cc2": {
+    "import": {
+      "button": {
+        "label": "Import CC2 levels"
+      },
+      "folder": {
+        "button": {
+          "label": "Import a CC2 folder"
+        },
+        "hint": {
+          "label": "Pick the folder of the game: the levels are put in the order of its game script."
+        }
+      },
+      "report": {
+        "title": {
+          "label": "CC2 import report"
+        },
+        "summary": {
+          "label": "{count, plural, one {# level} other {# levels}} imported: {exact} exact, {approx} approximate, {lost} not playable as imported."
+        },
+        "verified": {
+          "label": "Verified: Epoxy plays this level exactly and the recorded solution reaches the exit."
+        },
+        "needs_human": {
+          "label": "Needs a human check: the level is not verified."
+        },
+        "skipped": {
+          "label": "{skipped, plural, one {# file was} other {# files were}} skipped because they cannot be read."
+        },
+        "order_appended": {
+          "label": "{count, plural, one {# level is} other {# levels are}} not in the game script and added at the end."
+        },
+        "mechanics": {
+          "label": "Mechanics Epoxy does not play: {mechanics}."
+        }
+      },
+      "error": {
+        "unreadable": {
+          "label": "This file is not a readable CC2 level."
+        },
+        "no_levels": {
+          "label": "No CC2 level was found in this selection."
+        }
+      }
+    },
+    "coverage": {
+      "badge": {
+        "exact": {
+          "label": "Exact"
+        },
+        "approx": {
+          "label": "Approximate"
+        },
+        "lost": {
+          "label": "Not playable"
+        }
+      },
+      "title": {
+        "label": "How well Epoxy plays this CC2 level"
+      }
+    },
+    "play": {
+      "banner": {
+        "unsupported": {
+          "label": "This level uses CC2 mechanics that Epoxy does not play yet: {mechanics}."
+        }
+      }
+    },
+    "export": {
+      "include_source": {
+        "label": "Include the CC2 source files",
+        "hint": "Adds the original CC2 level data to the exported file so it can be written back byte for byte. Off by default."
       }
     }
   }

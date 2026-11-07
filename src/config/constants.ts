@@ -26,6 +26,7 @@ export const CONFIG_ENDPOINTS = {
   GAME: `${ENV_CONFIG.CONFIG_BASE_URL}/game.json`,
   TILES: `${ENV_CONFIG.CONFIG_BASE_URL}/tiles.json`,
   CC3D_TILES: `${ENV_CONFIG.CONFIG_BASE_URL}/cc3d-tiles.json`,
+  CC2_TILES: `${ENV_CONFIG.CONFIG_BASE_URL}/cc2-tiles.json`,
   MONSTERS: `${ENV_CONFIG.CONFIG_BASE_URL}/monsters.json`,
   AUDIO: `${ENV_CONFIG.CONFIG_BASE_URL}/audio.json`,
   LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/levels.json`,
@@ -221,6 +222,24 @@ export const PACK_JSON_VERSION_V11 = 11;
 export const PACK_JSON_VERSION_V11_IDS: ReadonlySet<string> = new Set(['relay_pad_dark', 'relay_pad_lit', 'toll_token']);
 
 /**
+ * Version of a pack file that holds at least one level using an id reserved for a Chip's Challenge 2 mechanic (see
+ * PACK_JSON_VERSION_V12_IDS). The optional cc2 source record of a level never raises the version by itself: an older
+ * build ignores it. An older build would not know the ids and would read
+ * the tiles as floor, so it must refuse the file.
+ */
+export const PACK_JSON_VERSION_V12 = 12;
+
+/** Ids that only exist from pack format 12: every reserved cc2_* id, whether or not the engine plays it yet. */
+export const PACK_JSON_VERSION_V12_IDS: ReadonlySet<string> = new Set([
+  'cc2_purple_wall', 'cc2_purple_floor', 'cc2_toggle_switch', 'cc2_black_button', 'cc2_counter_gate', 'cc2_nand_gate', 'cc2_button_gray',
+  'cc2_track_junction', 'cc2_button_orange_local', 'cc2_steel_wall', 'cc2_unknown',
+  'cc2_lightning_bolt', 'cc2_green_chip', 'cc2_green_bomb', 'cc2_time_bomb', 'cc2_railroad_sign', 'cc2_helmet',
+  'cc2_steel_foil', 'cc2_toggle_clock', 'cc2_extra_chip', 'cc2_hiking_boots', 'cc2_gender_sign_male',
+  'cc2_gender_sign_female', 'cc2_melinda', 'cc2_mirror_chip', 'cc2_mirror_melinda', 'cc2_ghost', 'cc2_rover',
+  'cc2_floor_mimic', 'cc2_timid_teeth'
+]);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
@@ -229,14 +248,15 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
   { version: PACK_JSON_VERSION_V8, ids: PACK_JSON_VERSION_V8_IDS },
   { version: PACK_JSON_VERSION_V9, ids: PACK_JSON_VERSION_V9_IDS },
   { version: PACK_JSON_VERSION_V10, ids: PACK_JSON_VERSION_V10_IDS },
-  { version: PACK_JSON_VERSION_V11, ids: PACK_JSON_VERSION_V11_IDS }
+  { version: PACK_JSON_VERSION_V11, ids: PACK_JSON_VERSION_V11_IDS },
+  { version: PACK_JSON_VERSION_V12, ids: PACK_JSON_VERSION_V12_IDS }
 ];
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 11.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 12.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V11;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V12;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

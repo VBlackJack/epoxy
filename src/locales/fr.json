@@ -952,6 +952,9 @@
       },
       "citadel": {
         "label": "La Citadelle Mécanique"
+      },
+      "cc2_default_name": {
+        "label": "Niveaux CC2 importés"
       }
     }
   },
@@ -1886,6 +1889,9 @@
       },
       "cc3d_start_on_hazard": {
         "label": "Avertissement : le joueur démarre sur un danger en ({x}, {y})."
+      },
+      "cc2_unsupported": {
+        "label": "Erreur : le niveau utilise des mécaniques CC2 qu'Epoxy ne joue pas encore : {mechanics}."
       }
     }
   },
@@ -4791,6 +4797,144 @@
       "desc": {
         "label": "On peut marcher dessus, comme sur le sol. C'est ce que devient un bloc de couleur jaune poussé dans l'eau."
       }
+    },
+    "cc2_purple_wall": {
+      "name": "Mur violet CC2",
+      "desc": {
+        "label": "Un mur piloté par les fils de CC2. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_purple_floor": {
+      "name": "Sol violet CC2",
+      "desc": {
+        "label": "Le sol piloté par fil qui accompagne le mur violet de CC2. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_toggle_switch": {
+      "name": "Interrupteur CC2",
+      "desc": {
+        "label": "Un interrupteur actionné en marchant dessus. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_black_button": {
+      "name": "Bouton noir CC2",
+      "desc": {
+        "label": "Un bouton à fil de CC2. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_counter_gate": {
+      "name": "Porte compteur CC2",
+      "desc": {
+        "label": "Une porte à fil qui compte les impulsions. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_nand_gate": {
+      "name": "Porte NAND CC2",
+      "desc": {
+        "label": "Une porte logique à fil. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_button_gray": {
+      "name": "Bouton gris CC2",
+      "desc": {
+        "label": "Le bouton gris de CC2, différent de celui d'Epoxy. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_track_junction": {
+      "name": "Aiguillage CC2",
+      "desc": {
+        "label": "Une pièce d'aiguillage des rails de CC2. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_button_orange_local": {
+      "name": "Bouton orange local CC2",
+      "desc": {
+        "label": "Un bouton orange qui n'agit que sur ses voisins. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_steel_wall": {
+      "name": "Mur d'acier CC2",
+      "desc": {
+        "label": "Un mur qui résiste aux explosions. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_unknown": {
+      "name": "Tuile inconnue CC2",
+      "desc": {
+        "label": "Un code de tuile que l'importeur ne connaît pas. Epoxy ne le joue pas : il agit comme un mur."
+      }
+    },
+    "cc2_lightning_bolt": {
+      "name": "Éclair CC2",
+      "desc": {
+        "label": "Un objet de CC2. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_green_chip": {
+      "name": "Puce verte CC2",
+      "desc": {
+        "label": "Une puce que le bouton vert inverse. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_green_bomb": {
+      "name": "Bombe verte CC2",
+      "desc": {
+        "label": "Une bombe que le bouton vert inverse. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_time_bomb": {
+      "name": "Bombe à retardement CC2",
+      "desc": {
+        "label": "Une bombe de CC2 qui explose après un délai. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_railroad_sign": {
+      "name": "Panneau de rail CC2",
+      "desc": {
+        "label": "Un objet de CC2. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_helmet": {
+      "name": "Casque CC2",
+      "desc": {
+        "label": "Un objet de CC2. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_steel_foil": {
+      "name": "Feuille d'acier CC2",
+      "desc": {
+        "label": "Un objet de CC2. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_toggle_clock": {
+      "name": "Horloge CC2",
+      "desc": {
+        "label": "Un objet de CC2 qui arrête ou relance le chrono. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_extra_chip": {
+      "name": "Puce en plus CC2",
+      "desc": {
+        "label": "Une puce qui ne compte pas dans le total requis. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_hiking_boots": {
+      "name": "Chaussures de marche CC2",
+      "desc": {
+        "label": "Des bottes de CC2. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_gender_sign_male": {
+      "name": "Panneau homme CC2",
+      "desc": {
+        "label": "Un panneau de CC2. Epoxy ne le joue pas : il ne fait rien."
+      }
+    },
+    "cc2_gender_sign_female": {
+      "name": "Panneau femme CC2",
+      "desc": {
+        "label": "Un panneau de CC2. Epoxy ne le joue pas : il ne fait rien."
+      }
     }
   },
   "entities": {
@@ -4969,6 +5113,48 @@
       "name": "Bloc de Couleur Jaune",
       "desc": {
         "label": "Un bloc poussable qui n'enfonce que les plaques de pression jaunes (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable."
+      }
+    },
+    "cc2_melinda": {
+      "name": "Deuxième joueuse CC2",
+      "desc": {
+        "label": "La deuxième joueuse de CC2. Epoxy n'a qu'un joueur : elle reste en place et ne fait rien."
+      }
+    },
+    "cc2_mirror_chip": {
+      "name": "Joueur miroir CC2",
+      "desc": {
+        "label": "Un joueur qui copie les mouvements du premier. Epoxy ne le joue pas : il reste en place."
+      }
+    },
+    "cc2_mirror_melinda": {
+      "name": "Deuxième joueuse miroir CC2",
+      "desc": {
+        "label": "Une deuxième joueuse qui copie les mouvements du premier joueur. Epoxy ne le joue pas : il reste en place."
+      }
+    },
+    "cc2_ghost": {
+      "name": "Fantôme CC2",
+      "desc": {
+        "label": "Un monstre de CC2. Epoxy ne le joue pas : il reste en place."
+      }
+    },
+    "cc2_rover": {
+      "name": "Rôdeur CC2",
+      "desc": {
+        "label": "Un monstre de CC2. Epoxy ne le joue pas : il reste en place."
+      }
+    },
+    "cc2_floor_mimic": {
+      "name": "Faux sol CC2",
+      "desc": {
+        "label": "Un monstre de CC2 qui ressemble à du sol. Epoxy ne le joue pas : il reste en place."
+      }
+    },
+    "cc2_timid_teeth": {
+      "name": "Dents timides CC2",
+      "desc": {
+        "label": "Un monstre de CC2. Epoxy ne le joue pas : il reste en place."
       }
     }
   },
@@ -5833,6 +6019,81 @@
       "level_50": {
         "title": "Au coeur de la Citadelle Mécanique",
         "hint": "Triomphe du final en trois salles : synchronise l'horloge à balle rose à l'ouest pour la porte verte, fais ricocher une pierre dans la salle centrale, et résous le tissage de parité à l'est."
+      }
+    }
+  },
+  "cc2": {
+    "import": {
+      "button": {
+        "label": "Importer des niveaux CC2"
+      },
+      "folder": {
+        "button": {
+          "label": "Importer un dossier CC2"
+        },
+        "hint": {
+          "label": "Choisissez le dossier du jeu : les niveaux sont rangés dans l'ordre de son script de jeu."
+        }
+      },
+      "report": {
+        "title": {
+          "label": "Rapport d'import CC2"
+        },
+        "summary": {
+          "label": "{count, plural, one {# niveau importé} other {# niveaux importés}} : {exact} exact(s), {approx} approximatif(s), {lost} injouable(s) tel(s) quel(s)."
+        },
+        "verified": {
+          "label": "Vérifié : Epoxy joue ce niveau exactement et la solution enregistrée atteint la sortie."
+        },
+        "needs_human": {
+          "label": "À vérifier à la main : le niveau n'est pas vérifié."
+        },
+        "skipped": {
+          "label": "{skipped, plural, one {# fichier a été ignoré} other {# fichiers ont été ignorés}} car illisible(s)."
+        },
+        "order_appended": {
+          "label": "{count, plural, one {# niveau n'est pas} other {# niveaux ne sont pas}} dans le script de jeu et ajouté(s) à la fin."
+        },
+        "mechanics": {
+          "label": "Mécaniques qu'Epoxy ne joue pas : {mechanics}."
+        }
+      },
+      "error": {
+        "unreadable": {
+          "label": "Ce fichier n'est pas un niveau CC2 lisible."
+        },
+        "no_levels": {
+          "label": "Aucun niveau CC2 n'a été trouvé dans cette sélection."
+        }
+      }
+    },
+    "coverage": {
+      "badge": {
+        "exact": {
+          "label": "Exact"
+        },
+        "approx": {
+          "label": "Approximatif"
+        },
+        "lost": {
+          "label": "Injouable"
+        }
+      },
+      "title": {
+        "label": "Fidélité d'Epoxy sur ce niveau CC2"
+      }
+    },
+    "play": {
+      "banner": {
+        "unsupported": {
+          "label": "Ce niveau utilise des mécaniques CC2 qu'Epoxy ne joue pas encore : {mechanics}."
+        }
+      }
+    },
+    "export": {
+      "include_source": {
+        "label": "Inclure les fichiers source CC2",
+        "hint": "Ajoute les données CC2 d'origine au fichier exporté pour pouvoir les réécrire octet pour octet. Désactivé par défaut."
       }
     }
   }

@@ -54,6 +54,7 @@ import {
   paintCc3dMob,
   paintCc3dTerrain
 } from './cc3dPainters';
+import { CC2_PLACEHOLDER_INSET_RATIO, isCc2Id, paintCc2Placeholder } from './cc2Placeholder';
 import { FrameBudgetGuard } from './frameBudget';
 import {
   AUTO_QUALITY_ID,
@@ -2383,6 +2384,11 @@ export class PixelRenderer {
     pass: TilePass = 'all',
     neighbours: Readonly<TileNeighbours> = ISOLATED_TILE
   ): void {
+    // A reserved Chip's Challenge 2 terrain looks the same in every style.
+    if (isCc2Id(tileId)) {
+      if (pass !== 'animated') paintCc2Placeholder(ctx, tileId, x, y, size);
+      return;
+    }
     const runewardTile = this.runewardPainters();
     const runewardPaint = runewardTile ? findRunewardPainter(runewardTile.tiles, tileId) : undefined;
     if (runewardPaint) {
@@ -5395,6 +5401,10 @@ export class PixelRenderer {
     y: number,
     size: number
   ): void {
+    if (isCc2Id(itemId)) {
+      paintCc2Placeholder(ctx, itemId, x, y, size, CC2_PLACEHOLDER_INSET_RATIO);
+      return;
+    }
     const runewardItems = this.runewardPainters();
     const runewardPaint = runewardItems ? findRunewardPainter(runewardItems.items, itemId) : undefined;
     if (runewardPaint) {
@@ -5601,6 +5611,10 @@ export class PixelRenderer {
     size: number,
     isEditor = false
   ): void {
+    if (isCc2Id(type)) {
+      paintCc2Placeholder(ctx, type, x, y, size, CC2_PLACEHOLDER_INSET_RATIO);
+      return;
+    }
     if (isEditor && ConfigRegistry.getEntityDef(type)?.wakesTo !== undefined) {
       // A sleeping monster looks like floor in play; the editor also shows the awake one, faint, so it can be found.
       const awake = ConfigRegistry.getEntityDef(type)?.wakesTo as string;

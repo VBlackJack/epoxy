@@ -72,6 +72,8 @@ import {
   findAudioConfigErrors,
   findCampaignConfigErrors,
   findPilotConfigErrors,
+  findCc2Errors,
+  isCc2LevelData,
   findCc3dTileErrors,
   findDatFormatErrors,
   findGameTunableErrors,
@@ -96,6 +98,7 @@ import {
   LevelsConfig,
   MonstersConfig,
   TileDefinition,
+  Cc2ReservedConfig,
   TilesConfig,
   UltimatePackDescriptor
 } from '../core/types';
@@ -113,6 +116,7 @@ const REQUIRED_CONFIG_KEYS = {
   GAME: ['grid', 'timing', 'storage', 'import', 'locales', 'keybindings', 'palette', 'blockPuzzle'],
   TILES: ['tiles'],
   CC3D_TILES: ['tiles'],
+  CC2_TILES: ['tiles', 'entities'],
   MONSTERS: ['entities'],
   AUDIO: ['masterVolume', 'sfxVolume', 'musicVolume', 'effects'],
   LEVELS: ['legend', 'levels'],
@@ -138,6 +142,11 @@ export interface ConfigBundle {
   tiles: TilesConfig;
   /** Tiles of the cc3d ruleset: looked up by getTile, never listed by getTiles. */
   cc3dTiles: Pick<TilesConfig, 'tiles'>;
+  /**
+   * Reserved ids of the Chip's Challenge 2 mechanics Epoxy does not play: looked up by getTile and getEntityDef, never
+   * listed by getTiles or getMonsters. Absent (a bundle built before the file existed) means none.
+   */
+  cc2Tiles?: Cc2ReservedConfig;
   monsters: MonstersConfig;
   audio: AudioConfig;
   levels: LevelsConfig;
@@ -215,6 +224,7 @@ class ConfigRegistryService {
   private gameConfig!: GameConfig;
   private tilesConfig!: TilesConfig;
   private cc3dTilesConfig: Pick<TilesConfig, 'tiles'> = { tiles: {} };
+  private cc2Config: Cc2ReservedConfig = { tiles: {}, entities: {} };
   private monstersConfig!: MonstersConfig;
   private audioConfig!: AudioConfig;
   private levelsConfig!: LevelsConfig;
@@ -256,10 +266,11 @@ class ConfigRegistryService {
       () => [] as FetchedPack[]
     );
 
-    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, pilot, excavation, citadel, tutorial, datFormat, motifs, motifAnnotations] = await Promise.all([
+    const [game, tiles, cc3dTiles, cc2Tiles, monsters, audio, levels, campaign, pilot, excavation, citadel, tutorial, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
       this.fetchJson<Pick<TilesConfig, 'tiles'>>(CONFIG_ENDPOINTS.CC3D_TILES, REQUIRED_CONFIG_KEYS.CC3D_TILES),
+      this.fetchJson<Cc2ReservedConfig>(CONFIG_ENDPOINTS.CC2_TILES, REQUIRED_CONFIG_KEYS.CC2_TILES),
       this.fetchJson<MonstersConfig>(CONFIG_ENDPOINTS.MONSTERS, REQUIRED_CONFIG_KEYS.MONSTERS),
       this.fetchJson<AudioConfig>(CONFIG_ENDPOINTS.AUDIO, REQUIRED_CONFIG_KEYS.AUDIO),
       this.fetchJson<LevelsConfig>(CONFIG_ENDPOINTS.LEVELS, REQUIRED_CONFIG_KEYS.LEVELS),
@@ -277,6 +288,7 @@ class ConfigRegistryService {
       game,
       tiles,
       cc3dTiles,
+      cc2Tiles,
       monsters,
       audio,
       levels,
@@ -422,6 +434,10 @@ class ConfigRegistryService {
     if (cc3dTileErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.CC3D_TILES, cc3dTileErrors.join('; '));
     }
+    const cc2Errors = findCc2Errors(bundle.cc2Tiles, bundle.tiles.tiles, bundle.cc3dTiles.tiles, bundle.monsters.entities);
+    if (cc2Errors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.CC2_TILES, cc2Errors.join('; '));
+    }
     const datFormatErrors = findDatFormatErrors(bundle.datFormat, bundle.game.grid);
     if (datFormatErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.DAT_FORMAT, datFormatErrors.join('; '));
@@ -454,6 +470,7 @@ class ConfigRegistryService {
     this.gameConfig = bundle.game;
     this.tilesConfig = bundle.tiles;
     this.cc3dTilesConfig = bundle.cc3dTiles;
+    this.cc2Config = bundle.cc2Tiles ?? { tiles: {}, entities: {} };
     this.monstersConfig = bundle.monsters;
     this.audioConfig = bundle.audio;
     this.levelsConfig = bundle.levels;
@@ -683,13 +700,24 @@ class ConfigRegistryService {
     return this.cc3dTilesConfig;
   }
 
+  /** The reserved Chip's Challenge 2 definitions, for the bundle handed to the workers. */
+  public getCc2Tiles(): Cc2ReservedConfig {
+    return this.cc2Config;
+  }
+
   public getTile(id: string): TileDefinition {
-    return this.tilesConfig.tiles[id] || this.cc3dTilesConfig.tiles[id] || this.tilesConfig.tiles.floor;
+    return this.tilesConfig.tiles[id] || this.cc3dTilesConfig.tiles[id] || this.cc2Config.tiles[id] || this.tilesConfig.tiles.floor;
   }
 
   /** True when the id names a tile of the terrain layer in the Epoxy tile set (items and unknown ids are not). */
   public isTerrainTile(id: string): boolean {
-    return Object.prototype.hasOwnProperty.call(this.tilesConfig.tiles, id) && this.tilesConfig.tiles[id].layer === 'terrain';
+    // A reserved CC2 terrain counts: it sits on the terrain layer and acts as a wall.
+    const def = Object.prototype.hasOwnProperty.call(this.tilesConfig.tiles, id)
+      ? this.tilesConfig.tiles[id]
+      : Object.prototype.hasOwnProperty.call(this.cc2Config.tiles, id)
+        ? this.cc2Config.tiles[id]
+        : undefined;
+    return def?.layer === 'terrain';
   }
 
   public getMonsters(): MonstersConfig {
@@ -697,7 +725,7 @@ class ConfigRegistryService {
   }
 
   public getEntityDef(id: string): EntityDefinition | undefined {
-    return this.monstersConfig.entities[id];
+    return this.monstersConfig.entities[id] ?? this.cc2Config.entities[id];
   }
 
   public getAudio(): AudioConfig {
@@ -1400,6 +1428,7 @@ class ConfigRegistryService {
       ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
       ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
       ...(isBlockBudget(bp.blockBudget) ? { blockBudget: { waters: bp.blockBudget.waters, targets: bp.blockBudget.targets } } : {}),
+      ...(isCc2LevelData(bp.cc2) ? { cc2: bp.cc2 } : {}),
       ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
       ...(isRuleset(bp.ruleset) && bp.ruleset !== DEFAULT_RULESET ? { ruleset: bp.ruleset } : {}),
       number: bp.number,

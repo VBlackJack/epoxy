@@ -25,6 +25,8 @@ import {
   CELL_EDGE_BITS,
   OPPOSITE_DIRECTION,
   WALL_TILE_ID,
+  MECHANICS_PARAM,
+  MECHANICS_SEPARATOR,
   CHANNEL_COLOR_NAME_KEY_PREFIX,
   channelOfButtonAction,
   FIRE_LAUNCHERS_ACTION,
@@ -278,6 +280,23 @@ export interface ValidateOptions {
   meter?: ValidateWorkMeter;
 }
 
+/** The reserved ids (terrain, items, underlays, entities, clone templates) of mechanics Epoxy does not play, sorted and unique. */
+export function unsupportedMechanicIds(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'underlays' | 'cloneLinks'>>): string[] {
+  const found = new Set<string>();
+  const addTile = (id: string | null | undefined): void => {
+    if (id && ConfigRegistry.getTile(id).unimplemented !== undefined) found.add(id);
+  };
+  const addEntity = (type: string): void => {
+    if (ConfigRegistry.getEntityDef(type)?.unimplemented !== undefined) found.add(type);
+  };
+  for (const row of level.terrain) row.forEach(addTile);
+  for (const row of level.items) row.forEach(addTile);
+  for (const under of level.underlays ?? []) addTile(under.terrain);
+  for (const entity of level.entities) addEntity(entity.type);
+  for (const link of level.cloneLinks ?? []) addEntity(link.templateType);
+  return [...found].sort();
+}
+
 export class LevelValidator {
   /**
    * Checks a level. `solutionWins` is the replay of the stored solution: when it confirms the
@@ -356,6 +375,16 @@ export class LevelValidator {
           }
         }
       }
+    }
+
+    // A reserved id of a mechanic Epoxy does not play makes the level unplayable as imported: say which ones.
+    const unsupported = unsupportedMechanicIds(level);
+    if (unsupported.length > 0) {
+      issues.push({
+        severity: 'error',
+        i18nKey: 'validator.issues.cc2_unsupported.label',
+        params: { [MECHANICS_PARAM]: unsupported.join(MECHANICS_SEPARATOR) }
+      });
     }
 
     if (coversTargets) {

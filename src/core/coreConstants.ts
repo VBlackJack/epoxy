@@ -122,6 +122,18 @@ export const FLEE_PLAYER_PATTERN = 'flee_player';
 /** Movement pattern of a monster that never moves by itself (a sleeping lurker). */
 export const STATIONARY_PATTERN = 'stationary';
 
+/** Prefix of every id reserved for a Chip's Challenge 2 mechanic Epoxy does not play (public/configs/cc2-tiles.json). */
+export const CC2_ID_PREFIX = 'cc2_';
+
+/** Name of the validator issue parameter that lists the reserved ids of unplayable mechanics. */
+export const MECHANICS_PARAM = 'mechanics';
+
+/** Separator of the ids in the mechanics parameter. */
+export const MECHANICS_SEPARATOR = ',';
+
+/** Value of the `unimplemented` flag of a reserved Chip's Challenge 2 definition. */
+export const CC2_UNIMPLEMENTED_SOURCE = 'cc2';
+
 /**
  * Movement pattern of a monster that walks straight ahead through every tile (a wisp): terrain has no effect on
  * it, only cell edges, the map edge and other entities stop it, and it turns round once when blocked.

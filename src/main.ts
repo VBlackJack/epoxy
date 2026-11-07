@@ -1354,6 +1354,7 @@ class EpoxyApplication {
       game: ConfigRegistry.getGame(),
       tiles: ConfigRegistry.getTiles(),
       cc3dTiles: ConfigRegistry.getCc3dTiles(),
+      cc2Tiles: ConfigRegistry.getCc2Tiles(),
       monsters: ConfigRegistry.getMonsters(),
       audio: ConfigRegistry.getAudio(),
       levels: { legend: ConfigRegistry.getPieceLegend(), levels: [] },

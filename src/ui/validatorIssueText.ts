@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { ValidationIssue } from '../core/types';
 import { t } from '../i18n/I18nManager';
+import { MECHANICS_PARAM, MECHANICS_SEPARATOR } from '../core/coreConstants';
 
 /** Name of the issue parameter that holds a tile id (a key or a boot) rather than text. */
 const TILE_PARAM = 'key';
@@ -30,6 +31,13 @@ export function formatValidationIssue(issue: ValidationIssue): string {
   const tileId = params[TILE_PARAM];
   if (typeof tileId === 'string' && ConfigRegistry.getTiles().tiles[tileId]) {
     params[TILE_PARAM] = t(ConfigRegistry.getTile(tileId).i18nKey);
+  }
+  const mechanics = params[MECHANICS_PARAM];
+  if (typeof mechanics === 'string') {
+    params[MECHANICS_PARAM] = mechanics
+      .split(MECHANICS_SEPARATOR)
+      .map((id) => t((ConfigRegistry.getEntityDef(id) ?? ConfigRegistry.getTile(id)).i18nKey))
+      .join(', ');
   }
   return t(issue.i18nKey, params);
 }
