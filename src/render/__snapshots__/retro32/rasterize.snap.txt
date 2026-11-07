@@ -109,6 +109,7 @@ default bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 default charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 default charge_lit plain=98b334298427a916 swap=98b334298427a916
 default pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
+default hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
 default flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 default stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 default stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -355,6 +356,7 @@ cyber_neon bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 cyber_neon charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 cyber_neon charge_lit plain=98b334298427a916 swap=98b334298427a916
 cyber_neon pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
+cyber_neon hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
 cyber_neon flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 cyber_neon stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 cyber_neon stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -601,6 +603,7 @@ arctic_lab bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 arctic_lab charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 arctic_lab charge_lit plain=98b334298427a916 swap=98b334298427a916
 arctic_lab pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
+arctic_lab hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
 arctic_lab flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 arctic_lab stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 arctic_lab stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -847,6 +850,7 @@ magma_core bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 magma_core charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 magma_core charge_lit plain=98b334298427a916 swap=98b334298427a916
 magma_core pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
+magma_core hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
 magma_core flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 magma_core stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 magma_core stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -1093,6 +1097,7 @@ lynx_lcd bomb plain=9ae196cbf5054fe5 swap=9ae196cbf5054fe5
 lynx_lcd charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 lynx_lcd charge_lit plain=98b334298427a916 swap=98b334298427a916
 lynx_lcd pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
+lynx_lcd hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
 lynx_lcd flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 lynx_lcd stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 lynx_lcd stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7

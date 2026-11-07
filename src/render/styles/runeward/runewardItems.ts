@@ -480,6 +480,38 @@ function paintGateItem(ctx: CanvasRenderingContext2D, size: number, art: Art, ti
   });
 }
 
+// ---- Hurl stone -------------------------------------------------------------------------------
+
+const STONE = {
+  /** Outline of the rock, an irregular rounded shape, as fractions of the tile. */
+  outline: [[0.28, 0.5], [0.34, 0.36], [0.5, 0.3], [0.66, 0.36], [0.74, 0.52], [0.68, 0.68], [0.5, 0.74], [0.34, 0.66]] as readonly Point[],
+  /** The lit facet on the upper left of the rock. */
+  facet: [[0.34, 0.4], [0.5, 0.34], [0.58, 0.4], [0.44, 0.52], [0.36, 0.52]] as readonly Point[],
+  lineWidth: 0.035
+} as const;
+
+/** The hurl stone: a dark rock with a lit facet on its upper left. */
+function paintStoneItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  const tint = art.item.bomb;
+  const tracePath = (points: readonly Point[]): void => {
+    ctx.beginPath();
+    points.forEach(([px, py], index) => (index === 0 ? ctx.moveTo(size * px, size * py) : ctx.lineTo(size * px, size * py)));
+    ctx.closePath();
+  };
+  hover(ctx, size, art, timeMs, () => {
+    ctx.fillStyle = tint.base;
+    tracePath(STONE.outline);
+    ctx.fill();
+    outline(ctx, size, art, tint.glow, STONE.lineWidth, true);
+    if (art.ink) return;
+    ctx.globalAlpha = HIGHLIGHT_ALPHA;
+    ctx.fillStyle = tint.core;
+    tracePath(STONE.facet);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+}
+
 // ---- Score tokens -----------------------------------------------------------------------------
 
 const COIN = {
@@ -685,6 +717,7 @@ export const ITEMS: Readonly<Record<string, RunewardItemPainter>> = {
   charge: clocked(chargeItem(false)),
   charge_lit: clocked(chargeItem(true)),
   pocket_gate: clocked(paintGateItem),
+  hurl_stone: clocked(paintStoneItem),
   score_10: clocked(scoreItem(COIN.one)),
   score_100: clocked(scoreItem(COIN.two)),
   score_1000: clocked(scoreItem(COIN.three)),

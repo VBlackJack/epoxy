@@ -116,6 +116,8 @@ export interface EpoxyWorld {
   hasTurrets: boolean;
   /** True when the level has a shot launcher, even one hidden under a removable top; fixed for the level. */
   hasLaunchers: boolean;
+  /** True when shots can exist on this level: it has a shot launcher or places a hurl stone; fixed for the level. */
+  hasShots: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -204,6 +206,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     levelCompleted: false,
     hasTurrets: false,
     hasLaunchers: false,
+    hasShots: false,
     shotStepTicks: 0,
     launcherLinks: [],
     inTick: false,
@@ -243,6 +246,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasTurrets = levelHasTurrets(w);
   w.launcherLinks = (w.level.launcherLinks ?? []).map((l) => ({ ...l }));
   w.hasLaunchers = false;
+  w.hasShots = false;
   w.shotStepTicks = 0;
   w.shots = [];
   w.firedLaunchers.clear();
@@ -289,6 +293,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
       }
     }
   }
+  // A level that places a hurl stone has shots too, though it may have no launcher.
+  w.hasShots = w.hasLaunchers || w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).collectible === 'stone'));
 }
 
 /** Monster step factor when no held boots slow the monsters. */

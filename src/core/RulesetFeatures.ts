@@ -302,6 +302,18 @@ export function hasPocketGateContent(
   return hasTile(level.terrain) || hasTile(level.items) || (level.underlays ?? []).some((under) => isPocketGateTileId(under.terrain));
 }
 
+/** True when the tile is a hurl stone, carried and thrown by the player. */
+export function isStoneTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).collectible === 'stone';
+}
+
+/** True when the level places a hurl stone (terrain or item layer). */
+export function hasStoneContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isStoneTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
 /** True when the tile is a rail piece (a straight, a bend or a switch), which closes the sides it is not open on. */
 export function isRailTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).railSides !== undefined;
@@ -309,13 +321,13 @@ export function isRailTileId(id: string | null | undefined): boolean {
 
 /**
  * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
- * boots, the ward, a blast charge, a pocket gate with its pad, or a rail piece (the pad and the rails are terrain,
+ * boots, the ward, a blast charge, a hurl stone, a pocket gate with its pad, or a rail piece (the pad and the rails are terrain,
  * but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
  */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
-    isChargeTileId(id) || isPocketGateTileId(id) || isRailTileId(id)
+    isChargeTileId(id) || isStoneTileId(id) || isPocketGateTileId(id) || isRailTileId(id)
   );
 }
 
@@ -481,6 +493,21 @@ const chargeFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const chargeContentCache = new WeakMap<object, boolean>();
 const pocketGateFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const pocketGateContentCache = new WeakMap<object, boolean>();
+const stoneFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const stoneContentCache = new WeakMap<object, boolean>();
+
+/**
+ * The aids a level with hurl stones loses on top of what its other mechanics already turn off: a thrown stone destroys
+ * monsters and melts ice blocks, which the push hint and the dead-end watch do not model.
+ */
+function withoutStoneAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = stoneFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    stoneFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
 
 /**
  * The aids a level with pocket gates loses on top of what its other mechanics already turn off: a pad can be set down
@@ -574,7 +601,13 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     gate = hasPocketGateContent({ terrain: level.terrain, items: level.items ?? [], underlays: level.underlays });
     pocketGateContentCache.set(level, gate);
   }
-  return gate ? withoutPocketGateAids(charged) : charged;
+  const gated = gate ? withoutPocketGateAids(charged) : charged;
+  let stone = stoneContentCache.get(level);
+  if (stone === undefined) {
+    stone = hasStoneContent({ terrain: level.terrain, items: level.items ?? [] });
+    stoneContentCache.set(level, stone);
+  }
+  return stone ? withoutStoneAids(gated) : gated;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

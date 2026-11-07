@@ -583,6 +583,10 @@ export class LevelValidator {
       // with each other, so once gates and placed pads can make a pair the walk over-approximates: every reached cell
       // and every placed pad link with each other (see linkPocketPads). Kept across passes: the item is gone from the grid by then.
       let gateCount = 0;
+      // Hurl stones the walk has picked up. A stone sets off a bomb it is thrown at, so once one is reachable every bomb
+      // is taken as passable (an over-approximation: the throw needs a clear line, and a stone is used up by one throw).
+      // Kept across passes: the item is gone from the grid by then.
+      let stoneCount = 0;
 
       // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
       this.applySignalSinks(level, blockTypes, stockBlocks, simItems);
@@ -593,6 +597,17 @@ export class LevelValidator {
       while (changed && passes < MAX_FIXPOINT_PASSES) {
         changed = false;
         passes++;
+        if (stoneCount > 0) {
+          for (const row of simItems) {
+            for (let cx = 0; cx < row.length; cx++) {
+              const cell = row[cx];
+              if (cell && ConfigRegistry.getTile(cell).hazard === 'bomb') {
+                row[cx] = null;
+                changed = true;
+              }
+            }
+          }
+        }
         if (meter) {
           meter.passes++;
           // The visited grid of every mask, then the closedDoors scan of the whole grid.
@@ -635,6 +650,10 @@ export class LevelValidator {
             changed = true;
           } else if (itemDef.collectible === 'gate') {
             gateCount++;
+            simItems[cy][cx] = null;
+            changed = true;
+          } else if (itemDef.collectible === 'stone') {
+            stoneCount++;
             simItems[cy][cx] = null;
             changed = true;
           } else if (itemDef.collectible === 'boot') {
