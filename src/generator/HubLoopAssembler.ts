@@ -28,6 +28,26 @@ import { CompiledPiece } from './PieceTypes';
 /** Placements gathered per chosen one, so the cheapest of a wider pool is kept. */
 const PLACEMENT_POOL_FACTOR = 2;
 
+/** Largest generation stamp before the stamp arrays are cleared and counting restarts at 1. */
+const MAX_STAMP = 0x7fffffff;
+
+/** Parent marker of the first corridor cell. */
+const NO_PARENT = -1;
+
+/** Buffers of the corridor search; `seen` and `pathMark` hold generation stamps, so they are never cleared. */
+interface SearchScratch {
+  generation: number;
+  pathGeneration: number;
+  seen: Int32Array;
+  parents: Int32Array;
+  depth: Int32Array;
+  order: Int32Array;
+  pathKeys: Int32Array;
+  pathXs: Int32Array;
+  pathYs: Int32Array;
+  pathMark: Int32Array;
+}
+
 /** A puzzle of a loop wing placed past a corridor. */
 interface PlacementFit {
   piece: CompiledPiece;
@@ -87,6 +107,10 @@ interface SegmentLink {
  * the shared grid.
  */
 export class HubLoopAssembler {
+  private scratch: SearchScratch | null = null;
+  /** Cache keyed by options array: those arrays must never be mutated after first use. */
+  private readonly entryBuckets = new WeakMap<CompiledPiece[], Record<Direction, CompiledPiece[]>>();
+
   constructor(
     private readonly grid: HubGrid,
     private readonly cfg: HubConfig,
@@ -373,82 +397,152 @@ export class HubLoopAssembler {
     follower: { options: CompiledPiece[]; last: boolean } | null = null
   ): PlacementFit[] {
     const { boxes, claims, extent } = state;
+    const scratch = this.searchScratch();
+    const width = this.grid.width;
     const start = this.grid.step(from, heading);
-    // Corridors in order of length: the cells reached, each with the way to it.
-    const parents = new Map<number, number>();
-    const order: GridPoint[] = [];
+    // Corridors in order of length: the cells reached (by key), each with the way to it.
+    const { parents, depth, seen, order, pathKeys, pathMark } = scratch;
+    if (scratch.generation >= MAX_STAMP) {
+      scratch.generation = 0;
+      scratch.seen.fill(0);
+    }
+    const generation = ++scratch.generation;
+    let reached = 0;
     if (this.grid.corridorFits(start, seg, boxes, claims)) {
-      parents.set(this.grid.key(start), -1);
-      order.push(start);
+      const startKey = this.grid.key(start);
+      seen[startKey] = generation;
+      parents[startKey] = NO_PARENT;
+      depth[startKey] = 1;
+      order[reached++] = startKey;
       const directions = straight ? [heading] : [...ORDERED_DIRECTIONS];
       this.rng.shuffle(directions);
-      const depth = new Map<number, number>([[this.grid.key(start), 1]]);
-      for (let i = 0; i < order.length; i++) {
-        const cell = order[i];
-        const cells = depth.get(this.grid.key(cell)) as number;
+      for (let i = 0; i < reached; i++) {
+        const cellKey = order[i];
+        const cells = depth[cellKey];
         if (cells >= this.cfg.maxLinkLength) continue;
+        const cx = cellKey % width;
+        const cy = (cellKey - cx) / width;
         for (const dir of directions) {
-          const n = this.grid.step(cell, dir);
-          const nk = this.grid.key(n);
-          if (parents.has(nk) || !this.grid.corridorFits(n, seg, boxes, claims)) continue;
-          parents.set(nk, this.grid.key(cell));
-          depth.set(nk, cells + 1);
-          order.push(n);
+          const nx = cx + DIRECTION_VECTORS[dir].dx;
+          const ny = cy + DIRECTION_VECTORS[dir].dy;
+          // A cell off the map never fits, so it is dropped before its key can wrap onto another cell.
+          if (!this.grid.inMapAt(nx, ny)) continue;
+          const nk = ny * width + nx;
+          if (seen[nk] === generation || !this.grid.corridorFits({ x: nx, y: ny }, seg, boxes, claims)) continue;
+          seen[nk] = generation;
+          parents[nk] = cellKey;
+          depth[nk] = cells + 1;
+          order[reached++] = nk;
         }
       }
     }
-    const pathTo = (cell: GridPoint | null): GridPoint[] => {
-      const path: GridPoint[] = [];
-      for (let k: number | undefined = cell ? this.grid.key(cell) : -1; k !== undefined && k !== -1; k = parents.get(k)) {
-        path.unshift(this.grid.point(k));
+    const { pathXs, pathYs } = scratch;
+    const touches = (cell: GridPoint, count: number): boolean => {
+      for (let i = 0; i < count; i++) {
+        if (Math.abs(pathXs[i] - cell.x) + Math.abs(pathYs[i] - cell.y) <= 1) return true;
       }
-      return path;
+      return false;
     };
-    const touches = (cell: GridPoint, cells: GridPoint[]): boolean =>
-      cells.some((c) => Math.abs(c.x - cell.x) + Math.abs(c.y - cell.y) <= 1);
     const ringEnds = last && !terminal ? this.freeReturnEnds() : [];
     const claimed = this.grid.claimedCells(claims);
 
     const base = this.grid.union(this.grid.bounds, extent);
+    const baseArea = this.grid.area(base);
     const fits: PlacementFit[] = [];
-    // The pseudo cell `from` stands for an empty corridor.
-    const ends: Array<GridPoint | null> = direct ? [null, ...order] : order;
-    for (const end of ends) {
-      const path = pathTo(end);
-      const tip = end ?? from;
-      const dirs = end && !straight ? ORDERED_DIRECTIONS : [heading];
+    const probe: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
+    // The pseudo cell `from` stands for an empty corridor: end index -1.
+    for (let endIndex = direct ? -1 : 0; endIndex < reached; endIndex++) {
+      // The corridor leading to this end, first cell first, filled without shifting.
+      let length = 0;
+      let tip = from;
+      if (scratch.pathGeneration >= MAX_STAMP) {
+        scratch.pathGeneration = 0;
+        pathMark.fill(0);
+      }
+      const mark = ++scratch.pathGeneration;
+      if (endIndex >= 0) {
+        const endKey = order[endIndex];
+        length = depth[endKey];
+        let k = endKey;
+        for (let i = length - 1; i >= 0; i--) {
+          pathKeys[i] = k;
+          pathMark[k] = mark;
+          k = parents[k];
+        }
+        for (let i = 0; i < length; i++) {
+          pathXs[i] = pathKeys[i] % width;
+          pathYs[i] = (pathKeys[i] - pathXs[i]) / width;
+        }
+        tip = { x: pathXs[length - 1], y: pathYs[length - 1] };
+      }
+      let corridor: GridPoint[] | null = null;
+      const dirs = endIndex >= 0 && !straight ? ORDERED_DIRECTIONS : [heading];
       for (const approachDir of dirs) {
         const entryPort = this.grid.step(tip, approachDir);
-        if (claims.has(this.grid.key(entryPort)) || path.some((c) => c.x === entryPort.x && c.y === entryPort.y)) continue;
-        for (const piece of options) {
-          if (this.grid.outwardOf(piece, piece.entry) !== OPPOSITE_DIRECTION[approachDir]) continue;
-          const origin = { x: entryPort.x - piece.entry.x, y: entryPort.y - piece.entry.y };
-          const box = this.grid.boxOf(piece, origin);
-          if (!this.grid.boxFree(box) || boxes.some((b) => this.grid.overlaps(box, b))) continue;
-          if (path.some((c) => this.grid.inBox(c, box))) continue;
-          if (this.grid.claimedTouchBox(claimed, box, entryPort)) continue;
+        if (claims.has(this.grid.key(entryPort))) continue;
+        if (this.grid.inMapAt(entryPort.x, entryPort.y) && pathMark[this.grid.key(entryPort)] === mark) continue;
+        for (const piece of this.entryFacing(options, OPPOSITE_DIRECTION[approachDir])) {
+          // The candidate box is a reused probe until it passes the cheap tests: no object per rejected piece.
+          const originX = entryPort.x - piece.entry.x;
+          const originY = entryPort.y - piece.entry.y;
+          probe.x0 = originX;
+          probe.y0 = originY;
+          probe.x1 = originX + piece.width - 1;
+          probe.y1 = originY + piece.height - 1;
+          if (!this.grid.boxFree(probe) || boxes.some((b) => this.grid.overlaps(probe, b))) continue;
+          let crosses = false;
+          for (let i = 0; i < length; i++) {
+            if (pathXs[i] >= probe.x0 && pathXs[i] <= probe.x1 && pathYs[i] >= probe.y0 && pathYs[i] <= probe.y1) {
+              crosses = true;
+              break;
+            }
+          }
+          if (crosses) continue;
+          if (this.grid.claimedTouchBox(claimed, probe, entryPort)) continue;
+          const origin = { x: originX, y: originY };
+          const box: Box = { x0: probe.x0, y0: probe.y0, x1: probe.x1, y1: probe.y1 };
           const exitPort = { x: origin.x + piece.exit.x, y: origin.y + piece.exit.y };
           const exitDir = this.grid.outwardOf(piece, piece.exit);
           const beyond = this.grid.step(exitPort, exitDir);
           // Neither the exit nor the cell outside it may touch the corridor leading in.
-          const leading = [...path, entryPort];
-          if (touches(exitPort, path) || touches(beyond, leading)) continue;
+          const beyondTouchesEntry = Math.abs(entryPort.x - beyond.x) + Math.abs(entryPort.y - beyond.y) <= 1;
+          if (touches(exitPort, length) || touches(beyond, length) || beyondTouchesEntry) continue;
+          let withBox: Box[] | null = null;
           if (last && terminal) {
             // The exit of the finale: nothing open may sit right outside it; the map border is fine.
             const bk = this.grid.key(beyond);
-            if (this.grid.inMap(beyond) && (this.grid.segment[bk] !== NO_SEGMENT || claims.has(bk) || touches(beyond, leading))) continue;
-          } else if (!this.grid.corridorFits(beyond, seg + 1, [...boxes, box], claims)) continue;
-          const spread = this.grid.union(this.grid.union(base, box), this.grid.cellsBox(leading));
+            if (this.grid.inMap(beyond) && (this.grid.segment[bk] !== NO_SEGMENT || claims.has(bk))) continue;
+          } else {
+            withBox = [...boxes, box];
+            if (!this.grid.corridorFits(beyond, seg + 1, withBox, claims)) continue;
+          }
+          if (follower) {
+            withBox ??= [...boxes, box];
+            if (!this.laneHasRoom(exitPort, exitDir, seg + 1, follower.options, withBox, claims)) continue;
+          }
+          // The extent once the corridor, the entry port and the box are in.
+          let x0 = Math.min(base.x0, box.x0, entryPort.x);
+          let y0 = Math.min(base.y0, box.y0, entryPort.y);
+          let x1 = Math.max(base.x1, box.x1, entryPort.x);
+          let y1 = Math.max(base.y1, box.y1, entryPort.y);
+          for (let i = 0; i < length; i++) {
+            x0 = Math.min(x0, pathXs[i]);
+            y0 = Math.min(y0, pathYs[i]);
+            x1 = Math.max(x1, pathXs[i]);
+            y1 = Math.max(y1, pathYs[i]);
+          }
           const hugged = this.contact(box, boxes);
           const toHub = last && !terminal ? Math.min(...ringEnds.map((r) => Math.abs(r.x - beyond.x) + Math.abs(r.y - beyond.y))) : 0;
           const cost =
-            (this.grid.area(spread) - this.grid.area(base)) * this.cfg.fillTarget +
-            path.length -
+            ((x1 - x0 + 1) * (y1 - y0 + 1) - baseArea) * this.cfg.fillTarget +
+            length -
             hugged * this.cfg.contactWeight +
             toHub * this.cfg.returnDistanceWeight;
-          const fit: PlacementFit = { piece, origin, box, corridor: path, approachDir, entryPort, exitPort, exitDir, pushed: straight, cost };
-          if (follower && !this.laneHasRoom(exitPort, exitDir, seg + 1, follower.options, [...boxes, box], claims)) continue;
-          fits.push(fit);
+          if (corridor === null) {
+            corridor = [];
+            for (let i = 0; i < length; i++) corridor.push({ x: pathXs[i], y: pathYs[i] });
+          }
+          fits.push({ piece, origin, box, corridor, approachDir, entryPort, exitPort, exitDir, pushed: straight, cost });
           if (fits.length >= this.cfg.chainPlacementSamples * PLACEMENT_POOL_FACTOR) {
             return this.cheapest(fits);
           }
@@ -456,6 +550,42 @@ export class HubLoopAssembler {
       }
     }
     return this.cheapest(fits);
+  }
+
+  /** The reusable buffers of the corridor search, allocated once for the grid size. */
+  private searchScratch(): SearchScratch {
+    if (!this.scratch) {
+      const cells = this.grid.width * this.grid.height;
+      const pathCapacity = this.cfg.maxLinkLength + 1;
+      this.scratch = {
+        generation: 0,
+        pathGeneration: 0,
+        seen: new Int32Array(cells),
+        parents: new Int32Array(cells),
+        depth: new Int32Array(cells),
+        order: new Int32Array(cells),
+        pathKeys: new Int32Array(pathCapacity),
+        pathXs: new Int32Array(pathCapacity),
+        pathYs: new Int32Array(pathCapacity),
+        pathMark: new Int32Array(cells)
+      };
+    }
+    return this.scratch;
+  }
+
+  /**
+   * The pieces of `options` whose entry port faces `facing`, in their order in
+   * `options`. Grouped once per options array, since the same arrays are searched
+   * thousands of times.
+   */
+  private entryFacing(options: CompiledPiece[], facing: Direction): CompiledPiece[] {
+    let buckets = this.entryBuckets.get(options);
+    if (!buckets) {
+      buckets = { N: [], E: [], S: [], W: [] };
+      for (const piece of options) buckets[this.grid.outwardOf(piece, piece.entry)].push(piece);
+      this.entryBuckets.set(options, buckets);
+    }
+    return buckets[facing];
   }
 
   /**
@@ -472,14 +602,19 @@ export class HubLoopAssembler {
     boxes: Box[],
     claims: Map<number, number>
   ): boolean {
-    const facing = options.filter((p) => this.grid.outwardOf(p, p.entry) === OPPOSITE_DIRECTION[exitDir]);
+    const facing = this.entryFacing(options, OPPOSITE_DIRECTION[exitDir]);
+    const probe: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
     for (let length = 1; length <= this.cfg.maxLinkLength; length++) {
       if (!this.grid.corridorFits(this.grid.stepN(exitPort, exitDir, length), seg, boxes, claims)) return false;
       const entryPort = this.grid.stepN(exitPort, exitDir, length + 1);
       for (const piece of facing) {
-        const origin = { x: entryPort.x - piece.entry.x, y: entryPort.y - piece.entry.y };
-        const box = this.grid.boxOf(piece, origin);
-        if (this.grid.boxFree(box) && !boxes.some((b) => this.grid.overlaps(box, b))) return true;
+        const originX = entryPort.x - piece.entry.x;
+        const originY = entryPort.y - piece.entry.y;
+        probe.x0 = originX;
+        probe.y0 = originY;
+        probe.x1 = originX + piece.width - 1;
+        probe.y1 = originY + piece.height - 1;
+        if (this.grid.boxFree(probe) && !boxes.some((b) => this.grid.overlaps(probe, b))) return true;
       }
     }
     return false;
