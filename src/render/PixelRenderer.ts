@@ -21,6 +21,7 @@ import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
 import { paintRailPiece } from './railArt';
+import { paintRelayPad, paintWiredMark } from './relayArt';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
@@ -2187,6 +2188,30 @@ export class PixelRenderer {
     ctx.setLineDash(LINK_DASH_PATTERN);
   }
 
+  /** A plug on every flip tile (a green toggle wall or a rail switch) a signal link ends on, shown whether or not the wires are. */
+  private drawWiredFlipMarks(
+    ctx: CanvasRenderingContext2D,
+    engine: PlayEngine,
+    terrain: readonly (readonly string[])[],
+    camX: number,
+    camY: number,
+    tilePixelSize: number
+  ): void {
+    const links = engine.getSignalLinks?.();
+    if (links === undefined || links.length === 0) return;
+    ctx.setLineDash(NO_DASH);
+    ctx.globalAlpha = 1;
+    const seen = new Set<number>();
+    for (const link of links) {
+      const cell = link.toY * this.blockCellsWidth + link.toX;
+      if (seen.has(cell) || this.isBlockCovered(link.toX, link.toY)) continue;
+      const tileId = terrain[link.toY]?.[link.toX];
+      if (tileId === undefined || ConfigRegistry.getTile(tileId).togglesTo === undefined) continue;
+      seen.add(cell);
+      this.drawWiredMark(ctx, (link.toX - camX) * tilePixelSize, (link.toY - camY) * tilePixelSize, tilePixelSize);
+    }
+  }
+
   private drawMechanismLinksAndObjective(
     ctx: CanvasRenderingContext2D,
     engine: PlayEngine,
@@ -2266,6 +2291,7 @@ export class PixelRenderer {
 
     // 3b. Signal links: solid while the signal flows, dashed while it does not
     this.strokeSignalLinks(ctx, engine, hov, showAll, camX, camY, tilePixelSize);
+    this.drawWiredFlipMarks(ctx, engine, terrain, camX, camY, tilePixelSize);
 
     // 4. Objective Beacon Reticle
     if (this.objectivePoint) {
@@ -3188,6 +3214,11 @@ export class PixelRenderer {
         this.paintPocketPad(ctx, x, y, size, pal.teleportRing, pal.teleportCore, 0);
         break;
 
+      case 'relay_pad_lit':
+      case 'relay_pad_dark':
+        this.paintRelayTile(ctx, tileId === 'relay_pad_lit', x, y, size, false);
+        break;
+
       case 'trap': {
         ctx.fillStyle = pal.trapBorder;
         ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
@@ -3659,6 +3690,22 @@ export class PixelRenderer {
     ctx.beginPath();
     ctx.arc(cx, cy, radius, POCKET_PAD_TOP + POCKET_PAD_ART.notchHalfAngle, POCKET_PAD_TOP - POCKET_PAD_ART.notchHalfAngle + FULL_TURN);
     ctx.stroke();
+  }
+
+  /** A relay pad, lit or dark, in the palette of the flat or the neon style. */
+  private paintRelayTile(ctx: CanvasRenderingContext2D, lit: boolean, x: number, y: number, size: number, neon: boolean): void {
+    const pal = this.pal();
+    const ring = neon ? pal.modernTeleportRing : pal.teleportRing;
+    const colours = lit
+      ? { housing: ring, ring, mark: pal.teleportCore, fill: ring }
+      : { housing: pal.wallTop, ring: pal.wallBase, mark: pal.wallTop, fill: pal.wallBase };
+    paintRelayPad(ctx, x, y, size, lit, colours, { crisp: !neon, glow: neon ? ring : undefined });
+  }
+
+  /** The wired mark of a cell a signal link ends on, in the palette of the active style. */
+  public drawWiredMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const pal = this.pal();
+    paintWiredMark(ctx, x, y, size, { body: pal.linkSignal, edge: pal.wallShadow });
   }
 
   /** A pocket gate pad: a still ring with a notch and a dot at its centre. */
@@ -4410,6 +4457,11 @@ export class PixelRenderer {
 
       case 'pocket_gate_pad':
         this.paintPocketPad(ctx, x, y, size, pal.modernTeleportRing, pal.teleportCore, glow.medium);
+        break;
+
+      case 'relay_pad_lit':
+      case 'relay_pad_dark':
+        this.paintRelayTile(ctx, tileId === 'relay_pad_lit', x, y, size, true);
         break;
 
       case 'hint': {

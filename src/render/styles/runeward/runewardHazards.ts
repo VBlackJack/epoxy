@@ -25,6 +25,7 @@
 
 import type { Direction, RunewardArtConfig, RunewardInkConfig, RunewardKeyColour } from '../../../core/types';
 import { paintColorGlyph } from '../../colorGlyph';
+import { paintRelayPad, type RelayPadColours } from '../../relayArt';
 import { type IceBendGeometry, paintIceBend } from '../../iceBend';
 import type { TileNeighbours } from '../../tileNeighbours';
 import {
@@ -344,6 +345,25 @@ export function paintPocketPad(ctx: CanvasRenderingContext2D, size: number, art:
   ctx.beginPath();
   ctx.arc(centre, centre, size * POCKET_PAD.centreRadius, 0, TAU);
   ctx.fill();
+}
+
+// ---- Relay pad --------------------------------------------------------------------------------
+
+/**
+ * A relay pad on plain floor: the shared housing, ring and wire. Lit, it shines in the portal colours (gold in ink
+ * drawings); dark, it is the same outline in the muted colours of the other devices, so it still reads as a device.
+ */
+export function paintRelayPadTile(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours, lit: boolean): void {
+  paintFloor(ctx, size, art, neighbours);
+  const muted = art.device.swivel;
+  const colours: RelayPadColours = art.ink
+    ? lit
+      ? { housing: art.ink.gold, ring: art.ink.gold, mark: art.ink.line, fill: art.ink.gold }
+      : { housing: art.ink.line, ring: art.ink.line, mark: art.ink.line, fill: art.ink.line }
+    : lit
+      ? { housing: art.portal.ring, ring: art.portal.ring, mark: art.portal.core, fill: art.portal.ring }
+      : { housing: muted.light, ring: muted.base, mark: muted.light, fill: muted.base };
+  paintRelayPad(ctx, 0, 0, size, lit, colours, { glow: lit && !art.ink ? art.portal.ring : undefined });
 }
 
 // ---- Ice --------------------------------------------------------------------------------------
