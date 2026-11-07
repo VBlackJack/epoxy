@@ -5480,6 +5480,10 @@
       "basics": {
         "title": "Les bases",
         "subtitle": "Marcher, ramasser des puces et atteindre la sortie."
+      },
+      "refresher": {
+        "title": "Rappel CC1",
+        "subtitle": "Les tuiles et monstres classiques de Chip's Challenge, et ce qui change dans Epoxy."
       }
     },
     "basics": {
@@ -5494,6 +5498,68 @@
       "detour": {
         "title": "Le chemin le plus long",
         "hint": "La sortie est proche mais le verrou la bloque. Éloignez-vous, ramassez toutes les puces, puis revenez."
+      }
+    },
+    "refresher": {
+      "secret_walls": {
+        "title": "Murs menteurs",
+        "hint": "Touchez un mur bleu : un faux disparaît, un vrai devient un mur ordinaire (bleu dans CC1). Certains murs restent invisibles. Un mur escamotable se referme."
+      },
+      "thin_walls": {
+        "title": "Parois fines",
+        "hint": "Une paroi fine ne bloque qu'un bord de sa case. Entrez par les autres côtés, jamais à travers le bord bloqué. Dans Epoxy, toute case peut en porter une."
+      },
+      "dirt_gravel": {
+        "title": "Terre et gravier",
+        "hint": "La terre devient du sol dès que vous la traversez, le gravier reste. Vous passez sur les deux, mais aucun monstre ne peut y entrer."
+      },
+      "keys": {
+        "title": "Clés et portes",
+        "hint": "Une clé ouvre la porte de sa couleur. Les clés rouge, bleue et jaune sont consommées par la porte ; la clé verte est gardée et ouvre toutes les portes vertes."
+      },
+      "elements": {
+        "title": "Eau, feu et bottes",
+        "hint": "L'eau vous noie et le feu vous brûle. Les palmes rendent l'eau sans danger, les bottes ignifugées le feu. Ramassez-les avant de traverser."
+      },
+      "ice": {
+        "title": "Glace et crampons",
+        "hint": "Sur la glace, vous glissez jusqu'à un obstacle et les coins vous font tourner. Les crampons permettent de marcher normalement : prenez-les pour vous arrêter."
+      },
+      "force": {
+        "title": "Tapis roulants",
+        "hint": "Les tapis roulants vous poussent. Un tapis aléatoire pousse n'importe où. Les bottes ventouses permettent de marcher à contre-courant."
+      },
+      "toggle": {
+        "title": "Murs bascules",
+        "hint": "Un bouton vert inverse tous les murs bascules : les fermés s'ouvrent, les ouverts se ferment. Anticipez de quel côté vous serez en appuyant."
+      },
+      "teleport": {
+        "title": "Téléporteurs",
+        "hint": "Un téléporteur mène au précédent dans l'ordre de lecture, en boucle. Si sa sortie est bloquée, vous sortez par un autre côté libre (CC1 passe au suivant)."
+      },
+      "followers": {
+        "title": "Les longeurs de murs",
+        "hint": "Les scarabées longent le mur à leur gauche, les paramécies à leur droite. Les balles roses rebondissent en ligne droite. Observez-les, puis faufilez-vous."
+      },
+      "skewers": {
+        "title": "Planeurs et boules de feu",
+        "hint": "Planeurs et boules de feu volent droit puis tournent face à un mur : planeurs à gauche, boules de feu à droite. Planeurs sur l'eau, boules de feu sur le feu."
+      },
+      "wanderers": {
+        "title": "Marcheurs, blobs et traqueurs",
+        "hint": "Les marcheurs vont droit puis tournent au hasard devant un obstacle. Les blobs errent au hasard. Les traqueurs vous suivent : semez-les derrière des murs."
+      },
+      "tank": {
+        "title": "Les tanks",
+        "hint": "Un tank roule droit jusqu'à un obstacle, puis attend. Un bouton bleu inverse tous les tanks. Appuyez dessus pour le renvoyer."
+      },
+      "trap": {
+        "title": "Les pièges",
+        "hint": "Un piège vous retient tant que son bouton brun est libre. Maintenez la direction : vous sortez quand le scarabée passe dessus."
+      },
+      "clone": {
+        "title": "Machines de clonage",
+        "hint": "Un bouton rouge fait cloner le monstre de sa machine. Le nouveau tank roule et s'arrête sur le bouton brun, ce qui ouvre le piège."
       }
     }
   }

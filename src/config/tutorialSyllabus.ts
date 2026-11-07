@@ -172,14 +172,50 @@ export interface TutorialChapter {
 }
 
 export const CHAPTERS: readonly TutorialChapter[] = [
-  { id: 'basics', order: 1, rooms: ['epoxy_t_move', 'epoxy_t_chips', 'epoxy_t_detour'] }
+  { id: 'basics', order: 1, rooms: ['epoxy_t_move', 'epoxy_t_chips', 'epoxy_t_detour'] },
+  {
+    id: 'refresher',
+    order: 2,
+    rooms: [
+      'epoxy_t_r_secret_walls',
+      'epoxy_t_r_thin_walls',
+      'epoxy_t_r_dirt_gravel',
+      'epoxy_t_r_keys',
+      'epoxy_t_r_elements',
+      'epoxy_t_r_ice',
+      'epoxy_t_r_force',
+      'epoxy_t_r_toggle',
+      'epoxy_t_r_teleport',
+      'epoxy_t_r_followers',
+      'epoxy_t_r_skewers',
+      'epoxy_t_r_wanderers',
+      'epoxy_t_r_tank',
+      'epoxy_t_r_trap',
+      'epoxy_t_r_clone'
+    ]
+  }
 ];
 
 /** Room id to the families the room teaches; a family is taught by exactly one room. */
 export const TEACHES: Readonly<Record<string, readonly string[]>> = {
   epoxy_t_move: ['walk'],
   epoxy_t_chips: ['chips'],
-  epoxy_t_detour: []
+  epoxy_t_detour: [],
+  epoxy_t_r_secret_walls: ['hidden_walls'],
+  epoxy_t_r_thin_walls: ['thin_walls'],
+  epoxy_t_r_dirt_gravel: ['dirt', 'gravel'],
+  epoxy_t_r_keys: ['keys_doors'],
+  epoxy_t_r_elements: ['water_fire', 'water_fire_boots'],
+  epoxy_t_r_ice: ['ice', 'ice_boots'],
+  epoxy_t_r_force: ['force_floors', 'force_boots'],
+  epoxy_t_r_toggle: ['green_button'],
+  epoxy_t_r_teleport: ['teleports'],
+  epoxy_t_r_followers: ['bugs', 'pink_ball'],
+  epoxy_t_r_skewers: ['gliders', 'fireballs'],
+  epoxy_t_r_wanderers: ['walkers', 'blobs', 'teeth'],
+  epoxy_t_r_tank: ['tank'],
+  epoxy_t_r_trap: ['traps'],
+  epoxy_t_r_clone: ['clone_machines']
 };
 
 /** Family to the reason it is deliberately not taught in a room. */
@@ -199,50 +235,27 @@ export function chapterOneFamilies(): string[] {
  * families its rooms teach; the lot that shows the pack leaves it empty.
  */
 export const PENDING: readonly string[] = [
-  'hidden_walls',
-  'thin_walls',
   'swivel_doors',
   'rails',
   'transmogrifier',
   'turn_plates',
   'underlays',
-  'dirt',
-  'gravel',
-  'water_fire',
-  'water_fire_boots',
   'slime',
   'turtle',
-  'ice',
-  'ice_boots',
-  'force_floors',
   'force_cycle',
-  'force_boots',
-  'keys_doors',
   'key_thief',
   'boot_thief',
-  'green_button',
-  'teleports',
   'coloured_teleports',
   'coloured_toggles',
   'pressure_plates',
   'flame_jets',
   'bombs',
-  'traps',
-  'clone_machines',
   'dirt_blocks',
   'ice_blocks',
   'block_targets',
   'arrow_blocks',
   'colour_blocks',
   'pull_boots',
-  'bugs',
-  'pink_ball',
-  'tank',
-  'gliders',
-  'fireballs',
-  'walkers',
-  'blobs',
-  'teeth',
   'skitter',
   'lurkers',
   'wisp',
