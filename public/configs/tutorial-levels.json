@@ -83,6 +83,545 @@
       "trapLinks": [],
       "cloneLinks": [],
       "solution": "WNNEEEEEEWWWWWWSSEEEE"
+    },
+    {
+      "id": "epoxy_t_r_secret_walls",
+      "number": 4,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.secret_walls.title",
+      "hintKey": "tutorial.refresher.secret_walls.hint",
+      "password": "BUMP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H.#######",
+        "#...w..####",
+        "#...a..####",
+        "#...f..u.E#",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 2,
+          "id": "invisible_wall"
+        }
+      ],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSEEEEEE"
+    },
+    {
+      "id": "epoxy_t_r_thin_walls",
+      "number": 5,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.thin_walls.title",
+      "hintKey": "tutorial.refresher.thin_walls.hint",
+      "password": "EDGE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 4,
+        "dir": "E"
+      },
+      "rows": [
+        "#########",
+        "#E......#",
+        "#.......#",
+        "###P#D###",
+        "#.H.....#",
+        "#########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "cellEdges": [
+        {
+          "x": 1,
+          "y": 1,
+          "sides": [
+            "E"
+          ]
+        }
+      ],
+      "solution": "EEEENNWWWWN"
+    },
+    {
+      "id": "epoxy_t_r_dirt_gravel",
+      "number": 6,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.dirt_gravel.title",
+      "hintKey": "tutorial.refresher.dirt_gravel.hint",
+      "password": "SOIL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.Hdddggg.#",
+        "#########.#",
+        "#E..dd....#",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEEEESSWWWWWWWW"
+    },
+    {
+      "id": "epoxy_t_r_keys",
+      "number": 7,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.keys.title",
+      "hintKey": "tutorial.refresher.keys.hint",
+      "password": "OPEN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H.r.R.k.#",
+        "#########.#",
+        "#E..G.G...#",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEEEESSWWWWWWWW"
+    },
+    {
+      "id": "epoxy_t_r_elements",
+      "number": 8,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.elements.title",
+      "hintKey": "tutorial.refresher.elements.hint",
+      "password": "BOOT",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H.W.F.E##",
+        "#Q###Z#####",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SNEEEESNEEE"
+    },
+    {
+      "id": "epoxy_t_r_ice",
+      "number": 9,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.ice.title",
+      "hintKey": "tutorial.refresher.ice.hint",
+      "password": "SLID",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H.III2###",
+        "#######I###",
+        "#KIIIII4###",
+        "####.######",
+        "####E######",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEESS"
+    },
+    {
+      "id": "epoxy_t_r_force",
+      "number": 10,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.force.title",
+      "hintKey": "tutorial.refresher.force.hint",
+      "password": "PUSH",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H.>>>>>v#",
+        "###?#####v#",
+        "#E>>>>>>>V#",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEWWWWWWWW"
+    },
+    {
+      "id": "epoxy_t_r_toggle",
+      "number": 11,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.toggle.title",
+      "hintKey": "tutorial.refresher.toggle.hint",
+      "password": "FLIP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H]!.[!]E#",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEEEE"
+    },
+    {
+      "id": "epoxy_t_r_teleport",
+      "number": 12,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.teleport.title",
+      "hintKey": "tutorial.refresher.teleport.hint",
+      "password": "WARP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H.O#...E#",
+        "#....#.O..#",
+        "#...O#...##",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSENE"
+    },
+    {
+      "id": "epoxy_t_r_followers",
+      "number": 13,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.followers.title",
+      "hintKey": "tutorial.refresher.followers.hint",
+      "password": "HUGS",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "###.....###",
+        "#.H.....E##",
+        "###.....###",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "bug",
+          "x": 3,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "pink_ball",
+          "x": 4,
+          "y": 2,
+          "dir": "N"
+        },
+        {
+          "type": "paramecium",
+          "x": 7,
+          "y": 3,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EENSSEENEEE"
+    },
+    {
+      "id": "epoxy_t_r_skewers",
+      "number": 14,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.skewers.title",
+      "hintKey": "tutorial.refresher.skewers.hint",
+      "password": "SKEW",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "###..F..###",
+        "#.H.....E##",
+        "###..W..###",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "fireball",
+          "x": 3,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "glider",
+          "x": 3,
+          "y": 3,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEEE"
+    },
+    {
+      "id": "epoxy_t_r_wanderers",
+      "number": 15,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.wanderers.title",
+      "hintKey": "tutorial.refresher.wanderers.hint",
+      "password": "ROAM",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "###.....###",
+        "#.H.#.#.E##",
+        "###.....###",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "walker",
+          "x": 3,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "blob",
+          "x": 5,
+          "y": 2,
+          "dir": "N"
+        },
+        {
+          "type": "teeth",
+          "x": 7,
+          "y": 3,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EENE.EEWS..NEESE"
+    },
+    {
+      "id": "epoxy_t_r_tank",
+      "number": 16,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.tank.title",
+      "hintKey": "tutorial.refresher.tank.hint",
+      "password": "ROLL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#####.#####",
+        "###-#.#####",
+        "#.H......E#",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 5,
+          "y": 1,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EENSEEEEEE"
+    },
+    {
+      "id": "epoxy_t_r_trap",
+      "number": 17,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.trap.title",
+      "hintKey": "tutorial.refresher.trap.hint",
+      "password": "SNAP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H.X.E####",
+        "###########",
+        "####.&.####",
+        "####.#.####",
+        "####...####",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [
+        {
+          "type": "bug",
+          "x": 5,
+          "y": 5,
+          "dir": "W"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 5,
+          "buttonY": 3,
+          "trapX": 4,
+          "trapY": 1
+        }
+      ],
+      "cloneLinks": [],
+      "solution": "EEE...EE"
+    },
+    {
+      "id": "epoxy_t_r_clone",
+      "number": 18,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.refresher.clone.title",
+      "hintKey": "tutorial.refresher.clone.hint",
+      "password": "COPY",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#.H+.X.E###",
+        "###########",
+        "####.....&#",
+        "###########"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 4,
+          "y": 3,
+          "id": "clone_machine"
+        }
+      ],
+      "items": [],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 4,
+          "y": 3,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 9,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 1
+        }
+      ],
+      "cloneLinks": [
+        {
+          "buttonX": 3,
+          "buttonY": 1,
+          "clonerX": 4,
+          "clonerY": 3,
+          "templateType": "tank",
+          "templateDir": "E"
+        }
+      ],
+      "solution": "EEEE...EE"
     }
   ]
 }

@@ -5480,6 +5480,10 @@
       "basics": {
         "title": "Basics",
         "subtitle": "Walk, collect chips and reach the exit."
+      },
+      "refresher": {
+        "title": "CC1 Refresher",
+        "subtitle": "Classic Chip's Challenge tiles and monsters, with the places where Epoxy differs."
       }
     },
     "basics": {
@@ -5494,6 +5498,68 @@
       "detour": {
         "title": "The Long Way Round",
         "hint": "The exit is close but the socket blocks it. Walk away from it, gather all the chips, then come back."
+      }
+    },
+    "refresher": {
+      "secret_walls": {
+        "title": "Walls That Lie",
+        "hint": "Bump a blue wall: a fake one vanishes, a real one becomes a plain wall (blue in CC1). Some walls never show. Pop-up walls close behind you."
+      },
+      "thin_walls": {
+        "title": "Thin Walls",
+        "hint": "A thin wall blocks one edge of its tile only. Enter from the open sides, never across the blocked edge. Epoxy lets any tile carry one."
+      },
+      "dirt_gravel": {
+        "title": "Dirt and Gravel",
+        "hint": "Dirt turns into floor once you step on it, gravel stays. You can cross both, but monsters can enter neither."
+      },
+      "keys": {
+        "title": "Keys and Doors",
+        "hint": "A key opens the door of its colour. Red, blue and yellow keys are used up by the door; the green key is kept and opens every green door."
+      },
+      "elements": {
+        "title": "Water, Fire and Boots",
+        "hint": "Water drowns you and fire burns you. Flippers make water safe, fire boots make fire safe. Pick the boots up before you cross."
+      },
+      "ice": {
+        "title": "Ice and Skates",
+        "hint": "On ice you slide until something stops you, and corners turn you. Ice skates let you walk on ice normally, so grab them to stop where you want."
+      },
+      "force": {
+        "title": "Force Floors",
+        "hint": "Force floors push you along. A random one pushes any way. Suction boots let you walk against them."
+      },
+      "toggle": {
+        "title": "Toggle Walls",
+        "hint": "A green button flips every toggle wall: closed ones open, open ones close. Think about which side you will stand on when you press it."
+      },
+      "teleport": {
+        "title": "Teleporters",
+        "hint": "A teleporter sends you to the previous one in reading order, looping. If its exit side is blocked you step out of another free side (CC1 tries the next pad)."
+      },
+      "followers": {
+        "title": "Wall Huggers",
+        "hint": "Bugs keep a wall on their left, paramecia on their right. Pink balls bounce straight back and forth. Watch their pattern, then slip past."
+      },
+      "skewers": {
+        "title": "Gliders and Fireballs",
+        "hint": "Gliders and fireballs fly straight and turn when blocked: gliders favour left, fireballs right. Gliders cross water, fireballs cross fire."
+      },
+      "wanderers": {
+        "title": "Walkers, Blobs and Teeth",
+        "hint": "Walkers go straight, then turn at random when blocked. Blobs wander at random. Teeth chase you, so use walls to lose them."
+      },
+      "tank": {
+        "title": "Tanks",
+        "hint": "A tank rolls straight until blocked, then waits. A blue button reverses every tank. Press it to send the tank back."
+      },
+      "trap": {
+        "title": "Traps",
+        "hint": "A trap holds you while its brown button is empty. Keep pressing the way out: you leave when the bug stands on the button."
+      },
+      "clone": {
+        "title": "Clone Machines",
+        "hint": "A red button makes its clone machine copy the monster inside. The new tank rolls on and parks on the brown button, opening the trap."
       }
     },
     "ui": {
