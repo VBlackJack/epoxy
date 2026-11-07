@@ -5495,6 +5495,46 @@
         "title": "The Long Way Round",
         "hint": "The exit is close but the socket blocks it. Walk away from it, gather all the chips, then come back."
       }
+    },
+    "ui": {
+      "help": {
+        "button": {
+          "action": "Tutorial",
+          "hint": "Learn the game one mechanic at a time"
+        }
+      },
+      "drawer": {
+        "button": {
+          "action": "Tutorial"
+        }
+      },
+      "onboarding": {
+        "start": {
+          "action": "Start the tutorial"
+        },
+        "skip": {
+          "action": "Skip"
+        }
+      },
+      "notice": {
+        "title": {
+          "label": "New: Tutorial"
+        },
+        "body": {
+          "label": "A tutorial now teaches the game one mechanic at a time, room by room. Try it whenever you like."
+        },
+        "start": {
+          "action": "Start"
+        },
+        "later": {
+          "action": "Later"
+        }
+      },
+      "complete": {
+        "play_epoxy": {
+          "action": "Play Epoxy"
+        }
+      }
     }
   }
 }

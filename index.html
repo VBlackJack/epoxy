@@ -223,6 +223,7 @@
                       <button id="overlay-btn-back-to-editor" class="action-btn primary hidden" type="button" data-i18n="editor.pack.back_to_editor.action"></button>
                       <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action" data-i18n-title="hud.messages.next_action.hint"></button>
                       <button id="overlay-btn-rate" class="action-btn hidden" type="button" aria-haspopup="dialog" data-i18n="app.playtest.rating.open.action"></button>
+                      <button id="overlay-btn-play-epoxy" class="action-btn primary hidden" type="button" data-i18n="tutorial.ui.complete.play_epoxy.action"></button>
                       <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
                       <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
                       <button id="overlay-btn-retry" class="action-btn" type="button" data-i18n="hud.controls.restart.action" data-i18n-title="hud.controls.restart.hint"></button>
@@ -291,6 +292,7 @@
                   </div>
                   <button id="touch-menu-options" class="hud-btn" type="button" aria-haspopup="dialog" data-i18n="hud.touch_overlay.menu_drawer.all_options.action"></button>
                   <button id="touch-menu-levels" class="hud-btn" type="button" aria-haspopup="dialog" data-i18n="hud.touch_overlay.menu_drawer.levels.action"></button>
+                  <button id="touch-menu-tutorial" class="hud-btn hidden" type="button" data-tutorial-entry data-i18n="tutorial.ui.drawer.button.action"></button>
                   <button id="touch-menu-exit-fullscreen" class="hud-btn" type="button" data-i18n="hud.touch_overlay.menu_drawer.exit_fullscreen.action"></button>
                 </div>
               </aside>
@@ -828,6 +830,7 @@
           </details>
           <div class="modal-actions">
             <button id="help-onboarding-btn" class="action-btn" type="button" data-i18n="hud.help_modal.onboarding_btn.action"></button>
+            <button id="help-tutorial-btn" class="action-btn hidden" type="button" data-tutorial-entry data-i18n="tutorial.ui.help.button.action" data-i18n-title="tutorial.ui.help.button.hint"></button>
             <button id="help-close-btn" class="action-btn primary" type="button" data-i18n="hud.help_modal.close_btn.action"></button>
           </div>
         </div>
@@ -846,7 +849,20 @@
             <li data-i18n="hud.onboarding_modal.goal.label"></li>
           </ul>
           <div class="modal-actions">
+            <button id="onboarding-tutorial-btn" class="action-btn primary hidden" type="button" data-onboarding-tutorial data-i18n="tutorial.ui.onboarding.start.action"></button>
             <button id="onboarding-close-btn" class="action-btn primary" type="button" data-i18n="hud.onboarding_modal.close_btn.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ONE-TIME "NEW: TUTORIAL" NOTICE -->
+      <div id="tutorial-notice-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-notice-title">
+        <div class="modal-dialog">
+          <h3 id="tutorial-notice-title" data-i18n="tutorial.ui.notice.title.label"></h3>
+          <p data-i18n="tutorial.ui.notice.body.label"></p>
+          <div class="modal-actions">
+            <button id="tutorial-notice-start-btn" class="action-btn primary" type="button" data-i18n="tutorial.ui.notice.start.action"></button>
+            <button id="tutorial-notice-later-btn" class="action-btn" type="button" data-i18n="tutorial.ui.notice.later.action"></button>
           </div>
         </div>
       </div>
