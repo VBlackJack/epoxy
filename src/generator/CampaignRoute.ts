@@ -17,7 +17,7 @@
 import { ORDERED_DIRECTIONS } from '../config/constants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, GridPoint, UndoSnapshot } from '../core/types';
-import { encodeActions, PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
+import { encodeActions, MoveAction, PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
 
 /** Default bound on states explored by one goto search. */
 export const DEFAULT_MAX_GOTO_STATES = 50000;
@@ -64,7 +64,7 @@ export function parseSegment(text: string): RouteSegment {
   if (LITERAL_PATTERN.test(text)) {
     return {
       kind: 'literal',
-      actions: [...text].map((ch) => (ch === WAIT_LETTER ? WAIT_ACTION : (ch as SolverAction)))
+      actions: [...text].map((ch) => (ch === WAIT_LETTER ? WAIT_ACTION : (ch as MoveAction)))
     };
   }
   const goto = GOTO_PATTERN.exec(text);
@@ -191,7 +191,7 @@ function searchGoto(engine: GameEngine, target: GridPoint, maxStates: number): G
   if (at()) return { moves: [], statesExplored: 1, reason: '' };
 
   const base = engine.captureState();
-  const actions: SolverAction[] = [...ORDERED_DIRECTIONS, WAIT_ACTION];
+  const actions: MoveAction[] = [...ORDERED_DIRECTIONS, WAIT_ACTION];
   // A state's snapshot is dropped once it is expanded; the path lives in parents and via.
   const states: Array<UndoSnapshot | null> = [base];
   const parents: number[] = [-1];

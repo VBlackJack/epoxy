@@ -36,10 +36,14 @@ vi.mock('../../colorGlyph', async (importOriginal) => {
   return { ...actual, paintColorGlyph: vi.fn(actual.paintColorGlyph) };
 });
 
-const BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
+const BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull', 'ward'];
+/** Item id of a boots kind: the ward is the one pair whose id is not `boots_<kind>`. */
+const bootsId = (kind: RunewardBootsKind): string => (kind === 'ward' ? 'ward' : `boots_${kind}`);
 const KEY_CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'green'];
 const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'force'];
 const TILE = 48;
+/** Fingers of the glove, each a rounded rectangle drawn with arcs. */
+const GLOVE_FINGERS = 4;
 const SMALL_TILE = 8;
 const FAR_TICK = 937;
 const MAIN_ON_FLOOR_MIN = 3;
@@ -107,9 +111,13 @@ function tileLog(id: string, art: RunewardArtConfig, pass: 'all' | 'static' | 'a
 function mainFills(art: RunewardArtConfig): Record<string, string> {
   const { boots, bomb, score, stopwatch, slowTime } = art.item;
   return {
-    ...Object.fromEntries(BOOTS.map((kind) => [`boots_${kind}`, boots[kind].main])),
+    ...Object.fromEntries(BOOTS.map((kind) => [bootsId(kind), boots[kind].main])),
     slow_time: slowTime.base,
     bomb: bomb.base,
+    charge: bomb.base,
+    charge_lit: bomb.base,
+    pocket_gate: art.portal.ring,
+    hurl_stone: bomb.base,
     score_10: score.base,
     score_100: score.base,
     score_1000: score.base,
@@ -129,8 +137,8 @@ describe('Runeward item dispatch', () => {
 
   it('paints every boots, slow-time, bomb, score and stopwatch item', () => {
     const expected = [
-      ...BOOTS.map((kind) => `boots_${kind}`),
-      'slow_time', 'bomb', 'score_10', 'score_100', 'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
+      ...BOOTS.map(bootsId),
+      'slow_time', 'bomb', 'charge', 'charge_lit', 'pocket_gate', 'hurl_stone', 'score_10', 'score_100', 'score_1000', 'score_2x', 'stopwatch_bonus', 'stopwatch_penalty'
     ];
     expect(ITEM_IDS.sort()).toEqual(expected.sort());
   });
@@ -187,6 +195,20 @@ describe('Runeward item drawings', () => {
       return lines.join('\n');
     });
     expect(new Set(logs).size).toBe(BOOTS.length);
+  });
+
+  it.each(ARTS)('draws the pull boots as a glove, not with the shared boot drawing, in the %s drawing', (_name, art) => {
+    const record = (kind: RunewardBootsKind): string => {
+      const { ctx, lines } = createRecordedContext();
+      paintBootsItem(ctx, TILE, art(), kind, 0);
+      return lines.join('\n');
+    };
+    const glove = record('pull');
+    expect(glove).toContain('ellipse(');
+    expect(glove.match(/arcTo\(/g)?.length ?? 0).toBeGreaterThanOrEqual(GLOVE_FINGERS);
+    for (const kind of BOOTS.filter((other) => other !== 'pull')) {
+      expect(record(kind), kind).not.toContain('arcTo(');
+    }
   });
 
   it('draws an ink outline on every parchment item and forbidden marker, and none in the plain drawing', () => {

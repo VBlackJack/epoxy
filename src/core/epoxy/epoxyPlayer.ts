@@ -23,7 +23,10 @@ import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { triggerButton } from './epoxyDevices';
-import { consumeShotAt, killPlayerByShot } from './epoxyShots';
+import { forceCycleArrival } from './epoxyForceCycle';
+import { wakeLurkersNearPlayer } from './epoxyLurkers';
+import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
+import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -37,6 +40,7 @@ import {
   killPlayer,
   leaveCell,
   notePulseArrival,
+  shotAt,
   takeRevealedTerrain
 } from './epoxyWorld';
 
@@ -63,6 +67,12 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   }
 
   if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  // A thrown stone still in the cell ahead is not walked into: the step is refused like a blocked one.
+  if (w.shots.length > 0 && shotAt(w, targetX, targetY)?.payload !== undefined) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
@@ -148,7 +158,13 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     return false;
   }
 
-  const entityAtTarget = getEntityAt(w, targetX, targetY);
+  let entityAtTarget = getEntityAt(w, targetX, targetY);
+  let wardSpent = false;
+  // A ward destroys the first monster the player runs into; the player walks on into the empty cell.
+  if (entityAtTarget?.kind === 'monster' && absorbMonsterContact(w, entityAtTarget.uid)) {
+    wardSpent = true;
+    entityAtTarget = undefined;
+  }
   if (entityAtTarget) {
     if (entityAtTarget.kind === 'block') {
       const pushed = attemptPushBlock(ctx, entityAtTarget, dir);
@@ -173,13 +189,15 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   leaveCell(w, w.player.x, w.player.y);
   w.player.x = targetX;
   w.player.y = targetY;
-  w.statusBannerKey = null;
+  w.statusBannerKey = wardSpent ? 'hud.messages.ward_spent' : null;
 
   if (!fromSlide) {
     AudioManager.playStep(stepTerrainOf(ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.player.boots));
   }
 
   resolvePlayerArrival(ctx, dir, true);
+  // The arrival is settled (a teleport included): a lurker asleep next to the player wakes.
+  if (w.player.alive && !w.levelCompleted) wakeLurkersNearPlayer(w);
 
   if (
     !fromSlide &&
@@ -222,8 +240,9 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   enterSwivel(w, x, y, entryDir);
 
   // Running into a flying shot kills the player and spends the shot; a teleport lands here again for its exit cell.
-  if (w.shots.length > 0 && consumeShotAt(w, x, y)) {
-    killPlayerByShot(ctx);
+  const hitBy = w.shots.length > 0 ? spendShotAt(w, x, y) : undefined;
+  if (hitBy) {
+    killPlayerByShot(ctx, hitBy.payload);
     return;
   }
 
@@ -255,11 +274,13 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
       AudioManager.playSfx('chip');
       ctx.emitVisual('chip', x, y, 'green');
-    } else if (itemDef.collectible === 'key') {
+    } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
       AudioManager.playSfx('item');
       ctx.emitVisual('item', x, y, itemDef.colorKey || 'yellow');
+    } else if (itemDef.collectible === 'boot' && itemDef.absorbsMonsterContact && wardBootsHeld(w.player.boots) !== undefined) {
+      // A second ward stays on the floor while one is worn.
     } else if (itemDef.collectible === 'boot') {
       w.items[y][x] = null;
       w.player.boots.add(itemId);
@@ -279,8 +300,10 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     AudioManager.playSfx('thief');
   }
 
-  if (tile.stealsKeys && Object.values(w.player.keys).some((count) => count > 0)) {
-    w.player.keys = {};
+  // Only keys are stolen: a blast charge or a pocket gate stays in the pocket.
+  const isKey = (id: string): boolean => ConfigRegistry.getTile(id).collectible === 'key';
+  if (tile.stealsKeys && Object.entries(w.player.keys).some(([id, count]) => count > 0 && isKey(id))) {
+    w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isKey(id)));
     w.statusBannerKey = 'hud.messages.thief_stole_keys';
     AudioManager.playSfx('thief');
   }
@@ -359,6 +382,8 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
   }
 
   if (tile.slideType === 'force') {
+    // The arrival counts on the shared turn even when boots protect the player from the push.
+    const cycleDir = forceCycleArrival(w, tile);
     if (tile.protectedByItem && w.player.boots.has(tile.protectedByItem)) {
       w.player.isSliding = false;
       w.player.slideDir = null;
@@ -367,6 +392,8 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     let forceDir: Direction = entryDir;
     if (tile.forceDirection === 'RANDOM') {
       forceDir = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
+    } else if (cycleDir) {
+      forceDir = cycleDir;
     } else if (tile.forceDirection) {
       forceDir = tile.forceDirection;
     }

@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, PHASE_LINE_PATTERN, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -195,12 +195,13 @@ function hasTurnPlateContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): b
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter or an arrow block), a steering pad, a transmogrifier, or a turn plate. */
+/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter, a lurker, a wisp or an arrow block), a steering pad, a transmogrifier, a turn plate, or a turning force floor. */
 export function hasEpoxyOnlyMonsterContent(
-  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks'>>
+  level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays'>>
 ): boolean {
-  if (hasSteeringContent(level) || hasTransmogrifierContent(level) || hasTurnPlateContent(level)) return true;
-  const epoxyOnly = (type: string): boolean => isFleeingEntityType(type) || isArrowBlockEntityType(type);
+  if (hasSteeringContent(level) || hasTransmogrifierContent(level) || hasTurnPlateContent(level) || hasForceCycleContent(level)) return true;
+  const epoxyOnly = (type: string): boolean =>
+    isFleeingEntityType(type) || isArrowBlockEntityType(type) || isLurkerEntityType(type) || isPhasingEntityType(type);
   return (
     (level.entities ?? []).some((e) => epoxyOnly(e.type)) || (level.cloneLinks ?? []).some((link) => epoxyOnly(link.templateType))
   );
@@ -267,9 +268,78 @@ export function hasPullBootsContent(level: Pick<CompiledLevel, 'terrain' | 'item
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots or the pull boots. */
+/** True when the tile is a ward, the boots that destroy the first monster touched and are used up by it. */
+export function isWardTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).absorbsMonsterContact === true;
+}
+
+/** True when the tile is a blast charge, carried and dropped by the player, or the lit form it turns into. */
+export function isChargeTileId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.collectible === 'charge' || tile.litCharge === true;
+}
+
+/** True when the level places a blast charge (terrain or item layer). */
+export function hasChargeContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isChargeTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
+/** True when the tile is a pocket gate, carried and set down by the player, or the portable pad it turns into. */
+export function isPocketGateTileId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.collectible === 'gate' || tile.portableTeleporter === true;
+}
+
+/** True when the level places a pocket gate or one of its pads (terrain, hidden terrain or item layer). */
+export function hasPocketGateContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items'> & Partial<Pick<CompiledLevel, 'underlays'>>
+): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isPocketGateTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items) || (level.underlays ?? []).some((under) => isPocketGateTileId(under.terrain));
+}
+
+/** True when the tile is a hurl stone, carried and thrown by the player. */
+export function isStoneTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).collectible === 'stone';
+}
+
+/** True when the level places a hurl stone (terrain or item layer). */
+export function hasStoneContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isStoneTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
+/** True when the tile is a rail piece (a straight, a bend or a switch), which closes the sides it is not open on. */
+export function isRailTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).railSides !== undefined;
+}
+
+/**
+ * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
+ * boots, the ward, a blast charge, a hurl stone, a pocket gate with its pad, or a rail piece (the pad and the rails are terrain,
+ * but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
+ */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
-  return isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id);
+  return (
+    isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
+    isChargeTileId(id) || isStoneTileId(id) || isPocketGateTileId(id) || isRailTileId(id)
+  );
+}
+
+/** True when the entity type is a lurker, asleep or awake, which only the Epoxy engine plays. */
+export function isLurkerEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.epoxyOnly === true;
+}
+
+/** True when the entity type is a wisp: a monster that walks through every tile (movement pattern phase_line). */
+export function isPhasingEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN;
 }
 
 /** True when the tile id is a transmogrifier, which swaps a monster arriving on it for its pair. */
@@ -301,16 +371,21 @@ export function isSignalTileId(id: string | null | undefined): boolean {
   return tile.signalSource !== undefined || tile.signalGate !== undefined;
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier, a turn plate or a signal tile. */
+/** True when the tile id is a turning force floor, whose direction is the next one of the level's shared turn. */
+export function isForceCycleTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).forceCycle === true;
+}
+
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier, a turn plate, a turning force floor or a signal tile. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
     isLaserTileId(id) || isColorChannelTileId(id) || isEpoxyOnlyItemId(id) ||
     isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id) || isTurnPlateTileId(id) ||
-    isSignalTileId(id)
+    isSignalTileId(id) || isForceCycleTileId(id)
   );
 }
 
-/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet or a skitter. */
+/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet, a skitter, a lurker or a wisp. */
 export function isEpoxyOnlyEntityType(type: string): boolean {
   return (
     isMirrorEntityType(type) ||
@@ -318,7 +393,9 @@ export function isEpoxyOnlyEntityType(type: string): boolean {
     isArrowBlockEntityType(type) ||
     isColorBlockEntityType(type) ||
     isSteeredEntityType(type) ||
-    isFleeingEntityType(type)
+    isFleeingEntityType(type) ||
+    isLurkerEntityType(type) ||
+    isPhasingEntityType(type)
   );
 }
 
@@ -351,7 +428,16 @@ export function hasSignalContent(
   return underlays.some((u) => isSignalTile(u.terrain));
 }
 
-/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers, turn plates or signal wiring. */
+/** True when the level places a turning force floor (terrain, item layer or an underlay hiding one). */
+export function hasForceCycleContent(
+  level: Pick<CompiledLevel, 'terrain' | 'items'> & Partial<Pick<CompiledLevel, 'underlays'>>
+): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isForceCycleTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items) || (level.underlays ?? []).some((u) => isForceCycleTileId(u.terrain));
+}
+
+/** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers, turn plates, turning force floors or signal wiring. */
 export function hasEpoxyOnlyContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> &
     Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays' | 'signalLinks'>>
@@ -364,6 +450,7 @@ export function hasEpoxyOnlyContent(
     hasEpoxyOnlyItem(level.terrain) ||
     hasEpoxyOnlyItem(level.items) ||
     hasSwivelContent(level) ||
+    hasForceCycleContent(level) ||
     hasEpoxyOnlyMonsterContent(level) ||
     hasSignalContent(level)
   );
@@ -409,6 +496,51 @@ function withoutSteeringAids(base: RulesetFeatures): RulesetFeatures {
 /** The aids of a signal level, kept per aid set like the steering overlay. */
 const signalFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const pullBootsFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const chargeFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const chargeContentCache = new WeakMap<object, boolean>();
+const pocketGateFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const pocketGateContentCache = new WeakMap<object, boolean>();
+const stoneFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const stoneContentCache = new WeakMap<object, boolean>();
+
+/**
+ * The aids a level with hurl stones loses on top of what its other mechanics already turn off: a thrown stone destroys
+ * monsters and melts ice blocks, which the push hint and the dead-end watch do not model.
+ */
+function withoutStoneAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = stoneFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    stoneFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
+
+/**
+ * The aids a level with pocket gates loses on top of what its other mechanics already turn off: a pad can be set down
+ * anywhere and links blocks and monsters too, which the push hint and the dead-end watch do not model.
+ */
+function withoutPocketGateAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = pocketGateFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    pocketGateFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
+
+/**
+ * The aids a level with blast charges loses on top of what its other mechanics already turn off: a blast removes
+ * monsters and blocks, which the push hint and the dead-end watch do not model.
+ */
+function withoutChargeAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = chargeFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    chargeFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
 
 function withoutPullBootsAids(base: RulesetFeatures): RulesetFeatures {
   let overlaid = pullBootsFeaturesCache.get(base);
@@ -464,7 +596,25 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     pullBoots = hasPullBootsContent({ terrain: level.terrain, items: level.items ?? [] });
     pullBootsContentCache.set(level, pullBoots);
   }
-  return pullBoots ? withoutPullBootsAids(signaled) : signaled;
+  const pulling = pullBoots ? withoutPullBootsAids(signaled) : signaled;
+  let charge = chargeContentCache.get(level);
+  if (charge === undefined) {
+    charge = hasChargeContent({ terrain: level.terrain, items: level.items ?? [] });
+    chargeContentCache.set(level, charge);
+  }
+  const charged = charge ? withoutChargeAids(pulling) : pulling;
+  let gate = pocketGateContentCache.get(level);
+  if (gate === undefined) {
+    gate = hasPocketGateContent({ terrain: level.terrain, items: level.items ?? [], underlays: level.underlays });
+    pocketGateContentCache.set(level, gate);
+  }
+  const gated = gate ? withoutPocketGateAids(charged) : charged;
+  let stone = stoneContentCache.get(level);
+  if (stone === undefined) {
+    stone = hasStoneContent({ terrain: level.terrain, items: level.items ?? [] });
+    stoneContentCache.set(level, stone);
+  }
+  return stone ? withoutStoneAids(gated) : gated;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

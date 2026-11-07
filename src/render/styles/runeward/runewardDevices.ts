@@ -36,6 +36,7 @@ import type { TileNeighbours } from '../../tileNeighbours';
 import { hasInkHatching, heavyLineWidth, inkLineWidth, paintHatching, type InkRect } from './runewardInk';
 import { linear, paintFloor, roundRect, wave } from './runewardPainters';
 import { paintColorGlyph } from '../../colorGlyph';
+import { paintRailPiece } from '../../railArt';
 import { DEFAULT_COLOR_KEY } from '../../paletteKeys';
 import { runewardClockMs } from './runewardEnv';
 import type { RunewardEntityPainter, RunewardTilePainter, RunewardTilePass } from './runewardTiles';
@@ -278,6 +279,24 @@ function paintSwivel(ctx: Ctx, size: number, art: Art, nb: Neighbours, id: strin
   ctx.arc(size * cx, size * cy, size * (SWIVEL.studRadius - SWIVEL.studRim), 0, TAU);
   ctx.fillStyle = art.gate.barLight;
   ctx.fill();
+}
+
+// ---- Rails ------------------------------------------------------------------------------------
+
+/** Two steel rails over timber sleepers along the open sides, a buffer on each closed side; a switch shows its other form faded. */
+function paintRail(ctx: Ctx, size: number, art: Art, nb: Neighbours, id: string): void {
+  paintFloor(ctx, size, art, nb);
+  const colours = art.device.swivel;
+  const definition = definitionOf(id);
+  const sides = definition.railSides;
+  if (sides === undefined) return;
+  const otherSides = definition.togglesTo === undefined ? undefined : definitionOf(definition.togglesTo).railSides;
+  paintRailPiece(ctx, 0, 0, size, sides, otherSides, {
+    outline: art.ink ? art.ink.line : colours.edge,
+    sleeper: colours.base,
+    rail: art.gate.barLight,
+    buffer: colours.light
+  });
 }
 
 // ---- Turn plates ------------------------------------------------------------------------------
@@ -760,6 +779,9 @@ const THIN_WALL_IDS: readonly string[] = [
   'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw'
 ];
 const SWIVEL_IDS: readonly string[] = ['swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw'];
+const RAIL_IDS: readonly string[] = [
+  'rail_ns', 'rail_ew', 'rail_ne', 'rail_se', 'rail_sw', 'rail_nw', 'rail_switch_a', 'rail_switch_b'
+];
 const TURN_PLATE_IDS: readonly string[] = ['turn_plate_cw', 'turn_plate_ccw'];
 const EMITTER_IDS: readonly string[] = ['laser_emitter_n', 'laser_emitter_e', 'laser_emitter_s', 'laser_emitter_w'];
 const RECEIVER_IDS: readonly string[] = ['laser_receiver_red', 'laser_receiver_blue'];
@@ -778,6 +800,7 @@ function entries(ids: readonly string[], make: (id: string) => RunewardTilePaint
 export const TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromEntries([
   ...entries(THIN_WALL_IDS, (id) => stillTile((ctx, size, art, nb) => paintThinWall(ctx, size, art, nb, id))),
   ...entries(SWIVEL_IDS, (id) => stillTile((ctx, size, art, nb) => paintSwivel(ctx, size, art, nb, id))),
+  ...entries(RAIL_IDS, (id) => stillTile((ctx, size, art, nb) => paintRail(ctx, size, art, nb, id))),
   ...entries(TURN_PLATE_IDS, (id) =>
     stillTile((ctx, size, art, nb) => paintTurnPlate(ctx, size, art, nb, definitionOf(id).facingTurn === -1 ? -1 : 1))),
   ['transmogrifier', stillTile(paintTransmogrifier)],

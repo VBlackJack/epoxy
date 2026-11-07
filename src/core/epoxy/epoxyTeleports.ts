@@ -30,9 +30,26 @@ import {
   isInBounds
 } from './epoxyWorld';
 
+/**
+ * The portable pads of a group as the terrain holds them now, in reading order (row by row, left to right).
+ * A pad can be set down or lost at any time, so the list is read live instead of from the lookups built at load.
+ */
+function portablePadsOf(w: EpoxyWorld, group: string): GridPoint[] {
+  const pads: GridPoint[] = [];
+  for (let y = 0; y < w.terrain.length; y++) {
+    for (let x = 0; x < w.terrain[y].length; x++) {
+      const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+      if (tile.portableTeleporter === true && (tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP) === group) pads.push({ x, y });
+    }
+  }
+  return pads;
+}
+
 /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
 function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
-  const group = ConfigRegistry.getTile(w.terrain[y][x]).teleportGroup ?? DEFAULT_TELEPORT_GROUP;
+  const origin = ConfigRegistry.getTile(w.terrain[y][x]);
+  const group = origin.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
+  if (origin.portableTeleporter === true) return portablePadsOf(w, group);
   const linked = w.teleportersByGroup.get(group) ?? [];
   // A teleporter hidden under a removable top is listed too; it takes part once the top is gone.
   return w.underlays === null

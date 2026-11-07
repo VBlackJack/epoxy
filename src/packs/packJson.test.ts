@@ -29,9 +29,16 @@ import {
   PACK_JSON_VERSION_LAUNCHERS,
   PACK_JSON_VERSION_PULSE_SINKS,
   PACK_JSON_VERSION_SIGNALS,
-  PACK_JSON_VERSION_UNDERLAYS
+  PACK_JSON_VERSION_UNDERLAYS,
+  PACK_JSON_VERSION_V7,
+  PACK_JSON_VERSION_V7_IDS,
+  PACK_JSON_VERSION_V8,
+  PACK_JSON_VERSION_V9,
+  PACK_JSON_VERSION_V9_IDS,
+  PACK_JSON_VERSION_V10,
+  PACK_JSON_VERSION_V10_IDS
 } from '../config/constants';
-import { usesPulseSinkFormat } from '../core/signalLinks';
+import { usesPulseSinkFormat, usesV7Ids } from '../core/signalLinks';
 import { CompiledLevel } from '../core/types';
 import { importCc3dSelection } from '../ui/cc3dImport';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -211,12 +218,12 @@ describe('packJson', () => {
     expect(serializePack('N', [plateToDoor])).toBe(
       JSON.stringify({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_SIGNALS, name: 'N', levels: [plateToDoor] }, null, 2)
     );
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V10);
     // The check reads the shipped ids by name, so it holds without a tile lookup.
     expect(usesPulseSinkFormat(pulse, null)).toBe(true);
     expect(usesPulseSinkFormat(edgeSink, null)).toBe(true);
     expect(usesPulseSinkFormat(plateToDoor, null)).toBe(false);
-    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS]) {
+    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS, PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V10]) {
       const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
       expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
     }
@@ -323,5 +330,71 @@ describe('packJson', () => {
       const result = parse(file({ author: 'Ann' }));
       expect(result.ok && 'author' in result).toBe(false);
     });
+  });
+});
+
+describe('pack format 7 id gate', () => {
+  const version = (levels: CompiledLevel[]): number => JSON.parse(serializePack('N', levels)).version;
+
+  it('writes version 7 for each scanned field and takes precedence over 6', () => {
+    const terrain = makeLevel('t');
+    terrain.terrain[1][1] = 'force_cycle';
+    const underlay = { ...makeLevel('u'), underlays: [{ x: 2, y: 2, terrain: 'force_cycle' }] };
+    const item = makeLevel('i');
+    item.items[1][1] = 'ward';
+    const entity = { ...makeLevel('e'), entities: [{ x: 1, y: 1, type: 'lurker', dir: 'S' as const }] };
+    const clone = {
+      ...makeLevel('c'),
+      cloneLinks: [{ buttonX: 0, buttonY: 0, clonerX: 1, clonerY: 1, templateType: 'lurker_dormant', templateDir: 'S' as const }]
+    };
+    for (const level of [terrain, underlay, item, entity, clone]) {
+      expect(usesV7Ids(level)).toBe(true);
+      expect(version([level])).toBe(PACK_JSON_VERSION_V7);
+    }
+    const pulse = makeLevel('p');
+    pulse.terrain[2][2] = 'signal_button';
+    expect(version([pulse])).toBe(PACK_JSON_VERSION_PULSE_SINKS);
+    expect(version([pulse, terrain])).toBe(PACK_JSON_VERSION_V7);
+  });
+
+  it('keeps v5 and v6 selection and skips CC3D levels', () => {
+    const plain = makeLevel('a');
+    expect(usesV7Ids(plain)).toBe(false);
+    expect(version([plain])).toBe(PACK_JSON_VERSION);
+    const signals = { ...makeLevel('s'), signalLinks: [{ fromX: 0, fromY: 0, toX: 1, toY: 1 }] };
+    expect(version([signals])).toBe(PACK_JSON_VERSION_SIGNALS);
+    const cc3d: CompiledLevel = { ...makeLevel('x'), ruleset: 'cc3d' };
+    cc3d.terrain[1][1] = 'charge';
+    cc3d.items[1][1] = 'ward';
+    expect(usesV7Ids(cc3d)).toBe(false);
+    expect(version([cc3d])).toBe(PACK_JSON_VERSION);
+  });
+
+  it('reads versions 7 to 10 and refuses version 11', () => {
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V10);
+    const sevenFile = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V7, name: 'x', levels: [makeLevel('a')] };
+    expect(parse(JSON.stringify(sevenFile))).toMatchObject({ ok: true });
+    const level = makeLevel('t');
+    level.items[1][1] = 'charge';
+    const written = parse(serializePack('N', [level]));
+    expect(written).toMatchObject({ ok: true });
+    if (written.ok) expect(written.levels[0].items[1][1]).toBe('charge');
+    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V10 + 1, name: 'x', levels: [level] };
+    expect(parse(JSON.stringify(future))).toEqual({ ok: false, error: 'version' });
+  });
+
+  it('has every id of the gate in the shipped configs', () => {
+    const bundle = loadTestConfigs() as unknown as {
+      tiles: { tiles: Record<string, unknown> | Array<{ id: string }> };
+      monsters: { entities: Record<string, unknown> };
+    };
+    const tileIds = Array.isArray(bundle.tiles.tiles)
+      ? bundle.tiles.tiles.map((t) => t.id)
+      : Object.keys(bundle.tiles.tiles);
+    const known = new Set([...tileIds, ...Object.keys(bundle.monsters.entities)]);
+    const missing = [...PACK_JSON_VERSION_V7_IDS].filter((id) => !known.has(id)).sort();
+    expect(missing).toEqual([]);
+    expect([...PACK_JSON_VERSION_V9_IDS].filter((id) => !known.has(id))).toEqual([]);
+    expect([...PACK_JSON_VERSION_V10_IDS].filter((id) => !known.has(id))).toEqual([]);
   });
 });

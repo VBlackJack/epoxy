@@ -305,6 +305,30 @@ tile swivel_door_sw closed=true shadowMask=128 hash=1 dc01481e11ed2f2e
 tile swivel_door_nw closed=true isolated cbfdbd987edf7df4
 tile swivel_door_nw closed=true shadowMask=65 hash=1 1fbc43026afafc48
 tile swivel_door_nw closed=true shadowMask=128 hash=1 5bde97e6707f7de9
+tile rail_ns closed=true isolated 6761252f78eacf95
+tile rail_ns closed=true shadowMask=65 hash=1 cad6e6f7e77cfedf
+tile rail_ns closed=true shadowMask=128 hash=1 6ed759e54804ccaa
+tile rail_ew closed=true isolated c76d39ce5f4f924d
+tile rail_ew closed=true shadowMask=65 hash=1 a612a7fcc9d1e710
+tile rail_ew closed=true shadowMask=128 hash=1 4adcb18188b9d530
+tile rail_ne closed=true isolated ff714a51f1fec839
+tile rail_ne closed=true shadowMask=65 hash=1 3e227621604cfb21
+tile rail_ne closed=true shadowMask=128 hash=1 de05fb135a786b1b
+tile rail_se closed=true isolated 7ec149ce82ebc97e
+tile rail_se closed=true shadowMask=65 hash=1 beb35cf805ec29f5
+tile rail_se closed=true shadowMask=128 hash=1 b1de3454b9e26fc1
+tile rail_sw closed=true isolated 45c7185b7dee5d90
+tile rail_sw closed=true shadowMask=65 hash=1 5542c24420e737ca
+tile rail_sw closed=true shadowMask=128 hash=1 22f9fdd2cb21f865
+tile rail_nw closed=true isolated 687915d40429252d
+tile rail_nw closed=true shadowMask=65 hash=1 33eaa111d05f6c51
+tile rail_nw closed=true shadowMask=128 hash=1 838bfd9eff11f7aa
+tile rail_switch_a closed=true isolated dc3e6d76dd244d64
+tile rail_switch_a closed=true shadowMask=65 hash=1 f2f68ee647b0a01d
+tile rail_switch_a closed=true shadowMask=128 hash=1 b00b98681201a162
+tile rail_switch_b closed=true isolated b233a3fcf0b953a5
+tile rail_switch_b closed=true shadowMask=65 hash=1 981b945980ff1e6f
+tile rail_switch_b closed=true shadowMask=128 hash=1 1695d84ddbdda314
 tile transmogrifier closed=true isolated 70ca57e19bbd73e3
 tile transmogrifier closed=true shadowMask=65 hash=1 0e284e4eb04447a2
 tile transmogrifier closed=true shadowMask=128 hash=1 271cf08e4f7cfc98
@@ -371,6 +395,9 @@ tile force_w closed=true shadowMask=128 hash=1 8beecad9d2f1a1c4
 tile force_random closed=true isolated 1ffc25d825976cb8
 tile force_random closed=true shadowMask=65 hash=1 b0313b8514cc4c2a
 tile force_random closed=true shadowMask=128 hash=1 b9d33569a34597a5
+tile force_cycle closed=true isolated 5f5a82d5e7128527
+tile force_cycle closed=true shadowMask=65 hash=1 7773258c9f5115a9
+tile force_cycle closed=true shadowMask=128 hash=1 0905758d0276574b
 tile thief closed=true isolated a5a13282420965bf
 tile thief closed=true shadowMask=65 hash=1 16fcbe59e07cb3c7
 tile thief closed=true shadowMask=128 hash=1 1867b942b5569a92
@@ -461,6 +488,9 @@ tile teleport_yellow closed=true shadowMask=128 hash=1 ad9798e82d8437f0
 tile teleport_green closed=true isolated 8b990cf482ba14cd
 tile teleport_green closed=true shadowMask=65 hash=1 189df5cd76fbbe65
 tile teleport_green closed=true shadowMask=128 hash=1 64acd97e6bd017a6
+tile pocket_gate_pad closed=true isolated 6b1c0002c18dfb06
+tile pocket_gate_pad closed=true shadowMask=65 hash=1 513734fb3166eac8
+tile pocket_gate_pad closed=true shadowMask=128 hash=1 afdb7abe6657ea96
 tile trap closed=true isolated 4fd3087ef759cad8
 tile trap closed=true shadowMask=65 hash=1 74a390bf513a4113
 tile trap closed=true shadowMask=128 hash=1 cde0828c3c38ba6b

@@ -19,7 +19,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, GridPoint, RuntimeEntity, UndoSnapshot } from '../core/types';
-import { PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
+import { MoveAction, PieceSolver, SolverAction, WAIT_ACTION } from './PieceSolver';
 
 const REGION_LEVEL_PASSWORD = 'REGN';
 /** Wall cells kept around the region's bounding box in the cropped engine. */
@@ -276,7 +276,7 @@ export class RegionSolver {
     if (at()) return { moves: [], statesExplored: 1, truncated: false };
 
     const base = engine.captureState();
-    const actions: SolverAction[] = [...ORDERED_DIRECTIONS, WAIT_ACTION];
+    const actions: MoveAction[] = [...ORDERED_DIRECTIONS, WAIT_ACTION];
     const states: UndoSnapshot[] = [base];
     const parents: number[] = [-1];
     const via: (SolverAction | null)[] = [null];

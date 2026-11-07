@@ -33,9 +33,12 @@ import {
   findColorChannelConfigErrors,
   findLaserConfigErrors,
   findSwivelConfigErrors,
+  findRailConfigErrors,
   findSlowTimeConfigErrors,
   findSpeedBootsConfigErrors,
   findEyeBootsConfigErrors,
+  findChargeConfigErrors,
+  findGateConfigErrors,
   findPullBootsConfigErrors,
   findTransmogrifierConfigErrors,
   findShotConfigErrors,
@@ -315,6 +318,10 @@ class ConfigRegistryService {
     if (swivelErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, swivelErrors.join('; '));
     }
+    const railErrors = findRailConfigErrors(bundle.tiles.tiles);
+    if (railErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, railErrors.join('; '));
+    }
     const facingTurnErrors = findFacingTurnConfigErrors(bundle.tiles.tiles);
     if (facingTurnErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, facingTurnErrors.join('; '));
@@ -342,6 +349,14 @@ class ConfigRegistryService {
     const pullBootsErrors = findPullBootsConfigErrors(bundle.tiles.tiles);
     if (pullBootsErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, pullBootsErrors.join('; '));
+    }
+    const chargeErrors = findChargeConfigErrors(bundle.tiles.tiles);
+    if (chargeErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, chargeErrors.join('; '));
+    }
+    const gateErrors = findGateConfigErrors(bundle.tiles.tiles);
+    if (gateErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, gateErrors.join('; '));
     }
     const transmogrifierErrors = findTransmogrifierConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (transmogrifierErrors.tiles.length > 0) {

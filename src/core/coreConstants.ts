@@ -34,6 +34,33 @@ export const BOMB_ITEM_ID = 'bomb';
 /** Half-width (Chebyshev radius) of the square region where a gray button swaps chips and bombs. */
 export const GRAY_BUTTON_RADIUS = 2;
 
+/** Item id of the blast charge a player carries and drops. */
+export const CHARGE_ITEM_ID = 'charge';
+
+/** Item id of the pocket gate a player carries and sets down as a teleporter pad. */
+export const GATE_ITEM_ID = 'pocket_gate';
+
+/** Terrain id of the pad a pocket gate becomes where it is set down. */
+export const GATE_PAD_TILE_ID = 'pocket_gate_pad';
+
+/** Item id of the hurl stone a player carries and throws. */
+export const STONE_ITEM_ID = 'hurl_stone';
+
+/** Payload of a shot the player threw, as opposed to one a launcher fired. */
+export const STONE_SHOT_PAYLOAD = 'hurl_stone';
+
+/** Message key of the death caused by a thrown stone that came back. */
+export const STONE_DEATH_REASON_KEY = 'hud.messages.death_stone';
+
+/** Half-width (Chebyshev radius) of the square a blast charge clears of monsters and blocks, and kills the player in. */
+export const CHARGE_BLAST_RADIUS = 1;
+
+/** Sound effect of a blast charge going off. */
+export const CHARGE_BLAST_SFX = 'bomb';
+
+/** Message key of the death caused by a blast charge. */
+export const CHARGE_DEATH_REASON_KEY = 'hud.messages.death_blast';
+
 /** Hazards that end the game on contact unless their immunity boot is held. */
 export const DEADLY_HAZARDS: ReadonlySet<string> = new Set(['water', 'fire', 'slime']);
 
@@ -78,6 +105,15 @@ export const CHASE_PLAYER_PATTERN = 'chase_player';
 
 /** Movement pattern of a monster that steps away from the player (a chase with the candidates reversed). */
 export const FLEE_PLAYER_PATTERN = 'flee_player';
+
+/** Movement pattern of a monster that never moves by itself (a sleeping lurker). */
+export const STATIONARY_PATTERN = 'stationary';
+
+/**
+ * Movement pattern of a monster that walks straight ahead through every tile (a wisp): terrain has no effect on
+ * it, only cell edges, the map edge and other entities stop it, and it turns round once when blocked.
+ */
+export const PHASE_LINE_PATTERN = 'phase_line';
 
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';
@@ -171,6 +207,12 @@ export const FLAME_TOGGLE_PARITY_BIT = 16;
 
 /** Prefix of the toggle parity in a search state key. */
 export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
+
+/** Prefix of the turning force floor turn in a search state key. */
+export const FORCE_CYCLE_KEY_PREFIX = 'fc';
+
+/** Prefix of the lit blast charges in a search state key. */
+export const LIT_CHARGE_KEY_PREFIX = 'lc';
 
 /** Prefix of the spent reveal cells in a search state key. */
 export const SPENT_REVEAL_KEY_PREFIX = 'rv';

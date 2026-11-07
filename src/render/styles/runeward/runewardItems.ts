@@ -25,6 +25,7 @@
  */
 
 import type { RunewardArtConfig, RunewardBootsKind, RunewardKeyColour } from '../../../core/types';
+import { GLOVE } from '../../gloveShape';
 import { heavyLineWidth, inkLineWidth } from './runewardInk';
 import { paintKeyItem } from './runewardMechanisms';
 import { linear, paintFloor, radial, roundRect } from './runewardPainters';
@@ -44,6 +45,9 @@ const MIN_LINE_PX = 1;
 const FADED_ALPHA = 0.45;
 /** Opacity of the soft highlight on the plain bomb. */
 const HIGHLIGHT_ALPHA = 0.4;
+
+/** Boots kind drawn as a glove rather than a boot. */
+const GLOVES_KIND: RunewardBootsKind = 'pull';
 
 const SHADOW = { x: 0.5, y: 0.9, rx: 0.26, ry: 0.05 } as const;
 
@@ -178,16 +182,63 @@ function paintBootCharm(ctx: CanvasRenderingContext2D, size: number, art: Art, k
       ctx.fill();
       break;
     case 'pull':
-      ctx.moveTo(cx, cy - radius);
-      ctx.lineTo(cx, cy + radius * 0.2);
-      ctx.arc(cx - radius * 0.35, cy + radius * 0.2, radius * 0.35, 0, Math.PI, false);
+      // The gloves are not a boot: paintGloveItem draws them whole.
+      break;
+    case 'ward':
+      // A small shield: flat top, straight flanks, a point below.
+      ctx.moveTo(cx - radius * 0.9, cy - radius * 0.9);
+      ctx.lineTo(cx + radius * 0.9, cy - radius * 0.9);
+      ctx.lineTo(cx + radius * 0.9, cy + radius * 0.1);
+      ctx.lineTo(cx, cy + radius * 1.1);
+      ctx.lineTo(cx - radius * 0.9, cy + radius * 0.1);
+      ctx.closePath();
       ctx.stroke();
       break;
   }
 }
 
+/** The Grappling Gloves: a glove with four fingers, a thumb, a cuff and a small hook on a cord, hovering. */
+function paintGloveItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  const tint = art.item.boots.pull;
+  hover(ctx, size, art, timeMs, () => {
+    ctx.beginPath();
+    GLOVE.hook.forEach(([hx, hy], index) => (index === 0 ? ctx.moveTo(size * hx, size * hy) : ctx.lineTo(size * hx, size * hy)));
+    ctx.strokeStyle = markColour(art, tint.light);
+    ctx.lineWidth = plainLine(size, GLOVE.hookWidth);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    const body = art.ink ? tint.main : linear(ctx, 0, 0, 0, size, [[0, tint.light], [BOOT.lightStop, tint.main], [1, tint.main]]);
+    const thumb = GLOVE.thumb;
+    ctx.beginPath();
+    ctx.ellipse(size * thumb.cx, size * thumb.cy, size * thumb.rx, size * thumb.ry, thumb.turn, 0, TAU);
+    ctx.fillStyle = body;
+    ctx.fill();
+    outline(ctx, size, art, tint.light, GLOVE.lineWidth, true);
+    const palm = GLOVE.palm;
+    roundRect(ctx, size * palm.x, size * palm.y, size * palm.w, size * palm.h, size * palm.r);
+    ctx.fillStyle = body;
+    ctx.fill();
+    for (const finger of GLOVE.fingers) {
+      roundRect(ctx, size * finger.x, size * finger.top, size * GLOVE.fingerWidth, size * (GLOVE.fingerBottom - finger.top), size * GLOVE.fingerRadius);
+      ctx.fillStyle = body;
+      ctx.fill();
+      outline(ctx, size, art, tint.light, GLOVE.lineWidth, true);
+    }
+    const cuff = GLOVE.cuff;
+    roundRect(ctx, size * cuff.x, size * cuff.y, size * cuff.w, size * cuff.h, size * cuff.r);
+    ctx.fillStyle = tint.light;
+    ctx.fill();
+    outline(ctx, size, art, tint.light, GLOVE.lineWidth, true);
+  });
+}
+
 /** One boot in side view with the charm of its kind, hovering. */
 export function paintBootsItem(ctx: CanvasRenderingContext2D, size: number, art: Art, kind: RunewardBootsKind, timeMs: number): void {
+  if (kind === GLOVES_KIND) {
+    paintGloveItem(ctx, size, art, timeMs);
+    return;
+  }
   const tint = art.item.boots[kind];
   hover(ctx, size, art, timeMs, () => {
     polygon(ctx, size, BOOT.outline);
@@ -312,6 +363,152 @@ export function paintBombItem(ctx: CanvasRenderingContext2D, size: number, art: 
     ctx.arc(sx, sy, size * BOMB.sparkRadius, 0, TAU);
     ctx.fill();
     if (art.ink) outline(ctx, size, art, tint.core, 0);
+  });
+}
+
+// ---- Blast charge -----------------------------------------------------------------------------
+
+const CHARGE = {
+  /** The canister, its cap, and the two bands across it, as fractions of the tile. */
+  body: { left: 0.3, top: 0.34, width: 0.4, height: 0.46, corner: 0.08 },
+  cap: { left: 0.35, top: 0.26, width: 0.3, height: 0.09 },
+  bands: [0.46, 0.64] as readonly number[],
+  bandHeight: 0.06,
+  lineWidth: 0.03,
+  /** The wick: a stub when unlit, a curve to the spark when lit. */
+  wickFrom: [0.5, 0.26] as Point,
+  stubTo: [0.55, 0.19] as Point,
+  litControl: [0.56, 0.14] as Point,
+  litTo: [0.68, 0.12] as Point,
+  wickWidth: 0.035,
+  sparkRadius: 0.05,
+  sparkHaloRadius: 0.12
+} as const;
+
+/** The blast charge: a banded canister with a wick; lit, the wick burns with a spark. */
+function chargeItem(lit: boolean): ClockedDrawing {
+  return (ctx, size, art, timeMs) => {
+    const tint = art.item.bomb;
+    hover(ctx, size, art, timeMs, () => {
+      const { body, cap, bands, bandHeight } = CHARGE;
+      ctx.fillStyle = tint.base;
+      roundRect(ctx, size * body.left, size * body.top, size * body.width, size * body.height, size * body.corner);
+      ctx.fill();
+      outline(ctx, size, art, tint.glow, CHARGE.lineWidth, true);
+      ctx.fillStyle = tint.base;
+      ctx.beginPath();
+      ctx.rect(size * cap.left, size * cap.top, size * cap.width, size * cap.height);
+      ctx.fill();
+      outline(ctx, size, art, tint.glow, CHARGE.lineWidth);
+      ctx.fillStyle = markColour(art, tint.glow);
+      for (const band of bands) {
+        ctx.fillRect(size * body.left, size * band, size * body.width, size * bandHeight);
+      }
+      ctx.strokeStyle = markColour(art, tint.glow);
+      ctx.lineWidth = plainLine(size, CHARGE.wickWidth);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(size * CHARGE.wickFrom[0], size * CHARGE.wickFrom[1]);
+      if (lit) {
+        ctx.quadraticCurveTo(size * CHARGE.litControl[0], size * CHARGE.litControl[1], size * CHARGE.litTo[0], size * CHARGE.litTo[1]);
+      } else {
+        ctx.lineTo(size * CHARGE.stubTo[0], size * CHARGE.stubTo[1]);
+      }
+      ctx.stroke();
+      if (!lit) return;
+      const sx = size * CHARGE.litTo[0];
+      const sy = size * CHARGE.litTo[1];
+      const halo = size * CHARGE.sparkHaloRadius;
+      ctx.fillStyle = radial(ctx, sx, sy, halo, [[0, tint.glow], [1, art.clear]]);
+      ctx.fillRect(sx - halo, sy - halo, halo * 2, halo * 2);
+      ctx.fillStyle = tint.core;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size * CHARGE.sparkRadius, 0, TAU);
+      ctx.fill();
+      if (art.ink) outline(ctx, size, art, tint.core, 0);
+    });
+  };
+}
+
+// ---- Pocket gate ------------------------------------------------------------------------------
+
+const GATE = {
+  /** The ring of the gate: its centre, radius and line width, as fractions of the tile. */
+  centre: [0.5, 0.58] as Point,
+  ringRadius: 0.27,
+  ringWidth: 0.09,
+  /** Half of the notch cut out of the top of the ring, in radians either side of twelve o'clock. */
+  notchHalfAngle: Math.PI / 7,
+  /** The handle tab standing in the notch. */
+  tab: { left: 0.44, top: 0.14, width: 0.12, height: 0.16 },
+  centreRadius: 0.07,
+  lineWidth: 0.03
+} as const;
+
+/** The pocket gate: the notched ring of its pad with a handle tab in the notch. */
+function paintGateItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  hover(ctx, size, art, timeMs, () => {
+    const cx = size * GATE.centre[0];
+    const cy = size * GATE.centre[1];
+    const radius = size * GATE.ringRadius;
+    const start = -Math.PI / 2 + GATE.notchHalfAngle;
+    const end = -Math.PI / 2 - GATE.notchHalfAngle + TAU;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = art.portal.ring;
+    ctx.lineWidth = plainLine(size, GATE.ringWidth);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.stroke();
+    if (art.ink) {
+      const half = (size * GATE.ringWidth) / 2;
+      for (const edge of [radius + half, radius - half]) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, edge, start, end);
+        outline(ctx, size, art, art.portal.ring, GATE.lineWidth);
+      }
+    }
+    const { tab } = GATE;
+    ctx.fillStyle = art.portal.base;
+    ctx.beginPath();
+    ctx.rect(size * tab.left, size * tab.top, size * tab.width, size * tab.height);
+    ctx.fill();
+    outline(ctx, size, art, art.portal.ring, GATE.lineWidth);
+    ctx.fillStyle = art.portal.core;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * GATE.centreRadius, 0, TAU);
+    ctx.fill();
+  });
+}
+
+// ---- Hurl stone -------------------------------------------------------------------------------
+
+const STONE = {
+  /** Outline of the rock, an irregular rounded shape, as fractions of the tile. */
+  outline: [[0.28, 0.5], [0.34, 0.36], [0.5, 0.3], [0.66, 0.36], [0.74, 0.52], [0.68, 0.68], [0.5, 0.74], [0.34, 0.66]] as readonly Point[],
+  /** The lit facet on the upper left of the rock. */
+  facet: [[0.34, 0.4], [0.5, 0.34], [0.58, 0.4], [0.44, 0.52], [0.36, 0.52]] as readonly Point[],
+  lineWidth: 0.035
+} as const;
+
+/** The hurl stone: a dark rock with a lit facet on its upper left. */
+function paintStoneItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  const tint = art.item.bomb;
+  const tracePath = (points: readonly Point[]): void => {
+    ctx.beginPath();
+    points.forEach(([px, py], index) => (index === 0 ? ctx.moveTo(size * px, size * py) : ctx.lineTo(size * px, size * py)));
+    ctx.closePath();
+  };
+  hover(ctx, size, art, timeMs, () => {
+    ctx.fillStyle = tint.base;
+    tracePath(STONE.outline);
+    ctx.fill();
+    outline(ctx, size, art, tint.glow, STONE.lineWidth, true);
+    if (art.ink) return;
+    ctx.globalAlpha = HIGHLIGHT_ALPHA;
+    ctx.fillStyle = tint.core;
+    tracePath(STONE.facet);
+    ctx.fill();
+    ctx.globalAlpha = 1;
   });
 }
 
@@ -487,7 +684,15 @@ const KEY_CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'gr
 /** Boots kinds with a forbidden marker. */
 const FORBID_BOOTS: readonly RunewardBootsKind[] = ['ice', 'water', 'fire', 'force'];
 /** Every boots kind. */
-const ALL_BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull'];
+const ALL_BOOTS: readonly RunewardBootsKind[] = ['water', 'fire', 'ice', 'force', 'speed', 'eye', 'pull', 'ward'];
+
+/** Boots kind whose item id is its own name rather than `boots_<kind>`. */
+const WARD_KIND: RunewardBootsKind = 'ward';
+
+/** Item id of a boots kind: the ward is the one pair whose id does not start with `boots_`. */
+function bootsItemId(kind: RunewardBootsKind): string {
+  return kind === WARD_KIND ? WARD_KIND : `boots_${kind}`;
+}
 
 /** Wraps a clocked drawing as an item painter: it follows the Runeward clock, frozen under reduced motion. */
 function clocked(draw: ClockedDrawing): RunewardItemPainter {
@@ -503,12 +708,16 @@ function clocked(draw: ClockedDrawing): RunewardItemPainter {
 export const ITEMS: Readonly<Record<string, RunewardItemPainter>> = {
   ...Object.fromEntries(
     ALL_BOOTS.map((kind): [string, RunewardItemPainter] => [
-      `boots_${kind}`,
+      bootsItemId(kind),
       clocked((ctx, size, art, timeMs) => paintBootsItem(ctx, size, art, kind, timeMs))
     ])
   ),
   slow_time: clocked(paintSlowTimeItem),
   bomb: clocked(paintBombItem),
+  charge: clocked(chargeItem(false)),
+  charge_lit: clocked(chargeItem(true)),
+  pocket_gate: clocked(paintGateItem),
+  hurl_stone: clocked(paintStoneItem),
   score_10: clocked(scoreItem(COIN.one)),
   score_100: clocked(scoreItem(COIN.two)),
   score_1000: clocked(scoreItem(COIN.three)),

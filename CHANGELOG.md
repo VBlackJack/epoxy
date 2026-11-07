@@ -8,7 +8,54 @@ versions follow Semantic Versioning.
 ### Added
 
 - Sanctuary Puzzle & Mechanism Encyclopedia (`public/configs/excavation-encyclopedia.json`, `src/config/excavationEncyclopedia.ts`, `docs/puzzle-encyclopedia.md` and `docs/fr/puzzle-encyclopedia.md`): 14 machine-verified puzzle archetypes across 5 families (`sluice`, `extraction`, `optics`, `kinetic`, `network`) with ASCII blueprints, design invariants, dead-end traps, chaining rules and verified shortest solutions, plus 5 sanctuary starter templates in the level editor (`boulder_sluice`, `counterweight_hold`, `grappling_alcove`, `prism_slalom`, `elemental_alchemy` in `public/configs/templates.json`) and 6 new Tier-5 sanctuary pieces in the procedural generator (`public/configs/motifs.json`, 165 pieces in total). Both locales.
-- Buried Sanctuaries campaign (`epoxy_excavation`): expanded from 12 levels / 3 chapters to 20 levels / 5 chapters ("Guardian Temples" and "Pyramid of Harmony", `epoxy_x_13` to `epoxy_x_20`) with multi-room 15x13 sanctuary maps that chain boulder sluices, pressure plates, grappling alcoves (`boots_pull`) and prism optics, each proven solvable with 0 validator issues. Both locales.
+
+## [2.24.0] - 2026-11-07
+
+### Added
+
+- Wisp: a monster that drifts straight through walls, doors, water, fire, ice and force floors, stopped only by thin walls, the map edge and other entities; it turns round once when blocked and cannot be cloned (Epoxy rules). Pack format 10.
+- Pocket Gate: carry a teleporter pad and set it down where you want; pads you set down link with each other (Epoxy rules). Pack format 8.
+- Hurl Stone: pick it up and throw it at what is in front of you; it kills a monster, sets off a bomb, melts an ice block and is turned by a mirror, then is used up (Epoxy rules). Solution letter T. Pack format 10.
+- Rails: straight and bent rail pieces only let you in and out through their open sides; rail switches flip with the green button (Epoxy rules). Pack format 9.
+- Level editor: rotate rail pieces while placing them; a note when rail switches have no green button.
+
+### Changed
+
+- Rails have their own look in every style; a rail switch shows its other position faded.
+- Playtest: the level rating opens from a button in the level-complete panel instead of by itself.
+- Converter: the CC3D random force floor becomes the Turning Force Floor, which plays the same. Converted levels that use it are saved as pack format 7, which builds older than 2.23.0 cannot read.
+
+### Fixed
+
+- CCLP 2 levels: chips and exits stacked over another tile in the original files now play as intended. Chips over walls can be taken and the wall closes behind you (level 17, level 85), and an exit under a chip socket appears when it opens (level 15). A few stacked tiles under water or floor are still dropped.
+
+## [2.23.0] - 2026-11-06
+
+### Added
+
+- Blast Charge: pick it up, drop it where you want, and three seconds later it destroys the monsters and blocks around it (Epoxy rules). Pack format 7.
+- Ward: a one-time shield that destroys the first monster you touch (Epoxy rules).
+- Lurker: a monster hidden in the floor that wakes when you arrive on or slide through a cell next to it, then after a short pause chases you slowly (Epoxy rules).
+- Turning Force Floor: a force floor that pushes east, south, west, then north in turn, one shared turn per level (Epoxy rules).
+- Level editor: a signal link can also be started from a shot launcher or a clone machine.
+
+### Fixed
+
+- Level validator: levels whose clone machines or shot launchers are driven by signals no longer get false unreachable chip or exit reports.
+
+### Changed
+
+- Grappling Gloves now look like gloves in every style.
+- Narrow landscape screens: the keys and boots slots use two columns in the side panel; in phone full screen they wrap as one strip and shrink on short screens.
+
+## [2.22.0] - 2026-11-06
+
+### Added
+
+- Buried Sanctuaries campaign (`epoxy_excavation`): a new built-in pack of 20 excavation levels in 5 chapters, with its own save slot. Multi-room 15x13 sanctuary maps chain boulder sluices, pressure plates, grappling alcoves and prism optics; every level is proven solvable with 0 validator issues. Both locales.
+- Grappling Gloves (`boots_pull`), an Epoxy-only item: stepping away from a resting block pulls it behind you, unless it rests on an active plate, button or block target.
+- Diggy's Adventure import: light sensor beacons become laser puzzles and boulder beacons become coloured plate puzzles; browser `.har` captures and `CommandSynchronize` envelopes are unwrapped directly.
+>>>>>>> origin/main
 - Level editor: signal links can be removed with the Unlink button in the Connections panel.
 - Signals: pulse buttons, and signal links that fire launchers and clone machines on a rising edge (pack format version 6).
 - Signals: pulse buttons and launcher/clone links can be placed and linked in the level editor, with their own look in every render style.

@@ -1527,6 +1527,28 @@
       ],
       "outline": false
     },
+    "pocket_gate_pad": {
+      "legend": {"k": "teleport.0", "K": "teleport.1", "j": "teleport.2"},
+      "rows": [
+        "................",
+        "................",
+        ".....k....K.....",
+        "....kk....KK....",
+        "...kkk....KKK...",
+        "..kkk......KKK..",
+        "..kk........Kj..",
+        "..kk...KK...jj..",
+        "..kk...KK...jj..",
+        "..kK........jj..",
+        "..KKK......jjj..",
+        "...KKK....jjj...",
+        "....KKKjjjjj....",
+        ".....Kjjjjj.....",
+        "................",
+        "................"
+      ],
+      "outline": false
+    },
     "teleport_0": {
       "rows": [
         "aaaaaooooooaaabb",
@@ -1985,6 +2007,90 @@
         "dddddddddddddddd",
         "ddddddYYYYdddddd",
         "dddddYYYYYYddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
+    "force_cycle_0": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "ddddddYddddddddd",
+        "dddddYYYYddddddd",
+        "ddddYYYYdddYdddd",
+        "dddYYddYdddYYddd",
+        "dddYYddddddYYddd",
+        "dddYddddddddYddd",
+        "dddYddddddddYddd",
+        "dddYYddddddYYddd",
+        "dddYYddddddYYddd",
+        "ddddYYYddYYYdddd",
+        "dddddYYYYYYddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
+    "force_cycle_1": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddYYYYYYddddd",
+        "ddddYYYddYYYdddd",
+        "dddYYddddddYYddd",
+        "dddYYddddddYYYdd",
+        "dddYddddddYYYddd",
+        "dddYddddddddYddd",
+        "dddYYddddddddddd",
+        "dddYYddddddddddd",
+        "ddddYYYddYYYdddd",
+        "dddddYYYYYYddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
+    "force_cycle_2": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddYYYYYYddddd",
+        "ddddYYYddYYYdddd",
+        "dddYYddddddYYddd",
+        "dddYYddddddYYddd",
+        "dddYddddddddYddd",
+        "dddYddddddddYddd",
+        "dddYYddddddYYddd",
+        "dddYYdddYddYYddd",
+        "ddddYdddYYYYdddd",
+        "dddddddYYYYddddd",
+        "dddddddddYdddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd"
+      ],
+      "outline": false
+    },
+    "force_cycle_3": {
+      "rows": [
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
+        "dddddYYYYYYddddd",
+        "ddddYYYddYYYdddd",
+        "dddddddddddYYddd",
+        "dddddddddddYYddd",
+        "dddYddddddddYddd",
+        "dddYYYddddddYddd",
+        "ddYYYddddddYYddd",
+        "dddYYddddddYYddd",
+        "ddddYYYddYYYdddd",
+        "dddddYYYYYYddddd",
+        "dddddddddddddddd",
+        "dddddddddddddddd",
         "dddddddddddddddd"
       ],
       "outline": false

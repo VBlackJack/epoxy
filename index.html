@@ -212,6 +212,7 @@
                       <button id="overlay-btn-resume" class="action-btn primary hidden" type="button" data-i18n="hud.messages.resume_action.action" data-i18n-title="hud.messages.resume_action.hint"></button>
                       <button id="overlay-btn-back-to-editor" class="action-btn primary hidden" type="button" data-i18n="editor.pack.back_to_editor.action"></button>
                       <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action" data-i18n-title="hud.messages.next_action.hint"></button>
+                      <button id="overlay-btn-rate" class="action-btn hidden" type="button" aria-haspopup="dialog" data-i18n="app.playtest.rating.open.action"></button>
                       <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
                       <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
                       <button id="overlay-btn-retry" class="action-btn" type="button" data-i18n="hud.controls.restart.action" data-i18n-title="hud.controls.restart.hint"></button>
@@ -322,6 +323,9 @@
               <div id="touch-overlay-controls" class="touch-overlay-controls" role="group" hidden data-i18n-aria-label="hud.touch_overlay.controls.label">
                 <button id="touch-btn-pause" class="touch-overlay-btn" type="button" data-i18n-aria-label="hud.controls.pause.action" data-i18n-title="hud.controls.pause.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
                 <button id="touch-btn-undo" class="touch-overlay-btn" type="button" data-i18n-aria-label="hud.controls.undo.action" data-i18n-title="hud.controls.undo.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+                <button id="touch-btn-charge" class="touch-overlay-btn hidden" type="button" data-i18n-aria-label="hud.touch_overlay.charge.action" data-i18n-title="hud.touch_overlay.charge.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle cx="11" cy="14" r="6.5" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M15 8.5 18 5.5M18 2.5v1.5M21 5.5h-1.5M16.5 3.5l1 1"/></svg></button>
+                <button id="touch-btn-gate" class="touch-overlay-btn hidden" type="button" data-i18n-aria-label="hud.touch_overlay.gate.action" data-i18n-title="hud.touch_overlay.gate.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M9.5 6.2A7 7 0 1 0 14.5 6.2"/><circle cx="12" cy="13" r="1.8" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 2.5v4"/></svg></button>
+                <button id="touch-btn-stone" class="touch-overlay-btn hidden" type="button" data-i18n-aria-label="hud.touch_overlay.stone.action" data-i18n-title="hud.touch_overlay.stone.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8.5 6.5 14 5l4.5 3.5 1 5L16 18l-6 .5L5.5 14l1-5z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M2 12h2.5M2.5 8.5H5M2.5 15.5H5"/></svg></button>
                 <button id="touch-btn-menu" class="touch-overlay-btn" type="button" aria-haspopup="dialog" data-i18n-aria-label="hud.touch_overlay.menu.action" data-i18n-title="hud.touch_overlay.menu.action"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 7h14M5 12h14M5 17h14"/></svg></button>
               </div>
             </div>
@@ -494,6 +498,7 @@
                       <ul id="editor-connections-issues" class="editor-connections-list" aria-labelledby="editor-connections-issues-heading"></ul>
                     </div>
                     <button id="editor-connections-link-btn" class="hud-btn small hidden" type="button" data-i18n="editor.connections.link.action"></button>
+                    <button id="editor-connections-signal-link-btn" class="hud-btn small hidden" type="button" data-i18n="editor.connections.link.signal_action"></button>
                   </div>
                 </details>
 

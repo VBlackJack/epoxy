@@ -605,3 +605,79 @@ describe('signal sessions: wording and single inputs', () => {
     expect(nudgeMessages(map, 7, 1, EPOXY)).not.toEqual([]);
   });
 });
+
+describe('signal sessions started from a launcher or a clone machine', () => {
+  const PLATE = { x: 3, y: 3 };
+  const GATE = { x: 6, y: 3 };
+  const LAUNCHER = { x: 5, y: 6 };
+  const CLONER = { x: 5, y: 4 };
+  const launcherSignal: LinkSession = { system: 'signal', end: 'target', x: LAUNCHER.x, y: LAUNCHER.y };
+  const clonerSignal: LinkSession = { system: 'signal', end: 'target', x: CLONER.x, y: CLONER.y };
+
+  function sinks(): EditorMap {
+    const map = pairs();
+    map.terrain[PLATE.y][PLATE.x] = 'signal_plate';
+    map.terrain[GATE.y][GATE.x] = 'signal_gate_and';
+    return map;
+  }
+
+  it('keeps starting a shot or clone session by default', () => {
+    const map = sinks();
+    expect(startLinkSession(map, LAUNCHER.x, LAUNCHER.y, EPOXY).session).toEqual(launcher);
+    expect(startLinkSession(map, CLONER.x, CLONER.y, EPOXY).session).toEqual(cloner);
+  });
+
+  it('starts a signal session on a launcher and on a clone machine', () => {
+    const map = sinks();
+    const fromLauncher = startLinkSession(map, LAUNCHER.x, LAUNCHER.y, EPOXY, 'signal');
+    expect(fromLauncher.session).toEqual(launcherSignal);
+    expect(fromLauncher.messages.map((m) => m.key)).toEqual(['editor.link.started_signal.label', 'editor.link.fallback.signal_in.label']);
+    expect(startLinkSession(map, CLONER.x, CLONER.y, EPOXY, 'signal').session).toEqual(clonerSignal);
+    expect(sessionSourceHolds(map, launcherSignal, EPOXY)).toBe(true);
+    expect(partnerCandidates(map, launcherSignal, EPOXY).candidates).toEqual([PLATE, GATE]);
+  });
+
+  it('refuses a signal session on a device with no signal input, in Lynx and on CC3D', () => {
+    const map = sinks();
+    expect(startLinkSession(map, 2, 2, EPOXY, 'signal').messages.map((m) => m.key)).toEqual(['editor.link.nothing.label']);
+    expect(startLinkSession(map, CLONER.x, CLONER.y, LYNX, 'signal').session).toBeNull();
+    expect(startLinkSession({ ...map, cc3d: emptyCc3dRoom(5, 5) }, CLONER.x, CLONER.y, EPOXY, 'signal').messages.map((m) => m.key)).toEqual(['editor.link.unavailable.label']);
+  });
+
+  it('links a source and a gate to a launcher and a clone machine, and unlinks on a second click', () => {
+    const map = sinks();
+    const plate = sessionClick(map, launcherSignal, PLATE, 'S', EPOXY);
+    expect(plate.map?.signalLinks).toEqual([{ fromX: 3, fromY: 3, toX: 5, toY: 6 }]);
+    expect(plate.session).toEqual(launcherSignal);
+    expect(plate.map?.launcherLinks ?? []).toEqual([]);
+    const gate = sessionClick(map, clonerSignal, GATE, 'S', EPOXY);
+    expect(gate.map?.signalLinks).toEqual([{ fromX: 6, fromY: 3, toX: 5, toY: 4 }]);
+    expect(gate.map?.cloneLinks).toEqual([]);
+    const again = sessionClick(plate.map as EditorMap, launcherSignal, PLATE, 'S', EPOXY);
+    expect(again.map?.signalLinks).toBeUndefined();
+  });
+
+  it('refuses a second input on a sink that already has one, editing nothing', () => {
+    const linked = sessionClick(sinks(), launcherSignal, PLATE, 'S', EPOXY).map as EditorMap;
+    const result = sessionClick(linked, launcherSignal, GATE, 'S', EPOXY);
+    expect(result.map).toBeUndefined();
+    expect(result.messages.map((m) => m.key)).toEqual(['editor.link.refused.single_input.label']);
+  });
+
+  it('moves to another sink when one is clicked, and refuses a click on a non-signal cell', () => {
+    const map = sinks();
+    const moved = sessionClick(map, launcherSignal, CLONER, 'S', EPOXY);
+    expect(moved.map).toBeUndefined();
+    expect(moved.session).toEqual(clonerSignal);
+    const refused = sessionClick(map, launcherSignal, { x: 2, y: 2 }, 'S', EPOXY);
+    expect(refused.map).toBeUndefined();
+    expect(refused.messages.map((m) => m.key)).toEqual(['editor.link.refused.other_signal.label']);
+  });
+
+  it('leaves shot and clone sessions unchanged: a click on a plate is still refused', () => {
+    const map = sinks();
+    expect(sessionClick(map, launcher, PLATE, 'S', EPOXY).map).toBeUndefined();
+    expect(sessionClick(map, cloner, PLATE, 'S', EPOXY).map).toBeUndefined();
+    expect(sessionClick(map, launcher, { x: 2, y: 6 }, 'S', EPOXY).map?.launcherLinks).toHaveLength(1);
+  });
+});

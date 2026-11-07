@@ -22,6 +22,8 @@ import {
   FLEE_PLAYER_PATTERN,
   MIRROR_FRONT_AXIS,
   SIGNAL_LINKS_PER_CELL_MAX,
+  PHASE_LINE_PATTERN,
+  STATIONARY_PATTERN,
   STEER_MONSTERS_ACTION,
   SUNK_BLOCK_TILE_ID
 } from '../core/coreConstants';
@@ -627,6 +629,8 @@ export function normalizeUnderlays(
       const topId = terrain[entry.y as number][entry.x as number];
       const top = lookup(topId);
       if (!tile || !top || !isRemovableTop(top)) continue;
+      // A rail only shapes a step on the cell it lies in: nothing reveals it, so it is never hidden.
+      if (tile.railSides !== undefined) continue;
       // Under a door or a socket (which nothing turns back into) the engine also plays a socket, dirt, a blue
       // fake wall and the live devices; under any other top an underlay stays a plain, static terrain.
       const widened = isOpeningTop(top) && id !== topId && isRemovableUnderlay(tile);
@@ -942,6 +946,59 @@ export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): s
       if ([...(target.blockedEdges ?? [])].sort().join('') !== expected) {
         errors.push(`${id}.swivelTurns.${field}: ${target.id} must close the sides ${id} closes turned a quarter turn`);
       }
+    }
+  }
+  return errors;
+}
+
+/** Number of open sides a rail piece has. */
+const RAIL_OPEN_SIDE_COUNT = 2;
+
+/** Number of open sides the two forms of a rail switch share: they differ by one side each. */
+const RAIL_SWITCH_SHARED_SIDES = 1;
+
+/**
+ * Problems of the rail fields of tiles.json: a rail piece lists exactly two distinct sides, is a terrain a walker
+ * can enter and keeps no other edge rule of its own. A rail switch names the other form of its pair with togglesTo
+ * (the green button flips it): the pair must point at each other and share exactly one open side. Only a rail
+ * switch may toggle into a rail. Each entry names the tile.
+ */
+export function findRailConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    const sides: unknown = tile.railSides;
+    if (sides === undefined) {
+      const target = tile.togglesTo === undefined ? undefined : tiles[tile.togglesTo];
+      if (target?.railSides !== undefined) errors.push(`${id}.togglesTo: only a rail switch may toggle into a rail`);
+      continue;
+    }
+    const wellFormed =
+      Array.isArray(sides) &&
+      sides.length === RAIL_OPEN_SIDE_COUNT &&
+      sides.every(isDirection) &&
+      new Set(sides).size === RAIL_OPEN_SIDE_COUNT;
+    if (!wellFormed) {
+      errors.push(`${id}.railSides: expected ${RAIL_OPEN_SIDE_COUNT} distinct sides among N, E, S, W`);
+      continue;
+    }
+    if (tile.layer !== 'terrain') errors.push(`${id}.railSides: a rail is a terrain`);
+    if (tile.passableByPlayer !== true || tile.passableByMonster !== true || tile.passableByBlock !== true) {
+      errors.push(`${id}.railSides: a rail must be passable by the player, monsters and blocks`);
+    }
+    if (tile.blockedEdges !== undefined || tile.blockedEntryDirections !== undefined || tile.swivelTurns !== undefined) {
+      errors.push(`${id}.railSides: a rail closes its sides through railSides alone`);
+    }
+    if (tile.togglesTo === undefined) continue;
+    const other = tiles[tile.togglesTo];
+    if (other?.railSides === undefined) {
+      errors.push(`${id}.togglesTo: ${tile.togglesTo} is not a rail`);
+      continue;
+    }
+    if (other.togglesTo !== id) errors.push(`${id}.togglesTo: ${other.id} does not toggle back to ${id}`);
+    const shared = (sides as Direction[]).filter((side) => other.railSides?.includes(side)).length;
+    if (shared !== RAIL_SWITCH_SHARED_SIDES) {
+      errors.push(`${id}.togglesTo: ${other.id} must share exactly ${RAIL_SWITCH_SHARED_SIDES} open side with ${id}`);
     }
   }
   return errors;
@@ -1266,6 +1323,8 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
   'forward_else_random',
   CHASE_PLAYER_PATTERN,
   FLEE_PLAYER_PATTERN,
+  STATIONARY_PATTERN,
+  PHASE_LINE_PATTERN,
   'left_skew',
   'right_skew',
   'tank_march',
@@ -1419,6 +1478,50 @@ export function findPullBootsConfigErrors(tiles: Record<string, TileDefinition>)
     if (tile.pullsBlocks === undefined) continue;
     if (tile.pullsBlocks !== true) errors.push(`${tile.id}.pullsBlocks: expected true`);
     if (tile.collectible !== 'boot') errors.push(`${tile.id}.pullsBlocks: only boots (collectible "boot") may pull blocks`);
+  }
+  return errors;
+}
+
+/**
+ * Problems of the blast charge fields: a charge (collectible "charge") names the lit form it turns into when
+ * dropped, which must be a tile flagged litCharge; a lit charge is no collectible. Each entry names the tile.
+ */
+export function findChargeConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.collectible === 'charge') {
+      if (typeof tile.dropsAs !== 'string' || tiles[tile.dropsAs]?.litCharge !== true) {
+        errors.push(`${tile.id}.dropsAs: expected the id of a tile flagged litCharge`);
+      }
+    } else if (tile.dropsAs !== undefined) {
+      errors.push(`${tile.id}.dropsAs: only a charge (collectible "charge") may name the item it drops as`);
+    }
+    if (tile.litCharge === undefined) continue;
+    if (tile.litCharge !== true) errors.push(`${tile.id}.litCharge: expected true`);
+    if (tile.collectible !== undefined) errors.push(`${tile.id}.litCharge: a lit charge cannot be collected`);
+  }
+  return errors;
+}
+
+/**
+ * Problems of the pocket gate fields: a gate (collectible "gate") names the terrain it turns the floor into, which
+ * must be a teleporter flagged portableTeleporter; only a gate names such a terrain, and the flag is for teleporters
+ * only. Each entry names the tile.
+ */
+export function findGateConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.collectible === 'gate') {
+      const pad = typeof tile.dropsAsTerrain === 'string' ? tiles[tile.dropsAsTerrain] : undefined;
+      if (pad?.portableTeleporter !== true || pad.isTeleporter !== true || pad.layer !== 'terrain') {
+        errors.push(`${tile.id}.dropsAsTerrain: expected the id of a terrain teleporter flagged portableTeleporter`);
+      }
+    } else if (tile.dropsAsTerrain !== undefined) {
+      errors.push(`${tile.id}.dropsAsTerrain: only a pocket gate (collectible "gate") may name the terrain it drops as`);
+    }
+    if (tile.portableTeleporter === undefined) continue;
+    if (tile.portableTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: expected true`);
+    if (tile.isTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: only a teleporter can be portable`);
   }
   return errors;
 }

@@ -33,6 +33,7 @@ import {
   LauncherLink,
   PlayerState,
   RelativeTurn,
+  LitCharge,
   RuntimeEntity,
   Shot,
   TileDefinition,
@@ -97,6 +98,12 @@ export interface EpoxyWorld {
   swivelEntry: Map<number, Direction>;
   /** One bit per covered toggle family, set while an odd number of presses happened; 0 at load. */
   toggleParity: number;
+  /** Arrivals counted so far on turning force floors, by any actor; picks the next direction of the shared turn. 0 at load. */
+  forceCycleTurn: number;
+  /** The blast charges dropped and not yet blasted, in the order they were lit; empty on a level without charges. */
+  litCharges: LitCharge[];
+  /** True when the level has a turning force floor, even one hidden under a removable top; fixed for the level. */
+  hasForceCycle: boolean;
   chipsRemaining: number;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
   extraTimeSeconds: number;
@@ -109,6 +116,8 @@ export interface EpoxyWorld {
   hasTurrets: boolean;
   /** True when the level has a shot launcher, even one hidden under a removable top; fixed for the level. */
   hasLaunchers: boolean;
+  /** True when shots can exist on this level: it has a shot launcher or places a hurl stone; fixed for the level. */
+  hasShots: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -187,6 +196,9 @@ export function createEpoxyWorld(): EpoxyWorld {
     revealedCells: new Set<number>(),
     swivelEntry: new Map<number, Direction>(),
     toggleParity: 0,
+    forceCycleTurn: 0,
+    litCharges: [],
+    hasForceCycle: false,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
     levelBonusPoints: 0,
@@ -194,6 +206,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     levelCompleted: false,
     hasTurrets: false,
     hasLaunchers: false,
+    hasShots: false,
     shotStepTicks: 0,
     launcherLinks: [],
     inTick: false,
@@ -233,6 +246,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasTurrets = levelHasTurrets(w);
   w.launcherLinks = (w.level.launcherLinks ?? []).map((l) => ({ ...l }));
   w.hasLaunchers = false;
+  w.hasShots = false;
   w.shotStepTicks = 0;
   w.shots = [];
   w.firedLaunchers.clear();
@@ -242,6 +256,9 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
   w.toggleParity = 0;
+  w.forceCycleTurn = 0;
+  w.litCharges = [];
+  w.hasForceCycle = false;
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
     const key = cellKey(link.trapX, link.trapY);
@@ -266,14 +283,18 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   for (let y = 0; y < w.terrain.length; y++) {
     for (let x = 0; x < w.terrain[y].length; x++) {
       registerDevices(w, x, y, w.terrain[y][x], coversTargets);
+      if (ConfigRegistry.getTile(w.terrain[y][x]).forceCycle === true) w.hasForceCycle = true;
       // A device hidden under a removable top is listed too; every use checks that the top is that device now.
       const hidden = underlayAt(w.underlays, width, x, y);
       if (hidden !== undefined) {
         registerDevices(w, x, y, hidden, coversTargets);
         w.coveredToggleBits |= toggleParityBitOf(ConfigRegistry.getTile(hidden));
+        if (ConfigRegistry.getTile(hidden).forceCycle === true) w.hasForceCycle = true;
       }
     }
   }
+  // A level that places a hurl stone has shots too, though it may have no launcher.
+  w.hasShots = w.hasLaunchers || w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).collectible === 'stone'));
 }
 
 /** Monster step factor when no held boots slow the monsters. */
@@ -441,9 +462,10 @@ export function isEdgeBlocked(
   fromY: number,
   toX: number,
   toY: number,
-  dir: Direction
+  dir: Direction,
+  beam = false
 ): boolean {
-  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir);
+  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir, beam);
 }
 
 /**
@@ -481,7 +503,8 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
   if (w.player.x === bx && w.player.y === by) return true;
-  return w.entities.some((e) => e.x === bx && e.y === by);
+  // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
+  return w.entities.some((e) => e.x === bx && e.y === by && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
 }
 
 /**

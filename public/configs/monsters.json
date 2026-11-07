@@ -430,6 +430,47 @@
       "immuneToFire": false,
       "avoidsFire": false,
       "transmogrifiesTo": "teeth"
+    },
+    "lurker_dormant": {
+      "id": "lurker_dormant",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.lurker_dormant.name",
+      "moveIntervalTicks": 16,
+      "movementPattern": "stationary",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "wakesTo": "lurker",
+      "epoxyOnly": true
+    },
+    "lurker": {
+      "id": "lurker",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.lurker.name",
+      "moveIntervalTicks": 16,
+      "movementPattern": "chase_player",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "epoxyOnly": true
+    },
+    "wisp": {
+      "id": "wisp",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.wisp.name",
+      "moveIntervalTicks": 8,
+      "movementPattern": "phase_line",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": true,
+      "immuneToFire": true,
+      "avoidsFire": false,
+      "pressesPlates": false,
+      "epoxyOnly": true
     }
   }
 }

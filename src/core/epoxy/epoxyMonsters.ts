@@ -21,10 +21,17 @@ import {
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLEE_PLAYER_PATTERN,
-  OPPOSITE_DIRECTION
+  OPPOSITE_DIRECTION,
+  PHASE_LINE_PATTERN,
+  STATIONARY_PATTERN
 } from '../coreConstants';
+import { isPhasingEntityType } from '../RulesetFeatures';
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
+import { isLitChargeItem } from './epoxyCharges';
+import { forceCycleArrival } from './epoxyForceCycle';
+import { followRail } from './epoxyRails';
+import { absorbMonsterContact } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
@@ -49,7 +56,8 @@ export function updateEntities(ctx: EpoxyContext): void {
     if (w.removedUids.has(entity.uid)) continue;
 
     // Entities sitting directly on a clone machine act as templates and do not move on their own
-    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) {
+    // (a wisp is never a template: it drifts over a machine like over any other tile)
+    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine && !isPhasingEntityType(entity.type)) {
       continue;
     }
 
@@ -67,6 +75,8 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
   // A steered monster never decides a step: it moves only when a steering pad is worked.
   if (ConfigRegistry.getEntityDef(entity.type)?.steeredBy !== undefined) return true;
+  // A sleeping lurker never moves by itself; only the player's arrival next to it changes it.
+  if (ConfigRegistry.getEntityDef(entity.type)?.movementPattern === STATIONARY_PATTERN) return true;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
     return true;
@@ -77,7 +87,9 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const interval = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
   entity.cooldownTicks = (interval + 1) * monsterSlowdown(w) - 1;
 
-  if (isCellClosedTrap(w, entity.x, entity.y)) {
+  // A phasing monster (a wisp) is not held by a closed trap and touches no tile: terrain has no effect on it.
+  const phases = def?.movementPattern === PHASE_LINE_PATTERN;
+  if (!phases && isCellClosedTrap(w, entity.x, entity.y)) {
     return true;
   }
 
@@ -87,12 +99,30 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const vec = DIRECTION_VECTORS[chosenDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
-  leaveSwivel(w, entity.x, entity.y);
+  if (!phases) leaveSwivel(w, entity.x, entity.y);
   entity.x = nx;
   entity.y = ny;
   entity.dir = chosenDir;
 
-  return resolveMonsterArrival(ctx, entity, true);
+  return phases ? resolvePhasedArrival(ctx, entity) : resolveMonsterArrival(ctx, entity, true);
+}
+
+/**
+ * The arrival of a phasing monster (a wisp) in its new cell. Terrain, items, buttons, teleporters and the
+ * transmogrifier do nothing to it; only the player in the cell (a ward absorbs the contact, as for any monster)
+ * and a flying shot count. Returns false when the player was killed, so the caller stops processing.
+ */
+function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
+  const w = ctx.world;
+  if (w.player.x === entity.x && w.player.y === entity.y && w.player.alive) {
+    if (absorbMonsterContact(w, entity.uid)) return true;
+    killPlayer(ctx, 'hud.messages.death_monster', 'death');
+    return false;
+  }
+  if (w.shots.length > 0 && consumeShotAt(w, entity.x, entity.y)) {
+    killMonsterByShot(ctx, entity);
+  }
+  return true;
 }
 
 /**
@@ -107,8 +137,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   const ny = entity.y;
   const def = ConfigRegistry.getEntityDef(entity.type);
   enterSwivel(w, nx, ny, entity.dir);
+  // A rail turns the monster to the open side it did not come in by, so a forward move follows a bend.
+  followRail(w, entity);
 
   if (w.player.x === nx && w.player.y === ny && w.player.alive) {
+    // A ward destroys the monster that touches the player; the player lives.
+    if (absorbMonsterContact(w, entity.uid)) return true;
     killPlayer(ctx, 'hud.messages.death_monster', 'death');
     return false;
   }
@@ -157,6 +191,10 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
 
   notePulseArrival(w, nx, ny, entity);
 
+  // A turning force floor turns the monster to the next direction of the shared turn.
+  const cycleDir = forceCycleArrival(w, destTile);
+  if (cycleDir) entity.dir = cycleDir;
+
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
     return false;
@@ -172,6 +210,9 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
   const def = ConfigRegistry.getEntityDef(monster.type);
   if (!def) return null;
 
+  // A phasing monster ignores the tile it stands on: no sliding, no forcing, no turning floor.
+  if (def.movementPattern === PHASE_LINE_PATTERN) return chooseWispDirection(w, monster);
+
   const currentTile = ConfigRegistry.getTile(w.terrain[monster.y][monster.x]);
   if (currentTile.slideType === 'ice') {
     const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
@@ -179,6 +220,11 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
     const bounce = OPPOSITE_DIRECTION[slideDir];
     if (canMonsterEnter(w, monster, bounce)) return bounce;
     return null;
+  }
+
+  // A turning force floor sets the facing on arrival (see resolveMonsterArrival); the monster keeps pushing that way.
+  if (currentTile.forceCycle === true) {
+    return canMonsterEnter(w, monster, monster.dir) ? monster.dir : null;
   }
 
   if (currentTile.slideType === 'force' && currentTile.forceDirection) {
@@ -244,6 +290,29 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
 }
 
 /**
+ * The step of a phasing monster: straight ahead, else turned round once, else none. Turning round changes the
+ * facing only when the step is taken, so a monster blocked both ways stays as it is.
+ */
+function chooseWispDirection(w: EpoxyWorld, monster: RuntimeEntity): Direction | null {
+  if (canWispEnter(w, monster, monster.dir)) return monster.dir;
+  const back = OPPOSITE_DIRECTION[monster.dir];
+  return canWispEnter(w, monster, back) ? back : null;
+}
+
+/**
+ * Whether a phasing monster may step one cell in `dir`: inside the map, past the cell edges (a thin wall still
+ * stops it) and with no entity in the cell. The tile of the cell and any item on it do not matter.
+ */
+export function canWispEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction): boolean {
+  const vec = DIRECTION_VECTORS[dir];
+  const nx = monster.x + vec.dx;
+  const ny = monster.y + vec.dy;
+  if (!isInBounds(w, nx, ny)) return false;
+  if (isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
+  return getEntityAt(w, nx, ny) === undefined;
+}
+
+/**
  * Whether the monster may step one cell in `dir`: inside the map, past the cell edges, onto a tile it can
  * enter (or one its definition passes) with no item but a bomb and no entity. `ignoreOccupant` leaves the
  * entity check to the caller, which pushes the block in the way (a steered puppet).
@@ -266,7 +335,7 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Dire
   if (destTile.hazard === 'fire' && def?.avoidsFire) return false;
 
   const itemId = w.items[ny][nx];
-  if (itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb') {
+  if (itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
 

@@ -16,10 +16,12 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { relativeTo } from '../core/lynx/directions';
-import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, PHASE_LINE_PATTERN, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
+import { GLOVE } from './gloveShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
-import { BeamCell, Direction, GraphicsStyle, GridPoint, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
+import { paintRailPiece } from './railArt';
+import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BLOCK_ON_TARGET_COLOR_KEY,
@@ -244,6 +246,7 @@ const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_s',
   'force_w',
   'force_random',
+  'force_cycle',
   'flame_jet_on',
   'exit',
   'teleport',
@@ -294,8 +297,68 @@ const HIDDEN_WALL_INSET_PX = 3;
 const HIDDEN_WALL_LINE_PX_MODERN = 1.5;
 /** Terrain cache key part while the player holds boots that reveal hidden walls. */
 const REVEAL_KEY = 'eye';
+/** Opacity of the pale sheen laid over the cuff of the Grappling Gloves. */
+const GLOVE_CUFF_SHEEN = 0.45;
 /** Eye drawn on the boots that reveal hidden walls: width and height of the almond, pupil radius, in tiles. */
 const EYE_MARK = { cx: 0.52, cy: 0.4, halfWidth: 0.15, halfHeight: 0.085, pupil: 0.05 } as const;
+/** Shield on the shaft of a ward, as tile fractions: top edge, shoulder, waist and point (x offsets are from the centre line). */
+const WARD_MARK = { cx: 0.38, top: 0.27, shoulder: 0.33, waist: 0.4, point: 0.5, halfWidth: 0.1 } as const;
+/**
+ * The faint tell of a sleeping lurker on plain floor: a dim seam, as tile fractions of its points, drawn thin
+ * and see-through so it reads only to someone who looks for it.
+ */
+const LURKER_TELL = {
+  seam: [[0.2, 0.58], [0.38, 0.5], [0.5, 0.6], [0.66, 0.48], [0.8, 0.55]] as ReadonlyArray<readonly [number, number]>,
+  alpha: 0.4,
+  widthTile: 0.035
+} as const;
+/**
+ * Blast charge canister, as tile fractions: the body box, the cap above it, the two bands across it, and the wick
+ * rising from the cap (unlit, the wick is a stub; lit, it carries the spark).
+ */
+const CHARGE_ART = {
+  body: { x: 0.3, y: 0.34, w: 0.4, h: 0.46, radius: 0.08 },
+  cap: { x: 0.36, y: 0.26, w: 0.28, h: 0.1 },
+  bands: [0.45, 0.65] as readonly number[],
+  bandHeight: 0.06,
+  wickFoot: { x: 0.5, y: 0.26 },
+  wickTip: { x: 0.58, y: 0.14 },
+  wickWidthTile: 0.035,
+  sparkRadius: 0.075
+} as const;
+/** Hurl stone, as tile fractions: the outline of an irregular rock and the lit facet on its upper left. */
+const STONE_ART = {
+  outline: [[0.28, 0.5], [0.34, 0.36], [0.5, 0.3], [0.66, 0.36], [0.74, 0.52], [0.68, 0.68], [0.5, 0.74], [0.34, 0.66]] as ReadonlyArray<readonly [number, number]>,
+  facet: [[0.34, 0.4], [0.5, 0.34], [0.58, 0.4], [0.44, 0.52], [0.36, 0.52]] as ReadonlyArray<readonly [number, number]>,
+  lineWidthTile: 0.035
+} as const;
+/**
+ * Pocket gate pad, as tile fractions: a ring with a notch cut out of its top, a dot at the centre, and the width of
+ * the ring line. The pad is still (no swirl), so it never reads as one of the portals. The gate item reuses the ring
+ * with a heavier line, and a tab filling the notch that stands for the handle.
+ */
+const POCKET_PAD_ART = {
+  radius: 0.34,
+  /** Half of the notch, in radians either side of twelve o'clock. */
+  notchHalfAngle: Math.PI / 7,
+  lineWidthPx: 2.5,
+  dotRadius: 0.07,
+  itemRadius: 0.27,
+  /** Height of the centre of the gate's ring, which sits low to leave room for the tab above it. */
+  itemCentreY: 0.56,
+  itemLineWidthTile: 0.09,
+  itemTab: { x: 0.44, y: 0.14, w: 0.12, h: 0.14 }
+} as const;
+/** Angle of twelve o'clock on a canvas arc. */
+const POCKET_PAD_TOP = -Math.PI / 2;
+/** Fuse ring of a lit charge: radius and width as tile fractions; the ring empties as the fuse burns, and the cell blinks near the end. */
+const CHARGE_FUSE_RING = { radius: 0.46, widthTile: 0.07, warnFraction: 0.34, blinkTicks: 4, flashAlpha: 0.32 } as const;
+/** Angle the fuse ring starts from (twelve o'clock). */
+const CHARGE_FUSE_RING_START = -Math.PI / 2;
+/** Opacity of the awake lurker drawn over the seam of a sleeping one in the editor, so it can be found and told apart. */
+const LURKER_EDITOR_MARKER_ALPHA = 0.55;
+/** Opacity of a wisp, which is drawn see-through (phased) in every style that has no art of its own for it. */
+const WISP_PHASED_ALPHA = 0.7;
 /** Thin wall bar: thickness as a share of the tile, with a floor in pixels per drawing style. */
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
@@ -563,6 +626,16 @@ const ITEM_SHADOW = { y: 0.86, rx: 0.22, ry: 0.06, shrinkPerTile: 4 } as const;
 /** Force floor arrows scroll over this span (tile fraction) at this speed (tile fraction per frame). */
 const FORCE_SCROLL_SPAN_TILE = 0.15;
 const FORCE_SCROLL_SPEED_TILE = 0.015;
+/** Turning force floor: radians the pinwheel of arrows turns per render tick. */
+const FORCE_CYCLE_SPIN_PER_TICK = 0.03;
+/** Turning force floor: ring radius and arrow reach of the pinwheel, as fractions of the tile size. */
+const FORCE_CYCLE_RING_RATIO = 0.2;
+const FORCE_CYCLE_ARM_RATIO = 0.17;
+/** Turning force floor: how far the arrow base sits behind the tip along the ring, and how wide it spreads, in arm lengths. */
+const FORCE_CYCLE_BASE_BACK = 0.6;
+const FORCE_CYCLE_BASE_SPREAD = 0.9;
+/** Turning force floor: number of arrows on the ring, one per direction of the cycle. */
+const FORCE_CYCLE_ARROWS = 4;
 const EXIT_PULSE_BASE = 0.34;
 const EXIT_PULSE_AMPLITUDE = 0.05;
 const TELEPORT_CORE_BASE = 0.14;
@@ -632,6 +705,8 @@ export class PixelRenderer {
   private animFrame: number = 0;
   /** Animation clock in reference frames (fractional), advanced from real elapsed time. */
   private timeTick: number = 0;
+  /** True while a phased monster is drawn through the see-through pass, so the pass is not entered twice. */
+  private drawingPhased = false;
   private lastFrameTimeMs: number | null = null;
   private currentViewportTiles: number = 13;
   private visualViewportTiles: number = 13;
@@ -1440,6 +1515,21 @@ export class PixelRenderer {
           if (lit) this.addLight(itemId, mx - camX, my - camY, tilePixelSize, settings);
         }
       }
+    }
+
+    const litCharges = engine.getLitCharges?.();
+    if (litCharges !== undefined) {
+      this.paintChargeFuses(
+        sceneCtx,
+        litCharges,
+        engine.getTick(),
+        (cx, cy) =>
+          cx < startTileX || cx > endTileX || cy < startTileY || cy > endTileY
+            ? null
+            : { px: originX + Math.floor((cx - region.x0) * unit), py: originY + Math.floor((cy - region.y0) * unit) },
+        unit,
+        drawSize
+      );
     }
 
     // Update & render entities with smooth interpolation
@@ -2277,6 +2367,13 @@ export class PixelRenderer {
       }
       return;
     }
+    const railSides = ConfigRegistry.getTile(tileId).railSides;
+    if (railSides !== undefined) {
+      // Outside Runeward, a rail piece is the floor of the style with a track drawn over it.
+      this.drawTile(ctx, FLOOR_TILE_ID, x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      if (pass !== 'animated') this.paintRailTrack(ctx, tileId, railSides, x, y, size);
+      return;
+    }
     const painterId = EPOXY_TO_CC3D_PAINTER[tileId];
     if (painterId) {
       this.drawCc3dTile(ctx, painterId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
@@ -2308,6 +2405,33 @@ export class PixelRenderer {
     } else {
       this.drawLegacyTile(ctx, tileId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
     }
+  }
+
+  /**
+   * The track of a rail piece: two rails over sleepers along the open sides, a buffer on each closed side. A rail
+   * switch also shows its other form faded under the current one, so the player sees where it will turn.
+   */
+  private paintRailTrack(
+    ctx: CanvasRenderingContext2D,
+    tileId: string,
+    sides: readonly Direction[],
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    const pal = this.pal();
+    const otherSides = ConfigRegistry.getTile(ConfigRegistry.getTile(tileId).togglesTo ?? tileId).railSides;
+    const neon = this.isHdVector();
+    paintRailPiece(
+      ctx,
+      x,
+      y,
+      size,
+      sides,
+      otherSides,
+      { outline: pal.wallShadow, sleeper: pal.wallBase, rail: pal.wallTop, buffer: pal.wallTop },
+      { crisp: !neon, glow: neon && this.getActiveTheme() ? pal.wallTop : undefined }
+    );
   }
 
   /** Whether the signal node of the cell being drawn is on; false in the editor, which has no running level. */
@@ -2868,14 +2992,19 @@ export class PixelRenderer {
       case 'force_e':
       case 'force_s':
       case 'force_w':
-      case 'force_random': {
+      case 'force_random':
+      case 'force_cycle': {
         ctx.fillStyle = pal.forceBase;
         ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
         ctx.fillStyle = pal.forceArrow;
         const cx = x + size / 2;
         const cy = y + size / 2;
         const r = size * 0.28;
-        if (tileId === 'force_random') {
+        if (tileId === 'force_cycle') {
+          ctx.beginPath();
+          this.traceForceCyclePinwheel(ctx, cx, cy, size, 0, true);
+          ctx.fill();
+        } else if (tileId === 'force_random') {
           ctx.beginPath();
           ctx.arc(cx, cy, r * 0.8, 0, FULL_TURN);
           ctx.fill();
@@ -3046,6 +3175,10 @@ export class PixelRenderer {
         }
         break;
       }
+
+      case 'pocket_gate_pad':
+        this.paintPocketPad(ctx, x, y, size, pal.teleportRing, pal.teleportCore, 0);
+        break;
 
       case 'trap': {
         ctx.fillStyle = pal.trapBorder;
@@ -3452,6 +3585,226 @@ export class PixelRenderer {
     ctx.beginPath();
     ctx.arc(cx, cy, size * EYE_MARK.pupil, 0, FULL_TURN);
     ctx.fill();
+  }
+
+  /** Shield on the shaft of the ward. */
+  private paintWardMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const cx = x + size * WARD_MARK.cx;
+    const half = size * WARD_MARK.halfWidth;
+    ctx.fillStyle = this.pal().eyeWhite;
+    ctx.beginPath();
+    ctx.moveTo(cx - half, y + size * WARD_MARK.top);
+    ctx.lineTo(cx + half, y + size * WARD_MARK.top);
+    ctx.lineTo(cx + half, y + size * WARD_MARK.shoulder);
+    ctx.lineTo(cx, y + size * WARD_MARK.point);
+    ctx.lineTo(cx - half, y + size * WARD_MARK.shoulder);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /** The Grappling Gloves: a gripping glove with a cuff and a small hook on a cord, in the colour of its boots key. */
+  private paintGlove(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const c = pal[BOOT_COLOR_KEYS.boots_pull ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
+    const line = Math.max(1, size * GLOVE.lineWidth);
+    ctx.save();
+    if (isModern) {
+      ctx.shadowColor = c;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = pal.eyeWhite;
+    ctx.lineWidth = Math.max(1, size * GLOVE.hookWidth);
+    ctx.beginPath();
+    GLOVE.hook.forEach(([hx, hy], i) => (i === 0 ? ctx.moveTo(x + size * hx, y + size * hy) : ctx.lineTo(x + size * hx, y + size * hy)));
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = c;
+    ctx.strokeStyle = pal.glyphInk;
+    ctx.lineWidth = line;
+    ctx.beginPath();
+    ctx.ellipse(x + size * GLOVE.thumb.cx, y + size * GLOVE.thumb.cy, size * GLOVE.thumb.rx, size * GLOVE.thumb.ry, GLOVE.thumb.turn, 0, FULL_TURN);
+    ctx.fill();
+    ctx.stroke();
+    const palm = GLOVE.palm;
+    this.roundRect(ctx, x + size * palm.x, y + size * palm.y, size * palm.w, size * palm.h, size * palm.r);
+    ctx.fill();
+    for (const finger of GLOVE.fingers) {
+      this.roundRect(ctx, x + size * finger.x, y + size * finger.top, size * GLOVE.fingerWidth, size * (GLOVE.fingerBottom - finger.top), size * GLOVE.fingerRadius);
+      ctx.fill();
+      ctx.stroke();
+    }
+    const cuff = GLOVE.cuff;
+    this.roundRect(ctx, x + size * cuff.x, y + size * cuff.y, size * cuff.w, size * cuff.h, size * cuff.r);
+    ctx.fillStyle = c;
+    ctx.fill();
+    ctx.globalAlpha = GLOVE_CUFF_SHEEN;
+    ctx.fillStyle = pal.eyeWhite;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.stroke();
+  }
+
+  /** Strokes a ring with a notch at twelve o'clock around (cx, cy); the caller sets the stroke style and width. */
+  private strokeNotchedRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, POCKET_PAD_TOP + POCKET_PAD_ART.notchHalfAngle, POCKET_PAD_TOP - POCKET_PAD_ART.notchHalfAngle + FULL_TURN);
+    ctx.stroke();
+  }
+
+  /** A pocket gate pad: a still ring with a notch and a dot at its centre. */
+  private paintPocketPad(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ringColor: string, dotColor: string, glowPx: number): void {
+    ctx.save();
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = POCKET_PAD_ART.lineWidthPx;
+    ctx.lineCap = 'round';
+    if (glowPx > 0) {
+      ctx.shadowColor = ringColor;
+      ctx.shadowBlur = glowPx;
+    }
+    this.strokeNotchedRing(ctx, x + size / 2, y + size / 2, size * POCKET_PAD_ART.radius);
+    ctx.fillStyle = dotColor;
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, size * POCKET_PAD_ART.dotRadius, 0, FULL_TURN);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** A pocket gate: the notched ring of its pad with a handle tab in the notch. */
+  private paintPocketGate(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const { itemRadius, itemCentreY, itemLineWidthTile, itemTab } = POCKET_PAD_ART;
+    ctx.save();
+    ctx.strokeStyle = isModern ? pal.modernTeleportRing : pal.teleportRing;
+    ctx.lineWidth = Math.max(1, size * itemLineWidthTile);
+    ctx.lineCap = 'round';
+    if (isModern) {
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    this.strokeNotchedRing(ctx, x + size / 2, y + size * itemCentreY, size * itemRadius);
+    ctx.fillStyle = pal.bombBody;
+    ctx.fillRect(x + size * itemTab.x, y + size * itemTab.y, size * itemTab.w, size * itemTab.h);
+    ctx.fillStyle = pal.teleportCore;
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size * itemCentreY, size * POCKET_PAD_ART.dotRadius, 0, FULL_TURN);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** A hurl stone: an irregular rock, lit on its upper left. */
+  private paintStone(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const trace = (points: ReadonlyArray<readonly [number, number]>): void => {
+      ctx.beginPath();
+      points.forEach(([px, py], index) => (index === 0 ? ctx.moveTo(x + size * px, y + size * py) : ctx.lineTo(x + size * px, y + size * py)));
+      ctx.closePath();
+    };
+    ctx.save();
+    ctx.fillStyle = pal.wallBase;
+    trace(STONE_ART.outline);
+    ctx.fill();
+    ctx.strokeStyle = pal.wallShadow;
+    ctx.lineWidth = Math.max(1, size * STONE_ART.lineWidthTile);
+    ctx.lineJoin = 'round';
+    if (isModern) {
+      ctx.shadowColor = pal.wallShadow;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = pal.wallTop;
+    trace(STONE_ART.facet);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** A blast charge: a banded canister; lit, it carries a burning wick. */
+  private paintCharge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean, lit: boolean): void {
+    const pal = this.pal();
+    const glow = this.getSettings().glowBlurPx;
+    const { body, cap, bands, bandHeight, wickFoot, wickTip, wickWidthTile, sparkRadius } = CHARGE_ART;
+    ctx.save();
+    ctx.fillStyle = pal.orange;
+    this.roundRect(ctx, x + size * body.x, y + size * body.y, size * body.w, size * body.h, size * body.radius);
+    ctx.fill();
+    ctx.fillStyle = pal.bombBody;
+    ctx.fillRect(x + size * cap.x, y + size * cap.y, size * cap.w, size * cap.h);
+    for (const band of bands) {
+      ctx.fillRect(x + size * body.x, y + size * band, size * body.w, size * bandHeight);
+    }
+    ctx.strokeStyle = pal.bombBody;
+    ctx.lineWidth = Math.max(1, size * wickWidthTile);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + size * wickFoot.x, y + size * wickFoot.y);
+    ctx.lineTo(x + size * (lit ? wickTip.x : (wickFoot.x + wickTip.x) / 2), y + size * (lit ? wickTip.y : (wickFoot.y + wickTip.y) / 2));
+    ctx.stroke();
+    if (lit) {
+      ctx.fillStyle = pal.bombSpark;
+      if (isModern) {
+        ctx.shadowColor = pal.bombSpark;
+        ctx.shadowBlur = glow.medium;
+      }
+      ctx.beginPath();
+      ctx.arc(x + size * wickTip.x, y + size * wickTip.y, size * sparkRadius, 0, FULL_TURN);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * The fuse of every lit charge in view: a ring that empties as the fuse burns, and a blink of the whole cell once
+   * the fuse is short. Driven by the engine tick, so a paused or undone game shows the same fuse.
+   */
+  private paintChargeFuses(
+    ctx: CanvasRenderingContext2D,
+    charges: readonly LitCharge[],
+    tick: number,
+    cell: (x: number, y: number) => { px: number; py: number } | null,
+    unit: number,
+    drawSize: number
+  ): void {
+    const fuseTicks = Math.max(1, ConfigRegistry.getGame().timing.chargeFuseTicks);
+    const spark = this.pal().bombSpark;
+    for (const charge of charges) {
+      const at = cell(charge.x, charge.y);
+      if (at === null) continue;
+      const left = Math.max(0, charge.detonateTick - tick);
+      const fraction = Math.min(1, left / fuseTicks);
+      ctx.save();
+      if (fraction <= CHARGE_FUSE_RING.warnFraction && Math.floor(left / CHARGE_FUSE_RING.blinkTicks) % 2 === 0) {
+        ctx.globalAlpha = CHARGE_FUSE_RING.flashAlpha;
+        ctx.fillStyle = spark;
+        ctx.fillRect(at.px, at.py, drawSize, drawSize);
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = spark;
+      ctx.lineWidth = Math.max(1, unit * CHARGE_FUSE_RING.widthTile);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(at.px + unit / 2, at.py + unit / 2, unit * CHARGE_FUSE_RING.radius, CHARGE_FUSE_RING_START, CHARGE_FUSE_RING_START + FULL_TURN * fraction);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /** The dim seam that gives a sleeping lurker away: a thin, see-through crack across the floor cell. */
+  private paintLurkerTell(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    ctx.save();
+    ctx.globalAlpha = LURKER_TELL.alpha;
+    ctx.strokeStyle = this.pal().wallShadow;
+    ctx.lineWidth = Math.max(1, size * LURKER_TELL.widthTile);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    LURKER_TELL.seam.forEach(([px, py], i) => {
+      if (i === 0) ctx.moveTo(x + size * px, y + size * py);
+      else ctx.lineTo(x + size * px, y + size * py);
+    });
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** Dashed outline that marks a hidden wall to a player who can see it: in the editor, or holding the eye boots. */
@@ -3985,7 +4338,8 @@ export class PixelRenderer {
       case 'force_e':
       case 'force_s':
       case 'force_w':
-      case 'force_random': {
+      case 'force_random':
+      case 'force_cycle': {
         ctx.fillStyle = pal.modernForceBg;
         ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
         break;
@@ -4013,6 +4367,10 @@ export class PixelRenderer {
       case 'teleport_yellow':
       case 'teleport_green':
         // Fully animated, drawn by drawModernAnimatedOverlay.
+        break;
+
+      case 'pocket_gate_pad':
+        this.paintPocketPad(ctx, x, y, size, pal.modernTeleportRing, pal.teleportCore, glow.medium);
         break;
 
       case 'hint': {
@@ -4442,12 +4800,22 @@ export class PixelRenderer {
       case 'force_e':
       case 'force_s':
       case 'force_w':
-      case 'force_random': {
+      case 'force_random':
+      case 'force_cycle': {
         const pad = this.glowPad();
         const sprite = this.getSprite(`force|${this.style}|${tileId}|${size}`, size, size, pad, (sctx, o) =>
           this.paintForceArrow(sctx, tileId, o, o, size)
         );
         if (!sprite) break;
+        if (tileId === 'force_cycle') {
+          // The pinwheel of arrows turns clockwise around the tile centre.
+          ctx.save();
+          ctx.translate(x + size / 2, y + size / 2);
+          ctx.rotate(this.timeTick * FORCE_CYCLE_SPIN_PER_TICK);
+          ctx.drawImage(sprite, -size / 2 - pad, -size / 2 - pad);
+          ctx.restore();
+          break;
+        }
         const span = size * FORCE_SCROLL_SPAN_TILE;
         const shift = ((this.timeTick * size * FORCE_SCROLL_SPEED_TILE) % span) - span / 2;
         let dx = 0;
@@ -4549,7 +4917,9 @@ export class PixelRenderer {
     const cy = y + size / 2;
     const r = size * 0.24;
     ctx.beginPath();
-    if (tileId === 'force_random') {
+    if (tileId === 'force_cycle') {
+      this.traceForceCyclePinwheel(ctx, cx, cy, size, 0, false);
+    } else if (tileId === 'force_random') {
       ctx.arc(cx, cy, r, 0, FULL_TURN);
     } else if (tileId === 'force_n') {
       ctx.moveTo(cx - r, cy + r * 0.5);
@@ -4570,6 +4940,39 @@ export class PixelRenderer {
     }
     ctx.stroke();
     ctx.restore();
+  }
+
+  /**
+   * Adds to the current path the pinwheel of the turning force floor: one arrow per direction of the cycle on a
+   * ring around (cx, cy), each pointing along the ring clockwise, the whole turned by `spin` radians. Closed arrows
+   * are triangles to fill; open ones are chevrons to stroke.
+   */
+  private traceForceCyclePinwheel(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number,
+    spin: number,
+    closed: boolean
+  ): void {
+    const ring = size * FORCE_CYCLE_RING_RATIO;
+    const arm = size * FORCE_CYCLE_ARM_RATIO;
+    for (let k = 0; k < FORCE_CYCLE_ARROWS; k++) {
+      const angle = spin + (k * FULL_TURN) / FORCE_CYCLE_ARROWS;
+      const radialX = Math.cos(angle);
+      const radialY = Math.sin(angle);
+      // Clockwise on screen (y grows downward) is the direction of increasing angle.
+      const tangentX = -radialY;
+      const tangentY = radialX;
+      const px = cx + radialX * ring;
+      const py = cy + radialY * ring;
+      const backX = px + tangentX * arm * -FORCE_CYCLE_BASE_BACK;
+      const backY = py + tangentY * arm * -FORCE_CYCLE_BASE_BACK;
+      ctx.moveTo(backX + radialX * arm * FORCE_CYCLE_BASE_SPREAD, backY + radialY * arm * FORCE_CYCLE_BASE_SPREAD);
+      ctx.lineTo(px + tangentX * arm, py + tangentY * arm);
+      ctx.lineTo(backX - radialX * arm * FORCE_CYCLE_BASE_SPREAD, backY - radialY * arm * FORCE_CYCLE_BASE_SPREAD);
+      if (closed) ctx.closePath();
+    }
   }
 
   /** Bend geometry of a corner ice tile, read once per tile id from its definition; null for plain ice. */
@@ -4981,7 +5384,7 @@ export class PixelRenderer {
       case 'boots_force':
       case 'boots_speed':
       case 'boots_eye':
-      case 'boots_pull': {
+      case 'ward': {
         const c = pal[BOOT_COLOR_KEYS[itemId] ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
         ctx.save();
         if (isModern) {
@@ -4994,7 +5397,13 @@ export class PixelRenderer {
         this.roundRect(ctx, x + size * 0.25, y + size * 0.54, size * 0.52, size * 0.24, 4);
         ctx.fill();
         if (ConfigRegistry.getTile(itemId).revealsHiddenWalls) this.paintEyeMark(ctx, x, y, size);
+        if (ConfigRegistry.getTile(itemId).absorbsMonsterContact) this.paintWardMark(ctx, x, y, size);
         ctx.restore();
+        break;
+      }
+
+      case 'boots_pull': {
+        this.paintGlove(ctx, x, y, size, isModern);
         break;
       }
 
@@ -5010,6 +5419,22 @@ export class PixelRenderer {
       case 'stopwatch_penalty':
       case 'slow_time': {
         this.paintStopwatch(ctx, ConfigRegistry.getTile(itemId), x, y, size, isModern);
+        break;
+      }
+
+      case 'pocket_gate': {
+        this.paintPocketGate(ctx, x, y, size, isModern);
+        break;
+      }
+
+      case 'hurl_stone': {
+        this.paintStone(ctx, x, y, size, isModern);
+        break;
+      }
+
+      case 'charge':
+      case 'charge_lit': {
+        this.paintCharge(ctx, x, y, size, isModern, ConfigRegistry.getTile(itemId).litCharge === true);
         break;
       }
 
@@ -5039,12 +5464,34 @@ export class PixelRenderer {
     dir: Direction,
     x: number,
     y: number,
-    size: number
+    size: number,
+    isEditor = false
   ): void {
+    if (isEditor && ConfigRegistry.getEntityDef(type)?.wakesTo !== undefined) {
+      // A sleeping monster looks like floor in play; the editor also shows the awake one, faint, so it can be found.
+      const awake = ConfigRegistry.getEntityDef(type)?.wakesTo as string;
+      ctx.save();
+      ctx.globalAlpha = LURKER_EDITOR_MARKER_ALPHA;
+      this.drawEntity(ctx, awake, dir, x, y, size);
+      ctx.restore();
+    }
     const runewardEntities = this.runewardPainters();
     const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;
     if (runewardPaint) {
       runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
+      return;
+    }
+    if (!this.drawingPhased && ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN) {
+      // A wisp is the same drawing as any other style gives it, seen through.
+      ctx.save();
+      ctx.globalAlpha = (typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1) * WISP_PHASED_ALPHA;
+      this.drawingPhased = true;
+      try {
+        this.drawEntity(ctx, type, dir, x, y, size, isEditor);
+      } finally {
+        this.drawingPhased = false;
+        ctx.restore();
+      }
       return;
     }
     const painterId = EPOXY_TO_CC3D_PAINTER[type];
@@ -5463,6 +5910,10 @@ export class PixelRenderer {
   ): void {
     if (BLOCK_TYPES.has(type) || ConfigRegistry.getEntityDef(type)?.pushArrows !== undefined) {
       this.paintBlock(ctx, type, x, y, size, dir);
+      return;
+    }
+    if (ConfigRegistry.getEntityDef(type)?.wakesTo !== undefined) {
+      this.paintLurkerTell(ctx, x, y, size);
       return;
     }
     const mirrorDef = ConfigRegistry.getEntityDef(type);
@@ -6145,7 +6596,7 @@ export class PixelRenderer {
       this.drawItem(ctx, id, 0, 0, iconSize);
     } else if (kind === 'entity') {
       this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
-      this.drawEntity(ctx, id, dir, 0, 0, iconSize);
+      this.drawEntity(ctx, id, dir, 0, 0, iconSize, true);
     } else if (kind === 'player') {
       this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
       this.drawPlayer(ctx, 0, 0, iconSize, dir, false, true);

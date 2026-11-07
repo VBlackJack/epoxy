@@ -50,6 +50,22 @@ editor tile swivel_door_sw closed=true 4c0da93899641eda
 editor tile swivel_door_sw closed=false bbf59e3f944f0b84
 editor tile swivel_door_nw closed=true 5e0ca053a1a6db29
 editor tile swivel_door_nw closed=false fc16da0cda72edb0
+editor tile rail_ns closed=true c8f5eb969759af38
+editor tile rail_ns closed=false d8c0ad1e3e5e2372
+editor tile rail_ew closed=true e2c503aa9ea1a7bd
+editor tile rail_ew closed=false a2641cc48748b73e
+editor tile rail_ne closed=true 6e3dec4c4ef29df5
+editor tile rail_ne closed=false adfb9505d3e7a4c2
+editor tile rail_se closed=true 63a0adbbd704e054
+editor tile rail_se closed=false 44e71d9abe815077
+editor tile rail_sw closed=true 3cfa076f40ad1bc2
+editor tile rail_sw closed=false 4b54876069b1af99
+editor tile rail_nw closed=true 7dd6fcd74258af3e
+editor tile rail_nw closed=false 0c010eb69915b80c
+editor tile rail_switch_a closed=true e5a9e02d6ccaca91
+editor tile rail_switch_a closed=false 66c244fbb1b4a34a
+editor tile rail_switch_b closed=true a9b5809a258402d8
+editor tile rail_switch_b closed=false df36bbebe6b9f7d0
 editor tile transmogrifier closed=true e8fc12fd2982cf11
 editor tile transmogrifier closed=false d68850e49ffdbe4c
 editor tile turn_plate_cw closed=true c2ee4530b2ac700e
@@ -94,6 +110,8 @@ editor tile force_w closed=true 298e93744c1ee37c
 editor tile force_w closed=false d0403057d618b2a1
 editor tile force_random closed=true 2e1a804045611da6
 editor tile force_random closed=false af648e172cb7b75e
+editor tile force_cycle closed=true a35d9bf57e879aca
+editor tile force_cycle closed=false 7a22371785e12eb4
 editor tile thief closed=true d59219dcdf05fbee
 editor tile thief closed=false 0af57707afc53de6
 editor tile thief_keys closed=true 7e196f9691f474de
@@ -154,6 +172,8 @@ editor tile teleport_yellow closed=true e8b38e3419d52c65
 editor tile teleport_yellow closed=false d2429a1f79b8e2f7
 editor tile teleport_green closed=true c322ce69c57cac66
 editor tile teleport_green closed=false 5d5ba26cf0794c8f
+editor tile pocket_gate_pad closed=true f868b0a59840d6aa
+editor tile pocket_gate_pad closed=false 93a622ee0408a340
 editor tile trap closed=true de6eb00faf3bd7de
 editor tile trap closed=false 0c2e67a8a4389d33
 editor tile clone_machine closed=true d7001124af9d2162
@@ -282,6 +302,16 @@ editor tile boots_eye closed=true c62d033f3a670a6c
 editor tile boots_eye closed=false e37f89b9e2194dc9
 editor tile boots_pull closed=true 7ae9f99ffa935bb1
 editor tile boots_pull closed=false 7fa518c4390b2cd5
+editor tile ward closed=true 8abd16bb5e5ca44a
+editor tile ward closed=false ec57d5c863036e9c
+editor tile charge closed=true 6363cb647093427d
+editor tile charge closed=false c31cd8b1e2331b2d
+editor tile charge_lit closed=true 06ce6f3b5d7790b6
+editor tile charge_lit closed=false b3be157af1358326
+editor tile pocket_gate closed=true 2b4ca83914277bd1
+editor tile pocket_gate closed=false f891852abbcaa60e
+editor tile hurl_stone closed=true a0c9457a0bfa4e5a
+editor tile hurl_stone closed=false 7fb2b2e5263b0573
 editor tile bomb closed=true b3787b17e20e015a
 editor tile bomb closed=false 7fdb433d38dd755c
 editor tile score_10 closed=true 8466cb66054c8157
@@ -308,7 +338,12 @@ editor item over floor boots_force ac21c9a47260de12
 editor item over floor slow_time 3d16f72367446f04
 editor item over floor boots_speed 6ed8f8b2410dfd20
 editor item over floor boots_eye a29ac6244c895c41
-editor item over floor boots_pull 02bdfea0b3450755
+editor item over floor boots_pull 477b1a2f6ede1cb6
+editor item over floor ward 82c89d7dd1382e4e
+editor item over floor charge 6173a75cd60aa01b
+editor item over floor charge_lit 5d3c5cc58cce5215
+editor item over floor pocket_gate bc2814b8cecc429d
+editor item over floor hurl_stone d3d8822b695d73a3
 editor item over floor bomb fc5fd345d6a0c25d
 editor item over floor score_10 3ce80e0c4444f7ba
 editor item over floor score_100 b91c80f565c7b8bd
@@ -347,3 +382,6 @@ editor entity over floor color_block_blue d459fd9e797d5a5a
 editor entity over floor color_block_yellow 6570ca943ee59242
 editor entity over floor puppet df05c368ad9fbdd4
 editor entity over floor skitter f524a0ec7f3186b5
+editor entity over floor lurker_dormant c7cf5c3a06b3715b
+editor entity over floor lurker 7e30ae437506a1ad
+editor entity over floor wisp 8d0985026853ba4b

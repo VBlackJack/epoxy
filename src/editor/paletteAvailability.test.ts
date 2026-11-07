@@ -72,15 +72,17 @@ describe('paletteAvailability', () => {
         def.toggleChannel !== undefined ||
         def.floatingBlockColor !== undefined ||
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
-      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined;
+      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined || def.absorbsMonsterContact !== undefined || def.collectible === 'charge' || def.litCharge !== undefined || def.collectible === 'gate' || def.collectible === 'stone' || def.portableTeleporter !== undefined;
       const isSteeringPad = def.buttonAction === 'steer_monsters';
       const isShotDevice = def.shotLauncher !== undefined || def.buttonAction === 'fire_launchers';
       const isSwivelDoor = def.swivelTurns !== undefined;
       const isTransmogrifier = def.transmogrifies === true;
       const isTurnPlate = def.facingTurn !== undefined;
       const isSignalTile = def.signalSource !== undefined || def.signalGate !== undefined;
+      const isForceCycle = def.forceCycle === true;
+      const isRail = def.railSides !== undefined;
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile || isForceCycle || isRail));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);
@@ -126,7 +128,8 @@ describe('paletteAvailability', () => {
         def.turretBeam !== undefined ||
         def.steeredBy !== undefined ||
         def.pushArrows !== undefined ||
-        def.movementPattern === 'flee_player';
+        def.movementPattern === 'flee_player' ||
+        def.epoxyOnly === true;
       const result = entityAvailability('lynx', id);
       expect(result.available, id).toBe(!epoxyOnly);
       if (epoxyOnly) blocked++;

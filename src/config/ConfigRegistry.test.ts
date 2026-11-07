@@ -328,7 +328,9 @@ describe('tiles.json mechanics', () => {
       if (tile.isTeleporter) groups.add(tile.teleportGroup);
     }
     expect(groups.has(undefined)).toBe(true);
-    expect(groups.size).toBe(5);
+    // The plain group, the four colours and the pocket pads.
+    expect(groups.has('pocket')).toBe(true);
+    expect(groups.size).toBe(6);
   });
 
   it('declares laserTransparent on every tile', () => {

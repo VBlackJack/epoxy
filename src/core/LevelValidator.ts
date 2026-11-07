@@ -33,10 +33,12 @@ import {
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
 import { relativeTo } from './lynx/directions';
-import { isArrowBlockEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
+import { isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
+import { registryTileLookup } from './epoxy/epoxySignals';
 import { checkSignalWiring, signalDrivenColors } from './signalChecks';
+import { compileSignalSpec } from './signalLinks';
 import { hiddenUnder, underlayMap } from './Underlays';
 import {
   ChannelColor,
@@ -54,6 +56,8 @@ import {
  * toggled walls, filled water); the loop stops earlier once a pass changes nothing.
  */
 const MAX_FIXPOINT_PASSES = 60;
+/** Pocket pads it takes to make a link: gates reached plus pads the level places. */
+const MIN_POCKET_PADS = 2;
 /** Blocks assumed available from a reachable cloner button that clones a block. */
 const CLONER_BLOCK_ALLOWANCE = 10;
 
@@ -384,6 +388,8 @@ export class LevelValidator {
 
     this.checkColorChannels(level, issues);
     this.checkSteering(level, issues);
+    this.checkLurkers(level, issues);
+    this.checkPhasingClones(level, issues);
     this.checkShotLaunchers(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
@@ -467,12 +473,16 @@ export class LevelValidator {
     const swimProtection = ConfigRegistry.getTile('water').protectedByItem;
 
     const teleporters: GridPoint[] = [];
+    // The pocket pads the level places itself: pads the player sets down join them, so they are listed apart.
+    const placedPads: GridPoint[] = [];
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
         if (ConfigRegistry.getTile(level.terrain[ty][tx]).isTeleporter) teleporters.push({ x: tx, y: ty });
+        if (ConfigRegistry.getTile(level.terrain[ty][tx]).portableTeleporter === true) placedPads.push({ x: tx, y: ty });
         // A teleporter hidden under a removable top joins its group once the top is gone (checked at use).
         const hiddenId = underlays?.get(ty * width + tx);
         if (hiddenId !== undefined && ConfigRegistry.getTile(hiddenId).isTeleporter) teleporters.push({ x: tx, y: ty });
+        if (hiddenId !== undefined && ConfigRegistry.getTile(hiddenId).portableTeleporter === true) placedPads.push({ x: tx, y: ty });
       }
     }
 
@@ -565,10 +575,22 @@ export class LevelValidator {
       const uncollectedBlocks = new Map<string, string>(
         level.entities.filter((e) => blockTypes.has(e.type)).map((e) => [`${e.x},${e.y}`, e.type])
       );
-      // A cloner only supplies blocks once the player can reach its button
+      // A button-fed cloner only supplies blocks once the player can reach its button (signal-driven ones: applySignalSinks)
       const grantedCloneLinks = new Set<number>();
 
       const appliedKeyThieves = new Set<string>();
+
+      // Pocket gates the walk has picked up. A pad may be set down on any cell the walk reaches, and the pads link only
+      // with each other, so once gates and placed pads can make a pair the walk over-approximates: every reached cell
+      // and every placed pad link with each other (see linkPocketPads). Kept across passes: the item is gone from the grid by then.
+      let gateCount = 0;
+      // Hurl stones the walk has picked up. A stone sets off a bomb it is thrown at, so once one is reachable every bomb
+      // is taken as passable (an over-approximation: the throw needs a clear line, and a stone is used up by one throw).
+      // Kept across passes: the item is gone from the grid by then.
+      let stoneCount = 0;
+
+      // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
+      this.applySignalSinks(level, blockTypes, stockBlocks, simItems);
 
       let changed = true;
       let passes = 0;
@@ -576,6 +598,17 @@ export class LevelValidator {
       while (changed && passes < MAX_FIXPOINT_PASSES) {
         changed = false;
         passes++;
+        if (stoneCount > 0) {
+          for (const row of simItems) {
+            for (let cx = 0; cx < row.length; cx++) {
+              const cell = row[cx];
+              if (cell && ConfigRegistry.getTile(cell).hazard === 'bomb') {
+                row[cx] = null;
+                changed = true;
+              }
+            }
+          }
+        }
         if (meter) {
           meter.passes++;
           // The visited grid of every mask, then the closedDoors scan of the whole grid.
@@ -616,6 +649,14 @@ export class LevelValidator {
             ownedKeys[item] = (ownedKeys[item] || 0) + 1;
             simItems[cy][cx] = null;
             changed = true;
+          } else if (itemDef.collectible === 'gate') {
+            gateCount++;
+            simItems[cy][cx] = null;
+            changed = true;
+          } else if (itemDef.collectible === 'stone') {
+            stoneCount++;
+            simItems[cy][cx] = null;
+            changed = true;
           } else if (itemDef.collectible === 'boot') {
             return boots | (bootBits.get(item) ?? NO_BOOTS);
           }
@@ -640,7 +681,28 @@ export class LevelValidator {
         }
         enqueue(sx, sy, NO_BOOTS);
 
-        for (let head = 0; head < queue.length; head++) {
+        /**
+         * Links the pocket pads once the gates reached and the placed pads can make a pair: every reached cell may hold
+         * a pad, so each such cell and each placed pad is reached with every boots state seen on any of them. Done
+         * whenever the queue runs dry, so the order the cells were reached in does not matter. True when it queued states.
+         */
+        const linkPocketPads = (): boolean => {
+          if (gateCount === 0 || gateCount + placedPads.length < MIN_POCKET_PADS) return false;
+          const known = queue.length;
+          const masks = new Set<number>();
+          const locations = new Map<number, GridPoint>();
+          for (let i = 0; i < known; i++) {
+            masks.add(queue[i].boots);
+            locations.set(queue[i].y * width + queue[i].x, queue[i]);
+          }
+          for (const pad of placedPads) locations.set(pad.y * width + pad.x, pad);
+          for (const location of locations.values()) {
+            for (const mask of masks) enqueue(location.x, location.y, mask);
+          }
+          return queue.length > known;
+        };
+
+        for (let head = 0; head < queue.length || linkPocketPads(); head++) {
           // A walk that outruns its step limit is cut off and discarded by the caller.
           if (++work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
           if (meter) meter.cells++;
@@ -1411,6 +1473,9 @@ export class LevelValidator {
       }
 
       if (tile.slideType === 'force') {
+        // A turning force floor pushes by the shared turn, which no static walk can know: the slide ends here without
+        // a verdict, so the walk tries every exit from this cell (an over-approximation, never a false unreachable).
+        if (tile.forceCycle === true) return { end: { x, y }, path, boots, fatal: false };
         if (tile.forceDirection === 'RANDOM') return fatal();
         dir = tile.forceDirection || dir;
       } else {
@@ -1518,6 +1583,47 @@ export class LevelValidator {
   }
 
   /**
+   * A sleeping lurker is drawn as plain floor with a faint tell; on any other tile (dirt, ice, a button, a floor
+   * with something hidden under it) it cannot pass for floor, so each one off plain floor is reported.
+   */
+  private static checkLurkers(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const underlays = underlayMap(level);
+    const width = level.terrain[0]?.length ?? 0;
+    const offFloor = level.entities.filter((entity) => {
+      if (ConfigRegistry.getEntityDef(entity.type)?.wakesTo === undefined) return false;
+      if (!this.inGrid(level, entity)) return false;
+      return level.terrain[entity.y][entity.x] !== FLOOR_TILE_ID || underlays?.has(entity.y * width + entity.x) === true;
+    });
+    if (offFloor.length === 0) return;
+    issues.push({
+      severity: 'warning',
+      i18nKey: 'validator.issues.lurker_not_on_floor.label',
+      params: this.locationParams(offFloor.map((entity) => ({ x: entity.x, y: entity.y })))
+    });
+  }
+
+  /**
+   * A wisp is never a clone template: a clone machine holding one, or a clone link naming one, is an error. The
+   * engine spawns nothing from such a link, so the level would play differently from how it reads.
+   */
+  private static checkPhasingClones(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const cells: GridPoint[] = [];
+    for (const entity of level.entities) {
+      if (!isPhasingEntityType(entity.type) || !this.inGrid(level, entity)) continue;
+      if (ConfigRegistry.getTile(level.terrain[entity.y][entity.x]).isCloneMachine) cells.push({ x: entity.x, y: entity.y });
+    }
+    for (const link of level.cloneLinks ?? []) {
+      if (isPhasingEntityType(link.templateType)) cells.push({ x: link.clonerX, y: link.clonerY });
+    }
+    if (cells.length === 0) return;
+    issues.push({
+      severity: 'error',
+      i18nKey: 'validator.issues.wisp_cloned.label',
+      params: this.locationParams(cells)
+    });
+  }
+
+  /**
    * Warnings about the shot devices: a trigger with no link fires nothing, a launcher no trigger is linked
    * to never fires, and a launcher facing a wall or the edge of the map fires into it at once.
    */
@@ -1545,7 +1651,7 @@ export class LevelValidator {
           const ny = y + DIRECTION_VECTORS[dir].dy;
           // Raw edge check on purpose: a swivel launcher or target cell keeps its start orientation here.
           const ahead = level.terrain[ny]?.[nx];
-          if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir)) {
+          if (ahead === undefined || !ConfigRegistry.getTile(ahead).laserTransparent || isEdgeBlockedAt(level.terrain, mask, x, y, nx, ny, dir, true)) {
             issues.push({ severity: 'warning', i18nKey: 'validator.issues.shot_launcher_faces_wall.label', params: { x, y } });
           }
         }
@@ -1634,8 +1740,18 @@ export class LevelValidator {
     const jetCells: GridPoint[] = [];
     const swivelCells: GridPoint[] = [];
     const plateCells: GridPoint[] = [];
+    const railSwitchCells: GridPoint[] = [];
+    let greenButtons = 0;
     const gateCellsByGroup = new Map<string, GridPoint[]>();
     const teleportCellsByGroup = new Map<string, GridPoint[]>();
+    const portableGroups = new Set<string>();
+    const gateCells: GridPoint[] = [];
+    level.items.forEach((row, y) =>
+      row.forEach((id, x) => {
+        if (id !== null && ConfigRegistry.getTile(id).collectible === 'gate') gateCells.push({ x, y });
+      })
+    );
+    const hasGate = gateCells.length > 0;
     const receiverGroups = new Set<string>();
     let brownButtons = 0;
     let orangeButtons = 0;
@@ -1650,9 +1766,12 @@ export class LevelValidator {
           if (tile.buttonAction === 'toggle_flames') orangeButtons++;
           if (tile.flameTogglesTo !== undefined) jetCells.push({ x, y });
           if (tile.facingTurn !== undefined) plateCells.push({ x, y });
+          if (tile.railSides !== undefined && tile.togglesTo !== undefined) railSwitchCells.push({ x, y });
+          if (tile.buttonAction === 'toggle_walls') greenButtons++;
           if (tile.isTeleporter) {
             const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
             teleportCellsByGroup.set(group, [...(teleportCellsByGroup.get(group) ?? []), { x, y }]);
+            if (tile.portableTeleporter === true) portableGroups.add(group);
           }
           if (tile.laserGateGroup !== undefined) {
             gateCellsByGroup.set(tile.laserGateGroup, [...(gateCellsByGroup.get(tile.laserGateGroup) ?? []), { x, y }]);
@@ -1666,10 +1785,17 @@ export class LevelValidator {
     if (trapCells.length > 0 && brownButtons === 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.trap_no_button.label', params: this.locationParams(trapCells) });
     }
+    // Pocket pads link only with each other: gates and placed pads that cannot make a pair lead nowhere.
+    const placedPadCount = teleportCellsByGroup.size === 0 ? 0 : [...portableGroups].reduce((n, g) => n + (teleportCellsByGroup.get(g)?.length ?? 0), 0);
+    if (hasGate && gateCells.length + placedPadCount < MIN_POCKET_PADS) {
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.gate_no_pair.label', params: this.locationParams(gateCells) });
+    }
     for (const [group, cells] of teleportCellsByGroup) {
       if (cells.length !== 1) continue;
+      // A single placed pad is the other end of a pad the player sets down, when the level gives a gate.
+      if (portableGroups.has(group) && hasGate) continue;
       issues.push(
-        group === DEFAULT_TELEPORT_GROUP
+        group === DEFAULT_TELEPORT_GROUP || portableGroups.has(group)
           ? { severity: 'warning', i18nKey: 'validator.issues.teleport_alone_plain.label', params: this.locationParams(cells) }
           : {
               severity: 'warning',
@@ -1688,6 +1814,9 @@ export class LevelValidator {
     }
     if (jetCells.length > 0 && orangeButtons === 0) {
       issues.push({ severity: 'info', i18nKey: 'validator.issues.flame_jets_no_button.label', params: this.locationParams(jetCells) });
+    }
+    if (railSwitchCells.length > 0 && greenButtons === 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.rail_switch_no_button.label', params: this.locationParams(railSwitchCells) });
     }
     const sealed = swivelCells.filter((cell) => this.isSwivelSealed(level, cell, underlays));
     if (sealed.length > 0) {
@@ -1728,13 +1857,16 @@ export class LevelValidator {
     const ownTile = ConfigRegistry.getTile(own);
     // A swivel door turns, so its static closed sides prove nothing.
     const ownBlockedEdges = ownTile.swivelTurns !== undefined ? [] : (ownTile.blockedEdges ?? []);
+    // A rail straight or bend closes its other sides for good; a switch flips, so it proves nothing.
+    const ownRailClosed = (side: Direction): boolean =>
+      ownTile.railSides !== undefined && ownTile.togglesTo === undefined && !ownTile.railSides.includes(side);
     return arrows.every((turn) => {
       const dir = relativeTo(entity.dir, turn);
       const nx = entity.x + DIRECTION_VECTORS[dir].dx;
       const ny = entity.y + DIRECTION_VECTORS[dir].dy;
       const neighbourId = level.terrain[ny]?.[nx];
       if (neighbourId === undefined) return true;
-      if (ownBlockedEdges.includes(dir)) return true;
+      if (ownBlockedEdges.includes(dir) || ownRailClosed(dir)) return true;
       const opposite = OPPOSITE_DIRECTION[dir];
       if (mask !== null) {
         if ((mask[entity.y * width + entity.x] & CELL_EDGE_BITS[dir]) !== 0) return true;
@@ -1744,6 +1876,7 @@ export class LevelValidator {
       const neighbour = ConfigRegistry.getTile(neighbourId);
       if (neighbour.swivelTurns !== undefined) return false;
       if (neighbour.blockedEdges?.includes(opposite)) return true;
+      if (neighbour.railSides !== undefined && neighbour.togglesTo === undefined && !neighbour.railSides.includes(opposite)) return true;
       return SWIVEL_SEALING_TILE_IDS.has(neighbourId);
     });
   }
@@ -1882,6 +2015,46 @@ export class LevelValidator {
   }
 
   /**
+   * Applies the signal sinks that act on what the walk counts, as if the network had fired them. Same soundness
+   * stance as the signal-driven hold doors: the sink is assumed to fire, whether or not the network ever does.
+   * A clone machine holding a block grants the cloner allowance of that block type. A shot launcher removes every
+   * bomb on the ray from its cell in its facing direction to the map edge, ignoring obstacles (an
+   * over-approximation). A launcher is a terrain tile of its own, so no swivel can turn it: one direction.
+   */
+  private static applySignalSinks(
+    level: CompiledLevel,
+    blockTypes: ReadonlySet<string>,
+    stockBlocks: (type: string, count: number) => void,
+    simItems: (string | null)[][]
+  ): void {
+    const spec = level.ruleset !== 'lynx' && level.ruleset !== 'cc3d' ? compileSignalSpec(level, registryTileLookup) : undefined;
+    if (spec === undefined) return;
+    const width = level.terrain[0]?.length ?? 0;
+    if (width === 0) return;
+    const underlays = underlayMap(level);
+    for (const node of spec.nodes) {
+      if (node.kind !== 'sink' || node.fires === undefined) continue;
+      const x = node.cell % width;
+      const y = Math.floor(node.cell / width);
+      if (node.fires === 'cloner') {
+        const held = level.entities.find((e) => e.x === x && e.y === y && blockTypes.has(e.type));
+        if (held) stockBlocks(held.type, CLONER_BLOCK_ALLOWANCE);
+        continue;
+      }
+      const hiddenId = underlays?.get(node.cell);
+      const launcher =
+        ConfigRegistry.getTile(level.terrain[y][x]).shotLauncher ??
+        (hiddenId === undefined ? undefined : ConfigRegistry.getTile(hiddenId).shotLauncher);
+      if (!launcher) continue;
+      const vec = DIRECTION_VECTORS[launcher.dir];
+      for (let cx = x + vec.dx, cy = y + vec.dy; simItems[cy]?.[cx] !== undefined; cx += vec.dx, cy += vec.dy) {
+        const item = simItems[cy][cx];
+        if (item && ConfigRegistry.getTile(item).hazard === 'bomb') simItems[cy][cx] = null;
+      }
+    }
+  }
+
+  /**
    * Colours whose hold doors the player can pass, as far as the level can tell: the colour has at least one
    * plate and at least as many things that can lie on a plate for good (blocks, monsters that press plates,
    * a cloned block) as it has plates. Walking monsters count as pressers (they press a plate when they stand on
@@ -1890,6 +2063,7 @@ export class LevelValidator {
    * in, and the door shuts on the occupant, who may leave. Then the player counts as one presser.
    * A colour whose doors a signal sink drives is treated as openable. This is an optimistic heuristic: the
    * signal network may never open that door. The block solver bails on signal levels, so nothing checks it further.
+   * Signal sinks that fire a clone machine or a shot launcher get the same stance in the reach walk (applySignalSinks).
    */
   private static openableHoldDoorColors(level: CompiledLevel): Set<ChannelColor> {
     const platesByColor = new Map<ChannelColor, number>();
@@ -2347,6 +2521,11 @@ export class LevelValidator {
     return false;
   }
 
+  /** Whether the tile's closed sides change during play: a swivel door or a rail switch. */
+  private static turnsItsEdges(tile: TileDefinition): boolean {
+    return tile.swivelTurns !== undefined || (tile.railSides !== undefined && tile.togglesTo !== undefined);
+  }
+
   private static isEdgeBlocked(
     terrain: string[][],
     mask: Uint8Array | null,
@@ -2358,8 +2537,10 @@ export class LevelValidator {
   ): boolean {
     const fromId = terrain[fromY][fromX];
     const toId = terrain[toY][toX];
-    const fromSwivel = ConfigRegistry.getTile(fromId).swivelTurns !== undefined;
-    const toSwivel = ConfigRegistry.getTile(toId).swivelTurns !== undefined;
+    // A rail switch flips with the green button, so like a swivel door its own sides prove nothing (both forms are
+    // taken as open); straights and bends keep their exact sides through the edge rules.
+    const fromSwivel = this.turnsItsEdges(ConfigRegistry.getTile(fromId));
+    const toSwivel = this.turnsItsEdges(ConfigRegistry.getTile(toId));
     if (!fromSwivel && !toSwivel) return isEdgeBlockedAt(terrain, mask, fromX, fromY, toX, toY, dir);
     // A swivel door turns behind whoever passes, so for reachability it is open on every side: its own
     // blockedEdges are ignored (over-approximation of every orientation, never a false unreachable). The

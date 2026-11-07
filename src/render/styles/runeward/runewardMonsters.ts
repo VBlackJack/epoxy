@@ -368,6 +368,8 @@ const SHADOWS: Readonly<Record<string, ShadowSpec>> = {
   walker: { y: 0.86, rx: 0.26, ry: 0.065 },
   teeth: { y: 0.86, rx: 0.28, ry: 0.06 },
   skitter: { y: 0.86, rx: 0.22, ry: 0.05 },
+  lurker: { y: 0.86, rx: 0.24, ry: 0.055 },
+  wisp: { y: 0.88, rx: 0.14, ry: 0.035 },
   glider: { y: 0.88, rx: 0.16, ry: 0.04 },
   fireball: { y: 0.88, rx: 0.16, ry: 0.04 },
   tank: { y: 0.8, rx: 0.3, ry: 0.07 },
@@ -596,6 +598,8 @@ const HUNTER = {
 
 const TEETH_SPEC: HunterSpec = { scale: 1, lean: 0.08, teeth: true, streak: false };
 const SKITTER_SPEC: HunterSpec = { scale: 0.76, lean: 0.34, teeth: false, streak: true };
+/** The lurker: a hunched, toothed hunter, a little smaller than the chaser. */
+const LURKER_SPEC: HunterSpec = { scale: 0.86, lean: 0.22, teeth: true, streak: false };
 
 function buildHunter(d: Drawing, pose: Pose, spec: HunterSpec): void {
   const { colours: c } = pose;
@@ -672,6 +676,36 @@ function buildGlider(d: Drawing, pose: Pose): void {
   d.disc(HALF, WISP.cy, WISP.orb, { fill: c.body, edge: 'heavy' });
   d.disc(HALF, WISP.cy, WISP.core, { fill: c.light });
   topEyes(d, pose, HALF, WISP.cy, WISP.eye.forward, WISP.eye.spread, d.outline);
+}
+
+const PHASED_WISP = {
+  /** Opacity of the body, the core and the eyes: a phased wisp is drawn see-through. */
+  alpha: 0.55,
+  /** The trailing wisp behind the orb: how far it reaches and its half width at the root, as tile fractions. */
+  tail: { reach: 0.34, half: 0.08, rootBehind: 0.06 },
+  /** The faint outer ring: its radius as a tile fraction and its opacity. */
+  ring: { radius: 0.3, alpha: 0.14 },
+  /** Two sparks that drift behind the orb: how far behind, how far to each side, their radius and opacity. */
+  spark: { behind: 0.26, across: 0.1, radius: 0.025, alpha: 0.45 }
+} as const;
+
+/** The wisp: a see-through orb with a thin tail, drawn translucent whatever the style. */
+function buildPhasedWisp(d: Drawing, pose: Pose): void {
+  const { colours: c } = pose;
+  const k = PHASED_WISP;
+  const base = (right: number, behind: number): Point => at(pose, HALF, WISP.cy, -behind, right);
+  d.disc(HALF, WISP.cy, k.ring.radius, { fill: c.body, alpha: k.ring.alpha });
+  d.poly([base(-k.tail.half, k.tail.rootBehind), base(0, k.tail.rootBehind + k.tail.reach), base(k.tail.half, k.tail.rootBehind)], {
+    fill: c.light,
+    alpha: k.alpha
+  });
+  for (const right of [-1, 1]) {
+    const [sx, sy] = base(right * k.spark.across, k.spark.behind);
+    d.spark(sx, sy, k.spark.radius, c.light, k.spark.alpha);
+  }
+  d.disc(HALF, WISP.cy, WISP.orb, { fill: c.body, edge: 'fine', alpha: k.alpha });
+  d.disc(HALF, WISP.cy, WISP.core, { fill: c.light, alpha: k.alpha });
+  d.eyes([at(pose, HALF, WISP.cy, WISP.eye.forward, -WISP.eye.spread), at(pose, HALF, WISP.cy, WISP.eye.forward, WISP.eye.spread)], c.eye, k.alpha);
 }
 
 const FIREBALL = {
@@ -920,6 +954,8 @@ const BUILDERS: Readonly<Record<string, Builder>> = {
   walker: buildWalker,
   teeth: (d, pose) => buildHunter(d, pose, TEETH_SPEC),
   skitter: (d, pose) => buildHunter(d, pose, SKITTER_SPEC),
+  lurker: (d, pose) => buildHunter(d, pose, LURKER_SPEC),
+  wisp: buildPhasedWisp,
   glider: buildGlider,
   fireball: buildFireball,
   tank: buildTank,
@@ -928,7 +964,7 @@ const BUILDERS: Readonly<Record<string, Builder>> = {
 };
 
 /** Types that hover: their bob is larger. */
-const FLYING_TYPES: ReadonlySet<string> = new Set(['glider', 'fireball']);
+const FLYING_TYPES: ReadonlySet<string> = new Set(['glider', 'fireball', 'wisp']);
 /** Bob of a hovering creature, as a multiple of the shared amplitude. */
 const FLYING_BOB_FACTOR = 1.8;
 
@@ -969,10 +1005,42 @@ function creaturePainter(type: keyof Art['monster']): RunewardEntityPainter {
   };
 }
 
+// ---- Sleeping lurker (a crack in the floor) ------------------------------------------------------
+
+/** Entity type of the sleeping lurker, which Runeward draws as a hairline crack in the floor instead of a creature. */
+const DORMANT_LURKER_TYPE = 'lurker_dormant';
+/** Facing under which the crack is cached: it looks the same whichever way the lurker faces. */
+const CRACK_CACHE_DIR: Direction = 'S';
+const CRACK = {
+  main: [[0.2, 0.58], [0.38, 0.5], [0.5, 0.6], [0.66, 0.48], [0.8, 0.55]] as readonly Point[],
+  branch: [[0.5, 0.6], [0.56, 0.72]] as readonly Point[],
+  alpha: 0.55
+} as const;
+
+/** The painter of the crack: two thin ink lines, drawn flat on the floor with no shadow and no bob. */
+function crackPainter(): RunewardEntityPainter {
+  return (ctx, _dir, x, y, size, env) => {
+    const { art } = env;
+    const sprite = runewardMonsterSprite(env, DORMANT_LURKER_TYPE, CRACK_CACHE_DIR, 0, size, (): Sprite => {
+      const d = new Drawing(size, art);
+      d.line(CRACK.main, d.outline, inkLineWidth(size), CRACK.alpha);
+      d.line(CRACK.branch, d.outline, inkLineWidth(size), CRACK.alpha);
+      return { shadow: [], body: d.shapes };
+    });
+    ctx.save();
+    ctx.translate(x, y);
+    replay(ctx, sprite.body);
+    ctx.restore();
+  };
+}
+
 /** Painters by entity type; an id moves here from PENDING when its painter lands. */
-export const ENTITIES: Readonly<Record<string, RunewardEntityPainter>> = Object.fromEntries(
-  Object.keys(BUILDERS).map((type): [string, RunewardEntityPainter] => [type, creaturePainter(type as keyof Art['monster'])])
-);
+export const ENTITIES: Readonly<Record<string, RunewardEntityPainter>> = {
+  ...Object.fromEntries(
+    Object.keys(BUILDERS).map((type): [string, RunewardEntityPainter] => [type, creaturePainter(type as keyof Art['monster'])])
+  ),
+  [DORMANT_LURKER_TYPE]: crackPainter()
+};
 
 /** Painter of a shot in flight: a rune bolt whose tail trails opposite the way it flies. */
 export const SHOT: RunewardEntityPainter | null = (ctx, dir, x, y, size, env) => {

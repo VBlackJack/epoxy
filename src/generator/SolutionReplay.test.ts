@@ -37,7 +37,10 @@ function replayLikeTheGame(level: CompiledLevel, moves: TimedMove[]): boolean {
   let index = 0;
   for (let i = 0; i < MAX_REPLAY_TICKS && !engine.isLevelCompleted(); i++) {
     const { due, nextIndex } = collectDueMoves(moves, index, engine.getTick());
-    for (const move of due) engine.attemptPlayerMove(move.dir);
+    for (const move of due) {
+      if (move.drop !== undefined) engine.dropItem(move.drop);
+      else engine.attemptPlayerMove(move.dir);
+    }
     index = nextIndex;
     engine.tick();
     if (!engine.getPlayer().alive) return false;

@@ -17,8 +17,9 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { FLOOR_TILE_ID, reflectOnMirror } from '../coreConstants';
+import { FLOOR_TILE_ID, STONE_DEATH_REASON_KEY, STONE_SHOT_PAYLOAD, reflectOnMirror } from '../coreConstants';
 import { Direction, RuntimeEntity, Shot, ShotEffect } from '../types';
+import { isLitChargeItem } from './epoxyCharges';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -37,6 +38,8 @@ const SHOT_DEATH_REASON_KEY = 'hud.messages.death_laser';
 const SHOT_HIT_SFX = 'burn';
 /** Sound played when a shot sets a bomb item off. */
 const SHOT_BOMB_SFX = 'bomb';
+/** A shot never crosses a cell in fewer ticks than this, whatever the config says. */
+const MIN_STEP_TICKS = 1;
 /** What a shot does to a monster when its definition does not say. */
 const DEFAULT_MONSTER_SHOT_EFFECT: ShotEffect = 'destroy';
 /** What a shot does to a block that is not a mirror when its definition does not say. */
@@ -58,20 +61,31 @@ export function shotEffectOf(entity: RuntimeEntity): ShotEffect {
  */
 export function shotsStateKey(shots: readonly Shot[] | undefined): string {
   if (shots === undefined || shots.length === 0) return '';
-  return `S${shots.map((s) => `${s.x},${s.y},${s.dir},${s.cooldown}`).sort().join(';')}`;
+  // The payload is written only on a shot that has one, so a launcher shot keeps the key it always had.
+  return `S${shots.map((s) => `${s.x},${s.y},${s.dir},${s.cooldown}${s.payload === undefined ? '' : `,${s.payload}`}`).sort().join(';')}`;
+}
+
+/** Ticks the shot takes to cross one cell: a thrown stone has its own pace, a launcher shot the level's. */
+function shotStepTicksOf(w: EpoxyWorld, payload: Shot['payload']): number {
+  return payload === undefined ? w.shotStepTicks : Math.max(MIN_STEP_TICKS, ConfigRegistry.getGame().timing.hurlStepTicks);
 }
 
 /** Removes the first shot in the cell, spent by what ran into it. Returns false when there is none. */
 export function consumeShotAt(w: EpoxyWorld, x: number, y: number): boolean {
-  const shot = shotAt(w, x, y);
-  if (!shot) return false;
-  w.shots = w.shots.filter((s) => s !== shot);
-  return true;
+  return spendShotAt(w, x, y) !== undefined;
 }
 
-/** Kills the player who ran into a shot (the caller spent the shot). */
-export function killPlayerByShot(ctx: EpoxyContext): void {
-  killPlayer(ctx, SHOT_DEATH_REASON_KEY, SHOT_HIT_SFX);
+/** Removes the first shot in the cell and returns it, or undefined when there is none. */
+export function spendShotAt(w: EpoxyWorld, x: number, y: number): Shot | undefined {
+  const shot = shotAt(w, x, y);
+  if (!shot) return undefined;
+  w.shots = w.shots.filter((s) => s !== shot);
+  return shot;
+}
+
+/** Kills the player who ran into a shot (the caller spent the shot); a thrown stone has its own death message. */
+export function killPlayerByShot(ctx: EpoxyContext, payload?: Shot['payload']): void {
+  killPlayer(ctx, payload === undefined ? SHOT_DEATH_REASON_KEY : STONE_DEATH_REASON_KEY, SHOT_HIT_SFX);
 }
 
 /** Removes a monster that ran into a shot (the caller spent the shot). */
@@ -101,16 +115,16 @@ const ENDED: ShotEntry = { flies: false };
  * other item stops it. A shot meets the entity of a cell before its item. Water, fire, ice, force floors,
  * plates, buttons and teleporters do nothing to it, and it presses and takes none.
  */
-function enterCell(ctx: EpoxyContext, fromX: number, fromY: number, dir: Direction): ShotEntry {
+function enterCell(ctx: EpoxyContext, fromX: number, fromY: number, dir: Direction, payload?: Shot['payload']): ShotEntry {
   const w = ctx.world;
   const vec = DIRECTION_VECTORS[dir];
   const nx = fromX + vec.dx;
   const ny = fromY + vec.dy;
-  if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, fromX, fromY, nx, ny, dir)) return ENDED;
+  if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, fromX, fromY, nx, ny, dir, true)) return ENDED;
   if (ConfigRegistry.getTile(w.terrain[ny][nx]).laserTransparent !== true) return ENDED;
 
   if (w.player.alive && w.player.x === nx && w.player.y === ny) {
-    killPlayerByShot(ctx);
+    killPlayerByShot(ctx, payload);
     return ENDED;
   }
 
@@ -118,7 +132,8 @@ function enterCell(ctx: EpoxyContext, fromX: number, fromY: number, dir: Directi
   if (entity) return enterEntityCell(ctx, entity, dir);
 
   const itemId = w.items[ny][nx];
-  if (itemId) {
+  // A lit blast charge lets a shot through, as it lets a creature or a block through.
+  if (itemId && !isLitChargeItem(itemId)) {
     if (ConfigRegistry.getTile(itemId).hazard === 'bomb') {
       w.items[ny][nx] = null;
       AudioManager.playSfx(SHOT_BOMB_SFX);
@@ -196,6 +211,44 @@ export function fireLauncherAt(ctx: EpoxyContext, lx: number, ly: number): boole
 }
 
 /**
+ * True when a stone thrown from (x, y) toward `dir` would travel at least one cell without being stopped at once: the
+ * cell ahead is on the map, not behind a thin wall, laser transparent, free of an entity that stops a shot and free of
+ * an item other than a bomb or a lit charge. A throw that fails this is refused, so no stone is spent for nothing.
+ */
+export function canThrowStone(w: EpoxyWorld, x: number, y: number, dir: Direction): boolean {
+  const vec = DIRECTION_VECTORS[dir];
+  const nx = x + vec.dx;
+  const ny = y + vec.dy;
+  if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, x, y, nx, ny, dir, true)) return false;
+  if (ConfigRegistry.getTile(w.terrain[ny][nx]).laserTransparent !== true) return false;
+  const entity = getEntityAt(w, nx, ny);
+  if (entity) return shotEffectOf(entity) !== 'stop';
+  const itemId = w.items[ny][nx];
+  return !itemId || isLitChargeItem(itemId) || ConfigRegistry.getTile(itemId).hazard === 'bomb';
+}
+
+/**
+ * Throws the player's stone one cell ahead in the direction faced, by the rules of a launcher's shot: the first cell
+ * is entered at once, and a stone that survives it flies on at the stone pace. The stone is single-use: it is gone
+ * once it ends, wherever that is. The caller checked canThrowStone and took the stone from the player.
+ */
+export function throwStone(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  const { x, y, dir } = w.player;
+  const entry = enterCell(ctx, x, y, dir, STONE_SHOT_PAYLOAD);
+  if (!entry.flies) return;
+  const vec = DIRECTION_VECTORS[dir];
+  const stepTicks = shotStepTicksOf(w, STONE_SHOT_PAYLOAD);
+  w.shots.push({
+    x: x + vec.dx,
+    y: y + vec.dy,
+    dir: entry.dir,
+    cooldown: w.inTick ? stepTicks : stepTicks - 1,
+    payload: STONE_SHOT_PAYLOAD
+  });
+}
+
+/**
  * Moves the shots on by a tick, in the order they were fired: a shot waits out its cooldown, then crosses
  * one cell and waits again. Does nothing while the player is dead or the level is won. A shot another
  * shot's step already spent is skipped.
@@ -209,13 +262,13 @@ export function advanceShots(ctx: EpoxyContext): void {
       shot.cooldown--;
       continue;
     }
-    const entry = enterCell(ctx, shot.x, shot.y, shot.dir);
+    const entry = enterCell(ctx, shot.x, shot.y, shot.dir, shot.payload);
     if (entry.flies) {
       const vec = DIRECTION_VECTORS[shot.dir];
       shot.x += vec.dx;
       shot.y += vec.dy;
       shot.dir = entry.dir;
-      shot.cooldown = w.shotStepTicks - 1;
+      shot.cooldown = shotStepTicksOf(w, shot.payload) - 1;
     } else {
       w.shots = w.shots.filter((s) => s !== shot);
     }

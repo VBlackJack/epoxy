@@ -25,6 +25,8 @@ export interface OverlayButtons {
   undo: boolean;
   retry: boolean;
   backToEditor: boolean;
+  /** Playtest only: opens the level rating form; sits right under Next. */
+  rate: boolean;
 }
 
 /**
@@ -32,12 +34,14 @@ export interface OverlayButtons {
  * replay: it offers the way back to the editor instead. Retry stays on death (it restarts the same
  * test level) and Undo stays as in normal play. In the phone full screen overlay layout the way back
  * also shows while the run is paused: the pause card is the only place left that offers it.
+ * The rating button shows on a win when the page says a rating can still be given.
  */
 export function overlayButtons(
   state: OverlayState,
   testPlaying: boolean,
   canUndo: boolean,
-  touchOverlay = false
+  touchOverlay = false,
+  canRate = false
 ): OverlayButtons {
   const ended = state === 'complete' || state === 'dead';
   return {
@@ -46,7 +50,8 @@ export function overlayButtons(
     replay: state === 'complete' && !testPlaying,
     undo: state === 'dead' && canUndo,
     retry: state !== 'none',
-    backToEditor: testPlaying && (ended || (touchOverlay && state === 'paused'))
+    backToEditor: testPlaying && (ended || (touchOverlay && state === 'paused')),
+    rate: state === 'complete' && !testPlaying && canRate
   };
 }
 
@@ -87,6 +92,16 @@ export function nextLevelGoesToEditor(testPlaying: boolean, completed: boolean):
 /** Mid-run, a test play stays on its level: level navigation does nothing. */
 export function levelNavigationBlocked(testPlaying: boolean, completed: boolean): boolean {
   return testPlaying && !completed;
+}
+
+/**
+ * After the rating form closes its button hides and focus would fall to the page: put it on Next
+ * (or on the first visible action when Next is hidden).
+ */
+export function focusAfterRating(overlay: ParentNode): void {
+  const next = overlay.querySelector<HTMLButtonElement>('#overlay-btn-next');
+  const target = next && !next.classList.contains('hidden') ? next : firstVisibleOverlayAction(overlay, 'complete');
+  target?.focus();
 }
 
 const BACK_TO_EDITOR_BUTTON_ID = 'overlay-btn-back-to-editor';

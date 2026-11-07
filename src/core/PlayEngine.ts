@@ -19,6 +19,7 @@ import {
   CloneLink,
   CompiledLevel,
   Direction,
+  LitCharge,
   PlayerState,
   RuntimeEntity,
   Shot,
@@ -98,6 +99,8 @@ export interface PlayEngine {
    * Derived state; an engine without stacked layers omits it.
    */
   getHiddenLayerCells?(): ReadonlySet<number>;
+  /** Optional. The blast charges lit and not yet blasted, with the tick each blasts at; undefined when none is lit. An engine without charges omits it. */
+  getLitCharges?(): readonly LitCharge[] | undefined;
   /** Optional. The shots in flight; undefined on a level without shot launchers. An engine without them omits it. */
   getShots?(): readonly Shot[] | undefined;
   /**

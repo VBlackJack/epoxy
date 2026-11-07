@@ -56,6 +56,8 @@
   );
   --land-touch-min: 32px;
   --land-slot: 24px;
+  /* Landscape phone: the keys and boots slots form two columns, so each slot stays wide enough to read */
+  --land-slot-columns: 2;
   /* Notch and gesture bar insets; 0 where the screen has none (needs viewport-fit=cover) */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
@@ -2337,6 +2339,15 @@ body.fullscreen-mode .view-section {
     min-height: var(--land-slot);
   }
 
+  /*
+     The sections sit side by side in a column about 100px wide: four slots on one row would be
+     under 20px wide each. Two columns keep every slot inside its section; the wide boots grid
+     keeps its own column count and its stacked layout.
+  */
+  .inv-grid:not(.inv-grid-wide) {
+    grid-template-columns: repeat(var(--land-slot-columns), minmax(0, 1fr));
+  }
+
   .hud-level-title {
     font-size: 0.72rem;
     padding-bottom: 0.12rem;
@@ -3111,6 +3122,9 @@ body.touch-overlay {
   --overlay-gap: 8px;
   --overlay-dpad-cell: clamp(48px, 14vmin, 76px);
   --overlay-button-size: 44px;
+  /* Owned-item icons in the HUD: shrink on short screens so a full set still fits the clipped panel */
+  --overlay-slot-size: clamp(18px, 5vmin, 28px);
+  --overlay-slot-icon-inset: 6px;
   --overlay-hud-clearance: var(--overlay-gap);
   --overlay-border-width: 1px;
   --overlay-text: #ffffff;
@@ -3229,6 +3243,11 @@ body.touch-overlay.orientation-landscape .play-shell .lcd-screen .hud-panel {
   overflow: hidden;
 }
 
+/* The charge button wraps the button row onto a second row: the HUD gives that row up too */
+body.touch-overlay.orientation-landscape.charge-button-visible .play-shell .lcd-screen .hud-panel {
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - var(--overlay-gap) * 3 - var(--overlay-edge) - var(--overlay-dpad-cell) * 3 - var(--overlay-button-size) * 2);
+}
+
 body.touch-overlay.orientation-landscape.dpad-right .play-shell .lcd-screen .hud-panel {
   right: calc(var(--safe-right) + var(--overlay-edge));
   left: auto;
@@ -3334,23 +3353,18 @@ body.touch-overlay .hud-panel .inventory-row-split:not(:has(.inv-slot.owned)) {
   display: none;
 }
 
+/* The keys and boots slots flow as one wrapping strip: no half-empty row between the two groups */
 body.touch-overlay .hud-panel .inventory-section {
-  flex: 0 1 auto;
-  padding: 0;
-  background: transparent;
-  border: 0;
+  display: contents;
 }
 
 body.touch-overlay .hud-panel .inv-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem;
-  min-height: 0;
+  display: contents;
 }
 
 body.touch-overlay .hud-panel .inv-slot {
-  width: 28px;
-  height: 28px;
+  width: var(--overlay-slot-size);
+  height: var(--overlay-slot-size);
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -3362,8 +3376,8 @@ body.touch-overlay .hud-panel .inv-slot:not(.owned) {
 }
 
 body.touch-overlay .hud-panel .inv-slot img {
-  width: 22px;
-  height: 22px;
+  width: calc(var(--overlay-slot-size) - var(--overlay-slot-icon-inset));
+  height: calc(var(--overlay-slot-size) - var(--overlay-slot-icon-inset));
 }
 
 body.touch-overlay .hud-panel .inv-count {
@@ -3372,7 +3386,7 @@ body.touch-overlay .hud-panel .inv-count {
 }
 
 /*
-   Pause, Undo and Menu: 44px icon buttons in the strip beside the pad, off the board.
+   Pause, Undo, Menu and, on a level with a blast charge, Drop Charge: 44px icon buttons in the strip beside the pad, off the board.
    Portrait: a row at the bottom, opposite the pad, under the HUD. Landscape: a row in the pad
    column, just above the pad.
 */
@@ -3385,6 +3399,15 @@ body.touch-overlay .play-shell .lcd-screen .touch-overlay-controls {
 
 body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls {
   bottom: calc(var(--safe-bottom) + var(--overlay-edge));
+  /* With a charge and a gate the strip holds five buttons: it stops at the pad and wraps upward instead of overflowing */
+  flex-wrap: wrap;
+  align-content: flex-end;
+  max-width: calc(100% - var(--overlay-dpad-cell) * 3 - var(--overlay-edge) * 2 - var(--overlay-gap));
+}
+
+/* The HUD clears the second row the strip may wrap onto while a drop button is shown */
+body.touch-overlay.orientation-portrait.charge-button-visible .play-shell .lcd-screen .hud-panel {
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-button-size) * 2 + var(--overlay-gap) * 2);
 }
 
 body.touch-overlay.orientation-portrait.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
@@ -3401,7 +3424,10 @@ body.touch-overlay.orientation-landscape .play-shell .lcd-screen .touch-overlay-
   bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-dpad-cell) * 3 + var(--overlay-gap));
   width: calc(var(--overlay-dpad-cell) * 3);
   justify-content: space-between;
+  /* The fourth button (drop a blast charge) wraps to a second row instead of overflowing the pad column */
+  flex-wrap: wrap;
   gap: 0;
+  row-gap: var(--overlay-gap);
 }
 
 body.touch-overlay.orientation-landscape.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
@@ -3588,7 +3614,12 @@ body.touch-overlay .viewport-overlay .action-btn:focus-visible {
     bottom: calc(var(--safe-bottom) + var(--overlay-edge) + var(--overlay-dpad-cell) * 3 + var(--overlay-gap));
   }
 
-  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .hud-panel {
+  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .touch-overlay-controls {
+    max-width: calc(100% - var(--overlay-edge) * 2);
+  }
+
+  body.touch-overlay.orientation-portrait .play-shell .lcd-screen .hud-panel,
+  body.touch-overlay.orientation-portrait.charge-button-visible .play-shell .lcd-screen .hud-panel {
     bottom: calc(var(--safe-bottom) + var(--overlay-edge));
   }
 

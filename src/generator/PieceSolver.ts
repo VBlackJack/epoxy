@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, MAX_SOLVER_CACHE_ENTRIES, ORDERED_DIRECTIONS } from '../config/constants';
-import { EXIT_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, WALL_TILE_ID } from '../core/coreConstants';
+import { CHARGE_ITEM_ID, EXIT_TILE_ID, FLOOR_TILE_ID, GATE_ITEM_ID, OPPOSITE_DIRECTION, STONE_ITEM_ID, WALL_TILE_ID } from '../core/coreConstants';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, Direction, EntityPlacement, GridPoint, UndoSnapshot } from '../core/types';
 import { CompiledPiece } from './PieceTypes';
@@ -34,17 +34,66 @@ const reversibleCache = new Map<string, boolean>();
 
 /** Standing still for one step: with monsters around, timing is part of a solution. */
 export const WAIT_ACTION = 'WAIT';
-export type SolverAction = Direction | typeof WAIT_ACTION;
+/** Putting a held blast charge down on the player's cell, lit. */
+export const DROP_CHARGE_ACTION = 'DROP_CHARGE';
+/** Setting a held pocket gate down on the player's cell, as a teleporter pad. */
+export const DROP_GATE_ACTION = 'DROP_GATE';
+/** Throwing a held hurl stone one cell ahead in the direction faced. */
+export const DROP_STONE_ACTION = 'DROP_STONE';
+/** The actions that put a held item down or throw it. */
+export type DropAction = typeof DROP_CHARGE_ACTION | typeof DROP_GATE_ACTION | typeof DROP_STONE_ACTION;
+export type SolverAction = Direction | typeof WAIT_ACTION | DropAction;
+/** The actions a search tries from a state: a step or a wait (dropping an item is never searched). */
+export type MoveAction = Direction | typeof WAIT_ACTION;
+
+/** The item each drop action puts down. */
+export const DROP_ACTION_ITEMS: Readonly<Record<DropAction, string>> = {
+  [DROP_CHARGE_ACTION]: CHARGE_ITEM_ID,
+  [DROP_GATE_ACTION]: GATE_ITEM_ID,
+  [DROP_STONE_ACTION]: STONE_ITEM_ID
+};
+
+export function isDropAction(action: SolverAction): action is DropAction {
+  return action === DROP_CHARGE_ACTION || action === DROP_GATE_ACTION || action === DROP_STONE_ACTION;
+}
+
+export function isMoveAction(action: SolverAction): action is MoveAction {
+  return !isDropAction(action);
+}
 
 /** Letter standing for a wait in a written action list; moves use N, E, S and W. */
-const WAIT_LETTER = '.';
+export const WAIT_LETTER = '.';
+
+/** Letter standing for dropping a blast charge in a written action list. */
+export const DROP_CHARGE_LETTER = 'X';
+
+/** Letter standing for setting down a pocket gate in a written action list. */
+export const DROP_GATE_LETTER = 'G';
+
+/** Letter standing for throwing a hurl stone in a written action list. */
+export const DROP_STONE_LETTER = 'T';
+
+/** The letter of each drop action in a written action list. */
+const DROP_ACTION_LETTERS: Readonly<Record<DropAction, string>> = {
+  [DROP_CHARGE_ACTION]: DROP_CHARGE_LETTER,
+  [DROP_GATE_ACTION]: DROP_GATE_LETTER,
+  [DROP_STONE_ACTION]: DROP_STONE_LETTER
+};
 
 export function encodeActions(actions: readonly SolverAction[]): string {
-  return actions.map((a) => (a === WAIT_ACTION ? WAIT_LETTER : a)).join('');
+  return actions
+    .map((a) => (a === WAIT_ACTION ? WAIT_LETTER : isDropAction(a) ? DROP_ACTION_LETTERS[a] : a))
+    .join('');
 }
 
 export function decodeActions(text: string): SolverAction[] {
-  return [...text].map((ch) => (ch === WAIT_LETTER ? WAIT_ACTION : (ch as Direction)));
+  return [...text].map((ch) => {
+    if (ch === WAIT_LETTER) return WAIT_ACTION;
+    if (ch === DROP_CHARGE_LETTER) return DROP_CHARGE_ACTION;
+    if (ch === DROP_GATE_LETTER) return DROP_GATE_ACTION;
+    if (ch === DROP_STONE_LETTER) return DROP_STONE_ACTION;
+    return ch as Direction;
+  });
 }
 
 export interface PieceSolveOptions {
@@ -305,6 +354,11 @@ export class PieceSolver {
       for (let i = 0; i < ticks; i++) engine.tick();
       return this.settle(engine);
     }
+    if (isDropAction(action)) {
+      // A drop that cannot happen (nothing held, the cell is taken) breaks the list, like a move that kills.
+      if (!engine.dropItem(DROP_ACTION_ITEMS[action])) return false;
+      return this.settle(engine);
+    }
     engine.attemptPlayerMove(action);
     return this.settle(engine);
   }
@@ -326,7 +380,7 @@ export class PieceSolver {
     maxStates: number,
     goal: () => boolean | null
   ): PieceSolveResult {
-    const actions: SolverAction[] = this.hasMonsters(piece)
+    const actions: MoveAction[] = this.hasMonsters(piece)
       ? [...ORDERED_DIRECTIONS, WAIT_ACTION]
       : [...ORDERED_DIRECTIONS];
     const nodes: SearchNode[] = [{ state: engine.captureState(), parent: -1, move: null }];
@@ -427,7 +481,7 @@ export class PieceSolver {
     };
 
     const origin = { x: PIECE_OFFSET, y: PIECE_OFFSET };
-    const actions: SolverAction[] = this.hasMonsters(piece)
+    const actions: MoveAction[] = this.hasMonsters(piece)
       ? [...ORDERED_DIRECTIONS, WAIT_ACTION]
       : [...ORDERED_DIRECTIONS];
     const states: (UndoSnapshot | null)[] = [engine.captureState()];

@@ -176,7 +176,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   'wall_top', 'wall_front', 'wall_rim_n', 'wall_rim_w', 'wall_rim_e',
   'thin_n', 'thin_e', 'thin_s', 'thin_w',
   'recessed_wall', 'blue_wall', 'blue_wall_fake_marker', 'hidden_wall_marker', 'appearing_wall_marker',
-  'dirt', 'slime', 'gravel', 'socket', 'hint', 'thief', 'thief_keys', 'block_target', 'clone_machine', 'transmogrifier', 'turn_plate_cw', 'turn_plate_ccw',
+  'dirt', 'slime', 'gravel', 'socket', 'hint', 'thief', 'thief_keys', 'block_target', 'clone_machine', 'transmogrifier', 'turn_plate_cw', 'turn_plate_ccw', 'pocket_gate_pad',
   ...RETRO_SIGNAL_TILES.flatMap((id) => [id, `${id}${RETRO_SIGNAL_LIT_SUFFIX}`]),
   'forbid_sign', 'door', 'button', 'toggle_wall_closed', 'toggle_wall_open', 'trap_open', 'trap_closed',
   'flame_jet_nozzle', 'turtle', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se',
@@ -186,14 +186,15 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...framed('exit', EXIT_FRAMES), ...framed('teleport', TELEPORT_FRAMES),
   ...DIRECTIONS.flatMap((d) => framed(`force_${d.toLowerCase()}`, FORCE_FRAMES)),
   ...framed('force_random', FORCE_FRAMES),
-  'chip', 'key', 'boots', 'bomb', 'flag', 'stopwatch_bonus', 'stopwatch_penalty', 'slow_time',
+  ...framed('force_cycle', FORCE_FRAMES),
+  'chip', 'key', 'boots', 'gloves', 'bomb', 'charge', 'charge_lit', 'pocket_gate', 'hurl_stone', 'flag', 'stopwatch_bonus', 'stopwatch_penalty', 'slow_time',
   ...GLYPH_COLOURS.map((c) => `${RETRO_GLYPH_PREFIX}${c}`),
   ...range(DIGIT_COUNT).map((d) => `digit_${d}`),
   'char_x', 'char_k', 'char_q', 'char_plus', 'char_minus',
   ...DIRECTIONS.flatMap((d) => framed(`player_${d}`, PLAYER_FRAMES)),
   ...DIRECTIONS.map((d) => `player_swim_${d}`), 'player_dead',
   ...MONSTER_TYPES.flatMap((t) => DIRECTIONS.flatMap((d) => framed(`${t}_${d}`, MONSTER_FRAMES))),
-  'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...ONE_SIDED_MIRROR_SPRITES, ...TURRET_SPRITES, ...ARROW_MARK_SPRITES, 'block_on_target'
+  'lurker_tell', 'dirt_block', 'ice_block', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...ONE_SIDED_MIRROR_SPRITES, ...TURRET_SPRITES, ...ARROW_MARK_SPRITES, 'block_on_target'
 ];
 
 /** Names of RETRO_SPRITE_NAMES the sheet does not define. */

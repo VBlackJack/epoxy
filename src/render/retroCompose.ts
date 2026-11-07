@@ -136,7 +136,8 @@ export const RETRO_SPRITE_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_e',
   'force_s',
   'force_w',
-  'force_random'
+  'force_random',
+  'force_cycle'
 ]);
 
 const FLOOR_DETAIL_KINDS = 3;
@@ -154,6 +155,8 @@ const SIGNAL_TILES: ReadonlySet<string> = new Set(RETRO_SIGNAL_TILES);
 const DOOR_TILES: ReadonlySet<string> = new Set(['door_red', 'door_blue', 'door_yellow', 'door_green']);
 const KEY_ITEM_PREFIX = 'key_';
 const BOOTS_ITEM_PREFIX = 'boots_';
+/** The Grappling Gloves are a glove, not a pair of boots: they have their own sprite. */
+const GLOVES_ITEM_ID = 'boots_pull';
 const SCORE_ITEM_PREFIX = 'score_';
 
 /** Centre of a 5x5 glyph in a 16x16 sprite, in authoring-grid pixels. */
@@ -227,7 +230,10 @@ export function retroItemLayers(itemId: string, def: RetroTileSource): RetroLaye
   if (itemId.startsWith(KEY_ITEM_PREFIX)) {
     return [{ name: RETRO_SPRITE.key, swap: swapRampOf(def.colorKey) }, ...glyphLayer(def.colorKey ?? DEFAULT_COLOR_KEY)];
   }
-  if (itemId.startsWith(BOOTS_ITEM_PREFIX)) {
+  if (itemId === GLOVES_ITEM_ID) {
+    return [{ name: RETRO_SPRITE.gloves, swap: RETRO_BOOT_RAMPS[itemId] }];
+  }
+  if (itemId.startsWith(BOOTS_ITEM_PREFIX) || Object.hasOwn(RETRO_BOOT_RAMPS, itemId)) {
     return [{ name: RETRO_SPRITE.boots, swap: RETRO_BOOT_RAMPS[itemId] }];
   }
   if (itemId.startsWith(SCORE_ITEM_PREFIX)) {
@@ -366,7 +372,14 @@ export function retroTileLayers(input: RetroTileInput): RetroLayer[] {
 /** Epoxy-only monsters that wear the sprites of another monster (the game also marks them with a badge). */
 const RETRO_MONSTER_SPRITE_BASES: Readonly<Record<string, string>> = {
   puppet: 'tank',
-  skitter: 'teeth'
+  skitter: 'teeth',
+  lurker: 'blob',
+  wisp: 'glider'
+};
+
+/** Sleeping monsters have one sprite whatever their facing and walk frame: the faint seam that gives them away. */
+const RETRO_MONSTER_SPRITE_FIXED: Readonly<Record<string, string>> = {
+  lurker_dormant: RETRO_SPRITE.lurkerTell
 };
 
 /**
@@ -382,6 +395,8 @@ export function retroArrowBlockLayers(pushArrows: readonly RelativeTurn[], facin
 
 /** Sprite name of a monster for a facing and walk frame. */
 export function retroMonsterSprite(type: string, dir: Direction, frame: number): string {
+  const fixed = RETRO_MONSTER_SPRITE_FIXED[type];
+  if (fixed !== undefined) return fixed;
   return `${RETRO_MONSTER_SPRITE_BASES[type] ?? type}_${dir}_${frame}`;
 }
 

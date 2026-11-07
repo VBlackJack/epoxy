@@ -92,6 +92,10 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           shots: engine.getShots(),
           // Undefined (and so left out of the hash) on a level without a toggle wall or flame jet under a removable top.
           toggleParity: engine.getToggleParity(),
+          // Undefined (and so left out of the hash) on a level without a turning force floor.
+          forceCycleTurn: engine.getForceCycleTurn?.(),
+          // Undefined (and so left out of the hash) while no blast charge is lit.
+          litCharges: engine.getLitCharges?.(),
           // Undefined (and so left out of the hash) on a level without a signal network.
           signals: engine.getSignalState?.(),
           // Undefined (and so left out of the hash) unless a pulse button has an unread arrival or a carried press.
@@ -124,7 +128,10 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
         let index = 0;
         for (let i = 0; i < MAX_REPLAY_TICKS && !engine.isLevelCompleted(); i++) {
           const { due, nextIndex } = collectDueMoves(moves, index, engine.getTick());
-          for (const move of due) engine.attemptPlayerMove(move.dir);
+          for (const move of due) {
+            if (move.drop !== undefined) engine.dropItem(move.drop);
+            else engine.attemptPlayerMove(move.dir);
+          }
           index = nextIndex;
           tickAndRecord();
           if (!engine.getPlayer().alive) break;

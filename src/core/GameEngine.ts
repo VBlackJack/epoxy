@@ -16,15 +16,20 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { AudioManager } from '../audio/AudioManager';
+import { FORCE_CYCLE_ORDER } from '../config/constants';
 import {
   BLOCK_TARGET_TILE_ID,
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
+  FLOOR_TILE_ID,
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
   SWIVEL_ENTRY_KEY_PREFIX,
-  TOGGLE_PARITY_KEY_PREFIX
+  TOGGLE_PARITY_KEY_PREFIX,
+  FORCE_CYCLE_KEY_PREFIX,
+  LIT_CHARGE_KEY_PREFIX
 } from './coreConstants';
+import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
 import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
 import {
   copySignalPulses,
@@ -46,7 +51,7 @@ import {
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
-import { advanceShots, shotsStateKey } from './epoxy/epoxyShots';
+import { advanceShots, canThrowStone, shotsStateKey, throwStone } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
   EpoxyContext,
@@ -58,6 +63,7 @@ import {
   getEntityAt,
   holdsItem,
   isCellClosedTrap,
+  isCovered,
   killPlayer,
   mapHeight,
   mapWidth,
@@ -69,6 +75,7 @@ import {
   CompiledLevel,
   Direction,
   GridPoint,
+  LitCharge,
   PlayerState,
   RuntimeEntity,
   Shot,
@@ -82,6 +89,9 @@ import {
 
 /** The walking cooldown never drops under one tick, however fast the boots. */
 const MIN_WALK_COOLDOWN_TICKS = 1;
+
+/** Collectibles held as a count beside the keys: a key colour, a blast charge, a pocket gate and a hurl stone. */
+const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gate', 'stone']);
 
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
@@ -246,11 +256,11 @@ export class GameEngine {
   }
 
   /**
-   * The shots in flight, in the order they were fired; undefined on a level without shot launchers, so
-   * nothing about shots reaches a level that has none. The list is shared: do not mutate it.
+   * The shots in flight, in the order they were fired; undefined on a level without shot launchers or hurl stones,
+   * so nothing about shots reaches a level that has none. The list is shared: do not mutate it.
    */
   public getShots(): readonly Shot[] | undefined {
-    return this.w.hasLaunchers ? this.w.shots : undefined;
+    return this.w.hasShots ? this.w.shots : undefined;
   }
 
   /** The state of the signal network; undefined on a level without one, so nothing about it reaches such a level or its hash. */
@@ -286,6 +296,19 @@ export class GameEngine {
     return this.w.coveredToggleBits !== 0 ? this.w.toggleParity : undefined;
   }
 
+  /** Arrivals counted on turning force floors; undefined on a level without one, so nothing about it reaches a level without one. */
+  public getForceCycleTurn(): number | undefined {
+    return this.w.hasForceCycle ? this.w.forceCycleTurn : undefined;
+  }
+
+  /**
+   * The blast charges lit and not yet blasted, with the absolute tick each blasts at; undefined when none is lit,
+   * so nothing about charges reaches a level without one or its hash.
+   */
+  public getLitCharges(): readonly LitCharge[] | undefined {
+    return this.w.litCharges.length > 0 ? copyLitCharges(this.w) : undefined;
+  }
+
   /**
    * The runtime state beyond the grid that tells search states apart: the shots in flight, the toggle
    * parity, the spent reveal cells and the entry side recorded on swivel doors. An empty string on a level with none of them, so the keys of other levels stay as they were.
@@ -295,6 +318,9 @@ export class GameEngine {
     const spent = this.getSpentRevealCells();
     const parts = [shotsStateKey(this.getShots())].filter((part) => part !== '');
     if (parity !== undefined) parts.push(`${TOGGLE_PARITY_KEY_PREFIX}${parity}`);
+    const forceCycleTurn = this.getForceCycleTurn();
+    if (forceCycleTurn !== undefined) parts.push(`${FORCE_CYCLE_KEY_PREFIX}${forceCycleTurn % FORCE_CYCLE_ORDER.length}`);
+    if (this.w.litCharges.length > 0) parts.push(`${LIT_CHARGE_KEY_PREFIX}${litChargesStateKey(this.w, this.ticksElapsed)}`);
     if (spent !== undefined) parts.push(`${SPENT_REVEAL_KEY_PREFIX}${spent.join(',')}`);
     if (this.w.swivelEntry.size > 0) {
       const entries = [...this.w.swivelEntry].sort((a, b) => a[0] - b[0]).map(([cell, side]) => `${cell}${side}`);
@@ -354,12 +380,12 @@ export class GameEngine {
     return this.w.levelBonusPoints;
   }
 
-  /** Keys and boots the player holds, keys first, in the order of tiles.json. */
+  /** Keys, blast charges, pocket gates, hurl stones and boots the player holds, in the order of tiles.json. */
   public getHeldItems(): string[] {
     const held: string[] = [];
     for (const id of Object.keys(ConfigRegistry.getTiles().tiles)) {
       const def = ConfigRegistry.getTile(id);
-      if (def.collectible === 'key' && (this.w.player.keys[id] || 0) > 0) held.push(id);
+      if (COUNTED_COLLECTIBLES.has(def.collectible ?? '') && (this.w.player.keys[id] || 0) > 0) held.push(id);
       else if (def.collectible === 'boot' && this.w.player.boots.has(id)) held.push(id);
     }
     return held;
@@ -373,7 +399,9 @@ export class GameEngine {
   /**
    * Puts a held key or pair of boots down on the player's cell. The cell must
    * hold no item; the drop does not pick the item up again, since pickups only
-   * happen on entering a cell. Returns false when nothing was dropped.
+   * happen on entering a cell. A held blast charge goes down lit instead, and
+   * blasts when its fuse has run out; a held pocket gate becomes a teleporter
+   * pad on a plain floor cell. Returns false when nothing was dropped.
    */
   public dropItem(itemId: string | null): boolean {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
@@ -381,6 +409,8 @@ export class GameEngine {
       this.w.statusBannerKey = 'hud.messages.drop_nothing';
       return false;
     }
+    // A hurl stone is thrown ahead, not set down: the cell under the player does not matter.
+    if (ConfigRegistry.getTile(itemId).collectible === 'stone') return this.throwHeldStone(itemId);
     const x = this.w.player.x;
     const y = this.w.player.y;
     if (this.w.items[y][x] !== null) {
@@ -395,9 +425,16 @@ export class GameEngine {
       return false;
     }
 
-    this.saveUndoSnapshot();
     const def = ConfigRegistry.getTile(itemId);
-    if (def.collectible === 'key') {
+    // A pocket gate is set down as a pad on plain floor only: no other terrain, and nothing hidden under the floor.
+    if (def.collectible === 'gate' && (this.w.terrain[y][x] !== FLOOR_TILE_ID || isCovered(this.w, x, y))) {
+      this.w.statusBannerKey = 'hud.messages.drop_not_floor';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+
+    this.saveUndoSnapshot();
+    if (COUNTED_COLLECTIBLES.has(def.collectible ?? '')) {
       const left = (this.w.player.keys[itemId] || 0) - 1;
       if (left > 0) {
         this.w.player.keys[itemId] = left;
@@ -407,13 +444,53 @@ export class GameEngine {
     } else {
       this.w.player.boots.delete(itemId);
     }
-    this.w.items[y][x] = itemId;
+    if (def.collectible === 'charge') {
+      lightCharge(this.w, x, y, def.dropsAs as string, this.ticksElapsed, ConfigRegistry.getGame().timing.chargeFuseTicks);
+    } else if (def.collectible === 'gate') {
+      // The pad stays for good; the player stands on it and does not jump, since a jump happens on arrival only.
+      this.w.terrain[y][x] = def.dropsAsTerrain as string;
+    } else {
+      this.w.items[y][x] = itemId;
+    }
     // An item on the cell may stop a turret beam that opacity 'block' reads.
     this.w.beamDirty = true;
     this.w.statusBannerKey = null;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, drop: itemId });
     AudioManager.playSfx('item');
     this.emitVisual('item', x, y, def.colorKey || 'blue');
+    return true;
+  }
+
+  /**
+   * Throws the held hurl stone one cell ahead in the direction faced. Refused, with no tick and the stone kept, while
+   * the player is sliding or still in the cooldown of a step, and when the cell ahead would stop the stone at once.
+   * The stone is single-use: it is gone once it ends. Returns false when nothing was thrown.
+   */
+  private throwHeldStone(itemId: string): boolean {
+    const { x, y, dir } = this.w.player;
+    if (this.w.player.isSliding || this.w.player.moveCooldown > 0) {
+      this.w.statusBannerKey = 'hud.messages.throw_busy';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+    if (!canThrowStone(this.w, x, y, dir)) {
+      this.w.statusBannerKey = 'hud.messages.throw_blocked';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+    this.saveUndoSnapshot();
+    const left = (this.w.player.keys[itemId] || 0) - 1;
+    if (left > 0) {
+      this.w.player.keys[itemId] = left;
+    } else {
+      delete this.w.player.keys[itemId];
+    }
+    throwStone(this.ctx);
+    // A bomb or a block gone from a beam path changes the beams.
+    this.w.beamDirty = true;
+    this.w.statusBannerKey = null;
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir, drop: itemId });
+    AudioManager.playSfx('item');
     return true;
   }
 
@@ -515,10 +592,14 @@ export class GameEngine {
       timedMoveHistoryLength: this.timedMoveHistory.length,
       // Only a level with turrets reads the play start; the other snapshots stay as they were.
       ...(this.w.hasTurrets ? { playStartTick: this.w.playStartTick } : {}),
-      // Only a level with shot launchers has shots to put back.
-      ...(this.w.hasLaunchers ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
+      // Only a level with shot launchers or hurl stones has shots to put back.
+      ...(this.w.hasShots ? { shots: this.w.shots.map((shot) => ({ ...shot })) } : {}),
       // Only a level with a toggle wall or flame jet under a removable top reads the parity of the presses.
       ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
+      // Only a level with a turning force floor counts arrivals on it.
+      ...(this.w.hasForceCycle ? { forceCycleTurn: this.w.forceCycleTurn } : {}),
+      // Only a level with a lit blast charge has a fuse to put back.
+      ...(this.w.litCharges.length > 0 ? { litCharges: copyLitCharges(this.w) } : {}),
       // Only a level that revealed something has revealed cells to put back.
       ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {}),
       // Only a level with an actor inside a swivel door has an entry side to put back.
@@ -572,6 +653,8 @@ export class GameEngine {
     this.w.playStartTick = snap.playStartTick ?? NO_PLAY_START_TICK;
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
     this.w.toggleParity = snap.toggleParity ?? 0;
+    this.w.forceCycleTurn = snap.forceCycleTurn ?? 0;
+    this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
     this.w.revealedCells = new Set(snap.revealedCells ?? []);
     this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
     if (this.w.signals !== undefined) {
@@ -613,6 +696,14 @@ export class GameEngine {
       }
     }
 
+    // A charge whose fuse ran out blasts first, before any creature or block moves.
+    // Not once the level is won: a player who reached the exit this tick is out of the blast.
+    const aliveBeforeBlasts = this.w.player.alive;
+    if (!this.w.levelCompleted) detonateCharges(this.ctx, this.ticksElapsed);
+    if (aliveBeforeBlasts && !this.w.player.alive) {
+      this.w.inTick = false;
+      return;
+    }
     updateEntities(this.ctx);
     advanceShots(this.ctx);
     this.w.inTick = false;

@@ -331,7 +331,8 @@ export class Pathfinder {
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
         const tile = ConfigRegistry.getTile(terrain[ty][tx]);
-        if (tile.togglesTo && !tile.passableByPlayer) hasClosedToggleWall = true;
+        // A rail switch is passable in both forms but its open sides change, so it is always worth a button visit.
+        if (tile.togglesTo && (!tile.passableByPlayer || tile.railSides !== undefined)) hasClosedToggleWall = true;
         if (tile.channelTogglesTo && tile.toggleChannel && !tile.passableByPlayer) closedChannelWalls.add(tile.toggleChannel);
         if (tile.flameTogglesTo && tile.hazard) hasLitFlameJet = true;
         if (tile.isTeleporter) teleporters.push({ x: tx, y: ty });
@@ -358,7 +359,8 @@ export class Pathfinder {
         if (tile.isLevelExit || (tile.requiresAllChips && engine.getChipsRemaining() === 0)) {
           if (!exitCandidate) exitCandidate = curr;
         }
-        if (itemDef && (itemDef.collectible === 'key' || itemDef.collectible === 'boot')) {
+        // A ward is optional gear, never the hint's next objective.
+        if (itemDef && !itemDef.absorbsMonsterContact && (itemDef.collectible === 'key' || itemDef.collectible === 'boot')) {
           if (!keyOrBootCandidate) keyOrBootCandidate = curr;
         }
         if (tile.buttonAction === 'toggle_walls' && hasClosedToggleWall && !buttonCandidate) {

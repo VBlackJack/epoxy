@@ -299,6 +299,53 @@ export function paintTeleport(
   if (colour) paintTeleportGlyph(ctx, size, art, colour, PORTAL.glyphBackRadius);
 }
 
+// ---- Pocket gate pad --------------------------------------------------------------------------
+
+const POCKET_PAD = {
+  ringRadius: 0.34,
+  ringWidth: 0.06,
+  /** Half of the notch cut out of the top of the ring, in radians either side of twelve o'clock. */
+  notchHalfAngle: Math.PI / 7,
+  centreRadius: 0.07
+} as const;
+
+/**
+ * A pocket gate pad: a still ring with a notch at its top and a dot at the centre, on plain floor. No swirl, so it
+ * never reads as a portal. In ink drawings the ring is a gold band between two ink lines.
+ */
+export function paintPocketPad(ctx: CanvasRenderingContext2D, size: number, art: Art, neighbours: Neighbours): void {
+  const centre = size * HALF;
+  const radius = size * POCKET_PAD.ringRadius;
+  const start = -QUARTER_TURN + POCKET_PAD.notchHalfAngle;
+  const end = -QUARTER_TURN - POCKET_PAD.notchHalfAngle + TAU;
+  paintFloor(ctx, size, art, neighbours);
+  ctx.lineCap = 'round';
+  const arc = (arcRadius: number): void => {
+    ctx.beginPath();
+    ctx.arc(centre, centre, arcRadius, start, end);
+    ctx.stroke();
+  };
+  if (art.ink) {
+    const half = (size * POCKET_PAD.ringWidth) / 2;
+    ctx.strokeStyle = art.ink.gold;
+    ctx.lineWidth = heavyLineWidth(size);
+    arc(radius);
+    ctx.strokeStyle = art.ink.line;
+    ctx.lineWidth = inkLineWidth(size);
+    arc(radius + half);
+    arc(radius - half);
+    ctx.fillStyle = art.ink.line;
+  } else {
+    ctx.strokeStyle = art.portal.ring;
+    ctx.lineWidth = Math.max(MIN_LINE_PX, size * POCKET_PAD.ringWidth);
+    arc(radius);
+    ctx.fillStyle = art.portal.core;
+  }
+  ctx.beginPath();
+  ctx.arc(centre, centre, size * POCKET_PAD.centreRadius, 0, TAU);
+  ctx.fill();
+}
+
 // ---- Ice --------------------------------------------------------------------------------------
 
 const ICE = {
@@ -473,7 +520,7 @@ function forcePhase(art: Art, timeMs: number): number {
 
 /**
  * A force floor pushing toward `direction`, or in every direction for `null` (the random floor): chevrons point
- * along the push and scroll with it; the random floor shows four chevrons that turn like a pinwheel. The clock is
+ * along the push and scroll with it; the random floor shows four chevrons that turn like a pinwheel. With `swirl` the pinwheel chevrons follow the circle clockwise (the turning floor). The clock is
  * frozen at 0 by the caller under reduced motion. The underlay is repainted on every call, so the animated pass
  * can be drawn over the cached terrain without leaving ghosts.
  */
@@ -483,7 +530,8 @@ export function paintForce(
   art: Art,
   neighbours: Neighbours,
   timeMs: number,
-  direction: Direction | null
+  direction: Direction | null,
+  swirl = false
 ): void {
   const { force, ink } = art;
   ctx.fillStyle = force.base;
@@ -504,13 +552,15 @@ export function paintForce(
       const angle = turn + arm * QUARTER_TURN;
       const dx = Math.cos(angle);
       const dy = Math.sin(angle);
+      // The turning floor points each chevron along the circle (clockwise); the random floor points them outward.
+      const [pointX, pointY] = swirl ? [-dy, dx] : [dx, dy];
       traceChevron(
         ctx,
         size,
         centre + dx * size * FORCE.pinwheelRadius,
         centre + dy * size * FORCE.pinwheelRadius,
-        dx,
-        dy,
+        pointX,
+        pointY,
         FORCE.pinwheelScale
       );
       strokeChevron(ctx, size, art);

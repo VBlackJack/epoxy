@@ -49,6 +49,9 @@ export const DIRECTION_VECTORS = {
 
 export const ORDERED_DIRECTIONS = ['N', 'E', 'S', 'W'] as const;
 
+/** The directions a turning force floor pushes in, one per arrival of any actor, in turn. */
+export const FORCE_CYCLE_ORDER = ['E', 'S', 'W', 'N'] as const;
+
 /** Ruleset given to the levels of a .DAT / .CCL file the player imports: community content. */
 export const IMPORTED_PACK_RULESET: Ruleset = 'lynx';
 
@@ -131,8 +134,77 @@ export const PACK_JSON_VERSION_SIGNALS = 5;
  */
 export const PACK_JSON_VERSION_PULSE_SINKS = 6;
 
-/** Highest pack file version this build reads; a file with a higher version is refused. */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_PULSE_SINKS;
+/**
+ * Version of a pack file that holds at least one level using a tile, item or entity id introduced with format 7
+ * (see PACK_JSON_VERSION_V7_IDS). An older build would not know the ids, so it must refuse the file.
+ */
+export const PACK_JSON_VERSION_V7 = 7;
+
+/** Ids that only exist from pack format 7; matched by name in terrain, underlays, items, entities and clone templates. */
+export const PACK_JSON_VERSION_V7_IDS: ReadonlySet<string> = new Set([
+  'force_cycle',
+  'charge',
+  'charge_lit',
+  'ward',
+  'lurker_dormant',
+  'lurker'
+]);
+
+/**
+ * Version of a pack file that holds at least one level using an id introduced with format 8 (see
+ * PACK_JSON_VERSION_V8_IDS): the pocket gate and its pad. An older build would read the pad as floor and the gate as
+ * nothing, so it must refuse the file.
+ */
+export const PACK_JSON_VERSION_V8 = 8;
+
+/** Ids that only exist from pack format 8; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V8_IDS: ReadonlySet<string> = new Set(['pocket_gate', 'pocket_gate_pad']);
+
+/**
+ * Version of a pack file that holds at least one level using an id introduced with format 9 (see
+ * PACK_JSON_VERSION_V9_IDS): the rail pieces. An older build would read them as plain floor, so it must refuse the
+ * file.
+ */
+export const PACK_JSON_VERSION_V9 = 9;
+
+/** Ids that only exist from pack format 9; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V9_IDS: ReadonlySet<string> = new Set([
+  'rail_ns',
+  'rail_ew',
+  'rail_ne',
+  'rail_se',
+  'rail_sw',
+  'rail_nw',
+  'rail_switch_a',
+  'rail_switch_b'
+]);
+
+/**
+ * Version of a pack file that holds at least one level using an id introduced with format 10 (see
+ * PACK_JSON_VERSION_V10_IDS): the hurl stone and the wisp. An older build would not know the item or the monster, so it
+ * must refuse the file.
+ */
+export const PACK_JSON_VERSION_V10 = 10;
+
+/** Ids that only exist from pack format 10; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V10_IDS: ReadonlySet<string> = new Set(['hurl_stone', 'wisp']);
+
+/**
+ * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
+ * one of its levels uses, so a later format only has to add a row here.
+ */
+export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: ReadonlySet<string> }> = [
+  { version: PACK_JSON_VERSION_V7, ids: PACK_JSON_VERSION_V7_IDS },
+  { version: PACK_JSON_VERSION_V8, ids: PACK_JSON_VERSION_V8_IDS },
+  { version: PACK_JSON_VERSION_V9, ids: PACK_JSON_VERSION_V9_IDS },
+  { version: PACK_JSON_VERSION_V10, ids: PACK_JSON_VERSION_V10_IDS }
+];
+
+/**
+ * Highest pack file version this build reads; a file with a higher version is refused. Every id of
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 10.
+ */
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V10;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

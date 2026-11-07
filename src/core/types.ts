@@ -45,6 +45,10 @@ export interface TimingConfig {
   slideCooldownTicks: number;
   animationFrameTicks: number;
   maxUndoSnapshots: number;
+  /** Ticks from the moment a blast charge is dropped to its blast. */
+  chargeFuseTicks: number;
+  /** Ticks a thrown hurl stone takes to cross one cell (a whole number of at least 1). */
+  hurlStepTicks: number;
   timeBonusMultiplier: number;
   levelBasePoints: number;
   goldTimeRatio?: number;
@@ -288,13 +292,13 @@ export interface RunewardChannelColours {
 /** Monster types (monsters.json) and the shot, each with its own colours. */
 export type RunewardMonsterType =
   | 'bug' | 'paramecium' | 'pink_ball' | 'walker' | 'teeth' | 'glider' | 'fireball' | 'tank'
-  | 'blob' | 'puppet' | 'skitter' | 'shot';
+  | 'blob' | 'puppet' | 'skitter' | 'lurker' | 'wisp' | 'shot';
 
 /** The two laser colours. */
 export type RunewardLaserChannel = 'red' | 'blue';
 
 /** Boots kinds. */
-export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye' | 'pull';
+export type RunewardBootsKind = 'water' | 'fire' | 'ice' | 'force' | 'speed' | 'eye' | 'pull' | 'ward';
 
 /** Button colours that are not a key channel. */
 export type RunewardButtonColour = 'orange' | 'gray';
@@ -1040,10 +1044,19 @@ export interface TileDefinition {
   slideType?: 'ice' | 'force';
   blockedEntryDirections?: Direction[];
   blockedEdges?: Direction[];
+  /**
+   * A rail piece: the two sides it is open on. Every other side of the cell is closed to walkers, sliders, pushed
+   * blocks and teleport exits (never to beams or shots), and the piece is entered and left only through these sides.
+   */
+  railSides?: Direction[];
   /** A swivel door: the tile the cell turns into after a quarter turn clockwise and counter-clockwise. */
   swivelTurns?: { cw: string; ccw: string };
   deflectionMap?: Partial<Record<Direction, Direction>>;
   forceDirection?: Direction | 'RANDOM';
+  /** A turning force floor: no fixed direction; each arrival of any actor on any such cell takes the next direction of the level's shared turn. */
+  forceCycle?: boolean;
+  /** Boots that destroy the first monster the player touches, from either side, and are used up by it. */
+  absorbsMonsterContact?: boolean;
   stealsBoots?: boolean;
   /** Entering the cell empties the player's keys, as stealsBoots empties the boots. */
   stealsKeys?: boolean;
@@ -1054,7 +1067,13 @@ export interface TileDefinition {
   requiredKey?: string;
   consumesKey?: boolean;
   colorKey?: string;
-  collectible?: 'key' | 'chip' | 'boot' | 'bonus';
+  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge' | 'gate' | 'stone';
+  /** A blast charge: the lit item it turns into when the player drops it. */
+  dropsAs?: string;
+  /** A pocket gate: the terrain tile it turns the player's floor cell into when dropped. */
+  dropsAsTerrain?: string;
+  /** A lit blast charge: set on the item a dropped charge becomes, which blocks nothing and cannot be picked up. */
+  litCharge?: boolean;
   /** Points added to the score when the item is picked up. */
   scoreBonus?: number;
   /** Factor applied to the level score at the exit when the item is picked up. */
@@ -1084,6 +1103,8 @@ export interface TileDefinition {
   isTeleporter?: boolean;
   /** Teleporters chain only within their group; ungrouped teleporters form one network. */
   teleportGroup?: string;
+  /** A teleporter the player set down: it links with the other such pads found on the terrain at the moment of the jump. */
+  portableTeleporter?: boolean;
   isTrap?: boolean;
   isCloneMachine?: boolean;
   /** Whether a laser beam passes through the cell; every tile declares it. */
@@ -1177,6 +1198,10 @@ export interface EntityDefinition {
   destroyedByBomb?: boolean;
   moveIntervalTicks?: number;
   movementPattern?: string;
+  /** A monster that sleeps in the floor: the entity type it becomes when the player ends an arrival next to it. */
+  wakesTo?: string;
+  /** The Epoxy engine alone plays this entity: Lynx and CC3D rulesets and the .DAT format refuse it. */
+  epoxyOnly?: boolean;
   turnOrder?: RelativeTurn[];
   immuneToWater?: boolean;
   immuneToFire?: boolean;
@@ -1429,6 +1454,8 @@ export interface Shot {
   dir: Direction;
   /** Ticks left to wait before the shot crosses its next cell. */
   cooldown: number;
+  /** What the shot is when it is not a launcher's: a stone the player threw. Absent on a launcher shot. */
+  payload?: 'hurl_stone';
 }
 
 export interface CloneLink {
@@ -1630,7 +1657,7 @@ export interface CompiledLevel {
   blockBudget?: BlockBudget;
   /** Theme shown when the player lets the level choose; see game.json themes. */
   theme?: string;
-  /** A proven winning action list (N, E, S, W, '.' to wait), for the solution replay. */
+  /** A proven winning action list (N, E, S, W, '.' to wait, X to drop a blast charge, G to set down a pocket gate), for the solution replay. */
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
   winRule?: WinRule;
@@ -1718,6 +1745,11 @@ export interface TimedMove {
   drop?: string;
 }
 
+/** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */
+export interface LitCharge extends GridPoint {
+  detonateTick: number;
+}
+
 export interface UndoSnapshot {
   terrain: string[][];
   items: (string | null)[][];
@@ -1754,6 +1786,10 @@ export interface UndoSnapshot {
   shots?: Shot[];
   /** The parity of the toggle presses; written only on a level with a toggle wall or flame jet under a removable top. */
   toggleParity?: number;
+  /** Arrivals counted on turning force floors; written only on a level that has one, absent otherwise. */
+  forceCycleTurn?: number;
+  /** The lit blast charges and when each blasts; written only while one is lit, absent otherwise. */
+  litCharges?: LitCharge[];
   /** Cells that revealed their hidden terrain, by index; written only once one did, absent otherwise. */
   revealedCells?: number[];
   /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */
