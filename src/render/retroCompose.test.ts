@@ -150,6 +150,12 @@ describe('retro tile composition', () => {
     expect(retroItemLayers('boots_water', tiles.boots_water)[0].name).toBe('boots');
   });
 
+  it('draws the Ward with its own shield sprite, not the shared boots', () => {
+    const layers = retroItemLayers('ward', tiles.ward);
+    expect(layers.map((layer) => layer.name)).toEqual(['ward']);
+    expect(layers[0].swap).toBe('blue');
+  });
+
   it('draws forbid tiles as floor, the forbidden item and the sign', () => {
     expect(layersOf('forbid_key_red')).toEqual(['floor', 'key', 'glyph_red', 'forbid_sign']);
     expect(layersOf('forbid_boots_ice')).toEqual(['floor', 'boots', 'forbid_sign']);

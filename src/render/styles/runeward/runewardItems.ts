@@ -26,6 +26,7 @@
 
 import type { RunewardArtConfig, RunewardBootsKind, RunewardKeyColour } from '../../../core/types';
 import { GLOVE } from '../../gloveShape';
+import { WARD } from '../../wardShape';
 import { heavyLineWidth, inkLineWidth } from './runewardInk';
 import { paintKeyItem } from './runewardMechanisms';
 import { linear, paintFloor, radial, roundRect } from './runewardPainters';
@@ -185,14 +186,7 @@ function paintBootCharm(ctx: CanvasRenderingContext2D, size: number, art: Art, k
       // The gloves are not a boot: paintGloveItem draws them whole.
       break;
     case 'ward':
-      // A small shield: flat top, straight flanks, a point below.
-      ctx.moveTo(cx - radius * 0.9, cy - radius * 0.9);
-      ctx.lineTo(cx + radius * 0.9, cy - radius * 0.9);
-      ctx.lineTo(cx + radius * 0.9, cy + radius * 0.1);
-      ctx.lineTo(cx, cy + radius * 1.1);
-      ctx.lineTo(cx - radius * 0.9, cy + radius * 0.1);
-      ctx.closePath();
-      ctx.stroke();
+      // The ward is not a boot: paintWardItem draws it whole.
       break;
   }
 }
@@ -233,10 +227,47 @@ function paintGloveItem(ctx: CanvasRenderingContext2D, size: number, art: Art, t
   });
 }
 
+/** The Ward: a round shield with an inner ring and a rune, hovering. */
+function paintWardItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  const tint = art.item.boots.ward;
+  const { cx, cy, r } = WARD.disc;
+  hover(ctx, size, art, timeMs, () => {
+    ctx.beginPath();
+    ctx.arc(size * cx, size * cy, size * r, 0, TAU);
+    ctx.fillStyle = art.ink ? tint.main : radial(ctx, size * cx, size * cy, size * r, [[0, tint.light], [1, tint.main]]);
+    ctx.fill();
+    outline(ctx, size, art, tint.light, WARD.lineWidth, true);
+    ctx.beginPath();
+    ctx.arc(size * cx, size * cy, size * r * WARD.ringRatio, 0, TAU);
+    ctx.globalAlpha = WARD.ringAlpha;
+    ctx.strokeStyle = markColour(art, tint.light);
+    ctx.lineWidth = plainLine(size, WARD.ringWidth);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    for (const stroke of WARD.rune) {
+      for (let index = 0; index < stroke.length; index++) {
+        const [rx, ry] = stroke[index];
+        if (index === 0) ctx.moveTo(size * rx, size * ry);
+        else ctx.lineTo(size * rx, size * ry);
+      }
+    }
+    ctx.strokeStyle = markColour(art, tint.light);
+    ctx.lineWidth = plainLine(size, WARD.runeWidth);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  });
+}
+
 /** One boot in side view with the charm of its kind, hovering. */
 export function paintBootsItem(ctx: CanvasRenderingContext2D, size: number, art: Art, kind: RunewardBootsKind, timeMs: number): void {
   if (kind === GLOVES_KIND) {
     paintGloveItem(ctx, size, art, timeMs);
+    return;
+  }
+  if (kind === WARD_KIND) {
+    paintWardItem(ctx, size, art, timeMs);
     return;
   }
   const tint = art.item.boots[kind];

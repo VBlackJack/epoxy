@@ -107,6 +107,7 @@ sprite theme=default name=chip 182bfe124d46ccba
 sprite theme=default name=key 587df5192fefcc0e
 sprite theme=default name=boots a6ec89d302ea8ce6
 sprite theme=default name=gloves c14dc15dde93ae42
+sprite theme=default name=ward 95b32be807a26d23
 sprite theme=default name=bomb 3c25f2d177c94153
 sprite theme=default name=charge 2c1359c68f9b4678
 sprite theme=default name=charge_lit c212f678da61c7e6
@@ -357,6 +358,7 @@ sprite theme=cyber_neon name=chip 8287f8bbc2c20417
 sprite theme=cyber_neon name=key a850ce52521488d0
 sprite theme=cyber_neon name=boots 675c6cf480702e3a
 sprite theme=cyber_neon name=gloves 960479a2355a26b1
+sprite theme=cyber_neon name=ward b958c7d964720c1d
 sprite theme=cyber_neon name=bomb ce3a270d66b9468a
 sprite theme=cyber_neon name=charge 615b2f95766413ea
 sprite theme=cyber_neon name=charge_lit 1102b57372ab3944
@@ -607,6 +609,7 @@ sprite theme=arctic_lab name=chip af0eea3193e5b738
 sprite theme=arctic_lab name=key 033c02c61ef6b3f1
 sprite theme=arctic_lab name=boots f650231dac34646b
 sprite theme=arctic_lab name=gloves 0ed9b9f56c904ea0
+sprite theme=arctic_lab name=ward f56c711c32dd765c
 sprite theme=arctic_lab name=bomb 6fd67565948c503d
 sprite theme=arctic_lab name=charge 46ceac84ed8aaf91
 sprite theme=arctic_lab name=charge_lit 8b28a0594d70a5f3
@@ -857,6 +860,7 @@ sprite theme=magma_core name=chip 55da4d9d09af0e86
 sprite theme=magma_core name=key 56a1d94dc21c96b3
 sprite theme=magma_core name=boots c3a26a3d4cf12bfa
 sprite theme=magma_core name=gloves a95359c919d609e3
+sprite theme=magma_core name=ward e58e1cf00b4a86a3
 sprite theme=magma_core name=bomb b76540265f8db373
 sprite theme=magma_core name=charge c61e2e3c5279f540
 sprite theme=magma_core name=charge_lit 6f0fc1152a8ce106
@@ -1107,6 +1111,7 @@ sprite theme=lynx_lcd name=chip 57985cf979a638d0
 sprite theme=lynx_lcd name=key 7a32a9ff838bfef2
 sprite theme=lynx_lcd name=boots a5899abf7d7a8d1a
 sprite theme=lynx_lcd name=gloves e0fdcbb3e2e8fe10
+sprite theme=lynx_lcd name=ward b0a97f7aa2cb750a
 sprite theme=lynx_lcd name=bomb 671c3eb46661eb53
 sprite theme=lynx_lcd name=charge 1e45f579199636f4
 sprite theme=lynx_lcd name=charge_lit e449a005dbd1d782

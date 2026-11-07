@@ -41,6 +41,7 @@ export const RETRO_SPRITE = {
   key: 'key',
   boots: 'boots',
   gloves: 'gloves',
+  ward: 'ward',
   flag: 'flag',
   blockOnTarget: 'block_on_target',
   lurkerTell: 'lurker_tell',
