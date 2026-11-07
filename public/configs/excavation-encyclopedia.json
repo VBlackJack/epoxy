@@ -1,0 +1,799 @@
+{
+  "version": "1.0.0",
+  "families": [
+    {
+      "id": "sluice",
+      "title": "Hydraulic & Sluice Engineering",
+      "titleFr": "Ingénierie hydraulique et écluses",
+      "summary": "Water and elemental hazard trenches bridged by sequential boulders, ice blocks, and compacted dirt.",
+      "summaryFr": "Tranchées d'eau et de dangers élémentaires comblées par des rochers séquentiels, des blocs de glace et de la terre compactée."
+    },
+    {
+      "id": "extraction",
+      "title": "Counterweights & Alcove Extraction",
+      "titleFr": "Contrepoids et extraction d'alcôve",
+      "summary": "Pressure-plate hold gates, counterweight swaps, and recessed boulders extracted with grappling gloves.",
+      "summaryFr": "Portes maintenues par dalles de pression, échanges de contrepoids et rochers encastrés extraits au grappin."
+    },
+    {
+      "id": "optics",
+      "title": "Prismatic Optics",
+      "titleFr": "Optique prismatique",
+      "summary": "Laser emitters routed around pillars and across shared chambers through movable diagonal mirrors.",
+      "summaryFr": "Émetteurs laser déviés autour de piliers et à travers des salles partagées via des miroirs diagonaux mobiles."
+    },
+    {
+      "id": "kinetic",
+      "title": "Kinetic & Cryo Routing",
+      "titleFr": "Routage cinétique et cryogénique",
+      "summary": "Frictionless ice slides, corner deflectors, conveyor currents, and block cloner foundries.",
+      "summaryFr": "Glissades sur glace sans friction, déflecteurs d'angle, courants convoyeurs et fonderies de clonage."
+    },
+    {
+      "id": "network",
+      "title": "Network & Logic Sanctuaries",
+      "titleFr": "Sanctuaires de réseaux et logique",
+      "summary": "Multi-island teleport ferries and dual-chamber boolean signal relays.",
+      "summaryFr": "Transbordeurs de téléportation multi-îles et relais logiques booléens à double chambre."
+    }
+  ],
+  "archetypes": [
+    {
+      "id": "boulder_sluice",
+      "family": "sluice",
+      "tier": 1,
+      "title": "Single-Boulder Sluice",
+      "titleFr": "Écluse à rocher unique",
+      "summary": "Bridge a one-tile water channel by pushing a stone boulder into the trench and compacting the resulting dirt.",
+      "summaryFr": "Comblez un canal d'eau d'une case en poussant un rocher dans la tranchée puis en compactant la terre obtenue.",
+      "mechanics": ["dirt_block", "water", "dirt", "socket"],
+      "invariants": [
+        "Keep at least one walkable floor cell behind the boulder on its push axis so the player can align with the trench.",
+        "Always place a socket or closed gate before the exit when a block exists on the map to prevent socket_bypass warnings.",
+        "Stepping onto the resulting dirt tile compacts it into standard floor."
+      ],
+      "deadEndTraps": [
+        "Pushing the boulder sideways against a boundary wall locks it unless grappling gloves are available.",
+        "Placing a collectible chip on a cell the boulder can reach triggers a hidden_by_block validator warning."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["passage", "chip"],
+        "combinesWith": ["double_sluice", "counterweight_hold", "grappling_alcove"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "W": { "terrain": "water" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P......#",
+          "#..$....#",
+          "###W#####",
+          "###d..C##",
+          "###...SE#",
+          "#########"
+        ],
+        "solution": "EESSSEEESE"
+      }
+    },
+    {
+      "id": "double_sluice",
+      "family": "sluice",
+      "tier": 2,
+      "title": "Sequential Double-Trench Sluice",
+      "titleFr": "Double écluse séquentielle",
+      "summary": "Bridge a two-tile water trench with two boulders, compacting the first dirt bridge tile before pushing the second boulder across.",
+      "summaryFr": "Comblez une tranchée d'eau de deux cases avec deux rochers en compactant la première motte de terre avant d'y pousser le second rocher.",
+      "mechanics": ["dirt_block", "water", "dirt", "socket"],
+      "invariants": [
+        "A dirt_block sinking into water creates a dirt tile, which blocks subsequent entities until the player steps on it.",
+        "The player must step onto the first bridged cell and return to the staging room before pushing the second boulder.",
+        "Provide a loop or wide staging room so the second boulder can be routed into the same column."
+      ],
+      "deadEndTraps": [
+        "Attempting to push the second boulder into the first before compacting the dirt leaves the second boulder blocking the choke point.",
+        "Pushing the second boulder into a top or side wall wastes the only remaining bridge."
+      ],
+      "chaining": {
+        "imports": ["dirt_block"],
+        "exports": ["passage", "chip"],
+        "combinesWith": ["boulder_sluice", "elemental_alchemy", "clone_foundry"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "W": { "terrain": "water" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P......#",
+          "#..$..$.#",
+          "#.......#",
+          "###W#####",
+          "###W#####",
+          "###d..C##",
+          "###...SE#",
+          "#########"
+        ],
+        "solution": "EESSSNEEEENWWWNWSSSSSEEESE"
+      }
+    },
+    {
+      "id": "elemental_alchemy",
+      "family": "sluice",
+      "tier": 3,
+      "title": "Elemental Fire-to-Water Sluice",
+      "titleFr": "Écluse alchimique feu-eau",
+      "summary": "Push an ice block into a fire barrier to transmute it into water, then bridge the water with a stone boulder.",
+      "summaryFr": "Poussez un bloc de glace dans un brasier pour le transmuter en eau, puis comblez l'eau avec un rocher.",
+      "mechanics": ["ice_block", "dirt_block", "fire", "water", "dirt", "socket"],
+      "invariants": [
+        "An ice_block pushed into fire melts both the block and the fire into a water tile.",
+        "A dirt_block pushed into raw fire stops or fails to bridge; the ice_block must always enter first.",
+        "Stage the ice_block closer to the fire choke or in a parallel lane so both blocks can be sequenced cleanly."
+      ],
+      "deadEndTraps": [
+        "Pushing the dirt_block into the choke corridor before the ice_block seals the lane in front of the fire.",
+        "Pushing the ice_block against a wall instead of down the choke leaves the fire barrier unquenched."
+      ],
+      "chaining": {
+        "imports": ["ice_block", "dirt_block"],
+        "exports": ["passage", "chip"],
+        "combinesWith": ["double_sluice", "glacier_slide", "clone_foundry"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "I": { "terrain": "floor", "entity": "ice_block" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "F": { "terrain": "fire" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P......#",
+          "#..I..$.#",
+          "###.#####",
+          "###F#####",
+          "###d..C##",
+          "###...SE#",
+          "#########"
+        ],
+        "solution": "EESSNNEEEESWWWNWSSSSEEESE"
+      }
+    },
+    {
+      "id": "counterweight_hold",
+      "family": "extraction",
+      "tier": 1,
+      "title": "Counterweight Hold-Plate",
+      "titleFr": "Dalle de maintien à contrepoids",
+      "summary": "Park a stone boulder on a colour-coded pressure plate to keep a linked hold door open.",
+      "summaryFr": "Stationnez un rocher sur une dalle de pression colorée pour maintenir ouverte la porte associée.",
+      "mechanics": ["dirt_block", "pressure_plate_red", "hold_door_red_closed", "socket"],
+      "invariants": [
+        "A hold_door_<color>_closed tile opens only while every pressure_plate_<color> of the same colour on the map is pressed.",
+        "Place the pressure plate at the end of a push lane or with a wall backstop so the boulder stops squarely on the plate.",
+        "Never start a hold door in the open state unless all plates of its colour start pressed."
+      ],
+      "deadEndTraps": [
+        "Overshooting the pressure plate into a corner when no backstop wall is present.",
+        "Pushing the counterweight boulder into water instead of onto the plate when both exist in the same room."
+      ],
+      "chaining": {
+        "imports": ["dirt_block"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["boulder_sluice", "grappling_alcove", "counterweight_swap"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "[": { "terrain": "pressure_plate_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P......#",
+          "#..$..[.#",
+          "#.......#",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "ESEEESWWSSEEEE"
+      }
+    },
+    {
+      "id": "grappling_alcove",
+      "family": "extraction",
+      "tier": 2,
+      "title": "Recessed Alcove Extraction",
+      "titleFr": "Extraction d'alcôve au grappin",
+      "summary": "Use grappling gloves to pull a boulder out of a three-walled recess, then step perpendicularly to release it before pushing.",
+      "summaryFr": "Utilisez les gants grappin pour extraire un rocher d'une alcôve à trois murs, puis décalez-vous perpendiculairement avant de le pousser.",
+      "mechanics": ["boots_pull", "dirt_block", "pressure_plate_blue", "hold_door_blue_closed", "dirt", "socket"],
+      "invariants": [
+        "With boots_pull equipped, stepping away from an adjacent block pulls that block into the player's previous cell.",
+        "Always provide a perpendicular side cell at the end of a pull corridor so the player can step sideways without re-pulling the block.",
+        "Keep collectible items inside a 3-walled alcove or behind a dirt tile so pulled blocks cannot cover them."
+      ],
+      "deadEndTraps": [
+        "Walking straight back down a 1-tile corridor with boots_pull drags the block behind the player all the way back.",
+        "Forgetting to leave a perpendicular release cell makes it impossible to get behind the extracted block."
+      ],
+      "chaining": {
+        "imports": ["boots_pull"],
+        "exports": ["dirt_block", "open_hold_door"],
+        "combinesWith": ["counterweight_hold", "counterweight_swap", "grappling_prism"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "G": { "terrain": "floor", "item": "boots_pull" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "d": { "terrain": "dirt" },
+          "[": { "terrain": "pressure_plate_blue" },
+          "]": { "terrain": "hold_door_blue_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P....#G#",
+          "#.###...#",
+          "##$.....#",
+          "###d#[###",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "EEEESEENSSWWWWEEENWSWWSSSEEEE"
+      }
+    },
+    {
+      "id": "counterweight_swap",
+      "family": "extraction",
+      "tier": 3,
+      "title": "Counterweight Bridge Swap",
+      "titleFr": "Échange pont et contrepoids",
+      "summary": "Spend a first boulder to bridge a water moat, then extract a recessed second boulder with grappling gloves to weight the hold plate.",
+      "summaryFr": "Utilisez un premier rocher pour franchir les douves, puis extrayez un second rocher encastré avec le grappin pour lester la dalle.",
+      "mechanics": ["boots_pull", "dirt_block", "water", "dirt", "pressure_plate_blue", "hold_door_blue_closed", "socket"],
+      "invariants": [
+        "Separate the upper boulder from the grappling gloves with a dirt tile so the upper boulder cannot cover the gloves.",
+        "The water moat forces the first boulder to be consumed as a bridge, proving the recessed second boulder is required for the plate.",
+        "Provide a 2-row release pocket on the far side of the lower corridor so the player can step North and get behind the pulled boulder."
+      ],
+      "deadEndTraps": [
+        "Bridging the water before picking up the grappling gloves in the upper chamber requires backtracking.",
+        "Pulling the lower boulder all the way against the East wall leaves no room to push it onto the plate."
+      ],
+      "chaining": {
+        "imports": ["boots_pull"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["boulder_sluice", "grappling_alcove", "counterweight_hold"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "G": { "terrain": "floor", "item": "boots_pull" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "W": { "terrain": "water" },
+          "d": { "terrain": "dirt" },
+          "[": { "terrain": "pressure_plate_blue" },
+          "]": { "terrain": "hold_door_blue_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P.d.G###",
+          "#..$#####",
+          "###W#...#",
+          "##$.....#",
+          "###d#[###",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "EEEEWWSSSEEENWSWWSSSEEEE"
+      }
+    },
+    {
+      "id": "prism_slalom",
+      "family": "optics",
+      "tier": 2,
+      "title": "Multi-Prism Beam Slalom",
+      "titleFr": "Slalom laser multi-prismes",
+      "summary": "Route a laser beam around a stone pillar using two movable diagonal mirrors to illuminate a receiver and open its laser gate.",
+      "summaryFr": "Déviez un faisceau laser autour d'un pilier de pierre à l'aide de deux miroirs diagonaux mobiles pour illuminer un récepteur et ouvrir sa grille.",
+      "mechanics": ["laser_emitter_e", "mirror_backslash", "laser_receiver_red", "laser_gate_red_closed", "dirt", "socket"],
+      "invariants": [
+        "Place a solid wall backstop behind the first mirror's target cell so the unreflected beam never cuts the player's exit route.",
+        "Stage movable mirrors one cell outside the active beam line so the player pushes them into the beam without stepping onto a live beam cell.",
+        "Shield the exit corridor with a dirt tile so mirrors cannot be pushed onto the chip or socket."
+      ],
+      "deadEndTraps": [
+        "Stepping onto an active laser beam cell after pushing a mirror along the beam axis is fatal.",
+        "Pushing the upper mirror before positioning the lower mirror cuts the room with the vertical deflected beam."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["open_laser_gate", "chip"],
+        "combinesWith": ["grappling_prism", "crossed_beams", "signal_relay"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          ">": { "terrain": "laser_emitter_e" },
+          "\\": { "terrain": "floor", "entity": "mirror_backslash" },
+          "R": { "terrain": "laser_receiver_red" },
+          ":": { "terrain": "laser_gate_red_closed" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P...d:C#",
+          "#...\\.#S#",
+          "#>...##E#",
+          "#.....###",
+          "#..\\..R.#",
+          "#########"
+        ],
+        "solution": "EEEESWNWSNEEEESS"
+      }
+    },
+    {
+      "id": "grappling_prism",
+      "family": "optics",
+      "tier": 3,
+      "title": "Recessed Alcove Prism",
+      "titleFr": "Prisme d'alcôve au grappin",
+      "summary": "Extract a diagonal mirror from a three-walled recess using grappling gloves, release it via a side step, and push it into a laser beam.",
+      "summaryFr": "Extrayez un miroir diagonal d'une alcôve à trois murs avec le grappin, dégagez-vous par un pas de côté, puis poussez-le dans le faisceau laser.",
+      "mechanics": ["boots_pull", "mirror_backslash", "laser_emitter_s", "laser_receiver_red", "laser_gate_red_closed", "dirt", "socket"],
+      "invariants": [
+        "Confine the live unreflected laser beam to a 1-tile pocket against a wall so the player never crosses the beam while pulling the mirror.",
+        "Pull the mirror out of the alcove to a safe staging cell, step North into the release pocket, then push the mirror East into the beam.",
+        "Protect the exit corridor and the grappling gloves alcove with dirt tiles so the mirror cannot cover collectibles."
+      ],
+      "deadEndTraps": [
+        "Pulling the mirror directly onto the active beam cell kills the player on the pull step.",
+        "Pulling the mirror without stepping into the North release pocket drags the mirror back toward the alcove."
+      ],
+      "chaining": {
+        "imports": ["boots_pull"],
+        "exports": ["open_laser_gate", "chip"],
+        "combinesWith": ["grappling_alcove", "prism_slalom", "crossed_beams"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "G": { "terrain": "floor", "item": "boots_pull" },
+          "v": { "terrain": "laser_emitter_s" },
+          "\\": { "terrain": "floor", "entity": "mirror_backslash" },
+          "R": { "terrain": "laser_receiver_red" },
+          ":": { "terrain": "laser_gate_red_closed" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P....dG#",
+          "#.#...v##",
+          "##\\....R#",
+          "###d#####",
+          "###:#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "EEEEEEWWSSWWEENWWSEENWSWSSSEEEE"
+      }
+    },
+    {
+      "id": "crossed_beams",
+      "family": "optics",
+      "tier": 4,
+      "title": "Crossed Dual-Beam Matrix",
+      "titleFr": "Matrice à double faisceau croisé",
+      "summary": "Route two orthogonal laser beams across a shared chamber into red and blue receivers to unlock a dual-stage laser gate vault.",
+      "summaryFr": "Acheminez deux faisceaux laser orthogonaux à travers une salle commune vers des récepteurs rouge et bleu pour déverrouiller un double sas laser.",
+      "mechanics": [
+        "laser_emitter_e",
+        "mirror_backslash",
+        "laser_receiver_red",
+        "laser_receiver_blue",
+        "laser_gate_red_closed",
+        "laser_gate_blue_closed",
+        "dirt",
+        "socket"
+      ],
+      "invariants": [
+        "Stage both mirrors one cell North of their beam rows so pushing them South into the beams keeps the player in the safe upper lane.",
+        "Two laser beams may cross orthogonally on an open floor cell without interfering with each other.",
+        "Chain laser_gate_red_closed and laser_gate_blue_closed in series so both receivers must remain lit simultaneously."
+      ],
+      "deadEndTraps": [
+        "Walking South into an active horizontal beam instead of staying in the upper staging lane is fatal.",
+        "Pushing a mirror through the upper beam into the lower beam without leaving the second mirror on the upper beam starves the red receiver."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["open_laser_gate", "chip"],
+        "combinesWith": ["prism_slalom", "grappling_prism", "signal_relay"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          ">": { "terrain": "laser_emitter_e" },
+          "\\": { "terrain": "floor", "entity": "mirror_backslash" },
+          "R": { "terrain": "laser_receiver_red" },
+          "B": { "terrain": "laser_receiver_blue" },
+          ":": { "terrain": "laser_gate_red_closed" },
+          ";": { "terrain": "laser_gate_blue_closed" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P...d:;#",
+          "#..\\.\\#C#",
+          "#>....#S#",
+          "#>....#E#",
+          "#..R.B###",
+          "#########"
+        ],
+        "solution": "EESNEESSNNEESSS"
+      }
+    },
+    {
+      "id": "glacier_slide",
+      "family": "kinetic",
+      "tier": 2,
+      "title": "Glacier Slide & Corner Deflector",
+      "titleFr": "Glissade sur glacier et déflecteur d'angle",
+      "summary": "Launch a stone boulder across frictionless ice into a curved corner wall so it slides onto a distant pressure plate.",
+      "summaryFr": "Lancez un rocher sur de la glace sans friction vers un mur d'angle incurvé afin qu'il glisse jusque sur une dalle de pression distante.",
+      "mechanics": ["dirt_block", "ice", "ice_ne", "pressure_plate_yellow", "hold_door_yellow_closed", "socket"],
+      "invariants": [
+        "A block pushed onto ice slides until it hits a non-ice tile, a wall, or a corner deflector.",
+        "Use ice_ne (deflects E to S and N to W) at the top-right corner of the slide lane so an East-pushed block turns South onto the plate.",
+        "Place a wall immediately South of the target pressure plate so the sliding block stops on the plate and cannot enter the lower chamber."
+      ],
+      "deadEndTraps": [
+        "Pushing the boulder South instead of East into the ice strip misses the corner deflector.",
+        "Stepping onto the ice strip without ice cleats slides the player onto the plate without the boulder."
+      ],
+      "chaining": {
+        "imports": ["dirt_block"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["elemental_alchemy", "counterweight_hold", "conveyor_sluice"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "I": { "terrain": "ice" },
+          "2": { "terrain": "ice_ne" },
+          "[": { "terrain": "pressure_plate_yellow" },
+          "]": { "terrain": "hold_door_yellow_closed" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P......#",
+          "#.$II2..#",
+          "#....I..#",
+          "###]#[###",
+          "###d.#SE#",
+          "###C...##",
+          "#########"
+        ],
+        "solution": "SESESSSEEEENE"
+      }
+    },
+    {
+      "id": "conveyor_sluice",
+      "family": "kinetic",
+      "tier": 3,
+      "title": "Current Sluice Conveyor",
+      "titleFr": "Convoyeur d'écluse à courant",
+      "summary": "Push a boulder onto a one-way force current so the stream carries it into a distant water sluice or hold plate.",
+      "summaryFr": "Poussez un rocher sur un courant directionnel afin que le flux l'emporte vers une écluse ou une dalle distante.",
+      "mechanics": ["dirt_block", "force_e", "pressure_plate_green", "hold_door_green_closed", "socket"],
+      "invariants": [
+        "A block pushed onto a force floor slides automatically in the force direction on each tick until it reaches a normal tile.",
+        "Terminate the force belt directly on a pressure plate or water trench with a wall behind it so the block settles cleanly.",
+        "Keep the player's approach perpendicular to the belt entry so the player never steps onto the one-way current."
+      ],
+      "deadEndTraps": [
+        "Pushing the boulder South past the belt entry row leaves it below the conveyor stream.",
+        "Entering the conveyor without suction boots traps the player in the one-way pocket."
+      ],
+      "chaining": {
+        "imports": ["dirt_block"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["glacier_slide", "clone_foundry", "boulder_sluice"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          ">": { "terrain": "force_e" },
+          "[": { "terrain": "pressure_plate_green" },
+          "]": { "terrain": "hold_door_green_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P......#",
+          "#.$>>>[.#",
+          "#.......#",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "SESESSEEEE"
+      }
+    },
+    {
+      "id": "clone_foundry",
+      "family": "kinetic",
+      "tier": 4,
+      "title": "Block Cloner Foundry",
+      "titleFr": "Fonderie de clonage de rochers",
+      "summary": "Trigger a red clone button to stamp stone boulders from a clone machine and bridge a multi-tile water channel.",
+      "summaryFr": "Actionnez un bouton de clonage rouge pour produire des rochers depuis une machine de clonage et combler un canal d'eau.",
+      "mechanics": ["button_red", "clone_machine", "dirt_block", "water", "dirt", "socket"],
+      "invariants": [
+        "Every clone_machine needs both an explicit cloneLink from a button_red and a template entity placed on the machine cell.",
+        "Orient the template entity so it spawns into an open push lane where the player can get behind the spawned block.",
+        "After pushing the first cloned block into water, compact the resulting dirt before spawning and pushing a second block."
+      ],
+      "deadEndTraps": [
+        "Placing the clone machine directly behind the spawn cell with no room for the player prevents pushing along the spawn axis.",
+        "Pressing the red button while the spawn cell ahead of the clone machine is still occupied produces no block."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["dirt_block", "passage"],
+        "combinesWith": ["double_sluice", "elemental_alchemy", "conveyor_sluice"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "+": { "terrain": "button_red" },
+          "M": { "terrain": "clone_machine", "entity": "dirt_block", "entityDir": "E" },
+          "W": { "terrain": "water" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P+.....#",
+          "#.M.....#",
+          "###W#####",
+          "###d..C##",
+          "###...SE#",
+          "#########"
+        ],
+        "cloneLinks": [
+          {
+            "buttonX": 2,
+            "buttonY": 1,
+            "clonerX": 2,
+            "clonerY": 2,
+            "templateType": "dirt_block",
+            "templateDir": "E"
+          }
+        ],
+        "solution": "EESSSEEESE"
+      }
+    },
+    {
+      "id": "portal_islands",
+      "family": "network",
+      "tier": 3,
+      "title": "Multi-Island Teleport Ferry",
+      "titleFr": "Transbordeur téléporteur multi-îles",
+      "summary": "Push a boulder through a colour-coded teleport ring to a disconnected island so it lands on a hold plate, then follow through a second portal.",
+      "summaryFr": "Poussez un rocher à travers un anneau téléporteur coloré vers une île isolée afin qu'il atterrisse sur une dalle, puis suivez par un second portail.",
+      "mechanics": ["dirt_block", "teleport_red", "teleport_blue", "pressure_plate_red", "hold_door_red_closed", "socket"],
+      "invariants": [
+        "Every teleport group on a level must have at least two teleporters of the same colour to avoid teleport_alone warnings.",
+        "An entity or player entering a teleporter in direction D exits the destination teleporter one tile in direction D.",
+        "Seal unused sides of the player's arrival teleporter with walls so a closed hold door on the exit side cannot be bypassed via fallback directions."
+      ],
+      "deadEndTraps": [
+        "Leaving open floor adjacent to the arrival teleporter lets the teleporter sidestep a closed door on its primary exit side.",
+        "Stepping into the boulder's teleport ring before pushing the boulder strands the player on the lower island."
+      ],
+      "chaining": {
+        "imports": ["dirt_block"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["counterweight_hold", "glacier_slide", "signal_relay"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "O": { "terrain": "teleport_red" },
+          "o": { "terrain": "teleport_blue" },
+          "[": { "terrain": "pressure_plate_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P......#",
+          "#..$..o.#",
+          "#..O....#",
+          "#########",
+          "#..O.#o.#",
+          "#..[###]#",
+          "####ESC.#",
+          "#########"
+        ],
+        "solution": "EESEEESSWWW"
+      }
+    },
+    {
+      "id": "signal_relay",
+      "family": "network",
+      "tier": 5,
+      "title": "Dual-Chamber Signal Relay",
+      "titleFr": "Relais logique à double chambre",
+      "summary": "Charge both a signal pressure plate and a laser receiver wired through an AND logic gate to unlock a central vault hold door.",
+      "summaryFr": "Alimentez simultanément une dalle de signal et un récepteur laser câblés sur une porte logique ET pour ouvrir la porte du sanctuaire central.",
+      "mechanics": [
+        "signal_plate",
+        "laser_emitter_e",
+        "mirror_backslash",
+        "laser_receiver_red",
+        "signal_gate_and",
+        "hold_door_red_closed",
+        "dirt_block",
+        "dirt",
+        "socket"
+      ],
+      "invariants": [
+        "A signal_gate_and requires two incoming signalLinks from valid sources (signal_plate or laser_receiver_*) and one outgoing link to a sink (hold_door_*_closed).",
+        "When a hold_door_<color>_closed is driven by a signal link, it ignores standalone pressure plates and opens only when its signal source is high.",
+        "Stage the mirror one cell North of the emitter beam so pushing it South into the beam keeps the player in the safe upper lane."
+      ],
+      "deadEndTraps": [
+        "Leaving a signal source or logic gate with missing incoming or outgoing links triggers signal wiring validator warnings.",
+        "Pushing the boulder past the signal plate or missing the mirror column leaves one input of the AND gate low."
+      ],
+      "chaining": {
+        "imports": ["dirt_block", "mirror_backslash"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["counterweight_hold", "prism_slalom", "crossed_beams"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "!": { "terrain": "signal_plate" },
+          "&": { "terrain": "signal_gate_and" },
+          ">": { "terrain": "laser_emitter_e" },
+          "\\": { "terrain": "floor", "entity": "mirror_backslash" },
+          "R": { "terrain": "laser_receiver_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P$.!..]#",
+          "#...\\.#C#",
+          "#>....#S#",
+          "#...R.#E#",
+          "##&######",
+          "#########"
+        ],
+        "signalLinks": [
+          { "fromX": 4, "fromY": 1, "toX": 2, "toY": 5 },
+          { "fromX": 4, "fromY": 4, "toX": 2, "toY": 5 },
+          { "fromX": 2, "fromY": 5, "toX": 7, "toY": 1 }
+        ],
+        "solution": "SEENESWWWNEESEENEESSS"
+      }
+    }
+  ]
+}

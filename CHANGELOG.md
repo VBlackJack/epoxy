@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Sanctuary Puzzle & Mechanism Encyclopedia (`public/configs/excavation-encyclopedia.json`, `src/config/excavationEncyclopedia.ts`, `docs/puzzle-encyclopedia.md` and `docs/fr/puzzle-encyclopedia.md`): 14 machine-verified puzzle archetypes across 5 families (`sluice`, `extraction`, `optics`, `kinetic`, `network`) with ASCII blueprints, design invariants, dead-end traps, chaining rules and verified shortest solutions, plus 5 sanctuary starter templates in the level editor (`boulder_sluice`, `counterweight_hold`, `grappling_alcove`, `prism_slalom`, `elemental_alchemy` in `public/configs/templates.json`) and 6 new Tier-5 sanctuary pieces in the procedural generator (`public/configs/motifs.json`, 165 pieces in total). Both locales.
+
 ## [2.24.0] - 2026-11-07
 
 ### Added
@@ -49,6 +55,7 @@ versions follow Semantic Versioning.
 - Buried Sanctuaries campaign (`epoxy_excavation`): a new built-in pack of 20 excavation levels in 5 chapters, with its own save slot. Multi-room 15x13 sanctuary maps chain boulder sluices, pressure plates, grappling alcoves and prism optics; every level is proven solvable with 0 validator issues. Both locales.
 - Grappling Gloves (`boots_pull`), an Epoxy-only item: stepping away from a resting block pulls it behind you, unless it rests on an active plate, button or block target.
 - Diggy's Adventure import: light sensor beacons become laser puzzles and boulder beacons become coloured plate puzzles; browser `.har` captures and `CommandSynchronize` envelopes are unwrapped directly.
+>>>>>>> origin/main
 - Level editor: signal links can be removed with the Unlink button in the Connections panel.
 - Signals: pulse buttons, and signal links that fire launchers and clone machines on a rising edge (pack format version 6).
 - Signals: pulse buttons and launcher/clone links can be placed and linked in the level editor, with their own look in every render style.

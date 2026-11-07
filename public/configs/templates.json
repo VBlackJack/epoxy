@@ -49,6 +49,153 @@
         "#......R#",
         "#########"
       ]
+    },
+    {
+      "id": "boulder_sluice",
+      "labelKey": "editor.template.boulder_sluice.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": { "terrain": "wall" },
+        ".": { "terrain": "floor" },
+        "P": { "terrain": "floor", "start": "S" },
+        "$": { "terrain": "floor", "entity": "dirt_block" },
+        "W": { "terrain": "water" },
+        "d": { "terrain": "dirt" },
+        "C": { "terrain": "floor", "item": "chip" },
+        "S": { "terrain": "socket" },
+        "E": { "terrain": "exit" }
+      },
+      "rows": [
+        "#########",
+        "#P......#",
+        "#..$....#",
+        "###W#####",
+        "###d..C##",
+        "###...SE#",
+        "#########"
+      ]
+    },
+    {
+      "id": "counterweight_hold",
+      "labelKey": "editor.template.counterweight_hold.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": { "terrain": "wall" },
+        ".": { "terrain": "floor" },
+        "P": { "terrain": "floor", "start": "S" },
+        "$": { "terrain": "floor", "entity": "dirt_block" },
+        "[": { "terrain": "pressure_plate_red" },
+        "]": { "terrain": "hold_door_red_closed" },
+        "C": { "terrain": "floor", "item": "chip" },
+        "S": { "terrain": "socket" },
+        "E": { "terrain": "exit" }
+      },
+      "rows": [
+        "#########",
+        "#P......#",
+        "#..$..[.#",
+        "#.......#",
+        "###]#####",
+        "###C..SE#",
+        "#########"
+      ]
+    },
+    {
+      "id": "grappling_alcove",
+      "labelKey": "editor.template.grappling_alcove.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": { "terrain": "wall" },
+        ".": { "terrain": "floor" },
+        "P": { "terrain": "floor", "start": "S" },
+        "G": { "terrain": "floor", "item": "boots_pull" },
+        "$": { "terrain": "floor", "entity": "dirt_block" },
+        "[": { "terrain": "pressure_plate_blue" },
+        "]": { "terrain": "hold_door_blue_closed" },
+        "d": { "terrain": "dirt" },
+        "C": { "terrain": "floor", "item": "chip" },
+        "S": { "terrain": "socket" },
+        "E": { "terrain": "exit" }
+      },
+      "rows": [
+        "#########",
+        "#P....#G#",
+        "#.###...#",
+        "##$.....#",
+        "###d#[###",
+        "###]#####",
+        "###C..SE#",
+        "#########"
+      ]
+    },
+    {
+      "id": "prism_slalom",
+      "labelKey": "editor.template.prism_slalom.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": { "terrain": "wall" },
+        ".": { "terrain": "floor" },
+        "P": { "terrain": "floor", "start": "S" },
+        ">": { "terrain": "laser_emitter_e" },
+        "\\": { "terrain": "floor", "entity": "mirror_backslash" },
+        "R": { "terrain": "laser_receiver_red" },
+        ":": { "terrain": "laser_gate_red_closed" },
+        "d": { "terrain": "dirt" },
+        "C": { "terrain": "floor", "item": "chip" },
+        "S": { "terrain": "socket" },
+        "E": { "terrain": "exit" }
+      },
+      "rows": [
+        "#########",
+        "#P...d:C#",
+        "#...\\.#S#",
+        "#>...##E#",
+        "#.....###",
+        "#..\\..R.#",
+        "#########"
+      ]
+    },
+    {
+      "id": "elemental_alchemy",
+      "labelKey": "editor.template.elemental_alchemy.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": { "terrain": "wall" },
+        ".": { "terrain": "floor" },
+        "P": { "terrain": "floor", "start": "S" },
+        "I": { "terrain": "floor", "entity": "ice_block" },
+        "$": { "terrain": "floor", "entity": "dirt_block" },
+        "F": { "terrain": "fire" },
+        "d": { "terrain": "dirt" },
+        "C": { "terrain": "floor", "item": "chip" },
+        "S": { "terrain": "socket" },
+        "E": { "terrain": "exit" }
+      },
+      "rows": [
+        "#########",
+        "#P......#",
+        "#..I..$.#",
+        "###.#####",
+        "###F#####",
+        "###d..C##",
+        "###...SE#",
+        "#########"
+      ]
     }
   ]
 }

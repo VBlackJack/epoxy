@@ -3719,6 +3719,107 @@
           "trapY": 6
         }
       ]
+    },
+    {
+      "id": "sanctuary_sluice_double_trench",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.C#..#",
+        "#.&.&.#",
+        "#.....#",
+        "###W###",
+        "###W###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "sanctuary_alchemy_fire_water_sluice",
+      "motif": "blocks_water",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.C#..#",
+        "#.i.&.#",
+        "#.....#",
+        "###F###",
+        "###$###"
+      ]
+    },
+    {
+      "id": "sanctuary_counterweight_trap_bridge",
+      "motif": "sokoban",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "###@###",
+        "#.....#",
+        "#.C#..#",
+        "#.&.&.#",
+        "#....m#",
+        "###W###",
+        "###X###",
+        "###$###"
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 5,
+          "buttonY": 4,
+          "trapX": 3,
+          "trapY": 6
+        }
+      ]
+    },
+    {
+      "id": "sanctuary_glacier_corner_sluice",
+      "motif": "ice",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#...#",
+        "#.&II2#",
+        "#....I#",
+        "####CW#",
+        "#####$#"
+      ]
+    },
+    {
+      "id": "sanctuary_conveyor_sluice",
+      "motif": "force",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#.C.#",
+        "#.&>>.#",
+        "#....W#",
+        "#####$#"
+      ]
+    },
+    {
+      "id": "sanctuary_portal_ferry_sluice",
+      "motif": "teleport",
+      "tier": 5,
+      "rotatable": true,
+      "rows": [
+        "##@####",
+        "#.....#",
+        "#.#C..#",
+        "#..&..#",
+        "###O###",
+        "#######",
+        "###O###",
+        "###W###",
+        "###$###"
+      ]
     }
   ]
 }
