@@ -94,6 +94,14 @@ describe('Pathfinder.findPath', () => {
     expect(Pathfinder.findPath(engine, 3, 2).moves).toEqual(['E']);
   });
 
+  it('spends one toll token per thief, so one token does not cover two thieves before a fire', () => {
+    const level = corridor({ 3: 'thief', 4: 'thief', 5: 'fire' });
+    const oneToken = engineFor(level, ['boots_fire'], { toll_token: 1 });
+    expect(Pathfinder.findPath(oneToken, 7, 2).moves).toEqual([]);
+    const twoTokens = engineFor(level, ['boots_fire'], { toll_token: 2 });
+    expect(Pathfinder.findPath(twoTokens, 7, 2).moves).toHaveLength(5);
+  });
+
   it('does not route across ice, but may end on it', () => {
     const engine = engineFor(corridor({ 4: 'ice' }));
     expect(Pathfinder.findPath(engine, 6, 2).moves).toEqual([]);

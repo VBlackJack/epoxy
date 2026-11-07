@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, channelOfButtonAction } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, TOKEN_ITEM_ID } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, isRemovableTop } from './Underlays';
@@ -40,6 +40,8 @@ interface AStarNode {
   moveDir: Direction | null;
   /** Boots were taken by a thief earlier on this path. */
   bootsStolen: boolean;
+  /** Toll tokens still held on this path; each pays one thief that would take the boots. */
+  tokensLeft: number;
   /** Keys consumed by doors earlier on this path, per key id. */
   keysUsed: Record<string, number>;
 }
@@ -139,7 +141,7 @@ export class Pathfinder {
       Boolean(tile.isTeleporter) ||
       (tile.slideType !== undefined && !hasBoot(node, tile.protectedByItem));
     const stateKey = (node: AStarNode): string =>
-      `${node.x},${node.y},${node.bootsStolen ? 1 : 0},${JSON.stringify(node.keysUsed)}`;
+      `${node.x},${node.y},${node.bootsStolen ? 1 : 0},${node.tokensLeft},${JSON.stringify(node.keysUsed)}`;
 
     const openList = new NodeHeap();
     openList.push({
@@ -150,6 +152,7 @@ export class Pathfinder {
       parent: null,
       moveDir: null,
       bootsStolen: false,
+      tokensLeft: player.keys[TOKEN_ITEM_ID] || 0,
       keysUsed: {}
     });
     const bestG = new Map<string, number>();
@@ -242,12 +245,16 @@ export class Pathfinder {
         if (nextTile.forbiddenItem && engine.holdsItem(nextTile.forbiddenItem)) continue;
 
         // A thief on this step takes the boots before the cell's own hazard applies
-        const stolenHere = Boolean(nextTile.stealsBoots) && !curr.bootsStolen && player.boots.size > 0;
+        // A held toll token pays a thief that would take the boots, who then takes nothing; one token per visit.
+        const wouldTake = Boolean(nextTile.stealsBoots) && !curr.bootsStolen && player.boots.size > 0;
+        const paidHere = wouldTake && curr.tokensLeft > 0;
+        const stolenHere = wouldTake && !paidHere;
         const probe: AStarNode = {
           ...curr,
           x: nx,
           y: ny,
-          bootsStolen: curr.bootsStolen || stolenHere
+          bootsStolen: curr.bootsStolen || stolenHere,
+          tokensLeft: curr.tokensLeft - (paidHere ? 1 : 0)
         };
         if (
           (nextTile.hazard === 'water' || nextTile.hazard === 'fire') &&
@@ -272,6 +279,7 @@ export class Pathfinder {
           parent: curr,
           moveDir: dir,
           bootsStolen: probe.bootsStolen,
+          tokensLeft: probe.tokensLeft,
           keysUsed
         };
         const key = stateKey(next);

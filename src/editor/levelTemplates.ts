@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { CONFIG_ENDPOINTS, ORDERED_DIRECTIONS } from '../config/constants';
+import { CONFIG_ENDPOINTS, DEFAULT_FACING, ORDERED_DIRECTIONS } from '../config/constants';
 import { Direction, EntityPlacement, Ruleset, WinRule } from '../core/types';
 import { EditorMap } from './editorDocument';
 
@@ -23,6 +23,7 @@ import { EditorMap } from './editorDocument';
 export interface TemplateLegendEntry {
   terrain: string;
   entity?: string;
+  entityDir?: Direction;
   item?: string;
   /** The player starts on this cell, facing this way. */
   start?: Direction;
@@ -78,6 +79,9 @@ function legendErrors(id: string, legend: unknown): string[] {
     }
     if (raw.entity !== undefined && (typeof raw.entity !== 'string' || !ConfigRegistry.getEntityDef(raw.entity))) {
       errors.push(`${id}: legend "${char}" names an unknown entity`);
+    }
+    if (raw.entityDir !== undefined && !ORDERED_DIRECTIONS.includes(raw.entityDir as Direction)) {
+      errors.push(`${id}: legend "${char}" has an invalid entityDir direction`);
     }
     if (raw.item !== undefined && (typeof raw.item !== 'string' || !(raw.item in ConfigRegistry.getTiles().tiles))) {
       errors.push(`${id}: legend "${char}" names an unknown item`);
@@ -144,14 +148,14 @@ export function findTemplateErrors(raw: unknown): string[] {
 /** Builds the map and rules a template stands for; the template must already have passed `findTemplateErrors`. */
 export function templateContent(template: LevelTemplate): TemplateContent {
   const entities: EntityPlacement[] = [];
-  let playerStart: EditorMap['playerStart'] = { x: 0, y: 0, dir: 'S' };
+  let playerStart: EditorMap['playerStart'] = { x: 0, y: 0, dir: DEFAULT_FACING };
   const items: (string | null)[][] = [];
   const terrain = template.rows.map((row, y) => {
     items.push([]);
     return [...row].map((char, x) => {
       const entry = template.legend[char];
       items[y].push(entry.item ?? null);
-      if (entry.entity) entities.push({ type: entry.entity, x, y, dir: 'S' });
+      if (entry.entity) entities.push({ type: entry.entity, x, y, dir: entry.entityDir ?? DEFAULT_FACING });
       if (entry.start) playerStart = { x, y, dir: entry.start };
       return entry.terrain;
     });

@@ -988,6 +988,14 @@
       "laserTransparent": true,
       "collectible": "stone"
     },
+    "toll_token": {
+      "id": "toll_token",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.toll_token.name",
+      "laserTransparent": true,
+      "collectible": "token"
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",

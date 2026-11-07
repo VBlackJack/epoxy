@@ -88,6 +88,11 @@ item theme=cyber_neon id=hurl_stone 8c34fbe327c0f396
 item theme=arctic_lab id=hurl_stone a627a543decdab1e
 item theme=magma_core id=hurl_stone c202c0ad9169e4c1
 item theme=lynx_lcd id=hurl_stone 29a72063519410d8
+item theme=default id=toll_token 0df1a51b98a8ece9
+item theme=cyber_neon id=toll_token 6d3edebafd2cee2e
+item theme=arctic_lab id=toll_token d85f8dd63bdc7109
+item theme=magma_core id=toll_token a5cc56f9aedc9956
+item theme=lynx_lcd id=toll_token 279741ab9cae2a1f
 item theme=default id=bomb fb0d51cbc2bb84ae
 item theme=cyber_neon id=bomb 2043ce0469ba83ff
 item theme=arctic_lab id=bomb b24ce8e6eddf1738

@@ -30,6 +30,7 @@ import {
   paintIce,
   paintIceCorner,
   paintPocketPad,
+  paintRelayPadTile,
   paintTeleport,
   paintTrap,
   type RunewardTeleportColour
@@ -260,8 +261,8 @@ const HAZARD_TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromE
   ...ICE_CORNER_IDS.map((id): [string, RunewardTilePainter] => [id, iceCornerTile(id)]),
   ...TELEPORT_IDS.map((id): [string, RunewardTilePainter] => [id, teleportTile(id)]),
   [POCKET_PAD_ID, POCKET_PAD_PAINTER],
-  ['relay_pad_dark', staticTile(paintFloor)],
-  ['relay_pad_lit', POCKET_PAD_PAINTER],
+  ['relay_pad_dark', staticTile((ctx, size, art, nb) => paintRelayPadTile(ctx, size, art, nb, false))],
+  ['relay_pad_lit', staticTile((ctx, size, art, nb) => paintRelayPadTile(ctx, size, art, nb, true))],
   ...Object.entries(FORCE_DIRECTIONS).map(([id, direction]): [string, RunewardTilePainter] => [id, forceTile(direction)]),
   [RANDOM_FORCE_ID, forceTile(null)],
   [CYCLE_FORCE_ID, forceTile(null, true)]

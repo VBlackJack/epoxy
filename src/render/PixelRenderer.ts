@@ -21,6 +21,7 @@ import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
 import { paintRailPiece } from './railArt';
+import { paintRelayPad, paintWiredMark } from './relayArt';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
@@ -330,6 +331,14 @@ const CHARGE_ART = {
 const STONE_ART = {
   outline: [[0.28, 0.5], [0.34, 0.36], [0.5, 0.3], [0.66, 0.36], [0.74, 0.52], [0.68, 0.68], [0.5, 0.74], [0.34, 0.66]] as ReadonlyArray<readonly [number, number]>,
   facet: [[0.34, 0.4], [0.5, 0.34], [0.58, 0.4], [0.44, 0.52], [0.36, 0.52]] as ReadonlyArray<readonly [number, number]>,
+  lineWidthTile: 0.035
+} as const;
+/** Toll token, as tile fractions: a round coin with a square hole through its centre, and the width of its rim line. */
+const TOKEN_ART = {
+  centre: 0.5,
+  radius: 0.26,
+  holeHalfSide: 0.07,
+  rimInset: 0.055,
   lineWidthTile: 0.035
 } as const;
 /**
@@ -2179,6 +2188,30 @@ export class PixelRenderer {
     ctx.setLineDash(LINK_DASH_PATTERN);
   }
 
+  /** A plug on every flip tile (a green toggle wall or a rail switch) a signal link ends on, shown whether or not the wires are. */
+  private drawWiredFlipMarks(
+    ctx: CanvasRenderingContext2D,
+    engine: PlayEngine,
+    terrain: readonly (readonly string[])[],
+    camX: number,
+    camY: number,
+    tilePixelSize: number
+  ): void {
+    const links = engine.getSignalLinks?.();
+    if (links === undefined || links.length === 0) return;
+    ctx.setLineDash(NO_DASH);
+    ctx.globalAlpha = 1;
+    const seen = new Set<number>();
+    for (const link of links) {
+      const cell = link.toY * this.blockCellsWidth + link.toX;
+      if (seen.has(cell) || this.isBlockCovered(link.toX, link.toY)) continue;
+      const tileId = terrain[link.toY]?.[link.toX];
+      if (tileId === undefined || ConfigRegistry.getTile(tileId).togglesTo === undefined) continue;
+      seen.add(cell);
+      this.drawWiredMark(ctx, (link.toX - camX) * tilePixelSize, (link.toY - camY) * tilePixelSize, tilePixelSize);
+    }
+  }
+
   private drawMechanismLinksAndObjective(
     ctx: CanvasRenderingContext2D,
     engine: PlayEngine,
@@ -2258,6 +2291,7 @@ export class PixelRenderer {
 
     // 3b. Signal links: solid while the signal flows, dashed while it does not
     this.strokeSignalLinks(ctx, engine, hov, showAll, camX, camY, tilePixelSize);
+    this.drawWiredFlipMarks(ctx, engine, terrain, camX, camY, tilePixelSize);
 
     // 4. Objective Beacon Reticle
     if (this.objectivePoint) {
@@ -3180,6 +3214,11 @@ export class PixelRenderer {
         this.paintPocketPad(ctx, x, y, size, pal.teleportRing, pal.teleportCore, 0);
         break;
 
+      case 'relay_pad_lit':
+      case 'relay_pad_dark':
+        this.paintRelayTile(ctx, tileId === 'relay_pad_lit', x, y, size, false);
+        break;
+
       case 'trap': {
         ctx.fillStyle = pal.trapBorder;
         ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
@@ -3653,6 +3692,22 @@ export class PixelRenderer {
     ctx.stroke();
   }
 
+  /** A relay pad, lit or dark, in the palette of the flat or the neon style. */
+  private paintRelayTile(ctx: CanvasRenderingContext2D, lit: boolean, x: number, y: number, size: number, neon: boolean): void {
+    const pal = this.pal();
+    const ring = neon ? pal.modernTeleportRing : pal.teleportRing;
+    const colours = lit
+      ? { housing: ring, ring, mark: pal.teleportCore, fill: ring }
+      : { housing: pal.wallTop, ring: pal.wallBase, mark: pal.wallTop, fill: pal.wallBase };
+    paintRelayPad(ctx, x, y, size, lit, colours, { crisp: !neon, glow: neon ? ring : undefined });
+  }
+
+  /** The wired mark of a cell a signal link ends on, in the palette of the active style. */
+  public drawWiredMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const pal = this.pal();
+    paintWiredMark(ctx, x, y, size, { body: pal.linkSignal, edge: pal.wallShadow });
+  }
+
   /** A pocket gate pad: a still ring with a notch and a dot at its centre. */
   private paintPocketPad(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ringColor: string, dotColor: string, glowPx: number): void {
     ctx.save();
@@ -3717,6 +3772,37 @@ export class PixelRenderer {
     ctx.fillStyle = pal.wallTop;
     trace(STONE_ART.facet);
     ctx.fill();
+    ctx.restore();
+  }
+
+  /** A toll token: a gold coin with a square hole, hollowed out of the fill. */
+  private paintToken(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const centreX = x + size * TOKEN_ART.centre;
+    const centreY = y + size * TOKEN_ART.centre;
+    const radius = size * TOKEN_ART.radius;
+    const hole = size * TOKEN_ART.holeHalfSide;
+    const traceCoin = (): void => {
+      ctx.beginPath();
+      ctx.arc(centreX, centreY, radius, 0, FULL_TURN);
+      ctx.rect(centreX - hole, centreY - hole, hole * 2, hole * 2);
+    };
+    ctx.save();
+    traceCoin();
+    ctx.fillStyle = pal.yellow;
+    ctx.fill('evenodd');
+    ctx.strokeStyle = pal.wallShadow;
+    ctx.lineWidth = Math.max(1, size * TOKEN_ART.lineWidthTile);
+    ctx.lineJoin = 'round';
+    if (isModern) {
+      ctx.shadowColor = pal.yellow;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(centreX, centreY, radius - size * TOKEN_ART.rimInset, 0, FULL_TURN);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -4371,6 +4457,11 @@ export class PixelRenderer {
 
       case 'pocket_gate_pad':
         this.paintPocketPad(ctx, x, y, size, pal.modernTeleportRing, pal.teleportCore, glow.medium);
+        break;
+
+      case 'relay_pad_lit':
+      case 'relay_pad_dark':
+        this.paintRelayTile(ctx, tileId === 'relay_pad_lit', x, y, size, true);
         break;
 
       case 'hint': {
@@ -5429,6 +5520,11 @@ export class PixelRenderer {
 
       case 'hurl_stone': {
         this.paintStone(ctx, x, y, size, isModern);
+        break;
+      }
+
+      case 'toll_token': {
+        this.paintToken(ctx, x, y, size, isModern);
         break;
       }
 

@@ -231,6 +231,34 @@ describe('signal tiles and links in the renderer', () => {
       return strokes;
     }
 
+    /** Number of fills made with the signal link colour: the wired mark is the only fill that uses it. */
+    function signalFills(canvas: FakeCanvas): number {
+      const colour = ConfigRegistry.getGame().palette.linkSignal;
+      let fillStyle: unknown;
+      let fills = 0;
+      for (const call of canvas.calls) {
+        if (call.name === 'set fillStyle') fillStyle = call.args[0];
+        if (call.name === 'fill' && fillStyle === colour) fills += 1;
+      }
+      return fills;
+    }
+
+    for (const [drawStyle, style] of DRAW_STYLES) {
+      it(`${drawStyle}: marks a flip tile a signal link ends on, with no hover, and no other target`, () => {
+        for (const flipId of ['toggle_wall_closed', 'rail_switch_a']) {
+          const engine = new GameEngine();
+          engine.loadLevel(levelWith(flipId, LINKS, [[FROM.x, FROM.y, 'signal_plate']]));
+          expect(signalFills(frame(drawStyle, style, engine).main), flipId).toBe(1);
+        }
+        const gate = new GameEngine();
+        gate.loadLevel(linkLevel());
+        expect(signalFills(frame(drawStyle, style, gate).main)).toBe(0);
+        const unlinked = new GameEngine();
+        unlinked.loadLevel(levelWith('toggle_wall_closed'));
+        expect(signalFills(frame(drawStyle, style, unlinked).main)).toBe(0);
+      });
+    }
+
     it('defines the link colour in the palette', () => {
       expect(ConfigRegistry.getGame().palette.linkSignal).toMatch(/^#[0-9a-f]{6}$/i);
     });

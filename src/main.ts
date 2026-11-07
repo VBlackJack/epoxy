@@ -22,7 +22,7 @@ import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
-import { CHARGE_ITEM_ID, GATE_ITEM_ID, STONE_ITEM_ID } from './core/coreConstants';
+import { CHARGE_ITEM_ID, GATE_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID } from './core/coreConstants';
 import { bootsRevealHiddenWalls, featuresFor, isEpoxyOnlyItemId } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
@@ -356,7 +356,7 @@ class EpoxyApplication {
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
   /** The boots slots, then the blast charge and the pocket gate, counted items that share their grid. */
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID, CHARGE_ITEM_ID, GATE_ITEM_ID, STONE_ITEM_ID];
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID, CHARGE_ITEM_ID, GATE_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
   private epoxyBootsLevel: unknown = null;
@@ -3795,7 +3795,7 @@ class EpoxyApplication {
       if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
     }
     for (const id of this.bootIds) {
-      if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
+      if (id !== TOKEN_ITEM_ID && this.engine.holdsItem(id)) return (this.selectedItemId = id);
     }
     return null;
   }
@@ -3804,7 +3804,8 @@ class EpoxyApplication {
   private cycleSelectedItem(): void {
     const current = this.resolveSelectedItem();
     if (current === null) return;
-    const order = [...this.keyIds, ...this.bootIds];
+    // A toll token is never set down, so the cycle skips it.
+    const order = [...this.keyIds, ...this.bootIds].filter((id) => id !== TOKEN_ITEM_ID);
     const from = order.indexOf(current);
     for (let step = 1; step <= order.length; step++) {
       const id = order[(from + step) % order.length];
@@ -3832,7 +3833,7 @@ class EpoxyApplication {
     }
     if (!featuresFor(this.engine.getLevel()).itemDrop) return;
     this.clearAutoMove();
-    this.selectedItemId = itemId;
+    if (itemId !== TOKEN_ITEM_ID) this.selectedItemId = itemId;
     this.engine.dropItem(itemId);
     this.updateHUD();
   }
@@ -3853,7 +3854,7 @@ class EpoxyApplication {
   /** Slot tooltip: the item's name, with the drop hint once it is held. */
   private slotLabel(itemId: string, owned: boolean): string {
     const name = this.getInventoryLabel(itemId);
-    return owned ? t('hud.inventory.slot_drop.label', { name }) : name;
+    return owned && itemId !== TOKEN_ITEM_ID ? t('hud.inventory.slot_drop.label', { name }) : name;
   }
 
   /** The Epoxy-only boots the level places, which are the ones whose HUD slot shows. */
@@ -3872,10 +3873,10 @@ class EpoxyApplication {
     return this.epoxyBootsPlaced;
   }
 
-  /** True for an inventory entry held as a count (the blast charge, the pocket gate, the hurl stone) rather than as keys or boots. */
+  /** True for an inventory entry held as a count (the blast charge, the pocket gate, the hurl stone, the toll token) rather than as keys or boots. */
   private isCountedItem(itemId: string): boolean {
     const collectible = ConfigRegistry.getTile(itemId).collectible;
-    return collectible === 'charge' || collectible === 'gate' || collectible === 'stone';
+    return collectible === 'charge' || collectible === 'gate' || collectible === 'stone' || collectible === 'token';
   }
 
   /**

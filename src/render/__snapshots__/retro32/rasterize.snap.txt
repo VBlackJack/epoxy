@@ -29,6 +29,8 @@ default transmogrifier plain=1ed7938e412fc0ba swap=1ed7938e412fc0ba
 default turn_plate_cw plain=b80685c7113db6e2 swap=b80685c7113db6e2
 default turn_plate_ccw plain=96c1450f95ab4758 swap=96c1450f95ab4758
 default pocket_gate_pad plain=fe2fb52843f58baf swap=fe2fb52843f58baf
+default relay_pad_dark plain=b740467ea3d97ed9 swap=b740467ea3d97ed9
+default relay_pad_lit plain=12c4fcf38f413049 swap=12c4fcf38f413049
 default signal_plate plain=a3d3486d1dd1d5a1 swap=a3d3486d1dd1d5a1
 default signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
 default signal_button plain=c9eeb98cc3f8571c swap=c9eeb98cc3f8571c
@@ -110,6 +112,7 @@ default charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 default charge_lit plain=98b334298427a916 swap=98b334298427a916
 default pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
 default hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
+default toll_token plain=c26eb494b95e205c swap=c26eb494b95e205c
 default flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 default stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 default stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -276,6 +279,8 @@ cyber_neon transmogrifier plain=2124fb141acb4e9b swap=2124fb141acb4e9b
 cyber_neon turn_plate_cw plain=8c50edbb2ba7b19b swap=8c50edbb2ba7b19b
 cyber_neon turn_plate_ccw plain=18da9c3118e465e3 swap=18da9c3118e465e3
 cyber_neon pocket_gate_pad plain=fe2fb52843f58baf swap=fe2fb52843f58baf
+cyber_neon relay_pad_dark plain=b740467ea3d97ed9 swap=b740467ea3d97ed9
+cyber_neon relay_pad_lit plain=12c4fcf38f413049 swap=12c4fcf38f413049
 cyber_neon signal_plate plain=376e31bd9f5882d2 swap=376e31bd9f5882d2
 cyber_neon signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
 cyber_neon signal_button plain=85e7e9bac8a18704 swap=85e7e9bac8a18704
@@ -357,6 +362,7 @@ cyber_neon charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 cyber_neon charge_lit plain=98b334298427a916 swap=98b334298427a916
 cyber_neon pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
 cyber_neon hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
+cyber_neon toll_token plain=c26eb494b95e205c swap=c26eb494b95e205c
 cyber_neon flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 cyber_neon stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 cyber_neon stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -523,6 +529,8 @@ arctic_lab transmogrifier plain=b041e4a38850afb8 swap=b041e4a38850afb8
 arctic_lab turn_plate_cw plain=b4d621dab406f255 swap=b4d621dab406f255
 arctic_lab turn_plate_ccw plain=0d50decc73e72967 swap=0d50decc73e72967
 arctic_lab pocket_gate_pad plain=fe2fb52843f58baf swap=fe2fb52843f58baf
+arctic_lab relay_pad_dark plain=b740467ea3d97ed9 swap=b740467ea3d97ed9
+arctic_lab relay_pad_lit plain=12c4fcf38f413049 swap=12c4fcf38f413049
 arctic_lab signal_plate plain=0d3dcdce4722bd48 swap=0d3dcdce4722bd48
 arctic_lab signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
 arctic_lab signal_button plain=c9082e6ab4875f25 swap=c9082e6ab4875f25
@@ -604,6 +612,7 @@ arctic_lab charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 arctic_lab charge_lit plain=98b334298427a916 swap=98b334298427a916
 arctic_lab pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
 arctic_lab hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
+arctic_lab toll_token plain=c26eb494b95e205c swap=c26eb494b95e205c
 arctic_lab flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 arctic_lab stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 arctic_lab stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -770,6 +779,8 @@ magma_core transmogrifier plain=31c1237fda46f9fa swap=31c1237fda46f9fa
 magma_core turn_plate_cw plain=b8cfc1d1391e67c1 swap=b8cfc1d1391e67c1
 magma_core turn_plate_ccw plain=63cd733bc4c07e07 swap=63cd733bc4c07e07
 magma_core pocket_gate_pad plain=fe2fb52843f58baf swap=fe2fb52843f58baf
+magma_core relay_pad_dark plain=b740467ea3d97ed9 swap=b740467ea3d97ed9
+magma_core relay_pad_lit plain=12c4fcf38f413049 swap=12c4fcf38f413049
 magma_core signal_plate plain=e761945c1d051743 swap=e761945c1d051743
 magma_core signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
 magma_core signal_button plain=f6b3b654c6aec6a4 swap=f6b3b654c6aec6a4
@@ -851,6 +862,7 @@ magma_core charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 magma_core charge_lit plain=98b334298427a916 swap=98b334298427a916
 magma_core pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
 magma_core hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
+magma_core toll_token plain=c26eb494b95e205c swap=c26eb494b95e205c
 magma_core flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 magma_core stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 magma_core stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7
@@ -1017,6 +1029,8 @@ lynx_lcd transmogrifier plain=61ab7fd41f152b83 swap=61ab7fd41f152b83
 lynx_lcd turn_plate_cw plain=8e320f26e228729c swap=8e320f26e228729c
 lynx_lcd turn_plate_ccw plain=a835ddfe1bb3ab7d swap=a835ddfe1bb3ab7d
 lynx_lcd pocket_gate_pad plain=fe2fb52843f58baf swap=fe2fb52843f58baf
+lynx_lcd relay_pad_dark plain=b740467ea3d97ed9 swap=b740467ea3d97ed9
+lynx_lcd relay_pad_lit plain=12c4fcf38f413049 swap=12c4fcf38f413049
 lynx_lcd signal_plate plain=82cc26bf7ba0a5ce swap=82cc26bf7ba0a5ce
 lynx_lcd signal_plate_lit plain=ac9c309be90c3cf5 swap=ac9c309be90c3cf5
 lynx_lcd signal_button plain=7dee111400d9a1f9 swap=7dee111400d9a1f9
@@ -1098,6 +1112,7 @@ lynx_lcd charge plain=f9644189b9d70a00 swap=f9644189b9d70a00
 lynx_lcd charge_lit plain=98b334298427a916 swap=98b334298427a916
 lynx_lcd pocket_gate plain=cc6a567ac12e49f7 swap=cc6a567ac12e49f7
 lynx_lcd hurl_stone plain=bed1bd1472409030 swap=bed1bd1472409030
+lynx_lcd toll_token plain=c26eb494b95e205c swap=c26eb494b95e205c
 lynx_lcd flag plain=266fd8dc5feacd58 swap=266fd8dc5feacd58
 lynx_lcd stopwatch_bonus plain=aec84d89f55a4023 swap=aec84d89f55a4023
 lynx_lcd stopwatch_penalty plain=06ed60cee26761d7 swap=06ed60cee26761d7

@@ -72,7 +72,7 @@ describe('paletteAvailability', () => {
         def.toggleChannel !== undefined ||
         def.floatingBlockColor !== undefined ||
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
-      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined || def.absorbsMonsterContact !== undefined || def.collectible === 'charge' || def.litCharge !== undefined || def.collectible === 'gate' || def.collectible === 'stone' || def.portableTeleporter !== undefined || def.relayPad !== undefined;
+      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined || def.absorbsMonsterContact !== undefined || def.collectible === 'charge' || def.litCharge !== undefined || def.collectible === 'gate' || def.collectible === 'stone' || def.collectible === 'token' || def.portableTeleporter !== undefined || def.relayPad !== undefined;
       const isSteeringPad = def.buttonAction === 'steer_monsters';
       const isShotDevice = def.shotLauncher !== undefined || def.buttonAction === 'fire_launchers';
       const isSwivelDoor = def.swivelTurns !== undefined;

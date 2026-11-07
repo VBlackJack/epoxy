@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "families": [
     {
       "id": "sluice",
@@ -35,6 +35,34 @@
       "titleFr": "Sanctuaires de réseaux et logique",
       "summary": "Multi-island teleport ferries and dual-chamber boolean signal relays.",
       "summaryFr": "Transbordeurs de téléportation multi-îles et relais logiques booléens à double chambre."
+    },
+    {
+      "id": "automata",
+      "title": "Autonomous Monster & Tank Automata",
+      "titleFr": "Automates de monstres et de chars",
+      "summary": "Sealed pink-ball escapement clocks, bear-trap release gates, and blue-button tank convoys driving remote pressure plates.",
+      "summaryFr": "Horloges à balles rebondissantes en chambre scellée, échappements à pièges et convois de chars pilotés par bouton bleu."
+    },
+    {
+      "id": "transit",
+      "title": "Railroad Switchyards & Transit Networks",
+      "titleFr": "Aiguillages ferroviaires et réseaux de transit",
+      "summary": "Guided railroad tracks, green-button track switches, turning force distributors, and portable pocket-gate pads.",
+      "summaryFr": "Voies ferrées guidées, aiguillages commandés par bouton vert, distributeurs à tapis tournants et portails de poche portatifs."
+    },
+    {
+      "id": "ballistics",
+      "title": "Ballistics, Demolition & Wards",
+      "titleFr": "Balistique, démolition et sceaux",
+      "summary": "Timed blast charges clearing stone barricades, mirror-ricocheted hurl stones disarming bombs, and protective wards against dormant lurkers.",
+      "summaryFr": "Charges explosives temporisées dégageant des barricades, pierres de jet ricochant sur miroirs et sceaux protecteurs contre les rôdeurs."
+    },
+    {
+      "id": "parity",
+      "title": "Toggle Parity & Toll Sanctuaries",
+      "titleFr": "Parité d'alternance et péages d'équipement",
+      "summary": "Dual-channel green and red toggle-wall parity weaves and boot-consuming sluices followed by thief and forbid-boot tolls.",
+      "summaryFr": "Tissages de parité à murs alternatifs verts et rouges, et écluses nécessitant des bottes suivies de voleurs et portiques d'interdiction."
     }
   ],
   "archetypes": [
@@ -793,6 +821,608 @@
           { "fromX": 2, "fromY": 5, "toX": 7, "toY": 1 }
         ],
         "solution": "SEENESWWWNEESEENEESSS"
+      }
+    },
+    {
+      "id": "monster_clock",
+      "family": "automata",
+      "tier": 2,
+      "title": "Pink-Ball Escapement Clock",
+      "titleFr": "Horloge à échappement de balle rose",
+      "summary": "Time your passage through a hold door pulsed open by a pink ball bouncing inside a sealed clock chamber.",
+      "summaryFr": "Synchronisez votre passage à travers une porte maintenue ouverte périodiquement par une balle rose rebondissant en chambre scellée.",
+      "mechanics": ["pink_ball", "pressure_plate_red", "hold_door_red_closed", "socket"],
+      "invariants": [
+        "A pink_ball moves straight until hitting a wall and reverses 180 degrees without turning into side corridors.",
+        "Walking monsters press colour pressure plates while standing on them, allowing a sealed chamber to pulse a hold door.",
+        "Keep the clock track 2 to 3 cells long so the hold door opens at a predictable rhythm without long waits."
+      ],
+      "deadEndTraps": [
+        "Using a flying monster such as a glider or fireball on a pressure plate fails because flying monsters do not press plates.",
+        "Stepping into the hold door cell on the tick the pink ball leaves the plate closes the door on the next approach."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["trap_escapement", "tank_convoy", "boulder_sluice"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "o": { "terrain": "floor", "entity": "pink_ball", "entityDir": "E" },
+          "[": { "terrain": "pressure_plate_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P..#o.[#",
+          "#...#####",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "EES.SSEEEE"
+      }
+    },
+    {
+      "id": "trap_escapement",
+      "family": "automata",
+      "tier": 3,
+      "title": "Bear-Trap Escapement Release",
+      "titleFr": "Échappement à piège de relâchement",
+      "summary": "Hold a brown trap button to release a captive tank down a sealed track onto a hold plate.",
+      "summaryFr": "Maintenez un bouton marron pour libérer un char captif d'un piège vers une dalle de pression scellée.",
+      "mechanics": ["button_brown", "trap", "tank", "pressure_plate_red", "hold_door_red_closed", "socket"],
+      "invariants": [
+        "A brown button holds its linked trap open only while an actor stands on the button; wait on the button until the captive monster steps out.",
+        "A tank released onto a straight track stops against the far wall and holds the terminal pressure plate indefinitely.",
+        "Every trap holding an entity should have an explicit trapLink from a reachable brown button."
+      ],
+      "deadEndTraps": [
+        "Stepping off the brown button before the monster's move cooldown expires leaves the monster locked inside the trap.",
+        "Orienting the captive tank toward a wall instead of down the track prevents it from leaving the trap without a blue button."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["monster_clock", "tank_convoy", "rail_switchyard"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "b": { "terrain": "button_brown" },
+          "T": { "terrain": "trap", "entity": "tank", "entityDir": "E" },
+          "[": { "terrain": "pressure_plate_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P..#T.[#",
+          "#.b.#####",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "trapLinks": [
+          { "buttonX": 2, "buttonY": 2, "trapX": 5, "trapY": 1 }
+        ],
+        "solution": "SE..E.SSEEEE"
+      }
+    },
+    {
+      "id": "tank_convoy",
+      "family": "automata",
+      "tier": 4,
+      "title": "Blue-Button Tank Convoy",
+      "titleFr": "Convoi de char à bouton bleu",
+      "summary": "Press a blue tank-reversal button to turn a parked tank 180 degrees and march it onto a sealed hold plate.",
+      "summaryFr": "Actionnez un bouton bleu d'inversion pour retourner un char à l'arrêt et l'envoyer sur une dalle de maintien scellée.",
+      "mechanics": ["button_blue", "tank", "pressure_plate_blue", "hold_door_blue_closed", "socket"],
+      "invariants": [
+        "Unlike other monsters, a tank stops completely when facing a wall and reverses direction only when a button_blue is pressed.",
+        "Start the tank facing a wall at one end of a sealed chamber and place the target pressure plate against the opposite wall.",
+        "Pressing button_blue an even number of times before the tank reaches the plate reverses it back away from the target."
+      ],
+      "deadEndTraps": [
+        "Stepping on the blue button a second time while the tank is mid-track sends the tank back to its starting wall.",
+        "Placing the pressure plate in the middle of the track instead of against the end wall causes the tank to march right past it."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["trap_escapement", "rail_switchyard", "counterweight_hold"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "u": { "terrain": "button_blue" },
+          "t": { "terrain": "floor", "entity": "tank", "entityDir": "E" },
+          "[": { "terrain": "pressure_plate_blue" },
+          "]": { "terrain": "hold_door_blue_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P..#[.t#",
+          "#.u.#####",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "SE..E.SSEEEE"
+      }
+    },
+    {
+      "id": "rail_switchyard",
+      "family": "transit",
+      "tier": 3,
+      "title": "Railroad Switchyard Dispatch",
+      "titleFr": "Triage d'aiguillage ferroviaire",
+      "summary": "Flip a railroad track switch with a green button before releasing a captive tank so it curves onto the eastern spur plate.",
+      "summaryFr": "Basculez un aiguillage ferroviaire avec un bouton vert avant de libérer un char captif afin qu'il bifurque vers la dalle de la voie est.",
+      "mechanics": [
+        "button_green",
+        "button_brown",
+        "trap",
+        "tank",
+        "rail_ns",
+        "rail_switch_b",
+        "rail_ew",
+        "pressure_plate_red",
+        "hold_door_red_closed",
+        "socket"
+      ],
+      "invariants": [
+        "A rail_switch_b connects South and West by default and flips to rail_switch_a (South and East) when a button_green is pressed.",
+        "Always include at least one button_green or signal flip wire on a map with rail switches to avoid rail_switch_no_button validator notes.",
+        "Forward-moving monsters such as tanks automatically turn to follow the open exit side of each rail piece."
+      ],
+      "deadEndTraps": [
+        "Releasing the brown trap before pressing the green button sends the tank into the closed West side of rail_switch_b, stalling it.",
+        "Pressing the green button twice resets rail_switch_a back to rail_switch_b before the tank reaches the junction."
+      ],
+      "chaining": {
+        "imports": [],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["trap_escapement", "tank_convoy", "toggle_parity_weave"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "g": { "terrain": "button_green" },
+          "b": { "terrain": "button_brown" },
+          "T": { "terrain": "trap", "entity": "tank", "entityDir": "N" },
+          "|": { "terrain": "rail_ns" },
+          "?": { "terrain": "rail_switch_b" },
+          "-": { "terrain": "rail_ew" },
+          "[": { "terrain": "pressure_plate_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P..#?-[#",
+          "#gb.#|###",
+          "#...#T###",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "trapLinks": [
+          { "buttonX": 2, "buttonY": 2, "trapX": 5, "trapY": 3 }
+        ],
+        "solution": "SE..ES..SSEEEE"
+      }
+    },
+    {
+      "id": "turning_force_distributor",
+      "family": "transit",
+      "tier": 3,
+      "title": "Turning Force Distributor",
+      "titleFr": "Distributeur à tapis tournant",
+      "summary": "Prime the level's shared turning force cycle on a wall-backed pad so the next boulder pushed onto a distributor pad is deflected South onto a hold plate.",
+      "summaryFr": "Amorcez le cycle partagé des tapis tournants sur une dalle adossée à un mur afin que le rocher suivant soit dévié vers le sud sur une dalle de maintien.",
+      "mechanics": ["force_cycle", "dirt_block", "pressure_plate_green", "hold_door_green_closed", "socket"],
+      "invariants": [
+        "All force_cycle pads on a level share a single global turn counter cycling through E, S, W, N on each actor arrival.",
+        "Stepping onto a priming force_cycle pad backed by an East wall consumes the initial East push (turn 0) so the next arrival pushes South (turn 1).",
+        "Place a wall East of the distributor pad so an unprimed boulder push (turn 0, East) stalls instead of reaching the South plate."
+      ],
+      "deadEndTraps": [
+        "Pushing the boulder onto the distributor pad before priming the shared cycle sends the boulder into the East wall where it cannot reach the plate.",
+        "Stepping onto the priming pad twice advances the cycle to West (turn 2), ejecting the boulder back toward the player."
+      ],
+      "chaining": {
+        "imports": ["dirt_block"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["conveyor_sluice", "counterweight_hold", "glacier_slide"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "@": { "terrain": "force_cycle" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "[": { "terrain": "pressure_plate_green" },
+          "]": { "terrain": "hold_door_green_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P@#....#",
+          "#..#.$@.#",
+          "#.....#[#",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "SESEENEENESWSWWSSEEEE"
+      }
+    },
+    {
+      "id": "pocket_gate_shuttle",
+      "family": "transit",
+      "tier": 4,
+      "title": "Portable Pocket-Gate Shuttle",
+      "titleFr": "Navette à porte de poche portative",
+      "summary": "Collect a portable pocket gate, set it down in a boulder push lane, and teleport a stone boulder into a sealed hold-plate vault.",
+      "summaryFr": "Ramassez une porte de poche portative, posez-la dans un couloir de poussée et téléportez un rocher dans une chambre scellée sur sa dalle.",
+      "mechanics": ["pocket_gate", "pocket_gate_pad", "dirt_block", "pressure_plate_red", "hold_door_red_closed", "dirt", "socket"],
+      "invariants": [
+        "A level using pocket gates needs at least two total pads (carried pocket_gate items plus placed pocket_gate_pad tiles) to link in the validator.",
+        "Dropping a pocket_gate (action G) requires plain empty floor under the player and converts that cell into a pocket_gate_pad.",
+        "Seal the destination pocket_gate_pad on three sides so a block pushed East into the dropped pad exits East onto the pressure plate."
+      ],
+      "deadEndTraps": [
+        "Dropping the pocket gate behind the boulder or against a wall leaves no push axis into the pad.",
+        "Stepping into the dropped pad with the player instead of pushing the boulder strands the player in the sealed plate alcove."
+      ],
+      "chaining": {
+        "imports": ["pocket_gate", "dirt_block"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["portal_islands", "counterweight_hold", "boulder_sluice"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "g": { "terrain": "floor", "item": "pocket_gate" },
+          "o": { "terrain": "pocket_gate_pad" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "d": { "terrain": "dirt" },
+          "[": { "terrain": "pressure_plate_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#Pgd.#o[#",
+          "#.d$.####",
+          "#.......#",
+          "###]#####",
+          "###C..SE#",
+          "#########"
+        ],
+        "solution": "EEESGNWWSESSSEEEE"
+      }
+    },
+    {
+      "id": "blast_charge_breach",
+      "family": "ballistics",
+      "tier": 3,
+      "title": "Timed Blast-Charge Breach",
+      "titleFr": "Brèche par charge explosive temporisée",
+      "summary": "Push a boulder onto a one-way green button pocket to open a toggle wall in a laser lane, then detonate a timed blast charge across the wall to vaporize the boulder.",
+      "summaryFr": "Poussez un rocher sur un bouton vert à sens unique pour ouvrir un mur alternatif sur un laser, puis faites exploser une charge temporisée pour dégager le faisceau.",
+      "mechanics": [
+        "charge",
+        "dirt_block",
+        "force_s",
+        "button_green",
+        "toggle_wall_closed",
+        "laser_emitter_e",
+        "laser_receiver_red",
+        "laser_gate_red_closed",
+        "dirt",
+        "socket"
+      ],
+      "invariants": [
+        "A lit charge (action X) detonates after 60 ticks (15 wait steps) and destroys all blocks and monsters in a 3x3 square, even across a 1-tile wall.",
+        "Place a toggle_wall_closed in the laser row so the beam is blocked until the boulder slides down force_s onto button_green.",
+        "Retreat at least 2 cells away in X or Y after lighting the charge so the player stands outside the 3x3 blast square."
+      ],
+      "deadEndTraps": [
+        "Standing within the 3x3 blast radius (including diagonal corners at distance 1) when the 60-tick fuse expires kills the player.",
+        "Detonating the charge before pushing the boulder onto button_green destroys the only actor capable of pressing the one-way button."
+      ],
+      "chaining": {
+        "imports": ["charge", "dirt_block"],
+        "exports": ["open_laser_gate", "chip"],
+        "combinesWith": ["conveyor_sluice", "prism_slalom", "toggle_parity_weave"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "x": { "terrain": "floor", "item": "charge" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "v": { "terrain": "force_s" },
+          "g": { "terrain": "button_green" },
+          "+": { "terrain": "toggle_wall_closed" },
+          ">": { "terrain": "laser_emitter_e" },
+          "R": { "terrain": "laser_receiver_red" },
+          ":": { "terrain": "laser_gate_red_closed" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#Pxd..:C#",
+          "#..d$.#S#",
+          "####+v#E#",
+          "#>.+.gR##",
+          "#########"
+        ],
+        "solution": "EESENESWSXNWW...............NEEEEESS"
+      }
+    },
+    {
+      "id": "hurl_stone_ricochet",
+      "family": "ballistics",
+      "tier": 3,
+      "title": "Mirror-Ricochet Hurl Stone",
+      "titleFr": "Pierre de jet à ricochet sur miroir",
+      "summary": "Push a diagonal mirror to the head of a water channel and hurl a stone East so it ricochets 90 degrees South into a bomb guarding the exit chute.",
+      "summaryFr": "Poussez un miroir diagonal en tête d'un canal d'eau et lancez une pierre vers l'est afin qu'elle ricoche à 90 degrés vers le sud sur une bombe.",
+      "mechanics": ["hurl_stone", "mirror_backslash", "water", "bomb", "force_e", "dirt", "socket"],
+      "invariants": [
+        "A thrown hurl_stone (action T) travels along laser-transparent tiles, reflects off the reflective face of a mirror, and detonates a bomb item on contact.",
+        "Placing water directly South of the mirror's corner prevents the player from turning South at that cell without drowning, forcing the mirror ricochet.",
+        "Wait one step after throwing the stone so the projectile reaches and clears the bomb before stepping onto the force_e entry chute."
+      ],
+      "deadEndTraps": [
+        "Throwing the hurl_stone before pushing the mirror to the corner column wastes the single-use stone against the wall.",
+        "Hitting a one-sided mirror from its back destroys both the mirror and the stone."
+      ],
+      "chaining": {
+        "imports": ["hurl_stone", "mirror_backslash"],
+        "exports": ["passage", "chip"],
+        "combinesWith": ["prism_slalom", "boulder_sluice", "conveyor_sluice"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "h": { "terrain": "floor", "item": "hurl_stone" },
+          "\\": { "terrain": "floor", "entity": "mirror_backslash" },
+          "W": { "terrain": "water" },
+          ">": { "terrain": "force_e" },
+          "*": { "terrain": "floor", "item": "bomb" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#Phd.\\..#",
+          "#####.W##",
+          "#####>*d#",
+          "#######C#",
+          "#######S#",
+          "#######E#",
+          "#########"
+        ],
+        "solution": "EEEET.SSESSS"
+      }
+    },
+    {
+      "id": "ward_lurker_gambit",
+      "family": "ballistics",
+      "tier": 4,
+      "title": "Ward & Dormant Lurker Gambit",
+      "titleFr": "Gambit d'égide et de guetteur endormi",
+      "summary": "Wake a sleeping lurker across a thin wall so it steps onto a hold plate, then cross the open hold door and absorb the lurker's contact with a protective ward.",
+      "summaryFr": "Réveillez un guetteur endormi à travers une paroi fine pour l'amener sur une dalle de maintien, puis franchissez la porte et absorbez le contact avec une égide.",
+      "mechanics": ["ward", "lurker_dormant", "thin_wall_e", "pressure_plate_red", "hold_door_red_closed", "socket"],
+      "invariants": [
+        "Every lurker_dormant and lurker must be placed on plain floor terrain to satisfy the lurker_not_on_floor validator check.",
+        "A lurker_dormant wakes into a chasing lurker whenever the player ends a step at Manhattan distance 1, even across a thin wall.",
+        "Equipping a ward absorbs exactly one monster contact, allowing the player to step through the lurker on the hold plate after crossing the hold door."
+      ],
+      "deadEndTraps": [
+        "Stepping onto the hold plate to pass the lurker without picking up the ward first is fatal on contact.",
+        "Remaining on the upper row after waking the lurker prevents it from stepping South onto the pressure plate."
+      ],
+      "chaining": {
+        "imports": ["ward"],
+        "exports": ["open_hold_door", "chip"],
+        "combinesWith": ["toggle_parity_weave", "thief_boot_toll", "monster_clock"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "w": { "terrain": "floor", "item": "ward" },
+          "|": { "terrain": "thin_wall_e" },
+          "L": { "terrain": "floor", "entity": "lurker_dormant", "entityDir": "S" },
+          "[": { "terrain": "pressure_plate_red" },
+          "]": { "terrain": "hold_door_red_closed" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#Pw.|L###",
+          "#...][C.#",
+          "######SE#",
+          "#########"
+        ],
+        "solution": "EEEWEWSEEEES"
+      }
+    },
+    {
+      "id": "toggle_parity_weave",
+      "family": "parity",
+      "tier": 3,
+      "title": "Dual-Channel Toggle Parity Weave",
+      "titleFr": "Tissage de parité à double canal",
+      "summary": "Alternate green and red toggle buttons to weave a stone boulder through opposite-phase toggle walls and bridge a water moat.",
+      "summaryFr": "Alternez boutons verts et rouges pour faire progresser un rocher à travers des murs alternatifs déphasés et combler les douves.",
+      "mechanics": [
+        "button_green",
+        "toggle_button_red",
+        "toggle_wall_closed",
+        "toggle_wall_red_closed",
+        "dirt_block",
+        "water",
+        "dirt",
+        "socket"
+      ],
+      "invariants": [
+        "Green buttons toggle only green toggle_wall_open / toggle_wall_closed tiles; red toggle buttons toggle only toggle_wall_red_open / toggle_wall_red_closed tiles.",
+        "Both buttons must be reachable so LevelValidator can open both toggle channels during reachability analysis.",
+        "Provide a side bypass around the boulder lane so the player can reach the buttons and re-align behind the boulder after each gate opens."
+      ],
+      "deadEndTraps": [
+        "Pressing a toggle button an even number of times re-closes its gate before the boulder passes through.",
+        "Stopping the boulder directly on a toggle wall cell and pressing its button closes the wall under or behind the boulder."
+      ],
+      "chaining": {
+        "imports": ["dirt_block"],
+        "exports": ["passage", "chip"],
+        "combinesWith": ["boulder_sluice", "rail_switchyard", "thief_boot_toll"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "g": { "terrain": "button_green" },
+          "r": { "terrain": "toggle_button_red" },
+          "+": { "terrain": "toggle_wall_closed" },
+          "%": { "terrain": "toggle_wall_red_closed" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "W": { "terrain": "water" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#P.g.r..#",
+          "#.$.+.%.#",
+          "######W##",
+          "######dC#",
+          "######SE#",
+          "#########"
+        ],
+        "solution": "EEWWSEEENEWSENEWESSSES"
+      }
+    },
+    {
+      "id": "thief_boot_toll",
+      "family": "parity",
+      "tier": 3,
+      "title": "Fire-Boot Sluice & Thief Toll",
+      "titleFr": "Écluse à bottes de feu et péage du voleur",
+      "summary": "Equip fire boots to step onto a fire cell and push a boulder into water, then surrender your boots to a thief so you can pass a forbid-fire-boots toll gate.",
+      "summaryFr": "Équipez des bottes de feu pour pousser un rocher depuis une case de feu vers l'eau, puis cédez vos bottes au voleur pour franchir le portique d'interdiction.",
+      "mechanics": ["boots_fire", "fire", "dirt_block", "water", "thief", "forbid_boots_fire", "dirt", "socket"],
+      "invariants": [
+        "Placing fire on the only cell behind the boulder forces the player to collect and wear boots_fire before pushing the boulder into water.",
+        "A forbid_boots_fire tile blocks entry while the player holds boots_fire, requiring a visit to a thief tile after the boulder push.",
+        "Keep the thief tile in a side alcove off the main corridor so the player does not accidentally strip boots_fire before pushing the boulder."
+      ],
+      "deadEndTraps": [
+        "Stepping onto the thief tile before pushing the boulder across the fire cell strips boots_fire permanently.",
+        "Attempting to enter forbid_boots_fire while still wearing boots_fire refuses movement."
+      ],
+      "chaining": {
+        "imports": ["boots_fire", "dirt_block"],
+        "exports": ["passage", "chip"],
+        "combinesWith": ["elemental_alchemy", "boulder_sluice", "toggle_parity_weave"]
+      },
+      "blueprint": {
+        "winRule": "exit",
+        "chipsRequired": 1,
+        "legend": {
+          "#": { "terrain": "wall" },
+          ".": { "terrain": "floor" },
+          "P": { "terrain": "floor", "start": "S" },
+          "f": { "terrain": "floor", "item": "boots_fire" },
+          "F": { "terrain": "fire" },
+          "T": { "terrain": "thief" },
+          "!": { "terrain": "forbid_boots_fire" },
+          "$": { "terrain": "floor", "entity": "dirt_block" },
+          "W": { "terrain": "water" },
+          "d": { "terrain": "dirt" },
+          "C": { "terrain": "floor", "item": "chip" },
+          "S": { "terrain": "socket" },
+          "E": { "terrain": "exit" }
+        },
+        "rows": [
+          "#########",
+          "#PfdF..T#",
+          "###.$...#",
+          "####W####",
+          "####d####",
+          "####!C.S#",
+          "#######E#",
+          "#########"
+        ],
+        "solution": "EEESNEEESWWWSSSEEES"
       }
     }
   ]

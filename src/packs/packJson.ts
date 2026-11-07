@@ -22,7 +22,8 @@ import {
   PACK_JSON_VERSION_LAUNCHERS,
   PACK_JSON_VERSION_PULSE_SINKS,
   PACK_JSON_VERSION_SIGNALS,
-  PACK_JSON_VERSION_UNDERLAYS
+  PACK_JSON_VERSION_UNDERLAYS,
+  PACK_JSON_VERSION_V11
 } from '../config/constants';
 import {
   ensureUniqueLevelIds,
@@ -31,7 +32,7 @@ import {
   sanitizeStoredLevels
 } from '../config/ConfigValidation';
 import { cellEdgeMask } from '../core/EdgeRules';
-import { idSetVersionOf, usesPulseSinkFormat } from '../core/signalLinks';
+import { idSetVersionOf, usesFlipSinkFormat, usesPulseSinkFormat } from '../core/signalLinks';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { underlayMap } from '../core/Underlays';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
@@ -61,7 +62,9 @@ export interface PackJsonFile {
 
 /** The lowest version that carries what the levels hold: the highest feature present decides. */
 function packFileVersion(levels: readonly CompiledLevel[]): number {
-  const idSetVersion = levels.reduce((highest, level) => Math.max(highest, idSetVersionOf(level)), 0);
+  // A signal link that flips a tile is read by format 11 builds only, whatever ids the level holds.
+  const flipVersion = levels.some((level) => usesFlipSinkFormat(level)) ? PACK_JSON_VERSION_V11 : 0;
+  const idSetVersion = levels.reduce((highest, level) => Math.max(highest, idSetVersionOf(level)), flipVersion);
   if (idSetVersion > 0) return idSetVersion;
   if (levels.some((level) => usesPulseSinkFormat(level))) return PACK_JSON_VERSION_PULSE_SINKS;
   if (levels.some((level) => (level.signalLinks?.length ?? 0) > 0)) return PACK_JSON_VERSION_SIGNALS;
