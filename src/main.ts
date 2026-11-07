@@ -120,22 +120,32 @@ import { watchDevicePixelRatio } from './ui/displayWatchers';
 import {
   COARSE_POINTER_QUERY,
   DEFAULT_DPAD_SIDE,
+  TOUCH_BOTTOM_CLUSTER_SELECTOR,
+  TOUCH_STRIP_SELECTOR,
+  getOverlayStripSelectors,
+  resolveTouchLayoutModes,
   DPAD_PRESSED_CLASS,
   DpadSide,
+  DEFAULT_TOUCH_CONTROL,
+  TouchControl,
   OVERLAY_HUD_SELECTOR,
   STANDALONE_QUERIES,
-  OVERLAY_STRIP_SELECTORS,
   observeOverlayStrip,
   applyTouchOverlayClasses,
   bindDpadSideSelect,
   computeCameraInsets,
   parseDpadSide,
+  parseHapticsEnabled,
+  parseTouchControl,
   readTouchOverlayInput,
   resolveTouchOverlay,
   syncHudGroup,
   syncInventoryInert,
   syncOverlayInert
 } from './ui/touchOverlay';
+import { FloatingJoystick, joystickOptionsFromTouchConfig } from './ui/joystick';
+import { setupTouchDrawers } from './ui/touchDrawers';
+import type { TouchDrawers } from './ui/touchDrawers';
 import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
 import {
@@ -273,6 +283,20 @@ class EpoxyApplication {
   private heldDirection: Direction | null = null;
   /** Side of the screen the touch pad floats on in the phone full screen layout. */
   private dpadSide: DpadSide = DEFAULT_DPAD_SIDE;
+  private touchControl: TouchControl = DEFAULT_TOUCH_CONTROL;
+  private hapticsEnabled = true;
+  /** Floating joystick controller; created once, active only while the floating layout is on. */
+  private joystick: FloatingJoystick | null = null;
+  /** The two phone drawers while the drawer layout is on, null otherwise. */
+  private touchDrawers: TouchDrawers | null = null;
+  private floatingActive = false;
+  private drawersActive = false;
+  /** Whether a dialog was open at the last tick: a change makes the joystick wait for a fresh touch. */
+  private dialogWasOpen = false;
+  /** Last state given to the joystick, so the per-tick sync touches nothing when it did not change. */
+  private joystickEnabledState: boolean | null = null;
+  /** Last values written into the status strip. */
+  private touchStripKey = '';
   /** True while the phone full screen overlay layout is on. */
   private touchOverlayActive = false;
   private stopStripObserver: (() => void) | null = null;
@@ -405,6 +429,7 @@ class EpoxyApplication {
       this.setupGraphicsStyleSelector();
       this.setupMusicControls();
       this.syncSoundControls();
+      this.syncHapticsControl();
       this.updateHUD();
       this.syncTouchOverlay();
       refreshPlaytestOptions(this.playtest);
@@ -715,8 +740,14 @@ class EpoxyApplication {
 
   private runGameTick(): void {
     this.playtest.tick(this.playtestTickState());
+    const dialogOpen = isDialogOpen();
+    if (dialogOpen !== this.dialogWasOpen) {
+      this.dialogWasOpen = dialogOpen;
+      // A thumb still on the glass when a dialog opens or closes must not steer: the next move needs a new touch.
+      this.joystick?.requireFreshPointerDown();
+    }
     // A modal or the drawer owns the keyboard: skip the tick, the game is not paused.
-    if (isDialogOpen()) {
+    if (dialogOpen) {
       this.refreshGamepadSnapshot();
       return;
     }
@@ -1516,6 +1547,7 @@ class EpoxyApplication {
   }
 
   private triggerHaptic(): void {
+    if (!this.hapticsEnabled) return;
     const pulseMs = ConfigRegistry.getGame().touch?.hapticPulseMs ?? TOUCH_DEFAULTS.hapticPulseMs;
     if (pulseMs > 0 && typeof navigator.vibrate === 'function') {
       try {
@@ -1574,7 +1606,7 @@ class EpoxyApplication {
     this.gameCanvas.addEventListener(
       'touchstart',
       (e) => {
-        if (this.activeMode !== 'play') return;
+        if (this.activeMode !== 'play' || this.floatingActive) return;
         if (e.touches.length === 2) {
           e.preventDefault();
           this.heldDirection = null;
@@ -1597,7 +1629,7 @@ class EpoxyApplication {
     this.gameCanvas.addEventListener(
       'touchmove',
       (e) => {
-        if (this.activeMode !== 'play') return;
+        if (this.activeMode !== 'play' || this.floatingActive) return;
         e.preventDefault();
 
         if (e.touches.length === 2) {
@@ -1632,7 +1664,8 @@ class EpoxyApplication {
     );
 
     const endTouch = (e: TouchEvent): void => {
-      if (this.activeMode !== 'play') return;
+      // The floating joystick owns the board touches (it also plans the path on a tap).
+      if (this.activeMode !== 'play' || this.floatingActive) return;
       if (e.touches.length === 0) {
         this.heldDirection = null;
 
@@ -3243,11 +3276,26 @@ class EpoxyApplication {
   /** Binds the pad side setting, the floating buttons and the pause card extras, then applies the layout. */
   private setupTouchOverlay(savedSettings: UserSettings): void {
     this.dpadSide = parseDpadSide(savedSettings.dpadSide);
+    this.touchControl = parseTouchControl(savedSettings.touchControl);
+    this.hapticsEnabled = parseHapticsEnabled(savedSettings.hapticsEnabled);
     bindDpadSideSelect(byId<HTMLSelectElement>('dpad-side-select'), this.dpadSide, (side) => {
       this.dpadSide = side;
       this.saveUserSettings();
       this.syncTouchOverlay();
     });
+
+    const controlSelect = byId<HTMLSelectElement>('touch-control-select');
+    if (controlSelect) {
+      controlSelect.value = this.touchControl;
+      controlSelect.addEventListener('change', () => {
+        this.touchControl = parseTouchControl(controlSelect.value);
+        this.saveUserSettings();
+        this.syncTouchOverlay();
+      });
+    }
+    this.bindHapticsToggle();
+    this.bindJoystick();
+    this.bindTouchMenuDrawer();
 
     const resync = (): void => this.syncTouchOverlay();
     window.addEventListener('resize', resync);
@@ -3297,19 +3345,189 @@ class EpoxyApplication {
     this.syncTouchOverlay();
   }
 
+  /** The haptics toggle: hidden where the device cannot vibrate. */
+  private bindHapticsToggle(): void {
+    const button = byId('btn-haptics-toggle');
+    if (!button) return;
+    byId('haptics-setting-row')?.classList.toggle('hidden', typeof navigator.vibrate !== 'function');
+    button.addEventListener('click', () => {
+      this.hapticsEnabled = !this.hapticsEnabled;
+      this.saveUserSettings();
+      this.syncHapticsControl();
+      if (this.hapticsEnabled) this.triggerHaptic();
+    });
+    this.syncHapticsControl();
+  }
+
+  private syncHapticsControl(): void {
+    const button = byId('btn-haptics-toggle');
+    if (!button) return;
+    setToggleState(button, this.hapticsEnabled);
+    button.textContent = this.hapticsEnabled
+      ? t('app.header.haptics_toggle.action_on')
+      : t('app.header.haptics_toggle.action_off');
+  }
+
+  /** The floating joystick on its zone: held moves, board taps and the engage pulse. */
+  private bindJoystick(): void {
+    const zone = byId('joystick-zone');
+    if (!zone) return;
+    this.joystick = new FloatingJoystick(zone, joystickOptionsFromTouchConfig(ConfigRegistry.getGame().touch), {
+      onDirection: (dir) => {
+        if (dir) this.beginHeldMove(dir);
+        else this.heldDirection = null;
+      },
+      onTap: (x, y) => this.handleBoardPointer(x, y, true),
+      onEngage: () => this.triggerHaptic()
+    });
+    this.joystick.setEnabled(false);
+  }
+
+  /** Actions of the right drawer. The ones that leave the drawer close it first; Undo stays open. */
+  private bindTouchMenuDrawer(): void {
+    const closeThen = (id: string, action: () => void): void => {
+      byId(id)?.addEventListener('click', () => {
+        this.triggerHaptic();
+        this.touchDrawers?.closeAll();
+        action();
+      });
+    };
+    closeThen('touch-menu-resume', () => {
+      this.engine.setPaused(false);
+      this.updateHUD();
+    });
+    closeThen('touch-menu-restart', () => this.restartLevel());
+    // The queued moves of a hint are dropped by a paused engine: resume before asking for it.
+    closeThen('touch-menu-hint', () => {
+      this.engine.setPaused(false);
+      this.updateHUD();
+      this.triggerObjectiveAndLinks(true);
+    });
+    closeThen('touch-menu-solution', () => {
+      void this.showSolution();
+    });
+    closeThen('touch-menu-options', () => this.setDrawerOpen(true, byId('touch-tab-menu')));
+    closeThen('touch-menu-levels', () => this.openScoresModal());
+    closeThen('touch-menu-exit-fullscreen', () => this.toggleFullscreen());
+    byId('touch-menu-undo')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.undoMove();
+    });
+    for (const id of ['touch-menu-close', 'touch-level-close']) {
+      byId(id)?.addEventListener('click', () => this.touchDrawers?.closeAll());
+    }
+    const styleSelect = byId<HTMLSelectElement>('touch-style-select');
+    styleSelect?.addEventListener('change', () => {
+      const target = byId<HTMLSelectElement>('select-graphics-style');
+      if (!target) return;
+      target.value = styleSelect.value;
+      target.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  /** Sets the two drawers up while the drawer layout is on and tears them down when it turns off. */
+  private syncTouchDrawers(on: boolean): void {
+    if (!on) {
+      this.touchDrawers?.destroy();
+      this.touchDrawers = null;
+      return;
+    }
+    if (this.touchDrawers) return;
+    const hud = document.querySelector<HTMLElement>(OVERLAY_HUD_SELECTOR);
+    const menu = byId('touch-menu-drawer');
+    const levelTab = byId('touch-tab-level');
+    const menuTab = byId('touch-tab-menu');
+    const scrim = byId('touch-drawer-scrim');
+    if (!hud || !menu || !levelTab || !menuTab || !scrim) return;
+    this.touchDrawers = setupTouchDrawers({
+      left: { side: 'left', drawer: hud, tab: levelTab, titleId: 'touch-level-title', hideWhenOff: false },
+      right: { side: 'right', drawer: menu, tab: menuTab, titleId: 'touch-menu-title', hideWhenOff: true },
+      scrim,
+      onOpen: () => {
+        // The open drawer freezes the game; the finger that is still down must not resume a move afterwards.
+        this.heldDirection = null;
+        this.markDpadPressed(null);
+        this.joystick?.requireFreshPointerDown();
+        this.triggerHaptic();
+      }
+    });
+  }
+
+  /** The joystick steers only while the floating layout is on and no card covers the board. */
+  private syncJoystickEnabled(state: OverlayState): void {
+    const enabled = this.floatingActive && state === 'none';
+    if (enabled === this.joystickEnabledState) return;
+    this.joystickEnabledState = enabled;
+    this.joystick?.setEnabled(enabled);
+    const zone = byId('joystick-zone');
+    if (zone) {
+      if (enabled) zone.removeAttribute('inert');
+      else zone.setAttribute('inert', '');
+    }
+  }
+
+  /** Writes the level, count and time into the status strip from the values the HUD shows. */
+  private updateTouchStrip(): void {
+    if (!this.drawersActive) return;
+    const lvl = this.engine.getLevel();
+    const targetsMode = showsTargetsCounter(lvl.winRule);
+    const receiversMode = showsReceiversCounter(lvl.winRule);
+    const mode = receiversMode ? 'receivers' : targetsMode ? 'targets' : 'chips';
+    const countValue = byId('hud-chips-left')?.textContent ?? '';
+    const timeEl = byId('hud-time-left');
+    const lowTime = timeEl?.classList.contains('led-danger') ?? false;
+    const seconds = lvl.timeLimitSeconds > 0 ? this.engine.getTimeRemainingSeconds() : -1;
+    const key = [lvl.id, lvl.number, mode, countValue, timeEl?.textContent ?? '', lowTime, seconds, i18n.getLocale()].join('|');
+    if (key === this.touchStripKey) return;
+    this.touchStripKey = key;
+    setText(byId('touch-strip-level'), t('hud.touch_overlay.level.short', { number: lvl.number }));
+    setText(byId('touch-strip-count-label'), t(`hud.touch_overlay.${mode}.short`));
+    setText(byId('touch-strip-count-value'), countValue);
+    byId('touch-strip-count')?.setAttribute('aria-label', t(`hud.touch_overlay.count.${mode}.label`, { count: countValue }));
+    const timeValue = byId('touch-strip-time-value');
+    setText(timeValue, timeEl?.textContent ?? '');
+    timeValue?.classList.toggle('led-danger', lowTime);
+    timeValue?.classList.toggle('led-amber', !lowTime);
+    byId('touch-strip-time')?.setAttribute(
+      'aria-label',
+      lvl.timeLimitSeconds > 0
+        ? t('hud.touch_overlay.count.time.label', { seconds })
+        : t('hud.stats.time_unlimited.label')
+    );
+  }
+
   /** Decides whether the overlay layout applies and brings the classes, the camera and the card in line. */
   private syncTouchOverlay(): void {
     const active = resolveTouchOverlay(readTouchOverlayInput(window, document.body, this.activeMode));
     this.touchOverlayActive = active;
+    const modes = resolveTouchLayoutModes(active, this.touchControl);
+    this.drawersActive = modes.drawers;
+    if (modes.floating !== this.floatingActive) {
+      // Another input owner takes over: a swipe or a held move of the old one must not keep walking.
+      this.heldDirection = null;
+      this.markDpadPressed(null);
+      this.joystick?.requireFreshPointerDown();
+    }
+    this.floatingActive = modes.floating;
     this.stopStripObserver?.();
-    this.stopStripObserver = active ? observeOverlayStrip(document, () => this.syncCameraInsets()) : null;
+    this.stopStripObserver = active
+      ? observeOverlayStrip(
+          document,
+          () => this.syncCameraInsets(),
+          modes.drawers ? getOverlayStripSelectors(true) : undefined
+        )
+      : null;
     applyTouchOverlayClasses(document.body, {
       active,
       side: this.dpadSide,
-      landscape: window.innerWidth > window.innerHeight
+      landscape: window.innerWidth > window.innerHeight,
+      drawers: modes.drawers,
+      floating: modes.floating
     });
+    // Leaving the drawer layout closes an open drawer and gives the HUD panel back its plain markup.
+    this.syncTouchDrawers(modes.drawers);
     const hud = document.querySelector(OVERLAY_HUD_SELECTOR);
-    syncHudGroup(hud, active, t('hud.touch_overlay.hud.label'));
+    syncHudGroup(hud, active, t('hud.touch_overlay.hud.label'), modes.drawers);
     syncInventoryInert(hud, active);
     this.syncOverlayExtras();
     // The layout settles after the classes changed: measure the pad now and again on the next frame.
@@ -3334,16 +3552,23 @@ class EpoxyApplication {
    */
   private syncCameraInsets(): void {
     const canvasRect = this.gameCanvas.getBoundingClientRect();
-    const rects = OVERLAY_STRIP_SELECTORS.flatMap((selector) => {
-      const rect = document.querySelector(selector)?.getBoundingClientRect();
-      return rect ? [rect] : [];
-    });
+    const rectsOf = (selectors: readonly string[]): DOMRect[] =>
+      selectors.flatMap((selector) => {
+        const rect = document.querySelector(selector)?.getBoundingClientRect();
+        return rect ? [rect] : [];
+      });
+    // Drawer layout: the top strip is a top inset, the bottom cluster the side or bottom one; the drawers are never measured.
+    const rects = this.drawersActive
+      ? rectsOf([TOUCH_BOTTOM_CLUSTER_SELECTOR])
+      : rectsOf(getOverlayStripSelectors(false));
+    const topRects = this.drawersActive ? rectsOf([TOUCH_STRIP_SELECTOR]) : undefined;
     const insetArgs = {
-      active: this.touchOverlayActive && rects.length > 0,
+      active: this.touchOverlayActive && (rects.length > 0 || (topRects?.length ?? 0) > 0),
       landscape: window.innerWidth > window.innerHeight,
       side: this.dpadSide,
       canvas: canvasRect,
-      rects
+      rects,
+      topRects
     };
     this.renderer.setFitReserve(computeCameraInsets({ ...insetArgs, tilePx: 0 }));
     const tiles = this.renderer.getViewportTiles();
@@ -3367,6 +3592,9 @@ class EpoxyApplication {
     );
     const solutionBtn = byId<HTMLButtonElement>('overlay-btn-solution');
     if (solutionBtn) solutionBtn.disabled = this.playableSolution() === null;
+    const menuSolution = byId<HTMLButtonElement>('touch-menu-solution');
+    if (menuSolution) menuSolution.disabled = this.playableSolution() === null;
+    this.syncJoystickEnabled(state);
     syncOverlayInert(document, this.touchOverlayActive, state !== 'none');
     // A finger left on an inert pad never sends its release: stop the held move with the card.
     if (this.touchOverlayActive && state !== 'none' && this.heldDirection) {
@@ -3440,6 +3668,12 @@ class EpoxyApplication {
       select.appendChild(opt);
     }
     select.value = this.renderer.getStyle();
+    // The phone game menu offers the same styles; its change is forwarded to the select above.
+    const touchSelect = byId<HTMLSelectElement>('touch-style-select');
+    if (touchSelect) {
+      touchSelect.innerHTML = select.innerHTML;
+      touchSelect.value = select.value;
+    }
   }
 
   /** Brings the selector, the canvas class and the LCD toggle in line with `style`. */
@@ -3449,6 +3683,8 @@ class EpoxyApplication {
     if (descriptor.canvasClass) this.gameCanvas.classList.add(descriptor.canvasClass);
     const select = byId<HTMLSelectElement>('select-graphics-style');
     if (select) select.value = style;
+    const touchSelect = byId<HTMLSelectElement>('touch-style-select');
+    if (touchSelect) touchSelect.value = style;
     // The LCD grid only renders where the style allows it: shown off and disabled elsewhere,
     // the stored preference is restored when the style allows it again.
     const lcdBtn = byId<HTMLButtonElement>('btn-lcd-toggle');
@@ -3756,6 +3992,7 @@ class EpoxyApplication {
     this.hudChipsLeft = counter;
     this.updateSolutionControls(lvl);
     this.updateTimer();
+    this.updateTouchStrip();
     setText(byId('hud-score'), String(this.engine.getTotalScore()));
     setText(byId('hud-steps'), String(this.engine.getStepsCount()));
 
@@ -4030,7 +4267,9 @@ class EpoxyApplication {
           AudioManager.getCustomTrackIds(),
           AudioManager.getTrackOptions().map((track) => track.id)
         ),
-        dpadSide: this.dpadSide
+        dpadSide: this.dpadSide,
+        touchControl: this.touchControl,
+        hapticsEnabled: this.hapticsEnabled
       };
       localStorage.setItem(key, JSON.stringify(settings));
     } catch {
@@ -4050,7 +4289,9 @@ class EpoxyApplication {
         ...settings,
         graphicsStyle: parseGraphicsStyle(settings.graphicsStyle),
         playerSkin: parsePlayerSkin(settings.playerSkin),
-        dpadSide: parseDpadSide(settings.dpadSide)
+        dpadSide: parseDpadSide(settings.dpadSide),
+        touchControl: parseTouchControl(settings.touchControl),
+        hapticsEnabled: parseHapticsEnabled(settings.hapticsEnabled)
       };
     } catch {
       return {};

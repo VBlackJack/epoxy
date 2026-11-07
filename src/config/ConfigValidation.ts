@@ -879,6 +879,45 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
 }
 
+/** touch fields that are pixel or millisecond lengths: finite numbers, zero or more. */
+const TOUCH_LENGTH_KEYS = [
+  'swipeDeadzonePx',
+  'tapMaxDistancePx',
+  'tapMaxDurationMs',
+  'hapticPulseMs',
+  'joystickDeadZonePx',
+  'joystickReleaseRadiusPx',
+  'joystickBaseFollowRadiusPx',
+  'joystickKnobRadiusPx'
+];
+/** Smallest axis switch ratio: 1 means "any larger component wins"; below 1 the axis would flip back and forth. */
+const MIN_JOYSTICK_AXIS_SWITCH_RATIO = 1;
+
+/**
+ * Problems of the optional game.json touch section. Every key is optional (the code falls back to
+ * TOUCH_DEFAULTS), but a key that is present must be usable; the joystick release radius must stay
+ * under the dead zone, or the stick could never release once engaged.
+ */
+export function findTouchConfigErrors(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!isRecord(value)) return ['touch: not an object'];
+  const errors: string[] = [];
+  for (const key of TOUCH_LENGTH_KEYS) {
+    const v = value[key];
+    if (v !== undefined && (!isFiniteNumber(v) || v < 0)) errors.push(`touch.${key}: not a non-negative number`);
+  }
+  const ratio = value.joystickAxisSwitchRatio;
+  if (ratio !== undefined && (!isFiniteNumber(ratio) || ratio < MIN_JOYSTICK_AXIS_SWITCH_RATIO)) {
+    errors.push(`touch.joystickAxisSwitchRatio: not a number of at least ${MIN_JOYSTICK_AXIS_SWITCH_RATIO}`);
+  }
+  const dead = value.joystickDeadZonePx;
+  const release = value.joystickReleaseRadiusPx;
+  if (isFiniteNumber(dead) && isFiniteNumber(release) && release > dead) {
+    errors.push('touch.joystickReleaseRadiusPx: larger than joystickDeadZonePx');
+  }
+  return errors;
+}
+
 /** campaignGuard fields that must be whole numbers of at least 1. */
 const CAMPAIGN_GUARD_SIZE_KEYS = ['windowSize', 'largeWindowSize'];
 /** campaignGuard fields that are shares or similarities, in (0, 1]. */

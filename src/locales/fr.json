@@ -132,6 +132,15 @@
       },
       "drawer_navigation": {
         "label": "Navigation"
+      },
+      "touch_control": {
+        "label": "Contrôle tactile :",
+        "floating": "Joystick flottant",
+        "fixed": "Croix fixe"
+      },
+      "haptics_toggle": {
+        "action_on": "Vibration : activée",
+        "action_off": "Vibration : désactivée"
       }
     },
     "languages": {
@@ -1104,6 +1113,59 @@
       },
       "time": {
         "short": "TEMPS"
+      },
+      "strip": {
+        "label": "Barre d'état du niveau"
+      },
+      "tab": {
+        "level": {
+          "label": "Niveau, bottes et clés"
+        },
+        "menu": {
+          "label": "Menu du jeu"
+        }
+      },
+      "drawer": {
+        "level": {
+          "title": "Niveau"
+        },
+        "menu": {
+          "title": "Menu du jeu"
+        },
+        "close": {
+          "action": "Fermer"
+        }
+      },
+      "menu_drawer": {
+        "resume": {
+          "action": "Reprendre"
+        },
+        "all_options": {
+          "action": "Toutes les options"
+        },
+        "levels": {
+          "action": "Niveaux"
+        },
+        "exit_fullscreen": {
+          "action": "Quitter le plein écran"
+        }
+      },
+      "level": {
+        "short": "NIV. {number}"
+      },
+      "count": {
+        "chips": {
+          "label": "{count} puces restantes"
+        },
+        "targets": {
+          "label": "{count} cibles restantes"
+        },
+        "receivers": {
+          "label": "{count} récepteurs restants"
+        },
+        "time": {
+          "label": "{seconds} secondes restantes"
+        }
       }
     },
     "messages": {
@@ -1371,7 +1433,7 @@
         "label": "Ordinateur : déplacez-vous avec les flèches, WASD ou ZQSD."
       },
       "move_touch": {
-        "label": "Téléphone : glissez le doigt sur le plateau ou utilisez la croix à l'écran."
+        "label": "Téléphone : posez le pouce n'importe où sur le plateau et glissez pour diriger (maintenez pour continuer à marcher), touchez une case pour y aller. Une croix fixe à l'écran est disponible dans les options."
       },
       "undo": {
         "label": "U : annuler votre dernier pas."

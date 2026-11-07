@@ -3703,3 +3703,399 @@ body.touch-overlay .viewport-overlay .action-btn:focus-visible {
     outline: 3px solid Highlight;
   }
 }
+
+/* ==========================================================================
+   Phone drawer layout (floating joystick): top status strip, two side drawers, bottom cluster.
+   Scoped under body.touch-overlay.touch-drawers / .joystick-floating (src/ui/touchOverlay.ts);
+   the fixed pad layout above is untouched.
+   ========================================================================== */
+
+/* Nothing of the drawer layout shows outside it */
+.joystick-zone,
+.touch-strip,
+.touch-drawer-scrim,
+.touch-menu-drawer,
+.touch-drawer-head {
+  display: none;
+}
+
+body.touch-overlay.touch-drawers {
+  --touch-strip-top: 4px;
+  --touch-strip-height: 44px;
+  --touch-drawer-width: min(320px, 86vw);
+  --touch-edge-band: 24px;
+  --touch-drawer-bg: rgba(10, 12, 18, 0.96);
+  --touch-drawer-slide: 180ms;
+}
+
+/* Floating joystick: the whole board minus the strip and the edge bands (the cluster buttons sit above it) */
+body.touch-overlay.joystick-floating .play-shell .lcd-screen .joystick-zone {
+  display: block;
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--safe-top) + var(--touch-strip-top, 4px) + var(--touch-strip-height, 44px) + var(--overlay-gap));
+  bottom: calc(var(--safe-bottom) + var(--touch-edge-band, 24px));
+  left: calc(var(--safe-left) + var(--touch-edge-band, 24px));
+  right: calc(var(--safe-right) + var(--touch-edge-band, 24px));
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.touch-overlay.joystick-floating .joystick-zone[inert] {
+  pointer-events: none;
+}
+
+.joystick-zone .joystick-base {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.joystick-zone .joystick-base::before {
+  content: '';
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  border-radius: 50%;
+  background: var(--overlay-pad-fill, rgba(10, 12, 18, 0.38));
+  box-shadow: 0 0 0 2px var(--overlay-ring, rgba(255, 255, 255, 0.3));
+}
+
+.joystick-zone .joystick-knob {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background: var(--overlay-chevron, #ffffff);
+  opacity: 0.85;
+  box-shadow: 0 0 0 2px var(--overlay-chevron-outline, #0a0c12);
+}
+
+/* The fixed pad has no place when the joystick steers */
+body.touch-overlay.joystick-floating .play-shell .lcd-screen .mobile-touch-bar {
+  display: none;
+}
+
+/* Status strip: [level tab] LV n, count, time [menu tab] */
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-strip {
+  display: flex;
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--safe-top) + var(--touch-strip-top));
+  left: calc(var(--safe-left) + var(--overlay-edge));
+  right: calc(var(--safe-right) + var(--overlay-edge));
+  height: var(--touch-strip-height);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--overlay-gap);
+  background: var(--overlay-panel-bg);
+  color: var(--overlay-text);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.touch-strip .touch-strip-tab {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--overlay-button-size);
+  height: var(--overlay-button-size);
+  padding: 0;
+  background: transparent;
+  color: var(--overlay-text);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-strip .touch-strip-tab:active {
+  background: var(--overlay-pad-fill-pressed);
+}
+
+.touch-strip .touch-strip-tab:focus-visible {
+  outline: 3px solid var(--overlay-focus);
+  outline-offset: -3px;
+}
+
+.touch-strip .touch-strip-level,
+.touch-strip .touch-strip-count,
+.touch-strip .touch-strip-time {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.touch-strip .touch-strip-label {
+  font-size: 0.6rem;
+}
+
+.touch-strip .touch-strip-value {
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+}
+
+.touch-strip .led-green {
+  color: var(--overlay-led-green);
+}
+
+.touch-strip .led-amber {
+  color: var(--overlay-led-amber);
+}
+
+.touch-strip .led-danger {
+  color: var(--overlay-led-danger);
+}
+
+/* Bottom cluster: Undo and the drop buttons, on the corner of the chosen side. No Pause, no Menu: the strip has the menu tab. */
+body.touch-overlay.touch-drawers #touch-btn-pause,
+body.touch-overlay.touch-drawers #touch-btn-menu {
+  display: none;
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-overlay-controls {
+  bottom: calc(var(--safe-bottom) + var(--overlay-edge));
+  width: auto;
+  max-width: calc(100% - var(--overlay-edge) * 2);
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--overlay-gap);
+  row-gap: var(--overlay-gap);
+}
+
+body.touch-overlay.touch-drawers.dpad-right .play-shell .lcd-screen .touch-overlay-controls {
+  right: calc(var(--safe-right) + var(--overlay-edge));
+  left: auto;
+  justify-content: flex-end;
+}
+
+body.touch-overlay.touch-drawers.dpad-left .play-shell .lcd-screen .touch-overlay-controls {
+  left: calc(var(--safe-left) + var(--overlay-edge));
+  right: auto;
+}
+
+/* Scrim and drawers */
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-drawer-scrim {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-drawer-scrim.hidden {
+  display: none;
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .hud-panel[data-touch-drawer],
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-menu-drawer {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  z-index: 8;
+  top: 0;
+  bottom: 0;
+  width: var(--touch-drawer-width);
+  max-width: none;
+  height: auto;
+  max-height: none;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: calc(var(--safe-top) + 0.75rem) 0.9rem calc(var(--safe-bottom) + 0.75rem);
+  gap: 0.6rem;
+  background: var(--touch-drawer-bg);
+  color: var(--overlay-text);
+  border: 0;
+  border-radius: 0;
+  pointer-events: auto;
+  font-size: 1rem;
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .hud-panel[data-touch-drawer].hidden,
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-menu-drawer.hidden {
+  display: none;
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .hud-panel[data-touch-drawer] {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: auto;
+  max-height: none;
+  padding-left: calc(var(--safe-left) + 0.9rem);
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-menu-drawer {
+  right: 0;
+  left: auto;
+  padding-right: calc(var(--safe-right) + 0.9rem);
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .hud-panel[data-touch-drawer].touch-drawer-open {
+  animation: touch-drawer-in-left var(--touch-drawer-slide) ease-out;
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-menu-drawer.touch-drawer-open {
+  animation: touch-drawer-in-right var(--touch-drawer-slide) ease-out;
+}
+
+@keyframes touch-drawer-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+
+@keyframes touch-drawer-in-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.touch-overlay.touch-drawers .play-shell .lcd-screen .hud-panel[data-touch-drawer].touch-drawer-open,
+  body.touch-overlay.touch-drawers .play-shell .lcd-screen .touch-menu-drawer.touch-drawer-open {
+    animation: none;
+  }
+}
+
+body.touch-overlay.touch-drawers .touch-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--overlay-gap);
+}
+
+body.touch-overlay.touch-drawers .touch-drawer-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+body.touch-overlay.touch-drawers .touch-drawer-close {
+  min-height: var(--overlay-button-size);
+  padding: 0 0.9rem;
+  background: transparent;
+  color: var(--overlay-text);
+  border: var(--overlay-border-width) solid var(--overlay-ring);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+body.touch-overlay.touch-drawers .touch-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+body.touch-overlay.touch-drawers .touch-drawer-actions .hud-btn {
+  min-height: var(--overlay-button-size);
+}
+
+body.touch-overlay.touch-drawers .touch-drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* The left drawer shows the level block again: title, counters with long labels, score, inventory (display only) */
+body.touch-overlay.touch-drawers .hud-panel .hud-level-title,
+body.touch-overlay.touch-drawers .hud-panel .hud-mini-stats,
+body.touch-overlay.touch-drawers .hud-panel .inv-title {
+  display: block;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .hud-level-header {
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .hud-level-header strong {
+  font-size: 1.1rem;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .led-counters {
+  grid-template-columns: 1fr 1fr;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .led-box {
+  padding: 0.3rem 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: var(--overlay-border-width) solid var(--overlay-ring);
+}
+
+body.touch-overlay.touch-drawers .hud-panel .led-label {
+  font-size: 0.7rem;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .led-label-short {
+  display: none;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .led-label-long {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .led-digits {
+  font-size: 1.2rem;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .inventory-row-split,
+body.touch-overlay.touch-drawers .hud-panel .inventory-row-split:not(:has(.inv-slot.owned)) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .inventory-section {
+  display: block;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .inv-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .inv-slot,
+body.touch-overlay.touch-drawers .hud-panel .inv-slot:not(.owned) {
+  display: grid;
+  width: calc(var(--overlay-slot-size) * 1.4);
+  height: calc(var(--overlay-slot-size) * 1.4);
+  background: rgba(255, 255, 255, 0.06);
+  border: var(--overlay-border-width) solid var(--overlay-ring);
+  pointer-events: none;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .inv-slot:not(.owned) {
+  opacity: 0.35;
+}
+
+body.touch-overlay.touch-drawers .hud-panel .inv-slot img {
+  width: calc(var(--overlay-slot-size) * 1.4 - var(--overlay-slot-icon-inset));
+  height: calc(var(--overlay-slot-size) * 1.4 - var(--overlay-slot-icon-inset));
+}
+
+/* Messages clear the status strip */
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .status-toast {
+  top: calc(var(--safe-top) + var(--touch-strip-top) + var(--touch-strip-height) + var(--overlay-gap));
+}
+
+body.touch-overlay.touch-drawers .play-shell .lcd-screen .hint-banner {
+  top: calc(var(--safe-top) + var(--touch-strip-top) + var(--touch-strip-height) + var(--overlay-gap) + 3rem);
+}

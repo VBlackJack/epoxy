@@ -19,6 +19,7 @@ import {
   findEyeBootsConfigErrors,
   findPullBootsConfigErrors,
   findSignalConfigErrors,
+  findTouchConfigErrors,
   isCompiledLevelShape,
   isRuleset,
   LevelSizeBounds,
@@ -382,5 +383,40 @@ describe('findSignalConfigErrors', () => {
   it('refuses a gate that something can walk onto', () => {
     expect(findSignalConfigErrors(withTile('signal_gate_xor', { passableByPlayer: true })).join()).toContain('impassable');
     expect(findSignalConfigErrors(withTile('signal_gate_xor', { passableByBlock: true })).join()).toContain('impassable');
+  });
+});
+
+describe('findTouchConfigErrors', () => {
+  it('accepts the shipped touch section and a missing one', () => {
+    loadTestConfigs();
+    expect(findTouchConfigErrors(ConfigRegistry.getGame().touch)).toEqual([]);
+    expect(findTouchConfigErrors(undefined)).toEqual([]);
+  });
+
+  it('accepts a section holding only the older keys', () => {
+    expect(findTouchConfigErrors({ swipeDeadzonePx: 20, tapMaxDistancePx: 14, tapMaxDurationMs: 280, hapticPulseMs: 10 })).toEqual([]);
+  });
+
+  it('refuses a section that is not an object', () => {
+    expect(findTouchConfigErrors(null)).toEqual(['touch: not an object']);
+    expect(findTouchConfigErrors([])).toEqual(['touch: not an object']);
+  });
+
+  it('refuses negative, non-finite and non-numeric lengths', () => {
+    expect(findTouchConfigErrors({ joystickDeadZonePx: -1 })).toEqual(['touch.joystickDeadZonePx: not a non-negative number']);
+    expect(findTouchConfigErrors({ swipeDeadzonePx: Number.NaN })).toEqual(['touch.swipeDeadzonePx: not a non-negative number']);
+    expect(findTouchConfigErrors({ hapticPulseMs: '10' })).toEqual(['touch.hapticPulseMs: not a non-negative number']);
+  });
+
+  it('refuses an axis switch ratio under 1', () => {
+    expect(findTouchConfigErrors({ joystickAxisSwitchRatio: 0.9 })).toHaveLength(1);
+    expect(findTouchConfigErrors({ joystickAxisSwitchRatio: 1 })).toEqual([]);
+  });
+
+  it('refuses a release radius larger than the dead zone', () => {
+    expect(findTouchConfigErrors({ joystickDeadZonePx: 14, joystickReleaseRadiusPx: 15 })).toEqual([
+      'touch.joystickReleaseRadiusPx: larger than joystickDeadZonePx'
+    ]);
+    expect(findTouchConfigErrors({ joystickDeadZonePx: 14, joystickReleaseRadiusPx: 14 })).toEqual([]);
   });
 });

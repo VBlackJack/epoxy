@@ -55,6 +55,7 @@ import {
   LevelSizeBounds,
   findBlockPuzzleConfigErrors,
   findCampaignGuardConfigErrors,
+  findTouchConfigErrors,
   isDirection,
   isFiniteNumber,
   isInBounds,
@@ -306,6 +307,10 @@ class ConfigRegistryService {
     const campaignGuardErrors = findCampaignGuardConfigErrors(bundle.game.campaignGuard);
     if (campaignGuardErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, campaignGuardErrors.join('; '));
+    }
+    const touchErrors = findTouchConfigErrors(bundle.game.touch);
+    if (touchErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, touchErrors.join('; '));
     }
     const tunableErrors = findGameTunableErrors(bundle.game);
     if (tunableErrors.length > 0) {

@@ -132,6 +132,15 @@
       },
       "drawer_navigation": {
         "label": "Navigation"
+      },
+      "touch_control": {
+        "label": "Touch control:",
+        "floating": "Floating joystick",
+        "fixed": "Fixed pad"
+      },
+      "haptics_toggle": {
+        "action_on": "Vibration: on",
+        "action_off": "Vibration: off"
       }
     },
     "languages": {
@@ -1104,6 +1113,59 @@
       },
       "time": {
         "short": "TIME"
+      },
+      "strip": {
+        "label": "Level status bar"
+      },
+      "tab": {
+        "level": {
+          "label": "Level, boots and keys"
+        },
+        "menu": {
+          "label": "Game menu"
+        }
+      },
+      "drawer": {
+        "level": {
+          "title": "Level"
+        },
+        "menu": {
+          "title": "Game menu"
+        },
+        "close": {
+          "action": "Close"
+        }
+      },
+      "menu_drawer": {
+        "resume": {
+          "action": "Resume"
+        },
+        "all_options": {
+          "action": "All options"
+        },
+        "levels": {
+          "action": "Levels"
+        },
+        "exit_fullscreen": {
+          "action": "Exit full screen"
+        }
+      },
+      "level": {
+        "short": "LV {number}"
+      },
+      "count": {
+        "chips": {
+          "label": "{count} chips left"
+        },
+        "targets": {
+          "label": "{count} targets left"
+        },
+        "receivers": {
+          "label": "{count} receivers left"
+        },
+        "time": {
+          "label": "{seconds} seconds left"
+        }
       }
     },
     "messages": {
@@ -1371,7 +1433,7 @@
         "label": "Computer: move with the arrow keys, WASD or ZQSD."
       },
       "move_touch": {
-        "label": "Phone: swipe on the board or use the on-screen pad."
+        "label": "Phone: put your thumb anywhere on the board and slide to steer (hold to keep walking), tap a cell to walk there. A fixed on-screen pad is available in the options."
       },
       "undo": {
         "label": "U: undo your last step."
