@@ -524,7 +524,7 @@ export class LevelValidator {
       let reachableExit = false;
 
       // Reachable blocks are counted per type, globally and not by position. What a block can do to a hazard
-      // depends on its type: a dirt block fills water, an ice block melts fire but vanishes in water, a mirror
+      // depends on its type: a dirt block fills water, an ice block melts fire and turns water into ice, a mirror
       // refuses water. Hazards are demands on that stock, accepted only while a consistent assignment exists.
       const blockStock = new Map<string, number>();
       const stockBlocks = (type: string, count: number): void => {
@@ -546,7 +546,7 @@ export class LevelValidator {
           if (count <= 0) continue;
           const def = ConfigRegistry.getEntityDef(type);
           total += count;
-          if (!def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water') fillers += count;
+          if (!def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water') fillers += count; // an ice block fills water too
           if (def?.meltsInFireTo && def.destroyedByFire) melters += count;
         }
         return !(

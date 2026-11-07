@@ -37,6 +37,7 @@ const LONG_TEST_TIMEOUT_MS = 900000;
 const ALCHEMY_LEVEL = 'epoxy_p_39';
 const DEATH_WATER = 'hud.messages.death_water';
 const DEATH_FIRE = 'hud.messages.death_fire';
+const DEATH_BLOCK = 'hud.messages.death_block';
 
 function levelById(id: string): CompiledLevel {
   const level = ConfigRegistry.getPilotLevels().find((l) => l.id === id);
@@ -210,16 +211,18 @@ describe('pilot chapter 3 alchemy', () => {
     });
   });
 
-  it('kills only on the two fires and on the water they leave, no block can crush the player, and the scan is complete, drops allowed', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
+  it('kills on the two fires, on the water they leave, and once under a dirt block that bounces off the ice a sunk ice block made, and the scan is complete, drops allowed', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
     const level = levelById(ALCHEMY_LEVEL);
     const scan = scanHazards(level, { allowDrops: true, maxStates: BIG_STATE_CAP });
     expect(scan.truncated).toBe(false);
     expect(scan.unsettled).toBe(0);
-    expect(scan.blockBounces).toBe(0);
-    expect(hasNoCrushHazard(scan)).toBe(true);
-    expect(scan.states).toBe(477949);
+    // Only in a lost state: the second ice block turns the water at 14,3 into ice, a first dirt block slides over it onto the
+    // second fire and jams there, and a second dirt block slides onto the ice, bounces off the first and crushes the player at 13,3.
+    expect(scan.blockBounces).toBe(1);
+    expect(hasNoCrushHazard(scan)).toBe(false);
+    expect(scan.states).toBe(477147);
     expect(scan.deaths.map((d) => `${d.reason}@${d.x},${d.y}`).sort()).toEqual(
-      [`${DEATH_FIRE}@14,3`, `${DEATH_FIRE}@15,3`, `${DEATH_WATER}@14,3`, `${DEATH_WATER}@15,3`].sort()
+      [`${DEATH_FIRE}@14,3`, `${DEATH_FIRE}@15,3`, `${DEATH_WATER}@14,3`, `${DEATH_WATER}@15,3`, `${DEATH_BLOCK}@13,3`].sort()
     );
   });
 
@@ -240,7 +243,7 @@ describe('pilot chapter 3 alchemy', () => {
     expect(jamGraph.states).toBe(33415);
   });
 
-  it('sends the second ice block into the water the first one left and loses: the ice vanishes and the water stays', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
+  it('sends the second ice block into the water the first one left and loses: the ice turns the water into ice, and no block is left for the fire', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
     const level = levelById(ALCHEMY_LEVEL);
     const melted = engineAfter(level, MELT_ONE);
     expect(melted.getTerrain()[3][14]).toBe('water');
@@ -250,13 +253,13 @@ describe('pilot chapter 3 alchemy', () => {
     expect(entityCells(dropped)).toEqual(['dirt_block@4,2', 'dirt_block@6,4', 'ice_block@10,3']);
     const dropGraph = exploreStateGraph(dropped, { stateCap: BIG_STATE_CAP, allowDrops: true });
     expect(dropGraph.canWin).toBe(0);
-    expect(dropGraph.states).toBe(24406);
+    expect(dropGraph.states).toBe(23604);
     const sunk = engineAfter(level, MELT_ONE + 'WWWWSSENWNEEEE');
     expect(entityCells(sunk)).toEqual(['dirt_block@4,2', 'dirt_block@6,4']);
-    expect(sunk.getTerrain()[3][14]).toBe('water');
+    expect(sunk.getTerrain()[3][14]).toBe('ice');
     const sunkGraph = exploreStateGraph(sunk, { stateCap: BIG_STATE_CAP, allowDrops: true });
     expect(sunkGraph.canWin).toBe(0);
-    expect(sunkGraph.states).toBe(9066);
+    expect(sunkGraph.states).toBe(8264);
   });
 
   it('sends a block of dirt at the second fire before its ice and loses', { timeout: LONG_TEST_TIMEOUT_MS }, () => {
@@ -295,14 +298,14 @@ describe('pilot chapter 3 alchemy', () => {
   });
 
   it('has only six kinds of dead end, and each is a block that was sent wrong, pushed back, or queued behind another', () => {
-    expect(graph.states).toBe(477949);
-    expect(graph.expanded).toBe(477949);
+    expect(graph.states).toBe(477147);
+    expect(graph.expanded).toBe(477147);
     expect(graph.canWin).toBe(21309);
-    expect(graph.dead).toBe(456640);
+    expect(graph.dead).toBe(455838);
     expect(kinds).toEqual({
-      'dirt jammed on a fire': 70584,
-      'block pushed back into its alcove': 166220,
-      'fewer blocks than the hazards still need': 8628,
+      'dirt jammed on a fire': 71990,
+      'block pushed back into its alcove': 165884,
+      'fewer blocks than the hazards still need': 6756,
       'block sent before the fresh dirt was trodden': 7232,
       'two blocks queued in the lane': 192682,
       'wrong block at the head of the lane': 11294
