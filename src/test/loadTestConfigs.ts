@@ -33,6 +33,7 @@ import motifs from '../../public/configs/motifs.json';
 import motifAnnotations from '../../public/configs/motif-annotations.json';
 import tiles from '../../public/configs/tiles.json';
 import cc3dTiles from '../../public/configs/cc3d-tiles.json';
+import cc2Tiles from '../../public/configs/cc2-tiles.json';
 
 /** Returns a deep copy of the shipped configs, safe to mutate in a test. */
 export function createTestBundle(): ConfigBundle {
@@ -40,6 +41,7 @@ export function createTestBundle(): ConfigBundle {
     game,
     tiles,
     cc3dTiles,
+    cc2Tiles,
     monsters,
     audio,
     levels,

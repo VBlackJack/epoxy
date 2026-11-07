@@ -36,8 +36,13 @@ export function allowedPushDirs(entity: RuntimeEntity, def: EntityDefinition | u
   return def.pushArrows.map((turn) => relativeTo(facing, turn));
 }
 
-/** Whether a push toward a direction may move the block: always, unless it is an arrow block with no arrow there. */
+/**
+ * Whether a push toward a direction may move the block: always, unless it is an arrow block with no arrow there, or a
+ * reserved id of an unimplemented mechanic, which never moves.
+ */
 export function isPushAllowed(block: RuntimeEntity, dir: Direction): boolean {
-  const allowed = allowedPushDirs(block, ConfigRegistry.getEntityDef(block.type));
+  const def = ConfigRegistry.getEntityDef(block.type);
+  if (def?.unimplemented !== undefined) return false;
+  const allowed = allowedPushDirs(block, def);
   return allowed === undefined || allowed.includes(dir);
 }

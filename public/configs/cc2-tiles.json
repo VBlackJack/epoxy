@@ -1,0 +1,344 @@
+{
+  "tiles": {
+    "cc2_purple_wall": {
+      "id": "cc2_purple_wall",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_purple_wall.name",
+      "descriptionKey": "tiles.cc2_purple_wall.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_purple_floor": {
+      "id": "cc2_purple_floor",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_purple_floor.name",
+      "descriptionKey": "tiles.cc2_purple_floor.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_toggle_switch": {
+      "id": "cc2_toggle_switch",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_toggle_switch.name",
+      "descriptionKey": "tiles.cc2_toggle_switch.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_black_button": {
+      "id": "cc2_black_button",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_black_button.name",
+      "descriptionKey": "tiles.cc2_black_button.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_counter_gate": {
+      "id": "cc2_counter_gate",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_counter_gate.name",
+      "descriptionKey": "tiles.cc2_counter_gate.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_nand_gate": {
+      "id": "cc2_nand_gate",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_nand_gate.name",
+      "descriptionKey": "tiles.cc2_nand_gate.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_button_gray": {
+      "id": "cc2_button_gray",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_button_gray.name",
+      "descriptionKey": "tiles.cc2_button_gray.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_track_junction": {
+      "id": "cc2_track_junction",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_track_junction.name",
+      "descriptionKey": "tiles.cc2_track_junction.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_button_orange_local": {
+      "id": "cc2_button_orange_local",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_button_orange_local.name",
+      "descriptionKey": "tiles.cc2_button_orange_local.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_steel_wall": {
+      "id": "cc2_steel_wall",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_steel_wall.name",
+      "descriptionKey": "tiles.cc2_steel_wall.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_unknown": {
+      "id": "cc2_unknown",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.cc2_unknown.name",
+      "descriptionKey": "tiles.cc2_unknown.desc.label",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "unimplemented": "cc2"
+    },
+    "cc2_lightning_bolt": {
+      "id": "cc2_lightning_bolt",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_lightning_bolt.name",
+      "descriptionKey": "tiles.cc2_lightning_bolt.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_green_chip": {
+      "id": "cc2_green_chip",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_green_chip.name",
+      "descriptionKey": "tiles.cc2_green_chip.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_green_bomb": {
+      "id": "cc2_green_bomb",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_green_bomb.name",
+      "descriptionKey": "tiles.cc2_green_bomb.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_time_bomb": {
+      "id": "cc2_time_bomb",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_time_bomb.name",
+      "descriptionKey": "tiles.cc2_time_bomb.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_railroad_sign": {
+      "id": "cc2_railroad_sign",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_railroad_sign.name",
+      "descriptionKey": "tiles.cc2_railroad_sign.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_helmet": {
+      "id": "cc2_helmet",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_helmet.name",
+      "descriptionKey": "tiles.cc2_helmet.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_steel_foil": {
+      "id": "cc2_steel_foil",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_steel_foil.name",
+      "descriptionKey": "tiles.cc2_steel_foil.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_toggle_clock": {
+      "id": "cc2_toggle_clock",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_toggle_clock.name",
+      "descriptionKey": "tiles.cc2_toggle_clock.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_extra_chip": {
+      "id": "cc2_extra_chip",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_extra_chip.name",
+      "descriptionKey": "tiles.cc2_extra_chip.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_hiking_boots": {
+      "id": "cc2_hiking_boots",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_hiking_boots.name",
+      "descriptionKey": "tiles.cc2_hiking_boots.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_gender_sign_male": {
+      "id": "cc2_gender_sign_male",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_gender_sign_male.name",
+      "descriptionKey": "tiles.cc2_gender_sign_male.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_gender_sign_female": {
+      "id": "cc2_gender_sign_female",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.cc2_gender_sign_female.name",
+      "descriptionKey": "tiles.cc2_gender_sign_female.desc.label",
+      "laserTransparent": true,
+      "unimplemented": "cc2"
+    }
+  },
+  "entities": {
+    "cc2_melinda": {
+      "id": "cc2_melinda",
+      "category": "entities",
+      "kind": "block",
+      "i18nKey": "entities.cc2_melinda.name",
+      "descriptionKey": "entities.cc2_melinda.desc.label",
+      "pushable": false,
+      "epoxyOnly": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_mirror_chip": {
+      "id": "cc2_mirror_chip",
+      "category": "entities",
+      "kind": "block",
+      "i18nKey": "entities.cc2_mirror_chip.name",
+      "descriptionKey": "entities.cc2_mirror_chip.desc.label",
+      "pushable": false,
+      "epoxyOnly": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_mirror_melinda": {
+      "id": "cc2_mirror_melinda",
+      "category": "entities",
+      "kind": "block",
+      "i18nKey": "entities.cc2_mirror_melinda.name",
+      "descriptionKey": "entities.cc2_mirror_melinda.desc.label",
+      "pushable": false,
+      "epoxyOnly": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_ghost": {
+      "id": "cc2_ghost",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.cc2_ghost.name",
+      "descriptionKey": "entities.cc2_ghost.desc.label",
+      "moveIntervalTicks": 16,
+      "movementPattern": "stationary",
+      "turnOrder": [
+        "FORWARD"
+      ],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "epoxyOnly": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_rover": {
+      "id": "cc2_rover",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.cc2_rover.name",
+      "descriptionKey": "entities.cc2_rover.desc.label",
+      "moveIntervalTicks": 16,
+      "movementPattern": "stationary",
+      "turnOrder": [
+        "FORWARD"
+      ],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "epoxyOnly": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_floor_mimic": {
+      "id": "cc2_floor_mimic",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.cc2_floor_mimic.name",
+      "descriptionKey": "entities.cc2_floor_mimic.desc.label",
+      "moveIntervalTicks": 16,
+      "movementPattern": "stationary",
+      "turnOrder": [
+        "FORWARD"
+      ],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "epoxyOnly": true,
+      "unimplemented": "cc2"
+    },
+    "cc2_timid_teeth": {
+      "id": "cc2_timid_teeth",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.cc2_timid_teeth.name",
+      "descriptionKey": "entities.cc2_timid_teeth.desc.label",
+      "moveIntervalTicks": 16,
+      "movementPattern": "stationary",
+      "turnOrder": [
+        "FORWARD"
+      ],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "epoxyOnly": true,
+      "unimplemented": "cc2"
+    }
+  }
+}

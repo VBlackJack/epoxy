@@ -342,15 +342,26 @@ export function isRailTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).railSides !== undefined;
 }
 
+/** True when the tile id is a reserved id of a mechanic Epoxy does not play (a cc2_* terrain or item). */
+export function isUnimplementedTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).unimplemented !== undefined;
+}
+
+/** True when the entity type is a reserved id of a monster or block Epoxy does not play (a cc2_* entity). */
+export function isUnimplementedEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.unimplemented !== undefined;
+}
+
 /**
  * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
- * boots, the ward, a blast charge, a hurl stone, a toll token, a pocket gate with its pad, a relay pad, or a rail piece (the pads and the
+ * boots, the ward, a blast charge, a hurl stone, a toll token, a pocket gate with its pad, a relay pad, a reserved id of an unimplemented mechanic, or a rail piece (the pads and the
  * rails are terrain, but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
  */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
-    isChargeTileId(id) || isStoneTileId(id) || isTokenTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isRailTileId(id)
+    isChargeTileId(id) || isStoneTileId(id) || isTokenTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isRailTileId(id) ||
+    isUnimplementedTileId(id)
   );
 }
 
