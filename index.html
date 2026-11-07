@@ -123,6 +123,16 @@
                 <option value="right" data-i18n="app.header.dpad_side.right"></option>
               </select>
             </div>
+            <div class="lang-box touch-setting-row">
+              <label for="touch-control-select" data-i18n="app.header.touch_control.label"></label>
+              <select id="touch-control-select" class="locale-select">
+                <option value="floating" data-i18n="app.header.touch_control.floating"></option>
+                <option value="fixed" data-i18n="app.header.touch_control.fixed"></option>
+              </select>
+            </div>
+            <div id="haptics-setting-row" class="lang-box touch-setting-row">
+              <button id="btn-haptics-toggle" class="nav-btn active" type="button"></button>
+            </div>
             <button id="btn-sfx-toggle" class="nav-btn active" type="button"></button>
             <div id="sfx-volume-row" class="lang-box volume-row">
               <label for="sfx-volume-slider" data-i18n="app.header.sfx_volume.label"></label>
@@ -213,6 +223,7 @@
                       <button id="overlay-btn-back-to-editor" class="action-btn primary hidden" type="button" data-i18n="editor.pack.back_to_editor.action"></button>
                       <button id="overlay-btn-next" class="action-btn primary hidden" type="button" data-i18n="hud.messages.next_action.action" data-i18n-title="hud.messages.next_action.hint"></button>
                       <button id="overlay-btn-rate" class="action-btn hidden" type="button" aria-haspopup="dialog" data-i18n="app.playtest.rating.open.action"></button>
+                      <button id="overlay-btn-play-epoxy" class="action-btn primary hidden" type="button" data-i18n="tutorial.ui.complete.play_epoxy.action"></button>
                       <button id="overlay-btn-replay" class="action-btn hidden" type="button" data-i18n="hud.messages.replay_action.action"></button>
                       <button id="overlay-btn-undo" class="action-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
                       <button id="overlay-btn-retry" class="action-btn" type="button" data-i18n="hud.controls.restart.action" data-i18n-title="hud.controls.restart.hint"></button>
@@ -249,8 +260,49 @@
                 </div>
               </div>
 
+              <!-- Floating joystick zone of the phone layout (hidden elsewhere) -->
+              <div id="joystick-zone" class="joystick-zone" aria-hidden="true"></div>
+
+              <!-- Status strip of the phone drawer layout (hidden elsewhere) -->
+              <div id="touch-strip" class="touch-strip" role="group" data-i18n-aria-label="hud.touch_overlay.strip.label">
+                <button id="touch-tab-level" class="touch-strip-tab" type="button" aria-haspopup="dialog" data-i18n-aria-label="hud.touch_overlay.tab.level.label" data-i18n-title="hud.touch_overlay.tab.level.label"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M14 6l-6 6 6 6"/></svg></button>
+                <span id="touch-strip-level" class="touch-strip-level"></span>
+                <span id="touch-strip-count" class="touch-strip-count" role="img"><span id="touch-strip-count-label" class="touch-strip-label" aria-hidden="true"></span> <span id="touch-strip-count-value" class="touch-strip-value led-green" aria-hidden="true"></span></span>
+                <span id="touch-strip-time" class="touch-strip-time" role="img"><span class="touch-strip-label" aria-hidden="true" data-i18n="hud.touch_overlay.time.short"></span> <span id="touch-strip-time-value" class="touch-strip-value led-amber" aria-hidden="true"></span></span>
+                <button id="touch-tab-menu" class="touch-strip-tab" type="button" aria-haspopup="dialog" data-i18n-aria-label="hud.touch_overlay.tab.menu.label" data-i18n-title="hud.touch_overlay.tab.menu.label"><svg class="touch-overlay-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 7h14M5 12h14M5 17h14"/></svg></button>
+              </div>
+
+              <div id="touch-drawer-scrim" class="touch-drawer-scrim hidden"></div>
+
+              <!-- Right drawer of the phone layout: game menu -->
+              <aside id="touch-menu-drawer" class="touch-menu-drawer hidden">
+                <div class="touch-drawer-head">
+                  <h2 id="touch-menu-title" class="touch-drawer-title" data-i18n="hud.touch_overlay.drawer.menu.title"></h2>
+                  <button id="touch-menu-close" class="touch-drawer-close" type="button" data-i18n="hud.touch_overlay.drawer.close.action"></button>
+                </div>
+                <div class="touch-drawer-actions">
+                  <button id="touch-menu-resume" class="hud-btn primary" type="button" data-i18n="hud.touch_overlay.menu_drawer.resume.action"></button>
+                  <button id="touch-menu-undo" class="hud-btn" type="button" data-i18n="hud.controls.undo.action" data-i18n-title="hud.controls.undo.hint"></button>
+                  <button id="touch-menu-restart" class="hud-btn" type="button" data-i18n="hud.controls.restart.action" data-i18n-title="hud.controls.restart.hint"></button>
+                  <button id="touch-menu-hint" class="hud-btn" type="button" data-i18n="hud.controls.objective.action" data-i18n-title="hud.controls.objective.hint"></button>
+                  <button id="touch-menu-solution" class="hud-btn" type="button" data-i18n="hud.controls.solution.action" data-i18n-title="hud.controls.solution.hint"></button>
+                  <div class="touch-drawer-field">
+                    <label for="touch-style-select" data-i18n="app.header.graphics_style.label"></label>
+                    <select id="touch-style-select" class="locale-select"></select>
+                  </div>
+                  <button id="touch-menu-options" class="hud-btn" type="button" aria-haspopup="dialog" data-i18n="hud.touch_overlay.menu_drawer.all_options.action"></button>
+                  <button id="touch-menu-levels" class="hud-btn" type="button" aria-haspopup="dialog" data-i18n="hud.touch_overlay.menu_drawer.levels.action"></button>
+                  <button id="touch-menu-tutorial" class="hud-btn hidden" type="button" data-tutorial-entry data-i18n="tutorial.ui.drawer.button.action"></button>
+                  <button id="touch-menu-exit-fullscreen" class="hud-btn" type="button" data-i18n="hud.touch_overlay.menu_drawer.exit_fullscreen.action"></button>
+                </div>
+              </aside>
+
               <!-- Side HUD Panel -->
               <aside class="hud-panel">
+                <div class="touch-drawer-head">
+                  <h2 id="touch-level-title" class="touch-drawer-title" data-i18n="hud.touch_overlay.drawer.level.title"></h2>
+                  <button id="touch-level-close" class="touch-drawer-close" type="button" data-i18n="hud.touch_overlay.drawer.close.action"></button>
+                </div>
                 <div class="hud-level-header">
                   <div class="hud-level-badge">
                     <span data-i18n="hud.stats.level.label"></span>
@@ -778,6 +830,7 @@
           </details>
           <div class="modal-actions">
             <button id="help-onboarding-btn" class="action-btn" type="button" data-i18n="hud.help_modal.onboarding_btn.action"></button>
+            <button id="help-tutorial-btn" class="action-btn hidden" type="button" data-tutorial-entry data-i18n="tutorial.ui.help.button.action" data-i18n-title="tutorial.ui.help.button.hint"></button>
             <button id="help-close-btn" class="action-btn primary" type="button" data-i18n="hud.help_modal.close_btn.action"></button>
           </div>
         </div>
@@ -796,7 +849,20 @@
             <li data-i18n="hud.onboarding_modal.goal.label"></li>
           </ul>
           <div class="modal-actions">
+            <button id="onboarding-tutorial-btn" class="action-btn primary hidden" type="button" data-onboarding-tutorial data-i18n="tutorial.ui.onboarding.start.action"></button>
             <button id="onboarding-close-btn" class="action-btn primary" type="button" data-i18n="hud.onboarding_modal.close_btn.action"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ONE-TIME "NEW: TUTORIAL" NOTICE -->
+      <div id="tutorial-notice-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-notice-title">
+        <div class="modal-dialog">
+          <h3 id="tutorial-notice-title" data-i18n="tutorial.ui.notice.title.label"></h3>
+          <p data-i18n="tutorial.ui.notice.body.label"></p>
+          <div class="modal-actions">
+            <button id="tutorial-notice-start-btn" class="action-btn primary" type="button" data-i18n="tutorial.ui.notice.start.action"></button>
+            <button id="tutorial-notice-later-btn" class="action-btn" type="button" data-i18n="tutorial.ui.notice.later.action"></button>
           </div>
         </div>
       </div>

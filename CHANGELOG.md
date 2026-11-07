@@ -8,10 +8,27 @@ versions follow Semantic Versioning.
 ### Added
 
 - Clockwork Citadel campaign (`epoxy_citadel`, `public/configs/citadel-levels.json` and `public/configs/citadel-campaign.json`): a new built-in campaign pack of 50 multi-chamber puzzle levels (`epoxy_k_1` to `epoxy_k_50`) across 5 chapters of 10 ("Outer Sluices & Counterweights", "Cryo Ducts & Boot Tolls", "Automata Escapements & Rail Foundries", "Prism Optics & Transit Networks", "Ballistic Sanctum & Parity Vaults"), synthesizing all 25 CC1, CC2, and CC3D puzzle archetypes with an isolated save slot, 0 validator issues, and verified stored solutions. Both locales.
+- Two new playable characters in the Runeward style, the rune scribe and the adventurer mage, chosen in the Character setting (Runeward only; other styles draw the default). All three show the boots held, a ward ring, skating on ice and a fire, water or fainting death.
+
+### Changed
+
+- Refined default Runeward mage (four facings, boots, skating pose, deaths by cause); old saved Character settings stay valid.
+- Faster endless level generation (corridor search of the loop wings uses typed arrays and groups pieces by entry side); the generated levels are identical for every seed.
+- Runeward loose dirt tile now reads as a patch of earth covering the cell with grain, clods and pebbles, instead of a small lump on the paving.
+
+## [2.25.0] - 2026-11-07
+
+### Added
+
 - Sanctuary Puzzle & Mechanism Encyclopedia (`public/configs/excavation-encyclopedia.json`, `src/config/excavationEncyclopedia.ts`, `docs/puzzle-encyclopedia.md` and `docs/fr/puzzle-encyclopedia.md`): 25 machine-verified puzzle archetypes across 9 families (`sluice`, `extraction`, `optics`, `kinetic`, `network`, `automata`, `transit`, `ballistics`, `parity`) with ASCII blueprints, design invariants, dead-end traps, chaining rules and verified shortest solutions, plus 9 sanctuary starter templates in the level editor (`boulder_sluice`, `counterweight_hold`, `grappling_alcove`, `prism_slalom`, `elemental_alchemy`, `rail_switchyard`, `monster_clock`, `turning_force`, `hurl_stone_ricochet` in `public/configs/templates.json`) and 10 Tier-5 sanctuary pieces in the procedural generator (`public/configs/motifs.json`, 169 pieces in total). Both locales.
 - Wired flip: a signal wire can end on a green toggle wall or a rail switch; that one cell flips each time the signal starts sending (not when it stops), and the green button still flips it too (Epoxy rules).
 - Relay pad (`relay_pad_dark`, `relay_pad_lit`): a pad a signal wire ends on lights while its signal is on and goes dark when it is off, a lit pad is a teleporter of its own group that sends whoever steps on it to the previous lit relay pad in reading order (blocks and monsters too), and a pad no wire ends on keeps the form it was placed in; Epoxy rules, pack format 11 ids.
 - Toll Token (`toll_token`): pick it up and a boot thief or a key thief that would take something is paid with one token instead and takes nothing; a thief with nothing to take leaves it alone, and it cannot be set down (Epoxy rules). Pack format 11 now also covers levels whose wires flip a tile, and this build reads format 11.
+
+### Changed
+
+- Phone layout (full screen, touch): a floating joystick appears under the thumb, a status strip tops the board, the level panel (left) and a new game menu (right) are drawers opened from the strip tabs, and Undo plus the drop buttons sit in the corner of the chosen pad side. The fixed pad stays available through the new Touch control setting; vibration can be turned off.
+- Relay pads (lit and dark) have their own look in every style, a plug marks a green toggle wall or rail switch that a signal wire ends on, and the 16-Bit Toll Token is now drawn (it was invisible).
 
 ## [2.24.0] - 2026-11-07
 

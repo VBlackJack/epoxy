@@ -40,7 +40,7 @@ describe('pilot pack config', () => {
     expect(ConfigRegistry.getAllPacks().map((p) => p.id)).not.toContain(BUILTIN_PACK_IDS.PILOT);
     expect(ConfigRegistry.setPilotPackVisible(true)).toBe(true);
     const ids = ConfigRegistry.getAllPacks().map((p) => p.id);
-    expect(ids.slice(0, 2)).toEqual([BUILTIN_PACK_IDS.CAMPAIGN, BUILTIN_PACK_IDS.PILOT]);
+    expect(ids.slice(0, 3)).toEqual([BUILTIN_PACK_IDS.CAMPAIGN, BUILTIN_PACK_IDS.TUTORIAL, BUILTIN_PACK_IDS.PILOT]);
     expect(ConfigRegistry.setPilotPackVisible(true)).toBe(false);
   });
 

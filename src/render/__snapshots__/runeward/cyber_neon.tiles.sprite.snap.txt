@@ -338,9 +338,9 @@ tile turn_plate_cw closed=true shadowMask=128 hash=1 96c77e217a6b06e5
 tile turn_plate_ccw closed=true isolated 0e8ca7a47fc9b50f
 tile turn_plate_ccw closed=true shadowMask=65 hash=1 c99e5437dcc52d1c
 tile turn_plate_ccw closed=true shadowMask=128 hash=1 230634a748f2de90
-tile dirt closed=true isolated 5f4261aca2183d87
-tile dirt closed=true shadowMask=65 hash=1 35f1b0de709ab50f
-tile dirt closed=true shadowMask=128 hash=1 67caa927949c2dbf
+tile dirt closed=true isolated 16ed0126840d70fd
+tile dirt closed=true shadowMask=65 hash=1 edd06d5b0510556d
+tile dirt closed=true shadowMask=128 hash=1 4cfc178a415b18ba
 tile gravel closed=true isolated 3926c27aceef76ea
 tile gravel closed=true shadowMask=65 hash=1 bd984a3336c3756b
 tile gravel closed=true shadowMask=128 hash=1 75c92825ce8c8cb5
@@ -497,12 +497,12 @@ tile teleport_green closed=true shadowMask=128 hash=1 b25faf1ea0ce1697
 tile pocket_gate_pad closed=true isolated dc05fa5a02a8c109
 tile pocket_gate_pad closed=true shadowMask=65 hash=1 008a9b0bdc33577e
 tile pocket_gate_pad closed=true shadowMask=128 hash=1 b42762f677871241
-tile relay_pad_dark closed=true isolated 9c7fb1475d7de196
-tile relay_pad_dark closed=true shadowMask=65 hash=1 da23d99e36a04ca0
-tile relay_pad_dark closed=true shadowMask=128 hash=1 ef49ae36efbbfbc9
-tile relay_pad_lit closed=true isolated 8e27b65abef275c2
-tile relay_pad_lit closed=true shadowMask=65 hash=1 af3df93afc944398
-tile relay_pad_lit closed=true shadowMask=128 hash=1 bd378149c063ca8e
+tile relay_pad_dark closed=true isolated 91d16a374a0523e5
+tile relay_pad_dark closed=true shadowMask=65 hash=1 52571780022dd0e8
+tile relay_pad_dark closed=true shadowMask=128 hash=1 92cf79c6d8ff3658
+tile relay_pad_lit closed=true isolated bffd6bdd4caf679c
+tile relay_pad_lit closed=true shadowMask=65 hash=1 11e510961ac06016
+tile relay_pad_lit closed=true shadowMask=128 hash=1 51cd457b2853ecb3
 tile trap closed=true isolated 8d651e39e1953f18
 tile trap closed=true shadowMask=65 hash=1 50114dc094e4aafa
 tile trap closed=true shadowMask=128 hash=1 8a8dad5d7d2b4e9c

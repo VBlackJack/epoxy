@@ -39,6 +39,8 @@ export const CONFIG_ENDPOINTS = {
   EXCAVATION_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/excavation-campaign.json`,
   CITADEL_LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/citadel-levels.json`,
   CITADEL_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/citadel-campaign.json`,
+  TUTORIAL_LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/tutorial-levels.json`,
+  TUTORIAL_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/tutorial-campaign.json`,
   TEMPLATES: `${ENV_CONFIG.CONFIG_BASE_URL}/templates.json`
 } as const;
 
@@ -80,6 +82,8 @@ export const BUILTIN_PACK_IDS = {
   EXCAVATION: 'epoxy_excavation',
   /** Multi-chamber clockwork citadel campaign synthesizing CC1, CC2, and CC3D puzzle archetypes. */
   CITADEL: 'epoxy_citadel',
+  /** The tutorial, a room per mechanic: listed only while Playtest mode is on, until it is shown to everyone. */
+  TUTORIAL: 'epoxy_tutorial',
   CUSTOM: 'epoxy_custom',
   PROCEDURAL: 'epoxy_procedural'
 } as const;
@@ -95,6 +99,12 @@ export const EXCAVATION_LEVEL_ID_PREFIX = 'epoxy_x_';
 
 /** Prefix every citadel campaign level id carries, so its records never collide with other packs. */
 export const CITADEL_LEVEL_ID_PREFIX = 'epoxy_k_';
+
+/** Prefix every tutorial level id carries, so its records never collide with other packs. */
+export const TUTORIAL_LEVEL_ID_PREFIX = 'epoxy_t_';
+
+/** Packs listed and playable only while Playtest mode is on. */
+export const PLAYTEST_ONLY_PACK_IDS: readonly string[] = [BUILTIN_PACK_IDS.PILOT, BUILTIN_PACK_IDS.TUTORIAL];
 
 /** Prefix of the id of a pack the player creates, followed by a timestamp. */
 export const USER_PACK_ID_PREFIX = 'user_pack_';

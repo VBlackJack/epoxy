@@ -30,6 +30,7 @@ import {
   paintIce,
   paintIceCorner,
   paintPocketPad,
+  paintRelayPadTile,
   paintTeleport,
   paintTrap,
   type RunewardTeleportColour
@@ -50,6 +51,7 @@ import * as devices from './runewardDevices';
 import * as items from './runewardItems';
 import * as marks from './runewardMarks';
 import * as monsters from './runewardMonsters';
+import type { MagePose } from './runewardCharacter';
 import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
@@ -92,15 +94,7 @@ export type RunewardEntityPainter = (
   env: RunewardPaintEnv
 ) => void;
 
-export interface RunewardPlayerPose {
-  readonly dir: Direction;
-  readonly inWater: boolean;
-  readonly alive: boolean;
-  /** 0 standing, 1 or 2 for the two strides. */
-  readonly frame: number;
-  /** Lift of the sprite in tiles. */
-  readonly hop: number;
-}
+export type RunewardPlayerPose = MagePose;
 
 export type RunewardPlayerPainter = (
   ctx: CanvasRenderingContext2D,
@@ -177,7 +171,7 @@ function clockedItem(
   };
 }
 
-/** The player as the mage, standing on the cell; the sprite lifts with the hop while its shadow stays. */
+/** The player as the chosen character, standing on the cell; the sprite lifts with the hop while its shadow stays. */
 const paintPlayer: RunewardPlayerPainter = (ctx, x, y, size, pose, env) => {
   ctx.save();
   ctx.translate(x, y);
@@ -260,8 +254,8 @@ const HAZARD_TILES: Readonly<Record<string, RunewardTilePainter>> = Object.fromE
   ...ICE_CORNER_IDS.map((id): [string, RunewardTilePainter] => [id, iceCornerTile(id)]),
   ...TELEPORT_IDS.map((id): [string, RunewardTilePainter] => [id, teleportTile(id)]),
   [POCKET_PAD_ID, POCKET_PAD_PAINTER],
-  ['relay_pad_dark', staticTile(paintFloor)],
-  ['relay_pad_lit', POCKET_PAD_PAINTER],
+  ['relay_pad_dark', staticTile((ctx, size, art, nb) => paintRelayPadTile(ctx, size, art, nb, false))],
+  ['relay_pad_lit', staticTile((ctx, size, art, nb) => paintRelayPadTile(ctx, size, art, nb, true))],
   ...Object.entries(FORCE_DIRECTIONS).map(([id, direction]): [string, RunewardTilePainter] => [id, forceTile(direction)]),
   [RANDOM_FORCE_ID, forceTile(null)],
   [CYCLE_FORCE_ID, forceTile(null, true)]

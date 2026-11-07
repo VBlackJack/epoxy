@@ -1,0 +1,36 @@
+{
+  "chapters": [
+    {
+      "id": "tutorial_chapter_basics",
+      "titleKey": "tutorial.chapter.basics.title",
+      "subtitleKey": "tutorial.chapter.basics.subtitle",
+      "levels": [
+        "epoxy_t_move",
+        "epoxy_t_chips",
+        "epoxy_t_detour"
+      ]
+    },
+    {
+      "id": "tutorial_chapter_refresher",
+      "titleKey": "tutorial.chapter.refresher.title",
+      "subtitleKey": "tutorial.chapter.refresher.subtitle",
+      "levels": [
+        "epoxy_t_r_secret_walls",
+        "epoxy_t_r_thin_walls",
+        "epoxy_t_r_dirt_gravel",
+        "epoxy_t_r_keys",
+        "epoxy_t_r_elements",
+        "epoxy_t_r_ice",
+        "epoxy_t_r_force",
+        "epoxy_t_r_toggle",
+        "epoxy_t_r_teleport",
+        "epoxy_t_r_followers",
+        "epoxy_t_r_skewers",
+        "epoxy_t_r_wanderers",
+        "epoxy_t_r_tank",
+        "epoxy_t_r_trap",
+        "epoxy_t_r_clone"
+      ]
+    }
+  ]
+}

@@ -119,8 +119,9 @@ describe('citadel campaign pack ("Clockwork Citadel")', () => {
 
     ConfigRegistry.setPilotPackVisible(true);
     const playtestIds = ConfigRegistry.getAllPacks().map((p) => p.id);
-    expect(playtestIds.slice(0, 4)).toEqual([
+    expect(playtestIds.slice(0, 5)).toEqual([
       BUILTIN_PACK_IDS.CAMPAIGN,
+      BUILTIN_PACK_IDS.TUTORIAL,
       BUILTIN_PACK_IDS.PILOT,
       BUILTIN_PACK_IDS.EXCAVATION,
       BUILTIN_PACK_IDS.CITADEL

@@ -605,7 +605,12 @@
     "swipeDeadzonePx": 20,
     "tapMaxDistancePx": 14,
     "tapMaxDurationMs": 280,
-    "hapticPulseMs": 10
+    "hapticPulseMs": 10,
+    "joystickDeadZonePx": 14,
+    "joystickReleaseRadiusPx": 10,
+    "joystickAxisSwitchRatio": 1.25,
+    "joystickBaseFollowRadiusPx": 24,
+    "joystickKnobRadiusPx": 48
   },
   "ultimatePacks": [
     {
@@ -695,6 +700,7 @@
     "lastProceduralSeedKey": "last_procedural_seed",
     "lastEndlessKey": "last_endless",
     "onboardingSeenKey": "onboarding_seen",
+    "tutorialNoticeSeenKey": "tutorial_notice_seen",
     "lastSaveDestinationKey": "last_save_destination",
     "editorSectionsKey": "editor_sections",
     "playtestEnabledKey": "playtest_enabled",
@@ -1874,6 +1880,37 @@
       "orbCore": "#ffffff",
       "shadow": "rgba(0, 0, 0, 0.35)"
     },
+    "character": {
+      "outline": "#0d0a1a",
+      "hair": "#6b4a2a",
+      "skinShade": "#a98b6c",
+      "leather": "#5a3a1e",
+      "leatherDark": "#36220f",
+      "scroll": "#f1e3bf",
+      "scrollInk": "#7a4a22",
+      "satchel": "#8a5a2b",
+      "satchelLight": "#a8733a",
+      "strap": "#7a4a22",
+      "feather": "#e8304e",
+      "hoodInner": "#120d24",
+      "trouser": "#252262",
+      "cloak": {
+        "main": "#4a46b8",
+        "light": "#6a66d8",
+        "dark": "#2b2878",
+        "edge": "#0d0a1a"
+      },
+      "lantern": {
+        "glassTop": "#fff3b0",
+        "glassBottom": "#ffb24a",
+        "rib": "rgba(80, 40, 0, 0.55)"
+      },
+      "halo": {
+        "ring": "#fff8c8",
+        "inner": "#64c8ff",
+        "rune": "#fff6c8"
+      }
+    },
     "keys": {
       "red": {
         "main": "#e8304e",
@@ -2344,6 +2381,37 @@
         "orb": "#ffb24a",
         "orbCore": "#fff3d6",
         "shadow": "rgba(42, 27, 15, 0.3)"
+      },
+      "character": {
+        "outline": "#1a1008",
+        "hair": "#5a3a1e",
+        "skinShade": "#a3896c",
+        "leather": "#5a3a1e",
+        "leatherDark": "#33200f",
+        "scroll": "#f6ecd0",
+        "scrollInk": "#7a4a22",
+        "satchel": "#7a4a22",
+        "satchelLight": "#9a6a38",
+        "strap": "#5a3a1e",
+        "feather": "#c0392b",
+        "hoodInner": "#2a1b0f",
+        "trouser": "#6a5035",
+        "cloak": {
+          "main": "#4a3a5c",
+          "light": "#6a5880",
+          "dark": "#2f2440",
+          "edge": "#1a1008"
+        },
+        "lantern": {
+          "glassTop": "#fff3d6",
+          "glassBottom": "#ffb24a",
+          "rib": "rgba(80, 40, 0, 0.55)"
+        },
+        "halo": {
+          "ring": "#c99a2e",
+          "inner": "#2f5f8a",
+          "rune": "#fff1c0"
+        }
       },
       "keys": {
         "red": {

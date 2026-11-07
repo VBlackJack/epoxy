@@ -132,6 +132,15 @@
       },
       "drawer_navigation": {
         "label": "Navigation"
+      },
+      "touch_control": {
+        "label": "Contrôle tactile :",
+        "floating": "Joystick flottant",
+        "fixed": "Croix fixe"
+      },
+      "haptics_toggle": {
+        "action_on": "Vibration : activée",
+        "action_off": "Vibration : désactivée"
       }
     },
     "languages": {
@@ -162,6 +171,15 @@
       },
       "julien": {
         "label": "Julien"
+      },
+      "runeward_mage": {
+        "label": "Mage"
+      },
+      "runeward_scribe": {
+        "label": "Scribe des runes"
+      },
+      "runeward_adventurer": {
+        "label": "Mage aventurier"
       }
     },
     "graphics_quality": {
@@ -717,9 +735,6 @@
       "excavation": {
         "label": "Sanctuaires Enfouis"
       },
-      "citadel": {
-        "label": "La Citadelle Mécanique"
-      },
       "ccup_tw_intro": {
         "label": "Introduction communautaire (Tile World)"
       },
@@ -931,6 +946,12 @@
       },
       "delete_all_done": {
         "label": "{count, plural, one {# pack importé supprimé} other {# packs importés supprimés}}."
+      },
+      "tutorial": {
+        "label": "Tutoriel"
+      },
+      "citadel": {
+        "label": "La Citadelle Mécanique"
       }
     }
   },
@@ -1107,6 +1128,59 @@
       },
       "time": {
         "short": "TEMPS"
+      },
+      "strip": {
+        "label": "Barre d'état du niveau"
+      },
+      "tab": {
+        "level": {
+          "label": "Niveau, bottes et clés"
+        },
+        "menu": {
+          "label": "Menu du jeu"
+        }
+      },
+      "drawer": {
+        "level": {
+          "title": "Niveau"
+        },
+        "menu": {
+          "title": "Menu du jeu"
+        },
+        "close": {
+          "action": "Fermer"
+        }
+      },
+      "menu_drawer": {
+        "resume": {
+          "action": "Reprendre"
+        },
+        "all_options": {
+          "action": "Toutes les options"
+        },
+        "levels": {
+          "action": "Niveaux"
+        },
+        "exit_fullscreen": {
+          "action": "Quitter le plein écran"
+        }
+      },
+      "level": {
+        "short": "NIV. {number}"
+      },
+      "count": {
+        "chips": {
+          "label": "{count} puces restantes"
+        },
+        "targets": {
+          "label": "{count} cibles restantes"
+        },
+        "receivers": {
+          "label": "{count} récepteurs restants"
+        },
+        "time": {
+          "label": "{seconds} secondes restantes"
+        }
       }
     },
     "messages": {
@@ -1374,7 +1448,7 @@
         "label": "Ordinateur : déplacez-vous avec les flèches, WASD ou ZQSD."
       },
       "move_touch": {
-        "label": "Téléphone : glissez le doigt sur le plateau ou utilisez la croix à l'écran."
+        "label": "Téléphone : posez le pouce n'importe où sur le plateau et glissez pour diriger (maintenez pour continuer à marcher), touchez une case pour y aller. Une croix fixe à l'écran est disponible dans les options."
       },
       "undo": {
         "label": "U : annuler votre dernier pas."
@@ -5401,6 +5475,134 @@
       "5": {
         "title": "Pyramide de l'harmonie",
         "subtitle": "Salles enchaînées mêlant écluses à rochers, alcôves à grappin et optique à prismes."
+      }
+    }
+  },
+  "tutorial": {
+    "chapter": {
+      "basics": {
+        "title": "Les bases",
+        "subtitle": "Marcher, ramasser des puces et atteindre la sortie."
+      },
+      "refresher": {
+        "title": "Rappel CC1",
+        "subtitle": "Les tuiles et monstres classiques de Chip's Challenge, et ce qui change dans Epoxy."
+      }
+    },
+    "basics": {
+      "move": {
+        "title": "Premiers pas",
+        "hint": "Déplacez-vous avec les flèches ou ZQSD (téléphone : joystick ou toucher). Marchez sur une case d'indice pour lire un conseil, puis gagnez la sortie."
+      },
+      "chips": {
+        "title": "Les puces et le verrou",
+        "hint": "Ramassez toutes les puces. Le verrou reste fermé tant que vous ne les avez pas toutes, puis il s'ouvre et mène à la sortie."
+      },
+      "detour": {
+        "title": "Le chemin le plus long",
+        "hint": "La sortie est proche mais le verrou la bloque. Éloignez-vous, ramassez toutes les puces, puis revenez."
+      }
+    },
+    "refresher": {
+      "secret_walls": {
+        "title": "Murs menteurs",
+        "hint": "Touchez un mur bleu : un faux disparaît, un vrai devient un mur ordinaire (bleu dans CC1). Certains murs restent invisibles. Un mur escamotable se referme."
+      },
+      "thin_walls": {
+        "title": "Parois fines",
+        "hint": "Une paroi fine ne bloque qu'un bord de sa case. Entrez par les autres côtés, jamais à travers le bord bloqué. Dans Epoxy, toute case peut en porter une."
+      },
+      "dirt_gravel": {
+        "title": "Terre et gravier",
+        "hint": "La terre devient du sol dès que vous la traversez, le gravier reste. Vous passez sur les deux, mais aucun monstre ne peut y entrer."
+      },
+      "keys": {
+        "title": "Clés et portes",
+        "hint": "Une clé ouvre la porte de sa couleur. Les clés rouge, bleue et jaune sont consommées par la porte ; la clé verte est gardée et ouvre toutes les portes vertes."
+      },
+      "elements": {
+        "title": "Eau, feu et bottes",
+        "hint": "L'eau vous noie et le feu vous brûle. Les palmes rendent l'eau sans danger, les bottes ignifugées le feu. Ramassez-les avant de traverser."
+      },
+      "ice": {
+        "title": "Glace et crampons",
+        "hint": "Sur la glace, vous glissez jusqu'à un obstacle et les coins vous font tourner. Les crampons permettent de marcher normalement : prenez-les pour vous arrêter."
+      },
+      "force": {
+        "title": "Tapis roulants",
+        "hint": "Les tapis roulants vous poussent. Un tapis aléatoire pousse n'importe où. Les bottes ventouses permettent de marcher à contre-courant."
+      },
+      "toggle": {
+        "title": "Murs bascules",
+        "hint": "Un bouton vert inverse tous les murs bascules : les fermés s'ouvrent, les ouverts se ferment. Anticipez de quel côté vous serez en appuyant."
+      },
+      "teleport": {
+        "title": "Téléporteurs",
+        "hint": "Un téléporteur mène au précédent dans l'ordre de lecture, en boucle. Si sa sortie est bloquée, vous sortez par un autre côté libre (CC1 passe au suivant)."
+      },
+      "followers": {
+        "title": "Les longeurs de murs",
+        "hint": "Les scarabées longent le mur à leur gauche, les paramécies à leur droite. Les balles roses rebondissent en ligne droite. Observez-les, puis faufilez-vous."
+      },
+      "skewers": {
+        "title": "Planeurs et boules de feu",
+        "hint": "Planeurs et boules de feu volent droit puis tournent face à un mur : planeurs à gauche, boules de feu à droite. Planeurs sur l'eau, boules de feu sur le feu."
+      },
+      "wanderers": {
+        "title": "Marcheurs, blobs et traqueurs",
+        "hint": "Les marcheurs vont droit puis tournent au hasard devant un obstacle. Les blobs errent au hasard. Les traqueurs vous suivent : semez-les derrière des murs."
+      },
+      "tank": {
+        "title": "Les tanks",
+        "hint": "Un tank roule droit jusqu'à un obstacle, puis attend. Un bouton bleu inverse tous les tanks. Appuyez dessus pour le renvoyer."
+      },
+      "trap": {
+        "title": "Les pièges",
+        "hint": "Un piège vous retient tant que son bouton brun est libre. Maintenez la direction : vous sortez quand le scarabée passe dessus."
+      },
+      "clone": {
+        "title": "Machines de clonage",
+        "hint": "Un bouton rouge fait cloner le monstre de sa machine. Le nouveau tank roule et s'arrête sur le bouton brun, ce qui ouvre le piège."
+      }
+    },
+    "ui": {
+      "help": {
+        "button": {
+          "action": "Tutoriel",
+          "hint": "Apprendre le jeu une mécanique à la fois"
+        }
+      },
+      "drawer": {
+        "button": {
+          "action": "Tutoriel"
+        }
+      },
+      "onboarding": {
+        "start": {
+          "action": "Commencer le tutoriel"
+        },
+        "skip": {
+          "action": "Passer"
+        }
+      },
+      "notice": {
+        "title": {
+          "label": "Nouveau : le tutoriel"
+        },
+        "body": {
+          "label": "Un tutoriel enseigne désormais le jeu une mécanique à la fois, salle après salle. Essayez-le quand vous voulez."
+        },
+        "start": {
+          "action": "Commencer"
+        },
+        "later": {
+          "action": "Plus tard"
+        }
+      },
+      "complete": {
+        "play_epoxy": {
+          "action": "Jouer à Epoxy"
+        }
       }
     }
   },

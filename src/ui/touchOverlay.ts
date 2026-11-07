@@ -36,6 +36,10 @@ export const TOUCH_OVERLAY_CLASS = 'touch-overlay';
 /** Body class set by full screen mode (native or CSS only). */
 export const FULLSCREEN_CLASS = 'fullscreen-mode';
 export const DPAD_SIDE_CLASSES: Record<DpadSide, string> = { left: 'dpad-left', right: 'dpad-right' };
+/** Body class: the side drawers and the top status strip replace the HUD panel (phone layout with the floating control). */
+export const TOUCH_DRAWERS_CLASS = 'touch-drawers';
+/** Body class: the floating joystick steers, the fixed pad is hidden. */
+export const JOYSTICK_FLOATING_CLASS = 'joystick-floating';
 export const ORIENTATION_CLASSES = { landscape: 'orientation-landscape', portrait: 'orientation-portrait' } as const;
 
 /** Media queries the decision reads. */
@@ -56,6 +60,21 @@ export const OVERLAY_STRIP_SELECTORS: readonly string[] = [
   TOUCH_CLUSTER_SELECTOR,
   OVERLAY_HUD_SELECTOR
 ];
+
+/** The status strip at the top of the board in the drawer layout. */
+export const TOUCH_STRIP_ID = 'touch-strip';
+export const TOUCH_STRIP_SELECTOR = `#${TOUCH_STRIP_ID}`;
+/** The bottom corner cluster (Undo and the drop buttons) in the drawer layout; the same element as the old button cluster. */
+export const TOUCH_BOTTOM_CLUSTER_SELECTOR = TOUCH_CLUSTER_SELECTOR;
+/**
+ * What the camera keeps clear in the drawer layout: the top strip and the bottom cluster. The drawers
+ * are never measured: they cover the board only while open, and an open drawer freezes the game.
+ */
+export const DRAWER_STRIP_SELECTORS: readonly string[] = [TOUCH_STRIP_SELECTOR, TOUCH_BOTTOM_CLUSTER_SELECTOR];
+/** The selectors the camera insets read, and the strip observer watches. */
+export function getOverlayStripSelectors(drawers: boolean): readonly string[] {
+  return drawers ? DRAWER_STRIP_SELECTORS : OVERLAY_STRIP_SELECTORS;
+}
 
 /** Attribute names the module toggles. */
 const INERT_ATTRIBUTE = 'inert';
@@ -91,6 +110,22 @@ export function parseDpadSide(value: unknown): DpadSide {
   return value === 'left' ? 'left' : DEFAULT_DPAD_SIDE;
 }
 
+/** How a phone player steers: a joystick that appears under the thumb, or the fixed directional pad. */
+export type TouchControl = 'floating' | 'fixed';
+
+/** Phones get the floating joystick unless the player switched back to the fixed pad. */
+export const DEFAULT_TOUCH_CONTROL: TouchControl = 'floating';
+
+/** Anything but 'fixed' is the default: a stored value can be edited or stale. */
+export function parseTouchControl(value: unknown): TouchControl {
+  return value === 'fixed' ? 'fixed' : DEFAULT_TOUCH_CONTROL;
+}
+
+/** Haptics are on unless the stored value is explicitly false. */
+export function parseHapticsEnabled(value: unknown): boolean {
+  return value !== false;
+}
+
 /** Reads the browser state the decision needs. */
 export function readTouchOverlayInput(win: Window, body: HTMLElement, mode: 'play' | 'editor'): TouchOverlayInput {
   const matches = (query: string): boolean => typeof win.matchMedia === 'function' && win.matchMedia(query).matches;
@@ -107,6 +142,16 @@ export interface TouchOverlayState {
   active: boolean;
   side: DpadSide;
   landscape: boolean;
+  /** Drawer layout: the `touch-drawers` class. Ignored while the overlay is off. */
+  drawers?: boolean;
+  /** Floating joystick: the `joystick-floating` class. Ignored while the overlay is off. */
+  floating?: boolean;
+}
+
+/** The layout modes a touch control setting selects: both belong to the floating control, neither to the fixed pad. */
+export function resolveTouchLayoutModes(active: boolean, control: TouchControl): { drawers: boolean; floating: boolean } {
+  const floating = active && control === 'floating';
+  return { drawers: floating, floating };
 }
 
 /** Sets the overlay body classes; an inactive overlay leaves no class behind. */
@@ -114,7 +159,9 @@ export function applyTouchOverlayClasses(body: HTMLElement, state: TouchOverlayS
   const all = [
     TOUCH_OVERLAY_CLASS,
     ...Object.values(DPAD_SIDE_CLASSES),
-    ...Object.values(ORIENTATION_CLASSES)
+    ...Object.values(ORIENTATION_CLASSES),
+    TOUCH_DRAWERS_CLASS,
+    JOYSTICK_FLOATING_CLASS
   ];
   body.classList.remove(...all);
   if (!state.active) return;
@@ -123,6 +170,8 @@ export function applyTouchOverlayClasses(body: HTMLElement, state: TouchOverlayS
     DPAD_SIDE_CLASSES[state.side],
     state.landscape ? ORIENTATION_CLASSES.landscape : ORIENTATION_CLASSES.portrait
   );
+  if (state.drawers) body.classList.add(TOUCH_DRAWERS_CLASS);
+  if (state.floating) body.classList.add(JOYSTICK_FLOATING_CLASS);
 }
 
 /**
@@ -141,9 +190,19 @@ export function syncOverlayInert(doc: Document, overlayActive: boolean, cardVisi
   }
 }
 
-/** Groups the HUD for assistive technology while it floats over the board; plain markup otherwise. */
-export function syncHudGroup(hud: Element | null, overlayActive: boolean, label: string): void {
+/**
+ * Groups the HUD for assistive technology while it floats over the board; plain markup otherwise.
+ * While the drawers are active the HUD panel is a dialog (see touchDrawers.ts) and keeps no group role:
+ * a leftover group role and label from the floating HUD are removed, the dialog attributes are not touched.
+ */
+export function syncHudGroup(hud: Element | null, overlayActive: boolean, label: string, drawersActive = false): void {
   if (!hud) return;
+  if (overlayActive && drawersActive) {
+    if (hud.getAttribute('role') === 'group') hud.removeAttribute('role');
+    // The drawer is named by aria-labelledby: a label left from the floating HUD would override it.
+    hud.removeAttribute('aria-label');
+    return;
+  }
   if (overlayActive) {
     hud.setAttribute('role', 'group');
     hud.setAttribute('aria-label', label);
@@ -204,24 +263,35 @@ export function computeCameraInsets(args: {
   /** Boxes of the elements that float over the reserved strip; empty boxes are ignored. */
   rects: readonly InsetRect[];
   tilePx: number;
+  /**
+   * Top mode (drawer layout): boxes pinned to the top of the board, such as the status strip. The camera
+   * keeps clear of them down to the lowest bottom edge, plus half a tile. Absent in the classic layout,
+   * where the result is exactly what it was before this mode existed.
+   */
+  topRects?: readonly InsetRect[];
 }): CameraInsetsFractions {
   if (!args.active) return NO_CAMERA_INSETS;
   const { canvas } = args;
+  const margin = Math.max(0, args.tilePx) * CAMERA_INSET_TILE_MARGIN;
+  const height = canvas.bottom - canvas.top;
+  const usedTop = (args.topRects ?? []).filter(hasArea);
+  const topInset =
+    usedTop.length === 0
+      ? 0
+      : fractionOf(Math.max(...usedTop.map((r) => r.bottom)) - canvas.top + margin, height);
   const used = args.rects.filter(hasArea);
-  if (used.length === 0) return NO_CAMERA_INSETS;
+  if (used.length === 0) return topInset > 0 ? { ...NO_CAMERA_INSETS, top: topInset } : NO_CAMERA_INSETS;
   const top = Math.min(...used.map((r) => r.top));
   const left = Math.min(...used.map((r) => r.left));
   const right = Math.max(...used.map((r) => r.right));
-  const margin = Math.max(0, args.tilePx) * CAMERA_INSET_TILE_MARGIN;
   const width = canvas.right - canvas.left;
-  const height = canvas.bottom - canvas.top;
   if (!args.landscape) {
-    return { ...NO_CAMERA_INSETS, bottom: fractionOf(canvas.bottom - top + margin, height) };
+    return { ...NO_CAMERA_INSETS, top: topInset, bottom: fractionOf(canvas.bottom - top + margin, height) };
   }
   if (args.side === 'left') {
-    return { ...NO_CAMERA_INSETS, left: fractionOf(right - canvas.left + margin, width) };
+    return { ...NO_CAMERA_INSETS, top: topInset, left: fractionOf(right - canvas.left + margin, width) };
   }
-  return { ...NO_CAMERA_INSETS, right: fractionOf(canvas.right - left + margin, width) };
+  return { ...NO_CAMERA_INSETS, top: topInset, right: fractionOf(canvas.right - left + margin, width) };
 }
 
 /** Shows the saved side in the select and reports each change by the player. */
@@ -240,10 +310,14 @@ export function bindDpadSideSelect(
  * language, and the camera insets come from their rects. Returns a function that stops the watch;
  * a no-op where ResizeObserver does not exist.
  */
-export function observeOverlayStrip(doc: Document, onChange: () => void): () => void {
+export function observeOverlayStrip(
+  doc: Document,
+  onChange: () => void,
+  selectors: readonly string[] = [OVERLAY_HUD_SELECTOR, TOUCH_CLUSTER_SELECTOR]
+): () => void {
   if (typeof ResizeObserver === 'undefined') return () => undefined;
   const observer = new ResizeObserver(() => onChange());
-  for (const selector of [OVERLAY_HUD_SELECTOR, TOUCH_CLUSTER_SELECTOR]) {
+  for (const selector of selectors) {
     const el = doc.querySelector(selector);
     if (el) observer.observe(el);
   }

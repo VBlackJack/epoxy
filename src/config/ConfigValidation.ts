@@ -228,6 +228,9 @@ export function findGameTunableErrors(game: GameConfig): string[] {
   if (typeof game.storage?.onboardingSeenKey !== 'string' || game.storage.onboardingSeenKey.length === 0) {
     errors.push('storage.onboardingSeenKey: expected a non-empty string');
   }
+  if (typeof game.storage?.tutorialNoticeSeenKey !== 'string' || game.storage.tutorialNoticeSeenKey.length === 0) {
+    errors.push('storage.tutorialNoticeSeenKey: expected a non-empty string');
+  }
   if (typeof game.storage?.lastSaveDestinationKey !== 'string' || game.storage.lastSaveDestinationKey.length === 0) {
     errors.push('storage.lastSaveDestinationKey: expected a non-empty string');
   }
@@ -877,6 +880,45 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
   return ['watchSearchBudget', 'hintSearchBudget', 'watchMaxCells']
     .filter((key) => !Number.isInteger(value[key]) || (value[key] as number) <= 0)
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
+}
+
+/** touch fields that are pixel or millisecond lengths: finite numbers, zero or more. */
+const TOUCH_LENGTH_KEYS = [
+  'swipeDeadzonePx',
+  'tapMaxDistancePx',
+  'tapMaxDurationMs',
+  'hapticPulseMs',
+  'joystickDeadZonePx',
+  'joystickReleaseRadiusPx',
+  'joystickBaseFollowRadiusPx',
+  'joystickKnobRadiusPx'
+];
+/** Smallest axis switch ratio: 1 means "any larger component wins"; below 1 the axis would flip back and forth. */
+const MIN_JOYSTICK_AXIS_SWITCH_RATIO = 1;
+
+/**
+ * Problems of the optional game.json touch section. Every key is optional (the code falls back to
+ * TOUCH_DEFAULTS), but a key that is present must be usable; the joystick release radius must stay
+ * under the dead zone, or the stick could never release once engaged.
+ */
+export function findTouchConfigErrors(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!isRecord(value)) return ['touch: not an object'];
+  const errors: string[] = [];
+  for (const key of TOUCH_LENGTH_KEYS) {
+    const v = value[key];
+    if (v !== undefined && (!isFiniteNumber(v) || v < 0)) errors.push(`touch.${key}: not a non-negative number`);
+  }
+  const ratio = value.joystickAxisSwitchRatio;
+  if (ratio !== undefined && (!isFiniteNumber(ratio) || ratio < MIN_JOYSTICK_AXIS_SWITCH_RATIO)) {
+    errors.push(`touch.joystickAxisSwitchRatio: not a number of at least ${MIN_JOYSTICK_AXIS_SWITCH_RATIO}`);
+  }
+  const dead = value.joystickDeadZonePx;
+  const release = value.joystickReleaseRadiusPx;
+  if (isFiniteNumber(dead) && isFiniteNumber(release) && release > dead) {
+    errors.push('touch.joystickReleaseRadiusPx: larger than joystickDeadZonePx');
+  }
+  return errors;
 }
 
 /** campaignGuard fields that must be whole numbers of at least 1. */

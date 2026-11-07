@@ -81,6 +81,10 @@ export interface UserSettings {
   musicVolumePercent?: number;
   /** Side of the screen the touch directional pad floats on in the phone full screen layout; read back through parseDpadSide. */
   dpadSide?: 'left' | 'right';
+  /** Phone touch control: a joystick that appears under the thumb, or the fixed directional pad; read back through parseTouchControl. */
+  touchControl?: 'floating' | 'fixed';
+  /** Vibration pulse when the joystick engages a direction; on unless explicitly false. */
+  hapticsEnabled?: boolean;
 }
 
 export interface StorageConfig {
@@ -95,6 +99,8 @@ export interface StorageConfig {
   lastEndlessKey: string;
   /** Flag set once the first-launch "How to play" dialog was shown. */
   onboardingSeenKey: string;
+  /** Flag set once the one-time "New: Tutorial" notice was shown. */
+  tutorialNoticeSeenKey: string;
   /** Pack the editor last saved a level into, preselected in its "Save into" dialog. */
   lastSaveDestinationKey: string;
   /** Which inspector sections of the editor are open. */
@@ -369,6 +375,31 @@ export interface RunewardArtConfig {
     orbCore: string;
     /** Ground shadow under the character. */
     shadow: string;
+  };
+  /** Colours the three playable characters share beyond the mage block: outline, cloth, leather and effects. */
+  character: {
+    /** Outline of the figure when the style draws no ink line. */
+    outline: string;
+    hair: string;
+    /** Skin in shade: the mouth and the nose crease. */
+    skinShade: string;
+    leather: string;
+    leatherDark: string;
+    /** Scroll paper and the lines written on it. */
+    scroll: string;
+    scrollInk: string;
+    satchel: string;
+    satchelLight: string;
+    strap: string;
+    feather: string;
+    /** Shadow inside a hood. */
+    hoodInner: string;
+    trouser: string;
+    /** The scribe's cloak; the edge is the dark rim that keeps its hood readable on a pale floor. */
+    cloak: { main: string; light: string; dark: string; edge: string };
+    lantern: { glassTop: string; glassBottom: string; rib: string };
+    /** The ward ring and its rune diamonds. */
+    halo: { ring: string; inner: string; rune: string };
   };
   /** Keys, doors, plates, buttons and toggle slabs, by colour channel. */
   keys: Record<RunewardKeyColour, RunewardKeyColours>;
@@ -957,6 +988,16 @@ export interface TouchConfig {
   tapMaxDistancePx: number;
   tapMaxDurationMs: number;
   hapticPulseMs: number;
+  /** Distance from the touch point before the floating joystick engages a direction, in CSS pixels. */
+  joystickDeadZonePx?: number;
+  /** Distance under which an engaged joystick lets go (smaller than the dead zone: hysteresis). */
+  joystickReleaseRadiusPx?: number;
+  /** The off-axis component must exceed the current axis component by this ratio to switch axis. */
+  joystickAxisSwitchRatio?: number;
+  /** Distance past which the joystick base follows the finger, in CSS pixels. */
+  joystickBaseFollowRadiusPx?: number;
+  /** Radius the knob is drawn within, in CSS pixels (visual only). */
+  joystickKnobRadiusPx?: number;
 }
 
 /** Layout counts the block puzzle solver may visit before giving up without a verdict. */
