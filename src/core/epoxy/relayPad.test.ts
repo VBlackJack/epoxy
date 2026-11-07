@@ -613,7 +613,7 @@ describe('relay pad: the validator', () => {
 describe('relay pad: pack format 11', () => {
   it('names its ids in a format 11 row of the id table, and detects them on the terrain only', () => {
     expect(PACK_JSON_VERSION_V11).toBe(11);
-    expect([...PACK_JSON_VERSION_V11_IDS].sort()).toEqual([DARK, LIT].sort());
+    expect([...PACK_JSON_VERSION_V11_IDS].sort()).toEqual([DARK, LIT, 'toll_token'].sort());
     for (const id of PACK_JSON_VERSION_V11_IDS) expect(ConfigRegistry.getTiles().tiles[id]).toBeDefined();
     expect(idSetVersionOf(room({ terrain: [[POWERED_PAD, DARK]] }))).toBe(PACK_JSON_VERSION_V11);
     expect(idSetVersionOf(room({ terrain: [[FAR_PAD, LIT]] }))).toBe(PACK_JSON_VERSION_V11);

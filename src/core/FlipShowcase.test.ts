@@ -29,6 +29,7 @@ import signalShowcase from '../test/fixtures/signalShowcase.json';
 import railShowcase from '../test/fixtures/railShowcase.json';
 import relayShowcase from '../test/fixtures/relayShowcase.json';
 import stoneShowcase from '../test/fixtures/stoneShowcase.json';
+import tokenShowcase from '../test/fixtures/tokenShowcase.json';
 import wispShowcase from '../test/fixtures/wispShowcase.json';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { GameEngine } from './GameEngine';
@@ -89,7 +90,7 @@ describe('wired flip showcase level', () => {
     const others: CompiledLevel[] = [
       ...ConfigRegistry.getLevels(),
       ...ConfigRegistry.getPilotLevels(),
-      ...[laserShowcase, mechanicsShowcase, railShowcase, relayShowcase, signalShowcase, stoneShowcase, wispShowcase].flatMap((pack) =>
+      ...[laserShowcase, mechanicsShowcase, railShowcase, relayShowcase, signalShowcase, stoneShowcase, tokenShowcase, wispShowcase].flatMap((pack) =>
         (pack as { levels: LevelBlueprint[] }).levels.map((blueprint) => ConfigRegistry.compileBlueprint(blueprint))
       )
     ];

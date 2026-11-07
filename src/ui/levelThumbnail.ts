@@ -77,6 +77,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   relay_pad_dark: 'floorBorder',
   relay_pad_lit: 'teleportRing',
   hurl_stone: 'wallBase',
+  toll_token: 'yellow',
   charge_lit: 'bombSpark',
   score_2x: 'bonusFlagMultiplier',
   block_target: 'blockTarget',

@@ -332,6 +332,14 @@ const STONE_ART = {
   facet: [[0.34, 0.4], [0.5, 0.34], [0.58, 0.4], [0.44, 0.52], [0.36, 0.52]] as ReadonlyArray<readonly [number, number]>,
   lineWidthTile: 0.035
 } as const;
+/** Toll token, as tile fractions: a round coin with a square hole through its centre, and the width of its rim line. */
+const TOKEN_ART = {
+  centre: 0.5,
+  radius: 0.26,
+  holeHalfSide: 0.07,
+  rimInset: 0.055,
+  lineWidthTile: 0.035
+} as const;
 /**
  * Pocket gate pad, as tile fractions: a ring with a notch cut out of its top, a dot at the centre, and the width of
  * the ring line. The pad is still (no swirl), so it never reads as one of the portals. The gate item reuses the ring
@@ -3720,6 +3728,37 @@ export class PixelRenderer {
     ctx.restore();
   }
 
+  /** A toll token: a gold coin with a square hole, hollowed out of the fill. */
+  private paintToken(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const centreX = x + size * TOKEN_ART.centre;
+    const centreY = y + size * TOKEN_ART.centre;
+    const radius = size * TOKEN_ART.radius;
+    const hole = size * TOKEN_ART.holeHalfSide;
+    const traceCoin = (): void => {
+      ctx.beginPath();
+      ctx.arc(centreX, centreY, radius, 0, FULL_TURN);
+      ctx.rect(centreX - hole, centreY - hole, hole * 2, hole * 2);
+    };
+    ctx.save();
+    traceCoin();
+    ctx.fillStyle = pal.yellow;
+    ctx.fill('evenodd');
+    ctx.strokeStyle = pal.wallShadow;
+    ctx.lineWidth = Math.max(1, size * TOKEN_ART.lineWidthTile);
+    ctx.lineJoin = 'round';
+    if (isModern) {
+      ctx.shadowColor = pal.yellow;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(centreX, centreY, radius - size * TOKEN_ART.rimInset, 0, FULL_TURN);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   /** A blast charge: a banded canister; lit, it carries a burning wick. */
   private paintCharge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean, lit: boolean): void {
     const pal = this.pal();
@@ -5429,6 +5468,11 @@ export class PixelRenderer {
 
       case 'hurl_stone': {
         this.paintStone(ctx, x, y, size, isModern);
+        break;
+      }
+
+      case 'toll_token': {
+        this.paintToken(ctx, x, y, size, isModern);
         break;
       }
 

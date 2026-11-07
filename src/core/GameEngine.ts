@@ -91,7 +91,7 @@ import {
 const MIN_WALK_COOLDOWN_TICKS = 1;
 
 /** Collectibles held as a count beside the keys: a key colour, a blast charge, a pocket gate and a hurl stone. */
-const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gate', 'stone']);
+const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gate', 'stone', 'token']);
 
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
@@ -407,6 +407,12 @@ export class GameEngine {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
     if (!itemId || !this.holdsItem(itemId)) {
       this.w.statusBannerKey = 'hud.messages.drop_nothing';
+      return false;
+    }
+    // A toll token is never set down: it is spent at a thief or kept.
+    if (ConfigRegistry.getTile(itemId).collectible === 'token') {
+      this.w.statusBannerKey = 'hud.messages.drop_token';
+      AudioManager.playSfx('blocked');
       return false;
     }
     // A hurl stone is thrown ahead, not set down: the cell under the player does not matter.

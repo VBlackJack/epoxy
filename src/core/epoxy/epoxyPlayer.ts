@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
@@ -227,6 +227,15 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   return true;
 }
 
+/** Spends one held toll token; false when the player holds none. */
+function spendTollToken(w: EpoxyWorld): boolean {
+  const held = w.player.keys[TOKEN_ITEM_ID] || 0;
+  if (held <= 0) return false;
+  if (held === 1) delete w.player.keys[TOKEN_ITEM_ID];
+  else w.player.keys[TOKEN_ITEM_ID] = held - 1;
+  return true;
+}
+
 /**
  * Applies the effects of the cell the player just entered. A teleporter is
  * resolved first: the player jumps, then the arrival cell (items, thief,
@@ -274,7 +283,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
       AudioManager.playSfx('chip');
       ctx.emitVisual('chip', x, y, 'green');
-    } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone') {
+    } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone' || itemDef.collectible === 'token') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
       AudioManager.playSfx('item');
@@ -294,18 +303,25 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     }
   }
 
-  if (tile.stealsBoots && w.player.boots.size > 0) {
-    w.player.boots.clear();
-    w.statusBannerKey = 'hud.messages.thief_stole';
-    AudioManager.playSfx('thief');
-  }
-
-  // Only keys are stolen: a blast charge or a pocket gate stays in the pocket.
+  // Only keys are stolen: a blast charge, a pocket gate, a hurl stone or a toll token stays in the pocket.
   const isKey = (id: string): boolean => ConfigRegistry.getTile(id).collectible === 'key';
-  if (tile.stealsKeys && Object.entries(w.player.keys).some(([id, count]) => count > 0 && isKey(id))) {
-    w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isKey(id)));
-    w.statusBannerKey = 'hud.messages.thief_stole_keys';
-    AudioManager.playSfx('thief');
+  const takesBoots = tile.stealsBoots === true && w.player.boots.size > 0;
+  const takesKeys = tile.stealsKeys === true && Object.entries(w.player.keys).some(([id, count]) => count > 0 && isKey(id));
+  if ((takesBoots || takesKeys) && spendTollToken(w)) {
+    // One token pays for the whole visit: the thief takes nothing.
+    w.statusBannerKey = 'hud.messages.thief_paid';
+    AudioManager.playSfx('item');
+  } else {
+    if (takesBoots) {
+      w.player.boots.clear();
+      w.statusBannerKey = 'hud.messages.thief_stole';
+      AudioManager.playSfx('thief');
+    }
+    if (takesKeys) {
+      w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isKey(id)));
+      w.statusBannerKey = 'hud.messages.thief_stole_keys';
+      AudioManager.playSfx('thief');
+    }
   }
 
   notePulseArrival(w, x, y, null);
