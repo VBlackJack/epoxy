@@ -946,6 +946,9 @@
       },
       "delete_all_done": {
         "label": "{count, plural, one {# pack importé supprimé} other {# packs importés supprimés}}."
+      },
+      "tutorial": {
+        "label": "Tutoriel"
       }
     }
   },
@@ -5469,6 +5472,28 @@
       "5": {
         "title": "Pyramide de l'harmonie",
         "subtitle": "Salles enchaînées mêlant écluses à rochers, alcôves à grappin et optique à prismes."
+      }
+    }
+  },
+  "tutorial": {
+    "chapter": {
+      "basics": {
+        "title": "Les bases",
+        "subtitle": "Marcher, ramasser des puces et atteindre la sortie."
+      }
+    },
+    "basics": {
+      "move": {
+        "title": "Premiers pas",
+        "hint": "Déplacez-vous avec les flèches ou ZQSD (téléphone : joystick ou toucher). Marchez sur une case d'indice pour lire un conseil, puis gagnez la sortie."
+      },
+      "chips": {
+        "title": "Les puces et le verrou",
+        "hint": "Ramassez toutes les puces. Le verrou reste fermé tant que vous ne les avez pas toutes, puis il s'ouvre et mène à la sortie."
+      },
+      "detour": {
+        "title": "Le chemin le plus long",
+        "hint": "La sortie est proche mais le verrou la bloque. Éloignez-vous, ramassez toutes les puces, puis revenez."
       }
     }
   }

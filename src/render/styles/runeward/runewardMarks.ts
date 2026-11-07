@@ -127,46 +127,87 @@ function paintGravel(ctx: CanvasRenderingContext2D, size: number, art: Art, nb: 
 // ---- Dirt -------------------------------------------------------------------------------------
 
 const DIRT = {
-  blobVertices: 9,
-  blobRadius: 0.33,
-  blobJitter: 0.1,
+  blobVertices: 16,
   blobSalt: 71,
-  clodCount: 5,
+  /** Share of the way from the centre to the cell border reached by the patch edge, before jitter. */
+  blobReach: 0.9,
+  blobJitter: 0.07,
+  edgeAlpha: 0.55,
+  grainCount: 16,
+  grainSalt: 101,
+  grainSpread: 0.8,
+  grainLength: 0.07,
+  grainWidth: 0.018,
+  grainAlpha: 0.55,
+  clodCount: 7,
   clodSalt: 83,
-  clodReach: 0.22,
+  clodSpread: 0.7,
   clodRadius: 0.06,
-  clodRadiusSpan: 0.03,
+  clodRadiusSpan: 0.035,
   clodSquash: 0.7,
   crescentFrom: Math.PI * 1.1,
   crescentTo: Math.PI * 1.75,
-  crescentWidth: 0.02
+  crescentWidth: 0.02,
+  pebbleCount: 4,
+  pebbleSalt: 131,
+  pebbleSpread: 0.64,
+  pebbleRadius: 0.03,
+  pebbleRadiusSpan: 0.02,
+  pebbleSquash: 0.8
 } as const;
 
-/** Dirt: a ragged patch of earth with clods, shaped from the cell hash. */
+/** Dirt: loose earth filling the cell with soft ragged edges, grain, clods and pebbles, shaped from the cell hash. */
 function paintDirt(ctx: CanvasRenderingContext2D, size: number, art: Art, nb: Neighbours): void {
   const { dirt } = art.mark;
   paintFloor(ctx, size, art, nb);
-  const centre = size * HALF;
-  ctx.beginPath();
+  const points: Array<[number, number]> = [];
   for (let k = 0; k < DIRT.blobVertices; k += 1) {
     const h = tileHash(nb.hash, DIRT.blobSalt + k);
-    const radius = size * (DIRT.blobRadius + (inkUnit(h, INK.shiftA) - HALF) * DIRT.blobJitter * 2);
     const angle = (k / DIRT.blobVertices) * TAU;
-    const px = centre + Math.cos(angle) * radius;
-    const py = centre + Math.sin(angle) * radius;
-    if (k === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    // Distance from the centre to the cell border along this direction, so the patch follows the square cell.
+    const toBorder = HALF / Math.max(Math.abs(cos), Math.abs(sin));
+    const reach = toBorder * (DIRT.blobReach + (inkUnit(h, INK.shiftA) - HALF) * DIRT.blobJitter * 2);
+    points.push([size * (HALF + cos * reach), size * (HALF + sin * reach)]);
+  }
+  // Closed curve through the midpoints of the polygon sides, which softens the edge.
+  const last = points[points.length - 1];
+  ctx.beginPath();
+  ctx.moveTo((last[0] + points[0][0]) / 2, (last[1] + points[0][1]) / 2);
+  for (let k = 0; k < points.length; k += 1) {
+    const here = points[k];
+    const next = points[(k + 1) % points.length];
+    ctx.quadraticCurveTo(here[0], here[1], (here[0] + next[0]) / 2, (here[1] + next[1]) / 2);
   }
   ctx.closePath();
   ctx.fillStyle = dirt.base;
   ctx.fill();
+  ctx.globalAlpha = DIRT.edgeAlpha;
   outline(ctx, size, dirt.edge);
+  ctx.globalAlpha = 1;
+  // Darker grain: short strokes scattered over the patch.
+  ctx.strokeStyle = dirt.dark;
+  ctx.lineWidth = Math.max(MIN_LINE_PX, size * DIRT.grainWidth);
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = DIRT.grainAlpha;
+  for (let i = 0; i < DIRT.grainCount; i += 1) {
+    const h = tileHash(nb.hash, DIRT.grainSalt + i);
+    const gx = HALF + (inkUnit(h, INK.shiftA) - HALF) * DIRT.grainSpread;
+    const gy = HALF + (inkUnit(h, INK.shiftB) - HALF) * DIRT.grainSpread;
+    const tilt = (inkUnit(h, INK.shiftC) - HALF) * Math.PI;
+    const dx = Math.cos(tilt) * DIRT.grainLength * HALF;
+    const dy = Math.sin(tilt) * DIRT.grainLength * HALF;
+    ctx.beginPath();
+    ctx.moveTo(size * (gx - dx), size * (gy - dy));
+    ctx.lineTo(size * (gx + dx), size * (gy + dy));
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
   for (let i = 0; i < DIRT.clodCount; i += 1) {
     const h = tileHash(nb.hash, DIRT.clodSalt + i);
-    const angle = inkUnit(h, INK.shiftA) * TAU;
-    const reach = DIRT.clodReach * inkUnit(h, INK.shiftB);
-    const px = HALF + Math.cos(angle) * reach;
-    const py = HALF + Math.sin(angle) * reach;
+    const px = HALF + (inkUnit(h, INK.shiftA) - HALF) * DIRT.clodSpread;
+    const py = HALF + (inkUnit(h, INK.shiftB) - HALF) * DIRT.clodSpread;
     const r = DIRT.clodRadius + inkUnit(h, INK.shiftC) * DIRT.clodRadiusSpan;
     ellipse(ctx, size, px, py, r, r * DIRT.clodSquash);
     ctx.fillStyle = dirt.dark;
@@ -176,6 +217,16 @@ function paintDirt(ctx: CanvasRenderingContext2D, size: number, art: Art, nb: Ne
     ctx.beginPath();
     ctx.ellipse(size * px, size * py, size * r, size * r * DIRT.clodSquash, 0, DIRT.crescentFrom, DIRT.crescentTo);
     ctx.stroke();
+  }
+  for (let i = 0; i < DIRT.pebbleCount; i += 1) {
+    const h = tileHash(nb.hash, DIRT.pebbleSalt + i);
+    const px = HALF + (inkUnit(h, INK.shiftA) - HALF) * DIRT.pebbleSpread;
+    const py = HALF + (inkUnit(h, INK.shiftB) - HALF) * DIRT.pebbleSpread;
+    const r = DIRT.pebbleRadius + inkUnit(h, INK.shiftC) * DIRT.pebbleRadiusSpan;
+    ellipse(ctx, size, px, py, r, r * DIRT.pebbleSquash);
+    ctx.fillStyle = dirt.light;
+    ctx.fill();
+    outline(ctx, size, dirt.edge);
   }
 }
 

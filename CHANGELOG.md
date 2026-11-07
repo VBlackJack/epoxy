@@ -13,6 +13,7 @@ versions follow Semantic Versioning.
 
 - Refined default Runeward mage (four facings, boots, skating pose, deaths by cause); old saved Character settings stay valid.
 - Faster endless level generation (corridor search of the loop wings uses typed arrays and groups pieces by entry side); the generated levels are identical for every seed.
+- Runeward loose dirt tile now reads as a patch of earth covering the cell with grain, clods and pebbles, instead of a small lump on the paving.
 
 ## [2.25.0] - 2026-11-07
 

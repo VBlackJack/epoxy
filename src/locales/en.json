@@ -946,6 +946,9 @@
       },
       "delete_all_done": {
         "label": "{count, plural, one {# imported pack} other {# imported packs}} deleted."
+      },
+      "tutorial": {
+        "label": "Tutorial"
       }
     }
   },
@@ -5469,6 +5472,28 @@
       "5": {
         "title": "Pyramid of Harmony",
         "subtitle": "Chained chambers combining boulder sluices, grappling alcoves and prism optics."
+      }
+    }
+  },
+  "tutorial": {
+    "chapter": {
+      "basics": {
+        "title": "Basics",
+        "subtitle": "Walk, collect chips and reach the exit."
+      }
+    },
+    "basics": {
+      "move": {
+        "title": "First Steps",
+        "hint": "Move with the arrow keys or WASD (phone: joystick or tap). Step on a hint tile to read a tip, then reach the exit."
+      },
+      "chips": {
+        "title": "Chips and the Socket",
+        "hint": "Collect every chip. The socket stays shut until you hold them all, then it opens and lets you through to the exit."
+      },
+      "detour": {
+        "title": "The Long Way Round",
+        "hint": "The exit is close but the socket blocks it. Walk away from it, gather all the chips, then come back."
       }
     }
   }

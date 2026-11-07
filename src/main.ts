@@ -16,7 +16,7 @@
 
 import { ConfigBundle, ConfigRegistry } from './config/ConfigRegistry';
 import { isRemovablePack, removablePackIds } from './ui/importedPacks';
-import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, IMPORTED_PACK_RULESET } from './config/constants';
+import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, IMPORTED_PACK_RULESET, PLAYTEST_ONLY_PACK_IDS } from './config/constants';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
@@ -478,12 +478,12 @@ class EpoxyApplication {
     });
   }
 
-  /** The pilot pack exists only while Playtest mode is on; turning it off while playing the pilot returns to the campaign. */
+  /** The playtest-only packs exist only while Playtest mode is on; turning it off while playing one returns to the campaign. */
   private syncPilotPackVisibility(): void {
-    const wasPilotActive = ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PILOT;
+    const wasPlaytestPackActive = PLAYTEST_ONLY_PACK_IDS.includes(ConfigRegistry.getActivePackId());
     if (!ConfigRegistry.setPilotPackVisible(this.playtest.isEnabled())) return;
     this.refreshPackSelector();
-    if (!wasPilotActive || ConfigRegistry.getActivePackId() === BUILTIN_PACK_IDS.PILOT) return;
+    if (!wasPlaytestPackActive || PLAYTEST_ONLY_PACK_IDS.includes(ConfigRegistry.getActivePackId())) return;
     this.editor.refreshContext();
     // Back on the campaign: resume where the player left it, not at the first level.
     this.startLevelByIndex(this.savedLevelIndex() ?? 0);
