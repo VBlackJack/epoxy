@@ -12,6 +12,10 @@ versions follow Semantic Versioning.
 - Relay pad (`relay_pad_dark`, `relay_pad_lit`): a pad a signal wire ends on lights while its signal is on and goes dark when it is off, a lit pad is a teleporter of its own group that sends whoever steps on it to the previous lit relay pad in reading order (blocks and monsters too), and a pad no wire ends on keeps the form it was placed in; Epoxy rules, pack format 11 ids.
 - Toll Token (`toll_token`): pick it up and a boot thief or a key thief that would take something is paid with one token instead and takes nothing; a thief with nothing to take leaves it alone, and it cannot be set down (Epoxy rules). Pack format 11 now also covers levels whose wires flip a tile, and this build reads format 11.
 
+### Changed
+
+- Relay pads (lit and dark) have their own look in every style, a plug marks a green toggle wall or rail switch that a signal wire ends on, and the 16-Bit Toll Token is now drawn (it was invisible).
+
 ## [2.24.0] - 2026-11-07
 
 ### Added

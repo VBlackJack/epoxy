@@ -163,7 +163,7 @@
    "................",
    "................"
   ]},
-  "toll_token": { "outline": true, "rows": [
+  "toll_token": { "outline": true, "legend": {"k":"yellow.0","K":"yellow.1","j":"yellow.2"}, "rows": [
    "................",
    "................",
    "................",

@@ -491,12 +491,12 @@ tile teleport_green closed=true shadowMask=128 hash=1 067f97bafbf1adad
 tile pocket_gate_pad closed=true isolated 5bec5f4d758deb61
 tile pocket_gate_pad closed=true shadowMask=65 hash=1 f59ce5f5113465b6
 tile pocket_gate_pad closed=true shadowMask=128 hash=1 504170b926eb0705
-tile relay_pad_dark closed=true isolated 496c8b232385f16d
-tile relay_pad_dark closed=true shadowMask=65 hash=1 8f7db9a980e2b796
-tile relay_pad_dark closed=true shadowMask=128 hash=1 32a081d7f8be67a8
-tile relay_pad_lit closed=true isolated 8cf9473c3447ce09
-tile relay_pad_lit closed=true shadowMask=65 hash=1 9476c4e4753df1eb
-tile relay_pad_lit closed=true shadowMask=128 hash=1 a608fd7ed791cab2
+tile relay_pad_dark closed=true isolated c58a87eabd7c98cd
+tile relay_pad_dark closed=true shadowMask=65 hash=1 5a0c7df67bd6a2ee
+tile relay_pad_dark closed=true shadowMask=128 hash=1 0ae1f6b4daed55fe
+tile relay_pad_lit closed=true isolated 7d12b194ad555a5f
+tile relay_pad_lit closed=true shadowMask=65 hash=1 1fe1a005fdf3ccc2
+tile relay_pad_lit closed=true shadowMask=128 hash=1 d5befbd9ad8c8304
 tile trap closed=true isolated 5e01827a68b245d7
 tile trap closed=true shadowMask=65 hash=1 c8b52fdebccdb963
 tile trap closed=true shadowMask=128 hash=1 cfad06af253f13c5

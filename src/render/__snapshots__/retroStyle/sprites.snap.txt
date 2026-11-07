@@ -29,6 +29,8 @@ sprite theme=default name=transmogrifier cca7f4696ccd1950
 sprite theme=default name=turn_plate_cw 2a29994309532f26
 sprite theme=default name=turn_plate_ccw d45657b20a7e0297
 sprite theme=default name=pocket_gate_pad 71d25d54cf2290c2
+sprite theme=default name=relay_pad_dark 87832f51bdcd7ae8
+sprite theme=default name=relay_pad_lit e54d0837a36eb224
 sprite theme=default name=signal_plate e04e7afd311fa2f4
 sprite theme=default name=signal_plate_lit 18dc15df35190005
 sprite theme=default name=signal_button e8c38d699a252098
@@ -110,7 +112,7 @@ sprite theme=default name=charge 2c1359c68f9b4678
 sprite theme=default name=charge_lit c212f678da61c7e6
 sprite theme=default name=pocket_gate 009244bf3818b47c
 sprite theme=default name=hurl_stone 9fb4e6107ea482e8
-sprite theme=default name=toll_token 4d5c80b838c44a95
+sprite theme=default name=toll_token 85b8826a966a7200
 sprite theme=default name=flag cdc3fd0b5560b38d
 sprite theme=default name=stopwatch_bonus 0e9fce7b319124e6
 sprite theme=default name=stopwatch_penalty b99fa635f1093f64
@@ -277,6 +279,8 @@ sprite theme=cyber_neon name=transmogrifier 41156028f2c1d15f
 sprite theme=cyber_neon name=turn_plate_cw 3c67381a8492bcde
 sprite theme=cyber_neon name=turn_plate_ccw 0d3869c70ab05dd3
 sprite theme=cyber_neon name=pocket_gate_pad fdcb9c19e26e1513
+sprite theme=cyber_neon name=relay_pad_dark 697005e64767e8df
+sprite theme=cyber_neon name=relay_pad_lit 244a4715039ffa3d
 sprite theme=cyber_neon name=signal_plate 2eac2519370858a8
 sprite theme=cyber_neon name=signal_plate_lit b8c4b4ad0ca2c8cf
 sprite theme=cyber_neon name=signal_button 00211d102bc0baaa
@@ -358,7 +362,7 @@ sprite theme=cyber_neon name=charge 615b2f95766413ea
 sprite theme=cyber_neon name=charge_lit 1102b57372ab3944
 sprite theme=cyber_neon name=pocket_gate 60c6e3cfe8ec214e
 sprite theme=cyber_neon name=hurl_stone beb4c69855903237
-sprite theme=cyber_neon name=toll_token 74b752bd1bbc7d0c
+sprite theme=cyber_neon name=toll_token 9a02dcc8da43f118
 sprite theme=cyber_neon name=flag b071ea3d45c0bf3a
 sprite theme=cyber_neon name=stopwatch_bonus 5f4ccb634aeb1f4c
 sprite theme=cyber_neon name=stopwatch_penalty c2c032486be49472
@@ -525,6 +529,8 @@ sprite theme=arctic_lab name=transmogrifier b9ca012380eb5874
 sprite theme=arctic_lab name=turn_plate_cw 4cc9b3c05cdf17c4
 sprite theme=arctic_lab name=turn_plate_ccw cc440619b3232a4b
 sprite theme=arctic_lab name=pocket_gate_pad 405ae0958e0a6e1a
+sprite theme=arctic_lab name=relay_pad_dark 0132cc363bd4f47f
+sprite theme=arctic_lab name=relay_pad_lit 4b3de3859a6ea23d
 sprite theme=arctic_lab name=signal_plate 8c9298cff71452e7
 sprite theme=arctic_lab name=signal_plate_lit ffcd2a8e866b2e1a
 sprite theme=arctic_lab name=signal_button b1bd45e1cfa3f994
@@ -606,7 +612,7 @@ sprite theme=arctic_lab name=charge 46ceac84ed8aaf91
 sprite theme=arctic_lab name=charge_lit 8b28a0594d70a5f3
 sprite theme=arctic_lab name=pocket_gate 97619c3a3fd97272
 sprite theme=arctic_lab name=hurl_stone 5c3284ba3b7d4a4d
-sprite theme=arctic_lab name=toll_token 27c26c4df29f2192
+sprite theme=arctic_lab name=toll_token 571980b12195503a
 sprite theme=arctic_lab name=flag 0e8c6ef6656319aa
 sprite theme=arctic_lab name=stopwatch_bonus fc7809722ace33fb
 sprite theme=arctic_lab name=stopwatch_penalty 889ac52f31b4db52
@@ -773,6 +779,8 @@ sprite theme=magma_core name=transmogrifier 80222b365cd56c5e
 sprite theme=magma_core name=turn_plate_cw 64687851b164f950
 sprite theme=magma_core name=turn_plate_ccw bf53718ad12764f8
 sprite theme=magma_core name=pocket_gate_pad ef69867027e1bf9e
+sprite theme=magma_core name=relay_pad_dark ce69475d16105925
+sprite theme=magma_core name=relay_pad_lit 415dde6eee4a4dd8
 sprite theme=magma_core name=signal_plate 62251ef54ffa3d6e
 sprite theme=magma_core name=signal_plate_lit de4df362661b0cba
 sprite theme=magma_core name=signal_button 8d032aecdfb27da7
@@ -854,7 +862,7 @@ sprite theme=magma_core name=charge c61e2e3c5279f540
 sprite theme=magma_core name=charge_lit 6f0fc1152a8ce106
 sprite theme=magma_core name=pocket_gate 1f30de52fb138033
 sprite theme=magma_core name=hurl_stone 6ab6eb1ca980b06e
-sprite theme=magma_core name=toll_token c5a749ae4ee93039
+sprite theme=magma_core name=toll_token beef8b8465b1ebd8
 sprite theme=magma_core name=flag 5b4ce0a19399c6b1
 sprite theme=magma_core name=stopwatch_bonus 85cafaff4511a3fd
 sprite theme=magma_core name=stopwatch_penalty 4ee6718373575536
@@ -1021,6 +1029,8 @@ sprite theme=lynx_lcd name=transmogrifier 91e2e562771e81bc
 sprite theme=lynx_lcd name=turn_plate_cw 304c0853d64d62e5
 sprite theme=lynx_lcd name=turn_plate_ccw 94af94742ed09750
 sprite theme=lynx_lcd name=pocket_gate_pad b75d9ed0ca5968f7
+sprite theme=lynx_lcd name=relay_pad_dark ec6ac6c6d0e741cb
+sprite theme=lynx_lcd name=relay_pad_lit 11546624041c3f3f
 sprite theme=lynx_lcd name=signal_plate 2a0da29ff8034799
 sprite theme=lynx_lcd name=signal_plate_lit 7d8ba71b6e341de7
 sprite theme=lynx_lcd name=signal_button 9023de9566b17c0b
@@ -1102,7 +1112,7 @@ sprite theme=lynx_lcd name=charge 1e45f579199636f4
 sprite theme=lynx_lcd name=charge_lit e449a005dbd1d782
 sprite theme=lynx_lcd name=pocket_gate 89eab8e2a6eb135b
 sprite theme=lynx_lcd name=hurl_stone cd3cff708036920b
-sprite theme=lynx_lcd name=toll_token d3a04a1931e64363
+sprite theme=lynx_lcd name=toll_token c8460b28cd23e2b3
 sprite theme=lynx_lcd name=flag 020574d33c91ace4
 sprite theme=lynx_lcd name=stopwatch_bonus 5028d3738366f927
 sprite theme=lynx_lcd name=stopwatch_penalty 26f4e230a371c2d2
