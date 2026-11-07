@@ -1,0 +1,4568 @@
+{
+  "levels": [
+    {
+      "id": "epoxy_k_1",
+      "number": 1,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_1.title",
+      "hintKey": "citadel.levels.level_1.hint",
+      "password": "SLUC",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#.......#.u.......#",
+        "###W#####Y#.......#",
+        "###d...##.#.......#",
+        "###.....uH###.#####",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 3,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 6,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "key_yellow"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSEEESEEENNNEEESEEESWWSSEEEE"
+    },
+    {
+      "id": "epoxy_k_2",
+      "number": 2,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_2.title",
+      "hintKey": "citadel.levels.level_2.hint",
+      "password": "VALV",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#.......#.#.......#",
+        "#.......#.###W#####",
+        "#.......#G###d...##",
+        "###.#####.###...SE#",
+        "###.....uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 3,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 16,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "ESEEESWWSSEEEEEENNNNNEEEESSSEEESE"
+    },
+    {
+      "id": "epoxy_k_3",
+      "number": 3,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_3.title",
+      "hintKey": "citadel.levels.level_3.hint",
+      "password": "TRNC",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#########.#.......#",
+        "#.......#.#.......#",
+        "#.......#Y###W#####",
+        "###W#####.###W#####",
+        "###d...##g###d...##",
+        "###.....uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_yellow"
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSEEESEEENNNNNNEEEESSSNEEEENWWWNWSSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_4",
+      "number": 4,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_4.title",
+      "hintKey": "citadel.levels.level_4.hint",
+      "password": "LOCK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#.......###########",
+        "#.......#.u.......#",
+        "###W#####.#.......#",
+        "###W#####d###W#####",
+        "###d...##.###d...##",
+        "###.....uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 6,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSNEEEENWWWNWSSSSSEEESEEENNNNEEEESSSEEESE"
+    },
+    {
+      "id": "epoxy_k_5",
+      "number": 5,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_5.title",
+      "hintKey": "citadel.levels.level_5.hint",
+      "password": "SPAN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#.......###########",
+        "#.......#.u.......#",
+        "#.......#.#.......#",
+        "###W#####.#.......#",
+        "###W#####.###.#####",
+        "###d...##d###...SE#",
+        "###.....uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 4,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSNEEEENWWWNWSSSSSEEESEEENNNNNEEESEEESWWSSEEEE"
+    },
+    {
+      "id": "epoxy_k_6",
+      "number": 6,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_6.title",
+      "hintKey": "citadel.levels.level_6.hint",
+      "password": "DYKE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#########.u.......#",
+        "#.......#.#.......#",
+        "#.......#.#.......#",
+        "#.......#Y###W#####",
+        "###.#####.###W#####",
+        "###.....uH###d...##",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 4,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 6,
+          "id": "key_yellow"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "ESEEESWWSSEEEEEENNNNNEEEESSSNEEEENWWWNWSSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_7",
+      "number": 7,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_7.title",
+      "hintKey": "citadel.levels.level_7.hint",
+      "password": "KILN",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#.......#.#.......#",
+        "#.......#.###.#####",
+        "###W#####G###F#####",
+        "###d...##.###d...##",
+        "###.....uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 6,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "ice_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSEEESEEENNNNNEEEESSNNEEEESWWWNWSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_8",
+      "number": 8,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_8.title",
+      "hintKey": "citadel.levels.level_8.hint",
+      "password": "FLUX",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#.......###########",
+        "###.#####.u.......#",
+        "###F#####d#.......#",
+        "###d...##.#.......#",
+        "###.....uH###W#####",
+        "#############W#####",
+        "#############d...##",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 6,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "ice_block",
+          "x": 3,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSNNEEEESWWWNWSSSSEEESEEENNNEEEESSSNEEEENWWWNWSSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_9",
+      "number": 9,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_9.title",
+      "hintKey": "citadel.levels.level_9.hint",
+      "password": "BELT",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#########.#..>>>..#",
+        "#.......#.#.......#",
+        "#.......#.###.#####",
+        "#.......#d###...SE#",
+        "###.#####.#########",
+        "###.....uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 2,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 13,
+          "y": 4,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 13,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "ESEEESWWSSEEEEEENNNNNNEESESESSEEEE"
+    },
+    {
+      "id": "epoxy_k_10",
+      "number": 10,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_10.title",
+      "hintKey": "citadel.levels.level_10.hint",
+      "password": "GATE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############################",
+        "#.......###########.u.......#",
+        "#.......#.u.......#.#.......#",
+        "###W#####.#.......#.#.......#",
+        "###d...##d#.......#G###W#####",
+        "###.....uH###.#####.###W#####",
+        "#############.....u.###d...##",
+        "#######################...SE#",
+        "#############################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 3,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 19,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 26,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 23,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 26,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSEEESEEENNNEEESEEESWWSSEEEEEENNNNNEEEESSSNEEEENWWWNWSSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_11",
+      "number": 11,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_11.title",
+      "hintKey": "citadel.levels.level_11.hint",
+      "password": "RIME",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#..II2..#.u.......#",
+        "#....I..#Y#.......#",
+        "###.#.###.#.......#",
+        "###d.#..uH###.#####",
+        "###....######...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 3,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 4,
+          "id": "key_yellow"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SESESSSEEEENEEENNNEEESEEESWWSSEEEE"
+    },
+    {
+      "id": "epoxy_k_12",
+      "number": 12,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_12.title",
+      "hintKey": "citadel.levels.level_12.hint",
+      "password": "GALE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#.......#.#..II2..#",
+        "#..>>>..#.#....I..#",
+        "#.......#G###.#.###",
+        "###.#####.###d.#SE#",
+        "###.....uH###....##",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 3,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 13,
+          "y": 4,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 15,
+          "y": 4,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SESESSEEEEEENNNNNEESESESSSEEEENE"
+    },
+    {
+      "id": "epoxy_k_13",
+      "number": 13,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_13.title",
+      "hintKey": "citadel.levels.level_13.hint",
+      "password": "THAW",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#########.#.......#",
+        "#.......#.###.#####",
+        "#..II2..#Y###F#####",
+        "#....I..#.###d...##",
+        "###.#.###g###...SE#",
+        "###d.#..uH#########",
+        "###....############",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 3,
+          "y": 6,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "id": "pressure_plate_red"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_yellow"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "ice_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SESESSSEEEENEEENNNNNNEEEESSNNEEEESWWWNWSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_14",
+      "number": 14,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_14.title",
+      "hintKey": "citadel.levels.level_14.hint",
+      "password": "TOLL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#.......#.u..dF..T#",
+        "###W#####d###.....#",
+        "###d...##.####W####",
+        "###.....uH####d####",
+        "##############...S#",
+        "#################E#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 14,
+          "y": 6,
+          "id": "forbid_boots_fire"
+        }
+      ],
+      "items": [
+        {
+          "x": 12,
+          "y": 2,
+          "id": "boots_fire"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 15,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 14,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSEEESEEENNNEEEEESNEEESWWWSSSEEES"
+    },
+    {
+      "id": "epoxy_k_15",
+      "number": 15,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_15.title",
+      "hintKey": "citadel.levels.level_15.hint",
+      "password": "BOOT",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#..dF..T###########",
+        "###.....#.u.......#",
+        "####W####.#..>>>..#",
+        "####d####.#.......#",
+        "####....#d###.#####",
+        "#######.uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 4,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "id": "forbid_boots_fire"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 2,
+          "id": "boots_fire"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEESNEEESWWWSSSEEESEENNNNEESESESSEEEE"
+    },
+    {
+      "id": "epoxy_k_16",
+      "number": 16,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_16.title",
+      "hintKey": "citadel.levels.level_16.hint",
+      "password": "HOOK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.....#.#",
+        "#.......#.#.###...#",
+        "#..II2..#.##......#",
+        "#....I..#Y###d#.###",
+        "###.#.###.###.#####",
+        "###d.#..uH###...SE#",
+        "###....############",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 15,
+          "y": 4,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 1,
+          "id": "boots_pull"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_yellow"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SESESSSEEEENEEENNNNNEEEEEESEENSSWWWWEEENWSWWSSSEEEE"
+    },
+    {
+      "id": "epoxy_k_17",
+      "number": 17,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_17.title",
+      "hintKey": "citadel.levels.level_17.hint",
+      "password": "SWAP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#..>>>..###########",
+        "#.......#.u..d..###",
+        "###.#####.#...#####",
+        "###.....uH###W#...#",
+        "############......#",
+        "#############d#.###",
+        "#############.#####",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 2,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 15,
+          "y": 7,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 13,
+          "y": 8,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 15,
+          "y": 3,
+          "id": "boots_pull"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 9,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 6,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SESESSEEEEEENNEEEEEEWWSSSEEENWSWWSSSEEEE"
+    },
+    {
+      "id": "epoxy_k_18",
+      "number": 18,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_18.title",
+      "hintKey": "citadel.levels.level_18.hint",
+      "password": "HAUL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#########.u.....#.#",
+        "#..dF..T#.#.###...#",
+        "###.....#.##......#",
+        "####W####Y###d#.###",
+        "####d####.###.#####",
+        "####....#g###...SE#",
+        "#######.uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 15,
+          "y": 5,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "id": "forbid_boots_fire"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 2,
+          "id": "boots_pull"
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "id": "boots_fire"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "key_yellow"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEESNEEESWWWSSSEEESEENNNNNNEEEEEESEENSSWWWWEEENWSWWSSSEEEE"
+    },
+    {
+      "id": "epoxy_k_19",
+      "number": 19,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_19.title",
+      "hintKey": "citadel.levels.level_19.hint",
+      "password": "YOKE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u..d..###",
+        "#.......#.#...#####",
+        "#.......#.###W#...#",
+        "###.#####.##......#",
+        "###F#####d###d#.###",
+        "###d...##.###.#####",
+        "###.....uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 15,
+          "y": 5,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 15,
+          "y": 1,
+          "id": "boots_pull"
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "ice_block",
+          "x": 3,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSNNEEEESWWWNWSSSSEEESEEENNNNNNEEEEEEWWSSSEEENWSWWSSSEEEE"
+    },
+    {
+      "id": "epoxy_k_20",
+      "number": 20,
+      "theme": "arctic_lab",
+      "titleKey": "citadel.levels.level_20.title",
+      "hintKey": "citadel.levels.level_20.hint",
+      "password": "CRYO",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############################",
+        "#..dF..T###########.u..d..###",
+        "###.....#.u.......#.#...#####",
+        "####W####.#..II2..#.###W#...#",
+        "####d####.#....I..#G##......#",
+        "####....#d###.#.###.###d#.###",
+        "#######.uH###d.#..u.###.#####",
+        "#############....######...SE#",
+        "#############################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 4,
+          "y": 5,
+          "id": "forbid_boots_fire"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 15,
+          "y": 5,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 25,
+          "y": 5,
+          "id": "pressure_plate_green"
+        },
+        {
+          "x": 23,
+          "y": 6,
+          "id": "hold_door_green_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 1,
+          "id": "boots_fire"
+        },
+        {
+          "x": 25,
+          "y": 1,
+          "id": "boots_pull"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 19,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "chip"
+        },
+        {
+          "x": 23,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 23,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 22,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEESNEEESWWWSSSEEESEENNNNEESESESSSEEEENEEENNNNNEEEEEEWWSSSEEENWSWWSSSEEEE"
+    },
+    {
+      "id": "epoxy_k_21",
+      "number": 21,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_21.title",
+      "hintKey": "citadel.levels.level_21.hint",
+      "password": "TICK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#...#...###########",
+        "#...#####.u.......#",
+        "###.#####.#.......#",
+        "###.....uH###W#####",
+        "#############d...##",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 1,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "pink_ball",
+          "x": 5,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EES.SSEEEEEENNEEEESSSEEESE"
+    },
+    {
+      "id": "epoxy_k_22",
+      "number": 22,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_22.title",
+      "hintKey": "citadel.levels.level_22.hint",
+      "password": "PAWL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#...#X..#.#.......#",
+        "#.&.#####G#.......#",
+        "###.#####.###.#####",
+        "###.....uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 2,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 16,
+          "y": 2,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 13,
+          "y": 4,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 4,
+          "id": "key_green"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 5,
+          "y": 2,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 3,
+          "trapX": 5,
+          "trapY": 2
+        }
+      ],
+      "cloneLinks": [],
+      "solution": "SE..E.SSEEEEEENNNNEEESEEESWWSSEEEE"
+    },
+    {
+      "id": "epoxy_k_23",
+      "number": 23,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_23.title",
+      "hintKey": "citadel.levels.level_23.hint",
+      "password": "TANK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#...#...###########",
+        "#.-.#####.u.......#",
+        "###.#####.#.......#",
+        "###.....uH#.......#",
+        "#############W#####",
+        "#############W#####",
+        "#############d...##",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 5,
+          "y": 1,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 7,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SE..E.SSEEEEEENNEEEESSSNEEEENWWWNWSSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_24",
+      "number": 24,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_24.title",
+      "hintKey": "citadel.levels.level_24.hint",
+      "password": "CAST",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#########.#.......#",
+        "#.+.....#.#.......#",
+        "#.M.....#.###W#####",
+        "###W#####d###W#####",
+        "###d...##.###d...##",
+        "###.....uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [],
+      "items": [
+        {
+          "x": 6,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 4,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 3,
+          "clonerX": 2,
+          "clonerY": 4,
+          "templateType": "dirt_block",
+          "templateDir": "E"
+        }
+      ],
+      "solution": "EESSSEEESEEENNNNNNEEEESSSNEEEENWWWNWSSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_25",
+      "number": 25,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_25.title",
+      "hintKey": "citadel.levels.level_25.hint",
+      "password": "RAIL",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#...#...###########",
+        "#!&.#.#############",
+        "#...#X###.u.......#",
+        "###.#####.#.......#",
+        "###.....uH###.#####",
+        "#############F#####",
+        "#############d...##",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 5,
+          "y": 1,
+          "id": "rail_switch_b"
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "id": "rail_ew"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "id": "rail_ns"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 5,
+          "y": 3,
+          "dir": "N"
+        },
+        {
+          "type": "ice_block",
+          "x": 13,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 16,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 2,
+          "trapX": 5,
+          "trapY": 3
+        }
+      ],
+      "cloneLinks": [],
+      "solution": "SE..ES..SSEEEEEENNEEEESSNNEEEESWWWNWSSSSEEESE"
+    },
+    {
+      "id": "epoxy_k_26",
+      "number": 26,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_26.title",
+      "hintKey": "citadel.levels.level_26.hint",
+      "password": "GEAR",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u...#X..#",
+        "#...#...#.#.&.#####",
+        "#...#####Y###.#####",
+        "###.#####.###...SE#",
+        "###.....uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 17,
+          "y": 1,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 13,
+          "y": 3,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 4,
+          "id": "key_yellow"
+        },
+        {
+          "x": 13,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "pink_ball",
+          "x": 5,
+          "y": 2,
+          "dir": "E"
+        },
+        {
+          "type": "tank",
+          "x": 15,
+          "y": 1,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 12,
+          "buttonY": 2,
+          "trapX": 15,
+          "trapY": 1
+        }
+      ],
+      "cloneLinks": [],
+      "solution": "EES.SSEEEEEENNNNEESE..E.SSEEEE"
+    },
+    {
+      "id": "epoxy_k_27",
+      "number": 27,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_27.title",
+      "hintKey": "citadel.levels.level_27.hint",
+      "password": "MOLD",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#########.u.+.....#",
+        "#...#...#.#.M.....#",
+        "#.-.#####G###W#####",
+        "###.#####.###d...##",
+        "###.....uH###...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 5,
+          "y": 3,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 7,
+          "y": 3,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 3,
+          "dir": "E"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [
+        {
+          "buttonX": 12,
+          "buttonY": 2,
+          "clonerX": 12,
+          "clonerY": 3,
+          "templateType": "dirt_block",
+          "templateDir": "E"
+        }
+      ],
+      "solution": "SE..E.SSEEEEEENNNNEEEESSSEEESE"
+    },
+    {
+      "id": "epoxy_k_28",
+      "number": 28,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_28.title",
+      "hintKey": "citadel.levels.level_28.hint",
+      "password": "SPUR",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#...#X..###########",
+        "#.&.#####.u...#...#",
+        "###.#####.#!&.#.###",
+        "###.....uH#...#X###",
+        "#############.#####",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 1,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 15,
+          "y": 2,
+          "id": "rail_switch_b"
+        },
+        {
+          "x": 16,
+          "y": 2,
+          "id": "rail_ew"
+        },
+        {
+          "x": 17,
+          "y": 2,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 15,
+          "y": 3,
+          "id": "rail_ns"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "tank",
+          "x": 5,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "tank",
+          "x": 15,
+          "y": 4,
+          "dir": "N"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 2,
+          "trapX": 5,
+          "trapY": 1
+        },
+        {
+          "buttonX": 12,
+          "buttonY": 3,
+          "trapX": 15,
+          "trapY": 4
+        }
+      ],
+      "cloneLinks": [],
+      "solution": "SE..E.SSEEEEEENNEESE..ES..SSEEEE"
+    },
+    {
+      "id": "epoxy_k_29",
+      "number": 29,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_29.title",
+      "hintKey": "citadel.levels.level_29.hint",
+      "password": "FORG",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#.+.....###########",
+        "#.M.....#.u.....#.#",
+        "###W#####d#.###...#",
+        "###d...##.##......#",
+        "###.....uH###d#.###",
+        "#############.#####",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 15,
+          "y": 6,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 3,
+          "id": "boots_pull"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 3,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 5,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 2,
+          "clonerX": 2,
+          "clonerY": 3,
+          "templateType": "dirt_block",
+          "templateDir": "E"
+        }
+      ],
+      "solution": "EESSSEEESEEENNNEEEEEESEENSSWWWWEEENWSWWSSSEEEE"
+    },
+    {
+      "id": "epoxy_k_30",
+      "number": 30,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_30.title",
+      "hintKey": "citadel.levels.level_30.hint",
+      "password": "WORK",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############################",
+        "#...#...###########.u...#...#",
+        "#...#####.u.+.....#.#!&.#.###",
+        "###.#####.#.M.....#.#...#X###",
+        "###.....uH###W#####G###.#####",
+        "#############d...##.###...SE#",
+        "#############.....u.#########",
+        "#############################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 1,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 25,
+          "y": 1,
+          "id": "rail_switch_b"
+        },
+        {
+          "x": 26,
+          "y": 1,
+          "id": "rail_ew"
+        },
+        {
+          "x": 27,
+          "y": 1,
+          "id": "pressure_plate_green"
+        },
+        {
+          "x": 25,
+          "y": 2,
+          "id": "rail_ns"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 23,
+          "y": 4,
+          "id": "hold_door_green_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 3,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 19,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 23,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "pink_ball",
+          "x": 5,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 3,
+          "dir": "E"
+        },
+        {
+          "type": "tank",
+          "x": 25,
+          "y": 3,
+          "dir": "N"
+        }
+      ],
+      "trapLinks": [
+        {
+          "buttonX": 22,
+          "buttonY": 2,
+          "trapX": 25,
+          "trapY": 3
+        }
+      ],
+      "cloneLinks": [
+        {
+          "buttonX": 12,
+          "buttonY": 2,
+          "clonerX": 12,
+          "clonerY": 3,
+          "templateType": "dirt_block",
+          "templateDir": "E"
+        }
+      ],
+      "solution": "EES.SSEEEEEENNEEEESSSEEESEEENNNNNEESE..ES..SSEEEE"
+    },
+    {
+      "id": "epoxy_k_31",
+      "number": 31,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_31.title",
+      "hintKey": "citadel.levels.level_31.hint",
+      "password": "BEAM",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u....d..#",
+        "#.......#.#.....#S#",
+        "#.......#.#....##E#",
+        "###W#####Y#.....###",
+        "###d...##.#.......#",
+        "###.....uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 1,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "laser_receiver_red"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_yellow"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 14,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 13,
+          "y": 5,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSEEESEEENNNNNEEEEEESWNWSNEEEESS"
+    },
+    {
+      "id": "epoxy_k_32",
+      "number": 32,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_32.title",
+      "hintKey": "citadel.levels.level_32.hint",
+      "password": "LENS",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#.......###########",
+        "#.......#.u.....d.#",
+        "###W#####.#.#....##",
+        "###W#####G##......#",
+        "###d...##.###d#####",
+        "###.....uH###.#####",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 4,
+          "id": "laser_emitter_s"
+        },
+        {
+          "x": 17,
+          "y": 5,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "laser_gate_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 3,
+          "id": "boots_pull"
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "key_green"
+        },
+        {
+          "x": 13,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 6,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 12,
+          "y": 5,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESSSNEEEENWWWNWSSSSSEEESEEENNNNEEEEEEEEWWSSWWEENWWSEENWSWSSSEEEE"
+    },
+    {
+      "id": "epoxy_k_33",
+      "number": 33,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_33.title",
+      "hintKey": "citadel.levels.level_33.hint",
+      "password": "XRAY",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u....d..#",
+        "#########.#.....#.#",
+        "#.......#.#.....#S#",
+        "#.......#Y#.....#E#",
+        "#.......#.#.....###",
+        "###.#####g#########",
+        "###.....uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 1,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 17,
+          "y": 1,
+          "id": "laser_gate_blue_closed"
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 15,
+          "y": 5,
+          "id": "laser_receiver_blue"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "hold_door_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_yellow"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 15,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "ESEEESWWSSEEEEEENNNNNNEEEESNEESSNNEESSS"
+    },
+    {
+      "id": "epoxy_k_34",
+      "number": 34,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_34.title",
+      "hintKey": "citadel.levels.level_34.hint",
+      "password": "GYRE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#..#....###########",
+        "#..#....#.u....d..#",
+        "#.....#.#d#.....#S#",
+        "###.#####.#....##E#",
+        "###.....uH#.....###",
+        "###########.......#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 2,
+          "y": 1,
+          "id": "force_cycle"
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "id": "force_cycle"
+        },
+        {
+          "x": 16,
+          "y": 2,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 16,
+          "y": 6,
+          "id": "laser_receiver_red"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 14,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 13,
+          "y": 6,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "SESEENEENESWSWWSSEEEEEENNNEEEEEESWNWSNEEEESS"
+    },
+    {
+      "id": "epoxy_k_35",
+      "number": 35,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_35.title",
+      "hintKey": "citadel.levels.level_35.hint",
+      "password": "SHUT",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#..d.#..###########",
+        "#.d..####.u....d..#",
+        "#.......#.#.....#.#",
+        "###.#####d#.....#S#",
+        "###.....uH#.....#E#",
+        "###########.....###",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 2,
+          "id": "pocket_gate_pad"
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 16,
+          "y": 3,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 17,
+          "y": 3,
+          "id": "laser_gate_blue_closed"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 15,
+          "y": 7,
+          "id": "laser_receiver_blue"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 2,
+          "id": "pocket_gate"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 17,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 13,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 15,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEESGNWWSESSSEEEEEENNNEEEESNEESSNNEESSS"
+    },
+    {
+      "id": "epoxy_k_36",
+      "number": 36,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_36.title",
+      "hintKey": "citadel.levels.level_36.hint",
+      "password": "RING",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#....d..###########",
+        "#.....#.#.u.......#",
+        "#....##.uH#.......#",
+        "#.....#####.......#",
+        "#.......###########",
+        "###########....#..#",
+        "###########...###.#",
+        "##############ES..#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 1,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 16,
+          "y": 3,
+          "id": "teleport_blue"
+        },
+        {
+          "x": 13,
+          "y": 4,
+          "id": "teleport_red"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "teleport_red"
+        },
+        {
+          "x": 16,
+          "y": 6,
+          "id": "teleport_blue"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 17,
+          "y": 7,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 7,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "mirror_backslash",
+          "x": 4,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 3,
+          "y": 5,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEESWNWSNEEEESSEENEEEESEEESSWWW"
+    },
+    {
+      "id": "epoxy_k_37",
+      "number": 37,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_37.title",
+      "hintKey": "citadel.levels.level_37.hint",
+      "password": "WIRE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#########.#.....#.#",
+        "#..#....#.#.....#S#",
+        "#..#....#.#.....#E#",
+        "#.....#.#G##.######",
+        "###.#####.#########",
+        "###.....uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 14,
+          "y": 1,
+          "id": "signal_plate"
+        },
+        {
+          "x": 17,
+          "y": 1,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "id": "force_cycle"
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "force_cycle"
+        },
+        {
+          "x": 14,
+          "y": 4,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 12,
+          "y": 5,
+          "id": "signal_gate_and"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "key_green"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 14,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "signalLinks": [
+        {
+          "fromX": 14,
+          "fromY": 1,
+          "toX": 12,
+          "toY": 5
+        },
+        {
+          "fromX": 14,
+          "fromY": 4,
+          "toX": 12,
+          "toY": 5
+        },
+        {
+          "fromX": 12,
+          "fromY": 5,
+          "toX": 17,
+          "toY": 1
+        }
+      ],
+      "solution": "SESEENEENESWSWWSSEEEEEENNNNNNEESEENESWWWNEESEENEESSS"
+    },
+    {
+      "id": "epoxy_k_38",
+      "number": 38,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_38.title",
+      "hintKey": "citadel.levels.level_38.hint",
+      "password": "NODE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.......###########",
+        "#.....#.#.u..d.#..#",
+        "#.....#.#.#.d..####",
+        "#.....#.uH#.......#",
+        "##.##########.#####",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 4,
+          "y": 1,
+          "id": "signal_plate"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 16,
+          "y": 2,
+          "id": "pocket_gate_pad"
+        },
+        {
+          "x": 17,
+          "y": 2,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "id": "signal_gate_and"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 7,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 12,
+          "y": 2,
+          "id": "pocket_gate"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 4,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "signalLinks": [
+        {
+          "fromX": 4,
+          "fromY": 1,
+          "toX": 2,
+          "toY": 5
+        },
+        {
+          "fromX": 4,
+          "fromY": 4,
+          "toX": 2,
+          "toY": 5
+        },
+        {
+          "fromX": 2,
+          "fromY": 5,
+          "toX": 7,
+          "toY": 1
+        }
+      ],
+      "solution": "SEENESWWWNEESEENEESSSEENNEEEEESGNWWSESSSEEEE"
+    },
+    {
+      "id": "epoxy_k_39",
+      "number": 39,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_39.title",
+      "hintKey": "citadel.levels.level_39.hint",
+      "password": "WARP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#########.#.......#",
+        "#..d.#..#.#.......#",
+        "#.d..####.#########",
+        "#.......#d#....#..#",
+        "###.#####.#...###.#",
+        "###.....uH####ES..#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 2,
+          "id": "teleport_blue"
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "id": "pocket_gate_pad"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 13,
+          "y": 3,
+          "id": "teleport_red"
+        },
+        {
+          "x": 13,
+          "y": 5,
+          "id": "teleport_red"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "teleport_blue"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "pressure_plate_green"
+        },
+        {
+          "x": 17,
+          "y": 6,
+          "id": "hold_door_green_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 3,
+          "id": "pocket_gate"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 3,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEESGNWWSESSSEEEEEENNNNNNEEEESEEESSWWW"
+    },
+    {
+      "id": "epoxy_k_40",
+      "number": 40,
+      "theme": "cyber_neon",
+      "titleKey": "citadel.levels.level_40.title",
+      "hintKey": "citadel.levels.level_40.hint",
+      "password": "GRID",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 4,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############################",
+        "#..#....###########.u.......#",
+        "#..#....#.u.......#.#.......#",
+        "#.....#.#.#.....#.#G#.......#",
+        "###.#####d#.....#.#.#########",
+        "###.....uH#.....#.u.#....#..#",
+        "############.########...###.#",
+        "########################ES..#",
+        "#############################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 2,
+          "y": 1,
+          "id": "force_cycle"
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "id": "force_cycle"
+        },
+        {
+          "x": 14,
+          "y": 2,
+          "id": "signal_plate"
+        },
+        {
+          "x": 17,
+          "y": 2,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 26,
+          "y": 2,
+          "id": "teleport_blue"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 23,
+          "y": 3,
+          "id": "teleport_red"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "hold_door_blue_closed"
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 14,
+          "y": 5,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 23,
+          "y": 5,
+          "id": "teleport_red"
+        },
+        {
+          "x": 26,
+          "y": 5,
+          "id": "teleport_blue"
+        },
+        {
+          "x": 12,
+          "y": 6,
+          "id": "signal_gate_and"
+        },
+        {
+          "x": 23,
+          "y": 6,
+          "id": "pressure_plate_green"
+        },
+        {
+          "x": 27,
+          "y": 6,
+          "id": "hold_door_green_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 9,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 17,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 19,
+          "y": 4,
+          "id": "key_green"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 26,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 5,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 14,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 23,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "signalLinks": [
+        {
+          "fromX": 14,
+          "fromY": 2,
+          "toX": 12,
+          "toY": 6
+        },
+        {
+          "fromX": 14,
+          "fromY": 5,
+          "toX": 12,
+          "toY": 6
+        },
+        {
+          "fromX": 12,
+          "fromY": 6,
+          "toX": 17,
+          "toY": 2
+        }
+      ],
+      "solution": "SESEENEENESWSWWSSEEEEEENNNEESEENESWWWNEESEENEESSSEENNNNEEEESEEESSWWW"
+    },
+    {
+      "id": "epoxy_k_41",
+      "number": 41,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_41.title",
+      "hintKey": "citadel.levels.level_41.hint",
+      "password": "FUSE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#..d....###########",
+        "#..d..#.###########",
+        "####[v#.uHu.......#",
+        "#..[.!.####.......#",
+        "###########.......#",
+        "#############.#####",
+        "#############...SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 1,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 16,
+          "y": 4,
+          "id": "pressure_plate_blue"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "hold_door_blue_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 1,
+          "id": "charge"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 13,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESENESWSXNWW...............NEEEEESSEEEEESEEESWWSSEEEE"
+    },
+    {
+      "id": "epoxy_k_42",
+      "number": 42,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_42.title",
+      "hintKey": "citadel.levels.level_42.hint",
+      "password": "SLNG",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u....d..#",
+        "#..d....#.#.....#S#",
+        "#####.W##.#....##E#",
+        "#####>.d#.#.....###",
+        "#######.#G#.......#",
+        "#######.#.#########",
+        "#######.uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 1,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "laser_receiver_red"
+        }
+      ],
+      "items": [
+        {
+          "x": 17,
+          "y": 1,
+          "id": "chip"
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "id": "hurl_stone"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "bomb"
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "key_green"
+        }
+      ],
+      "entities": [
+        {
+          "type": "mirror_backslash",
+          "x": 5,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 14,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 13,
+          "y": 5,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEET.SSESSSEENNNNNNEEEEEESWNWSNEEEESS"
+    },
+    {
+      "id": "epoxy_k_43",
+      "number": 43,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_43.title",
+      "hintKey": "citadel.levels.level_43.hint",
+      "password": "WARD",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#...D.#############",
+        "#.......###########",
+        "######..uHu..dF..T#",
+        "#############.....#",
+        "##############W####",
+        "##############d####",
+        "##############...S#",
+        "#################E#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 4,
+          "y": 2,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 14,
+          "y": 7,
+          "id": "forbid_boots_fire"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 1,
+          "id": "ward"
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 12,
+          "y": 3,
+          "id": "boots_fire"
+        },
+        {
+          "x": 15,
+          "y": 7,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "lurker_dormant",
+          "x": 5,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 14,
+          "y": 4,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEWEWSEEEESEEEEEEESNEEESWWWSSSEEES"
+    },
+    {
+      "id": "epoxy_k_44",
+      "number": 44,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_44.title",
+      "hintKey": "citadel.levels.level_44.hint",
+      "password": "LOOM",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u.......#",
+        "#########.#..II2..#",
+        "#..!....#.#....I..#",
+        "#...[...#.###.#.###",
+        "######W##d###d.#SE#",
+        "######d.#.###....##",
+        "######..uH#########",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 5,
+          "y": 3,
+          "id": "toggle_button_red"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "toggle_wall_red_closed"
+        },
+        {
+          "x": 13,
+          "y": 4,
+          "id": "hold_door_green_closed"
+        },
+        {
+          "x": 15,
+          "y": 4,
+          "id": "pressure_plate_green"
+        }
+      ],
+      "items": [
+        {
+          "x": 7,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "id": "chip"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 4,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEWWSEEENEWSENEWESSSESEENNNNNNEESESESSSEEEENE"
+    },
+    {
+      "id": "epoxy_k_45",
+      "number": 45,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_45.title",
+      "hintKey": "citadel.levels.level_45.hint",
+      "password": "DETO",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u..d....#",
+        "#..d....#.#####.W##",
+        "#..d..#.#d#####>.d#",
+        "####[v#.uH#######.#",
+        "#..[.!.##########S#",
+        "#################E#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 6,
+          "y": 2,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 1,
+          "y": 5,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "id": "laser_receiver_red"
+        }
+      ],
+      "items": [
+        {
+          "x": 12,
+          "y": 1,
+          "id": "hurl_stone"
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "id": "charge"
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 3,
+          "id": "bomb"
+        },
+        {
+          "x": 17,
+          "y": 4,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 4,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 15,
+          "y": 1,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EESENESWSXNWW...............NEEEEESSEENNNEEEEEET.SSESSS"
+    },
+    {
+      "id": "epoxy_k_46",
+      "number": 46,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_46.title",
+      "hintKey": "citadel.levels.level_46.hint",
+      "password": "GAZE",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "###################",
+        "#########.u....d..#",
+        "#...D.###Y#.....#.#",
+        "#.......#.#.....#S#",
+        "######..uH#.....#E#",
+        "###########.....###",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 2,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 17,
+          "y": 2,
+          "id": "laser_gate_blue_closed"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "id": "hold_door_red_closed"
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "id": "pressure_plate_red"
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 13,
+          "y": 6,
+          "id": "laser_receiver_red"
+        },
+        {
+          "x": 15,
+          "y": 6,
+          "id": "laser_receiver_blue"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 3,
+          "id": "ward"
+        },
+        {
+          "x": 17,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "key_yellow"
+        }
+      ],
+      "entities": [
+        {
+          "type": "lurker_dormant",
+          "x": 5,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 13,
+          "y": 3,
+          "dir": "S"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 15,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEWEWSEEEESEENNNEEEESNEESSNNEESSS"
+    },
+    {
+      "id": "epoxy_k_47",
+      "number": 47,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_47.title",
+      "hintKey": "citadel.levels.level_47.hint",
+      "password": "PARI",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 2,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#..d....###########",
+        "#####.W##.u..!....#",
+        "#####>.d#.#...[...#",
+        "#######.#G######W##",
+        "#######.#.######d.#",
+        "#######.uH######SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 15,
+          "y": 2,
+          "id": "toggle_button_red"
+        },
+        {
+          "x": 16,
+          "y": 3,
+          "id": "toggle_wall_red_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 1,
+          "id": "hurl_stone"
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "id": "bomb"
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "id": "key_green"
+        },
+        {
+          "x": 17,
+          "y": 5,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "mirror_backslash",
+          "x": 5,
+          "y": 1,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEET.SSESSSEENNNNEEEEWWSEEENEWSENEWESSSES"
+    },
+    {
+      "id": "epoxy_k_48",
+      "number": 48,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_48.title",
+      "hintKey": "citadel.levels.level_48.hint",
+      "password": "BOMB",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#.+.....###########",
+        "#.M.....#.u..d....#",
+        "###W#####d#..d..#S#",
+        "###d...##.####[v#E#",
+        "###.....uH#..[.!.##",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 16,
+          "y": 2,
+          "id": "laser_gate_red_closed"
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "id": "laser_emitter_e"
+        },
+        {
+          "x": 16,
+          "y": 5,
+          "id": "laser_receiver_red"
+        }
+      ],
+      "items": [
+        {
+          "x": 12,
+          "y": 2,
+          "id": "charge"
+        },
+        {
+          "x": 17,
+          "y": 2,
+          "id": "chip"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "dirt_block",
+          "x": 2,
+          "y": 2,
+          "dir": "E"
+        },
+        {
+          "type": "dirt_block",
+          "x": 14,
+          "y": 3,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [
+        {
+          "buttonX": 2,
+          "buttonY": 1,
+          "clonerX": 2,
+          "clonerY": 2,
+          "templateType": "dirt_block",
+          "templateDir": "E"
+        }
+      ],
+      "solution": "EESSSEEESEEENNNEEEESENESWSXNWW...............NEEEEESS"
+    },
+    {
+      "id": "epoxy_k_49",
+      "number": 49,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_49.title",
+      "hintKey": "citadel.levels.level_49.hint",
+      "password": "AEGS",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###################",
+        "#########.u..!....#",
+        "#...D.###d#...[...#",
+        "#.......#.######W##",
+        "######..uH######d.#",
+        "################SE#",
+        "###################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 15,
+          "y": 1,
+          "id": "toggle_button_red"
+        },
+        {
+          "x": 16,
+          "y": 2,
+          "id": "toggle_wall_red_closed"
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "id": "hold_door_green_closed"
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "id": "pressure_plate_green"
+        }
+      ],
+      "items": [
+        {
+          "x": 2,
+          "y": 2,
+          "id": "ward"
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 9,
+          "y": 3,
+          "id": "chip"
+        },
+        {
+          "x": 17,
+          "y": 4,
+          "id": "chip"
+        }
+      ],
+      "entities": [
+        {
+          "type": "lurker_dormant",
+          "x": 5,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 12,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEWEWSEEEESEENNNEEEEWWSEEENEWSENEWESSSES"
+    },
+    {
+      "id": "epoxy_k_50",
+      "number": 50,
+      "theme": "magma_core",
+      "titleKey": "citadel.levels.level_50.title",
+      "hintKey": "citadel.levels.level_50.hint",
+      "password": "APEX",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#############################",
+        "#...#...###########.u..!....#",
+        "#...#####.u..d....#.#...[...#",
+        "###.#####.#####.W##.######W##",
+        "###.....uH#####>.d#.######d.#",
+        "#################.#G######SE#",
+        "#################.#.#########",
+        "#################.u.#########",
+        "#############################"
+      ],
+      "terrainOverrides": [
+        {
+          "x": 7,
+          "y": 1,
+          "id": "pressure_plate_green"
+        },
+        {
+          "x": 25,
+          "y": 1,
+          "id": "toggle_button_red"
+        },
+        {
+          "x": 26,
+          "y": 2,
+          "id": "toggle_wall_red_closed"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "id": "hold_door_green_closed"
+        }
+      ],
+      "items": [
+        {
+          "x": 12,
+          "y": 2,
+          "id": "hurl_stone"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 16,
+          "y": 4,
+          "id": "bomb"
+        },
+        {
+          "x": 27,
+          "y": 4,
+          "id": "chip"
+        },
+        {
+          "x": 17,
+          "y": 5,
+          "id": "chip"
+        },
+        {
+          "x": 19,
+          "y": 6,
+          "id": "key_green"
+        }
+      ],
+      "entities": [
+        {
+          "type": "pink_ball",
+          "x": 5,
+          "y": 1,
+          "dir": "E"
+        },
+        {
+          "type": "mirror_backslash",
+          "x": 15,
+          "y": 2,
+          "dir": "S"
+        },
+        {
+          "type": "dirt_block",
+          "x": 22,
+          "y": 2,
+          "dir": "S"
+        }
+      ],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EES.SSEEEEEENNEEEEEET.SSESSSEENNNNNNEEEEWWSEEENEWSENEWESSSES"
+    }
+  ]
+}

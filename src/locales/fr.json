@@ -949,6 +949,9 @@
       },
       "tutorial": {
         "label": "Tutoriel"
+      },
+      "citadel": {
+        "label": "La Citadelle Mécanique"
       }
     }
   },
@@ -5564,6 +5567,272 @@
       "clone": {
         "title": "Machines de clonage",
         "hint": "Un bouton rouge fait cloner le monstre de sa machine. Le nouveau tank roule et s'arrête sur le bouton brun, ce qui ouvre le piège."
+      }
+    },
+    "ui": {
+      "help": {
+        "button": {
+          "action": "Tutoriel",
+          "hint": "Apprendre le jeu une mécanique à la fois"
+        }
+      },
+      "drawer": {
+        "button": {
+          "action": "Tutoriel"
+        }
+      },
+      "onboarding": {
+        "start": {
+          "action": "Commencer le tutoriel"
+        },
+        "skip": {
+          "action": "Passer"
+        }
+      },
+      "notice": {
+        "title": {
+          "label": "Nouveau : le tutoriel"
+        },
+        "body": {
+          "label": "Un tutoriel enseigne désormais le jeu une mécanique à la fois, salle après salle. Essayez-le quand vous voulez."
+        },
+        "start": {
+          "action": "Commencer"
+        },
+        "later": {
+          "action": "Plus tard"
+        }
+      },
+      "complete": {
+        "play_epoxy": {
+          "action": "Jouer à Epoxy"
+        }
+      }
+    }
+  },
+  "citadel": {
+    "chapter": {
+      "1": {
+        "title": "Écluses extérieures et contrepoids",
+        "subtitle": "Tranchées à rochers séquentielles, portes maintenues par contrepoids et alchimie élémentaire."
+      },
+      "2": {
+        "title": "Conduits cryogéniques et péages",
+        "subtitle": "Glissades sur glace, boucles convoyeuses, péages de bottes et extractions au grappin."
+      },
+      "3": {
+        "title": "Échappements d'automates et fonderies",
+        "subtitle": "Horloges à monstres, échappements à pièges, convois de chars, cloneurs et aiguillages."
+      },
+      "4": {
+        "title": "Optique à prismes et réseaux de transit",
+        "subtitle": "Slaloms de miroirs, faisceaux croisés, tapis tournants, portails de poche et relais."
+      },
+      "5": {
+        "title": "Sanctuaire balistique et caveaux de parité",
+        "subtitle": "Charges explosives, ricochets de pierres, sceaux protecteurs et tissages de parité."
+      }
+    },
+    "levels": {
+      "level_1": {
+        "title": "Bassin d'amont",
+        "hint": "Comble le canal d'eau à l'ouest avec un rocher et compacte la terre, puis traverse le puits central pour placer le rocher de l'est sur la plaque rouge."
+      },
+      "level_2": {
+        "title": "Déversoir à contrepoids",
+        "hint": "Leste la plaque de pression rouge dans la salle ouest pour ouvrir l'accès au puits, puis comble le canal d'eau de la salle est avec le rocher pour atteindre la sortie."
+      },
+      "level_3": {
+        "title": "Canal à degrés",
+        "hint": "Franchis la tranchée simple à l'ouest, puis coule deux rochers à la suite dans la double tranchée de l'est en compactant la première motte de terre avant de pousser le second rocher."
+      },
+      "level_4": {
+        "title": "Doubles portes d'écluse",
+        "hint": "Franchis la double écluse de la salle ouest en compactant le premier pont de terre avant d'y pousser le second rocher, puis comble le canal de l'est."
+      },
+      "level_5": {
+        "title": "Siphon et balancier",
+        "hint": "Comble la tranchée de deux cases dans le caveau ouest avec les deux rochers, puis traverse le puits et stationne le rocher est sur la plaque bleue."
+      },
+      "level_6": {
+        "title": "Contrepoids d'amont",
+        "hint": "Place le rocher de l'ouest sur la dalle rouge pour ouvrir le puits central, puis comble la double tranchée d'eau à l'est un rocher après l'autre."
+      },
+      "level_7": {
+        "title": "Écluse du creuset",
+        "hint": "Comble d'abord le canal ouest, puis dans la salle est pousse le bloc de glace dans le brasier pour le transmuter en eau avant de le combler avec le rocher."
+      },
+      "level_8": {
+        "title": "Coursier alchimique",
+        "hint": "Éteins le brasier de l'ouest avec le bloc de glace et comble l'eau obtenue avec le rocher, puis traverse le puits pour franchir la double tranchée d'eau."
+      },
+      "level_9": {
+        "title": "Bief à convoyeur",
+        "hint": "Leste la plaque rouge dans la salle ouest, puis emprunte le tapis convoyeur de l'est avec le rocher pour combler la tranchée d'eau."
+      },
+      "level_10": {
+        "title": "Bastion des trois écluses",
+        "hint": "Traverse les trois salles à la suite : comble le canal ouest, leste la plaque rouge centrale, puis franchis la double tranchée de l'est avec deux rochers."
+      },
+      "level_11": {
+        "title": "Parvis du glacier",
+        "hint": "Fais ricocher le rocher ouest sur les virages de glace pour combler les douves, puis traverse le puits et place le rocher est sur la dalle bleue."
+      },
+      "level_12": {
+        "title": "Dérive laminaire",
+        "hint": "Engage le rocher ouest dans la boucle convoyeuse jusqu'au fossé d'eau, puis fais glisser le rocher est sur le déflecteur de glace."
+      },
+      "level_13": {
+        "title": "Conduit des glaces",
+        "hint": "Fais glisser le rocher ouest sur les virages de glace pour combler le canal, puis éteins le brasier est avec le bloc de glace avant de combler l'eau avec le rocher."
+      },
+      "level_14": {
+        "title": "Péage du veilleur",
+        "hint": "Comble le canal ouest pour entrer dans la salle est, traverse le brasier avec les bottes de feu, puis passe sur le voleur pour céder tes bottes avant la sortie."
+      },
+      "level_15": {
+        "title": "Goulotte de l'octroi",
+        "hint": "Traverse l'écluse de feu à l'ouest avec les bottes de feu et acquitte le péage du voleur, puis guide le rocher est dans le courant du convoyeur."
+      },
+      "level_16": {
+        "title": "Galerie du croc de givre",
+        "hint": "Fais glisser le rocher ouest sur les virages du glacier, puis prends les gants grappins dans la salle est pour extraire le rocher encastré jusque sur la plaque bleue."
+      },
+      "level_17": {
+        "title": "Courant et contrepoids",
+        "hint": "Franchis l'écluse à convoyeur de l'ouest pour gagner le puits, puis comble les douves de l'est avec un premier rocher et tire le second rocher sur la dalle bleue."
+      },
+      "level_18": {
+        "title": "Alcôve de contrebande",
+        "hint": "Franchis d'abord la salle de péage à l'ouest, puis équipe les gants grappins dans la salle est pour tirer le rocher hors de sa niche et lester la plaque bleue."
+      },
+      "level_19": {
+        "title": "Échange trempé",
+        "hint": "Transmute le brasier de l'ouest en eau avec le bloc de glace et comble-le, puis utilise le premier rocher de l'est dans les douves et tire le second sur la dalle bleue."
+      },
+      "level_20": {
+        "title": "Châtelet cryogénique",
+        "hint": "Enchaîne les trois salles cryogéniques : acquitte le péage de bottes à l'ouest, fais glisser le rocher central sur la glace, et échange les rochers de l'est au grappin."
+      },
+      "level_21": {
+        "title": "Échappement à balancier",
+        "hint": "Attends un temps dans la salle ouest pour que la balle rose appuie sur la dalle rouge au moment où tu franchis la porte maintenue, puis comble l'écluse de l'est."
+      },
+      "level_22": {
+        "title": "Cliquet et rochet",
+        "hint": "Appuie sur le bouton marron de la salle ouest pour libérer le char du piège jusque sur la dalle rouge, puis place le rocher est sur la dalle bleue."
+      },
+      "level_23": {
+        "title": "Convoi blindé",
+        "hint": "Actionne le bouton bleu dans la salle ouest pour inverser la marche du char jusque sur la dalle rouge, puis comble la double tranchée de l'est avec deux rochers."
+      },
+      "level_24": {
+        "title": "Fonderie à lingots",
+        "hint": "Appuie sur le bouton rouge du cloneur dans la fonderie ouest pour fabriquer des rochers et combler la tranchée, puis franchis la double écluse de l'est."
+      },
+      "level_25": {
+        "title": "Fourneau d'aiguillage",
+        "hint": "Actionne le bouton vert dans le triage ouest pour aiguiller le char sur rail vers la dalle rouge, puis éteins et comble le canal de feu élémentaire à l'est."
+      },
+      "level_26": {
+        "title": "Rouages synchronisés",
+        "hint": "Calcule le rythme de la balle rose dans la salle ouest pour franchir la porte rouge, puis libère le char retenu par le piège dans la salle est jusque sur la dalle bleue."
+      },
+      "level_27": {
+        "title": "Coulée automatisée",
+        "hint": "Inverse le char de l'ouest jusque sur la dalle rouge avec le bouton bleu, puis déclenche le bouton rouge du cloneur à l'est pour combler le fossé d'eau."
+      },
+      "level_28": {
+        "title": "Embranchement de détente",
+        "hint": "Libère le char retenu dans la salle ouest avec le bouton marron, puis bascule l'aiguillage vert dans le triage est pour guider le second char sur la dalle bleue."
+      },
+      "level_29": {
+        "title": "Grappin de fonderie",
+        "hint": "Clone un rocher dans la fonderie ouest pour combler la tranchée, puis utilise les gants grappins dans la salle est pour tirer le rocher encastré sur la dalle bleue."
+      },
+      "level_30": {
+        "title": "Grande nef des machines",
+        "hint": "Maîtrise les trois salles d'automates : synchronise l'horloge à balle rose à l'ouest, coule des rochers au cloneur central, et aiguille le rail de l'est vers la dalle verte."
+      },
+      "level_31": {
+        "title": "Écluse du collimateur",
+        "hint": "Comble le canal d'eau à l'ouest, puis pousse le miroir oblique de la salle optique est dans l'axe du faisceau pour dévier le laser rouge vers le récepteur au nord."
+      },
+      "level_32": {
+        "title": "Lentille rétractable",
+        "hint": "Franchis la double tranchée d'eau à l'ouest, puis équipe les gants grappins dans l'aile est pour tirer le miroir hors de son alcôve et le pousser dans le faisceau laser."
+      },
+      "level_33": {
+        "title": "Caveau à double spectre",
+        "hint": "Leste la dalle rouge dans la salle ouest, puis positionne les deux miroirs dans la chambre optique est afin que les faisceaux rouge et bleu atteignent chacun leur récepteur."
+      },
+      "level_34": {
+        "title": "Prisme rotatif",
+        "hint": "Marche sur le tapis tournant de la salle ouest pour faire pivoter sa poussée et guider le rocher sur la dalle rouge, puis aligne le miroir laser à l'est."
+      },
+      "level_35": {
+        "title": "Navette de poche et faisceaux",
+        "hint": "Ramasse le portail de poche dans la salle ouest et pose-le pour te téléporter derrière le mur vers la clé rouge, puis aligne les faisceaux croisés à l'est."
+      },
+      "level_36": {
+        "title": "Archipel de réfraction",
+        "hint": "Dévie le faisceau laser de l'ouest dans le récepteur rouge, puis emprunte l'anneau de téléportation de l'est et pousse le rocher de l'îlot dans le canal d'eau."
+      },
+      "level_37": {
+        "title": "Relais à plaque tournante",
+        "hint": "Utilise le tapis tournant de la salle ouest pour placer le rocher sur la dalle bleue, puis leste la dalle câblée de la salle est pour ouvrir la porte rouge par signal."
+      },
+      "level_38": {
+        "title": "Transpondeur logique",
+        "hint": "Leste la dalle de signal câblée dans la salle ouest pour maintenir ouverte la porte rouge, puis déploie le portail de poche dans la salle est pour gagner la sortie."
+      },
+      "level_39": {
+        "title": "Îlots de saut de phase",
+        "hint": "Déploie le portail de poche dans la salle ouest pour récupérer la clé rouge, puis emprunte l'anneau de téléportation de l'est pour combler le canal de l'îlot."
+      },
+      "level_40": {
+        "title": "Nexus du réseau",
+        "hint": "Complète le réseau de transit à trois salles : oriente le rocher ouest sur le tapis tournant, alimente le relais logique central, et navigue entre les îlots téléporteurs à l'est."
+      },
+      "level_41": {
+        "title": "Contrepoids de brèche",
+        "hint": "Pose une charge explosive allumée contre la barricade de pierre à l'ouest et recule avant la détonation, puis traverse le puits pour placer le rocher est sur la dalle bleue."
+      },
+      "level_42": {
+        "title": "Optique à ricochet",
+        "hint": "Lance une pierre vers le nord contre le miroir incliné de la salle ouest pour faire sauter la bombe du couloir, puis aligne le miroir de l'est avec le laser rouge."
+      },
+      "level_43": {
+        "title": "Égide et péage",
+        "hint": "Ramasse le sceau protecteur dans la salle ouest pour neutraliser le rôdeur endormi au contact, puis franchis la salle de péage à bottes de feu à l'est."
+      },
+      "level_44": {
+        "title": "Glacier de parité",
+        "hint": "Fais serpenter le rocher à travers les murs alternatifs verts et rouges de la salle ouest pour lester la dalle bleue, puis fais glisser le rocher est sur les virages de glace."
+      },
+      "level_45": {
+        "title": "Artillerie et fronde",
+        "hint": "Démolis la barricade murale de l'ouest avec une charge explosive temporisée, puis fais ricocher une pierre sur le miroir de l'est pour détruire la bombe gardant la dalle bleue."
+      },
+      "level_46": {
+        "title": "Réfraction sentinelle",
+        "hint": "Prends le sceau protecteur dans la salle ouest pour éliminer le rôdeur endormi, puis aligne les deux miroirs de la salle est pour allumer les récepteurs rouge et bleu."
+      },
+      "level_47": {
+        "title": "Métier balistique",
+        "hint": "Fais ricocher une pierre sur le miroir de l'ouest pour désamorcer la bombe, puis résous le tissage de parité à murs alternatifs verts et rouges dans le sanctuaire est."
+      },
+      "level_48": {
+        "title": "Fonderie d'artillerie",
+        "hint": "Fabrique des rochers dans la fonderie de clonage à l'ouest pour combler la tranchée, puis pose une charge explosive dans la salle est pour ouvrir la paroi centrale."
+      },
+      "level_49": {
+        "title": "Sanctuaire de parité scellé",
+        "hint": "Neutralise le rôdeur de l'ouest grâce au sceau protecteur et leste la dalle verte, puis guide le rocher est à travers les murs alternatifs verts et rouges."
+      },
+      "level_50": {
+        "title": "Au coeur de la Citadelle Mécanique",
+        "hint": "Triomphe du final en trois salles : synchronise l'horloge à balle rose à l'ouest pour la porte verte, fais ricocher une pierre dans la salle centrale, et résous le tissage de parité à l'est."
       }
     }
   }

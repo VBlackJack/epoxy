@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Clockwork Citadel campaign (`epoxy_citadel`, `public/configs/citadel-levels.json` and `public/configs/citadel-campaign.json`): a new built-in campaign pack of 50 multi-chamber puzzle levels (`epoxy_k_1` to `epoxy_k_50`) across 5 chapters of 10 ("Outer Sluices & Counterweights", "Cryo Ducts & Boot Tolls", "Automata Escapements & Rail Foundries", "Prism Optics & Transit Networks", "Ballistic Sanctum & Parity Vaults"), synthesizing all 25 CC1, CC2, and CC3D puzzle archetypes with an isolated save slot, 0 validator issues, and verified stored solutions. Both locales.
 - Two new playable characters in the Runeward style, the rune scribe and the adventurer mage, chosen in the Character setting (Runeward only; other styles draw the default). All three show the boots held, a ward ring, skating on ice and a fire, water or fainting death.
 
 ### Changed

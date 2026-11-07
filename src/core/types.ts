@@ -99,6 +99,8 @@ export interface StorageConfig {
   lastEndlessKey: string;
   /** Flag set once the first-launch "How to play" dialog was shown. */
   onboardingSeenKey: string;
+  /** Flag set once the one-time "New: Tutorial" notice was shown. */
+  tutorialNoticeSeenKey: string;
   /** Pack the editor last saved a level into, preselected in its "Save into" dialog. */
   lastSaveDestinationKey: string;
   /** Which inspector sections of the editor are open. */
