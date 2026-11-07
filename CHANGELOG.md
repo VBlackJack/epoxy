@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Faster endless level generation (corridor search of the loop wings uses typed arrays and groups pieces by entry side); the generated levels are identical for every seed.
+
 ## [2.25.0] - 2026-11-07
 
 ### Added
