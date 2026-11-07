@@ -315,14 +315,14 @@ describe('colour blocks and floating blocks', () => {
     expect(tileAt(engine, 3, 1)).toBe('floating_block_blue');
   });
 
-  it('keeps the dirt block and the ice block as they were in water', () => {
+  it('keeps the dirt block as it was in water, and turns water to ice for an ice block', () => {
     const dirt = engineFor(['#######', '#P2W.E#', '#######']);
     moves(dirt, 'E');
     expect(tileAt(dirt, 3, 1)).toBe('dirt');
     const ice = engineFor(['#######', '#P4W.E#', '#######']);
     moves(ice, 'E');
     for (let i = 0; i < COOLDOWN_TICKS * 2; i++) ice.tick();
-    expect(tileAt(ice, 3, 1)).toBe('water');
+    expect(tileAt(ice, 3, 1)).toBe('ice');
   });
 
   it('lets a bomb on the water destroy a colour block and leaves the water as it is', () => {

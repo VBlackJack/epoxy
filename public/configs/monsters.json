@@ -72,7 +72,7 @@
       "pushable": true,
       "slidesOnIce": true,
       "slidesOnForce": true,
-      "waterTransformsTo": "water",
+      "waterTransformsTo": "ice",
       "meltsInFireTo": "water",
       "shotEffect": "melt",
       "destroyedByFire": true,
