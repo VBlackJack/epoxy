@@ -384,8 +384,8 @@ describe('tutorial syllabus', () => {
     let checked = 0;
     for (const room of ROOM_IDS) {
       const level = levelById(room);
-      // A solution with drops, or a room with monsters, is outside this proof.
-      if (level.entities.length > 0 || /[XGT]/.test(level.solution ?? '')) continue;
+      // A solution with drops, or a room with monsters or clone machines (which make them), is outside this proof.
+      if (level.entities.length > 0 || level.cloneLinks.length > 0 || /[XGT]/.test(level.solution ?? '')) continue;
       const taught = new Set((TEACHES[room] ?? []).flatMap((family) => FAMILIES[family]));
       taught.delete('floor');
       taught.delete('wall');
