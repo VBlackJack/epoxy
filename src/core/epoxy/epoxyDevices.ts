@@ -27,9 +27,11 @@ import {
   FLAME_TOGGLE_PARITY_BIT,
   GREEN_TOGGLE_PARITY_BIT,
   OPPOSITE_DIRECTION,
+  PHASE_LINE_PATTERN,
   STEER_MONSTERS_ACTION,
   channelOfButtonAction
 } from '../coreConstants';
+import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
@@ -94,7 +96,7 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     } else {
       // Fallback: trigger any clone machine that has an entity template sitting on it
       for (const ent of [...w.entities]) {
-        if (ConfigRegistry.getTile(w.terrain[ent.y]?.[ent.x]).isCloneMachine) {
+        if (ConfigRegistry.getTile(w.terrain[ent.y]?.[ent.x]).isCloneMachine && !isPhasingEntityType(ent.type)) {
           if (!spawnFromCloner(ctx, ent.x, ent.y, ent.type, ent.dir)) return false;
         }
       }
@@ -221,7 +223,7 @@ export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number): boolean
   if (!ConfigRegistry.getTile(w.terrain[cy]?.[cx]).isCloneMachine) return true;
   const link = w.cloneLinks.find((l) => l.clonerX === cx && l.clonerY === cy);
   if (link !== undefined) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir);
-  const template = w.entities.find((e) => e.x === cx && e.y === cy);
+  const template = w.entities.find((e) => e.x === cx && e.y === cy && !isPhasingEntityType(e.type));
   return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir);
 }
 
@@ -248,6 +250,8 @@ export function spawnFromCloner(
   if (w.player.x === spawnX && w.player.y === spawnY) return true;
 
   const def = ConfigRegistry.getEntityDef(templateType);
+  // A phasing monster is never a clone template (the validator refuses it); a stray link spawns nothing.
+  if (def?.movementPattern === PHASE_LINE_PATTERN) return true;
   const kind = def?.kind || 'block';
   const probe: RuntimeEntity = {
     uid: 0,

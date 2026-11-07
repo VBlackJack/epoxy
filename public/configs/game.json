@@ -2070,6 +2070,12 @@
         "dark": "#25283a",
         "eye": "#ff9a3c"
       },
+      "wisp": {
+        "body": "#7ff0d8",
+        "light": "#d8fff6",
+        "dark": "#1d5a52",
+        "eye": "#0c2b2e"
+      },
       "shot": {
         "body": "#5fd8ef",
         "light": "#e9fdff",
@@ -2534,6 +2540,12 @@
           "light": "#93877a",
           "dark": "#3b332a",
           "eye": "#d9852b"
+        },
+        "wisp": {
+          "body": "#4a6e63",
+          "light": "#a9c2ba",
+          "dark": "#30463f",
+          "eye": "#f1e3bf"
         },
         "shot": {
           "body": "#4f6f86",

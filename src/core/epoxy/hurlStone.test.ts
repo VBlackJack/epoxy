@@ -576,7 +576,7 @@ describe('hurl stone: Epoxy rules only and pack format 10', () => {
 
   it('adds the format 10 row to the table and detects the stone as a format 10 id', () => {
     expect(PACK_JSON_ID_SET_VERSIONS.map((row) => row.version)).toContain(PACK_JSON_VERSION_V10);
-    expect([...PACK_JSON_VERSION_V10_IDS]).toEqual([STONE]);
+    expect([...PACK_JSON_VERSION_V10_IDS]).toEqual([STONE, 'wisp']);
     expect(PACK_JSON_VERSION_V10).toBe(PACK_JSON_VERSION_V9 + 1);
     expect(idSetVersionOf(room({ items: [[3, 5, STONE]] }))).toBe(PACK_JSON_VERSION_V10);
     expect(idSetVersionOf(room())).toBe(0);

@@ -22,8 +22,10 @@ import {
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLEE_PLAYER_PATTERN,
   OPPOSITE_DIRECTION,
+  PHASE_LINE_PATTERN,
   STATIONARY_PATTERN
 } from '../coreConstants';
+import { isPhasingEntityType } from '../RulesetFeatures';
 import { Direction, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
@@ -54,7 +56,8 @@ export function updateEntities(ctx: EpoxyContext): void {
     if (w.removedUids.has(entity.uid)) continue;
 
     // Entities sitting directly on a clone machine act as templates and do not move on their own
-    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) {
+    // (a wisp is never a template: it drifts over a machine like over any other tile)
+    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine && !isPhasingEntityType(entity.type)) {
       continue;
     }
 
@@ -84,7 +87,9 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const interval = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
   entity.cooldownTicks = (interval + 1) * monsterSlowdown(w) - 1;
 
-  if (isCellClosedTrap(w, entity.x, entity.y)) {
+  // A phasing monster (a wisp) is not held by a closed trap and touches no tile: terrain has no effect on it.
+  const phases = def?.movementPattern === PHASE_LINE_PATTERN;
+  if (!phases && isCellClosedTrap(w, entity.x, entity.y)) {
     return true;
   }
 
@@ -94,12 +99,30 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const vec = DIRECTION_VECTORS[chosenDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
-  leaveSwivel(w, entity.x, entity.y);
+  if (!phases) leaveSwivel(w, entity.x, entity.y);
   entity.x = nx;
   entity.y = ny;
   entity.dir = chosenDir;
 
-  return resolveMonsterArrival(ctx, entity, true);
+  return phases ? resolvePhasedArrival(ctx, entity) : resolveMonsterArrival(ctx, entity, true);
+}
+
+/**
+ * The arrival of a phasing monster (a wisp) in its new cell. Terrain, items, buttons, teleporters and the
+ * transmogrifier do nothing to it; only the player in the cell (a ward absorbs the contact, as for any monster)
+ * and a flying shot count. Returns false when the player was killed, so the caller stops processing.
+ */
+function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
+  const w = ctx.world;
+  if (w.player.x === entity.x && w.player.y === entity.y && w.player.alive) {
+    if (absorbMonsterContact(w, entity.uid)) return true;
+    killPlayer(ctx, 'hud.messages.death_monster', 'death');
+    return false;
+  }
+  if (w.shots.length > 0 && consumeShotAt(w, entity.x, entity.y)) {
+    killMonsterByShot(ctx, entity);
+  }
+  return true;
 }
 
 /**
@@ -187,6 +210,9 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
   const def = ConfigRegistry.getEntityDef(monster.type);
   if (!def) return null;
 
+  // A phasing monster ignores the tile it stands on: no sliding, no forcing, no turning floor.
+  if (def.movementPattern === PHASE_LINE_PATTERN) return chooseWispDirection(w, monster);
+
   const currentTile = ConfigRegistry.getTile(w.terrain[monster.y][monster.x]);
   if (currentTile.slideType === 'ice') {
     const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
@@ -261,6 +287,29 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
   }
 
   return null;
+}
+
+/**
+ * The step of a phasing monster: straight ahead, else turned round once, else none. Turning round changes the
+ * facing only when the step is taken, so a monster blocked both ways stays as it is.
+ */
+function chooseWispDirection(w: EpoxyWorld, monster: RuntimeEntity): Direction | null {
+  if (canWispEnter(w, monster, monster.dir)) return monster.dir;
+  const back = OPPOSITE_DIRECTION[monster.dir];
+  return canWispEnter(w, monster, back) ? back : null;
+}
+
+/**
+ * Whether a phasing monster may step one cell in `dir`: inside the map, past the cell edges (a thin wall still
+ * stops it) and with no entity in the cell. The tile of the cell and any item on it do not matter.
+ */
+export function canWispEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction): boolean {
+  const vec = DIRECTION_VECTORS[dir];
+  const nx = monster.x + vec.dx;
+  const ny = monster.y + vec.dy;
+  if (!isInBounds(w, nx, ny)) return false;
+  if (isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
+  return getEntityAt(w, nx, ny) === undefined;
 }
 
 /**

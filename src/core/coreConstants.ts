@@ -109,6 +109,12 @@ export const FLEE_PLAYER_PATTERN = 'flee_player';
 /** Movement pattern of a monster that never moves by itself (a sleeping lurker). */
 export const STATIONARY_PATTERN = 'stationary';
 
+/**
+ * Movement pattern of a monster that walks straight ahead through every tile (a wisp): terrain has no effect on
+ * it, only cell edges, the map edge and other entities stop it, and it turns round once when blocked.
+ */
+export const PHASE_LINE_PATTERN = 'phase_line';
+
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';
 

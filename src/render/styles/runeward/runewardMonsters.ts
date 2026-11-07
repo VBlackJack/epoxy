@@ -369,6 +369,7 @@ const SHADOWS: Readonly<Record<string, ShadowSpec>> = {
   teeth: { y: 0.86, rx: 0.28, ry: 0.06 },
   skitter: { y: 0.86, rx: 0.22, ry: 0.05 },
   lurker: { y: 0.86, rx: 0.24, ry: 0.055 },
+  wisp: { y: 0.88, rx: 0.14, ry: 0.035 },
   glider: { y: 0.88, rx: 0.16, ry: 0.04 },
   fireball: { y: 0.88, rx: 0.16, ry: 0.04 },
   tank: { y: 0.8, rx: 0.3, ry: 0.07 },
@@ -677,6 +678,36 @@ function buildGlider(d: Drawing, pose: Pose): void {
   topEyes(d, pose, HALF, WISP.cy, WISP.eye.forward, WISP.eye.spread, d.outline);
 }
 
+const PHASED_WISP = {
+  /** Opacity of the body, the core and the eyes: a phased wisp is drawn see-through. */
+  alpha: 0.55,
+  /** The trailing wisp behind the orb: how far it reaches and its half width at the root, as tile fractions. */
+  tail: { reach: 0.34, half: 0.08, rootBehind: 0.06 },
+  /** The faint outer ring: its radius as a tile fraction and its opacity. */
+  ring: { radius: 0.3, alpha: 0.14 },
+  /** Two sparks that drift behind the orb: how far behind, how far to each side, their radius and opacity. */
+  spark: { behind: 0.26, across: 0.1, radius: 0.025, alpha: 0.45 }
+} as const;
+
+/** The wisp: a see-through orb with a thin tail, drawn translucent whatever the style. */
+function buildPhasedWisp(d: Drawing, pose: Pose): void {
+  const { colours: c } = pose;
+  const k = PHASED_WISP;
+  const base = (right: number, behind: number): Point => at(pose, HALF, WISP.cy, -behind, right);
+  d.disc(HALF, WISP.cy, k.ring.radius, { fill: c.body, alpha: k.ring.alpha });
+  d.poly([base(-k.tail.half, k.tail.rootBehind), base(0, k.tail.rootBehind + k.tail.reach), base(k.tail.half, k.tail.rootBehind)], {
+    fill: c.light,
+    alpha: k.alpha
+  });
+  for (const right of [-1, 1]) {
+    const [sx, sy] = base(right * k.spark.across, k.spark.behind);
+    d.spark(sx, sy, k.spark.radius, c.light, k.spark.alpha);
+  }
+  d.disc(HALF, WISP.cy, WISP.orb, { fill: c.body, edge: 'fine', alpha: k.alpha });
+  d.disc(HALF, WISP.cy, WISP.core, { fill: c.light, alpha: k.alpha });
+  d.eyes([at(pose, HALF, WISP.cy, WISP.eye.forward, -WISP.eye.spread), at(pose, HALF, WISP.cy, WISP.eye.forward, WISP.eye.spread)], c.eye, k.alpha);
+}
+
 const FIREBALL = {
   /** Tongues behind the orb: sideways offset, the two lengths of a flicker and the flare of the tip. */
   tongues: [
@@ -924,6 +955,7 @@ const BUILDERS: Readonly<Record<string, Builder>> = {
   teeth: (d, pose) => buildHunter(d, pose, TEETH_SPEC),
   skitter: (d, pose) => buildHunter(d, pose, SKITTER_SPEC),
   lurker: (d, pose) => buildHunter(d, pose, LURKER_SPEC),
+  wisp: buildPhasedWisp,
   glider: buildGlider,
   fireball: buildFireball,
   tank: buildTank,
@@ -932,7 +964,7 @@ const BUILDERS: Readonly<Record<string, Builder>> = {
 };
 
 /** Types that hover: their bob is larger. */
-const FLYING_TYPES: ReadonlySet<string> = new Set(['glider', 'fireball']);
+const FLYING_TYPES: ReadonlySet<string> = new Set(['glider', 'fireball', 'wisp']);
 /** Bob of a hovering creature, as a multiple of the shared amplitude. */
 const FLYING_BOB_FACTOR = 1.8;
 
