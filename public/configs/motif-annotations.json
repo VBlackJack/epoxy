@@ -408,15 +408,15 @@
     "reversible": true
   },
   "sanctuary_alchemy_fire_water_sluice": {
-    "solution": "SWSSWSENESEENNWSESWNWSSSS",
+    "solution": "SWSSWSENESEENNWSESWNWSSS",
     "reversible": true
   },
   "sanctuary_conveyor_sluice": {
-    "solution": "SWSSEENESSSS",
+    "solution": "SWSSEENESSS",
     "reversible": true
   },
   "sanctuary_counterweight_trap_bridge": {
-    "solution": "SWSSWSENEENESWWSSSSS",
+    "solution": "SWSSWSENEENESWWSSSS",
     "reversible": true
   },
   "sanctuary_glacier_corner_sluice": {
@@ -424,11 +424,11 @@
     "reversible": true
   },
   "sanctuary_portal_ferry_sluice": {
-    "solution": "SESSSSS",
+    "solution": "SESSSS",
     "reversible": true
   },
   "sanctuary_sluice_double_trench": {
-    "solution": "SESSESWNWSSNWWNNESWSENESSSSS",
+    "solution": "SESSESWNWSSNWWNNESWSENESSSS",
     "reversible": true
   },
   "sokoban_cantrip_weave": {
