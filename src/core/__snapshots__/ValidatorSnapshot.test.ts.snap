@@ -451,6 +451,54 @@ exports[`validator output of every shipped level > campaign levels 1`] = `
 
 exports[`validator output of every shipped level > level templates 1`] = `
 {
+  "template_boulder_sluice": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "template_counterweight_hold": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "template_elemental_alchemy": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "template_grappling_alcove": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
   "template_laser": {
     "issues": [],
     "stats": {
@@ -459,6 +507,18 @@ exports[`validator output of every shipped level > level templates 1`] = `
       "exitCount": 0,
       "reachableChips": 0,
       "reachableExit": false,
+      "targetCount": 0,
+    },
+    "valid": true,
+  },
+  "template_prism_slalom": {
+    "issues": [],
+    "stats": {
+      "chipsPlaced": 1,
+      "chipsRequired": 1,
+      "exitCount": 1,
+      "reachableChips": 1,
+      "reachableExit": true,
       "targetCount": 0,
     },
     "valid": true,

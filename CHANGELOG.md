@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Sanctuary Puzzle & Mechanism Encyclopedia (`public/configs/excavation-encyclopedia.json`, `src/config/excavationEncyclopedia.ts`, `docs/puzzle-encyclopedia.md` and `docs/fr/puzzle-encyclopedia.md`): 14 machine-verified puzzle archetypes across 5 families (`sluice`, `extraction`, `optics`, `kinetic`, `network`) with ASCII blueprints, design invariants, dead-end traps, chaining rules and verified shortest solutions, plus 5 sanctuary starter templates in the level editor (`boulder_sluice`, `counterweight_hold`, `grappling_alcove`, `prism_slalom`, `elemental_alchemy` in `public/configs/templates.json`) and 6 new Tier-5 sanctuary pieces in the procedural generator (`public/configs/motifs.json`, 165 pieces in total). Both locales.
 - Buried Sanctuaries campaign (`epoxy_excavation`): expanded from 12 levels / 3 chapters to 20 levels / 5 chapters ("Guardian Temples" and "Pyramid of Harmony", `epoxy_x_13` to `epoxy_x_20`) with multi-room 15x13 sanctuary maps that chain boulder sluices, pressure plates, grappling alcoves (`boots_pull`) and prism optics, each proven solvable with 0 validator issues. Both locales.
 - Level editor: signal links can be removed with the Unlink button in the Connections panel.
 - Signals: pulse buttons, and signal links that fire launchers and clone machines on a rising edge (pack format version 6).

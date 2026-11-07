@@ -1111,6 +1111,11 @@
       "cc3d_room": { "label": "Empty CC3D room" },
       "sokoban": { "label": "Sokoban room" },
       "laser": { "label": "Laser puzzle" },
+      "boulder_sluice": { "label": "Boulder sluice" },
+      "counterweight_hold": { "label": "Counterweight hold-plate" },
+      "grappling_alcove": { "label": "Grappling alcove" },
+      "prism_slalom": { "label": "Prism laser slalom" },
+      "elemental_alchemy": { "label": "Elemental fire-water sluice" },
       "load_failed": "The level templates could not be loaded; starting from an empty room."
     },
     "draft": {

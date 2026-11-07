@@ -1111,6 +1111,11 @@
       "cc3d_room": { "label": "Salle CC3D vide" },
       "sokoban": { "label": "Salle de Sokoban" },
       "laser": { "label": "Puzzle laser" },
+      "boulder_sluice": { "label": "Écluse à rocher" },
+      "counterweight_hold": { "label": "Dalle à contrepoids" },
+      "grappling_alcove": { "label": "Alcôve au grappin" },
+      "prism_slalom": { "label": "Slalom de prismes" },
+      "elemental_alchemy": { "label": "Écluse alchimique feu-eau" },
       "load_failed": "Les modèles de niveau n'ont pas pu être chargés ; départ sur une salle vide."
     },
     "draft": {

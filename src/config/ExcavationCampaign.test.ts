@@ -29,7 +29,6 @@ import { BUILTIN_PACK_IDS, EXCAVATION_LEVEL_ID_PREFIX, ORDERED_DIRECTIONS } from
 import { ConfigRegistry } from './ConfigRegistry';
 
 const DEFAULT_MAX_BFS_STATES = 5000;
-const BYPASS_TEST_TIMEOUT_MS = 20000;
 const MIN_SOLUTION_STEPS = 30;
 // Runs the solver on several levels and CI is slower than local, so the default 5 s limit is too tight.
 const SOLVER_PROOF_TIMEOUT_MS = 30_000;
@@ -218,7 +217,7 @@ describe('excavation campaign pack ("Buried Sanctuaries")', () => {
         LevelValidator.validate(withoutEntities).valid && isLevelWinnable(withoutEntities);
       expect(bypassable, `${level.id} should be unsolvable without entities`).toBe(false);
     }
-  }, BYPASS_TEST_TIMEOUT_MS);
+  });
 
   it('provides complete English and French translations with clean ASCII punctuation and no external IP references', () => {
     loadTestConfigs();

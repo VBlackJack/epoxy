@@ -407,6 +407,30 @@
     "solution": "SEESSSSNNWWNNWWSSSSEES",
     "reversible": true
   },
+  "sanctuary_alchemy_fire_water_sluice": {
+    "solution": "SWSSWSENESEENNWSESWNWSSSS",
+    "reversible": true
+  },
+  "sanctuary_conveyor_sluice": {
+    "solution": "SWSSEENESSSS",
+    "reversible": true
+  },
+  "sanctuary_counterweight_trap_bridge": {
+    "solution": "SWSSWSENEENESWWSSSSS",
+    "reversible": true
+  },
+  "sanctuary_glacier_corner_sluice": {
+    "solution": "SWSSEEWES",
+    "reversible": true
+  },
+  "sanctuary_portal_ferry_sluice": {
+    "solution": "SESSSSS",
+    "reversible": true
+  },
+  "sanctuary_sluice_double_trench": {
+    "solution": "SESSESWNWSSNWWNNESWSENESSSSS",
+    "reversible": true
+  },
   "sokoban_cantrip_weave": {
     "solution": "SSSESENNSSSWWWNWNEEWSSEEESSS",
     "reversible": true
