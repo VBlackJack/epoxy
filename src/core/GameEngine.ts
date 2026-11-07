@@ -30,7 +30,7 @@ import {
   LIT_CHARGE_KEY_PREFIX
 } from './coreConstants';
 import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
-import { setHoldDoors, triggerButton } from './epoxy/epoxyDevices';
+import { setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
 import {
   copySignalPulses,
   copySignalState,
@@ -710,6 +710,7 @@ export class GameEngine {
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     // The signals settle before the doors they drive; a no-op without signals.
     const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
+    setPoweredCells(this.ctx);
     setHoldDoors(this.ctx);
     // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
     fireSignalSinks(this.ctx, edges);
@@ -760,6 +761,8 @@ export class GameEngine {
     this.w.beamDirty = true;
     if (moved) {
       const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
+      // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
+      setPoweredCells(this.ctx);
       setHoldDoors(this.ctx);
       // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
       // following tick, as one fired by a button does (see the clear in tick()).

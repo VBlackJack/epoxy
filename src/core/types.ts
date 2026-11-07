@@ -1105,6 +1105,13 @@ export interface TileDefinition {
   teleportGroup?: string;
   /** A teleporter the player set down: it links with the other such pads found on the terrain at the moment of the jump. */
   portableTeleporter?: boolean;
+  /**
+   * A relay pad: `dark` is plain floor, `lit` is a teleporter of the group "relay". A pad that a signal link ends on
+   * follows its input (lit while on, dark while off); an unlinked pad keeps the form it was placed in.
+   */
+  relayPad?: 'dark' | 'lit';
+  /** A relay pad: the id of its other form, which the pad swaps to when its input changes. */
+  relayTwin?: string;
   isTrap?: boolean;
   isCloneMachine?: boolean;
   /** Whether a laser beam passes through the cell; every tile declares it. */
@@ -1638,8 +1645,10 @@ export interface SignalNodeDef extends SignalNodeSpec {
   sample?: SignalSampler;
   /** Sink nodes only: the colour of the hold doors the node drives, as a pressed plate of that colour would. */
   color?: ChannelColor;
-  /** Sink nodes only: the device the node fires once on each rising edge of its input. A sink has exactly one kind: a colour or `fires`. */
+  /** Sink nodes only: the device the node fires once on each rising edge of its input. A sink has exactly one kind: a colour, `fires` or `powers`. */
   fires?: SignalSinkFires;
+  /** Sink nodes only: the node powers a relay pad, which follows the level of its input (lit while on). */
+  powers?: boolean;
 }
 
 /** The signal network of a level (Epoxy ruleset only), compiled from its signal links at load; never stored. */

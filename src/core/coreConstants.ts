@@ -43,6 +43,9 @@ export const GATE_ITEM_ID = 'pocket_gate';
 /** Terrain id of the pad a pocket gate becomes where it is set down. */
 export const GATE_PAD_TILE_ID = 'pocket_gate_pad';
 
+/** Teleport group of the relay pads, lit and dark: they link only with each other. */
+export const RELAY_TELEPORT_GROUP = 'relay';
+
 /** Item id of the hurl stone a player carries and throws. */
 export const STONE_ITEM_ID = 'hurl_stone';
 

@@ -74,6 +74,8 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   charge: 'orange',
   pocket_gate: 'teleportRing',
   pocket_gate_pad: 'teleportRing',
+  relay_pad_dark: 'floorBorder',
+  relay_pad_lit: 'teleportRing',
   hurl_stone: 'wallBase',
   charge_lit: 'bombSpark',
   score_2x: 'bonusFlagMultiplier',

@@ -303,6 +303,16 @@ export function hasPocketGateContent(
   return hasTile(level.terrain) || hasTile(level.items) || (level.underlays ?? []).some((under) => isPocketGateTileId(under.terrain));
 }
 
+/** True when the tile is a relay pad, lit or dark. */
+export function isRelayPadTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).relayPad !== undefined;
+}
+
+/** True when the level places a relay pad (terrain layer; the level normalisation never keeps one hidden). */
+export function hasRelayPadContent(level: Pick<CompiledLevel, 'terrain'>): boolean {
+  return level.terrain?.some((row) => row.some(isRelayPadTileId)) ?? false;
+}
+
 /** True when the tile is a hurl stone, carried and thrown by the player. */
 export function isStoneTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).collectible === 'stone';
@@ -322,13 +332,13 @@ export function isRailTileId(id: string | null | undefined): boolean {
 
 /**
  * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
- * boots, the ward, a blast charge, a hurl stone, a pocket gate with its pad, or a rail piece (the pad and the rails are terrain,
- * but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
+ * boots, the ward, a blast charge, a hurl stone, a pocket gate with its pad, a relay pad, or a rail piece (the pads and the
+ * rails are terrain, but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
  */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
-    isChargeTileId(id) || isStoneTileId(id) || isPocketGateTileId(id) || isRailTileId(id)
+    isChargeTileId(id) || isStoneTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isRailTileId(id)
   );
 }
 
@@ -500,6 +510,8 @@ const chargeFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const chargeContentCache = new WeakMap<object, boolean>();
 const pocketGateFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const pocketGateContentCache = new WeakMap<object, boolean>();
+const relayFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+const relayContentCache = new WeakMap<object, boolean>();
 const stoneFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 const stoneContentCache = new WeakMap<object, boolean>();
 
@@ -512,6 +524,19 @@ function withoutStoneAids(base: RulesetFeatures): RulesetFeatures {
   if (!overlaid) {
     overlaid = { ...base, blockHint: false, deadEndWatch: false };
     stoneFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
+
+/**
+ * The aids a level with relay pads loses on top of what its other mechanics already turn off: a lit pad sends blocks
+ * and monsters across the map and a signal changes which pads are lit, which the push hint and the dead-end watch do not model.
+ */
+function withoutRelayAids(base: RulesetFeatures): RulesetFeatures {
+  let overlaid = relayFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    relayFeaturesCache.set(base, overlaid);
   }
   return overlaid;
 }
@@ -614,7 +639,13 @@ export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
     stone = hasStoneContent({ terrain: level.terrain, items: level.items ?? [] });
     stoneContentCache.set(level, stone);
   }
-  return stone ? withoutStoneAids(gated) : gated;
+  const stoned = stone ? withoutStoneAids(gated) : gated;
+  let relay = relayContentCache.get(level);
+  if (relay === undefined) {
+    relay = hasRelayPadContent({ terrain: level.terrain });
+    relayContentCache.set(level, relay);
+  }
+  return relay ? withoutRelayAids(stoned) : stoned;
 }
 
 function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

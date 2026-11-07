@@ -1248,6 +1248,33 @@
       "teleportGroup": "pocket",
       "portableTeleporter": true
     },
+    "relay_pad_dark": {
+      "id": "relay_pad_dark",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.relay_pad_dark.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "teleportGroup": "relay",
+      "relayPad": "dark",
+      "relayTwin": "relay_pad_lit"
+    },
+    "relay_pad_lit": {
+      "id": "relay_pad_lit",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.relay_pad_lit.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "relay",
+      "relayPad": "lit",
+      "relayTwin": "relay_pad_dark"
+    },
     "trap": {
       "id": "trap",
       "category": "mechanisms",
