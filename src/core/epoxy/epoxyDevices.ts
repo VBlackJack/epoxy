@@ -45,6 +45,7 @@ import {
   holdColorsOpen,
   isInBounds,
   killPlayer,
+  mapWidth,
   removeEntity
 } from './epoxyWorld';
 
@@ -122,6 +123,35 @@ export function flipCellAt(w: EpoxyWorld, x: number, y: number): void {
 /** Records one press of a toggle family, when the level hides a wall of that family under a removable top. */
 function flipToggleParity(w: EpoxyWorld, bit: number): void {
   if ((w.coveredToggleBits & bit) !== 0) w.toggleParity ^= bit;
+}
+
+/**
+ * Sets every relay pad a signal link ends on to the form its input asks for: lit while the input is on, dark while it
+ * is off. A pad no link ends on is not a node, so it keeps the form it was placed in. Call it after the settle and
+ * before the hold doors, at each settle site; it runs at the load settle too, so a pad starts in the form of its
+ * input. The pads are laser transparent, so the beams are not retraced. A pad that lights under an actor makes no
+ * jump (a jump happens on arrival only), and a pad that darkens under one leaves the actor standing. Returns true
+ * when a pad changed. Returns at once on a level without signals.
+ */
+export function setPoweredCells(ctx: EpoxyContext): boolean {
+  const w = ctx.world;
+  const runtime = w.signals;
+  if (runtime === undefined) return false;
+  const width = mapWidth(w);
+  let changed = false;
+  for (const index of runtime.network.sinkIndexes) {
+    if (runtime.defs.get(index)?.powers !== true) continue;
+    const cell = runtime.network.nodes[index].cell;
+    const x = cell % width;
+    const y = Math.floor(cell / width);
+    const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+    // The cell may hold another terrain by now (nothing replaces a pad today): leave it alone.
+    if (tile.relayPad === undefined || tile.relayTwin === undefined) continue;
+    if ((tile.relayPad === 'lit') === runtime.state.lastOutputs[index]) continue;
+    w.terrain[y][x] = tile.relayTwin;
+    changed = true;
+  }
+  return changed;
 }
 
 /**

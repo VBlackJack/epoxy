@@ -512,6 +512,43 @@ function paintStoneItem(ctx: CanvasRenderingContext2D, size: number, art: Art, t
   });
 }
 
+// ---- Toll token -------------------------------------------------------------------------------
+
+const TOLL_TOKEN = {
+  x: 0.5,
+  y: 0.5,
+  radius: 0.26,
+  holeHalfSide: 0.07,
+  rimInset: 0.06,
+  rimWidth: 0.02,
+  lineWidth: 0.035,
+  lightStop: 0.5
+} as const;
+
+/** The toll token: a coin with a square hole, hovering. */
+function paintTollTokenItem(ctx: CanvasRenderingContext2D, size: number, art: Art, timeMs: number): void {
+  const tint = art.item.score;
+  const centreX = size * TOLL_TOKEN.x;
+  const centreY = size * TOLL_TOKEN.y;
+  const r = size * TOLL_TOKEN.radius;
+  const hole = size * TOLL_TOKEN.holeHalfSide;
+  hover(ctx, size, art, timeMs, () => {
+    ctx.beginPath();
+    ctx.arc(centreX, centreY, r, 0, TAU);
+    ctx.rect(centreX - hole, centreY - hole, hole * 2, hole * 2);
+    ctx.fillStyle = art.ink
+      ? tint.base
+      : linear(ctx, centreX - r, centreY - r, centreX + r, centreY + r, [[0, tint.light], [TOLL_TOKEN.lightStop, tint.base], [1, tint.dark]]);
+    ctx.fill('evenodd');
+    outline(ctx, size, art, tint.edge, TOLL_TOKEN.lineWidth, true);
+    ctx.beginPath();
+    ctx.arc(centreX, centreY, r - size * TOLL_TOKEN.rimInset, 0, TAU);
+    ctx.strokeStyle = art.ink ? art.ink.gold : tint.light;
+    ctx.lineWidth = plainLine(size, TOLL_TOKEN.rimWidth);
+    ctx.stroke();
+  });
+}
+
 // ---- Score tokens -----------------------------------------------------------------------------
 
 const COIN = {
@@ -718,6 +755,7 @@ export const ITEMS: Readonly<Record<string, RunewardItemPainter>> = {
   charge_lit: clocked(chargeItem(true)),
   pocket_gate: clocked(paintGateItem),
   hurl_stone: clocked(paintStoneItem),
+  toll_token: clocked(paintTollTokenItem),
   score_10: clocked(scoreItem(COIN.one)),
   score_100: clocked(scoreItem(COIN.two)),
   score_1000: clocked(scoreItem(COIN.three)),

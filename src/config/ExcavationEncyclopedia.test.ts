@@ -239,8 +239,8 @@ describe('excavation-encyclopedia.json', () => {
     const enDocPath = path.join(docsRoot, 'puzzle-encyclopedia.md');
     const frDocPath = path.join(docsRoot, 'fr', 'puzzle-encyclopedia.md');
 
-    const enDoc = fs.readFileSync(enDocPath, 'utf8');
-    const frDoc = fs.readFileSync(frDocPath, 'utf8');
+    const enDoc = fs.readFileSync(enDocPath, 'utf8').replace(/\r\n/g, '\n');
+    const frDoc = fs.readFileSync(frDocPath, 'utf8').replace(/\r\n/g, '\n');
 
     expect(enDoc).toContain('./fr/puzzle-encyclopedia.md');
     expect(frDoc).toContain('../puzzle-encyclopedia.md');

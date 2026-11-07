@@ -327,7 +327,7 @@ describe('what a device still needs', () => {
 
   it('has a text in both languages for every note, with the colour where the note takes one', () => {
     const keys = Object.entries(CONNECTIONS_KEYS).filter(([name]) => name.startsWith('needs'));
-    expect(keys).toHaveLength(12);
+    expect(keys).toHaveLength(13);
     for (const locale of [enLocale, frLocale] as TranslationNode[]) {
       for (const [name, key] of keys) {
         const text = resolveMessage(locale, key);

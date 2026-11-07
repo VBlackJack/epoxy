@@ -43,8 +43,14 @@ export const GATE_ITEM_ID = 'pocket_gate';
 /** Terrain id of the pad a pocket gate becomes where it is set down. */
 export const GATE_PAD_TILE_ID = 'pocket_gate_pad';
 
+/** Teleport group of the relay pads, lit and dark: they link only with each other. */
+export const RELAY_TELEPORT_GROUP = 'relay';
+
 /** Item id of the hurl stone a player carries and throws. */
 export const STONE_ITEM_ID = 'hurl_stone';
+
+/** Item id of the toll token a player carries and a thief takes instead of the boots or keys. */
+export const TOKEN_ITEM_ID = 'toll_token';
 
 /** Payload of a shot the player threw, as opposed to one a launcher fired. */
 export const STONE_SHOT_PAYLOAD = 'hurl_stone';

@@ -33,7 +33,7 @@ import {
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
 import { relativeTo } from './lynx/directions';
-import { isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
+import { hasTokenContent, isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { registryTileLookup } from './epoxy/epoxySignals';
@@ -58,6 +58,8 @@ import {
 const MAX_FIXPOINT_PASSES = 60;
 /** Pocket pads it takes to make a link: gates reached plus pads the level places. */
 const MIN_POCKET_PADS = 2;
+/** Relay pads it takes to make a pair: a group with fewer leads nowhere. */
+const MIN_RELAY_PADS = 2;
 /** Blocks assumed available from a reachable cloner button that clones a block. */
 const CLONER_BLOCK_ALLOWANCE = 10;
 
@@ -170,6 +172,8 @@ interface DoorRankContext {
   chipsRequired: number;
   meltedFires: ReadonlySet<string>;
   swimProtection: string | undefined;
+  /** True when the level places a toll token, so a thief is read as taking nothing. */
+  hasToken: boolean;
   /** Whether the block stock would still cover one more demand of this kind; spends nothing. */
   affords: (use: BlockUse) => boolean;
   /** One flag per cell (y * width + x): cells some state of the walk has already reached. */
@@ -460,6 +464,9 @@ export class LevelValidator {
     const holdDoorOpenable = this.openableHoldDoorColors(level);
     const bootBits = this.buildBootBits();
     const maskCount = 1 << bootBits.size;
+    // A level that places a toll token may pay any thief once, so the walk takes no thief as stealing (an
+    // over-approximation: it never reports a false unreachable, at the price of missing a robbery the token covers).
+    const tokenLevel = hasTokenContent({ terrain: level.terrain, items: level.items });
     const hasBoot: BootCheck = (boots, bootId) => {
       const bit = bootId ? bootBits.get(bootId) : undefined;
       return bit !== undefined && (boots & bit) !== 0;
@@ -472,12 +479,22 @@ export class LevelValidator {
     );
     const swimProtection = ConfigRegistry.getTile('water').protectedByItem;
 
+    // A dark relay pad a signal link powers may be lit at some point of play, and the walk does not follow the
+    // timing of the signals: it reads such a pad as lit from the start (an over-approximation, so it never reports a false
+    // unreachable). A dark pad no link ends on stays plain floor for good.
+    const poweredRelayCells = new Set<number>();
+    for (const link of level.signalLinks ?? []) {
+      const tile = ConfigRegistry.getTile(level.terrain[link.toY]?.[link.toX] ?? FLOOR_TILE_ID);
+      if (tile.relayPad === 'dark') poweredRelayCells.add(link.toY * width + link.toX);
+    }
     const teleporters: GridPoint[] = [];
     // The pocket pads the level places itself: pads the player sets down join them, so they are listed apart.
     const placedPads: GridPoint[] = [];
     for (let ty = 0; ty < height; ty++) {
       for (let tx = 0; tx < width; tx++) {
-        if (ConfigRegistry.getTile(level.terrain[ty][tx]).isTeleporter) teleporters.push({ x: tx, y: ty });
+        if (ConfigRegistry.getTile(level.terrain[ty][tx]).isTeleporter || poweredRelayCells.has(ty * width + tx)) {
+          teleporters.push({ x: tx, y: ty });
+        }
         if (ConfigRegistry.getTile(level.terrain[ty][tx]).portableTeleporter === true) placedPads.push({ x: tx, y: ty });
         // A teleporter hidden under a removable top joins its group once the top is gone (checked at use).
         const hiddenId = underlays?.get(ty * width + tx);
@@ -495,6 +512,11 @@ export class LevelValidator {
       if (meter) meter.walks++;
       const decisions: DoorDecision[] = [];
       const simTerrain = level.terrain.map((row) => [...row]);
+      for (const cell of poweredRelayCells) {
+        const x = cell % width;
+        const y = Math.floor(cell / width);
+        simTerrain[y][x] = ConfigRegistry.getTile(simTerrain[y][x]).relayTwin ?? simTerrain[y][x];
+      }
       const simItems = level.items.map((row) => [...row]);
       if (meter) meter.cells += 2 * width * height;
       const ownedKeys: Record<string, number> = {};
@@ -722,7 +744,7 @@ export class LevelValidator {
 
           // A key thief the player can reach is assumed to be crossed once: the keys held then are gone.
           // Later passes carry the keys picked up since, which the same thief must not rob again.
-          if (currTile.stealsKeys && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
+          if (currTile.stealsKeys && !tokenLevel && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
             appliedKeyThieves.add(`${curr.x},${curr.y}`);
             for (const keyId of Object.keys(ownedKeys)) {
               if (ownedKeys[keyId] > 0) {
@@ -860,7 +882,7 @@ export class LevelValidator {
             // A barrier against a held item is passable here: the item can be put down
             // before it and fetched later, so reachability stays optimistic about it.
 
-            const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
+            const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits, tokenLevel);
             // A fire an ice block melted is water in the engine: only flippers protect there, not fire boots.
             const meltedHere = nextTile.hazard === 'fire' && meltedFires.has(`${nx},${ny}`);
             const protectedHere = hasBoot(nextBoots, meltedHere ? swimProtection : nextTile.protectedByItem);
@@ -918,7 +940,8 @@ export class LevelValidator {
                 collectedChips,
                 level.chipsRequired,
                 meltedFires,
-                swimProtection
+                swimProtection,
+                tokenLevel
               );
               if (meter) meter.cells += slide.path.length;
               if (slide.fatal) {
@@ -1005,6 +1028,7 @@ export class LevelValidator {
               chipsRequired: level.chipsRequired,
               meltedFires,
               swimProtection,
+              hasToken: tokenLevel,
               affords,
               reached,
               budget: rankBudget,
@@ -1410,7 +1434,8 @@ export class LevelValidator {
     heldChips: number,
     chipsRequired: number,
     meltedFires: ReadonlySet<string>,
-    swimProtection: string | undefined
+    swimProtection: string | undefined,
+    hasToken: boolean
   ): SlideResult {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
@@ -1509,7 +1534,7 @@ export class LevelValidator {
       const entered = ConfigRegistry.getTile(terrain[y][x]);
       const item = items[y][x];
       if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return fatal('bomb', x, y);
-      boots = this.bootsOnArrival(boots, entered, item, bootBits);
+      boots = this.bootsOnArrival(boots, entered, item, bootBits, hasToken);
       // A fire an ice block melted is water now: a swimmer survives it (the slide stops there), fire boots do not.
       const protection =
         entered.hazard === 'fire' && meltedFires.has(`${x},${y}`) ? swimProtection : entered.protectedByItem;
@@ -1755,6 +1780,9 @@ export class LevelValidator {
     const receiverGroups = new Set<string>();
     let brownButtons = 0;
     let orangeButtons = 0;
+    // The relay pads, lit or dark, and the dark ones no signal link ends on (they stay floor for good).
+    const relayCells: GridPoint[] = [];
+    const darkRelayCells: GridPoint[] = [];
     level.terrain.forEach((row, y) =>
       row.forEach((topId, x) => {
         const hiddenId = underlays?.get(y * width + x);
@@ -1768,7 +1796,10 @@ export class LevelValidator {
           if (tile.facingTurn !== undefined) plateCells.push({ x, y });
           if (tile.railSides !== undefined && tile.togglesTo !== undefined) railSwitchCells.push({ x, y });
           if (tile.buttonAction === 'toggle_walls') greenButtons++;
-          if (tile.isTeleporter) {
+          if (tile.relayPad !== undefined) {
+            relayCells.push({ x, y });
+            if (tile.relayPad === 'dark' && !(level.signalLinks ?? []).some((l) => l.toX === x && l.toY === y)) darkRelayCells.push({ x, y });
+          } else if (tile.isTeleporter) {
             const group = tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
             teleportCellsByGroup.set(group, [...(teleportCellsByGroup.get(group) ?? []), { x, y }]);
             if (tile.portableTeleporter === true) portableGroups.add(group);
@@ -1803,6 +1834,13 @@ export class LevelValidator {
               params: this.locationParams(cells, { color: this.colorName(group as ChannelColor) })
             }
       );
+    }
+    // Relay pads link only with each other, and a dark pad no signal link powers never works.
+    if (darkRelayCells.length > 0) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.relay_pad_dark_unlinked.label', params: this.locationParams(darkRelayCells) });
+    }
+    if (relayCells.length > 0 && relayCells.length < MIN_RELAY_PADS) {
+      issues.push({ severity: 'info', i18nKey: 'validator.issues.relay_group_alone.label', params: this.locationParams(relayCells) });
     }
     for (const [group, cells] of gateCellsByGroup) {
       if (receiverGroups.has(group)) continue;
@@ -2140,14 +2178,18 @@ export class LevelValidator {
     }
   }
 
-  /** Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. */
+  /**
+   * Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. A level that
+   * places a toll token is read as never robbing the player of boots (an over-approximation).
+   */
   private static bootsOnArrival(
     boots: number,
     tile: TileDefinition,
     itemId: string | null,
-    bootBits: Map<string, number>
+    bootBits: Map<string, number>,
+    hasToken: boolean
   ): number {
-    if (tile.stealsBoots) return NO_BOOTS;
+    if (tile.stealsBoots && !hasToken) return NO_BOOTS;
     return itemId ? boots | (bootBits.get(itemId) ?? NO_BOOTS) : boots;
   }
 
@@ -2347,7 +2389,8 @@ export class LevelValidator {
             ctx.collectedChips,
             ctx.chipsRequired,
             ctx.meltedFires,
-            ctx.swimProtection
+            ctx.swimProtection,
+            ctx.hasToken
           );
           if (ctx.meter) ctx.meter.cells += slide.path.length;
           if (slide.fatal || slide.opened) continue;

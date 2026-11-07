@@ -174,6 +174,10 @@ editor tile teleport_green closed=true 7d94f81180d0d3e8
 editor tile teleport_green closed=false 6d5917b4a919ec5f
 editor tile pocket_gate_pad closed=true 0f3fc9f2f020a8d1
 editor tile pocket_gate_pad closed=false f6827e7f916e5ab7
+editor tile relay_pad_dark closed=true 4ceb167154c2d901
+editor tile relay_pad_dark closed=false f9a4bcef714f56b6
+editor tile relay_pad_lit closed=true 4a9d8b8a9b106749
+editor tile relay_pad_lit closed=false 5575fbfb64b74cc2
 editor tile trap closed=true 2cee77f6e5796f24
 editor tile trap closed=false 2eb6264331aa05a9
 editor tile clone_machine closed=true 3fc3ebe18d0adff0
@@ -312,6 +316,8 @@ editor tile pocket_gate closed=true 6d759289236a7013
 editor tile pocket_gate closed=false 0a976fee9767e945
 editor tile hurl_stone closed=true 6199953037d45955
 editor tile hurl_stone closed=false 1bc0eb508dba6831
+editor tile toll_token closed=true 69726e7b916399e7
+editor tile toll_token closed=false 224aa05e69758d95
 editor tile bomb closed=true a817847f572cc322
 editor tile bomb closed=false 52aa1bd6f32022c0
 editor tile score_10 closed=true f6de9bdaadc78f74
@@ -344,6 +350,7 @@ editor item over floor charge 45fabe6488ea3ec8
 editor item over floor charge_lit b0e9308ccccf2113
 editor item over floor pocket_gate 2d50b95fa6456697
 editor item over floor hurl_stone 369e5582a928795e
+editor item over floor toll_token 2a517cf3e07faa86
 editor item over floor bomb 8816e00d5aca2f37
 editor item over floor score_10 41cd6090f7e6fe4c
 editor item over floor score_100 90bc0f431aad081f

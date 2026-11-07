@@ -1244,6 +1244,12 @@
       "drop_nothing": {
         "label": "Nothing to drop."
       },
+      "drop_token": {
+        "label": "A toll token cannot be set down; it pays a thief."
+      },
+      "thief_paid": {
+        "label": "The toll token paid the thief. Nothing was taken!"
+      },
       "throw_busy": {
         "label": "You cannot throw while you are moving."
       },
@@ -1672,6 +1678,12 @@
       "teleport_alone_plain": {
         "label": "Warning: The teleporter at ({x}, {y}) is the only plain one, so it leads nowhere."
       },
+      "relay_pad_dark_unlinked": {
+        "label": "Info: The relay pad at ({x}, {y}) is dark and no signal link powers it, so it never works."
+      },
+      "relay_group_alone": {
+        "label": "Info: The relay pad at ({x}, {y}) has no partner: a jump needs at least two relay pads on the level."
+      },
       "laser_gate_no_receiver": {
         "label": "Warning: A laser gate ({group}) at ({x}, {y}) ({count} in all) has no receiver of its group, so it stays closed."
       },
@@ -2039,7 +2051,9 @@
         "green": "green",
         "blue": "blue",
         "yellow": "yellow",
-        "swap_radius": "within reach"
+        "swap_radius": "within reach",
+        "relay": "relay",
+        "pocket": "pocket"
       },
       "fallback": {
         "trap_button": "Opens unlinked traps while held (every brown button opens unlinked traps).",
@@ -2051,7 +2065,8 @@
         "laser_emitter": "Linked to nothing; Beam preview shows the beam.",
         "signal_fires_launcher": "Fires one shot each time its linked signal starts sending.",
         "signal_fires_cloner": "Makes one clone each time its linked signal starts sending.",
-        "signal_flips": "Flips to its other form each time its linked signal starts sending, not when it stops. The green button still flips it too."
+        "signal_flips": "Flips to its other form each time its linked signal starts sending, not when it stops. The green button still flips it too.",
+        "signal_powers": "Lit while its linked signal is sending, dark while it is not. A lit pad sends whoever steps on it to the previous lit relay pad."
       },
       "needs": {
         "plate": {
@@ -2071,6 +2086,9 @@
         },
         "teleporter_colour": {
           "label": "Needs another teleporter of the same colour ({colour}): it is alone in its group."
+        },
+        "relay_pad": {
+          "label": "Needs another relay pad: a relay pad leads to the other lit relay pads only, and alone it goes nowhere."
         },
         "laser_receiver": {
           "label": "Needs a laser gate of the same group ({colour}): this receiver opens nothing yet."
@@ -4242,6 +4260,24 @@
       "name": "Pocket Gate (placed)",
       "desc": {
         "label": "A pad set down from a Pocket Gate. It links with the other Pocket Gate pads of the level, in reverse reading order. Blocks and monsters use it too. It cannot be picked up again."
+      }
+    },
+    "relay_pad_dark": {
+      "name": "Relay pad (dark)",
+      "desc": {
+        "label": "A relay pad that is switched off: plain floor. Link a signal to it and it lights while the signal is on. Lit relay pads send you to the previous lit relay pad in reading order. Without a link it stays as placed."
+      }
+    },
+    "relay_pad_lit": {
+      "name": "Relay pad (lit)",
+      "desc": {
+        "label": "A relay pad that is switched on: a teleporter that links only with the other lit relay pads. Link a signal to it and it goes dark while the signal is off. Without a link it stays as placed."
+      }
+    },
+    "toll_token": {
+      "name": "Toll Token",
+      "desc": {
+        "label": "Pick it up and keep it. The first time you step on a thief that would take your boots or your keys, the token is spent instead and nothing is taken. A thief with nothing to take leaves it alone. It cannot be set down, and a thief never takes it."
       }
     },
     "hurl_stone": {

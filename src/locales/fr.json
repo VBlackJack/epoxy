@@ -1244,6 +1244,12 @@
       "drop_nothing": {
         "label": "Rien à déposer."
       },
+      "drop_token": {
+        "label": "Un jeton de péage ne se dépose pas : il paie un voleur."
+      },
+      "thief_paid": {
+        "label": "Le jeton de péage a payé le voleur. Rien n'a été pris !"
+      },
       "throw_busy": {
         "label": "Impossible de lancer en mouvement."
       },
@@ -1672,6 +1678,12 @@
       "teleport_alone_plain": {
         "label": "Avertissement : le téléporteur en ({x}, {y}) est le seul téléporteur simple, il ne mène donc nulle part."
       },
+      "relay_pad_dark_unlinked": {
+        "label": "Info : la plaque relais en ({x}, {y}) est éteinte et aucun lien de signal ne l'alimente, elle ne fonctionne donc jamais."
+      },
+      "relay_group_alone": {
+        "label": "Info : la plaque relais en ({x}, {y}) n'a pas de partenaire : un saut demande au moins deux plaques relais dans le niveau."
+      },
       "laser_gate_no_receiver": {
         "label": "Avertissement : une barrière laser ({group}) en ({x}, {y}) (au total : {count}) n'a aucun récepteur de son groupe, elle reste donc fermée."
       },
@@ -2039,7 +2051,9 @@
         "green": "vert",
         "blue": "bleu",
         "yellow": "jaune",
-        "swap_radius": "à portée"
+        "swap_radius": "à portée",
+        "relay": "relais",
+        "pocket": "de poche"
       },
       "fallback": {
         "trap_button": "Ouvre les pièges sans lien tant qu'il est maintenu (tout bouton brun ouvre les pièges sans lien).",
@@ -2051,7 +2065,8 @@
         "laser_emitter": "Relié à rien ; l'aperçu du faisceau montre le rayon.",
         "signal_fires_launcher": "Tire une fois chaque fois que son signal relié se met à émettre.",
         "signal_fires_cloner": "Fait un clone chaque fois que son signal relié se met à émettre.",
-        "signal_flips": "Passe à son autre forme chaque fois que son signal relié se met à émettre, pas quand il s'arrête. Le bouton vert le fait aussi basculer."
+        "signal_flips": "Passe à son autre forme chaque fois que son signal relié se met à émettre, pas quand il s'arrête. Le bouton vert le fait aussi basculer.",
+        "signal_powers": "S'allume tant que son signal relié émet, reste éteinte sinon. Une plaque allumée envoie celui qui marche dessus vers la plaque relais allumée précédente."
       },
       "needs": {
         "plate": {
@@ -2071,6 +2086,9 @@
         },
         "teleporter_colour": {
           "label": "Il faut un autre téléporteur de la même couleur ({colour}) : celui-ci est seul dans son groupe."
+        },
+        "relay_pad": {
+          "label": "Il faut une autre plaque relais : une plaque relais ne mène qu'aux autres plaques relais allumées, et seule elle ne mène nulle part."
         },
         "laser_receiver": {
           "label": "Il faut une porte laser du même groupe ({colour}) : ce récepteur n'ouvre rien pour l'instant."
@@ -2706,10 +2724,10 @@
         "label": "Triage sur rails"
       },
       "monster_clock": {
-        "label": "Horloge à automate"
+        "label": "Horloge à monstre"
       },
       "turning_force": {
-        "label": "Distributeur à force tournante"
+        "label": "Tapis de force tournant"
       },
       "hurl_stone_ricochet": {
         "label": "Ricochet de pierre de jet"
@@ -4242,6 +4260,24 @@
       "name": "Porte de poche (posée)",
       "desc": {
         "label": "Une plaque posée avec une porte de poche. Elle communique avec les autres plaques de porte de poche du niveau, dans l'ordre de lecture inverse. Les blocs et les monstres l'utilisent aussi. On ne peut pas la ramasser de nouveau."
+      }
+    },
+    "relay_pad_dark": {
+      "name": "Plaque relais (éteinte)",
+      "desc": {
+        "label": "Une plaque relais éteinte : un simple sol. Reliez-lui un signal et elle s'allume tant que le signal émet. Les plaques relais allumées envoient vers la plaque relais allumée précédente dans l'ordre de lecture. Sans lien, elle reste comme posée."
+      }
+    },
+    "relay_pad_lit": {
+      "name": "Plaque relais (allumée)",
+      "desc": {
+        "label": "Une plaque relais allumée : un téléporteur qui ne communique qu'avec les autres plaques relais allumées. Reliez-lui un signal et elle s'éteint quand le signal s'arrête. Sans lien, elle reste comme posée."
+      }
+    },
+    "toll_token": {
+      "name": "Jeton de péage",
+      "desc": {
+        "label": "Ramassez-le et gardez-le. La première fois que vous marchez sur un voleur qui prendrait vos bottes ou vos clés, le jeton est dépensé à la place et rien n'est pris. Un voleur qui n'a rien à prendre n'y touche pas. Il ne se dépose pas, et un voleur ne le prend jamais."
       }
     },
     "hurl_stone": {

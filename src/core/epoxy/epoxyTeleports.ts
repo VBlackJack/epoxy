@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { Direction, GridPoint, RuntimeEntity } from '../types';
+import { Direction, GridPoint, RuntimeEntity, TileDefinition } from '../types';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter } from './epoxyMonsters';
 import {
@@ -31,15 +31,17 @@ import {
 } from './epoxyWorld';
 
 /**
- * The portable pads of a group as the terrain holds them now, in reading order (row by row, left to right).
- * A pad can be set down or lost at any time, so the list is read live instead of from the lookups built at load.
+ * The pads of a group that the terrain holds now and that are live teleporters, in reading order (row by row, left to
+ * right): the portable pads a player set down, or the lit relay pads. A pad can be set down, lit or darkened at any
+ * time, so the list is read live instead of from the lookups built at load. A dark relay pad is plain floor and never
+ * listed.
  */
-function portablePadsOf(w: EpoxyWorld, group: string): GridPoint[] {
+function livePadsOf(w: EpoxyWorld, group: string, isPad: (tile: TileDefinition) => boolean): GridPoint[] {
   const pads: GridPoint[] = [];
   for (let y = 0; y < w.terrain.length; y++) {
     for (let x = 0; x < w.terrain[y].length; x++) {
       const tile = ConfigRegistry.getTile(w.terrain[y][x]);
-      if (tile.portableTeleporter === true && (tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP) === group) pads.push({ x, y });
+      if (tile.isTeleporter === true && isPad(tile) && (tile.teleportGroup ?? DEFAULT_TELEPORT_GROUP) === group) pads.push({ x, y });
     }
   }
   return pads;
@@ -49,7 +51,8 @@ function portablePadsOf(w: EpoxyWorld, group: string): GridPoint[] {
 function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   const origin = ConfigRegistry.getTile(w.terrain[y][x]);
   const group = origin.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
-  if (origin.portableTeleporter === true) return portablePadsOf(w, group);
+  if (origin.portableTeleporter === true) return livePadsOf(w, group, (tile) => tile.portableTeleporter === true);
+  if (origin.relayPad !== undefined) return livePadsOf(w, group, (tile) => tile.relayPad !== undefined);
   const linked = w.teleportersByGroup.get(group) ?? [];
   // A teleporter hidden under a removable top is listed too; it takes part once the top is gone.
   return w.underlays === null

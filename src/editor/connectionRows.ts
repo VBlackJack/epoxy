@@ -48,12 +48,14 @@ export const CONNECTIONS_KEYS = {
   signalFiresLauncher: `${KEY_PREFIX}fallback.signal_fires_launcher`,
   signalFiresCloner: `${KEY_PREFIX}fallback.signal_fires_cloner`,
   signalFlips: `${KEY_PREFIX}fallback.signal_flips`,
+  signalPowers: `${KEY_PREFIX}fallback.signal_powers`,
   needsPlate: `${KEY_PREFIX}needs.plate.label`,
   needsHoldDoor: `${KEY_PREFIX}needs.hold_door.label`,
   needsToggleButton: `${KEY_PREFIX}needs.toggle_button.label`,
   needsToggleWall: `${KEY_PREFIX}needs.toggle_wall.label`,
   needsTeleporterPlain: `${KEY_PREFIX}needs.teleporter_plain.label`,
   needsTeleporterColour: `${KEY_PREFIX}needs.teleporter_colour.label`,
+  needsRelayPad: `${KEY_PREFIX}needs.relay_pad.label`,
   needsLaserReceiver: `${KEY_PREFIX}needs.laser_receiver.label`,
   needsLaserGate: `${KEY_PREFIX}needs.laser_gate.label`,
   needsPuppetControl: `${KEY_PREFIX}needs.puppet_control.label`,
@@ -153,6 +155,8 @@ export const CHANNEL_NAME_KEYS: Readonly<Record<string, string>> = {
   green: 'editor.connections.channel.green',
   blue: 'editor.connections.channel.blue',
   yellow: 'editor.connections.channel.yellow',
+  relay: 'editor.connections.channel.relay',
+  pocket: 'editor.connections.channel.pocket',
   swap_radius: 'editor.connections.channel.swap_radius'
 };
 
@@ -462,6 +466,11 @@ function noteFor(role: DeviceRole | null, rel: DeviceRelations, tile: TileDefini
       return hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFiresLauncher } : null;
     case 'clone_machine':
       return hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFiresCloner } : null;
+    // A relay pad needs a partner pad to lead anywhere; a signal wired into it lights it while the signal is on.
+    case 'teleporter':
+      if (tile?.relayPad === undefined) return needsNoteFor(role, rel, tile);
+      if (rel.controls.length === 0) return { key: CONNECTIONS_KEYS.needsRelayPad };
+      return hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalPowers } : null;
     // A signal wired into a toggle wall or a rail switch flips that one cell on each rising edge; the wire is a controller, so no "needs" note.
     case 'toggle_wall':
       return tile?.togglesTo !== undefined && hasLink(rel.controlledBy, 'signal') ? { key: CONNECTIONS_KEYS.signalFlips } : needsNoteFor(role, rel, tile);
