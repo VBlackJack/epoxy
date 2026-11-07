@@ -102,6 +102,8 @@ export interface Cc2UnknownRemainder {
   cellIndex: number;
   /** The unknown code. */
   code: number;
+  /** Offset of that code in the uncompressed map bytes. */
+  offset: number;
   /** Tiles of that cell read before the unknown code. */
   tiles: Cc2Tile[];
   /** Raw bytes from the unknown code to the end of the map data. */
