@@ -26,7 +26,7 @@ import { triggerButton } from './epoxyDevices';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
-import { consumeShotAt, killPlayerByShot } from './epoxyShots';
+import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -40,6 +40,7 @@ import {
   killPlayer,
   leaveCell,
   notePulseArrival,
+  shotAt,
   takeRevealedTerrain
 } from './epoxyWorld';
 
@@ -66,6 +67,12 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   }
 
   if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  // A thrown stone still in the cell ahead is not walked into: the step is refused like a blocked one.
+  if (w.shots.length > 0 && shotAt(w, targetX, targetY)?.payload !== undefined) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
@@ -233,8 +240,9 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   enterSwivel(w, x, y, entryDir);
 
   // Running into a flying shot kills the player and spends the shot; a teleport lands here again for its exit cell.
-  if (w.shots.length > 0 && consumeShotAt(w, x, y)) {
-    killPlayerByShot(ctx);
+  const hitBy = w.shots.length > 0 ? spendShotAt(w, x, y) : undefined;
+  if (hitBy) {
+    killPlayerByShot(ctx, hitBy.payload);
     return;
   }
 
@@ -266,7 +274,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
       AudioManager.playSfx('chip');
       ctx.emitVisual('chip', x, y, 'green');
-    } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate') {
+    } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
       AudioManager.playSfx('item');

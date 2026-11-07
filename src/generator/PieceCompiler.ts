@@ -43,7 +43,7 @@ export const IDENTITY_ORIENTATION: PieceOrientation = { quarterTurns: 0, mirrore
 function moveActionsOf(pieceId: string, text: string): MoveAction[] {
   const actions = decodeActions(text);
   const moves = actions.filter(isMoveAction);
-  if (moves.length !== actions.length) throw new PieceError(pieceId, 'a solution annotation cannot drop an item (X or G)');
+  if (moves.length !== actions.length) throw new PieceError(pieceId, 'a solution annotation cannot drop an item (X, G or T)');
   return moves;
 }
 

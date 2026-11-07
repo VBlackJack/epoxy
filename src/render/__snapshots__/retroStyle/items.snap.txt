@@ -83,6 +83,11 @@ item theme=cyber_neon id=pocket_gate 865b4df933f30161
 item theme=arctic_lab id=pocket_gate 1c93ead336397d0f
 item theme=magma_core id=pocket_gate 6009522f1bfd2a69
 item theme=lynx_lcd id=pocket_gate 249891fcdb77e153
+item theme=default id=hurl_stone 424f834fed61e31c
+item theme=cyber_neon id=hurl_stone 8c34fbe327c0f396
+item theme=arctic_lab id=hurl_stone a627a543decdab1e
+item theme=magma_core id=hurl_stone c202c0ad9169e4c1
+item theme=lynx_lcd id=hurl_stone 29a72063519410d8
 item theme=default id=bomb fb0d51cbc2bb84ae
 item theme=cyber_neon id=bomb 2043ce0469ba83ff
 item theme=arctic_lab id=bomb b24ce8e6eddf1738

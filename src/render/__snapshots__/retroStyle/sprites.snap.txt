@@ -109,6 +109,7 @@ sprite theme=default name=bomb 3c25f2d177c94153
 sprite theme=default name=charge 2c1359c68f9b4678
 sprite theme=default name=charge_lit c212f678da61c7e6
 sprite theme=default name=pocket_gate 009244bf3818b47c
+sprite theme=default name=hurl_stone 9fb4e6107ea482e8
 sprite theme=default name=flag cdc3fd0b5560b38d
 sprite theme=default name=stopwatch_bonus 0e9fce7b319124e6
 sprite theme=default name=stopwatch_penalty b99fa635f1093f64
@@ -355,6 +356,7 @@ sprite theme=cyber_neon name=bomb ce3a270d66b9468a
 sprite theme=cyber_neon name=charge 615b2f95766413ea
 sprite theme=cyber_neon name=charge_lit 1102b57372ab3944
 sprite theme=cyber_neon name=pocket_gate 60c6e3cfe8ec214e
+sprite theme=cyber_neon name=hurl_stone beb4c69855903237
 sprite theme=cyber_neon name=flag b071ea3d45c0bf3a
 sprite theme=cyber_neon name=stopwatch_bonus 5f4ccb634aeb1f4c
 sprite theme=cyber_neon name=stopwatch_penalty c2c032486be49472
@@ -601,6 +603,7 @@ sprite theme=arctic_lab name=bomb 6fd67565948c503d
 sprite theme=arctic_lab name=charge 46ceac84ed8aaf91
 sprite theme=arctic_lab name=charge_lit 8b28a0594d70a5f3
 sprite theme=arctic_lab name=pocket_gate 97619c3a3fd97272
+sprite theme=arctic_lab name=hurl_stone 5c3284ba3b7d4a4d
 sprite theme=arctic_lab name=flag 0e8c6ef6656319aa
 sprite theme=arctic_lab name=stopwatch_bonus fc7809722ace33fb
 sprite theme=arctic_lab name=stopwatch_penalty 889ac52f31b4db52
@@ -847,6 +850,7 @@ sprite theme=magma_core name=bomb b76540265f8db373
 sprite theme=magma_core name=charge c61e2e3c5279f540
 sprite theme=magma_core name=charge_lit 6f0fc1152a8ce106
 sprite theme=magma_core name=pocket_gate 1f30de52fb138033
+sprite theme=magma_core name=hurl_stone 6ab6eb1ca980b06e
 sprite theme=magma_core name=flag 5b4ce0a19399c6b1
 sprite theme=magma_core name=stopwatch_bonus 85cafaff4511a3fd
 sprite theme=magma_core name=stopwatch_penalty 4ee6718373575536
@@ -1093,6 +1097,7 @@ sprite theme=lynx_lcd name=bomb 671c3eb46661eb53
 sprite theme=lynx_lcd name=charge 1e45f579199636f4
 sprite theme=lynx_lcd name=charge_lit e449a005dbd1d782
 sprite theme=lynx_lcd name=pocket_gate 89eab8e2a6eb135b
+sprite theme=lynx_lcd name=hurl_stone cd3cff708036920b
 sprite theme=lynx_lcd name=flag 020574d33c91ace4
 sprite theme=lynx_lcd name=stopwatch_bonus 5028d3738366f927
 sprite theme=lynx_lcd name=stopwatch_penalty 26f4e230a371c2d2

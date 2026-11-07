@@ -980,6 +980,14 @@
       "collectible": "gate",
       "dropsAsTerrain": "pocket_gate_pad"
     },
+    "hurl_stone": {
+      "id": "hurl_stone",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.hurl_stone.name",
+      "laserTransparent": true,
+      "collectible": "stone"
+    },
     "bomb": {
       "id": "bomb",
       "category": "items",
