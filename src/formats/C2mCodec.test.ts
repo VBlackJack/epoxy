@@ -18,6 +18,8 @@ import { describe, expect, it } from 'vitest';
 import {
   PACK_MAX_OFFSET,
   PACK_MAX_RUN,
+  assertC2mMapComplete,
+  c2mMapWarnings,
   decodeC2m,
   decodeC2mMapBytes,
   parseCc2Options,
@@ -39,11 +41,20 @@ import {
   type Cc2Tile
 } from './cc2Model';
 import {
+  CC2_CODE_CLONER_CC1,
   CC2_CODE_COMPUTER_CHIP,
   CC2_CODE_DIRECTIONAL_BLOCK,
+  CC2_CODE_GREEN_WALL_FAKE,
+  CC2_CODE_GREEN_WALL_SOLID,
+  CC2_CODE_LEXY_EXT_A,
+  CC2_CODE_LEXY_EXT_B,
   CC2_CODE_NO_SIGN,
+  CC2_CODE_OPEN_TRAP,
   CC2_CODE_PLAYER,
   CC2_CODE_THIN_WALL,
+  CC2_CODE_THIN_WALL_E,
+  CC2_CODE_THIN_WALL_S,
+  CC2_CODE_THIN_WALL_SE,
   CC2_CODE_TRACK,
   cc2KnownCodes,
   cc2TileInfo
@@ -371,7 +382,7 @@ describe('map cells', () => {
   });
 
   it('has unique confirmed names and a name for every code', () => {
-    const confirmed = cc2KnownCodes().map((c) => cc2TileInfo(c)).filter((i) => i?.confirmed);
+    const confirmed = cc2KnownCodes().map((c) => cc2TileInfo(c)).filter((i) => i?.confidence === 'confirmed');
     const names = confirmed.map((i) => i?.name);
     expect(new Set(names).size).toBe(names.length);
     expect(cc2TileInfo(0x46)?.name).toBe('Random Force Floor');
@@ -429,5 +440,77 @@ describe('options', () => {
   it('parses a short block without failing', () => {
     expect(parseCc2Options(Uint8Array.of(5))).toEqual({ timeLimit: 0, flags: [] });
     expect(parseCc2Options(Uint8Array.of(0xe7, 0x03, 1))).toEqual({ timeLimit: 999, flags: [1] });
+  });
+});
+
+describe('extra tile codes', () => {
+  const TERRAIN_EXTRAS = [CC2_CODE_CLONER_CC1, CC2_CODE_OPEN_TRAP, CC2_CODE_LEXY_EXT_A, CC2_CODE_LEXY_EXT_B];
+  const PANEL_EXTRAS = [CC2_CODE_THIN_WALL_S, CC2_CODE_THIN_WALL_E, CC2_CODE_THIN_WALL_SE];
+  const OFFSET_OF_UNKNOWN_CODE = 3;
+
+  it('decodes each terrain extra with no payload and closes the cell', () => {
+    for (const code of TERRAIN_EXTRAS) {
+      const bytes = Uint8Array.of(2, 1, code, FLOOR);
+      const map = decodeC2mMapBytes(bytes);
+      expect(map.unknown).toBeUndefined();
+      expect(map.cells.map((c) => c.tiles)).toEqual([[{ code }], [{ code: FLOOR }]]);
+      expect(cc2TileInfo(code)?.layer).toBe(Cc2Layer.Terrain);
+      expect(encodeC2mMapBytes(map)).toEqual(bytes);
+    }
+  });
+
+  it('decodes fixed thin walls as panels that do not close the cell', () => {
+    for (const code of PANEL_EXTRAS) {
+      const bytes = Uint8Array.of(1, 1, code, FLOOR);
+      const map = decodeC2mMapBytes(bytes);
+      expect(map.unknown).toBeUndefined();
+      expect(map.cells[0].tiles).toEqual([{ code }, { code: FLOOR }]);
+      expect(cc2TileInfo(code)?.layer).toBe(Cc2Layer.Panel);
+      expect(cc2TileInfo(code)?.extraBytes).toBe(0);
+      expect(encodeC2mMapBytes(map)).toEqual(bytes);
+    }
+  });
+
+  it('records the converter intent of the CC1 cloner', () => {
+    expect(cc2TileInfo(CC2_CODE_CLONER_CC1)?.epoxyId).toBe('clone_machine');
+    expect(cc2TileInfo(CC2_CODE_CLONER_CC1)?.confidence).toBe('medium');
+  });
+
+  it('names the green walls with their confidence', () => {
+    expect(cc2TileInfo(CC2_CODE_GREEN_WALL_SOLID)).toMatchObject({ confidence: 'mediumHigh', epoxyId: 'wall' });
+    expect(cc2TileInfo(CC2_CODE_GREEN_WALL_FAKE)).toMatchObject({ confidence: 'medium', epoxyId: 'blue_wall_fake' });
+      });
+
+  it('warns about sized codes whose meaning is unknown', () => {
+    const map = decodeC2mMapBytes(Uint8Array.of(3, 1, CC2_CODE_LEXY_EXT_A, CC2_CODE_LEXY_EXT_B, CC2_CODE_LEXY_EXT_A));
+    expect(map.unknown).toBeUndefined();
+    const warnings = c2mMapWarnings(map);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain('0xf2');
+    expect(c2mMapWarnings(decodeC2mMapBytes(Uint8Array.of(1, 1, FLOOR)))).toEqual([]);
+  });
+
+  it('reports an unsizeable code with a typed error naming code and offset', () => {
+    const map = decodeC2mMapBytes(Uint8Array.of(2, 1, FLOOR, CODE_NOT_IN_TABLE, 9));
+    expect(map.unknown?.offset).toBe(OFFSET_OF_UNKNOWN_CODE);
+    try {
+      assertC2mMapComplete(map);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(C2mFormatError);
+      expect((error as C2mFormatError).code).toBe(C2M_ERROR_CODES.unknownTileCode);
+      expect((error as C2mFormatError).detail).toBe('0xee at offset 3');
+    }
+  });
+
+  it('keeps the other sections of a file whose map has an unknown code', () => {
+    const file = sampleFile(false);
+    const bytes = Uint8Array.of(1, 1, CODE_NOT_IN_TABLE);
+    file.sections[4] = { kind: 'map', tag: C2M_TAGS.map, map: decodeC2mMapBytes(bytes) };
+    const decoded = decodeC2m(encodeC2m(file));
+    expect(decoded.sections).toHaveLength(file.sections.length);
+    const section = decoded.sections[4];
+    expect(section.kind === 'map' && section.map.unknown?.code).toBe(CODE_NOT_IN_TABLE);
+    expect(decoded.sections[2]).toMatchObject({ kind: 'text', text: 'Test' });
   });
 });

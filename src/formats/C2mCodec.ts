@@ -167,7 +167,7 @@ export function decodeC2mMapBytes(data: Uint8Array): Cc2Map {
     for (;;) {
       const read: TileRead = at < data.length ? readTile(data, at) : { unknownCode: UNKNOWN_CODE_END_OF_DATA };
       if ('unknownCode' in read) {
-        const unknown: Cc2UnknownRemainder = { cellIndex, code: read.unknownCode, tiles, raw: data.slice(at) };
+        const unknown: Cc2UnknownRemainder = { cellIndex, code: read.unknownCode, offset: at, tiles, raw: data.slice(at) };
         map.unknown = unknown;
         return map;
       }
@@ -179,6 +179,36 @@ export function decodeC2mMapBytes(data: Uint8Array): Cc2Map {
   }
   map.tail = data.slice(at);
   return map;
+}
+
+/**
+ * Typed error for a map that stopped on a code the table cannot size. It names
+ * the code and its offset in the uncompressed map bytes; sizes are never guessed.
+ */
+export function c2mUnknownCodeError(unknown: Cc2UnknownRemainder): C2mFormatError {
+  const code = unknown.code === UNKNOWN_CODE_END_OF_DATA ? 'end of data' : `0x${unknown.code.toString(16).padStart(2, '0')}`;
+  return new C2mFormatError(C2M_ERROR_CODES.unknownTileCode, `${code} at offset ${unknown.offset}`);
+}
+
+/** Throws c2mUnknownCodeError when the map could not be fully decoded. */
+export function assertC2mMapComplete(map: Cc2Map): void {
+  if (map.unknown) throw c2mUnknownCodeError(map.unknown);
+}
+
+/** Warnings for codes that are sized but whose meaning is unknown, one per distinct code. */
+export function c2mMapWarnings(map: Cc2Map): string[] {
+  const seen = new Set<number>();
+  const warnings: string[] = [];
+  const stacks = [...map.cells.map((cell) => cell.tiles), ...(map.unknown ? [map.unknown.tiles] : [])];
+  for (const stack of stacks) {
+    for (const tile of stack) {
+      const warning = cc2TileInfo(tile.code)?.warning;
+      if (warning === undefined || seen.has(tile.code)) continue;
+      seen.add(tile.code);
+      warnings.push(`0x${tile.code.toString(16).padStart(2, '0')}: ${warning}`);
+    }
+  }
+  return warnings;
 }
 
 function decodeText(tag: string, data: Uint8Array): Cc2Section {

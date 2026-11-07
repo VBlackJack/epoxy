@@ -33,12 +33,36 @@ export interface Cc2TileInfo {
   /** Number of those bytes. */
   extraBytes: number;
   name: string;
-  /** True when the name rests on a verified fact. */
-  confirmed: boolean;
+  /** How far the name can be trusted. 'confirmed' means the name rests on a verified fact. */
+  confidence: Cc2NameConfidence;
+  /** Epoxy element id the converter maps this code to, when the name alone does not say. */
+  epoxyId?: string;
+  /** Free-text note for the converter about that mapping. */
+  note?: string;
+  /** Set when the layer and size are known but the meaning is not: decoding succeeds with this warning. */
+  warning?: string;
 }
+
+/** Trust level of a tile name. */
+export type Cc2NameConfidence = 'confirmed' | 'mediumHigh' | 'medium' | 'low' | 'unknown';
 
 /** Meaning of the payload bytes that follow a tile code. */
 export type Cc2ExtraKind = 'none' | 'dir' | 'flags' | 'dirArrows';
+
+/** CC1-style cloner: terrain, no payload. The converter maps it to clone_machine with the actor on top as template. */
+export const CC2_CODE_CLONER_CC1 = 0x43;
+/** Probably the unused open trap (low confidence): terrain, no payload. */
+export const CC2_CODE_OPEN_TRAP = 0x41;
+/** Thin wall panels with a fixed edge, no payload (medium confidence): south, east, south-east. */
+export const CC2_CODE_THIN_WALL_S = 0x1b;
+export const CC2_CODE_THIN_WALL_E = 0x1c;
+export const CC2_CODE_THIN_WALL_SE = 0x1d;
+/** Green wall variants: solid behaves like a real wall, fake like a fake blue wall. */
+export const CC2_CODE_GREEN_WALL_SOLID = 0x7d;
+export const CC2_CODE_GREEN_WALL_FAKE = 0x7e;
+/** Extension codes of Lexy's Labyrinth: terrain, no payload, meaning unknown. */
+export const CC2_CODE_LEXY_EXT_A = 0xf2;
+export const CC2_CODE_LEXY_EXT_B = 0xf3;
 
 /** Codes of terrain tiles: the tile that closes every cell stack. */
 const TERRAIN_CODES: readonly number[] = [
@@ -46,7 +70,8 @@ const TERRAIN_CODES: readonly number[] = [
   0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x1e, 0x1f, 0x20, 0x22, 0x23, 0x24, 0x25, 0x2c, 0x2d,
   0x2e, 0x2f, 0x30, 0x31, 0x32, 0x39, 0x3a, 0x3f, 0x42, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49,
   0x4a, 0x4b, 0x4e, 0x4f, 0x50, 0x5a, 0x5b, 0x5c, 0x5e, 0x5f, 0x60, 0x61, 0x64, 0x6b, 0x70,
-  0x71, 0x72, 0x73, 0x7d, 0x7e, 0x87, 0x88, 0x89, 0x8a, 0x8d
+  0x71, 0x72, 0x73, 0x7d, 0x7e, 0x87, 0x88, 0x89, 0x8a, 0x8d,
+  CC2_CODE_CLONER_CC1, CC2_CODE_OPEN_TRAP, CC2_CODE_LEXY_EXT_A, CC2_CODE_LEXY_EXT_B
 ];
 
 /** Codes of actors (player, blocks, monsters): each is followed by a facing byte. */
@@ -205,6 +230,33 @@ const CONFIRMED_NAMES: ReadonlyMap<number, string> = new Map([
   [0x7f, 'No Sign']
 ]);
 
+/** Names whose evidence is weaker than the checked list: code, name and confidence. */
+const PROVISIONAL_NAMES: ReadonlyMap<number, { name: string; confidence: Cc2NameConfidence }> = new Map([
+  [CC2_CODE_CLONER_CC1, { name: 'Clone Machine (CC1 style)', confidence: 'medium' }],
+  [CC2_CODE_THIN_WALL_S, { name: 'Thin Wall S', confidence: 'medium' }],
+  [CC2_CODE_THIN_WALL_E, { name: 'Thin Wall E', confidence: 'medium' }],
+  [CC2_CODE_THIN_WALL_SE, { name: 'Thin Wall SE', confidence: 'medium' }],
+  [CC2_CODE_OPEN_TRAP, { name: 'Open Trap', confidence: 'low' }],
+  [CC2_CODE_GREEN_WALL_SOLID, { name: 'Green Wall Solid', confidence: 'mediumHigh' }],
+  [CC2_CODE_GREEN_WALL_FAKE, { name: 'Green Wall Fake', confidence: 'medium' }]
+]);
+
+/** Epoxy ids the converter maps codes to, with an optional note. */
+const EPOXY_MAPPINGS: ReadonlyMap<number, { epoxyId: string; note?: string }> = new Map([
+  [CC2_CODE_CLONER_CC1, { epoxyId: 'clone_machine', note: 'the actor on top of the cell is the template' }],
+  [CC2_CODE_GREEN_WALL_SOLID, { epoxyId: 'wall' }],
+  [CC2_CODE_GREEN_WALL_FAKE, { epoxyId: 'blue_wall_fake' }]
+]);
+
+/** Codes decoded with a known size and an unknown meaning. */
+const WARNINGS: ReadonlyMap<number, string> = new Map([
+  [CC2_CODE_LEXY_EXT_A, "Lexy's Labyrinth extension code, meaning unknown"],
+  [CC2_CODE_LEXY_EXT_B, "Lexy's Labyrinth extension code, meaning unknown"]
+]);
+
+/** Fixed-edge thin wall panels: panel layer, never close a cell. */
+const THIN_WALL_FIXED_CODES: readonly number[] = [CC2_CODE_THIN_WALL_S, CC2_CODE_THIN_WALL_E, CC2_CODE_THIN_WALL_SE];
+
 const PLAYER_FACING_BYTES = 1;
 const THIN_WALL_EXTRA_BYTES = 1;
 const DIRECTIONAL_BLOCK_EXTRA_BYTES = 2;
@@ -216,14 +268,24 @@ function hexLabel(code: number): string {
 
 function entry(code: number, layer: Cc2Layer, extra: Cc2ExtraKind, extraBytes: number): Cc2TileInfo {
   const confirmedName = CONFIRMED_NAMES.get(code);
-  return {
+  const provisional = PROVISIONAL_NAMES.get(code);
+  const confidence: Cc2NameConfidence = confirmedName !== undefined ? 'confirmed' : (provisional?.confidence ?? 'unknown');
+  const result: Cc2TileInfo = {
     code,
     layer,
     extra,
     extraBytes,
-    name: confirmedName ?? hexLabel(code),
-    confirmed: confirmedName !== undefined
+    name: confirmedName ?? provisional?.name ?? hexLabel(code),
+    confidence
   };
+  const mapping = EPOXY_MAPPINGS.get(code);
+  if (mapping !== undefined) {
+    result.epoxyId = mapping.epoxyId;
+    if (mapping.note !== undefined) result.note = mapping.note;
+  }
+  const warning = WARNINGS.get(code);
+  if (warning !== undefined) result.warning = warning;
+  return result;
 }
 
 function buildTable(): ReadonlyMap<number, Cc2TileInfo> {
@@ -231,6 +293,7 @@ function buildTable(): ReadonlyMap<number, Cc2TileInfo> {
   for (const code of TERRAIN_CODES) table.set(code, entry(code, Cc2Layer.Terrain, 'none', NO_EXTRA_BYTES));
   for (const code of ACTOR_CODES) table.set(code, entry(code, Cc2Layer.Actor, 'dir', PLAYER_FACING_BYTES));
   for (const code of ITEM_CODES) table.set(code, entry(code, Cc2Layer.Item, 'none', NO_EXTRA_BYTES));
+  for (const code of THIN_WALL_FIXED_CODES) table.set(code, entry(code, Cc2Layer.Panel, 'none', NO_EXTRA_BYTES));
   table.set(CC2_CODE_NO_SIGN, entry(CC2_CODE_NO_SIGN, Cc2Layer.NoSign, 'none', NO_EXTRA_BYTES));
   table.set(CC2_CODE_THIN_WALL, entry(CC2_CODE_THIN_WALL, Cc2Layer.Panel, 'flags', THIN_WALL_EXTRA_BYTES));
   table.set(
