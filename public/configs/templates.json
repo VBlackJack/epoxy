@@ -8,11 +8,23 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 0,
       "legend": {
-        "#": { "terrain": "wall" },
-        ".": { "terrain": "floor" },
-        "P": { "terrain": "floor", "start": "S" },
-        "T": { "terrain": "block_target" },
-        "$": { "terrain": "floor", "entity": "dirt_block" }
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "T": {
+          "terrain": "block_target"
+        },
+        "$": {
+          "terrain": "floor",
+          "entity": "dirt_block"
+        }
       },
       "rows": [
         "#########",
@@ -33,12 +45,26 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 0,
       "legend": {
-        "#": { "terrain": "wall" },
-        ".": { "terrain": "floor" },
-        "P": { "terrain": "floor", "start": "S" },
-        ">": { "terrain": "laser_emitter_e" },
-        "R": { "terrain": "laser_receiver_red" },
-        "\\": { "terrain": "floor", "entity": "mirror_backslash" }
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        ">": {
+          "terrain": "laser_emitter_e"
+        },
+        "R": {
+          "terrain": "laser_receiver_red"
+        },
+        "\\": {
+          "terrain": "floor",
+          "entity": "mirror_backslash"
+        }
       },
       "rows": [
         "#########",
@@ -58,15 +84,36 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 1,
       "legend": {
-        "#": { "terrain": "wall" },
-        ".": { "terrain": "floor" },
-        "P": { "terrain": "floor", "start": "S" },
-        "$": { "terrain": "floor", "entity": "dirt_block" },
-        "W": { "terrain": "water" },
-        "d": { "terrain": "dirt" },
-        "C": { "terrain": "floor", "item": "chip" },
-        "S": { "terrain": "socket" },
-        "E": { "terrain": "exit" }
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "$": {
+          "terrain": "floor",
+          "entity": "dirt_block"
+        },
+        "W": {
+          "terrain": "water"
+        },
+        "d": {
+          "terrain": "dirt"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
       },
       "rows": [
         "#########",
@@ -86,15 +133,36 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 1,
       "legend": {
-        "#": { "terrain": "wall" },
-        ".": { "terrain": "floor" },
-        "P": { "terrain": "floor", "start": "S" },
-        "$": { "terrain": "floor", "entity": "dirt_block" },
-        "[": { "terrain": "pressure_plate_red" },
-        "]": { "terrain": "hold_door_red_closed" },
-        "C": { "terrain": "floor", "item": "chip" },
-        "S": { "terrain": "socket" },
-        "E": { "terrain": "exit" }
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "$": {
+          "terrain": "floor",
+          "entity": "dirt_block"
+        },
+        "[": {
+          "terrain": "pressure_plate_red"
+        },
+        "]": {
+          "terrain": "hold_door_red_closed"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
       },
       "rows": [
         "#########",
@@ -114,17 +182,43 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 1,
       "legend": {
-        "#": { "terrain": "wall" },
-        ".": { "terrain": "floor" },
-        "P": { "terrain": "floor", "start": "S" },
-        "G": { "terrain": "floor", "item": "boots_pull" },
-        "$": { "terrain": "floor", "entity": "dirt_block" },
-        "[": { "terrain": "pressure_plate_blue" },
-        "]": { "terrain": "hold_door_blue_closed" },
-        "d": { "terrain": "dirt" },
-        "C": { "terrain": "floor", "item": "chip" },
-        "S": { "terrain": "socket" },
-        "E": { "terrain": "exit" }
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "G": {
+          "terrain": "floor",
+          "item": "boots_pull"
+        },
+        "$": {
+          "terrain": "floor",
+          "entity": "dirt_block"
+        },
+        "[": {
+          "terrain": "pressure_plate_blue"
+        },
+        "]": {
+          "terrain": "hold_door_blue_closed"
+        },
+        "d": {
+          "terrain": "dirt"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
       },
       "rows": [
         "#########",
@@ -145,17 +239,42 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 1,
       "legend": {
-        "#": { "terrain": "wall" },
-        ".": { "terrain": "floor" },
-        "P": { "terrain": "floor", "start": "S" },
-        ">": { "terrain": "laser_emitter_e" },
-        "\\": { "terrain": "floor", "entity": "mirror_backslash" },
-        "R": { "terrain": "laser_receiver_red" },
-        ":": { "terrain": "laser_gate_red_closed" },
-        "d": { "terrain": "dirt" },
-        "C": { "terrain": "floor", "item": "chip" },
-        "S": { "terrain": "socket" },
-        "E": { "terrain": "exit" }
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        ">": {
+          "terrain": "laser_emitter_e"
+        },
+        "\\": {
+          "terrain": "floor",
+          "entity": "mirror_backslash"
+        },
+        "R": {
+          "terrain": "laser_receiver_red"
+        },
+        ":": {
+          "terrain": "laser_gate_red_closed"
+        },
+        "d": {
+          "terrain": "dirt"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
       },
       "rows": [
         "#########",
@@ -175,16 +294,40 @@
       "timeLimitSeconds": 0,
       "chipsRequired": 1,
       "legend": {
-        "#": { "terrain": "wall" },
-        ".": { "terrain": "floor" },
-        "P": { "terrain": "floor", "start": "S" },
-        "I": { "terrain": "floor", "entity": "ice_block" },
-        "$": { "terrain": "floor", "entity": "dirt_block" },
-        "F": { "terrain": "fire" },
-        "d": { "terrain": "dirt" },
-        "C": { "terrain": "floor", "item": "chip" },
-        "S": { "terrain": "socket" },
-        "E": { "terrain": "exit" }
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "I": {
+          "terrain": "floor",
+          "entity": "ice_block"
+        },
+        "$": {
+          "terrain": "floor",
+          "entity": "dirt_block"
+        },
+        "F": {
+          "terrain": "fire"
+        },
+        "d": {
+          "terrain": "dirt"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
       },
       "rows": [
         "#########",
@@ -194,6 +337,230 @@
         "###F#####",
         "###d..C##",
         "###...SE#",
+        "#########"
+      ]
+    },
+    {
+      "id": "rail_switchyard",
+      "labelKey": "editor.template.rail_switchyard.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "g": {
+          "terrain": "button_green"
+        },
+        "O": {
+          "terrain": "rail_ns",
+          "entity": "pink_ball",
+          "entityDir": "N"
+        },
+        "|": {
+          "terrain": "rail_ns"
+        },
+        "?": {
+          "terrain": "rail_switch_b"
+        },
+        "-": {
+          "terrain": "rail_ew"
+        },
+        "[": {
+          "terrain": "pressure_plate_red"
+        },
+        "]": {
+          "terrain": "hold_door_red_closed"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
+      },
+      "rows": [
+        "#########",
+        "#P..#?-[#",
+        "#.g.#|###",
+        "#...#O###",
+        "###]#####",
+        "###C..SE#",
+        "#########"
+      ]
+    },
+    {
+      "id": "monster_clock",
+      "labelKey": "editor.template.monster_clock.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "O": {
+          "terrain": "floor",
+          "entity": "pink_ball",
+          "entityDir": "E"
+        },
+        "[": {
+          "terrain": "pressure_plate_red"
+        },
+        "]": {
+          "terrain": "hold_door_red_closed"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
+      },
+      "rows": [
+        "#########",
+        "#P..#O.[#",
+        "#...#####",
+        "###]#####",
+        "###C..SE#",
+        "#########"
+      ]
+    },
+    {
+      "id": "turning_force",
+      "labelKey": "editor.template.turning_force.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "@": {
+          "terrain": "force_cycle"
+        },
+        "$": {
+          "terrain": "floor",
+          "entity": "dirt_block"
+        },
+        "[": {
+          "terrain": "pressure_plate_green"
+        },
+        "]": {
+          "terrain": "hold_door_green_closed"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
+      },
+      "rows": [
+        "#########",
+        "#P@#....#",
+        "#..#.$@.#",
+        "#.....#[#",
+        "###]#####",
+        "###C..SE#",
+        "#########"
+      ]
+    },
+    {
+      "id": "hurl_stone_ricochet",
+      "labelKey": "editor.template.hurl_stone_ricochet.label",
+      "winRule": "exit",
+      "ruleset": "epoxy",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 1,
+      "legend": {
+        "#": {
+          "terrain": "wall"
+        },
+        ".": {
+          "terrain": "floor"
+        },
+        "P": {
+          "terrain": "floor",
+          "start": "S"
+        },
+        "h": {
+          "terrain": "floor",
+          "item": "hurl_stone"
+        },
+        "\\": {
+          "terrain": "floor",
+          "entity": "mirror_backslash"
+        },
+        "W": {
+          "terrain": "water"
+        },
+        ">": {
+          "terrain": "force_e"
+        },
+        "*": {
+          "terrain": "floor",
+          "item": "bomb"
+        },
+        "d": {
+          "terrain": "dirt"
+        },
+        "C": {
+          "terrain": "floor",
+          "item": "chip"
+        },
+        "S": {
+          "terrain": "socket"
+        },
+        "E": {
+          "terrain": "exit"
+        }
+      },
+      "rows": [
+        "#########",
+        "#Phd.\\..#",
+        "#####.W##",
+        "#####>*d#",
+        "#######C#",
+        "#######S#",
+        "#######E#",
         "#########"
       ]
     }

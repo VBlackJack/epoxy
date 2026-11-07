@@ -23,9 +23,18 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 import encyclopediaJson from '../../public/configs/excavation-encyclopedia.json';
 import { GameEngine } from '../core/GameEngine';
 import { LevelValidator } from '../core/LevelValidator';
-import { CompiledLevel, Direction, UndoSnapshot } from '../core/types';
+import { CompiledLevel, UndoSnapshot } from '../core/types';
 import { ALL_ORIENTATIONS, compilePiece, orientPiece } from '../generator/PieceCompiler';
-import { PieceSolver } from '../generator/PieceSolver';
+import {
+  decodeActions,
+  DROP_CHARGE_ACTION,
+  DROP_GATE_ACTION,
+  DROP_STONE_ACTION,
+  encodeActions,
+  SolverAction,
+  PieceSolver,
+  WAIT_ACTION
+} from '../generator/PieceSolver';
 import { ConfigRegistry } from './ConfigRegistry';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { ORDERED_DIRECTIONS } from './constants';
@@ -39,25 +48,46 @@ import {
 const encyclopedia = encyclopediaJson as unknown as ExcavationEncyclopedia;
 const MAX_BFS_STATES = 6000;
 const FORBIDDEN_TEXT = /[\u2010-\u2015\u2212\u2018-\u201f\u00ab\u00bb\u2026\u00a0\u202f\u2009\u200b\ufeff\u0152\u0153\u00c6\u00e6]|diggy/i;
+const PUZZLE_ITEMS = ['boots_pull', 'boots_fire', 'charge', 'ward', 'hurl_stone', 'pocket_gate'] as const;
+
+function candidateActionsFor(level: CompiledLevel): SolverAction[] {
+  const actions: SolverAction[] = [...ORDERED_DIRECTIONS];
+  const flatItems = level.items.flat();
+  const hasMovingMonster = level.entities.some(
+    (e) => ConfigRegistry.getEntityDef(e.type)?.kind === 'monster'
+  );
+  if (hasMovingMonster || flatItems.includes('charge') || flatItems.includes('hurl_stone')) {
+    actions.push(WAIT_ACTION);
+  }
+  if (flatItems.includes('charge')) actions.push(DROP_CHARGE_ACTION);
+  if (flatItems.includes('pocket_gate')) actions.push(DROP_GATE_ACTION);
+  if (flatItems.includes('hurl_stone')) actions.push(DROP_STONE_ACTION);
+  return actions;
+}
 
 function solveLevelBfs(level: CompiledLevel, maxStates = MAX_BFS_STATES): string | null {
   const engine = new GameEngine();
   engine.loadLevel(level);
-  const queue: Array<{ snap: UndoSnapshot; path: string }> = [{ snap: engine.captureState(), path: '' }];
+  const actions = candidateActionsFor(level);
+  const queue: Array<{ snap: UndoSnapshot; path: SolverAction[] }> = [
+    { snap: engine.captureState(), path: [] }
+  ];
   const visited = new Set<string>();
 
   const sigOf = (eng: GameEngine): string => {
     const s = eng.captureState();
-    const p = `${s.player.x},${s.player.y},${Array.from(s.player.boots).sort().join('+')}`;
+    const p = `${s.player.x},${s.player.y},${s.player.dir},${Array.from(s.player.boots).sort().join('+')}`;
     const k = Object.entries(s.player.keys)
       .filter(([, v]) => v > 0)
       .map(([key, val]) => `${key}:${val}`)
       .sort()
       .join(',');
     const ents = s.entities
-      .map((e) => `${e.type}@${e.x},${e.y}`)
+      .map((e) => `${e.type}@${e.x},${e.y}:${e.dir}:${e.cooldownTicks}`)
       .sort()
       .join(';');
+    const charges = (s.litCharges ?? []).map((c) => `${c.x},${c.y}:${c.detonateTick}`).join(';');
+    const shots = (s.shots ?? []).map((sh) => `${sh.x},${sh.y}:${sh.dir}`).join(';');
     const diffs: string[] = [];
     for (let y = 0; y < s.terrain.length; y++) {
       for (let x = 0; x < s.terrain[y].length; x++) {
@@ -67,17 +97,17 @@ function solveLevelBfs(level: CompiledLevel, maxStates = MAX_BFS_STATES): string
         if (it) diffs.push(`i${x},${y}:${it}`);
       }
     }
-    return `${p}|${s.chipsRemaining}|${k}|${ents}|${diffs.join(',')}`;
+    return `${p}|${s.chipsRemaining}|${s.forceCycleTurn}|${k}|${ents}|${charges}|${shots}|${diffs.join(',')}`;
   };
 
   visited.add(sigOf(engine));
   while (queue.length > 0 && visited.size < maxStates) {
     const { snap, path } = queue.shift()!;
-    for (const dir of ORDERED_DIRECTIONS) {
+    for (const act of actions) {
       engine.restoreState(snap);
-      if (!PieceSolver.play(engine, dir)) continue;
-      const nextPath = path + dir;
-      if (engine.isLevelCompleted()) return nextPath;
+      if (!PieceSolver.play(engine, act)) continue;
+      const nextPath = [...path, act];
+      if (engine.isLevelCompleted()) return encodeActions(nextPath);
       const sig = sigOf(engine);
       if (!visited.has(sig)) {
         visited.add(sig);
@@ -93,10 +123,10 @@ beforeEach(() => {
 });
 
 describe('excavation-encyclopedia.json', () => {
-  it('passes structural and referential validation with 5 families and 14 canonical archetypes', () => {
+  it('passes structural and referential validation with 9 families and 25 canonical archetypes', () => {
     expect(findEncyclopediaErrors(encyclopediaJson)).toEqual([]);
-    expect(encyclopedia.families).toHaveLength(5);
-    expect(encyclopedia.archetypes).toHaveLength(14);
+    expect(encyclopedia.families).toHaveLength(9);
+    expect(encyclopedia.archetypes).toHaveLength(25);
   });
 
   it('contains no forbidden typography or external IP references in any field', () => {
@@ -114,7 +144,9 @@ describe('excavation-encyclopedia.json', () => {
 
       const engine = new GameEngine();
       engine.loadLevel(level);
-      for (const step of [...archetype.blueprint.solution] as Direction[]) {
+      const actions = decodeActions(archetype.blueprint.solution);
+      expect(actions, `${archetype.id} decodeActions`).not.toBeNull();
+      for (const step of actions!) {
         const ok = PieceSolver.play(engine, step);
         if (!ok) {
           expect(ok, `${archetype.id} step ${step} (bfs: ${solveLevelBfs(level)})`).toBe(true);
@@ -131,7 +163,7 @@ describe('excavation-encyclopedia.json', () => {
     }
   );
 
-  it('proves every archetype requires every puzzle entity, signal link, and grappling glove when present', () => {
+  it('proves every archetype requires every puzzle entity, link, and puzzle item when present', () => {
     for (const [idx, archetype] of encyclopedia.archetypes.entries()) {
       const level = compileArchetypeBlueprint(archetype, idx + 1);
       for (let entIdx = 0; entIdx < level.entities.length; entIdx++) {
@@ -142,7 +174,20 @@ describe('excavation-encyclopedia.json', () => {
         withoutOneEntity.entities = level.entities.filter((_, i) => i !== entIdx);
         expect(
           solveLevelBfs(withoutOneEntity),
-          `${archetype.id} should not be solvable without entity #${entIdx}`
+          `${archetype.id} should not be solvable without entity #${entIdx} (${ent.type})`
+        ).toBeNull();
+      }
+
+      if (level.trapLinks && level.trapLinks.length > 0) {
+        const withoutTrapLinks = structuredClone(level);
+        withoutTrapLinks.solution = undefined;
+        for (const link of withoutTrapLinks.trapLinks) {
+          withoutTrapLinks.terrain[link.buttonY][link.buttonX] = 'floor';
+        }
+        withoutTrapLinks.trapLinks = [];
+        expect(
+          solveLevelBfs(withoutTrapLinks),
+          `${archetype.id} should not be solvable without trapLinks`
         ).toBeNull();
       }
 
@@ -169,20 +214,21 @@ describe('excavation-encyclopedia.json', () => {
         ).toBeNull();
       }
 
-      const usesPull = archetype.mechanics.includes('boots_pull');
-      if (usesPull) {
-        const withoutPull = structuredClone(level);
-        withoutPull.solution = undefined;
-        for (let y = 0; y < withoutPull.items.length; y++) {
-          for (let x = 0; x < withoutPull.items[y].length; x++) {
-            if (withoutPull.items[y][x] === 'boots_pull') {
-              withoutPull.items[y][x] = null;
+      for (const itemId of PUZZLE_ITEMS) {
+        const hasItem = level.items.some((row) => row.includes(itemId));
+        if (!hasItem) continue;
+        const withoutItem = structuredClone(level);
+        withoutItem.solution = undefined;
+        for (let y = 0; y < withoutItem.items.length; y++) {
+          for (let x = 0; x < withoutItem.items[y].length; x++) {
+            if (withoutItem.items[y][x] === itemId) {
+              withoutItem.items[y][x] = null;
             }
           }
         }
         expect(
-          solveLevelBfs(withoutPull),
-          `${archetype.id} should not be solvable without boots_pull`
+          solveLevelBfs(withoutItem),
+          `${archetype.id} should not be solvable without ${itemId}`
         ).toBeNull();
       }
     }
@@ -202,12 +248,21 @@ describe('excavation-encyclopedia.json', () => {
     for (const archetype of encyclopedia.archetypes) {
       const asciiBlock = archetype.blueprint.rows.join('\n');
       expect(enDoc, `EN doc missing ${archetype.id}`).toContain(archetype.id);
+      expect(enDoc, `EN doc title mismatch for ${archetype.id}`).toContain(archetype.title);
+      expect(enDoc, `EN doc summary mismatch for ${archetype.id}`).toContain(archetype.summary);
       expect(enDoc, `EN doc ASCII mismatch for ${archetype.id}`).toContain(asciiBlock);
       expect(enDoc, `EN doc solution mismatch for ${archetype.id}`).toContain(archetype.blueprint.solution);
 
       expect(frDoc, `FR doc missing ${archetype.id}`).toContain(archetype.id);
+      expect(frDoc, `FR doc titleFr mismatch for ${archetype.id}`).toContain(archetype.titleFr);
+      expect(frDoc, `FR doc summaryFr mismatch for ${archetype.id}`).toContain(archetype.summaryFr);
       expect(frDoc, `FR doc ASCII mismatch for ${archetype.id}`).toContain(asciiBlock);
       expect(frDoc, `FR doc solution mismatch for ${archetype.id}`).toContain(archetype.blueprint.solution);
+
+      for (const mechanic of archetype.mechanics) {
+        expect(enDoc, `EN doc missing mechanic ${mechanic} for ${archetype.id}`).toContain(mechanic);
+        expect(frDoc, `FR doc missing mechanic ${mechanic} for ${archetype.id}`).toContain(mechanic);
+      }
     }
 
     const collectMarkdownFiles = (dir: string): string[] => {
@@ -233,7 +288,7 @@ describe('excavation-encyclopedia.json', () => {
     }
   });
 
-  it('proves the 6 sanctuary procedural pieces in motifs.json win in all 8 orientations with 0 block escapes and cannot bypass their boulders', () => {
+  it('proves the 10 sanctuary procedural pieces in motifs.json win in all 8 orientations with 0 block escapes and cannot bypass their entities', () => {
     const definitions = ConfigRegistry.getMotifs().pieces.filter((p) => p.id.startsWith('sanctuary_'));
     expect(definitions.map((d) => d.id)).toEqual([
       'sanctuary_sluice_double_trench',
@@ -241,7 +296,11 @@ describe('excavation-encyclopedia.json', () => {
       'sanctuary_counterweight_trap_bridge',
       'sanctuary_glacier_corner_sluice',
       'sanctuary_conveyor_sluice',
-      'sanctuary_portal_ferry_sluice'
+      'sanctuary_portal_ferry_sluice',
+      'sanctuary_toggle_parity_sluice',
+      'sanctuary_thief_fire_sluice',
+      'sanctuary_tank_reversal_bridge',
+      'sanctuary_trap_release_sluice'
     ]);
     const annotations = ConfigRegistry.getMotifAnnotations();
     for (const def of definitions) {
@@ -265,7 +324,8 @@ describe('excavation-encyclopedia.json', () => {
       }
       for (const o of ALL_ORIENTATIONS) {
         const oriented = orientPiece(compiled, o);
-        expect(PieceSolver.wins(oriented, oriented.solution ?? []), `${def.id} ${JSON.stringify(o)}`).toBe(true);
+        const actions = oriented.solution ?? PieceSolver.solve(oriented).moves ?? [];
+        expect(PieceSolver.wins(oriented, actions), `${def.id} ${JSON.stringify(o)}`).toBe(true);
       }
     }
   });

@@ -80,7 +80,7 @@
     "reversible": true
   },
   "bomb_gray_button_double_toggle": {
-    "solution": "SWWSSSSNENESESWS",
+    "solution": "SWWSSSENESESWS",
     "reversible": true
   },
   "bomb_gray_button_swap": {
@@ -429,6 +429,22 @@
   },
   "sanctuary_sluice_double_trench": {
     "solution": "SESSESWNWSSNWWNNESWSENESSSS",
+    "reversible": true
+  },
+  "sanctuary_tank_reversal_bridge": {
+    "solution": "SEESSSWWSS",
+    "reversible": true
+  },
+  "sanctuary_thief_fire_sluice": {
+    "solution": "SWWESSSESEENNWSESWWWESSS",
+    "reversible": true
+  },
+  "sanctuary_toggle_parity_sluice": {
+    "solution": "SESSWSWWNNESWSENESSSS",
+    "reversible": true
+  },
+  "sanctuary_trap_release_sluice": {
+    "solution": "SESSWWNSESSSS",
     "reversible": true
   },
   "sokoban_cantrip_weave": {
