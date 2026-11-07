@@ -74,8 +74,7 @@ function solveLevelBfs(level: CompiledLevel, maxStates = MAX_BFS_STATES): string
   ];
   const visited = new Set<string>();
 
-  const sigOf = (eng: GameEngine): string => {
-    const s = eng.captureState();
+  const sigOf = (s: UndoSnapshot): string => {
     const p = `${s.player.x},${s.player.y},${s.player.dir},${Array.from(s.player.boots).sort().join('+')}`;
     const k = Object.entries(s.player.keys)
       .filter(([, v]) => v > 0)
@@ -100,18 +99,20 @@ function solveLevelBfs(level: CompiledLevel, maxStates = MAX_BFS_STATES): string
     return `${p}|${s.chipsRemaining}|${s.forceCycleTurn}|${k}|${ents}|${charges}|${shots}|${diffs.join(',')}`;
   };
 
-  visited.add(sigOf(engine));
-  while (queue.length > 0 && visited.size < maxStates) {
-    const { snap, path } = queue.shift()!;
+  visited.add(sigOf(queue[0].snap));
+  let head = 0;
+  while (head < queue.length && visited.size < maxStates) {
+    const { snap, path } = queue[head++];
     for (const act of actions) {
       engine.restoreState(snap);
       if (!PieceSolver.play(engine, act)) continue;
       const nextPath = [...path, act];
       if (engine.isLevelCompleted()) return encodeActions(nextPath);
-      const sig = sigOf(engine);
+      const nextSnap = engine.captureState();
+      const sig = sigOf(nextSnap);
       if (!visited.has(sig)) {
         visited.add(sig);
-        queue.push({ snap: engine.captureState(), path: nextPath });
+        queue.push({ snap: nextSnap, path: nextPath });
       }
     }
   }
@@ -288,22 +289,29 @@ describe('excavation-encyclopedia.json', () => {
     }
   });
 
-  it('proves the 10 sanctuary procedural pieces in motifs.json win in all 8 orientations with 0 block escapes and cannot bypass their entities', () => {
+  const SANCTUARY_PIECE_IDS = [
+    'sanctuary_sluice_double_trench',
+    'sanctuary_alchemy_fire_water_sluice',
+    'sanctuary_counterweight_trap_bridge',
+    'sanctuary_glacier_corner_sluice',
+    'sanctuary_conveyor_sluice',
+    'sanctuary_portal_ferry_sluice',
+    'sanctuary_toggle_parity_sluice',
+    'sanctuary_thief_fire_sluice',
+    'sanctuary_tank_reversal_bridge',
+    'sanctuary_trap_release_sluice'
+  ] as const;
+
+  it('registers all 10 sanctuary procedural pieces in motifs.json', () => {
     const definitions = ConfigRegistry.getMotifs().pieces.filter((p) => p.id.startsWith('sanctuary_'));
-    expect(definitions.map((d) => d.id)).toEqual([
-      'sanctuary_sluice_double_trench',
-      'sanctuary_alchemy_fire_water_sluice',
-      'sanctuary_counterweight_trap_bridge',
-      'sanctuary_glacier_corner_sluice',
-      'sanctuary_conveyor_sluice',
-      'sanctuary_portal_ferry_sluice',
-      'sanctuary_toggle_parity_sluice',
-      'sanctuary_thief_fire_sluice',
-      'sanctuary_tank_reversal_bridge',
-      'sanctuary_trap_release_sluice'
-    ]);
-    const annotations = ConfigRegistry.getMotifAnnotations();
-    for (const def of definitions) {
+    expect(definitions.map((d) => d.id)).toEqual([...SANCTUARY_PIECE_IDS]);
+  });
+
+  it.each(SANCTUARY_PIECE_IDS)(
+    'sanctuary procedural piece %s wins in all 8 orientations with 0 block escapes and cannot bypass its entities',
+    (pieceId) => {
+      const def = ConfigRegistry.getMotifs().pieces.find((p) => p.id === pieceId)!;
+      const annotations = ConfigRegistry.getMotifAnnotations();
       const compiled = compilePiece(def, ConfigRegistry.getPieceLegend(), annotations[def.id]);
       expect(compiled.solution, `${def.id} annotated`).toBeDefined();
       const analysis = PieceSolver.analyze(compiled);
@@ -318,7 +326,7 @@ describe('excavation-encyclopedia.json', () => {
           entities: compiled.entities.filter((_, i) => i !== entIdx)
         };
         expect(
-          PieceSolver.analyze(withoutOneEntity).winnable,
+          PieceSolver.solve(withoutOneEntity).moves !== null,
           `${def.id} should not be winnable without entity #${entIdx}`
         ).toBe(false);
       }
@@ -328,5 +336,5 @@ describe('excavation-encyclopedia.json', () => {
         expect(PieceSolver.wins(oriented, actions), `${def.id} ${JSON.stringify(o)}`).toBe(true);
       }
     }
-  });
+  );
 });
