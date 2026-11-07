@@ -56,8 +56,16 @@ describe('templates.json', () => {
     expect(findTemplateErrors(templatesJson)).toEqual([]);
   });
 
-  it('offers a Sokoban room and a laser puzzle', () => {
-    expect(templates.map((template) => template.id)).toEqual(['sokoban', 'laser']);
+  it('offers the Sokoban room, laser puzzle, and 5 sanctuary mechanism templates', () => {
+    expect(templates.map((template) => template.id)).toEqual([
+      'sokoban',
+      'laser',
+      'boulder_sluice',
+      'counterweight_hold',
+      'grappling_alcove',
+      'prism_slalom',
+      'elemental_alchemy'
+    ]);
   });
 
   it('labels every template in both languages', () => {
