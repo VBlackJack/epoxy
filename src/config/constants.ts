@@ -37,6 +37,8 @@ export const CONFIG_ENDPOINTS = {
   PILOT_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/pilot-campaign.json`,
   EXCAVATION_LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/excavation-levels.json`,
   EXCAVATION_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/excavation-campaign.json`,
+  CITADEL_LEVELS: `${ENV_CONFIG.CONFIG_BASE_URL}/citadel-levels.json`,
+  CITADEL_CAMPAIGN: `${ENV_CONFIG.CONFIG_BASE_URL}/citadel-campaign.json`,
   TEMPLATES: `${ENV_CONFIG.CONFIG_BASE_URL}/templates.json`
 } as const;
 
@@ -76,6 +78,8 @@ export const BUILTIN_PACK_IDS = {
   PILOT: 'epoxy_pilot',
   /** Subterranean excavation campaign built around boulder trenches, hold plates, and prism optics. */
   EXCAVATION: 'epoxy_excavation',
+  /** Multi-chamber clockwork citadel campaign synthesizing CC1, CC2, and CC3D puzzle archetypes. */
+  CITADEL: 'epoxy_citadel',
   CUSTOM: 'epoxy_custom',
   PROCEDURAL: 'epoxy_procedural'
 } as const;
@@ -88,6 +92,9 @@ export const PILOT_LEVEL_ID_PREFIX = 'epoxy_p_';
 
 /** Prefix every excavation campaign level id carries, so its records never collide with other packs. */
 export const EXCAVATION_LEVEL_ID_PREFIX = 'epoxy_x_';
+
+/** Prefix every citadel campaign level id carries, so its records never collide with other packs. */
+export const CITADEL_LEVEL_ID_PREFIX = 'epoxy_k_';
 
 /** Prefix of the id of a pack the player creates, followed by a timestamp. */
 export const USER_PACK_ID_PREFIX = 'user_pack_';

@@ -23,6 +23,8 @@ import pilotCampaign from '../../public/configs/pilot-campaign.json';
 import pilotLevels from '../../public/configs/pilot-levels.json';
 import excavationCampaign from '../../public/configs/excavation-campaign.json';
 import excavationLevels from '../../public/configs/excavation-levels.json';
+import citadelCampaign from '../../public/configs/citadel-campaign.json';
+import citadelLevels from '../../public/configs/citadel-levels.json';
 import levels from '../../public/configs/levels.json';
 import monsters from '../../public/configs/monsters.json';
 import motifs from '../../public/configs/motifs.json';
@@ -44,6 +46,8 @@ export function createTestBundle(): ConfigBundle {
     pilotCampaign,
     excavationLevels,
     excavationCampaign,
+    citadelLevels,
+    citadelCampaign,
     datFormat,
     motifs,
     motifAnnotations
