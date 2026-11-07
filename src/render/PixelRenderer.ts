@@ -19,6 +19,7 @@ import { relativeTo } from '../core/lynx/directions';
 import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, PHASE_LINE_PATTERN, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
+import { WARD } from './wardShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
 import { paintRailPiece } from './railArt';
 import { paintRelayPad, paintWiredMark } from './relayArt';
@@ -308,8 +309,6 @@ const REVEAL_KEY = 'eye';
 const GLOVE_CUFF_SHEEN = 0.45;
 /** Eye drawn on the boots that reveal hidden walls: width and height of the almond, pupil radius, in tiles. */
 const EYE_MARK = { cx: 0.52, cy: 0.4, halfWidth: 0.15, halfHeight: 0.085, pupil: 0.05 } as const;
-/** Shield on the shaft of a ward, as tile fractions: top edge, shoulder, waist and point (x offsets are from the centre line). */
-const WARD_MARK = { cx: 0.38, top: 0.27, shoulder: 0.33, waist: 0.4, point: 0.5, halfWidth: 0.1 } as const;
 /**
  * The faint tell of a sleeping lurker on plain floor: a dim seam, as tile fractions of its points, drawn thin
  * and see-through so it reads only to someone who looks for it.
@@ -3633,19 +3632,48 @@ export class PixelRenderer {
     ctx.fill();
   }
 
-  /** Shield on the shaft of the ward. */
-  private paintWardMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    const cx = x + size * WARD_MARK.cx;
-    const half = size * WARD_MARK.halfWidth;
-    ctx.fillStyle = this.pal().eyeWhite;
+  /** The Ward: a round shield with an inner ring and a glowing rune, in the colour of its boots key. */
+  private paintWard(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, isModern: boolean): void {
+    const pal = this.pal();
+    const c = pal[BOOT_COLOR_KEYS.ward ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
+    const { cx, cy, r } = WARD.disc;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (isModern) {
+      ctx.shadowColor = c;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.fillStyle = c;
     ctx.beginPath();
-    ctx.moveTo(cx - half, y + size * WARD_MARK.top);
-    ctx.lineTo(cx + half, y + size * WARD_MARK.top);
-    ctx.lineTo(cx + half, y + size * WARD_MARK.shoulder);
-    ctx.lineTo(cx, y + size * WARD_MARK.point);
-    ctx.lineTo(cx - half, y + size * WARD_MARK.shoulder);
-    ctx.closePath();
+    ctx.arc(x + size * cx, y + size * cy, size * r, 0, FULL_TURN);
     ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = pal.glyphInk;
+    ctx.lineWidth = Math.max(1, size * WARD.lineWidth);
+    ctx.stroke();
+    ctx.strokeStyle = pal.eyeWhite;
+    ctx.globalAlpha = WARD.ringAlpha;
+    ctx.lineWidth = Math.max(1, size * WARD.ringWidth);
+    ctx.beginPath();
+    ctx.arc(x + size * cx, y + size * cy, size * r * WARD.ringRatio, 0, FULL_TURN);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    if (isModern) {
+      ctx.shadowColor = pal.eyeWhite;
+      ctx.shadowBlur = this.getSettings().glowBlurPx.soft;
+    }
+    ctx.lineWidth = Math.max(1, size * WARD.runeWidth);
+    ctx.beginPath();
+    for (const stroke of WARD.rune) {
+      for (let i = 0; i < stroke.length; i++) {
+        const [rx, ry] = stroke[i];
+        if (i === 0) ctx.moveTo(x + size * rx, y + size * ry);
+        else ctx.lineTo(x + size * rx, y + size * ry);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** The Grappling Gloves: a gripping glove with a cuff and a small hook on a cord, in the colour of its boots key. */
@@ -5481,8 +5509,7 @@ export class PixelRenderer {
       case 'boots_ice':
       case 'boots_force':
       case 'boots_speed':
-      case 'boots_eye':
-      case 'ward': {
+      case 'boots_eye': {
         const c = pal[BOOT_COLOR_KEYS[itemId] ?? DEFAULT_BOOT_COLOR_KEY] || pal[DEFAULT_BOOT_COLOR_KEY];
         ctx.save();
         if (isModern) {
@@ -5495,13 +5522,17 @@ export class PixelRenderer {
         this.roundRect(ctx, x + size * 0.25, y + size * 0.54, size * 0.52, size * 0.24, 4);
         ctx.fill();
         if (ConfigRegistry.getTile(itemId).revealsHiddenWalls) this.paintEyeMark(ctx, x, y, size);
-        if (ConfigRegistry.getTile(itemId).absorbsMonsterContact) this.paintWardMark(ctx, x, y, size);
         ctx.restore();
         break;
       }
 
       case 'boots_pull': {
         this.paintGlove(ctx, x, y, size, isModern);
+        break;
+      }
+
+      case 'ward': {
+        this.paintWard(ctx, x, y, size, isModern);
         break;
       }
 
