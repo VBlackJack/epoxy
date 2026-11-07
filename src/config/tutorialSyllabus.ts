@@ -189,6 +189,7 @@ export const CHAPTERS: readonly TutorialChapter[] = [
       'epoxy_t_r_followers',
       'epoxy_t_r_skewers',
       'epoxy_t_r_wanderers',
+      'epoxy_t_r_teeth',
       'epoxy_t_r_tank',
       'epoxy_t_r_trap',
       'epoxy_t_r_clone'
@@ -212,7 +213,8 @@ export const TEACHES: Readonly<Record<string, readonly string[]>> = {
   epoxy_t_r_teleport: ['teleports'],
   epoxy_t_r_followers: ['bugs', 'pink_ball'],
   epoxy_t_r_skewers: ['gliders', 'fireballs'],
-  epoxy_t_r_wanderers: ['walkers', 'blobs', 'teeth'],
+  epoxy_t_r_wanderers: ['walkers', 'blobs'],
+  epoxy_t_r_teeth: ['teeth'],
   epoxy_t_r_tank: ['tank'],
   epoxy_t_r_trap: ['traps'],
   epoxy_t_r_clone: ['clone_machines']

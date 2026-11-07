@@ -5546,8 +5546,12 @@
         "hint": "Gliders and fireballs fly straight and turn when blocked: gliders favour left, fireballs right. Gliders cross water, fireballs cross fire."
       },
       "wanderers": {
-        "title": "Walkers, Blobs and Teeth",
-        "hint": "Walkers go straight, then turn at random when blocked. Blobs wander at random. Teeth chase you, so use walls to lose them."
+        "title": "Walkers and Blobs",
+        "hint": "Walkers go straight, then turn at random when blocked. Blobs wander at random. Gravel keeps them off: cross the open gap only when both are far."
+      },
+      "teeth": {
+        "title": "Teeth",
+        "hint": "Teeth chase you at half your speed but cannot pass walls. Watch it track you from below as you walk to the exit."
       },
       "tank": {
         "title": "Tanks",

@@ -5546,8 +5546,12 @@
         "hint": "Planeurs et boules de feu volent droit puis tournent face à un mur : planeurs à gauche, boules de feu à droite. Planeurs sur l'eau, boules de feu sur le feu."
       },
       "wanderers": {
-        "title": "Marcheurs, blobs et traqueurs",
-        "hint": "Les marcheurs vont droit puis tournent au hasard devant un obstacle. Les blobs errent au hasard. Les traqueurs vous suivent : semez-les derrière des murs."
+        "title": "Marcheurs et blobs",
+        "hint": "Les marcheurs vont droit puis tournent au hasard. Les blobs errent au hasard. Le gravier les arrête : traversez la brèche quand ils sont loin."
+      },
+      "teeth": {
+        "title": "Traqueurs",
+        "hint": "Les traqueurs vont deux fois moins vite que vous et ne traversent pas les murs. Regardez-les vous suivre par en dessous en marchant vers la sortie."
       },
       "tank": {
         "title": "Les tanks",
