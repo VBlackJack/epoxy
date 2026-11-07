@@ -949,6 +949,9 @@
       },
       "tutorial": {
         "label": "Tutorial"
+      },
+      "citadel": {
+        "label": "Clockwork Citadel"
       }
     }
   },
@@ -5600,6 +5603,232 @@
         "play_epoxy": {
           "action": "Play Epoxy"
         }
+      }
+    }
+  },
+  "citadel": {
+    "chapter": {
+      "1": {
+        "title": "Outer Sluices & Counterweights",
+        "subtitle": "Sequential boulder trenches, counterweight hold gates and elemental alchemy."
+      },
+      "2": {
+        "title": "Cryo Ducts & Boot Tolls",
+        "subtitle": "Frictionless glacier slides, conveyor loops, boot tolls and grappling extractions."
+      },
+      "3": {
+        "title": "Automata Escapements & Rail Foundries",
+        "subtitle": "Monster clocks, bear-trap escapements, tank convoys, cloners and rail switchyards."
+      },
+      "4": {
+        "title": "Prism Optics & Transit Networks",
+        "subtitle": "Mirror slaloms, crossed beams, turning force distributors, pocket gates and relays."
+      },
+      "5": {
+        "title": "Ballistic Sanctum & Parity Vaults",
+        "subtitle": "Timed blast charges, hurl-stone ricochets, protective wards and toggle parity weaves."
+      }
+    },
+    "levels": {
+      "level_1": {
+        "title": "Outer Forebay",
+        "hint": "Bridge the western water channel with a boulder and compact the dirt, then cross the central shaft to park the eastern boulder on the red pressure plate."
+      },
+      "level_2": {
+        "title": "Counterweight Weir",
+        "hint": "Weigh down the red pressure plate in the western chamber to open the shaft gate, then bridge the eastern water channel with the boulder to reach the exit."
+      },
+      "level_3": {
+        "title": "Stepped Canal",
+        "hint": "Bridge the single water trench in the western room, then sink two boulders in sequence across the eastern double trench, compacting the first dirt tile before pushing the second boulder."
+      },
+      "level_4": {
+        "title": "Twin Lock Gates",
+        "hint": "Clear the double-trench sluice in the western chamber by compacting the first dirt bridge before pushing the second boulder, then bridge the eastern channel."
+      },
+      "level_5": {
+        "title": "Siphon & Balance",
+        "hint": "Bridge the two-cell water trench in the western vault with both boulders, then cross the shaft and park the eastern boulder squarely on the blue pressure plate."
+      },
+      "level_6": {
+        "title": "Headwater Counterpoise",
+        "hint": "Park the western boulder on the red hold plate to unlock the central shaft, then bridge the two-cell eastern water trench one boulder at a time."
+      },
+      "level_7": {
+        "title": "Crucible Sluice",
+        "hint": "Bridge the western water channel first, then in the eastern chamber push the ice block into the fire to transmute it into water before bridging it with the stone boulder."
+      },
+      "level_8": {
+        "title": "Alchemical Spillway",
+        "hint": "Quench the western fire barrier with the ice block and bridge the resulting water with the boulder, then cross the shaft to clear the double water trench."
+      },
+      "level_9": {
+        "title": "Conveyor Millrace",
+        "hint": "Weigh down the red plate in the western chamber, then ride the eastern force conveyor with the boulder to bridge the water trench."
+      },
+      "level_10": {
+        "title": "Triple Sluice Bastion",
+        "hint": "Traverse all three chambers in sequence: bridge the western channel, weight the central red pressure plate, and bridge the eastern double trench with two boulders."
+      },
+      "level_11": {
+        "title": "Glacier Forecourt",
+        "hint": "Bank the western boulder around the ice corners to bridge the moat, then cross the shaft and park the eastern boulder on the blue hold plate."
+      },
+      "level_12": {
+        "title": "Slipstream Drift",
+        "hint": "Feed the western boulder down the conveyor loop into the water trench, then bank the eastern boulder around the ice corner deflector."
+      },
+      "level_13": {
+        "title": "Meltwater Conduit",
+        "hint": "Slide the western boulder around the ice corners to bridge the channel, then quench the eastern fire barrier with the ice block before bridging the water with the boulder."
+      },
+      "level_14": {
+        "title": "Watchman's Toll",
+        "hint": "Bridge the western channel to enter the eastern vault, cross the fire strip with Fire Boots, and step across the thief tile to surrender your boots before the exit."
+      },
+      "level_15": {
+        "title": "Customs Flume",
+        "hint": "Cross the western fire sluice with Fire Boots and pay the thief toll at the exit gate, then guide the eastern boulder down the conveyor current."
+      },
+      "level_16": {
+        "title": "Frost Hook Gallery",
+        "hint": "Bank the western boulder across the glacier corners, then pick up the Grappling Gloves in the eastern chamber to extract the recessed boulder onto the blue plate."
+      },
+      "level_17": {
+        "title": "Current & Counterweight",
+        "hint": "Ride the western conveyor sluice to reach the shaft, then bridge the eastern moat with one boulder and pull the recessed second boulder onto the blue plate."
+      },
+      "level_18": {
+        "title": "Contraband Alcove",
+        "hint": "Clear the western boot-toll vault first, then equip the Grappling Gloves in the eastern chamber to pull the recessed boulder out and weight the blue hold plate."
+      },
+      "level_19": {
+        "title": "Tempered Exchange",
+        "hint": "Transmute the western fire barrier into water with the ice block and bridge it, then spend the first eastern boulder on the moat and pull the second onto the blue plate."
+      },
+      "level_20": {
+        "title": "Cryo Citadel Gatehouse",
+        "hint": "Chain three cryo vaults: pay the western boot toll, bank the central boulder around the glacier corners, and swap the eastern boulders with the Grappling Gloves."
+      },
+      "level_21": {
+        "title": "Pendulum Escapement",
+        "hint": "Wait one beat in the western chamber so the bouncing pink ball lands on the red pressure plate as you step through the hold door, then bridge the eastern sluice."
+      },
+      "level_22": {
+        "title": "Ratchet & Pawl",
+        "hint": "Step on the brown button in the western chamber to release the trapped tank onto the red plate, then park the eastern boulder on the blue counterweight plate."
+      },
+      "level_23": {
+        "title": "Armored Convoy",
+        "hint": "Tap the blue button in the western chamber to reverse the tank onto the red hold plate, then bridge the eastern double trench with two boulders."
+      },
+      "level_24": {
+        "title": "Ingot Foundry",
+        "hint": "Tap the red clone button in the western foundry to fabricate boulders for the water trench, then clear the eastern double sluice."
+      },
+      "level_25": {
+        "title": "Switchyard Furnace",
+        "hint": "Flip the green button in the western switchyard to divert the rail-guided tank onto the red plate, then quench and bridge the eastern elemental fire channel."
+      },
+      "level_26": {
+        "title": "Synchronized Gearwork",
+        "hint": "Time the pink-ball clock in the western room to slip past the red hold door, then release the bear-trapped tank in the eastern room onto the blue plate."
+      },
+      "level_27": {
+        "title": "Automated Casting",
+        "hint": "Reverse the western tank onto the red plate with the blue button, then trigger the eastern red clone button to cast boulders for the water trench."
+      },
+      "level_28": {
+        "title": "Spur Line Release",
+        "hint": "Free the trapped tank in the western chamber with the brown button, then flip the green switch in the eastern rail yard to route the second tank onto the blue plate."
+      },
+      "level_29": {
+        "title": "Foundry Grapple",
+        "hint": "Clone a boulder in the western foundry to bridge the trench, then use the Grappling Gloves in the eastern hall to pull the recessed boulder onto the blue plate."
+      },
+      "level_30": {
+        "title": "Grand Engine Hall",
+        "hint": "Master all three automata rooms: time the western pink-ball clock, cast boulders at the central clone foundry, and switch the eastern railroad track onto the green plate."
+      },
+      "level_31": {
+        "title": "Collimator Sluice",
+        "hint": "Bridge the western water channel, then push the slash mirror in the eastern optic hall into the beam line to deflect the red laser North into the receiver."
+      },
+      "level_32": {
+        "title": "Retractable Lens",
+        "hint": "Clear the western double water trench, then equip the Grappling Gloves in the eastern wing to pull the slash mirror out of its recess and push it into the laser beam."
+      },
+      "level_33": {
+        "title": "Dual-Spectrum Vault",
+        "hint": "Weigh down the red hold plate in the western room, then position both mirrors in the eastern optic chamber so the red and blue laser beams each reach their receivers."
+      },
+      "level_34": {
+        "title": "Rotary Prism",
+        "hint": "Step onto the turning force floor in the western hub to rotate its push direction and guide the boulder onto the red plate, then align the eastern laser mirror."
+      },
+      "level_35": {
+        "title": "Pocket Shuttle & Beams",
+        "hint": "Pick up the portable pocket gate in the western room and drop it to teleport across the wall to the red key, then align both crossed laser beams in the eastern chamber."
+      },
+      "level_36": {
+        "title": "Refraction Archipelago",
+        "hint": "Deflect the western laser beam into the red receiver, then step into the eastern teleport ring and push the island boulder into the water channel."
+      },
+      "level_37": {
+        "title": "Turntable Relay",
+        "hint": "Use the turning force floor in the western room to seat the boulder on the blue plate, then weight the wired relay plate in the eastern room to open the red signal door."
+      },
+      "level_38": {
+        "title": "Logic Transponder",
+        "hint": "Weight the wired signal plate in the western chamber to open the red hold door, then deploy the portable pocket gate in the eastern chamber to reach the exit."
+      },
+      "level_39": {
+        "title": "Phase-Jump Islands",
+        "hint": "Deploy the portable pocket gate in the western room to recover the red key, then ride the eastern teleport ring to bridge the island water trench."
+      },
+      "level_40": {
+        "title": "Nexus of the Grid",
+        "hint": "Complete the three-chamber transit network: route the western boulder across the turning force tile, power the central signal relay, and navigate the eastern teleport islands."
+      },
+      "level_41": {
+        "title": "Breaching Counterweight",
+        "hint": "Place a lit blast charge against the western stone barricade and step back before detonation, then cross the shaft to park the eastern boulder on the blue plate."
+      },
+      "level_42": {
+        "title": "Ricochet Optics",
+        "hint": "Hurl a stone North into the angled mirror in the western vault to detonate the bomb blocking the corridor, then align the eastern prism mirror with the red laser."
+      },
+      "level_43": {
+        "title": "Aegis & Toll",
+        "hint": "Pick up the protective Ward in the western vault to neutralize the dormant lurker on contact, then clear the eastern fire-boot toll chamber."
+      },
+      "level_44": {
+        "title": "Parity Glacier",
+        "hint": "Weave the boulder across the dual-channel green and red toggle walls in the western room to weight the blue plate, then bank the eastern boulder across the ice corners."
+      },
+      "level_45": {
+        "title": "Ordnance & Sling",
+        "hint": "Demolish the western wall barricade with a timed blast charge, then bank a hurled stone off the eastern mirror to clear the bomb guarding the blue plate."
+      },
+      "level_46": {
+        "title": "Sentinel Refraction",
+        "hint": "Claim the protective Ward in the western chamber to pass the dormant lurker, then align both mirrors in the eastern chamber to light the red and blue laser receivers."
+      },
+      "level_47": {
+        "title": "Ballistic Loom",
+        "hint": "Ricochet a hurled stone off the western mirror to disarm the bomb, then solve the dual-channel green and red toggle parity weave in the eastern sanctum."
+      },
+      "level_48": {
+        "title": "Munitions Foundry",
+        "hint": "Fabricate boulders in the western clone foundry to bridge the trench, then plant a timed blast charge in the eastern chamber to breach the central wall."
+      },
+      "level_49": {
+        "title": "Warded Parity Sanctum",
+        "hint": "Neutralize the western lurker with the protective Ward and weight the green plate, then thread the eastern boulder through the green and red toggle-wall parity weave."
+      },
+      "level_50": {
+        "title": "Heart of the Clockwork Citadel",
+        "hint": "Conquer the three-chamber citadel finale: time the western pink-ball clock for the green gate, ricochet a hurled stone in the central hall, and solve the eastern parity weave."
       }
     }
   }

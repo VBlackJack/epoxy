@@ -1,0 +1,89 @@
+{
+  "chapters": [
+    {
+      "id": "citadel_chapter_1",
+      "titleKey": "citadel.chapter.1.title",
+      "subtitleKey": "citadel.chapter.1.subtitle",
+      "levels": [
+        "epoxy_k_1",
+        "epoxy_k_2",
+        "epoxy_k_3",
+        "epoxy_k_4",
+        "epoxy_k_5",
+        "epoxy_k_6",
+        "epoxy_k_7",
+        "epoxy_k_8",
+        "epoxy_k_9",
+        "epoxy_k_10"
+      ]
+    },
+    {
+      "id": "citadel_chapter_2",
+      "titleKey": "citadel.chapter.2.title",
+      "subtitleKey": "citadel.chapter.2.subtitle",
+      "levels": [
+        "epoxy_k_11",
+        "epoxy_k_12",
+        "epoxy_k_13",
+        "epoxy_k_14",
+        "epoxy_k_15",
+        "epoxy_k_16",
+        "epoxy_k_17",
+        "epoxy_k_18",
+        "epoxy_k_19",
+        "epoxy_k_20"
+      ]
+    },
+    {
+      "id": "citadel_chapter_3",
+      "titleKey": "citadel.chapter.3.title",
+      "subtitleKey": "citadel.chapter.3.subtitle",
+      "levels": [
+        "epoxy_k_21",
+        "epoxy_k_22",
+        "epoxy_k_23",
+        "epoxy_k_24",
+        "epoxy_k_25",
+        "epoxy_k_26",
+        "epoxy_k_27",
+        "epoxy_k_28",
+        "epoxy_k_29",
+        "epoxy_k_30"
+      ]
+    },
+    {
+      "id": "citadel_chapter_4",
+      "titleKey": "citadel.chapter.4.title",
+      "subtitleKey": "citadel.chapter.4.subtitle",
+      "levels": [
+        "epoxy_k_31",
+        "epoxy_k_32",
+        "epoxy_k_33",
+        "epoxy_k_34",
+        "epoxy_k_35",
+        "epoxy_k_36",
+        "epoxy_k_37",
+        "epoxy_k_38",
+        "epoxy_k_39",
+        "epoxy_k_40"
+      ]
+    },
+    {
+      "id": "citadel_chapter_5",
+      "titleKey": "citadel.chapter.5.title",
+      "subtitleKey": "citadel.chapter.5.subtitle",
+      "levels": [
+        "epoxy_k_41",
+        "epoxy_k_42",
+        "epoxy_k_43",
+        "epoxy_k_44",
+        "epoxy_k_45",
+        "epoxy_k_46",
+        "epoxy_k_47",
+        "epoxy_k_48",
+        "epoxy_k_49",
+        "epoxy_k_50"
+      ]
+    }
+  ]
+}
