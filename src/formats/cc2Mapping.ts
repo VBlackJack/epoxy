@@ -1,0 +1,215 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { CC2_ID_PREFIX } from '../core/coreConstants';
+
+/**
+ * Static mapping of CC2 tile codes to Epoxy ids, with the coverage key each one stands for (see
+ * src/core/cc2/cc2Coverage.ts). A code maps to an Epoxy id only where the mechanic exists in Epoxy (coverage exact or
+ * approx); otherwise it maps to its reserved cc2_* id. Codes that need the modifier, the facing or their neighbours
+ * (tracks, gates, directional blocks, thin walls, players, cloners) are handled by the converter itself.
+ */
+export interface Cc2TileMapping {
+  /** Epoxy element id or reserved cc2_* id. */
+  id: string;
+  /** Coverage key of the CC2 element. */
+  key: string;
+}
+
+/** Where a mapped id lands in the level: the terrain grid, the item grid or the entity list. */
+export type Cc2Slot = 'terrain' | 'item' | 'entity';
+
+function reserved(name: string): Cc2TileMapping {
+  return { id: `${CC2_ID_PREFIX}${name}`, key: name };
+}
+
+function same(id: string, key: string = id): Cc2TileMapping {
+  return { id, key };
+}
+
+/** Ids reused by several entries. */
+export const FLOOR_ID = 'floor';
+export const WALL_ID = 'wall';
+export const CLONE_MACHINE_ID = 'clone_machine';
+export const TRAP_ID = 'trap';
+export const HINT_ID = 'hint';
+export const SIGNAL_BUTTON_ID = 'signal_button';
+export const TOGGLE_WALL_CLOSED_ID = 'toggle_wall_closed';
+export const TOGGLE_WALL_OPEN_ID = 'toggle_wall_open';
+export const BUTTON_RED_ID = 'button_red';
+export const BUTTON_BROWN_ID = 'button_brown';
+export const DIRT_BLOCK_ID = 'dirt_block';
+export const UNKNOWN_ID = 'cc2_unknown';
+export const BLUE_WALL_FAKE_ID = 'blue_wall_fake';
+
+/** Coverage keys the converter adds itself. */
+export const KEY_TELEPORT_BLUE = 'teleport_blue';
+export const KEY_TELEPORT_BLUE_WIRED = 'teleport_blue_wired';
+
+/** Terrain codes: the cell terrain. */
+export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
+  [0x01, same('floor')],
+  [0x02, same('wall')],
+  [0x03, same('ice')],
+  [0x04, same('ice_sw', 'ice_corner')],
+  [0x05, same('ice_nw', 'ice_corner')],
+  [0x06, same('ice_ne', 'ice_corner')],
+  [0x07, same('ice_se', 'ice_corner')],
+  [0x08, same('water')],
+  [0x09, same('fire')],
+  [0x0a, same('force_n', 'force_floor')],
+  [0x0b, same('force_e', 'force_floor')],
+  [0x0c, same('force_s', 'force_floor')],
+  [0x0d, same('force_w', 'force_floor')],
+  [0x0e, same('toggle_wall_closed')],
+  [0x0f, same('toggle_wall_open')],
+  [0x10, same('teleport_red')],
+  [0x11, same('teleport_blue')],
+  [0x12, same('teleport_yellow')],
+  [0x13, same('teleport_green')],
+  [0x14, same('exit')],
+  [0x15, same('slime')],
+  [0x1e, same('gravel')],
+  [0x1f, same('button_green')],
+  [0x20, same('button_blue')],
+  [0x22, same('door_red')],
+  [0x23, same('door_blue')],
+  [0x24, same('door_yellow')],
+  [0x25, same('door_green')],
+  [0x2c, same('socket')],
+  [0x2d, same('recessed_wall', 'popup_wall')],
+  [0x2e, same('appearing_wall')],
+  [0x2f, same('invisible_wall')],
+  [0x30, same('blue_wall_real')],
+  [0x31, same('blue_wall_fake')],
+  [0x32, same('dirt')],
+  [0x39, same('button_red')],
+  [0x3a, same('button_brown')],
+  [0x3f, same('thief', 'thief_tools')],
+  [0x41, same('trap')],
+  [0x42, same('trap')],
+  [0x43, same('clone_machine')],
+  [0x44, same('clone_machine')],
+  [0x45, same('hint')],
+  [0x46, same('force_cycle', 'force_floor_random')],
+  [0x47, reserved('button_gray')],
+  [0x48, same('swivel_door_sw', 'swivel_door')],
+  [0x49, same('swivel_door_nw', 'swivel_door')],
+  [0x4a, same('swivel_door_ne', 'swivel_door')],
+  [0x4b, same('swivel_door_se', 'swivel_door')],
+  [0x4e, same('transmogrifier')],
+  [0x50, same('wall', 'steel_wall')],
+  [0x5e, same('signal_button', 'wire')],
+  [0x5f, same('flame_jet_off', 'flame_jet')],
+  [0x60, same('flame_jet_on', 'flame_jet')],
+  [0x61, same('button_orange')],
+  [0x64, same('puppet_control', 'button_yellow')],
+  [0x6b, same('floor', 'custom_floor')],
+  [0x70, same('wall')],
+  [0x71, same('hint', 'letter')],
+  [0x72, reserved('purple_floor')],
+  [0x73, reserved('purple_wall')],
+  [0x7d, same('wall', 'green_wall')],
+  [0x7e, same('blue_wall_fake', 'green_wall_fake')],
+  [0x87, reserved('black_button')],
+  [0x88, reserved('toggle_switch')],
+  [0x89, reserved('toggle_switch')],
+  [0x8a, same('thief_keys')],
+  [0x8d, same('turtle')]
+]);
+
+/** Item codes: the cell item. Codes absent here and listed in ITEM_LOST_KEYS have no Epoxy or reserved id. */
+export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
+  [0x26, same('key_red')],
+  [0x27, same('key_blue')],
+  [0x28, same('key_yellow')],
+  [0x29, same('key_green')],
+  [0x2a, same('chip')],
+  [0x2b, reserved('extra_chip')],
+  [0x3b, same('boots_ice', 'cleats')],
+  [0x3c, same('boots_force', 'suction_boots')],
+  [0x3d, same('boots_fire', 'fire_boots')],
+  [0x3e, same('boots_water', 'flippers')],
+  [0x40, same('bomb')],
+  [0x4c, same('stopwatch_bonus', 'time_bonus')],
+  [0x4d, reserved('toggle_clock')],
+  [0x51, same('charge', 'dynamite')],
+  [0x52, same('ward', 'helmet')],
+  [0x59, reserved('hiking_boots')],
+  [0x62, reserved('lightning_bolt')],
+  [0x68, same('hurl_stone', 'bowling_ball')],
+  [0x6a, same('stopwatch_penalty', 'time_penalty')],
+  [0x6f, reserved('railroad_sign')],
+  [0x7a, same('score_10', 'bonus_flag_10')],
+  [0x7b, same('score_100', 'bonus_flag_100')],
+  [0x7c, same('score_1000', 'bonus_flag_1000')],
+  [0x80, same('score_2x', 'bonus_flag_2x')],
+  [0x83, reserved('green_bomb')],
+  [0x84, reserved('green_chip')],
+  [0x8c, reserved('steel_foil')],
+  [0x8e, same('boots_eye', 'secret_eye')],
+  [0x90, same('boots_speed', 'speed_boots')],
+  [0x92, same('boots_pull', 'hook')]
+]);
+
+/** Item codes with no Epoxy and no reserved id: the item is dropped and the key is lost. */
+export const ITEM_LOST_KEYS: ReadonlyMap<number, string> = new Map<number, string>([[0x8f, 'bribe']]);
+
+/** Actor codes that become an Epoxy entity (blocks and monsters). */
+export const ENTITY_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
+  [0x17, same('dirt_block')],
+  [0x18, same('walker')],
+  [0x19, same('glider')],
+  [0x1a, same('ice_block')],
+  [0x21, same('tank')],
+  [0x33, same('bug')],
+  [0x34, same('paramecium')],
+  [0x35, same('pink_ball')],
+  [0x36, same('blob')],
+  [0x37, same('teeth')],
+  [0x38, same('fireball')],
+  [0x57, reserved('timid_teeth')],
+  [0x63, same('puppet', 'yellow_tank')],
+  [0x69, reserved('rover')],
+  [0x82, reserved('floor_mimic')],
+  [0x8b, reserved('ghost')]
+]);
+
+/** Player actors: Chip, Melinda and their mirror images. */
+export const CC2_CODE_MELINDA = 0x56;
+export const CC2_CODE_MIRROR_CHIP = 0x65;
+export const CC2_CODE_MIRROR_MELINDA = 0x66;
+/** Reserved entities for the players Epoxy does not drive. */
+export const RESERVED_PLAYER_ENTITIES: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
+  [CC2_CODE_MELINDA, reserved('melinda')],
+  [CC2_CODE_MIRROR_CHIP, reserved('mirror_chip')],
+  [CC2_CODE_MIRROR_MELINDA, reserved('mirror_melinda')]
+]);
+
+/** Terrain-coded gender signs: they become a floor with the reserved sign as the item. */
+export const GENDER_SIGN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
+  [0x5a, reserved('gender_sign_male')],
+  [0x5b, reserved('gender_sign_female')]
+]);
+
+/** The key of the lost placeholder for a code the table does not know. */
+export const UNKNOWN_KEY = 'unknown';
+
+/** Track junction placeholder (terrain). */
+export const TRACK_JUNCTION = reserved('track_junction');
+/** Reserved ids for the logic gates Epoxy lacks. */
+export const NAND_GATE = reserved('nand_gate');
+export const COUNTER_GATE = reserved('counter_gate');

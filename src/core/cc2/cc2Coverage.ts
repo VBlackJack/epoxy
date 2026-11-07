@@ -66,7 +66,7 @@ const STEEL_WALL_REASON =
  * hint, key_* and door_* (red, blue, yellow, green), chip, boots_water (flippers), boots_fire (fire boots), boots_ice
  * (cleats), boots_force (suction boots), invisible_wall, appearing_wall, blue_wall_real/fake, thin walls (cell edges),
  * swivel doors, toggle_wall_open/closed, button_green/blue/brown/red, trap, clone_machine, teleport_blue (unwired),
- * thief and thief_keys, bomb, stopwatch_bonus, score_10/100/1000/2x.
+ * thief and thief_keys, bomb, stopwatch_bonus, stopwatch_penalty (time_penalty), score_10/100/1000/2x.
  */
 const EXACT_KEYS: readonly string[] = [
   'floor', 'wall', 'ice', 'ice_corner', 'water', 'fire', 'force_floor', 'exit', 'dirt', 'gravel', 'socket', 'hint',
@@ -74,7 +74,7 @@ const EXACT_KEYS: readonly string[] = [
   'chip', 'flippers', 'fire_boots', 'cleats', 'suction_boots', 'invisible_wall', 'appearing_wall',
   'blue_wall_real', 'blue_wall_fake', 'thin_wall', 'swivel_door', 'toggle_wall_open', 'toggle_wall_closed',
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
-  'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'steel_wall',
+  'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
   'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x'
 ];
 
@@ -106,6 +106,10 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   helmet: 'Epoxy plays the helmet as a ward, which absorbs the first monster contact; the CC2 helmet protects against other things too [unverified]. The reserved id cc2_helmet stays available for a stricter import.',
   // Epoxy: charge.
   dynamite: 'Epoxy plays dynamite as a blast charge: the blast rules differ from CC2 [unverified].',
+  // Epoxy: boots_speed.
+  speed_boots: 'Epoxy plays the speed boots as its own speed boots; the speed gain and the ice and force floor behaviour may differ [unverified].',
+  // Epoxy: boots_pull.
+  hook: 'Epoxy plays the hook as its pull boots; what the CC2 hook pulls may differ [unverified].',
   // Epoxy: hint.
   letter: 'Epoxy plays a letter tile as a hint tile: the text is lost, only the place is kept.',
   // Epoxy: transmogrifier.
@@ -129,6 +133,12 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   popup_wall: 'Epoxy plays the pop-up wall as a recessed wall: the timing of the pop differs [unverified].',
   // Epoxy: boots_eye.
   secret_eye: 'Epoxy plays the secret eye as the eye boots, which reveal hidden walls; the CC2 reveal range may differ [unverified].',
+  // Epoxy: wall.
+  green_wall: 'Epoxy plays the solid green wall as a plain wall [unverified].',
+  // Epoxy: blue_wall_fake.
+  green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
+  // Epoxy: dirt_block.
+  arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves.',
   [KEY_WIRE]: WIRED_REASON,
   [KEY_WIRE_TUNNEL]: `${WIRED_REASON} Tunnels and crossings are kept as wire topology.`
 };
@@ -139,6 +149,9 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
     'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy has no wall that resists a blast, so the level is lost.',
   [KEY_CANOPY]:
     'A canopy is a flag on the thin wall of a cell (0x10), not a terrain: Epoxy has no canopy, so the flag is dropped and the cell keeps its real terrain.',
+  wired_trap: 'A CC2 wire opens or closes this trap; Epoxy traps follow only the brown button, so the wire is dropped.',
+  wired_flame_jet: 'A CC2 wire switches this flame jet; Epoxy flame jets follow only the orange button, so the wire is dropped.',
+  arrow_block_locked: 'A directional block with no arrow cannot be pushed in CC2; Epoxy has no immovable block entity, so it is placed as a pushable dirt block.',
   bribe: PLACEHOLDER_REASON,
   no_sign: PLACEHOLDER_REASON,
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
