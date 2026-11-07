@@ -15,6 +15,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Rails have their own look in every style; a rail switch shows its other position faded.
 - Playtest: the level rating opens from a button in the level-complete panel instead of by itself.
 - Converter: the CC3D random force floor becomes the Turning Force Floor, which plays the same. Converted levels that use it are saved as pack format 7, which builds older than 2.23.0 cannot read.
 

@@ -36,6 +36,7 @@ import type { TileNeighbours } from '../../tileNeighbours';
 import { hasInkHatching, heavyLineWidth, inkLineWidth, paintHatching, type InkRect } from './runewardInk';
 import { linear, paintFloor, roundRect, wave } from './runewardPainters';
 import { paintColorGlyph } from '../../colorGlyph';
+import { paintRailPiece } from '../../railArt';
 import { DEFAULT_COLOR_KEY } from '../../paletteKeys';
 import { runewardClockMs } from './runewardEnv';
 import type { RunewardEntityPainter, RunewardTilePainter, RunewardTilePass } from './runewardTiles';
@@ -282,24 +283,20 @@ function paintSwivel(ctx: Ctx, size: number, art: Art, nb: Neighbours, id: strin
 
 // ---- Rails ------------------------------------------------------------------------------------
 
-const RAIL = { width: 0.22 } as const;
-
-/** A timber track from the middle of the cell to the middle of each open side, in the colours of the swivel leaf. */
+/** Two steel rails over timber sleepers along the open sides, a buffer on each closed side; a switch shows its other form faded. */
 function paintRail(ctx: Ctx, size: number, art: Art, nb: Neighbours, id: string): void {
   paintFloor(ctx, size, art, nb);
   const colours = art.device.swivel;
-  const width = size * RAIL.width;
-  const start = size * HALF - width * HALF;
-  const reach = size * HALF + width * HALF;
-  solidRect(ctx, size, art, { x: start, y: start, w: width, h: width }, colours, 0, false);
-  for (const dir of definitionOf(id).railSides ?? []) {
-    const rect: InkRect =
-      dir === 'N' ? { x: start, y: 0, w: width, h: reach - width }
-      : dir === 'S' ? { x: start, y: reach, w: width, h: size - reach }
-      : dir === 'W' ? { x: 0, y: start, w: reach - width, h: width }
-      : { x: reach, y: start, w: size - reach, h: width };
-    solidRect(ctx, size, art, rect, colours, 0, false);
-  }
+  const definition = definitionOf(id);
+  const sides = definition.railSides;
+  if (sides === undefined) return;
+  const otherSides = definition.togglesTo === undefined ? undefined : definitionOf(definition.togglesTo).railSides;
+  paintRailPiece(ctx, 0, 0, size, sides, otherSides, {
+    outline: art.ink ? art.ink.line : colours.edge,
+    sleeper: colours.base,
+    rail: art.gate.barLight,
+    buffer: colours.light
+  });
 }
 
 // ---- Turn plates ------------------------------------------------------------------------------
