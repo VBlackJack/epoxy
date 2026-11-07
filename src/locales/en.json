@@ -3621,7 +3621,7 @@
       },
       "water": {
         "name": "Water",
-        "label": "The ice block behaves differently on water, and a colour block floats as a walkable tile that cannot be pushed again."
+        "label": "A colour block floats as a walkable tile that cannot be pushed again."
       },
       "force_random": {
         "name": "Random force floor",
@@ -4971,7 +4971,7 @@
     "ice_block": {
       "name": "Sliding Ice Block",
       "desc": {
-        "label": "A block the player can push. Melts into water in fire; a shot also destroys it, leaving water only on plain floor."
+        "label": "A block the player can push. Turns water into ice when pushed into it, and melts into water in fire; a shot also destroys it, leaving water only on plain floor."
       }
     },
     "bug": {
