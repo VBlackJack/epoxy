@@ -155,6 +155,10 @@ entity lurker dir=N tick=3 5d7ccc4266a8ea08
 entity lurker dir=E tick=3 690235e7c66d0988
 entity lurker dir=S tick=3 8815759c5887f561
 entity lurker dir=W tick=3 0dec3332cc2a82af
+entity wisp dir=N tick=3 ef553d60ba87a3c5
+entity wisp dir=E tick=3 5e6e9ce2bbd5f8f3
+entity wisp dir=S tick=3 79a4f4ba84cd5b94
+entity wisp dir=W tick=3 ee006abe3fa71859
 item key_red tick=13 b0ed8abb57f8690c
 item key_blue tick=13 743cda4ff38240bf
 item key_yellow tick=13 f8ddf884c6898010
@@ -312,6 +316,10 @@ entity lurker dir=N tick=13 365ba2230627b443
 entity lurker dir=E tick=13 833105385ffd9c65
 entity lurker dir=S tick=13 ad510f8d2504d846
 entity lurker dir=W tick=13 f609998aef066771
+entity wisp dir=N tick=13 89ba8f31e31f6573
+entity wisp dir=E tick=13 7d0cbeaec22f038e
+entity wisp dir=S tick=13 8f86c02fc83690ba
+entity wisp dir=W tick=13 afdbe8ac7b00d71d
 player dir=N inWater=false alive=true frame=0 hop=0 3fc261783e163c4d
 player dir=N inWater=false alive=true frame=0 hop=0.3 c9b412f9ed8860ba
 player dir=N inWater=false alive=true frame=1 hop=0 781b1392553202d5

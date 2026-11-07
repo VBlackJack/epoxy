@@ -33,7 +33,7 @@ import { RUNEWARD_PAINTERS, type RunewardPaintEnv } from './runewardTiles';
 import * as monsters from './runewardMonsters';
 
 const MONSTER_TYPES = [
-  'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'puppet', 'skitter', 'lurker'
+  'bug', 'paramecium', 'pink_ball', 'walker', 'teeth', 'glider', 'fireball', 'tank', 'blob', 'puppet', 'skitter', 'lurker', 'wisp'
 ] as const;
 /** The sleeping lurker is no creature: Runeward draws it as a crack in the floor. */
 const DORMANT_LURKER = 'lurker_dormant';
@@ -150,7 +150,7 @@ describe('Runeward monster painters', () => {
     loadTestConfigs();
   });
 
-  it('paints the twelve monster types, the sleeping lurker and the shot, with nothing left pending', () => {
+  it('paints the thirteen monster types, the sleeping lurker and the shot, with nothing left pending', () => {
     expect(Object.keys(monsters.ENTITIES).sort()).toEqual([...MONSTER_TYPES, DORMANT_LURKER].sort());
     expect(monsters.PENDING).toEqual([]);
     expect(monsters.SHOT).not.toBeNull();

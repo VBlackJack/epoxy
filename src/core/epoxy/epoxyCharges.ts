@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { AudioManager } from '../../audio/AudioManager';
 import { CHARGE_BLAST_RADIUS, CHARGE_BLAST_SFX, CHARGE_DEATH_REASON_KEY } from '../coreConstants';
+import { isPhasingEntityType } from '../RulesetFeatures';
 import { LitCharge } from '../types';
 import { EpoxyContext, EpoxyWorld, killPlayer, removeEntity } from './epoxyWorld';
 
@@ -72,7 +73,7 @@ function blast(ctx: EpoxyContext, charge: LitCharge): void {
   for (const entity of [...w.entities]) {
     if (!inBlast(charge.x, charge.y, entity.x, entity.y)) continue;
     // A mob sitting on a clone machine is the machine's template, not a creature on the map.
-    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
+    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine && !isPhasingEntityType(entity.type)) continue;
     removeEntity(w, entity.uid);
     ctx.emitVisual('explosion', entity.x, entity.y);
   }

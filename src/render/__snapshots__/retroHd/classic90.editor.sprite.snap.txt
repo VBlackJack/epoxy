@@ -384,3 +384,4 @@ editor entity over floor puppet 995162d03f536fe8
 editor entity over floor skitter bdf11306f599df8c
 editor entity over floor lurker_dormant eba3aa9ebd2624ea
 editor entity over floor lurker b8dc7c968a448c90
+editor entity over floor wisp 74556bf8f625271a

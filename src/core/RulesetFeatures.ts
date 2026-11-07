@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, PHASE_LINE_PATTERN, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -195,12 +195,13 @@ function hasTurnPlateContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): b
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter, a lurker or an arrow block), a steering pad, a transmogrifier, a turn plate, or a turning force floor. */
+/** True when the level places a monster only the Epoxy engine plays (a puppet, a skitter, a lurker, a wisp or an arrow block), a steering pad, a transmogrifier, a turn plate, or a turning force floor. */
 export function hasEpoxyOnlyMonsterContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays'>>
 ): boolean {
   if (hasSteeringContent(level) || hasTransmogrifierContent(level) || hasTurnPlateContent(level) || hasForceCycleContent(level)) return true;
-  const epoxyOnly = (type: string): boolean => isFleeingEntityType(type) || isArrowBlockEntityType(type) || isLurkerEntityType(type);
+  const epoxyOnly = (type: string): boolean =>
+    isFleeingEntityType(type) || isArrowBlockEntityType(type) || isLurkerEntityType(type) || isPhasingEntityType(type);
   return (
     (level.entities ?? []).some((e) => epoxyOnly(e.type)) || (level.cloneLinks ?? []).some((link) => epoxyOnly(link.templateType))
   );
@@ -336,6 +337,11 @@ export function isLurkerEntityType(type: string): boolean {
   return ConfigRegistry.getEntityDef(type)?.epoxyOnly === true;
 }
 
+/** True when the entity type is a wisp: a monster that walks through every tile (movement pattern phase_line). */
+export function isPhasingEntityType(type: string): boolean {
+  return ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN;
+}
+
 /** True when the tile id is a transmogrifier, which swaps a monster arriving on it for its pair. */
 export function isTransmogrifierTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).transmogrifies === true;
@@ -379,7 +385,7 @@ export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   );
 }
 
-/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet, a skitter or a lurker. */
+/** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet, a skitter, a lurker or a wisp. */
 export function isEpoxyOnlyEntityType(type: string): boolean {
   return (
     isMirrorEntityType(type) ||
@@ -388,7 +394,8 @@ export function isEpoxyOnlyEntityType(type: string): boolean {
     isColorBlockEntityType(type) ||
     isSteeredEntityType(type) ||
     isFleeingEntityType(type) ||
-    isLurkerEntityType(type)
+    isLurkerEntityType(type) ||
+    isPhasingEntityType(type)
   );
 }
 

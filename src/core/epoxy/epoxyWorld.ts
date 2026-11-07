@@ -503,7 +503,8 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
   if (w.player.x === bx && w.player.y === by) return true;
-  return w.entities.some((e) => e.x === bx && e.y === by);
+  // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
+  return w.entities.some((e) => e.x === bx && e.y === by && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
 }
 
 /**

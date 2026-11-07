@@ -181,12 +181,13 @@ export const PACK_JSON_VERSION_V9_IDS: ReadonlySet<string> = new Set([
 
 /**
  * Version of a pack file that holds at least one level using an id introduced with format 10 (see
- * PACK_JSON_VERSION_V10_IDS): the hurl stone. An older build would not know the item, so it must refuse the file.
+ * PACK_JSON_VERSION_V10_IDS): the hurl stone and the wisp. An older build would not know the item or the monster, so it
+ * must refuse the file.
  */
 export const PACK_JSON_VERSION_V10 = 10;
 
 /** Ids that only exist from pack format 10; matched by name like the format 7 ids. */
-export const PACK_JSON_VERSION_V10_IDS: ReadonlySet<string> = new Set(['hurl_stone']);
+export const PACK_JSON_VERSION_V10_IDS: ReadonlySet<string> = new Set(['hurl_stone', 'wisp']);
 
 /**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids

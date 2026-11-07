@@ -292,7 +292,7 @@ export interface RunewardChannelColours {
 /** Monster types (monsters.json) and the shot, each with its own colours. */
 export type RunewardMonsterType =
   | 'bug' | 'paramecium' | 'pink_ball' | 'walker' | 'teeth' | 'glider' | 'fireball' | 'tank'
-  | 'blob' | 'puppet' | 'skitter' | 'lurker' | 'shot';
+  | 'blob' | 'puppet' | 'skitter' | 'lurker' | 'wisp' | 'shot';
 
 /** The two laser colours. */
 export type RunewardLaserChannel = 'red' | 'blue';

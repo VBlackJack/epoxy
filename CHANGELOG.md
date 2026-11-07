@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Wisp: a monster that drifts straight through walls, doors, water, fire, ice and force floors, stopped only by thin walls, the map edge and other entities; it turns round once when blocked and cannot be cloned (Epoxy rules). Pack format 10.
 - Pocket Gate: carry a teleporter pad and set it down where you want; pads you set down link with each other (Epoxy rules). Pack format 8.
 - Hurl Stone: pick it up and throw it at what is in front of you; it kills a monster, sets off a bomb, melts an ice block and is turned by a mirror, then is used up (Epoxy rules). Solution letter T. Pack format 10.
 - Rails: straight and bent rail pieces only let you in and out through their open sides; rail switches flip with the green button (Epoxy rules). Pack format 9.

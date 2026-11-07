@@ -457,6 +457,20 @@
       "immuneToFire": false,
       "avoidsFire": false,
       "epoxyOnly": true
+    },
+    "wisp": {
+      "id": "wisp",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.wisp.name",
+      "moveIntervalTicks": 8,
+      "movementPattern": "phase_line",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": true,
+      "immuneToFire": true,
+      "avoidsFire": false,
+      "pressesPlates": false,
+      "epoxyOnly": true
     }
   }
 }

@@ -33,7 +33,7 @@ import {
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
 import { relativeTo } from './lynx/directions';
-import { isArrowBlockEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
+import { isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { registryTileLookup } from './epoxy/epoxySignals';
@@ -389,6 +389,7 @@ export class LevelValidator {
     this.checkColorChannels(level, issues);
     this.checkSteering(level, issues);
     this.checkLurkers(level, issues);
+    this.checkPhasingClones(level, issues);
     this.checkShotLaunchers(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
@@ -1598,6 +1599,27 @@ export class LevelValidator {
       severity: 'warning',
       i18nKey: 'validator.issues.lurker_not_on_floor.label',
       params: this.locationParams(offFloor.map((entity) => ({ x: entity.x, y: entity.y })))
+    });
+  }
+
+  /**
+   * A wisp is never a clone template: a clone machine holding one, or a clone link naming one, is an error. The
+   * engine spawns nothing from such a link, so the level would play differently from how it reads.
+   */
+  private static checkPhasingClones(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const cells: GridPoint[] = [];
+    for (const entity of level.entities) {
+      if (!isPhasingEntityType(entity.type) || !this.inGrid(level, entity)) continue;
+      if (ConfigRegistry.getTile(level.terrain[entity.y][entity.x]).isCloneMachine) cells.push({ x: entity.x, y: entity.y });
+    }
+    for (const link of level.cloneLinks ?? []) {
+      if (isPhasingEntityType(link.templateType)) cells.push({ x: link.clonerX, y: link.clonerY });
+    }
+    if (cells.length === 0) return;
+    issues.push({
+      severity: 'error',
+      i18nKey: 'validator.issues.wisp_cloned.label',
+      params: this.locationParams(cells)
     });
   }
 

@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { relativeTo } from '../core/lynx/directions';
-import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, PHASE_LINE_PATTERN, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
@@ -357,6 +357,8 @@ const CHARGE_FUSE_RING = { radius: 0.46, widthTile: 0.07, warnFraction: 0.34, bl
 const CHARGE_FUSE_RING_START = -Math.PI / 2;
 /** Opacity of the awake lurker drawn over the seam of a sleeping one in the editor, so it can be found and told apart. */
 const LURKER_EDITOR_MARKER_ALPHA = 0.55;
+/** Opacity of a wisp, which is drawn see-through (phased) in every style that has no art of its own for it. */
+const WISP_PHASED_ALPHA = 0.7;
 /** Thin wall bar: thickness as a share of the tile, with a floor in pixels per drawing style. */
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
@@ -703,6 +705,8 @@ export class PixelRenderer {
   private animFrame: number = 0;
   /** Animation clock in reference frames (fractional), advanced from real elapsed time. */
   private timeTick: number = 0;
+  /** True while a phased monster is drawn through the see-through pass, so the pass is not entered twice. */
+  private drawingPhased = false;
   private lastFrameTimeMs: number | null = null;
   private currentViewportTiles: number = 13;
   private visualViewportTiles: number = 13;
@@ -5475,6 +5479,19 @@ export class PixelRenderer {
     const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;
     if (runewardPaint) {
       runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
+      return;
+    }
+    if (!this.drawingPhased && ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN) {
+      // A wisp is the same drawing as any other style gives it, seen through.
+      ctx.save();
+      ctx.globalAlpha = (typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1) * WISP_PHASED_ALPHA;
+      this.drawingPhased = true;
+      try {
+        this.drawEntity(ctx, type, dir, x, y, size, isEditor);
+      } finally {
+        this.drawingPhased = false;
+        ctx.restore();
+      }
       return;
     }
     const painterId = EPOXY_TO_CC3D_PAINTER[type];
