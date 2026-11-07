@@ -1,0 +1,88 @@
+{
+  "levels": [
+    {
+      "id": "epoxy_t_move",
+      "number": 1,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.basics.move.title",
+      "hintKey": "tutorial.basics.move.hint",
+      "password": "STEP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 0,
+      "playerStart": {
+        "x": 1,
+        "y": 1,
+        "dir": "E"
+      },
+      "rows": [
+        "#########",
+        "#.H.....#",
+        "#.......#",
+        "#......E#",
+        "#########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "EEEEEESS"
+    },
+    {
+      "id": "epoxy_t_chips",
+      "number": 2,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.basics.chips.title",
+      "hintKey": "tutorial.basics.chips.hint",
+      "password": "GEAR",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 1,
+        "y": 2,
+        "dir": "E"
+      },
+      "rows": [
+        "###########",
+        "#C...C#####",
+        "#.H.....SE#",
+        "#..C..#####",
+        "###########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "NEEEESSWWNEEEEEE"
+    },
+    {
+      "id": "epoxy_t_detour",
+      "number": 3,
+      "theme": "cyber_neon",
+      "titleKey": "tutorial.basics.detour.title",
+      "hintKey": "tutorial.basics.detour.hint",
+      "password": "LOOP",
+      "timeLimitSeconds": 0,
+      "chipsRequired": 3,
+      "playerStart": {
+        "x": 2,
+        "y": 3,
+        "dir": "E"
+      },
+      "rows": [
+        "#########",
+        "#C..C..C#",
+        "#.#######",
+        "#..HSE###",
+        "#########"
+      ],
+      "terrainOverrides": [],
+      "items": [],
+      "entities": [],
+      "trapLinks": [],
+      "cloneLinks": [],
+      "solution": "WNNEEEEEEWWWWWWSSEEEE"
+    }
+  ]
+}

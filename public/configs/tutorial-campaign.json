@@ -1,0 +1,14 @@
+{
+  "chapters": [
+    {
+      "id": "tutorial_chapter_basics",
+      "titleKey": "tutorial.chapter.basics.title",
+      "subtitleKey": "tutorial.chapter.basics.subtitle",
+      "levels": [
+        "epoxy_t_move",
+        "epoxy_t_chips",
+        "epoxy_t_detour"
+      ]
+    }
+  ]
+}

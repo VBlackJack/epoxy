@@ -21,6 +21,8 @@ import {
   DEFAULT_LEVEL_PASSWORD,
   ENV_CONFIG,
   EXCAVATION_LEVEL_ID_PREFIX,
+  PLAYTEST_ONLY_PACK_IDS,
+  TUTORIAL_LEVEL_ID_PREFIX,
   PILOT_LEVEL_ID_PREFIX,
   SAVE_SLOT_PACK_SEPARATOR,
   UNORDERED_PACK_RANK
@@ -118,6 +120,8 @@ const REQUIRED_CONFIG_KEYS = {
   PILOT_CAMPAIGN: ['chapters'],
   EXCAVATION_LEVELS: ['levels'],
   EXCAVATION_CAMPAIGN: ['chapters'],
+  TUTORIAL_LEVELS: ['levels'],
+  TUTORIAL_CAMPAIGN: ['chapters'],
   DAT_FORMAT: ['magicHeaders', 'rleMarkerByte', 'layerByteLength', 'fieldCodes', 'byteToElement'],
   MOTIFS: ['legend', 'pieces', 'monsterPortTerrain'],
   MOTIF_ANNOTATIONS: []
@@ -143,6 +147,10 @@ export interface ConfigBundle {
   excavationLevels?: PilotLevelsConfig;
   /** The chapters of the excavation campaign pack; absent means none. */
   excavationCampaign?: CampaignConfig;
+  /** The levels of the tutorial pack; absent means no tutorial. */
+  tutorialLevels?: PilotLevelsConfig;
+  /** The chapters of the tutorial pack; absent means none. */
+  tutorialCampaign?: CampaignConfig;
   datFormat: DatFormatConfig;
   motifs: MotifsConfig;
   motifAnnotations: MotifAnnotations;
@@ -210,8 +218,11 @@ class ConfigRegistryService {
   private excavationCampaignConfig: CampaignConfig = { chapters: [] };
   private excavationBlueprints: LevelBlueprint[] = [];
   private excavationLevels: CompiledLevel[] = [];
-  /** The pilot pack is listed and playable only while this is true (Playtest mode on). */
-  private pilotVisible = false;
+  private tutorialCampaignConfig: CampaignConfig = { chapters: [] };
+  private tutorialBlueprints: LevelBlueprint[] = [];
+  private tutorialLevels: CompiledLevel[] = [];
+  /** The playtest-only packs (the pilot and the tutorial) are listed and playable only while this is true (Playtest mode on). */
+  private playtestPacksVisible = false;
   private datFormatConfig!: DatFormatConfig;
   private motifsConfig!: MotifsConfig;
   private motifAnnotations: MotifAnnotations = {};
@@ -235,7 +246,7 @@ class ConfigRegistryService {
       () => [] as FetchedPack[]
     );
 
-    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, pilot, excavation, datFormat, motifs, motifAnnotations] = await Promise.all([
+    const [game, tiles, cc3dTiles, monsters, audio, levels, campaign, pilot, excavation, tutorial, datFormat, motifs, motifAnnotations] = await Promise.all([
       gamePromise,
       this.fetchJson<TilesConfig>(CONFIG_ENDPOINTS.TILES, REQUIRED_CONFIG_KEYS.TILES),
       this.fetchJson<Pick<TilesConfig, 'tiles'>>(CONFIG_ENDPOINTS.CC3D_TILES, REQUIRED_CONFIG_KEYS.CC3D_TILES),
@@ -245,6 +256,7 @@ class ConfigRegistryService {
       this.fetchOptionalCampaign(),
       this.fetchOptionalPilot(),
       this.fetchOptionalExcavation(),
+      this.fetchOptionalTutorial(),
       this.fetchJson<DatFormatConfig>(CONFIG_ENDPOINTS.DAT_FORMAT, REQUIRED_CONFIG_KEYS.DAT_FORMAT),
       this.fetchJson<MotifsConfig>(CONFIG_ENDPOINTS.MOTIFS, REQUIRED_CONFIG_KEYS.MOTIFS),
       this.fetchJson<MotifAnnotations>(CONFIG_ENDPOINTS.MOTIF_ANNOTATIONS, REQUIRED_CONFIG_KEYS.MOTIF_ANNOTATIONS)
@@ -262,12 +274,14 @@ class ConfigRegistryService {
       pilotCampaign: pilot.campaign,
       excavationLevels: excavation.levels,
       excavationCampaign: excavation.campaign,
+      tutorialLevels: tutorial.levels,
+      tutorialCampaign: tutorial.campaign,
       datFormat,
       motifs,
       motifAnnotations
     });
-    // Playtest mode decides whether the pilot pack exists for this page, before the saved pack is looked up.
-    this.pilotVisible = this.readStorage(game.storage.playtestEnabledKey) === PLAYTEST_FLAG_ON;
+    // Playtest mode decides whether the playtest-only packs exist for this page, before the saved pack is looked up.
+    this.playtestPacksVisible = this.readStorage(game.storage.playtestEnabledKey) === PLAYTEST_FLAG_ON;
     this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
     // The store name and the level size bounds come from game.json, so the
     // stored packs are read only once the configs are installed.
@@ -276,8 +290,8 @@ class ConfigRegistryService {
     const savedPackId = this.readStorage(this.gameConfig.storage.activePackKey);
     if (savedPackId && this.getAllPacks().some((p) => p.id === savedPackId && p.levels.length > 0)) {
       this.activePackId = savedPackId;
-    } else if (savedPackId === BUILTIN_PACK_IDS.PILOT) {
-      // The pilot is gone from this page (Playtest mode is off): forget it as the saved pack.
+    } else if (savedPackId !== null && PLAYTEST_ONLY_PACK_IDS.includes(savedPackId)) {
+      // A playtest-only pack is gone from this page (Playtest mode is off): forget it as the saved pack.
       this.resetActivePack();
     }
   }
@@ -448,6 +462,25 @@ class ConfigRegistryService {
     }
     this.excavationCampaignConfig = excavationCampaign;
     this.excavationBlueprints = excavationLevels.levels;
+    let tutorialLevels = bundle.tutorialLevels ?? { levels: [] };
+    let tutorialCampaign = bundle.tutorialCampaign ?? { chapters: [] };
+    const tutorialErrors = findPilotConfigErrors(
+      tutorialLevels.levels,
+      tutorialCampaign,
+      [
+        ...bundle.levels.levels.map((level) => level.id),
+        ...pilotLevels.levels.map((level) => level.id),
+        ...excavationLevels.levels.map((level) => level.id)
+      ],
+      TUTORIAL_LEVEL_ID_PREFIX
+    );
+    if (tutorialErrors.length > 0) {
+      console.warn(`Tutorial pack ignored: ${tutorialErrors.join('; ')}`);
+      tutorialLevels = { levels: [] };
+      tutorialCampaign = { chapters: [] };
+    }
+    this.tutorialCampaignConfig = tutorialCampaign;
+    this.tutorialBlueprints = tutorialLevels.levels;
     this.datFormatConfig = bundle.datFormat;
     this.motifsConfig = bundle.motifs;
     this.motifAnnotations = bundle.motifAnnotations;
@@ -455,6 +488,7 @@ class ConfigRegistryService {
     this.builtInLevels = bundle.levels.levels.map((bp) => this.compileBlueprint(bp));
     this.pilotLevels = this.pilotBlueprints.map((bp) => this.compileBlueprint(bp));
     this.excavationLevels = this.excavationBlueprints.map((bp) => this.compileBlueprint(bp));
+    this.tutorialLevels = this.tutorialBlueprints.map((bp) => this.compileBlueprint(bp));
     this.ultimatePacks = [];
     this.proceduralLevels = [];
     this.storedPacks = [];
@@ -541,6 +575,20 @@ class ConfigRegistryService {
       return { levels, campaign };
     } catch (err) {
       console.warn(`Excavation pack unavailable: ${String(err)}`);
+      return {};
+    }
+  }
+
+  /** The tutorial pack is optional: without its files the game loads and the pack is simply absent. */
+  private async fetchOptionalTutorial(): Promise<{ levels?: PilotLevelsConfig; campaign?: CampaignConfig }> {
+    try {
+      const [levels, campaign] = await Promise.all([
+        this.fetchJson<PilotLevelsConfig>(CONFIG_ENDPOINTS.TUTORIAL_LEVELS, REQUIRED_CONFIG_KEYS.TUTORIAL_LEVELS),
+        this.fetchJson<CampaignConfig>(CONFIG_ENDPOINTS.TUTORIAL_CAMPAIGN, REQUIRED_CONFIG_KEYS.TUTORIAL_CAMPAIGN)
+      ]);
+      return { levels, campaign };
+    } catch (err) {
+      console.warn(`Tutorial pack unavailable: ${String(err)}`);
       return {};
     }
   }
@@ -634,6 +682,7 @@ class ConfigRegistryService {
         builtIn: true,
         levels: this.builtInLevels
       },
+      ...this.tutorialPacks(),
       ...this.pilotPacks(),
       ...this.excavationPacks(),
       ...this.ultimatePacks,
@@ -653,7 +702,7 @@ class ConfigRegistryService {
 
   /** The pilot pack, only while it is visible and holds a level. */
   private pilotPacks(): LevelPack[] {
-    if (!this.pilotVisible || this.pilotLevels.length === 0) return [];
+    if (!this.playtestPacksVisible || this.pilotLevels.length === 0) return [];
     return [
       {
         id: BUILTIN_PACK_IDS.PILOT,
@@ -663,6 +712,35 @@ class ConfigRegistryService {
         levels: this.pilotLevels
       }
     ];
+  }
+
+  /** The tutorial pack, only while it is visible and holds a level. */
+  private tutorialPacks(): LevelPack[] {
+    if (!this.playtestPacksVisible || this.tutorialLevels.length === 0) return [];
+    return [
+      {
+        id: BUILTIN_PACK_IDS.TUTORIAL,
+        name: 'Tutorial',
+        i18nKey: 'app.packs.tutorial.label',
+        builtIn: true,
+        levels: this.tutorialLevels
+      }
+    ];
+  }
+
+  /** The tutorial levels whether or not the pack is visible, for the authoring tools and tests. */
+  public getTutorialLevels(): CompiledLevel[] {
+    return this.tutorialLevels;
+  }
+
+  /** The tutorial level blueprints as loaded. */
+  public getTutorialBlueprints(): LevelBlueprint[] {
+    return this.tutorialBlueprints;
+  }
+
+  /** The chapters of the tutorial pack, in play order. */
+  public getTutorialChapters(): CampaignChapter[] {
+    return this.tutorialCampaignConfig.chapters;
   }
 
   /** The excavation campaign pack, when it holds at least one level. */
@@ -695,14 +773,13 @@ class ConfigRegistryService {
   }
 
   /**
-   * Shows or hides the pilot pack (it follows Playtest mode). Hiding it while
-   * it is the active pack falls back to the campaign. Returns whether the
-   * visibility changed.
+   * Shows or hides the playtest-only packs, the pilot and the tutorial (they follow Playtest mode). Hiding
+   * them while one is the active pack falls back to the campaign. Returns whether the visibility changed.
    */
   public setPilotPackVisible(visible: boolean): boolean {
-    if (visible === this.pilotVisible) return false;
-    this.pilotVisible = visible;
-    if (!visible && this.activePackId === BUILTIN_PACK_IDS.PILOT) this.resetActivePack();
+    if (visible === this.playtestPacksVisible) return false;
+    this.playtestPacksVisible = visible;
+    if (!visible && PLAYTEST_ONLY_PACK_IDS.includes(this.activePackId)) this.resetActivePack();
     return true;
   }
 
@@ -712,7 +789,10 @@ class ConfigRegistryService {
    */
   public getSaveSlotKey(packId: string): string {
     const base = this.gameConfig.storage.saveSlotKey;
-    const isolated = packId === BUILTIN_PACK_IDS.PILOT || packId === BUILTIN_PACK_IDS.EXCAVATION;
+    const isolated =
+      packId === BUILTIN_PACK_IDS.PILOT ||
+      packId === BUILTIN_PACK_IDS.EXCAVATION ||
+      packId === BUILTIN_PACK_IDS.TUTORIAL;
     return this.getStorageKey(isolated ? `${base}${SAVE_SLOT_PACK_SEPARATOR}${packId}` : base);
   }
 
@@ -736,6 +816,7 @@ class ConfigRegistryService {
     if (this.activePackId === BUILTIN_PACK_IDS.CAMPAIGN) return this.campaignConfig.chapters;
     if (this.activePackId === BUILTIN_PACK_IDS.PILOT) return this.pilotCampaignConfig.chapters;
     if (this.activePackId === BUILTIN_PACK_IDS.EXCAVATION) return this.excavationCampaignConfig.chapters;
+    if (this.activePackId === BUILTIN_PACK_IDS.TUTORIAL) return this.tutorialCampaignConfig.chapters;
     return [];
   }
 
