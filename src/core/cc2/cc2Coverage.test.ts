@@ -86,6 +86,11 @@ describe('classifyCc2Level', () => {
     expect(classifyCc2Level(['floor', 'no_such_element'])).toEqual({ verdict: 'lost', lost: [KEY_UNKNOWN], approx: [] });
   });
 
+  it('classifies the items the converter maps beyond the first table', () => {
+    expect(classifyCc2Level(['time_penalty']).verdict).toBe('exact');
+    expect(classifyCc2Level(['speed_boots', 'hook']).approx).toEqual(['hook', 'speed_boots']);
+  });
+
   it('plays monsters and blocks as exact and loses the canopy flag', () => {
     expect(classifyCc2Level(['bug', 'tank', 'dirt_block', 'cleats']).verdict).toBe('exact');
     expect(classifyCc2Level([KEY_CANOPY]).verdict).toBe('lost');
