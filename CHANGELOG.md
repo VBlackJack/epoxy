@@ -3,11 +3,7 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
-## [Unreleased]
-
-### Changed
-
-- Phone layout (full screen, touch): a floating joystick appears under the thumb, a status strip tops the board, the level panel (left) and a new game menu (right) are drawers opened from the strip tabs, and Undo plus the drop buttons sit in the corner of the chosen pad side. The fixed pad stays available through the new Touch control setting; vibration can be turned off.
+## [2.25.0] - 2026-11-07
 
 ### Added
 
@@ -18,6 +14,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Phone layout (full screen, touch): a floating joystick appears under the thumb, a status strip tops the board, the level panel (left) and a new game menu (right) are drawers opened from the strip tabs, and Undo plus the drop buttons sit in the corner of the chosen pad side. The fixed pad stays available through the new Touch control setting; vibration can be turned off.
 - Relay pads (lit and dark) have their own look in every style, a plug marks a green toggle wall or rail switch that a signal wire ends on, and the 16-Bit Toll Token is now drawn (it was invisible).
 
 ## [2.24.0] - 2026-11-07
