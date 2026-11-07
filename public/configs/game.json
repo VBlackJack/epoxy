@@ -700,6 +700,7 @@
     "lastProceduralSeedKey": "last_procedural_seed",
     "lastEndlessKey": "last_endless",
     "onboardingSeenKey": "onboarding_seen",
+    "tutorialNoticeSeenKey": "tutorial_notice_seen",
     "lastSaveDestinationKey": "last_save_destination",
     "editorSectionsKey": "editor_sections",
     "playtestEnabledKey": "playtest_enabled",

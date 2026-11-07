@@ -5561,6 +5561,46 @@
         "title": "Machines de clonage",
         "hint": "Un bouton rouge fait cloner le monstre de sa machine. Le nouveau tank roule et s'arrête sur le bouton brun, ce qui ouvre le piège."
       }
+    },
+    "ui": {
+      "help": {
+        "button": {
+          "action": "Tutoriel",
+          "hint": "Apprendre le jeu une mécanique à la fois"
+        }
+      },
+      "drawer": {
+        "button": {
+          "action": "Tutoriel"
+        }
+      },
+      "onboarding": {
+        "start": {
+          "action": "Commencer le tutoriel"
+        },
+        "skip": {
+          "action": "Passer"
+        }
+      },
+      "notice": {
+        "title": {
+          "label": "Nouveau : le tutoriel"
+        },
+        "body": {
+          "label": "Un tutoriel enseigne désormais le jeu une mécanique à la fois, salle après salle. Essayez-le quand vous voulez."
+        },
+        "start": {
+          "action": "Commencer"
+        },
+        "later": {
+          "action": "Plus tard"
+        }
+      },
+      "complete": {
+        "play_epoxy": {
+          "action": "Jouer à Epoxy"
+        }
+      }
     }
   }
 }

@@ -169,6 +169,16 @@ import {
   stuckMessageKey
 } from './ui/levelFeedback';
 import { shouldShowOnboarding } from './ui/onboarding';
+import {
+  applyOnboardingTutorialMode,
+  firstUnsolvedIndex,
+  isTutorialVisible,
+  readSeenFlag,
+  shouldOfferPlayEpoxy,
+  shouldShowTutorialNotice,
+  syncTutorialEntries,
+  writeSeenFlag
+} from './ui/tutorialEntry';
 import { packUsesPasswords } from './ui/packPasswords';
 import { getViewportPresets } from './ui/viewportZoom';
 import {
@@ -218,8 +228,6 @@ type ScoresFilter = 'all' | 'unsolved' | 'completed';
 /** Displacement that marks a two-finger gesture so it never ends as a tap. */
 const MULTI_TOUCH_SUPPRESSES_TAP = Number.POSITIVE_INFINITY;
 const NO_WARNED_SECOND = -1;
-/** Value stored once the first-launch dialog was shown. */
-const ONBOARDING_SEEN_VALUE = '1';
 /** Where the seen flag lives, most durable first. */
 const ONBOARDING_STORES: ReadonlyArray<() => Storage> = [() => localStorage, () => sessionStorage];
 /** The Play and Editor mode buttons: the header ones and their drawer copies. */
@@ -241,7 +249,8 @@ const MODAL_IDS = {
   HELP: 'help-modal',
   PASSWORD: 'password-modal',
   PROCEDURAL: 'procedural-modal',
-  ONBOARDING: 'onboarding-modal'
+  ONBOARDING: 'onboarding-modal',
+  TUTORIAL_NOTICE: 'tutorial-notice-modal'
 } as const;
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T | null {
@@ -319,6 +328,7 @@ class EpoxyApplication {
   private hudChipsLevelId: string = '';
   /** The "How to play" dialog was shown this session (storage can be unavailable). */
   private onboardingShownThisSession = false;
+  private tutorialNoticeShownThisSession = false;
   private scoresFilterMode: ScoresFilter = 'all';
   private scoresSearchQuery: string = '';
   private overlayState: OverlayState = 'none';
@@ -442,6 +452,8 @@ class EpoxyApplication {
     this.startGameLoop();
     this.startRenderLoop();
     this.maybeShowOnboarding(hadSavedProgress);
+    // A parked share link opens its own dialog: the notice would sit on top of it.
+    if (!this.parkedShareHash) this.maybeShowTutorialNotice();
     this.bindShareLinks();
   }
 
@@ -988,6 +1000,35 @@ class EpoxyApplication {
     this.updateProceduralSeedBox();
     this.updateDeleteImportedPacksButton();
     this.updateManagerButton();
+    syncTutorialEntries(document, this.isTutorialOffered());
+  }
+
+  /** True while the tutorial pack is listed (it follows Playtest mode until it goes public). */
+  private isTutorialOffered(): boolean {
+    return isTutorialVisible(ConfigRegistry.getAllPacks().filter((p) => p.levels.length > 0));
+  }
+
+  /** Switches to the tutorial and starts its first unsolved room (room 1 when all are solved). */
+  private startTutorial(): void {
+    if (!this.isTutorialOffered()) return;
+    this.closeModal(MODAL_IDS.HELP);
+    this.closeModal(MODAL_IDS.ONBOARDING);
+    this.closeModal(MODAL_IDS.TUTORIAL_NOTICE);
+    this.setDrawerOpen(false);
+    this.switchMode('play');
+    ConfigRegistry.setActivePackId(BUILTIN_PACK_IDS.TUTORIAL);
+    this.refreshPackSelector();
+    this.editor.refreshContext();
+    this.startLevelByIndex(firstUnsolvedIndex(ConfigRegistry.getLevels(), this.highScores));
+  }
+
+  /** Leaves the finished tutorial for the Epoxy campaign. */
+  private playEpoxyFromTutorial(): void {
+    this.switchMode('play');
+    ConfigRegistry.setActivePackId(BUILTIN_PACK_IDS.CAMPAIGN);
+    this.refreshPackSelector();
+    this.editor.refreshContext();
+    this.startLevelByIndex(this.savedLevelIndex() ?? 0);
   }
 
   /** The Levels dialog button reads "Manage this pack" while the pack being played is one the player can edit. */
@@ -2583,6 +2624,7 @@ class EpoxyApplication {
       this.closeModal(MODAL_IDS.HELP);
       this.openOnboardingModal();
     });
+    byId('help-tutorial-btn')?.addEventListener('click', () => this.startTutorial());
   }
 
   private bindOnboardingModal(): void {
@@ -2590,10 +2632,47 @@ class EpoxyApplication {
       this.closeModal(MODAL_IDS.ONBOARDING);
     });
     this.bindBackdropClose(MODAL_IDS.ONBOARDING);
+    byId('onboarding-tutorial-btn')?.addEventListener('click', () => this.startTutorial());
+    byId('tutorial-notice-start-btn')?.addEventListener('click', () => this.startTutorial());
+    byId('tutorial-notice-later-btn')?.addEventListener('click', () => {
+      this.closeModal(MODAL_IDS.TUTORIAL_NOTICE);
+    });
+    this.bindBackdropClose(MODAL_IDS.TUTORIAL_NOTICE);
+    byId('overlay-btn-play-epoxy')?.addEventListener('click', () => this.playEpoxyFromTutorial());
   }
 
-  private openOnboardingModal(): void {
-    this.openModal(MODAL_IDS.ONBOARDING, byId('onboarding-close-btn'));
+  /** Opens the "How to play" card; only the first-launch one pushes the tutorial. */
+  private openOnboardingModal(offerTutorial = false): void {
+    const modal = byId(MODAL_IDS.ONBOARDING);
+    if (modal) applyOnboardingTutorialMode(modal, offerTutorial, t);
+    this.openModal(
+      MODAL_IDS.ONBOARDING,
+      offerTutorial ? byId('onboarding-tutorial-btn') : byId('onboarding-close-btn')
+    );
+  }
+
+  private tutorialNoticeKey(): string {
+    return ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.tutorialNoticeSeenKey);
+  }
+
+  /** Opens the one-time "New: Tutorial" notice, also for players who have saves. */
+  private maybeShowTutorialNotice(): void {
+    const show = shouldShowTutorialNotice({
+      tutorialVisible: this.isTutorialOffered(),
+      noticeSeen: this.tutorialNoticeShownThisSession || readSeenFlag(this.tutorialNoticeKey(), ONBOARDING_STORES),
+      onboardingShownThisSession: this.onboardingShownThisSession,
+      endless: this.isEndlessActive(),
+      mode: this.activeMode,
+      dialogOpen: isDialogOpen()
+    });
+    if (!show) return;
+    this.markTutorialNoticeSeen();
+    this.openModal(MODAL_IDS.TUTORIAL_NOTICE, byId('tutorial-notice-start-btn'));
+  }
+
+  private markTutorialNoticeSeen(): void {
+    this.tutorialNoticeShownThisSession = true;
+    writeSeenFlag(this.tutorialNoticeKey(), ONBOARDING_STORES);
   }
 
   /** Opens the "How to play" dialog once, on a genuine first launch. */
@@ -2608,7 +2687,10 @@ class EpoxyApplication {
     });
     if (!show) return;
     this.markOnboardingSeen();
-    this.openOnboardingModal();
+    // The first-launch card already offers the tutorial: the "New" notice would repeat it.
+    const tutorialOffered = this.isTutorialOffered();
+    if (tutorialOffered) this.markTutorialNoticeSeen();
+    this.openOnboardingModal(tutorialOffered);
   }
 
   private bindPasswordModal(): void {
@@ -3411,6 +3493,7 @@ class EpoxyApplication {
     });
     closeThen('touch-menu-options', () => this.setDrawerOpen(true, byId('touch-tab-menu')));
     closeThen('touch-menu-levels', () => this.openScoresModal());
+    closeThen('touch-menu-tutorial', () => this.startTutorial());
     closeThen('touch-menu-exit-fullscreen', () => this.toggleFullscreen());
     byId('touch-menu-undo')?.addEventListener('click', () => {
       this.triggerHaptic();
@@ -4160,12 +4243,22 @@ class EpoxyApplication {
       this.playtest.canRateWin()
     );
     ovResumeBtn?.classList.toggle('hidden', !buttons.resume);
-    ovNextBtn.classList.toggle('hidden', !buttons.next);
+    // The last room of the tutorial hands over to the campaign: Next would wrap to room 1.
+    const offerPlayEpoxy =
+      state === 'complete' &&
+      shouldOfferPlayEpoxy({
+        activePackId: ConfigRegistry.getActivePackId(),
+        onLastRoom: this.isOnLastLevel(),
+        testPlaying: this.isTestPlaying(),
+        endless: this.isEndlessActive()
+      });
+    ovNextBtn.classList.toggle('hidden', !buttons.next || offerPlayEpoxy);
     ovReplayBtn?.classList.toggle('hidden', !buttons.replay);
     ovUndoBtn.classList.toggle('hidden', !buttons.undo);
     ovRetryBtn?.classList.toggle('hidden', !buttons.retry);
     byId('overlay-btn-back-to-editor')?.classList.toggle('hidden', !buttons.backToEditor);
     byId('overlay-btn-rate')?.classList.toggle('hidden', !buttons.rate);
+    byId('overlay-btn-play-epoxy')?.classList.toggle('hidden', !offerPlayEpoxy);
 
     if (state !== this.overlayState) {
       this.overlayState = state;
@@ -4314,29 +4407,13 @@ class EpoxyApplication {
 
   /** True when the seen flag is in persistent storage, or in session storage when that refuses writes. */
   private readOnboardingSeen(): boolean {
-    const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.onboardingSeenKey);
-    for (const store of ONBOARDING_STORES) {
-      try {
-        if (store().getItem(key) !== null) return true;
-      } catch {
-        // Storage blocked: try the next one
-      }
-    }
-    return false;
+    return readSeenFlag(ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.onboardingSeenKey), ONBOARDING_STORES);
   }
 
   /** Remembers the first showing; strict private modes fall back to session storage. */
   private markOnboardingSeen(): void {
     this.onboardingShownThisSession = true;
-    const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.onboardingSeenKey);
-    for (const store of ONBOARDING_STORES) {
-      try {
-        store().setItem(key, ONBOARDING_SEEN_VALUE);
-        return;
-      } catch {
-        // Storage blocked: try the next one
-      }
-    }
+    writeSeenFlag(ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.onboardingSeenKey), ONBOARDING_STORES);
   }
 
   private restoreSavedProgress(): void {
