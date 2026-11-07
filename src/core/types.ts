@@ -1067,7 +1067,7 @@ export interface TileDefinition {
   requiredKey?: string;
   consumesKey?: boolean;
   colorKey?: string;
-  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge' | 'gate' | 'stone';
+  collectible?: 'key' | 'chip' | 'boot' | 'bonus' | 'charge' | 'gate' | 'stone' | 'token';
   /** A blast charge: the lit item it turns into when the player drops it. */
   dropsAs?: string;
   /** A pocket gate: the terrain tile it turns the player's floor cell into when dropped. */

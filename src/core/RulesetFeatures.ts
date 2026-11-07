@@ -325,6 +325,18 @@ export function hasStoneContent(level: Pick<CompiledLevel, 'terrain' | 'items'>)
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
+/** True when the tile is a toll token, carried by the player and spent at a thief. */
+export function isTokenTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).collectible === 'token';
+}
+
+/** True when the level places a toll token (terrain or item layer). */
+export function hasTokenContent(level: Pick<CompiledLevel, 'terrain' | 'items'>): boolean {
+  const hasTile = (grid: Array<Array<string | null>> | undefined): boolean =>
+    grid?.some((row) => row.some(isTokenTileId)) ?? false;
+  return hasTile(level.terrain) || hasTile(level.items);
+}
+
 /** True when the tile is a rail piece (a straight, a bend or a switch), which closes the sides it is not open on. */
 export function isRailTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).railSides !== undefined;
@@ -332,13 +344,13 @@ export function isRailTileId(id: string | null | undefined): boolean {
 
 /**
  * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
- * boots, the ward, a blast charge, a hurl stone, a pocket gate with its pad, a relay pad, or a rail piece (the pads and the
+ * boots, the ward, a blast charge, a hurl stone, a toll token, a pocket gate with its pad, a relay pad, or a rail piece (the pads and the
  * rails are terrain, but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
  */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
-    isChargeTileId(id) || isStoneTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isRailTileId(id)
+    isChargeTileId(id) || isStoneTileId(id) || isTokenTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isRailTileId(id)
   );
 }
 

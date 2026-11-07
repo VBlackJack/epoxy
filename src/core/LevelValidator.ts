@@ -33,7 +33,7 @@ import {
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
 import { relativeTo } from './lynx/directions';
-import { isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
+import { hasTokenContent, isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { registryTileLookup } from './epoxy/epoxySignals';
@@ -172,6 +172,8 @@ interface DoorRankContext {
   chipsRequired: number;
   meltedFires: ReadonlySet<string>;
   swimProtection: string | undefined;
+  /** True when the level places a toll token, so a thief is read as taking nothing. */
+  hasToken: boolean;
   /** Whether the block stock would still cover one more demand of this kind; spends nothing. */
   affords: (use: BlockUse) => boolean;
   /** One flag per cell (y * width + x): cells some state of the walk has already reached. */
@@ -462,6 +464,9 @@ export class LevelValidator {
     const holdDoorOpenable = this.openableHoldDoorColors(level);
     const bootBits = this.buildBootBits();
     const maskCount = 1 << bootBits.size;
+    // A level that places a toll token may pay any thief once, so the walk takes no thief as stealing (an
+    // over-approximation: it never reports a false unreachable, at the price of missing a robbery the token covers).
+    const tokenLevel = hasTokenContent({ terrain: level.terrain, items: level.items });
     const hasBoot: BootCheck = (boots, bootId) => {
       const bit = bootId ? bootBits.get(bootId) : undefined;
       return bit !== undefined && (boots & bit) !== 0;
@@ -739,7 +744,7 @@ export class LevelValidator {
 
           // A key thief the player can reach is assumed to be crossed once: the keys held then are gone.
           // Later passes carry the keys picked up since, which the same thief must not rob again.
-          if (currTile.stealsKeys && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
+          if (currTile.stealsKeys && !tokenLevel && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
             appliedKeyThieves.add(`${curr.x},${curr.y}`);
             for (const keyId of Object.keys(ownedKeys)) {
               if (ownedKeys[keyId] > 0) {
@@ -877,7 +882,7 @@ export class LevelValidator {
             // A barrier against a held item is passable here: the item can be put down
             // before it and fetched later, so reachability stays optimistic about it.
 
-            const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits);
+            const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits, tokenLevel);
             // A fire an ice block melted is water in the engine: only flippers protect there, not fire boots.
             const meltedHere = nextTile.hazard === 'fire' && meltedFires.has(`${nx},${ny}`);
             const protectedHere = hasBoot(nextBoots, meltedHere ? swimProtection : nextTile.protectedByItem);
@@ -935,7 +940,8 @@ export class LevelValidator {
                 collectedChips,
                 level.chipsRequired,
                 meltedFires,
-                swimProtection
+                swimProtection,
+                tokenLevel
               );
               if (meter) meter.cells += slide.path.length;
               if (slide.fatal) {
@@ -1022,6 +1028,7 @@ export class LevelValidator {
               chipsRequired: level.chipsRequired,
               meltedFires,
               swimProtection,
+              hasToken: tokenLevel,
               affords,
               reached,
               budget: rankBudget,
@@ -1427,7 +1434,8 @@ export class LevelValidator {
     heldChips: number,
     chipsRequired: number,
     meltedFires: ReadonlySet<string>,
-    swimProtection: string | undefined
+    swimProtection: string | undefined,
+    hasToken: boolean
   ): SlideResult {
     const height = terrain.length;
     const width = terrain[0]?.length || 0;
@@ -1526,7 +1534,7 @@ export class LevelValidator {
       const entered = ConfigRegistry.getTile(terrain[y][x]);
       const item = items[y][x];
       if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return fatal('bomb', x, y);
-      boots = this.bootsOnArrival(boots, entered, item, bootBits);
+      boots = this.bootsOnArrival(boots, entered, item, bootBits, hasToken);
       // A fire an ice block melted is water now: a swimmer survives it (the slide stops there), fire boots do not.
       const protection =
         entered.hazard === 'fire' && meltedFires.has(`${x},${y}`) ? swimProtection : entered.protectedByItem;
@@ -2170,14 +2178,18 @@ export class LevelValidator {
     }
   }
 
-  /** Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. */
+  /**
+   * Boots held after entering a cell: its boot item is picked up first, then a thief takes everything. A level that
+   * places a toll token is read as never robbing the player of boots (an over-approximation).
+   */
   private static bootsOnArrival(
     boots: number,
     tile: TileDefinition,
     itemId: string | null,
-    bootBits: Map<string, number>
+    bootBits: Map<string, number>,
+    hasToken: boolean
   ): number {
-    if (tile.stealsBoots) return NO_BOOTS;
+    if (tile.stealsBoots && !hasToken) return NO_BOOTS;
     return itemId ? boots | (bootBits.get(itemId) ?? NO_BOOTS) : boots;
   }
 
@@ -2377,7 +2389,8 @@ export class LevelValidator {
             ctx.collectedChips,
             ctx.chipsRequired,
             ctx.meltedFires,
-            ctx.swimProtection
+            ctx.swimProtection,
+            ctx.hasToken
           );
           if (ctx.meter) ctx.meter.cells += slide.path.length;
           if (slide.fatal || slide.opened) continue;

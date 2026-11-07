@@ -191,14 +191,14 @@ export const PACK_JSON_VERSION_V10_IDS: ReadonlySet<string> = new Set(['hurl_sto
 
 /**
  * Version of a pack file that holds at least one level using an id introduced with format 11 (see
- * PACK_JSON_VERSION_V11_IDS): the relay pads. An older build would read the dark pad as floor and the lit pad as a
- * plain teleporter, and drop the signal links that power them, so it must refuse the file. Reading and writing format
- * 11 is switched on by PACK_JSON_MAX_VERSION, which a later lot of the same release raises.
+ * PACK_JSON_VERSION_V11_IDS): the relay pads and the toll token, or a level whose signal links fire a flip tile (see
+ * usesFlipSinkFormat). An older build would read the dark pad as floor and the lit pad as a plain teleporter, would not
+ * know the token, and would drop the signal links that power them or that flip a tile, so it must refuse the file.
  */
 export const PACK_JSON_VERSION_V11 = 11;
 
 /** Ids that only exist from pack format 11; matched by name like the format 7 ids. */
-export const PACK_JSON_VERSION_V11_IDS: ReadonlySet<string> = new Set(['relay_pad_dark', 'relay_pad_lit']);
+export const PACK_JSON_VERSION_V11_IDS: ReadonlySet<string> = new Set(['relay_pad_dark', 'relay_pad_lit', 'toll_token']);
 
 /**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
@@ -214,9 +214,9 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 10.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 11.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V10;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V11;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';
