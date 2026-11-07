@@ -197,7 +197,30 @@ describe('excavation campaign pack ("Buried Sanctuaries")', () => {
   ])('proves boots_pull cannot be bypassed on %s', (id) => {
     loadTestConfigs();
     const levels = ConfigRegistry.getExcavationLevels();
+    const level = levels.find((l) => l.id === id)!;
+    const withoutPull = structuredClone(level);
+    withoutPull.solution = undefined;
+    for (let y = 0; y < withoutPull.items.length; y++) {
+      for (let x = 0; x < withoutPull.items[y].length; x++) {
+        if (withoutPull.items[y][x] === 'boots_pull') {
+          withoutPull.items[y][x] = null;
+        }
+      }
+    }
+    expect(isLevelWinnable(withoutPull), `${id} should be unsolvable without boots_pull`).toBe(false);
+  });
 
+  it('proves puzzle entities cannot be bypassed', () => {
+    loadTestConfigs();
+    const levels = ConfigRegistry.getExcavationLevels();
+    for (const level of levels) {
+      const withoutEntities = structuredClone(level);
+      withoutEntities.solution = undefined;
+      withoutEntities.entities = [];
+      const bypassable =
+        LevelValidator.validate(withoutEntities).valid && isLevelWinnable(withoutEntities);
+      expect(bypassable, `${level.id} should be unsolvable without entities`).toBe(false);
+    }
   });
 
   it('provides complete English and French translations with clean ASCII punctuation and no external IP references', () => {
