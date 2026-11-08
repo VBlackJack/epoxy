@@ -1075,7 +1075,8 @@ export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): s
 /**
  * Problems of the fields of the Chip's Challenge 2 items and character rules of tiles.json: an item that toggles names
  * another item that toggles back, a chip flag sits on a chip, a character barrier names a known character and a boot
- * item, and a blast-proof tile is terrain. Each entry names the tile.
+ * item, a blast-proof tile is terrain, a foil turns only terrain walls into walls that stay shut, and the timer and
+ * block flags sit on items. Each entry names the tile.
  */
 export function findCharacterItemConfigErrors(tiles: Record<string, TileDefinition>): string[] {
   const errors: string[] = [];
@@ -1089,6 +1090,20 @@ export function findCharacterItemConfigErrors(tiles: Record<string, TileDefiniti
     }
     if (tile.countsAsChip !== undefined && tile.collectible !== 'chip') errors.push(`${id}.countsAsChip: only a chip item can count as a chip`);
     if (tile.blastProof !== undefined && tile.layer !== 'terrain') errors.push(`${id}.blastProof: only terrain can resist a blast`);
+    if (tile.turnsWallsTo !== undefined) {
+      if (tile.collectible !== 'boot') errors.push(`${id}.turnsWallsTo: only boots (collectible "boot") may turn walls`);
+      for (const [from, to] of Object.entries(tile.turnsWallsTo)) {
+        const source = tiles[from];
+        const target = tiles[to];
+        if (source === undefined || source.layer !== 'terrain') errors.push(`${id}.turnsWallsTo.${from}: ${from} is not a terrain`);
+        else if (source.passableByPlayer !== false) errors.push(`${id}.turnsWallsTo.${from}: ${from} is not an impassable wall`);
+        // The result must stay shut for the player, so a foil can never open a way (the validator reads it as no-op).
+        if (target === undefined || target.layer !== 'terrain') errors.push(`${id}.turnsWallsTo.${from}: ${String(to)} is not a terrain`);
+        else if (target.passableByPlayer !== false) errors.push(`${id}.turnsWallsTo.${from}: ${to} must be impassable`);
+      }
+    }
+    if (tile.togglesTimer !== undefined && tile.layer !== 'item') errors.push(`${id}.togglesTimer: only an item can toggle the timer`);
+    if (tile.blocksBlocks !== undefined && tile.layer !== 'item') errors.push(`${id}.blocksBlocks: only an item can bar blocks`);
     if (tile.characterOnly !== undefined) {
       if (!isPlayerCharacter(tile.characterOnly)) errors.push(`${id}.characterOnly: unknown character ${String(tile.characterOnly)}`);
       if (tile.layer !== 'terrain') errors.push(`${id}.characterOnly: only terrain can bar a character`);

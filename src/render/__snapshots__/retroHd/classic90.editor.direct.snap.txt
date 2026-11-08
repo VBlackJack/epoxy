@@ -358,6 +358,12 @@ editor tile green_bomb closed=true c333a7bae39f32a2
 editor tile green_bomb closed=false d231802c88cc53af
 editor tile hiking_boots closed=true 38ea1e154e2e081e
 editor tile hiking_boots closed=false 78de2aa083e952c2
+editor tile steel_foil closed=true b9cd48868076d9b1
+editor tile steel_foil closed=false 80b3056184cfd2ac
+editor tile toggle_clock closed=true 7ae26ea7055b5490
+editor tile toggle_clock closed=false d7ccb3c9c7c381e8
+editor tile bribe closed=true ab9a0500d20e6ae9
+editor tile bribe closed=false 68b06416d03c64da
 editor tile score_10 closed=true 69a1e8c73ea0b29e
 editor tile score_10 closed=false f03e38edf837c7ea
 editor tile score_100 closed=true 6e999fba0b202122
@@ -393,6 +399,9 @@ editor item over floor bomb 2fda3e23b0749d54
 editor item over floor green_chip f16321ef8fc26fde
 editor item over floor green_bomb 9e3e76f0f8523626
 editor item over floor hiking_boots bcd5594745d1b6b3
+editor item over floor steel_foil c428c44fc7bf2ea0
+editor item over floor toggle_clock 6815b792383817a4
+editor item over floor bribe 0451292f0b5d1809
 editor item over floor score_10 07e51db5a89793af
 editor item over floor score_100 82b54e4fe2197452
 editor item over floor score_1000 63224d9374b28e84

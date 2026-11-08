@@ -321,7 +321,8 @@ export class DifficultyMetrics {
     }
 
     const timing = ConfigRegistry.getGame().timing;
-    const solutionSeconds = engine.getTick() / timing.ticksPerSecond;
+    // Ticks a toggle clock held the timer do not count against the time limit (0 without a clock).
+    const solutionSeconds = (engine.getTick() - engine.getPausedTicks()) / timing.ticksPerSecond;
     const timed = level.timeLimitSeconds > 0;
     const allowance = level.timeLimitSeconds + engine.getExtraTimeSeconds();
     const mechanics = structure.mechanics;

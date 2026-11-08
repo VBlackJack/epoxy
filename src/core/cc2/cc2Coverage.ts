@@ -54,8 +54,6 @@ const GREEN_BUTTON_REASON =
   'Epoxy plays the green button as CC2 does: it flips the toggle walls and swaps every green chip with a green bomb and back.';
 const MECHANIC_REASON =
   'The mechanic exists in Epoxy and is mapped one to one. Timing fidelity is judged by the replay check of the importer, not by coverage.';
-const PLACEHOLDER_REASON =
-  'Epoxy has no equivalent: the converter keeps the cell as the cc2_unknown placeholder, so the level is not playable as imported.';
 const NO_SIGN_REASON =
   'Epoxy plays a no-sign over a key or boots as its forbid tile: the player cannot enter while carrying the item and the item is not placed, so it cannot be picked up [unverified, medium-high confidence in the CC2 rule].';
 const EXTRA_CHIP_REASON =
@@ -66,6 +64,12 @@ const GREEN_CHIP_REASON =
   'Epoxy plays the green chip as an item that counts toward the socket and swaps with the green button. That CC2 counts green chips toward the chips required is medium confidence.';
 const MELINDA_PLAYER_REASON =
   'Epoxy plays a level whose only player is Melinda with its melinda character: no slide on ice, hiking boots for dirt and gravel.';
+const BRIBE_REASON =
+  'Epoxy plays the bribe as a counted item that every thief takes instead of what it steals, spent even when the thief had nothing to take (the rule of the Lexy Labyrinth engine; whether the CC2 key thief also accepts it is medium confidence).';
+const STEEL_FOIL_REASON =
+  'Epoxy plays the steel foil as boots that turn a bumped plain wall into a steel wall without using up the foil. CC2 also spares walls under a no-foil sign and has ghosts bump walls; Epoxy has neither, and its steel wall only resists blasts, which never destroy walls [unverified].';
+const TOGGLE_CLOCK_REASON =
+  'Epoxy plays the toggle clock as an item that stays on the map, pauses or resumes the level timer when the player steps on it and keeps monsters and every block out of its cell. CC2 bars the plain dirt block only, and the interplay with the time bonus items is [unverified].';
 const GENDER_SIGN_REASON =
   'Epoxy plays the gender sign as a terrain tile that stops the other character.';
 
@@ -90,7 +94,7 @@ const EXACT_KEYS: readonly string[] = [
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
   'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player',
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe',
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button'
 ];
 
@@ -111,12 +115,17 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   steel_wall: STEEL_WALL_REASON,
   extra_chip: EXTRA_CHIP_REASON,
   green_chip: GREEN_CHIP_REASON,
+  bribe: BRIBE_REASON,
   melinda_player: MELINDA_PLAYER_REASON,
   gender_sign_male: GENDER_SIGN_REASON,
   gender_sign_female: GENDER_SIGN_REASON
 };
 
 const APPROX_ENTRIES: Readonly<Record<string, string>> = {
+  // Epoxy: steel_foil.
+  steel_foil: STEEL_FOIL_REASON,
+  // Epoxy: toggle_clock.
+  toggle_clock: TOGGLE_CLOCK_REASON,
   // Epoxy: steel_wall next to dynamite.
   [KEY_STEEL_WALL_DESTROYER]:
     'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy steel walls resist blasts, but the dynamite itself is approximate [unverified].',
@@ -185,7 +194,6 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
   [KEY_CANOPY]:
     'A canopy is a flag on the thin wall of a cell (0x10), not a terrain: Epoxy has no canopy, so the flag is dropped and the cell keeps its real terrain.',
   arrow_block_locked: 'A directional block with no arrow cannot be pushed in CC2; Epoxy has no immovable block entity, so it is placed as a pushable dirt block.',
-  bribe: PLACEHOLDER_REASON,
   no_sign: 'A no-sign over an item other than a key or boots (or over a cell that is not plain floor) has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
 };
@@ -193,7 +201,7 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
 /** Reserved ids whose key is classified by a mapping above instead of being lost. */
 const MAPPED_RESERVED_NAMES: readonly string[] = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female'
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock'
 ];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };
