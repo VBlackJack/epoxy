@@ -578,6 +578,33 @@ tile signal_latch_off closed=true shadowMask=128 hash=1 abb178da1e00afe7
 tile signal_latch_on closed=true isolated e8c858c100202c7c
 tile signal_latch_on closed=true shadowMask=65 hash=1 99eed9979c3449f9
 tile signal_latch_on closed=true shadowMask=128 hash=1 7180a5de7bcd9a68
+tile purple_wall closed=true isolated 64485959dcc2f34e
+tile purple_wall closed=true shadowMask=65 hash=1 132479b774fd7f42
+tile purple_wall closed=true shadowMask=128 hash=1 9c73be7eda13d193
+tile purple_floor closed=true isolated c812c1074c18c237
+tile purple_floor closed=true shadowMask=65 hash=1 4b74ba6e31ba4226
+tile purple_floor closed=true shadowMask=128 hash=1 4b2b0fd6b50b4bbe
+tile toggle_switch_off closed=true isolated eb9eef7002cd5d3f
+tile toggle_switch_off closed=true shadowMask=65 hash=1 f9e8a26f10b8579e
+tile toggle_switch_off closed=true shadowMask=128 hash=1 24cfe12e48c87392
+tile toggle_switch_on closed=true isolated 9a43b3065884fce4
+tile toggle_switch_on closed=true shadowMask=65 hash=1 e2188ad90bdbb199
+tile toggle_switch_on closed=true shadowMask=128 hash=1 5dd7980407bf0ec7
+tile black_button closed=true isolated ef7fecb54d4e6e8e
+tile black_button closed=true shadowMask=65 hash=1 b26769a1f29fddcd
+tile black_button closed=true shadowMask=128 hash=1 47ab7e57a2b22358
+tile button_gray_area closed=true isolated 2c9f9d53887eadb3
+tile button_gray_area closed=true shadowMask=65 hash=1 73349f3ab1dc87e8
+tile button_gray_area closed=true shadowMask=128 hash=1 9a97ee4412b4282f
+tile trap_wired closed=true isolated 401e2b9c7b99ce8a
+tile trap_wired closed=true shadowMask=65 hash=1 aad609d2a78e8e05
+tile trap_wired closed=true shadowMask=128 hash=1 fbf6a68c19f9fdad
+tile flame_jet_wired_off closed=true isolated c79913295c6ba5aa
+tile flame_jet_wired_off closed=true shadowMask=65 hash=1 ce5572a4b8782091
+tile flame_jet_wired_off closed=true shadowMask=128 hash=1 8997a3074dcb4f55
+tile flame_jet_wired_on closed=true isolated 3b833e27281727d9
+tile flame_jet_wired_on closed=true shadowMask=65 hash=1 e90b031157cab59f
+tile flame_jet_wired_on closed=true shadowMask=128 hash=1 23c8e048526639d1
 tile hold_door_red_closed closed=true isolated bb205982e046671e
 tile hold_door_red_closed closed=true shadowMask=65 hash=1 4ec9537f17052b81
 tile hold_door_red_closed closed=true shadowMask=128 hash=1 b428e86e98c9d7a1

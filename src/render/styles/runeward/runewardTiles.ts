@@ -52,6 +52,8 @@ import * as items from './runewardItems';
 import * as marks from './runewardMarks';
 import * as monsters from './runewardMonsters';
 import type { MagePose } from './runewardCharacter';
+import { WIRED_BASE_TILE } from '../../wiredArt';
+import { WIRED_TILES, withWiredMark } from './runewardWired';
 import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
 /** Part of a tile drawn by a call: everything, the cached static part, or the animated overlay. */
@@ -312,6 +314,16 @@ const MECHANISM_ITEMS: Readonly<Record<string, RunewardItemPainter>> = Object.fr
   ['chip', clockedItem(paintChipItem)]
 ]);
 
+/** The wired trap and flame jets: the plain device of the style with the plug of a wired cell on top. */
+function wiredPlainTiles(): Record<string, RunewardTilePainter> {
+  const tiles: Record<string, RunewardTilePainter> = {};
+  for (const [id, baseId] of Object.entries(WIRED_BASE_TILE)) {
+    const base = baseId === 'trap' ? TRAP_PAINTER : devices.TILES[baseId];
+    tiles[id] = withWiredMark(base, devices.ANIMATED.has(baseId));
+  }
+  return tiles;
+}
+
 /** Ids drawn by a Runeward painter. */
 export const RUNEWARD_PAINTERS: RunewardPainters = {
   tiles: {
@@ -329,13 +341,15 @@ export const RUNEWARD_PAINTERS: RunewardPainters = {
     exit: animatedTile(paintExit),
     ...devices.TILES,
     ...items.TILES,
-    ...marks.TILES
+    ...marks.TILES,
+    ...WIRED_TILES,
+    ...wiredPlainTiles()
   },
   items: { ...MECHANISM_ITEMS, ...items.ITEMS },
   entities: { ...blocks.ENTITIES, ...monsters.ENTITIES, ...devices.ENTITIES },
   player: paintPlayer,
   shot: monsters.SHOT,
-  animatedTiles: new Set<string>([...ANIMATED_TILE_IDS, ...devices.ANIMATED, TURTLE_TILE_ID])
+  animatedTiles: new Set<string>([...ANIMATED_TILE_IDS, ...devices.ANIMATED, TURTLE_TILE_ID, ...Object.keys(WIRED_BASE_TILE).filter((id) => devices.ANIMATED.has(WIRED_BASE_TILE[id]))])
 };
 
 /** Every Epoxy tile, item and entity id that keeps the shared drawing: the ids the lot modules still leave out (none). */

@@ -66,7 +66,9 @@ interface SignalSinkOptions {
  * green button counts a hidden wall by its own bookkeeping, and a wire must not change that cell behind its back. A
  * hidden hold door, launcher or clone machine still is a sink. A relay pad (lit or dark: a signal link powers the pad, not
  * its current form) is a level sink that follows its input; it is never hidden (the level normalisation refuses it), and a
- * hidden one is no sink for the same reason as a hidden flip tile.
+ * hidden one is no sink for the same reason as a hidden flip tile. A wired flip tile (a purple wall or a wired flame jet,
+ * `wireTogglesTo`) flips on every change of its input, rising and falling, and a wired trap is a level sink that is open
+ * while its input is on; neither is a sink when hidden, for the same reason.
  */
 export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = {}): SignalSinkKind | null {
   if (tile.holdDoorColor !== undefined) return { color: tile.holdDoorColor };
@@ -74,6 +76,9 @@ export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = 
   if (tile.isCloneMachine) return { fires: 'cloner' };
   if (tile.togglesTo !== undefined && options.hidden !== true) return { fires: 'flip' };
   if (tile.relayPad !== undefined && options.hidden !== true) return { powers: true };
+  // A purple wall or a wired flame jet flips on every change of its input; a wired trap is a level sink like a relay pad.
+  if (tile.wireTogglesTo !== undefined && options.hidden !== true) return { fires: 'flip_edges' };
+  if (tile.wiredTrap === true && options.hidden !== true) return { powers: true };
   return null;
 }
 
@@ -82,7 +87,7 @@ function nodeOfTile(tile: TileDefinition, cell: number, hidden: boolean = false)
   if (tile.laserReceiverGroup !== undefined) {
     return { role: 'source', def: { cell, kind: 'source', sample: 'receiver' } };
   }
-  if (tile.signalSource === 'held' || tile.signalSource === 'pulse') {
+  if (tile.signalSource !== undefined) {
     return { role: 'source', def: { cell, kind: 'source', sample: tile.signalSource } };
   }
   if (tile.signalGate !== undefined) {

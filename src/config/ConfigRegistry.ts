@@ -43,6 +43,7 @@ import {
   findChargeConfigErrors,
   findGateConfigErrors,
   findRelayPadConfigErrors,
+  findWiredDeviceConfigErrors,
   findPullBootsConfigErrors,
   findTransmogrifierConfigErrors,
   findShotConfigErrors,
@@ -406,6 +407,10 @@ class ConfigRegistryService {
     const relayErrors = findRelayPadConfigErrors(bundle.tiles.tiles);
     if (relayErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, relayErrors.join('; '));
+    }
+    const wiredErrors = findWiredDeviceConfigErrors(bundle.tiles.tiles);
+    if (wiredErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, wiredErrors.join('; '));
     }
     const transmogrifierErrors = findTransmogrifierConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (transmogrifierErrors.tiles.length > 0) {

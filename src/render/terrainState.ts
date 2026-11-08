@@ -150,7 +150,7 @@ export function collectTerrainFeatures(
           else features.teleporterGroups.set(key, [{ x, y }]);
         }
       }
-      if (tileId === 'trap') features.traps.push({ x, y });
+      if (tileId === 'trap' || def?.isTrap === true) features.traps.push({ x, y });
       if (animatedTileIds.has(tileId)) features.animatedCells.push({ x, y, tileId });
       if (litTileIds.has(tileId)) features.litCells.push({ x, y, tileId });
     }

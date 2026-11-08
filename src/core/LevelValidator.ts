@@ -1818,7 +1818,8 @@ export class LevelValidator {
         const ids = hiddenId === undefined ? [topId] : [topId, hiddenId];
         for (const id of ids) {
           const tile = ConfigRegistry.getTile(id);
-          if (tile.isTrap) trapCells.push({ x, y });
+          // A wired trap that a signal link ends on has its own control.
+          if (tile.isTrap && !(tile.wiredTrap === true && (level.signalLinks ?? []).some((l) => l.toX === x && l.toY === y))) trapCells.push({ x, y });
           if (tile.buttonAction === 'hold_trap') brownButtons++;
           if (tile.buttonAction === 'toggle_flames') orangeButtons++;
           if (tile.flameTogglesTo !== undefined) jetCells.push({ x, y });
@@ -2091,7 +2092,8 @@ export class LevelValidator {
    * over-approximation). A launcher is a terrain tile of its own, so no swivel can turn it: one direction.
    * A flip sink on a closed wall opens it (the green button's predicate: a tile the player cannot enter that has an
    * other form), so a wired wall with no green button is not reported unreachable. A rail switch is passable on both
-   * forms and needs nothing.
+   * forms and needs nothing. A wired flip tile (a purple wall, a wired flame jet) opens the same way, to its walkable
+   * and harmless form.
    */
   private static applySignalSinks(
     level: CompiledLevel,
@@ -2112,6 +2114,16 @@ export class LevelValidator {
       if (node.fires === 'flip') {
         const tile = ConfigRegistry.getTile(simTerrain[y][x]);
         if (!tile.passableByPlayer && tile.togglesTo !== undefined) simTerrain[y][x] = tile.togglesTo;
+        continue;
+      }
+      if (node.fires === 'flip_edges') {
+        // A wired flip tile (a purple wall, a lit wired flame jet) changes on every change of its input: the walk reads
+        // it in its walkable, harmless form whenever it has one.
+        const tile = ConfigRegistry.getTile(simTerrain[y][x]);
+        const other = tile.wireTogglesTo === undefined ? undefined : ConfigRegistry.getTile(tile.wireTogglesTo);
+        if (other !== undefined && (!tile.passableByPlayer || tile.hazard !== undefined) && other.passableByPlayer && other.hazard === undefined) {
+          simTerrain[y][x] = other.id;
+        }
         continue;
       }
       if (node.fires === 'cloner') {

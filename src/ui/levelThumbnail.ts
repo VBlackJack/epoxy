@@ -94,7 +94,16 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   turn_plate_cw: 'teleportRing',
   turn_plate_ccw: 'teleportRing',
   signal_plate: 'yellow',
-  signal_button: 'yellow'
+  signal_button: 'yellow',
+  purple_wall: 'teleportRing',
+  purple_floor: 'teleportCore',
+  toggle_switch_off: 'gravelBase',
+  toggle_switch_on: 'yellow',
+  black_button: 'chipBody',
+  button_gray_area: 'gray',
+  trap_wired: 'trapBorder',
+  flame_jet_wired_off: 'flameJetRim',
+  flame_jet_wired_on: 'fireMid'
 };
 
 /** Families of tiles named `<prefix><suffix>`; the palette key is `key` or, when null, the suffix itself (a colour name). */

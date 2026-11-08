@@ -100,6 +100,12 @@ export const DEFAULT_RULESET: Ruleset = 'epoxy';
 /** Button action of a steering pad: every steered monster takes one step the way the player moved. */
 export const STEER_MONSTERS_ACTION: ButtonAction = 'steer_monsters';
 
+/**
+ * Button action of a gray area button: when an actor arrives, every wired device (a sink of the signal network) within the
+ * square of GRAY_BUTTON_RADIUS cells around it is pulsed, with no wire from the button.
+ */
+export const PULSE_WIRED_ACTION: ButtonAction = 'pulse_wired_area';
+
 /** Button action of a shot trigger: every launcher linked to the button fires one shot. */
 export const FIRE_LAUNCHERS_ACTION: ButtonAction = 'fire_launchers';
 

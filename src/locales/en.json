@@ -4639,6 +4639,60 @@
         "label": "Flips between sending and not sending each time its input starts sending; starts on. Needs: signal links in and out."
       }
     },
+    "purple_wall": {
+      "name": "Purple Wall",
+      "desc": {
+        "label": "A wall that becomes a purple floor each time the signal wired into it changes, whether it starts or stops sending. Needs: a signal link into it."
+      }
+    },
+    "purple_floor": {
+      "name": "Purple Floor",
+      "desc": {
+        "label": "A floor that becomes a purple wall each time the signal wired into it changes, whether it starts or stops sending. Needs: a signal link into it."
+      }
+    },
+    "toggle_switch_off": {
+      "name": "Toggle Switch (Off)",
+      "desc": {
+        "label": "Sends no signal. Each time something steps on it, it turns on. Needs: a signal link to a gate or a device."
+      }
+    },
+    "toggle_switch_on": {
+      "name": "Toggle Switch (On)",
+      "desc": {
+        "label": "Sends a signal. Each time something steps on it, it turns off. Needs: a signal link to a gate or a device."
+      }
+    },
+    "black_button": {
+      "name": "Black Button",
+      "desc": {
+        "label": "Sends a signal all the time, except while something stands on it. Needs: a signal link to a gate or a device."
+      }
+    },
+    "button_gray_area": {
+      "name": "Gray Pulse Button",
+      "desc": {
+        "label": "Each time something steps on it, it pulses every wired device within two cells (a 5 x 5 area), with no wire from the button: flip tiles flip, launchers and clone machines fire once, and hold doors, relay pads and wired traps open for one moment."
+      }
+    },
+    "trap_wired": {
+      "name": "Signal Bear Trap",
+      "desc": {
+        "label": "Holds whatever steps in, and opens while the signal wired into it is on or while a brown button is held. Needs: a signal link into it."
+      }
+    },
+    "flame_jet_wired_off": {
+      "name": "Signal Flame Jet (Off)",
+      "desc": {
+        "label": "Harmless while off. It lights each time the signal wired into it changes. The orange button does not touch it. Needs: a signal link into it."
+      }
+    },
+    "flame_jet_wired_on": {
+      "name": "Signal Flame Jet (On)",
+      "desc": {
+        "label": "Burns the player unless they wear fire boots; only fire-proof monsters enter it. It goes out each time the signal wired into it changes. The orange button does not touch it. Needs: a signal link into it."
+      }
+    },
     "hold_door_red_closed": {
       "name": "Red Hold Door (Closed)",
       "desc": {

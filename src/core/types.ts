@@ -1193,7 +1193,22 @@ export interface TileDefinition {
    * A signal source: 'held' is on while its cell is occupied, 'pulse' is on for one settle after something
    * arrives on its cell. A laser receiver is a source through laserReceiverGroup.
    */
-  signalSource?: 'held' | 'pulse';
+  signalSource?: 'held' | 'pulse' | 'inverted' | 'toggle';
+  /**
+   * A toggle switch (signalSource 'toggle'): whether this form is the powered one. The state of the switch is its terrain
+   * form, so it lives in the terrain (snapshots and hashes already cover it).
+   */
+  signalToggleOn?: boolean;
+  /** A toggle switch: the id of its other form, which the switch becomes each time an actor arrives on it. */
+  signalToggleTwin?: string;
+  /**
+   * The other form of a purple wall or a wired flame jet, which the cell becomes on every change of the signal wired
+   * into it (a rising and a falling edge alike). It is not togglesTo: the green button swaps every togglesTo tile and
+   * never touches this one.
+   */
+  wireTogglesTo?: string;
+  /** A trap that a signal link may end on: it is open while that signal is on, besides while a brown button is held. */
+  wiredTrap?: true;
   /** A signal gate: the logic it applies to the signals linked into it. */
   signalGate?: 'and' | 'or' | 'not' | 'xor' | 'latch';
   /** A latch tile that starts with its bit on; the bit itself lives in the signal state. */
@@ -1220,7 +1235,8 @@ export type ButtonAction =
   | 'toggle_walls_blue'
   | 'toggle_walls_yellow'
   | 'steer_monsters'
-  | 'fire_launchers';
+  | 'fire_launchers'
+  | 'pulse_wired_area';
 
 /** How a shot launcher fires. */
 export interface ShotLauncherDefinition {
@@ -1693,14 +1709,18 @@ export interface SignalState {
   lastOutputs: boolean[];
 }
 
-/** How a signal source reads the world: a held source is on while its cell is occupied, a receiver source while a laser lights it. */
-export type SignalSampler = 'held' | 'pulse' | 'receiver';
+/**
+ * How a signal source reads the world: a held source is on while its cell is occupied, an inverted one while it is not,
+ * a receiver source while a laser lights it, a toggle source while its terrain is the powered form of a toggle switch.
+ */
+export type SignalSampler = 'held' | 'pulse' | 'receiver' | 'inverted' | 'toggle';
 
 /**
  * What a signal sink fires on a rising edge of its input: a shot launcher, a clone machine, or a flip tile (a green
- * toggle wall or a rail switch: the one cell swaps to its other form).
+ * toggle wall or a rail switch: the one cell swaps to its other form). A `flip_edges` sink (a purple wall or a wired
+ * flame jet) flips on every change of its input instead, rising and falling alike.
  */
-export type SignalSinkFires = 'launcher' | 'cloner' | 'flip';
+export type SignalSinkFires = 'launcher' | 'cloner' | 'flip' | 'flip_edges';
 
 /** A node of a signal network with what the engine needs to read or drive it. */
 export interface SignalNodeDef extends SignalNodeSpec {
@@ -1710,7 +1730,7 @@ export interface SignalNodeDef extends SignalNodeSpec {
   color?: ChannelColor;
   /** Sink nodes only: the device the node fires once on each rising edge of its input. A sink has exactly one kind: a colour, `fires` or `powers`. */
   fires?: SignalSinkFires;
-  /** Sink nodes only: the node powers a relay pad, which follows the level of its input (lit while on). */
+  /** Sink nodes only: the node powers a relay pad or a wired trap, which follows the level of its input (lit or open while on). */
   powers?: boolean;
 }
 
@@ -1724,6 +1744,10 @@ export interface SignalSpec {
 export interface SignalPulseState {
   pending: number[];
   carry: number[];
+  /** Level sinks a gray area button pulsed since the last settle (cell indexes, ascending); left out when none. */
+  area?: number[];
+  /** Level sinks held on by a gray area button for the current settle only (cell indexes, ascending); left out when none. */
+  lit?: number[];
 }
 
 /** How well Epoxy plays an element of a CC2 level, or a whole level (the worst of its elements). */

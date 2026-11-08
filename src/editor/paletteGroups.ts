@@ -74,7 +74,7 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   if (tile.plateColor || tile.holdDoorColor || tile.toggleChannel || tile.floatingBlockColor) return 'colour';
   // A rail switch toggles like a wall, but it sits with the rest of the rails.
   if (tile.railSides !== undefined) return 'rails';
-  if (tile.togglesTo || tile.flameTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.facingTurn !== undefined) return 'toggles';
+  if (tile.togglesTo || tile.flameTogglesTo || tile.wireTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.facingTurn !== undefined) return 'toggles';
   if (tile.signalSource || tile.signalGate) return 'toggles';
   if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';
   return null;
