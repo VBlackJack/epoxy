@@ -1535,6 +1535,46 @@ button.editor-issue-row:focus-visible {
   color: var(--text-main);
 }
 
+.editor-rail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.editor-rail-segments {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.25rem;
+}
+
+.editor-rail-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border: 1px solid #2c3344;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.editor-rail-segment[aria-pressed='true'] {
+  border-color: var(--text-main);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-rail-active {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #2c3344;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
 .editor-connection-row {
   display: flex;
   align-items: stretch;

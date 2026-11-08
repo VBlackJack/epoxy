@@ -456,6 +456,7 @@ export class LevelValidator {
     this.checkLurkers(level, issues);
     this.checkPhasingClones(level, issues);
     this.checkShotLaunchers(level, issues);
+    this.checkRailTrackCells(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
     checkSignalWiring(level, issues);
@@ -1751,6 +1752,23 @@ export class LevelValidator {
       i18nKey: 'validator.issues.wisp_cloned.label',
       params: this.locationParams(cells)
     });
+  }
+
+  /**
+   * Warning about a track cell (Chip's Challenge 2) that holds no track segment: no actor can enter it, so it is a wall
+   * the author did not mean. One warning per cell. It reads the cells only; reachability is judged elsewhere.
+   */
+  private static checkRailTrackCells(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const width = level.terrain[0]?.length ?? 0;
+    const withTracks = new Set<number>();
+    for (const track of level.railTracks ?? []) if (track.mask !== 0 || track.active !== undefined) withTracks.add(track.y * width + track.x);
+    level.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        if (ConfigRegistry.getTile(id).railJunction === true && !withTracks.has(y * width + x)) {
+          issues.push({ severity: 'warning', i18nKey: 'validator.issues.rail_track_empty.label', params: { x, y } });
+        }
+      })
+    );
   }
 
   /**
