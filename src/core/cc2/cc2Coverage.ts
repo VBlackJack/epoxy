@@ -70,7 +70,9 @@ const STEEL_WALL_REASON =
  * hint, key_* and door_* (red, blue, yellow, green), chip, boots_water (flippers), boots_fire (fire boots), boots_ice
  * (cleats), boots_force (suction boots), invisible_wall, appearing_wall, blue_wall_real/fake, thin walls (cell edges),
  * swivel doors, toggle_wall_open/closed, button_green/blue/brown/red, trap, clone_machine, teleport_blue (unwired),
- * thief and thief_keys, bomb, stopwatch_bonus, stopwatch_penalty (time_penalty), score_10/100/1000/2x.
+ * thief and thief_keys, bomb, stopwatch_bonus, stopwatch_penalty (time_penalty), score_10/100/1000/2x, purple_wall and
+ * purple_floor (flipped by the wire, both edges), toggle_switch_off/on and black_button (wire sources). The wire timing
+ * is judged by the wire key, so a wired level stays approximate.
  */
 const EXACT_KEYS: readonly string[] = [
   'floor', 'wall', 'ice', 'ice_corner', 'water', 'fire', 'force_floor', 'exit', 'dirt', 'gravel', 'socket', 'hint',
@@ -79,7 +81,8 @@ const EXACT_KEYS: readonly string[] = [
   'blue_wall_real', 'blue_wall_fake', 'thin_wall', 'swivel_door', 'toggle_wall_open', 'toggle_wall_closed',
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
-  'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty'
+  'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty',
+  'purple_wall', 'purple_floor', 'toggle_switch', 'black_button'
 ];
 
 /**
@@ -103,6 +106,12 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   no_sign_key: NO_SIGN_REASON,
   // Epoxy: forbid_boots_ice/water/fire/force.
   no_sign_boots: NO_SIGN_REASON,
+  // Epoxy: button_gray_area.
+  button_gray: 'Epoxy plays the CC2 gray button as a button that pulses every wire-capable device in its 5 x 5 square, linked or not; the exact reach and the pulse order are [unverified].',
+  // Epoxy: trap_wired.
+  wired_trap: 'Epoxy plays a wired trap as open while its signal is on or a brown button is held; CC2 settles the wire tick by tick [unverified]. A wired open trap (0x41) starts closed in Epoxy until its signal rises; the CC2 starting state is unverified.',
+  // Epoxy: flame_jet_wired_off, flame_jet_wired_on.
+  wired_flame_jet: 'Epoxy flips a wired flame jet on both edges of its signal; that CC2 flips it on both edges is [unverified].',
   // Epoxy: button_orange.
   button_orange: 'Epoxy plays the orange button as its flame button; the CC2 button acts on the flame jets around it, where Epoxy toggles them all [unverified].',
   // Epoxy: flame_jet_on, flame_jet_off.
@@ -158,8 +167,6 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
     'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy has no wall that resists a blast, so the level is lost.',
   [KEY_CANOPY]:
     'A canopy is a flag on the thin wall of a cell (0x10), not a terrain: Epoxy has no canopy, so the flag is dropped and the cell keeps its real terrain.',
-  wired_trap: 'A CC2 wire opens or closes this trap; Epoxy traps follow only the brown button, so the wire is dropped.',
-  wired_flame_jet: 'A CC2 wire switches this flame jet; Epoxy flame jets follow only the orange button, so the wire is dropped.',
   arrow_block_locked: 'A directional block with no arrow cannot be pushed in CC2; Epoxy has no immovable block entity, so it is placed as a pushable dirt block.',
   bribe: PLACEHOLDER_REASON,
   no_sign: 'A no-sign over an item other than a key or boots (or over a cell that is not plain floor) has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
@@ -167,7 +174,9 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
 };
 
 /** Reserved ids whose key is classified by a mapping above instead of being lost. */
-const MAPPED_RESERVED_NAMES: readonly string[] = ['helmet', 'steel_wall', 'extra_chip'];
+const MAPPED_RESERVED_NAMES: readonly string[] = [
+  'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray'
+];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };
 
