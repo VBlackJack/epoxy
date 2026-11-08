@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- Validator: far fewer false "exit unreachable" reports. A force floor (plain, turning or random) is a cell the player may step off sideways, as the engine allows, instead of a slide followed to its end; blocks are counted per hazard instead of being spent greedily on the first hazard reached. On the bundled CCLP 1-5 packs the false reports drop from 210 to 41, and no level is newly flagged. Two bundled levels (epoxy_c_3, epoxy_p_20) are now judged valid.
 - CC2 import: a no-sign over a key or boots now plays as the matching forbid tile (empty no-signs as plain floor), and the pink button plays as the held pressure plate instead of the pulse button.
 - Validator: fewer false "exit unreachable" reports. A green button, a bomb or a block cloner button that a monster or block can reach counts as triggered (toggle walls open, bomb removed, clone granted).
 - CC1 `.DAT` import: under the Lynx rules the swimming Chip codes 0x3C-0x3F give the player start (facing kept, terrain below kept) when the level has no other start; the unused codes 0x33-0x3B and 112-255 are reported as import diagnostics; a level with no player start is flagged and fails validation instead of getting a start at the centre.
