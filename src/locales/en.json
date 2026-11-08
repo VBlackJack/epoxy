@@ -2453,7 +2453,7 @@
           },
           "players": {
             "name": "Several players",
-            "label": "A level can list extra players beside the start. One is controlled at a time and a swap passes control on; each keeps its own keys and tools, chips are shared, and every player must reach an exit. The editor does not draw them yet."
+            "label": "Use the Second Player tool to place up to 7 more starts; pick each one's character or remove it in the Cell section, and turn it with R or Shift+R. One player is controlled at a time and V swaps to the next; each keeps its own keys and tools, chips are shared, and every player must reach an exit."
           }
         },
         "cc3d": {

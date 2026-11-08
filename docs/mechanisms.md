@@ -95,7 +95,9 @@ The CC2 import (`.c2m` files, `.c2g` game scripts or a whole folder) maps these 
 ### 1.13 Several players in one level
 
 - **What it does** (Epoxy rules). One player is controlled at a time and a swap passes control to the next. The others take no step of their own but still slide and can be killed. Each player keeps its own keys, tools and character; chips are shared. A player reaching an exit leaves play, and every player must exit to win. Undo and recorded moves include swaps. Levels with one player are unchanged.
-- **Configuring.** The level data holds the other players in an `extraPlayers` list (position, facing and character each, up to 7 more). The import, the play controls and the editor for it are not part of this build yet: the editor does not draw them.
+- **Placing.** The Second Player tool places extra player starts (up to 7 more); the direction control sets the facing, `R` or `Shift+R` turns one, and the eraser removes it. The Cell inspector picks each one's character (Chip or Melinda) or removes it. Extras follow every edit (eraser, cut, paste, move, resize, undo), and the level settings show the player count. A second player cannot start on the player start cell. Epoxy rules only.
+- **Playing.** `V` (rebindable in the game config) or the touch button swaps to the next player. The HUD shows the controlled character with its portrait, how many players remain and how many are out, and a ring marks the controlled player. Swaps are announced and replayed; a stored solution can contain a swap (letter `P`).
+- **Import and validator.** Packs store these levels (format 13) in an `extraPlayers` list. The CC2 import places every player (CC2 multi-player levels are approximate instead of lost). The validator floods from every start, reports a player who cannot reach an exit, and warns about two starts on one cell.
 
 ## 2. From Chuck's Challenge 3D
 
@@ -144,7 +146,7 @@ Signal links drive these devices; the validator and the "How mechanisms work" ca
 
 ### 3.2 Several players
 
-See section 1.13: the engine rule is Epoxy's (CC2 rule, Epoxy rules).
+See section 1.13: the rule is CC2's, played under Epoxy rules, and the editor, play controls, import and validator all support it.
 
 ### 3.3 Gate ports in the editor
 
@@ -173,4 +175,4 @@ Variant families take one entry each: no-signs, counters, swivel doors, CC2 swiv
 | Fish gate, forward and turning teleporters | CC3D | Palette |
 | Bouncer, snappy, nibble, blinky family, limpy, limpa, omni, walker, legs, screamer family | CC3D | Palette, `Shift+R` |
 | Purple wall and floor, toggle switch, black button, gray pulse button, signal trap and flame jet | Epoxy | Palette, `K` |
-| Several players | CC2 rule | Level data (`extraPlayers`) |
+| Several players | CC2 rule | Second Player tool, Cell inspector, `R` / `Shift+R`, `V` to swap in play |

@@ -95,7 +95,9 @@ L'import CC2 (fichiers `.c2m`, scripts de jeu `.c2g` ou dossier entier) converti
 ### 1.13 Plusieurs joueurs dans un niveau
 
 - **Ce que ça fait** (règles Epoxy). Un seul joueur est commandé à la fois et un échange passe la main au suivant. Les autres ne font aucun pas de leur propre initiative mais glissent encore et peuvent être tués. Chaque joueur garde ses propres clés, outils et personnage ; les puces sont partagées. Un joueur qui atteint une sortie quitte le jeu, et tous les joueurs doivent sortir pour gagner. L'annulation et les mouvements enregistrés incluent les échanges. Les niveaux à un seul joueur sont inchangés.
-- **Configuration.** Les données du niveau portent les autres joueurs dans une liste `extraPlayers` (position, orientation et personnage de chacun, jusqu'à 7 de plus). L'import, les commandes de jeu et l'éditeur correspondants ne font pas encore partie de cette version : l'éditeur ne les dessine pas.
+- **Placement.** L'outil Deuxième joueur place des départs de joueurs supplémentaires (jusqu'à 7 de plus) ; le contrôle de direction règle l'orientation, `R` ou `Maj+R` en tourne un, et la gomme le retire. L'inspecteur de cellule choisit le personnage de chacun (Chip ou Melinda) ou le retire. Les joueurs supplémentaires suivent chaque modification (gomme, couper, coller, déplacer, redimensionner, annuler), et les réglages du niveau montrent le nombre de joueurs. Un second joueur ne peut pas démarrer sur la case de départ du joueur. Règles Epoxy uniquement.
+- **Jeu.** `V` (reconfigurable dans la configuration du jeu) ou le bouton tactile passe au joueur suivant. Le HUD montre le personnage commandé avec son portrait, combien de joueurs restent et combien sont sortis, et un anneau marque le joueur commandé. Les échanges sont annoncés et rejoués ; une solution enregistrée peut contenir un échange (lettre `P`).
+- **Import et validateur.** Les packs stockent ces niveaux (format 13) dans une liste `extraPlayers`. L'import CC2 place tous les joueurs (les niveaux CC2 à plusieurs joueurs sont approximatifs au lieu d'être perdus). Le validateur propage depuis chaque départ, signale un joueur qui ne peut pas atteindre une sortie et avertit de deux départs sur une même case.
 
 ## 2. Venus de Chuck's Challenge 3D
 
@@ -144,7 +146,7 @@ Des liaisons de signal pilotent ces dispositifs ; le validateur et la fiche "Com
 
 ### 3.2 Plusieurs joueurs
 
-Voir la section 1.13 : la règle de moteur est celle d'Epoxy (règle CC2, règles Epoxy).
+Voir la section 1.13 : la règle est celle de CC2, jouée avec les règles Epoxy, et l'éditeur, les commandes de jeu, l'import et le validateur la prennent tous en charge.
 
 ### 3.3 Ports des portes dans l'éditeur
 
@@ -173,4 +175,4 @@ Les familles de variantes occupent une entrée chacune : panneaux interdits, com
 | Porte des Poissons, téléporteurs avant et tournant | CC3D | Palette |
 | Rebondisseur, snappy, nibble, famille Blinky, limpy, limpa, omni, marcheur, jambes, famille Hurleur | CC3D | Palette, `Maj+R` |
 | Mur et sol violets, interrupteur, bouton noir, bouton d'impulsion gris, piège et jet de flammes à signal | Epoxy | Palette, `K` |
-| Plusieurs joueurs | Règle CC2 | Données du niveau (`extraPlayers`) |
+| Plusieurs joueurs | Règle CC2 | Outil Deuxième joueur, inspecteur de cellule, `R` / `Maj+R`, `V` pour échanger en jeu |

@@ -2453,7 +2453,7 @@
           },
           "players": {
             "name": "Plusieurs joueurs",
-            "label": "Un niveau peut lister des joueurs supplémentaires à côté du départ. Un seul est commandé à la fois et un échange passe la main ; chacun garde ses clés et ses outils, les puces sont partagées, et tous les joueurs doivent atteindre une sortie. L'éditeur ne les dessine pas encore."
+            "label": "Utilisez l'outil Deuxième joueur pour placer jusqu'à 7 départs de plus ; choisissez le personnage de chacun ou retirez-le dans la section Cellule, et tournez-le avec R ou Maj+R. Un seul joueur est commandé à la fois et V passe au suivant ; chacun garde ses clés et ses outils, les puces sont partagées, et tous les joueurs doivent atteindre une sortie."
           }
         },
         "cc3d": {
