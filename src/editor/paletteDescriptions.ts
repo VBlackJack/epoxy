@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { BrushKind, CELL_EDGE_BRUSH_ID } from './editorTools';
+import { BrushKind, CANOPY_BRUSH_ID, CELL_EDGE_BRUSH_ID } from './editorTools';
 
 /** The final segment of a tile or entity name key, swapped for the description segments. */
 const NAME_SEGMENT_SUFFIX = '.name';
@@ -24,6 +24,7 @@ const DESCRIPTION_SEGMENT_SUFFIX = '.desc.label';
 /** Description keys of the synthetic palette entries, which have no tile or entity definition. */
 const PLAYER_START_DESCRIPTION_KEY = 'editor.palette.tools.player_start_desc.label';
 const CELL_EDGE_DESCRIPTION_KEY = 'editor.palette.tools.cell_edge_desc.label';
+const CANOPY_DESCRIPTION_KEY = 'editor.palette.tools.canopy_desc.label';
 
 /**
  * The locale key that explains a palette entry (what it does and what it needs), or undefined for an entry
@@ -32,7 +33,10 @@ const CELL_EDGE_DESCRIPTION_KEY = 'editor.palette.tools.cell_edge_desc.label';
  */
 export function descriptionKeyFor(kind: BrushKind, id: string): string | undefined {
   if (kind === 'player_start') return PLAYER_START_DESCRIPTION_KEY;
-  if (kind === 'cell_edge') return id === CELL_EDGE_BRUSH_ID ? CELL_EDGE_DESCRIPTION_KEY : undefined;
+  if (kind === 'cell_edge') {
+    if (id === CANOPY_BRUSH_ID) return CANOPY_DESCRIPTION_KEY;
+    return id === CELL_EDGE_BRUSH_ID ? CELL_EDGE_DESCRIPTION_KEY : undefined;
+  }
   const nameKey = kind === 'entity' ? ConfigRegistry.getEntityDef(id)?.i18nKey : ConfigRegistry.getTile(id)?.i18nKey;
   // getTile answers floor for an unknown id: only a name key that carries the id is the entry's own.
   if (!nameKey?.endsWith(`.${id}${NAME_SEGMENT_SUFFIX}`)) return undefined;
