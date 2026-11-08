@@ -28,6 +28,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
+import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -58,8 +59,11 @@ export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition): bool
   return tile.slideType === 'force' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem));
 }
 
-export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: boolean): boolean {
+export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
+  // On a Chip's Challenge 2 track cell a step the tracks refuse is turned onto the track (the identity elsewhere).
+  const rail = playerRailActor(w);
+  const dir = railRedirect(w, w.player.x, w.player.y, requestedDir, rail);
   w.player.dir = dir;
   const vec = DIRECTION_VECTORS[dir];
   const targetX = w.player.x + vec.dx;
@@ -70,7 +74,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     return false;
   }
 
-  if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir)) {
+  if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir, false, rail)) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }

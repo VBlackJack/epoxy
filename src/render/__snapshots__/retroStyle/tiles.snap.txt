@@ -1013,6 +1013,16 @@ tile theme=cyber_neon id=shot_trigger bd3540b8b0c12b6f
 tile theme=arctic_lab id=shot_trigger 9e0d261c3bdd11de
 tile theme=magma_core id=shot_trigger b78fcc9b477f45db
 tile theme=lynx_lcd id=shot_trigger 51883afedf2f623e
+tile theme=default id=rail_junction 76c55f7fdeacabfa
+tile theme=cyber_neon id=rail_junction 154e34f97cf64cc5
+tile theme=arctic_lab id=rail_junction 8ee1955e7cec0a7f
+tile theme=magma_core id=rail_junction 451c8d8a3fee68b3
+tile theme=lynx_lcd id=rail_junction ded7711e2f14e5d6
+tile theme=default id=railroad_sign 141bc45f348e911d
+tile theme=cyber_neon id=railroad_sign d3b097f27379a0f8
+tile theme=arctic_lab id=railroad_sign 2bd7f26e9716a3c1
+tile theme=magma_core id=railroad_sign 537c6521524c804f
+tile theme=lynx_lcd id=railroad_sign 047f6e21774c9a3d
 tile theme=default id=no_sign_key_red 1e64793a3163b954
 tile theme=cyber_neon id=no_sign_key_red 3834252c6f760adf
 tile theme=arctic_lab id=no_sign_key_red edf1f2448cef8e34

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { playerRailActor } from './epoxyRailsCc2';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
@@ -91,7 +92,7 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
         if (
           canPlayerEnter(w, exitTile, w.items[exitY][exitX]) &&
           !getEntityAt(w, exitX, exitY) &&
-          !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir)
+          !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir, false, playerRailActor(w))
         ) {
           AudioManager.playSfx('teleport');
           w.player.x = exitX;

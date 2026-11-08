@@ -22,6 +22,7 @@
  */
 
 import { DIRECTION_VECTORS } from '../config/constants';
+import { RAIL_TRACK_COUNT, RAIL_TRACK_SIDES } from '../core/coreConstants';
 import type { Direction } from '../core/types';
 
 const TAU = Math.PI * 2;
@@ -208,5 +209,50 @@ export function paintRailPiece(
     ctx.shadowBlur = size * GLOW_BLUR_TILE;
   }
   paintForm(ctx, x, y, size, sides, buffers, colours, crisp);
+  ctx.restore();
+}
+
+/** The segments of the sample junction shown where no level is running (the editor, an icon): east-west, north-south and north-east. */
+export const JUNCTION_SAMPLE_MASK = (1 << 4) | (1 << 5) | 1;
+
+/** Value of the active segment of a track cell without a switch. */
+export const JUNCTION_NO_SWITCH = -1;
+
+/**
+ * Draws a Chip's Challenge 2 track cell on top of the floor already painted in the cell at (x, y): every segment the
+ * cell holds (`mask`, one bit per segment in the order of RAIL_TRACK_SIDES). A cell with a switch (`active` is the
+ * switched segment) shows that segment in full and the others faded, so the player sees where the way leads now.
+ * No buffer bars are drawn: a side a segment does not touch is not closed by a bar, the tracks simply stop.
+ */
+export function paintRailJunction(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  mask: number,
+  active: number,
+  colours: RailColours,
+  options: RailPaintOptions = {}
+): void {
+  const crisp = options.crisp === true;
+  const switched = active !== JUNCTION_NO_SWITCH;
+  const faded: number[] = [];
+  const current: number[] = [];
+  for (let track = 0; track < RAIL_TRACK_COUNT; track++) {
+    const held = (mask & (1 << track)) !== 0;
+    if (switched ? track === active : held) current.push(track);
+    else if (held) faded.push(track);
+  }
+  ctx.save();
+  if (faded.length > 0) {
+    ctx.globalAlpha = RAIL_OTHER_FORM_ALPHA;
+    for (const track of faded) paintForm(ctx, x, y, size, RAIL_TRACK_SIDES[track], [], colours, crisp);
+    ctx.globalAlpha = 1;
+  }
+  if (options.glow !== undefined) {
+    ctx.shadowColor = options.glow;
+    ctx.shadowBlur = size * GLOW_BLUR_TILE;
+  }
+  for (const track of current) paintForm(ctx, x, y, size, RAIL_TRACK_SIDES[track], [], colours, crisp);
   ctx.restore();
 }

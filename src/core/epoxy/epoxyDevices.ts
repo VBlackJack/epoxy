@@ -37,6 +37,7 @@ import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } 
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
+import { advanceRailSwitch } from './epoxyRailsCc2';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
 import { steerMonsters } from './epoxySteering';
@@ -120,6 +121,11 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
  * flip is per cell, and a flip tile hidden under a removable top is never wired. The lasers are retraced.
  */
 export function flipCellAt(w: EpoxyWorld, x: number, y: number): void {
+  // A Chip's Challenge 2 track cell has no other form: its switch (if it has one) moves to the next track.
+  if (ConfigRegistry.getTile(w.terrain[y][x]).railJunction === true) {
+    advanceRailSwitch(w, x, y);
+    return;
+  }
   const next = ConfigRegistry.getTile(w.terrain[y][x]).togglesTo;
   if (next === undefined) return;
   w.terrain[y][x] = next;
@@ -183,6 +189,7 @@ function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
       if (handled.has(cell)) continue;
       const tile = ConfigRegistry.getTile(w.terrain[y][x]);
       if (tile.wireTogglesTo !== undefined) flipWiredCellAt(ctx, x, y);
+      else if (tile.railJunction === true) advanceRailSwitch(w, x, y);
       else if (tile.wiredTrap === true) runtime?.areaPending.add(cell);
       else if (tile.shotLauncher !== undefined) {
         if (!fireLauncherAt(ctx, x, y)) return false;

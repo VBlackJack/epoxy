@@ -68,6 +68,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   steel_foil: 'wallTop',
   toggle_clock: 'blue',
   bribe: 'green',
+  railroad_sign: 'wallTop',
   steel_wall: 'wallTop',
   sign_chip_only: 'blue',
   sign_melinda_only: 'monsterPinkBall',

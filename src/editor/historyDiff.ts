@@ -18,6 +18,7 @@ import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET } from '../core/coreConstants
 import type { CloneLink, EntityPlacement, TrapLink } from '../core/types';
 import { dirtyCc3dCells } from './cc3dLayerDiff';
 import { differingEdgeCells } from './editorCellEdges';
+import { differingRailTrackCells } from './editorRailTracks';
 import { differingUnderlayCells } from './editorUnderlays';
 import { differingLauncherLinks } from './editorLauncherLinks';
 import type { EditorDocument } from './editorDocument';
@@ -91,6 +92,8 @@ function epoxyDirtyCells(before: EditorDocument, after: EditorDocument, width: n
   }
   // A thin wall counts at its cell, whichever side holds it: added, removed or changed sides.
   dirty.push(...differingEdgeCells(before.cellEdges, after.cellEdges));
+  // A track cell's segments count at its cell too.
+  dirty.push(...differingRailTrackCells(before.railTracks, after.railTracks));
   // Hidden terrain counts at its cell as well.
   dirty.push(...differingUnderlayCells(before.underlays, after.underlays));
   const a = before.playerStart;

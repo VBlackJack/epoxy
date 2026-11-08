@@ -18,6 +18,7 @@ import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import type { CompiledLevel } from '../core/types';
 import { canonicalEdges } from './editorCellEdges';
+import { canonicalRailTracks } from './editorRailTracks';
 import { canonicalUnderlays } from './editorUnderlays';
 import { canonicalLauncherLinks } from './editorLauncherLinks';
 import { canonicalSignalLinks } from './editorSignalLinks';
@@ -62,6 +63,10 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
   const cellEdges = level.cc3d ? undefined : canonicalEdges(map.cellEdges, map.terrain);
   if (cellEdges) map.cellEdges = cellEdges;
   else delete map.cellEdges;
+  // Track cells are held in canonical form too, and only on cells that still hold a track cell tile.
+  const railTracks = level.cc3d ? undefined : canonicalRailTracks(map.railTracks, map.terrain);
+  if (railTracks) map.railTracks = railTracks;
+  else delete map.railTracks;
   // Hidden terrain is held in canonical form too, and only where the terrain on top can still hide it.
   const underlays = level.cc3d ? undefined : canonicalUnderlays(map.underlays, map.terrain);
   if (underlays) map.underlays = underlays;
@@ -122,11 +127,16 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
     chipsRequired: doc.chipsRequired,
     ...cloneMap(doc)
   };
+  // A track cell entry only stays on a cell that still holds a track cell tile (the editor does not author them).
+  const exportedRailTracks = doc.cc3d ? undefined : canonicalRailTracks(level.railTracks, level.terrain);
+  if (exportedRailTracks) level.railTracks = exportedRailTracks;
+  else delete level.railTracks;
   // Thin walls exist under the Epoxy ruleset only: a document of another ruleset never exports them.
   // Hidden terrain, shot launcher links and signal links are Epoxy features in the same way.
   if (doc.ruleset !== undefined && doc.ruleset !== DEFAULT_RULESET) {
     delete level.character;
     delete level.cellEdges;
+    delete level.railTracks;
     delete level.underlays;
     delete level.launcherLinks;
     delete level.signalLinks;

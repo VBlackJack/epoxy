@@ -21,6 +21,8 @@ import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, togg
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
+import { railEdgeBlocked } from './epoxyRailsCc2';
+import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
 import {
   BeamCell,
@@ -97,6 +99,11 @@ export interface EpoxyWorld {
    * actor leaves. Empty at load.
    */
   swivelEntry: Map<number, Direction>;
+  /**
+   * The Chip's Challenge 2 track cells by cell index (y * width + x): their segments, the active one of a switch and the
+   * side the last actor came in by (see epoxyRailsCc2). Empty on a level without track cells.
+   */
+  railCells: Map<number, RailCellState>;
   /** One bit per covered toggle family, set while an odd number of presses happened; 0 at load. */
   toggleParity: number;
   /** Arrivals counted so far on turning force floors, by any actor; picks the next direction of the shared turn. 0 at load. */
@@ -208,6 +215,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     coveredToggleBits: 0,
     revealedCells: new Set<number>(),
     swivelEntry: new Map<number, Direction>(),
+    railCells: new Map<number, RailCellState>(),
     toggleParity: 0,
     forceCycleTurn: 0,
     litCharges: [],
@@ -515,9 +523,12 @@ export function isEdgeBlocked(
   toX: number,
   toY: number,
   dir: Direction,
-  beam = false
+  beam = false,
+  rail: RailActor = 'walker'
 ): boolean {
-  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir, beam);
+  if (isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir, beam)) return true;
+  // The tracks of a Chip's Challenge 2 track cell stop walkers, slides and blocks, never a beam or a shot.
+  return !beam && w.railCells.size > 0 && railEdgeBlocked(w, fromX, fromY, toX, toY, dir, rail);
 }
 
 /**

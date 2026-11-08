@@ -26,6 +26,7 @@ import {
   FLOOR_TILE_ID,
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
+  RAIL_STATE_KEY_PREFIX,
   SWIVEL_ENTRY_KEY_PREFIX,
   TIMER_PAUSE_KEY_PREFIX,
   TOGGLE_PARITY_KEY_PREFIX,
@@ -33,6 +34,7 @@ import {
   LIT_CHARGE_KEY_PREFIX
 } from './coreConstants';
 import { countPausedTick } from './epoxy/epoxyCc2Items';
+import { railStateKey, railStateOf, restoreRailState } from './epoxy/epoxyRailsCc2';
 import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
 import { lightDepartedDynamite, setDownDynamite } from './epoxy/epoxyDynamite';
 import { setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
@@ -336,6 +338,15 @@ export class GameEngine {
   }
 
   /**
+   * The track cells of the level as [cell index, active segment or -1 without a switch, side the last actor came in by], by
+   * cell; undefined on a level without track cells, so nothing about them reaches a level without one or its hash.
+   * The segments each cell holds are static and live in the level's `railTracks`.
+   */
+  public getRailState(): readonly (readonly [number, number, Direction])[] | undefined {
+    return this.w.railCells.size > 0 ? railStateOf(this.w) : undefined;
+  }
+
+  /**
    * The blast charges lit and not yet blasted, with the absolute tick each blasts at; undefined when none is lit,
    * so nothing about charges reaches a level without one or its hash.
    */
@@ -361,6 +372,7 @@ export class GameEngine {
       const entries = [...this.w.swivelEntry].sort((a, b) => a[0] - b[0]).map(([cell, side]) => `${cell}${side}`);
       parts.push(`${SWIVEL_ENTRY_KEY_PREFIX}${entries.join(',')}`);
     }
+    if (this.w.railCells.size > 0) parts.push(`${RAIL_STATE_KEY_PREFIX}${railStateKey(this.w)}`);
     return parts.join('|');
   }
 
@@ -656,6 +668,8 @@ export class GameEngine {
       ...(this.w.revealedCells.size > 0 ? { revealedCells: [...this.w.revealedCells] } : {}),
       // Only a level with an actor inside a swivel door has an entry side to put back.
       ...(this.w.swivelEntry.size > 0 ? { swivelEntry: [...this.w.swivelEntry] } : {}),
+      // Only a level with track cells has switches and entry sides to put back.
+      ...(this.w.railCells.size > 0 ? { railState: railStateOf(this.w) } : {}),
       // Only a level with a signal network has network state to put back.
       ...(this.w.signals !== undefined ? { signals: cloneSignalState(this.w.signals.state) } : {}),
       // Only a pulse button with an arrival not yet read, or a press carried, has memory to put back.
@@ -713,6 +727,7 @@ export class GameEngine {
     if (this.w.hasDynamite) rebuildDeviceLookups(this.w);
     this.w.revealedCells = new Set(snap.revealedCells ?? []);
     this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
+    restoreRailState(this.w, snap.railState);
     if (this.w.signals !== undefined) {
       this.w.signals.state = snap.signals ? cloneSignalState(snap.signals) : createSignalState(this.w.signals.network);
       restoreSignalPulses(this.w, snap.signalPulses);

@@ -163,6 +163,11 @@ item theme=cyber_neon id=stopwatch_penalty a3d7b6dfb4d566b6
 item theme=arctic_lab id=stopwatch_penalty a649459d31fab88f
 item theme=magma_core id=stopwatch_penalty 0847054f538367ac
 item theme=lynx_lcd id=stopwatch_penalty d8ccf6324fe0c452
+item theme=default id=railroad_sign 78b3a84e68bdfc24
+item theme=cyber_neon id=railroad_sign e387afe9c225ddf9
+item theme=arctic_lab id=railroad_sign 1beea8baa1ffe8b1
+item theme=magma_core id=railroad_sign c7a391667bb17ee8
+item theme=lynx_lcd id=railroad_sign b38d4bed2c98578b
 item theme=default id=no_sign_key_red aad1e97f89e78607
 item theme=cyber_neon id=no_sign_key_red 2f7942c08710c1da
 item theme=arctic_lab id=no_sign_key_red b706c3261edf9360

@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { STEER_MONSTERS_ACTION } from '../coreConstants';
 import { Direction, RuntimeEntity } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
+import { railRedirect } from './epoxyRailsCc2';
 import { leaveSwivel } from './epoxySwivels';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
 import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap } from './epoxyWorld';
@@ -48,8 +49,10 @@ function steeringOrder(w: EpoxyWorld, dir: Direction): RuntimeEntity[] {
  * way is pushed (when the definition says so, one block, never onto the live player) and the step is
  * taken at once. Returns 'killed' when the arrival killed the player, 'moved' or 'stayed' otherwise.
  */
-function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, dir: Direction): 'moved' | 'stayed' | 'killed' {
+function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, wanted: Direction): 'moved' | 'stayed' | 'killed' {
   const w = ctx.world;
+  // On a track cell the puppet is turned onto the track like any other monster.
+  const dir = railRedirect(w, entity.x, entity.y, wanted, 'walker');
   if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) return 'stayed';
   if (isCellClosedTrap(w, entity.x, entity.y)) return 'stayed';
   if (!canMonsterEnter(w, entity, dir, true)) return 'stayed';

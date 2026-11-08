@@ -31,6 +31,7 @@ import {
   paintFoilBadge,
   paintNoSign,
   paintPauseBadge,
+  paintRailBadge,
   paintRivets,
   paintSignPlate,
   paintToggleBadge,
@@ -38,7 +39,7 @@ import {
 } from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'dynamite';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -54,6 +55,7 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   steel_foil: { base: 'boots_ice', mark: 'foil' },
   toggle_clock: { base: 'stopwatch_bonus', mark: 'pause' },
   bribe: { base: 'toll_token', mark: 'bribe' },
+  railroad_sign: { base: 'boots_fire', mark: 'rail' },
   lightning_bolt: { base: 'boots_speed', mark: 'bolt' },
   dynamite: { base: 'charge', mark: 'dynamite' },
   dynamite_lit: { base: 'charge_lit', mark: 'dynamite' },
@@ -108,6 +110,8 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.green, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'dynamite':
       return { fill: pal.red, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'rail':
+      return { fill: pal.gray, edge: pal.glyphInk, ink: pal.hintGlyph };
   }
 }
 
@@ -137,6 +141,8 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.green.main, edge, ink: art.keys.green.glyph };
     case 'dynamite':
       return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
+    case 'rail':
+      return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.edge };
   }
 }
 
@@ -166,6 +172,9 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
       return;
     case 'dynamite':
       paintDynamiteBadge(ctx, x, y, size, colours);
+      return;
+    case 'rail':
+      paintRailBadge(ctx, x, y, size, colours);
       return;
     case 'sign_chip':
     case 'sign_melinda':

@@ -22,6 +22,7 @@ import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
 import { forceCycleArrival } from './epoxyForceCycle';
+import { railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import {
@@ -88,11 +89,13 @@ function planPushLine(
 export function attemptPushBlock(
   ctx: EpoxyContext,
   block: RuntimeEntity,
-  dir: Direction,
+  requestedDir: Direction,
   allowChain = true,
   guardPlayerCell = false
 ): boolean {
   const w = ctx.world;
+  // A block on a Chip's Challenge 2 track cell is turned onto the track when the push is one the tracks refuse.
+  const dir = railRedirect(w, block.x, block.y, requestedDir, 'block');
   if (!canBeShoved(w, block, dir)) {
     return false;
   }
@@ -138,7 +141,7 @@ export function isCanBlockEnter(
   dir: Direction
 ): boolean {
   if (!isInBounds(w, destX, destY)) return false;
-  if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir)) return false;
+  if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return false;
 
   const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
   if (!destTile.passableByBlock) return false;
