@@ -326,13 +326,18 @@ export function isWiredDeviceTileId(id: string | null | undefined): boolean {
 
 /**
  * True when the tile is part of the Chip's Challenge 2 items and characters: a green chip or bomb (`itemTogglesTo`), a
- * steel wall (`blastProof`), a gender sign (`characterOnly`) or the hiking boots.
+ * steel wall (`blastProof`), a gender sign (`characterOnly`), the hiking boots or a no-sign on the item layer.
  */
 export function isCharacterContentTileId(id: string | null | undefined): boolean {
   if (!id) return false;
   if (id === HIKING_BOOTS_ITEM_ID) return true;
   const tile = ConfigRegistry.getTile(id);
-  return tile.itemTogglesTo !== undefined || tile.blastProof === true || tile.characterOnly !== undefined;
+  return (
+    tile.itemTogglesTo !== undefined ||
+    tile.blastProof === true ||
+    tile.characterOnly !== undefined ||
+    (tile.layer === 'item' && tile.forbiddenItem !== undefined)
+  );
 }
 
 /** True when the tile is a hurl stone, carried and thrown by the player. */

@@ -26,7 +26,7 @@ import {
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
-import { MELINDA_CHARACTER } from '../core/coreConstants';
+import { CC2_ID_PREFIX, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -61,9 +61,13 @@ import {
   ITEM_MAP,
   KEY_MELINDA_PLAYER,
   KEY_NO_SIGN,
+  KEY_NO_SIGN_BONUS,
   KEY_NO_SIGN_EMPTY,
+  KEY_NO_SIGN_ITEM,
   NAND_GATE,
+  NO_SIGN_BLOCKED_TERRAIN,
   NO_SIGN_FORBID_MAP,
+  NO_SIGN_INERT_ITEMS,
   RESERVED_PLAYER_ENTITIES,
   TERRAIN_MAP,
   TRACK_JUNCTION,
@@ -466,7 +470,18 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
           itemId = null;
           keys.add(forbid.key);
         } else if (itemId === null) keys.add(KEY_NO_SIGN_EMPTY);
-        else keys.add(KEY_NO_SIGN);
+        else if (
+          NO_SIGN_ITEM_IDS.includes(itemId) &&
+          !NO_SIGN_BLOCKED_TERRAIN.has(terrainId) &&
+          !terrainId.startsWith(CC2_ID_PREFIX)
+        ) {
+          // The sign lies on the item layer: it cannot be picked up, bars a player carrying the item, and the terrain keeps working.
+          itemId = `${NO_SIGN_ITEM_PREFIX}${itemId}`;
+          keys.add(KEY_NO_SIGN_ITEM);
+        } else if (NO_SIGN_INERT_ITEMS.has(itemId)) {
+          itemId = null;
+          keys.add(KEY_NO_SIGN_BONUS);
+        } else keys.add(KEY_NO_SIGN);
       }
 
       // Panel: thin walls.

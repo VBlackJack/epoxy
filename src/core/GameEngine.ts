@@ -404,8 +404,8 @@ export class GameEngine {
   }
 
   /** Whether the player, with what they carry now, may step on the tile (the rule of a step, for the path tools). */
-  public canPlayerStepOn(tile: TileDefinition): boolean {
-    return canPlayerEnter(this.w, tile);
+  public canPlayerStepOn(tile: TileDefinition, itemId?: string | null): boolean {
+    return canPlayerEnter(this.w, tile, itemId);
   }
 
   /**

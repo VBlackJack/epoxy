@@ -27,6 +27,24 @@ item score_1000 tick=3 43c80fe6c8ae7075
 item score_2x tick=3 36a780f77b80d6fc
 item stopwatch_bonus tick=3 5c4366e72cd037d1
 item stopwatch_penalty tick=3 6034b6cf952fbff0
+item no_sign_key_red tick=3 b000c7fff36833d8
+item no_sign_key_blue tick=3 64aa0775327c92aa
+item no_sign_key_yellow tick=3 80f482d967b62eb5
+item no_sign_key_green tick=3 504c81f19f1f0ba8
+item no_sign_boots_water tick=3 2b2cd11a8a25c1d1
+item no_sign_boots_fire tick=3 47c25aba20c643f1
+item no_sign_boots_ice tick=3 77b32050d40ef2ea
+item no_sign_boots_force tick=3 f8eb18ff862387d2
+item no_sign_slow_time tick=3 82bed56550b11524
+item no_sign_boots_speed tick=3 cf8577a7cb3997f4
+item no_sign_boots_eye tick=3 3553abf201b4c2e8
+item no_sign_boots_pull tick=3 6636d5810b66d5c7
+item no_sign_ward tick=3 2380caeff5aa9c8d
+item no_sign_hiking_boots tick=3 83ac490a10cfcf9c
+item no_sign_charge tick=3 b2d4e4889475b38e
+item no_sign_pocket_gate tick=3 e6c1b0cdaa859079
+item no_sign_hurl_stone tick=3 1e9ac0261bfe8f9d
+item no_sign_toll_token tick=3 e89ab8b859a48261
 entity dirt_block dir=N tick=3 9b4c4f6422d6e3b3
 entity dirt_block dir=E tick=3 01d96662f132d228
 entity dirt_block dir=S tick=3 831a93d652e9d48d
@@ -192,6 +210,24 @@ item score_1000 tick=13 d75b2ac1eed3ad88
 item score_2x tick=13 dd2c42e0aa373dee
 item stopwatch_bonus tick=13 6aebd311401ea095
 item stopwatch_penalty tick=13 b69dd7d5c4a097f7
+item no_sign_key_red tick=13 219278f5a21063e3
+item no_sign_key_blue tick=13 834a1cbc1efdb844
+item no_sign_key_yellow tick=13 e1b7fa97d8dc2aef
+item no_sign_key_green tick=13 f5beecaa907bbd65
+item no_sign_boots_water tick=13 df5c1a142922db25
+item no_sign_boots_fire tick=13 8e1f6f4845a6c5a2
+item no_sign_boots_ice tick=13 02f89f5f8e87c14c
+item no_sign_boots_force tick=13 dc56aaad573ce02f
+item no_sign_slow_time tick=13 361c6ca4f2facf7a
+item no_sign_boots_speed tick=13 f95a9a98f67b7fe7
+item no_sign_boots_eye tick=13 a24c5ed40f2aef17
+item no_sign_boots_pull tick=13 458e1bb46af06ada
+item no_sign_ward tick=13 16ee6a0664a4bbb4
+item no_sign_hiking_boots tick=13 8cae2bf2cd0e4ba6
+item no_sign_charge tick=13 4580eb1219d84513
+item no_sign_pocket_gate tick=13 358d1419f8d6438d
+item no_sign_hurl_stone tick=13 041b937fb638f7ee
+item no_sign_toll_token tick=13 930add9b28d32b1f
 entity dirt_block dir=N tick=13 79e803c262e8805d
 entity dirt_block dir=E tick=13 e3c5548ae87a4e96
 entity dirt_block dir=S tick=13 d0e68e64c343cda1

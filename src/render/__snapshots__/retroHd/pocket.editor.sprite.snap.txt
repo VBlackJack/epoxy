@@ -370,6 +370,42 @@ editor tile stopwatch_bonus closed=true 3a4458982038db83
 editor tile stopwatch_bonus closed=false f435297198088634
 editor tile stopwatch_penalty closed=true 304aede764e81bc0
 editor tile stopwatch_penalty closed=false 9a46ff10a26a6833
+editor tile no_sign_key_red closed=true 8a3571be5fd05ca4
+editor tile no_sign_key_red closed=false ffd961b2b79a4bb6
+editor tile no_sign_key_blue closed=true 8fd342a463a894a8
+editor tile no_sign_key_blue closed=false 2df9ab3d07807808
+editor tile no_sign_key_yellow closed=true 9ef91394cf4dc302
+editor tile no_sign_key_yellow closed=false a36515503cb0edeb
+editor tile no_sign_key_green closed=true b0d1e11a25d768e0
+editor tile no_sign_key_green closed=false a82704cc443b6bb2
+editor tile no_sign_boots_water closed=true 348c8cfaec02dfdd
+editor tile no_sign_boots_water closed=false c1def30074139144
+editor tile no_sign_boots_fire closed=true 4a163440ce7fa7bd
+editor tile no_sign_boots_fire closed=false 745d0bb3ba32ef8c
+editor tile no_sign_boots_ice closed=true 851338a719bf7a78
+editor tile no_sign_boots_ice closed=false f2af474e2f460300
+editor tile no_sign_boots_force closed=true 8e71691a2ac943cb
+editor tile no_sign_boots_force closed=false 45bd83250b8fa719
+editor tile no_sign_slow_time closed=true 6fdeff4086a69348
+editor tile no_sign_slow_time closed=false ad3805b3c4891e72
+editor tile no_sign_boots_speed closed=true 517903d32fcc8d94
+editor tile no_sign_boots_speed closed=false 022fe8e2b0fbfbe9
+editor tile no_sign_boots_eye closed=true 854b9b742cff99b6
+editor tile no_sign_boots_eye closed=false b78ae282282acd4a
+editor tile no_sign_boots_pull closed=true 2015529c9e924856
+editor tile no_sign_boots_pull closed=false f5f290698c8e819c
+editor tile no_sign_ward closed=true ef0c929c0e328ae8
+editor tile no_sign_ward closed=false 188123624bed71ea
+editor tile no_sign_hiking_boots closed=true e056540765cdb02d
+editor tile no_sign_hiking_boots closed=false 7e03f8345d52a72d
+editor tile no_sign_charge closed=true 12693c4d48e05dfd
+editor tile no_sign_charge closed=false b130f1814525d622
+editor tile no_sign_pocket_gate closed=true eeec3357c802c6e5
+editor tile no_sign_pocket_gate closed=false fa981bee0767aae0
+editor tile no_sign_hurl_stone closed=true b55e11234c7b9d7b
+editor tile no_sign_hurl_stone closed=false f87052651c238935
+editor tile no_sign_toll_token closed=true a620bee45adf2fdb
+editor tile no_sign_toll_token closed=false 6faa7fbec17b07e3
 editor item over floor key_red 94b2f9085f8d8f49
 editor item over floor key_blue 3912ef069d42a59f
 editor item over floor key_yellow aa0eeade33a260c6
@@ -399,6 +435,24 @@ editor item over floor score_1000 da6c6f54aeceaff5
 editor item over floor score_2x 3adfe815b32e0f7a
 editor item over floor stopwatch_bonus 1ebca8de5261b579
 editor item over floor stopwatch_penalty aaeb292c816457a4
+editor item over floor no_sign_key_red 5b0654f8dc71db69
+editor item over floor no_sign_key_blue 9ef86251f3c7cd58
+editor item over floor no_sign_key_yellow 1c6d394a00ab6338
+editor item over floor no_sign_key_green c99a5f1988d17748
+editor item over floor no_sign_boots_water 32c903e05a6020d3
+editor item over floor no_sign_boots_fire e37a31df6401f03a
+editor item over floor no_sign_boots_ice f79fcaceb0e304cf
+editor item over floor no_sign_boots_force fb8a8471cadd993e
+editor item over floor no_sign_slow_time 10b93d940e2632fb
+editor item over floor no_sign_boots_speed 7946f0b87f907b2a
+editor item over floor no_sign_boots_eye 08815c911020ffe8
+editor item over floor no_sign_boots_pull 3855a17c977d5586
+editor item over floor no_sign_ward ee193338cebcc200
+editor item over floor no_sign_hiking_boots d1e11b5850158522
+editor item over floor no_sign_charge 074ce03c651fb9a6
+editor item over floor no_sign_pocket_gate c8f1c39bbf23f4f0
+editor item over floor no_sign_hurl_stone 507d19002622f534
+editor item over floor no_sign_toll_token 4120993c447e2612
 editor entity over floor dirt_block b6ec48876c076d07
 editor entity over floor arrow_block_one c41dced9707605e7
 editor entity over floor arrow_block_line b0f3a7f25ee63b50

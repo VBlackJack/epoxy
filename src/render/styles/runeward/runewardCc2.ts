@@ -41,7 +41,8 @@ export function variantTilePainters(base: Readonly<Record<string, RunewardTilePa
 export function variantItemPainters(base: Readonly<Record<string, RunewardItemPainter>>): Record<string, RunewardItemPainter> {
   const painters: Record<string, RunewardItemPainter> = {};
   for (const [id, variant] of Object.entries(CC2_ITEM_VARIANTS)) {
-    const under = base[variant.base];
+    // A no-sign over a look-alike (the hiking boots) sits on the painter of that look-alike, listed before it.
+    const under = base[variant.base] ?? painters[variant.base];
     if (under === undefined) continue;
     painters[id] = (ctx, x, y, size, env) => {
       under(ctx, x, y, size, env);

@@ -414,6 +414,84 @@ describe('GameEngine forbidden-item barriers', () => {
   });
 });
 
+describe('GameEngine item-layer no-signs', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('bars a carrier of the item, keeps the terrain under it, and frees them once the item is dropped', () => {
+    const lvl = openLevel('no_sign_level');
+    lvl.items[2][1] = 'boots_speed';
+    lvl.terrain[2][3] = 'gravel';
+    lvl.items[2][3] = 'no_sign_boots_speed';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    // Without the boots the sign is a plain cell: the gravel under it is walked, and the sign is not picked up.
+    walk(engine, 'E', 1);
+    expect(engine.getPlayer().x).toBe(3);
+    expect(engine.getItems()[2][3]).toBe('no_sign_boots_speed');
+    expect(engine.holdsItem('no_sign_boots_speed')).toBe(false);
+    walk(engine, 'W', 1);
+
+    pickUpWest(engine);
+    expect(engine.holdsItem('boots_speed')).toBe(true);
+    expect(isBlocked(engine, 'E')).toBe(true);
+    expect(engine.getPlayer().x).toBe(2);
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.forbidden_item');
+
+    expect(engine.dropItem('boots_speed')).toBe(true);
+    walk(engine, 'E', 1);
+    expect(engine.getPlayer().x).toBe(3);
+  });
+
+  it('bars a counted tool such as a blast charge, and only the item it names', () => {
+    const lvl = openLevel('no_sign_charge_level');
+    lvl.items[2][1] = 'charge';
+    lvl.items[3][2] = 'key_red';
+    lvl.items[2][3] = 'no_sign_charge';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    pickUpWest(engine);
+    expect(isBlocked(engine, 'E')).toBe(true);
+    // Another item in the pocket does not matter: only the charge is named.
+    expect(engine.getPlayer().keys.charge).toBe(1);
+    walk(engine, 'S', 1);
+    expect(engine.holdsItem('key_red')).toBe(true);
+    expect(engine.getPlayer().y).toBe(3);
+  });
+
+  it('lets a block be pushed onto the sign: only a carrying player is barred', () => {
+    const lvl = openLevel('no_sign_block_level');
+    lvl.items[2][4] = 'no_sign_key_red';
+    lvl.entities = [{ x: 3, y: 2, type: 'dirt_block', dir: 'E' }];
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    walk(engine, 'E', 1);
+    const block = engine.getEntities().find((e) => e.kind === 'block');
+    expect([block?.x, block?.y]).toEqual([4, 2]);
+    expect(engine.getItems()[2][4]).toBe('no_sign_key_red');
+  });
+
+  it('refuses a teleport exit onto a sign against a carried item', () => {
+    const build = (holdKey: boolean): GameEngine => {
+      const lvl = openLevel(`teleport_sign_${holdKey}`);
+      lvl.terrain[2][3] = 'teleport';
+      lvl.terrain[10][10] = 'teleport';
+      for (const [x, y] of [[11, 10], [9, 10], [10, 9], [10, 11]]) lvl.items[y][x] = 'no_sign_key_red';
+      if (holdKey) lvl.items[2][1] = 'key_red';
+      const engine = new GameEngine();
+      engine.loadLevel(lvl);
+      if (holdKey) pickUpWest(engine);
+      walk(engine, 'E', 1);
+      return engine;
+    };
+    const free = build(false);
+    expect([free.getPlayer().x, free.getPlayer().y]).toEqual([11, 10]);
+    const holder = build(true);
+    expect([holder.getPlayer().x, holder.getPlayer().y]).toEqual([4, 2]);
+  });
+});
+
 describe('GameEngine review fixes', () => {
   beforeEach(() => {
     loadTestConfigs();

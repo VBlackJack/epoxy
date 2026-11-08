@@ -34,6 +34,34 @@ export const BOMB_ITEM_ID = 'bomb';
 /** Item id of the hiking boots Melinda needs on dirt and gravel. */
 export const HIKING_BOOTS_ITEM_ID = 'hiking_boots';
 
+/** Prefix of the item-layer no-signs: `no_sign_<item>` bars a player who carries that item, on any terrain. */
+export const NO_SIGN_ITEM_PREFIX = 'no_sign_';
+
+/**
+ * The items a player can carry, hence the items a no-sign can name (one `no_sign_<item>` tile each, in the item layer):
+ * the four keys, every pair of boots and boot-like item, the blast charge, the pocket gate, the hurl stone and the toll token.
+ */
+export const NO_SIGN_ITEM_IDS: readonly string[] = [
+  'key_red',
+  'key_blue',
+  'key_yellow',
+  'key_green',
+  'boots_water',
+  'boots_fire',
+  'boots_ice',
+  'boots_force',
+  'slow_time',
+  'boots_speed',
+  'boots_eye',
+  'boots_pull',
+  'ward',
+  'hiking_boots',
+  'charge',
+  'pocket_gate',
+  'hurl_stone',
+  'toll_token'
+];
+
 /** Terrain id of plain ice; its `protectedByItem` names the boots that stop the slide. */
 export const ICE_TILE_ID = 'ice';
 

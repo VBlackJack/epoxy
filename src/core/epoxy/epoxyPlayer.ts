@@ -153,9 +153,14 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   }
 
   const updatedTargetTile = ConfigRegistry.getTile(w.terrain[targetY][targetX]);
-  if (!canPlayerEnter(w, updatedTargetTile)) {
-    // A barrier against an item the player carries: solid until the item is dropped elsewhere.
-    if (updatedTargetTile.forbiddenItem !== undefined && updatedTargetTile.passableByPlayer) {
+  const itemOnTarget = w.items[targetY][targetX];
+  if (!canPlayerEnter(w, updatedTargetTile, itemOnTarget)) {
+    // A barrier against an item the player carries (terrain, or a no-sign on the item layer): solid until the item is dropped elsewhere.
+    if (
+      updatedTargetTile.passableByPlayer &&
+      (updatedTargetTile.forbiddenItem !== undefined ||
+        (itemOnTarget !== null && ConfigRegistry.getTile(itemOnTarget).forbiddenItem !== undefined))
+    ) {
       w.statusBannerKey = 'hud.messages.forbidden_item';
     } else if (updatedTargetTile.bootsForCharacter?.[playerCharacterOf(w)] !== undefined) {
       w.statusBannerKey = 'hud.messages.needs_hiking_boots';
