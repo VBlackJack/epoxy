@@ -30,6 +30,7 @@ const CODE_WATER = 0x08;
 const CODE_FORCE_E = 0x0b;
 const CODE_EXIT = 0x14;
 const CODE_WALL = 0x02;
+const CODE_PURPLE_WALL = 0x73;
 const STEP_FRAMES = 4 * CC2_FRAMES_PER_TICK;
 const TAP_FRAMES = CC2_FRAMES_PER_TICK;
 const SHORT_RUN_STEPS = 2;
@@ -65,6 +66,23 @@ const hold = (key: number, steps: number): Entry[] => [
 
 beforeAll(() => {
   loadTestConfigs();
+});
+
+describe('checkCc2ReplayBest on the CC2 engine', () => {
+  it('wins a straight walk and reports no unsupported id', () => {
+    const level = levelOf(6, 1, [terrain(4, 0, CODE_EXIT)]);
+    const best = checkCc2ReplayBest(level, replayOf(hold(E, 4)), 'cc2');
+    expect(best.won).toBe(true);
+    expect(best.unsupported).toEqual([]);
+  });
+
+  it('lists the ids the engine cannot play', () => {
+    const level = levelOf(6, 2, [terrain(4, 0, CODE_EXIT), terrain(2, 1, CODE_PURPLE_WALL)]);
+    const best = checkCc2ReplayBest(level, replayOf(hold(E, 4)), 'cc2');
+    expect(best.won).toBe(true);
+    expect(best.unsupported).toEqual(['purple_wall']);
+    expect(checkCc2ReplayBest(level, replayOf(hold(E, 4))).unsupported).toEqual([]);
+  });
 });
 
 describe('checkCc2Replay', () => {

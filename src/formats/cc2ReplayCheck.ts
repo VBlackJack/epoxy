@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { GameEngine } from '../core/GameEngine';
+import { createCc2Engine } from '../core/cc2/Cc2Engine';
 import { LynxEngine } from '../core/lynx/LynxEngine';
 import type { PlayEngine } from '../core/PlayEngine';
 import type { CompiledLevel, Direction } from '../core/types';
@@ -31,11 +32,12 @@ import {
  * Coarse acceptance check of a converted CC2 level: plays the winning replay stored in the file on a native engine
  * and says whether the level is won. It is a diagnostic, not a frame exact replay. Only the player cadence matches
  * CC2 (a step every 4 ticks on plain floor, 20 ticks per second). Everything else differs on the Epoxy engine:
- * monster speeds (5 ticks per move in Epoxy, 4 in CC2), the speed of force floors and ice (3 ticks per tile in Epoxy,
+ * monster speeds (an Epoxy monster step lasts moveIntervalTicks + 1 ticks, CC2 monsters take 4), the speed of force floors and ice (3 ticks per tile in Epoxy,
  * 2 in CC2), how a move is resolved and the order in which actors take their turn. Random elements are not
  * reproduced either: the header blob seed is not the generator of either engine, and the header force floor start is
- * used only by the Lynx engine (which has such an option). Two engines can be driven (`Cc2ReplayEngine`): the Epoxy
- * engine, and the Lynx engine, which is fed the held direction like the page does. Two strategies are tried:
+ * used only by the Lynx engine (which has such an option). Three engines can be driven (`Cc2ReplayEngine`): the Epoxy
+ * engine, the Lynx engine and the CC2 engine (the Lynx engine plus CC2 rule modules), the last two being fed the
+ * held direction like the page does. Two strategies are tried:
  *
  * - `held`: at each tick, the keys held at that CC2 tick are offered to the engine, which keeps its own move cadence
  *   (cooldown, ice, force floors). This is the closest to how a person plays. The Epoxy engine is sent a move
@@ -54,7 +56,7 @@ import {
  */
 
 /** The engine that plays the replay. */
-export type Cc2ReplayEngine = 'epoxy' | 'lynx';
+export type Cc2ReplayEngine = 'epoxy' | 'lynx' | 'cc2';
 
 export type Cc2ReplayStrategy = 'held' | 'steps';
 
@@ -94,6 +96,8 @@ export interface Cc2ReplayResult {
   divergence?: Cc2Divergence;
   /** Steps the engine accepted. */
   moves: number;
+  /** Sorted ids the engine played as walls or left out (Lynx based engines only). */
+  unsupported?: string[];
 }
 
 export interface Cc2ReplayBestResult {
@@ -103,6 +107,8 @@ export interface Cc2ReplayBestResult {
   results: Cc2ReplayResult[];
   /** Key bits the replay uses and the check cannot play (drop, switch player, cycle inventory, player 2). */
   ignoredKeyBits: number;
+  /** Sorted ids the Lynx based engines play as walls or leave out (empty for the Epoxy engine, which has none). */
+  unsupported: string[];
 }
 
 /** Ticks the engine runs after the last replay input, in case a slide or a conveyor still has to carry the player. */
@@ -161,8 +167,8 @@ const FORCE_START_MASK = 3;
 const SILENT_SOUND = { effect: () => undefined, step: () => undefined };
 
 function newEngine(level: CompiledLevel, replay: Cc2Replay, kind: Cc2ReplayEngine): PlayEngine {
-  if (kind === 'lynx') {
-    const lynx = new LynxEngine(SILENT_SOUND);
+  if (kind === 'lynx' || kind === 'cc2') {
+    const lynx = kind === 'cc2' ? createCc2Engine(SILENT_SOUND) : new LynxEngine(SILENT_SOUND);
     lynx.setReplayOptions({ randomForceStart: FORCE_START_DIRECTIONS[replay.forceFloorStart & FORCE_START_MASK] });
     lynx.loadLevel(level, replay.blobSeed);
     return lynx;
@@ -205,9 +211,8 @@ class BlockTracker {
 }
 
 /** Strategy `held`: offer the held keys to the engine at every tick. */
-function playHeld(level: CompiledLevel, replay: Cc2Replay, engineKind: Cc2ReplayEngine): Cc2ReplayResult {
-  const engine = newEngine(level, replay, engineKind);
-  const lynx = engineKind === 'lynx' ? (engine as LynxEngine) : null;
+function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEngine): Cc2ReplayResult {
+  const lynx = engineKind === 'lynx' || engineKind === 'cc2' ? (engine as LynxEngine) : null;
   let lastX = -1;
   let lastY = -1;
   let lastFree = false;
@@ -283,8 +288,7 @@ function settle(engine: PlayEngine): boolean {
 }
 
 /** Strategy `steps`: replay the sequence of moves, waiting for the player to rest before each one. */
-function playSteps(level: CompiledLevel, replay: Cc2Replay, engineKind: Cc2ReplayEngine): Cc2ReplayResult {
-  const engine = newEngine(level, replay, engineKind);
+function playSteps(engine: PlayEngine, replay: Cc2Replay): Cc2ReplayResult {
   const cadence = walkCadence();
   let moves = 0;
   const lost = (kind: Cc2DivergenceKind): Cc2ReplayResult => ({
@@ -317,7 +321,9 @@ export function checkCc2Replay(
   strategy: Cc2ReplayStrategy,
   engine: Cc2ReplayEngine = 'epoxy'
 ): Cc2ReplayResult {
-  return strategy === 'held' ? playHeld(level, replay, engine) : playSteps(level, replay, engine);
+  const built = newEngine(level, replay, engine);
+  const result = strategy === 'held' ? playHeld(built, replay, engine) : playSteps(built, replay);
+  return engine === 'epoxy' ? result : { ...result, unsupported: (built as LynxEngine).getUnsupportedTiles() };
 }
 
 /** Plays the replay with every strategy and reports the first that wins. */
@@ -328,6 +334,7 @@ export function checkCc2ReplayBest(level: CompiledLevel, replay: Cc2Replay, engi
     won: winner !== undefined,
     ...(winner ? { winner: winner.strategy } : {}),
     results,
-    ignoredKeyBits: replay.otherKeyBits & IGNORED_KEY_MASK
+    ignoredKeyBits: replay.otherKeyBits & IGNORED_KEY_MASK,
+    unsupported: results[0]?.unsupported ?? []
   };
 }
