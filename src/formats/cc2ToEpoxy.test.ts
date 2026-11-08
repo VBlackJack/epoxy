@@ -151,12 +151,12 @@ describe('terrain, items and entities', () => {
 
   it('keeps reserved ids for what Epoxy lacks', () => {
     const { level, coverage, report } = convertCc2Map(
-      makeMap(5, 3, [player(1, 0, DIR_S), player(2, 2, DIR_E, MELINDA)]),
+      makeMap(5, 3, [player(1, 0, DIR_S), put(2, 2, { code: 0xfa })]),
       OPTIONS
     );
-    expect(level.entities).toEqual([{ x: 2, y: 2, type: 'cc2_melinda', dir: 'E' }]);
+    expect(level.terrain[2][2]).toBe('cc2_unknown');
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['melinda', 'multiple_players']);
+    expect(coverage.lost).toEqual(['unknown']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
   });
@@ -396,18 +396,17 @@ describe('players', () => {
     expect(level.entities).toEqual([]);
   });
 
-  it('keeps extra players as reserved entities and loses the level', () => {
+  it('makes every further player a start of its own and plays the level approximately', () => {
     const { level, coverage } = convertCc2Map(
       makeMap(5, 3, [player(1, 0, DIR_S), player(2, 2, DIR_E, MELINDA), player(4, 2, DIR_N, MIRROR_CHIP)]),
       OPTIONS
     );
     expect(level.playerStart).toEqual({ x: 1, y: 0, dir: 'S' });
-    expect(level.entities).toEqual([
-      { x: 2, y: 2, type: 'cc2_melinda', dir: 'E' },
-      { x: 4, y: 2, type: 'mirror_chip', dir: 'N' }
-    ]);
-    expect(coverage.lost).toEqual(['melinda', 'multiple_players']);
-    expect(coverage.approx).toContain('mirror_chip');
+    expect(level.extraPlayers).toEqual([{ x: 2, y: 2, dir: 'E', character: 'melinda' }]);
+    expect(level.character).toBeUndefined();
+    expect(level.entities).toEqual([{ x: 4, y: 2, type: 'mirror_chip', dir: 'N' }]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['mirror_chip', 'multiple_players']);
   });
 
   it('plays a level whose only player is Melinda with her character, exactly', () => {
@@ -417,11 +416,18 @@ describe('players', () => {
     expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
-  it('leaves Chip as the default character, loses two players and plays a mirror player', () => {
+  it('leaves Chip as the default character, plays two players and a mirror player', () => {
     expect(convertCc2Map(makeMap(3, 3, [player(1, 1, DIR_N)]), OPTIONS).level.character).toBeUndefined();
     const pair = convertCc2Map(makeMap(5, 3, [player(1, 1, DIR_N), player(3, 1, DIR_N, MELINDA)]), OPTIONS);
     expect(pair.level.character).toBeUndefined();
-    expect(pair.coverage.lost).toEqual(['melinda', 'multiple_players']);
+    expect(pair.level.extraPlayers).toEqual([{ x: 3, y: 1, dir: 'N', character: 'melinda' }]);
+    expect(pair.coverage.lost).toEqual([]);
+    expect(pair.coverage.approx).toEqual(['multiple_players']);
+    const melindaFirst = convertCc2Map(makeMap(5, 3, [player(1, 1, DIR_N, MELINDA), player(3, 1, DIR_S)]), OPTIONS);
+    expect(melindaFirst.level.character).toBe('melinda');
+    expect(melindaFirst.level.playerStart).toEqual({ x: 1, y: 1, dir: 'N' });
+    expect(melindaFirst.level.extraPlayers).toEqual([{ x: 3, y: 1, dir: 'S', character: 'chip' }]);
+    expect(convertCc2Map(makeMap(3, 3, [player(1, 1, DIR_N)]), OPTIONS).level.extraPlayers).toBeUndefined();
     const mirror = convertCc2Map(makeMap(5, 3, [player(1, 1, DIR_N, MELINDA), player(3, 1, DIR_N, MIRROR_CHIP)]), OPTIONS);
     expect(mirror.coverage.lost).toEqual([]);
     expect(mirror.coverage.approx).toEqual(['mirror_chip']);
@@ -815,10 +821,7 @@ describe('the validator', () => {
     );
     const clean = LevelValidator.validate(exact.level);
     expect(clean.issues.filter((issue) => issue.severity === 'error')).toEqual([]);
-    const lost = convertCc2Map(
-      makeMap(5, 3, [player(0, 1, DIR_E), player(2, 1, DIR_W, MELINDA), put(4, 1, { code: 0x14 })]),
-      OPTIONS
-    );
+    const lost = convertCc2Map(makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, { code: 0xfa }), put(4, 1, { code: 0x14 })]), OPTIONS);
     expect(LevelValidator.validate(lost.level).issues.some((issue) => issue.i18nKey === 'validator.issues.cc2_unsupported.label')).toBe(true);
   });
 });

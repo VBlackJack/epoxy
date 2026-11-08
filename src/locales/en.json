@@ -301,7 +301,7 @@
         "label": "Not exported: {levels} holds an item only Epoxy plays (such as the Slow-Time Charm, the Speed Boots or the Truesight Boots), which the .DAT format cannot hold."
       },
       "refused_epoxy_only_monsters": {
-        "label": "Not exported: {levels} holds a Puppet, a Puppet Control, a Skitter, a Transmogrifier, a Turn Plate, a Turning Force Floor, a Lurker, a Wisp, a Floor Mimic, a Timid Teeth, a Ghost or a Rover, which the .DAT format cannot hold."
+        "label": "Not exported: {levels} holds a Puppet, a Puppet Control, a Skitter, a Transmogrifier, a Turn Plate, a Turning Force Floor, a Lurker, a Wisp, a Floor Mimic, a Timid Teeth, a Ghost, a Rover or a monster of Chuck's Challenge 3D (Walker, Bouncer, Snappy, Nibble, Blinky, Baby Blinky, Limpy, Limpa, Omni, Legs, Screamer, Baby Screamer), which the .DAT format cannot hold."
       },
       "refused_cell_underlays": {
         "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold."
@@ -1693,6 +1693,12 @@
       },
       "unreachable_exit": {
         "label": "Error: The Exit Portal is blocked or unreachable."
+      },
+      "player_unreachable_exit": {
+        "label": "Error: Player {player} cannot reach the Exit Portal, even with what the other players can collect."
+      },
+      "players_share_start": {
+        "label": "Warning: Two players start on the same cell ({x}, {y})."
       },
       "unreachable_chips_proven": {
         "label": "Warning: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable by the simulation, but the stored solution wins."
@@ -3807,7 +3813,7 @@
       },
       "water": {
         "name": "Water",
-        "label": "A dirt block makes dirt, an ice block ice and a colour block a bridge, as in CC3D. Epoxy monsters walk into water and drown, where CC3D monsters refuse it, and Epoxy lets a second block be pushed onto a floating colour block."
+        "label": "A dirt block makes dirt, an ice block ice and a colour block a bridge, as in CC3D. The Epoxy walker and golems walk into water and drown, where the CC3D ones refuse it, and Epoxy lets a second block be pushed onto a floating colour block."
       },
       "force_random": {
         "name": "Random force floor",
@@ -3819,11 +3825,11 @@
       },
       "slime": {
         "name": "Slime",
-        "label": "Slime kills the player and is cleaned by any block that enters it, as in CC3D. With the fire and the water orb together CC3D lets the player through, where Epoxy kills him; and CC3D monsters refuse slime, where Epoxy monsters die in it."
+        "label": "Slime kills the player and is cleaned by any block that enters it, as in CC3D. With the fire and the water orb together CC3D lets the player through, where Epoxy kills him; and a CC3D walker or golem refuses slime, where the Epoxy one dies in it."
       },
       "turtle": {
         "name": "Turtle",
-        "label": "The turtle sinks behind whoever leaves it, as in CC3D. Epoxy monsters refuse a turtle, where CC3D monsters cross it and sink it."
+        "label": "The turtle sinks behind whoever leaves it, as in CC3D. The Epoxy walker and golems refuse a turtle, where the CC3D ones cross it and sink it."
       },
       "dirt": {
         "name": "Dirt",
@@ -3899,19 +3905,19 @@
       },
       "plate_red": {
         "name": "Pressure plate (red)",
-        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, except the baby blinky, baby screamer and legs, which fly in Epoxy and do not."
+        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, the blinky and the screamer excepted, which press nothing in either."
       },
       "plate_green": {
         "name": "Pressure plate (green)",
-        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, except the baby blinky, baby screamer and legs, which fly in Epoxy and do not."
+        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, the blinky and the screamer excepted, which press nothing in either."
       },
       "plate_blue": {
         "name": "Pressure plate (blue)",
-        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, except the baby blinky, baby screamer and legs, which fly in Epoxy and do not."
+        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, the blinky and the screamer excepted, which press nothing in either."
       },
       "plate_yellow": {
         "name": "Pressure plate (yellow)",
-        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, except the baby blinky, baby screamer and legs, which fly in Epoxy and do not."
+        "label": "Plates and hold doors agree with CC3D for the player and every block, and monsters press them as in CC3D, the blinky and the screamer excepted, which press nothing in either."
       },
       "block_color_red": {
         "name": "Colour block (red)",
@@ -3935,51 +3941,51 @@
       },
       "walker": {
         "name": "Walker",
-        "label": "Monster movement is close to CC3D, not identical."
+        "label": "Epoxy plays the walker as a monster of its own: straight on, one random draw when blocked, a four-tick step, refusing water, fire and slime. Its random draws cannot be matched step by step with CC3D."
       },
       "legs_green": {
         "name": "Green legs",
-        "label": "Epoxy plays the green legs as a fireball, which is immune to fire where the legs are not. The legs' pattern switching is not reproduced. Unlike the CC3D legs, it does not press plates."
+        "label": "Epoxy plays the green legs as a monster of their own, with the CC3D turn order (straight, right, left, back) and pace. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D. The real game switches the legs' pattern with the plates; neither CC3D nor Epoxy reproduces it."
       },
       "legs_red": {
         "name": "Red legs",
-        "label": "Epoxy plays the red legs as a glider, which is immune to water where the legs are not. The legs' pattern switching is not reproduced. Unlike the CC3D legs, it does not press plates."
+        "label": "Epoxy plays the red legs as a monster of their own, with the CC3D turn order (straight, left, right, back) and pace. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D. The real game switches the legs' pattern with the plates; neither CC3D nor Epoxy reproduces it."
       },
       "blinky": {
         "name": "Blinky",
-        "label": "Monster movement is close to CC3D, not identical."
+        "label": "Epoxy plays the blinky as a monster of its own: same turn order and pace, immune to water, not carried by ice or force floors, crossing turtles without sinking them, pressing no plate. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "baby_blinky": {
         "name": "Baby blinky",
-        "label": "Monster movement is close to CC3D, not identical. Unlike the CC3D one, it does not press plates."
+        "label": "Epoxy plays the baby blinky as a monster of its own: same turn order and pace, immune to water only, crossing turtles without sinking them, pressing plates. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "limpa": {
         "name": "Limpa",
-        "label": "Monster movement is close to CC3D, not identical."
+        "label": "Epoxy plays the limpa as a monster of its own: same turn order and pace as in CC3D, refusing water, fire and slime. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "limpy": {
         "name": "Limpy",
-        "label": "Monster movement is close to CC3D, not identical."
+        "label": "Epoxy plays the limpy as a monster of its own: same turn order and pace as in CC3D, refusing water, fire and slime. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "bouncer": {
         "name": "Bouncer",
-        "label": "Monster movement is close to CC3D, not identical."
+        "label": "Epoxy plays the bouncer as a monster of its own: same path and pace as in CC3D, refusing water, fire and slime. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "omni": {
         "name": "Omni",
-        "label": "Monster movement is close to CC3D, not identical."
+        "label": "Epoxy plays the omni as a monster of its own: one random draw per step, a wait when blocked, an eight-tick step, immune to slime, leaving slime behind once it has stood on slime. Its random draws cannot be matched step by step with CC3D."
       },
       "screamer": {
         "name": "Screamer",
-        "label": "Epoxy plays the screamer as a fireball, which is immune to fire but not to ice and force floors, which the screamer ignores. The screamer melting ice blocks is not reproduced."
+        "label": "Epoxy plays the screamer as a monster of its own: immune to fire, not carried by ice or force floors, melting the ice blocks in its way, pressing no plate. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "baby_screamer": {
         "name": "Baby screamer",
-        "label": "Epoxy plays the baby screamer as a fireball: the immunity to fire matches, but it does not melt ice blocks and, unlike the CC3D one, does not press plates."
+        "label": "Epoxy plays the baby screamer as a monster of its own: immune to fire only, melting the ice blocks in its way, pressing plates. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "snappy": {
         "name": "Snappy",
-        "label": "Monster movement is close to CC3D, not identical."
+        "label": "Epoxy plays the snappy as a monster of its own: it chases along the axis of the greater distance, with its rest folded into an eight-tick step. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "bot_static": {
         "name": "Static bot",
@@ -4007,7 +4013,7 @@
       },
       "nibble": {
         "name": "Nibble",
-        "label": "Epoxy plays a nibble as a skitter: it steps away from the player along the axis of the greater distance, at a fixed step interval."
+        "label": "Epoxy plays the nibble as a monster of its own: it runs away along the axis of the greater distance, with its rest folded into an eight-tick step. Entering ice or a force floor is a normal step in Epoxy and a fast one in CC3D, and a monster that reaches the player stands on his cell in Epoxy and next to him in CC3D."
       },
       "golem_blue": {
         "name": "Blue golem",
@@ -5629,6 +5635,84 @@
       "name": "Rover (Imitates Monsters)",
       "desc": {
         "label": "Moves like teeth, glider, bug, pink ball, timid teeth, fireball, paramecium and walker in turn, changing after 32 steps decided. It kills on contact."
+      }
+    },
+    "bouncer": {
+      "name": "Bouncer",
+      "desc": {
+        "label": "Goes straight on and turns back when blocked. It will not step into water, fire or slime. It works plates and switches and kills on contact."
+      }
+    },
+    "snappy": {
+      "name": "Snappy",
+      "desc": {
+        "label": "Chases the player along the axis where the distance is greater, trying the other axis only when it is not lined up with the player, and rests a step after each step. It will not step into water, fire or slime. It works plates and switches and kills on contact."
+      }
+    },
+    "nibble": {
+      "name": "Nibble",
+      "desc": {
+        "label": "Runs away from the player along the axis where the distance is greater, trying the other axis only when it is not lined up with the player, and rests a step after each step. It will not step into water, fire or slime. It works plates and switches and kills on contact."
+      }
+    },
+    "blinky": {
+      "name": "Blinky",
+      "desc": {
+        "label": "Goes straight on, else turns left, right or back. Water does not stop it, ice and force floors do not carry it, and it crosses turtles without sinking them. It presses no plate and works no switch. It will not step into fire or slime. It kills on contact."
+      }
+    },
+    "baby_blinky": {
+      "name": "Baby Blinky",
+      "desc": {
+        "label": "Goes straight on, else turns left, right or back. Water does not stop it and it crosses turtles without sinking them, but ice and force floors carry it. It works plates and switches. It will not step into fire or slime. It kills on contact."
+      }
+    },
+    "limpy": {
+      "name": "Limpy",
+      "desc": {
+        "label": "Prefers to turn right, else goes straight on, else left, else back, so it follows the wall on its right. It will not step into water, fire or slime. It works plates and switches and kills on contact."
+      }
+    },
+    "limpa": {
+      "name": "Limpa",
+      "desc": {
+        "label": "Prefers to turn left, else goes straight on, else right, else back, so it follows the wall on its left. It will not step into water, fire or slime. It works plates and switches and kills on contact."
+      }
+    },
+    "omni": {
+      "name": "Omni",
+      "desc": {
+        "label": "Moves slowly: it draws a direction at random and waits when that way is blocked. Slime does not hurt it, and once it has stood on slime it leaves slime on the bare floor it steps out of. It will not step into water or fire. It works plates and switches and kills on contact."
+      }
+    },
+    "legs_green": {
+      "name": "Green Legs",
+      "desc": {
+        "label": "Goes straight on, else turns right, left or back. It will not step into water, fire or slime. It works plates and switches and kills on contact."
+      }
+    },
+    "legs_red": {
+      "name": "Red Legs",
+      "desc": {
+        "label": "Goes straight on, else turns left, right or back. It will not step into water, fire or slime. It works plates and switches and kills on contact."
+      }
+    },
+    "screamer": {
+      "name": "Screamer",
+      "desc": {
+        "label": "Goes straight on, else turns right, left or back. Fire does not stop it and ice and force floors do not carry it. It melts the ice block in its way, and the floor under the block becomes water. It presses no plate and works no switch. It will not step into water or slime. It kills on contact."
+      }
+    },
+    "baby_screamer": {
+      "name": "Baby Screamer",
+      "desc": {
+        "label": "Goes straight on, else turns right, left or back. Fire does not stop it, and it melts the ice block in its way (the floor under the block becomes water), but ice and force floors carry it. It works plates and switches. It will not step into water or slime. It kills on contact."
+      }
+    },
+    "walker_3d": {
+      "name": "Walker (CC3D)",
+      "desc": {
+        "label": "Goes straight on; when blocked it draws a direction at random and waits if that way is blocked too. It steps in four ticks. It will not step into water, fire or slime. It works plates and switches and kills on contact."
       }
     },
     "mirror_chip": {

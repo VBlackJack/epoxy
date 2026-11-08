@@ -21,9 +21,13 @@ import {
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLEE_PLAYER_PATTERN,
+  FLOOR_TILE_ID,
+  FORWARD_ELSE_DRAW_PATTERN,
   OPPOSITE_DIRECTION,
   PHASE_LINE_PATTERN,
-  STATIONARY_PATTERN
+  RANDOM_DRAW_PATTERN,
+  STATIONARY_PATTERN,
+  TURTLE_TILE_ID
 } from '../coreConstants';
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
@@ -48,6 +52,7 @@ import {
   isEdgeBlocked,
   isInBounds,
   isOpenFishGate,
+  leaveCell,
   mapWidth,
   monsterSlowdown,
   notePulseArrival,
@@ -114,7 +119,10 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const chosenDir = chooseMonsterDirection(w, entity, behaviour);
   if (!chosenDir) {
     // Lexy re-decides every tic a blocked rover waits, so a blocked rover counts one decision per tick.
-    if (def?.emulates !== undefined) entity.cooldownTicks = 0;
+    // A monster that draws its way at random (the CC3D omni) draws again next tick when the draw is blocked.
+    if (def?.emulates !== undefined || def?.movementPattern === RANDOM_DRAW_PATTERN || def?.movementPattern === FORWARD_ELSE_DRAW_PATTERN) {
+      entity.cooldownTicks = 0;
+    }
     return true;
   }
 
@@ -124,11 +132,20 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
   if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, moveDir);
+  if (def?.trailTile !== undefined) leaveTrail(w, entity, def.trailTile);
+  // A monster that may enter turtles sinks the one it leaves, unless it leaves turtles afloat.
+  if (def?.entersTurtles === true && def.leavesTurtlesAfloat !== true) leaveCell(w, entity.x, entity.y);
   entity.x = nx;
   entity.y = ny;
   entity.dir = moveDir;
 
   return phases ? resolvePhasedArrival(ctx, entity) : resolveMonsterArrival(ctx, entity, true);
+}
+
+/** A monster with a trail that has stood on slime turns the plain, itemless floor cell it leaves into the trail tile (the CC3D omni leaves slime). */
+function leaveTrail(w: EpoxyWorld, entity: RuntimeEntity, trailTile: string): void {
+  if (entity.slimed !== true || w.terrain[entity.y][entity.x] !== FLOOR_TILE_ID || w.items[entity.y][entity.x]) return;
+  w.terrain[entity.y][entity.x] = trailTile;
 }
 
 /**
@@ -206,9 +223,13 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     }
 
     if (destTile.hazard === 'slime') {
-      removeEntity(w, entity.uid);
-      AudioManager.playSfx('splash');
-      return true;
+      if (!def?.immuneToSlime) {
+        removeEntity(w, entity.uid);
+        AudioManager.playSfx('splash');
+        return true;
+      }
+      // A monster slime does not hurt carries it from now on: it leaves the trail tile behind.
+      entity.slimed = true;
     }
   }
 
@@ -228,11 +249,16 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   notePulseArrival(w, nx, ny, entity);
 
   // A turning force floor turns the monster to the next direction of the shared turn.
-  const cycleDir = floorFree ? undefined : forceCycleArrival(w, destTile);
+  const cycleDir = floorFree || def?.ignoresSlidingFloors === true ? undefined : forceCycleArrival(w, destTile);
   if (cycleDir) entity.dir = cycleDir;
 
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
-  if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
+  // A monster that presses nothing (the CC3D blinky and screamer) works no button either.
+  if (
+    destTile.buttonAction &&
+    destTile.buttonWorkedBy !== 'player' &&
+    def?.pressesPlates !== false &&
+    !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
     return false;
   }
 
@@ -255,7 +281,10 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   const currentTile = ConfigRegistry.getTile(w.terrain[monster.y][monster.x]);
   // A monster the floor does not carry (a ghost) is neither slid nor forced; on ice it cannot turn either, so it
   // goes straight on and, when blocked, turns round.
-  const floorFree = ConfigRegistry.getEntityDef(monster.type)?.ignoresFloorEffects === true;
+  const ownDef = ConfigRegistry.getEntityDef(monster.type);
+  const floorFree = ownDef?.ignoresFloorEffects === true;
+  // A monster that ice and force floors do not carry (a blinky, a screamer) treats them as plain floor.
+  const slidesFree = ownDef?.ignoresSlidingFloors === true;
   if (floorFree) {
     if (currentTile.slideType === 'ice') {
       if (canMonsterEnter(w, monster, monster.dir)) return monster.dir;
@@ -263,7 +292,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
       monster.dir = OPPOSITE_DIRECTION[monster.dir];
       return null;
     }
-  } else if (currentTile.slideType === 'ice') {
+  } else if (currentTile.slideType === 'ice' && !slidesFree) {
     const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
     if (canMonsterEnter(w, monster, slideDir)) return slideDir;
     const bounce = OPPOSITE_DIRECTION[slideDir];
@@ -272,11 +301,11 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   }
 
   // A turning force floor sets the facing on arrival (see resolveMonsterArrival); the monster keeps pushing that way.
-  if (!floorFree && currentTile.forceCycle === true) {
+  if (!floorFree && !slidesFree && currentTile.forceCycle === true) {
     return canMonsterEnter(w, monster, monster.dir) ? monster.dir : null;
   }
 
-  if (!floorFree && currentTile.slideType === 'force' && currentTile.forceDirection) {
+  if (!floorFree && !slidesFree && currentTile.slideType === 'force' && currentTile.forceDirection) {
     const forceDir =
       currentTile.forceDirection === 'RANDOM'
         ? ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)]
@@ -320,6 +349,19 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     return null;
   }
 
+  if (def.movementPattern === RANDOM_DRAW_PATTERN) {
+    // One draw among the four ways: a blocked draw is a wait, not another try.
+    const drawn = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
+    return canMonsterEnter(w, monster, drawn) ? drawn : null;
+  }
+
+  if (def.movementPattern === FORWARD_ELSE_DRAW_PATTERN) {
+    if (canMonsterEnter(w, monster, monster.dir)) return monster.dir;
+    // Blocked ahead: one draw among the four ways, and a blocked draw is a wait.
+    const drawn = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
+    return canMonsterEnter(w, monster, drawn) ? drawn : null;
+  }
+
   if (def.movementPattern === 'pure_random') {
     const dirs: Direction[] = [...ORDERED_DIRECTIONS];
     w.rng.shuffle(dirs);
@@ -332,12 +374,33 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   const turnOrder = def.turnOrder || ['FORWARD'];
   for (const rel of turnOrder) {
     const candidateDir = applyRelativeTurn(monster.dir, rel);
+    // A monster that melts ice spends its step melting the ice block it would otherwise enter.
+    if (def.meltsIceBlocks === true && meltIceBlockAhead(w, monster, candidateDir)) return null;
     if (canMonsterEnter(w, monster, candidateDir)) {
       return candidateDir;
     }
   }
 
   return null;
+}
+
+/**
+ * Melts the block of ice in the cell a monster tries to enter: the block is removed and, when the cell is plain floor,
+ * the floor becomes what the block melts into (water). Returns whether a block was melted. Only a block at rest melts.
+ */
+function meltIceBlockAhead(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction): boolean {
+  const vec = DIRECTION_VECTORS[dir];
+  const nx = monster.x + vec.dx;
+  const ny = monster.y + vec.dy;
+  if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
+  const block = getEntityAt(w, nx, ny);
+  if (block === undefined || block.kind !== 'block' || block.isSliding) return false;
+  const melted = ConfigRegistry.getEntityDef(block.type)?.meltsInFireTo;
+  if (melted === undefined) return false;
+  if (w.terrain[ny][nx] === FLOOR_TILE_ID) w.terrain[ny][nx] = melted;
+  removeEntity(w, block.uid);
+  AudioManager.playSfx('splash');
+  return true;
 }
 
 /**
@@ -407,7 +470,7 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
   if (def?.passesSolidTiles === true && !passesSolid) return false;
 
   // passesTiles lets a monster enter a tile it otherwise could not (undefined for every monster that exists today).
-  const passesTile = def?.passesTiles?.includes(destTileId) === true;
+  const passesTile = def?.passesTiles?.includes(destTileId) === true || (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID);
   if (
     !destTile.passableByMonster &&
     !passesTile &&
@@ -418,6 +481,8 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
     return false;
   }
   if (destTile.hazard === 'fire' && def?.avoidsFire) return false;
+  // A monster may refuse to step into a hazard it would not survive (the CC3D monsters refuse water, fire and slime).
+  if (destTile.hazard !== undefined && def?.refusesHazards?.includes(destTile.hazard) === true) return false;
 
   const itemId = w.items[ny][nx];
   if (def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
